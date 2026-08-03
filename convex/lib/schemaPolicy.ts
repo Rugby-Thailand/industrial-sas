@@ -7,10 +7,11 @@
  *
  * Why this exists rather than a prose rule in an ADR: `orgId`-first tenancy
  * (D-18, `INV-0002-02`), a fixed global-table allowlist, bounded external
- * lookups, and the absence of credential fields are all properties of the
- * finished schema. A property that only a reviewer checks decays on the first
- * busy week. Everything below is stated once, as data, and asserted by
- * `tests/isolation/` and `tests/integration/`.
+ * lookups, the cardinality each indexed key actually claims, and the absence of
+ * credential fields are all properties of the finished schema. A property that
+ * only a reviewer checks decays on the first busy week. Everything below is
+ * stated once, as data, and asserted by `tests/isolation/` and
+ * `tests/integration/`.
  *
  * The design intent is that this file is the *expectation* and `convex/schema.ts`
  * is the *implementation*, so drift in either direction fails: a new table that
@@ -154,6 +155,38 @@ export function fieldWords(fieldPath: string): readonly string[] {
 /* -------------------------------------------------------------------------- */
 
 /**
+ * When a uniqueness contract applies.
+ *
+ * An optional field cannot be unconditionally unique: two documents that both
+ * omit it are two documents, not a collision. Convex has no partial unique index
+ * either, so the qualifier has to be carried as data — otherwise the future
+ * mutation reads "unique by contract" next to an optional field and has to guess
+ * whether `undefined === undefined` is a duplicate.
+ *
+ * - `always` — every document in the table participates.
+ * - `whenPresent` — only documents where every named field is present, and each
+ *   named field must be optional in the schema and part of the key.
+ */
+export type UniquenessCondition =
+  | { readonly kind: "always" }
+  | { readonly kind: "whenPresent"; readonly fields: readonly string[] };
+
+/**
+ * The contract holds for every document in the table.
+ *
+ * Frozen because one object is shared by every unconditional contract: an
+ * accidental write would silently retype a dozen contracts at once.
+ */
+export const ALWAYS: UniquenessCondition = Object.freeze({
+  kind: "always",
+} as const);
+
+/** The contract holds only where every named optional field has a value. */
+export function whenPresent(...fields: readonly string[]): UniquenessCondition {
+  return { kind: "whenPresent", fields };
+}
+
+/**
  * A key that must be unique, and the index that makes checking it bounded.
  *
  * Convex has no unique constraint, so uniqueness is always a code obligation.
@@ -164,11 +197,15 @@ export function fieldWords(fieldPath: string): readonly string[] {
  * Every tenant contract begins with `orgId`, so a uniqueness scope never spans
  * tenants: one tenant's warehouse code can never collide with, or disclose,
  * another's.
+ *
+ * `condition` is required rather than defaulted, because "is an absent value a
+ * collision?" is exactly the question a default would hide.
  */
 export type UniquenessContract = {
   readonly table: string;
   readonly key: readonly string[];
   readonly index: string;
+  readonly condition: UniquenessCondition;
   readonly rationale: string;
 };
 
@@ -177,6 +214,7 @@ export const UNIQUENESS_CONTRACTS: readonly UniquenessContract[] = [
     table: "organizations",
     key: ["clerkOrganizationId"],
     index: "by_clerkOrganizationId",
+    condition: ALWAYS,
     rationale:
       "One Clerk organization maps to at most one tenant, both directions (INV-0001-05).",
   },
@@ -184,6 +222,7 @@ export const UNIQUENESS_CONTRACTS: readonly UniquenessContract[] = [
     table: "users",
     key: ["clerkUserId"],
     index: "by_clerkUserId",
+    condition: ALWAYS,
     rationale:
       "Actor resolution from a verified Clerk token happens on every request (INV-0001-02).",
   },
@@ -191,6 +230,7 @@ export const UNIQUENESS_CONTRACTS: readonly UniquenessContract[] = [
     table: "permissions",
     key: ["code"],
     index: "by_code",
+    condition: ALWAYS,
     rationale:
       "Permission codes are the stable identifiers functions and audit rows cite (INV-0006-02).",
   },
@@ -198,6 +238,7 @@ export const UNIQUENESS_CONTRACTS: readonly UniquenessContract[] = [
     table: "warehouses",
     key: ["orgId", "code"],
     index: "by_orgId_code",
+    condition: ALWAYS,
     rationale:
       "Tenant-normalized human identifier, unique per organization (§5 Q4).",
   },
@@ -205,6 +246,7 @@ export const UNIQUENESS_CONTRACTS: readonly UniquenessContract[] = [
     table: "memberships",
     key: ["orgId", "userId"],
     index: "by_orgId_userId",
+    condition: ALWAYS,
     rationale:
       "One membership per user per organization; resolved before every operation (INV-0001-03).",
   },
@@ -212,6 +254,7 @@ export const UNIQUENESS_CONTRACTS: readonly UniquenessContract[] = [
     table: "memberships",
     key: ["orgId", "clerkMembershipId"],
     index: "by_orgId_clerkMembershipId",
+    condition: ALWAYS,
     rationale:
       "Idempotent application of Clerk membership webhooks (INV-0001-04).",
   },
@@ -219,30 +262,35 @@ export const UNIQUENESS_CONTRACTS: readonly UniquenessContract[] = [
     table: "membershipRoles",
     key: ["orgId", "membershipId", "roleId"],
     index: "by_orgId_membershipId_roleId",
+    condition: ALWAYS,
     rationale: "A role is held once per membership; the row is the grant.",
   },
   {
     table: "membershipWarehouses",
     key: ["orgId", "membershipId", "warehouseId"],
     index: "by_orgId_membershipId_warehouseId",
+    condition: ALWAYS,
     rationale: "Warehouse scope is a set, not a multiset (G-007).",
   },
   {
     table: "roles",
     key: ["orgId", "key"],
     index: "by_orgId_key",
+    condition: ALWAYS,
     rationale: "Seeded role keys must be idempotent to reseed (INV-0006-11).",
   },
   {
     table: "rolePermissions",
     key: ["orgId", "roleId", "permissionCode"],
     index: "by_orgId_roleId_permissionCode",
+    condition: ALWAYS,
     rationale: "A permission is granted to a role once; composition is a set.",
   },
   {
     table: "entitlements",
     key: ["orgId", "key"],
     index: "by_orgId_key",
+    condition: ALWAYS,
     rationale:
       "One entitlement row per key per tenant; absent means disabled (D-30).",
   },
@@ -250,22 +298,53 @@ export const UNIQUENESS_CONTRACTS: readonly UniquenessContract[] = [
     table: "idempotencyRecords",
     key: ["orgId", "operation", "requestId"],
     index: "by_orgId_operation_requestId",
+    condition: ALWAYS,
     rationale:
-      "Replay detection on the hot path of every mutation; scoped per tenant (§5 Q30).",
+      "Replay detection on the hot path of every mutation; scoped per tenant (§5 Q30). " +
+      "The key locates the record; `requestHash` decides retry versus reused ID (INV-0003-01).",
   },
   {
     table: "devices",
     key: ["orgId", "installationId"],
     index: "by_orgId_installationId",
+    condition: whenPresent("installationId"),
     rationale:
-      "A PWA installation correlates to at most one registered device.",
+      "A reported PWA installation correlates to at most one registered device. " +
+      "`installationId` is optional, so devices that have reported none are not duplicates of each other.",
   },
+] as const;
+
+/* -------------------------------------------------------------------------- */
+/* Bounded lookup contracts (indexed, deliberately not unique)                 */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * A key that must be indexed so its reads are bounded, and whose cardinality is
+ * explicitly many.
+ *
+ * An index alone says nothing about cardinality, and the absence of a uniqueness
+ * contract is indistinguishable from an oversight. Stating "many, on purpose"
+ * here is what stops a later mutation from inventing a one-per-key rule the
+ * domain never asked for.
+ */
+export type LookupContract = {
+  readonly table: string;
+  readonly key: readonly string[];
+  readonly index: string;
+  readonly cardinality: "many";
+  readonly rationale: string;
+};
+
+export const BOUNDED_LOOKUP_CONTRACTS: readonly LookupContract[] = [
   {
     table: "supportGrants",
     key: ["orgId", "ticketRef"],
     index: "by_orgId_ticketRef",
+    cardinality: "many",
     rationale:
-      "A grant is bound to one support ticket, so the tenant can reconcile it (INV-0006-09).",
+      "Every grant is bound to a support ticket, but a ticket may earn several grants over its life " +
+      "(reopened, re-requested after expiry, a second engineer). The index bounds ticket history and " +
+      "tenant reconciliation (INV-0006-09); it does not cap the count.",
   },
 ] as const;
 
@@ -466,13 +545,20 @@ export function forbiddenFieldPaths(facts: TableFacts): readonly string[] {
 
 /**
  * Contracts that the schema does not honour: a missing table, a missing key
- * field, a missing index, or an index whose fields are not exactly the key in
- * order.
+ * field, a missing index, an index whose fields are not exactly the key in
+ * order, or a condition that disagrees with the declared optionality of the key.
  *
  * "Exactly, in order" rather than "starts with" because a prefix index makes the
  * uniqueness check a range read over an unbounded set of neighbours, and a
  * uniqueness check that reads more than one candidate is a race waiting for
  * traffic.
+ *
+ * The condition checks are the part that protects an optional key field. An
+ * unconditional contract over an optional field is a trap: the mutation that
+ * honours it literally treats two absent values as a collision and refuses a
+ * legitimate write. A `whenPresent` contract over a required field is the
+ * opposite mistake — a qualifier that can never bite, which teaches the reader to
+ * ignore qualifiers.
  */
 export function uniquenessContractViolations(
   allFacts: readonly TableFacts[],
@@ -481,6 +567,7 @@ export function uniquenessContractViolations(
   const problems: string[] = [];
 
   for (const contract of UNIQUENESS_CONTRACTS) {
+    const keyLabel = `[${contract.key.join(", ")}]`;
     const facts = byName.get(contract.table);
     if (facts === undefined) {
       problems.push(
@@ -495,25 +582,142 @@ export function uniquenessContractViolations(
       }
     }
 
+    const conditionalFields =
+      contract.condition.kind === "whenPresent"
+        ? contract.condition.fields
+        : [];
+
+    for (const field of conditionalFields) {
+      if (!contract.key.includes(field)) {
+        problems.push(
+          `${contract.table}.${contract.index}: contract ${keyLabel} is conditional on ` +
+            `"${field}", which is not part of the key`,
+        );
+        continue;
+      }
+      if (!facts.optionalFieldNames.includes(field)) {
+        problems.push(
+          `${contract.table}.${contract.index}: contract ${keyLabel} is marked "when present" ` +
+            `for "${field}", but the schema declares it required, so the condition can never apply`,
+        );
+      }
+    }
+
+    for (const field of contract.key) {
+      if (
+        facts.optionalFieldNames.includes(field) &&
+        !conditionalFields.includes(field)
+      ) {
+        problems.push(
+          `${contract.table}.${contract.index}: key field "${field}" is optional but the ` +
+            `contract ${keyLabel} is unconditional; two absent values are not a collision, so ` +
+            'declare it with whenPresent("' +
+            field +
+            '")',
+        );
+      }
+    }
+
     const index = facts.indexes.find(
       (candidate) => candidate.name === contract.index,
     );
     if (index === undefined) {
       problems.push(
         `${contract.table}: index "${contract.index}" is absent, so the uniqueness ` +
-          `check on [${contract.key.join(", ")}] would be unbounded`,
+          `check on ${keyLabel} would be unbounded`,
       );
       continue;
     }
     if (index.fields.join(",") !== contract.key.join(",")) {
       problems.push(
         `${contract.table}.${contract.index}: indexes [${index.fields.join(", ")}] ` +
-          `but the contract key is [${contract.key.join(", ")}]`,
+          `but the contract key is ${keyLabel}`,
       );
     }
   }
 
   return problems;
+}
+
+/**
+ * Bounded-lookup contracts the schema does not honour.
+ *
+ * The index must exist and must *begin* with the key — a prefix is correct here,
+ * because the read is a range over many rows by design rather than a
+ * single-candidate check. A missing index would turn a "show me this ticket's
+ * grants" question into a scan of every grant in the table.
+ */
+export function lookupContractViolations(
+  allFacts: readonly TableFacts[],
+  contracts: readonly LookupContract[] = BOUNDED_LOOKUP_CONTRACTS,
+): readonly string[] {
+  const byName = new Map(allFacts.map((facts) => [facts.name, facts]));
+  const problems: string[] = [];
+
+  for (const contract of contracts) {
+    const keyLabel = `[${contract.key.join(", ")}]`;
+    const facts = byName.get(contract.table);
+    if (facts === undefined) {
+      problems.push(
+        `${contract.table}: table named by a bounded-lookup contract is absent`,
+      );
+      continue;
+    }
+
+    for (const field of contract.key) {
+      if (!facts.fieldNames.includes(field)) {
+        problems.push(
+          `${contract.table}: bounded-lookup key field "${field}" is absent`,
+        );
+      }
+    }
+
+    const index = facts.indexes.find(
+      (candidate) => candidate.name === contract.index,
+    );
+    if (index === undefined) {
+      problems.push(
+        `${contract.table}: index "${contract.index}" is absent, so reading ${keyLabel} ` +
+          "would scan the table",
+      );
+      continue;
+    }
+    const prefix = index.fields.slice(0, contract.key.length).join(",");
+    if (prefix !== contract.key.join(",")) {
+      problems.push(
+        `${contract.table}.${contract.index}: indexes [${index.fields.join(", ")}] ` +
+          `but the bounded-lookup key is ${keyLabel}`,
+      );
+    }
+  }
+
+  return problems;
+}
+
+/**
+ * Keys declared both unique and many-per-key.
+ *
+ * Two lists that disagree are worse than either list alone: whichever one the
+ * next mutation happens to read becomes the rule. Checked over both lists as
+ * arguments so the contradiction can be demonstrated on synthetic data without
+ * corrupting the real declarations.
+ */
+export function cardinalityContradictions(
+  unique: readonly UniquenessContract[] = UNIQUENESS_CONTRACTS,
+  lookups: readonly LookupContract[] = BOUNDED_LOOKUP_CONTRACTS,
+): readonly string[] {
+  const uniqueKeys = new Set(
+    unique.map((contract) => `${contract.table}:${contract.key.join(",")}`),
+  );
+  return lookups
+    .filter((contract) =>
+      uniqueKeys.has(`${contract.table}:${contract.key.join(",")}`),
+    )
+    .map(
+      (contract) =>
+        `${contract.table}: [${contract.key.join(", ")}] is declared both unique and ` +
+        `cardinality "${contract.cardinality}"; the two contracts contradict each other`,
+    );
 }
 
 /** Tables present in the schema that this policy does not classify. */
@@ -538,8 +742,8 @@ export function missingTables(
 /**
  * Every violation the policy can see, in one list.
  *
- * The composed function exists so a caller cannot honour four of the five checks
- * and believe the schema was vetted. Adding a check here makes it part of the
+ * The composed function exists so a caller cannot honour most of the checks and
+ * believe the schema was vetted. Adding a check here makes it part of the
  * guard everywhere the guard runs; the individual functions stay exported so a
  * failure can be attributed to one rule rather than to "the schema".
  *
@@ -577,6 +781,8 @@ export function schemaPolicyViolations(
       ),
     ),
     ...uniquenessContractViolations(allFacts),
+    ...lookupContractViolations(allFacts),
+    ...cardinalityContradictions(),
   ];
 }
 

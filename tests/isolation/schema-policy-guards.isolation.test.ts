@@ -20,10 +20,12 @@ import { v } from "convex/values";
 import { describe, expect, it } from "vitest";
 
 import {
+  ALWAYS,
   FORBIDDEN_FIELD_PHRASES,
   FORBIDDEN_FIELD_WORDS,
   GLOBAL_TABLES,
   UNIQUENESS_CONTRACTS,
+  cardinalityContradictions,
   classifyTable,
   closedValueSet,
   describeSchema,
@@ -31,11 +33,13 @@ import {
   fieldWords,
   forbiddenFieldPaths,
   globalTableViolations,
+  lookupContractViolations,
   missingTables,
   schemaPolicyViolations,
   tenantTableViolations,
   unclassifiedTables,
   uniquenessContractViolations,
+  type LookupContract,
   type TableFacts,
 } from "../../convex/lib/schemaPolicy";
 
@@ -395,6 +399,176 @@ describe("a broken bounded-lookup contract is caught", () => {
       "warehouses.by_orgId_code: indexes [orgId, code, status] but the contract key " +
         "is [orgId, code]",
     );
+  });
+});
+
+describe("a uniqueness condition that disagrees with the schema is caught", () => {
+  const devices = UNIQUENESS_CONTRACTS.find(
+    (candidate) => candidate.table === "devices",
+  );
+
+  it("names the conditional contract it is about to break", () => {
+    expect(devices?.key).toEqual(["orgId", "installationId"]);
+    expect(devices?.condition).toEqual({
+      kind: "whenPresent",
+      fields: ["installationId"],
+    });
+  });
+
+  it("catches an unconditional contract over an optional key field", () => {
+    // `warehouses.code` is unconditionally unique. If the schema ever made it
+    // optional, a mutation honouring the contract literally would treat two
+    // code-less warehouses as duplicates of each other.
+    const problems = uniquenessContractViolations([
+      withFacts({ name: "warehouses", optionalFieldNames: ["code"] }),
+    ]);
+    expect(problems).toContain(
+      'warehouses.by_orgId_code: key field "code" is optional but the contract ' +
+        "[orgId, code] is unconditional; two absent values are not a collision, so " +
+        'declare it with whenPresent("code")',
+    );
+  });
+
+  it("catches a 'when present' qualifier on a field the schema requires", () => {
+    const problems = uniquenessContractViolations([
+      withFacts({
+        name: "devices",
+        fieldNames: ["orgId", "installationId"],
+        fieldPaths: ["orgId", "installationId"],
+        optionalFieldNames: [],
+        indexes: [
+          {
+            name: "by_orgId_installationId",
+            fields: ["orgId", "installationId"],
+          },
+        ],
+      }),
+    ]);
+    expect(problems).toContain(
+      "devices.by_orgId_installationId: contract [orgId, installationId] is marked " +
+        '"when present" for "installationId", but the schema declares it required, so ' +
+        "the condition can never apply",
+    );
+  });
+
+  it("accepts the conditional contract when the field is optional", () => {
+    const problems = uniquenessContractViolations([
+      withFacts({
+        name: "devices",
+        fieldNames: ["orgId", "installationId"],
+        fieldPaths: ["orgId", "installationId"],
+        optionalFieldNames: ["installationId"],
+        indexes: [
+          {
+            name: "by_orgId_installationId",
+            fields: ["orgId", "installationId"],
+          },
+        ],
+      }),
+    ]);
+    expect(problems.filter((problem) => problem.startsWith("devices"))).toEqual(
+      [],
+    );
+  });
+});
+
+describe("a broken many-per-key lookup contract is caught", () => {
+  const manyPerTicket: readonly LookupContract[] = [
+    {
+      table: "supportGrants",
+      key: ["orgId", "ticketRef"],
+      index: "by_orgId_ticketRef",
+      cardinality: "many",
+      rationale: "Synthetic copy of the real contract, for guard proof.",
+    },
+  ];
+
+  it("catches an absent table", () => {
+    expect(lookupContractViolations([], manyPerTicket)).toContain(
+      "supportGrants: table named by a bounded-lookup contract is absent",
+    );
+  });
+
+  it("catches a missing index, which would turn ticket history into a scan", () => {
+    const problems = lookupContractViolations(
+      [
+        withFacts({
+          name: "supportGrants",
+          fieldNames: ["orgId", "ticketRef"],
+          fieldPaths: ["orgId", "ticketRef"],
+          indexes: [{ name: "by_orgId_expiresAt", fields: ["orgId"] }],
+        }),
+      ],
+      manyPerTicket,
+    );
+    expect(problems).toContain(
+      'supportGrants: index "by_orgId_ticketRef" is absent, so reading ' +
+        "[orgId, ticketRef] would scan the table",
+    );
+  });
+
+  it("catches an index that does not begin with the key", () => {
+    const problems = lookupContractViolations(
+      [
+        withFacts({
+          name: "supportGrants",
+          fieldNames: ["orgId", "ticketRef"],
+          fieldPaths: ["orgId", "ticketRef"],
+          indexes: [
+            { name: "by_orgId_ticketRef", fields: ["orgId", "status"] },
+          ],
+        }),
+      ],
+      manyPerTicket,
+    );
+    expect(problems).toContain(
+      "supportGrants.by_orgId_ticketRef: indexes [orgId, status] but the " +
+        "bounded-lookup key is [orgId, ticketRef]",
+    );
+  });
+
+  it("accepts a wider index, because a many-per-key read is a range", () => {
+    const problems = lookupContractViolations(
+      [
+        withFacts({
+          name: "supportGrants",
+          fieldNames: ["orgId", "ticketRef", "requestedAt"],
+          fieldPaths: ["orgId", "ticketRef", "requestedAt"],
+          indexes: [
+            {
+              name: "by_orgId_ticketRef",
+              fields: ["orgId", "ticketRef", "requestedAt"],
+            },
+          ],
+        }),
+      ],
+      manyPerTicket,
+    );
+    expect(problems).toEqual([]);
+  });
+
+  it("catches a key declared both unique and many-per-key", () => {
+    expect(
+      cardinalityContradictions(
+        [
+          {
+            table: "supportGrants",
+            key: ["orgId", "ticketRef"],
+            index: "by_orgId_ticketRef",
+            condition: ALWAYS,
+            rationale: "Synthetic contradiction, for guard proof.",
+          },
+        ],
+        manyPerTicket,
+      ),
+    ).toEqual([
+      "supportGrants: [orgId, ticketRef] is declared both unique and cardinality " +
+        '"many"; the two contracts contradict each other',
+    ]);
+  });
+
+  it("finds no contradiction between the real declarations", () => {
+    expect(cardinalityContradictions()).toEqual([]);
   });
 });
 

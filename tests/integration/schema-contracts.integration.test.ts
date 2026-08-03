@@ -12,6 +12,15 @@
  * - every uniqueness key has an index that makes its check bounded, and every
  *   tenant key begins with `orgId` (Convex has no unique constraint, so this is
  *   the only thing that makes uniqueness affordable to honour);
+ * - every uniqueness contract states *when* it applies, so an optional key field
+ *   is never claimed unique unconditionally (`devices.installationId` is unique
+ *   per organization only when present);
+ * - a key that is indexed for bounded reads but deliberately many-per-key says so
+ *   (`supportGrants.ticketRef`: every grant is bound to a ticket, and a ticket may
+ *   earn more than one grant);
+ * - `idempotencyRecords` can express "same key replays, changed request is
+ *   rejected" — the request hash exists from creation, the response hash and
+ *   replay reference arrive on completion, and no payload is stored;
  * - the value sets that policy branches on are closed, with exactly the expected
  *   members;
  * - a new organization starts with Thai/THB/`Asia/Bangkok` and every capability
@@ -29,9 +38,12 @@ import {
   DEFAULT_TIMEZONE,
 } from "../../convex/lib/organizationDefaults";
 import {
+  BOUNDED_LOOKUP_CONTRACTS,
   UNIQUENESS_CONTRACTS,
+  cardinalityContradictions,
   closedValueSet,
   describeSchema,
+  lookupContractViolations,
   uniquenessContractViolations,
 } from "../../convex/lib/schemaPolicy";
 import schema from "../../convex/schema";
@@ -44,6 +56,14 @@ describe("uniqueness and bounded-lookup contracts", () => {
     expect(uniquenessContractViolations(facts)).toEqual([]);
   });
 
+  it("honours every bounded-lookup contract with an index that prefixes its key", () => {
+    expect(lookupContractViolations(facts)).toEqual([]);
+  });
+
+  it("never declares one key both unique and many-per-key", () => {
+    expect(cardinalityContradictions()).toEqual([]);
+  });
+
   it("scopes every tenant contract to one organization", () => {
     const tenantContracts = UNIQUENESS_CONTRACTS.filter(
       (contract) =>
@@ -53,6 +73,20 @@ describe("uniqueness and bounded-lookup contracts", () => {
       (contract) => contract.key[0] !== "orgId",
     );
     expect(unscoped).toEqual([]);
+    expect(
+      BOUNDED_LOOKUP_CONTRACTS.filter(
+        (contract) => contract.key[0] !== "orgId",
+      ),
+    ).toEqual([]);
+  });
+
+  it("states a condition on every contract rather than defaulting one", () => {
+    const undeclared = UNIQUENESS_CONTRACTS.filter(
+      (contract) =>
+        contract.condition.kind !== "always" &&
+        contract.condition.kind !== "whenPresent",
+    );
+    expect(undeclared).toEqual([]);
   });
 
   it("covers every external identity reference the mirror depends on", () => {
@@ -70,6 +104,127 @@ describe("uniqueness and bounded-lookup contracts", () => {
       (candidate) => candidate.table === "idempotencyRecords",
     );
     expect(contract?.key).toEqual(["orgId", "operation", "requestId"]);
+  });
+});
+
+describe("conditional uniqueness of an optional key field", () => {
+  const contract = UNIQUENESS_CONTRACTS.find(
+    (candidate) => candidate.table === "devices",
+  );
+
+  it("marks devices.installationId unique only when present", () => {
+    expect(contract?.key).toEqual(["orgId", "installationId"]);
+    expect(contract?.condition).toEqual({
+      kind: "whenPresent",
+      fields: ["installationId"],
+    });
+  });
+
+  it("keeps installationId optional, so an absent value is not a collision", () => {
+    expect(tables.devices.validator.fields.installationId.isOptional).toBe(
+      "optional",
+    );
+  });
+
+  it("leaves no optional key field claimed unique unconditionally", () => {
+    const unconditionalOverOptional = UNIQUENESS_CONTRACTS.filter(
+      (candidate) => candidate.condition.kind === "always",
+    ).flatMap((candidate) => {
+      const table = facts.find((entry) => entry.name === candidate.table);
+      return candidate.key
+        .filter((field) => table?.optionalFieldNames.includes(field))
+        .map((field) => `${candidate.table}.${field}`);
+    });
+    expect(unconditionalOverOptional).toEqual([]);
+  });
+});
+
+describe("a support ticket may earn more than one grant", () => {
+  it("declares no uniqueness contract over the ticket reference", () => {
+    const uniqueOverTicket = UNIQUENESS_CONTRACTS.filter(
+      (contract) =>
+        contract.table === "supportGrants" &&
+        contract.key.includes("ticketRef"),
+    );
+    expect(uniqueOverTicket).toEqual([]);
+  });
+
+  it("declares the ticket reference a many-per-key bounded lookup instead", () => {
+    const contract = BOUNDED_LOOKUP_CONTRACTS.find(
+      (candidate) =>
+        candidate.table === "supportGrants" &&
+        candidate.key.includes("ticketRef"),
+    );
+    expect(contract?.key).toEqual(["orgId", "ticketRef"]);
+    expect(contract?.cardinality).toBe("many");
+    expect(contract?.index).toBe("by_orgId_ticketRef");
+  });
+
+  it("keeps the org-first index so ticket history stays bounded", () => {
+    const supportGrants = facts.find((entry) => entry.name === "supportGrants");
+    const index = supportGrants?.indexes.find(
+      (candidate) => candidate.name === "by_orgId_ticketRef",
+    );
+    expect(index?.fields).toEqual(["orgId", "ticketRef"]);
+  });
+
+  it("still requires a ticket reference on every grant", () => {
+    expect(tables.supportGrants.validator.fields.ticketRef.isOptional).toBe(
+      "required",
+    );
+  });
+});
+
+describe("idempotency replay shape", () => {
+  const fields = tables.idempotencyRecords.validator.fields;
+
+  it("hashes the request, and does so from the moment the record exists", () => {
+    expect(Object.keys(fields)).toContain("requestHash");
+    expect(fields.requestHash.isOptional).toBe("required");
+  });
+
+  it("keeps the response hash separate and optional until the operation completes", () => {
+    expect(fields.resultHash.isOptional).toBe("optional");
+    expect(fields.resultRef.isOptional).toBe("optional");
+    expect(fields.requestHash).not.toBe(fields.resultHash);
+  });
+
+  it("can decide retry versus reused request ID from the key plus the request hash", () => {
+    // The invariant the future wrapper owes (INV-0003-01): the same
+    // (orgId, operation, requestId) replays the original result, and a changed
+    // request under that key is rejected. Both inputs to that decision are
+    // declared and available at creation time.
+    const contract = UNIQUENESS_CONTRACTS.find(
+      (candidate) => candidate.table === "idempotencyRecords",
+    );
+    expect(contract?.key).toEqual(["orgId", "operation", "requestId"]);
+    expect(contract?.condition.kind).toBe("always");
+    for (const required of ["operation", "requestId", "requestHash"]) {
+      expect(
+        (fields as Record<string, { isOptional: string }>)[required]
+          ?.isOptional,
+      ).toBe("required");
+    }
+  });
+
+  it("stores no request or response payload, only references and digests", () => {
+    const names = Object.keys(fields);
+    for (const forbidden of [
+      "args",
+      "arguments",
+      "requestBody",
+      "responseBody",
+      "payload",
+      "input",
+      "output",
+      "response",
+      "result",
+    ]) {
+      expect(names).not.toContain(forbidden);
+    }
+    expect(names).toEqual(
+      expect.arrayContaining(["requestHash", "resultRef", "resultHash"]),
+    );
   });
 });
 

@@ -28,7 +28,11 @@
  *    nothing below is enforced by the database and nothing is enforced today:
  *    every "unique" in this file means **unique by contract** — a bounded index
  *    plus the check the future mutation owes on every write. The contracts are
- *    enumerated in `schemaPolicy.ts`.
+ *    enumerated in `schemaPolicy.ts`, and a bounded index does not by itself
+ *    imply uniqueness: some contracts are conditional (`devices.installationId`
+ *    is unique per organization *when present*) and some indexed keys are
+ *    deliberately many-per-key (`supportGrants.ticketRef`). Which is which is
+ *    stated there as data, never left to inference from the index name.
  *
  * Deliberately absent, and why:
  *
@@ -384,9 +388,38 @@ export default defineSchema({
    * makes the replay check a single bounded lookup on the hot path of every
    * mutation.
    *
-   * Stores a *reference* and a hash of the original result, never the payload:
-   * an idempotency table that mirrors domain data becomes a second, unaudited
-   * copy of it.
+   * Two hashes, because a replay asks two questions and no single hash answers
+   * both:
+   *
+   * - `requestHash` covers the **arguments**, and exists from the moment the
+   *   record is created. It is what makes "same key, different request" decidable:
+   *   a second request under the same key either hashes equal — a retry, which
+   *   replays the original result — or it does not, and is rejected. A hash of the
+   *   response cannot do this job: no response exists when the first request
+   *   arrives, and a changed argument is a property of the input.
+   * - `resultHash` covers the **response**, as an integrity hash of the original
+   *   one. It is not replay detection; it lets a replay prove that the response it
+   *   reconstructed is the response the first call returned.
+   *
+   * `resultRef` is an operation-owned, stable replay reference: an opaque handle
+   * (typically the ID of the document the operation produced) that the
+   * operation-specific adapter — which does not exist yet — resolves back into the
+   * exact original typed response. Deliberately a reference and two digests rather
+   * than the payloads themselves: an idempotency table that stores requests and
+   * responses becomes a second, unaudited copy of domain data and a place for PII
+   * to collect outside the tenant tables that govern it (§14). `requestHash`
+   * exists precisely so argument equality is decidable without keeping the
+   * arguments.
+   *
+   * Hashes are not credentials and not reversible into their inputs. The digest
+   * algorithm, the argument canonicalization, and the reference format are owed by
+   * the operation-level wrapper, not by this declaration.
+   *
+   * Nothing runs yet: no mutation writes a record, nothing computes a hash,
+   * nothing rejects a mismatch. The invariant this shape must be able to support —
+   * a replay of the same `(orgId, operation, requestId)` returns the original
+   * result, and a request whose arguments differ under that key is rejected —
+   * belongs to the future wrapper (`ADR-0003` §4, `INV-0003-01`).
    */
   idempotencyRecords: defineTable(
     tenantFields({
@@ -395,9 +428,23 @@ export default defineSchema({
       /** Client-generated request ID (UUIDv7 in the ledger contract, §7.4). */
       requestId: v.string(),
       status: idempotencyStatus,
-      /** Document ID of the produced result, as a string. */
+      /**
+       * Hash of the canonicalized request arguments. Required, and written when
+       * the record is first created: a replay check that cannot compare arguments
+       * cannot distinguish a retry from a reused request ID.
+       */
+      requestHash: v.string(),
+      /**
+       * Operation-owned stable replay reference — an opaque handle the operation's
+       * own adapter resolves into the original typed response. Absent until the
+       * operation completes.
+       */
       resultRef: v.optional(v.string()),
-      /** Hash of the original response, to detect a replay with changed arguments. */
+      /**
+       * Integrity hash of the original response, so a reconstructed replay result
+       * is verifiable. Absent until the operation completes. Not replay detection:
+       * that is `requestHash`.
+       */
       resultHash: v.optional(v.string()),
       actorUserId: v.optional(v.id("users")),
       deviceId: v.optional(v.id("devices")),
@@ -425,7 +472,12 @@ export default defineSchema({
       status: deviceStatus,
       /** Home warehouse, when the device belongs to one site. */
       warehouseId: v.optional(v.id("warehouses")),
-      /** Opaque correlation value from the installed PWA. Never a credential. */
+      /**
+       * Opaque correlation value from the installed PWA. Never a credential.
+       * Unique per organization **when present**, by contract: an absent value is
+       * not a collision, so two devices that have never reported an installation
+       * are two devices, not a duplicate.
+       */
       installationId: v.optional(v.string()),
       lastSeenAt: v.optional(v.number()),
     }),
@@ -489,7 +541,13 @@ export default defineSchema({
       accessMode: supportAccessMode,
       /** Why access is needed. Required: no grant without a stated reason. */
       reason: v.string(),
-      /** Support ticket reference the grant is bound to. */
+      /**
+       * Support ticket reference the grant is bound to. Required, and deliberately
+       * **not** unique: binding a grant to a ticket says where the request came
+       * from, not that a ticket may only ever earn one grant. A reopened ticket, a
+       * second engineer, or an expired grant that must be re-requested all mean
+       * more than one grant for one ticket.
+       */
       ticketRef: v.string(),
       /** Platform actor who requested it. Opaque platform reference. */
       requestedBy: v.string(),
@@ -513,6 +571,8 @@ export default defineSchema({
   )
     // Expiry sweep and "is there an active grant right now" both read this.
     .index("by_orgId_status_expiresAt", byOrg("status", "expiresAt"))
+    // Ticket history: every grant raised against one ticket, bounded. A lookup
+    // index, not a uniqueness index — see `ticketRef` above.
     .index("by_orgId_ticketRef", byOrg("ticketRef"))
     .index("by_orgId_expiresAt", byOrg("expiresAt")),
 });
