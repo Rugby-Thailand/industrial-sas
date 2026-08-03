@@ -2,7 +2,8 @@
  * A two-tenant Convex world, backed by `convex-test` and running offline.
  *
  * This is a fixture, not a test: it is imported by
- * `tests/integration/tenant-storage.integration.test.ts` and
+ * `tests/integration/tenant-storage.integration.test.ts`,
+ * `tests/integration/tenant-actions.integration.test.ts`, and
  * `tests/isolation/tenant-storage.isolation.test.ts`, and it sits outside every
  * Vitest project's `include` glob.
  *
@@ -37,10 +38,12 @@
  * `_generated` in the module map it is given. This repository has no
  * `convex/_generated/` — nothing has been deployed, and no command here needs a
  * Convex project — so the map below supplies exactly one entry to satisfy that
- * lookup. It is never loaded: modules are only imported when a *registered*
- * function is called by reference, and these suites only ever use `t.run` and
- * `t.query` with inline functions. If that ever stops being true, the failure is
- * loud (`Could not find module for: …`), not silent.
+ * lookup. It is never loaded: a module is imported only when a *registered*
+ * function inside it is called by reference, and no reference names this one. A
+ * suite that does call registered functions — the action suite does — passes its
+ * own entries to `createConvexTenantWorld`, keyed by the same `../convex/…` paths
+ * the references resolve to. A missing entry fails loudly
+ * (`Could not find module for: …`), not silently.
  *
  * All data below is synthetic — no real customer, supplier, or personal data
  * (PDPA, see `tests/fixtures/README.md`).
@@ -56,8 +59,10 @@ const CONVEX_MODULE_ROOT: Record<string, () => Promise<unknown>> = {
   "../convex/_generated/server.js": () => Promise.resolve({}),
 };
 
-function harness() {
-  return convexTest(schema, CONVEX_MODULE_ROOT);
+export type ConvexTestModuleMap = Record<string, () => Promise<unknown>>;
+
+function harness(extraModules: ConvexTestModuleMap = {}) {
+  return convexTest(schema, { ...CONVEX_MODULE_ROOT, ...extraModules });
 }
 
 /**
@@ -106,8 +111,10 @@ export interface ConvexTenantWorld {
 }
 
 /** Seed a fresh world. Each test gets its own; no suite sees another's writes. */
-export async function createConvexTenantWorld(): Promise<ConvexTenantWorld> {
-  const t = harness();
+export async function createConvexTenantWorld(
+  modules: ConvexTestModuleMap = {},
+): Promise<ConvexTenantWorld> {
+  const t = harness(modules);
 
   const seeded = await t.run(async (ctx) => {
     const orgA = await ctx.db.insert("organizations", {

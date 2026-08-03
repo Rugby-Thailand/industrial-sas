@@ -1,12 +1,17 @@
-/** Tenant-bound registration paths for every public Convex query and mutation. */
+/** Tenant-bound registration paths for every public Convex function. */
 import {
+  actionGeneric,
+  internalQueryGeneric,
+  makeFunctionReference,
   mutationGeneric,
   queryGeneric,
   type ArgsArrayForOptionalValidator,
   type ArgsArrayToObject,
   type DefaultArgsForOptionalValidator,
+  type GenericActionCtx,
   type GenericMutationCtx,
   type GenericQueryCtx,
+  type RegisteredAction,
   type RegisteredMutation,
   type RegisteredQuery,
   type ReturnValueForOptionalValidator,
@@ -14,6 +19,7 @@ import {
 } from "convex/server";
 import {
   ConvexError,
+  v,
   type PropertyValidators,
   type Validator,
   type Value,
@@ -21,6 +27,8 @@ import {
 
 import type { DataModel } from "../schema";
 import {
+  TENANT_CONTEXT_DENIAL_CODES,
+  TENANT_CONTEXT_DENIAL_MESSAGE,
   resolveTenantContext,
   toPublicDenial,
   type ActiveTenantContext,
@@ -29,6 +37,7 @@ import {
 import { createConvexTenantContextLookups } from "./tenantContextLookups";
 import {
   createTenantDocumentAccess,
+  TENANT_DB_ERROR_CODES,
   TenantDbError,
   type TenantDocumentAccess,
 } from "./tenantDb";
@@ -46,6 +55,13 @@ export interface TenantFunctionContext {
   readonly identity: UserIdentity;
   readonly tenant: ActiveTenantContext;
   readonly tenantDb: TenantDocumentAccess;
+}
+
+/** Actions receive identity and tenancy, never database or raw Convex runners. */
+export interface TenantActionFunctionContext {
+  readonly requestId: string;
+  readonly identity: UserIdentity;
+  readonly tenant: ActiveTenantContext;
 }
 
 export interface PublicTenantFunctionFailure {
@@ -66,6 +82,26 @@ type TenantFunctionDefinition<
   readonly warehouseId?: (args: OneOrZeroArgs[0]) => WarehouseId | undefined;
   readonly handler: (
     ctx: TenantFunctionContext,
+    ...args: OneOrZeroArgs
+  ) => ReturnValue;
+};
+
+type TenantActionDefinition<
+  ArgsValidator extends FunctionValidator,
+  ReturnsValidator extends FunctionValidator,
+  ReturnValue,
+  OneOrZeroArgs extends ArgsArrayForOptionalValidator<ArgsValidator>,
+> = Omit<
+  TenantFunctionDefinition<
+    ArgsValidator,
+    ReturnsValidator,
+    ReturnValue,
+    OneOrZeroArgs
+  >,
+  "handler"
+> & {
+  readonly handler: (
+    ctx: TenantActionFunctionContext,
     ...args: OneOrZeroArgs
   ) => ReturnValue;
 };
@@ -118,6 +154,32 @@ function internalFailure(requestId: string): PublicTenantFunctionFailure {
   return Object.freeze({ code: "INTERNAL_ERROR", requestId });
 }
 
+function publicDatabaseFailure(error: TenantDbError): Value {
+  return { ...error.toPublic() };
+}
+
+function isSafePreflightFailure(data: Value, requestId: string): boolean {
+  if (data === null || Array.isArray(data) || typeof data !== "object") {
+    return false;
+  }
+  if (Object.getPrototypeOf(data) !== Object.prototype) return false;
+  const record = data as { readonly [key: string]: Value | undefined };
+  if (record.requestId !== requestId || typeof record.code !== "string") {
+    return false;
+  }
+
+  const keys = Object.keys(record).sort();
+  const databaseFailure =
+    keys.join(",") === "code,requestId" &&
+    (TENANT_DB_ERROR_CODES as readonly string[]).includes(record.code);
+  const contextFailure =
+    keys.join(",") === "code,kind,message,requestId" &&
+    record.kind === "TENANT_CONTEXT_DENIED" &&
+    record.message === TENANT_CONTEXT_DENIAL_MESSAGE &&
+    (TENANT_CONTEXT_DENIAL_CODES as readonly string[]).includes(record.code);
+  return databaseFailure || contextFailure;
+}
+
 async function runTenantHandler<Args extends readonly unknown[], ReturnValue>(
   rawContext: RawTenantContext,
   args: Args,
@@ -164,8 +226,79 @@ async function runTenantHandler<Args extends readonly unknown[], ReturnValue>(
       // interface, so it has no implicit index signature and is not a `Value`.
       // The spread keeps `toPublic()` as the single conversion seam, so a field
       // added or redacted there still reaches the client through this throw.
-      throw new ConvexError({ ...error.toPublic() });
+      throw new ConvexError(publicDatabaseFailure(error));
     }
+    throw new ConvexError(internalFailure(requestId));
+  }
+}
+
+/** Authenticated database preflight used only by `actionWithOrg`. */
+export const actionTenantPreflight = internalQueryGeneric({
+  args: {
+    requestId: v.string(),
+    warehouseId: v.optional(v.id("warehouses")),
+  },
+  handler: async (ctx, { requestId, warehouseId }) => {
+    try {
+      const result = await resolveTenantContext({
+        requestId,
+        identity: await ctx.auth.getUserIdentity(),
+        lookups: createConvexTenantContextLookups(ctx, requestId),
+        ...(warehouseId === undefined ? {} : { warehouseId }),
+      });
+      if (!result.ok) throw new ConvexError(toPublicDenial(result.denial));
+      return result.context;
+    } catch (error) {
+      if (error instanceof ConvexError) throw error;
+      if (error instanceof TenantDbError) {
+        throw new ConvexError(publicDatabaseFailure(error));
+      }
+      throw new ConvexError(internalFailure(requestId));
+    }
+  },
+});
+
+const actionTenantPreflightReference = makeFunctionReference<
+  "query",
+  { readonly requestId: string; readonly warehouseId?: WarehouseId },
+  ActiveTenantContext
+>("lib/tenantFunctions:actionTenantPreflight");
+
+async function runTenantAction<Args extends readonly unknown[], ReturnValue>(
+  rawContext: GenericActionCtx<DataModel>,
+  args: Args,
+  warehouseId: ((args: Args[0]) => WarehouseId | undefined) | undefined,
+  handler: (ctx: TenantActionFunctionContext, ...args: Args) => ReturnValue,
+): Promise<Awaited<ReturnValue>> {
+  const requestId = mintRequestId();
+  let identity: UserIdentity | null;
+  let tenant: ActiveTenantContext;
+
+  try {
+    identity = await rawContext.auth.getUserIdentity();
+    const selectedWarehouse = warehouseId?.(args[0]);
+    tenant = await rawContext.runQuery(actionTenantPreflightReference, {
+      requestId,
+      ...(selectedWarehouse === undefined
+        ? {}
+        : { warehouseId: selectedWarehouse }),
+    });
+  } catch (error) {
+    if (
+      error instanceof ConvexError &&
+      isSafePreflightFailure(error.data, requestId)
+    ) {
+      throw error;
+    }
+    throw new ConvexError(internalFailure(requestId));
+  }
+
+  if (identity === null) throw new ConvexError(internalFailure(requestId));
+  const narrowed = Object.freeze({ requestId, identity, tenant });
+
+  try {
+    return await handler(narrowed, ...args);
+  } catch {
     throw new ConvexError(internalFailure(requestId));
   }
 }
@@ -245,6 +378,41 @@ export function mutationWithOrg<
             raw as GenericMutationCtx<DataModel>,
             requestId,
           ),
+        definition.handler,
+      ) as ReturnValue,
+  });
+}
+
+/** Register a public action after a same-identity internal tenant preflight. */
+export function actionWithOrg<
+  ArgsValidator extends FunctionValidator,
+  ReturnsValidator extends FunctionValidator,
+  ReturnValue extends ReturnValueForOptionalValidator<ReturnsValidator> = never,
+  OneOrZeroArgs extends ArgsArrayForOptionalValidator<ArgsValidator> =
+    DefaultArgsForOptionalValidator<ArgsValidator>,
+>(
+  definition: TenantActionDefinition<
+    ArgsValidator,
+    ReturnsValidator,
+    ReturnValue,
+    OneOrZeroArgs
+  >,
+): RegisteredAction<"public", ArgsArrayToObject<OneOrZeroArgs>, ReturnValue> {
+  return actionGeneric<
+    ArgsValidator,
+    ReturnsValidator,
+    ReturnValue,
+    OneOrZeroArgs
+  >({
+    ...(definition.args === undefined ? {} : { args: definition.args }),
+    ...(definition.returns === undefined
+      ? {}
+      : { returns: definition.returns }),
+    handler: (ctx, ...args) =>
+      runTenantAction(
+        ctx,
+        args,
+        definition.warehouseId,
         definition.handler,
       ) as ReturnValue,
   });
