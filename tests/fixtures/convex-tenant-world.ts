@@ -161,6 +161,76 @@ export async function createConvexTenantWorld(): Promise<ConvexTenantWorld> {
   return { t, ...seeded };
 }
 
+/**
+ * The identity rows tenant *context* resolution needs, seeded on request.
+ *
+ * A separate function rather than more rows in `createConvexTenantWorld`, so the
+ * suites over the storage adapter keep the exact world they were written against.
+ *
+ * Two collisions are deliberate, and both are legal in this schema:
+ *
+ * - the same user holds a membership in both tenants, and both memberships carry
+ *   the *same* `clerkMembershipId` — unique per organization by contract, not
+ *   globally — so a `by_orgId_userId` read that dropped `orgId` would be visibly
+ *   wrong rather than accidentally right;
+ * - tenant B holds a `membershipWarehouses` row naming tenant A's membership and
+ *   tenant A's warehouse. Convex's `v.id()` references are not tenant-checked, so
+ *   this row is storable, and it makes the `orgId`-first equality order of
+ *   `by_orgId_membershipId_warehouseId` decidable: the same pair of later terms
+ *   resolves to two different rows depending only on the tenant.
+ */
+export interface ConvexTenantIdentities {
+  readonly membershipA: GenericId<"memberships">;
+  readonly membershipB: GenericId<"memberships">;
+  readonly scopeA: GenericId<"membershipWarehouses">;
+  readonly scopeB: GenericId<"membershipWarehouses">;
+  /** The `clerkMembershipId` both memberships share. */
+  readonly sharedClerkMembershipId: string;
+}
+
+export async function seedConvexTenantIdentities(
+  world: ConvexTenantWorld,
+): Promise<ConvexTenantIdentities> {
+  const sharedClerkMembershipId = "orgmem_fixture_shared";
+
+  return await world.t.run(async (ctx) => {
+    const membership = async (
+      orgId: GenericId<"organizations">,
+      scopeMode: "ORG_WIDE" | "WAREHOUSE_SCOPED",
+    ): Promise<GenericId<"memberships">> =>
+      await ctx.db.insert("memberships", {
+        orgId,
+        userId: world.userA,
+        clerkMembershipId: sharedClerkMembershipId,
+        status: "ACTIVE",
+        scopeMode,
+        effectiveFrom: 0,
+      });
+
+    const membershipA = await membership(world.orgA, "WAREHOUSE_SCOPED");
+    const membershipB = await membership(world.orgB, "ORG_WIDE");
+
+    const scopeA = await ctx.db.insert("membershipWarehouses", {
+      orgId: world.orgA,
+      membershipId: membershipA,
+      warehouseId: world.warehouses.alphaA,
+    });
+    const scopeB = await ctx.db.insert("membershipWarehouses", {
+      orgId: world.orgB,
+      membershipId: membershipA,
+      warehouseId: world.warehouses.alphaA,
+    });
+
+    return {
+      membershipA,
+      membershipB,
+      scopeA,
+      scopeB,
+      sharedClerkMembershipId,
+    };
+  });
+}
+
 /** The raw stored document, read outside any port. `null` when there is none. */
 export async function storedWarehouse(
   world: ConvexTenantWorld,
