@@ -10,7 +10,9 @@ const resolve = { tsconfigPaths: true } as const;
 /**
  * Test tiers are separate Vitest projects so each guard can run in isolation:
  *
- * - `unit`        colocated component/module tests in `src/`
+ * - `unit`        colocated module tests: components in `src/`, pure domain
+ *                 modules in `convex/model/` (plan §6.2 — no Convex imports, so
+ *                 they need no `convex-test` world)
  * - `a11y`        axe-core accessibility assertions (`*.a11y.test.tsx`)
  * - `property`    fast-check property-based tests (`tests/properties/`)
  * - `integration` cross-module tests, later backed by `convex-test`
@@ -28,7 +30,7 @@ export default defineConfig({
           name: "unit",
           environment: "jsdom",
           setupFiles: ["./vitest.setup.ts"],
-          include: ["src/**/*.test.{ts,tsx}"],
+          include: ["src/**/*.test.{ts,tsx}", "convex/model/**/*.test.ts"],
           exclude: ["src/**/*.a11y.test.{ts,tsx}"],
         },
       },

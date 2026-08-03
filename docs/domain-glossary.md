@@ -4,6 +4,15 @@ Status: **specification.** These terms define the language used in code,
 identifiers, tests, and UI copy. Almost none of them are implemented yet; see the
 [coverage matrix](./specification-coverage.md) for what exists.
 
+One group is now partly real. The pure domain modules under `convex/model/**`
+implement the vocabulary of quantity, UOM conversion, identifiers, business dates,
+and stock rotation: `G-027`, `G-029`, `G-030`, `G-031` (its code, not the entity),
+`G-032`, `G-033`, `G-038`, `G-039`, `G-041`, `G-042`, `G-043`, `G-044`, `G-047`,
+`G-048`, `G-049`, `G-063`, `G-064`, `G-105`, `G-106`, and `G-111`. Those are value
+objects and algebra only — no table stores any of them, and nothing enforces the
+uniqueness or never-reuse rules that belong to a mutation. Every other term is
+still specification.
+
 Rules for this glossary:
 
 - Code identifiers are English (D-06). Thai appears in UI copy and bilingual master
@@ -35,57 +44,63 @@ Rules for this glossary:
 
 ## Master data
 
-| ID      | Term                      | Definition                                                                                                               | Notes                                                              |
-| ------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------ |
-| `G-020` | Warehouse                 | A physical site containing a location hierarchy.                                                                         | Rejected: "plant", "DC".                                           |
-| `G-021` | Location                  | A node in a warehouse's materialized location tree with a semantic location type (§5 Q22, `ADR-0005`).                   | Rejected: "bin" as the general term; a bin is one location type.   |
-| `G-022` | Location type             | The semantic classification of a location: dock, staging, rack bin, floor block, quarantine, overflow, virtual boundary. | —                                                                  |
-| `G-023` | Virtual boundary location | A location representing the world outside the warehouse so ledger transactions balance (`ADR-0003`).                     | Rejected: "external account".                                      |
-| `G-024` | Storage class             | A compatibility classification restricting which items may occupy which locations. A hard constraint (D-13).             | Rejected: "storage group".                                         |
-| `G-025` | Capacity                  | Advisory volumetric/weight limit of a location in the MVP; it warns, it does not block (D-13).                           | —                                                                  |
-| `G-026` | Item                      | A stock-keeping definition with one base UOM and a tracking mode.                                                        | Rejected: "product", "material", "SKU" as the identifier term.     |
-| `G-027` | SKU                       | The tenant's human item identifier, normalized and distinct from the Convex document ID (§5 Q4).                         | Use "item" for the entity, "SKU" for the code.                     |
-| `G-028` | Tracking mode             | `NONE`, `LOT`, or `LOT_SERIAL`. Only `NONE` and `LOT` are implemented (D-09).                                            | —                                                                  |
-| `G-029` | Base UOM                  | The single unit in which an item's inventory is stored, as integer minor units (D-08, `ADR-0004`).                       | Rejected: "stock unit".                                            |
-| `G-030` | Alternate UOM             | A packaging unit with an exact rational conversion to the base UOM (`ADR-0004`).                                         | Rejected: "pack UOM" in identifiers.                               |
-| `G-031` | Lot                       | A production batch of an item, unique per item, with manufacture, expiry, and best-before business dates (§5 Q23).       | Rejected: "batch" in identifiers; acceptable in Thai/English copy. |
-| `G-032` | Rotation date             | The configurable date used for FEFO ordering (§5 Q23).                                                                   | —                                                                  |
-| `G-033` | FEFO                      | First-expired-first-out ordering with deterministic tie-breakers (§5 Q23).                                               | —                                                                  |
-| `G-034` | Supplier                  | The counterparty a purchase order is placed with.                                                                        | Rejected: "vendor" (reserved for software vendors).                |
-| `G-035` | Owner                     | The legal owner of stock, an optional bucket dimension. Consigned stock stays disabled unless a tenant needs it (D-11).  | Distinct from custodian/warehouse.                                 |
-| `G-036` | Reason code               | A tenant-configurable coded justification attached to exceptions, overrides, and reversals.                              | Rejected: free-text reason only.                                   |
-| `G-037` | Serial                    | A uniquely identified single unit. **Deferred**: schema-ready, flows disabled (D-09).                                    | —                                                                  |
+| ID      | Term                      | Definition                                                                                                               | Notes                                                                                   |
+| ------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------- |
+| `G-020` | Warehouse                 | A physical site containing a location hierarchy.                                                                         | Rejected: "plant", "DC".                                                                |
+| `G-021` | Location                  | A node in a warehouse's materialized location tree with a semantic location type (§5 Q22, `ADR-0005`).                   | Rejected: "bin" as the general term; a bin is one location type.                        |
+| `G-022` | Location type             | The semantic classification of a location: dock, staging, rack bin, floor block, quarantine, overflow, virtual boundary. | —                                                                                       |
+| `G-023` | Virtual boundary location | A location representing the world outside the warehouse so ledger transactions balance (`ADR-0003`).                     | Rejected: "external account".                                                           |
+| `G-024` | Storage class             | A compatibility classification restricting which items may occupy which locations. A hard constraint (D-13).             | Rejected: "storage group".                                                              |
+| `G-025` | Capacity                  | Advisory volumetric/weight limit of a location in the MVP; it warns, it does not block (D-13).                           | —                                                                                       |
+| `G-026` | Item                      | A stock-keeping definition with one base UOM and a tracking mode.                                                        | Rejected: "product", "material", "SKU" as the identifier term.                          |
+| `G-027` | SKU                       | The tenant's human item identifier, normalized and distinct from the Convex document ID (§5 Q4).                         | Use "item" for the entity, "SKU" for the code.                                          |
+| `G-028` | Tracking mode             | `NONE`, `LOT`, or `LOT_SERIAL`. Only `NONE` and `LOT` are implemented (D-09).                                            | —                                                                                       |
+| `G-029` | Base UOM                  | The single unit in which an item's inventory is stored, as integer minor units (D-08, `ADR-0004`).                       | Rejected: "stock unit".                                                                 |
+| `G-030` | Alternate UOM             | A packaging unit with an exact rational conversion to the base UOM (`ADR-0004`).                                         | Rejected: "pack UOM" in identifiers.                                                    |
+| `G-031` | Lot                       | A production batch of an item, unique per item, with manufacture, expiry, and best-before business dates (§5 Q23).       | Rejected: "batch" in identifiers; acceptable in Thai/English copy.                      |
+| `G-032` | Rotation date             | The configurable date used for FEFO ordering (§5 Q23).                                                                   | —                                                                                       |
+| `G-033` | FEFO                      | First-expired-first-out ordering with deterministic tie-breakers (§5 Q23).                                               | —                                                                                       |
+| `G-034` | Supplier                  | The counterparty a purchase order is placed with.                                                                        | Rejected: "vendor" (reserved for software vendors).                                     |
+| `G-035` | Owner                     | The legal owner of stock, an optional bucket dimension. Consigned stock stays disabled unless a tenant needs it (D-11).  | Distinct from custodian/warehouse.                                                      |
+| `G-036` | Reason code               | A tenant-configurable coded justification attached to exceptions, overrides, and reversals.                              | Rejected: free-text reason only.                                                        |
+| `G-037` | Serial                    | A uniquely identified single unit. **Deferred**: schema-ready, flows disabled (D-09).                                    | —                                                                                       |
+| `G-038` | Base-UOM minor unit       | One thousandth of an item's base UOM: the integer in which every quantity is stored (B-12, `ADR-0004`).                  | Rejected: "decimal quantity". Implemented in `convex/model/uom/quantity.ts`.            |
+| `G-039` | Conversion ratio          | An alternate UOM's exact factor to the base UOM, as a reduced fraction of positive integers (`INV-0004-03`).             | Rejected: "conversion factor" as a decimal. Implemented in `convex/model/uom/ratio.ts`. |
 
 ## Handling units and identifiers
 
-| ID      | Term                        | Definition                                                                                                              | Notes                                                          |
-| ------- | --------------------------- | ----------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
-| `G-040` | Handling unit (HU)          | A physical logistic unit, typically a pallet, that holds stock and moves as one thing (D-10, `ADR-0005`).               | Rejected: "pallet" as the model name; a pallet is one HU type. |
-| `G-041` | LPN                         | Licence plate number: the unique, never-reused identifier of a handling unit (§5 Q24).                                  | Rejected: "pallet ID".                                         |
-| `G-042` | SSCC                        | GS1 serial shipping container code, used as the LPN when the tenant has a GS1 prefix (D-15).                            | —                                                              |
-| `G-043` | GTIN                        | GS1 trade item number used to resolve an item from a supplier barcode (§5 Q29).                                         | —                                                              |
-| `G-044` | Application Identifier (AI) | A GS1-128 data element prefix parsed from a scan (§5 Q29).                                                              | —                                                              |
-| `G-045` | Nesting                     | One handling unit contained in another. Maximum depth is one level (D-10).                                              | —                                                              |
-| `G-046` | Relabel                     | Issuing a new LPN for an existing handling unit as an audited transaction; the old LPN is retained in history (§5 Q24). | Rejected: "reprint" (a reprint reuses the same LPN).           |
-| `G-047` | Raw scan                    | The exact string emitted by the scanner, stored alongside its parsed interpretation (§3.3).                             | —                                                              |
+| ID      | Term                        | Definition                                                                                                                    | Notes                                                                            |
+| ------- | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `G-040` | Handling unit (HU)          | A physical logistic unit, typically a pallet, that holds stock and moves as one thing (D-10, `ADR-0005`).                     | Rejected: "pallet" as the model name; a pallet is one HU type.                   |
+| `G-041` | LPN                         | Licence plate number: the unique, never-reused identifier of a handling unit (§5 Q24).                                        | Rejected: "pallet ID".                                                           |
+| `G-042` | SSCC                        | GS1 serial shipping container code, used as the LPN when the tenant has a GS1 prefix (D-15).                                  | —                                                                                |
+| `G-043` | GTIN                        | GS1 trade item number used to resolve an item from a supplier barcode (§5 Q29).                                               | —                                                                                |
+| `G-044` | Application Identifier (AI) | A GS1-128 data element prefix parsed from a scan (§5 Q29).                                                                    | —                                                                                |
+| `G-045` | Nesting                     | One handling unit contained in another. Maximum depth is one level (D-10).                                                    | —                                                                                |
+| `G-046` | Relabel                     | Issuing a new LPN for an existing handling unit as an audited transaction; the old LPN is retained in history (§5 Q24).       | Rejected: "reprint" (a reprint reuses the same LPN).                             |
+| `G-047` | Raw scan                    | The exact string emitted by the scanner, stored alongside its parsed interpretation (§3.3).                                   | —                                                                                |
+| `G-048` | GS1 element string          | The concatenation of AI-prefixed data elements a GS1 symbol carries, with FNC1 terminating variable-length fields (§5 Q29).   | Rejected: "barcode payload". Implemented in `convex/model/gs1/elementString.ts`. |
+| `G-049` | LPN namespace               | An organization's LPN prefix. One prefix belongs to one organization, so a foreign label is refused before any lookup (D-15). | Rejected: "LPN series". Implemented in `convex/model/identifiers/lpn.ts`.        |
 
 ## Inventory and ledger
 
-| ID      | Term                  | Definition                                                                                                                                        | Notes                                                    |
-| ------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
-| `G-050` | Inventory transaction | The immutable header of a stock change: type, request ID, actor, device, occurrence time, source, reason (§7.4).                                  | Rejected: "movement" for the header.                     |
-| `G-051` | Ledger line           | An immutable signed posting against one bucket. Lines of a transaction sum to zero (§7.4, `ADR-0003`).                                            | Rejected: "entry".                                       |
-| `G-052` | Bucket                | The identity a balance is kept against: org, warehouse, item, location, lot?, serial?, HU?, stock status, owner? (§7.4).                          | Rejected: "slot".                                        |
-| `G-053` | Stock status          | The quality/availability dimension of a bucket, for example `AVAILABLE`, `QC_HOLD`, `QUARANTINE`, `REJECTED`, `SCRAP` (D-11).                     | Orthogonal to owner.                                     |
-| `G-054` | Balance projection    | A narrow document holding the current quantity for one bucket, written in the same mutation as the ledger lines (§5 Q21).                         | Rejected: "cache" — it is authoritative for reads.       |
-| `G-055` | Available quantity    | The quantity in a bucket usable for work. Never negative unless an explicit tenant policy allows it (D-12).                                       | No reservations in the MVP (§2.3).                       |
-| `G-056` | Request ID            | A client-generated UUIDv7 unique per organization that makes a posting idempotent (§7.5, `ADR-0003`).                                             | Rejected: "correlation ID" (that is the trace concept).  |
-| `G-057` | Reversal              | A compensating transaction referencing exactly one original; it cannot reverse a reversal (§7.5).                                                 | Rejected: "cancel", "delete", "void".                    |
-| `G-058` | Reconciliation        | A scheduled ledger replay proving projections equal the ledger (§7.5).                                                                            | Rejected: "recalculation".                               |
-| `G-059` | Drift                 | Any inequality between a projection or rollup and the ledger replay. Always an alert (§7.5).                                                      | —                                                        |
-| `G-060` | Rollup                | A pre-aggregated figure used by dashboards and reports, derivable from the ledger (`ADR-0011`).                                                   | Rejected: "summary table".                               |
-| `G-061` | Audit event           | An append-only record of an action with actor, entity, request, device, and support context, written in the same mutation as the change (§5 Q37). | Distinct from a log line: audit is tenant-visible truth. |
-| `G-062` | Reservation           | A claim on stock for future outbound work. **Deferred** (§2.3, §3.4).                                                                             | —                                                        |
+| ID      | Term                  | Definition                                                                                                                                        | Notes                                                                         |
+| ------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `G-050` | Inventory transaction | The immutable header of a stock change: type, request ID, actor, device, occurrence time, source, reason (§7.4).                                  | Rejected: "movement" for the header.                                          |
+| `G-051` | Ledger line           | An immutable signed posting against one bucket. Lines of a transaction sum to zero (§7.4, `ADR-0003`).                                            | Rejected: "entry".                                                            |
+| `G-052` | Bucket                | The identity a balance is kept against: org, warehouse, item, location, lot?, serial?, HU?, stock status, owner? (§7.4).                          | Rejected: "slot".                                                             |
+| `G-053` | Stock status          | The quality/availability dimension of a bucket, for example `AVAILABLE`, `QC_HOLD`, `QUARANTINE`, `REJECTED`, `SCRAP` (D-11).                     | Orthogonal to owner.                                                          |
+| `G-054` | Balance projection    | A narrow document holding the current quantity for one bucket, written in the same mutation as the ledger lines (§5 Q21).                         | Rejected: "cache" — it is authoritative for reads.                            |
+| `G-055` | Available quantity    | The quantity in a bucket usable for work. Never negative unless an explicit tenant policy allows it (D-12).                                       | No reservations in the MVP (§2.3).                                            |
+| `G-056` | Request ID            | A client-generated UUIDv7 unique per organization that makes a posting idempotent (§7.5, `ADR-0003`).                                             | Rejected: "correlation ID" (that is the trace concept).                       |
+| `G-057` | Reversal              | A compensating transaction referencing exactly one original; it cannot reverse a reversal (§7.5).                                                 | Rejected: "cancel", "delete", "void".                                         |
+| `G-058` | Reconciliation        | A scheduled ledger replay proving projections equal the ledger (§7.5).                                                                            | Rejected: "recalculation".                                                    |
+| `G-059` | Drift                 | Any inequality between a projection or rollup and the ledger replay. Always an alert (§7.5).                                                      | —                                                                             |
+| `G-060` | Rollup                | A pre-aggregated figure used by dashboards and reports, derivable from the ledger (`ADR-0011`).                                                   | Rejected: "summary table".                                                    |
+| `G-061` | Audit event           | An append-only record of an action with actor, entity, request, device, and support context, written in the same mutation as the change (§5 Q37). | Distinct from a log line: audit is tenant-visible truth.                      |
+| `G-062` | Reservation           | A claim on stock for future outbound work. **Deferred** (§2.3, §3.4).                                                                             | —                                                                             |
+| `G-063` | FIFO                  | First-in-first-out ordering by receipt, with the same deterministic tie-breakers as FEFO (§5 Q23).                                                | Distinct from FEFO (`G-033`): a different criterion order over the same lots. |
+| `G-064` | Rotation candidate    | One rankable unit of stock offered to a rotation decision, carrying its dates, receipt order, and a unique key (`INV-0005-10`).                   | Rejected: "pick candidate" (no picking in the MVP).                           |
 
 ## Inbound flow
 
@@ -115,19 +130,20 @@ Rules for this glossary:
 
 ## Platform and delivery
 
-| ID      | Term                  | Definition                                                                                                               | Notes                            |
-| ------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------ | -------------------------------- |
-| `G-100` | Port                  | An internally-defined interface for an external capability (`ADR-0008`).                                                 | Rejected: "service", "client".   |
-| `G-101` | Adapter               | A vendor-specific implementation of a port. The only place a vendor SDK is imported.                                     | —                                |
-| `G-102` | Tenant-bound accessor | The wrapper through which all tenant document reads and writes pass (D-18, `ADR-0002`).                                  | Rejected: "repository".          |
-| `G-103` | Outbox                | A row written in the same mutation as a domain change, delivered at least once to an external consumer (D-21).           | —                                |
-| `G-104` | Dead letter           | A durable record of a job or delivery that exhausted its retries (`ADR-0011`).                                           | —                                |
-| `G-105` | Business date         | `YYYY-MM-DD` in the organization timezone, default `Asia/Bangkok` (D-05).                                                | Never derived from the UTC date. |
-| `G-106` | Buddhist Era (BE)     | A display-only calendar representation used on documents where requested; never stored (D-06).                           | —                                |
-| `G-107` | Degraded-online       | The connectivity contract: pending queued safe intents, blocked correctness-sensitive work, no offline execution (B-04). | Rejected: "offline mode".        |
-| `G-108` | Pending intent        | A user action queued client-side, displayed as not yet posted (`ADR-0009`).                                              | Rejected: "draft".               |
-| `G-109` | Release gate          | An external or code-owned condition that must be satisfied before a phase or launch ([register](./release-gates.md)).    | —                                |
-| `G-110` | Scan-to-ack           | Elapsed time from a scan to a server-confirmed acknowledgement; the primary latency SLI (§5 Q5).                         | —                                |
+| ID      | Term                  | Definition                                                                                                                           | Notes                                                                    |
+| ------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------ |
+| `G-100` | Port                  | An internally-defined interface for an external capability (`ADR-0008`).                                                             | Rejected: "service", "client".                                           |
+| `G-101` | Adapter               | A vendor-specific implementation of a port. The only place a vendor SDK is imported.                                                 | —                                                                        |
+| `G-102` | Tenant-bound accessor | The wrapper through which all tenant document reads and writes pass (D-18, `ADR-0002`).                                              | Rejected: "repository".                                                  |
+| `G-103` | Outbox                | A row written in the same mutation as a domain change, delivered at least once to an external consumer (D-21).                       | —                                                                        |
+| `G-104` | Dead letter           | A durable record of a job or delivery that exhausted its retries (`ADR-0011`).                                                       | —                                                                        |
+| `G-105` | Business date         | `YYYY-MM-DD` in the organization timezone, default `Asia/Bangkok` (D-05).                                                            | Never derived from the UTC date.                                         |
+| `G-106` | Buddhist Era (BE)     | A display-only calendar representation used on documents where requested; never stored (D-06).                                       | —                                                                        |
+| `G-107` | Degraded-online       | The connectivity contract: pending queued safe intents, blocked correctness-sensitive work, no offline execution (B-04).             | Rejected: "offline mode".                                                |
+| `G-108` | Pending intent        | A user action queued client-side, displayed as not yet posted (`ADR-0009`).                                                          | Rejected: "draft".                                                       |
+| `G-109` | Release gate          | An external or code-owned condition that must be satisfied before a phase or launch ([register](./release-gates.md)).                | —                                                                        |
+| `G-110` | Scan-to-ack           | Elapsed time from a scan to a server-confirmed acknowledgement; the primary latency SLI (§5 Q5).                                     | —                                                                        |
+| `G-111` | Instant               | A point in time as UTC epoch milliseconds. Converted to a business date (`G-105`) only through an explicit organization zone (D-05). | Rejected: "timestamp" when the distinction from a business date matters. |
 
 ## Deliberately absent vocabulary
 

@@ -383,6 +383,61 @@ export const read = queryWithOrg({
     ]);
   });
 
+  it("fails a pure domain module that imports anything outside convex/model", () => {
+    // Plan §6.2 makes `convex/model/**` portable domain algebra. Each of these is
+    // a different way to lose that: the values package, a sibling library that
+    // itself imports Convex, the generated tree, a bare dependency, and a dynamic
+    // import that no identifier would reveal.
+    expect(
+      rulesOf({
+        "convex/model/uom/quantity.ts": `import { v } from "convex/values";
+export const quantity = v;
+`,
+      }),
+    ).toEqual(["model-purity"]);
+    expect(
+      rulesOf({
+        "convex/model/uom/quantity.ts": `import { PERMISSION_CATALOGUE } from "../../lib/permissions";
+export const codes = PERMISSION_CATALOGUE;
+`,
+      }),
+    ).toEqual(["model-purity"]);
+    expect(
+      rulesOf({
+        "convex/model/ledger/post.ts": `export type { Doc } from "../../_generated/dataModel";
+`,
+      }),
+    ).toEqual(["model-purity"]);
+    expect(
+      rulesOf({
+        "convex/model/gs1/parse.ts": `import { z } from "zod";
+export const schema = z;
+`,
+      }),
+    ).toEqual(["model-purity"]);
+    expect(
+      rulesOf({
+        "convex/model/gs1/parse.ts": `export const load = async () => import("convex/server");
+`,
+      }).includes("model-purity"),
+    ).toBe(true);
+  });
+
+  it("permits a pure domain module that only imports its own siblings", () => {
+    expect(
+      rulesOf({
+        "convex/model/result.ts": `export type Result<T> = { readonly value: T };
+`,
+        "convex/model/uom/quantity.ts": `import type { Result } from "../result";
+export const one = (): Result<number> => ({ value: 1 });
+`,
+        "convex/model/uom/ratio.ts": `import { one } from "./quantity";
+export const two = () => one();
+`,
+      }),
+    ).toEqual([]);
+  });
+
   it("ignores generated code, tests, and fixtures", () => {
     const bypass = `import { queryGeneric } from "convex/server";
 export const listAll = queryGeneric({ handler: (ctx: { db: unknown }) => ctx.db });
@@ -399,10 +454,14 @@ export const listAll = queryGeneric({ handler: (ctx: { db: unknown }) => ctx.db 
   });
 
   it("keeps every allowlist entry inside convex/lib", () => {
+    // The empty-allowlist rules (`authorization-declaration`,
+    // `audit-append-only`, `model-purity`) contribute nothing to this loop, which
+    // is the point: they have no exemptions to keep anywhere.
     for (const paths of Object.values(TENANT_BOUNDARY_ALLOWLIST)) {
       for (const path of paths) {
         expect(path).toMatch(/^convex\/lib\/[A-Za-z]+\.ts$/);
       }
     }
+    expect(TENANT_BOUNDARY_ALLOWLIST["model-purity"]).toEqual([]);
   });
 });

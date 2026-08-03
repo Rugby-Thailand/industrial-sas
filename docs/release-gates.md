@@ -24,22 +24,36 @@ closes it, and its current status.
 
 Beyond the toolchain scaffold and this documentation set, the repository now contains
 the tenant security schema and the guards that read it, the tenant-bound function
-wrappers, signed Clerk webhook identity synchronization, the code-owned permission
+wrappers with mandatory server-side permission enforcement and audited authorization
+attempts, signed Clerk webhook identity synchronization, the code-owned permission
 catalogue with its fail-closed policy evaluator and provisioning seed, and — new —
-**mandatory server-side permission enforcement inside those wrappers, with audited
-authorization attempts** ([coverage matrix](./specification-coverage.md) §5a). It
-closes no gate. Nothing is deployed and no feature function exists to enforce a
-permission _for_, so every gate that depends on behaviour in a running environment
-still depends on code that does not exist.
+the **pure inventory primitives**: quantity as integer minor units, exact rational UOM
+conversion, GS1 parsing, identifier normalization, LPNs, Bangkok business dates, and
+FIFO/FEFO ordering ([`convex/model/**`](../convex/model/README.md)). Nothing is
+deployed and no feature function exists, so every gate that depends on behaviour in a
+running environment still depends on code that does not exist.
 
 Of the 71 gates registered here, **two are satisfied** — `RG-062` (the ADR set) and
 `RG-001` (B-01…B-12 accepted, evidenced by the
-[approval record](./approval-record.md)) — **six are in progress** (`RG-053`,
+[approval record](./approval-record.md)) — **seven are in progress** (`RG-053`,
 `RG-054`, `RG-055`: the standing merge gates; `RG-032` and `RG-033`: the static
-guards that now exist but are not required checks; and `RG-026`, whose
-wrapper-level matrix is green while its per-function matrix waits for functions),
-and the remaining **63 are `Not started`**. That is the accurate picture, not a
-pessimistic one.
+guards that now exist but are not required checks; `RG-026`, whose wrapper-level
+matrix is green while its per-function matrix waits for functions; and `RG-020`, see
+below), and the remaining **62 are `Not started`**. That is the accurate picture, not
+a pessimistic one.
+
+`RG-020` moves to `In progress` rather than `Satisfied`. The property suite it names
+exists and is green — exactness, refusal to round, precision bound, canonical
+reduction, and overflow rejection, with negative controls that fail against a
+rounding implementation — but the gate sits in Phase 2 next to the ledger, and no
+posting path uses the conversion yet. A reviewer closing it will also want a run
+against the pilot tenant's real conversion factors, which do not exist as master
+data.
+
+`RG-005` stays `Not started` even though the GS1 parser is implemented, and the
+parser is why: it supports nine Application Identifiers and rejects every other one,
+and a variable-length field that a supplier failed to terminate with FNC1 absorbs the
+rest of the string. Only a corpus of real labels can say how often either matters.
 
 `RG-013` and `RG-031` deserve a specific note, because the isolation tier now has real
 content. They remain `Not started`. The tier proves the schema cannot _express_ a cheap
@@ -102,7 +116,7 @@ implementation against fakes is not waiting on them.
 | `RG-017` | Reversal restores exact prior balances                                      | Code     | Engineering lead | Green property suite                                                 | Not started |
 | `RG-018` | Ledger/projection drift is zero during a seven-day automated soak           | Mixed    | Engineering lead | Soak report: window, transaction count, drift checks, zero findings  | Not started |
 | `RG-019` | No direct inventory-balance edit path exists                                | Code     | Engineering lead | Passing static guard plus integration test asserting absence         | Not started |
-| `RG-020` | UOM conversion property suite green (exactness, rejection, precision bound) | Code     | Engineering lead | Green property suite                                                 | Not started |
+| `RG-020` | UOM conversion property suite green (exactness, rejection, precision bound) | Code     | Engineering lead | Green property suite                                                 | In progress |
 | `RG-021` | Pilot location vocabulary and hierarchy reviewed and accepted (§5 Q22)      | External | Product owner    | Accepted location-type list and sample hierarchy from the pilot site | Not started |
 | `RG-022` | Tenant GS1 prefix status confirmed (D-15)                                   | External | Product owner    | Written confirmation of prefix ownership or internal-LPN decision    | Not started |
 | `RG-023` | Lot rotation-date policy confirmed per item class (§5 Q23)                  | External | Product owner    | Written rotation policy and shelf-life exception rules               | Not started |

@@ -7,10 +7,14 @@ accepted — and they describe **intended** behaviour. Nothing in these ADRs is
 implemented unless the ADR's "Implementation status" line says so.
 
 `Partial` in the table below means part of the decision has landed and the ADR's
-status line says which part. Three ADRs are `Partial` because the tenant security
-schema exists: declarations, closed value sets, and the guards that read them.
-There is still no authentication, no authorization, no exported Convex function,
-and no deployment, so no runtime guarantee in any ADR holds yet.
+status line says which part. Five ADRs are `Partial`. Three of them because the
+tenant security slice exists: declarations, closed value sets, tenant-bound
+wrappers with mandatory permission enforcement, and the guards that read them.
+`ADR-0004` and `ADR-0005` because the pure inventory primitives exist —
+quantities, exact UOM conversion, GS1 parsing, LPNs, business dates, and rotation
+ordering under `convex/model/**` — with no table, no ledger, and no mutation to
+apply them to. There is still no deployment, so no runtime guarantee in any ADR
+holds yet.
 
 Every ADR uses the same sections: context, decision, invariants (split into
 code-owned guarantees and operational assumptions), consequences, rejected
@@ -26,8 +30,8 @@ superseded ADR keeps its number and gains a `Superseded by` line.
 | `ADR-0001` | [Multi-tenant SaaS and identity ownership](./0001-multi-tenant-saas-and-identity-ownership.md)       | Accepted | Partial         |
 | `ADR-0002` | [Convex tenant boundary and index discipline](./0002-convex-tenant-boundary-and-index-discipline.md) | Accepted | Partial         |
 | `ADR-0003` | [Append-only inventory ledger](./0003-append-only-inventory-ledger.md)                               | Accepted | Not implemented |
-| `ADR-0004` | [Exact quantities and UOM](./0004-exact-quantities-and-uom.md)                                       | Accepted | Not implemented |
-| `ADR-0005` | [Warehouse, location, and stock identity](./0005-warehouse-location-and-stock-identity.md)           | Accepted | Not implemented |
+| `ADR-0004` | [Exact quantities and UOM](./0004-exact-quantities-and-uom.md)                                       | Accepted | Partial         |
+| `ADR-0005` | [Warehouse, location, and stock identity](./0005-warehouse-location-and-stock-identity.md)           | Accepted | Partial         |
 | `ADR-0006` | [Authorization and support access](./0006-authorization-and-support-access.md)                       | Accepted | Partial         |
 | `ADR-0007` | [Inbound slice scope](./0007-inbound-slice-scope.md)                                                 | Accepted | Not implemented |
 | `ADR-0008` | [Adapter ports and release gates](./0008-adapter-ports-and-release-gates.md)                         | Accepted | Not implemented |

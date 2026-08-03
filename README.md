@@ -13,10 +13,10 @@ accepted before domain implementation are recorded in
 
 ## Current status
 
-**Toolchain scaffold plus the tenant security slice: schema, tenant-bound
-wrappers, Clerk webhook identity mirroring, the permission catalogue and seed,
-and — as of this commit — mandatory server-side authorization inside every public
-wrapper. No warehouse management functionality exists.**
+**Toolchain scaffold, the tenant security slice, and — as of this commit — the
+pure inventory primitives the ledger will be built from. Still no warehouse
+management functionality: nothing stores a quantity, an identifier, or a
+movement.**
 
 The toolchain is installed, pinned, and green end to end. What is present is the
 foundation and nothing more:
@@ -40,11 +40,23 @@ foundation and nothing more:
 - Signed Clerk webhook handling that mirrors organizations, users, and
   memberships idempotently, and provisioning that seeds the code-owned permission
   catalogue and eight editable roles in the organization's own transaction.
-- Real integration and isolation suites over all of it, including a two-tenant
-  `convex-test` world and negative tests that prove the guards fail when they
-  should. The unit, a11y, property, and e2e tiers are still mostly placeholder
-  files that assert nothing about the domain and should be deleted as real suites
-  land.
+- The pure inventory primitives, under `convex/model/**` with **no Convex
+  imports** (plan §6.2, enforced by the boundary guard): quantity as integer
+  thousandths of an item's base UOM with total, bounds-checked arithmetic; exact
+  reduced-rational UOM conversion that reports an inexact result as a fraction
+  rather than rounding it; GS1 element-string parsing for nine Application
+  Identifiers with FNC1 handling, check digits, and the century rule against an
+  injected reference year; identifier normalization that keeps leading zeros and
+  lot-code case; internal LPNs with an injected clock and entropy source and a
+  check character that provably catches every single-character substitution and
+  transposition; a Bangkok business date computed without `Date`, `Intl`, or the
+  host timezone, with Buddhist Era as display only; and FIFO/FEFO ordering that is
+  a strict total order with an explanation per candidate.
+- Real unit, property, integration, and isolation suites over all of it, including
+  a two-tenant `convex-test` world, negative tests that prove the guards fail when
+  they should, and property-tier negative controls that fail against deliberately
+  weakened implementations. The a11y and e2e tiers are still placeholder files that
+  assert nothing about the domain and should be deleted as real suites land.
 
 What is deliberately still missing, because claiming otherwise would be wrong:
 
@@ -52,8 +64,18 @@ What is deliberately still missing, because claiming otherwise would be wrong:
   environment configuration, no JWT template, no middleware, and no vendor
   account. Every command below passes with no `.env.local`; nothing has ever run
   against a Convex backend.
-- **No feature function.** Enforcement exists; there is nothing yet to enforce it
-  for. No PO, receipt, QC, handling unit, label, putaway, or ledger code exists.
+- **No feature function and no ledger.** Enforcement exists; there is nothing yet
+  to enforce it for. No PO, receipt, QC, handling unit, label, putaway, or ledger
+  code exists, `convex/model/ledger/` is absent, and no table stores a quantity, a
+  lot, an LPN, or a parsed scan. The primitives are the algebra a ledger needs, not
+  a ledger.
+- **No uniqueness or never-reuse for LPNs.** A value module can make a collision
+  unlikely and a typo detectable; `INV-0005-05` needs the mutation and table that
+  do not exist.
+- **No supplier-label corpus** (`RG-005`). The GS1 parser rejects every AI it does
+  not implement, and a variable-length field a supplier failed to terminate with
+  FNC1 absorbs the rest of the string. Only real labels can say how often either
+  matters.
 - **No recorded denial for a read.** A Convex query cannot write, so a denied
   query is refused but not audited (`RG-071`). Mutations and actions are audited.
 - **No policy values.** Threshold and maker-checker limits have no table, and the
@@ -75,14 +97,16 @@ approval record, the integration contracts, and runbook skeletons. See
 [`docs/`](./docs/README.md) holds the architecture and delivery documentation
 derived from [PROJECT_PLAN.md](./PROJECT_PLAN.md). It describes intended
 behaviour; every document states its own implementation status. `ADR-0001`,
-`ADR-0002`, and `ADR-0006` are `Partial` because the tenant security schema
-landed; nothing claims a shipped capability.
+`ADR-0002`, and `ADR-0006` are `Partial` because the tenant security slice landed;
+`ADR-0004` and `ADR-0005` are `Partial` because the pure primitives landed.
+Nothing claims a shipped capability.
 
 | Document                                                          | What it is                                                                               |
 | ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
 | [Documentation index](./docs/README.md)                           | Entry point and conventions                                                              |
 | [ADR-0001…ADR-0012](./docs/adr/README.md)                         | Accepted cross-cutting architecture decisions, with invariants and rejected options      |
 | [Domain glossary](./docs/domain-glossary.md)                      | Ubiquitous language, stable term IDs, and vocabulary that must not appear in MVP code    |
+| [Pure domain modules](./convex/model/README.md)                   | What lives in `convex/model/**`, why it has no Convex imports, and what is absent        |
 | [Permission catalogue](./docs/permissions.md)                     | Code-owned permission codes, seeded roles, warehouse/maker-checker/step-up semantics     |
 | [Release gate register](./docs/release-gates.md)                  | Every gate from the plan with owner, required evidence, and status                       |
 | [Approval record](./docs/approval-record.md)                      | Dated authorization: accepted decisions, authorized activity, and approvals not supplied |
@@ -123,13 +147,13 @@ below passes with no `.env.local` present.
 
 Vitest runs five named projects, each targetable on its own:
 
-| Command                 | Tier                                              | Location                 |
-| ----------------------- | ------------------------------------------------- | ------------------------ |
-| `pnpm test:unit`        | Component and module tests                        | `src/**/*.test.ts(x)`    |
-| `pnpm test:a11y`        | axe-core accessibility assertions                 | `src/**/*.a11y.test.tsx` |
-| `pnpm test:property`    | fast-check property tests                         | `tests/properties/`      |
-| `pnpm test:integration` | Cross-module tests, later `convex-test`           | `tests/integration/`     |
-| `pnpm test:isolation`   | Multi-tenant isolation (blocking gate in Phase 1) | `tests/isolation/`       |
+| Command                 | Tier                                              | Location                                           |
+| ----------------------- | ------------------------------------------------- | -------------------------------------------------- |
+| `pnpm test:unit`        | Component and pure-module tests                   | `src/**/*.test.ts(x)`, `convex/model/**/*.test.ts` |
+| `pnpm test:a11y`        | axe-core accessibility assertions                 | `src/**/*.a11y.test.tsx`                           |
+| `pnpm test:property`    | fast-check property tests                         | `tests/properties/`                                |
+| `pnpm test:integration` | Cross-module tests, later `convex-test`           | `tests/integration/`                               |
+| `pnpm test:isolation`   | Multi-tenant isolation (blocking gate in Phase 1) | `tests/isolation/`                                 |
 
 End-to-end tests are owned by Playwright, not Vitest, and need browsers first:
 
@@ -261,11 +285,17 @@ when a module reaches around the tenant boundary:
    rather than passing the declaration.
 6. `audit-append-only` — a `patch`, `replace`, or `delete` naming `auditEvents`,
    which is the plan's append-only merge gate (§12) made mechanical.
-7. `allowlist-drift` — an allowlisted path that no longer exists, so renaming a
+7. `model-purity` — an import, re-export, or dynamic import in `convex/model/**`
+   that reaches outside it, which includes every Convex package. Plan §6.2 makes
+   that directory portable domain algebra; the guard is what keeps "pure" a fact
+   rather than a comment, because a single `convex/values` import would make the
+   algebra untestable without a backend and unreplayable inside a mutation.
+8. `allowlist-drift` — an allowlisted path that no longer exists, so renaming a
    file cannot quietly widen the boundary.
 
-The last two rules have empty allowlists: no file may declare an unenforceable
-permission, and none may rewrite an audit row. Each other rule's allowlist is a
+Three rules have empty allowlists: no file may declare an unenforceable
+permission, none may rewrite an audit row, and no pure domain module may import
+Convex. Each other rule's allowlist is a
 list of exact repository-relative paths, so a file added tomorrow is denied
 without the list being touched. It is AST-only on purpose: `ctx.db` and
 `TenantStoragePort` appear in prose all over `convex/lib`, and a text scan would
@@ -334,6 +364,10 @@ break a guard.
 - `convex/` holds the schema and its helpers. There is no `convex/_generated/`:
   nothing has been deployed, and no command in this repository needs a Convex
   project.
+- `convex/model/` holds pure domain modules with no Convex imports (plan §6.2).
+  See [`convex/model/README.md`](./convex/model/README.md); the boundary is
+  enforced by `pnpm verify:tenant-boundary`, and the tests are colocated
+  `*.test.ts` files in the unit tier.
 
 ## Next step
 
@@ -349,7 +383,12 @@ its enforcement half: a public function cannot be registered without a code-owne
 permission, and no handler runs before that permission is decided against the active
 tenant's own rows and the attempt recorded.
 
-What comes next, in the order the slice needs it: policy values for thresholds and
+This commit adds the second part: the pure inventory primitives, which are the
+arithmetic and the identifier rules the ledger cannot be written without. They
+decide values only. No table stores one, and no function posts one.
+
+What comes next, in the order the slice needs it: the ledger algebra over these
+primitives (`convex/model/ledger/`, `ADR-0003`); policy values for thresholds and
 maker-checker (`RG-030`, §5 Q26) so those facts stop being per-operation callbacks;
 a write-capable sink so a denied read is recorded (`RG-071`); the idempotency
 wrapper (`INV-0003-01`); and then the first feature functions — PO, receipt, QC,

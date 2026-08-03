@@ -4,11 +4,14 @@ Architecture decisions and delivery contracts for Industrial SSA, derived from t
 [PROJECT_PLAN.md](../PROJECT_PLAN.md).
 
 **Read this first:** these documents describe what will be built. The repository currently
-contains a toolchain scaffold, this documentation set, and the tenant security slice —
+contains a toolchain scaffold, this documentation set, the tenant security slice —
 the schema and the guards that read it, the tenant-bound wrappers with mandatory
 server-side permission enforcement and audited authorization attempts, signed Clerk
 webhook identity mirroring, and the permission catalogue with its provisioning seed —
-with **no Clerk instance, no deployment, and no warehouse management functionality.**
+and the pure inventory primitives under
+[`convex/model/**`](../convex/model/README.md), with **no Clerk instance, no deployment,
+no table storing a quantity or an identifier, and no warehouse management
+functionality.**
 Each document states its own implementation status, and the
 [coverage matrix](./specification-coverage.md) is the single place to see what is real.
 
@@ -18,6 +21,7 @@ Each document states its own implementation status, and the
 | -------------------------------------------------- | ------------------------------------------------------------ |
 | Understand why the architecture is shaped this way | [ADR index](./adr/README.md)                                 |
 | Use the right word for a domain concept            | [Domain glossary](./domain-glossary.md)                      |
+| Know what the pure domain modules own              | [`convex/model/README.md`](../convex/model/README.md)        |
 | Know who may do what, and under which policy       | [Permission catalogue](./permissions.md)                     |
 | Know what still blocks a phase or the launch       | [Release gate register](./release-gates.md)                  |
 | See what has been approved, and by what authority  | [Approval record](./approval-record.md)                      |
@@ -50,6 +54,9 @@ and delivery. See the [ADR index](./adr/README.md) for the list and for how they
   were **not** supplied and therefore remain open gates.
 - [Specification coverage matrix](./specification-coverage.md) — plan requirements, B/D
   decisions, ledger invariants, and quality gates mapped to planned code, tests, and docs.
+- [Pure domain modules](../convex/model/README.md) — what `convex/model/**` contains, why
+  it may not import Convex (plan §6.2), and which invariants it cannot enforce because
+  they belong to a mutation.
 
 ### Contracts and procedures
 

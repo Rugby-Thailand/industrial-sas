@@ -26,10 +26,13 @@
  *     `convex/lib/permissions.ts` (`INV-0006-01`, `INV-0006-02`).
  *   - `audit-append-only` a `patch`, `replace`, or `delete` naming an append-only
  *     table (plan §12: no mutation updates or deletes the audit table).
+ *   - `model-purity`    an import in `convex/model/**` that reaches outside it,
+ *     including any Convex package (plan §6.2: pure domain modules).
  *   - `allowlist-drift` an allowlisted path that no longer exists.
  *
- * The last two have **empty** allowlists: there is no file that may declare an
- * unenforceable permission, and none that may rewrite an audit row.
+ * The first three of those have **empty** allowlists: there is no file that may
+ * declare an unenforceable permission, none that may rewrite an audit row, and no
+ * pure domain module that may import Convex.
  *
  * A file added tomorrow is therefore denied without that list being touched.
  * The checks are AST-only on purpose: `ctx.db` and `TenantStoragePort` appear in
@@ -98,6 +101,16 @@ const APPEND_ONLY_TABLES = new Set(["auditEvents"]);
 const REWRITING_METHODS = new Set(["patch", "replace", "delete"]);
 /** The module the code-owned permission catalogue is declared in. */
 const PERMISSION_CATALOGUE_FILE = "convex/lib/permissions.ts";
+/**
+ * The directory plan §6.2 keeps free of Convex: `convex/model/**` is pure
+ * TypeScript domain algebra. "Pure" is a claim the type checker cannot make —
+ * nothing stops a model module from importing `convex/values` or reaching into
+ * `convex/lib` — and once one does, the algebra is no longer portable, no longer
+ * testable without a Convex world, and no longer replayable inside a mutation.
+ * So the rule is mechanical: a file under this prefix may import only relative
+ * paths that stay under the prefix.
+ */
+const PURE_MODEL_PREFIX = "convex/model/";
 
 /** Exact paths permitted to break each rule; everything absent is denied. */
 export const TENANT_BOUNDARY_ALLOWLIST = Object.freeze({
@@ -124,9 +137,11 @@ export const TENANT_BOUNDARY_ALLOWLIST = Object.freeze({
     "convex/lib/tenantStorage.ts",
   ]),
   // No exemptions: an unenforceable declaration and a rewritten audit row are
-  // wrong in every file, including the ones that own the boundary.
+  // wrong in every file, including the ones that own the boundary. Nor may any
+  // pure domain module import Convex.
   "authorization-declaration": Object.freeze([]),
   "audit-append-only": Object.freeze([]),
+  "model-purity": Object.freeze([]),
 });
 
 /**
@@ -175,8 +190,32 @@ function productionFilesIn(directory, root) {
   return found.sort();
 }
 
-/** `a.b` and `a["b"]` are the same access. @param {ts.Node} node */
-function memberName(node) {
+/**
+ * Whether an import in a pure domain module reaches outside `convex/model/**`.
+ *
+ * A bare specifier always does: it is a package, and `convex` is a package. A
+ * relative one is resolved textually — the paths here are already
+ * repository-relative with `/` separators — so `../lib/permissions` is caught
+ * while `../result` is not.
+ *
+ * @param {string} file repository-relative path of the importing file
+ * @param {string} specifier
+ * @returns {boolean}
+ */
+function escapesPureModel(file, specifier) {
+  if (!specifier.startsWith(".")) return true;
+  const segments = file.split("/").slice(0, -1);
+  for (const part of specifier.split("/")) {
+    if (part === "" || part === ".") continue;
+    if (part === "..") segments.pop();
+    else segments.push(part);
+  }
+  return !`${segments.join("/")}`.startsWith(PURE_MODEL_PREFIX);
+}
+
+/** `a.b` and `a["b"]` are the same access. @param {ts.Node} node */ function memberName(
+  node,
+) {
   if (ts.isPropertyAccessExpression(node)) return node.name.text;
   if (
     ts.isElementAccessExpression(node) &&
@@ -429,6 +468,13 @@ export function scanTenantBoundarySource(file, source, catalogue = null) {
         ? node.importClause?.namedBindings
         : node.exportClause;
       const verb = ts.isImportDeclaration(node) ? "imports" : "re-exports";
+      if (file.startsWith(PURE_MODEL_PREFIX) && escapesPureModel(file, from)) {
+        report(
+          "model-purity",
+          node,
+          `${verb} "${from}", which is outside ${PURE_MODEL_PREFIX} (plan §6.2)`,
+        );
+      }
       if (clause && (ts.isNamedImports(clause) || ts.isNamedExports(clause))) {
         checkNamedBindings(from, verb, clause.elements);
       } else if (ts.isExportDeclaration(node) && isConvexServerModule(from)) {
@@ -446,22 +492,30 @@ export function scanTenantBoundarySource(file, source, catalogue = null) {
       node.expression.kind === ts.SyntaxKind.ImportKeyword
     ) {
       const [first] = node.arguments;
-      if (
-        first &&
-        ts.isStringLiteral(first) &&
-        isConvexServerModule(first.text)
-      ) {
-        report("registration", node, `dynamically imports "${first.text}"`);
-        report(
-          "internal-registration",
-          node,
-          `dynamically imports "${first.text}"`,
-        );
-        report(
-          "http-registration",
-          node,
-          `dynamically imports "${first.text}"`,
-        );
+      if (first && ts.isStringLiteral(first)) {
+        if (
+          file.startsWith(PURE_MODEL_PREFIX) &&
+          escapesPureModel(file, first.text)
+        ) {
+          report(
+            "model-purity",
+            node,
+            `dynamically imports "${first.text}", which is outside ${PURE_MODEL_PREFIX} (plan §6.2)`,
+          );
+        }
+        if (isConvexServerModule(first.text)) {
+          report("registration", node, `dynamically imports "${first.text}"`);
+          report(
+            "internal-registration",
+            node,
+            `dynamically imports "${first.text}"`,
+          );
+          report(
+            "http-registration",
+            node,
+            `dynamically imports "${first.text}"`,
+          );
+        }
       }
     }
 

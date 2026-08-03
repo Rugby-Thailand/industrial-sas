@@ -6,8 +6,22 @@
 - Decision baseline: [PROJECT_PLAN.md](../../PROJECT_PLAN.md) §3.2 (D-07, D-08),
   §4 (B-12), §5 Q4, Q18, §12
 - Covers plan ADR backlog (§11) items: 8
-- Implementation status: **Not implemented.** No UOM model, conversion module, or
-  quantity type exists.
+- Implementation status: **Partial.** The arithmetic exists and is pure:
+  `convex/model/uom/quantity.ts` (integer thousandths of a base UOM, total
+  arithmetic, a decimal parser that never uses a float, display formatting),
+  `convex/model/uom/ratio.ts` (reduced rationals, exact composition, exact integer
+  scaling with overflow reported rather than wrapped), and
+  `convex/model/uom/itemUom.ts` (one base UOM per item, alternate conversions, and
+  item-scoped quantities). `INV-0004-01`, `INV-0004-03`, `INV-0004-04`,
+  `INV-0004-05`, and `INV-0004-06` hold for every path through those modules, and
+  `convex/model/uom/quantity.ts` has no way to express a fraction of a minor unit.
+  What is **not** implemented: no table stores a quantity or a conversion
+  (`itemUoms` does not exist), so `INV-0004-02` — an immutable base UOM once
+  ledger lines reference the item — has nothing to enforce it; there is no ledger,
+  balance, or aggregate (`ADR-0003`); and money (`INV-0004-07`) is entirely absent,
+  which currently satisfies "never mixed with quantity" by omission rather than by
+  design. The zero-quantity gate (`INV-0004-08`) exists as
+  `requireNonZeroQuantity`, with no posting to call it.
 
 ## Context
 
@@ -101,17 +115,35 @@ three decimals (B-12).
 
 ## Verification
 
-Planned, not present.
+Partly present; the rest is planned.
 
-- Property tests: conversion round-trips exactly for all generated rational
-  conversions; no accumulated error across long posting sequences; rejection of
-  non-exact conversions; precision never exceeds three decimals.
-- Unit tests: base/alternate UOM definition rules, immutability of base UOM,
-  formatter behaviour, THB minor-unit arithmetic.
-- Integration tests: receipt capture in an alternate UOM posts exact base
-  quantities; rejected conversions produce a structured, translatable error.
-- Static checks: quantity fields typed as integer minor units; no float literals
-  in ledger paths.
+Implemented now, over the pure modules:
+
+- Unit tests (`convex/model/uom/*.test.ts`): scale and bounds, the decimal parser's
+  rejections (a fourth decimal, an exponent, a thousands separator, non-ASCII
+  digits), UOM mismatch, forged-value re-validation, per-item conversion including
+  alternate-to-alternate composition, and the `ITEM_MISMATCH` case that a UOM check
+  alone cannot see.
+- Property tests (`tests/properties/quantity-uom.property.test.ts`): reduction is
+  canonical and produces coprime components; composition is commutative,
+  associative where defined, and has the unit ratio as identity; an exact
+  conversion round-trips; an inexact one reports a value equal to the true fraction
+  by cross-multiplication; no path returns a non-safe integer; quantities
+  round-trip through their decimal form. Three negative controls assert that the
+  suite fails against a rounding conversion, an unguarded multiply, and a
+  truncating parser.
+- Integration tests (`tests/integration/inbound-primitives.integration.test.ts`):
+  conversion composed with a scanned GS1 label and a Bangkok business date, with no
+  Convex.
+
+Still planned, because the ledger does not exist:
+
+- No accumulated-error test across a long posting sequence, no replay-equals-
+  projection property, and no test that a receipt in an alternate UOM posts exact
+  base quantities.
+- No static check that ledger quantity fields are integers, because there are no
+  ledger fields. `pnpm verify:tenant-boundary` does enforce that these modules stay
+  free of Convex imports (`model-purity`).
 
 ## Release gates
 

@@ -6,11 +6,37 @@
 - Decision baseline: [PROJECT_PLAN.md](../../PROJECT_PLAN.md) §3.2 (D-09, D-10,
   D-11, D-13, D-15), §4 (B-06), §5 Q17, Q19, Q22, Q23, Q24, Q29, §7.2, §7.4
 - Covers plan ADR backlog (§11) items: 9, 10, 13
-- Implementation status: **Not implemented.** No location, lot, handling-unit, or
-  barcode schema exists, and no GS1 or LPN parser exists. A `warehouses` table is
-  declared in `convex/schema.ts`, reduced to tenant-scoped identity and status,
-  because warehouse scope is an input to every authorization decision; none of the
-  hierarchy, capacity, or storage-class model in this ADR is present.
+- Implementation status: **Partial, and only for identifiers and rotation
+  ordering.** No location, lot, or handling-unit schema exists. A `warehouses`
+  table is declared in `convex/schema.ts`, reduced to tenant-scoped identity and
+  status, because warehouse scope is an input to every authorization decision; none
+  of the hierarchy, capacity, or storage-class model in this ADR is present.
+
+  What is implemented, as pure modules with no Convex imports:
+
+  - `convex/model/gs1/checkDigit.ts` — the GS1 modulo-10 check digit.
+  - `convex/model/gs1/date.ts` — `YYMMDD` with the century rule against an injected
+    reference year, and an explicit policy for a `00` day.
+  - `convex/model/gs1/elementString.ts` — element-string parsing for nine AIs (00,
+    01, 10, 11, 15, 17, 21, 30, 37) with FNC1 handling. Every other AI is rejected
+    as unknown.
+  - `convex/model/identifiers/normalization.ts` — raw scan, SKU, lot code, and GTIN
+    normalization, with leading zeros preserved and lot case preserved.
+  - `convex/model/identifiers/lpn.ts` — LPN namespaces, internal LPN generation and
+    validation with an internal check character, and SSCC as LPN (D-15).
+  - `convex/model/identifiers/scanResolution.ts` — the parser precedence of §13,
+    with ambiguity, foreign namespaces, and GS1 content errors all rejected
+    explicitly (`INV-0005-11`).
+  - `convex/model/rotation/stockRotation.ts` — FIFO/FEFO as a strict total order
+    with documented tie-breakers and a per-candidate explanation
+    (`INV-0005-10`).
+
+  What is **not** implemented: `INV-0005-01` through `INV-0005-09` and
+  `INV-0005-12` all need tables or mutations that do not exist. In particular LPN
+  uniqueness and never-reuse (`INV-0005-05`) cannot be enforced by a value module —
+  it can only make a collision unlikely and a typo detectable — and the raw scan is
+  returned for persistence rather than persisted. Serial parsing (AI 21) exists;
+  serial _flows_ remain off (D-09).
 
 ## Context
 
@@ -145,18 +171,43 @@ pallets.
 
 ## Verification
 
-Planned, not present.
+Partly present for identifiers and rotation; everything else is planned.
 
-- Property tests: FEFO determinism including tie-breakers; GS1/internal parser
-  rejects ambiguous or invalid input; LPN check-digit correctness; nesting depth
-  bound; status/owner reclassification always balanced.
-- Unit tests: location path maintenance, storage-class compatibility, capacity
-  advisory behaviour, lot uniqueness, rotation-date selection.
-- Integration tests: handling-unit split/merge/relabel/nest/unnest posting sets;
-  scheduled expiry reclassification; mixed-content rejection when disabled;
-  serial rejection while flagged off.
-- Physical tests: real supplier-label corpus parsed against fixtures; printed
-  labels rescanned (see [ADR-0007](./0007-inbound-slice-scope.md)).
+Implemented now:
+
+- Unit tests (`convex/model/gs1/*.test.ts`, `convex/model/identifiers/*.test.ts`,
+  `convex/model/rotation/stockRotation.test.ts`): check digits against
+  hand-computed GS1 examples; the parser's rejections (unknown AI, truncated fixed
+  field, over-long variable field, bad check digit, impossible date, duplicate AI,
+  character outside AI encodable set 82); normalization that preserves leading zeros
+  and lot case; LPN generation from an injected clock and entropy; rotation
+  tie-breakers, exclusions, and explanations.
+- Property tests (`tests/properties/identifiers.property.test.ts`,
+  `tests/properties/stock-rotation.property.test.ts`): normalization is idempotent
+  and keeps zero-padded codes distinct; a computed GS1 check digit always verifies
+  and every single-digit error is caught; element strings round-trip; the LPN check
+  character catches **every** single-character substitution and **every**
+  transposition of two different characters, which is provable because the alphabet
+  has 31 symbols and 31 is prime; the rotation comparator is irreflexive,
+  antisymmetric, transitive, and total, and ordering is invariant under input
+  permutation. Negative controls assert the suite fails against a constant check
+  character, an unweighted checksum, a zero-trimming normalizer, an unverified
+  GTIN, and a comparator with no final tie-breaker.
+- Integration tests (`tests/integration/inbound-primitives.integration.test.ts`):
+  a scanned label resolved, converted, dated, and rotated, plus a neighbouring
+  tenant's LPN refused.
+
+Still planned:
+
+- Everything requiring persistence: location path maintenance, lot uniqueness,
+  storage-class compatibility, handling-unit split/merge/relabel/nest/unnest
+  postings, scheduled expiry reclassification, mixed-content rejection, and serial
+  rejection while flagged off.
+- The physical corpus: real supplier labels parsed against fixtures, and printed
+  labels rescanned (`RG-004`, `RG-005`). The parser's known limitation — a
+  variable-length field that the supplier did not terminate with FNC1 absorbs the
+  rest of the string — is documented in the module and is what that corpus exists to
+  measure.
 
 ## Release gates
 
