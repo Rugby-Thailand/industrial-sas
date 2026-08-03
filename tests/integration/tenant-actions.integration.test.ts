@@ -1,11 +1,26 @@
+/**
+ * Integration tier — the tenant-bound action wrapper over `convex-test`.
+ *
+ * An action is the one path where authorization cannot happen in the caller's
+ * transaction, because an action has neither. What is proved here is the shape of
+ * the substitute: an internal mutation preflight that resolves the tenant,
+ * authorizes, and **commits its audit row before the handler runs**, and an action
+ * that answers with the outcome envelope rather than a throw.
+ *
+ * All data is synthetic (`tests/fixtures/README.md`).
+ */
 import { makeFunctionReference } from "convex/server";
 import { ConvexError, v, type GenericId, type Value } from "convex/values";
 import { describe, expect, it } from "vitest";
 
-import { actionWithOrg } from "../../convex/lib/tenantFunctions";
+import {
+  actionWithOrg,
+  type TenantFunctionOutcome,
+} from "../../convex/lib/tenantFunctions";
 import {
   createConvexTenantWorld,
-  seedConvexTenantIdentities,
+  seedConvexAuthorization,
+  storedAuditEvents,
   type ConvexTestModuleMap,
 } from "../fixtures/convex-tenant-world";
 
@@ -20,6 +35,8 @@ const inspectAction = actionWithOrg({
     requestId: v.string(),
     capabilities: v.array(v.string()),
   }),
+  permissionCode: "label.print.execute",
+  target: { table: "warehouses", id: ({ warehouseId }) => warehouseId },
   warehouseId: ({ warehouseId }) => warehouseId,
   handler: (ctx) => ({
     orgId: ctx.tenant.organization._id,
@@ -29,8 +46,11 @@ const inspectAction = actionWithOrg({
 });
 
 const throwingAction = actionWithOrg({
-  args: {},
+  args: { warehouseId: v.id("warehouses") },
   returns: v.null(),
+  permissionCode: "label.print.execute",
+  target: { table: "warehouses" },
+  warehouseId: ({ warehouseId }) => warehouseId,
   handler: () => {
     throw new ConvexError("action-handler-secret");
   },
@@ -56,13 +76,13 @@ const inspectReference = makeFunctionReference<
     orgId: string;
     requestId: string;
   },
-  InspectionResult
+  TenantFunctionOutcome<InspectionResult>
 >("testing/actionFixture:inspectAction");
 
 const throwingReference = makeFunctionReference<
   "action",
-  Record<string, never>,
-  null
+  { warehouseId: GenericId<"warehouses"> },
+  TenantFunctionOutcome<null>
 >("testing/actionFixture:throwingAction");
 
 function identity(org: "a" | "b") {
@@ -81,15 +101,15 @@ async function failureData(operation: Promise<unknown>): Promise<Value> {
 
 async function actionWorld() {
   const world = await createConvexTenantWorld(ACTION_MODULES);
-  await seedConvexTenantIdentities(world);
+  await seedConvexAuthorization(world);
   return world;
 }
 
 describe("tenant-bound Convex actions", () => {
-  it("runs a registered action after an authenticated warehouse preflight", async () => {
+  it("runs a registered action after an audited warehouse preflight", async () => {
     const world = await actionWorld();
 
-    const result = await world.t
+    const outcome = await world.t
       .withIdentity(identity("a"))
       .action(inspectReference, {
         warehouseId: world.warehouses.alphaA,
@@ -97,10 +117,32 @@ describe("tenant-bound Convex actions", () => {
         requestId: "client-controlled",
       });
 
-    expect(result.orgId).toBe(world.orgA);
-    expect(result.requestId).not.toBe("client-controlled");
-    expect(result.requestId).toMatch(/^[0-9a-f-]{36}$/);
-    expect(result.capabilities).toEqual(["identity", "requestId", "tenant"]);
+    if (!outcome.ok) throw new Error("expected an allowed action outcome");
+    expect(outcome.value.orgId).toBe(world.orgA);
+    expect(outcome.value.requestId).not.toBe("client-controlled");
+    expect(outcome.value.requestId).toMatch(/^[0-9a-f-]{36}$/);
+    expect(outcome.value.capabilities).toEqual([
+      "identity",
+      "permission",
+      "requestId",
+      "tenant",
+    ]);
+
+    // The preflight is a mutation, so its audit row is committed in its own
+    // transaction — before the action's external work, and independent of it.
+    const audit = await storedAuditEvents(world, world.orgA);
+    expect(audit).toHaveLength(1);
+    expect(audit[0]).toMatchObject({
+      orgId: world.orgA,
+      outcome: "ALLOWED",
+      permissionCode: "label.print.execute",
+      action: "label.print.execute",
+      entityTable: "warehouses",
+      entityId: world.warehouses.alphaA,
+      warehouseId: world.warehouses.alphaA,
+      requestId: outcome.requestId,
+    });
+    expect(audit[0]).not.toHaveProperty("denialReason");
   });
 
   it("returns the resolver's safe anonymous denial", async () => {
@@ -139,28 +181,40 @@ describe("tenant-bound Convex actions", () => {
 
     expect(data).toMatchObject({ kind: "TENANT_CONTEXT_DENIED", code });
     expect(JSON.stringify(data)).not.toContain(String(warehouseId));
+    // A tenancy denial happens before any authorization decision, so there is
+    // nothing to audit and no tenant to audit it against.
+    expect(await storedAuditEvents(world, world.orgA)).toHaveLength(0);
   });
 
   it("redacts a handler-thrown Convex error", async () => {
     const world = await actionWorld();
 
     const data = await failureData(
-      world.t.withIdentity(identity("b")).action(throwingReference, {}),
+      world.t
+        .withIdentity(identity("a"))
+        .action(throwingReference, { warehouseId: world.warehouses.alphaA }),
     );
 
     expect(data).toMatchObject({ code: "INTERNAL_ERROR" });
     expect(JSON.stringify(data)).not.toContain("action-handler-secret");
+    // The preflight committed before the handler ran, so the attempt survives the
+    // handler's failure: that is the difference between an action and a mutation.
+    const audit = await storedAuditEvents(world, world.orgA);
+    expect(audit).toHaveLength(1);
+    expect(audit[0]).toMatchObject({ outcome: "ALLOWED" });
   });
 
-  it("preserves action argument and return validators", () => {
+  it("declares the outcome envelope on the registered action", () => {
     const runtime = inspectAction as unknown as {
       readonly exportArgs: () => string;
       readonly exportReturns: () => string;
     };
+    const returns = JSON.parse(runtime.exportReturns()) as {
+      readonly type: string;
+    };
 
     expect(JSON.parse(runtime.exportArgs())).toMatchObject({ type: "object" });
-    expect(JSON.parse(runtime.exportReturns())).toMatchObject({
-      type: "object",
-    });
+    expect(returns.type).toBe("union");
+    expect(JSON.stringify(returns)).toContain("AUTHORIZATION_DENIED");
   });
 });

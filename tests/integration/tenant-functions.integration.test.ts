@@ -1,3 +1,14 @@
+/**
+ * Integration tier — the tenant-bound wrappers over `convex-test`.
+ *
+ * Scope: the wrapper's own contract — request-ID minting, tenant resolution, the
+ * absence of a raw database in a handler context, the outcome envelope, and the
+ * redaction of anything a handler or the resolver produced. The *authorization*
+ * matrix lives in `tests/isolation/authorization-enforcement.isolation.test.ts`,
+ * because every one of its cases is a two-tenant claim.
+ *
+ * All data is synthetic (`tests/fixtures/README.md`).
+ */
 import type { GenericMutationCtx } from "convex/server";
 import { ConvexError, v, type Value } from "convex/values";
 import { describe, expect, it } from "vitest";
@@ -10,6 +21,8 @@ import {
 import type { DataModel } from "../../convex/schema";
 import {
   createConvexTenantWorld,
+  recordStepUp,
+  seedConvexAuthorization,
   seedConvexTenantIdentities,
 } from "../fixtures/convex-tenant-world";
 
@@ -43,6 +56,20 @@ async function failureData(operation: Promise<unknown>) {
   }
 }
 
+/** The success branch of an outcome, or a readable failure if it was denied. */
+function allowedValue(outcome: unknown): unknown {
+  const envelope = outcome as {
+    readonly ok: boolean;
+    readonly value?: unknown;
+  };
+  if (!envelope.ok) {
+    throw new Error(
+      `Expected an allowed outcome, got ${JSON.stringify(outcome)}`,
+    );
+  }
+  return envelope.value;
+}
+
 describe("tenant-bound Convex function wrappers", () => {
   it("mints UUIDv7 correlation IDs from the server clock", () => {
     const now = 1_725_000_000_123;
@@ -58,13 +85,16 @@ describe("tenant-bound Convex function wrappers", () => {
 
   it("resolves a scoped tenant and exposes no raw database capability", async () => {
     const world = await createConvexTenantWorld();
-    await seedConvexTenantIdentities(world);
+    await seedConvexAuthorization(world);
     const wrapped = queryWithOrg({
       args: { warehouseId: v.id("warehouses") },
       returns: v.object({
         orgId: v.id("organizations"),
         requestId: v.string(),
+        permissionCode: v.string(),
       }),
+      permissionCode: "receiving.receipt.post",
+      target: { table: "warehouses", id: ({ warehouseId }) => warehouseId },
       warehouseId: ({ warehouseId }) => warehouseId,
       handler: (ctx) => {
         expect(Object.isFrozen(ctx)).toBe(true);
@@ -73,56 +103,78 @@ describe("tenant-bound Convex function wrappers", () => {
         return {
           orgId: ctx.tenant.organization._id,
           requestId: ctx.requestId,
+          permissionCode: ctx.permission.code,
         };
       },
     });
 
-    const result = await world.t.withIdentity(identity("a")).run(async (ctx) =>
+    const outcome = await world.t.withIdentity(identity("a")).run(async (ctx) =>
       runtimeFunction(wrapped)._handler(ctx, {
         warehouseId: world.warehouses.alphaA,
       }),
     );
+    const value = allowedValue(outcome) as {
+      readonly orgId: string;
+      readonly requestId: string;
+      readonly permissionCode: string;
+    };
 
-    expect(result).toMatchObject({ orgId: world.orgA });
-    expect((result as { requestId: string }).requestId).toMatch(
-      /^[0-9a-f-]{36}$/,
+    expect(value.orgId).toBe(world.orgA);
+    expect(value.permissionCode).toBe("receiving.receipt.post");
+    expect(value.requestId).toMatch(/^[0-9a-f-]{36}$/);
+    expect((outcome as { readonly requestId: string }).requestId).toBe(
+      value.requestId,
     );
   });
 
   it("ignores spoofed organization and request identifiers", async () => {
     const world = await createConvexTenantWorld();
-    await seedConvexTenantIdentities(world);
+    await seedConvexAuthorization(world);
     const wrapped = queryWithOrg({
       args: { orgId: v.string(), requestId: v.string() },
       returns: v.object({
         orgId: v.id("organizations"),
         requestId: v.string(),
       }),
+      permissionCode: "admin.audit.read",
+      target: { table: "auditEvents" },
       handler: (ctx) => ({
         orgId: ctx.tenant.organization._id,
         requestId: ctx.requestId,
       }),
     });
 
-    const result = await world.t.withIdentity(identity("a")).run(async (ctx) =>
+    const outcome = await world.t.withIdentity(identity("a")).run(async (ctx) =>
       runtimeFunction(wrapped)._handler(ctx, {
         orgId: world.orgB,
         requestId: "client-controlled",
       }),
     );
+    const value = allowedValue(outcome) as {
+      readonly orgId: string;
+      readonly requestId: string;
+    };
 
-    expect(result).toMatchObject({ orgId: world.orgA });
-    expect((result as { requestId: string }).requestId).not.toBe(
-      "client-controlled",
-    );
+    expect(value.orgId).toBe(world.orgA);
+    expect(value.requestId).not.toBe("client-controlled");
   });
 
   it("binds mutation writes to the resolved organization", async () => {
     const world = await createConvexTenantWorld();
-    await seedConvexTenantIdentities(world);
+    await seedConvexAuthorization(world);
+    // `masterData.warehouse.manage` is a step-up ORG permission, so the actor
+    // needs a fresh reverification as well as the grant.
+    await recordStepUp(world, {
+      orgId: world.orgB,
+      userId: world.userA,
+      occurredAt: Date.now(),
+      reverifiedAt: Date.now(),
+    });
     const wrapped = mutationWithOrg({
       args: { code: v.string() },
       returns: v.string(),
+      permissionCode: "masterData.warehouse.manage",
+      target: { table: "warehouses" },
       handler: async ({ tenantDb }, { code }) =>
         await tenantDb.insert("warehouses", {
           code,
@@ -131,11 +183,12 @@ describe("tenant-bound Convex function wrappers", () => {
         }),
     });
 
-    const insertedId = await world.t
+    const outcome = await world.t
       .withIdentity(identity("b"))
       .run(async (ctx) =>
         runtimeFunction(wrapped)._handler(ctx, { code: "BOUND" }),
       );
+    const insertedId = allowedValue(outcome);
     const inserted = await world.t.run(async (ctx) => {
       const normalized = ctx.db.normalizeId("warehouses", String(insertedId));
       return normalized === null
@@ -151,6 +204,8 @@ describe("tenant-bound Convex function wrappers", () => {
     const wrapped = queryWithOrg({
       args: {},
       returns: v.null(),
+      permissionCode: "admin.audit.read",
+      target: { table: "auditEvents" },
       handler: () => null,
     });
 
@@ -167,10 +222,12 @@ describe("tenant-bound Convex function wrappers", () => {
 
   it("redacts handler failures, including handler-thrown Convex errors", async () => {
     const world = await createConvexTenantWorld();
-    await seedConvexTenantIdentities(world);
+    await seedConvexAuthorization(world);
     const wrapped = queryWithOrg({
       args: {},
       returns: v.null(),
+      permissionCode: "admin.audit.read",
+      target: { table: "auditEvents" },
       handler: () => {
         throw new ConvexError("secret-handler-detail");
       },
@@ -186,17 +243,75 @@ describe("tenant-bound Convex function wrappers", () => {
     expect(JSON.stringify(data)).not.toContain("secret-handler-detail");
   });
 
-  it("preserves Convex validators on the registered function", () => {
+  it("declares the outcome envelope, not the bare value, as its return type", () => {
     const wrapped = queryWithOrg({
       args: { value: v.string() },
       returns: v.number(),
+      permissionCode: "admin.audit.read",
+      target: { table: "auditEvents" },
       handler: (_ctx, { value }) => value.length,
     });
     const runtime = runtimeFunction(wrapped);
+    const returns = JSON.parse(runtime.exportReturns()) as {
+      readonly type: string;
+      readonly value: readonly { readonly value: Record<string, unknown> }[];
+    };
 
     expect(JSON.parse(runtime.exportArgs())).toMatchObject({ type: "object" });
-    expect(JSON.parse(runtime.exportReturns())).toMatchObject({
-      type: "number",
-    });
+    // A union of the allowed and denied branches: a declared validator that
+    // described only the success value would reject every denial at the boundary.
+    expect(returns.type).toBe("union");
+    expect(returns.value).toHaveLength(2);
+    expect(JSON.stringify(returns)).toContain("AUTHORIZATION_DENIED");
+    expect(JSON.stringify(returns)).toContain('"number"');
+  });
+
+  it("refuses to register a function whose declaration cannot be enforced", async () => {
+    const world = await createConvexTenantWorld();
+    await seedConvexTenantIdentities(world);
+
+    // Unknown code, platform code, warehouse permission with no selector, and a
+    // policy nothing would read: each fails at registration, not at call time.
+    expect(() =>
+      queryWithOrg({
+        args: {},
+        permissionCode: "invented.permission.use",
+        target: { table: "auditEvents" },
+        handler: () => null,
+      }),
+    ).toThrow(/does not define it/);
+    expect(() =>
+      queryWithOrg({
+        args: {},
+        permissionCode: "platform.tenant.read",
+        target: { table: "auditEvents" },
+        handler: () => null,
+      }),
+    ).toThrow(/PLATFORM/);
+    expect(() =>
+      queryWithOrg({
+        args: {},
+        permissionCode: "receiving.receipt.post",
+        target: { table: "auditEvents" },
+        handler: () => null,
+      }),
+    ).toThrow(/warehouseId selector/);
+    expect(() =>
+      queryWithOrg({
+        args: {},
+        permissionCode: "admin.audit.read",
+        target: { table: "auditEvents" },
+        policy: () => ({ thresholdExceeded: false }),
+        handler: () => null,
+      }),
+    ).toThrow(/policy callback would never be read/);
+    expect(() =>
+      queryWithOrg({
+        args: {},
+        permissionCode: "admin.audit.read",
+        target: { table: "organizations" as "auditEvents" },
+        handler: () => null,
+      }),
+    ).toThrow(/not a tenant table/);
   });
 });

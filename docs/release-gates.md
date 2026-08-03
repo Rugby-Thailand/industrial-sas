@@ -24,23 +24,33 @@ closes it, and its current status.
 
 Beyond the toolchain scaffold and this documentation set, the repository now contains
 the tenant security schema and the guards that read it, the tenant-bound function
-wrappers, signed Clerk webhook identity synchronization, and the code-owned
-permission catalogue with its fail-closed policy evaluator and provisioning seed
-([coverage matrix](./specification-coverage.md) §5a). It closes no gate. Nothing is
-deployed, no exported function enforces a permission yet, and no authorization
-attempt is audited, so every gate that depends on behaviour in a running
-environment still depends on code that does not exist.
+wrappers, signed Clerk webhook identity synchronization, the code-owned permission
+catalogue with its fail-closed policy evaluator and provisioning seed, and — new —
+**mandatory server-side permission enforcement inside those wrappers, with audited
+authorization attempts** ([coverage matrix](./specification-coverage.md) §5a). It
+closes no gate. Nothing is deployed and no feature function exists to enforce a
+permission _for_, so every gate that depends on behaviour in a running environment
+still depends on code that does not exist.
 
-Of the 70 gates registered here, **two are satisfied** — `RG-062` (the ADR set) and
+Of the 71 gates registered here, **two are satisfied** — `RG-062` (the ADR set) and
 `RG-001` (B-01…B-12 accepted, evidenced by the
-[approval record](./approval-record.md)) — **three are in progress** (`RG-053`,
-`RG-054`, `RG-055`: the standing merge gates), and the remaining **65 are
-`Not started`**. That is the accurate picture, not a pessimistic one.
+[approval record](./approval-record.md)) — **six are in progress** (`RG-053`,
+`RG-054`, `RG-055`: the standing merge gates; `RG-032` and `RG-033`: the static
+guards that now exist but are not required checks; and `RG-026`, whose
+wrapper-level matrix is green while its per-function matrix waits for functions),
+and the remaining **63 are `Not started`**. That is the accurate picture, not a
+pessimistic one.
 
 `RG-013` and `RG-031` deserve a specific note, because the isolation tier now has real
 content. They remain `Not started`. The tier proves the schema cannot _express_ a cheap
-cross-tenant read; it does not reject a cross-tenant document ID, because there is no
-function to reject it and no two-tenant fixture to try.
+cross-tenant read, and now that a two-tenant fixture rejects cross-tenant grants,
+scopes, and step-up evidence through the real wrappers; it is not a blocking merge
+gate by policy, and nothing is deployed.
+
+`RG-071` is new and open by construction: a Convex query cannot write, so a denied
+read is enforced but not recorded. It is registered rather than left as a comment,
+because "denials are audited" (`INV-0006-10`) is currently true of mutations and
+actions only.
 
 The approval record closes `RG-001` only. It supplies no budget, pilot site, vendor,
 hardware, or legal approval, so `RG-064` and every other `External` gate stay open.
@@ -72,16 +82,17 @@ implementation against fakes is not waiting on them.
 
 ## Phase 1 — project and security foundations
 
-| ID       | Gate                                                                                              | Kind     | Owner            | Evidence required                                                                   | Status      |
-| -------- | ------------------------------------------------------------------------------------------------- | -------- | ---------------- | ----------------------------------------------------------------------------------- | ----------- |
-| `RG-011` | Organization creation, invitation, organization switch, and warehouse restriction work in staging | Mixed    | Engineering lead | Staging walkthrough record with screenshots or E2E run against staging              | Not started |
-| `RG-012` | Every exported tenant Convex function uses the auth/tenant wrapper                                | Code     | Engineering lead | Passing static guard in CI                                                          | Not started |
-| `RG-013` | Cross-tenant document IDs are rejected in automated tests                                         | Code     | Engineering lead | Green isolation tier covering every exported function family                        | Not started |
-| `RG-014` | No secret or real tenant data exists in demo or preview environments                              | Mixed    | Platform         | Environment audit note plus tracked-file secret scan result                         | Not started |
-| `RG-024` | Permission catalogue reviewed with the pilot tenant (§5 Q14)                                      | External | Product owner    | Reviewed [catalogue](./permissions.md) with tenant comments resolved                | Not started |
-| `RG-015` | Support-access policy confirmed, including whether grants are enabled at all (§5 Q15)             | External | Product owner    | Written policy: enablement, approval path, read-only default, audit visibility      | Not started |
-| `RG-030` | Shared-device and privileged-session policy confirmed (§5 Q16)                                    | External | Product owner    | Written policy: session lifetimes, step-up scope, user-switching expectations       | Not started |
-| `RG-059` | Production environment, secrets, and vendor projects separated from non-production                | External | Platform         | Environment inventory showing separate identity, data, file, and telemetry projects | Not started |
+| ID       | Gate                                                                                              | Kind     | Owner            | Evidence required                                                                                                            | Status      |
+| -------- | ------------------------------------------------------------------------------------------------- | -------- | ---------------- | ---------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| `RG-011` | Organization creation, invitation, organization switch, and warehouse restriction work in staging | Mixed    | Engineering lead | Staging walkthrough record with screenshots or E2E run against staging                                                       | Not started |
+| `RG-012` | Every exported tenant Convex function uses the auth/tenant wrapper                                | Code     | Engineering lead | Passing static guard in CI                                                                                                   | Not started |
+| `RG-013` | Cross-tenant document IDs are rejected in automated tests                                         | Code     | Engineering lead | Green isolation tier covering every exported function family                                                                 | Not started |
+| `RG-014` | No secret or real tenant data exists in demo or preview environments                              | Mixed    | Platform         | Environment audit note plus tracked-file secret scan result                                                                  | Not started |
+| `RG-024` | Permission catalogue reviewed with the pilot tenant (§5 Q14)                                      | External | Product owner    | Reviewed [catalogue](./permissions.md) with tenant comments resolved                                                         | Not started |
+| `RG-015` | Support-access policy confirmed, including whether grants are enabled at all (§5 Q15)             | External | Product owner    | Written policy: enablement, approval path, read-only default, audit visibility                                               | Not started |
+| `RG-030` | Shared-device and privileged-session policy confirmed (§5 Q16)                                    | External | Product owner    | Written policy: session lifetimes, step-up scope, user-switching expectations                                                | Not started |
+| `RG-071` | Denied read attempts are recorded, not only denied                                                | Code     | Engineering lead | A write-capable sink for query authorization attempts, plus an isolation test that finds the `DENIED` row for a refused read | Not started |
+| `RG-059` | Production environment, secrets, and vendor projects separated from non-production                | External | Platform         | Environment inventory showing separate identity, data, file, and telemetry projects                                          | Not started |
 
 ## Phase 2 — inventory foundation and master data
 
@@ -98,16 +109,16 @@ implementation against fakes is not waiting on them.
 
 ## Phase 3 — inbound vertical slice
 
-| ID       | Gate                                                                                              | Kind     | Owner            | Evidence required                                                                    | Status      |
-| -------- | ------------------------------------------------------------------------------------------------- | -------- | ---------------- | ------------------------------------------------------------------------------------ | ----------- |
-| `RG-051` | A real PO completes receive → QC → pallet → print → putaway → inventory history on pilot hardware | External | Product owner    | Recorded run on pilot hardware with resulting ledger history exported                | Not started |
-| `RG-025` | Duplicate scans and retries never duplicate stock                                                 | Code     | Engineering lead | Green integration and property tests plus a hardware double-scan trial               | Not started |
-| `RG-026` | Unauthorized warehouse actions fail server-side                                                   | Code     | Engineering lead | Green permission and scope matrix tests                                              | Not started |
-| `RG-027` | Over-receipt tolerance and blind-receipt policy confirmed (§5 Q26)                                | External | Product owner    | Written tolerance values and blind-receipt authorization rules                       | Not started |
-| `RG-028` | QC gating and AQL expectations confirmed (§5 Q27)                                                 | External | Product owner    | Written QC profile expectations and acknowledgement that AQL is out of scope         | Not started |
-| `RG-029` | Printed labels remain scannable and Thai text correct after real handling                         | External | Engineering lead | Handled-sample rescan results and photographs                                        | Not started |
-| `RG-037` | Measured concurrency ceiling safely exceeds the pilot peak with headroom                          | Mixed    | Engineering lead | Load-test report including worst hot-bucket contention and headroom factor           | Not started |
-| `RG-035` | UploadThing data region and private-ACL capability confirmed on the purchased plan (§5 Q32)       | External | Platform         | Vendor confirmation of region and ACL behaviour, plus a private-download test result | Not started |
+| ID       | Gate                                                                                              | Kind     | Owner            | Evidence required                                                                    | Status                                                                                                                                                                                                                                                            |
+| -------- | ------------------------------------------------------------------------------------------------- | -------- | ---------------- | ------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `RG-051` | A real PO completes receive → QC → pallet → print → putaway → inventory history on pilot hardware | External | Product owner    | Recorded run on pilot hardware with resulting ledger history exported                | Not started                                                                                                                                                                                                                                                       |
+| `RG-025` | Duplicate scans and retries never duplicate stock                                                 | Code     | Engineering lead | Green integration and property tests plus a hardware double-scan trial               | Not started                                                                                                                                                                                                                                                       |
+| `RG-026` | Unauthorized warehouse actions fail server-side                                                   | Code     | Engineering lead | Green permission and scope matrix tests                                              | In progress — `tests/isolation/authorization-enforcement.isolation.test.ts` proves wrapper-level refusal for ungranted codes, archived roles, cross-tenant grant rows, and out-of-scope or absent warehouses; the per-function matrix waits for feature functions |
+| `RG-027` | Over-receipt tolerance and blind-receipt policy confirmed (§5 Q26)                                | External | Product owner    | Written tolerance values and blind-receipt authorization rules                       | Not started                                                                                                                                                                                                                                                       |
+| `RG-028` | QC gating and AQL expectations confirmed (§5 Q27)                                                 | External | Product owner    | Written QC profile expectations and acknowledgement that AQL is out of scope         | Not started                                                                                                                                                                                                                                                       |
+| `RG-029` | Printed labels remain scannable and Thai text correct after real handling                         | External | Engineering lead | Handled-sample rescan results and photographs                                        | Not started                                                                                                                                                                                                                                                       |
+| `RG-037` | Measured concurrency ceiling safely exceeds the pilot peak with headroom                          | Mixed    | Engineering lead | Load-test report including worst hot-bucket contention and headroom factor           | Not started                                                                                                                                                                                                                                                       |
+| `RG-035` | UploadThing data region and private-ACL capability confirmed on the purchased plan (§5 Q32)       | External | Platform         | Vendor confirmation of region and ACL behaviour, plus a private-download test result | Not started                                                                                                                                                                                                                                                       |
 
 ## Phase 4 — pilot hardening and release
 
@@ -139,22 +150,29 @@ implementation against fakes is not waiting on them.
 These run on every pull request rather than at a phase boundary
 ([ADR-0012](./adr/0012-delivery-release-and-quality-gates.md), plan §12).
 
-| ID       | Gate                                                                        | Kind  | Owner            | Evidence required                                 | Status                                                                                                             |
-| -------- | --------------------------------------------------------------------------- | ----- | ---------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| `RG-053` | Formatting, lint, strict typecheck, and dependency audit                    | Code  | Engineering lead | Green `Static analysis` job                       | In progress — audit job absent                                                                                     |
-| `RG-054` | Unit, a11y, property, integration, and isolation tiers green                | Code  | Engineering lead | Green test matrix                                 | In progress — integration and isolation tiers assert the schema; unit, a11y, property, and e2e remain placeholders |
-| `RG-055` | Playwright smoke journey green                                              | Code  | Engineering lead | Green E2E workflow                                | In progress — placeholder journey                                                                                  |
-| `RG-031` | Tenant-isolation tier is a blocking merge gate                              | Code  | Engineering lead | Isolation job required for merge and non-waivable | Not started                                                                                                        |
-| `RG-032` | No exported Convex function bypasses access wrappers                        | Code  | Engineering lead | Passing static guard                              | Not started                                                                                                        |
-| `RG-033` | No mutation updates or deletes ledger or audit tables                       | Code  | Engineering lead | Passing static guard                              | Not started                                                                                                        |
-| `RG-034` | No tenant list query uses an unbounded scan or a tenant `.filter()`         | Code  | Engineering lead | Passing static guard                              | Not started                                                                                                        |
-| `RG-036` | Production Convex tier sized from load-test evidence, not assumption (D-25) | Mixed | Platform         | Sizing note referencing the `RG-037` load test    | Not started                                                                                                        |
+| ID       | Gate                                                                        | Kind  | Owner            | Evidence required                                 | Status                                                                                                                                                                                                                                                                                         |
+| -------- | --------------------------------------------------------------------------- | ----- | ---------------- | ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `RG-053` | Formatting, lint, strict typecheck, and dependency audit                    | Code  | Engineering lead | Green `Static analysis` job                       | In progress — audit job absent                                                                                                                                                                                                                                                                 |
+| `RG-054` | Unit, a11y, property, integration, and isolation tiers green                | Code  | Engineering lead | Green test matrix                                 | In progress — integration and isolation tiers assert the schema; unit, a11y, property, and e2e remain placeholders                                                                                                                                                                             |
+| `RG-055` | Playwright smoke journey green                                              | Code  | Engineering lead | Green E2E workflow                                | In progress — placeholder journey                                                                                                                                                                                                                                                              |
+| `RG-031` | Tenant-isolation tier is a blocking merge gate                              | Code  | Engineering lead | Isolation job required for merge and non-waivable | Not started                                                                                                                                                                                                                                                                                    |
+| `RG-032` | No exported Convex function bypasses access wrappers                        | Code  | Engineering lead | Passing static guard                              | In progress — `verify:tenant-boundary` runs in CI and denies every registration path outside the three wrappers, plus any wrapper call with no code-owned, non-`PLATFORM` `permissionCode`; no exported feature function exists yet and branch protection is not configured in this repository |
+| `RG-033` | No mutation updates or deletes ledger or audit tables                       | Code  | Engineering lead | Passing static guard                              | In progress — the `audit-append-only` rule fails any `patch`, `replace`, or `delete` naming `auditEvents`; the ledger tables it must also cover do not exist yet                                                                                                                               |
+| `RG-034` | No tenant list query uses an unbounded scan or a tenant `.filter()`         | Code  | Engineering lead | Passing static guard                              | Not started                                                                                                                                                                                                                                                                                    |
+| `RG-036` | Production Convex tier sized from load-test evidence, not assumption (D-25) | Mixed | Platform         | Sizing note referencing the `RG-037` load test    | Not started                                                                                                                                                                                                                                                                                    |
 
 `RG-053`, `RG-054`, and `RG-055` are marked `In progress` because the jobs exist and
 pass today, while most of what they assert is placeholder scaffolding rather than domain
 behaviour. The integration and isolation tiers are the exception: their placeholders are
-gone, replaced by assertions over the tenant security schema. They close when real suites
-replace the remaining placeholders and the dependency audit is added.
+gone, replaced by assertions over the tenant security schema and, now, over server-side
+authorization across two tenants. They close when real suites replace the remaining
+placeholders and the dependency audit is added.
+
+`RG-032` and `RG-033` are `In progress` rather than `Satisfied` for the same kind of
+reason: the guards exist, run in CI, and are proved to fail on each bypass by
+`tests/isolation/tenant-boundary-guard.isolation.test.ts` — but a guard over a
+codebase with no feature functions and no ledger tables has not yet guarded the thing
+the gate names.
 
 ## Updating this register
 

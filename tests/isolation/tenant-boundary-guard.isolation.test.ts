@@ -66,6 +66,28 @@ export const webhook = httpActionGeneric(async () => new Response(null));
   return ctx.db;
 }
 `,
+  "convex/lib/authorizationLookupsConvex.ts": `export function createLookups(ctx: { db: { query: () => unknown } }) {
+  return () => ctx.db.query();
+}
+`,
+};
+
+/**
+ * A catalogue stub for the declaration rule.
+ *
+ * The rule reads `convex/lib/permissions.ts` with the same parser rather than
+ * importing it, so a synthetic tree needs a synthetic catalogue. Three rows are
+ * enough: a tenant code, a second tenant code, and a platform code no tenant role
+ * may hold.
+ */
+const PERMISSION_CATALOGUE_STUB = {
+  "convex/lib/permissions.ts": `const permission = (code: string, scope: string) => ({ code, scope });
+export const PERMISSION_CATALOGUE = [
+  permission("receiving.receipt.post", "WAREHOUSE"),
+  permission("admin.audit.read", "ORG"),
+  permission("platform.tenant.read", "PLATFORM"),
+];
+`,
 };
 
 /** Scan a synthetic tree; `files` overrides or extends the allowlisted stubs. */
@@ -100,6 +122,7 @@ describe("tenant boundary guard", () => {
   it("passes on a feature module that stays inside the boundary", () => {
     expect(
       rulesOf({
+        ...PERMISSION_CATALOGUE_STUB,
         "convex/receiving/receipts.ts": `import type { TenantDocumentAccess } from "../lib/tenantDb";
 import { mutationWithOrg, queryWithOrg } from "../lib/tenantFunctions";
 
@@ -107,12 +130,16 @@ import { mutationWithOrg, queryWithOrg } from "../lib/tenantFunctions";
 // import queryGeneric, mutationGeneric, or createQueryTenantStorage either.
 const NOTE = "ctx.db and queryGeneric are named here as strings only";
 
-export const listReceipts = queryWithOrg(
-  (tenantDb: TenantDocumentAccess) => [tenantDb, NOTE],
-);
-export const receive = mutationWithOrg(
-  (tenantDb: TenantDocumentAccess) => tenantDb,
-);
+export const listReceipts = queryWithOrg({
+  permissionCode: "receiving.receipt.post",
+  target: { table: "warehouses" },
+  handler: (ctx: { tenantDb: TenantDocumentAccess }) => [ctx.tenantDb, NOTE],
+});
+export const receive = mutationWithOrg({
+  permissionCode: "receiving.receipt.post",
+  target: { table: "warehouses" },
+  handler: (ctx: { tenantDb: TenantDocumentAccess }) => ctx.tenantDb,
+});
 `,
       }),
     ).toEqual([]);
@@ -243,6 +270,105 @@ export const queryWithOrg = queryGeneric;
 `,
       }),
     ).toEqual(["registration", "storage-factory"]);
+  });
+
+  it("fails a wrapper call whose permission cannot be enforced", () => {
+    const cases: Readonly<Record<string, string>> = {
+      "convex/receiving/undeclared.ts": `import { mutationWithOrg } from "../lib/tenantFunctions";
+export const post = mutationWithOrg({
+  target: { table: "warehouses" },
+  handler: () => null,
+});
+`,
+      "convex/receiving/unknown.ts": `import { queryWithOrg } from "../lib/tenantFunctions";
+export const read = queryWithOrg({
+  permissionCode: "invented.permission.use",
+  target: { table: "warehouses" },
+  handler: () => null,
+});
+`,
+      "convex/receiving/platform.ts": `import { queryWithOrg } from "../lib/tenantFunctions";
+export const read = queryWithOrg({
+  permissionCode: "platform.tenant.read",
+  target: { table: "warehouses" },
+  handler: () => null,
+});
+`,
+      "convex/receiving/computed.ts": `import { actionWithOrg } from "../lib/tenantFunctions";
+const CODE = "receiving.receipt.post";
+export const run = actionWithOrg({
+  permissionCode: CODE,
+  target: { table: "warehouses" },
+  handler: () => null,
+});
+`,
+      "convex/receiving/spread.ts": `import { queryWithOrg } from "../lib/tenantFunctions";
+const definition = { permissionCode: "receiving.receipt.post" };
+export const read = queryWithOrg(definition);
+`,
+      "convex/receiving/aliasedWrapper.ts": `import { mutationWithOrg as register } from "../lib/tenantFunctions";
+export const write = register({
+  target: { table: "warehouses" },
+  handler: () => null,
+});
+`,
+    };
+
+    for (const [path, source] of Object.entries(cases)) {
+      const violations = scanTree({
+        ...PERMISSION_CATALOGUE_STUB,
+        [path]: source,
+      });
+      expect(
+        violations.filter((violation) => violation.file === path),
+        `expected ${path} to be reported`,
+      ).not.toEqual([]);
+      expect([
+        ...new Set(violations.map((violation) => violation.rule)),
+      ]).toEqual(["authorization-declaration"]);
+    }
+  });
+
+  it("fails closed when the permission catalogue cannot be read", () => {
+    // No `convex/lib/permissions.ts` in the tree: a guard that cannot see the
+    // catalogue must not approve a code it cannot check.
+    expect(
+      rulesOf({
+        "convex/receiving/receipts.ts": `import { queryWithOrg } from "../lib/tenantFunctions";
+export const read = queryWithOrg({
+  permissionCode: "receiving.receipt.post",
+  target: { table: "warehouses" },
+  handler: () => null,
+});
+`,
+      }),
+    ).toEqual(["authorization-declaration"]);
+  });
+
+  it("fails any rewrite of an append-only audit table, and permits appends", () => {
+    const violations = scanTree({
+      ...PERMISSION_CATALOGUE_STUB,
+      "convex/receiving/audit.ts": `export async function rewrite(store: {
+  patch: (t: string, id: string, f: unknown) => Promise<void>;
+  replace: (t: string, id: string, d: unknown) => Promise<void>;
+  delete: (t: string, id: string) => Promise<void>;
+  insert: (t: string, d: unknown) => Promise<string>;
+}) {
+  await store.patch("auditEvents", "id", {});
+  await store.replace("auditEvents", "id", {});
+  await store.delete("auditEvents", "id");
+  await store.delete("warehouses", "id");
+  return await store.insert("auditEvents", {});
+}
+`,
+    });
+
+    expect([...new Set(violations.map((violation) => violation.rule))]).toEqual(
+      ["audit-append-only"],
+    );
+    // One report per offending line, and the append and the other table are not
+    // among them.
+    expect(violations.map((violation) => violation.line)).toEqual([7, 8, 9]);
   });
 
   it("reports allowlist drift when an allowlisted file is renamed away", () => {

@@ -11,9 +11,20 @@
   warehouse scope, entitlement, threshold, maker-checker, and step-up decisions.
   Organization provisioning idempotently seeds the global catalogue and eight
   editable tenant roles in the same transaction while preserving tenant edits on
-  rerun. Public Convex wrappers do not enforce the evaluator or record authorization
-  attempts yet. Support grants remain schema-ready, disabled, and deliberately absent
-  from the evaluator and seed paths.
+  rerun. **Enforcement is now mandatory in the public wrappers**
+  (`convex/lib/tenantFunctions.ts`): every `queryWithOrg`, `mutationWithOrg`, and
+  `actionWithOrg` declaration must name a code-owned, non-`PLATFORM` permission or
+  fail at registration, the facts are read from the active tenant through bounded
+  `orgId`-first indexed reads (`convex/lib/authorizationLookupsConvex.ts`), and each
+  attempt is appended to `auditEvents` — in the operation's own transaction for a
+  mutation, and in an internal mutation preflight for an action. Two limits are
+  deliberate and recorded rather than hidden: **a query attempt cannot be audited**
+  because a Convex query cannot write (`RG-071`), and threshold and maker-checker
+  _values_ still have no policy table, so those facts come from a per-operation
+  server-side callback rather than tenant configuration (§5 Q26). No feature
+  function exists to enforce a permission for yet. Support grants remain
+  schema-ready, disabled, and deliberately absent from the evaluator, the fact
+  lookups, and the seed paths.
 
 ## Decision
 
@@ -137,6 +148,37 @@ Present:
   `rolePermissions`, runs in the same transaction as the organization insert and
   rolls back with it, and a rerun preserves a tenant-edited role and its edited
   composition (`INV-0006-11`).
+- Integration tests
+  (`tests/integration/authorization-enforcement.integration.test.ts`): every
+  refusal of the registration-time declaration contract (`INV-0006-01`); fact
+  resolution against an injected lookup port, including a membership that answers
+  for another tenant, an archived role, a grant row that is not this tenant's, a
+  role list past its bound, an absent or foreign entitlement, and step-up evidence
+  that is stale, future-stamped, denied, or another actor's; policy-fact
+  sanitization; and the generic denial payload, which carries no `DenialReason`.
+- Integration tests
+  (`tests/integration/authorization-lookups-convex.integration.test.ts`): the one
+  module allowed a raw database in this path answers only within the tenant asked
+  for, fails closed when a key that is unique by contract has two rows, rejects a
+  foreign, deleted, wrong-table, or malformed role ID identically, refuses a page
+  size outside the kernel's bound, and returns session events newest first inside
+  the freshness window.
+- Isolation tests
+  (`tests/isolation/authorization-enforcement.isolation.test.ts`): the same
+  decisions through the real wrappers over `convex-test`, two tenants, one shared
+  actor — ungranted code, archived role, cross-tenant role grant and permission
+  rows, absent, foreign, and out-of-scope warehouses, membership effective period,
+  entitlement enablement, server-computed threshold that ignores the caller's field
+  of the same name, self-approval refusal, step-up freshness, device correlation
+  that grants nothing, and an enabled two-approval support grant that still grants
+  nothing (`INV-0006-08`). Each case also asserts the audit row — or its documented
+  absence — including that an allowed attempt rolls back with a failing handler and
+  that an action's denial survives in the preflight's own transaction
+  (`INV-0006-03`, `INV-0006-10`).
+- Isolation tests (`tests/isolation/tenant-boundary-guard.isolation.test.ts`): the
+  static guards fail on an undeclared, unknown, `PLATFORM`, or computed
+  `permissionCode`, on an unreadable catalogue, and on any `patch`, `replace`, or
+  `delete` of `auditEvents`.
 - Property tests (`tests/properties/permissions.property.test.ts`): scope
   resolution is monotone — adding a warehouse never removes access — over a
   generator proved to produce both outcomes; no composition grants a code absent
@@ -144,19 +186,26 @@ Present:
 
 Planned:
 
-- Integration tests: permission-required matrix per exported function; threshold
-  policy boundaries against server-computed values; denial audit rows
-  (`INV-0006-03`, `INV-0006-06`, `INV-0006-10`).
-- Isolation tests: no cross-tenant read/write path with support grants disabled;
-  with a fixture grant enabled, read-only enforcement and expiry.
+- Integration tests: the permission-required matrix per exported feature function,
+  and threshold boundaries against real policy values once a policy table exists
+  (`INV-0006-06`, §5 Q26).
+- A recorded denial for a refused _read_: a query cannot write, so `RG-071` stays
+  open and `INV-0006-10` currently holds for mutations and actions only.
+- Isolation tests: with a fixture support grant enabled, read-only enforcement and
+  expiry of an actual support path — there is no such path today, which is what
+  `INV-0006-08` asserts.
 - E2E: QC hold and release performed by two different users.
 
 ## Release gates
 
 - `RG-015` Support-access policy confirmed (including grant enablement).
 - `RG-024` Permission catalogue reviewed with the pilot tenant.
-- `RG-026` Unauthorized warehouse actions fail server-side (plan §10 Phase 3).
-- `RG-030` Shared-device and privileged-session policy confirmed.
+- `RG-026` Unauthorized warehouse actions fail server-side (plan §10 Phase 3) — in
+  progress: the wrapper-level matrix is green, the per-function matrix waits for
+  feature functions.
+- `RG-030` Shared-device and privileged-session policy confirmed, including the
+  step-up freshness window, which is a code-owned constant until then.
+- `RG-071` Denied read attempts are recorded, not only denied.
 - Register: [release gates](../release-gates.md).
 
 ## References

@@ -3,10 +3,14 @@
 Status: **partially implemented.** `convex/lib/permissions.ts` is the code-owned
 catalogue and fail-closed pure policy evaluator. Organization provisioning seeds the
 catalogue, eight editable default roles, and their mappings idempotently in the same
-transaction; reruns preserve tenant edits. Permission enforcement in the public
-Convex wrappers, authorization-attempt auditing, and the administration UI remain to
-be implemented. This document remains the review contract required by
-[ADR-0006](./adr/0006-authorization-and-support-access.md).
+transaction; reruns preserve tenant edits. Enforcement is live in the public Convex
+wrappers: a function that does not declare a code-owned, non-`PLATFORM` permission
+cannot be registered, the decision is made server-side from the active tenant's own
+rows, and each attempt is appended to `auditEvents` except on a query, which cannot
+write (`RG-071`). What remains: the threshold and maker-checker _policy values_
+(§5 Q26), the administration UI, and the feature functions the catalogue exists to
+guard — no WMS operation exists yet. This document remains the review contract
+required by [ADR-0006](./adr/0006-authorization-and-support-access.md).
 
 ## 1. Ownership and stability rules
 
@@ -19,7 +23,9 @@ be implemented. This document remains the review contract required by
 - **Naming shape** is `domain.subject.action`, lower-case, dot-separated. `domain`
   matches a feature module; `action` is a verb in the imperative.
 - **Fail closed.** An operation with no declared permission is denied
-  (`INV-0006-01`).
+  (`INV-0006-01`). Enforced earlier than that in practice: a public Convex function
+  that declares no code-owned, non-`PLATFORM` permission cannot be _registered_, and
+  `pnpm verify:tenant-boundary` fails the build if one is written.
 - **Every check is server-side**, inside the transaction that performs the write
   (`INV-0006-03`).
 - **Every check carries scope**: `(orgId, warehouseId?)` (`INV-0006-04`).
@@ -321,6 +327,13 @@ Notes on the mapping:
 - Freshness is checked at the moment of the write, not at screen entry.
 - Shared handhelds never carry step-up implicitly; privileged flows are designed for
   the desktop shell (D-02).
+- Implemented: the evidence is the actor's own `sessionsAudit` rows in the active
+  tenant — `STEP_UP_VERIFIED`, outcome `ALLOWED`, `reverifiedAt` inside the window
+  and not in the future. The window is a code-owned ten minutes
+  (`STEP_UP_MAX_AGE_MS`) until `RG-030` supplies a policy value, and the read is a
+  bounded descending window of the newest events, so an actor with an unusually busy
+  session history can be denied for lack of evidence that exists. That fails closed
+  and is recorded here rather than left to be discovered.
 
 ### 4.5 Support grants (disabled by default)
 
@@ -338,10 +351,40 @@ Notes on the mapping:
 ### 4.6 Denials
 
 - Every denial is audited with actor, permission, target, scope, and reason
-  (`INV-0006-10`).
+  (`INV-0006-10`). Implemented for mutations — in the same transaction, which is why
+  a denied mutation _returns_ its denial instead of throwing: a throw would roll the
+  row back — and for actions, whose internal preflight mutation commits the row
+  before any external work. **A query cannot write, so a denied read is enforced but
+  not recorded** (`RG-071`).
 - Denial reasons distinguish "no permission", "out of warehouse scope", "threshold
-  exceeded", "approval required", and "reverification required", because operators
-  need to know which one applies.
+  exceeded", "approval required", "reverification required", "entitlement disabled",
+  and "inactive membership", because operators need to know which one applies.
+- **The reason is server-side only.** The payload a caller receives is one generic
+  code (`AUTHORIZATION_DENIED`), one fixed message, and the server-minted request
+  ID; the reason lives on the audit row that request ID keys (`INV-0002-07`).
+  Distinguishing the reasons _to the caller_ would let an unauthorized client
+  enumerate another tenant's shape — which reason applies is an authorized read of
+  `auditEvents` under `admin.audit.read`, not a wider error.
+- The translatable, reason-specific message §4.2 promises an operator is therefore
+  owed by that authorized read and the UI built on it, not by the denial payload.
+
+### 4.7 What the browser cannot influence
+
+Stated because "server-side" is easy to claim and hard to check. Of everything a
+decision reads, exactly three inputs are client-influenced, and each is verified
+before use:
+
+| Input               | How it is handled                                                                                    |
+| ------------------- | ---------------------------------------------------------------------------------------------------- |
+| Target warehouse    | Resolved to a document, checked for tenant, `ACTIVE` status, and membership scope, then used         |
+| Audit target ID     | Read through the tenant-bound accessor; recorded only if this tenant owns it, otherwise omitted      |
+| Device installation | Resolved through this organization's index; correlation only, and never a permission (`ADR-0006` §8) |
+
+Everything else — `orgId`, the actor, the permission code, the entitlement key, the
+audit target table, the request ID, the step-up window, and the threshold and
+maker-checker facts — is server-owned. A wrapper argument named after a policy fact
+is ignored; the fact comes from a callback that runs inside the transaction with the
+trusted context (`INV-0006-06`).
 
 ## 5. Verification obligations
 
@@ -352,12 +395,24 @@ reverification case. See
 [ADR-0006 verification](./adr/0006-authorization-and-support-access.md#verification)
 and the [coverage matrix](./specification-coverage.md).
 
+That per-row matrix is not written yet, and cannot be: no feature function declares a
+permission. What exists is the enforcement path each row will travel, proved once for
+each _class_ of decision in
+`tests/isolation/authorization-enforcement.isolation.test.ts` — grant, warehouse
+scope, effective period, entitlement, threshold, maker-checker, step-up, device
+correlation, support-grant non-bypass, and the audit row of each. A per-row case is
+therefore an assertion about a function's declaration, not a re-test of the policy.
+
 ## 6. Open items
 
 - `RG-024` Catalogue review with the pilot tenant (§5 Q14).
 - `RG-015` Support-access policy confirmation, including whether grants are enabled
   at all during the pilot (§5 Q15).
 - `RG-030` Shared-device and privileged-session policy, including session lifetimes
-  (§5 Q16).
+  and the step-up freshness window (§5 Q16).
+- `RG-071` Denied read attempts are enforced but not recorded, because a Convex query
+  cannot write.
 - Threshold defaults per warehouse are unset; they need pilot values before Phase 3
-  (§5 Q26).
+  (§5 Q26). Until then a threshold or maker-checker permission must supply its facts
+  through a per-operation server-side callback, which the wrapper requires at
+  registration.

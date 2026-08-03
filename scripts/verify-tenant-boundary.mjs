@@ -20,7 +20,16 @@
  *   - `raw-database`    a raw `.db` read, `["db"]` access, or `{ db }` binding.
  *   - `storage-factory` `createQueryTenantStorage`/`createMutationTenantStorage`.
  *   - `storage-port`    a `Tenant*StoragePort` type.
+ *   - `authorization-declaration` a `queryWithOrg`/`mutationWithOrg`/
+ *     `actionWithOrg` call whose `permissionCode` is missing, is not a string
+ *     literal, or is not a non-`PLATFORM` code of the catalogue in
+ *     `convex/lib/permissions.ts` (`INV-0006-01`, `INV-0006-02`).
+ *   - `audit-append-only` a `patch`, `replace`, or `delete` naming an append-only
+ *     table (plan §12: no mutation updates or deletes the audit table).
  *   - `allowlist-drift` an allowlisted path that no longer exists.
+ *
+ * The last two have **empty** allowlists: there is no file that may declare an
+ * unenforceable permission, and none that may rewrite an audit row.
  *
  * A file added tomorrow is therefore denied without that list being touched.
  * The checks are AST-only on purpose: `ctx.db` and `TenantStoragePort` appear in
@@ -77,6 +86,18 @@ const STORAGE_FACTORIES = new Set([
 ]);
 /** `TenantStoragePort`, `TenantQueryStoragePort`, and any future sibling. */
 const STORAGE_PORT_NAME = /^Tenant\w*StoragePort$/;
+/** The three tenant-bound registration paths every public function must take. */
+const TENANT_WRAPPERS = new Set([
+  "queryWithOrg",
+  "mutationWithOrg",
+  "actionWithOrg",
+]);
+/** Tables application code may append to and never rewrite (plan §12). */
+const APPEND_ONLY_TABLES = new Set(["auditEvents"]);
+/** Methods that would rewrite or remove a row. */
+const REWRITING_METHODS = new Set(["patch", "replace", "delete"]);
+/** The module the code-owned permission catalogue is declared in. */
+const PERMISSION_CATALOGUE_FILE = "convex/lib/permissions.ts";
 
 /** Exact paths permitted to break each rule; everything absent is denied. */
 export const TENANT_BOUNDARY_ALLOWLIST = Object.freeze({
@@ -87,6 +108,7 @@ export const TENANT_BOUNDARY_ALLOWLIST = Object.freeze({
   ]),
   "http-registration": Object.freeze(["convex/lib/clerkWebhook.ts"]),
   "raw-database": Object.freeze([
+    "convex/lib/authorizationLookupsConvex.ts",
     "convex/lib/authorizationSeedConvex.ts",
     "convex/lib/identityMirrorConvex.ts",
     "convex/lib/tenantStorage.ts",
@@ -101,6 +123,10 @@ export const TENANT_BOUNDARY_ALLOWLIST = Object.freeze({
     "convex/lib/tenantDb.ts",
     "convex/lib/tenantStorage.ts",
   ]),
+  // No exemptions: an unenforceable declaration and a rewritten audit row are
+  // wrong in every file, including the ones that own the boundary.
+  "authorization-declaration": Object.freeze([]),
+  "audit-append-only": Object.freeze([]),
 });
 
 /**
@@ -162,13 +188,70 @@ function memberName(node) {
 }
 
 /**
+ * Read the code-owned permission catalogue out of `convex/lib/permissions.ts`.
+ *
+ * The catalogue is TypeScript, and this script has no dependency it could import
+ * it with, so it is parsed rather than executed: every `permission("code",
+ * "SCOPE", …)` call in that module is one row. Parsing keeps the guard a guard —
+ * importing the module would run repository code to decide whether repository
+ * code is allowed.
+ *
+ * Answers `null` when the catalogue cannot be read at all, which the declaration
+ * rule treats as a failure rather than a pass: a guard that cannot see the
+ * catalogue cannot approve a code.
+ *
+ * @param {string} root
+ * @returns {Map<string, string> | null} code to scope
+ */
+export function readPermissionCatalogue(root) {
+  const path = join(root, PERMISSION_CATALOGUE_FILE);
+  if (!existsSync(path)) return null;
+
+  const tree = ts.createSourceFile(
+    PERMISSION_CATALOGUE_FILE,
+    readFileSync(path, "utf8"),
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS,
+  );
+  /** @type {Map<string, string>} */
+  const catalogue = new Map();
+
+  /** @param {ts.Node} node */
+  const visit = (node) => {
+    if (
+      ts.isCallExpression(node) &&
+      ts.isIdentifier(node.expression) &&
+      node.expression.text === "permission"
+    ) {
+      const [code, scope] = node.arguments;
+      if (
+        code !== undefined &&
+        ts.isStringLiteral(code) &&
+        scope !== undefined &&
+        ts.isStringLiteral(scope)
+      ) {
+        catalogue.set(code.text, scope.text);
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+
+  ts.forEachChild(tree, visit);
+  return catalogue.size === 0 ? null : catalogue;
+}
+
+/**
  * Check one file's syntax tree.
  *
  * @param {string} file repository-relative path; the allowlist keys on it.
  * @param {string} source
+ * @param {Map<string, string> | null} [catalogue] code-to-scope map from
+ *   `readPermissionCatalogue`; `null` means it could not be read, and every
+ *   declaration then fails closed.
  * @returns {TenantBoundaryViolation[]}
  */
-export function scanTenantBoundarySource(file, source) {
+export function scanTenantBoundarySource(file, source, catalogue = null) {
   const tree = ts.createSourceFile(
     file,
     source,
@@ -197,14 +280,29 @@ export function scanTenantBoundarySource(file, source) {
   // `server` is a Convex server module, and the import may sit below the use.
   /** @type {Set<string>} */
   const serverNamespaces = new Set();
+  /** Local names bound to a tenant wrapper, including aliases. */
+  const wrapperNames = new Set(TENANT_WRAPPERS);
   for (const statement of tree.statements) {
     if (!ts.isImportDeclaration(statement)) continue;
     const specifier = statement.moduleSpecifier;
     if (!ts.isStringLiteral(specifier)) continue;
-    if (!isConvexServerModule(specifier.text)) continue;
     const bindings = statement.importClause?.namedBindings;
-    if (bindings && ts.isNamespaceImport(bindings)) {
-      serverNamespaces.add(bindings.name.text);
+    if (isConvexServerModule(specifier.text)) {
+      if (bindings && ts.isNamespaceImport(bindings)) {
+        serverNamespaces.add(bindings.name.text);
+      }
+    }
+    // `import { queryWithOrg as register }` must not hide a declaration: the
+    // alias is checked under the name it was given.
+    if (
+      /(?:^|\/)tenantFunctions$/.test(specifier.text) &&
+      bindings &&
+      ts.isNamedImports(bindings)
+    ) {
+      for (const element of bindings.elements) {
+        const original = (element.propertyName ?? element.name).text;
+        if (TENANT_WRAPPERS.has(original)) wrapperNames.add(element.name.text);
+      }
     }
   }
 
@@ -245,6 +343,77 @@ export function scanTenantBoundarySource(file, source) {
           `${verb} the HTTP registration builder \`${original}\` from "${from}"`,
         );
       }
+    }
+  };
+
+  /**
+   * Check the `permissionCode` a wrapper call declares.
+   *
+   * Syntax only: the value must be a string literal in the catalogue and not a
+   * `PLATFORM` code. A computed code would defeat the check, so it is refused
+   * rather than resolved — a permission code is a constant of the operation, in
+   * the same way its name is.
+   *
+   * @param {ts.CallExpression} node @param {string} callee
+   */
+  const checkDeclaration = (node, callee) => {
+    const [definition] = node.arguments;
+    if (definition === undefined || !ts.isObjectLiteralExpression(definition)) {
+      report(
+        "authorization-declaration",
+        node,
+        `calls \`${callee}\` with a definition this guard cannot read`,
+      );
+      return;
+    }
+
+    const declared = definition.properties.find(
+      (property) =>
+        ts.isPropertyAssignment(property) &&
+        (ts.isIdentifier(property.name) || ts.isStringLiteral(property.name)) &&
+        property.name.text === "permissionCode",
+    );
+    if (declared === undefined || !ts.isPropertyAssignment(declared)) {
+      report(
+        "authorization-declaration",
+        node,
+        `calls \`${callee}\` without a \`permissionCode\` (INV-0006-01)`,
+      );
+      return;
+    }
+    if (!ts.isStringLiteral(declared.initializer)) {
+      report(
+        "authorization-declaration",
+        declared,
+        "declares a `permissionCode` that is not a string literal",
+      );
+      return;
+    }
+
+    const code = declared.initializer.text;
+    if (catalogue === null) {
+      report(
+        "authorization-declaration",
+        declared,
+        `cannot verify "${code}": ${PERMISSION_CATALOGUE_FILE} was not readable`,
+      );
+      return;
+    }
+    const scope = catalogue.get(code);
+    if (scope === undefined) {
+      report(
+        "authorization-declaration",
+        declared,
+        `declares "${code}", which the code-owned catalogue does not define`,
+      );
+      return;
+    }
+    if (scope === "PLATFORM") {
+      report(
+        "authorization-declaration",
+        declared,
+        `declares the PLATFORM code "${code}", which no tenant role may hold`,
+      );
     }
   };
 
@@ -293,6 +462,33 @@ export function scanTenantBoundarySource(file, source) {
           node,
           `dynamically imports "${first.text}"`,
         );
+      }
+    }
+
+    // A wrapper call must declare an enforceable permission, and a call to an
+    // append-only table must not be a rewrite. Both are call shapes, so they are
+    // checked here rather than by name.
+    if (ts.isCallExpression(node)) {
+      const callee = ts.isIdentifier(node.expression)
+        ? node.expression.text
+        : memberName(node.expression);
+
+      if (callee !== null && wrapperNames.has(callee)) {
+        checkDeclaration(node, callee);
+      }
+      if (callee !== null && REWRITING_METHODS.has(callee)) {
+        const [table] = node.arguments;
+        if (
+          table !== undefined &&
+          ts.isStringLiteral(table) &&
+          APPEND_ONLY_TABLES.has(table.text)
+        ) {
+          report(
+            "audit-append-only",
+            node,
+            `calls \`${callee}("${table.text}", …)\` on an append-only table`,
+          );
+        }
       }
     }
 
@@ -366,9 +562,14 @@ export function scanTenantBoundarySource(file, source) {
 export function collectTenantBoundaryViolations(root = repoRoot) {
   /** @type {TenantBoundaryViolation[]} */
   const violations = [];
+  const catalogue = readPermissionCatalogue(root);
   for (const file of productionFilesIn(join(root, SCAN_DIRECTORY), root)) {
     violations.push(
-      ...scanTenantBoundarySource(file, readFileSync(join(root, file), "utf8")),
+      ...scanTenantBoundarySource(
+        file,
+        readFileSync(join(root, file), "utf8"),
+        catalogue,
+      ),
     );
   }
 

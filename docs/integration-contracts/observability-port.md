@@ -119,8 +119,18 @@ Vendor DSNs and keys are environment variables per environment; names only in
 ## 11. Release gates
 
 `RG-045` vendor selection and alert routing, `RG-038` latency SLI over the pilot,
-`RG-041` drift monitoring, `RG-048` subprocessor register. See the
-[register](../release-gates.md).
+`RG-041` drift monitoring, `RG-048` subprocessor register, `RG-071` a recorded
+denial for a refused read. See the [register](../release-gates.md).
+
+### Outstanding adapter obligation — denied reads (`RG-071`)
+
+A Convex query cannot write, so the authorization wrapper enforces a denied read
+and cannot record it (`convex/lib/tenantFunctions.ts`). Recording it needs a
+write-capable sink a query may reach: this port is the natural owner, because the
+attempt is an operational event rather than a domain one, and its payload is
+already what this contract permits — request ID, permission code, coarse outcome,
+and no tenant payload (§6). Until that sink exists, `INV-0006-10` holds for
+mutations and actions only, and `auditEvents` contains no `DENIED` row for a read.
 
 ## 12. Open questions
 
@@ -128,3 +138,6 @@ Vendor DSNs and keys are environment variables per environment; names only in
   three (§5 Q39).
 - Whether product analytics is enabled at all during the pilot, and on what basis.
 - SLI retention window versus the cost of long-retention metrics.
+- Whether denied read attempts (`RG-071`) are recorded through this port, through a
+  scheduled internal mutation, or both — the first keeps them out of the tenant's
+  own audit table, which the tenant is entitled to see (`INV-0006-09`).

@@ -13,7 +13,7 @@ unwired; nothing imports them. These documents define what will be built, per
 | `INT-02` | [Convex hosting](./convex-hosting.md)                   | Data plane, transactions, region, self-host  | Convex Cloud                     | `RG-002`, `RG-010`, `RG-036` |
 | `INT-03` | [`FileStoragePort`](./file-storage-port.md)             | Private tenant files and signed URLs         | UploadThing (+ Convex internal)  | `RG-035`, `RG-006`           |
 | `INT-04` | [`PrinterTransportPort`](./printer-transport-port.md)   | ZPL/PDF delivery to a printer                | Zebra Browser Print class bridge | `RG-004`, `RG-029`           |
-| `INT-05` | [`ObservabilityPort`](./observability-port.md)          | Logs, errors, SLIs, alerts, analytics        | Undecided                        | `RG-045`                     |
+| `INT-05` | [`ObservabilityPort`](./observability-port.md)          | Logs, errors, SLIs, alerts, analytics        | Undecided                        | `RG-045`, `RG-071`           |
 | `INT-06` | [`JobQueuePort`](./job-queue-port.md)                   | Durable and bounded async work               | Convex Workflow/Workpool/crons   | `RG-018`, `RG-037`           |
 | `INT-07` | [`RollupPort`](./rollup-port.md)                        | Aggregated counters for dashboards           | Convex Aggregate                 | `RG-046`                     |
 | `INT-08` | [Device capture adapters](./device-capture-adapters.md) | Scanner, camera, GPS, signature, photo       | Browser and device APIs          | `RG-003`, `RG-005`           |

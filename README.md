@@ -13,8 +13,10 @@ accepted before domain implementation are recorded in
 
 ## Current status
 
-**Toolchain scaffold plus one slice of real code: the tenant security schema. No
-warehouse management functionality exists.**
+**Toolchain scaffold plus the tenant security slice: schema, tenant-bound
+wrappers, Clerk webhook identity mirroring, the permission catalogue and seed,
+and — as of this commit — mandatory server-side authorization inside every public
+wrapper. No warehouse management functionality exists.**
 
 The toolchain is installed, pinned, and green end to end. What is present is the
 foundation and nothing more:
@@ -22,25 +24,46 @@ foundation and nothing more:
 - A Next.js App Router shell with one page whose only job is to prove the
   toolchain builds and renders.
 - A Convex schema for tenancy, identity, authorization, audit, idempotency,
-  devices, entitlements, and (disabled) support grants — declarations only. Every
-  tenant table carries a required `orgId` as its first field and every declared
-  index begins with it, enforced by construction helpers and proved by a policy
-  module that reads the finished schema. Nothing reads or writes a document: there
-  is no Convex function, no auth wrapper, no tenant-bound accessor, no webhook, no
-  seed, and no deployment. **Tenant isolation is a property of the declared shape
-  here, not a runtime guarantee.**
-- Real integration and isolation suites over that schema, including negative tests
-  that prove the guards fail when they should. The unit, a11y, property, and e2e
-  tiers are still placeholder files that assert nothing about the domain and should
-  be deleted as real suites land.
-- Clerk, UploadThing, and the rest of the dependency list remain installed and
-  **not wired up**: no auth, no middleware, no vendor configuration.
+  devices, entitlements, and (disabled) support grants. Every tenant table
+  carries a required `orgId` as its first field and every declared index begins
+  with it, enforced by construction helpers and proved by a policy module that
+  reads the finished schema.
+- A tenant-bound accessor (`G-102`) and three registration paths —
+  `queryWithOrg`, `mutationWithOrg`, `actionWithOrg` — that resolve the active
+  tenant from a verified identity, hand a handler no raw database, and **enforce a
+  code-owned permission before the handler runs**. A function that declares no
+  non-`PLATFORM` catalogue code cannot be registered, and the static guard fails
+  the build if one is written. Authorization facts come from the active tenant's
+  own rows through bounded `orgId`-first indexed reads; threshold and
+  maker-checker facts come from a server-side callback, never from a request
+  field; and each attempt is appended to `auditEvents`.
+- Signed Clerk webhook handling that mirrors organizations, users, and
+  memberships idempotently, and provisioning that seeds the code-owned permission
+  catalogue and eight editable roles in the organization's own transaction.
+- Real integration and isolation suites over all of it, including a two-tenant
+  `convex-test` world and negative tests that prove the guards fail when they
+  should. The unit, a11y, property, and e2e tiers are still mostly placeholder
+  files that assert nothing about the domain and should be deleted as real suites
+  land.
 
-There is no authentication, no authorization, no runtime tenant enforcement, no
-Convex deployment, and no uniqueness enforcement — Convex has no unique constraint,
-so every "unique" key in the schema is unique _by contract_: a bounded index plus
-the check the future mutation owes. CI runs the guards described below and nothing
-more. Do not run this anywhere but locally.
+What is deliberately still missing, because claiming otherwise would be wrong:
+
+- **No deployment, and no Clerk instance.** There is no `convex/_generated/`, no
+  environment configuration, no JWT template, no middleware, and no vendor
+  account. Every command below passes with no `.env.local`; nothing has ever run
+  against a Convex backend.
+- **No feature function.** Enforcement exists; there is nothing yet to enforce it
+  for. No PO, receipt, QC, handling unit, label, putaway, or ledger code exists.
+- **No recorded denial for a read.** A Convex query cannot write, so a denied
+  query is refused but not audited (`RG-071`). Mutations and actions are audited.
+- **No policy values.** Threshold and maker-checker limits have no table, and the
+  step-up freshness window is a code-owned constant until `RG-030`.
+- **No uniqueness enforcement.** Convex has no unique constraint, so every
+  "unique" key in the schema is unique _by contract_: a bounded index plus the
+  check the mutation owes.
+
+CI runs the guards described below and nothing more. Do not run this anywhere but
+locally.
 
 What else exists is the design record: twelve accepted ADRs,
 the domain glossary, the permission catalogue, the release-gate register, the
@@ -225,54 +248,63 @@ when a module reaches around the tenant boundary:
    Convex server module) imported, aliased, re-exported, dynamically imported,
    or reached through a namespace anywhere but `convex/lib/tenantFunctions.ts`.
 2. `raw-database` — a `.db` read, `["db"]` access, or `{ db }` binding outside
-   `convex/lib/tenantStorage.ts` and `convex/lib/tenantContextLookups.ts`.
+   the four adapters allowed to hold one.
 3. `storage-factory` — `createQueryTenantStorage` or
-   `createMutationTenantStorage` outside those two adapters and the wrapper that
+   `createMutationTenantStorage` outside those adapters and the wrapper that
    injects them.
 4. `storage-port` — a `Tenant*StoragePort` type outside `convex/lib/tenantDb.ts`
    and its Convex implementation. Feature modules get `TenantDocumentAccess`.
-5. `allowlist-drift` — an allowlisted path that no longer exists, so renaming a
+5. `authorization-declaration` — a `queryWithOrg`, `mutationWithOrg`, or
+   `actionWithOrg` call whose `permissionCode` is missing, is not a string
+   literal, or is not a non-`PLATFORM` code of the catalogue the guard parses out
+   of `convex/lib/permissions.ts`. A catalogue it cannot read fails the build
+   rather than passing the declaration.
+6. `audit-append-only` — a `patch`, `replace`, or `delete` naming `auditEvents`,
+   which is the plan's append-only merge gate (§12) made mechanical.
+7. `allowlist-drift` — an allowlisted path that no longer exists, so renaming a
    file cannot quietly widen the boundary.
 
-Each rule's allowlist is a list of exact repository-relative paths, so a file
-added tomorrow is denied without the list being touched. It is AST-only on
-purpose: `ctx.db` and `TenantStoragePort` appear in prose all over `convex/lib`,
-and a text scan would either flag the comments or be loosened until it flagged
-nothing. `tests/isolation/tenant-boundary-guard.isolation.test.ts` proves the
-guard fails on each bypass, using synthetic source trees in a temporary
-directory — the real `convex/` tree is only ever read.
+The last two rules have empty allowlists: no file may declare an unenforceable
+permission, and none may rewrite an audit row. Each other rule's allowlist is a
+list of exact repository-relative paths, so a file added tomorrow is denied
+without the list being touched. It is AST-only on purpose: `ctx.db` and
+`TenantStoragePort` appear in prose all over `convex/lib`, and a text scan would
+either flag the comments or be loosened until it flagged nothing.
+`tests/isolation/tenant-boundary-guard.isolation.test.ts` proves the guard fails
+on each bypass, using synthetic source trees in a temporary directory — the real
+`convex/` tree is only ever read.
 
 ## Pinned stack
 
 Every dependency is pinned to an exact version (`save-exact=true`, decision
 D-29). Floating ranges are not allowed.
 
-| Area                     | Choice                                            | Version |
-| ------------------------ | ------------------------------------------------- | ------- |
-| Framework                | Next.js (App Router, Turbopack)                   | 16.2.12 |
-| UI runtime               | React                                             | 19.2.8  |
-| Language                 | TypeScript (strict)                               | 6.0.3   |
-| Styling                  | Tailwind CSS (PostCSS plugin, no config file)     | 4.3.3   |
-| Lint                     | ESLint + `eslint-config-next` + typescript-eslint | 9.39.5  |
-| Format                   | Prettier + `prettier-plugin-tailwindcss`          | 3.9.6   |
-| Unit / integration tests | Vitest                                            | 4.1.10  |
-| Property tests           | fast-check                                        | 4.9.0   |
-| Accessibility tests      | jest-axe + axe-core                               | 11.0.0  |
-| E2E tests                | Playwright                                        | 1.62.1  |
-| Backend / data           | Convex (schema declared; no functions, no deploy) | 1.43.0  |
-| Identity                 | Clerk (installed, not wired)                      | 7.6.4   |
-| Files                    | UploadThing (installed, not wired)                | 7.7.4   |
-| i18n                     | `next-intl` (installed, not wired)                | 4.13.4  |
+| Area                     | Choice                                              | Version |
+| ------------------------ | --------------------------------------------------- | ------- |
+| Framework                | Next.js (App Router, Turbopack)                     | 16.2.12 |
+| UI runtime               | React                                               | 19.2.8  |
+| Language                 | TypeScript (strict)                                 | 6.0.3   |
+| Styling                  | Tailwind CSS (PostCSS plugin, no config file)       | 4.3.3   |
+| Lint                     | ESLint + `eslint-config-next` + typescript-eslint   | 9.39.5  |
+| Format                   | Prettier + `prettier-plugin-tailwindcss`            | 3.9.6   |
+| Unit / integration tests | Vitest                                              | 4.1.10  |
+| Property tests           | fast-check                                          | 4.9.0   |
+| Accessibility tests      | jest-axe + axe-core                                 | 11.0.0  |
+| E2E tests                | Playwright                                          | 1.62.1  |
+| Backend / data           | Convex (schema, wrappers, and functions; no deploy) | 1.43.0  |
+| Identity                 | Clerk (webhook verified; no instance configured)    | 7.6.4   |
+| Files                    | UploadThing (installed, not wired)                  | 7.7.4   |
+| i18n                     | `next-intl` (installed, not wired)                  | 4.13.4  |
 
 Deferred by decision B-08: Three.js. The MVP uses a 2D SVG occupancy map
 instead, and Three.js must not be added unless that decision is explicitly
 reversed. No ReUI or shadcn/ui components are installed yet.
 
-Also installed and equally unwired, ahead of the slices that need them: `zod`,
+Also installed ahead of the slices that need them, and still unimported: `zod`,
 `react-hook-form` + `@hookform/resolvers` (forms and validation), `pdf-lib`
-(label generation), `exceljs` and `papaparse` (master-data import/export),
-`svix` (webhook signature verification), and `convex-test` (integration tier).
-Nothing imports them yet.
+(label generation), and `exceljs` and `papaparse` (master-data import/export).
+`svix` (webhook signature verification) and `convex-test` (integration and
+isolation tiers) are wired and in use.
 
 ### Version constraints worth knowing
 
@@ -312,11 +344,17 @@ without exceptions, recorded in
 the inbound slice per [PROJECT_PLAN.md](./PROJECT_PLAN.md) §9 may therefore proceed,
 built against tested adapters and fakes with no vendor credentials.
 
-The tenant security schema is the first slice of that work. What it does not
-include, and what comes next, is everything that turns a declared shape into an
-enforced one: the tenant-bound accessor (`G-102`), the auth wrapper, Clerk webhook
-sync, role and permission seeding, and the mutations that owe the uniqueness checks
-the indexes above only make affordable.
+The tenant security slice is the first part of that work, and this commit finishes
+its enforcement half: a public function cannot be registered without a code-owned
+permission, and no handler runs before that permission is decided against the active
+tenant's own rows and the attempt recorded.
+
+What comes next, in the order the slice needs it: policy values for thresholds and
+maker-checker (`RG-030`, §5 Q26) so those facts stop being per-operation callbacks;
+a write-capable sink so a denied read is recorded (`RG-071`); the idempotency
+wrapper (`INV-0003-01`); and then the first feature functions — PO, receipt, QC,
+handling unit, label, putaway, ledger — each of which owes a permission declaration
+and the uniqueness checks the indexes only make affordable.
 
 The open evidence gates are tracked in
 [`docs/release-gates.md`](./docs/release-gates.md). The latency benchmark, scanner

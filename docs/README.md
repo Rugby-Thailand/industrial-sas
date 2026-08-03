@@ -4,9 +4,11 @@ Architecture decisions and delivery contracts for Industrial SSA, derived from t
 [PROJECT_PLAN.md](../PROJECT_PLAN.md).
 
 **Read this first:** these documents describe what will be built. The repository currently
-contains a toolchain scaffold, this documentation set, and the tenant security schema —
-table declarations and the guards that read them, with no authentication, no authorization,
-no Convex functions, and no deployment. **No warehouse management functionality exists.**
+contains a toolchain scaffold, this documentation set, and the tenant security slice —
+the schema and the guards that read it, the tenant-bound wrappers with mandatory
+server-side permission enforcement and audited authorization attempts, signed Clerk
+webhook identity mirroring, and the permission catalogue with its provisioning seed —
+with **no Clerk instance, no deployment, and no warehouse management functionality.**
 Each document states its own implementation status, and the
 [coverage matrix](./specification-coverage.md) is the single place to see what is real.
 
