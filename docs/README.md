@@ -16,6 +16,7 @@ functionality exists. Each document states its own implementation status, and th
 | Use the right word for a domain concept            | [Domain glossary](./domain-glossary.md)                      |
 | Know who may do what, and under which policy       | [Permission catalogue](./permissions.md)                     |
 | Know what still blocks a phase or the launch       | [Release gate register](./release-gates.md)                  |
+| See what has been approved, and by what authority  | [Approval record](./approval-record.md)                      |
 | Integrate or replace an external dependency        | [Integration contracts](./integration-contracts/README.md)   |
 | Operate the system when something goes wrong       | [Runbooks](./runbooks/README.md)                             |
 | Check what is implemented versus planned           | [Specification coverage matrix](./specification-coverage.md) |
@@ -38,8 +39,11 @@ and delivery. See the [ADR index](./adr/README.md) for the list and for how they
   roles with their default mapping, and the semantics of warehouse scope, thresholds,
   maker-checker, step-up, and disabled-by-default support grants.
 - [Release gate register](./release-gates.md) — every gate in the approved plan with an
-  owner, the evidence that closes it, and its status. One gate is satisfied today; the rest
-  are open.
+  owner, the evidence that closes it, and its status. Two gates are satisfied today; the
+  rest are open.
+- [Approval record](./approval-record.md) — the dated authorization the plan's §16 asks
+  for: which decisions are accepted, what activity is authorized, and which approvals
+  were **not** supplied and therefore remain open gates.
 - [Specification coverage matrix](./specification-coverage.md) — plan requirements, B/D
   decisions, ledger invariants, and quality gates mapped to planned code, tests, and docs.
 

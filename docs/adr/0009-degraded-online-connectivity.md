@@ -72,7 +72,9 @@ and correctness-sensitive tasks stop when connectivity is lost.
 ### Operational assumptions
 
 - `OPS-0009-01` The pilot tenant accepts degraded-online behaviour in writing; if
-  not, the plan is revised before implementation (B-04, `RG-009`).
+  not, the plan is revised (B-04, `RG-009`). B-04 is accepted
+  ([approval record](../approval-record.md)), so local implementation proceeds on it
+  while `RG-009` stays open for pilot validation.
 - `OPS-0009-02` Warehouse Wi-Fi supports server-confirmed scanning for critical
   operations (plan §3.3, measured by `RG-002`/`RG-010`).
 - `OPS-0009-03` Operators are trained that pending means not yet posted.

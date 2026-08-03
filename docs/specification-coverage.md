@@ -40,7 +40,10 @@ every row is either `Not implemented` or `Foundation only`, and no row claims ot
 
 ## 2. Phase 0 blocking decisions (plan §4)
 
-All twelve are treated as accepted. Acceptance is a decision, not an implementation.
+All twelve are accepted without exceptions, recorded in the
+[approval record](./approval-record.md) (`AR-001`, 2026-08-03), which satisfies `RG-001`.
+Acceptance is a decision, not an implementation: every row below is still
+`Not implemented`.
 
 | ID       | Decision                                      | Where it is recorded                                                                                                    | Verification / evidence       | Status          |
 | -------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | ----------------------------- | --------------- |
@@ -58,6 +61,9 @@ All twelve are treated as accepted. Acceptance is a decision, not an implementat
 | `SC-B12` | No catch-weight; 3-decimal precision cap      | [ADR-0004](./adr/0004-exact-quantities-and-uom.md)                                                                      | property tier                 | Not implemented |
 
 ## 3. Recommended defaults (plan §3.2)
+
+All thirty are accepted without exceptions in the same
+[approval record](./approval-record.md) entry (`AR-001`). None is implemented.
 
 | ID       | Default                                              | Planned code / artefact                                   | Planned tests                 | Docs                                                                  | Status          |
 | -------- | ---------------------------------------------------- | --------------------------------------------------------- | ----------------------------- | --------------------------------------------------------------------- | --------------- |
@@ -151,6 +157,7 @@ the domain. Placeholder tests are to be deleted as real suites land
 | `SC-X05` | [Integration contracts](./integration-contracts/README.md) | Eight external capability contracts             | Complete for MVP scope            |
 | `SC-X06` | [Runbooks](./runbooks/README.md)                           | Nine operational procedures                     | Skeletons with explicit `TODO`s   |
 | `SC-X07` | This matrix                                                | Requirement-to-artefact traceability            | Complete, statuses current        |
+| `SC-X08` | [Approval record](./approval-record.md)                    | Dated authorization and unsupplied approvals    | `AR-001` recorded (`RG-001`)      |
 
 ## 7. Deliberately absent
 

@@ -23,32 +23,40 @@ closes it, and its current status.
 ## Current position
 
 Nothing is implemented in this repository beyond the toolchain scaffold and this
-documentation set. Consequently **one gate is satisfied** (`RG-062`, the ADR set),
-**one is in progress** (`RG-001`, decision acceptance), and every other gate is
-`Not started`. That is the accurate picture, not a pessimistic one.
+documentation set. Of the 70 gates registered here, **two are satisfied** — `RG-062`
+(the ADR set) and `RG-001` (B-01…B-12 accepted, evidenced by the
+[approval record](./approval-record.md)) — **three are in progress** (`RG-053`,
+`RG-054`, `RG-055`: the standing merge gates whose jobs run against placeholder
+assertions), and the remaining **65 are `Not started`**. That is the accurate
+picture, not a pessimistic one.
+
+The approval record closes `RG-001` only. It supplies no budget, pilot site, vendor,
+hardware, or legal approval, so `RG-064` and every other `External` gate stay open.
+Those gates govern production and pilot validation and the release itself; local
+implementation against fakes is not waiting on them.
 
 ## Phase 0 — decide and de-risk
 
-| ID       | Gate                                                                                           | Kind     | Owner            | Evidence required                                                                                   | Status      |
-| -------- | ---------------------------------------------------------------------------------------------- | -------- | ---------------- | --------------------------------------------------------------------------------------------------- | ----------- |
-| `RG-001` | Written acceptance or replacement of B-01…B-12 (plan §4)                                       | External | Product owner    | Signed approval record in plan §16 listing accepted answers or exceptions                           | In progress |
-| `RG-062` | ADR-0001…ADR-0012 written and accepted (plan §10 Phase 0, §11)                                 | Code     | Engineering lead | [ADR set](./adr/README.md) committed and reviewed                                                   | Satisfied   |
-| `RG-002` | Bangkok-to-Convex latency benchmark, US East vs EU West, from the pilot warehouse network      | External | Engineering lead | Benchmark report: p50/p95/p99 per region, per operation, with network conditions and date           | Not started |
-| `RG-003` | Scanner spike on the actual rugged device, browser, and WebView                                | External | Engineering lead | Spike note: device model, OS/WebView version, HID terminator behaviour, failure cases, video or log | Not started |
-| `RG-004` | Physical ZPL label printed in Thai and English on the actual printer and stock, then rescanned | External | Engineering lead | Printed sample retained, ZPL payload, printer model, rescan result, Thai glyph confirmation         | Not started |
-| `RG-005` | Sample supplier barcode corpus and parser test fixtures                                        | Mixed    | Engineering lead | Fixture file of real scans (anonymized), expected parse results, list of unparseable formats        | Not started |
-| `RG-006` | PDPA/legal gap assessment and cross-border-transfer decision                                   | External | Product owner    | Gap assessment document and a recorded region/transfer decision with its lawful basis               | Not started |
-| `RG-007` | Vendor and unit-economics worksheet for pilot and ten-tenant scenarios                         | External | Product owner    | Worksheet with per-vendor cost drivers, pilot total, ten-tenant projection, and budget approval     | Not started |
-| `RG-008` | Baseline receiving-time and inventory-accuracy measurement plan                                | External | Product owner    | Measurement plan plus recorded pre-implementation baseline from the pilot site                      | Not started |
-| `RG-009` | Pilot tenant written acceptance of degraded-online behaviour (B-04)                            | External | Product owner    | Written acceptance naming the blocked-offline operations                                            | Not started |
-| `RG-010` | A realistic scan round trip meets the accepted latency target                                  | Mixed    | Engineering lead | Measured p95 scan-to-ack from the pilot network against the accepted target (§5 Q5)                 | Not started |
-| `RG-063` | Pilot tenant and site confirmed, with hardware, label stock, sample labels, and warehouse map  | External | Product owner    | Site confirmation listing hardware inventory, supplied samples, and a warehouse map                 | Not started |
-| `RG-064` | Phase 0 budget and authorization to initialize recorded (plan §16)                             | External | Product owner    | Approval record entry                                                                               | Not started |
-| `RG-067` | MVP success-criteria targets confirmed (§5 Q5)                                                 | External | Product owner    | Recorded target values for completion rate, latency, accuracy, drift, and defect thresholds         | Not started |
-| `RG-068` | ERP dependency confirmed as non-launch-critical (B-07, §5 Q25)                                 | External | Product owner    | Written confirmation that CSV/XLSX import plus in-app authoring suffices at launch                  | Not started |
-| `RG-069` | Volume, concurrency, and budget envelope confirmed (B-11, §5 Q41)                              | External | Product owner    | Confirmed peak scanners, inbound lines/day, and annual ledger volume                                | Not started |
-| `RG-070` | Handheld and browser fleet confirmed (D-03, §5 Q11)                                            | External | Product owner    | Device and browser inventory, including any iPad supervisory use                                    | Not started |
-| `RG-066` | Notification channel need (email/SMS) confirmed (§5 Q47)                                       | External | Product owner    | Written statement of required channels for the pilot                                                | Not started |
+| ID       | Gate                                                                                           | Kind     | Owner            | Evidence required                                                                                    | Status      |
+| -------- | ---------------------------------------------------------------------------------------------- | -------- | ---------------- | ---------------------------------------------------------------------------------------------------- | ----------- |
+| `RG-001` | Written acceptance or replacement of B-01…B-12 (plan §4)                                       | External | Product owner    | [Approval record `AR-001`](./approval-record.md) — B-01…B-12 accepted without exceptions, 2026-08-03 | Satisfied   |
+| `RG-062` | ADR-0001…ADR-0012 written and accepted (plan §10 Phase 0, §11)                                 | Code     | Engineering lead | [ADR set](./adr/README.md) committed and reviewed                                                    | Satisfied   |
+| `RG-002` | Bangkok-to-Convex latency benchmark, US East vs EU West, from the pilot warehouse network      | External | Engineering lead | Benchmark report: p50/p95/p99 per region, per operation, with network conditions and date            | Not started |
+| `RG-003` | Scanner spike on the actual rugged device, browser, and WebView                                | External | Engineering lead | Spike note: device model, OS/WebView version, HID terminator behaviour, failure cases, video or log  | Not started |
+| `RG-004` | Physical ZPL label printed in Thai and English on the actual printer and stock, then rescanned | External | Engineering lead | Printed sample retained, ZPL payload, printer model, rescan result, Thai glyph confirmation          | Not started |
+| `RG-005` | Sample supplier barcode corpus and parser test fixtures                                        | Mixed    | Engineering lead | Fixture file of real scans (anonymized), expected parse results, list of unparseable formats         | Not started |
+| `RG-006` | PDPA/legal gap assessment and cross-border-transfer decision                                   | External | Product owner    | Gap assessment document and a recorded region/transfer decision with its lawful basis                | Not started |
+| `RG-007` | Vendor and unit-economics worksheet for pilot and ten-tenant scenarios                         | External | Product owner    | Worksheet with per-vendor cost drivers, pilot total, ten-tenant projection, and budget approval      | Not started |
+| `RG-008` | Baseline receiving-time and inventory-accuracy measurement plan                                | External | Product owner    | Measurement plan plus recorded pre-implementation baseline from the pilot site                       | Not started |
+| `RG-009` | Pilot tenant written acceptance of degraded-online behaviour (B-04)                            | External | Product owner    | Written acceptance naming the blocked-offline operations                                             | Not started |
+| `RG-010` | A realistic scan round trip meets the accepted latency target                                  | Mixed    | Engineering lead | Measured p95 scan-to-ack from the pilot network against the accepted target (§5 Q5)                  | Not started |
+| `RG-063` | Pilot tenant and site confirmed, with hardware, label stock, sample labels, and warehouse map  | External | Product owner    | Site confirmation listing hardware inventory, supplied samples, and a warehouse map                  | Not started |
+| `RG-064` | Phase 0 budget and authorization to initialize recorded (plan §16)                             | External | Product owner    | Approval record entry                                                                                | Not started |
+| `RG-067` | MVP success-criteria targets confirmed (§5 Q5)                                                 | External | Product owner    | Recorded target values for completion rate, latency, accuracy, drift, and defect thresholds          | Not started |
+| `RG-068` | ERP dependency confirmed as non-launch-critical (B-07, §5 Q25)                                 | External | Product owner    | Written confirmation that CSV/XLSX import plus in-app authoring suffices at launch                   | Not started |
+| `RG-069` | Volume, concurrency, and budget envelope confirmed (B-11, §5 Q41)                              | External | Product owner    | Confirmed peak scanners, inbound lines/day, and annual ledger volume                                 | Not started |
+| `RG-070` | Handheld and browser fleet confirmed (D-03, §5 Q11)                                            | External | Product owner    | Device and browser inventory, including any iPad supervisory use                                     | Not started |
+| `RG-066` | Notification channel need (email/SMS) confirmed (§5 Q47)                                       | External | Product owner    | Written statement of required channels for the pilot                                                 | Not started |
 
 ## Phase 1 — project and security foundations
 
