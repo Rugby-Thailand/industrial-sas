@@ -61,6 +61,7 @@
  * [permission catalogue](../docs/permissions.md).
  */
 import { defineSchema, defineTable } from "convex/server";
+import type { DataModelFromSchemaDefinition } from "convex/server";
 import { v } from "convex/values";
 
 import { byOrg, tenantFields } from "./lib/tenantTable";
@@ -85,7 +86,7 @@ import {
   warehouseStatus,
 } from "./lib/validators";
 
-export default defineSchema({
+const schema = defineSchema({
   /* ------------------------------------------------------------------------ */
   /* Root and global tables (no `orgId`)                                       */
   /* ------------------------------------------------------------------------ */
@@ -576,3 +577,18 @@ export default defineSchema({
     .index("by_orgId_ticketRef", byOrg("ticketRef"))
     .index("by_orgId_expiresAt", byOrg("expiresAt")),
 });
+
+export default schema;
+
+/**
+ * The data model these declarations describe.
+ *
+ * Named here because there is no `convex/_generated/`: nothing has been deployed,
+ * so this is the only place a document or ID type can come from and still be the
+ * real one. Modules that need `Doc`/`Id`-shaped types derive them from this
+ * (`convex/lib/tenantContext.ts`), rather than restating field lists that would
+ * then be free to drift from the schema above.
+ *
+ * When Convex codegen exists, this alias is what it replaces.
+ */
+export type DataModel = DataModelFromSchemaDefinition<typeof schema>;
