@@ -53,6 +53,9 @@ jobs:
       - name: Verify CI configuration
         run: pnpm verify:workflows
 
+      - name: Verify tenant boundary
+        run: pnpm verify:tenant-boundary
+
       - name: Check formatting
         run: pnpm format:check
 

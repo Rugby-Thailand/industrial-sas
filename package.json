@@ -25,7 +25,8 @@
     "test:a11y": "vitest run --project a11y",
     "test:e2e": "playwright test",
     "verify:workflows": "node scripts/verify-workflows.mjs",
-    "guards": "pnpm verify:workflows && pnpm format:check && pnpm lint && pnpm typecheck && pnpm test"
+    "verify:tenant-boundary": "node scripts/verify-tenant-boundary.mjs",
+    "guards": "pnpm verify:workflows && pnpm verify:tenant-boundary && pnpm format:check && pnpm lint && pnpm typecheck && pnpm test"
   },
   "dependencies": {
     "@clerk/backend": "3.15.0",

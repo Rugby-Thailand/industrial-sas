@@ -81,19 +81,20 @@ below passes with no `.env.local` present.
 
 ## Local commands
 
-| Command                          | What it does                                                        |
-| -------------------------------- | ------------------------------------------------------------------- |
-| `pnpm install --frozen-lockfile` | Install exactly what the lockfile specifies                         |
-| `pnpm dev`                       | Next.js dev server on port 3000                                     |
-| `pnpm build`                     | Production build (also regenerates `next-env.d.ts`)                 |
-| `pnpm start`                     | Serve a previous production build                                   |
-| `pnpm format`                    | Rewrite files with Prettier                                         |
-| `pnpm format:check`              | Fail on unformatted files                                           |
-| `pnpm lint`                      | ESLint over the whole workspace                                     |
-| `pnpm typecheck`                 | `tsc --noEmit`                                                      |
-| `pnpm test`                      | All Vitest tiers                                                    |
-| `pnpm verify:workflows`          | CI configuration guard (see below)                                  |
-| `pnpm guards`                    | `verify:workflows` + `format:check` + `lint` + `typecheck` + `test` |
+| Command                          | What it does                                                                   |
+| -------------------------------- | ------------------------------------------------------------------------------ |
+| `pnpm install --frozen-lockfile` | Install exactly what the lockfile specifies                                    |
+| `pnpm dev`                       | Next.js dev server on port 3000                                                |
+| `pnpm build`                     | Production build (also regenerates `next-env.d.ts`)                            |
+| `pnpm start`                     | Serve a previous production build                                              |
+| `pnpm format`                    | Rewrite files with Prettier                                                    |
+| `pnpm format:check`              | Fail on unformatted files                                                      |
+| `pnpm lint`                      | ESLint over the whole workspace                                                |
+| `pnpm typecheck`                 | `tsc --noEmit`                                                                 |
+| `pnpm test`                      | All Vitest tiers                                                               |
+| `pnpm verify:workflows`          | CI configuration guard (see below)                                             |
+| `pnpm verify:tenant-boundary`    | Tenant boundary guard over `convex/` (see below)                               |
+| `pnpm guards`                    | every guard above: `verify:*` + `format:check` + `lint` + `typecheck` + `test` |
 
 ### Test tiers
 
@@ -128,8 +129,9 @@ If a job needs a secret to pass, it is the wrong job for this repository.
 | `.github/workflows/quality.yml` | `Static analysis`, `Test (unit\|a11y\|property\|integration\|isolation)`, `Production build` |
 | `.github/workflows/e2e.yml`     | `Playwright (desktop + handheld Chromium)`                                                   |
 
-- **Static analysis** runs `verify:workflows`, `format:check`, `lint`
-  (`--max-warnings=0`), and `typecheck` (`tsc --noEmit`, strict).
+- **Static analysis** runs `verify:workflows`, `verify:tenant-boundary`,
+  `format:check`, `lint` (`--max-warnings=0`), and `typecheck` (`tsc --noEmit`,
+  strict).
 - **Test** is a matrix with one job per Vitest project and `fail-fast: false`, so
   a red isolation tier never masks a red unit tier. The failing tier is readable
   from the checks list without opening a log.
@@ -210,6 +212,35 @@ It does not parse YAML — GitHub rejects malformed workflow files on push, and 
 YAML parser would mean a dependency. Validate syntax locally with any parser
 already on the machine, for example
 `ruby -ryaml -e 'YAML.load_file(ARGV[0])' .github/workflows/quality.yml`.
+
+### Tenant boundary guard
+
+`pnpm verify:tenant-boundary` runs `scripts/verify-tenant-boundary.mjs`, which
+parses every production `.ts`/`.tsx` file under `convex/` with the pinned
+TypeScript compiler — generated code, tests, and fixtures excluded — and fails
+when a module reaches around the tenant boundary:
+
+1. `registration` — a public registration builder (`queryGeneric`,
+   `mutationGeneric`, `actionGeneric`, or `query`/`mutation`/`action` from a
+   Convex server module) imported, aliased, re-exported, dynamically imported,
+   or reached through a namespace anywhere but `convex/lib/tenantFunctions.ts`.
+2. `raw-database` — a `.db` read, `["db"]` access, or `{ db }` binding outside
+   `convex/lib/tenantStorage.ts` and `convex/lib/tenantContextLookups.ts`.
+3. `storage-factory` — `createQueryTenantStorage` or
+   `createMutationTenantStorage` outside those two adapters and the wrapper that
+   injects them.
+4. `storage-port` — a `Tenant*StoragePort` type outside `convex/lib/tenantDb.ts`
+   and its Convex implementation. Feature modules get `TenantDocumentAccess`.
+5. `allowlist-drift` — an allowlisted path that no longer exists, so renaming a
+   file cannot quietly widen the boundary.
+
+Each rule's allowlist is a list of exact repository-relative paths, so a file
+added tomorrow is denied without the list being touched. It is AST-only on
+purpose: `ctx.db` and `TenantStoragePort` appear in prose all over `convex/lib`,
+and a text scan would either flag the comments or be loosened until it flagged
+nothing. `tests/isolation/tenant-boundary-guard.isolation.test.ts` proves the
+guard fails on each bypass, using synthetic source trees in a temporary
+directory — the real `convex/` tree is only ever read.
 
 ## Pinned stack
 
