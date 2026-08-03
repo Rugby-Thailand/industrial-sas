@@ -2,7 +2,12 @@
 
 Shared, checked-in test data for the suites in `tests/`.
 
-Nothing lives here yet. Planned contents, per `PROJECT_PLAN.md`:
+Current checked-in fixtures:
+
+- Synthetic two-tenant identity, membership, and warehouse data for tenant-context
+  integration and isolation tests
+
+Planned contents, per `PROJECT_PLAN.md`:
 
 - Supplier barcode corpus and GS1 parser fixtures
 - Sample purchase order and receiving payloads
