@@ -6,9 +6,16 @@
 - Decision baseline: [PROJECT_PLAN.md](../../PROJECT_PLAN.md) §3.2 (D-18, D-19),
   §5 Q3, Q31, Q36, Q49, §6.1, §6.2, §12
 - Covers plan ADR backlog (§11) items: 1
-- Implementation status: **Not implemented.** There is no `convex/` directory, no
-  schema, no wrapper, and no lint rule. `convex` 1.43.0 and `convex-test` are
-  installed and unused.
+- Implementation status: **Partial.** Decision 1 (`orgId` first, everywhere) has a
+  schema and an automated guard: `convex/schema.ts` declares every tenant table
+  through `tenantFields`/`byOrg`, and `convex/lib/schemaPolicy.ts` proves the
+  property by reading the finished schema
+  (`tests/isolation/tenant-schema-boundary.isolation.test.ts`,
+  `tests/isolation/schema-policy-guards.isolation.test.ts`). Decisions 2–6 are
+  **not implemented**: there is no tenant-bound accessor, no exported Convex
+  function, no `convex/model/**`, no pagination, no lint rule, and no deployment.
+  Nothing enforces isolation at runtime, because nothing reads or writes a
+  document yet.
 
 ## Context
 
@@ -103,16 +110,27 @@ testable without a Convex runtime and to bound vendor lock-in (§5 Q49, plan §1
 
 ## Verification
 
-Planned, not present.
+Mostly planned. What exists today checks the schema's shape only.
 
-- Isolation tier (`tests/isolation/`, blocking gate): two-tenant fixture per
-  exported function family; cross-tenant ID rejection; warehouse-scope rejection.
-- Integration tier (`convex-test`): wrapper behaviour, pagination caps,
+- Present — isolation tier over the schema declaration: every tenant table
+  declares a required `orgId` first, every declared index begins with `orgId`, the
+  no-`orgId` allowlist is exactly `organizations`, `users`, `permissions`, no field
+  at any depth is named after credential material, and every uniqueness key has an
+  exact index. The guards are themselves tested against synthetic bad schemas, so
+  they are known to fail when they should
+  (`tests/isolation/schema-policy-guards.isolation.test.ts`).
+- Present — integration tier over the construction helpers: a caller cannot supply
+  `orgId` to `tenantFields`, at the type level or at runtime.
+- Missing — isolation tier (`tests/isolation/`, blocking gate): two-tenant fixture
+  per exported function family; cross-tenant ID rejection; warehouse-scope
+  rejection. None of this is possible until exported functions exist, so `RG-013`
+  and `RG-031` remain open.
+- Missing — integration tier (`convex-test`): wrapper behaviour, pagination caps,
   structured errors, request-ID propagation.
-- Unit tier: pure model modules tested with no Convex runtime.
-- Static checks: repository guard that every exported tenant function uses the
-  wrapper, that `convex/model/**` has no Convex imports, and that no mutation
-  patches/deletes ledger or audit tables (§12 merge gates).
+- Missing — unit tier: pure model modules tested with no Convex runtime.
+- Missing — static checks: repository guard that every exported tenant function
+  uses the wrapper, that `convex/model/**` has no Convex imports, and that no
+  mutation patches/deletes ledger or audit tables (§12 merge gates).
 
 ## Release gates
 

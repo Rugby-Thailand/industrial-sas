@@ -7,10 +7,14 @@
   §6.1, §7.1
 - Covers plan ADR backlog (§11) items: 1 (partly, see
   [ADR-0002](./0002-convex-tenant-boundary-and-index-discipline.md)), 3
-- Implementation status: **Not implemented.** No identity, tenancy, membership,
-  or webhook code exists in this repository. `@clerk/nextjs` and `convex` are
-  installed and unwired. This ADR records the decision, not a shipped
-  capability.
+- Implementation status: **Partial.** The mirror's _shape_ exists:
+  `convex/schema.ts` declares `organizations`, `users`, `memberships`,
+  `membershipRoles`, `membershipWarehouses`, `entitlements`, and `sessionsAudit`,
+  with the Clerk correlation keys and the bounded indexes their lookups need, and
+  with no credential material anywhere. Nothing else does: there is no Clerk
+  provisioning, no webhook handler, no token verification, no membership recheck,
+  no organization switch, and no entitlement enforcement. `@clerk/nextjs` is
+  installed and unwired, and no code writes any of these tables.
 
 ## Context
 

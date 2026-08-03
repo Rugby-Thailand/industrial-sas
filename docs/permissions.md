@@ -1,7 +1,9 @@
 # Permission catalogue, seeded roles, and policy semantics
 
 Status: **specification.** No permission code, role seed, or policy evaluator exists
-in this repository. This document is the contract that
+in this repository. The tables this catalogue will populate — `permissions`, `roles`,
+`rolePermissions` — are declared in `convex/schema.ts` and are empty, unseeded, and
+unread. This document is the contract that
 [ADR-0006](./adr/0006-authorization-and-support-access.md) requires; it becomes the
 source for `convex/lib/permissions.ts` and the reference-data seed when Phase 1
 starts.

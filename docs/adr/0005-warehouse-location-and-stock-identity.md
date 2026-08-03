@@ -6,8 +6,11 @@
 - Decision baseline: [PROJECT_PLAN.md](../../PROJECT_PLAN.md) §3.2 (D-09, D-10,
   D-11, D-13, D-15), §4 (B-06), §5 Q17, Q19, Q22, Q23, Q24, Q29, §7.2, §7.4
 - Covers plan ADR backlog (§11) items: 9, 10, 13
-- Implementation status: **Not implemented.** No warehouse, location, lot,
-  handling-unit, or barcode schema exists. No GS1 or LPN parser exists.
+- Implementation status: **Not implemented.** No location, lot, handling-unit, or
+  barcode schema exists, and no GS1 or LPN parser exists. A `warehouses` table is
+  declared in `convex/schema.ts`, reduced to tenant-scoped identity and status,
+  because warehouse scope is an input to every authorization decision; none of the
+  hierarchy, capacity, or storage-class model in this ADR is present.
 
 ## Context
 

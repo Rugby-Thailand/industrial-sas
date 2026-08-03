@@ -6,8 +6,11 @@
 - Decision baseline: [PROJECT_PLAN.md](../../PROJECT_PLAN.md) §3.1 (C-05), §3.2
   (D-12), §5 Q20, Q21, Q30, Q37, §7.4, §7.5, §12
 - Covers plan ADR backlog (§11) items: 6, 7, 11, 20
-- Implementation status: **Not implemented.** No schema, no ledger algebra, no
-  projection, no audit table, and no reconciliation job exist.
+- Implementation status: **Not implemented.** No ledger algebra, no projection, no
+  reconciliation job. `convex/schema.ts` declares `auditEvents` and
+  `idempotencyRecords` as part of the tenant security foundation, but no
+  `inventoryTransactions` table, no append-only enforcement, and no static guard
+  exists.
 
 ## Context
 

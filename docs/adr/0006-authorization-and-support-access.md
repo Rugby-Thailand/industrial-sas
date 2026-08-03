@@ -6,10 +6,17 @@
 - Decision baseline: [PROJECT_PLAN.md](../../PROJECT_PLAN.md) §3.2 (D-17), §5 Q14,
   Q15, Q16, §6.1, §7.1
 - Covers plan ADR backlog (§11) items: 4, 5
-- Implementation status: **Not implemented.** No permission catalogue, role seed,
-  policy evaluator, support-grant table, or step-up integration exists. The
-  [permission catalogue](../permissions.md) is a specification of intended code,
-  not a description of shipped code.
+- Implementation status: **Partial.** The tables authorization will read exist and
+  nothing more: `permissions` (code-owned, global, unseeded), `roles`,
+  `rolePermissions`, `membershipRoles`, `membershipWarehouses`, `auditEvents`, and
+  `supportGrants` are declared in `convex/schema.ts` with closed status, scope,
+  outcome, and denial-reason vocabularies. There is no role seed, no policy
+  evaluator, no permission check, no maker-checker, no step-up integration, and no
+  code that reads or writes a support grant. Support grants are schema-ready and
+  disabled: the gating flag `organizations.settings.supportGrantsEnabled` defaults
+  to `false` and no code path consults it yet. The
+  [permission catalogue](../permissions.md) remains a specification of intended
+  code.
 
 ## Decision
 

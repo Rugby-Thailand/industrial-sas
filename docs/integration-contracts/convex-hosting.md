@@ -1,8 +1,9 @@
 # INT-02 — Convex hosting, region, and self-host escape hatch
 
-Status: **specification.** `convex` 1.43.0 and `convex-test` are installed and
-unused. There is no `convex/` directory, no deployment, and no cloud resource created
-by this repository.
+Status: **specification.** `convex/` contains a schema and its helpers; `convex-test`
+is installed and unused. There is no Convex function, no `convex/_generated/`, no
+deployment, no project, and no cloud resource created by this repository. Every
+command in the repository passes without a Convex account.
 
 Owner ADRs:
 [ADR-0002](../adr/0002-convex-tenant-boundary-and-index-discipline.md),

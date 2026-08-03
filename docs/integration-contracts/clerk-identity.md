@@ -2,7 +2,10 @@
 
 Status: **specification.** `@clerk/nextjs` 7.6.4, `@clerk/backend`, and `svix` are
 installed and unwired. There is no middleware, no webhook route, no Convex auth
-config, and no Clerk instance created by this repository.
+config, and no Clerk instance created by this repository. The mirror tables this
+contract writes to — `organizations`, `users`, `memberships`, `sessionsAudit` — are
+declared in `convex/schema.ts` with their Clerk correlation keys, and nothing writes
+to them.
 
 Owner ADRs:
 [ADR-0001](../adr/0001-multi-tenant-saas-and-identity-ownership.md),

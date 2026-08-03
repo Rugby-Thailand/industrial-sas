@@ -3,24 +3,29 @@
 Every requirement and decision in the approved [PROJECT_PLAN.md](../PROJECT_PLAN.md),
 mapped to the code, tests, and documents that will satisfy it, with its status today.
 
-This is the honest inventory. At this commit the repository contains a toolchain scaffold
-and this documentation set. **No warehouse management functionality exists.** Accordingly,
-every row is either `Not implemented` or `Foundation only`, and no row claims otherwise.
+This is the honest inventory. At this commit the repository contains a toolchain scaffold,
+this documentation set, and one slice of real code: the tenant security schema
+(`convex/schema.ts`, `convex/lib/**`) with the guards that read it. **No warehouse
+management functionality exists** — no authentication, no authorization, no exported Convex
+function, no deployment, and nothing that reads or writes a document. Accordingly, no row
+claims more than `Partial`.
 
 ## How to read this
 
 - **IDs are stable.** `SC-D12` stays `SC-D12` for the life of the project. Later commits
   change the `Status` column and the linked artefacts, never the IDs.
-- **Planned code** paths follow the intended structure in plan §8. They do not exist yet.
-- **Status vocabulary** — only two values are currently valid:
+- **Planned code** paths follow the intended structure in plan §8. Except where a row links
+  a real path, they do not exist yet.
+- **Status vocabulary** — three values are currently valid:
 
   | Status            | Meaning                                                                                                     |
   | ----------------- | ----------------------------------------------------------------------------------------------------------- |
   | `Not implemented` | Nothing in the repository advances this requirement. An installed-but-unwired dependency counts as nothing. |
   | `Foundation only` | Something real exists — a pipeline, a tier, a pin — but it asserts scaffolding, not domain behaviour.       |
+  | `Partial`         | Part of the requirement is implemented and tested, and the row says which part is still missing.            |
 
-  Later commits may introduce `Partial`, `Implemented`, and `Verified` (gate satisfied with
-  evidence). Do not use those values until they are true.
+  Later commits may introduce `Implemented` and `Verified` (gate satisfied with evidence).
+  Do not use those values until they are true.
 
 - **Docs** column links the ADR or contract that owns the decision.
 
@@ -65,38 +70,38 @@ Acceptance is a decision, not an implementation: every row below is still
 All thirty are accepted without exceptions in the same
 [approval record](./approval-record.md) entry (`AR-001`). None is implemented.
 
-| ID       | Default                                              | Planned code / artefact                                   | Planned tests                 | Docs                                                                  | Status          |
-| -------- | ---------------------------------------------------- | --------------------------------------------------------- | ----------------------------- | --------------------------------------------------------------------- | --------------- |
-| `SC-D01` | Target tenant profile and volumes                    | Load-test fixtures                                        | load                          | [ADR-0001](./adr/0001-multi-tenant-saas-and-identity-ownership.md)    | Not implemented |
-| `SC-D02` | Installable PWA, handheld and desktop shells         | `public/manifest.webmanifest`, `src/app/[locale]/` shells | e2e, a11y                     | [ADR-0009](./adr/0009-degraded-online-connectivity.md)                | Not implemented |
-| `SC-D03` | Supported browser and device matrix                  | Playwright projects, capability detection                 | e2e                           | [ADR-0009](./adr/0009-degraded-online-connectivity.md)                | Not implemented |
-| `SC-D04` | HID scanner primary, camera secondary                | `ScannerPort`, `CameraScanPort`                           | unit, e2e (synthetic HID)     | [INT-08](./integration-contracts/device-capture-adapters.md)          | Not implemented |
-| `SC-D05` | UTC timestamps, org-timezone business dates          | `src/lib/time/**`                                         | unit (midnight boundary)      | [ADR-0010](./adr/0010-thai-first-i18n-and-accessibility.md)           | Not implemented |
-| `SC-D06` | Thai default, English fallback, BE display only      | `messages/th.json`, `messages/en.json`, `src/i18n/**`     | unit (key parity), a11y, e2e  | [ADR-0010](./adr/0010-thai-first-i18n-and-accessibility.md)           | Not implemented |
-| `SC-D07` | THB integer minor units, single currency             | `src/lib/money/**`                                        | unit                          | [ADR-0004](./adr/0004-exact-quantities-and-uom.md)                    | Not implemented |
-| `SC-D08` | Integer base-UOM quantities, exact conversions       | `convex/model/uom/**`                                     | property                      | [ADR-0004](./adr/0004-exact-quantities-and-uom.md)                    | Not implemented |
-| `SC-D09` | Tracking modes with serial disabled                  | `convex/schema.ts`, feature flag                          | integration (serial rejected) | [ADR-0005](./adr/0005-warehouse-location-and-stock-identity.md)       | Not implemented |
-| `SC-D10` | HUs, LPN history, split/merge/nest, mixed off        | `convex/handlingUnits/**`                                 | property, integration         | [ADR-0005](./adr/0005-warehouse-location-and-stock-identity.md)       | Not implemented |
-| `SC-D11` | Status and owner orthogonal; consignment off         | `convex/schema.ts` bucket fields                          | property, integration         | [ADR-0005](./adr/0005-warehouse-location-and-stock-identity.md)       | Not implemented |
-| `SC-D12` | Negative available inventory forbidden               | `convex/model/ledger/**`                                  | property                      | [ADR-0003](./adr/0003-append-only-inventory-ledger.md)                | Not implemented |
-| `SC-D13` | Capacity advisory, compatibility hard                | `convex/model/putaway/**`                                 | unit, integration             | [ADR-0005](./adr/0005-warehouse-location-and-stock-identity.md)       | Not implemented |
-| `SC-D14` | Deterministic explainable putaway with override      | `convex/model/putaway/**`, `convex/putaway/**`            | property, integration         | [ADR-0007](./adr/0007-inbound-slice-scope.md)                         | Not implemented |
-| `SC-D15` | GS1-128 where licensed, internal LPN otherwise       | `convex/model/gs1/**`                                     | property (corpus fixtures)    | [ADR-0005](./adr/0005-warehouse-location-and-stock-identity.md)       | Not implemented |
-| `SC-D16` | ZPL primary, PDF fallback, local print bridge        | `PrinterTransportPort` adapter, label generator           | unit, physical                | [INT-04](./integration-contracts/printer-transport-port.md)           | Not implemented |
-| `SC-D17` | Server-side permission model with policies           | `convex/lib/permissions.ts`, seeds                        | integration matrix, isolation | [permissions](./permissions.md)                                       | Not implemented |
-| `SC-D18` | `orgId` on every tenant table and index first        | `convex/schema.ts`, `convex/lib/tenantDb.ts`              | isolation, static guard       | [ADR-0002](./adr/0002-convex-tenant-boundary-and-index-discipline.md) | Not implemented |
-| `SC-D19` | Pure domain modules, thin Convex functions           | `convex/model/**`, feature modules                        | unit, static guard            | [ADR-0002](./adr/0002-convex-tenant-boundary-and-index-discipline.md) | Not implemented |
-| `SC-D20` | Private tenant files, short-lived signed URLs        | `FileStoragePort` adapter, `src/app/api/uploadthing/**`   | unit, integration             | [INT-03](./integration-contracts/file-storage-port.md)                | Not implemented |
-| `SC-D21` | Workflow/Workpool/crons plus transactional outbox    | `convex/crons.ts`, `JobQueuePort`, outbox tables          | integration                   | [INT-06](./integration-contracts/job-queue-port.md)                   | Not implemented |
-| `SC-D22` | Expand–migrate–contract, idempotent seeds            | `convex/migrations/**`, seeds                             | integration                   | [ADR-0012](./adr/0012-delivery-release-and-quality-gates.md)          | Not implemented |
-| `SC-D23` | Trunk-based, previews, staging, production, CI gates | `.github/workflows/**`, `scripts/verify-workflows.mjs`    | CI itself                     | [ADR-0012](./adr/0012-delivery-release-and-quality-gates.md)          | Foundation only |
-| `SC-D24` | WCAG 2.2 AA plus warehouse ergonomics                | `src/components/**`, a11y tier                            | a11y, e2e, manual audit       | [ADR-0010](./adr/0010-thai-first-i18n-and-accessibility.md)           | Foundation only |
-| `SC-D25` | Paid Convex tier sized after load testing            | Sizing note                                               | load                          | [INT-02](./integration-contracts/convex-hosting.md)                   | Not implemented |
-| `SC-D26` | RPO 24 h / RTO 8 h with rehearsed restores           | Export jobs, [RB-02](./runbooks/backup-and-restore.md)    | rehearsal                     | [ADR-0012](./adr/0012-delivery-release-and-quality-gates.md)          | Not implemented |
-| `SC-D27` | Seven-year ledger/audit retention, pending review    | Retention config, export jobs                             | integration                   | [ADR-0012](./adr/0012-delivery-release-and-quality-gates.md)          | Not implemented |
-| `SC-D28` | No Three.js; 2D SVG occupancy                        | Occupancy map component                                   | static (`three` absent), a11y | [ADR-0011](./adr/0011-async-jobs-reporting-and-observability.md)      | Foundation only |
-| `SC-D29` | pnpm with exact pinned versions                      | `package.json`, `pnpm-lock.yaml`, `.npmrc`                | CI frozen install             | [README](../README.md)                                                | Foundation only |
-| `SC-D30` | Server-enforced entitlements, manual billing         | `convex/organizations/entitlements`                       | integration                   | [ADR-0001](./adr/0001-multi-tenant-saas-and-identity-ownership.md)    | Not implemented |
+| ID       | Default                                              | Planned code / artefact                                                                                        | Planned tests                              | Docs                                                                  | Status          |
+| -------- | ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- | ------------------------------------------ | --------------------------------------------------------------------- | --------------- |
+| `SC-D01` | Target tenant profile and volumes                    | Load-test fixtures                                                                                             | load                                       | [ADR-0001](./adr/0001-multi-tenant-saas-and-identity-ownership.md)    | Not implemented |
+| `SC-D02` | Installable PWA, handheld and desktop shells         | `public/manifest.webmanifest`, `src/app/[locale]/` shells                                                      | e2e, a11y                                  | [ADR-0009](./adr/0009-degraded-online-connectivity.md)                | Not implemented |
+| `SC-D03` | Supported browser and device matrix                  | Playwright projects, capability detection                                                                      | e2e                                        | [ADR-0009](./adr/0009-degraded-online-connectivity.md)                | Not implemented |
+| `SC-D04` | HID scanner primary, camera secondary                | `ScannerPort`, `CameraScanPort`                                                                                | unit, e2e (synthetic HID)                  | [INT-08](./integration-contracts/device-capture-adapters.md)          | Not implemented |
+| `SC-D05` | UTC timestamps, org-timezone business dates          | `src/lib/time/**`                                                                                              | unit (midnight boundary)                   | [ADR-0010](./adr/0010-thai-first-i18n-and-accessibility.md)           | Not implemented |
+| `SC-D06` | Thai default, English fallback, BE display only      | `messages/th.json`, `messages/en.json`, `src/i18n/**`                                                          | unit (key parity), a11y, e2e               | [ADR-0010](./adr/0010-thai-first-i18n-and-accessibility.md)           | Not implemented |
+| `SC-D07` | THB integer minor units, single currency             | `src/lib/money/**`                                                                                             | unit                                       | [ADR-0004](./adr/0004-exact-quantities-and-uom.md)                    | Not implemented |
+| `SC-D08` | Integer base-UOM quantities, exact conversions       | `convex/model/uom/**`                                                                                          | property                                   | [ADR-0004](./adr/0004-exact-quantities-and-uom.md)                    | Not implemented |
+| `SC-D09` | Tracking modes with serial disabled                  | `convex/schema.ts`, feature flag                                                                               | integration (serial rejected)              | [ADR-0005](./adr/0005-warehouse-location-and-stock-identity.md)       | Not implemented |
+| `SC-D10` | HUs, LPN history, split/merge/nest, mixed off        | `convex/handlingUnits/**`                                                                                      | property, integration                      | [ADR-0005](./adr/0005-warehouse-location-and-stock-identity.md)       | Not implemented |
+| `SC-D11` | Status and owner orthogonal; consignment off         | `convex/schema.ts` bucket fields                                                                               | property, integration                      | [ADR-0005](./adr/0005-warehouse-location-and-stock-identity.md)       | Not implemented |
+| `SC-D12` | Negative available inventory forbidden               | `convex/model/ledger/**`                                                                                       | property                                   | [ADR-0003](./adr/0003-append-only-inventory-ledger.md)                | Not implemented |
+| `SC-D13` | Capacity advisory, compatibility hard                | `convex/model/putaway/**`                                                                                      | unit, integration                          | [ADR-0005](./adr/0005-warehouse-location-and-stock-identity.md)       | Not implemented |
+| `SC-D14` | Deterministic explainable putaway with override      | `convex/model/putaway/**`, `convex/putaway/**`                                                                 | property, integration                      | [ADR-0007](./adr/0007-inbound-slice-scope.md)                         | Not implemented |
+| `SC-D15` | GS1-128 where licensed, internal LPN otherwise       | `convex/model/gs1/**`                                                                                          | property (corpus fixtures)                 | [ADR-0005](./adr/0005-warehouse-location-and-stock-identity.md)       | Not implemented |
+| `SC-D16` | ZPL primary, PDF fallback, local print bridge        | `PrinterTransportPort` adapter, label generator                                                                | unit, physical                             | [INT-04](./integration-contracts/printer-transport-port.md)           | Not implemented |
+| `SC-D17` | Server-side permission model with policies           | `convex/lib/permissions.ts`, seeds                                                                             | integration matrix, isolation              | [permissions](./permissions.md)                                       | Not implemented |
+| `SC-D18` | `orgId` on every tenant table and index first        | `convex/schema.ts`, `convex/lib/tenantTable.ts`, `convex/lib/schemaPolicy.ts`; `convex/lib/tenantDb.ts` absent | isolation (present), static guard (absent) | [ADR-0002](./adr/0002-convex-tenant-boundary-and-index-discipline.md) | Partial         |
+| `SC-D19` | Pure domain modules, thin Convex functions           | `convex/model/**`, feature modules                                                                             | unit, static guard                         | [ADR-0002](./adr/0002-convex-tenant-boundary-and-index-discipline.md) | Not implemented |
+| `SC-D20` | Private tenant files, short-lived signed URLs        | `FileStoragePort` adapter, `src/app/api/uploadthing/**`                                                        | unit, integration                          | [INT-03](./integration-contracts/file-storage-port.md)                | Not implemented |
+| `SC-D21` | Workflow/Workpool/crons plus transactional outbox    | `convex/crons.ts`, `JobQueuePort`, outbox tables                                                               | integration                                | [INT-06](./integration-contracts/job-queue-port.md)                   | Not implemented |
+| `SC-D22` | Expand–migrate–contract, idempotent seeds            | `convex/migrations/**`, seeds                                                                                  | integration                                | [ADR-0012](./adr/0012-delivery-release-and-quality-gates.md)          | Not implemented |
+| `SC-D23` | Trunk-based, previews, staging, production, CI gates | `.github/workflows/**`, `scripts/verify-workflows.mjs`                                                         | CI itself                                  | [ADR-0012](./adr/0012-delivery-release-and-quality-gates.md)          | Foundation only |
+| `SC-D24` | WCAG 2.2 AA plus warehouse ergonomics                | `src/components/**`, a11y tier                                                                                 | a11y, e2e, manual audit                    | [ADR-0010](./adr/0010-thai-first-i18n-and-accessibility.md)           | Foundation only |
+| `SC-D25` | Paid Convex tier sized after load testing            | Sizing note                                                                                                    | load                                       | [INT-02](./integration-contracts/convex-hosting.md)                   | Not implemented |
+| `SC-D26` | RPO 24 h / RTO 8 h with rehearsed restores           | Export jobs, [RB-02](./runbooks/backup-and-restore.md)                                                         | rehearsal                                  | [ADR-0012](./adr/0012-delivery-release-and-quality-gates.md)          | Not implemented |
+| `SC-D27` | Seven-year ledger/audit retention, pending review    | Retention config, export jobs                                                                                  | integration                                | [ADR-0012](./adr/0012-delivery-release-and-quality-gates.md)          | Not implemented |
+| `SC-D28` | No Three.js; 2D SVG occupancy                        | Occupancy map component                                                                                        | static (`three` absent), a11y              | [ADR-0011](./adr/0011-async-jobs-reporting-and-observability.md)      | Foundation only |
+| `SC-D29` | pnpm with exact pinned versions                      | `package.json`, `pnpm-lock.yaml`, `.npmrc`                                                                     | CI frozen install                          | [README](../README.md)                                                | Foundation only |
+| `SC-D30` | Server-enforced entitlements, manual billing         | `convex/organizations/entitlements`                                                                            | integration                                | [ADR-0001](./adr/0001-multi-tenant-saas-and-identity-ownership.md)    | Not implemented |
 
 `SC-D28` is `Foundation only` because the true half is already true — `three` is absent from
 the dependency graph — while the occupancy map it substitutes for does not exist.
@@ -129,8 +134,8 @@ Each invariant maps to the ADR-0003 identifier and the tier that must prove it.
 | `SC-Q03` | Dependency audit                                       | Not present                                             | `RG-053` | Not implemented |
 | `SC-Q04` | Unit tier (domain algebra, components)                 | `Test (unit)` job                                       | `RG-054` | Foundation only |
 | `SC-Q05` | Property tier (ledger, UOM, parsers, putaway)          | `Test (property)` job                                   | `RG-054` | Foundation only |
-| `SC-Q06` | Integration tier (`convex-test`)                       | `Test (integration)` job                                | `RG-054` | Foundation only |
-| `SC-Q07` | Isolation tier, blocking                               | `Test (isolation)` job                                  | `RG-031` | Foundation only |
+| `SC-Q06` | Integration tier (schema contracts; no `convex-test`)  | `Test (integration)` job                                | `RG-054` | Partial         |
+| `SC-Q07` | Isolation tier, blocking                               | `Test (isolation)` job                                  | `RG-031` | Partial         |
 | `SC-Q08` | Accessibility tier (axe-core)                          | `Test (a11y)` job                                       | `RG-042` | Foundation only |
 | `SC-Q09` | Playwright smoke journey                               | `Playwright` workflow                                   | `RG-055` | Foundation only |
 | `SC-Q10` | Production build with no environment variables         | `Production build` job                                  | —        | Foundation only |
@@ -145,6 +150,32 @@ The `Foundation only` rows above are the honest description of a green pipeline 
 placeholder assertions: the job exists, the wiring works, and the content proves nothing about
 the domain. Placeholder tests are to be deleted as real suites land
 ([README](../README.md)).
+
+`SC-Q06` and `SC-Q07` are `Partial`, not `Foundation only`, because their placeholders are
+gone and what replaced them asserts real properties of `convex/schema.ts` — `orgId`-first
+tenancy, the three-table root allowlist, closed value sets, bounded uniqueness lookups, the
+absence of credential fields, and the guards' own ability to fail. What they do not assert is
+anything at runtime: no two-tenant fixture, no cross-tenant ID rejection, no `convex-test`.
+That is why `RG-013` and `RG-031` stay open.
+
+## 5a. Tenant security schema (plan §7.1)
+
+The one slice of implemented code, listed separately so it cannot be mistaken for a working
+capability. Every row is schema shape plus tests over that shape; none of it runs against a
+database.
+
+| ID       | Item                                                              | Code                                                     | Tests                  | Status          |
+| -------- | ----------------------------------------------------------------- | -------------------------------------------------------- | ---------------------- | --------------- |
+| `SC-S01` | Tenant, identity, and membership tables with Clerk keys           | `convex/schema.ts`                                       | integration, isolation | Partial         |
+| `SC-S02` | `orgId` required and first; every index `orgId`-prefixed          | `convex/lib/tenantTable.ts`                              | integration, isolation | Partial         |
+| `SC-S03` | Root allowlist is exactly `organizations`, `users`, `permissions` | `convex/lib/schemaPolicy.ts`                             | isolation              | Partial         |
+| `SC-S04` | Closed value sets for status, scope, outcome, denial reason       | `convex/lib/validators.ts`                               | integration            | Partial         |
+| `SC-S05` | Safe organization defaults; every capability flag off             | `convex/lib/organizationDefaults.ts`                     | integration            | Partial         |
+| `SC-S06` | Bounded-lookup contracts for every unique-by-contract key         | `convex/lib/schemaPolicy.ts`                             | integration, isolation | Partial         |
+| `SC-S07` | No credential material in any field, at any depth                 | `convex/lib/schemaPolicy.ts`                             | isolation              | Partial         |
+| `SC-S08` | Support grants schema-ready, disabled, no bypass field            | `convex/schema.ts`, `convex/lib/organizationDefaults.ts` | integration            | Partial         |
+| `SC-S09` | Tenant-bound accessor (`G-102`) and auth wrapper                  | Absent                                                   | —                      | Not implemented |
+| `SC-S10` | Provisioning, webhook sync, role seeding, permission checks       | Absent                                                   | —                      | Not implemented |
 
 ## 6. Documentation coverage
 

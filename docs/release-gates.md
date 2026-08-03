@@ -22,13 +22,22 @@ closes it, and its current status.
 
 ## Current position
 
-Nothing is implemented in this repository beyond the toolchain scaffold and this
-documentation set. Of the 70 gates registered here, **two are satisfied** — `RG-062`
-(the ADR set) and `RG-001` (B-01…B-12 accepted, evidenced by the
+Beyond the toolchain scaffold and this documentation set, the repository now contains
+one slice of implemented code: the tenant security schema and the guards that read it
+([coverage matrix](./specification-coverage.md) §5a). It closes no gate. There is no
+authentication, no authorization, no exported Convex function, and no deployment, so
+every gate that depends on behaviour still depends on code that does not exist.
+
+Of the 70 gates registered here, **two are satisfied** — `RG-062` (the ADR set) and
+`RG-001` (B-01…B-12 accepted, evidenced by the
 [approval record](./approval-record.md)) — **three are in progress** (`RG-053`,
-`RG-054`, `RG-055`: the standing merge gates whose jobs run against placeholder
-assertions), and the remaining **65 are `Not started`**. That is the accurate
-picture, not a pessimistic one.
+`RG-054`, `RG-055`: the standing merge gates), and the remaining **65 are
+`Not started`**. That is the accurate picture, not a pessimistic one.
+
+`RG-013` and `RG-031` deserve a specific note, because the isolation tier now has real
+content. They remain `Not started`. The tier proves the schema cannot _express_ a cheap
+cross-tenant read; it does not reject a cross-tenant document ID, because there is no
+function to reject it and no two-tenant fixture to try.
 
 The approval record closes `RG-001` only. It supplies no budget, pilot site, vendor,
 hardware, or legal approval, so `RG-064` and every other `External` gate stay open.
@@ -127,21 +136,22 @@ implementation against fakes is not waiting on them.
 These run on every pull request rather than at a phase boundary
 ([ADR-0012](./adr/0012-delivery-release-and-quality-gates.md), plan §12).
 
-| ID       | Gate                                                                        | Kind  | Owner            | Evidence required                                 | Status                               |
-| -------- | --------------------------------------------------------------------------- | ----- | ---------------- | ------------------------------------------------- | ------------------------------------ |
-| `RG-053` | Formatting, lint, strict typecheck, and dependency audit                    | Code  | Engineering lead | Green `Static analysis` job                       | In progress — audit job absent       |
-| `RG-054` | Unit, a11y, property, integration, and isolation tiers green                | Code  | Engineering lead | Green test matrix                                 | In progress — placeholder tests only |
-| `RG-055` | Playwright smoke journey green                                              | Code  | Engineering lead | Green E2E workflow                                | In progress — placeholder journey    |
-| `RG-031` | Tenant-isolation tier is a blocking merge gate                              | Code  | Engineering lead | Isolation job required for merge and non-waivable | Not started                          |
-| `RG-032` | No exported Convex function bypasses access wrappers                        | Code  | Engineering lead | Passing static guard                              | Not started                          |
-| `RG-033` | No mutation updates or deletes ledger or audit tables                       | Code  | Engineering lead | Passing static guard                              | Not started                          |
-| `RG-034` | No tenant list query uses an unbounded scan or a tenant `.filter()`         | Code  | Engineering lead | Passing static guard                              | Not started                          |
-| `RG-036` | Production Convex tier sized from load-test evidence, not assumption (D-25) | Mixed | Platform         | Sizing note referencing the `RG-037` load test    | Not started                          |
+| ID       | Gate                                                                        | Kind  | Owner            | Evidence required                                 | Status                                                                                                             |
+| -------- | --------------------------------------------------------------------------- | ----- | ---------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `RG-053` | Formatting, lint, strict typecheck, and dependency audit                    | Code  | Engineering lead | Green `Static analysis` job                       | In progress — audit job absent                                                                                     |
+| `RG-054` | Unit, a11y, property, integration, and isolation tiers green                | Code  | Engineering lead | Green test matrix                                 | In progress — integration and isolation tiers assert the schema; unit, a11y, property, and e2e remain placeholders |
+| `RG-055` | Playwright smoke journey green                                              | Code  | Engineering lead | Green E2E workflow                                | In progress — placeholder journey                                                                                  |
+| `RG-031` | Tenant-isolation tier is a blocking merge gate                              | Code  | Engineering lead | Isolation job required for merge and non-waivable | Not started                                                                                                        |
+| `RG-032` | No exported Convex function bypasses access wrappers                        | Code  | Engineering lead | Passing static guard                              | Not started                                                                                                        |
+| `RG-033` | No mutation updates or deletes ledger or audit tables                       | Code  | Engineering lead | Passing static guard                              | Not started                                                                                                        |
+| `RG-034` | No tenant list query uses an unbounded scan or a tenant `.filter()`         | Code  | Engineering lead | Passing static guard                              | Not started                                                                                                        |
+| `RG-036` | Production Convex tier sized from load-test evidence, not assumption (D-25) | Mixed | Platform         | Sizing note referencing the `RG-037` load test    | Not started                                                                                                        |
 
 `RG-053`, `RG-054`, and `RG-055` are marked `In progress` because the jobs exist and
-pass today, while what they assert is placeholder scaffolding rather than domain
-behaviour. They close when real suites replace the placeholders and the dependency
-audit is added.
+pass today, while most of what they assert is placeholder scaffolding rather than domain
+behaviour. The integration and isolation tiers are the exception: their placeholders are
+gone, replaced by assertions over the tenant security schema. They close when real suites
+replace the remaining placeholders and the dependency audit is added.
 
 ## Updating this register
 

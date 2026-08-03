@@ -13,23 +13,36 @@ accepted before domain implementation are recorded in
 
 ## Current status
 
-**Workspace scaffold only. No warehouse management functionality exists.**
+**Toolchain scaffold plus one slice of real code: the tenant security schema. No
+warehouse management functionality exists.**
 
 The toolchain is installed, pinned, and green end to end. What is present is the
 foundation and nothing more:
 
 - A Next.js App Router shell with one page whose only job is to prove the
   toolchain builds and renders.
-- Placeholder test files for each test tier, so every guard has something to run.
-  They assert nothing about the domain and should be deleted as real suites land.
-- Dependencies for Convex, Clerk, and UploadThing are installed but **not wired
-  up**: no schema, no ledger, no auth, no middleware, no vendor configuration.
+- A Convex schema for tenancy, identity, authorization, audit, idempotency,
+  devices, entitlements, and (disabled) support grants — declarations only. Every
+  tenant table carries a required `orgId` as its first field and every declared
+  index begins with it, enforced by construction helpers and proved by a policy
+  module that reads the finished schema. Nothing reads or writes a document: there
+  is no Convex function, no auth wrapper, no tenant-bound accessor, no webhook, no
+  seed, and no deployment. **Tenant isolation is a property of the declared shape
+  here, not a runtime guarantee.**
+- Real integration and isolation suites over that schema, including negative tests
+  that prove the guards fail when they should. The unit, a11y, property, and e2e
+  tiers are still placeholder files that assert nothing about the domain and should
+  be deleted as real suites land.
+- Clerk, UploadThing, and the rest of the dependency list remain installed and
+  **not wired up**: no auth, no middleware, no vendor configuration.
 
-There is no authentication, no authorization, no tenant model, no database
-schema, and no deployment. CI runs the guards described below and nothing more.
-Do not run this scaffold anywhere but locally.
+There is no authentication, no authorization, no runtime tenant enforcement, no
+Convex deployment, and no uniqueness enforcement — Convex has no unique constraint,
+so every "unique" key in the schema is unique _by contract_: a bounded index plus
+the check the future mutation owes. CI runs the guards described below and nothing
+more. Do not run this anywhere but locally.
 
-What does exist beyond the scaffold is the design record: twelve accepted ADRs,
+What else exists is the design record: twelve accepted ADRs,
 the domain glossary, the permission catalogue, the release-gate register, the
 approval record, the integration contracts, and runbook skeletons. See
 [Documentation](#documentation).
@@ -38,8 +51,9 @@ approval record, the integration contracts, and runbook skeletons. See
 
 [`docs/`](./docs/README.md) holds the architecture and delivery documentation
 derived from [PROJECT_PLAN.md](./PROJECT_PLAN.md). It describes intended
-behaviour; every document states its own implementation status, and none of it
-claims shipped functionality.
+behaviour; every document states its own implementation status. `ADR-0001`,
+`ADR-0002`, and `ADR-0006` are `Partial` because the tenant security schema
+landed; nothing claims a shipped capability.
 
 | Document                                                          | What it is                                                                               |
 | ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
@@ -214,7 +228,7 @@ D-29). Floating ranges are not allowed.
 | Property tests           | fast-check                                        | 4.9.0   |
 | Accessibility tests      | jest-axe + axe-core                               | 11.0.0  |
 | E2E tests                | Playwright                                        | 1.62.1  |
-| Backend / data           | Convex (installed, not wired)                     | 1.43.0  |
+| Backend / data           | Convex (schema declared; no functions, no deploy) | 1.43.0  |
 | Identity                 | Clerk (installed, not wired)                      | 7.6.4   |
 | Files                    | UploadThing (installed, not wired)                | 7.7.4   |
 | i18n                     | `next-intl` (installed, not wired)                | 4.13.4  |
@@ -254,6 +268,9 @@ break a guard.
 - `PROJECT_PLAN.md` is excluded from Prettier and must stay byte-for-byte
   identical to the approved document.
 - Type declarations for untyped packages live in `types/`.
+- `convex/` holds the schema and its helpers. There is no `convex/_generated/`:
+  nothing has been deployed, and no command in this repository needs a Convex
+  project.
 
 ## Next step
 
@@ -263,6 +280,12 @@ without exceptions, recorded in
 `ADR-0001`…`ADR-0012` are written and accepted (`RG-062`). Local implementation of
 the inbound slice per [PROJECT_PLAN.md](./PROJECT_PLAN.md) §9 may therefore proceed,
 built against tested adapters and fakes with no vendor credentials.
+
+The tenant security schema is the first slice of that work. What it does not
+include, and what comes next, is everything that turns a declared shape into an
+enforced one: the tenant-bound accessor (`G-102`), the auth wrapper, Clerk webhook
+sync, role and permission seeding, and the mutations that owe the uniqueness checks
+the indexes above only make affordable.
 
 The open evidence gates are tracked in
 [`docs/release-gates.md`](./docs/release-gates.md). The latency benchmark, scanner

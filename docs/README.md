@@ -4,8 +4,10 @@ Architecture decisions and delivery contracts for Industrial SSA, derived from t
 [PROJECT_PLAN.md](../PROJECT_PLAN.md).
 
 **Read this first:** these documents describe what will be built. The repository currently
-contains a toolchain scaffold and this documentation set — no warehouse management
-functionality exists. Each document states its own implementation status, and the
+contains a toolchain scaffold, this documentation set, and the tenant security schema —
+table declarations and the guards that read them, with no authentication, no authorization,
+no Convex functions, and no deployment. **No warehouse management functionality exists.**
+Each document states its own implementation status, and the
 [coverage matrix](./specification-coverage.md) is the single place to see what is real.
 
 ## Where to start
@@ -40,7 +42,7 @@ and delivery. See the [ADR index](./adr/README.md) for the list and for how they
   maker-checker, step-up, and disabled-by-default support grants.
 - [Release gate register](./release-gates.md) — every gate in the approved plan with an
   owner, the evidence that closes it, and its status. Two gates are satisfied today; the
-  rest are open.
+  rest are open, and the tenant security schema closes none of them.
 - [Approval record](./approval-record.md) — the dated authorization the plan's §16 asks
   for: which decisions are accepted, what activity is authorized, and which approvals
   were **not** supplied and therefore remain open gates.

@@ -1,7 +1,9 @@
 # RB-04 — Support access to tenant data
 
 Status: **skeleton, never executed.** Support grants are **disabled by default** and no
-grant mechanism exists in code
+grant mechanism exists in code: the `supportGrants` table is declared in
+`convex/schema.ts` with required reason, ticket, requester, and expiry and with no
+bypass field, and nothing reads or writes it
 ([ADR-0006](../adr/0006-authorization-and-support-access.md)). Evidence gates: `RG-015`
 (policy confirmed), `RG-060` (rehearsed).
 
