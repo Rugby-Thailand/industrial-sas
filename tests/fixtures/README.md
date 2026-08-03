@@ -9,6 +9,11 @@ Current checked-in fixtures:
 - `tenant-storage-port.ts`: an in-memory `TenantStoragePort` that enforces nothing
   and records every call, so the document-access suites prove the accessor's own
   guards rather than the fake's
+- `convex-tenant-world.ts`: a two-tenant world on `convex-test`, the
+  Convex-authored in-process mock. It runs the real database implementation,
+  schema validators, index semantics, and pagination budget, offline and with no
+  deployment, so the Convex storage adapter is tested against Convex rather than
+  against an imitation of it
 
 Planned contents, per `PROJECT_PLAN.md`:
 
