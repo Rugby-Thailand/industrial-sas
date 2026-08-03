@@ -18,18 +18,37 @@
   - `convex/model/gs1/date.ts` — `YYMMDD` with the century rule against an injected
     reference year, and an explicit policy for a `00` day.
   - `convex/model/gs1/elementString.ts` — element-string parsing for nine AIs (00,
-    01, 10, 11, 15, 17, 21, 30, 37) with FNC1 handling. Every other AI is rejected
-    as unknown.
+    01, 10, 11, 15, 17, 21, 30, 37) with fail-closed FNC1 placement. Every other AI
+    is rejected as unknown, and a separator in a position the specification has no
+    reading for — leading, doubled, trailing, or after a predefined-length field —
+    is `UNEXPECTED_SEPARATOR` rather than a skipped character.
   - `convex/model/identifiers/normalization.ts` — raw scan, SKU, lot code, and GTIN
     normalization, with leading zeros preserved and lot case preserved.
   - `convex/model/identifiers/lpn.ts` — LPN namespaces, internal LPN generation and
-    validation with an internal check character, and SSCC as LPN (D-15).
+    validation with an internal check character, and SSCC as LPN (D-15). A clock or
+    entropy source that misbehaves — including one that throws — is a named error,
+    not an exception at the boundary.
   - `convex/model/identifiers/scanResolution.ts` — the parser precedence of §13,
     with ambiguity, foreign namespaces, and GS1 content errors all rejected
-    explicitly (`INV-0005-11`).
+    explicitly (`INV-0005-11`). Three further readings are refusals rather than
+    fall-throughs: a valid bare SSCC while the tenant has not enabled bare SSCCs
+    (`10` + 16 digits is both a lot element string and, for some digit strings, a
+    valid SSCC), a well-formed internal LPN with no namespace policy to say whose it
+    is, and a scan matching a registered prefix and length whose check character is
+    wrong.
   - `convex/model/rotation/stockRotation.ts` — FIFO/FEFO as a strict total order
     with documented tie-breakers and a per-candidate explanation
-    (`INV-0005-10`).
+    (`INV-0005-10`). Expiry is the candidate's **expiration date** against an
+    explicit `asOf`, independent of the configured rotation date source: the source
+    (§5 Q23) decides the order, and deriving expiry from it both called an old
+    manufacture date an expiry and let a passed expiry rank as usable.
+
+  Everything above validates the values it is handed and returns a `Result`; a
+  `BusinessDate`, a `Gs1Scan`, an `LpnNamespace`, and a rotation candidate are all
+  interfaces, so a cast or a document read is exactly the value that reaches them.
+  Nothing these modules return is mutable at run time either — a parsed scan's
+  `byAi` and the supported-AI table are frozen null-prototype records rather than
+  `ReadonlyMap`s a cast can reopen.
 
   What is **not** implemented: `INV-0005-01` through `INV-0005-09` and
   `INV-0005-12` all need tables or mutations that do not exist. In particular LPN
@@ -179,9 +198,15 @@ Implemented now:
   `convex/model/rotation/stockRotation.test.ts`): check digits against
   hand-computed GS1 examples; the parser's rejections (unknown AI, truncated fixed
   field, over-long variable field, bad check digit, impossible date, duplicate AI,
-  character outside AI encodable set 82); normalization that preserves leading zeros
-  and lot case; LPN generation from an injected clock and entropy; rotation
-  tie-breakers, exclusions, and explanations.
+  character outside AI encodable set 82, separator in an impossible position);
+  normalization that preserves leading zeros and lot case; LPN generation from an
+  injected clock and entropy, including a source that throws; rotation
+  tie-breakers, exclusions, and explanations; expiry decided by the expiration date
+  under every rotation source; and the scan refusals that used to be
+  fall-throughs — a disabled bare SSCC, an LPN with no namespace policy, and a
+  damaged LPN under a registered prefix. Forged values get their own cases: a
+  parsed scan and the supported-AI table cannot be mutated through a cast, and an
+  impossible `BusinessDate` is an error rather than a sort key.
 - Property tests (`tests/properties/identifiers.property.test.ts`,
   `tests/properties/stock-rotation.property.test.ts`): normalization is idempotent
   and keeps zero-padded codes distinct; a computed GS1 check digit always verifies
@@ -190,12 +215,19 @@ Implemented now:
   transposition of two different characters, which is provable because the alphabet
   has 31 symbols and 31 is prime; the rotation comparator is irreflexive,
   antisymmetric, transitive, and total, and ordering is invariant under input
-  permutation. Negative controls assert the suite fails against a constant check
+  permutation; expiry equals "the expiration date is before `asOf`" for every
+  strategy and rotation source; and every separator position outside the grammar is
+  refused. Negative controls assert the suite fails against a constant check
   character, an unweighted checksum, a zero-trimming normalizer, an unverified
-  GTIN, and a comparator with no final tie-breaker.
+  GTIN, a comparator with no final tie-breaker, and expiry read off the configured
+  rotation date.
 - Integration tests (`tests/integration/inbound-primitives.integration.test.ts`):
-  a scanned label resolved, converted, dated, and rotated, plus a neighbouring
-  tenant's LPN refused.
+  a scanned label resolved, converted, dated, and rotated; a neighbouring tenant's
+  LPN refused; expired stock kept out under every rotation source; and a valid bare
+  SSCC and a policy-less internal LPN both refused instead of reinterpreted.
+- Isolation tests (`tests/isolation/tenant-boundary-guard.isolation.test.ts`): the
+  `model-purity` rule fires on a static import, a re-export, a dynamic import, a
+  dynamic specifier the guard cannot read, `require`, and `import x = require(…)`.
 
 Still planned:
 

@@ -15,6 +15,15 @@
   item-scoped quantities). `INV-0004-01`, `INV-0004-03`, `INV-0004-04`,
   `INV-0004-05`, and `INV-0004-06` hold for every path through those modules, and
   `convex/model/uom/quantity.ts` has no way to express a fraction of a minor unit.
+  Those invariants hold **against a forged value as well as a constructed one**:
+  every public function re-validates its operands and returns a `Result`, because
+  `Ratio` and `Quantity` are interfaces and a factor read back from a document is
+  exactly what a cast can produce. A zero, negative, non-integer, or non-finite
+  factor is a named error rather than stock scaled to nothing, a flipped sign, or a
+  non-terminating gcd; an item's conversion table is a frozen array rather than a
+  `ReadonlyMap` that a cast can reopen; and `formatQuantity` returns a `Result`
+  because "the digits shown are the digits stored" (§5) is only true of a validated
+  value.
   What is **not** implemented: no table stores a quantity or a conversion
   (`itemUoms` does not exist), so `INV-0004-02` — an immutable base UOM once
   ledger lines reference the item — has nothing to enforce it; there is no ledger,
@@ -121,15 +130,21 @@ Implemented now, over the pure modules:
 
 - Unit tests (`convex/model/uom/*.test.ts`): scale and bounds, the decimal parser's
   rejections (a fourth decimal, an exponent, a thousands separator, non-ASCII
-  digits), UOM mismatch, forged-value re-validation, per-item conversion including
-  alternate-to-alternate composition, and the `ITEM_MISMATCH` case that a UOM check
-  alone cannot see.
+  digits), UOM mismatch, per-item conversion including alternate-to-alternate
+  composition, and the `ITEM_MISMATCH` case that a UOM check alone cannot see. A
+  block per module covers forged values specifically: a `1/0`, `0/1`, `1/-1`, or
+  non-finite factor rejected rather than used (the last of which used to reach a gcd
+  that never returned), a forged quantity refused by every arithmetic and formatting
+  path, and an item profile whose conversion table cannot be rewritten through a
+  cast.
 - Property tests (`tests/properties/quantity-uom.property.test.ts`): reduction is
   canonical and produces coprime components; composition is commutative,
   associative where defined, and has the unit ratio as identity; an exact
   conversion round-trips; an inexact one reports a value equal to the true fraction
   by cross-multiplication; no path returns a non-safe integer; quantities
-  round-trip through their decimal form. Three negative controls assert that the
+  round-trip through their decimal form. The reduction property uses a gcd written
+  for the test rather than the module's own, which is no longer exported: a public
+  gcd loops forever on a non-finite operand. Three negative controls assert that the
   suite fails against a rounding conversion, an unguarded multiply, and a
   truncating parser.
 - Integration tests (`tests/integration/inbound-primitives.integration.test.ts`):

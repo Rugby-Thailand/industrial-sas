@@ -8,7 +8,7 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { expectOk } from "../../../tests/fixtures/domain-results";
+import { expectError, expectOk } from "../../../tests/fixtures/domain-results";
 import {
   addDays,
   ASIA_BANGKOK,
@@ -20,6 +20,7 @@ import {
   daysBetween,
   daysInMonth,
   endOfMonth,
+  FIXED_OFFSET_ZONES,
   formatBusinessDate,
   isLeapYear,
   makeBusinessDate,
@@ -27,8 +28,12 @@ import {
   MIN_BUSINESS_YEAR,
   parseBusinessDate,
   startOfDayInstant,
+  supportedTimeZoneIds,
   UTC,
+  validateTimeZone,
   zoneById,
+  type BusinessDate,
+  type FixedOffsetZone,
 } from "./businessDate";
 
 const date = (iso: string) => expectOk(parseBusinessDate(iso));
@@ -112,7 +117,7 @@ describe("parseBusinessDate", () => {
   });
 
   it("round-trips through the ISO form", () => {
-    expect(businessDateToIso(date("2026-01-09"))).toBe("2026-01-09");
+    expect(expectOk(businessDateToIso(date("2026-01-09")))).toBe("2026-01-09");
   });
 });
 
@@ -142,8 +147,10 @@ describe("businessDateFromInstant", () => {
       for (const timezone of ["UTC", "Pacific/Kiritimati", "Pacific/Midway"]) {
         process.env.TZ = timezone;
         days.add(
-          businessDateToIso(
-            expectOk(businessDateFromInstant(eveningUtc, ASIA_BANGKOK)),
+          expectOk(
+            businessDateToIso(
+              expectOk(businessDateFromInstant(eveningUtc, ASIA_BANGKOK)),
+            ),
           ),
         );
       }
@@ -202,7 +209,7 @@ describe("businessDateFromInstant", () => {
         "2028-02-29",
         "2999-12-30",
       ]) {
-        const instant = startOfDayInstant(date(iso), zone);
+        const instant = expectOk(startOfDayInstant(date(iso), zone));
         expect(businessDateFromInstant(instant, zone)).toEqual({
           ok: true,
           value: date(iso),
@@ -228,18 +235,18 @@ describe("zoneById", () => {
 
 describe("ordering and arithmetic", () => {
   it("orders by year, then month, then day", () => {
-    expect(compareBusinessDates(date("2026-01-31"), date("2026-02-01"))).toBe(
-      -1,
-    );
-    expect(compareBusinessDates(date("2027-01-01"), date("2026-12-31"))).toBe(
-      1,
-    );
-    expect(compareBusinessDates(date("2026-08-03"), date("2026-08-03"))).toBe(
-      0,
-    );
-    expect(businessDatesEqual(date("2026-08-03"), date("2026-08-03"))).toBe(
-      true,
-    );
+    expect(
+      expectOk(compareBusinessDates(date("2026-01-31"), date("2026-02-01"))),
+    ).toBe(-1);
+    expect(
+      expectOk(compareBusinessDates(date("2027-01-01"), date("2026-12-31"))),
+    ).toBe(1);
+    expect(
+      expectOk(compareBusinessDates(date("2026-08-03"), date("2026-08-03"))),
+    ).toBe(0);
+    expect(
+      expectOk(businessDatesEqual(date("2026-08-03"), date("2026-08-03"))),
+    ).toBe(true);
   });
 
   it("adds days across month, year, and leap boundaries", () => {
@@ -268,10 +275,18 @@ describe("ordering and arithmetic", () => {
   });
 
   it("counts days between dates, signed", () => {
-    expect(daysBetween(date("2026-08-03"), date("2026-08-10"))).toBe(7);
-    expect(daysBetween(date("2026-08-10"), date("2026-08-03"))).toBe(-7);
-    expect(daysBetween(date("2028-02-28"), date("2028-03-01"))).toBe(2);
-    expect(daysBetween(date("2027-02-28"), date("2027-03-01"))).toBe(1);
+    expect(expectOk(daysBetween(date("2026-08-03"), date("2026-08-10")))).toBe(
+      7,
+    );
+    expect(expectOk(daysBetween(date("2026-08-10"), date("2026-08-03")))).toBe(
+      -7,
+    );
+    expect(expectOk(daysBetween(date("2028-02-28"), date("2028-03-01")))).toBe(
+      2,
+    );
+    expect(expectOk(daysBetween(date("2027-02-28"), date("2027-03-01")))).toBe(
+      1,
+    );
   });
 
   it("knows month lengths and leap years", () => {
@@ -291,9 +306,9 @@ describe("ordering and arithmetic", () => {
 describe("Buddhist Era display", () => {
   it("adds 543 years, for display only", () => {
     const value = date("2026-08-03");
-    expect(formatBusinessDate(value)).toBe("2026-08-03");
-    expect(formatBusinessDate(value, "GREGORIAN")).toBe("2026-08-03");
-    expect(formatBusinessDate(value, "BUDDHIST")).toBe("2569-08-03");
+    expect(expectOk(formatBusinessDate(value))).toBe("2026-08-03");
+    expect(expectOk(formatBusinessDate(value, "GREGORIAN"))).toBe("2026-08-03");
+    expect(expectOk(formatBusinessDate(value, "BUDDHIST"))).toBe("2569-08-03");
     expect(BUDDHIST_ERA_YEAR_OFFSET).toBe(543);
   });
 
@@ -302,11 +317,117 @@ describe("Buddhist Era display", () => {
     // 2026. Nothing in this module turns a BE year back into a business date, so
     // a BE value that leaks into storage is visibly wrong rather than plausible.
     const value = date("2026-08-03");
-    const reparsed = parseBusinessDate(formatBusinessDate(value, "BUDDHIST"));
+    const reparsed = parseBusinessDate(
+      expectOk(formatBusinessDate(value, "BUDDHIST")),
+    );
     expect(reparsed).toEqual({
       ok: true,
       value: { year: 2569, month: 8, day: 3 },
     });
-    expect(compareBusinessDates(expectOk(reparsed), value)).toBe(1);
+    expect(expectOk(compareBusinessDates(expectOk(reparsed), value))).toBe(1);
+  });
+});
+
+describe("forged dates and zones", () => {
+  /** A value that claims to be a `BusinessDate` and is not a calendar day. */
+  const forgedDate = (
+    year: unknown,
+    month: unknown,
+    day: unknown,
+  ): BusinessDate => ({ year, month, day }) as unknown as BusinessDate;
+
+  it("refuses to order, render, or shift an impossible date", () => {
+    const impossible = forgedDate(2026, 13, 40);
+    expect(
+      expectError(compareBusinessDates(impossible, date("2026-08-03"))).code,
+    ).toBe("NOT_A_CALENDAR_DATE");
+    expect(expectError(businessDatesEqual(impossible, impossible)).code).toBe(
+      "NOT_A_CALENDAR_DATE",
+    );
+    expect(expectError(businessDateToIso(impossible)).code).toBe(
+      "NOT_A_CALENDAR_DATE",
+    );
+    expect(expectError(formatBusinessDate(impossible, "BUDDHIST")).code).toBe(
+      "NOT_A_CALENDAR_DATE",
+    );
+    expect(expectError(addDays(impossible, 1)).code).toBe(
+      "NOT_A_CALENDAR_DATE",
+    );
+    expect(expectError(daysBetween(impossible, date("2026-08-03"))).code).toBe(
+      "NOT_A_CALENDAR_DATE",
+    );
+    expect(expectError(startOfDayInstant(impossible, UTC)).code).toBe(
+      "NOT_A_CALENDAR_DATE",
+    );
+  });
+
+  it("refuses a NaN field rather than sorting by it", () => {
+    // `NaN` compares false to everything, so an unvalidated comparator answers
+    // "greater" for a value that has no position at all.
+    const notANumber = forgedDate(Number.NaN, 8, 3);
+    expect(
+      expectError(compareBusinessDates(notANumber, date("2026-08-03"))).code,
+    ).toBe("NOT_A_CALENDAR_DATE");
+    expect(expectError(businessDateToIso(notANumber))).toEqual({
+      code: "NOT_A_CALENDAR_DATE",
+      year: Number.NaN,
+      month: 8,
+      day: 3,
+    });
+  });
+
+  it("rejects a non-object and a non-string wherever one is expected", () => {
+    expect(
+      expectError(businessDateToIso(null as unknown as BusinessDate)).code,
+    ).toBe("NOT_A_CALENDAR_DATE");
+    expect(
+      expectError(parseBusinessDate(20_260_803 as unknown as string)),
+    ).toEqual({ code: "MALFORMED_ISO_DATE", raw: "number" });
+    expect(expectError(zoneById(7 as unknown as string))).toEqual({
+      code: "UNSUPPORTED_TIME_ZONE",
+      id: "number",
+    });
+  });
+
+  it("rejects a zone whose offset is not the registered one", () => {
+    // A fixed-offset zone is only exact because the offset is ours. A forged
+    // offset on a real id would shift every business day silently.
+    const forgedZone = {
+      id: "Asia/Bangkok",
+      utcOffsetMinutes: 999,
+    } as FixedOffsetZone;
+    expect(expectError(validateTimeZone(forgedZone))).toEqual({
+      code: "UNSUPPORTED_TIME_ZONE",
+      id: "Asia/Bangkok",
+    });
+    expect(expectError(businessDateFromInstant(0, forgedZone)).code).toBe(
+      "UNSUPPORTED_TIME_ZONE",
+    );
+    expect(
+      expectError(startOfDayInstant(date("2026-08-03"), forgedZone)).code,
+    ).toBe("UNSUPPORTED_TIME_ZONE");
+    expect(
+      expectError(
+        businessDateFromInstant(0, {
+          id: "Europe/Berlin",
+          utcOffsetMinutes: 60,
+        } as FixedOffsetZone),
+      ).code,
+    ).toBe("UNSUPPORTED_TIME_ZONE");
+  });
+
+  it("keeps the zone registry closed at run time", () => {
+    // The registry was a `Map` typed `ReadonlyMap`: one cast could register a
+    // daylight-saving zone, or replace `Asia/Bangkok`, for the whole process.
+    expect(Object.isFrozen(FIXED_OFFSET_ZONES)).toBe(true);
+    expect(() => {
+      (FIXED_OFFSET_ZONES as Record<string, unknown>)["Europe/Berlin"] = {
+        id: "Europe/Berlin",
+        utcOffsetMinutes: 60,
+      };
+    }).toThrow(TypeError);
+    expect(zoneById("Europe/Berlin").ok).toBe(false);
+    expect(supportedTimeZoneIds()).toEqual(["Asia/Bangkok", "UTC"]);
+    expect(Object.isFrozen(ASIA_BANGKOK)).toBe(true);
   });
 });

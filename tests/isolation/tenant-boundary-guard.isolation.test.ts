@@ -423,6 +423,55 @@ export const schema = z;
     ).toBe(true);
   });
 
+  it("fails a pure domain module whose module specifier it cannot read", () => {
+    // A specifier the guard cannot resolve is one it cannot clear: a template
+    // literal or a variable can name `convex/server` at run time, and the
+    // literal-only check answered "no violation" for every one of these.
+    const unreadable = [
+      "export const load = async (name: string) => import(name);\n",
+      'const target = "convex/server";\nexport const load = async () => import(target);\n',
+      'export const load = async () => import(`convex/${"server"}`);\n',
+    ];
+    for (const source of unreadable) {
+      expect(rulesOf({ "convex/model/gs1/parse.ts": source })).toEqual([
+        "model-purity",
+      ]);
+    }
+  });
+
+  it("fails a pure domain module that reaches for CommonJS", () => {
+    expect(
+      rulesOf({
+        "convex/model/gs1/parse.ts": `export const server = require("convex/server");
+`,
+      }),
+    ).toEqual(["model-purity"]);
+    expect(
+      rulesOf({
+        "convex/model/gs1/parse.ts": `export const server = require(process.env["M"] ?? "");
+`,
+      }),
+    ).toEqual(["model-purity"]);
+    expect(
+      rulesOf({
+        "convex/model/gs1/parse.ts": `import server = require("convex/server");
+export const s = server;
+`,
+      }),
+    ).toEqual(["model-purity"]);
+  });
+
+  it("still permits a relative dynamic import that stays inside the model", () => {
+    expect(
+      rulesOf({
+        "convex/model/uom/ratio.ts": `export const one = 1;
+`,
+        "convex/model/gs1/parse.ts": `export const load = async () => import("../uom/ratio");
+`,
+      }),
+    ).toEqual([]);
+  });
+
   it("permits a pure domain module that only imports its own siblings", () => {
     expect(
       rulesOf({

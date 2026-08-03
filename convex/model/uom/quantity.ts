@@ -11,10 +11,13 @@
  * strings parsed at each use, pushes the rounding decision into every screen.
  *
  * Every path validates. Construction, arithmetic, parsing, and formatting each
- * re-check `Number.isSafeInteger` and the magnitude bound, so a value that was
- * built by hand rather than through `makeQuantity` still cannot enter a sum. The
- * bound is not decoration: at 2^53 an addition stops being exact, and a ledger
- * that must replay to the same number cannot afford one inexact addition.
+ * re-check the integer bound and the UOM code through `validateQuantity`, so a
+ * value that was built by hand rather than through `makeQuantity` — a cast, a
+ * document read back, a `JSON.parse` — still cannot enter a sum or a rendered
+ * figure. The bound is not decoration: at 2^53 an addition stops being exact, and
+ * a ledger that must replay to the same number cannot afford one inexact
+ * addition. `formatQuantity` returns a `Result` for the same reason: "the digits
+ * shown are the digits stored" is a claim only a validated value supports.
  *
  * A quantity carries the UOM code it is measured in, and arithmetic requires the
  * codes to match. That is what stops `12 PCS + 3 KG`. It does **not** stop
@@ -28,6 +31,7 @@
  *
  * Pure module (plan §6.2): no Convex imports.
  */
+import { isArray, isRecord, isSafeInt, isString } from "../guards";
 import { fail, ok, type Result } from "../result";
 
 /* -------------------------------------------------------------------------- */
@@ -80,6 +84,7 @@ export interface Quantity {
 }
 
 export type QuantityError =
+  | { readonly code: "NOT_A_QUANTITY"; readonly received: string }
   | { readonly code: "NOT_AN_INTEGER"; readonly value: number }
   | {
       readonly code: "OUT_OF_RANGE";
@@ -108,8 +113,14 @@ export type QuantityError =
  * Normalizes and validates a UOM code. Folds ASCII lower case only: `toUpperCase`
  * on arbitrary Unicode can change a string's length (`ß` becomes `SS`), and a
  * normalizer that changes length is not one.
+ *
+ * `UomCode` is an alias for `string`, so a caller may hand this anything at all;
+ * a non-string is `INVALID_UOM_CODE` rather than a `TypeError` from `.trim()`.
  */
 export function normalizeUomCode(raw: string): Result<UomCode, QuantityError> {
+  if (!isString(raw)) {
+    return fail({ code: "INVALID_UOM_CODE", raw: describe(raw) });
+  }
   const folded = raw
     .trim()
     .replace(/[a-z]/g, (character) => character.toUpperCase());
@@ -125,8 +136,8 @@ export function makeQuantity(
 ): Result<Quantity, QuantityError> {
   const code = normalizeUomCode(uom);
   if (!code.ok) return code;
-  if (!Number.isSafeInteger(minorUnits)) {
-    return fail({ code: "NOT_AN_INTEGER", value: minorUnits });
+  if (!isSafeInt(minorUnits)) {
+    return fail({ code: "NOT_AN_INTEGER", value: numberOrNaN(minorUnits) });
   }
   if (Math.abs(minorUnits) > MAX_QUANTITY_MINOR_UNITS) {
     return fail({
@@ -146,16 +157,34 @@ export function makeQuantity(
   );
 }
 
+/**
+ * Re-checks a value that claims to be a `Quantity` and answers a frozen,
+ * normalized one.
+ *
+ * `Quantity` is an interface, so `{ uom: "KG", minorUnits: Number.NaN } as
+ * Quantity` compiles and a row read back from a document is exactly that kind of
+ * value. Every function below goes through this gate, which is what keeps a
+ * forged operand out of a sum and out of a rendered figure.
+ */
+export function validateQuantity(
+  quantity: Quantity,
+): Result<Quantity, QuantityError> {
+  if (!isRecord(quantity)) {
+    return fail({ code: "NOT_A_QUANTITY", received: describe(quantity) });
+  }
+  return makeQuantity(quantity.minorUnits, quantity.uom);
+}
+
 /** `5 KG` from whole base units, without the caller multiplying by the scale. */
 export function quantityFromBaseUnits(
   baseUnits: number,
   uom: UomCode,
 ): Result<Quantity, QuantityError> {
-  if (!Number.isSafeInteger(baseUnits)) {
-    return fail({ code: "NOT_AN_INTEGER", value: baseUnits });
+  if (!isSafeInt(baseUnits)) {
+    return fail({ code: "NOT_AN_INTEGER", value: numberOrNaN(baseUnits) });
   }
   const minorUnits = baseUnits * QUANTITY_SCALE;
-  if (!Number.isSafeInteger(minorUnits)) {
+  if (!isSafeInt(minorUnits)) {
     return fail({ code: "NOT_AN_INTEGER", value: minorUnits });
   }
   return makeQuantity(minorUnits, uom);
@@ -180,6 +209,9 @@ export function parseDecimalQuantity(
   raw: string,
   uom: UomCode,
 ): Result<Quantity, QuantityError> {
+  if (!isString(raw)) {
+    return fail({ code: "MALFORMED_DECIMAL", raw: describe(raw) });
+  }
   const match = DECIMAL_PATTERN.exec(raw);
   if (match === null) return fail({ code: "MALFORMED_DECIMAL", raw });
   const [, sign, whole, decimals] = match;
@@ -192,7 +224,7 @@ export function parseDecimalQuantity(
   }
   const fraction = (decimals ?? "").padEnd(QUANTITY_DECIMALS, "0");
   const magnitude = Number(`${whole}${fraction}`);
-  if (!Number.isSafeInteger(magnitude)) {
+  if (!isSafeInt(magnitude)) {
     return fail({
       code: "OUT_OF_RANGE",
       value: magnitude,
@@ -213,7 +245,8 @@ export function addQuantities(
 ): Result<Quantity, QuantityError> {
   const operands = validatePair(left, right);
   if (!operands.ok) return operands;
-  return makeQuantity(left.minorUnits + right.minorUnits, left.uom);
+  const [first, second] = operands.value;
+  return makeQuantity(first.minorUnits + second.minorUnits, first.uom);
 }
 
 /** Subtracts `right` from `left`. Negative results are legal (a reversal). */
@@ -223,20 +256,29 @@ export function subtractQuantities(
 ): Result<Quantity, QuantityError> {
   const operands = validatePair(left, right);
   if (!operands.ok) return operands;
-  return makeQuantity(left.minorUnits - right.minorUnits, left.uom);
+  const [first, second] = operands.value;
+  return makeQuantity(first.minorUnits - second.minorUnits, first.uom);
 }
 
 /** Flips the sign. The compensating line of a reversal is exactly this. */
 export const negateQuantity = (
   quantity: Quantity,
-): Result<Quantity, QuantityError> =>
-  makeQuantity(-quantity.minorUnits, quantity.uom);
+): Result<Quantity, QuantityError> => {
+  const validated = validateQuantity(quantity);
+  return validated.ok
+    ? makeQuantity(-validated.value.minorUnits, validated.value.uom)
+    : validated;
+};
 
 /** Magnitude, for display and tolerance checks. */
 export const absoluteQuantity = (
   quantity: Quantity,
-): Result<Quantity, QuantityError> =>
-  makeQuantity(Math.abs(quantity.minorUnits), quantity.uom);
+): Result<Quantity, QuantityError> => {
+  const validated = validateQuantity(quantity);
+  return validated.ok
+    ? makeQuantity(Math.abs(validated.value.minorUnits), validated.value.uom)
+    : validated;
+};
 
 /**
  * -1, 0, or 1, or a `UOM_MISMATCH`. A comparison across UOMs has no answer, so
@@ -248,8 +290,9 @@ export function compareQuantities(
 ): Result<number, QuantityError> {
   const operands = validatePair(left, right);
   if (!operands.ok) return operands;
-  if (left.minorUnits === right.minorUnits) return ok(0);
-  return ok(left.minorUnits < right.minorUnits ? -1 : 1);
+  const [first, second] = operands.value;
+  if (first.minorUnits === second.minorUnits) return ok(0);
+  return ok(first.minorUnits < second.minorUnits ? -1 : 1);
 }
 
 /** Sums a list. The UOM is explicit so an empty list still has one. */
@@ -257,6 +300,9 @@ export function sumQuantities(
   quantities: readonly Quantity[],
   uom: UomCode,
 ): Result<Quantity, QuantityError> {
+  if (!isArray(quantities)) {
+    return fail({ code: "NOT_A_QUANTITY", received: describe(quantities) });
+  }
   let total = zeroQuantity(uom);
   for (const quantity of quantities) {
     if (!total.ok) return total;
@@ -265,17 +311,25 @@ export function sumQuantities(
   return total;
 }
 
-/** True for an exact zero. Cheap, and does not validate: use before arithmetic. */
+/**
+ * True for an exact zero, and only for a value that really is one: a forged
+ * quantity is not zero, and is also not a number this can compare, so it answers
+ * `false`. Cheap and non-validating on purpose — `requireNonZeroQuantity` is the
+ * gate that validates.
+ */
 export const isZeroQuantity = (quantity: Quantity): boolean =>
-  quantity.minorUnits === 0;
+  isRecord(quantity) && quantity.minorUnits === 0;
 
 /** The gate a ledger posting owes (`INV-0003-03`): no zero-quantity line. */
 export const requireNonZeroQuantity = (
   quantity: Quantity,
-): Result<Quantity, QuantityError> =>
-  isZeroQuantity(quantity)
-    ? fail({ code: "ZERO_NOT_ALLOWED", uom: quantity.uom })
-    : makeQuantity(quantity.minorUnits, quantity.uom);
+): Result<Quantity, QuantityError> => {
+  const validated = validateQuantity(quantity);
+  if (!validated.ok) return validated;
+  return validated.value.minorUnits === 0
+    ? fail({ code: "ZERO_NOT_ALLOWED", uom: validated.value.uom })
+    : validated;
+};
 
 /* -------------------------------------------------------------------------- */
 /* Display                                                                     */
@@ -286,13 +340,20 @@ export const requireNonZeroQuantity = (
  * none: the digits shown are the digits stored (`ADR-0004` §5). No `Intl` and no
  * grouping separators — a locale-dependent decimal mark on a warehouse screen is
  * how `1.005` becomes `1,005`.
+ *
+ * Validates first, and therefore returns a `Result`: "the digits shown are the
+ * digits stored" is only true of a value this module built, and a forged
+ * `minorUnits` would otherwise render as `NaN.NaN` on an operator's screen.
  */
 export function formatQuantity(
   quantity: Quantity,
   options: { readonly trimTrailingZeros?: boolean } = {},
-): string {
-  const sign = quantity.minorUnits < 0 ? "-" : "";
-  const magnitude = Math.abs(quantity.minorUnits);
+): Result<string, QuantityError> {
+  const validated = validateQuantity(quantity);
+  if (!validated.ok) return validated;
+  const { minorUnits } = validated.value;
+  const sign = minorUnits < 0 ? "-" : "";
+  const magnitude = Math.abs(minorUnits);
   const whole = Math.floor(magnitude / QUANTITY_SCALE);
   const fraction = String(magnitude % QUANTITY_SCALE).padStart(
     QUANTITY_DECIMALS,
@@ -300,7 +361,7 @@ export function formatQuantity(
   );
   const trimmed =
     options.trimTrailingZeros === true ? fraction.replace(/0+$/, "") : fraction;
-  return trimmed === "" ? `${sign}${whole}` : `${sign}${whole}.${trimmed}`;
+  return ok(trimmed === "" ? `${sign}${whole}` : `${sign}${whole}.${trimmed}`);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -311,10 +372,10 @@ export function formatQuantity(
 function validatePair(
   left: Quantity,
   right: Quantity,
-): Result<true, QuantityError> {
-  const validatedLeft = makeQuantity(left.minorUnits, left.uom);
+): Result<readonly [Quantity, Quantity], QuantityError> {
+  const validatedLeft = validateQuantity(left);
   if (!validatedLeft.ok) return validatedLeft;
-  const validatedRight = makeQuantity(right.minorUnits, right.uom);
+  const validatedRight = validateQuantity(right);
   if (!validatedRight.ok) return validatedRight;
   if (validatedLeft.value.uom !== validatedRight.value.uom) {
     return fail({
@@ -323,5 +384,13 @@ function validatePair(
       right: validatedRight.value.uom,
     });
   }
-  return ok(true);
+  return ok([validatedLeft.value, validatedRight.value] as const);
 }
+
+/** A number for an error field, so a forged operand still reports something. */
+const numberOrNaN = (value: unknown): number =>
+  typeof value === "number" ? value : Number.NaN;
+
+/** The shape of a value that is not a quantity at all, for the error field. */
+const describe = (value: unknown): string =>
+  value === null ? "null" : typeof value;

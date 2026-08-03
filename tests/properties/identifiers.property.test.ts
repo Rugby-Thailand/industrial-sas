@@ -194,15 +194,40 @@ describe("GS1 element strings", () => {
     );
   });
 
-  it("round-trips an SSCC pallet label, separator or not", () => {
+  it("round-trips an SSCC pallet label, with the lot last or separated", () => {
     fc.assert(
       fc.property(ssccBody, lotValue, fc.boolean(), (sscc, lot, separate) => {
-        const raw = `00${sscc}10${lot}${separate ? GROUP_SEPARATOR : ""}`;
+        // A trailing FNC1 terminates nothing, so the separated form needs a
+        // following element. Separator placement is part of the grammar here, not
+        // something the parser shrugs at.
+        const raw = separate
+          ? `00${sscc}10${lot}${GROUP_SEPARATOR}3012`
+          : `00${sscc}10${lot}`;
         const scan = expectOk(
           parseGs1ElementString(raw, { referenceYear: 2026 }),
         );
         expect(scan.sscc18).toBe(sscc);
         expect(scan.lot).toBe(lot);
+        expect(scan.variableCount).toBe(separate ? "12" : null);
+      }),
+    );
+  });
+
+  it("rejects every separator position the grammar does not have", () => {
+    fc.assert(
+      fc.property(gtinBody, lotValue, (gtin, lot) => {
+        for (const raw of [
+          `${GROUP_SEPARATOR}01${gtin}`,
+          `01${gtin}${GROUP_SEPARATOR}10${lot}`,
+          `10${lot}${GROUP_SEPARATOR}${GROUP_SEPARATOR}01${gtin}`,
+          `10${lot}${GROUP_SEPARATOR}`,
+        ]) {
+          const parsed = parseGs1ElementString(raw, { referenceYear: 2026 });
+          expect(parsed.ok).toBe(false);
+          if (!parsed.ok) {
+            expect(parsed.error.code).toBe("UNEXPECTED_SEPARATOR");
+          }
+        }
       }),
     );
   });
@@ -337,6 +362,8 @@ describe("LPN generation and validation", () => {
     fc.assert(
       fc.property(fc.integer({ min: 0, max: LPN_MAX_ELAPSED_MS }), (value) => {
         const encoded = encodeBase31(value, 9);
+        expect(encoded).not.toBeNull();
+        if (encoded === null) return;
         expect(encoded).toHaveLength(9);
         expect(decodeBase31(encoded)).toBe(value);
       }),

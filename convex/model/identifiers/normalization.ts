@@ -32,6 +32,7 @@
  *
  * Pure module (plan §6.2): no Convex imports.
  */
+import { isRecord, isSafeInt, isString } from "../guards";
 import { fail, ok, type Result } from "../result";
 import { verifyGs1CheckDigit } from "../gs1/checkDigit";
 
@@ -89,6 +90,7 @@ export type CaseFolding = "UPPERCASE" | "PRESERVE";
  * arrived. This is the value to parse.
  */
 export function normalizeRawScan(raw: string): Result<string, IdentifierError> {
+  if (!isString(raw)) return fail({ code: "EMPTY", raw: describe(raw) });
   const trimmed = raw.replace(SCANNER_TERMINATORS, "");
   if (trimmed.length === 0) return fail({ code: "EMPTY", raw });
   if (trimmed.length > MAX_RAW_SCAN_LENGTH) {
@@ -117,6 +119,23 @@ export function normalizeCode(
   raw: string,
   options: { readonly maxLength: number; readonly caseFolding: CaseFolding },
 ): Result<string, IdentifierError> {
+  if (!isString(raw)) return fail({ code: "EMPTY", raw: describe(raw) });
+  if (
+    !isRecord(options) ||
+    !isSafeInt(options.maxLength) ||
+    options.maxLength < 1 ||
+    (options.caseFolding !== "UPPERCASE" && options.caseFolding !== "PRESERVE")
+  ) {
+    // A normalizer with no bound, or with a folding policy this module does not
+    // implement, would either accept an unbounded key or fold a case it was told
+    // to preserve. Both are `TOO_LONG`-class refusals rather than a guess.
+    return fail({
+      code: "TOO_LONG",
+      raw,
+      limit: 0,
+      actualLength: raw.length,
+    });
+  }
   const trimmed = raw.trim();
   if (trimmed.length === 0) return fail({ code: "EMPTY", raw });
   if (CODE_FORBIDDEN.test(trimmed)) {
@@ -166,6 +185,7 @@ export const normalizeLotCode = (
  * an 11-digit "GTIN" is a mis-scan, not a short GTIN.
  */
 export function normalizeGtin(raw: string): Result<string, IdentifierError> {
+  if (!isString(raw)) return fail({ code: "EMPTY", raw: describe(raw) });
   const trimmed = raw.trim();
   if (trimmed.length === 0) return fail({ code: "EMPTY", raw });
   if (!/^[0-9]+$/.test(trimmed)) return fail({ code: "NOT_DIGITS", raw });
@@ -186,3 +206,7 @@ export function normalizeGtin(raw: string): Result<string, IdentifierError> {
   }
   return ok(trimmed.padStart(14, "0"));
 }
+
+/** The shape of a value that is not an identifier at all, for the error field. */
+const describe = (value: unknown): string =>
+  value === null ? "null" : typeof value;

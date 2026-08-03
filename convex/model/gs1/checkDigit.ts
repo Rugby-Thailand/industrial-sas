@@ -14,6 +14,7 @@
  *
  * Pure module (plan §6.2): no Convex imports.
  */
+import { isString } from "../guards";
 import { fail, ok, type Result } from "../result";
 
 /** Longest data part accepted: 17 digits plus a check digit is an SSCC. */
@@ -43,6 +44,9 @@ const DIGITS_ONLY = /^[0-9]+$/;
 export function gs1CheckDigit(
   dataDigits: string,
 ): Result<number, Gs1CheckDigitError> {
+  if (!isString(dataDigits)) {
+    return fail({ code: "NOT_DIGITS", raw: describe(dataDigits) });
+  }
   if (dataDigits.length === 0) return fail({ code: "EMPTY", raw: dataDigits });
   if (!DIGITS_ONLY.test(dataDigits)) {
     return fail({ code: "NOT_DIGITS", raw: dataDigits });
@@ -69,6 +73,7 @@ export function gs1CheckDigit(
 export function verifyGs1CheckDigit(
   key: string,
 ): Result<string, Gs1CheckDigitError> {
+  if (!isString(key)) return fail({ code: "NOT_DIGITS", raw: describe(key) });
   if (key.length < 2) return fail({ code: "EMPTY", raw: key });
   if (!DIGITS_ONLY.test(key)) return fail({ code: "NOT_DIGITS", raw: key });
   if (key.length > MAX_GS1_KEY_LENGTH) {
@@ -86,3 +91,7 @@ export function verifyGs1CheckDigit(
         actual,
       });
 }
+
+/** The shape of a value that is not a key at all, for the error field. */
+const describe = (value: unknown): string =>
+  value === null ? "null" : typeof value;

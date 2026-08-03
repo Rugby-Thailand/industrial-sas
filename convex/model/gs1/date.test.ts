@@ -9,7 +9,14 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { gs1DateToBusinessDate, parseGs1Date } from "./date";
+import { expectError, expectOk } from "../../../tests/fixtures/domain-results";
+import {
+  gs1DateToBusinessDate,
+  parseGs1Date,
+  validateGs1Date,
+  type Gs1Date,
+  type MonthPrecisionPolicy,
+} from "./date";
 
 const at = (referenceYear: number) => ({ referenceYear });
 
@@ -125,5 +132,99 @@ describe("gs1DateToBusinessDate", () => {
         monthPrecision: "LAST_DAY_OF_MONTH",
       }),
     ).toEqual({ ok: true, value: { year: 2026, month: 2, day: 28 } });
+  });
+});
+
+describe("forged parsed dates and policies", () => {
+  const real = expectOk(parseGs1Date("260803", at(2026)));
+
+  it("refuses a date whose precision and day disagree", () => {
+    // `{ precision: "DAY", day: null }` used to fall through to the
+    // month-precision branch and resolve to a day the label never named.
+    const dayWithoutADay = {
+      ...real,
+      day: null,
+    } as unknown as Gs1Date;
+    expect(
+      expectError(
+        gs1DateToBusinessDate(dayWithoutADay, {
+          monthPrecision: "FIRST_DAY_OF_MONTH",
+        }),
+      ).code,
+    ).toBe("MALFORMED_DATE");
+    const monthWithADay = {
+      yymmdd: "260800",
+      precision: "MONTH",
+      year: 2026,
+      month: 8,
+      day: 1,
+    } as unknown as Gs1Date;
+    expect(expectError(validateGs1Date(monthWithADay)).code).toBe(
+      "MALFORMED_DATE",
+    );
+  });
+
+  it("refuses a date whose digits and fields disagree", () => {
+    const rewritten = { ...real, month: 9 } as Gs1Date;
+    expect(expectError(validateGs1Date(rewritten))).toEqual({
+      code: "MALFORMED_DATE",
+      raw: "260803",
+    });
+    expect(
+      expectError(
+        gs1DateToBusinessDate(rewritten, { monthPrecision: "REJECT" }),
+      ).code,
+    ).toBe("MALFORMED_DATE");
+  });
+
+  it("refuses an impossible calendar date and a non-object", () => {
+    expect(
+      expectError(
+        validateGs1Date({
+          yymmdd: "260230",
+          precision: "DAY",
+          year: 2026,
+          month: 2,
+          day: 30,
+        } as Gs1Date),
+      ).code,
+    ).toBe("NOT_A_CALENDAR_DATE");
+    expect(expectError(validateGs1Date(null as unknown as Gs1Date))).toEqual({
+      code: "MALFORMED_DATE",
+      raw: "null",
+    });
+  });
+
+  it("treats a month-precision policy it does not implement as a rejection", () => {
+    const monthOnly = expectOk(parseGs1Date("260200", at(2026)));
+    expect(
+      expectError(
+        gs1DateToBusinessDate(monthOnly, {
+          monthPrecision: "MIDDLE_OF_MONTH" as MonthPrecisionPolicy,
+        }),
+      ),
+    ).toEqual({ code: "MONTH_PRECISION_REJECTED", raw: "260200" });
+    expect(
+      expectError(
+        gs1DateToBusinessDate(
+          monthOnly,
+          null as unknown as { monthPrecision: MonthPrecisionPolicy },
+        ),
+      ).code,
+    ).toBe("MONTH_PRECISION_REJECTED");
+  });
+
+  it("rejects a reference year or raw value it cannot use", () => {
+    expect(expectError(parseGs1Date("260803", at(Number.NaN))).code).toBe(
+      "REFERENCE_YEAR_OUT_OF_RANGE",
+    );
+    expect(
+      expectError(
+        parseGs1Date("260803", null as unknown as { referenceYear: number }),
+      ).code,
+    ).toBe("REFERENCE_YEAR_OUT_OF_RANGE");
+    expect(
+      expectError(parseGs1Date(260_803 as unknown as string, at(2026))),
+    ).toEqual({ code: "MALFORMED_DATE", raw: "number" });
   });
 });

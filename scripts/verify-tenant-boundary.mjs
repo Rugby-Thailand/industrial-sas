@@ -27,7 +27,10 @@
  *   - `audit-append-only` a `patch`, `replace`, or `delete` naming an append-only
  *     table (plan §12: no mutation updates or deletes the audit table).
  *   - `model-purity`    an import in `convex/model/**` that reaches outside it,
- *     including any Convex package (plan §6.2: pure domain modules).
+ *     including any Convex package (plan §6.2: pure domain modules). Static and
+ *     dynamic imports, re-exports, `require`, and `import x = require(…)` all
+ *     count, and a dynamic specifier this script cannot read fails closed: a
+ *     template literal can name `convex/server` at run time.
  *   - `allowlist-drift` an allowlisted path that no longer exists.
  *
  * The first three of those have **empty** allowlists: there is no file that may
@@ -516,6 +519,56 @@ export function scanTenantBoundarySource(file, source, catalogue = null) {
             `dynamically imports "${first.text}"`,
           );
         }
+      } else if (file.startsWith(PURE_MODEL_PREFIX)) {
+        // A specifier this guard cannot read is a specifier it cannot clear: a
+        // template literal or a variable can name any module at run time,
+        // `convex/server` included. The rule fails closed rather than resolving
+        // it.
+        report(
+          "model-purity",
+          node,
+          "dynamically imports a specifier this guard cannot read (plan §6.2)",
+        );
+      }
+    }
+
+    // `require("convex/server")` and `import x = require("…")` are the CommonJS
+    // routes to the same modules. Neither appears in this repository, which is
+    // why the rule has to name them: a pure module that grew one would otherwise
+    // pass.
+    if (
+      file.startsWith(PURE_MODEL_PREFIX) &&
+      ts.isCallExpression(node) &&
+      ts.isIdentifier(node.expression) &&
+      node.expression.text === "require"
+    ) {
+      const [first] = node.arguments;
+      report(
+        "model-purity",
+        node,
+        first && ts.isStringLiteral(first)
+          ? `requires "${first.text}" (plan §6.2: no CommonJS escape hatch)`
+          : "requires a specifier this guard cannot read (plan §6.2)",
+      );
+    }
+    if (
+      file.startsWith(PURE_MODEL_PREFIX) &&
+      ts.isImportEqualsDeclaration(node)
+    ) {
+      const reference = node.moduleReference;
+      const specifier =
+        ts.isExternalModuleReference(reference) &&
+        ts.isStringLiteral(reference.expression)
+          ? reference.expression.text
+          : null;
+      if (specifier === null || escapesPureModel(file, specifier)) {
+        report(
+          "model-purity",
+          node,
+          specifier === null
+            ? "declares an import-equals this guard cannot read (plan §6.2)"
+            : `imports "${specifier}" through import-equals, which is outside ${PURE_MODEL_PREFIX} (plan §6.2)`,
+        );
       }
     }
 

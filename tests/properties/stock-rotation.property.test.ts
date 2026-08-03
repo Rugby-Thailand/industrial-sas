@@ -21,7 +21,8 @@ import {
   type BusinessDate,
 } from "../../convex/model/time/businessDate";
 import {
-  compareForRotation,
+  compareRotationCandidates,
+  isCandidateExpired,
   orderForRotation,
   rotationDateOf,
   type RotationStrategy,
@@ -31,6 +32,27 @@ import {
 import { expectOk } from "../fixtures/domain-results";
 
 const asOf: BusinessDate = expectOk(parseBusinessDate("2026-08-03"));
+
+/**
+ * The comparator as a bare function, for the order laws. The module deliberately
+ * does not export one — an unvalidated comparator handed to `sort` is where a
+ * `NaN` comparison silently makes an order intransitive — so the tier builds it
+ * from the validating call and unwraps each answer.
+ */
+const comparatorFor =
+  (rules: StockRotationPolicy) =>
+  (left: StockRotationCandidate, right: StockRotationCandidate): number =>
+    expectOk(compareRotationCandidates(left, right, rules, asOf));
+
+/** The rotation date under a policy, unwrapped. */
+const rotationDate = (
+  candidate: StockRotationCandidate,
+  rules: StockRotationPolicy,
+): BusinessDate | null => expectOk(rotationDateOf(candidate, rules));
+
+/** Chronological order of two validated dates, unwrapped. */
+const compareDates = (left: BusinessDate, right: BusinessDate): number =>
+  expectOk(compareBusinessDates(left, right));
 
 /** Dates near `asOf`, so expired and unexpired candidates both occur. */
 const businessDate: fc.Arbitrary<BusinessDate> = fc
@@ -106,7 +128,7 @@ describe("comparator laws", () => {
         candidateFor("a"),
         candidateFor("b"),
         (rules, left, right) => {
-          const compare = compareForRotation(rules, asOf);
+          const compare = comparatorFor(rules);
           expect(compare(left, left)).toBe(0);
           expect(compare(right, right)).toBe(0);
           expect(Math.sign(compare(left, right))).toBe(
@@ -124,7 +146,7 @@ describe("comparator laws", () => {
         candidateFor("a"),
         candidateFor("b"),
         (rules, left, right) => {
-          expect(compareForRotation(rules, asOf)(left, right)).not.toBe(0);
+          expect(comparatorFor(rules)(left, right)).not.toBe(0);
         },
       ),
     );
@@ -138,7 +160,7 @@ describe("comparator laws", () => {
         candidateFor("b"),
         candidateFor("c"),
         (rules, first, second, third) => {
-          const compare = compareForRotation(rules, asOf);
+          const compare = comparatorFor(rules);
           if (compare(first, second) < 0 && compare(second, third) < 0) {
             expect(compare(first, third)).toBeLessThan(0);
           }
@@ -226,9 +248,7 @@ describe("orderForRotation", () => {
           ) {
             continue;
           }
-          expect(compareBusinessDates(previous, current)).toBeLessThanOrEqual(
-            0,
-          );
+          expect(compareDates(previous, current)).toBeLessThanOrEqual(0);
         }
       }),
     );
@@ -239,9 +259,9 @@ describe("orderForRotation", () => {
       fc.property(policy, candidates, (rules, input) => {
         const order = expectOk(orderForRotation(input, rules, { asOf }));
         for (const { candidate, reason } of order.excluded) {
-          const rotationDate = rotationDateOf(candidate, rules);
+          const selected = rotationDate(candidate, rules);
           if (reason === "MISSING_ROTATION_DATE") {
-            expect(rotationDate).toBeNull();
+            expect(selected).toBeNull();
             expect(rules.strategy).toBe("FEFO");
             expect(rules.missingRotationDate).toBe("EXCLUDE");
           }
@@ -253,10 +273,12 @@ describe("orderForRotation", () => {
             ).toBe(true);
           }
           if (reason === "EXPIRED") {
+            // Expiry is the expiration date against `asOf`, whatever the policy
+            // rotates by.
             expect(rules.expired).toBe("EXCLUDE");
-            expect(rotationDate).not.toBeNull();
-            if (rotationDate !== null) {
-              expect(compareBusinessDates(rotationDate, asOf)).toBe(-1);
+            expect(candidate.expirationDate).not.toBeNull();
+            if (candidate.expirationDate !== null) {
+              expect(compareDates(candidate.expirationDate, asOf)).toBe(-1);
             }
           }
         }
@@ -282,6 +304,100 @@ describe("orderForRotation", () => {
   });
 });
 
+describe("expiry is the expiration date, not the rotation date", () => {
+  /**
+   * `INV-0005-10` is about a deterministic order; this is about not shipping
+   * expired stock, which is the other half of the same requirement. Expiry must be
+   * decided by `expirationDate` alone: the rotation source (§5 Q23) chooses the
+   * order, and reading expiry off it made an old manufacture date look like an
+   * expiry and — the dangerous direction — a passed expiry look fine.
+   */
+  it("holds for every rotation source and strategy", () => {
+    fc.assert(
+      fc.property(policy, candidateFor("bucket-1"), (rules, candidate) => {
+        const expired = expectOk(isCandidateExpired(candidate, asOf));
+        expect(expired).toBe(
+          candidate.expirationDate !== null &&
+            compareDates(candidate.expirationDate, asOf) < 0,
+        );
+        const order = expectOk(orderForRotation([candidate], rules, { asOf }));
+        if (expired && rules.expired === "EXCLUDE") {
+          expect(order.ordered).toEqual([]);
+          expect(order.excluded.map(({ reason }) => reason)).toEqual([
+            "EXPIRED",
+          ]);
+        }
+        for (const ranking of order.ordered) {
+          expect(ranking.expired).toBe(expired);
+        }
+      }),
+    );
+  });
+
+  it("never ranks stock whose expiry has passed while excluding is on", () => {
+    fc.assert(
+      fc.property(policy, candidates, (rules, input) => {
+        if (rules.expired !== "EXCLUDE") return;
+        const order = expectOk(orderForRotation(input, rules, { asOf }));
+        for (const ranking of order.ordered) {
+          expect(ranking.expired).toBe(false);
+          const expiry = ranking.candidate.expirationDate;
+          if (expiry !== null) {
+            expect(compareDates(expiry, asOf)).toBeGreaterThanOrEqual(0);
+          }
+        }
+      }),
+    );
+  });
+
+  it("negative control: reading expiry off the rotation date is caught", () => {
+    // The mutation is the code that shipped: expiry from the *selected* rotation
+    // date. Under a manufacture-date policy a lot whose expiry has passed is then
+    // ranked as usable, and the counterexample is constructed rather than hoped
+    // for.
+    const rules: StockRotationPolicy = {
+      strategy: "FEFO",
+      rotationDateSource: "MANUFACTURE",
+      missingRotationDate: "ORDER_LAST",
+      expired: "EXCLUDE",
+    };
+    const expiredLots = fc
+      .tuple(fc.integer({ min: -30, max: -1 }), fc.integer({ min: 0, max: 30 }))
+      .map(([expiryOffset, manufactureOffset]) => ({
+        candidateKey: "bucket-1",
+        lotCode: null,
+        receivedOn: null,
+        receiptSequence: null,
+        expirationDate: expectOk(addDays(asOf, expiryOffset)),
+        bestBeforeDate: null,
+        manufactureDate: expectOk(addDays(asOf, manufactureOffset)),
+      }));
+
+    const details = fc.check(
+      fc.property(expiredLots, (candidate) => {
+        const selected = rotationDate(candidate, rules);
+        const expiredByRotationDate =
+          selected !== null && compareDates(selected, asOf) < 0;
+        expect(expiredByRotationDate).toBe(true);
+      }),
+    );
+    expect(details.failed).toBe(true);
+
+    // The module answers the question the requirement asks, so the same lots are
+    // excluded.
+    fc.assert(
+      fc.property(expiredLots, (candidate) => {
+        expect(expectOk(isCandidateExpired(candidate, asOf))).toBe(true);
+        expect(
+          expectOk(orderForRotation([candidate], rules, { asOf })).excluded.map(
+            ({ reason }) => reason,
+          ),
+        ).toEqual(["EXPIRED"]);
+      }),
+    );
+  });
+});
+
 describe("negative controls", () => {
   /**
    * Both controls are built so the counterexample is guaranteed: the collision the
@@ -295,10 +411,10 @@ describe("negative controls", () => {
     const withoutTieBreaker =
       (rules: StockRotationPolicy) =>
       (left: StockRotationCandidate, right: StockRotationCandidate): number => {
-        const leftDate = rotationDateOf(left, rules);
-        const rightDate = rotationDateOf(right, rules);
+        const leftDate = rotationDate(left, rules);
+        const rightDate = rotationDate(right, rules);
         if (leftDate === null || rightDate === null) return 0;
-        return compareBusinessDates(leftDate, rightDate);
+        return compareDates(leftDate, rightDate);
       };
 
     const rules: StockRotationPolicy = {
@@ -330,7 +446,7 @@ describe("negative controls", () => {
     // The real comparator orders the same two lots identically either way.
     fc.assert(
       fc.property(sameDayLots, (input) => {
-        const compare = compareForRotation(rules, asOf);
+        const compare = comparatorFor(rules);
         expect(
           [...input]
             .reverse()
@@ -348,20 +464,16 @@ describe("negative controls", () => {
       fc.property(businessDate, (shared) => {
         const left = sameDayCandidate("bucket-1", shared);
         const right = sameDayCandidate("bucket-2", shared);
-        const leftDate = rotationDateOf(left, {
+        const rules: StockRotationPolicy = {
           strategy: "FEFO",
           rotationDateSource: "EXPIRATION",
           missingRotationDate: "ORDER_LAST",
           expired: "EXCLUDE",
-        });
-        const rightDate = rotationDateOf(right, {
-          strategy: "FEFO",
-          rotationDateSource: "EXPIRATION",
-          missingRotationDate: "ORDER_LAST",
-          expired: "EXCLUDE",
-        });
+        };
+        const leftDate = rotationDate(left, rules);
+        const rightDate = rotationDate(right, rules);
         if (leftDate === null || rightDate === null) return;
-        expect(compareBusinessDates(leftDate, rightDate)).not.toBe(0);
+        expect(compareDates(leftDate, rightDate)).not.toBe(0);
       }),
     );
     expect(details.failed).toBe(true);

@@ -14,8 +14,12 @@ import {
   GROUP_SEPARATOR,
   looksLikeGs1ElementString,
   MAX_ELEMENT_STRING_LENGTH,
+  gs1AiDefinition,
+  gs1ValueOf,
+  isSupportedGs1Ai,
   parseGs1ElementString,
-  SUPPORTED_AIS,
+  supportedGs1Ais,
+  type Gs1Scan,
 } from "./elementString";
 
 const GTIN14 = "10614141999993";
@@ -26,7 +30,7 @@ const parse = (raw: string) => parseGs1ElementString(raw, options);
 
 describe("supported surface", () => {
   it("is exactly the nine documented AIs", () => {
-    expect([...SUPPORTED_AIS.keys()].sort()).toEqual([
+    expect(supportedGs1Ais()).toEqual([
       "00",
       "01",
       "10",
@@ -82,14 +86,37 @@ describe("parseGs1ElementString", () => {
     });
   });
 
-  it("tolerates a leading or interstitial separator", () => {
-    expect(expectOk(parse(`${GROUP_SEPARATOR}01${GTIN14}`)).gtin14).toBe(
-      GTIN14,
+  it("rejects a separator in a position the specification has no reading for", () => {
+    // Each of these parsed as well formed while the parser skipped any separator
+    // it met between elements. A scan whose separators are in impossible places
+    // has field boundaries nobody can reconstruct, so it fails closed.
+    expect(expectError(parse(`${GROUP_SEPARATOR}01${GTIN14}`))).toEqual({
+      code: "UNEXPECTED_SEPARATOR",
+      offset: 0,
+    });
+    expect(expectError(parse(`01${GTIN14}${GROUP_SEPARATOR}17260831`))).toEqual(
+      { code: "UNEXPECTED_SEPARATOR", offset: 16 },
     );
     expect(
-      expectOk(parse(`01${GTIN14}${GROUP_SEPARATOR}17260831`)).expirationDate
-        ?.yymmdd,
-    ).toBe("260831");
+      expectError(parse(`10LOT-A1${GROUP_SEPARATOR}${GROUP_SEPARATOR}21S1`)),
+    ).toEqual({ code: "UNEXPECTED_SEPARATOR", offset: 9 });
+    expect(expectError(parse(`10LOT-A1${GROUP_SEPARATOR}`))).toEqual({
+      code: "UNEXPECTED_SEPARATOR",
+      offset: 8,
+    });
+    expect(expectError(parse(`]C1${GROUP_SEPARATOR}01${GTIN14}`))).toEqual({
+      code: "UNEXPECTED_SEPARATOR",
+      offset: 3,
+    });
+  });
+
+  it("still accepts the one legal separator position", () => {
+    const scan = expectOk(
+      parse(`10LOT-A1${GROUP_SEPARATOR}21SERIAL-9${GROUP_SEPARATOR}3005`),
+    );
+    expect(scan.lot).toBe("LOT-A1");
+    expect(scan.serial).toBe("SERIAL-9");
+    expect(scan.variableCount).toBe("05");
   });
 
   it("parses an SSCC pallet label with a count", () => {
@@ -110,12 +137,18 @@ describe("parseGs1ElementString", () => {
     });
   });
 
-  it("keeps the byAi map and the element order", () => {
+  it("indexes every element by AI and keeps the order in `elements`", () => {
     const scan = expectOk(parse(`01${GTIN14}3005${GROUP_SEPARATOR}10L1`));
-    expect([...scan.byAi.entries()]).toEqual([
-      ["01", GTIN14],
-      ["30", "05"],
-      ["10", "L1"],
+    // `byAi` is a lookup, not a sequence: a record orders integer-like keys
+    // numerically, so order lives in `elements`, which is the value that has it.
+    expect(gs1ValueOf(scan, "01")).toBe(GTIN14);
+    expect(gs1ValueOf(scan, "30")).toBe("05");
+    expect(gs1ValueOf(scan, "10")).toBe("L1");
+    expect(gs1ValueOf(scan, "17")).toBeNull();
+    expect(scan.elements.map((element) => element.ai)).toEqual([
+      "01",
+      "30",
+      "10",
     ]);
     expect(scan.variableCount).toBe("05");
   });
@@ -232,8 +265,10 @@ describe("parseGs1ElementString", () => {
     expect(expectError(parse("A1234")).code).toBe("MALFORMED_AI");
     expect(expectError(parse("0")).code).toBe("MALFORMED_AI");
     expect(expectError(parse(GROUP_SEPARATOR + GROUP_SEPARATOR))).toEqual({
-      code: "NO_ELEMENTS",
+      code: "UNEXPECTED_SEPARATOR",
+      offset: 0,
     });
+    expect(expectError(parse(`]C1`))).toEqual({ code: "NO_ELEMENTS" });
   });
 
   it("documents the unseparated-variable-field limitation", () => {
@@ -268,5 +303,67 @@ describe("looksLikeGs1ElementString", () => {
     expect(looksLikeGs1ElementString("01")).toBe(false);
     expect(looksLikeGs1ElementString("PL0000000000AB")).toBe(false);
     expect(looksLikeGs1ElementString("4006381333931")).toBe(false);
+  });
+});
+
+describe("immutability and forged input", () => {
+  const scan = expectOk(parse(`01${GTIN14}10L1`));
+
+  it("does not hand out a mutable interpretation", () => {
+    // `byAi` was a live `Map` typed `ReadonlyMap`: this cast rewrote a scan's
+    // interpretation while `raw` and `elements` still described the real label.
+    expect(Object.isFrozen(scan.byAi)).toBe(true);
+    expect(() => {
+      (scan.byAi as Record<string, string>)["01"] = "99999999999999";
+    }).toThrow(TypeError);
+    expect(() => {
+      (scan.byAi as Record<string, string>)["17"] = "260831";
+    }).toThrow(TypeError);
+    expect(scan.gtin14).toBe(GTIN14);
+    expect(gs1ValueOf(scan, "17")).toBeNull();
+  });
+
+  it("does not resolve a lookup through the object prototype", () => {
+    // A record with `Object.prototype` in its chain answers `toString` with a
+    // function while the type promises a string.
+    expect(gs1ValueOf(scan, "toString")).toBeNull();
+    expect(gs1ValueOf(scan, "constructor")).toBeNull();
+    expect(scan.byAi["toString"]).toBeUndefined();
+  });
+
+  it("keeps the supported AI table closed at run time", () => {
+    expect(isSupportedGs1Ai("91")).toBe(false);
+    expect(gs1AiDefinition("91")).toBeNull();
+    expect(Object.isFrozen(gs1AiDefinition("01"))).toBe(true);
+    expect(() => {
+      (gs1AiDefinition("01") as unknown as { maxLength: number }).maxLength = 2;
+    }).toThrow(TypeError);
+    expect(gs1AiDefinition("01")?.maxLength).toBe(14);
+    expect(gs1AiDefinition("toString")).toBeNull();
+  });
+
+  it("rejects a reference year it cannot use", () => {
+    expect(
+      expectError(
+        parseGs1ElementString(`01${GTIN14}17260831`, {
+          referenceYear: Number.NaN,
+        }),
+      ),
+    ).toEqual({ code: "INVALID_REFERENCE_YEAR", referenceYear: Number.NaN });
+    expect(
+      expectError(
+        parseGs1ElementString(`01${GTIN14}`, {
+          referenceYear: "2026" as unknown as number,
+        }),
+      ).code,
+    ).toBe("INVALID_REFERENCE_YEAR");
+  });
+
+  it("treats a non-string scan as empty rather than throwing", () => {
+    expect(
+      expectError(parseGs1ElementString(null as unknown as string, options)),
+    ).toEqual({ code: "EMPTY_INPUT" });
+    expect(looksLikeGs1ElementString(null as unknown as string)).toBe(false);
+    expect(gs1ValueOf(null as unknown as Gs1Scan, "01")).toBeNull();
   });
 });

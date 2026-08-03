@@ -9,7 +9,7 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { expectOk } from "../../../tests/fixtures/domain-results";
+import { expectError, expectOk } from "../../../tests/fixtures/domain-results";
 import {
   addItemQuantities,
   conversionToBase,
@@ -19,6 +19,8 @@ import {
   makeItemQuantity,
   makeItemUomProfile,
   MAX_ITEM_KEY_LENGTH,
+  alternateUoms,
+  validateItemUomProfile,
   type ItemUomProfile,
 } from "./itemUom";
 import { makeQuantity } from "./quantity";
@@ -55,7 +57,7 @@ describe("makeItemUomProfile", () => {
   it("keeps the base UOM and the declared alternates", () => {
     expect(boltsProfile.itemKey).toBe("ITEM-BOLT-M8");
     expect(boltsProfile.baseUom).toBe("PCS");
-    expect([...boltsProfile.alternates.keys()]).toEqual(["CASE", "PALLET"]);
+    expect(alternateUoms(boltsProfile)).toEqual(["CASE", "PALLET"]);
     expect(Object.isFrozen(boltsProfile)).toBe(true);
   });
 
@@ -68,7 +70,7 @@ describe("makeItemUomProfile", () => {
       }),
     );
     expect(profile.baseUom).toBe("PCS");
-    expect(profile.alternates.has("CASE")).toBe(true);
+    expect(alternateUoms(profile)).toEqual(["CASE"]);
   });
 
   it("rejects a duplicate alternate and an alternate that repeats the base", () => {
@@ -95,10 +97,9 @@ describe("makeItemUomProfile", () => {
   });
 
   it("rejects an invalid item key, UOM code, or ratio", () => {
-    expect(makeItemUomProfile({ itemKey: "  ", baseUom: "PCS" })).toEqual({
-      ok: false,
-      error: { code: "INVALID_ITEM_KEY", raw: "  " },
-    });
+    expect(
+      expectError(makeItemUomProfile({ itemKey: "  ", baseUom: "PCS" })).code,
+    ).toBe("INVALID_ITEM_KEY");
     expect(
       makeItemUomProfile({
         itemKey: "x".repeat(MAX_ITEM_KEY_LENGTH + 1),
@@ -370,6 +371,102 @@ describe("item-scoped quantities", () => {
     expect(makeItemQuantity(boltsProfile, wrong)).toEqual({
       ok: false,
       error: { code: "BASE_UOM_MISMATCH", expected: "PCS", actual: "CASE" },
+    });
+  });
+});
+
+describe("profile immutability and forged input", () => {
+  it("does not hand out a mutable conversion table", () => {
+    // `alternates` was a `Map` typed `ReadonlyMap`, so this cast rewrote one
+    // tenant's pack factor for every holder of the profile.
+    expect(Object.isFrozen(boltsProfile.alternates)).toBe(true);
+    expect(() => {
+      (
+        boltsProfile.alternates as unknown as {
+          push: (value: unknown) => void;
+        }
+      ).push({
+        uom: "DOZEN",
+        toBase: ratio(12, 1),
+      });
+    }).toThrow(TypeError);
+    expect(() => {
+      (boltsProfile.alternates[0] as { toBase: unknown }).toBase = ratio(1, 1);
+    }).toThrow(TypeError);
+    expect(alternateUoms(boltsProfile)).toEqual(["CASE", "PALLET"]);
+    expect(expectOk(conversionToBase(boltsProfile, "CASE"))).toEqual({
+      numerator: 12,
+      denominator: 1,
+    });
+  });
+
+  it("rejects an item key that is not a bounded, whitespace-free code", () => {
+    const rejected = [
+      "ITEM 1",
+      "ITEM\u00001",
+      "ITEM\u200d1",
+      "\u0009",
+      "x".repeat(MAX_ITEM_KEY_LENGTH + 1),
+    ];
+    for (const itemKey of rejected) {
+      expect(
+        expectError(makeItemUomProfile({ itemKey, baseUom: "PCS" })).code,
+      ).toBe("INVALID_ITEM_KEY");
+    }
+    expect(
+      expectError(
+        makeItemUomProfile({
+          itemKey: 12 as unknown as string,
+          baseUom: "PCS",
+        }),
+      ),
+    ).toEqual({ code: "INVALID_ITEM_KEY", raw: "number", error: null });
+  });
+
+  it("preserves item-key case, because a key may be a document id", () => {
+    const profile = expectOk(
+      makeItemUomProfile({ itemKey: "kg1234abcd", baseUom: "PCS" }),
+    );
+    expect(profile.itemKey).toBe("kg1234abcd");
+  });
+
+  it("refuses to convert with a forged profile", () => {
+    const bad = {
+      itemKey: "ITEM-1",
+      baseUom: "PCS",
+      alternates: [{ uom: "CASE", toBase: { numerator: 1, denominator: 0 } }],
+    } as unknown as ItemUomProfile;
+    expect(convertToBase(bad, "CASE", 1000)).toEqual({
+      kind: "REJECTED",
+      error: {
+        code: "RATIO_INVALID",
+        error: { code: "NOT_POSITIVE", numerator: 1, denominator: 0 },
+      },
+    });
+    expect(expectError(validateItemUomProfile(bad)).code).toBe("RATIO_INVALID");
+    expect(
+      expectError(validateItemUomProfile(null as unknown as ItemUomProfile)),
+    ).toEqual({ code: "NOT_A_PROFILE", received: "null" });
+    expect(alternateUoms(null as unknown as ItemUomProfile)).toEqual([]);
+  });
+
+  it("refuses to add item quantities that were never validated", () => {
+    const forgedItemQuantity = {
+      itemKey: "ITEM-RESIN",
+      quantity: { uom: "KG", minorUnits: Number.NaN },
+    } as unknown as Parameters<typeof addItemQuantities>[0];
+    const good = expectOk(
+      makeItemQuantity(resinProfile, expectOk(makeQuantity(1000, "KG"))),
+    );
+    expect(expectError(addItemQuantities(good, forgedItemQuantity)).code).toBe(
+      "QUANTITY_INVALID",
+    );
+  });
+
+  it("rejects a conversion whose UOM code is not a string", () => {
+    expect(convertToBase(boltsProfile, 12 as unknown as string, 1000)).toEqual({
+      kind: "REJECTED",
+      error: { code: "INVALID_UOM_CODE", raw: "number" },
     });
   });
 });

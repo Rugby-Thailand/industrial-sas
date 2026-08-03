@@ -45,13 +45,28 @@ foundation and nothing more:
   thousandths of an item's base UOM with total, bounds-checked arithmetic; exact
   reduced-rational UOM conversion that reports an inexact result as a fraction
   rather than rounding it; GS1 element-string parsing for nine Application
-  Identifiers with FNC1 handling, check digits, and the century rule against an
-  injected reference year; identifier normalization that keeps leading zeros and
-  lot-code case; internal LPNs with an injected clock and entropy source and a
-  check character that provably catches every single-character substitution and
-  transposition; a Bangkok business date computed without `Date`, `Intl`, or the
-  host timezone, with Buddhist Era as display only; and FIFO/FEFO ordering that is
-  a strict total order with an explanation per candidate.
+  Identifiers with fail-closed FNC1 placement, check digits, and the century rule
+  against an injected reference year; identifier normalization that keeps leading
+  zeros and lot-code case; internal LPNs with an injected clock and entropy source
+  and a check character that provably catches every single-character substitution
+  and transposition; a Bangkok business date computed without `Date`, `Intl`, or
+  the host timezone, with Buddhist Era as display only; and FIFO/FEFO ordering
+  that is a strict total order with an explanation per candidate.
+- **A boundary in those modules that a cast cannot walk through.** Every public
+  function re-validates the value it is handed and answers a `Result`, because a
+  domain type here is an interface and the values it will meet come from documents,
+  scanners, and `JSON.parse`: `{ numerator: 1, denominator: 0 } as Ratio` compiles.
+  Nothing throws, nothing rounds, and nothing loops — a non-finite conversion
+  factor used to reach Euclid's algorithm, whose exit test is `b !== 0`, and never
+  return. What is returned is immutable in fact rather than in the signature: a
+  `ReadonlyMap` is an ordinary `Map` at run time, so the supported-AI table, the
+  timezone registry, an item's conversion table, and a parsed scan's values are
+  frozen null-prototype records and frozen arrays instead. Stock is expired when
+  its **expiration date** is before the `asOf` date, whatever the configured
+  rotation date is; a scan that is a valid bare SSCC, one of this tenant's LPNs
+  with a broken check character, or a well-formed LPN with no namespace policy to
+  judge it by is a named refusal rather than a fall-through to a lot code, a GTIN,
+  or a SKU.
 - Real unit, property, integration, and isolation suites over all of it, including
   a two-tenant `convex-test` world, negative tests that prove the guards fail when
   they should, and property-tier negative controls that fail against deliberately
@@ -73,9 +88,10 @@ What is deliberately still missing, because claiming otherwise would be wrong:
   unlikely and a typo detectable; `INV-0005-05` needs the mutation and table that
   do not exist.
 - **No supplier-label corpus** (`RG-005`). The GS1 parser rejects every AI it does
-  not implement, and a variable-length field a supplier failed to terminate with
-  FNC1 absorbs the rest of the string. Only real labels can say how often either
-  matters.
+  not implement, a variable-length field a supplier failed to terminate with FNC1
+  absorbs the rest of the string, and a scanner that emits a separator where the
+  specification has none is now a rejection rather than a tolerated quirk. Only
+  real labels can say how often any of that matters.
 - **No recorded denial for a read.** A Convex query cannot write, so a denied
   query is refused but not audited (`RG-071`). Mutations and actions are audited.
 - **No policy values.** Threshold and maker-checker limits have no table, and the
@@ -285,11 +301,14 @@ when a module reaches around the tenant boundary:
    rather than passing the declaration.
 6. `audit-append-only` — a `patch`, `replace`, or `delete` naming `auditEvents`,
    which is the plan's append-only merge gate (§12) made mechanical.
-7. `model-purity` — an import, re-export, or dynamic import in `convex/model/**`
-   that reaches outside it, which includes every Convex package. Plan §6.2 makes
-   that directory portable domain algebra; the guard is what keeps "pure" a fact
-   rather than a comment, because a single `convex/values` import would make the
-   algebra untestable without a backend and unreplayable inside a mutation.
+7. `model-purity` — an import, re-export, `require`, `import x = require(…)`, or
+   dynamic import in `convex/model/**` that reaches outside it, which includes
+   every Convex package. A dynamic specifier the guard cannot read — a template
+   literal, a variable — is a violation rather than a pass, because it can name
+   `convex/server` at run time. Plan §6.2 makes that directory portable domain
+   algebra; the guard is what keeps "pure" a fact rather than a comment, because a
+   single `convex/values` import would make the algebra untestable without a
+   backend and unreplayable inside a mutation.
 8. `allowlist-drift` — an allowlisted path that no longer exists, so renaming a
    file cannot quietly widen the boundary.
 

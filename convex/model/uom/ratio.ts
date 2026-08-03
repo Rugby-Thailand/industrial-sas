@@ -17,12 +17,24 @@
  * integer, so the check catches it — and components are additionally bounded by
  * `MAX_RATIO_COMPONENT` so ordinary arithmetic stays far from the limit.
  *
+ * **Every public function re-validates its operands, and every one of them
+ * returns a `Result`.** `Ratio` is an interface, so `{ numerator: 1, denominator:
+ * 0 } as Ratio` compiles, and a factor read back from a document is exactly that
+ * kind of value. A forged operand must therefore fail as a named error rather
+ * than divide by zero, invert a sign, silently scale stock to nothing, or —
+ * because Euclid's algorithm does not terminate on a non-finite input — hang the
+ * process. That is why `compareRatios`, `ratiosEqual`, `formatRatio`, and
+ * `scaleInteger` answer a `Result` instead of a bare value, and why
+ * `greatestCommonDivisor` is private: it is only ever called on operands this
+ * module has already checked.
+ *
  * BigInt is not used: a BigInt cannot be stored in a Convex document, and a type
  * that has to be converted at the boundary would put the rounding decision back
  * where we removed it.
  *
  * Pure module (plan §6.2): no Convex imports.
  */
+import { isRecord, isSafeInt } from "../guards";
 import { fail, ok, type Result } from "../result";
 
 /**
@@ -55,6 +67,7 @@ export interface ExactFraction {
 }
 
 export type RatioError =
+  | { readonly code: "NOT_A_FRACTION"; readonly received: string }
   | {
       readonly code: "NOT_AN_INTEGER";
       readonly numerator: number;
@@ -82,8 +95,12 @@ export function makeRatio(
   numerator: number,
   denominator: number,
 ): Result<Ratio, RatioError> {
-  if (!Number.isSafeInteger(numerator) || !Number.isSafeInteger(denominator)) {
-    return fail({ code: "NOT_AN_INTEGER", numerator, denominator });
+  if (!isSafeInt(numerator) || !isSafeInt(denominator)) {
+    return fail({
+      code: "NOT_AN_INTEGER",
+      numerator: numberOrNaN(numerator),
+      denominator: numberOrNaN(denominator),
+    });
   }
   if (numerator <= 0 || denominator <= 0) {
     return fail({ code: "NOT_POSITIVE", numerator, denominator });
@@ -105,6 +122,67 @@ export function makeRatio(
   );
 }
 
+/**
+ * Re-checks a value that claims to be a `Ratio` and answers its reduced form.
+ *
+ * This is the gate every other function here goes through, and the reason a
+ * forged literal cannot reach the arithmetic: a missing field, a string, a `NaN`,
+ * a zero or negative component, an out-of-range component, and a non-object are
+ * each a named error.
+ */
+export function validateRatio(ratio: Ratio): Result<Ratio, RatioError> {
+  if (!isRecord(ratio)) {
+    return fail({ code: "NOT_A_FRACTION", received: describe(ratio) });
+  }
+  return makeRatio(ratio.numerator, ratio.denominator);
+}
+
+/**
+ * Builds a signed exact fraction: the value a non-integer conversion reports.
+ * The numerator may be any safe integer including zero and negatives; the
+ * denominator is a positive integer within `MAX_RATIO_COMPONENT`, because it can
+ * only ever be a divisor of a validated ratio's denominator.
+ */
+export function makeExactFraction(
+  numerator: number,
+  denominator: number,
+): Result<ExactFraction, RatioError> {
+  if (!isSafeInt(numerator) || !isSafeInt(denominator)) {
+    return fail({
+      code: "NOT_AN_INTEGER",
+      numerator: numberOrNaN(numerator),
+      denominator: numberOrNaN(denominator),
+    });
+  }
+  if (denominator <= 0) {
+    return fail({ code: "NOT_POSITIVE", numerator, denominator });
+  }
+  if (denominator > MAX_RATIO_COMPONENT) {
+    return fail({
+      code: "COMPONENT_OUT_OF_RANGE",
+      numerator,
+      denominator,
+      limit: MAX_RATIO_COMPONENT,
+    });
+  }
+  return ok(
+    Object.freeze({
+      numerator: numerator === 0 ? 0 : numerator,
+      denominator,
+    }),
+  );
+}
+
+/** Re-checks a value that claims to be an `ExactFraction`. */
+export function validateExactFraction(
+  fraction: ExactFraction,
+): Result<ExactFraction, RatioError> {
+  if (!isRecord(fraction)) {
+    return fail({ code: "NOT_A_FRACTION", received: describe(fraction) });
+  }
+  return makeExactFraction(fraction.numerator, fraction.denominator);
+}
+
 /** The identity factor. `1 X = 1 X`. */
 export const UNIT_RATIO: Ratio = Object.freeze({
   numerator: 1,
@@ -120,41 +198,84 @@ export function composeRatios(
   left: Ratio,
   right: Ratio,
 ): Result<Ratio, RatioError> {
-  const validated = validatePair(left, right);
-  if (!validated.ok) return validated;
+  const operands = validatePair(left, right);
+  if (!operands.ok) return operands;
+  const [first, second] = operands.value;
 
-  const leftDivisor = greatestCommonDivisor(left.numerator, right.denominator);
-  const rightDivisor = greatestCommonDivisor(right.numerator, left.denominator);
+  const leftDivisor = greatestCommonDivisor(
+    first.numerator,
+    second.denominator,
+  );
+  const rightDivisor = greatestCommonDivisor(
+    second.numerator,
+    first.denominator,
+  );
   const numerator =
-    (left.numerator / leftDivisor) * (right.numerator / rightDivisor);
+    (first.numerator / leftDivisor) * (second.numerator / rightDivisor);
   const denominator =
-    (left.denominator / rightDivisor) * (right.denominator / leftDivisor);
-  if (!Number.isSafeInteger(numerator) || !Number.isSafeInteger(denominator)) {
-    return fail({ code: "OVERFLOW", left, right });
+    (first.denominator / rightDivisor) * (second.denominator / leftDivisor);
+  if (!isSafeInt(numerator) || !isSafeInt(denominator)) {
+    return fail({ code: "OVERFLOW", left: first, right: second });
   }
   return makeRatio(numerator, denominator);
 }
 
 /** Swaps numerator and denominator: base-to-alternate from alternate-to-base. */
 export function invertRatio(ratio: Ratio): Result<Ratio, RatioError> {
-  return makeRatio(ratio.denominator, ratio.numerator);
+  const validated = validateRatio(ratio);
+  if (!validated.ok) return validated;
+  return makeRatio(validated.value.denominator, validated.value.numerator);
 }
 
-/** -1, 0, or 1 by exact cross-multiplication; both products stay bounded. */
-export function compareRatios(left: Ratio, right: Ratio): number {
-  const leftProduct = left.numerator * right.denominator;
-  const rightProduct = right.numerator * left.denominator;
-  if (leftProduct === rightProduct) return 0;
-  return leftProduct < rightProduct ? -1 : 1;
+/**
+ * -1, 0, or 1 by exact cross-multiplication; both products stay bounded because
+ * both operands were validated first. Two equal values compare 0 even when one
+ * of them arrived unreduced.
+ */
+export function compareRatios(
+  left: Ratio,
+  right: Ratio,
+): Result<number, RatioError> {
+  const operands = validatePair(left, right);
+  if (!operands.ok) return operands;
+  const [first, second] = operands.value;
+  const leftProduct = first.numerator * second.denominator;
+  const rightProduct = second.numerator * first.denominator;
+  if (leftProduct === rightProduct) return ok(0);
+  return ok(leftProduct < rightProduct ? -1 : 1);
 }
 
-/** Reduced ratios are equal exactly when their components are. */
-export const ratiosEqual = (left: Ratio, right: Ratio): boolean =>
-  left.numerator === right.numerator && left.denominator === right.denominator;
+/**
+ * Whether two factors denote the same value. Compares the *reduced* components,
+ * so an unreduced forgery (`2/4`) is equal to `1/2` rather than quietly
+ * different, and an invalid operand is an error rather than `false`.
+ */
+export function ratiosEqual(
+  left: Ratio,
+  right: Ratio,
+): Result<boolean, RatioError> {
+  const operands = validatePair(left, right);
+  if (!operands.ok) return operands;
+  const [first, second] = operands.value;
+  return ok(
+    first.numerator === second.numerator &&
+      first.denominator === second.denominator,
+  );
+}
 
-/** `numerator/denominator`, for logs and error rendering. Never parsed back. */
-export const formatRatio = (ratio: Ratio | ExactFraction): string =>
-  `${ratio.numerator}/${ratio.denominator}`;
+/**
+ * `numerator/denominator`, for logs and error rendering. Never parsed back.
+ *
+ * Validates first: rendering `1/0` or `NaN/NaN` into an operator-facing message
+ * would present a forged value as a fact.
+ */
+export function formatRatio(
+  value: Ratio | ExactFraction,
+): Result<string, RatioError> {
+  const validated = validateExactFraction(value);
+  if (!validated.ok) return validated;
+  return ok(`${validated.value.numerator}/${validated.value.denominator}`);
+}
 
 /**
  * The outcome of scaling an integer by a ratio. `EXACT` is the only outcome a
@@ -175,36 +296,56 @@ export type ScaledInteger =
  * holds if and only if `denominator | value`. That also keeps the product as
  * small as the arithmetic allows, which is what makes overflow rare rather than
  * routine.
+ *
+ * The ratio is validated before any of that. An unvalidated operand is not a
+ * theoretical concern here: `denominator: 0` would report an exact fraction over
+ * zero, `numerator: 0` would report that the stock scaled to nothing,
+ * `denominator: -1` would flip a sign, and a non-finite component would put the
+ * gcd loop in a state it never leaves. All four are `Result` failures.
  */
-export function scaleInteger(value: number, ratio: Ratio): ScaledInteger {
-  if (!Number.isSafeInteger(value)) return { kind: "OVERFLOW" };
+export function scaleInteger(
+  value: number,
+  ratio: Ratio,
+): Result<ScaledInteger, RatioError> {
+  const validated = validateRatio(ratio);
+  if (!validated.ok) return validated;
+  const factor = validated.value;
+
+  if (!isSafeInt(value)) return ok({ kind: "OVERFLOW" });
   const sign = value < 0 ? -1 : 1;
   const magnitude = Math.abs(value);
 
-  const divisor = greatestCommonDivisor(magnitude, ratio.denominator);
+  const divisor = greatestCommonDivisor(magnitude, factor.denominator);
   const reducedValue = magnitude / divisor;
-  const reducedDenominator = ratio.denominator / divisor;
-  const product = reducedValue * ratio.numerator;
-  if (!Number.isSafeInteger(product)) return { kind: "OVERFLOW" };
+  const reducedDenominator = factor.denominator / divisor;
+  const product = reducedValue * factor.numerator;
+  if (!isSafeInt(product)) return ok({ kind: "OVERFLOW" });
 
   if (reducedDenominator === 1) {
-    return { kind: "EXACT", value: sign * product };
+    return ok({
+      kind: "EXACT",
+      value: sign * product === 0 ? 0 : sign * product,
+    });
   }
-  return {
-    kind: "INEXACT",
-    exact: Object.freeze({
-      numerator: sign * product,
-      denominator: reducedDenominator,
-    }),
-  };
+  const exact = makeExactFraction(sign * product, reducedDenominator);
+  if (!exact.ok) return exact;
+  return ok({ kind: "INEXACT", exact: exact.value });
 }
 
+/* -------------------------------------------------------------------------- */
+/* Internals                                                                   */
+/* -------------------------------------------------------------------------- */
+
 /**
- * Euclid's algorithm on magnitudes. `gcd(0, n) === n` and `gcd(0, 0) === 0`,
- * which is why every caller either passes a positive denominator or handles the
- * zero case first.
+ * Euclid's algorithm on magnitudes. `gcd(0, n) === n` and `gcd(0, 0) === 0`.
+ *
+ * Private, and it has to be: the loop's exit condition is `b !== 0`, and a `NaN`
+ * or `Infinity` operand makes every subsequent remainder `NaN`, which is never
+ * `0`. A public gcd would be a hang reachable from any caller holding a forged
+ * ratio. Every call site below passes operands that `isSafeInt` has already
+ * accepted.
  */
-export function greatestCommonDivisor(left: number, right: number): number {
+function greatestCommonDivisor(left: number, right: number): number {
   let a = Math.abs(left);
   let b = Math.abs(right);
   while (b !== 0) {
@@ -216,10 +357,21 @@ export function greatestCommonDivisor(left: number, right: number): number {
 }
 
 /** Re-validates both operands: a forged literal must not reach the arithmetic. */
-function validatePair(left: Ratio, right: Ratio): Result<true, RatioError> {
-  for (const ratio of [left, right]) {
-    const revalidated = makeRatio(ratio.numerator, ratio.denominator);
-    if (!revalidated.ok) return revalidated;
-  }
-  return ok(true);
+function validatePair(
+  left: Ratio,
+  right: Ratio,
+): Result<readonly [Ratio, Ratio], RatioError> {
+  const first = validateRatio(left);
+  if (!first.ok) return first;
+  const second = validateRatio(right);
+  if (!second.ok) return second;
+  return ok([first.value, second.value] as const);
 }
+
+/** A number for an error field, so a forged operand still reports something. */
+const numberOrNaN = (value: unknown): number =>
+  typeof value === "number" ? value : Number.NaN;
+
+/** The shape of a value that is not a fraction at all, for the error field. */
+const describe = (value: unknown): string =>
+  value === null ? "null" : typeof value;

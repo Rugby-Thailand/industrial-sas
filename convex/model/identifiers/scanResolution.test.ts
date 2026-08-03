@@ -1,17 +1,20 @@
 /**
  * Unit tier — the scan precedence ladder.
  *
- * Each rung gets a case, and so does each of the four rules that sit on top of the
- * order. The rejections are the point of the file: a mis-scanned pallet label, a
- * neighbouring tenant's LPN, and a string with two readings must all come back as
- * named refusals with the raw scan attached, never as a plausible SKU.
+ * Each rung gets a case, and so does each rule that sits on top of the order. The
+ * rejections are the point of the file: a mis-scanned pallet label, a
+ * neighbouring tenant's LPN, a valid SSCC a tenant has not enabled, and a string
+ * with two readings must all come back as named refusals with the raw scan
+ * attached, never as a plausible SKU.
  */
 import { describe, expect, it } from "vitest";
 
 import { expectError, expectOk } from "../../../tests/fixtures/domain-results";
+import { gs1CheckDigit } from "../gs1/checkDigit";
 import { GROUP_SEPARATOR } from "../gs1/elementString";
 import {
   generateInternalLpn,
+  lpnFromSscc,
   makeLpnNamespace,
   type EntropySource,
 } from "./lpn";
@@ -51,11 +54,20 @@ describe("resolveScan", () => {
     });
   });
 
-  it("accepts any well-formed LPN when no namespace is registered", () => {
-    expect(
-      expectOk(resolveScan(lpn.value, { referenceYear: 2026 })).interpretation
-        .kind,
-    ).toBe("INTERNAL_LPN");
+  it("refuses to classify an LPN with no namespace policy to classify it by", () => {
+    // An absent or empty `namespaces` used to accept any well-formed internal
+    // LPN, which meant a neighbouring tenant's pallet label resolved as ours.
+    for (const rules of [
+      { referenceYear: 2026 },
+      { referenceYear: 2026, namespaces: [] },
+    ] satisfies ScanResolutionPolicy[]) {
+      expect(expectError(resolveScan(lpn.value, rules))).toEqual({
+        code: "LPN_NAMESPACE_POLICY_MISSING",
+        raw: lpn.value,
+        normalized: lpn.value,
+        prefix: "PA",
+      });
+    }
   });
 
   it("falls to a bare GTIN and normalizes it to 14 digits", () => {
@@ -83,12 +95,22 @@ describe("resolveScan", () => {
 
 describe("rule 1 — a scan that can only be GS1 is decided by the parser alone", () => {
   it("rejects an FNC1-bearing scan with the parse error", () => {
-    const raw = `01${GTIN14}${GROUP_SEPARATOR}99XX`;
+    const raw = `10LOT-A1${GROUP_SEPARATOR}99XX`;
     expect(expectError(resolveScan(raw, policy))).toEqual({
       code: "INVALID_GS1_SCAN",
       raw,
       normalized: raw,
-      error: { code: "UNKNOWN_AI", ai: "99", offset: 17 },
+      error: { code: "UNKNOWN_AI", ai: "99", offset: 9 },
+    });
+  });
+
+  it("rejects a separator a scanner put where the specification has none", () => {
+    const raw = `01${GTIN14}${GROUP_SEPARATOR}17260831`;
+    expect(expectError(resolveScan(raw, policy))).toEqual({
+      code: "INVALID_GS1_SCAN",
+      raw,
+      normalized: raw,
+      error: { code: "UNEXPECTED_SEPARATOR", offset: 16 },
     });
   });
 
@@ -132,17 +154,33 @@ describe("rule 3 — a foreign LPN is refused, not reinterpreted", () => {
     });
   });
 
-  it("still lets a badly formed LPN-shaped string be a SKU", () => {
-    // Right length and alphabet, wrong check character: this was never an LPN.
-    const notAnLpn = `PA${"A".repeat(13)}`;
-    expect(expectOk(resolveScan(notAnLpn, policy)).interpretation).toEqual({
+  it("rejects a scan shaped like one of ours with a bad check character", () => {
+    // Right prefix, right length, wrong check character: a damaged or mis-keyed
+    // label of ours. It used to fall through to the SKU rung, which turned a
+    // corrupt pallet label into an item lookup.
+    const damaged = `${lpn.value.slice(0, -1)}${
+      lpn.value.endsWith("A") ? "B" : "A"
+    }`;
+    const rejection = expectError(resolveScan(damaged, policy));
+    expect(rejection.code).toBe("INVALID_LPN_SCAN");
+    if (rejection.code !== "INVALID_LPN_SCAN") return;
+    expect(rejection.prefix).toBe("PA");
+    expect(rejection.normalized).toBe(damaged);
+    expect(rejection.error.code).toBe("CHECK_CHARACTER_MISMATCH");
+  });
+
+  it("still lets an LPN-shaped string under no registered prefix be a SKU", () => {
+    // `QQ…` is the right alphabet and length, but no registered namespace claims
+    // it, so nothing here can call it a licence plate.
+    const notOurs = `QQ${"A".repeat(13)}`;
+    expect(expectOk(resolveScan(notOurs, policy)).interpretation).toEqual({
       kind: "SKU",
-      sku: notAnLpn,
+      sku: notOurs,
     });
   });
 });
 
-describe("rule 4 — two readings is an ambiguity", () => {
+describe("rules 6 and 7 — a bare SSCC, and two readings", () => {
   it("rejects a bare SSCC that is also a valid GS1 lot element string", () => {
     // 106141411234567897 is a valid SSCC and, read as an element string, AI 10
     // with a 16-character lot code. Enabling bare SSCCs makes both readings
@@ -157,13 +195,106 @@ describe("rule 4 — two readings is an ambiguity", () => {
     });
   });
 
-  it("reads the same string as a GS1 lot when bare SSCCs are off", () => {
-    // With one reading available the scan resolves, and the tenant's label policy
-    // is what decides which reading exists.
-    const resolved = expectOk(resolveScan(SSCC18, policy));
+  it("never reads a valid bare SSCC as a lot code, a GTIN, or a SKU", () => {
+    // This is the case the earlier ladder got wrong: with bare SSCCs off, an
+    // 18-digit SSCC beginning `10` resolved as AI 10 with a 16-character lot
+    // code, and stock would have posted against a lot that does not exist.
+    expect(expectError(resolveScan(SSCC18, policy))).toEqual({
+      code: "BARE_SSCC_DISABLED",
+      raw: SSCC18,
+      normalized: SSCC18,
+      sscc18: SSCC18,
+    });
+  });
+
+  it("rejects a bare SSCC that no other rung can read either", () => {
+    // 18 digits beginning `99` is not a GS1 element string at all, so before the
+    // rule it fell all the way to the SKU rung.
+    const body = "99314141123456789";
+    const plainSscc = `${body}${expectOk(gs1CheckDigit(body))}`;
+    expect(expectOk(lpnFromSscc(plainSscc)).value).toBe(plainSscc);
+    const rejection = expectError(resolveScan(plainSscc, policy));
+    expect(rejection.code).toBe("BARE_SSCC_DISABLED");
+    expect(
+      expectOk(resolveScan(plainSscc, { ...policy, bareSscc: true }))
+        .interpretation,
+    ).toEqual({ kind: "SSCC", lpn: { kind: "SSCC", value: plainSscc } });
+  });
+
+  it("still rejects an 18-digit string that is not a valid SSCC", () => {
+    // One digit changed: the check digit fails, so it is not an SSCC and the
+    // ladder continues. `10` + 16 digits is a valid AI 10 element string.
+    const notAnSscc = "106141411234567890";
+    expect(lpnFromSscc(notAnSscc).ok).toBe(false);
+    const resolved = expectOk(resolveScan(notAnSscc, policy));
     expect(resolved.interpretation.kind).toBe("GS1");
     if (resolved.interpretation.kind !== "GS1") return;
-    expect(resolved.interpretation.scan.lot).toBe("6141411234567897");
+    expect(resolved.interpretation.scan.lot).toBe("6141411234567890");
+  });
+});
+
+describe("policy validation", () => {
+  it("rejects a reference year the GS1 date rule cannot use", () => {
+    for (const referenceYear of [Number.NaN, 1969, 3000, 2026.5]) {
+      expect(
+        expectError(resolveScan("bolt-m8", { ...policy, referenceYear })),
+      ).toEqual({
+        code: "INVALID_SCAN_POLICY",
+        raw: "bolt-m8",
+        field: "referenceYear",
+      });
+    }
+    expect(
+      expectError(
+        resolveScan("bolt-m8", null as unknown as ScanResolutionPolicy),
+      ).code,
+    ).toBe("INVALID_SCAN_POLICY");
+  });
+
+  it("rejects a namespace that is not a registered one", () => {
+    const rejection = expectError(
+      resolveScan("bolt-m8", {
+        ...policy,
+        namespaces: [{ organizationKey: "org_acme", prefix: "1A" } as never],
+      }),
+    );
+    expect(rejection.code).toBe("INVALID_SCAN_POLICY");
+    if (rejection.code !== "INVALID_SCAN_POLICY") return;
+    expect(rejection.field).toBe("namespaces");
+  });
+
+  it("rejects a flag that is not a boolean", () => {
+    expect(
+      expectError(
+        resolveScan("bolt-m8", {
+          ...policy,
+          bareSscc: "yes" as unknown as boolean,
+        }),
+      ).code,
+    ).toBe("INVALID_SCAN_POLICY");
+    expect(
+      expectError(
+        resolveScan("bolt-m8", {
+          ...policy,
+          skuFallback: 1 as unknown as boolean,
+        }),
+      ).code,
+    ).toBe("INVALID_SCAN_POLICY");
+  });
+
+  it("treats a scan that is not a string as unreadable", () => {
+    expect(
+      expectError(resolveScan(undefined as unknown as string, policy)),
+    ).toEqual({
+      code: "UNREADABLE_SCAN",
+      raw: undefined,
+      error: { code: "EMPTY", raw: "undefined" },
+    });
+  });
+
+  it("freezes what it returns", () => {
+    const resolved = expectOk(resolveScan("bolt-m8", policy));
+    expect(Object.isFrozen(resolved)).toBe(true);
   });
 });
 

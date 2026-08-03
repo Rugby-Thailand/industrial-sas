@@ -265,7 +265,7 @@ describe("parseInternalLpn", () => {
   it("rejects a well-formed body whose check character was recomputed wrong", () => {
     const body = lpn.value.slice(0, -1);
     const wrong = LPN_ALPHABET[
-      (LPN_ALPHABET.indexOf(checkCharacter(body)) + 5) % 31
+      (LPN_ALPHABET.indexOf(checkCharacter(body) ?? "0") + 5) % 31
     ] as string;
     expect(expectError(parseInternalLpn(body + wrong)).code).toBe(
       "CHECK_CHARACTER_MISMATCH",
@@ -299,7 +299,7 @@ describe("lpnFromSscc", () => {
 describe("base-31 coding", () => {
   it("round-trips every value it encodes", () => {
     for (const value of [0, 1, 30, 31, 960, 961, 123_456_789]) {
-      expect(decodeBase31(encodeBase31(value, 9))).toBe(value);
+      expect(decodeBase31(encodeBase31(value, 9) ?? "")).toBe(value);
     }
   });
 
@@ -307,6 +307,112 @@ describe("base-31 coding", () => {
     expect(encodeBase31(0, 4)).toBe("0000");
     expect(encodeBase31(1, 4)).toBe("0001");
     expect(encodeBase31(31, 4)).toBe("0010");
+  });
+
+  it("answers null rather than a plausible wrong value", () => {
+    // `decodeBase31` read an unknown character as zero, which turned a corrupt
+    // time component into a believable issue date; `encodeBase31` silently
+    // truncated a value too large for its width, which would have issued two
+    // pallets the same LPN.
+    expect(decodeBase31("AB!")).toBeNull();
+    expect(decodeBase31("")).toBeNull();
+    expect(decodeBase31(null as unknown as string)).toBeNull();
+    expect(encodeBase31(31 ** 4, 4)).toBeNull();
+    expect(encodeBase31(-1, 4)).toBeNull();
+    expect(encodeBase31(Number.NaN, 4)).toBeNull();
+    expect(encodeBase31(1, 0)).toBeNull();
+    expect(checkCharacter("")).toBeNull();
+    expect(checkCharacter("AB!")).toBeNull();
+    expect(checkCharacter(null as unknown as string)).toBeNull();
+  });
+});
+
+describe("misbehaving injected dependencies", () => {
+  it("returns a structured error when the entropy source throws", () => {
+    // Web Crypto inside a sandbox, an exhausted hardware source, and a stub in a
+    // test can all throw. A throw at this boundary would have escaped every
+    // caller's `Result` handling.
+    const throwing: EntropySource = () => {
+      throw new Error("no entropy device");
+    };
+    expect(
+      expectError(generateInternalLpn({ namespace, nowMs, entropy: throwing })),
+    ).toEqual({ code: "ENTROPY_UNAVAILABLE", requested: 3 });
+  });
+
+  it("returns a structured error when the entropy source is not one", () => {
+    for (const entropy of [
+      undefined as unknown as EntropySource,
+      42 as unknown as EntropySource,
+      (() => null) as unknown as EntropySource,
+      (() => "bytes") as unknown as EntropySource,
+    ]) {
+      expect(
+        expectError(generateInternalLpn({ namespace, nowMs, entropy })).code,
+      ).toBe("ENTROPY_UNAVAILABLE");
+    }
+  });
+
+  it("validates the namespace it is asked to issue under", () => {
+    expect(
+      expectError(
+        generateInternalLpn({
+          namespace: { organizationKey: "org_acme", prefix: "1A" } as never,
+          nowMs,
+          entropy: fixedEntropy(1, 1, 1),
+        }),
+      ).code,
+    ).toBe("INVALID_PREFIX");
+    expect(
+      expectError(
+        generateInternalLpn({
+          namespace: null as never,
+          nowMs,
+          entropy: fixedEntropy(1, 1, 1),
+        }),
+      ).code,
+    ).toBe("INVALID_PREFIX");
+  });
+
+  it("validates a namespace it is asked to check a scan against", () => {
+    // A namespace reached this comparison unchecked, so a forged one decided
+    // whose label a scan was. An unusable prefix is now an error, and a merely
+    // unnormalized one is folded rather than silently failing to match.
+    const lpn = expectOk(
+      generateInternalLpn({ namespace, nowMs, entropy: fixedEntropy(1, 1, 1) }),
+    );
+    for (const prefix of ["1A", "", "PAAAAAAA", "PO"]) {
+      expect(
+        expectError(
+          parseInternalLpn(lpn.value, {
+            namespace: { organizationKey: "org_acme", prefix } as never,
+          }),
+        ).code,
+      ).toBe("INVALID_PREFIX");
+    }
+    expect(
+      expectOk(
+        parseInternalLpn(lpn.value, {
+          namespace: { organizationKey: "org_acme", prefix: " pa " } as never,
+        }),
+      ).prefix,
+    ).toBe("PA");
+    expect(
+      expectError(
+        parseInternalLpn(lpn.value, {
+          namespace: expectOk(makeLpnNamespace("org_rival", "XQ")),
+        }),
+      ).code,
+    ).toBe("PREFIX_NOT_REGISTERED");
+  });
+
+  it("treats a scan that is not a string as an invalid character", () => {
+    expect(expectError(parseInternalLpn(12 as unknown as string))).toEqual({
+      code: "INVALID_CHARACTER",
+      raw: "number",
+    });
+    expect(lpnFromSscc(null as unknown as string).ok).toBe(false);
+    expect(looksLikeInternalLpn(null as unknown as string)).toBe(false);
   });
 });
 

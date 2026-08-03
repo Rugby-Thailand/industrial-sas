@@ -11,10 +11,12 @@ import { describe, expect, it } from "vitest";
 import { expectError, expectOk } from "../../../tests/fixtures/domain-results";
 import { parseBusinessDate, type BusinessDate } from "../time/businessDate";
 import {
-  compareForRotation,
-  isExpired,
+  compareRotationCandidates,
+  isCandidateExpired,
   orderForRotation,
   rotationDateOf,
+  validateRotationCandidate,
+  validateRotationPolicy,
   type StockRotationCandidate,
   type StockRotationPolicy,
 } from "./stockRotation";
@@ -55,22 +57,72 @@ describe("rotationDateOf", () => {
   });
 
   it("follows the configured source", () => {
-    expect(rotationDateOf(lot, fefo)).toEqual(date("2026-12-01"));
+    expect(expectOk(rotationDateOf(lot, fefo))).toEqual(date("2026-12-01"));
     expect(
-      rotationDateOf(lot, { ...fefo, rotationDateSource: "BEST_BEFORE" }),
+      expectOk(
+        rotationDateOf(lot, { ...fefo, rotationDateSource: "BEST_BEFORE" }),
+      ),
     ).toEqual(date("2026-11-01"));
     expect(
-      rotationDateOf(lot, { ...fefo, rotationDateSource: "MANUFACTURE" }),
+      expectOk(
+        rotationDateOf(lot, { ...fefo, rotationDateSource: "MANUFACTURE" }),
+      ),
     ).toEqual(date("2026-01-01"));
+  });
+
+  it("rejects a rotation source this module does not implement", () => {
+    // The switch had no default, so a forged source answered `undefined` while
+    // the type said `BusinessDate | null` — and the next comparison read fields
+    // off it.
+    expect(
+      expectError(
+        rotationDateOf(lot, {
+          ...fefo,
+          rotationDateSource:
+            "RECEIPT" as StockRotationPolicy["rotationDateSource"],
+        }),
+      ),
+    ).toEqual({ code: "INVALID_POLICY", field: "rotationDateSource" });
   });
 });
 
-describe("isExpired", () => {
-  it("treats stock as usable through the whole of its rotation date", () => {
-    expect(isExpired(date("2026-08-02"), asOf)).toBe(true);
-    expect(isExpired(date("2026-08-03"), asOf)).toBe(false);
-    expect(isExpired(date("2026-08-04"), asOf)).toBe(false);
-    expect(isExpired(null, asOf)).toBe(false);
+describe("isCandidateExpired", () => {
+  const expiring = (iso: string | null) =>
+    candidate({
+      candidateKey: "b1",
+      expirationDate: iso === null ? null : date(iso),
+    });
+
+  it("treats stock as usable through the whole of its expiration date", () => {
+    expect(expectOk(isCandidateExpired(expiring("2026-08-02"), asOf))).toBe(
+      true,
+    );
+    expect(expectOk(isCandidateExpired(expiring("2026-08-03"), asOf))).toBe(
+      false,
+    );
+    expect(expectOk(isCandidateExpired(expiring("2026-08-04"), asOf))).toBe(
+      false,
+    );
+    expect(expectOk(isCandidateExpired(expiring(null), asOf))).toBe(false);
+  });
+
+  it("reads expiry from the expiration date alone", () => {
+    // Expiry used to be read off the configured rotation date. Under a
+    // manufacture-date policy that called an old lot "expired", and — the
+    // dangerous half — called a genuinely expired lot good.
+    const oldManufacture = candidate({
+      candidateKey: "b-old",
+      manufactureDate: date("2020-01-01"),
+      expirationDate: date("2027-01-01"),
+    });
+    const reallyExpired = candidate({
+      candidateKey: "b-gone",
+      manufactureDate: date("2026-08-01"),
+      bestBeforeDate: date("2027-01-01"),
+      expirationDate: date("2026-08-01"),
+    });
+    expect(expectOk(isCandidateExpired(oldManufacture, asOf))).toBe(false);
+    expect(expectOk(isCandidateExpired(reallyExpired, asOf))).toBe(true);
   });
 });
 
@@ -348,9 +400,13 @@ describe("fail-closed inputs", () => {
   });
 });
 
-describe("compareForRotation", () => {
+describe("compareRotationCandidates", () => {
+  const compare = (
+    left: StockRotationCandidate,
+    right: StockRotationCandidate,
+  ) => expectOk(compareRotationCandidates(left, right, fefo, asOf));
+
   it("never reports two distinct candidates as equal", () => {
-    const compare = compareForRotation(fefo, asOf);
     const left = candidate({
       candidateKey: "a",
       expirationDate: date("2026-09-01"),
@@ -367,7 +423,6 @@ describe("compareForRotation", () => {
   it("orders strings by code unit rather than by collation", () => {
     // A locale-aware comparison can order "a" before "B"; this one does not,
     // because the stored order must not depend on the reader's locale.
-    const compare = compareForRotation(fefo, asOf);
     const upper = candidate({
       candidateKey: "B",
       expirationDate: date("2026-09-01"),
@@ -378,5 +433,259 @@ describe("compareForRotation", () => {
     });
     expect(compare(upper, lower)).toBe(-1);
     expect("a".localeCompare("B") < 0).toBe(true);
+  });
+
+  it("refuses to order values it has not validated", () => {
+    // A bare comparator handed to `sort` is where an unvalidated value does the
+    // most damage: a `NaN` comparison makes the order intransitive and the
+    // resulting sequence implementation-defined.
+    const good = candidate({
+      candidateKey: "a",
+      expirationDate: date("2026-09-01"),
+    });
+    const forgedDate = candidate({
+      candidateKey: "b",
+      expirationDate: { year: Number.NaN, month: 9, day: 1 } as BusinessDate,
+    });
+    expect(
+      expectError(compareRotationCandidates(good, forgedDate, fefo, asOf)).code,
+    ).toBe("INVALID_DATE");
+    expect(
+      expectError(
+        compareRotationCandidates(good, good, fefo, {
+          year: 2026,
+          month: 13,
+          day: 1,
+        } as BusinessDate),
+      ).code,
+    ).toBe("INVALID_DATE");
+  });
+});
+
+describe("candidate and policy validation", () => {
+  it("rejects a receipt sequence that is not a non-negative safe integer", () => {
+    for (const receiptSequence of [-1, 1.5, 2 ** 53, Number.NaN]) {
+      expect(
+        expectError(
+          orderForRotation(
+            [candidate({ candidateKey: "b1", receiptSequence })],
+            fifo,
+            { asOf },
+          ),
+        ).code,
+      ).toBe("INVALID_RECEIPT_SEQUENCE");
+    }
+    expect(
+      expectOk(
+        validateRotationCandidate(
+          candidate({ candidateKey: "b1", receiptSequence: 0 }),
+        ),
+      ).receiptSequence,
+    ).toBe(0);
+  });
+
+  it("rejects a candidate key that is not a bounded, whitespace-free code", () => {
+    expect(
+      expectError(validateRotationCandidate(candidate({ candidateKey: "" }))),
+    ).toEqual({ code: "EMPTY_CANDIDATE_KEY" });
+    expect(
+      expectError(validateRotationCandidate(candidate({ candidateKey: "   " })))
+        .code,
+    ).toBe("INVALID_CANDIDATE_KEY");
+    expect(
+      expectError(
+        validateRotationCandidate(candidate({ candidateKey: "a\u0000b" })),
+      ).code,
+    ).toBe("INVALID_CANDIDATE_KEY");
+    expect(
+      expectError(
+        validateRotationCandidate(candidate({ candidateKey: "x".repeat(65) })),
+      ).code,
+    ).toBe("INVALID_CANDIDATE_KEY");
+    expect(
+      expectError(
+        validateRotationCandidate({
+          candidateKey: 7,
+        } as unknown as StockRotationCandidate),
+      ).code,
+    ).toBe("EMPTY_CANDIDATE_KEY");
+    expect(
+      expectError(
+        validateRotationCandidate(null as unknown as StockRotationCandidate),
+      ),
+    ).toEqual({ code: "NOT_A_CANDIDATE", received: "null" });
+  });
+
+  it("rejects a lot code carrying a control character", () => {
+    expect(
+      expectError(
+        validateRotationCandidate(
+          candidate({ candidateKey: "b1", lotCode: "LOT\u0001" }),
+        ),
+      ).code,
+    ).toBe("INVALID_LOT_CODE");
+  });
+
+  it("rejects an impossible date in any date field", () => {
+    const impossible = { year: 2026, month: 2, day: 30 } as BusinessDate;
+    for (const field of [
+      "receivedOn",
+      "expirationDate",
+      "bestBeforeDate",
+      "manufactureDate",
+    ] as const) {
+      const error = expectError(
+        validateRotationCandidate(
+          candidate({ candidateKey: "b1", [field]: impossible }),
+        ),
+      );
+      expect(error.code).toBe("INVALID_DATE");
+      if (error.code === "INVALID_DATE") expect(error.field).toBe(field);
+    }
+  });
+
+  it("rejects a policy field a cast invented", () => {
+    expect(
+      expectError(
+        validateRotationPolicy({
+          ...fefo,
+          strategy: "LIFO" as StockRotationPolicy["strategy"],
+        }),
+      ),
+    ).toEqual({ code: "INVALID_POLICY", field: "strategy" });
+    expect(
+      expectError(
+        validateRotationPolicy({
+          ...fefo,
+          missingRotationDate:
+            "GUESS" as StockRotationPolicy["missingRotationDate"],
+        }),
+      ).code,
+    ).toBe("INVALID_POLICY");
+    expect(
+      expectError(
+        validateRotationPolicy({
+          ...fefo,
+          expired: "IGNORE" as StockRotationPolicy["expired"],
+        }),
+      ).code,
+    ).toBe("INVALID_POLICY");
+    expect(
+      expectError(
+        orderForRotation([], null as unknown as StockRotationPolicy, { asOf }),
+      ).code,
+    ).toBe("INVALID_POLICY");
+  });
+
+  it("rejects an `asOf` that is not a calendar day", () => {
+    expect(
+      expectError(
+        orderForRotation([candidate({ candidateKey: "b1" })], fefo, {
+          asOf: { year: 2026, month: 0, day: 0 } as BusinessDate,
+        }),
+      ).code,
+    ).toBe("INVALID_DATE");
+  });
+
+  it("returns frozen rankings and exclusions", () => {
+    const order = expectOk(
+      orderForRotation(
+        [
+          candidate({
+            candidateKey: "b-good",
+            expirationDate: date("2026-09-01"),
+          }),
+          candidate({ candidateKey: "b-none" }),
+        ],
+        fefo,
+        { asOf },
+      ),
+    );
+    expect(Object.isFrozen(order)).toBe(true);
+    expect(Object.isFrozen(order.ordered)).toBe(true);
+    expect(Object.isFrozen(order.ordered[0])).toBe(true);
+    expect(Object.isFrozen(order.ordered[0]?.explanation)).toBe(true);
+    expect(Object.isFrozen(order.ordered[0]?.candidate)).toBe(true);
+    expect(Object.isFrozen(order.excluded)).toBe(true);
+    expect(Object.isFrozen(order.excluded[0])).toBe(true);
+  });
+});
+
+describe("expiry is independent of the rotation source", () => {
+  const expiredButNewlyMade = candidate({
+    candidateKey: "b-expired",
+    manufactureDate: date("2026-08-01"),
+    bestBeforeDate: date("2027-01-01"),
+    expirationDate: date("2026-08-01"),
+    receivedOn: date("2026-08-01"),
+    receiptSequence: 1,
+  });
+  const usable = candidate({
+    candidateKey: "b-usable",
+    manufactureDate: date("2020-01-01"),
+    bestBeforeDate: date("2027-06-01"),
+    expirationDate: date("2027-06-01"),
+    receivedOn: date("2026-08-02"),
+    receiptSequence: 2,
+  });
+
+  it("excludes expired stock under every FEFO rotation source", () => {
+    for (const rotationDateSource of [
+      "EXPIRATION",
+      "BEST_BEFORE",
+      "MANUFACTURE",
+    ] as const) {
+      const order = expectOk(
+        orderForRotation(
+          [expiredButNewlyMade, usable],
+          {
+            ...fefo,
+            rotationDateSource,
+          },
+          { asOf },
+        ),
+      );
+      expect(
+        order.ordered.map((ranking) => ranking.candidate.candidateKey),
+      ).toEqual(["b-usable"]);
+      expect(order.excluded).toEqual([
+        { candidate: expiredButNewlyMade, reason: "EXPIRED" },
+      ]);
+    }
+  });
+
+  it("excludes expired stock under FIFO too", () => {
+    const order = expectOk(
+      orderForRotation([expiredButNewlyMade, usable], fifo, { asOf }),
+    );
+    expect(
+      order.ordered.map((ranking) => ranking.candidate.candidateKey),
+    ).toEqual(["b-usable"]);
+    expect(order.excluded).toEqual([
+      { candidate: expiredButNewlyMade, reason: "EXPIRED" },
+    ]);
+  });
+
+  it("does not call an old manufacture date an expiry", () => {
+    // Rotating by manufacture date must still order the old lot first; it is old,
+    // not expired.
+    const order = expectOk(
+      orderForRotation(
+        [usable, expiredButNewlyMade],
+        {
+          ...fefo,
+          rotationDateSource: "MANUFACTURE",
+          expired: "ORDER_FIRST",
+        },
+        { asOf },
+      ),
+    );
+    expect(
+      order.ordered.map((ranking) => ranking.candidate.candidateKey),
+    ).toEqual(["b-expired", "b-usable"]);
+    expect(order.ordered.map((ranking) => ranking.expired)).toEqual([
+      true,
+      false,
+    ]);
   });
 });

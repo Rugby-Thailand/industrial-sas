@@ -7,7 +7,7 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { expectOk } from "../../../tests/fixtures/domain-results";
+import { expectError, expectOk } from "../../../tests/fixtures/domain-results";
 import {
   absoluteQuantity,
   addQuantities,
@@ -26,10 +26,15 @@ import {
   subtractQuantities,
   sumQuantities,
   zeroQuantity,
+  type Quantity,
 } from "./quantity";
 
 const kilograms = (minorUnits: number) =>
   expectOk(makeQuantity(minorUnits, "KG"));
+
+/** A value that claims to be a `Quantity` and is not one. */
+const forged = (minorUnits: unknown, uom: unknown): Quantity =>
+  ({ minorUnits, uom }) as unknown as Quantity;
 
 describe("normalizeUomCode", () => {
   it("folds ASCII case and trims", () => {
@@ -275,19 +280,98 @@ describe("arithmetic", () => {
 
 describe("formatQuantity", () => {
   it("shows the digits that are stored, with no locale involved", () => {
-    expect(formatQuantity(kilograms(1005))).toBe("1.005");
-    expect(formatQuantity(kilograms(-1005))).toBe("-1.005");
-    expect(formatQuantity(kilograms(1))).toBe("0.001");
-    expect(formatQuantity(kilograms(0))).toBe("0.000");
-    expect(formatQuantity(kilograms(12_000))).toBe("12.000");
-    expect(formatQuantity(kilograms(1_000_000_000))).toBe("1000000.000");
+    expect(expectOk(formatQuantity(kilograms(1005)))).toBe("1.005");
+    expect(expectOk(formatQuantity(kilograms(-1005)))).toBe("-1.005");
+    expect(expectOk(formatQuantity(kilograms(1)))).toBe("0.001");
+    expect(expectOk(formatQuantity(kilograms(0)))).toBe("0.000");
+    expect(expectOk(formatQuantity(kilograms(12_000)))).toBe("12.000");
+    expect(expectOk(formatQuantity(kilograms(1_000_000_000)))).toBe(
+      "1000000.000",
+    );
   });
 
   it("can trim trailing zeros for display", () => {
     const options = { trimTrailingZeros: true } as const;
-    expect(formatQuantity(kilograms(12_000), options)).toBe("12");
-    expect(formatQuantity(kilograms(12_500), options)).toBe("12.5");
-    expect(formatQuantity(kilograms(0), options)).toBe("0");
-    expect(formatQuantity(kilograms(-500), options)).toBe("-0.5");
+    expect(expectOk(formatQuantity(kilograms(12_000), options))).toBe("12");
+    expect(expectOk(formatQuantity(kilograms(12_500), options))).toBe("12.5");
+    expect(expectOk(formatQuantity(kilograms(0), options))).toBe("0");
+    expect(expectOk(formatQuantity(kilograms(-500), options))).toBe("-0.5");
+  });
+
+  it("refuses to render a forged quantity as digits", () => {
+    // `NaN.NaN` on a warehouse screen is worse than a rejection: it looks like a
+    // reading. Formatting claims the digits shown are the digits stored, which is
+    // only true of a value this module built.
+    expect(expectError(formatQuantity(forged(Number.NaN, "KG"))).code).toBe(
+      "NOT_AN_INTEGER",
+    );
+    expect(expectError(formatQuantity(forged(1.5, "KG"))).code).toBe(
+      "NOT_AN_INTEGER",
+    );
+    expect(expectError(formatQuantity(forged(1000, "kg-1"))).code).toBe(
+      "INVALID_UOM_CODE",
+    );
+    expect(expectError(formatQuantity(null as unknown as Quantity))).toEqual({
+      code: "NOT_A_QUANTITY",
+      received: "null",
+    });
+  });
+});
+
+describe("forged quantities", () => {
+  it("cannot enter arithmetic through a cast", () => {
+    const bad = forged(Number.NaN, "KG");
+    expect(expectError(addQuantities(kilograms(1), bad)).code).toBe(
+      "NOT_AN_INTEGER",
+    );
+    expect(expectError(subtractQuantities(bad, kilograms(1))).code).toBe(
+      "NOT_AN_INTEGER",
+    );
+    expect(expectError(compareQuantities(bad, kilograms(1))).code).toBe(
+      "NOT_AN_INTEGER",
+    );
+    expect(expectError(negateQuantity(bad)).code).toBe("NOT_AN_INTEGER");
+    expect(expectError(absoluteQuantity(bad)).code).toBe("NOT_AN_INTEGER");
+    expect(expectError(requireNonZeroQuantity(bad)).code).toBe(
+      "NOT_AN_INTEGER",
+    );
+    expect(expectError(sumQuantities([kilograms(1), bad], "KG")).code).toBe(
+      "NOT_AN_INTEGER",
+    );
+  });
+
+  it("names a value that is not a quantity at all", () => {
+    expect(
+      expectError(addQuantities(kilograms(1), undefined as unknown as Quantity))
+        .code,
+    ).toBe("NOT_A_QUANTITY");
+    expect(
+      expectError(sumQuantities("KG" as unknown as readonly Quantity[], "KG"))
+        .code,
+    ).toBe("NOT_A_QUANTITY");
+  });
+
+  it("validates a UOM code that is not a string", () => {
+    expect(expectError(makeQuantity(1000, 12 as unknown as string))).toEqual({
+      code: "INVALID_UOM_CODE",
+      raw: "number",
+    });
+    expect(
+      expectError(parseDecimalQuantity(12 as unknown as string, "KG")),
+    ).toEqual({ code: "MALFORMED_DECIMAL", raw: "number" });
+  });
+
+  it("answers false rather than throwing for a zero test", () => {
+    expect(isZeroQuantity(forged(Number.NaN, "KG"))).toBe(false);
+    expect(isZeroQuantity(null as unknown as Quantity)).toBe(false);
+  });
+
+  it("returns frozen values that a cast cannot rewrite", () => {
+    const value = kilograms(1005);
+    expect(Object.isFrozen(value)).toBe(true);
+    expect(() => {
+      (value as { minorUnits: number }).minorUnits = 9;
+    }).toThrow(TypeError);
+    expect(value.minorUnits).toBe(1005);
   });
 });

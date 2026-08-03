@@ -40,6 +40,7 @@
  *
  * Pure module (plan §6.2): no Convex imports.
  */
+import { isFunction, isRecord, isSafeInt, isString } from "../guards";
 import { fail, ok, type Result } from "../result";
 import { verifyGs1CheckDigit } from "../gs1/checkDigit";
 
@@ -54,6 +55,9 @@ export const LPN_RANDOM_LENGTH = 4;
 
 /** Longest prefix an organization may register. */
 export const LPN_MAX_PREFIX_LENGTH = 6;
+
+/** Longest organization key accepted: a document id or a tenant slug. */
+export const MAX_ORGANIZATION_KEY_LENGTH = 64;
 
 /** Hard bound on the printed value, so a label layout can be fixed. */
 export const LPN_MAX_LENGTH =
@@ -144,8 +148,17 @@ export function makeLpnNamespace(
   organizationKey: string,
   prefix: string,
 ): Result<LpnNamespace, LpnError> {
+  if (!isString(organizationKey)) {
+    return fail({
+      code: "INVALID_ORGANIZATION_KEY",
+      raw: describe(organizationKey),
+    });
+  }
+  if (!isString(prefix)) {
+    return fail({ code: "INVALID_PREFIX", raw: describe(prefix) });
+  }
   const key = organizationKey.trim();
-  if (key.length === 0 || key.length > 64) {
+  if (key.length === 0 || key.length > MAX_ORGANIZATION_KEY_LENGTH) {
     return fail({ code: "INVALID_ORGANIZATION_KEY", raw: organizationKey });
   }
   const folded = prefix
@@ -162,6 +175,14 @@ export function makeLpnNamespace(
   return ok(Object.freeze({ organizationKey: key, prefix: folded }));
 }
 
+/** Re-checks a value that claims to be a registered namespace. */
+export const validateLpnNamespace = (
+  namespace: LpnNamespace,
+): Result<LpnNamespace, LpnError> =>
+  isRecord(namespace)
+    ? makeLpnNamespace(namespace.organizationKey, namespace.prefix)
+    : fail({ code: "INVALID_PREFIX", raw: describe(namespace) });
+
 /* -------------------------------------------------------------------------- */
 /* Generation                                                                  */
 /* -------------------------------------------------------------------------- */
@@ -171,20 +192,29 @@ export function makeLpnNamespace(
  * reading and an entropy function. Nothing here consults the ambient environment,
  * which is what lets a test assert an exact value and what keeps this module
  * usable inside a Convex mutation, where `Math.random` is not allowed.
+ *
+ * An injected dependency can misbehave, and misbehaviour must be a `Result` and
+ * not a thrown exception: a Web Crypto call inside a sandbox, an exhausted
+ * hardware source, or a stub in a test can all throw. A throw from `entropy` is
+ * `ENTROPY_UNAVAILABLE`, as is a source that returns the wrong number of bytes, a
+ * byte that is not a byte, or anything that is not a `Uint8Array` at all.
  */
 export function generateInternalLpn(input: {
   readonly namespace: LpnNamespace;
   readonly nowMs: number;
   readonly entropy: EntropySource;
 }): Result<InternalLpn, LpnError> {
-  const namespace = makeLpnNamespace(
-    input.namespace.organizationKey,
-    input.namespace.prefix,
-  );
+  if (!isRecord(input)) {
+    return fail({ code: "INVALID_PREFIX", raw: describe(input) });
+  }
+  const namespace = validateLpnNamespace(input.namespace);
   if (!namespace.ok) return namespace;
 
-  if (!Number.isSafeInteger(input.nowMs)) {
-    return fail({ code: "CLOCK_NOT_AN_INTEGER", nowMs: input.nowMs });
+  if (!isSafeInt(input.nowMs)) {
+    return fail({
+      code: "CLOCK_NOT_AN_INTEGER",
+      nowMs: typeof input.nowMs === "number" ? input.nowMs : Number.NaN,
+    });
   }
   const elapsed = input.nowMs - LPN_EPOCH_MS;
   if (elapsed < 0 || elapsed > LPN_MAX_ELAPSED_MS) {
@@ -195,20 +225,35 @@ export function generateInternalLpn(input: {
       maximumElapsedMs: LPN_MAX_ELAPSED_MS,
     });
   }
+  if (!isFunction(input.entropy)) {
+    return fail({ code: "ENTROPY_UNAVAILABLE", requested: 0 });
+  }
 
   const randomBound = 31 ** LPN_RANDOM_LENGTH;
   const random = uniformBelow(input.entropy, randomBound);
   if (!random.ok) return random;
 
-  const body =
-    namespace.value.prefix +
-    encodeBase31(elapsed, LPN_TIME_LENGTH) +
-    encodeBase31(random.value, LPN_RANDOM_LENGTH);
-  const value = body + checkCharacter(body);
+  const time = encodeBase31(elapsed, LPN_TIME_LENGTH);
+  const tail = encodeBase31(random.value, LPN_RANDOM_LENGTH);
+  if (time === null || tail === null) {
+    // Unreachable with the bounds checked above; still an error rather than a
+    // truncated identifier, because a wrong LPN is worse than no LPN.
+    return fail({
+      code: "CLOCK_OUT_OF_RANGE",
+      nowMs: input.nowMs,
+      epochMs: LPN_EPOCH_MS,
+      maximumElapsedMs: LPN_MAX_ELAPSED_MS,
+    });
+  }
+  const body = namespace.value.prefix + time + tail;
+  const check = checkCharacter(body);
+  if (check === null) {
+    return fail({ code: "INVALID_CHARACTER", raw: body });
+  }
   return ok(
     Object.freeze({
       kind: "INTERNAL" as const,
-      value,
+      value: body + check,
       prefix: namespace.value.prefix,
       issuedAtMs: input.nowMs,
     }),
@@ -223,11 +268,27 @@ export function generateInternalLpn(input: {
  * Validates an internal LPN's structure and check character, and — when a
  * namespace is supplied — that the prefix is that organization's. Without the
  * namespace argument this proves the label is well formed, not that it is yours.
+ *
+ * A supplied namespace is itself validated: comparing against a forged namespace
+ * whose prefix is lower case or empty would reject this organization's own label,
+ * or accept a label under a prefix nobody registered.
  */
 export function parseInternalLpn(
   raw: string,
   options: { readonly namespace?: LpnNamespace } = {},
 ): Result<InternalLpn, LpnError> {
+  if (!isString(raw)) {
+    return fail({ code: "INVALID_CHARACTER", raw: describe(raw) });
+  }
+  if (!isRecord(options)) {
+    return fail({ code: "INVALID_PREFIX", raw: describe(options) });
+  }
+  const namespace =
+    options.namespace === undefined
+      ? null
+      : validateLpnNamespace(options.namespace);
+  if (namespace !== null && !namespace.ok) return namespace;
+
   const folded = raw
     .trim()
     .replace(/[a-z]/g, (character) => character.toUpperCase());
@@ -245,6 +306,7 @@ export function parseInternalLpn(
   const body = folded.slice(0, -1);
   const expected = checkCharacter(body);
   const actual = folded.slice(-1);
+  if (expected === null) return fail({ code: "INVALID_CHARACTER", raw });
   if (expected !== actual) {
     return fail({ code: "CHECK_CHARACTER_MISMATCH", raw, expected, actual });
   }
@@ -254,17 +316,18 @@ export function parseInternalLpn(
   if (isDigit(prefix[0] as string)) {
     return fail({ code: "INVALID_PREFIX", raw });
   }
-  if (options.namespace !== undefined && options.namespace.prefix !== prefix) {
+  if (namespace !== null && namespace.value.prefix !== prefix) {
     return fail({
       code: "PREFIX_NOT_REGISTERED",
       raw,
-      expected: options.namespace.prefix,
+      expected: namespace.value.prefix,
       actual: prefix,
     });
   }
   const elapsed = decodeBase31(
     folded.slice(prefixLength, prefixLength + LPN_TIME_LENGTH),
   );
+  if (elapsed === null) return fail({ code: "INVALID_CHARACTER", raw });
   return ok(
     Object.freeze({
       kind: "INTERNAL" as const,
@@ -277,6 +340,9 @@ export function parseInternalLpn(
 
 /** Wraps a validated SSCC as an LPN (D-15). Verifies the GS1 check digit. */
 export function lpnFromSscc(raw: string): Result<SsccLpn, LpnError> {
+  if (!isString(raw)) {
+    return fail({ code: "INVALID_SSCC", raw: describe(raw) });
+  }
   const trimmed = raw.trim();
   if (trimmed.length !== SSCC_LENGTH || !/^[0-9]{18}$/.test(trimmed)) {
     return fail({ code: "INVALID_SSCC", raw });
@@ -291,6 +357,7 @@ export function lpnFromSscc(raw: string): Result<SsccLpn, LpnError> {
  * internal LPN at all? Structure only — `parseInternalLpn` decides.
  */
 export const looksLikeInternalLpn = (raw: string): boolean => {
+  if (!isString(raw)) return false;
   const trimmed = raw.trim();
   if (trimmed.length < LPN_MIN_LENGTH || trimmed.length > LPN_MAX_LENGTH) {
     return false;
@@ -306,23 +373,35 @@ export const looksLikeInternalLpn = (raw: string): boolean => {
 /* -------------------------------------------------------------------------- */
 
 /**
- * `sum(value_i × (i+1)) mod 31`, rendered as an alphabet character. The modulus
- * equals the alphabet size and is prime, so every character value is distinct
- * modulo 31 and every weight is invertible — which is what makes single-character
- * substitutions and transpositions detectable rather than probable.
+ * `sum(value_i × (i+1)) mod 31`, rendered as an alphabet character, or `null` for
+ * a body carrying a character the alphabet does not contain.
+ *
+ * The modulus equals the alphabet size and is prime, so every character value is
+ * distinct modulo 31 and every weight is invertible — which is what makes
+ * single-character substitutions and transpositions detectable rather than
+ * probable. `null` rather than `""` for a bad body: an empty check character would
+ * compare equal to the empty tail of a malformed value.
  */
-export function checkCharacter(body: string): string {
+export function checkCharacter(body: string): string | null {
+  if (!isString(body) || body.length === 0) return null;
   let sum = 0;
   for (let index = 0; index < body.length; index += 1) {
     const value = ALPHABET_VALUES.get(body[index] as string);
-    if (value === undefined) return "";
+    if (value === undefined) return null;
     sum = (sum + value * (index + 1)) % 31;
   }
   return LPN_ALPHABET[sum] as string;
 }
 
-/** Fixed-width base-31, most significant character first. */
-export function encodeBase31(value: number, width: number): string {
+/**
+ * Fixed-width base-31, most significant character first, or `null` when the value
+ * does not fit the width or is not a non-negative safe integer. A silent
+ * truncation here would issue two different pallets the same LPN.
+ */
+export function encodeBase31(value: number, width: number): string | null {
+  if (!isSafeInt(value) || value < 0) return null;
+  if (!isSafeInt(width) || width < 1 || width > LPN_TIME_LENGTH) return null;
+  if (value > 31 ** width - 1) return null;
   let remaining = value;
   const characters: string[] = [];
   for (let position = 0; position < width; position += 1) {
@@ -332,20 +411,28 @@ export function encodeBase31(value: number, width: number): string {
   return characters.reverse().join("");
 }
 
-/** Inverse of `encodeBase31`. Returns 0 for an empty string. */
-export function decodeBase31(encoded: string): number {
+/**
+ * Inverse of `encodeBase31`, or `null` for a string carrying a character outside
+ * the alphabet. It used to read an unknown character as zero, which turned a
+ * corrupt time component into a plausible issue date.
+ */
+export function decodeBase31(encoded: string): number | null {
+  if (!isString(encoded) || encoded.length === 0) return null;
   let value = 0;
   for (const character of encoded) {
-    value = value * 31 + (ALPHABET_VALUES.get(character) ?? 0);
+    const digit = ALPHABET_VALUES.get(character);
+    if (digit === undefined) return null;
+    value = value * 31 + digit;
   }
-  return value;
+  return isSafeInt(value) ? value : null;
 }
 
 /**
  * A uniform integer in `[0, bound)` from injected bytes, by rejection sampling:
  * values in the incomplete final block are discarded rather than folded, so the
  * distribution has no modulo bias. Eight rejections in a row means the source is
- * not behaving, and that fails closed instead of looping.
+ * not behaving, and that fails closed instead of looping. A source that throws is
+ * the same outcome as one that returns nothing usable.
  */
 function uniformBelow(
   entropy: EntropySource,
@@ -360,13 +447,21 @@ function uniformBelow(
   const limit = range - (range % bound);
   const maxAttempts = 8;
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-    const bytes = entropy(byteLength);
+    let bytes: Uint8Array;
+    try {
+      bytes = entropy(byteLength);
+    } catch {
+      return fail({ code: "ENTROPY_UNAVAILABLE", requested: byteLength });
+    }
+    if (!isRecord(bytes) || !isSafeInt(bytes.length)) {
+      return fail({ code: "ENTROPY_UNAVAILABLE", requested: byteLength });
+    }
     if (bytes.length !== byteLength) {
       return fail({ code: "ENTROPY_UNAVAILABLE", requested: byteLength });
     }
     let value = 0;
     for (const byte of bytes) {
-      if (!Number.isInteger(byte) || byte < 0 || byte > 255) {
+      if (!isSafeInt(byte) || byte < 0 || byte > 255) {
         return fail({ code: "ENTROPY_UNAVAILABLE", requested: byteLength });
       }
       value = value * 256 + byte;
@@ -384,4 +479,8 @@ const isAlphabetOnly = (value: string): boolean => {
 };
 
 const isDigit = (character: string): boolean =>
-  character >= "0" && character <= "9";
+  isString(character) && character >= "0" && character <= "9";
+
+/** The shape of a value that is not an LPN or a namespace, for the error field. */
+const describe = (value: unknown): string =>
+  value === null ? "null" : typeof value;

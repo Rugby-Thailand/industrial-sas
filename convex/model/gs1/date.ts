@@ -23,6 +23,7 @@
  *
  * Pure module (plan §6.2): no Convex imports.
  */
+import { isRecord, isSafeInt, isString } from "../guards";
 import { fail, ok, type Result } from "../result";
 import {
   endOfMonth,
@@ -67,13 +68,20 @@ export function parseGs1Date(
   raw: string,
   options: { readonly referenceYear: number },
 ): Result<Gs1Date, Gs1DateError> {
+  if (!isRecord(options) || !isSafeInt(options.referenceYear)) {
+    return fail({
+      code: "REFERENCE_YEAR_OUT_OF_RANGE",
+      referenceYear: isRecord(options)
+        ? numberOrNaN(options.referenceYear)
+        : Number.NaN,
+    });
+  }
   const { referenceYear } = options;
-  if (
-    !Number.isInteger(referenceYear) ||
-    referenceYear < MIN_BUSINESS_YEAR ||
-    referenceYear > MAX_BUSINESS_YEAR
-  ) {
+  if (referenceYear < MIN_BUSINESS_YEAR || referenceYear > MAX_BUSINESS_YEAR) {
     return fail({ code: "REFERENCE_YEAR_OUT_OF_RANGE", referenceYear });
+  }
+  if (!isString(raw)) {
+    return fail({ code: "MALFORMED_DATE", raw: describe(raw) });
   }
   const match = /^(\d{2})(\d{2})(\d{2})$/.exec(raw);
   if (match === null) return fail({ code: "MALFORMED_DATE", raw });
@@ -123,27 +131,89 @@ export function parseGs1Date(
  * Resolves a parsed GS1 date to a business date under an explicit policy. A
  * `DAY`-precision date ignores the policy; a `MONTH`-precision one is rejected
  * unless the caller has said which end of the month it means.
+ *
+ * The date is re-validated first. `Gs1Date` is an interface, so
+ * `{ precision: "DAY", day: null } as Gs1Date` compiles: without the check, that
+ * value would fall through to the month-precision branch and resolve to the first
+ * or last day of a month the label never named.
  */
 export function gs1DateToBusinessDate(
   date: Gs1Date,
   options: { readonly monthPrecision: MonthPrecisionPolicy },
 ): Result<BusinessDate, Gs1DateError> {
-  if (date.precision === "DAY" && date.day !== null) {
-    const resolved = makeBusinessDate(date.year, date.month, date.day);
+  const validated = validateGs1Date(date);
+  if (!validated.ok) return validated;
+  const value = validated.value;
+  if (!isRecord(options)) {
+    return fail({ code: "MONTH_PRECISION_REJECTED", raw: value.yymmdd });
+  }
+  if (value.precision === "DAY" && value.day !== null) {
+    const resolved = makeBusinessDate(value.year, value.month, value.day);
     return resolved.ok
       ? resolved
       : fail({ code: "OUT_OF_RANGE", error: resolved.error });
   }
-  if (options.monthPrecision === "REJECT") {
-    return fail({ code: "MONTH_PRECISION_REJECTED", raw: date.yymmdd });
+  if (options.monthPrecision === "FIRST_DAY_OF_MONTH") {
+    const resolved = makeBusinessDate(value.year, value.month, 1);
+    return resolved.ok
+      ? resolved
+      : fail({ code: "OUT_OF_RANGE", error: resolved.error });
   }
-  const resolved =
-    options.monthPrecision === "FIRST_DAY_OF_MONTH"
-      ? makeBusinessDate(date.year, date.month, 1)
-      : endOfMonth(date.year, date.month);
-  return resolved.ok
-    ? resolved
-    : fail({ code: "OUT_OF_RANGE", error: resolved.error });
+  if (options.monthPrecision === "LAST_DAY_OF_MONTH") {
+    const resolved = endOfMonth(value.year, value.month);
+    return resolved.ok
+      ? resolved
+      : fail({ code: "OUT_OF_RANGE", error: resolved.error });
+  }
+  // `REJECT`, and anything a cast put in its place: a policy this module does not
+  // recognise must not silently become one that invents a day.
+  return fail({ code: "MONTH_PRECISION_REJECTED", raw: value.yymmdd });
+}
+
+/**
+ * Re-checks a value that claims to be a parsed GS1 date, including that its
+ * `yymmdd` still agrees with its fields. A date whose digits and fields disagree
+ * is not a parse of anything.
+ */
+export function validateGs1Date(date: Gs1Date): Result<Gs1Date, Gs1DateError> {
+  if (!isRecord(date) || !isString(date.yymmdd)) {
+    return fail({ code: "MALFORMED_DATE", raw: describe(date) });
+  }
+  const { yymmdd, precision, year, month, day } = date;
+  if (
+    !isSafeInt(year) ||
+    !isSafeInt(month) ||
+    (precision !== "DAY" && precision !== "MONTH") ||
+    (precision === "MONTH" ? day !== null : !isSafeInt(day))
+  ) {
+    return fail({ code: "MALFORMED_DATE", raw: yymmdd });
+  }
+  if (year < 0 || month < 1 || month > 12) {
+    return fail({ code: "NOT_A_CALENDAR_DATE", raw: yymmdd });
+  }
+  const expected = `${pad2(year % 100)}${pad2(month)}${pad2(precision === "MONTH" ? 0 : (day as number))}`;
+  if (yymmdd !== expected) {
+    return fail({ code: "MALFORMED_DATE", raw: yymmdd });
+  }
+  const calendar = makeBusinessDate(
+    year,
+    month,
+    precision === "MONTH" ? 1 : (day as number),
+  );
+  if (!calendar.ok) {
+    return calendar.error.code === "YEAR_OUT_OF_RANGE"
+      ? fail({ code: "OUT_OF_RANGE", error: calendar.error })
+      : fail({ code: "NOT_A_CALENDAR_DATE", raw: yymmdd });
+  }
+  return ok(
+    Object.freeze({
+      yymmdd,
+      precision,
+      year,
+      month,
+      day: precision === "MONTH" ? null : (day as number),
+    }),
+  );
 }
 
 /**
@@ -163,3 +233,14 @@ function resolveCentury(twoDigitYear: number, referenceYear: number): number {
   if (difference <= -50) return century + 100 + twoDigitYear;
   return century + twoDigitYear;
 }
+
+/** Two digits, zero-padded. No `Intl`, and no `Date` to ask for a format. */
+const pad2 = (value: number): string => String(value).padStart(2, "0");
+
+/** A number for an error field, so a forged operand still reports something. */
+const numberOrNaN = (value: unknown): number =>
+  typeof value === "number" ? value : Number.NaN;
+
+/** The shape of a value that is not a GS1 date, for the error field. */
+const describe = (value: unknown): string =>
+  value === null ? "null" : typeof value;

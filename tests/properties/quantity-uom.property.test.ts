@@ -34,7 +34,6 @@ import {
 } from "../../convex/model/uom/quantity";
 import {
   composeRatios,
-  greatestCommonDivisor,
   invertRatio,
   makeRatio,
   MAX_RATIO_COMPONENT,
@@ -65,6 +64,18 @@ const minorUnits = fc.integer({
   max: MAX_QUANTITY_MINOR_UNITS,
 });
 
+/**
+ * A gcd written for the test rather than imported from the module under test: an
+ * oracle that shares the implementation proves nothing, and `ratio.ts` no longer
+ * exports one — a public gcd loops forever on a non-finite operand.
+ */
+const gcd = (left: number, right: number): number => {
+  let a = Math.abs(left);
+  let b = Math.abs(right);
+  while (b !== 0) [a, b] = [b, a % b];
+  return a;
+};
+
 describe("ratio reduction", () => {
   it("is canonical: equal values reduce to identical components", () => {
     fc.assert(
@@ -87,9 +98,7 @@ describe("ratio reduction", () => {
   it("always produces coprime components", () => {
     fc.assert(
       fc.property(ratio, (value) => {
-        expect(greatestCommonDivisor(value.numerator, value.denominator)).toBe(
-          1,
-        );
+        expect(gcd(value.numerator, value.denominator)).toBe(1);
       }),
     );
   });
@@ -168,10 +177,13 @@ describe("exact scaling", () => {
         smallRatio,
         fc.integer({ min: -1_000_000, max: 1_000_000 }),
         (value, multiple) => {
-          const scaled = scaleInteger(multiple * value.denominator, value);
+          const scaled = expectOk(
+            scaleInteger(multiple * value.denominator, value),
+          );
           expect(scaled).toEqual({
             kind: "EXACT",
-            value: multiple * value.numerator,
+            value:
+              multiple * value.numerator === 0 ? 0 : multiple * value.numerator,
           });
         },
       ),
@@ -185,10 +197,15 @@ describe("exact scaling", () => {
         fc.integer({ min: -1_000_000, max: 1_000_000 }),
         (value, multiple) => {
           const original = multiple * value.denominator;
-          const scaled = scaleInteger(original, value);
+          const scaled = expectOk(scaleInteger(original, value));
           if (scaled.kind !== "EXACT") return;
-          const back = scaleInteger(scaled.value, expectOk(invertRatio(value)));
-          expect(back).toEqual({ kind: "EXACT", value: original });
+          const back = expectOk(
+            scaleInteger(scaled.value, expectOk(invertRatio(value))),
+          );
+          expect(back).toEqual({
+            kind: "EXACT",
+            value: original === 0 ? 0 : original,
+          });
         },
       ),
     );
@@ -200,7 +217,7 @@ describe("exact scaling", () => {
         smallRatio,
         fc.integer({ min: -100_000, max: 100_000 }),
         (value, input) => {
-          const scaled = scaleInteger(input, value);
+          const scaled = expectOk(scaleInteger(input, value));
           if (scaled.kind !== "INEXACT") return;
           // p/q === input × n/d, checked by cross-multiplication so the assertion
           // itself never divides.
@@ -208,12 +225,7 @@ describe("exact scaling", () => {
             input * value.numerator * scaled.exact.denominator,
           );
           expect(scaled.exact.denominator).toBeGreaterThan(1);
-          expect(
-            greatestCommonDivisor(
-              scaled.exact.numerator,
-              scaled.exact.denominator,
-            ),
-          ).toBe(1);
+          expect(gcd(scaled.exact.numerator, scaled.exact.denominator)).toBe(1);
         },
       ),
     );
@@ -228,7 +240,7 @@ describe("exact scaling", () => {
         }),
         ratio,
         (input, value) => {
-          const scaled = scaleInteger(input, value);
+          const scaled = expectOk(scaleInteger(input, value));
           if (scaled.kind === "EXACT") {
             expect(Number.isSafeInteger(scaled.value)).toBe(true);
           }
@@ -278,7 +290,7 @@ describe("quantity arithmetic", () => {
     fc.assert(
       fc.property(minorUnits, (value) => {
         const quantity = expectOk(makeQuantity(value, "KG"));
-        const formatted = formatQuantity(quantity);
+        const formatted = expectOk(formatQuantity(quantity));
         expect(parseDecimalQuantity(formatted, "KG")).toEqual({
           ok: true,
           value: quantity,

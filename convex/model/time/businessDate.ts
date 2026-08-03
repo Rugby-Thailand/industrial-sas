@@ -27,8 +27,27 @@
  * cannot be added by writing an offset — it needs a real rule set, which is why
  * the registry is closed and `zoneById` fails on anything else.
  *
+ * **Nothing here trusts the shape of its argument.** `BusinessDate` and
+ * `FixedOffsetZone` are interfaces, so `{ year: 2026, month: 13, day: 40 } as
+ * BusinessDate` and `{ id: "Asia/Bangkok", utcOffsetMinutes: 1e20 } as
+ * FixedOffsetZone` both compile, and a date read back from a document is exactly
+ * that kind of value. Every function below re-validates and returns a `Result`,
+ * and a zone is only accepted when the closed registry holds that id *with that
+ * offset* — a forged offset is `UNSUPPORTED_TIME_ZONE`, not arithmetic. That is
+ * why `compareBusinessDates`, `businessDateToIso`, `daysBetween`, and
+ * `startOfDayInstant` answer a `Result` rather than a bare value: an unvalidated
+ * date would otherwise sort by `NaN` or render as `NaN-NaN-NaN`.
+ *
  * Pure module (plan §6.2): no Convex imports.
  */
+import {
+  frozenRecord,
+  isRecord,
+  isSafeInt,
+  isString,
+  recordKeys,
+  recordValue,
+} from "../guards";
 import { fail, ok, type Result } from "../result";
 
 /* -------------------------------------------------------------------------- */
@@ -88,13 +107,22 @@ export const UTC: FixedOffsetZone = Object.freeze({
   utcOffsetMinutes: 0,
 });
 
-/** The closed registry. Adding a DST zone requires more than a table row. */
-export const FIXED_OFFSET_ZONES: ReadonlyMap<string, FixedOffsetZone> = new Map(
-  [
+/**
+ * The closed registry. Adding a DST zone requires more than a table row.
+ *
+ * A frozen, null-prototype record rather than a `ReadonlyMap`: a `Map` typed
+ * `ReadonlyMap` is still a `Map`, so one cast would have let any module register
+ * a zone — or replace `Asia/Bangkok` — for the whole process.
+ */
+export const FIXED_OFFSET_ZONES: Readonly<Record<string, FixedOffsetZone>> =
+  frozenRecord([
     [ASIA_BANGKOK.id, ASIA_BANGKOK],
     [UTC.id, UTC],
-  ],
-);
+  ]);
+
+/** Every supported zone id, sorted. The registry's only enumeration. */
+export const supportedTimeZoneIds = (): readonly string[] =>
+  recordKeys(FIXED_OFFSET_ZONES);
 
 export type BusinessDateError =
   | { readonly code: "MALFORMED_ISO_DATE"; readonly raw: string }
@@ -135,12 +163,13 @@ export function makeBusinessDate(
   month: number,
   day: number,
 ): Result<BusinessDate, BusinessDateError> {
-  if (
-    !Number.isInteger(year) ||
-    !Number.isInteger(month) ||
-    !Number.isInteger(day)
-  ) {
-    return fail({ code: "NOT_A_CALENDAR_DATE", year, month, day });
+  if (!isSafeInt(year) || !isSafeInt(month) || !isSafeInt(day)) {
+    return fail({
+      code: "NOT_A_CALENDAR_DATE",
+      year: numberOrNaN(year),
+      month: numberOrNaN(month),
+      day: numberOrNaN(day),
+    });
   }
   if (year < MIN_BUSINESS_YEAR || year > MAX_BUSINESS_YEAR) {
     return fail({
@@ -157,6 +186,49 @@ export function makeBusinessDate(
 }
 
 /**
+ * Re-checks a value that claims to be a `BusinessDate` and answers a frozen one.
+ *
+ * The gate every operation below goes through. A forged date is not exotic: it is
+ * what a document field, a request body, or a cast produces, and an impossible
+ * one must fail as an error rather than order a pick list by `NaN`.
+ */
+export function validateBusinessDate(
+  date: BusinessDate,
+): Result<BusinessDate, BusinessDateError> {
+  if (!isRecord(date)) {
+    return fail({
+      code: "NOT_A_CALENDAR_DATE",
+      year: Number.NaN,
+      month: Number.NaN,
+      day: Number.NaN,
+    });
+  }
+  return makeBusinessDate(date.year, date.month, date.day);
+}
+
+/**
+ * Re-checks a value that claims to be a zone against the closed registry: the id
+ * must be registered *and* carry the offset the registry declares. A forged
+ * offset on a real id is `UNSUPPORTED_TIME_ZONE`, because an offset this module
+ * did not choose is not a zone it can do exact arithmetic for.
+ */
+export function validateTimeZone(
+  zone: FixedOffsetZone,
+): Result<FixedOffsetZone, BusinessDateError> {
+  if (!isRecord(zone) || !isString(zone.id)) {
+    return fail({ code: "UNSUPPORTED_TIME_ZONE", id: describe(zone) });
+  }
+  const registered = recordValue(FIXED_OFFSET_ZONES, zone.id);
+  if (
+    registered === null ||
+    registered.utcOffsetMinutes !== zone.utcOffsetMinutes
+  ) {
+    return fail({ code: "UNSUPPORTED_TIME_ZONE", id: zone.id });
+  }
+  return ok(registered);
+}
+
+/**
  * Parses exactly `YYYY-MM-DD`. Deliberately strict: `2026-8-3`, `20260803`,
  * ` 2026-08-03`, and `2026-08-03T00:00:00Z` are all rejected, because a lenient
  * date parser is how a day silently shifts.
@@ -164,14 +236,21 @@ export function makeBusinessDate(
 export function parseBusinessDate(
   raw: string,
 ): Result<BusinessDate, BusinessDateError> {
+  if (!isString(raw)) {
+    return fail({ code: "MALFORMED_ISO_DATE", raw: describe(raw) });
+  }
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
   if (match === null) return fail({ code: "MALFORMED_ISO_DATE", raw });
   return makeBusinessDate(Number(match[1]), Number(match[2]), Number(match[3]));
 }
 
 /** `YYYY-MM-DD`. The only storage and index form (D-05). */
-export const businessDateToIso = (date: BusinessDate): string =>
-  `${pad(date.year, 4)}-${pad(date.month, 2)}-${pad(date.day, 2)}`;
+export const businessDateToIso = (
+  date: BusinessDate,
+): Result<string, BusinessDateError> => {
+  const validated = validateBusinessDate(date);
+  return validated.ok ? ok(isoOf(validated.value)) : validated;
+};
 
 /**
  * The business date an instant falls on, in the given zone. This is the only
@@ -182,10 +261,15 @@ export function businessDateFromInstant(
   epochMs: number,
   zone: FixedOffsetZone,
 ): Result<BusinessDate, BusinessDateError> {
-  if (!Number.isSafeInteger(epochMs)) {
-    return fail({ code: "INSTANT_NOT_AN_INTEGER", epochMs });
+  const validatedZone = validateTimeZone(zone);
+  if (!validatedZone.ok) return validatedZone;
+  if (!isSafeInt(epochMs)) {
+    return fail({
+      code: "INSTANT_NOT_AN_INTEGER",
+      epochMs: numberOrNaN(epochMs),
+    });
   }
-  const localMs = epochMs + zone.utcOffsetMinutes * 60_000;
+  const localMs = epochMs + validatedZone.value.utcOffsetMinutes * 60_000;
   const dayNumber = Math.floor(localMs / MS_PER_DAY);
   if (dayNumber < MIN_DAY_NUMBER || dayNumber > MAX_DAY_NUMBER) {
     return fail({ code: "INSTANT_OUT_OF_RANGE", epochMs });
@@ -202,18 +286,31 @@ export function businessDateFromInstant(
 export const startOfDayInstant = (
   date: BusinessDate,
   zone: FixedOffsetZone,
-): number =>
-  daysFromCivil(date.year, date.month, date.day) * MS_PER_DAY -
-  zone.utcOffsetMinutes * 60_000;
+): Result<number, BusinessDateError> => {
+  const validated = validateBusinessDate(date);
+  if (!validated.ok) return validated;
+  const validatedZone = validateTimeZone(zone);
+  if (!validatedZone.ok) return validatedZone;
+  return ok(
+    daysFromCivil(
+      validated.value.year,
+      validated.value.month,
+      validated.value.day,
+    ) *
+      MS_PER_DAY -
+      validatedZone.value.utcOffsetMinutes * 60_000,
+  );
+};
 
 /** Looks a zone up by id. Fails closed rather than defaulting to UTC. */
 export function zoneById(
   id: string,
 ): Result<FixedOffsetZone, BusinessDateError> {
-  const zone = FIXED_OFFSET_ZONES.get(id);
-  return zone === undefined
-    ? fail({ code: "UNSUPPORTED_TIME_ZONE", id })
-    : ok(zone);
+  if (!isString(id)) {
+    return fail({ code: "UNSUPPORTED_TIME_ZONE", id: describe(id) });
+  }
+  const zone = recordValue(FIXED_OFFSET_ZONES, id);
+  return zone === null ? fail({ code: "UNSUPPORTED_TIME_ZONE", id }) : ok(zone);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -221,30 +318,50 @@ export function zoneById(
 /* -------------------------------------------------------------------------- */
 
 /**
- * -1, 0, or 1. Compares the calendar fields directly: no `Date`, no string
- * collation, no locale — `localeCompare` would order `"2026-08-03"` by the
- * host's collation table, which is not a promise any locale keeps.
+ * -1, 0, or 1, or a named error for an operand that is not a calendar day.
+ * Compares the calendar fields directly: no `Date`, no string collation, no
+ * locale — `localeCompare` would order `"2026-08-03"` by the host's collation
+ * table, which is not a promise any locale keeps.
  */
-export function compareBusinessDates(a: BusinessDate, b: BusinessDate): number {
-  if (a.year !== b.year) return a.year < b.year ? -1 : 1;
-  if (a.month !== b.month) return a.month < b.month ? -1 : 1;
-  if (a.day !== b.day) return a.day < b.day ? -1 : 1;
-  return 0;
+export function compareBusinessDates(
+  a: BusinessDate,
+  b: BusinessDate,
+): Result<number, BusinessDateError> {
+  const left = validateBusinessDate(a);
+  if (!left.ok) return left;
+  const right = validateBusinessDate(b);
+  if (!right.ok) return right;
+  return ok(compareValidBusinessDates(left.value, right.value));
 }
 
 /** Structural equality; `BusinessDate` has no identity beyond its fields. */
-export const businessDatesEqual = (a: BusinessDate, b: BusinessDate): boolean =>
-  compareBusinessDates(a, b) === 0;
+export const businessDatesEqual = (
+  a: BusinessDate,
+  b: BusinessDate,
+): Result<boolean, BusinessDateError> => {
+  const compared = compareBusinessDates(a, b);
+  return compared.ok ? ok(compared.value === 0) : compared;
+};
 
 /** Shifts by whole days. Rejects a shift out of the representable range. */
 export function addDays(
   date: BusinessDate,
   days: number,
 ): Result<BusinessDate, BusinessDateError> {
-  if (!Number.isSafeInteger(days)) {
-    return fail({ code: "INSTANT_NOT_AN_INTEGER", epochMs: days });
+  const validated = validateBusinessDate(date);
+  if (!validated.ok) return validated;
+  if (!isSafeInt(days)) {
+    return fail({
+      code: "INSTANT_NOT_AN_INTEGER",
+      epochMs: numberOrNaN(days),
+    });
   }
-  const dayNumber = daysFromCivil(date.year, date.month, date.day) + days;
+  const dayNumber =
+    daysFromCivil(
+      validated.value.year,
+      validated.value.month,
+      validated.value.day,
+    ) + days;
   if (dayNumber < MIN_DAY_NUMBER || dayNumber > MAX_DAY_NUMBER) {
     return fail({ code: "INSTANT_OUT_OF_RANGE", epochMs: days });
   }
@@ -253,9 +370,19 @@ export function addDays(
 }
 
 /** Signed whole days from `from` to `to`. Exact for every representable pair. */
-export const daysBetween = (from: BusinessDate, to: BusinessDate): number =>
-  daysFromCivil(to.year, to.month, to.day) -
-  daysFromCivil(from.year, from.month, from.day);
+export const daysBetween = (
+  from: BusinessDate,
+  to: BusinessDate,
+): Result<number, BusinessDateError> => {
+  const start = validateBusinessDate(from);
+  if (!start.ok) return start;
+  const end = validateBusinessDate(to);
+  if (!end.ok) return end;
+  return ok(
+    daysFromCivil(end.value.year, end.value.month, end.value.day) -
+      daysFromCivil(start.value.year, start.value.month, start.value.day),
+  );
+};
 
 /**
  * The last day of a month. Needed because GS1 dates may carry `00` as the day
@@ -283,14 +410,44 @@ export type DisplayCalendar = "GREGORIAN" | "BUDDHIST";
 export const formatBusinessDate = (
   date: BusinessDate,
   calendar: DisplayCalendar = "GREGORIAN",
-): string =>
-  calendar === "GREGORIAN"
-    ? businessDateToIso(date)
-    : `${pad(date.year + BUDDHIST_ERA_YEAR_OFFSET, 4)}-${pad(date.month, 2)}-${pad(date.day, 2)}`;
+): Result<string, BusinessDateError> => {
+  const validated = validateBusinessDate(date);
+  if (!validated.ok) return validated;
+  const { year, month, day } = validated.value;
+  return ok(
+    calendar === "GREGORIAN"
+      ? isoOf(validated.value)
+      : `${pad(year + BUDDHIST_ERA_YEAR_OFFSET, 4)}-${pad(month, 2)}-${pad(day, 2)}`,
+  );
+};
 
 /* -------------------------------------------------------------------------- */
 /* Calendar arithmetic                                                         */
 /* -------------------------------------------------------------------------- */
+
+/** `YYYY-MM-DD` for a date this module has already validated. */
+const isoOf = (date: BusinessDate): string =>
+  `${pad(date.year, 4)}-${pad(date.month, 2)}-${pad(date.day, 2)}`;
+
+/**
+ * Field order on two dates this module has already validated. Private on
+ * purpose: an exported comparator that skips validation is exactly the hole
+ * `compareBusinessDates` closes, and a caller outside this file cannot have
+ * established the precondition.
+ *
+ * Callers that need to order many dates cheaply compare their ISO forms instead:
+ * `YYYY-MM-DD` sorts chronologically by code unit for every representable year,
+ * and `businessDateToIso` validates on the way in.
+ */
+const compareValidBusinessDates = (
+  a: BusinessDate,
+  b: BusinessDate,
+): number => {
+  if (a.year !== b.year) return a.year < b.year ? -1 : 1;
+  if (a.month !== b.month) return a.month < b.month ? -1 : 1;
+  if (a.day !== b.day) return a.day < b.day ? -1 : 1;
+  return 0;
+};
 
 /**
  * Days since 1970-01-01 for a proleptic Gregorian date, and its inverse below.
@@ -340,3 +497,11 @@ function civilFromDays(dayNumber: number): {
 /** Zero-pads a non-negative integer. No `Intl`: grouping is locale-dependent. */
 const pad = (value: number, width: number): string =>
   String(value).padStart(width, "0");
+
+/** A number for an error field, so a forged operand still reports something. */
+const numberOrNaN = (value: unknown): number =>
+  typeof value === "number" ? value : Number.NaN;
+
+/** The shape of a value that is not a date or a zone, for the error field. */
+const describe = (value: unknown): string =>
+  value === null ? "null" : typeof value;

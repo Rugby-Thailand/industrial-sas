@@ -28,6 +28,7 @@ import {
 import { gs1DateToBusinessDate } from "../../convex/model/gs1/date";
 import {
   generateInternalLpn,
+  lpnFromSscc,
   makeLpnNamespace,
   parseInternalLpn,
   type EntropySource,
@@ -47,6 +48,7 @@ import {
   businessDateFromInstant,
   businessDateToIso,
   formatBusinessDate,
+  parseBusinessDate,
   type BusinessDate,
 } from "../../convex/model/time/businessDate";
 import {
@@ -196,6 +198,13 @@ function captureLine(input: {
       failure: { step: "QUANTITY", reason: itemQuantity.error.code },
     };
   }
+  const baseQuantity = formatQuantity(itemQuantity.value.quantity);
+  if (!baseQuantity.ok) {
+    return {
+      ok: false,
+      failure: { step: "QUANTITY", reason: baseQuantity.error.code },
+    };
+  }
 
   let lotCode: string | null = null;
   if (scan.lot !== null) {
@@ -237,7 +246,7 @@ function captureLine(input: {
     ok: true,
     line: {
       itemKey: itemQuantity.value.itemKey,
-      baseQuantity: formatQuantity(itemQuantity.value.quantity),
+      baseQuantity: baseQuantity.value,
       lotCode,
       expiresOn: expiresOn === null ? null : expiresOn.value,
       receivedOn: receivedOn.value,
@@ -272,10 +281,12 @@ describe("scan, resolve, convert, date", () => {
       // 17:30 UTC is already the next day in Bangkok (D-05).
       receivedOn: { year: 2026, month: 8, day: 4 },
     });
-    expect(businessDateToIso(result.line.receivedOn)).toBe("2026-08-04");
-    expect(formatBusinessDate(result.line.receivedOn, "BUDDHIST")).toBe(
-      "2569-08-04",
+    expect(expectOk(businessDateToIso(result.line.receivedOn))).toBe(
+      "2026-08-04",
     );
+    expect(
+      expectOk(formatBusinessDate(result.line.receivedOn, "BUDDHIST")),
+    ).toBe("2569-08-04");
   });
 
   it("resolves a month-precision expiry to the last day of that month", () => {
@@ -519,6 +530,110 @@ describe("rotation over what was received", () => {
       "LOT-C3",
     ]);
     expect(order.excluded).toEqual([]);
+  });
+
+  it("keeps expired stock out under every rotation source", () => {
+    // §5 Q23 lets an item class rotate by manufacture or best-before date. That
+    // chooses the *order*; it must not change which stock has expired. Reading
+    // expiry off the configured rotation date made `LOT-B2` — expired the day
+    // before this receipt — available for work as soon as the tenant rotated by
+    // anything other than expiry.
+    const withManufactureDates = lots.map((lot) => ({
+      ...lot,
+      manufactureDate: asOf,
+      bestBeforeDate: asOf,
+    }));
+    for (const rotationDateSource of [
+      "EXPIRATION",
+      "BEST_BEFORE",
+      "MANUFACTURE",
+    ] as const) {
+      const order = expectOk(
+        orderForRotation(
+          withManufactureDates,
+          { ...fefo, rotationDateSource },
+          { asOf },
+        ),
+      );
+      expect(
+        order.ordered.map((ranking) => ranking.candidate.lotCode),
+      ).not.toContain("LOT-B2");
+      expect(
+        order.excluded.map(({ candidate, reason }) => [
+          candidate.lotCode,
+          reason,
+        ]),
+      ).toEqual([["LOT-B2", "EXPIRED"]]);
+    }
+  });
+
+  it("does not treat an old manufacture date as an expiry", () => {
+    // The mirror image: a lot made years ago with a valid expiry is old, not
+    // expired, and a manufacture-date rotation must still offer it first.
+    const oldButGood = {
+      ...(lots[1] as StockRotationCandidate),
+      candidateKey: "bucket-lot-old",
+      lotCode: "LOT-OLD",
+      manufactureDate: expectOk(parseBusinessDate("2020-01-01")),
+      expirationDate: expectOk(parseBusinessDate("2027-12-31")),
+    };
+    const fresh = {
+      ...(lots[0] as StockRotationCandidate),
+      candidateKey: "bucket-lot-fresh",
+      lotCode: "LOT-FRESH",
+      manufactureDate: asOf,
+      expirationDate: expectOk(parseBusinessDate("2027-06-30")),
+    };
+    const order = expectOk(
+      orderForRotation(
+        [fresh, oldButGood],
+        { ...fefo, rotationDateSource: "MANUFACTURE" },
+        { asOf },
+      ),
+    );
+    expect(order.ordered.map((ranking) => ranking.candidate.lotCode)).toEqual([
+      "LOT-OLD",
+      "LOT-FRESH",
+    ]);
+    expect(order.ordered.map((ranking) => ranking.expired)).toEqual([
+      false,
+      false,
+    ]);
+    expect(order.excluded).toEqual([]);
+  });
+});
+
+describe("a bare pallet label is never reinterpreted", () => {
+  it("refuses a valid bare SSCC while the tenant has not enabled them", () => {
+    // `10` + 16 digits is both a valid AI 10 element string and, for this digit
+    // string, a valid SSCC. The capture path used to read it as a lot code, which
+    // would have posted stock against a lot nobody printed.
+    const bareSscc = "106141411234567897";
+    expect(expectOk(lpnFromSscc(bareSscc)).value).toBe(bareSscc);
+    const rejection = expectError(resolveScan(bareSscc, scanPolicy));
+    expect(rejection.code).toBe("BARE_SSCC_DISABLED");
+
+    const enabled = expectError(
+      resolveScan(bareSscc, { ...scanPolicy, bareSscc: true }),
+    );
+    // Enabling bare SSCCs does not resolve this one either: both readings then
+    // exist, so it is ambiguous. Either way it is a named refusal.
+    expect(enabled.code).toBe("AMBIGUOUS_SCAN");
+    if (enabled.code !== "AMBIGUOUS_SCAN") return;
+    expect(enabled.candidates).toEqual(["GS1", "SSCC"]);
+  });
+
+  it("refuses an internal LPN when no namespace policy says whose it is", () => {
+    const ourLpn = expectOk(
+      generateInternalLpn({ namespace, nowMs: receiptInstant, entropy }),
+    );
+    const rejection = expectError(
+      resolveScan(ourLpn.value, { referenceYear: 2026 }),
+    );
+    expect(rejection.code).toBe("LPN_NAMESPACE_POLICY_MISSING");
+    expect(
+      expectOk(resolveScan(ourLpn.value, scanPolicy)).interpretation.kind,
+    ).toBe("INTERNAL_LPN");
   });
 });
 

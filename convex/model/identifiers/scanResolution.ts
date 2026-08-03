@@ -11,7 +11,7 @@
  * an 18-digit SSCC begins with digits that are also a valid Application
  * Identifier, and a numeric item code can begin with `01`. A first-match ladder
  * would resolve those to whichever rung it happened to reach first, which is the
- * best-effort guessing the ADR rejects. So four rules sit on top of the order:
+ * best-effort guessing the ADR rejects. So these rules sit on top of the order:
  *
  * 1. **A scan that can only be GS1 is decided by the GS1 parser alone.** If a
  *    symbology identifier or an FNC1 separator is present, the string is a GS1
@@ -23,23 +23,47 @@
  *    field or an unknown AI means "this is probably not GS1", and the remaining
  *    rungs are tried. Without the distinction, a mis-scanned GTIN would silently
  *    become a SKU lookup.
- * 3. **A valid LPN that belongs to another prefix is rejected as foreign.** It is
+ * 3. **An internal LPN needs a namespace policy to be classified at all.** A
+ *    well-formed internal LPN is somebody's pallet. Without the current tenant's
+ *    registered prefixes there is no way to say whose, so an absent or empty
+ *    `namespaces` is `LPN_NAMESPACE_POLICY_MISSING` rather than an acceptance of
+ *    any label that happens to satisfy the check character.
+ * 4. **A valid LPN that belongs to another prefix is rejected as foreign.** It is
  *    definitely a licence plate; it is definitely not this organization's. Reading
  *    it as a SKU would be the guess again.
- * 4. **A bare scan that satisfies two rungs is rejected as ambiguous**, naming the
+ * 5. **A scan shaped like one of this tenant's LPNs but carrying a bad check
+ *    character is `INVALID_LPN_SCAN`.** It matches a registered prefix and the
+ *    exact internal length; it is a mis-keyed or damaged pallet label, and the
+ *    rungs below must not be offered it — falling through would turn a corrupt
+ *    LPN into a SKU lookup.
+ * 6. **A bare 18-digit SSCC is never reinterpreted.** With `bareSscc` off it is
+ *    `BARE_SSCC_DISABLED`, not a lot code, a GTIN, or a SKU: `10` + 16 digits is
+ *    both a valid AI 10 element string and, for some digit strings, a valid SSCC,
+ *    and the earlier ladder resolved exactly that case to a lot. With `bareSscc`
+ *    on it is a candidate like any other, so a second reading makes it ambiguous.
+ * 7. **A bare scan that satisfies two rungs is rejected as ambiguous**, naming the
  *    candidates. The SKU rung is excluded from that count: it is the deliberate
  *    catch-all, so counting it would make every scan ambiguous.
  *
- * A bare 18-digit SSCC is off by default (`bareSscc`), because it is ambiguous
- * with a numeric item code of the same length; a tenant that prints such labels
- * enables it knowingly.
+ * The policy itself is validated before any of it (`INVALID_SCAN_POLICY`): a
+ * reference year the GS1 date rule cannot use, a namespace that is not a
+ * registered one, or a flag that is not a boolean would each decide a
+ * classification silently.
  *
  * The raw scan travels with every result and every rejection, because
  * `INV-0005-12` requires it to be persisted next to its interpretation.
  *
  * Pure module (plan §6.2): no Convex imports.
  */
+import {
+  frozenArray,
+  isArray,
+  isBoolean,
+  isRecord,
+  isSafeInt,
+} from "../guards";
 import { fail, ok, type Result } from "../result";
+import { MAX_BUSINESS_YEAR, MIN_BUSINESS_YEAR } from "../time/businessDate";
 import {
   GROUP_SEPARATOR,
   looksLikeGs1ElementString,
@@ -51,6 +75,9 @@ import {
   looksLikeInternalLpn,
   lpnFromSscc,
   parseInternalLpn,
+  validateLpnNamespace,
+  LPN_RANDOM_LENGTH,
+  LPN_TIME_LENGTH,
   type InternalLpn,
   type LpnError,
   type LpnNamespace,
@@ -92,7 +119,16 @@ export interface ScanStageFailure {
     | IdentifierError["code"];
 }
 
+/** The policy field a rejected policy blamed. */
+export type ScanPolicyField =
+  "referenceYear" | "namespaces" | "bareSscc" | "skuFallback";
+
 export type ScanRejection =
+  | {
+      readonly code: "INVALID_SCAN_POLICY";
+      readonly raw: string;
+      readonly field: ScanPolicyField;
+    }
   | {
       readonly code: "UNREADABLE_SCAN";
       readonly raw: string;
@@ -105,11 +141,30 @@ export type ScanRejection =
       readonly error: Gs1ParseError;
     }
   | {
+      readonly code: "LPN_NAMESPACE_POLICY_MISSING";
+      readonly raw: string;
+      readonly normalized: string;
+      readonly prefix: string;
+    }
+  | {
       readonly code: "FOREIGN_LPN_NAMESPACE";
       readonly raw: string;
       readonly normalized: string;
       readonly prefix: string;
       readonly registered: readonly string[];
+    }
+  | {
+      readonly code: "INVALID_LPN_SCAN";
+      readonly raw: string;
+      readonly normalized: string;
+      readonly prefix: string;
+      readonly error: LpnError;
+    }
+  | {
+      readonly code: "BARE_SSCC_DISABLED";
+      readonly raw: string;
+      readonly normalized: string;
+      readonly sscc18: string;
     }
   | {
       readonly code: "AMBIGUOUS_SCAN";
@@ -127,7 +182,11 @@ export type ScanRejection =
 export interface ScanResolutionPolicy {
   /** Required by the GS1 date AIs; never taken from the host clock. */
   readonly referenceYear: number;
-  /** The organization's LPN namespaces. Empty accepts any well-formed LPN. */
+  /**
+   * The organization's LPN namespaces. Required to classify an internal LPN at
+   * all: absent or empty, a well-formed internal LPN is rejected with
+   * `LPN_NAMESPACE_POLICY_MISSING` rather than accepted as anybody's.
+   */
   readonly namespaces?: readonly LpnNamespace[];
   /** Accept a bare 18-digit SSCC carrying no AI. Off by default. */
   readonly bareSscc?: boolean;
@@ -151,6 +210,16 @@ export function resolveScan(
   raw: string,
   policy: ScanResolutionPolicy,
 ): Result<ResolvedScan, ScanRejection> {
+  const checkedPolicy = validatePolicy(policy);
+  if (!checkedPolicy.ok) {
+    return fail({
+      code: "INVALID_SCAN_POLICY",
+      raw: typeof raw === "string" ? raw : "",
+      field: checkedPolicy.error,
+    });
+  }
+  const rules = checkedPolicy.value;
+
   const normalizedResult = normalizeRawScan(raw);
   if (!normalizedResult.ok) {
     return fail({
@@ -161,14 +230,14 @@ export function resolveScan(
   }
   const normalized = normalizedResult.value;
   const resolved = (interpretation: ScanInterpretation) =>
-    ok<ResolvedScan>({ raw, normalized, interpretation });
+    ok<ResolvedScan>(Object.freeze({ raw, normalized, interpretation }));
 
   // Rule 1: a symbology identifier or an FNC1 leaves no other reading available.
   const onlyGs1 =
     normalized.startsWith("]") || normalized.includes(GROUP_SEPARATOR);
   if (onlyGs1) {
     const parsed = parseGs1ElementString(normalized, {
-      referenceYear: policy.referenceYear,
+      referenceYear: rules.referenceYear,
     });
     return parsed.ok
       ? resolved({ kind: "GS1", scan: parsed.value })
@@ -186,7 +255,7 @@ export function resolveScan(
 
   if (looksLikeGs1ElementString(normalized)) {
     const parsed = parseGs1ElementString(normalized, {
-      referenceYear: policy.referenceYear,
+      referenceYear: rules.referenceYear,
     });
     if (parsed.ok) {
       candidates.push({
@@ -212,22 +281,27 @@ export function resolveScan(
   if (looksLikeInternalLpn(normalized)) {
     const structural = parseInternalLpn(normalized);
     if (structural.ok) {
-      const namespaces = policy.namespaces ?? [];
-      const registered =
-        namespaces.length === 0 ||
-        namespaces.some(
-          (namespace) => namespace.prefix === structural.value.prefix,
-        );
-      // Rule 3: a valid LPN with a prefix this organization does not own is
+      const prefix = structural.value.prefix;
+      // Rule 3: with no namespace policy there is no answer to "whose pallet is
+      // this?", and a well-formed LPN must not be read as anything else.
+      if (rules.namespaces.length === 0) {
+        return fail({
+          code: "LPN_NAMESPACE_POLICY_MISSING",
+          raw,
+          normalized,
+          prefix,
+        });
+      }
+      // Rule 4: a valid LPN with a prefix this organization does not own is
       // rejected outright, not reinterpreted.
-      if (!registered) {
+      if (!rules.namespaces.some((namespace) => namespace.prefix === prefix)) {
         return fail({
           code: "FOREIGN_LPN_NAMESPACE",
           raw,
           normalized,
-          prefix: structural.value.prefix,
-          registered: Object.freeze(
-            namespaces.map((namespace) => namespace.prefix),
+          prefix,
+          registered: frozenArray(
+            rules.namespaces.map((namespace) => namespace.prefix),
           ),
         });
       }
@@ -236,24 +310,44 @@ export function resolveScan(
         interpretation: { kind: "INTERNAL_LPN", lpn: structural.value },
       });
     } else {
+      // Rule 5: shaped like one of ours and structurally wrong is a broken label
+      // of ours, not a code from a lower rung.
+      const claimed = claimedNamespacePrefix(normalized, rules.namespaces);
+      if (claimed !== null) {
+        return fail({
+          code: "INVALID_LPN_SCAN",
+          raw,
+          normalized,
+          prefix: claimed,
+          error: structural.error,
+        });
+      }
       attempts.push({ stage: "INTERNAL_LPN", reason: structural.error.code });
     }
   } else {
     attempts.push({ stage: "INTERNAL_LPN", reason: "NOT_APPLICABLE" });
   }
 
-  if (policy.bareSscc === true) {
-    const sscc = lpnFromSscc(normalized);
-    if (sscc.ok) {
-      candidates.push({
-        stage: "SSCC",
-        interpretation: { kind: "SSCC", lpn: sscc.value },
+  // Rule 6: a syntactically valid bare SSCC is never quietly something else.
+  const sscc = lpnFromSscc(normalized);
+  if (sscc.ok) {
+    if (!rules.bareSscc) {
+      return fail({
+        code: "BARE_SSCC_DISABLED",
+        raw,
+        normalized,
+        sscc18: sscc.value.value,
       });
-    } else {
-      attempts.push({ stage: "SSCC", reason: sscc.error.code });
     }
+    candidates.push({
+      stage: "SSCC",
+      interpretation: { kind: "SSCC", lpn: sscc.value },
+    });
   } else {
-    attempts.push({ stage: "SSCC", reason: "DISABLED" });
+    attempts.push({
+      stage: "SSCC",
+      reason: rules.bareSscc ? sscc.error.code : "DISABLED",
+    });
   }
 
   const gtin = normalizeGtin(normalized);
@@ -266,19 +360,19 @@ export function resolveScan(
     attempts.push({ stage: "GTIN", reason: gtin.error.code });
   }
 
-  // Rule 4: two readings of one bare scan is an ambiguity, not a preference.
+  // Rule 7: two readings of one bare scan is an ambiguity, not a preference.
   if (candidates.length > 1) {
     return fail({
       code: "AMBIGUOUS_SCAN",
       raw,
       normalized,
-      candidates: Object.freeze(candidates.map(({ stage }) => stage)),
+      candidates: frozenArray(candidates.map(({ stage }) => stage)),
     });
   }
   const only = candidates[0];
   if (only !== undefined) return resolved(only.interpretation);
 
-  if (policy.skuFallback === false) {
+  if (!rules.skuFallback) {
     attempts.push({ stage: "SKU", reason: "DISABLED" });
   } else {
     const sku = normalizeSku(normalized);
@@ -290,6 +384,78 @@ export function resolveScan(
     code: "UNRECOGNIZED_SCAN",
     raw,
     normalized,
-    attempts: Object.freeze([...attempts]),
+    attempts: frozenArray(attempts),
   });
+}
+
+/* -------------------------------------------------------------------------- */
+/* Internals                                                                   */
+/* -------------------------------------------------------------------------- */
+
+/** The policy as this module will use it, or the field that made it unusable. */
+interface ValidatedScanPolicy {
+  readonly referenceYear: number;
+  readonly namespaces: readonly LpnNamespace[];
+  readonly bareSscc: boolean;
+  readonly skuFallback: boolean;
+}
+
+function validatePolicy(
+  policy: ScanResolutionPolicy,
+): Result<ValidatedScanPolicy, ScanPolicyField> {
+  if (!isRecord(policy)) return fail("referenceYear");
+  if (
+    !isSafeInt(policy.referenceYear) ||
+    policy.referenceYear < MIN_BUSINESS_YEAR ||
+    policy.referenceYear > MAX_BUSINESS_YEAR
+  ) {
+    return fail("referenceYear");
+  }
+  if (policy.bareSscc !== undefined && !isBoolean(policy.bareSscc)) {
+    return fail("bareSscc");
+  }
+  if (policy.skuFallback !== undefined && !isBoolean(policy.skuFallback)) {
+    return fail("skuFallback");
+  }
+  const declared = policy.namespaces;
+  if (declared !== undefined && !isArray(declared)) return fail("namespaces");
+  const namespaces: LpnNamespace[] = [];
+  for (const namespace of declared ?? []) {
+    const validated = validateLpnNamespace(namespace);
+    if (!validated.ok) return fail("namespaces");
+    namespaces.push(validated.value);
+  }
+  return ok(
+    Object.freeze({
+      referenceYear: policy.referenceYear,
+      namespaces: frozenArray(namespaces),
+      bareSscc: policy.bareSscc === true,
+      skuFallback: policy.skuFallback !== false,
+    }),
+  );
+}
+
+/**
+ * The registered prefix a scan claims by shape: it starts with that prefix and is
+ * exactly as long as an internal LPN issued under it. That is what separates "one
+ * of ours, damaged" from "a string that happens to use the same alphabet".
+ */
+function claimedNamespacePrefix(
+  normalized: string,
+  namespaces: readonly LpnNamespace[],
+): string | null {
+  const folded = normalized
+    .trim()
+    .replace(/[a-z]/g, (character) => character.toUpperCase());
+  for (const namespace of namespaces) {
+    const expectedLength =
+      namespace.prefix.length + LPN_TIME_LENGTH + LPN_RANDOM_LENGTH + 1;
+    if (
+      folded.length === expectedLength &&
+      folded.startsWith(namespace.prefix)
+    ) {
+      return namespace.prefix;
+    }
+  }
+  return null;
 }
