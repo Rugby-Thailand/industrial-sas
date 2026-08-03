@@ -103,6 +103,10 @@ const schema = defineSchema({
     /** Display name, mirrored from Clerk. Unicode; may be Thai. */
     name: v.string(),
     status: organizationStatus,
+    /** Last normalized Clerk event applied; payloads are never stored. */
+    clerkLastEventId: v.optional(v.string()),
+    /** Millisecond watermark; equal or older deliveries cannot regress state. */
+    clerkLastEventAt: v.optional(v.number()),
     /** WMS configuration. Defaults in `convex/lib/organizationDefaults.ts`. */
     settings: organizationSettings,
   })
@@ -125,6 +129,10 @@ const schema = defineSchema({
     /** Display name for attribution in audit and task lists. */
     displayName: v.string(),
     status: userStatus,
+    /** Last normalized Clerk event applied; payloads are never stored. */
+    clerkLastEventId: v.optional(v.string()),
+    /** Millisecond watermark; equal or older deliveries cannot regress state. */
+    clerkLastEventAt: v.optional(v.number()),
     /** Preferred interface locale; absent means the organization default (D-06). */
     preferredLocale: v.optional(locale),
   })
@@ -196,6 +204,10 @@ const schema = defineSchema({
       /** Clerk organization-membership ID. Unique per organization by contract. */
       clerkMembershipId: v.string(),
       status: membershipStatus,
+      /** Last normalized Clerk event applied; payloads are never stored. */
+      clerkLastEventId: v.optional(v.string()),
+      /** Millisecond watermark; equal or older deliveries cannot regress state. */
+      clerkLastEventAt: v.optional(v.number()),
       scopeMode: membershipScopeMode,
       /** Effective period. `effectiveTo` absent means open-ended. */
       effectiveFrom: v.number(),

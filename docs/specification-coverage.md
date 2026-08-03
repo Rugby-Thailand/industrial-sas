@@ -164,18 +164,18 @@ The one slice of implemented code, listed separately so it cannot be mistaken fo
 capability. Every row is schema shape plus tests over that shape; none of it runs against a
 database.
 
-| ID       | Item                                                              | Code                                                     | Tests                  | Status          |
-| -------- | ----------------------------------------------------------------- | -------------------------------------------------------- | ---------------------- | --------------- |
-| `SC-S01` | Tenant, identity, and membership tables with Clerk keys           | `convex/schema.ts`                                       | integration, isolation | Partial         |
-| `SC-S02` | `orgId` required and first; every index `orgId`-prefixed          | `convex/lib/tenantTable.ts`                              | integration, isolation | Partial         |
-| `SC-S03` | Root allowlist is exactly `organizations`, `users`, `permissions` | `convex/lib/schemaPolicy.ts`                             | isolation              | Partial         |
-| `SC-S04` | Closed value sets for status, scope, outcome, denial reason       | `convex/lib/validators.ts`                               | integration            | Partial         |
-| `SC-S05` | Safe organization defaults; every capability flag off             | `convex/lib/organizationDefaults.ts`                     | integration            | Partial         |
-| `SC-S06` | Bounded-lookup contracts for every unique-by-contract key         | `convex/lib/schemaPolicy.ts`                             | integration, isolation | Partial         |
-| `SC-S07` | No credential material in any field, at any depth                 | `convex/lib/schemaPolicy.ts`                             | isolation              | Partial         |
-| `SC-S08` | Support grants schema-ready, disabled, no bypass field            | `convex/schema.ts`, `convex/lib/organizationDefaults.ts` | integration            | Partial         |
-| `SC-S09` | Tenant-bound accessor (`G-102`) and auth wrapper                  | Absent                                                   | —                      | Not implemented |
-| `SC-S10` | Provisioning, webhook sync, role seeding, permission checks       | Absent                                                   | —                      | Not implemented |
+| ID       | Item                                                              | Code                                                      | Tests                  | Status  |
+| -------- | ----------------------------------------------------------------- | --------------------------------------------------------- | ---------------------- | ------- |
+| `SC-S01` | Tenant, identity, and membership tables with Clerk keys           | `convex/schema.ts`                                        | integration, isolation | Partial |
+| `SC-S02` | `orgId` required and first; every index `orgId`-prefixed          | `convex/lib/tenantTable.ts`                               | integration, isolation | Partial |
+| `SC-S03` | Root allowlist is exactly `organizations`, `users`, `permissions` | `convex/lib/schemaPolicy.ts`                              | isolation              | Partial |
+| `SC-S04` | Closed value sets for status, scope, outcome, denial reason       | `convex/lib/validators.ts`                                | integration            | Partial |
+| `SC-S05` | Safe organization defaults; every capability flag off             | `convex/lib/organizationDefaults.ts`                      | integration            | Partial |
+| `SC-S06` | Bounded-lookup contracts for every unique-by-contract key         | `convex/lib/schemaPolicy.ts`                              | integration, isolation | Partial |
+| `SC-S07` | No credential material in any field, at any depth                 | `convex/lib/schemaPolicy.ts`                              | isolation              | Partial |
+| `SC-S08` | Support grants schema-ready, disabled, no bypass field            | `convex/schema.ts`, `convex/lib/organizationDefaults.ts`  | integration            | Partial |
+| `SC-S09` | Tenant-bound accessor (`G-102`) and auth wrappers                 | `convex/lib/tenantDb.ts`, `convex/lib/tenantFunctions.ts` | integration, isolation | Partial |
+| `SC-S10` | Provisioning, webhook sync, role seeding, permission checks       | `convex/lib/identityWebhook.ts` (event kernel only)       | property, integration  | Partial |
 
 ## 6. Documentation coverage
 

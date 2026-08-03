@@ -7,14 +7,15 @@
   §6.1, §7.1
 - Covers plan ADR backlog (§11) items: 1 (partly, see
   [ADR-0002](./0002-convex-tenant-boundary-and-index-discipline.md)), 3
-- Implementation status: **Partial.** The mirror's _shape_ exists:
+- Implementation status: **Partial.** The mirror's shape and pure normalized-event
+  kernel exist:
   `convex/schema.ts` declares `organizations`, `users`, `memberships`,
   `membershipRoles`, `membershipWarehouses`, `entitlements`, and `sessionsAudit`,
-  with the Clerk correlation keys and the bounded indexes their lookups need, and
-  with no credential material anywhere. Nothing else does: there is no Clerk
-  provisioning, no webhook handler, no token verification, no membership recheck,
-  no organization switch, and no entitlement enforcement. `@clerk/nextjs` is
-  installed and unwired, and no code writes any of these tables.
+  with the Clerk correlation keys and bounded indexes their lookups need, while
+  `convex/lib/identityWebhook.ts` validates a minimal event shape and applies
+  idempotent, timestamp-ordered mirror transitions through a storage port. There is
+  still no signed webhook ingress, Convex mirror adapter, token verification,
+  organization switch, or entitlement enforcement. `@clerk/nextjs` remains unwired.
 
 ## Context
 

@@ -1,11 +1,13 @@
 # INT-01 — Clerk identity, organizations, and membership sync
 
-Status: **specification.** `@clerk/nextjs` 7.6.4, `@clerk/backend`, and `svix` are
-installed and unwired. There is no middleware, no webhook route, no Convex auth
-config, and no Clerk instance created by this repository. The mirror tables this
-contract writes to — `organizations`, `users`, `memberships`, `sessionsAudit` — are
-declared in `convex/schema.ts` with their Clerk correlation keys, and nothing writes
-to them.
+Status: **partial implementation.** The pure normalized-event kernel in
+`convex/lib/identityWebhook.ts` applies organization, user, and membership upserts
+and tombstones with entity-local event watermarks. Replays and equal or older
+deliveries do not write, new memberships default to warehouse-scoped, and raw Clerk
+payloads are outside the kernel's accepted shape. The mirror schema carries only the
+minimal correlation, display, status, and watermark fields. The signed HTTP ingress,
+Convex transaction adapter, auth configuration, and live Clerk instance remain
+unimplemented.
 
 Owner ADRs:
 [ADR-0001](../adr/0001-multi-tenant-saas-and-identity-ownership.md),
@@ -72,17 +74,17 @@ round trip.
   one tenant (`INV-0001-05`).
 - Out-of-order events are handled by comparing event timestamps; an older event never
   overwrites newer state.
-- Unknown event types are acknowledged and recorded, not failed, so Clerk does not
-  retry forever.
+- The future HTTP ingress will acknowledge unsupported event types without invoking
+  the mirror mutation, so Clerk does not retry them forever.
 
 ## 6. Data and privacy
 
-| Data                                  | Direction      | Notes                                                                 |
-| ------------------------------------- | -------------- | --------------------------------------------------------------------- |
-| Email, name, external user ID         | Clerk → Convex | Mirrored as a profile reference; the minimum needed to attribute work |
-| Organization name and external ID     | Clerk → Convex | Tenant identity                                                       |
-| Password, MFA secrets, session tokens | Never stored   | `INV-0001-06`                                                         |
-| Audit actor reference                 | Convex only    | Retained with audit events (seven years provisional, D-27)            |
+| Data                                  | Direction      | Notes                                                       |
+| ------------------------------------- | -------------- | ----------------------------------------------------------- |
+| Display name and external user ID     | Clerk → Convex | Mirrored as a profile reference; no email address is stored |
+| Organization name and external ID     | Clerk → Convex | Tenant identity                                             |
+| Password, MFA secrets, session tokens | Never stored   | `INV-0001-06`                                               |
+| Audit actor reference                 | Convex only    | Retained with audit events (seven years provisional, D-27)  |
 
 Clerk is a subprocessor and must appear in the subprocessor register (`RG-048`).
 Personal data crossing the boundary is limited to identity attributes needed for
@@ -115,8 +117,11 @@ requirements are dashboard configuration, recorded in the Phase 1 environment de
 
 - Integration tests with a fake identity adapter: verified actor resolution, revoked
   membership rejection, organization switch, reverification freshness.
-- Webhook tests: valid signature applies once; invalid signature rejected; replayed
-  event is a no-op; out-of-order event does not regress state.
+- Implemented kernel tests: replay is a no-op; out-of-order delivery cannot regress
+  state; membership identity is organization-keyed; malformed, unbounded, and
+  PII-bearing normalized objects are rejected before storage.
+- Pending ingress tests: a valid signature invokes the mutation once; an invalid
+  signature is rejected before any state change; unsupported types are acknowledged.
 - Isolation tests: an actor of tenant A cannot resolve tenant B under any token
   manipulation the client controls.
 - No test requires a Clerk account or network access (`INV-0008-05`).
@@ -133,3 +138,9 @@ environment separation, `RG-048` subprocessor register entry. See the
 - Which operations require step-up, beyond the ones marked in the
   [permission catalogue](../permissions.md).
 - Whether Clerk's data region matters for the PDPA transfer basis (`RG-006`).
+
+## 12. Authoritative integration references
+
+- [Clerk `verifyWebhook()` reference](https://clerk.com/docs/reference/backend/verify-webhook)
+- [Clerk webhook synchronization guide](https://clerk.com/docs/guides/development/webhooks/syncing)
+- [Clerk backend organization-membership type](https://clerk.com/docs/reference/backend/types/backend-organization-membership)
