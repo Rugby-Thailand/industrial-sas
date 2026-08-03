@@ -23,10 +23,13 @@ closes it, and its current status.
 ## Current position
 
 Beyond the toolchain scaffold and this documentation set, the repository now contains
-one slice of implemented code: the tenant security schema and the guards that read it
-([coverage matrix](./specification-coverage.md) §5a). It closes no gate. There is no
-authentication, no authorization, no exported Convex function, and no deployment, so
-every gate that depends on behaviour still depends on code that does not exist.
+the tenant security schema and the guards that read it, the tenant-bound function
+wrappers, signed Clerk webhook identity synchronization, and the code-owned
+permission catalogue with its fail-closed policy evaluator and provisioning seed
+([coverage matrix](./specification-coverage.md) §5a). It closes no gate. Nothing is
+deployed, no exported function enforces a permission yet, and no authorization
+attempt is audited, so every gate that depends on behaviour in a running
+environment still depends on code that does not exist.
 
 Of the 70 gates registered here, **two are satisfied** — `RG-062` (the ADR set) and
 `RG-001` (B-01…B-12 accepted, evidenced by the

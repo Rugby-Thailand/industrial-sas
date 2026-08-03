@@ -5,6 +5,7 @@ import {
 import { v } from "convex/values";
 
 import type { DataModel } from "../schema";
+import { seedAuthorizationForOrganization } from "./authorizationSeedConvex";
 import { DEFAULT_ORGANIZATION_SETTINGS } from "./organizationDefaults";
 import {
   applyIdentityWebhookEvent,
@@ -114,11 +115,12 @@ function createConvexIdentityMirrorPort(
           : { clerkLastEventAt: value.clerkLastEventAt }),
       };
       if (found === null) {
-        await ctx.db.insert("organizations", {
+        const orgId = await ctx.db.insert("organizations", {
           clerkOrganizationId: value.clerkOrganizationId,
           ...mirrored,
           settings: DEFAULT_ORGANIZATION_SETTINGS,
         });
+        await seedAuthorizationForOrganization(ctx, orgId);
       } else {
         await ctx.db.patch("organizations", found._id, mirrored);
       }

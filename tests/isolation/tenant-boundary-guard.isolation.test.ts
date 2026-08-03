@@ -62,6 +62,10 @@ export const apply = internalMutationGeneric({ handler: (ctx: { db: unknown }) =
   "convex/lib/clerkWebhook.ts": `import { httpActionGeneric } from "convex/server";
 export const webhook = httpActionGeneric(async () => new Response(null));
 `,
+  "convex/lib/authorizationSeedConvex.ts": `export function seed(ctx: { db: unknown }) {
+  return ctx.db;
+}
+`,
 };
 
 /** Scan a synthetic tree; `files` overrides or extends the allowlisted stubs. */

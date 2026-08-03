@@ -6,17 +6,14 @@
 - Decision baseline: [PROJECT_PLAN.md](../../PROJECT_PLAN.md) §3.2 (D-17), §5 Q14,
   Q15, Q16, §6.1, §7.1
 - Covers plan ADR backlog (§11) items: 4, 5
-- Implementation status: **Partial.** The tables authorization will read exist and
-  nothing more: `permissions` (code-owned, global, unseeded), `roles`,
-  `rolePermissions`, `membershipRoles`, `membershipWarehouses`, `auditEvents`, and
-  `supportGrants` are declared in `convex/schema.ts` with closed status, scope,
-  outcome, and denial-reason vocabularies. There is no role seed, no policy
-  evaluator, no permission check, no maker-checker, no step-up integration, and no
-  code that reads or writes a support grant. Support grants are schema-ready and
-  disabled: the gating flag `organizations.settings.supportGrantsEnabled` defaults
-  to `false` and no code path consults it yet. The
-  [permission catalogue](../permissions.md) remains a specification of intended
-  code.
+- Implementation status: **Partial.** `convex/lib/permissions.ts` implements the
+  documented code-owned catalogue and ordered fail-closed policy evaluator, including
+  warehouse scope, entitlement, threshold, maker-checker, and step-up decisions.
+  Organization provisioning idempotently seeds the global catalogue and eight
+  editable tenant roles in the same transaction while preserving tenant edits on
+  rerun. Public Convex wrappers do not enforce the evaluator or record authorization
+  attempts yet. Support grants remain schema-ready, disabled, and deliberately absent
+  from the evaluator and seed paths.
 
 ## Decision
 
@@ -123,17 +120,35 @@
 
 ## Verification
 
-Planned, not present.
+Partly present. Each remaining item lands with the code it verifies.
 
-- Integration tests: permission-required matrix per exported function; warehouse
-  scope rejection; threshold policy boundaries; maker equals checker rejection;
-  stale reverification rejection; denial audit rows.
+Present:
+
+- Integration tests (`tests/integration/permissions.integration.test.ts`): the
+  catalogue and every policy flag are compared row by row against
+  [docs/permissions.md](../permissions.md) §2, and the eight default compositions
+  against §3.1, so the document and the code cannot drift; ordered denial cases for
+  unknown code, platform code, inactive membership, ungranted code, foreign
+  warehouse, threshold, self-approval, stale reverification, and disabled
+  entitlement.
+- Integration tests
+  (`tests/integration/authorization-seed-convex.integration.test.ts`): the seed is
+  idempotent, global for `permissions` and tenant-bound for `roles` and
+  `rolePermissions`, runs in the same transaction as the organization insert and
+  rolls back with it, and a rerun preserves a tenant-edited role and its edited
+  composition (`INV-0006-11`).
+- Property tests (`tests/properties/permissions.property.test.ts`): scope
+  resolution is monotone — adding a warehouse never removes access — over a
+  generator proved to produce both outcomes; no composition grants a code absent
+  from the catalogue or a `PLATFORM` code (`INV-0006-02`).
+
+Planned:
+
+- Integration tests: permission-required matrix per exported function; threshold
+  policy boundaries against server-computed values; denial audit rows
+  (`INV-0006-03`, `INV-0006-06`, `INV-0006-10`).
 - Isolation tests: no cross-tenant read/write path with support grants disabled;
   with a fixture grant enabled, read-only enforcement and expiry.
-- Property tests: role composition never grants a permission absent from the
-  catalogue; scope resolution is monotone (adding a warehouse never removes
-  access).
-- Unit tests: pure policy evaluation over fixture memberships and catalogue.
 - E2E: QC hold and release performed by two different users.
 
 ## Release gates

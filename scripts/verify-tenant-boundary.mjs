@@ -87,6 +87,7 @@ export const TENANT_BOUNDARY_ALLOWLIST = Object.freeze({
   ]),
   "http-registration": Object.freeze(["convex/lib/clerkWebhook.ts"]),
   "raw-database": Object.freeze([
+    "convex/lib/authorizationSeedConvex.ts",
     "convex/lib/identityMirrorConvex.ts",
     "convex/lib/tenantStorage.ts",
     "convex/lib/tenantContextLookups.ts",

@@ -3,12 +3,11 @@
 Every requirement and decision in the approved [PROJECT_PLAN.md](../PROJECT_PLAN.md),
 mapped to the code, tests, and documents that will satisfy it, with its status today.
 
-This is the honest inventory. At this commit the repository contains a toolchain scaffold,
-this documentation set, and one slice of real code: the tenant security schema
-(`convex/schema.ts`, `convex/lib/**`) with the guards that read it. **No warehouse
-management functionality exists** — no authentication, no authorization, no exported Convex
-function, no deployment, and nothing that reads or writes a document. Accordingly, no row
-claims more than `Partial`.
+This is the honest inventory. At this commit the repository contains the toolchain,
+documentation, tenant-bound function wrappers, signed Clerk webhook synchronization,
+and the permission catalogue, policy evaluator, and provisioning seed. **No warehouse
+management workflow exists yet**, and public function authorization enforcement is
+still incomplete. Accordingly, no product outcome claims more than `Partial`.
 
 ## How to read this
 
@@ -88,7 +87,7 @@ All thirty are accepted without exceptions in the same
 | `SC-D14` | Deterministic explainable putaway with override      | `convex/model/putaway/**`, `convex/putaway/**`                                                                 | property, integration                      | [ADR-0007](./adr/0007-inbound-slice-scope.md)                         | Not implemented |
 | `SC-D15` | GS1-128 where licensed, internal LPN otherwise       | `convex/model/gs1/**`                                                                                          | property (corpus fixtures)                 | [ADR-0005](./adr/0005-warehouse-location-and-stock-identity.md)       | Not implemented |
 | `SC-D16` | ZPL primary, PDF fallback, local print bridge        | `PrinterTransportPort` adapter, label generator                                                                | unit, physical                             | [INT-04](./integration-contracts/printer-transport-port.md)           | Not implemented |
-| `SC-D17` | Server-side permission model with policies           | `convex/lib/permissions.ts`, seeds                                                                             | integration matrix, isolation              | [permissions](./permissions.md)                                       | Not implemented |
+| `SC-D17` | Server-side permission model with policies           | `convex/lib/permissions.ts`, `convex/lib/authorizationSeedConvex.ts`                                           | integration matrix, property, isolation    | [permissions](./permissions.md)                                       | Partial         |
 | `SC-D18` | `orgId` on every tenant table and index first        | `convex/schema.ts`, `convex/lib/tenantTable.ts`, `convex/lib/schemaPolicy.ts`; `convex/lib/tenantDb.ts` absent | isolation (present), static guard (absent) | [ADR-0002](./adr/0002-convex-tenant-boundary-and-index-discipline.md) | Partial         |
 | `SC-D19` | Pure domain modules, thin Convex functions           | `convex/model/**`, feature modules                                                                             | unit, static guard                         | [ADR-0002](./adr/0002-convex-tenant-boundary-and-index-discipline.md) | Not implemented |
 | `SC-D20` | Private tenant files, short-lived signed URLs        | `FileStoragePort` adapter, `src/app/api/uploadthing/**`                                                        | unit, integration                          | [INT-03](./integration-contracts/file-storage-port.md)                | Not implemented |
@@ -164,18 +163,18 @@ The one slice of implemented code, listed separately so it cannot be mistaken fo
 capability. Every row is schema shape plus tests over that shape; none of it runs against a
 database.
 
-| ID       | Item                                                              | Code                                                                                  | Tests                            | Status  |
-| -------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------- | -------------------------------- | ------- |
-| `SC-S01` | Tenant, identity, and membership tables with Clerk keys           | `convex/schema.ts`                                                                    | integration, isolation           | Partial |
-| `SC-S02` | `orgId` required and first; every index `orgId`-prefixed          | `convex/lib/tenantTable.ts`                                                           | integration, isolation           | Partial |
-| `SC-S03` | Root allowlist is exactly `organizations`, `users`, `permissions` | `convex/lib/schemaPolicy.ts`                                                          | isolation                        | Partial |
-| `SC-S04` | Closed value sets for status, scope, outcome, denial reason       | `convex/lib/validators.ts`                                                            | integration                      | Partial |
-| `SC-S05` | Safe organization defaults; every capability flag off             | `convex/lib/organizationDefaults.ts`                                                  | integration                      | Partial |
-| `SC-S06` | Bounded-lookup contracts for every unique-by-contract key         | `convex/lib/schemaPolicy.ts`                                                          | integration, isolation           | Partial |
-| `SC-S07` | No credential material in any field, at any depth                 | `convex/lib/schemaPolicy.ts`                                                          | isolation                        | Partial |
-| `SC-S08` | Support grants schema-ready, disabled, no bypass field            | `convex/schema.ts`, `convex/lib/organizationDefaults.ts`                              | integration                      | Partial |
-| `SC-S09` | Tenant-bound accessor (`G-102`) and auth wrappers                 | `convex/lib/tenantDb.ts`, `convex/lib/tenantFunctions.ts`                             | integration, isolation           | Partial |
-| `SC-S10` | Provisioning, webhook sync, role seeding, permission checks       | `convex/http.ts`, `convex/lib/clerkWebhook*.ts`, `convex/lib/identityMirrorConvex.ts` | property, integration, isolation | Partial |
+| ID       | Item                                                              | Code                                                                                                                           | Tests                            | Status  |
+| -------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | -------------------------------- | ------- |
+| `SC-S01` | Tenant, identity, and membership tables with Clerk keys           | `convex/schema.ts`                                                                                                             | integration, isolation           | Partial |
+| `SC-S02` | `orgId` required and first; every index `orgId`-prefixed          | `convex/lib/tenantTable.ts`                                                                                                    | integration, isolation           | Partial |
+| `SC-S03` | Root allowlist is exactly `organizations`, `users`, `permissions` | `convex/lib/schemaPolicy.ts`                                                                                                   | isolation                        | Partial |
+| `SC-S04` | Closed value sets for status, scope, outcome, denial reason       | `convex/lib/validators.ts`                                                                                                     | integration                      | Partial |
+| `SC-S05` | Safe organization defaults; every capability flag off             | `convex/lib/organizationDefaults.ts`                                                                                           | integration                      | Partial |
+| `SC-S06` | Bounded-lookup contracts for every unique-by-contract key         | `convex/lib/schemaPolicy.ts`                                                                                                   | integration, isolation           | Partial |
+| `SC-S07` | No credential material in any field, at any depth                 | `convex/lib/schemaPolicy.ts`                                                                                                   | isolation                        | Partial |
+| `SC-S08` | Support grants schema-ready, disabled, no bypass field            | `convex/schema.ts`, `convex/lib/organizationDefaults.ts`                                                                       | integration                      | Partial |
+| `SC-S09` | Tenant-bound accessor (`G-102`) and auth wrappers                 | `convex/lib/tenantDb.ts`, `convex/lib/tenantFunctions.ts`                                                                      | integration, isolation           | Partial |
+| `SC-S10` | Provisioning, webhook sync, role seeding, permission checks       | `convex/http.ts`, `convex/lib/clerkWebhook*.ts`, `convex/lib/identityMirrorConvex.ts`, `convex/lib/authorizationSeedConvex.ts` | property, integration, isolation | Partial |
 
 ## 6. Documentation coverage
 

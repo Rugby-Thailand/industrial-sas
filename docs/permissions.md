@@ -1,12 +1,12 @@
 # Permission catalogue, seeded roles, and policy semantics
 
-Status: **specification.** No permission code, role seed, or policy evaluator exists
-in this repository. The tables this catalogue will populate — `permissions`, `roles`,
-`rolePermissions` — are declared in `convex/schema.ts` and are empty, unseeded, and
-unread. This document is the contract that
-[ADR-0006](./adr/0006-authorization-and-support-access.md) requires; it becomes the
-source for `convex/lib/permissions.ts` and the reference-data seed when Phase 1
-starts.
+Status: **partially implemented.** `convex/lib/permissions.ts` is the code-owned
+catalogue and fail-closed pure policy evaluator. Organization provisioning seeds the
+catalogue, eight editable default roles, and their mappings idempotently in the same
+transaction; reruns preserve tenant edits. Permission enforcement in the public
+Convex wrappers, authorization-attempt auditing, and the administration UI remain to
+be implemented. This document remains the review contract required by
+[ADR-0006](./adr/0006-authorization-and-support-access.md).
 
 ## 1. Ownership and stability rules
 
@@ -161,6 +161,17 @@ target warehouse participates in the decision.
 
 Seeds are idempotent and editable by the tenant after creation
 (`INV-0006-11`, D-22). Role keys are stable IDs.
+
+Implemented behaviour, stated because the limit is deliberate: the seed runs inside
+the transaction that inserts the organization, so a tenant never exists without its
+roles, and a failed provisioning leaves neither. A rerun that finds a role by
+`(orgId, key)` leaves that role and its composition exactly as the tenant left
+them — it repairs nothing it did not create, because a repair would silently undo a
+deliberate edit. The consequence is that a release adding a catalogue code does not
+add it to the roles of an organization that already exists; distributing a new code
+to existing tenants is a migration under D-22, not a reseed. Enforcement is
+unaffected: decisions read the code-owned catalogue in `convex/lib/permissions.ts`,
+not the `permissions` table, which is reference data for administration and audit.
 
 | Role key            | Intended holder              | Default warehouse scope |
 | ------------------- | ---------------------------- | ----------------------- |
