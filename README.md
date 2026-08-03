@@ -13,7 +13,7 @@ accepted before domain implementation are recorded in
 
 ## Current status
 
-**Toolchain scaffold, the tenant security slice, and — as of this commit — the
+**The toolchain scaffold, the tenant security slice, and — as of this commit — the
 pure inventory primitives the ledger will be built from. Still no warehouse
 management functionality: nothing stores a quantity, an identifier, or a
 movement.**
@@ -58,15 +58,23 @@ foundation and nothing more:
   scanners, and `JSON.parse`: `{ numerator: 1, denominator: 0 } as Ratio` compiles.
   Nothing throws, nothing rounds, and nothing loops — a non-finite conversion
   factor used to reach Euclid's algorithm, whose exit test is `b !== 0`, and never
-  return. What is returned is immutable in fact rather than in the signature: a
-  `ReadonlyMap` is an ordinary `Map` at run time, so the supported-AI table, the
-  timezone registry, an item's conversion table, and a parsed scan's values are
-  frozen null-prototype records and frozen arrays instead. Stock is expired when
+  return. The argument the caller chose is validated too, and before the value it
+  is applied to: a display option bag and a display calendar are as forgeable as a
+  quantity or a date, and an unrecognized calendar used to render every date 543
+  years off with nothing on the screen to say so. What is returned is immutable in
+  fact rather than in the signature — a `ReadonlyMap` is an ordinary `Map` at run
+  time, so the supported-AI table, the timezone registry, an item's conversion
+  table, and a parsed scan's values are frozen null-prototype records or frozen
+  arrays instead — with the one limit stated rather than implied: `Object.freeze`
+  is shallow, so `ok(value)` freezes the wrapper and each constructor freezes its
+  own output, and the `ScaledInteger` and `UomConversionOutcome` envelopes are
+  deliberately plain objects around frozen payloads. Stock is expired when
   its **expiration date** is before the `asOf` date, whatever the configured
   rotation date is; a scan that is a valid bare SSCC, one of this tenant's LPNs
   with a broken check character, or a well-formed LPN with no namespace policy to
   judge it by is a named refusal rather than a fall-through to a lot code, a GTIN,
-  or a SKU.
+  or a SKU, and a policy claiming one LPN prefix for two organizations is refused
+  before it can classify anything.
 - Real unit, property, integration, and isolation suites over all of it, including
   a two-tenant `convex-test` world, negative tests that prove the guards fail when
   they should, and property-tier negative controls that fail against deliberately

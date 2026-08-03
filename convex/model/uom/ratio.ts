@@ -142,6 +142,14 @@ export function validateRatio(ratio: Ratio): Result<Ratio, RatioError> {
  * The numerator may be any safe integer including zero and negatives; the
  * denominator is a positive integer within `MAX_RATIO_COMPONENT`, because it can
  * only ever be a divisor of a validated ratio's denominator.
+ *
+ * The pair is reduced, because the type says it is and two callers depend on it:
+ * an `INEXACT` conversion outcome is rendered by its components and compared by
+ * them, so `2/4` and `1/2` would be two different explanations of one value.
+ * Reduction only shrinks a magnitude, so a component that was in range stays in
+ * range and a safe integer stays safe. Zero has one form, `0/1` — including `-0`,
+ * which is a distinct double that survives JSON and that `Object.is` separates
+ * from `0`, so two zero remainders would otherwise fail to compare equal.
  */
 export function makeExactFraction(
   numerator: number,
@@ -165,15 +173,26 @@ export function makeExactFraction(
       limit: MAX_RATIO_COMPONENT,
     });
   }
+  if (numerator === 0) {
+    return ok(Object.freeze({ numerator: 0, denominator: 1 }));
+  }
+  // `greatestCommonDivisor` works on magnitudes and both operands are safe
+  // integers by the checks above, so the divisor is at least 1 and the sign stays
+  // on the numerator.
+  const divisor = greatestCommonDivisor(numerator, denominator);
   return ok(
     Object.freeze({
-      numerator: numerator === 0 ? 0 : numerator,
-      denominator,
+      numerator: numerator / divisor,
+      denominator: denominator / divisor,
     }),
   );
 }
 
-/** Re-checks a value that claims to be an `ExactFraction`. */
+/**
+ * Re-checks a value that claims to be an `ExactFraction` and answers its reduced
+ * form. An unreduced literal compiles, and is exactly what a document read back
+ * or a `JSON.parse` produces.
+ */
 export function validateExactFraction(
   fraction: ExactFraction,
 ): Result<ExactFraction, RatioError> {
@@ -266,8 +285,9 @@ export function ratiosEqual(
 /**
  * `numerator/denominator`, for logs and error rendering. Never parsed back.
  *
- * Validates first: rendering `1/0` or `NaN/NaN` into an operator-facing message
- * would present a forged value as a fact.
+ * Validates first, so what is rendered is the reduced form: printing `2/4` for a
+ * value the type promises is `1/2`, or `1/0` or `NaN/NaN` at all, would present a
+ * forged value to an operator as a fact.
  */
 export function formatRatio(
   value: Ratio | ExactFraction,

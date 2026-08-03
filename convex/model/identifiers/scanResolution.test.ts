@@ -263,6 +263,132 @@ describe("policy validation", () => {
     expect(rejection.field).toBe("namespaces");
   });
 
+  // A prefix belongs to one organization — that is the whole basis of rule 4,
+  // which decides whose pallet a scan is by matching its prefix. A table that
+  // claimed one prefix for two organizations made that answer meaningless, and the
+  // policy accepted it silently.
+  it("rejects one prefix claimed by two organization keys", () => {
+    const rejection = expectError(
+      resolveScan("bolt-m8", {
+        ...policy,
+        namespaces: [
+          expectOk(makeLpnNamespace("org_acme", "PA")),
+          expectOk(makeLpnNamespace("org_rival", "PA")),
+        ],
+      }),
+    );
+    expect(rejection).toEqual({
+      code: "INVALID_SCAN_POLICY",
+      raw: "bolt-m8",
+      field: "namespaces",
+    });
+    // Case folding must not be a way around it: `pa` and `PA` are one prefix.
+    expect(
+      expectError(
+        resolveScan("bolt-m8", {
+          ...policy,
+          namespaces: [
+            expectOk(makeLpnNamespace("org_acme", "PA")),
+            expectOk(makeLpnNamespace("org_rival", "pa")),
+          ],
+        }),
+      ).code,
+    ).toBe("INVALID_SCAN_POLICY");
+  });
+
+  it("rejects a duplicated organization key and prefix pair", () => {
+    // Harmless-looking, and it corrupts what a rejection reports: the registered
+    // prefixes on `FOREIGN_LPN_NAMESPACE` would list the same prefix twice.
+    expect(
+      expectError(
+        resolveScan("bolt-m8", {
+          ...policy,
+          namespaces: [namespace, namespace],
+        }),
+      ),
+    ).toEqual({
+      code: "INVALID_SCAN_POLICY",
+      raw: "bolt-m8",
+      field: "namespaces",
+    });
+    expect(
+      expectError(
+        resolveScan("bolt-m8", {
+          ...policy,
+          namespaces: [
+            expectOk(makeLpnNamespace("org_acme", "PA")),
+            expectOk(makeLpnNamespace(" org_acme ", "pa")),
+          ],
+        }),
+      ).code,
+    ).toBe("INVALID_SCAN_POLICY");
+  });
+
+  it("still accepts one organization holding several distinct prefixes", () => {
+    const several: ScanResolutionPolicy = {
+      referenceYear: 2026,
+      namespaces: [
+        expectOk(makeLpnNamespace("org_acme", "PA")),
+        expectOk(makeLpnNamespace("org_acme", "PAB")),
+        expectOk(makeLpnNamespace("org_acme", "BX")),
+      ],
+    };
+    expect(expectOk(resolveScan("bolt-m8", several)).interpretation).toEqual({
+      kind: "SKU",
+      sku: "BOLT-M8",
+    });
+  });
+
+  // `claimedNamespacePrefix` walks the namespaces in order, so the question is
+  // whether two registered prefixes can both claim one scan. They cannot: the
+  // expected length is `prefix.length + 14`, so a scan of a given length can only
+  // be claimed by a prefix of one length, and two prefixes of the same length that
+  // both prefix the same string are the same prefix. These assertions pin that,
+  // because it is the reason the rule can stay a first match.
+  it("claims the same prefix whatever order the namespaces are declared in", () => {
+    const short = expectOk(makeLpnNamespace("org_acme", "PA"));
+    const long = expectOk(makeLpnNamespace("org_acme", "PAB"));
+    const underShort = expectOk(
+      generateInternalLpn({
+        namespace: short,
+        nowMs: 1_800_000_000_000,
+        entropy,
+      }),
+    );
+    const underLong = expectOk(
+      generateInternalLpn({
+        namespace: long,
+        nowMs: 1_800_000_000_000,
+        entropy,
+      }),
+    );
+    const broken = (value: string) =>
+      value.slice(0, -1) + (value.endsWith("0") ? "1" : "0");
+    const orders: readonly (readonly [typeof short, typeof long])[] = [
+      [short, long],
+      [long, short],
+    ];
+    for (const order of orders) {
+      const withOrder: ScanResolutionPolicy = {
+        referenceYear: 2026,
+        namespaces: order,
+      };
+      const shortRejection = expectError(
+        resolveScan(broken(underShort.value), withOrder),
+      );
+      expect(shortRejection.code).toBe("INVALID_LPN_SCAN");
+      if (shortRejection.code !== "INVALID_LPN_SCAN") return;
+      expect(shortRejection.prefix).toBe("PA");
+
+      const longRejection = expectError(
+        resolveScan(broken(underLong.value), withOrder),
+      );
+      expect(longRejection.code).toBe("INVALID_LPN_SCAN");
+      if (longRejection.code !== "INVALID_LPN_SCAN") return;
+      expect(longRejection.prefix).toBe("PAB");
+    }
+  });
+
   it("rejects a flag that is not a boolean", () => {
     expect(
       expectError(

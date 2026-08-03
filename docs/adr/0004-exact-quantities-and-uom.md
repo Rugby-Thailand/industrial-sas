@@ -23,7 +23,11 @@
   non-terminating gcd; an item's conversion table is a frozen array rather than a
   `ReadonlyMap` that a cast can reopen; and `formatQuantity` returns a `Result`
   because "the digits shown are the digits stored" (§5) is only true of a validated
-  value.
+  value — and it validates its display options first, since a non-boolean
+  `trimTrailingZeros` read as truthy is how two screens disagree about one
+  quantity. `alternateUoms` returns a `Result` for the same reason: `UomCode` is an
+  alias for `string`, so an unvalidated profile made it answer with values no
+  normalizer would ever have issued.
   What is **not** implemented: no table stores a quantity or a conversion
   (`itemUoms` does not exist), so `INV-0004-02` — an immutable base UOM once
   ledger lines reference the item — has nothing to enforce it; there is no ledger,

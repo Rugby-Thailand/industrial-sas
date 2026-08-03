@@ -27,10 +27,14 @@ import {
   sumQuantities,
   zeroQuantity,
   type Quantity,
+  type QuantityFormatOptions,
 } from "./quantity";
 
 const kilograms = (minorUnits: number) =>
   expectOk(makeQuantity(minorUnits, "KG"));
+
+/** The options bag, named locally so the forged-cast lines stay readable. */
+type FormatOptions = QuantityFormatOptions;
 
 /** A value that claims to be a `Quantity` and is not one. */
 const forged = (minorUnits: unknown, uom: unknown): Quantity =>
@@ -315,6 +319,97 @@ describe("formatQuantity", () => {
       code: "NOT_A_QUANTITY",
       received: "null",
     });
+  });
+
+  // The options bag is as forgeable as the quantity: it arrives from a caller
+  // whose type checker may have been satisfied by a cast, or from a value that
+  // was `undefined` one call earlier. Dereferencing it threw a `TypeError` out of
+  // a module that promises every failure is a `Result`.
+  it("names an options bag that is not an object instead of throwing", () => {
+    expect(
+      expectError(
+        formatQuantity(kilograms(1005), null as unknown as FormatOptions),
+      ),
+    ).toEqual({
+      code: "INVALID_FORMAT_OPTIONS",
+      field: "options",
+      received: "null",
+    });
+    expect(
+      expectError(
+        formatQuantity(kilograms(1005), "trim" as unknown as FormatOptions),
+      ).code,
+    ).toBe("INVALID_FORMAT_OPTIONS");
+    expect(
+      expectError(
+        formatQuantity(kilograms(1005), (() => {}) as unknown as FormatOptions),
+      ).code,
+    ).toBe("INVALID_FORMAT_OPTIONS");
+    // An array has no `trimTrailingZeros`, so it would have been read as the
+    // default rather than as the caller error it is.
+    expect(
+      expectError(
+        formatQuantity(kilograms(1005), [] as unknown as FormatOptions),
+      ).code,
+    ).toBe("INVALID_FORMAT_OPTIONS");
+  });
+
+  // A truthy non-boolean must not be reinterpreted as `true`: `trimTrailingZeros`
+  // decides whether a stored digit is shown, and guessing at it is how two
+  // screens disagree about the same quantity.
+  it("names a forged trimTrailingZeros instead of reinterpreting it", () => {
+    for (const forgedFlag of ["true", "", 1, 0, null, {}]) {
+      expect(
+        expectError(
+          formatQuantity(kilograms(12_000), {
+            trimTrailingZeros: forgedFlag,
+          } as unknown as FormatOptions),
+        ).code,
+      ).toBe("INVALID_FORMAT_OPTIONS");
+    }
+    expect(
+      expectError(
+        formatQuantity(kilograms(12_000), {
+          trimTrailingZeros: "true",
+        } as unknown as FormatOptions),
+      ),
+    ).toEqual({
+      code: "INVALID_FORMAT_OPTIONS",
+      field: "trimTrailingZeros",
+      received: "string",
+    });
+  });
+
+  it("still accepts an absent flag and an explicit false", () => {
+    expect(expectOk(formatQuantity(kilograms(12_000), {}))).toBe("12.000");
+    expect(
+      expectOk(formatQuantity(kilograms(12_000), { trimTrailingZeros: false })),
+    ).toBe("12.000");
+    // `exactOptionalPropertyTypes` is on, so an explicit `undefined` is not
+    // expressible without a cast — and is exactly what a preferences document
+    // read back, or an object literal built from an absent field, hands over. The
+    // interface stays strict and the cast stands in for that caller.
+    expect(
+      expectOk(
+        formatQuantity(kilograms(12_000), {
+          trimTrailingZeros: undefined,
+        } as unknown as FormatOptions),
+      ),
+    ).toBe("12.000");
+  });
+
+  it("reports the invalid options before the quantity", () => {
+    // Both are wrong here. The options are what the caller controls, and a
+    // rejection that blamed the quantity would send them looking in the wrong
+    // place.
+    expect(
+      expectError(
+        formatQuantity(
+          forged(Number.NaN, "KG"),
+          null as unknown as FormatOptions,
+        ),
+      ).code,
+    ).toBe("INVALID_FORMAT_OPTIONS");
   });
 });
 

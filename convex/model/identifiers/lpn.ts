@@ -43,6 +43,7 @@
 import { isFunction, isRecord, isSafeInt, isString } from "../guards";
 import { fail, ok, type Result } from "../result";
 import { verifyGs1CheckDigit } from "../gs1/checkDigit";
+import { normalizeCode, MAX_CODE_LENGTH } from "./normalization";
 
 /** 31 symbols: digits plus letters, less `I`, `L`, `O`, `U`, `Z`. Prime size. */
 export const LPN_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXY";
@@ -56,8 +57,13 @@ export const LPN_RANDOM_LENGTH = 4;
 /** Longest prefix an organization may register. */
 export const LPN_MAX_PREFIX_LENGTH = 6;
 
-/** Longest organization key accepted: a document id or a tenant slug. */
-export const MAX_ORGANIZATION_KEY_LENGTH = 64;
+/**
+ * Longest organization key accepted: a document id or a tenant slug. It matches
+ * the code bound in `identifiers/normalization.ts`, which is the normalizer this
+ * module runs a key through; the two must not disagree, or a key that normalizes
+ * cleanly there could still be refused here.
+ */
+export const MAX_ORGANIZATION_KEY_LENGTH = MAX_CODE_LENGTH;
 
 /** Hard bound on the printed value, so a label layout can be fixed. */
 export const LPN_MAX_LENGTH =
@@ -143,6 +149,13 @@ export type LpnError =
  * Registers a namespace. The prefix is folded to upper case, must consist of
  * alphabet characters, and must begin with a letter so the result can never be
  * mistaken for a numeric GS1 key.
+ *
+ * The organization key goes through the same normalizer a SKU and an item key do,
+ * with case preserved because the key may be a Convex document id. Trimming and a
+ * length bound were not enough for a value that identifies a tenant: a key
+ * carrying an internal space, a zero-width joiner, a bidi override, or a NUL is a
+ * second key for the same organization, which is how one tenant's prefix ends up
+ * registered twice under names an operator cannot tell apart.
  */
 export function makeLpnNamespace(
   organizationKey: string,
@@ -157,8 +170,11 @@ export function makeLpnNamespace(
   if (!isString(prefix)) {
     return fail({ code: "INVALID_PREFIX", raw: describe(prefix) });
   }
-  const key = organizationKey.trim();
-  if (key.length === 0 || key.length > MAX_ORGANIZATION_KEY_LENGTH) {
+  const key = normalizeCode(organizationKey, {
+    maxLength: MAX_ORGANIZATION_KEY_LENGTH,
+    caseFolding: "PRESERVE",
+  });
+  if (!key.ok) {
     return fail({ code: "INVALID_ORGANIZATION_KEY", raw: organizationKey });
   }
   const folded = prefix
@@ -172,7 +188,7 @@ export function makeLpnNamespace(
   ) {
     return fail({ code: "INVALID_PREFIX", raw: prefix });
   }
-  return ok(Object.freeze({ organizationKey: key, prefix: folded }));
+  return ok(Object.freeze({ organizationKey: key.value, prefix: folded }));
 }
 
 /** Re-checks a value that claims to be a registered namespace. */
@@ -431,8 +447,8 @@ export function decodeBase31(encoded: string): number | null {
  * A uniform integer in `[0, bound)` from injected bytes, by rejection sampling:
  * values in the incomplete final block are discarded rather than folded, so the
  * distribution has no modulo bias. Eight rejections in a row means the source is
- * not behaving, and that fails closed instead of looping. A source that throws is
- * the same outcome as one that returns nothing usable.
+ * not behaving, and that fails closed instead of looping. A source that throws, or
+ * that returns something this module will not read as bytes, is the same outcome.
  */
 function uniformBelow(
   entropy: EntropySource,
@@ -447,28 +463,55 @@ function uniformBelow(
   const limit = range - (range % bound);
   const maxAttempts = 8;
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-    let bytes: Uint8Array;
+    let bytes: unknown;
     try {
       bytes = entropy(byteLength);
     } catch {
       return fail({ code: "ENTROPY_UNAVAILABLE", requested: byteLength });
     }
-    if (!isRecord(bytes) || !isSafeInt(bytes.length)) {
+    const value = readEntropyBytes(bytes, byteLength);
+    if (value === null) {
       return fail({ code: "ENTROPY_UNAVAILABLE", requested: byteLength });
-    }
-    if (bytes.length !== byteLength) {
-      return fail({ code: "ENTROPY_UNAVAILABLE", requested: byteLength });
-    }
-    let value = 0;
-    for (const byte of bytes) {
-      if (!isSafeInt(byte) || byte < 0 || byte > 255) {
-        return fail({ code: "ENTROPY_UNAVAILABLE", requested: byteLength });
-      }
-      value = value * 256 + byte;
     }
     if (value < limit) return ok(value % bound);
   }
   return fail({ code: "ENTROPY_EXHAUSTED", attempts: maxAttempts });
+}
+
+/**
+ * The big-endian integer a byte view carries, or `null` for any value this module
+ * will not read as one.
+ *
+ * `EntropySource` says `Uint8Array`, and the check is that and nothing looser.
+ * Structural checks were not enough: `{ length: 3 }` satisfies "a record with the
+ * expected length", and the `for…of` that followed threw `TypeError: bytes is not
+ * iterable` out of `generateInternalLpn`, whose contract is that a misbehaving
+ * injected dependency is a `Result`. `Symbol.toStringTag` makes the usual brand
+ * test forgeable by a plain object, so `instanceof` is what decides; the entropy
+ * source is called in this isolate, so there is no cross-realm view to admit.
+ *
+ * Two further precautions, because `instanceof` only settles the prototype:
+ * reads are by index rather than by iteration, so a subclass or a `Proxy` that
+ * overrides `Symbol.iterator` has nothing to override; and the whole read sits in
+ * a `try`, because a `Proxy` forwards `getPrototypeOf` while throwing from `get`.
+ * The 0-255 range check is the last backstop on what was actually read.
+ */
+function readEntropyBytes(bytes: unknown, byteLength: number): number | null {
+  try {
+    if (!(bytes instanceof Uint8Array)) return null;
+    if (bytes.length !== byteLength || bytes.byteLength !== byteLength) {
+      return null;
+    }
+    let value = 0;
+    for (let index = 0; index < byteLength; index += 1) {
+      const byte: unknown = bytes[index];
+      if (!isSafeInt(byte) || byte < 0 || byte > 255) return null;
+      value = value * 256 + byte;
+    }
+    return isSafeInt(value) ? value : null;
+  } catch {
+    return null;
+  }
 }
 
 const isAlphabetOnly = (value: string): boolean => {

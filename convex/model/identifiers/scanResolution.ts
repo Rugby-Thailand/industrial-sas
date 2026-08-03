@@ -47,8 +47,8 @@
  *
  * The policy itself is validated before any of it (`INVALID_SCAN_POLICY`): a
  * reference year the GS1 date rule cannot use, a namespace that is not a
- * registered one, or a flag that is not a boolean would each decide a
- * classification silently.
+ * registered one, a prefix claimed by more than one organization key, or a flag
+ * that is not a boolean would each decide a classification silently.
  *
  * The raw scan travels with every result and every rejection, because
  * `INV-0005-12` requires it to be persisted next to its interpretation.
@@ -420,9 +420,19 @@ function validatePolicy(
   const declared = policy.namespaces;
   if (declared !== undefined && !isArray(declared)) return fail("namespaces");
   const namespaces: LpnNamespace[] = [];
+  // A prefix belongs to one organization. That is the basis of rule 4, which
+  // decides whose pallet a scan is by matching its prefix and nothing else, so a
+  // table claiming one prefix for two organization keys makes that answer
+  // meaningless. Rejecting any repeated prefix covers both the collision and a
+  // duplicated pair, which is harmless in itself but would list the same prefix
+  // twice on a `FOREIGN_LPN_NAMESPACE` rejection. Comparison is on the normalized
+  // prefix, so case folding is not a way around it.
+  const claimedPrefixes = new Set<string>();
   for (const namespace of declared ?? []) {
     const validated = validateLpnNamespace(namespace);
     if (!validated.ok) return fail("namespaces");
+    if (claimedPrefixes.has(validated.value.prefix)) return fail("namespaces");
+    claimedPrefixes.add(validated.value.prefix);
     namespaces.push(validated.value);
   }
   return ok(
@@ -439,6 +449,15 @@ function validatePolicy(
  * The registered prefix a scan claims by shape: it starts with that prefix and is
  * exactly as long as an internal LPN issued under it. That is what separates "one
  * of ours, damaged" from "a string that happens to use the same alphabet".
+ *
+ * A first match is safe, and that is a property rather than a hope. The expected
+ * length is `prefix.length + LPN_TIME_LENGTH + LPN_RANDOM_LENGTH + 1`, so a scan
+ * of a given length can only be claimed by a prefix of one particular length; two
+ * prefixes of the same length that both prefix the same string are the same
+ * string. Overlapping prefixes (`PA` and `PAB`) therefore claim different scans
+ * rather than competing for one, and `validatePolicy` has already refused a
+ * repeated prefix, so no two entries here are equal. Reordering the namespaces
+ * cannot change the answer, which the unit tier asserts directly.
  */
 function claimedNamespacePrefix(
   normalized: string,

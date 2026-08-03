@@ -24,7 +24,9 @@ import {
   ratiosEqual,
   scaleInteger,
   UNIT_RATIO,
+  validateExactFraction,
   validateRatio,
+  type ExactFraction,
   type Ratio,
 } from "./ratio";
 
@@ -134,6 +136,76 @@ describe("makeExactFraction", () => {
       expectError(makeExactFraction(1, MAX_RATIO_COMPONENT + 1)).code,
     ).toBe("COMPONENT_OUT_OF_RANGE");
   });
+
+  // The type says an `ExactFraction` is reduced, and two callers rely on it: an
+  // `INEXACT` conversion outcome is compared and rendered by its components, so
+  // `2/4` and `1/2` would be two different explanations of one value.
+  it("reduces by the greatest common divisor", () => {
+    expect(expectOk(makeExactFraction(2, 4))).toEqual({
+      numerator: 1,
+      denominator: 2,
+    });
+    expect(expectOk(makeExactFraction(1000, 250))).toEqual({
+      numerator: 4,
+      denominator: 1,
+    });
+  });
+
+  it("reduces a negative numerator without moving the sign", () => {
+    expect(expectOk(makeExactFraction(-2, 4))).toEqual({
+      numerator: -1,
+      denominator: 2,
+    });
+    expect(expectOk(makeExactFraction(-1000, 250))).toEqual({
+      numerator: -4,
+      denominator: 1,
+    });
+  });
+
+  it("normalizes every zero to 0/1", () => {
+    expect(expectOk(makeExactFraction(0, 3))).toEqual({
+      numerator: 0,
+      denominator: 1,
+    });
+    // `-0` survives JSON and `Object.is` separates it from `0`, so two zero
+    // remainders would otherwise fail to compare equal.
+    expect(Object.is(expectOk(makeExactFraction(-0, 7)).numerator, 0)).toBe(
+      true,
+    );
+  });
+
+  it("keeps both components inside the declared bounds after reducing", () => {
+    const reduced = expectOk(
+      makeExactFraction(MAX_RATIO_COMPONENT * 2, MAX_RATIO_COMPONENT),
+    );
+    expect(reduced).toEqual({ numerator: 2, denominator: 1 });
+    expect(Number.isSafeInteger(reduced.numerator)).toBe(true);
+    expect(reduced.denominator).toBeLessThanOrEqual(MAX_RATIO_COMPONENT);
+  });
+});
+
+describe("validateExactFraction", () => {
+  // `ExactFraction` is an interface, so an unreduced literal compiles and is
+  // exactly what a document read back or a `JSON.parse` produces.
+  it("reduces a forged unreduced fraction rather than passing it through", () => {
+    expect(expectOk(validateExactFraction(forged(2, 4)))).toEqual({
+      numerator: 1,
+      denominator: 2,
+    });
+    expect(expectOk(validateExactFraction(forged(0, 5)))).toEqual({
+      numerator: 0,
+      denominator: 1,
+    });
+  });
+
+  it("still names the invalid cases", () => {
+    expect(expectError(validateExactFraction(forged(1, 0))).code).toBe(
+      "NOT_POSITIVE",
+    );
+    expect(
+      expectError(validateExactFraction(null as unknown as ExactFraction)).code,
+    ).toBe("NOT_A_FRACTION");
+  });
 });
 
 describe("composeRatios", () => {
@@ -239,6 +311,14 @@ describe("invertRatio and comparison", () => {
       "NOT_AN_INTEGER",
     );
   });
+
+  // `formatRatio` validates through `validateExactFraction`, so it renders the
+  // reduced form. An operator-facing message must not show `2/4` for a value the
+  // type promises is `1/2`.
+  it("renders the reduced form of an unreduced operand", () => {
+    expect(expectOk(formatRatio(forged(2, 4)))).toBe("1/2");
+    expect(expectOk(formatRatio(forged(0, 5)))).toBe("0/1");
+  });
 });
 
 describe("scaleInteger", () => {
@@ -276,6 +356,29 @@ describe("scaleInteger", () => {
     if (scaled.kind === "INEXACT") {
       expect(scaled.exact.numerator).toBe(-5);
       expect(scaled.exact.denominator).toBe(2);
+    }
+  });
+
+  // The remainder is reduced against the denominator before the multiply, so the
+  // components were already coprime; this pins that `makeExactFraction`'s
+  // reduction does not change any `INEXACT` value it used to report.
+  it("reports an INEXACT remainder already in lowest terms", () => {
+    const cases: readonly [number, Ratio][] = [
+      [1000, ratio(1, 3)],
+      [500, ratio(3, 7)],
+      [7, ratio(5, 6)],
+      [-9, ratio(4, 15)],
+      [2, ratio(1000, 999)],
+    ];
+    for (const [value, factor] of cases) {
+      const scaled = expectOk(scaleInteger(value, factor));
+      expect(scaled.kind).toBe("INEXACT");
+      if (scaled.kind !== "INEXACT") continue;
+      const { numerator, denominator } = scaled.exact;
+      expect(expectOk(validateExactFraction(scaled.exact))).toEqual({
+        numerator,
+        denominator,
+      });
     }
   });
 

@@ -31,7 +31,7 @@
  *
  * Pure module (plan §6.2): no Convex imports.
  */
-import { isArray, isRecord, isSafeInt, isString } from "../guards";
+import { isArray, isBoolean, isRecord, isSafeInt, isString } from "../guards";
 import { fail, ok, type Result } from "../result";
 
 /* -------------------------------------------------------------------------- */
@@ -103,7 +103,12 @@ export type QuantityError =
       readonly raw: string;
       readonly maximumDecimals: number;
     }
-  | { readonly code: "ZERO_NOT_ALLOWED"; readonly uom: UomCode };
+  | { readonly code: "ZERO_NOT_ALLOWED"; readonly uom: UomCode }
+  | {
+      readonly code: "INVALID_FORMAT_OPTIONS";
+      readonly field: "options" | "trimTrailingZeros";
+      readonly received: string;
+    };
 
 /* -------------------------------------------------------------------------- */
 /* Construction                                                                */
@@ -336,6 +341,15 @@ export const requireNonZeroQuantity = (
 /* -------------------------------------------------------------------------- */
 
 /**
+ * Display options for `formatQuantity`. An interface, so it is as forgeable as a
+ * `Quantity` and is validated the same way.
+ */
+export interface QuantityFormatOptions {
+  /** Drop trailing zeros from the fraction. Absent and `false` are the same. */
+  readonly trimTrailingZeros?: boolean;
+}
+
+/**
  * Renders a quantity for humans. Rounding is display-only and here there is
  * none: the digits shown are the digits stored (`ADR-0004` §5). No `Intl` and no
  * grouping separators — a locale-dependent decimal mark on a warehouse screen is
@@ -344,11 +358,38 @@ export const requireNonZeroQuantity = (
  * Validates first, and therefore returns a `Result`: "the digits shown are the
  * digits stored" is only true of a value this module built, and a forged
  * `minorUnits` would otherwise render as `NaN.NaN` on an operator's screen.
+ *
+ * The options bag is validated too, and before the quantity, because it is the
+ * argument the caller controls. It is as forgeable as anything else here — a
+ * `null` from a value that was `undefined` one call earlier used to be
+ * dereferenced and throw a `TypeError` out of a module that promises every
+ * failure is a `Result`. A non-boolean `trimTrailingZeros` is
+ * `INVALID_FORMAT_OPTIONS` rather than a truthiness test: the flag decides
+ * whether a stored digit is shown, and guessing at it is how two screens disagree
+ * about one quantity. An array is refused for the same reason — it carries no
+ * such property, so accepting it would silently mean "defaults".
  */
 export function formatQuantity(
   quantity: Quantity,
-  options: { readonly trimTrailingZeros?: boolean } = {},
+  options: QuantityFormatOptions = {},
 ): Result<string, QuantityError> {
+  if (!isRecord(options) || isArray(options)) {
+    return fail({
+      code: "INVALID_FORMAT_OPTIONS",
+      field: "options",
+      received: describe(options),
+    });
+  }
+  if (
+    options.trimTrailingZeros !== undefined &&
+    !isBoolean(options.trimTrailingZeros)
+  ) {
+    return fail({
+      code: "INVALID_FORMAT_OPTIONS",
+      field: "trimTrailingZeros",
+      received: describe(options.trimTrailingZeros),
+    });
+  }
   const validated = validateQuantity(quantity);
   if (!validated.ok) return validated;
   const { minorUnits } = validated.value;

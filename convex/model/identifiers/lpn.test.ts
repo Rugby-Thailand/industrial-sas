@@ -22,6 +22,7 @@ import {
   LPN_MIN_LENGTH,
   lpnFromSscc,
   makeLpnNamespace,
+  MAX_ORGANIZATION_KEY_LENGTH,
   parseInternalLpn,
   type EntropySource,
 } from "./lpn";
@@ -70,6 +71,71 @@ describe("makeLpnNamespace", () => {
     expect(expectError(makeLpnNamespace("  ", "PA")).code).toBe(
       "INVALID_ORGANIZATION_KEY",
     );
+  });
+
+  // The key was only trimmed and length-checked, so anything in between survived.
+  // It identifies a tenant, and a key carrying a zero-width joiner or an internal
+  // space is a second key for the same organization — which is how one tenant's
+  // prefix ends up registered twice under names an operator cannot tell apart.
+  it("rejects a key that is not a bounded whitespace-free identifier", () => {
+    const rejected = [
+      "",
+      "  ",
+      "org acme",
+      "org\tacme",
+      "org\nacme",
+      "org\u00a0acme",
+      "org\u0000acme",
+      "org\u200dacme",
+      "org\u202eacme",
+      "org\ufeffacme",
+      "org\u2028acme",
+      "a".repeat(MAX_ORGANIZATION_KEY_LENGTH + 1),
+    ];
+    for (const organizationKey of rejected) {
+      expect(expectError(makeLpnNamespace(organizationKey, "PA")).code).toBe(
+        "INVALID_ORGANIZATION_KEY",
+      );
+    }
+  });
+
+  it("still accepts the keys a tenant really has, and trims the ends", () => {
+    for (const organizationKey of [
+      "org_acme",
+      "org-acme-2",
+      "k57a9v3m2q8x1n4p6r0t5w7y",
+      "บริษัท",
+      "a".repeat(MAX_ORGANIZATION_KEY_LENGTH),
+    ]) {
+      expect(
+        expectOk(makeLpnNamespace(organizationKey, "PA")).organizationKey,
+      ).toBe(organizationKey);
+    }
+    expect(expectOk(makeLpnNamespace(" org_acme ", "PA")).organizationKey).toBe(
+      "org_acme",
+    );
+    // Every kind of whitespace is trimmed from the ends, not just a space. What
+    // is refused is whitespace *inside* the key, which is where two keys start
+    // looking like one.
+    expect(
+      expectOk(makeLpnNamespace("\u2028org_acme\u00a0", "PA")).organizationKey,
+    ).toBe("org_acme");
+  });
+
+  it("keeps the case of an organization key, because it may be a document id", () => {
+    expect(expectOk(makeLpnNamespace("Org_Acme", "PA")).organizationKey).toBe(
+      "Org_Acme",
+    );
+  });
+
+  it("rejects an organization key that is not a string", () => {
+    for (const organizationKey of [null, undefined, 42, {}, []]) {
+      expect(
+        expectError(
+          makeLpnNamespace(organizationKey as unknown as string, "PA"),
+        ).code,
+      ).toBe("INVALID_ORGANIZATION_KEY");
+    }
   });
 });
 
@@ -351,6 +417,122 @@ describe("misbehaving injected dependencies", () => {
         expectError(generateInternalLpn({ namespace, nowMs, entropy })).code,
       ).toBe("ENTROPY_UNAVAILABLE");
     }
+  });
+
+  // The byte reader used to accept anything with a plausible `length` and then
+  // iterate it. `{ length: 3 }` satisfied `isRecord` and the length check, so the
+  // `for…of` threw "is not iterable" straight out of `generateInternalLpn` — the
+  // one function in this module whose whole contract is that a misbehaving
+  // injected dependency is a `Result`.
+  it("refuses a forged byte view instead of throwing while reading it", () => {
+    const forgedSources: readonly EntropySource[] = [
+      // The original defect: a record with the right `length` and no bytes.
+      (() => ({ length: 3 })) as unknown as EntropySource,
+      (() => ({ length: 3, 0: 1, 1: 2, 2: 3 })) as unknown as EntropySource,
+      // An array is indexable and iterable, and is still not the contract.
+      (() => [1, 2, 3]) as unknown as EntropySource,
+      (() => new Int8Array([1, 2, 3])) as unknown as EntropySource,
+      (() => new Uint16Array([1, 2, 3])) as unknown as EntropySource,
+      (() => new DataView(new ArrayBuffer(3))) as unknown as EntropySource,
+      (() => new ArrayBuffer(3)) as unknown as EntropySource,
+      // A plain object that brands itself as a `Uint8Array` via `toStringTag`.
+      (() =>
+        ({
+          length: 3,
+          [Symbol.toStringTag]: "Uint8Array",
+        }) as unknown) as unknown as EntropySource,
+    ];
+    for (const entropy of forgedSources) {
+      expect(() =>
+        generateInternalLpn({ namespace, nowMs, entropy }),
+      ).not.toThrow();
+      expect(
+        expectError(generateInternalLpn({ namespace, nowMs, entropy })),
+      ).toEqual({ code: "ENTROPY_UNAVAILABLE", requested: 3 });
+    }
+  });
+
+  it("refuses a hostile byte view whose reads throw", () => {
+    // A `Proxy` over a real `Uint8Array` passes `instanceof`, because the trap
+    // forwards `getPrototypeOf`. Every read of it is what throws, so the read
+    // itself has to be inside the boundary.
+    const throwingIterator: EntropySource = () => {
+      const bytes = new Uint8Array([1, 2, 3]);
+      return new Proxy(bytes, {
+        get(target, property, receiver) {
+          if (property === Symbol.iterator) {
+            throw new Error("hostile iterator");
+          }
+          return Reflect.get(target, property, receiver) as unknown;
+        },
+      });
+    };
+    const throwingIndex: EntropySource = () =>
+      new Proxy(new Uint8Array([1, 2, 3]), {
+        get(target, property, receiver) {
+          if (property === "0") throw new Error("hostile index");
+          return Reflect.get(target, property, receiver) as unknown;
+        },
+      });
+    const throwingLength: EntropySource = () =>
+      new Proxy(new Uint8Array([1, 2, 3]), {
+        get(target, property, receiver) {
+          if (property === "length") throw new Error("hostile length");
+          return Reflect.get(target, property, receiver) as unknown;
+        },
+      });
+    const throwingGetter: EntropySource = () => {
+      const bytes = new Uint8Array([1, 2, 3]);
+      // A subclass instance is a `Uint8Array`, and this one throws on iteration.
+      class Hostile extends Uint8Array {
+        override [Symbol.iterator](): ArrayIterator<number> {
+          throw new Error("hostile subclass");
+        }
+      }
+      return new Hostile(bytes);
+    };
+    for (const entropy of [
+      throwingIterator,
+      throwingIndex,
+      throwingLength,
+      throwingGetter,
+    ]) {
+      expect(() =>
+        generateInternalLpn({ namespace, nowMs, entropy }),
+      ).not.toThrow();
+      const issued = generateInternalLpn({ namespace, nowMs, entropy });
+      // A hostile source either fails closed or is read as the bytes it really
+      // holds. What it must never do is throw, and it must never produce an LPN
+      // out of a value this module could not read.
+      if (issued.ok) {
+        expect(parseInternalLpn(issued.value.value, { namespace }).ok).toBe(
+          true,
+        );
+      } else {
+        expect(issued.error.code).toBe("ENTROPY_UNAVAILABLE");
+      }
+    }
+  });
+
+  it("refuses a byte view of the wrong length or with a non-byte in it", () => {
+    expect(
+      expectError(
+        generateInternalLpn({
+          namespace,
+          nowMs,
+          entropy: () => new Uint8Array(2),
+        }),
+      ),
+    ).toEqual({ code: "ENTROPY_UNAVAILABLE", requested: 3 });
+    expect(
+      expectError(
+        generateInternalLpn({
+          namespace,
+          nowMs,
+          entropy: () => new Uint8Array(4),
+        }),
+      ).code,
+    ).toBe("ENTROPY_UNAVAILABLE");
   });
 
   it("validates the namespace it is asked to issue under", () => {

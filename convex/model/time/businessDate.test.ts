@@ -33,6 +33,7 @@ import {
   validateTimeZone,
   zoneById,
   type BusinessDate,
+  type DisplayCalendar,
   type FixedOffsetZone,
 } from "./businessDate";
 
@@ -325,6 +326,62 @@ describe("Buddhist Era display", () => {
       value: { year: 2569, month: 8, day: 3 },
     });
     expect(expectOk(compareBusinessDates(expectOk(reparsed), value))).toBe(1);
+  });
+
+  // `DisplayCalendar` is a union of two string literals, and a cast satisfies it.
+  // The rendering branch was `calendar === "GREGORIAN" ? iso : buddhist`, so every
+  // unknown calendar silently became Buddhist Era — a date rendered 543 years off
+  // with nothing on the screen to say so.
+  it("names an unsupported calendar instead of falling into Buddhist Era", () => {
+    const value = date("2026-08-03");
+    expect(
+      expectError(
+        formatBusinessDate(value, "HIJRI" as unknown as DisplayCalendar),
+      ),
+    ).toEqual({ code: "UNSUPPORTED_DISPLAY_CALENDAR", calendar: "HIJRI" });
+    expect(
+      expectError(
+        formatBusinessDate(value, "gregorian" as unknown as DisplayCalendar),
+      ).code,
+    ).toBe("UNSUPPORTED_DISPLAY_CALENDAR");
+  });
+
+  it("names a calendar that is not a string at all", () => {
+    const value = date("2026-08-03");
+    const forgedCalendars: readonly [unknown, string][] = [
+      [null, "null"],
+      [0, "number"],
+      [true, "boolean"],
+      [{ calendar: "BUDDHIST" }, "object"],
+      [["BUDDHIST"], "object"],
+      [Symbol("BUDDHIST"), "symbol"],
+    ];
+    for (const [forgedCalendar, received] of forgedCalendars) {
+      expect(
+        expectError(
+          formatBusinessDate(value, forgedCalendar as DisplayCalendar),
+        ),
+      ).toEqual({ code: "UNSUPPORTED_DISPLAY_CALENDAR", calendar: received });
+    }
+  });
+
+  it("still defaults to Gregorian when the argument is omitted or undefined", () => {
+    const value = date("2026-08-03");
+    expect(expectOk(formatBusinessDate(value))).toBe("2026-08-03");
+    expect(
+      expectOk(
+        formatBusinessDate(value, undefined as unknown as DisplayCalendar),
+      ),
+    ).toBe("2026-08-03");
+  });
+
+  it("rejects the calendar before the date, because the caller chose it", () => {
+    const impossible = { year: 2026, month: 13, day: 40 } as BusinessDate;
+    expect(
+      expectError(
+        formatBusinessDate(impossible, "HIJRI" as unknown as DisplayCalendar),
+      ).code,
+    ).toBe("UNSUPPORTED_DISPLAY_CALENDAR");
   });
 });
 

@@ -26,8 +26,12 @@
     normalization, with leading zeros preserved and lot case preserved.
   - `convex/model/identifiers/lpn.ts` — LPN namespaces, internal LPN generation and
     validation with an internal check character, and SSCC as LPN (D-15). A clock or
-    entropy source that misbehaves — including one that throws — is a named error,
-    not an exception at the boundary.
+    entropy source that misbehaves — one that throws, one that returns the wrong
+    number of bytes, and one that returns any value this module will not read as a
+    `Uint8Array` — is a named error, not an exception at the boundary. An
+    organization key goes through the same normalizer a SKU does, so a key carrying
+    internal whitespace or a category-C code point cannot become a second key for
+    one tenant.
   - `convex/model/identifiers/scanResolution.ts` — the parser precedence of §13,
     with ambiguity, foreign namespaces, and GS1 content errors all rejected
     explicitly (`INV-0005-11`). Three further readings are refusals rather than
@@ -35,7 +39,9 @@
     (`10` + 16 digits is both a lot element string and, for some digit strings, a
     valid SSCC), a well-formed internal LPN with no namespace policy to say whose it
     is, and a scan matching a registered prefix and length whose check character is
-    wrong.
+    wrong. A policy claiming one prefix for two organization keys is refused before
+    it classifies anything, because matching a prefix is the whole basis of the
+    foreign-namespace answer.
   - `convex/model/rotation/stockRotation.ts` — FIFO/FEFO as a strict total order
     with documented tie-breakers and a per-candidate explanation
     (`INV-0005-10`). Expiry is the candidate's **expiration date** against an

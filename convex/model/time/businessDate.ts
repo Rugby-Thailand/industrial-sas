@@ -140,7 +140,11 @@ export type BusinessDateError =
     }
   | { readonly code: "INSTANT_NOT_AN_INTEGER"; readonly epochMs: number }
   | { readonly code: "INSTANT_OUT_OF_RANGE"; readonly epochMs: number }
-  | { readonly code: "UNSUPPORTED_TIME_ZONE"; readonly id: string };
+  | { readonly code: "UNSUPPORTED_TIME_ZONE"; readonly id: string }
+  | {
+      readonly code: "UNSUPPORTED_DISPLAY_CALENDAR";
+      readonly calendar: string;
+    };
 
 /* -------------------------------------------------------------------------- */
 /* Construction                                                                */
@@ -406,11 +410,26 @@ export type DisplayCalendar = "GREGORIAN" | "BUDDHIST";
  * Formats for display. `BUDDHIST` adds 543 to the Gregorian year and is only
  * ever an output: no parser in this module accepts a BE year, so a BE value
  * cannot re-enter storage or ordering by accident.
+ *
+ * The calendar is validated, and before the date, because it is the argument the
+ * caller chose. `DisplayCalendar` is a union of two string literals and a cast
+ * satisfies it, so a value from a preference document or a query parameter can be
+ * any string at all. The branch used to be "Gregorian or else Buddhist", which
+ * rendered every unknown calendar 543 years off with nothing on the screen to say
+ * so. An unrecognized calendar is `UNSUPPORTED_DISPLAY_CALENDAR`; `undefined`
+ * still takes the default, because that is an omitted argument rather than a
+ * forged one.
  */
 export const formatBusinessDate = (
   date: BusinessDate,
   calendar: DisplayCalendar = "GREGORIAN",
 ): Result<string, BusinessDateError> => {
+  if (calendar !== "GREGORIAN" && calendar !== "BUDDHIST") {
+    return fail({
+      code: "UNSUPPORTED_DISPLAY_CALENDAR",
+      calendar: isString(calendar) ? calendar : describe(calendar),
+    });
+  }
   const validated = validateBusinessDate(date);
   if (!validated.ok) return validated;
   const { year, month, day } = validated.value;
@@ -502,6 +521,6 @@ const pad = (value: number, width: number): string =>
 const numberOrNaN = (value: unknown): number =>
   typeof value === "number" ? value : Number.NaN;
 
-/** The shape of a value that is not a date or a zone, for the error field. */
+/** The shape of a value that is not a date, a zone, or a calendar. */
 const describe = (value: unknown): string =>
   value === null ? "null" : typeof value;

@@ -57,7 +57,7 @@ describe("makeItemUomProfile", () => {
   it("keeps the base UOM and the declared alternates", () => {
     expect(boltsProfile.itemKey).toBe("ITEM-BOLT-M8");
     expect(boltsProfile.baseUom).toBe("PCS");
-    expect(alternateUoms(boltsProfile)).toEqual(["CASE", "PALLET"]);
+    expect(expectOk(alternateUoms(boltsProfile))).toEqual(["CASE", "PALLET"]);
     expect(Object.isFrozen(boltsProfile)).toBe(true);
   });
 
@@ -70,7 +70,7 @@ describe("makeItemUomProfile", () => {
       }),
     );
     expect(profile.baseUom).toBe("PCS");
-    expect(alternateUoms(profile)).toEqual(["CASE"]);
+    expect(expectOk(alternateUoms(profile))).toEqual(["CASE"]);
   });
 
   it("rejects a duplicate alternate and an alternate that repeats the base", () => {
@@ -393,7 +393,7 @@ describe("profile immutability and forged input", () => {
     expect(() => {
       (boltsProfile.alternates[0] as { toBase: unknown }).toBase = ratio(1, 1);
     }).toThrow(TypeError);
-    expect(alternateUoms(boltsProfile)).toEqual(["CASE", "PALLET"]);
+    expect(expectOk(alternateUoms(boltsProfile))).toEqual(["CASE", "PALLET"]);
     expect(expectOk(conversionToBase(boltsProfile, "CASE"))).toEqual({
       numerator: 12,
       denominator: 1,
@@ -447,7 +447,97 @@ describe("profile immutability and forged input", () => {
     expect(
       expectError(validateItemUomProfile(null as unknown as ItemUomProfile)),
     ).toEqual({ code: "NOT_A_PROFILE", received: "null" });
-    expect(alternateUoms(null as unknown as ItemUomProfile)).toEqual([]);
+    expect(
+      expectError(alternateUoms(null as unknown as ItemUomProfile)),
+    ).toEqual({ code: "NOT_A_PROFILE", received: "null" });
+  });
+
+  // `alternateUoms` was the one public operation that did not validate. It mapped
+  // `conversion.uom` straight out of whatever it was handed, so its declared
+  // `readonly UomCode[]` — an alias for `string[]` — could come back holding a
+  // number, an object, or a UOM code no normalizer would accept. Every caller of
+  // it is about to be a Convex function building a picker or a label.
+  it("refuses a forged profile rather than returning values that are not UOM codes", () => {
+    const forgedProfile = (alternates: unknown): ItemUomProfile =>
+      ({
+        itemKey: "ITEM-1",
+        baseUom: "PCS",
+        alternates,
+      }) as unknown as ItemUomProfile;
+
+    // A non-string `uom` used to be returned as-is, typed `string`.
+    expect(
+      expectError(
+        alternateUoms(forgedProfile([{ uom: 42, toBase: ratio(2, 1) }])),
+      ),
+    ).toEqual({ code: "INVALID_UOM_CODE", raw: "number" });
+    expect(
+      expectError(
+        alternateUoms(forgedProfile([{ uom: null, toBase: ratio(2, 1) }])),
+      ).code,
+    ).toBe("INVALID_UOM_CODE");
+    expect(
+      expectError(
+        alternateUoms(
+          forgedProfile([{ uom: { code: "CASE" }, toBase: ratio(2, 1) }]),
+        ),
+      ).code,
+    ).toBe("INVALID_UOM_CODE");
+    // A code the normalizer would never issue.
+    expect(
+      expectError(
+        alternateUoms(forgedProfile([{ uom: "1CASE", toBase: ratio(2, 1) }])),
+      ).code,
+    ).toBe("INVALID_UOM_CODE");
+    // A factor that would make stock vanish, on an otherwise plausible entry.
+    expect(
+      expectError(
+        alternateUoms(
+          forgedProfile([
+            { uom: "CASE", toBase: { numerator: 1, denominator: 0 } },
+          ]),
+        ),
+      ).code,
+    ).toBe("RATIO_INVALID");
+    // An entry that is not a record at all was silently filtered out, so the
+    // answer was a shorter list than the profile declared.
+    expect(expectError(alternateUoms(forgedProfile(["CASE"]))).code).toBe(
+      "NOT_A_PROFILE",
+    );
+    expect(expectError(alternateUoms(forgedProfile([null]))).code).toBe(
+      "NOT_A_PROFILE",
+    );
+    expect(expectError(alternateUoms(forgedProfile("CASE,PALLET"))).code).toBe(
+      "NOT_A_PROFILE",
+    );
+    // A duplicate and a base-repeating alternate are refused here too, because
+    // this is `validateItemUomProfile` and not a second, looser reading.
+    expect(
+      expectError(
+        alternateUoms(
+          forgedProfile([
+            { uom: "CASE", toBase: ratio(2, 1) },
+            { uom: "CASE", toBase: ratio(3, 1) },
+          ]),
+        ),
+      ).code,
+    ).toBe("DUPLICATE_UOM");
+    expect(
+      expectError(
+        alternateUoms(forgedProfile([{ uom: "PCS", toBase: ratio(2, 1) }])),
+      ).code,
+    ).toBe("BASE_UOM_AS_ALTERNATE");
+  });
+
+  it("normalizes the codes it answers, and freezes the list", () => {
+    const profile = {
+      itemKey: "ITEM-1",
+      baseUom: "pcs",
+      alternates: [{ uom: " case ", toBase: ratio(6, 1) }],
+    } as unknown as ItemUomProfile;
+    const codes = expectOk(alternateUoms(profile));
+    expect(codes).toEqual(["CASE"]);
+    expect(Object.isFrozen(codes)).toBe(true);
   });
 
   it("refuses to add item quantities that were never validated", () => {

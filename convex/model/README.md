@@ -54,23 +54,38 @@ So four rules hold across the directory, and are tested rather than asserted:
    `Result`. That is why `compareRatios`, `formatQuantity`, `businessDateToIso`,
    and `compareBusinessDates` answer a result instead of a bare value: an
    unvalidated operand would otherwise sort by `NaN` or render `NaN.NaN` onto an
-   operator's screen.
+   operator's screen. `alternateUoms` answers one for the same reason at one
+   remove — its declared `readonly UomCode[]` is an alias for `readonly string[]`,
+   so a forged profile made it hand back a number or an object as a UOM code, and
+   an entry it could not read was dropped rather than named. The argument the
+   caller chose is validated too, and first: `formatQuantity`'s options bag and
+   `formatBusinessDate`'s `DisplayCalendar` are both forgeable, and blaming the
+   value would send the caller looking in the wrong place.
 2. **Nothing throws, and nothing loops.** A domain error is a value. The one
    non-obvious case: Euclid's algorithm exits on `b !== 0`, and every remainder of
    a non-finite operand is `NaN`, so a forged conversion factor that reached the
    gcd never returned. `greatestCommonDivisor` is therefore private and every
    caller validates first.
-3. **What is returned is immutable at run time.** `readonly` and `ReadonlyMap` are
-   compile-time claims; a `Map` typed `ReadonlyMap` is still a `Map`. The
-   supported-AI table, the timezone registry, an item's conversion table, and a
-   parsed scan's values are frozen null-prototype records or frozen arrays, and
-   `ok`/`fail` freeze the wrapper. Null prototypes matter for the lookups keyed on
-   scanned input: with `Object.prototype` in the chain, `byAi["toString"]` answers
-   a function while the type promises a string.
+3. **Every value these modules construct is frozen, and `Object.freeze` is
+   shallow.** `readonly` and `ReadonlyMap` are compile-time claims; a `Map` typed
+   `ReadonlyMap` is still a `Map`. So the supported-AI table, the timezone
+   registry, an item's conversion table, and a parsed scan's values are frozen
+   null-prototype records or frozen arrays, and `ok`/`fail` freeze the wrapper.
+   Shallowness is the limit, and it is worth stating rather than implying:
+   `ok(value)` freezes `{ ok, value }` and nothing under `value`, so a returned
+   value is immutable all the way down only because whatever built it froze its own
+   output too. The discriminated outcome envelopes are the deliberate exception —
+   `ScaledInteger` and `UomConversionOutcome` are plain objects around frozen
+   payloads, because a caller reads `kind` at the call site and keeps the
+   `Quantity` or the `ExactFraction`, never the envelope. Null prototypes matter
+   for the lookups keyed on scanned input: with `Object.prototype` in the chain,
+   `byAi["toString"]` answers a function while the type promises a string.
 4. **An injected dependency that misbehaves is a `Result`.** A clock outside the
    representable window, an entropy source that throws, returns the wrong number
-   of bytes, or is not a function at all — each is a named error from
-   `generateInternalLpn` rather than an exception crossing the boundary.
+   of bytes, returns something that is not a `Uint8Array` at all, is a
+   `Uint8Array`-shaped `Proxy` whose reads throw, or is not a function at all —
+   each is a named error from `generateInternalLpn` rather than an exception
+   crossing the boundary.
 
 Two semantic rules exist for the same reason — a plausible reading is not an
 acceptable answer:
@@ -82,7 +97,13 @@ acceptable answer:
 - **A scan is classified or refused, never guessed.** A valid bare SSCC with the
   tenant's `bareSscc` off, an internal LPN with no namespace policy to judge it by,
   and a scan matching a registered prefix whose check character is wrong are each a
-  named rejection — not a lot code, a GTIN, or a SKU.
+  named rejection — not a lot code, a GTIN, or a SKU. The policy that decides all
+  of that is itself refused if a prefix is claimed twice: the rung that answers
+  whose pallet a scan is matches a registered prefix and nothing else, so a table
+  holding one prefix for two organization keys would make that answer meaningless.
+  Overlapping prefixes are not the same thing and stay legal — `PA` and `PAB` imply
+  different scan lengths, so they claim different scans and declaration order cannot
+  change the answer.
 
 ## What is deliberately absent
 
@@ -101,7 +122,8 @@ acceptable answer:
 
 - Values are immutable and frozen at run time, not only `readonly` in the type;
   constructors validate and return a `Result`, and so does every operation that
-  could be handed a forged value.
+  could be handed a forged value. `Object.freeze` is shallow, so each constructor
+  freezes its own output rather than trusting that its caller will.
 - Errors are structured codes with fields, never prose: the UI owns translation
   (D-06), so an English sentence baked into an error is untranslatable.
 - Nothing rounds. A conversion that does not land on a whole minor unit reports

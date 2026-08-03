@@ -228,17 +228,24 @@ export function validateItemUomProfile(
   });
 }
 
-/** The declared alternate UOM codes, in declaration order. */
-export const alternateUoms = (profile: ItemUomProfile): readonly UomCode[] =>
-  isRecord(profile) && isArray(profile.alternates)
-    ? frozenArray(
-        profile.alternates
-          .filter((conversion): conversion is UomConversion =>
-            isRecord(conversion),
-          )
-          .map((conversion) => conversion.uom),
-      )
-    : frozenArray([]);
+/**
+ * The declared alternate UOM codes, in declaration order.
+ *
+ * Returns a `Result` like every other public operation here, and for the same
+ * reason: it used to map `conversion.uom` out of whatever it was handed, so a
+ * forged profile made its declared `readonly UomCode[]` — an alias for `string[]`
+ * — come back holding a number or an object, and an entry that was not a record
+ * was silently dropped, answering a shorter list than the profile declared.
+ */
+export function alternateUoms(
+  profile: ItemUomProfile,
+): Result<readonly UomCode[], ItemUomError> {
+  const validated = validateItemUomProfile(profile);
+  if (!validated.ok) return validated;
+  return ok(
+    frozenArray(validated.value.alternates.map((conversion) => conversion.uom)),
+  );
+}
 
 /** The factor from `uom` to the base UOM, or a named reason there is none. */
 export function conversionToBase(
