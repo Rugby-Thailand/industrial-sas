@@ -6,10 +6,11 @@
  * Status: **pure kernel only.** This module resolves; it does not enforce. It has
  * no Convex runtime dependency beyond types: no `query`/`mutation` builder, no
  * `ctx.db`, no `ConvexError`, no Clerk client, no webhook, no permission
- * evaluation. It is called by nothing yet. The tenant-bound accessor
- * (`convex/lib/tenantDb.ts`, `G-102`) and the auth wrapper (`INV-0002-01`) are the
- * next slices, and they are expected to call `resolveTenantContext` — exactly
- * this function — rather than re-deriving any part of it.
+ * evaluation. It is called by nothing yet. The tenant-bound accessor (`G-102`,
+ * whose boundary primitives now live in `convex/lib/tenantDb.ts`) and the auth
+ * wrapper (`INV-0002-01`) are the next slices, and they are expected to call
+ * `resolveTenantContext` — exactly this function — rather than re-deriving any
+ * part of it.
  *
  * Why a pure kernel with injected lookups rather than a wrapper that reads
  * `ctx.db` directly: isolation is a property of *this decision sequence*

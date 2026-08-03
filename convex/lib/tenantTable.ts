@@ -4,8 +4,8 @@
  *
  * Status: **schema foundation only.** These helpers shape table definitions.
  * They are not an access wrapper: nothing here reads or writes a document, and
- * `convex/lib/tenantDb.ts` (the tenant-bound accessor, `G-102`) does not exist
- * yet.
+ * `convex/lib/tenantDb.ts` holds only the boundary primitives — the tenant-bound
+ * accessor itself (`G-102`) does not exist yet.
  *
  * The point of the two helpers below is that the discipline is applied by
  * construction. `tenantFields` puts `orgId` in the document, and `byOrg` puts it
