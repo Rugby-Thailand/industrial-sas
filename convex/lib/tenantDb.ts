@@ -1,17 +1,34 @@
 /**
- * Tenant document boundary primitives — the table names, the failure vocabulary,
- * the ownership assertion, and the write shapes that the tenant-bound accessor
- * (`G-102`, `ADR-0002` §2) will be assembled from.
+ * Tenant document boundary — the table names, the failure vocabulary, the
+ * ownership assertion, the write shapes, and the direct-ID document access the
+ * tenant-bound accessor (`G-102`, `ADR-0002` §2) is being assembled from.
  *
- * Status: **primitives only.** Nothing here reads or writes a document. There is
- * no `ctx.db`, no index traversal, no pagination, no `ConvexError`, and no query
- * builder: this module is types, one frozen allowlist, one error class, and four
- * pure functions. The accessor that closes `G-102` is a later slice, and it is
- * expected to be written *in terms of* these primitives rather than re-deriving
- * any of them.
+ * Status: **primitives plus adapter-backed document access by ID.** Nothing here
+ * touches Convex. There is no `ctx.db`, no index traversal, no pagination, no
+ * `ConvexError`, and no `query`/`mutation` wrapper. Storage is reached only
+ * through `TenantStoragePort` (below): five async methods over a tenant table
+ * name, opaque string IDs, and plain records. `createTenantDocumentAccess` binds
+ * one port to one tenant and one request, and is the only thing a caller is given.
  *
- * Why the primitives land before the accessor: every property the accessor has to
- * hold is decidable without a database.
+ * `G-102` is **not** closed by this. What is missing is everything that makes the
+ * boundary reachable and complete: the Convex adapter that implements the port
+ * over `ctx.db`, the index-backed reads (`INVALID_LIMIT`,
+ * `INVALID_INDEX_RESULT`), the auth wrapper that mints the scope from a resolved
+ * tenant context, and the public function wrappers. Each is a later slice, and
+ * each is expected to be written *in terms of* what is here rather than
+ * re-deriving any of it.
+ *
+ * Why an injected port rather than `ctx.db` directly: isolation is a property of
+ * the decision sequence around a read, not of the read — and a decision sequence
+ * that can only run inside a Convex transaction can only be tested inside one.
+ * With the port injected, the interesting cases are all reachable from an
+ * in-memory fake: a lookup that answers with another tenant's document, a lookup
+ * that answers with something that is not a document at all, and a mutation that
+ * must be proved *not* to have been called. The adapter that lands later supplies
+ * the same five methods over `ctx.db`; the sequence below does not change shape
+ * when it does. Same arrangement, same reason, as `convex/lib/tenantContext.ts`.
+ *
+ * Every property this boundary has to hold is decidable without a database.
  *
  * - "this table is tenant-scoped" is a fact about `TENANT_TABLES`
  *   (`convex/lib/schemaPolicy.ts`), and the accessor needs it at *runtime*, not
@@ -24,10 +41,7 @@
  *   (`INV-0001-02`): the discriminator is derived from the resolved context, and
  *   a caller-supplied `orgId` is a rejected write, never an overwritten field.
  *
- * Split out that way, the boundary is testable by the isolation tier now, and the
- * accessor slice is left with exactly one new concern: index-backed reads.
- *
- * Two rules govern everything below.
+ * Three rules govern everything below.
  *
  * 1. **Absent and foreign are the same answer** (`INV-0002-03`). A document that
  *    does not exist and a document belonging to another tenant both raise
@@ -39,6 +53,11 @@
  *    no payload echo. The message is one fixed string, identical for every code,
  *    so it cannot become a channel either. Diagnosis is server-side, keyed by the
  *    request ID (plan §7.4).
+ * 3. **Every write by ID is preceded by a read that proves ownership.** A patch,
+ *    a replace, or a delete re-reads the document through the port and asserts
+ *    ownership before the port is asked to change anything. A document ID needs
+ *    no index, so a document ID is exactly the value a caller can hold without
+ *    ever having been allowed to see it (`ADR-0002` §2).
  *
  * Baseline:
  * [ADR-0002](../../docs/adr/0002-convex-tenant-boundary-and-index-discipline.md),
@@ -445,4 +464,324 @@ export function tenantUpdatePayload<Payload extends TenantWritePayload>(
 ): Payload {
   assertWritableFields(payload, requestId);
   return payload;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Storage port                                                                */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * A stored or storable document as this boundary handles one: a plain record of
+ * unknown values.
+ *
+ * The port deals in records, not in `DataModel` document types, because the port
+ * is below the schema: its job is to move an opaque payload to and from storage,
+ * and the moment it knows what a `warehouses` row looks like it has an opinion
+ * that belongs in the schema and its validators.
+ */
+export type TenantStorageDocument = Record<string, unknown>;
+
+/**
+ * The single seam between this boundary and a database. Five methods, all async,
+ * all keyed by a tenant table name and an opaque document ID.
+ *
+ * This is the *only* object in the tenant read/write path that touches storage.
+ * `createTenantDocumentAccess` holds one in a closure and never hands it back, so
+ * "what can reach the database from here?" has one answer: whatever is written in
+ * this file.
+ *
+ * Three deliberate narrownesses:
+ *
+ * - **`get` answers `unknown`.** Not `TenantOwnedDocument | null`, which would be
+ *   the adapter asserting the very thing the boundary exists to check. A
+ *   database answers with whatever is stored — including a row written before a
+ *   schema change, or one written by a path that predates this module — so the
+ *   type says so and `assertOwnedDocument` decides.
+ * - **IDs are `string`.** A `GenericId<Table>` is a branded string, and a brand
+ *   is a compile-time claim, not a proof that the ID belongs to the table, the
+ *   tenant, or the database. Treating an inbound ID as opaque keeps the runtime
+ *   checks the only thing that decides anything; the adapter is where a `string`
+ *   becomes a Convex ID, and it is the adapter's business if that fails.
+ * - **There is no query, no index, no filter, and no pagination.** Direct-ID
+ *   access is the whole surface of this slice. Index-backed reads arrive with the
+ *   codes already declared for them, and adding them here later widens this port
+ *   rather than working around it.
+ *
+ * A port method may throw. If it throws a `TenantDbError`, that error travels
+ * unchanged — it is already the safe shape, and re-wrapping it would either lose
+ * the request ID or invent a second error identity for the same failure.
+ */
+export interface TenantStoragePort {
+  /** The stored value at `table`/`id`, or `null`/`undefined` when there is none. */
+  readonly get: (table: TenantTableName, id: string) => Promise<unknown>;
+
+  /** Store `document` in `table` and answer with its new ID. */
+  readonly insert: (
+    table: TenantTableName,
+    document: TenantStorageDocument,
+  ) => Promise<string>;
+
+  /** Shallow-merge `fields` into the document at `table`/`id`. */
+  readonly patch: (
+    table: TenantTableName,
+    id: string,
+    fields: TenantStorageDocument,
+  ) => Promise<void>;
+
+  /** Replace the document at `table`/`id` with `document` in full. */
+  readonly replace: (
+    table: TenantTableName,
+    id: string,
+    document: TenantStorageDocument,
+  ) => Promise<void>;
+
+  /** Remove the document at `table`/`id`. */
+  readonly delete: (table: TenantTableName, id: string) => Promise<void>;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Tenant-scoped document access                                               */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * What a bound accessor is bound to: one tenant and one request.
+ *
+ * Both values are server-derived. `orgId` is the resolved context's organization
+ * document ID (`ActiveTenantContext.organization._id`, never a client-supplied
+ * value, `INV-0001-02`) and `requestId` is the server-minted correlation ID
+ * (plan §7.4). The auth wrapper that lands later is what builds this from
+ * `resolveTenantContext`; the structural shape is stated here so this module
+ * does not have to import the resolver to be usable or testable.
+ *
+ * Nothing is validated at construction time. An unusable `orgId` does not throw
+ * a distinctive error here — it makes every read answer "not found" and every
+ * write refuse, which is the same failure a caller would see for any other reason
+ * they may not touch a document. Fail closed, and fail identically.
+ */
+export interface TenantDocumentAccessScope {
+  /** The tenant every operation is confined to. */
+  readonly orgId: TenantOrgId;
+  /** The request every failure is correlated by. */
+  readonly requestId: string;
+}
+
+/**
+ * Tenant-confined document access by ID.
+ *
+ * Each `Document` type parameter is the *caller's* claim about what the table
+ * holds, carried through unchanged, exactly as in `assertOwnedDocument`:
+ * ownership is verified here, field types are the schema's business.
+ */
+export interface TenantDocumentAccess {
+  /**
+   * The document at `table`/`id` when this tenant owns it, otherwise `null`.
+   *
+   * `null` covers every reason there is no readable document: absent, another
+   * tenant's, or unusable (not an object, no `orgId`, an `orgId` that is not a
+   * usable key). One answer for all of them, so a caller holding a foreign ID
+   * learns nothing from the fact that it got `null` (`INV-0002-03`).
+   *
+   * Throws only `INVALID_TENANT_TABLE`, for a table this accessor may not scope.
+   */
+  readonly get: <Document extends TenantOwnedDocument = TenantOwnedDocument>(
+    table: TenantTableName,
+    id: string,
+  ) => Promise<Document | null>;
+
+  /**
+   * The document at `table`/`id`, or `NOT_FOUND` — the same code, message, and
+   * payload for absent, foreign, and malformed.
+   *
+   * The `X` suffix follows Convex's own `getX` convention: the variant that
+   * throws rather than answering `null`.
+   */
+  readonly getX: <Document extends TenantOwnedDocument = TenantOwnedDocument>(
+    table: TenantTableName,
+    id: string,
+  ) => Promise<Document>;
+
+  /**
+   * Insert `payload` into `table` under this tenant, and answer with the new ID.
+   *
+   * The tenant discriminator is derived from the scope; a payload that mentions
+   * `orgId`, `_id`, `_creationTime`, or any other `_`-prefixed field is refused
+   * with `INVALID_WRITE` rather than corrected.
+   */
+  readonly insert: <Payload extends TenantWritePayload>(
+    table: TenantTableName,
+    payload: Payload,
+  ) => Promise<string>;
+
+  /** Shallow-merge `fields` into a document this tenant owns. */
+  readonly patch: <Payload extends TenantWritePayload>(
+    table: TenantTableName,
+    id: string,
+    fields: Payload,
+  ) => Promise<void>;
+
+  /**
+   * Replace a document this tenant owns, re-deriving the discriminator.
+   *
+   * `document` is the whole document minus the fields a caller never owns, so
+   * the derived `orgId` is stamped again on the way in — a replace that dropped
+   * it would leave an untenanted row, and one that took it from the caller could
+   * move a row between tenants.
+   */
+  readonly replace: <Payload extends TenantWritePayload>(
+    table: TenantTableName,
+    id: string,
+    document: Payload,
+  ) => Promise<void>;
+
+  /** Delete a document this tenant owns. */
+  readonly delete: (table: TenantTableName, id: string) => Promise<void>;
+}
+
+/**
+ * Bind a storage port to one tenant and one request.
+ *
+ * The returned object is frozen and closes over the port, so there is no
+ * property, getter, or method on it that answers with the port, the scope, or a
+ * document belonging to anyone else. A caller that wants unscoped storage has to
+ * be handed a port of its own by whoever built this one — which is the point:
+ * the set of places that can do that is a list of call sites, not a capability
+ * every holder of an accessor inherits.
+ *
+ * The read/write sequence is fixed for every method:
+ *
+ * 1. assert the table is tenant-scoped (`INVALID_TENANT_TABLE`);
+ * 2. for anything addressed by ID, read through the port and assert ownership
+ *    (`NOT_FOUND`);
+ * 3. for anything that writes, validate the payload and derive the
+ *    discriminator (`INVALID_WRITE`);
+ * 4. only then call the port's mutating method.
+ *
+ * Step 2 precedes step 3 on purpose. It means the answer a caller gets for an ID
+ * it may not touch is `NOT_FOUND` *whatever payload it sent*: if payload
+ * validation ran first, the choice between `INVALID_WRITE` and `NOT_FOUND` would
+ * tell a caller that its ID had been accepted, and a caller that can learn that
+ * has an existence oracle over another tenant's IDs.
+ *
+ * There is no caching between step 2 and step 4. The document is re-read on
+ * every operation because a stale ownership decision is an ownership decision
+ * about a document that may since have moved, and because Convex gives the whole
+ * mutation one transaction — the read costs a transaction-local lookup, not a
+ * round trip.
+ */
+export function createTenantDocumentAccess(
+  scope: TenantDocumentAccessScope,
+  port: TenantStoragePort,
+): TenantDocumentAccess {
+  const { orgId, requestId } = scope;
+
+  /** The table check every method starts with, named once. */
+  const requireTenantTable = (table: TenantTableName): void => {
+    // `table` is typed as a tenant table, and is checked anyway: the value can
+    // arrive from a `string` the compiler never saw (an argument validator, a
+    // JSON body, a cast) and the allowlist is the only thing that decides.
+    assertTenantTableName(table, requestId);
+  };
+
+  /**
+   * The one predicate behind every ID-addressed operation: table allowed,
+   * document present, document owned. Throws `NOT_FOUND` otherwise.
+   */
+  const readOwned = async <
+    Document extends TenantOwnedDocument = TenantOwnedDocument,
+  >(
+    table: TenantTableName,
+    id: string,
+  ): Promise<Document> => {
+    requireTenantTable(table);
+
+    // An unusable ID is answered without asking storage. Not an optimisation: it
+    // keeps a value like `""` or `" abc"` from reaching an adapter that may
+    // interpret it, and it is the same answer a valid-but-foreign ID gets.
+    if (!isUsableKey(id)) throw new TenantDbError("NOT_FOUND", requestId);
+
+    return assertOwnedDocument<Document>(
+      await port.get(table, id),
+      orgId,
+      requestId,
+    );
+  };
+
+  const get = async <
+    Document extends TenantOwnedDocument = TenantOwnedDocument,
+  >(
+    table: TenantTableName,
+    id: string,
+  ): Promise<Document | null> => {
+    try {
+      return await readOwned<Document>(table, id);
+    } catch (error) {
+      // `get` is `getX` with one code folded, so the two cannot disagree about
+      // what "owned" means. Only `NOT_FOUND` folds, and it folds whoever raised
+      // it — from the port or from the ownership assertion it means the same
+      // thing: there is no document here this tenant may read. Every other code,
+      // and anything that is not a `TenantDbError`, travels unchanged.
+      if (error instanceof TenantDbError && error.code === "NOT_FOUND") {
+        return null;
+      }
+      throw error;
+    }
+  };
+
+  const insert = async <Payload extends TenantWritePayload>(
+    table: TenantTableName,
+    payload: Payload,
+  ): Promise<string> => {
+    requireTenantTable(table);
+    const document = tenantInsertPayload(payload, orgId, requestId);
+
+    // Boundary cast: the derived document is a frozen record of unknown values,
+    // which is what the port takes. The cast drops the `orgId` refinement the
+    // helper's return type carries and adds nothing.
+    return await port.insert(table, document as TenantStorageDocument);
+  };
+
+  const patch = async <Payload extends TenantWritePayload>(
+    table: TenantTableName,
+    id: string,
+    fields: Payload,
+  ): Promise<void> => {
+    await readOwned(table, id);
+    const update = tenantUpdatePayload(fields, requestId);
+
+    // Boundary cast: `Payload` is constrained to a record of unknown values; the
+    // constraint is not an index signature the compiler will infer for a type
+    // parameter, so it is restated here. The object is the caller's, unchanged.
+    await port.patch(table, id, update as TenantStorageDocument);
+  };
+
+  const replace = async <Payload extends TenantWritePayload>(
+    table: TenantTableName,
+    id: string,
+    document: Payload,
+  ): Promise<void> => {
+    await readOwned(table, id);
+
+    // The same derivation as `insert`, for the same reason: a replaced document
+    // is a whole document, and its tenant is this scope's, not the caller's.
+    const replacement = tenantInsertPayload(document, orgId, requestId);
+
+    // Boundary cast: see `insert`.
+    await port.replace(table, id, replacement as TenantStorageDocument);
+  };
+
+  const remove = async (table: TenantTableName, id: string): Promise<void> => {
+    await readOwned(table, id);
+    await port.delete(table, id);
+  };
+
+  return Object.freeze({
+    get,
+    // `getX` *is* the shared predicate: there is no second implementation that
+    // could drift from the one `get` folds a code out of.
+    getX: readOwned,
+    insert,
+    patch,
+    replace,
+    delete: remove,
+  });
 }

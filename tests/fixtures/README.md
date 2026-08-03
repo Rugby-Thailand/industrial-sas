@@ -6,6 +6,9 @@ Current checked-in fixtures:
 
 - Synthetic two-tenant identity, membership, and warehouse data for tenant-context
   integration and isolation tests
+- `tenant-storage-port.ts`: an in-memory `TenantStoragePort` that enforces nothing
+  and records every call, so the document-access suites prove the accessor's own
+  guards rather than the fake's
 
 Planned contents, per `PROJECT_PLAN.md`:
 
