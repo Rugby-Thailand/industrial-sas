@@ -1,0 +1,28 @@
+name: Setup Node and pnpm
+description: >-
+  Install pnpm, Node.js, and this workspace's dependencies from the committed
+  lockfile. Single place where the toolchain versions and the dependency cache
+  are configured, so every job installs identically.
+
+runs:
+  using: composite
+  steps:
+    # pnpm must exist before actions/setup-node runs: its `cache: pnpm` mode
+    # shells out to `pnpm store path` to locate the cache directory.
+    # The version is not repeated here; the action reads the exact pin from the
+    # `packageManager` field in package.json (pnpm 10.33.2).
+    - name: Install pnpm
+      uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+
+    # Node comes from .nvmrc (22). `engine-strict=true` in .npmrc turns a
+    # mismatch against package.json `engines` into a failed install, not a
+    # warning, so a wrong runner image fails loudly here.
+    - name: Install Node.js
+      uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      with:
+        node-version-file: .nvmrc
+        cache: pnpm
+
+    - name: Install dependencies
+      shell: bash
+      run: pnpm install --frozen-lockfile

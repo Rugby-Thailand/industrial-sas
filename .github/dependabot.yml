@@ -1,0 +1,19 @@
+# Keeps the pinned action SHAs from going stale. Dependabot opens a PR that
+# rewrites both the SHA and the trailing version comment, which is exactly the
+# update policy documented in README.md, minus the manual lookup.
+#
+# Scoped to github-actions only: npm dependencies are pinned deliberately
+# (decision D-29) and are reviewed by hand, not by a bot.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directories:
+      - "/"
+      - "/.github/actions/setup-node-pnpm"
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "ci"
+    labels:
+      - ci
+    open-pull-requests-limit: 5

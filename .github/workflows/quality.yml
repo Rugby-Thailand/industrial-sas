@@ -1,0 +1,146 @@
+# Static analysis, the five Vitest tiers, and the production build.
+#
+# Third-party and GitHub-owned actions are pinned to immutable full commit SHAs
+# with the human-readable tag in a trailing comment. See the "Continuous
+# integration" section of README.md for the update policy; `pnpm
+# verify:workflows` enforces the pinning and permission rules mechanically.
+name: Quality
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches:
+      - main
+      - "feat/**"
+
+# Least privilege: nothing in this workflow writes to the repository, publishes
+# packages, or reads secrets. Declared at the top level and re-declared per job
+# so an added job cannot silently inherit anything wider.
+permissions:
+  contents: read
+
+# `head_ref || ref_name` collapses the pull_request run and the push run for the
+# same branch into one group, so opening a PR from a pushed feat branch does not
+# double-spend runners. Runs on main are never cancelled: main is the release
+# signal and every commit needs its own verdict.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: ${{ github.ref_name != 'main' }}
+
+env:
+  NEXT_TELEMETRY_DISABLED: "1"
+  DO_NOT_TRACK: "1"
+
+jobs:
+  static-analysis:
+    name: Static analysis
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # No credentials are needed after checkout; leaving the token in
+          # .git/config would expose it to anything this job runs.
+          persist-credentials: false
+
+      - name: Set up Node and pnpm
+        uses: ./.github/actions/setup-node-pnpm
+
+      - name: Verify CI configuration
+        run: pnpm verify:workflows
+
+      - name: Check formatting
+        run: pnpm format:check
+
+      - name: Lint (zero warnings)
+        run: pnpm lint
+
+      - name: Typecheck (strict)
+        run: pnpm typecheck
+
+  test:
+    # One job per Vitest project. Splitting them keeps the failing tier obvious
+    # in the checks list, and `fail-fast: false` means an isolation failure never
+    # hides a unit failure (or the reverse).
+    name: Test (${{ matrix.tier }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        tier: [unit, a11y, property, integration, isolation]
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node and pnpm
+        uses: ./.github/actions/setup-node-pnpm
+
+      # The JUnit file is written into `test-results/`, which is already ignored
+      # by git and Prettier. Reporters are passed on the command line so the
+      # committed Vitest config stays the same locally and in CI.
+      - name: Run ${{ matrix.tier }} tier
+        run: >-
+          pnpm test:${{ matrix.tier }}
+          --reporter=default
+          --reporter=junit
+          --outputFile=test-results/junit-${{ matrix.tier }}.xml
+
+      - name: Upload JUnit report
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: junit-${{ matrix.tier }}
+          path: test-results/junit-${{ matrix.tier }}.xml
+          if-no-files-found: ignore
+          retention-days: 7
+
+  build:
+    name: Production build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node and pnpm
+        uses: ./.github/actions/setup-node-pnpm
+
+      # No environment variables are supplied on purpose: the build must stay
+      # green with no .env.local until a slice genuinely needs one.
+      - name: Build
+        run: pnpm build
+
+      # `next build` rewrites the tracked next-env.d.ts. If the committed copy
+      # drifts from what this Next version generates, catch it here rather than
+      # in someone's unrelated diff.
+      - name: Check generated files are committed
+        run: git diff --exit-code -- next-env.d.ts
+
+      # Manifests and diagnostics only: a few KB of route names and bundle
+      # sizes, no bundles, no environment values. Bounded enough to keep on
+      # success, which is what makes size regressions visible over time.
+      - name: Upload build manifests
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: build-manifests
+          path: |
+            .next/diagnostics/
+            .next/build-manifest.json
+            .next/app-path-routes-manifest.json
+            .next/routes-manifest.json
+          if-no-files-found: ignore
+          retention-days: 7

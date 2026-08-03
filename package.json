@@ -24,7 +24,8 @@
     "test:isolation": "vitest run --project isolation",
     "test:a11y": "vitest run --project a11y",
     "test:e2e": "playwright test",
-    "guards": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test"
+    "verify:workflows": "node scripts/verify-workflows.mjs",
+    "guards": "pnpm verify:workflows && pnpm format:check && pnpm lint && pnpm typecheck && pnpm test"
   },
   "dependencies": {
     "@clerk/backend": "3.15.0",

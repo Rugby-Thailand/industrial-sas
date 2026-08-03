@@ -26,7 +26,8 @@ foundation and nothing more:
   up**: no schema, no ledger, no auth, no middleware, no vendor configuration.
 
 There is no authentication, no authorization, no tenant model, no database
-schema, no CI, and no deployment. Do not run this scaffold anywhere but locally.
+schema, and no deployment. CI runs the guards described below and nothing more.
+Do not run this scaffold anywhere but locally.
 
 ## Prerequisites
 
@@ -39,18 +40,19 @@ below passes with no `.env.local` present.
 
 ## Local commands
 
-| Command                          | What it does                                        |
-| -------------------------------- | --------------------------------------------------- |
-| `pnpm install --frozen-lockfile` | Install exactly what the lockfile specifies         |
-| `pnpm dev`                       | Next.js dev server on port 3000                     |
-| `pnpm build`                     | Production build (also regenerates `next-env.d.ts`) |
-| `pnpm start`                     | Serve a previous production build                   |
-| `pnpm format`                    | Rewrite files with Prettier                         |
-| `pnpm format:check`              | Fail on unformatted files                           |
-| `pnpm lint`                      | ESLint over the whole workspace                     |
-| `pnpm typecheck`                 | `tsc --noEmit`                                      |
-| `pnpm test`                      | All Vitest tiers                                    |
-| `pnpm guards`                    | `format:check` + `lint` + `typecheck` + `test`      |
+| Command                          | What it does                                                        |
+| -------------------------------- | ------------------------------------------------------------------- |
+| `pnpm install --frozen-lockfile` | Install exactly what the lockfile specifies                         |
+| `pnpm dev`                       | Next.js dev server on port 3000                                     |
+| `pnpm build`                     | Production build (also regenerates `next-env.d.ts`)                 |
+| `pnpm start`                     | Serve a previous production build                                   |
+| `pnpm format`                    | Rewrite files with Prettier                                         |
+| `pnpm format:check`              | Fail on unformatted files                                           |
+| `pnpm lint`                      | ESLint over the whole workspace                                     |
+| `pnpm typecheck`                 | `tsc --noEmit`                                                      |
+| `pnpm test`                      | All Vitest tiers                                                    |
+| `pnpm verify:workflows`          | CI configuration guard (see below)                                  |
+| `pnpm guards`                    | `verify:workflows` + `format:check` + `lint` + `typecheck` + `test` |
 
 ### Test tiers
 
@@ -73,6 +75,100 @@ pnpm test:e2e
 
 Playwright starts its own dev server on port 3100 (`PLAYWRIGHT_PORT`) so it does
 not collide with `pnpm dev`.
+
+## Continuous integration
+
+Two workflows run on pull requests targeting `main` and on pushes to `main` and
+`feat/**`. Both are credential-free: no secrets, no cloud services, no accounts.
+If a job needs a secret to pass, it is the wrong job for this repository.
+
+| Workflow                        | Jobs                                                                                         |
+| ------------------------------- | -------------------------------------------------------------------------------------------- |
+| `.github/workflows/quality.yml` | `Static analysis`, `Test (unit\|a11y\|property\|integration\|isolation)`, `Production build` |
+| `.github/workflows/e2e.yml`     | `Playwright (desktop + handheld Chromium)`                                                   |
+
+- **Static analysis** runs `verify:workflows`, `format:check`, `lint`
+  (`--max-warnings=0`), and `typecheck` (`tsc --noEmit`, strict).
+- **Test** is a matrix with one job per Vitest project and `fail-fast: false`, so
+  a red isolation tier never masks a red unit tier. The failing tier is readable
+  from the checks list without opening a log.
+- **Production build** runs `pnpm build` with no environment variables, then
+  fails if `next build` changed the tracked `next-env.d.ts`. Note that
+  `next dev` writes a different variant of that file (it points at
+  `.next/dev/types/routes.d.ts` instead of `.next/types/routes.d.ts`), so after
+  running `pnpm dev` or `pnpm test:e2e` locally, discard the change with
+  `git restore next-env.d.ts` rather than committing it.
+- **Playwright** is separate because it is the only job needing a browser. It
+  installs Chromium alone — both configured projects are Chromium — and caches
+  `~/.cache/ms-playwright` against the resolved `@playwright/test` version.
+
+Shared setup lives in `.github/actions/setup-node-pnpm`: pnpm first (so
+`actions/setup-node` can cache the pnpm store), Node from
+[`.nvmrc`](./.nvmrc), then `pnpm install --frozen-lockfile`. The pnpm version is
+never repeated in CI — `pnpm/action-setup` reads the exact pin from
+`packageManager` in `package.json`.
+
+Every workflow declares `permissions: contents: read` at the top level and again
+per job, checks out with `persist-credentials: false`, and cancels superseded
+runs. Concurrency groups key on `head_ref || ref_name` so a pull request and the
+push that created its branch share one group instead of burning two runners;
+runs on `main` are never cancelled, because every commit on the trunk needs its
+own verdict.
+
+Artifacts are deliberately thin. JUnit reports, the Playwright HTML report, and
+Playwright traces upload **only on failure** with a 7-day retention. Build
+manifests and diagnostics upload on every run because they are a few KB of route
+names and bundle sizes — bounded, non-sensitive, and only useful as a series.
+No bundle output or environment values are ever uploaded.
+
+### Action pinning and update policy
+
+Every `uses:` reference is pinned to a full 40-character commit SHA with the tag
+in a trailing comment. Tags are mutable; a compromised or retagged action would
+otherwise be picked up silently.
+
+| Action                    | Version  | SHA                                        |
+| ------------------------- | -------- | ------------------------------------------ |
+| `actions/checkout`        | `v7.0.1` | `3d3c42e5aac5ba805825da76410c181273ba90b1` |
+| `actions/setup-node`      | `v7.0.0` | `820762786026740c76f36085b0efc47a31fe5020` |
+| `actions/cache`           | `v6.1.0` | `55cc8345863c7cc4c66a329aec7e433d2d1c52a9` |
+| `actions/upload-artifact` | `v7.0.1` | `043fb46d1a93c77aae656e7c1c64a875d1fc6a0a` |
+| `pnpm/action-setup`       | `v6.0.9` | `0ebf47130e4866e96fce0953f49152a61190b271` |
+
+Local composite actions are referenced by path (`./.github/actions/...`), not by
+SHA: they are versioned by the commit that contains them.
+
+To update an action, resolve the tag to its commit and change both the SHA and
+the comment together:
+
+```sh
+gh api repos/actions/checkout/commits/v7.0.2 --jq '.sha'
+```
+
+`.github/dependabot.yml` does the same thing weekly for the `github-actions`
+ecosystem, rewriting SHA and comment in one PR. It is scoped to actions only;
+npm dependencies stay hand-reviewed under decision D-29. Review these PRs like
+any other supply-chain change — read the diff between the two SHAs rather than
+trusting the tag.
+
+### Configuration guard
+
+`pnpm verify:workflows` runs `scripts/verify-workflows.mjs`, a Node-only script
+with no dependencies (a linter for the pipeline should not itself be an unpinned
+dependency). It fails on:
+
+1. A non-local `uses:` without a full 40-character SHA, or without a version
+   comment.
+2. Any write permission, including `write-all`.
+3. Any `${{ secrets.* }}` reference.
+4. A workflow missing top-level `on:`, `permissions:`, or `concurrency:`.
+5. A literal `pnpm@<version>` in CI that disagrees with `packageManager`, or a
+   `packageManager` field that is not an exact pin.
+
+It does not parse YAML — GitHub rejects malformed workflow files on push, and a
+YAML parser would mean a dependency. Validate syntax locally with any parser
+already on the machine, for example
+`ruby -ryaml -e 'YAML.load_file(ARGV[0])' .github/workflows/quality.yml`.
 
 ## Pinned stack
 
