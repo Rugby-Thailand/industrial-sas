@@ -53,11 +53,17 @@ remains an open gate and must be closed by its own artefact:
 | Missing approval                                  | Gates that stay open                                       |
 | ------------------------------------------------- | ---------------------------------------------------------- |
 | Pilot tenant and site confirmation                | `RG-063`, `RG-008`, `RG-009`, `RG-021`, `RG-024`, `RG-051` |
-| Phase 0 budget and authorization to initialize    | `RG-064`, `RG-036`                                         |
-| Vendor selection and unit-economics approval      | `RG-007`, `RG-035`, `RG-045`                               |
+| Phase 0 budget and pilot-site authorization       | `RG-064`                                                   |
+| Vendor selection and unit-economics approval      | `RG-007`, `RG-035`, `RG-036`, `RG-045`                     |
 | Hardware procurement and the physical device work | `RG-002`, `RG-003`, `RG-004`, `RG-005`, `RG-029`, `RG-070` |
 | Thai legal and PDPA counsel sign-off              | `RG-006`, `RG-048`, `RG-049`, `RG-056`, `RG-061`           |
 | Confirmed success-criteria and envelope targets   | `RG-067`, `RG-068`, `RG-069`, `RG-066`                     |
+
+`RG-064` stays open on its budget and pilot-site prerequisites alone. `AR-001` already
+authorizes local repository initialization and implementation, so that half of the gate is
+not what holds it open; the funding and pilot-site approvals it also requires have not been
+supplied. `RG-036` is production Convex tier sizing from load-test evidence, so it belongs
+with the vendor and production-sizing approvals, not with the Phase 0 budget.
 
 External latency measurement, hardware spikes, vendor confirmations, legal counsel, pilot
 site work, cloud provisioning, and credential handling are therefore still release-gated.
