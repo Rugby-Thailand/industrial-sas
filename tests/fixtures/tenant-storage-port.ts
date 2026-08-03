@@ -7,10 +7,13 @@
  * `tests/isolation/tenant-document-access.isolation.test.ts`, and it sits outside
  * every Vitest project's `include` glob.
  *
- * What it is: one `Map` keyed by table and document ID, wired to the five methods
+ * What it is: one `Map` keyed by table and document ID, wired to the six methods
  * of [`TenantStoragePort`](../../convex/lib/tenantDb.ts), plus a log of every call
- * made through it. What it is not: a Convex database. There is no transaction, no
- * index, no validator, no `convex-test`, and no deployment.
+ * made through it. Its `indexedPage` filters the table's rows by the equality
+ * terms it was handed and slices them by limit and cursor — enough to be an
+ * honest bounded page, and nothing more. What it is not: a Convex database. There
+ * is no transaction, no real index, no validator, no `convex-test`, and no
+ * deployment.
  *
  * Three properties are load-bearing for the suites, and each is a deliberate
  * refusal to be helpful:
@@ -39,14 +42,23 @@
  * personal data (PDPA, see `tests/fixtures/README.md`).
  */
 import type {
+  TenantIndexEquality,
   TenantStorageDocument,
   TenantStoragePort,
   TenantTableName,
 } from "../../convex/lib/tenantDb";
 
-/** The five things a caller can ask storage to do. */
+/** The opaque prefix every cursor this fixture mints begins with. */
+const CURSOR_PREFIX = "fixture-cursor:";
+
+/** A cursor resuming at `offset` matching rows. Opaque to the accessor. */
+function cursorFor(offset: number): string {
+  return `${CURSOR_PREFIX}${offset}`;
+}
+
+/** The six things a caller can ask storage to do. */
 export type TenantStorageMethod =
-  "get" | "insert" | "patch" | "replace" | "delete";
+  "get" | "insert" | "patch" | "replace" | "delete" | "indexedPage";
 
 /** The methods that change stored state. A denial must produce none of these. */
 export const TENANT_STORAGE_MUTATIONS: readonly TenantStorageMethod[] = [
@@ -69,6 +81,14 @@ export interface TenantStorageCall {
   readonly table: string;
   readonly id?: string;
   readonly payload?: unknown;
+  /** Index name, for `indexedPage` only. */
+  readonly index?: string;
+  /** The equality prefix as the accessor built it, by reference. */
+  readonly equality?: unknown;
+  /** The requested page size, for `indexedPage` only. */
+  readonly limit?: number;
+  /** The requested cursor, `null` for a first page. */
+  readonly cursor?: string | null;
 }
 
 /** The fixture: a port, the log behind it, and the seams a test needs. */
@@ -101,7 +121,37 @@ export interface TenantStoragePortFixture {
   /** Make every later call to `method` throw `error`. */
   failOn(method: TenantStorageMethod, error: unknown): void;
 
-  /** Forget all documents, all failures, and the whole call log. */
+  /**
+   * Answer every later `indexedPage` call with `answer`, verbatim.
+   *
+   * The seam behind every "the port lied" case: a page longer than was asked for,
+   * a page of another tenant's rows, a page that is not an object, a cursor that
+   * is not a string. The fixture does not inspect `answer` — an honest fake cannot
+   * produce these shapes, and a boundary that is only ever fed honest answers has
+   * only ever been tested against itself.
+   */
+  answerIndexedPageWith(answer: unknown): void;
+
+  /**
+   * Stop honouring the equality term on `field`.
+   *
+   * Simulates a broken index — one that accepts the `orgId` term and then ranges
+   * over every tenant's rows anyway. `ignoreEqualityOn("orgId")` is how a
+   * cross-tenant page is produced without hand-writing one, which matters because
+   * the rows it yields are real seeded documents rather than a shape invented to
+   * fail.
+   */
+  ignoreEqualityOn(field: string): void;
+
+  /**
+   * A cursor this fixture will honour, resuming at `offset` matching rows.
+   *
+   * Opaque to the accessor and meaningful only here: the boundary never parses a
+   * cursor, so the fixture is free to make one out of an offset.
+   */
+  cursorFor(offset: number): string;
+
+  /** Forget all documents, all failures, all overrides, and the whole call log. */
   reset(): void;
 }
 
@@ -118,6 +168,9 @@ export function createTenantStoragePortFixture(): TenantStoragePortFixture {
   const documents = new Map<string, unknown>();
   const calls: TenantStorageCall[] = [];
   const failures = new Map<TenantStorageMethod, unknown>();
+  /** A one-element box, so `undefined` is a settable override like any other. */
+  const indexedPageOverride: unknown[] = [];
+  const ignored = new Set<string>();
   let inserted = 0;
 
   /** Record the call, then throw if this method is configured to fail. */
@@ -180,7 +233,63 @@ export function createTenantStoragePortFixture(): TenantStoragePortFixture {
       record({ method: "delete", table, id });
       documents.delete(storageKey(table, id));
     },
+
+    indexedPage: async (
+      table: TenantTableName,
+      index: string,
+      equality: TenantIndexEquality,
+      page: { readonly limit: number; readonly cursor: string | null },
+    ): Promise<unknown> => {
+      record({
+        method: "indexedPage",
+        table,
+        index,
+        equality,
+        limit: page.limit,
+        cursor: page.cursor,
+      });
+
+      if (indexedPageOverride.length > 0) return indexedPageOverride[0];
+
+      // No index exists here: "using the index" is filtering the table's rows by
+      // the equality terms, in insertion order. That is enough for the properties
+      // under test, and deliberately not enough to be mistaken for Convex.
+      const matching = [...documents.entries()]
+        .filter(([key]) => key.startsWith(`${table}\u0000`))
+        .map(([, document]) => document)
+        .filter((document) => matchesEquality(document, equality));
+
+      const start = decodeCursor(page.cursor);
+      const rows = matching.slice(start, start + page.limit);
+      const next = start + rows.length;
+
+      return {
+        page: rows,
+        isDone: next >= matching.length,
+        continueCursor: cursorFor(next),
+      };
+    },
   };
+
+  /** Every equality term holds, except on a field a test has disabled. */
+  function matchesEquality(
+    document: unknown,
+    equality: TenantIndexEquality,
+  ): boolean {
+    if (document === null || typeof document !== "object") return false;
+    const record_ = document as Record<string, unknown>;
+
+    return equality.every(
+      (term) => ignored.has(term.field) || record_[term.field] === term.value,
+    );
+  }
+
+  /** An unrecognised cursor resumes at the start: the fixture enforces nothing. */
+  function decodeCursor(cursor: string | null): number {
+    if (cursor === null || !cursor.startsWith(CURSOR_PREFIX)) return 0;
+    const offset = Number(cursor.slice(CURSOR_PREFIX.length));
+    return Number.isSafeInteger(offset) && offset >= 0 ? offset : 0;
+  }
 
   return {
     port,
@@ -197,9 +306,19 @@ export function createTenantStoragePortFixture(): TenantStoragePortFixture {
     failOn: (method, error) => {
       failures.set(method, error);
     },
+    answerIndexedPageWith: (answer) => {
+      indexedPageOverride.length = 0;
+      indexedPageOverride.push(answer);
+    },
+    ignoreEqualityOn: (field) => {
+      ignored.add(field);
+    },
+    cursorFor,
     reset: () => {
       documents.clear();
       failures.clear();
+      indexedPageOverride.length = 0;
+      ignored.clear();
       calls.length = 0;
       inserted = 0;
     },

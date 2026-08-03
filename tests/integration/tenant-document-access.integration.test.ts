@@ -87,8 +87,9 @@ async function denial(call: () => Promise<unknown>): Promise<TenantDbError> {
 }
 
 describe("the accessor a caller is handed", () => {
-  it("exposes exactly the six operations and nothing else", () => {
+  it("exposes exactly the seven operations and nothing else", () => {
     expect(Object.keys(access).sort()).toEqual([
+      "byIndex",
       "delete",
       "get",
       "getX",

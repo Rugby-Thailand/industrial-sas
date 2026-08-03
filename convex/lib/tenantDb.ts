@@ -3,20 +3,19 @@
  * ownership assertion, the write shapes, and the direct-ID document access the
  * tenant-bound accessor (`G-102`, `ADR-0002` §2) is being assembled from.
  *
- * Status: **primitives plus adapter-backed document access by ID.** Nothing here
- * touches Convex. There is no `ctx.db`, no index traversal, no pagination, no
- * `ConvexError`, and no `query`/`mutation` wrapper. Storage is reached only
- * through `TenantStoragePort` (below): five async methods over a tenant table
- * name, opaque string IDs, and plain records. `createTenantDocumentAccess` binds
- * one port to one tenant and one request, and is the only thing a caller is given.
+ * Status: **primitives, adapter-backed document access by ID, and bounded
+ * `orgId`-first indexed reads.** Nothing here touches Convex. There is no
+ * `ctx.db`, no `ConvexError`, and no `query`/`mutation` wrapper. Storage is
+ * reached only through `TenantStoragePort` (below): six async methods over a
+ * tenant table name, opaque string IDs, plain records, and one indexed page
+ * request. `createTenantDocumentAccess` binds one port to one tenant and one
+ * request, and is the only thing a caller is given.
  *
  * `G-102` is **not** closed by this. What is missing is everything that makes the
- * boundary reachable and complete: the Convex adapter that implements the port
- * over `ctx.db`, the index-backed reads (`INVALID_LIMIT`,
- * `INVALID_INDEX_RESULT`), the auth wrapper that mints the scope from a resolved
- * tenant context, and the public function wrappers. Each is a later slice, and
- * each is expected to be written *in terms of* what is here rather than
- * re-deriving any of it.
+ * boundary reachable: the Convex adapter that implements the port over `ctx.db`,
+ * the auth wrapper that mints the scope from a resolved tenant context, and the
+ * public function wrappers. Each is a later slice, and each is expected to be
+ * written *in terms of* what is here rather than re-deriving any of it.
  *
  * Why an injected port rather than `ctx.db` directly: isolation is a property of
  * the decision sequence around a read, not of the read — and a decision sequence
@@ -67,6 +66,10 @@
 import type { GenericId } from "convex/values";
 
 import { TENANT_TABLES, type TenantTableName } from "./schemaPolicy";
+import {
+  describeTenantIndex,
+  type TenantIndexFacts,
+} from "./tenantIndexPolicy";
 import { TENANT_DISCRIMINATOR } from "./tenantTable";
 
 /**
@@ -150,18 +153,25 @@ export const TENANT_TABLE_NAMES: ReadonlySet<TenantTableName> =
  * - `INVALID_LIMIT` — a read asked for an unbounded or nonsensical page size.
  * - `INVALID_INDEX_RESULT` — an index-backed read produced a document that does
  *   not satisfy the tenant predicate the index claims to enforce.
+ * - `INVALID_INDEX_QUERY` — an index-backed read was *asked for* in a shape this
+ *   boundary cannot bound: an index the schema does not declare on that table, an
+ *   equality prefix that is not a contiguous prefix of that index after `orgId`,
+ *   or a pagination cursor that is not a usable opaque string.
  *
- * The last two are unreachable in this slice and are named here anyway: they are
- * part of the contract the accessor is being built against, and a code that
- * appears later is a client-visible addition, whereas a code that is declared
- * once and filled in later is not. Renaming any of them is a breaking change, in
- * the same way renaming a permission code is (D-22).
+ * `INVALID_INDEX_QUERY` is the one code added after the vocabulary was first
+ * declared, and it is added rather than folded into `INVALID_TENANT_TABLE`
+ * because the two are different mistakes with different fixes: one names a table
+ * this accessor may not scope, the other names a read this accessor cannot prove
+ * bounded. Both are decided before storage is touched, and neither payload says
+ * which table, index, or field was at fault. Renaming any code here is a
+ * breaking change, in the same way renaming a permission code is (D-22).
  */
 export const TENANT_DB_ERROR_CODES = [
   "INVALID_TENANT_TABLE",
   "NOT_FOUND",
   "INVALID_WRITE",
   "INVALID_LIMIT",
+  "INVALID_INDEX_QUERY",
   "INVALID_INDEX_RESULT",
 ] as const;
 
@@ -481,6 +491,74 @@ export function tenantUpdatePayload<Payload extends TenantWritePayload>(
  */
 export type TenantStorageDocument = Record<string, unknown>;
 
+/* -------------------------------------------------------------------------- */
+/* Bounded indexed reads                                                       */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * One equality term of an index prefix: a declared index field and the value it
+ * must equal.
+ *
+ * Values are `unknown` because an index field can be a string, a number, a
+ * boolean, or a document ID, and the boundary compares nothing — it passes the
+ * value to the index. What it does check is that the *field* is the next declared
+ * field of the index, which is what keeps a read on a declared prefix.
+ */
+export interface TenantIndexEqualityTerm {
+  readonly field: string;
+  readonly value: unknown;
+}
+
+/** An ordered equality prefix, as a caller supplies it (without `orgId`). */
+export type TenantIndexEquality = readonly TenantIndexEqualityTerm[];
+
+/**
+ * The largest page any single indexed read may ask for.
+ *
+ * A cap, not a default, and a rejection rather than a silent clamp: a caller that
+ * asked for 5,000 rows has a plan that a quietly truncated answer would corrupt,
+ * and finding that out at the boundary is cheaper than finding it out in a
+ * report. 100 is the plan's page size for handheld list views (§7.3); a larger
+ * page is a cursor loop, which `page` exists to make available.
+ */
+export const TENANT_INDEX_MAX_PAGE_SIZE = 100;
+
+/**
+ * The largest pagination cursor this boundary will carry, in UTF-16 code units.
+ *
+ * Cursors are opaque: this boundary never parses, decodes, or interprets one, so
+ * the only properties it can check are "is a non-empty string" and "is not
+ * absurdly large". 4,096 is a deliberately conservative bound — comfortably above
+ * any cursor Convex is documented to mint, comfortably below a value worth
+ * passing to an adapter that may decode it. It exists so an attacker-supplied
+ * cursor cannot become an unbounded input to whatever parses it downstream.
+ */
+export const TENANT_INDEX_MAX_CURSOR_LENGTH = 4096;
+
+/** What `page` is asked for: a bounded size and, optionally, where to resume. */
+export interface TenantIndexPageRequest {
+  readonly limit: number;
+  /** An opaque cursor from a previous page. Absent means the first page. */
+  readonly cursor?: string | undefined;
+}
+
+/**
+ * One page of an indexed read: the rows, whether the index is exhausted, and the
+ * cursor to resume from.
+ *
+ * Named to match Convex's `paginate` result so the adapter is a rename and not a
+ * translation, and returned frozen so a caller cannot append to a page it was
+ * handed and pass it on as a wider result.
+ */
+export interface TenantIndexPage<
+  Document extends TenantOwnedDocument = TenantOwnedDocument,
+> {
+  readonly page: readonly Document[];
+  readonly isDone: boolean;
+  /** Opaque; pass it back verbatim as `cursor`. Never parsed here. */
+  readonly continueCursor: string;
+}
+
 /**
  * The single seam between this boundary and a database. Five methods, all async,
  * all keyed by a tenant table name and an opaque document ID.
@@ -502,10 +580,11 @@ export type TenantStorageDocument = Record<string, unknown>;
  *   tenant, or the database. Treating an inbound ID as opaque keeps the runtime
  *   checks the only thing that decides anything; the adapter is where a `string`
  *   becomes a Convex ID, and it is the adapter's business if that fails.
- * - **There is no query, no index, no filter, and no pagination.** Direct-ID
- *   access is the whole surface of this slice. Index-backed reads arrive with the
- *   codes already declared for them, and adding them here later widens this port
- *   rather than working around it.
+ * - **There is no filter, no scan, and no arbitrary predicate.** Reads are either
+ *   by document ID or by a declared `orgId`-first index with an equality prefix
+ *   and a bounded page size (`indexedPage`). A `filter` would make the cheapest
+ *   correct-looking query a full scan, and a scan of a tenant table is how
+ *   cross-tenant reads happen (`INV-0002-04`).
  *
  * A port method may throw. If it throws a `TenantDbError`, that error travels
  * unchanged — it is already the safe shape, and re-wrapping it would either lose
@@ -537,6 +616,29 @@ export interface TenantStoragePort {
 
   /** Remove the document at `table`/`id`. */
   readonly delete: (table: TenantTableName, id: string) => Promise<void>;
+
+  /**
+   * One page of `table`'s `index`, restricted to the equality prefix in
+   * `equality` and to at most `page.limit` rows.
+   *
+   * The only non-ID read on this port, and deliberately the only shape of one:
+   * a declared index name, an ordered equality prefix whose first term is always
+   * `orgId`, a bounded limit, and an opaque cursor. There is no field selection,
+   * no ordering argument, no range, and no predicate — each of those is a way to
+   * express a read whose cost and tenancy this boundary could not check.
+   *
+   * Answers `unknown`, exactly as `get` does, and for the same reason: a page is
+   * whatever the adapter produced, and the boundary — not the adapter — decides
+   * whether it is a bounded page of owned, well-formed documents. An adapter that
+   * returned `TenantIndexPage` would be asserting the property the caller of this
+   * port exists to verify.
+   */
+  readonly indexedPage: (
+    table: TenantTableName,
+    index: string,
+    equality: TenantIndexEquality,
+    page: { readonly limit: number; readonly cursor: string | null },
+  ) => Promise<unknown>;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -563,6 +665,55 @@ export interface TenantDocumentAccessScope {
   readonly orgId: TenantOrgId;
   /** The request every failure is correlated by. */
   readonly requestId: string;
+}
+
+/**
+ * A bounded reader over one declared index, one equality prefix, and one tenant.
+ *
+ * Four methods, all of which answer a bounded number of rows. There is
+ * deliberately no `filter`, no `collect`, no `all`, no `count`, and no way to ask
+ * for an unbounded result: every method either reads at most one or two rows, or
+ * takes a limit that is checked against `TENANT_INDEX_MAX_PAGE_SIZE`. A reader
+ * that could return "everything" would make the expensive read the convenient
+ * one, and the expensive read on a tenant table is the one that scans it
+ * (`INV-0002-04`).
+ *
+ * Every row a reader answers with has been proved to be a well-formed document
+ * owned by this tenant. A row that is not is `INVALID_INDEX_RESULT` — never
+ * dropped from the result. Filtering it out would mean an index that had gone
+ * wrong, an adapter that had ignored the prefix, or a document that had been
+ * written untenanted would all show up as a slightly shorter list, which is
+ * precisely the failure nobody notices.
+ *
+ * The reader is frozen and stateless. Calling `first` and then `page` twice
+ * issues three independent port calls; nothing is cached, for the same reason
+ * ownership is never cached.
+ */
+export interface TenantIndexReader<
+  Document extends TenantOwnedDocument = TenantOwnedDocument,
+> {
+  /** The first matching row, or `null`. Asks storage for one row. */
+  readonly first: () => Promise<Document | null>;
+
+  /**
+   * The only matching row, `null` when there is none, or `INVALID_INDEX_RESULT`
+   * when there is more than one.
+   *
+   * Asks storage for two rows: one to answer with, one to detect the collision.
+   * This is the read every "unique by contract" check owes — Convex has no unique
+   * constraint, so a second row under a key that is supposed to be unique is a
+   * broken invariant, and a reader that answered with the first of them would be
+   * how the breakage stays invisible.
+   */
+  readonly unique: () => Promise<Document | null>;
+
+  /** At most `limit` matching rows. `limit` is capped, not clamped. */
+  readonly take: (limit: number) => Promise<readonly Document[]>;
+
+  /** One page, with the cursor to resume from. */
+  readonly page: (
+    request: TenantIndexPageRequest,
+  ) => Promise<TenantIndexPage<Document>>;
 }
 
 /**
@@ -635,6 +786,33 @@ export interface TenantDocumentAccess {
 
   /** Delete a document this tenant owns. */
   readonly delete: (table: TenantTableName, id: string) => Promise<void>;
+
+  /**
+   * A bounded reader over `table`'s `index`, restricted to this tenant and to the
+   * equality prefix in `equalityAfterOrg`.
+   *
+   * `equalityAfterOrg` is the prefix *after* the discriminator, in index order:
+   * `byIndex("warehouses", "by_orgId_status_code", [{ field: "status", value:
+   * "ACTIVE" }])` reads `["orgId", "status"]` of `["orgId", "status", "code"]`.
+   * The `orgId` term is prepended here from the scope, and a caller that supplies
+   * `orgId` itself is refused rather than corrected (`INV-0001-02`) — a read that
+   * names its own tenant is written by code that believes it may choose one.
+   *
+   * Validated *before* storage is touched, and synchronously: an unknown table
+   * (`INVALID_TENANT_TABLE`), an index the schema does not declare on that table,
+   * or an equality list that is not a contiguous prefix of that index
+   * (`INVALID_INDEX_QUERY`) all throw from this call, so no port method is ever
+   * reached with a request this boundary could not bound.
+   *
+   * The returned reader is frozen and holds no port, no scope, and no rows.
+   */
+  readonly byIndex: <
+    Document extends TenantOwnedDocument = TenantOwnedDocument,
+  >(
+    table: TenantTableName,
+    index: string,
+    equalityAfterOrg?: TenantIndexEquality,
+  ) => TenantIndexReader<Document>;
 }
 
 /**
@@ -774,6 +952,240 @@ export function createTenantDocumentAccess(
     await port.delete(table, id);
   };
 
+  /* ------------------------------------------------------------------------ */
+  /* Bounded indexed reads                                                     */
+  /* ------------------------------------------------------------------------ */
+
+  const invalidQuery = (): TenantDbError =>
+    new TenantDbError("INVALID_INDEX_QUERY", requestId);
+  const invalidResult = (): TenantDbError =>
+    new TenantDbError("INVALID_INDEX_RESULT", requestId);
+
+  /**
+   * A page size is usable when it is a positive safe integer no larger than the
+   * cap. Rejected, never clamped: see `TENANT_INDEX_MAX_PAGE_SIZE`.
+   *
+   * `typeof` is checked although the parameter is typed `number`, for the same
+   * reason the table allowlist is checked although the parameter is typed: the
+   * value can arrive from an argument validator, a JSON body, or a cast. `NaN`,
+   * `Infinity`, `1.5`, `0`, and `-1` all fail as one code.
+   */
+  const requireLimit = (limit: number): number => {
+    if (typeof limit !== "number" || !Number.isSafeInteger(limit)) {
+      throw new TenantDbError("INVALID_LIMIT", requestId);
+    }
+    if (limit < 1 || limit > TENANT_INDEX_MAX_PAGE_SIZE) {
+      throw new TenantDbError("INVALID_LIMIT", requestId);
+    }
+    return limit;
+  };
+
+  /**
+   * Normalise a cursor: absent means the first page, anything else must be a
+   * non-empty string within the documented bound.
+   *
+   * The cursor is never parsed, decoded, or compared here. An empty string is
+   * refused rather than treated as "start again", because a caller that passed one
+   * meant to resume and would otherwise silently re-read page one forever.
+   */
+  const requireCursor = (cursor: string | undefined): string | null => {
+    if (cursor === undefined) return null;
+    if (typeof cursor !== "string") throw invalidQuery();
+    if (cursor.length === 0) throw invalidQuery();
+    if (cursor.length > TENANT_INDEX_MAX_CURSOR_LENGTH) throw invalidQuery();
+    return cursor;
+  };
+
+  /**
+   * Build the full equality prefix: the derived tenant term, then the caller's,
+   * checked term by term against the declared index fields.
+   *
+   * Four things are refused, all as one code:
+   *
+   * - more terms than the index has fields after `orgId`;
+   * - a term that is not a `{ field, value }` object, or whose `value` is absent
+   *     or `undefined` — "equal to nothing" is not an equality;
+   * - a field that is not the *next* declared field, which covers a reordered
+   *     prefix, a gap, and a field the index does not have at all;
+   * - a repeated field, including `orgId` itself (`INV-0001-02`).
+   *
+   * A shorter prefix is legal and is the point of the check: `["orgId"]` alone,
+   * or `["orgId", "status"]` of a three-field index, is still a bounded index
+   * range. What is not legal is skipping a field, because an index cannot answer
+   * an equality on its third field without one on its second.
+   *
+   * The caller's array and its terms are read, never written: each accepted term
+   * is copied into a fresh frozen object, so a later mutation of the caller's
+   * objects cannot change what a reader queries.
+   */
+  const equalityPrefix = (
+    facts: TenantIndexFacts,
+    supplied: TenantIndexEquality,
+  ): TenantIndexEquality => {
+    if (!Array.isArray(supplied)) throw invalidQuery();
+    if (supplied.length > facts.fieldsAfterOrg.length) throw invalidQuery();
+
+    const terms: TenantIndexEqualityTerm[] = [
+      Object.freeze({ field: TENANT_DISCRIMINATOR, value: orgId }),
+    ];
+    const seen = new Set<string>([TENANT_DISCRIMINATOR]);
+
+    for (let position = 0; position < supplied.length; position += 1) {
+      const term: unknown = supplied[position];
+      if (term === null || typeof term !== "object") throw invalidQuery();
+      if (Array.isArray(term)) throw invalidQuery();
+
+      const record = term as Record<string, unknown>;
+      const field: unknown = record.field;
+      if (typeof field !== "string") throw invalidQuery();
+      if (seen.has(field)) throw invalidQuery();
+      if (field !== facts.fieldsAfterOrg[position]) throw invalidQuery();
+      if (!Object.hasOwn(record, "value")) throw invalidQuery();
+      if (record.value === undefined) throw invalidQuery();
+
+      seen.add(field);
+      terms.push(Object.freeze({ field, value: record.value }));
+    }
+
+    return Object.freeze(terms);
+  };
+
+  /**
+   * Assert one row of an index result is a well-formed document owned by this
+   * tenant, as `INVALID_INDEX_RESULT`.
+   *
+   * The same predicate as an ID-addressed read, with a different code: by ID,
+   * "not yours" is an answer a caller is allowed to provoke and must not be able
+   * to distinguish from "absent" (`NOT_FOUND`, `INV-0002-03`). Inside an index
+   * result it is not an answer at all — the query carried an `orgId` equality, so
+   * a foreign row means the index, the adapter, or the stored document is wrong,
+   * and that is a server-side fault rather than a lookup miss. Neither payload
+   * carries anything beyond a code and the request ID, so the distinction tells a
+   * caller nothing about another tenant.
+   */
+  const assertIndexedRow = <Document extends TenantOwnedDocument>(
+    row: unknown,
+  ): Document => {
+    try {
+      return assertOwnedDocument<Document>(row, orgId, requestId);
+    } catch {
+      throw invalidResult();
+    }
+  };
+
+  /**
+   * Ask the port for one page and prove the answer is a bounded page of owned,
+   * well-formed documents.
+   *
+   * Everything about the answer is checked, because the port is the one thing here
+   * that is not this module's code: an adapter may be new, may be a fake, or may
+   * be a Convex version whose pagination shape has moved. More rows than were
+   * asked for, a `page` that is not an array, a non-boolean `isDone`, a cursor
+   * that is not a string, an oversized cursor, or "not done" with no cursor to
+   * continue from are each `INVALID_INDEX_RESULT`.
+   *
+   * A page longer than `limit` fails rather than being truncated. A boundary that
+   * silently trims an over-long page is a boundary whose caller cannot tell a
+   * complete page from a clipped one, and the whole value of a bound is knowing
+   * which one you have.
+   */
+  const readPage = async <Document extends TenantOwnedDocument>(
+    facts: TenantIndexFacts,
+    equality: TenantIndexEquality,
+    limit: number,
+    cursor: string | null,
+  ): Promise<TenantIndexPage<Document>> => {
+    const answer: unknown = await port.indexedPage(
+      facts.table,
+      facts.name,
+      equality,
+      { limit, cursor },
+    );
+
+    if (answer === null || typeof answer !== "object") throw invalidResult();
+    if (Array.isArray(answer)) throw invalidResult();
+
+    const record = answer as Record<string, unknown>;
+    const rows: unknown = record.page;
+    if (!Array.isArray(rows)) throw invalidResult();
+    if (rows.length > limit) throw invalidResult();
+
+    const isDone: unknown = record.isDone;
+    if (typeof isDone !== "boolean") throw invalidResult();
+
+    const continueCursor: unknown = record.continueCursor;
+    if (typeof continueCursor !== "string") throw invalidResult();
+    if (continueCursor.length > TENANT_INDEX_MAX_CURSOR_LENGTH) {
+      throw invalidResult();
+    }
+    if (!isDone && continueCursor.length === 0) throw invalidResult();
+
+    const documents: Document[] = rows.map((row: unknown) =>
+      assertIndexedRow<Document>(row),
+    );
+
+    return Object.freeze({
+      page: Object.freeze(documents),
+      isDone,
+      continueCursor,
+    });
+  };
+
+  const byIndex = <Document extends TenantOwnedDocument = TenantOwnedDocument>(
+    table: TenantTableName,
+    index: string,
+    equalityAfterOrg: TenantIndexEquality = [],
+  ): TenantIndexReader<Document> => {
+    requireTenantTable(table);
+
+    // A scope whose tenant key is unusable can prove nothing about ownership, so
+    // it may not read by index at all. Not reachable from client input — `orgId`
+    // is server-derived (`INV-0001-02`) — and refused here rather than per row,
+    // so a misconfigured scope cannot reach storage even once.
+    if (!isUsableKey(orgId)) throw invalidQuery();
+
+    // The declared metadata is consulted before anything else about the read is
+    // considered, and before the port exists in the sequence at all: an index
+    // name that the schema does not declare on this table is not a read this
+    // boundary can bound (`convex/lib/tenantIndexPolicy.ts`).
+    const facts = describeTenantIndex(table, index);
+    if (facts === undefined) throw invalidQuery();
+
+    const equality = equalityPrefix(facts, equalityAfterOrg);
+
+    const first = async (): Promise<Document | null> => {
+      const { page } = await readPage<Document>(facts, equality, 1, null);
+      return page[0] ?? null;
+    };
+
+    const unique = async (): Promise<Document | null> => {
+      // Two rows, not one: the second row is what makes a broken uniqueness
+      // contract visible instead of arbitrary.
+      const { page } = await readPage<Document>(facts, equality, 2, null);
+      if (page.length > 1) throw invalidResult();
+      return page[0] ?? null;
+    };
+
+    const take = async (limit: number): Promise<readonly Document[]> => {
+      const bounded = requireLimit(limit);
+      const { page } = await readPage<Document>(facts, equality, bounded, null);
+      return page;
+    };
+
+    const page = async (
+      request: TenantIndexPageRequest,
+    ): Promise<TenantIndexPage<Document>> => {
+      if (request === null || typeof request !== "object") throw invalidQuery();
+      // Limit before cursor, so an unbounded request is refused by the code that
+      // names the problem rather than by whichever check happens to run first.
+      const bounded = requireLimit(request.limit);
+      const cursor = requireCursor(request.cursor);
+      return await readPage<Document>(facts, equality, bounded, cursor);
+    };
+
+    return Object.freeze({ first, unique, take, page });
+  };
+
   return Object.freeze({
     get,
     // `getX` *is* the shared predicate: there is no second implementation that
@@ -783,5 +1195,6 @@ export function createTenantDocumentAccess(
     patch,
     replace,
     delete: remove,
+    byIndex,
   });
 }

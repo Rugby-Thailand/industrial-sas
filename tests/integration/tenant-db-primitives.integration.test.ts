@@ -167,6 +167,7 @@ describe("TenantDbError", () => {
       "NOT_FOUND",
       "INVALID_WRITE",
       "INVALID_LIMIT",
+      "INVALID_INDEX_QUERY",
       "INVALID_INDEX_RESULT",
     ]);
   });
