@@ -29,6 +29,31 @@ There is no authentication, no authorization, no tenant model, no database
 schema, and no deployment. CI runs the guards described below and nothing more.
 Do not run this scaffold anywhere but locally.
 
+What does exist beyond the scaffold is the design record: twelve accepted ADRs,
+the domain glossary, the permission catalogue, the release-gate register, the
+integration contracts, and runbook skeletons. See [Documentation](#documentation).
+
+## Documentation
+
+[`docs/`](./docs/README.md) holds the architecture and delivery documentation
+derived from [PROJECT_PLAN.md](./PROJECT_PLAN.md). It describes intended
+behaviour; every document states its own implementation status, and none of it
+claims shipped functionality.
+
+| Document                                                          | What it is                                                                            |
+| ----------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| [Documentation index](./docs/README.md)                           | Entry point and conventions                                                           |
+| [ADR-0001…ADR-0012](./docs/adr/README.md)                         | Accepted cross-cutting architecture decisions, with invariants and rejected options   |
+| [Domain glossary](./docs/domain-glossary.md)                      | Ubiquitous language, stable term IDs, and vocabulary that must not appear in MVP code |
+| [Permission catalogue](./docs/permissions.md)                     | Code-owned permission codes, seeded roles, warehouse/maker-checker/step-up semantics  |
+| [Release gate register](./docs/release-gates.md)                  | Every gate from the plan with owner, required evidence, and status                    |
+| [Integration contracts](./docs/integration-contracts/README.md)   | `INT-01`…`INT-08` ports with timeouts, idempotency, privacy, and failure semantics    |
+| [Runbooks](./docs/runbooks/README.md)                             | `RB-01`…`RB-09` operational skeletons with explicit `TODO` evidence gates             |
+| [Specification coverage matrix](./docs/specification-coverage.md) | Plan requirements mapped to planned code, tests, and docs, with current status        |
+
+Identifiers in these documents are stable: `ADR-0007`, `INV-0003-02`, `RG-025`,
+`G-041`, `INT-04`, `RB-03`, `SC-D12`. Later commits change status, never numbers.
+
 ## Prerequisites
 
 - Node.js 22 (see [`.nvmrc`](./.nvmrc)); `engine-strict=true` means a mismatched
@@ -231,4 +256,7 @@ break a guard.
 ## Next step
 
 Complete the Phase 0 gate in [PROJECT_PLAN.md](./PROJECT_PLAN.md) §4 and §10,
-then begin the inbound slice per §9.
+then begin the inbound slice per §9. The open evidence gates are tracked in
+[`docs/release-gates.md`](./docs/release-gates.md); the latency benchmark,
+scanner spike, and physical label print (`RG-002`, `RG-003`, `RG-004`) block
+domain implementation.
