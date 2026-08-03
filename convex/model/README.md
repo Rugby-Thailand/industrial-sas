@@ -20,21 +20,21 @@ That is not stylistic. Three things depend on it:
 
 ## What is here
 
-| Module                          | Owns                                                                         |
-| ------------------------------- | ---------------------------------------------------------------------------- |
-| `result.ts`                     | The `Result<T, E>` every module returns; no exceptions for invalid input     |
-| `guards.ts`                     | Structural guards and the frozen containers that make immutability a fact    |
-| `uom/quantity.ts`               | Quantity as integer thousandths of a base UOM, and its total arithmetic      |
-| `uom/ratio.ts`                  | Exact reduced rationals, composition, and exact integer scaling              |
-| `uom/itemUom.ts`                | One item's base UOM plus alternate conversions, and item-scoped quantities   |
-| `gs1/checkDigit.ts`             | The GS1 modulo-10 check digit (GTIN, SSCC)                                   |
-| `gs1/date.ts`                   | `YYMMDD` with the GS1 century rule and explicit month-precision policy       |
-| `gs1/elementString.ts`          | Element-string parsing for nine Application Identifiers, FNC1 placement      |
-| `identifiers/normalization.ts`  | Raw scan, SKU, lot code, and GTIN normalization                              |
-| `identifiers/lpn.ts`            | LPN namespaces, internal LPN generation and validation, SSCC as LPN          |
-| `identifiers/scanResolution.ts` | The GS1 → LPN → GTIN → SKU precedence ladder with explicit rejection         |
-| `time/businessDate.ts`          | Business date in a fixed-offset organization zone; Buddhist Era for display  |
-| `rotation/stockRotation.ts`     | FIFO/FEFO total order with stable tie-breakers and per-candidate explanation |
+| Module                          | Owns                                                                              |
+| ------------------------------- | --------------------------------------------------------------------------------- |
+| `result.ts`                     | The `Result<T, E>` every module returns; no exceptions for invalid input          |
+| `guards.ts`                     | Structural guards and the shallow-frozen containers a `readonly` type cannot give |
+| `uom/quantity.ts`               | Quantity as integer thousandths of a base UOM, and its total arithmetic           |
+| `uom/ratio.ts`                  | Exact reduced rationals, composition, and exact integer scaling                   |
+| `uom/itemUom.ts`                | One item's base UOM plus alternate conversions, and item-scoped quantities        |
+| `gs1/checkDigit.ts`             | The GS1 modulo-10 check digit (GTIN, SSCC)                                        |
+| `gs1/date.ts`                   | `YYMMDD` with the GS1 century rule and explicit month-precision policy            |
+| `gs1/elementString.ts`          | Element-string parsing for nine Application Identifiers, FNC1 placement           |
+| `identifiers/normalization.ts`  | Raw scan, SKU, lot code, and GTIN normalization                                   |
+| `identifiers/lpn.ts`            | LPN namespaces, internal LPN generation and validation, SSCC as LPN               |
+| `identifiers/scanResolution.ts` | The GS1 → LPN → GTIN → SKU precedence ladder with explicit rejection              |
+| `time/businessDate.ts`          | Business date in a fixed-offset organization zone; Buddhist Era for display       |
+| `rotation/stockRotation.ts`     | FIFO/FEFO total order with stable tie-breakers and per-candidate explanation      |
 
 ## The boundary a cast cannot walk through
 
@@ -66,20 +66,26 @@ So four rules hold across the directory, and are tested rather than asserted:
    a non-finite operand is `NaN`, so a forged conversion factor that reached the
    gcd never returned. `greatestCommonDivisor` is therefore private and every
    caller validates first.
-3. **Every value these modules construct is frozen, and `Object.freeze` is
-   shallow.** `readonly` and `ReadonlyMap` are compile-time claims; a `Map` typed
-   `ReadonlyMap` is still a `Map`. So the supported-AI table, the timezone
-   registry, an item's conversion table, and a parsed scan's values are frozen
-   null-prototype records or frozen arrays, and `ok`/`fail` freeze the wrapper.
-   Shallowness is the limit, and it is worth stating rather than implying:
-   `ok(value)` freezes `{ ok, value }` and nothing under `value`, so a returned
-   value is immutable all the way down only because whatever built it froze its own
-   output too. The discriminated outcome envelopes are the deliberate exception —
-   `ScaledInteger` and `UomConversionOutcome` are plain objects around frozen
-   payloads, because a caller reads `kind` at the call site and keeps the
-   `Quantity` or the `ExactFraction`, never the envelope. Null prototypes matter
-   for the lookups keyed on scanned input: with `Object.prototype` in the chain,
-   `byAi["toString"]` answers a function while the type promises a string.
+3. **What is shallow-frozen, and what is not.** `readonly` and `ReadonlyMap` are
+   compile-time claims; a `Map` typed `ReadonlyMap` is still a `Map`. So the
+   supported-AI table, the timezone registry, an item's conversion table, and a
+   parsed scan's values are shallow-frozen null-prototype records or shallow-frozen
+   arrays, and `ok`/`fail` shallow-freeze the `Result` wrapper. Each domain value
+   constructor shallow-freezes the record it hands back: a `Quantity`, a `Ratio`,
+   an `ExactFraction`, a `BusinessDate`, a parsed element and the `byAi` lookup over
+   them, an `LpnNamespace` and a parsed LPN, a `ResolvedScan`, an `ItemUomProfile`
+   and its alternates array, a rotation candidate, exclusion, and outcome. Because
+   `Object.freeze` is shallow, that is the whole of the guarantee: `ok(value)`
+   freezes `{ ok, value }` and nothing under `value`, so a returned value is
+   immutable further down only where whatever built it froze its own output too.
+   Two things are deliberately left out, so this is not a claim of universal
+   run-time immutability. The discriminated outcome envelopes `ScaledInteger` and
+   `UomConversionOutcome` are plain objects around frozen payloads, because a caller
+   reads `kind` at the call site and keeps the `Quantity` or the `ExactFraction`,
+   never the envelope. And the structured error a failed `Result` carries is a plain
+   object inside a frozen wrapper. Null prototypes matter for the lookups keyed on
+   scanned input: with `Object.prototype` in the chain, `byAi["toString"]` answers a
+   function while the type promises a string.
 4. **An injected dependency that misbehaves is a `Result`.** A clock outside the
    representable window, an entropy source that throws, returns the wrong number
    of bytes, returns something that is not a `Uint8Array` at all, is a

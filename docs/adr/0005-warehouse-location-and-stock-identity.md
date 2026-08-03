@@ -52,9 +52,11 @@
   Everything above validates the values it is handed and returns a `Result`; a
   `BusinessDate`, a `Gs1Scan`, an `LpnNamespace`, and a rotation candidate are all
   interfaces, so a cast or a document read is exactly the value that reaches them.
-  Nothing these modules return is mutable at run time either — a parsed scan's
-  `byAi` and the supported-AI table are frozen null-prototype records rather than
-  `ReadonlyMap`s a cast can reopen.
+  Where a signature promises an immutable collection, something freezes at run
+  time — a parsed scan's `byAi` and the supported-AI table are shallow-frozen
+  null-prototype records rather than `ReadonlyMap`s a cast can reopen — and each
+  value these modules construct is shallow-frozen before it is handed over.
+  `Object.freeze` is shallow, so that is the whole of the guarantee.
 
   What is **not** implemented: `INV-0005-01` through `INV-0005-09` and
   `INV-0005-12` all need tables or mutations that do not exist. In particular LPN

@@ -56,19 +56,27 @@ foundation and nothing more:
   function re-validates the value it is handed and answers a `Result`, because a
   domain type here is an interface and the values it will meet come from documents,
   scanners, and `JSON.parse`: `{ numerator: 1, denominator: 0 } as Ratio` compiles.
-  Nothing throws, nothing rounds, and nothing loops — a non-finite conversion
-  factor used to reach Euclid's algorithm, whose exit test is `b !== 0`, and never
-  return. The argument the caller chose is validated too, and before the value it
+  Nothing throws, nothing rounds, and nothing loops — a forged non-finite
+  conversion factor could once reach Euclid's algorithm, whose exit test is
+  `b !== 0`, and every remainder of a non-finite operand is `NaN`, so the loop
+  never returned; the gcd is private now and every caller validates first.
+  The argument the caller chose is validated too, and before the value it
   is applied to: a display option bag and a display calendar are as forgeable as a
   quantity or a date, and an unrecognized calendar used to render every date 543
-  years off with nothing on the screen to say so. What is returned is immutable in
-  fact rather than in the signature — a `ReadonlyMap` is an ordinary `Map` at run
-  time, so the supported-AI table, the timezone registry, an item's conversion
-  table, and a parsed scan's values are frozen null-prototype records or frozen
-  arrays instead — with the one limit stated rather than implied: `Object.freeze`
-  is shallow, so `ok(value)` freezes the wrapper and each constructor freezes its
-  own output, and the `ScaledInteger` and `UomConversionOutcome` envelopes are
-  deliberately plain objects around frozen payloads. Stock is expired when
+  years off with nothing on the screen to say so. Where a signature promises an
+  immutable collection, something freezes at run time — a `ReadonlyMap` is an
+  ordinary `Map` there, so the supported-AI table, the timezone registry, an item's
+  conversion table, and a parsed scan's values are shallow-frozen null-prototype
+  records or shallow-frozen arrays instead. The contract is narrower than
+  "immutable", and stated rather than implied: `ok`/`fail` shallow-freeze the
+  `Result` wrapper, and each domain value constructor shallow-freezes the record it
+  returns — a `Quantity`, a `Ratio`, an `ExactFraction`, a `BusinessDate`, a parsed
+  element, an LPN namespace and a parsed LPN, a resolved scan, an item UOM profile,
+  a rotation candidate. `Object.freeze` is shallow, so that is as deep as the
+  guarantee goes, and two things are deliberately outside it: the `ScaledInteger`
+  and `UomConversionOutcome` discriminated envelopes, which are plain objects around
+  frozen payloads, and the structured error a failed `Result` carries. Stock is
+  expired when
   its **expiration date** is before the `asOf` date, whatever the configured
   rotation date is; a scan that is a valid bare SSCC, one of this tenant's LPNs
   with a broken check character, or a well-formed LPN with no namespace policy to

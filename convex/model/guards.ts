@@ -15,8 +15,12 @@
  * immutable in fact rather than in the signature.
  *
  * `Object.freeze` is shallow, so a frozen container is only as immutable as what
- * is put in it. Every constructor in these modules therefore freezes its own
- * output before handing it over.
+ * is put in it. Every domain value constructor in these modules therefore freezes
+ * the record it hands back, and `ok`/`fail` freeze the `Result` wrapper. Two
+ * things are deliberately outside that, so nothing here claims universal run-time
+ * immutability: the `ScaledInteger` and `UomConversionOutcome` discriminated
+ * envelopes, which are plain objects around already-frozen payloads, and the
+ * structured error a failed `Result` carries.
  *
  * Pure module (plan §6.2): no Convex imports, and no imports at all.
  */

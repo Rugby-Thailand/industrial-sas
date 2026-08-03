@@ -167,8 +167,9 @@ describe("makeExactFraction", () => {
       numerator: 0,
       denominator: 1,
     });
-    // `-0` survives JSON and `Object.is` separates it from `0`, so two zero
-    // remainders would otherwise fail to compare equal.
+    // `-0` survives JSON only in one direction — `JSON.stringify` writes it as
+    // `0`, while `JSON.parse("-0")` yields it — and `Object.is` separates it from
+    // `0`, so two zero remainders would otherwise fail to compare equal.
     expect(Object.is(expectOk(makeExactFraction(-0, 7)).numerator, 0)).toBe(
       true,
     );

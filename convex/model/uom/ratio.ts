@@ -148,8 +148,11 @@ export function validateRatio(ratio: Ratio): Result<Ratio, RatioError> {
  * them, so `2/4` and `1/2` would be two different explanations of one value.
  * Reduction only shrinks a magnitude, so a component that was in range stays in
  * range and a safe integer stays safe. Zero has one form, `0/1` — including `-0`,
- * which is a distinct double that survives JSON and that `Object.is` separates
- * from `0`, so two zero remainders would otherwise fail to compare equal.
+ * which `Object.is` separates from `0`, so two zero remainders would otherwise
+ * fail to compare equal. `JSON.stringify` writes `-0` as `0`, so a serialize round
+ * trip does not carry one; an in-memory value can — `JSON.parse("-0")`, a forged
+ * literal, or arithmetic such as `-1 * 0` — which is why it is canonicalized here
+ * rather than assumed absent.
  */
 export function makeExactFraction(
   numerator: number,

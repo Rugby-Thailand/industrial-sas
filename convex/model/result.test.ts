@@ -2,7 +2,7 @@
  * Unit tier — the result wrapper.
  *
  * There is almost nothing to test here except the one claim the type cannot make:
- * that a result is immutable at run time. `readonly ok: true` is erased, so
+ * that the wrapper is immutable at run time. `readonly ok: true` is erased, so
  * without the freeze `(result as { ok: boolean }).ok = false` turns a success into
  * something every caller reads as a failure — with a `value` still attached.
  */

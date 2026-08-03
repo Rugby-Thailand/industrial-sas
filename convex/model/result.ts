@@ -29,14 +29,19 @@ export type Result<T, E> =
  * The wrapper is frozen, so `(result as { ok: boolean }).ok = false` throws in
  * strict mode and is a no-op otherwise instead of turning a success into a
  * failure. Freezing is **shallow**: the wrapper cannot be rewritten, and the
- * value inside it is only immutable because every constructor in
- * `convex/model/**` freezes what it returns. `readonly` alone is a compile-time
- * claim that a cast erases (`ReadonlyMap` is an ordinary `Map` at run time),
- * which is why this file freezes rather than relying on the type.
+ * value inside it is immutable only where whatever constructed it froze its own
+ * output too — which every domain value constructor under `convex/model/**` does,
+ * and which the `ScaledInteger` and `UomConversionOutcome` envelopes deliberately
+ * do not. `readonly` alone is a compile-time claim that a cast erases
+ * (`ReadonlyMap` is an ordinary `Map` at run time), which is why this file freezes
+ * rather than relying on the type.
  */
 export const ok = <T>(value: T): Result<T, never> =>
   Object.freeze({ ok: true as const, value });
 
-/** A failed result. Assignable to `Result<T, E>` for any `T`. Frozen, as above. */
+/**
+ * A failed result. Assignable to `Result<T, E>` for any `T`. The wrapper is
+ * frozen as above; the structured error it carries is a plain object.
+ */
 export const fail = <E>(error: E): Result<never, E> =>
   Object.freeze({ ok: false as const, error });

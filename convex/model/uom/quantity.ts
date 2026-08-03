@@ -154,9 +154,11 @@ export function makeQuantity(
   return ok(
     Object.freeze({
       uom: code.value,
-      // `-0` is a distinct double that `Object.is` separates from `0`, survives
-      // JSON, and would make two zero balances look unequal. Normalize it once,
-      // here, rather than in every comparison.
+      // `-0` is a distinct double that `Object.is` separates from `0`, so two
+      // zero balances would look unequal. `JSON.stringify` writes it as `0`, but
+      // an in-memory value can still carry one — `JSON.parse("-0")`, a forged
+      // literal, or arithmetic such as `-1 * 0`. Normalize it once, here, rather
+      // than in every comparison.
       minorUnits: minorUnits === 0 ? 0 : minorUnits,
     }),
   );
