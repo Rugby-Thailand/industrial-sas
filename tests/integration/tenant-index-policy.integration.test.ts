@@ -58,6 +58,12 @@ describe("metadata derived from the real schema", () => {
     }
   });
 
+  it("describes exactly the canonical tenant tables and nothing else", () => {
+    expect([...TENANT_INDEX_METADATA.keys()].sort()).toEqual(
+      [...TENANT_TABLES].sort(),
+    );
+  });
+
   it("records each index exactly as declared, orgId first", () => {
     const declared = new Map(REAL_FACTS.map((table) => [table.name, table]));
 
@@ -223,5 +229,89 @@ describe("derivation on a drifted schema", () => {
         expect.stringContaining(`${name}: tenant table named by TENANT_TABLES`),
       ),
     );
+  });
+});
+
+describe("the canonical allowlist, not the claimed classification", () => {
+  it("admits no name outside TENANT_TABLES, however it classifies itself", () => {
+    for (const name of ["invoices", "shipments", "__proto__", ""]) {
+      const drifted = [
+        facts({
+          name,
+          classification: "tenant",
+          indexes: [{ name: "by_orgId_number", fields: ["orgId", "number"] }],
+        }),
+      ];
+      const metadata = deriveTenantIndexMetadata(drifted);
+
+      expect([...metadata.keys()]).toEqual([]);
+      expect(
+        describeTenantIndex(name, "by_orgId_number", metadata),
+      ).toBeUndefined();
+    }
+  });
+
+  it("reports such a table as unclassified, not as a tenant table missing indexes", () => {
+    const drifted = [
+      facts({
+        name: "invoices",
+        classification: "tenant",
+        indexes: [{ name: "by_orgId_number", fields: ["orgId", "number"] }],
+      }),
+    ];
+    const drift = tenantIndexMetadataDrift(drifted);
+
+    expect(drift).toContainEqual(
+      expect.stringContaining(
+        'invoices: table is classified "tenant" but is not named by TENANT_TABLES',
+      ),
+    );
+    expect(drift).not.toContainEqual(
+      expect.stringContaining("invoices: tenant table has no usable"),
+    );
+    expect(drift).not.toContainEqual(
+      expect.stringContaining("invoices.by_orgId_number"),
+    );
+  });
+
+  it("admits no canonical name whose classification disagrees", () => {
+    for (const classification of ["global", "unclassified"] as const) {
+      const drifted = [
+        facts({
+          name: "warehouses",
+          classification,
+          indexes: [{ name: "by_orgId_code", fields: ["orgId", "code"] }],
+        }),
+      ];
+      const metadata = deriveTenantIndexMetadata(drifted);
+
+      expect(metadata.has("warehouses")).toBe(false);
+      expect(
+        describeTenantIndex("warehouses", "by_orgId_code", metadata),
+      ).toBeUndefined();
+      expect(tenantIndexMetadataDrift(drifted, metadata)).toContainEqual(
+        expect.stringContaining(
+          "warehouses: tenant table contributes no index metadata",
+        ),
+      );
+    }
+  });
+
+  it("still admits every acceptable index the real schema declares", () => {
+    for (const table of TENANT_TABLES) {
+      const declared = REAL_FACTS.find((candidate) => candidate.name === table);
+      const acceptable = (declared?.indexes ?? [])
+        .filter(
+          (index) =>
+            index.fields[0] === "orgId" &&
+            new Set(index.fields).size === index.fields.length,
+        )
+        .map((index) => index.name);
+
+      expect(acceptable.length).toBeGreaterThan(0);
+      expect(
+        [...(TENANT_INDEX_METADATA.get(table)?.keys() ?? [])].sort(),
+      ).toEqual([...acceptable].sort());
+    }
   });
 });

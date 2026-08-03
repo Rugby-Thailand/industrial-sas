@@ -21,6 +21,11 @@
  *   nothing, so a global table (`organizations`, `users`, `permissions`) and a
  *   table nobody classified are equally unreachable through an indexed tenant
  *   read;
+ * - a table whose *name* is not in `TENANT_TABLES` contributes nothing either,
+ *   however it is classified. `TableFacts` is exported and the derivation is
+ *   public, so a classification is a claim a caller makes rather than a fact this
+ *   module can check; the canonical list is the fact. Both must agree before a
+ *   name reaches the metadata;
  * - an index whose first field is not `orgId`, or that repeats a field, is
  *   *omitted from the metadata rather than recorded as unsafe*. There is no
  *   "known but rejected" state a caller could talk its way into, and
@@ -87,6 +92,21 @@ function acceptable(fields: readonly string[]): boolean {
 }
 
 /**
+ * Is `name` one of the canonical tenant tables?
+ *
+ * The predicate exists because `TableFacts.classification` is *supplied* data,
+ * not derived data, once `describeTable` is not the only producer: `TableFacts`
+ * is exported and this derivation is public and testable, so
+ * `{ name: "invoices", classification: "tenant" }` is a value a synthetic or
+ * future caller can hand over. Trusting the label would let that value name a
+ * table the allowlist never approved. The check is the narrowing, rather than an
+ * assertion about it.
+ */
+function isTenantTableName(name: string): name is TenantTableName {
+  return (TENANT_TABLES as readonly string[]).includes(name);
+}
+
+/**
  * Build the accepted-index metadata from described tables.
  *
  * Takes `TableFacts` rather than a schema so the derivation can be exercised on
@@ -94,6 +114,9 @@ function acceptable(fields: readonly string[]): boolean {
  * with no index at all, a duplicated field — without breaking the real schema to
  * do it. `tests/isolation/schema-policy-guards.isolation.test.ts` uses the same
  * arrangement for the same reason.
+ *
+ * A table contributes only when its classification is `tenant` *and* its name is
+ * in `TENANT_TABLES`. Either alone is a claim; together they are the allowlist.
  *
  * Every returned map is frozen and every field list is frozen: the metadata is
  * an allowlist, and an allowlist that any importing module can widen is not one.
@@ -105,6 +128,8 @@ export function deriveTenantIndexMetadata(
 
   for (const facts of allFacts) {
     if (facts.classification !== "tenant") continue;
+    if (!isTenantTableName(facts.name)) continue;
+    const table: TenantTableName = facts.name;
 
     const indexes = new Map<string, TenantIndexFacts>();
     for (const index of facts.indexes) {
@@ -112,10 +137,7 @@ export function deriveTenantIndexMetadata(
       indexes.set(
         index.name,
         Object.freeze({
-          // Narrow boundary cast: `classification === "tenant"` is exactly the
-          // statement that this name is in `TENANT_TABLES`, which `classifyTable`
-          // decides and the type system cannot carry through a `string` name.
-          table: facts.name as TenantTableName,
+          table,
           name: index.name,
           fields: Object.freeze([...index.fields]),
           fieldsAfterOrg: Object.freeze(index.fields.slice(1)),
@@ -123,7 +145,7 @@ export function deriveTenantIndexMetadata(
       );
     }
 
-    byTable.set(facts.name, freezeMap(indexes));
+    byTable.set(table, freezeMap(indexes));
   }
 
   return freezeMap(byTable);
@@ -212,6 +234,11 @@ export function describeTenantIndex(
  * 3. a tenant table left with no acceptable index, which is a table that can
  *    only be read by scanning it (`INV-0002-04`).
  *
+ * A table that calls itself `tenant` under a name `TENANT_TABLES` does not list
+ * is reported as unclassified, not as an approved tenant table missing indexes:
+ * the fix is to classify the table or extend the allowlist, and neither is a
+ * statement about its indexes.
+ *
  * Reported as strings rather than thrown, matching `schemaPolicyViolations`, so a
  * test can name every problem in one run instead of the first one.
  */
@@ -240,6 +267,16 @@ export function tenantIndexMetadataDrift(
 
   for (const facts of allFacts) {
     if (facts.classification !== "tenant") continue;
+
+    if (!isTenantTableName(facts.name)) {
+      problems.push(
+        `${facts.name}: table is classified "tenant" but is not named by ` +
+          "TENANT_TABLES, so it is unclassified as far as indexed tenant reads " +
+          "are concerned and none of its indexes is usable; add it to " +
+          "TENANT_TABLES or correct its classification",
+      );
+      continue;
+    }
 
     const accepted = metadata.get(facts.name);
     for (const index of facts.indexes) {
