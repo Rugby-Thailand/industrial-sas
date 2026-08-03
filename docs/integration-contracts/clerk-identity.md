@@ -129,7 +129,9 @@ requirements are dashboard configuration, recorded in the Phase 1 environment de
   adapter once; an invalid signature is rejected before any state change; unsupported
   verified types are acknowledged without applying; unusable delivery metadata and
   strings outside the kernel's published bounds are refused as invalid rather than as
-  unavailable, so Clerk does not retry a payload that can never apply.
+  unavailable, so Clerk does not retry a payload that can never apply. A shared text
+  predicate also rejects control/separator characters at the HTTP boundary, and an
+  end-to-end offline test resolves the route's internal mutation reference.
 - Isolation tests: an actor of tenant A cannot resolve tenant B under any token
   manipulation the client controls.
 - No test requires a Clerk account or network access (`INV-0008-05`).

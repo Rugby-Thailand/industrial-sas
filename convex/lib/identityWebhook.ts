@@ -130,6 +130,20 @@ function isPlainRecord(value: unknown): value is Record<string, unknown> {
  */
 const UNSAFE_TEXT = /[\p{Cc}\u2028\u2029]/u;
 
+/** One shared text contract for the HTTP normalizer and mirror kernel. */
+export function isValidIdentityText(
+  value: unknown,
+  max: number,
+): value is string {
+  return (
+    typeof value === "string" &&
+    value.length > 0 &&
+    value === value.trim() &&
+    value.length <= max &&
+    !UNSAFE_TEXT.test(value)
+  );
+}
+
 function exactKeys(value: Record<string, unknown>, allowed: readonly string[]) {
   const actual = Object.keys(value).sort();
   const expected = [...allowed].sort();
@@ -140,13 +154,7 @@ function exactKeys(value: Record<string, unknown>, allowed: readonly string[]) {
 }
 
 function boundedString(value: unknown, max: number): asserts value is string {
-  if (
-    typeof value !== "string" ||
-    value.length === 0 ||
-    value !== value.trim() ||
-    value.length > max ||
-    UNSAFE_TEXT.test(value)
-  ) {
+  if (!isValidIdentityText(value, max)) {
     throw new InvalidIdentityEventError();
   }
 }

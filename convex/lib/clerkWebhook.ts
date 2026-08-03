@@ -9,7 +9,10 @@ import type {
   IdentityEventResult,
   IdentityWebhookEvent,
 } from "./identityWebhook";
-import { MAX_IDENTITY_REFERENCE_LENGTH } from "./identityWebhook";
+import {
+  isValidIdentityText,
+  MAX_IDENTITY_REFERENCE_LENGTH,
+} from "./identityWebhook";
 import { normalizeVerifiedClerkEvent } from "./clerkWebhookNormalizer";
 
 type ApplyIdentityEvent = (
@@ -36,9 +39,7 @@ function delivery(request: Request) {
   const eventId = request.headers.get("svix-id")?.trim();
   const timestamp = request.headers.get("svix-timestamp")?.trim();
   if (
-    eventId === undefined ||
-    eventId.length === 0 ||
-    eventId.length > MAX_IDENTITY_REFERENCE_LENGTH ||
+    !isValidIdentityText(eventId, MAX_IDENTITY_REFERENCE_LENGTH) ||
     timestamp === undefined ||
     !/^\d+$/.test(timestamp)
   ) {

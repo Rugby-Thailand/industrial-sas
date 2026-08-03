@@ -3,6 +3,7 @@ import type { WebhookEvent } from "@clerk/backend/webhooks";
 import {
   MAX_IDENTITY_DISPLAY_NAME_LENGTH,
   MAX_IDENTITY_REFERENCE_LENGTH,
+  isValidIdentityText,
   type IdentityWebhookEvent,
 } from "./identityWebhook";
 
@@ -36,7 +37,7 @@ function record(value: unknown): Record<string, unknown> {
 function requiredString(value: unknown, max: number): string {
   if (typeof value !== "string") throw new InvalidClerkWebhookPayloadError();
   const trimmed = value.trim();
-  if (trimmed.length === 0 || trimmed.length > max) {
+  if (!isValidIdentityText(trimmed, max)) {
     throw new InvalidClerkWebhookPayloadError();
   }
   return trimmed;
@@ -56,7 +57,10 @@ function displayName(
   const name = [optionalName(firstName), optionalName(lastName)]
     .filter((part): part is string => part !== null)
     .join(" ");
-  if (name.length > MAX_IDENTITY_DISPLAY_NAME_LENGTH) {
+  if (
+    name.length > 0 &&
+    !isValidIdentityText(name, MAX_IDENTITY_DISPLAY_NAME_LENGTH)
+  ) {
     throw new InvalidClerkWebhookPayloadError();
   }
   return name || `Clerk user ${clerkUserId}`;

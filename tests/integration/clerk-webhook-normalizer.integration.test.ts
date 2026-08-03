@@ -122,5 +122,15 @@ describe("Clerk event minimization", () => {
         delivery,
       ),
     ).toThrow(InvalidClerkWebhookPayloadError);
+    expect(() =>
+      normalizeVerifiedClerkEvent(
+        event("user.updated", {
+          id: "user_nok",
+          first_name: "Nok\u0007",
+          last_name: null,
+        }),
+        delivery,
+      ),
+    ).toThrow(InvalidClerkWebhookPayloadError);
   });
 });
