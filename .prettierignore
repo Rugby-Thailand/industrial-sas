@@ -1,0 +1,16 @@
+# Generated / vendored output — never formatted.
+node_modules/
+.next/
+out/
+build/
+dist/
+coverage/
+test-results/
+playwright-report/
+blob-report/
+convex/_generated/
+next-env.d.ts
+pnpm-lock.yaml
+
+# Approved planning document: must stay byte-for-byte identical.
+PROJECT_PLAN.md
