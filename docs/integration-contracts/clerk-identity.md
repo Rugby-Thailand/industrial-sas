@@ -1,13 +1,17 @@
 # INT-01 — Clerk identity, organizations, and membership sync
 
-Status: **partial implementation.** The pure normalized-event kernel in
+Status: **partial implementation.** `POST /webhooks/clerk` verifies the untouched
+request with Clerk's pinned backend SDK, minimizes supported organization, user,
+and membership events, and invokes one internal Convex mutation. That transaction
+uses only exact indexes, while the pure normalized-event kernel in
 `convex/lib/identityWebhook.ts` applies organization, user, and membership upserts
 and tombstones with entity-local event watermarks. Replays and equal or older
 deliveries do not write, new memberships default to warehouse-scoped, and raw Clerk
 payloads are outside the kernel's accepted shape. The mirror schema carries only the
-minimal correlation, display, status, and watermark fields. The signed HTTP ingress,
-Convex transaction adapter, auth configuration, and live Clerk instance remain
-unimplemented.
+minimal correlation, display, status, and watermark fields. The static boundary
+guard denies additional HTTP/internal builders and raw-database adapters unless an
+exact path is reviewed. Convex auth configuration, session UI, drift reconciliation,
+and a live Clerk instance remain unimplemented.
 
 Owner ADRs:
 [ADR-0001](../adr/0001-multi-tenant-saas-and-identity-ownership.md),
@@ -74,7 +78,7 @@ round trip.
   one tenant (`INV-0001-05`).
 - Out-of-order events are handled by comparing event timestamps; an older event never
   overwrites newer state.
-- The future HTTP ingress will acknowledge unsupported event types without invoking
+- The HTTP ingress acknowledges unsupported verified event types without invoking
   the mirror mutation, so Clerk does not retry them forever.
 
 ## 6. Data and privacy
@@ -97,7 +101,7 @@ retained business records (`RG-058`).
 | ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | Clerk unavailable                         | Existing verified sessions continue for domain operations that need no reverification; new sign-ins fail with a clear message |
 | Invalid or expired token                  | `unauthorized`; no domain operation proceeds                                                                                  |
-| Webhook signature invalid                 | Reject with no state change; record a security event; alert                                                                   |
+| Webhook signature invalid                 | Reject with no state change; security-event/alert adapter remains pending                                                     |
 | Webhook delivery gap                      | Scheduled membership reconciliation detects drift (plan §13)                                                                  |
 | Membership revoked in Clerk, mirror stale | Per-request membership recheck denies the operation once the mirror updates; reconciliation bounds the window                 |
 | Reverification unavailable                | Privileged operations are denied, never allowed by default                                                                    |
@@ -117,19 +121,24 @@ requirements are dashboard configuration, recorded in the Phase 1 environment de
 
 - Integration tests with a fake identity adapter: verified actor resolution, revoked
   membership rejection, organization switch, reverification freshness.
-- Implemented kernel tests: replay is a no-op; out-of-order delivery cannot regress
-  state; membership identity is organization-keyed; malformed, unbounded, and
-  PII-bearing normalized objects are rejected before storage.
-- Pending ingress tests: a valid signature invokes the mutation once; an invalid
-  signature is rejected before any state change; unsupported types are acknowledged.
+- Implemented kernel and adapter tests: replay is a no-op; out-of-order delivery
+  cannot regress state; membership identity is organization-keyed; malformed,
+  unbounded, and PII-bearing normalized objects are rejected before storage;
+  ambiguous exact-index reads roll back the entire mirror transaction.
+- Implemented ingress tests use a real signed request: a valid signature invokes the
+  adapter once; an invalid signature is rejected before any state change; unsupported
+  verified types are acknowledged without applying; unusable delivery metadata and
+  strings outside the kernel's published bounds are refused as invalid rather than as
+  unavailable, so Clerk does not retry a payload that can never apply.
 - Isolation tests: an actor of tenant A cannot resolve tenant B under any token
   manipulation the client controls.
 - No test requires a Clerk account or network access (`INV-0008-05`).
 
 ## 10. Release gates
 
-`RG-011` staging walkthrough, `RG-030` shared-device and session policy, `RG-059`
-environment separation, `RG-048` subprocessor register entry. See the
+`RG-011` live staging walkthrough (including the deployed route and Clerk delivery),
+`RG-030` shared-device and session policy, `RG-059` environment separation,
+`RG-048` subprocessor register entry. See the
 [register](../release-gates.md).
 
 ## 11. Open questions

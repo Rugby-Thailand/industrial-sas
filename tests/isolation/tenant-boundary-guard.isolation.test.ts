@@ -56,6 +56,12 @@ export const queryWithOrg = (handler: unknown) =>
 export const mutationWithOrg = (handler: unknown) =>
   mutationGeneric({ handler: () => [handler, createMutationTenantStorage] });
 `,
+  "convex/lib/identityMirrorConvex.ts": `import { internalMutationGeneric } from "convex/server";
+export const apply = internalMutationGeneric({ handler: (ctx: { db: unknown }) => ctx.db });
+`,
+  "convex/lib/clerkWebhook.ts": `import { httpActionGeneric } from "convex/server";
+export const webhook = httpActionGeneric(async () => new Response(null));
+`,
 };
 
 /** Scan a synthetic tree; `files` overrides or extends the allowlisted stubs. */
@@ -119,6 +125,19 @@ export const writeAll = mutation({ handler: () => null });
     ).toEqual(["registration"]);
   });
 
+  it("fails direct internal and HTTP registrations outside their exact adapters", () => {
+    expect(
+      rulesOf({
+        "convex/receiving/internal.ts": `import { internalMutationGeneric } from "convex/server";
+export const write = internalMutationGeneric({ handler: () => null });
+`,
+        "convex/receiving/webhook.ts": `import { httpAction } from "./_generated/server";
+export const route = httpAction(async () => new Response(null));
+`,
+      }),
+    ).toEqual(["http-registration", "internal-registration"]);
+  });
+
   it("fails an aliased registration import", () => {
     const violations = scanTree({
       "convex/receiving/aliased.ts": `import { queryGeneric as register } from "convex/server";
@@ -154,7 +173,7 @@ export async function later() {
 }
 `,
       }),
-    ).toEqual(["registration"]);
+    ).toEqual(["http-registration", "internal-registration", "registration"]);
   });
 
   it("fails raw database access in every syntactic form", () => {

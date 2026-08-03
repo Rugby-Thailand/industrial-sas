@@ -15,6 +15,8 @@
  *     `mutationGeneric`, `actionGeneric`, or `query`/`mutation`/`action` from a
  *     Convex server module — imported, aliased, re-exported, dynamically
  *     imported, or reached through a namespace.
+ *   - `internal-registration` an internal Convex registration builder.
+ *   - `http-registration` an HTTP action registration builder.
  *   - `raw-database`    a raw `.db` read, `["db"]` access, or `{ db }` binding.
  *   - `storage-factory` `createQueryTenantStorage`/`createMutationTenantStorage`.
  *   - `storage-port`    a `Tenant*StoragePort` type.
@@ -56,6 +58,18 @@ const DISTINCTIVE_BUILDERS = new Set([
   "mutationGeneric",
   "actionGeneric",
 ]);
+const INTERNAL_SCOPED_BUILDERS = new Set([
+  "internalQuery",
+  "internalMutation",
+  "internalAction",
+]);
+const INTERNAL_DISTINCTIVE_BUILDERS = new Set([
+  "internalQueryGeneric",
+  "internalMutationGeneric",
+  "internalActionGeneric",
+]);
+const HTTP_SCOPED_BUILDERS = new Set(["httpAction"]);
+const HTTP_DISTINCTIVE_BUILDERS = new Set(["httpActionGeneric"]);
 /** The concrete Convex storage adapters. */
 const STORAGE_FACTORIES = new Set([
   "createQueryTenantStorage",
@@ -67,7 +81,13 @@ const STORAGE_PORT_NAME = /^Tenant\w*StoragePort$/;
 /** Exact paths permitted to break each rule; everything absent is denied. */
 export const TENANT_BOUNDARY_ALLOWLIST = Object.freeze({
   registration: Object.freeze(["convex/lib/tenantFunctions.ts"]),
+  "internal-registration": Object.freeze([
+    "convex/lib/identityMirrorConvex.ts",
+    "convex/lib/tenantFunctions.ts",
+  ]),
+  "http-registration": Object.freeze(["convex/lib/clerkWebhook.ts"]),
   "raw-database": Object.freeze([
+    "convex/lib/identityMirrorConvex.ts",
     "convex/lib/tenantStorage.ts",
     "convex/lib/tenantContextLookups.ts",
   ]),
@@ -98,6 +118,10 @@ function isConvexServerModule(specifier) {
 /** The rule a name belongs to, wherever it came from. @param {string} name */
 function classifyName(name) {
   if (DISTINCTIVE_BUILDERS.has(name)) return "registration";
+  if (INTERNAL_DISTINCTIVE_BUILDERS.has(name)) {
+    return "internal-registration";
+  }
+  if (HTTP_DISTINCTIVE_BUILDERS.has(name)) return "http-registration";
   if (STORAGE_FACTORIES.has(name)) return "storage-factory";
   if (STORAGE_PORT_NAME.test(name)) return "storage-port";
   return null;
@@ -201,6 +225,24 @@ export function scanTenantBoundarySource(file, source) {
           element,
           `${verb} the registration builder \`${original}\` from "${from}"`,
         );
+      } else if (
+        INTERNAL_SCOPED_BUILDERS.has(original) &&
+        isConvexServerModule(from)
+      ) {
+        report(
+          "internal-registration",
+          element,
+          `${verb} the internal registration builder \`${original}\` from "${from}"`,
+        );
+      } else if (
+        HTTP_SCOPED_BUILDERS.has(original) &&
+        isConvexServerModule(from)
+      ) {
+        report(
+          "http-registration",
+          element,
+          `${verb} the HTTP registration builder \`${original}\` from "${from}"`,
+        );
       }
     }
   };
@@ -222,6 +264,8 @@ export function scanTenantBoundarySource(file, source) {
       } else if (ts.isExportDeclaration(node) && isConvexServerModule(from)) {
         // `export *` and `export * as ns` re-export every builder unnamed.
         report("registration", node, `re-exports all of "${from}"`);
+        report("internal-registration", node, `re-exports all of "${from}"`);
+        report("http-registration", node, `re-exports all of "${from}"`);
       }
     }
 
@@ -238,6 +282,16 @@ export function scanTenantBoundarySource(file, source) {
         isConvexServerModule(first.text)
       ) {
         report("registration", node, `dynamically imports "${first.text}"`);
+        report(
+          "internal-registration",
+          node,
+          `dynamically imports "${first.text}"`,
+        );
+        report(
+          "http-registration",
+          node,
+          `dynamically imports "${first.text}"`,
+        );
       }
     }
 
@@ -257,6 +311,26 @@ export function scanTenantBoundarySource(file, source) {
       ) {
         report(
           "registration",
+          node,
+          `reaches \`${member}\` on the Convex server namespace \`${object.text}\``,
+        );
+      } else if (
+        INTERNAL_SCOPED_BUILDERS.has(member) &&
+        ts.isIdentifier(object) &&
+        serverNamespaces.has(object.text)
+      ) {
+        report(
+          "internal-registration",
+          node,
+          `reaches \`${member}\` on the Convex server namespace \`${object.text}\``,
+        );
+      } else if (
+        HTTP_SCOPED_BUILDERS.has(member) &&
+        ts.isIdentifier(object) &&
+        serverNamespaces.has(object.text)
+      ) {
+        report(
+          "http-registration",
           node,
           `reaches \`${member}\` on the Convex server namespace \`${object.text}\``,
         );

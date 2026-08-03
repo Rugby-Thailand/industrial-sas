@@ -13,9 +13,12 @@
   `membershipRoles`, `membershipWarehouses`, `entitlements`, and `sessionsAudit`,
   with the Clerk correlation keys and bounded indexes their lookups need, while
   `convex/lib/identityWebhook.ts` validates a minimal event shape and applies
-  idempotent, timestamp-ordered mirror transitions through a storage port. There is
-  still no signed webhook ingress, Convex mirror adapter, token verification,
-  organization switch, or entitlement enforcement. `@clerk/nextjs` remains unwired.
+  idempotent, timestamp-ordered mirror transitions through a storage port.
+  `convex/lib/clerkWebhook.ts` and `identityMirrorConvex.ts` add a signature-first
+  HTTP ingress and one atomic internal mirror adapter, covered by signed-request and
+  rollback tests. There is still no live Clerk/Convex configuration, token
+  verification, organization switch, drift reconciliation, or entitlement
+  enforcement. `@clerk/nextjs` remains unwired.
 
 ## Context
 
