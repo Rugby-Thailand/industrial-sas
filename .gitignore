@@ -1,0 +1,136 @@
+# ---------------------------------------------------------------------------
+# Dependencies
+# ---------------------------------------------------------------------------
+node_modules/
+.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# pnpm
+.pnpm-store/
+.pnpm-debug.log*
+
+# ---------------------------------------------------------------------------
+# Next.js / build output
+# ---------------------------------------------------------------------------
+.next/
+out/
+build/
+dist/
+.turbo/
+.swc/
+next-env.d.ts
+*.tsbuildinfo
+
+# ---------------------------------------------------------------------------
+# Convex (local / generated)
+# ---------------------------------------------------------------------------
+.convex/
+convex/_generated/
+
+# ---------------------------------------------------------------------------
+# Environment files — never commit real values
+# ---------------------------------------------------------------------------
+.env
+.env.*
+.env.local
+.env.development
+.env.development.local
+.env.test
+.env.test.local
+.env.production
+.env.production.local
+.envrc
+# Templates are intentionally tracked
+!.env.example
+!.env.*.example
+
+# ---------------------------------------------------------------------------
+# Secrets and credentials
+# ---------------------------------------------------------------------------
+*.pem
+*.key
+*.p12
+*.pfx
+*.keystore
+*.jks
+secrets.json
+credentials.json
+service-account*.json
+
+# ---------------------------------------------------------------------------
+# Tests, coverage, and reports
+# ---------------------------------------------------------------------------
+coverage/
+*.lcov
+.nyc_output/
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+.vitest/
+junit.xml
+lighthouse-report.*
+
+# ---------------------------------------------------------------------------
+# Logs and process artifacts
+# ---------------------------------------------------------------------------
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+pids/
+*.pid
+*.pid.lock
+*.seed
+
+# ---------------------------------------------------------------------------
+# Caches and tooling
+# ---------------------------------------------------------------------------
+.cache/
+.eslintcache
+.stylelintcache
+.prettiercache
+.parcel-cache/
+.vercel/
+.sentryclirc
+
+# ---------------------------------------------------------------------------
+# Editors and IDEs
+# ---------------------------------------------------------------------------
+.idea/
+*.iml
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/launch.json
+*.swp
+*.swo
+
+# ---------------------------------------------------------------------------
+# OS files
+# ---------------------------------------------------------------------------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+.AppleDouble
+.LSOverride
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# ---------------------------------------------------------------------------
+# Temporary and local scratch files
+# ---------------------------------------------------------------------------
+tmp/
+temp/
+*.local
+*.tmp
