@@ -1,8 +1,11 @@
 # Playwright end-to-end scaffold, kept separate from `quality.yml` because it is
 # the only job that needs a browser and system libraries.
 #
-# Credential-free by design: playwright.config.ts starts its own `next dev` on
-# port 3100 and the scaffold spec needs no accounts, secrets, or cloud services.
+# Credential-free by design: `pnpm test:e2e` runs scripts/run-e2e.mjs, which
+# prepares and owns both servers itself — a production build served by
+# `next start` on port 3100 and a preview `next dev` it starts, warms serially,
+# and stops on 3101 — and needs no accounts, secrets, or cloud services. That preparation is also what keeps the suite deterministic;
+# the script's header records the two races it removes.
 # Actions are pinned to immutable commit SHAs; `pnpm verify:workflows` enforces
 # it and README.md records the update policy.
 name: E2E

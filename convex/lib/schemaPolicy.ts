@@ -77,9 +77,26 @@ export const TENANT_TABLES = [
   "handlingUnits",
   "owners",
   "reasonCodes",
+  "suppliers",
+  "itemBarcodes",
+  "itemUoms",
+  "storageClasses",
+  "labelTemplates",
   "inventoryTransactions",
   "inventoryLedgerLines",
   "inventoryBalances",
+  "purchaseOrders",
+  "purchaseOrderLines",
+  "poImportBatches",
+  "receipts",
+  "receiptLines",
+  "receivingExceptions",
+  "qcProfiles",
+  "qcInspections",
+  "labelPrintJobs",
+  "putawayTasks",
+  "operationsRollups",
+  "reportJobs",
 ] as const;
 
 export type GlobalTableName = (typeof GLOBAL_TABLES)[number];
@@ -402,6 +419,133 @@ export const UNIQUENESS_CONTRACTS: readonly UniquenessContract[] = [
     rationale:
       "One balance row per bucket. Two rows would make the projection ambiguous and reconciliation unable to say which is drifting (INV-0003-09).",
   },
+  {
+    table: "operationsRollups",
+    key: ["orgId", "warehouseId", "metric", "subjectKey"],
+    index: "by_orgId_warehouseId_metric_subjectKey",
+    condition: ALWAYS,
+    rationale:
+      "One counter per (site, metric, subject). Two rows would make a dashboard tile the sum of an " +
+      "arbitrary pair and make verification unable to say which is drifting (INV-0011-09).",
+  },
+  {
+    table: "reportJobs",
+    key: ["orgId", "requestId"],
+    index: "by_orgId_requestId",
+    condition: ALWAYS,
+    rationale:
+      "One job per request. A repeated export request replays the job it already created rather than " +
+      "starting a second walk over the same data (INV-0011-02).",
+  },
+  {
+    table: "suppliers",
+    key: ["orgId", "code"],
+    index: "by_orgId_code",
+    condition: ALWAYS,
+    rationale:
+      "Tenant-normalized supplier identifier, unique per organization (§5 Q4).",
+  },
+  {
+    table: "itemBarcodes",
+    key: ["orgId", "barcode"],
+    index: "by_orgId_barcode",
+    condition: ALWAYS,
+    rationale:
+      "A scanned string must resolve to at most one item, or receiving has to ask an operator which " +
+      "SKU they meant while they are holding the carton. Uniqueness is on the barcode alone, " +
+      "deliberately not on (item, barcode).",
+  },
+  {
+    table: "itemUoms",
+    key: ["orgId", "itemId", "uom"],
+    index: "by_orgId_itemId_uom",
+    condition: ALWAYS,
+    rationale:
+      "One factor per alternate unit per item. A second row would give the same UOM two conversion " +
+      "factors, and the kernel's DUPLICATE_UOM exists because a profile with both is not a profile.",
+  },
+  {
+    table: "storageClasses",
+    key: ["orgId", "code"],
+    index: "by_orgId_code",
+    condition: ALWAYS,
+    rationale:
+      "A storage class means the same thing at every site, so its code is unique per organization " +
+      "rather than per warehouse (D-13).",
+  },
+  {
+    table: "labelTemplates",
+    key: ["orgId", "code", "version"],
+    index: "by_orgId_code_version",
+    condition: ALWAYS,
+    rationale:
+      "A printed label cites a template code and version as audit evidence (RG-004). Two rows under " +
+      "one version would make that citation ambiguous.",
+  },
+  {
+    table: "purchaseOrders",
+    key: ["orgId", "poNumber"],
+    index: "by_orgId_poNumber",
+    condition: ALWAYS,
+    rationale:
+      "The order number is what a buyer, a supplier, and a receiving operator all quote. Two orders " +
+      "under one number make every one of those conversations ambiguous (ADR-0007 §1).",
+  },
+  {
+    table: "purchaseOrderLines",
+    key: ["orgId", "purchaseOrderId", "lineNumber"],
+    index: "by_orgId_purchaseOrderId_lineNumber",
+    condition: ALWAYS,
+    rationale:
+      "A receipt is posted against a line by its position on the order. Two lines at one position would " +
+      "make the posting target ambiguous and the running received total meaningless.",
+  },
+  {
+    table: "purchaseOrderLines",
+    key: ["orgId", "sourceRowRef"],
+    index: "by_orgId_sourceRowRef",
+    condition: whenPresent("sourceRowRef"),
+    rationale:
+      "One imported spreadsheet row creates at most one line, however many times a chunk is replayed " +
+      "after a crash (INV-0007-12).",
+  },
+  {
+    table: "poImportBatches",
+    key: ["orgId", "batchRef"],
+    index: "by_orgId_batchRef",
+    condition: ALWAYS,
+    rationale:
+      "The batch reference is half of every imported row's sourceRowRef, which is the row's idempotency " +
+      "key. Two batches under one reference would make a re-run write duplicates (INV-0007-12).",
+  },
+  {
+    table: "receipts",
+    key: ["orgId", "receiptNumber"],
+    index: "by_orgId_receiptNumber",
+    condition: ALWAYS,
+    rationale:
+      "The receipt number is the tenant-visible reference on a goods-received note; duplicates make " +
+      "reconciliation against a supplier's delivery paperwork impossible.",
+  },
+  {
+    table: "qcInspections",
+    key: ["orgId", "receiptLineId"],
+    index: "by_orgId_receiptLineId",
+    condition: ALWAYS,
+    rationale:
+      "One received line is inspected once. A second inspection row would let two dispositions move the " +
+      "same held quantity, and the ledger would refuse the second with a message about balances rather " +
+      "than about quality (INV-0007-05).",
+  },
+  {
+    table: "putawayTasks",
+    key: ["orgId", "receiptLineId"],
+    index: "by_orgId_receiptLineId",
+    condition: ALWAYS,
+    rationale:
+      "One received line becomes one putaway task. Two tasks for one line would let two operators each " +
+      "move the whole quantity, and the second move would post from a bucket already emptied.",
+  },
 ] as const;
 
 /* -------------------------------------------------------------------------- */
@@ -464,6 +608,69 @@ export const BOUNDED_LOOKUP_CONTRACTS: readonly LookupContract[] = [
       "One item in one status is spread across many locations, lots, handling units, and owners — that " +
       "spread is the point of a narrow bucket. The index bounds 'what is on hand' (inventory.balance.read); " +
       "it does not cap the count.",
+  },
+  {
+    table: "operationsRollups",
+    key: ["orgId", "warehouseId", "metric"],
+    index: "by_orgId_warehouseId_metric_subjectKey",
+    cardinality: "many",
+    rationale:
+      "A per-subject metric — occupancy — has one row per location, so the metric prefix reads a bounded " +
+      "page rather than a single document. A site total has exactly one row under the `-` sentinel.",
+  },
+  {
+    table: "reportJobs",
+    key: ["orgId", "warehouseId", "status"],
+    index: "by_orgId_warehouseId_status",
+    cardinality: "many",
+    rationale:
+      "A site accumulates exports. The index bounds the register screen and the queue the runner drains; " +
+      "it does not cap the count.",
+  },
+  {
+    table: "itemBarcodes",
+    key: ["orgId", "itemId"],
+    index: "by_orgId_itemId_barcode",
+    cardinality: "many",
+    rationale:
+      "One item legitimately carries several aliases — a GTIN, a supplier's own code, an internal " +
+      "label. The index bounds 'show me this item's barcodes'; it does not cap the count.",
+  },
+  {
+    table: "itemUoms",
+    key: ["orgId", "itemId"],
+    index: "by_orgId_itemId_uom",
+    cardinality: "many",
+    rationale:
+      "An item may declare each, case, and pallet. The index bounds rebuilding one item's conversion " +
+      "profile (ADR-0004); it does not cap the count.",
+  },
+  {
+    table: "labelTemplates",
+    key: ["orgId", "code"],
+    index: "by_orgId_code_version",
+    cardinality: "many",
+    rationale:
+      "A template accumulates a version per published change, forever, because a printed label cites " +
+      "the version it was produced from. The index bounds one template's history; it does not cap it.",
+  },
+  {
+    table: "receiptLines",
+    key: ["orgId", "receiptId"],
+    index: "by_orgId_receiptId",
+    cardinality: "many",
+    rationale:
+      "A receipt holds one line per item-and-lot that arrived on it — dozens for a mixed pallet, not " +
+      "thousands. The index is what makes reading one receipt a bounded read rather than a scan.",
+  },
+  {
+    table: "labelPrintJobs",
+    key: ["orgId", "targetKind", "targetId"],
+    index: "by_orgId_targetKind_targetId",
+    cardinality: "many",
+    rationale:
+      "One pallet accumulates a print job per label generated over its life, including every reprint. " +
+      "Reprints are audited as reprints (ADR-0007 §10), so the count grows and is deliberately uncapped.",
   },
 ] as const;
 

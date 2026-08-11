@@ -1,6 +1,10 @@
 # Generated / vendored output — never formatted.
 node_modules/
 .next/
+.next-preview/
+# The dedicated Playwright build directories (see playwright.config.ts).
+.next-e2e/
+.next-e2e-preview/
 out/
 build/
 dist/

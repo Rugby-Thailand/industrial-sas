@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Industrial SSA">
+  <rect width="64" height="64" fill="#0b5cad" />
+  <g fill="#ffffff" transform="translate(32 32) scale(0.62) translate(-32 -32)">
+    <rect x="14" y="30" width="36" height="6" rx="1" />
+    <rect x="14" y="40" width="16" height="10" rx="1" />
+    <rect x="34" y="40" width="16" height="10" rx="1" />
+    <path d="M32 12 52 26 H12 Z" />
+  </g>
+</svg>

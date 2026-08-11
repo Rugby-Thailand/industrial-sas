@@ -452,3 +452,64 @@ export async function storedAuditEvents(
         .take(50),
   );
 }
+
+/**
+ * A **second** mirrored actor in tenant A, with an active membership and one
+ * seeded role.
+ *
+ * Separate from the base world because most suites do not need it and every row
+ * a fixture seeds unconditionally is a row some other suite has to reason about.
+ * What needs it is maker-checker: the evaluator denies whenever the maker and
+ * the actor are the same person, so proving the *allowed* branch of a
+ * separation-of-duties workflow takes two people. Without this, every
+ * maker-checker test could only assert a denial.
+ *
+ * The subject is distinct, so `withIdentity({ subject })` selects which actor is
+ * acting; the organization claim is the same, because both work for tenant A.
+ */
+export interface ConvexSecondActor {
+  readonly userId: GenericId<"users">;
+  readonly membershipId: GenericId<"memberships">;
+  readonly clerkUserId: string;
+}
+
+export async function seedSecondActorForOrgA(
+  world: ConvexTenantWorld,
+  roleKey: string,
+): Promise<ConvexSecondActor> {
+  const clerkUserId = "user_fixture_a2";
+
+  return await world.t.run(async (ctx) => {
+    const userId = await ctx.db.insert("users", {
+      clerkUserId,
+      displayName: "Fixture A2",
+      status: "ACTIVE",
+    });
+    const membershipId = await ctx.db.insert("memberships", {
+      orgId: world.orgA,
+      userId,
+      clerkMembershipId: "orgmem_fixture_a2",
+      status: "ACTIVE",
+      // Org-wide, so this actor is not the subject of a warehouse-scope test.
+      scopeMode: "ORG_WIDE",
+      effectiveFrom: 0,
+    });
+
+    const role = await ctx.db
+      .query("roles")
+      .withIndex("by_orgId_key", (query) =>
+        query.eq("orgId", world.orgA).eq("key", roleKey),
+      )
+      .unique();
+    if (role === null) throw new Error(`missing seeded role ${roleKey}`);
+
+    await ctx.db.insert("membershipRoles", {
+      orgId: world.orgA,
+      membershipId,
+      roleId: role._id,
+      grantedAt: 0,
+    });
+
+    return { userId, membershipId, clerkUserId };
+  });
+}

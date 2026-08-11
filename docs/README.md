@@ -8,10 +8,12 @@ contains a toolchain scaffold, this documentation set, the tenant security slice
 the schema and the guards that read it, the tenant-bound wrappers with mandatory
 server-side permission enforcement and audited authorization attempts, signed Clerk
 webhook identity mirroring, and the permission catalogue with its provisioning seed —
-and the pure inventory primitives under
-[`convex/model/**`](../convex/model/README.md), with **no Clerk instance, no deployment,
-no table storing a quantity or an identifier, and no warehouse management
-functionality.**
+the pure inventory primitives under
+[`convex/model/**`](../convex/model/README.md), the append-only ledger, and a Thai-first
+application shell whose two inventory screens read that ledger through its real public
+Convex queries. There is still **no Clerk instance**, so every tenant-bound read is
+denied and no screen has ever shown a tenant's data, and **no warehouse management
+flow**: nothing receives, inspects, palletizes, prints, or puts away.
 Each document states its own implementation status, and the
 [coverage matrix](./specification-coverage.md) is the single place to see what is real.
 
@@ -21,12 +23,15 @@ Each document states its own implementation status, and the
 | -------------------------------------------------- | ------------------------------------------------------------ |
 | Understand why the architecture is shaped this way | [ADR index](./adr/README.md)                                 |
 | Use the right word for a domain concept            | [Domain glossary](./domain-glossary.md)                      |
+| Learn how to use each implemented feature          | [Feature manuals](./manuals/README.md)                       |
+| Train an operator or a supervisor, in Thai         | [Training materials](./training/README.md)                   |
 | Know what the pure domain modules own              | [`convex/model/README.md`](../convex/model/README.md)        |
 | Know who may do what, and under which policy       | [Permission catalogue](./permissions.md)                     |
 | Know what still blocks a phase or the launch       | [Release gate register](./release-gates.md)                  |
 | See what has been approved, and by what authority  | [Approval record](./approval-record.md)                      |
 | Integrate or replace an external dependency        | [Integration contracts](./integration-contracts/README.md)   |
 | Operate the system when something goes wrong       | [Runbooks](./runbooks/README.md)                             |
+| Know what each environment class must hold         | [Environment contracts](./environments.md)                   |
 | Check what is implemented versus planned           | [Specification coverage matrix](./specification-coverage.md) |
 
 ## Contents
@@ -41,11 +46,17 @@ and delivery. See the [ADR index](./adr/README.md) for the list and for how they
 
 ### Reference documents
 
+- [Feature manuals](./manuals/README.md) — one operating/integration manual per
+  implemented backend or domain capability, with an explicit availability label.
+- [Training materials](./training/README.md) — Thai-first session material for dock
+  operators and shift supervisors, including the limits each role will meet.
 - [Domain glossary](./domain-glossary.md) — the ubiquitous language, with stable term IDs,
   rejected synonyms, and the vocabulary that must **not** appear in MVP code.
 - [Permission catalogue](./permissions.md) — code-owned permission codes, eight seeded
   roles with their default mapping, and the semantics of warehouse scope, thresholds,
   maker-checker, step-up, and disabled-by-default support grants.
+- [Environment contracts](./environments.md) — the developer, preview, staging, and
+  production classes, what each must and must not hold, and the guard that checks it.
 - [Release gate register](./release-gates.md) — every gate in the approved plan with an
   owner, the evidence that closes it, and its status. Two gates are satisfied today; the
   rest are open, and the tenant security schema closes none of them.

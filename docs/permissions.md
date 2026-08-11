@@ -55,23 +55,28 @@ target warehouse participates in the decision.
 
 ### 2.2 Master data
 
-| Permission code                | Scope | Guards                                          | Extra policy           |
-| ------------------------------ | ----- | ----------------------------------------------- | ---------------------- |
-| `masterData.item.read`         | ORG   | Read items, UOMs, barcodes, descriptions        | —                      |
-| `masterData.item.manage`       | ORG   | Create and edit items, alternate UOMs, barcodes | —                      |
-| `masterData.item.deactivate`   | ORG   | Deactivate an item                              | Maker-checker          |
-| `masterData.supplier.read`     | ORG   | Read suppliers                                  | —                      |
-| `masterData.supplier.manage`   | ORG   | Create and edit suppliers                       | —                      |
-| `masterData.warehouse.read`    | ORG   | Read warehouses                                 | —                      |
-| `masterData.warehouse.manage`  | ORG   | Create and edit warehouses                      | Step-up                |
-| `masterData.location.read`     | WH    | Read locations and storage classes              | —                      |
-| `masterData.location.manage`   | WH    | Create and edit locations, capacity, classes    | —                      |
-| `masterData.location.reparent` | WH    | Move a location within the hierarchy            | Step-up, maker-checker |
-| `masterData.lot.read`          | ORG   | Read lots                                       | —                      |
-| `masterData.lot.manage`        | ORG   | Correct lot attributes (dates, codes)           | Maker-checker          |
-| `masterData.reasonCode.manage` | ORG   | Manage reason codes                             | —                      |
-| `masterData.import.execute`    | ORG   | Run a previewed master-data import              | —                      |
-| `masterData.owner.manage`      | ORG   | Manage stock owners (disabled unless enabled)   | Step-up                |
+| Permission code                  | Scope | Guards                                          | Extra policy           |
+| -------------------------------- | ----- | ----------------------------------------------- | ---------------------- |
+| `masterData.item.read`           | ORG   | Read items, UOMs, barcodes, descriptions        | —                      |
+| `masterData.item.manage`         | ORG   | Create and edit items, alternate UOMs, barcodes | —                      |
+| `masterData.item.deactivate`     | ORG   | Deactivate an item                              | Maker-checker          |
+| `masterData.supplier.read`       | ORG   | Read suppliers                                  | —                      |
+| `masterData.supplier.manage`     | ORG   | Create and edit suppliers                       | —                      |
+| `masterData.warehouse.read`      | ORG   | Read warehouses                                 | —                      |
+| `masterData.warehouse.manage`    | ORG   | Create and edit warehouses                      | Step-up                |
+| `masterData.location.read`       | WH    | Read locations                                  | —                      |
+| `masterData.location.manage`     | WH    | Create and edit locations and their capacity    | —                      |
+| `masterData.storageClass.read`   | ORG   | Read storage classes                            | —                      |
+| `masterData.storageClass.manage` | ORG   | Create and edit storage classes                 | —                      |
+| `masterData.location.reparent`   | WH    | Move a location within the hierarchy            | Step-up, maker-checker |
+| `masterData.lot.read`            | ORG   | Read lots                                       | —                      |
+| `masterData.lot.create`          | ORG   | Create a lot while receiving                    | —                      |
+| `masterData.lot.manage`          | ORG   | Correct lot attributes (dates, codes)           | Maker-checker          |
+| `masterData.reasonCode.read`     | ORG   | Read reason codes                               | —                      |
+| `masterData.reasonCode.manage`   | ORG   | Manage reason codes                             | —                      |
+| `masterData.import.execute`      | ORG   | Run a previewed master-data import              | —                      |
+| `masterData.owner.read`          | ORG   | Read stock owners (disabled unless enabled)     | —                      |
+| `masterData.owner.manage`        | ORG   | Manage stock owners (disabled unless enabled)   | Step-up                |
 
 ### 2.3 Purchase orders
 
@@ -120,8 +125,10 @@ target warehouse participates in the decision.
 | `handlingUnit.nest`         | WH    | Nest or unnest a handling unit (one level) | —                      |
 | `handlingUnit.mixedContent` | WH    | Build mixed SKU/lot content (tenant flag)  | Threshold              |
 | `label.template.read`       | ORG   | Read label templates and versions          | —                      |
-| `label.template.manage`     | ORG   | Create and publish label template versions | Step-up, maker-checker |
-| `label.print.execute`       | WH    | Print a label                              | —                      |
+| `label.template.draft`      | ORG   | Author a DRAFT template version            | —                      |
+| `label.template.manage`     | ORG   | Publish or retire a template version       | Step-up, maker-checker |
+| `label.print.read`          | WH    | Read generated label payloads and evidence | —                      |
+| `label.print.execute`       | WH    | Generate a label payload                   | —                      |
 | `label.print.reprint`       | WH    | Reprint an existing label                  | —                      |
 
 ### 2.7 Putaway
@@ -220,11 +227,16 @@ no tenant role.
 | `masterData.warehouse.manage`      | Y         |                   |            |          |              |                  |                   |        |
 | `masterData.location.read`         | Y         | Y                 | Y          | Y        | Y            | Y                | Y                 | Y      |
 | `masterData.location.manage`       | Y         | Y                 |            |          |              |                  |                   |        |
+| `masterData.storageClass.read`     | Y         | Y                 | Y          | Y        | Y            | Y                | Y                 | Y      |
+| `masterData.storageClass.manage`   | Y         | Y                 |            |          |              |                  |                   |        |
 | `masterData.location.reparent`     | Y         | Y                 |            |          |              |                  |                   |        |
 | `masterData.lot.read`              | Y         | Y                 | Y          | Y        | Y            | Y                | Y                 | Y      |
+| `masterData.lot.create`            | Y         | Y                 | Y          | Y        |              |                  |                   |        |
 | `masterData.lot.manage`            | Y         | Y                 | Y          |          |              |                  |                   |        |
+| `masterData.reasonCode.read`       | Y         | Y                 | Y          | Y        | Y            | Y                | Y                 | Y      |
 | `masterData.reasonCode.manage`     | Y         | Y                 |            |          |              |                  |                   |        |
 | `masterData.import.execute`        | Y         | Y                 |            |          |              |                  |                   |        |
+| `masterData.owner.read`            | Y         | Y                 |            |          |              |                  |                   |        |
 | `masterData.owner.manage`          | Y         |                   |            |          |              |                  |                   |        |
 | `purchasing.po.read`               | Y         | Y                 | Y          | Y        |              |                  | Y                 | Y      |
 | `purchasing.po.create`             | Y         | Y                 | Y          |          |              |                  |                   |        |
@@ -254,7 +266,9 @@ no tenant role.
 | `handlingUnit.nest`                | Y         | Y                 | Y          | Y        |              | Y                |                   |        |
 | `handlingUnit.mixedContent`        | Y         | Y                 |            |          |              |                  |                   |        |
 | `label.template.read`              | Y         | Y                 | Y          |          |              |                  |                   |        |
+| `label.template.draft`             | Y         | Y                 | Y          |          |              |                  |                   |        |
 | `label.template.manage`            | Y         |                   |            |          |              |                  |                   |        |
+| `label.print.read`                 | Y         | Y                 | Y          | Y        | Y            | Y                |                   |        |
 | `label.print.execute`              | Y         | Y                 | Y          | Y        | Y            | Y                |                   |        |
 | `label.print.reprint`              | Y         | Y                 | Y          | Y        |              | Y                |                   |        |
 | `putaway.task.read`                | Y         | Y                 | Y          | Y        |              | Y                | Y                 | Y      |

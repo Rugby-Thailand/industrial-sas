@@ -54,6 +54,14 @@
  * differs is a named failure rather than a plausible-looking wrong answer.
  */
 import {
+  checkIdempotency,
+  fingerprintArguments,
+  sha256Hex,
+  writeIdempotencyRecord,
+  IDEMPOTENCY_RETENTION_MS as SHARED_IDEMPOTENCY_RETENTION_MS,
+  type IdempotencyRecord,
+} from "./idempotency";
+import {
   balanceAt,
   balanceEntries,
   applyPostingsChecked,
@@ -105,8 +113,13 @@ import {
   type Quantity,
 } from "../model/uom/quantity";
 import { fail, ok, type Result } from "../model/result";
+import { adjustRollup } from "./rollupStore";
 import type { ActiveTenantContext } from "./tenantContext";
-import type { TenantDocumentAccess, TenantOrgId } from "./tenantDb";
+import {
+  TENANT_INDEX_MAX_PAGE_SIZE,
+  type TenantDocumentAccess,
+  type TenantOrgId,
+} from "./tenantDb";
 import type {
   InventoryTransactionTypeValue,
   ReasonCodeScope,
@@ -401,16 +414,14 @@ type BalanceRow = {
   readonly quantity: Quantity;
 };
 
-type IdempotencyRow = {
-  readonly _id: string;
-  readonly orgId: TenantOrgId;
-  readonly operation: string;
-  readonly requestId: string;
-  readonly status: "IN_PROGRESS" | "SUCCEEDED" | "FAILED";
-  readonly requestHash: string;
-  readonly resultRef?: string;
-  readonly resultHash?: string;
-};
+/**
+ * The replay index row, as `convex/lib/idempotency.ts` defines it.
+ *
+ * Aliased rather than redeclared: two structurally identical declarations of the
+ * same table's shape is exactly how a field added in one place goes unread in the
+ * other.
+ */
+type IdempotencyRow = IdempotencyRecord;
 
 /* -------------------------------------------------------------------------- */
 /* Results                                                                     */
@@ -481,42 +492,32 @@ export interface PostOutcome {
 /* Digests                                                                     */
 /* -------------------------------------------------------------------------- */
 
-const HEX = "0123456789abcdef";
-
-/**
- * SHA-256 of a canonical text, as lower-case hex.
- *
- * Web Crypto, because it is present in the Convex runtime and in Node 22 and needs
- * no dependency. Not a keyed digest and not a secret: these hashes decide "are
- * these the same arguments" and "is this the same result", and neither question
- * involves an adversary who does not already hold the arguments.
+/*
+ * `sha256Hex` is imported from `convex/lib/idempotency.ts`. The two canonical-text
+ * builders below stay here: *what* a posting fingerprints is a ledger decision,
+ * and the shared module deliberately takes no opinion on it.
  */
-async function sha256Hex(text: string): Promise<string> {
-  const bytes = new TextEncoder().encode(text);
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
-  const view = new Uint8Array(digest);
-  let hex = "";
-  for (const byte of view) {
-    hex += HEX[byte >> 4]! + HEX[byte & 0x0f]!;
-  }
-  return hex;
-}
 
 /**
- * The canonical text of a posting request's arguments.
+ * What a posting fingerprints.
  *
- * Covers everything that decides what gets written, and nothing that does not: the
+ * Everything that decides what gets written, and nothing that does not: the
  * organization, warehouse, type, operation, request ID, source, reason, reversal
  * link, and the ordered lines. Not the actor, not the device, not the clock — a
  * retry from a second handheld under the same request ID is still the same intent,
- * and hashing the device would turn a legitimate retry into
+ * and fingerprinting the device would turn a legitimate retry into
  * `REQUEST_ARGUMENT_CONFLICT`.
+ *
+ * Returns the payload rather than the digest, because the shared idempotency
+ * module owns canonicalization and hashing while this file owns *which fields
+ * count*. That split is what lets a second writer reuse the machinery without
+ * inheriting the ledger's opinion about arguments.
  */
-export function ledgerRequestCanonicalText(
+export function ledgerRequestPayload(
   transaction: ValidatedLedgerTransaction,
-): Result<string, LedgerStoreError> {
+): unknown {
   const header = transaction.header;
-  const payload = {
+  return {
     orgId: header.orgId,
     warehouseId: header.warehouseId,
     type: header.type,
@@ -535,11 +536,6 @@ export function ledgerRequestCanonicalText(
       minorUnits: line.quantity.minorUnits,
     })),
   };
-  const text = canonicalArgumentText(payload);
-  if (!text.ok) {
-    return fail({ code: "REQUEST_IDENTITY_INVALID", cause: text.error });
-  }
-  return ok(text.value);
 }
 
 /** The canonical text of a posting result, for the integrity digest. */
@@ -941,30 +937,21 @@ export async function postLedgerTransaction(
   if (!transaction.ok) return transaction;
   const header = transaction.value.header;
 
-  const requestText = ledgerRequestCanonicalText(transaction.value);
-  if (!requestText.ok) return requestText;
-  const requestHash = await sha256Hex(requestText.value);
+  const requestPayload = ledgerRequestPayload(transaction.value);
+  const fingerprint = await fingerprintArguments(requestPayload);
+  if (!fingerprint.ok) return fingerprint;
+  const requestHash = fingerprint.value;
 
   // 1. Idempotency, before anything is read or written.
-  const existing = await tenantDb
-    .byIndex<IdempotencyRow>(
-      "idempotencyRecords",
-      "by_orgId_operation_requestId",
-      [
-        { field: "operation", value: header.operation },
-        { field: "requestId", value: header.requestId },
-      ],
-    )
-    .unique();
-
-  if (existing !== null) {
-    if (existing.requestHash !== requestHash) {
-      return fail({
-        code: "REQUEST_ARGUMENT_CONFLICT",
-        requestId: header.requestId,
-      });
-    }
-    return await replayPostedTransaction(tenantDb, existing);
+  const decision = await checkIdempotency({
+    tenantDb,
+    operation: header.operation,
+    requestId: header.requestId,
+    requestHash,
+  });
+  if (!decision.ok) return decision;
+  if (decision.value.kind === "REPLAY") {
+    return await replayPostedTransaction(tenantDb, decision.value.record);
   }
 
   // 2. References and their edges.
@@ -1119,6 +1106,36 @@ export async function postLedgerTransaction(
     } else {
       await tenantDb.replace("inventoryBalances", row._id, payload);
     }
+
+    /*
+     * Occupancy, maintained here because here is where a location's contents
+     * actually change (`ADR-0011` §6). The counter moves only when a bucket
+     * *crosses* zero: a location holding stock that merely changed quantity is
+     * no more or less occupied, and counting every posting would turn the map
+     * into a measure of activity rather than of what is on the floor.
+     *
+     * Physical locations only. A virtual boundary — the supplier's side of a
+     * receipt — is a counterparty, not a place anybody walks to.
+     */
+    const occupancyLocation =
+      resulting.bucket.location.kind === "PHYSICAL"
+        ? resulting.bucket.location.locationId
+        : undefined;
+    if (occupancyLocation !== undefined) {
+      const wasHeld = (row?.quantity.minorUnits ?? 0) !== 0;
+      const isHeld = resulting.quantity.minorUnits !== 0;
+      if (wasHeld !== isHeld) {
+        await adjustRollup({
+          tenantDb,
+          warehouseId: header.warehouseId,
+          metric: "LOCATION_OCCUPANCY",
+          subjectId: occupancyLocation,
+          delta: isHeld ? 1 : -1,
+          now,
+        });
+      }
+    }
+
     postedBalances.push(
       Object.freeze({
         bucketKey,
@@ -1196,18 +1213,16 @@ export async function postLedgerTransaction(
   });
 
   // 10. The replay index, last, so it only exists if everything above committed.
-  await tenantDb.insert("idempotencyRecords", {
+  await writeIdempotencyRecord({
+    tenantDb,
     operation: header.operation,
     requestId: header.requestId,
-    status: "SUCCEEDED" as const,
     requestHash,
     resultRef: transactionId,
     resultHash,
     actorUserId: header.actorUserId,
     ...(deviceId === undefined ? {} : { deviceId }),
-    firstSeenAt: now,
-    completedAt: now,
-    expiresAt: now + IDEMPOTENCY_RETENTION_MS,
+    now,
   });
 
   return ok(
@@ -1234,15 +1249,11 @@ function keyNamesLocation(bucketKey: string, locationId: string): boolean {
 }
 
 /**
- * Idempotency retention: 30 days.
- *
- * Not the seven years D-27 gives the ledger and the audit trail. A replay window
- * only has to outlive a retry, and keeping request correlation longer than that
- * means keeping a second index of domain activity for no reader (§14). The
- * transaction itself carries `operation` and `requestId` forever, so provenance
- * survives the record's expiry.
+ * Idempotency retention, re-exported for the callers that already import it from
+ * here. The value and its rationale live in `convex/lib/idempotency.ts`; a second
+ * declaration would be a second answer to "how long does a replay window last".
  */
-export const IDEMPOTENCY_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
+export const IDEMPOTENCY_RETENTION_MS = SHARED_IDEMPOTENCY_RETENTION_MS;
 
 /**
  * Rebuild the original result of a completed request, verify it, and answer with
@@ -1707,6 +1718,124 @@ export async function reconcileBucketPage(
       drift: drift.value,
     }),
   );
+}
+
+/**
+ * The most ledger lines one bounded reconciliation will fold for a single
+ * bucket.
+ *
+ * `reconcileBucketPage` exists for the resumable, caller-driven fold. This is
+ * its non-paginated sibling, and it exists because of a hard platform rule:
+ * **Convex permits one paginated query per function execution.** A sweep that
+ * pages balances has already spent that budget, so it cannot also page each
+ * bucket's lines — it has to read them in one bounded `take`.
+ *
+ * The value is `TENANT_INDEX_MAX_PAGE_SIZE - 1` and the arithmetic matters: the
+ * read asks for one *more* row than the cap so it can tell "exactly this many"
+ * from "at least this many", and the accessor refuses a limit above its own cap
+ * rather than clamping it.
+ *
+ * A bucket with more lines than this is reported as `RECONCILE_INCOMPLETE`
+ * rather than folded partially. "We did not finish checking" and "we checked and
+ * it agrees" are different facts, and a reconciliation that conflated them would
+ * be worse than none. Such a bucket needs the resumable `reconcileBucketPage`
+ * path, driven by a caller that spends its own pagination budget on it.
+ */
+export const MAX_BOUNDED_RECONCILE_LINES = TENANT_INDEX_MAX_PAGE_SIZE - 1;
+
+/**
+ * Reconcile one bucket in a single bounded read, with no pagination.
+ *
+ * Reads `MAX_BOUNDED_RECONCILE_LINES + 1` lines: the extra row is how the caller
+ * learns the bucket is too deep for this path without a second query.
+ */
+export async function reconcileBucketBounded(
+  tenantDb: TenantDocumentAccess,
+  bucketKey: string,
+): Promise<
+  Result<
+    { readonly complete: boolean; readonly drift: readonly BalanceDrift[] },
+    LedgerStoreError
+  >
+> {
+  const decoded = decodeBucketKey(bucketKey);
+  if (!decoded.ok) {
+    return fail({
+      code: "LINE_BUCKET_INVALID",
+      index: -1,
+      cause: decoded.error,
+    });
+  }
+
+  const rows = await tenantDb
+    .byIndex<LineRow>("inventoryLedgerLines", "by_orgId_bucketKey_occurredAt", [
+      { field: "bucketKey", value: bucketKey },
+    ])
+    .take(MAX_BOUNDED_RECONCILE_LINES + 1);
+
+  if (rows.length > MAX_BOUNDED_RECONCILE_LINES) {
+    return ok(Object.freeze({ complete: false, drift: Object.freeze([]) }));
+  }
+
+  let uom: string | null = null;
+  let total = 0;
+  for (const row of rows) {
+    const quantity = validateQuantity(row.quantity);
+    if (!quantity.ok) {
+      return fail({
+        code: "STORED_ROW_INVALID",
+        table: "inventoryLedgerLines",
+        reference: row._id,
+      });
+    }
+    if (uom === null) uom = quantity.value.uom;
+    if (uom !== quantity.value.uom) {
+      return fail({
+        code: "BUCKET_UOM_CONFLICT",
+        bucketKey,
+        first: uom,
+        second: quantity.value.uom,
+      });
+    }
+    total += quantity.value.minorUnits;
+  }
+
+  const projectedRows: BucketBalance[] = [];
+  if (uom !== null) {
+    const quantity = makeQuantity(total, uom);
+    if (!quantity.ok) {
+      return fail({ code: "BALANCE_ARITHMETIC", cause: quantity.error });
+    }
+    projectedRows.push(
+      Object.freeze({
+        bucketKey,
+        bucket: decoded.value,
+        quantity: quantity.value,
+      }),
+    );
+  }
+  const projected = balanceSheetFromRows(projectedRows);
+  if (!projected.ok) return projected;
+
+  const storedRow = await tenantDb
+    .byIndex<BalanceRow>("inventoryBalances", "by_orgId_bucketKey", [
+      { field: "bucketKey", value: bucketKey },
+    ])
+    .unique();
+
+  const storedRows: BucketBalance[] = [];
+  if (storedRow !== null) {
+    const balance = bucketBalanceOfRow(storedRow);
+    if (!balance.ok) return balance;
+    storedRows.push(balance.value);
+  }
+  const stored = balanceSheetFromRows(storedRows);
+  if (!stored.ok) return stored;
+
+  const drift = reconcileBalances(projected.value, stored.value);
+  if (!drift.ok) return drift;
+
+  return ok(Object.freeze({ complete: true, drift: drift.value }));
 }
 
 /* -------------------------------------------------------------------------- */

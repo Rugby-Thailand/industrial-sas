@@ -6,8 +6,18 @@
 - Decision baseline: [PROJECT_PLAN.md](../../PROJECT_PLAN.md) §1, §3.2 (D-02, D-03,
   D-04), §4 (B-04), §5 Q6, Q7, Q30, §2.3
 - Covers plan ADR backlog (§11) items: 12
-- Implementation status: **Not implemented.** There is no PWA manifest, no service
-  worker, no intent queue, and no connectivity indicator.
+- Implementation status: **Foundation only.** A web app manifest and its icons
+  exist (`public/manifest.webmanifest`), and both shells carry a connectivity
+  indicator derived from the Convex client's own socket acknowledgement rather
+  than `navigator.onLine` (`src/lib/convex/connection.ts`, `INV-0009-07`), which
+  distinguishes a first connection attempt from a dropped link and never reports
+  local preview data as connected.
+  There is still **no service worker, no cached reference data, no intent queue,
+  and no pending state**, because there is no write flow to queue: the two
+  inventory screens read and nothing posts. `INV-0009-01` through `INV-0009-06`
+  therefore have nothing to apply to yet, and `INV-0009-03` (blocking
+  correctness-sensitive operations while disconnected) lands with the first
+  operation that posts.
 
 ## Context
 
@@ -107,6 +117,15 @@ and correctness-sensitive tasks stop when connectivity is lost.
 | Supporting arbitrary browsers and old WebViews | Untestable matrix; scanner and camera behaviour vary too much (D-03).                                       |
 
 ## Verification
+
+Present:
+
+- Unit tests: connectivity classification from socket acknowledgement, including
+  the distinction between a first attempt and a dropped link, and the rule that
+  local preview data is never reported as connected
+  (`src/lib/convex/connection.test.ts`).
+- E2E: an unconfigured deployment reports "not configured" rather than
+  connecting indefinitely to a host that does not exist.
 
 Planned, not present.
 

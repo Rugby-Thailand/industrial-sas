@@ -319,6 +319,185 @@ export const reasonCodeScope = v.union(
 );
 export type ReasonCodeScope = Infer<typeof reasonCodeScope>;
 
+/**
+ * How a barcode identifies what it is stuck to (`ADR-0005`, D-15).
+ *
+ * A closed set, because the scan resolver decides what a string *is* before it
+ * decides what it points at: a GTIN is check-digit verified, an SSCC names a
+ * logistic unit rather than an item, and a supplier alias is whatever the
+ * supplier printed. Storing a barcode without its kind would make an SSCC and a
+ * GTIN indistinguishable at the moment a receipt has to resolve one.
+ */
+export const barcodeKind = v.union(
+  v.literal("GTIN"),
+  v.literal("SSCC"),
+  v.literal("INTERNAL"),
+  v.literal("SUPPLIER"),
+);
+export type BarcodeKind = Infer<typeof barcodeKind>;
+
+/**
+ * A label template's payload format (D-16).
+ *
+ * `ZPL` is the primary printer payload and `PDF` the preview/fallback. Neither
+ * is rendered, transmitted, or printed by this repository — the format is stored
+ * so a future `PrinterTransportPort` knows what it is holding.
+ */
+/* -------------------------------------------------------------------------- */
+/* Inbound slice (ADR-0007)                                                    */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * A purchase order's life (`ADR-0007` §1–3).
+ *
+ * `CLOSED` and `CANCELLED` are separate terminal states because they mean
+ * opposite things to a buyer: one says the order ran its course, the other says
+ * somebody stopped it. A reconciliation that merged them would report a
+ * fulfilment rate that is simply false.
+ */
+export const purchaseOrderStatus = v.union(
+  v.literal("DRAFT"),
+  v.literal("OPEN"),
+  v.literal("CLOSED"),
+  v.literal("CANCELLED"),
+);
+export type PurchaseOrderStatusValue = Infer<typeof purchaseOrderStatus>;
+
+/** Mirrors `PurchaseOrderLineStatus` in `convex/model/inbound/receiptPolicy.ts`. */
+export const purchaseOrderLineStatus = v.union(
+  v.literal("OPEN"),
+  v.literal("COMPLETE"),
+  v.literal("CLOSED_SHORT"),
+  v.literal("CANCELLED"),
+);
+export type PurchaseOrderLineStatusValue = Infer<
+  typeof purchaseOrderLineStatus
+>;
+
+/** How a receipt line came to exist (`INV-0007-04`). Mirrors `ReceiptLineKind`. */
+export const receiptLineKind = v.union(
+  v.literal("ORDERED"),
+  v.literal("UNEXPECTED"),
+  v.literal("CANCELLED_LINE"),
+  v.literal("BLIND"),
+);
+export type ReceiptLineKindValue = Infer<typeof receiptLineKind>;
+
+/** What `assessReceipt` decided about a posting. Stored as receipt evidence. */
+export const receiptClassification = v.union(
+  v.literal("PARTIAL"),
+  v.literal("COMPLETE"),
+  v.literal("OVER_WITHIN_TOLERANCE"),
+  v.literal("OVER_BEYOND_TOLERANCE"),
+);
+export type ReceiptClassificationValue = Infer<typeof receiptClassification>;
+
+/** The sampling strategies this repository implements (`ADR-0007` §5). */
+export const samplingStrategy = v.union(
+  v.literal("ALL"),
+  v.literal("FIXED"),
+  v.literal("PERCENT"),
+);
+export type SamplingStrategyValue = Infer<typeof samplingStrategy>;
+
+/** Where held stock may go (`ADR-0007` §6). Mirrors `QcDisposition`. */
+export const qcDisposition = v.union(
+  v.literal("RELEASE"),
+  v.literal("QUARANTINE"),
+  v.literal("REJECT"),
+  v.literal("SCRAP"),
+  v.literal("REWORK"),
+);
+export type QcDispositionValue = Infer<typeof qcDisposition>;
+
+/** An inspection's state. Mirrors `InspectionStatus`. */
+export const inspectionStatus = v.union(
+  v.literal("OPEN"),
+  v.literal("PENDING_APPROVAL"),
+  v.literal("DISPOSED"),
+  v.literal("CANCELLED"),
+);
+export type InspectionStatusValue = Infer<typeof inspectionStatus>;
+
+/**
+ * What a print job can honestly be said to be.
+ *
+ * There is deliberately no `PRINTED`: nothing in this repository can observe a
+ * printer (`INT-04` absent, `RG-004` open), so the status would be a claim no
+ * code here is in a position to make. `DISPATCHED` and `FAILED` are declared so
+ * the state machine is complete rather than retrofitted, and are unreachable
+ * until a transport exists.
+ */
+export const printJobStatus = v.union(
+  v.literal("GENERATED"),
+  v.literal("DISPATCHED"),
+  v.literal("FAILED"),
+);
+export type PrintJobStatusValue = Infer<typeof printJobStatus>;
+
+/** Why a payload was generated. A reprint is audited *as* a reprint (§10). */
+export const printReason = v.union(
+  v.literal("INITIAL"),
+  v.literal("REPRINT"),
+  v.literal("PREVIEW"),
+);
+export type PrintReasonValue = Infer<typeof printReason>;
+
+/** A putaway task's state. Mirrors `PutawayTaskStatus`. */
+export const putawayTaskStatus = v.union(
+  v.literal("READY"),
+  v.literal("CLAIMED"),
+  v.literal("CONFIRMED"),
+  v.literal("CANCELLED"),
+);
+export type PutawayTaskStatusValue = Infer<typeof putawayTaskStatus>;
+
+/**
+ * A raised receiving exception (`INV-0007-04`).
+ *
+ * `receiving.receipt.unexpected` and `receiving.receipt.blind` both carry
+ * maker-checker in the catalogue, and maker-checker needs a *maker*. This is it:
+ * one actor raises the exception with a reason, a different actor posts the
+ * stock against it. Without the record there is no maker, the evaluator denies
+ * fail-closed, and an unexpected delivery could not be received at all.
+ */
+export const receivingExceptionStatus = v.union(
+  v.literal("RAISED"),
+  v.literal("CONSUMED"),
+  v.literal("WITHDRAWN"),
+);
+export type ReceivingExceptionStatusValue = Infer<
+  typeof receivingExceptionStatus
+>;
+
+/** An import batch's state (`INV-0007-12`). */
+export const importBatchStatus = v.union(
+  v.literal("PREVIEWED"),
+  v.literal("APPLYING"),
+  v.literal("APPLIED"),
+  v.literal("ABANDONED"),
+);
+export type ImportBatchStatusValue = Infer<typeof importBatchStatus>;
+
+export const labelTemplateFormat = v.union(v.literal("ZPL"), v.literal("PDF"));
+export type LabelTemplateFormat = Infer<typeof labelTemplateFormat>;
+
+/**
+ * A label template version's lifecycle.
+ *
+ * `DRAFT` is authored by one actor; `ACTIVE` is published by a *different* one,
+ * because `label.template.manage` carries maker-checker (catalogue §2).
+ * `RETIRED` is withdrawn. A published version is never edited in place: a
+ * printed label is audit evidence, and evidence whose template changed
+ * underneath it proves nothing.
+ */
+export const labelTemplateStatus = v.union(
+  v.literal("DRAFT"),
+  v.literal("ACTIVE"),
+  v.literal("RETIRED"),
+);
+export type LabelTemplateStatus = Infer<typeof labelTemplateStatus>;
+
 /* -------------------------------------------------------------------------- */
 /* Inventory: ledger                                                           */
 /* -------------------------------------------------------------------------- */
@@ -418,3 +597,52 @@ export const signedQuantity = v.object({
   minorUnits: v.number(),
 });
 export type SignedQuantity = Infer<typeof signedQuantity>;
+
+/* -------------------------------------------------------------------------- */
+/* Reporting (`ADR-0011`)                                                      */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * What a maintained counter counts (`ADR-0011` §6).
+ *
+ * A closed set, because each metric is also a *contract with a recomputation*:
+ * `reporting/rollups:verifyRollups` knows how to derive every one of these from
+ * the tables it summarises, and a metric that could be invented at a call site
+ * would be a number nothing could check (`INV-0011-09`).
+ *
+ * `LOCATION_OCCUPANCY` is the only per-subject metric; the rest are site totals.
+ */
+export const rollupMetric = v.union(
+  v.literal("RECEIPTS_OPENED"),
+  v.literal("RECEIPT_LINES_POSTED"),
+  v.literal("QC_PENDING"),
+  v.literal("QC_PARKED"),
+  v.literal("PUTAWAY_READY"),
+  v.literal("PUTAWAY_CLAIMED"),
+  v.literal("LOCATION_OCCUPANCY"),
+);
+export type RollupMetricValue = Infer<typeof rollupMetric>;
+
+/** What an export contains. Closed, because each kind names its own columns. */
+export const reportKind = v.union(
+  v.literal("INVENTORY_BALANCES"),
+  v.literal("RECEIPT_LINES"),
+  v.literal("PUTAWAY_TASKS"),
+);
+export type ReportKindValue = Infer<typeof reportKind>;
+
+/**
+ * Where an export has got to.
+ *
+ * `RUNNING` is distinct from `QUEUED` because a chunked job that has started has
+ * a cursor somebody may need to resume from, and `FAILED` is distinct from a
+ * missing job because a caller who asked for an export is owed the difference
+ * (`INV-0011-03`).
+ */
+export const reportJobStatus = v.union(
+  v.literal("QUEUED"),
+  v.literal("RUNNING"),
+  v.literal("COMPLETE"),
+  v.literal("FAILED"),
+);
+export type ReportJobStatusValue = Infer<typeof reportJobStatus>;

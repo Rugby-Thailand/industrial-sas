@@ -116,8 +116,24 @@ export const REASON_REQUIRED_TYPES: ReadonlySet<InventoryTransactionType> =
  * thousand-line transaction is a client that skipped the chunking, and letting it
  * through would put an unbounded write set in one Convex transaction — the
  * contention failure plan §13 names.
+ *
+ * ### Why exactly 100
+ *
+ * It is `TENANT_INDEX_MAX_PAGE_SIZE`, and the equality is load-bearing rather
+ * than a coincidence. A transaction's lines have to be **read back** — a replay
+ * reconstructs the original answer from them (`INV-0003-01`), and so does a
+ * detail read — and the tenant-bound reader refuses a `take` above that cap
+ * rather than clamping it. A line cap above the read cap would therefore be a
+ * transaction that could be written and never read: every replay and every
+ * detail read of a legal transaction would fail with `INVALID_LIMIT`, which is
+ * exactly the defect this constant used to have at 200.
+ *
+ * The pure module cannot import the storage constant — it has no Convex imports
+ * by design (plan §6.2) — so the coupling is stated here and asserted by
+ * `tests/integration/inbound-slice.integration.test.ts`, which replays a real
+ * posting through a real mutation.
  */
-export const MAX_TRANSACTION_LINES = 200;
+export const MAX_TRANSACTION_LINES = 100;
 
 /** Longest a `source.type` or `source.id` may be. */
 const MAX_SOURCE_FIELD_LENGTH = 128;

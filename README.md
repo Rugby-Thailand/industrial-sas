@@ -13,16 +13,29 @@ accepted before domain implementation are recorded in
 
 ## Current status
 
-**The toolchain scaffold, the tenant security slice, and — as of this commit — the
-pure inventory primitives the ledger will be built from. Still no warehouse
-management functionality: nothing stores a quantity, an identifier, or a
-movement.**
+**Phases 1 to 4 of the plan are implemented locally: the toolchain and tenant
+security slice, the pure inventory primitives and append-only ledger, the
+master-data catalogue and its write surfaces, the whole inbound vertical slice
+(purchase order → receive → QC → pallet → label evidence → putaway → ledger), and
+the Phase 4 dashboard, occupancy map, and export jobs. Every screen and every
+function runs and is tested — and none of it has ever answered for a real tenant,
+because there is no identity provider.**
 
-The toolchain is installed, pinned, and green end to end. What is present is the
-foundation and nothing more:
+That last clause is the honest summary of this repository's state: the code is
+complete for the phases above and the _vendors_ are not configured, so every
+tenant-bound call denies. The sections below separate those two things
+deliberately.
 
-- A Next.js App Router shell with one page whose only job is to prove the
-  toolchain builds and renders.
+The toolchain is installed, pinned, and green end to end. What is present:
+
+- **A Thai-first application shell** with locale-segmented routing (`/th`,
+  `/en`), a supervisor route group and an operator route group, a permanent
+  organization/warehouse context bar, a connectivity indicator derived from real
+  server acknowledgement rather than `navigator.onLine`, and a setup gate that
+  names each unconfigured dependency instead of failing vaguely. Two read
+  screens — balances and transaction history — call the ledger's real public
+  Convex queries. Everything user-facing resolves through the `next-intl`
+  catalogues, whose Thai and English key sets are proved equal by a test.
 - A Convex schema for tenancy, identity, authorization, audit, idempotency,
   devices, entitlements, and (disabled) support grants. Every tenant table
   carries a required `orgId` as its first field and every declared index begins
@@ -83,23 +96,69 @@ foundation and nothing more:
   judge it by is a named refusal rather than a fall-through to a lot code, a GTIN,
   or a SKU, and a policy claiming one LPN prefix for two organizations is refused
   before it can classify anything.
-- Real unit, property, integration, and isolation suites over all of it, including
-  a two-tenant `convex-test` world, negative tests that prove the guards fail when
-  they should, and property-tier negative controls that fail against deliberately
-  weakened implementations. The a11y and e2e tiers are still placeholder files that
-  assert nothing about the domain and should be deleted as real suites land.
+- **The master-data catalogue and its write surfaces.** Items, locations, lots,
+  handling units, owners, reason codes, suppliers, barcodes, alternate units,
+  storage classes, and label templates, each with bounded `orgId`-first reads, an
+  idempotent audited write seam, uniqueness enforced by contract, deactivation
+  rather than deletion, and Thai-first screens.
+- **The inbound vertical slice, end to end.** Purchase-order authoring and a
+  previewed chunked import; partial, over, under, unexpected, cancelled, and
+  blind receipt rules; scan resolution and exact UOM conversion; lot and expiry
+  capture; pallet construction; QC sampling, quarantine, and maker-checker
+  dispositions; versioned label evidence with the printer boundary stated;
+  explainable putaway with an audited override; and the ledger postings each of
+  those owes. Desktop and handheld screens for all of it, and **no field asks an
+  operator to type a document ID** — every one is a selector over a bounded
+  tenant read or a scan the server resolves, asserted structurally over the
+  feature source.
+- **The Phase 4 dashboard, occupancy map, and exports.** Six maintained counters
+  moved inside the transaction that earns them, each recomputable and verified
+  against a fresh derivation; a flat accessible occupancy grid (`three` is absent
+  from the dependency graph); and chunked, resumable CSV export jobs that stop
+  rather than truncate. An independent AES-256-GCM export envelope with a
+  rehearsed restore (`pnpm rehearse:restore`) proves the three refusals a backup
+  is defined by — wrong key, tampered archive, and an archive that restores
+  cleanly and is short.
+- Real unit, accessibility, property, integration, isolation, and end-to-end
+  suites over all of it, including a two-tenant `convex-test` world, negative
+  tests that prove the guards fail when they should, property-tier negative
+  controls that fail against deliberately weakened implementations, axe-core
+  assertions rendered against the **Thai** catalogue (Latin placeholder text
+  hides Thai wrapping defects), and Playwright journeys over locale negotiation,
+  both shells, the setup gate, and the inventory read path.
 
 What is deliberately still missing, because claiming otherwise would be wrong:
 
-- **No deployment, and no Clerk instance.** There is no `convex/_generated/`, no
-  environment configuration, no JWT template, no middleware, and no vendor
-  account. Every command below passes with no `.env.local`; nothing has ever run
-  against a Convex backend.
-- **No feature function and no ledger.** Enforcement exists; there is nothing yet
-  to enforce it for. No PO, receipt, QC, handling unit, label, putaway, or ledger
-  code exists, `convex/model/ledger/` is absent, and no table stores a quantity, a
-  lot, an LPN, or a parsed scan. The primitives are the algebra a ledger needs, not
-  a ledger.
+- **No Clerk instance, so no authenticated screen.** There is no publishable key,
+  no JWT template, and no `convex/auth.config.ts`, so `ctx.auth.getUserIdentity()`
+  is `null` in every Convex function and every tenant-bound wrapper denies. The
+  application says exactly that and offers no way around it: there is no sign-in
+  bypass, no development token, and no `setAuth` call wired to anything other
+  than a real verified-token fetcher. Local preview data (below) renders
+  synthetic rows through the same screens and is labelled as such on every one of
+  them.
+- **No printed label and no printer.** Label templates are authored, versioned,
+  and published under maker-checker, and a print job records versioned evidence —
+  but nothing renders ZPL to a device. There is no printer transport (`INT-04`),
+  and `RG-004`/`RG-029` (a physical label printed in Thai and English, and still
+  scannable after handling) are physical gates.
+- **No signed download for an export.** Export artifacts are private and fetched
+  through a permission-checked query, then saved by the browser. Short-lived
+  signed URLs need the file-storage vendor (`INT-08`), and the current channel is
+  capped by a document size limit — an export that would exceed it stops with
+  `ARTIFACT_LIMIT_REACHED` rather than truncating.
+- **No scheduled job runner.** Chunked work — the purchase-order import, export
+  jobs, reconciliation, expiry — is driven one bounded page per press or per
+  call. Workflow/Workpool (`INT-06`) is not provisioned, so nothing runs on a
+  timer.
+- **No GS1 element-string resolution at capture.** A scan resolves through the
+  tenant's own barcodes and SKUs; a single GS1 string carrying item, lot, and
+  expiry together is still entered as separate fields. The kernel that classifies
+  such a string exists and is tested; binding it needs a per-tenant LPN namespace
+  policy and a mutation argument that accepts a raw scan.
+- **No PWA beyond a manifest.** `public/manifest.webmanifest` and its icons are
+  present; there is no service worker, no cached reference data, and no intent
+  queue (`ADR-0009` §2, §4).
 - **No uniqueness or never-reuse for LPNs.** A value module can make a collision
   unlikely and a typo detectable; `INV-0005-05` needs the mutation and table that
   do not exist.
@@ -119,6 +178,22 @@ What is deliberately still missing, because claiming otherwise would be wrong:
 CI runs the guards described below and nothing more. Do not run this anywhere but
 locally.
 
+### Local preview data
+
+`NEXT_PUBLIC_LOCAL_PREVIEW=1` under `pnpm dev` renders a small synthetic dataset
+through the real inventory screens, so the layout, the Thai copy, the
+formatters, and the paging can be evaluated before an identity provider exists.
+It is not a fake backend: it has no authorization, no tenant resolution, and no
+writes, every screen showing it carries a banner that cannot be dismissed, and
+the connectivity badge reads "local preview data" rather than "connected".
+
+It cannot be enabled in production. The flag must be exactly `"1"` **and**
+`NODE_ENV` must not be `"production"`, and Next.js replaces `NODE_ENV`
+statically at build time, so no runtime value turns it on in anything `next
+build` produced. The fixture rows are still shipped as unreachable code in that
+bundle, which is why nothing in the fixture is sensitive and every identifier in
+it carries a `prv_` prefix.
+
 What else exists is the design record: twelve accepted ADRs,
 the domain glossary, the permission catalogue, the release-gate register, the
 approval record, the integration contracts, and runbook skeletons. See
@@ -136,6 +211,7 @@ Nothing claims a shipped capability.
 | Document                                                          | What it is                                                                               |
 | ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
 | [Documentation index](./docs/README.md)                           | Entry point and conventions                                                              |
+| [Feature manuals](./docs/manuals/README.md)                       | Current operating and integration guidance for each implemented capability               |
 | [ADR-0001…ADR-0012](./docs/adr/README.md)                         | Accepted cross-cutting architecture decisions, with invariants and rejected options      |
 | [Domain glossary](./docs/domain-glossary.md)                      | Ubiquitous language, stable term IDs, and vocabulary that must not appear in MVP code    |
 | [Pure domain modules](./convex/model/README.md)                   | What lives in `convex/model/**`, why it has no Convex imports, and what is absent        |
@@ -173,7 +249,14 @@ below passes with no `.env.local` present.
 | `pnpm test`                      | All Vitest tiers                                                               |
 | `pnpm verify:workflows`          | CI configuration guard (see below)                                             |
 | `pnpm verify:tenant-boundary`    | Tenant boundary guard over `convex/` (see below)                               |
+| `pnpm verify:environment`        | Environment contract guard (see below)                                         |
 | `pnpm guards`                    | every guard above: `verify:*` + `format:check` + `lint` + `typecheck` + `test` |
+
+`node scripts/verify-environment.mjs --class=<developer\|preview\|staging\|production>`
+additionally checks the _current_ machine against that class's contract. The
+no-argument form used by `pnpm guards` reads only the tracked template and the
+contract source, so it stays credential-free. See
+[environment contracts](./docs/environments.md).
 
 ### Test tiers
 
@@ -194,8 +277,56 @@ pnpm exec playwright install --with-deps
 pnpm test:e2e
 ```
 
-Playwright starts its own dev server on port 3100 (`PLAYWRIGHT_PORT`) so it does
-not collide with `pnpm dev`.
+`pnpm test:e2e` runs `scripts/run-e2e.mjs`, which prepares both servers
+sequentially and only then hands over to Playwright. Run it that way rather than
+calling `playwright test` directly; the config refuses to start against a build
+nobody prepared.
+
+| Port                         | Server                                             | Started by | Specs                           |
+| ---------------------------- | -------------------------------------------------- | ---------- | ------------------------------- |
+| `PLAYWRIGHT_PORT` (3100)     | `next start` over a build in `.next-e2e`           | Playwright | everything except `*.preview.*` |
+| `PLAYWRIGHT_PORT + 1` (3101) | `next dev` in `.next-e2e-preview`, preview mode on | the runner | `*.preview*.e2e.spec.ts`        |
+
+The vendor variables are set to the empty string rather than left unset, so the
+suite behaves identically on a machine with a populated `.env.local` and in CI,
+which has none. Neither server touches `.next` or `.next-preview`, so a
+`pnpm dev` you already have running is unaffected.
+
+The shape is not arbitrary — it is the fix for a defect that presented as
+flakiness, with a different spec failing each run and both servers logging
+`Unexpected non-whitespace character after JSON`. Two causes, both real:
+
+1. **A shared source file.** Next rewrites `next-env.d.ts` to name its own
+   `distDir`, so two dev servers rewrote it in turn and retriggered each other's
+   compilers. Now only one dev server exists, and the other server serves a
+   finished build that writes nothing.
+2. **A manifest rewritten without truncating.** `next dev` rewrites
+   `<distDir>/dev/prerender-manifest.json` as it compiles routes on demand, and a
+   shorter write over a longer file leaves the old tail behind — valid JSON
+   followed by garbage, which every later render fails to read. Two triggers were
+   measured: several workers compiling routes at once, and a _second_ `next dev`
+   starting over a directory an earlier one had filled. So the runner starts the
+   preview server once on an empty directory, compiles every route **serially**,
+   checks that the artifacts parse, keeps that same server up for the whole
+   suite, and stops it in a `finally`. Playwright declares no dev server at all.
+
+The preview server has to stay `next dev`: preview mode is gated on
+`NODE_ENV !== "production"` on purpose (`src/lib/environment.ts`), so a
+production build ignores `NEXT_PUBLIC_LOCAL_PREVIEW` entirely and serves the
+setup gate.
+
+The runner owns every process it starts and signals them **only by handle** — no
+`pkill`, no port search, so nothing belonging to another checkout is ever
+touched. Ctrl-C forwards the signal to the build, the development server, or the
+Playwright run that is in flight, escalates to `SIGKILL` after a grace period,
+waits for them, and only then restores `next-env.d.ts` byte-for-byte; a server
+still running would rewrite that file again. Measured: an interrupt during
+warm-up exits non-zero in 39 ms and one during the suite in 244 ms, both leaving
+ports 3100 and 3101 free, no surviving process from this repository, and
+`next-env.d.ts` byte-identical. `tests/integration/e2e-server-isolation.integration.test.ts`
+asserts the configuration can never put two writers in one place, and the runner
+refuses to start the suite — and fails the run afterwards — if either build
+directory holds an unparseable artifact.
 
 ## Continuous integration
 
@@ -218,8 +349,8 @@ If a job needs a secret to pass, it is the wrong job for this repository.
   fails if `next build` changed the tracked `next-env.d.ts`. Note that
   `next dev` writes a different variant of that file (it points at
   `.next/dev/types/routes.d.ts` instead of `.next/types/routes.d.ts`), so after
-  running `pnpm dev` or `pnpm test:e2e` locally, discard the change with
-  `git restore next-env.d.ts` rather than committing it.
+  running `pnpm dev` locally, discard the change with `git restore
+next-env.d.ts` rather than committing it. `pnpm test:e2e` restores it itself.
 - **Playwright** is separate because it is the only job needing a browser. It
   installs Chromium alone — both configured projects are Chromium — and caches
   `~/.cache/ms-playwright` against the resolved `@playwright/test` version.
@@ -344,22 +475,22 @@ on each bypass, using synthetic source trees in a temporary directory — the re
 Every dependency is pinned to an exact version (`save-exact=true`, decision
 D-29). Floating ranges are not allowed.
 
-| Area                     | Choice                                              | Version |
-| ------------------------ | --------------------------------------------------- | ------- |
-| Framework                | Next.js (App Router, Turbopack)                     | 16.2.12 |
-| UI runtime               | React                                               | 19.2.8  |
-| Language                 | TypeScript (strict)                                 | 6.0.3   |
-| Styling                  | Tailwind CSS (PostCSS plugin, no config file)       | 4.3.3   |
-| Lint                     | ESLint + `eslint-config-next` + typescript-eslint   | 9.39.5  |
-| Format                   | Prettier + `prettier-plugin-tailwindcss`            | 3.9.6   |
-| Unit / integration tests | Vitest                                              | 4.1.10  |
-| Property tests           | fast-check                                          | 4.9.0   |
-| Accessibility tests      | jest-axe + axe-core                                 | 11.0.0  |
-| E2E tests                | Playwright                                          | 1.62.1  |
-| Backend / data           | Convex (schema, wrappers, and functions; no deploy) | 1.43.0  |
-| Identity                 | Clerk (webhook verified; no instance configured)    | 7.6.4   |
-| Files                    | UploadThing (installed, not wired)                  | 7.7.4   |
-| i18n                     | `next-intl` (installed, not wired)                  | 4.13.4  |
+| Area                     | Choice                                               | Version |
+| ------------------------ | ---------------------------------------------------- | ------- |
+| Framework                | Next.js (App Router, Turbopack)                      | 16.2.12 |
+| UI runtime               | React                                                | 19.2.8  |
+| Language                 | TypeScript (strict)                                  | 6.0.3   |
+| Styling                  | Tailwind CSS (PostCSS plugin, no config file)        | 4.3.3   |
+| Lint                     | ESLint + `eslint-config-next` + typescript-eslint    | 9.39.5  |
+| Format                   | Prettier + `prettier-plugin-tailwindcss`             | 3.9.6   |
+| Unit / integration tests | Vitest                                               | 4.1.10  |
+| Property tests           | fast-check                                           | 4.9.0   |
+| Accessibility tests      | jest-axe + axe-core                                  | 11.0.0  |
+| E2E tests                | Playwright                                           | 1.62.1  |
+| Backend / data           | Convex (schema, wrappers, functions, browser client) | 1.43.0  |
+| Identity                 | Clerk (webhook verified; no instance configured)     | 7.6.4   |
+| Files                    | UploadThing (installed, not wired)                   | 7.7.4   |
+| i18n                     | `next-intl` (routing, catalogues, formatters)        | 4.13.4  |
 
 Deferred by decision B-08: Three.js. The MVP uses a 2D SVG occupancy map
 instead, and Three.js must not be added unless that decision is explicitly
@@ -396,9 +527,25 @@ break a guard.
 - `PROJECT_PLAN.md` is excluded from Prettier and must stay byte-for-byte
   identical to the approved document.
 - Type declarations for untyped packages live in `types/`.
-- `convex/` holds the schema and its helpers. There is no `convex/_generated/`:
-  nothing has been deployed, and no command in this repository needs a Convex
-  project.
+- `src/` is organized as plan §8 describes: `app/[locale]/(desktop|handheld|auth)`
+  for routes, `components/` for presentation, `features/` for a screen's data
+  path, `i18n/` for locale routing and catalogues, and `lib/` for pure decisions.
+  The rule that keeps it testable: a decision goes in `lib/` as a pure function,
+  and a component reads it. `resolveAppEnvironment`, `resolveLedgerGate`,
+  `resolveWorkspace`, `classifyConnection`, and the cursor reducer are all
+  covered without rendering anything.
+- No user-facing string is written in a component (`INV-0010-01`). Text comes
+  from `messages/th.json` and `messages/en.json`, whose key sets, ICU
+  placeholders, and Thai-content presence are asserted by
+  `src/i18n/messages.test.ts`. Code identifiers — permission codes, stock
+  statuses, error codes — stay English (`D-06`) and are rendered verbatim.
+- `convex/` holds the schema, its helpers, and the ledger's public functions.
+  `convex/_generated/` is a `convex dev` artifact and is git-ignored, so it is
+  absent from a fresh clone and from CI. Nothing in `src/` may import it: the
+  browser names server functions through `makeFunctionReference` in
+  `src/lib/convex/ledgerApi.ts`, and
+  `tests/integration/ledger-client-contract.integration.test.ts` fails the build
+  if those names or the page-size cap drift from the server.
 - `convex/model/` holds pure domain modules with no Convex imports (plan §6.2).
   See [`convex/model/README.md`](./convex/model/README.md); the boundary is
   enforced by `pnpm verify:tenant-boundary`, and the tests are colocated
@@ -413,22 +560,21 @@ without exceptions, recorded in
 the inbound slice per [PROJECT_PLAN.md](./PROJECT_PLAN.md) §9 may therefore proceed,
 built against tested adapters and fakes with no vendor credentials.
 
-The tenant security slice is the first part of that work, and this commit finishes
-its enforcement half: a public function cannot be registered without a code-owned
-permission, and no handler runs before that permission is decided against the active
-tenant's own rows and the attempt recorded.
+This commit adds the application shell over the work already done: locale
+routing, the two shells, the workspace and connectivity chrome, the shared
+formatters, and the first two screens that call real Convex functions. It closes
+the "PWA shells, locale routing, Thai/English baseline, and responsive
+navigation" line of the plan's Phase 1 deliverables, in the part that does not
+need a vendor account.
 
-This commit adds the second part: the pure inventory primitives, which are the
-arithmetic and the identifier rules the ledger cannot be written without. They
-decide values only. No table stores one, and no function posts one.
-
-What comes next, in the order the slice needs it: the ledger algebra over these
-primitives (`convex/model/ledger/`, `ADR-0003`); policy values for thresholds and
-maker-checker (`RG-030`, §5 Q26) so those facts stop being per-operation callbacks;
-a write-capable sink so a denied read is recorded (`RG-071`); the idempotency
-wrapper (`INV-0003-01`); and then the first feature functions — PO, receipt, QC,
-handling unit, label, putaway, ledger — each of which owes a permission declaration
-and the uniqueness checks the indexes only make affordable.
+What comes next, in the order the slice needs it: a Clerk instance and
+`convex/auth.config.ts`, without which no screen can show a tenant's data at all;
+policy values for thresholds and maker-checker (`RG-030`, §5 Q26) so those facts
+stop being per-operation callbacks; a write-capable sink so a denied read is
+recorded (`RG-071`); and then the first feature functions — PO, receipt, QC,
+handling unit, label, putaway — each with the screens that drive them, each owing
+a permission declaration and the uniqueness checks the indexes only make
+affordable.
 
 The open evidence gates are tracked in
 [`docs/release-gates.md`](./docs/release-gates.md). The latency benchmark, scanner

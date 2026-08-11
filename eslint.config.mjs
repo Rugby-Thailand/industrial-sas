@@ -13,6 +13,10 @@ export default tseslint.config(
   {
     ignores: [
       ".next/**",
+      ".next-preview/**",
+      // The dedicated Playwright build directories (see playwright.config.ts).
+      ".next-e2e/**",
+      ".next-e2e-preview/**",
       "out/**",
       "coverage/**",
       "playwright-report/**",

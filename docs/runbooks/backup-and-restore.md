@@ -1,8 +1,42 @@
 # RB-02 — Backup, independent export, and restore
 
-Status: **skeleton, never executed.** No deployment, backup schedule, export target, or
-rehearsal exists. Evidence gates: `RG-065` (backups and exports operating), `RG-047`
-(restore within RTO).
+Status: **format and procedure rehearsed locally; never executed against a
+deployment.** There is no backup schedule and no export target, because there is no
+deployment. What does exist is the archive format and a rehearsal that runs on a
+laptop — see [Local rehearsal](#local-rehearsal-runs-today) below. Evidence gates:
+`RG-065` (backups and exports operating), `RG-047` (restore within RTO).
+
+## Local rehearsal (runs today)
+
+```sh
+pnpm rehearse:restore
+```
+
+`scripts/rehearse-restore.mjs` seals a synthetic dataset into the independent export
+envelope (`scripts/lib/exportEnvelope.mjs`), restores it, and proves the archive is
+byte-identical — Thai text included, since a round trip that only ever saw ASCII
+proves nothing about this product's first language.
+
+It then proves the three refusals, because a backup is defined by what it _rejects_:
+
+| Refusal                 | What it catches                                         |
+| ----------------------- | ------------------------------------------------------- |
+| `AUTHENTICATION_FAILED` | the wrong key, or a modified archive — GCM rejects both |
+| `CHECKSUM_MISMATCH`     | a correct decryption of the wrong plaintext             |
+| `RECORD_COUNT_MISMATCH` | an archive that restores cleanly and is **short**       |
+
+The last one is the failure every backup story has: an archive that restores to
+_something_, with nobody noticing it was not everything. GCM authenticates the bytes
+it was handed, so a correctly-encrypted incomplete dump passes every cryptographic
+check — only the declared record count catches it.
+
+The command exits non-zero on any failure, so it belongs in CI rather than in a
+quarterly ritual. `tests/integration/recovery-envelope.integration.test.ts` asserts
+the same refusals on every test run.
+
+**What this does not rehearse:** a real Convex snapshot, a key from the operator's
+key store, and a stopwatch against the agreed RTO. Those are the steps below, and
+they stay open.
 
 ## Targets
 
@@ -48,12 +82,16 @@ Point-in-time recovery is **not** claimed. Contracts must not promise it (plan �
 
 ## Restore rehearsal (quarterly)
 
+Run `pnpm rehearse:restore` first: if the envelope format itself is broken, the rest
+of this procedure measures nothing.
+
 1. Announce the rehearsal; it runs against a scratch environment, never production.
 2. Record the start time — RTO measurement begins here.
 3. Restore the platform backup into the scratch deployment. `TODO` exact commands —
    blocked by `RG-059`.
 4. Restore the independent export into the same scratch environment and compare the two
-   sources for consistency.
+   sources for consistency. The export is opened with `openExport`, which refuses a
+   wrong key, a tampered archive, and a short one before any of it is loaded.
 5. Verify integrity: ledger replay equals projections (`INV-0003-10`), audit events are
    present and unmodified, and sampled receipts match their original history.
 6. Verify a tenant boundary: a restored tenant's data is not visible to another tenant.

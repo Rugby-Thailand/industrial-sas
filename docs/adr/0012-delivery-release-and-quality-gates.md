@@ -7,12 +7,19 @@
   D-26, D-27, D-29), §4 (B-09, B-11), §5 Q38, Q40, Q42, Q43, Q45, Q50, §10, §12,
   §14
 - Covers plan ADR backlog (§11) items: 19, 21, 22, 24
-- Implementation status: **Foundation only.** The repository has trunk-based
-  development, pinned exact dependencies, two credential-free GitHub Actions
-  workflows, a workflow configuration guard, and five Vitest tiers plus Playwright —
-  all of which currently run placeholder tests. There are **no** preview, staging,
-  or production environments, no migrations, no seeds, no backups, no exports, and
-  no legal documentation pack.
+- Implementation status: **Partial.** The repository has trunk-based development,
+  pinned exact dependencies, two credential-free GitHub Actions workflows, a
+  workflow configuration guard, six Vitest tiers plus Playwright — all now running
+  real suites rather than placeholders — and, as of this commit, the **environment
+  contract** §2 asks for: the four classes and their required/forbidden variables
+  as code (`src/lib/environmentContract.ts`), a guard that enforces the contract
+  against `.env.example` in CI and against a real machine on request
+  (`pnpm verify:environment`), and a cross-class comparison that reports a shared
+  Convex or Clerk instance by variable name only.
+  There are still **no** preview, staging, or production environments, no
+  migrations, no seeds, no backups, no exports, and no legal documentation pack.
+  The contract is therefore a specification those environments must satisfy, not a
+  description of ones that exist ([environment contracts](../environments.md)).
 
 ## Context
 

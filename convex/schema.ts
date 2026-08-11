@@ -89,15 +89,20 @@ import { byOrg, tenantFields } from "./lib/tenantTable";
 import {
   actorKind,
   auditOutcome,
+  barcodeKind,
   denialReason,
   deviceStatus,
   deviceType,
   idempotencyStatus,
+  importBatchStatus,
+  inspectionStatus,
   inventoryTransactionSource,
   inventoryTransactionType,
   itemTrackingMode,
   ledgerLocationKind,
   locale,
+  labelTemplateFormat,
+  labelTemplateStatus,
   locationType,
   masterDataStatus,
   membershipScopeMode,
@@ -105,8 +110,21 @@ import {
   organizationSettings,
   organizationStatus,
   permissionScope,
+  printJobStatus,
+  printReason,
+  purchaseOrderLineStatus,
+  purchaseOrderStatus,
+  putawayTaskStatus,
+  reportJobStatus,
+  reportKind,
+  rollupMetric,
+  qcDisposition,
   reasonCodeScope,
+  receiptClassification,
+  receiptLineKind,
+  receivingExceptionStatus,
   roleStatus,
+  samplingStrategy,
   sessionsAuditEventType,
   signedQuantity,
   stockStatus,
@@ -677,6 +695,19 @@ const schema = defineSchema({
     .index(
       "by_orgId_warehouseId_status_code",
       byOrg("warehouseId", "status", "code"),
+    )
+    /**
+     * Active locations of one type, in code order.
+     *
+     * Receiving needs "the docks and staging lanes at this site" and nothing
+     * else. Without the type in the prefix that question is a scan of every
+     * active location filtered afterwards — and a warehouse with a thousand
+     * racks would hide its own dock behind them, which reads to an operator
+     * standing on that dock as "this site has no receiving location".
+     */
+    .index(
+      "by_orgId_warehouseId_status_locationType_code",
+      byOrg("warehouseId", "status", "locationType", "code"),
     ),
 
   /**
@@ -766,6 +797,582 @@ const schema = defineSchema({
   )
     .index("by_orgId_code", byOrg("code"))
     .index("by_orgId_scope_code", byOrg("scope", "code")),
+
+  /**
+   * A supplier of goods (`G-051`).
+   *
+   * Standalone in this slice: nothing references a supplier yet, because the
+   * purchase order and the receipt that would are `ADR-0007` work. It is here
+   * because supplier identity is what a lot's provenance and a barcode's
+   * `SUPPLIER` kind will both resolve against, and inventing that identity
+   * later — after lots exist — means a migration rather than a foreign key.
+   */
+  suppliers: defineTable(
+    tenantFields({
+      /** Tenant's normalized code. Unique per organization by contract. */
+      code: v.string(),
+      name: v.string(),
+      status: masterDataStatus,
+    }),
+  )
+    .index("by_orgId_code", byOrg("code"))
+    .index("by_orgId_status_code", byOrg("status", "code")),
+
+  /**
+   * A scannable alias for one item (`ADR-0005` §4, D-15).
+   *
+   * The uniqueness that matters is `(orgId, barcode)`, not `(orgId, itemId,
+   * barcode)`: a scanned string must resolve to **at most one** item, or the
+   * receiving screen has to ask an operator which SKU they meant while holding
+   * the carton. That is the invariant `INV-0005-06` names, and the index is what
+   * makes the check a bounded read.
+   *
+   * `kind` is stored because the scan resolver classifies before it resolves —
+   * `convex/model/identifiers/scanResolution.ts` decides whether a string is a
+   * GTIN, an SSCC, or an internal LPN, and a row that claimed `GTIN` for a value
+   * that fails its check digit is a row the resolver would never have produced.
+   */
+  itemBarcodes: defineTable(
+    tenantFields({
+      itemId: v.id("items"),
+      /** Normalized scan value: digits preserved, leading zeros kept. */
+      barcode: v.string(),
+      kind: barcodeKind,
+      status: masterDataStatus,
+    }),
+  )
+    .index("by_orgId_barcode", byOrg("barcode"))
+    .index("by_orgId_itemId_barcode", byOrg("itemId", "barcode")),
+
+  /**
+   * One alternate packaging unit of an item, and its exact factor to the base
+   * UOM (`ADR-0004`, D-08).
+   *
+   * The factor is a **rational**, stored as two integers, because
+   * `convex/model/uom/ratio.ts` is exact and a float is not: one case of twelve
+   * is `12/1`, and a pallet of eighty cartons that each hold seven units is
+   * `560/1`, but a drum decanted into three parts is `1/3` and no float
+   * represents it. Storing numerator and denominator lets
+   * `makeItemUomProfile` rebuild the tenant's conversion table exactly.
+   *
+   * The base UOM itself is never a row here: it lives on `items.baseUom`, and
+   * `BASE_UOM_AS_ALTERNATE` is what the kernel answers if one is offered.
+   */
+  itemUoms: defineTable(
+    tenantFields({
+      itemId: v.id("items"),
+      /** Normalized UOM code, upper-cased. Unique per item by contract. */
+      uom: v.string(),
+      /** `1 uom = numerator/denominator` base units. Both positive integers. */
+      toBaseNumerator: v.number(),
+      toBaseDenominator: v.number(),
+      status: masterDataStatus,
+    }),
+  )
+    .index("by_orgId_itemId_uom", byOrg("itemId", "uom"))
+    .index("by_orgId_itemId_status_uom", byOrg("itemId", "status", "uom")),
+
+  /**
+   * A storage class: a named handling constraint a location or an item carries
+   * (`ADR-0005` §6, D-13).
+   *
+   * Organization-scoped, not warehouse-scoped. "Flammable" means the same thing
+   * at every site, and a class defined per warehouse would let two sites
+   * disagree about what it permits — which is exactly the disagreement a
+   * putaway compatibility rule cannot survive.
+   *
+   * No compatibility matrix yet. Which classes may share a location is `D-13`'s
+   * hard constraint and belongs with the putaway slice; a matrix nothing
+   * evaluates would be invented domain.
+   */
+  storageClasses: defineTable(
+    tenantFields({
+      /** Tenant's normalized code. Unique per organization by contract. */
+      code: v.string(),
+      name: v.string(),
+      status: masterDataStatus,
+    }),
+  )
+    .index("by_orgId_code", byOrg("code"))
+    .index("by_orgId_status_code", byOrg("status", "code")),
+
+  /**
+   * One immutable *version* of a label template (D-16, `ADR-0008`).
+   *
+   * Versioned, and the version is part of the key: a printed label is audit
+   * evidence, and evidence whose template was edited underneath it proves
+   * nothing (`RG-004` is a physical print gate that names a version). Publishing
+   * is therefore a new row, never an edit of an old one.
+   *
+   * `draftedByUserId` exists so publishing can be genuine maker-checker: the
+   * evaluator needs a *maker* to compare the publisher against, and reading it
+   * from a stored field is checkable in a way that re-deriving it from the audit
+   * trail is not.
+   *
+   * `body` is the payload text — ZPL or a PDF template source. **Nothing in this
+   * repository renders, transmits, or prints it.** It is stored, versioned, and
+   * read back; the printer transport is `INT-04` and does not exist.
+   */
+  labelTemplates: defineTable(
+    tenantFields({
+      /** Tenant's normalized template code, stable across versions. */
+      code: v.string(),
+      /** Monotonic version within the code. Unique per code by contract. */
+      version: v.number(),
+      name: v.string(),
+      format: labelTemplateFormat,
+      /** The payload source. Never rendered or transmitted here. */
+      body: v.string(),
+      status: labelTemplateStatus,
+      /** The actor who drafted this version; the maker a publisher is checked against. */
+      draftedByUserId: v.id("users"),
+      /** Set when a *different* actor published it (`INV-0006-05`). */
+      publishedByUserId: v.optional(v.id("users")),
+    }),
+  )
+    .index("by_orgId_code_version", byOrg("code", "version"))
+    .index("by_orgId_status_code", byOrg("status", "code")),
+
+  /* ------------------------------------------------------------------------ */
+  /* Inbound slice: purchase orders, receipts, QC, labels, putaway (ADR-0007)  */
+  /* ------------------------------------------------------------------------ */
+
+  /**
+   * A purchase order (`G-060`, `ADR-0007` §1).
+   *
+   * Warehouse-scoped, because a delivery arrives at a *site*: the receiving
+   * permission is warehouse-scoped (`purchasing.po.read`), and an order that
+   * belonged only to the organization would be receivable by an actor with no
+   * membership at the dock it turned up on (`INV-0006-04`).
+   *
+   * `externalRef` is the tenant's own reference — an ERP document number, or the
+   * import batch a row came from. It is optional, unique per organization when
+   * present by contract, and it is what makes a later ERP integration reuse this
+   * table rather than shadow it (`ADR-0007` §2).
+   */
+  purchaseOrders: defineTable(
+    tenantFields({
+      warehouseId: v.id("warehouses"),
+      /** Tenant's normalized order number. Unique per organization by contract. */
+      poNumber: v.string(),
+      supplierId: v.id("suppliers"),
+      status: purchaseOrderStatus,
+      /** The tenant's own document reference, when they have one. */
+      externalRef: v.optional(v.string()),
+      /** Set when the order was created by an import rather than by hand. */
+      importBatchId: v.optional(v.id("poImportBatches")),
+    }),
+  )
+    .index("by_orgId_poNumber", byOrg("poNumber"))
+    .index("by_orgId_externalRef", byOrg("externalRef"))
+    .index(
+      "by_orgId_warehouseId_status_poNumber",
+      byOrg("warehouseId", "status", "poNumber"),
+    ),
+
+  /**
+   * One ordered item on one order.
+   *
+   * `receivedMinorUnits` is a **stored running total** rather than a sum over
+   * receipt lines, and that is a deliberate trade. `assessReceipt` classifies
+   * against the line's total (two postings of 60 against an order of 100 is an
+   * over-receipt), so every posting needs the total; deriving it would mean
+   * paging every receipt line for the order inside the posting transaction,
+   * which is an unbounded read on the hot path. The reconciliation job is what
+   * proves the stored total against the lines.
+   *
+   * `orderedUom` is the unit the *order* was written in, which is not always the
+   * item's base unit — a supplier sells cases and the ledger stores eaches. The
+   * conversion happens at receipt through the item's own UOM profile
+   * (`ADR-0004`), so both numbers are kept: `orderedMinorUnits` in `orderedUom`,
+   * and `receivedMinorUnits` in the item's base unit.
+   */
+  purchaseOrderLines: defineTable(
+    tenantFields({
+      purchaseOrderId: v.id("purchaseOrders"),
+      /** Position within the order. Unique per order by contract. */
+      lineNumber: v.number(),
+      itemId: v.id("items"),
+      /** Ordered quantity, in the unit the order was written in. */
+      orderedQuantity: signedQuantity,
+      /** Ordered quantity converted to the item's base minor units. */
+      orderedBaseMinorUnits: v.number(),
+      /** Running total received, in the item's base minor units. */
+      receivedBaseMinorUnits: v.number(),
+      status: purchaseOrderLineStatus,
+      /** Required when the line was closed short (`INV-0007-03`). */
+      closeReasonCodeId: v.optional(v.id("reasonCodes")),
+      /** The import row that produced this line, when it came from a file. */
+      sourceRowRef: v.optional(v.string()),
+    }),
+  )
+    .index(
+      "by_orgId_purchaseOrderId_lineNumber",
+      byOrg("purchaseOrderId", "lineNumber"),
+    )
+    .index(
+      "by_orgId_purchaseOrderId_status",
+      byOrg("purchaseOrderId", "status"),
+    )
+    .index("by_orgId_sourceRowRef", byOrg("sourceRowRef")),
+
+  /**
+   * A previewed import (`INV-0007-12`).
+   *
+   * The batch holds the **parse result**, not the file: `acceptedCount` and
+   * `rejectedCount` are what an operator approves, and the rows themselves are
+   * re-derived from the same text on each chunk because parsing is deterministic.
+   * Storing the uploaded file would be a private-document retention decision
+   * (`ADR-0008` file storage port) that this slice has not made.
+   */
+  poImportBatches: defineTable(
+    tenantFields({
+      warehouseId: v.id("warehouses"),
+      /** The operator's own reference for the file. Unique per org by contract. */
+      batchRef: v.string(),
+      supplierId: v.id("suppliers"),
+      status: importBatchStatus,
+      acceptedCount: v.number(),
+      rejectedCount: v.number(),
+      /** How many accepted rows have been written so far; the resume cursor. */
+      appliedCount: v.number(),
+    }),
+  )
+    .index("by_orgId_batchRef", byOrg("batchRef"))
+    .index("by_orgId_status_batchRef", byOrg("status", "batchRef")),
+
+  /**
+   * A receiving event at one dock (`ADR-0007` §3).
+   *
+   * A receipt groups lines that arrived together. `purchaseOrderId` is optional
+   * because a blind receipt has no order — that is the whole of what "blind"
+   * means — and the line's own `kind` records which exception applied.
+   */
+  receipts: defineTable(
+    tenantFields({
+      warehouseId: v.id("warehouses"),
+      purchaseOrderId: v.optional(v.id("purchaseOrders")),
+      /** Tenant-visible reference, unique per organization by contract. */
+      receiptNumber: v.string(),
+      receivedByUserId: v.id("users"),
+      /** Server clock at creation; a client instant could backdate stock. */
+      occurredAt: v.number(),
+      /** `YYYY-MM-DD` in the organization's timezone (`ADR-0011`). */
+      businessDate: v.string(),
+    }),
+  )
+    .index("by_orgId_receiptNumber", byOrg("receiptNumber"))
+    .index(
+      "by_orgId_warehouseId_occurredAt",
+      byOrg("warehouseId", "occurredAt"),
+    )
+    .index("by_orgId_purchaseOrderId", byOrg("purchaseOrderId")),
+
+  /**
+   * One item, one lot, one quantity, received once.
+   *
+   * `transactionId` is the ledger posting this line produced, and it is
+   * **required**: a receipt line without a transaction would be stock somebody
+   * recorded and the ledger never saw, which is precisely the drift `ADR-0003`
+   * exists to make impossible. The two are written in one transaction.
+   *
+   * `classification` and `kind` are stored rather than recomputed, because they
+   * are evidence: what the tolerance *was* when this was received, and which
+   * exception permission was exercised (`INV-0007-04`).
+   */
+  receiptLines: defineTable(
+    tenantFields({
+      receiptId: v.id("receipts"),
+      purchaseOrderLineId: v.optional(v.id("purchaseOrderLines")),
+      itemId: v.id("items"),
+      lotId: v.optional(v.id("lots")),
+      handlingUnitId: v.optional(v.id("handlingUnits")),
+      /**
+       * Where the stock landed — the dock or staging lane it was received to.
+       *
+       * Stored rather than derived from the posting's lines, because both the QC
+       * disposition and the putaway move need to post *from* this bucket, and
+       * reading it back out of the ledger would mean parsing a transaction to
+       * recover a fact the receipt already knew.
+       */
+      locationId: v.id("locations"),
+      /** As received, in the unit the operator captured. */
+      capturedQuantity: signedQuantity,
+      /** Converted to the item's base minor units by the UOM kernel. */
+      baseMinorUnits: v.number(),
+      kind: receiptLineKind,
+      classification: receiptClassification,
+      /** The stock status the posting landed in: `AVAILABLE` or `QC_HOLD`. */
+      stockStatus,
+      /** The ledger posting. Required: no line exists without one. */
+      transactionId: v.id("inventoryTransactions"),
+      /** True when an over-tolerance approval was exercised (`INV-0007-02`). */
+      overToleranceApproved: v.boolean(),
+    }),
+  )
+    .index("by_orgId_receiptId", byOrg("receiptId"))
+    .index("by_orgId_purchaseOrderLineId", byOrg("purchaseOrderLineId"))
+    .index("by_orgId_itemId_stockStatus", byOrg("itemId", "stockStatus")),
+
+  /**
+   * A receiving exception somebody raised, so somebody else can post against it.
+   *
+   * This table is what makes `INV-0007-04`'s maker-checker permissions
+   * *reachable*. `receiving.receipt.unexpected` and `receiving.receipt.blind`
+   * carry maker-checker, and the evaluator denies when there is no maker at all
+   * — correctly, fail-closed. So the maker is stored: one actor raises the
+   * exception with a reason under `receiving.exception.manage`, and a different
+   * actor posts the stock against it.
+   *
+   * `status` moves to `CONSUMED` when a line is posted against it, so one raised
+   * exception authorizes one posting rather than standing open as a permanent
+   * bypass.
+   */
+  receivingExceptions: defineTable(
+    tenantFields({
+      warehouseId: v.id("warehouses"),
+      kind: receiptLineKind,
+      /** The item the exception is about; absent for a wholly blind delivery. */
+      itemId: v.optional(v.id("items")),
+      purchaseOrderId: v.optional(v.id("purchaseOrders")),
+      reasonCodeId: v.id("reasonCodes"),
+      /** The maker. A different actor must post against this (`INV-0006-05`). */
+      raisedByUserId: v.id("users"),
+      status: receivingExceptionStatus,
+      note: v.optional(v.string()),
+    }),
+  )
+    .index(
+      "by_orgId_warehouseId_status_kind",
+      byOrg("warehouseId", "status", "kind"),
+    )
+    .index("by_orgId_itemId_status", byOrg("itemId", "status")),
+
+  /**
+   * Which receipts are QC-controlled (`ADR-0007` §8).
+   *
+   * Scoped to an item *or* a supplier, never both on one row: the resolution rule
+   * is "the more specific profile wins", and a row that carried both would have
+   * no defined specificity. The absence of any profile means not controlled,
+   * which is the honest default for an unconfigured tenant.
+   */
+  qcProfiles: defineTable(
+    tenantFields({
+      /** Exactly one of these is set; the index pair is what enforces it. */
+      itemId: v.optional(v.id("items")),
+      supplierId: v.optional(v.id("suppliers")),
+      enabled: v.boolean(),
+      strategy: samplingStrategy,
+      /** The count for `FIXED`, the whole-number percentage for `PERCENT`. */
+      parameter: v.optional(v.number()),
+    }),
+  )
+    .index("by_orgId_itemId", byOrg("itemId"))
+    .index("by_orgId_supplierId", byOrg("supplierId")),
+
+  /**
+   * One inspection of one received line (`ADR-0007` §5–7).
+   *
+   * The sample plan is stored as computed, not as configured. A profile changes;
+   * the plan that was actually applied to this delivery does not, and it is the
+   * evidence an auditor reads.
+   */
+  qcInspections: defineTable(
+    tenantFields({
+      warehouseId: v.id("warehouses"),
+      receiptLineId: v.id("receiptLines"),
+      itemId: v.id("items"),
+      status: inspectionStatus,
+      strategy: samplingStrategy,
+      sampleSize: v.number(),
+      lotSize: v.number(),
+      /** Set once a disposition is submitted. */
+      disposition: v.optional(qcDisposition),
+      reasonCodeId: v.optional(v.id("reasonCodes")),
+      /** The submitter; the maker an approver is checked against (`INV-0006-05`). */
+      submittedByUserId: v.optional(v.id("users")),
+      approvedByUserId: v.optional(v.id("users")),
+      /** The balanced status-change posting, once it exists. */
+      transactionId: v.optional(v.id("inventoryTransactions")),
+    }),
+  )
+    .index("by_orgId_receiptLineId", byOrg("receiptLineId"))
+    .index("by_orgId_warehouseId_status", byOrg("warehouseId", "status")),
+
+  /**
+   * A generated label payload, retained as evidence (`INV-0007-07`).
+   *
+   * `payloadHash` is over the *canonical text* — template code, version, format,
+   * then payload — so the hash proves which version produced these bytes rather
+   * than only what the bytes were. Two versions can render identical payloads.
+   *
+   * `status` never reaches a value claiming the label was printed. See
+   * `printJobStatus`.
+   */
+  labelPrintJobs: defineTable(
+    tenantFields({
+      warehouseId: v.id("warehouses"),
+      labelTemplateId: v.id("labelTemplates"),
+      /** Denormalized so an evidence row survives a template being retired. */
+      templateCode: v.string(),
+      templateVersion: v.number(),
+      /** What the label is for: a handling unit, a receipt line, or a lot. */
+      targetKind: v.string(),
+      targetId: v.string(),
+      payload: v.string(),
+      payloadHash: v.string(),
+      reason: printReason,
+      status: printJobStatus,
+      requestedByUserId: v.id("users"),
+      occurredAt: v.number(),
+    }),
+  )
+    .index(
+      "by_orgId_warehouseId_occurredAt",
+      byOrg("warehouseId", "occurredAt"),
+    )
+    .index("by_orgId_targetKind_targetId", byOrg("targetKind", "targetId"))
+    .index("by_orgId_payloadHash", byOrg("payloadHash")),
+
+  /**
+   * A putaway task and the recommendation that produced it (`ADR-0007` §12–15).
+   *
+   * The recommendation trace is stored **on the task** rather than in its own
+   * table. It is written once, read with the task, and never queried
+   * independently; a separate table would add a join to every handheld read to
+   * normalize data that has exactly one owner.
+   *
+   * `claimedByUserId` plus `status` is the compare-and-set pair (`INV-0007-11`).
+   * The claim is decided against the row as re-read inside the transaction, so
+   * two operators pressing at once resolve on the write.
+   */
+  putawayTasks: defineTable(
+    tenantFields({
+      warehouseId: v.id("warehouses"),
+      receiptLineId: v.id("receiptLines"),
+      itemId: v.id("items"),
+      lotId: v.optional(v.id("lots")),
+      handlingUnitId: v.optional(v.id("handlingUnits")),
+      /** What is to be moved, in the item's base minor units. */
+      baseMinorUnits: v.number(),
+      /** Where it is now — the dock or staging lane it was received to. */
+      fromLocationId: v.id("locations"),
+      status: putawayTaskStatus,
+      claimedByUserId: v.optional(v.id("users")),
+      claimedAt: v.optional(v.number()),
+      /** The top-ranked location at recommendation time. */
+      recommendedLocationId: v.optional(v.id("locations")),
+      /** The stored explanation: ranked candidates, rejections, filters, weights. */
+      recommendationTrace: v.optional(v.string()),
+      /** Where the stock actually went. */
+      chosenLocationId: v.optional(v.id("locations")),
+      /** Required when the chosen location was not the recommendation (`INV-0007-09`). */
+      overrideReasonCodeId: v.optional(v.id("reasonCodes")),
+      /** The balanced move, once confirmed. */
+      transactionId: v.optional(v.id("inventoryTransactions")),
+    }),
+  )
+    .index("by_orgId_warehouseId_status", byOrg("warehouseId", "status"))
+    .index("by_orgId_receiptLineId", byOrg("receiptLineId"))
+    .index(
+      "by_orgId_claimedByUserId_status",
+      byOrg("claimedByUserId", "status"),
+    ),
+
+  /* ------------------------------------------------------------------------ */
+  /* Reporting rollups and export jobs (`ADR-0011`)                            */
+  /* ------------------------------------------------------------------------ */
+
+  /**
+   * Maintained counters behind every dashboard tile (`ADR-0011` §6,
+   * `INV-0011-07`).
+   *
+   * A dashboard is where an unbounded read gets written by accident. "How many
+   * receipts are open?" looks like a `count`, and a warehouse with four thousand
+   * of them turns that into a scan on the one screen a supervisor opens first.
+   * So the count is *maintained*: each row is one number, updated in the same
+   * transaction as the domain change that moved it, and a tile is a single
+   * indexed document read.
+   *
+   * `subjectKey` is what makes one table serve both shapes. A site-wide metric
+   * uses the sentinel `-`; a per-subject metric — occupancy, which is per
+   * location — uses the subject's ID. The index prefix `(orgId, warehouseId,
+   * metric)` then reads either one row or that metric's own bounded page,
+   * without a second table whose drift nobody would notice.
+   *
+   * These are a **projection, not a source**. Every metric is recomputable from
+   * the tables it summarises (`INV-0011-09`), `reporting/rollups:verifyRollups`
+   * does exactly that on a bounded resumable walk, and a counter that disagrees
+   * is drift to be reported rather than a number to be trusted.
+   */
+  operationsRollups: defineTable(
+    tenantFields({
+      warehouseId: v.id("warehouses"),
+      metric: rollupMetric,
+      /** The subject a per-subject metric counts, or `-` for a site total. */
+      subjectKey: v.string(),
+      /** Never negative. A decrement that would go below zero clamps and marks. */
+      count: v.number(),
+      updatedAt: v.number(),
+      /**
+       * When a decrement last tried to go below zero.
+       *
+       * Recorded rather than thrown: a counter bug must not stop a receipt being
+       * posted, and a silent clamp would hide the very drift the verifier looks
+       * for. Present means "this number is suspect until verified".
+       */
+      underflowAt: v.optional(v.number()),
+    }),
+  )
+    // One row per (site, metric, subject); also the bounded per-metric page.
+    .index(
+      "by_orgId_warehouseId_metric_subjectKey",
+      byOrg("warehouseId", "metric", "subjectKey"),
+    ),
+
+  /**
+   * An asynchronous export, from request to artifact (`ADR-0011` §7).
+   *
+   * Asynchronous because the alternative is a request that reads a warehouse's
+   * history inside one interactive call, and `INV-0011-01` forbids exactly that.
+   * The job carries its own resumable cursor and a page budget, so a large export
+   * is many bounded steps rather than one unbounded one, and an interrupted run
+   * continues instead of restarting.
+   *
+   * The rendered CSV lives on the document while the export is small enough to
+   * belong there, and `artifactBytes` is checked against a stated cap before any
+   * append. Delivery through a short-lived signed URL is `FileStoragePort`'s job
+   * (`INV-0011-08`, `ADR-0008`) and needs a storage vendor that is not
+   * configured; until then the artifact is readable only through a permission
+   * -checked query, which is a narrower channel rather than a substitute claim.
+   */
+  reportJobs: defineTable(
+    tenantFields({
+      warehouseId: v.id("warehouses"),
+      kind: reportKind,
+      status: reportJobStatus,
+      /** Who asked, so an artifact can be attributed as well as authorized. */
+      requestedByUserId: v.id("users"),
+      requestedAt: v.number(),
+      /** The idempotency key of the request that created this job. */
+      requestId: v.string(),
+      /** Resume point for the next chunk; absent once the walk is complete. */
+      cursor: v.optional(v.string()),
+      rowCount: v.number(),
+      /** The CSV rendered so far, header included. */
+      artifact: v.string(),
+      artifactBytes: v.number(),
+      /** SHA-256 of `artifact`, so a download can be checked against the job. */
+      checksum: v.optional(v.string()),
+      completedAt: v.optional(v.number()),
+      /** Why a run stopped, when it stopped badly. Never a vendor message. */
+      failureCode: v.optional(v.string()),
+    }),
+  )
+    // The register: this site's exports, newest handled by the caller's ordering.
+    .index("by_orgId_warehouseId_status", byOrg("warehouseId", "status"))
+    // Replay-by-reconstruction for a repeated request (`INV-0011-02`).
+    .index("by_orgId_requestId", byOrg("requestId")),
 
   /* ------------------------------------------------------------------------ */
   /* Inventory ledger and projections                                          */

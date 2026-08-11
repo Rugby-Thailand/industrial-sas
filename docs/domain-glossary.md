@@ -4,7 +4,7 @@ Status: **specification.** These terms define the language used in code,
 identifiers, tests, and UI copy. Almost none of them are implemented yet; see the
 [coverage matrix](./specification-coverage.md) for what exists.
 
-One group is now partly real. The pure domain modules under `convex/model/**`
+Two groups are now partly real. The pure domain modules under `convex/model/**`
 implement the vocabulary of quantity, UOM conversion, identifiers, business dates,
 and stock rotation: `G-027`, `G-029`, `G-030`, `G-031` (its code, not the entity),
 `G-032`, `G-033`, `G-038`, `G-039`, `G-041`, `G-042`, `G-043`, `G-044`, `G-047`,
@@ -12,6 +12,11 @@ and stock rotation: `G-027`, `G-029`, `G-030`, `G-031` (its code, not the entity
 objects and algebra only — no table stores any of them, and nothing enforces the
 uniqueness or never-reuse rules that belong to a mutation. Every other term is
 still specification.
+
+The Phase 4 reporting vocabulary — `G-112` to `G-118` — is implemented in full:
+`convex/model/reporting/**`, `convex/lib/rollupStore.ts`, `convex/reporting/**`,
+and `scripts/lib/exportEnvelope.mjs`. Those terms describe running code rather
+than intent.
 
 Rules for this glossary:
 
@@ -144,6 +149,13 @@ Rules for this glossary:
 | `G-109` | Release gate          | An external or code-owned condition that must be satisfied before a phase or launch ([register](./release-gates.md)).                | —                                                                        |
 | `G-110` | Scan-to-ack           | Elapsed time from a scan to a server-confirmed acknowledgement; the primary latency SLI (§5 Q5).                                     | —                                                                        |
 | `G-111` | Instant               | A point in time as UTC epoch milliseconds. Converted to a business date (`G-105`) only through an explicit organization zone (D-05). | Rejected: "timestamp" when the distinction from a business date matters. |
+| `G-112` | Maintained counter    | A number kept current by the transaction that changes it, and recomputable from the tables it summarises (`ADR-0011` §6).            | Rejected: "aggregate" when the Convex component is not meant.            |
+| `G-113` | Rollup drift          | A maintained counter (`G-112`) that disagrees with a fresh derivation of the same fact.                                              | Rejected: "stale count" — drift is a disagreement, not an age.           |
+| `G-114` | Suspect counter       | A counter whose decrement once clamped at zero, so it may read low until verified.                                                   | —                                                                        |
+| `G-115` | Occupancy band        | One of `EMPTY`, `LIGHT`, `BUSY`, `FULL`: how full a location is, by distinct stock buckets rather than by quantity.                  | Rejected: "utilisation %" — quantities are not comparable across items.  |
+| `G-116` | Stock bucket          | One (item, lot, serial, status, handling unit, owner) combination at a location; the unit occupancy counts.                          | Rejected: "SKU at location", which omits lot and status.                 |
+| `G-117` | Export job            | An asynchronous, chunked, resumable walk that renders tenant rows into a private artifact (`ADR-0011` §7).                           | Rejected: "download" — the artifact is produced, then fetched.           |
+| `G-118` | Export envelope       | The independent, encrypted, checksummed archive an operator can restore without the platform (`ADR-0021`).                           | Rejected: "backup file", which does not imply verifiability.             |
 
 ## Deliberately absent vocabulary
 

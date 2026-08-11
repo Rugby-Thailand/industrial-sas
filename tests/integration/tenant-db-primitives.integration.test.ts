@@ -148,7 +148,9 @@ describe("assertTenantTableName", () => {
       "Warehouses",
       "WAREHOUSES",
       "warehouse",
-      "purchaseOrders",
+      // Outbound is a standing non-goal (plan §2.3), so this one stays absent
+      // even as the inbound slice adds tables around it.
+      "salesOrders",
       "sessionAudit",
       "__proto__",
       "toString",

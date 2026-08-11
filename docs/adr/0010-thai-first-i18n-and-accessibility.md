@@ -6,11 +6,24 @@
 - Decision baseline: [PROJECT_PLAN.md](../../PROJECT_PLAN.md) §3.2 (D-05, D-06,
   D-07, D-24), §4 (B-10), §5 Q4, Q11, Q44, §10 Phase 4
 - Covers plan ADR backlog (§11) items: 23
-- Implementation status: **Not implemented.** `next-intl` 4.13.4 is installed and
-  unwired. There are no message catalogues, no locale routing, and no accessibility
-  suite beyond a placeholder axe test tier
-  (**foundation only**: the `a11y` Vitest project exists and asserts nothing about
-  the product).
+- Implementation status: **Partial.** The presentation layer is in place:
+  `next-intl` locale-segment routing with Thai as the default and English as the
+  fallback (`src/i18n/`, `src/proxy.ts`), Thai and English catalogues whose key
+  sets, ICU placeholders, and Thai-content presence are asserted
+  (`src/i18n/messages.test.ts`, `INV-0010-02`), server-resolved locale so the
+  first render is already localized (`INV-0010-05`), one formatting layer over
+  the pure kernels (`src/lib/formatters.ts`, `INV-0010-10`), semantic tokens with
+  a never-removed focus ring and a 48-pixel touch token (`src/app/globals.css`,
+  `INV-0010-06`), status rendered as a word plus a glyph rather than a colour
+  (`INV-0010-07`), and axe-core assertions over every shipped screen, rendered
+  against the **Thai** catalogue (`INV-0010-09`).
+  Not implemented: Thai collation for user-visible sorting (§4), bilingual master
+  data (§3 — there is no master data yet), Buddhist Era on any document (§7 is
+  supported by the formatter and used by nothing, pending `RG-043`), and printing
+  (§13). Keyboard-only completion of a handheld _flow_ (`INV-0010-08`) is
+  untested because no flow exists; the shells themselves are operable. Thai
+  review by a warehouse-domain speaker (`OPS-0010-01`) has not happened: the
+  catalogue is engineer-written Thai.
 
 ## Context
 
@@ -130,14 +143,29 @@ report against the business date the warehouse recognises, not a UTC date.
 
 ## Verification
 
-Planned, not present.
+Present:
 
-- `a11y` tier (axe-core): zero violations per screen; touch-target and contrast
-  assertions where testable.
-- Unit tests: business-date resolution across the Bangkok midnight boundary; BE
-  formatting is display-only; Thai collation ordering; catalogue key parity.
-- E2E: Thai and English layouts, keyboard-only completion, synthetic HID scan
-  events (plan §12).
+- `a11y` tier (axe-core): zero violations for both shells, both inventory tables
+  in Thai and English, all seven panel states, and the setup checklist. Touch
+  targets are asserted through the `min-h-touch` token rather than a measured
+  box, because jsdom computes no layout; the physical check stays manual.
+- Unit tests: catalogue key parity in both directions, ICU placeholder parity,
+  no empty message, Thai content present in Thai prose
+  (`src/i18n/messages.test.ts`); formatter behaviour including BE as opt-in only,
+  the Gregorian calendar forced under `th`, a 24-hour clock, and the
+  unrenderable marker for a forged value (`src/lib/formatters.test.ts`).
+- E2E: locale negotiation for a Thai, an English, and an unserved
+  `Accept-Language`; a 404 rather than a silent fallback for an unknown segment;
+  switching language without leaving the screen; and the Thai layout at both a
+  desktop and a Pixel 5 viewport.
+
+Planned, not present:
+
+- Business-date resolution across the Bangkok midnight boundary is covered in the
+  kernel (`convex/model/time/`); no _screen_ renders a cross-midnight shift yet.
+- Thai collation ordering: no user-visible Thai sort exists.
+- Keyboard-only completion of a handheld flow and synthetic HID scan events:
+  there is no flow (plan §12).
 - Manual acceptance: screen-reader pass, glove and lighting checks, physical Thai
   label print and rescan.
 

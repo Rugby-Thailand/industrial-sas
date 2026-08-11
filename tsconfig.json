@@ -13,7 +13,6 @@
     "esModuleInterop": true,
     "verbatimModuleSyntax": true,
     "moduleDetection": "force",
-
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,
@@ -22,7 +21,6 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "forceConsistentCasingInFileNames": true,
-
     "noEmit": true,
     "incremental": true,
     "skipLibCheck": true,
@@ -32,7 +30,11 @@
     "paths": {
       "@/*": ["./src/*"]
     },
-    "plugins": [{ "name": "next" }]
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ]
   },
   "include": [
     "next-env.d.ts",
@@ -41,7 +43,17 @@
     "**/*.mts",
     "**/*.tsx",
     ".next/types/**/*.ts",
-    ".next/dev/types/**/*.ts"
+    ".next/dev/types/**/*.ts",
+    // The Playwright preview dev server builds here; see `playwright.config.ts`.
+    // Listed so Next does not rewrite this file the first time that server runs.
+    ".next-preview/types/**/*.ts",
+    ".next-preview/dev/types/**/*.ts",
+    ".next-e2e/types/**/*.ts",
+    ".next-e2e/dev/types/**/*.ts",
+    ".next-e2e-preview/types/**/*.ts",
+    ".next-e2e-preview/dev/types/**/*.ts",
+    ".next-evidence/types/**/*.ts",
+    ".next-evidence/dev/types/**/*.ts"
   ],
   // `.next` is deliberately absent: `exclude` filters `include`, so excluding it
   // would drop the generated route types listed above.

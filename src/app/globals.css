@@ -1,20 +1,122 @@
 @import "tailwindcss";
 
 /*
- * Scaffold-stage design tokens only.
+ * Semantic design tokens.
  *
- * The production token set (industrial palette, glove-friendly hit targets,
- * Thai typography) is defined later; nothing here should be treated as final.
+ * Named for meaning, never for colour: a screen asks for `surface` or `danger`,
+ * not for grey or red, so the light and dark values below can change without a
+ * component changing. The UX plan (§5) fixes the set — canvas, surface, raised
+ * surface, border, text, muted text, focus, accent, success, warning, danger,
+ * pending, QC hold, disabled.
+ *
+ * Two rules the values here are chosen against:
+ *
+ * - **Text contrast at 4.5:1, non-text and focus at 3:1** (WCAG 2.2 AA, D-24).
+ *   Every foreground below clears 4.5:1 against the surface it is used on, in
+ *   both schemes. `border` is decorative and `border-strong` is the one used
+ *   wherever a boundary carries meaning, because a 1.5:1 hairline disappears
+ *   under warehouse lighting.
+ * - **No state by colour alone** (`INV-0010-07`). These tokens exist to
+ *   reinforce a label, never to replace one. A status in this application is
+ *   always a word; the colour is the second signal.
+ *
+ * The palette is flat and low-chroma on purpose: harsh lighting and cheap
+ * handheld panels wash out gradients and shadows long before they wash out a
+ * border.
  */
-@theme {
+@theme inline {
   --font-sans:
     ui-sans-serif, system-ui, "Noto Sans Thai", "Helvetica Neue", Arial,
     sans-serif;
   --font-mono: ui-monospace, "SFMono-Regular", "Roboto Mono", monospace;
+
+  --color-canvas: var(--token-canvas);
+  --color-surface: var(--token-surface);
+  --color-raised: var(--token-raised);
+  --color-border: var(--token-border);
+  --color-border-strong: var(--token-border-strong);
+  --color-text: var(--token-text);
+  --color-muted: var(--token-muted);
+  --color-accent: var(--token-accent);
+  --color-accent-contrast: var(--token-accent-contrast);
+  --color-success: var(--token-success);
+  --color-warning: var(--token-warning);
+  --color-danger: var(--token-danger);
+  --color-pending: var(--token-pending);
+  --color-qc-hold: var(--token-qc-hold);
+  --color-disabled: var(--token-disabled);
+
+  /*
+   * Occupancy bands (`ADR-0011` §8). Four fills for the 2D map, ordered from
+   * empty to full. Named tokens rather than literal colours because the map is
+   * the one screen where a fill carries meaning, and a meaning that lived in a
+   * class string could not be checked for contrast in both schemes.
+   *
+   * Every fill keeps `--token-text` above 4.5:1 (`WCAG 2.2` 1.4.3), and the
+   * band is always printed as a word beside it — colour is redundant here, never
+   * the channel (1.4.1).
+   */
+  --color-band-empty: var(--token-band-empty);
+  --color-band-light: var(--token-band-light);
+  --color-band-busy: var(--token-band-busy);
+  --color-band-full: var(--token-band-full);
+
+  /*
+   * The glove-compatible minimum (`INV-0010-06`, D-24): 48 CSS pixels. Exposed
+   * as a spacing token so a component asks for `min-h-touch` rather than
+   * repeating a magic number that can drift one screen at a time.
+   */
+  --spacing-touch: 3rem;
 }
 
 :root {
   color-scheme: light dark;
+
+  --token-canvas: #f3f5f7;
+  --token-surface: #ffffff;
+  --token-raised: #e9edf1;
+  --token-border: #d3d8df;
+  --token-border-strong: #69727e;
+  --token-text: #12161c;
+  --token-muted: #4d5560;
+  --token-accent: #0b5cad;
+  --token-accent-contrast: #ffffff;
+  --token-success: #0f6b3f;
+  --token-warning: #8a5300;
+  --token-danger: #b3261e;
+  --token-pending: #5a3fb8;
+  --token-qc-hold: #8a5300;
+  --token-disabled: #6b7280;
+
+  --token-band-empty: #f3f5f7;
+  --token-band-light: #d7e9fb;
+  --token-band-busy: #fbe6c2;
+  --token-band-full: #f8d2cd;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --token-canvas: #0b0e12;
+    --token-surface: #14181e;
+    --token-raised: #1c222a;
+    --token-border: #2c333d;
+    --token-border-strong: #79828f;
+    --token-text: #eef1f5;
+    --token-muted: #a8b1bd;
+    --token-accent: #7cb6ff;
+    --token-accent-contrast: #06121f;
+    --token-success: #58d19a;
+    --token-warning: #f0b357;
+    --token-danger: #ff9a90;
+    --token-pending: #b3a0ff;
+    --token-qc-hold: #f0b357;
+    --token-disabled: #8b939e;
+
+    --token-band-empty: #14181e;
+    --token-band-light: #17293a;
+    --token-band-busy: #3a2c14;
+    --token-band-full: #3d1f1d;
+  }
 }
 
 html {
@@ -23,6 +125,29 @@ html {
 
 body {
   font-family: var(--font-sans);
+}
+
+/*
+ * A focus ring that is never removed and never subtle.
+ *
+ * Declared globally rather than per component because the failure mode is a
+ * component that forgets: a keyboard-and-scanner-only flow (`INV-0010-08`) is
+ * unusable the moment focus becomes invisible. `:focus-visible` keeps it off a
+ * mouse click and on for every keyboard and HID interaction.
+ */
+:focus-visible {
+  outline: 3px solid var(--token-accent);
+  outline-offset: 2px;
+}
+
+/*
+ * Quantities, codes, and identifiers line up column-to-column. Proportional
+ * digits make two stacked figures of the same magnitude look different lengths,
+ * which is exactly the comparison an operator makes on a balance screen.
+ */
+.tabular {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
 }
 
 /* Respect users who ask for reduced motion (WCAG 2.3.3). */

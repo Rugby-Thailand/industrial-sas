@@ -18,6 +18,13 @@ node_modules/
 # Next.js / build output
 # ---------------------------------------------------------------------------
 .next/
+# The Playwright preview dev server builds here (see playwright.config.ts).
+.next-preview/
+# End-to-end build directories, one per Playwright server. Kept distinct from
+# `.next` and `.next-preview` so a suite never shares a manifest with a
+# developer's own dev server (see `playwright.config.ts`).
+.next-e2e/
+.next-e2e-preview/
 out/
 build/
 dist/

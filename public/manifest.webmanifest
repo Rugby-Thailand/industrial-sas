@@ -1,0 +1,27 @@
+{
+  "name": "Industrial SSA",
+  "short_name": "SSA",
+  "description": "Warehouse management system for Thai manufacturers",
+  "lang": "th",
+  "dir": "ltr",
+  "start_url": "/th/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f3f5f7",
+  "theme_color": "#0b5cad",
+  "icons": [
+    {
+      "src": "/icons/mark.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}
