@@ -71,6 +71,15 @@ export const TENANT_TABLES = [
   "devices",
   "sessionsAudit",
   "supportGrants",
+  "items",
+  "locations",
+  "lots",
+  "handlingUnits",
+  "owners",
+  "reasonCodes",
+  "inventoryTransactions",
+  "inventoryLedgerLines",
+  "inventoryBalances",
 ] as const;
 
 export type GlobalTableName = (typeof GLOBAL_TABLES)[number];
@@ -312,6 +321,87 @@ export const UNIQUENESS_CONTRACTS: readonly UniquenessContract[] = [
       "A reported PWA installation correlates to at most one registered device. " +
       "`installationId` is optional, so devices that have reported none are not duplicates of each other.",
   },
+  {
+    table: "items",
+    key: ["orgId", "sku"],
+    index: "by_orgId_sku",
+    condition: ALWAYS,
+    rationale:
+      "A tenant's SKU is its own identifier for an item; two rows would make a scan ambiguous (§5 Q4, ADR-0005 §6).",
+  },
+  {
+    table: "locations",
+    key: ["orgId", "warehouseId", "code"],
+    index: "by_orgId_warehouseId_code",
+    condition: ALWAYS,
+    rationale:
+      "A location code is unique within its warehouse, not across the tenant: two sites legitimately both have a DOCK-01 (INV-0005-01).",
+  },
+  {
+    table: "lots",
+    key: ["orgId", "itemId", "lotCode"],
+    index: "by_orgId_itemId_lotCode",
+    condition: ALWAYS,
+    rationale:
+      "Lot identity is item plus lot code (INV-0005-02); the index is also how a posting proves the lot belongs to the line's item.",
+  },
+  {
+    table: "handlingUnits",
+    key: ["orgId", "lpn"],
+    index: "by_orgId_lpn",
+    condition: ALWAYS,
+    rationale:
+      "An LPN is unique per organization and never reused (INV-0005-05); a rescanned old label must not resolve to new stock.",
+  },
+  {
+    table: "owners",
+    key: ["orgId", "code"],
+    index: "by_orgId_code",
+    condition: ALWAYS,
+    rationale:
+      "Owner code is the tenant's identifier for a consignment counterparty (D-11).",
+  },
+  {
+    table: "reasonCodes",
+    key: ["orgId", "code"],
+    index: "by_orgId_code",
+    condition: ALWAYS,
+    rationale:
+      "A reason code is cited by adjustments, scraps, and reversals; two rows under one code would make the audit evidence ambiguous (ADR-0003 §5).",
+  },
+  {
+    table: "inventoryTransactions",
+    key: ["orgId", "operation", "requestId"],
+    index: "by_orgId_operation_requestId",
+    condition: ALWAYS,
+    rationale:
+      "The idempotency namespace (INV-0003-01): a replay of one request must find exactly one transaction, and finding two would mean stock was already double-posted.",
+  },
+  {
+    table: "inventoryTransactions",
+    key: ["orgId", "reversalOfTransactionId"],
+    index: "by_orgId_reversalOfTransactionId",
+    condition: whenPresent("reversalOfTransactionId"),
+    rationale:
+      "A transaction is reversed at most once: two reversals would compensate it twice (INV-0003-08). " +
+      "Conditional because only a REVERSAL carries the link, and every non-reversal leaving it absent is not a collision.",
+  },
+  {
+    table: "inventoryLedgerLines",
+    key: ["orgId", "transactionId", "lineIndex"],
+    index: "by_orgId_transactionId_lineIndex",
+    condition: ALWAYS,
+    rationale:
+      "Line positions within a transaction are its canonical order; a duplicate index would make a replay non-deterministic (INV-0003-02).",
+  },
+  {
+    table: "inventoryBalances",
+    key: ["orgId", "bucketKey"],
+    index: "by_orgId_bucketKey",
+    condition: ALWAYS,
+    rationale:
+      "One balance row per bucket. Two rows would make the projection ambiguous and reconciliation unable to say which is drifting (INV-0003-09).",
+  },
 ] as const;
 
 /* -------------------------------------------------------------------------- */
@@ -345,6 +435,35 @@ export const BOUNDED_LOOKUP_CONTRACTS: readonly LookupContract[] = [
       "Every grant is bound to a support ticket, but a ticket may earn several grants over its life " +
       "(reopened, re-requested after expiry, a second engineer). The index bounds ticket history and " +
       "tenant reconciliation (INV-0006-09); it does not cap the count.",
+  },
+  {
+    table: "inventoryLedgerLines",
+    key: ["orgId", "bucketKey"],
+    index: "by_orgId_bucketKey_occurredAt",
+    cardinality: "many",
+    rationale:
+      "A bucket accumulates a line per movement forever — roughly 1M lines per tenant per year at the B-11 " +
+      "envelope. The index is what makes replaying one bucket a bounded, resumable page rather than a scan " +
+      "(INV-0003-10); it does not cap the count.",
+  },
+  {
+    table: "inventoryTransactions",
+    key: ["orgId", "warehouseId"],
+    index: "by_orgId_warehouseId_occurredAt",
+    cardinality: "many",
+    rationale:
+      "One site posts many transactions. The index bounds the history screen and the reconciliation walk " +
+      "(inventory.history.read); it does not cap the count.",
+  },
+  {
+    table: "inventoryBalances",
+    key: ["orgId", "warehouseId", "itemId", "stockStatus"],
+    index: "by_orgId_warehouseId_itemId_stockStatus",
+    cardinality: "many",
+    rationale:
+      "One item in one status is spread across many locations, lots, handling units, and owners — that " +
+      "spread is the point of a narrow bucket. The index bounds 'what is on hand' (inventory.balance.read); " +
+      "it does not cap the count.",
   },
 ] as const;
 

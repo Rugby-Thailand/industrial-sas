@@ -231,7 +231,7 @@ describe("an unclassified or missing table is caught", () => {
   });
 
   it("classifies a name in neither list as unclassified rather than tenant", () => {
-    expect(classifyTable("inventoryTransactions")).toBe("unclassified");
+    expect(classifyTable("inventorySnapshots")).toBe("unclassified");
   });
 });
 

@@ -9,6 +9,7 @@ test-results/
 playwright-report/
 blob-report/
 convex/_generated/
+graphify-out/
 next-env.d.ts
 pnpm-lock.yaml
 

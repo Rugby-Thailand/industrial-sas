@@ -70,6 +70,8 @@ export const webhook = httpActionGeneric(async () => new Response(null));
   return () => ctx.db.query();
 }
 `,
+  "convex/lib/inventoryLedgerStore.ts": `export {};
+`,
 };
 
 /**

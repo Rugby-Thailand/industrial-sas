@@ -25,7 +25,19 @@
  *     literal, or is not a non-`PLATFORM` code of the catalogue in
  *     `convex/lib/permissions.ts` (`INV-0006-01`, `INV-0006-02`).
  *   - `audit-append-only` a `patch`, `replace`, or `delete` naming an append-only
- *     table (plan §12: no mutation updates or deletes the audit table).
+ *     table — `auditEvents`, `inventoryTransactions`, `inventoryLedgerLines`
+ *     (plan §12, `INV-0003-07`, `INV-0003-12`: nothing rewrites the ledger or the
+ *     audit trail).
+ *   - `balance-projection-seam` an `insert`, `patch`, `replace`, or `delete` naming
+ *     `inventoryBalances` outside the single ledger persistence module
+ *     (`INV-0003-09`, `INV-0003-11`: balances are projected in the posting
+ *     transaction and there is no other write path, public or otherwise).
+ *   - `unbounded-read` a `collect()` or `fullTableScan()`, or a `filter()` on a
+ *     database query chain (`INV-0002-04`, plan §12: no tenant read is a scan, and
+ *     tenant selection is never a predicate).
+ *   - `tenant-index-prefix` an index on a tenant table in `convex/schema.ts` whose
+ *     field list is not `byOrg(...)` or does not begin with `"orgId"` (D-18,
+ *     `INV-0002-02`).
  *   - `model-purity`    an import in `convex/model/**` that reaches outside it,
  *     including any Convex package (plan §6.2: pure domain modules). Static and
  *     dynamic imports, re-exports, `require`, and `import x = require(…)` all
@@ -33,9 +45,10 @@
  *     template literal can name `convex/server` at run time.
  *   - `allowlist-drift` an allowlisted path that no longer exists.
  *
- * The first three of those have **empty** allowlists: there is no file that may
- * declare an unenforceable permission, none that may rewrite an audit row, and no
- * pure domain module that may import Convex.
+ * Five have **empty** allowlists: there is no file that may declare an
+ * unenforceable permission, none that may rewrite an audit or ledger row, none that
+ * may scan a tenant table, none that may declare an index that does not start with
+ * the tenant discriminator, and no pure domain module that may import Convex.
  *
  * A file added tomorrow is therefore denied without that list being touched.
  * The checks are AST-only on purpose: `ctx.db` and `TenantStoragePort` appear in
@@ -99,9 +112,43 @@ const TENANT_WRAPPERS = new Set([
   "actionWithOrg",
 ]);
 /** Tables application code may append to and never rewrite (plan §12). */
-const APPEND_ONLY_TABLES = new Set(["auditEvents"]);
+const APPEND_ONLY_TABLES = new Set([
+  "auditEvents",
+  "inventoryTransactions",
+  "inventoryLedgerLines",
+]);
 /** Methods that would rewrite or remove a row. */
 const REWRITING_METHODS = new Set(["patch", "replace", "delete"]);
+/**
+ * The projection table only the ledger persistence seam may write.
+ *
+ * Insert included, unlike the append-only rule: a balance is *derived*, so writing
+ * one anywhere else — even for the first time — is a second source of truth
+ * (`INV-0003-11`).
+ */
+const PROJECTION_TABLES = new Set(["inventoryBalances"]);
+const WRITING_METHODS = new Set(["insert", "patch", "replace", "delete"]);
+/**
+ * Reads with no bound. `collect` and `fullTableScan` exist only on a Convex query
+ * builder, so naming them is unambiguous; `filter` is checked against its receiver
+ * because arrays have one too.
+ */
+const UNBOUNDED_READ_METHODS = new Set(["collect", "fullTableScan"]);
+/** Names that mark an expression as a database query chain rather than an array. */
+const QUERY_CHAIN_NAMES = new Set([
+  "db",
+  "query",
+  "withIndex",
+  "withSearchIndex",
+  "byIndex",
+  "indexedPage",
+]);
+/** The schema module whose index declarations the prefix rule reads. */
+const SCHEMA_FILE = "convex/schema.ts";
+/** Tables that legitimately have no `orgId` (`ADR-0002` §1, `schemaPolicy.ts`). */
+const GLOBAL_TABLES = new Set(["organizations", "users", "permissions"]);
+/** The tenant discriminator every tenant index must begin with (D-18). */
+const TENANT_DISCRIMINATOR = "orgId";
 /** The module the code-owned permission catalogue is declared in. */
 const PERMISSION_CATALOGUE_FILE = "convex/lib/permissions.ts";
 /**
@@ -139,11 +186,19 @@ export const TENANT_BOUNDARY_ALLOWLIST = Object.freeze({
     "convex/lib/tenantDb.ts",
     "convex/lib/tenantStorage.ts",
   ]),
-  // No exemptions: an unenforceable declaration and a rewritten audit row are
-  // wrong in every file, including the ones that own the boundary. Nor may any
-  // pure domain module import Convex.
+  // The one module allowed to write a balance projection. Everything else — the
+  // public ledger functions included — can only ask it to (`INV-0003-11`).
+  "balance-projection-seam": Object.freeze([
+    "convex/lib/inventoryLedgerStore.ts",
+  ]),
+  // No exemptions: an unenforceable declaration, a rewritten audit or ledger row, a
+  // scan of a tenant table, and an index that does not start with the tenant
+  // discriminator are wrong in every file, including the ones that own the
+  // boundary. Nor may any pure domain module import Convex.
   "authorization-declaration": Object.freeze([]),
   "audit-append-only": Object.freeze([]),
+  "unbounded-read": Object.freeze([]),
+  "tenant-index-prefix": Object.freeze([]),
   "model-purity": Object.freeze([]),
 });
 
@@ -227,6 +282,127 @@ function escapesPureModel(file, specifier) {
     return node.argumentExpression.text;
   }
   return null;
+}
+
+/**
+ * Whether an expression is a database query chain rather than an array.
+ *
+ * `filter` exists on both, so the receiver decides. A chain is anything whose
+ * subtree names `db`, `query`, `withIndex`, `byIndex`, or a sibling — which is what
+ * every route to a Convex query builder in this repository goes through. An array
+ * expression names none of them, so `PERMISSION_CATALOGUE.filter(…)` and
+ * `page.filter(…)` are not flagged and a `ctx.db.query("items").filter(…)` is.
+ *
+ * @param {ts.Node} node
+ * @returns {boolean}
+ */
+function isQueryChain(node) {
+  let found = false;
+  /** @param {ts.Node} current */
+  const visit = (current) => {
+    if (found) return;
+    const member = memberName(current);
+    if (member !== null && QUERY_CHAIN_NAMES.has(member)) {
+      found = true;
+      return;
+    }
+    if (ts.isIdentifier(current) && QUERY_CHAIN_NAMES.has(current.text)) {
+      found = true;
+      return;
+    }
+    ts.forEachChild(current, visit);
+  };
+  visit(node);
+  return found;
+}
+
+/**
+ * Report any index on a tenant table whose field list does not begin with `orgId`.
+ *
+ * Reads the `defineSchema({ … })` object literal, so the *table* an index belongs to
+ * is known rather than guessed: each property of that literal is a table name, and
+ * every `.index(name, fields)` inside its initializer belongs to it.
+ *
+ * Two shapes pass, and only two: `byOrg("status", "code")`, the construction helper
+ * that prepends the discriminator, and a literal array whose first element is the
+ * string `"orgId"`. Anything else — a variable, a spread, a helper this script
+ * cannot read — fails closed, because an index field list it cannot see is one it
+ * cannot clear.
+ *
+ * `convex/lib/schemaPolicy.ts` proves the same property over the *finished* schema,
+ * which is stronger. This rule exists so the failure arrives at the diff rather than
+ * at the test, and so a schema that cannot be loaded still cannot ship a
+ * cross-tenant index.
+ *
+ * @param {ts.SourceFile} tree
+ * @param {(rule: TenantBoundaryRule, node: ts.Node, message: string) => void} report
+ */
+function checkTenantIndexPrefixes(tree, report) {
+  /** @param {ts.Node} node @returns {ts.ObjectLiteralExpression | null} */
+  const schemaObject = (node) => {
+    if (
+      ts.isCallExpression(node) &&
+      ts.isIdentifier(node.expression) &&
+      node.expression.text === "defineSchema"
+    ) {
+      const [first] = node.arguments;
+      if (first !== undefined && ts.isObjectLiteralExpression(first)) {
+        return first;
+      }
+    }
+    let found = null;
+    ts.forEachChild(node, (child) => {
+      if (found === null) found = schemaObject(child);
+    });
+    return found;
+  };
+
+  const schema = schemaObject(tree);
+  if (schema === null) return;
+
+  for (const property of schema.properties) {
+    if (!ts.isPropertyAssignment(property)) continue;
+    if (!ts.isIdentifier(property.name) && !ts.isStringLiteral(property.name)) {
+      continue;
+    }
+    const table = property.name.text;
+    if (GLOBAL_TABLES.has(table)) continue;
+
+    /** @param {ts.Node} node */
+    const visitIndexes = (node) => {
+      if (
+        ts.isCallExpression(node) &&
+        memberName(node.expression) === "index" &&
+        node.arguments.length >= 2
+      ) {
+        const fields = node.arguments[1];
+        const declaredByHelper =
+          fields !== undefined &&
+          ts.isCallExpression(fields) &&
+          ts.isIdentifier(fields.expression) &&
+          fields.expression.text === "byOrg";
+        const firstLiteralField =
+          fields !== undefined && ts.isArrayLiteralExpression(fields)
+            ? fields.elements[0]
+            : undefined;
+        const declaredByLiteral =
+          firstLiteralField !== undefined &&
+          ts.isStringLiteral(firstLiteralField) &&
+          firstLiteralField.text === TENANT_DISCRIMINATOR;
+
+        if (!declaredByHelper && !declaredByLiteral) {
+          report(
+            "tenant-index-prefix",
+            node,
+            `declares an index on tenant table \`${table}\` whose fields do not begin ` +
+              `with "${TENANT_DISCRIMINATOR}" (D-18, INV-0002-02)`,
+          );
+        }
+      }
+      ts.forEachChild(node, visitIndexes);
+    };
+    visitIndexes(property.initializer);
+  }
 }
 
 /**
@@ -597,6 +773,38 @@ export function scanTenantBoundarySource(file, source, catalogue = null) {
           );
         }
       }
+      if (callee !== null && WRITING_METHODS.has(callee)) {
+        const [table] = node.arguments;
+        if (
+          table !== undefined &&
+          ts.isStringLiteral(table) &&
+          PROJECTION_TABLES.has(table.text)
+        ) {
+          report(
+            "balance-projection-seam",
+            node,
+            `calls \`${callee}("${table.text}", …)\` outside the ledger persistence seam`,
+          );
+        }
+      }
+      if (callee !== null && UNBOUNDED_READ_METHODS.has(callee)) {
+        report(
+          "unbounded-read",
+          node,
+          `calls \`${callee}()\`, which has no bound (INV-0002-04)`,
+        );
+      }
+      if (
+        callee === "filter" &&
+        ts.isPropertyAccessExpression(node.expression) &&
+        isQueryChain(node.expression.expression)
+      ) {
+        report(
+          "unbounded-read",
+          node,
+          "calls `filter()` on a database query chain; use a declared orgId-first index",
+        );
+      }
     }
 
     const member = memberName(node);
@@ -659,6 +867,7 @@ export function scanTenantBoundarySource(file, source, catalogue = null) {
   };
 
   ts.forEachChild(tree, visit);
+  if (file === SCHEMA_FILE) checkTenantIndexPrefixes(tree, report);
   return violations;
 }
 

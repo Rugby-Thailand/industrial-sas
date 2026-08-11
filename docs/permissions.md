@@ -140,6 +140,7 @@ target warehouse participates in the decision.
 | ---------------------------------- | ----- | ---------------------------------------------------------- | --------------------------------- |
 | `inventory.balance.read`           | WH    | Read current balances                                      | —                                 |
 | `inventory.history.read`           | WH    | Read ledger history for a bucket, item, lot, or HU         | —                                 |
+| `inventory.transaction.post`       | WH    | Post a balanced inventory ledger transaction               | —                                 |
 | `inventory.statusChange.submit`    | WH    | Propose a stock-status reclassification                    | —                                 |
 | `inventory.statusChange.approve`   | WH    | Approve a stock-status reclassification                    | Maker-checker                     |
 | `inventory.transaction.reverse`    | WH    | Reverse a transaction with a reason code                   | Threshold, maker-checker, step-up |
@@ -263,6 +264,7 @@ no tenant role.
 | `putaway.policy.manage`            | Y         | Y                 |            |          |              |                  |                   |        |
 | `inventory.balance.read`           | Y         | Y                 | Y          | Y        | Y            | Y                | Y                 | Y      |
 | `inventory.history.read`           | Y         | Y                 | Y          | Y        | Y            | Y                | Y                 | Y      |
+| `inventory.transaction.post`       | Y         | Y                 | Y          |          |              |                  |                   |        |
 | `inventory.statusChange.submit`    | Y         | Y                 | Y          |          | Y            |                  | Y                 |        |
 | `inventory.statusChange.approve`   | Y         | Y                 | Y          |          |              |                  |                   |        |
 | `inventory.transaction.reverse`    | Y         | Y                 |            |          |              |                  |                   |        |

@@ -1,15 +1,23 @@
 /**
  * Convex schema — tenant, identity, authorization, audit, idempotency, device,
- * entitlement, and (disabled) support-grant foundation.
+ * entitlement, (disabled) support-grant, and inventory-ledger foundation.
  *
- * Status: **schema foundation only.** This file declares tables, fields, and
- * indexes. It declares no behaviour. There is no auth wrapper, no tenant-bound
- * accessor (`G-102`), no Clerk webhook sync, no role seed, no permission
- * evaluation, no inventory, and no deployment. Every guarantee below is a shape
- * the code that lands later must respect; none of it is enforced at runtime yet
- * because there is no runtime.
+ * Status: **the tenant security foundation plus the immutable inventory ledger.**
+ * The tenancy, identity, and authorization tables are declarations that
+ * `convex/lib/**` now enforces at run time: a public function cannot be registered
+ * without a code-owned permission, and no handler runs before that permission is
+ * decided (`ADR-0006`). The inventory tables below are live too —
+ * `convex/inventory/ledger.ts` posts against them through
+ * `convex/lib/inventoryLedgerStore.ts`, balances are projected in the same
+ * mutation, and `scripts/verify-tenant-boundary.mjs` fails the build if any other
+ * production file rewrites a ledger row or writes a balance.
  *
- * Structure, in three groups:
+ * What is still only a shape: master data beyond the minimum the ledger must
+ * validate against, every inbound aggregate (§7.3), and deployment — there is no
+ * `convex/_generated/`, no environment configuration, and nothing has run against a
+ * Convex backend.
+ *
+ * Structure, in four groups:
  *
  * 1. **Root and global tables** — `organizations`, `users`, `permissions`. These
  *    have no `orgId`. `organizations` *is* the tenant root: its document ID is
@@ -23,16 +31,21 @@
  *    begins with `orgId` (D-18, `INV-0002-02`).
  * 3. **Uniqueness and lookup contracts** — every external reference
  *    (`clerkOrganizationId`, `clerkUserId`, `clerkMembershipId`, permission
- *    `code`, warehouse `code`, role `key`, idempotency `requestId`, …) has an
- *    index that makes its lookup bounded. Convex has no unique constraint, so
- *    nothing below is enforced by the database and nothing is enforced today:
- *    every "unique" in this file means **unique by contract** — a bounded index
- *    plus the check the future mutation owes on every write. The contracts are
- *    enumerated in `schemaPolicy.ts`, and a bounded index does not by itself
- *    imply uniqueness: some contracts are conditional (`devices.installationId`
- *    is unique per organization *when present*) and some indexed keys are
- *    deliberately many-per-key (`supportGrants.ticketRef`). Which is which is
- *    stated there as data, never left to inference from the index name.
+ *    `code`, warehouse `code`, role `key`, idempotency `requestId`, ledger
+ *    `bucketKey`, …) has an index that makes its lookup bounded. Convex has no
+ *    unique constraint, so nothing below is enforced by the database: every
+ *    "unique" in this file means **unique by contract** — a bounded index plus the
+ *    check the mutation owes on every write. The contracts are enumerated in
+ *    `schemaPolicy.ts`, and a bounded index does not by itself imply uniqueness:
+ *    some contracts are conditional (`devices.installationId` is unique per
+ *    organization *when present*) and some indexed keys are deliberately
+ *    many-per-key (`supportGrants.ticketRef`). Which is which is stated there as
+ *    data, never left to inference from the index name.
+ * 4. **Append-only tables** — `auditEvents`, `inventoryTransactions`, and
+ *    `inventoryLedgerLines` are inserted and never rewritten (`INV-0003-07`,
+ *    `INV-0003-12`, plan §12). `inventoryBalances` is writable, but from exactly
+ *    one module. Both properties are static build gates, because Convex cannot
+ *    express either.
  *
  * Deliberately absent, and why:
  *
@@ -46,17 +59,25 @@
  *   warehouse" a table scan, and turn two concurrent scope edits into a lost
  *   update.
  * - **No approval-policy table.** Threshold and maker-checker *values* are
- *   configured through `admin.settings.policy.manage`, but nothing in this task
- *   evaluates a policy, so a table here would be invented domain with no reader.
- *   It arrives with the authorization work that needs it.
- * - **No master data beyond warehouse identity.** `warehouses` exists only
- *   because warehouse scope is part of every authorization decision
- *   (`INV-0006-04`). Locations, items, lots, and the rest of §7.2 are later
- *   slices.
+ *   configured through `admin.settings.policy.manage`, but nothing yet evaluates a
+ *   stored policy, so a table here would be invented domain with no reader. It
+ *   arrives with `RG-030`.
+ * - **No aggregate or counter document anywhere.** `inventoryBalances` is one row
+ *   per bucket and nothing sums across buckets in this schema. A global counter is
+ *   the hot-document contention failure plan §13 names; rollups come from the
+ *   Aggregate component (`ADR-0011`).
+ * - **No master data beyond what a posting must validate.** `items`, `locations`,
+ *   `lots`, `handlingUnits`, `owners`, and `reasonCodes` carry identity, the
+ *   ownership edges `INV-0003-04`/`INV-0003-05` are checked through, and nothing
+ *   else. Location hierarchy, capacity, storage classes, barcodes, alternate UOMs,
+ *   LPN history, and QC/putaway policy are the master-data slice.
  *
- * Baseline: [PROJECT_PLAN.md](../PROJECT_PLAN.md) §7.1, §6.1, §6.2;
- * [ADR-0001](../docs/adr/0001-multi-tenant-saas-and-identity-ownership.md),
+ * Baseline: [PROJECT_PLAN.md](../PROJECT_PLAN.md) §7.1, §7.2, §7.4, §7.5, §6.1,
+ * §6.2; [ADR-0001](../docs/adr/0001-multi-tenant-saas-and-identity-ownership.md),
  * [ADR-0002](../docs/adr/0002-convex-tenant-boundary-and-index-discipline.md),
+ * [ADR-0003](../docs/adr/0003-append-only-inventory-ledger.md),
+ * [ADR-0004](../docs/adr/0004-exact-quantities-and-uom.md),
+ * [ADR-0005](../docs/adr/0005-warehouse-location-and-stock-identity.md),
  * [ADR-0006](../docs/adr/0006-authorization-and-support-access.md),
  * [permission catalogue](../docs/permissions.md).
  */
@@ -72,17 +93,27 @@ import {
   deviceStatus,
   deviceType,
   idempotencyStatus,
+  inventoryTransactionSource,
+  inventoryTransactionType,
+  itemTrackingMode,
+  ledgerLocationKind,
   locale,
+  locationType,
+  masterDataStatus,
   membershipScopeMode,
   membershipStatus,
   organizationSettings,
   organizationStatus,
   permissionScope,
+  reasonCodeScope,
   roleStatus,
   sessionsAuditEventType,
+  signedQuantity,
+  stockStatus,
   supportAccessMode,
   supportGrantStatus,
   userStatus,
+  virtualBoundaryCode,
   warehouseStatus,
 } from "./lib/validators";
 
@@ -588,6 +619,329 @@ const schema = defineSchema({
     // index, not a uniqueness index — see `ticketRef` above.
     .index("by_orgId_ticketRef", byOrg("ticketRef"))
     .index("by_orgId_expiresAt", byOrg("expiresAt")),
+
+  /* ------------------------------------------------------------------------ */
+  /* Inventory reference scaffolding                                           */
+  /* ------------------------------------------------------------------------ */
+
+  /**
+   * A stock-keeping unit (`G-040`), reduced to what the ledger must prove.
+   *
+   * Present because `INV-0003-04` requires every referenced item to belong to the
+   * active organization and `ADR-0004` requires one base UOM per item — a ledger
+   * line's quantity has no meaning without it. Everything else §7.2 lists for an
+   * item (bilingual descriptions, alternate UOMs, barcodes, QC profile, putaway
+   * preferences) belongs to the master-data slice and is deliberately absent: a
+   * field with no reader is invented domain.
+   *
+   * `trackingMode` is declared now because it decides whether a lot is required on
+   * a posting, and `LOT_SERIAL` is declared with its flows off (D-09,
+   * `INV-0005-08`).
+   */
+  items: defineTable(
+    tenantFields({
+      /** Tenant's normalized SKU. Unique per organization by contract (§5 Q4). */
+      sku: v.string(),
+      /** Display name; may be Thai. Bilingual descriptions are a later table. */
+      name: v.string(),
+      /** The one UOM quantities are stored in (`ADR-0004`, D-08). Never changes in place. */
+      baseUom: v.string(),
+      trackingMode: itemTrackingMode,
+      status: masterDataStatus,
+    }),
+  )
+    .index("by_orgId_sku", byOrg("sku"))
+    .index("by_orgId_status_sku", byOrg("status", "sku")),
+
+  /**
+   * A physical location inside one warehouse (`G-021`).
+   *
+   * `warehouseId` is required and, by contract, never changes: `INV-0005-01`. A
+   * ledger posting proves the location belongs to the header's warehouse through
+   * this field, which is the whole reason the table exists in this slice.
+   *
+   * No `parentId`, no materialized path, no capacity, no storage class. Those are
+   * `ADR-0005`'s hierarchy model, and a `path` column nothing maintains would be
+   * worse than no column at all.
+   */
+  locations: defineTable(
+    tenantFields({
+      warehouseId: v.id("warehouses"),
+      /** Tenant's normalized code. Unique per warehouse by contract. */
+      code: v.string(),
+      locationType,
+      status: masterDataStatus,
+    }),
+  )
+    .index("by_orgId_warehouseId_code", byOrg("warehouseId", "code"))
+    .index(
+      "by_orgId_warehouseId_status_code",
+      byOrg("warehouseId", "status", "code"),
+    ),
+
+  /**
+   * A production batch of one item (`G-030`).
+   *
+   * `itemId` is required, and a posting proves the lot belongs to the line's item
+   * through it (`INV-0003-05`, `INV-0005-02`). The three business dates are here
+   * because expiry reclassification reads `expirationDate` (§5 Q19) and FEFO reads
+   * whichever the tenant configured (§5 Q23); they are `YYYY-MM-DD` strings in the
+   * organization's timezone, never instants (D-05, `G-105`).
+   */
+  lots: defineTable(
+    tenantFields({
+      itemId: v.id("items"),
+      /** Supplier or internal lot code, case preserved. Unique per item by contract. */
+      lotCode: v.string(),
+      /** `YYYY-MM-DD` business dates. Absent means the tenant did not capture one. */
+      manufactureDate: v.optional(v.string()),
+      expirationDate: v.optional(v.string()),
+      bestBeforeDate: v.optional(v.string()),
+      status: masterDataStatus,
+    }),
+  )
+    .index("by_orgId_itemId_lotCode", byOrg("itemId", "lotCode"))
+    .index("by_orgId_itemId_expirationDate", byOrg("itemId", "expirationDate")),
+
+  /**
+   * A logistic handling unit — in the MVP, a pallet (`G-024`, D-10).
+   *
+   * `currentLocationId` is the one-location invariant made storable
+   * (`INV-0005-04`): a handling unit has at most one current location, so the
+   * answer is a field rather than a set of rows a query would have to reconcile.
+   * The ledger reads it to refuse a posting that would place one unit in two
+   * places; it does not yet maintain contents, nesting, or LPN history, which are
+   * `ADR-0005` §9's transactions.
+   */
+  handlingUnits: defineTable(
+    tenantFields({
+      warehouseId: v.id("warehouses"),
+      /** LPN or SSCC, normalized. Unique per organization by contract (`INV-0005-05`). */
+      lpn: v.string(),
+      /** Where it is now, when it is anywhere. Absent for a unit not yet placed. */
+      currentLocationId: v.optional(v.id("locations")),
+      status: masterDataStatus,
+    }),
+  )
+    .index("by_orgId_lpn", byOrg("lpn"))
+    .index(
+      "by_orgId_warehouseId_status_lpn",
+      byOrg("warehouseId", "status", "lpn"),
+    ),
+
+  /**
+   * The legal owner of consigned stock (`G-054`, D-11).
+   *
+   * Declared because `ownerId` is a bucket dimension and a posting must prove the
+   * owner belongs to the tenant. Consigned stock stays **disabled** by
+   * `organizations.settings.consignedStockEnabled`, which defaults to `false`; the
+   * ledger refuses an `ownerId` while it is off, so enabling it is a settings
+   * change plus tests rather than a schema migration.
+   */
+  owners: defineTable(
+    tenantFields({
+      /** Tenant's normalized code. Unique per organization by contract. */
+      code: v.string(),
+      name: v.string(),
+      status: masterDataStatus,
+    }),
+  ).index("by_orgId_code", byOrg("code")),
+
+  /**
+   * A tenant-configured reason (`G-057`), required by an adjustment, a scrap, and
+   * a reversal (`ADR-0003` §5, plan §7.5).
+   *
+   * `scope` is closed so a code minted for scrap cannot silently become the
+   * justification for a reversal, which is the one place the reason *is* the audit
+   * evidence.
+   */
+  reasonCodes: defineTable(
+    tenantFields({
+      /** Tenant's normalized code. Unique per organization by contract. */
+      code: v.string(),
+      name: v.string(),
+      scope: reasonCodeScope,
+      status: masterDataStatus,
+    }),
+  )
+    .index("by_orgId_code", byOrg("code"))
+    .index("by_orgId_scope_code", byOrg("scope", "code")),
+
+  /* ------------------------------------------------------------------------ */
+  /* Inventory ledger and projections                                          */
+  /* ------------------------------------------------------------------------ */
+
+  /**
+   * The immutable transaction header (plan §7.4, `ADR-0003` §1).
+   *
+   * **Append-only.** No application code patches, replaces, or deletes a row here;
+   * `scripts/verify-tenant-boundary.mjs` fails the build if any production Convex
+   * file names this table in a rewriting call (`INV-0003-07`, plan §12).
+   *
+   * `requestId` plus `operation` is the idempotency namespace (`INV-0003-01`,
+   * §5 Q30). It is on the transaction as well as in `idempotencyRecords` on
+   * purpose: the record is the replay *index*, and the transaction is the replay
+   * *answer*, so a reader holding a transaction can still say which request
+   * produced it after the record's retention window has passed.
+   *
+   * `lineCount` and `conservationGroupCount` are stored facts, not conveniences: a
+   * reader that wants to know whether it has all of a transaction's lines should
+   * not have to page the lines to find out, and a reconciliation that found a
+   * different number has found real corruption rather than an incomplete read.
+   *
+   * `actorUserId` is a `v.id("users")` rather than plan §7.4's illustrative
+   * `string`, matching `auditEvents.actorUserId`. A document ID is checkable
+   * against the tenant's own mirror; an opaque string is not.
+   */
+  inventoryTransactions: defineTable(
+    tenantFields({
+      warehouseId: v.id("warehouses"),
+      type: inventoryTransactionType,
+      /** Logical operation name, part of the idempotency key. Code-owned. */
+      operation: v.string(),
+      /** Client-generated UUIDv7. Unique per `(orgId, operation)` by contract. */
+      requestId: v.string(),
+      actorUserId: v.id("users"),
+      deviceId: v.optional(v.id("devices")),
+      /** When the movement happened, in UTC milliseconds (D-05). */
+      occurredAt: v.number(),
+      /** The organization-local business date of the movement (`G-105`, D-05). */
+      businessDate: v.string(),
+      source: inventoryTransactionSource,
+      /** Set exactly when `type` is `REVERSAL`. Unique per organization by contract. */
+      reversalOfTransactionId: v.optional(v.id("inventoryTransactions")),
+      reasonCodeId: v.optional(v.id("reasonCodes")),
+      lineCount: v.number(),
+      conservationGroupCount: v.number(),
+    }),
+  )
+    // The replay check on the hot path of every posting, and the uniqueness
+    // contract the mutation owes.
+    .index("by_orgId_operation_requestId", byOrg("operation", "requestId"))
+    // History for one site, newest last. The screens in §7.3 read this.
+    .index(
+      "by_orgId_warehouseId_occurredAt",
+      byOrg("warehouseId", "occurredAt"),
+    )
+    // "Has this transaction already been reversed?" — one bounded read
+    // (`INV-0003-08`).
+    .index("by_orgId_reversalOfTransactionId", byOrg("reversalOfTransactionId"))
+    // Tenant-wide chronological paging, for reconciliation and export.
+    .index("by_orgId_occurredAt", byOrg("occurredAt")),
+
+  /**
+   * The immutable balanced postings (plan §7.4, `ADR-0003` §1).
+   *
+   * **Append-only**, enforced the same way as the header.
+   *
+   * The bucket is stored twice over: once as its nine dimensions, and once as
+   * `bucketKey`, the canonical length-prefixed encoding from
+   * `convex/model/inventory/stockIdentity.ts`. That is not redundancy for its own
+   * sake. The dimensions are what a report groups by and what a human reads; the
+   * key is what a balance row is addressed by, and a single indexed string is the
+   * only way a bucket lookup is one bounded read rather than a nine-term index that
+   * Convex would have to be given in exactly one order. The two are written
+   * together from one validated value, so they cannot disagree.
+   *
+   * `lineIndex` is the line's position in the transaction's **canonical** order
+   * (`bucketKey` ascending), not the order a client sent. That makes the stored rows
+   * a function of the transaction's content, so a replay reconstructs them
+   * identically.
+   *
+   * `locationId` and `virtualBoundary` are both optional because Convex has no
+   * dependent optionality; `locationKind` is the discriminant, and the store
+   * refuses a row whose kind and payload disagree.
+   */
+  inventoryLedgerLines: defineTable(
+    tenantFields({
+      transactionId: v.id("inventoryTransactions"),
+      /** Position in the transaction's canonical line order, from 0. */
+      lineIndex: v.number(),
+      /** Denormalized from the header so a bucket history read needs one table. */
+      warehouseId: v.id("warehouses"),
+      occurredAt: v.number(),
+      itemId: v.id("items"),
+      locationKind: ledgerLocationKind,
+      /** Present exactly when `locationKind` is `PHYSICAL`. */
+      locationId: v.optional(v.id("locations")),
+      /** Present exactly when `locationKind` is `VIRTUAL`. */
+      virtualBoundary: v.optional(virtualBoundaryCode),
+      lotId: v.optional(v.id("lots")),
+      /** Serial-ready and unused: serial flows are off (D-09, `INV-0005-08`). */
+      serialId: v.optional(v.string()),
+      handlingUnitId: v.optional(v.id("handlingUnits")),
+      ownerId: v.optional(v.id("owners")),
+      stockStatus,
+      /** The canonical bucket encoding. See the note above. */
+      bucketKey: v.string(),
+      /** The conservation group this line balances within (`INV-0003-02`). */
+      conservationKey: v.string(),
+      /** Signed, non-zero, integer thousandths of the item's base UOM. */
+      quantity: signedQuantity,
+    }),
+  )
+    // The lines of one transaction, in canonical order. Also the uniqueness
+    // contract for `(transactionId, lineIndex)`.
+    .index(
+      "by_orgId_transactionId_lineIndex",
+      byOrg("transactionId", "lineIndex"),
+    )
+    // Replay of one bucket, oldest first: what reconciliation pages.
+    .index("by_orgId_bucketKey_occurredAt", byOrg("bucketKey", "occurredAt"))
+    // Item and lot history for the inventory screens (`inventory.history.read`).
+    .index(
+      "by_orgId_warehouseId_itemId_occurredAt",
+      byOrg("warehouseId", "itemId", "occurredAt"),
+    ),
+
+  /**
+   * The materialized current balance of one bucket (`ADR-0003` §6, §5 Q21).
+   *
+   * Written **only** inside the ledger posting transaction, and only by
+   * `convex/lib/inventoryLedgerStore.ts`: there is no public function that sets,
+   * edits, or deletes a balance (`INV-0003-11`), and
+   * `scripts/verify-tenant-boundary.mjs` fails the build if any other production
+   * file inserts, patches, or deletes here.
+   *
+   * A bucket emptied to zero keeps its row. Deleting would need the delete path
+   * `INV-0003-11` forbids, and omitting would make "never used" and "emptied"
+   * indistinguishable to the reconciliation that exists to tell them apart.
+   *
+   * Narrow on purpose: one row per bucket, and no aggregate anywhere in this table.
+   * A global counter document is the contention failure plan §13 names, and
+   * dashboard rollups come from the Aggregate component instead (`ADR-0011`).
+   */
+  inventoryBalances: defineTable(
+    tenantFields({
+      /** The canonical bucket encoding. Unique per organization by contract. */
+      bucketKey: v.string(),
+      warehouseId: v.id("warehouses"),
+      itemId: v.id("items"),
+      locationKind: ledgerLocationKind,
+      locationId: v.optional(v.id("locations")),
+      virtualBoundary: v.optional(virtualBoundaryCode),
+      lotId: v.optional(v.id("lots")),
+      serialId: v.optional(v.string()),
+      handlingUnitId: v.optional(v.id("handlingUnits")),
+      ownerId: v.optional(v.id("owners")),
+      stockStatus,
+      /** Signed; zero is a real, retained value. */
+      quantity: signedQuantity,
+      /** The transaction that last moved this bucket, for explainability. */
+      lastTransactionId: v.id("inventoryTransactions"),
+      updatedAt: v.number(),
+    }),
+  )
+    // The posting path's lookup, and the uniqueness contract it owes.
+    .index("by_orgId_bucketKey", byOrg("bucketKey"))
+    // Bounded pages for reconciliation and for a warehouse's balance screen.
+    .index("by_orgId_warehouseId_bucketKey", byOrg("warehouseId", "bucketKey"))
+    // "What is on hand for this item, in this status, at this site" — the
+    // question `inventory.balance.read` answers.
+    .index(
+      "by_orgId_warehouseId_itemId_stockStatus",
+      byOrg("warehouseId", "itemId", "stockStatus"),
+    ),
 });
 
 export default schema;

@@ -103,6 +103,7 @@ export const PERMISSION_CATALOGUE = Object.freeze([
   permission("putaway.policy.manage", "WAREHOUSE", ["STEP_UP"]),
   permission("inventory.balance.read", "WAREHOUSE"),
   permission("inventory.history.read", "WAREHOUSE"),
+  permission("inventory.transaction.post", "WAREHOUSE"),
   permission("inventory.statusChange.submit", "WAREHOUSE"),
   permission("inventory.statusChange.approve", "WAREHOUSE", ["MAKER_CHECKER"]),
   permission("inventory.transaction.reverse", "WAREHOUSE", [
@@ -211,6 +212,7 @@ export const DEFAULT_ROLES: readonly DefaultRoleDefinition[] = Object.freeze([
       "putaway.policy.manage",
       "inventory.balance.read",
       "inventory.history.read",
+      "inventory.transaction.post",
       "inventory.statusChange.submit",
       "inventory.statusChange.approve",
       "inventory.transaction.reverse",
@@ -264,6 +266,7 @@ export const DEFAULT_ROLES: readonly DefaultRoleDefinition[] = Object.freeze([
       "putaway.task.override",
       "inventory.balance.read",
       "inventory.history.read",
+      "inventory.transaction.post",
       "inventory.statusChange.submit",
       "inventory.statusChange.approve",
       "reporting.dashboard.read",

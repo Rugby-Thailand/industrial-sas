@@ -257,3 +257,164 @@ export const organizationSettings = v.object({
   supportGrantsEnabled: v.boolean(),
 });
 export type OrganizationSettings = Infer<typeof organizationSettings>;
+
+/* -------------------------------------------------------------------------- */
+/* Inventory: reference data                                                   */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Lifecycle of a minimal reference row (item, location, lot, handling unit,
+ * owner, reason code).
+ *
+ * One validator for six tables rather than six near-identical ones. These rows
+ * exist in this slice for a single purpose — proving that a ledger line's
+ * references belong to the active organization and to each other
+ * (`INV-0003-04`, `INV-0003-05`) — so the only lifecycle question the ledger asks
+ * is "may this still be posted against". The fuller master-data model
+ * (`ADR-0005`: hierarchy, capacity, storage classes, LPN lifecycle) brings its own
+ * states with it.
+ */
+export const masterDataStatus = v.union(
+  v.literal("ACTIVE"),
+  v.literal("INACTIVE"),
+);
+export type MasterDataStatus = Infer<typeof masterDataStatus>;
+
+/**
+ * SKU tracking mode (D-09, B-06). `LOT_SERIAL` is declared and its flows stay
+ * disabled (`INV-0005-08`); declaring it now is what keeps enabling serials from
+ * re-keying the ledger later.
+ */
+export const itemTrackingMode = v.union(
+  v.literal("NONE"),
+  v.literal("LOT"),
+  v.literal("LOT_SERIAL"),
+);
+export type ItemTrackingMode = Infer<typeof itemTrackingMode>;
+
+/**
+ * Semantic classification of a physical location (`G-022`, §5 Q22).
+ *
+ * Deliberately excludes the glossary's "virtual boundary": a boundary is a
+ * code-owned constant in `convex/model/inventory/stockIdentity.ts`, not a row
+ * (`ADR-0003` §2). A tenant that could deactivate or re-parent the counterparty
+ * the ledger balances against could make its own history unbalanced.
+ */
+export const locationType = v.union(
+  v.literal("DOCK"),
+  v.literal("STAGING"),
+  v.literal("RACK_BIN"),
+  v.literal("FLOOR_BLOCK"),
+  v.literal("QUARANTINE"),
+  v.literal("OVERFLOW"),
+);
+export type LocationType = Infer<typeof locationType>;
+
+/** What a reason code may be cited for. Closed, so a code cannot drift in use. */
+export const reasonCodeScope = v.union(
+  v.literal("ADJUSTMENT"),
+  v.literal("SCRAP"),
+  v.literal("REVERSAL"),
+  v.literal("STATUS_CHANGE"),
+);
+export type ReasonCodeScope = Infer<typeof reasonCodeScope>;
+
+/* -------------------------------------------------------------------------- */
+/* Inventory: ledger                                                           */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The quality/availability dimension of an inventory bucket (`G-053`, D-11).
+ *
+ * Must stay identical to `STOCK_STATUSES` in
+ * `convex/model/inventory/stockIdentity.ts`, which is where the domain meaning
+ * lives. The two are asserted equal by
+ * `tests/integration/schema-contracts.integration.test.ts` rather than derived
+ * from one another, because deriving would mean this file importing a pure module
+ * or that pure module importing `convex/values` — and plan §6.2 forbids the
+ * second.
+ */
+export const stockStatus = v.union(
+  v.literal("AVAILABLE"),
+  v.literal("QC_HOLD"),
+  v.literal("QUARANTINE"),
+  v.literal("REJECTED"),
+  v.literal("SCRAP"),
+  v.literal("EXPIRED"),
+);
+export type StockStatusValue = Infer<typeof stockStatus>;
+
+/**
+ * Whether a ledger line sits inside the warehouse or on a virtual boundary
+ * (`ADR-0003` §2, `G-023`).
+ *
+ * A discriminant, not an inference from which of `locationId`/`virtualBoundary` is
+ * present. Both fields are optional in the schema — Convex has no dependent
+ * optionality — so the kind is the field that decides, and the store refuses a row
+ * whose kind and payload disagree.
+ */
+export const ledgerLocationKind = v.union(
+  v.literal("PHYSICAL"),
+  v.literal("VIRTUAL"),
+);
+export type LedgerLocationKindValue = Infer<typeof ledgerLocationKind>;
+
+/** Code-owned counterparties outside the warehouse. Mirrors `VIRTUAL_BOUNDARIES`. */
+export const virtualBoundaryCode = v.union(
+  v.literal("SUPPLIER_RECEIPT"),
+  v.literal("CUSTOMER_SHIPMENT"),
+  v.literal("PRODUCTION_ISSUE"),
+  v.literal("PRODUCTION_RECEIPT"),
+  v.literal("INVENTORY_ADJUSTMENT"),
+  v.literal("SCRAP_DAMAGE"),
+  v.literal("RECONCILIATION"),
+);
+export type VirtualBoundaryCodeValue = Infer<typeof virtualBoundaryCode>;
+
+/** What kind of movement a transaction records. Mirrors `INVENTORY_TRANSACTION_TYPES`. */
+export const inventoryTransactionType = v.union(
+  v.literal("RECEIPT"),
+  v.literal("PUTAWAY"),
+  v.literal("MOVE"),
+  v.literal("STATUS_CHANGE"),
+  v.literal("ADJUSTMENT"),
+  v.literal("SCRAP"),
+  v.literal("SHIPMENT"),
+  v.literal("PRODUCTION_ISSUE"),
+  v.literal("PRODUCTION_RECEIPT"),
+  v.literal("REVERSAL"),
+);
+export type InventoryTransactionTypeValue = Infer<
+  typeof inventoryTransactionType
+>;
+
+/**
+ * Where a transaction came from (plan §7.4 `source`).
+ *
+ * A tag and an opaque reference, both strings, deliberately not a document ID: the
+ * originating aggregate may be a purchase order, a putaway task, a cycle count, a
+ * scheduled job, or an imported file, and a `v.id()` would have to name one table.
+ * The store validates the shape; the pure model validates the grammar.
+ */
+export const inventoryTransactionSource = v.object({
+  type: v.string(),
+  id: v.string(),
+});
+export type InventoryTransactionSource = Infer<
+  typeof inventoryTransactionSource
+>;
+
+/**
+ * A signed quantity in integer thousandths of an item's base UOM (`ADR-0004`,
+ * D-08, B-12).
+ *
+ * Signed because a ledger line is a signed posting and a reversal is its negation.
+ * Never a float, and never a decimal string: `minorUnits` is the whole value and
+ * `uom` is the unit it is counted in. The magnitude bound is the pure module's
+ * (`MAX_QUANTITY_MINOR_UNITS`), because a schema validator cannot express it.
+ */
+export const signedQuantity = v.object({
+  uom: v.string(),
+  minorUnits: v.number(),
+});
+export type SignedQuantity = Infer<typeof signedQuantity>;

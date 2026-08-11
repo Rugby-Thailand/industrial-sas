@@ -101,6 +101,7 @@ pids/
 .parcel-cache/
 .vercel/
 .sentryclirc
+graphify-out/
 
 # ---------------------------------------------------------------------------
 # Editors and IDEs
