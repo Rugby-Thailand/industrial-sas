@@ -110,7 +110,7 @@
     "systemHeading": "System state",
     "entryHeading": "Start work",
     "capabilityHeading": "What works today",
-    "capabilityBody": "Only the ledger read paths exist in this milestone: balances and transaction history. Receiving, quality control, pallet building, label printing, and putaway are not built.",
+    "capabilityBody": "Local preview includes inventory reads, master data, purchase orders, receiving, quality control, pallet and label evidence, putaway, operations counters, occupancy, and CSV exports. Real tenant data remains blocked until identity and external services are configured.",
     "balancesCard": "Read current balances for the selected warehouse.",
     "historyCard": "Read the immutable record of posted movements.",
     "handheldCard": "Open the handheld shell.",

@@ -113,4 +113,21 @@ describe("messagesFor", () => {
     expect(messagesFor("xx")).toBe(ALL_CATALOGUES[DEFAULT_LOCALE]);
     expect(DEFAULT_LOCALE).toBe("th");
   });
+
+  it("describes the implemented inbound and reporting surfaces on the dashboard", () => {
+    expect(ALL_CATALOGUES.en.Dashboard.capabilityBody).toContain("receiving");
+    expect(ALL_CATALOGUES.en.Dashboard.capabilityBody).toContain("CSV exports");
+    expect(ALL_CATALOGUES.en.Dashboard.capabilityBody).not.toContain(
+      "are not built",
+    );
+    expect(ALL_CATALOGUES.th.Dashboard.capabilityBody).toContain(
+      "การรับสินค้า",
+    );
+    expect(ALL_CATALOGUES.th.Dashboard.capabilityBody).toContain(
+      "การส่งออก CSV",
+    );
+    expect(ALL_CATALOGUES.th.Dashboard.capabilityBody).not.toContain(
+      "ยังไม่ได้พัฒนา",
+    );
+  });
 });
