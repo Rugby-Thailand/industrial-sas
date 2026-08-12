@@ -16,12 +16,17 @@ import { describe, expect, it } from "vitest";
 
 import { generateLabel } from "../../convex/labels/print";
 import { listReceivingLocations } from "../../convex/masterData/catalogue";
+import { DEFAULT_PUTAWAY_WEIGHTS } from "../../convex/model/inbound/putawayScoring";
 import {
   addPurchaseOrderLine,
   createPurchaseOrder,
   listPurchaseOrders,
 } from "../../convex/purchasing/orders";
-import { claimPutawayTask, listPutawayTasks } from "../../convex/putaway/tasks";
+import {
+  claimPutawayTask,
+  confirmPutaway,
+  listPutawayTasks,
+} from "../../convex/putaway/tasks";
 import { submitDisposition } from "../../convex/quality/inspections";
 import {
   openReceipt,
@@ -734,6 +739,117 @@ describe("a request authorized for one warehouse cannot write another's", () => 
     const task = await world.t.run(async (ctx) => await ctx.db.get(taskId));
     expect(task?.status).toBe("READY");
     expect(task?.claimedByUserId).toBeUndefined();
+  });
+
+  it("refuses to confirm a task in the tenant's other warehouse", async () => {
+    /*
+     * The confirmation is the half of the pair that *posts*, and the task below
+     * is seeded already `CLAIMED` by this very actor, with a stored trace whose
+     * top rank is the chosen location: holder, trace, and override all pass, so
+     * the site guard is the check that answers.
+     *
+     * It has to be this guard and not the ledger's. Drop it and the posting's own
+     * `LOCATION_WAREHOUSE_MISMATCH` still refuses the write — but only after
+     * naming which constraint the other warehouse's row broke, which is the
+     * disclosure `INV-0006-04` and `INV-0002-03` exist to prevent. A task at
+     * another site must answer exactly as one that does not exist.
+     */
+    const world = await createConvexInventoryWorld();
+    const seeded = await world.t.run(async (ctx) => {
+      const rack = await ctx.db.insert("locations", {
+        orgId: world.orgA,
+        warehouseId: world.warehouses.bravoA,
+        code: "RACK-01",
+        locationType: "RACK_BIN",
+        status: "ACTIVE",
+      });
+      const transactionId = await ctx.db.insert("inventoryTransactions", {
+        orgId: world.orgA,
+        warehouseId: world.warehouses.bravoA,
+        type: "RECEIPT",
+        operation: "seed",
+        requestId: requestId("seed_wh_confirm"),
+        actorUserId: world.userA,
+        occurredAt: Date.now(),
+        businessDate: "2026-08-11",
+        source: { type: "SEED", id: "6" },
+        lineCount: 0,
+        conservationGroupCount: 0,
+      });
+      const receiptId = await ctx.db.insert("receipts", {
+        orgId: world.orgA,
+        warehouseId: world.warehouses.bravoA,
+        receiptNumber: "GRN-A-BRAVO-3",
+        receivedByUserId: world.userA,
+        occurredAt: Date.now(),
+        businessDate: "2026-08-11",
+      });
+      const receiptLineId = await ctx.db.insert("receiptLines", {
+        orgId: world.orgA,
+        receiptId,
+        itemId: world.a.untrackedItem,
+        locationId: world.a.otherWarehouseLocation,
+        capturedQuantity: { uom: FIXTURE_UOM, minorUnits: 2_000 },
+        baseMinorUnits: 2_000,
+        kind: "ORDERED",
+        classification: "COMPLETE",
+        stockStatus: "AVAILABLE",
+        transactionId,
+        overToleranceApproved: false,
+      });
+      const taskId = await ctx.db.insert("putawayTasks", {
+        orgId: world.orgA,
+        warehouseId: world.warehouses.bravoA,
+        receiptLineId,
+        itemId: world.a.untrackedItem,
+        baseMinorUnits: 2_000,
+        fromLocationId: world.a.otherWarehouseLocation,
+        status: "CLAIMED",
+        claimedByUserId: world.userA,
+        claimedAt: Date.now(),
+        recommendedLocationId: rack,
+        recommendationTrace: JSON.stringify({
+          ranked: [
+            {
+              locationId: rack,
+              code: "RACK-01",
+              score: 0,
+              components: [],
+              viaOverflow: false,
+            },
+          ],
+          rejected: [],
+          filtersApplied: [],
+          weights: DEFAULT_PUTAWAY_WEIGHTS,
+        }),
+      });
+      return { rack, taskId };
+    });
+
+    const result = value(
+      await callAs(world, "a", confirmPutaway, {
+        requestId: requestId("confirm_wh_cross"),
+        warehouseId: world.warehouses.alphaA,
+        putawayTaskId: seeded.taskId,
+        chosenLocationId: seeded.rack,
+      }),
+    );
+
+    expect(result["written"]).toBe(false);
+    expect(errorOf(result).code).toBe("NOT_FOUND");
+
+    const task = await world.t.run(
+      async (ctx) => await ctx.db.get(seeded.taskId),
+    );
+    expect(task?.status).toBe("CLAIMED");
+    expect(task?.chosenLocationId).toBeUndefined();
+    expect(task?.transactionId).toBeUndefined();
+
+    // Nothing posted: the seed transaction is still the only one in the world.
+    const transactions = await world.t.run(
+      async (ctx) => await ctx.db.query("inventoryTransactions").collect(),
+    );
+    expect(transactions.map((row) => row.operation)).toEqual(["seed"]);
   });
 });
 
