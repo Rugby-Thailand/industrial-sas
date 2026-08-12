@@ -76,6 +76,8 @@ export interface MasterDataPanelProps<Row, Args extends QueryArgs> {
   /** Synthetic rows for the same shape, used only in preview mode. */
   readonly previewRowsFor: (warehouseId: string) => readonly Row[];
   readonly renderRows: (rows: readonly Row[]) => ReactNode;
+  /** Distinguishes multiple pagers when several panels share one screen. */
+  readonly paginationLabel?: string;
 }
 
 export function MasterDataPanel<Row, Args extends QueryArgs>(
@@ -109,6 +111,7 @@ function PagedMasterData<Row, Args extends QueryArgs>({
   buildArgs,
   previewRowsFor,
   renderRows,
+  paginationLabel,
   warehouseId,
   environment,
 }: MasterDataPanelProps<Row, Args> & {
@@ -126,6 +129,7 @@ function PagedMasterData<Row, Args extends QueryArgs>({
       onAdvance={(next) => setCursorState((current) => advance(current, next))}
       onRetreat={() => setCursorState((current) => retreat(current))}
       renderRows={renderRows}
+      {...(paginationLabel === undefined ? {} : { paginationLabel })}
     />
   );
 
@@ -224,12 +228,14 @@ function MasterDataBody<Row>({
   onAdvance,
   onRetreat,
   renderRows,
+  paginationLabel,
 }: {
   readonly state: LedgerPanelState<Row>;
   readonly cursorState: CursorState;
   readonly onAdvance: (nextCursor: string | null) => void;
   readonly onRetreat: () => void;
   readonly renderRows: (rows: readonly Row[]) => ReactNode;
+  readonly paginationLabel?: string;
 }) {
   const panelT = useTranslations("Panel");
   const pagingT = useTranslations("Pagination");
@@ -246,7 +252,7 @@ function MasterDataBody<Row>({
     <div className="flex flex-col gap-4">
       {renderRows(state.rows)}
       <nav
-        aria-label={pagingT("pagination")}
+        aria-label={paginationLabel ?? pagingT("pagination")}
         className="flex flex-wrap items-center justify-between gap-3"
       >
         <p className="text-sm text-muted">

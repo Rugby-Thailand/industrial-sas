@@ -37,6 +37,7 @@ export const ROUTES = Object.freeze({
   labelTemplates: "/master-data/label-templates",
   locations: "/master-data/locations",
   purchaseOrders: "/purchasing/orders",
+  inboundBoard: "/inbound",
   purchaseImport: "/purchasing/import",
   receiving: "/receiving",
   quality: "/quality",
@@ -72,6 +73,7 @@ export const DESKTOP_NAVIGATION: readonly NavigationSection[] = Object.freeze([
     labelKey: "sectionInbound",
     items: Object.freeze([
       { href: ROUTES.purchaseOrders, labelKey: "purchaseOrders" },
+      { href: ROUTES.inboundBoard, labelKey: "inboundBoard" },
       { href: ROUTES.purchaseImport, labelKey: "purchaseImport" },
       { href: ROUTES.receiving, labelKey: "receiving" },
       { href: ROUTES.quality, labelKey: "quality" },

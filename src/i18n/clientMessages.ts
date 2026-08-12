@@ -125,6 +125,14 @@ export const ROUTE_NAMESPACES = {
     "Table",
     "TransactionType",
   ],
+  "(desktop)/inbound": [
+    "InboundBoard",
+    "InspectionStatus",
+    "Pagination",
+    "Panel",
+    "PurchaseOrderStatus",
+    "PutawayTaskStatus",
+  ],
   "(desktop)/master-data": [
     "BarcodeKind",
     "LabelTemplateStatus",
