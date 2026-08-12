@@ -44,6 +44,7 @@
  * is a real cost (`INV-0010-08`).
  */
 import { useTranslations } from "next-intl";
+import { Menu, X } from "lucide-react";
 import { type ReactNode } from "react";
 
 import { ConnectionIndicator } from "@/components/system/ConnectionIndicator";
@@ -109,10 +110,10 @@ export function DesktopShell({ children }: { readonly children: ReactNode }) {
         </div>
       </header>
 
-      <div className="flex flex-1 flex-col lg:flex-row">
+      <div className="flex min-w-0 flex-1 flex-col lg:flex-row">
         <NavigationRegion />
 
-        <main id={MAIN_ID} className="flex-1 p-4 lg:p-6">
+        <main id={MAIN_ID} className="min-w-0 flex-1 p-4 lg:p-6">
           {children}
         </main>
       </div>
@@ -126,8 +127,11 @@ export function DesktopShell({ children }: { readonly children: ReactNode }) {
  * Bound to `openMobile` explicitly rather than through the registry's
  * `toggleSidebar`, which branches on viewport width. The desktop rail is not
  * collapsible here, so a single meaning for "expanded" is the honest one: the
- * sheet is open or it is not. `aria-controls` is dropped while the tree is
- * absent from the document rather than left pointing at an id nothing has.
+ * sheet is open or it is not. The visible control is the conventional
+ * hamburger/close icon so it does not compete with the product name in the
+ * compact header; its localized accessible name still says the action in full.
+ * `aria-controls` is dropped while the tree is absent from the document rather
+ * than left pointing at an id nothing has.
  */
 function NavigationDisclosure() {
   const t = useTranslations("Navigation");
@@ -138,12 +142,18 @@ function NavigationDisclosure() {
     <Button
       type="button"
       variant="outline"
+      size="icon"
       className="lg:hidden"
+      aria-label={openMobile ? t("closeMenu") : t("openMenu")}
       aria-expanded={openMobile}
       {...(present ? { "aria-controls": NAV_ID } : {})}
       onClick={() => setOpenMobile(!openMobile)}
     >
-      {openMobile ? t("closeMenu") : t("openMenu")}
+      {openMobile ? (
+        <X aria-hidden="true" className="size-6" />
+      ) : (
+        <Menu aria-hidden="true" className="size-6" />
+      )}
     </Button>
   );
 }

@@ -779,6 +779,22 @@ const orderValidator = v.object({
   externalRef: v.optional(v.string()),
 });
 
+/**
+ * `baseUom` is the item's own base unit, and it is on the wire because two of
+ * the three quantities on a line are measured in it.
+ *
+ * A line carries `orderedQuantity` in the unit the order was written in — cases,
+ * usually — and `orderedBaseMinorUnits` and `receivedBaseMinorUnits` in the
+ * item's base unit. Without the base unit's code, a screen can label the first
+ * and not the other two, which is how the order detail came to show "40.000
+ * CASE" ordered against a bare "0" received: the same column heading, two
+ * different units, one of them unstated.
+ *
+ * Optional because it is read from a second document. A line whose item cannot
+ * be read is a dangling reference, and answering the rest of the page without a
+ * unit is better than refusing the page: the screen shows the marker it shows
+ * for any unrenderable value rather than an unlabelled figure.
+ */
 const orderLineValidator = v.object({
   purchaseOrderLineId: v.id("purchaseOrderLines"),
   purchaseOrderId: v.id("purchaseOrders"),
@@ -787,6 +803,7 @@ const orderLineValidator = v.object({
   orderedQuantity: signedQuantity,
   orderedBaseMinorUnits: v.number(),
   receivedBaseMinorUnits: v.number(),
+  baseUom: v.optional(v.string()),
   status: purchaseOrderLineStatus,
 });
 
@@ -934,18 +951,39 @@ export const listPurchaseOrderLines = queryWithOrg({
           : { cursor: request.value.cursor }),
       });
 
+    /*
+     * The base unit of each distinct item on the page, read once per item.
+     *
+     * A page is capped at `MAX_JOB_PAGE_SIZE`, and the lines of one order name
+     * far fewer items than they have rows, so this is a small bounded number of
+     * document reads. It is what lets the screen say which unit the received and
+     * outstanding figures are in (see `orderLineValidator`). An item that cannot
+     * be read is recorded as "no unit" rather than re-read on every line that
+     * names it.
+     */
+    const baseUomByItemId = new Map<string, string | undefined>();
+    for (const line of page.page) {
+      if (baseUomByItemId.has(line.itemId)) continue;
+      const item = await ctx.tenantDb.get<ItemDocument>("items", line.itemId);
+      baseUomByItemId.set(line.itemId, item?.baseUom);
+    }
+
     return {
       ok: true as const,
-      items: page.page.map((line) => ({
-        purchaseOrderLineId: line._id as never,
-        purchaseOrderId: line.purchaseOrderId as never,
-        lineNumber: line.lineNumber,
-        itemId: line.itemId as never,
-        orderedQuantity: line.orderedQuantity,
-        orderedBaseMinorUnits: line.orderedBaseMinorUnits,
-        receivedBaseMinorUnits: line.receivedBaseMinorUnits,
-        status: line.status as never,
-      })),
+      items: page.page.map((line) => {
+        const baseUom = baseUomByItemId.get(line.itemId);
+        return {
+          purchaseOrderLineId: line._id as never,
+          purchaseOrderId: line.purchaseOrderId as never,
+          lineNumber: line.lineNumber,
+          itemId: line.itemId as never,
+          orderedQuantity: line.orderedQuantity,
+          orderedBaseMinorUnits: line.orderedBaseMinorUnits,
+          receivedBaseMinorUnits: line.receivedBaseMinorUnits,
+          ...(baseUom === undefined ? {} : { baseUom }),
+          status: line.status as never,
+        };
+      }),
       nextCursor: page.isDone ? null : page.continueCursor,
       complete: page.isDone,
     };

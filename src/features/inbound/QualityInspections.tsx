@@ -119,6 +119,7 @@ export function DispositionForm({
                   label: t("fieldDisposition"),
                   kind: "select",
                   required: true,
+                  placeholder: t("selectDisposition"),
                   options: (
                     [
                       "RELEASE",
@@ -134,6 +135,7 @@ export function DispositionForm({
                   label: writeT("reasonCodeLabel"),
                   kind: "select",
                   required: true,
+                  placeholder: writeT("selectReasonCode"),
                   options: reasons.map((reason) => ({
                     value: reason.reasonCodeId,
                     label: `${reason.code} · ${reason.name}`,

@@ -49,6 +49,26 @@ describe("SetupChecklist", () => {
     ).toBeInTheDocument();
   });
 
+  it("leaves the introduction to whichever screen mounted it", () => {
+    /*
+     * The setup page states `Setup.intro` in its header, the dashboard states it
+     * above its system-state section, and the sign-in page explains itself in
+     * its own notice. The checklist repeating it printed the same sentence twice
+     * on the same screen — the P2 finding. The rows below still carry the whole
+     * of what is missing, so nothing was lost with it.
+     */
+    const { container } = renderWithIntl(<SetupChecklist />, {
+      environment: unconfiguredEnvironment,
+    });
+
+    expect(container.textContent).not.toContain(
+      "แอปพลิเคชันนี้ต้องพึ่งบริการภายนอกที่ยังไม่ได้กำหนดค่าในเครื่องนี้",
+    );
+    expect(container.textContent).toContain(
+      "คัดลอก .env.example ไปเป็น .env.local",
+    );
+  });
+
   it("names no secret value, only variable names", () => {
     const { container } = renderWithIntl(<SetupChecklist />, {
       environment: configuredEnvironment,

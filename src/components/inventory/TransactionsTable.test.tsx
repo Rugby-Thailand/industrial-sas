@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { renderWithIntl } from "../../../tests/fixtures/intl-render";
@@ -73,5 +73,28 @@ describe("TransactionsTable", () => {
     );
 
     expect(container.textContent).not.toContain("2569");
+  });
+
+  it("puts the scroller in a named region a keyboard can reach", () => {
+    // Five columns, two of them timestamps: this is the history screen's own
+    // version of the trailing-content finding, and it had no cue and no tab stop.
+    renderWithIntl(<TransactionsTable rows={[original]} />);
+
+    const caption = "รายการเคลื่อนไหว 1 รายการ";
+    const region = screen.getByRole("region", { name: caption });
+    expect(region).toHaveAttribute("tabindex", "0");
+    expect(region).toHaveClass("overflow-x-auto");
+    expect(
+      within(region).getByRole("table", { name: caption }),
+    ).toBeInTheDocument();
+  });
+
+  it("tells a narrow screen that the columns continue past the edge", () => {
+    renderWithIntl(<TransactionsTable rows={[original]} />);
+
+    const hint = screen.getByText(
+      "เลื่อนตารางไปทางซ้าย-ขวาเพื่อดูคอลัมน์ที่เหลือ",
+    );
+    expect(hint).toHaveClass("@2xl/table:hidden");
   });
 });

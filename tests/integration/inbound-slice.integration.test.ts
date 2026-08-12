@@ -23,6 +23,7 @@ import {
   applyPurchaseOrderImportChunk,
   closeLineShort,
   createPurchaseOrder,
+  listPurchaseOrderLines,
   previewPurchaseOrderImport,
 } from "../../convex/purchasing/orders";
 import {
@@ -38,6 +39,7 @@ import {
 } from "../../convex/quality/inspections";
 import {
   buildHandlingUnit,
+  listReceipts,
   openReceipt,
   postExceptionReceiptLine,
   postReceiptLine,
@@ -1300,6 +1302,31 @@ describe("putaway", () => {
     expect(taskId).toBeDefined();
   });
 
+  it("gives each task the base unit its quantity is counted in", async () => {
+    /*
+     * A board at one site holds kilograms of coil, litres of resin, and eaches
+     * of carton in the same column, so `baseMinorUnits` without its unit is
+     * three measures rendered as one — the visual audit's finding. The unit is
+     * the item's, so the read joins it exactly as the order lines do.
+     */
+    const world = await createConvexInventoryWorld();
+    await readyTask(world);
+
+    const page = value(
+      await call(world, listPutawayTasks, {
+        warehouseId: world.warehouses.alphaA,
+      }),
+    );
+    const tasks = page["items"] as {
+      baseMinorUnits: number;
+      baseUom?: string;
+    }[];
+
+    expect(tasks).toHaveLength(1);
+    expect(tasks[0]?.baseUom).toBe(FIXTURE_UOM);
+    expect(tasks[0]?.baseMinorUnits).toBe(20_000);
+  });
+
   it("recommends a rack and never the dock it is sitting on", async () => {
     // Stock left on a working surface has not been put away; a recommendation
     // that offered one would let the task complete without the pallet moving.
@@ -1545,5 +1572,95 @@ describe("putaway", () => {
       }),
     );
     expect((ready["items"] as unknown[]).length).toBe(1);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* What the screens read                                                       */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Two fields that exist for a screen rather than for the domain, and are
+ * therefore easy to drop: the unit a line's base quantities are counted in, and
+ * the order number a receipt was posted against.
+ *
+ * Both are joins — the item document and the order document — so neither can be
+ * asserted from the row's own table, and both are what the visual audit found
+ * missing: a bare `0` under "Received" beside `40.000 CASE` ordered, and
+ * `prv_po_2601` where the register says `PO-2601`.
+ */
+describe("screen-facing read shapes", () => {
+  it("gives each order line the base unit its received figure is counted in", async () => {
+    const world = await createConvexInventoryWorld();
+    const seeded = await seedInbound(world);
+    const { purchaseOrderId } = await openOrderWithLine(world, seeded);
+
+    const page = value(
+      await call(world, listPurchaseOrderLines, {
+        warehouseId: world.warehouses.alphaA,
+        purchaseOrderId,
+      }),
+    );
+    const lines = page["items"] as {
+      baseUom?: string;
+      orderedQuantity: { uom: string };
+    }[];
+
+    expect(lines).toHaveLength(1);
+    expect(lines[0]?.baseUom).toBe(FIXTURE_UOM);
+    // The ordered unit is still the unit the order was written in; the two are
+    // separate facts even when a fixture makes them the same string.
+    expect(lines[0]?.orderedQuantity.uom).toBe(FIXTURE_UOM);
+  });
+
+  it("gives each receipt the order number, not only the order's identifier", async () => {
+    const world = await createConvexInventoryWorld();
+    const seeded = await seedInbound(world);
+    const { purchaseOrderId } = await openOrderWithLine(world, seeded);
+    await openReceiptFor(world, purchaseOrderId, "GRN-READ-1");
+
+    const page = value(
+      await call(world, listReceipts, {
+        warehouseId: world.warehouses.alphaA,
+      }),
+    );
+    const receipts = page["items"] as {
+      receiptNumber: string;
+      purchaseOrderId?: string;
+      poNumber?: string;
+    }[];
+
+    expect(receipts).toHaveLength(1);
+    expect(receipts[0]?.poNumber).toBe("PO-1001");
+    expect(receipts[0]?.purchaseOrderId).toBe(purchaseOrderId);
+  });
+
+  it("leaves the order number absent on a blind receipt", async () => {
+    // A blind receipt has no order behind it, so there is no number to join to
+    // and nothing is invented in its place.
+    const world = await createConvexInventoryWorld();
+    await seedInbound(world);
+
+    okWrite(
+      await call(world, openReceipt, {
+        requestId: requestId("receipt_blind_read"),
+        warehouseId: world.warehouses.alphaA,
+        receiptNumber: "GRN-BLIND-1",
+      }),
+    );
+
+    const page = value(
+      await call(world, listReceipts, {
+        warehouseId: world.warehouses.alphaA,
+      }),
+    );
+    const receipts = page["items"] as {
+      poNumber?: string;
+      purchaseOrderId?: string;
+    }[];
+
+    expect(receipts).toHaveLength(1);
+    expect(receipts[0]?.poNumber).toBeUndefined();
+    expect(receipts[0]?.purchaseOrderId).toBeUndefined();
   });
 });

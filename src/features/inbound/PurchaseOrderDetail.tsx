@@ -85,7 +85,16 @@ export function PurchaseOrderDetail({
         </div>
       )}
 
-      <InboundSection title={t("linesCaption", { count: 0 })}>
+      {/*
+       * The heading names the section; the table's own caption carries the
+       * count. It used to be `linesCaption` with a hard-coded `{count: 0}`,
+       * which read "0 lines" above a table of two: the rows are fetched by the
+       * panel below, so nothing at this level ever knew how many there were, and
+       * a heading cannot wait for a read it does not perform. Two statements of
+       * one number is a contradiction waiting to happen even when both are
+       * right, so there is now one — in the caption, next to the rows it counts.
+       */}
+      <InboundSection title={t("sectionLines")}>
         <PurchaseOrderLinesPanel
           purchaseOrderId={purchaseOrderId}
           renderAction={(row) =>

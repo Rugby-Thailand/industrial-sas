@@ -51,6 +51,10 @@ export default async function DashboardPage({
   const { locale } = await params;
   setRequestLocale(locale);
   const t = await getTranslations("Dashboard");
+  // The checklist itself no longer opens with this sentence, because the setup
+  // page states it in its header and printing it twice on one screen is what the
+  // audit found. The section that mounts the checklist here supplies it instead.
+  const setupT = await getTranslations("Setup");
 
   const entries = [
     { href: ROUTES.receiving, labelKey: "receivingCard" },
@@ -121,9 +125,14 @@ export default async function DashboardPage({
         >
           {t("capabilityHeading")}
         </h2>
+        {/*
+         * The callout's title is not the section's heading repeated. The
+         * heading asks the question — what works today — and the callout
+         * answers it for *this* deployment, which is the local preview one.
+         */}
         <Notice
           tone="neutral"
-          title={t("capabilityHeading")}
+          title={t("capabilityNoticeTitle")}
           body={t("capabilityBody")}
         />
       </section>
@@ -135,6 +144,9 @@ export default async function DashboardPage({
         >
           {t("systemHeading")}
         </h2>
+        <p className="mb-3 max-w-prose text-sm leading-relaxed text-muted">
+          {setupT("intro")}
+        </p>
         <SetupChecklist />
       </section>
     </>

@@ -67,6 +67,19 @@ describe("EntityForm", () => {
     ).toBeInTheDocument();
   });
 
+  it("uses its own width for the multi-column layout", () => {
+    renderForm();
+
+    const form = screen
+      .getByRole("group", { name: "เพิ่มรายการ" })
+      .closest("form");
+    expect(form).toHaveClass("@container/form");
+
+    const fieldGroup = form?.querySelector('[data-slot="field-group"]');
+    expect(fieldGroup).toHaveClass("@xl/form:grid-cols-2");
+    expect(fieldGroup).not.toHaveClass("sm:grid-cols-2");
+  });
+
   it("hands the trimmed values to its caller", () => {
     const { onSubmit } = renderForm();
 

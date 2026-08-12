@@ -16,6 +16,14 @@
  * otherwise go looking for a development shortcut, and the answer is that
  * hand-configuring one would put an unverified token in front of
  * `resolveTenantContext`.
+ *
+ * The checklist does **not** open with `Setup.intro`. Each of the three screens
+ * that mount it already introduces it in its own words — the setup page in its
+ * header, the dashboard above its system-state section, the sign-in page in the
+ * notice that says why sign-in is unavailable — so rendering the sentence here
+ * as well printed it twice on the same screen. The context is necessary; the
+ * repetition was not, and the host is the only place that knows whether it has
+ * been said already.
  */
 import { useTranslations } from "next-intl";
 
@@ -47,7 +55,6 @@ export function SetupChecklist() {
 
   return (
     <section className="flex flex-col gap-4">
-      <p className="text-sm text-muted">{t("intro")}</p>
       <ul className="flex flex-col gap-3">
         {rows.map((row) => (
           <li

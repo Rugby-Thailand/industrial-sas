@@ -589,6 +589,17 @@ export const confirmPutaway = mutationWithOrg({
 /* Reads                                                                       */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * `baseUom` is on the wire for the same reason it is on a purchase-order line:
+ * the quantity beside it is counted in it, and nothing else on the row says so.
+ *
+ * A putaway board at one site holds kilograms of coil, litres of resin, and
+ * eaches of carton in the same column. Rendering `baseMinorUnits` without its
+ * unit makes those one measure — which is what the visual audit found. The unit
+ * is the item's, so it is a join, and it is optional because a task whose item
+ * cannot be read is a dangling reference rather than a state the board can
+ * resolve: the screen shows its unrenderable marker instead of a bare number.
+ */
 const taskValidator = v.object({
   putawayTaskId: v.id("putawayTasks"),
   warehouseId: v.id("warehouses"),
@@ -597,6 +608,7 @@ const taskValidator = v.object({
   lotId: v.optional(v.id("lots")),
   handlingUnitId: v.optional(v.id("handlingUnits")),
   baseMinorUnits: v.number(),
+  baseUom: v.optional(v.string()),
   fromLocationId: v.id("locations"),
   status: putawayTaskStatus,
   claimedByUserId: v.optional(v.id("users")),
@@ -653,18 +665,38 @@ export const listPutawayTasks = queryWithOrg({
           : { cursor: request.value.cursor }),
       });
 
+    /*
+     * The base unit of each distinct item on the page, read once per item.
+     *
+     * A page is bounded by `MAX_JOB_PAGE_SIZE` and a board's tasks name far
+     * fewer items than they have rows, so this is a small bounded number of
+     * document reads on a handheld's critical path. An item that cannot be read
+     * is recorded as "no unit" rather than re-read for every task naming it.
+     */
+    const baseUomByItemId = new Map<string, string | undefined>();
+    for (const row of page.page) {
+      const itemId = (row as unknown as Record<string, unknown>)[
+        "itemId"
+      ] as string;
+      if (baseUomByItemId.has(itemId)) continue;
+      const item = await ctx.tenantDb.get<ItemDocument>("items", itemId);
+      baseUomByItemId.set(itemId, item?.baseUom);
+    }
+
     return {
       ok: true as const,
       items: page.page.map((row) => {
         const record = row as unknown as Record<string, unknown>;
         const optional = (name: string) =>
           record[name] === undefined ? {} : { [name]: record[name] as never };
+        const baseUom = baseUomByItemId.get(record["itemId"] as string);
         return {
           putawayTaskId: row._id as never,
           warehouseId: record["warehouseId"] as never,
           receiptLineId: record["receiptLineId"] as never,
           itemId: record["itemId"] as never,
           baseMinorUnits: record["baseMinorUnits"] as number,
+          ...(baseUom === undefined ? {} : { baseUom }),
           fromLocationId: record["fromLocationId"] as never,
           status: record["status"] as never,
           ...optional("lotId"),

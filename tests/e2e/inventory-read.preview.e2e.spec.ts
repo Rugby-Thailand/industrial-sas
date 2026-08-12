@@ -56,6 +56,22 @@ test.describe("inventory read path with preview data", () => {
     await expect(table.getByText("18450.500")).toBeVisible();
   });
 
+  test("tells two buckets of one item and one bin apart", async ({ page }) => {
+    /*
+     * The first two rows differ only in their lot, and the bucket cell used to
+     * abbreviate both keys to the same text — the head is the organization
+     * prefix and the tail is the stock status, so what it kept is what every row
+     * shares. The cell names the dimensions instead.
+     */
+    await page.goto("/th/inventory/balances");
+    await chooseOption(page, "คลังสินค้า", { value: BANG_PU });
+
+    const table = page.getByRole("table");
+    await expect(table.getByText("prv_lot_2608A")).toBeVisible();
+    await expect(table.getByText("prv_lot_2607B")).toBeVisible();
+    await expect(table.getByText("prv_item_steel_coil").first()).toBeVisible();
+  });
+
   test("remembers the warehouse across a navigation", async ({ page }) => {
     await page.goto("/th/inventory/balances");
     await chooseOption(page, "คลังสินค้า", { value: LAMPHUN });

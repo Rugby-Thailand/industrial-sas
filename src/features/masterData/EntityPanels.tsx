@@ -302,6 +302,7 @@ export function LabelTemplateForm() {
           label: t("columnFormat"),
           kind: "select",
           required: true,
+          placeholder: t("selectFormat"),
           options: [
             { value: "ZPL", label: "ZPL" },
             { value: "PDF", label: "PDF" },
@@ -408,6 +409,7 @@ export function BarcodeForm({ itemId }: { readonly itemId: string }) {
           label: t("columnBarcodeKind"),
           kind: "select",
           required: true,
+          placeholder: t("selectBarcodeKind"),
           options: (["GTIN", "SSCC", "INTERNAL", "SUPPLIER"] as const).map(
             (kind) => ({ value: kind, label: kindT(kind) }),
           ),

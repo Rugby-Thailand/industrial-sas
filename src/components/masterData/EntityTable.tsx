@@ -20,9 +20,20 @@
  *
  * The wrapper scrolls horizontally rather than letting columns collapse. A
  * quantity or a code that has been squeezed to two characters is worse than one
- * an operator has to scroll to (`UX §3`).
+ * an operator has to scroll to (`UX §3`). The frame, the focusable named region,
+ * and the narrow-screen cue that make that honest are `TableScroller`'s, shared
+ * with the inventory tables, which are not built from this component.
+ *
+ * What stays here is the part that is about columns: **the trailing control
+ * column sticks to the right edge only when the table container has desktop
+ * room.** Pinning it inside the 448px handheld shell hid the end of quantities
+ * and status words behind an opaque cell, making a clipped value look complete.
+ * In a narrow container the action travels with the table and the shared scroll
+ * cue says how to reach it; in a wide container it remains pinned.
  */
 import type { ReactNode } from "react";
+
+import { TableScroller } from "@/components/ui/TableScroller";
 
 export interface ColumnSpec<Row> {
   /** Stable key. Never rendered. */
@@ -56,9 +67,9 @@ export function EntityTable<Row>({
   const hasActions = renderAction !== undefined && actionHeader !== undefined;
 
   return (
-    <div
-      className="overflow-x-auto rounded-lg border border-border bg-surface"
-      {...(testId === undefined ? {} : { "data-testid": testId })}
+    <TableScroller
+      label={caption}
+      {...(testId === undefined ? {} : { testId })}
     >
       <table className="w-full border-collapse text-sm">
         <caption className="px-4 py-3 text-left text-sm text-muted">
@@ -76,7 +87,10 @@ export function EntityTable<Row>({
               </th>
             ))}
             {hasActions ? (
-              <th scope="col" className="px-4 py-2 font-semibold">
+              <th
+                scope="col"
+                className="bg-surface px-4 py-2 font-semibold @2xl/table:sticky @2xl/table:right-0 @2xl/table:shadow-[inset_1px_0_0_0_var(--color-border)]"
+              >
                 {actionHeader}
               </th>
             ) : null}
@@ -93,7 +107,7 @@ export function EntityTable<Row>({
                   <th
                     key={column.key}
                     scope="row"
-                    className="px-4 py-3 text-left font-mono text-xs font-normal text-text"
+                    className="px-4 py-3 text-left font-mono text-xs font-normal whitespace-nowrap text-text"
                   >
                     {column.render(row)}
                   </th>
@@ -101,7 +115,9 @@ export function EntityTable<Row>({
                   <td
                     key={column.key}
                     className={`px-4 py-3 ${
-                      column.monospace === true ? "font-mono text-xs" : ""
+                      column.monospace === true
+                        ? "font-mono text-xs whitespace-nowrap"
+                        : ""
                     }`}
                   >
                     {column.render(row)}
@@ -109,12 +125,14 @@ export function EntityTable<Row>({
                 ),
               )}
               {hasActions ? (
-                <td className="px-4 py-3">{renderAction(row)}</td>
+                <td className="bg-surface px-4 py-3 @2xl/table:sticky @2xl/table:right-0 @2xl/table:shadow-[inset_1px_0_0_0_var(--color-border)]">
+                  {renderAction(row)}
+                </td>
               ) : null}
             </tr>
           ))}
         </tbody>
       </table>
-    </div>
+    </TableScroller>
   );
 }

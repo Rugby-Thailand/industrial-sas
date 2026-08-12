@@ -16,9 +16,12 @@
  *   Those call for opposite actions and look identical without the date.
  * - **A suspect counter says so in words.** `suspect` means a decrement once
  *   clamped at zero, so the number may be low. It is still shown — a warehouse
- *   runs fine on an approximate backlog — but it is marked, and the mark is a
- *   `Badge` whose text carries the meaning rather than a colour alone
- *   (`WCAG 2.2` 1.4.1).
+ *   runs fine on an approximate backlog — but it is marked, and the mark's text
+ *   carries the meaning rather than a colour alone (`WCAG 2.2` 1.4.1). The mark
+ *   is a `Notice`, not a pill: it is two sentences, and a rounded badge wrapped
+ *   to three lines reads as a control somebody could press rather than as an
+ *   explanation. A pill is for one short state; a titled callout is for a
+ *   caveat with a next action in it, which is what this is.
  * - **Digits are Latin, always.** Thai numerals would be authentic and
  *   unreadable next to a scanner display; `ADR-0010` fixes Latin digits for
  *   quantities and counts in both languages.
@@ -31,8 +34,8 @@
  */
 import { useFormatter, useTranslations } from "next-intl";
 
-import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { Notice } from "@/components/ui/Notice";
 import type { DashboardTile } from "@/lib/convex/reportingApi";
 
 import { OperationsCounters } from "./ReportingSources";
@@ -116,13 +119,14 @@ export function TileList({
                   })}
             </span>
             {tile.suspect ? (
-              <Badge
-                variant="outline"
-                data-testid={`tile-suspect-${tile.metric}`}
-                className="mt-2 h-auto border-warning py-1 text-left text-xs font-medium whitespace-normal text-warning"
-              >
-                {t("tileSuspect")}
-              </Badge>
+              <div className="mt-2">
+                <Notice
+                  tone="warning"
+                  title={t("tileSuspectTitle")}
+                  body={t("tileSuspect")}
+                  testId={`tile-suspect-${tile.metric}`}
+                />
+              </div>
             ) : null}
             {BACKLOG_METRICS.has(tile.metric) ? null : (
               <span className="mt-2 block text-xs text-muted">

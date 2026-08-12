@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { navigationMock } from "../../../tests/fixtures/navigation-mock";
@@ -62,6 +62,28 @@ describe("the operations tiles", () => {
     const suspect = screen.getByTestId("tile-suspect-QC_PARKED");
     expect(suspect).toBeInTheDocument();
     expect(suspect.textContent ?? "").not.toBe("");
+  });
+
+  it("gives the suspect counter a callout, not a multi-line pill", () => {
+    /*
+     * The mark is two sentences — what happened to the counter, and what to do
+     * before trusting it. As a rounded badge it wrapped to three lines in a
+     * tile, which reads as a control somebody could press. A titled callout is
+     * the shape this application uses for a caveat with a next action in it, and
+     * the title carries the meaning in words rather than in the border colour.
+     */
+    render();
+
+    const suspect = screen.getByTestId("tile-suspect-QC_PARKED");
+    expect(suspect).toHaveClass("rounded-lg", "border-l-4", "border-warning");
+    expect(suspect.className).not.toContain("rounded-full");
+
+    expect(
+      within(suspect).getByText("เคยมีการปรับลดตัวเลขนี้"),
+    ).toBeInTheDocument();
+    expect(
+      within(suspect).getByText(/ตัวเลขนี้อาจต่ำกว่าความจริง/),
+    ).toBeInTheDocument();
   });
 
   it("renders every declared metric as its own tile", () => {
@@ -151,5 +173,17 @@ describe("the export register", () => {
     expect(
       screen.getByTestId("report-advance-prv_rpt_7002"),
     ).toBeInTheDocument();
+  });
+
+  it("groups large row counts in both supported locales", () => {
+    const thai = render();
+    expect(thai.getByText("9,512 แถวทั้งหมด")).toBeInTheDocument();
+    thai.unmount();
+
+    renderWithIntl(<JobList jobs={PREVIEW_REPORT_JOBS} />, {
+      environment: previewEnvironment,
+      locale: "en",
+    });
+    expect(screen.getByText("9,512 rows total")).toBeInTheDocument();
   });
 });

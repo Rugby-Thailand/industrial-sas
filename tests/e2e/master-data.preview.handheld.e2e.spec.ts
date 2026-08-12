@@ -59,13 +59,17 @@ test.describe("master data on a handheld", () => {
      */
     await page.goto("/th/master-data/items/prv_item_bolt_m8");
 
-    const scroller = page.getByTestId("table-barcodes");
-    await expect(scroller).toBeVisible();
+    const table = page.getByTestId("table-barcodes");
+    await expect(table).toBeVisible();
 
+    // The scroller is the named region inside the frame; the frame itself clips
+    // so the rounded border survives (`TableScroller`).
+    const scroller = table.getByRole("region");
     const overflows = await scroller.evaluate(
       (element) => getComputedStyle(element).overflowX,
     );
     expect(overflows).toBe("auto");
+    await expect(scroller).toHaveAttribute("tabindex", "0");
 
     // And the value itself is still intact rather than truncated away.
     await expect(scroller.getByText("00614141000036")).toBeVisible();

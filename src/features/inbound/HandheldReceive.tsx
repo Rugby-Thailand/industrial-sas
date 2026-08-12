@@ -158,6 +158,7 @@ export function HandheldReceive() {
                       value={locationId ?? locations[0]?.locationId ?? ""}
                       onChange={setLocationId}
                       label={t("fieldLocation")}
+                      placeholder={t("selectLocation")}
                     />
                     <OpenOrderLines
                       purchaseOrderId={order.purchaseOrderId}

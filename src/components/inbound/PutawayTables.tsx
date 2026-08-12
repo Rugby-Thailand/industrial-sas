@@ -16,7 +16,7 @@ import { StatusBadge, type BadgeTone } from "@/components/ui/StatusBadge";
 import type { PutawayTaskRow } from "@/lib/convex/inboundApi";
 import { codeLabel, type CodeTranslator } from "@/lib/domainLabels";
 
-import { shortId } from "./InboundCells";
+import { identifier, withBaseUnit } from "./InboundCells";
 
 const TASK_TONES: Readonly<Record<string, BadgeTone>> = {
   READY: "accent",
@@ -48,19 +48,28 @@ export function PutawayTasksTable({
           key: "item",
           header: t("columnItem"),
           rowHeader: true,
-          render: (row) => shortId(row.itemId),
+          render: (row) => identifier(row.itemId),
         },
         {
           key: "quantity",
           header: t("columnQuantity"),
           monospace: true,
-          render: (row) => String(row.baseMinorUnits / 1000),
+          /*
+           * The task's quantity is stored in the item's base unit, so it is
+           * shown with that unit — the same treatment the order lines get. It
+           * used to be a bare `baseMinorUnits / 1000`, which on a board holding
+           * kilograms, litres, and eaches at once is three different measures
+           * rendered as one. The unit is joined from the item document and can
+           * be absent when that reference dangles, and an unlabelled figure is
+           * worse than an explicit marker.
+           */
+          render: (row) => withBaseUnit(row.baseMinorUnits, row.baseUom),
         },
         {
           key: "from",
           header: t("columnFrom"),
           monospace: true,
-          render: (row) => shortId(row.fromLocationId),
+          render: (row) => identifier(row.fromLocationId),
         },
         {
           key: "status",
@@ -76,7 +85,7 @@ export function PutawayTasksTable({
           key: "recommended",
           header: t("columnRecommended"),
           monospace: true,
-          render: (row) => shortId(row.recommendedLocationId),
+          render: (row) => identifier(row.recommendedLocationId),
         },
         {
           key: "chosen",
@@ -84,7 +93,7 @@ export function PutawayTasksTable({
           monospace: true,
           // Shown next to the recommendation, because the pair *is* the override
           // record: either alone says nothing about what happened.
-          render: (row) => shortId(row.chosenLocationId),
+          render: (row) => identifier(row.chosenLocationId),
         },
       ]}
       {...(renderAction === undefined

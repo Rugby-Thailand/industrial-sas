@@ -119,6 +119,7 @@ const ORDER_LINES: readonly PurchaseOrderLineRow[] = Object.freeze([
     orderedBaseMinorUnits: 500_000,
     // Partly received: the receiving screen must show what is outstanding.
     receivedBaseMinorUnits: 180_000,
+    baseUom: "KG",
     status: "OPEN" as const,
   }),
   Object.freeze({
@@ -126,10 +127,13 @@ const ORDER_LINES: readonly PurchaseOrderLineRow[] = Object.freeze([
     purchaseOrderId: "prv_po_2601",
     lineNumber: 2,
     itemId: "prv_item_bolt_m8",
-    // Ordered in cases; the ledger stores eaches, and the screen shows both.
+    // Ordered in cases; the ledger stores eaches, and the screen shows both —
+    // each with its own unit, so "40.000 CASE" and "0.000 EA" cannot be read as
+    // the same measure.
     orderedQuantity: { uom: "CASE", minorUnits: 40_000 },
     orderedBaseMinorUnits: 480_000,
     receivedBaseMinorUnits: 0,
+    baseUom: "EA",
     status: "OPEN" as const,
   }),
   Object.freeze({
@@ -140,6 +144,7 @@ const ORDER_LINES: readonly PurchaseOrderLineRow[] = Object.freeze([
     orderedQuantity: { uom: "L", minorUnits: 200_000 },
     orderedBaseMinorUnits: 200_000,
     receivedBaseMinorUnits: 200_000,
+    baseUom: "L",
     status: "COMPLETE" as const,
   }),
   Object.freeze({
@@ -150,6 +155,7 @@ const ORDER_LINES: readonly PurchaseOrderLineRow[] = Object.freeze([
     orderedQuantity: { uom: "EA", minorUnits: 100_000 },
     orderedBaseMinorUnits: 100_000,
     receivedBaseMinorUnits: 40_000,
+    baseUom: "EA",
     // Somebody stopped waiting for the rest, with a reason.
     status: "CLOSED_SHORT" as const,
   }),
@@ -229,6 +235,7 @@ const PLACED_RECEIPTS: readonly Placed<ReceiptRow>[] = Object.freeze([
       warehouseId: BANG_PU,
       receiptNumber: "GRN-5001",
       purchaseOrderId: "prv_po_2601",
+      poNumber: "PO-2601",
       occurredAt: Date.parse("2026-08-10T02:15:00Z"),
       businessDate: "2026-08-10",
     }),
@@ -240,6 +247,7 @@ const PLACED_RECEIPTS: readonly Placed<ReceiptRow>[] = Object.freeze([
       warehouseId: BANG_PU,
       receiptNumber: "GRN-5002",
       purchaseOrderId: "prv_po_2602",
+      poNumber: "PO-2602",
       occurredAt: Date.parse("2026-08-11T01:40:00Z"),
       businessDate: "2026-08-11",
     }),
@@ -394,6 +402,9 @@ const PLACED_TASKS: readonly Placed<PutawayTaskRow>[] = Object.freeze([
       lotId: "prv_lot_coil_2608",
       handlingUnitId: "prv_hu_pallet_01",
       baseMinorUnits: 180_000,
+      // The item's own base unit, as the server joins it: the board shows three
+      // different measures in one column, so each figure carries its unit.
+      baseUom: "KG",
       fromLocationId: "prv_loc_DOCK-IN-1",
       status: "READY" as const,
     }),
@@ -410,6 +421,7 @@ const PLACED_TASKS: readonly Placed<PutawayTaskRow>[] = Object.freeze([
       receiptLineId: "prv_rl_9003",
       itemId: "prv_item_carton_a",
       baseMinorUnits: 24_000,
+      baseUom: "EA",
       fromLocationId: "prv_loc_DOCK-IN-1",
       status: "CLAIMED" as const,
       claimedByUserId: "prv_user_somchai",
@@ -424,6 +436,7 @@ const PLACED_TASKS: readonly Placed<PutawayTaskRow>[] = Object.freeze([
       receiptLineId: "prv_rl_9002",
       itemId: "prv_item_resin_hd",
       baseMinorUnits: 60_000,
+      baseUom: "L",
       fromLocationId: "prv_loc_DOCK-IN-1",
       status: "CONFIRMED" as const,
       recommendedLocationId: "prv_loc_B04-11-3",

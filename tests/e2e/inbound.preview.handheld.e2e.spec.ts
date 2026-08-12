@@ -234,11 +234,19 @@ test.describe("putaway on a scanner", () => {
     await page.goto("/th/handheld/putaway");
     await selectWarehouse(page);
 
-    const scroller = page.getByTestId("table-putaway-tasks");
-    await expect(scroller).toBeVisible();
+    /*
+     * The scroller is the named region inside the table's frame, not the frame
+     * itself: the frame clips so the rounded border survives, and the region is
+     * the part a keyboard focuses and a finger drags (`TableScroller`).
+     */
+    const table = page.getByTestId("table-putaway-tasks");
+    await expect(table).toBeVisible();
+
+    const scroller = table.getByRole("region");
     expect(
       await scroller.evaluate((element) => getComputedStyle(element).overflowX),
     ).toBe("auto");
+    await expect(scroller).toHaveAttribute("tabindex", "0");
   });
 
   test("demonstrates a claim without pretending to hold the task", async ({

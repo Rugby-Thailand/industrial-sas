@@ -62,15 +62,26 @@ export function PutawayTasksPanel({
                       testId={`task-claim-${row.putawayTaskId}`}
                       /*
                        * A claimed task still offers the control, and the label
-                       * says it is claimed. Re-claiming your own task after a
-                       * reconnect succeeds; claiming somebody else's is refused
-                       * by the server with a message that says which
-                       * (`INV-0007-11`). Hiding the button would make a
-                       * reconnect look like a lost task.
+                       * is an *action* rather than a state. It used to read
+                       * "Already claimed", which is a fact about the task and
+                       * not a thing pressing the button does — a terminal state
+                       * dressed as an enabled control, which the audit found.
+                       * The state itself is in the status column, once, as a
+                       * static glyph-and-word badge.
+                       *
+                       * The control stays live because re-claiming your own task
+                       * after a reconnect succeeds; claiming somebody else's is
+                       * refused by the server with a message that says which
+                       * (`INV-0007-11`), and the hint says so before it is
+                       * pressed. Disabling it would make a reconnect look like a
+                       * lost task.
                        */
                       label={
-                        row.status === "CLAIMED" ? t("claimed") : t("claim")
+                        row.status === "CLAIMED" ? t("claimAgain") : t("claim")
                       }
+                      {...(row.status === "CLAIMED"
+                        ? { title: t("claimedHint") }
+                        : {})}
                       onClick={() =>
                         submit(row.putawayTaskId, (requestId) => ({
                           requestId,
@@ -138,6 +149,7 @@ export function ConfirmPutawayForm({
                   label: t("fieldChosenLocation"),
                   kind: "select",
                   required: true,
+                  placeholder: t("selectChosenLocation"),
                   /*
                    * A select over the *ranked* locations. A free-text box would let
                    * an operator name a bin a hard constraint rejected, and the

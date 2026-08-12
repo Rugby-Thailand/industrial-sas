@@ -15,10 +15,15 @@
  * the day the warehouse counts it against (`D-05`) — and a receiving shift that
  * crosses midnight in Bangkok produces rows where the two differ by a day. A
  * screen that showed only one of them would make that look like a defect.
+ *
+ * Like the balances table, it sits in the shared `TableScroller`: the timestamp
+ * and business-date columns are exactly the ones a 360px viewport pushes off the
+ * right edge, and until now nothing said so and no keyboard could reach them.
  */
 import { useLocale, useTranslations } from "next-intl";
 
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { TableScroller } from "@/components/ui/TableScroller";
 import type { TransactionRow } from "@/lib/convex/ledgerApi";
 import { codeLabel, type CodeTranslator } from "@/lib/domainLabels";
 import {
@@ -36,12 +41,13 @@ export function TransactionsTable({
   const t = useTranslations("Inventory");
   const typeT = useTranslations("TransactionType") as unknown as CodeTranslator;
   const locale = useLocale() as AppLocale;
+  const caption = t("historyCaption", { count: rows.length });
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-border bg-surface">
+    <TableScroller label={caption} testId="table-transactions">
       <table className="w-full border-collapse text-sm">
         <caption className="px-4 py-3 text-left text-sm text-muted">
-          {t("historyCaption", { count: rows.length })}
+          {caption}
         </caption>
         <thead>
           <tr className="border-b border-border-strong text-left">
@@ -95,6 +101,6 @@ export function TransactionsTable({
           ))}
         </tbody>
       </table>
-    </div>
+    </TableScroller>
   );
 }

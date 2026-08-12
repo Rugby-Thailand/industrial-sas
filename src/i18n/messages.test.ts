@@ -83,6 +83,126 @@ describe("message catalogues", () => {
   });
 
   /*
+   * `1 lots`, `1 received lines`, `1 rows parsed`: the audit found the same
+   * defect in nine captions, because English marks plural and a template does
+   * not. ICU's `plural` is the fix and it has to be used at the point the count
+   * is interpolated, so the rule is mechanical: no English message may drop a
+   * count into a sentence without choosing the noun that follows it.
+   *
+   * Thai is exempt by grammar rather than by exception — it marks no plural, so
+   * `{count}` there is already correct and a `plural` block would have one arm.
+   */
+  it("never interpolates a bare count into an English message", () => {
+    const bare: string[] = [];
+    for (const [key, message] of FLATTENED.get("en") ?? []) {
+      if (/\{count\}/.test(message)) bare.push(`${key} = ${message}`);
+    }
+
+    expect(bare).toEqual([]);
+  });
+
+  /*
+   * A select's placeholder is what an empty control says, and repeating the
+   * label above it states the field twice and the outstanding choice not at
+   * all. Each pair below is a control this application renders; the assertion is
+   * mechanical so a new placeholder cannot be added by copying its label.
+   */
+  it("never lets a select placeholder repeat its own field label", () => {
+    const pairs: readonly (readonly [string, string])[] = [
+      ["Purchasing.fieldSupplier", "Purchasing.selectSupplier"],
+      ["Purchasing.fieldItem", "Purchasing.selectItem"],
+      ["Purchasing.fieldOrder", "Purchasing.selectOrder"],
+      ["Receiving.fieldLocation", "Receiving.selectLocation"],
+      ["Receiving.fieldOrderLine", "Receiving.selectOrderLine"],
+      ["Receiving.fieldItemChoice", "Receiving.selectItemChoice"],
+      ["Receiving.exceptionKind", "Receiving.selectExceptionKind"],
+      ["Quality.fieldDisposition", "Quality.selectDisposition"],
+      ["Putaway.fieldChosenLocation", "Putaway.selectChosenLocation"],
+      ["MasterData.columnTrackingMode", "MasterData.selectTrackingMode"],
+      ["MasterData.columnLocationType", "MasterData.selectLocationType"],
+      ["MasterData.columnFormat", "MasterData.selectFormat"],
+      ["MasterData.columnBarcodeKind", "MasterData.selectBarcodeKind"],
+      ["LabelEvidence.fieldTemplate", "LabelEvidence.selectTemplate"],
+      ["Write.reasonCodeLabel", "Write.selectReasonCode"],
+    ];
+
+    for (const locale of LOCALES) {
+      const catalogue = FLATTENED.get(locale) ?? new Map<string, string>();
+      for (const [labelKey, placeholderKey] of pairs) {
+        const label = catalogue.get(labelKey);
+        const placeholder = catalogue.get(placeholderKey);
+        expect(label, `${locale}:${labelKey}`).toBeDefined();
+        expect(placeholder, `${locale}:${placeholderKey}`).toBeDefined();
+        expect(placeholder, `${locale}:${placeholderKey}`).not.toBe(label);
+      }
+    }
+  });
+
+  /*
+   * Thai distinguishes the two states English collapsed: an order is
+   * `เปิดรับได้` — open, and receivable against — while a line is `ยังรับได้`,
+   * still receivable. Both rendered as "Open" in English, so a register and an
+   * order detail showed one word for two different facts about two different
+   * documents. The stored codes are untouched; only the labels differ.
+   */
+  it("gives an open order and an open order line distinct English labels", () => {
+    for (const locale of LOCALES) {
+      const catalogue = FLATTENED.get(locale) ?? new Map<string, string>();
+      const order = catalogue.get("PurchaseOrderStatus.OPEN");
+      const line = catalogue.get("PurchaseOrderLineStatus.OPEN");
+
+      expect(order, `${locale}:PurchaseOrderStatus.OPEN`).toBeTruthy();
+      expect(line, `${locale}:PurchaseOrderLineStatus.OPEN`).toBeTruthy();
+      expect(line, locale).not.toBe(order);
+    }
+  });
+
+  /*
+   * A heading and the callout beneath it are two levels of one section, and the
+   * dashboard rendered the same sentence at both. Likewise the quality approval
+   * step, which said "approve this disposition" four times over.
+   */
+  it("does not print one heading twice as its own callout", () => {
+    for (const locale of LOCALES) {
+      const catalogue = FLATTENED.get(locale) ?? new Map<string, string>();
+      expect(catalogue.get("Dashboard.capabilityNoticeTitle"), locale).not.toBe(
+        catalogue.get("Dashboard.capabilityHeading"),
+      );
+      for (const key of [
+        "Quality.sectionApproval",
+        "Quality.approvalRule",
+        "Quality.approveLegend",
+      ]) {
+        expect(catalogue.get(key), `${locale}:${key}`).not.toBe(
+          catalogue.get("Quality.approve"),
+        );
+      }
+    }
+  });
+
+  /*
+   * One import step, three labels: the heading names the step, the legend names
+   * what is being asked for, and the button names what pressing it does — which
+   * for a query is "nothing is written".
+   */
+  it("keeps the import check's heading, legend, and action distinct", () => {
+    for (const locale of LOCALES) {
+      const catalogue = FLATTENED.get(locale) ?? new Map<string, string>();
+      const labels = [
+        "Purchasing.importPreview",
+        "Purchasing.importPreviewLegend",
+        "Purchasing.importPreviewSubmit",
+      ].map((key) => catalogue.get(key));
+
+      expect(
+        labels.every((label) => (label ?? "") !== ""),
+        locale,
+      ).toBe(true);
+      expect(new Set(labels).size, locale).toBe(labels.length);
+    }
+  });
+
+  /*
    * Not a translation-quality check — that is `OPS-0010-01`, and a reviewer with
    * warehouse Thai is the only thing that closes it. This catches the mechanical
    * failure of a Thai value that was never translated at all, which is what

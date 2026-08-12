@@ -49,9 +49,24 @@ const valueAt = (
  */
 const IDENTICAL_BY_DESIGN = new Set(["App.name", "App.documentTitle"]);
 
-/** `{when}`, `{count}` — the names a message interpolates. */
+/**
+ * `{when}`, `{count}` — the names a message interpolates, plural forms included.
+ *
+ * An argument is named either by a bare `{name}` or by the head of an ICU
+ * construct, `{name, plural, …}`. English needs the second form wherever a count
+ * governs a noun — "1 lot", not "1 lots" — while Thai marks no plural and keeps
+ * the bare form, so the two catalogues write the *same argument* differently.
+ * Matching only `{name}` would read the English side as interpolating nothing
+ * and report every pluralized message as a mismatch.
+ *
+ * The `#` inside a plural branch is not an argument: it is the count itself, and
+ * `{# lot}` is not a placeholder — which is why the name must start with a word
+ * character.
+ */
 const placeholdersOf = (value: string): string[] =>
-  [...value.matchAll(/\{(\w+)\}/g)].map((match) => match[1] ?? "").sort();
+  [...value.matchAll(/\{\s*(\w+)\s*[,}]/g)]
+    .map((match) => match[1] ?? "")
+    .sort();
 
 describe("message catalogues", () => {
   it("has a Thai message for every English one", () => {

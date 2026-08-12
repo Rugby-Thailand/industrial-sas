@@ -80,6 +80,7 @@ export function ImportChunkForm({
               label: t("fieldOrder"),
               kind: "select",
               required: true,
+              placeholder: t("selectOrder"),
               options: orders.map((order) => ({
                 value: order.purchaseOrderId,
                 label: order.poNumber,

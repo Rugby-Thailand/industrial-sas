@@ -21,7 +21,7 @@ import type { InspectionRow } from "@/lib/convex/inboundApi";
 import { codeLabel, type CodeTranslator } from "@/lib/domainLabels";
 import { UNRENDERABLE } from "@/lib/formatters";
 
-import { shortId } from "./InboundCells";
+import { identifier } from "./InboundCells";
 
 const INSPECTION_TONES: Readonly<Record<string, BadgeTone>> = {
   OPEN: "accent",
@@ -59,7 +59,7 @@ export function InspectionsTable({
           key: "item",
           header: t("columnItem"),
           rowHeader: true,
-          render: (row) => shortId(row.itemId),
+          render: (row) => identifier(row.itemId),
         },
         {
           key: "status",

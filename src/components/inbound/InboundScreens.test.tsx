@@ -100,8 +100,49 @@ describe("PurchaseOrderLinesTable", () => {
     renderWithIntl(
       <PurchaseOrderLinesTable rows={previewOrderLinesFor("prv_po_2601")} />,
     );
-    // 500 ordered, 180 received.
-    expect(screen.getByText("320")).toBeInTheDocument();
+    // 500 ordered, 180 received, both in the item's base unit.
+    expect(screen.getByText("320.000 KG")).toBeInTheDocument();
+  });
+
+  it("names the unit of every quantity, including the base-unit ones", () => {
+    /*
+     * The audit found "40.000 CASE" ordered against a bare "0" received and a
+     * bare "480" outstanding: three figures under three headings in two units,
+     * with only one of them saying which. The received and outstanding columns
+     * are in the item's base unit, and they now say so.
+     */
+    renderWithIntl(
+      <PurchaseOrderLinesTable rows={previewOrderLinesFor("prv_po_2601")} />,
+    );
+
+    expect(screen.getByText("40.000 CASE")).toBeInTheDocument();
+    expect(screen.getByText("0.000 EA")).toBeInTheDocument();
+    expect(screen.getByText("480.000 EA")).toBeInTheDocument();
+  });
+
+  it("marks a quantity unrenderable when its base unit is unknown", () => {
+    /*
+     * The base unit is read from the item document, so a dangling item reference
+     * leaves it absent. A bare number beside "40.000 CASE" would be read as
+     * cases; the marker cannot be.
+     */
+    const [, ordered] = previewOrderLinesFor("prv_po_2601");
+    const { baseUom: _baseUom, ...withoutUnit } = ordered!;
+
+    renderWithIntl(<PurchaseOrderLinesTable rows={[withoutUnit]} />);
+
+    expect(screen.getByText("40.000 CASE")).toBeInTheDocument();
+    expect(screen.getAllByText("——")).toHaveLength(2);
+  });
+
+  it("counts one line as one line in English", () => {
+    renderWithIntl(
+      <PurchaseOrderLinesTable
+        rows={previewOrderLinesFor("prv_po_2602").slice(0, 1)}
+      />,
+      { locale: "en" },
+    );
+    expect(screen.getByText("1 line")).toBeInTheDocument();
   });
 
   it("marks a short-closed line rather than showing it as quietly finished", () => {
@@ -153,12 +194,71 @@ describe("ReceiptLinesTable", () => {
     );
     expect(screen.getByText("180.000 KG")).toBeInTheDocument();
   });
+
+  it("names the item by its whole identifier", () => {
+    /*
+     * It used to be abbreviated to `…m_resin_hd`: the prefix that says what kind
+     * of document the ID names was the part thrown away, and two different IDs
+     * sharing a tail rendered identically. The column scrolls instead.
+     */
+    renderWithIntl(
+      <ReceiptLinesTable rows={previewReceiptLinesFor("prv_rcpt_5002")} />,
+    );
+
+    expect(
+      screen.getByRole("rowheader", { name: "prv_item_resin_hd" }),
+    ).toBeInTheDocument();
+  });
+
+  it("counts one received line as one line in English", () => {
+    // `1 received lines` was in the audit. English chooses its noun by the
+    // count; Thai marks no plural and its caption is unchanged.
+    renderWithIntl(
+      <ReceiptLinesTable rows={previewReceiptLinesFor("prv_rcpt_5002")} />,
+      { locale: "en" },
+    );
+
+    expect(screen.getByText("1 received line")).toBeInTheDocument();
+  });
 });
 
 describe("ReceiptsTable", () => {
   it("shows the business date verbatim, not through a locale formatter", () => {
     renderWithIntl(<ReceiptsTable rows={previewReceiptsFor(BANG_PU)} />);
     expect(screen.getByText("2026-08-10")).toBeInTheDocument();
+  });
+
+  it("names the order the way the purchasing register names it", () => {
+    /*
+     * `prv_po_2601` is a document ID. `PO-2601` is what the register shows, what
+     * the supplier's paperwork says, and what somebody at a dock can read out.
+     * One order, one name.
+     */
+    renderWithIntl(<ReceiptsTable rows={previewReceiptsFor(BANG_PU)} />);
+
+    expect(screen.getByText("PO-2601")).toBeInTheDocument();
+    expect(screen.queryByText("prv_po_2601")).not.toBeInTheDocument();
+  });
+
+  it("leaves the order column empty for a blind receipt", () => {
+    // A blind receipt has no order behind it — that is what "blind" means — so
+    // there is no number to show and nothing is invented in its place.
+    renderWithIntl(
+      <ReceiptsTable rows={previewReceiptsFor("prv_wh_lamphun")} />,
+    );
+
+    expect(screen.getByText("GRN-5010")).toBeInTheDocument();
+    expect(screen.getByText("——")).toBeInTheDocument();
+  });
+
+  it("counts one receipt as one receipt in English", () => {
+    renderWithIntl(
+      <ReceiptsTable rows={previewReceiptsFor("prv_wh_lamphun")} />,
+      {
+        locale: "en",
+      },
+    );
+    expect(screen.getByText("1 receipt")).toBeInTheDocument();
   });
 });
 
@@ -221,22 +321,67 @@ describe("PrintJobsTable", () => {
   it("never shows a status claiming a label was printed", () => {
     /*
      * Nothing in this repository can observe a printer (`INT-04` absent,
-     * `RG-004` open). Every job is `GENERATED`.
+     * `RG-004` open). Every job is `GENERATED`, and what an operator reads is
+     * the catalogue's label for it rather than the stored code.
      */
     renderWithIntl(
       <PrintJobsTable rows={previewPrintJobsFor("prv_hu_pallet_01")} />,
     );
 
-    expect(screen.getAllByText("GENERATED")).toHaveLength(2);
+    expect(screen.getAllByText("สร้างข้อมูลป้ายแล้ว")).toHaveLength(2);
+    expect(screen.queryByText("GENERATED")).not.toBeInTheDocument();
     expect(screen.queryByText("PRINTED")).not.toBeInTheDocument();
   });
 
-  it("distinguishes a reprint from a first print", () => {
+  it("distinguishes a reprint from a first print, in words", () => {
     renderWithIntl(
       <PrintJobsTable rows={previewPrintJobsFor("prv_hu_pallet_01")} />,
     );
-    expect(screen.getByText("INITIAL")).toBeInTheDocument();
-    expect(screen.getByText("REPRINT")).toBeInTheDocument();
+
+    expect(screen.getByText("พิมพ์ครั้งแรก")).toBeInTheDocument();
+    expect(screen.getByText("พิมพ์ซ้ำ")).toBeInTheDocument();
+    expect(screen.queryByText("INITIAL")).not.toBeInTheDocument();
+    expect(screen.queryByText("REPRINT")).not.toBeInTheDocument();
+  });
+
+  it("says the same thing in English, and still not in enum case", () => {
+    renderWithIntl(
+      <PrintJobsTable rows={previewPrintJobsFor("prv_hu_pallet_01")} />,
+      { locale: "en" },
+    );
+
+    expect(screen.getByText("First print")).toBeInTheDocument();
+    expect(screen.getByText("Reprint")).toBeInTheDocument();
+    expect(screen.getAllByText("Payload generated")).toHaveLength(2);
+  });
+
+  it("falls back to the raw code for a reason the catalogue does not know", () => {
+    // A server deployed ahead of the browser reading it. The code is the string
+    // the audit row and the logs carry, so it is reportable; a placeholder or a
+    // blank cell would not be.
+    const [job] = previewPrintJobsFor("prv_hu_pallet_01");
+
+    renderWithIntl(
+      <PrintJobsTable
+        rows={[
+          {
+            ...job!,
+            reason: "SOME_FUTURE_REASON" as never,
+            status: "SOME_FUTURE_STATUS" as never,
+          },
+        ]}
+      />,
+    );
+
+    expect(screen.getByText("SOME_FUTURE_REASON")).toBeInTheDocument();
+    expect(screen.getByText("SOME_FUTURE_STATUS")).toBeInTheDocument();
+  });
+
+  it("counts one label record as one in English", () => {
+    const [job] = previewPrintJobsFor("prv_hu_pallet_01");
+    renderWithIntl(<PrintJobsTable rows={[job!]} />, { locale: "en" });
+
+    expect(screen.getByText("1 label record")).toBeInTheDocument();
   });
 });
 

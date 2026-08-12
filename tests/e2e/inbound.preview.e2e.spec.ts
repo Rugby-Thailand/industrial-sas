@@ -87,7 +87,29 @@ test.describe("purchase orders", () => {
 
     const table = page.getByTestId("table-order-lines");
     await expect(table.getByText("40.000 CASE")).toBeVisible();
-    await expect(table.getByText("320")).toBeVisible();
+    /*
+     * Received and outstanding are in the *item's* base unit, and they say so.
+     * A bare "320" under a heading next to "40.000 CASE" was read as cases.
+     */
+    await expect(table.getByText("320.000 KG")).toBeVisible();
+    await expect(table.getByText("480.000 EA")).toBeVisible();
+  });
+
+  test("heads the lines section without contradicting its own table", async ({
+    page,
+  }) => {
+    // The heading claimed zero lines above a table of two: it carried a
+    // hard-coded count for rows it never read. The caption counts them now.
+    await page.goto("/th/purchasing/orders/prv_po_2601");
+    await selectWarehouse(page);
+
+    await expect(
+      page.getByRole("heading", { level: 2, name: "รายการสินค้าในใบสั่งซื้อ" }),
+    ).toBeVisible();
+    await expect(page.getByText("รายการสินค้า 0 บรรทัด")).toHaveCount(0);
+    await expect(
+      page.getByTestId("table-order-lines").getByText("รายการสินค้า 2 บรรทัด"),
+    ).toBeVisible();
   });
 
   test("offers close-short on an open line only", async ({ page }) => {
@@ -178,7 +200,15 @@ test.describe("receiving", () => {
     await page.goto("/th/receiving");
     await selectWarehouse(page);
 
-    await expect(page.getByTestId("table-receipts")).toBeVisible();
+    const receipts = page.getByTestId("table-receipts");
+    await expect(receipts).toBeVisible();
+    /*
+     * The order column names the order the way the purchasing register does. It
+     * used to show `prv_po_2601`, an internal document ID, for the order the
+     * previous screen called `PO-2601`.
+     */
+    await expect(receipts.getByText("PO-2601")).toBeVisible();
+    await expect(receipts.getByText("prv_po_2601")).toHaveCount(0);
     await page.getByTestId("receipt-open-GRN-5001").click();
 
     await expect(page).toHaveURL(/\/receiving\/prv_rcpt_5001$/);
@@ -291,13 +321,20 @@ test.describe("putaway", () => {
   test("shows the board with a claimed task marked as claimed", async ({
     page,
   }) => {
-    // "Claimed" and "you may not" are different facts with different fixes.
+    /*
+     * "Claimed" and "you may not" are different facts with different fixes, so
+     * the state is on the row as a static badge — and the control beside it is
+     * labelled with what pressing it does, which is claiming the task again
+     * after a reconnect (`INV-0007-11`).
+     */
     await page.goto("/th/putaway");
     await selectWarehouse(page);
 
-    await expect(page.getByTestId("table-putaway-tasks")).toBeVisible();
+    const board = page.getByTestId("table-putaway-tasks");
+    await expect(board).toBeVisible();
+    await expect(board.getByText("มีผู้รับงานแล้ว")).toBeVisible();
     await expect(page.getByTestId("task-claim-prv_task_4002")).toHaveText(
-      "งานนี้มีผู้รับแล้ว",
+      "รับงานนี้อีกครั้ง",
     );
   });
 
@@ -384,8 +421,13 @@ test.describe("label evidence", () => {
     await selectWarehouse(page);
 
     const table = page.getByTestId("table-print-jobs");
-    await expect(table.getByText("INITIAL")).toBeVisible();
-    await expect(table.getByText("REPRINT")).toBeVisible();
+    // In Thai, because a stored code is not a label. `INITIAL` and `GENERATED`
+    // are what the row *stores*; they stay out of the screen.
+    await expect(table.getByText("พิมพ์ครั้งแรก")).toBeVisible();
+    await expect(table.getByText("พิมพ์ซ้ำ")).toBeVisible();
+    await expect(table.getByText("สร้างข้อมูลป้ายแล้ว").first()).toBeVisible();
+    await expect(table.getByText("INITIAL")).toHaveCount(0);
+    await expect(table.getByText("GENERATED")).toHaveCount(0);
     await expect(table.getByText("PRINTED")).toHaveCount(0);
   });
 

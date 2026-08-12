@@ -105,6 +105,7 @@ describe("LocationChooser", () => {
         value=""
         onChange={onChange}
         label="ตำแหน่งที่รับเข้า"
+        placeholder="เลือกตำแหน่งที่รับเข้า"
       />,
       { environment: previewEnvironment },
     );

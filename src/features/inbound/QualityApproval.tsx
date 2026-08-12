@@ -20,6 +20,15 @@
  * The control is shown to everybody, including the submitter. Hiding it would
  * make a maker-checker rule look like a missing feature, and would hide the one
  * message that tells an administrator what to grant (`INV-0002-07`).
+ *
+ * ### The rule is stated once
+ *
+ * "Approve this disposition" used to be the section heading, the notice title,
+ * the form legend *and* the button, with the rule underneath it twice. Each of
+ * those four places now says the thing only it can say: the notice states the
+ * rule, the legend says what to pick, and the button is the action. The rule
+ * itself has not moved — it is above the control, where somebody meets it before
+ * pressing rather than after being denied.
  */
 import { useTranslations } from "next-intl";
 
@@ -48,7 +57,7 @@ export function ApproveDispositionControl() {
     <div className="flex flex-col gap-4">
       <Notice
         tone="accent"
-        title={t("approve")}
+        title={t("approvalRule")}
         body={t("approveHint")}
         testId="quality-approval-rule"
       />
@@ -61,8 +70,7 @@ export function ApproveDispositionControl() {
           <EntityWriteForm
             testId="form-approve-disposition"
             mutationRef={approveDispositionRef}
-            legend={t("approve")}
-            description={t("approveHint")}
+            legend={t("approveLegend")}
             submitLabel={t("approve")}
             requiredMessage={writeT("required")}
             fields={[

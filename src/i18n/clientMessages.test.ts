@@ -416,7 +416,7 @@ describe("client message namespaces", () => {
      */
     for (const shared of [
       join(SRC, "features", "inbound", "InboundPrimitives.tsx"),
-      join(SRC, "components", "inbound", "InboundCells.ts"),
+      join(SRC, "components", "inbound", "InboundCells.tsx"),
     ]) {
       const entry = modules.get(shared);
       expect(

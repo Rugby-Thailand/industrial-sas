@@ -89,6 +89,20 @@ export const SHELL_NAMESPACES = [
  * read-only notice. Eight scopes paid 1.5 kB of Thai each for five strings.
  * Naming the chrome separately is what lets a putaway queue page without
  * learning the word for "stock bucket".
+ *
+ * `Table` is the same argument, one string long: `TableScroller` tells a narrow
+ * screen that its columns continue past the right edge, and it wraps every
+ * collection in the application — the master-data tables through `EntityTable`,
+ * and the two inventory tables directly, which is why the inventory scopes carry
+ * it too. Borrowing a domain namespace for that sentence would put the whole
+ * vocabulary back on all of them.
+ *
+ * `LabelPrintReason` and `LabelPrintStatus` are one namespace per closed set,
+ * exactly like `PurchaseOrderStatus` next to `Purchasing`. The label-evidence
+ * table used to print `INITIAL` and `GENERATED` into a Thai screen; the labels
+ * live beside the rest of the closed sets rather than inside `LabelEvidence` so
+ * that `codeLabel` can ask "does this catalogue know this code" of one namespace
+ * whose every key is a code.
  */
 export const ROUTE_NAMESPACES = {
   "(auth)/sign-in": ["Setup"],
@@ -107,6 +121,7 @@ export const ROUTE_NAMESPACES = {
     "Pagination",
     "Panel",
     "StockStatus",
+    "Table",
     "TransactionType",
   ],
   "(desktop)/master-data": [
@@ -117,6 +132,7 @@ export const ROUTE_NAMESPACES = {
     "MasterDataStatus",
     "Pagination",
     "Panel",
+    "Table",
     "TrackingMode",
     "Write",
     "WriteError",
@@ -124,6 +140,8 @@ export const ROUTE_NAMESPACES = {
   "(desktop)/purchasing": [
     "ImportProblem",
     "LabelEvidence",
+    "LabelPrintReason",
+    "LabelPrintStatus",
     "Pagination",
     "Panel",
     "PurchaseOrderLineStatus",
@@ -133,6 +151,7 @@ export const ROUTE_NAMESPACES = {
     "ReceiptLineKind",
     "Receiving",
     "StockStatus",
+    "Table",
     "Write",
     "WriteError",
   ],
@@ -143,6 +162,7 @@ export const ROUTE_NAMESPACES = {
     "PutawayFilterReason",
     "PutawayScoreComponent",
     "PutawayTaskStatus",
+    "Table",
     "Write",
     "WriteError",
   ],
@@ -153,12 +173,15 @@ export const ROUTE_NAMESPACES = {
     "QcDisposition",
     "Quality",
     "SamplingStrategy",
+    "Table",
     "Write",
     "WriteError",
   ],
   "(desktop)/receiving": [
     "ImportProblem",
     "LabelEvidence",
+    "LabelPrintReason",
+    "LabelPrintStatus",
     "Pagination",
     "Panel",
     "PurchaseOrderLineStatus",
@@ -168,6 +191,7 @@ export const ROUTE_NAMESPACES = {
     "ReceiptLineKind",
     "Receiving",
     "StockStatus",
+    "Table",
     "Write",
     "WriteError",
   ],
@@ -186,6 +210,7 @@ export const ROUTE_NAMESPACES = {
     "Pagination",
     "Panel",
     "StockStatus",
+    "Table",
   ],
   "(handheld)/handheld/putaway": [
     "Pagination",
@@ -194,6 +219,7 @@ export const ROUTE_NAMESPACES = {
     "PutawayFilterReason",
     "PutawayScoreComponent",
     "PutawayTaskStatus",
+    "Table",
     "Write",
     "WriteError",
   ],
@@ -204,12 +230,15 @@ export const ROUTE_NAMESPACES = {
     "QcDisposition",
     "Quality",
     "SamplingStrategy",
+    "Table",
     "Write",
     "WriteError",
   ],
   "(handheld)/handheld/receive": [
     "ImportProblem",
     "LabelEvidence",
+    "LabelPrintReason",
+    "LabelPrintStatus",
     "Pagination",
     "Panel",
     "PurchaseOrderLineStatus",
@@ -219,6 +248,7 @@ export const ROUTE_NAMESPACES = {
     "ReceiptLineKind",
     "Receiving",
     "StockStatus",
+    "Table",
     "Write",
     "WriteError",
   ],

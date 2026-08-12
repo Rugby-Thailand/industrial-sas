@@ -1,0 +1,75 @@
+import { screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+
+import { navigationMock } from "../../../tests/fixtures/navigation-mock";
+
+vi.mock("@/i18n/navigation", () => navigationMock);
+
+import {
+  previewEnvironment,
+  renderWithIntl,
+} from "../../../tests/fixtures/intl-render";
+import { writeStoredWarehouse } from "@/lib/workspace/warehouseStore";
+
+import { ApproveDispositionControl } from "./QualityApproval";
+
+/**
+ * "Approve this disposition" was the notice's title, the form's legend, the
+ * button, and — one level up — the section heading, with the maker-checker rule
+ * printed underneath it twice. The rule has not moved: it is still stated above
+ * the control, where somebody meets it before pressing rather than after being
+ * denied. It is just stated once.
+ */
+const BANG_PU = "prv_wh_bangpoo";
+
+const render = (locale: "th" | "en" = "th") => {
+  writeStoredWarehouse(BANG_PU);
+  return renderWithIntl(<ApproveDispositionControl />, {
+    locale,
+    environment: previewEnvironment,
+  });
+};
+
+describe("the disposition approval control", () => {
+  it("states the second-person rule exactly once", () => {
+    render();
+
+    expect(
+      screen.getAllByText(
+        "ต้องเป็นผู้ใช้คนละคนกับผู้บันทึกผล และต้องยืนยันตัวตนซ้ำ",
+      ),
+    ).toHaveLength(1);
+  });
+
+  it("keeps the rule visible above the control", () => {
+    // Hiding it would make a maker-checker rule look like a missing feature.
+    render();
+
+    const notice = screen.getByTestId("quality-approval-rule");
+    expect(notice).toHaveTextContent("ต้องมีผู้ใช้คนที่สองเป็นผู้อนุมัติ");
+    expect(notice).toHaveTextContent(/ต้องเป็นผู้ใช้คนละคนกับผู้บันทึกผล/);
+  });
+
+  it("says the action once, on the control that performs it", () => {
+    render();
+
+    const action = screen.getAllByText("อนุมัติผลนี้");
+    expect(action).toHaveLength(1);
+    expect(
+      screen.getByRole("button", { name: "อนุมัติผลนี้" }),
+    ).toBeInTheDocument();
+    // The legend names what to pick, which is not what the button does.
+    expect(screen.getByText("เลือกผลที่จะอนุมัติ")).toBeInTheDocument();
+  });
+
+  it("does not repeat itself in English either", () => {
+    render("en");
+
+    expect(
+      screen.getAllByText(
+        "Needs a different person from the one who recorded it, and a re-verified session.",
+      ),
+    ).toHaveLength(1);
+    expect(screen.getAllByText("Approve this disposition")).toHaveLength(1);
+  });
+});

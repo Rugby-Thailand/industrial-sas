@@ -9,6 +9,13 @@
  *
  * The glyph is `aria-hidden`: a screen reader announces the label, and reading
  * "black circle available" helps nobody.
+ *
+ * The pill never wraps. Thai has no inter-word spaces, so a browser breaking a
+ * label by its own word-boundary guess produced two- and three-line pills in
+ * narrow table cells — a shape that reads as several badges rather than one
+ * state. `whitespace-nowrap` is on the pill rather than on each part, so the
+ * glyph, the label, and any trailing detail stay on one line together. A badge
+ * wider than its cell is the table's problem, and the table scrolls (`UX §3`).
  */
 import type { ReactNode } from "react";
 
@@ -55,10 +62,12 @@ export function StatusBadge({
 }) {
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full border bg-surface px-2.5 py-1 text-xs font-semibold ${TONE_CLASSES[tone]}`}
+      className={`inline-flex items-center gap-1.5 rounded-full border bg-surface px-2.5 py-1 text-xs font-semibold whitespace-nowrap ${TONE_CLASSES[tone]}`}
       {...(title === undefined ? {} : { title })}
     >
-      <span aria-hidden="true">{TONE_GLYPHS[tone]}</span>
+      <span aria-hidden="true" className="shrink-0">
+        {TONE_GLYPHS[tone]}
+      </span>
       <span>{label}</span>
       {children}
     </span>

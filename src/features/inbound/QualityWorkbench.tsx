@@ -56,7 +56,12 @@ export function QualityWorkbench() {
         )}
       </InboundSection>
 
-      <InboundSection title={t("approve")}>
+      {/*
+       * The section is named for what it is — a second person's step — rather
+       * than for the button inside it, which says "approve this disposition"
+       * once, where it acts.
+       */}
+      <InboundSection title={t("sectionApproval")}>
         <ApproveDispositionControl />
       </InboundSection>
     </div>

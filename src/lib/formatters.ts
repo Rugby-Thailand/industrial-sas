@@ -124,11 +124,17 @@ export function formatCount(value: number, locale: AppLocale): string {
 /**
  * Shorten an opaque identifier for display, keeping both ends.
  *
- * Bucket keys and document IDs are long, meaningless to an operator, and still
- * have to be *comparable* on screen — "is this the row I looked at a minute
- * ago". Truncating one end makes two different keys look identical; keeping both
- * ends keeps them distinguishable. The full value stays available as the cell's
- * `title` and in the DOM, so it is still copyable and still findable by tests.
+ * For a value whose *middle* is what varies — a document ID, where the digits
+ * are effectively random. Truncating one end makes two different IDs look
+ * identical; keeping both ends keeps them distinguishable. The full value stays
+ * available as the cell's `title` and in the DOM, so it is still copyable and
+ * still findable by tests.
+ *
+ * Not for a value with a structure. A bucket key's ends are the organization
+ * prefix and the stock status — the two parts every row of one screen shares —
+ * so abbreviating one collapsed several buckets to the same text. That cell
+ * decodes the key instead (`@/lib/inventory/bucketIdentity`), and this helper is
+ * left to the identifiers it is honest about.
  */
 export function abbreviateIdentifier(value: string, keep = 6): string {
   if (keep <= 0) return UNRENDERABLE;

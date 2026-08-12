@@ -28,7 +28,7 @@
  * through a signed URL" are different security claims.
  */
 import { useMutation, useQuery } from "convex/react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useState } from "react";
 
 import { useAppEnvironment } from "@/components/providers/EnvironmentProvider";
@@ -43,7 +43,9 @@ import {
   type ReportJobRow,
   type ReportKind,
 } from "@/lib/convex/reportingApi";
+import { formatCount } from "@/lib/formatters";
 import { PREVIEW_ARTIFACT } from "@/lib/preview/reportingPreview";
+import type { AppLocale } from "@/i18n/routing";
 
 import { ReportJobs } from "./ReportingSources";
 
@@ -113,6 +115,7 @@ export function ExportWorkbench() {
 
 export function JobList({ jobs }: { readonly jobs: readonly ReportJobRow[] }) {
   const t = useTranslations("Reports");
+  const locale = useLocale() as AppLocale;
   const kindT = useTranslations("ReportKind");
   const statusT = useTranslations("ReportJobStatus");
 
@@ -133,7 +136,10 @@ export function JobList({ jobs }: { readonly jobs: readonly ReportJobRow[] }) {
               label={statusT(job.status)}
             />
             <span className="font-mono text-xs text-muted tabular-nums">
-              {t("rowCount", { count: job.rowCount })}
+              {t("rowCount", {
+                formattedCount: formatCount(job.rowCount, locale),
+                rowLabel: t(job.rowCount === 1 ? "rowSingular" : "rowPlural"),
+              })}
             </span>
           </div>
 

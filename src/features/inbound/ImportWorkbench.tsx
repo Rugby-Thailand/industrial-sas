@@ -65,12 +65,21 @@ export function ImportWorkbench() {
   return (
     <div className="flex flex-col gap-8">
       <section className="flex flex-col gap-4">
+        {/*
+         * One step, three labels, each saying a different thing: the heading
+         * names the step ("check the file"), the form names what it is asking
+         * for ("the file to check"), and the button names what pressing it does
+         * ("parse without writing"). All three were the same sentence, which is
+         * the P2 finding — and the button in particular was the one that had to
+         * change, because "Check the file" on a control does not say that the
+         * step is a query that cannot write.
+         */}
         <InboundSectionHeading title={t("importPreview")} />
         <EntityForm
           testId="form-import-preview"
-          legend={t("importPreview")}
-          description={t("importDescription")}
-          submitLabel={t("importPreview")}
+          legend={t("importPreviewLegend")}
+          description={t("importPreviewDescription")}
+          submitLabel={t("importPreviewSubmit")}
           requiredMessage={writeT("required")}
           busy={false}
           fields={[

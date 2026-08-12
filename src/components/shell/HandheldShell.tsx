@@ -13,6 +13,19 @@
  * Body text starts at 16 pixels and every control clears 48×48 (`INV-0010-06`).
  * The back link is a control, so it is a full-height row rather than a small
  * chevron.
+ *
+ * ### Why the shell is bounded rather than full-bleed
+ *
+ * On a 1280px desktop the same markup stretched a one-task screen across the
+ * whole window: a single field with a metre of empty space beside it, and a
+ * footer link the width of the display. This shell is a *handheld* shell — it is
+ * opened on a scanner, and on a desktop it is opened to check what an operator
+ * sees. So the column is capped and centred, which is what a handheld workspace
+ * looks like on a large screen.
+ *
+ * The cap is above every phone width this application targets, so nothing
+ * changes at 360px: `max-w-md` is 448 CSS pixels, and the column simply fills a
+ * narrow viewport as it did before.
  */
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
@@ -31,7 +44,10 @@ export function HandheldShell({ children }: { readonly children: ReactNode }) {
   const t = useTranslations("Navigation");
 
   return (
-    <div className="flex min-h-dvh flex-col bg-canvas text-base text-text">
+    <div
+      data-testid="handheld-workspace"
+      className="mx-auto flex min-h-dvh w-full max-w-md flex-col bg-canvas text-base text-text sm:border-x sm:border-border"
+    >
       <a
         href={`#${MAIN_ID}`}
         className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:m-2 focus:rounded-md focus:bg-accent focus:px-4 focus:py-3 focus:text-accent-contrast"
@@ -42,7 +58,7 @@ export function HandheldShell({ children }: { readonly children: ReactNode }) {
       <PreviewBanner />
 
       <header className="border-b border-border bg-surface px-4 py-3">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <ConnectionIndicator />
           <LocaleSwitcher />
         </div>

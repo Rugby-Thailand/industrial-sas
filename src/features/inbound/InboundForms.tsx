@@ -127,6 +127,9 @@ export function PurchaseOrderForm() {
                   label: t("fieldSupplier"),
                   kind: "select",
                   required: true,
+                  // The empty control says which choice is outstanding, rather
+                  // than repeating the label above it.
+                  placeholder: t("selectSupplier"),
                   options: suppliers.map((supplier) => ({
                     value: supplier.supplierId,
                     // The code is what a buyer recognises; the ID is what the
@@ -197,6 +200,7 @@ export function PurchaseOrderLineForm({
                   label: t("fieldItem"),
                   kind: "select",
                   required: true,
+                  placeholder: t("selectItem"),
                   options: items.map((item) => ({
                     value: item.itemId,
                     label: `${item.sku} · ${item.name}`,
@@ -257,6 +261,7 @@ export function CloseLineShortForm({
                   label: writeT("reasonCodeLabel"),
                   kind: "select",
                   required: true,
+                  placeholder: writeT("selectReasonCode"),
                   options: reasons.map((reason) => ({
                     value: reason.reasonCodeId,
                     label: `${reason.code} · ${reason.name}`,
@@ -394,6 +399,7 @@ function OpenReceiptFormBody({
                     label: purchasingT("fieldOrder"),
                     kind: "select" as const,
                     required: true,
+                    placeholder: purchasingT("selectOrder"),
                     options: orders.map((order) => ({
                       value: order.purchaseOrderId,
                       label: order.poNumber,
@@ -560,6 +566,7 @@ function ReceiptLineFormBody({
                 label: t("fieldOrderLine"),
                 kind: "select",
                 required: true,
+                placeholder: t("selectOrderLine"),
                 options: lines.map((line) => ({
                   value: line.purchaseOrderLineId,
                   label: `#${line.lineNumber} · ${skuOf(line.itemId)}`,
@@ -573,6 +580,7 @@ function ReceiptLineFormBody({
                 label: t("fieldItemChoice"),
                 kind: "select",
                 required: true,
+                placeholder: t("selectItemChoice"),
                 hint: t("fieldItemChoiceHint"),
                 /*
                  * The items this order asked for, not the whole catalogue: the
@@ -662,6 +670,7 @@ export function ReceivingExceptionForm() {
                   label: t("exceptionKind"),
                   kind: "select",
                   required: true,
+                  placeholder: t("selectExceptionKind"),
                   // `ORDERED` is absent: an ordinary receipt is not an exception,
                   // and raising one would create a maker for a posting that needs
                   // no second person.
@@ -674,6 +683,7 @@ export function ReceivingExceptionForm() {
                   label: writeT("reasonCodeLabel"),
                   kind: "select",
                   required: true,
+                  placeholder: writeT("selectReasonCode"),
                   options: reasons.map((reason) => ({
                     value: reason.reasonCodeId,
                     label: `${reason.code} · ${reason.name}`,
@@ -811,6 +821,7 @@ export function LabelForm({
                     label: t("fieldTemplate"),
                     kind: "select",
                     required: true,
+                    placeholder: t("selectTemplate"),
                     // Published versions only; the version is shown because a
                     // printed label cites the one that produced it.
                     options: templates.map((template) => ({

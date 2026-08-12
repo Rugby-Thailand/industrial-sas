@@ -105,6 +105,13 @@ interface ReceiptDocument {
   readonly businessDate: string;
 }
 
+/** Only the field the receiving screens display: the order's own number. */
+interface OrderDocument {
+  readonly _id: string;
+  readonly orgId: TenantOrgId;
+  readonly poNumber: string;
+}
+
 interface OrderLineDocument {
   readonly _id: string;
   readonly orgId: TenantOrgId;
@@ -1132,11 +1139,26 @@ export const buildHandlingUnit = mutationWithOrg({
 /* Reads                                                                       */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * `poNumber` is the order number an operator reads; `purchaseOrderId` is the
+ * document the screens navigate by.
+ *
+ * Both are here because they answer different questions. The receiving register
+ * used to show the identifier, so the same order appeared as `PO-2601` on the
+ * purchasing screen and as an opaque document ID one screen later — two names
+ * for one thing, only one of which is on the supplier's paperwork.
+ *
+ * It is optional twice over: a blind receipt has no order at all, and an order
+ * that cannot be read leaves the number absent rather than failing the page.
+ * Reading it costs no permission an order-less caller does not already exercise
+ * — the identifier was already on the wire, and a number is less than an ID.
+ */
 const receiptValidator = v.object({
   receiptId: v.id("receipts"),
   warehouseId: v.id("warehouses"),
   receiptNumber: v.string(),
   purchaseOrderId: v.optional(v.id("purchaseOrders")),
+  poNumber: v.optional(v.string()),
   occurredAt: v.number(),
   businessDate: v.string(),
 });
@@ -1207,18 +1229,44 @@ export const listReceipts = queryWithOrg({
           : { cursor: request.value.cursor }),
       });
 
+    /*
+     * The order number behind each receipt, read once per distinct order.
+     *
+     * A day's receipts at one dock name few orders between them, and the page is
+     * capped, so this is a small bounded number of reads. An order that cannot
+     * be read is recorded as "no number" rather than re-read for every receipt
+     * that names it.
+     */
+    const poNumberByOrderId = new Map<string, string | undefined>();
+    for (const receipt of page.page) {
+      const orderId = receipt.purchaseOrderId;
+      if (orderId === undefined || poNumberByOrderId.has(orderId)) continue;
+      const order = await ctx.tenantDb.get<OrderDocument>(
+        "purchaseOrders",
+        orderId,
+      );
+      poNumberByOrderId.set(orderId, order?.poNumber);
+    }
+
     return {
       ok: true as const,
-      items: page.page.map((receipt) => ({
-        receiptId: receipt._id as never,
-        warehouseId: receipt.warehouseId as never,
-        receiptNumber: receipt.receiptNumber,
-        occurredAt: receipt.occurredAt,
-        businessDate: receipt.businessDate,
-        ...(receipt.purchaseOrderId === undefined
-          ? {}
-          : { purchaseOrderId: receipt.purchaseOrderId as never }),
-      })),
+      items: page.page.map((receipt) => {
+        const poNumber =
+          receipt.purchaseOrderId === undefined
+            ? undefined
+            : poNumberByOrderId.get(receipt.purchaseOrderId);
+        return {
+          receiptId: receipt._id as never,
+          warehouseId: receipt.warehouseId as never,
+          receiptNumber: receipt.receiptNumber,
+          occurredAt: receipt.occurredAt,
+          businessDate: receipt.businessDate,
+          ...(receipt.purchaseOrderId === undefined
+            ? {}
+            : { purchaseOrderId: receipt.purchaseOrderId as never }),
+          ...(poNumber === undefined ? {} : { poNumber }),
+        };
+      }),
       nextCursor: page.isDone ? null : page.continueCursor,
       complete: page.isDone,
     };
@@ -1258,6 +1306,14 @@ export const getReceipt = queryWithOrg({
     >("receipts", args.receiptId);
     if (receipt === null) return { found: false as const };
 
+    const order =
+      receipt.purchaseOrderId === undefined
+        ? null
+        : await ctx.tenantDb.get<OrderDocument>(
+            "purchaseOrders",
+            receipt.purchaseOrderId,
+          );
+
     return {
       found: true as const,
       receipt: {
@@ -1269,6 +1325,7 @@ export const getReceipt = queryWithOrg({
         ...(receipt.purchaseOrderId === undefined
           ? {}
           : { purchaseOrderId: receipt.purchaseOrderId as never }),
+        ...(order === null ? {} : { poNumber: order.poNumber }),
       },
     };
   },

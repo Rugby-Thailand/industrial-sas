@@ -41,7 +41,7 @@ import type {
 import { codeLabel, type CodeTranslator } from "@/lib/domainLabels";
 import { UNRENDERABLE } from "@/lib/formatters";
 
-import { shortId, withUnit } from "./InboundCells";
+import { identifier, withBaseUnit, withUnit } from "./InboundCells";
 
 const ORDER_TONES: Readonly<Record<string, BadgeTone>> = {
   DRAFT: "pending",
@@ -170,7 +170,7 @@ export function PurchaseOrderLinesTable({
           key: "item",
           header: t("columnItem"),
           monospace: true,
-          render: (row) => shortId(row.itemId),
+          render: (row) => identifier(row.itemId),
         },
         {
           key: "ordered",
@@ -188,18 +188,28 @@ export function PurchaseOrderLinesTable({
           key: "received",
           header: t("columnReceived"),
           monospace: true,
-          render: (row) => String(row.receivedBaseMinorUnits / 1000),
+          /*
+           * In the item's base unit, and labelled with it. These two columns
+           * used to render a bare `receivedBaseMinorUnits / 1000` next to an
+           * ordered quantity that carried `CASE`, so three figures in two units
+           * looked like three figures in one.
+           */
+          render: (row) =>
+            withBaseUnit(row.receivedBaseMinorUnits, row.baseUom),
         },
         {
           key: "outstanding",
           header: t("columnOutstanding"),
           monospace: true,
+          // Never negative: an over-receipt is a receiving exception, not a
+          // negative amount still owed.
           render: (row) =>
-            String(
+            withBaseUnit(
               Math.max(
                 0,
                 row.orderedBaseMinorUnits - row.receivedBaseMinorUnits,
-              ) / 1000,
+              ),
+              row.baseUom,
             ),
         },
         {
@@ -356,7 +366,14 @@ export function ReceiptsTable({
           key: "order",
           header: t("columnOrder"),
           monospace: true,
-          render: (row) => shortId(row.purchaseOrderId),
+          /*
+           * The order *number*, which is what the purchasing register shows and
+           * what is on the supplier's paperwork. This column used to render
+           * `purchaseOrderId` — an internal document ID — so one order had two
+           * names one screen apart. A receipt with no number here is a blind
+           * receipt: there is no order behind it to name.
+           */
+          render: (row) => identifier(row.poNumber),
         },
       ]}
       {...(renderAction === undefined
@@ -389,7 +406,7 @@ export function ReceiptLinesTable({
           key: "item",
           header: t("columnItem"),
           rowHeader: true,
-          render: (row) => shortId(row.itemId),
+          render: (row) => identifier(row.itemId),
         },
         {
           key: "quantity",
@@ -443,6 +460,12 @@ export function PrintJobsTable({
   readonly rows: readonly PrintJobRow[];
 }) {
   const t = useTranslations("LabelEvidence");
+  const reasonT = useTranslations(
+    "LabelPrintReason",
+  ) as unknown as CodeTranslator;
+  const jobStatusT = useTranslations(
+    "LabelPrintStatus",
+  ) as unknown as CodeTranslator;
 
   return (
     <EntityTable<PrintJobRow>
@@ -466,10 +489,14 @@ export function PrintJobsTable({
         {
           key: "reason",
           header: t("columnReason"),
-          monospace: true,
-          // `INITIAL` and `REPRINT` stay English: they are code identifiers the
-          // audit row cites (`D-06`).
-          render: (row) => row.reason,
+          /*
+           * `INITIAL` and `REPRINT` are code identifiers (`D-06`) and they stay
+           * the *stored* value; what an operator reads is the catalogue's label
+           * for them, in Thai on a Thai screen. `codeLabel` falls back to the
+           * code itself for a reason this browser's catalogue does not know yet,
+           * which is the same string the audit row and the logs carry.
+           */
+          render: (row) => codeLabel(reasonT, row.reason),
         },
         {
           key: "status",
@@ -477,7 +504,7 @@ export function PrintJobsTable({
           render: (row) => (
             <StatusBadge
               tone={row.status === "GENERATED" ? "success" : "muted"}
-              label={row.status}
+              label={codeLabel(jobStatusT, row.status)}
             />
           ),
         },

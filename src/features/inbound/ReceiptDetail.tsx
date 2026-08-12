@@ -75,6 +75,7 @@ export function ReceiptDetail({ receiptId }: { readonly receiptId: string }) {
                     value={chosen}
                     onChange={setLocationId}
                     label={t("fieldLocation")}
+                    placeholder={t("selectLocation")}
                   />
                   <Receipt
                     receiptId={receiptId}
@@ -188,11 +189,18 @@ export function LocationChooser({
   value,
   onChange,
   label,
+  placeholder,
 }: {
   readonly locations: readonly LocationRow[];
   readonly value: string;
   readonly onChange: (locationId: string) => void;
   readonly label: string;
+  /**
+   * What the empty control says. Distinct from the label on purpose: "Received
+   * to" above an empty box that also reads "Received to" states the field twice
+   * and the outstanding choice not at all.
+   */
+  readonly placeholder: string;
 }) {
   const controlId = useId();
 
@@ -205,8 +213,8 @@ export function LocationChooser({
         id={controlId}
         value={value}
         onValueChange={onChange}
-        placeholder={label}
-        emptyLabel={label}
+        placeholder={placeholder}
+        emptyLabel={placeholder}
         testId="receiving-location"
         options={locations.map((location) => ({
           value: location.locationId,

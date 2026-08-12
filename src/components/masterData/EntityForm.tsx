@@ -177,7 +177,7 @@ export function EntityForm({
     <form
       noValidate
       onSubmit={submit}
-      className="flex flex-col gap-4 rounded-lg border border-border bg-surface p-4"
+      className="@container/form flex flex-col gap-4 rounded-lg border border-border bg-surface p-4"
       {...(testId === undefined ? {} : { "data-testid": testId })}
     >
       <FieldSet disabled={busy} className="border-0 p-0">
@@ -192,7 +192,7 @@ export function EntityForm({
 
         {outcome}
 
-        <FieldGroup className="grid gap-4 sm:grid-cols-2">
+        <FieldGroup className="grid gap-4 @xl/form:grid-cols-2">
           {fields.map((field) => {
             const controlId = `${formId}-${field.name}`;
             const hintId = `${controlId}-hint`;
@@ -228,7 +228,9 @@ export function EntityForm({
               <Field
                 key={field.name}
                 data-invalid={invalid ? true : undefined}
-                className={field.kind === "textarea" ? "sm:col-span-2" : ""}
+                className={
+                  field.kind === "textarea" ? "@xl/form:col-span-2" : ""
+                }
               >
                 <FieldLabel htmlFor={controlId} className="text-text">
                   {field.label}

@@ -154,11 +154,14 @@ export function RowActionButton({
   busy,
   onClick,
   testId,
+  title,
 }: {
   readonly label: string;
   readonly busy: boolean;
   readonly onClick: () => void;
   readonly testId?: string;
+  /** A longer explanation of what pressing this row's control will do. */
+  readonly title?: string;
 }) {
   return (
     <Button
@@ -168,6 +171,7 @@ export function RowActionButton({
       onClick={onClick}
       className="px-3 text-xs"
       {...(testId === undefined ? {} : { "data-testid": testId })}
+      {...(title === undefined ? {} : { title })}
     >
       {label}
     </Button>

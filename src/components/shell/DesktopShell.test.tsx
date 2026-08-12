@@ -41,6 +41,16 @@ describe("DesktopShell", () => {
     expect(screen.getByRole("main")).toHaveAttribute("id", "main-content");
   });
 
+  it("lets wide tables shrink inside the content column", () => {
+    renderWithIntl(<DesktopShell>content</DesktopShell>, {
+      environment: unconfiguredEnvironment,
+    });
+
+    const main = screen.getByRole("main");
+    expect(main).toHaveClass("min-w-0");
+    expect(main.parentElement).toHaveClass("min-w-0");
+  });
+
   it("marks the current page with aria-current, not with colour alone", () => {
     setMockPathname("/inventory/balances");
     renderWithIntl(<DesktopShell>content</DesktopShell>, {
@@ -65,13 +75,16 @@ describe("DesktopShell", () => {
     const toggle = screen.getByRole("button", { name: "เปิดเมนู" });
     expect(toggle).toHaveAttribute("aria-expanded", "false");
     expect(toggle).toHaveAttribute("aria-controls", "primary-navigation");
+    expect(toggle).toHaveAttribute("data-size", "icon");
+    expect(toggle).toHaveTextContent("");
+    expect(toggle.querySelector("svg.lucide-menu")).toHaveClass("size-6");
 
     await user.click(toggle);
 
-    expect(screen.getByRole("button", { name: "ปิดเมนู" })).toHaveAttribute(
-      "aria-expanded",
-      "true",
-    );
+    const close = screen.getByRole("button", { name: "ปิดเมนู" });
+    expect(close).toHaveAttribute("aria-expanded", "true");
+    expect(close).toHaveTextContent("");
+    expect(close.querySelector("svg.lucide-x")).toHaveClass("size-6");
   });
 
   it("reports an unconfigured deployment rather than a connection attempt", () => {

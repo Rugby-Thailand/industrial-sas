@@ -72,6 +72,7 @@ export function ItemForm() {
           label: t("columnTrackingMode"),
           kind: "select",
           required: true,
+          placeholder: t("selectTrackingMode"),
           options: TRACKING_MODES.map((mode) => ({
             value: mode,
             label: trackingT(mode),
@@ -125,6 +126,7 @@ export function ItemEditForm({ item }: { readonly item: ItemRow }) {
           label: t("columnTrackingMode"),
           kind: "select",
           required: true,
+          placeholder: t("selectTrackingMode"),
           initialValue: item.trackingMode,
           options: TRACKING_MODES.map((mode) => ({
             value: mode,
@@ -199,6 +201,7 @@ export function LocationForm() {
           label: t("columnLocationType"),
           kind: "select",
           required: true,
+          placeholder: t("selectLocationType"),
           options: LOCATION_TYPES.map((type) => ({
             value: type,
             label: typeT(type),
