@@ -22,7 +22,6 @@ import { useState, type ReactNode } from "react";
 import { useAppEnvironment } from "@/components/providers/EnvironmentProvider";
 import { useWorkspace } from "@/components/providers/WorkspaceProvider";
 import { LedgerPanelStatus } from "@/components/system/LedgerPanelStatus";
-import { Notice } from "@/components/ui/Notice";
 import { DEFAULT_LEDGER_PAGE_SIZE } from "@/lib/convex/ledgerApi";
 import {
   resolveLedgerGate,
@@ -43,6 +42,10 @@ import {
 import type { AppEnvironment } from "@/lib/environment";
 import { previewMasterDataPage } from "@/lib/preview/masterDataPreview";
 import type { TenantOutcome } from "@/lib/convex/ledgerApi";
+
+import { Button } from "@/components/ui/button";
+
+import { EmptyState } from "@/components/ui/EmptyState";
 
 /**
  * Convex constrains a function's arguments to `Record<string, any>`. Stating
@@ -234,9 +237,7 @@ function MasterDataBody<Row>({
   if (state.kind !== "READY") return <LedgerPanelStatus state={state} />;
 
   if (state.rows.length === 0) {
-    return (
-      <Notice tone="muted" title={panelT("empty")} body={panelT("emptyHint")} />
-    );
+    return <EmptyState title={panelT("empty")} body={panelT("emptyHint")} />;
   }
 
   const page = pageNumber(cursorState);
@@ -254,22 +255,22 @@ function MasterDataBody<Row>({
             : inventoryT("pageIndicator", { page })}
         </p>
         <div className="flex gap-2">
-          <button
+          <Button
             type="button"
-            className="min-h-touch rounded-md border border-border-strong px-4 font-medium disabled:text-disabled"
+            variant="outline"
             disabled={isFirstPage(cursorState)}
             onClick={onRetreat}
           >
             {inventoryT("previousPage")}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
-            className="min-h-touch rounded-md border border-border-strong px-4 font-medium disabled:text-disabled"
+            variant="outline"
             disabled={state.nextCursor === null}
             onClick={() => onAdvance(state.nextCursor)}
           >
             {inventoryT("nextPage")}
-          </button>
+          </Button>
         </div>
       </nav>
     </div>

@@ -47,6 +47,8 @@ import { PREVIEW_ARTIFACT } from "@/lib/preview/reportingPreview";
 
 import { ReportJobs } from "./ReportingSources";
 
+import { Button } from "@/components/ui/button";
+
 /** The exports a supervisor may ask for. Mirrors the server's closed set. */
 const REPORT_KINDS = [
   "INVENTORY_BALANCES",
@@ -195,14 +197,14 @@ function DemonstratedAdvance({ job }: { readonly job: ReportJobRow }) {
 
   return (
     <div className="flex flex-col gap-2">
-      <button
+      <Button
         type="button"
+        variant="outline"
         data-testid={`report-advance-${job.reportJobId}`}
-        className="min-h-touch rounded-md border border-border-strong bg-surface px-4 font-semibold"
         onClick={() => setDemonstrated(true)}
       >
         {t("advance")}
-      </button>
+      </Button>
       {demonstrated ? (
         <p className="text-xs text-muted" data-testid="write-DEMONSTRATED">
           {t("advanceDemonstrated")}
@@ -282,15 +284,15 @@ export function ServerAdvance({
 
   return (
     <div className="flex flex-col gap-2">
-      <button
+      <Button
         type="button"
+        variant="outline"
         disabled={state.kind === "RUNNING"}
         data-testid={`report-advance-${job.reportJobId}`}
-        className="min-h-touch rounded-md border border-border-strong bg-surface px-4 font-semibold disabled:text-disabled"
         onClick={run}
       >
         {state.kind === "RUNNING" ? t("advanceRunning") : t("advance")}
-      </button>
+      </Button>
 
       {/*
        * `role="alert"` rather than a silent colour change: the failure arrives
@@ -395,11 +397,11 @@ function DownloadButton({
   const t = useTranslations("Reports");
 
   return (
-    <button
+    <Button
       type="button"
+      variant="outline"
       disabled={artifact === undefined}
       data-testid={`report-download-${job.reportJobId}`}
-      className="min-h-touch rounded-md border border-border-strong bg-surface px-4 font-semibold disabled:text-disabled"
       onClick={() => {
         if (artifact === undefined) return;
         /*
@@ -419,6 +421,6 @@ function DownloadButton({
       }}
     >
       {artifact === undefined ? t("downloadPreparing") : label}
-    </button>
+    </Button>
   );
 }

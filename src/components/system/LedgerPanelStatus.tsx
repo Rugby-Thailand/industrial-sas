@@ -20,6 +20,7 @@ import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
 import { Notice } from "@/components/ui/Notice";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { BadgeTone } from "@/components/ui/StatusBadge";
 import type { LedgerPanelState } from "@/lib/convex/ledgerState";
 
@@ -38,6 +39,39 @@ export function LedgerPanelStatus({
   readonly action?: ReactNode;
 }) {
   const t = useTranslations("Panel");
+
+  /*
+   * Waiting is the one state that gets a shape rather than a sentence.
+   *
+   * A read in flight is not a problem, and a bordered card that says "loading"
+   * makes it look like one — it also moves the rows down the page and moves them
+   * back up when they arrive, which is how a supervisor taps the wrong row. Bars
+   * roughly where rows will be keep the page still.
+   *
+   * The words are still there. The skeleton is `aria-hidden` and the message
+   * lives in a polite live region beside it, so a screen reader hears "reading"
+   * once instead of hearing nothing, and nobody has to see the animation to know
+   * what it means (`WCAG 2.2` 4.1.3). The global reduced-motion rule already
+   * stops the pulse for anyone who asked it to.
+   */
+  if (state.kind === "LOADING") {
+    return (
+      <div
+        role="status"
+        data-testid="panel-LOADING"
+        className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4"
+      >
+        <span className="text-sm font-semibold text-muted">{t("loading")}</span>
+        <span className="sr-only">{t("loadingHint")}</span>
+        <div aria-hidden="true" className="flex flex-col gap-2">
+          <Skeleton className="h-6 w-1/3" />
+          <Skeleton className="h-6 w-full" />
+          <Skeleton className="h-6 w-full" />
+          <Skeleton className="h-6 w-2/3" />
+        </div>
+      </div>
+    );
+  }
 
   const presentation = ((): {
     tone: BadgeTone;
@@ -67,13 +101,6 @@ export function LedgerPanelStatus({
           role: "status",
           title: t("warehouseMissing"),
           body: t("warehouseMissingHint"),
-        };
-      case "LOADING":
-        return {
-          tone: "muted",
-          role: "status",
-          title: t("loading"),
-          body: t("loadingHint"),
         };
       case "DENIED":
         return {

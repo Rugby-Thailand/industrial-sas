@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { chooseOption } from "./support/select";
 
 /**
  * Thai-first locale routing, end to end (`INV-0010-05`, `D-06`).
@@ -65,7 +66,7 @@ test.describe("locale routing", () => {
       page.getByRole("heading", { level: 1, name: "ยอดคงเหลือ" }),
     ).toBeVisible();
 
-    await page.getByLabel("ภาษา").selectOption("en");
+    await chooseOption(page, "ภาษา", { value: "en" });
 
     await expect(page).toHaveURL(/\/en\/inventory\/balances$/);
     await expect(

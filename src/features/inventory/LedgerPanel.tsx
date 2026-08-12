@@ -40,7 +40,6 @@ import { useAppEnvironment } from "@/components/providers/EnvironmentProvider";
 import { useObservability } from "@/components/providers/ObservabilityProvider";
 import { useWorkspace } from "@/components/providers/WorkspaceProvider";
 import { LedgerPanelStatus } from "@/components/system/LedgerPanelStatus";
-import { Notice } from "@/components/ui/Notice";
 import {
   DEFAULT_LEDGER_PAGE_SIZE,
   type LedgerPage,
@@ -71,6 +70,10 @@ import { previewPage } from "@/lib/preview/ledgerPreview";
 
 import { LedgerErrorBoundary } from "./LedgerErrorBoundary";
 import { useLedgerReadSli } from "./useLedgerReadSli";
+
+import { Button } from "@/components/ui/button";
+
+import { EmptyState } from "@/components/ui/EmptyState";
 
 export interface LedgerPanelProps<Row> {
   /** The public query this panel reads. */
@@ -300,9 +303,7 @@ function LedgerPanelBody<Row>({
   if (state.kind !== "READY") return <LedgerPanelStatus state={state} />;
 
   if (state.rows.length === 0) {
-    return (
-      <Notice tone="muted" title={panelT("empty")} body={panelT("emptyHint")} />
-    );
+    return <EmptyState title={panelT("empty")} body={panelT("emptyHint")} />;
   }
 
   const page = pageNumber(cursorState);
@@ -320,22 +321,22 @@ function LedgerPanelBody<Row>({
             : inventoryT("pageIndicator", { page })}
         </p>
         <div className="flex gap-2">
-          <button
+          <Button
             type="button"
-            className="min-h-touch rounded-md border border-border-strong px-4 font-medium disabled:text-disabled"
+            variant="outline"
             disabled={isFirstPage(cursorState)}
             onClick={onRetreat}
           >
             {inventoryT("previousPage")}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
-            className="min-h-touch rounded-md border border-border-strong px-4 font-medium disabled:text-disabled"
+            variant="outline"
             disabled={state.nextCursor === null}
             onClick={() => onAdvance(state.nextCursor)}
           >
             {inventoryT("nextPage")}
-          </button>
+          </Button>
         </div>
       </nav>
     </div>

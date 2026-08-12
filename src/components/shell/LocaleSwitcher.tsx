@@ -13,14 +13,22 @@
  * preference" half of `INV-0010-05`: the next visit to `/` resolves to the
  * language chosen here rather than re-negotiating `Accept-Language`.
  *
- * A native `<select>`, not a custom menu: it is keyboard- and HID-operable
- * everywhere without a focus trap to get wrong (`INV-0010-08`), and Android
- * Chrome renders it as a full-screen list with rows already larger than the
- * 48-pixel minimum.
+ * Two languages, so this stays a Select rather than becoming an autocomplete —
+ * a search field over two options is a worse control than a list of two. The
+ * choice was a native `<select>` until the shared Radix Select existed, on the
+ * grounds that it needed no focus management to be correct; that argument held
+ * for the keyboard and failed for the colour scheme, because a native popup is
+ * painted by the operating system and stayed white on a dark screen.
+ *
+ * The control disables itself while the route transition is in flight. That is
+ * `pending`, not `disabled`: the shared Select marks it `aria-busy`, so the
+ * reason it cannot be used is available to a screen reader and not only to
+ * whoever can see it greyed.
  */
 import { useLocale, useTranslations } from "next-intl";
-import { useTransition } from "react";
+import { useId, useTransition } from "react";
 
+import { SelectControl } from "@/components/ui/SelectControl";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import { LOCALES, type AppLocale } from "@/i18n/routing";
 
@@ -30,27 +38,31 @@ export function LocaleSwitcher() {
   const pathname = usePathname();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const controlId = useId();
 
   return (
-    <label className="inline-flex items-center gap-2 text-sm">
-      <span className="text-muted">{t("label")}</span>
-      <select
-        className="min-h-touch rounded-md border border-border-strong bg-surface px-3 py-2 text-sm text-text"
+    <span className="inline-flex items-center gap-2 text-sm">
+      <label htmlFor={controlId} className="text-muted">
+        {t("label")}
+      </label>
+      <SelectControl
+        id={controlId}
         value={locale}
-        disabled={isPending}
-        onChange={(event) => {
-          const next = event.target.value as AppLocale;
+        pending={isPending}
+        placeholder={t("label")}
+        emptyLabel={t("label")}
+        className="w-40"
+        testId="locale-select"
+        options={LOCALES.map((candidate) => ({
+          value: candidate,
+          label: t(candidate),
+        }))}
+        onValueChange={(next) => {
           startTransition(() => {
-            router.replace(pathname, { locale: next });
+            router.replace(pathname, { locale: next as AppLocale });
           });
         }}
-      >
-        {LOCALES.map((candidate) => (
-          <option key={candidate} value={candidate}>
-            {t(candidate)}
-          </option>
-        ))}
-      </select>
-    </label>
+      />
+    </span>
   );
 }

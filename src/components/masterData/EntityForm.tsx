@@ -25,11 +25,33 @@
  *   actionable state on a warehouse screen (`UX §2.4`), and submitting an
  *   incomplete form produces a message that names the field.
  *
- * Inputs are `min-h-touch` because this markup is shared with the handheld
+ * The controls are the shared shadcn primitives — `FieldSet`, `Field`, `Input`,
+ * `Textarea`, `SelectControl`, `Button` — rather than local Tailwind markup, so
+ * the touch target, the focus ring, and the invalid treatment are defined once.
+ * The field-specification API above them did not change: twenty-odd call sites
+ * describe their fields the same way they did before the primitives existed, and
+ * every `kind: "select"` among them became a themed Radix menu without any of
+ * them being edited.
+ *
+ * Controls are `min-h-touch` because this markup is shared with the handheld
  * shell, where a 44px target is a requirement rather than a preference
  * (`INV-0010-04`).
  */
 import { useId, useState, type FormEvent, type ReactNode } from "react";
+
+import { Button } from "@/components/ui/button";
+import {
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+  FieldLegend,
+  FieldSet,
+} from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { SelectControl } from "@/components/ui/SelectControl";
+import { Textarea } from "@/components/ui/textarea";
 
 export type FormFieldKind = "text" | "number" | "select" | "textarea";
 
@@ -112,6 +134,10 @@ export function EntityForm({
     setMissing([]);
   }
 
+  const change = (name: string, next: string) => {
+    setValues((current) => ({ ...current, [name]: next }));
+  };
+
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (busy) return;
@@ -140,17 +166,19 @@ export function EntityForm({
       className="flex flex-col gap-4 rounded-lg border border-border bg-surface p-4"
       {...(testId === undefined ? {} : { "data-testid": testId })}
     >
-      <fieldset className="flex flex-col gap-4 border-0 p-0" disabled={busy}>
-        <legend className="text-sm font-semibold text-text">{legend}</legend>
+      <FieldSet disabled={busy} className="border-0 p-0">
+        <FieldLegend variant="label" className="text-text">
+          {legend}
+        </FieldLegend>
         {description === undefined ? null : (
-          <p className="max-w-prose text-sm leading-relaxed text-muted">
+          <FieldDescription className="max-w-prose leading-relaxed">
             {description}
-          </p>
+          </FieldDescription>
         )}
 
         {outcome}
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <FieldGroup className="grid gap-4 sm:grid-cols-2">
           {fields.map((field) => {
             const controlId = `${formId}-${field.name}`;
             const hintId = `${controlId}-hint`;
@@ -158,116 +186,101 @@ export function EntityForm({
             const isMissing = missing.includes(field.name);
             const isBlamed = invalidField === field.name;
             const invalid = isMissing || isBlamed;
+            const value = values[field.name] ?? "";
 
             const describedBy = [
               field.hint === undefined ? undefined : hintId,
               isMissing ? errorId : undefined,
             ]
-              .filter((value): value is string => value !== undefined)
+              .filter((entry): entry is string => entry !== undefined)
               .join(" ");
 
+            /*
+             * The attributes every kind shares. `aria-invalid` is deliberately
+             * absent rather than `false` when the field is fine: a control that
+             * always carries the attribute reads as "validity is being tracked
+             * here" to some assistive technology even when it is valid.
+             */
             const shared = {
               id: controlId,
               name: field.name,
-              value: values[field.name] ?? "",
               "aria-invalid": invalid ? (true as const) : undefined,
               "aria-describedby": describedBy === "" ? undefined : describedBy,
               "aria-required":
                 field.required === true ? (true as const) : undefined,
-              className: [
-                "min-h-touch w-full rounded-md border bg-surface px-3 py-2 text-sm",
-                invalid ? "border-danger" : "border-border-strong",
-                field.monospace === true ? "font-mono" : "",
-              ].join(" "),
             };
 
             return (
-              <div
+              <Field
                 key={field.name}
-                className={`flex flex-col gap-1 ${
-                  field.kind === "textarea" ? "sm:col-span-2" : ""
-                }`}
+                data-invalid={invalid ? true : undefined}
+                className={field.kind === "textarea" ? "sm:col-span-2" : ""}
               >
-                <label
-                  htmlFor={controlId}
-                  className="text-sm font-medium text-text"
-                >
+                <FieldLabel htmlFor={controlId} className="text-text">
                   {field.label}
-                </label>
+                </FieldLabel>
 
                 {field.kind === "select" ? (
-                  <select
-                    {...shared}
-                    onChange={(event) =>
-                      setValues((current) => ({
-                        ...current,
-                        [field.name]: event.target.value,
-                      }))
-                    }
-                  >
-                    {(field.options ?? []).map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
+                  <SelectControl
+                    id={controlId}
+                    name={field.name}
+                    value={value}
+                    options={field.options ?? []}
+                    onValueChange={(next) => change(field.name, next)}
+                    placeholder={field.placeholder ?? field.label}
+                    emptyLabel={field.placeholder ?? field.label}
+                    invalid={invalid}
+                    describedBy={describedBy}
+                    {...(field.required === true ? { required: true } : {})}
+                  />
                 ) : field.kind === "textarea" ? (
-                  <textarea
+                  <Textarea
                     {...shared}
+                    value={value}
                     rows={6}
+                    className={field.monospace === true ? "font-mono" : ""}
                     {...(field.placeholder === undefined
                       ? {}
                       : { placeholder: field.placeholder })}
-                    onChange={(event) =>
-                      setValues((current) => ({
-                        ...current,
-                        [field.name]: event.target.value,
-                      }))
-                    }
+                    onChange={(event) => change(field.name, event.target.value)}
                   />
                 ) : (
-                  <input
+                  <Input
                     {...shared}
+                    value={value}
                     type="text"
+                    className={field.monospace === true ? "font-mono" : ""}
                     {...(field.kind === "number"
                       ? { inputMode: "numeric" as const }
                       : {})}
                     {...(field.placeholder === undefined
                       ? {}
                       : { placeholder: field.placeholder })}
-                    onChange={(event) =>
-                      setValues((current) => ({
-                        ...current,
-                        [field.name]: event.target.value,
-                      }))
-                    }
+                    onChange={(event) => change(field.name, event.target.value)}
                   />
                 )}
 
                 {field.hint === undefined ? null : (
-                  <p id={hintId} className="text-xs leading-relaxed text-muted">
+                  <FieldDescription id={hintId} className="text-xs">
                     {field.hint}
-                  </p>
+                  </FieldDescription>
                 )}
                 {isMissing ? (
-                  <p id={errorId} className="text-xs font-medium text-danger">
+                  <FieldError id={errorId} className="text-xs font-medium">
                     {requiredMessage}
-                  </p>
+                  </FieldError>
                 ) : null}
-              </div>
+              </Field>
             );
           })}
-        </div>
+        </FieldGroup>
 
         <div>
-          <button
-            type="submit"
-            className="min-h-touch rounded-md border border-border-strong bg-surface px-4 font-semibold disabled:text-disabled"
-          >
+          <Button type="submit" variant="outline">
             {submitLabel}
-          </button>
+          </Button>
         </div>
-      </fieldset>
+      </FieldSet>
     </form>
   );
 }

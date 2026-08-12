@@ -2,6 +2,7 @@ import { fireEvent, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { navigationMock } from "../../../tests/fixtures/navigation-mock";
+import { selectOptionLabels } from "../../../tests/fixtures/select-control";
 
 vi.mock("@/i18n/navigation", () => navigationMock);
 
@@ -322,10 +323,7 @@ describe("ReceivingExceptionForm", () => {
       environment: previewEnvironment,
     });
 
-    const select = screen.getByLabelText("ประเภทข้อยกเว้น");
-    const options = Array.from(select.querySelectorAll("option")).map(
-      (option) => option.textContent,
-    );
+    const options = selectOptionLabels("ประเภทข้อยกเว้น");
     expect(options).not.toContain("ตามใบสั่งซื้อ");
     expect(options).toContain("รับโดยไม่มีใบสั่งซื้อ");
   });

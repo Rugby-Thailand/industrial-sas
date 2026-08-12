@@ -1,4 +1,9 @@
 import { expect, test, type Page } from "@playwright/test";
+import {
+  chooseOption,
+  expectSelectedValue,
+  optionValues,
+} from "./support/select";
 
 /**
  * The inbound journey on a scanner.
@@ -15,7 +20,7 @@ const BANG_PU = "prv_wh_bangpoo";
 const MIN_TOUCH_TARGET = 44;
 
 async function selectWarehouse(page: Page) {
-  await page.getByLabel("คลังสินค้า").selectOption(BANG_PU);
+  await chooseOption(page, "คลังสินค้า", { value: BANG_PU });
 }
 
 /**
@@ -99,9 +104,11 @@ test.describe("receiving on a scanner", () => {
      * *options*, not on a value the screen could have hard-coded: a select with
      * one assumed dock in it would pass a "the field is filled" check.
      */
-    const location = page.getByLabel("ตำแหน่งที่รับเข้า");
-    await expect(location).toBeVisible();
-    expect(await location.locator("option").count()).toBeGreaterThanOrEqual(1);
+    await expect(page.getByLabel("ตำแหน่งที่รับเข้า")).toBeVisible();
+    const docks = await optionValues(page, "ตำแหน่งที่รับเข้า");
+    expect(docks.length).toBeGreaterThanOrEqual(1);
+    // Real location documents of this warehouse, not a code the screen invented.
+    expect(docks.every((dock) => dock.startsWith("prv_loc_"))).toBe(true);
   });
 
   test("captures a scanned line with unit, lot, and expiry — and stores none of it", async ({
@@ -129,13 +136,14 @@ test.describe("receiving on a scanner", () => {
     await page.getByTestId("scan-to-item-resolve").click();
 
     const form = page.getByTestId("form-receipt-line");
-    await expect(form.getByLabel("บรรทัดในใบสั่งซื้อ")).toHaveValue(
+    await expectSelectedValue(
+      page,
+      "บรรทัดในใบสั่งซื้อ",
       "prv_pol_2601_2",
+      form,
     );
     // And the manual route is still there for a carton whose label is torn off.
-    await expect(form.getByLabel("สินค้าที่รับ")).toHaveValue(
-      "prv_item_bolt_m8",
-    );
+    await expectSelectedValue(page, "สินค้าที่รับ", "prv_item_bolt_m8", form);
 
     await form.getByLabel("จำนวน").fill("12");
     await form.getByLabel("หน่วยนับ").fill("EA");
@@ -181,7 +189,7 @@ test.describe("quality on a scanner", () => {
     const form = page.getByTestId("form-disposition");
     // Chosen from the tenant's own reason codes, not typed: the field carries a
     // document ID, and nobody has one of those on a scanner.
-    await form.getByLabel("รหัสเหตุผล").selectOption({ index: 0 });
+    await chooseOption(page, "รหัสเหตุผล", { index: 0 }, form);
     await form.getByRole("button", { name: "บันทึกผล" }).click();
 
     await expect(page.getByTestId("write-DEMONSTRATED").first()).toBeVisible();

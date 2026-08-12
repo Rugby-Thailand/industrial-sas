@@ -3,6 +3,11 @@ import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { renderWithIntl } from "../../../tests/fixtures/intl-render";
+import {
+  chooseOption,
+  selectOptionLabels,
+  selectTrigger,
+} from "../../../tests/fixtures/select-control";
 
 import { EntityForm, type FormFieldSpec } from "./EntityForm";
 import { WriteOutcomeNotice } from "./WriteOutcomeNotice";
@@ -254,5 +259,104 @@ describe("WriteOutcomeNotice", () => {
     expect(screen.getByTestId("write-FAILED")).toHaveTextContent(
       "กดบันทึกอีกครั้งได้อย่างปลอดภัย",
     );
+  });
+});
+
+/**
+ * The select branch, which every `kind: "select"` field specification renders
+ * through.
+ *
+ * Twenty-odd specifications across master data, purchasing, receiving, quality,
+ * putaway, and exports reach this one code path. None of them was edited when
+ * the native `<select>` became a Radix menu, which is the point of the seam —
+ * and the reason these states are asserted here rather than once per caller.
+ */
+describe("EntityForm select fields", () => {
+  const withSelect = (
+    overrides: Partial<Parameters<typeof EntityForm>[0]> = {},
+  ) =>
+    renderForm({
+      fields: [
+        { name: "code", label: "รหัส", kind: "text", required: true },
+        {
+          name: "kind",
+          label: "ชนิด",
+          kind: "select",
+          required: true,
+          hint: "เลือกชนิดของบาร์โค้ด",
+          options: [
+            { value: "GTIN", label: "GTIN" },
+            { value: "SUPPLIER", label: "ผู้จัดจำหน่าย" },
+          ],
+        },
+      ],
+      ...overrides,
+    });
+
+  it("renders every option of a field specification", () => {
+    withSelect();
+    expect(selectOptionLabels("ชนิด")).toEqual(["GTIN", "ผู้จัดจำหน่าย"]);
+  });
+
+  it("submits the chosen value, not its label", () => {
+    const { onSubmit } = withSelect();
+
+    fireEvent.change(screen.getByLabelText("รหัส"), {
+      target: { value: "8850001" },
+    });
+    chooseOption("ชนิด", "ผู้จัดจำหน่าย");
+    fireEvent.click(screen.getByRole("button", { name: "บันทึก" }));
+
+    expect(onSubmit).toHaveBeenCalledWith({
+      code: "8850001",
+      kind: "SUPPLIER",
+    });
+  });
+
+  it("marks a select the server blamed", () => {
+    // Same treatment as a text field: the refusal names a field, and the field
+    // says so where the operator is looking (`INV-0002-*`).
+    withSelect({ invalidField: "kind" });
+    expect(selectTrigger("ชนิด")).toHaveAttribute("aria-invalid", "true");
+  });
+
+  it("names a required select left blank instead of disabling submit", () => {
+    const { onSubmit } = renderForm({
+      fields: [
+        {
+          name: "reason",
+          label: "รหัสเหตุผล",
+          kind: "select",
+          required: true,
+          // No `initialValue`, and an option list whose first entry is blank:
+          // the form starts with nothing chosen, which is what a required
+          // select is for.
+          options: [{ value: "", label: "—" }],
+        },
+      ],
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "บันทึก" }));
+
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(screen.getByText("ต้องกรอกช่องนี้")).toBeInTheDocument();
+    expect(selectTrigger("รหัสเหตุผล")).toHaveAttribute("aria-invalid", "true");
+  });
+
+  it("describes a select by its hint", () => {
+    withSelect();
+    expect(selectTrigger("ชนิด")).toHaveAccessibleDescription(
+      "เลือกชนิดของบาร์โค้ด",
+    );
+  });
+
+  it("closes its selects while a request is in flight", () => {
+    /*
+     * The fieldset is disabled, and a Radix trigger is a real `<button>` inside
+     * it — so the browser disables it for the same reason it disables the text
+     * inputs, and a second submission cannot be started from a menu.
+     */
+    withSelect({ busy: true });
+    expect(selectTrigger("ชนิด")).toBeDisabled();
   });
 });

@@ -19,14 +19,17 @@
  * dropdown — the difference between "nothing here" and "not available yet".
  */
 import { useLocale, useTranslations } from "next-intl";
+import { useId } from "react";
 
 import { useWorkspace } from "@/components/providers/WorkspaceProvider";
+import { SelectControl } from "@/components/ui/SelectControl";
 import { organizationLabel, warehouseLabel } from "@/lib/workspace/workspace";
 
 export function WorkspaceContextBar() {
   const t = useTranslations("Workspace");
   const locale = useLocale();
   const workspace = useWorkspace();
+  const warehouseId = useId();
 
   if (!workspace.selectable || workspace.organization === undefined) {
     return (
@@ -46,23 +49,30 @@ export function WorkspaceContextBar() {
         </span>
       </span>
 
-      <label className="flex flex-col gap-1">
-        <span className="text-xs text-muted">{t("warehouse")}</span>
-        <select
-          className="min-h-touch rounded-md border border-border-strong bg-surface px-3 py-2 text-sm font-semibold text-text"
+      <span className="flex flex-col gap-1">
+        {/*
+         * `htmlFor` rather than a wrapping `<label>`: the Radix trigger is a
+         * `<button>`, which is a labelable element, but only an explicit `for`
+         * reaches it — a wrapping label associates with nothing and the control
+         * loses its accessible name.
+         */}
+        <label htmlFor={warehouseId} className="text-xs text-muted">
+          {t("warehouse")}
+        </label>
+        <SelectControl
+          id={warehouseId}
           value={workspace.selectedWarehouseId ?? ""}
-          onChange={(event) => workspace.selectWarehouse(event.target.value)}
-        >
-          <option value="" disabled>
-            {t("selectWarehouse")}
-          </option>
-          {workspace.warehouses.map((warehouse) => (
-            <option key={warehouse.id} value={warehouse.id}>
-              {warehouseLabel(warehouse, locale)}
-            </option>
-          ))}
-        </select>
-      </label>
+          onValueChange={(warehouse) => workspace.selectWarehouse(warehouse)}
+          placeholder={t("selectWarehouse")}
+          emptyLabel={t("noWarehouses")}
+          className="w-full font-semibold sm:w-64"
+          testId="warehouse-select"
+          options={workspace.warehouses.map((warehouse) => ({
+            value: warehouse.id,
+            label: warehouseLabel(warehouse, locale),
+          }))}
+        />
+      </span>
     </div>
   );
 }

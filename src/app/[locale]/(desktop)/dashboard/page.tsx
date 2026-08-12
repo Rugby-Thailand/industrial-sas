@@ -1,6 +1,8 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
 
 import { SetupChecklist } from "@/components/system/SetupChecklist";
+import { Card, CardContent } from "@/components/ui/card";
+import { DashboardScope } from "@/features/reporting/DashboardScope";
 import { OccupancyMap } from "@/features/reporting/OccupancyMap";
 import { OperationsTiles } from "@/features/reporting/OperationsTiles";
 import { Notice } from "@/components/ui/Notice";
@@ -26,6 +28,20 @@ import { ROUTES } from "@/lib/navigation";
  * Low stock and reconciliation health are still absent: the first needs a
  * per-item reorder policy that no table holds, and the second is the ledger
  * reconciliation job's own report rather than a tile.
+ *
+ * ### The order of the sections
+ *
+ * Operations first, system last. The sequence follows the ReUI application
+ * dashboard's hierarchy — scope, counters, capacity, work queue, notices — for
+ * one reason that survives being restated without the reference: a supervisor
+ * opens this page to find out what is waiting, and the deployment's setup state
+ * is something they check once a quarter. Putting the checklist above the work
+ * queue costs a scroll on every visit to save one on almost none.
+ *
+ * There is no revenue, growth, or trend section, and there will not be one from
+ * this data. Every figure here is a maintained counter or a count of drawn
+ * locations; a sparkline over a rollup that has no history would be a shape
+ * invented to fill a card.
  */
 export default async function DashboardPage({
   params,
@@ -37,6 +53,9 @@ export default async function DashboardPage({
   const t = await getTranslations("Dashboard");
 
   const entries = [
+    { href: ROUTES.receiving, labelKey: "receivingCard" },
+    { href: ROUTES.quality, labelKey: "qualityCard" },
+    { href: ROUTES.putaway, labelKey: "putawayCard" },
     { href: ROUTES.items, labelKey: "itemsCard" },
     { href: ROUTES.balances, labelKey: "balancesCard" },
     { href: ROUTES.history, labelKey: "historyCard" },
@@ -47,6 +66,7 @@ export default async function DashboardPage({
   return (
     <>
       <PageHeader title={t("title")} description={t("description")} />
+      <DashboardScope />
 
       <section className="mb-8" aria-labelledby="tiles-heading">
         <h2 id="tiles-heading" className="mb-3 text-lg font-semibold text-text">
@@ -65,6 +85,35 @@ export default async function DashboardPage({
         <OccupancyMap />
       </section>
 
+      <section className="mb-8" aria-labelledby="entry-heading">
+        <h2 id="entry-heading" className="mb-3 text-lg font-semibold text-text">
+          {t("entryHeading")}
+        </h2>
+        {/*
+         * The work queue is a list of links rather than a list of tasks, because
+         * the tasks live behind warehouse-scoped reads this server component
+         * cannot make. Each entry is still the shortest path from "something is
+         * waiting" to the screen that clears it, which is the job an operations
+         * dashboard's queue does.
+         */}
+        <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {entries.map((entry) => (
+            <li key={entry.href}>
+              <Card size="sm" className="h-full hover:border-accent">
+                <CardContent>
+                  <Link
+                    href={entry.href}
+                    className="flex min-h-touch items-center text-sm font-medium text-text"
+                  >
+                    {t(entry.labelKey)}
+                  </Link>
+                </CardContent>
+              </Card>
+            </li>
+          ))}
+        </ul>
+      </section>
+
       <section className="mb-8" aria-labelledby="capability-heading">
         <h2
           id="capability-heading"
@@ -77,24 +126,6 @@ export default async function DashboardPage({
           title={t("capabilityHeading")}
           body={t("capabilityBody")}
         />
-      </section>
-
-      <section className="mb-8" aria-labelledby="entry-heading">
-        <h2 id="entry-heading" className="mb-3 text-lg font-semibold text-text">
-          {t("entryHeading")}
-        </h2>
-        <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {entries.map((entry) => (
-            <li key={entry.href}>
-              <Link
-                href={entry.href}
-                className="flex min-h-touch items-center rounded-lg border border-border bg-surface p-4 text-sm font-medium text-text hover:border-accent"
-              >
-                {t(entry.labelKey)}
-              </Link>
-            </li>
-          ))}
-        </ul>
       </section>
 
       <section aria-labelledby="system-heading">

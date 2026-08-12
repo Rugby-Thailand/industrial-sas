@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { chooseOption } from "./support/select";
 
 /**
  * The Phase 2 master-data screens, against local preview data.
@@ -240,7 +241,7 @@ test.describe("items and locations gained their write controls", () => {
     ).toBeVisible();
     await expect(page.getByTestId("form-location")).toHaveCount(0);
 
-    await page.getByLabel("คลังสินค้า").selectOption("prv_wh_bangpoo");
+    await chooseOption(page, "คลังสินค้า", { value: "prv_wh_bangpoo" });
     await expect(page.getByTestId("form-location")).toBeVisible();
   });
 });

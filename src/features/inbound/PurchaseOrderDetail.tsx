@@ -31,6 +31,8 @@ import {
 } from "./InboundForms";
 import { InboundSection, PurchaseOrderLinesPanel } from "./InboundPanels";
 
+import { Button } from "@/components/ui/button";
+
 export function PurchaseOrderDetail({
   purchaseOrderId,
 }: {
@@ -92,14 +94,15 @@ export function PurchaseOrderDetail({
              * supplier failure into the tenant's own reporting.
              */
             row.status === "OPEN" ? (
-              <button
+              <Button
                 type="button"
+                variant="outline"
                 onClick={() => setClosing(row)}
                 data-testid={`line-close-short-${row.lineNumber}`}
-                className="min-h-touch rounded-md border border-border-strong px-3 text-xs font-semibold"
+                className="px-3 text-xs"
               >
                 {t("closeShort")}
-              </button>
+              </Button>
             ) : null
           }
         />

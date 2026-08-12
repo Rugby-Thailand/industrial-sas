@@ -42,6 +42,8 @@ import {
 
 import type { WriteRef } from "./EntityWriteForm";
 
+import { Button } from "@/components/ui/button";
+
 /** What the region hands its children. */
 export interface RowWriteControls<Args> {
   /**
@@ -159,14 +161,15 @@ export function RowActionButton({
   readonly testId?: string;
 }) {
   return (
-    <button
+    <Button
       type="button"
+      variant="outline"
       disabled={busy}
       onClick={onClick}
-      className="min-h-touch rounded-md border border-border-strong px-3 text-xs font-semibold disabled:text-disabled"
+      className="px-3 text-xs"
       {...(testId === undefined ? {} : { "data-testid": testId })}
     >
       {label}
-    </button>
+    </Button>
   );
 }

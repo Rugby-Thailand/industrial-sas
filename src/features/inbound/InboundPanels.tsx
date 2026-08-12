@@ -62,6 +62,8 @@ import {
 import { MasterDataPanel } from "../masterData/MasterDataPanel";
 import { RowActionButton, RowWriteRegion } from "../masterData/RowWriteRegion";
 
+import { Button } from "@/components/ui/button";
+
 /** The paging arguments every warehouse-scoped inbound list takes. */
 const pageArgs = (warehouseId: string, cursor: string | undefined) => ({
   warehouseId,
@@ -255,14 +257,15 @@ export function InspectionsPanel({
                    * cannot fix from this screen.
                    */
                   row.status === "OPEN" ? (
-                    <button
+                    <Button
                       type="button"
+                      variant="outline"
                       onClick={() => onSelect(row)}
                       data-testid={`inspection-select-${row.inspectionId}`}
-                      className="min-h-touch rounded-md border border-border-strong px-3 text-xs font-semibold"
+                      className="px-3 text-xs"
                     >
                       {t("sectionDisposition")}
-                    </button>
+                    </Button>
                   ) : null,
               })}
         />
@@ -323,14 +326,15 @@ export function PutawayTasksPanel({
                       }
                     />
                     {onSelect === undefined ? null : (
-                      <button
+                      <Button
                         type="button"
+                        variant="outline"
                         onClick={() => onSelect(row)}
                         data-testid={`task-select-${row.putawayTaskId}`}
-                        className="min-h-touch rounded-md border border-border-strong px-3 text-xs font-semibold"
+                        className="px-3 text-xs"
                       >
                         {t("sectionRecommendation")}
-                      </button>
+                      </Button>
                     )}
                   </div>
                 )

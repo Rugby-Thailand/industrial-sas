@@ -60,7 +60,8 @@
     "noWarehouse": "No warehouse selected",
     "unavailable": "No organization context",
     "unavailableHint": "Organization and warehouse context comes only from a verified token, so it cannot be chosen until an identity provider is configured.",
-    "previewNotice": "The organization and warehouses below are synthetic local development data."
+    "previewNotice": "The organization and warehouses below are synthetic local development data.",
+    "noWarehouses": "No warehouse available"
   },
   "Preview": {
     "badge": "Preview data",
@@ -124,7 +125,10 @@
     "tileAsOf": "As of {when}",
     "tileSuspect": "This number may be low: a counter was corrected downwards. Run the verification before relying on it.",
     "tileCumulative": "Total since this site was created",
-    "reportsCard": "Exports"
+    "reportsCard": "Exports",
+    "receivingCard": "Post received lines against an order.",
+    "qualityCard": "Decide the inspections waiting on a disposition.",
+    "putawayCard": "Confirm the putaway tasks that are ready."
   },
   "Inventory": {
     "balancesTitle": "Balances",
@@ -672,7 +676,8 @@
     "empty": "No locations configured at this site",
     "emptyHint": "A master-data administrator has to create locations before the map can show anything.",
     "partial": "This map does not show every location",
-    "partialHint": "The site has more locations than one page of the map. What is drawn is accurate; what is missing is not empty."
+    "partialHint": "The site has more locations than one page of the map. What is drawn is accurate; what is missing is not empty.",
+    "capacity": "Share of drawn locations by band"
   },
   "OccupancyBand": {
     "EMPTY": "Empty",

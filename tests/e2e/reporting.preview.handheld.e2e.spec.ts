@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { chooseOption } from "./support/select";
 
 /**
  * Reporting on a scanner.
@@ -13,7 +14,7 @@ const BANG_PU = "prv_wh_bangpoo";
 const MIN_TOUCH_TARGET = 44;
 
 async function selectWarehouse(page: Page) {
-  await page.getByLabel("คลังสินค้า").selectOption(BANG_PU);
+  await chooseOption(page, "คลังสินค้า", { value: BANG_PU });
 }
 
 test.describe("reporting at handheld width", () => {

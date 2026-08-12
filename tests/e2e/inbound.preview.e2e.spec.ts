@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { chooseOption, optionLabels } from "./support/select";
 
 /**
  * The inbound journey on a desktop, against local preview data.
@@ -15,7 +16,7 @@ const BANG_PU = "prv_wh_bangpoo";
 
 /** Every inbound screen is warehouse-scoped; the selector comes first. */
 async function selectWarehouse(page: Page) {
-  await page.getByLabel("คลังสินค้า").selectOption(BANG_PU);
+  await chooseOption(page, "คลังสินค้า", { value: BANG_PU });
 }
 
 test.describe("the inbound screens", () => {
@@ -152,7 +153,7 @@ test.describe("previewed import", () => {
     const chunk = page.getByTestId("form-import-chunk");
     // Selected by PO number from the tenant's own open orders. The field carries
     // the order's document ID, which nobody importing a spreadsheet has.
-    await chunk.getByLabel("ใบสั่งซื้อ").selectOption({ label: "PO-2601" });
+    await chooseOption(page, "ใบสั่งซื้อ", { label: "PO-2601" }, chunk);
     await chunk.getByRole("button").click();
 
     // The cursor advanced, so the resume path is walkable.
@@ -272,7 +273,7 @@ test.describe("quality", () => {
 
     const form = page.getByTestId("form-disposition");
     // Chosen from the tenant's active `STATUS_CHANGE` reason codes, not typed.
-    await form.getByLabel("รหัสเหตุผล").selectOption({ index: 0 });
+    await chooseOption(page, "รหัสเหตุผล", { index: 0 }, form);
     await form.getByRole("button", { name: "บันทึกผล" }).click();
 
     await expect(page.getByTestId("write-DEMONSTRATED").first()).toBeVisible();
@@ -348,13 +349,13 @@ test.describe("putaway", () => {
     await selectWarehouse(page);
     await page.getByTestId("task-select-prv_task_4001").click();
 
-    const select = page
-      .getByTestId("form-confirm-putaway")
-      .getByLabel("ตำแหน่งที่จัดเก็บจริง");
-    await expect(select.locator("option")).toHaveCount(3);
-    await expect(
-      select.locator("option", { hasText: "DOCK-IN-1" }),
-    ).toHaveCount(0);
+    const labels = await optionLabels(
+      page,
+      "ตำแหน่งที่จัดเก็บจริง",
+      page.getByTestId("form-confirm-putaway"),
+    );
+    expect(labels).toHaveLength(3);
+    expect(labels.some((entry) => entry.includes("DOCK-IN-1"))).toBe(false);
   });
 });
 

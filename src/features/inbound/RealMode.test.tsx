@@ -1,7 +1,13 @@
-import { fireEvent, screen } from "@testing-library/react";
+import { fireEvent, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { navigationMock } from "../../../tests/fixtures/navigation-mock";
+import {
+  chooseOption,
+  openSelect,
+  selectOptionLabels,
+  selectedLabel,
+} from "../../../tests/fixtures/select-control";
 
 vi.mock("@/i18n/navigation", () => navigationMock);
 
@@ -92,26 +98,67 @@ describe("OptionGate", () => {
 });
 
 describe("LocationChooser", () => {
-  it("offers the tenant's own locations by code", () => {
+  const chooser = (onChange: (locationId: string) => void = () => undefined) =>
     renderWithIntl(
       <LocationChooser
         locations={previewLocationsFor(BANG_PU)}
         value=""
-        onChange={() => undefined}
+        onChange={onChange}
         label="ตำแหน่งที่รับเข้า"
       />,
       { environment: previewEnvironment },
     );
 
-    const select = screen.getByLabelText("ตำแหน่งที่รับเข้า");
-    const options = Array.from(select.querySelectorAll("option")).map(
-      (option) => option.getAttribute("value"),
+  it("offers the tenant's own locations by code", () => {
+    chooser();
+
+    const options = within(openSelect("ตำแหน่งที่รับเข้า")).getAllByRole(
+      "option",
     );
 
-    // Real document identifiers, not codes: the mutation takes an ID.
-    expect(options.every((value) => (value ?? "").startsWith("prv_loc_"))).toBe(
-      true,
-    );
+    /*
+     * Codes on the label, document identifiers underneath. An operator reads
+     * `DOCK-IN-1` off a sign; the mutation takes the ID, and asserting both is
+     * what stops one being quietly substituted for the other.
+     */
+    expect(options.length).toBeGreaterThan(0);
+    expect(
+      options.every((option) =>
+        (option.getAttribute("data-value") ?? "").startsWith("prv_loc_"),
+      ),
+    ).toBe(true);
+    expect(
+      options.every((option) => !(option.textContent ?? "").startsWith("prv_")),
+    ).toBe(true);
+  });
+
+  it("hands the chosen dock's identifier to its caller", () => {
+    /*
+     * The receiving flow is shared by the desktop receipt screen and the
+     * handheld one — the same component, the same props, one keyboard path. If
+     * the dock did not come back as an ID here, the pallet and the lines on it
+     * would be recorded at different places.
+     */
+    const onChange = vi.fn();
+    const dock = previewLocationsFor(BANG_PU)[0];
+    expect(dock).toBeDefined();
+
+    chooser(onChange);
+    chooseOption("ตำแหน่งที่รับเข้า", dock?.code ?? "");
+
+    expect(onChange).toHaveBeenCalledWith(dock?.locationId);
+  });
+
+  it("is operable by keyboard alone, because a scanner is a keyboard", () => {
+    const onChange = vi.fn();
+    chooser(onChange);
+
+    const trigger = screen.getByLabelText("ตำแหน่งที่รับเข้า");
+    fireEvent.keyDown(trigger, { key: "Enter" });
+    const options = within(screen.getByRole("listbox")).getAllByRole("option");
+    fireEvent.keyDown(options[0]!, { key: "Enter" });
+
+    expect(onChange).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -234,15 +281,10 @@ describe("the receipt-line capture form", () => {
   it("offers the ordered items by SKU and never as an identifier", () => {
     render();
 
-    const select = screen.getByLabelText("สินค้าที่รับ");
-    const labels = Array.from(select.querySelectorAll("option")).map(
-      (option) => option.textContent,
-    );
+    const labels = selectOptionLabels("สินค้าที่รับ");
     expect(labels.length).toBeGreaterThan(0);
     // A SKU a person reads off a box, not a `prv_`-shaped document ID.
-    expect(labels.every((label) => !(label ?? "").startsWith("prv_"))).toBe(
-      true,
-    );
+    expect(labels.every((label) => !label.startsWith("prv_"))).toBe(true);
   });
 
   it("selects the ordered line a scanned barcode resolves to", () => {
@@ -267,9 +309,18 @@ describe("the receipt-line capture form", () => {
     });
     fireEvent.click(screen.getByTestId("scan-to-item-resolve"));
 
-    expect(screen.getByLabelText("สินค้าที่รับ")).toHaveValue(target?.itemId);
-    expect(screen.getByLabelText("บรรทัดในใบสั่งซื้อ")).toHaveValue(
-      target?.purchaseOrderLineId,
+    /*
+     * The Radix trigger shows the *label* of the chosen row rather than its
+     * value, which is the better assertion anyway: a document ID proves the
+     * wiring, and the SKU proves the operator can read what the scan picked.
+     */
+    const sku = previewItems().find(
+      (item) => item.itemId === target?.itemId,
+    )?.sku;
+    expect(sku).toBeDefined();
+    expect(selectedLabel("สินค้าที่รับ")).toContain(sku ?? "");
+    expect(selectedLabel("บรรทัดในใบสั่งซื้อ")).toContain(
+      `#${target?.lineNumber ?? ""} · ${sku ?? ""}`,
     );
   });
 

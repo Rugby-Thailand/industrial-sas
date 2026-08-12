@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { chooseOption, expectSelectedValue } from "./support/select";
 
 /**
  * The inventory read path, exercised against local preview data.
@@ -45,7 +46,7 @@ test.describe("inventory read path with preview data", () => {
 
   test("shows balances for the selected warehouse", async ({ page }) => {
     await page.goto("/th/inventory/balances");
-    await page.getByLabel("คลังสินค้า").selectOption(BANG_PU);
+    await chooseOption(page, "คลังสินค้า", { value: BANG_PU });
 
     const table = page.getByRole("table");
     await expect(table).toBeVisible();
@@ -57,11 +58,11 @@ test.describe("inventory read path with preview data", () => {
 
   test("remembers the warehouse across a navigation", async ({ page }) => {
     await page.goto("/th/inventory/balances");
-    await page.getByLabel("คลังสินค้า").selectOption(LAMPHUN);
+    await chooseOption(page, "คลังสินค้า", { value: LAMPHUN });
     await expect(page.getByRole("table")).toBeVisible();
 
     await page.goto("/th/inventory/history");
-    await expect(page.getByLabel("คลังสินค้า")).toHaveValue(LAMPHUN);
+    await expectSelectedValue(page, "คลังสินค้า", LAMPHUN);
     await expect(page.getByRole("table")).toBeVisible();
   });
 
@@ -69,7 +70,7 @@ test.describe("inventory read path with preview data", () => {
     page,
   }) => {
     await page.goto("/th/inventory/history");
-    await page.getByLabel("คลังสินค้า").selectOption(BANG_PU);
+    await chooseOption(page, "คลังสินค้า", { value: BANG_PU });
 
     const table = page.getByRole("table");
     await expect(table.getByText("รายการกลับรายการ")).toHaveCount(1);
@@ -79,7 +80,7 @@ test.describe("inventory read path with preview data", () => {
 
   test("pages forward and back without losing its place", async ({ page }) => {
     await page.goto("/th/inventory/history");
-    await page.getByLabel("คลังสินค้า").selectOption(BANG_PU);
+    await chooseOption(page, "คลังสินค้า", { value: BANG_PU });
 
     const previous = page.getByRole("button", { name: "หน้าก่อนหน้า" });
     await expect(previous).toBeDisabled();
@@ -91,10 +92,10 @@ test.describe("inventory read path with preview data", () => {
   }) => {
     // A cursor is only meaningful inside the query that produced it.
     await page.goto("/th/inventory/balances");
-    await page.getByLabel("คลังสินค้า").selectOption(BANG_PU);
+    await chooseOption(page, "คลังสินค้า", { value: BANG_PU });
     await expect(page.getByRole("table")).toBeVisible();
 
-    await page.getByLabel("คลังสินค้า").selectOption(LAMPHUN);
+    await chooseOption(page, "คลังสินค้า", { value: LAMPHUN });
     await expect(
       page.getByRole("button", { name: "หน้าก่อนหน้า" }),
     ).toBeDisabled();
@@ -104,7 +105,7 @@ test.describe("inventory read path with preview data", () => {
     page,
   }) => {
     await page.goto("/th/handheld/inventory");
-    await page.getByLabel("คลังสินค้า").selectOption(BANG_PU);
+    await chooseOption(page, "คลังสินค้า", { value: BANG_PU });
 
     await expect(page.getByRole("table")).toBeVisible();
     // The handheld shell has no sidebar navigation.
@@ -160,14 +161,14 @@ test.describe("master-data read path with preview data", () => {
       page.getByTestId("panel-WAREHOUSE_MISSING").first(),
     ).toBeVisible();
 
-    await page.getByLabel("คลังสินค้า").selectOption(BANG_PU);
+    await chooseOption(page, "คลังสินค้า", { value: BANG_PU });
     await expect(page.getByRole("table")).toBeVisible();
     await expect(page.getByRole("table").getByText("A01-02-1")).toBeVisible();
   });
 
   test("scopes locations to the selected warehouse", async ({ page }) => {
     await page.goto("/th/master-data/locations");
-    await page.getByLabel("คลังสินค้า").selectOption(LAMPHUN);
+    await chooseOption(page, "คลังสินค้า", { value: LAMPHUN });
 
     const table = page.getByRole("table");
     await expect(table.getByText("F01-03-2")).toBeVisible();

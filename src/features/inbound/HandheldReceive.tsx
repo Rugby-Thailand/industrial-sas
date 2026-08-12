@@ -32,6 +32,8 @@ import { OpenReceiptForm, ReceiptLineForm } from "./InboundForms";
 import { InboundSection } from "./InboundPanels";
 import { LocationChooser } from "./ReceiptDetail";
 
+import { Button } from "@/components/ui/button";
+
 export function HandheldReceive() {
   const t = useTranslations("Receiving");
   const purchasingT = useTranslations("Purchasing");
@@ -65,8 +67,9 @@ export function HandheldReceive() {
             <ul className="flex flex-col gap-2">
               {orders.map((candidate) => (
                 <li key={candidate.purchaseOrderId}>
-                  <button
+                  <Button
                     type="button"
+                    variant="outline"
                     data-testid={`handheld-pick-order-${candidate.poNumber}`}
                     aria-pressed={
                       order?.purchaseOrderId === candidate.purchaseOrderId
@@ -78,10 +81,10 @@ export function HandheldReceive() {
                       setReceiptId(undefined);
                       setDemonstrated(false);
                     }}
-                    className="min-h-touch w-full rounded-lg border-2 border-border-strong px-4 py-2 text-left text-base font-semibold"
+                    className="w-full justify-start border-2 py-2 text-base"
                   >
                     {candidate.poNumber}
-                  </button>
+                  </Button>
                 </li>
               ))}
             </ul>

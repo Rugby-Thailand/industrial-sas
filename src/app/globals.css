@@ -1,6 +1,28 @@
 @import "tailwindcss";
 
 /*
+ * The two stylesheets the vendored shadcn/Radix primitives in
+ * `src/components/ui/` depend on. Both are behaviour, not palette:
+ *
+ * - `tw-animate-css` supplies the `animate-in`/`animate-out` enter and exit
+ *   utilities a portalled menu uses. The global `prefers-reduced-motion` rule
+ *   at the bottom of this file still overrides every one of them.
+ * - `shadcn/tailwind.css` supplies the `data-open`/`data-closed`/`data-disabled`
+ *   custom variants and the accordion keyframes the registry source is written
+ *   against. It contains no colours.
+ *
+ * There is deliberately no `@custom-variant dark (&:is(.dark *))` here, which is
+ * what `shadcn init` writes by default. This application has no theme toggle and
+ * no `.dark` class: the colour scheme follows the operator's device
+ * (`prefers-color-scheme`), which is what `dark:` already means in Tailwind v4
+ * without the override. Adding the override would silently disable every
+ * `dark:` utility in the vendored components — the exact failure the migration
+ * plan names, a native-looking light menu on a dark screen.
+ */
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+/*
  * Semantic design tokens.
  *
  * Named for meaning, never for colour: a screen asks for `surface` or `danger`,
@@ -67,6 +89,66 @@
    * repeating a magic number that can drift one screen at a time.
    */
   --spacing-touch: 3rem;
+
+  /*
+   * The shadcn/Radix vocabulary, expressed in the tokens above.
+   *
+   * The vendored primitives in `src/components/ui/` are written against a fixed
+   * set of names — `bg-popover`, `text-muted-foreground`, `border-input`,
+   * `ring-ring`. `shadcn init` fills those with a hard-coded oklch palette,
+   * which would give this application two disagreeing colour systems and put
+   * literal colours back into a file whose entire point is that there are none.
+   *
+   * So the names are aliases instead. A primitive keeps its upstream class
+   * strings — it can still be diffed against the registry — and every colour it
+   * paints is one of the semantic tokens above, in both schemes.
+   *
+   * Three of the mappings are decisions rather than renames:
+   *
+   * - `accent` already exists here and means the *action* colour, not shadcn's
+   *   subtle hover grey. It is left alone, and `accent-foreground` is paired
+   *   with it as `accent-contrast` — so a highlighted menu item is the action
+   *   colour with its own contrast text, not near-black on blue. Vendored
+   *   source that wanted the hover grey asks for `raised`.
+   * - `muted` already exists here and is a *text* colour. `muted-foreground`
+   *   therefore maps to it, and vendored `bg-muted` fills were rewritten to
+   *   `bg-raised`; painting a surface with a text token is how a hover state
+   *   ends up unreadable.
+   * - `input` is the border of an interactive control, so it maps to
+   *   `border-strong` rather than to the decorative hairline. A 1.5:1 outline on
+   *   a select trigger is the one that disappears under warehouse lighting.
+   */
+  --color-background: var(--token-canvas);
+  --color-foreground: var(--token-text);
+  --color-card: var(--token-surface);
+  --color-card-foreground: var(--token-text);
+  --color-popover: var(--token-surface);
+  --color-popover-foreground: var(--token-text);
+  --color-primary: var(--token-accent);
+  --color-primary-foreground: var(--token-accent-contrast);
+  --color-secondary: var(--token-raised);
+  --color-secondary-foreground: var(--token-text);
+  --color-accent-foreground: var(--token-accent-contrast);
+  --color-muted-foreground: var(--token-muted);
+  --color-destructive: var(--token-danger);
+  --color-destructive-foreground: var(--token-danger-contrast);
+  --color-input: var(--token-border-strong);
+  --color-ring: var(--token-accent);
+
+  /*
+   * The sidebar surface is the same surface as everything else. A distinct
+   * sidebar palette is a shadcn default that exists so a marketing shell can
+   * tint its rail; here it would be one more pair of colours to keep above
+   * 4.5:1 for no gain.
+   */
+  --color-sidebar: var(--token-surface);
+  --color-sidebar-foreground: var(--token-text);
+  --color-sidebar-primary: var(--token-accent);
+  --color-sidebar-primary-foreground: var(--token-accent-contrast);
+  --color-sidebar-accent: var(--token-raised);
+  --color-sidebar-accent-foreground: var(--token-text);
+  --color-sidebar-border: var(--token-border);
+  --color-sidebar-ring: var(--token-accent);
 }
 
 :root {
@@ -84,6 +166,12 @@
   --token-success: #0f6b3f;
   --token-warning: #8a5300;
   --token-danger: #b3261e;
+  /*
+   * What may be printed *on* `danger`. It is not simply white: in the dark
+   * scheme `danger` is a pale salmon, so white-on-danger would fail 4.5:1 in
+   * exactly the scheme a destructive confirmation matters most.
+   */
+  --token-danger-contrast: #ffffff;
   --token-pending: #5a3fb8;
   --token-qc-hold: #8a5300;
   --token-disabled: #6b7280;
@@ -108,6 +196,7 @@
     --token-success: #58d19a;
     --token-warning: #f0b357;
     --token-danger: #ff9a90;
+    --token-danger-contrast: #3d1210;
     --token-pending: #b3a0ff;
     --token-qc-hold: #f0b357;
     --token-disabled: #8b939e;

@@ -51,6 +51,9 @@ import {
 
 import { OptionGate, type OptionSet } from "./OptionPicker";
 
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+
 /** What every catalogue source hands its caller. */
 export interface CatalogueSourceProps<Value> {
   readonly emptyTitle: string;
@@ -404,7 +407,7 @@ function ScanShell({
           {hint}
         </p>
         <div className="flex gap-2">
-          <input
+          <Input
             id="scan-to-item-input"
             aria-describedby="scan-to-item-hint"
             value={text}
@@ -419,16 +422,16 @@ function ScanShell({
                 onScan(text.trim());
               }
             }}
-            className="min-h-touch w-full rounded-md border border-border-strong bg-surface px-3 py-2 font-mono text-sm"
+            className="font-mono text-sm"
           />
-          <button
+          <Button
             type="button"
+            variant="outline"
             data-testid="scan-to-item-resolve"
             onClick={() => onScan(text.trim())}
-            className="min-h-touch rounded-md border border-border-strong bg-surface px-4 font-semibold"
           >
             {t("scanResolve")}
-          </button>
+          </Button>
         </div>
         {miss ? (
           <Notice

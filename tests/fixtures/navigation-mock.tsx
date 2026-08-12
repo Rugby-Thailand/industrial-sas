@@ -20,6 +20,27 @@ export const setMockPathname = (pathname: string): void => {
   currentPathname = pathname;
 };
 
+/**
+ * Every `router.replace` the tree asked for, in order.
+ *
+ * Recorded rather than swallowed because one navigation in this application is
+ * a behaviour with a contract rather than a side effect: switching language must
+ * `replace` **the current path** in the other locale. A mock that returned
+ * `undefined` could not tell "stayed on the balances screen in English" apart
+ * from "went to the dashboard", and those are the two outcomes the control
+ * exists to distinguish.
+ */
+export interface ReplaceCall {
+  readonly href: string;
+  readonly locale?: string;
+}
+
+export const routerReplaceCalls: ReplaceCall[] = [];
+
+export const resetRouterCalls = (): void => {
+  routerReplaceCalls.length = 0;
+};
+
 export const navigationMock = {
   Link: ({
     href,
@@ -35,7 +56,12 @@ export const navigationMock = {
   ),
   usePathname: () => currentPathname,
   useRouter: () => ({
-    replace: () => undefined,
+    replace: (href: string, options?: { locale?: string }) => {
+      routerReplaceCalls.push({
+        href,
+        ...(options?.locale === undefined ? {} : { locale: options.locale }),
+      });
+    },
     push: () => undefined,
     back: () => undefined,
     forward: () => undefined,

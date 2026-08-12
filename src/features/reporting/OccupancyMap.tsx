@@ -38,6 +38,8 @@ import type { OccupancyCell } from "@/lib/convex/reportingApi";
 
 import { Occupancy } from "./ReportingSources";
 
+import { EmptyState } from "@/components/ui/EmptyState";
+
 /** Columns in the grid. Six fits a 393-pixel handheld without side-scrolling. */
 export const MAP_COLUMNS = 6;
 
@@ -65,6 +67,56 @@ export function OccupancyMap() {
   );
 }
 
+/**
+ * How the site's drawn locations divide between the four bands.
+ *
+ * The one visualization on this dashboard, and it is deliberately the smallest
+ * thing that answers "is this warehouse filling up?" at a glance. It is built
+ * from the same `cells` the table below is built from — a proportion of a count
+ * this page already read, not a second metric, and nothing that could disagree
+ * with the grid underneath it.
+ *
+ * It is also `aria-hidden`, which is the point rather than an oversight. Every
+ * band's exact count is printed as a word and a number in the legend directly
+ * below, and the full per-location detail is in the table below that. Announcing
+ * four unlabelled segments as well would make a screen reader read the same
+ * figures three times. The rule the dashboard is held to is that no chart is the
+ * only carrier of its meaning (`WCAG 2.2` 1.4.1) — this one carries none of it
+ * alone, and it encodes nothing in hover.
+ */
+function CapacityBar({
+  counts,
+  total,
+  label,
+}: {
+  readonly counts: readonly { readonly band: string; readonly total: number }[];
+  readonly total: number;
+  readonly label: string;
+}) {
+  if (total === 0) return null;
+
+  return (
+    <div className="flex flex-col gap-1">
+      <p className="text-xs text-muted">{label}</p>
+      <div
+        aria-hidden="true"
+        data-testid="occupancy-capacity-bar"
+        className="flex h-3 w-full overflow-hidden rounded-full border border-border"
+      >
+        {counts
+          .filter((entry) => entry.total > 0)
+          .map((entry) => (
+            <span
+              key={entry.band}
+              className={BAND_CLASSES[entry.band] ?? ""}
+              style={{ width: `${(entry.total / total) * 100}%` }}
+            />
+          ))}
+      </div>
+    </div>
+  );
+}
+
 export function OccupancyGrid({
   cells,
   complete,
@@ -77,8 +129,7 @@ export function OccupancyGrid({
 
   if (cells.length === 0) {
     return (
-      <Notice
-        tone="muted"
+      <EmptyState
         title={t("empty")}
         body={t("emptyHint")}
         testId="occupancy-empty"
@@ -98,6 +149,8 @@ export function OccupancyGrid({
 
   return (
     <div className="flex flex-col gap-4" data-testid="occupancy-map">
+      <CapacityBar counts={counts} total={cells.length} label={t("capacity")} />
+
       <ul className="flex flex-wrap gap-3" aria-label={t("legend")}>
         {counts.map((entry) => (
           <li

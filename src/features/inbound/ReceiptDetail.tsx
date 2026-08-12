@@ -18,9 +18,10 @@
  * field the operator could not fill.
  */
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useId, useState } from "react";
 
 import { Notice } from "@/components/ui/Notice";
+import { SelectControl } from "@/components/ui/SelectControl";
 import type { LocationRow } from "@/lib/convex/masterDataApi";
 
 import { BuildPalletForm, LabelForm, ReceiptLineForm } from "./InboundForms";
@@ -173,9 +174,17 @@ export function ReceiptDetail({ receiptId }: { readonly receiptId: string }) {
 /**
  * Choosing which dock the stock came to.
  *
- * A native `select` rather than a custom widget: it is keyboard-navigable, it is
- * what a scanner's browser renders as a full-screen list, and it needs no focus
- * management to be correct.
+ * The shared Radix Select, not a native one. The native control was chosen for
+ * its keyboard behaviour and for the full-screen list a scanner's browser draws
+ * from it — both real, and both bought at the price of a popup the application
+ * cannot style, which on a dark-scheme device meant a white menu in the middle
+ * of a dark screen. The shared control keeps the keyboard contract (Radix
+ * implements the same one) and renders in the tenant's own colours.
+ *
+ * A Select rather than an autocomplete because a site's receiving locations are
+ * a short, bounded, server-supplied list. The moment this has to reach the whole
+ * location register it becomes a server-backed lookup instead; a menu of two
+ * thousand aisles is not a menu.
  */
 export function LocationChooser({
   locations,
@@ -188,21 +197,25 @@ export function LocationChooser({
   readonly onChange: (locationId: string) => void;
   readonly label: string;
 }) {
+  const controlId = useId();
+
   return (
-    <label className="flex flex-col gap-1">
-      <span className="text-sm font-medium text-text">{label}</span>
-      <select
+    <div className="flex flex-col gap-1">
+      <label htmlFor={controlId} className="text-sm font-medium text-text">
+        {label}
+      </label>
+      <SelectControl
+        id={controlId}
         value={value}
-        onChange={(event) => onChange(event.target.value)}
-        data-testid="receiving-location"
-        className="min-h-touch w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-sm"
-      >
-        {locations.map((location) => (
-          <option key={location.locationId} value={location.locationId}>
-            {location.code}
-          </option>
-        ))}
-      </select>
-    </label>
+        onValueChange={onChange}
+        placeholder={label}
+        emptyLabel={label}
+        testId="receiving-location"
+        options={locations.map((location) => ({
+          value: location.locationId,
+          label: location.code,
+        }))}
+      />
+    </div>
   );
 }

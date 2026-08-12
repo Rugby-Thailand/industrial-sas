@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { chooseOption } from "./support/select";
 
 /**
  * The Phase 4 reporting surfaces, against synthetic data.
@@ -11,7 +12,7 @@ import { expect, test, type Page } from "@playwright/test";
 const BANG_PU = "prv_wh_bangpoo";
 
 async function selectWarehouse(page: Page) {
-  await page.getByLabel("คลังสินค้า").selectOption(BANG_PU);
+  await chooseOption(page, "คลังสินค้า", { value: BANG_PU });
 }
 
 test.describe("the dashboard", () => {
@@ -102,7 +103,7 @@ test.describe("exports", () => {
     await selectWarehouse(page);
 
     const form = page.getByTestId("form-request-export");
-    await form.getByLabel("ข้อมูลที่ต้องการส่งออก").selectOption({ index: 0 });
+    await chooseOption(page, "ข้อมูลที่ต้องการส่งออก", { index: 0 }, form);
     await form.getByRole("button", { name: "ขอส่งออก" }).click();
 
     await expect(page.getByTestId("write-DEMONSTRATED").first()).toBeVisible();

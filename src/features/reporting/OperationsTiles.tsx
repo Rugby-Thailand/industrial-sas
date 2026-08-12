@@ -1,31 +1,43 @@
 "use client";
 
 /**
- * The six numbers a supervisor opens the day with.
+ * The numbers a supervisor opens the day with.
  *
  * Presentation decisions, each avoiding a specific way a KPI tile misleads:
  *
  * - **A definition list, not a grid of `div`s.** Each tile is a term and its
  *   value, which is what it is; a screen reader then reads "receipts opened,
- *   eighteen" rather than two unrelated strings.
+ *   eighteen" rather than two unrelated strings. The shadcn `Card` supplies the
+ *   surface and nothing else — it wraps the `dt`/`dd` pair rather than replacing
+ *   it, because a card is a look and a definition list is a meaning.
  * - **The number is never the only thing.** A tile carries its label, its value,
  *   and when the counter last moved. `0` with no timestamp means "this has never
  *   happened here"; `0` timestamped this morning means "the backlog is clear".
  *   Those call for opposite actions and look identical without the date.
  * - **A suspect counter says so in words.** `suspect` means a decrement once
  *   clamped at zero, so the number may be low. It is still shown — a warehouse
- *   runs fine on an approximate backlog — but it is marked, and the mark is text
- *   plus a tone rather than a colour alone (`WCAG 2.2` 1.4.1).
+ *   runs fine on an approximate backlog — but it is marked, and the mark is a
+ *   `Badge` whose text carries the meaning rather than a colour alone
+ *   (`WCAG 2.2` 1.4.1).
  * - **Digits are Latin, always.** Thai numerals would be authentic and
  *   unreadable next to a scanner display; `ADR-0010` fixes Latin digits for
  *   quantities and counts in both languages.
+ *
+ * The tiles are split into waiting work and cumulative volume, which is the
+ * split an operations dashboard is organised around: the first is a queue
+ * somebody has to act on today, and the second is a total that only moves up.
+ * Sorting them into one row each is the whole difference between a dashboard and
+ * a wall of numbers.
  */
 import { useFormatter, useTranslations } from "next-intl";
 
-import { Notice } from "@/components/ui/Notice";
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 import type { DashboardTile } from "@/lib/convex/reportingApi";
 
 import { OperationsCounters } from "./ReportingSources";
+
+import { EmptyState } from "@/components/ui/EmptyState";
 
 /** The tiles that describe waiting work rather than cumulative volume. */
 const BACKLOG_METRICS = new Set([
@@ -58,8 +70,7 @@ export function TileList({
 
   if (tiles.length === 0) {
     return (
-      <Notice
-        tone="muted"
+      <EmptyState
         title={t("noTiles")}
         body={t("noTilesHint")}
         testId="dashboard-no-tiles"
@@ -71,25 +82,26 @@ export function TileList({
     <dl
       aria-label={label}
       data-testid="dashboard-tiles"
-      className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3"
+      className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
     >
       {tiles.map((tile) => (
-        <div
+        <Card
           key={tile.metric}
+          size="sm"
           data-testid={`tile-${tile.metric}`}
-          className={`rounded-lg border bg-surface p-4 ${
-            tile.suspect ? "border-warning" : "border-border"
-          }`}
+          className={tile.suspect ? "border-warning" : ""}
         >
-          <dt className="text-sm font-medium text-muted">
+          {/*
+           * `dt` and `dd` are direct children of the card. A `dl` may contain
+           * only `dt`/`dd` pairs or a single `div` wrapping each pair, and the
+           * card *is* that div — nesting the header and content wrappers inside
+           * it would add a second level and break the structure a screen reader
+           * walks. So the card's own padding is applied here instead.
+           */}
+          <dt className="px-4 text-sm font-medium text-muted">
             {metricT(tile.metric)}
           </dt>
-          {/*
-           * Everything else lives inside the `dd`. A `dl` may only contain
-           * `dt`/`dd` pairs (or a `div` wrapping them), so a sibling paragraph
-           * would break the term-and-definition structure a screen reader walks.
-           */}
-          <dd className="mt-1">
+          <dd className="px-4">
             <span className="block font-mono text-3xl font-semibold text-text tabular-nums">
               {format.number(tile.count)}
             </span>
@@ -104,12 +116,13 @@ export function TileList({
                   })}
             </span>
             {tile.suspect ? (
-              <span
-                className="mt-2 block text-xs font-medium text-warning"
+              <Badge
+                variant="outline"
                 data-testid={`tile-suspect-${tile.metric}`}
+                className="mt-2 h-auto border-warning py-1 text-left text-xs font-medium whitespace-normal text-warning"
               >
                 {t("tileSuspect")}
-              </span>
+              </Badge>
             ) : null}
             {BACKLOG_METRICS.has(tile.metric) ? null : (
               <span className="mt-2 block text-xs text-muted">
@@ -117,7 +130,7 @@ export function TileList({
               </span>
             )}
           </dd>
-        </div>
+        </Card>
       ))}
     </dl>
   );
