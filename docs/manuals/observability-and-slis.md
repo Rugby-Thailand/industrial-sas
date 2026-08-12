@@ -96,11 +96,30 @@ Emitted by `LedgerErrorBoundary` when a query throws. Carries the server's own
 published failure code (or `UNKNOWN`) and the surface. No message, no stack, no
 component tree.
 
+### `web.vital`
+
+Emitted by the isolated `WebVitals` client boundary through Next.js's
+`useReportWebVitals`. It records `metric`, `value`, `delta`, `rating`, and
+`navigationType`; the metric ID and attribution entries are omitted because they
+are unnecessary for the series and attribution may contain DOM-specific detail.
+`good` is informational; `needs-improvement` and `poor` are warnings rather than
+application errors. The default `none` adapter still discards these samples.
+
+### `application.render.failed`
+
+Emitted when the locale or global React error boundary catches a render failure.
+The only dimension is `boundary` (`locale` or `global`). The caught error's message,
+stack, digest, and component tree are deliberately absent. The locale boundary
+offers translated recovery UI; the global boundary owns bilingual literal copy so
+it remains usable when the locale provider itself failed.
+
 ## What is not measured yet
 
 - **Server-side SLIs.** Convex functions mint a request ID and write audit rows,
   but nothing aggregates them; a server sink needs `INT-05`'s job-queue side and
   a destination.
+- **Persisted real-user series.** Browser Web Vitals are collected, but the default
+  adapter discards them and no approved vendor sink exists yet.
 - **Scan-to-acknowledge.** There is no scan. The read path is the same round
   trip, which is why the latency series starts here.
 - **Denied reads.** A Convex query cannot write, so a denied _read_ is refused

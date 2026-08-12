@@ -65,6 +65,9 @@ and delivery. See the [ADR index](./adr/README.md) for the list and for how they
   were **not** supplied and therefore remain open gates.
 - [Specification coverage matrix](./specification-coverage.md) — plan requirements, B/D
   decisions, ledger invariants, and quality gates mapped to planned code, tests, and docs.
+- [Technology best practices and optimization](./technology-best-practices-and-optimization.md)
+  — primary-source review of the pinned stack, historical findings, implementation
+  status, measurement methods, and remaining deployment-dependent work.
 - [Pure domain modules](../convex/model/README.md) — what `convex/model/**` contains, why
   it may not import Convex (plan §6.2), and which invariants it cannot enforce because
   they belong to a mutation.

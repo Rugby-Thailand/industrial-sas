@@ -9,6 +9,7 @@ import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { AppProviders } from "@/components/providers/AppProviders";
+import { WebVitals } from "@/components/system/WebVitals";
 import { pickMessages, SHELL_NAMESPACES } from "@/i18n/clientMessages";
 import { routing } from "@/i18n/routing";
 
@@ -90,7 +91,10 @@ export default async function LocaleLayout({
         <NextIntlClientProvider
           messages={pickMessages(messages, SHELL_NAMESPACES)}
         >
-          <AppProviders>{children}</AppProviders>
+          <AppProviders>
+            <WebVitals />
+            {children}
+          </AppProviders>
         </NextIntlClientProvider>
       </body>
     </html>

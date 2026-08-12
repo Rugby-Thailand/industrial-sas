@@ -283,15 +283,16 @@ contract source, so it stays credential-free. See
 
 ### Test tiers
 
-Vitest runs five named projects, each targetable on its own:
+Vitest runs six named projects, each targetable on its own:
 
-| Command                 | Tier                                              | Location                                           |
-| ----------------------- | ------------------------------------------------- | -------------------------------------------------- |
-| `pnpm test:unit`        | Component and pure-module tests                   | `src/**/*.test.ts(x)`, `convex/model/**/*.test.ts` |
-| `pnpm test:a11y`        | axe-core accessibility assertions                 | `src/**/*.a11y.test.tsx`                           |
-| `pnpm test:property`    | fast-check property tests                         | `tests/properties/`                                |
-| `pnpm test:integration` | Cross-module tests, later `convex-test`           | `tests/integration/`                               |
-| `pnpm test:isolation`   | Multi-tenant isolation (blocking gate in Phase 1) | `tests/isolation/`                                 |
+| Command                    | Tier                                                               | Location                                                     |
+| -------------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------ |
+| `pnpm test:unit`           | Component and pure-module tests                                    | `src/**/*.test.ts(x)`, `convex/model/**/*.test.ts`           |
+| `pnpm test:a11y`           | axe-core accessibility assertions                                  | `src/**/*.a11y.test.tsx`                                     |
+| `pnpm test:property`       | fast-check property tests                                          | `tests/properties/`                                          |
+| `pnpm test:convex-runtime` | Convex-backed integration and isolation tests under `edge-runtime` | explicit `convex-test` file allowlist in `vitest.config.mts` |
+| `pnpm test:integration`    | Node cross-module, filesystem, and process tests                   | remaining `tests/integration/` files                         |
+| `pnpm test:isolation`      | Node repository and tenant-boundary guards                         | remaining `tests/isolation/` files                           |
 
 End-to-end tests are owned by Playwright, not Vitest, and need browsers first:
 

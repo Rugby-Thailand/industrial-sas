@@ -1,4 +1,4 @@
-# Static analysis, the five Vitest tiers, and the production build.
+# Static analysis, the six Vitest tiers, and the production build.
 #
 # Third-party and GitHub-owned actions are pinned to immutable full commit SHAs
 # with the human-readable tag in a trailing comment. See the "Continuous
@@ -90,7 +90,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        tier: [unit, a11y, property, integration, isolation]
+        tier: [unit, a11y, property, convex-runtime, integration, isolation]
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

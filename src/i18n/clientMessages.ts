@@ -55,6 +55,7 @@ export type MessageNamespace = keyof MessageCatalogue;
 export const SHELL_NAMESPACES = [
   "App",
   "Connection",
+  "Error",
   "Locale",
   "Navigation",
   "Preview",

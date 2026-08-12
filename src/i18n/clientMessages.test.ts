@@ -200,15 +200,19 @@ describe("client message namespaces", () => {
     // would otherwise make every "no extra namespaces" assertion pass.
     expect(modules.size).toBeGreaterThan(100);
     expect(routeEntries.length).toBeGreaterThan(20);
-    expect(clientNamespaces([join(APP, "(desktop)", "layout.tsx")]).size).toBe(
-      SHELL_NAMESPACES.length,
-    );
+    expect(
+      sorted(clientNamespaces([join(APP, "(desktop)", "layout.tsx")])),
+    ).toEqual(sorted(SHELL_NAMESPACES.filter((name) => name !== "Error")));
+    expect(sorted(clientNamespaces([join(APP, "error.tsx")]))).toEqual([
+      "Error",
+    ]);
   });
 
   it("carries exactly the shell chrome in the root provider", () => {
     // The union of both shells, because the root layout is above both of them.
     const required = new Set([
       ...clientNamespaces([join(APP, "layout.tsx")]),
+      ...clientNamespaces([join(APP, "error.tsx")]),
       ...clientNamespaces([join(APP, "(desktop)", "layout.tsx")]),
       ...clientNamespaces([join(APP, "(handheld)", "layout.tsx")]),
     ]);
