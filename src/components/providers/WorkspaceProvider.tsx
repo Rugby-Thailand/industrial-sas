@@ -43,11 +43,29 @@ const WorkspaceContext = createContext<WorkspaceContextValue | undefined>(
   undefined,
 );
 
-function useResolvedWorkspace(): WorkspaceContextValue {
+/**
+ * A subscription that never fires, for a consumer that already has a value.
+ *
+ * Hook order is fixed, so `useWorkspace` cannot *skip* the store when a
+ * provider is above it — but it can subscribe to nothing and read nothing.
+ * Without this, every consumer attaches its own `storage` listener and calls
+ * `localStorage.getItem` on each render, and the answer is thrown away in
+ * favour of the context value on the very next line.
+ */
+const noSubscription = () => () => {};
+
+/**
+ * Resolve the workspace from the store, or stand idle.
+ *
+ * `subscribed` is false for a consumer whose value comes from the provider. The
+ * hooks still run — they must — but against a constant, so the resolved value
+ * below is the one the provider already computed once for the whole tree.
+ */
+function useResolvedWorkspace(subscribed: boolean): WorkspaceContextValue {
   const environment = useAppEnvironment();
   const stored = useSyncExternalStore(
-    subscribeWarehouse,
-    readStoredWarehouse,
+    subscribed ? subscribeWarehouse : noSubscription,
+    subscribed ? readStoredWarehouse : serverWarehouseSnapshot,
     serverWarehouseSnapshot,
   );
 
@@ -69,7 +87,7 @@ export function WorkspaceProvider({
 }: {
   readonly children: ReactNode;
 }) {
-  const value = useResolvedWorkspace();
+  const value = useResolvedWorkspace(true);
   return (
     <WorkspaceContext.Provider value={value}>
       {children}
@@ -83,9 +101,15 @@ export function WorkspaceProvider({
  * Resolves on its own when no provider is above it, rather than throwing, so a
  * component under test renders the same way it would in the application without
  * the test having to assemble the whole provider stack.
+ *
+ * In the application a provider always is above it, and there are ten or more
+ * consumers on a busy screen, so the fallback subscribes only when it is the
+ * one actually answering. Otherwise each of them would hold a `storage`
+ * listener and re-read `localStorage` on every render to recompute what the
+ * provider had already resolved.
  */
 export function useWorkspace(): WorkspaceContextValue {
   const provided = useContext(WorkspaceContext);
-  const standalone = useResolvedWorkspace();
+  const standalone = useResolvedWorkspace(provided === undefined);
   return provided ?? standalone;
 }
