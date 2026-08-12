@@ -1,0 +1,304 @@
+/**
+ * Which message namespaces each part of the tree ships to the browser.
+ *
+ * `NextIntlClientProvider` serializes whatever `messages` it is given into the
+ * RSC payload of every route below it. Given no `messages` prop it inherits the
+ * *whole* request configuration, which is how this application came to send all
+ * 46 namespaces — 63 kB of Thai, 31 kB of English — to a sign-in screen that
+ * reads four of them. Measured before this file existed: the catalogue was 82.8%
+ * of the bytes in every prerendered `.rsc`.
+ *
+ * So the provider is split in two, and both halves name what they carry:
+ *
+ * - `SHELL_NAMESPACES` is the chrome that is on screen no matter where an
+ *   operator is — navigation, the workspace bar, the connection indicator. It
+ *   sits in the root locale layout.
+ * - `ROUTE_NAMESPACES` is one entry per route subtree, mounted by a
+ *   `layout.tsx` in that subtree via `RouteMessages`.
+ *
+ * ### Why the two halves must each be self-contained
+ *
+ * A nested `IntlProvider` **replaces** `messages`; it does not merge with the
+ * provider above it (`use-intl`'s `IntlProvider`: `messages === undefined ?
+ * prevContext?.messages : messages`). Everything else — locale, time zone,
+ * formats — is inherited, which is why the route providers pass only messages.
+ *
+ * The practical consequence: a route entry may not lean on `SHELL_NAMESPACES`.
+ * The dashboard renders `DashboardScope` and `SetupChecklist` *inside* the page,
+ * so `Workspace` and `Setup` appear in its entry even though the shell above
+ * also carries `Workspace`. The duplication is a few hundred bytes and it is
+ * what makes each entry independently checkable.
+ *
+ * ### Keeping this file true
+ *
+ * Every entry here is derived from the client-component import graph and
+ * asserted against it by `clientMessages.test.ts` — exactly, in both directions,
+ * so a namespace that is added, removed, or newly reached by a `use client`
+ * module fails `pnpm test` rather than rendering `Receiving.title` to a
+ * warehouse. Nothing here should be edited by hand without running that test;
+ * it prints the correct set when it fails.
+ */
+import type { MessageCatalogue } from "./messages";
+
+/** A top-level key of the catalogue — i.e. a `useTranslations` namespace. */
+export type MessageNamespace = keyof MessageCatalogue;
+
+/**
+ * The chrome that renders above every route, from the root locale layout.
+ *
+ * `App` is the product name in the sidebar header, `Locale` the language
+ * switcher, `Navigation` both shells' link labels, `Workspace` the warehouse
+ * bar, `Connection` the backend indicator, `Preview` the preview-data banner.
+ * Nothing domain-specific belongs here: a namespace added to this list is paid
+ * for by every page in the application.
+ */
+export const SHELL_NAMESPACES = [
+  "App",
+  "Connection",
+  "Locale",
+  "Navigation",
+  "Preview",
+  "Workspace",
+] as const satisfies readonly MessageNamespace[];
+
+/**
+ * The client namespaces of each route subtree, keyed by its directory under
+ * `src/app/[locale]`.
+ *
+ * The key is the directory rather than the public URL because that is what the
+ * test can walk and what a `layout.tsx` can name unambiguously — route groups
+ * and dynamic segments included.
+ *
+ * Some entries are large because the inbound screens share three modules
+ * (`InboundForms`, `InboundPanels`, `InboundTables`) that between them reach
+ * every inbound namespace. Splitting those is a separate change with its own
+ * risk; until then a receiving page honestly needs what it lists here.
+ */
+export const ROUTE_NAMESPACES = {
+  "(auth)/sign-in": ["Setup"],
+
+  "(desktop)/dashboard": [
+    "Dashboard",
+    "Metric",
+    "Occupancy",
+    "OccupancyBand",
+    "Panel",
+    "Setup",
+    "Workspace",
+  ],
+  "(desktop)/inventory": [
+    "Inventory",
+    "Panel",
+    "StockStatus",
+    "TransactionType",
+  ],
+  "(desktop)/master-data": [
+    "BarcodeKind",
+    "Inventory",
+    "LabelTemplateStatus",
+    "LocationType",
+    "MasterData",
+    "MasterDataStatus",
+    "Panel",
+    "TrackingMode",
+    "Write",
+    "WriteError",
+  ],
+  "(desktop)/purchasing": [
+    "ImportProblem",
+    "InspectionStatus",
+    "Inventory",
+    "LabelEvidence",
+    "Panel",
+    "PurchaseOrderLineStatus",
+    "PurchaseOrderStatus",
+    "Purchasing",
+    "Putaway",
+    "PutawayTaskStatus",
+    "QcDisposition",
+    "Quality",
+    "ReceiptClassification",
+    "ReceiptLineKind",
+    "Receiving",
+    "SamplingStrategy",
+    "StockStatus",
+    "Write",
+    "WriteError",
+  ],
+  "(desktop)/putaway": [
+    "ImportProblem",
+    "InspectionStatus",
+    "Inventory",
+    "LabelEvidence",
+    "Panel",
+    "PurchaseOrderLineStatus",
+    "PurchaseOrderStatus",
+    "Purchasing",
+    "Putaway",
+    "PutawayFilterReason",
+    "PutawayScoreComponent",
+    "PutawayTaskStatus",
+    "QcDisposition",
+    "Quality",
+    "ReceiptClassification",
+    "ReceiptLineKind",
+    "Receiving",
+    "SamplingStrategy",
+    "StockStatus",
+    "Write",
+    "WriteError",
+  ],
+  "(desktop)/quality": [
+    "ImportProblem",
+    "InspectionStatus",
+    "Inventory",
+    "LabelEvidence",
+    "Panel",
+    "PurchaseOrderLineStatus",
+    "PurchaseOrderStatus",
+    "Purchasing",
+    "Putaway",
+    "PutawayTaskStatus",
+    "QcDisposition",
+    "Quality",
+    "ReceiptClassification",
+    "ReceiptLineKind",
+    "Receiving",
+    "SamplingStrategy",
+    "StockStatus",
+    "Write",
+    "WriteError",
+  ],
+  "(desktop)/receiving": [
+    "ImportProblem",
+    "InspectionStatus",
+    "Inventory",
+    "LabelEvidence",
+    "Panel",
+    "PurchaseOrderLineStatus",
+    "PurchaseOrderStatus",
+    "Purchasing",
+    "Putaway",
+    "PutawayTaskStatus",
+    "QcDisposition",
+    "Quality",
+    "ReceiptClassification",
+    "ReceiptLineKind",
+    "Receiving",
+    "SamplingStrategy",
+    "StockStatus",
+    "Write",
+    "WriteError",
+  ],
+  "(desktop)/reports": [
+    "Panel",
+    "ReportJobStatus",
+    "ReportKind",
+    "Reports",
+    "Write",
+    "WriteError",
+  ],
+  "(desktop)/setup": ["Setup"],
+
+  "(handheld)/handheld/inventory": ["Inventory", "Panel", "StockStatus"],
+  "(handheld)/handheld/putaway": [
+    "ImportProblem",
+    "InspectionStatus",
+    "Inventory",
+    "LabelEvidence",
+    "Panel",
+    "PurchaseOrderLineStatus",
+    "PurchaseOrderStatus",
+    "Purchasing",
+    "Putaway",
+    "PutawayFilterReason",
+    "PutawayScoreComponent",
+    "PutawayTaskStatus",
+    "QcDisposition",
+    "Quality",
+    "ReceiptClassification",
+    "ReceiptLineKind",
+    "Receiving",
+    "SamplingStrategy",
+    "StockStatus",
+    "Write",
+    "WriteError",
+  ],
+  "(handheld)/handheld/quality": [
+    "ImportProblem",
+    "InspectionStatus",
+    "Inventory",
+    "LabelEvidence",
+    "Panel",
+    "PurchaseOrderLineStatus",
+    "PurchaseOrderStatus",
+    "Purchasing",
+    "Putaway",
+    "PutawayTaskStatus",
+    "QcDisposition",
+    "Quality",
+    "ReceiptClassification",
+    "ReceiptLineKind",
+    "Receiving",
+    "SamplingStrategy",
+    "StockStatus",
+    "Write",
+    "WriteError",
+  ],
+  "(handheld)/handheld/receive": [
+    "ImportProblem",
+    "InspectionStatus",
+    "Inventory",
+    "LabelEvidence",
+    "Panel",
+    "PurchaseOrderLineStatus",
+    "PurchaseOrderStatus",
+    "Purchasing",
+    "Putaway",
+    "PutawayTaskStatus",
+    "QcDisposition",
+    "Quality",
+    "ReceiptClassification",
+    "ReceiptLineKind",
+    "Receiving",
+    "SamplingStrategy",
+    "StockStatus",
+    "Write",
+    "WriteError",
+  ],
+} as const satisfies Record<string, readonly MessageNamespace[]>;
+
+/** A key of `ROUTE_NAMESPACES`; the prop a route's `layout.tsx` passes. */
+export type RouteMessageScope = keyof typeof ROUTE_NAMESPACES;
+
+/**
+ * The named namespaces of a catalogue, and nothing else.
+ *
+ * `messages` is typed loosely because that is what `getMessages()` returns
+ * without the global `AppConfig` augmentation — which this repository
+ * deliberately does not install, since it would make every dynamic
+ * `t(labelKey)` in the navigation data a type error. The *namespaces* argument
+ * carries the type safety instead: it is `keyof MessageCatalogue`, so a renamed
+ * namespace is caught by `pnpm typecheck` at every declaration site.
+ *
+ * A namespace that is missing at run time throws rather than being skipped.
+ * Every caller runs during static generation, so a stale entry here fails
+ * `next build` instead of rendering `Receiving.title` on a receiving screen.
+ */
+export function pickMessages<K extends MessageNamespace>(
+  messages: Readonly<Record<string, unknown>>,
+  namespaces: readonly K[],
+): Pick<MessageCatalogue, K> {
+  const picked: Record<string, unknown> = {};
+  for (const namespace of namespaces) {
+    const value = messages[namespace];
+    if (value === undefined) {
+      throw new Error(
+        `Message namespace "${namespace}" is not in the catalogue. ` +
+          "Update src/i18n/clientMessages.ts or messages/*.json.",
+      );
+    }
+    picked[namespace] = value;
+  }
+  return picked as Pick<MessageCatalogue, K>;
+}

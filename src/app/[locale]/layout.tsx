@@ -1,10 +1,15 @@
 import type { Metadata, Viewport } from "next";
 import { hasLocale, NextIntlClientProvider } from "next-intl";
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import {
+  getMessages,
+  getTranslations,
+  setRequestLocale,
+} from "next-intl/server";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { AppProviders } from "@/components/providers/AppProviders";
+import { pickMessages, SHELL_NAMESPACES } from "@/i18n/clientMessages";
 import { routing } from "@/i18n/routing";
 
 import "../globals.css";
@@ -25,6 +30,12 @@ import "../globals.css";
  * An unknown segment is a 404 rather than a silent fallback to Thai. `/xx/…` is
  * a URL nobody meant to visit, and quietly serving Thai for it would make every
  * typo look like a working page.
+ *
+ * The client provider here carries the *shell* namespaces only. Given no
+ * `messages` prop it would inherit the entire request configuration and
+ * serialize all 46 namespaces into every route's payload; it used to, and that
+ * was 82.8% of the bytes of every prerendered `.rsc`. Each route subtree mounts
+ * its own provider through `RouteMessages`. See `@/i18n/clientMessages`.
  */
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));
@@ -71,11 +82,14 @@ export default async function LocaleLayout({
   const { locale } = await params;
   if (!hasLocale(routing.locales, locale)) notFound();
   setRequestLocale(locale);
+  const messages = await getMessages();
 
   return (
     <html lang={locale}>
       <body className="bg-canvas text-text antialiased">
-        <NextIntlClientProvider>
+        <NextIntlClientProvider
+          messages={pickMessages(messages, SHELL_NAMESPACES)}
+        >
           <AppProviders>{children}</AppProviders>
         </NextIntlClientProvider>
       </body>
