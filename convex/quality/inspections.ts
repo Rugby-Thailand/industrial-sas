@@ -168,6 +168,7 @@ async function postDisposition(
 async function loadInspection(
   ctx: TenantFunctionContext,
   inspectionId: string,
+  warehouseId: string,
 ): Promise<
   | {
       readonly ok: true;
@@ -181,7 +182,12 @@ async function loadInspection(
     "qcInspections",
     inspectionId,
   );
-  if (inspection === null) {
+  // The accessor proves the tenant; it does not prove the *site*. An inspection
+  // belonging to another warehouse answers exactly as one that does not exist,
+  // so a warehouse-scoped actor can neither dispose it nor learn it is there
+  // (`INV-0006-04`). The parked branch below writes with no ledger posting to
+  // fall back on, so this is the only place that check can happen.
+  if (inspection === null || inspection.warehouseId !== warehouseId) {
     return {
       ok: false,
       error: refusal({ code: "NOT_FOUND", table: "qcInspections" }),
@@ -254,7 +260,11 @@ export const submitDisposition = mutationWithOrg({
   target: { table: "qcInspections", id: ({ inspectionId }) => inspectionId },
   warehouseId: ({ warehouseId }) => warehouseId,
   handler: async (ctx, args) => {
-    const loaded = await loadInspection(ctx, args.inspectionId);
+    const loaded = await loadInspection(
+      ctx,
+      args.inspectionId,
+      args.warehouseId,
+    );
     if (!loaded.ok) return loaded.error;
 
     const guard = assertSubmittable(loaded.inspection.status as "OPEN");
@@ -419,7 +429,11 @@ export const approveDisposition = mutationWithOrg({
   warehouseId: ({ warehouseId }) => warehouseId,
   policy: approvalPolicy,
   handler: async (ctx, args) => {
-    const loaded = await loadInspection(ctx, args.inspectionId);
+    const loaded = await loadInspection(
+      ctx,
+      args.inspectionId,
+      args.warehouseId,
+    );
     if (!loaded.ok) return loaded.error;
 
     if (loaded.inspection.status !== "PENDING_APPROVAL") {

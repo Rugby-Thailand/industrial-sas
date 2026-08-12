@@ -589,6 +589,154 @@ describe("quality, labels, and putaway are tenant-confined", () => {
   });
 });
 
+/**
+ * The second boundary, inside one tenant.
+ *
+ * The accessor proves the organization, so every case above passes on tenancy
+ * alone. It proves nothing about the *site*: a row of this tenant's other
+ * warehouse is a row the accessor happily returns. `INV-0006-04` says a request
+ * authorized for one warehouse may not write another's, and these two paths are
+ * the ones with no ledger posting behind them whose own warehouse checks would
+ * refuse first — a parked disposition and a claim are a patch and a counter move.
+ */
+describe("a request authorized for one warehouse cannot write another's", () => {
+  it("refuses a disposition on an inspection in the tenant's other warehouse", async () => {
+    const world = await createConvexInventoryWorld();
+    const seeded = await seedBoth(world);
+    const inspectionId = await world.t.run(async (ctx) => {
+      const transactionId = await ctx.db.insert("inventoryTransactions", {
+        orgId: world.orgA,
+        warehouseId: world.warehouses.bravoA,
+        type: "RECEIPT",
+        operation: "seed",
+        requestId: requestId("seed_wh_disp"),
+        actorUserId: world.userA,
+        occurredAt: Date.now(),
+        businessDate: "2026-08-11",
+        source: { type: "SEED", id: "4" },
+        lineCount: 0,
+        conservationGroupCount: 0,
+      });
+      const receiptId = await ctx.db.insert("receipts", {
+        orgId: world.orgA,
+        warehouseId: world.warehouses.bravoA,
+        receiptNumber: "GRN-A-BRAVO",
+        receivedByUserId: world.userA,
+        occurredAt: Date.now(),
+        businessDate: "2026-08-11",
+      });
+      const receiptLineId = await ctx.db.insert("receiptLines", {
+        orgId: world.orgA,
+        receiptId,
+        itemId: world.a.untrackedItem,
+        locationId: world.a.otherWarehouseLocation,
+        capturedQuantity: { uom: FIXTURE_UOM, minorUnits: 1_000 },
+        baseMinorUnits: 1_000,
+        kind: "ORDERED",
+        classification: "COMPLETE",
+        stockStatus: "QC_HOLD",
+        transactionId,
+        overToleranceApproved: false,
+      });
+      return await ctx.db.insert("qcInspections", {
+        orgId: world.orgA,
+        warehouseId: world.warehouses.bravoA,
+        receiptLineId,
+        itemId: world.a.untrackedItem,
+        status: "OPEN",
+        strategy: "ALL",
+        sampleSize: 1,
+        lotSize: 1,
+      });
+    });
+
+    // `REJECT` parks rather than posts, so nothing downstream would have caught
+    // the site mismatch: without the guard this writes the other warehouse's row
+    // and moves this warehouse's counters.
+    const result = value(
+      await callAs(world, "a", submitDisposition, {
+        requestId: requestId("disp_wh_cross"),
+        warehouseId: world.warehouses.alphaA,
+        inspectionId,
+        disposition: "REJECT",
+        reasonCodeId: seeded.a.reason,
+      }),
+    );
+
+    expect(result["written"]).toBe(false);
+    expect(errorOf(result).code).toBe("NOT_FOUND");
+
+    const inspection = await world.t.run(
+      async (ctx) => await ctx.db.get(inspectionId),
+    );
+    expect(inspection?.status).toBe("OPEN");
+    expect(inspection?.disposition).toBeUndefined();
+  });
+
+  it("refuses to claim a task in the tenant's other warehouse", async () => {
+    const world = await createConvexInventoryWorld();
+    const taskId = await world.t.run(async (ctx) => {
+      const transactionId = await ctx.db.insert("inventoryTransactions", {
+        orgId: world.orgA,
+        warehouseId: world.warehouses.bravoA,
+        type: "RECEIPT",
+        operation: "seed",
+        requestId: requestId("seed_wh_claim"),
+        actorUserId: world.userA,
+        occurredAt: Date.now(),
+        businessDate: "2026-08-11",
+        source: { type: "SEED", id: "5" },
+        lineCount: 0,
+        conservationGroupCount: 0,
+      });
+      const receiptId = await ctx.db.insert("receipts", {
+        orgId: world.orgA,
+        warehouseId: world.warehouses.bravoA,
+        receiptNumber: "GRN-A-BRAVO-2",
+        receivedByUserId: world.userA,
+        occurredAt: Date.now(),
+        businessDate: "2026-08-11",
+      });
+      const receiptLineId = await ctx.db.insert("receiptLines", {
+        orgId: world.orgA,
+        receiptId,
+        itemId: world.a.untrackedItem,
+        locationId: world.a.otherWarehouseLocation,
+        capturedQuantity: { uom: FIXTURE_UOM, minorUnits: 2_000 },
+        baseMinorUnits: 2_000,
+        kind: "ORDERED",
+        classification: "COMPLETE",
+        stockStatus: "AVAILABLE",
+        transactionId,
+        overToleranceApproved: false,
+      });
+      return await ctx.db.insert("putawayTasks", {
+        orgId: world.orgA,
+        warehouseId: world.warehouses.bravoA,
+        receiptLineId,
+        itemId: world.a.untrackedItem,
+        baseMinorUnits: 2_000,
+        fromLocationId: world.a.otherWarehouseLocation,
+        status: "READY",
+      });
+    });
+
+    const result = value(
+      await callAs(world, "a", claimPutawayTask, {
+        requestId: requestId("claim_wh_cross"),
+        warehouseId: world.warehouses.alphaA,
+        putawayTaskId: taskId,
+      }),
+    );
+
+    expect(errorOf(result).code).toBe("NOT_FOUND");
+
+    const task = await world.t.run(async (ctx) => await ctx.db.get(taskId));
+    expect(task?.status).toBe("READY");
+    expect(task?.claimedByUserId).toBeUndefined();
+  });
+});
+
 describe("every inbound row carries the writing tenant", () => {
   it("stamps orgId from the resolved context, never from an argument", async () => {
     // `INV-0001-02`: `orgId` is derived from the verified identity and is not an

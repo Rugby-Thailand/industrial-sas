@@ -312,7 +312,12 @@ export const claimPutawayTask = mutationWithOrg({
       "putawayTasks",
       args.putawayTaskId,
     );
-    if (task === null) {
+    // The accessor proves the tenant, not the site. A task belonging to another
+    // warehouse answers exactly as one that does not exist, so a warehouse-scoped
+    // actor cannot claim another site's backlog (`INV-0006-04`). Nothing further
+    // down catches it: a claim is a patch and a counter move, with no ledger
+    // posting whose own warehouse checks would refuse first.
+    if (task === null || task.warehouseId !== args.warehouseId) {
       return refusal({ code: "NOT_FOUND", table: "putawayTasks" });
     }
 
@@ -439,7 +444,8 @@ export const confirmPutaway = mutationWithOrg({
       "putawayTasks",
       args.putawayTaskId,
     );
-    if (task === null) {
+    // Same reason as the claim path: the site is not proved by the accessor.
+    if (task === null || task.warehouseId !== args.warehouseId) {
       return refusal({ code: "NOT_FOUND", table: "putawayTasks" });
     }
 
