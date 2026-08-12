@@ -300,20 +300,68 @@ describe("client message namespaces", () => {
     }
 
     /*
-     * Quality and putaway sit just above that line and are held there
-     * separately, because what keeps them there is different: they carry almost
-     * nothing but their own vocabulary, and `Putaway` plus its two score
-     * namespaces are 4.9 kB on their own. A third of the catalogue is the floor
-     * those words set, not slack — before the module seam was split these two
-     * shipped more than half.
+     * Quality and putaway are held to their own line, because what keeps them
+     * there is different: they carry almost nothing but their own vocabulary,
+     * and `Putaway` plus its two score namespaces are 4.9 kB on their own. That
+     * is the floor those words set, not slack — before the module seam was
+     * split these two shipped more than half the catalogue.
+     *
+     * Putaway is the larger of the pair at 24.5%, so 28% is roughly 2 kB of
+     * headroom: enough for the screens to gain wording, tight enough that
+     * another namespace arriving through a shared module fails here.
      */
     for (const scope of TERMINAL_INBOUND) {
       const total = shellBytes + bytes(ROUTE_NAMESPACES[scope], "th");
       expect(
-        { scope, small: total < FULL_TH * 0.3 },
+        { scope, small: total < FULL_TH * 0.28 },
         `${scope} ships ${total}B of ${FULL_TH}B`,
       ).toEqual({ scope, small: true });
     }
+  });
+
+  it("keeps the shared paging chrome off the inventory vocabulary", () => {
+    /*
+     * `LedgerPanel` and `MasterDataPanel` render the pager for every paged list
+     * in the application, inventory screens and master-data screens alike. Both
+     * once read their five pager strings from `Inventory`, which is why eight
+     * scopes that never show a balance carried the column headings, the
+     * captions, and the read-only notice with them — 1.5 kB of Thai each.
+     *
+     * Stated as a rule rather than as byte counts: a component that renders on
+     * every screen may only name chrome namespaces. The exact-match test above
+     * would accept `useTranslations("Inventory")` here and simply grow the
+     * manifest to suit.
+     */
+    const CHROME = ["Panel", "Pagination"];
+    for (const panel of [
+      join(SRC, "features", "inventory", "LedgerPanel.tsx"),
+      join(SRC, "features", "masterData", "MasterDataPanel.tsx"),
+    ]) {
+      const namespaces = modules.get(panel)?.namespaces ?? [];
+      expect(
+        {
+          file: relative(REPO, panel),
+          domain: sorted(namespaces.filter((n) => !CHROME.includes(n))),
+        },
+        "a domain namespace here is paid for by every paged screen",
+      ).toEqual({ file: relative(REPO, panel), domain: [] });
+    }
+  });
+
+  it("declares Inventory only where an inventory screen renders", () => {
+    // The consequence of the rule above, checked from the manifest's side: the
+    // balances and history screens read the inventory vocabulary, and nothing
+    // else in the application does.
+    const carriers = Object.entries(ROUTE_NAMESPACES)
+      .filter(([, namespaces]) =>
+        (namespaces as readonly string[]).includes("Inventory"),
+      )
+      .map(([scope]) => scope);
+
+    expect(sorted(carriers)).toEqual([
+      "(desktop)/inventory",
+      "(handheld)/handheld/inventory",
+    ]);
   });
 
   it("keeps quality and putaway off the ordering and receiving catalogues", () => {

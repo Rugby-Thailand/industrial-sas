@@ -105,6 +105,13 @@
     "warehouseMissingHint": "ทุกคำสั่งอ่านบัญชีแยกประเภทจะผูกกับคลังสินค้าเดียวเสมอ",
     "openSetup": "ดูวิธีตั้งค่า"
   },
+  "Pagination": {
+    "complete": "แสดงครบทุกรายการแล้ว",
+    "pagination": "การแบ่งหน้า",
+    "pageIndicator": "หน้า {page}",
+    "previousPage": "หน้าก่อนหน้า",
+    "nextPage": "หน้าถัดไป"
+  },
   "Dashboard": {
     "title": "แดชบอร์ด",
     "description": "สถานะระบบและจุดเริ่มต้นของงานคลังสินค้า",
@@ -148,12 +155,7 @@
     "columnReversalOf": "กลับรายการของ",
     "balancesCaption": "ยอดคงเหลือ {count} รายการ",
     "historyCaption": "รายการเคลื่อนไหว {count} รายการ",
-    "reversalMarker": "รายการกลับรายการ",
-    "complete": "แสดงครบทุกรายการแล้ว",
-    "pagination": "การแบ่งหน้า",
-    "pageIndicator": "หน้า {page}",
-    "previousPage": "หน้าก่อนหน้า",
-    "nextPage": "หน้าถัดไป"
+    "reversalMarker": "รายการกลับรายการ"
   },
   "StockStatus": {
     "AVAILABLE": "พร้อมใช้",

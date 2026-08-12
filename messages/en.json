@@ -105,6 +105,13 @@
     "warehouseMissingHint": "Every ledger read is scoped to exactly one warehouse.",
     "openSetup": "See setup steps"
   },
+  "Pagination": {
+    "complete": "All rows shown",
+    "pagination": "Pagination",
+    "pageIndicator": "Page {page}",
+    "previousPage": "Previous page",
+    "nextPage": "Next page"
+  },
   "Dashboard": {
     "title": "Dashboard",
     "description": "System state and the entry points into warehouse work.",
@@ -148,12 +155,7 @@
     "columnReversalOf": "Reversal of",
     "balancesCaption": "{count} balance rows",
     "historyCaption": "{count} transactions",
-    "reversalMarker": "Reversal",
-    "complete": "All rows shown",
-    "pagination": "Pagination",
-    "pageIndicator": "Page {page}",
-    "previousPage": "Previous page",
-    "nextPage": "Next page"
+    "reversalMarker": "Reversal"
   },
   "StockStatus": {
     "AVAILABLE": "Available",

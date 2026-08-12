@@ -80,6 +80,15 @@ export const SHELL_NAMESPACES = [
  * the scan box in `CatalogueOptions` — and a module is the unit this manifest's
  * walk, and the bundler, both resolve. Those four seams are now split, so a
  * quality screen lists the eight namespaces a quality screen reads.
+ *
+ * `Pagination` is the same story told about a namespace rather than a module.
+ * The five strings a pager renders — "Previous page", "Page {page}" — lived in
+ * `Inventory` because the ledger screens were the first thing that paged. Both
+ * `LedgerPanel` and `MasterDataPanel` read them, so every screen with a paged
+ * list carried the whole inventory vocabulary: column headings, captions, the
+ * read-only notice. Eight scopes paid 1.5 kB of Thai each for five strings.
+ * Naming the chrome separately is what lets a putaway queue page without
+ * learning the word for "stock bucket".
  */
 export const ROUTE_NAMESPACES = {
   "(auth)/sign-in": ["Setup"],
@@ -95,17 +104,18 @@ export const ROUTE_NAMESPACES = {
   ],
   "(desktop)/inventory": [
     "Inventory",
+    "Pagination",
     "Panel",
     "StockStatus",
     "TransactionType",
   ],
   "(desktop)/master-data": [
     "BarcodeKind",
-    "Inventory",
     "LabelTemplateStatus",
     "LocationType",
     "MasterData",
     "MasterDataStatus",
+    "Pagination",
     "Panel",
     "TrackingMode",
     "Write",
@@ -113,8 +123,8 @@ export const ROUTE_NAMESPACES = {
   ],
   "(desktop)/purchasing": [
     "ImportProblem",
-    "Inventory",
     "LabelEvidence",
+    "Pagination",
     "Panel",
     "PurchaseOrderLineStatus",
     "PurchaseOrderStatus",
@@ -127,7 +137,7 @@ export const ROUTE_NAMESPACES = {
     "WriteError",
   ],
   "(desktop)/putaway": [
-    "Inventory",
+    "Pagination",
     "Panel",
     "Putaway",
     "PutawayFilterReason",
@@ -138,7 +148,7 @@ export const ROUTE_NAMESPACES = {
   ],
   "(desktop)/quality": [
     "InspectionStatus",
-    "Inventory",
+    "Pagination",
     "Panel",
     "QcDisposition",
     "Quality",
@@ -148,8 +158,8 @@ export const ROUTE_NAMESPACES = {
   ],
   "(desktop)/receiving": [
     "ImportProblem",
-    "Inventory",
     "LabelEvidence",
+    "Pagination",
     "Panel",
     "PurchaseOrderLineStatus",
     "PurchaseOrderStatus",
@@ -171,9 +181,14 @@ export const ROUTE_NAMESPACES = {
   ],
   "(desktop)/setup": ["Setup"],
 
-  "(handheld)/handheld/inventory": ["Inventory", "Panel", "StockStatus"],
-  "(handheld)/handheld/putaway": [
+  "(handheld)/handheld/inventory": [
     "Inventory",
+    "Pagination",
+    "Panel",
+    "StockStatus",
+  ],
+  "(handheld)/handheld/putaway": [
+    "Pagination",
     "Panel",
     "Putaway",
     "PutawayFilterReason",
@@ -184,7 +199,7 @@ export const ROUTE_NAMESPACES = {
   ],
   "(handheld)/handheld/quality": [
     "InspectionStatus",
-    "Inventory",
+    "Pagination",
     "Panel",
     "QcDisposition",
     "Quality",
@@ -194,8 +209,8 @@ export const ROUTE_NAMESPACES = {
   ],
   "(handheld)/handheld/receive": [
     "ImportProblem",
-    "Inventory",
     "LabelEvidence",
+    "Pagination",
     "Panel",
     "PurchaseOrderLineStatus",
     "PurchaseOrderStatus",

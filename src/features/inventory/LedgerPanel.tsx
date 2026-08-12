@@ -298,7 +298,7 @@ function LedgerPanelBody<Row>({
   readonly renderRows: (rows: readonly Row[]) => ReactNode;
 }) {
   const panelT = useTranslations("Panel");
-  const inventoryT = useTranslations("Inventory");
+  const pagingT = useTranslations("Pagination");
 
   if (state.kind !== "READY") return <LedgerPanelStatus state={state} />;
 
@@ -312,13 +312,13 @@ function LedgerPanelBody<Row>({
     <div className="flex flex-col gap-4">
       {renderRows(state.rows)}
       <nav
-        aria-label={inventoryT("pagination")}
+        aria-label={pagingT("pagination")}
         className="flex flex-wrap items-center justify-between gap-3"
       >
         <p className="text-sm text-muted">
           {state.complete
-            ? inventoryT("complete")
-            : inventoryT("pageIndicator", { page })}
+            ? pagingT("complete")
+            : pagingT("pageIndicator", { page })}
         </p>
         <div className="flex gap-2">
           <Button
@@ -327,7 +327,7 @@ function LedgerPanelBody<Row>({
             disabled={isFirstPage(cursorState)}
             onClick={onRetreat}
           >
-            {inventoryT("previousPage")}
+            {pagingT("previousPage")}
           </Button>
           <Button
             type="button"
@@ -335,7 +335,7 @@ function LedgerPanelBody<Row>({
             disabled={state.nextCursor === null}
             onClick={() => onAdvance(state.nextCursor)}
           >
-            {inventoryT("nextPage")}
+            {pagingT("nextPage")}
           </Button>
         </div>
       </nav>
