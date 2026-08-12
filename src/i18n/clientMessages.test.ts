@@ -78,8 +78,13 @@ const nonLiteralNamespaces: string[] = [];
 for (const file of sourceFiles(SRC)) {
   const source = readFileSync(file, "utf8");
   const imports: string[] = [];
+  // `export ... from` as well as `import ... from`: a re-export is an edge in
+  // the bundler's graph exactly like an import is, so a barrel module that
+  // forwarded a client component would otherwise be a hole in this walk — and a
+  // hole here *under*-reports, which is the direction that ships
+  // `Receiving.title` to a warehouse screen rather than merely wasting bytes.
   for (const match of source.matchAll(
-    /(?:^|\n)\s*import\s[^;]*?from\s*["']([^"']+)["']/g,
+    /(?:^|\n)\s*(?:import|export)\s[^;]*?from\s*["']([^"']+)["']/g,
   ))
     imports.push(match[1] ?? "");
   for (const match of source.matchAll(/import\(\s*["']([^"']+)["']\s*\)/g))
