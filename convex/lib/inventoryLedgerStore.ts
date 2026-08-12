@@ -1867,6 +1867,11 @@ export interface ReverseLedgerTransactionInput {
  * documents, and the resulting transaction is posted through the ordinary path, so
  * it gets the same balance checks, the same audit row, and the same idempotency
  * record as any other posting.
+ *
+ * "Not twice" and "a retry is a no-op" both apply here, and they answer the same
+ * observation — a reversal of this original already exists — differently. The
+ * request ID separates them: the reversal this request itself wrote is a retry and
+ * replays, any other one is `REVERSAL_ALREADY_EXISTS`.
  */
 export async function reverseLedgerTransaction(
   input: ReverseLedgerTransactionInput,
@@ -1953,6 +1958,23 @@ export async function reverseLedgerTransaction(
     )
     .first();
 
+  // A reversal that already names this original ends the request — unless it is
+  // the one *this* request produced. A client whose response was lost retries the
+  // same request ID, and that retry is asking for the answer it did not receive,
+  // not for a second reversal (`ADR-0003`: a duplicate `requestId` is a no-op
+  // returning the original result; `RG-025`). Refusing it `REVERSAL_ALREADY_EXISTS`
+  // would name the wrong reason and would make a retry look like an operator error.
+  //
+  // The decision is handed to `postLedgerTransaction` rather than made here,
+  // because the fingerprint is what separates a retry from a reused ID: an exact
+  // retry replays, and the same ID under different arguments is
+  // `REQUEST_ARGUMENT_CONFLICT`. A *different* request ID against the same original
+  // still stops here, which is `INV-0003-08` — one original, one reversal.
+  const ownRetry =
+    alreadyReversed !== null &&
+    alreadyReversed.operation === input.operation &&
+    alreadyReversed.requestId === requestId.value;
+
   const original: OriginalTransaction = {
     transactionId: input.originalTransactionId,
     orgId,
@@ -1972,7 +1994,8 @@ export async function reverseLedgerTransaction(
     occurredAt: input.now,
     reasonCodeId: input.reasonCodeId,
     original,
-    existingReversalId: alreadyReversed === null ? null : alreadyReversed._id,
+    existingReversalId:
+      alreadyReversed === null || ownRetry ? null : alreadyReversed._id,
   });
   if (!planned.ok) return planned;
 
