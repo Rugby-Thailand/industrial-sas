@@ -19,9 +19,9 @@ import { useState } from "react";
 import { Notice } from "@/components/ui/Notice";
 import type { InspectionRow } from "@/lib/convex/inboundApi";
 
-import { DispositionForm } from "./InboundForms";
+import { InboundSection } from "./InboundPrimitives";
+import { DispositionForm, InspectionsPanel } from "./QualityInspections";
 import { ApproveDispositionControl } from "./QualityApproval";
-import { InboundSection, InspectionsPanel } from "./InboundPanels";
 
 export function QualityWorkbench() {
   const t = useTranslations("Quality");

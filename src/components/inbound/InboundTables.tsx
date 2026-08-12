@@ -1,11 +1,18 @@
 "use client";
 
 /**
- * The inbound collections, as columns.
+ * The purchasing, receiving, and label collections, as columns.
  *
  * Built on `EntityTable`, so the structure — caption, one row header, scrolling
  * rather than crushing — is the master-data screens' structure and cannot drift
  * from it. What is here is the decision about *which* facts each screen shows.
+ *
+ * The inspection queue and the putaway board are *not* here: they are
+ * `QualityTables` and `PutawayTables`, because a module is what the bundler and
+ * the message manifest split on, and a quality screen that reached this file
+ * shipped the purchasing and receiving catalogues with it. Ordering and
+ * receiving are together because they are genuinely one flow — a receipt is
+ * posted against an order, so both screens need both vocabularies.
  *
  * Two conventions run through all of them:
  *
@@ -24,28 +31,17 @@ import { EntityTable } from "@/components/masterData/EntityTable";
 import { StatusBadge, type BadgeTone } from "@/components/ui/StatusBadge";
 import type {
   ImportRow,
-  InspectionRow,
   PrintJobRow,
   PurchaseOrderLineRow,
   PurchaseOrderRow,
-  PutawayTaskRow,
   ReceiptLineRow,
   ReceiptRow,
   RejectedImportRow,
 } from "@/lib/convex/inboundApi";
 import { codeLabel, type CodeTranslator } from "@/lib/domainLabels";
-import { formatMinorUnits, UNRENDERABLE } from "@/lib/formatters";
+import { UNRENDERABLE } from "@/lib/formatters";
 
-/**
- * A quantity and the unit it is counted in, together.
- *
- * `formatMinorUnits` renders the digits and nothing else — deliberately, because
- * the ledger's formatter must not invent a unit. On a receiving screen the unit
- * is not optional: `180.000` is unreadable and reads as a count of pieces when
- * it is thousandths of a kilogram (`ADR-0004`).
- */
-const withUnit = (minorUnits: number, uom: string): string =>
-  `${formatMinorUnits(minorUnits, uom)} ${uom}`;
+import { shortId, withUnit } from "./InboundCells";
 
 const ORDER_TONES: Readonly<Record<string, BadgeTone>> = {
   DRAFT: "pending",
@@ -91,28 +87,6 @@ const STOCK_TONES: Readonly<Record<string, BadgeTone>> = {
   SCRAP: "danger",
   EXPIRED: "danger",
 };
-
-const INSPECTION_TONES: Readonly<Record<string, BadgeTone>> = {
-  OPEN: "accent",
-  PENDING_APPROVAL: "pending",
-  DISPOSED: "success",
-  CANCELLED: "muted",
-};
-
-const TASK_TONES: Readonly<Record<string, BadgeTone>> = {
-  READY: "accent",
-  CLAIMED: "pending",
-  CONFIRMED: "success",
-  CANCELLED: "muted",
-};
-
-/** An identifier with no display name yet. Shown short and monospaced. */
-const shortId = (value: string | undefined): string =>
-  value === undefined || value.length === 0
-    ? UNRENDERABLE
-    : value.length <= 12
-      ? value
-      : `…${value.slice(-10)}`;
 
 /* -------------------------------------------------------------------------- */
 /* Purchase orders                                                             */
@@ -455,157 +429,6 @@ export function ReceiptLinesTable({
           ),
         },
       ]}
-    />
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/* Quality                                                                     */
-/* -------------------------------------------------------------------------- */
-
-export function InspectionsTable({
-  rows,
-  renderAction,
-}: {
-  readonly rows: readonly InspectionRow[];
-  readonly renderAction?: (row: InspectionRow) => ReactNode;
-}) {
-  const t = useTranslations("Quality");
-  const statusT = useTranslations(
-    "InspectionStatus",
-  ) as unknown as CodeTranslator;
-  const strategyT = useTranslations(
-    "SamplingStrategy",
-  ) as unknown as CodeTranslator;
-  const dispositionT = useTranslations(
-    "QcDisposition",
-  ) as unknown as CodeTranslator;
-
-  return (
-    <EntityTable<InspectionRow>
-      testId="table-inspections"
-      caption={t("caption", { count: rows.length })}
-      rows={rows}
-      rowKey={(row) => row.inspectionId}
-      columns={[
-        {
-          key: "item",
-          header: t("columnItem"),
-          rowHeader: true,
-          render: (row) => shortId(row.itemId),
-        },
-        {
-          key: "status",
-          header: t("columnStatus"),
-          render: (row) => (
-            <StatusBadge
-              tone={INSPECTION_TONES[row.status] ?? "neutral"}
-              label={codeLabel(statusT, row.status)}
-            />
-          ),
-        },
-        {
-          key: "strategy",
-          header: t("columnStrategy"),
-          render: (row) => codeLabel(strategyT, row.strategy),
-        },
-        {
-          key: "sample",
-          header: t("columnSample"),
-          monospace: true,
-          /*
-           * The plan as it was computed *at receipt*, not as the profile reads
-           * now. A profile changes; the plan applied to this delivery does not,
-           * and it is the evidence an auditor reads.
-           */
-          render: (row) =>
-            t("sampleOf", { sample: row.sampleSize, lot: row.lotSize }),
-        },
-        {
-          key: "disposition",
-          header: t("columnDisposition"),
-          render: (row) =>
-            row.disposition === undefined
-              ? UNRENDERABLE
-              : codeLabel(dispositionT, row.disposition),
-        },
-      ]}
-      {...(renderAction === undefined
-        ? {}
-        : { actionHeader: t("columnAction"), renderAction })}
-    />
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/* Putaway                                                                     */
-/* -------------------------------------------------------------------------- */
-
-export function PutawayTasksTable({
-  rows,
-  renderAction,
-}: {
-  readonly rows: readonly PutawayTaskRow[];
-  readonly renderAction?: (row: PutawayTaskRow) => ReactNode;
-}) {
-  const t = useTranslations("Putaway");
-  const statusT = useTranslations(
-    "PutawayTaskStatus",
-  ) as unknown as CodeTranslator;
-
-  return (
-    <EntityTable<PutawayTaskRow>
-      testId="table-putaway-tasks"
-      caption={t("caption", { count: rows.length })}
-      rows={rows}
-      rowKey={(row) => row.putawayTaskId}
-      columns={[
-        {
-          key: "item",
-          header: t("columnItem"),
-          rowHeader: true,
-          render: (row) => shortId(row.itemId),
-        },
-        {
-          key: "quantity",
-          header: t("columnQuantity"),
-          monospace: true,
-          render: (row) => String(row.baseMinorUnits / 1000),
-        },
-        {
-          key: "from",
-          header: t("columnFrom"),
-          monospace: true,
-          render: (row) => shortId(row.fromLocationId),
-        },
-        {
-          key: "status",
-          header: t("columnStatus"),
-          render: (row) => (
-            <StatusBadge
-              tone={TASK_TONES[row.status] ?? "neutral"}
-              label={codeLabel(statusT, row.status)}
-            />
-          ),
-        },
-        {
-          key: "recommended",
-          header: t("columnRecommended"),
-          monospace: true,
-          render: (row) => shortId(row.recommendedLocationId),
-        },
-        {
-          key: "chosen",
-          header: t("columnChosen"),
-          monospace: true,
-          // Shown next to the recommendation, because the pair *is* the override
-          // record: either alone says nothing about what happened.
-          render: (row) => shortId(row.chosenLocationId),
-        },
-      ]}
-      {...(renderAction === undefined
-        ? {}
-        : { actionHeader: t("columnAction"), renderAction })}
     />
   );
 }

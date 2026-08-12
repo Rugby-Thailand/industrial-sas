@@ -14,26 +14,27 @@
  * outcome: a receipt posting answers with its classification and where the stock
  * landed, and those are the two facts an operator at a dock actually needs. They
  * are surfaced by `ReceiptOutcomeNotice` rather than collapsed into "saved".
+ *
+ * The quality and putaway writes are not here — they are `QualityInspections`
+ * and `PutawayTasks` — because importing one form from this file reaches all of
+ * them, and a screen that only records a disposition has no use for the ordering
+ * and receiving vocabularies this file carries.
  */
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
 import type { FormFieldSpec } from "@/components/masterData/EntityForm";
 import { Notice } from "@/components/ui/Notice";
-import { useWorkspace } from "@/components/providers/WorkspaceProvider";
-import { LedgerPanelStatus } from "@/components/system/LedgerPanelStatus";
 import {
   addPurchaseOrderLineRef,
   buildHandlingUnitRef,
   closeLineShortRef,
-  confirmPutawayRef,
   createPurchaseOrderRef,
   generateLabelRef,
   openReceiptRef,
   postReceiptLineRef,
   raiseReceivingExceptionRef,
   reprintLabelRef,
-  submitDispositionRef,
   type PurchaseOrderLineRow,
 } from "@/lib/convex/inboundApi";
 
@@ -42,39 +43,14 @@ import {
   ActiveReasonCodes,
   ActiveSuppliers,
   PublishedLabelTemplates,
-  ScanToItem,
-  type ScannedItem,
 } from "./CatalogueOptions";
 import type { ItemRow } from "@/lib/convex/masterDataApi";
 
 import { OpenPurchaseOrders } from "./InboundOptions";
+import { WithWarehouse } from "./InboundPrimitives";
+import { ScanToItem, type ScannedItem } from "./ScanToItem";
 
 import { EntityWriteForm } from "../masterData/EntityWriteForm";
-
-/** Every inbound write needs the site it happens at. */
-function useWarehouseId(): string | undefined {
-  return useWorkspace().selectedWarehouseId;
-}
-
-/**
- * Wrap a form that cannot be rendered without a warehouse.
- *
- * The gate is a *precondition*, not an error: a supervisor who has not chosen a
- * site has not done anything wrong. Rendering the form and letting the server
- * refuse would waste a round trip and produce a message about a missing argument
- * rather than about a missing choice.
- */
-function WithWarehouse({
-  render,
-}: {
-  readonly render: (warehouseId: string) => React.ReactNode;
-}) {
-  const warehouseId = useWarehouseId();
-  if (warehouseId === undefined) {
-    return <LedgerPanelStatus state={{ kind: "WAREHOUSE_MISSING" }} />;
-  }
-  return <>{render(warehouseId)}</>;
-}
 
 /** A quantity captured as two fields: the number, and the unit it is counted in. */
 const quantityFields = (
@@ -256,14 +232,13 @@ export function CloseLineShortForm({
   readonly line: PurchaseOrderLineRow;
 }) {
   const t = useTranslations("Purchasing");
-  const qualityT = useTranslations("Quality");
   const writeT = useTranslations("Write");
 
   return (
     <ActiveReasonCodes
       scope="ADJUSTMENT"
-      emptyTitle={t("noReasons")}
-      emptyBody={t("noReasonsHint")}
+      emptyTitle={writeT("noReasonCodes")}
+      emptyBody={writeT("noReasonCodesHint")}
       emptyTestId="close-short-no-reasons"
     >
       {(reasons) => (
@@ -279,7 +254,7 @@ export function CloseLineShortForm({
               fields={[
                 {
                   name: "reasonCodeId",
-                  label: qualityT("fieldReason"),
+                  label: writeT("reasonCodeLabel"),
                   kind: "select",
                   required: true,
                   options: reasons.map((reason) => ({
@@ -661,16 +636,14 @@ function ReceiptLineFormBody({
  */
 export function ReceivingExceptionForm() {
   const t = useTranslations("Receiving");
-  const purchasingT = useTranslations("Purchasing");
   const kindT = useTranslations("ReceiptLineKind");
-  const qualityT = useTranslations("Quality");
   const writeT = useTranslations("Write");
 
   return (
     <ActiveReasonCodes
       scope="ADJUSTMENT"
-      emptyTitle={purchasingT("noReasons")}
-      emptyBody={purchasingT("noReasonsHint")}
+      emptyTitle={writeT("noReasonCodes")}
+      emptyBody={writeT("noReasonCodesHint")}
       emptyTestId="exception-no-reasons"
     >
       {(reasons) => (
@@ -698,7 +671,7 @@ export function ReceivingExceptionForm() {
                 },
                 {
                   name: "reasonCodeId",
-                  label: qualityT("fieldReason"),
+                  label: writeT("reasonCodeLabel"),
                   kind: "select",
                   required: true,
                   options: reasons.map((reason) => ({
@@ -765,174 +738,6 @@ export function BuildPalletForm({
         />
       )}
     />
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/* Quality                                                                     */
-/* -------------------------------------------------------------------------- */
-
-export function DispositionForm({
-  inspectionId,
-}: {
-  readonly inspectionId: string;
-}) {
-  const t = useTranslations("Quality");
-  const purchasingT = useTranslations("Purchasing");
-  const dispositionT = useTranslations("QcDisposition");
-  const writeT = useTranslations("Write");
-
-  return (
-    <ActiveReasonCodes
-      /*
-       * `STATUS_CHANGE`, because a disposition *is* one: the stock moves between
-       * buckets and the reason is the audit evidence for that movement. A code
-       * minted for scrap must not be offered here (`ADR-0003` §5).
-       */
-      scope="STATUS_CHANGE"
-      emptyTitle={purchasingT("noReasons")}
-      emptyBody={purchasingT("noReasonsHint")}
-      emptyTestId="disposition-no-reasons"
-    >
-      {(reasons) => (
-        <WithWarehouse
-          render={(warehouseId) => (
-            <EntityWriteForm
-              testId="form-disposition"
-              mutationRef={submitDispositionRef}
-              legend={t("dispositionLegend")}
-              description={t("dispositionDescription")}
-              submitLabel={t("dispositionSubmit")}
-              requiredMessage={writeT("required")}
-              fields={[
-                {
-                  name: "disposition",
-                  label: t("fieldDisposition"),
-                  kind: "select",
-                  required: true,
-                  options: (
-                    [
-                      "RELEASE",
-                      "QUARANTINE",
-                      "REJECT",
-                      "SCRAP",
-                      "REWORK",
-                    ] as const
-                  ).map((value) => ({ value, label: dispositionT(value) })),
-                },
-                {
-                  name: "reasonCodeId",
-                  label: t("fieldReason"),
-                  kind: "select",
-                  required: true,
-                  options: reasons.map((reason) => ({
-                    value: reason.reasonCodeId,
-                    label: `${reason.code} · ${reason.name}`,
-                  })),
-                },
-              ]}
-              toArgs={(values, requestId) => ({
-                requestId,
-                warehouseId,
-                inspectionId,
-                disposition: (values["disposition"] ?? "REJECT") as
-                  "RELEASE" | "QUARANTINE" | "REJECT" | "SCRAP" | "REWORK",
-                reasonCodeId: values["reasonCodeId"] ?? "",
-              })}
-            />
-          )}
-        />
-      )}
-    </ActiveReasonCodes>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/* Putaway                                                                     */
-/* -------------------------------------------------------------------------- */
-
-export function ConfirmPutawayForm({
-  putawayTaskId,
-  locations,
-}: {
-  readonly putawayTaskId: string;
-  /** The ranked locations, so the operator chooses from what was recommended. */
-  readonly locations: readonly {
-    readonly value: string;
-    readonly label: string;
-  }[];
-}) {
-  const t = useTranslations("Putaway");
-  const purchasingT = useTranslations("Purchasing");
-  const writeT = useTranslations("Write");
-
-  return (
-    <ActiveReasonCodes
-      scope="ADJUSTMENT"
-      emptyTitle={purchasingT("noReasons")}
-      emptyBody={purchasingT("noReasonsHint")}
-      emptyTestId="putaway-no-reasons"
-    >
-      {(reasons) => (
-        <WithWarehouse
-          render={(warehouseId) => (
-            <EntityWriteForm
-              testId="form-confirm-putaway"
-              mutationRef={confirmPutawayRef}
-              legend={t("confirmLegend")}
-              description={t("confirmDescription")}
-              submitLabel={t("confirmSubmit")}
-              requiredMessage={writeT("required")}
-              fields={[
-                {
-                  name: "chosenLocationId",
-                  label: t("fieldChosenLocation"),
-                  kind: "select",
-                  required: true,
-                  /*
-                   * A select over the *ranked* locations. A free-text box would let
-                   * an operator name a bin a hard constraint rejected, and the
-                   * server would refuse it — correctly, but only after the pallet
-                   * had already been moved.
-                   */
-                  options: [...locations],
-                },
-                {
-                  /*
-                   * Optional: taking the top recommendation needs no reason. The
-                   * empty choice is first and explicit, so an operator who did take
-                   * it is not nudged into inventing one.
-                   */
-                  name: "overrideReasonCodeId",
-                  label: t("fieldOverrideReason"),
-                  kind: "select",
-                  options: [
-                    { value: "", label: "—" },
-                    ...reasons.map((reason) => ({
-                      value: reason.reasonCodeId,
-                      label: `${reason.code} · ${reason.name}`,
-                    })),
-                  ],
-                },
-              ]}
-              toArgs={(values, requestId) => ({
-                requestId,
-                warehouseId,
-                putawayTaskId,
-                chosenLocationId: values["chosenLocationId"] ?? "",
-                ...((values["overrideReasonCodeId"] ?? "") === ""
-                  ? {}
-                  : {
-                      overrideReasonCodeId: values[
-                        "overrideReasonCodeId"
-                      ] as string,
-                    }),
-              })}
-            />
-          )}
-        />
-      )}
-    </ActiveReasonCodes>
   );
 }
 

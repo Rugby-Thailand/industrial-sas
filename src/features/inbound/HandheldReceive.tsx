@@ -29,7 +29,7 @@ import {
   useDemonstrationReceiptId,
 } from "./InboundOptions";
 import { OpenReceiptForm, ReceiptLineForm } from "./InboundForms";
-import { InboundSection } from "./InboundPanels";
+import { InboundSection } from "./InboundPrimitives";
 import { LocationChooser } from "./ReceiptDetail";
 
 import { Button } from "@/components/ui/button";

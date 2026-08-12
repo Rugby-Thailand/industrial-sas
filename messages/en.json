@@ -319,6 +319,9 @@
   },
   "Write": {
     "required": "This field is required.",
+    "reasonCodeLabel": "Reason code",
+    "noReasonCodes": "No active reason code",
+    "noReasonCodesHint": "A master-data administrator adds the reason codes this step needs.",
     "submitting": "Saving",
     "submittingHint": "The request has been sent and is awaiting an answer.",
     "saved": "Saved",
@@ -404,9 +407,7 @@
     "noItemsHint": "Add an item to the register before adding an order line.",
     "fieldSupplier": "Supplier",
     "fieldItem": "Item",
-    "fieldOrder": "Order",
-    "noReasons": "No active reason code",
-    "noReasonsHint": "A master-data administrator adds the reason codes this step needs."
+    "fieldOrder": "Order"
   },
   "Receiving": {
     "title": "Receiving",
@@ -518,7 +519,6 @@
     "dispositionSubmit": "Record disposition",
     "fieldInspection": "Inspection",
     "fieldDisposition": "Disposition",
-    "fieldReason": "Reason code",
     "approve": "Approve this disposition",
     "approveHint": "Needs a different person from the one who recorded it, and a re-verified session.",
     "pendingTitle": "Waiting for a second person",

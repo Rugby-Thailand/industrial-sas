@@ -29,7 +29,8 @@ import {
   OpenReceiptForm,
   PurchaseOrderLineForm,
 } from "./InboundForms";
-import { InboundSection, PurchaseOrderLinesPanel } from "./InboundPanels";
+import { PurchaseOrderLinesPanel } from "./InboundPanels";
+import { InboundSection } from "./InboundPrimitives";
 
 import { Button } from "@/components/ui/button";
 

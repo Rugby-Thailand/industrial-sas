@@ -169,6 +169,20 @@ const bytes = (namespaces: Iterable<string>, locale: "en" | "th"): number => {
 
 const FULL_TH = Buffer.byteLength(JSON.stringify(ALL_CATALOGUES.th), "utf8");
 
+/**
+ * The inbound workflows that end at a decision rather than hand on to another.
+ *
+ * An inspection is decided and a pallet is put away; neither screen renders an
+ * order, a receipt, or a label. They are named once here because two assertions
+ * below depend on that being true of them and not of purchasing or receiving.
+ */
+const TERMINAL_INBOUND = [
+  "(desktop)/quality",
+  "(desktop)/putaway",
+  "(handheld)/handheld/quality",
+  "(handheld)/handheld/putaway",
+] as const;
+
 describe("client message namespaces", () => {
   it("names every namespace with a string literal", () => {
     // The walk below reads namespaces syntactically. A computed one would make
@@ -256,8 +270,9 @@ describe("client message namespaces", () => {
 
   it("keeps each route's Thai payload well under the full catalogue", () => {
     // The budget is deliberately loose: it is a floor against regression, not a
-    // target. The inbound scopes are the largest because three shared modules
-    // reach every inbound namespace; everything else is far below this.
+    // target. The purchasing and receiving scopes are the largest, because a
+    // receipt is posted against an order and those screens genuinely read both
+    // vocabularies; everything else is far below this.
     const shellBytes = bytes(SHELL_NAMESPACES, "th");
     expect(shellBytes).toBeLessThan(6_000);
 
@@ -282,6 +297,79 @@ describe("client message namespaces", () => {
         { scope, small: total < FULL_TH * 0.25 },
         `${scope} ships ${total}B of ${FULL_TH}B`,
       ).toEqual({ scope, small: true });
+    }
+
+    /*
+     * Quality and putaway sit just above that line and are held there
+     * separately, because what keeps them there is different: they carry almost
+     * nothing but their own vocabulary, and `Putaway` plus its two score
+     * namespaces are 4.9 kB on their own. A third of the catalogue is the floor
+     * those words set, not slack — before the module seam was split these two
+     * shipped more than half.
+     */
+    for (const scope of TERMINAL_INBOUND) {
+      const total = shellBytes + bytes(ROUTE_NAMESPACES[scope], "th");
+      expect(
+        { scope, small: total < FULL_TH * 0.3 },
+        `${scope} ships ${total}B of ${FULL_TH}B`,
+      ).toEqual({ scope, small: true });
+    }
+  });
+
+  it("keeps quality and putaway off the ordering and receiving catalogues", () => {
+    /*
+     * The seam this file's manifest was reorganised around, asserted as a rule
+     * rather than as a list of namespaces.
+     *
+     * Quality and putaway are terminal inbound workflows: an inspection is
+     * decided and a pallet is put away, and neither screen renders an order, a
+     * receipt, or a label. They nonetheless carried `Purchasing`, `Receiving`,
+     * and `LabelEvidence` — 18.7 kB of Thai between them — because they reached
+     * those namespaces through modules they imported for other reasons: a
+     * heading, a warehouse gate, a reason-code picker, a paging helper.
+     *
+     * Restating that as an assertion, rather than trusting the numbers above to
+     * be noticed, is the point: the exact-match test would happily accept a
+     * regression here, because a regression makes the manifest bigger *and*
+     * still true. This is what would make it false.
+     */
+    const foreign = [
+      "ImportProblem",
+      "LabelEvidence",
+      "PurchaseOrderLineStatus",
+      "PurchaseOrderStatus",
+      "Purchasing",
+      "ReceiptClassification",
+      "ReceiptLineKind",
+      "Receiving",
+    ];
+
+    for (const scope of TERMINAL_INBOUND) {
+      const declared: readonly string[] = ROUTE_NAMESPACES[scope];
+      expect({
+        scope,
+        reaches: sorted(declared.filter((n) => foreign.includes(n))),
+      }).toEqual({ scope, reaches: [] });
+    }
+  });
+
+  it("keeps the modules every inbound screen imports free of translations", () => {
+    /*
+     * The other half of the seam. `InboundPrimitives` (a heading, a warehouse
+     * gate, paging arguments) and `InboundCells` (two value formatters) are
+     * imported by every inbound screen in both shells, so a `useTranslations`
+     * call added to either would put that namespace back on all of them — which
+     * is exactly how the quality and putaway payloads grew the first time.
+     */
+    for (const shared of [
+      join(SRC, "features", "inbound", "InboundPrimitives.tsx"),
+      join(SRC, "components", "inbound", "InboundCells.ts"),
+    ]) {
+      const entry = modules.get(shared);
+      expect(
+        { file: relative(REPO, shared), namespaces: entry?.namespaces },
+        "a namespace here is paid for by every inbound route",
+      ).toEqual({ file: relative(REPO, shared), namespaces: [] });
     }
   });
 

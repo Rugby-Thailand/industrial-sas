@@ -20,14 +20,14 @@ import { writeStoredWarehouse } from "@/lib/workspace/warehouseStore";
 import {
   ImportAcceptedTable,
   ImportRejectedTable,
-  InspectionsTable,
   PrintJobsTable,
   PurchaseOrderLinesTable,
   PurchaseOrdersTable,
-  PutawayTasksTable,
   ReceiptLinesTable,
   ReceiptsTable,
 } from "./InboundTables";
+import { PutawayTasksTable } from "./PutawayTables";
+import { InspectionsTable } from "./QualityTables";
 
 import { PutawayRecommendationPanel } from "@/features/inbound/PutawayRecommendation";
 import { ReceivingExceptionForm } from "@/features/inbound/InboundForms";

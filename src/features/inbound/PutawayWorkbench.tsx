@@ -22,9 +22,9 @@ import { useWorkspace } from "@/components/providers/WorkspaceProvider";
 import { LedgerPanelStatus } from "@/components/system/LedgerPanelStatus";
 import type { PutawayTaskRow } from "@/lib/convex/inboundApi";
 
-import { ConfirmPutawayForm } from "./InboundForms";
 import { RankedPutawayLocations } from "./InboundOptions";
-import { InboundSection, PutawayTasksPanel } from "./InboundPanels";
+import { InboundSection } from "./InboundPrimitives";
+import { ConfirmPutawayForm, PutawayTasksPanel } from "./PutawayTasks";
 import { PutawayRecommendationPanel } from "./PutawayRecommendation";
 
 export function PutawayWorkbench() {

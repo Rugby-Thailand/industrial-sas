@@ -2,10 +2,8 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PurchaseOrderForm } from "@/features/inbound/InboundForms";
-import {
-  InboundSection,
-  PurchaseOrdersPanel,
-} from "@/features/inbound/InboundPanels";
+import { PurchaseOrdersPanel } from "@/features/inbound/InboundPanels";
+import { InboundSection } from "@/features/inbound/InboundPrimitives";
 
 /**
  * The purchase-order register for one site.

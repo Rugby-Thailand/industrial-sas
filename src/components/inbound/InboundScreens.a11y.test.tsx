@@ -14,21 +14,19 @@ import { writeStoredWarehouse } from "@/lib/workspace/warehouseStore";
 import {
   ImportAcceptedTable,
   ImportRejectedTable,
-  InspectionsTable,
   PrintJobsTable,
   PurchaseOrderLinesTable,
   PurchaseOrdersTable,
-  PutawayTasksTable,
   ReceiptLinesTable,
   ReceiptsTable,
 } from "./InboundTables";
+import { PutawayTasksTable } from "./PutawayTables";
+import { InspectionsTable } from "./QualityTables";
 
 import { ImportWorkbench } from "@/features/inbound/ImportWorkbench";
-import {
-  ConfirmPutawayForm,
-  DispositionForm,
-  ReceiptLineForm,
-} from "@/features/inbound/InboundForms";
+import { ReceiptLineForm } from "@/features/inbound/InboundForms";
+import { ConfirmPutawayForm } from "@/features/inbound/PutawayTasks";
+import { DispositionForm } from "@/features/inbound/QualityInspections";
 import { PutawayRecommendationPanel } from "@/features/inbound/PutawayRecommendation";
 import { ApproveDispositionControl } from "@/features/inbound/QualityApproval";
 import {

@@ -31,11 +31,8 @@ import {
   Receipt,
   ReceivingLocations,
 } from "./InboundOptions";
-import {
-  InboundSection,
-  PrintJobsPanel,
-  ReceiptLinesPanel,
-} from "./InboundPanels";
+import { PrintJobsPanel, ReceiptLinesPanel } from "./InboundPanels";
+import { InboundSection } from "./InboundPrimitives";
 
 export function ReceiptDetail({ receiptId }: { readonly receiptId: string }) {
   const t = useTranslations("Receiving");

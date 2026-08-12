@@ -5,10 +5,8 @@ import {
   OpenReceiptForm,
   ReceivingExceptionForm,
 } from "@/features/inbound/InboundForms";
-import {
-  InboundSection,
-  ReceiptsPanel,
-} from "@/features/inbound/InboundPanels";
+import { ReceiptsPanel } from "@/features/inbound/InboundPanels";
+import { InboundSection } from "@/features/inbound/InboundPrimitives";
 
 /**
  * The receiving desk.

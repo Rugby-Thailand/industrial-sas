@@ -1,16 +1,19 @@
 "use client";
 
 /**
- * The inbound read panels, and the write controls attached to their rows.
+ * The purchasing, receiving, and label read panels.
  *
  * Every one of these is `MasterDataPanel` with a warehouse-scoped read, because
  * a delivery arrives at a *site*: the permissions are warehouse-scoped, and a
  * panel that did not wait for a warehouse selection would ask the server a
  * question it cannot answer (`INV-0006-04`).
  *
- * The write controls sit inside `renderRows`, so they exist only when there are
- * rows to act on. A claim button rendered above a `DENIED` notice would be a
- * control the server has already said this operator may not use.
+ * The inspection queue and the putaway board are `QualityInspections` and
+ * `PutawayTasks`. They left because a module is the unit the message manifest
+ * and the bundler split on, and importing one panel from here reaches every
+ * table this file renders — which is why a putaway screen used to ship the
+ * receiving catalogue. `InboundSection` left for the same reason: it is a
+ * heading, and every inbound screen wants one.
  *
  * Nothing here decides whether a write is allowed. The server does, and a denial
  * is shown as a denial with its request ID (`INV-0002-07`). Hiding a control to
@@ -21,71 +24,37 @@ import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
 import {
-  InspectionsTable,
   PrintJobsTable,
   PurchaseOrderLinesTable,
   PurchaseOrdersTable,
-  PutawayTasksTable,
   ReceiptLinesTable,
   ReceiptsTable,
 } from "@/components/inbound/InboundTables";
 import { Link } from "@/i18n/navigation";
-import { DEFAULT_LEDGER_PAGE_SIZE } from "@/lib/convex/ledgerApi";
 import {
-  claimPutawayTaskRef,
-  listInspectionsRef,
   listPrintJobsForTargetRef,
   listPurchaseOrderLinesRef,
   listPurchaseOrdersRef,
-  listPutawayTasksRef,
   listReceiptLinesRef,
   listReceiptsRef,
-  type InspectionRow,
   type PrintJobRow,
   type PurchaseOrderLineRow,
   type PurchaseOrderRow,
-  type PutawayTaskRow,
   type ReceiptLineRow,
   type ReceiptRow,
 } from "@/lib/convex/inboundApi";
 import { purchaseOrderPath, receiptPath } from "@/lib/navigation";
 import {
-  previewInspectionsFor,
   previewOrderLinesFor,
   previewPrintJobsFor,
   previewPurchaseOrdersFor,
-  previewPutawayTasksFor,
   previewReceiptLinesFor,
   previewReceiptsFor,
 } from "@/lib/preview/inboundPreview";
 
 import { MasterDataPanel } from "../masterData/MasterDataPanel";
-import { RowActionButton, RowWriteRegion } from "../masterData/RowWriteRegion";
 
-import { Button } from "@/components/ui/button";
-
-/** The paging arguments every warehouse-scoped inbound list takes. */
-const pageArgs = (warehouseId: string, cursor: string | undefined) => ({
-  warehouseId,
-  maxPageSize: DEFAULT_LEDGER_PAGE_SIZE,
-  ...(cursor === undefined ? {} : { cursor }),
-});
-
-/** A titled block. `PageHeader` owns the single `<h1>`; sections start at `<h2>`. */
-export function InboundSection({
-  title,
-  children,
-}: {
-  readonly title: string;
-  readonly children: ReactNode;
-}) {
-  return (
-    <section className="mb-8 flex flex-col gap-4">
-      <h2 className="text-lg font-semibold text-text">{title}</h2>
-      {children}
-    </section>
-  );
-}
+import { pageArgs } from "./InboundPrimitives";
 
 /* -------------------------------------------------------------------------- */
 /* Purchase orders                                                             */
@@ -217,132 +186,6 @@ export function ReceiptLinesPanel({
       })}
       previewRowsFor={() => previewReceiptLinesFor(receiptId)}
       renderRows={(rows) => <ReceiptLinesTable rows={rows} />}
-    />
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/* Quality                                                                     */
-/* -------------------------------------------------------------------------- */
-
-export function InspectionsPanel({
-  onSelect,
-}: {
-  /** Called with an inspection the operator wants to decide. */
-  readonly onSelect?: (row: InspectionRow) => void;
-}) {
-  const t = useTranslations("Quality");
-
-  return (
-    <MasterDataPanel<
-      InspectionRow,
-      { warehouseId: string; maxPageSize?: number; cursor?: string }
-    >
-      queryRef={listInspectionsRef}
-      scope="WAREHOUSE"
-      buildArgs={({ warehouseId, cursor }) => pageArgs(warehouseId, cursor)}
-      previewRowsFor={previewInspectionsFor}
-      renderRows={(rows) => (
-        <InspectionsTable
-          rows={rows}
-          {...(onSelect === undefined
-            ? {}
-            : {
-                renderAction: (row: InspectionRow) =>
-                  /*
-                   * Only an open inspection offers the control. A parked one is
-                   * waiting for a *different* person, and a disposed one is
-                   * finished; offering "decide" on either would be offering an
-                   * action the server will refuse for reasons the operator
-                   * cannot fix from this screen.
-                   */
-                  row.status === "OPEN" ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => onSelect(row)}
-                      data-testid={`inspection-select-${row.inspectionId}`}
-                      className="px-3 text-xs"
-                    >
-                      {t("sectionDisposition")}
-                    </Button>
-                  ) : null,
-              })}
-        />
-      )}
-    />
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/* Putaway                                                                     */
-/* -------------------------------------------------------------------------- */
-
-export function PutawayTasksPanel({
-  onSelect,
-}: {
-  readonly onSelect?: (row: PutawayTaskRow) => void;
-}) {
-  const t = useTranslations("Putaway");
-
-  return (
-    <MasterDataPanel<
-      PutawayTaskRow,
-      { warehouseId: string; maxPageSize?: number; cursor?: string }
-    >
-      queryRef={listPutawayTasksRef}
-      scope="WAREHOUSE"
-      buildArgs={({ warehouseId, cursor }) => pageArgs(warehouseId, cursor)}
-      previewRowsFor={previewPutawayTasksFor}
-      renderRows={(rows) => (
-        <RowWriteRegion mutationRef={claimPutawayTaskRef}>
-          {({ submit, busy }) => (
-            <PutawayTasksTable
-              rows={rows}
-              renderAction={(row) =>
-                row.status === "CONFIRMED" ||
-                row.status === "CANCELLED" ? null : (
-                  <div className="flex flex-wrap gap-2">
-                    <RowActionButton
-                      busy={busy}
-                      testId={`task-claim-${row.putawayTaskId}`}
-                      /*
-                       * A claimed task still offers the control, and the label
-                       * says it is claimed. Re-claiming your own task after a
-                       * reconnect succeeds; claiming somebody else's is refused
-                       * by the server with a message that says which
-                       * (`INV-0007-11`). Hiding the button would make a
-                       * reconnect look like a lost task.
-                       */
-                      label={
-                        row.status === "CLAIMED" ? t("claimed") : t("claim")
-                      }
-                      onClick={() =>
-                        submit(row.putawayTaskId, (requestId) => ({
-                          requestId,
-                          warehouseId: row.warehouseId,
-                          putawayTaskId: row.putawayTaskId,
-                        }))
-                      }
-                    />
-                    {onSelect === undefined ? null : (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => onSelect(row)}
-                        data-testid={`task-select-${row.putawayTaskId}`}
-                        className="px-3 text-xs"
-                      >
-                        {t("sectionRecommendation")}
-                      </Button>
-                    )}
-                  </div>
-                )
-              }
-            />
-          )}
-        </RowWriteRegion>
-      )}
     />
   );
 }
