@@ -78,10 +78,12 @@ describe("EntityForm", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "บันทึก" }));
 
+    // `kind` is optional and was never touched, so it submits empty rather than
+    // as the first option nobody chose. See the select suite below.
     expect(onSubmit).toHaveBeenCalledWith({
       code: "SIAM-STEEL",
       name: "สยามสตีล",
-      kind: "GTIN",
+      kind: "",
     });
   });
 
@@ -298,6 +300,131 @@ describe("EntityForm select fields", () => {
     expect(selectOptionLabels("ชนิด")).toEqual(["GTIN", "ผู้จัดจำหน่าย"]);
   });
 
+  it("starts with nothing chosen and shows the placeholder", () => {
+    /*
+     * The regression this asserts had a real cost. `initialValues` used to fall
+     * back to `options[0]`, so the item form opened with `trackingMode` already
+     * reading "NONE" — the operator never chose it, the placeholder never
+     * appeared, and the item was created unable to hold a lot. The defect was
+     * invisible on screen precisely because the control looked answered.
+     *
+     * `SelectControl` documents the placeholder as required for this reason;
+     * this is the assertion that the form above it does not defeat it.
+     */
+    withSelect({
+      fields: [
+        {
+          name: "trackingMode",
+          label: "โหมดติดตาม",
+          kind: "select",
+          placeholder: "เลือกโหมดติดตาม",
+          options: [
+            { value: "NONE", label: "ไม่ติดตาม" },
+            { value: "LOT", label: "ตามล็อต" },
+          ],
+        },
+      ],
+    });
+
+    const trigger = selectTrigger("โหมดติดตาม");
+    expect(trigger).toHaveTextContent("เลือกโหมดติดตาม");
+    expect(trigger).not.toHaveTextContent("ไม่ติดตาม");
+  });
+
+  it("submits an untouched optional select as empty, not as its first option", () => {
+    const { onSubmit } = withSelect({
+      fields: [
+        { name: "code", label: "รหัส", kind: "text", required: true },
+        {
+          name: "trackingMode",
+          label: "โหมดติดตาม",
+          kind: "select",
+          options: [
+            { value: "NONE", label: "ไม่ติดตาม" },
+            { value: "LOT", label: "ตามล็อต" },
+          ],
+        },
+      ],
+    });
+
+    fireEvent.change(screen.getByLabelText("รหัส"), {
+      target: { value: "SKU-1" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "บันทึก" }));
+
+    expect(onSubmit).toHaveBeenCalledWith({ code: "SKU-1", trackingMode: "" });
+  });
+
+  it("refuses to submit a required select nobody answered", () => {
+    /*
+     * The half of the fix that matters most. While the first option was
+     * pre-selected, a `required` select could never be blank, so this branch was
+     * unreachable and a consequential choice was made by list order.
+     */
+    const { onSubmit } = withSelect();
+
+    fireEvent.change(screen.getByLabelText("รหัส"), {
+      target: { value: "SKU-1" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "บันทึก" }));
+
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(screen.getByText("ต้องกรอกช่องนี้")).toBeInTheDocument();
+    expect(selectTrigger("ชนิด")).toHaveAttribute("aria-invalid", "true");
+  });
+
+  it("submits once the operator answers the required select", () => {
+    const { onSubmit } = withSelect();
+
+    fireEvent.change(screen.getByLabelText("รหัส"), {
+      target: { value: "SKU-1" },
+    });
+    chooseOption("ชนิด", "GTIN");
+    fireEvent.click(screen.getByRole("button", { name: "บันทึก" }));
+
+    expect(onSubmit).toHaveBeenCalledWith({ code: "SKU-1", kind: "GTIN" });
+  });
+
+  it("still honours an explicit initialValue, which is how the edit forms load", () => {
+    /*
+     * The edit forms (`CoreForms.tsx`) pass the stored value as `initialValue`.
+     * Removing the `options[0]` fallback must not touch that path: an edit form
+     * that opened blank would silently clear the field it was meant to change.
+     */
+    const { onSubmit } = withSelect({
+      fields: [
+        {
+          name: "kind",
+          label: "ชนิด",
+          kind: "select",
+          required: true,
+          initialValue: "SUPPLIER",
+          options: [
+            { value: "GTIN", label: "GTIN" },
+            { value: "SUPPLIER", label: "ผู้จัดจำหน่าย" },
+          ],
+        },
+      ],
+    });
+
+    expect(selectTrigger("ชนิด")).toHaveTextContent("ผู้จัดจำหน่าย");
+
+    fireEvent.click(screen.getByRole("button", { name: "บันทึก" }));
+    expect(onSubmit).toHaveBeenCalledWith({ kind: "SUPPLIER" });
+  });
+
+  it("returns to the placeholder, not to the first option, after a reset", () => {
+    // The reset path rebuilds from `initialValues`, so it has the same defect
+    // surface: a cleared form must not silently re-answer the select.
+    renderWithIntl(<SelectResetHarness />);
+
+    chooseOption("ชนิด", "ผู้จัดจำหน่าย");
+    expect(selectTrigger("ชนิด")).toHaveTextContent("ผู้จัดจำหน่าย");
+
+    fireEvent.click(screen.getByRole("button", { name: "saved" }));
+    expect(selectTrigger("ชนิด")).toHaveTextContent("เลือกชนิด");
+  });
+
   it("submits the chosen value, not its label", () => {
     const { onSubmit } = withSelect();
 
@@ -360,3 +487,36 @@ describe("EntityForm select fields", () => {
     expect(selectTrigger("ชนิด")).toBeDisabled();
   });
 });
+
+/** A form with a select whose reset signal can be raised without remounting. */
+function SelectResetHarness() {
+  const [resetSignal, setResetSignal] = useState(0);
+
+  return (
+    <>
+      <button type="button" onClick={() => setResetSignal((n) => n + 1)}>
+        saved
+      </button>
+      <EntityForm
+        legend="เพิ่มรายการ"
+        fields={[
+          {
+            name: "kind",
+            label: "ชนิด",
+            kind: "select",
+            placeholder: "เลือกชนิด",
+            options: [
+              { value: "GTIN", label: "GTIN" },
+              { value: "SUPPLIER", label: "ผู้จัดจำหน่าย" },
+            ],
+          },
+        ]}
+        submitLabel="บันทึก"
+        requiredMessage="ต้องกรอกช่องนี้"
+        busy={false}
+        resetSignal={resetSignal}
+        onSubmit={() => undefined}
+      />
+    </>
+  );
+}

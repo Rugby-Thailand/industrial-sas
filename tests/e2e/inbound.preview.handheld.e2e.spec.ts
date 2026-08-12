@@ -187,6 +187,9 @@ test.describe("quality on a scanner", () => {
 
     await page.getByTestId("inspection-select-prv_qc_3001").click();
     const form = page.getByTestId("form-disposition");
+    // Both selects are `required` and neither is pre-answered; on a scanner
+    // especially, a verdict nobody chose is a verdict nobody can be held to.
+    await chooseOption(page, "ผลการตัดสิน", { value: "RELEASE" }, form);
     // Chosen from the tenant's own reason codes, not typed: the field carries a
     // document ID, and nobody has one of those on a scanner.
     await chooseOption(page, "รหัสเหตุผล", { index: 0 }, form);

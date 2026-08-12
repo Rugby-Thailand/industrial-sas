@@ -8,7 +8,7 @@
  * each run. That is exactly the shape that invites a longer assertion timeout
  * instead of a fix.
  *
- * - `next-env.d.ts` is tracked, lives in the repository root, and every `next
+ * - `next-env.d.ts` lives in the repository root, is generated, and every `next
  *   dev` rewrites it to name its own `distDir`. Two of them rewrite it in turn
  *   and retrigger each other's compilers.
  * - `<distDir>/dev/prerender-manifest.json` is rewritten without truncating, so

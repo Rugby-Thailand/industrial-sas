@@ -26,7 +26,12 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/80",
+        /*
+         * `bg-primary-hover`, not `bg-primary/80`: an alpha modifier composites
+         * against the surface behind the button, which lightened the fill until
+         * white-on-accent measured 4.34:1. See the token note in `globals.css`.
+         */
+        default: "bg-primary text-primary-foreground hover:bg-primary-hover",
         outline:
           "border-input bg-surface text-text hover:bg-raised aria-expanded:bg-raised",
         secondary:

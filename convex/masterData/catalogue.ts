@@ -534,17 +534,35 @@ export const listLotsForItem = queryWithOrg({
       return refusal({ code: "REFERENCE_NOT_FOUND", received: "items" });
     }
 
+    /*
+     * The status is an index term, never a predicate over the page.
+     *
+     * Filtering after the read was the earlier shape, and it was wrong in a way
+     * that looked bounded: a page is drawn *before* the predicate runs, so a
+     * request for one item's `ACTIVE` lots returned however many of that page
+     * happened to be active — frequently fewer than `maxPageSize`, and zero
+     * whenever a page held only archived rows. `complete` and `nextCursor`
+     * described the unfiltered read, so an empty page still said "more to come",
+     * and a screen that renders one page showed "no lots" for an item that has
+     * them.
+     *
+     * Both index shapes are declared, so the status-carrying one is used when a
+     * status was asked for and the plain one when it was not; neither branch
+     * scans (`INV-0002-04`).
+     */
     const page = await readPage<LotDocument>(
       ctx.tenantDb,
       "lots",
-      "by_orgId_itemId_lotCode",
-      [{ field: "itemId", value: args.itemId }],
+      args.status === undefined
+        ? "by_orgId_itemId_lotCode"
+        : "by_orgId_itemId_status_lotCode",
+      statusTerms(args.status, [{ field: "itemId", value: args.itemId }]),
       request.value,
     );
 
-    const rows = page.items
-      .filter((lot) => args.status === undefined || lot.status === args.status)
-      .map((lot) => ({
+    return {
+      ok: true as const,
+      items: page.items.map((lot) => ({
         lotId: lot._id as never,
         itemId: lot.itemId as never,
         lotCode: lot.lotCode,
@@ -558,19 +576,7 @@ export const listLotsForItem = queryWithOrg({
           ? {}
           : { bestBeforeDate: lot.bestBeforeDate }),
         status: lot.status,
-      }));
-
-    /*
-     * The status filter is applied *after* the page, not as an index term,
-     * because `lots` has no status-first index — and adding one is a schema
-     * change with a migration, not a convenience. The read stays bounded: the
-     * page is already capped, so this filters at most `maxPageSize` rows and can
-     * only ever return fewer, never scan more. A page that comes back short for
-     * this reason is still a page, and `complete` still means what it says.
-     */
-    return {
-      ok: true as const,
-      items: rows,
+      })),
       nextCursor: page.nextCursor,
       complete: page.complete,
     };
@@ -933,27 +939,27 @@ export const listBarcodesForItem = queryWithOrg({
       return refusal({ code: "REFERENCE_NOT_FOUND", received: "items" });
     }
 
+    /* The status is an index term, not a predicate over the page; see
+     * `listLotsForItem` above for what filtering afterwards did to `complete`. */
     const page = await readPage<BarcodeDocument>(
       ctx.tenantDb,
       "itemBarcodes",
-      "by_orgId_itemId_barcode",
-      [{ field: "itemId", value: args.itemId }],
+      args.status === undefined
+        ? "by_orgId_itemId_barcode"
+        : "by_orgId_itemId_status_barcode",
+      statusTerms(args.status, [{ field: "itemId", value: args.itemId }]),
       request.value,
     );
 
     return {
       ok: true as const,
-      items: page.items
-        .filter(
-          (row) => args.status === undefined || row.status === args.status,
-        )
-        .map((row) => ({
-          barcodeId: row._id as never,
-          itemId: row.itemId as never,
-          barcode: row.barcode,
-          kind: row.kind as never,
-          status: row.status,
-        })),
+      items: page.items.map((row) => ({
+        barcodeId: row._id as never,
+        itemId: row.itemId as never,
+        barcode: row.barcode,
+        kind: row.kind as never,
+        status: row.status,
+      })),
       nextCursor: page.nextCursor,
       complete: page.complete,
     };

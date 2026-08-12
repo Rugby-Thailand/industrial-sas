@@ -1,6 +1,8 @@
 import createNextIntlPlugin from "next-intl/plugin";
 import type { NextConfig } from "next";
 
+import { securityHeaders } from "./src/lib/securityHeaders";
+
 /**
  * Next.js configuration.
  *
@@ -31,6 +33,25 @@ const nextConfig: NextConfig = {
   typescript: {
     // Type errors must never be silently tolerated; `pnpm typecheck` is the gate.
     ignoreBuildErrors: false,
+  },
+
+  /**
+   * Response security headers on every route.
+   *
+   * The `/:path*` source covers pages, route handlers, and static assets alike.
+   * The policy itself lives in `src/lib/securityHeaders.ts` with the reasoning
+   * for each header, and is asserted by
+   * `src/lib/securityHeaders.test.ts` — this file only decides *where* it
+   * applies, because a config Next has to boot to inspect is a config nobody
+   * checks.
+   */
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: securityHeaders(process.env.NODE_ENV === "production"),
+      },
+    ];
   },
 };
 

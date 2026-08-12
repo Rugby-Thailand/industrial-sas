@@ -236,21 +236,44 @@ below passes with no `.env.local` present.
 
 ## Local commands
 
-| Command                          | What it does                                                                   |
-| -------------------------------- | ------------------------------------------------------------------------------ |
-| `pnpm install --frozen-lockfile` | Install exactly what the lockfile specifies                                    |
-| `pnpm dev`                       | Next.js dev server on port 3000                                                |
-| `pnpm build`                     | Production build (also regenerates `next-env.d.ts`)                            |
-| `pnpm start`                     | Serve a previous production build                                              |
-| `pnpm format`                    | Rewrite files with Prettier                                                    |
-| `pnpm format:check`              | Fail on unformatted files                                                      |
-| `pnpm lint`                      | ESLint over the whole workspace                                                |
-| `pnpm typecheck`                 | `tsc --noEmit`                                                                 |
-| `pnpm test`                      | All Vitest tiers                                                               |
-| `pnpm verify:workflows`          | CI configuration guard (see below)                                             |
-| `pnpm verify:tenant-boundary`    | Tenant boundary guard over `convex/` (see below)                               |
-| `pnpm verify:environment`        | Environment contract guard (see below)                                         |
-| `pnpm guards`                    | every guard above: `verify:*` + `format:check` + `lint` + `typecheck` + `test` |
+| Command                          | What it does                                                                 |
+| -------------------------------- | ---------------------------------------------------------------------------- |
+| `pnpm install --frozen-lockfile` | Install exactly what the lockfile specifies                                  |
+| `pnpm dev`                       | Next.js dev server on port 3000                                              |
+| `pnpm build`                     | Production build (also regenerates `next-env.d.ts`)                          |
+| `pnpm start`                     | Serve a previous production build                                            |
+| `pnpm format`                    | Rewrite files with Prettier                                                  |
+| `pnpm format:check`              | Fail on unformatted files                                                    |
+| `pnpm lint`                      | ESLint over the whole workspace                                              |
+| `pnpm typecheck`                 | `tsc --noEmit`                                                               |
+| `pnpm test`                      | All Vitest tiers                                                             |
+| `pnpm verify:workflows`          | CI configuration guard (see below)                                           |
+| `pnpm verify:tenant-boundary`    | Tenant boundary guard over `convex/` (see below)                             |
+| `pnpm verify:environment`        | Environment contract guard (see below)                                       |
+| `pnpm audit:prod`                | Fail on a `high`+ advisory in the production dependency tree                 |
+| `pnpm guards`                    | every guard above, then `pnpm audit:prod` (the only one needing the network) |
+
+### Visual baselines
+
+`tests/e2e/visual.preview.e2e.spec.ts` compares screenshots, and Playwright
+suffixes each baseline with the platform that recorded it. Both sets are
+committed: `-darwin` for developer machines, `-linux` for the `ubuntu-24.04`
+runner. A missing baseline is a hard failure — `updateSnapshots` is `"none"` on
+CI, so a runner can never quietly record its own and then compare against it.
+
+Re-record after an intentional UI change:
+
+| Platform | Command                                   |
+| -------- | ----------------------------------------- |
+| macOS    | `pnpm test:e2e visual.preview -u`         |
+| Linux    | `node scripts/record-linux-baselines.mjs` |
+
+The Linux recorder runs the pinned `mcr.microsoft.com/playwright:v1.62.1-noble`
+image at `linux/amd64` — the runner's own architecture, because font
+rasterisation is what these baselines measure — over a throwaway copy of the
+repository, and copies only the `-linux` PNGs back. It needs a Docker endpoint
+that can run that platform (`DOCKER_HOST` selects it) with the image already
+pulled; it does not pull one itself.
 
 `node scripts/verify-environment.mjs --class=<developer\|preview\|staging\|production>`
 additionally checks the _current_ machine against that class's contract. The
@@ -346,11 +369,17 @@ If a job needs a secret to pass, it is the wrong job for this repository.
   a red isolation tier never masks a red unit tier. The failing tier is readable
   from the checks list without opening a log.
 - **Production build** runs `pnpm build` with no environment variables, then
-  fails if `next build` changed the tracked `next-env.d.ts`. Note that
-  `next dev` writes a different variant of that file (it points at
-  `.next/dev/types/routes.d.ts` instead of `.next/types/routes.d.ts`), so after
-  running `pnpm dev` locally, discard the change with `git restore
-next-env.d.ts` rather than committing it. `pnpm test:e2e` restores it itself.
+  fails if the build modified **any** tracked file (`git diff --exit-code`).
+  That check used to name `next-env.d.ts` alone and could not pass: Next writes
+  `.next/dev/types/routes.d.ts` into it from `next dev` and
+  `.next/types/routes.d.ts` from `next build`, so whichever variant was
+  committed was wrong for the other command, and the advice here used to be
+  "discard the change by hand". The file is generated and git-ignored now, which
+  removes the conflict rather than routing around it, and the widened check
+  catches anything else a build might rewrite.
+  `tests/integration/generated-artifacts.integration.test.ts` holds that in
+  place; `pnpm test:e2e` still pins the file for the length of a run, because the
+  two servers must not rewrite it under each other.
 - **Playwright** is separate because it is the only job needing a browser. It
   installs Chromium alone — both configured projects are Chromium — and caches
   `~/.cache/ms-playwright` against the resolved `@playwright/test` version.
@@ -488,19 +517,66 @@ D-29). Floating ranges are not allowed.
 | Accessibility tests      | jest-axe + axe-core                                  | 11.0.0  |
 | E2E tests                | Playwright                                           | 1.62.1  |
 | Backend / data           | Convex (schema, wrappers, functions, browser client) | 1.43.0  |
-| Identity                 | Clerk (webhook verified; no instance configured)     | 7.6.4   |
-| Files                    | UploadThing (installed, not wired)                   | 7.7.4   |
+| Identity                 | `@clerk/backend` (webhook verified; no instance)     | 3.15.0  |
 | i18n                     | `next-intl` (routing, catalogues, formatters)        | 4.13.4  |
 
 Deferred by decision B-08: Three.js. The MVP uses a 2D SVG occupancy map
 instead, and Three.js must not be added unless that decision is explicitly
-reversed. No ReUI or shadcn/ui components are installed yet.
+reversed.
 
-Also installed ahead of the slices that need them, and still unimported: `zod`,
-`react-hook-form` + `@hookform/resolvers` (forms and validation), `pdf-lib`
-(label generation), and `exceljs` and `papaparse` (master-data import/export).
-`svix` (webhook signature verification) and `convex-test` (integration and
-isolation tiers) are wired and in use.
+The UI primitives in `src/components/ui/` are **vendored shadcn/Radix source**,
+adapted for a warehouse floor — every target clears 48 CSS pixels, colours are
+this repository's semantic tokens rather than the registry's palette, and the
+notes in each file record what was changed from the generated original and why
+(`docs/ui-component-migration-notes.md`). They are vendored rather than depended
+on: the runtime dependency is `radix-ui`, and `shadcn` itself is only the
+registry CLI plus the `shadcn/tailwind.css` variants `globals.css` imports. No
+ReUI component is installed.
+
+### Nothing is installed ahead of the slice that needs it
+
+The manifest used to carry ten runtime dependencies that no file imported —
+`zod`, `react-hook-form` + `@hookform/resolvers`, `pdf-lib`, `exceljs`,
+`papaparse`, `uploadthing` + `@uploadthing/react`, and `@clerk/nextjs` +
+`@clerk/react` — installed against slices that had not been written. They are
+removed, along with the `@types/papaparse` that typed one of them; `svix` moved
+to `devDependencies`, where its only importer (the integration tier) already was.
+`dependencies` went from 24 entries to 13, and the lockfile from 1,038 resolved
+packages to 931.
+
+Installing early looked free and was not. Two of the eight advisories this
+repository carried came _only_ from packages nothing imported: a high-severity
+one through `@hookform/resolvers`, a moderate one through `exceljs`. An
+unimported dependency has no call sites to audit and no test that would notice
+it breaking, so it contributes risk and install weight and nothing else.
+
+The rule this leaves: **a dependency lands in the same change as its first
+import.** `@clerk/nextjs` returns with the identity slice, `pdf-lib` with label
+generation, `exceljs`/`papaparse` with master-data import/export.
+
+`@clerk/backend` (webhook signature verification, imported by `convex/lib/`),
+`svix` (the same signatures, from the integration tier), and `convex-test` are
+wired and in use.
+
+### Dependency overrides
+
+Some advisories are against a package this repository does not choose. `next`
+pins `postcss` exactly, and `postcss` pins `nanoid`; no change to a direct
+dependency can move either. Those are pinned through `pnpm.overrides` in
+`package.json`, scoped to the exact path `pnpm audit` reported so nothing
+outside it moves:
+
+| Override         | Version   | Why it is safe                                                                                                                                                                                                                                                                                                |
+| ---------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `next>postcss`   | `8.5.25`  | `next` pins `8.4.31`; `8.5.25` is what `@tailwindcss/postcss` and `vite` already resolve in this build, so the override **dedupes** to a version this repository was compiling with rather than introducing one.                                                                                              |
+| `postcss>nanoid` | `^3.3.18` | Both `postcss` copies resolved `3.3.16`; `postcss` asks for `^3.3.16`, so this is inside its declared range.                                                                                                                                                                                                  |
+| `next>sharp`     | `^0.35.3` | `next@16.2.12` declares `^0.34.5`, but `next@16.3.0` declares `^0.35.3` against the same 16.x image optimizer — first-party evidence that 0.35 is API-compatible. `sharp` is an `optionalDependency`, and this application uses no `next/image` and ships no raster assets, so it is never loaded either way. |
+
+Each is a candidate for deletion, not permanence: when `next` ships a release
+whose own ranges are clean, the corresponding line should go. `pnpm audit:prod`
+is what will say so — it fails on `high` and above against the production tree,
+runs in the `static-analysis` CI job, and is the last step of `pnpm guards`
+(last because it is the only guard that needs the network).
 
 ### Version constraints worth knowing
 
@@ -523,7 +599,9 @@ break a guard.
 - Trunk-based development on `main` with short-lived feature branches.
 - Secrets are never committed. `.env*` files are ignored; only
   [`.env.example`](./.env.example) is tracked, and it holds names with no values.
-- `next-env.d.ts` is generated but tracked. Do not hand-edit it.
+- `next-env.d.ts` is generated and git-ignored — its contents depend on whether
+  `next dev` or `next build` wrote it last, so no committed value is correct.
+  Do not hand-edit it and do not add it back.
 - `PROJECT_PLAN.md` is excluded from Prettier and must stay byte-for-byte
   identical to the approved document.
 - Type declarations for untyped packages live in `types/`.

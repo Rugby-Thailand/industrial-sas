@@ -61,6 +61,7 @@
   --color-muted: var(--token-muted);
   --color-accent: var(--token-accent);
   --color-accent-contrast: var(--token-accent-contrast);
+  --color-accent-hover: var(--token-accent-hover);
   --color-success: var(--token-success);
   --color-warning: var(--token-warning);
   --color-danger: var(--token-danger);
@@ -126,6 +127,21 @@
   --color-popover-foreground: var(--token-text);
   --color-primary: var(--token-accent);
   --color-primary-foreground: var(--token-accent-contrast);
+  /*
+   * The hover fill of an accent action, as its own token rather than as
+   * `bg-primary/80`.
+   *
+   * An alpha modifier composites the accent against whatever is behind it, and
+   * what is behind it is a light surface — so `primary/80` *lightened* the fill
+   * and dropped white-on-accent to 4.34:1 against `surface` and 4.45:1 against
+   * `canvas`, both under the 4.5:1 this file claims for every foreground. An
+   * opaque token cannot be diluted by its backdrop, so the hover state has one
+   * measurable contrast instead of one per surface it happens to sit on.
+   *
+   * Each scheme moves *away* from its background — darker on light, lighter on
+   * dark — so hovering raises contrast rather than trading it for feedback.
+   */
+  --color-primary-hover: var(--token-accent-hover);
   --color-secondary: var(--token-raised);
   --color-secondary-foreground: var(--token-text);
   --color-accent-foreground: var(--token-accent-contrast);
@@ -163,6 +179,8 @@
   --token-muted: #4d5560;
   --token-accent: #0b5cad;
   --token-accent-contrast: #ffffff;
+  /* Darker than `accent`: white on it is 8.86:1, against 6.67:1 at rest. */
+  --token-accent-hover: #094a8c;
   --token-success: #0f6b3f;
   --token-warning: #8a5300;
   --token-danger: #b3261e;
@@ -193,6 +211,8 @@
     --token-muted: #a8b1bd;
     --token-accent: #7cb6ff;
     --token-accent-contrast: #06121f;
+    /* Lighter than `accent` here: 10.88:1, against 8.97:1 at rest. */
+    --token-accent-hover: #9cc8ff;
     --token-success: #58d19a;
     --token-warning: #f0b357;
     --token-danger: #ff9a90;

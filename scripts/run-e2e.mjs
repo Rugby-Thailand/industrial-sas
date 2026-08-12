@@ -9,8 +9,8 @@
  * `Internal Server Error`. Two distinct causes were found, and only fixing both
  * makes the suite deterministic.
  *
- * **1. A shared source file.** Next regenerates `next-env.d.ts` — tracked, in the
- * repository root — to name its own `distDir`. Two development servers therefore
+ * **1. A shared source file.** Next regenerates `next-env.d.ts` — in the
+ * repository root, shared by every Next command — to name its own `distDir`. Two development servers therefore
  * rewrote it in turn, each retriggering the other's compiler. Separate `distDir`
  * values removed the shared *output* and left the shared *input*.
  *
@@ -71,13 +71,20 @@
  * Only then is `next-env.d.ts` restored, because a development server that is
  * still running would rewrite it again.
  *
- * ### `next-env.d.ts` is restored exactly
+ * ### `next-env.d.ts` is pinned for the length of the run
  *
- * The build rewrites it and so does the development server. It is snapshotted
- * before anything runs and rewritten byte-for-byte by that shared teardown, so an
- * interrupted suite leaves the working tree as it found it. A failed restore is a
- * hard error: a silently mutated tracked file is how the next person inherits
- * this bug.
+ * The build rewrites it and so does the development server, and the two write
+ * *different* contents — `next build` names `.next/types`, `next dev` names
+ * `.next/dev/types`. It is snapshotted before anything runs and rewritten
+ * byte-for-byte by the shared teardown, so the value stays put for the length of
+ * the run and the development server never starts by arguing with what the build
+ * left behind.
+ *
+ * That is a compiler concern, not a git one: the file is generated and ignored
+ * (see `.gitignore`), precisely because no single committed value can be right
+ * for both commands. A clean checkout therefore has no file to snapshot, which is
+ * why the read is conditional and the restore is a no-op when there was nothing
+ * to restore to.
  *
  * Nothing outside `.next-e2e*` is read or written, so a developer's own
  * `pnpm dev` and its `.next` are untouched.
@@ -141,14 +148,31 @@ const UNCONFIGURED = {
   NEXT_PUBLIC_LOCAL_PREVIEW: "",
 };
 
-const snapshot = readFileSync(NEXT_ENV, "utf8");
+/**
+ * The contents of `next-env.d.ts` before anything ran, or `null` if it was absent.
+ *
+ * Absent is the ordinary case on a clean checkout: the file is generated and
+ * git-ignored (see `.gitignore`), because Next writes a different `routes.d.ts`
+ * path from `dev` than from `build`. So this is no longer about leaving the
+ * *working tree* as it was found — git does not care about this file any more.
+ *
+ * It is about the compiler. The restore below still runs between the production
+ * build and the development server, because the two write different contents and
+ * a `next dev` that starts on the value `next build` left will rewrite it and
+ * retrigger its own compile. Pinning it to one value for the length of the run
+ * is what keeps that from happening; whether git tracks it is beside the point.
+ */
+const snapshot = existsSync(NEXT_ENV) ? readFileSync(NEXT_ENV, "utf8") : null;
 
 function restoreNextEnv() {
+  // Nothing to restore to. The file did not exist when this started, and a
+  // generated, ignored file that stays generated is not a leak.
+  if (snapshot === null) return;
   if (readFileSync(NEXT_ENV, "utf8") === snapshot) return;
   writeFileSync(NEXT_ENV, snapshot);
   if (readFileSync(NEXT_ENV, "utf8") !== snapshot) {
     throw new Error(
-      "next-env.d.ts could not be restored to its committed contents",
+      "next-env.d.ts could not be restored to the contents this run found",
     );
   }
 }

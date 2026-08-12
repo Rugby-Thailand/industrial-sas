@@ -190,6 +190,12 @@ test.describe("master-data read path with preview data", () => {
     await form.getByLabel("รหัสสินค้า").fill("PREVIEW-SKU");
     await form.getByLabel("ชื่อ", { exact: true }).fill("ทดสอบ");
     await form.getByLabel("หน่วยนับหลัก").fill("EA");
+    /*
+     * Answered rather than left to the form. `trackingMode` is `required` and no
+     * longer defaults to `options[0]`, which was `NONE` — an item created that
+     * way cannot hold a lot, and nothing said so until receiving asked for one.
+     */
+    await chooseOption(page, "รูปแบบการติดตาม", { value: "LOT" }, form);
     await form.getByRole("button").click();
 
     await expect(page.getByTestId("write-DEMONSTRATED")).toBeVisible();

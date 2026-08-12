@@ -207,6 +207,9 @@ test.describe("item detail", () => {
     const form = page.getByTestId("form-barcode");
     // Exact: the kind selector is labelled "ชนิดบาร์โค้ด", which contains this.
     await form.getByLabel("บาร์โค้ด", { exact: true }).fill("NEW-ALIAS-1");
+    // `kind` is `required` and not pre-answered: a GTIN and a supplier's own
+    // code are scanned the same way and resolved differently.
+    await chooseOption(page, "ชนิดบาร์โค้ด", { value: "GTIN" }, form);
     await form.getByRole("button").click();
 
     await expect(page.getByTestId("write-DEMONSTRATED").first()).toBeVisible();
@@ -224,9 +227,35 @@ test.describe("items and locations gained their write controls", () => {
     await form.getByLabel("รหัสสินค้า").fill("NEW-SKU-1");
     await form.getByLabel("ชื่อ", { exact: true }).fill("สินค้าใหม่");
     await form.getByLabel("หน่วยนับหลัก").fill("EA");
+    await chooseOption(page, "รูปแบบการติดตาม", { value: "LOT" }, form);
     await form.getByRole("button").click();
 
     await expect(page.getByTestId("write-DEMONSTRATED")).toBeVisible();
+  });
+
+  test("refuses to create an item whose tracking mode nobody chose", async ({
+    page,
+  }) => {
+    /*
+     * The end-to-end statement of the defect behind the change above. The
+     * tracking mode decides whether the item can ever carry a lot or a serial,
+     * and the form used to answer it silently with `NONE` — the first option.
+     * An operator filling in the three text fields and pressing save created an
+     * untracked item without being asked, and found out at receiving.
+     */
+    await page.goto("/th/master-data/items");
+
+    const form = page.getByTestId("form-item");
+    await form.getByLabel("รหัสสินค้า").fill("NEW-SKU-2");
+    await form.getByLabel("ชื่อ", { exact: true }).fill("สินค้าใหม่");
+    await form.getByLabel("หน่วยนับหลัก").fill("EA");
+    await form.getByRole("button").click();
+
+    await expect(page.getByTestId("write-DEMONSTRATED")).toHaveCount(0);
+    await expect(form.getByLabel("รูปแบบการติดตาม")).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
   });
 
   test("the location form waits for a warehouse before offering itself", async ({

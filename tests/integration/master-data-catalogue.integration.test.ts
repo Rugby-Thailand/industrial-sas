@@ -14,6 +14,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   listHandlingUnits,
+  listBarcodesForItem,
   listItems,
   listLocations,
   listLotsForItem,
@@ -185,6 +186,155 @@ describe("master-data catalogue", () => {
     expect((vanished["error"] as { code: string }).code).toBe(
       "REFERENCE_NOT_FOUND",
     );
+  });
+
+  /*
+   * The status filter on the two item-scoped lists, which used to be a predicate
+   * applied to an already-drawn page.
+   *
+   * Each of these seeds rows so that the *first* page holds only rows the filter
+   * rejects. That is the shape the old code got wrong and the shape a fixture
+   * with one matching row cannot expose: filtering after the read returned an
+   * empty `items` alongside `complete: false`, which a screen rendering one page
+   * reads as "this item has no lots" for an item that has them.
+   */
+  it("serves an item's lot status filter from the index, not from the page", async () => {
+    const world = await createConvexInventoryWorld();
+    // Two archived lots sort before the active one, so a page of two is entirely
+    // rejected by a post-read predicate.
+    await world.t.run(async (ctx) => {
+      await ctx.db.insert("lots", {
+        orgId: world.orgA,
+        itemId: world.a.item,
+        lotCode: "LOT-A00",
+        status: "INACTIVE",
+      });
+      await ctx.db.insert("lots", {
+        orgId: world.orgA,
+        itemId: world.a.item,
+        lotCode: "LOT-A01",
+        status: "INACTIVE",
+      });
+    });
+
+    const page = value(
+      await callAs(world, "a", listLotsForItem, {
+        itemId: world.a.item,
+        status: "ACTIVE",
+        maxPageSize: 2,
+      }),
+    );
+
+    const rows = page["items"] as { lotCode: string; status: string }[];
+    // Under the old post-page filter this was `[]` with `complete: false`.
+    expect(rows.map((row) => row.lotCode)).toEqual(["LOT-A"]);
+    expect(rows.every((row) => row.status === "ACTIVE")).toBe(true);
+    expect(page["complete"]).toBe(true);
+    expect(page["nextCursor"]).toBeNull();
+  });
+
+  it("still lists an item's lots of every status when none is asked for", async () => {
+    // The no-status branch reads the plain index; adding the status-carrying one
+    // must not narrow the unfiltered answer.
+    const world = await createConvexInventoryWorld();
+    await world.t.run(async (ctx) => {
+      await ctx.db.insert("lots", {
+        orgId: world.orgA,
+        itemId: world.a.item,
+        lotCode: "LOT-A00",
+        status: "INACTIVE",
+      });
+    });
+
+    const page = value(
+      await callAs(world, "a", listLotsForItem, { itemId: world.a.item }),
+    );
+
+    const rows = page["items"] as { lotCode: string; status: string }[];
+    expect(rows.map((row) => row.lotCode)).toEqual(["LOT-A", "LOT-A00"]);
+    expect(page["complete"]).toBe(true);
+  });
+
+  it("serves an item's barcode status filter from the index, not from the page", async () => {
+    const world = await createConvexInventoryWorld();
+    await world.t.run(async (ctx) => {
+      await ctx.db.insert("itemBarcodes", {
+        orgId: world.orgA,
+        itemId: world.a.item,
+        barcode: "08850000000010",
+        kind: "GTIN",
+        status: "INACTIVE",
+      });
+      await ctx.db.insert("itemBarcodes", {
+        orgId: world.orgA,
+        itemId: world.a.item,
+        barcode: "08850000000027",
+        kind: "GTIN",
+        status: "INACTIVE",
+      });
+      await ctx.db.insert("itemBarcodes", {
+        orgId: world.orgA,
+        itemId: world.a.item,
+        barcode: "08850000000034",
+        kind: "GTIN",
+        status: "ACTIVE",
+      });
+    });
+
+    const page = value(
+      await callAs(world, "a", listBarcodesForItem, {
+        itemId: world.a.item,
+        status: "ACTIVE",
+        maxPageSize: 2,
+      }),
+    );
+
+    const rows = page["items"] as { barcode: string; status: string }[];
+    // Under the old post-page filter this was `[]` with `complete: false`.
+    expect(rows.map((row) => row.barcode)).toEqual(["08850000000034"]);
+    expect(page["complete"]).toBe(true);
+    expect(page["nextCursor"]).toBeNull();
+  });
+
+  it("pages a status-filtered lot list without dropping or repeating a row", async () => {
+    /*
+     * The other half of the same defect: with the filter after the read, a
+     * cursor walk over a status-filtered list yielded pages whose sizes bore no
+     * relation to `maxPageSize`, and the caller could not tell a short page from
+     * the last one.
+     */
+    const world = await createConvexInventoryWorld();
+    await world.t.run(async (ctx) => {
+      for (const [index, status] of (
+        ["INACTIVE", "ACTIVE", "INACTIVE", "ACTIVE"] as const
+      ).entries()) {
+        await ctx.db.insert("lots", {
+          orgId: world.orgA,
+          itemId: world.a.item,
+          lotCode: `LOT-B0${index}`,
+          status,
+        });
+      }
+    });
+
+    const seen: string[] = [];
+    let cursor: string | undefined = undefined;
+    for (let guard = 0; guard < 10; guard += 1) {
+      const args: Record<string, unknown> = {
+        itemId: world.a.item,
+        status: "ACTIVE",
+        maxPageSize: 1,
+      };
+      if (cursor !== undefined) args["cursor"] = cursor;
+      const page = value(await callAs(world, "a", listLotsForItem, args));
+      seen.push(
+        ...(page["items"] as { lotCode: string }[]).map((row) => row.lotCode),
+      );
+      if (page["complete"] === true) break;
+      cursor = page["nextCursor"] as string;
+    }
+
+    expect(seen).toEqual(["LOT-A", "LOT-B01", "LOT-B03"]);
   });
 
   it("lists handling units for one warehouse and status", async () => {

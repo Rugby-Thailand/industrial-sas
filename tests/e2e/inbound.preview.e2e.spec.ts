@@ -272,6 +272,13 @@ test.describe("quality", () => {
     await page.getByTestId("inspection-select-prv_qc_3001").click();
 
     const form = page.getByTestId("form-disposition");
+    /*
+     * The verdict is answered explicitly. It is `required` and the form no
+     * longer pre-selects a first option, which is the right way round: a QC
+     * disposition defaulting to whichever verdict sorted first would release
+     * stock nobody passed.
+     */
+    await chooseOption(page, "ผลการตัดสิน", { value: "RELEASE" }, form);
     // Chosen from the tenant's active `STATUS_CHANGE` reason codes, not typed.
     await chooseOption(page, "รหัสเหตุผล", { index: 0 }, form);
     await form.getByRole("button", { name: "บันทึกผล" }).click();

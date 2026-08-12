@@ -2,7 +2,11 @@ import { fireEvent, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { navigationMock } from "../../../tests/fixtures/navigation-mock";
-import { selectOptionLabels } from "../../../tests/fixtures/select-control";
+import {
+  chooseOption,
+  selectOptionLabels,
+  selectTrigger,
+} from "../../../tests/fixtures/select-control";
 
 vi.mock("@/i18n/navigation", () => navigationMock);
 
@@ -334,15 +338,46 @@ describe("ReceivingExceptionForm", () => {
       environment: previewEnvironment,
     });
 
-    // Chosen from the tenant's own reason codes: the field carries a document
-    // ID, so a typed value would be a value nobody has.
-    fireEvent.change(screen.getByLabelText("รหัสเหตุผล"), {
-      target: { value: "prv_reason_cycle_count" },
-    });
+    /*
+     * Both selects are answered explicitly, because both are `required` and the
+     * form no longer pre-selects a first option for either.
+     *
+     * This used to be one `fireEvent.change` against the reason code, which was
+     * doing nothing at all: the control is a Radix trigger — a `<button>` — and
+     * `change` on a button changes nothing. The submission only ever succeeded
+     * because `EntityForm` silently defaulted every select to `options[0]`, so
+     * the test passed while asserting that an operator can file an exception
+     * without stating its kind. Choosing through the menu is what an operator
+     * does and what the keyboard contract promises.
+     */
+    chooseOption("ประเภทข้อยกเว้น", "รับโดยไม่มีใบสั่งซื้อ");
+    // A document ID, chosen from the tenant's own reason codes rather than
+    // typed: a typed value would be a value nobody has.
+    chooseOption("รหัสเหตุผล", "CYCLE-COUNT · ปรับปรุงจากการนับสต็อก");
     fireEvent.click(screen.getByRole("button", { name: "แจ้งข้อยกเว้น" }));
 
     expect(screen.getByTestId("write-DEMONSTRATED")).toHaveTextContent(
       "ไม่ได้บันทึกข้อมูล",
+    );
+  });
+
+  it("refuses to file an exception whose kind nobody chose", () => {
+    /*
+     * The reason the test above had to change. An exception report names what
+     * went wrong; filing one as whichever kind sorted first is a maker-checker
+     * record that misstates the event it exists to document.
+     */
+    withWarehouse();
+    renderWithIntl(<ReceivingExceptionForm />, {
+      environment: previewEnvironment,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "แจ้งข้อยกเว้น" }));
+
+    expect(screen.queryByTestId("write-DEMONSTRATED")).toBeNull();
+    expect(selectTrigger("ประเภทข้อยกเว้น")).toHaveAttribute(
+      "aria-invalid",
+      "true",
     );
   });
 });

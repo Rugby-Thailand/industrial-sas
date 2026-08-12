@@ -732,6 +732,18 @@ const schema = defineSchema({
     }),
   )
     .index("by_orgId_itemId_lotCode", byOrg("itemId", "lotCode"))
+    /*
+     * The status-carrying variant of the line above, for "this item's ACTIVE
+     * lots". Status has to be *in* the index rather than a predicate over a page:
+     * a page is drawn before a filter runs, so filtering afterwards returns a
+     * short page — sometimes an empty one — while the envelope still reports more
+     * to come, and the screen reads that as "this item has no lots"
+     * (`INV-0002-04`).
+     */
+    .index(
+      "by_orgId_itemId_status_lotCode",
+      byOrg("itemId", "status", "lotCode"),
+    )
     .index("by_orgId_itemId_expirationDate", byOrg("itemId", "expirationDate")),
 
   /**
@@ -842,7 +854,12 @@ const schema = defineSchema({
     }),
   )
     .index("by_orgId_barcode", byOrg("barcode"))
-    .index("by_orgId_itemId_barcode", byOrg("itemId", "barcode")),
+    .index("by_orgId_itemId_barcode", byOrg("itemId", "barcode"))
+    /* The status-carrying variant; see the note on `lots` above. */
+    .index(
+      "by_orgId_itemId_status_barcode",
+      byOrg("itemId", "status", "barcode"),
+    ),
 
   /**
    * One alternate packaging unit of an item, and its exact factor to the base

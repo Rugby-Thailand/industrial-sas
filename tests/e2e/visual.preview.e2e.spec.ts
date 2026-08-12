@@ -21,15 +21,31 @@ import { expect, test, type Page } from "@playwright/test";
  *   1280 — the two sides of the navigation-rail breakpoint plus the width a
  *   supervisor actually uses.
  *
- * ### Baselines are per platform, on purpose
+ * ### Baselines are per platform, and every platform that runs has a full set
  *
  * Playwright suffixes each snapshot with the operating system it was recorded
- * on, and that is kept rather than worked around: Linux and macOS rasterise
- * Thai glyphs differently, so a single shared baseline would either fail on
- * every machine that did not record it or need a tolerance so wide it stopped
- * catching anything. A platform with no baseline yet records one with
- * `pnpm test:e2e --update-snapshots`, and that file is committed alongside the
- * others.
+ * on, and that is kept rather than worked around: Linux and macOS rasterise Thai
+ * glyphs differently, so a single shared baseline would either fail on every
+ * machine that did not record it or need a tolerance so wide it stopped catching
+ * anything. Both sets are committed — `-darwin` for developer machines and
+ * `-linux` for CI — so there is no platform on which this suite has an excuse
+ * not to compare.
+ *
+ * There is deliberately **no** "skip when the baseline is missing" branch. One
+ * existed briefly and it was the wrong shape: a suite that skips itself when its
+ * inputs are absent reports green for the two states that matter most — a
+ * baseline nobody recorded, and a baseline somebody deleted. A missing file is
+ * now a hard failure, which is the only reading that cannot be mistaken for
+ * coverage. `playwright.config.ts` sets `updateSnapshots: "none"` on CI, so the
+ * failure can never be resolved by CI quietly recording the file it did not find.
+ *
+ * Re-recording the Linux set needs a Linux Chromium with the same fonts and the
+ * same architecture as the runner (`ubuntu-24.04`, x86-64) — not merely "a
+ * Linux". `scripts/record-linux-baselines.mjs` does exactly that against the
+ * pinned image, in a throwaway copy of the repository, and copies only the
+ * `-linux` PNGs back:
+ *
+ *     node scripts/record-linux-baselines.mjs
  */
 
 const WAREHOUSE_STORAGE_KEY = "industrial-ssa.warehouse";

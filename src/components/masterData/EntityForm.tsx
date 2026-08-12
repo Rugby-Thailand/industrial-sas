@@ -96,12 +96,26 @@ export interface EntityFormProps {
   readonly testId?: string;
 }
 
+/**
+ * The starting value of every field.
+ *
+ * A field with no `initialValue` starts **empty**, including a select that has
+ * options. Falling back to `options[0]` is the defect this shape exists to
+ * prevent: it silently commits an operator to whatever happens to be first in
+ * the list, and the control never shows the placeholder that would have told
+ * them a choice was outstanding. On the item form that default was
+ * `trackingMode: "NONE"` — an item created with no lot or serial capture, which
+ * is not discovered until receiving asks for a lot the item cannot hold.
+ *
+ * The empty string is what `SelectControl` reads as "nothing selected", so it
+ * renders its (required) placeholder; and it is what the blank check in
+ * `submit` below reads as missing, so a `required` select refuses to submit
+ * with a message naming the field. Both behaviours come free from starting
+ * empty, and neither is reachable while a first option is pre-selected.
+ */
 const initialValues = (fields: readonly FormFieldSpec[]): FormValues =>
   Object.fromEntries(
-    fields.map((field) => [
-      field.name,
-      field.initialValue ?? field.options?.[0]?.value ?? "",
-    ]),
+    fields.map((field) => [field.name, field.initialValue ?? ""]),
   );
 
 export function EntityForm({

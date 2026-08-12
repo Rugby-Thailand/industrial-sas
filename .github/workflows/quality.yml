@@ -56,6 +56,19 @@ jobs:
       - name: Verify tenant boundary
         run: pnpm verify:tenant-boundary
 
+      # The only step here that reaches the network. `--prod` scopes it to what
+      # a deployment actually ships, and `--audit-level high` is what blocks:
+      # the registry publishes low and moderate advisories against the framework
+      # continuously, and a gate that goes red every other week is a gate that
+      # gets bypassed. Moderates still print, so they are visible in the log
+      # without failing the run.
+      #
+      # Transitive advisories that a direct dependency cannot express are pinned
+      # through `pnpm.overrides` in package.json; README.md records why each one
+      # is safe.
+      - name: Audit production dependencies
+        run: pnpm audit:prod
+
       - name: Check formatting
         run: pnpm format:check
 
@@ -126,11 +139,15 @@ jobs:
       - name: Build
         run: pnpm build
 
-      # `next build` rewrites the tracked next-env.d.ts. If the committed copy
-      # drifts from what this Next version generates, catch it here rather than
-      # in someone's unrelated diff.
-      - name: Check generated files are committed
-        run: git diff --exit-code -- next-env.d.ts
+      # A build must not modify a tracked file. Previously this checked only
+      # `next-env.d.ts`, and could not pass: Next writes a different
+      # `routes.d.ts` path from `build` than from `dev`, so whichever variant was
+      # committed was wrong for the other command. That file is now generated and
+      # ignored (see .gitignore), and this step widened to the whole tree — which
+      # is the check that was actually wanted, and now also catches a build that
+      # rewrites tsconfig.json or any other tracked input.
+      - name: Check the build modified no tracked file
+        run: git diff --exit-code
 
       # Manifests and diagnostics only: a few KB of route names and bundle
       # sizes, no bundles, no environment values. Bounded enough to keep on

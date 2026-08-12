@@ -50,7 +50,7 @@ const isCI = Boolean(process.env["CI"]);
  * Playwright. That ownership is the fix for a defect that presented as
  * flakiness, and both halves of it are load-bearing.
  *
- * Next rewrites `next-env.d.ts` — a tracked file in the repository root — to name
+ * Next rewrites `next-env.d.ts` — a generated file in the repository root — to name
  * its own `distDir`, so two development servers rewrote it in turn and
  * retriggered each other's compilers. And `next dev` rewrites
  * `<distDir>/dev/prerender-manifest.json` without truncating, so a shorter write
@@ -110,6 +110,29 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: isCI,
   retries: isCI ? 2 : 0,
+  /**
+   * A missing baseline is a failure on CI, never a file CI writes for itself.
+   *
+   * Playwright's default is `"missing"`: it writes the baseline it did not find
+   * and fails that one attempt with a soft error. On a developer machine that is
+   * exactly right — recording a new screen costs one run. On CI it is a trap
+   * with two halves, and this repository walked into both:
+   *
+   * - The baseline is written **to the runner's disk**, so the comparison it
+   *   then "passes" is against an artifact nobody reviewed, which disappears
+   *   with the runner.
+   * - Snapshots are suffixed with the platform they were recorded on, so a suite
+   *   recorded on macOS has no `-linux` baseline at all. Every visual test would
+   *   record itself on the first Ubuntu run and compare against its own output
+   *   forever after — green, and asserting nothing.
+   *
+   * `"none"` writes nothing and fails honestly: the run goes red naming the
+   * baseline that is absent, which is a reviewable fact rather than a silent
+   * downgrade. `--update-snapshots` still overrides this from the command line,
+   * so recording a new platform's baselines is a deliberate act (see the header
+   * of `tests/e2e/visual.preview.e2e.spec.ts`).
+   */
+  updateSnapshots: isCI ? "none" : "missing",
   // Spread rather than `workers: isCI ? 1 : undefined`: `exactOptionalPropertyTypes`
   // forbids assigning `undefined` to an optional property, so the key is omitted
   // entirely when we want Playwright's own default (one worker per core).
