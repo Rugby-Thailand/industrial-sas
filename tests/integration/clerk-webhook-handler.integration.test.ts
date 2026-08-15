@@ -11,7 +11,7 @@ import {
   type IdentityWebhookEvent,
 } from "../../convex/lib/identityWebhook";
 
-const SECRET = `whsec_${Buffer.from("industrial-ssa-test-signing-key").toString("base64")}`;
+const SECRET = `whsec_${Buffer.from("industrial-sas-test-signing-key").toString("base64")}`;
 
 function signedRequest(
   payload: Readonly<Record<string, unknown>>,

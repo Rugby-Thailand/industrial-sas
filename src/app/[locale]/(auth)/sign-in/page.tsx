@@ -1,3 +1,4 @@
+import { SignIn } from "@clerk/nextjs";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 
 import { SetupChecklist } from "@/components/system/SetupChecklist";
@@ -31,6 +32,22 @@ export default async function SignInPage({
   const { locale } = await params;
   setRequestLocale(locale);
   const t = await getTranslations("SignIn");
+  const identityConfigured = Boolean(
+    process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.trim(),
+  );
+
+  if (identityConfigured) {
+    return (
+      <main className="mx-auto flex min-h-dvh max-w-xl flex-col items-center justify-center gap-6 p-6">
+        <PageHeader title={t("title")} />
+        <SignIn
+          routing="path"
+          path={`/${locale}/sign-in`}
+          fallbackRedirectUrl={`/${locale}${ROUTES.dashboard}`}
+        />
+      </main>
+    );
+  }
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-xl flex-col justify-center gap-6 p-6">

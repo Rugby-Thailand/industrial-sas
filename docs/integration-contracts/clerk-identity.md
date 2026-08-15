@@ -1,6 +1,7 @@
 # INT-01 — Clerk identity, organizations, and membership sync
 
-Status: **partial implementation.** `POST /webhooks/clerk` verifies the untouched
+Status: **development integration implemented; live instance pending.**
+`POST /webhooks/clerk` verifies the untouched
 request with Clerk's pinned backend SDK, minimizes supported organization, user,
 and membership events, and invokes one internal Convex mutation. That transaction
 uses only exact indexes, while the pure normalized-event kernel in
@@ -10,8 +11,9 @@ deliveries do not write, new memberships default to warehouse-scoped, and raw Cl
 payloads are outside the kernel's accepted shape. The mirror schema carries only the
 minimal correlation, display, status, and watermark fields. The static boundary
 guard denies additional HTTP/internal builders and raw-database adapters unless an
-exact path is reviewed. Convex auth configuration, session UI, drift reconciliation,
-and a live Clerk instance remain unimplemented.
+exact path is reviewed. Clerk middleware, the Clerk/Convex provider bridge,
+session-token v2 tenant resolution, Convex auth configuration, and session UI are
+implemented. Drift reconciliation and a live Clerk instance remain unimplemented.
 
 Owner ADRs:
 [ADR-0001](../adr/0001-multi-tenant-saas-and-identity-ownership.md),

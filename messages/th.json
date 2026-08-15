@@ -1,9 +1,9 @@
 {
   "App": {
-    "name": "Industrial SSA",
-    "shortName": "SSA",
+    "name": "Industrial SAS",
+    "shortName": "SAS",
     "description": "ระบบจัดการคลังสินค้าสำหรับผู้ผลิตในประเทศไทย",
-    "documentTitle": "{page} · Industrial SSA"
+    "documentTitle": "{page} · Industrial SAS"
   },
   "Locale": {
     "label": "ภาษา",

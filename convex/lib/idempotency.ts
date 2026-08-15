@@ -102,7 +102,7 @@ const HEX = "0123456789abcdef";
 /**
  * SHA-256 of a canonical text, as lower-case hex.
  *
- * Web Crypto, because it is present in the Convex runtime and in Node 22 and
+ * Web Crypto, because it is present in the Convex runtime and in Node 24 and
  * needs no dependency. Not a keyed digest and not a secret: these hashes decide
  * "are these the same arguments" and "is this the same result", and neither
  * question involves an adversary who does not already hold the arguments.

@@ -13,17 +13,49 @@
  * and falls back to Thai.
  *
  * It deliberately performs **no authorization**. Route protection is not a
- * proxy concern in this architecture: the browser is untrusted (plan §6.1)
- * and Convex is the enforcement point, so a middleware that redirected on a
- * client-readable signal would be usability at best and a false sense of
- * security at worst. When Clerk is configured, its own handler composes here for
- * session refresh — still not for authorization.
+ * proxy concern in this architecture: Convex is the enforcement point. When
+ * Clerk is configured, its handler composes here for session refresh and server
+ * auth context; an unconfigured checkout continues through the locale handler
+ * so the setup and local-preview screens remain available.
  */
+import { clerkMiddleware } from "@clerk/nextjs/server";
 import createMiddleware from "next-intl/middleware";
+import {
+  NextResponse,
+  type NextFetchEvent,
+  type NextRequest,
+} from "next/server";
 
 import { routing } from "./i18n/routing";
 
-export default createMiddleware(routing);
+const localeMiddleware = createMiddleware(routing);
+const clerkConfigured =
+  Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.trim()) &&
+  Boolean(process.env.CLERK_SECRET_KEY?.trim());
+
+const clerkProxy = clerkConfigured
+  ? clerkMiddleware((_auth, request) => routeRequest(request))
+  : undefined;
+
+function routeRequest(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  if (
+    pathname.startsWith("/api/") ||
+    pathname === "/api" ||
+    pathname.startsWith("/trpc/") ||
+    pathname === "/trpc" ||
+    pathname.startsWith("/__clerk/")
+  ) {
+    return NextResponse.next();
+  }
+  return localeMiddleware(request);
+}
+
+export default function proxy(request: NextRequest, event: NextFetchEvent) {
+  return clerkProxy === undefined
+    ? routeRequest(request)
+    : clerkProxy(request, event);
+}
 
 export const config = {
   /*
@@ -31,5 +63,9 @@ export const config = {
    * extension. A locale prefix on `/manifest.webmanifest` or `/icons/mark.svg`
    * would 404 the PWA manifest and every icon it names.
    */
-  matcher: ["/((?!api|_next|_vercel|.*\\..*).*)"],
+  matcher: [
+    "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
+    "/(api|trpc)(.*)",
+    "/__clerk/(.*)",
+  ],
 };

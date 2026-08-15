@@ -16,9 +16,10 @@
   idempotent, timestamp-ordered mirror transitions through a storage port.
   `convex/lib/clerkWebhook.ts` and `identityMirrorConvex.ts` add a signature-first
   HTTP ingress and one atomic internal mirror adapter, covered by signed-request and
-  rollback tests. There is still no live Clerk/Convex configuration, token
-  verification, organization switch, drift reconciliation, or entitlement
-  enforcement. `@clerk/nextjs` remains unwired.
+  rollback tests. Clerk middleware, its provider hierarchy, the Convex auth
+  provider, sign-in UI, and v2 `o.id` tenant claim resolution are now wired. There
+  is still no live Clerk instance, authenticated smoke evidence, organization
+  switcher, drift reconciliation, or entitlement enforcement.
 
 ## Context
 

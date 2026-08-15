@@ -14,7 +14,7 @@ runs:
     - name: Install pnpm
       uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
 
-    # Node comes from .nvmrc (22). `engine-strict=true` in .npmrc turns a
+    # Node comes from .nvmrc (24). `engine-strict=true` in .npmrc turns a
     # mismatch against package.json `engines` into a failed install, not a
     # warning, so a wrong runner image fails loudly here.
     - name: Install Node.js

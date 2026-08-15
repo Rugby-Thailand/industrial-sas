@@ -209,7 +209,11 @@ function NavigationTree({ onNavigate }: { readonly onNavigate?: () => void }) {
   const pathname = usePathname();
 
   return (
-    <nav id={NAV_ID} aria-label={t("primary")}>
+    <nav
+      id={NAV_ID}
+      aria-label={t("primary")}
+      className="flex min-h-0 flex-1 flex-col"
+    >
       <SidebarContent className="gap-0 p-3">
         {DESKTOP_NAVIGATION.map((section) => (
           <SidebarGroup key={section.labelKey} className="p-0 pb-4 last:pb-0">

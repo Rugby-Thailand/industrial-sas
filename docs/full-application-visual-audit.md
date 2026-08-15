@@ -11,7 +11,7 @@ This audit reviews the 150 screenshots captured by
 - dark theme, deterministic preview data, and hidden development chrome
 
 The baseline corpus is stored outside the repository at
-`/Users/macbook/Development/industrial-ssa-visual-audit/before`.
+`/Users/macbook/Development/industrial-sas-visual-audit/before`.
 
 All screenshots were inspected at full resolution by Claude Opus 5 with high
 effort. The capture manifest reported no unexpected console errors and no
@@ -102,7 +102,7 @@ only the browser's 404 resource error.
 
 The prioritized P0–P2 work above was implemented and reviewed against the same
 matrix. The final corpus is stored at
-`/Users/macbook/Development/industrial-ssa-visual-audit/after-final`.
+`/Users/macbook/Development/industrial-sas-visual-audit/after-final`.
 
 ### Implemented improvements
 
@@ -130,10 +130,10 @@ matrix. The final corpus is stored at
 Claude Opus 5 (high effort) inspected all 150 first-pass after images and their
 matching baselines. Those reports are:
 
-- `/Users/macbook/Development/industrial-ssa-visual-audit/after/claude-after-core.md`
-- `/Users/macbook/Development/industrial-ssa-visual-audit/after/claude-after-master.md`
-- `/Users/macbook/Development/industrial-ssa-visual-audit/after/claude-after-inbound.md`
-- `/Users/macbook/Development/industrial-ssa-visual-audit/after/claude-after-handheld.md`
+- `/Users/macbook/Development/industrial-sas-visual-audit/after/claude-after-core.md`
+- `/Users/macbook/Development/industrial-sas-visual-audit/after/claude-after-master.md`
+- `/Users/macbook/Development/industrial-sas-visual-audit/after/claude-after-inbound.md`
+- `/Users/macbook/Development/industrial-sas-visual-audit/after/claude-after-handheld.md`
 
 That review caught two shared regressions before completion: a non-wrapping
 handheld header produced 21–50 pixels of page overflow, and an always-pinned
@@ -143,7 +143,7 @@ All three were corrected at the shared shell, table, and form seams.
 
 Claude then inspected 22 affected final screenshots plus eight before/first-pass
 comparators at full resolution. The final report is
-`/Users/macbook/Development/industrial-ssa-visual-audit/after-final/claude-regression-recheck.md`.
+`/Users/macbook/Development/industrial-sas-visual-audit/after-final/claude-regression-recheck.md`.
 Its verdict is **PASS**: all four targeted regressions are fixed, no P0/P1 issue
 remains, and no new regression was found.
 

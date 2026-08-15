@@ -151,7 +151,7 @@ function assertImagePresent() {
  * recorded against.
  */
 function stageRepository() {
-  const scratch = mkdtempSync(join(tmpdir(), "ssa-linux-baselines-"));
+  const scratch = mkdtempSync(join(tmpdir(), "sas-linux-baselines-"));
   const files = run("git", [
     "ls-files",
     "--cached",
@@ -272,7 +272,7 @@ function main() {
      * rewriting 24 files nobody changed turns a baseline refresh into a diff
      * nobody can review.
      */
-    const harvest = mkdtempSync(join(tmpdir(), "ssa-linux-harvest-"));
+    const harvest = mkdtempSync(join(tmpdir(), "sas-linux-harvest-"));
     run("docker", ["cp", `${container}:/work/${SNAPSHOT_DIR}/.`, harvest]);
 
     const recorded = readdirSync(harvest).filter((name) => KEEP.test(name));

@@ -522,7 +522,9 @@ export const listAll = queryGeneric({ handler: (ctx: { db: unknown }) => ctx.db 
         }
       }
     }
-    expect([...new Set(outsideLibrary)]).toEqual(["convex/engineering/files.ts"]);
+    expect([...new Set(outsideLibrary)]).toEqual([
+      "convex/engineering/files.ts",
+    ]);
     expect(TENANT_BOUNDARY_ALLOWLIST["model-purity"]).toEqual([]);
   });
 });

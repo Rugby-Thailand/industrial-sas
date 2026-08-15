@@ -56,7 +56,7 @@ const valueAt = (catalogue: Catalogue, path: string): string => {
 /**
  * Messages that are legitimately identical in both languages.
  *
- * A product name is not translated — "Industrial SSA" is the same string on a
+ * A product name is not translated — "Industrial SAS" is the same string on a
  * Thai screen and an English one, and rendering it in Thai script would be
  * inventing a second brand. Each entry is listed individually so the exception
  * stays a decision rather than a pattern that quietly swallows real omissions.

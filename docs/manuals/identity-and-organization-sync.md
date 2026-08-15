@@ -1,8 +1,10 @@
 # Identity and organization synchronization manual
 
-Status: **Backend adapter; undeployed.** The signed Clerk webhook route and
-idempotent mirror logic are implemented and tested. No Clerk instance, signing secret,
-Convex deployment, middleware, or sign-in UI is configured in this repository.
+Status: **Development wiring implemented; external instance not connected.** The
+signed Clerk webhook route, idempotent mirror, Clerk middleware, provider bridge,
+Convex auth config, and sign-in UI are implemented and tested. The development
+Clerk instance, signing secret, and end-to-end authenticated smoke test remain
+external setup work.
 
 ## Who this is for
 
@@ -12,7 +14,7 @@ Convex deployment, middleware, or sign-in UI is configured in this repository.
 
 ## What the feature does
 
-Clerk owns authentication and organization membership. Industrial SSA mirrors only
+Clerk owns authentication and organization membership. Industrial SAS mirrors only
 the identity data needed for tenant access:
 
 - organizations: external ID, display name, status, and event watermark;
@@ -63,12 +65,13 @@ records for diagnosis; do not add raw webhook bodies to logs.
 ## Configuration checklist
 
 1. Create the Clerk application and organization configuration.
-2. Deploy Convex and generate the server bindings.
-3. Set `CLERK_WEBHOOK_SIGNING_SECRET` in the Convex environment.
-4. Register the deployed `/webhooks/clerk` URL in Clerk.
-5. Subscribe only to the supported organization, user, and membership events.
-6. Send a test event and confirm HTTP `204` plus the expected mirrored row.
-7. Replay the same delivery and confirm it does not duplicate data or reset edited
+2. Activate Clerk's Convex integration and use session-token v2 (`o.id`).
+3. Deploy Convex and generate the server bindings.
+4. Set `CLERK_WEBHOOK_SIGNING_SECRET` in the Convex environment.
+5. Register the deployed `/webhooks/clerk` URL in Clerk.
+6. Subscribe only to the supported organization, user, and membership events.
+7. Send a test event and confirm HTTP `204` plus the expected mirrored row.
+8. Replay the same delivery and confirm it does not duplicate data or reset edited
    tenant roles.
 
 ## Important rules

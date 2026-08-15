@@ -1,8 +1,9 @@
 # Integration contracts
 
-Status: **specification.** No port, adapter, or vendor configuration exists in this
-repository. `@clerk/nextjs`, `convex`, `uploadthing`, and `svix` are installed and
-unwired; nothing imports them. These documents define what will be built, per
+Status: **contracts with incremental implementations.** Clerk and Convex now have
+implemented adapters and application wiring, although no live Clerk instance is
+connected. File storage and the remaining vendors stay specifications. These
+documents define and track those boundaries per
 [ADR-0008](../adr/0008-adapter-ports-and-release-gates.md).
 
 ## Contracts

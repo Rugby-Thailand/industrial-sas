@@ -91,15 +91,15 @@ writes.
 
 ## Making the screens show real data
 
-1. Configure a Clerk instance and set `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`.
-2. Add a Convex JWT template and `convex/auth.config.ts`, and confirm the
-   active-organization claim name matches `ACTIVE_ORGANIZATION_CLAIM` in
-   `convex/lib/tenantContext.ts`.
-3. Wire `ConvexReactClient.setAuth` to Clerk's token fetcher — and to nothing
-   else. A token this application minted itself would be an authentication
-   bypass, not a shortcut.
-4. Deploy the Convex functions and set `NEXT_PUBLIC_CONVEX_URL`.
-5. Provision an organization, a membership, and a warehouse through the webhook
+1. Follow the [development product setup](../development-setup.md) to connect a
+   Clerk development instance and activate its first-class Convex integration.
+2. Set the Clerk Frontend API URL as `CLERK_JWT_ISSUER_DOMAIN` in the selected
+   Convex development deployment, then sync `convex/auth.config.ts`.
+3. Run Clerk session-token v2. Tenant resolution reads the built-in `o.id`
+   claim; no custom JWT template or hand-built `setAuth` path is used.
+4. Set `NEXT_PUBLIC_CONVEX_URL` and run the Next.js and Convex development
+   processes.
+5. Provision an organization, membership, and warehouse through the webhook
    and seed path described in
    [Identity and organization sync](./identity-and-organization-sync.md).
 

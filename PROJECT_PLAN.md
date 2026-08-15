@@ -1,8 +1,9 @@
-# Industrial SSA — Warehouse Management System Project Plan
+# Industrial SAS — Warehouse Management System Project Plan
 
-Status: **Planning complete; implementation not started**  
-Repository: `Rugby-Thailand/industrial-ssa` (empty at planning time)  
-Prepared: 2026-08-02  
+Status: **Phases 1–4 implemented locally; customer-order/master-card vertical slice planned**
+Repository: `Rugby-Thailand/industrial-sas`
+Prepared: 2026-08-02
+Updated: 2026-08-14
 Research method: product-owner grilling followed by an independent, read-only Kiro CLI research pass over 50 product, warehouse-domain, architecture, security, legal, device, and delivery questions.
 
 ## 1. Executive decision
@@ -50,6 +51,24 @@ The planned product family remains: authentication; master data; receiving; puta
 - Live ERP synchronization beyond a versioned contract and optional import boundary
 - Three-dimensional warehouse visualization
 
+### 2.4 Next vertical slice — customer orders, master cards, and factory handoff
+
+The next approved roadmap slice handles customer purchase orders for custom boxes. It is a separate outbound/engineering bounded context from the existing supplier purchase-order inbound flow:
+
+`Customer PO → Check released design → Engineering when required → Release master-card revision → Factory handoff`
+
+Outcomes:
+
+- Customer service can record a customer PO with one or more custom-box lines.
+- Each line is checked against the customer's existing released master cards.
+- A confirmed exact match links the order line to a specific immutable master-card revision.
+- A line without a valid design creates an engineering design request automatically.
+- Engineering can author structured production specifications, attach product images and drawings, and submit a revision for independent approval.
+- Releasing a revision makes the waiting order line ready for production and enables authorized creation of a factory release packet.
+- Factory users can read the released packet and acknowledge handoff.
+
+This slice stops at factory acknowledgement. It does not include material requirements planning, production scheduling optimization, machine dispatch, material issue, WIP, yield/scrap execution, completion posting, or production QC. Those remain later manufacturing capabilities.
+
 ## 3. Assumptions register
 
 ### 3.1 Confirmed by the product owner
@@ -64,6 +83,7 @@ The planned product family remains: authentication; master data; receiving; puta
 | C-06 | Requested technologies are Next.js, Convex, UploadThing, Three.js, shadcn/ui, Tailwind CSS, and ReUI MCP. Three.js remains requested but its MVP use is unresolved. |
 | C-07 | The broader 15-module vision is a roadmap rather than a requirement to implement every module at initialization. |
 | C-08 | The GitHub repository is greenfield and had no commit or branch content when cloned. |
+| C-09 | A customer PO for a custom box must reuse an existing released master card when the design already exists; otherwise it must enter engineering and cannot be released to the factory until its master card is approved. |
 
 ### 3.2 Recommended defaults adopted by this plan
 
@@ -101,6 +121,14 @@ These are safe planning defaults unless the product owner replaces them before t
 | D-28 | Remove Three.js from the MVP bundle and use a 2D SVG occupancy heat map. Reassess 3D only with a named customer use case. |
 | D-29 | Package manager is pnpm; use current stable, mutually compatible package versions at initialization and lock them. |
 | D-30 | Billing is manual/off-platform during pilot; keep a server-enforced plan/entitlement model for later billing integration. |
+| D-31 | Model a customer PO as `customerOrders`/`customerOrderLines`; never reuse supplier-facing inbound `purchaseOrders`. |
+| D-32 | A master card has a stable identity and immutable numbered revisions. Editing a released design always creates a new draft revision. |
+| D-33 | Exact reuse is keyed by customer and customer product code. Dimension/material similarity may suggest candidates but never selects one without human confirmation. |
+| D-34 | Every production release pins one exact released master-card revision; factory users never produce against an implicit "latest" version. |
+| D-35 | Product dimensions, materials, print data, route, drawings, and factory notes belong to the master card. Selling and purchase prices remain commercial data with separate authorization and revision rules. |
+| D-36 | Product images, drawings, dielines, artwork, and supporting files use the private `FileStoragePort`; public file URLs are forbidden. |
+| D-37 | Releasing a master-card revision requires maker-checker approval: the releaser must differ from the revision author. |
+| D-38 | Phase 5A ends at a recorded factory acknowledgement; full manufacturing execution remains out of scope. |
 
 ### 3.3 Inferred assumptions that need validation at the pilot site
 
@@ -114,6 +142,10 @@ These are safe planning defaults unless the product owner replaces them before t
 - A pilot tenant can supply baseline receiving cycle time, inventory accuracy, hardware, sample labels, label stock, and a warehouse map.
 - The SaaS operator will contract as a data processor and tenants will generally be data controllers under Thai PDPA.
 - Early tenants can accept cross-border cloud hosting if contracts and safeguards are in place.
+- The pilot can provide 10–20 representative master cards and define which legacy fields are mandatory for factory production.
+- The business can confirm the master-card numbering scheme, the exact customer/product lookup key, engineering approver roles, and what factory acknowledgement means operationally.
+- Engineering can confirm accepted drawing/artwork formats, file-size limits, and whether releasing a master card also creates or activates the finished-good item.
+- The business can confirm whether a factory is represented by the existing warehouse/site record; if not, Phase 5A must introduce a distinct `productionSites` master before production releases are implemented.
 
 ### 3.4 Deferred assumptions
 
@@ -308,12 +340,47 @@ type InventoryBucket = {
 - Balance projections update atomically in the same mutation as ledger lines.
 - A scheduled replay independently proves projections equal the ledger and raises an alert on any drift.
 
+### 7.6 Customer order and master-card aggregates
+
+This model is tenant-scoped and follows the same `orgId`-first index, bounded-read, idempotency, audit, deactivation, and cross-tenant refusal rules as the implemented inbound and master-data slices.
+
+- `customers`: tenant customer code, display name, references, and active/inactive status.
+- `customerOrders`: customer PO number, customer, target factory/warehouse, order/due dates, external reference, and lifecycle status.
+- `customerOrderLines`: requested customer product code, description, quantity/UOM, due date, optional finished-good item, pinned master-card revision, and `DESIGN_CHECK | DESIGN_REQUIRED | ENGINEERING | AWAITING_APPROVAL | READY_FOR_PRODUCTION | RELEASED | CANCELLED` status.
+- `masterCards`: stable card number, customer, customer product code, optional finished-good item, current released revision, and active/inactive status.
+- `masterCardRevisions`: monotonic revision, `DRAFT | IN_REVIEW | RELEASED | REJECTED | SUPERSEDED`, structured specification, author, reviewer, timestamps, and change reason.
+- `masterCardMaterials`: ordered paper/material layers, grades, flute, quantities, and notes.
+- `masterCardRouteSteps`: ordered factory operations such as print, die cut, pull, glue, and bundle.
+- `masterCardFiles`: private product image, drawing, dieline, artwork, or supporting-document metadata owned by one revision.
+- `designRequests`: order-line link, assignee, priority, due date, `OPEN | IN_PROGRESS | IN_REVIEW | DONE | CANCELLED` status, and completion reference.
+- `productionReleases`: customer-order line, exact released master-card revision, target production site, ordered quantity, `READY | ACKNOWLEDGED | CANCELLED` status, release evidence, and acknowledgement evidence.
+
+The structured master-card specification covers:
+
+- Identity: card number, product/SKU, customer code, customer product code, bilingual description, and box type.
+- Dimensions: finished length/width/height, cut-sheet dimensions, unit, and tolerances.
+- Construction: main paper grade, flute, layer composition, and sheet/piece counts.
+- Printing: ink colors, color positions, plate/block identifiers, and storage locations.
+- Converting and packing: joint, glue, bundle/carton quantity, and special instructions.
+- Production route: ordered factory operations.
+- Files and notes: approved product image, drawing/dieline, artwork, and engineering/factory instructions.
+
+Non-negotiable invariants:
+
+- Only a `RELEASED` revision may be pinned to a production release.
+- A released revision is immutable; a change creates the next draft revision.
+- A customer-order line stores the exact revision it approved, not a pointer resolved to the latest revision at read time.
+- Fuzzy design matches are suggestions only and require an authorized human confirmation.
+- The revision author cannot release their own revision.
+- Cancelling an order or deactivating a master card never deletes design, file, approval, release, or audit history.
+- Releasing a revision atomically updates eligible waiting order lines to `READY_FOR_PRODUCTION`; creation of the production release remains an explicit authorized action.
+
 ## 8. Planned repository structure
 
 This is the intended file plan, not files already implemented.
 
 ```text
-industrial-ssa/
+industrial-sas/
 ├── .github/
 │   └── workflows/
 │       ├── ci.yml
@@ -335,6 +402,9 @@ industrial-ssa/
 │   │   │   │   ├── dashboard/
 │   │   │   │   ├── master-data/
 │   │   │   │   ├── purchase-orders/
+│   │   │   │   ├── customer-orders/
+│   │   │   │   ├── engineering/
+│   │   │   │   ├── production-releases/
 │   │   │   │   ├── quality/
 │   │   │   │   ├── inventory/
 │   │   │   │   └── administration/
@@ -359,6 +429,9 @@ industrial-ssa/
 │   │   ├── handling-units/
 │   │   ├── putaway/
 │   │   ├── inventory/
+│   │   ├── customer-orders/
+│   │   ├── master-cards/
+│   │   ├── production-releases/
 │   │   └── reporting/
 │   ├── i18n/
 │   └── lib/
@@ -382,6 +455,9 @@ industrial-ssa/
 │   │   └── errors.ts
 │   ├── organizations/
 │   ├── masterData/
+│   ├── sales/
+│   ├── engineering/
+│   ├── production/
 │   ├── receiving/
 │   ├── quality/
 │   ├── handlingUnits/
@@ -553,6 +629,47 @@ Release gate over the agreed pilot window:
 9. Slotting optimization and evidence-backed Three.js visualization
 10. Native/offline/RFID capabilities only if customer evidence justifies them
 
+### Phase 5A — Customer orders, master cards, and factory handoff
+
+Phase 5A promotes the customer-order/design-release portion of roadmap items 2 and 6 into the next bounded vertical slice. Delivery is incremental:
+
+1. **Confirm the legacy document and workflow**
+   - Collect 10–20 representative master cards and customer POs.
+   - Produce a Thai/English field dictionary and map each legacy field to structured data, commercial data, a file, or a deliberately retired field.
+   - Confirm numbering, required factory fields, revision triggers, approval roles, accepted files, factory acknowledgement, and legacy migration ownership.
+2. **Build the tenant-safe domain foundation**
+   - Add pure state-transition and validation modules under `convex/model/**`.
+   - Add validators, tables, `orgId`-first indexes, schema-policy declarations, permission codes, default-role compositions, idempotent audited mutations, and bounded reads.
+   - Introduce `SALES_CUSTOMER_SERVICE`, `ENGINEER`, `ENGINEERING_APPROVER`, and `PRODUCTION_PLANNER` role compositions while retaining organization-admin access.
+3. **Deliver customer-order intake and exact matching**
+   - Add customer and order registers, order detail, line entry/import, and exact master-card lookup.
+   - Show suggested similar designs separately; require an explicit authorized confirmation before reuse.
+   - Create one design request automatically for each unmatched order line.
+4. **Deliver the engineering workspace**
+   - Add an engineering queue with assignment, priority, due date, status, and overdue visibility.
+   - Add a master-card editor organized by identity, dimensions, construction, printing, converting/packing, route, files, and notes.
+   - Wire the private `FileStoragePort` for images, drawings, dielines, artwork, and supporting documents.
+   - Add revision history, comparison, submit, reject, and maker-checker release actions.
+5. **Deliver factory handoff**
+   - Create a production release from a ready customer-order line and pin the exact revision.
+   - Provide a read-only factory queue and printable production packet containing the order quantity, structured specification, route, approved files, revision, and release evidence.
+   - Record factory acknowledgement without claiming production has begun or completed.
+6. **Migrate legacy master cards**
+   - Build a previewed, resumable import with deterministic validation and duplicate reporting.
+   - Preserve legacy card numbers and source references.
+   - Import verified records as revision 1 `RELEASED`; import incomplete or uncertain records as `DRAFT`/needs-review and never silently release them.
+
+Phase 5A release gate:
+
+- A customer PO line with an existing released design reaches factory acknowledgement without engineering work and pins the expected revision.
+- A new custom-box line creates an engineering request, passes independent approval, releases an immutable revision, becomes production-ready, and reaches factory acknowledgement.
+- Changing a released specification creates a new revision while existing releases continue to render the original revision.
+- Another tenant cannot discover the customer, order, card, file, design request, or production release by identifier or list query.
+- Duplicate submissions/retries do not create duplicate cards, revisions, requests, or releases.
+- Factory users cannot read drafts, and authors cannot approve their own revisions.
+- Master-card files remain private and every download performs a fresh permission check.
+- Thai and English screens pass accessibility, layout, and end-to-end checks.
+
 ## 11. Architecture Decision Record backlog
 
 Write ADRs in this order. ADRs 001–012 are prerequisites to Phase 1 domain work.
@@ -583,6 +700,10 @@ Write ADRs in this order. ADRs 001–012 are prerequisites to Phase 1 domain wor
 24. Test pyramid, property testing, and tenant-isolation gate
 25. Asynchronous indexed report architecture
 26. Production service tiers and cost guardrails
+27. Customer-order versus supplier-purchase-order bounded contexts
+28. Versioned master-card identity, revision, and matching rules
+29. Engineering maker-checker release and factory handoff evidence
+30. Legacy master-card migration and source provenance
 
 ## 12. Quality and verification strategy
 
@@ -596,6 +717,9 @@ Write ADRs in this order. ADRs 001–012 are prerequisites to Phase 1 domain wor
 - Ledger replay always equals the materialized projection.
 - Reversal restores the exact prior projection.
 - Negative stock and cross-tenant references are rejected.
+- Master-card transitions reject illegal skips, self-approval, mutation of released revisions, and production release from an unreleased revision.
+- Exact master-card matching is deterministic; fuzzy candidates never become an automatic selection.
+- A production release renders the same pinned revision after newer revisions are released.
 
 ### Convex integration tests
 
@@ -605,6 +729,9 @@ Write ADRs in this order. ADRs 001–012 are prerequisites to Phase 1 domain wor
 - Same-transaction ledger, projection, and audit writes
 - OCC contention and duplicate request behavior
 - Scheduled expiry/reconciliation/workflow retry behavior
+- Customer-order matching, automatic design-request creation, independent master-card approval, atomic readiness updates, and factory acknowledgement
+- Idempotent customer-order, master-card revision, file registration, and production-release writes
+- Private file authorization, registration, signed download, expiry, and retention behavior
 
 ### End-to-end and physical tests
 
@@ -614,6 +741,8 @@ Write ADRs in this order. ADRs 001–012 are prerequisites to Phase 1 domain wor
 - Offline/disconnect state and safe replay
 - Thai/English layouts, touch targets, keyboard operation, and screen-reader checks
 - Actual scanner, Android WebView, printer, labels, gloves, lighting, and warehouse Wi-Fi
+- Existing-design customer-order journey and new-design engineering-to-factory journey in Thai and English
+- Master-card drawing/image preview, printable production packet, revision history, and permission-specific factory view
 
 ### Merge gates
 
@@ -640,6 +769,10 @@ Write ADRs in this order. ADRs 001–012 are prerequisites to Phase 1 domain wor
 | Vendor cost/lock-in | Pure domain layer, independent exports, attachment abstraction, self-host option, and unit economics reviewed at pilot and 10 tenants. |
 | Clerk/Convex membership drift | Signed idempotent webhooks, membership recheck per request, short privileged sessions, and scheduled drift reconciliation. |
 | Shared-device actor ambiguity | Full user switching, privileged step-up authentication, device context, and no communal privileged account. |
+| Wrong legacy master-card interpretation | Field dictionary reviewed against representative cards; previewed migration; incomplete records remain drafts requiring engineering review. |
+| Factory produces from a changed design | Every production release pins one immutable revision; later revisions cannot alter existing release packets. |
+| Similar-looking designs are incorrectly reused | Exact customer/product matching is the only automatic path; similarity is advisory and requires explicit confirmation. |
+| Draft artwork or drawing leaks outside engineering | Private storage, fresh permission checks, short-lived URLs, and factory access restricted to files owned by released revisions. |
 
 ## 14. Legal and operational production checklist
 
@@ -709,4 +842,3 @@ To approve this plan, record:
 - Approved MVP scope/non-goals
 - Approved Phase 0 budget and pilot tenant/site
 - Authorization to initialize the project after the Phase 0 gate
-

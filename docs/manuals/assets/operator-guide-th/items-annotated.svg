@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+  xmlns:xlink="http://www.w3.org/1999/xlink"
+  width="1280" height="1543"
+  viewBox="0 0 1280 1543" role="img"
+  aria-label="ภาพหน้าจอ items พร้อมกรอบคำแนะนำสีแดง">
+  <image href="items.png" xlink:href="items.png" x="0" y="0"
+    width="1280" height="1543"/>
+  <rect x="1090" y="525" width="120" height="435" rx="12"
+    fill="none" stroke="#ff3b30" stroke-width="7"/>
+  <circle cx="1098" cy="533" r="22" fill="#ff3b30"
+    stroke="#ffffff" stroke-width="3"/>
+  <text x="1098" y="541" text-anchor="middle"
+    font-family="Arial, sans-serif" font-size="24" font-weight="700"
+    fill="#ffffff">1</text>
+
+  <rect x="278" y="1110" width="980" height="380" rx="12"
+    fill="none" stroke="#ff3b30" stroke-width="7"/>
+  <circle cx="286" cy="1118" r="22" fill="#ff3b30"
+    stroke="#ffffff" stroke-width="3"/>
+  <text x="286" y="1126" text-anchor="middle"
+    font-family="Arial, sans-serif" font-size="24" font-weight="700"
+    fill="#ffffff">2</text>
+</svg>

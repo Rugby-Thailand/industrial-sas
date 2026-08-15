@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+  xmlns:xlink="http://www.w3.org/1999/xlink"
+  width="1280" height="1197"
+  viewBox="0 0 1280 1197" role="img"
+  aria-label="ภาพหน้าจอ inventory-history พร้อมกรอบคำแนะนำสีแดง">
+  <image href="inventory-history.png" xlink:href="inventory-history.png" x="0" y="0"
+    width="1280" height="1197"/>
+  <rect x="278" y="335" width="980" height="335" rx="12"
+    fill="none" stroke="#ff3b30" stroke-width="7"/>
+  <circle cx="286" cy="343" r="22" fill="#ff3b30"
+    stroke="#ffffff" stroke-width="3"/>
+  <text x="286" y="351" text-anchor="middle"
+    font-family="Arial, sans-serif" font-size="24" font-weight="700"
+    fill="#ffffff">1</text>
+</svg>

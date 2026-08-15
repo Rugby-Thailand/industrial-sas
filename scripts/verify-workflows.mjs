@@ -157,8 +157,8 @@ if (!EXACT_PACKAGE_MANAGER.test(packageManagerField)) {
 const pnpmVersion = packageManagerField.replace("pnpm@", "");
 
 const nodeVersionFile = readFileSync(join(repoRoot, ".nvmrc"), "utf8").trim();
-if (!/^22(\.|$)/.test(nodeVersionFile)) {
-  fail(".nvmrc", null, `expected Node 22, found \`${nodeVersionFile}\`.`);
+if (!/^24(\.|$)/.test(nodeVersionFile)) {
+  fail(".nvmrc", null, `expected Node 24, found \`${nodeVersionFile}\`.`);
 }
 
 const files = yamlFilesIn(githubDir);

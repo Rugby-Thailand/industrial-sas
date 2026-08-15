@@ -18,6 +18,9 @@ exist, but CRUD workflows do not.
 
 ## Manual index
 
+สำหรับคู่มือผู้ปฏิบัติงานที่มีภาพหน้าจอและกรอบสีแดง ดู
+[คู่มือใช้งานแบบมีภาพประกอบ](./visual-operator-guide-th.md)
+
 | Feature                                                            | Current availability                                 | Manual                                                                                          |
 | ------------------------------------------------------------------ | ---------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
 | Application shell, locale routing, and inventory read screens      | Application surface; unauthenticated                 | [Application shell and locale](./application-shell-and-locale.md)                               |

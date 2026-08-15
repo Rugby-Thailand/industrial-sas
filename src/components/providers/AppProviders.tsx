@@ -13,6 +13,7 @@ import type { ReactNode } from "react";
 
 import { ConvexClientProvider } from "./ConvexClientProvider";
 import { EnvironmentProvider } from "./EnvironmentProvider";
+import { IdentityProvider } from "./IdentityProvider";
 import { ObservabilityProvider } from "./ObservabilityProvider";
 import { WorkspaceProvider } from "./WorkspaceProvider";
 
@@ -20,9 +21,11 @@ export function AppProviders({ children }: { readonly children: ReactNode }) {
   return (
     <EnvironmentProvider>
       <ObservabilityProvider>
-        <ConvexClientProvider>
-          <WorkspaceProvider>{children}</WorkspaceProvider>
-        </ConvexClientProvider>
+        <IdentityProvider>
+          <ConvexClientProvider>
+            <WorkspaceProvider>{children}</WorkspaceProvider>
+          </ConvexClientProvider>
+        </IdentityProvider>
       </ObservabilityProvider>
     </EnvironmentProvider>
   );

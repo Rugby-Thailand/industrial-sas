@@ -5,12 +5,12 @@ that is checked. Derived from [`ADR-0012`](./adr/0012-delivery-release-and-quali
 §2 and plan §10 Phase 1 ("Developer, preview, staging, and production environment
 design").
 
-**Implementation status: contract and validator only.** The contract is code
-(`src/lib/environmentContract.ts`), and `pnpm verify:environment` enforces it
-against `.env.example` on every run and against a real machine on request. **No
-preview, staging, or production environment exists**, because each needs a Convex
-deployment and a Clerk instance that nobody has provisioned. This document is the
-specification those environments must satisfy, not a description of ones that do.
+**Implementation status: development wiring plus contract and validators.** The
+Clerk/Convex provider path and a local Convex deployment exist, but no Clerk
+development instance is connected yet. `pnpm dev:check` checks the complete
+development product from the ignored `.env.local`; `pnpm verify:environment`
+checks the cross-environment contract. **No preview, staging, or production
+environment exists.**
 
 ## The four classes
 
@@ -93,17 +93,18 @@ Two things it fails on that are easy to get wrong:
 
 Every one of these is outside this repository and blocks the corresponding class:
 
-| Prerequisite                                              | Blocks                        | Gate               |
-| --------------------------------------------------------- | ----------------------------- | ------------------ |
-| A Clerk application per class, with a Convex JWT template | preview, staging, production  | `RG-011`           |
-| A Convex project and deployment per class                 | preview, staging, production  | `RG-002`           |
-| A decision on the Convex region (US East / EU West)       | production                    | `RG-002`           |
-| An UploadThing app with private ACLs per class            | file features (unbuilt)       | `RG-014`           |
-| A telemetry project and an approved subprocessor          | non-`none` observability sink | `RG-014`           |
-| Thai counsel sign-off                                     | production                    | `RG-006`, `RG-048` |
+| Prerequisite                                                      | Blocks                        | Gate               |
+| ----------------------------------------------------------------- | ----------------------------- | ------------------ |
+| A Clerk application per class, with its Convex integration active | preview, staging, production  | `RG-011`           |
+| A Convex project and deployment per class                         | preview, staging, production  | `RG-002`           |
+| A decision on the Convex region (US East / EU West)               | production                    | `RG-002`           |
+| An UploadThing app with private ACLs per class                    | file features (unbuilt)       | `RG-014`           |
+| A telemetry project and an approved subprocessor                  | non-`none` observability sink | `RG-014`           |
+| Thai counsel sign-off                                             | production                    | `RG-006`, `RG-048` |
 
 ## Related
 
+- [Development product setup](./development-setup.md)
 - [ADR-0012 — Delivery, release, and quality gates](./adr/0012-delivery-release-and-quality-gates.md)
 - [ADR-0001 — Multi-tenant SaaS and identity ownership](./adr/0001-multi-tenant-saas-and-identity-ownership.md)
 - [Observability and SLIs](./manuals/observability-and-slis.md)

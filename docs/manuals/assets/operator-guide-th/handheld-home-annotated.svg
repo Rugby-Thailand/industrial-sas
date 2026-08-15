@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+  xmlns:xlink="http://www.w3.org/1999/xlink"
+  width="1280" height="900"
+  viewBox="0 0 1280 900" role="img"
+  aria-label="ภาพหน้าจอ handheld-home พร้อมกรอบคำแนะนำสีแดง">
+  <image href="handheld-home.png" xlink:href="handheld-home.png" x="0" y="0"
+    width="1280" height="900"/>
+  <rect x="430" y="96" width="420" height="178" rx="12"
+    fill="none" stroke="#ff3b30" stroke-width="7"/>
+  <circle cx="438" cy="104" r="22" fill="#ff3b30"
+    stroke="#ffffff" stroke-width="3"/>
+  <text x="438" y="112" text-anchor="middle"
+    font-family="Arial, sans-serif" font-size="24" font-weight="700"
+    fill="#ffffff">1</text>
+
+  <rect x="430" y="380" width="420" height="330" rx="12"
+    fill="none" stroke="#ff3b30" stroke-width="7"/>
+  <circle cx="438" cy="388" r="22" fill="#ff3b30"
+    stroke="#ffffff" stroke-width="3"/>
+  <text x="438" y="396" text-anchor="middle"
+    font-family="Arial, sans-serif" font-size="24" font-weight="700"
+    fill="#ffffff">2</text>
+</svg>

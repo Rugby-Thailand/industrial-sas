@@ -3,6 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { previewEnvironment } from "../../../tests/fixtures/intl-render";
 import {
+  LEGACY_WAREHOUSE_STORAGE_KEY,
+  readStoredWarehouse,
   WAREHOUSE_STORAGE_KEY,
   writeStoredWarehouse,
 } from "@/lib/workspace/warehouseStore";
@@ -88,6 +90,16 @@ describe("the workspace provider", () => {
     renderUnderProvider(<>{consumers(20)}</>);
 
     expect(counters.listeners()).toBe(1);
+  });
+
+  it("migrates the warehouse choice from the former product storage key", () => {
+    window.localStorage.setItem(LEGACY_WAREHOUSE_STORAGE_KEY, BANG_PU);
+
+    expect(readStoredWarehouse()).toBe(BANG_PU);
+    expect(window.localStorage.getItem(WAREHOUSE_STORAGE_KEY)).toBe(BANG_PU);
+    expect(
+      window.localStorage.getItem(LEGACY_WAREHOUSE_STORAGE_KEY),
+    ).toBeNull();
   });
 
   it("reads storage the same number of times whatever the consumer count", () => {

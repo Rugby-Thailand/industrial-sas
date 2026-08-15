@@ -1,6 +1,6 @@
 # Documentation
 
-Architecture decisions and delivery contracts for Industrial SSA, derived from the approved
+Architecture decisions and delivery contracts for Industrial SAS, derived from the approved
 [PROJECT_PLAN.md](../PROJECT_PLAN.md).
 
 **Read this first:** these documents describe what will be built. The repository currently

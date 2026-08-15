@@ -36,7 +36,6 @@ import type { UserIdentity } from "convex/server";
 import type { GenericId, JSONValue } from "convex/values";
 
 import { DEFAULT_ORGANIZATION_SETTINGS } from "../../convex/lib/organizationDefaults";
-import { ACTIVE_ORGANIZATION_CLAIM } from "../../convex/lib/tenantContext";
 import type {
   MembershipDocument,
   MembershipId,
@@ -355,11 +354,11 @@ export function fixtureIdentity(
   };
 }
 
-/** The active-organization claim, spelled by the production constant only. */
+/** A Clerk v2 active-organization claim. */
 export function activeOrganizationClaim(
   value: JSONValue,
 ): Readonly<Record<string, JSONValue>> {
-  return { [ACTIVE_ORGANIZATION_CLAIM]: value };
+  return { o: { id: value } };
 }
 
 /* -------------------------------------------------------------------------- */

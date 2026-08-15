@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+  xmlns:xlink="http://www.w3.org/1999/xlink"
+  width="1280" height="2589"
+  viewBox="0 0 1280 2589" role="img"
+  aria-label="ภาพหน้าจอ receipt-detail พร้อมกรอบคำแนะนำสีแดง">
+  <image href="receipt-detail.png" xlink:href="receipt-detail.png" x="0" y="0"
+    width="1280" height="2589"/>
+  <rect x="278" y="610" width="980" height="710" rx="12"
+    fill="none" stroke="#ff3b30" stroke-width="7"/>
+  <circle cx="286" cy="618" r="22" fill="#ff3b30"
+    stroke="#ffffff" stroke-width="3"/>
+  <text x="286" y="626" text-anchor="middle"
+    font-family="Arial, sans-serif" font-size="24" font-weight="700"
+    fill="#ffffff">1</text>
+
+  <rect x="278" y="1360" width="980" height="300" rx="12"
+    fill="none" stroke="#ff3b30" stroke-width="7"/>
+  <circle cx="286" cy="1368" r="22" fill="#ff3b30"
+    stroke="#ffffff" stroke-width="3"/>
+  <text x="286" y="1376" text-anchor="middle"
+    font-family="Arial, sans-serif" font-size="24" font-weight="700"
+    fill="#ffffff">2</text>
+
+  <rect x="278" y="1710" width="980" height="555" rx="12"
+    fill="none" stroke="#ff3b30" stroke-width="7"/>
+  <circle cx="286" cy="1718" r="22" fill="#ff3b30"
+    stroke="#ffffff" stroke-width="3"/>
+  <text x="286" y="1726" text-anchor="middle"
+    font-family="Arial, sans-serif" font-size="24" font-weight="700"
+    fill="#ffffff">3</text>
+</svg>

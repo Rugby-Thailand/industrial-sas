@@ -122,16 +122,14 @@ export type WarehouseId = GenericId<"warehouses">;
  * `organizations.by_clerkOrganizationId`, and the row is what the context
  * carries.
  *
- * The *literal* is not pinned by an accepted document. INT-01 §2 and §3 fix the
- * rule — the active organization comes from the verified token and is mapped to
- * an internal ID by lookup, never supplied by the browser — and say nothing
- * about which claim name carries it, because no Clerk instance, JWT template, or
- * Convex auth config exists in this repository yet. This constant is therefore
- * the one place that must be reconciled with the template the identity slice
- * configures: if that template emits the organization under a different name, or
- * nests it, this line changes and the algorithm below does not.
+ * Clerk v2 session tokens carry this value at `o.id`. The older `org_id` claim
+ * remains accepted during migration because Clerk v1 tokens can still exist in
+ * an upgraded development instance until sessions refresh. The v2 claim always
+ * wins when both are present; no custom JWT-template claim is required.
  */
-export const ACTIVE_ORGANIZATION_CLAIM = "org_id";
+export const ACTIVE_ORGANIZATION_CLAIM = "o.id";
+export const LEGACY_ACTIVE_ORGANIZATION_CLAIM = "org_id";
+const CLERK_V2_ORGANIZATION_CLAIM = "o";
 
 /**
  * Length bound on an external provider reference (the subject and the
@@ -454,6 +452,22 @@ const CLAIM_PROBLEM_CAUSE: Record<ReferenceProblem, TenantContextDenialCause> =
     TOO_LONG: "CLAIM_TOO_LONG",
   };
 
+/** Read Clerk's v2 `o.id` shape, with a bounded v1 migration fallback. */
+function activeOrganizationClaim(identity: UserIdentity): unknown {
+  const version2: unknown = identity[CLERK_V2_ORGANIZATION_CLAIM];
+  if (version2 !== undefined && version2 !== null) {
+    if (
+      typeof version2 === "object" &&
+      !Array.isArray(version2) &&
+      "id" in version2
+    ) {
+      return (version2 as { readonly id?: unknown }).id;
+    }
+    return version2;
+  }
+  return identity[LEGACY_ACTIVE_ORGANIZATION_CLAIM];
+}
+
 /**
  * Resolve a verified identity to an active tenant context.
  *
@@ -515,7 +529,7 @@ export async function resolveTenantContext(
 
   /* -- active organization claim ------------------------------------------ */
 
-  const claim: unknown = identity[ACTIVE_ORGANIZATION_CLAIM];
+  const claim = activeOrganizationClaim(identity);
   if (claim === undefined || claim === null) {
     return deny("ACTIVE_ORGANIZATION_MISSING", "CLAIM_ABSENT");
   }

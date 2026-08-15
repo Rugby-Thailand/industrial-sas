@@ -1,4 +1,4 @@
-# Industrial SSA
+# Industrial SAS
 
 A mobile-first, multi-tenant B2B SaaS Warehouse Management System (WMS) for Thai
 manufacturing companies.
@@ -129,14 +129,12 @@ The toolchain is installed, pinned, and green end to end. What is present:
 
 What is deliberately still missing, because claiming otherwise would be wrong:
 
-- **No Clerk instance, so no authenticated screen.** There is no publishable key,
-  no JWT template, and no `convex/auth.config.ts`, so `ctx.auth.getUserIdentity()`
-  is `null` in every Convex function and every tenant-bound wrapper denies. The
-  application says exactly that and offers no way around it: there is no sign-in
-  bypass, no development token, and no `setAuth` call wired to anything other
-  than a real verified-token fetcher. Local preview data (below) renders
-  synthetic rows through the same screens and is labelled as such on every one of
-  them.
+- **No Clerk instance is connected yet, so there is no authenticated tenant.**
+  The middleware, provider hierarchy, Convex auth config, and Clerk-owned sign-in
+  surface are implemented, but this checkout has no development Clerk keys or
+  issuer configured. There is still no sign-in bypass, development token, or
+  hand-built `setAuth` path. Local preview data (below) renders synthetic rows
+  through the same screens and is labelled as such on every one of them.
 - **No printed label and no printer.** Label templates are authored, versioned,
   and published under maker-checker, and a print job records versioned evidence —
   but nothing renders ZPL to a device. There is no printer transport (`INT-04`),
@@ -227,12 +225,13 @@ Identifiers in these documents are stable: `ADR-0007`, `INV-0003-02`, `RG-025`,
 
 ## Prerequisites
 
-- Node.js 22 (see [`.nvmrc`](./.nvmrc)); `engine-strict=true` means a mismatched
+- Node.js 24 (see [`.nvmrc`](./.nvmrc)); `engine-strict=true` means a mismatched
   version fails the install rather than warning.
 - pnpm 10, pinned via `packageManager`. Use `corepack enable` to honour it.
 
-No environment variables, accounts, or cloud resources are needed. Every command
-below passes with no `.env.local` present.
+No environment variables, accounts, or cloud resources are needed for the build,
+tests, or credential-free preview. A real authenticated development product uses
+the separate [development setup runbook](./docs/development-setup.md).
 
 ## Local commands
 
@@ -240,6 +239,8 @@ below passes with no `.env.local` present.
 | -------------------------------- | ---------------------------------------------------------------------------- |
 | `pnpm install --frozen-lockfile` | Install exactly what the lockfile specifies                                  |
 | `pnpm dev`                       | Next.js dev server on port 3000                                              |
+| `pnpm dev:backend`               | Continuous Convex development sync                                           |
+| `pnpm dev:check`                 | Check real dev-product readiness without printing credential values          |
 | `pnpm build`                     | Production build (also regenerates `next-env.d.ts`)                          |
 | `pnpm start`                     | Serve a previous production build                                            |
 | `pnpm format`                    | Rewrite files with Prettier                                                  |
@@ -505,21 +506,21 @@ on each bypass, using synthetic source trees in a temporary directory — the re
 Every dependency is pinned to an exact version (`save-exact=true`, decision
 D-29). Floating ranges are not allowed.
 
-| Area                     | Choice                                               | Version |
-| ------------------------ | ---------------------------------------------------- | ------- |
-| Framework                | Next.js (App Router, Turbopack)                      | 16.2.12 |
-| UI runtime               | React                                                | 19.2.8  |
-| Language                 | TypeScript (strict)                                  | 6.0.3   |
-| Styling                  | Tailwind CSS (PostCSS plugin, no config file)        | 4.3.3   |
-| Lint                     | ESLint + `eslint-config-next` + typescript-eslint    | 9.39.5  |
-| Format                   | Prettier + `prettier-plugin-tailwindcss`             | 3.9.6   |
-| Unit / integration tests | Vitest                                               | 4.1.10  |
-| Property tests           | fast-check                                           | 4.9.0   |
-| Accessibility tests      | jest-axe + axe-core                                  | 11.0.0  |
-| E2E tests                | Playwright                                           | 1.62.1  |
-| Backend / data           | Convex (schema, wrappers, functions, browser client) | 1.43.0  |
-| Identity                 | `@clerk/backend` (webhook verified; no instance)     | 3.15.0  |
-| i18n                     | `next-intl` (routing, catalogues, formatters)        | 4.13.4  |
+| Area                     | Choice                                               | Version        |
+| ------------------------ | ---------------------------------------------------- | -------------- |
+| Framework                | Next.js (App Router, Turbopack)                      | 16.2.12        |
+| UI runtime               | React                                                | 19.2.8         |
+| Language                 | TypeScript (strict)                                  | 6.0.3          |
+| Styling                  | Tailwind CSS (PostCSS plugin, no config file)        | 4.3.3          |
+| Lint                     | ESLint + `eslint-config-next` + typescript-eslint    | 9.39.5         |
+| Format                   | Prettier + `prettier-plugin-tailwindcss`             | 3.9.6          |
+| Unit / integration tests | Vitest                                               | 4.1.10         |
+| Property tests           | fast-check                                           | 4.9.0          |
+| Accessibility tests      | jest-axe + axe-core                                  | 11.0.0         |
+| E2E tests                | Playwright                                           | 1.62.1         |
+| Backend / data           | Convex (schema, wrappers, functions, browser client) | 1.43.0         |
+| Identity                 | Clerk Next.js + backend SDK (no instance connected)  | 7.7.4 / 3.16.4 |
+| i18n                     | `next-intl` (routing, catalogues, formatters)        | 4.13.4         |
 
 Deferred by decision B-08: Three.js. The MVP uses a 2D SVG occupancy map
 instead, and Three.js must not be added unless that decision is explicitly
@@ -540,7 +541,8 @@ The manifest used to carry ten runtime dependencies that no file imported —
 `zod`, `react-hook-form` + `@hookform/resolvers`, `pdf-lib`, `exceljs`,
 `papaparse`, `uploadthing` + `@uploadthing/react`, and `@clerk/nextjs` +
 `@clerk/react` — installed against slices that had not been written. They are
-removed, along with the `@types/papaparse` that typed one of them; `svix` moved
+removed at that point, along with the `@types/papaparse` that typed one of them;
+`svix` moved
 to `devDependencies`, where its only importer (the integration tier) already was.
 `dependencies` went from 24 entries to 13, and the lockfile from 1,038 resolved
 packages to 931.
@@ -552,12 +554,13 @@ unimported dependency has no call sites to audit and no test that would notice
 it breaking, so it contributes risk and install weight and nothing else.
 
 The rule this leaves: **a dependency lands in the same change as its first
-import.** `@clerk/nextjs` returns with the identity slice, `pdf-lib` with label
-generation, `exceljs`/`papaparse` with master-data import/export.
+import.** `@clerk/nextjs` has now returned with the identity integration;
+`pdf-lib` waits for label generation, and `exceljs`/`papaparse` wait for
+master-data import/export.
 
-`@clerk/backend` (webhook signature verification, imported by `convex/lib/`),
-`svix` (the same signatures, from the integration tier), and `convex-test` are
-wired and in use.
+`@clerk/backend` (webhook signature verification), `@clerk/nextjs` (provider,
+middleware, and sign-in UI), `svix` (signed integration fixtures), and
+`convex-test` are wired and in use.
 
 ### Dependency overrides
 
@@ -646,9 +649,9 @@ the "PWA shells, locale routing, Thai/English baseline, and responsive
 navigation" line of the plan's Phase 1 deliverables, in the part that does not
 need a vendor account.
 
-What comes next, in the order the slice needs it: a Clerk instance and
-`convex/auth.config.ts`, without which no screen can show a tenant's data at all;
-policy values for thresholds and maker-checker (`RG-030`, §5 Q26) so those facts
+What comes next, in the order the slice needs it: connect a Clerk development
+instance and complete the authenticated smoke test; policy values for thresholds
+and maker-checker (`RG-030`, §5 Q26) so those facts
 stop being per-operation callbacks; a write-capable sink so a denied read is
 recorded (`RG-071`); and then the first feature functions — PO, receipt, QC,
 handling unit, label, putaway — each with the screens that drive them, each owing

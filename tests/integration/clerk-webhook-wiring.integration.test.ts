@@ -8,7 +8,7 @@ import {
   type ConvexTestModuleMap,
 } from "../fixtures/convex-tenant-world";
 
-const SECRET = `whsec_${Buffer.from("industrial-ssa-wiring-test-key").toString("base64")}`;
+const SECRET = `whsec_${Buffer.from("industrial-sas-wiring-test-key").toString("base64")}`;
 const MODULES: ConvexTestModuleMap = {
   "../convex/http.ts": () => import("../../convex/http"),
   "../convex/lib/identityMirrorConvex.ts": () =>

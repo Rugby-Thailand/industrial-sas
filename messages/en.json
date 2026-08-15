@@ -1,9 +1,9 @@
 {
   "App": {
-    "name": "Industrial SSA",
-    "shortName": "SSA",
+    "name": "Industrial SAS",
+    "shortName": "SAS",
     "description": "Warehouse management system for Thai manufacturers",
-    "documentTitle": "{page} · Industrial SSA"
+    "documentTitle": "{page} · Industrial SAS"
   },
   "Locale": {
     "label": "Language",

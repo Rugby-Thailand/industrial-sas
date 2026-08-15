@@ -34,6 +34,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   ACTIVE_ORGANIZATION_CLAIM,
+  LEGACY_ACTIVE_ORGANIZATION_CLAIM,
   MAX_EXTERNAL_REFERENCE_LENGTH,
   MAX_REQUEST_ID_LENGTH,
   TENANT_CONTEXT_DENIAL_CAUSES,
@@ -102,6 +103,22 @@ describe("resolving a context without a warehouse", () => {
     expect(result.context.membership).toBe(fake.membership("siriwan-alpha"));
     expect(result.context.warehouse).toBeUndefined();
     expect("warehouse" in result.context).toBe(false);
+  });
+
+  it("accepts the legacy Clerk v1 organization claim during session migration", async () => {
+    const fake = world();
+
+    const result = await resolveTenantContext({
+      requestId: REQUEST_ID,
+      identity: fixtureIdentity(SIRIWAN_SUBJECT, {
+        [LEGACY_ACTIVE_ORGANIZATION_CLAIM]: ALPHA_CLAIM,
+      }),
+      lookups: fake.lookups,
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.context.organization).toBe(fake.organization("alpha"));
   });
 
   it("resolves actor, organization, and membership on every call, and nothing else", async () => {

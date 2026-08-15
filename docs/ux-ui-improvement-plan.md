@@ -11,7 +11,7 @@ Supporting research:
 
 ## 1. Product direction
 
-Industrial SSA should look and behave like a warehouse execution system, not a
+Industrial SAS should look and behave like a warehouse execution system, not a
 generic analytics dashboard.
 
 - **Desktop supervisor shell:** dense but calm; optimized for search, comparison,

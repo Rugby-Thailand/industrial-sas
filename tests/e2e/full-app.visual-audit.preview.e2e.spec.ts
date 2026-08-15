@@ -18,7 +18,7 @@ import { expect, test, type ConsoleMessage, type Page } from "@playwright/test";
  */
 
 const OUTPUT = process.env["VISUAL_AUDIT_DIR"];
-const WAREHOUSE_STORAGE_KEY = "industrial-ssa.warehouse";
+const WAREHOUSE_STORAGE_KEY = "industrial-sas.warehouse";
 const BANG_PU = "prv_wh_bangpoo";
 
 const VIEWPORTS = [

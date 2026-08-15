@@ -1,7 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page } from "@playwright/test";
 
-const WAREHOUSE_STORAGE_KEY = "industrial-ssa.warehouse";
+const WAREHOUSE_STORAGE_KEY = "industrial-sas.warehouse";
 const BANG_PU = "prv_wh_bangpoo";
 
 /** Select a populated warehouse before React reads the external store. */

@@ -14,14 +14,15 @@
  * mount, and never during the server render — `ConvexReactClient` opens a
  * WebSocket in its constructor.
  *
- * No `setAuth` call appears here. Authentication is Clerk's
- * (`ADR-0001` §2), and wiring `setAuth` to anything other than a real, verified
- * token fetcher is the one thing this file must never do: Convex would send
- * whatever it was handed as a bearer token, and `resolveTenantContext` would be
- * deciding tenancy from it. Until `@clerk/nextjs` is configured, the honest state
- * is an unauthenticated client whose every tenant call is denied by the server.
+ * When Clerk is configured, `ConvexProviderWithClerk` is the only auth bridge.
+ * It obtains and refreshes Clerk's verified session token; this repository never
+ * manufactures a development bearer token or calls `setAuth` itself. With no
+ * Clerk key, the plain provider remains so the setup gate can describe the
+ * missing identity layer without throwing.
  */
+import { useAuth } from "@clerk/nextjs";
 import { ConvexProvider, ConvexReactClient } from "convex/react";
+import { ConvexProviderWithClerk } from "convex/react-clerk";
 import { useState, type ReactNode } from "react";
 
 import { useAppEnvironment } from "./EnvironmentProvider";
@@ -38,5 +39,12 @@ export function ConvexClientProvider({
   );
 
   if (client === undefined) return <>{children}</>;
+  if (environment.identityConfigured) {
+    return (
+      <ConvexProviderWithClerk client={client} useAuth={useAuth}>
+        {children}
+      </ConvexProviderWithClerk>
+    );
+  }
   return <ConvexProvider client={client}>{children}</ConvexProvider>;
 }
