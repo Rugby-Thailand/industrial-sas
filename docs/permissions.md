@@ -2,14 +2,16 @@
 
 Status: **partially implemented.** `convex/lib/permissions.ts` is the code-owned
 catalogue and fail-closed pure policy evaluator. Organization provisioning seeds the
-catalogue, eight editable default roles, and their mappings idempotently in the same
+catalogue, twelve editable default roles, and their mappings idempotently in the same
 transaction; reruns preserve tenant edits. Enforcement is live in the public Convex
 wrappers: a function that does not declare a code-owned, non-`PLATFORM` permission
 cannot be registered, the decision is made server-side from the active tenant's own
 rows, and each attempt is appended to `auditEvents` except on a query, which cannot
 write (`RG-071`). What remains: the threshold and maker-checker _policy values_
 (§5 Q26), the administration UI, and the feature functions the catalogue exists to
-guard — no WMS operation exists yet. This document remains the review contract
+guard. Inventory, inbound, reporting, and Phase 5A order-to-ship operations are live;
+later factory-order, execution, shipment, and administration surfaces remain. This
+document remains the review contract
 required by [ADR-0006](./adr/0006-authorization-and-support-access.md).
 
 ## 1. Ownership and stability rules
@@ -78,7 +80,41 @@ target warehouse participates in the decision.
 | `masterData.owner.read`          | ORG   | Read stock owners (disabled unless enabled)     | —                      |
 | `masterData.owner.manage`        | ORG   | Manage stock owners (disabled unless enabled)   | Step-up                |
 
-### 2.3 Purchase orders
+### 2.3 Sales, engineering, and production hand-off
+
+The order-to-ship slice ([ADR-0013](./adr/0013-order-to-ship-design-authority.md)).
+Three domains rather than one, because the separation between them is the control:
+sales commits to a customer, engineering decides what gets made, production issues
+the packet that reaches a machine. A role that spans two of them can approve its own
+work.
+
+`sales.*` guards **customer** orders and never touches `purchaseOrders`, which is
+the supplier side of the business (§2.4). `engineering.masterCard.read` covers every
+revision including drafts — which is why no production role holds it, and why a
+factory packet carries its own snapshot of the released specification instead.
+
+| Permission code                  | Scope | Guards                                                   | Extra policy  |
+| -------------------------------- | ----- | -------------------------------------------------------- | ------------- |
+| `sales.customer.read`            | ORG   | Read customers                                           | —             |
+| `sales.customer.manage`          | ORG   | Create and edit customers                                | —             |
+| `sales.order.read`               | ORG   | Read customer orders and their lines                     | —             |
+| `sales.order.create`             | ORG   | Raise a customer order                                   | —             |
+| `sales.order.update`             | ORG   | Add and edit lines on a draft order                      | —             |
+| `sales.order.release`            | ORG   | Commit a draft order to the customer                     | —             |
+| `sales.order.cancel`             | ORG   | Cancel a customer order                                  | Maker-checker |
+| `engineering.request.read`       | ORG   | Read the design queue                                    | —             |
+| `engineering.request.assign`     | ORG   | Take or assign a design request                          | —             |
+| `engineering.masterCard.read`    | ORG   | Read master cards and every revision, including drafts   | —             |
+| `engineering.masterCard.draft`   | ORG   | Create a card and draft a revision                       | —             |
+| `engineering.masterCard.submit`  | ORG   | Submit a draft revision for review                       | —             |
+| `engineering.masterCard.release` | ORG   | Approve or reject a revision under review                | Maker-checker |
+| `engineering.file.read`          | ORG   | Request access to an attached dieline, artwork, or photo | —             |
+| `engineering.file.attach`        | ORG   | Attach a file to a draft revision                        | —             |
+| `production.packet.read`         | WH    | Read factory packets at a site                           | —             |
+| `production.packet.issue`        | WH    | Issue a packet for a design-ready line                   | —             |
+| `production.packet.acknowledge`  | WH    | Acknowledge a packet on the floor                        | —             |
+
+### 2.4 Purchase orders
 
 | Permission code            | Scope | Guards                                | Extra policy  |
 | -------------------------- | ----- | ------------------------------------- | ------------- |
@@ -89,7 +125,7 @@ target warehouse participates in the decision.
 | `purchasing.po.cancel`     | WH    | Cancel a purchase order or line       | Maker-checker |
 | `purchasing.po.closeShort` | WH    | Under-close a PO line with a reason   | Threshold     |
 
-### 2.4 Receiving
+### 2.5 Receiving
 
 | Permission code                   | Scope | Guards                                                 | Extra policy             |
 | --------------------------------- | ----- | ------------------------------------------------------ | ------------------------ |
@@ -101,7 +137,7 @@ target warehouse participates in the decision.
 | `receiving.receipt.cancelLine`    | WH    | Cancel an unposted receipt line                        | —                        |
 | `receiving.exception.manage`      | WH    | Record and resolve receipt exceptions                  | —                        |
 
-### 2.5 Quality control
+### 2.6 Quality control
 
 | Permission code               | Scope | Guards                                             | Extra policy           |
 | ----------------------------- | ----- | -------------------------------------------------- | ---------------------- |
@@ -113,7 +149,7 @@ target warehouse participates in the decision.
 | `quality.disposition.approve` | WH    | Approve a proposed disposition                     | Maker-checker, step-up |
 | `quality.attachment.read`     | WH    | Download private QC evidence files                 | —                      |
 
-### 2.6 Handling units and labels
+### 2.7 Handling units and labels
 
 | Permission code             | Scope | Guards                                     | Extra policy           |
 | --------------------------- | ----- | ------------------------------------------ | ---------------------- |
@@ -131,7 +167,7 @@ target warehouse participates in the decision.
 | `label.print.execute`       | WH    | Generate a label payload                   | —                      |
 | `label.print.reprint`       | WH    | Reprint an existing label                  | —                      |
 
-### 2.7 Putaway
+### 2.8 Putaway
 
 | Permission code         | Scope | Guards                                       | Extra policy |
 | ----------------------- | ----- | -------------------------------------------- | ------------ |
@@ -141,7 +177,7 @@ target warehouse participates in the decision.
 | `putaway.task.override` | WH    | Confirm to a location other than recommended | Threshold    |
 | `putaway.policy.manage` | WH    | Configure putaway policies and preferences   | Step-up      |
 
-### 2.8 Inventory
+### 2.9 Inventory
 
 | Permission code                    | Scope | Guards                                                     | Extra policy                      |
 | ---------------------------------- | ----- | ---------------------------------------------------------- | --------------------------------- |
@@ -153,7 +189,7 @@ target warehouse participates in the decision.
 | `inventory.transaction.reverse`    | WH    | Reverse a transaction with a reason code                   | Threshold, maker-checker, step-up |
 | `inventory.negativeStock.override` | WH    | Post under an explicit negative-stock tenant policy (D-12) | Step-up, maker-checker            |
 
-### 2.9 Reporting
+### 2.10 Reporting
 
 | Permission code            | Scope | Guards                                   | Extra policy |
 | -------------------------- | ----- | ---------------------------------------- | ------------ |
@@ -162,7 +198,7 @@ target warehouse participates in the decision.
 | `reporting.export.read`    | WH    | Download a private export artifact       | —            |
 | `reporting.jobRun.read`    | ORG   | Inspect job runs and dead letters        | —            |
 
-### 2.10 Platform-only (never granted to tenant roles)
+### 2.11 Platform-only (never granted to tenant roles)
 
 | Permission code                 | Scope    | Guards                                    | Extra policy                     |
 | ------------------------------- | -------- | ----------------------------------------- | -------------------------------- |
@@ -198,106 +234,130 @@ not the `permissions` table, which is reference data for administration and audi
 | `INVENTORY_ANALYST` | Inventory / planning analyst | Assigned warehouses     |
 | `VIEWER`            | Read-only stakeholder        | Assigned warehouses     |
 
+The four order-to-ship roles are separate rather than folded into the warehouse
+roles, because separating them is how the slice's two rules are held. `ENGINEER`
+draws and submits but cannot release; `ENGINEERING_APPROVER` releases but holds
+neither `draft` nor `submit`, so a checker cannot first become a maker.
+`PRODUCTION_PLANNER` holds no `engineering.*` code at all — an unreleased revision
+must never reach the floor, and the packet's own snapshot is what makes those narrow
+permissions sufficient. `SALES_CUSTOMER_SERVICE` can read which revision an order is
+pinned to but holds no `engineering.file.read`: a customer-facing role holding
+artwork is how another customer's artwork leaves the building.
+
+| Role key                 | Intended holder             | Default warehouse scope |
+| ------------------------ | --------------------------- | ----------------------- |
+| `SALES_CUSTOMER_SERVICE` | Sales / customer service    | All warehouses          |
+| `ENGINEER`               | Design engineer             | All warehouses          |
+| `ENGINEERING_APPROVER`   | Engineering lead / approver | All warehouses          |
+| `PRODUCTION_PLANNER`     | Production planner          | Assigned warehouses     |
+
 ### 3.1 Default mapping
 
 `Y` = granted by default. Blank = not granted. Platform-only permissions appear in
 no tenant role.
 
-| Permission                         | ORG_ADMIN | WAREHOUSE_MANAGER | SUPERVISOR | RECEIVER | QC_INSPECTOR | PUTAWAY_OPERATOR | INVENTORY_ANALYST | VIEWER |
-| ---------------------------------- | --------- | ----------------- | ---------- | -------- | ------------ | ---------------- | ----------------- | ------ |
-| `admin.organization.read`          | Y         | Y                 |            |          |              |                  |                   |        |
-| `admin.organization.update`        | Y         |                   |            |          |              |                  |                   |        |
-| `admin.membership.read`            | Y         | Y                 | Y          |          |              |                  |                   |        |
-| `admin.membership.invite`          | Y         | Y                 |            |          |              |                  |                   |        |
-| `admin.membership.update`          | Y         | Y                 |            |          |              |                  |                   |        |
-| `admin.membership.revoke`          | Y         |                   |            |          |              |                  |                   |        |
-| `admin.role.read`                  | Y         | Y                 |            |          |              |                  |                   |        |
-| `admin.role.manage`                | Y         |                   |            |          |              |                  |                   |        |
-| `admin.device.manage`              | Y         | Y                 |            |          |              |                  |                   |        |
-| `admin.audit.read`                 | Y         | Y                 | Y          |          |              |                  | Y                 |        |
-| `admin.supportGrant.read`          | Y         | Y                 |            |          |              |                  |                   |        |
-| `admin.supportGrant.approve`       | Y         |                   |            |          |              |                  |                   |        |
-| `admin.settings.policy.manage`     | Y         |                   |            |          |              |                  |                   |        |
-| `masterData.item.read`             | Y         | Y                 | Y          | Y        | Y            | Y                | Y                 | Y      |
-| `masterData.item.manage`           | Y         | Y                 |            |          |              |                  |                   |        |
-| `masterData.item.deactivate`       | Y         | Y                 |            |          |              |                  |                   |        |
-| `masterData.supplier.read`         | Y         | Y                 | Y          | Y        | Y            |                  | Y                 | Y      |
-| `masterData.supplier.manage`       | Y         | Y                 |            |          |              |                  |                   |        |
-| `masterData.warehouse.read`        | Y         | Y                 | Y          | Y        | Y            | Y                | Y                 | Y      |
-| `masterData.warehouse.manage`      | Y         |                   |            |          |              |                  |                   |        |
-| `masterData.location.read`         | Y         | Y                 | Y          | Y        | Y            | Y                | Y                 | Y      |
-| `masterData.location.manage`       | Y         | Y                 |            |          |              |                  |                   |        |
-| `masterData.storageClass.read`     | Y         | Y                 | Y          | Y        | Y            | Y                | Y                 | Y      |
-| `masterData.storageClass.manage`   | Y         | Y                 |            |          |              |                  |                   |        |
-| `masterData.location.reparent`     | Y         | Y                 |            |          |              |                  |                   |        |
-| `masterData.lot.read`              | Y         | Y                 | Y          | Y        | Y            | Y                | Y                 | Y      |
-| `masterData.lot.create`            | Y         | Y                 | Y          | Y        |              |                  |                   |        |
-| `masterData.lot.manage`            | Y         | Y                 | Y          |          |              |                  |                   |        |
-| `masterData.reasonCode.read`       | Y         | Y                 | Y          | Y        | Y            | Y                | Y                 | Y      |
-| `masterData.reasonCode.manage`     | Y         | Y                 |            |          |              |                  |                   |        |
-| `masterData.import.execute`        | Y         | Y                 |            |          |              |                  |                   |        |
-| `masterData.owner.read`            | Y         | Y                 |            |          |              |                  |                   |        |
-| `masterData.owner.manage`          | Y         |                   |            |          |              |                  |                   |        |
-| `purchasing.po.read`               | Y         | Y                 | Y          | Y        |              |                  | Y                 | Y      |
-| `purchasing.po.create`             | Y         | Y                 | Y          |          |              |                  |                   |        |
-| `purchasing.po.update`             | Y         | Y                 | Y          |          |              |                  |                   |        |
-| `purchasing.po.import`             | Y         | Y                 |            |          |              |                  |                   |        |
-| `purchasing.po.cancel`             | Y         | Y                 |            |          |              |                  |                   |        |
-| `purchasing.po.closeShort`         | Y         | Y                 | Y          |          |              |                  |                   |        |
-| `receiving.receipt.read`           | Y         | Y                 | Y          | Y        | Y            | Y                | Y                 | Y      |
-| `receiving.receipt.post`           | Y         | Y                 | Y          | Y        |              |                  |                   |        |
-| `receiving.receipt.overTolerance`  | Y         | Y                 | Y          |          |              |                  |                   |        |
-| `receiving.receipt.unexpected`     | Y         | Y                 | Y          |          |              |                  |                   |        |
-| `receiving.receipt.blind`          | Y         | Y                 |            |          |              |                  |                   |        |
-| `receiving.receipt.cancelLine`     | Y         | Y                 | Y          | Y        |              |                  |                   |        |
-| `receiving.exception.manage`       | Y         | Y                 | Y          | Y        |              |                  |                   |        |
-| `quality.profile.read`             | Y         | Y                 | Y          |          | Y            |                  | Y                 |        |
-| `quality.profile.manage`           | Y         | Y                 |            |          |              |                  |                   |        |
-| `quality.inspection.read`          | Y         | Y                 | Y          | Y        | Y            |                  | Y                 | Y      |
-| `quality.inspection.execute`       | Y         | Y                 | Y          |          | Y            |                  |                   |        |
-| `quality.disposition.submit`       | Y         | Y                 | Y          |          | Y            |                  |                   |        |
-| `quality.disposition.approve`      | Y         | Y                 | Y          |          |              |                  |                   |        |
-| `quality.attachment.read`          | Y         | Y                 | Y          |          | Y            |                  | Y                 |        |
-| `handlingUnit.read`                | Y         | Y                 | Y          | Y        | Y            | Y                | Y                 | Y      |
-| `handlingUnit.build`               | Y         | Y                 | Y          | Y        |              |                  |                   |        |
-| `handlingUnit.split`               | Y         | Y                 | Y          | Y        |              | Y                |                   |        |
-| `handlingUnit.merge`               | Y         | Y                 | Y          | Y        |              | Y                |                   |        |
-| `handlingUnit.relabel`             | Y         | Y                 | Y          |          |              |                  |                   |        |
-| `handlingUnit.nest`                | Y         | Y                 | Y          | Y        |              | Y                |                   |        |
-| `handlingUnit.mixedContent`        | Y         | Y                 |            |          |              |                  |                   |        |
-| `label.template.read`              | Y         | Y                 | Y          |          |              |                  |                   |        |
-| `label.template.draft`             | Y         | Y                 | Y          |          |              |                  |                   |        |
-| `label.template.manage`            | Y         |                   |            |          |              |                  |                   |        |
-| `label.print.read`                 | Y         | Y                 | Y          | Y        | Y            | Y                |                   |        |
-| `label.print.execute`              | Y         | Y                 | Y          | Y        | Y            | Y                |                   |        |
-| `label.print.reprint`              | Y         | Y                 | Y          | Y        |              | Y                |                   |        |
-| `putaway.task.read`                | Y         | Y                 | Y          | Y        |              | Y                | Y                 | Y      |
-| `putaway.task.claim`               | Y         | Y                 | Y          | Y        |              | Y                |                   |        |
-| `putaway.task.confirm`             | Y         | Y                 | Y          | Y        |              | Y                |                   |        |
-| `putaway.task.override`            | Y         | Y                 | Y          |          |              | Y                |                   |        |
-| `putaway.policy.manage`            | Y         | Y                 |            |          |              |                  |                   |        |
-| `inventory.balance.read`           | Y         | Y                 | Y          | Y        | Y            | Y                | Y                 | Y      |
-| `inventory.history.read`           | Y         | Y                 | Y          | Y        | Y            | Y                | Y                 | Y      |
-| `inventory.transaction.post`       | Y         | Y                 | Y          |          |              |                  |                   |        |
-| `inventory.statusChange.submit`    | Y         | Y                 | Y          |          | Y            |                  | Y                 |        |
-| `inventory.statusChange.approve`   | Y         | Y                 | Y          |          |              |                  |                   |        |
-| `inventory.transaction.reverse`    | Y         | Y                 |            |          |              |                  |                   |        |
-| `inventory.negativeStock.override` | Y         |                   |            |          |              |                  |                   |        |
-| `reporting.dashboard.read`         | Y         | Y                 | Y          | Y        | Y            | Y                | Y                 | Y      |
-| `reporting.export.execute`         | Y         | Y                 | Y          |          |              |                  | Y                 |        |
-| `reporting.export.read`            | Y         | Y                 | Y          |          |              |                  | Y                 |        |
-| `reporting.jobRun.read`            | Y         | Y                 |            |          |              |                  |                   |        |
-
-Notes on the mapping:
-
-- `RECEIVER` and `PUTAWAY_OPERATOR` deliberately hold no approval permission, so
-  maker-checker cannot collapse into one person on a handheld.
-- `SUPERVISOR` can approve dispositions and status changes but cannot reverse ledger
-  transactions; reversal stays with `WAREHOUSE_MANAGER` and `ORG_ADMIN`.
-- `inventory.negativeStock.override` is granted only to `ORG_ADMIN` and only has
-  effect if the tenant policy in D-12 is explicitly enabled.
-- `VIEWER` holds read permissions only, including no attachment access, because QC
-  photos may contain incidental personal data.
+| Permission                         | ORG_ADMIN | WAREHOUSE_MANAGER | SUPERVISOR | RECEIVER | QC_INSPECTOR | PUTAWAY_OPERATOR | INVENTORY_ANALYST | VIEWER | SALES_CUSTOMER_SERVICE | ENGINEER | ENGINEERING_APPROVER | PRODUCTION_PLANNER |
+| ---------------------------------- | --------- | ----------------- | ---------- | -------- | ------------ | ---------------- | ----------------- | ------ | ---------------------- | -------- | -------------------- | ------------------ |
+| `admin.organization.read`          | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `admin.organization.update`        | Y         |                   |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `admin.membership.read`            | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
+| `admin.membership.invite`          | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `admin.membership.update`          | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `admin.membership.revoke`          | Y         |                   |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `admin.role.read`                  | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `admin.role.manage`                | Y         |                   |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `admin.device.manage`              | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `admin.audit.read`                 | Y         | Y                 | Y          |          |              |                  | Y                 |        |                        |          |                      |                    |
+| `admin.supportGrant.read`          | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `admin.supportGrant.approve`       | Y         |                   |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `admin.settings.policy.manage`     | Y         |                   |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `masterData.item.read`             | Y         | Y                 | Y          | Y        | Y            | Y                | Y                 | Y      |                        |          |                      |                    |
+| `masterData.item.manage`           | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `masterData.item.deactivate`       | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `masterData.supplier.read`         | Y         | Y                 | Y          | Y        | Y            |                  | Y                 | Y      |                        |          |                      |                    |
+| `masterData.supplier.manage`       | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `masterData.warehouse.read`        | Y         | Y                 | Y          | Y        | Y            | Y                | Y                 | Y      | Y                      | Y        | Y                    | Y                  |
+| `masterData.warehouse.manage`      | Y         |                   |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `masterData.location.read`         | Y         | Y                 | Y          | Y        | Y            | Y                | Y                 | Y      |                        |          |                      |                    |
+| `masterData.location.manage`       | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `masterData.storageClass.read`     | Y         | Y                 | Y          | Y        | Y            | Y                | Y                 | Y      |                        |          |                      |                    |
+| `masterData.storageClass.manage`   | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `masterData.location.reparent`     | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `masterData.lot.read`              | Y         | Y                 | Y          | Y        | Y            | Y                | Y                 | Y      |                        |          |                      |                    |
+| `masterData.lot.create`            | Y         | Y                 | Y          | Y        |              |                  |                   |        |                        |          |                      |                    |
+| `masterData.lot.manage`            | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
+| `masterData.reasonCode.read`       | Y         | Y                 | Y          | Y        | Y            | Y                | Y                 | Y      |                        |          |                      |                    |
+| `masterData.reasonCode.manage`     | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `masterData.import.execute`        | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `masterData.owner.read`            | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `masterData.owner.manage`          | Y         |                   |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `sales.customer.read`              | Y         | Y                 |            |          |              |                  |                   |        | Y                      | Y        | Y                    | Y                  |
+| `sales.customer.manage`            | Y         |                   |            |          |              |                  |                   |        | Y                      |          |                      |                    |
+| `sales.order.read`                 | Y         | Y                 |            |          |              |                  |                   |        | Y                      | Y        | Y                    | Y                  |
+| `sales.order.create`               | Y         |                   |            |          |              |                  |                   |        | Y                      |          |                      |                    |
+| `sales.order.update`               | Y         |                   |            |          |              |                  |                   |        | Y                      |          |                      |                    |
+| `sales.order.release`              | Y         |                   |            |          |              |                  |                   |        | Y                      |          |                      |                    |
+| `sales.order.cancel`               | Y         |                   |            |          |              |                  |                   |        | Y                      |          |                      |                    |
+| `engineering.request.read`         | Y         |                   |            |          |              |                  |                   |        | Y                      | Y        | Y                    |                    |
+| `engineering.request.assign`       | Y         |                   |            |          |              |                  |                   |        |                        | Y        |                      |                    |
+| `engineering.masterCard.read`      | Y         |                   |            |          |              |                  |                   |        | Y                      | Y        | Y                    |                    |
+| `engineering.masterCard.draft`     | Y         |                   |            |          |              |                  |                   |        |                        | Y        |                      |                    |
+| `engineering.masterCard.submit`    | Y         |                   |            |          |              |                  |                   |        |                        | Y        |                      |                    |
+| `engineering.masterCard.release`   | Y         |                   |            |          |              |                  |                   |        |                        |          | Y                    |                    |
+| `engineering.file.read`            | Y         |                   |            |          |              |                  |                   |        |                        | Y        | Y                    |                    |
+| `engineering.file.attach`          | Y         |                   |            |          |              |                  |                   |        |                        | Y        |                      |                    |
+| `production.packet.read`           | Y         | Y                 |            |          |              |                  |                   | Y      | Y                      |          |                      | Y                  |
+| `production.packet.issue`          | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      | Y                  |
+| `production.packet.acknowledge`    | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      | Y                  |
+| `purchasing.po.read`               | Y         | Y                 | Y          | Y        |              |                  | Y                 | Y      |                        |          |                      |                    |
+| `purchasing.po.create`             | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
+| `purchasing.po.update`             | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
+| `purchasing.po.import`             | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `purchasing.po.cancel`             | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `purchasing.po.closeShort`         | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
+| `receiving.receipt.read`           | Y         | Y                 | Y          | Y        | Y            | Y                | Y                 | Y      |                        |          |                      |                    |
+| `receiving.receipt.post`           | Y         | Y                 | Y          | Y        |              |                  |                   |        |                        |          |                      |                    |
+| `receiving.receipt.overTolerance`  | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
+| `receiving.receipt.unexpected`     | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
+| `receiving.receipt.blind`          | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `receiving.receipt.cancelLine`     | Y         | Y                 | Y          | Y        |              |                  |                   |        |                        |          |                      |                    |
+| `receiving.exception.manage`       | Y         | Y                 | Y          | Y        |              |                  |                   |        |                        |          |                      |                    |
+| `quality.profile.read`             | Y         | Y                 | Y          |          | Y            |                  | Y                 |        |                        |          |                      |                    |
+| `quality.profile.manage`           | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `quality.inspection.read`          | Y         | Y                 | Y          | Y        | Y            |                  | Y                 | Y      |                        |          |                      |                    |
+| `quality.inspection.execute`       | Y         | Y                 | Y          |          | Y            |                  |                   |        |                        |          |                      |                    |
+| `quality.disposition.submit`       | Y         | Y                 | Y          |          | Y            |                  |                   |        |                        |          |                      |                    |
+| `quality.disposition.approve`      | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
+| `quality.attachment.read`          | Y         | Y                 | Y          |          | Y            |                  | Y                 |        |                        |          |                      |                    |
+| `handlingUnit.read`                | Y         | Y                 | Y          | Y        | Y            | Y                | Y                 | Y      |                        |          |                      |                    |
+| `handlingUnit.build`               | Y         | Y                 | Y          | Y        |              |                  |                   |        |                        |          |                      |                    |
+| `handlingUnit.split`               | Y         | Y                 | Y          | Y        |              | Y                |                   |        |                        |          |                      |                    |
+| `handlingUnit.merge`               | Y         | Y                 | Y          | Y        |              | Y                |                   |        |                        |          |                      |                    |
+| `handlingUnit.relabel`             | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
+| `handlingUnit.nest`                | Y         | Y                 | Y          | Y        |              | Y                |                   |        |                        |          |                      |                    |
+| `handlingUnit.mixedContent`        | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `label.template.read`              | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
+| `label.template.draft`             | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
+| `label.template.manage`            | Y         |                   |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `label.print.read`                 | Y         | Y                 | Y          | Y        | Y            | Y                |                   |        |                        |          |                      |                    |
+| `label.print.execute`              | Y         | Y                 | Y          | Y        | Y            | Y                |                   |        |                        |          |                      |                    |
+| `label.print.reprint`              | Y         | Y                 | Y          | Y        |              | Y                |                   |        |                        |          |                      |                    |
+| `putaway.task.read`                | Y         | Y                 | Y          | Y        |              | Y                | Y                 | Y      |                        |          |                      |                    |
+| `putaway.task.claim`               | Y         | Y                 | Y          | Y        |              | Y                |                   |        |                        |          |                      |                    |
+| `putaway.task.confirm`             | Y         | Y                 | Y          | Y        |              | Y                |                   |        |                        |          |                      |                    |
+| `putaway.task.override`            | Y         | Y                 | Y          |          |              | Y                |                   |        |                        |          |                      |                    |
+| `putaway.policy.manage`            | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `inventory.balance.read`           | Y         | Y                 | Y          | Y        | Y            | Y                | Y                 | Y      |                        |          |                      |                    |
+| `inventory.history.read`           | Y         | Y                 | Y          | Y        | Y            | Y                | Y                 | Y      |                        |          |                      |                    |
+| `inventory.transaction.post`       | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
+| `inventory.statusChange.submit`    | Y         | Y                 | Y          |          | Y            |                  | Y                 |        |                        |          |                      |                    |
+| `inventory.statusChange.approve`   | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
+| `inventory.transaction.reverse`    | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `inventory.negativeStock.override` | Y         |                   |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `reporting.dashboard.read`         | Y         | Y                 | Y          | Y        | Y            | Y                | Y                 | Y      | Y                      | Y        | Y                    | Y                  |
+| `reporting.export.execute`         | Y         | Y                 | Y          |          |              |                  | Y                 |        |                        |          |                      |                    |
+| `reporting.export.read`            | Y         | Y                 | Y          |          |              |                  | Y                 |        |                        |          |                      |                    |
+| `reporting.jobRun.read`            | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
 
 ## 4. Policy semantics
 

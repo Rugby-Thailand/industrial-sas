@@ -236,6 +236,38 @@ export interface AuditChange {
 }
 
 /**
+ * One field value, as the audit row displays it.
+ *
+ * Objects and arrays go through `JSON.stringify` rather than `String`, which
+ * would render every one of them as `[object Object]`. A master-card revision
+ * embeds its whole specification in one field, so plain coercion would record
+ * that the specification changed while erasing what it changed to — the exact
+ * thing the row exists to answer.
+ */
+export function describeAuditValue(value: unknown): string {
+  if (typeof value === "object" && value !== null) {
+    return JSON.stringify(value);
+  }
+  return String(value);
+}
+
+/**
+ * Every field of a freshly inserted document, as its audit changes.
+ *
+ * An insert has no `from`: there was no previous value, and an empty string
+ * would read as "it used to be blank".
+ */
+export function insertedFields(
+  document: Readonly<Record<string, unknown>>,
+): readonly AuditChange[] {
+  return Object.freeze(
+    Object.entries(document)
+      .filter(([, value]) => value !== undefined)
+      .map(([field, value]) => ({ field, to: describeAuditValue(value) })),
+  );
+}
+
+/**
  * The diff between two records, as display strings.
  *
  * Only fields whose value actually changed. An update that touched nothing
@@ -257,8 +289,8 @@ export function diffFields(
     if (previous === next) continue;
     changes.push({
       field,
-      ...(previous === undefined ? {} : { from: String(previous) }),
-      ...(next === undefined ? {} : { to: String(next) }),
+      ...(previous === undefined ? {} : { from: describeAuditValue(previous) }),
+      ...(next === undefined ? {} : { to: describeAuditValue(next) }),
     });
   }
   return Object.freeze(changes);
@@ -327,7 +359,11 @@ export async function createMasterDataRow(
   if (!decision.ok) return decision;
 
   if (decision.value.kind === "REPLAY") {
-    return await replayMasterDataWrite(tenantDb, table, decision.value.record);
+    return await replayStoredMasterDataWrite(
+      tenantDb,
+      table,
+      decision.value.record,
+    );
   }
 
   const unique = await assertUnique(tenantDb, table, input.uniqueness);
@@ -337,10 +373,7 @@ export async function createMasterDataRow(
 
   await appendMasterDataAudit(input, {
     entityId: documentId,
-    changes: Object.entries(input.document).map(([field, value]) => ({
-      field,
-      to: String(value),
-    })),
+    changes: insertedFields(input.document),
   });
 
   const resultHash = await identityDigest(table, documentId);
@@ -398,7 +431,11 @@ export async function updateMasterDataRow(
   if (!decision.ok) return decision;
 
   if (decision.value.kind === "REPLAY") {
-    return await replayMasterDataWrite(tenantDb, table, decision.value.record);
+    return await replayStoredMasterDataWrite(
+      tenantDb,
+      table,
+      decision.value.record,
+    );
   }
 
   const unique = await assertUnique(
@@ -453,7 +490,7 @@ const identityDigest = (table: string, documentId: string): Promise<string> =>
  * Answer a replayed request from the record, after proving the row is still
  * readable and still the one the record names.
  */
-async function replayMasterDataWrite(
+async function replayStoredMasterDataWrite(
   tenantDb: TenantDocumentAccess,
   table: TenantTableName,
   record: {
@@ -491,6 +528,39 @@ async function replayMasterDataWrite(
 }
 
 /**
+ * Return a stored successful answer before a handler evaluates lifecycle state.
+ *
+ * Transition handlers call this after proving the target belongs to the tenant,
+ * but before asking whether its *current* status permits the transition. The
+ * original successful transition necessarily changed that status, so doing the
+ * lifecycle check first would turn a legitimate transport retry into an
+ * `ILLEGAL_TRANSITION` refusal instead of replaying the original answer.
+ */
+export async function replayTenantWriteIfPresent(input: {
+  readonly tenantDb: TenantDocumentAccess;
+  readonly table: TenantTableName;
+  readonly operation: string;
+  readonly requestId: string;
+  readonly fingerprint: unknown;
+}): Promise<Result<MasterDataOutcome | null, MasterDataError>> {
+  const fingerprint = await fingerprintArguments(input.fingerprint);
+  if (!fingerprint.ok) return fingerprint;
+  const decision = await checkIdempotency({
+    tenantDb: input.tenantDb,
+    operation: input.operation,
+    requestId: input.requestId,
+    requestHash: fingerprint.value,
+  });
+  if (!decision.ok) return decision;
+  if (decision.value.kind === "FRESH") return ok(null);
+  return await replayStoredMasterDataWrite(
+    input.tenantDb,
+    input.table,
+    decision.value.record,
+  );
+}
+
+/**
  * Append the domain audit row for a master-data write.
  *
  * Separate from the wrapper's authorization row, which records that the actor
@@ -506,13 +576,44 @@ async function appendMasterDataAudit(
     readonly changes: readonly AuditChange[];
   },
 ): Promise<void> {
+  await appendDomainAudit(context, {
+    entityTable: context.table,
+    entityId: input.entityId,
+    changes: input.changes,
+  });
+}
+
+/**
+ * Append a domain audit row for a row this write touched *besides* its primary
+ * target.
+ *
+ * Several order-to-ship transitions are one decision that lands on two rows:
+ * releasing a master-card revision also supersedes the revision it replaces and
+ * repoints its card; issuing a factory packet also moves the order line to
+ * `HANDED_OFF`. The idempotency record covers the whole transaction through its
+ * primary target, but the audit trail is read per entity — an administrator
+ * asking "why did this line become handed off" looks the *line* up, not the
+ * packet. Without this, that question has no answer.
+ *
+ * Insert only, same as every other writer of this table: the boundary guard
+ * fails the build on a `patch`, `replace`, or `delete` naming `auditEvents`
+ * (`INV-0003-07`).
+ */
+export async function appendDomainAudit(
+  context: MasterDataWriteContext,
+  input: {
+    readonly entityTable: TenantTableName;
+    readonly entityId: string;
+    readonly changes: readonly AuditChange[];
+  },
+): Promise<void> {
   await context.tenantDb.insert("auditEvents", {
     occurredAt: context.now,
     actorKind: "USER" as const,
     actorUserId: context.actorUserId,
     action: context.operation,
     permissionCode: context.permissionCode,
-    entityTable: context.table,
+    entityTable: input.entityTable,
     entityId: input.entityId,
     ...(context.warehouseId === undefined
       ? {}

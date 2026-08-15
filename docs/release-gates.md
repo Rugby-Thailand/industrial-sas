@@ -29,18 +29,20 @@ attempts, signed Clerk webhook identity synchronization, the code-owned permissi
 catalogue with its fail-closed policy evaluator and provisioning seed, and — new —
 the **pure inventory primitives**: quantity as integer minor units, exact rational UOM
 conversion, GS1 parsing, identifier normalization, LPNs, Bangkok business dates, and
-FIFO/FEFO ordering ([`convex/model/**`](../convex/model/README.md)). Nothing is
-deployed and no feature function exists, so every gate that depends on behaviour in a
-running environment still depends on code that does not exist.
+FIFO/FEFO ordering ([`convex/model/**`](../convex/model/README.md)). Phase 5A also
+has local production functions, private-file gateways, bilingual routes, and recorded
+runtime/browser acceptance evidence. Nothing is deployed, so pilot and operational
+gates still require their external rollout evidence.
 
-Of the 71 gates registered here, **two are satisfied** — `RG-062` (the ADR set) and
+Of the 72 gates registered here, **three code gates are satisfied** — `RG-062` (the ADR set),
 `RG-001` (B-01…B-12 accepted, evidenced by the
-[approval record](./approval-record.md)) — **seven are in progress** (`RG-053`,
+[approval record](./approval-record.md)), and `RG-072` (Phase 5A local acceptance,
+with pilot acknowledgement still external) — **seven are in progress** (`RG-053`,
 `RG-054`, `RG-055`: the standing merge gates; `RG-032` and `RG-033`: the static
 guards that now exist but are not required checks; `RG-026`, whose wrapper-level
 matrix is green while its per-function matrix waits for functions; and `RG-020`, see
-below), and the remaining **62 are `Not started`**. That is the accurate picture, not
-a pessimistic one.
+below), and the remaining **62 are `Not started`**. That is the accurate picture,
+not a pessimistic one.
 
 `RG-020` moves to `In progress` rather than `Satisfied`. The property suite it names
 exists and is green — exactness, refusal to round, precision bound, canonical
@@ -158,6 +160,12 @@ implementation against fakes is not waiting on them.
 | `RG-058` | Tenant export and deletion procedures distinguish retained records from erasable personal data    | External | Product owner    | Documented procedure plus a rehearsed export/deletion run                             | Not started |
 | `RG-060` | Support access, restore, onboarding, offboarding, incident, and key-rotation runbooks rehearsed   | External | Platform         | Rehearsal records per [runbook](./runbooks/README.md)                                 | Not started |
 | `RG-061` | Contracts promise no unsupported region, offline operation, PITR, or unmeasured latency/RPO (§14) | External | Product owner    | Contract review note                                                                  | Not started |
+
+## Phase 5A — customer order and approved design
+
+| ID       | Gate                                                                                                                                                                                                       | Kind  | Owner            | Evidence required                                                                                                                                                                   | Status                                                                                                                                                                                                                                                                                                                                                                                                              |
+| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `RG-072` | Both an existing-design and a new-design order line reach an acknowledged factory packet, with tenant isolation, revision pinning, permissions, idempotency, Thai/English UX, and private-file enforcement | Mixed | Engineering lead | Green integration and isolation suites for both branches, plus a recorded walkthrough of each branch in Thai and English ([ADR-0013](./adr/0013-order-to-ship-design-authority.md)) | Passed (code gate) — both runtime branches acknowledge a pinned packet; upload/download, current-object, retry, cross-tenant and legacy-provenance checks are green; Thai/English desktop, print, accessibility and handheld checks are recorded in the [Phase 5A acceptance record](./reviews/2026-08-15-phase-5a-acceptance-record.md). Pilot-site training acknowledgement remains an external rollout activity. |
 
 ## Standing merge gates
 

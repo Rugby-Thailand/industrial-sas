@@ -13,6 +13,11 @@ objects and algebra only — no table stores any of them, and nothing enforces t
 uniqueness or never-reuse rules that belong to a mutation. Every other term is
 still specification.
 
+The order-to-ship vocabulary — `G-119` to `G-129` — is implemented in full by the
+Phase 5A slice: `convex/model/orderToShip/**`, the eight tables at the end of
+`convex/schema.ts`, and the functions under `convex/sales/**`,
+`convex/engineering/**`, and `convex/production/**` (`ADR-0013`).
+
 The Phase 4 reporting vocabulary — `G-112` to `G-118` — is implemented in full:
 `convex/model/reporting/**`, `convex/lib/rollupStore.ts`, `convex/reporting/**`,
 and `scripts/lib/exportEnvelope.mjs`. Those terms describe running code rather
@@ -132,6 +137,26 @@ Rules for this glossary:
 | `G-088` | Override               | An operator's audited choice of a different location than recommended (D-14).                                                   | —                                                             |
 | `G-089` | Overflow               | The fallback location class used when no preferred location qualifies (D-14).                                                   | —                                                             |
 | `G-090` | Task claim             | A compare-and-set assignment of a task to exactly one actor (§5 Q30).                                                           | Rejected: "lock".                                             |
+
+## Order to ship
+
+The Phase 5A vocabulary (`ADR-0013`). Numbering continues from the platform block
+rather than filling the gap after `G-090`, so later order-to-ship phases can extend
+this section without renumbering anything.
+
+| ID      | Term                 | Definition                                                                                                                                                              | Notes / rejected synonyms                                                                                                            |
+| ------- | -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `G-119` | Customer             | A party the tenant sells boxes to. A separate register from supplier (`G-051`), even when the same legal entity is both.                                                | Rejected: "party", "account". One table with a direction flag would put sales demand inside every receiving read.                    |
+| `G-120` | Customer order       | What a customer asked the tenant to make: the customer PO and the internal sales order, as one document (`ADR-0013` §1).                                                | **Never** a `purchaseOrders` row (`G-060`), which is supplier-facing procurement. Rejected: "sales order" in identifiers.            |
+| `G-121` | Customer order line  | One box, in one quantity, on one customer order. The unit that carries a design decision and reaches a factory packet.                                                  | Rejected: "order item".                                                                                                              |
+| `G-122` | Design key           | A canonical structural fingerprint of a box specification (`G-125`), used to rank similar designs for a person. It is never the automatic reuse identity.               | Rejected: "exact-match key". Customer + customer product code is the authoritative exact identity.                                   |
+| `G-123` | Design request       | Work engineering owes on exactly one order line, raised by the system when no released revision matches (`INV-0013-01`).                                                | Rejected: "design ticket", "ECR". Never created by hand: a request behind no line is a drawing nobody ordered.                       |
+| `G-124` | Design source        | Where a line's design came from: `EXISTING` (customer + customer product code resolved to a released revision) or `NEW` (a design request was raised). Decided by the system. | Rejected: "match type". A structural near-match stays `NEW` until a person explicitly confirms it.                                 |
+| `G-125` | Box specification    | The structured description of one box: dimensions, board grade, flute, print colours, and finishing. Values only; no identity of its own.                               | Rejected: "spec sheet" (a document), "BOM" (a standing non-goal, plan §2.3).                                                         |
+| `G-126` | Master card          | The stable identity of one design across every revision of it. Holds no specification itself.                                                                           | Rejected: "SKU" (`G-040` is the inventory item, a different thing), "design", "product".                                             |
+| `G-127` | Master-card revision | One version of a design, and the only thing a factory packet may pin. `RELEASED` is immutable in every field but `supersededByRevisionId` (`INV-0013-02`).              | Rejected: "version" in identifiers. "Rev 3" names one document forever, including after a rejection and including on paper.          |
+| `G-128` | Master-card file     | A dieline, artwork file, or photo attached to one revision. Private, and every access is a fresh permission check (`ADR-0008`).                                         | Rejected: "attachment" when the revision link matters.                                                                               |
+| `G-129` | Factory packet       | The one document that crosses from the office to the shop floor, pinned to exactly one released revision and carrying a snapshot of it (`INV-0013-04`).                 | Rejected: "work order" and "job" — both are standing non-goals (plan §2.3). Not yet a factory order (`FO`), which is Phase 5B.       |
 
 ## Platform and delivery
 

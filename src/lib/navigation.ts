@@ -39,6 +39,9 @@ export const ROUTES = Object.freeze({
   purchaseOrders: "/purchasing/orders",
   inboundBoard: "/inbound",
   purchaseImport: "/purchasing/import",
+  customerOrders: "/sales/orders",
+  engineeringQueue: "/engineering/designs",
+  factoryPackets: "/production/packets",
   receiving: "/receiving",
   quality: "/quality",
   putaway: "/putaway",
@@ -67,6 +70,14 @@ export const DESKTOP_NAVIGATION: readonly NavigationSection[] = Object.freeze([
       { href: ROUTES.storageClasses, labelKey: "storageClasses" },
       { href: ROUTES.labelTemplates, labelKey: "labelTemplates" },
       { href: ROUTES.locations, labelKey: "locations" },
+    ]),
+  }),
+  Object.freeze({
+    labelKey: "sectionOrderToShip",
+    items: Object.freeze([
+      { href: ROUTES.customerOrders, labelKey: "customerOrders" },
+      { href: ROUTES.engineeringQueue, labelKey: "engineeringQueue" },
+      { href: ROUTES.factoryPackets, labelKey: "factoryPackets" },
     ]),
   }),
   Object.freeze({

@@ -97,6 +97,17 @@ export const TENANT_TABLES = [
   "putawayTasks",
   "operationsRollups",
   "reportJobs",
+  "customers",
+  "customerOrders",
+  "customerOrderLines",
+  "designRequests",
+  "masterCards",
+  "masterCardRevisions",
+  "masterCardFiles",
+  "masterCardUploadGrants",
+  "masterCardFileAccessGrants",
+  "masterCardImportChunks",
+  "factoryPackets",
 ] as const;
 
 export type GlobalTableName = (typeof GLOBAL_TABLES)[number];
@@ -546,6 +557,127 @@ export const UNIQUENESS_CONTRACTS: readonly UniquenessContract[] = [
       "One received line becomes one putaway task. Two tasks for one line would let two operators each " +
       "move the whole quantity, and the second move would post from a bucket already emptied.",
   },
+  {
+    table: "customers",
+    key: ["orgId", "code"],
+    index: "by_orgId_code",
+    condition: ALWAYS,
+    rationale:
+      "The customer code is what a salesperson quotes on the phone and what every order is filed under. " +
+      "Two customers under one code would let an order be raised against the wrong company.",
+  },
+  {
+    table: "customerOrders",
+    key: ["orgId", "orderNumber"],
+    index: "by_orgId_orderNumber",
+    condition: ALWAYS,
+    rationale:
+      "The order number is the tenant's own reference for a commitment to a customer. Duplicates make " +
+      "every 'where is my order' conversation ambiguous (ADR-0013 §2).",
+  },
+  {
+    table: "customerOrders",
+    key: ["orgId", "customerId", "customerReference"],
+    index: "by_orgId_customerId_customerReference",
+    condition: whenPresent("customerReference"),
+    rationale:
+      "One customer PO becomes one order, so a re-keyed or re-imported PO cannot commit the factory twice. " +
+      "Scoped to the customer, not the organization, because two customers may both number their orders " +
+      "PO-001 and refusing the second would be this system telling a customer their numbering is wrong.",
+  },
+  {
+    table: "customerOrderLines",
+    key: ["orgId", "customerOrderId", "lineNumber"],
+    index: "by_orgId_customerOrderId_lineNumber",
+    condition: ALWAYS,
+    rationale:
+      "A factory packet is issued against a line by its position on the order. Two lines at one position " +
+      "would make the hand-off target ambiguous.",
+  },
+  {
+    table: "designRequests",
+    key: ["orgId", "requestNumber"],
+    index: "by_orgId_requestNumber",
+    condition: ALWAYS,
+    rationale:
+      "The request number is what sales quotes when chasing engineering for a date. Duplicates make the " +
+      "chase land on the wrong drawing.",
+  },
+  {
+    table: "designRequests",
+    key: ["orgId", "customerOrderLineId"],
+    index: "by_orgId_customerOrderLineId",
+    condition: ALWAYS,
+    rationale:
+      "One line raises one design request. Two requests for one line would leave two people waiting on one " +
+      "drawing with no way to tell which request the eventual revision answered (INV-0013-05).",
+  },
+  {
+    table: "masterCards",
+    key: ["orgId", "cardNumber"],
+    index: "by_orgId_cardNumber",
+    condition: ALWAYS,
+    rationale:
+      "The card number is written on paper on a factory floor. Two cards under one number would make every " +
+      "reference to it ambiguous at the machine.",
+  },
+  {
+    table: "masterCards",
+    key: ["orgId", "customerId", "customerProductCode"],
+    index: "by_orgId_customerId_customerProductCode",
+    condition: ALWAYS,
+    rationale:
+      "The customer's own product code is the approved exact-match identity. Two cards claiming the same " +
+      "product code for one customer would make automatic reuse ambiguous, while a geometry fingerprint " +
+      "is deliberately advisory only " +
+      "(INV-0013-01).",
+  },
+  {
+    table: "masterCardRevisions",
+    key: ["orgId", "masterCardId", "revisionNumber"],
+    index: "by_orgId_masterCardId_revisionNumber",
+    condition: ALWAYS,
+    rationale:
+      "'Rev 3' has to name one document forever, including after a rejection and including on paper. Two " +
+      "revisions at one number would make a pinned packet ambiguous about what it was cut from " +
+      "(INV-0013-02).",
+  },
+  {
+    table: "masterCardFiles",
+    key: ["orgId", "masterCardRevisionId", "fileKey"],
+    index: "by_orgId_masterCardRevisionId_fileKey",
+    condition: ALWAYS,
+    rationale:
+      "The file key is the attachment's identity within its revision, so a retried attach replaces nothing " +
+      "and duplicates nothing. Two rows under one key would make 'which dieline' unanswerable.",
+  },
+  {
+    table: "masterCardImportChunks",
+    key: ["orgId", "batchRef", "startSourceRow"],
+    index: "by_orgId_batchRef_startSourceRow",
+    condition: ALWAYS,
+    rationale:
+      "One durable result per batch cursor makes migration retries replay the same committed chunk instead of importing the same legacy cards twice.",
+  },
+  {
+    table: "factoryPackets",
+    key: ["orgId", "packetNumber"],
+    index: "by_orgId_packetNumber",
+    condition: ALWAYS,
+    rationale:
+      "The packet number is the reference a floor supervisor reads off the paper in their hand. Duplicates " +
+      "would let two different jobs answer to one number.",
+  },
+  {
+    table: "factoryPackets",
+    key: ["orgId", "customerOrderLineId"],
+    index: "by_orgId_customerOrderLineId",
+    condition: ALWAYS,
+    rationale:
+      "One order line is handed to the factory once. Two packets for one line would let it be built twice, " +
+      "with nothing in this phase to reconcile the runs against — splitting a line across production runs " +
+      "is a factory-order concern (WF-02, Phase 5B).",
+  },
 ] as const;
 
 /* -------------------------------------------------------------------------- */
@@ -570,6 +702,15 @@ export type LookupContract = {
 };
 
 export const BOUNDED_LOOKUP_CONTRACTS: readonly LookupContract[] = [
+  {
+    table: "masterCardUploadGrants",
+    key: ["orgId", "expiresAt"],
+    index: "by_orgId_expiresAt",
+    cardinality: "many",
+    rationale:
+      "Upload capabilities expire independently. The tenant-wide expiry prefix lets each authorization " +
+      "remove a bounded batch of stale grants and unattached storage without scanning revisions or import batches.",
+  },
   {
     table: "supportGrants",
     key: ["orgId", "ticketRef"],
@@ -671,6 +812,102 @@ export const BOUNDED_LOOKUP_CONTRACTS: readonly LookupContract[] = [
     rationale:
       "One pallet accumulates a print job per label generated over its life, including every reprint. " +
       "Reprints are audited as reprints (ADR-0007 §10), so the count grows and is deliberately uncapped.",
+  },
+  {
+    table: "customerOrderLines",
+    key: ["orgId", "customerOrderId"],
+    index: "by_orgId_customerOrderId_lineNumber",
+    cardinality: "many",
+    rationale:
+      "An order holds one line per box ordered — a handful for a phone order, a page for a scheduled " +
+      "call-off. The index is what makes reading one order's lines a bounded page rather than a scan; " +
+      "the position within the order is separately unique.",
+  },
+  {
+    table: "customerOrderLines",
+    key: ["orgId", "status", "designKey"],
+    index: "by_orgId_status_designKey",
+    cardinality: "many",
+    rationale:
+      "Many lines wait on the same new design — the same box ordered by the same customer twice in a " +
+      "week. This index is how the engineering queue is read without scanning every order in the tenant.",
+  },
+  {
+    table: "masterCards",
+    key: ["orgId", "customerId", "designKey"],
+    index: "by_orgId_customerId_designKey",
+    cardinality: "many",
+    rationale:
+      "Several customer product codes may deliberately share one released structural design. The index " +
+      "bounds operator-triggered reuse suggestions without making geometry an automatic identity.",
+  },
+  {
+    table: "masterCardRevisions",
+    key: ["orgId", "masterCardId"],
+    index: "by_orgId_masterCardId_revisionNumber",
+    cardinality: "many",
+    rationale:
+      "A card accumulates a revision per change, forever, because a packet cites the revision it was cut " +
+      "from and superseded revisions stay readable (INV-0013-02). The index bounds one card's history; " +
+      "it does not cap it.",
+  },
+  {
+    table: "masterCardFiles",
+    key: ["orgId", "masterCardRevisionId"],
+    index: "by_orgId_masterCardRevisionId_fileKey",
+    cardinality: "many",
+    rationale:
+      "One revision carries a dieline, artwork, and often a photo of the approved sample. The index makes " +
+      "'show me this revision's files' bounded; the key within the revision is separately unique.",
+  },
+  {
+    table: "masterCardUploadGrants",
+    key: ["orgId", "masterCardRevisionId", "expiresAt"],
+    index: "by_orgId_masterCardRevisionId_expiresAt",
+    cardinality: "many",
+    rationale:
+      "A revision may receive several short-lived one-use upload authorizations. The tenant-first index bounds grant review and cleanup without a tenant scan.",
+  },
+  {
+    table: "masterCardUploadGrants",
+    key: ["orgId", "batchRef", "sourceRow", "expiresAt"],
+    index: "by_orgId_batchRef_sourceRow_expiresAt",
+    cardinality: "many",
+    rationale:
+      "Legacy migration files use the same one-use upload gateway, bound to one batch row before an import may adopt the resulting storage object.",
+  },
+  {
+    table: "masterCardFileAccessGrants",
+    key: ["orgId", "masterCardFileId", "expiresAt"],
+    index: "by_orgId_masterCardFileId_expiresAt",
+    cardinality: "many",
+    rationale:
+      "Each audited file permission check mints one short-lived one-use download capability. The tenant-first index bounds grant cleanup and review.",
+  },
+  {
+    table: "masterCardImportChunks",
+    key: ["orgId", "batchRef"],
+    index: "by_orgId_batchRef_startSourceRow",
+    cardinality: "many",
+    rationale:
+      "A large legacy register is applied as bounded chunks. The batch-first index lists its completed cursors without scanning other imports.",
+  },
+  {
+    table: "masterCardImportChunks",
+    key: ["orgId", "batchRef", "nextSourceRow"],
+    index: "by_orgId_batchRef_nextSourceRow",
+    cardinality: "many",
+    rationale:
+      "A resumable import finds its exact predecessor by the next row it expects, so progress remains bounded and deterministic after any number of chunks.",
+  },
+  {
+    table: "factoryPackets",
+    key: ["orgId", "warehouseId", "status"],
+    index: "by_orgId_warehouseId_status_packetNumber",
+    cardinality: "many",
+    rationale:
+      "A production site holds many issued packets at once — that queue is the screen the floor works " +
+      "from. The index bounds it per site and status; the packet per line is separately unique.",
   },
 ] as const;
 

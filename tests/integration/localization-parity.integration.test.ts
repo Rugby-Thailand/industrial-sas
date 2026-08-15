@@ -17,7 +17,9 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-const load = (locale: string): Record<string, Record<string, string>> =>
+type Catalogue = Readonly<Record<string, unknown>>;
+
+const load = (locale: string): Catalogue =>
   JSON.parse(
     readFileSync(join(process.cwd(), "messages", `${locale}.json`), "utf8"),
   );
@@ -26,17 +28,29 @@ const en = load("en");
 const th = load("th");
 
 /** Every `namespace.key` in one catalogue. */
-const pathsOf = (catalogue: Record<string, Record<string, string>>): string[] =>
-  Object.entries(catalogue).flatMap(([namespace, entries]) =>
-    Object.keys(entries).map((key) => `${namespace}.${key}`),
-  );
+const pathsOf = (catalogue: Catalogue): string[] => {
+  const visit = (value: unknown, prefix: string): string[] =>
+    typeof value === "string"
+      ? [prefix]
+      : value !== null && typeof value === "object" && !Array.isArray(value)
+        ? Object.entries(value).flatMap(([key, child]) =>
+            visit(child, prefix.length === 0 ? key : `${prefix}.${key}`),
+          )
+        : [];
+  return visit(catalogue, "");
+};
 
-const valueAt = (
-  catalogue: Record<string, Record<string, string>>,
-  path: string,
-): string => {
-  const [namespace, key] = path.split(".");
-  return catalogue[namespace ?? ""]?.[key ?? ""] ?? "";
+const valueAt = (catalogue: Catalogue, path: string): string => {
+  const value = path
+    .split(".")
+    .reduce<unknown>(
+      (current, key) =>
+        current !== null && typeof current === "object"
+          ? (current as Readonly<Record<string, unknown>>)[key]
+          : undefined,
+      catalogue,
+    );
+  return typeof value === "string" ? value : "";
 };
 
 /**
@@ -119,9 +133,10 @@ describe("message catalogues", () => {
     // being reworded rather than translated.
     const namespaces = Object.keys(en);
     const englishOnly = namespaces.filter((namespace) => {
-      const prose = Object.entries(th[namespace] ?? {})
-        .filter(([key]) => !IDENTICAL_BY_DESIGN.has(`${namespace}.${key}`))
-        .map(([, value]) => value)
+      const prose = pathsOf(th)
+        .filter((path) => path.startsWith(`${namespace}.`))
+        .filter((path) => !IDENTICAL_BY_DESIGN.has(path))
+        .map((path) => valueAt(th, path))
         .filter((value) => /[A-Za-z]{4,}/.test(value));
       return prose.length > 0 && prose.every((value) => !/[฀-๿]/.test(value));
     });

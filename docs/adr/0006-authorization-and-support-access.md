@@ -9,7 +9,7 @@
 - Implementation status: **Partial.** `convex/lib/permissions.ts` implements the
   documented code-owned catalogue and ordered fail-closed policy evaluator, including
   warehouse scope, entitlement, threshold, maker-checker, and step-up decisions.
-  Organization provisioning idempotently seeds the global catalogue and eight
+  Organization provisioning idempotently seeds the global catalogue and twelve
   editable tenant roles in the same transaction while preserving tenant edits on
   rerun. **Enforcement is now mandatory in the public wrappers**
   (`convex/lib/tenantFunctions.ts`): every `queryWithOrg`, `mutationWithOrg`, and
@@ -137,7 +137,7 @@ Present:
 
 - Integration tests (`tests/integration/permissions.integration.test.ts`): the
   catalogue and every policy flag are compared row by row against
-  [docs/permissions.md](../permissions.md) §2, and the eight default compositions
+  [docs/permissions.md](../permissions.md) §2, and the twelve default compositions
   against §3.1, so the document and the code cannot drift; ordered denial cases for
   unknown code, platform code, inactive membership, ungranted code, foreign
   warehouse, threshold, self-approval, stale reverification, and disabled

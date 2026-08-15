@@ -90,9 +90,16 @@ import {
   actorKind,
   auditOutcome,
   barcodeKind,
+  boxSpecification,
+  customerOrderLineStatus,
+  customerOrderStatus,
   denialReason,
+  designRequestPriority,
+  designRequestStatus,
+  designSource,
   deviceStatus,
   deviceType,
+  factoryPacketStatus,
   idempotencyStatus,
   importBatchStatus,
   inspectionStatus,
@@ -104,6 +111,9 @@ import {
   labelTemplateFormat,
   labelTemplateStatus,
   locationType,
+  masterCardFileKind,
+  masterCardFileStorageState,
+  masterCardRevisionStatus,
   masterDataStatus,
   membershipScopeMode,
   membershipStatus,
@@ -1565,6 +1575,439 @@ const schema = defineSchema({
     .index(
       "by_orgId_warehouseId_itemId_stockStatus",
       byOrg("warehouseId", "itemId", "stockStatus"),
+    ),
+
+  /* ------------------------------------------------------------------------ */
+  /* Order to ship — sales (Phase 5A)                                          */
+  /* ------------------------------------------------------------------------ */
+
+  /**
+   * A party the tenant sells to (`G-119`).
+   *
+   * A separate table from `suppliers`, not a `partyKind` discriminator on a
+   * shared one. The two are read by different people under different permissions
+   * (`sales.customer.read` versus `masterdata.supplier.read`), and a shared table
+   * would mean every supplier lookup returned rows a receiving clerk has no
+   * business seeing and every sales lookup returned rows a salesperson does not.
+   * A firm that is both is two rows, which is the honest description: the
+   * commercial relationships are separate and so are their references.
+   *
+   * Organization-scoped: a customer belongs to the tenant, not to a site. Which
+   * site makes their boxes is a property of the factory packet, not of the party.
+   */
+  customers: defineTable(
+    tenantFields({
+      /** Tenant's normalized customer code. Unique per organization by contract. */
+      code: v.string(),
+      /** Display name, as the tenant writes it — Thai or English (D-06). */
+      name: v.string(),
+      status: masterDataStatus,
+    }),
+  )
+    .index("by_orgId_code", byOrg("code"))
+    .index("by_orgId_status_code", byOrg("status", "code")),
+
+  /**
+   * What a customer asked the tenant to make (`G-120`).
+   *
+   * **Never a `purchaseOrders` row.** That table is what the tenant sends *to a
+   * supplier* so goods arrive at a dock; this is what arrives *from a customer* so
+   * a box gets made. Opposite direction of goods, different counterparty,
+   * different permissions, different lifecycle. Sharing the table would put sales
+   * demand inside every receiving query — silently, and only noticed at a dock.
+   *
+   * `customerReference` is the customer's own PO number. It is optional because
+   * plenty of orders arrive by phone or LINE with no document, and unique per
+   * customer *when present* by contract rather than unique per organization: two
+   * customers may both call their order `PO-001`, and refusing the second would be
+   * this system telling a customer their own numbering is wrong.
+   */
+  customerOrders: defineTable(
+    tenantFields({
+      /** Tenant's normalized order number. Unique per organization by contract. */
+      orderNumber: v.string(),
+      customerId: v.id("customers"),
+      /** The customer's own PO reference, when they sent one. */
+      customerReference: v.optional(v.string()),
+      status: customerOrderStatus,
+      /** The day the customer placed it, as an epoch millisecond timestamp. */
+      orderedAt: v.number(),
+    }),
+  )
+    .index("by_orgId_orderNumber", byOrg("orderNumber"))
+    .index(
+      "by_orgId_customerId_customerReference",
+      byOrg("customerId", "customerReference"),
+    )
+    .index("by_orgId_status_orderNumber", byOrg("status", "orderNumber")),
+
+  /**
+   * One box, in one quantity, on one customer order (`G-121`).
+   *
+   * The line carries three things that would otherwise be spread across tables,
+   * and each is here because it is one-to-one with the line:
+   *
+   * - `specification` — what was ordered, stored by value. The customer ordered
+   *   *these* dimensions; if the master card is later revised, this line still
+   *   records what was agreed.
+   * - `designKey` — an advisory structural fingerprint
+   *   (`convex/model/orderToShip/designSpecification.ts`). Stored, not recomputed
+   *   on read, because it is what the design-matching index is built on.
+   * - `designSource` plus `masterCardRevisionId` — the decision and its
+   *   consequence. `EXISTING` pins a released revision at the moment the line was
+   *   written; `NEW` leaves the pin empty and puts a `designRequests` row in front
+   *   of engineering.
+   *
+   * There is no `designRequestId` here, and its absence is deliberate: the link
+   * lives once, on `designRequests.customerOrderLineId`, under a uniqueness
+   * contract, and is read through `by_orgId_customerOrderLineId`. Storing it on
+   * both rows would need the two inserts to be circular — the request needs the
+   * line's ID, the line would need the request's — and would give the pair a way
+   * to disagree about which request answers which line.
+   *
+   * `orderedQuantity` is a plain integer count of boxes, deliberately not
+   * `signedQuantity`: this is customer demand, not a ledger posting, it is never
+   * negative, and it is not counted in an item's UOM because at this point in the
+   * flow there is no item yet — the box has not been designed.
+   */
+  customerOrderLines: defineTable(
+    tenantFields({
+      customerOrderId: v.id("customerOrders"),
+      /** Position within the order. Unique per order by contract. */
+      lineNumber: v.number(),
+      /** Customer-owned identity used for automatic exact reuse. */
+      customerProductCode: v.string(),
+      specification: boxSpecification,
+      /** Derived from `specification`; used for bounded similarity lookup only. */
+      designKey: v.string(),
+      designSource,
+      status: customerOrderLineStatus,
+      /** Whole boxes. Positive; never a ledger quantity. */
+      orderedQuantity: v.number(),
+      /** The released revision this line pins. Absent until design is ready. */
+      masterCardRevisionId: v.optional(v.id("masterCardRevisions")),
+    }),
+  )
+    .index(
+      "by_orgId_customerOrderId_lineNumber",
+      byOrg("customerOrderId", "lineNumber"),
+    )
+    .index(
+      "by_orgId_customerOrderId_status",
+      byOrg("customerOrderId", "status"),
+    )
+    .index("by_orgId_status_designKey", byOrg("status", "designKey")),
+
+  /* ------------------------------------------------------------------------ */
+  /* Order to ship — engineering (Phase 5A)                                    */
+  /* ------------------------------------------------------------------------ */
+
+  /**
+   * Work engineering owes on one order line (`G-123`).
+   *
+   * One request per line, by contract, because the thing being asked for is "a
+   * released design for this line" and a second request for the same line would
+   * be two people waiting on one drawing with no way to tell which one the
+   * eventual revision answered.
+   *
+   * It carries the requested `specification` by value rather than reading it back
+   * through the line. An engineer opening the queue is looking at what to draw,
+   * and making that a join through a table they need a sales permission to read
+   * would either widen their permissions or empty their screen.
+   */
+  designRequests: defineTable(
+    tenantFields({
+      /** Tenant's normalized request number. Unique per organization by contract. */
+      requestNumber: v.string(),
+      /** Unique per organization by contract: one open ask per line. */
+      customerOrderLineId: v.id("customerOrderLines"),
+      customerId: v.id("customers"),
+      customerProductCode: v.string(),
+      /** The key no released revision matched. */
+      designKey: v.string(),
+      specification: boxSpecification,
+      status: designRequestStatus,
+      priority: designRequestPriority,
+      dueAt: v.optional(v.number()),
+      /** Who owes the drawing. Absent while the request is `OPEN`. */
+      assignedToUserId: v.optional(v.id("users")),
+      /** The released revision that answered it. Set when `FULFILLED`. */
+      masterCardRevisionId: v.optional(v.id("masterCardRevisions")),
+      /** Present only when a person explicitly accepted a similar design. */
+      similarityConfirmation: v.optional(
+        v.object({
+          score: v.number(),
+          reason: v.string(),
+          confirmedByUserId: v.id("users"),
+          confirmedAt: v.number(),
+        }),
+      ),
+    }),
+  )
+    .index("by_orgId_requestNumber", byOrg("requestNumber"))
+    .index("by_orgId_customerOrderLineId", byOrg("customerOrderLineId"))
+    .index("by_orgId_status_requestNumber", byOrg("status", "requestNumber")),
+
+  /**
+   * The identity of one design, across every revision of it (`G-126`).
+   *
+   * The card is the stable name — "the 300×200×150 RSC we make for Siam Foods" —
+   * and holds no specification of its own. Every dimension, grade, and colour
+   * count lives on a revision, because a card whose fields could be edited would
+   * be a card that silently changes what a released revision claimed.
+   *
+   * `releasedRevisionId` is a **cache of the current release**, maintained when a
+   * revision is released. It is not the source of truth — the revision's own
+   * `RELEASED` status is — and it exists so the exact-match lookup a salesperson
+   * triggers on every line is one indexed read plus one get, rather than a page
+   * through a card's revision history.
+   *
+   * `customerProductCode` is the authoritative exact identity and is unique per
+   * customer. `designKey` is the current revision's structural fingerprint,
+   * retained for bounded similarity suggestions only.
+   */
+  masterCards: defineTable(
+    tenantFields({
+      /** Tenant's normalized card number. Unique per organization by contract. */
+      cardNumber: v.string(),
+      customerId: v.id("customers"),
+      /** Exact identity within a customer account. */
+      customerProductCode: v.string(),
+      /** Structural fingerprint for human-confirmed similarity suggestions. */
+      designKey: v.string(),
+      /** Display name, as engineering writes it (D-06). */
+      name: v.string(),
+      /** Preserved legacy document/file reference when imported. */
+      legacySourceReference: v.optional(v.string()),
+      status: masterDataStatus,
+      /** The current release, cached for the exact-match lookup. */
+      releasedRevisionId: v.optional(v.id("masterCardRevisions")),
+    }),
+  )
+    .index("by_orgId_cardNumber", byOrg("cardNumber"))
+    .index(
+      "by_orgId_customerId_customerProductCode",
+      byOrg("customerId", "customerProductCode"),
+    )
+    .index("by_orgId_customerId_designKey", byOrg("customerId", "designKey"))
+    .index("by_orgId_status_cardNumber", byOrg("status", "cardNumber")),
+
+  /**
+   * One version of a design, and the only thing a factory packet may pin
+   * (`G-127`).
+   *
+   * A `RELEASED` row is **immutable in every field except `supersededByRevisionId`**
+   * (`INV-0013-02`). That single exception records that a later revision now
+   * exists; it changes no dimension, no grade, and no file, so a packet issued
+   * against this revision describes exactly the same box it described the day it
+   * was printed. Changing a released specification means a *new* revision with a
+   * new number, reviewed on its own merits.
+   *
+   * The three actor fields are the maker-checker record, kept here as well as in
+   * `auditEvents` because the separation-of-duties check reads them inside the
+   * same transaction that enforces it: `authoredByUserId` and `submittedByUserId`
+   * are the makers, `decidedByUserId` is the checker, and
+   * `convex/model/orderToShip/masterCardRevision.ts` refuses a decider who is
+   * either maker. Deriving the makers from the audit trail on every decision would
+   * make the rule depend on a read of an append-only table that is written for
+   * humans, not for policy.
+   *
+   * Revision numbers are gap-free from 1 and never reused, including after a
+   * rejection. "Rev 3" has to name one document forever, because it gets written
+   * on paper on a factory floor.
+   */
+  masterCardRevisions: defineTable(
+    tenantFields({
+      masterCardId: v.id("masterCards"),
+      /** Gap-free from 1. Unique per card by contract; never reused. */
+      revisionNumber: v.number(),
+      status: masterCardRevisionStatus,
+      specification: boxSpecification,
+      /** Derived from `specification`; recorded so a release can index the card. */
+      designKey: v.string(),
+      /** The maker. Refused as decider (`INV-0013-03`). */
+      authoredByUserId: v.id("users"),
+      /** The second maker, when a lead submits somebody else's draft. */
+      submittedByUserId: v.optional(v.id("users")),
+      /** The checker. Set exactly when the revision leaves `IN_REVIEW`. */
+      decidedByUserId: v.optional(v.id("users")),
+      decidedAt: v.optional(v.number()),
+      /** Why it was approved or rejected, in the reviewer's own words. */
+      decisionNote: v.optional(v.string()),
+      /** Set when a later revision is released. The only patch a release takes. */
+      supersededByRevisionId: v.optional(v.id("masterCardRevisions")),
+      legacySourceReference: v.optional(v.string()),
+    }),
+  )
+    .index(
+      "by_orgId_masterCardId_revisionNumber",
+      byOrg("masterCardId", "revisionNumber"),
+    )
+    .index("by_orgId_masterCardId_status", byOrg("masterCardId", "status"))
+    .index("by_orgId_status_masterCardId", byOrg("status", "masterCardId")),
+
+  /**
+   * A dieline, artwork file, or photo attached to one revision (`G-128`).
+   *
+   * This row owns the tenant-scoped metadata and the private storage reference.
+   * `AVAILABLE` is written only after the adapter resolves the object; metadata
+   * without retrievable bytes cannot satisfy review or packet issue.
+   *
+   * Files are private, and privacy here is a permission decision made on **every
+   * access**, not a property of a link. `engineering.file.read` is checked at each
+   * request and each request is audited, because a signed URL that has escaped is
+   * a permission check that happened once, months ago, for somebody who may since
+   * have left.
+   */
+  masterCardFiles: defineTable(
+    tenantFields({
+      masterCardRevisionId: v.id("masterCardRevisions"),
+      /** Tenant's normalized key for the file. Unique per revision by contract. */
+      fileKey: v.string(),
+      /** The name a person recognises, as uploaded (D-06). */
+      fileName: v.string(),
+      kind: masterCardFileKind,
+      /** Declared MIME type. Unverified until an adapter reads the bytes. */
+      contentType: v.string(),
+      /** Declared size in bytes. Unverified for the same reason. */
+      byteSize: v.number(),
+      /** Lowercase hex SHA-256 the uploader declared, for later verification. */
+      contentDigest: v.string(),
+      storageId: v.optional(v.id("_storage")),
+      verifiedAt: v.optional(v.number()),
+      storageState: masterCardFileStorageState,
+      attachedByUserId: v.id("users"),
+    }),
+  )
+    .index(
+      "by_orgId_masterCardRevisionId_fileKey",
+      byOrg("masterCardRevisionId", "fileKey"),
+    )
+    .index(
+      "by_orgId_masterCardRevisionId_storageState",
+      byOrg("masterCardRevisionId", "storageState"),
+    ),
+
+  /** One-use tenant/revision binding for a private upload authorization. */
+  masterCardUploadGrants: defineTable(
+    tenantFields({
+      masterCardRevisionId: v.optional(v.id("masterCardRevisions")),
+      batchRef: v.optional(v.string()),
+      sourceRow: v.optional(v.number()),
+      authorizedByUserId: v.id("users"),
+      expiresAt: v.number(),
+      uploadStartedAt: v.optional(v.number()),
+      consumedStorageId: v.optional(v.id("_storage")),
+      consumedAt: v.optional(v.number()),
+      attachedAt: v.optional(v.number()),
+    }),
+  )
+    .index("by_orgId_expiresAt", byOrg("expiresAt"))
+    .index(
+      "by_orgId_masterCardRevisionId_expiresAt",
+      byOrg("masterCardRevisionId", "expiresAt"),
+    )
+    .index(
+      "by_orgId_batchRef_sourceRow_expiresAt",
+      byOrg("batchRef", "sourceRow", "expiresAt"),
+    ),
+
+  /** One-use short-lived capability minted after an audited permission check. */
+  masterCardFileAccessGrants: defineTable(
+    tenantFields({
+      masterCardFileId: v.id("masterCardFiles"),
+      issuedToUserId: v.id("users"),
+      expiresAt: v.number(),
+      consumedAt: v.optional(v.number()),
+    }),
+  ).index(
+    "by_orgId_masterCardFileId_expiresAt",
+    byOrg("masterCardFileId", "expiresAt"),
+  ),
+
+  /** Durable cursor/evidence for one applied legacy master-card import chunk. */
+  masterCardImportChunks: defineTable(
+    tenantFields({
+      batchRef: v.string(),
+      startSourceRow: v.number(),
+      nextSourceRow: v.number(),
+      importedCount: v.number(),
+      releasedCount: v.number(),
+      draftCount: v.number(),
+      importedByUserId: v.id("users"),
+      completedAt: v.number(),
+    }),
+  )
+    .index(
+      "by_orgId_batchRef_startSourceRow",
+      byOrg("batchRef", "startSourceRow"),
+    )
+    .index(
+      "by_orgId_batchRef_nextSourceRow",
+      byOrg("batchRef", "nextSourceRow"),
+    ),
+
+  /* ------------------------------------------------------------------------ */
+  /* Order to ship — production hand-off (Phase 5A)                            */
+  /* ------------------------------------------------------------------------ */
+
+  /**
+   * The one document that crosses from the office to the shop floor (`G-129`).
+   *
+   * A packet pins exactly one released revision — by id, and by value. The id
+   * answers "which revision was this cut from" for an auditor; `specification` and
+   * `revisionNumber` are a **snapshot** that answers "what does this packet say"
+   * for the floor, without production needing read access to engineering's
+   * revision table at all. A released revision is immutable, so the two can never
+   * disagree; the snapshot is what makes production's narrow permissions possible.
+   *
+   * `warehouseId` names the production site. This is provisional: `WF-03` — how
+   * production sites are modelled against warehouses — is open, and reusing
+   * `warehouses` is the honest smallest thing that works today, because the
+   * permission scope machinery already understands it (`ADR-0013` §4). If sites
+   * turn out to be distinct, this field is the migration.
+   *
+   * One packet per order line, by contract. Splitting a line across production
+   * runs is a factory-order concern (`WF-02`, Phase 5B), and a table that allowed
+   * many packets per line without anything to reconcile them against would let a
+   * line be built twice.
+   */
+  factoryPackets: defineTable(
+    tenantFields({
+      /** The production site. Provisional per `WF-03`. */
+      warehouseId: v.id("warehouses"),
+      /** Tenant's normalized packet number. Unique per organization by contract. */
+      packetNumber: v.string(),
+      /** Unique per organization by contract: one packet per line. */
+      customerOrderLineId: v.id("customerOrderLines"),
+      customerId: v.id("customers"),
+      customerOrderNumber: v.string(),
+      customerReference: v.optional(v.string()),
+      /** The pinned release. Never changes for the life of the packet. */
+      masterCardRevisionId: v.id("masterCardRevisions"),
+      /** Snapshot of the pinned revision's number, for the floor to read. */
+      revisionNumber: v.number(),
+      /** Snapshot of the pinned revision's specification. */
+      specification: boxSpecification,
+      approvedFileIds: v.array(v.id("masterCardFiles")),
+      releaseEvidence: v.object({
+        releasedByUserId: v.id("users"),
+        releasedAt: v.number(),
+        decisionNote: v.optional(v.string()),
+      }),
+      /** Whole boxes, taken from the line rather than typed again. */
+      quantity: v.number(),
+      status: factoryPacketStatus,
+      issuedByUserId: v.id("users"),
+      acknowledgedByUserId: v.optional(v.id("users")),
+      acknowledgedAt: v.optional(v.number()),
+    }),
+  )
+    .index("by_orgId_packetNumber", byOrg("packetNumber"))
+    .index("by_orgId_customerOrderLineId", byOrg("customerOrderLineId"))
+    .index(
+      "by_orgId_warehouseId_status_packetNumber",
+      byOrg("warehouseId", "status", "packetNumber"),
     ),
 });
 

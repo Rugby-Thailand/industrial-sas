@@ -72,6 +72,12 @@ export const webhook = httpActionGeneric(async () => new Response(null));
 `,
   "convex/lib/inventoryLedgerStore.ts": `export {};
 `,
+  "convex/engineering/files.ts": `export {};
+`,
+  "convex/lib/privateFileDownload.ts": `export {};
+`,
+  "convex/lib/privateFileUpload.ts": `export {};
+`,
 };
 
 /**
@@ -504,15 +510,19 @@ export const listAll = queryGeneric({ handler: (ctx: { db: unknown }) => ctx.db 
     ).toEqual([]);
   });
 
-  it("keeps every allowlist entry inside convex/lib", () => {
+  it("keeps allowlist entries inside convex/lib except the reviewed grant redeemer", () => {
     // The empty-allowlist rules (`authorization-declaration`,
     // `audit-append-only`, `model-purity`) contribute nothing to this loop, which
     // is the point: they have no exemptions to keep anywhere.
+    const outsideLibrary: string[] = [];
     for (const paths of Object.values(TENANT_BOUNDARY_ALLOWLIST)) {
       for (const path of paths) {
-        expect(path).toMatch(/^convex\/lib\/[A-Za-z]+\.ts$/);
+        if (!/^convex\/lib\/[A-Za-z]+\.ts$/.test(path)) {
+          outsideLibrary.push(path);
+        }
       }
     }
+    expect([...new Set(outsideLibrary)]).toEqual(["convex/engineering/files.ts"]);
     expect(TENANT_BOUNDARY_ALLOWLIST["model-purity"]).toEqual([]);
   });
 });

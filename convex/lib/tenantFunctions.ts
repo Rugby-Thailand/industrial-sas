@@ -121,6 +121,10 @@ import {
 } from "./authorization";
 import { createConvexAuthorizationLookups } from "./authorizationLookupsConvex";
 import type { PermissionDefinition } from "./permissions";
+import {
+  createPrivateFileStorage,
+  type PrivateFileStoragePort,
+} from "./privateFileStorage";
 import type { TenantTableName } from "./schemaPolicy";
 import {
   TENANT_CONTEXT_DENIAL_CODES,
@@ -153,6 +157,7 @@ export interface TenantFunctionContext {
   readonly identity: UserIdentity;
   readonly tenant: ActiveTenantContext;
   readonly tenantDb: TenantDocumentAccess;
+  readonly privateFiles: PrivateFileStoragePort;
   /** The catalogue definition this call was authorized against. */
   readonly permission: PermissionDefinition;
 }
@@ -606,6 +611,22 @@ async function runTenantHandler<Args extends readonly unknown[], ReturnValue>(
       identity: identity!,
       tenant: resolved.context,
       tenantDb,
+      privateFiles: createPrivateFileStorage(
+        rawContext.storage,
+        async (storageId) => {
+          const metadata = await rawContext.db.system.get(
+            "_storage",
+            storageId,
+          );
+          return metadata === null
+            ? null
+            : {
+                sha256: metadata.sha256,
+                size: metadata.size,
+                contentType: metadata.contentType ?? null,
+              };
+        },
+      ),
       permission: spec.permission,
     });
 

@@ -646,3 +646,251 @@ export const reportJobStatus = v.union(
   v.literal("FAILED"),
 );
 export type ReportJobStatusValue = Infer<typeof reportJobStatus>;
+
+/* -------------------------------------------------------------------------- */
+/* Order to ship — sales, engineering, production hand-off (Phase 5A)          */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Lifecycle of a customer order (`G-120`).
+ *
+ * Deliberately *not* `purchaseOrderStatus`, even though the member names would
+ * have overlapped. A supplier purchase order is what the tenant sends out so
+ * goods arrive at a dock; a customer order is what arrives so a box gets made.
+ * Sharing one union would be the first step towards sharing one table, and a
+ * receiving query that silently included sales demand is the failure that
+ * separation exists to prevent.
+ *
+ * No `CLOSED`: an order is finished when its lines are, and Phase 5A stops at the
+ * factory hand-off. Inventing a closure state before anything can close one would
+ * be a status nothing sets.
+ */
+export const customerOrderStatus = v.union(
+  v.literal("DRAFT"),
+  v.literal("RELEASED"),
+  v.literal("CANCELLED"),
+);
+export type CustomerOrderStatusValue = Infer<typeof customerOrderStatus>;
+
+/**
+ * Lifecycle of one customer order line (`G-121`).
+ *
+ * The two middle members are the whole point of the slice: `AWAITING_DESIGN`
+ * says engineering owes a drawing, `DESIGN_READY` says a released master-card
+ * revision is pinned to this line. A single `OPEN` would collapse the one
+ * distinction the factory hand-off depends on.
+ */
+export const customerOrderLineStatus = v.union(
+  v.literal("AWAITING_DESIGN"),
+  v.literal("DESIGN_READY"),
+  v.literal("HANDED_OFF"),
+  v.literal("CANCELLED"),
+);
+export type CustomerOrderLineStatusValue = Infer<
+  typeof customerOrderLineStatus
+>;
+
+/**
+ * Where a line's design came from (`G-124`).
+ *
+ * Two members, no third for "similar". `WF-04` — whether near-matches should be
+ * suggested — is open, and a `SIMILAR` value would be a decision this repository
+ * has not been given.
+ */
+export const designSource = v.union(v.literal("EXISTING"), v.literal("NEW"));
+export type DesignSourceValue = Infer<typeof designSource>;
+
+/**
+ * Lifecycle of a design request (`G-123`).
+ *
+ * `ASSIGNED` is distinct from `OPEN` because "nobody has picked this up" and
+ * "someone owes it" are different answers for a sales person chasing a date.
+ * `FULFILLED` means a released revision now exists and the line was pinned to it;
+ * there is no `IN_PROGRESS`, because nothing observes it.
+ */
+export const designRequestStatus = v.union(
+  v.literal("OPEN"),
+  v.literal("ASSIGNED"),
+  v.literal("IN_PROGRESS"),
+  v.literal("IN_REVIEW"),
+  v.literal("FULFILLED"),
+  v.literal("CANCELLED"),
+);
+export type DesignRequestStatusValue = Infer<typeof designRequestStatus>;
+
+export const designRequestPriority = v.union(
+  v.literal("LOW"),
+  v.literal("NORMAL"),
+  v.literal("HIGH"),
+  v.literal("URGENT"),
+);
+export type DesignRequestPriorityValue = Infer<typeof designRequestPriority>;
+
+/**
+ * Lifecycle of a master-card revision (`G-127`).
+ *
+ * `RELEASED` is the only status a factory packet may pin, and a released
+ * revision is immutable — that immutability is what makes the pin worth
+ * anything. `REJECTED` is terminal rather than reopenable: the way forward is a
+ * new revision with its own number, so "rev 3" names one document forever,
+ * including on paper on a factory floor. `SUPERSEDED` records that a later
+ * revision has been released without changing a single thing the packets that
+ * pinned this one describe.
+ */
+export const masterCardRevisionStatus = v.union(
+  v.literal("DRAFT"),
+  v.literal("IN_REVIEW"),
+  v.literal("RELEASED"),
+  v.literal("REJECTED"),
+  v.literal("SUPERSEDED"),
+);
+export type MasterCardRevisionStatusValue = Infer<
+  typeof masterCardRevisionStatus
+>;
+
+/**
+ * What an attached master-card file is (`G-128`).
+ *
+ * A closed set because each kind is read by a different person for a different
+ * purpose — a die maker wants the `DIELINE`, a printer wants the `ARTWORK` — and
+ * an open string would make "show me the dieline" a full scan of names somebody
+ * typed. `OTHER` exists so a real attachment is never blocked by this list.
+ */
+export const masterCardFileKind = v.union(
+  v.literal("DIELINE"),
+  v.literal("ARTWORK"),
+  v.literal("PHOTO"),
+  v.literal("OTHER"),
+);
+export type MasterCardFileKindValue = Infer<typeof masterCardFileKind>;
+
+/**
+ * Whether a file's bytes exist anywhere yet (`ADR-0008`, `INT-03`).
+ *
+ * `REGISTERED` is metadata awaiting storage verification, `AVAILABLE` means the
+ * private adapter can retrieve the object, and `FAILED` keeps a visible retryable
+ * failure. Only `AVAILABLE` satisfies revision submission.
+ */
+export const masterCardFileStorageState = v.union(
+  v.literal("REGISTERED"),
+  v.literal("AVAILABLE"),
+  v.literal("FAILED"),
+);
+export type MasterCardFileStorageStateValue = Infer<
+  typeof masterCardFileStorageState
+>;
+
+/**
+ * Lifecycle of a factory packet (`G-129`).
+ *
+ * Three members and no `IN_PRODUCTION`: what happens after the factory
+ * acknowledges the packet is a factory-order concern (`WF-02`, Phase 5B), and a
+ * status nothing advances would be a screen telling a planner something the
+ * system does not know.
+ */
+export const factoryPacketStatus = v.union(
+  v.literal("ISSUED"),
+  v.literal("ACKNOWLEDGED"),
+  v.literal("CANCELLED"),
+);
+export type FactoryPacketStatusValue = Infer<typeof factoryPacketStatus>;
+
+/**
+ * One packaging specification, exactly as ordered (`G-125`).
+ *
+ * Every field is tenant-supplied. `styleCode` and `boardGrade` are strings rather
+ * than closed unions because this repository does not own the catalogue of box
+ * styles or board grades a Thai converter uses, and a union would be a claim that
+ * it does. Dimensions are whole millimetres — the unit a converting machine is
+ * set to — and the magnitude bounds live in
+ * `convex/model/orderToShip/designSpecification.ts`, which a schema validator
+ * cannot express.
+ *
+ * Nothing computed appears here: blank size and board consumption need formulas
+ * `WF-11` says must be confirmed with Engineering and QA before they are coded,
+ * and an invented formula would be an authoritative-looking number with no author.
+ */
+export const boxSpecification = v.object({
+  styleCode: v.string(),
+  internalLengthMm: v.number(),
+  internalWidthMm: v.number(),
+  internalHeightMm: v.number(),
+  boardGrade: v.string(),
+  printColourCount: v.number(),
+  productNameEn: v.optional(v.string()),
+  productNameTh: v.optional(v.string()),
+  sheetLengthMm: v.optional(v.number()),
+  sheetWidthMm: v.optional(v.number()),
+  lengthToleranceMm: v.optional(v.number()),
+  widthToleranceMm: v.optional(v.number()),
+  heightToleranceMm: v.optional(v.number()),
+  fluteCode: v.optional(v.string()),
+  layers: v.optional(
+    v.array(
+      v.object({
+        position: v.number(),
+        paperCode: v.string(),
+        grammageGsm: v.number(),
+      }),
+    ),
+  ),
+  printMethod: v.optional(v.string()),
+  printColours: v.optional(v.array(v.string())),
+  finishing: v.optional(v.array(v.string())),
+  bundleQuantity: v.optional(v.number()),
+  palletQuantity: v.optional(v.number()),
+  packingInstructions: v.optional(v.string()),
+  route: v.optional(
+    v.array(
+      v.object({
+        sequence: v.number(),
+        workCenterCode: v.string(),
+        operationCode: v.string(),
+        instruction: v.optional(v.string()),
+      }),
+    ),
+  ),
+  materials: v.optional(
+    v.array(
+      v.object({
+        itemCode: v.string(),
+        description: v.string(),
+        quantityPerUnit: v.number(),
+        uom: v.string(),
+        wastePercent: v.optional(v.number()),
+      }),
+    ),
+  ),
+  qualityRequirements: v.optional(
+    v.array(
+      v.object({
+        code: v.string(),
+        description: v.string(),
+        target: v.string(),
+        tolerance: v.optional(v.string()),
+      }),
+    ),
+  ),
+  calculations: v.optional(
+    v.array(
+      v.object({
+        name: v.string(),
+        formulaVersion: v.string(),
+        inputs: v.array(
+          v.object({
+            name: v.string(),
+            value: v.number(),
+            unit: v.string(),
+          }),
+        ),
+        result: v.number(),
+        unit: v.string(),
+        passed: v.boolean(),
+        verifiedByUserId: v.string(),
+        verifiedAt: v.number(),
+      }),
+    ),
+  ),
+  notes: v.optional(v.string()),
+});
+export type BoxSpecificationValue = Infer<typeof boxSpecification>;

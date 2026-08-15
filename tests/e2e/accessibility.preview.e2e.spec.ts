@@ -11,6 +11,12 @@ const ROUTES = [
   "/th/master-data/items",
   "/th/receiving",
   "/th/reports",
+  "/th/sales/orders",
+  "/th/engineering/designs",
+  "/th/production/packets",
+  "/en/sales/orders",
+  "/en/engineering/designs",
+  "/en/production/packets",
 ] as const;
 
 const COLOR_SCHEMES = ["light", "dark"] as const;

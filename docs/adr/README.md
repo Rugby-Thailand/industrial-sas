@@ -1,7 +1,7 @@
 # Architecture Decision Records
 
 Twelve accepted ADRs cover the cross-cutting architecture of the inbound vertical
-slice. They record decisions taken from the approved
+slice, and a thirteenth covers the order-to-ship slice built on top of them. They record decisions taken from the approved
 [PROJECT_PLAN.md](../../PROJECT_PLAN.md) — B-01…B-12 and D-01…D-30 are treated as
 accepted — and they describe **intended** behaviour. Nothing in these ADRs is
 implemented unless the ADR's "Implementation status" line says so.
@@ -39,11 +39,14 @@ superseded ADR keeps its number and gains a `Superseded by` line.
 | `ADR-0010` | [Thai-first i18n and accessibility](./0010-thai-first-i18n-and-accessibility.md)                     | Accepted | Not implemented |
 | `ADR-0011` | [Async jobs, reporting, and observability](./0011-async-jobs-reporting-and-observability.md)         | Accepted | Not implemented |
 | `ADR-0012` | [Delivery, release, DR, and quality gates](./0012-delivery-release-and-quality-gates.md)             | Accepted | Foundation only |
+| `ADR-0013` | [Order to ship: design authority and the factory packet](./0013-order-to-ship-design-authority.md)   | Accepted | Phase 5A only   |
 
 ## Coverage of the plan's ADR backlog
 
-Plan §11 lists 26 ADR topics. The twelve ADRs above consolidate them; topics not
-yet covered belong to later phases and stay open.
+Plan §11 lists 26 ADR topics. The first twelve ADRs above consolidate them; topics
+not yet covered belong to later phases and stay open. `ADR-0013` is a **slice** ADR
+rather than one of the 26 cross-cutting topics: it decides the order-to-ship domain
+under the constraints the others already set, and appears in no row below.
 
 | Plan §11 topic                                          | Covered by             |
 | ------------------------------------------------------- | ---------------------- |

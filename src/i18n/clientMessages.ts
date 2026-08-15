@@ -212,6 +212,27 @@ export const ROUTE_NAMESPACES = {
     "Write",
     "WriteError",
   ],
+  "(desktop)/sales": [
+    "OrderToShip",
+    "Pagination",
+    "Panel",
+    "Write",
+    "WriteError",
+  ],
+  "(desktop)/engineering": [
+    "OrderToShip",
+    "Pagination",
+    "Panel",
+    "Write",
+    "WriteError",
+  ],
+  "(desktop)/production": [
+    "OrderToShip",
+    "Pagination",
+    "Panel",
+    "Write",
+    "WriteError",
+  ],
   "(desktop)/setup": ["Setup"],
 
   "(handheld)/handheld/inventory": [

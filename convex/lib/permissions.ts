@@ -64,6 +64,24 @@ export const PERMISSION_CATALOGUE = Object.freeze([
   permission("masterData.import.execute", "ORG"),
   permission("masterData.owner.read", "ORG"),
   permission("masterData.owner.manage", "ORG", ["STEP_UP"]),
+  permission("sales.customer.read", "ORG"),
+  permission("sales.customer.manage", "ORG"),
+  permission("sales.order.read", "ORG"),
+  permission("sales.order.create", "ORG"),
+  permission("sales.order.update", "ORG"),
+  permission("sales.order.release", "ORG"),
+  permission("sales.order.cancel", "ORG", ["MAKER_CHECKER"]),
+  permission("engineering.request.read", "ORG"),
+  permission("engineering.request.assign", "ORG"),
+  permission("engineering.masterCard.read", "ORG"),
+  permission("engineering.masterCard.draft", "ORG"),
+  permission("engineering.masterCard.submit", "ORG"),
+  permission("engineering.masterCard.release", "ORG", ["MAKER_CHECKER"]),
+  permission("engineering.file.read", "ORG"),
+  permission("engineering.file.attach", "ORG"),
+  permission("production.packet.read", "WAREHOUSE"),
+  permission("production.packet.issue", "WAREHOUSE"),
+  permission("production.packet.acknowledge", "WAREHOUSE"),
   permission("purchasing.po.read", "WAREHOUSE"),
   permission("purchasing.po.create", "WAREHOUSE"),
   permission("purchasing.po.update", "WAREHOUSE"),
@@ -187,6 +205,17 @@ export const DEFAULT_ROLES: readonly DefaultRoleDefinition[] = Object.freeze([
       "masterData.reasonCode.manage",
       "masterData.import.execute",
       "masterData.owner.read",
+      /*
+       * A site manager sees what their floor is being asked to make and may issue
+       * and acknowledge the packets, but holds no engineering code: releasing a
+       * design is not a site decision, and a manager who could read drafts is a
+       * route for an unapproved spec to reach a machine.
+       */
+      "sales.customer.read",
+      "sales.order.read",
+      "production.packet.read",
+      "production.packet.issue",
+      "production.packet.acknowledge",
       "purchasing.po.read",
       "purchasing.po.create",
       "purchasing.po.update",
@@ -423,6 +452,7 @@ export const DEFAULT_ROLES: readonly DefaultRoleDefinition[] = Object.freeze([
       "masterData.storageClass.read",
       "masterData.lot.read",
       "masterData.reasonCode.read",
+      "production.packet.read",
       "purchasing.po.read",
       "receiving.receipt.read",
       "quality.inspection.read",
@@ -431,6 +461,98 @@ export const DEFAULT_ROLES: readonly DefaultRoleDefinition[] = Object.freeze([
       "inventory.balance.read",
       "inventory.history.read",
       "reporting.dashboard.read",
+    ),
+  },
+  /*
+   * The four roles below are the order-to-ship slice (ADR-0013). They are
+   * separate roles rather than additions to the warehouse roles because the
+   * separation is the control: an engineer who could also release a customer
+   * order, or a planner who could read an unreleased revision, would defeat the
+   * two rules the slice exists to hold — approve-your-own-work and
+   * released-only visibility.
+   */
+  {
+    key: "SALES_CUSTOMER_SERVICE",
+    name: "Sales and customer service",
+    description: "Takes customer orders and follows them to the factory floor.",
+    permissionCodes: codes(
+      "masterData.warehouse.read",
+      "sales.customer.read",
+      "sales.customer.manage",
+      "sales.order.read",
+      "sales.order.create",
+      "sales.order.update",
+      "sales.order.release",
+      "sales.order.cancel",
+      /*
+       * Read-only on engineering, and no `engineering.file.read`. Sales needs to
+       * tell a customer which revision their order is pinned to; they do not need
+       * the dieline, and a customer-facing role holding artwork is how another
+       * customer's artwork leaves the building.
+       */
+      "engineering.request.read",
+      "engineering.masterCard.read",
+      "production.packet.read",
+      "reporting.dashboard.read",
+    ),
+  },
+  {
+    key: "ENGINEER",
+    name: "Engineer",
+    description: "Draws master cards and submits revisions for review.",
+    permissionCodes: codes(
+      "masterData.warehouse.read",
+      "sales.customer.read",
+      "sales.order.read",
+      "engineering.request.read",
+      "engineering.request.assign",
+      "engineering.masterCard.read",
+      "engineering.masterCard.draft",
+      "engineering.masterCard.submit",
+      "engineering.file.read",
+      "engineering.file.attach",
+      "reporting.dashboard.read",
+    ),
+  },
+  {
+    key: "ENGINEERING_APPROVER",
+    name: "Engineering approver",
+    description: "Reviews and releases master-card revisions.",
+    permissionCodes: codes(
+      "masterData.warehouse.read",
+      "sales.customer.read",
+      "sales.order.read",
+      "engineering.request.read",
+      "engineering.masterCard.read",
+      "engineering.masterCard.release",
+      "engineering.file.read",
+      "reporting.dashboard.read",
+      /*
+       * Deliberately without `engineering.masterCard.draft` and `.submit`. A
+       * checker who can also make is a checker who can approve their own work,
+       * and holding the codes apart is what makes that impossible by role rather
+       * than only by the runtime maker-checker guard.
+       */
+    ),
+  },
+  {
+    key: "PRODUCTION_PLANNER",
+    name: "Production planner",
+    description: "Issues factory packets for design-ready order lines.",
+    permissionCodes: codes(
+      "masterData.warehouse.read",
+      "sales.customer.read",
+      "sales.order.read",
+      "production.packet.read",
+      "production.packet.issue",
+      "production.packet.acknowledge",
+      "reporting.dashboard.read",
+      /*
+       * No `engineering.masterCard.read` and no `engineering.file.read`: an
+       * unreleased revision must never reach the floor. The packet carries a
+       * snapshot of the released specification it pins, so production reads what
+       * it needs from the packet and cannot reach a draft at all (INV-0013-04).
+       */
     ),
   },
 ]);
