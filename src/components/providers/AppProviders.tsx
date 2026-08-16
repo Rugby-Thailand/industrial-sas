@@ -15,16 +15,13 @@ import { ConvexClientProvider } from "./ConvexClientProvider";
 import { EnvironmentProvider } from "./EnvironmentProvider";
 import { IdentityProvider } from "./IdentityProvider";
 import { ObservabilityProvider } from "./ObservabilityProvider";
-import { WorkspaceProvider } from "./WorkspaceProvider";
 
 export function AppProviders({ children }: { readonly children: ReactNode }) {
   return (
     <EnvironmentProvider>
       <ObservabilityProvider>
         <IdentityProvider>
-          <ConvexClientProvider>
-            <WorkspaceProvider>{children}</WorkspaceProvider>
-          </ConvexClientProvider>
+          <ConvexClientProvider>{children}</ConvexClientProvider>
         </IdentityProvider>
       </ObservabilityProvider>
     </EnvironmentProvider>

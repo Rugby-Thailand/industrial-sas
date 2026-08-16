@@ -14,7 +14,7 @@
  * When nothing is selected it says so, because a heading with no site under it
  * reads as "all sites", which this page never shows.
  */
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 
 import { useWorkspace } from "@/components/providers/WorkspaceProvider";
 import { Badge } from "@/components/ui/badge";
@@ -22,7 +22,6 @@ import { warehouseLabel } from "@/lib/workspace/workspace";
 
 export function DashboardScope() {
   const t = useTranslations("Workspace");
-  const locale = useLocale();
   const workspace = useWorkspace();
 
   const selected = workspace.warehouses.find(
@@ -36,9 +35,7 @@ export function DashboardScope() {
     >
       <span>{t("warehouse")}</span>
       <Badge variant="secondary" className="h-auto py-1 whitespace-normal">
-        {selected === undefined
-          ? t("noWarehouse")
-          : warehouseLabel(selected, locale)}
+        {selected === undefined ? t("noWarehouse") : warehouseLabel(selected)}
       </Badge>
     </p>
   );

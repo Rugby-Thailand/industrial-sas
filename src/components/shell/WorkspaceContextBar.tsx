@@ -18,7 +18,7 @@
  * warehouse list to offer, so this renders the reason rather than an empty
  * dropdown — the difference between "nothing here" and "not available yet".
  */
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { useId } from "react";
 
 import { useWorkspace } from "@/components/providers/WorkspaceProvider";
@@ -27,7 +27,6 @@ import { organizationLabel, warehouseLabel } from "@/lib/workspace/workspace";
 
 export function WorkspaceContextBar() {
   const t = useTranslations("Workspace");
-  const locale = useLocale();
   const workspace = useWorkspace();
   const warehouseId = useId();
 
@@ -45,7 +44,7 @@ export function WorkspaceContextBar() {
       <span className="flex flex-col">
         <span className="text-xs text-muted">{t("organization")}</span>
         <span className="font-semibold text-text">
-          {organizationLabel(workspace.organization, locale)}
+          {organizationLabel(workspace.organization)}
         </span>
       </span>
 
@@ -69,7 +68,7 @@ export function WorkspaceContextBar() {
           testId="warehouse-select"
           options={workspace.warehouses.map((warehouse) => ({
             value: warehouse.id,
-            label: warehouseLabel(warehouse, locale),
+            label: warehouseLabel(warehouse),
           }))}
         />
       </span>
