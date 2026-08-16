@@ -13,7 +13,7 @@ import { PREVIEW_WAREHOUSES } from "../preview/ledgerPreview";
 
 const server = resolveAppEnvironment({
   convexUrl: "https://example.convex.cloud",
-  clerkPublishableKey: "pk_test_x",
+  clerkPublishableKey: "pk_test_Zm9vLWJhci0xMy5jbGVyay5hY2NvdW50cy5kZXYk",
 });
 const preview = resolveAppEnvironment({
   localPreviewFlag: "1",

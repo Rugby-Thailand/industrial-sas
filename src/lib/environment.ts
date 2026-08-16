@@ -40,6 +40,8 @@
  * synthetic row is harmless, and a leaked one is obvious.
  */
 
+import { resolveClerkPublishableKey } from "./clerkConfiguration";
+
 /** The subset of `process.env` this module reads. */
 export interface PublicEnvironment {
   readonly convexUrl?: string | undefined;
@@ -84,7 +86,7 @@ export function resolveAppEnvironment(
 ): AppEnvironment {
   const convexUrl = present(environment.convexUrl);
   const identityConfigured =
-    present(environment.clerkPublishableKey) !== undefined;
+    resolveClerkPublishableKey(environment.clerkPublishableKey) !== undefined;
   const previewMode =
     environment.nodeEnv !== "production" &&
     present(environment.localPreviewFlag) === OPT_IN;

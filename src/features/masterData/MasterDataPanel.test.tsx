@@ -1,7 +1,8 @@
 import { screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  configuredEnvironment,
   previewEnvironment,
   renderWithIntl,
   unconfiguredEnvironment,
@@ -10,6 +11,13 @@ import {
 import { SuppliersPanel } from "./EntityPanels";
 
 import { WorkspaceProvider } from "@/components/providers/WorkspaceProvider";
+
+const convex = vi.hoisted(() => ({
+  useConvexAuth: vi.fn(),
+  useQuery: vi.fn(),
+}));
+
+vi.mock("convex/react", () => convex);
 
 /**
  * The pager `MasterDataPanel` renders, in the language an operator reads it in.
@@ -34,6 +42,16 @@ const renderPanel = (environment: Parameters<typeof renderWithIntl>[1]) =>
 
 afterEach(() => {
   window.localStorage.clear();
+});
+
+beforeEach(() => {
+  convex.useConvexAuth.mockReturnValue({
+    isAuthenticated: false,
+    isLoading: false,
+  });
+  convex.useQuery.mockImplementation(() => {
+    throw new Error("anonymous query");
+  });
 });
 
 describe("MasterDataPanel paging chrome", () => {
@@ -68,5 +86,12 @@ describe("MasterDataPanel paging chrome", () => {
 
     expect(screen.getByTestId("panel-BACKEND_MISSING")).toBeInTheDocument();
     expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
+  });
+
+  it("does not query tenant data before Convex authenticates", () => {
+    renderPanel({ environment: configuredEnvironment });
+
+    expect(screen.getByTestId("panel-SIGN_IN_REQUIRED")).toBeInTheDocument();
+    expect(convex.useQuery).not.toHaveBeenCalled();
   });
 });

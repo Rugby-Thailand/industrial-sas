@@ -23,6 +23,7 @@ import type { ReactNode } from "react";
 
 import { useAppEnvironment } from "@/components/providers/EnvironmentProvider";
 import { useWorkspace } from "@/components/providers/WorkspaceProvider";
+import { QueryGate } from "@/components/system/QueryGate";
 import { DEFAULT_LEDGER_PAGE_SIZE } from "@/lib/convex/ledgerApi";
 import {
   getReceiptRef,
@@ -91,20 +92,11 @@ function GateOr({
 }: {
   readonly render: (warehouseId: string, preview: boolean) => ReactNode;
 }): ReactNode {
-  const { gate, preview } = useInboundGate();
-  if (gate.kind !== "READY_TO_QUERY") {
-    return (
-      <OptionGate
-        options={{ kind: "BLOCKED", gate }}
-        emptyTitle=""
-        emptyBody=""
-        emptyTestId=""
-      >
-        {() => null}
-      </OptionGate>
-    );
-  }
-  return <>{render(gate.warehouseId, preview)}</>;
+  return (
+    <QueryGate scope="WAREHOUSE">
+      {(warehouseId, preview) => render(warehouseId, preview)}
+    </QueryGate>
+  );
 }
 
 /* -------------------------------------------------------------------------- */

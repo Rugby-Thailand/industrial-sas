@@ -16,9 +16,8 @@
 import { useQuery } from "convex/react";
 import type { ReactNode } from "react";
 
-import { useAppEnvironment } from "@/components/providers/EnvironmentProvider";
-import { useWorkspace } from "@/components/providers/WorkspaceProvider";
 import { LedgerPanelStatus } from "@/components/system/LedgerPanelStatus";
+import { QueryGate } from "@/components/system/QueryGate";
 import { Notice } from "@/components/ui/Notice";
 import {
   listReportJobsRef,
@@ -28,7 +27,6 @@ import {
   type OccupancyCell,
   type ReportJobRow,
 } from "@/lib/convex/reportingApi";
-import { resolveLedgerGate } from "@/lib/convex/ledgerState";
 import {
   PREVIEW_REPORT_JOBS,
   previewDashboardTiles,
@@ -46,14 +44,11 @@ function GateOr({
 }: {
   readonly render: (warehouseId: string, preview: boolean) => ReactNode;
 }): ReactNode {
-  const environment = useAppEnvironment();
-  const warehouseId = useWorkspace().selectedWarehouseId;
-  const gate = resolveLedgerGate(environment, warehouseId, "WAREHOUSE");
-
-  if (gate.kind !== "READY_TO_QUERY") {
-    return <LedgerPanelStatus state={gate} />;
-  }
-  return <>{render(gate.warehouseId, environment.previewMode)}</>;
+  return (
+    <QueryGate scope="WAREHOUSE">
+      {(warehouseId, preview) => render(warehouseId, preview)}
+    </QueryGate>
+  );
 }
 
 /**

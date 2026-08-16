@@ -8,6 +8,7 @@
  *
  * Run with `pnpm dev:check`.
  */
+import { isPublishableKey } from "@clerk/shared/keys";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
@@ -53,6 +54,12 @@ if (environment.get("NEXT_PUBLIC_LOCAL_PREVIEW")?.trim() === "1") {
 
 checkPrefix("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", "pk_test_");
 checkPrefix("CLERK_SECRET_KEY", "sk_test_");
+const publishableKey = environment
+  .get("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY")
+  ?.trim();
+if (present(publishableKey) && !isPublishableKey(publishableKey)) {
+  problems.push("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY is malformed");
+}
 checkUrl("NEXT_PUBLIC_CONVEX_URL", ["https:", "http:"]);
 checkUrl("NEXT_PUBLIC_APP_URL", ["http:", "https:"]);
 checkUrl("CLERK_JWT_ISSUER_DOMAIN", ["https:"]);

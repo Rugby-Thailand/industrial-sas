@@ -4,8 +4,7 @@ import { useQuery } from "convex/react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
-import { useAppEnvironment } from "@/components/providers/EnvironmentProvider";
-import { LedgerPanelStatus } from "@/components/system/LedgerPanelStatus";
+import { QueryGate } from "@/components/system/QueryGate";
 import { Button } from "@/components/ui/button";
 import { EntityWriteForm } from "@/features/masterData/EntityWriteForm";
 import {
@@ -18,7 +17,6 @@ export function SimilarDesignCandidates({
 }: {
   readonly designRequestId: string;
 }) {
-  const environment = useAppEnvironment();
   const t = useTranslations("OrderToShip");
   const [open, setOpen] = useState(false);
   return (
@@ -32,12 +30,14 @@ export function SimilarDesignCandidates({
         {open ? t("hideSimilarCandidates") : t("showSimilarCandidates")}
       </Button>
       {open ? (
-        <CandidateResults
-          designRequestId={designRequestId}
-          previewMode={environment.previewMode}
-          backendConfigured={environment.backendConfigured}
-          identityConfigured={environment.identityConfigured}
-        />
+        <QueryGate scope="ORG">
+          {(_, preview) => (
+            <CandidateResults
+              designRequestId={designRequestId}
+              previewMode={preview}
+            />
+          )}
+        </QueryGate>
       ) : null}
     </div>
   );
@@ -46,13 +46,9 @@ export function SimilarDesignCandidates({
 function CandidateResults({
   designRequestId,
   previewMode,
-  backendConfigured,
-  identityConfigured,
 }: {
   readonly designRequestId: string;
   readonly previewMode: boolean;
-  readonly backendConfigured: boolean;
-  readonly identityConfigured: boolean;
 }) {
   const t = useTranslations("OrderToShip");
   if (previewMode) {
@@ -61,12 +57,6 @@ function CandidateResults({
         {t("previewSimilarityCandidates")}
       </p>
     );
-  }
-  if (!backendConfigured) {
-    return <LedgerPanelStatus state={{ kind: "BACKEND_MISSING" }} />;
-  }
-  if (!identityConfigured) {
-    return <LedgerPanelStatus state={{ kind: "SIGN_IN_REQUIRED" }} />;
   }
   return <ServerCandidates designRequestId={designRequestId} />;
 }

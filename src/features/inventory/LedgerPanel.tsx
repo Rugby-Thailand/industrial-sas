@@ -38,8 +38,8 @@ import { useState, type ReactNode } from "react";
 
 import { useAppEnvironment } from "@/components/providers/EnvironmentProvider";
 import { useObservability } from "@/components/providers/ObservabilityProvider";
-import { useWorkspace } from "@/components/providers/WorkspaceProvider";
 import { LedgerPanelStatus } from "@/components/system/LedgerPanelStatus";
+import { QueryGate } from "@/components/system/QueryGate";
 import {
   DEFAULT_LEDGER_PAGE_SIZE,
   type LedgerPage,
@@ -48,7 +48,6 @@ import {
 } from "@/lib/convex/ledgerApi";
 import {
   failureCodeOf,
-  resolveLedgerGate,
   toLedgerPanelState,
   type LedgerPanelState,
 } from "@/lib/convex/ledgerState";
@@ -101,10 +100,6 @@ export function LedgerPanel<Row>({
   surface,
 }: LedgerPanelProps<Row>) {
   const environment = useAppEnvironment();
-  const workspace = useWorkspace();
-
-  const gate = resolveLedgerGate(environment, workspace.selectedWarehouseId);
-  if (gate.kind !== "READY_TO_QUERY") return <LedgerPanelStatus state={gate} />;
 
   /*
    * `key` is how the paging state resets when the warehouse changes. The
@@ -114,15 +109,19 @@ export function LedgerPanel<Row>({
    * React's own answer to "state that should not survive an input change".
    */
   return (
-    <PagedLedger
-      key={gate.warehouseId}
-      queryRef={queryRef}
-      previewRowsFor={previewRowsFor}
-      renderRows={renderRows}
-      surface={surface}
-      warehouseId={gate.warehouseId}
-      environment={environment}
-    />
+    <QueryGate scope="WAREHOUSE">
+      {(warehouseId) => (
+        <PagedLedger
+          key={warehouseId}
+          queryRef={queryRef}
+          previewRowsFor={previewRowsFor}
+          renderRows={renderRows}
+          surface={surface}
+          warehouseId={warehouseId}
+          environment={environment}
+        />
+      )}
+    </QueryGate>
   );
 }
 

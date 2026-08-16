@@ -27,11 +27,12 @@ import {
 } from "next/server";
 
 import { routing } from "./i18n/routing";
+import { resolveClerkPublishableKey } from "./lib/clerkConfiguration";
 
 const localeMiddleware = createMiddleware(routing);
 const clerkConfigured =
-  Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.trim()) &&
-  Boolean(process.env.CLERK_SECRET_KEY?.trim());
+  resolveClerkPublishableKey(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) !==
+    undefined && Boolean(process.env.CLERK_SECRET_KEY?.trim());
 
 const clerkProxy = clerkConfigured
   ? clerkMiddleware((_auth, request) => routeRequest(request))

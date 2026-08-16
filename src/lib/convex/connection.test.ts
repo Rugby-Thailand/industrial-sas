@@ -6,7 +6,7 @@ import { resolveAppEnvironment } from "../environment";
 
 const configured = resolveAppEnvironment({
   convexUrl: "https://example.convex.cloud",
-  clerkPublishableKey: "pk_test_x",
+  clerkPublishableKey: "pk_test_Zm9vLWJhci0xMy5jbGVyay5hY2NvdW50cy5kZXYk",
 });
 const unconfigured = resolveAppEnvironment({});
 const preview = resolveAppEnvironment({

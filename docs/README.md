@@ -1,26 +1,17 @@
 # Documentation
 
-Architecture decisions and delivery contracts for Industrial SAS, derived from the approved
-[PROJECT_PLAN.md](../PROJECT_PLAN.md).
+Architecture decisions and delivery contracts for Industrial SAS. The
+[current plan](./plan/README.md) owns active direction; [PROJECT_PLAN.md](../PROJECT_PLAN.md)
+preserves the approved baseline.
 
-**Read this first:** these documents describe what will be built. The repository currently
-contains a toolchain scaffold, this documentation set, the tenant security slice —
-the schema and the guards that read it, the tenant-bound wrappers with mandatory
-server-side permission enforcement and audited authorization attempts, signed Clerk
-webhook identity mirroring, and the permission catalogue with its provisioning seed —
-the pure inventory primitives under
-[`convex/model/**`](../convex/model/README.md), the append-only ledger, and a Thai-first
-application shell whose two inventory screens read that ledger through its real public
-Convex queries. There is still **no Clerk instance**, so every tenant-bound read is
-denied and no screen has ever shown a tenant's data, and **no warehouse management
-flow**: nothing receives, inspects, palletizes, prints, or puts away.
-Each document states its own implementation status, and the
-[coverage matrix](./specification-coverage.md) is the single place to see what is real.
+**Status:** code through Phase 5A runs locally. Vendor and pilot proof remain open.
+The [coverage matrix](./specification-coverage.md) records what is real.
 
 ## Where to start
 
 | If you want to…                                    | Read                                                         |
 | -------------------------------------------------- | ------------------------------------------------------------ |
+| Read the active goal, rules, and work              | [Current plan](./plan/README.md)                             |
 | Understand why the architecture is shaped this way | [ADR index](./adr/README.md)                                 |
 | Use the right word for a domain concept            | [Domain glossary](./domain-glossary.md)                      |
 | Learn how to use each implemented feature          | [Feature manuals](./manuals/README.md)                       |
@@ -38,14 +29,11 @@ Each document states its own implementation status, and the
 
 ### Architecture decisions
 
-Twelve accepted ADRs covering multi-tenancy and identity, the Convex tenant boundary, the
-inventory ledger, quantity representation, warehouse and stock identity, authorization,
-inbound scope, adapter ports, connectivity, Thai-first UX, asynchronous work and reporting,
-and delivery. See the [ADR index](./adr/README.md) for the list and for how they map onto the
-26 ADR topics in plan §11.
+The [ADR index](./adr/README.md) owns architecture decisions and supersession history.
 
 ### Reference documents
 
+- [Current plan](./plan/README.md) — one short owner per concern.
 - [Feature manuals](./manuals/README.md) — one operating/integration manual per
   implemented backend or domain capability, with an explicit availability label.
 - [Training materials](./training/README.md) — Thai-first session material for dock
@@ -57,9 +45,7 @@ and delivery. See the [ADR index](./adr/README.md) for the list and for how they
   maker-checker, step-up, and disabled-by-default support grants.
 - [Environment contracts](./environments.md) — the developer, preview, staging, and
   production classes, what each must and must not hold, and the guard that checks it.
-- [Release gate register](./release-gates.md) — every gate in the approved plan with an
-  owner, the evidence that closes it, and its status. Two gates are satisfied today; the
-  rest are open, and the tenant security schema closes none of them.
+- [Release gate register](./release-gates.md) — gate owners, evidence, and current status.
 - [Approval record](./approval-record.md) — the dated authorization the plan's §16 asks
   for: which decisions are accepted, what activity is authorized, and which approvals
   were **not** supplied and therefore remain open gates.
@@ -92,9 +78,9 @@ and delivery. See the [ADR index](./adr/README.md) for the list and for how they
   vendors, and no amount of code closes it.
 - **No claim without an artefact.** Implementation status lines and the coverage matrix must
   understate rather than overstate. If a status would be optimistic, use the lower one.
-- **`PROJECT_PLAN.md` is immutable.** It is the approved decision baseline, excluded from
-  formatting, and must stay byte-for-byte identical. Corrections belong in an ADR that
-  supersedes a decision, not in the plan.
+- **One owner per fact.** Active direction lives in `docs/plan`; link instead of copying.
+- **`PROJECT_PLAN.md` is immutable.** It preserves approved history. Corrections require
+  an ADR or the matching current-plan owner.
 - **No secrets, no tenant data.** These documents name configuration keys and reference
   credentials by location, never by value.
 

@@ -24,7 +24,7 @@ import { resolveAppEnvironment, type AppEnvironment } from "@/lib/environment";
 /** A fully configured deployment: backend and identity provider both present. */
 export const configuredEnvironment: AppEnvironment = resolveAppEnvironment({
   convexUrl: "https://example.convex.cloud",
-  clerkPublishableKey: "pk_test_fixture",
+  clerkPublishableKey: "pk_test_Zm9vLWJhci0xMy5jbGVyay5hY2NvdW50cy5kZXYk",
 });
 
 /** Nothing configured — the state of a fresh clone. */

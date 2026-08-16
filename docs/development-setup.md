@@ -61,8 +61,8 @@ pnpm exec convex env set CLERK_JWT_ISSUER_DOMAIN \
 pnpm exec convex dev --once
 ```
 
-For continuous backend work, run `pnpm dev:backend` in its own terminal. Run
-`pnpm dev` in a second terminal for Next.js.
+Run `pnpm dev` to start Convex and Next.js together. `Ctrl+C` stops both.
+Use `pnpm dev:web` or `pnpm dev:backend` only when debugging one side.
 
 ## 4. Configure the Clerk development webhook
 

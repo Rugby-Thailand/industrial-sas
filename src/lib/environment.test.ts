@@ -2,6 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import { resolveAppEnvironment } from "./environment";
 
+const validClerkPublishableKey = `pk_test_${Buffer.from(
+  "foo-bar-13.clerk.accounts.dev$",
+).toString("base64")}`;
+
 /**
  * The safety property this file exists for is the last block: preview mode
  * cannot be reached in production. Everything above it is the ordinary
@@ -34,11 +38,16 @@ describe("resolveAppEnvironment", () => {
     expect(environment.identityConfigured).toBe(false);
   });
 
-  it("reports an identity provider only when a publishable key is present", () => {
+  it("reports an identity provider only when the publishable key is valid", () => {
     expect(resolveAppEnvironment({}).identityConfigured).toBe(false);
     expect(
-      resolveAppEnvironment({ clerkPublishableKey: "pk_test_x" })
+      resolveAppEnvironment({ clerkPublishableKey: "pk_test_invalid" })
         .identityConfigured,
+    ).toBe(false);
+    expect(
+      resolveAppEnvironment({
+        clerkPublishableKey: validClerkPublishableKey,
+      }).identityConfigured,
     ).toBe(true);
   });
 

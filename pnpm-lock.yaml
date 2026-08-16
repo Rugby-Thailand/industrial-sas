@@ -19,6 +19,9 @@ importers:
       '@clerk/nextjs':
         specifier: 7.7.4
         version: 7.7.4(next@16.2.12(@babel/core@7.29.7)(@playwright/test@1.62.1)(@types/node@24.13.3)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@clerk/shared':
+        specifier: 4.28.1
+        version: 4.28.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@dnd-kit/core':
         specifier: 6.3.1
         version: 6.3.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8)

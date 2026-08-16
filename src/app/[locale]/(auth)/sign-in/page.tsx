@@ -5,6 +5,7 @@ import { SetupChecklist } from "@/components/system/SetupChecklist";
 import { Notice } from "@/components/ui/Notice";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Link } from "@/i18n/navigation";
+import { resolveClerkPublishableKey } from "@/lib/clerkConfiguration";
 import { ROUTES } from "@/lib/navigation";
 
 /**
@@ -32,9 +33,10 @@ export default async function SignInPage({
   const { locale } = await params;
   setRequestLocale(locale);
   const t = await getTranslations("SignIn");
-  const identityConfigured = Boolean(
-    process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.trim(),
-  );
+  const identityConfigured =
+    resolveClerkPublishableKey(
+      process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
+    ) !== undefined;
 
   if (identityConfigured) {
     return (

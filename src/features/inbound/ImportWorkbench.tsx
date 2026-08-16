@@ -30,14 +30,13 @@ import {
 } from "@/components/inbound/InboundTables";
 import { EntityForm } from "@/components/masterData/EntityForm";
 import { useAppEnvironment } from "@/components/providers/EnvironmentProvider";
-import { useWorkspace } from "@/components/providers/WorkspaceProvider";
 import { LedgerPanelStatus } from "@/components/system/LedgerPanelStatus";
+import { QueryGate } from "@/components/system/QueryGate";
 import { Notice } from "@/components/ui/Notice";
 import {
   previewPurchaseOrderImportRef,
   type ImportPreviewOutcome,
 } from "@/lib/convex/inboundApi";
-import { resolveLedgerGate } from "@/lib/convex/ledgerState";
 import {
   PREVIEW_IMPORT_TEXT,
   previewImportOutcome,
@@ -51,16 +50,24 @@ interface Request {
 }
 
 export function ImportWorkbench() {
+  return (
+    <QueryGate scope="WAREHOUSE">
+      {(warehouseId) => <ReadyImportWorkbench warehouseId={warehouseId} />}
+    </QueryGate>
+  );
+}
+
+function ReadyImportWorkbench({
+  warehouseId,
+}: {
+  readonly warehouseId: string;
+}) {
   const t = useTranslations("Purchasing");
   const writeT = useTranslations("Write");
   const environment = useAppEnvironment();
-  const warehouseId = useWorkspace().selectedWarehouseId;
 
   const [request, setRequest] = useState<Request | undefined>(undefined);
   const [cursor, setCursor] = useState(0);
-
-  const gate = resolveLedgerGate(environment, warehouseId, "WAREHOUSE");
-  if (gate.kind !== "READY_TO_QUERY") return <LedgerPanelStatus state={gate} />;
 
   return (
     <div className="flex flex-col gap-8">
@@ -124,7 +131,7 @@ export function ImportWorkbench() {
         />
       ) : (
         <ImportResult
-          warehouseId={gate.warehouseId}
+          warehouseId={warehouseId}
           request={request}
           cursor={cursor}
           onAdvance={setCursor}

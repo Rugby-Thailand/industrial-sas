@@ -20,11 +20,10 @@ import { useTranslations } from "next-intl";
 import { useState, type ReactNode } from "react";
 
 import { useAppEnvironment } from "@/components/providers/EnvironmentProvider";
-import { useWorkspace } from "@/components/providers/WorkspaceProvider";
 import { LedgerPanelStatus } from "@/components/system/LedgerPanelStatus";
+import { QueryGate } from "@/components/system/QueryGate";
 import { DEFAULT_LEDGER_PAGE_SIZE } from "@/lib/convex/ledgerApi";
 import {
-  resolveLedgerGate,
   toLedgerPanelState,
   type LedgerPanelState,
   type ReadScope,
@@ -84,24 +83,19 @@ export function MasterDataPanel<Row, Args extends QueryArgs>(
   props: MasterDataPanelProps<Row, Args>,
 ) {
   const environment = useAppEnvironment();
-  const workspace = useWorkspace();
 
-  const gate = resolveLedgerGate(
-    environment,
-    workspace.selectedWarehouseId,
-    props.scope,
-  );
-  if (gate.kind !== "READY_TO_QUERY") return <LedgerPanelStatus state={gate} />;
-
-  // Keyed by warehouse for the same reason the ledger panel is: a cursor is only
-  // meaningful inside the query that produced it.
   return (
-    <PagedMasterData
-      key={`${props.scope}:${gate.warehouseId}`}
-      {...props}
-      warehouseId={gate.warehouseId}
-      environment={environment}
-    />
+    <QueryGate scope={props.scope}>
+      {(warehouseId) => (
+        <PagedMasterData
+          // A cursor is only valid for the query that created it.
+          key={`${props.scope}:${warehouseId}`}
+          {...props}
+          warehouseId={warehouseId}
+          environment={environment}
+        />
+      )}
+    </QueryGate>
   );
 }
 

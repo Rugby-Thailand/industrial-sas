@@ -19,9 +19,9 @@ import { useTranslations } from "next-intl";
 
 import { useAppEnvironment } from "@/components/providers/EnvironmentProvider";
 import { LedgerPanelStatus } from "@/components/system/LedgerPanelStatus";
+import { QueryGate } from "@/components/system/QueryGate";
 import { Notice } from "@/components/ui/Notice";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import { resolveLedgerGate } from "@/lib/convex/ledgerState";
 import {
   deactivateItemRef,
   getItemRef,
@@ -45,18 +45,20 @@ import {
 
 export function ItemDetailPanel({ itemId }: { readonly itemId: string }) {
   const environment = useAppEnvironment();
-  const gate = resolveLedgerGate(environment, undefined, "ORG");
-
-  if (gate.kind !== "READY_TO_QUERY") return <LedgerPanelStatus state={gate} />;
-  if (environment.previewMode) {
-    const item = previewItemById(itemId);
-    return item === undefined ? (
-      <ItemMissing />
-    ) : (
-      <ItemDetailBody item={item} />
-    );
-  }
-  return <ServerItemDetail itemId={itemId} />;
+  return (
+    <QueryGate scope="ORG">
+      {() => {
+        if (!environment.previewMode)
+          return <ServerItemDetail itemId={itemId} />;
+        const item = previewItemById(itemId);
+        return item === undefined ? (
+          <ItemMissing />
+        ) : (
+          <ItemDetailBody item={item} />
+        );
+      }}
+    </QueryGate>
+  );
 }
 
 function ServerItemDetail({ itemId }: { readonly itemId: string }) {

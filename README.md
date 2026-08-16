@@ -7,9 +7,8 @@ The first release targets a single production-grade inbound vertical slice:
 
 `PO → Receive → QC → Build pallet/lot → Print label → Putaway → Inventory ledger`
 
-Scope, non-goals, assumptions, delivery phases, and the decisions that must be
-accepted before domain implementation are recorded in
-[PROJECT_PLAN.md](./PROJECT_PLAN.md).
+Current scope and delivery live in the [current plan](./docs/plan/README.md).
+[PROJECT_PLAN.md](./PROJECT_PLAN.md) is the approved baseline.
 
 ## Current status
 
@@ -238,8 +237,9 @@ the separate [development setup runbook](./docs/development-setup.md).
 | Command                          | What it does                                                                 |
 | -------------------------------- | ---------------------------------------------------------------------------- |
 | `pnpm install --frozen-lockfile` | Install exactly what the lockfile specifies                                  |
-| `pnpm dev`                       | Next.js dev server on port 3000                                              |
-| `pnpm dev:backend`               | Continuous Convex development sync                                           |
+| `pnpm dev`                       | Convex and Next.js together; `Ctrl+C` stops both                             |
+| `pnpm dev:web`                   | Next.js only, for isolated frontend work                                     |
+| `pnpm dev:backend`               | Convex only, for isolated backend work                                       |
 | `pnpm dev:check`                 | Check real dev-product readiness without printing credential values          |
 | `pnpm build`                     | Production build (also regenerates `next-env.d.ts`)                          |
 | `pnpm start`                     | Serve a previous production build                                            |

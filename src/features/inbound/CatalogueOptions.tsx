@@ -24,8 +24,7 @@
 import { useQuery } from "convex/react";
 import type { ReactNode } from "react";
 
-import { useAppEnvironment } from "@/components/providers/EnvironmentProvider";
-import { useWorkspace } from "@/components/providers/WorkspaceProvider";
+import { QueryGate } from "@/components/system/QueryGate";
 import { DEFAULT_LEDGER_PAGE_SIZE } from "@/lib/convex/ledgerApi";
 import {
   listItemsRef,
@@ -37,7 +36,6 @@ import {
   type ReasonCodeRow,
   type SupplierRow,
 } from "@/lib/convex/masterDataApi";
-import { resolveLedgerGate } from "@/lib/convex/ledgerState";
 import {
   PREVIEW_LABEL_TEMPLATES,
   PREVIEW_SUPPLIERS,
@@ -77,23 +75,7 @@ export function CatalogueGate({
 }: {
   readonly render: (preview: boolean) => ReactNode;
 }): ReactNode {
-  const environment = useAppEnvironment();
-  const warehouseId = useWorkspace().selectedWarehouseId;
-  const gate = resolveLedgerGate(environment, warehouseId, "ORG");
-
-  if (gate.kind !== "READY_TO_QUERY") {
-    return (
-      <OptionGate
-        options={{ kind: "BLOCKED", gate }}
-        emptyTitle=""
-        emptyBody=""
-        emptyTestId=""
-      >
-        {() => null}
-      </OptionGate>
-    );
-  }
-  return <>{render(environment.previewMode)}</>;
+  return <QueryGate scope="ORG">{(_, preview) => render(preview)}</QueryGate>;
 }
 
 /** Turn a query answer into an option set, with `LOADING` kept distinct. */
