@@ -12,7 +12,7 @@ import {
 /** A complete, well-formed deployed environment, per class. */
 const deployed = (suffix: string): Record<string, string> => ({
   NEXT_PUBLIC_CONVEX_URL: `https://${suffix}.convex.cloud`,
-  CONVEX_SITE_URL: `https://${suffix}.convex.site`,
+  NEXT_PUBLIC_CONVEX_SITE_URL: `https://${suffix}.convex.site`,
   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: `pk_${suffix}`,
   CLERK_SECRET_KEY: `sk_${suffix}`,
   CLERK_WEBHOOK_SIGNING_SECRET: `whsec_${suffix}`,
@@ -59,7 +59,7 @@ describe("validateEnvironment", () => {
     expect(missing).toContain("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY");
     expect(missing).toContain("CLERK_SECRET_KEY");
     expect(missing).toContain("CLERK_WEBHOOK_SIGNING_SECRET");
-    expect(missing).toContain("CONVEX_SITE_URL");
+    expect(missing).toContain("NEXT_PUBLIC_CONVEX_SITE_URL");
     expect(missing).toContain("UPLOADTHING_TOKEN");
   });
 

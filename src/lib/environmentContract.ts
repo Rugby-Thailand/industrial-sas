@@ -128,7 +128,7 @@ export const VARIABLE_CONTRACTS: readonly VariableContract[] = Object.freeze([
       "Convex validates Clerk-issued tokens against this issuer; it is also a Convex environment variable, not only a Next.js one.",
   },
   {
-    variable: "CONVEX_SITE_URL",
+    variable: "NEXT_PUBLIC_CONVEX_SITE_URL",
     required: DEPLOYED,
     forbidden: NONE,
     recommended: ["developer"],
@@ -204,7 +204,7 @@ export const VARIABLE_CONTRACTS: readonly VariableContract[] = Object.freeze([
 /** Variables whose *value* must differ between any two classes that have them. */
 export const CLASS_SCOPED_VARIABLES: readonly string[] = Object.freeze([
   "NEXT_PUBLIC_CONVEX_URL",
-  "CONVEX_SITE_URL",
+  "NEXT_PUBLIC_CONVEX_SITE_URL",
   "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
   "CLERK_SECRET_KEY",
   "CLERK_WEBHOOK_SIGNING_SECRET",

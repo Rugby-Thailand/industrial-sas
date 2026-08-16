@@ -47,7 +47,7 @@ const registerWithConvex = async (payload: {
   readonly contentType: string;
   readonly byteSize: number;
 }): Promise<void> => {
-  const siteUrl = process.env.CONVEX_SITE_URL?.trim();
+  const siteUrl = process.env.NEXT_PUBLIC_CONVEX_SITE_URL?.trim();
   const secret = process.env.UPLOADTHING_TOKEN?.trim();
   if (siteUrl === undefined || secret === undefined) {
     throw new UploadThingError("Private file registration is not configured");
