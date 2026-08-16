@@ -174,6 +174,7 @@ export const TENANT_BOUNDARY_ALLOWLIST = Object.freeze({
     "convex/lib/clerkWebhook.ts",
     "convex/lib/privateFileDownload.ts",
     "convex/lib/privateFileUpload.ts",
+    "convex/lib/uploadThingComplete.ts",
   ]),
   "raw-database": Object.freeze([
     "convex/lib/authorizationLookupsConvex.ts",

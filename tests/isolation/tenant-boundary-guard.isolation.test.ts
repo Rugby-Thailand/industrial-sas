@@ -78,6 +78,9 @@ export const webhook = httpActionGeneric(async () => new Response(null));
 `,
   "convex/lib/privateFileUpload.ts": `export {};
 `,
+  "convex/lib/uploadThingComplete.ts": `import { httpActionGeneric } from "convex/server";
+export const complete = httpActionGeneric(async () => new Response(null));
+`,
 };
 
 /**

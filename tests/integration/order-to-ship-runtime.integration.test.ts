@@ -15,6 +15,7 @@ import {
   attachMasterCardFile,
   claimMasterCardUploadGrant,
   completeMasterCardUploadGrant,
+  completeUploadThingMasterCardUploadGrant,
 } from "../../convex/engineering/files";
 import {
   createMasterCard,
@@ -450,6 +451,45 @@ describe("order-to-ship public Convex functions", () => {
       replayed: true,
     });
 
+    const vendorUpload = value(
+      await call(world, authorizeMasterCardFileUpload, {
+        masterCardRevisionId: revisionId,
+        transport: "UPLOADTHING",
+      }),
+    );
+    const vendorDigest = createHash("sha256")
+      .update("verified vendor artwork")
+      .digest("hex");
+    const completeVendor = (uploaderClerkUserId: string) =>
+      world.t.run(async (ctx) =>
+        (
+          completeUploadThingMasterCardUploadGrant as unknown as RuntimeFunction
+        )._handler(ctx as GenericMutationCtx<DataModel>, {
+          grantId: vendorUpload["uploadGrantId"],
+          providerKey: "uploadthing_private_artwork_1",
+          uploaderClerkUserId,
+          contentDigest: vendorDigest,
+          contentType: "image/webp",
+          byteSize: 23,
+        }),
+      );
+    expect(await completeVendor("different_clerk_subject")).toBe(false);
+    expect(await completeVendor(identity.subject)).toBe(true);
+    value(
+      await call(world, attachMasterCardFile, {
+        requestId: "journey-vendor-file",
+        masterCardRevisionId: revisionId,
+        fileKey: "ARTWORK-1",
+        fileName: "journey-artwork.webp",
+        kind: "ARTWORK",
+        contentType: "image/webp",
+        byteSize: 23,
+        contentDigest: vendorDigest,
+        uploadThingKey: "uploadthing_private_artwork_1",
+        uploadGrantId: vendorUpload["uploadGrantId"],
+      }),
+    );
+
     const submitArgs = {
       requestId: "journey-submit",
       masterCardRevisionId: revisionId,
@@ -533,7 +573,7 @@ describe("order-to-ship public Convex functions", () => {
     expect(storedEvidence.packet).toMatchObject({
       status: "ACKNOWLEDGED",
       customerOrderNumber: "SO-JOURNEY-1",
-      approvedFileIds: [expect.any(String)],
+      approvedFileIds: [expect.any(String), expect.any(String)],
       releaseEvidence: { releasedByUserId: checker },
     });
 

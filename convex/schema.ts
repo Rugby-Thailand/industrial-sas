@@ -1873,6 +1873,8 @@ const schema = defineSchema({
       byteSize: v.number(),
       /** Lowercase hex SHA-256 the uploader declared, for later verification. */
       contentDigest: v.string(),
+      /** UploadThing's opaque private-object key. Legacy rows use `storageId`. */
+      uploadThingKey: v.optional(v.string()),
       storageId: v.optional(v.id("_storage")),
       verifiedAt: v.optional(v.number()),
       storageState: masterCardFileStorageState,
@@ -1895,9 +1897,15 @@ const schema = defineSchema({
       batchRef: v.optional(v.string()),
       sourceRow: v.optional(v.number()),
       authorizedByUserId: v.id("users"),
+      /** Clerk subject that UploadThing must report for this grant. */
+      authorizedClerkUserId: v.optional(v.string()),
       expiresAt: v.number(),
       uploadStartedAt: v.optional(v.number()),
       consumedStorageId: v.optional(v.id("_storage")),
+      consumedUploadThingKey: v.optional(v.string()),
+      consumedContentDigest: v.optional(v.string()),
+      consumedContentType: v.optional(v.string()),
+      consumedByteSize: v.optional(v.number()),
       consumedAt: v.optional(v.number()),
       attachedAt: v.optional(v.number()),
     }),
@@ -1916,6 +1924,7 @@ const schema = defineSchema({
   masterCardFileAccessGrants: defineTable(
     tenantFields({
       masterCardFileId: v.id("masterCardFiles"),
+      warehouseId: v.optional(v.id("warehouses")),
       issuedToUserId: v.id("users"),
       expiresAt: v.number(),
       consumedAt: v.optional(v.number()),

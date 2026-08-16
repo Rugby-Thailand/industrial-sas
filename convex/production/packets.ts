@@ -153,6 +153,8 @@ interface FileDocument {
   readonly orgId: TenantOrgId;
   readonly storageState: string;
   readonly storageId?: string;
+  readonly uploadThingKey?: string;
+  readonly verifiedAt?: number;
 }
 
 /** `(orgId, packetNumber)`: a packet number is unique per organization. */
@@ -308,9 +310,12 @@ export const issueFactoryPacket = mutationWithOrg({
     const approvedFileIds: string[] = [];
     for (const file of approvedFiles) {
       if (file.storageState !== "AVAILABLE") continue;
+      const uploadThingVerified =
+        file.uploadThingKey !== undefined && file.verifiedAt !== undefined;
       if (
-        file.storageId === undefined ||
-        (await ctx.privateFiles.inspect(file.storageId)) === null
+        !uploadThingVerified &&
+        (file.storageId === undefined ||
+          (await ctx.privateFiles.inspect(file.storageId)) === null)
       ) {
         return refusal({
           code: "PRECONDITION_FAILED",
@@ -743,14 +748,14 @@ export const requestFactoryPacketFileAccess = mutationWithOrg({
         error: { code: "NOT_FOUND", field: "masterCardFileId" },
       };
     }
-    const file = await ctx.tenantDb.get<
-      FileDocument & { readonly storageId?: string }
-    >("masterCardFiles", args.masterCardFileId);
+    const file = await ctx.tenantDb.get<FileDocument>(
+      "masterCardFiles",
+      args.masterCardFileId,
+    );
     if (
       file === null ||
       file.storageState !== "AVAILABLE" ||
-      file.storageId === undefined ||
-      (await ctx.privateFiles.createDownloadUrl(file.storageId)) === null
+      (file.storageId === undefined && file.uploadThingKey === undefined)
     ) {
       return {
         granted: false as const,
@@ -758,7 +763,19 @@ export const requestFactoryPacketFileAccess = mutationWithOrg({
       };
     }
     const siteUrl = process.env.CONVEX_SITE_URL;
-    if (siteUrl === undefined || siteUrl.trim().length === 0) {
+    if (
+      file.storageId !== undefined &&
+      (await ctx.privateFiles.createDownloadUrl(file.storageId)) === null
+    ) {
+      return {
+        granted: false as const,
+        error: { code: "FILE_NOT_RETRIEVABLE", field: "masterCardFileId" },
+      };
+    }
+    if (
+      file.storageId !== undefined &&
+      (siteUrl === undefined || siteUrl.trim().length === 0)
+    ) {
       return {
         granted: false as const,
         error: { code: "FILE_GATEWAY_NOT_CONFIGURED" },
@@ -772,6 +789,7 @@ export const requestFactoryPacketFileAccess = mutationWithOrg({
     const expiresAt = context.now + FILE_ACCESS_GRANT_LIFETIME_MS;
     const document = {
       masterCardFileId: args.masterCardFileId,
+      warehouseId: args.warehouseId,
       issuedToUserId: context.actorUserId,
       expiresAt,
     };
@@ -786,7 +804,10 @@ export const requestFactoryPacketFileAccess = mutationWithOrg({
     });
     return {
       granted: true as const,
-      url: `${siteUrl.replace(/\/$/, "")}/private-master-card-file?grantId=${encodeURIComponent(grantId)}`,
+      url:
+        file.uploadThingKey !== undefined
+          ? `/api/private-files/uploadthing?scope=production&warehouseId=${encodeURIComponent(args.warehouseId)}&grantId=${encodeURIComponent(grantId)}`
+          : `${siteUrl!.replace(/\/$/, "")}/private-master-card-file?grantId=${encodeURIComponent(grantId)}`,
       expiresAt,
     };
   },

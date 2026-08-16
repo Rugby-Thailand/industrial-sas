@@ -128,6 +128,14 @@ export const VARIABLE_CONTRACTS: readonly VariableContract[] = Object.freeze([
       "Convex validates Clerk-issued tokens against this issuer; it is also a Convex environment variable, not only a Next.js one.",
   },
   {
+    variable: "CONVEX_SITE_URL",
+    required: DEPLOYED,
+    forbidden: NONE,
+    recommended: ["developer"],
+    rationale:
+      "The trusted UploadThing completion callback cannot register verified private files without the Convex HTTP-actions origin.",
+  },
+  {
     variable: "CONVEX_DEPLOYMENT",
     required: NONE,
     forbidden: ["preview", "staging", "production"],
@@ -145,11 +153,11 @@ export const VARIABLE_CONTRACTS: readonly VariableContract[] = Object.freeze([
   },
   {
     variable: "UPLOADTHING_TOKEN",
-    required: NONE,
+    required: DEPLOYED,
     forbidden: NONE,
-    recommended: DEPLOYED,
+    recommended: ["developer"],
     rationale:
-      "File storage is unwired today; when it lands, each class needs its own app with private ACLs (D-20).",
+      "This secret signs trusted completion receipts and authorizes private UploadThing operations; every deployed class needs its own app (D-20).",
   },
   {
     variable: "NEXT_PUBLIC_LOCAL_PREVIEW",
@@ -196,9 +204,11 @@ export const VARIABLE_CONTRACTS: readonly VariableContract[] = Object.freeze([
 /** Variables whose *value* must differ between any two classes that have them. */
 export const CLASS_SCOPED_VARIABLES: readonly string[] = Object.freeze([
   "NEXT_PUBLIC_CONVEX_URL",
+  "CONVEX_SITE_URL",
   "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
   "CLERK_SECRET_KEY",
   "CLERK_WEBHOOK_SIGNING_SECRET",
+  "UPLOADTHING_TOKEN",
   "NEXT_PUBLIC_APP_URL",
 ]);
 

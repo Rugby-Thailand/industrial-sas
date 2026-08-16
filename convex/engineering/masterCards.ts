@@ -500,6 +500,8 @@ export const submitMasterCardRevision = mutationWithOrg({
         readonly orgId: TenantOrgId;
         readonly storageState: string;
         readonly storageId?: string;
+        readonly uploadThingKey?: string;
+        readonly verifiedAt?: number;
       }>("masterCardFiles", "by_orgId_masterCardRevisionId_fileKey", [
         {
           field: "masterCardRevisionId",
@@ -521,6 +523,8 @@ export const submitMasterCardRevision = mutationWithOrg({
         readonly orgId: TenantOrgId;
         readonly storageState: string;
         readonly storageId?: string;
+        readonly uploadThingKey?: string;
+        readonly verifiedAt?: number;
       }>("masterCardFiles", "by_orgId_masterCardRevisionId_storageState", [
         {
           field: "masterCardRevisionId",
@@ -532,9 +536,12 @@ export const submitMasterCardRevision = mutationWithOrg({
 
     let retrievableFileCount = 0;
     for (const file of available) {
+      const uploadThingVerified =
+        file.uploadThingKey !== undefined && file.verifiedAt !== undefined;
       if (
-        file.storageId === undefined ||
-        (await ctx.privateFiles.inspect(file.storageId)) === null
+        !uploadThingVerified &&
+        (file.storageId === undefined ||
+          (await ctx.privateFiles.inspect(file.storageId)) === null)
       ) {
         return refusal({
           code: "PRECONDITION_FAILED",

@@ -4,6 +4,7 @@ import { useMutation, useQuery } from "convex/react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
+import { PrivateFileUpload } from "@/components/files/PrivateFileUpload";
 import { useAppEnvironment } from "@/components/providers/EnvironmentProvider";
 import { LedgerPanelStatus } from "@/components/system/LedgerPanelStatus";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,12 @@ import {
   type MasterCardRow,
 } from "@/lib/convex/orderToShipApi";
 import { newRequestId } from "@/lib/convex/writeState";
+import {
+  acceptedTypesFor,
+  maximumInputBytesFor,
+  optimizeUpload,
+} from "@/lib/files/optimizeUpload";
+import { useUploadThing } from "@/lib/uploadthing/client";
 
 import { EngineeringWorkflowActions } from "./WorkflowActionForms";
 import { MasterCardRevisionDraftForm } from "./MasterCardDraftForm";
@@ -317,40 +324,53 @@ function RevisionFiles({
   const [selected, setSelected] = useState<File | null>(null);
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [resetKey, setResetKey] = useState(0);
   const kindControlId = `master-card-file-kind-${revisionId}`;
+  const { startUpload, isUploading } = useUploadThing("masterCardFile", {
+    onUploadProgress: setProgress,
+  });
 
   const upload = async () => {
     if (selected === null || fileKey.trim().length === 0 || busy) return;
     setBusy(true);
-    setNotice(t("uploadingFile"));
+    setProgress(0);
+    setNotice(kind === "PHOTO" ? t("optimizingFile") : t("uploadingFile"));
     try {
-      const digest = await sha256(selected);
+      const prepared = await optimizeUpload(selected, kind);
+      setNotice(
+        prepared.optimized
+          ? t("fileOptimized", {
+              before: formatFileSize(prepared.originalBytes),
+              after: formatFileSize(prepared.file.size),
+            })
+          : t("uploadingFile"),
+      );
       const authorization = await authorize({
         masterCardRevisionId: revisionId,
+        transport: "UPLOADTHING",
       });
-      if (!authorization.ok || !("uploadUrl" in authorization.value)) {
+      if (!authorization.ok || !("uploadGrantId" in authorization.value)) {
         throw new Error("UPLOAD_AUTHORIZATION_REFUSED");
       }
-      const response = await fetch(authorization.value.uploadUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": selected.type || "application/octet-stream",
-        },
-        body: selected,
+      const uploads = await startUpload([prepared.file], {
+        grantId: authorization.value.uploadGrantId,
+        contentDigest: prepared.contentDigest,
       });
-      if (!response.ok) throw new Error("UPLOAD_FAILED");
-      const stored = (await response.json()) as { readonly storageId?: string };
-      if (stored.storageId === undefined) throw new Error("UPLOAD_FAILED");
+      const verified = uploads?.[0]?.serverData;
+      if (verified === null || verified === undefined) {
+        throw new Error("UPLOAD_VERIFICATION_FAILED");
+      }
       const attached = await attach({
         requestId: newRequestId(),
         masterCardRevisionId: revisionId,
         fileKey: fileKey.trim(),
-        fileName: selected.name,
+        fileName: prepared.file.name,
         kind,
-        contentType: selected.type || "application/octet-stream",
-        byteSize: selected.size,
-        contentDigest: digest,
-        storageId: stored.storageId,
+        contentType: verified.contentType,
+        byteSize: verified.byteSize,
+        contentDigest: verified.contentDigest,
+        uploadThingKey: verified.providerKey,
         uploadGrantId: authorization.value.uploadGrantId,
       });
       if (!attached.ok || !attached.value.written) {
@@ -358,6 +378,7 @@ function RevisionFiles({
       }
       setNotice(t("fileAttached"));
       setSelected(null);
+      setResetKey((current) => current + 1);
     } catch {
       setNotice(t("fileUploadFailed"));
     } finally {
@@ -371,7 +392,7 @@ function RevisionFiles({
       <h6 className="font-bold text-text">{t("privateRevisionFiles")}</h6>
       {editable ? (
         <>
-          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
             <label className="text-sm text-text">
               {t("fileKey")}
               <Input
@@ -384,7 +405,11 @@ function RevisionFiles({
               <SelectControl
                 id={kindControlId}
                 value={kind}
-                onValueChange={(value) => setKind(value as typeof kind)}
+                onValueChange={(value) => {
+                  setKind(value as typeof kind);
+                  setSelected(null);
+                  setResetKey((current) => current + 1);
+                }}
                 placeholder={t("fileKind")}
                 emptyLabel={t("notProvided")}
                 options={(
@@ -392,26 +417,37 @@ function RevisionFiles({
                 ).map((value) => ({ value, label: value }))}
               />
             </div>
-            <label className="text-sm text-text sm:col-span-2">
-              {t("choosePrivateFile")}
-              <Input
-                type="file"
-                onChange={(event) =>
-                  setSelected(event.target.files?.[0] ?? null)
-                }
+            <div className="sm:col-span-2">
+              <PrivateFileUpload
+                accept={acceptedTypesFor(kind)}
+                maxSize={maximumInputBytesFor(kind)}
+                disabled={busy || isUploading}
+                resetKey={resetKey}
+                labels={{
+                  drop: t("dropPrivateFile"),
+                  browse: t("choosePrivateFile"),
+                  limit: t("privateFileLimit", {
+                    size: formatFileSize(maximumInputBytesFor(kind)),
+                  }),
+                  remove: t("removeSelectedFile"),
+                  invalid: t("invalidPrivateFile"),
+                }}
+                onFileChange={setSelected}
               />
-            </label>
+            </div>
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-3">
             <Button
               type="button"
-              disabled={busy || selected === null}
+              disabled={busy || isUploading || selected === null}
               onClick={() => void upload()}
             >
               {t("uploadAndAttach")}
             </Button>
             <span role="status" className="text-sm text-muted">
-              {notice}
+              {isUploading && progress > 0
+                ? `${notice} ${Math.round(progress)}%`
+                : notice}
             </span>
           </div>
         </>
@@ -458,11 +494,10 @@ function RevisionFileRow({ file }: { readonly file: MasterCardFileRow }) {
   );
 }
 
-const sha256 = async (file: File): Promise<string> => {
-  const bytes = new Uint8Array(
-    await crypto.subtle.digest("SHA-256", await file.arrayBuffer()),
-  );
-  return [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+const formatFileSize = (bytes: number): string => {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
 
 function Fact({

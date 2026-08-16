@@ -612,16 +612,20 @@ export const attachMasterCardFileRef = writeRef<{
   contentType: string;
   byteSize: number;
   contentDigest: string;
-  storageId: string;
+  storageId?: string;
+  uploadThingKey?: string;
   uploadGrantId: string;
 }>(ORDER_TO_SHIP_MUTATION_PATHS.attachMasterCardFile);
 
 export const authorizeMasterCardFileUploadRef = makeFunctionReference<
   "mutation",
-  { readonly masterCardRevisionId: string },
+  {
+    readonly masterCardRevisionId: string;
+    readonly transport?: "UPLOADTHING";
+  },
   TenantOutcome<
     | {
-        readonly uploadUrl: string;
+        readonly uploadUrl?: string;
         readonly uploadGrantId: string;
         readonly expiresAt: number;
       }
