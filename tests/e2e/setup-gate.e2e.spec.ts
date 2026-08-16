@@ -77,6 +77,19 @@ test.describe("setup gate", () => {
     await expect(page.getByText("ยังเข้าสู่ระบบไม่ได้")).toBeVisible();
   });
 
+  test("Clerk callback paths stay inside the sign-in route", async ({
+    page,
+  }) => {
+    await page.goto(
+      "/th/sign-in/create/sso-callback?sign_in_fallback_redirect_url=%2Fth%2Fdashboard",
+    );
+
+    await expect(
+      page.getByRole("heading", { name: "เข้าสู่ระบบ" }),
+    ).toBeVisible();
+    await expect(page.getByTestId("not-found")).toHaveCount(0);
+  });
+
   test("no preview banner appears when preview mode is off", async ({
     page,
   }) => {
