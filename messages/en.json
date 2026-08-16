@@ -86,6 +86,10 @@
     "notConfiguredHint": "NEXT_PUBLIC_CONVEX_URL is unset, so there is no server connection.",
     "previewHint": "Showing synthetic local data. Nothing here came from a server."
   },
+  "Access": {
+    "organizationRequiredTitle": "Organization access required",
+    "organizationRequiredBody": "Your account is signed in but has no active organization. Ask an administrator to add or activate your membership."
+  },
   "Workspace": {
     "organization": "Organization",
     "warehouse": "Warehouse",

@@ -86,6 +86,10 @@
     "notConfiguredHint": "ยังไม่ได้กำหนดค่า NEXT_PUBLIC_CONVEX_URL จึงไม่มีการเชื่อมต่อเซิร์ฟเวอร์",
     "previewHint": "แสดงข้อมูลสังเคราะห์ในเครื่อง ไม่ได้มาจากเซิร์ฟเวอร์"
   },
+  "Access": {
+    "organizationRequiredTitle": "ต้องมีสิทธิ์องค์กร",
+    "organizationRequiredBody": "บัญชีเข้าสู่ระบบแล้ว แต่ยังไม่มีองค์กรที่ใช้งาน โปรดติดต่อผู้ดูแลเพื่อเพิ่มหรือเปิดใช้งานสมาชิก"
+  },
   "Workspace": {
     "organization": "องค์กร",
     "warehouse": "คลังสินค้า",
