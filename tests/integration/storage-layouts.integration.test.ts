@@ -2,14 +2,20 @@ import type { GenericMutationCtx } from "convex/server";
 import { describe, expect, it } from "vitest";
 
 import { getStorageBuilding } from "../../convex/storageLayouts/catalogue";
+import { postTransaction } from "../../convex/inventory/ledger";
 import {
   activateStorageBuilding,
   createStorageBuilding,
   saveStorageFloor,
 } from "../../convex/storageLayouts/writes";
+import {
+  createStorageZone,
+  placeHandlingUnit,
+} from "../../convex/storageLayouts/zones";
 import type { DataModel } from "../../convex/schema";
 import {
   createConvexInventoryWorld,
+  FIXTURE_UOM,
   type ConvexInventoryWorld,
 } from "../fixtures/convex-inventory-world";
 
@@ -119,6 +125,107 @@ describe("storage building planner", () => {
     expect(detailFloors[0]).toMatchObject({
       heightMm: 4_500,
       reservedAreaSqMm: 48_000_000,
+    });
+
+    const zoneArgs = {
+      warehouseId,
+      buildingId,
+      floorNumber: 1,
+      requestId: "storage-zone-1",
+      label: "Finished goods stack",
+      xMm: 10_000,
+      yMm: 0,
+      widthMm: 2_000,
+      depthMm: 2_000,
+      maxStackHeightMm: 4_500,
+    };
+    const zone = value(await call(world, createStorageZone, zoneArgs));
+    const zoneReplay = value(await call(world, createStorageZone, zoneArgs));
+    expect(zone).toMatchObject({
+      written: true,
+      replayed: false,
+      code: "BLDG-A-F01-Z01",
+    });
+    expect(zoneReplay).toMatchObject({
+      written: true,
+      replayed: true,
+      documentId: zone["documentId"],
+    });
+
+    const receipt = value(
+      await call(world, postTransaction, {
+        warehouseId,
+        requestId: "0193f2c1-0000-7000-8000-000000000021",
+        type: "RECEIPT",
+        source: {
+          type: "TEST",
+          id: "0193f2c1-0000-7000-8000-000000000021",
+        },
+        lines: [
+          {
+            itemId: world.a.item,
+            locationKind: "PHYSICAL",
+            locationId: world.a.rack,
+            lotId: world.a.lot,
+            handlingUnitId: world.a.pallet,
+            stockStatus: "AVAILABLE",
+            quantity: { uom: FIXTURE_UOM, minorUnits: 1_000 },
+          },
+          {
+            itemId: world.a.item,
+            locationKind: "VIRTUAL",
+            virtualBoundary: "SUPPLIER_RECEIPT",
+            lotId: world.a.lot,
+            handlingUnitId: world.a.pallet,
+            stockStatus: "AVAILABLE",
+            quantity: { uom: FIXTURE_UOM, minorUnits: -1_000 },
+          },
+        ],
+      }),
+    );
+    expect(receipt["posted"], JSON.stringify(receipt)).toBe(true);
+
+    const placed = value(
+      await call(world, placeHandlingUnit, {
+        warehouseId,
+        requestId: "0193f2c1-0000-7000-8000-000000000022",
+        lpn: "inv-0001-01",
+        zoneScan: zone["qrValue"],
+        widthMm: 1_200,
+        depthMm: 1_000,
+        heightMm: 1_400,
+      }),
+    );
+    expect(placed).toMatchObject({
+      written: true,
+      replayed: false,
+      levelIndex: 1,
+      capacityWarning: false,
+    });
+
+    const withZone = value(
+      await call(world, getStorageBuilding, { warehouseId, buildingId }),
+    );
+    const withZoneFloors = withZone["floors"] as Record<string, unknown>[];
+    expect(withZoneFloors[0]?.["storageZones"]).toEqual([
+      expect.objectContaining({
+        code: "BLDG-A-F01-Z01",
+        placements: [
+          expect.objectContaining({ lpn: "INV-0001-01", levelIndex: 1 }),
+        ],
+      }),
+    ]);
+    const movedUnit = await world.t.run(async (ctx) =>
+      ctx.db.get(world.a.pallet),
+    );
+    const storedZone = await world.t.run(async (ctx) =>
+      ctx.db.get(zone["documentId"] as never),
+    );
+    expect(movedUnit).toMatchObject({
+      currentLocationId: (storedZone as { locationId: string }).locationId,
+      widthMm: 1_200,
+      depthMm: 1_000,
+      heightMm: 1_400,
     });
 
     const activated = value(

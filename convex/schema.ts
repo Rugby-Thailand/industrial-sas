@@ -797,6 +797,60 @@ const schema = defineSchema({
     .index("by_orgId_floorId", byOrg("floorId"))
     .index("by_orgId_buildingId_floorId", byOrg("buildingId", "floorId")),
 
+  /** A QR-addressable rectangular storage stack drawn on one floor. */
+  storageZones: defineTable(
+    tenantFields({
+      buildingId: v.id("storageBuildings"),
+      floorId: v.id("storageFloors"),
+      warehouseId: v.id("warehouses"),
+      locationId: v.id("locations"),
+      code: v.string(),
+      label: v.string(),
+      qrValue: v.string(),
+      xMm: v.number(),
+      yMm: v.number(),
+      widthMm: v.number(),
+      depthMm: v.number(),
+      maxStackHeightMm: v.number(),
+      status: masterDataStatus,
+      createdAt: v.number(),
+      createdByUserId: v.id("users"),
+      updatedAt: v.number(),
+      updatedByUserId: v.id("users"),
+    }),
+  )
+    .index("by_orgId_floorId_status_code", byOrg("floorId", "status", "code"))
+    .index("by_orgId_locationId", byOrg("locationId"))
+    .index("by_orgId_qrValue", byOrg("qrValue"))
+    .index("by_orgId_warehouseId_code", byOrg("warehouseId", "code")),
+
+  /** Current vertical order of handling units in a storage zone. */
+  storageStackPlacements: defineTable(
+    tenantFields({
+      zoneId: v.id("storageZones"),
+      locationId: v.id("locations"),
+      warehouseId: v.id("warehouses"),
+      handlingUnitId: v.id("handlingUnits"),
+      levelIndex: v.number(),
+      widthMm: v.number(),
+      depthMm: v.number(),
+      heightMm: v.number(),
+      orientation: v.union(v.literal("DEFAULT"), v.literal("ROTATED")),
+      status: v.union(v.literal("ACTIVE"), v.literal("REMOVED")),
+      transactionId: v.id("inventoryTransactions"),
+      placedAt: v.number(),
+      placedByUserId: v.id("users"),
+      removedAt: v.optional(v.number()),
+      removedByUserId: v.optional(v.id("users")),
+    }),
+  )
+    .index(
+      "by_orgId_zoneId_status_levelIndex",
+      byOrg("zoneId", "status", "levelIndex"),
+    )
+    .index("by_orgId_handlingUnitId_status", byOrg("handlingUnitId", "status"))
+    .index("by_orgId_locationId_status", byOrg("locationId", "status")),
+
   /**
    * A production batch of one item (`G-030`).
    *
@@ -850,6 +904,10 @@ const schema = defineSchema({
       lpn: v.string(),
       /** Where it is now, when it is anywhere. Absent for a unit not yet placed. */
       currentLocationId: v.optional(v.id("locations")),
+      /** Actual outside dimensions captured for physical fit and stack order. */
+      widthMm: v.optional(v.number()),
+      depthMm: v.optional(v.number()),
+      heightMm: v.optional(v.number()),
       status: masterDataStatus,
     }),
   )
@@ -1647,6 +1705,11 @@ const schema = defineSchema({
     .index("by_orgId_bucketKey", byOrg("bucketKey"))
     // Bounded pages for reconciliation and for a warehouse's balance screen.
     .index("by_orgId_warehouseId_bucketKey", byOrg("warehouseId", "bucketKey"))
+    .index(
+      "by_orgId_handlingUnitId_bucketKey",
+      byOrg("handlingUnitId", "bucketKey"),
+    )
+    .index("by_orgId_locationId_bucketKey", byOrg("locationId", "bucketKey"))
     // "What is on hand for this item, in this status, at this site" — the
     // question `inventory.balance.read` answers.
     .index(

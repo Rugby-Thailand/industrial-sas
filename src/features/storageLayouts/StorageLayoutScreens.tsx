@@ -5,14 +5,17 @@ import {
   ArrowLeft,
   Building2,
   CheckCircle2,
+  Boxes,
   Layers3,
   PencilLine,
   Plus,
+  QrCode,
   Ruler,
   Search,
   Trash2,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { QRCodeSVG } from "qrcode.react";
 import {
   useId,
   useMemo,
@@ -45,12 +48,17 @@ import {
   ROUTES,
 } from "@/lib/navigation";
 import {
+  listHandlingUnitsRef,
+  type HandlingUnitRow,
+} from "@/lib/convex/masterDataApi";
+import {
   storageLayoutRefs,
   type StorageBuildingDetail,
   type StorageBuildingRow,
   type StorageFloorRow,
   type StorageLayoutStatus,
   type StorageReservedBlockRow,
+  type StorageZoneRow,
 } from "@/lib/convex/storageLayoutApi";
 import {
   buildIsometricBuilding,
@@ -1086,6 +1094,7 @@ function FloorForm({
           offsetYMm={actualPlacement.yMm}
           onPlacementChange={setPlacement}
           blocks={blocks}
+          zones={floor.storageZones}
         />
         <section className="rounded-2xl border border-border bg-surface p-5 shadow-sm">
           <div className="flex items-center gap-2">
@@ -1111,6 +1120,15 @@ function FloorForm({
           </div>
         </section>
         <ReservedBlocks blocks={blocks} setBlocks={setBlocks} />
+        <StorageZonesPanel
+          warehouseId={warehouseId}
+          buildingId={detail.building.buildingId}
+          floorNumber={floor.floorNumber}
+          floorWidthMm={actualWidth}
+          floorDepthMm={actualDepth}
+          floorHeightMm={actualHeight}
+          zones={floor.storageZones}
+        />
         {message === undefined ? null : (
           <Notice tone={message.tone} title={message.text} />
         )}
@@ -1210,6 +1228,7 @@ export function FloorPlan({
   offsetYMm,
   onPlacementChange,
   blocks,
+  zones = [],
 }: {
   readonly widthMm: number;
   readonly depthMm: number;
@@ -1225,6 +1244,7 @@ export function FloorPlan({
     readonly yMm: number;
   }) => void;
   readonly blocks: readonly EditableBlock[];
+  readonly zones?: readonly StorageZoneRow[];
 }) {
   const t = useTranslations("StorageLayouts");
   const [view, setView] = useState<"3d" | "plan">("3d");
@@ -1272,6 +1292,7 @@ export function FloorPlan({
           offsetYMm={offsetYMm}
           onPlacementChange={onPlacementChange}
           blocks={blocks}
+          zones={zones}
         />
       ) : (
         <FloorPlanDrawing
@@ -1282,6 +1303,7 @@ export function FloorPlan({
           offsetXMm={offsetXMm}
           offsetYMm={offsetYMm}
           blocks={blocks}
+          zones={zones}
         />
       )}
       <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-background px-3 py-2 text-xs">
@@ -1303,6 +1325,10 @@ export function FloorPlan({
           {t("unavailable")}
         </span>
         <span>
+          <i className="mr-2 inline-block size-3 rounded-sm border border-success bg-success/25" />
+          {t("storageZones")}
+        </span>
+        <span>
           <i className="mr-2 inline-block size-3 rounded-sm border border-dashed border-muted" />
           {baseLabel}
         </span>
@@ -1322,6 +1348,7 @@ function FloorVolume({
   offsetYMm,
   onPlacementChange,
   blocks,
+  zones,
 }: {
   readonly widthMm: number;
   readonly depthMm: number;
@@ -1336,6 +1363,7 @@ function FloorVolume({
     readonly yMm: number;
   }) => void;
   readonly blocks: readonly EditableBlock[];
+  readonly zones: readonly StorageZoneRow[];
 }) {
   const t = useTranslations("StorageLayouts");
   const patternId = useId();
@@ -1606,6 +1634,36 @@ function FloorVolume({
             </g>
           );
         })}
+        {zones.map((zone) => {
+          const shape = [
+            topPoint(zone.xMm, zone.yMm),
+            topPoint(zone.xMm + zone.widthMm, zone.yMm),
+            topPoint(zone.xMm + zone.widthMm, zone.yMm + zone.depthMm),
+            topPoint(zone.xMm, zone.yMm + zone.depthMm),
+          ];
+          const labelPoint = topPoint(
+            zone.xMm + zone.widthMm / 2,
+            zone.yMm + zone.depthMm / 2,
+          );
+          return (
+            <g key={zone.zoneId}>
+              <polygon
+                points={pointsAttribute(shape)}
+                className="fill-success/35 stroke-success"
+                strokeWidth="2"
+              />
+              <text
+                x={labelPoint.x}
+                y={labelPoint.y + 8}
+                textAnchor="middle"
+                dominantBaseline="central"
+                className="fill-text text-[9px] font-bold"
+              >
+                {zone.code.split("-").at(-1)} · {zone.placements.length}
+              </text>
+            </g>
+          );
+        })}
       </g>
       <DimensionGuide
         start={slab.top[0]!}
@@ -1694,6 +1752,7 @@ function FloorPlanDrawing({
   offsetXMm,
   offsetYMm,
   blocks,
+  zones,
 }: {
   readonly widthMm: number;
   readonly depthMm: number;
@@ -1702,6 +1761,7 @@ function FloorPlanDrawing({
   readonly offsetXMm: number;
   readonly offsetYMm: number;
   readonly blocks: readonly EditableBlock[];
+  readonly zones: readonly StorageZoneRow[];
 }) {
   const t = useTranslations("StorageLayouts");
   const drawingWidth = Math.max(widthMm + offsetXMm, baseWidthMm, 1);
@@ -1809,6 +1869,29 @@ function FloorPlanDrawing({
             style={{ fontSize: labelSize }}
           >
             {block.label}
+          </text>
+        </g>
+      ))}
+      {zones.map((zone) => (
+        <g key={zone.zoneId}>
+          <rect
+            x={offsetXMm + zone.xMm}
+            y={offsetYMm + zone.yMm}
+            width={zone.widthMm}
+            height={zone.depthMm}
+            className="fill-success/30 stroke-success"
+            strokeWidth={Math.max(40, drawingWidth / 700)}
+            vectorEffect="non-scaling-stroke"
+          />
+          <text
+            x={offsetXMm + zone.xMm + zone.widthMm / 2}
+            y={offsetYMm + zone.yMm + zone.depthMm / 2}
+            textAnchor="middle"
+            dominantBaseline="central"
+            className="fill-text font-bold"
+            style={{ fontSize: labelSize * 0.78 }}
+          >
+            {zone.code.split("-").at(-1)} · {zone.placements.length}
           </text>
         </g>
       ))}
@@ -1923,6 +2006,398 @@ function ReservedBlocks({
           </div>
         ))}
       </div>
+    </section>
+  );
+}
+
+function StorageZonesPanel({
+  warehouseId,
+  buildingId,
+  floorNumber,
+  floorWidthMm,
+  floorDepthMm,
+  floorHeightMm,
+  zones,
+}: {
+  readonly warehouseId: string;
+  readonly buildingId: string;
+  readonly floorNumber: number;
+  readonly floorWidthMm: number;
+  readonly floorDepthMm: number;
+  readonly floorHeightMm: number;
+  readonly zones: readonly StorageZoneRow[];
+}) {
+  const t = useTranslations("StorageLayouts");
+  const createZone = useMutation(storageLayoutRefs.createZone);
+  const archiveZone = useMutation(storageLayoutRefs.archiveZone);
+  const placeHandlingUnit = useMutation(storageLayoutRefs.placeHandlingUnit);
+  const unitsOutcome = useQuery(listHandlingUnitsRef, {
+    warehouseId,
+    status: "ACTIVE",
+    maxPageSize: 100,
+  });
+  const units: readonly HandlingUnitRow[] =
+    unitsOutcome?.ok === true && unitsOutcome.value.ok
+      ? unitsOutcome.value.items
+      : [];
+  const [label, setLabel] = useState("");
+  const [zoneX, setZoneX] = useState("0");
+  const [zoneY, setZoneY] = useState("0");
+  const [zoneWidth, setZoneWidth] = useState("2");
+  const [zoneDepth, setZoneDepth] = useState("2");
+  const [stackHeight, setStackHeight] = useState(String(metres(floorHeightMm)));
+  const [lpn, setLpn] = useState("");
+  const [zoneScan, setZoneScan] = useState("");
+  const [unitWidth, setUnitWidth] = useState("1.2");
+  const [unitDepth, setUnitDepth] = useState("1");
+  const [unitHeight, setUnitHeight] = useState("1.4");
+  const [pendingAction, setPendingAction] = useState<string>();
+  const [message, setMessage] = useState<{
+    readonly tone: "success" | "warning";
+    readonly text: string;
+  }>();
+
+  const selectUnit = (nextLpn: string) => {
+    setLpn(nextLpn);
+    const unit = units.find(
+      (candidate) => candidate.lpn.toUpperCase() === nextLpn.toUpperCase(),
+    );
+    if (unit?.widthMm !== undefined) setUnitWidth(String(metres(unit.widthMm)));
+    if (unit?.depthMm !== undefined) setUnitDepth(String(metres(unit.depthMm)));
+    if (unit?.heightMm !== undefined)
+      setUnitHeight(String(metres(unit.heightMm)));
+  };
+
+  const addStorageZone = async () => {
+    setPendingAction("create");
+    setMessage(undefined);
+    try {
+      const outcome = await createZone({
+        warehouseId,
+        buildingId,
+        floorNumber,
+        requestId: requestId(),
+        label: label || t("newStorageZoneLabel", { number: zones.length + 1 }),
+        xMm: millimetres(zoneX),
+        yMm: millimetres(zoneY),
+        widthMm: millimetres(zoneWidth),
+        depthMm: millimetres(zoneDepth),
+        maxStackHeightMm: millimetres(stackHeight),
+      });
+      if (!outcome.ok) {
+        setMessage({
+          tone: "warning",
+          text: t("writeError", { code: outcome.denial.code }),
+        });
+      } else if (!outcome.value.written) {
+        setMessage({
+          tone: "warning",
+          text: t("writeError", { code: outcome.value.error.code }),
+        });
+      } else {
+        setLabel("");
+        setMessage({ tone: "success", text: t("storageZoneCreated") });
+      }
+    } finally {
+      setPendingAction(undefined);
+    }
+  };
+
+  const removeStorageZone = async (zone: StorageZoneRow) => {
+    setPendingAction(zone.zoneId);
+    setMessage(undefined);
+    try {
+      const outcome = await archiveZone({
+        warehouseId,
+        zoneId: zone.zoneId,
+        requestId: requestId(),
+      });
+      if (!outcome.ok) {
+        const code = outcome.denial.code;
+        setMessage({ tone: "warning", text: t("writeError", { code }) });
+      } else if (!outcome.value.written) {
+        const code = outcome.value.error.code;
+        setMessage({ tone: "warning", text: t("writeError", { code }) });
+      } else {
+        setMessage({ tone: "success", text: t("storageZoneArchived") });
+      }
+    } finally {
+      setPendingAction(undefined);
+    }
+  };
+
+  const placeUnit = async () => {
+    setPendingAction("place");
+    setMessage(undefined);
+    try {
+      const outcome = await placeHandlingUnit({
+        warehouseId,
+        requestId: requestId(),
+        lpn,
+        zoneScan,
+        widthMm: millimetres(unitWidth),
+        depthMm: millimetres(unitDepth),
+        heightMm: millimetres(unitHeight),
+      });
+      if (!outcome.ok) {
+        const code = outcome.denial.code;
+        setMessage({ tone: "warning", text: t("writeError", { code }) });
+      } else if (!outcome.value.written) {
+        const code = outcome.value.error.code;
+        setMessage({ tone: "warning", text: t("writeError", { code }) });
+      } else {
+        setMessage({
+          tone: outcome.value.capacityWarning ? "warning" : "success",
+          text: outcome.value.capacityWarning
+            ? t("stackHeightWarning", { level: outcome.value.levelIndex })
+            : t("unitPlaced", { level: outcome.value.levelIndex }),
+        });
+        setLpn("");
+      }
+    } finally {
+      setPendingAction(undefined);
+    }
+  };
+
+  return (
+    <section className="rounded-2xl border border-border bg-surface p-5 shadow-sm">
+      <div className="flex items-start gap-3">
+        <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-success/10 text-success">
+          <QrCode className="size-5" />
+        </div>
+        <div>
+          <h2 className="font-semibold text-text">{t("storageZones")}</h2>
+          <p className="mt-1 text-sm text-muted">{t("storageZonesHelp")}</p>
+        </div>
+      </div>
+
+      <div className="mt-5 grid gap-3 rounded-xl border border-border bg-background p-4 md:grid-cols-6">
+        <div className="md:col-span-2">
+          <Label htmlFor="new-storage-zone-label">{t("zoneLabel")}</Label>
+          <Input
+            id="new-storage-zone-label"
+            className="mt-2"
+            value={label}
+            placeholder={t("newStorageZoneLabel", { number: zones.length + 1 })}
+            onChange={(event) => setLabel(event.target.value)}
+          />
+        </div>
+        {[
+          ["x", zoneX, setZoneX, 0, floorWidthMm],
+          ["y", zoneY, setZoneY, 0, floorDepthMm],
+          ["zoneWidth", zoneWidth, setZoneWidth, 0.1, floorWidthMm],
+          ["zoneDepth", zoneDepth, setZoneDepth, 0.1, floorDepthMm],
+        ].map(([key, value, setValue, min]) => (
+          <div key={String(key)}>
+            <Label htmlFor={`new-storage-zone-${String(key)}`}>
+              {t(key as "x" | "y" | "zoneWidth" | "zoneDepth")}
+            </Label>
+            <Input
+              id={`new-storage-zone-${String(key)}`}
+              className="mt-2"
+              type="number"
+              min={Number(min)}
+              step="0.1"
+              value={String(value)}
+              onChange={(event) =>
+                (setValue as (value: string) => void)(event.target.value)
+              }
+            />
+          </div>
+        ))}
+        <div className="md:col-span-2">
+          <Label htmlFor="new-storage-zone-height">{t("maxStackHeight")}</Label>
+          <Input
+            id="new-storage-zone-height"
+            className="mt-2"
+            type="number"
+            min="0.1"
+            max={metres(floorHeightMm)}
+            step="0.1"
+            value={stackHeight}
+            onChange={(event) => setStackHeight(event.target.value)}
+          />
+        </div>
+        <div className="flex items-end md:col-span-4">
+          <Button
+            type="button"
+            onClick={addStorageZone}
+            disabled={pendingAction !== undefined}
+          >
+            <Plus className="size-4" />
+            {pendingAction === "create"
+              ? t("creating")
+              : t("createStorageZone")}
+          </Button>
+        </div>
+      </div>
+
+      <div className="mt-5 grid gap-4 lg:grid-cols-2">
+        {zones.map((zone) => {
+          const occupiedHeightMm = zone.placements.reduce(
+            (total, placement) => total + placement.heightMm,
+            0,
+          );
+          return (
+            <article
+              key={zone.zoneId}
+              className="rounded-xl border border-border bg-background p-4"
+            >
+              <div className="flex gap-4">
+                <div
+                  aria-label={t("qrForZone", { code: zone.code })}
+                  className="shrink-0 rounded-lg bg-white p-2"
+                >
+                  <QRCodeSVG value={zone.qrValue} size={104} level="M" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-semibold tracking-wider text-success uppercase">
+                    {zone.code}
+                  </p>
+                  <h3 className="mt-1 truncate font-semibold text-text">
+                    {zone.label}
+                  </h3>
+                  <p className="mt-1 text-xs text-muted">
+                    {metres(zone.widthMm)} × {metres(zone.depthMm)} m ·{" "}
+                    {t("stackUsed", {
+                      used: metres(occupiedHeightMm),
+                      maximum: metres(zone.maxStackHeightMm),
+                    })}
+                  </p>
+                  <code className="mt-2 block text-[10px] break-all text-muted">
+                    {zone.qrValue}
+                  </code>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setZoneScan(zone.code)}
+                    >
+                      {t("useZone")}
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      disabled={pendingAction !== undefined}
+                      onClick={() => removeStorageZone(zone)}
+                    >
+                      <Trash2 className="size-3.5" />
+                      {t("archiveZone")}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-4 border-t border-border pt-3">
+                <p className="text-xs font-semibold text-muted uppercase">
+                  {t("stackOrder")}
+                </p>
+                {zone.placements.length === 0 ? (
+                  <p className="mt-2 text-sm text-muted">{t("emptyStack")}</p>
+                ) : (
+                  <ol className="mt-2 space-y-2">
+                    {[...zone.placements].reverse().map((placement, index) => (
+                      <li
+                        key={placement.placementId}
+                        className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2 text-sm"
+                      >
+                        <span className="flex min-w-0 items-center gap-2">
+                          <Boxes className="size-4 shrink-0 text-accent" />
+                          <span className="truncate font-medium text-text">
+                            {placement.lpn}
+                          </span>
+                        </span>
+                        <span className="shrink-0 text-xs text-muted">
+                          {index === 0
+                            ? t("top")
+                            : t("level", { level: placement.levelIndex })}
+                        </span>
+                      </li>
+                    ))}
+                  </ol>
+                )}
+              </div>
+            </article>
+          );
+        })}
+      </div>
+
+      <div className="mt-5 rounded-xl border border-accent/30 bg-accent/5 p-4">
+        <h3 className="font-semibold text-text">{t("scanPlacement")}</h3>
+        <p className="mt-1 text-sm text-muted">{t("scanPlacementHelp")}</p>
+        <datalist id="storage-handling-units">
+          {units.map((unit) => (
+            <option key={unit.handlingUnitId} value={unit.lpn} />
+          ))}
+        </datalist>
+        <div className="mt-4 grid gap-3 md:grid-cols-5">
+          <div className="md:col-span-2">
+            <Label htmlFor="stack-lpn">{t("handlingUnit")}</Label>
+            <Input
+              id="stack-lpn"
+              className="mt-2"
+              list="storage-handling-units"
+              value={lpn}
+              placeholder={t("scanLpn")}
+              onChange={(event) => selectUnit(event.target.value)}
+            />
+          </div>
+          <div className="md:col-span-3">
+            <Label htmlFor="stack-zone-scan">{t("zoneCodeOrQr")}</Label>
+            <Input
+              id="stack-zone-scan"
+              className="mt-2 font-mono"
+              value={zoneScan}
+              placeholder={t("scanZone")}
+              onChange={(event) => setZoneScan(event.target.value)}
+            />
+          </div>
+          {[
+            ["unitWidth", unitWidth, setUnitWidth],
+            ["unitDepth", unitDepth, setUnitDepth],
+            ["unitHeight", unitHeight, setUnitHeight],
+          ].map(([key, value, setValue]) => (
+            <div key={String(key)}>
+              <Label htmlFor={`stack-${String(key)}`}>
+                {t(key as "unitWidth" | "unitDepth" | "unitHeight")}
+              </Label>
+              <Input
+                id={`stack-${String(key)}`}
+                className="mt-2"
+                type="number"
+                min="0.1"
+                step="0.1"
+                value={String(value)}
+                onChange={(event) =>
+                  (setValue as (value: string) => void)(event.target.value)
+                }
+              />
+            </div>
+          ))}
+          <div className="flex items-end md:col-span-2">
+            <Button
+              type="button"
+              className="w-full"
+              disabled={
+                pendingAction !== undefined ||
+                lpn.trim() === "" ||
+                zoneScan.trim() === ""
+              }
+              onClick={placeUnit}
+            >
+              <QrCode className="size-4" />
+              {pendingAction === "place" ? t("placing") : t("confirmPlacement")}
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {message === undefined ? null : (
+        <div className="mt-4">
+          <Notice tone={message.tone} title={message.text} />
+        </div>
+      )}
     </section>
   );
 }

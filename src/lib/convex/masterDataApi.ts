@@ -57,6 +57,17 @@ export interface LocationRow {
   readonly status: MasterDataStatus;
 }
 
+export interface HandlingUnitRow {
+  readonly handlingUnitId: string;
+  readonly warehouseId: string;
+  readonly lpn: string;
+  readonly currentLocationId?: string;
+  readonly widthMm?: number;
+  readonly depthMm?: number;
+  readonly heightMm?: number;
+  readonly status: MasterDataStatus;
+}
+
 export interface ReasonCodeRow {
   readonly reasonCodeId: string;
   readonly code: string;
@@ -79,6 +90,7 @@ export const MASTER_DATA_FUNCTION_PATHS = Object.freeze({
   listItems: "masterData/catalogue:listItems",
   listLocations: "masterData/catalogue:listLocations",
   listReasonCodes: "masterData/catalogue:listReasonCodes",
+  listHandlingUnits: "masterData/catalogue:listHandlingUnits",
 });
 
 export const listItemsRef = makeFunctionReference<
@@ -102,6 +114,12 @@ export const listReasonCodesRef = makeFunctionReference<
   },
   TenantOutcome<MasterDataPage<ReasonCodeRow>>
 >(MASTER_DATA_FUNCTION_PATHS.listReasonCodes);
+
+export const listHandlingUnitsRef = makeFunctionReference<
+  "query",
+  WarehouseScopedListArgs,
+  TenantOutcome<MasterDataPage<HandlingUnitRow>>
+>(MASTER_DATA_FUNCTION_PATHS.listHandlingUnits);
 
 /* -------------------------------------------------------------------------- */
 /* The five Phase 2 entities                                                   */

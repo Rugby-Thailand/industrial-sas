@@ -54,6 +54,7 @@ const floors: readonly StorageFloorRow[] = [1, 2, 3, 4].map((floorNumber) => ({
   reservedAreaSqMm: floorNumber === 2 ? 24_000_000 : 0,
   usableAreaSqMm: floorNumber === 2 ? 408_000_000 : 600_000_000,
   version: floorNumber === 2 ? 2 : 1,
+  storageZones: [],
   reservedBlocks: [],
 }));
 

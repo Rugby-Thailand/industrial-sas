@@ -592,6 +592,9 @@ const handlingUnitValidator = v.object({
   warehouseId: v.id("warehouses"),
   lpn: v.string(),
   currentLocationId: v.optional(v.id("locations")),
+  widthMm: v.optional(v.number()),
+  depthMm: v.optional(v.number()),
+  heightMm: v.optional(v.number()),
   status: masterDataStatus,
 });
 
@@ -601,6 +604,9 @@ interface HandlingUnitDocument {
   readonly warehouseId: string;
   readonly lpn: string;
   readonly currentLocationId?: string;
+  readonly widthMm?: number;
+  readonly depthMm?: number;
+  readonly heightMm?: number;
   readonly status: MasterDataStatus;
 }
 
@@ -650,6 +656,9 @@ export const listHandlingUnits = queryWithOrg({
         ...(unit.currentLocationId === undefined
           ? {}
           : { currentLocationId: unit.currentLocationId as never }),
+        ...(unit.widthMm === undefined ? {} : { widthMm: unit.widthMm }),
+        ...(unit.depthMm === undefined ? {} : { depthMm: unit.depthMm }),
+        ...(unit.heightMm === undefined ? {} : { heightMm: unit.heightMm }),
         status: unit.status,
       })),
       nextCursor: page.nextCursor,

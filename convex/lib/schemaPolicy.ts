@@ -85,6 +85,8 @@ export const TENANT_TABLES = [
   "storageBuildings",
   "storageFloors",
   "storageFloorReservedBlocks",
+  "storageZones",
+  "storageStackPlacements",
   "inventoryTransactions",
   "inventoryLedgerLines",
   "inventoryBalances",

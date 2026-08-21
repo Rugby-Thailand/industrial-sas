@@ -13,6 +13,33 @@ export interface StorageReservedBlockRow {
   readonly depthMm: number;
 }
 
+export interface StorageStackPlacementRow {
+  readonly placementId: string;
+  readonly handlingUnitId: string;
+  readonly lpn: string;
+  /** One is the floor; larger numbers are physically above it. */
+  readonly levelIndex: number;
+  readonly widthMm: number;
+  readonly depthMm: number;
+  readonly heightMm: number;
+  readonly orientation: "DEFAULT" | "ROTATED";
+  readonly placedAt: number;
+}
+
+export interface StorageZoneRow {
+  readonly zoneId: string;
+  readonly locationId: string;
+  readonly code: string;
+  readonly label: string;
+  readonly qrValue: string;
+  readonly xMm: number;
+  readonly yMm: number;
+  readonly widthMm: number;
+  readonly depthMm: number;
+  readonly maxStackHeightMm: number;
+  readonly placements: readonly StorageStackPlacementRow[];
+}
+
 export interface StorageFloorRow {
   readonly floorId: string;
   readonly floorNumber: number;
@@ -25,6 +52,7 @@ export interface StorageFloorRow {
   readonly reservedAreaSqMm: number;
   readonly usableAreaSqMm: number;
   readonly version: number;
+  readonly storageZones: readonly StorageZoneRow[];
   readonly reservedBlocks: readonly StorageReservedBlockRow[];
 }
 
@@ -58,6 +86,22 @@ export type StorageWriteOutcome =
       readonly written: true;
       readonly documentId: string;
       readonly replayed: boolean;
+    }
+  | {
+      readonly written: false;
+      readonly error: { readonly code: string; readonly field?: string };
+    };
+
+export type StoragePlacementOutcome =
+  | {
+      readonly written: true;
+      readonly documentId: string;
+      readonly replayed: boolean;
+      readonly levelIndex: number;
+      readonly orientation: "DEFAULT" | "ROTATED";
+      readonly occupiedHeightMm: number;
+      readonly resultingHeightMm: number;
+      readonly capacityWarning: boolean;
     }
   | {
       readonly written: false;
@@ -161,4 +205,38 @@ export const storageLayoutRefs = Object.freeze({
     },
     TenantOutcome<StorageWriteOutcome>
   >("storageLayouts/writes:archiveStorageBuilding"),
+  createZone: makeFunctionReference<
+    "mutation",
+    {
+      warehouseId: string;
+      buildingId: string;
+      floorNumber: number;
+      requestId: string;
+      label: string;
+      xMm: number;
+      yMm: number;
+      widthMm: number;
+      depthMm: number;
+      maxStackHeightMm: number;
+    },
+    TenantOutcome<StorageWriteOutcome>
+  >("storageLayouts/zones:createStorageZone"),
+  archiveZone: makeFunctionReference<
+    "mutation",
+    { warehouseId: string; zoneId: string; requestId: string },
+    TenantOutcome<StorageWriteOutcome>
+  >("storageLayouts/zones:archiveStorageZone"),
+  placeHandlingUnit: makeFunctionReference<
+    "mutation",
+    {
+      warehouseId: string;
+      requestId: string;
+      lpn: string;
+      zoneScan: string;
+      widthMm: number;
+      depthMm: number;
+      heightMm: number;
+    },
+    TenantOutcome<StoragePlacementOutcome>
+  >("storageLayouts/zones:placeHandlingUnit"),
 });

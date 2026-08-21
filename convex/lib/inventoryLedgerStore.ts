@@ -346,6 +346,9 @@ type HandlingUnitRow = {
   readonly warehouseId: string;
   readonly lpn: string;
   readonly currentLocationId?: string;
+  readonly widthMm?: number;
+  readonly depthMm?: number;
+  readonly heightMm?: number;
   readonly status: "ACTIVE" | "INACTIVE";
 };
 
@@ -1158,6 +1161,9 @@ export async function postLedgerTransaction(
       lpn: stored.lpn,
       status: stored.status,
       ...(locationId === null ? {} : { currentLocationId: locationId }),
+      ...(stored.widthMm === undefined ? {} : { widthMm: stored.widthMm }),
+      ...(stored.depthMm === undefined ? {} : { depthMm: stored.depthMm }),
+      ...(stored.heightMm === undefined ? {} : { heightMm: stored.heightMm }),
     });
   }
 

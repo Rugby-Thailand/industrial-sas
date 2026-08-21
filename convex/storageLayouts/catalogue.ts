@@ -55,6 +55,40 @@ interface BlockDocument {
   readonly depthMm: number;
 }
 
+interface ZoneDocument {
+  readonly _id: string;
+  readonly orgId: TenantOrgId;
+  readonly locationId: string;
+  readonly code: string;
+  readonly label: string;
+  readonly qrValue: string;
+  readonly xMm: number;
+  readonly yMm: number;
+  readonly widthMm: number;
+  readonly depthMm: number;
+  readonly maxStackHeightMm: number;
+  readonly status: "ACTIVE" | "INACTIVE";
+}
+
+interface PlacementDocument {
+  readonly _id: string;
+  readonly orgId: TenantOrgId;
+  readonly handlingUnitId: string;
+  readonly levelIndex: number;
+  readonly widthMm: number;
+  readonly depthMm: number;
+  readonly heightMm: number;
+  readonly orientation: "DEFAULT" | "ROTATED";
+  readonly placedAt: number;
+}
+
+interface HandlingUnitDocument {
+  readonly _id: string;
+  readonly orgId: TenantOrgId;
+  readonly lpn: string;
+  readonly currentLocationId?: string;
+}
+
 const buildingArgs = {
   warehouseId: v.id("warehouses"),
   buildingId: v.id("storageBuildings"),
@@ -66,6 +100,63 @@ async function readFloor(ctx: TenantFunctionContext, floor: FloorDocument) {
       { field: "floorId", value: floor._id },
     ])
     .take(20);
+  const zones = await ctx.tenantDb
+    .byIndex<ZoneDocument>("storageZones", "by_orgId_floorId_status_code", [
+      { field: "floorId", value: floor._id },
+      { field: "status", value: "ACTIVE" },
+    ])
+    .take(50);
+  const storageZones = await Promise.all(
+    zones.map(async (zone) => {
+      const placements = await ctx.tenantDb
+        .byIndex<PlacementDocument>(
+          "storageStackPlacements",
+          "by_orgId_zoneId_status_levelIndex",
+          [
+            { field: "zoneId", value: zone._id },
+            { field: "status", value: "ACTIVE" },
+          ],
+        )
+        .take(50);
+      const resolved = await Promise.all(
+        placements.map(async (placement) => {
+          const unit = await ctx.tenantDb.get<HandlingUnitDocument>(
+            "handlingUnits",
+            placement.handlingUnitId,
+          );
+          if (unit === null || unit.currentLocationId !== zone.locationId) {
+            return null;
+          }
+          return {
+            placementId: placement._id,
+            handlingUnitId: placement.handlingUnitId,
+            lpn: unit.lpn,
+            levelIndex: placement.levelIndex,
+            widthMm: placement.widthMm,
+            depthMm: placement.depthMm,
+            heightMm: placement.heightMm,
+            orientation: placement.orientation,
+            placedAt: placement.placedAt,
+          };
+        }),
+      );
+      return {
+        zoneId: zone._id,
+        locationId: zone.locationId,
+        code: zone.code,
+        label: zone.label,
+        qrValue: zone.qrValue,
+        xMm: zone.xMm,
+        yMm: zone.yMm,
+        widthMm: zone.widthMm,
+        depthMm: zone.depthMm,
+        maxStackHeightMm: zone.maxStackHeightMm,
+        placements: resolved
+          .filter((placement) => placement !== null)
+          .sort((left, right) => left.levelIndex - right.levelIndex),
+      };
+    }),
+  );
   return {
     floorId: floor._id,
     floorNumber: floor.floorNumber,
@@ -78,6 +169,7 @@ async function readFloor(ctx: TenantFunctionContext, floor: FloorDocument) {
     reservedAreaSqMm: floor.reservedAreaSqMm,
     usableAreaSqMm: floor.usableAreaSqMm,
     version: floor.version,
+    storageZones,
     reservedBlocks: blocks.map((block) => ({
       blockId: block._id,
       label: block.label,
