@@ -26,6 +26,7 @@ import {
   BuildingSettingsSheet,
   FloorPlan,
   IsometricBuilding,
+  StorageZoneDraftPreview,
 } from "./StorageLayoutScreens";
 
 const building: StorageBuildingRow = {
@@ -203,5 +204,53 @@ describe("FloorPlan", () => {
     expect(
       screen.queryByRole("img", { name: "3D floor volume" }),
     ).not.toBeInTheDocument();
+  });
+});
+
+describe("StorageZoneDraftPreview", () => {
+  it("moves the 3D draft immediately and warns when it exceeds the floor", () => {
+    const initial = renderWithIntl(
+      <StorageZoneDraftPreview
+        floorWidthMm={10_000}
+        floorDepthMm={10_000}
+        floorHeightMm={3_000}
+        zoneX="0"
+        zoneY="0"
+        zoneWidth="2"
+        zoneDepth="2"
+        stackHeight="2"
+        zones={[]}
+      />,
+      { locale: "en", workspace: false },
+    );
+    const initialTop = screen
+      .getByRole("img", { name: "Live 3D position" })
+      .querySelector('[data-zone-face="top"]')
+      ?.getAttribute("points");
+
+    expect(screen.getByText("Fits within floor")).toBeInTheDocument();
+    initial.unmount();
+
+    renderWithIntl(
+      <StorageZoneDraftPreview
+        floorWidthMm={10_000}
+        floorDepthMm={10_000}
+        floorHeightMm={3_000}
+        zoneX="9"
+        zoneY="3"
+        zoneWidth="2"
+        zoneDepth="2"
+        stackHeight="2"
+        zones={[]}
+      />,
+      { locale: "en", workspace: false },
+    );
+    const movedTop = screen
+      .getByRole("img", { name: "Live 3D position" })
+      .querySelector('[data-zone-face="top"]')
+      ?.getAttribute("points");
+
+    expect(movedTop).not.toBe(initialTop);
+    expect(screen.getByText("Outside floor limits")).toBeInTheDocument();
   });
 });

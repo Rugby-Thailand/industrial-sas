@@ -2115,6 +2115,275 @@ function ReservedBlocks({
   );
 }
 
+const draftMillimetres = (value: string) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? Math.round(parsed * 1_000) : 0;
+};
+
+export function StorageZoneDraftPreview({
+  floorWidthMm,
+  floorDepthMm,
+  floorHeightMm,
+  zoneX,
+  zoneY,
+  zoneWidth,
+  zoneDepth,
+  stackHeight,
+  zones,
+}: {
+  readonly floorWidthMm: number;
+  readonly floorDepthMm: number;
+  readonly floorHeightMm: number;
+  readonly zoneX: string;
+  readonly zoneY: string;
+  readonly zoneWidth: string;
+  readonly zoneDepth: string;
+  readonly stackHeight: string;
+  readonly zones: readonly StorageZoneRow[];
+}) {
+  const t = useTranslations("StorageLayouts");
+  const patternId = useId();
+  const xMm = draftMillimetres(zoneX);
+  const yMm = draftMillimetres(zoneY);
+  const widthMm = draftMillimetres(zoneWidth);
+  const depthMm = draftMillimetres(zoneDepth);
+  const heightMm = draftMillimetres(stackHeight);
+  const fitsFloor =
+    xMm >= 0 &&
+    yMm >= 0 &&
+    widthMm > 0 &&
+    depthMm > 0 &&
+    heightMm > 0 &&
+    xMm + widthMm <= floorWidthMm &&
+    yMm + depthMm <= floorDepthMm &&
+    heightMm <= floorHeightMm;
+  const drawnWidthMm = Math.max(100, Math.min(widthMm, floorWidthMm));
+  const drawnDepthMm = Math.max(100, Math.min(depthMm, floorDepthMm));
+  const drawnHeightMm = Math.max(100, Math.min(heightMm, floorHeightMm));
+  const drawnXMm = Math.max(
+    0,
+    Math.min(xMm, Math.max(0, floorWidthMm - drawnWidthMm)),
+  );
+  const drawnYMm = Math.max(
+    0,
+    Math.min(yMm, Math.max(0, floorDepthMm - drawnDepthMm)),
+  );
+  const scale = 0.016;
+  const point = (x: number, y: number, z = 0) =>
+    projectIsometricPoint({ x: x * scale, y: y * scale, z: z * scale });
+  const floorShape = [
+    point(0, 0),
+    point(floorWidthMm, 0),
+    point(floorWidthMm, floorDepthMm),
+    point(0, floorDepthMm),
+  ];
+  const zoneBottom = [
+    point(drawnXMm, drawnYMm),
+    point(drawnXMm + drawnWidthMm, drawnYMm),
+    point(drawnXMm + drawnWidthMm, drawnYMm + drawnDepthMm),
+    point(drawnXMm, drawnYMm + drawnDepthMm),
+  ];
+  const zoneTop = [
+    point(drawnXMm, drawnYMm, drawnHeightMm),
+    point(drawnXMm + drawnWidthMm, drawnYMm, drawnHeightMm),
+    point(drawnXMm + drawnWidthMm, drawnYMm + drawnDepthMm, drawnHeightMm),
+    point(drawnXMm, drawnYMm + drawnDepthMm, drawnHeightMm),
+  ];
+  const displayedGridStepMm = Math.max(
+    1_000,
+    Math.ceil(Math.max(floorWidthMm, floorDepthMm) / 20_000) * 1_000,
+  );
+  const gridLines = [
+    ...Array.from(
+      {
+        length: Math.max(0, Math.ceil(floorWidthMm / displayedGridStepMm) - 1),
+      },
+      (_, index) => {
+        const x = (index + 1) * displayedGridStepMm;
+        return [point(x, 0), point(x, floorDepthMm)] as const;
+      },
+    ),
+    ...Array.from(
+      {
+        length: Math.max(0, Math.ceil(floorDepthMm / displayedGridStepMm) - 1),
+      },
+      (_, index) => {
+        const y = (index + 1) * displayedGridStepMm;
+        return [point(0, y), point(floorWidthMm, y)] as const;
+      },
+    ),
+  ];
+  const heightGuideBottom = point(floorWidthMm, 0);
+  const heightGuideTop = point(floorWidthMm, 0, floorHeightMm);
+  const visualPoints = [
+    ...floorShape,
+    heightGuideTop,
+    { x: heightGuideBottom.x + 64, y: heightGuideBottom.y },
+    { x: heightGuideTop.x + 64, y: heightGuideTop.y },
+  ];
+  const visualXs = visualPoints.map((visualPoint) => visualPoint.x);
+  const visualYs = visualPoints.map((visualPoint) => visualPoint.y);
+  const padding = 34;
+  const viewBox = {
+    x: Math.min(...visualXs) - padding,
+    y: Math.min(...visualYs) - padding,
+    width: Math.max(...visualXs) - Math.min(...visualXs) + padding * 2,
+    height: Math.max(...visualYs) - Math.min(...visualYs) + padding * 2,
+  };
+
+  return (
+    <figure className="overflow-hidden rounded-xl border border-border bg-background">
+      <figcaption className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
+        <div>
+          <p className="text-sm font-semibold text-text">
+            {t("storageZonePreview")}
+          </p>
+          <p className="mt-0.5 text-xs text-muted tabular-nums">
+            X {metres(xMm)} · Y {metres(yMm)} m
+          </p>
+        </div>
+        <span
+          aria-live="polite"
+          className={
+            fitsFloor
+              ? "inline-flex items-center gap-1.5 text-xs font-medium text-success"
+              : "inline-flex items-center gap-1.5 text-xs font-medium text-warning"
+          }
+        >
+          <CheckCircle2 className="size-4" />
+          {fitsFloor ? t("zoneFitsFloor") : t("zoneOutsideFloor")}
+        </span>
+      </figcaption>
+      <svg
+        role="img"
+        aria-label={t("storageZonePreview")}
+        viewBox={`${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`}
+        className="h-72 w-full"
+      >
+        <defs>
+          <pattern
+            id={patternId}
+            width="18"
+            height="18"
+            patternUnits="userSpaceOnUse"
+          >
+            <path
+              d="M 18 0 L 0 0 0 18"
+              className="fill-none stroke-border/40"
+              strokeWidth="0.75"
+            />
+          </pattern>
+        </defs>
+        <rect
+          x={viewBox.x}
+          y={viewBox.y}
+          width={viewBox.width}
+          height={viewBox.height}
+          fill={`url(#${patternId})`}
+          opacity="0.45"
+        />
+        <polygon
+          points={pointsAttribute(floorShape)}
+          className="fill-surface/70 stroke-accent/70"
+          strokeWidth="1.5"
+        />
+        {gridLines.map(([start, end], index) => (
+          <line
+            key={index}
+            x1={start.x}
+            y1={start.y}
+            x2={end.x}
+            y2={end.y}
+            className="stroke-muted/30"
+            strokeWidth="0.75"
+          />
+        ))}
+        {zones.map((zone) => {
+          const shape = [
+            point(zone.xMm, zone.yMm),
+            point(zone.xMm + zone.widthMm, zone.yMm),
+            point(zone.xMm + zone.widthMm, zone.yMm + zone.depthMm),
+            point(zone.xMm, zone.yMm + zone.depthMm),
+          ];
+          return (
+            <polygon
+              key={zone.zoneId}
+              points={pointsAttribute(shape)}
+              className="fill-success/15 stroke-success/45"
+              strokeWidth="1.25"
+            />
+          );
+        })}
+        <polygon
+          data-zone-face="left"
+          points={pointsAttribute([
+            zoneBottom[3]!,
+            zoneBottom[2]!,
+            zoneTop[2]!,
+            zoneTop[3]!,
+          ])}
+          className={
+            fitsFloor
+              ? "fill-accent/25 stroke-accent"
+              : "fill-warning/25 stroke-warning"
+          }
+        />
+        <polygon
+          data-zone-face="right"
+          points={pointsAttribute([
+            zoneBottom[1]!,
+            zoneBottom[2]!,
+            zoneTop[2]!,
+            zoneTop[1]!,
+          ])}
+          className={
+            fitsFloor
+              ? "fill-accent/35 stroke-accent"
+              : "fill-warning/35 stroke-warning"
+          }
+        />
+        <polygon
+          data-zone-face="top"
+          points={pointsAttribute(zoneTop)}
+          className={
+            fitsFloor
+              ? "fill-accent/45 stroke-accent"
+              : "fill-warning/45 stroke-warning"
+          }
+          strokeWidth="2"
+        />
+        <line
+          x1={heightGuideBottom.x + 14}
+          y1={heightGuideBottom.y}
+          x2={heightGuideTop.x + 14}
+          y2={heightGuideTop.y}
+          className="stroke-muted"
+          strokeDasharray="4 4"
+        />
+        <text
+          x={heightGuideTop.x + 20}
+          y={(heightGuideBottom.y + heightGuideTop.y) / 2}
+          dominantBaseline="central"
+          className="fill-muted text-[10px]"
+        >
+          H {metres(floorHeightMm)} m
+        </text>
+      </svg>
+      <div className="grid grid-cols-3 border-t border-border text-center text-xs tabular-nums">
+        <span className="px-2 py-2 text-muted">
+          W <strong className="text-text">{metres(widthMm)} m</strong>
+        </span>
+        <span className="border-x border-border px-2 py-2 text-muted">
+          D <strong className="text-text">{metres(depthMm)} m</strong>
+        </span>
+        <span className="px-2 py-2 text-muted">
+          H <strong className="text-text">{metres(heightMm)} m</strong>
+        </span>
+      </div>
+    </figure>
+  );
+}
+
 function StorageZonesPanel({
   warehouseId,
   buildingId,
@@ -2291,63 +2560,81 @@ function StorageZonesPanel({
               {t("addStorageZone")}
             </Button>
           </DialogTrigger>
-          <DialogContent closeLabel={t("closeDialog")}>
+          <DialogContent closeLabel={t("closeDialog")} className="max-w-5xl">
             <DialogHeader>
               <DialogTitle>{t("addStorageZoneTitle")}</DialogTitle>
               <DialogDescription>
                 {t("addStorageZoneDescription")}
               </DialogDescription>
             </DialogHeader>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="sm:col-span-2">
-                <Label htmlFor="new-storage-zone-label">{t("zoneLabel")}</Label>
-                <Input
-                  id="new-storage-zone-label"
-                  className="mt-2"
-                  value={label}
-                  placeholder={t("newStorageZoneLabel", {
-                    number: zones.length + 1,
-                  })}
-                  onChange={(event) => setLabel(event.target.value)}
-                />
-              </div>
-              {[
-                ["x", zoneX, setZoneX, 0, floorWidthMm],
-                ["y", zoneY, setZoneY, 0, floorDepthMm],
-                ["zoneWidth", zoneWidth, setZoneWidth, 0.1, floorWidthMm],
-                ["zoneDepth", zoneDepth, setZoneDepth, 0.1, floorDepthMm],
-              ].map(([key, value, setValue, min]) => (
-                <div key={String(key)}>
-                  <Label htmlFor={`new-storage-zone-${String(key)}`}>
-                    {t(key as "x" | "y" | "zoneWidth" | "zoneDepth")}
+            <div className="grid gap-5 md:grid-cols-[minmax(0,1.05fr)_minmax(19rem,0.95fr)]">
+              <StorageZoneDraftPreview
+                floorWidthMm={floorWidthMm}
+                floorDepthMm={floorDepthMm}
+                floorHeightMm={floorHeightMm}
+                zoneX={zoneX}
+                zoneY={zoneY}
+                zoneWidth={zoneWidth}
+                zoneDepth={zoneDepth}
+                stackHeight={stackHeight}
+                zones={zones}
+              />
+              <div className="grid content-start gap-4 sm:grid-cols-2">
+                <div className="sm:col-span-2">
+                  <Label htmlFor="new-storage-zone-label">
+                    {t("zoneLabel")}
                   </Label>
                   <Input
-                    id={`new-storage-zone-${String(key)}`}
+                    id="new-storage-zone-label"
                     className="mt-2"
-                    type="number"
-                    min={Number(min)}
-                    step="0.1"
-                    value={String(value)}
-                    onChange={(event) =>
-                      (setValue as (value: string) => void)(event.target.value)
-                    }
+                    value={label}
+                    placeholder={t("newStorageZoneLabel", {
+                      number: zones.length + 1,
+                    })}
+                    onChange={(event) => setLabel(event.target.value)}
                   />
                 </div>
-              ))}
-              <div className="sm:col-span-2">
-                <Label htmlFor="new-storage-zone-height">
-                  {t("maxStackHeight")}
-                </Label>
-                <Input
-                  id="new-storage-zone-height"
-                  className="mt-2"
-                  type="number"
-                  min="0.1"
-                  max={metres(floorHeightMm)}
-                  step="0.1"
-                  value={stackHeight}
-                  onChange={(event) => setStackHeight(event.target.value)}
-                />
+                {[
+                  ["x", zoneX, setZoneX, 0, floorWidthMm],
+                  ["y", zoneY, setZoneY, 0, floorDepthMm],
+                  ["zoneWidth", zoneWidth, setZoneWidth, 0.1, floorWidthMm],
+                  ["zoneDepth", zoneDepth, setZoneDepth, 0.1, floorDepthMm],
+                ].map(([key, value, setValue, min, max]) => (
+                  <div key={String(key)}>
+                    <Label htmlFor={`new-storage-zone-${String(key)}`}>
+                      {t(key as "x" | "y" | "zoneWidth" | "zoneDepth")}
+                    </Label>
+                    <Input
+                      id={`new-storage-zone-${String(key)}`}
+                      className="mt-2"
+                      type="number"
+                      min={Number(min)}
+                      max={metres(Number(max))}
+                      step="0.1"
+                      value={String(value)}
+                      onChange={(event) =>
+                        (setValue as (value: string) => void)(
+                          event.target.value,
+                        )
+                      }
+                    />
+                  </div>
+                ))}
+                <div className="sm:col-span-2">
+                  <Label htmlFor="new-storage-zone-height">
+                    {t("maxStackHeight")}
+                  </Label>
+                  <Input
+                    id="new-storage-zone-height"
+                    className="mt-2"
+                    type="number"
+                    min="0.1"
+                    max={metres(floorHeightMm)}
+                    step="0.1"
+                    value={stackHeight}
+                    onChange={(event) => setStackHeight(event.target.value)}
+                  />
+                </div>
               </div>
             </div>
             {message === undefined ? null : (
