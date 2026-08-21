@@ -139,6 +139,7 @@ export const ROUTE_NAMESPACES = {
     "LocationType",
     "MasterData",
     "MasterDataStatus",
+    "StorageLayouts",
     "Pagination",
     "Panel",
     "Table",

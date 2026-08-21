@@ -1,0 +1,28 @@
+import { getTranslations, setRequestLocale } from "next-intl/server";
+
+import { PageHeader } from "@/components/ui/PageHeader";
+import { Button } from "@/components/ui/button";
+import { StorageBuildingCatalogue } from "@/features/storageLayouts/StorageLayoutScreens";
+import { Link } from "@/i18n/navigation";
+import { ROUTES } from "@/lib/navigation";
+
+export default async function StorageLayoutsPage({
+  params,
+}: {
+  readonly params: Promise<{ locale: string }>;
+}) {
+  const { locale } = await params;
+  setRequestLocale(locale);
+  const t = await getTranslations("StorageLayouts");
+  return (
+    <>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <PageHeader title={t("title")} description={t("description")} />
+        <Button asChild>
+          <Link href={`${ROUTES.storageLayouts}/new`}>{t("newBuilding")}</Link>
+        </Button>
+      </div>
+      <StorageBuildingCatalogue />
+    </>
+  );
+}

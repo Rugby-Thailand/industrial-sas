@@ -40,6 +40,7 @@ superseded ADR keeps its number and gains a `Superseded by` line.
 | `ADR-0011` | [Async jobs, reporting, and observability](./0011-async-jobs-reporting-and-observability.md)         | Accepted | Not implemented |
 | `ADR-0012` | [Delivery, release, DR, and quality gates](./0012-delivery-release-and-quality-gates.md)             | Accepted | Foundation only |
 | `ADR-0013` | [Order to ship: design authority and the factory packet](./0013-order-to-ship-design-authority.md)   | Accepted | Phase 5A only   |
+| `ADR-0014` | [Storage building layout rendering](./0014-storage-building-layout-rendering.md)                     | Accepted | Implemented     |
 
 ## Coverage of the plan's ADR backlog
 

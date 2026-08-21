@@ -280,6 +280,14 @@ export const masterDataStatus = v.union(
 );
 export type MasterDataStatus = Infer<typeof masterDataStatus>;
 
+/** Lifecycle of a warehouse storage-layout plan. */
+export const storageLayoutStatus = v.union(
+  v.literal("DRAFT"),
+  v.literal("ACTIVE"),
+  v.literal("ARCHIVED"),
+);
+export type StorageLayoutStatus = Infer<typeof storageLayoutStatus>;
+
 /**
  * SKU tracking mode (D-09, B-06). `LOT_SERIAL` is declared and its flows stay
  * disabled (`INV-0005-08`); declaring it now is what keeps enabling serials from

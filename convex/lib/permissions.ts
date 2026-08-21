@@ -64,6 +64,9 @@ export const PERMISSION_CATALOGUE = Object.freeze([
   permission("masterData.import.execute", "ORG"),
   permission("masterData.owner.read", "ORG"),
   permission("masterData.owner.manage", "ORG", ["STEP_UP"]),
+  permission("masterData.storageLayout.read", "WAREHOUSE"),
+  permission("masterData.storageLayout.manage", "WAREHOUSE"),
+  permission("masterData.storageLayout.activate", "WAREHOUSE"),
   permission("sales.customer.read", "ORG"),
   permission("sales.customer.manage", "ORG"),
   permission("sales.order.read", "ORG"),
@@ -205,6 +208,9 @@ export const DEFAULT_ROLES: readonly DefaultRoleDefinition[] = Object.freeze([
       "masterData.reasonCode.manage",
       "masterData.import.execute",
       "masterData.owner.read",
+      "masterData.storageLayout.read",
+      "masterData.storageLayout.manage",
+      "masterData.storageLayout.activate",
       /*
        * A site manager sees what their floor is being asked to make and may issue
        * and acknowledge the packets, but holds no engineering code: releasing a

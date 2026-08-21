@@ -36,6 +36,7 @@ export const ROUTES = Object.freeze({
   storageClasses: "/master-data/storage-classes",
   labelTemplates: "/master-data/label-templates",
   locations: "/master-data/locations",
+  storageLayouts: "/master-data/storage-layouts",
   purchaseOrders: "/purchasing/orders",
   inboundBoard: "/inbound",
   purchaseImport: "/purchasing/import",
@@ -70,6 +71,7 @@ export const DESKTOP_NAVIGATION: readonly NavigationSection[] = Object.freeze([
       { href: ROUTES.storageClasses, labelKey: "storageClasses" },
       { href: ROUTES.labelTemplates, labelKey: "labelTemplates" },
       { href: ROUTES.locations, labelKey: "locations" },
+      { href: ROUTES.storageLayouts, labelKey: "storageLayouts" },
     ]),
   }),
   Object.freeze({
@@ -115,6 +117,17 @@ export const DESKTOP_NAVIGATION: readonly NavigationSection[] = Object.freeze([
  */
 export const itemDetailPath = (itemId: string): string =>
   `${ROUTES.items}/${encodeURIComponent(itemId)}`;
+
+export const storageBuildingPath = (buildingId: string): string =>
+  `${ROUTES.storageLayouts}/${encodeURIComponent(buildingId)}`;
+
+export const storageFloorPath = (
+  buildingId: string,
+  floorNumber: number,
+): string => `${storageBuildingPath(buildingId)}/floors/${floorNumber}`;
+
+export const storageReviewPath = (buildingId: string): string =>
+  `${storageBuildingPath(buildingId)}/review`;
 
 /** One purchase order, with its lines and its receipts. */
 export const purchaseOrderPath = (purchaseOrderId: string): string =>

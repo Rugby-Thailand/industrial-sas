@@ -138,6 +138,7 @@ import {
   sessionsAuditEventType,
   signedQuantity,
   stockStatus,
+  storageLayoutStatus,
   supportAccessMode,
   supportGrantStatus,
   userStatus,
@@ -719,6 +720,80 @@ const schema = defineSchema({
       "by_orgId_warehouseId_status_locationType_code",
       byOrg("warehouseId", "status", "locationType", "code"),
     ),
+
+  /** A versioned, warehouse-bound building envelope and its cached totals. */
+  storageBuildings: defineTable(
+    tenantFields({
+      warehouseId: v.id("warehouses"),
+      code: v.string(),
+      name: v.string(),
+      widthMm: v.number(),
+      depthMm: v.number(),
+      defaultFloorHeightMm: v.number(),
+      floorCount: v.number(),
+      totalHeightMm: v.number(),
+      grossAreaSqMm: v.number(),
+      reservedAreaSqMm: v.number(),
+      usableAreaSqMm: v.number(),
+      status: storageLayoutStatus,
+      version: v.number(),
+      createdAt: v.number(),
+      createdByUserId: v.id("users"),
+      updatedAt: v.number(),
+      updatedByUserId: v.id("users"),
+      activatedAt: v.optional(v.number()),
+      activatedByUserId: v.optional(v.id("users")),
+    }),
+  )
+    .index("by_orgId_warehouseId_code", byOrg("warehouseId", "code"))
+    .index(
+      "by_orgId_warehouseId_status_code",
+      byOrg("warehouseId", "status", "code"),
+    ),
+
+  /** One editable floor; absent dimension overrides inherit from its building. */
+  storageFloors: defineTable(
+    tenantFields({
+      buildingId: v.id("storageBuildings"),
+      warehouseId: v.id("warehouses"),
+      floorNumber: v.number(),
+      widthMm: v.optional(v.number()),
+      depthMm: v.optional(v.number()),
+      heightMm: v.optional(v.number()),
+      grossAreaSqMm: v.number(),
+      reservedAreaSqMm: v.number(),
+      usableAreaSqMm: v.number(),
+      version: v.number(),
+      updatedAt: v.number(),
+      updatedByUserId: v.id("users"),
+    }),
+  )
+    .index(
+      "by_orgId_buildingId_floorNumber",
+      byOrg("buildingId", "floorNumber"),
+    )
+    .index(
+      "by_orgId_warehouseId_buildingId_floorNumber",
+      byOrg("warehouseId", "buildingId", "floorNumber"),
+    ),
+
+  /** Axis-aligned unavailable space such as columns, cores, and staging zones. */
+  storageFloorReservedBlocks: defineTable(
+    tenantFields({
+      buildingId: v.id("storageBuildings"),
+      floorId: v.id("storageFloors"),
+      warehouseId: v.id("warehouses"),
+      label: v.string(),
+      xMm: v.number(),
+      yMm: v.number(),
+      widthMm: v.number(),
+      depthMm: v.number(),
+      createdAt: v.number(),
+      updatedAt: v.number(),
+    }),
+  )
+    .index("by_orgId_floorId", byOrg("floorId"))
+    .index("by_orgId_buildingId_floorId", byOrg("buildingId", "floorId")),
 
   /**
    * A production batch of one item (`G-030`).
