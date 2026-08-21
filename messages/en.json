@@ -1012,6 +1012,13 @@
     "newBuilding": "New building",
     "emptyTitle": "No storage buildings yet",
     "emptyBody": "Create a building to start defining floor-by-floor capacity.",
+    "search": "Search buildings",
+    "statusFilter": "Filter by status",
+    "allStatuses": "All statuses",
+    "noMatches": "No buildings match these filters",
+    "noMatchesBody": "Change the search text or status filter to see more buildings.",
+    "planningNotice": "Buildings are planning master data",
+    "planningNoticeBody": "They define physical dimensions and usable floor space; they do not change inventory locations or stock.",
     "code": "Building code",
     "name": "Building name",
     "width": "Width (m)",
@@ -1058,8 +1065,11 @@
     "planLabel": "Floor space plan",
     "available": "Available storage",
     "unavailable": "Reserved / unavailable",
+    "maximumEnvelope": "Maximum building envelope",
     "dimensions": "Building dimensions",
-    "capacity": "Capacity summary"
+    "capacity": "Capacity summary",
+    "readyToActivate": "Ready to activate",
+    "validationPassed": "Dimensions, floor sequence, reserved zones, and usable areas passed validation."
   },
   "ReportKind": {
     "INVENTORY_BALANCES": "Inventory balances",

@@ -1,9 +1,19 @@
 "use client";
 
 import { useMutation, useQuery } from "convex/react";
-import { ArrowLeft, Box, Building2, Plus, Ruler, Trash2 } from "lucide-react";
+import {
+  ArrowLeft,
+  Box,
+  Building2,
+  CheckCircle2,
+  Layers3,
+  Plus,
+  Ruler,
+  Search,
+  Trash2,
+} from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useMemo, useState, type FormEvent } from "react";
+import { useId, useMemo, useState, type FormEvent } from "react";
 
 import { QueryGate } from "@/components/system/QueryGate";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -77,7 +87,12 @@ export function StorageBuildingCatalogue() {
 
 function CatalogueContent({ warehouseId }: { readonly warehouseId: string }) {
   const t = useTranslations("StorageLayouts");
-  const outcome = useQuery(storageLayoutRefs.list, { warehouseId });
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState<StorageLayoutStatus | "ALL">("ALL");
+  const outcome = useQuery(storageLayoutRefs.list, {
+    warehouseId,
+    ...(status === "ALL" ? {} : { status }),
+  });
   if (outcome === undefined) return <LoadingCard />;
   if (!outcome.ok) return <QueryFailure />;
   if (outcome.value.length === 0) {
@@ -95,39 +110,137 @@ function CatalogueContent({ warehouseId }: { readonly warehouseId: string }) {
       />
     );
   }
+  const normalizedSearch = search.trim().toLocaleLowerCase();
+  const buildings = outcome.value.filter(
+    (building) =>
+      normalizedSearch.length === 0 ||
+      building.code.toLocaleLowerCase().includes(normalizedSearch) ||
+      building.name.toLocaleLowerCase().includes(normalizedSearch),
+  );
   return (
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-      {outcome.value.map((building) => (
-        <Link
-          key={building.buildingId}
-          href={storageBuildingPath(building.buildingId)}
-          className="group rounded-2xl border border-border bg-surface p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-accent hover:shadow-md"
-        >
-          <div className="flex items-start justify-between gap-4">
-            <span className="grid size-11 place-items-center rounded-xl bg-accent/10 text-accent">
-              <Building2 aria-hidden="true" className="size-6" />
-            </span>
-            <StatusBadge
-              tone={statusTone(building.status)}
-              label={statusLabel(t, building.status)}
-            />
-          </div>
-          <p className="mt-5 text-xs font-semibold tracking-[0.16em] text-muted uppercase">
-            {building.code}
-          </p>
-          <h2 className="mt-1 text-lg font-semibold text-text group-hover:text-accent">
-            {building.name}
-          </h2>
-          <dl className="mt-5 grid grid-cols-2 gap-3 border-t border-border pt-4 text-sm">
-            <Metric label={t("floors")} value={String(building.floorCount)} />
-            <Metric
-              label={t("usableArea")}
-              value={`${squareMetres(building.usableAreaSqMm).toLocaleString()} m²`}
-            />
-          </dl>
-        </Link>
-      ))}
+    <div className="space-y-5">
+      <div className="flex flex-col gap-3 rounded-xl border border-border bg-surface p-4 shadow-sm sm:flex-row">
+        <label className="relative min-w-0 flex-1">
+          <span className="sr-only">{t("search")}</span>
+          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted" />
+          <Input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder={t("search")}
+            className="pl-10"
+          />
+        </label>
+        <label>
+          <span className="sr-only">{t("statusFilter")}</span>
+          <select
+            value={status}
+            onChange={(event) =>
+              setStatus(event.target.value as StorageLayoutStatus | "ALL")
+            }
+            className="min-h-touch rounded-md border border-input bg-surface px-3 text-sm text-text outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+          >
+            <option value="ALL">{t("allStatuses")}</option>
+            <option value="DRAFT">{t("draft")}</option>
+            <option value="ACTIVE">{t("active")}</option>
+            <option value="ARCHIVED">{t("archived")}</option>
+          </select>
+        </label>
+      </div>
+      {buildings.length === 0 ? (
+        <EmptyState title={t("noMatches")} body={t("noMatchesBody")} />
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {buildings.map((building) => (
+            <Link
+              key={building.buildingId}
+              href={storageBuildingPath(building.buildingId)}
+              className="group rounded-2xl border border-border bg-surface p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-accent hover:shadow-md"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <CompactBuildingModel building={building} />
+                <StatusBadge
+                  tone={statusTone(building.status)}
+                  label={statusLabel(t, building.status)}
+                />
+              </div>
+              <p className="mt-5 text-xs font-semibold tracking-[0.16em] text-muted uppercase">
+                {building.code}
+              </p>
+              <h2 className="mt-1 text-lg font-semibold text-text group-hover:text-accent">
+                {building.name}
+              </h2>
+              <dl className="mt-5 grid grid-cols-2 gap-3 border-t border-border pt-4 text-sm">
+                <Metric
+                  label={t("floors")}
+                  value={String(building.floorCount)}
+                />
+                <Metric
+                  label={t("dimensions")}
+                  value={`${metres(building.widthMm)} × ${metres(building.depthMm)} m`}
+                />
+                <Metric
+                  label={t("usableArea")}
+                  value={`${squareMetres(building.usableAreaSqMm).toLocaleString()} m²`}
+                />
+                <Metric
+                  label={t("available")}
+                  value={`${Math.round((building.usableAreaSqMm / building.grossAreaSqMm) * 100)}%`}
+                />
+              </dl>
+            </Link>
+          ))}
+        </div>
+      )}
+      <Notice
+        tone="muted"
+        title={t("planningNotice")}
+        body={t("planningNoticeBody")}
+      />
     </div>
+  );
+}
+
+function CompactBuildingModel({
+  building,
+}: {
+  readonly building: StorageBuildingRow;
+}) {
+  const geometry = buildIsometricBuilding(
+    Array.from({ length: building.floorCount }, (_, index) => ({
+      floorNumber: index + 1,
+      widthMm: building.widthMm,
+      depthMm: building.depthMm,
+      heightMm: building.defaultFloorHeightMm,
+    })),
+    { scale: 0.006, gap: 4 },
+  );
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox={`${geometry.viewBox.x} ${geometry.viewBox.y} ${geometry.viewBox.width} ${geometry.viewBox.height}`}
+      className="h-24 w-32 shrink-0 overflow-visible"
+    >
+      {[...geometry.slabs].reverse().map((slab, index) => (
+        <g key={slab.floorNumber}>
+          <polygon
+            points={pointsAttribute(slab.left)}
+            className="fill-accent/15 stroke-accent/45"
+          />
+          <polygon
+            points={pointsAttribute(slab.right)}
+            className="fill-accent/25 stroke-accent/55"
+          />
+          <polygon
+            points={pointsAttribute(slab.top)}
+            className={
+              index === 0
+                ? "fill-accent/35 stroke-accent"
+                : "fill-surface/80 stroke-accent/60"
+            }
+          />
+        </g>
+      ))}
+    </svg>
   );
 }
 
@@ -307,7 +420,7 @@ function BuildingContent({
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
       <div className="space-y-6">
-        <IsometricBuilding building={building} floors={floors} />
+        <BuildingModelWorkspace building={building} floors={floors} />
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {floors.map((floor) => (
             <FloorCard
@@ -562,9 +675,11 @@ function CapacitySummary({
 function IsometricBuilding({
   building,
   floors,
+  highlightedFloorNumber,
 }: {
   readonly building: StorageBuildingRow;
   readonly floors: readonly StorageFloorRow[];
+  readonly highlightedFloorNumber?: number;
 }) {
   const t = useTranslations("StorageLayouts");
   const geometry = useMemo(
@@ -580,6 +695,7 @@ function IsometricBuilding({
       ),
     [building, floors],
   );
+  const topSlab = geometry.slabs.at(-1);
   return (
     <figure className="relative overflow-hidden rounded-2xl border border-border bg-[linear-gradient(145deg,var(--color-surface),var(--color-background))] p-5 shadow-sm">
       <figcaption className="absolute top-5 left-5 z-10 text-sm font-semibold text-muted">
@@ -591,8 +707,30 @@ function IsometricBuilding({
         viewBox={`${geometry.viewBox.x} ${geometry.viewBox.y} ${geometry.viewBox.width} ${geometry.viewBox.height}`}
         className="h-[26rem] w-full"
       >
+        <defs>
+          <pattern
+            id="storage-model-grid"
+            width="24"
+            height="24"
+            patternUnits="userSpaceOnUse"
+          >
+            <path
+              d="M 24 0 L 0 0 0 24"
+              className="fill-none stroke-border/35"
+              strokeWidth="0.75"
+            />
+          </pattern>
+        </defs>
+        <rect
+          x={geometry.viewBox.x}
+          y={geometry.viewBox.y}
+          width={geometry.viewBox.width}
+          height={geometry.viewBox.height}
+          fill="url(#storage-model-grid)"
+          opacity="0.35"
+        />
         <g>
-          {[...geometry.slabs].reverse().map((slab, index) => (
+          {[...geometry.slabs].reverse().map((slab) => (
             <g
               key={slab.floorNumber}
               className="transition-opacity hover:opacity-80"
@@ -608,9 +746,12 @@ function IsometricBuilding({
               <polygon
                 points={pointsAttribute(slab.top)}
                 className={
-                  index === 0
-                    ? "fill-accent/35 stroke-accent"
+                  highlightedFloorNumber === slab.floorNumber
+                    ? "fill-accent/50 stroke-accent"
                     : "fill-surface stroke-accent/65"
+                }
+                strokeWidth={
+                  highlightedFloorNumber === slab.floorNumber ? 2.5 : 1
                 }
               />
               <text
@@ -622,9 +763,78 @@ function IsometricBuilding({
               </text>
             </g>
           ))}
+          {topSlab === undefined ? null : (
+            <>
+              <line
+                x1={topSlab.top[1]!.x + 18}
+                y1={topSlab.top[1]!.y}
+                x2={topSlab.top[1]!.x + 18}
+                y2={geometry.viewBox.y + geometry.viewBox.height - 20}
+                className="stroke-muted"
+                strokeDasharray="5 5"
+              />
+              <text
+                x={topSlab.top[1]!.x + 26}
+                y={
+                  (topSlab.top[1]!.y +
+                    geometry.viewBox.y +
+                    geometry.viewBox.height -
+                    20) /
+                  2
+                }
+                className="fill-muted text-[11px]"
+              >
+                {metres(building.totalHeightMm)} m
+              </text>
+            </>
+          )}
         </g>
       </svg>
     </figure>
+  );
+}
+
+function BuildingModelWorkspace({
+  building,
+  floors,
+}: {
+  readonly building: StorageBuildingRow;
+  readonly floors: readonly StorageFloorRow[];
+}) {
+  const t = useTranslations("StorageLayouts");
+  const [selectedFloorNumber, setSelectedFloorNumber] = useState(
+    floors.at(-1)?.floorNumber ?? 1,
+  );
+  return (
+    <div className="grid overflow-hidden rounded-2xl border border-border bg-surface shadow-sm lg:grid-cols-[11rem_minmax(0,1fr)]">
+      <div className="border-b border-border p-4 lg:border-r lg:border-b-0">
+        <div className="flex items-center gap-2 text-sm font-semibold text-text">
+          <Layers3 className="size-4 text-accent" />
+          {t("floors")}
+        </div>
+        <div className="mt-3 grid grid-cols-2 gap-2 lg:grid-cols-1">
+          {[...floors].reverse().map((floor) => (
+            <button
+              key={floor.floorId}
+              type="button"
+              onClick={() => setSelectedFloorNumber(floor.floorNumber)}
+              aria-pressed={selectedFloorNumber === floor.floorNumber}
+              className="flex min-h-11 items-center justify-between rounded-lg border border-border px-3 text-sm text-text transition hover:border-accent aria-pressed:border-accent aria-pressed:bg-accent/10 aria-pressed:text-accent"
+            >
+              <span>{t("floor", { floor: floor.floorNumber })}</span>
+              <span className="text-xs text-muted">
+                {squareMetres(floor.usableAreaSqMm).toLocaleString()} m²
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+      <IsometricBuilding
+        building={building}
+        floors={floors}
+        highlightedFloorNumber={selectedFloorNumber}
+      />
+    </div>
   );
 }
 
@@ -721,6 +931,16 @@ function FloorForm({
     width === "" ? detail.building.widthMm : millimetres(width);
   const actualDepth =
     depth === "" ? detail.building.depthMm : millimetres(depth);
+  const grossAreaSqMm = actualWidth * actualDepth;
+  const reservedAreaSqMm = blocks.reduce(
+    (total, block) => total + block.widthMm * block.depthMm,
+    0,
+  );
+  const usableAreaSqMm = Math.max(0, grossAreaSqMm - reservedAreaSqMm);
+  const availablePercent =
+    grossAreaSqMm === 0
+      ? 0
+      : Math.round((usableAreaSqMm / grossAreaSqMm) * 1_000) / 10;
   async function submit(event: FormEvent) {
     event.preventDefault();
     setPending(true);
@@ -764,6 +984,8 @@ function FloorForm({
         <FloorPlan
           widthMm={actualWidth}
           depthMm={actualDepth}
+          maximumWidthMm={detail.building.widthMm}
+          maximumDepthMm={detail.building.depthMm}
           blocks={blocks}
         />
         <section className="rounded-2xl border border-border bg-surface p-5 shadow-sm">
@@ -806,6 +1028,35 @@ function FloorForm({
             {metres(actualWidth)} × {metres(actualDepth)} m
           </p>
         </section>
+        <section className="rounded-2xl border border-border bg-surface p-5 shadow-sm">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="size-5 text-success" />
+            <h2 className="font-semibold text-text">{t("capacity")}</h2>
+          </div>
+          <div className="mt-4 h-2 overflow-hidden rounded-full bg-warning/20">
+            <div
+              className="h-full rounded-full bg-success transition-[width]"
+              style={{
+                width: `${Math.max(0, Math.min(100, availablePercent))}%`,
+              }}
+            />
+          </div>
+          <dl className="mt-5 grid grid-cols-2 gap-4">
+            <Metric
+              label={t("grossArea")}
+              value={`${squareMetres(grossAreaSqMm).toLocaleString()} m²`}
+            />
+            <Metric
+              label={t("reservedArea")}
+              value={`${squareMetres(reservedAreaSqMm).toLocaleString()} m²`}
+            />
+            <Metric
+              label={t("usableArea")}
+              value={`${squareMetres(usableAreaSqMm).toLocaleString()} m²`}
+            />
+            <Metric label={t("available")} value={`${availablePercent}%`} />
+          </dl>
+        </section>
         <Button className="w-full" disabled={pending}>
           {pending ? t("saving") : t("saveFloor")}
         </Button>
@@ -830,10 +1081,12 @@ function OverrideField({
   readonly onChange: (value: string) => void;
 }) {
   const t = useTranslations("StorageLayouts");
+  const inputId = useId();
   return (
     <div className="grid gap-2">
-      <Label>{label}</Label>
+      <Label htmlFor={inputId}>{label}</Label>
       <Input
+        id={inputId}
         type="number"
         min="0.1"
         step="0.1"
@@ -848,13 +1101,22 @@ function OverrideField({
 function FloorPlan({
   widthMm,
   depthMm,
+  maximumWidthMm,
+  maximumDepthMm,
   blocks,
 }: {
   readonly widthMm: number;
   readonly depthMm: number;
+  readonly maximumWidthMm: number;
+  readonly maximumDepthMm: number;
   readonly blocks: readonly EditableBlock[];
 }) {
   const t = useTranslations("StorageLayouts");
+  const drawingWidth = Math.max(widthMm, maximumWidthMm, 1);
+  const drawingDepth = Math.max(depthMm, maximumDepthMm, 1);
+  const padding = Math.max(drawingWidth, drawingDepth) * 0.09;
+  const labelSize = Math.max(drawingWidth, drawingDepth) / 38;
+  const gridStep = 1_000;
   return (
     <figure className="rounded-2xl border border-border bg-surface p-5 shadow-sm">
       <figcaption className="mb-4 text-sm font-semibold text-muted">
@@ -863,15 +1125,80 @@ function FloorPlan({
       <svg
         role="img"
         aria-label={t("planLabel")}
-        viewBox={`0 0 ${Math.max(widthMm, 1)} ${Math.max(depthMm, 1)}`}
-        className="h-80 w-full rounded-xl border border-accent/30 bg-success/10"
+        viewBox={`${-padding} ${-padding} ${drawingWidth + padding * 2} ${drawingDepth + padding * 2}`}
+        className="h-[28rem] w-full rounded-xl border border-accent/30 bg-background"
       >
+        <defs>
+          <pattern
+            id="storage-floor-grid"
+            width={gridStep}
+            height={gridStep}
+            patternUnits="userSpaceOnUse"
+          >
+            <path
+              d={`M ${gridStep} 0 L 0 0 0 ${gridStep}`}
+              className="fill-none stroke-border/50"
+              strokeWidth={Math.max(20, drawingWidth / 1_500)}
+            />
+          </pattern>
+          <pattern
+            id="storage-reserved-hatch"
+            width="500"
+            height="500"
+            patternUnits="userSpaceOnUse"
+            patternTransform="rotate(45)"
+          >
+            <line
+              x1="0"
+              y1="0"
+              x2="0"
+              y2="500"
+              className="stroke-warning"
+              strokeWidth="90"
+            />
+          </pattern>
+        </defs>
+        <rect
+          x={-padding}
+          y={-padding}
+          width={drawingWidth + padding * 2}
+          height={drawingDepth + padding * 2}
+          fill="url(#storage-floor-grid)"
+        />
+        <rect
+          width={maximumWidthMm}
+          height={maximumDepthMm}
+          className="fill-none stroke-muted"
+          strokeDasharray={`${padding / 5} ${padding / 5}`}
+          strokeWidth={Math.max(30, drawingWidth / 900)}
+          vectorEffect="non-scaling-stroke"
+        />
         <rect
           width={widthMm}
           height={depthMm}
-          className="fill-success/10 stroke-success"
+          className="fill-accent/15 stroke-accent"
+          strokeWidth={Math.max(40, drawingWidth / 700)}
           vectorEffect="non-scaling-stroke"
         />
+        <text
+          x={widthMm / 2}
+          y={-padding * 0.35}
+          textAnchor="middle"
+          className="fill-accent font-semibold"
+          style={{ fontSize: labelSize }}
+        >
+          {metres(widthMm)} m
+        </text>
+        <text
+          x={widthMm + padding * 0.32}
+          y={depthMm / 2}
+          textAnchor="middle"
+          dominantBaseline="central"
+          className="fill-accent font-semibold"
+          style={{ fontSize: labelSize }}
+        >
+          {metres(depthMm)} m
+        </text>
         {blocks.map((block) => (
           <g key={block.id}>
             <rect
@@ -879,7 +1206,8 @@ function FloorPlan({
               y={block.yMm}
               width={block.widthMm}
               height={block.depthMm}
-              className="fill-warning/40 stroke-warning"
+              fill="url(#storage-reserved-hatch)"
+              className="stroke-warning"
               vectorEffect="non-scaling-stroke"
             />
             <text
@@ -887,7 +1215,8 @@ function FloorPlan({
               y={block.yMm + block.depthMm / 2}
               textAnchor="middle"
               dominantBaseline="central"
-              className="fill-text text-[600px]"
+              className="fill-warning font-semibold"
+              style={{ fontSize: labelSize }}
             >
               {block.label}
             </text>
@@ -902,6 +1231,10 @@ function FloorPlan({
         <span>
           <i className="mr-2 inline-block size-3 rounded-sm bg-warning/50" />
           {t("unavailable")}
+        </span>
+        <span>
+          <i className="mr-2 inline-block size-3 rounded-sm border border-dashed border-muted" />
+          {t("maximumEnvelope")}
         </span>
       </div>
     </figure>
@@ -963,8 +1296,11 @@ function ReservedBlocks({
             className="grid gap-3 rounded-xl border border-border bg-background p-4 sm:grid-cols-6"
           >
             <div className="sm:col-span-2">
-              <Label>{t("zoneLabel")}</Label>
+              <Label htmlFor={`storage-zone-${block.id}-label`}>
+                {t("zoneLabel")}
+              </Label>
               <Input
+                id={`storage-zone-${block.id}-label`}
                 className="mt-2"
                 value={block.label}
                 onChange={(event) =>
@@ -981,8 +1317,11 @@ function ReservedBlocks({
               ] as const
             ).map(([label, field]) => (
               <div key={field}>
-                <Label>{t(label)}</Label>
+                <Label htmlFor={`storage-zone-${block.id}-${field}`}>
+                  {t(label)}
+                </Label>
                 <Input
+                  id={`storage-zone-${block.id}-${field}`}
                   className="mt-2"
                   type="number"
                   min="0"
@@ -1099,6 +1438,15 @@ function ReviewContent({
         </div>
       </div>
       <aside className="space-y-4">
+        <Notice
+          tone={building.status === "DRAFT" ? "success" : "muted"}
+          title={
+            building.status === "DRAFT"
+              ? t("readyToActivate")
+              : statusLabel(t, building.status)
+          }
+          body={t("validationPassed")}
+        />
         <CapacitySummary building={building} />
         {error === undefined ? null : (
           <Notice tone="warning" title={t("writeError", { code: error })} />
