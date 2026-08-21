@@ -40,6 +40,7 @@ import {
 import {
   buildIsometricBuilding,
   pointsAttribute,
+  projectIsometricPoint,
 } from "@/lib/storageLayouts/isometricGeometry";
 
 const metres = (millimetres: number) => millimetres / 1_000;
@@ -931,6 +932,8 @@ function FloorForm({
     width === "" ? detail.building.widthMm : millimetres(width);
   const actualDepth =
     depth === "" ? detail.building.depthMm : millimetres(depth);
+  const actualHeight =
+    height === "" ? detail.building.defaultFloorHeightMm : millimetres(height);
   const grossAreaSqMm = actualWidth * actualDepth;
   const reservedAreaSqMm = blocks.reduce(
     (total, block) => total + block.widthMm * block.depthMm,
@@ -984,6 +987,7 @@ function FloorForm({
         <FloorPlan
           widthMm={actualWidth}
           depthMm={actualDepth}
+          heightMm={actualHeight}
           maximumWidthMm={detail.building.widthMm}
           maximumDepthMm={detail.building.depthMm}
           blocks={blocks}
@@ -1025,7 +1029,8 @@ function FloorForm({
             {t("floor", { floor: floor.floorNumber })}
           </h2>
           <p className="mt-2 text-sm text-muted">
-            {metres(actualWidth)} × {metres(actualDepth)} m
+            {metres(actualWidth)} × {metres(actualDepth)} ×{" "}
+            {metres(actualHeight)} m
           </p>
         </section>
         <section className="rounded-2xl border border-border bg-surface p-5 shadow-sm">
@@ -1098,7 +1103,323 @@ function OverrideField({
   );
 }
 
-function FloorPlan({
+export function FloorPlan({
+  widthMm,
+  depthMm,
+  heightMm,
+  maximumWidthMm,
+  maximumDepthMm,
+  blocks,
+}: {
+  readonly widthMm: number;
+  readonly depthMm: number;
+  readonly heightMm: number;
+  readonly maximumWidthMm: number;
+  readonly maximumDepthMm: number;
+  readonly blocks: readonly EditableBlock[];
+}) {
+  const t = useTranslations("StorageLayouts");
+  const [view, setView] = useState<"3d" | "plan">("3d");
+  return (
+    <figure className="rounded-2xl border border-border bg-surface p-5 shadow-sm">
+      <figcaption className="mb-4 flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <p className="text-sm font-semibold text-text">{t("floorSpace")}</p>
+          <p className="mt-1 text-xs text-muted">
+            {metres(widthMm)} × {metres(depthMm)} × {metres(heightMm)} m
+          </p>
+        </div>
+        <div
+          role="group"
+          aria-label={t("viewMode")}
+          className="inline-flex rounded-lg border border-border bg-background p-1"
+        >
+          <button
+            type="button"
+            aria-pressed={view === "3d"}
+            onClick={() => setView("3d")}
+            className="min-h-10 rounded-md px-4 text-sm font-medium text-muted transition hover:text-text aria-pressed:bg-accent/15 aria-pressed:text-accent"
+          >
+            {t("threeDView")}
+          </button>
+          <button
+            type="button"
+            aria-pressed={view === "plan"}
+            onClick={() => setView("plan")}
+            className="min-h-10 rounded-md px-4 text-sm font-medium text-muted transition hover:text-text aria-pressed:bg-accent/15 aria-pressed:text-accent"
+          >
+            {t("planView")}
+          </button>
+        </div>
+      </figcaption>
+      {view === "3d" ? (
+        <FloorVolume
+          widthMm={widthMm}
+          depthMm={depthMm}
+          heightMm={heightMm}
+          maximumWidthMm={maximumWidthMm}
+          maximumDepthMm={maximumDepthMm}
+          blocks={blocks}
+        />
+      ) : (
+        <FloorPlanDrawing
+          widthMm={widthMm}
+          depthMm={depthMm}
+          maximumWidthMm={maximumWidthMm}
+          maximumDepthMm={maximumDepthMm}
+          blocks={blocks}
+        />
+      )}
+      <div className="mt-4 flex flex-wrap gap-4 text-xs text-muted">
+        <span>
+          <i className="mr-2 inline-block size-3 rounded-sm bg-success/30" />
+          {t("available")}
+        </span>
+        <span>
+          <i className="mr-2 inline-block size-3 rounded-sm bg-warning/50" />
+          {t("unavailable")}
+        </span>
+        <span>
+          <i className="mr-2 inline-block size-3 rounded-sm border border-dashed border-muted" />
+          {t("maximumEnvelope")}
+        </span>
+      </div>
+    </figure>
+  );
+}
+
+function FloorVolume({
+  widthMm,
+  depthMm,
+  heightMm,
+  maximumWidthMm,
+  maximumDepthMm,
+  blocks,
+}: {
+  readonly widthMm: number;
+  readonly depthMm: number;
+  readonly heightMm: number;
+  readonly maximumWidthMm: number;
+  readonly maximumDepthMm: number;
+  readonly blocks: readonly EditableBlock[];
+}) {
+  const t = useTranslations("StorageLayouts");
+  const patternId = useId();
+  const scale = 0.012;
+  const geometry = buildIsometricBuilding(
+    [{ floorNumber: 1, widthMm, depthMm, heightMm }],
+    {
+      scale,
+      gap: 0,
+      envelopeWidthMm: maximumWidthMm,
+      envelopeDepthMm: maximumDepthMm,
+    },
+  );
+  const slab = geometry.slabs[0]!;
+  const floorOffsetX = Math.max(0, maximumWidthMm - widthMm) / 2;
+  const floorOffsetY = Math.max(0, maximumDepthMm - depthMm) / 2;
+  const topPoint = (x: number, y: number) =>
+    projectIsometricPoint({
+      x: (x + floorOffsetX) * scale,
+      y: (y + floorOffsetY) * scale,
+      z: heightMm * scale,
+    });
+  const maximumFootprint = [
+    projectIsometricPoint({ x: 0, y: 0, z: 0 }),
+    projectIsometricPoint({ x: maximumWidthMm * scale, y: 0, z: 0 }),
+    projectIsometricPoint({
+      x: maximumWidthMm * scale,
+      y: maximumDepthMm * scale,
+      z: 0,
+    }),
+    projectIsometricPoint({ x: 0, y: maximumDepthMm * scale, z: 0 }),
+  ];
+  const heightGuideX = slab.top[1]!.x + 22;
+  const heightTopY = slab.top[1]!.y;
+  const heightBottomY = slab.right[3]!.y;
+  const visualPoints = [
+    ...maximumFootprint,
+    ...slab.top,
+    ...slab.left,
+    ...slab.right,
+    { x: heightGuideX + 48, y: heightBottomY },
+  ];
+  const visualXs = visualPoints.map((point) => point.x);
+  const visualYs = visualPoints.map((point) => point.y);
+  const visualPadding = 36;
+  const visualViewBox = {
+    x: Math.min(...visualXs) - visualPadding,
+    y: Math.min(...visualYs) - visualPadding,
+    width: Math.max(...visualXs) - Math.min(...visualXs) + visualPadding * 2,
+    height: Math.max(...visualYs) - Math.min(...visualYs) + visualPadding * 2,
+  };
+  return (
+    <svg
+      role="img"
+      aria-label={t("volumeLabel")}
+      viewBox={`${visualViewBox.x} ${visualViewBox.y} ${visualViewBox.width} ${visualViewBox.height}`}
+      className="h-[28rem] w-full rounded-xl border border-accent/30 bg-background"
+    >
+      <defs>
+        <pattern
+          id={patternId}
+          width="24"
+          height="24"
+          patternUnits="userSpaceOnUse"
+        >
+          <path
+            d="M 24 0 L 0 0 0 24"
+            className="fill-none stroke-border/40"
+            strokeWidth="0.75"
+          />
+        </pattern>
+      </defs>
+      <rect
+        x={visualViewBox.x}
+        y={visualViewBox.y}
+        width={visualViewBox.width}
+        height={visualViewBox.height}
+        fill={`url(#${patternId})`}
+        opacity="0.45"
+      />
+      <polygon
+        points={pointsAttribute(maximumFootprint)}
+        className="fill-none stroke-muted"
+        strokeDasharray="6 6"
+      />
+      <polygon
+        points={pointsAttribute(slab.left)}
+        className="fill-surface stroke-accent/60"
+      />
+      <polygon points={pointsAttribute(slab.left)} className="fill-accent/20" />
+      <polygon
+        points={pointsAttribute(slab.right)}
+        className="fill-surface stroke-accent/70"
+      />
+      <polygon
+        points={pointsAttribute(slab.right)}
+        className="fill-accent/30"
+      />
+      <polygon
+        points={pointsAttribute(slab.top)}
+        className="fill-surface stroke-accent"
+        strokeWidth="2"
+      />
+      <polygon
+        points={pointsAttribute(slab.top)}
+        className="fill-success/15 stroke-accent"
+        strokeWidth="2"
+      />
+      {blocks.map((block) => {
+        const shape = [
+          topPoint(block.xMm, block.yMm),
+          topPoint(block.xMm + block.widthMm, block.yMm),
+          topPoint(block.xMm + block.widthMm, block.yMm + block.depthMm),
+          topPoint(block.xMm, block.yMm + block.depthMm),
+        ];
+        const labelPoint = topPoint(
+          block.xMm + block.widthMm / 2,
+          block.yMm + block.depthMm / 2,
+        );
+        return (
+          <g key={block.id}>
+            <polygon
+              points={pointsAttribute(shape)}
+              className="fill-warning/50 stroke-warning"
+              strokeWidth="1.5"
+            />
+            <text
+              x={labelPoint.x}
+              y={labelPoint.y}
+              textAnchor="middle"
+              dominantBaseline="central"
+              className="fill-text text-[11px] font-semibold"
+            >
+              {block.label}
+            </text>
+          </g>
+        );
+      })}
+      <DimensionGuide
+        start={slab.top[0]!}
+        end={slab.top[1]!}
+        label={`${t("widthShort")} ${metres(widthMm)} m`}
+        offsetY={-10}
+      />
+      <DimensionGuide
+        start={slab.top[0]!}
+        end={slab.top[3]!}
+        label={`${t("depthShort")} ${metres(depthMm)} m`}
+        offsetY={-10}
+      />
+      <line
+        x1={heightGuideX}
+        y1={heightTopY}
+        x2={heightGuideX}
+        y2={heightBottomY}
+        className="stroke-accent"
+        strokeWidth="1.5"
+      />
+      <line
+        x1={heightGuideX - 4}
+        y1={heightTopY}
+        x2={heightGuideX + 4}
+        y2={heightTopY}
+        className="stroke-accent"
+      />
+      <line
+        x1={heightGuideX - 4}
+        y1={heightBottomY}
+        x2={heightGuideX + 4}
+        y2={heightBottomY}
+        className="stroke-accent"
+      />
+      <text
+        x={heightGuideX + 7}
+        y={(heightTopY + heightBottomY) / 2}
+        dominantBaseline="central"
+        className="fill-accent text-[11px] font-semibold"
+      >
+        {t("heightShort")} {metres(heightMm)} m
+      </text>
+    </svg>
+  );
+}
+
+function DimensionGuide({
+  start,
+  end,
+  label,
+  offsetY,
+}: {
+  readonly start: { readonly x: number; readonly y: number };
+  readonly end: { readonly x: number; readonly y: number };
+  readonly label: string;
+  readonly offsetY: number;
+}) {
+  return (
+    <g>
+      <line
+        x1={start.x}
+        y1={start.y + offsetY}
+        x2={end.x}
+        y2={end.y + offsetY}
+        className="stroke-accent"
+        strokeDasharray="4 4"
+      />
+      <text
+        x={(start.x + end.x) / 2}
+        y={(start.y + end.y) / 2 + offsetY - 5}
+        textAnchor="middle"
+        className="fill-accent text-[11px] font-semibold"
+      >
+        {label}
+      </text>
+    </g>
+  );
+}
+
+function FloorPlanDrawing({
   widthMm,
   depthMm,
   maximumWidthMm,
@@ -1118,126 +1439,107 @@ function FloorPlan({
   const labelSize = Math.max(drawingWidth, drawingDepth) / 38;
   const gridStep = 1_000;
   return (
-    <figure className="rounded-2xl border border-border bg-surface p-5 shadow-sm">
-      <figcaption className="mb-4 text-sm font-semibold text-muted">
-        {t("planLabel")}
-      </figcaption>
-      <svg
-        role="img"
-        aria-label={t("planLabel")}
-        viewBox={`${-padding} ${-padding} ${drawingWidth + padding * 2} ${drawingDepth + padding * 2}`}
-        className="h-[28rem] w-full rounded-xl border border-accent/30 bg-background"
+    <svg
+      role="img"
+      aria-label={t("planLabel")}
+      viewBox={`${-padding} ${-padding} ${drawingWidth + padding * 2} ${drawingDepth + padding * 2}`}
+      className="h-[28rem] w-full rounded-xl border border-accent/30 bg-background"
+    >
+      <defs>
+        <pattern
+          id="storage-floor-grid"
+          width={gridStep}
+          height={gridStep}
+          patternUnits="userSpaceOnUse"
+        >
+          <path
+            d={`M ${gridStep} 0 L 0 0 0 ${gridStep}`}
+            className="fill-none stroke-border/50"
+            strokeWidth={Math.max(20, drawingWidth / 1_500)}
+          />
+        </pattern>
+        <pattern
+          id="storage-reserved-hatch"
+          width="500"
+          height="500"
+          patternUnits="userSpaceOnUse"
+          patternTransform="rotate(45)"
+        >
+          <line
+            x1="0"
+            y1="0"
+            x2="0"
+            y2="500"
+            className="stroke-warning"
+            strokeWidth="90"
+          />
+        </pattern>
+      </defs>
+      <rect
+        x={-padding}
+        y={-padding}
+        width={drawingWidth + padding * 2}
+        height={drawingDepth + padding * 2}
+        fill="url(#storage-floor-grid)"
+      />
+      <rect
+        width={maximumWidthMm}
+        height={maximumDepthMm}
+        className="fill-none stroke-muted"
+        strokeDasharray={`${padding / 5} ${padding / 5}`}
+        strokeWidth={Math.max(30, drawingWidth / 900)}
+        vectorEffect="non-scaling-stroke"
+      />
+      <rect
+        width={widthMm}
+        height={depthMm}
+        className="fill-accent/15 stroke-accent"
+        strokeWidth={Math.max(40, drawingWidth / 700)}
+        vectorEffect="non-scaling-stroke"
+      />
+      <text
+        x={widthMm / 2}
+        y={-padding * 0.35}
+        textAnchor="middle"
+        className="fill-accent font-semibold"
+        style={{ fontSize: labelSize }}
       >
-        <defs>
-          <pattern
-            id="storage-floor-grid"
-            width={gridStep}
-            height={gridStep}
-            patternUnits="userSpaceOnUse"
+        {metres(widthMm)} m
+      </text>
+      <text
+        x={widthMm + padding * 0.32}
+        y={depthMm / 2}
+        textAnchor="middle"
+        dominantBaseline="central"
+        className="fill-accent font-semibold"
+        style={{ fontSize: labelSize }}
+      >
+        {metres(depthMm)} m
+      </text>
+      {blocks.map((block) => (
+        <g key={block.id}>
+          <rect
+            x={block.xMm}
+            y={block.yMm}
+            width={block.widthMm}
+            height={block.depthMm}
+            fill="url(#storage-reserved-hatch)"
+            className="stroke-warning"
+            vectorEffect="non-scaling-stroke"
+          />
+          <text
+            x={block.xMm + block.widthMm / 2}
+            y={block.yMm + block.depthMm / 2}
+            textAnchor="middle"
+            dominantBaseline="central"
+            className="fill-warning font-semibold"
+            style={{ fontSize: labelSize }}
           >
-            <path
-              d={`M ${gridStep} 0 L 0 0 0 ${gridStep}`}
-              className="fill-none stroke-border/50"
-              strokeWidth={Math.max(20, drawingWidth / 1_500)}
-            />
-          </pattern>
-          <pattern
-            id="storage-reserved-hatch"
-            width="500"
-            height="500"
-            patternUnits="userSpaceOnUse"
-            patternTransform="rotate(45)"
-          >
-            <line
-              x1="0"
-              y1="0"
-              x2="0"
-              y2="500"
-              className="stroke-warning"
-              strokeWidth="90"
-            />
-          </pattern>
-        </defs>
-        <rect
-          x={-padding}
-          y={-padding}
-          width={drawingWidth + padding * 2}
-          height={drawingDepth + padding * 2}
-          fill="url(#storage-floor-grid)"
-        />
-        <rect
-          width={maximumWidthMm}
-          height={maximumDepthMm}
-          className="fill-none stroke-muted"
-          strokeDasharray={`${padding / 5} ${padding / 5}`}
-          strokeWidth={Math.max(30, drawingWidth / 900)}
-          vectorEffect="non-scaling-stroke"
-        />
-        <rect
-          width={widthMm}
-          height={depthMm}
-          className="fill-accent/15 stroke-accent"
-          strokeWidth={Math.max(40, drawingWidth / 700)}
-          vectorEffect="non-scaling-stroke"
-        />
-        <text
-          x={widthMm / 2}
-          y={-padding * 0.35}
-          textAnchor="middle"
-          className="fill-accent font-semibold"
-          style={{ fontSize: labelSize }}
-        >
-          {metres(widthMm)} m
-        </text>
-        <text
-          x={widthMm + padding * 0.32}
-          y={depthMm / 2}
-          textAnchor="middle"
-          dominantBaseline="central"
-          className="fill-accent font-semibold"
-          style={{ fontSize: labelSize }}
-        >
-          {metres(depthMm)} m
-        </text>
-        {blocks.map((block) => (
-          <g key={block.id}>
-            <rect
-              x={block.xMm}
-              y={block.yMm}
-              width={block.widthMm}
-              height={block.depthMm}
-              fill="url(#storage-reserved-hatch)"
-              className="stroke-warning"
-              vectorEffect="non-scaling-stroke"
-            />
-            <text
-              x={block.xMm + block.widthMm / 2}
-              y={block.yMm + block.depthMm / 2}
-              textAnchor="middle"
-              dominantBaseline="central"
-              className="fill-warning font-semibold"
-              style={{ fontSize: labelSize }}
-            >
-              {block.label}
-            </text>
-          </g>
-        ))}
-      </svg>
-      <div className="mt-4 flex flex-wrap gap-4 text-xs text-muted">
-        <span>
-          <i className="mr-2 inline-block size-3 rounded-sm bg-success/30" />
-          {t("available")}
-        </span>
-        <span>
-          <i className="mr-2 inline-block size-3 rounded-sm bg-warning/50" />
-          {t("unavailable")}
-        </span>
-        <span>
-          <i className="mr-2 inline-block size-3 rounded-sm border border-dashed border-muted" />
-          {t("maximumEnvelope")}
-        </span>
-      </div>
-    </figure>
+            {block.label}
+          </text>
+        </g>
+      ))}
+    </svg>
   );
 }
 

@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -14,7 +14,7 @@ import type {
   StorageFloorRow,
 } from "@/lib/convex/storageLayoutApi";
 
-import { IsometricBuilding } from "./StorageLayoutScreens";
+import { FloorPlan, IsometricBuilding } from "./StorageLayoutScreens";
 
 const building: StorageBuildingRow = {
   buildingId: "building-a",
@@ -92,5 +92,49 @@ describe("IsometricBuilding", () => {
       points(floorThreeTop)[2],
       points(floorThreeTop)[1],
     ]);
+  });
+});
+
+describe("FloorPlan", () => {
+  it("opens in 3D with all dimensions and retains a precision plan view", () => {
+    renderWithIntl(
+      <FloorPlan
+        widthMm={20_000}
+        depthMm={18_000}
+        heightMm={5_000}
+        maximumWidthMm={30_000}
+        maximumDepthMm={20_000}
+        blocks={[
+          {
+            id: "reserved-a",
+            label: "Lift core",
+            xMm: 2_000,
+            yMm: 3_000,
+            widthMm: 4_000,
+            depthMm: 5_000,
+          },
+        ]}
+      />,
+      { locale: "en", workspace: false },
+    );
+
+    expect(
+      screen.getByRole("img", { name: "3D floor volume" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("20 × 18 × 5 m")).toBeInTheDocument();
+    expect(screen.getByText("H 5 m")).toBeInTheDocument();
+    expect(screen.getByText("Lift core")).toBeInTheDocument();
+    const volume = screen.getByRole("img", { name: "3D floor volume" });
+    const topFace = volume.querySelectorAll("polygon")[6]!;
+    expect(topFace.getAttribute("points")).toBe("48,-24 288,96 72,204 -168,84");
+
+    fireEvent.click(screen.getByRole("button", { name: "Plan" }));
+
+    expect(
+      screen.getByRole("img", { name: "Floor space plan" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("img", { name: "3D floor volume" }),
+    ).not.toBeInTheDocument();
   });
 });

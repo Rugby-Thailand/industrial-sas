@@ -47,7 +47,12 @@ function polygon(
 
 export function buildIsometricBuilding(
   floors: readonly IsometricFloor[],
-  options: { readonly scale?: number; readonly gap?: number } = {},
+  options: {
+    readonly scale?: number;
+    readonly gap?: number;
+    readonly envelopeWidthMm?: number;
+    readonly envelopeDepthMm?: number;
+  } = {},
 ): {
   readonly slabs: readonly IsometricSlab[];
   readonly viewBox: {
@@ -59,8 +64,14 @@ export function buildIsometricBuilding(
 } {
   const scale = options.scale ?? 0.01;
   const gap = options.gap ?? 10;
-  const envelopeWidthMm = Math.max(0, ...floors.map((floor) => floor.widthMm));
-  const envelopeDepthMm = Math.max(0, ...floors.map((floor) => floor.depthMm));
+  const envelopeWidthMm = Math.max(
+    options.envelopeWidthMm ?? 0,
+    ...floors.map((floor) => floor.widthMm),
+  );
+  const envelopeDepthMm = Math.max(
+    options.envelopeDepthMm ?? 0,
+    ...floors.map((floor) => floor.depthMm),
+  );
   let elevationMm = 0;
   const slabs = floors.map((floor, index) => {
     const z0 = elevationMm;
