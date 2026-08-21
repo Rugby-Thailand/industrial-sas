@@ -2,6 +2,11 @@ import { fireEvent, screen } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
 
+vi.mock("convex/react", () => ({
+  useMutation: () => vi.fn(),
+  useQuery: () => undefined,
+}));
+
 vi.mock("@/i18n/navigation", () => ({
   Link: ({ children, ...props }: ComponentProps<"a">) => (
     <a {...props}>{children}</a>
@@ -18,6 +23,7 @@ import type {
 
 import {
   BuildingModelWorkspace,
+  BuildingSettingsSheet,
   FloorPlan,
   IsometricBuilding,
 } from "./StorageLayoutScreens";
@@ -68,6 +74,27 @@ describe("BuildingModelWorkspace", () => {
       "aria-pressed",
       "true",
     );
+  });
+});
+
+describe("BuildingSettingsSheet", () => {
+  it("opens the removed building form from a compact plus action", () => {
+    renderWithIntl(
+      <BuildingSettingsSheet warehouseId="warehouse-a" building={building} />,
+      { locale: "en", workspace: false },
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Edit building settings" }),
+    );
+
+    expect(
+      screen.getByRole("dialog", { name: "Building dimensions" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Building name" })).toHaveValue(
+      "Main storage",
+    );
+    expect(screen.getByRole("button", { name: "Add floors" })).toBeVisible();
   });
 });
 

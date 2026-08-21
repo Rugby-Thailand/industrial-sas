@@ -13,7 +13,13 @@ import {
   Trash2,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useId, useMemo, useState, type FormEvent } from "react";
+import {
+  useId,
+  useMemo,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from "react";
 
 import { QueryGate } from "@/components/system/QueryGate";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -22,6 +28,14 @@ import { StatusBadge, type BadgeTone } from "@/components/ui/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { Link, useRouter } from "@/i18n/navigation";
 import {
   storageBuildingPath,
@@ -421,7 +435,18 @@ function BuildingContent({
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
       <div className="space-y-6">
-        <BuildingModelWorkspace building={building} floors={floors} />
+        <BuildingModelWorkspace
+          building={building}
+          floors={floors}
+          settingsAction={
+            building.status === "DRAFT" ? (
+              <BuildingSettingsSheet
+                warehouseId={warehouseId}
+                building={building}
+              />
+            ) : undefined
+          }
+        />
       </div>
       <aside className="space-y-4">
         <section className="rounded-2xl border border-border bg-surface p-5 shadow-sm">
@@ -455,9 +480,6 @@ function BuildingContent({
             <Metric label={t("floors")} value={String(building.floorCount)} />
           </dl>
         </section>
-        {building.status === "DRAFT" ? (
-          <BuildingSettings warehouseId={warehouseId} building={building} />
-        ) : null}
         <CapacitySummary building={building} />
         <Button className="w-full" asChild>
           <Link href={storageReviewPath(buildingId)}>{t("review")}</Link>
@@ -470,6 +492,45 @@ function BuildingContent({
         </Button>
       </aside>
     </div>
+  );
+}
+
+export function BuildingSettingsSheet({
+  warehouseId,
+  building,
+}: {
+  readonly warehouseId: string;
+  readonly building: StorageBuildingRow;
+}) {
+  const t = useTranslations("StorageLayouts");
+  return (
+    <Sheet>
+      <SheetTrigger asChild>
+        <Button
+          type="button"
+          size="icon"
+          variant="outline"
+          aria-label={t("openSettings")}
+          title={t("openSettings")}
+          className="bg-surface/90 shadow-sm backdrop-blur-sm"
+        >
+          <Plus className="size-5" />
+        </Button>
+      </SheetTrigger>
+      <SheetContent
+        side="right"
+        closeLabel={t("closeSettings")}
+        className="w-full gap-0 overflow-y-auto p-0 sm:max-w-xl"
+      >
+        <SheetHeader className="border-b border-border px-6 py-5 pr-16">
+          <SheetTitle>{t("dimensions")}</SheetTitle>
+          <SheetDescription>{t("settingsDescription")}</SheetDescription>
+        </SheetHeader>
+        <div className="p-6">
+          <BuildingSettings warehouseId={warehouseId} building={building} />
+        </div>
+      </SheetContent>
+    </Sheet>
   );
 }
 
@@ -530,11 +591,10 @@ function BuildingSettings({
   }
 
   return (
-    <section className="rounded-2xl border border-border bg-surface p-5 shadow-sm">
-      <h2 className="font-semibold text-text">{t("dimensions")}</h2>
-      <form onSubmit={saveDimensions} className="mt-4 grid gap-3">
+    <div>
+      <form onSubmit={saveDimensions} className="grid gap-4">
         <Field label={t("name")} name="name" defaultValue={building.name} />
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid gap-3 sm:grid-cols-3">
           <Field
             label={t("width")}
             name="width"
@@ -587,7 +647,7 @@ function BuildingSettings({
           <Notice tone="warning" title={t("writeError", { code: error })} />
         </div>
       )}
-    </section>
+    </div>
   );
 }
 
@@ -633,10 +693,12 @@ export function IsometricBuilding({
   building,
   floors,
   highlightedFloorNumber,
+  action,
 }: {
   readonly building: StorageBuildingRow;
   readonly floors: readonly StorageFloorRow[];
   readonly highlightedFloorNumber?: number;
+  readonly action?: ReactNode;
 }) {
   const t = useTranslations("StorageLayouts");
   const geometry = useMemo(
@@ -658,6 +720,9 @@ export function IsometricBuilding({
       <figcaption className="absolute top-5 left-5 z-10 text-sm font-semibold text-muted">
         {t("modelLabel")}
       </figcaption>
+      {action === undefined ? null : (
+        <div className="absolute top-4 right-4 z-10">{action}</div>
+      )}
       <svg
         role="img"
         aria-label={t("modelLabel")}
@@ -754,9 +819,11 @@ export function IsometricBuilding({
 export function BuildingModelWorkspace({
   building,
   floors,
+  settingsAction,
 }: {
   readonly building: StorageBuildingRow;
   readonly floors: readonly StorageFloorRow[];
+  readonly settingsAction?: ReactNode;
 }) {
   const t = useTranslations("StorageLayouts");
   const [selectedFloorNumber, setSelectedFloorNumber] = useState(
@@ -817,6 +884,7 @@ export function BuildingModelWorkspace({
         building={building}
         floors={floors}
         highlightedFloorNumber={selectedFloorNumber}
+        action={settingsAction}
       />
     </div>
   );
