@@ -221,6 +221,21 @@ export const storageLayoutRefs = Object.freeze({
     },
     TenantOutcome<StorageWriteOutcome>
   >("storageLayouts/zones:createStorageZone"),
+  updateZone: makeFunctionReference<
+    "mutation",
+    {
+      warehouseId: string;
+      zoneId: string;
+      requestId: string;
+      label: string;
+      xMm: number;
+      yMm: number;
+      widthMm: number;
+      depthMm: number;
+      maxStackHeightMm: number;
+    },
+    TenantOutcome<StorageWriteOutcome>
+  >("storageLayouts/zones:updateStorageZone"),
   archiveZone: makeFunctionReference<
     "mutation",
     { warehouseId: string; zoneId: string; requestId: string },

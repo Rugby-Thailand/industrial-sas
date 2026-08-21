@@ -19,6 +19,7 @@ import { renderWithIntl } from "@tests/fixtures/intl-render";
 import type {
   StorageBuildingRow,
   StorageFloorRow,
+  StorageZoneRow,
 } from "@/lib/convex/storageLayoutApi";
 
 import {
@@ -27,6 +28,7 @@ import {
   FloorPlan,
   IsometricBuilding,
   StorageZoneDraftPreview,
+  StorageZonesPanel,
 } from "./StorageLayoutScreens";
 
 const building: StorageBuildingRow = {
@@ -260,5 +262,54 @@ describe("StorageZoneDraftPreview", () => {
 
     expect(movedTop).not.toBe(initialTop);
     expect(screen.getByText("Outside floor limits")).toBeInTheDocument();
+  });
+});
+
+describe("StorageZonesPanel", () => {
+  it("opens an existing zone in the draggable 3D editor", () => {
+    const zone: StorageZoneRow = {
+      zoneId: "zone-a",
+      locationId: "location-a",
+      code: "BLDG-A-F04-Z01",
+      label: "QA Finished Goods Stack",
+      qrValue: "ISAS:LOCATION:1:location-a",
+      xMm: 3_500,
+      yMm: 1_100,
+      widthMm: 2_000,
+      depthMm: 2_000,
+      maxStackHeightMm: 3_000,
+      placements: [],
+    };
+
+    renderWithIntl(
+      <StorageZonesPanel
+        warehouseId="warehouse-a"
+        buildingId="building-a"
+        floorNumber={4}
+        floorWidthMm={10_000}
+        floorDepthMm={10_000}
+        floorHeightMm={3_000}
+        zones={[zone]}
+      />,
+      { locale: "en", workspace: false },
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Edit QA Finished Goods Stack" }),
+    );
+
+    expect(
+      screen.getByRole("dialog", { name: "Edit storage zone" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Zone label" })).toHaveValue(
+      "QA Finished Goods Stack",
+    );
+    expect(
+      screen.getByRole("spinbutton", { name: "X position (m)" }),
+    ).toHaveValue(3.5);
+    expect(
+      screen.getByRole("spinbutton", { name: "Y position (m)" }),
+    ).toHaveValue(1.1);
+    expect(screen.getByRole("button", { name: "Save changes" })).toBeVisible();
   });
 });

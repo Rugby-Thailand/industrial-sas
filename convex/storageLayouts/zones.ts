@@ -437,6 +437,134 @@ export const createStorageZone = mutationWithOrg({
   },
 });
 
+export const updateStorageZone = mutationWithOrg({
+  args: {
+    warehouseId: v.id("warehouses"),
+    zoneId: v.id("storageZones"),
+    requestId: v.string(),
+    label: v.string(),
+    xMm: v.number(),
+    yMm: v.number(),
+    widthMm: v.number(),
+    depthMm: v.number(),
+    maxStackHeightMm: v.number(),
+  },
+  returns: outcome,
+  permissionCode: "masterData.storageLayout.manage",
+  target: { table: "storageZones", id: ({ zoneId }) => zoneId },
+  warehouseId: ({ warehouseId }) => warehouseId,
+  handler: async (ctx, args) => {
+    const zone = await ctx.tenantDb.get<ZoneDocument>(
+      "storageZones",
+      args.zoneId,
+    );
+    if (
+      zone === null ||
+      zone.warehouseId !== args.warehouseId ||
+      zone.status !== "ACTIVE"
+    ) {
+      return failure("NOT_FOUND");
+    }
+    const floor = await ctx.tenantDb.get<FloorDocument>(
+      "storageFloors",
+      zone.floorId,
+    );
+    const building = await ctx.tenantDb.get<BuildingDocument>(
+      "storageBuildings",
+      zone.buildingId,
+    );
+    if (
+      floor === null ||
+      building === null ||
+      floor.warehouseId !== args.warehouseId ||
+      building.warehouseId !== args.warehouseId
+    ) {
+      return failure("NOT_FOUND");
+    }
+    const label = normalizeDisplayName("label", args.label);
+    if (!label.ok) return failure(label.error.code, "label");
+    const reserved = await ctx.tenantDb
+      .byIndex<ReservedBlockDocument>(
+        "storageFloorReservedBlocks",
+        "by_orgId_floorId",
+        [{ field: "floorId", value: floor._id }],
+      )
+      .take(20);
+    const zones = (
+      await ctx.tenantDb
+        .byIndex<ZoneDocument>("storageZones", "by_orgId_floorId_status_code", [
+          { field: "floorId", value: floor._id },
+          { field: "status", value: "ACTIVE" },
+        ])
+        .take(STORAGE_ZONE_LIMITS.maximumZonesPerFloor + 1)
+    ).filter((candidate) => candidate._id !== zone._id);
+    const candidate = {
+      xMm: args.xMm,
+      yMm: args.yMm,
+      widthMm: args.widthMm,
+      depthMm: args.depthMm,
+      maxStackHeightMm: args.maxStackHeightMm,
+    };
+    const valid = validateStorageZone({
+      floorWidthMm: floor.widthMm ?? building.widthMm,
+      floorDepthMm: floor.depthMm ?? building.depthMm,
+      floorHeightMm: floor.heightMm ?? building.defaultFloorHeightMm,
+      candidate,
+      reserved,
+      zones,
+    });
+    if (!valid.ok) {
+      return failure(
+        valid.error.code,
+        "field" in valid.error ? valid.error.field : undefined,
+      );
+    }
+    const placements = await ctx.tenantDb
+      .byIndex<PlacementDocument>(
+        "storageStackPlacements",
+        "by_orgId_zoneId_status_levelIndex",
+        [
+          { field: "zoneId", value: zone._id },
+          { field: "status", value: "ACTIVE" },
+        ],
+      )
+      .take(STORAGE_ZONE_LIMITS.maximumPlacementsPerZone + 1);
+    const allPlacementsFit = placements.every((placement) =>
+      placement.orientation === "ROTATED"
+        ? placement.depthMm <= candidate.widthMm &&
+          placement.widthMm <= candidate.depthMm
+        : placement.widthMm <= candidate.widthMm &&
+          placement.depthMm <= candidate.depthMm,
+    );
+    if (!allPlacementsFit) return failure("HANDLING_UNIT_DOES_NOT_FIT");
+
+    const updated = await updateMasterDataRow({
+      ...writeContext(
+        ctx,
+        "storageZones",
+        "storageLayout.zone.update",
+        args.requestId,
+        args.warehouseId,
+      ),
+      documentId: zone._id,
+      fingerprint: args,
+      uniqueness: [],
+      patch: {
+        label: label.value,
+        ...candidate,
+        updatedAt: Date.now(),
+        updatedByUserId: ctx.tenant.actor._id,
+      },
+    });
+    if (!updated.ok) return failure(updated.error.code);
+    return {
+      written: true as const,
+      documentId: zone._id,
+      replayed: updated.value.replayed,
+    };
+  },
+});
+
 export const archiveStorageZone = mutationWithOrg({
   args: {
     warehouseId: v.id("warehouses"),

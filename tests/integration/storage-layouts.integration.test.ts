@@ -11,6 +11,7 @@ import {
 import {
   createStorageZone,
   placeHandlingUnit,
+  updateStorageZone,
 } from "../../convex/storageLayouts/zones";
 import type { DataModel } from "../../convex/schema";
 import {
@@ -150,6 +151,37 @@ describe("storage building planner", () => {
       written: true,
       replayed: true,
       documentId: zone["documentId"],
+    });
+    const updatedZone = value(
+      await call(world, updateStorageZone, {
+        warehouseId,
+        zoneId: zone["documentId"],
+        requestId: "storage-zone-update-1",
+        label: "Finished goods priority stack",
+        xMm: 12_000,
+        yMm: 1_000,
+        widthMm: 3_000,
+        depthMm: 2_500,
+        maxStackHeightMm: 4_000,
+      }),
+    );
+    expect(updatedZone).toMatchObject({
+      written: true,
+      replayed: false,
+      documentId: zone["documentId"],
+    });
+    const updatedStoredZone = await world.t.run(async (ctx) =>
+      ctx.db.get(zone["documentId"] as never),
+    );
+    expect(updatedStoredZone).toMatchObject({
+      code: "BLDG-A-F01-Z01",
+      label: "Finished goods priority stack",
+      qrValue: zone["qrValue"],
+      xMm: 12_000,
+      yMm: 1_000,
+      widthMm: 3_000,
+      depthMm: 2_500,
+      maxStackHeightMm: 4_000,
     });
 
     const receipt = value(

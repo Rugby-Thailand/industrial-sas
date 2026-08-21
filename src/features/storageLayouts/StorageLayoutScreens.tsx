@@ -2484,7 +2484,7 @@ export function StorageZoneDraftPreview({
   );
 }
 
-function StorageZonesPanel({
+export function StorageZonesPanel({
   warehouseId,
   buildingId,
   floorNumber,
@@ -2503,6 +2503,7 @@ function StorageZonesPanel({
 }) {
   const t = useTranslations("StorageLayouts");
   const createZone = useMutation(storageLayoutRefs.createZone);
+  const updateZone = useMutation(storageLayoutRefs.updateZone);
   const archiveZone = useMutation(storageLayoutRefs.archiveZone);
   const placeHandlingUnit = useMutation(storageLayoutRefs.placeHandlingUnit);
   const unitsOutcome = useQuery(listHandlingUnitsRef, {
@@ -2526,6 +2527,7 @@ function StorageZonesPanel({
   const [unitDepth, setUnitDepth] = useState("1");
   const [unitHeight, setUnitHeight] = useState("1.4");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [editingZone, setEditingZone] = useState<StorageZoneRow>();
   const [pendingAction, setPendingAction] = useState<string>();
   const [message, setMessage] = useState<{
     readonly tone: "success" | "warning";
@@ -2543,14 +2545,36 @@ function StorageZonesPanel({
       setUnitHeight(String(metres(unit.heightMm)));
   };
 
-  const addStorageZone = async () => {
-    setPendingAction("create");
+  const startNewStorageZone = () => {
+    setEditingZone(undefined);
+    setLabel("");
+    setZoneX("0");
+    setZoneY("0");
+    setZoneWidth("2");
+    setZoneDepth("2");
+    setStackHeight(String(metres(floorHeightMm)));
+    setMessage(undefined);
+  };
+
+  const startEditingStorageZone = (zone: StorageZoneRow) => {
+    setEditingZone(zone);
+    setLabel(zone.label);
+    setZoneX(String(metres(zone.xMm)));
+    setZoneY(String(metres(zone.yMm)));
+    setZoneWidth(String(metres(zone.widthMm)));
+    setZoneDepth(String(metres(zone.depthMm)));
+    setStackHeight(String(metres(zone.maxStackHeightMm)));
+    setMessage(undefined);
+    setCreateDialogOpen(true);
+  };
+
+  const saveStorageZone = async () => {
+    const isEditing = editingZone !== undefined;
+    setPendingAction(isEditing ? "update" : "create");
     setMessage(undefined);
     try {
-      const outcome = await createZone({
+      const draft = {
         warehouseId,
-        buildingId,
-        floorNumber,
         requestId: requestId(),
         label: label || t("newStorageZoneLabel", { number: zones.length + 1 }),
         xMm: millimetres(zoneX),
@@ -2558,7 +2582,10 @@ function StorageZonesPanel({
         widthMm: millimetres(zoneWidth),
         depthMm: millimetres(zoneDepth),
         maxStackHeightMm: millimetres(stackHeight),
-      });
+      };
+      const outcome = isEditing
+        ? await updateZone({ ...draft, zoneId: editingZone.zoneId })
+        : await createZone({ ...draft, buildingId, floorNumber });
       if (!outcome.ok) {
         setMessage({
           tone: "warning",
@@ -2572,7 +2599,11 @@ function StorageZonesPanel({
       } else {
         setLabel("");
         setCreateDialogOpen(false);
-        setMessage({ tone: "success", text: t("storageZoneCreated") });
+        setEditingZone(undefined);
+        setMessage({
+          tone: "success",
+          text: t(isEditing ? "storageZoneUpdated" : "storageZoneCreated"),
+        });
       }
     } finally {
       setPendingAction(undefined);
@@ -2652,19 +2683,34 @@ function StorageZonesPanel({
           onOpenChange={(open) => {
             setCreateDialogOpen(open);
             if (open) setMessage(undefined);
+            else setEditingZone(undefined);
           }}
         >
           <DialogTrigger asChild>
-            <Button type="button" variant="outline">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={startNewStorageZone}
+            >
               <Plus className="size-4" />
               {t("addStorageZone")}
             </Button>
           </DialogTrigger>
           <DialogContent closeLabel={t("closeDialog")} className="max-w-5xl">
             <DialogHeader>
-              <DialogTitle>{t("addStorageZoneTitle")}</DialogTitle>
+              <DialogTitle>
+                {t(
+                  editingZone === undefined
+                    ? "addStorageZoneTitle"
+                    : "editStorageZoneTitle",
+                )}
+              </DialogTitle>
               <DialogDescription>
-                {t("addStorageZoneDescription")}
+                {t(
+                  editingZone === undefined
+                    ? "addStorageZoneDescription"
+                    : "editStorageZoneDescription",
+                )}
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-5 md:grid-cols-[minmax(0,1.05fr)_minmax(19rem,0.95fr)]">
@@ -2677,7 +2723,11 @@ function StorageZonesPanel({
                 zoneWidth={zoneWidth}
                 zoneDepth={zoneDepth}
                 stackHeight={stackHeight}
-                zones={zones}
+                zones={
+                  editingZone === undefined
+                    ? zones
+                    : zones.filter((zone) => zone.zoneId !== editingZone.zoneId)
+                }
                 onPositionChange={({ xMm, yMm }) => {
                   setZoneX(String(metres(xMm)));
                   setZoneY(String(metres(yMm)));
@@ -2752,13 +2802,23 @@ function StorageZonesPanel({
               </DialogClose>
               <Button
                 type="button"
-                onClick={addStorageZone}
+                onClick={saveStorageZone}
                 disabled={pendingAction !== undefined}
               >
-                <Plus className="size-4" />
+                {editingZone === undefined ? (
+                  <Plus className="size-4" />
+                ) : (
+                  <PencilLine className="size-4" />
+                )}
                 {pendingAction === "create"
                   ? t("creating")
-                  : t("createStorageZone")}
+                  : pendingAction === "update"
+                    ? t("updating")
+                    : t(
+                        editingZone === undefined
+                          ? "createStorageZone"
+                          : "saveStorageZoneChanges",
+                      )}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -2801,6 +2861,17 @@ function StorageZonesPanel({
                     {zone.qrValue}
                   </code>
                   <div className="mt-3 flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={pendingAction !== undefined}
+                      onClick={() => startEditingStorageZone(zone)}
+                      aria-label={t("editStorageZone", { label: zone.label })}
+                    >
+                      <PencilLine className="size-3.5" />
+                      {t("edit")}
+                    </Button>
                     <Button
                       type="button"
                       size="sm"
