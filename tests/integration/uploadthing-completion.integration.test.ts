@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { getFunctionName, type FunctionReference } from "convex/server";
 
 import { completeUploadThingFile } from "../../convex/lib/uploadThingComplete";
 import { signUploadThingCompletion } from "../../src/server/files/uploadThingReceipt";
@@ -11,6 +12,7 @@ const invoke = (ctx: unknown, request: Request) =>
   (completeUploadThingFile as unknown as HttpRuntime)._handler(ctx, request);
 
 const payload = {
+  scope: "MASTER_CARD" as const,
   grantId: "grant_private_1",
   providerKey: "provider_private_1",
   uploaderClerkUserId: "user_clerk_owner_1",
@@ -50,7 +52,8 @@ describe("UploadThing completion boundary", () => {
     );
 
     expect(response.status).toBe(204);
-    expect(runMutation).toHaveBeenCalledWith(expect.anything(), payload);
+    const { scope: _scope, ...completion } = payload;
+    expect(runMutation).toHaveBeenCalledWith(expect.anything(), completion);
   });
 
   it("refuses a tampered payload before invoking Convex", async () => {
@@ -89,5 +92,63 @@ describe("UploadThing completion boundary", () => {
     );
 
     expect(response.status).toBe(409);
+  });
+
+  it("routes an operator-task receipt only to the task grant completer", async () => {
+    const taskPayload = { ...payload, scope: "OPERATOR_TASK" as const };
+    const body = JSON.stringify(taskPayload);
+    const signature = await signUploadThingCompletion(
+      body,
+      process.env.UPLOADTHING_TOKEN!,
+    );
+    let calledPath = "";
+    const runMutation = vi.fn(
+      async (reference: FunctionReference<"mutation">, _args: unknown) => {
+        calledPath = getFunctionName(reference);
+        return true;
+      },
+    );
+    const response = await invoke(
+      { runMutation },
+      new Request("https://convex.invalid/internal/uploadthing/complete", {
+        method: "POST",
+        headers: { "x-industrial-file-signature": signature },
+        body,
+      }),
+    );
+
+    expect(response.status).toBe(204);
+    expect(calledPath).toBe(
+      "lib/taskFileComplete:completeUploadThingTaskUploadGrant",
+    );
+  });
+
+  it("routes a transport receipt only to the transport grant completer", async () => {
+    const transportPayload = { ...payload, scope: "TRANSPORT" as const };
+    const body = JSON.stringify(transportPayload);
+    const signature = await signUploadThingCompletion(
+      body,
+      process.env.UPLOADTHING_TOKEN!,
+    );
+    let calledPath = "";
+    const runMutation = vi.fn(
+      async (reference: FunctionReference<"mutation">, _args: unknown) => {
+        calledPath = getFunctionName(reference);
+        return true;
+      },
+    );
+    const response = await invoke(
+      { runMutation },
+      new Request("https://convex.invalid/internal/uploadthing/complete", {
+        method: "POST",
+        headers: { "x-industrial-file-signature": signature },
+        body,
+      }),
+    );
+
+    expect(response.status).toBe(204);
+    expect(calledPath).toBe(
+      "lib/transportFileComplete:completeUploadThingTransportFileGrant",
+    );
   });
 });

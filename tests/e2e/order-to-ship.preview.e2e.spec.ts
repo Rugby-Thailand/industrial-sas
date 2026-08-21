@@ -29,6 +29,8 @@ test.describe("order-to-ship preview workspace", () => {
       page.getByRole("heading", { level: 1, name: "ควบคุมแบบวิศวกรรม" }),
     ).toBeVisible();
     await expect(page.getByText("prv_dr_42")).toBeVisible();
+    await expect(page.getByText("ข้อกำหนดยังไม่ครบ").first()).toBeVisible();
+    await expect(page.getByText(/ยังส่งต่อไปผลิตไม่ได้/).first()).toBeVisible();
     await page
       .getByRole("button", {
         name: "ค้นหาแบบที่อนุมัติและมีโครงสร้างตรงกัน",
@@ -42,6 +44,10 @@ test.describe("order-to-ship preview workspace", () => {
       page.getByRole("heading", { name: "ทะเบียนรีวิชันมาสเตอร์การ์ด" }),
     ).toBeVisible();
     await expect(page.getByText("prv_mc_gold_991")).toBeVisible();
+    await page.getByText("ดำเนินการคำขอออกแบบนี้").first().click();
+    await expect(
+      page.getByText("ยืนยันข้อกำหนดลูกค้าและโรงงาน").first(),
+    ).toBeVisible();
   });
 
   test("renders a printable full factory packet and usable file controls", async ({

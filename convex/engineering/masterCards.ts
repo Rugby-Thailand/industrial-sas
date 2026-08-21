@@ -43,6 +43,10 @@
 import { v } from "convex/values";
 
 import {
+  summarizeDesignChange,
+  type DesignChangeSummary,
+} from "../model/orderToShip/designReadiness";
+import {
   CODE_FIELD,
   appendDomainAudit,
   assertUnique,
@@ -141,6 +145,14 @@ interface RevisionDocument {
     readonly boardGrade: string;
     readonly printColourCount: number;
   };
+}
+
+interface ProductionOrderDocument {
+  readonly _id: string;
+  readonly orgId: TenantOrgId;
+  readonly productionOrderNumber: string;
+  readonly warehouseId: string;
+  readonly status: string;
 }
 
 /** `(orgId, cardNumber)`: a card number is unique per organization. */
@@ -674,6 +686,35 @@ export const decideMasterCardRevision = mutationWithOrg({
             card.releasedRevisionId,
           );
 
+    let changeSummary: DesignChangeSummary | undefined;
+    let pinnedOrders: readonly ProductionOrderDocument[] = [];
+    if (args.decision === "APPROVE" && previous !== null) {
+      changeSummary = summarizeDesignChange(
+        previous.specification,
+        revision.specification,
+      );
+      const candidates = await ctx.tenantDb
+        .byIndex<ProductionOrderDocument>(
+          "productionOrders",
+          "by_orgId_masterCardRevisionId_dueAt",
+          [{ field: "masterCardRevisionId", value: previous._id }],
+        )
+        .take(100);
+      if (candidates.length > 99) {
+        return refusal({
+          code: "PRECONDITION_FAILED",
+          field: "masterCardRevisionId",
+          reason: "CHANGE_IMPACT_SET_TOO_LARGE",
+        });
+      }
+      pinnedOrders = candidates.filter(
+        (order) =>
+          order.status !== "COMPLETE" &&
+          order.status !== "CANCELLED" &&
+          order.status !== "CLOSED_REJECTED",
+      );
+    }
+
     const plan = planMasterCardDecision({
       revision: {
         ...revision,
@@ -762,6 +803,35 @@ export const decideMasterCardRevision = mutationWithOrg({
           },
         ],
       });
+
+      if (previous !== null && changeSummary !== undefined) {
+        for (const order of pinnedOrders) {
+          const document = {
+            warehouseId: order.warehouseId,
+            masterCardId: card._id,
+            fromRevisionId: previous._id,
+            toRevisionId: args.masterCardRevisionId,
+            productionOrderId: order._id,
+            productionOrderNumber: order.productionOrderNumber,
+            productionOrderStatus: order.status,
+            severity: changeSummary.severity,
+            changedFields: [...changeSummary.changedFields],
+            categories: [...changeSummary.categories],
+            status: "OPEN",
+            createdByUserId: context.actorUserId,
+            createdAt: context.now,
+          };
+          const impactId = await ctx.tenantDb.insert(
+            "designChangeImpacts",
+            document,
+          );
+          await appendDomainAudit(context, {
+            entityTable: "designChangeImpacts",
+            entityId: impactId,
+            changes: insertedFields(document),
+          });
+        }
+      }
     }
 
     return written(outcome.value);

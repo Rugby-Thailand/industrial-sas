@@ -6,9 +6,11 @@
 - Decision baseline: [PROJECT_PLAN.md](../../PROJECT_PLAN.md) §3.2 (D-21, D-28),
   §4 (B-08, B-11), §5 Q21, Q33, Q34, Q35, Q39, Q41, Q48, §10 Phase 4
 - Covers plan ADR backlog (§11) items: 17, 18, 25
-- Implementation status: **Not implemented.** No jobs, crons, outbox, aggregates,
-  report jobs, dashboards, occupancy map, logging, or error tracking exist. No
-  observability vendor has been selected.
+- Implementation status: **Partial.** Bounded report/export jobs, operational
+  views, a provider-neutral transactional-outbox model, delivery attempts, and an
+  integration-health surface exist locally. No real provider worker, inbound
+  webhook boundary, cron/Workpool orchestration, scalable rollup, credential
+  integration, or observability vendor has been proven.
 
 ## Context
 

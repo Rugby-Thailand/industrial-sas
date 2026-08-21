@@ -11,6 +11,8 @@ const ROUTES = [
   "/th/handheld/receive",
   "/th/handheld/quality",
   "/th/handheld/putaway",
+  "/th/handheld/work",
+  "/en/handheld/work",
 ] as const;
 
 const COLOR_SCHEMES = ["light", "dark"] as const;

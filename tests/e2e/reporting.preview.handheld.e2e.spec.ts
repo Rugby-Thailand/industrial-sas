@@ -60,6 +60,16 @@ test.describe("reporting at handheld width", () => {
     expect(box?.height ?? 0).toBeGreaterThanOrEqual(MIN_TOUCH_TARGET);
   });
 
+  test("keeps every stock report tab touchable", async ({ page }) => {
+    await page.goto("/th/reports");
+    await selectWarehouse(page);
+
+    for (const tab of await page.getByRole("tab").all()) {
+      const box = await tab.boundingBox();
+      expect(box?.height ?? 0).toBeGreaterThanOrEqual(MIN_TOUCH_TARGET);
+    }
+  });
+
   test("still says the data is synthetic", async ({ page }) => {
     await page.goto("/th/reports");
     await expect(page.getByTestId("preview-banner")).toBeVisible();

@@ -1,0 +1,2818 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Industrial SAS — Detailed Module Flow Blueprints</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #111;
+        --muted: #555;
+        --line: #111;
+        --soft: #b7b7b7;
+        --paper: #fff;
+        --wash: #f3f3f3;
+        --wash-2: #dfdfdf;
+        --max: 1240px;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        margin: 0;
+        color: var(--ink);
+        background: var(--paper);
+        font-family:
+          ui-sans-serif,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          "Noto Sans Thai",
+          sans-serif;
+        font-size: 16px;
+        line-height: 1.62;
+      }
+      a {
+        color: inherit;
+        text-underline-offset: 3px;
+      }
+      h1,
+      h2,
+      h3,
+      h4 {
+        margin: 0;
+        line-height: 1.22;
+      }
+      h1 {
+        font-size: clamp(2.7rem, 7vw, 6.7rem);
+        letter-spacing: -0.07em;
+        max-width: 950px;
+      }
+      h2 {
+        font-size: clamp(1.85rem, 4vw, 3.7rem);
+        letter-spacing: -0.045em;
+      }
+      h3 {
+        font-size: 1.45rem;
+      }
+      h4 {
+        font-size: 0.79rem;
+        letter-spacing: 0.09em;
+        text-transform: uppercase;
+      }
+      p,
+      ul,
+      ol {
+        margin: 0;
+      }
+      ul,
+      ol {
+        padding-left: 1.2rem;
+      }
+      code {
+        padding: 2px 5px;
+        background: var(--wash);
+        overflow-wrap: anywhere;
+      }
+      .wrap {
+        width: min(calc(100% - 40px), var(--max));
+        margin-inline: auto;
+      }
+      .label {
+        font-size: 0.72rem;
+        font-weight: 850;
+        letter-spacing: 0.11em;
+        text-transform: uppercase;
+      }
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+      .hero {
+        padding: 28px 0 58px;
+        border-bottom: 4px solid var(--line);
+      }
+      .hero-top {
+        display: flex;
+        justify-content: space-between;
+        gap: 24px;
+        margin-bottom: 80px;
+      }
+      .hero-grid {
+        display: grid;
+        grid-template-columns: 1.65fr 0.75fr;
+        gap: 70px;
+        align-items: end;
+      }
+      .hero-copy {
+        border-left: 2px solid var(--line);
+        padding-left: 20px;
+        color: var(--muted);
+      }
+      .hero-copy strong {
+        display: block;
+        color: var(--ink);
+        margin-bottom: 8px;
+      }
+      .hero-link {
+        display: inline-block;
+        margin-top: 18px;
+        font-weight: 750;
+      }
+      .metrics {
+        border-bottom: 1px solid var(--line);
+      }
+      .metric-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+      }
+      .metric {
+        padding: 18px 20px 22px;
+        border-right: 1px solid var(--line);
+      }
+      .metric:first-child {
+        border-left: 1px solid var(--line);
+      }
+      .metric b {
+        display: block;
+        font-size: 1.8rem;
+        line-height: 1.1;
+        margin: 10px 0 4px;
+      }
+      .layout {
+        display: grid;
+        grid-template-columns: 280px minmax(0, 1fr);
+        gap: 52px;
+        padding: 48px 0 100px;
+      }
+      nav {
+        position: sticky;
+        top: 20px;
+        align-self: start;
+        border-top: 2px solid var(--line);
+        max-height: calc(100vh - 40px);
+        overflow-y: auto;
+      }
+      nav a {
+        display: grid;
+        grid-template-columns: 32px 1fr;
+        gap: 8px;
+        padding: 8px 2px;
+        border-bottom: 1px solid var(--soft);
+        text-decoration: none;
+        font-size: 0.86rem;
+      }
+      nav a:hover,
+      nav a:focus {
+        background: var(--wash);
+      }
+      main {
+        min-width: 0;
+      }
+      section {
+        scroll-margin-top: 24px;
+        margin-bottom: 94px;
+      }
+      .section-head {
+        display: grid;
+        grid-template-columns: 62px 1fr;
+        gap: 18px;
+        border-bottom: 2px solid var(--line);
+        padding-bottom: 20px;
+        margin-bottom: 26px;
+      }
+      .section-no {
+        font:
+          850 0.95rem/1 ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+        padding-top: 7px;
+      }
+      .lede {
+        max-width: 840px;
+        color: var(--muted);
+        font-size: 1.08rem;
+        margin-bottom: 26px;
+      }
+      .callout {
+        border: 2px solid var(--line);
+        padding: 22px;
+        margin: 22px 0;
+      }
+      .callout.soft {
+        border-width: 1px;
+        background: var(--wash);
+      }
+      .callout h3 {
+        margin-bottom: 7px;
+      }
+      .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 20px 0;
+      }
+      .legend span {
+        border: 1px solid var(--line);
+        padding: 6px 9px;
+        font-size: 0.76rem;
+        font-weight: 700;
+      }
+      .legend .decision {
+        border-style: dashed;
+      }
+      .legend .system {
+        background: var(--ink);
+        color: var(--paper);
+      }
+      .legend .exception {
+        background: var(--wash-2);
+      }
+      .overview {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        border: 1px solid var(--line);
+        margin: 22px 0;
+      }
+      .overview > div {
+        padding: 16px;
+        border-right: 1px solid var(--line);
+      }
+      .overview > div:last-child {
+        border-right: 0;
+      }
+      .overview h4 {
+        margin-bottom: 8px;
+      }
+      .status {
+        display: inline-block;
+        border: 1px solid var(--line);
+        padding: 3px 8px;
+        font-size: 0.68rem;
+        font-weight: 850;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .status.existing {
+        color: var(--paper);
+        background: var(--ink);
+      }
+      .status.partial {
+        background: var(--wash-2);
+      }
+      .module {
+        border-top: 5px solid var(--line);
+        padding-top: 24px;
+      }
+      .module-head {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 24px;
+        align-items: start;
+        margin-bottom: 18px;
+      }
+      .module-head p {
+        max-width: 780px;
+        margin-top: 8px;
+        color: var(--muted);
+      }
+      .diagram {
+        border: 2px solid var(--line);
+        padding: 18px;
+        margin: 22px 0 28px;
+        overflow-x: auto;
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+      }
+      .diagram:focus {
+        outline: 3px solid var(--ink);
+        outline-offset: 3px;
+      }
+      .diagram-title {
+        display: flex;
+        justify-content: space-between;
+        gap: 18px;
+        border-bottom: 1px solid var(--line);
+        padding-bottom: 10px;
+        margin-bottom: 16px;
+      }
+      .diagram-title b {
+        font-size: 0.95rem;
+      }
+      .diagram-title span {
+        color: var(--muted);
+        font-size: 0.78rem;
+      }
+      .flow {
+        display: flex;
+        align-items: stretch;
+        gap: 8px;
+        min-width: max-content;
+      }
+      .node {
+        width: 170px;
+        min-height: 108px;
+        border: 1px solid var(--line);
+        padding: 12px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        background: var(--paper);
+      }
+      .node.wide {
+        width: 210px;
+      }
+      .node.system {
+        background: var(--ink);
+        color: var(--paper);
+      }
+      .node.decision {
+        border: 2px dashed var(--line);
+        background: var(--wash);
+      }
+      .node.exception {
+        background: var(--wash-2);
+      }
+      .node small {
+        display: block;
+        font-size: 0.64rem;
+        line-height: 1.35;
+        font-weight: 850;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        margin-bottom: 12px;
+      }
+      .node b {
+        line-height: 1.32;
+      }
+      .node em {
+        margin-top: 10px;
+        font-size: 0.72rem;
+        color: var(--muted);
+        font-style: normal;
+      }
+      .node.system em {
+        color: #ddd;
+      }
+      .arrow {
+        display: grid;
+        place-items: center;
+        width: 26px;
+        font:
+          800 1.4rem/1 ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+      }
+      .branches {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+        min-width: 840px;
+        margin-top: 14px;
+      }
+      .branch {
+        border-top: 3px solid var(--line);
+        padding-top: 10px;
+      }
+      .branch h4 {
+        margin-bottom: 7px;
+      }
+      .branch p {
+        color: var(--muted);
+        font-size: 0.88rem;
+      }
+      .swim-head {
+        display: grid;
+        grid-template-columns: repeat(var(--lanes), minmax(145px, 1fr));
+        min-width: calc(var(--lanes) * 145px);
+        border: 1px solid var(--line);
+        margin-top: 14px;
+      }
+      .swim-head span {
+        padding: 7px;
+        border-right: 1px solid var(--line);
+        text-align: center;
+        font-size: 0.68rem;
+        font-weight: 850;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+      }
+      .swim-head span:last-child {
+        border-right: 0;
+      }
+      .contract {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+      }
+      .contract {
+        overflow-wrap: anywhere;
+      }
+      .contract > div {
+        border: 1px solid var(--line);
+        padding: 16px;
+        min-width: 0;
+      }
+      .contract h4 {
+        margin-bottom: 8px;
+      }
+      .contract li + li {
+        margin-top: 5px;
+      }
+      .table-wrap {
+        overflow-x: auto;
+        border: 1px solid var(--line);
+        margin: 22px 0;
+      }
+      .table-wrap:focus {
+        outline: 3px solid var(--ink);
+        outline-offset: 3px;
+      }
+      table {
+        width: 100%;
+        min-width: 760px;
+        border-collapse: collapse;
+      }
+      th,
+      td {
+        text-align: left;
+        vertical-align: top;
+        padding: 11px 13px;
+        border-right: 1px solid var(--soft);
+        border-bottom: 1px solid var(--soft);
+      }
+      th:last-child,
+      td:last-child {
+        border-right: 0;
+      }
+      tr:last-child td {
+        border-bottom: 0;
+      }
+      th {
+        background: var(--wash-2);
+        font-size: 0.69rem;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+      }
+      td:first-child {
+        font-weight: 750;
+      }
+      .journey {
+        border: 2px solid var(--line);
+        margin: 18px 0;
+      }
+      .journey-head {
+        display: grid;
+        grid-template-columns: 120px 1fr;
+        border-bottom: 1px solid var(--line);
+      }
+      .journey-head b {
+        background: var(--ink);
+        color: var(--paper);
+        padding: 12px;
+      }
+      .journey-head span {
+        padding: 12px;
+      }
+      .journey .diagram {
+        border: 0;
+        margin: 0;
+      }
+      .gate {
+        display: grid;
+        grid-template-columns: 80px 1fr;
+        gap: 16px;
+        padding: 14px 0;
+        border-top: 1px solid var(--soft);
+      }
+      .gate:last-child {
+        border-bottom: 1px solid var(--soft);
+      }
+      .gate b:first-child {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+      .event-chain {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 10px;
+      }
+      .event-chain code {
+        border: 1px solid var(--line);
+        background: var(--paper);
+      }
+      footer {
+        border-top: 4px solid var(--line);
+        padding: 36px 0 60px;
+      }
+      footer .wrap {
+        display: flex;
+        justify-content: space-between;
+        gap: 30px;
+      }
+      .small {
+        color: var(--muted);
+        font-size: 0.8rem;
+      }
+      @media (max-width: 920px) {
+        .hero-grid,
+        .layout {
+          grid-template-columns: 1fr;
+        }
+        .layout {
+          padding-top: 28px;
+        }
+        nav {
+          position: static;
+          max-height: none;
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 0 16px;
+        }
+        .overview {
+          grid-template-columns: 1fr;
+        }
+        .overview > div {
+          border-right: 0;
+          border-bottom: 1px solid var(--line);
+        }
+        .overview > div:last-child {
+          border-bottom: 0;
+        }
+      }
+      @media (max-width: 620px) {
+        .wrap {
+          width: min(calc(100% - 24px), var(--max));
+        }
+        .hero-top,
+        footer .wrap {
+          display: block;
+        }
+        .hero-top span:last-child {
+          display: block;
+          margin-top: 8px;
+        }
+        .hero-grid {
+          gap: 30px;
+        }
+        .metric-grid,
+        nav,
+        .contract {
+          grid-template-columns: 1fr;
+        }
+        .metric {
+          border-left: 1px solid var(--line);
+          border-bottom: 1px solid var(--line);
+        }
+        .section-head {
+          grid-template-columns: 42px 1fr;
+        }
+        .module-head {
+          grid-template-columns: 1fr;
+        }
+        .diagram {
+          padding: 12px;
+        }
+      }
+      @media print {
+        @page {
+          size: A4 landscape;
+          margin: 11mm;
+        }
+        body {
+          font-size: 9.5pt;
+        }
+        .wrap {
+          width: 100%;
+        }
+        nav {
+          display: none;
+        }
+        .layout {
+          display: block;
+          padding: 24px 0;
+        }
+        .hero {
+          padding-top: 0;
+        }
+        .hero-top {
+          margin-bottom: 32px;
+        }
+        h1 {
+          font-size: 42pt;
+        }
+        section {
+          margin-bottom: 42px;
+        }
+        .module {
+          break-before: page;
+        }
+        .diagram,
+        .table-wrap {
+          overflow: visible;
+        }
+        .flow {
+          transform-origin: left top;
+        }
+        .contract {
+          grid-template-columns: 1fr 1fr;
+        }
+        a {
+          text-decoration: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="hero">
+      <div class="wrap">
+        <div class="hero-top label">
+          <span>Industrial SAS / Operational blueprint</span
+          ><span>Detailed flow edition · 16 Aug 2026</span>
+        </div>
+        <div class="hero-grid">
+          <div>
+            <div class="label">
+              15 modules · role-owned flows · decision gates
+            </div>
+            <h1>Detailed Module<br />Flow Blueprints</h1>
+          </div>
+          <div class="hero-copy">
+            <strong>วิธีอ่านเอกสารนี้</strong>
+            ทุกกล่องระบุเจ้าของงาน ทุก decision มีทางออก ทุก module ระบุ
+            command, status, event, exception และ handoff เพื่อใช้ต่อเป็น PRD,
+            schema, ticket และ test journey ได้
+            <a class="hero-link" href="./module-action-plan.html"
+              >← กลับไป Module &amp; Action Plan</a
+            >
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <aside class="metrics" aria-label="สรุปเอกสาร">
+      <div class="wrap metric-grid">
+        <div class="metric">
+          <span class="label">Business modules</span><b>15</b
+          ><span>รวม supporting modules</span>
+        </div>
+        <div class="metric">
+          <span class="label">Customer paths</span><b>3</b
+          ><span>พร้อมส่ง / ผลิตซ้ำ / ออกแบบใหม่</span>
+        </div>
+        <div class="metric">
+          <span class="label">Flow diagrams</span><b>20</b
+          ><span>end-to-end และราย module</span>
+        </div>
+        <div class="metric">
+          <span class="label">Diagram model</span><b>Owner-first</b
+          ><span>role · decision · handoff</span>
+        </div>
+      </div>
+    </aside>
+
+    <div class="wrap layout">
+      <nav aria-label="สารบัญ">
+        <a href="#guide"><span>00</span><span>คู่มือและ reference</span></a>
+        <a href="#e2e"><span>01</span><span>Customer-to-delivery</span></a>
+        <a href="#rules"><span>02</span><span>Flow rules</span></a>
+        <a href="#customer"><span>03</span><span>ลูกค้า</span></a>
+        <a href="#order"><span>04</span><span>สั่งสินค้า / CS</span></a>
+        <a href="#engineering"
+          ><span>05</span><span>Design / Engineering</span></a
+        >
+        <a href="#purchasing"><span>06</span><span>จัดซื้อ</span></a>
+        <a href="#receiving"><span>07</span><span>รับสินค้า</span></a>
+        <a href="#putaway"><span>08</span><span>Tag / จัดเก็บ</span></a>
+        <a href="#production"><span>09</span><span>งานผลิต</span></a>
+        <a href="#quality"><span>10</span><span>QC</span></a>
+        <a href="#outbound"><span>11</span><span>จ่ายสินค้า</span></a>
+        <a href="#transfer"><span>12</span><span>โอนย้าย</span></a>
+        <a href="#transport"><span>13</span><span>ขนส่ง</span></a>
+        <a href="#counting"><span>14</span><span>นับสินค้า</span></a>
+        <a href="#reporting"><span>15</span><span>รายงาน</span></a>
+        <a href="#hr"><span>16</span><span>Human Resource</span></a>
+        <a href="#platform"><span>17</span><span>ระบบกลาง</span></a>
+        <a href="#handoff"><span>18</span><span>Event handoff map</span></a>
+      </nav>
+
+      <main>
+        <section id="guide">
+          <div class="section-head">
+            <span class="section-no">00</span>
+            <div>
+              <div class="label">Reading guide</div>
+              <h2>ใช้รูปแบบ FigJam เป็น reference ไม่ใช่ requirement</h2>
+            </div>
+          </div>
+          <p class="lede">
+            บอร์ดตัวอย่างใช้ swimlane แยก Customer, Sales, Design/Engineer,
+            Customer Service, Purchasing, Production, Inventory และ QA/QC พร้อม
+            branch “มี stock / ต้องผลิต / ต้องออกแบบใหม่”
+            เอกสารนี้รักษาแนวคิดดังกล่าว แต่ปรับ flow ให้มี control และ
+            inventory accounting ที่ implement ได้จริง
+          </p>
+          <div class="legend" aria-label="คำอธิบายสัญลักษณ์">
+            <span>กล่องขาว = งานของคน</span
+            ><span class="system">กล่องดำ = system transaction</span
+            ><span class="decision">เส้นประ = decision</span
+            ><span class="exception">เทา = exception / recovery</span
+            ><span>ลูกศร = handoff</span>
+          </div>
+          <div class="callout soft">
+            <h3>คำศัพท์ที่ต้องยืนยันกับหน้างาน</h3>
+            <p>
+              ในบอร์ดมี FO, SO, PO และ Master Card เอกสารนี้ตีความชั่วคราวว่า FO
+              = Factory/Production Order, SO = Sales Order, PO ฝั่งลูกค้า =
+              Customer PO และ PO ฝั่งจัดซื้อ = Purchase Order จึงต้องใช้
+              prefix/เลขที่ต่างกันในระบบเพื่อลดความสับสน
+            </p>
+          </div>
+        </section>
+
+        <section id="e2e">
+          <div class="section-head">
+            <span class="section-no">01</span>
+            <div>
+              <div class="label">North-star journey</div>
+              <h2>ลูกค้าสั่ง → ผลิตหรือหยิบ → ส่งมอบ</h2>
+            </div>
+          </div>
+          <p class="lede">
+            จุดตัดสินใจหลักเกิดหลัง SO ผ่าน validation: สินค้ามี design หรือไม่
+            และ available-to-promise เพียงพอหรือไม่
+          </p>
+
+          <div
+            class="diagram"
+            role="region"
+            aria-label="ภาพรวม customer order routing"
+            tabindex="0"
+          >
+            <div class="diagram-title">
+              <b>Order routing — common entrance</b
+              ><span>Customer · Sales · CS · System</span>
+            </div>
+            <div class="flow">
+              <div class="node">
+                <small>Customer</small><b>ส่ง Customer PO / Requirement</b
+                ><em>สินค้า · จำนวน · วันส่ง · ship-to</em>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node">
+                <small>Sales</small><b>สร้าง Draft SO</b
+                ><em>แนบ PO และ snapshot เงื่อนไข</em>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node">
+                <small>Customer Service</small><b>ตรวจความครบถ้วน</b
+                ><em>ขอข้อมูลเพิ่มเมื่อไม่ครบ</em>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node system">
+                <small>Convex</small><b>Approve + Release SO</b
+                ><em>สร้าง demand และ routing context</em>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node decision">
+                <small>Decision</small><b>Design พร้อม? Stock พอ?</b
+                ><em>เลือก 1 ใน 3 paths</em>
+              </div>
+            </div>
+            <h3 class="sr-only">Customer order path outcomes</h3>
+            <div class="branches">
+              <div class="branch">
+                <h4>A · ของเดิมและมี stock</h4>
+                <p>Reserve → Pick → Check → Load → Deliver → POD → Close</p>
+              </div>
+              <div class="branch">
+                <h4>B · ของเดิมแต่ stock ไม่พอ</h4>
+                <p>
+                  Production Order → Material check/purchase → Produce → QC →
+                  Receive FG → Ship
+                </p>
+              </div>
+              <div class="branch">
+                <h4>C · งานใหม่</h4>
+                <p>
+                  Design requirement → Master Card/SKU release → Production → QC
+                  → Receive FG → Ship
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div class="journey">
+            <div class="journey-head">
+              <b>PATH A</b
+              ><span>งานเก่า · Design พร้อม · Available stock เพียงพอ</span>
+            </div>
+            <div
+              class="diagram"
+              role="region"
+              aria-label="เส้นทางมีสินค้าพร้อมส่ง"
+              tabindex="0"
+            >
+              <div class="flow">
+                <div class="node">
+                  <small>Inventory</small><b>ตรวจ ATP และ Lot</b>
+                </div>
+                <span class="arrow">→</span>
+                <div class="node system">
+                  <small>Outbound</small><b>Reserve / Allocate</b>
+                </div>
+                <span class="arrow">→</span>
+                <div class="node">
+                  <small>Warehouse</small><b>Pick + Check + Pack</b>
+                </div>
+                <span class="arrow">→</span>
+                <div class="node system">
+                  <small>Ledger</small><b>Issue Stock</b>
+                </div>
+                <span class="arrow">→</span>
+                <div class="node">
+                  <small>Transport</small><b>Load + Gate Out</b>
+                </div>
+                <span class="arrow">→</span>
+                <div class="node">
+                  <small>Customer</small><b>Receive + POD</b>
+                </div>
+                <span class="arrow">→</span>
+                <div class="node system">
+                  <small>Order</small><b>Complete</b>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="journey">
+            <div class="journey-head">
+              <b>PATH B</b><span>งานเก่า · Design พร้อม · ต้องผลิตเพิ่ม</span>
+            </div>
+            <div
+              class="diagram"
+              role="region"
+              aria-label="เส้นทางใช้แบบเดิมและผลิตเพิ่ม"
+              tabindex="0"
+            >
+              <div class="flow">
+                <div class="node">
+                  <small>Planner</small><b>สร้าง Production Order</b>
+                </div>
+                <span class="arrow">→</span>
+                <div class="node decision">
+                  <small>Inventory</small><b>วัตถุดิบพร้อม?</b>
+                </div>
+                <span class="arrow">→</span>
+                <div class="node">
+                  <small>Purchasing</small><b>ซื้อส่วนที่ขาด</b
+                  ><em>ถ้ามีของ ข้ามขั้นนี้</em>
+                </div>
+                <span class="arrow">→</span>
+                <div class="node">
+                  <small>Receiving</small><b>รับ + QC วัตถุดิบ</b>
+                </div>
+                <span class="arrow">→</span>
+                <div class="node system">
+                  <small>Production</small><b>Issue Material + Produce</b>
+                </div>
+                <span class="arrow">→</span>
+                <div class="node"><small>QC</small><b>Final Release</b></div>
+                <span class="arrow">→</span>
+                <div class="node">
+                  <small>Warehouse</small><b>Receive FG + Ship</b>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="journey">
+            <div class="journey-head">
+              <b>PATH C</b><span>งานใหม่ · ยังไม่มี Design/SKU</span>
+            </div>
+            <div
+              class="diagram"
+              role="region"
+              aria-label="เส้นทางออกแบบสินค้าใหม่"
+              tabindex="0"
+            >
+              <div class="flow">
+                <div class="node">
+                  <small>CS</small><b>ส่ง Design Request</b>
+                </div>
+                <span class="arrow">→</span>
+                <div class="node decision">
+                  <small>Engineering</small><b>Requirement ครบ?</b>
+                </div>
+                <span class="arrow">→</span>
+                <div class="node">
+                  <small>Engineering</small><b>คำนวณและออกแบบ</b
+                  ><em>Layer · Flute · Size · Strength</em>
+                </div>
+                <span class="arrow">→</span>
+                <div class="node system">
+                  <small>Master Data</small><b>Release SKU + Master Card</b>
+                </div>
+                <span class="arrow">→</span>
+                <div class="node">
+                  <small>Planner</small><b>Production Order</b>
+                </div>
+                <span class="arrow">→</span>
+                <div class="node">
+                  <small>Production / QC</small><b>Produce + Release</b>
+                </div>
+                <span class="arrow">→</span>
+                <div class="node">
+                  <small>Warehouse</small><b>Receive FG + Ship</b>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="rules">
+          <div class="section-head">
+            <span class="section-no">02</span>
+            <div>
+              <div class="label">Flow design contract</div>
+              <h2>กฎที่ทุก diagram ต้องรักษา</h2>
+            </div>
+          </div>
+          <div class="gate">
+            <b>G-01</b>
+            <div>
+              <b>มี owner เดียวต่อ step.</b> ผู้ทำ ผู้ตรวจ
+              และผู้อนุมัติแยกกันเมื่อความเสี่ยงสูง
+            </div>
+          </div>
+          <div class="gate">
+            <b>G-02</b>
+            <div>
+              <b>Decision ต้องมีครบทุกทางออก.</b> ใช่/ไม่ใช่, partial, rejected,
+              cancelled และ retry ต้องไปจบที่สถานะที่รู้ได้
+            </div>
+          </div>
+          <div class="gate">
+            <b>G-03</b>
+            <div>
+              <b>Document status ไม่ใช่ stock status.</b> เอกสาร Completed
+              ไม่ได้แปลว่า Stock Available จนกว่า QC/ledger/putaway เสร็จ
+            </div>
+          </div>
+          <div class="gate">
+            <b>G-04</b>
+            <div>
+              <b>ทุก stock change ผ่าน ledger.</b> ระบบธุรกิจสร้าง command;
+              inventory ledger เป็นผู้ post movement และ balance projection
+            </div>
+          </div>
+          <div class="gate">
+            <b>G-05</b>
+            <div>
+              <b>Handoff ใช้ event + reference.</b> ส่ง ID และ snapshot
+              ที่จำเป็น ไม่ให้โมดูลหนึ่ง patch ตารางของอีกโมดูล
+            </div>
+          </div>
+          <div class="gate">
+            <b>G-06</b>
+            <div>
+              <b>Exception เป็น flow จริง.</b> short, over, damage, hold,
+              reject, rework, offline และ duplicate มี recovery/approval
+              ไม่ใช่เพียง error toast
+            </div>
+          </div>
+        </section>
+
+        <section id="customer" class="module">
+          <div class="module-head">
+            <div>
+              <div class="label">Module 01</div>
+              <h2>ลูกค้า</h2>
+              <p>
+                สร้าง customer master ที่ใช้อ้างอิงใน order, delivery, billing
+                และ portal โดยควบคุมข้อมูลซ้ำ เอกสาร และ lifecycle
+              </p>
+            </div>
+            <span class="status partial">Foundation exists</span>
+          </div>
+          <h3 class="sr-only">Customer module summary</h3>
+          <div class="overview">
+            <div>
+              <h4>Trigger</h4>
+              <p>ลูกค้าใหม่, แก้ที่อยู่/ผู้ติดต่อ, ระงับบัญชี</p>
+            </div>
+            <div>
+              <h4>Output</h4>
+              <p>Active customer + approved ship-to/bill-to</p>
+            </div>
+            <div>
+              <h4>Owner</h4>
+              <p>Sales → Sales Manager / Master Data</p>
+            </div>
+          </div>
+          <div
+            class="diagram"
+            role="region"
+            aria-label="flow โมดูลลูกค้า"
+            tabindex="0"
+          >
+            <div class="diagram-title">
+              <b>Customer onboarding</b><span>Sales · Approver · System</span>
+            </div>
+            <div class="flow">
+              <div class="node">
+                <small>Sales</small><b>สร้าง Draft Customer</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node">
+                <small>Sales</small><b>เพิ่ม Contact / Address / เอกสาร</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node decision">
+                <small>System</small><b>ข้อมูลครบและไม่ซ้ำ?</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node">
+                <small>Sales Manager</small
+                ><b>Approve / Needs Changes / Reject</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node system">
+                <small>Convex</small><b>Activate Customer</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node"><small>Sales</small><b>สร้าง Order ได้</b></div>
+            </div>
+            <div class="branches">
+              <div class="branch">
+                <h4>ข้อมูลไม่ครบ</h4>
+                <p>กลับ Draft พร้อมรายการ field ที่ต้องแก้</p>
+              </div>
+              <div class="branch">
+                <h4>พบข้อมูลซ้ำ</h4>
+                <p>เสนอ link/merge โดย Admin; ห้าม merge อัตโนมัติ</p>
+              </div>
+              <div class="branch">
+                <h4>ระงับ</h4>
+                <p>block order ใหม่ แต่เก็บ history และ order เดิม</p>
+              </div>
+            </div>
+          </div>
+          <div class="contract">
+            <div>
+              <h4>Commands / Status</h4>
+              <ul>
+                <li>
+                  <code>createCustomerDraft</code>, <code>submitCustomer</code>,
+                  <code>approveCustomer</code>
+                </li>
+                <li>
+                  DRAFT → PENDING_APPROVAL → ACTIVE ↔ SUSPENDED → ARCHIVED
+                </li>
+              </ul>
+            </div>
+            <div>
+              <h4>Events / Handoff</h4>
+              <ul>
+                <li><code>customer.activated</code> ให้ Order ใช้</li>
+                <li><code>customer.suspended</code> ให้ Order block release</li>
+              </ul>
+            </div>
+            <div>
+              <h4>Exceptions</h4>
+              <ul>
+                <li>tax ID ซ้ำ, เอกสารหมดอายุ, ship-to ไม่ครบ</li>
+                <li>override สั่งสินค้าขณะ Suspended ต้องเหตุผล+approval</li>
+              </ul>
+            </div>
+            <div>
+              <h4>Acceptance</h4>
+              <ul>
+                <li>ลูกค้าอื่น/tenant อื่นมองไม่เห็น</li>
+                <li>แก้ master ไม่เปลี่ยน snapshot เอกสารเก่า</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <section id="order" class="module">
+          <div class="module-head">
+            <div>
+              <div class="label">Module 02</div>
+              <h2>สั่งสินค้า / Customer Service</h2>
+              <p>
+                แปลง Customer PO/requirement เป็น Sales Order ที่ผ่าน validation
+                และ routing โดยไม่ตัด Stock เอง
+              </p>
+            </div>
+            <span class="status partial">Foundation exists</span>
+          </div>
+          <h3 class="sr-only">Order module summary</h3>
+          <div class="overview">
+            <div>
+              <h4>Trigger</h4>
+              <p>Customer PO, sales entry, repeat order</p>
+            </div>
+            <div>
+              <h4>Output</h4>
+              <p>Released SO + fulfillment/design demand</p>
+            </div>
+            <div>
+              <h4>Owner</h4>
+              <p>Sales → CS → Approver</p>
+            </div>
+          </div>
+          <div
+            class="diagram"
+            role="region"
+            aria-label="flow โมดูลสั่งสินค้า"
+            tabindex="0"
+          >
+            <div class="diagram-title">
+              <b>Sales order intake and routing</b
+              ><span>Customer · Sales · CS · Inventory · Engineering</span>
+            </div>
+            <div class="flow">
+              <div class="node">
+                <small>Customer</small><b>PO / Requirement</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node">
+                <small>Sales</small><b>Draft SO + Lines</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node decision">
+                <small>CS</small><b>ข้อมูลครบ?</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node"><small>Approver</small><b>Approve SO</b></div>
+              <span class="arrow">→</span>
+              <div class="node system">
+                <small>System</small><b>Release + Snapshot</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node decision">
+                <small>Routing</small><b>Stock / Design path</b>
+              </div>
+            </div>
+            <div class="branches">
+              <div class="branch">
+                <h4>ATP พอ</h4>
+                <p>ส่ง <code>order.released</code> ไป Outbound</p>
+              </div>
+              <div class="branch">
+                <h4>ATP ไม่พอ + Design พร้อม</h4>
+                <p>สร้าง production demand/backorder</p>
+              </div>
+              <div class="branch">
+                <h4>ยังไม่มี Design</h4>
+                <p>สร้าง design request และ hold line</p>
+              </div>
+            </div>
+          </div>
+          <div class="contract">
+            <div>
+              <h4>Commands / Status</h4>
+              <ul>
+                <li>
+                  draft, submit, approve, release, cancelRemaining, backorder
+                </li>
+                <li>orderStatus แยก fulfillmentStatus และ designStatus</li>
+              </ul>
+            </div>
+            <div>
+              <h4>Events</h4>
+              <ul>
+                <li>
+                  <code>order.released</code>,
+                  <code>order.line.designRequired</code>
+                </li>
+                <li><code>order.fulfillmentChanged</code></li>
+              </ul>
+            </div>
+            <div>
+              <h4>Exceptions</h4>
+              <ul>
+                <li>
+                  inactive customer/SKU, MOQ/UOM ผิด, credit/shipping hold
+                </li>
+                <li>แก้หลัง release ด้วย revision/cancel remaining</li>
+              </ul>
+            </div>
+            <div>
+              <h4>Acceptance</h4>
+              <ul>
+                <li>partial/backorder รวมยอดไม่เกิน ordered qty</li>
+                <li>ราคา ที่อยู่ สเปก snapshot ไม่ drift</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <section id="engineering" class="module">
+          <div class="module-head">
+            <div>
+              <div class="label">Module 03 · Supporting</div>
+              <h2>Design / Engineering</h2>
+              <p>
+                เปลี่ยน requirement งานใหม่เป็น released Master Card และ SKU
+                version ที่ฝ่ายผลิตใช้ได้ โดยแยก draft design จาก factory packet
+              </p>
+            </div>
+            <span class="status existing">Implemented slice</span>
+          </div>
+          <h3 class="sr-only">Engineering module summary</h3>
+          <div class="overview">
+            <div>
+              <h4>Trigger</h4>
+              <p>SO line ไม่มี released design</p>
+            </div>
+            <div>
+              <h4>Output</h4>
+              <p>Released revision + SKU + factory-ready spec</p>
+            </div>
+            <div>
+              <h4>Owner</h4>
+              <p>Design Engineer → Reviewer</p>
+            </div>
+          </div>
+          <div
+            class="diagram"
+            role="region"
+            aria-label="flow Design Engineering"
+            tabindex="0"
+          >
+            <div class="diagram-title">
+              <b>New design and master card</b
+              ><span>CS · Engineering · Reviewer · Production</span>
+            </div>
+            <div class="flow">
+              <div class="node"><small>CS</small><b>Design Request</b></div>
+              <span class="arrow">→</span>
+              <div class="node decision">
+                <small>Engineer</small><b>Requirement ครบ?</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node wide">
+                <small>Engineer</small
+                ><b>Structure / Layer / Flute / Size / Strength</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node">
+                <small>Engineer</small><b>Draft SKU + Master Card Revision</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node">
+                <small>Reviewer</small><b>Approve / Reject</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node system">
+                <small>System</small><b>Release immutable revision</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node">
+                <small>Production</small><b>Issue Factory Packet</b>
+              </div>
+            </div>
+            <div class="branches">
+              <div class="branch">
+                <h4>ข้อมูลไม่ครบ</h4>
+                <p>ส่ง structured question กลับ CS/ลูกค้า</p>
+              </div>
+              <div class="branch">
+                <h4>ไม่ผ่าน Review</h4>
+                <p>สร้าง revision ใหม่; ไม่แก้ revision ที่ release แล้ว</p>
+              </div>
+              <div class="branch">
+                <h4>ไฟล์</h4>
+                <p>UploadThing private; packet เห็นเฉพาะ approved files</p>
+              </div>
+            </div>
+          </div>
+          <div class="contract">
+            <div>
+              <h4>Commands</h4>
+              <ul>
+                <li>assignRequest, createCard, draftRevision, attachFile</li>
+                <li>submitRevision, releaseRevision, issuePacket</li>
+              </ul>
+            </div>
+            <div>
+              <h4>Events</h4>
+              <ul>
+                <li><code>engineering.revisionReleased</code></li>
+                <li><code>production.packetIssued</code></li>
+              </ul>
+            </div>
+            <div>
+              <h4>Exceptions</h4>
+              <ul>
+                <li>missing dimension, invalid calculation, duplicate SKU</li>
+                <li>
+                  wrong/current-object file, stale revision, self-approval
+                </li>
+              </ul>
+            </div>
+            <div>
+              <h4>Acceptance</h4>
+              <ul>
+                <li>ทุก FO pin revision เดียว</li>
+                <li>แก้ design ไม่เปลี่ยน production packet เก่า</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <section id="purchasing" class="module">
+          <div class="module-head">
+            <div>
+              <div class="label">Module 04 · Supporting</div>
+              <h2>จัดซื้อ</h2>
+              <p>
+                เติมวัตถุดิบที่ขาดจาก production demand โดยสร้าง Purchase Order
+                ที่รับได้เป็น partial และเชื่อม supplier/QC
+              </p>
+            </div>
+            <span class="status partial">PO foundation exists</span>
+          </div>
+          <h3 class="sr-only">Purchasing module summary</h3>
+          <div class="overview">
+            <div>
+              <h4>Trigger</h4>
+              <p>Material shortage / reorder request</p>
+            </div>
+            <div>
+              <h4>Output</h4>
+              <p>Approved supplier PO + expected receipts</p>
+            </div>
+            <div>
+              <h4>Owner</h4>
+              <p>Planner → Buyer → Approver</p>
+            </div>
+          </div>
+          <div
+            class="diagram"
+            role="region"
+            aria-label="flow จัดซื้อ"
+            tabindex="0"
+          >
+            <div class="diagram-title">
+              <b>Material procurement</b
+              ><span>Production · Inventory · Purchasing · Supplier</span>
+            </div>
+            <div class="flow">
+              <div class="node">
+                <small>Production</small><b>Material Demand</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node system">
+                <small>Inventory</small><b>Net shortage</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node">
+                <small>Buyer</small><b>Create PO + Supplier</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node">
+                <small>Approver</small><b>Approve / Reject</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node">
+                <small>Supplier</small><b>Confirm / Deliver</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node">
+                <small>Receiving</small><b>Receive Against PO</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node system">
+                <small>Planning</small><b>Shortage Cleared?</b>
+              </div>
+            </div>
+          </div>
+          <div class="contract">
+            <div>
+              <h4>Commands / Status</h4>
+              <ul>
+                <li>
+                  createPo, updateOpenPo, approvePo, cancelLine, closeShort
+                </li>
+                <li>DRAFT → APPROVED → PARTIAL → RECEIVED/CLOSED</li>
+              </ul>
+            </div>
+            <div>
+              <h4>Events</h4>
+              <ul>
+                <li><code>purchaseOrder.approved</code></li>
+                <li><code>purchaseOrder.receiptPosted</code></li>
+              </ul>
+            </div>
+            <div>
+              <h4>Exceptions</h4>
+              <ul>
+                <li>
+                  late supplier, partial, over tolerance, price/UOM mismatch
+                </li>
+                <li>SO due date risk ต้องแจ้ง CS/Planner</li>
+              </ul>
+            </div>
+            <div>
+              <h4>Acceptance</h4>
+              <ul>
+                <li>ยอดรับสะสมไม่เกิน policy</li>
+                <li>close-short มี reason และผลต่อ production plan</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <section id="receiving" class="module">
+          <div class="module-head">
+            <div>
+              <div class="label">Module 05</div>
+              <h2>รับสินค้า</h2>
+              <p>
+                ใช้ receipt engine ร่วมกับ 4 source types แต่แยก policy ของ PO,
+                ใบเตรียม, ใบผลิต และรับอื่น ๆ
+              </p>
+            </div>
+            <span class="status partial">Extend existing</span>
+          </div>
+          <h3 class="sr-only">Receiving module summary</h3>
+          <div class="overview">
+            <div>
+              <h4>Trigger</h4>
+              <p>ของถึง Dock / output พร้อมส่งมอบ</p>
+            </div>
+            <div>
+              <h4>Output</h4>
+              <p>Posted receipt + QC/Tag/Putaway task</p>
+            </div>
+            <div>
+              <h4>Owner</h4>
+              <p>Receiver → QC/Supervisor</p>
+            </div>
+          </div>
+          <div
+            class="diagram"
+            role="region"
+            aria-label="flow รับสินค้า"
+            tabindex="0"
+          >
+            <div class="diagram-title">
+              <b>Unified receipt flow</b
+              ><span>Receiver · System · QC · Inventory</span>
+            </div>
+            <div class="flow">
+              <div class="node decision">
+                <small>Receiver</small><b>เลือก Source Type</b
+                ><em>PO / Prepare / Production / Other</em>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node">
+                <small>Receiver</small><b>Scan Document + SKU + Lot</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node system">
+                <small>System</small><b>Validate Expected vs Actual</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node decision">
+                <small>Policy</small><b>QC / Approval required?</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node">
+                <small>QC / Supervisor</small><b>Disposition / Exception</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node system">
+                <small>Ledger</small><b>Post Receipt</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node">
+                <small>Warehouse</small><b>Tag + Putaway</b>
+              </div>
+            </div>
+            <div class="branches">
+              <div class="branch">
+                <h4>รับตาม PO</h4>
+                <p>partial/over/under/unexpected และ supplier context</p>
+              </div>
+              <div class="branch">
+                <h4>รับตามผลิต/เตรียม</h4>
+                <p>tag/source genealogy และ sent-vs-received</p>
+              </div>
+              <div class="branch">
+                <h4>รับอื่น ๆ</h4>
+                <p>reason + attachment + maker–checker ก่อน post</p>
+              </div>
+            </div>
+          </div>
+          <div class="contract">
+            <div>
+              <h4>Commands / Status</h4>
+              <ul>
+                <li>
+                  startReceipt, scanLine, submitException, postReceipt,
+                  reverseReceipt
+                </li>
+                <li>READY → RECEIVING → PENDING_QC/APPROVAL → POSTED</li>
+              </ul>
+            </div>
+            <div>
+              <h4>Events</h4>
+              <ul>
+                <li>
+                  <code>stock.received</code>,
+                  <code>quality.inspectionRequested</code>
+                </li>
+                <li><code>putaway.taskRequested</code></li>
+              </ul>
+            </div>
+            <div>
+              <h4>Exceptions</h4>
+              <ul>
+                <li>over/short, duplicate serial, expiry, damage, wrong tag</li>
+                <li>offline conflict, source cancelled, lot missing</li>
+              </ul>
+            </div>
+            <div>
+              <h4>Acceptance</h4>
+              <ul>
+                <li>retry ไม่ลง ledger ซ้ำ</li>
+                <li>accepted/rejected/received qty reconcile กับ source</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <section id="putaway" class="module">
+          <div class="module-head">
+            <div>
+              <div class="label">Module 06</div>
+              <h2>Tag / จัดเก็บ</h2>
+              <p>
+                สร้าง handling unit ที่ trace ได้ แล้ว move จาก Dock/Staging ไป
+                location ตาม capacity/stock class/QC policy
+              </p>
+            </div>
+            <span class="status partial">Extend existing</span>
+          </div>
+          <h3 class="sr-only">Putaway module summary</h3>
+          <div class="overview">
+            <div>
+              <h4>Trigger</h4>
+              <p>Receipt/output released for storage</p>
+            </div>
+            <div>
+              <h4>Output</h4>
+              <p>Active Tag at confirmed location</p>
+            </div>
+            <div>
+              <h4>Owner</h4>
+              <p>Receiver/Packer → Putaway Operator</p>
+            </div>
+          </div>
+          <div
+            class="diagram"
+            role="region"
+            aria-label="flow Tag และจัดเก็บ"
+            tabindex="0"
+          >
+            <div class="diagram-title">
+              <b>Build tag and put away</b
+              ><span>Operator · Printer · Recommendation · Ledger</span>
+            </div>
+            <div class="flow">
+              <div class="node">
+                <small>Operator</small><b>เลือก Source + Content</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node system">
+                <small>System</small><b>Generate Unique Tag/LPN</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node">
+                <small>Printer</small><b>Print + Scan-back Verify</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node system">
+                <small>Putaway</small><b>Recommend Location</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node">
+                <small>Forklift</small><b>Scan Location + Tag</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node decision">
+                <small>System</small><b>Capacity/Policy valid?</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node system">
+                <small>Ledger</small><b>Move Staging → Bin</b>
+              </div>
+            </div>
+          </div>
+          <div class="contract">
+            <div>
+              <h4>Commands</h4>
+              <ul>
+                <li>buildTag, splitTag, mergeTag, reprintTag, voidTag</li>
+                <li>claimPutaway, confirmPutaway, overrideLocation</li>
+              </ul>
+            </div>
+            <div>
+              <h4>Events</h4>
+              <ul>
+                <li><code>handlingUnit.activated</code></li>
+                <li><code>stock.putAway</code></li>
+              </ul>
+            </div>
+            <div>
+              <h4>Exceptions</h4>
+              <ul>
+                <li>tag lost/duplicate, mixed lot, blocked/full location</li>
+                <li>partial putaway, wrong zone, reprint/override</li>
+              </ul>
+            </div>
+            <div>
+              <h4>Acceptance</h4>
+              <ul>
+                <li>tag content รวมเท่ากับ source available qty</li>
+                <li>location move สมดุลและ scan ย้อน trace ได้</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <section id="production" class="module">
+          <div class="module-head">
+            <div>
+              <div class="label">Module 07</div>
+              <h2>งานผลิต</h2>
+              <p>
+                วางแผน FO/Production Order, เบิกวัตถุดิบ, เดิน route, บันทึก
+                WIP/ผลผลิต/scrap/downtime และส่ง final QC
+              </p>
+            </div>
+            <span class="status partial">Execution new</span>
+          </div>
+          <h3 class="sr-only">Production module summary</h3>
+          <div class="overview">
+            <div>
+              <h4>Trigger</h4>
+              <p>Released demand + Master Card/BOM</p>
+            </div>
+            <div>
+              <h4>Output</h4>
+              <p>FG/WIP lot + genealogy + QC request</p>
+            </div>
+            <div>
+              <h4>Owner</h4>
+              <p>Planner → Warehouse → Operator → QC</p>
+            </div>
+          </div>
+          <div
+            class="diagram"
+            role="region"
+            aria-label="flow งานผลิต"
+            tabindex="0"
+          >
+            <div class="diagram-title">
+              <b>Production execution</b
+              ><span>Planner · Warehouse · Production · QC</span>
+            </div>
+            <div class="flow">
+              <div class="node">
+                <small>Planner</small><b>Release Production Order</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node decision">
+                <small>Inventory</small><b>Material Ready?</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node system">
+                <small>Warehouse</small><b>Issue Material Lots</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node">
+                <small>Operator</small><b>Run Operations</b
+                ><em>Slitter → Slotter → Print → Convert</em>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node">
+                <small>Operator</small><b>Report Good / WIP / Scrap</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node"><small>QC</small><b>Final Inspection</b></div>
+              <span class="arrow">→</span>
+              <div class="node system">
+                <small>Inventory</small><b>Receive FG / Rework</b>
+              </div>
+            </div>
+            <div class="branches">
+              <div class="branch">
+                <h4>Material ไม่พร้อม</h4>
+                <p>shortage → Purchasing; reschedule/partial release</p>
+              </div>
+              <div class="branch">
+                <h4>Downtime</h4>
+                <p>pause operation → reason/maintenance → resume</p>
+              </div>
+              <div class="branch">
+                <h4>QC fail</h4>
+                <p>rework/scrap/reject; ห้ามเข้า Available</p>
+              </div>
+            </div>
+          </div>
+          <div class="contract">
+            <div>
+              <h4>Commands / Status</h4>
+              <ul>
+                <li>
+                  planOrder, releaseOrder, issueMaterial,
+                  start/completeOperation
+                </li>
+                <li>
+                  reportOutput, reportDowntime, returnMaterial, closeOrder
+                </li>
+              </ul>
+            </div>
+            <div>
+              <h4>Events</h4>
+              <ul>
+                <li>
+                  <code>production.materialIssued</code>,
+                  <code>production.outputReported</code>
+                </li>
+                <li><code>quality.finalRequested</code></li>
+              </ul>
+            </div>
+            <div>
+              <h4>Exceptions</h4>
+              <ul>
+                <li>
+                  over-production, wrong lot, low yield, manual consumption
+                </li>
+                <li>route skipped, output reverse, scrap threshold</li>
+              </ul>
+            </div>
+            <div>
+              <h4>Acceptance</h4>
+              <ul>
+                <li>trace FG lot กลับ material lots/revision ได้</li>
+                <li>input = good + WIP + scrap ± policy variance</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <section id="quality" class="module">
+          <div class="module-head">
+            <div>
+              <div class="label">Module 08</div>
+              <h2>ตรวจสอบสินค้า (QC)</h2>
+              <p>
+                QC engine กลางรองรับ inbound, in-process, final output และ
+                pre-shipment โดยแยก inspection progress จาก disposition
+              </p>
+            </div>
+            <span class="status partial">Inbound exists</span>
+          </div>
+          <h3 class="sr-only">Quality module summary</h3>
+          <div class="overview">
+            <div>
+              <h4>Trigger</h4>
+              <p>Source event หรือ manual risk check</p>
+            </div>
+            <div>
+              <h4>Output</h4>
+              <p>Release / Quarantine / Reject / Rework</p>
+            </div>
+            <div>
+              <h4>Owner</h4>
+              <p>Inspector → QA Reviewer</p>
+            </div>
+          </div>
+          <div class="diagram" role="region" aria-label="flow QC" tabindex="0">
+            <div class="diagram-title">
+              <b>Inspection and disposition</b
+              ><span>Source · Inspector · Reviewer · Inventory</span>
+            </div>
+            <div class="flow">
+              <div class="node system">
+                <small>Source Module</small><b>Create Inspection Lot + Hold</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node">
+                <small>Inspector</small><b>Sample + Record Results</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node decision">
+                <small>System</small><b>Within Spec?</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node">
+                <small>Inspector</small><b>Submit Disposition</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node">
+                <small>QA Reviewer</small><b>Approve / Retest / Reject</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node system">
+                <small>Inventory</small><b>Release / Hold / Rework / Scrap</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node">
+                <small>Source Module</small><b>Continue / Exception</b>
+              </div>
+            </div>
+          </div>
+          <div class="contract">
+            <div>
+              <h4>Commands</h4>
+              <ul>
+                <li>createInspection, assign, recordSample, addDefect</li>
+                <li>submitDisposition, approveDisposition, requestRetest</li>
+              </ul>
+            </div>
+            <div>
+              <h4>Events</h4>
+              <ul>
+                <li>
+                  <code>quality.stockReleased</code>,
+                  <code>quality.stockQuarantined</code>
+                </li>
+                <li><code>quality.nonconformanceOpened</code></li>
+              </ul>
+            </div>
+            <div>
+              <h4>Exceptions</h4>
+              <ul>
+                <li>instrument calibration expired, missing sample/result</li>
+                <li>conditional release, retest, mixed lot, severe defect</li>
+              </ul>
+            </div>
+            <div>
+              <h4>Acceptance</h4>
+              <ul>
+                <li>high-risk maker ≠ checker</li>
+                <li>stock status เปลี่ยนพร้อม disposition transaction</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <section id="outbound" class="module">
+          <div class="module-head">
+            <div>
+              <div class="label">Module 09</div>
+              <h2>จ่ายสินค้า</h2>
+              <p>
+                รวม allocation, picking, checking, packing/staging และ issue
+                แล้วแยก source เป็น SO, Invoice, Preparation, Pick List หรือ
+                Other
+              </p>
+            </div>
+            <span class="status">New slice</span>
+          </div>
+          <h3 class="sr-only">Outbound module summary</h3>
+          <div class="overview">
+            <div>
+              <h4>Trigger</h4>
+              <p>Released fulfillment document</p>
+            </div>
+            <div>
+              <h4>Output</h4>
+              <p>Issued stock + shipment-ready load</p>
+            </div>
+            <div>
+              <h4>Owner</h4>
+              <p>Allocator → Picker → Checker → Shipper</p>
+            </div>
+          </div>
+          <div
+            class="diagram"
+            role="region"
+            aria-label="flow จ่ายสินค้า"
+            tabindex="0"
+          >
+            <div class="diagram-title">
+              <b>Allocate to issue</b
+              ><span>System · Picker · Checker · Ledger</span>
+            </div>
+            <div class="flow">
+              <div class="node decision">
+                <small>Source</small
+                ><b>SO / Invoice / Prepare / Pick / Other</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node system">
+                <small>Allocation</small><b>Reserve FIFO/FEFO Lots</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node">
+                <small>Picker</small><b>Scan Location → SKU/Lot → Tote</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node decision">
+                <small>System</small><b>Complete / Short / Substitute?</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node">
+                <small>Checker</small><b>Verify + Pack / Stage</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node system">
+                <small>Ledger</small><b>Issue Stock</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node"><small>Transport</small><b>Load Queue</b></div>
+            </div>
+            <div class="branches">
+              <div class="branch">
+                <h4>Short pick</h4>
+                <p>re-pick, partial, backorder หรือ close remaining</p>
+              </div>
+              <div class="branch">
+                <h4>Substitute</h4>
+                <p>approval + customer/spec policy + new allocation</p>
+              </div>
+              <div class="branch">
+                <h4>Other issue</h4>
+                <p>reason, cost center, attachment, value approval</p>
+              </div>
+            </div>
+          </div>
+          <div class="contract">
+            <div>
+              <h4>Commands / Status</h4>
+              <ul>
+                <li>
+                  allocate, releasePick, confirmPick, confirmCheck, pack, issue
+                </li>
+                <li>ALLOCATED → PICKING → CHECKED → STAGED → ISSUED</li>
+              </ul>
+            </div>
+            <div>
+              <h4>Events</h4>
+              <ul>
+                <li><code>stock.allocated</code>, <code>stock.issued</code></li>
+                <li><code>shipment.readyForLoad</code></li>
+              </ul>
+            </div>
+            <div>
+              <h4>Exceptions</h4>
+              <ul>
+                <li>
+                  wrong lot/location, damage, duplicate scan, expired pick
+                </li>
+                <li>negative/over-issue, hold, stale allocation</li>
+              </ul>
+            </div>
+            <div>
+              <h4>Acceptance</h4>
+              <ul>
+                <li>picked/issued/backordered รวมไม่เกิน demand</li>
+                <li>checker trace ทุก tag/serial ได้</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <section id="transfer" class="module">
+          <div class="module-head">
+            <div>
+              <div class="label">Module 10</div>
+              <h2>โอนย้าย</h2>
+              <p>
+                ข้ามคลังใช้ movement สองขา Source → In Transit → Destination;
+                ในคลังเดียวอาจเป็น direct relocation แต่ยังต้อง balanced ledger
+              </p>
+            </div>
+            <span class="status">New slice</span>
+          </div>
+          <h3 class="sr-only">Transfer module summary</h3>
+          <div class="overview">
+            <div>
+              <h4>Trigger</h4>
+              <p>SO/invoice/preparation/rebalance demand</p>
+            </div>
+            <div>
+              <h4>Output</h4>
+              <p>Destination receipt + discrepancy closure</p>
+            </div>
+            <div>
+              <h4>Owner</h4>
+              <p>Source WH → Carrier → Destination WH</p>
+            </div>
+          </div>
+          <div
+            class="diagram"
+            role="region"
+            aria-label="flow โอนย้าย"
+            tabindex="0"
+          >
+            <div class="diagram-title">
+              <b>Two-leg warehouse transfer</b
+              ><span>Requester · Source · Transit · Destination</span>
+            </div>
+            <div class="flow">
+              <div class="node">
+                <small>Requester</small><b>Create Transfer</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node">
+                <small>Supervisor</small><b>Approve + Allocate</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node">
+                <small>Source WH</small><b>Pick + Dispatch Tags</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node system">
+                <small>Ledger</small><b>Source → In Transit</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node">
+                <small>Destination</small><b>Scan Seal/Tags + Receive</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node decision">
+                <small>System</small><b>Sent = Received?</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node system">
+                <small>Ledger</small><b>In Transit → Staging</b>
+              </div>
+            </div>
+            <div class="branches">
+              <div class="branch">
+                <h4>ตรง</h4>
+                <p>close transfer และสร้าง putaway</p>
+              </div>
+              <div class="branch">
+                <h4>ขาด/เสียหาย</h4>
+                <p>pending discrepancy + evidence + approval</p>
+              </div>
+              <div class="branch">
+                <h4>เกิน/ผิด Tag</h4>
+                <p>quarantine; ห้ามรับเข้า available เงียบ ๆ</p>
+              </div>
+            </div>
+          </div>
+          <div class="contract">
+            <div>
+              <h4>Commands</h4>
+              <ul>
+                <li>
+                  requestTransfer, approve, dispatch, receive,
+                  resolveDiscrepancy
+                </li>
+                <li>returnToSource, cancelRemaining</li>
+              </ul>
+            </div>
+            <div>
+              <h4>Events</h4>
+              <ul>
+                <li>
+                  <code>transfer.dispatched</code>, <code>stock.inTransit</code>
+                </li>
+                <li><code>transfer.received</code></li>
+              </ul>
+            </div>
+            <div>
+              <h4>Exceptions</h4>
+              <ul>
+                <li>
+                  seal broken, partial, lost, wrong lot, destination blocked
+                </li>
+                <li>source document cancelled while in transit</li>
+              </ul>
+            </div>
+            <div>
+              <h4>Acceptance</h4>
+              <ul>
+                <li>In Transit ไม่ติดค้างโดยไม่มี owner/SLA</li>
+                <li>sent/received/discrepancy ปิดสมดุล</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <section id="transport" class="module">
+          <div class="module-head">
+            <div>
+              <div class="label">Module 11</div>
+              <h2>ขนส่งสินค้า</h2>
+              <p>
+                รวม trip planning, load scan, gate release, delivery milestones,
+                location และ document return/POD
+              </p>
+            </div>
+            <span class="status">New module</span>
+          </div>
+          <h3 class="sr-only">Transport module summary</h3>
+          <div class="overview">
+            <div>
+              <h4>Trigger</h4>
+              <p>Shipment ready / transfer dispatch</p>
+            </div>
+            <div>
+              <h4>Output</h4>
+              <p>Delivered trip + accepted POD/documents</p>
+            </div>
+            <div>
+              <h4>Owner</h4>
+              <p>Dispatcher → Loader → Gate → Driver → Doc Admin</p>
+            </div>
+          </div>
+          <div
+            class="diagram"
+            role="region"
+            aria-label="flow ขนส่งสินค้า"
+            tabindex="0"
+          >
+            <div class="diagram-title">
+              <b>Load to proof of delivery</b
+              ><span>Transport · Warehouse · Gate · Driver · Customer</span>
+            </div>
+            <div class="flow">
+              <div class="node">
+                <small>Dispatcher</small><b>Plan Trip + Vehicle/Driver</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node">
+                <small>Loader</small><b>Scan Tags onto Vehicle</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node"><small>Checker</small><b>Verify + Seal</b></div>
+              <span class="arrow">→</span>
+              <div class="node">
+                <small>Gate</small><b>Approve Gate Pass + Exit</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node">
+                <small>Driver</small><b>Milestones / Location</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node decision">
+                <small>Customer</small><b>Delivered?</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node">
+                <small>Document Admin</small><b>POD Review + Original Return</b>
+              </div>
+            </div>
+            <div class="branches">
+              <div class="branch">
+                <h4>Delivered</h4>
+                <p>accepted POD → order/transfer close</p>
+              </div>
+              <div class="branch">
+                <h4>Partial/Rejected</h4>
+                <p>reason + photo + return/retry route</p>
+              </div>
+              <div class="branch">
+                <h4>Incident</h4>
+                <p>delay/breakdown/accident → escalation + reschedule</p>
+              </div>
+            </div>
+          </div>
+          <div class="contract">
+            <div>
+              <h4>Commands</h4>
+              <ul>
+                <li>
+                  planTrip, assignVehicle, scanLoad, verifyLoad, releaseGate
+                </li>
+                <li>updateMilestone, uploadPod, acceptDocument, closeTrip</li>
+              </ul>
+            </div>
+            <div>
+              <h4>Events</h4>
+              <ul>
+                <li><code>trip.departed</code>, <code>trip.delivered</code></li>
+                <li><code>pod.accepted</code>, <code>delivery.failed</code></li>
+              </ul>
+            </div>
+            <div>
+              <h4>Exceptions</h4>
+              <ul>
+                <li>wrong vehicle/tag, overweight, stale GPS, broken seal</li>
+                <li>missing/unclear POD, customer reject, originals overdue</li>
+              </ul>
+            </div>
+            <div>
+              <h4>Acceptance</h4>
+              <ul>
+                <li>loaded tags = issued shipment scope</li>
+                <li>GPS/POD privacy + retention policy ผ่าน</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <section id="counting" class="module">
+          <div class="module-head">
+            <div>
+              <div class="label">Module 12</div>
+              <h2>นับสินค้า</h2>
+              <p>
+                แยก Opening Stock, Physical Count และ Reconcile
+                เพื่อไม่ให้ผู้กรอกยอดเปิด/ผู้นับสามารถปรับ ledger โดยไม่มี
+                approval
+              </p>
+            </div>
+            <span class="status">New module</span>
+          </div>
+          <h3 class="sr-only">Counting module summary</h3>
+          <div class="overview">
+            <div>
+              <h4>Trigger</h4>
+              <p>Go-live, cycle plan, spot investigation</p>
+            </div>
+            <div>
+              <h4>Output</h4>
+              <p>Approved opening/adjustment transaction</p>
+            </div>
+            <div>
+              <h4>Owner</h4>
+              <p>Controller → Counter → Supervisor</p>
+            </div>
+          </div>
+          <div
+            class="diagram"
+            role="region"
+            aria-label="flow นับสินค้า"
+            tabindex="0"
+          >
+            <div class="diagram-title">
+              <b>Count and reconcile</b
+              ><span>Controller · Counter · Reviewer · Ledger</span>
+            </div>
+            <div class="flow">
+              <div class="node">
+                <small>Controller</small><b>Create Plan + Snapshot</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node">
+                <small>Counter</small><b>Blind Scan Location/Tag/SKU</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node system">
+                <small>System</small><b>Adjust for In-count Movement</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node decision">
+                <small>Policy</small><b>Variance over tolerance?</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node">
+                <small>Second Counter</small><b>Recount / Evidence</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node">
+                <small>Supervisor</small><b>Approve Reconcile</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node system">
+                <small>Ledger</small><b>Post Adjustment + Close</b>
+              </div>
+            </div>
+          </div>
+          <div class="contract">
+            <div>
+              <h4>Commands</h4>
+              <ul>
+                <li>importOpening, validate/approveOpening</li>
+                <li>createCountPlan, submitCount, requestRecount, reconcile</li>
+              </ul>
+            </div>
+            <div>
+              <h4>Events</h4>
+              <ul>
+                <li><code>count.varianceDetected</code></li>
+                <li><code>inventory.adjustmentPosted</code></li>
+              </ul>
+            </div>
+            <div>
+              <h4>Exceptions</h4>
+              <ul>
+                <li>
+                  found stock, missing serial, duplicate, movement during count
+                </li>
+                <li>high value, negative result, cost missing</li>
+              </ul>
+            </div>
+            <div>
+              <h4>Acceptance</h4>
+              <ul>
+                <li>blind count ไม่ leak system qty</li>
+                <li>counter ≠ high-value reconcile approver</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <section id="reporting" class="module">
+          <div class="module-head">
+            <div>
+              <div class="label">Module 13</div>
+              <h2>รายงาน</h2>
+              <p>
+                สร้าง Stock Balance, SKU, Lot และ Movement จาก ledger/projection
+                เดียวกัน พร้อม as-of, drilldown และ private export
+              </p>
+            </div>
+            <span class="status partial">Extend existing</span>
+          </div>
+          <h3 class="sr-only">Reporting module summary</h3>
+          <div class="overview">
+            <div>
+              <h4>Trigger</h4>
+              <p>User query / scheduled export / anomaly</p>
+            </div>
+            <div>
+              <h4>Output</h4>
+              <p>Traceable view/export + action link</p>
+            </div>
+            <div>
+              <h4>Owner</h4>
+              <p>Manager / Planner / Auditor</p>
+            </div>
+          </div>
+          <div
+            class="diagram"
+            role="region"
+            aria-label="flow รายงาน"
+            tabindex="0"
+          >
+            <div class="diagram-title">
+              <b>Ledger-to-report traceability</b
+              ><span>Ledger · Projection · User · Export</span>
+            </div>
+            <div class="flow">
+              <div class="node system">
+                <small>Ledger</small><b>Immutable Transactions</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node system">
+                <small>Projection</small><b>Balances + Rollups</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node decision">
+                <small>User</small><b>Balance / SKU / Lot / Movement?</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node">
+                <small>Report</small><b>Filter + As-of + Drilldown</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node decision">
+                <small>User</small><b>Export required?</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node system">
+                <small>Job</small><b>Chunked Private Export</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node">
+                <small>User</small><b>Download / Create Follow-up</b>
+              </div>
+            </div>
+          </div>
+          <div class="contract">
+            <div>
+              <h4>Queries / Jobs</h4>
+              <ul>
+                <li>
+                  balanceByDimension, skuSummary, lotTrace, movementHistory
+                </li>
+                <li>startExport, continueExport, getArtifactGrant</li>
+              </ul>
+            </div>
+            <div>
+              <h4>Events</h4>
+              <ul>
+                <li><code>report.exportCompleted</code></li>
+                <li><code>inventory.driftDetected</code></li>
+              </ul>
+            </div>
+            <div>
+              <h4>Exceptions</h4>
+              <ul>
+                <li>
+                  projection drift, artifact limit, stale as-of, unauthorized
+                  cost
+                </li>
+                <li>export stops rather than truncates</li>
+              </ul>
+            </div>
+            <div>
+              <h4>Acceptance</h4>
+              <ul>
+                <li>drilldown รวมกลับได้เท่ารายงาน</li>
+                <li>rebuild projection ได้จาก ledger</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <section id="hr" class="module">
+          <div class="module-head">
+            <div>
+              <div class="label">Module 14</div>
+              <h2>Human Resource</h2>
+              <p>
+                Attendance event, correction, overtime และ leave แยกจาก user
+                identity พร้อม self/team/HR scope และ closed-period control
+              </p>
+            </div>
+            <span class="status">New bounded context</span>
+          </div>
+          <h3 class="sr-only">Human Resource module summary</h3>
+          <div class="overview">
+            <div>
+              <h4>Trigger</h4>
+              <p>Clock event, correction/leave request</p>
+            </div>
+            <div>
+              <h4>Output</h4>
+              <p>Closed attendance day / approved leave</p>
+            </div>
+            <div>
+              <h4>Owner</h4>
+              <p>Employee → Supervisor → HR</p>
+            </div>
+          </div>
+          <div
+            class="diagram"
+            role="region"
+            aria-label="flow Human Resource"
+            tabindex="0"
+          >
+            <div class="diagram-title">
+              <b>Attendance and leave control</b
+              ><span>Employee · Device · Supervisor · HR</span>
+            </div>
+            <div class="flow">
+              <div class="node">
+                <small>Employee</small><b>Clock In / Break / Clock Out</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node system">
+                <small>Server</small><b>Append Attendance Event</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node decision">
+                <small>System</small><b>Valid shift/day?</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node exception">
+                <small>Employee</small><b>Correction / Leave / OT Request</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node">
+                <small>Supervisor</small><b>Approve / Reject / Need Info</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node">
+                <small>HR</small><b>Review Exceptions + Close Period</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node system">
+                <small>Report</small><b>Attendance / Leave Balance</b>
+              </div>
+            </div>
+          </div>
+          <div class="contract">
+            <div>
+              <h4>Commands</h4>
+              <ul>
+                <li>clock, requestCorrection, approveCorrection</li>
+                <li>
+                  requestLeave, approveLeave, requestOvertime, closePeriod
+                </li>
+              </ul>
+            </div>
+            <div>
+              <h4>Events</h4>
+              <ul>
+                <li>
+                  <code>attendance.corrected</code>,
+                  <code>attendance.periodClosed</code>
+                </li>
+                <li><code>leave.approved</code></li>
+              </ul>
+            </div>
+            <div>
+              <h4>Exceptions</h4>
+              <ul>
+                <li>
+                  duplicate/impossible clock, cross-midnight, overlap leave
+                </li>
+                <li>closed-period change, sensitive medical attachment</li>
+              </ul>
+            </div>
+            <div>
+              <h4>Acceptance</h4>
+              <ul>
+                <li>
+                  employee เห็นตน, supervisor เห็นทีม, admin ไม่ได้ HR
+                  โดยอัตโนมัติ
+                </li>
+                <li>เก็บ device time + server time + timezone</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <section id="platform" class="module">
+          <div class="module-head">
+            <div>
+              <div class="label">Module 15 · Shared platform</div>
+              <h2>ระบบกลาง / Master Data</h2>
+              <p>
+                Auth, RBAC, organization/warehouse/team scope, barcode
+                resolution, task inbox, notification, attachment, audit,
+                idempotency และ master data
+              </p>
+            </div>
+            <span class="status existing">Core exists</span>
+          </div>
+          <h3 class="sr-only">Shared platform module summary</h3>
+          <div class="overview">
+            <div>
+              <h4>Trigger</h4>
+              <p>ทุก query/command/external callback</p>
+            </div>
+            <div>
+              <h4>Output</h4>
+              <p>Authorized deterministic business result</p>
+            </div>
+            <div>
+              <h4>Owner</h4>
+              <p>Platform + Tenant Admin</p>
+            </div>
+          </div>
+          <div
+            class="diagram"
+            role="region"
+            aria-label="flow ระบบกลาง"
+            tabindex="0"
+          >
+            <div class="diagram-title">
+              <b>Command execution envelope</b
+              ><span>Client · Auth · Policy · Domain · Audit</span>
+            </div>
+            <div class="flow">
+              <div class="node">
+                <small>Client</small><b>Command + operationId</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node system">
+                <small>Identity</small><b>Resolve Org/User/Device</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node decision">
+                <small>RBAC</small><b>Permission + Scope + Step-up?</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node system">
+                <small>Idempotency</small><b>New or Replay?</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node">
+                <small>Domain</small><b>Validate State + Execute</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node system">
+                <small>Transaction</small><b>Write + Ledger + Audit + Outbox</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node">
+                <small>Client / Worker</small
+                ><b>Result + Notification/Handoff</b>
+              </div>
+            </div>
+          </div>
+          <div
+            class="diagram"
+            role="region"
+            aria-label="flow UploadThing private file"
+            tabindex="0"
+          >
+            <div class="diagram-title">
+              <b>Private file lifecycle</b
+              ><span>Convex · UploadThing · Parent module</span>
+            </div>
+            <div class="flow">
+              <div class="node">
+                <small>Parent Module</small><b>Request Upload Intent</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node system">
+                <small>Convex</small><b>Authorize + Grant</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node">
+                <small>UploadThing</small><b>Private Upload</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node system">
+                <small>Callback</small><b>Verify Signature/Size/Hash</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node">
+                <small>Convex</small><b>Attach Metadata READY</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node decision">
+                <small>Downloader</small><b>Fresh Permission?</b>
+              </div>
+              <span class="arrow">→</span>
+              <div class="node system">
+                <small>Gateway</small><b>Short-lived Download</b>
+              </div>
+            </div>
+          </div>
+          <div class="contract">
+            <div>
+              <h4>Shared services</h4>
+              <ul>
+                <li>RBAC, approvals, tasks, notifications, scan resolution</li>
+                <li>attachments, audit, idempotency, outbox, numbering</li>
+              </ul>
+            </div>
+            <div>
+              <h4>Master data</h4>
+              <ul>
+                <li>SKU/UOM/barcode/lot/location/warehouse</li>
+                <li>customer/supplier/vehicle/route/employee/BOM/QC/reason</li>
+              </ul>
+            </div>
+            <div>
+              <h4>Failure policy</h4>
+              <ul>
+                <li>fail closed on auth/scope/signature/state mismatch</li>
+                <li>external retry does not duplicate business write</li>
+              </ul>
+            </div>
+            <div>
+              <h4>Acceptance</h4>
+              <ul>
+                <li>ทุก module ใช้ envelope เดียว</li>
+                <li>cross-tenant negative test + append-only audit ผ่าน</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <section id="handoff">
+          <div class="section-head">
+            <span class="section-no">18</span>
+            <div>
+              <div class="label">Integration map</div>
+              <h2>Event handoff ระหว่างโมดูล</h2>
+            </div>
+          </div>
+          <p class="lede">
+            โมดูลต้นทางส่ง event และ stable reference; ปลายทางสร้างงานของตนเอง
+            ไม่เขียนตารางข้าม bounded context
+          </p>
+          <div
+            class="table-wrap"
+            role="region"
+            aria-label="ตาราง event handoff"
+            tabindex="0"
+          >
+            <table>
+              <thead>
+                <tr>
+                  <th>Source event</th>
+                  <th>Consumer</th>
+                  <th>สิ่งที่สร้าง</th>
+                  <th>Guard</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>customer.activated</code></td>
+                  <td>Order</td>
+                  <td>อนุญาตเลือก customer/ship-to</td>
+                  <td>active + org scope</td>
+                </tr>
+                <tr>
+                  <td><code>order.line.designRequired</code></td>
+                  <td>Engineering</td>
+                  <td>Design request</td>
+                  <td>dedupe ต่อ order line</td>
+                </tr>
+                <tr>
+                  <td><code>engineering.revisionReleased</code></td>
+                  <td>Order / Production</td>
+                  <td>ปลด design hold / issue packet</td>
+                  <td>pin revision ID</td>
+                </tr>
+                <tr>
+                  <td><code>order.released</code></td>
+                  <td>Outbound / Planning</td>
+                  <td>allocation หรือ production demand</td>
+                  <td>routing decision version</td>
+                </tr>
+                <tr>
+                  <td><code>production.materialShortage</code></td>
+                  <td>Purchasing</td>
+                  <td>purchase request/PO draft</td>
+                  <td>net demand snapshot</td>
+                </tr>
+                <tr>
+                  <td><code>stock.received</code></td>
+                  <td>QC / Putaway</td>
+                  <td>inspection หรือ putaway task</td>
+                  <td>stock status gate</td>
+                </tr>
+                <tr>
+                  <td><code>quality.stockReleased</code></td>
+                  <td>Putaway / Outbound / Production</td>
+                  <td>resume blocked task</td>
+                  <td>source + lot scope</td>
+                </tr>
+                <tr>
+                  <td><code>production.outputReported</code></td>
+                  <td>QC / Receiving</td>
+                  <td>final inspection / FG receipt</td>
+                  <td>genealogy complete</td>
+                </tr>
+                <tr>
+                  <td><code>stock.issued</code></td>
+                  <td>Transport / Order</td>
+                  <td>load queue / fulfillment update</td>
+                  <td>issued tags only</td>
+                </tr>
+                <tr>
+                  <td><code>transfer.dispatched</code></td>
+                  <td>Transport / Destination</td>
+                  <td>trip link / expected receipt</td>
+                  <td>in-transit transaction exists</td>
+                </tr>
+                <tr>
+                  <td><code>trip.delivered</code></td>
+                  <td>Order / Transfer / Documents</td>
+                  <td>delivery status / POD checklist</td>
+                  <td>recipient/evidence policy</td>
+                </tr>
+                <tr>
+                  <td><code>inventory.adjustmentPosted</code></td>
+                  <td>Reports / Audit</td>
+                  <td>recompute rollup / risk view</td>
+                  <td>approved reconciliation</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="callout">
+            <h3>Implementation order</h3>
+            <p>
+              ทำ Path A ก่อนเพื่อให้ Order → Outbound → Transport จบจริง จากนั้น
+              Path B เพิ่ม Purchasing/Production/QC และสุดท้าย Path C เชื่อม
+              Engineering งานใหม่ การทำตามเส้นทางลูกค้าให้ value
+              เร็วกว่าการสร้างทุกหน้าของทุกโมดูลพร้อมกัน
+            </p>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <footer>
+      <div class="wrap">
+        <div>
+          <b>Industrial SAS</b><br /><span class="small"
+            >Detailed Module Flow Blueprints · black / white review
+            edition</span
+          >
+        </div>
+        <div class="small">
+          FigJam reference inspected for flow structure only.<br />Business
+          rules derive from the typed request and repository evidence.
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

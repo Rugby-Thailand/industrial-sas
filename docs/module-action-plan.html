@@ -1,0 +1,2427 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Industrial SAS — Module &amp; Action Plan</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #111;
+        --muted: #555;
+        --line: #111;
+        --soft-line: #bbb;
+        --paper: #fff;
+        --shade: #f2f2f2;
+        --shade-2: #e4e4e4;
+        --max: 1180px;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        margin: 0;
+        color: var(--ink);
+        background: var(--paper);
+        font-family:
+          ui-sans-serif,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          "Noto Sans Thai",
+          sans-serif;
+        font-size: 16px;
+        line-height: 1.65;
+      }
+      a {
+        color: inherit;
+        text-decoration-thickness: 1px;
+        text-underline-offset: 3px;
+      }
+      h1,
+      h2,
+      h3,
+      h4 {
+        line-height: 1.25;
+        margin: 0;
+      }
+      h1 {
+        max-width: 900px;
+        font-size: clamp(2.35rem, 6vw, 5.75rem);
+        letter-spacing: -0.065em;
+      }
+      h2 {
+        font-size: clamp(1.8rem, 4vw, 3.5rem);
+        letter-spacing: -0.045em;
+      }
+      h3 {
+        font-size: 1.35rem;
+      }
+      h4 {
+        font-size: 1rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+      p {
+        margin: 0;
+      }
+      ul,
+      ol {
+        margin: 0;
+        padding-left: 1.25rem;
+      }
+      .wrap {
+        width: min(calc(100% - 40px), var(--max));
+        margin-inline: auto;
+      }
+      .hero {
+        border-bottom: 3px solid var(--line);
+        padding: 28px 0 52px;
+      }
+      .eyebrow {
+        display: flex;
+        justify-content: space-between;
+        gap: 24px;
+        margin-bottom: 72px;
+        font-size: 0.78rem;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+      .hero-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 2fr) minmax(240px, 1fr);
+        gap: 56px;
+        align-items: end;
+      }
+      .hero-note {
+        border-left: 2px solid var(--line);
+        padding-left: 20px;
+        color: var(--muted);
+      }
+      .hero-note strong {
+        display: block;
+        color: var(--ink);
+        margin-bottom: 8px;
+      }
+      .hero-note a {
+        display: inline-block;
+        margin-top: 14px;
+        color: var(--ink);
+        font-weight: 750;
+      }
+      .meta-strip {
+        border-bottom: 1px solid var(--line);
+      }
+      .meta-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+      }
+      .meta {
+        min-height: 118px;
+        padding: 20px;
+        border-right: 1px solid var(--line);
+      }
+      .meta:first-child {
+        border-left: 1px solid var(--line);
+      }
+      .meta b {
+        display: block;
+        font-size: 1.65rem;
+        line-height: 1;
+        margin: 10px 0;
+      }
+      .label {
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+      .layout {
+        display: grid;
+        grid-template-columns: 270px minmax(0, 1fr);
+        gap: 50px;
+        padding-block: 48px 96px;
+      }
+      nav {
+        position: sticky;
+        top: 24px;
+        align-self: start;
+        border-top: 2px solid var(--line);
+      }
+      nav a {
+        display: grid;
+        grid-template-columns: 28px 1fr;
+        gap: 8px;
+        padding: 9px 0;
+        border-bottom: 1px solid var(--soft-line);
+        text-decoration: none;
+        font-size: 0.9rem;
+      }
+      nav a:hover {
+        background: var(--shade);
+      }
+      main {
+        min-width: 0;
+      }
+      section {
+        scroll-margin-top: 24px;
+        margin-bottom: 88px;
+      }
+      .section-head {
+        display: grid;
+        grid-template-columns: 68px 1fr;
+        gap: 18px;
+        padding-bottom: 22px;
+        border-bottom: 2px solid var(--line);
+        margin-bottom: 28px;
+      }
+      .section-no {
+        font:
+          800 1.05rem/1 ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+        padding-top: 8px;
+      }
+      .lede {
+        max-width: 820px;
+        margin: 18px 0 30px;
+        font-size: 1.1rem;
+        color: var(--muted);
+      }
+      .callout {
+        border: 2px solid var(--line);
+        padding: 22px;
+        margin: 24px 0;
+      }
+      .callout h3 {
+        margin-bottom: 8px;
+      }
+      .callout.soft {
+        border-width: 1px;
+        background: var(--shade);
+      }
+      .rule {
+        display: grid;
+        grid-template-columns: 42px 1fr;
+        gap: 14px;
+        padding: 14px 0;
+        border-top: 1px solid var(--soft-line);
+      }
+      .rule:last-child {
+        border-bottom: 1px solid var(--soft-line);
+      }
+      .rule b:first-child {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+      .cards {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+      }
+      .card {
+        border: 1px solid var(--line);
+        padding: 20px;
+        break-inside: avoid;
+      }
+      .card h3 {
+        margin-bottom: 10px;
+      }
+      .card p + p,
+      .card p + ul,
+      .card ul + p {
+        margin-top: 10px;
+      }
+      .status {
+        display: inline-block;
+        border: 1px solid var(--line);
+        padding: 3px 8px;
+        margin-bottom: 14px;
+        font-size: 0.7rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .status.existing {
+        color: #fff;
+        background: #111;
+      }
+      .status.partial {
+        background: #ddd;
+      }
+      .status.new {
+        background: #fff;
+      }
+      .flow {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 7px;
+        margin: 16px 0;
+        font:
+          700 0.78rem/1.35 ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+      }
+      .flow span {
+        border: 1px solid var(--line);
+        padding: 8px 9px;
+      }
+      .flow i {
+        font-style: normal;
+      }
+      .table-wrap {
+        overflow-x: auto;
+        border: 1px solid var(--line);
+        margin: 20px 0 30px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 760px;
+      }
+      th,
+      td {
+        padding: 12px 14px;
+        border-bottom: 1px solid var(--soft-line);
+        border-right: 1px solid var(--soft-line);
+        vertical-align: top;
+        text-align: left;
+      }
+      th:last-child,
+      td:last-child {
+        border-right: 0;
+      }
+      tr:last-child td {
+        border-bottom: 0;
+      }
+      th {
+        background: var(--shade-2);
+        font-size: 0.72rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+      td:first-child {
+        font-weight: 750;
+      }
+      code {
+        background: var(--shade);
+        padding: 2px 5px;
+        font-size: 0.88em;
+      }
+      .module {
+        border-top: 4px solid var(--line);
+        padding-top: 24px;
+        margin-top: 54px;
+        break-before: auto;
+      }
+      .module-title {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 24px;
+        align-items: start;
+        margin-bottom: 18px;
+      }
+      .module-title p {
+        max-width: 720px;
+        color: var(--muted);
+        margin-top: 8px;
+      }
+      .action-list {
+        counter-reset: actions;
+      }
+      .action {
+        display: grid;
+        grid-template-columns: 44px minmax(0, 1fr);
+        gap: 14px;
+        padding: 18px 0;
+        border-top: 1px solid var(--soft-line);
+      }
+      .action:last-child {
+        border-bottom: 1px solid var(--soft-line);
+      }
+      .action::before {
+        counter-increment: actions;
+        content: counter(actions, decimal-leading-zero);
+        font:
+          800 0.82rem/1.5 ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+      }
+      .action h4 {
+        margin-bottom: 5px;
+      }
+      .action p {
+        color: var(--muted);
+      }
+      .split {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 24px;
+        margin-top: 24px;
+      }
+      .mini {
+        border-top: 1px solid var(--line);
+        padding-top: 12px;
+      }
+      .mini h3,
+      .mini h4 {
+        margin-bottom: 8px;
+      }
+      .mini li + li {
+        margin-top: 5px;
+      }
+      .architecture {
+        border: 2px solid var(--line);
+        padding: 18px;
+        display: grid;
+        gap: 12px;
+      }
+      .arch-row {
+        display: grid;
+        grid-template-columns: 150px 1fr;
+        gap: 12px;
+        align-items: stretch;
+      }
+      .arch-row > b {
+        display: grid;
+        place-items: center;
+        background: var(--ink);
+        color: var(--paper);
+        padding: 14px;
+        text-align: center;
+      }
+      .arch-boxes {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+      }
+      .arch-boxes span {
+        border: 1px solid var(--line);
+        padding: 12px;
+        text-align: center;
+      }
+      .phase {
+        display: grid;
+        grid-template-columns: 90px 1fr;
+        gap: 20px;
+        padding: 22px 0;
+        border-top: 1px solid var(--line);
+      }
+      .phase:last-child {
+        border-bottom: 1px solid var(--line);
+      }
+      .phase-num {
+        font:
+          900 2.2rem/1 ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+      }
+      .phase > div:last-child {
+        min-width: 0;
+        overflow-wrap: anywhere;
+      }
+      .phase h3 {
+        margin-bottom: 6px;
+      }
+      .phase p + p {
+        margin-top: 6px;
+        color: var(--muted);
+      }
+      .checklist {
+        columns: 2;
+        column-gap: 36px;
+      }
+      .checklist li {
+        break-inside: avoid;
+        margin-bottom: 10px;
+      }
+      footer {
+        border-top: 3px solid var(--line);
+        padding: 36px 0 60px;
+      }
+      footer .wrap {
+        display: flex;
+        justify-content: space-between;
+        gap: 30px;
+      }
+      .small {
+        color: var(--muted);
+        font-size: 0.82rem;
+      }
+      @media (max-width: 900px) {
+        .hero-grid,
+        .layout,
+        .split {
+          grid-template-columns: 1fr;
+        }
+        .layout {
+          padding-top: 28px;
+        }
+        nav {
+          position: static;
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 0 16px;
+        }
+        .meta-grid {
+          grid-template-columns: repeat(2, 1fr);
+        }
+        .cards {
+          grid-template-columns: 1fr;
+        }
+        .arch-row {
+          grid-template-columns: 1fr;
+        }
+        .arch-boxes {
+          grid-template-columns: 1fr;
+        }
+      }
+      @media (max-width: 560px) {
+        .wrap {
+          width: min(calc(100% - 24px), var(--max));
+        }
+        .eyebrow {
+          margin-bottom: 44px;
+        }
+        .hero-grid {
+          gap: 30px;
+        }
+        .meta-grid,
+        nav {
+          grid-template-columns: 1fr;
+        }
+        .meta {
+          border-left: 1px solid var(--line);
+          border-bottom: 1px solid var(--line);
+        }
+        .section-head {
+          grid-template-columns: 42px 1fr;
+        }
+        .module-title {
+          grid-template-columns: 1fr;
+        }
+        .checklist {
+          columns: 1;
+        }
+        footer .wrap {
+          display: block;
+        }
+      }
+      @media print {
+        @page {
+          size: A4;
+          margin: 13mm;
+        }
+        body {
+          font-size: 10pt;
+        }
+        .wrap {
+          width: 100%;
+        }
+        .hero {
+          padding-top: 0;
+        }
+        .eyebrow {
+          margin-bottom: 28px;
+        }
+        h1 {
+          font-size: 42pt;
+        }
+        nav {
+          display: none;
+        }
+        .layout {
+          display: block;
+          padding-block: 28px;
+        }
+        section {
+          margin-bottom: 40px;
+        }
+        .module {
+          break-before: page;
+        }
+        .cards {
+          grid-template-columns: 1fr 1fr;
+        }
+        .table-wrap {
+          overflow: visible;
+        }
+        table {
+          min-width: 0;
+          font-size: 8.5pt;
+        }
+        a {
+          text-decoration: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="hero">
+      <div class="wrap">
+        <div class="eyebrow">
+          <span>Industrial SAS / Product plan</span>
+          <span>Decision draft · 16 Aug 2026</span>
+        </div>
+        <div class="hero-grid">
+          <div>
+            <div class="label">Warehouse · Production · Transport · People</div>
+            <h1>Module &amp;<br />Action Plan</h1>
+          </div>
+          <div class="hero-note">
+            <strong>คำตอบสั้น</strong>
+            ให้สร้างระบบบนแกนกลางเดียวคือ Stock Ledger + Document Workflow +
+            Scan Engine แล้วแยกแต่ละโมดูลเป็นคำสั่งทางธุรกิจที่ตรวจสิทธิ์
+            ตรวจสถานะ และทำซ้ำได้โดยไม่ลงรายการซ้ำ
+            <a href="./module-flow-blueprints.html"
+              >เปิด Detailed Module Flow Blueprints →</a
+            >
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <aside class="meta-strip" aria-label="สรุปขอบเขตโครงการ">
+      <div class="wrap meta-grid">
+        <div class="meta">
+          <span class="label">Business modules</span><b>13</b
+          ><span>รวมระบบกลางและ Master Data</span>
+        </div>
+        <div class="meta">
+          <span class="label">Named core actions</span><b>37+</b
+          ><span>ก่อนรวม action มาตรฐานร่วม</span>
+        </div>
+        <div class="meta">
+          <span class="label">Delivery shape</span><b>7</b
+          ><span>phases รวม discovery / pilot contract</span>
+        </div>
+        <div class="meta">
+          <span class="label">Primary UX</span><b>Scan-first</b
+          ><span>mobile + desktop supervisor</span>
+        </div>
+      </div>
+    </aside>
+
+    <div class="wrap layout">
+      <nav aria-label="สารบัญ">
+        <a href="#brief"><span>00</span><span>กรอบคำขอ</span></a>
+        <a href="#decision"><span>01</span><span>ข้อเสนอหลัก</span></a>
+        <a href="#current"><span>02</span><span>สถานะ repo</span></a>
+        <a href="#principles"><span>03</span><span>กฎร่วม</span></a>
+        <a href="#warehouse"><span>04</span><span>คลังสินค้า</span></a>
+        <a href="#transport"><span>05</span><span>ขนส่งสินค้า</span></a>
+        <a href="#production"><span>06</span><span>งานผลิต</span></a>
+        <a href="#reports"><span>07</span><span>รายงาน</span></a>
+        <a href="#business"><span>08</span><span>ลูกค้า / Order / QC</span></a>
+        <a href="#hr"><span>09</span><span>Human Resource</span></a>
+        <a href="#platform"><span>10</span><span>ระบบกลาง</span></a>
+        <a href="#architecture"><span>11</span><span>Architecture</span></a>
+        <a href="#data"><span>12</span><span>Data ownership</span></a>
+        <a href="#permissions"><span>13</span><span>Permission</span></a>
+        <a href="#roadmap"><span>14</span><span>Roadmap</span></a>
+        <a href="#acceptance"><span>15</span><span>Definition of done</span></a>
+        <a href="#questions"
+          ><span>16</span><span>คำถามที่ต้องตัดสินใจ</span></a
+        >
+      </nav>
+
+      <main>
+        <section id="brief">
+          <div class="section-head">
+            <span class="section-no">00</span>
+            <div>
+              <div class="label">Source separation</div>
+              <h2>กรอบคำขอและสิ่งที่ไม่ใช่คำสั่ง</h2>
+            </div>
+          </div>
+          <div class="callout">
+            <h3>ใช้ภาพแนบเป็น visual reference เท่านั้น</h3>
+            <p>
+              ข้อความ “MTN Packaging”, ชื่อเมนู และองค์ประกอบใน screenshot
+              ไม่ถูกตีความเป็นคำสั่งให้คัดลอก UI หรือข้อมูล
+              ภาพช่วยยืนยันเพียงว่าเมนูเดิมเป็น mobile home
+              แบบสองคอลัมน์และเน้นการสแกน Barcode ส่วน scope, action
+              และเทคโนโลยีมาจากคำขอที่ผู้ใช้พิมพ์โดยตรง
+            </p>
+          </div>
+          <div class="cards">
+            <article class="card">
+              <span class="label">Technology baseline</span>
+              <h3>Convex template</h3>
+              <p>
+                <code>npx create-convex@latest -t get-convex/v1</code> เป็น
+                baseline ของ Next.js + Convex; repo
+                ปัจจุบันต่อยอดจากแนวทางนี้แล้ว
+              </p>
+            </article>
+            <article class="card">
+              <span class="label">File boundary</span>
+              <h3>UploadThing</h3>
+              <p>
+                ไฟล์ binary อยู่ใน UploadThing แบบ private; Convex เก็บ
+                metadata, owner, entity link, checksum, retention และ audit
+                เท่านั้น
+              </p>
+            </article>
+          </div>
+        </section>
+
+        <section id="decision">
+          <div class="section-head">
+            <span class="section-no">01</span>
+            <div>
+              <div class="label">Executive decision</div>
+              <h2>สร้างเป็น 3 แกน ไม่ใช่ 13 แอปแยกกัน</h2>
+            </div>
+          </div>
+          <p class="lede">
+            แต่ละโมดูลมีหน้าจอและ workflow ของตัวเอง
+            แต่ต้องใช้แกนข้อมูลเดียวกันเพื่อไม่ให้ยอด stock
+            และสถานะเอกสารแยกคนละความจริง
+          </p>
+          <div class="cards">
+            <article class="card">
+              <span class="label">Axis A</span>
+              <h3>Document workflow</h3>
+              <p>
+                PO, SO, ใบเตรียม, ใบหยิบ, ใบโอน, Production Order, Trip และ
+                Count Plan เป็นเอกสารที่มี lifecycle ชัดเจน
+              </p>
+            </article>
+            <article class="card">
+              <span class="label">Axis B</span>
+              <h3>Inventory ledger</h3>
+              <p>
+                ทุกการรับ จ่าย ย้าย Hold/Release ผลิต และ Reconcile ลง immutable
+                ledger; ห้ามแก้ยอดคงเหลือโดยตรง
+              </p>
+            </article>
+            <article class="card">
+              <span class="label">Axis C</span>
+              <h3>Operational command</h3>
+              <p>
+                UI เรียกคำสั่งเช่น <code>receiveAgainstPo</code>,
+                <code>confirmPick</code>,
+                <code>approveReconcile</code> ไม่เปิดให้ patch status ตามใจ
+              </p>
+            </article>
+            <article class="card">
+              <span class="label">Cross-cutting</span>
+              <h3>Evidence &amp; control</h3>
+              <p>
+                ทุก action สำคัญมี permission, idempotency, reason, attachment,
+                maker–checker และ append-only audit
+              </p>
+            </article>
+          </div>
+        </section>
+
+        <section id="current">
+          <div class="section-head">
+            <span class="section-no">02</span>
+            <div>
+              <div class="label">Repository audit</div>
+              <h2>อะไรมีแล้ว และช่องว่างจริงอยู่ตรงไหน</h2>
+            </div>
+          </div>
+          <p class="lede">
+            ตรวจจาก <code>industrial-sas-uploadthing</code> โดยตรง
+            แผนนี้จึงเป็นการต่อยอดของเดิม ไม่ใช่ greenfield rewrite
+          </p>
+          <div
+            class="table-wrap"
+            role="region"
+            aria-label="ตารางสถานะ repository"
+            tabindex="0"
+          >
+            <table>
+              <thead>
+                <tr>
+                  <th>Capability</th>
+                  <th>สถานะ</th>
+                  <th>หลักฐานปัจจุบัน</th>
+                  <th>ช่องว่าง</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Tenant / RBAC / Audit / Idempotency</td>
+                  <td>มีแล้ว</td>
+                  <td>
+                    schema, tenant functions, permission catalogue, audit events
+                  </td>
+                  <td>เพิ่ม permission code ของโมดูลใหม่</td>
+                </tr>
+                <tr>
+                  <td>Master Data / Ledger</td>
+                  <td>มีแล้ว</td>
+                  <td>
+                    items, UOM, barcode, locations, lots, HUs, balances,
+                    transactions
+                  </td>
+                  <td>เพิ่ม vehicle, route, employee, BOM, reason เฉพาะงาน</td>
+                </tr>
+                <tr>
+                  <td>รับตาม PO / QC / Tag / Putaway</td>
+                  <td>มีแล้วบางแนวลึก</td>
+                  <td>
+                    purchaseOrders, receipts, inspections, label jobs, putaway
+                    tasks
+                  </td>
+                  <td>รับตามใบเตรียม/ผลิต/อื่น ๆ และ QC หลายบริบท</td>
+                </tr>
+                <tr>
+                  <td>ลูกค้า / สั่งสินค้า</td>
+                  <td>มี foundation</td>
+                  <td>customers, customerOrders, lines, release flow</td>
+                  <td>allocation, fulfillment, outbound และ portal</td>
+                </tr>
+                <tr>
+                  <td>ผลิต</td>
+                  <td>บางส่วน</td>
+                  <td>factory packet และ engineering master card</td>
+                  <td>
+                    production order, material issue, WIP, output, downtime
+                  </td>
+                </tr>
+                <tr>
+                  <td>รายงาน</td>
+                  <td>บางส่วน</td>
+                  <td>dashboard, balances, history, export jobs</td>
+                  <td>SKU/Lot views, as-of, report-specific drilldown</td>
+                </tr>
+                <tr>
+                  <td>จ่าย / โอน / นับ / ขนส่ง / HR</td>
+                  <td>ใหม่</td>
+                  <td>ยังไม่มี domain workflow ครบใน routes/schema</td>
+                  <td>เป็นกลุ่มงานหลักของ roadmap ใหม่นี้</td>
+                </tr>
+                <tr>
+                  <td>Private files</td>
+                  <td>มี foundation</td>
+                  <td>
+                    UploadThing route, grants, verified completion, private
+                    download
+                  </td>
+                  <td>
+                    ทำ attachment policy ให้ใช้ร่วมกับ QC, POD, HR และลูกค้า
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="callout soft">
+            <h3>ข้อควรระวัง</h3>
+            <p>
+              README ระบุชัดว่าระบบยังไม่เชื่อม vendor identity สำหรับ tenant
+              จริงทั้งหมด ดังนั้น “code exists” ไม่เท่ากับ “production ready”;
+              rollout ต้องมี environment, pilot data, physical scanner/printer
+              และ release gate แยกต่างหาก
+            </p>
+          </div>
+        </section>
+
+        <section id="principles">
+          <div class="section-head">
+            <span class="section-no">03</span>
+            <div>
+              <div class="label">Shared product rules</div>
+              <h2>กฎร่วมของทุก Action</h2>
+            </div>
+          </div>
+          <div class="rule">
+            <b>01</b>
+            <div>
+              <b>Scan-first, search-second.</b> สแกนเอกสาร → location → tag/SKU
+              → lot/serial; manual entry ต้องมี reason และสิทธิ์
+            </div>
+          </div>
+          <div class="rule">
+            <b>02</b>
+            <div>
+              <b>Command, not patch.</b> ใช้คำสั่งเฉพาะธุรกิจและ state
+              transition ที่ typed; ห้ามให้ client ส่ง status ใหม่โดยตรง
+            </div>
+          </div>
+          <div class="rule">
+            <b>03</b>
+            <div>
+              <b>Post แล้วห้ามแก้.</b> ความผิดพลาดแก้ด้วย reverse/correction
+              ที่อ้างรายการเดิม เก็บ before/after, reason และผู้อนุมัติ
+            </div>
+          </div>
+          <div class="rule">
+            <b>04</b>
+            <div>
+              <b>One stock identity.</b> ทุก movement ระบุ org, warehouse,
+              location, SKU, UOM, lot/serial, tag/HU, owner และ stock status
+            </div>
+          </div>
+          <div class="rule">
+            <b>05</b>
+            <div>
+              <b>Idempotent by default.</b> ทุก mutation จากเครื่องสแกนมี
+              <code>operationId</code>, <code>deviceId</code>,
+              <code>capturedAt</code> และ <code>expectedVersion</code>
+            </div>
+          </div>
+          <div class="rule">
+            <b>06</b>
+            <div>
+              <b>Risk decides approval.</b> over/short, negative, expired,
+              manual, backdate, high value, QC disposition และ reconcile ใช้
+              threshold + maker–checker
+            </div>
+          </div>
+          <div class="rule">
+            <b>07</b>
+            <div>
+              <b>Attachment inherits access.</b> รูป/เอกสารไม่ public;
+              สิทธิ์ตามเอกสารแม่และทุก download ตรวจสิทธิ์ใหม่
+            </div>
+          </div>
+          <div class="rule">
+            <b>08</b>
+            <div>
+              <b>Offline has boundaries.</b> scan queue ทำได้ แต่ approve,
+              release, reconcile และ high-risk post ต้อง online ใน MVP
+            </div>
+          </div>
+        </section>
+
+        <section id="warehouse">
+          <div class="section-head">
+            <span class="section-no">04</span>
+            <div>
+              <div class="label">Warehouse operations</div>
+              <h2>โมดูลคลังสินค้า</h2>
+            </div>
+          </div>
+
+          <article class="module" id="receiving">
+            <div class="module-title">
+              <div>
+                <h3>04.1 รับสินค้า</h3>
+                <p>
+                  แยก source document แต่ใช้ receipt engine, scan resolution, QC
+                  gate และ ledger posting ร่วมกัน
+                </p>
+              </div>
+              <span class="status partial">Extend existing</span>
+            </div>
+            <div class="flow">
+              <span>Ready</span><i>→</i><span>Receiving</span><i>→</i
+              ><span>Partial / Pending QA</span><i>→</i><span>Posted</span>
+            </div>
+            <div class="action-list">
+              <div class="action">
+                <div>
+                  <h4>รับตามสั่งซื้อ</h4>
+                  <p>
+                    เลือก/สแกน PO → SKU/Lot/UOM/จำนวน → เทียบยอดค้าง →
+                    QC/Quarantine → สร้าง Tag และ Putaway; รองรับ partial,
+                    over/under, unexpected และ damaged พร้อม approval
+                  </p>
+                </div>
+              </div>
+              <div class="action">
+                <div>
+                  <h4>รับตามใบเตรียม</h4>
+                  <p>
+                    รับ Tag หรือรายการจากต้นทางที่เตรียมแล้ว ตรวจ
+                    prepared/sent/received quantity, staging location และ
+                    discrepancy ก่อนสร้าง putaway
+                  </p>
+                </div>
+              </div>
+              <div class="action">
+                <div>
+                  <h4>รับตามใบผลิต</h4>
+                  <p>
+                    รับ FG/WIP/by-product จาก Production Order บันทึก
+                    good/reject/rework, lot genealogy, กะ/เครื่อง และ QC hold
+                    ก่อน release
+                  </p>
+                </div>
+              </div>
+              <div class="action">
+                <div>
+                  <h4>รับอื่น ๆ</h4>
+                  <p>
+                    คืนลูกค้า, ยืมคืน, found stock, ของแถม หรือ correction
+                    ต้องเลือก subtype/reason, แนบหลักฐาน และ Supervisor
+                    อนุมัติก่อน Post
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div class="split">
+              <div class="mini">
+                <h4>Action ที่ควรเพิ่ม</h4>
+                <ul>
+                  <li>นัดหมายรถ / ASN</li>
+                  <li>Print GRN, label, tag</li>
+                  <li>Hold / release / return supplier</li>
+                  <li>Reverse receipt line</li>
+                  <li>Close short พร้อมเหตุผล</li>
+                </ul>
+              </div>
+              <div class="mini">
+                <h4>ข้อมูลและ exception สำคัญ</h4>
+                <ul>
+                  <li>Source document, delivery note, supplier/source</li>
+                  <li>ordered / sent / received / accepted / rejected qty</li>
+                  <li>
+                    duplicate serial, expiry, wrong lot, damaged, unknown SKU
+                  </li>
+                  <li>ผู้รับ ผู้ตรวจ ผู้อนุมัติ device และเวลา</li>
+                </ul>
+              </div>
+            </div>
+          </article>
+
+          <article class="module" id="outbound">
+            <div class="module-title">
+              <div>
+                <h3>04.2 จ่ายสินค้า</h3>
+                <p>
+                  Action เดิมยังขาดขั้น Allocate → Pick → Check → Pack/Stage →
+                  Issue ซึ่งควรเป็นแกนกลางก่อนแยก source document
+                </p>
+              </div>
+              <span class="status new">New slice</span>
+            </div>
+            <div class="flow">
+              <span>Released</span><i>→</i><span>Allocated</span><i>→</i
+              ><span>Picking</span><i>→</i><span>Checked / Packed</span><i>→</i
+              ><span>Issued</span>
+            </div>
+            <div class="action-list">
+              <div class="action">
+                <div>
+                  <h4>จ่ายตามใบสั่งขาย</h4>
+                  <p>
+                    allocate ตาม SO, แนะนำ FIFO/FEFO, scan location–SKU–lot–tag,
+                    short pick/backorder, checker และส่งต่อขนส่ง
+                  </p>
+                </div>
+              </div>
+              <div class="action">
+                <div>
+                  <h4>จ่ายตามใบกำกับ</h4>
+                  <p>
+                    ตรวจ invoice/delivery note ว่ายัง valid และไม่จ่ายซ้ำ รองรับ
+                    partial delivery และ reverse ตาม credit/cancel document
+                  </p>
+                </div>
+              </div>
+              <div class="action">
+                <div>
+                  <h4>จ่ายตามใบเตรียม</h4>
+                  <p>
+                    เบิกให้ฝ่ายผลิตหรือหน่วยงานปลายทาง เก็บ requester, purpose,
+                    cost center, lot และ digital handover
+                  </p>
+                </div>
+              </div>
+              <div class="action">
+                <div>
+                  <h4>จ่ายตามใบหยิบ</h4>
+                  <p>
+                    scan verify Tote/Pallet และทุกรายการใน Pick List ก่อน Issue;
+                    discrepancy สร้าง re-pick task ไม่แก้ยอดเงียบ ๆ
+                  </p>
+                </div>
+              </div>
+              <div class="action">
+                <div>
+                  <h4>จ่ายอื่น ๆ</h4>
+                  <p>
+                    sample, internal use, scrap, donation, loan และ emergency
+                    issue ใช้ reason, approval matrix, attachment และมูลค่าเป็น
+                    threshold
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div class="split">
+              <div class="mini">
+                <h4>Action ที่ควรเพิ่ม</h4>
+                <ul>
+                  <li>Reserve / allocate / unallocate</li>
+                  <li>Wave / batch picking</li>
+                  <li>Short pick / substitute / backorder</li>
+                  <li>Pack / stage / handover</li>
+                  <li>Undo scan / reverse issue</li>
+                </ul>
+              </div>
+              <div class="mini">
+                <h4>MVP ก่อน</h4>
+                <ul>
+                  <li>SO allocation + pick task</li>
+                  <li>FEFO/FIFO explanation</li>
+                  <li>dual scan/checker</li>
+                  <li>partial fulfillment</li>
+                  <li>ledger issue + reversal</li>
+                </ul>
+              </div>
+            </div>
+          </article>
+
+          <article class="module" id="tags">
+            <div class="module-title">
+              <div>
+                <h3>04.3 Tag / จัดเก็บ</h3>
+                <p>
+                  Tag คือ Handling Unit ที่ trace ได้ ไม่ใช่เพียงรูป Barcode;
+                  การเก็บเป็น movement จาก staging ไป location จริง
+                </p>
+              </div>
+              <span class="status partial">Extend existing</span>
+            </div>
+            <div class="action-list">
+              <div class="action">
+                <div>
+                  <h4>สร้าง Tag</h4>
+                  <p>
+                    ผูก source, SKU/lot/serial/qty/package → generate ID → print
+                    → scan-back verify → active; เพิ่ม split, merge, repack,
+                    nest, reprint และ void พร้อม audit
+                  </p>
+                </div>
+              </div>
+              <div class="action">
+                <div>
+                  <h4>เก็บตาม Tag</h4>
+                  <p>
+                    สแกน task/tag → ระบบแนะนำ location ตาม zone/capacity/stock
+                    class → scan location → confirm; override ต้องมี
+                    reason/permission
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div class="flow">
+              <span>Created</span><i>→</i><span>Printed</span><i>→</i
+              ><span>Verified</span><i>→</i><span>Active</span><i>→</i
+              ><span>Consumed / Void</span>
+            </div>
+          </article>
+
+          <article class="module" id="transfer">
+            <div class="module-title">
+              <div>
+                <h3>04.4 โอนย้าย</h3>
+                <p>
+                  การโอนข้ามคลังต้องเป็นสองขาเสมอ: ตัดต้นทางเข้าถัง In Transit
+                  แล้วปลายทางจึงรับเข้า location จริง
+                </p>
+              </div>
+              <span class="status new">New slice</span>
+            </div>
+            <div class="flow">
+              <span>Requested</span><i>→</i><span>Approved</span><i>→</i
+              ><span>Picked</span><i>→</i><span>Dispatched / In Transit</span
+              ><i>→</i><span>Received</span><i>→</i><span>Closed</span>
+            </div>
+            <div class="action-list">
+              <div class="action">
+                <div>
+                  <h4>จ่าย/โอนใบสั่งขาย</h4>
+                  <p>
+                    สร้าง transfer เพื่อ fulfill SO จากคลังต้นทาง; partial,
+                    reallocation และ SO cancel ต้องปิด remaining quantity
+                    อย่างชัดเจน
+                  </p>
+                </div>
+              </div>
+              <div class="action">
+                <div>
+                  <h4>จ่าย/โอนใบกำกับ</h4>
+                  <p>
+                    ตรวจ duplicate dispatch, invoice validity, staging,
+                    vehicle/seal และจุดส่ง
+                  </p>
+                </div>
+              </div>
+              <div class="action">
+                <div>
+                  <h4>จ่าย/โอนใบเตรียม</h4>
+                  <p>
+                    รองรับ replenishment/production staging ระหว่างคลัง โซน หรือ
+                    line พร้อม request purpose
+                  </p>
+                </div>
+              </div>
+              <div class="action">
+                <div>
+                  <h4>จ่าย/โอนอื่น ๆ</h4>
+                  <p>
+                    rebalancing, relocation, emergency และ consignment ต้องมี
+                    reason/value approval; intercompany costing ไว้ภายหลัง
+                  </p>
+                </div>
+              </div>
+              <div class="action">
+                <div>
+                  <h4>รับตามใบโอน</h4>
+                  <p>
+                    scan transfer/seal/tag, เทียบ sent vs received, บันทึก
+                    short/over/damage, quarantine หรือ discrepancy approval
+                    แล้วสร้าง putaway
+                  </p>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article class="module" id="counting">
+            <div class="module-title">
+              <div>
+                <h3>04.5 นับสินค้า</h3>
+                <p>
+                  Opening stock เป็น migration command แบบครั้งเดียว; cycle
+                  count และ reconcile เป็นงานประจำที่แยกผู้ “นับ” ออกจากผู้
+                  “ปรับยอด”
+                </p>
+              </div>
+              <span class="status new">New slice</span>
+            </div>
+            <div class="action-list">
+              <div class="action">
+                <div>
+                  <h4>ตั้งต้น Stock</h4>
+                  <p>
+                    import/scan opening batch → validate
+                    SKU/UOM/location/lot/duplicate → preview → approve →
+                    immutable opening ledger; เก็บ file hash และ cut-off
+                  </p>
+                </div>
+              </div>
+              <div class="action">
+                <div>
+                  <h4>นับสินค้า</h4>
+                  <p>
+                    cycle/full/spot count แบบ blind, scan location/tag/SKU,
+                    freeze หรือ movement-aware snapshot, unknown stock,
+                    duplicate protection และ recount threshold
+                  </p>
+                </div>
+              </div>
+              <div class="action">
+                <div>
+                  <h4>Reconcile</h4>
+                  <p>
+                    คำนวณ system + movement เทียบ physical → root cause →
+                    recount/accept → threshold approval → adjustment transaction
+                    → corrective action
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div class="flow">
+              <span>Planned</span><i>→</i><span>Counting</span><i>→</i
+              ><span>Submitted</span><i>→</i><span>Recount / Review</span
+              ><i>→</i><span>Approved</span><i>→</i><span>Adjusted</span>
+            </div>
+          </article>
+        </section>
+
+        <section id="transport">
+          <div class="section-head">
+            <span class="section-no">05</span>
+            <div>
+              <div class="label">Logistics execution</div>
+              <h2>ขนส่งสินค้า</h2>
+            </div>
+          </div>
+          <span class="status new">New module</span>
+          <p class="lede">
+            เพิ่ม entity “Trip / Shipment / Vehicle Load”
+            คั่นกลางระหว่างจ่ายสินค้าและการส่งถึงลูกค้า
+            เพื่อไม่ให้สถานะขนส่งไปปนกับ stock document
+          </p>
+          <div
+            class="table-wrap"
+            role="region"
+            aria-label="ตาราง action ขนส่งสินค้า"
+            tabindex="0"
+          >
+            <table>
+              <thead>
+                <tr>
+                  <th>Action</th>
+                  <th>Flow หลัก</th>
+                  <th>Exception / Control</th>
+                  <th>MVP → Later</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>เอกสารปล่อยรถ</td>
+                  <td>
+                    ผูก trip–รถ–คนขับ → ตรวจโหลด/เอกสาร → seal/รูป → approve →
+                    Gate Pass QR → gate out
+                  </td>
+                  <td>
+                    รถ/คนขับผิด, ของไม่ครบ, น้ำหนักเกิน, seal ผิด; discrepancy
+                    release ต้อง Supervisor
+                  </td>
+                  <td>Gate pass + timestamp + evidence → scale/OCR/LPR</td>
+                </tr>
+                <tr>
+                  <td>ยิงสินค้าขึ้นรถ</td>
+                  <td>
+                    scan trip/vehicle → tag/pallet/carton → real-time expected
+                    vs loaded → checker → seal
+                  </td>
+                  <td>
+                    ผิดรถ/ลูกค้า/lot, duplicate, short/over, damage, offline;
+                    override ต้องมี reason
+                  </td>
+                  <td>barcode validation → RFID/3D load optimization</td>
+                </tr>
+                <tr>
+                  <td>อัปเดตสถานะ</td>
+                  <td>
+                    Planned → Loading → Departed → In Transit → Arrived →
+                    Delivered / Failed / Returned
+                  </td>
+                  <td>
+                    delay, breakdown, reject, partial, status ย้อนหลัง;
+                    failed/rejected ต้องยืนยัน
+                  </td>
+                  <td>manual milestone + photo → geofence/ETA/LINE</td>
+                </tr>
+                <tr>
+                  <td>ส่งคืนเอกสาร</td>
+                  <td>
+                    POD upload → review → original received → accounting handoff
+                    → close
+                  </td>
+                  <td>
+                    ภาพไม่ชัด, ไม่มีลายเซ็น, เอกสารหาย, จำนวนไม่ตรง; waiver ต้อง
+                    approve
+                  </td>
+                  <td>checklist + private upload → OCR/e-POD/billing</td>
+                </tr>
+                <tr>
+                  <td>เช็กตำแหน่ง</td>
+                  <td>
+                    driver check-in/GPS → last position → route/ETA/stale
+                    indicator → incident
+                  </td>
+                  <td>
+                    GPS stale/jump/off, route deviation, vehicle change; จำกัด
+                    retention และ viewer
+                  </td>
+                  <td>last known map → live GPS/geofence/playback</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="callout soft">
+            <h3>Action ที่ควรเพิ่ม</h3>
+            <p>
+              สร้าง/จัดเที่ยว, จัดรถและคนขับ, dock appointment, hold/unhold,
+              reschedule, failed delivery, return trip, incident, call driver,
+              share tracking และ close trip โดยต้องกำหนด PDPA retention
+              ของตำแหน่งตั้งแต่ก่อน pilot
+            </p>
+          </div>
+        </section>
+
+        <section id="production">
+          <div class="section-head">
+            <span class="section-no">06</span>
+            <div>
+              <div class="label">Manufacturing execution</div>
+              <h2>งานผลิต</h2>
+            </div>
+          </div>
+          <span class="status partial">Packet exists · execution new</span>
+          <p class="lede">
+            สี่ action ที่ให้มายังขาด action สำคัญหนึ่งตัว:
+            “เบิกวัตถุดิบตามใบผลิต” เพราะ stock ของวัตถุดิบต้องถูกย้ายเข้าสู่
+            line/WIP ก่อนบันทึกผลผลิต
+          </p>
+          <div
+            class="table-wrap"
+            role="region"
+            aria-label="ตาราง action งานผลิต"
+            tabindex="0"
+          >
+            <table>
+              <thead>
+                <tr>
+                  <th>Action</th>
+                  <th>ควรทำอะไร</th>
+                  <th>Control สำคัญ</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>แผนผลิต</td>
+                  <td>
+                    demand → BOM/route/version → material/capacity check →
+                    line/machine/shift → approve/release Production Order
+                  </td>
+                  <td>
+                    revision หลัง release, shortage, capacity, missing BOM, rush
+                    order
+                  </td>
+                  <td>Draft → Check → Planned → Released → Closed</td>
+                </tr>
+                <tr>
+                  <td>เบิกวัตถุดิบ <em>(เพิ่ม)</em></td>
+                  <td>
+                    reserve → pick/issue ตาม WO → scan material lot → line-side
+                    handover → return unused
+                  </td>
+                  <td>
+                    lot substitution, manual consumption, negative, expired
+                    material, over-issue
+                  </td>
+                  <td>Requested → Picked → Issued → Consumed / Returned</td>
+                </tr>
+                <tr>
+                  <td>ผลผลิต / WIP</td>
+                  <td>
+                    start operation → good/scrap/rework → move WIP → build
+                    tag/lot genealogy → QC → receive FG
+                  </td>
+                  <td>
+                    over-production, yield, backflush, partial close, reverse
+                    posting
+                  </td>
+                  <td>
+                    In Progress → Operation Complete → QC Hold → Putaway →
+                    Closed
+                  </td>
+                </tr>
+                <tr>
+                  <td>เวลาสูญเสีย</td>
+                  <td>
+                    start/auto-detect → reason/assign maintenance → resolve →
+                    verify → close
+                  </td>
+                  <td>
+                    overlap, cross-shift, unknown reason, severe downtime, open
+                    event ค้าง
+                  </td>
+                  <td>Open → Assigned → Repairing → Resolved → Verified</td>
+                </tr>
+                <tr>
+                  <td>ตรวจคุณภาพ</td>
+                  <td>
+                    inspection lot → checklist/spec → samples/results →
+                    disposition → NCR/rework/reject
+                  </td>
+                  <td>
+                    conditional release, retest, calibration, sample missing;
+                    maker–checker
+                  </td>
+                  <td>
+                    Pending → Inspecting → Review → Released / Rework / Reject
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="split">
+            <div class="mini">
+              <h3>MVP</h3>
+              <ul>
+                <li>WO + BOM version + line/date</li>
+                <li>material issue/return</li>
+                <li>good/scrap/WIP posting</li>
+                <li>tag + genealogy ขั้นพื้นฐาน</li>
+                <li>downtime reason + QC hold</li>
+              </ul>
+            </div>
+            <div class="mini">
+              <h3>Later</h3>
+              <ul>
+                <li>finite capacity / MRP</li>
+                <li>IoT counter / PLC</li>
+                <li>automatic backflush</li>
+                <li>OEE / MTBF / MTTR</li>
+                <li>SPC, CAPA และ machine integration</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <section id="reports">
+          <div class="section-head">
+            <span class="section-no">07</span>
+            <div>
+              <div class="label">Inventory intelligence</div>
+              <h2>รายงานต่าง ๆ</h2>
+            </div>
+          </div>
+          <span class="status partial">Extend existing</span>
+          <p class="lede">
+            ทุกรายงานต้องอ่านจาก ledger/projection ชุดเดียวกันและ drill down
+            กลับ source document ได้ ไม่สร้างยอดเฉพาะหน้ารายงาน
+          </p>
+          <div class="cards">
+            <article class="card">
+              <h3>Stock คงเหลือ</h3>
+              <p>
+                On hand, available, allocated, hold, damaged, in transit, WIP
+                และ as-of แยก warehouse/location/status พร้อม create
+                count/transfer จากผลลัพธ์
+              </p>
+            </article>
+            <article class="card">
+              <h3>Stock SKU</h3>
+              <p>
+                ยอดรวมต่อ SKU, warehouse drilldown, demand/supply,
+                reorder/safety stock, inactive-with-balance และ slow/non-moving
+              </p>
+            </article>
+            <article class="card">
+              <h3>Stock Lot</h3>
+              <p>
+                lot balance, MFG/expiry, QC status, source, genealogy, FEFO,
+                near-expiry, hold/release และ forward/backward trace
+              </p>
+            </article>
+            <article class="card">
+              <h3>Stock เคลื่อนไหว</h3>
+              <p>
+                immutable transaction timeline, from/to bucket, running balance,
+                source, user/device/reason และ reversal link
+              </p>
+            </article>
+          </div>
+          <div class="callout soft">
+            <h3>มิติกลาง</h3>
+            <p>
+              company · warehouse · zone/location · owner · SKU · lot/serial ·
+              tag/HU · stock status · UOM · business date/as-of time โดย
+              cost/value ต้องเป็น permission แยกจาก quantity
+            </p>
+          </div>
+        </section>
+
+        <section id="business">
+          <div class="section-head">
+            <span class="section-no">08</span>
+            <div>
+              <div class="label">Commercial &amp; quality</div>
+              <h2>ลูกค้า · สั่งสินค้า · ตรวจสอบสินค้า</h2>
+            </div>
+          </div>
+
+          <article class="module">
+            <div class="module-title">
+              <div>
+                <h3>08.1 ลูกค้า</h3>
+                <p>
+                  Customer master ควรผ่าน approval
+                  และมีหลายที่อยู่/ผู้ติดต่อ/เอกสาร โดย archive แทน delete
+                </p>
+              </div>
+              <span class="status partial">Foundation exists</span>
+            </div>
+            <div class="flow">
+              <span>Draft</span><i>→</i><span>Pending Approval</span><i>→</i
+              ><span>Active</span><i>↔</i><span>Suspended</span><i>→</i
+              ><span>Archived</span>
+            </div>
+            <div class="action-list">
+              <div class="action">
+                <div>
+                  <h4>Profile &amp; contact</h4>
+                  <p>
+                    สร้าง/แก้ข้อมูลบริษัท เลขภาษี สาขา ผู้ติดต่อ
+                    ที่อยู่วางบิลและจัดส่งหลายแห่ง
+                  </p>
+                </div>
+              </div>
+              <div class="action">
+                <div>
+                  <h4>Document &amp; approval</h4>
+                  <p>
+                    แนบ ภ.พ.20/หนังสือรับรอง/สัญญา → submit →
+                    approve/reject/needs changes; private files และ retention
+                  </p>
+                </div>
+              </div>
+              <div class="action">
+                <div>
+                  <h4>Lifecycle</h4>
+                  <p>
+                    activate, suspend, archive, merge duplicate; ลูกค้าไม่
+                    Active สั่งใหม่ไม่ได้ เว้นแต่ override พร้อมเหตุผล
+                  </p>
+                </div>
+              </div>
+              <div class="action">
+                <div>
+                  <h4>Commercial / portal</h4>
+                  <p>
+                    credit/price/payment terms และ customer portal เป็น phase
+                    ถัดไป; แยก customer user scope จาก tenant staff
+                  </p>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article class="module">
+            <div class="module-title">
+              <div>
+                <h3>08.2 สั่งสินค้า</h3>
+                <p>
+                  Order เป็นเจ้าของ commercial commitment แต่ไม่ตัด stock เอง;
+                  เมื่อ Release ให้ Outbound สร้าง fulfillment/allocation
+                </p>
+              </div>
+              <span class="status partial">Foundation exists</span>
+            </div>
+            <div class="flow">
+              <span>Draft</span><i>→</i><span>Submitted</span><i>→</i
+              ><span>Approved</span><i>→</i><span>Released</span><i>→</i
+              ><span>Completed</span>
+            </div>
+            <div class="action-list">
+              <div class="action">
+                <div>
+                  <h4>Draft order</h4>
+                  <p>
+                    เลือกลูกค้า/ship-to/date, เพิ่ม SKU/UOM/qty, copy order, แนบ
+                    PO และ validate master/ขั้นต่ำ
+                  </p>
+                </div>
+              </div>
+              <div class="action">
+                <div>
+                  <h4>Submit &amp; approve</h4>
+                  <p>
+                    ตรวจ stock estimate, credit/hold policy, snapshot ชื่อสินค้า
+                    ราคา ที่อยู่ และ terms ณ เวลาสั่ง
+                  </p>
+                </div>
+              </div>
+              <div class="action">
+                <div>
+                  <h4>Release &amp; fulfill</h4>
+                  <p>
+                    สร้าง allocation/fulfillment link, ติดตาม pick–issue–ship,
+                    partial/backorder โดยแยก <code>orderStatus</code> จาก
+                    <code>fulfillmentStatus</code>
+                  </p>
+                </div>
+              </div>
+              <div class="action">
+                <div>
+                  <h4>Change &amp; cancel</h4>
+                  <p>
+                    แก้ได้เฉพาะ draft; หลัง release ยกเลิกได้เฉพาะ remaining
+                    quantity พร้อม reason/approval และไม่ย้อน movement
+                    ที่เกิดแล้ว
+                  </p>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article class="module">
+            <div class="module-title">
+              <div>
+                <h3>08.3 ตรวจสอบสินค้า (QC)</h3>
+                <p>
+                  ใช้ QC engine กลางกับ 4 บริบท: รับเข้า, ระหว่างผลิต, ผลิตเสร็จ
+                  และก่อนจ่าย
+                </p>
+              </div>
+              <span class="status partial">Inbound QC exists</span>
+            </div>
+            <div class="flow">
+              <span>Ready</span><i>→</i><span>In Progress</span><i>→</i
+              ><span>Awaiting Review</span><i>→</i><span>Disposition</span
+              ><i>→</i><span>Closed</span>
+            </div>
+            <div class="action-list">
+              <div class="action">
+                <div>
+                  <h4>Plan &amp; sample</h4>
+                  <p>
+                    สร้างจาก source/manual, เลือก spec/version, lot, sample
+                    size, assign inspector และ hold stock
+                  </p>
+                </div>
+              </div>
+              <div class="action">
+                <div>
+                  <h4>Inspect</h4>
+                  <p>
+                    บันทึก numeric range/text/choice/boolean, defect severity,
+                    instrument และ private photo/lab result
+                  </p>
+                </div>
+              </div>
+              <div class="action">
+                <div>
+                  <h4>Review &amp; disposition</h4>
+                  <p>
+                    release, quarantine, reject, rework, conditional release
+                    หรือ retest; high risk แยก inspector ออกจาก approver
+                  </p>
+                </div>
+              </div>
+              <div class="action">
+                <div>
+                  <h4>Nonconformance</h4>
+                  <p>
+                    NCR/CAPA, root cause, corrective action, recall/hold link;
+                    AQL/SPC และ supplier scorecard ทำภายหลัง
+                  </p>
+                </div>
+              </div>
+            </div>
+          </article>
+        </section>
+
+        <section id="hr">
+          <div class="section-head">
+            <span class="section-no">09</span>
+            <div>
+              <div class="label">People operations</div>
+              <h2>Human Resource</h2>
+            </div>
+          </div>
+          <span class="status new">New bounded context</span>
+          <p class="lede">
+            Employee ต้องแยกจาก User เพราะพนักงานอาจไม่มีบัญชี และ Admin
+            ระบบไม่ควรเห็นข้อมูล HR อ่อนไหวโดยอัตโนมัติ
+          </p>
+          <div
+            class="table-wrap"
+            role="region"
+            aria-label="ตาราง action Human Resource"
+            tabindex="0"
+          >
+            <table>
+              <thead>
+                <tr>
+                  <th>กลุ่ม Action</th>
+                  <th>Action ที่ควรมี</th>
+                  <th>Control</th>
+                  <th>Later</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>เข้างาน / เลิกงาน</td>
+                  <td>
+                    clock in/out, start/end break, off-site, history ของตน,
+                    server/device time, worksite timezone
+                  </td>
+                  <td>
+                    duplicate/impossible event, open shift, manual event; append
+                    event แล้ว derive attendance day
+                  </td>
+                  <td>geofence, selfie, biometric</td>
+                </tr>
+                <tr>
+                  <td>แก้เวลา / OT</td>
+                  <td>
+                    แจ้งลืม, correction request, OT request, supervisor
+                    approve/reject, HR close period
+                  </td>
+                  <td>
+                    คำขอแยกจาก attendance event; ปิดรอบแล้วแก้ด้วย adjustment
+                  </td>
+                  <td>payroll/OT calculation</td>
+                </tr>
+                <tr>
+                  <td>ลาหยุด</td>
+                  <td>
+                    balance, full/half/hour leave, attachment, submit, needs
+                    info, approve/reject/cancel
+                  </td>
+                  <td>
+                    own-team scope, sensitive document, overlap/holiday/shift
+                    validation
+                  </td>
+                  <td>accrual, payroll, roster optimization</td>
+                </tr>
+                <tr>
+                  <td>อื่น ๆ / Admin</td>
+                  <td>
+                    employee, employment, team, shift, assignment, holiday,
+                    attendance report
+                  </td>
+                  <td>
+                    HR permission แยก tenant admin; archive employment history
+                  </td>
+                  <td>labor analytics / planning integration</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="flow">
+            <span>Clocked In</span><i>→</i><span>Break / Working</span><i>→</i
+            ><span>Clocked Out</span><i>→</i><span>Correction?</span><i>→</i
+            ><span>Closed Period</span>
+          </div>
+        </section>
+
+        <section id="platform">
+          <div class="section-head">
+            <span class="section-no">10</span>
+            <div>
+              <div class="label">Shared platform</div>
+              <h2>ระบบกลางที่ทุกโมดูลใช้ร่วมกัน</h2>
+            </div>
+          </div>
+          <div class="cards">
+            <article class="card">
+              <h3>Auth + RBAC</h3>
+              <p>
+                <code>resource.action</code> + org/warehouse/team/self scope
+                ตรวจใน Convex ทุก query/mutation; ปุ่มซ่อนใน UI ไม่ใช่ security
+              </p>
+            </article>
+            <article class="card">
+              <h3>Master Data</h3>
+              <p>
+                organization, site, warehouse, location, SKU/UOM, lot/serial,
+                customer/supplier, vehicle/route, employee/team/shift, BOM/QC
+                plan, reason และ numbering
+              </p>
+            </article>
+            <article class="card">
+              <h3>Scan engine</h3>
+              <p>
+                resolve document/location/SKU/lot/tag/employee ตาม context, เก็บ
+                failed scan, manual fallback และ label reprint reason
+              </p>
+            </article>
+            <article class="card">
+              <h3>Task inbox</h3>
+              <p>
+                My work, unassigned, SLA, exception, approval, reassignment และ
+                escalation เป็นหน้าเดียวข้ามโมดูล
+              </p>
+            </article>
+            <article class="card">
+              <h3>Notification</h3>
+              <p>
+                เริ่ม in-app จาก domain event พร้อม dedupe key;
+                email/LINE/push/webhook ภายหลัง
+              </p>
+            </article>
+            <article class="card">
+              <h3>Audit + timeline</h3>
+              <p>
+                actor, role snapshot, command, entity, before/after, reason,
+                correlation/operation/device ID และ server timestamp แบบ
+                append-only
+              </p>
+            </article>
+          </div>
+
+          <article class="module">
+            <div class="module-title">
+              <div>
+                <h3>UploadThing private attachment flow</h3>
+                <p>
+                  ใช้ boundary ที่ repo มีอยู่แล้วขยายให้เป็น attachment service
+                  กลาง
+                </p>
+              </div>
+              <span class="status partial">Extend existing</span>
+            </div>
+            <div class="flow">
+              <span>1 · Convex upload grant</span><i>→</i
+              ><span>2 · Direct UploadThing upload</span><i>→</i
+              ><span>3 · Signed completion verify</span><i>→</i
+              ><span>4 · Metadata READY</span><i>→</i
+              ><span>5 · Authorized download grant</span>
+            </div>
+            <div class="split">
+              <div class="mini">
+                <h4>Convex เก็บ</h4>
+                <ul>
+                  <li>fileKey, name, MIME, size, checksum</li>
+                  <li>org/entityType/entityId</li>
+                  <li>uploader, classification, status</li>
+                  <li>retention, createdAt, access audit</li>
+                </ul>
+              </div>
+              <div class="mini">
+                <h4>กฎ</h4>
+                <ul>
+                  <li>private by default</li>
+                  <li>attachment inherit permission จาก parent</li>
+                  <li>download grant อายุสั้นและ one-use ตามความเสี่ยง</li>
+                  <li>ลบจริงเมื่อไม่มี reference และผ่าน retention</li>
+                </ul>
+              </div>
+            </div>
+          </article>
+        </section>
+
+        <section id="architecture">
+          <div class="section-head">
+            <span class="section-no">11</span>
+            <div>
+              <div class="label">Technical plan</div>
+              <h2>Architecture บน Convex</h2>
+            </div>
+          </div>
+          <div class="architecture" role="img" aria-label="Architecture layers">
+            <div class="arch-row">
+              <b>Experience</b>
+              <div class="arch-boxes">
+                <span>Handheld scan UI</span><span>Desktop supervisor</span
+                ><span>Customer / employee self-service</span>
+              </div>
+            </div>
+            <div class="arch-row">
+              <b>Application</b>
+              <div class="arch-boxes">
+                <span>Typed commands</span><span>Queries / projections</span
+                ><span>Task &amp; approval inbox</span>
+              </div>
+            </div>
+            <div class="arch-row">
+              <b>Domains</b>
+              <div class="arch-boxes">
+                <span>Warehouse / transport</span><span>Production / QC</span
+                ><span>Sales / HR</span>
+              </div>
+            </div>
+            <div class="arch-row">
+              <b>Core</b>
+              <div class="arch-boxes">
+                <span>Inventory ledger</span><span>Document workflow</span
+                ><span>RBAC / audit / idempotency</span>
+              </div>
+            </div>
+            <div class="arch-row">
+              <b>External</b>
+              <div class="arch-boxes">
+                <span>UploadThing</span><span>Identity provider</span
+                ><span>ERP / printer / GPS / notifications</span>
+              </div>
+            </div>
+          </div>
+          <div class="callout soft">
+            <h3>Convex responsibility</h3>
+            <p>
+              <b>Mutation</b> ทำ state transition + ledger + idempotency + audit
+              ใน transaction เดียว · <b>Query</b> อ่าน realtime projection ·
+              <b>Action</b> เรียกระบบภายนอกเท่านั้น ·
+              <b>Scheduler</b> reminder/escalation/chunked jobs · event/outbox
+              เชื่อมข้ามโมดูลโดยไม่ให้โมดูลหนึ่งแก้ตารางของอีกโมดูลโดยตรง
+            </p>
+          </div>
+          <div
+            class="table-wrap"
+            role="region"
+            aria-label="ตารางขอบเขต module package"
+            tabindex="0"
+          >
+            <table>
+              <thead>
+                <tr>
+                  <th>Module package</th>
+                  <th>Owned commands</th>
+                  <th>Emits</th>
+                  <th>Consumes</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>receiving</td>
+                  <td>receive, post, closeShort, reverse</td>
+                  <td>stock.received, qc.requested</td>
+                  <td>PO/preparation/production source</td>
+                </tr>
+                <tr>
+                  <td>outbound</td>
+                  <td>allocate, pick, check, issue, reverse</td>
+                  <td>stock.issued, shipment.ready</td>
+                  <td>order.released, inventory.available</td>
+                </tr>
+                <tr>
+                  <td>transfer</td>
+                  <td>request, dispatch, receive, reconcile</td>
+                  <td>stock.inTransit, transfer.received</td>
+                  <td>source document, transport status</td>
+                </tr>
+                <tr>
+                  <td>production</td>
+                  <td>plan, release, issueMaterial, reportOutput</td>
+                  <td>wip.changed, output.produced</td>
+                  <td>order demand, BOM, inventory</td>
+                </tr>
+                <tr>
+                  <td>quality</td>
+                  <td>inspect, submitDisposition, approveDisposition</td>
+                  <td>stock.released/held</td>
+                  <td>receipt/WIP/output/shipment</td>
+                </tr>
+                <tr>
+                  <td>transport</td>
+                  <td>planTrip, load, releaseGate, updateMilestone</td>
+                  <td>trip.departed/delivered</td>
+                  <td>shipment.ready, POD file</td>
+                </tr>
+                <tr>
+                  <td>hr</td>
+                  <td>clock, requestLeave, approveCorrection</td>
+                  <td>attendance.closed, leave.approved</td>
+                  <td>employee/shift/holiday</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="data">
+          <div class="section-head">
+            <span class="section-no">12</span>
+            <div>
+              <div class="label">Data model</div>
+              <h2>ตารางใหม่และเจ้าของข้อมูล</h2>
+            </div>
+          </div>
+          <div
+            class="table-wrap"
+            role="region"
+            aria-label="ตาราง data ownership"
+            tabindex="0"
+          >
+            <table>
+              <thead>
+                <tr>
+                  <th>Bounded context</th>
+                  <th>ตารางหลักที่เสนอ</th>
+                  <th>ห้ามทำ</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Outbound</td>
+                  <td>
+                    allocations, pickTasks, pickLines, packs, shipmentIssues
+                  </td>
+                  <td>แก้ customerOrder หรือ inventoryBalance โดยตรง</td>
+                </tr>
+                <tr>
+                  <td>Transfer</td>
+                  <td>
+                    transfers, transferLines, transferDispatches,
+                    transferReceipts, discrepancies
+                  </td>
+                  <td>ย้ายข้ามคลังด้วย transaction ขาเดียว</td>
+                </tr>
+                <tr>
+                  <td>Counting</td>
+                  <td>
+                    countPlans, countTasks, countEntries, countSnapshots,
+                    reconciliations
+                  </td>
+                  <td>
+                    ให้ counter เห็น system qty ใน blind count หรือ patch
+                    balance
+                  </td>
+                </tr>
+                <tr>
+                  <td>Production</td>
+                  <td>
+                    boms, routings, productionOrders, operations,
+                    materialIssues, wipTags, outputReports, downtimeEvents
+                  </td>
+                  <td>ใช้ factoryPacket เป็น production execution record</td>
+                </tr>
+                <tr>
+                  <td>Transport</td>
+                  <td>
+                    trips, vehicles, drivers, loads, gatePasses, milestones,
+                    documentReturns, positionPings
+                  </td>
+                  <td>เก็บ location ไม่มีกำหนดหรือ expose ลูกค้าข้าม trip</td>
+                </tr>
+                <tr>
+                  <td>QC</td>
+                  <td>
+                    qcPlans, characteristics, inspections, samples, results,
+                    defects, dispositions, nonconformances
+                  </td>
+                  <td>
+                    รวม inspection status กับ disposition เป็น field เดียว
+                  </td>
+                </tr>
+                <tr>
+                  <td>HR</td>
+                  <td>
+                    employees, employmentRecords, shifts, assignments,
+                    attendanceEvents, corrections, leaveRequests, balances
+                  </td>
+                  <td>
+                    ถือว่า user = employee หรือให้ admin เห็น HR โดยอัตโนมัติ
+                  </td>
+                </tr>
+                <tr>
+                  <td>Shared</td>
+                  <td>
+                    attachments, notifications, tasks, approvals, scanEvents,
+                    domainEvents/outbox
+                  </td>
+                  <td>สร้างสำเนาระบบกลางแยกทุกโมดูล</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="callout">
+            <h3>Stock source of truth</h3>
+            <p>
+              <code>inventoryTransactions + inventoryLedgerLines</code>
+              เป็นความจริงของ movement; <code>inventoryBalances</code> และ
+              report rollups เป็น projection ที่สร้างซ้ำได้ เอกสารธุรกิจอ้าง
+              ledger transaction IDs แต่ไม่มีสิทธิ์เขียนยอด balance เอง
+            </p>
+          </div>
+        </section>
+
+        <section id="permissions">
+          <div class="section-head">
+            <span class="section-no">13</span>
+            <div>
+              <div class="label">Access control</div>
+              <h2>Permission model ที่ควรเพิ่ม</h2>
+            </div>
+          </div>
+          <p class="lede">
+            ใช้ permission catalogue แบบ code-owned ต่อจาก repo เดิม แยก read /
+            execute / approve / override / cancel / reverse / export-cost
+            และบังคับ warehouse/team/customer/self scope
+          </p>
+          <div
+            class="table-wrap"
+            role="region"
+            aria-label="ตาราง permission model"
+            tabindex="0"
+          >
+            <table>
+              <thead>
+                <tr>
+                  <th>Role</th>
+                  <th>ทำงานหลัก</th>
+                  <th>ห้ามอนุมัติเอง</th>
+                  <th>Scope</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Warehouse Operator</td>
+                  <td>
+                    receive, pick, putaway, dispatch/receive transfer, count
+                  </td>
+                  <td>over/negative/reconcile/reverse ของตน</td>
+                  <td>warehouse</td>
+                </tr>
+                <tr>
+                  <td>Warehouse Supervisor</td>
+                  <td>assign, close, exception approval, reverse</td>
+                  <td>high-value adjustment ที่ตนขอ</td>
+                  <td>warehouse(s)</td>
+                </tr>
+                <tr>
+                  <td>Inventory Controller</td>
+                  <td>opening, count plan, investigate, reconcile</td>
+                  <td>
+                    นับและ approve variance รายการเดียวกันเมื่อเกิน threshold
+                  </td>
+                  <td>warehouse/org</td>
+                </tr>
+                <tr>
+                  <td>QC Inspector / Reviewer</td>
+                  <td>inspect / approve disposition</td>
+                  <td>high-risk disposition ของ inspection ตน</td>
+                  <td>site/warehouse</td>
+                </tr>
+                <tr>
+                  <td>Production / Transport</td>
+                  <td>WO execution / trip execution</td>
+                  <td>override output, scrap, gate discrepancy ของตน</td>
+                  <td>site/route</td>
+                </tr>
+                <tr>
+                  <td>Sales / Customer</td>
+                  <td>order/customer / own order</td>
+                  <td>release/cancel ตาม threshold</td>
+                  <td>org / own customer</td>
+                </tr>
+                <tr>
+                  <td>Employee / Supervisor / HR</td>
+                  <td>self-service / own team approval / HR admin</td>
+                  <td>correction/leave ของตน</td>
+                  <td>self / team / org</td>
+                </tr>
+                <tr>
+                  <td>Auditor</td>
+                  <td>read report, document, audit timeline</td>
+                  <td>ทุก write</td>
+                  <td>explicit scope</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="roadmap">
+          <div class="section-head">
+            <span class="section-no">14</span>
+            <div>
+              <div class="label">Delivery roadmap</div>
+              <h2>ลำดับพัฒนาแบบ vertical slice</h2>
+            </div>
+          </div>
+          <div class="phase">
+            <div class="phase-num">0</div>
+            <div>
+              <h3>Decide &amp; pilot contract · 1–2 สัปดาห์</h3>
+              <p>
+                ยืนยัน document vocabulary, source systems, warehouse/site,
+                stock statuses, approval thresholds, scanner/printer, pilot
+                volume, UploadThing private ACL/region และ PDPA GPS/HR retention
+              </p>
+              <p>
+                <b>Gate:</b> sample เอกสารจริง + barcode corpus + role matrix +
+                acceptance journeys ได้รับการอนุมัติ
+              </p>
+            </div>
+          </div>
+          <div class="phase">
+            <div class="phase-num">1</div>
+            <div>
+              <h3>Shared foundation extension · 2–3 สัปดาห์</h3>
+              <p>
+                permission codes ใหม่, task/approval inbox, attachment service,
+                scan events, notification, master data เพิ่ม และ event/outbox
+                conventions
+              </p>
+              <p>
+                <b>Gate:</b> tenant isolation, idempotency, private download และ
+                audit tests ผ่าน
+              </p>
+            </div>
+          </div>
+          <div class="phase">
+            <div class="phase-num">2</div>
+            <div>
+              <h3>Order → Outbound → Ship · 4–6 สัปดาห์</h3>
+              <p>
+                SO release, allocation, pick/check/issue, load scan, gate pass,
+                manual milestone และ POD return เป็น end-to-end slice แรก
+              </p>
+              <p>
+                <b>Gate:</b> partial/backorder/duplicate/short/damage/reversal
+                journeys ผ่านบน handheld จริง
+              </p>
+            </div>
+          </div>
+          <div class="phase">
+            <div class="phase-num">3</div>
+            <div>
+              <h3>Transfer + Count control · 4–5 สัปดาห์</h3>
+              <p>
+                two-leg transfer, receive discrepancy, opening stock import,
+                blind count, recount และ maker–checker reconcile
+              </p>
+              <p>
+                <b>Gate:</b> ledger invariant, as-of balance, retry และ
+                cross-warehouse isolation ผ่าน
+              </p>
+            </div>
+          </div>
+          <div class="phase">
+            <div class="phase-num">4</div>
+            <div>
+              <h3>Production execution + QC · 5–7 สัปดาห์</h3>
+              <p>
+                WO, BOM version, material issue/return, WIP/output/tag, downtime
+                และ QC ทั้ง inbound/in-process/final
+              </p>
+              <p>
+                <b>Gate:</b> lot genealogy จากวัตถุดิบถึง FG และ
+                reverse/correction journey พิสูจน์ได้
+              </p>
+            </div>
+          </div>
+          <div class="phase">
+            <div class="phase-num">5</div>
+            <div>
+              <h3>HR + advanced reports · 3–5 สัปดาห์</h3>
+              <p>
+                employee/shift, attendance events, correction, leave approval
+                และรายงาน Stock SKU/Lot/Movement/as-of
+              </p>
+              <p>
+                <b>Gate:</b> HR scope isolation, closed-period correction และ
+                report-to-ledger reconciliation ผ่าน
+              </p>
+            </div>
+          </div>
+          <div class="phase">
+            <div class="phase-num">6</div>
+            <div>
+              <h3>Automation later</h3>
+              <p>
+                offline queue เต็มรูปแบบ, GPS/geofence, LINE/email, ERP, RFID,
+                OCR, IoT/PLC, MRP, OEE, SPC, anomaly detection และ customer
+                portal
+              </p>
+              <p>
+                <b>Gate:</b> ทำเมื่อ pilot metrics ชี้ pain จริง ไม่เพิ่มก่อนมี
+                production evidence
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section id="acceptance">
+          <div class="section-head">
+            <span class="section-no">15</span>
+            <div>
+              <div class="label">Quality contract</div>
+              <h2>Definition of Done ต่อ Action</h2>
+            </div>
+          </div>
+          <ol class="checklist">
+            <li>ตรวจ permission ฝั่ง Convex และ scope ถูกต้อง</li>
+            <li>รับเฉพาะ state transition ที่ถูกกฎหมาย</li>
+            <li>retry ด้วย operationId เดิมไม่เกิดรายการซ้ำ</li>
+            <li>ledger transaction balance และอ้าง source document</li>
+            <li>post แล้วแก้ด้วย reverse/correction เท่านั้น</li>
+            <li>override มี reason, before/after และ approver</li>
+            <li>tenant/warehouse/team/customer isolation มี negative test</li>
+            <li>attachment private และ download ตรวจสิทธิ์ใหม่</li>
+            <li>activity timeline แสดง actor, device และเวลา server</li>
+            <li>
+              partial, cancel, damage, duplicate, offline conflict มีผลลัพธ์ชัด
+            </li>
+            <li>
+              Thai-first copy, keyboard/scanner flow และ accessibility ผ่าน
+            </li>
+            <li>report drill down ถึง ledger/source และ export ไม่ truncate</li>
+            <li>handheld journey ทดสอบบนอุปกรณ์/สัญญาณ pilot จริง</li>
+            <li>runbook rollback/support/data retention อัปเดต</li>
+          </ol>
+        </section>
+
+        <section id="questions">
+          <div class="section-head">
+            <span class="section-no">16</span>
+            <div>
+              <div class="label">Product owner decisions</div>
+              <h2>คำถามที่ต้องตอบก่อนลงมือ Phase 2+</h2>
+            </div>
+          </div>
+          <div class="rule">
+            <b>Q1</b>
+            <div>
+              “ใบเตรียม” และ “ใบหยิบ” ต่างกันอย่างไร ใครเป็นเจ้าของ
+              และจังหวะไหนที่ reserve / issue stock?
+            </div>
+          </div>
+          <div class="rule">
+            <b>Q2</b>
+            <div>
+              “ใบกำกับ” มาจากระบบนี้หรือ ERP
+              และแก้/ยกเลิกหลังจ่ายแล้วด้วยเอกสารชนิดใด?
+            </div>
+          </div>
+          <div class="rule">
+            <b>Q3</b>
+            <div>
+              โอนย้ายในคลังเดียว, ข้ามคลัง และข้ามบริษัทต้องรองรับแบบใดบ้าง?
+              ใครถือ ownership ระหว่าง In Transit?
+            </div>
+          </div>
+          <div class="rule">
+            <b>Q4</b>
+            <div>
+              Production ใช้ BOM/route/version จากระบบใด และเป็น make-to-order,
+              make-to-stock หรือทั้งคู่?
+            </div>
+          </div>
+          <div class="rule">
+            <b>Q5</b>
+            <div>
+              QC ต้องใช้ AQL/SPC ตั้งแต่ MVP หรือ checklist + maker–checker
+              disposition เพียงพอสำหรับ pilot?
+            </div>
+          </div>
+          <div class="rule">
+            <b>Q6</b>
+            <div>
+              Opening stock ต้องมี cost หรือ quantity-only? ระบบเดิมให้ไฟล์ระดับ
+              SKU–lot–location–tag ได้หรือไม่?
+            </div>
+          </div>
+          <div class="rule">
+            <b>Q7</b>
+            <div>
+              รถเป็น fleet ภายในหรือ transporter ภายนอก? GPS มาจาก provider ใด
+              และเก็บตำแหน่งนานเท่าไร?
+            </div>
+          </div>
+          <div class="rule">
+            <b>Q8</b>
+            <div>
+              HR ต้องเชื่อม payroll หรือเป็น attendance/leave only? กฎกะข้ามวัน
+              OT วันหยุด และลาเป็นอย่างไร?
+            </div>
+          </div>
+          <div class="rule">
+            <b>Q9</b>
+            <div>
+              Approval threshold อิงจำนวน มูลค่า เปอร์เซ็นต์ หรือชนิดสินค้า
+              และต้องแยกตาม tenant/warehouse หรือไม่?
+            </div>
+          </div>
+          <div class="rule">
+            <b>Q10</b>
+            <div>
+              ผู้ใช้ pilot, SKU/lot/location, transaction ต่อวัน, concurrent
+              scanners, label printers และสภาพ network จริงมีเท่าไร?
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <footer>
+      <div class="wrap">
+        <div>
+          <b>Industrial SAS</b><br /><span class="small"
+            >Module &amp; Action Plan · Black / white review edition</span
+          >
+        </div>
+        <div class="small">
+          Prepared from the typed request, repository evidence, and parallel
+          module analysis.<br />Screenshot used as visual context only.
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

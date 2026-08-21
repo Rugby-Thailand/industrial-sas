@@ -12,6 +12,7 @@ import {
   fulfilDesignRequestRef,
   issueFactoryPacketRef,
   progressDesignRequestRef,
+  recordDesignRequirementsRef,
   releaseCustomerOrderRef,
   submitMasterCardRevisionRef,
 } from "@/lib/convex/orderToShipApi";
@@ -111,6 +112,70 @@ export function EngineeringWorkflowActions({
   const t = useTranslations("OrderToShip");
   return (
     <div className="grid gap-4 xl:grid-cols-2">
+      {mode === "revision" ? null : (
+        <EntityWriteForm
+          mutationRef={recordDesignRequirementsRef}
+          legend={t("recordRequirements")}
+          description={t("recordRequirementsDetail")}
+          submitLabel={t("saveRequirements")}
+          requiredMessage={t("requiredField")}
+          fields={[
+            {
+              name: "designRequestId",
+              label: t("designRequestId"),
+              kind: "text" as const,
+              required: true,
+              monospace: true,
+              ...(designRequestId === undefined
+                ? {}
+                : { initialValue: designRequestId }),
+            },
+            ...[
+              "CUSTOMER_PRODUCT_IDENTITY",
+              "DIMENSIONS",
+              "CONSTRUCTION",
+              "PRINT",
+              "PACKING",
+              "ROUTE",
+              "MATERIALS",
+              "QUALITY",
+            ].map((key) => ({
+              name: key,
+              label: t(`requirement.${key}`),
+              kind: "select" as const,
+              required: true,
+              options: [
+                { value: "YES", label: t("confirmed") },
+                { value: "NO", label: t("notConfirmed") },
+              ],
+              initialValue: "NO",
+            })),
+            {
+              name: "requirementsNote",
+              label: t("requirementsNote"),
+              kind: "textarea" as const,
+            },
+          ]}
+          toArgs={(values, requestId) => ({
+            requestId,
+            designRequestId: values.designRequestId ?? "",
+            confirmations: {
+              CUSTOMER_PRODUCT_IDENTITY:
+                values.CUSTOMER_PRODUCT_IDENTITY === "YES",
+              DIMENSIONS: values.DIMENSIONS === "YES",
+              CONSTRUCTION: values.CONSTRUCTION === "YES",
+              PRINT: values.PRINT === "YES",
+              PACKING: values.PACKING === "YES",
+              ROUTE: values.ROUTE === "YES",
+              MATERIALS: values.MATERIALS === "YES",
+              QUALITY: values.QUALITY === "YES",
+            },
+            ...((values.requirementsNote ?? "") === ""
+              ? {}
+              : { note: values.requirementsNote }),
+          })}
+        />
+      )}
       {mode === "revision" ? null : (
         <EntityWriteForm
           mutationRef={assignDesignRequestRef}

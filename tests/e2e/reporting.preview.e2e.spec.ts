@@ -16,6 +16,33 @@ async function selectWarehouse(page: Page) {
 }
 
 test.describe("the dashboard", () => {
+  test("plays the forklift entrance once and holds it in the center", async ({
+    page,
+  }) => {
+    await page.goto("/th/dashboard");
+
+    await expect(page.getByTestId("warehouse-control-hero")).toBeVisible();
+    const animation = page.getByTestId("warehouse-forklift-animation");
+    await expect(animation).toBeVisible();
+    await expect(animation.locator("canvas")).toBeVisible();
+    await expect(animation).toHaveAttribute(
+      "data-animation-state",
+      /loading|playing/,
+    );
+    await expect(animation).toHaveAttribute("data-animation-state", "frozen", {
+      timeout: 10_000,
+    });
+  });
+
+  test("uses the centered still for reduced motion", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto("/th/dashboard");
+
+    const animation = page.getByTestId("warehouse-forklift-animation");
+    await expect(animation).toHaveAttribute("data-animation-state", "fallback");
+    await expect(animation.locator("img")).toBeVisible();
+  });
+
   test("shows the waiting-work counters with a label a person reads", async ({
     page,
   }) => {
@@ -85,6 +112,28 @@ test.describe("the occupancy map", () => {
 });
 
 test.describe("exports", () => {
+  test("shows the exception center and all four stock reports", async ({
+    page,
+  }) => {
+    await page.goto("/th/reports");
+    await selectWarehouse(page);
+
+    await expect(
+      page.getByRole("heading", {
+        name: "ศูนย์จัดการข้อยกเว้นการปฏิบัติงาน",
+      }),
+    ).toBeVisible();
+    await expect(page.getByTestId("report-stock-balance")).toBeVisible();
+    for (const [tab, testId] of [
+      ["สต็อกตาม SKU", "report-stock-sku"],
+      ["สต็อกตามล็อต", "report-stock-lot"],
+      ["Stock เคลื่อนไหว", "report-stock-movement"],
+    ] as const) {
+      await page.getByRole("tab", { name: tab }).click();
+      await expect(page.getByTestId(testId)).toBeVisible();
+    }
+  });
+
   test("states where download delivery actually stops", async ({ page }) => {
     /*
      * "Downloaded from this session" and "delivered through a signed URL" are

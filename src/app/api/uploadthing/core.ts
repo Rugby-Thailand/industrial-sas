@@ -40,6 +40,7 @@ const hashPrivateObject = async (
 };
 
 const registerWithConvex = async (payload: {
+  readonly scope: "MASTER_CARD" | "OPERATOR_TASK" | "TRANSPORT";
   readonly grantId: string;
   readonly providerKey: string;
   readonly uploaderClerkUserId: string;
@@ -112,6 +113,123 @@ export const uploadRouter = {
         }
         const contentType = file.type || "application/octet-stream";
         await registerWithConvex({
+          scope: "MASTER_CARD",
+          grantId: metadata.grantId,
+          providerKey: file.key,
+          uploaderClerkUserId: metadata.userId,
+          contentDigest: verified.digest,
+          contentType,
+          byteSize: verified.byteSize,
+        });
+        return {
+          providerKey: file.key,
+          contentDigest: verified.digest,
+          contentType,
+          byteSize: verified.byteSize,
+        };
+      } catch (error) {
+        await utapi.deleteFiles(file.key).catch(() => undefined);
+        if (error instanceof UploadThingError) throw error;
+        throw new UploadThingError("Uploaded file verification failed");
+      }
+    }),
+  operatorTaskFile: f(
+    {
+      blob: {
+        maxFileSize: "64MB",
+        maxFileCount: 1,
+        acl: "private",
+        contentDisposition: "attachment",
+      },
+    },
+    { awaitServerData: true },
+  )
+    .input(input)
+    .middleware(async ({ files, input: routeInput }) => {
+      const session = await auth();
+      if (session.userId === null) {
+        throw new UploadThingError("You must sign in before uploading a file");
+      }
+      return {
+        userId: session.userId,
+        grantId: routeInput.grantId,
+        contentDigest: routeInput.contentDigest,
+        [UTFiles]: files.map((file) => ({
+          ...file,
+          customId: `operator-task-${routeInput.grantId}`,
+        })),
+      };
+    })
+    .onUploadComplete(async ({ file, metadata }) => {
+      try {
+        const verified = await hashPrivateObject(file.key);
+        if (
+          verified.byteSize !== file.size ||
+          verified.digest !== metadata.contentDigest
+        ) {
+          throw new UploadThingError("Uploaded file verification failed");
+        }
+        const contentType = file.type || "application/octet-stream";
+        await registerWithConvex({
+          scope: "OPERATOR_TASK",
+          grantId: metadata.grantId,
+          providerKey: file.key,
+          uploaderClerkUserId: metadata.userId,
+          contentDigest: verified.digest,
+          contentType,
+          byteSize: verified.byteSize,
+        });
+        return {
+          providerKey: file.key,
+          contentDigest: verified.digest,
+          contentType,
+          byteSize: verified.byteSize,
+        };
+      } catch (error) {
+        await utapi.deleteFiles(file.key).catch(() => undefined);
+        if (error instanceof UploadThingError) throw error;
+        throw new UploadThingError("Uploaded file verification failed");
+      }
+    }),
+  transportFile: f(
+    {
+      blob: {
+        maxFileSize: "64MB",
+        maxFileCount: 1,
+        acl: "private",
+        contentDisposition: "attachment",
+      },
+    },
+    { awaitServerData: true },
+  )
+    .input(input)
+    .middleware(async ({ files, input: routeInput }) => {
+      const session = await auth();
+      if (session.userId === null) {
+        throw new UploadThingError("You must sign in before uploading a file");
+      }
+      return {
+        userId: session.userId,
+        grantId: routeInput.grantId,
+        contentDigest: routeInput.contentDigest,
+        [UTFiles]: files.map((file) => ({
+          ...file,
+          customId: `transport-${routeInput.grantId}`,
+        })),
+      };
+    })
+    .onUploadComplete(async ({ file, metadata }) => {
+      try {
+        const verified = await hashPrivateObject(file.key);
+        if (
+          verified.byteSize !== file.size ||
+          verified.digest !== metadata.contentDigest
+        ) {
+          throw new UploadThingError("Uploaded file verification failed");
+        }
+        const contentType = file.type || "application/octet-stream";
+        await registerWithConvex({
+          scope: "TRANSPORT",
           grantId: metadata.grantId,
           providerKey: file.key,
           uploaderClerkUserId: metadata.userId,

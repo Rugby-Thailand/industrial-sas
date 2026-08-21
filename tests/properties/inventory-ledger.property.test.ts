@@ -83,12 +83,14 @@ const location = fc.oneof(
   fc
     .constantFrom(
       "SUPPLIER_RECEIPT",
+      "CUSTOMER_RETURN",
       "CUSTOMER_SHIPMENT",
       "PRODUCTION_ISSUE",
       "PRODUCTION_RECEIPT",
       "INVENTORY_ADJUSTMENT",
       "SCRAP_DAMAGE",
       "RECONCILIATION",
+      "TRANSFER_IN_TRANSIT",
     )
     .map((boundary) => ({
       kind: "VIRTUAL" as const,

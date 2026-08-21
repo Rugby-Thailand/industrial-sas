@@ -128,6 +128,15 @@ interface LineDocument {
   readonly masterCardRevisionId?: string;
 }
 
+interface RoutedFulfillmentLineDocument {
+  readonly _id: string;
+  readonly orgId: TenantOrgId;
+  readonly customerOrderLineId: string;
+  readonly warehouseId: string;
+  readonly routeDecision?: "AVAILABLE_STOCK" | "PRODUCTION";
+  readonly productionShortageBaseMinorUnits?: number;
+}
+
 interface OrderDocument {
   readonly _id: string;
   readonly orgId: TenantOrgId;
@@ -277,6 +286,26 @@ export const issueFactoryPacket = mutationWithOrg({
     });
     if (!replay.ok) return refusal(replay.error);
     if (replay.value !== null) return written(replay.value);
+    const routedLine = await ctx.tenantDb
+      .byIndex<RoutedFulfillmentLineDocument>(
+        "fulfillmentLines",
+        "by_orgId_customerOrderLineId",
+        [{ field: "customerOrderLineId", value: args.customerOrderLineId }],
+      )
+      .unique();
+    if (
+      routedLine === null ||
+      routedLine.warehouseId !== args.warehouseId ||
+      routedLine.routeDecision !== "PRODUCTION" ||
+      routedLine.productionShortageBaseMinorUnits === undefined ||
+      routedLine.productionShortageBaseMinorUnits <= 0
+    ) {
+      return refusal({
+        code: "PRECONDITION_FAILED",
+        field: "customerOrderLineId",
+        reason: "PRODUCTION_ROUTE_REQUIRED",
+      });
+    }
     if (
       revision.decidedByUserId === undefined ||
       revision.decidedAt === undefined
@@ -376,6 +405,7 @@ export const issueFactoryPacket = mutationWithOrg({
         warehouseId: args.warehouseId,
         packetNumber: packetNumber.value,
         customerOrderLineId: args.customerOrderLineId,
+        fulfillmentLineId: routedLine._id,
         customerId: order.customerId,
         customerOrderNumber: order.orderNumber,
         ...(order.customerReference === undefined

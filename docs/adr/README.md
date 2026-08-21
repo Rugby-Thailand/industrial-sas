@@ -1,7 +1,8 @@
 # Architecture Decision Records
 
 Twelve accepted ADRs cover the cross-cutting architecture of the inbound vertical
-slice, and a thirteenth covers the order-to-ship slice built on top of them. They record decisions taken from the approved
+slice, a thirteenth covers design authority, and a fourteenth connects customer
+demand to fulfillment and production. They record decisions taken from the approved
 [PROJECT_PLAN.md](../../PROJECT_PLAN.md) — B-01…B-12 and D-01…D-30 are treated as
 accepted — and they describe **intended** behaviour. Nothing in these ADRs is
 implemented unless the ADR's "Implementation status" line says so.
@@ -40,6 +41,7 @@ superseded ADR keeps its number and gains a `Superseded by` line.
 | `ADR-0011` | [Async jobs, reporting, and observability](./0011-async-jobs-reporting-and-observability.md)         | Accepted | Not implemented |
 | `ADR-0012` | [Delivery, release, DR, and quality gates](./0012-delivery-release-and-quality-gates.md)             | Accepted | Foundation only |
 | `ADR-0013` | [Order to ship: design authority and the factory packet](./0013-order-to-ship-design-authority.md)   | Accepted | Phase 5A only   |
+| `ADR-0014` | [Route customer demand before factory handoff](./0014-demand-routing-before-factory-handoff.md)      | Accepted | Local slice     |
 
 ## Coverage of the plan's ADR backlog
 

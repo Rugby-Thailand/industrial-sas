@@ -67,15 +67,18 @@ Virtual boundaries represent a counterparty outside stored inventory:
 
 - `SUPPLIER_RECEIPT`
 - `CUSTOMER_SHIPMENT`
+- `CUSTOMER_RETURN`
 - `PRODUCTION_ISSUE`
 - `PRODUCTION_RECEIPT`
 - `INVENTORY_ADJUSTMENT`
 - `SCRAP_DAMAGE`
 - `RECONCILIATION`
+- `TRANSFER_IN_TRANSIT`
 
 They are code-owned constants, not tenant-editable locations. A receipt balances a
 physical destination against `SUPPLIER_RECEIPT`; a shipment balances a physical
-source against `CUSTOMER_SHIPMENT`.
+source against `CUSTOMER_SHIPMENT`; a failed delivery received back into QC hold
+balances the physical return location against `CUSTOMER_RETURN`.
 
 ## Tracking and capability rules
 

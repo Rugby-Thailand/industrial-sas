@@ -2,6 +2,7 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 
 import { PageHeader } from "@/components/ui/PageHeader";
 import { ExportWorkbench } from "@/features/reporting/ExportWorkbench";
+import { OperationalReportsWorkbench } from "@/features/reporting/OperationalReportsWorkbench";
 
 /**
  * The export register.
@@ -23,7 +24,10 @@ export default async function ReportsPage({
   return (
     <>
       <PageHeader title={t("title")} description={t("description")} />
-      <ExportWorkbench />
+      <div className="space-y-8">
+        <OperationalReportsWorkbench />
+        <ExportWorkbench />
+      </div>
     </>
   );
 }

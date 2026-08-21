@@ -141,6 +141,11 @@ export const VIRTUAL_BOUNDARIES: Readonly<Record<string, VirtualBoundary>> =
         "SINK",
         "Stock leaving the warehouse to a customer.",
       ),
+      CUSTOMER_RETURN: boundary(
+        "CUSTOMER_RETURN",
+        "SOURCE",
+        "Stock returning from a customer or failed delivery into warehouse control.",
+      ),
       PRODUCTION_ISSUE: boundary(
         "PRODUCTION_ISSUE",
         "SINK",
@@ -165,6 +170,11 @@ export const VIRTUAL_BOUNDARIES: Readonly<Record<string, VirtualBoundary>> =
         "RECONCILIATION",
         "BOTH",
         "Counterparty for an operator-authorized correction raised by ledger reconciliation.",
+      ),
+      TRANSFER_IN_TRANSIT: boundary(
+        "TRANSFER_IN_TRANSIT",
+        "BOTH",
+        "Stock dispatched by one warehouse and not yet accepted or returned through the transfer aggregate.",
       ),
     }),
   );

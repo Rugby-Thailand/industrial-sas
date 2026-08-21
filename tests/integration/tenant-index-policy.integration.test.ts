@@ -234,7 +234,7 @@ describe("derivation on a drifted schema", () => {
 
 describe("the canonical allowlist, not the claimed classification", () => {
   it("admits no name outside TENANT_TABLES, however it classifies itself", () => {
-    for (const name of ["invoices", "shipments", "__proto__", ""]) {
+    for (const name of ["invoices", "vehicleManifests", "__proto__", ""]) {
       const drifted = [
         facts({
           name,

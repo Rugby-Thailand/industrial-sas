@@ -965,6 +965,7 @@ export const raiseReceivingException = mutationWithOrg({
       kind: args.kind,
       reasonCodeId: args.reasonCodeId,
       raisedByUserId: ctx.tenant.actor._id,
+      raisedAt: Date.now(),
       status: "RAISED",
       ...(args.itemId === undefined ? {} : { itemId: args.itemId }),
       ...(args.purchaseOrderId === undefined

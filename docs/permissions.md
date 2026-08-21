@@ -49,7 +49,8 @@ target warehouse participates in the decision.
 | `admin.membership.revoke`      | ORG   | End a membership                                                   | Step-up                |
 | `admin.role.read`              | ORG   | Read roles and their permission composition                        | —                      |
 | `admin.role.manage`            | ORG   | Create, edit, and delete roles                                     | Step-up, maker-checker |
-| `admin.device.manage`          | ORG   | Register and retire devices                                        | —                      |
+| `admin.device.read`            | ORG   | Read the device registry and installation bindings                 | —                      |
+| `admin.device.manage`          | ORG   | Register, rename, and retire devices                               | —                      |
 | `admin.audit.read`             | ORG   | Read audit events                                                  | —                      |
 | `admin.supportGrant.read`      | ORG   | See support grants affecting this tenant                           | —                      |
 | `admin.supportGrant.approve`   | ORG   | Approve a support grant for this tenant                            | Step-up, maker-checker |
@@ -93,26 +94,65 @@ the supplier side of the business (§2.4). `engineering.masterCard.read` covers 
 revision including drafts — which is why no production role holds it, and why a
 factory packet carries its own snapshot of the released specification instead.
 
-| Permission code                  | Scope | Guards                                                   | Extra policy  |
-| -------------------------------- | ----- | -------------------------------------------------------- | ------------- |
-| `sales.customer.read`            | ORG   | Read customers                                           | —             |
-| `sales.customer.manage`          | ORG   | Create and edit customers                                | —             |
-| `sales.order.read`               | ORG   | Read customer orders and their lines                     | —             |
-| `sales.order.create`             | ORG   | Raise a customer order                                   | —             |
-| `sales.order.update`             | ORG   | Add and edit lines on a draft order                      | —             |
-| `sales.order.release`            | ORG   | Commit a draft order to the customer                     | —             |
-| `sales.order.cancel`             | ORG   | Cancel a customer order                                  | Maker-checker |
-| `engineering.request.read`       | ORG   | Read the design queue                                    | —             |
-| `engineering.request.assign`     | ORG   | Take or assign a design request                          | —             |
-| `engineering.masterCard.read`    | ORG   | Read master cards and every revision, including drafts   | —             |
-| `engineering.masterCard.draft`   | ORG   | Create a card and draft a revision                       | —             |
-| `engineering.masterCard.submit`  | ORG   | Submit a draft revision for review                       | —             |
-| `engineering.masterCard.release` | ORG   | Approve or reject a revision under review                | Maker-checker |
-| `engineering.file.read`          | ORG   | Request access to an attached dieline, artwork, or photo | —             |
-| `engineering.file.attach`        | ORG   | Attach a file to a draft revision                        | —             |
-| `production.packet.read`         | WH    | Read factory packets at a site                           | —             |
-| `production.packet.issue`        | WH    | Issue a packet for a design-ready line                   | —             |
-| `production.packet.acknowledge`  | WH    | Acknowledge a packet on the floor                        | —             |
+| Permission code                     | Scope | Guards                                                   | Extra policy           |
+| ----------------------------------- | ----- | -------------------------------------------------------- | ---------------------- |
+| `sales.customer.read`               | ORG   | Read customers                                           | —                      |
+| `sales.customer.manage`             | ORG   | Create and edit customers                                | —                      |
+| `sales.order.read`                  | ORG   | Read customer orders and their lines                     | —                      |
+| `sales.order.create`                | ORG   | Raise a customer order                                   | —                      |
+| `sales.order.update`                | ORG   | Add and edit lines on a draft order                      | —                      |
+| `sales.order.release`               | ORG   | Commit a draft order to the customer                     | —                      |
+| `sales.order.cancel`                | ORG   | Cancel a customer order                                  | Maker-checker          |
+| `fulfillment.order.read`            | WH    | Read available-stock fulfillment orders and lines        | —                      |
+| `fulfillment.order.manage`          | WH    | Create and configure warehouse fulfillment               | —                      |
+| `fulfillment.order.release`         | WH    | Release configured demand for allocation                 | —                      |
+| `fulfillment.atp.read`              | WH    | Read explainable available-to-promise quantities         | —                      |
+| `fulfillment.reservation.allocate`  | WH    | Allocate eligible FIFO/FEFO stock to released demand     | —                      |
+| `fulfillment.reservation.release`   | WH    | Explicitly release, expire, or cancel reserved stock     | —                      |
+| `fulfillment.pick.read`             | WH    | Read waves, tasks, scan evidence, and packages           | —                      |
+| `fulfillment.pick.plan`             | WH    | Create and release bounded pick waves                    | —                      |
+| `fulfillment.pick.execute`          | WH    | Record exact pick, short, and damage evidence            | —                      |
+| `fulfillment.pick.check`            | WH    | Independently check a submitted pick                     | Maker-checker          |
+| `fulfillment.pick.pack`             | WH    | Pack a checked pick into a traceable package             | —                      |
+| `fulfillment.pick.stage`            | WH    | Confirm a package at an outbound staging location        | —                      |
+| `fulfillment.pick.issue`            | WH    | Post staged stock to the customer shipment boundary      | —                      |
+| `fulfillment.pick.reverse`          | WH    | Reverse an issued fulfillment transaction                | Step-up, maker-checker |
+| `fulfillment.shipment.read`         | WH    | Read shipment manifests and delivery state               | —                      |
+| `fulfillment.shipment.manage`       | WH    | Create and release issued-package shipment manifests     | —                      |
+| `fulfillment.transport.read`        | WH    | Read trips, load progress, gate evidence, and milestones | —                      |
+| `fulfillment.transport.plan`        | WH    | Create, assign, and release vehicle trips                | —                      |
+| `fulfillment.transport.load`        | WH    | Start loading, scan packages, and seal a complete load   | —                      |
+| `fulfillment.transport.gate`        | WH    | Release a sealed trip through the warehouse gate         | Maker-checker          |
+| `fulfillment.transport.deliver`     | WH    | Depart and record delivery or failure milestones         | —                      |
+| `fulfillment.pod.read`              | WH    | Read private proof-of-delivery metadata and files        | —                      |
+| `fulfillment.pod.capture`           | WH    | Upload and capture recipient delivery evidence           | —                      |
+| `fulfillment.pod.review`            | WH    | Independently accept or reject captured POD              | Maker-checker          |
+| `fulfillment.documentReturn.manage` | WH    | Record return of signed original delivery documents      | —                      |
+| `transfer.request.read`             | WH    | Read source or destination warehouse transfers           | —                      |
+| `transfer.request.manage`           | WH    | Create transfer requests and requested lines             | —                      |
+| `transfer.request.approve`          | WH    | Approve a transfer before source dispatch                | Maker-checker          |
+| `transfer.dispatch`                 | WH    | Post source stock into the in-transit boundary           | —                      |
+| `transfer.receive`                  | WH    | Receive dispatched stock at the destination              | —                      |
+| `transfer.discrepancy.manage`       | WH    | Own and resolve transfer quantity discrepancies          | —                      |
+| `transfer.replenishment.read`       | WH    | Read explainable replenishment proposals                 | —                      |
+| `engineering.request.read`          | ORG   | Read the design queue                                    | —                      |
+| `engineering.request.assign`        | ORG   | Take or assign a design request                          | —                      |
+| `engineering.masterCard.read`       | ORG   | Read master cards and every revision, including drafts   | —                      |
+| `engineering.masterCard.draft`      | ORG   | Create a card and draft a revision                       | —                      |
+| `engineering.masterCard.submit`     | ORG   | Submit a draft revision for review                       | —                      |
+| `engineering.masterCard.release`    | ORG   | Approve or reject a revision under review                | Maker-checker          |
+| `engineering.file.read`             | ORG   | Request access to an attached dieline, artwork, or photo | —                      |
+| `engineering.file.attach`           | ORG   | Attach a file to a draft revision                        | —                      |
+| `production.packet.read`            | WH    | Read factory packets at a site                           | —                      |
+| `production.packet.issue`           | WH    | Issue a packet for a design-ready line                   | —                      |
+| `production.packet.acknowledge`     | WH    | Acknowledge a packet on the floor                        | —                      |
+| `production.order.read`             | WH    | Read production orders at a site                         | —                      |
+| `production.order.manage`           | WH    | Create and maintain draft production orders              | —                      |
+| `production.order.release`          | WH    | Independently release a pinned production order          | Maker-checker          |
+| `production.material.issue`         | WH    | Issue pinned material quantities to production           | —                      |
+| `production.operation.report`       | WH    | Report good, scrap, rework, and downtime                 | —                      |
+| `production.output.receive`         | WH    | Receive reported output into QC hold                     | —                      |
+| `production.quality.decide`         | WH    | Independently release or reject production output        | Maker-checker          |
 
 ### 2.4 Purchase orders
 
@@ -184,12 +224,50 @@ factory packet carries its own snapshot of the released specification instead.
 | `inventory.balance.read`           | WH    | Read current balances                                      | —                                 |
 | `inventory.history.read`           | WH    | Read ledger history for a bucket, item, lot, or HU         | —                                 |
 | `inventory.transaction.post`       | WH    | Post a balanced inventory ledger transaction               | —                                 |
+| `inventory.opening.read`           | WH    | Read opening-stock imports, validation, and posting links  | —                                 |
+| `inventory.opening.manage`         | WH    | Create, map, validate, submit, or reject an opening import | —                                 |
+| `inventory.opening.approve`        | WH    | Approve an opening-stock import                            | Step-up, maker-checker            |
+| `inventory.opening.post`           | WH    | Post an approved opening import through the ledger         | Step-up                           |
+| `inventory.count.read`             | WH    | Read count plans, assigned tasks, and permitted evidence   | —                                 |
+| `inventory.count.plan`             | WH    | Build, release, cancel, and monitor count plans            | —                                 |
+| `inventory.count.execute`          | WH    | Capture and submit blind or visible physical counts        | —                                 |
+| `inventory.count.reconcile`        | WH    | Request recounts and prepare variance decisions            | —                                 |
+| `inventory.count.approve`          | WH    | Approve high-risk count adjustments                        | Threshold, maker-checker, step-up |
 | `inventory.statusChange.submit`    | WH    | Propose a stock-status reclassification                    | —                                 |
 | `inventory.statusChange.approve`   | WH    | Approve a stock-status reclassification                    | Maker-checker                     |
 | `inventory.transaction.reverse`    | WH    | Reverse a transaction with a reason code                   | Threshold, maker-checker, step-up |
 | `inventory.negativeStock.override` | WH    | Post under an explicit negative-stock tenant policy (D-12) | Step-up, maker-checker            |
 
-### 2.10 Reporting
+### 2.10 Human resources
+
+HR is deliberately not inherited from system administration. `ORG_ADMIN` receives
+only the four self-service codes; team, employment, period-close, and payroll access
+must be composed into an explicit tenant HR role. The seeded site manager and
+supervisor can decide site requests, but list responses omit private leave reasons.
+
+| Permission code              | Scope | Guards                                                   | Extra policy           |
+| ---------------------------- | ----- | -------------------------------------------------------- | ---------------------- |
+| `hr.self.read`               | ORG   | Read the actor's own employment, time, and leave history | —                      |
+| `hr.self.attendance.record`  | WH    | Record the actor's own clock and break event             | —                      |
+| `hr.self.correction.request` | WH    | Request a correction to the actor's own day              | —                      |
+| `hr.self.leave.request`      | WH    | Submit or cancel the actor's own leave request           | —                      |
+| `hr.team.read`               | WH    | Read capacity-safe attendance and request facts at site  | —                      |
+| `hr.team.correction.decide`  | WH    | Approve or reject another employee's correction          | Maker-checker          |
+| `hr.team.leave.decide`       | WH    | Approve or reject another employee's leave               | Maker-checker          |
+| `hr.admin.employee.manage`   | ORG   | Manage employee identity, team, and employment history   | Step-up                |
+| `hr.admin.period.close`      | ORG   | Close an attendance period after exception review        | Step-up, maker-checker |
+| `hr.payroll.read`            | ORG   | Read payroll-oriented attendance outputs                 | —                      |
+
+### 2.11 Integration delivery
+
+| Permission code                 | Scope | Guards                                                       | Extra policy |
+| ------------------------------- | ----- | ------------------------------------------------------------ | ------------ |
+| `integration.health.read`       | ORG   | Read bounded adapter health, queue counts, and safe failures | —            |
+| `integration.adapter.manage`    | ORG   | Enable or disable a configured adapter                       | Step-up      |
+| `integration.delivery.dispatch` | ORG   | Claim and record one adapter delivery attempt                | —            |
+| `integration.delivery.retry`    | ORG   | Return a dead-lettered or delayed message to the retry queue | —            |
+
+### 2.12 Reporting
 
 | Permission code            | Scope | Guards                                   | Extra policy |
 | -------------------------- | ----- | ---------------------------------------- | ------------ |
@@ -198,7 +276,46 @@ factory packet carries its own snapshot of the released specification instead.
 | `reporting.export.read`    | WH    | Download a private export artifact       | —            |
 | `reporting.jobRun.read`    | ORG   | Inspect job runs and dead letters        | —            |
 
-### 2.11 Platform-only (never granted to tenant roles)
+### 2.13 Shared operator work
+
+Phase 1's shared task contract (`FF-P1-09`–`FF-P1-11`). Warehouse-scoped, because
+a task belongs to a site: an organization-wide code would let an actor with no
+membership at that site claim its backlog (`INV-0006-04`).
+
+`work.stepUp.approve` carries step-up **and** maker-checker. Step-up makes the
+evaluator demand fresh Clerk reverification of the approver before an approval can
+be minted; maker-checker makes it refuse an approver who is the operator. The
+approval it mints is single-use and bound to organization, operation, target,
+operator, and device — it is never a reusable elevated browser scope (plan §4
+invariant 19).
+
+`work.exception.resolve` carries maker-checker. The exception row supplies the
+reporter as the maker, so the authorization boundary refuses self-resolution before
+the handler can change the decision. The proposed disposition and recovery action
+remain stored beside the supervisor's final decision.
+
+Task attachments separate metadata discovery from byte access. `work.attachment.read`
+must be re-evaluated for every one-use download grant; no stored provider URL is
+rendered or returned by the list query. `work.attachment.attach` additionally checks
+that the uploader still owns a live task lease before it mints or consumes an upload
+capability.
+
+| Permission code          | Scope | Guards                                                      | Extra policy           |
+| ------------------------ | ----- | ----------------------------------------------------------- | ---------------------- |
+| `work.task.read`         | WH    | Read the site's work board and My work                      | —                      |
+| `work.task.manage`       | WH    | Create and cancel assigned work                             | —                      |
+| `work.task.claim`        | WH    | Claim a task and hold its lease                             | —                      |
+| `work.task.complete`     | WH    | Complete a task the actor holds                             | —                      |
+| `work.task.reassign`     | WH    | Move a task to another operator, keeping partial evidence   | —                      |
+| `work.evidence.record`   | WH    | Append quantity, scan, or note evidence to a held task      | —                      |
+| `work.attachment.read`   | WH    | Request a one-use download for private task evidence        | —                      |
+| `work.attachment.attach` | WH    | Upload verified private evidence while holding the task     | —                      |
+| `work.exception.report`  | WH    | Raise a task exception with evidence and proposed recovery  | —                      |
+| `work.exception.resolve` | WH    | Decide a task exception as somebody other than its reporter | Maker-checker          |
+| `work.stepUp.approve`    | WH    | Approve an operator's blocked action on the operator device | Step-up, maker-checker |
+| `work.device.seen`       | WH    | Record that a registered device is still in service         | —                      |
+
+### 2.14 Platform-only (never granted to tenant roles)
 
 | Permission code                 | Scope    | Guards                                    | Extra policy                     |
 | ------------------------------- | -------- | ----------------------------------------- | -------------------------------- |
@@ -256,108 +373,183 @@ artwork is how another customer's artwork leaves the building.
 `Y` = granted by default. Blank = not granted. Platform-only permissions appear in
 no tenant role.
 
-| Permission                         | ORG_ADMIN | WAREHOUSE_MANAGER | SUPERVISOR | RECEIVER | QC_INSPECTOR | PUTAWAY_OPERATOR | INVENTORY_ANALYST | VIEWER | SALES_CUSTOMER_SERVICE | ENGINEER | ENGINEERING_APPROVER | PRODUCTION_PLANNER |
-| ---------------------------------- | --------- | ----------------- | ---------- | -------- | ------------ | ---------------- | ----------------- | ------ | ---------------------- | -------- | -------------------- | ------------------ |
-| `admin.organization.read`          | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
-| `admin.organization.update`        | Y         |                   |            |          |              |                  |                   |        |                        |          |                      |                    |
-| `admin.membership.read`            | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
-| `admin.membership.invite`          | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
-| `admin.membership.update`          | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
-| `admin.membership.revoke`          | Y         |                   |            |          |              |                  |                   |        |                        |          |                      |                    |
-| `admin.role.read`                  | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
-| `admin.role.manage`                | Y         |                   |            |          |              |                  |                   |        |                        |          |                      |                    |
-| `admin.device.manage`              | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
-| `admin.audit.read`                 | Y         | Y                 | Y          |          |              |                  | Y                 |        |                        |          |                      |                    |
-| `admin.supportGrant.read`          | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
-| `admin.supportGrant.approve`       | Y         |                   |            |          |              |                  |                   |        |                        |          |                      |                    |
-| `admin.settings.policy.manage`     | Y         |                   |            |          |              |                  |                   |        |                        |          |                      |                    |
-| `masterData.item.read`             | Y         | Y                 | Y          | Y        | Y            | Y                | Y                 | Y      |                        |          |                      |                    |
-| `masterData.item.manage`           | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
-| `masterData.item.deactivate`       | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
-| `masterData.supplier.read`         | Y         | Y                 | Y          | Y        | Y            |                  | Y                 | Y      |                        |          |                      |                    |
-| `masterData.supplier.manage`       | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
-| `masterData.warehouse.read`        | Y         | Y                 | Y          | Y        | Y            | Y                | Y                 | Y      | Y                      | Y        | Y                    | Y                  |
-| `masterData.warehouse.manage`      | Y         |                   |            |          |              |                  |                   |        |                        |          |                      |                    |
-| `masterData.location.read`         | Y         | Y                 | Y          | Y        | Y            | Y                | Y                 | Y      |                        |          |                      |                    |
-| `masterData.location.manage`       | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
-| `masterData.storageClass.read`     | Y         | Y                 | Y          | Y        | Y            | Y                | Y                 | Y      |                        |          |                      |                    |
-| `masterData.storageClass.manage`   | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
-| `masterData.location.reparent`     | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
-| `masterData.lot.read`              | Y         | Y                 | Y          | Y        | Y            | Y                | Y                 | Y      |                        |          |                      |                    |
-| `masterData.lot.create`            | Y         | Y                 | Y          | Y        |              |                  |                   |        |                        |          |                      |                    |
-| `masterData.lot.manage`            | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
-| `masterData.reasonCode.read`       | Y         | Y                 | Y          | Y        | Y            | Y                | Y                 | Y      |                        |          |                      |                    |
-| `masterData.reasonCode.manage`     | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
-| `masterData.import.execute`        | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
-| `masterData.owner.read`            | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
-| `masterData.owner.manage`          | Y         |                   |            |          |              |                  |                   |        |                        |          |                      |                    |
-| `sales.customer.read`              | Y         | Y                 |            |          |              |                  |                   |        | Y                      | Y        | Y                    | Y                  |
-| `sales.customer.manage`            | Y         |                   |            |          |              |                  |                   |        | Y                      |          |                      |                    |
-| `sales.order.read`                 | Y         | Y                 |            |          |              |                  |                   |        | Y                      | Y        | Y                    | Y                  |
-| `sales.order.create`               | Y         |                   |            |          |              |                  |                   |        | Y                      |          |                      |                    |
-| `sales.order.update`               | Y         |                   |            |          |              |                  |                   |        | Y                      |          |                      |                    |
-| `sales.order.release`              | Y         |                   |            |          |              |                  |                   |        | Y                      |          |                      |                    |
-| `sales.order.cancel`               | Y         |                   |            |          |              |                  |                   |        | Y                      |          |                      |                    |
-| `engineering.request.read`         | Y         |                   |            |          |              |                  |                   |        | Y                      | Y        | Y                    |                    |
-| `engineering.request.assign`       | Y         |                   |            |          |              |                  |                   |        |                        | Y        |                      |                    |
-| `engineering.masterCard.read`      | Y         |                   |            |          |              |                  |                   |        | Y                      | Y        | Y                    |                    |
-| `engineering.masterCard.draft`     | Y         |                   |            |          |              |                  |                   |        |                        | Y        |                      |                    |
-| `engineering.masterCard.submit`    | Y         |                   |            |          |              |                  |                   |        |                        | Y        |                      |                    |
-| `engineering.masterCard.release`   | Y         |                   |            |          |              |                  |                   |        |                        |          | Y                    |                    |
-| `engineering.file.read`            | Y         |                   |            |          |              |                  |                   |        |                        | Y        | Y                    |                    |
-| `engineering.file.attach`          | Y         |                   |            |          |              |                  |                   |        |                        | Y        |                      |                    |
-| `production.packet.read`           | Y         | Y                 |            |          |              |                  |                   | Y      | Y                      |          |                      | Y                  |
-| `production.packet.issue`          | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      | Y                  |
-| `production.packet.acknowledge`    | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      | Y                  |
-| `purchasing.po.read`               | Y         | Y                 | Y          | Y        |              |                  | Y                 | Y      |                        |          |                      |                    |
-| `purchasing.po.create`             | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
-| `purchasing.po.update`             | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
-| `purchasing.po.import`             | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
-| `purchasing.po.cancel`             | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
-| `purchasing.po.closeShort`         | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
-| `receiving.receipt.read`           | Y         | Y                 | Y          | Y        | Y            | Y                | Y                 | Y      |                        |          |                      |                    |
-| `receiving.receipt.post`           | Y         | Y                 | Y          | Y        |              |                  |                   |        |                        |          |                      |                    |
-| `receiving.receipt.overTolerance`  | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
-| `receiving.receipt.unexpected`     | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
-| `receiving.receipt.blind`          | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
-| `receiving.receipt.cancelLine`     | Y         | Y                 | Y          | Y        |              |                  |                   |        |                        |          |                      |                    |
-| `receiving.exception.manage`       | Y         | Y                 | Y          | Y        |              |                  |                   |        |                        |          |                      |                    |
-| `quality.profile.read`             | Y         | Y                 | Y          |          | Y            |                  | Y                 |        |                        |          |                      |                    |
-| `quality.profile.manage`           | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
-| `quality.inspection.read`          | Y         | Y                 | Y          | Y        | Y            |                  | Y                 | Y      |                        |          |                      |                    |
-| `quality.inspection.execute`       | Y         | Y                 | Y          |          | Y            |                  |                   |        |                        |          |                      |                    |
-| `quality.disposition.submit`       | Y         | Y                 | Y          |          | Y            |                  |                   |        |                        |          |                      |                    |
-| `quality.disposition.approve`      | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
-| `quality.attachment.read`          | Y         | Y                 | Y          |          | Y            |                  | Y                 |        |                        |          |                      |                    |
-| `handlingUnit.read`                | Y         | Y                 | Y          | Y        | Y            | Y                | Y                 | Y      |                        |          |                      |                    |
-| `handlingUnit.build`               | Y         | Y                 | Y          | Y        |              |                  |                   |        |                        |          |                      |                    |
-| `handlingUnit.split`               | Y         | Y                 | Y          | Y        |              | Y                |                   |        |                        |          |                      |                    |
-| `handlingUnit.merge`               | Y         | Y                 | Y          | Y        |              | Y                |                   |        |                        |          |                      |                    |
-| `handlingUnit.relabel`             | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
-| `handlingUnit.nest`                | Y         | Y                 | Y          | Y        |              | Y                |                   |        |                        |          |                      |                    |
-| `handlingUnit.mixedContent`        | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
-| `label.template.read`              | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
-| `label.template.draft`             | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
-| `label.template.manage`            | Y         |                   |            |          |              |                  |                   |        |                        |          |                      |                    |
-| `label.print.read`                 | Y         | Y                 | Y          | Y        | Y            | Y                |                   |        |                        |          |                      |                    |
-| `label.print.execute`              | Y         | Y                 | Y          | Y        | Y            | Y                |                   |        |                        |          |                      |                    |
-| `label.print.reprint`              | Y         | Y                 | Y          | Y        |              | Y                |                   |        |                        |          |                      |                    |
-| `putaway.task.read`                | Y         | Y                 | Y          | Y        |              | Y                | Y                 | Y      |                        |          |                      |                    |
-| `putaway.task.claim`               | Y         | Y                 | Y          | Y        |              | Y                |                   |        |                        |          |                      |                    |
-| `putaway.task.confirm`             | Y         | Y                 | Y          | Y        |              | Y                |                   |        |                        |          |                      |                    |
-| `putaway.task.override`            | Y         | Y                 | Y          |          |              | Y                |                   |        |                        |          |                      |                    |
-| `putaway.policy.manage`            | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
-| `inventory.balance.read`           | Y         | Y                 | Y          | Y        | Y            | Y                | Y                 | Y      |                        |          |                      |                    |
-| `inventory.history.read`           | Y         | Y                 | Y          | Y        | Y            | Y                | Y                 | Y      |                        |          |                      |                    |
-| `inventory.transaction.post`       | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
-| `inventory.statusChange.submit`    | Y         | Y                 | Y          |          | Y            |                  | Y                 |        |                        |          |                      |                    |
-| `inventory.statusChange.approve`   | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
-| `inventory.transaction.reverse`    | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
-| `inventory.negativeStock.override` | Y         |                   |            |          |              |                  |                   |        |                        |          |                      |                    |
-| `reporting.dashboard.read`         | Y         | Y                 | Y          | Y        | Y            | Y                | Y                 | Y      | Y                      | Y        | Y                    | Y                  |
-| `reporting.export.execute`         | Y         | Y                 | Y          |          |              |                  | Y                 |        |                        |          |                      |                    |
-| `reporting.export.read`            | Y         | Y                 | Y          |          |              |                  | Y                 |        |                        |          |                      |                    |
-| `reporting.jobRun.read`            | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
+| Permission                          | ORG_ADMIN | WAREHOUSE_MANAGER | SUPERVISOR | RECEIVER | QC_INSPECTOR | PUTAWAY_OPERATOR | INVENTORY_ANALYST | VIEWER | SALES_CUSTOMER_SERVICE | ENGINEER | ENGINEERING_APPROVER | PRODUCTION_PLANNER |
+| ----------------------------------- | --------- | ----------------- | ---------- | -------- | ------------ | ---------------- | ----------------- | ------ | ---------------------- | -------- | -------------------- | ------------------ |
+| `admin.organization.read`           | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `admin.organization.update`         | Y         |                   |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `admin.membership.read`             | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
+| `admin.membership.invite`           | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `admin.membership.update`           | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `admin.membership.revoke`           | Y         |                   |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `admin.role.read`                   | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `admin.role.manage`                 | Y         |                   |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `admin.device.read`                 | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
+| `admin.device.manage`               | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `admin.audit.read`                  | Y         | Y                 | Y          |          |              |                  | Y                 |        |                        |          |                      |                    |
+| `admin.supportGrant.read`           | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `admin.supportGrant.approve`        | Y         |                   |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `admin.settings.policy.manage`      | Y         |                   |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `masterData.item.read`              | Y         | Y                 | Y          | Y        | Y            | Y                | Y                 | Y      |                        |          |                      |                    |
+| `masterData.item.manage`            | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `masterData.item.deactivate`        | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `masterData.supplier.read`          | Y         | Y                 | Y          | Y        | Y            |                  | Y                 | Y      |                        |          |                      |                    |
+| `masterData.supplier.manage`        | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `masterData.warehouse.read`         | Y         | Y                 | Y          | Y        | Y            | Y                | Y                 | Y      | Y                      | Y        | Y                    | Y                  |
+| `masterData.warehouse.manage`       | Y         |                   |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `masterData.location.read`          | Y         | Y                 | Y          | Y        | Y            | Y                | Y                 | Y      |                        |          |                      |                    |
+| `masterData.location.manage`        | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `masterData.storageClass.read`      | Y         | Y                 | Y          | Y        | Y            | Y                | Y                 | Y      |                        |          |                      |                    |
+| `masterData.storageClass.manage`    | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `masterData.location.reparent`      | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `masterData.lot.read`               | Y         | Y                 | Y          | Y        | Y            | Y                | Y                 | Y      |                        |          |                      |                    |
+| `masterData.lot.create`             | Y         | Y                 | Y          | Y        |              |                  |                   |        |                        |          |                      |                    |
+| `masterData.lot.manage`             | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
+| `masterData.reasonCode.read`        | Y         | Y                 | Y          | Y        | Y            | Y                | Y                 | Y      |                        |          |                      |                    |
+| `masterData.reasonCode.manage`      | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `masterData.import.execute`         | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `masterData.owner.read`             | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `masterData.owner.manage`           | Y         |                   |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `sales.customer.read`               | Y         | Y                 |            |          |              |                  |                   |        | Y                      | Y        | Y                    | Y                  |
+| `sales.customer.manage`             | Y         |                   |            |          |              |                  |                   |        | Y                      |          |                      |                    |
+| `sales.order.read`                  | Y         | Y                 |            |          |              |                  |                   |        | Y                      | Y        | Y                    | Y                  |
+| `sales.order.create`                | Y         |                   |            |          |              |                  |                   |        | Y                      |          |                      |                    |
+| `sales.order.update`                | Y         |                   |            |          |              |                  |                   |        | Y                      |          |                      |                    |
+| `sales.order.release`               | Y         |                   |            |          |              |                  |                   |        | Y                      |          |                      |                    |
+| `sales.order.cancel`                | Y         |                   |            |          |              |                  |                   |        | Y                      |          |                      |                    |
+| `fulfillment.order.read`            | Y         | Y                 | Y          |          |              |                  | Y                 | Y      | Y                      |          |                      | Y                  |
+| `fulfillment.order.manage`          | Y         | Y                 | Y          |          |              |                  |                   |        | Y                      |          |                      |                    |
+| `fulfillment.order.release`         | Y         | Y                 | Y          |          |              |                  |                   |        | Y                      |          |                      |                    |
+| `fulfillment.atp.read`              | Y         | Y                 | Y          |          |              |                  | Y                 | Y      | Y                      |          |                      | Y                  |
+| `fulfillment.reservation.allocate`  | Y         | Y                 | Y          |          |              |                  | Y                 |        | Y                      |          |                      |                    |
+| `fulfillment.reservation.release`   | Y         | Y                 | Y          |          |              |                  |                   |        | Y                      |          |                      |                    |
+| `fulfillment.pick.read`             | Y         | Y                 | Y          |          |              |                  | Y                 | Y      | Y                      |          |                      | Y                  |
+| `fulfillment.pick.plan`             | Y         | Y                 | Y          |          |              |                  | Y                 |        |                        |          |                      | Y                  |
+| `fulfillment.pick.execute`          | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
+| `fulfillment.pick.check`            | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
+| `fulfillment.pick.pack`             | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
+| `fulfillment.pick.stage`            | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
+| `fulfillment.pick.issue`            | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
+| `fulfillment.pick.reverse`          | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
+| `fulfillment.shipment.read`         | Y         | Y                 | Y          |          |              |                  | Y                 | Y      | Y                      |          |                      |                    |
+| `fulfillment.shipment.manage`       | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
+| `fulfillment.transport.read`        | Y         | Y                 | Y          |          |              |                  | Y                 | Y      | Y                      |          |                      |                    |
+| `fulfillment.transport.plan`        | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
+| `fulfillment.transport.load`        | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
+| `fulfillment.transport.gate`        | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
+| `fulfillment.transport.deliver`     | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
+| `fulfillment.pod.read`              | Y         | Y                 | Y          |          |              |                  |                   | Y      | Y                      |          |                      |                    |
+| `fulfillment.pod.capture`           | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
+| `fulfillment.pod.review`            | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
+| `fulfillment.documentReturn.manage` | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
+| `transfer.request.read`             | Y         | Y                 | Y          | Y        |              | Y                | Y                 |        |                        |          |                      |                    |
+| `transfer.request.manage`           | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
+| `transfer.request.approve`          | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
+| `transfer.dispatch`                 | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
+| `transfer.receive`                  | Y         | Y                 | Y          | Y        |              | Y                |                   |        |                        |          |                      |                    |
+| `transfer.discrepancy.manage`       | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
+| `transfer.replenishment.read`       | Y         | Y                 | Y          |          |              |                  | Y                 |        |                        |          |                      |                    |
+| `engineering.request.read`          | Y         |                   |            |          |              |                  |                   |        | Y                      | Y        | Y                    |                    |
+| `engineering.request.assign`        | Y         |                   |            |          |              |                  |                   |        |                        | Y        |                      |                    |
+| `engineering.masterCard.read`       | Y         |                   |            |          |              |                  |                   |        | Y                      | Y        | Y                    |                    |
+| `engineering.masterCard.draft`      | Y         |                   |            |          |              |                  |                   |        |                        | Y        |                      |                    |
+| `engineering.masterCard.submit`     | Y         |                   |            |          |              |                  |                   |        |                        | Y        |                      |                    |
+| `engineering.masterCard.release`    | Y         |                   |            |          |              |                  |                   |        |                        |          | Y                    |                    |
+| `engineering.file.read`             | Y         |                   |            |          |              |                  |                   |        |                        | Y        | Y                    |                    |
+| `engineering.file.attach`           | Y         |                   |            |          |              |                  |                   |        |                        | Y        |                      |                    |
+| `production.packet.read`            | Y         | Y                 |            |          |              |                  |                   | Y      | Y                      |          |                      | Y                  |
+| `production.packet.issue`           | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      | Y                  |
+| `production.packet.acknowledge`     | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      | Y                  |
+| `production.order.read`             | Y         | Y                 | Y          |          | Y            |                  |                   |        |                        |          |                      | Y                  |
+| `production.order.manage`           | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      | Y                  |
+| `production.order.release`          | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      | Y                  |
+| `production.material.issue`         | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      | Y                  |
+| `production.operation.report`       | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      | Y                  |
+| `production.output.receive`         | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      | Y                  |
+| `production.quality.decide`         | Y         | Y                 |            |          | Y            |                  |                   |        |                        |          |                      | Y                  |
+| `purchasing.po.read`                | Y         | Y                 | Y          | Y        |              |                  | Y                 | Y      |                        |          |                      |                    |
+| `purchasing.po.create`              | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
+| `purchasing.po.update`              | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
+| `purchasing.po.import`              | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `purchasing.po.cancel`              | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `purchasing.po.closeShort`          | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
+| `receiving.receipt.read`            | Y         | Y                 | Y          | Y        | Y            | Y                | Y                 | Y      |                        |          |                      |                    |
+| `receiving.receipt.post`            | Y         | Y                 | Y          | Y        |              |                  |                   |        |                        |          |                      |                    |
+| `receiving.receipt.overTolerance`   | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
+| `receiving.receipt.unexpected`      | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
+| `receiving.receipt.blind`           | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `receiving.receipt.cancelLine`      | Y         | Y                 | Y          | Y        |              |                  |                   |        |                        |          |                      |                    |
+| `receiving.exception.manage`        | Y         | Y                 | Y          | Y        |              |                  |                   |        |                        |          |                      |                    |
+| `quality.profile.read`              | Y         | Y                 | Y          |          | Y            |                  | Y                 |        |                        |          |                      |                    |
+| `quality.profile.manage`            | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `quality.inspection.read`           | Y         | Y                 | Y          | Y        | Y            |                  | Y                 | Y      |                        |          |                      |                    |
+| `quality.inspection.execute`        | Y         | Y                 | Y          |          | Y            |                  |                   |        |                        |          |                      |                    |
+| `quality.disposition.submit`        | Y         | Y                 | Y          |          | Y            |                  |                   |        |                        |          |                      |                    |
+| `quality.disposition.approve`       | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
+| `quality.attachment.read`           | Y         | Y                 | Y          |          | Y            |                  | Y                 |        |                        |          |                      |                    |
+| `handlingUnit.read`                 | Y         | Y                 | Y          | Y        | Y            | Y                | Y                 | Y      |                        |          |                      |                    |
+| `handlingUnit.build`                | Y         | Y                 | Y          | Y        |              |                  |                   |        |                        |          |                      |                    |
+| `handlingUnit.split`                | Y         | Y                 | Y          | Y        |              | Y                |                   |        |                        |          |                      |                    |
+| `handlingUnit.merge`                | Y         | Y                 | Y          | Y        |              | Y                |                   |        |                        |          |                      |                    |
+| `handlingUnit.relabel`              | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
+| `handlingUnit.nest`                 | Y         | Y                 | Y          | Y        |              | Y                |                   |        |                        |          |                      |                    |
+| `handlingUnit.mixedContent`         | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `label.template.read`               | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
+| `label.template.draft`              | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
+| `label.template.manage`             | Y         |                   |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `label.print.read`                  | Y         | Y                 | Y          | Y        | Y            | Y                |                   |        |                        |          |                      |                    |
+| `label.print.execute`               | Y         | Y                 | Y          | Y        | Y            | Y                |                   |        |                        |          |                      |                    |
+| `label.print.reprint`               | Y         | Y                 | Y          | Y        |              | Y                |                   |        |                        |          |                      |                    |
+| `putaway.task.read`                 | Y         | Y                 | Y          | Y        |              | Y                | Y                 | Y      |                        |          |                      |                    |
+| `putaway.task.claim`                | Y         | Y                 | Y          | Y        |              | Y                |                   |        |                        |          |                      |                    |
+| `putaway.task.confirm`              | Y         | Y                 | Y          | Y        |              | Y                |                   |        |                        |          |                      |                    |
+| `putaway.task.override`             | Y         | Y                 | Y          |          |              | Y                |                   |        |                        |          |                      |                    |
+| `putaway.policy.manage`             | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `inventory.balance.read`            | Y         | Y                 | Y          | Y        | Y            | Y                | Y                 | Y      |                        |          |                      |                    |
+| `inventory.history.read`            | Y         | Y                 | Y          | Y        | Y            | Y                | Y                 | Y      |                        |          |                      |                    |
+| `inventory.transaction.post`        | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
+| `inventory.opening.read`            | Y         | Y                 | Y          |          |              |                  | Y                 | Y      |                        |          |                      |                    |
+| `inventory.opening.manage`          | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
+| `inventory.opening.approve`         | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
+| `inventory.opening.post`            | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
+| `inventory.count.read`              | Y         | Y                 | Y          | Y        | Y            | Y                | Y                 | Y      |                        |          |                      |                    |
+| `inventory.count.plan`              | Y         | Y                 | Y          |          |              |                  | Y                 |        |                        |          |                      |                    |
+| `inventory.count.execute`           | Y         | Y                 | Y          | Y        | Y            | Y                | Y                 |        |                        |          |                      |                    |
+| `inventory.count.reconcile`         | Y         | Y                 | Y          |          |              |                  | Y                 |        |                        |          |                      |                    |
+| `inventory.count.approve`           | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
+| `inventory.statusChange.submit`     | Y         | Y                 | Y          |          | Y            |                  | Y                 |        |                        |          |                      |                    |
+| `inventory.statusChange.approve`    | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
+| `inventory.transaction.reverse`     | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `inventory.negativeStock.override`  | Y         |                   |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `hr.self.read`                      | Y         |                   |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `hr.self.attendance.record`         | Y         |                   |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `hr.self.correction.request`        | Y         |                   |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `hr.self.leave.request`             | Y         |                   |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `hr.team.read`                      |           | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
+| `hr.team.correction.decide`         |           | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
+| `hr.team.leave.decide`              |           | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
+| `hr.admin.employee.manage`          |           |                   |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `hr.admin.period.close`             |           |                   |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `hr.payroll.read`                   |           |                   |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `integration.health.read`           | Y         |                   |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `integration.adapter.manage`        | Y         |                   |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `integration.delivery.dispatch`     | Y         |                   |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `integration.delivery.retry`        | Y         |                   |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `reporting.dashboard.read`          | Y         | Y                 | Y          | Y        | Y            | Y                | Y                 | Y      | Y                      | Y        | Y                    | Y                  |
+| `reporting.export.execute`          | Y         | Y                 | Y          |          |              |                  | Y                 |        |                        |          |                      |                    |
+| `reporting.export.read`             | Y         | Y                 | Y          |          |              |                  | Y                 |        |                        |          |                      |                    |
+| `reporting.jobRun.read`             | Y         | Y                 |            |          |              |                  |                   |        |                        |          |                      |                    |
+| `work.task.read`                    | Y         | Y                 | Y          | Y        | Y            | Y                | Y                 | Y      |                        |          |                      |                    |
+| `work.task.manage`                  | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
+| `work.task.claim`                   | Y         | Y                 | Y          | Y        | Y            | Y                |                   |        |                        |          |                      |                    |
+| `work.task.complete`                | Y         | Y                 | Y          | Y        | Y            | Y                |                   |        |                        |          |                      |                    |
+| `work.task.reassign`                | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
+| `work.evidence.record`              | Y         | Y                 | Y          | Y        | Y            | Y                |                   |        |                        |          |                      |                    |
+| `work.attachment.read`              | Y         | Y                 | Y          | Y        | Y            | Y                | Y                 |        |                        |          |                      |                    |
+| `work.attachment.attach`            | Y         | Y                 | Y          | Y        | Y            | Y                |                   |        |                        |          |                      |                    |
+| `work.exception.report`             | Y         | Y                 | Y          | Y        | Y            | Y                |                   |        |                        |          |                      |                    |
+| `work.exception.resolve`            | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
+| `work.stepUp.approve`               | Y         | Y                 | Y          |          |              |                  |                   |        |                        |          |                      |                    |
+| `work.device.seen`                  | Y         | Y                 | Y          | Y        | Y            | Y                |                   |        |                        |          |                      |                    |
 
 ## 4. Policy semantics
 

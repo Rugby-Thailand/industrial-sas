@@ -244,6 +244,18 @@ function EngineeringQueue() {
                     {row.overdue ? (
                       <StatusBadge tone="danger" label={t("overdue")} />
                     ) : null}
+                    <StatusBadge
+                      tone={
+                        row.requirementReadiness === "READY"
+                          ? "success"
+                          : "pending"
+                      }
+                      label={
+                        row.requirementReadiness === "READY"
+                          ? t("requirementsReady")
+                          : t("requirementsIncomplete")
+                      }
+                    />
                   </div>
                 </div>
                 <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
@@ -266,6 +278,16 @@ function EngineeringQueue() {
                     )}
                   />
                 </dl>
+                {row.requirementReadiness === "READY" ? null : (
+                  <p className="mt-3 text-sm text-warning">
+                    {t("requirementsBlocked")}
+                    {row.missingRequirements?.length
+                      ? `: ${row.missingRequirements
+                          .map((key) => t(`requirement.${key}`))
+                          .join(", ")}`
+                      : ""}
+                  </p>
+                )}
                 <p className="mt-3 font-mono text-xs break-all text-muted">
                   {t("designRequestId")}: {row.designRequestId}
                 </p>
@@ -302,6 +324,12 @@ function FactoryQueue() {
       title={t("factoryQueue")}
       description={t("factoryQueueDetail")}
     >
+      <Link
+        href={ROUTES.productionOrders}
+        className="inline-flex min-h-touch items-center rounded-md border border-accent px-4 py-2 text-sm font-semibold text-accent hover:bg-raised"
+      >
+        {t("openProductionOrders")}
+      </Link>
       <FactoryWorkflowActions issueOnly />
       <MasterDataPanel<
         FactoryPacketRow,

@@ -8,6 +8,7 @@ import {
   addCustomerOrderLine,
   createCustomerOrder,
   listCustomerOrderLines,
+  listRoutableCustomerOrderLines,
   releaseCustomerOrder,
 } from "../../convex/sales/orders";
 import {
@@ -27,10 +28,12 @@ import {
   fulfilDesignRequest,
   listSimilarReleasedDesigns,
 } from "../../convex/engineering/designRequests";
+import { recordDesignRequirements } from "../../convex/engineering/requirements";
 import {
   acknowledgeFactoryPacket,
   issueFactoryPacket,
 } from "../../convex/production/packets";
+import { routeCustomerOrderLine } from "../../convex/fulfillment/orders";
 import type { DataModel } from "../../convex/schema";
 import {
   createConvexInventoryWorld,
@@ -65,6 +68,28 @@ const value = (outcome: Record<string, unknown>) => {
   return outcome["value"] as Record<string, unknown>;
 };
 
+const routeForProduction = async (
+  world: ConvexInventoryWorld,
+  customerOrderLineId: string,
+  code: string,
+) =>
+  value(
+    await call(world, routeCustomerOrderLine, {
+      requestId: `route-${code}`,
+      warehouseId: world.warehouses.alphaA,
+      fulfillmentNumber: `FF-${code}`,
+      customerOrderLineId,
+      itemId: world.a.item,
+      allowPartial: true,
+      shipTo: {
+        name: "Journey customer DC",
+        addressLine1: "99 Industrial Road",
+        province: "Bangkok",
+        countryCode: "TH",
+      },
+    }),
+  );
+
 const specification = {
   styleCode: "RSC",
   internalLengthMm: 300,
@@ -81,6 +106,8 @@ const completeSpecification = {
   sheetLengthMm: 720,
   sheetWidthMm: 460,
   fluteCode: "C",
+  printColours: ["BLACK", "RED"],
+  packingInstructions: "Bundle and palletize to customer standard",
   layers: [{ position: 1, paperCode: "KA125", grammageGsm: 125 }],
   route: [{ sequence: 1, workCenterCode: "PRN-01", operationCode: "PRINT" }],
   materials: [
@@ -531,10 +558,59 @@ describe("order-to-ship public Convex functions", () => {
       designRequestId: requestId,
       masterCardRevisionId: revisionId,
     };
+    expect(
+      value(await call(world, fulfilDesignRequest, fulfilArgs)),
+    ).toMatchObject({
+      written: false,
+      error: { reason: "REQUIREMENTS_INCOMPLETE" },
+    });
+    const requirementArgs = {
+      requestId: "journey-requirements",
+      designRequestId: requestId,
+      confirmations: {
+        CUSTOMER_PRODUCT_IDENTITY: true,
+        DIMENSIONS: true,
+        CONSTRUCTION: true,
+        PRINT: true,
+        PACKING: true,
+        ROUTE: true,
+        MATERIALS: true,
+        QUALITY: true,
+      },
+      note: "Customer Service and Engineering confirmed the production hand-off.",
+    };
+    expect(
+      value(await call(world, recordDesignRequirements, requirementArgs)),
+    ).toMatchObject({ written: true, replayed: false });
+    expect(
+      value(await call(world, recordDesignRequirements, requirementArgs)),
+    ).toMatchObject({ written: true, replayed: true });
     value(await call(world, fulfilDesignRequest, fulfilArgs));
     expect(
       value(await call(world, fulfilDesignRequest, fulfilArgs))["replayed"],
     ).toBe(true);
+
+    expect(
+      value(
+        await call(world, listRoutableCustomerOrderLines, {
+          maxPageSize: 20,
+        }),
+      )["items"],
+    ).toEqual([
+      expect.objectContaining({
+        customerOrderLineId: lineId,
+        status: "DESIGN_READY",
+      }),
+    ]);
+
+    await routeForProduction(world, lineId, "JOURNEY-1");
+    expect(
+      value(
+        await call(world, listRoutableCustomerOrderLines, {
+          maxPageSize: 20,
+        }),
+      )["items"],
+    ).toEqual([]);
 
     const packetArgs = {
       requestId: "journey-packet",
@@ -629,6 +705,7 @@ describe("order-to-ship public Convex functions", () => {
         customerOrderId: reuseOrderId,
       }),
     );
+    await routeForProduction(world, reuseLineId, "JOURNEY-REUSE");
     const reusePacketId = value(
       await call(world, issueFactoryPacket, {
         requestId: "journey-reuse-packet",
@@ -759,6 +836,7 @@ describe("order-to-ship public Convex functions", () => {
       written: false,
       error: { reason: "FILE_NOT_RETRIEVABLE" },
     });
+    await routeForProduction(world, seeded.lineId, "DEAD-BLOB");
     expect(
       value(
         await call(world, issueFactoryPacket, {

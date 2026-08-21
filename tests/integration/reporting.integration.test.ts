@@ -21,6 +21,11 @@ import { describe, expect, it } from "vitest";
 
 import { readDashboard, readOccupancy } from "../../convex/reporting/dashboard";
 import {
+  readOperationalExceptions,
+  readStockMovements,
+  readStockReports,
+} from "../../convex/reporting/operationalViews";
+import {
   exportChunkRows,
   getReportJob,
   listReportJobs,
@@ -179,6 +184,91 @@ async function receiveOneLine(
 }
 
 describe("dashboard rollups", () => {
+  it("serves the four stock views and prioritized exceptions from bounded source facts", async () => {
+    const world = await createConvexInventoryWorld();
+    const seeded = await seedReporting(world);
+    await receiveOneLine(world, seeded.supplier);
+    await world.t.run(async (ctx) => {
+      const taskId = await ctx.db.insert("operatorTasks", {
+        orgId: world.orgA,
+        warehouseId: world.warehouses.alphaA,
+        taskNumber: "TASK-RPT-EX-1",
+        kind: "SUPERVISOR_ASSIGNED",
+        instruction: "Investigate damaged carton",
+        status: "AVAILABLE",
+        evidenceCount: 1,
+        createdByUserId: world.userA,
+      });
+      await ctx.db.insert("operatorTaskExceptions", {
+        orgId: world.orgA,
+        warehouseId: world.warehouses.alphaA,
+        operatorTaskId: taskId,
+        reasonCodeId: seeded.qcReason,
+        reasonCode: "QC-HOLD-RPT",
+        reasonName: "Inspection parked",
+        summary: "Damaged carton blocks the pick task",
+        evidence: "Corner crush visible on the scanned pallet",
+        proposedDisposition: "ESCALATE",
+        proposedRecoveryAction: "Move stock to quality hold",
+        status: "OPEN",
+        reportedByUserId: world.userA,
+        reportedAt: 10,
+      });
+    });
+
+    const stock = value(
+      await call(world, readStockReports, {
+        warehouseId: world.warehouses.alphaA,
+      }),
+    );
+    expect(stock["complete"]).toBe(true);
+    expect(stock["balances"]).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          sku: "BULK-001",
+          stockStatus: "AVAILABLE",
+          baseMinorUnits: 40_000,
+        }),
+      ]),
+    );
+    expect(stock["sku"]).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          sku: "BULK-001",
+          availableBaseMinorUnits: 40_000,
+          atpBaseMinorUnits: 40_000,
+        }),
+      ]),
+    );
+
+    const movements = value(
+      await call(world, readStockMovements, {
+        warehouseId: world.warehouses.alphaA,
+      }),
+    );
+    expect(movements["movements"]).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          sku: "BULK-001",
+          operation: "receiving.receipt.postLine",
+        }),
+      ]),
+    );
+
+    const exceptions = value(
+      await call(world, readOperationalExceptions, {
+        warehouseId: world.warehouses.alphaA,
+      }),
+    );
+    expect(exceptions["exceptions"]).toEqual([
+      expect.objectContaining({
+        severity: "HIGH",
+        titleCode: "TASK_EXCEPTION",
+        detail: "Damaged carton blocks the pick task",
+      }),
+    ]);
+  });
+
   it("starts every tile at zero rather than omitting it", async () => {
     /*
      * A missing tile reads as a missing feature. A counter that has never moved

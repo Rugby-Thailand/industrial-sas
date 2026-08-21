@@ -64,6 +64,22 @@ export type FactoryPacketStatus = "ISSUED" | "ACKNOWLEDGED" | "CANCELLED";
 
 export type RevisionDecision = "APPROVE" | "REJECT";
 
+export type DesignRequirementKey =
+  | "CUSTOMER_PRODUCT_IDENTITY"
+  | "DIMENSIONS"
+  | "CONSTRUCTION"
+  | "PRINT"
+  | "PACKING"
+  | "ROUTE"
+  | "MATERIALS"
+  | "QUALITY";
+
+export type DesignReadinessStatus = "INCOMPLETE" | "READY";
+
+export type DesignRequirementConfirmations = Readonly<
+  Record<DesignRequirementKey, boolean>
+>;
+
 /* -------------------------------------------------------------------------- */
 /* Row shapes                                                                  */
 /* -------------------------------------------------------------------------- */
@@ -190,6 +206,42 @@ export interface DesignRequestRow {
   readonly overdue: boolean;
   readonly assignedToUserId?: string;
   readonly masterCardRevisionId?: string;
+  readonly latestRequirementVersion?: number;
+  readonly requirementReadiness?: DesignReadinessStatus;
+  readonly missingRequirements?: readonly DesignRequirementKey[];
+  readonly requirementsRecordedByUserId?: string;
+  readonly requirementsRecordedAt?: number;
+}
+
+export interface DesignRequirementVersionRow {
+  readonly designRequirementVersionId: string;
+  readonly version: number;
+  readonly confirmations: DesignRequirementConfirmations;
+  readonly status: DesignReadinessStatus;
+  readonly missing: readonly DesignRequirementKey[];
+  readonly note?: string;
+  readonly recordedByUserId: string;
+  readonly recordedAt: number;
+}
+
+export interface DesignChangeImpactRow {
+  readonly designChangeImpactId: string;
+  readonly warehouseId: string;
+  readonly masterCardId: string;
+  readonly fromRevisionId: string;
+  readonly toRevisionId: string;
+  readonly productionOrderId: string;
+  readonly productionOrderNumber: string;
+  readonly productionOrderStatus: string;
+  readonly severity: "NO_IMPACT" | "REVIEW_REQUIRED" | "BLOCKING";
+  readonly changedFields: readonly string[];
+  readonly categories: readonly string[];
+  readonly status: "OPEN" | "ACKNOWLEDGED";
+  readonly createdByUserId: string;
+  readonly createdAt: number;
+  readonly acknowledgedByUserId?: string;
+  readonly acknowledgedAt?: number;
+  readonly acknowledgementNote?: string;
 }
 
 export interface MasterCardRow {
@@ -319,7 +371,11 @@ export const ORDER_TO_SHIP_QUERY_PATHS = Object.freeze({
   listCustomers: "sales/customers:listCustomers",
   listCustomerOrders: "sales/orders:listCustomerOrders",
   listCustomerOrderLines: "sales/orders:listCustomerOrderLines",
+  listRoutableCustomerOrderLines: "sales/orders:listRoutableCustomerOrderLines",
   listDesignRequests: "engineering/designRequests:listDesignRequests",
+  listDesignRequirementVersions:
+    "engineering/requirements:listDesignRequirementVersions",
+  listDesignChangeImpacts: "engineering/changeImpacts:listDesignChangeImpacts",
   listSimilarReleasedDesigns:
     "engineering/designRequests:listSimilarReleasedDesigns",
   listReleasedRevisions: "engineering/designRequests:listReleasedRevisions",
@@ -341,12 +397,15 @@ export const ORDER_TO_SHIP_MUTATION_PATHS = Object.freeze({
   cancelCustomerOrderLine: "sales/orders:cancelCustomerOrderLine",
   assignDesignRequest: "engineering/designRequests:assignDesignRequest",
   progressDesignRequest: "engineering/designRequests:progressDesignRequest",
+  recordDesignRequirements: "engineering/requirements:recordDesignRequirements",
   fulfilDesignRequest: "engineering/designRequests:fulfilDesignRequest",
   confirmSimilarDesign: "engineering/designRequests:confirmSimilarDesign",
   createMasterCard: "engineering/masterCards:createMasterCard",
   draftMasterCardRevision: "engineering/masterCards:draftMasterCardRevision",
   submitMasterCardRevision: "engineering/masterCards:submitMasterCardRevision",
   decideMasterCardRevision: "engineering/masterCards:decideMasterCardRevision",
+  acknowledgeDesignChangeImpact:
+    "engineering/changeImpacts:acknowledgeDesignChangeImpact",
   attachMasterCardFile: "engineering/files:attachMasterCardFile",
   authorizeMasterCardFileUpload:
     "engineering/files:authorizeMasterCardFileUpload",
@@ -405,11 +464,29 @@ export const listCustomerOrderLinesRef = makeFunctionReference<
   TenantOutcome<MasterDataPage<CustomerOrderLineRow>>
 >(ORDER_TO_SHIP_QUERY_PATHS.listCustomerOrderLines);
 
+export const listRoutableCustomerOrderLinesRef = makeFunctionReference<
+  "query",
+  OrgPageArgs,
+  TenantOutcome<MasterDataPage<CustomerOrderLineRow>>
+>(ORDER_TO_SHIP_QUERY_PATHS.listRoutableCustomerOrderLines);
+
 export const listDesignRequestsRef = makeFunctionReference<
   "query",
   OrgPageArgs & { readonly status?: DesignRequestStatus },
   TenantOutcome<MasterDataPage<DesignRequestRow>>
 >(ORDER_TO_SHIP_QUERY_PATHS.listDesignRequests);
+
+export const listDesignRequirementVersionsRef = makeFunctionReference<
+  "query",
+  OrgPageArgs & { readonly designRequestId: string },
+  TenantOutcome<MasterDataPage<DesignRequirementVersionRow>>
+>(ORDER_TO_SHIP_QUERY_PATHS.listDesignRequirementVersions);
+
+export const listDesignChangeImpactsRef = makeFunctionReference<
+  "query",
+  OrgPageArgs & { readonly status?: "OPEN" | "ACKNOWLEDGED" },
+  TenantOutcome<MasterDataPage<DesignChangeImpactRow>>
+>(ORDER_TO_SHIP_QUERY_PATHS.listDesignChangeImpacts);
 
 export interface SimilarReleasedDesignRow {
   readonly masterCardId: string;
@@ -556,6 +633,13 @@ export const progressDesignRequestRef = writeRef<{
   nextStatus: "IN_PROGRESS" | "IN_REVIEW";
 }>(ORDER_TO_SHIP_MUTATION_PATHS.progressDesignRequest);
 
+export const recordDesignRequirementsRef = writeRef<{
+  requestId: string;
+  designRequestId: string;
+  confirmations: DesignRequirementConfirmations;
+  note?: string;
+}>(ORDER_TO_SHIP_MUTATION_PATHS.recordDesignRequirements);
+
 export const fulfilDesignRequestRef = writeRef<{
   requestId: string;
   designRequestId: string;
@@ -602,6 +686,12 @@ export const decideMasterCardRevisionRef = writeRef<{
   decision: RevisionDecision;
   note?: string;
 }>(ORDER_TO_SHIP_MUTATION_PATHS.decideMasterCardRevision);
+
+export const acknowledgeDesignChangeImpactRef = writeRef<{
+  requestId: string;
+  designChangeImpactId: string;
+  note: string;
+}>(ORDER_TO_SHIP_MUTATION_PATHS.acknowledgeDesignChangeImpact);
 
 export const attachMasterCardFileRef = writeRef<{
   requestId: string;

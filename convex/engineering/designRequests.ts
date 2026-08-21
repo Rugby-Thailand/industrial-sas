@@ -28,6 +28,11 @@
 import { v } from "convex/values";
 
 import {
+  requireDesignReady,
+  type DesignReadinessStatus,
+  type DesignRequirementKey,
+} from "../model/orderToShip/designReadiness";
+import {
   appendDomainAudit,
   replayTenantWriteIfPresent,
   updateMasterDataRow,
@@ -97,6 +102,11 @@ interface RequestDocument {
   readonly assignedToUserId?: string;
   readonly masterCardRevisionId?: string;
   readonly specification: DesignSpecification;
+  readonly latestRequirementVersion?: number;
+  readonly requirementReadiness?: DesignReadinessStatus;
+  readonly missingRequirements?: readonly DesignRequirementKey[];
+  readonly requirementsRecordedByUserId?: string;
+  readonly requirementsRecordedAt?: number;
 }
 
 interface LineDocument {
@@ -359,6 +369,8 @@ export const fulfilDesignRequest = mutationWithOrg({
       revisionCustomerProductCode: card.customerProductCode,
     });
     if (!requestFulfilment.ok) return refusal(requestFulfilment.error);
+    const readiness = requireDesignReady(request.requirementReadiness);
+    if (!readiness.ok) return refusal(readiness.error);
 
     const line = await ctx.tenantDb.get<LineDocument>(
       "customerOrderLines",
@@ -501,6 +513,8 @@ export const confirmSimilarDesign = mutationWithOrg({
       reason,
     });
     if (!confirmation.ok) return refusal(confirmation.error);
+    const readiness = requireDesignReady(request.requirementReadiness);
+    if (!readiness.ok) return refusal(readiness.error);
     const context = writeContextOf(ctx, {
       table: "designRequests",
       operation: ENGINEERING_REQUEST_OPERATIONS.confirmSimilar,
@@ -561,6 +575,13 @@ const requestValidator = v.object({
   overdue: v.boolean(),
   assignedToUserId: v.optional(v.id("users")),
   masterCardRevisionId: v.optional(v.id("masterCardRevisions")),
+  latestRequirementVersion: v.optional(v.number()),
+  requirementReadiness: v.optional(
+    v.union(v.literal("INCOMPLETE"), v.literal("READY")),
+  ),
+  missingRequirements: v.optional(v.array(v.string())),
+  requirementsRecordedByUserId: v.optional(v.id("users")),
+  requirementsRecordedAt: v.optional(v.number()),
   similarityConfirmation: v.optional(
     v.object({
       score: v.number(),
@@ -619,6 +640,24 @@ export const listDesignRequests = queryWithOrg({
         ...(row.masterCardRevisionId === undefined
           ? {}
           : { masterCardRevisionId: row.masterCardRevisionId as never }),
+        ...(row.latestRequirementVersion === undefined
+          ? {}
+          : { latestRequirementVersion: row.latestRequirementVersion }),
+        ...(row.requirementReadiness === undefined
+          ? {}
+          : { requirementReadiness: row.requirementReadiness }),
+        ...(row.missingRequirements === undefined
+          ? {}
+          : { missingRequirements: [...row.missingRequirements] }),
+        ...(row.requirementsRecordedByUserId === undefined
+          ? {}
+          : {
+              requirementsRecordedByUserId:
+                row.requirementsRecordedByUserId as never,
+            }),
+        ...(row.requirementsRecordedAt === undefined
+          ? {}
+          : { requirementsRecordedAt: row.requirementsRecordedAt }),
       })),
       nextCursor: page.isDone ? null : page.continueCursor,
       complete: page.isDone,

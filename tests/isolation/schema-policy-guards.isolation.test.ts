@@ -211,15 +211,15 @@ describe("an unclassified or missing table is caught", () => {
   it("catches a table the policy has never heard of", () => {
     const rogue = describeSchema(
       defineSchema({
-        shipments: defineTable({
+        phantomWidgets: defineTable({
           orgId: v.id("organizations"),
           code: v.string(),
         }).index("by_orgId_code", ["orgId", "code"]),
       }),
     );
-    expect(unclassifiedTables(rogue)).toEqual(["shipments"]);
+    expect(unclassifiedTables(rogue)).toEqual(["phantomWidgets"]);
     expect(schemaPolicyViolations(rogue)).toContain(
-      "shipments: table is neither in GLOBAL_TABLES nor TENANT_TABLES; classify it " +
+      "phantomWidgets: table is neither in GLOBAL_TABLES nor TENANT_TABLES; classify it " +
         "before it holds data",
     );
   });
@@ -452,13 +452,21 @@ describe("a uniqueness condition that disagrees with the schema is caught", () =
   });
 
   it("accepts the conditional contract when the field is optional", () => {
+    /*
+     * The synthetic table carries *both* of the device contracts — the
+     * unconditional `label` one and the conditional `installationId` one —
+     * because the assertion below is "no device problem at all". A fixture
+     * describing only half the table would fail on the missing half and say
+     * nothing about the qualifier this test exists for.
+     */
     const problems = uniquenessContractViolations([
       withFacts({
         name: "devices",
-        fieldNames: ["orgId", "installationId"],
-        fieldPaths: ["orgId", "installationId"],
+        fieldNames: ["orgId", "label", "installationId"],
+        fieldPaths: ["orgId", "label", "installationId"],
         optionalFieldNames: ["installationId"],
         indexes: [
+          { name: "by_orgId_label", fields: ["orgId", "label"] },
           {
             name: "by_orgId_installationId",
             fields: ["orgId", "installationId"],

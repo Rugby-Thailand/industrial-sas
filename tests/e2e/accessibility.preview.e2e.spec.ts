@@ -17,6 +17,10 @@ const ROUTES = [
   "/en/sales/orders",
   "/en/engineering/designs",
   "/en/production/packets",
+  "/en/production/orders",
+  "/th/handheld/production",
+  "/th/devices",
+  "/en/devices",
 ] as const;
 
 const COLOR_SCHEMES = ["light", "dark"] as const;

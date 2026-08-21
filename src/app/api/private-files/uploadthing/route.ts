@@ -24,6 +24,24 @@ const productionRedeemGrant = makeFunctionReference<
   } | null>
 >("engineering/files:redeemUploadThingFactoryPacketFileAccessGrant");
 
+const taskRedeemGrant = makeFunctionReference<
+  "mutation",
+  { readonly grantId: string; readonly warehouseId: string },
+  TenantOutcome<{
+    readonly providerKey: string;
+    readonly fileName: string;
+  } | null>
+>("platform/taskFiles:redeemUploadThingTaskFileAccessGrant");
+
+const transportRedeemGrant = makeFunctionReference<
+  "mutation",
+  { readonly grantId: string; readonly warehouseId: string },
+  TenantOutcome<{
+    readonly providerKey: string;
+    readonly fileName: string;
+  } | null>
+>("fulfillment/transportFiles:redeemUploadThingTransportFileAccessGrant");
+
 const unavailable = () =>
   new NextResponse("File access grant is unavailable.", {
     status: 404,
@@ -50,15 +68,30 @@ export async function GET(request: Request) {
 
     const client = new ConvexHttpClient(convexUrl);
     client.setAuth(token);
+    const scope = url.searchParams.get("scope");
     const outcome =
-      url.searchParams.get("scope") === "production"
+      scope === "production"
         ? productionWarehouseId === null
           ? null
           : await client.mutation(productionRedeemGrant, {
               grantId,
               warehouseId: productionWarehouseId,
             })
-        : await client.mutation(engineeringRedeemGrant, { grantId });
+        : scope === "task"
+          ? productionWarehouseId === null
+            ? null
+            : await client.mutation(taskRedeemGrant, {
+                grantId,
+                warehouseId: productionWarehouseId,
+              })
+          : scope === "transport"
+            ? productionWarehouseId === null
+              ? null
+              : await client.mutation(transportRedeemGrant, {
+                  grantId,
+                  warehouseId: productionWarehouseId,
+                })
+            : await client.mutation(engineeringRedeemGrant, { grantId });
     if (outcome === null) return unavailable();
     if (!outcome.ok || outcome.value === null) return unavailable();
 

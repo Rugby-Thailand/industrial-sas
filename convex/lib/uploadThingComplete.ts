@@ -5,6 +5,7 @@ import {
 } from "convex/server";
 
 type CompleteArgs = {
+  readonly scope: "MASTER_CARD" | "OPERATOR_TASK" | "TRANSPORT";
   readonly grantId: string;
   readonly providerKey: string;
   readonly uploaderClerkUserId: string;
@@ -13,12 +14,42 @@ type CompleteArgs = {
   readonly byteSize: number;
 };
 
-const completeGrant = makeFunctionReference<"mutation", CompleteArgs, boolean>(
+const completeMasterCardGrant = makeFunctionReference<
+  "mutation",
+  Omit<CompleteArgs, "scope">,
+  boolean
+>(
   "engineering/files:completeUploadThingMasterCardUploadGrant",
 ) as unknown as FunctionReference<
   "mutation",
   "internal",
-  CompleteArgs,
+  Omit<CompleteArgs, "scope">,
+  boolean
+>;
+
+const completeOperatorTaskGrant = makeFunctionReference<
+  "mutation",
+  Omit<CompleteArgs, "scope">,
+  boolean
+>(
+  "lib/taskFileComplete:completeUploadThingTaskUploadGrant",
+) as unknown as FunctionReference<
+  "mutation",
+  "internal",
+  Omit<CompleteArgs, "scope">,
+  boolean
+>;
+
+const completeTransportGrant = makeFunctionReference<
+  "mutation",
+  Omit<CompleteArgs, "scope">,
+  boolean
+>(
+  "lib/transportFileComplete:completeUploadThingTransportFileGrant",
+) as unknown as FunctionReference<
+  "mutation",
+  "internal",
+  Omit<CompleteArgs, "scope">,
   boolean
 >;
 
@@ -57,6 +88,9 @@ const isCompleteArgs = (value: unknown): value is CompleteArgs => {
   if (value === null || typeof value !== "object") return false;
   const candidate = value as Partial<CompleteArgs>;
   return (
+    (candidate.scope === "MASTER_CARD" ||
+      candidate.scope === "OPERATOR_TASK" ||
+      candidate.scope === "TRANSPORT") &&
     typeof candidate.grantId === "string" &&
     typeof candidate.providerKey === "string" &&
     typeof candidate.uploaderClerkUserId === "string" &&
@@ -90,7 +124,15 @@ export const completeUploadThingFile = httpActionGeneric(
     if (!isCompleteArgs(parsed)) {
       return new Response("Invalid payload", { status: 400 });
     }
-    const completed = await ctx.runMutation(completeGrant, parsed);
+    const { scope, ...completion } = parsed;
+    const completed = await ctx.runMutation(
+      scope === "OPERATOR_TASK"
+        ? completeOperatorTaskGrant
+        : scope === "TRANSPORT"
+          ? completeTransportGrant
+          : completeMasterCardGrant,
+      completion,
+    );
     return new Response(completed ? null : "Grant unavailable", {
       status: completed ? 204 : 409,
       headers: { "Cache-Control": "private, no-store" },

@@ -466,6 +466,18 @@ export const addCustomerOrderLine = mutationWithOrg({
         specification: { ...specification.value },
         status: "OPEN",
         priority: args.designPriority ?? "NORMAL",
+        latestRequirementVersion: 0,
+        requirementReadiness: "INCOMPLETE",
+        missingRequirements: [
+          "CUSTOMER_PRODUCT_IDENTITY",
+          "DIMENSIONS",
+          "CONSTRUCTION",
+          "PRINT",
+          "PACKING",
+          "ROUTE",
+          "MATERIALS",
+          "QUALITY",
+        ],
         ...(args.designDueAt === undefined ? {} : { dueAt: args.designDueAt }),
       };
       const designRequestId = await ctx.tenantDb.insert(
@@ -921,6 +933,57 @@ export const listCustomerOrderLines = queryWithOrg({
     return {
       ok: true as const,
       items: page.page.map((line) => ({
+        customerOrderLineId: line._id as never,
+        customerOrderId: line.customerOrderId as never,
+        lineNumber: line.lineNumber,
+        customerProductCode: line.customerProductCode,
+        specification: { ...line.specification },
+        designKey: line.designKey,
+        designSource: line.designSource as never,
+        status: line.status as never,
+        orderedQuantity: line.orderedQuantity,
+        ...(line.masterCardRevisionId === undefined
+          ? {}
+          : { masterCardRevisionId: line.masterCardRevisionId as never }),
+      })),
+      nextCursor: page.isDone ? null : page.continueCursor,
+      complete: page.isDone,
+    };
+  },
+});
+
+/**
+ * Design-ready lines that do not yet have fulfillment demand. This is the
+ * bounded handoff queue used by routing; it keeps operators from copying opaque
+ * document IDs between Sales and Fulfillment.
+ */
+export const listRoutableCustomerOrderLines = queryWithOrg({
+  args: { ...listArgs },
+  returns: pageOf(orderLineValidator),
+  permissionCode: "sales.order.read",
+  target: { table: "customerOrderLines" },
+  handler: async (ctx, args) => {
+    const request = pageRequestOf(args);
+    if (!request.ok) return pageRefusal(request.error.code);
+    const page = await ctx.tenantDb
+      .byIndex<OrderLineDocument>(
+        "customerOrderLines",
+        "by_orgId_status_designKey",
+        [{ field: "status", value: "DESIGN_READY" }],
+      )
+      .page(pageOptions(request.value));
+    const unrouted: OrderLineDocument[] = [];
+    for (const line of page.page) {
+      const routed = await ctx.tenantDb
+        .byIndex("fulfillmentLines", "by_orgId_customerOrderLineId", [
+          { field: "customerOrderLineId", value: line._id },
+        ])
+        .first();
+      if (routed === null) unrouted.push(line);
+    }
+    return {
+      ok: true as const,
+      items: unrouted.map((line) => ({
         customerOrderLineId: line._id as never,
         customerOrderId: line.customerOrderId as never,
         lineNumber: line.lineNumber,
