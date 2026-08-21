@@ -672,7 +672,7 @@ function CapacitySummary({
   );
 }
 
-function IsometricBuilding({
+export function IsometricBuilding({
   building,
   floors,
   highlightedFloorNumber,
@@ -691,7 +691,7 @@ function IsometricBuilding({
           depthMm: floor.depthMm ?? building.depthMm,
           heightMm: floor.heightMm ?? building.defaultFloorHeightMm,
         })),
-        { scale: 0.012, gap: 8 },
+        { scale: 0.012, gap: 0 },
       ),
     [building, floors],
   );
@@ -730,7 +730,7 @@ function IsometricBuilding({
           opacity="0.35"
         />
         <g>
-          {[...geometry.slabs].reverse().map((slab) => (
+          {geometry.slabs.map((slab) => (
             <g
               key={slab.floorNumber}
               className="transition-opacity hover:opacity-80"

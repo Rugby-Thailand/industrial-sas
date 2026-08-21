@@ -59,37 +59,43 @@ export function buildIsometricBuilding(
 } {
   const scale = options.scale ?? 0.01;
   const gap = options.gap ?? 10;
+  const envelopeWidthMm = Math.max(0, ...floors.map((floor) => floor.widthMm));
+  const envelopeDepthMm = Math.max(0, ...floors.map((floor) => floor.depthMm));
   let elevationMm = 0;
   const slabs = floors.map((floor, index) => {
     const z0 = elevationMm;
     const z1 = elevationMm + floor.heightMm;
+    const x0 = (envelopeWidthMm - floor.widthMm) / 2;
+    const y0 = (envelopeDepthMm - floor.depthMm) / 2;
+    const x1 = x0 + floor.widthMm;
+    const y1 = y0 + floor.depthMm;
     const offset = index * gap;
     const top = polygon(
       [
-        { x: 0, y: 0, z: z1 },
-        { x: floor.widthMm, y: 0, z: z1 },
-        { x: floor.widthMm, y: floor.depthMm, z: z1 },
-        { x: 0, y: floor.depthMm, z: z1 },
+        { x: x0, y: y0, z: z1 },
+        { x: x1, y: y0, z: z1 },
+        { x: x1, y: y1, z: z1 },
+        { x: x0, y: y1, z: z1 },
       ],
       scale,
       offset,
     );
     const left = polygon(
       [
-        { x: 0, y: floor.depthMm, z: z1 },
-        { x: floor.widthMm, y: floor.depthMm, z: z1 },
-        { x: floor.widthMm, y: floor.depthMm, z: z0 },
-        { x: 0, y: floor.depthMm, z: z0 },
+        { x: x0, y: y1, z: z1 },
+        { x: x1, y: y1, z: z1 },
+        { x: x1, y: y1, z: z0 },
+        { x: x0, y: y1, z: z0 },
       ],
       scale,
       offset,
     );
     const right = polygon(
       [
-        { x: floor.widthMm, y: 0, z: z1 },
-        { x: floor.widthMm, y: floor.depthMm, z: z1 },
-        { x: floor.widthMm, y: floor.depthMm, z: z0 },
-        { x: floor.widthMm, y: 0, z: z0 },
+        { x: x1, y: y0, z: z1 },
+        { x: x1, y: y1, z: z1 },
+        { x: x1, y: y1, z: z0 },
+        { x: x1, y: y0, z: z0 },
       ],
       scale,
       offset,

@@ -30,4 +30,17 @@ describe("isometric geometry", () => {
     expect(result.viewBox.width).toBeGreaterThan(0);
     expect(result.viewBox.height).toBeGreaterThan(0);
   });
+
+  it("centers smaller floor footprints within the building envelope", () => {
+    const result = buildIsometricBuilding([
+      { floorNumber: 1, widthMm: 30_000, depthMm: 20_000, heightMm: 4_000 },
+      { floorNumber: 2, widthMm: 24_000, depthMm: 18_000, heightMm: 4_000 },
+    ]);
+    const centroidX = (points: readonly { readonly x: number }[]) =>
+      points.reduce((total, point) => total + point.x, 0) / points.length;
+
+    expect(centroidX(result.slabs[1]!.top)).toBe(
+      centroidX(result.slabs[0]!.top),
+    );
+  });
 });
