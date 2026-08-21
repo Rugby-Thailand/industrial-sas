@@ -34,6 +34,8 @@ interface FloorDocument {
   readonly widthMm?: number;
   readonly depthMm?: number;
   readonly heightMm?: number;
+  readonly offsetXMm?: number;
+  readonly offsetYMm?: number;
   readonly grossAreaSqMm: number;
   readonly reservedAreaSqMm: number;
   readonly usableAreaSqMm: number;
@@ -70,6 +72,8 @@ async function readFloor(ctx: TenantFunctionContext, floor: FloorDocument) {
     ...(floor.widthMm === undefined ? {} : { widthMm: floor.widthMm }),
     ...(floor.depthMm === undefined ? {} : { depthMm: floor.depthMm }),
     ...(floor.heightMm === undefined ? {} : { heightMm: floor.heightMm }),
+    ...(floor.offsetXMm === undefined ? {} : { offsetXMm: floor.offsetXMm }),
+    ...(floor.offsetYMm === undefined ? {} : { offsetYMm: floor.offsetYMm }),
     grossAreaSqMm: floor.grossAreaSqMm,
     reservedAreaSqMm: floor.reservedAreaSqMm,
     usableAreaSqMm: floor.usableAreaSqMm,

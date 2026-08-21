@@ -16,6 +16,7 @@ import { useTranslations } from "next-intl";
 import {
   useId,
   useMemo,
+  useRef,
   useState,
   type FormEvent,
   type ReactNode,
@@ -55,6 +56,7 @@ import {
   buildIsometricBuilding,
   pointsAttribute,
   projectIsometricPoint,
+  unprojectIsometricDelta,
 } from "@/lib/storageLayouts/isometricGeometry";
 
 const metres = (millimetres: number) => millimetres / 1_000;
@@ -709,6 +711,12 @@ export function IsometricBuilding({
           widthMm: floor.widthMm ?? building.widthMm,
           depthMm: floor.depthMm ?? building.depthMm,
           heightMm: floor.heightMm ?? building.defaultFloorHeightMm,
+          ...(floor.offsetXMm === undefined
+            ? {}
+            : { offsetXMm: floor.offsetXMm }),
+          ...(floor.offsetYMm === undefined
+            ? {}
+            : { offsetYMm: floor.offsetYMm }),
         })),
         { scale: 0.012, gap: 0 },
       ),
@@ -964,6 +972,21 @@ function FloorForm({
   const [height, setHeight] = useState(
     floor.heightMm === undefined ? "" : String(metres(floor.heightMm)),
   );
+  const previousFloor = detail.floors.find(
+    (candidate) => candidate.floorNumber === floor.floorNumber - 1,
+  );
+  const baseWidthMm = previousFloor?.widthMm ?? detail.building.widthMm;
+  const baseDepthMm = previousFloor?.depthMm ?? detail.building.depthMm;
+  const initialWidthMm = floor.widthMm ?? detail.building.widthMm;
+  const initialDepthMm = floor.depthMm ?? detail.building.depthMm;
+  const [placement, setPlacement] = useState({
+    xMm:
+      floor.offsetXMm ??
+      Math.max(0, Math.floor((baseWidthMm - initialWidthMm) / 2)),
+    yMm:
+      floor.offsetYMm ??
+      Math.max(0, Math.floor((baseDepthMm - initialDepthMm) / 2)),
+  });
   const [blocks, setBlocks] = useState<EditableBlock[]>(
     floor.reservedBlocks.map((block) => ({
       id: block.blockId,
@@ -985,6 +1008,16 @@ function FloorForm({
     depth === "" ? detail.building.depthMm : millimetres(depth);
   const actualHeight =
     height === "" ? detail.building.defaultFloorHeightMm : millimetres(height);
+  const actualPlacement = {
+    xMm: Math.max(
+      0,
+      Math.min(placement.xMm, Math.max(0, baseWidthMm - actualWidth)),
+    ),
+    yMm: Math.max(
+      0,
+      Math.min(placement.yMm, Math.max(0, baseDepthMm - actualDepth)),
+    ),
+  };
   const grossAreaSqMm = actualWidth * actualDepth;
   const reservedAreaSqMm = blocks.reduce(
     (total, block) => total + block.widthMm * block.depthMm,
@@ -1011,6 +1044,8 @@ function FloorForm({
           ...(width === "" ? {} : { widthMm: millimetres(width) }),
           ...(depth === "" ? {} : { depthMm: millimetres(depth) }),
           ...(height === "" ? {} : { heightMm: millimetres(height) }),
+          offsetXMm: actualPlacement.xMm,
+          offsetYMm: actualPlacement.yMm,
           reservedBlocks: blocks,
         },
       });
@@ -1039,8 +1074,17 @@ function FloorForm({
           widthMm={actualWidth}
           depthMm={actualDepth}
           heightMm={actualHeight}
-          maximumWidthMm={detail.building.widthMm}
-          maximumDepthMm={detail.building.depthMm}
+          baseWidthMm={baseWidthMm}
+          baseDepthMm={baseDepthMm}
+          baseLabel={
+            previousFloor === undefined
+              ? t("buildingFootprint")
+              : t("floorFootprint", { floor: previousFloor.floorNumber })
+          }
+          floorNumber={floor.floorNumber}
+          offsetXMm={actualPlacement.xMm}
+          offsetYMm={actualPlacement.yMm}
+          onPlacementChange={setPlacement}
           blocks={blocks}
         />
         <section className="rounded-2xl border border-border bg-surface p-5 shadow-sm">
@@ -1158,15 +1202,28 @@ export function FloorPlan({
   widthMm,
   depthMm,
   heightMm,
-  maximumWidthMm,
-  maximumDepthMm,
+  baseWidthMm,
+  baseDepthMm,
+  baseLabel,
+  floorNumber,
+  offsetXMm,
+  offsetYMm,
+  onPlacementChange,
   blocks,
 }: {
   readonly widthMm: number;
   readonly depthMm: number;
   readonly heightMm: number;
-  readonly maximumWidthMm: number;
-  readonly maximumDepthMm: number;
+  readonly baseWidthMm: number;
+  readonly baseDepthMm: number;
+  readonly baseLabel: string;
+  readonly floorNumber: number;
+  readonly offsetXMm: number;
+  readonly offsetYMm: number;
+  readonly onPlacementChange: (placement: {
+    readonly xMm: number;
+    readonly yMm: number;
+  }) => void;
   readonly blocks: readonly EditableBlock[];
 }) {
   const t = useTranslations("StorageLayouts");
@@ -1208,19 +1265,34 @@ export function FloorPlan({
           widthMm={widthMm}
           depthMm={depthMm}
           heightMm={heightMm}
-          maximumWidthMm={maximumWidthMm}
-          maximumDepthMm={maximumDepthMm}
+          baseWidthMm={baseWidthMm}
+          baseDepthMm={baseDepthMm}
+          floorNumber={floorNumber}
+          offsetXMm={offsetXMm}
+          offsetYMm={offsetYMm}
+          onPlacementChange={onPlacementChange}
           blocks={blocks}
         />
       ) : (
         <FloorPlanDrawing
           widthMm={widthMm}
           depthMm={depthMm}
-          maximumWidthMm={maximumWidthMm}
-          maximumDepthMm={maximumDepthMm}
+          baseWidthMm={baseWidthMm}
+          baseDepthMm={baseDepthMm}
+          offsetXMm={offsetXMm}
+          offsetYMm={offsetYMm}
           blocks={blocks}
         />
       )}
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-background px-3 py-2 text-xs">
+        <span className="font-medium text-text">
+          {t("positionOn", { base: baseLabel })}
+        </span>
+        <span className="text-muted tabular-nums">
+          X {metres(offsetXMm)} m · Y {metres(offsetYMm)} m
+        </span>
+      </div>
+      <p className="mt-2 text-xs text-muted">{t("dragHint")}</p>
       <div className="mt-4 flex flex-wrap gap-4 text-xs text-muted">
         <span>
           <i className="mr-2 inline-block size-3 rounded-sm bg-success/30" />
@@ -1232,7 +1304,7 @@ export function FloorPlan({
         </span>
         <span>
           <i className="mr-2 inline-block size-3 rounded-sm border border-dashed border-muted" />
-          {t("maximumEnvelope")}
+          {baseLabel}
         </span>
       </div>
     </figure>
@@ -1243,53 +1315,116 @@ function FloorVolume({
   widthMm,
   depthMm,
   heightMm,
-  maximumWidthMm,
-  maximumDepthMm,
+  baseWidthMm,
+  baseDepthMm,
+  floorNumber,
+  offsetXMm,
+  offsetYMm,
+  onPlacementChange,
   blocks,
 }: {
   readonly widthMm: number;
   readonly depthMm: number;
   readonly heightMm: number;
-  readonly maximumWidthMm: number;
-  readonly maximumDepthMm: number;
+  readonly baseWidthMm: number;
+  readonly baseDepthMm: number;
+  readonly floorNumber: number;
+  readonly offsetXMm: number;
+  readonly offsetYMm: number;
+  readonly onPlacementChange: (placement: {
+    readonly xMm: number;
+    readonly yMm: number;
+  }) => void;
   readonly blocks: readonly EditableBlock[];
 }) {
   const t = useTranslations("StorageLayouts");
   const patternId = useId();
+  const svgRef = useRef<SVGSVGElement>(null);
+  const dragState = useRef<
+    | {
+        readonly pointerId: number;
+        readonly startX: number;
+        readonly startY: number;
+        readonly offsetXMm: number;
+        readonly offsetYMm: number;
+      }
+    | undefined
+  >(undefined);
   const scale = 0.012;
   const geometry = buildIsometricBuilding(
-    [{ floorNumber: 1, widthMm, depthMm, heightMm }],
+    [
+      {
+        floorNumber,
+        widthMm,
+        depthMm,
+        heightMm,
+        offsetXMm,
+        offsetYMm,
+      },
+    ],
     {
       scale,
       gap: 0,
-      envelopeWidthMm: maximumWidthMm,
-      envelopeDepthMm: maximumDepthMm,
+      envelopeWidthMm: baseWidthMm,
+      envelopeDepthMm: baseDepthMm,
     },
   );
   const slab = geometry.slabs[0]!;
-  const floorOffsetX = Math.max(0, maximumWidthMm - widthMm) / 2;
-  const floorOffsetY = Math.max(0, maximumDepthMm - depthMm) / 2;
   const topPoint = (x: number, y: number) =>
     projectIsometricPoint({
-      x: (x + floorOffsetX) * scale,
-      y: (y + floorOffsetY) * scale,
+      x: (x + offsetXMm) * scale,
+      y: (y + offsetYMm) * scale,
       z: heightMm * scale,
     });
-  const maximumFootprint = [
+  const baseFootprint = [
     projectIsometricPoint({ x: 0, y: 0, z: 0 }),
-    projectIsometricPoint({ x: maximumWidthMm * scale, y: 0, z: 0 }),
+    projectIsometricPoint({ x: baseWidthMm * scale, y: 0, z: 0 }),
     projectIsometricPoint({
-      x: maximumWidthMm * scale,
-      y: maximumDepthMm * scale,
+      x: baseWidthMm * scale,
+      y: baseDepthMm * scale,
       z: 0,
     }),
-    projectIsometricPoint({ x: 0, y: maximumDepthMm * scale, z: 0 }),
+    projectIsometricPoint({ x: 0, y: baseDepthMm * scale, z: 0 }),
+  ];
+  const displayedGridStepMm = Math.max(
+    1_000,
+    Math.ceil(Math.max(baseWidthMm, baseDepthMm) / 30_000) * 1_000,
+  );
+  const baseGridLines = [
+    ...Array.from(
+      { length: Math.max(0, Math.ceil(baseWidthMm / displayedGridStepMm) - 1) },
+      (_, index) => {
+        const x = (index + 1) * displayedGridStepMm;
+        return [
+          projectIsometricPoint({ x: x * scale, y: 0, z: 0 }),
+          projectIsometricPoint({
+            x: x * scale,
+            y: baseDepthMm * scale,
+            z: 0,
+          }),
+        ] as const;
+      },
+    ),
+    ...Array.from(
+      { length: Math.max(0, Math.ceil(baseDepthMm / displayedGridStepMm) - 1) },
+      (_, index) => {
+        const y = (index + 1) * displayedGridStepMm;
+        return [
+          projectIsometricPoint({ x: 0, y: y * scale, z: 0 }),
+          projectIsometricPoint({
+            x: baseWidthMm * scale,
+            y: y * scale,
+            z: 0,
+          }),
+        ] as const;
+      },
+    ),
   ];
   const heightGuideX = slab.top[1]!.x + 22;
   const heightTopY = slab.top[1]!.y;
   const heightBottomY = slab.right[3]!.y;
   const visualPoints = [
-    ...maximumFootprint,
+    ...baseFootprint,
     ...slab.top,
     ...slab.left,
     ...slab.right,
@@ -1304,12 +1439,51 @@ function FloorVolume({
     width: Math.max(...visualXs) - Math.min(...visualXs) + visualPadding * 2,
     height: Math.max(...visualYs) - Math.min(...visualYs) + visualPadding * 2,
   };
+  const clampPlacement = (xMm: number, yMm: number) => ({
+    xMm: Math.max(0, Math.min(xMm, Math.max(0, baseWidthMm - widthMm))),
+    yMm: Math.max(0, Math.min(yMm, Math.max(0, baseDepthMm - depthMm))),
+  });
+  const clientPoint = (clientX: number, clientY: number) => {
+    const svg = svgRef.current;
+    const matrix = svg?.getScreenCTM();
+    if (svg === null || matrix === null || matrix === undefined)
+      return undefined;
+    const point = svg.createSVGPoint();
+    point.x = clientX;
+    point.y = clientY;
+    return point.matrixTransform(matrix.inverse());
+  };
+  const finishDrag = (pointerId: number) => {
+    if (dragState.current?.pointerId !== pointerId) return;
+    svgRef.current?.releasePointerCapture(pointerId);
+    dragState.current = undefined;
+  };
   return (
     <svg
+      ref={svgRef}
       role="img"
       aria-label={t("volumeLabel")}
       viewBox={`${visualViewBox.x} ${visualViewBox.y} ${visualViewBox.width} ${visualViewBox.height}`}
       className="h-[28rem] w-full rounded-xl border border-accent/30 bg-background"
+      onPointerMove={(event) => {
+        const drag = dragState.current;
+        if (drag === undefined || drag.pointerId !== event.pointerId) return;
+        const current = clientPoint(event.clientX, event.clientY);
+        if (current === undefined) return;
+        const delta = unprojectIsometricDelta(
+          { x: current.x - drag.startX, y: current.y - drag.startY },
+          scale,
+        );
+        const snap = (value: number) => Math.round(value / 1_000) * 1_000;
+        onPlacementChange(
+          clampPlacement(
+            snap(drag.offsetXMm + delta.x),
+            snap(drag.offsetYMm + delta.y),
+          ),
+        );
+      }}
+      onPointerUp={(event) => finishDrag(event.pointerId)}
+      onPointerCancel={(event) => finishDrag(event.pointerId)}
     >
       <defs>
         <pattern
@@ -1334,63 +1508,105 @@ function FloorVolume({
         opacity="0.45"
       />
       <polygon
-        points={pointsAttribute(maximumFootprint)}
-        className="fill-none stroke-muted"
+        points={pointsAttribute(baseFootprint)}
+        className="fill-surface/40 stroke-muted"
         strokeDasharray="6 6"
       />
-      <polygon
-        points={pointsAttribute(slab.left)}
-        className="fill-surface stroke-accent/60"
-      />
-      <polygon points={pointsAttribute(slab.left)} className="fill-accent/20" />
-      <polygon
-        points={pointsAttribute(slab.right)}
-        className="fill-surface stroke-accent/70"
-      />
-      <polygon
-        points={pointsAttribute(slab.right)}
-        className="fill-accent/30"
-      />
-      <polygon
-        points={pointsAttribute(slab.top)}
-        className="fill-surface stroke-accent"
-        strokeWidth="2"
-      />
-      <polygon
-        points={pointsAttribute(slab.top)}
-        className="fill-success/15 stroke-accent"
-        strokeWidth="2"
-      />
-      {blocks.map((block) => {
-        const shape = [
-          topPoint(block.xMm, block.yMm),
-          topPoint(block.xMm + block.widthMm, block.yMm),
-          topPoint(block.xMm + block.widthMm, block.yMm + block.depthMm),
-          topPoint(block.xMm, block.yMm + block.depthMm),
-        ];
-        const labelPoint = topPoint(
-          block.xMm + block.widthMm / 2,
-          block.yMm + block.depthMm / 2,
-        );
-        return (
-          <g key={block.id}>
-            <polygon
-              points={pointsAttribute(shape)}
-              className="fill-warning/50 stroke-warning"
-              strokeWidth="1.5"
-            />
-            <text
-              x={labelPoint.x}
-              y={labelPoint.y}
-              textAnchor="middle"
-              dominantBaseline="central"
-              className="fill-text text-[11px] font-semibold"
-            >
-              {block.label}
-            </text>
-          </g>
-        );
-      })}
+      {baseGridLines.map(([start, end], index) => (
+        <line
+          key={index}
+          x1={start.x}
+          y1={start.y}
+          x2={end.x}
+          y2={end.y}
+          className="stroke-muted/35"
+          strokeWidth="0.75"
+        />
+      ))}
+      <g
+        role="button"
+        tabIndex={0}
+        aria-label={t("dragFloor", { floor: floorNumber })}
+        className="cursor-grab outline-none active:cursor-grabbing focus-visible:[&>polygon]:stroke-text"
+        style={{ touchAction: "none" }}
+        onPointerDown={(event) => {
+          const start = clientPoint(event.clientX, event.clientY);
+          if (start === undefined) return;
+          svgRef.current?.setPointerCapture(event.pointerId);
+          dragState.current = {
+            pointerId: event.pointerId,
+            startX: start.x,
+            startY: start.y,
+            offsetXMm,
+            offsetYMm,
+          };
+        }}
+        onKeyDown={(event) => {
+          const movement: readonly [number, number] | undefined = {
+            ArrowLeft: [-1_000, 0],
+            ArrowRight: [1_000, 0],
+            ArrowUp: [0, -1_000],
+            ArrowDown: [0, 1_000],
+          }[event.key] as readonly [number, number] | undefined;
+          if (movement === undefined) return;
+          event.preventDefault();
+          onPlacementChange(
+            clampPlacement(offsetXMm + movement[0], offsetYMm + movement[1]),
+          );
+        }}
+      >
+        <polygon
+          points={pointsAttribute(slab.left)}
+          className="fill-surface stroke-accent/60"
+        />
+        <polygon
+          points={pointsAttribute(slab.left)}
+          className="fill-accent/20"
+        />
+        <polygon
+          points={pointsAttribute(slab.right)}
+          className="fill-surface stroke-accent/70"
+        />
+        <polygon
+          points={pointsAttribute(slab.right)}
+          className="fill-accent/30"
+        />
+        <polygon
+          points={pointsAttribute(slab.top)}
+          className="fill-success/15 stroke-accent"
+          strokeWidth="2"
+        />
+        {blocks.map((block) => {
+          const shape = [
+            topPoint(block.xMm, block.yMm),
+            topPoint(block.xMm + block.widthMm, block.yMm),
+            topPoint(block.xMm + block.widthMm, block.yMm + block.depthMm),
+            topPoint(block.xMm, block.yMm + block.depthMm),
+          ];
+          const labelPoint = topPoint(
+            block.xMm + block.widthMm / 2,
+            block.yMm + block.depthMm / 2,
+          );
+          return (
+            <g key={block.id}>
+              <polygon
+                points={pointsAttribute(shape)}
+                className="fill-warning/50 stroke-warning"
+                strokeWidth="1.5"
+              />
+              <text
+                x={labelPoint.x}
+                y={labelPoint.y}
+                textAnchor="middle"
+                dominantBaseline="central"
+                className="fill-text text-[11px] font-semibold"
+              >
+                {block.label}
+              </text>
+            </g>
+          );
+        })}
+      </g>
       <DimensionGuide
         start={slab.top[0]!}
         end={slab.top[1]!}
@@ -1473,19 +1689,23 @@ function DimensionGuide({
 function FloorPlanDrawing({
   widthMm,
   depthMm,
-  maximumWidthMm,
-  maximumDepthMm,
+  baseWidthMm,
+  baseDepthMm,
+  offsetXMm,
+  offsetYMm,
   blocks,
 }: {
   readonly widthMm: number;
   readonly depthMm: number;
-  readonly maximumWidthMm: number;
-  readonly maximumDepthMm: number;
+  readonly baseWidthMm: number;
+  readonly baseDepthMm: number;
+  readonly offsetXMm: number;
+  readonly offsetYMm: number;
   readonly blocks: readonly EditableBlock[];
 }) {
   const t = useTranslations("StorageLayouts");
-  const drawingWidth = Math.max(widthMm, maximumWidthMm, 1);
-  const drawingDepth = Math.max(depthMm, maximumDepthMm, 1);
+  const drawingWidth = Math.max(widthMm + offsetXMm, baseWidthMm, 1);
+  const drawingDepth = Math.max(depthMm + offsetYMm, baseDepthMm, 1);
   const padding = Math.max(drawingWidth, drawingDepth) * 0.09;
   const labelSize = Math.max(drawingWidth, drawingDepth) / 38;
   const gridStep = 1_000;
@@ -1534,14 +1754,16 @@ function FloorPlanDrawing({
         fill="url(#storage-floor-grid)"
       />
       <rect
-        width={maximumWidthMm}
-        height={maximumDepthMm}
+        width={baseWidthMm}
+        height={baseDepthMm}
         className="fill-none stroke-muted"
         strokeDasharray={`${padding / 5} ${padding / 5}`}
         strokeWidth={Math.max(30, drawingWidth / 900)}
         vectorEffect="non-scaling-stroke"
       />
       <rect
+        x={offsetXMm}
+        y={offsetYMm}
         width={widthMm}
         height={depthMm}
         className="fill-accent/15 stroke-accent"
@@ -1549,7 +1771,7 @@ function FloorPlanDrawing({
         vectorEffect="non-scaling-stroke"
       />
       <text
-        x={widthMm / 2}
+        x={offsetXMm + widthMm / 2}
         y={-padding * 0.35}
         textAnchor="middle"
         className="fill-accent font-semibold"
@@ -1558,8 +1780,8 @@ function FloorPlanDrawing({
         {metres(widthMm)} m
       </text>
       <text
-        x={widthMm + padding * 0.32}
-        y={depthMm / 2}
+        x={offsetXMm + widthMm + padding * 0.32}
+        y={offsetYMm + depthMm / 2}
         textAnchor="middle"
         dominantBaseline="central"
         className="fill-accent font-semibold"
@@ -1570,8 +1792,8 @@ function FloorPlanDrawing({
       {blocks.map((block) => (
         <g key={block.id}>
           <rect
-            x={block.xMm}
-            y={block.yMm}
+            x={offsetXMm + block.xMm}
+            y={offsetYMm + block.yMm}
             width={block.widthMm}
             height={block.depthMm}
             fill="url(#storage-reserved-hatch)"
@@ -1579,8 +1801,8 @@ function FloorPlanDrawing({
             vectorEffect="non-scaling-stroke"
           />
           <text
-            x={block.xMm + block.widthMm / 2}
-            y={block.yMm + block.depthMm / 2}
+            x={offsetXMm + block.xMm + block.widthMm / 2}
+            y={offsetYMm + block.yMm + block.depthMm / 2}
             textAnchor="middle"
             dominantBaseline="central"
             className="fill-warning font-semibold"

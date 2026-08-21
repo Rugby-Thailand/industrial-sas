@@ -14,6 +14,9 @@ export interface IsometricFloor {
   readonly widthMm: number;
   readonly depthMm: number;
   readonly heightMm: number;
+  /** Placement relative to the building (floor 1) or previous floor. */
+  readonly offsetXMm?: number;
+  readonly offsetYMm?: number;
 }
 
 export interface IsometricSlab {
@@ -28,6 +31,17 @@ export function projectIsometricPoint(
   point: IsometricPoint3d,
 ): IsometricPoint2d {
   return { x: point.x - point.y, y: (point.x + point.y) / 2 - point.z };
+}
+
+/** Converts a screen-space drag on a constant-Z plane back to model units. */
+export function unprojectIsometricDelta(
+  delta: IsometricPoint2d,
+  scale: number,
+): { readonly x: number; readonly y: number } {
+  return {
+    x: (delta.y + delta.x / 2) / scale,
+    y: (delta.y - delta.x / 2) / scale,
+  };
 }
 
 function polygon(
@@ -73,11 +87,19 @@ export function buildIsometricBuilding(
     ...floors.map((floor) => floor.depthMm),
   );
   let elevationMm = 0;
+  let parentX = 0;
+  let parentY = 0;
+  let parentWidthMm = envelopeWidthMm;
+  let parentDepthMm = envelopeDepthMm;
   const slabs = floors.map((floor, index) => {
     const z0 = elevationMm;
     const z1 = elevationMm + floor.heightMm;
-    const x0 = (envelopeWidthMm - floor.widthMm) / 2;
-    const y0 = (envelopeDepthMm - floor.depthMm) / 2;
+    const x0 =
+      parentX +
+      (floor.offsetXMm ?? Math.max(0, (parentWidthMm - floor.widthMm) / 2));
+    const y0 =
+      parentY +
+      (floor.offsetYMm ?? Math.max(0, (parentDepthMm - floor.depthMm) / 2));
     const x1 = x0 + floor.widthMm;
     const y1 = y0 + floor.depthMm;
     const offset = index * gap;
@@ -119,6 +141,10 @@ export function buildIsometricBuilding(
       right,
     };
     elevationMm = z1;
+    parentX = x0;
+    parentY = y0;
+    parentWidthMm = floor.widthMm;
+    parentDepthMm = floor.depthMm;
     return slab;
   });
   const points = slabs.flatMap((slab) => [

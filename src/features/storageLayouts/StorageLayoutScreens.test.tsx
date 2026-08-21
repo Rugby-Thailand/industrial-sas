@@ -150,14 +150,20 @@ describe("IsometricBuilding", () => {
 });
 
 describe("FloorPlan", () => {
-  it("opens in 3D with all dimensions and retains a precision plan view", () => {
+  it("positions the floor on its previous floor and supports keyboard movement", () => {
+    const onPlacementChange = vi.fn();
     renderWithIntl(
       <FloorPlan
         widthMm={20_000}
         depthMm={18_000}
         heightMm={5_000}
-        maximumWidthMm={30_000}
-        maximumDepthMm={20_000}
+        baseWidthMm={30_000}
+        baseDepthMm={20_000}
+        baseLabel="Floor 1 footprint"
+        floorNumber={2}
+        offsetXMm={5_000}
+        offsetYMm={1_000}
+        onPlacementChange={onPlacementChange}
         blocks={[
           {
             id: "reserved-a",
@@ -178,9 +184,15 @@ describe("FloorPlan", () => {
     expect(screen.getByText("20 × 18 × 5 m")).toBeInTheDocument();
     expect(screen.getByText("H 5 m")).toBeInTheDocument();
     expect(screen.getByText("Lift core")).toBeInTheDocument();
-    const volume = screen.getByRole("img", { name: "3D floor volume" });
-    const topFace = volume.querySelectorAll("polygon")[6]!;
-    expect(topFace.getAttribute("points")).toBe("48,-24 288,96 72,204 -168,84");
+    expect(
+      screen.getByText("Position on Floor 1 footprint"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("X 5 m · Y 1 m")).toBeInTheDocument();
+
+    fireEvent.keyDown(screen.getByRole("button", { name: "Drag floor 2" }), {
+      key: "ArrowRight",
+    });
+    expect(onPlacementChange).toHaveBeenCalledWith({ xMm: 6_000, yMm: 1_000 });
 
     fireEvent.click(screen.getByRole("button", { name: "Plan" }));
 

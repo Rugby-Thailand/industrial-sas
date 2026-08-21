@@ -28,6 +28,8 @@ const floorValidator = v.object({
   widthMm: v.optional(v.number()),
   depthMm: v.optional(v.number()),
   heightMm: v.optional(v.number()),
+  offsetXMm: v.optional(v.number()),
+  offsetYMm: v.optional(v.number()),
   reservedBlocks: v.array(blockValidator),
 });
 const outcome = v.any();
@@ -51,6 +53,8 @@ interface FloorDocument {
   readonly widthMm?: number;
   readonly depthMm?: number;
   readonly heightMm?: number;
+  readonly offsetXMm?: number;
+  readonly offsetYMm?: number;
   readonly version: number;
 }
 interface BlockDocument {
@@ -117,6 +121,12 @@ async function readLayout(
         ...(floor.widthMm === undefined ? {} : { widthMm: floor.widthMm }),
         ...(floor.depthMm === undefined ? {} : { depthMm: floor.depthMm }),
         ...(floor.heightMm === undefined ? {} : { heightMm: floor.heightMm }),
+        ...(floor.offsetXMm === undefined
+          ? {}
+          : { offsetXMm: floor.offsetXMm }),
+        ...(floor.offsetYMm === undefined
+          ? {}
+          : { offsetYMm: floor.offsetYMm }),
         reservedBlocks: blocks.map((block) => ({
           id: block._id,
           label: block.label,
@@ -340,12 +350,17 @@ export const changeStorageFloorCount = mutationWithOrg({
     )
       return failure("FLOOR_COUNT_MUST_INCREASE", "floorCount");
     const current = await readLayout(ctx, building);
+    const previousFloor = current.floors.at(-1);
+    const newFloorWidthMm = previousFloor?.widthMm ?? building.widthMm;
+    const newFloorDepthMm = previousFloor?.depthMm ?? building.depthMm;
     const floors = [
       ...current.floors,
       ...Array.from(
         { length: args.floorCount - building.floorCount },
         (_, index) => ({
           floorNumber: building.floorCount + index + 1,
+          widthMm: newFloorWidthMm,
+          depthMm: newFloorDepthMm,
           reservedBlocks: [],
         }),
       ),
@@ -388,10 +403,13 @@ export const changeStorageFloorCount = mutationWithOrg({
         floorNumber += 1
       ) {
         const floorSummary = summary.value.floors[floorNumber - 1]!;
+        const floorInput = floors[floorNumber - 1]!;
         await ctx.tenantDb.insert("storageFloors", {
           buildingId: args.buildingId,
           warehouseId: args.warehouseId,
           floorNumber,
+          widthMm: floorInput.widthMm,
+          depthMm: floorInput.depthMm,
           grossAreaSqMm: floorSummary.grossAreaSqMm,
           reservedAreaSqMm: floorSummary.reservedAreaSqMm,
           usableAreaSqMm: floorSummary.usableAreaSqMm,
@@ -468,6 +486,12 @@ export const saveStorageFloor = mutationWithOrg({
         ...(args.floor.heightMm === undefined
           ? {}
           : { heightMm: args.floor.heightMm }),
+        ...(args.floor.offsetXMm === undefined
+          ? {}
+          : { offsetXMm: args.floor.offsetXMm }),
+        ...(args.floor.offsetYMm === undefined
+          ? {}
+          : { offsetYMm: args.floor.offsetYMm }),
         grossAreaSqMm: floorSummary.grossAreaSqMm,
         reservedAreaSqMm: floorSummary.reservedAreaSqMm,
         usableAreaSqMm: floorSummary.usableAreaSqMm,

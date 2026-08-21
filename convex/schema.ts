@@ -760,6 +760,8 @@ const schema = defineSchema({
       widthMm: v.optional(v.number()),
       depthMm: v.optional(v.number()),
       heightMm: v.optional(v.number()),
+      offsetXMm: v.optional(v.number()),
+      offsetYMm: v.optional(v.number()),
       grossAreaSqMm: v.number(),
       reservedAreaSqMm: v.number(),
       usableAreaSqMm: v.number(),

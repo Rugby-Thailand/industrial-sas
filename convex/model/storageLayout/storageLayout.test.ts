@@ -64,6 +64,8 @@ describe("validateAndSummarizeStorageLayout", () => {
             floorNumber: 3,
             widthMm: 20_000,
             depthMm: 12_000,
+            offsetXMm: 5_000,
+            offsetYMm: 4_000,
             usableAreaSqMm: 224_000_000,
           }),
           expect.objectContaining({
@@ -72,6 +74,60 @@ describe("validateAndSummarizeStorageLayout", () => {
           }),
         ],
       },
+    });
+  });
+
+  it("places a floor relative to the floor immediately below", () => {
+    const result = validateAndSummarizeStorageLayout({
+      widthMm: 30_000,
+      depthMm: 20_000,
+      defaultFloorHeightMm: 3_000,
+      floors: [
+        { floorNumber: 1, reservedBlocks: [] },
+        {
+          floorNumber: 2,
+          widthMm: 20_000,
+          depthMm: 16_000,
+          offsetXMm: 2_000,
+          offsetYMm: 1_000,
+          reservedBlocks: [],
+        },
+        {
+          floorNumber: 3,
+          widthMm: 10_000,
+          depthMm: 10_000,
+          offsetXMm: 8_000,
+          offsetYMm: 6_000,
+          reservedBlocks: [],
+        },
+      ],
+    });
+
+    expect(result.ok && result.value.floors[2]).toEqual(
+      expect.objectContaining({ offsetXMm: 8_000, offsetYMm: 6_000 }),
+    );
+  });
+
+  it("rejects a floor that extends beyond the previous floor", () => {
+    const result = validateAndSummarizeStorageLayout({
+      widthMm: 30_000,
+      depthMm: 20_000,
+      defaultFloorHeightMm: 3_000,
+      floors: [
+        { floorNumber: 1, reservedBlocks: [] },
+        {
+          floorNumber: 2,
+          widthMm: 20_000,
+          depthMm: 16_000,
+          offsetXMm: 11_000,
+          reservedBlocks: [],
+        },
+      ],
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      error: { code: "FLOOR_OUT_OF_BOUNDS", floorNumber: 2 },
     });
   });
 

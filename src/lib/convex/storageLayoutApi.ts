@@ -19,6 +19,8 @@ export interface StorageFloorRow {
   readonly widthMm?: number;
   readonly depthMm?: number;
   readonly heightMm?: number;
+  readonly offsetXMm?: number;
+  readonly offsetYMm?: number;
   readonly grossAreaSqMm: number;
   readonly reservedAreaSqMm: number;
   readonly usableAreaSqMm: number;
@@ -125,6 +127,8 @@ export const storageLayoutRefs = Object.freeze({
         widthMm?: number;
         depthMm?: number;
         heightMm?: number;
+        offsetXMm?: number;
+        offsetYMm?: number;
         reservedBlocks: readonly {
           id: string;
           label: string;

@@ -21,6 +21,9 @@ export interface StorageFloorInput {
   readonly widthMm?: number;
   readonly depthMm?: number;
   readonly heightMm?: number;
+  /** Placement relative to the building (floor 1) or previous floor. */
+  readonly offsetXMm?: number;
+  readonly offsetYMm?: number;
   readonly reservedBlocks: readonly StorageReservedBlockInput[];
 }
 
@@ -36,6 +39,8 @@ export interface StorageFloorSummary {
   readonly widthMm: number;
   readonly depthMm: number;
   readonly heightMm: number;
+  readonly offsetXMm: number;
+  readonly offsetYMm: number;
   readonly grossAreaSqMm: number;
   readonly reservedAreaSqMm: number;
   readonly usableAreaSqMm: number;
@@ -60,6 +65,15 @@ export type StorageLayoutError =
       readonly code: "DIMENSION_INVALID";
       readonly field: string;
       readonly floorNumber?: number;
+    }
+  | {
+      readonly code: "FLOOR_PLACEMENT_INVALID";
+      readonly field: "offsetXMm" | "offsetYMm";
+      readonly floorNumber: number;
+    }
+  | {
+      readonly code: "FLOOR_OUT_OF_BOUNDS";
+      readonly floorNumber: number;
     }
   | {
       readonly code: "RESERVED_BLOCK_COUNT_INVALID";
@@ -88,6 +102,10 @@ function validDimension(value: number): boolean {
     value > 0 &&
     value <= STORAGE_LAYOUT_LIMITS.maximumDimensionMm
   );
+}
+
+function validOffset(value: number): boolean {
+  return Number.isSafeInteger(value) && value >= 0;
 }
 
 function rectanglesOverlap(
@@ -155,6 +173,32 @@ export function validateAndSummarizeStorageLayout(
           floorNumber: expected,
         });
       }
+    }
+
+    const previousFloor = floors.at(-1);
+    const baseWidthMm = previousFloor?.widthMm ?? input.widthMm;
+    const baseDepthMm = previousFloor?.depthMm ?? input.depthMm;
+    const offsetXMm =
+      floor.offsetXMm ?? Math.max(0, Math.floor((baseWidthMm - widthMm) / 2));
+    const offsetYMm =
+      floor.offsetYMm ?? Math.max(0, Math.floor((baseDepthMm - depthMm) / 2));
+    for (const [field, value] of [
+      ["offsetXMm", offsetXMm],
+      ["offsetYMm", offsetYMm],
+    ] as const) {
+      if (!validOffset(value)) {
+        return fail({
+          code: "FLOOR_PLACEMENT_INVALID",
+          field,
+          floorNumber: expected,
+        });
+      }
+    }
+    if (
+      offsetXMm + widthMm > baseWidthMm ||
+      offsetYMm + depthMm > baseDepthMm
+    ) {
+      return fail({ code: "FLOOR_OUT_OF_BOUNDS", floorNumber: expected });
     }
 
     if (
@@ -226,6 +270,8 @@ export function validateAndSummarizeStorageLayout(
         widthMm,
         depthMm,
         heightMm,
+        offsetXMm,
+        offsetYMm,
         grossAreaSqMm: floorGrossArea,
         reservedAreaSqMm: floorReservedArea,
         usableAreaSqMm: floorGrossArea - floorReservedArea,
