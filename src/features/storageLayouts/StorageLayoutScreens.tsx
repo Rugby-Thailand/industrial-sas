@@ -30,6 +30,16 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Notice } from "@/components/ui/Notice";
 import { StatusBadge, type BadgeTone } from "@/components/ui/StatusBadge";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -1907,6 +1917,14 @@ function ReservedBlocks({
   readonly setBlocks: (blocks: EditableBlock[]) => void;
 }) {
   const t = useTranslations("StorageLayouts");
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [draft, setDraft] = useState({
+    label: "",
+    x: "0",
+    y: "0",
+    width: "1",
+    depth: "1",
+  });
   const patchBlock = (
     index: number,
     field: keyof EditableBlock,
@@ -1922,30 +1940,117 @@ function ReservedBlocks({
           : block,
       ),
     );
+  const openAddDialog = (open: boolean) => {
+    setDialogOpen(open);
+    if (open) {
+      setDraft({
+        label: t("newReservedZoneLabel", { number: blocks.length + 1 }),
+        x: "0",
+        y: "0",
+        width: "1",
+        depth: "1",
+      });
+    }
+  };
+  const addReservedBlock = () => {
+    setBlocks([
+      ...blocks,
+      {
+        id: requestId(),
+        label: draft.label.trim(),
+        xMm: millimetres(draft.x),
+        yMm: millimetres(draft.y),
+        widthMm: millimetres(draft.width),
+        depthMm: millimetres(draft.depth),
+      },
+    ]);
+    setDialogOpen(false);
+  };
   return (
     <section className="rounded-2xl border border-border bg-surface p-5 shadow-sm">
       <div className="flex items-center justify-between gap-3">
         <h2 className="font-semibold text-text">{t("reservedZones")}</h2>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() =>
-            setBlocks([
-              ...blocks,
-              {
-                id: requestId(),
-                label: `Zone ${blocks.length + 1}`,
-                xMm: 0,
-                yMm: 0,
-                widthMm: 1_000,
-                depthMm: 1_000,
-              },
-            ])
-          }
-        >
-          <Plus className="size-4" />
-          {t("addZone")}
-        </Button>
+        <Dialog open={dialogOpen} onOpenChange={openAddDialog}>
+          <DialogTrigger asChild>
+            <Button type="button" variant="outline">
+              <Plus className="size-4" />
+              {t("addZone")}
+            </Button>
+          </DialogTrigger>
+          <DialogContent closeLabel={t("closeDialog")}>
+            <DialogHeader>
+              <DialogTitle>{t("addReservedZoneTitle")}</DialogTitle>
+              <DialogDescription>
+                {t("addReservedZoneDescription")}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="sm:col-span-2">
+                <Label htmlFor="reserved-zone-dialog-label">
+                  {t("zoneLabel")}
+                </Label>
+                <Input
+                  id="reserved-zone-dialog-label"
+                  className="mt-2"
+                  value={draft.label}
+                  onChange={(event) =>
+                    setDraft((current) => ({
+                      ...current,
+                      label: event.target.value,
+                    }))
+                  }
+                />
+              </div>
+              {(
+                [
+                  ["x", "x"],
+                  ["y", "y"],
+                  ["zoneWidth", "width"],
+                  ["zoneDepth", "depth"],
+                ] as const
+              ).map(([labelKey, field]) => (
+                <div key={field}>
+                  <Label htmlFor={`reserved-zone-dialog-${field}`}>
+                    {t(labelKey)}
+                  </Label>
+                  <Input
+                    id={`reserved-zone-dialog-${field}`}
+                    className="mt-2"
+                    type="number"
+                    min={field === "x" || field === "y" ? "0" : "0.1"}
+                    step="0.1"
+                    value={draft[field]}
+                    onChange={(event) =>
+                      setDraft((current) => ({
+                        ...current,
+                        [field]: event.target.value,
+                      }))
+                    }
+                  />
+                </div>
+              ))}
+            </div>
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button type="button" variant="outline">
+                  {t("cancel")}
+                </Button>
+              </DialogClose>
+              <Button
+                type="button"
+                onClick={addReservedBlock}
+                disabled={
+                  draft.label.trim() === "" ||
+                  millimetres(draft.width) <= 0 ||
+                  millimetres(draft.depth) <= 0
+                }
+              >
+                <Plus className="size-4" />
+                {t("addReservedZoneAction")}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
       <div className="mt-5 space-y-3">
         {blocks.map((block, index) => (
@@ -2051,6 +2156,7 @@ function StorageZonesPanel({
   const [unitWidth, setUnitWidth] = useState("1.2");
   const [unitDepth, setUnitDepth] = useState("1");
   const [unitHeight, setUnitHeight] = useState("1.4");
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<string>();
   const [message, setMessage] = useState<{
     readonly tone: "success" | "warning";
@@ -2096,6 +2202,7 @@ function StorageZonesPanel({
         });
       } else {
         setLabel("");
+        setCreateDialogOpen(false);
         setMessage({ tone: "success", text: t("storageZoneCreated") });
       }
     } finally {
@@ -2161,75 +2268,110 @@ function StorageZonesPanel({
 
   return (
     <section className="rounded-2xl border border-border bg-surface p-5 shadow-sm">
-      <div className="flex items-start gap-3">
-        <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-success/10 text-success">
-          <QrCode className="size-5" />
-        </div>
-        <div>
-          <h2 className="font-semibold text-text">{t("storageZones")}</h2>
-          <p className="mt-1 text-sm text-muted">{t("storageZonesHelp")}</p>
-        </div>
-      </div>
-
-      <div className="mt-5 grid gap-3 rounded-xl border border-border bg-background p-4 md:grid-cols-6">
-        <div className="md:col-span-2">
-          <Label htmlFor="new-storage-zone-label">{t("zoneLabel")}</Label>
-          <Input
-            id="new-storage-zone-label"
-            className="mt-2"
-            value={label}
-            placeholder={t("newStorageZoneLabel", { number: zones.length + 1 })}
-            onChange={(event) => setLabel(event.target.value)}
-          />
-        </div>
-        {[
-          ["x", zoneX, setZoneX, 0, floorWidthMm],
-          ["y", zoneY, setZoneY, 0, floorDepthMm],
-          ["zoneWidth", zoneWidth, setZoneWidth, 0.1, floorWidthMm],
-          ["zoneDepth", zoneDepth, setZoneDepth, 0.1, floorDepthMm],
-        ].map(([key, value, setValue, min]) => (
-          <div key={String(key)}>
-            <Label htmlFor={`new-storage-zone-${String(key)}`}>
-              {t(key as "x" | "y" | "zoneWidth" | "zoneDepth")}
-            </Label>
-            <Input
-              id={`new-storage-zone-${String(key)}`}
-              className="mt-2"
-              type="number"
-              min={Number(min)}
-              step="0.1"
-              value={String(value)}
-              onChange={(event) =>
-                (setValue as (value: string) => void)(event.target.value)
-              }
-            />
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex items-start gap-3">
+          <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-success/10 text-success">
+            <QrCode className="size-5" />
           </div>
-        ))}
-        <div className="md:col-span-2">
-          <Label htmlFor="new-storage-zone-height">{t("maxStackHeight")}</Label>
-          <Input
-            id="new-storage-zone-height"
-            className="mt-2"
-            type="number"
-            min="0.1"
-            max={metres(floorHeightMm)}
-            step="0.1"
-            value={stackHeight}
-            onChange={(event) => setStackHeight(event.target.value)}
-          />
+          <div>
+            <h2 className="font-semibold text-text">{t("storageZones")}</h2>
+            <p className="mt-1 text-sm text-muted">{t("storageZonesHelp")}</p>
+          </div>
         </div>
-        <div className="flex items-end md:col-span-4">
-          <Button
-            type="button"
-            onClick={addStorageZone}
-            disabled={pendingAction !== undefined}
-          >
-            <Plus className="size-4" />
-            {pendingAction === "create"
-              ? t("creating")
-              : t("createStorageZone")}
-          </Button>
-        </div>
+        <Dialog
+          open={createDialogOpen}
+          onOpenChange={(open) => {
+            setCreateDialogOpen(open);
+            if (open) setMessage(undefined);
+          }}
+        >
+          <DialogTrigger asChild>
+            <Button type="button" variant="outline">
+              <Plus className="size-4" />
+              {t("addStorageZone")}
+            </Button>
+          </DialogTrigger>
+          <DialogContent closeLabel={t("closeDialog")}>
+            <DialogHeader>
+              <DialogTitle>{t("addStorageZoneTitle")}</DialogTitle>
+              <DialogDescription>
+                {t("addStorageZoneDescription")}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="sm:col-span-2">
+                <Label htmlFor="new-storage-zone-label">{t("zoneLabel")}</Label>
+                <Input
+                  id="new-storage-zone-label"
+                  className="mt-2"
+                  value={label}
+                  placeholder={t("newStorageZoneLabel", {
+                    number: zones.length + 1,
+                  })}
+                  onChange={(event) => setLabel(event.target.value)}
+                />
+              </div>
+              {[
+                ["x", zoneX, setZoneX, 0, floorWidthMm],
+                ["y", zoneY, setZoneY, 0, floorDepthMm],
+                ["zoneWidth", zoneWidth, setZoneWidth, 0.1, floorWidthMm],
+                ["zoneDepth", zoneDepth, setZoneDepth, 0.1, floorDepthMm],
+              ].map(([key, value, setValue, min]) => (
+                <div key={String(key)}>
+                  <Label htmlFor={`new-storage-zone-${String(key)}`}>
+                    {t(key as "x" | "y" | "zoneWidth" | "zoneDepth")}
+                  </Label>
+                  <Input
+                    id={`new-storage-zone-${String(key)}`}
+                    className="mt-2"
+                    type="number"
+                    min={Number(min)}
+                    step="0.1"
+                    value={String(value)}
+                    onChange={(event) =>
+                      (setValue as (value: string) => void)(event.target.value)
+                    }
+                  />
+                </div>
+              ))}
+              <div className="sm:col-span-2">
+                <Label htmlFor="new-storage-zone-height">
+                  {t("maxStackHeight")}
+                </Label>
+                <Input
+                  id="new-storage-zone-height"
+                  className="mt-2"
+                  type="number"
+                  min="0.1"
+                  max={metres(floorHeightMm)}
+                  step="0.1"
+                  value={stackHeight}
+                  onChange={(event) => setStackHeight(event.target.value)}
+                />
+              </div>
+            </div>
+            {message === undefined ? null : (
+              <Notice tone={message.tone} title={message.text} />
+            )}
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button type="button" variant="outline">
+                  {t("cancel")}
+                </Button>
+              </DialogClose>
+              <Button
+                type="button"
+                onClick={addStorageZone}
+                disabled={pendingAction !== undefined}
+              >
+                <Plus className="size-4" />
+                {pendingAction === "create"
+                  ? t("creating")
+                  : t("createStorageZone")}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <div className="mt-5 grid gap-4 lg:grid-cols-2">
