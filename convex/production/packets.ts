@@ -3,24 +3,22 @@
  *
  * Status: **implemented** (Phase 5A).
  *
- * ### Why the packet carries a snapshot as well as a pointer
+ * ### Why the packet stores references and the query returns a projection
  *
- * A packet stores `masterCardRevisionId` *and* `revisionNumber` *and* the whole
- * `specification`. The id answers "which revision was this cut from" for an
- * auditor. The snapshot answers "what does this packet say" for the shop floor —
- * and it does so without production needing read access to engineering's tables
- * at all.
+ * A packet stores the order-line and released-revision identifiers. Its read
+ * model resolves the order, immutable revision, and approved-file junction rows
+ * inside the server and returns one floor-facing object. Production users still
+ * call only a production function and gain no engineering endpoint permission.
  *
  * That is what makes the release gate hold. `PRODUCTION_PLANNER` and
  * `WAREHOUSE_MANAGER` carry no `engineering.*` permission whatsoever, so a
  * production screen physically cannot render a draft revision: there is no
- * function it may call that returns one. The snapshot is not a cache for speed,
- * it is what lets production's permissions stay that narrow.
+ * function it may call that returns one. The production query performs the
+ * authoritative join only after its own permission and tenant checks.
  *
- * The two can never disagree, because a released revision is immutable
- * (`INV-0013-04`). If revisions could be edited after release, a snapshot would
- * be a second version of the truth; because they cannot, it is the same truth,
- * copied.
+ * This keeps the operational tables in third normal form: order identity and
+ * quantity live on the order/line, revision metadata lives on the revision, and
+ * the repeating approved-file set lives in `factoryPacketFiles`.
  *
  * ### Why quantity is derived and never an argument
  *
@@ -99,19 +97,7 @@ interface PacketDocument {
   readonly warehouseId: string;
   readonly packetNumber: string;
   readonly customerOrderLineId: string;
-  readonly customerId: string;
-  readonly customerOrderNumber: string;
-  readonly customerReference?: string;
   readonly masterCardRevisionId: string;
-  readonly revisionNumber: number;
-  readonly specification: DesignSpecification;
-  readonly approvedFileIds: readonly string[];
-  readonly releaseEvidence: {
-    readonly releasedByUserId: string;
-    readonly releasedAt: number;
-    readonly decisionNote?: string;
-  };
-  readonly quantity: number;
   readonly status: "ISSUED" | "ACKNOWLEDGED" | "CANCELLED";
   readonly issuedByUserId: string;
   readonly acknowledgedByUserId?: string;
@@ -126,6 +112,13 @@ interface LineDocument {
   readonly status: CustomerOrderLineState["status"];
   readonly orderedQuantity: number;
   readonly masterCardRevisionId?: string;
+}
+
+interface PacketFileDocument {
+  readonly _id: string;
+  readonly orgId: TenantOrgId;
+  readonly factoryPacketId: string;
+  readonly masterCardFileId: string;
 }
 
 interface OrderDocument {
@@ -333,9 +326,7 @@ export const issueFactoryPacket = mutationWithOrg({
       order,
       revision: {
         revisionId: revision._id,
-        revisionNumber: revision.revisionNumber,
         status: revision.status,
-        specification: revision.specification,
       },
     });
     if (!issue.ok) return refusal(issue.error);
@@ -371,23 +362,7 @@ export const issueFactoryPacket = mutationWithOrg({
         warehouseId: args.warehouseId,
         packetNumber: packetNumber.value,
         customerOrderLineId: args.customerOrderLineId,
-        customerId: order.customerId,
-        customerOrderNumber: order.orderNumber,
-        ...(order.customerReference === undefined
-          ? {}
-          : { customerReference: order.customerReference }),
         masterCardRevisionId: issue.value.pin.masterCardRevisionId,
-        revisionNumber: issue.value.pin.revisionNumber,
-        specification: { ...issue.value.pin.specification },
-        approvedFileIds,
-        releaseEvidence: {
-          releasedByUserId: revision.decidedByUserId,
-          releasedAt: revision.decidedAt,
-          ...(revision.decisionNote === undefined
-            ? {}
-            : { decisionNote: revision.decisionNote }),
-        },
-        quantity: issue.value.quantity,
         status: issue.value.status,
         issuedByUserId: context.actorUserId,
       },
@@ -396,6 +371,12 @@ export const issueFactoryPacket = mutationWithOrg({
     if (!outcome.ok) return refusal(outcome.error);
 
     if (!outcome.value.replayed) {
+      for (const masterCardFileId of approvedFileIds) {
+        await ctx.tenantDb.insert("factoryPacketFiles", {
+          factoryPacketId: outcome.value.documentId,
+          masterCardFileId,
+        });
+      }
       await ctx.tenantDb.patch("customerOrderLines", line._id, {
         status: "HANDED_OFF",
       });
@@ -627,10 +608,9 @@ const packetValidator = v.object({
 /**
  * The packets at one site, in packet-number order.
  *
- * Everything the floor needs is on the row — number, quantity, revision number,
- * and the full specification — so this query is the *only* thing a production
- * screen has to call. It reads no engineering table, which is what lets the
- * production roles hold no engineering permission.
+ * This remains the only query a production screen calls. The server joins each
+ * bounded page to authoritative order-line, order, immutable revision, and file
+ * junction rows; production roles still hold no engineering endpoint permission.
  */
 export const listFactoryPackets = queryWithOrg({
   args: {
@@ -659,30 +639,60 @@ export const listFactoryPackets = queryWithOrg({
       )
       .page(pageOptions(request.value));
 
-    return {
-      ok: true as const,
-      items: page.page.map((packet) => ({
+    const items = [];
+    for (const packet of page.page) {
+      const line = await ctx.tenantDb.get<LineDocument>(
+        "customerOrderLines",
+        packet.customerOrderLineId,
+      );
+      if (line === null) return pageRefusal("REFERENCE_NOT_FOUND");
+      const order = await ctx.tenantDb.get<OrderDocument>(
+        "customerOrders",
+        line.customerOrderId,
+      );
+      if (order === null) return pageRefusal("REFERENCE_NOT_FOUND");
+      const revision = await ctx.tenantDb.get<RevisionDocument>(
+        "masterCardRevisions",
+        packet.masterCardRevisionId,
+      );
+      if (
+        revision === null ||
+        revision.decidedByUserId === undefined ||
+        revision.decidedAt === undefined
+      ) {
+        return pageRefusal("REFERENCE_NOT_FOUND");
+      }
+      const packetFiles = await ctx.tenantDb
+        .byIndex<PacketFileDocument>(
+          "factoryPacketFiles",
+          "by_orgId_factoryPacketId_masterCardFileId",
+          [{ field: "factoryPacketId", value: packet._id }],
+        )
+        .take(MAX_FILES_PER_REVISION);
+      items.push({
         factoryPacketId: packet._id as never,
         warehouseId: packet.warehouseId as never,
         packetNumber: packet.packetNumber,
         customerOrderLineId: packet.customerOrderLineId as never,
-        customerId: packet.customerId as never,
-        customerOrderNumber: packet.customerOrderNumber,
-        ...(packet.customerReference === undefined
+        customerId: order.customerId as never,
+        customerOrderNumber: order.orderNumber,
+        ...(order.customerReference === undefined
           ? {}
-          : { customerReference: packet.customerReference }),
+          : { customerReference: order.customerReference }),
         masterCardRevisionId: packet.masterCardRevisionId as never,
-        revisionNumber: packet.revisionNumber,
-        specification: packet.specification as never,
-        approvedFileIds: packet.approvedFileIds as never,
+        revisionNumber: revision.revisionNumber,
+        specification: revision.specification as never,
+        approvedFileIds: packetFiles.map(
+          (association) => association.masterCardFileId as never,
+        ),
         releaseEvidence: {
-          releasedByUserId: packet.releaseEvidence.releasedByUserId as never,
-          releasedAt: packet.releaseEvidence.releasedAt,
-          ...(packet.releaseEvidence.decisionNote === undefined
+          releasedByUserId: revision.decidedByUserId as never,
+          releasedAt: revision.decidedAt,
+          ...(revision.decisionNote === undefined
             ? {}
-            : { decisionNote: packet.releaseEvidence.decisionNote }),
+            : { decisionNote: revision.decisionNote }),
         },
-        quantity: packet.quantity,
+        quantity: line.orderedQuantity,
         status: packet.status as never,
         issuedByUserId: packet.issuedByUserId as never,
         ...(packet.acknowledgedByUserId === undefined
@@ -691,7 +701,12 @@ export const listFactoryPackets = queryWithOrg({
         ...(packet.acknowledgedAt === undefined
           ? {}
           : { acknowledgedAt: packet.acknowledgedAt }),
-      })),
+      });
+    }
+
+    return {
+      ok: true as const,
+      items,
       nextCursor: page.isDone ? null : page.continueCursor,
       complete: page.isDone,
     };
@@ -733,11 +748,23 @@ export const requestFactoryPacketFileAccess = mutationWithOrg({
       "factoryPackets",
       args.factoryPacketId,
     );
-    if (
-      packet === null ||
-      packet.warehouseId !== args.warehouseId ||
-      !packet.approvedFileIds.includes(args.masterCardFileId)
-    ) {
+    if (packet === null || packet.warehouseId !== args.warehouseId) {
+      return {
+        granted: false as const,
+        error: { code: "NOT_FOUND", field: "masterCardFileId" },
+      };
+    }
+    const approval = await ctx.tenantDb
+      .byIndex<PacketFileDocument>(
+        "factoryPacketFiles",
+        "by_orgId_factoryPacketId_masterCardFileId",
+        [
+          { field: "factoryPacketId", value: args.factoryPacketId },
+          { field: "masterCardFileId", value: args.masterCardFileId },
+        ],
+      )
+      .first();
+    if (approval === null) {
       return {
         granted: false as const,
         error: { code: "NOT_FOUND", field: "masterCardFileId" },

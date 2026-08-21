@@ -12,7 +12,6 @@ export type DesignRequestPriority = "LOW" | "NORMAL" | "HIGH" | "URGENT";
 export interface DesignRequestState {
   readonly status: DesignRequestStatus;
   readonly assignedToUserId?: string;
-  readonly customerProductCode: string;
   readonly dueAt?: number;
 }
 
@@ -68,6 +67,7 @@ export function planDesignRequestProgress(
 
 export function checkDesignRequestFulfilment(input: {
   readonly request: DesignRequestState;
+  readonly requestedCustomerProductCode: string;
   readonly revisionStatus: string;
   readonly revisionCustomerProductCode: string;
 }): Result<"FULFILLED", DesignRequestError> {
@@ -89,7 +89,9 @@ export function checkDesignRequestFulfilment(input: {
       reason: "REVISION_NOT_RELEASED",
     });
   }
-  if (input.revisionCustomerProductCode !== input.request.customerProductCode) {
+  if (
+    input.revisionCustomerProductCode !== input.requestedCustomerProductCode
+  ) {
     return fail({
       code: "PRECONDITION_FAILED",
       field: "customerProductCode",

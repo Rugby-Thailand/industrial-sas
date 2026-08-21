@@ -88,24 +88,29 @@ interface RequestDocument {
   readonly orgId: TenantOrgId;
   readonly requestNumber: string;
   readonly customerOrderLineId: string;
-  readonly customerId: string;
-  readonly customerProductCode: string;
-  readonly designKey: string;
   readonly status: DesignRequestState["status"];
   readonly priority: "LOW" | "NORMAL" | "HIGH" | "URGENT";
   readonly dueAt?: number;
   readonly assignedToUserId?: string;
   readonly masterCardRevisionId?: string;
-  readonly specification: DesignSpecification;
 }
 
 interface LineDocument {
   readonly _id: string;
   readonly orgId: TenantOrgId;
+  readonly customerOrderId: string;
+  readonly customerProductCode: string;
+  readonly designKey: string;
   readonly status: CustomerOrderLineState["status"];
   readonly masterCardRevisionId?: string;
   readonly specification: DesignSpecification;
   readonly designSource: string;
+}
+
+interface OrderDocument {
+  readonly _id: string;
+  readonly orgId: TenantOrgId;
+  readonly customerId: string;
 }
 
 interface RevisionDocument {
@@ -353,13 +358,6 @@ export const fulfilDesignRequest = mutationWithOrg({
     if (card === null) {
       return refusal({ code: "REFERENCE_NOT_FOUND", field: "masterCardId" });
     }
-    const requestFulfilment = checkDesignRequestFulfilment({
-      request,
-      revisionStatus: revision.status,
-      revisionCustomerProductCode: card.customerProductCode,
-    });
-    if (!requestFulfilment.ok) return refusal(requestFulfilment.error);
-
     const line = await ctx.tenantDb.get<LineDocument>(
       "customerOrderLines",
       request.customerOrderLineId,
@@ -370,6 +368,13 @@ export const fulfilDesignRequest = mutationWithOrg({
         field: "customerOrderLineId",
       });
     }
+    const requestFulfilment = checkDesignRequestFulfilment({
+      request,
+      requestedCustomerProductCode: line.customerProductCode,
+      revisionStatus: revision.status,
+      revisionCustomerProductCode: card.customerProductCode,
+    });
+    if (!requestFulfilment.ok) return refusal(requestFulfilment.error);
 
     const fulfilment = checkDesignFulfilment(line, revision);
     if (!fulfilment.ok) return refusal(fulfilment.error);
@@ -475,13 +480,6 @@ export const confirmSimilarDesign = mutationWithOrg({
         field: "masterCardRevisionId",
       });
     }
-    const card = await ctx.tenantDb.get<CardDocument>(
-      "masterCards",
-      revision.masterCardId,
-    );
-    if (card === null || card.customerId !== request.customerId) {
-      return refusal({ code: "REFERENCE_NOT_FOUND", field: "masterCardId" });
-    }
     const line = await ctx.tenantDb.get<LineDocument>(
       "customerOrderLines",
       request.customerOrderLineId,
@@ -492,9 +490,23 @@ export const confirmSimilarDesign = mutationWithOrg({
         field: "customerOrderLineId",
       });
     }
+    const order = await ctx.tenantDb.get<OrderDocument>(
+      "customerOrders",
+      line.customerOrderId,
+    );
+    if (order === null) {
+      return refusal({ code: "REFERENCE_NOT_FOUND", field: "customerOrderId" });
+    }
+    const card = await ctx.tenantDb.get<CardDocument>(
+      "masterCards",
+      revision.masterCardId,
+    );
+    if (card === null || card.customerId !== order.customerId) {
+      return refusal({ code: "REFERENCE_NOT_FOUND", field: "masterCardId" });
+    }
     const confirmation = planSimilarDesignConfirmation({
       request,
-      requestedSpecification: request.specification,
+      requestedSpecification: line.specification,
       candidateSpecification: revision.specification,
       candidateRevisionStatus: revision.status,
       lineStatus: line.status,
@@ -599,16 +611,26 @@ export const listDesignRequests = queryWithOrg({
       )
       .page(pageOptions(request.value));
 
-    return {
-      ok: true as const,
-      items: page.page.map((row) => ({
+    const items = [];
+    for (const row of page.page) {
+      const line = await ctx.tenantDb.get<LineDocument>(
+        "customerOrderLines",
+        row.customerOrderLineId,
+      );
+      if (line === null) return pageRefusal("REFERENCE_NOT_FOUND");
+      const order = await ctx.tenantDb.get<OrderDocument>(
+        "customerOrders",
+        line.customerOrderId,
+      );
+      if (order === null) return pageRefusal("REFERENCE_NOT_FOUND");
+      items.push({
         designRequestId: row._id as never,
         requestNumber: row.requestNumber,
         customerOrderLineId: row.customerOrderLineId as never,
-        customerId: row.customerId as never,
-        customerProductCode: row.customerProductCode,
-        designKey: row.designKey,
-        specification: { ...row.specification } as never,
+        customerId: order.customerId as never,
+        customerProductCode: line.customerProductCode,
+        designKey: line.designKey,
+        specification: { ...line.specification } as never,
         status: row.status as never,
         priority: row.priority as never,
         ...(row.dueAt === undefined ? {} : { dueAt: row.dueAt }),
@@ -619,7 +641,12 @@ export const listDesignRequests = queryWithOrg({
         ...(row.masterCardRevisionId === undefined
           ? {}
           : { masterCardRevisionId: row.masterCardRevisionId as never }),
-      })),
+      });
+    }
+
+    return {
+      ok: true as const,
+      items,
       nextCursor: page.isDone ? null : page.continueCursor,
       complete: page.isDone,
     };
@@ -651,6 +678,16 @@ export const listSimilarReleasedDesigns = queryWithOrg({
       args.designRequestId,
     );
     if (request === null) return [];
+    const line = await ctx.tenantDb.get<LineDocument>(
+      "customerOrderLines",
+      request.customerOrderLineId,
+    );
+    if (line === null) return [];
+    const order = await ctx.tenantDb.get<OrderDocument>(
+      "customerOrders",
+      line.customerOrderId,
+    );
+    if (order === null) return [];
     /*
      * Suggestions are deliberately the structurally identical design key under
      * a different customer product code. This indexed definition is complete:
@@ -661,8 +698,8 @@ export const listSimilarReleasedDesigns = queryWithOrg({
      */
     const cards = await ctx.tenantDb
       .byIndex<CardDocument>("masterCards", "by_orgId_customerId_designKey", [
-        { field: "customerId", value: request.customerId },
-        { field: "designKey", value: request.designKey },
+        { field: "customerId", value: order.customerId },
+        { field: "designKey", value: line.designKey },
       ])
       .take(20);
     const candidates: Array<{
@@ -687,7 +724,7 @@ export const listSimilarReleasedDesigns = queryWithOrg({
       >("masterCardRevisions", card.releasedRevisionId);
       if (revision === null || revision.status !== "RELEASED") continue;
       const score = designSimilarityScore(
-        request.specification,
+        line.specification,
         revision.specification,
       );
       if (score <= 0) continue;
@@ -746,7 +783,7 @@ export const listReleasedRevisions = queryWithOrg({
         readonly revisionNumber: number;
         readonly designKey: string;
         readonly status: string;
-        readonly specification: RequestDocument["specification"];
+        readonly specification: DesignSpecification;
       }>("masterCardRevisions", "by_orgId_masterCardId_status", [
         { field: "masterCardId", value: args.masterCardId },
         { field: "status", value: "RELEASED" },

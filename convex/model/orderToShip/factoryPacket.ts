@@ -5,16 +5,12 @@
  * Status: **implemented.** Pure; no clock, no database, no Convex import
  * (plan §6.2).
  *
- * ### Why the packet carries a copy, not a reference
+ * ### Why the packet pins references and the read model composes them
  *
- * A packet pins one released revision *by id* and also carries that revision's
- * specification *by value*. The id is the audit answer to "which revision was
- * this cut from"; the copy is the operational answer to "what does this packet
- * say", and it keeps saying the same thing no matter what happens to the master
- * card afterwards. A released revision is immutable, so the two can never
- * disagree — the snapshot is belt and braces, and it is also what lets a
- * production reader see a specification without being granted read access to
- * engineering's revision table at all.
+ * A packet pins one released revision by id. Its production read model composes
+ * the immutable revision with the order line, order, and approved-file junction
+ * rows after the production permission check. That keeps the stored relations in
+ * third normal form without exposing an engineering endpoint to the floor.
  *
  * ### Why an unreleased revision can never be pinned
  *
@@ -31,7 +27,6 @@
  * concern, and are deliberately absent here rather than half-built.
  */
 import { fail, ok, type Result } from "../result";
-import type { DesignSpecification } from "./designSpecification";
 
 /* -------------------------------------------------------------------------- */
 /* Statuses                                                                    */
@@ -68,18 +63,9 @@ export type FactoryPacketError =
 /* The pin                                                                     */
 /* -------------------------------------------------------------------------- */
 
-/**
- * Everything a packet freezes about the design it was issued against.
- *
- * `revisionNumber` is stored alongside the id because it is the number a person
- * says out loud — "run it off rev 4" — and resolving an opaque id to a number
- * every time a packet is printed would be a read the shop floor is not entitled
- * to make.
- */
+/** The released revision relationship a packet freezes at issue time. */
 export interface FactoryPacketPin {
   readonly masterCardRevisionId: string;
-  readonly revisionNumber: number;
-  readonly specification: DesignSpecification;
 }
 
 /** What this module needs to know about a packet. */
@@ -90,9 +76,7 @@ export interface FactoryPacketState {
 /** What this module needs to know about the revision being pinned. */
 export interface PinnableRevision {
   readonly revisionId: string;
-  readonly revisionNumber: number;
   readonly status: string;
-  readonly specification: DesignSpecification;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -102,7 +86,6 @@ export interface PinnableRevision {
 /** What a successful issue decision produces. */
 export interface PacketIssue {
   readonly status: FactoryPacketStatus;
-  readonly quantity: number;
   readonly pin: FactoryPacketPin;
 }
 
@@ -167,11 +150,8 @@ export function checkPacketIssue(input: {
   return ok(
     Object.freeze({
       status: "ISSUED" as const,
-      quantity: input.line.orderedQuantity,
       pin: Object.freeze({
         masterCardRevisionId: input.revision.revisionId,
-        revisionNumber: input.revision.revisionNumber,
-        specification: input.revision.specification,
       }),
     }),
   );

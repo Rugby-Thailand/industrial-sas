@@ -108,6 +108,7 @@ export const TENANT_TABLES = [
   "masterCardFileAccessGrants",
   "masterCardImportChunks",
   "factoryPackets",
+  "factoryPacketFiles",
 ] as const;
 
 export type GlobalTableName = (typeof GLOBAL_TABLES)[number];
@@ -678,6 +679,15 @@ export const UNIQUENESS_CONTRACTS: readonly UniquenessContract[] = [
       "with nothing in this phase to reconcile the runs against — splitting a line across production runs " +
       "is a factory-order concern (WF-02, Phase 5B).",
   },
+  {
+    table: "factoryPacketFiles",
+    key: ["orgId", "factoryPacketId", "masterCardFileId"],
+    index: "by_orgId_factoryPacketId_masterCardFileId",
+    condition: ALWAYS,
+    rationale:
+      "A file is approved for a packet once. A duplicate relationship would add no fact and would make " +
+      "file access and packet rendering depend on deduplication order.",
+  },
 ] as const;
 
 /* -------------------------------------------------------------------------- */
@@ -908,6 +918,83 @@ export const BOUNDED_LOOKUP_CONTRACTS: readonly LookupContract[] = [
     rationale:
       "A production site holds many issued packets at once — that queue is the screen the floor works " +
       "from. The index bounds it per site and status; the packet per line is separately unique.",
+  },
+  {
+    table: "factoryPacketFiles",
+    key: ["orgId", "factoryPacketId"],
+    index: "by_orgId_factoryPacketId_masterCardFileId",
+    cardinality: "many",
+    rationale:
+      "A packet may approve several files. The junction table keeps that repeating group out of the " +
+      "packet row while the packet-first index returns the frozen file set without a scan.",
+  },
+  {
+    table: "factoryPacketFiles",
+    key: ["orgId", "masterCardFileId"],
+    index: "by_orgId_masterCardFileId_factoryPacketId",
+    cardinality: "many",
+    rationale:
+      "One immutable revision file may be approved for several packets; the reverse index keeps impact " +
+      "analysis and retention checks tenant-bounded.",
+  },
+] as const;
+
+/* -------------------------------------------------------------------------- */
+/* Third-normal-form contracts                                                 */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * A functional dependency that must be resolved through its authoritative row
+ * instead of copied onto the named table.
+ *
+ * Convex cannot infer functional dependencies from validators, so the schema
+ * records the ones most likely to regress as explicit policy. Append-only audit
+ * evidence and materialized projections are outside this contract; these rules
+ * cover mutable operational source-of-truth rows.
+ */
+export type ThirdNormalFormContract = {
+  readonly table: string;
+  readonly determinant: readonly string[];
+  readonly dependentFields: readonly string[];
+  readonly rationale: string;
+};
+
+export const THIRD_NORMAL_FORM_CONTRACTS: readonly ThirdNormalFormContract[] = [
+  {
+    table: "designRequests",
+    determinant: ["customerOrderLineId"],
+    dependentFields: [
+      "customerId",
+      "customerProductCode",
+      "designKey",
+      "specification",
+    ],
+    rationale:
+      "The order line determines the requested customer, product, fingerprint, and specification.",
+  },
+  {
+    table: "factoryPackets",
+    determinant: ["customerOrderLineId"],
+    dependentFields: [
+      "customerId",
+      "customerOrderNumber",
+      "customerReference",
+      "quantity",
+    ],
+    rationale:
+      "The packet's order line determines its customer, order identity, reference, and quantity.",
+  },
+  {
+    table: "factoryPackets",
+    determinant: ["masterCardRevisionId"],
+    dependentFields: [
+      "revisionNumber",
+      "specification",
+      "releaseEvidence",
+      "approvedFileIds",
+    ],
+    rationale:
+      "The pinned immutable revision determines revision metadata; approved files belong in junction rows.",
   },
 ] as const;
 
@@ -1283,6 +1370,42 @@ export function cardinalityContradictions(
     );
 }
 
+/** Operational rows that copy attributes determined by another non-key field. */
+export function thirdNormalFormViolations(
+  allFacts: readonly TableFacts[],
+  contracts: readonly ThirdNormalFormContract[] = THIRD_NORMAL_FORM_CONTRACTS,
+): readonly string[] {
+  const byName = new Map(allFacts.map((facts) => [facts.name, facts]));
+  const problems: string[] = [];
+
+  for (const contract of contracts) {
+    const facts = byName.get(contract.table);
+    if (facts === undefined) {
+      problems.push(
+        `${contract.table}: table named by a third-normal-form contract is absent`,
+      );
+      continue;
+    }
+    for (const determinant of contract.determinant) {
+      if (!facts.fieldNames.includes(determinant)) {
+        problems.push(
+          `${contract.table}: third-normal-form determinant "${determinant}" is absent`,
+        );
+      }
+    }
+    for (const dependent of contract.dependentFields) {
+      if (facts.fieldNames.includes(dependent)) {
+        problems.push(
+          `${contract.table}.${dependent}: copied attribute is transitively determined by ` +
+            `[${contract.determinant.join(", ")}]; resolve it from the authoritative relation`,
+        );
+      }
+    }
+  }
+
+  return problems;
+}
+
 /** Tables present in the schema that this policy does not classify. */
 export function unclassifiedTables(
   allFacts: readonly TableFacts[],
@@ -1346,6 +1469,7 @@ export function schemaPolicyViolations(
     ...uniquenessContractViolations(allFacts),
     ...lookupContractViolations(allFacts),
     ...cardinalityContradictions(),
+    ...thirdNormalFormViolations(allFacts),
   ];
 }
 

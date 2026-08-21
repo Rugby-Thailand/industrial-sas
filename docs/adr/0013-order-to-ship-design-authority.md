@@ -3,6 +3,7 @@
 - ID: `ADR-0013`
 - Status: **Accepted**
 - Date: 2026-08-15
+- Amended: 2026-08-21 — normalize operational packet/request rows to 3NF
 - Decision baseline: [PROJECT_PLAN.md](../../PROJECT_PLAN.md) §2.4, §7.6, Phase 5A;
   [order-to-ship operating plan](../figma-order-to-ship-operating-plan.md) §2.1,
   §2.2, §3, §4.1, §4.2, §7 Phase 5A
@@ -98,12 +99,14 @@ and reusing the table would put customer demand inside every receiving read.
 ### The factory packet
 
 14. **A packet pins exactly one released revision** and refuses every other status.
-15. **A packet carries a snapshot of the pinned specification, production route,
-    approved-file IDs, release evidence, SO, and customer-PO references**, not a live read.
-    Combined with decision 10 the snapshot can never disagree with the revision — it
-    is belt and braces, and it is what makes decision 16 possible.
+15. **A packet stores authoritative relationship IDs rather than copied order and
+    revision attributes.** The production projection resolves the immutable pinned
+    revision, order line, and order inside the tenant boundary. The exact approved-file
+    set is frozen as one `factoryPacketFiles` row per packet/file relationship, avoiding
+    both transitive copies and an embedded repeating group.
 16. **Production roles hold no `engineering.*` permission.** The floor reads the
-    packet, so an unreleased revision cannot reach it at all.
+    production packet projection; server-side composition does not grant callers an
+    engineering endpoint or allow an unreleased revision to reach the floor.
 17. **Cancelling a packet returns the line to `DESIGN_READY` and leaves the pinned
     revision alone.** Nothing about the design changed; only the decision to build it
     now.
@@ -149,10 +152,11 @@ and reusing the table would put customer demand inside every receiving read.
 - `INV-0013-03` The decider of a revision is never its `authoredByUserId` and never
   its `submittedByUserId`, enforced independently by the authorization evaluator
   (`MAKER_CHECKER`, `INV-0006-05`) and by `checkRevisionDecision`.
-- `INV-0013-04` Every factory packet pins exactly one `RELEASED` revision and stores
-  its specification, route, approved files, release evidence, SO/PO references, and
-  revision number; no production permission
-  grants read access to any engineering table.
+- `INV-0013-04` Every factory packet pins exactly one `RELEASED` revision and freezes
+  its approved files in normalized association rows. Its production projection resolves
+  specification, route, release evidence, SO/PO references, revision number, and quantity
+  from authoritative immutable or release-locked rows; no production permission grants
+  access to an engineering endpoint.
 - `INV-0013-05` Every design obligation resolves to exactly one artefact: one order
   line raises at most one design request (`(orgId, customerOrderLineId)` unique), and
   a revision cannot leave `DRAFT` for `IN_REVIEW` without a complete specification
@@ -182,8 +186,9 @@ and reusing the table would put customer demand inside every receiving read.
   revision number. That is the point: the number is what the floor cites.
 - Maker-checker on release means a one-engineer tenant cannot release. Documented as
   `OPS-0013-02` rather than softened with a self-approval escape hatch.
-- The packet snapshot duplicates the specification. The duplication is what lets
-  production hold no engineering permission at all.
+- Packet reads perform bounded joins across the order line, order, immutable revision,
+  and packet-file associations. This costs reads but removes update anomalies and keeps
+  the public production permission boundary narrow.
 - A file row becomes `AVAILABLE` only after the adapter can resolve its stored
   object; submission and packet issue fail closed otherwise.
 - A legacy row may import as `RELEASED` only when it carries explicit author,
@@ -193,21 +198,21 @@ and reusing the table would put customer demand inside every receiving read.
 
 ## Rejected alternatives
 
-| Alternative                                           | Why rejected                                                                                                                                                  |
-| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Reuse `purchaseOrders` for customer orders            | "Purchase order" names opposite directions on the two sides of the business; every receiving read would have to filter customers.                             |
-| One `parties` table with a supplier/customer flag     | Makes design-key uniqueness mean "per party in either direction" — a rule nobody stated (operating plan §3).                                                  |
-| Let the caller declare `EXISTING` or `NEW`            | The decision is the slice's whole value; a caller-supplied answer is a caller-supplied dieline.                                                               |
-| Automatic fuzzy/similarity matching                   | A near match may be ranked for a person, but only the explicit authorized confirmation path may pin it, and that path records score, actor, time, and reason. |
-| Specification on the master card, revisions as a diff | Something downstream would eventually point at the card and mean "the current design", which is exactly the ambiguity paper cannot survive.                   |
-| Mutable released revisions with an edit audit trail   | The printed packet and the record would describe different boxes, and the audit trail would say which — after the run.                                        |
-| Self-approval with a "confirmed twice" checkbox       | Not a second pair of eyes; it is the same pair, twice.                                                                                                        |
-| Maker-checker only in the permission evaluator        | A denial names a permission, not which field disqualified the actor. The domain refusal is what a person can act on.                                          |
-| Packet reads the live revision instead of a snapshot  | Forces `engineering.masterCard.read` onto every production role, putting drafts one URL away from the floor.                                                  |
-| `designRequestId` on the order line as well           | The line and the request would each need the other's ID at insert time. The link lives once, on the request.                                                  |
-| A query for file access                               | A Convex query cannot write, so a refused access to a private dieline would leave no record (`RG-071`).                                                       |
-| A fabricated download URL until `INT-03` lands        | A URL that resolves to nothing is worse than a named refusal, and it would make the gate look satisfied.                                                      |
-| Model the factory packet as an `FO`                   | The `FO` aggregate is Phase 5B and carries demand, dates, route, and execution state. Naming it early would fix the wrong shape.                              |
+| Alternative                                           | Why rejected                                                                                                                                                         |
+| ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Reuse `purchaseOrders` for customer orders            | "Purchase order" names opposite directions on the two sides of the business; every receiving read would have to filter customers.                                    |
+| One `parties` table with a supplier/customer flag     | Makes design-key uniqueness mean "per party in either direction" — a rule nobody stated (operating plan §3).                                                         |
+| Let the caller declare `EXISTING` or `NEW`            | The decision is the slice's whole value; a caller-supplied answer is a caller-supplied dieline.                                                                      |
+| Automatic fuzzy/similarity matching                   | A near match may be ranked for a person, but only the explicit authorized confirmation path may pin it, and that path records score, actor, time, and reason.        |
+| Specification on the master card, revisions as a diff | Something downstream would eventually point at the card and mean "the current design", which is exactly the ambiguity paper cannot survive.                          |
+| Mutable released revisions with an edit audit trail   | The printed packet and the record would describe different boxes, and the audit trail would say which — after the run.                                               |
+| Self-approval with a "confirmed twice" checkbox       | Not a second pair of eyes; it is the same pair, twice.                                                                                                               |
+| Maker-checker only in the permission evaluator        | A denial names a permission, not which field disqualified the actor. The domain refusal is what a person can act on.                                                 |
+| Let production call engineering revision/file queries | Forces `engineering.*` permissions onto production roles, putting drafts one URL away from the floor; the production query composes only the pinned release instead. |
+| `designRequestId` on the order line as well           | The line and the request would each need the other's ID at insert time. The link lives once, on the request.                                                         |
+| A query for file access                               | A Convex query cannot write, so a refused access to a private dieline would leave no record (`RG-071`).                                                              |
+| A fabricated download URL until `INT-03` lands        | A URL that resolves to nothing is worse than a named refusal, and it would make the gate look satisfied.                                                             |
+| Model the factory packet as an `FO`                   | The `FO` aggregate is Phase 5B and carries demand, dates, route, and execution state. Naming it early would fix the wrong shape.                                     |
 
 ## Verification
 

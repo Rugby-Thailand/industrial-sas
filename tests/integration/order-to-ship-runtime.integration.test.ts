@@ -24,11 +24,13 @@ import {
 } from "../../convex/engineering/masterCards";
 import {
   fulfilDesignRequest,
+  listDesignRequests,
   listSimilarReleasedDesigns,
 } from "../../convex/engineering/designRequests";
 import {
   acknowledgeFactoryPacket,
   issueFactoryPacket,
+  listFactoryPackets,
 } from "../../convex/production/packets";
 import type { DataModel } from "../../convex/schema";
 import {
@@ -322,6 +324,22 @@ describe("order-to-ship public Convex functions", () => {
         orderedQuantity: 250,
       }),
     )["documentId"] as string;
+    const designRequestPage = await call(world, listDesignRequests, {
+      status: "OPEN",
+    });
+    expect(
+      (
+        (designRequestPage["value"] as Record<string, unknown>)[
+          "items"
+        ] as unknown[]
+      )[0],
+    ).toMatchObject({
+      customerOrderLineId: lineId,
+      customerId,
+      customerProductCode: "JRN-BOX-1",
+      designKey: expect.any(String),
+      specification: expect.objectContaining(specification),
+    });
 
     const releaseArgs = {
       requestId: "journey-order-release",
@@ -525,6 +543,14 @@ describe("order-to-ship public Convex functions", () => {
         revisionId as GenericId<"masterCardRevisions">,
       ),
       packet: await ctx.db.get(packetId as GenericId<"factoryPackets">),
+      packetFiles: await ctx.db
+        .query("factoryPacketFiles")
+        .withIndex("by_orgId_factoryPacketId_masterCardFileId", (query) =>
+          query
+            .eq("orgId", world.orgA)
+            .eq("factoryPacketId", packetId as GenericId<"factoryPackets">),
+        )
+        .collect(),
     }));
     expect(storedEvidence.revision).toMatchObject({
       status: "RELEASED",
@@ -532,9 +558,26 @@ describe("order-to-ship public Convex functions", () => {
     });
     expect(storedEvidence.packet).toMatchObject({
       status: "ACKNOWLEDGED",
+    });
+    expect(storedEvidence.packet).not.toHaveProperty("customerOrderNumber");
+    expect(storedEvidence.packet).not.toHaveProperty("specification");
+    expect(storedEvidence.packet).not.toHaveProperty("approvedFileIds");
+    expect(storedEvidence.packetFiles).toEqual([
+      expect.objectContaining({ masterCardFileId: expect.any(String) }),
+    ]);
+    const packetPage = (await call(world, listFactoryPackets, {
+      warehouseId: world.warehouses.alphaA,
+    })) as Record<string, unknown>;
+    expect(
+      (
+        (packetPage["value"] as Record<string, unknown>)["items"] as unknown[]
+      )[0],
+    ).toMatchObject({
       customerOrderNumber: "SO-JOURNEY-1",
       approvedFileIds: [expect.any(String)],
       releaseEvidence: { releasedByUserId: checker },
+      specification: expect.objectContaining(specification),
+      quantity: 250,
     });
 
     const draftArgs = {
@@ -755,7 +798,7 @@ describe("order-to-ship public Convex functions", () => {
         lineNumber: 1,
         customerProductCode: "REQUESTED",
         specification,
-        designKey: "REQUESTED",
+        designKey: "RSC|300x200x150|KA125/C/KA125|C2",
         designSource: "NEW",
         status: "AWAITING_DESIGN",
         orderedQuantity: 10,
@@ -764,12 +807,8 @@ describe("order-to-ship public Convex functions", () => {
         orgId: world.orgA,
         requestNumber: "DR-SIMILAR",
         customerOrderLineId: lineId,
-        customerId,
-        customerProductCode: "REQUESTED",
-        designKey: "RSC|300x200x150|KA125/C/KA125|C2",
         status: "OPEN",
         priority: "NORMAL",
-        specification,
       });
       let expectedRevisionId = "";
       for (let index = 0; index < 25; index += 1) {

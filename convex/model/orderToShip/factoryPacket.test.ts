@@ -7,26 +7,12 @@ import {
   checkPacketIssue,
   type PinnableRevision,
 } from "./factoryPacket";
-import { makeDesignSpecification } from "./designSpecification";
-
-const built = makeDesignSpecification({
-  styleCode: "RSC",
-  internalLengthMm: 300,
-  internalWidthMm: 200,
-  internalHeightMm: 150,
-  boardGrade: "KA125/C/KA125",
-  printColourCount: 2,
-});
-if (!built.ok) throw new Error("fixture is not a valid specification");
-const SPECIFICATION = built.value;
 
 const revision = (
   overrides: Partial<PinnableRevision> = {},
 ): PinnableRevision => ({
   revisionId: "rev_1",
-  revisionNumber: 4,
   status: "RELEASED",
-  specification: SPECIFICATION,
   ...overrides,
 });
 
@@ -48,17 +34,14 @@ describe("checkPacketIssue", () => {
       ok: true,
       value: {
         status: "ISSUED",
-        quantity: 5_000,
         pin: {
           masterCardRevisionId: "rev_1",
-          revisionNumber: 4,
-          specification: SPECIFICATION,
         },
       },
     });
   });
 
-  it("copies the specification so the packet keeps saying the same thing", () => {
+  it("freezes the released revision relationship", () => {
     const issued = checkPacketIssue({
       line: READY_LINE,
       order: { status: "RELEASED" },
@@ -66,17 +49,17 @@ describe("checkPacketIssue", () => {
     });
 
     expect(issued.ok && Object.isFrozen(issued.value.pin)).toBe(true);
-    expect(issued.ok && issued.value.pin.specification.styleCode).toBe("RSC");
   });
 
-  it("derives the quantity from the line rather than accepting one", () => {
+  it("validates the line quantity without copying it into the packet result", () => {
     const issued = checkPacketIssue({
       line: { ...READY_LINE, orderedQuantity: 750 },
       order: { status: "RELEASED" },
       revision: revision(),
     });
 
-    expect(issued.ok && issued.value.quantity).toBe(750);
+    expect(issued.ok).toBe(true);
+    expect(issued.ok && issued.value).not.toHaveProperty("quantity");
   });
 
   it.each(["DRAFT", "IN_REVIEW", "REJECTED", "SUPERSEDED"])(

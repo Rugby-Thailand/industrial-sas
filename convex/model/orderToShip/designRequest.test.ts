@@ -22,7 +22,6 @@ const request = (
   overrides: Partial<DesignRequestState> = {},
 ): DesignRequestState => ({
   status: "OPEN",
-  customerProductCode: "FG-001",
   ...overrides,
 });
 
@@ -47,6 +46,7 @@ describe("design request workflow", () => {
     expect(
       checkDesignRequestFulfilment({
         request: request({ status: "IN_REVIEW" }),
+        requestedCustomerProductCode: "FG-001",
         revisionStatus: "RELEASED",
         revisionCustomerProductCode: "FG-001",
       }),
@@ -54,6 +54,7 @@ describe("design request workflow", () => {
     expect(
       checkDesignRequestFulfilment({
         request: request({ status: "IN_REVIEW" }),
+        requestedCustomerProductCode: "FG-001",
         revisionStatus: "RELEASED",
         revisionCustomerProductCode: "FG-002",
       }),

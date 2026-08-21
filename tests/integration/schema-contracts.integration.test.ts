@@ -39,11 +39,13 @@ import {
 } from "../../convex/lib/organizationDefaults";
 import {
   BOUNDED_LOOKUP_CONTRACTS,
+  THIRD_NORMAL_FORM_CONTRACTS,
   UNIQUENESS_CONTRACTS,
   cardinalityContradictions,
   closedValueSet,
   describeSchema,
   lookupContractViolations,
+  thirdNormalFormViolations,
   uniquenessContractViolations,
 } from "../../convex/lib/schemaPolicy";
 import schema from "../../convex/schema";
@@ -104,6 +106,47 @@ describe("uniqueness and bounded-lookup contracts", () => {
       (candidate) => candidate.table === "idempotencyRecords",
     );
     expect(contract?.key).toEqual(["orgId", "operation", "requestId"]);
+  });
+});
+
+describe("third-normal-form operational relationships", () => {
+  it("keeps every declared transitive dependency out of its dependent row", () => {
+    expect(thirdNormalFormViolations(facts)).toEqual([]);
+    expect(THIRD_NORMAL_FORM_CONTRACTS).toHaveLength(3);
+  });
+
+  it("resolves design request details from the authoritative order line", () => {
+    const fields = Object.keys(tables.designRequests.validator.fields);
+    expect(fields).toContain("customerOrderLineId");
+    expect(fields).not.toEqual(
+      expect.arrayContaining([
+        "customerId",
+        "customerProductCode",
+        "designKey",
+        "specification",
+      ]),
+    );
+  });
+
+  it("stores packet files as rows instead of an embedded repeating group", () => {
+    const packetFields = Object.keys(tables.factoryPackets.validator.fields);
+    expect(packetFields).not.toEqual(
+      expect.arrayContaining([
+        "customerId",
+        "customerOrderNumber",
+        "customerReference",
+        "revisionNumber",
+        "specification",
+        "approvedFileIds",
+        "releaseEvidence",
+        "quantity",
+      ]),
+    );
+    expect(Object.keys(tables.factoryPacketFiles.validator.fields)).toEqual([
+      "orgId",
+      "factoryPacketId",
+      "masterCardFileId",
+    ]);
   });
 });
 

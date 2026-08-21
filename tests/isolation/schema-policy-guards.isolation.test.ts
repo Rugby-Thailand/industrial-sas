@@ -37,6 +37,7 @@ import {
   missingTables,
   schemaPolicyViolations,
   tenantTableViolations,
+  thirdNormalFormViolations,
   unclassifiedTables,
   uniquenessContractViolations,
   type LookupContract,
@@ -232,6 +233,42 @@ describe("an unclassified or missing table is caught", () => {
 
   it("classifies a name in neither list as unclassified rather than tenant", () => {
     expect(classifyTable("inventorySnapshots")).toBe("unclassified");
+  });
+});
+
+describe("a transitive operational attribute is caught", () => {
+  const contract = {
+    table: "designRequests",
+    determinant: ["customerOrderLineId"],
+    dependentFields: ["customerProductCode", "specification"],
+    rationale: "The line owns the requested design.",
+  } as const;
+
+  it("catches a copied attribute determined by a non-key relationship", () => {
+    const problems = thirdNormalFormViolations(
+      [
+        withFacts({
+          name: "designRequests",
+          fieldNames: ["orgId", "customerOrderLineId", "customerProductCode"],
+          fieldPaths: ["orgId", "customerOrderLineId", "customerProductCode"],
+        }),
+      ],
+      [contract],
+    );
+    expect(problems).toEqual([
+      "designRequests.customerProductCode: copied attribute is transitively determined by " +
+        "[customerOrderLineId]; resolve it from the authoritative relation",
+    ]);
+  });
+
+  it("catches a contract whose determinant disappeared", () => {
+    const problems = thirdNormalFormViolations(
+      [withFacts({ name: "designRequests" })],
+      [contract],
+    );
+    expect(problems).toContain(
+      'designRequests: third-normal-form determinant "customerOrderLineId" is absent',
+    );
   });
 });
 

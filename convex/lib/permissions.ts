@@ -549,9 +549,9 @@ export const DEFAULT_ROLES: readonly DefaultRoleDefinition[] = Object.freeze([
       "reporting.dashboard.read",
       /*
        * No `engineering.masterCard.read` and no `engineering.file.read`: an
-       * unreleased revision must never reach the floor. The packet carries a
-       * snapshot of the released specification it pins, so production reads what
-       * it needs from the packet and cannot reach a draft at all (INV-0013-04).
+       * unreleased revision must never reach the floor. The production packet
+       * query resolves only the immutable released revision pinned by the packet;
+       * callers cannot access an engineering endpoint or a draft (INV-0013-04).
        */
     ),
   },

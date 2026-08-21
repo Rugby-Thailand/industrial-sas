@@ -460,10 +460,6 @@ export const addCustomerOrderLine = mutationWithOrg({
       const document = {
         requestNumber,
         customerOrderLineId: outcome.value.documentId,
-        customerId: order.customerId,
-        customerProductCode: customerProductCode.value,
-        designKey,
-        specification: { ...specification.value },
         status: "OPEN",
         priority: args.designPriority ?? "NORMAL",
         ...(args.designDueAt === undefined ? {} : { dueAt: args.designDueAt }),

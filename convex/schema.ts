@@ -1710,10 +1710,11 @@ const schema = defineSchema({
    * be two people waiting on one drawing with no way to tell which one the
    * eventual revision answered.
    *
-   * It carries the requested `specification` by value rather than reading it back
-   * through the line. An engineer opening the queue is looking at what to draw,
-   * and making that a join through a table they need a sales permission to read
-   * would either widen their permissions or empty their screen.
+   * The line is the source of truth for customer, product, fingerprint, and
+   * specification. Repeating those attributes here would create the transitive
+   * dependency `designRequest -> customerOrderLine -> requested design` and let
+   * the two rows drift. Engineering queries join the line and its order inside
+   * the tenant boundary; callers still need only engineering permissions.
    */
   designRequests: defineTable(
     tenantFields({
@@ -1721,11 +1722,6 @@ const schema = defineSchema({
       requestNumber: v.string(),
       /** Unique per organization by contract: one open ask per line. */
       customerOrderLineId: v.id("customerOrderLines"),
-      customerId: v.id("customers"),
-      customerProductCode: v.string(),
-      /** The key no released revision matched. */
-      designKey: v.string(),
-      specification: boxSpecification,
       status: designRequestStatus,
       priority: designRequestPriority,
       dueAt: v.optional(v.number()),
@@ -1954,12 +1950,11 @@ const schema = defineSchema({
   /**
    * The one document that crosses from the office to the shop floor (`G-129`).
    *
-   * A packet pins exactly one released revision — by id, and by value. The id
-   * answers "which revision was this cut from" for an auditor; `specification` and
-   * `revisionNumber` are a **snapshot** that answers "what does this packet say"
-   * for the floor, without production needing read access to engineering's
-   * revision table at all. A released revision is immutable, so the two can never
-   * disagree; the snapshot is what makes production's narrow permissions possible.
+   * A packet pins exactly one released revision by id. Production queries resolve
+   * the immutable revision, order line, and order inside the tenant boundary and
+   * return the same floor-facing projection. Keeping those values only on their
+   * authoritative rows avoids transitive dependencies while preserving narrow
+   * production permissions at the public function boundary.
    *
    * `warehouseId` names the production site. This is provisional: `WF-03` — how
    * production sites are modelled against warehouses — is open, and reusing
@@ -1980,23 +1975,8 @@ const schema = defineSchema({
       packetNumber: v.string(),
       /** Unique per organization by contract: one packet per line. */
       customerOrderLineId: v.id("customerOrderLines"),
-      customerId: v.id("customers"),
-      customerOrderNumber: v.string(),
-      customerReference: v.optional(v.string()),
       /** The pinned release. Never changes for the life of the packet. */
       masterCardRevisionId: v.id("masterCardRevisions"),
-      /** Snapshot of the pinned revision's number, for the floor to read. */
-      revisionNumber: v.number(),
-      /** Snapshot of the pinned revision's specification. */
-      specification: boxSpecification,
-      approvedFileIds: v.array(v.id("masterCardFiles")),
-      releaseEvidence: v.object({
-        releasedByUserId: v.id("users"),
-        releasedAt: v.number(),
-        decisionNote: v.optional(v.string()),
-      }),
-      /** Whole boxes, taken from the line rather than typed again. */
-      quantity: v.number(),
       status: factoryPacketStatus,
       issuedByUserId: v.id("users"),
       acknowledgedByUserId: v.optional(v.id("users")),
@@ -2008,6 +1988,28 @@ const schema = defineSchema({
     .index(
       "by_orgId_warehouseId_status_packetNumber",
       byOrg("warehouseId", "status", "packetNumber"),
+    ),
+
+  /**
+   * Files approved for one factory packet.
+   *
+   * One row per packet/file relationship keeps the packet in first normal form,
+   * makes membership independently indexable, and freezes the exact file set
+   * approved at issue time without embedding a repeating group.
+   */
+  factoryPacketFiles: defineTable(
+    tenantFields({
+      factoryPacketId: v.id("factoryPackets"),
+      masterCardFileId: v.id("masterCardFiles"),
+    }),
+  )
+    .index(
+      "by_orgId_factoryPacketId_masterCardFileId",
+      byOrg("factoryPacketId", "masterCardFileId"),
+    )
+    .index(
+      "by_orgId_masterCardFileId_factoryPacketId",
+      byOrg("masterCardFileId", "factoryPacketId"),
     ),
 });
 

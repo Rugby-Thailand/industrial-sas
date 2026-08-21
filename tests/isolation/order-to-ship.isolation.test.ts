@@ -172,10 +172,6 @@ describe("order-to-ship tenant isolation", () => {
         orgId: world.orgA,
         requestNumber: "SO-PRIVATE-AGGREGATE-1",
         customerOrderLineId: lineId,
-        customerId,
-        customerProductCode: "PRIVATE-BOX",
-        designKey: "RSC|300X200X150|KA125/C/KA125|C1",
-        specification,
         status: "OPEN",
         priority: "NORMAL",
       });
@@ -247,16 +243,14 @@ describe("order-to-ship tenant isolation", () => {
         warehouseId: world.warehouses.alphaA,
         packetNumber: "SO-PRIVATE-AGGREGATE-1",
         customerOrderLineId: lineId,
-        customerId,
-        customerOrderNumber: "SO-PRIVATE-AGGREGATE",
         masterCardRevisionId: revisionId,
-        revisionNumber: 1,
-        specification,
-        approvedFileIds: [fileId],
-        releaseEvidence: { releasedByUserId: world.userA, releasedAt: 1 },
-        quantity: 10,
         status: "ISSUED",
         issuedByUserId: world.userA,
+      });
+      await ctx.db.insert("factoryPacketFiles", {
+        orgId: world.orgA,
+        factoryPacketId: packetId,
+        masterCardFileId: fileId,
       });
       return {
         customerId,
