@@ -1,9 +1,11 @@
 import { fireEvent, screen } from "@testing-library/react";
-import type { ReactNode } from "react";
+import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/i18n/navigation", () => ({
-  Link: ({ children }: { readonly children: ReactNode }) => children,
+  Link: ({ children, ...props }: ComponentProps<"a">) => (
+    <a {...props}>{children}</a>
+  ),
   useRouter: () => ({ push: vi.fn() }),
 }));
 
@@ -14,7 +16,11 @@ import type {
   StorageFloorRow,
 } from "@/lib/convex/storageLayoutApi";
 
-import { FloorPlan, IsometricBuilding } from "./StorageLayoutScreens";
+import {
+  BuildingModelWorkspace,
+  FloorPlan,
+  IsometricBuilding,
+} from "./StorageLayoutScreens";
 
 const building: StorageBuildingRow = {
   buildingId: "building-a",
@@ -37,12 +43,33 @@ const floors: readonly StorageFloorRow[] = [1, 2, 3, 4].map((floorNumber) => ({
   floorId: `floor-${floorNumber}`,
   floorNumber,
   ...(floorNumber === 2 ? { widthMm: 24_000, depthMm: 18_000 } : {}),
+  ...(floorNumber === 3 ? { heightMm: 5_000 } : {}),
   grossAreaSqMm: floorNumber === 2 ? 432_000_000 : 600_000_000,
   reservedAreaSqMm: floorNumber === 2 ? 24_000_000 : 0,
   usableAreaSqMm: floorNumber === 2 ? 408_000_000 : 600_000_000,
   version: floorNumber === 2 ? 2 : 1,
   reservedBlocks: [],
 }));
+
+describe("BuildingModelWorkspace", () => {
+  it("consolidates floor dimensions and edit links into the model rail", () => {
+    renderWithIntl(
+      <BuildingModelWorkspace building={building} floors={floors} />,
+      { locale: "en", workspace: false },
+    );
+
+    expect(screen.getAllByRole("button", { name: /Floor \d/ })).toHaveLength(4);
+    expect(screen.getByText("24 × 18 × 4 m")).toBeInTheDocument();
+    expect(screen.getByText("30 × 20 × 5 m")).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: /Edit floor/ })).toHaveLength(4);
+
+    fireEvent.click(screen.getByRole("button", { name: /Floor 2/ }));
+    expect(screen.getByRole("button", { name: /Floor 2/ })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+});
 
 describe("IsometricBuilding", () => {
   it("paints lower floors before upper floors so the building remains stacked", () => {

@@ -3,10 +3,10 @@
 import { useMutation, useQuery } from "convex/react";
 import {
   ArrowLeft,
-  Box,
   Building2,
   CheckCircle2,
   Layers3,
+  PencilLine,
   Plus,
   Ruler,
   Search,
@@ -422,16 +422,6 @@ function BuildingContent({
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
       <div className="space-y-6">
         <BuildingModelWorkspace building={building} floors={floors} />
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {floors.map((floor) => (
-            <FloorCard
-              key={floor.floorId}
-              buildingId={buildingId}
-              floor={floor}
-              building={building}
-            />
-          ))}
-        </div>
       </div>
       <aside className="space-y-4">
         <section className="rounded-2xl border border-border bg-surface p-5 shadow-sm">
@@ -601,40 +591,6 @@ function BuildingSettings({
   );
 }
 
-function FloorCard({
-  buildingId,
-  floor,
-  building,
-}: {
-  readonly buildingId: string;
-  readonly floor: StorageFloorRow;
-  readonly building: StorageBuildingRow;
-}) {
-  const t = useTranslations("StorageLayouts");
-  return (
-    <Link
-      href={storageFloorPath(buildingId, floor.floorNumber)}
-      className="rounded-xl border border-border bg-surface p-4 transition hover:border-accent hover:shadow-sm"
-    >
-      <div className="flex items-center justify-between">
-        <span className="grid size-9 place-items-center rounded-lg bg-accent/10 text-accent">
-          <Box className="size-5" />
-        </span>
-        <span className="text-xs text-muted">
-          {squareMetres(floor.usableAreaSqMm).toLocaleString()} m²
-        </span>
-      </div>
-      <h3 className="mt-4 font-semibold text-text">
-        {t("floor", { floor: floor.floorNumber })}
-      </h3>
-      <p className="mt-1 text-xs text-muted">
-        {metres(floor.widthMm ?? building.widthMm)} ×{" "}
-        {metres(floor.depthMm ?? building.depthMm)} m
-      </p>
-    </Link>
-  );
-}
-
 function CapacitySummary({
   building,
 }: {
@@ -795,7 +751,7 @@ export function IsometricBuilding({
   );
 }
 
-function BuildingModelWorkspace({
+export function BuildingModelWorkspace({
   building,
   floors,
 }: {
@@ -807,27 +763,54 @@ function BuildingModelWorkspace({
     floors.at(-1)?.floorNumber ?? 1,
   );
   return (
-    <div className="grid overflow-hidden rounded-2xl border border-border bg-surface shadow-sm lg:grid-cols-[11rem_minmax(0,1fr)]">
+    <div className="grid overflow-hidden rounded-2xl border border-border bg-surface shadow-sm lg:grid-cols-[16rem_minmax(0,1fr)]">
       <div className="border-b border-border p-4 lg:border-r lg:border-b-0">
         <div className="flex items-center gap-2 text-sm font-semibold text-text">
           <Layers3 className="size-4 text-accent" />
           {t("floors")}
         </div>
         <div className="mt-3 grid grid-cols-2 gap-2 lg:grid-cols-1">
-          {[...floors].reverse().map((floor) => (
-            <button
-              key={floor.floorId}
-              type="button"
-              onClick={() => setSelectedFloorNumber(floor.floorNumber)}
-              aria-pressed={selectedFloorNumber === floor.floorNumber}
-              className="flex min-h-11 items-center justify-between rounded-lg border border-border px-3 text-sm text-text transition hover:border-accent aria-pressed:border-accent aria-pressed:bg-accent/10 aria-pressed:text-accent"
-            >
-              <span>{t("floor", { floor: floor.floorNumber })}</span>
-              <span className="text-xs text-muted">
-                {squareMetres(floor.usableAreaSqMm).toLocaleString()} m²
-              </span>
-            </button>
-          ))}
+          {[...floors].reverse().map((floor) => {
+            const selected = selectedFloorNumber === floor.floorNumber;
+            return (
+              <div
+                key={floor.floorId}
+                className={`flex min-w-0 overflow-hidden rounded-xl border transition ${selected ? "border-accent bg-accent/10" : "border-border hover:border-accent/70"}`}
+              >
+                <button
+                  type="button"
+                  onClick={() => setSelectedFloorNumber(floor.floorNumber)}
+                  aria-pressed={selected}
+                  className="min-w-0 flex-1 px-3 py-2.5 text-left text-sm text-text"
+                >
+                  <span className="flex items-center justify-between gap-2">
+                    <span className={selected ? "text-accent" : undefined}>
+                      {t("floor", { floor: floor.floorNumber })}
+                    </span>
+                    <span className="shrink-0 text-xs text-muted">
+                      {squareMetres(floor.usableAreaSqMm).toLocaleString()} m²
+                    </span>
+                  </span>
+                  <span className="mt-1 block truncate text-xs text-muted">
+                    {metres(floor.widthMm ?? building.widthMm)} ×{" "}
+                    {metres(floor.depthMm ?? building.depthMm)} ×{" "}
+                    {metres(floor.heightMm ?? building.defaultFloorHeightMm)} m
+                  </span>
+                </button>
+                <Link
+                  href={storageFloorPath(
+                    building.buildingId,
+                    floor.floorNumber,
+                  )}
+                  aria-label={t("editFloor", { floor: floor.floorNumber })}
+                  title={t("editFloor", { floor: floor.floorNumber })}
+                  className="grid w-11 shrink-0 place-items-center border-l border-border text-muted transition hover:bg-accent/10 hover:text-accent focus-visible:bg-accent/10 focus-visible:text-accent focus-visible:outline-none"
+                >
+                  <PencilLine className="size-4" />
+                </Link>
+              </div>
+            );
+          })}
         </div>
       </div>
       <IsometricBuilding
