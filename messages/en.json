@@ -1063,6 +1063,8 @@
     "addStorageZoneTitle": "Add storage zone",
     "addStorageZoneDescription": "Define one QR-addressable stack position within this floor.",
     "storageZonePreview": "Live 3D position",
+    "dragStorageZone": "Drag storage zone",
+    "dragStorageZoneHint": "Drag the stack to position it · Arrow keys move 0.1 m",
     "zoneFitsFloor": "Fits within floor",
     "zoneOutsideFloor": "Outside floor limits",
     "storageZoneCreated": "Storage zone created. Its location code and QR label are ready.",

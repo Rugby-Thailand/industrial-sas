@@ -1064,6 +1064,8 @@
     "addStorageZoneTitle": "เพิ่มโซนจัดเก็บ",
     "addStorageZoneDescription": "กำหนดตำแหน่งกองที่สแกนด้วย QR ได้หนึ่งตำแหน่งภายในชั้นนี้",
     "storageZonePreview": "ตำแหน่ง 3D แบบเรียลไทม์",
+    "dragStorageZone": "ลากโซนจัดเก็บ",
+    "dragStorageZoneHint": "ลากกองเพื่อกำหนดตำแหน่ง · ปุ่มลูกศรขยับครั้งละ 0.1 ม.",
     "zoneFitsFloor": "อยู่ภายในขอบเขตชั้น",
     "zoneOutsideFloor": "อยู่นอกขอบเขตชั้น",
     "storageZoneCreated": "สร้างโซนจัดเก็บแล้ว รหัสตำแหน่งและป้าย QR พร้อมใช้งาน",

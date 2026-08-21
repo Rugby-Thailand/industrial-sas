@@ -209,6 +209,7 @@ describe("FloorPlan", () => {
 
 describe("StorageZoneDraftPreview", () => {
   it("moves the 3D draft immediately and warns when it exceeds the floor", () => {
+    const onPositionChange = vi.fn();
     const initial = renderWithIntl(
       <StorageZoneDraftPreview
         floorWidthMm={10_000}
@@ -220,6 +221,7 @@ describe("StorageZoneDraftPreview", () => {
         zoneDepth="2"
         stackHeight="2"
         zones={[]}
+        onPositionChange={onPositionChange}
       />,
       { locale: "en", workspace: false },
     );
@@ -229,6 +231,11 @@ describe("StorageZoneDraftPreview", () => {
       ?.getAttribute("points");
 
     expect(screen.getByText("Fits within floor")).toBeInTheDocument();
+    fireEvent.keyDown(
+      screen.getByRole("button", { name: "Drag storage zone" }),
+      { key: "ArrowRight" },
+    );
+    expect(onPositionChange).toHaveBeenCalledWith({ xMm: 100, yMm: 0 });
     initial.unmount();
 
     renderWithIntl(
@@ -242,6 +249,7 @@ describe("StorageZoneDraftPreview", () => {
         zoneDepth="2"
         stackHeight="2"
         zones={[]}
+        onPositionChange={onPositionChange}
       />,
       { locale: "en", workspace: false },
     );

@@ -2130,6 +2130,7 @@ export function StorageZoneDraftPreview({
   zoneDepth,
   stackHeight,
   zones,
+  onPositionChange,
 }: {
   readonly floorWidthMm: number;
   readonly floorDepthMm: number;
@@ -2140,9 +2141,25 @@ export function StorageZoneDraftPreview({
   readonly zoneDepth: string;
   readonly stackHeight: string;
   readonly zones: readonly StorageZoneRow[];
+  readonly onPositionChange: (position: {
+    readonly xMm: number;
+    readonly yMm: number;
+  }) => void;
 }) {
   const t = useTranslations("StorageLayouts");
   const patternId = useId();
+  const dragHintId = useId();
+  const svgRef = useRef<SVGSVGElement>(null);
+  const dragState = useRef<
+    | {
+        readonly pointerId: number;
+        readonly startX: number;
+        readonly startY: number;
+        readonly xMm: number;
+        readonly yMm: number;
+      }
+    | undefined
+  >(undefined);
   const xMm = draftMillimetres(zoneX);
   const yMm = draftMillimetres(zoneY);
   const widthMm = draftMillimetres(zoneWidth);
@@ -2230,6 +2247,31 @@ export function StorageZoneDraftPreview({
     width: Math.max(...visualXs) - Math.min(...visualXs) + padding * 2,
     height: Math.max(...visualYs) - Math.min(...visualYs) + padding * 2,
   };
+  const clampPosition = (nextXMm: number, nextYMm: number) => ({
+    xMm: Math.max(
+      0,
+      Math.min(nextXMm, Math.max(0, floorWidthMm - drawnWidthMm)),
+    ),
+    yMm: Math.max(
+      0,
+      Math.min(nextYMm, Math.max(0, floorDepthMm - drawnDepthMm)),
+    ),
+  });
+  const clientPoint = (clientX: number, clientY: number) => {
+    const svg = svgRef.current;
+    const matrix = svg?.getScreenCTM();
+    if (svg === null || matrix === null || matrix === undefined)
+      return undefined;
+    const point = svg.createSVGPoint();
+    point.x = clientX;
+    point.y = clientY;
+    return point.matrixTransform(matrix.inverse());
+  };
+  const finishDrag = (pointerId: number) => {
+    if (dragState.current?.pointerId !== pointerId) return;
+    svgRef.current?.releasePointerCapture(pointerId);
+    dragState.current = undefined;
+  };
 
   return (
     <figure className="overflow-hidden rounded-xl border border-border bg-background">
@@ -2255,10 +2297,27 @@ export function StorageZoneDraftPreview({
         </span>
       </figcaption>
       <svg
+        ref={svgRef}
         role="img"
         aria-label={t("storageZonePreview")}
         viewBox={`${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`}
         className="h-72 w-full"
+        onPointerMove={(event) => {
+          const drag = dragState.current;
+          if (drag === undefined || drag.pointerId !== event.pointerId) return;
+          const current = clientPoint(event.clientX, event.clientY);
+          if (current === undefined) return;
+          const delta = unprojectIsometricDelta(
+            { x: current.x - drag.startX, y: current.y - drag.startY },
+            scale,
+          );
+          const snap = (value: number) => Math.round(value / 100) * 100;
+          onPositionChange(
+            clampPosition(snap(drag.xMm + delta.x), snap(drag.yMm + delta.y)),
+          );
+        }}
+        onPointerUp={(event) => finishDrag(event.pointerId)}
+        onPointerCancel={(event) => finishDrag(event.pointerId)}
       >
         <defs>
           <pattern
@@ -2314,44 +2373,79 @@ export function StorageZoneDraftPreview({
             />
           );
         })}
-        <polygon
-          data-zone-face="left"
-          points={pointsAttribute([
-            zoneBottom[3]!,
-            zoneBottom[2]!,
-            zoneTop[2]!,
-            zoneTop[3]!,
-          ])}
-          className={
-            fitsFloor
-              ? "fill-accent/25 stroke-accent"
-              : "fill-warning/25 stroke-warning"
-          }
-        />
-        <polygon
-          data-zone-face="right"
-          points={pointsAttribute([
-            zoneBottom[1]!,
-            zoneBottom[2]!,
-            zoneTop[2]!,
-            zoneTop[1]!,
-          ])}
-          className={
-            fitsFloor
-              ? "fill-accent/35 stroke-accent"
-              : "fill-warning/35 stroke-warning"
-          }
-        />
-        <polygon
-          data-zone-face="top"
-          points={pointsAttribute(zoneTop)}
-          className={
-            fitsFloor
-              ? "fill-accent/45 stroke-accent"
-              : "fill-warning/45 stroke-warning"
-          }
-          strokeWidth="2"
-        />
+        <g
+          role="button"
+          tabIndex={0}
+          aria-label={t("dragStorageZone")}
+          aria-describedby={dragHintId}
+          className="cursor-grab outline-none active:cursor-grabbing focus-visible:[&>polygon]:stroke-text"
+          style={{ touchAction: "none" }}
+          onPointerDown={(event) => {
+            const start = clientPoint(event.clientX, event.clientY);
+            if (start === undefined) return;
+            event.preventDefault();
+            svgRef.current?.setPointerCapture(event.pointerId);
+            dragState.current = {
+              pointerId: event.pointerId,
+              startX: start.x,
+              startY: start.y,
+              xMm: drawnXMm,
+              yMm: drawnYMm,
+            };
+          }}
+          onKeyDown={(event) => {
+            const movement: readonly [number, number] | undefined = {
+              ArrowLeft: [-100, 0],
+              ArrowRight: [100, 0],
+              ArrowUp: [0, -100],
+              ArrowDown: [0, 100],
+            }[event.key] as readonly [number, number] | undefined;
+            if (movement === undefined) return;
+            event.preventDefault();
+            onPositionChange(
+              clampPosition(drawnXMm + movement[0], drawnYMm + movement[1]),
+            );
+          }}
+        >
+          <polygon
+            data-zone-face="left"
+            points={pointsAttribute([
+              zoneBottom[3]!,
+              zoneBottom[2]!,
+              zoneTop[2]!,
+              zoneTop[3]!,
+            ])}
+            className={
+              fitsFloor
+                ? "fill-accent/25 stroke-accent"
+                : "fill-warning/25 stroke-warning"
+            }
+          />
+          <polygon
+            data-zone-face="right"
+            points={pointsAttribute([
+              zoneBottom[1]!,
+              zoneBottom[2]!,
+              zoneTop[2]!,
+              zoneTop[1]!,
+            ])}
+            className={
+              fitsFloor
+                ? "fill-accent/35 stroke-accent"
+                : "fill-warning/35 stroke-warning"
+            }
+          />
+          <polygon
+            data-zone-face="top"
+            points={pointsAttribute(zoneTop)}
+            className={
+              fitsFloor
+                ? "fill-accent/45 stroke-accent"
+                : "fill-warning/45 stroke-warning"
+            }
+            strokeWidth="2"
+          />
+        </g>
         <line
           x1={heightGuideBottom.x + 14}
           y1={heightGuideBottom.y}
@@ -2380,6 +2474,12 @@ export function StorageZoneDraftPreview({
           H <strong className="text-text">{metres(heightMm)} m</strong>
         </span>
       </div>
+      <p
+        id={dragHintId}
+        className="border-t border-border px-3 py-2 text-center text-xs text-muted"
+      >
+        {t("dragStorageZoneHint")}
+      </p>
     </figure>
   );
 }
@@ -2578,6 +2678,10 @@ function StorageZonesPanel({
                 zoneDepth={zoneDepth}
                 stackHeight={stackHeight}
                 zones={zones}
+                onPositionChange={({ xMm, yMm }) => {
+                  setZoneX(String(metres(xMm)));
+                  setZoneY(String(metres(yMm)));
+                }}
               />
               <div className="grid content-start gap-4 sm:grid-cols-2">
                 <div className="sm:col-span-2">
