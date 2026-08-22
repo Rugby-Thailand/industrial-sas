@@ -45,6 +45,8 @@ import { useTranslations } from "next-intl";
 import {
   BarChart3,
   Boxes,
+  ChevronsLeft,
+  ChevronsRight,
   ClipboardCheck,
   ClipboardList,
   Factory,
@@ -57,8 +59,6 @@ import {
   Menu,
   PackageCheck,
   PackageSearch,
-  PanelLeftClose,
-  PanelLeftOpen,
   ScanLine,
   Settings2,
   Truck,
@@ -233,9 +233,9 @@ function NavigationRegion() {
           onClick={toggleSidebar}
         >
           {collapsed ? (
-            <PanelLeftOpen aria-hidden="true" className="size-5" />
+            <ChevronsRight aria-hidden="true" className="size-5" />
           ) : (
-            <PanelLeftClose aria-hidden="true" className="size-5" />
+            <ChevronsLeft aria-hidden="true" className="size-5" />
           )}
         </Button>
       </div>

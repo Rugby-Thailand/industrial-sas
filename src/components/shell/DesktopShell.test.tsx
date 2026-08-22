@@ -75,11 +75,18 @@ describe("DesktopShell", () => {
     const navigation = screen.getByRole("navigation");
     expect(navigation.parentElement).toHaveClass("lg:w-56");
 
-    await user.click(screen.getByRole("button", { name: "ย่อแถบนำทาง" }));
+    const collapse = screen.getByRole("button", { name: "ย่อแถบนำทาง" });
+    expect(collapse.querySelector("svg.lucide-chevrons-left")).toHaveClass(
+      "size-5",
+    );
 
-    expect(
-      screen.getByRole("button", { name: "ขยายแถบนำทาง" }),
-    ).toHaveAttribute("aria-expanded", "false");
+    await user.click(collapse);
+
+    const expand = screen.getByRole("button", { name: "ขยายแถบนำทาง" });
+    expect(expand).toHaveAttribute("aria-expanded", "false");
+    expect(expand.querySelector("svg.lucide-chevrons-right")).toHaveClass(
+      "size-5",
+    );
     expect(navigation.parentElement).toHaveClass("lg:w-16");
 
     const dashboard = screen.getByRole("link", { name: "แดชบอร์ด" });
