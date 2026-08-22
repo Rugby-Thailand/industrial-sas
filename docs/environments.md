@@ -33,21 +33,20 @@ authoritative copy is `VARIABLE_CONTRACTS` in
 [`src/lib/environmentContract.ts`](../src/lib/environmentContract.ts); this table
 is the readable form of it.
 
-| Variable                            | Required in      | Forbidden in                 | Why                                                                            |
-| ----------------------------------- | ---------------- | ---------------------------- | ------------------------------------------------------------------------------ |
-| `NEXT_PUBLIC_CONVEX_URL`            | deployed classes | —                            | Without it a deployed environment serves setup gates to real users             |
-| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | deployed classes | —                            | Without an identity provider every tenant-bound function denies                |
-| `CLERK_SECRET_KEY`                  | deployed classes | —                            | Server-side Clerk access; secret                                               |
-| `CLERK_WEBHOOK_SIGNING_SECRET`      | deployed classes | —                            | The webhook verifies its signature before any state change (`INV-0001-04`)     |
-| `CLERK_JWT_ISSUER_DOMAIN`           | deployed classes | —                            | Convex validates Clerk tokens against this issuer                              |
-| `NEXT_PUBLIC_APP_URL`               | deployed classes | —                            | Webhook callbacks and absolute links                                           |
-| `CONVEX_DEPLOYMENT`                 | —                | preview, staging, production | Written by `convex dev`; in a build it is a laptop's deployment leaking        |
-| `CONVEX_DEPLOY_KEY`                 | —                | developer                    | A deploy credential belongs to CI, not a laptop                                |
-| `NEXT_PUBLIC_LOCAL_PREVIEW`         | —                | staging, production          | Synthetic rows must never reach an environment a person could mistake for real |
-| `NEXT_PUBLIC_OBSERVABILITY_SINK`    | —                | —                            | Selects the `ObservabilityPort` adapter; unset means the no-op                 |
-| `NEXT_PUBLIC_CLERK_SIGN_IN_URL`     | —                | —                            | Where Clerk sends an unauthenticated visitor                                   |
-| `NEXT_PUBLIC_CLERK_SIGN_UP_URL`     | —                | —                            | Tenants are sales-provisioned (B-02), so usually absent by design              |
-| `UPLOADTHING_TOKEN`                 | —                | —                            | File storage is unwired; each class needs its own app when it lands (D-20)     |
+| Variable                            | Required in      | Forbidden in                 | Why                                                                        |
+| ----------------------------------- | ---------------- | ---------------------------- | -------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_CONVEX_URL`            | deployed classes | —                            | Without it a deployed environment serves setup gates to real users         |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | deployed classes | —                            | Without an identity provider every tenant-bound function denies            |
+| `CLERK_SECRET_KEY`                  | deployed classes | —                            | Server-side Clerk access; secret                                           |
+| `CLERK_WEBHOOK_SIGNING_SECRET`      | deployed classes | —                            | The webhook verifies its signature before any state change (`INV-0001-04`) |
+| `CLERK_JWT_ISSUER_DOMAIN`           | deployed classes | —                            | Convex validates Clerk tokens against this issuer                          |
+| `NEXT_PUBLIC_APP_URL`               | deployed classes | —                            | Webhook callbacks and absolute links                                       |
+| `CONVEX_DEPLOYMENT`                 | —                | preview, staging, production | Written by `convex dev`; in a build it is a laptop's deployment leaking    |
+| `CONVEX_DEPLOY_KEY`                 | —                | developer                    | A deploy credential belongs to CI, not a laptop                            |
+| `NEXT_PUBLIC_OBSERVABILITY_SINK`    | —                | —                            | Selects the `ObservabilityPort` adapter; unset means the no-op             |
+| `NEXT_PUBLIC_CLERK_SIGN_IN_URL`     | —                | —                            | Where Clerk sends an unauthenticated visitor                               |
+| `NEXT_PUBLIC_CLERK_SIGN_UP_URL`     | —                | —                            | Tenants are sales-provisioned (B-02), so usually absent by design          |
+| `UPLOADTHING_TOKEN`                 | —                | —                            | File storage is unwired; each class needs its own app when it lands (D-20) |
 
 "Deployed classes" is `preview`, `staging`, and `production`.
 

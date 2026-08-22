@@ -17,12 +17,7 @@
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
-import { StatusBadge } from "@/components/ui/StatusBadge";
-import { Notice } from "@/components/ui/Notice";
-import { useAppEnvironment } from "@/components/providers/EnvironmentProvider";
 import type { PurchaseOrderLineRow } from "@/lib/convex/inboundApi";
-import { codeLabel, type CodeTranslator } from "@/lib/domainLabels";
-import { previewPurchaseOrderById } from "@/lib/preview/inboundPreview";
 
 import {
   CloseLineShortForm,
@@ -41,50 +36,12 @@ export function PurchaseOrderDetail({
 }) {
   const t = useTranslations("Purchasing");
   const receivingT = useTranslations("Receiving");
-  const statusT = useTranslations(
-    "PurchaseOrderStatus",
-  ) as unknown as CodeTranslator;
-  const environment = useAppEnvironment();
-
   const [closing, setClosing] = useState<PurchaseOrderLineRow | undefined>(
     undefined,
   );
 
-  const previewOrder = environment.previewMode
-    ? previewPurchaseOrderById(purchaseOrderId)
-    : undefined;
-
-  if (environment.previewMode && previewOrder === undefined) {
-    return (
-      <Notice
-        tone="warning"
-        title={t("orderNotFound")}
-        body={t("orderNotFoundHint")}
-        testId="order-not-found"
-      />
-    );
-  }
-
   return (
     <div data-testid="purchase-order-detail">
-      {previewOrder === undefined ? null : (
-        <div className="mb-8 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-surface p-4">
-          {/* The order number stays monospaced and English: it is a code identifier. */}
-          <code className="font-mono text-sm font-semibold text-text">
-            {previewOrder.poNumber}
-          </code>
-          <StatusBadge
-            tone={previewOrder.status === "OPEN" ? "success" : "muted"}
-            label={codeLabel(statusT, previewOrder.status)}
-          />
-          {previewOrder.externalRef === undefined ? null : (
-            <span className="font-mono text-xs text-muted">
-              {previewOrder.externalRef}
-            </span>
-          )}
-        </div>
-      )}
-
       {/*
        * The heading names the section; the table's own caption carries the
        * count. It used to be `linesCaption` with a hard-coded `{count: 0}`,

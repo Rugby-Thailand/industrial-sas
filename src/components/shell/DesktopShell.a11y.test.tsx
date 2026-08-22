@@ -6,7 +6,7 @@ import {
   setMockPathname,
 } from "../../../tests/fixtures/navigation-mock";
 import {
-  previewEnvironment,
+  testEnvironment,
   renderWithIntl,
   unconfiguredEnvironment,
 } from "../../../tests/fixtures/intl-render";
@@ -42,7 +42,7 @@ describe("DesktopShell accessibility", () => {
       <DesktopShell>
         <h1>เนื้อหา</h1>
       </DesktopShell>,
-      { environment: previewEnvironment },
+      { environment: testEnvironment },
     );
 
     expect(await axe(container)).toHaveNoViolations();

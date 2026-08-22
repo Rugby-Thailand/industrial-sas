@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -7,7 +7,6 @@ import {
   setMockPathname,
 } from "../../../tests/fixtures/navigation-mock";
 import {
-  previewEnvironment,
   renderWithIntl,
   unconfiguredEnvironment,
 } from "../../../tests/fixtures/intl-render";
@@ -66,36 +65,6 @@ describe("DesktopShell", () => {
     );
   });
 
-  it("collapses the desktop rail to labelled icon buttons", async () => {
-    const user = userEvent.setup();
-    renderWithIntl(<DesktopShell>content</DesktopShell>, {
-      environment: unconfiguredEnvironment,
-    });
-
-    const navigation = screen.getByRole("navigation");
-    expect(navigation.parentElement).toHaveClass("lg:w-56");
-
-    const collapse = screen.getByRole("button", { name: "ย่อแถบนำทาง" });
-    expect(collapse.querySelector("svg.lucide-chevrons-left")).toHaveClass(
-      "size-5",
-    );
-
-    await user.click(collapse);
-
-    const expand = screen.getByRole("button", { name: "ขยายแถบนำทาง" });
-    expect(expand).toHaveAttribute("aria-expanded", "false");
-    expect(expand.querySelector("svg.lucide-chevrons-right")).toHaveClass(
-      "size-5",
-    );
-    expect(navigation.parentElement).toHaveClass("lg:w-16");
-
-    const dashboard = screen.getByRole("link", { name: "แดชบอร์ด" });
-    expect(dashboard.querySelector("span")).toHaveClass("sr-only");
-
-    await user.hover(dashboard);
-    expect(await screen.findByRole("tooltip")).toHaveTextContent("แดชบอร์ด");
-  });
-
   it("exposes the compact navigation disclosure state", async () => {
     const user = userEvent.setup();
     renderWithIntl(<DesktopShell>content</DesktopShell>, {
@@ -115,37 +84,47 @@ describe("DesktopShell", () => {
     expect(close).toHaveAttribute("aria-expanded", "true");
     expect(close).toHaveTextContent("");
     expect(close.querySelector("svg.lucide-x")).toHaveClass("size-6");
-    expect(screen.getByRole("navigation").parentElement).toHaveClass("lg:w-56");
+    expect(screen.getByRole("navigation").parentElement).toHaveClass("w-56");
     expect(screen.queryByText("Industrial SAS")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("ระบบจัดการคลังสินค้าสำหรับผู้ผลิตในประเทศไทย"),
+    ).not.toBeInTheDocument();
   });
 
-  it("reports an unconfigured deployment rather than a connection attempt", () => {
+  it("collapses the desktop rail to labelled icon buttons", async () => {
+    const user = userEvent.setup();
     renderWithIntl(<DesktopShell>content</DesktopShell>, {
       environment: unconfiguredEnvironment,
     });
 
-    expect(screen.getByText("ยังไม่ได้ตั้งค่า")).toBeInTheDocument();
+    const navigation = screen.getByRole("navigation");
+    expect(navigation.parentElement).toHaveClass("w-56");
+
+    const collapse = screen.getByRole("button", { name: "ย่อแถบนำทาง" });
+    expect(collapse.querySelector("svg.lucide-chevrons-left")).toHaveClass(
+      "size-5",
+    );
+
+    await user.click(collapse);
+
+    const expand = screen.getByRole("button", { name: "ขยายแถบนำทาง" });
+    expect(expand).toHaveAttribute("aria-expanded", "false");
+    expect(expand.querySelector("svg.lucide-chevrons-right")).toHaveClass(
+      "size-5",
+    );
+    expect(navigation.parentElement).toHaveClass("w-16");
+
+    const dashboard = screen.getByRole("link", { name: "แดชบอร์ด" });
+    expect(dashboard.querySelector("span")).toHaveClass("sr-only");
+    await user.hover(dashboard);
+    expect(await screen.findByRole("tooltip")).toHaveTextContent("แดชบอร์ด");
   });
 
-  it("shows no preview banner when preview mode is off", () => {
+  it("does not add development banners to the application shell", () => {
     renderWithIntl(<DesktopShell>content</DesktopShell>, {
       environment: unconfiguredEnvironment,
     });
 
     expect(screen.queryByTestId("preview-banner")).toBeNull();
-  });
-
-  it("shows a preview banner that cannot be dismissed when preview mode is on", () => {
-    // A dismissible banner is dismissed once, and thereafter synthetic stock is
-    // indistinguishable from a warehouse's real balances.
-    renderWithIntl(<DesktopShell>content</DesktopShell>, {
-      environment: previewEnvironment,
-    });
-
-    const banner = screen.getByTestId("preview-banner");
-    expect(banner).toBeInTheDocument();
-    // Scoped to the banner: the shell's own menu toggle is a button, and a
-    // document-wide query would match it.
-    expect(within(banner).queryAllByRole("button")).toHaveLength(0);
   });
 });

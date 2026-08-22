@@ -16,7 +16,6 @@ import {
   type WarehouseScopedListArgs,
 } from "@/lib/convex/masterDataApi";
 import { updateLocationRef } from "@/lib/convex/masterDataApi";
-import { previewLocationsFor } from "@/lib/preview/masterDataPreview";
 
 import { MasterDataPanel } from "./MasterDataPanel";
 import { RowActionButton, RowWriteRegion } from "./RowWriteRegion";
@@ -33,7 +32,6 @@ export function LocationsPanel() {
         maxPageSize: DEFAULT_LEDGER_PAGE_SIZE,
         ...(cursor === undefined ? {} : { cursor }),
       })}
-      previewRowsFor={previewLocationsFor}
       renderRows={(rows) => (
         <RowWriteRegion mutationRef={updateLocationRef}>
           {({ submit, busy }) => (

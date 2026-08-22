@@ -158,16 +158,11 @@ describe("message catalogues", () => {
   });
 
   /*
-   * A heading and the callout beneath it are two levels of one section, and the
-   * dashboard rendered the same sentence at both. Likewise the quality approval
-   * step, which said "approve this disposition" four times over.
+   * The quality approval step once said "approve this disposition" four times.
    */
   it("does not print one heading twice as its own callout", () => {
     for (const locale of LOCALES) {
       const catalogue = FLATTENED.get(locale) ?? new Map<string, string>();
-      expect(catalogue.get("Dashboard.capabilityNoticeTitle"), locale).not.toBe(
-        catalogue.get("Dashboard.capabilityHeading"),
-      );
       for (const key of [
         "Quality.sectionApproval",
         "Quality.approvalRule",
@@ -232,22 +227,5 @@ describe("messagesFor", () => {
   it("falls back to the default locale, not to English, for an unknown segment", () => {
     expect(messagesFor("xx")).toBe(ALL_CATALOGUES[DEFAULT_LOCALE]);
     expect(DEFAULT_LOCALE).toBe("th");
-  });
-
-  it("describes the implemented inbound and reporting surfaces on the dashboard", () => {
-    expect(ALL_CATALOGUES.en.Dashboard.capabilityBody).toContain("receiving");
-    expect(ALL_CATALOGUES.en.Dashboard.capabilityBody).toContain("CSV exports");
-    expect(ALL_CATALOGUES.en.Dashboard.capabilityBody).not.toContain(
-      "are not built",
-    );
-    expect(ALL_CATALOGUES.th.Dashboard.capabilityBody).toContain(
-      "การรับสินค้า",
-    );
-    expect(ALL_CATALOGUES.th.Dashboard.capabilityBody).toContain(
-      "การส่งออก CSV",
-    );
-    expect(ALL_CATALOGUES.th.Dashboard.capabilityBody).not.toContain(
-      "ยังไม่ได้พัฒนา",
-    );
   });
 });

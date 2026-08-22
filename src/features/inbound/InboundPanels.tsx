@@ -44,13 +44,6 @@ import {
   type ReceiptRow,
 } from "@/lib/convex/inboundApi";
 import { purchaseOrderPath, receiptPath } from "@/lib/navigation";
-import {
-  previewOrderLinesFor,
-  previewPrintJobsFor,
-  previewPurchaseOrdersFor,
-  previewReceiptLinesFor,
-  previewReceiptsFor,
-} from "@/lib/preview/inboundPreview";
 
 import { MasterDataPanel } from "../masterData/MasterDataPanel";
 
@@ -71,7 +64,6 @@ export function PurchaseOrdersPanel() {
       queryRef={listPurchaseOrdersRef}
       scope="WAREHOUSE"
       buildArgs={({ warehouseId, cursor }) => pageArgs(warehouseId, cursor)}
-      previewRowsFor={previewPurchaseOrdersFor}
       renderRows={(rows) => (
         <PurchaseOrdersTable
           rows={rows}
@@ -118,7 +110,6 @@ export function PurchaseOrderLinesPanel({
         ...pageArgs(warehouseId, cursor),
         purchaseOrderId,
       })}
-      previewRowsFor={() => previewOrderLinesFor(purchaseOrderId)}
       renderRows={(rows) => (
         <PurchaseOrderLinesTable
           rows={rows}
@@ -144,7 +135,6 @@ export function ReceiptsPanel() {
       queryRef={listReceiptsRef}
       scope="WAREHOUSE"
       buildArgs={({ warehouseId, cursor }) => pageArgs(warehouseId, cursor)}
-      previewRowsFor={previewReceiptsFor}
       renderRows={(rows) => (
         <ReceiptsTable
           rows={rows}
@@ -184,7 +174,6 @@ export function ReceiptLinesPanel({
         ...pageArgs(warehouseId, cursor),
         receiptId,
       })}
-      previewRowsFor={() => previewReceiptLinesFor(receiptId)}
       renderRows={(rows) => <ReceiptLinesTable rows={rows} />}
     />
   );
@@ -219,7 +208,6 @@ export function PrintJobsPanel({
         targetKind,
         targetId,
       })}
-      previewRowsFor={() => previewPrintJobsFor(targetId)}
       renderRows={(rows) => <PrintJobsTable rows={rows} />}
     />
   );

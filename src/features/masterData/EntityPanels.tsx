@@ -56,14 +56,6 @@ import {
   type StorageClassRow,
   type SupplierRow,
 } from "@/lib/convex/masterDataApi";
-import {
-  previewBarcodesFor,
-  previewItemUomsFor,
-  previewLabelTemplates,
-  previewLotsFor,
-  previewStorageClasses,
-  previewSuppliers,
-} from "@/lib/preview/masterDataPreview";
 
 import { EntityWriteForm } from "./EntityWriteForm";
 import { MasterDataPanel } from "./MasterDataPanel";
@@ -87,7 +79,6 @@ export function SuppliersPanel() {
       queryRef={listSuppliersRef}
       scope="ORG"
       buildArgs={({ cursor }) => pageArgs(cursor)}
-      previewRowsFor={() => previewSuppliers()}
       renderRows={(rows) => (
         <RowWriteRegion mutationRef={updateSupplierRef}>
           {({ submit, busy }) => (
@@ -161,7 +152,6 @@ export function StorageClassesPanel() {
       queryRef={listStorageClassesRef}
       scope="ORG"
       buildArgs={({ cursor }) => pageArgs(cursor)}
-      previewRowsFor={() => previewStorageClasses()}
       renderRows={(rows) => (
         <RowWriteRegion mutationRef={updateStorageClassRef}>
           {({ submit, busy }) => (
@@ -238,7 +228,6 @@ export function LabelTemplatesPanel() {
       queryRef={listLabelTemplatesRef}
       scope="ORG"
       buildArgs={({ cursor }) => pageArgs(cursor)}
-      previewRowsFor={() => previewLabelTemplates()}
       renderRows={(rows) => (
         <RowWriteRegion mutationRef={publishLabelTemplateRef}>
           {({ submit, busy }) => (
@@ -345,7 +334,6 @@ export function ItemBarcodesPanel({ itemId }: { readonly itemId: string }) {
       queryRef={listBarcodesForItemRef}
       scope="ORG"
       buildArgs={({ cursor }) => ({ itemId, ...pageArgs(cursor) })}
-      previewRowsFor={() => previewBarcodesFor(itemId)}
       renderRows={(rows) => (
         <RowWriteRegion mutationRef={deactivateBarcodeRef}>
           {({ submit, busy }) => (
@@ -443,7 +431,6 @@ export function ItemUomsPanel({
       queryRef={listItemUomsRef}
       scope="ORG"
       buildArgs={({ cursor }) => ({ itemId, ...pageArgs(cursor) })}
-      previewRowsFor={() => previewItemUomsFor(itemId)}
       renderRows={(rows) => (
         <RowWriteRegion mutationRef={deactivateItemUomRef}>
           {({ submit, busy }) => (
@@ -543,7 +530,6 @@ export function ItemLotsPanel({ itemId }: { readonly itemId: string }) {
       queryRef={listLotsForItemRef}
       scope="ORG"
       buildArgs={({ cursor }) => ({ itemId, ...pageArgs(cursor) })}
-      previewRowsFor={() => previewLotsFor(itemId)}
       renderRows={(rows) => <LotsTable rows={rows} />}
     />
   );

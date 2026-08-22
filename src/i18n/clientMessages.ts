@@ -11,7 +11,7 @@
  * So the provider is split in two, and both halves name what they carry:
  *
  * - `SHELL_NAMESPACES` is the chrome that is on screen no matter where an
- *   operator is — navigation, the workspace bar, the connection indicator. It
+ *   operator is — navigation, account, and workspace. It
  *   sits in the root locale layout.
  * - `ROUTE_NAMESPACES` is one entry per route subtree, mounted by a
  *   `layout.tsx` in that subtree via `RouteMessages`.
@@ -24,9 +24,8 @@
  * formats — is inherited, which is why the route providers pass only messages.
  *
  * The practical consequence: a route entry may not lean on `SHELL_NAMESPACES`.
- * The dashboard renders `DashboardScope` and `SetupChecklist` *inside* the page,
- * so `Workspace` and `Setup` appear in its entry even though the shell above
- * also carries `Workspace`. The duplication is a few hundred bytes and it is
+ * The dashboard renders `DashboardScope` *inside* the page, so `Workspace`
+ * appears in its entry even though the shell above also carries it. That small duplication is
  * what makes each entry independently checkable.
  *
  * ### Keeping this file true
@@ -46,19 +45,18 @@ export type MessageNamespace = keyof MessageCatalogue;
 /**
  * The chrome that renders above every route, from the root locale layout.
  *
- * `App` is the product name in the sidebar header, `Locale` the language
- * switcher, `Navigation` both shells' link labels, `Workspace` the warehouse
- * bar, `Connection` the backend indicator, `Preview` the preview-data banner.
+ * `Access` is the tenant-provisioning fallback, `Locale` the language switcher,
+ * `Navigation` the shell links, and `Workspace` the warehouse bar. The `App`
+ * namespace is used only by server-rendered metadata, so it does not belong in
+ * the client payload.
  * Nothing domain-specific belongs here: a namespace added to this list is paid
  * for by every page in the application.
  */
 export const SHELL_NAMESPACES = [
-  "App",
-  "Connection",
+  "Access",
   "Error",
   "Locale",
   "Navigation",
-  "Preview",
   "Workspace",
 ] as const satisfies readonly MessageNamespace[];
 
@@ -111,10 +109,10 @@ export const ROUTE_NAMESPACES = {
   "(desktop)/dashboard": [
     "Dashboard",
     "Metric",
+    "Navigation",
     "Occupancy",
     "OccupancyBand",
     "Panel",
-    "Setup",
     "Workspace",
   ],
   "(desktop)/inventory": [

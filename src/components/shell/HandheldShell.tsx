@@ -5,8 +5,8 @@
  * competing for attention.
  *
  * The header carries only what an operator has to be able to check without
- * leaving the task — the warehouse they are acting in and whether the server is
- * answering (UX plan §3). There is no sidebar and no section tree: the task
+ * leaving the task — the warehouse they are acting in and their account. There
+ * is no sidebar and no section tree: the task
  * launcher *is* the navigation, and a nav rail on a 360-pixel screen would cost
  * a quarter of the width the work needs.
  *
@@ -30,12 +30,11 @@
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
-import { ConnectionIndicator } from "@/components/system/ConnectionIndicator";
-import { PreviewBanner } from "@/components/system/PreviewBanner";
 import { Link } from "@/i18n/navigation";
 import { ROUTES } from "@/lib/navigation";
 
 import { LocaleSwitcher } from "./LocaleSwitcher";
+import { AccountButton } from "./AccountButton";
 import { WorkspaceContextBar } from "./WorkspaceContextBar";
 
 const MAIN_ID = "handheld-content";
@@ -55,12 +54,10 @@ export function HandheldShell({ children }: { readonly children: ReactNode }) {
         {t("skipToContent")}
       </a>
 
-      <PreviewBanner />
-
       <header className="border-b border-border bg-surface px-4 py-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <ConnectionIndicator />
           <LocaleSwitcher />
+          <AccountButton />
         </div>
         <div className="mt-3">
           <WorkspaceContextBar />

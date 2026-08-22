@@ -21,8 +21,6 @@
 import { useQuery } from "convex/react";
 import type { ReactNode } from "react";
 
-import { useAppEnvironment } from "@/components/providers/EnvironmentProvider";
-import { useWorkspace } from "@/components/providers/WorkspaceProvider";
 import { QueryGate } from "@/components/system/QueryGate";
 import { DEFAULT_LEDGER_PAGE_SIZE } from "@/lib/convex/ledgerApi";
 import {
@@ -43,18 +41,6 @@ import {
   listReceivingLocationsRef,
   type LocationRow,
 } from "@/lib/convex/masterDataApi";
-import { resolveLedgerGate } from "@/lib/convex/ledgerState";
-import {
-  previewInspectionsFor,
-  previewOrderLinesFor,
-  previewPurchaseOrdersFor,
-  previewReceiptById,
-  previewReceiptsFor,
-  previewReceiptLinesFor,
-  previewRecommendation,
-} from "@/lib/preview/inboundPreview";
-import { previewLocationsFor } from "@/lib/preview/masterDataPreview";
-
 import { OptionGate, type OptionSet } from "./OptionPicker";
 
 /** What every option source hands its caller. */
@@ -77,24 +63,15 @@ const ready = <Value,>(values: readonly Value[]): OptionSet<Value> => ({
  * and a picker that answered before a site was chosen would be answering about
  * nowhere.
  */
-function useInboundGate() {
-  const environment = useAppEnvironment();
-  const warehouseId = useWorkspace().selectedWarehouseId;
-  return {
-    gate: resolveLedgerGate(environment, warehouseId, "WAREHOUSE"),
-    preview: environment.previewMode,
-  };
-}
-
 /** Render the gate's own status, or hand the caller a resolved warehouse. */
 function GateOr({
   render,
 }: {
-  readonly render: (warehouseId: string, preview: boolean) => ReactNode;
+  readonly render: (warehouseId: string) => ReactNode;
 }): ReactNode {
   return (
     <QueryGate scope="WAREHOUSE">
-      {(warehouseId, preview) => render(warehouseId, preview)}
+      {(warehouseId) => render(warehouseId)}
     </QueryGate>
   );
 }
@@ -108,8 +85,7 @@ function GateOr({
  *
  * The type rule lives on the server (`RECEIVING_LOCATION_TYPES`) and is not
  * restated on this side: a client-side filter would be a second copy of a domain
- * rule, and the copy is the one that drifts. The preview branch filters the
- * fixture because the fixture *is* the data there.
+ * rule, and the copy is the one that drifts.
  *
  * The answer is complete: the server reads through an index whose prefix
  * includes the location type, so rack volume cannot hide a dock.
@@ -117,22 +93,9 @@ function GateOr({
 export function ReceivingLocations(props: OptionSourceProps<LocationRow>) {
   return (
     <GateOr
-      render={(warehouseId, preview) =>
-        preview ? (
-          <OptionGate
-            {...props}
-            options={ready(
-              previewLocationsFor(warehouseId).filter((location) =>
-                ["DOCK", "STAGING"].includes(location.locationType),
-              ),
-            )}
-          >
-            {props.children}
-          </OptionGate>
-        ) : (
-          <ServerReceivingLocations {...props} warehouseId={warehouseId} />
-        )
-      }
+      render={(warehouseId) => (
+        <ServerReceivingLocations {...props} warehouseId={warehouseId} />
+      )}
     />
   );
 }
@@ -166,22 +129,9 @@ function ServerReceivingLocations({
 export function OpenPurchaseOrders(props: OptionSourceProps<PurchaseOrderRow>) {
   return (
     <GateOr
-      render={(warehouseId, preview) =>
-        preview ? (
-          <OptionGate
-            {...props}
-            options={ready(
-              previewPurchaseOrdersFor(warehouseId).filter(
-                (order) => order.status === "OPEN",
-              ),
-            )}
-          >
-            {props.children}
-          </OptionGate>
-        ) : (
-          <ServerOpenOrders {...props} warehouseId={warehouseId} />
-        )
-      }
+      render={(warehouseId) => (
+        <ServerOpenOrders {...props} warehouseId={warehouseId} />
+      )}
     />
   );
 }
@@ -226,20 +176,9 @@ export function OpenOrderLines({
 }) {
   return (
     <GateOr
-      render={(warehouseId, preview) =>
+      render={(warehouseId) =>
         purchaseOrderId === undefined ? (
           <OptionGate {...props} options={ready<PurchaseOrderLineRow>([])}>
-            {props.children}
-          </OptionGate>
-        ) : preview ? (
-          <OptionGate
-            {...props}
-            options={ready(
-              previewOrderLinesFor(purchaseOrderId).filter(
-                (line) => line.status === "OPEN",
-              ),
-            )}
-          >
             {props.children}
           </OptionGate>
         ) : (
@@ -289,26 +228,6 @@ function ServerOpenLines({
 /* -------------------------------------------------------------------------- */
 
 /**
- * The receipt a *demonstrated* open-receipt stands in for.
- *
- * Preview writes nothing, so no receipt ID comes back from opening one — and a
- * flow that stopped there would leave the whole capture step, which is the part
- * an operator spends their shift in, unreachable and untested on the shell it
- * was designed for.
- *
- * So the demonstration continues against a fixture receipt that already exists
- * in the preview data. This is not a fake write: nothing was created, the
- * outcome still reads DEMONSTRATED, and the screen says which receipt the rest
- * of the walkthrough is about. Real mode gets `undefined` and never takes this
- * path, because `onDemonstrated` only fires in preview.
- */
-export function useDemonstrationReceiptId(): string | undefined {
-  const { gate, preview } = useInboundGate();
-  if (!preview || gate.kind !== "READY_TO_QUERY") return undefined;
-  return previewReceiptsFor(gate.warehouseId)[0]?.receiptId;
-}
-
-/**
  * The receipt a screen is working on.
  *
  * Empty when the identifier names nothing this tenant owns — the same answer a
@@ -321,26 +240,13 @@ export function Receipt({
 }: OptionSourceProps<ReceiptRow> & { readonly receiptId: string }) {
   return (
     <GateOr
-      render={(warehouseId, preview) =>
-        preview ? (
-          <OptionGate
-            {...props}
-            options={ready(
-              [previewReceiptById(receiptId)].filter(
-                (row): row is ReceiptRow => row !== undefined,
-              ),
-            )}
-          >
-            {props.children}
-          </OptionGate>
-        ) : (
-          <ServerReceipt
-            {...props}
-            warehouseId={warehouseId}
-            receiptId={receiptId}
-          />
-        )
-      }
+      render={(warehouseId) => (
+        <ServerReceipt
+          {...props}
+          warehouseId={warehouseId}
+          receiptId={receiptId}
+        />
+      )}
     />
   );
 }
@@ -384,22 +290,13 @@ export function PostedReceiptLines({
 }: OptionSourceProps<ReceiptLineRow> & { readonly receiptId: string }) {
   return (
     <GateOr
-      render={(warehouseId, preview) =>
-        preview ? (
-          <OptionGate
-            {...props}
-            options={ready(previewReceiptLinesFor(receiptId))}
-          >
-            {props.children}
-          </OptionGate>
-        ) : (
-          <ServerReceiptLines
-            {...props}
-            warehouseId={warehouseId}
-            receiptId={receiptId}
-          />
-        )
-      }
+      render={(warehouseId) => (
+        <ServerReceiptLines
+          {...props}
+          warehouseId={warehouseId}
+          receiptId={receiptId}
+        />
+      )}
     />
   );
 }
@@ -453,22 +350,9 @@ function ServerReceiptLines({
 export function PendingInspections(props: OptionSourceProps<InspectionRow>) {
   return (
     <GateOr
-      render={(warehouseId, preview) =>
-        preview ? (
-          <OptionGate
-            {...props}
-            options={ready(
-              previewInspectionsFor(warehouseId).filter(
-                (row) => row.status === "PENDING_APPROVAL",
-              ),
-            )}
-          >
-            {props.children}
-          </OptionGate>
-        ) : (
-          <ServerPendingInspections {...props} warehouseId={warehouseId} />
-        )
-      }
+      render={(warehouseId) => (
+        <ServerPendingInspections {...props} warehouseId={warehouseId} />
+      )}
     />
   );
 }
@@ -520,27 +404,13 @@ export function RankedPutawayLocations({
 }) {
   return (
     <GateOr
-      render={(warehouseId, preview) =>
-        preview ? (
-          <OptionGate
-            {...props}
-            options={ready(
-              (() => {
-                const recommendation = previewRecommendation();
-                return recommendation.ok ? recommendation.ranked : [];
-              })(),
-            )}
-          >
-            {props.children}
-          </OptionGate>
-        ) : (
-          <ServerRankedLocations
-            {...props}
-            warehouseId={warehouseId}
-            putawayTaskId={putawayTaskId}
-          />
-        )
-      }
+      render={(warehouseId) => (
+        <ServerRankedLocations
+          {...props}
+          warehouseId={warehouseId}
+          putawayTaskId={putawayTaskId}
+        />
+      )}
     />
   );
 }

@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { navigationMock } from "../../../tests/fixtures/navigation-mock";
 import {
-  previewEnvironment,
+  testEnvironment,
   renderWithIntl,
 } from "../../../tests/fixtures/intl-render";
 
@@ -18,7 +18,7 @@ describe("HandheldShell accessibility", () => {
       <HandheldShell>
         <h1>ค้นหาสต็อก</h1>
       </HandheldShell>,
-      { environment: previewEnvironment },
+      { environment: testEnvironment },
     );
 
     expect(await axe(container)).toHaveNoViolations();
@@ -36,7 +36,7 @@ describe("HandheldShell accessibility", () => {
       <HandheldShell>
         <p>เนื้อหา</p>
       </HandheldShell>,
-      { environment: previewEnvironment },
+      { environment: testEnvironment },
     );
 
     const controls = [

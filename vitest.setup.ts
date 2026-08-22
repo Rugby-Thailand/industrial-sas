@@ -2,7 +2,31 @@ import "@testing-library/jest-dom/vitest";
 
 import { cleanup } from "@testing-library/react";
 import { toHaveNoViolations } from "jest-axe";
-import { afterEach, expect } from "vitest";
+import { afterEach, expect, vi } from "vitest";
+import type * as ConvexReact from "convex/react";
+
+vi.mock("convex/react", async (importOriginal) => {
+  const actual = await importOriginal<typeof ConvexReact>();
+  const { getFunctionName } = await import("convex/server");
+  const { resolveTestQuery } = await import("./tests/fixtures/convex-query");
+
+  return {
+    ...actual,
+    useConvexAuth: () => ({ isLoading: false, isAuthenticated: true }),
+    useMutation: () => async () => ({
+      ok: true,
+      requestId: "test_request",
+      value: { written: true, documentId: "test_document", replayed: false },
+    }),
+    useQuery: (
+      reference: Parameters<typeof getFunctionName>[0],
+      args: Record<string, unknown> | "skip" = {},
+    ) =>
+      args === "skip"
+        ? undefined
+        : resolveTestQuery(getFunctionName(reference), args),
+  };
+});
 
 expect.extend(toHaveNoViolations);
 

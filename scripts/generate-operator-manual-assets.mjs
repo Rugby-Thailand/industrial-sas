@@ -1,165 +1,150 @@
-import { copyFileSync, mkdirSync, writeFileSync } from "node:fs";
-import { join, resolve } from "node:path";
-
 /**
- * Rebuild the annotated screenshots used by the Thai operator guide.
+ * Rebuild the annotated screenshots the Thai operator guide links to.
  *
- * The annotations are SVG overlays rather than destructive raster edits. This
- * keeps the captured UI pixel-exact while making every red rectangle and step
- * number easy to review or move when the interface changes.
+ * Annotations are SVG overlays rather than destructive raster edits: the PNG is
+ * referenced, never rewritten, so the captured UI stays pixel-exact and moving a
+ * red rectangle costs one regenerated text file.
+ *
+ * What changed from the version this replaces: the coordinates are no longer
+ * here. They live in `scripts/manual/tasks.mjs` with the steps they belong to,
+ * because the same numbers drive the HTML manual, and two hand-maintained copies
+ * of a pixel coordinate is one copy too many. The screen dimensions are gone as
+ * well — they are measured from the PNGs now (see `scripts/manual/images.mjs` for
+ * what the authored ones were doing wrong).
+ *
+ * Offline by default. With no argument it re-renders overlays over the committed
+ * screenshots and needs nothing but this repository. Given a capture directory it
+ * also refreshes the PNGs from it:
+ *
+ *   node scripts/generate-operator-manual-assets.mjs
+ *   node scripts/generate-operator-manual-assets.mjs ../industrial-sas-visual-audit/after-final
  */
-const sourceRoot = resolve(
-  process.argv[2] ??
-    join(process.cwd(), "../industrial-sas-visual-audit/after-final"),
-);
-const outputRoot = join(process.cwd(), "docs/manuals/assets/operator-guide-th");
+import { copyFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { join, resolve } from "node:path";
+import process from "node:process";
+import { fileURLToPath } from "node:url";
 
-const screens = [
-  {
-    name: "dashboard",
-    width: 1280,
-    height: 2007,
-    boxes: [
-      [205, 158, 270, 58],
-      [270, 1080, 965, 300],
-    ],
-  },
-  {
-    name: "items",
-    width: 1280,
-    height: 1543,
-    boxes: [
-      [1090, 525, 120, 435],
-      [278, 1110, 980, 380],
-    ],
-  },
-  {
-    name: "suppliers",
-    width: 1280,
-    height: 1290,
-    boxes: [
-      [1010, 540, 145, 285],
-      [278, 970, 980, 270],
-    ],
-  },
-  {
-    name: "purchase-orders",
-    width: 1280,
-    height: 1206,
-    boxes: [
-      [1010, 465, 115, 205],
-      [278, 815, 980, 335],
-    ],
-  },
-  {
-    name: "purchase-order-detail",
-    width: 1280,
-    height: 1539,
-    boxes: [
-      [278, 840, 980, 325],
-      [278, 1238, 980, 250],
-    ],
-  },
-  {
-    name: "receiving",
-    width: 1280,
-    height: 1447,
-    boxes: [
-      [278, 745, 980, 245],
-      [278, 1062, 980, 335],
-    ],
-  },
-  {
-    name: "receipt-detail",
-    width: 1280,
-    height: 2589,
-    boxes: [
-      [278, 610, 980, 710],
-      [278, 1360, 980, 300],
-      [278, 1710, 980, 555],
-    ],
-  },
-  {
-    name: "quality",
-    width: 1280,
-    height: 1285,
-    boxes: [
-      [278, 378, 980, 260],
-      [278, 775, 980, 455],
-    ],
-  },
-  {
-    name: "putaway",
-    width: 1280,
-    height: 1197,
-    boxes: [
-      [278, 378, 980, 395],
-      [278, 905, 980, 115],
-    ],
-  },
-  {
-    name: "inventory-balances",
-    width: 1280,
-    height: 1197,
-    boxes: [[278, 367, 980, 570]],
-  },
-  {
-    name: "inventory-history",
-    width: 1280,
-    height: 1197,
-    boxes: [[278, 335, 980, 335]],
-  },
-  {
-    name: "reports",
-    width: 1280,
-    height: 1197,
-    boxes: [
-      [278, 262, 980, 240],
-      [278, 525, 980, 345],
-    ],
-  },
-  {
-    name: "handheld-home",
-    width: 1280,
-    height: 900,
-    boxes: [
-      [430, 96, 420, 178],
-      [430, 380, 420, 330],
-    ],
-  },
-];
+import { overlayLabel, renderAnnotatedSvg } from "./manual/annotations.mjs";
+import { collectImageSizes, readPngSize } from "./manual/images.mjs";
+import { readNavigationRoutes } from "./manual/routes.mjs";
+import { formatProblems, validateCatalogue } from "./manual/schema.mjs";
+import { SCREENSHOT_DIRECTORY } from "./manual/html.mjs";
+import {
+  MANUAL_AUDIENCES,
+  MANUAL_CATEGORIES,
+  MANUAL_TASKS,
+} from "./manual/tasks.mjs";
 
-const annotation = ([x, y, width, height], index) => {
-  const circleX = x + 8;
-  const circleY = y + 8;
-  return `
-  <rect x="${x}" y="${y}" width="${width}" height="${height}" rx="12"
-    fill="none" stroke="#ff3b30" stroke-width="7"/>
-  <circle cx="${circleX}" cy="${circleY}" r="22" fill="#ff3b30"
-    stroke="#ffffff" stroke-width="3"/>
-  <text x="${circleX}" y="${circleY + 8}" text-anchor="middle"
-    font-family="Arial, sans-serif" font-size="24" font-weight="700"
-    fill="#ffffff">${index + 1}</text>`;
+const repoRoot = fileURLToPath(new URL("..", import.meta.url));
+const outputRoot = join(repoRoot, SCREENSHOT_DIRECTORY);
+
+/** How the visual-audit capture names a Thai desktop screenshot. */
+const captureName = (image) => `${image}--th--desktop-1280.png`;
+
+const fail = (message) => {
+  process.stderr.write(`${message}\n`);
+  process.exit(1);
 };
+
+const sourceArgument = process.argv[2];
 
 mkdirSync(outputRoot, { recursive: true });
 
-for (const screen of screens) {
-  const sourceName = `${screen.name}--th--desktop-1280.png`;
-  const pngName = `${screen.name}.png`;
-  const svgName = `${screen.name}-annotated.svg`;
-  copyFileSync(join(sourceRoot, sourceName), join(outputRoot, pngName));
-
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg"
-  xmlns:xlink="http://www.w3.org/1999/xlink"
-  width="${screen.width}" height="${screen.height}"
-  viewBox="0 0 ${screen.width} ${screen.height}" role="img"
-  aria-label="ภาพหน้าจอ ${screen.name} พร้อมกรอบคำแนะนำสีแดง">
-  <image href="${pngName}" xlink:href="${pngName}" x="0" y="0"
-    width="${screen.width}" height="${screen.height}"/>
-  ${screen.boxes.map(annotation).join("\n").trim()}
-</svg>\n`;
-  writeFileSync(join(outputRoot, svgName), svg, "utf8");
+if (sourceArgument !== undefined) {
+  const sourceRoot = resolve(sourceArgument);
+  if (!existsSync(sourceRoot)) {
+    fail(
+      `Capture directory not found: ${sourceRoot}\n` +
+        "Run without an argument to re-render overlays over the committed screenshots.",
+    );
+  }
+  /** @type {string[]} */
+  const missing = [];
+  /** @type {string[]} */
+  const unreadable = [];
+  /** @type {Record<string, import("./manual/schema.mjs").ImageSize>} */
+  const captureSizes = {};
+  for (const task of MANUAL_TASKS) {
+    const from = join(sourceRoot, captureName(task.image));
+    if (!existsSync(from)) {
+      missing.push(captureName(task.image));
+      continue;
+    }
+    // Also preflight readability and the PNG header before touching the
+    // committed set. A zero-byte or HTML error response is not a screenshot.
+    try {
+      captureSizes[task.image] = readPngSize(from);
+    } catch (error) {
+      unreadable.push(
+        `${captureName(task.image)}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+  if (missing.length > 0 || unreadable.length > 0) {
+    fail(
+      `Capture directory ${sourceRoot} is not usable:\n` +
+        missing.map((name) => `  missing: ${name}`).join("\n") +
+        (missing.length > 0 && unreadable.length > 0 ? "\n" : "") +
+        unreadable.map((line) => `  invalid: ${line}`).join("\n"),
+    );
+  }
+  const captureProblems = validateCatalogue({
+    tasks: MANUAL_TASKS,
+    categories: MANUAL_CATEGORIES,
+    audiences: MANUAL_AUDIENCES,
+    imageSizes: captureSizes,
+    routes: readNavigationRoutes(repoRoot),
+  });
+  if (captureProblems.length > 0) {
+    fail(
+      `The capture set has ${captureProblems.length} problem(s):\n` +
+        `${formatProblems(captureProblems)}\n` +
+        "No committed screenshot was replaced.",
+    );
+  }
+  // Preflight the complete capture set before replacing any committed image.
+  // A typo, malformed PNG, or annotation outside a changed viewport must not
+  // leave a mixed old/new set.
+  for (const task of MANUAL_TASKS) {
+    copyFileSync(
+      join(sourceRoot, captureName(task.image)),
+      join(outputRoot, `${task.image}.png`),
+    );
+  }
+  process.stdout.write(
+    `Refreshed ${MANUAL_TASKS.length} screenshots from ${sourceRoot}.\n`,
+  );
 }
 
-console.log(`Generated ${screens.length} annotated manual screenshots.`);
+const imageSizes = collectImageSizes(outputRoot);
+const problems = validateCatalogue({
+  tasks: MANUAL_TASKS,
+  categories: MANUAL_CATEGORIES,
+  audiences: MANUAL_AUDIENCES,
+  imageSizes,
+  routes: readNavigationRoutes(repoRoot),
+});
+
+if (problems.length > 0) {
+  fail(
+    `The operator-manual catalogue has ${problems.length} problem(s):\n` +
+      `${formatProblems(problems)}\n` +
+      "Nothing was written. Fix scripts/manual/tasks.mjs and run again.",
+  );
+}
+
+for (const task of MANUAL_TASKS) {
+  const size = imageSizes[task.image];
+  const svg = renderAnnotatedSvg({
+    image: task.image,
+    width: size.width,
+    height: size.height,
+    annotations: task.annotations,
+    label: overlayLabel(task),
+  });
+  writeFileSync(join(outputRoot, `${task.image}-annotated.svg`), svg, "utf8");
+}
+
+process.stdout.write(
+  `Generated ${MANUAL_TASKS.length} annotated overlays in ${SCREENSHOT_DIRECTORY}.\n`,
+);

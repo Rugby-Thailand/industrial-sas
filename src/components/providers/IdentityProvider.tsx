@@ -4,7 +4,7 @@
  * Mount Clerk only when this environment has a real publishable key.
  *
  * Keeping the unconfigured branch is intentional: contributors can still run
- * the setup gate and synthetic preview without creating a Clerk account, while
+ * the setup gate without creating a Clerk account, while
  * a configured development environment gets the exact provider hierarchy Clerk
  * and Convex require. The key is public by definition; no server secret crosses
  * this client boundary.

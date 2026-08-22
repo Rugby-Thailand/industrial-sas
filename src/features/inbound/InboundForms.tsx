@@ -300,7 +300,6 @@ export function CloseLineShortForm({
 export function OpenReceiptForm({
   purchaseOrderId,
   onOpened,
-  onDemonstrated,
   chooseOrder = false,
 }: {
   readonly purchaseOrderId?: string | undefined;
@@ -313,14 +312,6 @@ export function OpenReceiptForm({
    * completes wearing gloves.
    */
   readonly onOpened?: (receiptId: string) => void;
-  /**
-   * The form validated and stopped, because preview writes nothing.
-   *
-   * Distinct from `onOpened` on purpose: no receipt exists, so there is no ID to
-   * hand over, and a caller that treated the two as one would be a caller that
-   * believed a demonstration had created something.
-   */
-  readonly onDemonstrated?: () => void;
   readonly chooseOrder?: boolean;
 }) {
   const t = useTranslations("Receiving");
@@ -330,7 +321,6 @@ export function OpenReceiptForm({
       <OpenReceiptFormBody
         {...(purchaseOrderId === undefined ? {} : { purchaseOrderId })}
         {...(onOpened === undefined ? {} : { onOpened })}
-        {...(onDemonstrated === undefined ? {} : { onDemonstrated })}
         orders={[]}
       />
     );
@@ -346,7 +336,6 @@ export function OpenReceiptForm({
         <OpenReceiptFormBody
           {...(purchaseOrderId === undefined ? {} : { purchaseOrderId })}
           {...(onOpened === undefined ? {} : { onOpened })}
-          {...(onDemonstrated === undefined ? {} : { onDemonstrated })}
           orders={orders}
         />
       )}
@@ -358,12 +347,10 @@ export function OpenReceiptForm({
 function OpenReceiptFormBody({
   purchaseOrderId,
   onOpened,
-  onDemonstrated,
   orders,
 }: {
   readonly purchaseOrderId?: string | undefined;
   readonly onOpened?: (receiptId: string) => void;
-  readonly onDemonstrated?: () => void;
   readonly orders: readonly {
     readonly purchaseOrderId: string;
     readonly poNumber: string;
@@ -416,7 +403,6 @@ function OpenReceiptFormBody({
               return chosen === "" ? {} : { purchaseOrderId: chosen };
             })(),
           })}
-          {...(onDemonstrated === undefined ? {} : { onDemonstrated })}
           {...(onOpened === undefined
             ? {}
             : {

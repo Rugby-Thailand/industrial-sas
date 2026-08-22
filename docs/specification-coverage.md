@@ -301,9 +301,9 @@ folded partially.
 `SC-Q08` and `SC-Q09` are `Partial` as of this commit: their placeholders are gone. The a11y
 tier asserts zero axe violations for both shells, both inventory tables in Thai and English,
 all seven panel states, and the setup checklist, rendered against the Thai catalogue. The
-Playwright suite covers locale negotiation, both shells, the setup gate, and the inventory
-read path against local preview data. Neither covers an authenticated screen or a warehouse
-flow, because neither exists.
+Playwright covers localized sign-in, every private route on desktop and handheld,
+the Clerk callback path, and security headers. Authenticated feature behavior is
+covered by component, integration, and tenant-isolation suites.
 
 `SC-Q12` and `SC-Q13` are `Partial` because the guards exist and are proved to fail on each
 bypass, while the things they guard — exported feature functions, ledger tables — do not exist

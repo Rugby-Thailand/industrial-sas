@@ -20,7 +20,7 @@ import {
   previewBarcodesFor,
   previewItemUomsFor,
   previewLotsFor,
-} from "@/lib/preview/masterDataPreview";
+} from "@tests/fixtures/data/masterData";
 
 const BOLT = "prv_item_bolt_m8";
 const RESIN = "prv_item_resin_hd";

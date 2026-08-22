@@ -3,8 +3,8 @@
  *
  * This deliberately does not print values. It checks the ignored `.env.local`
  * file that Next.js and the Convex CLI use, because the generic environment
- * contract also supports credential-free preview work and therefore cannot
- * require every vendor setting from every contributor.
+ * contract spans every deployment class and therefore cannot require every
+ * development-only setting from every contributor.
  *
  * Run with `pnpm dev:check`.
  */
@@ -46,12 +46,6 @@ for (const name of required) {
 if (present(environment.get("CONVEX_DEPLOY_KEY"))) {
   problems.push("CONVEX_DEPLOY_KEY must not be stored on a developer machine");
 }
-if (environment.get("NEXT_PUBLIC_LOCAL_PREVIEW")?.trim() === "1") {
-  warnings.push(
-    "NEXT_PUBLIC_LOCAL_PREVIEW is enabled; real server data is intentionally hidden",
-  );
-}
-
 checkPrefix("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", "pk_test_");
 checkPrefix("CLERK_SECRET_KEY", "sk_test_");
 const publishableKey = environment
@@ -59,6 +53,15 @@ const publishableKey = environment
   ?.trim();
 if (present(publishableKey) && !isPublishableKey(publishableKey)) {
   problems.push("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY is malformed");
+}
+const expectedIssuer = issuerFromPublishableKey(publishableKey);
+if (
+  expectedIssuer !== undefined &&
+  environment.get("CLERK_JWT_ISSUER_DOMAIN")?.trim() !== expectedIssuer
+) {
+  problems.push(
+    "CLERK_JWT_ISSUER_DOMAIN does not match NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
+  );
 }
 checkUrl("NEXT_PUBLIC_CONVEX_URL", ["https:", "http:"]);
 checkUrl("NEXT_PUBLIC_APP_URL", ["http:", "https:"]);
@@ -97,6 +100,17 @@ process.stdout.write(
 
 function present(value) {
   return typeof value === "string" && value.trim().length > 0;
+}
+
+function issuerFromPublishableKey(value) {
+  if (!present(value) || !/^pk_(test|live)_/.test(value)) return undefined;
+  const encoded = value.replace(/^pk_(test|live)_/, "");
+  const host = Buffer.from(encoded, "base64")
+    .toString("utf8")
+    .replace(/\$$/, "");
+  return /^[a-z0-9.-]+\.clerk\.accounts\.dev$/.test(host)
+    ? `https://${host}`
+    : undefined;
 }
 
 function checkPrefix(name, prefix) {

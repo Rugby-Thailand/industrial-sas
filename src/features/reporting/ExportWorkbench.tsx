@@ -31,7 +31,6 @@ import { useMutation, useQuery } from "convex/react";
 import { useLocale, useTranslations } from "next-intl";
 import { useState } from "react";
 
-import { useAppEnvironment } from "@/components/providers/EnvironmentProvider";
 import { useWorkspace } from "@/components/providers/WorkspaceProvider";
 import { EntityWriteForm } from "@/features/masterData/EntityWriteForm";
 import { Notice } from "@/components/ui/Notice";
@@ -44,7 +43,6 @@ import {
   type ReportKind,
 } from "@/lib/convex/reportingApi";
 import { formatCount } from "@/lib/formatters";
-import { PREVIEW_ARTIFACT } from "@/lib/preview/reportingPreview";
 import type { AppLocale } from "@/i18n/routing";
 
 import { ReportJobs } from "./ReportingSources";
@@ -180,43 +178,9 @@ export function JobList({ jobs }: { readonly jobs: readonly ReportJobRow[] }) {
  * button that visibly does one page is honest about which of those exists.
  */
 function AdvanceControl({ job }: { readonly job: ReportJobRow }) {
-  const preview = useAppEnvironment().previewMode;
   const warehouseId = useWorkspace().selectedWarehouseId;
-
-  /*
-   * The gate decides *which component renders*, not what a hook does. `useMutation`
-   * throws without a `ConvexProvider`, and there is no provider in preview or on
-   * an unconfigured machine — a hook cannot decline to run, so the branch that
-   * calls one has to be a separate component.
-   */
-  return preview || warehouseId === undefined ? (
-    <DemonstratedAdvance job={job} />
-  ) : (
+  return warehouseId === undefined ? null : (
     <ServerAdvance job={job} warehouseId={warehouseId} />
-  );
-}
-
-/** Preview writes nothing, and says so in the word the whole mode turns on. */
-function DemonstratedAdvance({ job }: { readonly job: ReportJobRow }) {
-  const t = useTranslations("Reports");
-  const [demonstrated, setDemonstrated] = useState(false);
-
-  return (
-    <div className="flex flex-col gap-2">
-      <Button
-        type="button"
-        variant="outline"
-        data-testid={`report-advance-${job.reportJobId}`}
-        onClick={() => setDemonstrated(true)}
-      >
-        {t("advance")}
-      </Button>
-      {demonstrated ? (
-        <p className="text-xs text-muted" data-testid="write-DEMONSTRATED">
-          {t("advanceDemonstrated")}
-        </p>
-      ) : null}
-    </div>
   );
 }
 
@@ -239,12 +203,8 @@ type AdvanceState =
 /**
  * Exported for its own test.
  *
- * `AdvanceControl` cannot reach this branch today: outside preview the workspace
- * resolves no warehouse list at all until an identity provider exists
- * (`resolveWorkspace`), so `selectedWarehouseId` is always `undefined` and the
- * demonstrated branch renders. That is the Clerk gate, not dead code — this is
- * the component that runs the moment a tenant resolves, so it is tested as the
- * unit it is rather than through a parent that currently cannot select it.
+ * Kept separate because it owns the mutation and its transport state while the
+ * list above only decides which job is actionable.
  */
 export function ServerAdvance({
   job,
@@ -347,23 +307,7 @@ export function ServerAdvance({
  */
 function DownloadControl({ job }: { readonly job: ReportJobRow }) {
   const t = useTranslations("Reports");
-  const preview = useAppEnvironment().previewMode;
-
-  return preview ? (
-    <PreviewDownload job={job} label={t("download")} />
-  ) : (
-    <ServerDownload job={job} label={t("download")} />
-  );
-}
-
-function PreviewDownload({
-  job,
-  label,
-}: {
-  readonly job: ReportJobRow;
-  readonly label: string;
-}) {
-  return <DownloadButton job={job} label={label} artifact={PREVIEW_ARTIFACT} />;
+  return <ServerDownload job={job} label={t("download")} />;
 }
 
 function ServerDownload({

@@ -38,7 +38,7 @@ describe("catalogue authentication gate", () => {
       >
         {() => <span>reason codes ready</span>}
       </ActiveReasonCodes>,
-      { environment: configuredEnvironment },
+      { environment: configuredEnvironment, workspace: false },
     );
 
     expect(screen.getByTestId("panel-SIGN_IN_REQUIRED")).toBeInTheDocument();

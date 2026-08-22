@@ -25,6 +25,7 @@ node_modules/
 # developer's own dev server (see `playwright.config.ts`).
 .next-e2e/
 .next-e2e-preview/
+.next-storage-verify/
 out/
 build/
 dist/

@@ -6,7 +6,7 @@ import { navigationMock } from "../../../tests/fixtures/navigation-mock";
 vi.mock("@/i18n/navigation", () => navigationMock);
 
 import {
-  previewEnvironment,
+  testEnvironment,
   renderWithIntl,
 } from "../../../tests/fixtures/intl-render";
 import { writeStoredWarehouse } from "@/lib/workspace/warehouseStore";
@@ -31,7 +31,7 @@ const renderBoard = (locale: "th" | "en" = "th") => {
   writeStoredWarehouse(BANG_PU);
   return renderWithIntl(<PutawayTasksPanel />, {
     locale,
-    environment: previewEnvironment,
+    environment: testEnvironment,
   });
 };
 
@@ -112,7 +112,7 @@ describe("the putaway confirmation form", () => {
         putawayTaskId="prv_task_4001"
         locations={[{ value: "prv_loc_A01-02-1", label: "A01-02-1" }]}
       />,
-      { environment: previewEnvironment },
+      { environment: testEnvironment },
     );
   };
 

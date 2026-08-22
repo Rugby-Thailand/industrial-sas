@@ -44,11 +44,10 @@ const outcomeKey = <Row>(state: LedgerPanelState<Row>): string =>
 export function useLedgerReadSli<Row>(input: {
   readonly surface: LedgerReadSurface;
   readonly state: LedgerPanelState<Row>;
-  readonly preview: boolean;
   readonly cursor: string | undefined;
 }): void {
   const port = useObservability();
-  const { surface, state, preview, cursor } = input;
+  const { surface, state, cursor } = input;
 
   const askedAt = useRef(0);
   const reported = useRef<string | undefined>(undefined);
@@ -75,12 +74,11 @@ export function useLedgerReadSli<Row>(input: {
     recordLedgerRead(port, {
       surface,
       outcome: state.kind as LedgerReadOutcome,
-      preview,
       occurredAt: Date.now(),
       ...(askedAt.current === 0
         ? {}
         : { durationMs: Date.now() - askedAt.current }),
       ...(requestId === undefined ? {} : { requestId }),
     });
-  }, [port, state, surface, preview]);
+  }, [port, state, surface]);
 }

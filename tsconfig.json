@@ -28,7 +28,8 @@
     // No `baseUrl`: it is deprecated in TypeScript 6 and removed in 7. Without
     // it, `paths` resolve relative to this file, which is what we want.
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@tests/*": ["./tests/*"]
     },
     "plugins": [
       {
@@ -50,8 +51,6 @@
     ".next-preview/dev/types/**/*.ts",
     ".next-e2e/types/**/*.ts",
     ".next-e2e/dev/types/**/*.ts",
-    ".next-e2e-preview/types/**/*.ts",
-    ".next-e2e-preview/dev/types/**/*.ts",
     ".next-evidence/types/**/*.ts",
     ".next-evidence/dev/types/**/*.ts"
   ],

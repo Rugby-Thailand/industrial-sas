@@ -7,11 +7,8 @@
   D-04), §4 (B-04), §5 Q6, Q7, Q30, §2.3
 - Covers plan ADR backlog (§11) items: 12
 - Implementation status: **Foundation only.** A web app manifest and its icons
-  exist (`public/manifest.webmanifest`), and both shells carry a connectivity
-  indicator derived from the Convex client's own socket acknowledgement rather
-  than `navigator.onLine` (`src/lib/convex/connection.ts`, `INV-0009-07`), which
-  distinguishes a first connection attempt from a dropped link and never reports
-  local preview data as connected.
+  exist (`public/manifest.webmanifest`). The former connection badge was removed
+  because it did not help operators complete work.
   There is still **no service worker, no cached reference data, no intent queue,
   and no pending state**, because there is no write flow to queue: the two
   inventory screens read and nothing posts. `INV-0009-01` through `INV-0009-06`
@@ -118,14 +115,7 @@ and correctness-sensitive tasks stop when connectivity is lost.
 
 ## Verification
 
-Present:
-
-- Unit tests: connectivity classification from socket acknowledgement, including
-  the distinction between a first attempt and a dropped link, and the rule that
-  local preview data is never reported as connected
-  (`src/lib/convex/connection.test.ts`).
-- E2E: an unconfigured deployment reports "not configured" rather than
-  connecting indefinitely to a host that does not exist.
+Present: the application does not claim offline support.
 
 Planned, not present.
 

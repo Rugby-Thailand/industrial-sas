@@ -6,14 +6,14 @@ import { navigationMock } from "../../../tests/fixtures/navigation-mock";
 vi.mock("@/i18n/navigation", () => navigationMock);
 
 import {
-  previewEnvironment,
+  testEnvironment,
   renderWithIntl,
 } from "../../../tests/fixtures/intl-render";
 import {
   PREVIEW_REPORT_JOBS,
   previewDashboardTiles,
   previewOccupancyFor,
-} from "@/lib/preview/reportingPreview";
+} from "@tests/fixtures/data/reporting";
 
 import { JobList } from "./ExportWorkbench";
 
@@ -47,7 +47,7 @@ const BANG_PU = "prv_wh_bangpoo";
 
 const clean = async (ui: React.ReactElement) => {
   const { container } = renderWithIntl(ui, {
-    environment: previewEnvironment,
+    environment: testEnvironment,
   });
   expect(await axe(container)).toHaveNoViolations();
 };
@@ -81,7 +81,7 @@ describe("reporting accessibility", () => {
      */
     const { container } = renderWithIntl(
       <FailedAdvance code="ARTIFACT_LIMIT_REACHED" />,
-      { environment: previewEnvironment },
+      { environment: testEnvironment },
     );
 
     expect(container.querySelector('[role="alert"]')).not.toBeNull();

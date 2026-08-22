@@ -15,7 +15,6 @@ import { Link } from "@/i18n/navigation";
 import { itemDetailPath } from "@/lib/navigation";
 import { listItemsRef, type ItemRow } from "@/lib/convex/masterDataApi";
 import { DEFAULT_LEDGER_PAGE_SIZE } from "@/lib/convex/ledgerApi";
-import { previewItems } from "@/lib/preview/masterDataPreview";
 
 import { MasterDataPanel } from "./MasterDataPanel";
 
@@ -30,7 +29,6 @@ export function ItemsPanel() {
         maxPageSize: DEFAULT_LEDGER_PAGE_SIZE,
         ...(cursor === undefined ? {} : { cursor }),
       })}
-      previewRowsFor={() => previewItems()}
       renderRows={(rows) => (
         <ItemsTable
           rows={rows}

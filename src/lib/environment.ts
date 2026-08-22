@@ -12,32 +12,6 @@
  *    Without it `ctx.auth.getUserIdentity()` is `null` in every Convex function,
  *    every tenant-bound wrapper denies, and the honest screen is a setup gate
  *    rather than a spinner followed by a denial (`ADR-0001` §2, `INV-0001-02`).
- * 3. **Is local preview data on?** See below.
- *
- * ### Why preview mode cannot reach production
- *
- * Preview mode renders synthetic rows through the real screens so the layout,
- * the Thai copy, and the formatters can be evaluated without vendor credentials.
- * That is useful and it is also exactly the kind of switch that ends up on in
- * production, so it is gated twice and one of the gates is not an environment
- * variable at all:
- *
- * - `NEXT_PUBLIC_LOCAL_PREVIEW` must be exactly `"1"`. An explicit opt-in, not a
- *   truthiness test — `"0"`, `"false"`, and `"no"` are all off.
- * - `NODE_ENV` must not be `"production"`. Next.js **statically replaces**
- *   `process.env.NODE_ENV` in the client bundle at build time, so in anything
- *   produced by `next build` this comparison is `"production" !== "production"`
- *   and no runtime value of any variable can make it true.
- *
- * The consequence is deliberate and worth stating plainly: preview mode works
- * under `next dev` and nowhere else.
- *
- * What is *not* claimed: that the fixture disappears from the bundle. The
- * preview module is imported statically by the workspace resolver, so its rows
- * are still shipped as unreachable code in a production build — verifiable with
- * `grep -r prv_wh_bangpoo .next/static`. That is why nothing in the fixture is
- * sensitive and every identifier in it carries a `prv_` prefix: an unreachable
- * synthetic row is harmless, and a leaked one is obvious.
  */
 
 import { resolveClerkPublishableKey } from "./clerkConfiguration";
@@ -46,12 +20,7 @@ import { resolveClerkPublishableKey } from "./clerkConfiguration";
 export interface PublicEnvironment {
   readonly convexUrl?: string | undefined;
   readonly clerkPublishableKey?: string | undefined;
-  readonly localPreviewFlag?: string | undefined;
-  readonly nodeEnv?: string | undefined;
 }
-
-/** Where the data on screen comes from. There is no third possibility. */
-export type DataSourceMode = "SERVER" | "LOCAL_PREVIEW";
 
 export interface AppEnvironment {
   /** A Convex deployment URL is configured, so a client can be constructed. */
@@ -60,12 +29,7 @@ export interface AppEnvironment {
   readonly convexUrl?: string;
   /** An identity provider is configured, so a verified token is obtainable. */
   readonly identityConfigured: boolean;
-  /** Synthetic local data is in use. Implies `!identityConfigured` is tolerable. */
-  readonly previewMode: boolean;
-  readonly dataSource: DataSourceMode;
 }
-
-const OPT_IN = "1";
 
 /** A trimmed, non-empty value, or `undefined`. Whitespace is not configuration. */
 const present = (value: string | undefined): string | undefined => {
@@ -77,9 +41,8 @@ const present = (value: string | undefined): string | undefined => {
 /**
  * Classify an environment. Total, pure, and the only place these rules live.
  *
- * Taking the environment as an argument rather than reading `process.env` is
- * what makes "preview mode is impossible in production" a testable claim instead
- * of a comment: the test can construct the production case directly.
+ * Taking the environment as an argument rather than reading `process.env`
+ * keeps configuration rules deterministic and easy to test.
  */
 export function resolveAppEnvironment(
   environment: PublicEnvironment,
@@ -87,16 +50,10 @@ export function resolveAppEnvironment(
   const convexUrl = present(environment.convexUrl);
   const identityConfigured =
     resolveClerkPublishableKey(environment.clerkPublishableKey) !== undefined;
-  const previewMode =
-    environment.nodeEnv !== "production" &&
-    present(environment.localPreviewFlag) === OPT_IN;
-
   return Object.freeze({
     backendConfigured: convexUrl !== undefined,
     ...(convexUrl === undefined ? {} : { convexUrl }),
     identityConfigured,
-    previewMode,
-    dataSource: previewMode ? ("LOCAL_PREVIEW" as const) : ("SERVER" as const),
   });
 }
 
@@ -111,7 +68,5 @@ export function currentAppEnvironment(): AppEnvironment {
   return resolveAppEnvironment({
     convexUrl: process.env.NEXT_PUBLIC_CONVEX_URL,
     clerkPublishableKey: process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
-    localPreviewFlag: process.env.NEXT_PUBLIC_LOCAL_PREVIEW,
-    nodeEnv: process.env.NODE_ENV,
   });
 }

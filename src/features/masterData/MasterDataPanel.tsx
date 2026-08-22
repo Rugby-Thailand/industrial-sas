@@ -22,7 +22,6 @@ import { useState, type ReactNode } from "react";
 import { useAppEnvironment } from "@/components/providers/EnvironmentProvider";
 import { LedgerPanelStatus } from "@/components/system/LedgerPanelStatus";
 import { QueryGate } from "@/components/system/QueryGate";
-import { DEFAULT_LEDGER_PAGE_SIZE } from "@/lib/convex/ledgerApi";
 import {
   toLedgerPanelState,
   type LedgerPanelState,
@@ -39,7 +38,6 @@ import {
   type CursorState,
 } from "@/lib/convex/pagination";
 import type { AppEnvironment } from "@/lib/environment";
-import { previewMasterDataPage } from "@/lib/preview/masterDataPreview";
 import type { TenantOutcome } from "@/lib/convex/ledgerApi";
 
 import { Button } from "@/components/ui/button";
@@ -72,8 +70,6 @@ export interface MasterDataPanelProps<Row, Args extends QueryArgs> {
     readonly warehouseId: string;
     readonly cursor: string | undefined;
   }) => Args;
-  /** Synthetic rows for the same shape, used only in preview mode. */
-  readonly previewRowsFor: (warehouseId: string) => readonly Row[];
   readonly renderRows: (rows: readonly Row[]) => ReactNode;
   /** Distinguishes multiple pagers when several panels share one screen. */
   readonly paginationLabel?: string;
@@ -103,7 +99,6 @@ function PagedMasterData<Row, Args extends QueryArgs>({
   queryRef,
   scope,
   buildArgs,
-  previewRowsFor,
   renderRows,
   paginationLabel,
   warehouseId,
@@ -126,35 +121,6 @@ function PagedMasterData<Row, Args extends QueryArgs>({
       {...(paginationLabel === undefined ? {} : { paginationLabel })}
     />
   );
-
-  if (environment.previewMode) {
-    const page = previewMasterDataPage(
-      previewRowsFor(warehouseId),
-      DEFAULT_LEDGER_PAGE_SIZE,
-      cursor,
-    );
-    return (
-      <>
-        {render(
-          page.ok
-            ? {
-                kind: "READY",
-                rows: page.items,
-                nextCursor: page.nextCursor,
-                complete: page.complete,
-                requestId: "preview",
-              }
-            : {
-                kind: "READY",
-                rows: [],
-                nextCursor: null,
-                complete: true,
-                requestId: "preview",
-              },
-        )}
-      </>
-    );
-  }
 
   return (
     <ServerMasterData

@@ -32,7 +32,6 @@ import {
 } from "@/lib/convex/inboundApi";
 import { resolveLedgerGate } from "@/lib/convex/ledgerState";
 import { codeLabel, type CodeTranslator } from "@/lib/domainLabels";
-import { previewRecommendation } from "@/lib/preview/inboundPreview";
 
 export function PutawayRecommendationPanel({
   warehouseId,
@@ -45,9 +44,6 @@ export function PutawayRecommendationPanel({
   const gate = resolveLedgerGate(environment, warehouseId, "WAREHOUSE");
 
   if (gate.kind !== "READY_TO_QUERY") return <LedgerPanelStatus state={gate} />;
-  if (environment.previewMode) {
-    return <RecommendationBody outcome={previewRecommendation()} />;
-  }
   return (
     <ServerRecommendation
       warehouseId={warehouseId}

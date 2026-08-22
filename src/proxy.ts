@@ -16,7 +16,7 @@
  * proxy concern in this architecture: Convex is the enforcement point. When
  * Clerk is configured, its handler composes here for session refresh and server
  * auth context; an unconfigured checkout continues through the locale handler
- * so the setup and local-preview screens remain available.
+ * so the localized sign-in setup screen remains available.
  */
 import { clerkMiddleware } from "@clerk/nextjs/server";
 import createMiddleware from "next-intl/middleware";

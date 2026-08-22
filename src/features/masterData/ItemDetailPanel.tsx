@@ -17,7 +17,6 @@
 import { useQuery } from "convex/react";
 import { useTranslations } from "next-intl";
 
-import { useAppEnvironment } from "@/components/providers/EnvironmentProvider";
 import { LedgerPanelStatus } from "@/components/system/LedgerPanelStatus";
 import { QueryGate } from "@/components/system/QueryGate";
 import { Notice } from "@/components/ui/Notice";
@@ -29,7 +28,6 @@ import {
   type ItemRow,
 } from "@/lib/convex/masterDataApi";
 import { codeLabel, type CodeTranslator } from "@/lib/domainLabels";
-import { previewItemById } from "@/lib/preview/masterDataPreview";
 
 import { ItemEditForm } from "./CoreForms";
 import { RowActionButton, RowWriteRegion } from "./RowWriteRegion";
@@ -44,19 +42,9 @@ import {
 } from "./EntityPanels";
 
 export function ItemDetailPanel({ itemId }: { readonly itemId: string }) {
-  const environment = useAppEnvironment();
   return (
     <QueryGate scope="ORG">
-      {() => {
-        if (!environment.previewMode)
-          return <ServerItemDetail itemId={itemId} />;
-        const item = previewItemById(itemId);
-        return item === undefined ? (
-          <ItemMissing />
-        ) : (
-          <ItemDetailBody item={item} />
-        );
-      }}
+      {() => <ServerItemDetail itemId={itemId} />}
     </QueryGate>
   );
 }

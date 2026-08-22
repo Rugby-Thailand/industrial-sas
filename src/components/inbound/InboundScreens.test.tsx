@@ -11,7 +11,7 @@ import {
 vi.mock("@/i18n/navigation", () => navigationMock);
 
 import {
-  previewEnvironment,
+  testEnvironment,
   renderWithIntl,
   unconfiguredEnvironment,
 } from "../../../tests/fixtures/intl-render";
@@ -40,7 +40,7 @@ import {
   previewPutawayTasksFor,
   previewReceiptLinesFor,
   previewReceiptsFor,
-} from "@/lib/preview/inboundPreview";
+} from "@tests/fixtures/data/inbound";
 
 const BANG_PU = "prv_wh_bangpoo";
 const importOutcome = previewImportOutcome("BATCH-1");
@@ -394,7 +394,7 @@ describe("PutawayRecommendationPanel", () => {
         warehouseId={BANG_PU}
         putawayTaskId="prv_task_4001"
       />,
-      { environment: previewEnvironment },
+      { environment: testEnvironment },
     );
 
     expect(screen.getByTestId("putaway-recommendation")).toBeInTheDocument();
@@ -412,7 +412,7 @@ describe("PutawayRecommendationPanel", () => {
         warehouseId={BANG_PU}
         putawayTaskId="prv_task_4001"
       />,
-      { environment: previewEnvironment },
+      { environment: testEnvironment },
     );
 
     expect(screen.getByText("DOCK-IN-1")).toBeInTheDocument();
@@ -429,7 +429,7 @@ describe("PutawayRecommendationPanel", () => {
         warehouseId={BANG_PU}
         putawayTaskId="prv_task_4001"
       />,
-      { environment: previewEnvironment },
+      { environment: testEnvironment },
     );
     expect(screen.getByText(/CAPACITY_SUFFICIENT/)).toBeInTheDocument();
   });
@@ -457,7 +457,7 @@ describe("ReceivingExceptionForm", () => {
 
   it("says no warehouse is selected before one is", () => {
     renderWithIntl(<ReceivingExceptionForm />, {
-      environment: previewEnvironment,
+      environment: testEnvironment,
     });
     expect(screen.getByTestId("panel-WAREHOUSE_MISSING")).toBeInTheDocument();
   });
@@ -469,7 +469,7 @@ describe("ReceivingExceptionForm", () => {
      * maker for a posting that needs no second person.
      */
     renderWithIntl(<ReceivingExceptionForm />, {
-      environment: previewEnvironment,
+      environment: testEnvironment,
     });
 
     const options = selectOptionLabels("ประเภทข้อยกเว้น");
@@ -477,10 +477,10 @@ describe("ReceivingExceptionForm", () => {
     expect(options).toContain("รับโดยไม่มีใบสั่งซื้อ");
   });
 
-  it("demonstrates in preview without pretending to persist", () => {
+  it("shows the server-confirmed save outcome", async () => {
     withWarehouse();
     renderWithIntl(<ReceivingExceptionForm />, {
-      environment: previewEnvironment,
+      environment: testEnvironment,
     });
 
     /*
@@ -501,8 +501,8 @@ describe("ReceivingExceptionForm", () => {
     chooseOption("รหัสเหตุผล", "CYCLE-COUNT · ปรับปรุงจากการนับสต็อก");
     fireEvent.click(screen.getByRole("button", { name: "แจ้งข้อยกเว้น" }));
 
-    expect(screen.getByTestId("write-DEMONSTRATED")).toHaveTextContent(
-      "ไม่ได้บันทึกข้อมูล",
+    expect(await screen.findByTestId("write-SAVED")).toHaveTextContent(
+      "บันทึกแล้ว",
     );
   });
 
@@ -514,7 +514,7 @@ describe("ReceivingExceptionForm", () => {
      */
     withWarehouse();
     renderWithIntl(<ReceivingExceptionForm />, {
-      environment: previewEnvironment,
+      environment: testEnvironment,
     });
 
     fireEvent.click(screen.getByRole("button", { name: "แจ้งข้อยกเว้น" }));

@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { navigationMock } from "../../../tests/fixtures/navigation-mock";
 import {
-  previewEnvironment,
+  testEnvironment,
   renderWithIntl,
 } from "../../../tests/fixtures/intl-render";
 
@@ -26,7 +26,7 @@ describe("HandheldShell layout", () => {
       <HandheldShell>
         <p>เนื้อหา</p>
       </HandheldShell>,
-      { environment: previewEnvironment },
+      { environment: testEnvironment },
     );
 
   it("bounds and centres the workspace instead of filling a desktop window", () => {

@@ -23,7 +23,7 @@ export function QueryGate({
   children,
 }: {
   readonly scope: ReadScope;
-  readonly children: (warehouseId: string, preview: boolean) => ReactNode;
+  readonly children: (warehouseId: string) => ReactNode;
 }): ReactNode {
   const environment = useAppEnvironment();
   const warehouseId = useWorkspace().selectedWarehouseId;
@@ -32,10 +32,6 @@ export function QueryGate({
   if (gate.kind !== "READY_TO_QUERY") {
     return <LedgerPanelStatus state={gate} />;
   }
-  if (environment.previewMode) {
-    return <>{children(gate.warehouseId, true)}</>;
-  }
-
   return (
     <AuthenticatedQueryGate warehouseId={gate.warehouseId}>
       {children}
@@ -48,7 +44,7 @@ function AuthenticatedQueryGate({
   children,
 }: {
   readonly warehouseId: string;
-  readonly children: (warehouseId: string, preview: false) => ReactNode;
+  readonly children: (warehouseId: string) => ReactNode;
 }): ReactNode {
   const authentication = useConvexAuth();
 
@@ -58,5 +54,5 @@ function AuthenticatedQueryGate({
   if (!authentication.isAuthenticated) {
     return <LedgerPanelStatus state={{ kind: "SIGN_IN_REQUIRED" }} />;
   }
-  return <>{children(warehouseId, false)}</>;
+  return <>{children(warehouseId)}</>;
 }

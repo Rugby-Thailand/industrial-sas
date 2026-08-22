@@ -7,10 +7,8 @@
  * by ID, the order behind it comes from the receipt, the lines that may be
  * received against come from that order narrowed to `OPEN`, the dock comes from
  * the tenant's own receiving locations, and the pallet the label is generated
- * for comes from the lines already posted. None of it is assumed, and none of it
- * is a preview identifier: a screen that hard-coded a dock would send a
- * synthetic reference to a real mutation the moment a tenant configured a
- * deployment.
+ * for comes from the lines already posted. None of it is assumed: a screen that
+ * hard-coded a dock could send an invalid reference to a real mutation.
  *
  * Each step is gated on the step before it. A pallet cannot be built from no
  * lines, and a label cannot be generated for no pallet — so those sections say

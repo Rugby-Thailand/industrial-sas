@@ -1,17 +1,15 @@
 # Application shell, locale routing, and the inventory read screens
 
-**Current availability: Application surface; unauthenticated.** The screens run,
-navigate, and call the ledger's real public Convex queries. With no Clerk
-instance configured, every one of those calls is denied by the server, so no
-screen has yet shown a tenant's data. Local preview data (below) exists to
-evaluate layout and copy in the meantime.
+**Current availability: Authenticated application surface.** Signed-out users go
+to localized Clerk sign-in. Tenant screens render only after an active Clerk
+organization and a provisioned Convex membership resolve.
 
 ## What exists
 
 | Route                          | Shell      | What it does                                             |
 | ------------------------------ | ---------- | -------------------------------------------------------- |
-| `/{locale}`                    | —          | Redirects to the dashboard in the same locale            |
-| `/{locale}/dashboard`          | Supervisor | System state, capability summary, entry points           |
+| `/{locale}`                    | —          | Redirects to sign-in or the dashboard                    |
+| `/{locale}/dashboard`          | Supervisor | Work counters, occupancy, and quick actions              |
 | `/{locale}/inventory/balances` | Supervisor | `inventory/ledger:listBalances`, paged, read-only        |
 | `/{locale}/inventory/history`  | Supervisor | `inventory/ledger:listTransactions`, paged, newest first |
 | `/{locale}/setup`              | Supervisor | Which dependencies are configured on this machine        |
@@ -44,20 +42,6 @@ The **organization** is not selectable. It comes from the verified token's
 active-organization claim and is resolved server-side; switching organization is
 the identity provider's job, not this application's.
 
-## Reading the connectivity badge
-
-| Badge              | Meaning                                                                       |
-| ------------------ | ----------------------------------------------------------------------------- |
-| Connected          | A WebSocket to the deployment reached "ready". The server is acknowledging.   |
-| Connecting         | No acknowledgement yet, and none has ever been received. Normal on load.      |
-| Disconnected       | There was a connection and it dropped. Treat stock-confirming work as unsafe. |
-| Not configured     | No deployment URL. Nothing was attempted.                                     |
-| Local preview data | Synthetic rows. Nothing on screen came from a server.                         |
-
-The badge is derived from the client's own socket state, not from
-`navigator.onLine`: a captive portal and a dead uplink both report the browser as
-online (`INV-0009-07`).
-
 ## What the screens will not do
 
 - **No screen writes.** There is no control that posts, edits, or deletes a
@@ -69,25 +53,6 @@ online (`INV-0009-07`).
 - **No permission guessing.** A denial shows the server's single generic message
   and the request ID its audit row quotes. The UI never infers which permission
   was missing.
-
-## Local preview data
-
-Set `NEXT_PUBLIC_LOCAL_PREVIEW=1` and run `pnpm dev`. The inventory screens then
-render a small synthetic dataset — two warehouses, eight balance rows across four
-stock statuses, seven transactions including a reversal — so layout, Thai
-wrapping, column widths, and paging can be evaluated without a deployment.
-
-Rules it follows, so it cannot be mistaken for stock:
-
-- A banner that cannot be dismissed appears on every screen it can reach.
-- The connectivity badge reads "local preview data", never "connected".
-- Every identifier carries a `prv_` prefix.
-- It cannot be enabled in a production build: the flag must be exactly `"1"` and
-  `NODE_ENV` must not be `"production"`, and that comparison is replaced
-  statically at build time.
-
-It is not a fake backend. It has no authorization, no tenant resolution, and no
-writes.
 
 ## Making the screens show real data
 

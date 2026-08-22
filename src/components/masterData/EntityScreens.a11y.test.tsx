@@ -2,7 +2,7 @@ import { axe } from "jest-axe";
 import { describe, expect, it } from "vitest";
 
 import {
-  previewEnvironment,
+  testEnvironment,
   renderWithIntl,
 } from "../../../tests/fixtures/intl-render";
 
@@ -25,7 +25,7 @@ import {
   previewBarcodesFor,
   previewItemUomsFor,
   previewLotsFor,
-} from "@/lib/preview/masterDataPreview";
+} from "@tests/fixtures/data/masterData";
 
 /**
  * `INV-0010-09` for the Phase 2 maintenance screens.
@@ -143,7 +143,7 @@ describe("write control accessibility", () => {
       // reviewer will actually open it in.
       const { container } = renderWithIntl(<SupplierForm />, {
         locale,
-        environment: previewEnvironment,
+        environment: testEnvironment,
       });
       expect(await axe(container)).toHaveNoViolations();
     },

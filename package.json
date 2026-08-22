@@ -32,9 +32,15 @@
     "verify:tenant-boundary": "node scripts/verify-tenant-boundary.mjs",
     "verify:native-select": "node scripts/verify-native-select.mjs",
     "verify:environment": "node scripts/verify-environment.mjs",
+    "verify:order-to-ship-3nf": "node scripts/verify-order-to-ship-3nf.mjs",
+    "manual:assets": "node scripts/generate-operator-manual-assets.mjs",
+    "manual:generate": "node scripts/generate-html-manual.mjs",
+    "manual:build": "pnpm manual:assets && pnpm manual:generate",
+    "manual:check": "node scripts/verify-manual.mjs",
+    "manual:capture": "node scripts/capture-manual-targets.mjs",
     "audit:prod": "pnpm audit --prod --audit-level high",
     "rehearse:restore": "node scripts/rehearse-restore.mjs",
-    "guards": "pnpm verify:workflows && pnpm verify:tenant-boundary && pnpm verify:native-select && pnpm verify:environment && pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm audit:prod"
+    "guards": "pnpm verify:workflows && pnpm verify:tenant-boundary && pnpm verify:native-select && pnpm verify:environment && pnpm manual:build && pnpm manual:check && pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm audit:prod"
   },
   "dependencies": {
     "@clerk/backend": "3.16.4",

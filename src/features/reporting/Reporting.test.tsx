@@ -6,14 +6,15 @@ import { navigationMock } from "../../../tests/fixtures/navigation-mock";
 vi.mock("@/i18n/navigation", () => navigationMock);
 
 import {
-  previewEnvironment,
+  testEnvironment,
   renderWithIntl,
 } from "../../../tests/fixtures/intl-render";
 import {
   PREVIEW_REPORT_JOBS,
   previewDashboardTiles,
   previewOccupancyFor,
-} from "@/lib/preview/reportingPreview";
+} from "@tests/fixtures/data/reporting";
+import { writeStoredWarehouse } from "@/lib/workspace/warehouseStore";
 
 import { JobList } from "./ExportWorkbench";
 import { OccupancyGrid } from "./OccupancyMap";
@@ -33,7 +34,7 @@ const BANG_PU = "prv_wh_bangpoo";
 describe("the operations tiles", () => {
   const render = () =>
     renderWithIntl(<TileList tiles={previewDashboardTiles()} label="สรุป" />, {
-      environment: previewEnvironment,
+      environment: testEnvironment,
     });
 
   it("labels every counter in the reader's language, never by its code", () => {
@@ -101,7 +102,7 @@ describe("the occupancy map", () => {
         cells={previewOccupancyFor(BANG_PU)}
         complete={complete}
       />,
-      { environment: previewEnvironment },
+      { environment: testEnvironment },
     );
 
   it("is a table, so it is navigable and announced by row", () => {
@@ -140,10 +141,12 @@ describe("the occupancy map", () => {
 });
 
 describe("the export register", () => {
-  const render = () =>
-    renderWithIntl(<JobList jobs={PREVIEW_REPORT_JOBS} />, {
-      environment: previewEnvironment,
+  const render = () => {
+    writeStoredWarehouse("prv_wh_bangpoo");
+    return renderWithIntl(<JobList jobs={PREVIEW_REPORT_JOBS} />, {
+      environment: testEnvironment,
     });
+  };
 
   it("shows a stopped export as stopped, with the reason", () => {
     /*
@@ -181,7 +184,7 @@ describe("the export register", () => {
     thai.unmount();
 
     renderWithIntl(<JobList jobs={PREVIEW_REPORT_JOBS} />, {
-      environment: previewEnvironment,
+      environment: testEnvironment,
       locale: "en",
     });
     expect(screen.getByText("9,512 rows total")).toBeInTheDocument();

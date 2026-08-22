@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="th" class="lang-th" data-manual-locale="th"
+  data-title-th="ตรวจสอบประวัติการเคลื่อนไหว · Industrial SAS"
+  data-title-en="Review transaction history · Industrial SAS">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ตรวจสอบประวัติการเคลื่อนไหว · Industrial SAS</title>
+<meta name="description" content="งานหลักของคลังสินค้า พร้อมภาพหน้าจอและกรอบสีแดงที่ตรงกับหมายเลขขั้นตอน">
+<link rel="stylesheet" href="../assets/manual.css">
+</head>
+<body>
+<a class="skip-link" href="#main"><span lang="th" data-lang="th">ข้ามไปเนื้อหาหลัก</span><span lang="en" data-lang="en">Skip to main content</span></a>
+<header class="site-header">
+<p class="brand"><a href="../index.html">Industrial SAS</a></p>
+<div class="lang-switch" role="group" aria-label="เลือกภาษา / Choose a language">
+<button type="button" data-set-locale="th" aria-pressed="true" lang="th">ไทย</button>
+<button type="button" data-set-locale="en" aria-pressed="false" lang="en">English</button>
+</div>
+</header>
+<main id="main">
+<nav class="breadcrumb" aria-label="หน้ารวมคู่มือ / Manual index">
+<ol>
+<li><a href="../index.html"><span lang="th" data-lang="th">หน้ารวมคู่มือ</span><span lang="en" data-lang="en">Manual index</span></a></li>
+<li><span lang="th" data-lang="th">สินค้าคงคลัง</span><span lang="en" data-lang="en">Inventory</span></li>
+</ol>
+</nav>
+<article data-task-page="review-transaction-history">
+<h1><span lang="th" data-lang="th">ตรวจสอบประวัติการเคลื่อนไหว</span><span lang="en" data-lang="en">Review transaction history</span></h1>
+<p class="lead"><span lang="th" data-lang="th">อ่านประวัติแบบเพิ่มอย่างเดียว และใช้รหัสรายการเป็นหลักฐานเมื่อติดต่อฝ่ายสนับสนุน</span><span lang="en" data-lang="en">Read the append-only history and use a transaction id as evidence when contacting support.</span></p>
+<dl class="meta">
+<dt><span lang="th" data-lang="th">ผู้ใช้งาน</span><span lang="en" data-lang="en">Audience</span></dt><dd><span lang="th" data-lang="th">หัวหน้างานและผู้ปฏิบัติงาน</span><span lang="en" data-lang="en">Supervisor and operator</span></dd>
+<dt><span lang="th" data-lang="th">หมวดงาน</span><span lang="en" data-lang="en">Category</span></dt><dd><span lang="th" data-lang="th">สินค้าคงคลัง</span><span lang="en" data-lang="en">Inventory</span></dd>
+<dt><span lang="th" data-lang="th">หน้าจอ</span><span lang="en" data-lang="en">Screen</span></dt><dd><code>/{locale}/inventory/history</code></dd>
+<dt><span lang="th" data-lang="th">รหัสงาน</span><span lang="en" data-lang="en">Task id</span></dt><dd><code>review-transaction-history</code></dd>
+</dl>
+<h2><span lang="th" data-lang="th">สิ่งที่ต้องมีก่อนเริ่ม</span><span lang="en" data-lang="en">Before you start</span></h2>
+<ul class="checklist">
+<li><span lang="th" data-lang="th">เลือกคลังสินค้าที่ต้องการตรวจสอบแล้ว</span><span lang="en" data-lang="en">The warehouse to inspect is selected</span></li>
+<li><span lang="th" data-lang="th">มีธุรกรรมเกิดขึ้นแล้วอย่างน้อยหนึ่งรายการ</span><span lang="en" data-lang="en">At least one transaction has been posted</span></li>
+</ul>
+<figure class="screenshot">
+<div class="screenshot-frame">
+<img src="../assets/images/inventory-history.png" width="1280"
+  height="1437" loading="lazy" decoding="async"
+  alt="ตรวจสอบประวัติการเคลื่อนไหว — ภาพหน้าจอพร้อมกรอบคำแนะนำสีแดง">
+<svg class="overlay" viewBox="0 0 1280 1437"
+  xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+  <rect x="278" y="335" width="980" height="335" rx="12"
+    fill="none" stroke="#ff3b30" stroke-width="7"/>
+  <circle cx="286" cy="343" r="22" fill="#ff3b30"
+    stroke="#ffffff" stroke-width="3"/>
+  <text x="286" y="351" text-anchor="middle"
+    font-family="Arial, sans-serif" font-size="24" font-weight="700"
+    fill="#ffffff">1</text>
+</svg>
+</div>
+<figcaption><span lang="th" data-lang="th">ตรวจสอบประวัติการเคลื่อนไหว</span><span lang="en" data-lang="en">Review transaction history</span> <span class="annotation-hint"><span lang="th" data-lang="th">หมายเลขในกรอบสีแดงคือหมายเลขขั้นตอน: 1</span><span lang="en" data-lang="en">The numbers in the red boxes are step numbers: 1</span></span>
+<span class="annotation-hint"><a href="../assets/images/inventory-history-annotated.svg"><span lang="th" data-lang="th">เปิดภาพขนาดเต็ม</span><span lang="en" data-lang="en">Open the full-size image</span></a></span></figcaption>
+</figure>
+<h2><span lang="th" data-lang="th">ขั้นตอน</span><span lang="en" data-lang="en">Steps</span></h2>
+<ol class="steps" role="list">
+<li class="step annotated" data-step="1"><span lang="th" data-lang="th">ในกรอบ 1 ตรวจสอบรหัสรายการ ประเภท เวลาที่เกิด วันที่ทางธุรกิจ และจำนวนบรรทัด</span><span lang="en" data-lang="en">In box 1, check the transaction id, type, occurrence time, business date, and line count.</span></li>
+<li class="step" data-step="2"><span lang="th" data-lang="th">รายการที่มีป้าย “รายการกลับรายการ” คือรายการแก้ไขที่อ้างอิงธุรกรรมเดิม</span><span lang="en" data-lang="en">A row tagged “Reversal” is a correction that references the original transaction.</span></li>
+<li class="step" data-step="3"><span lang="th" data-lang="th">ใช้รหัสรายการเมื่อติดต่อฝ่ายสนับสนุนหรือตรวจสอบหลักฐาน</span><span lang="en" data-lang="en">Quote the transaction id when contacting support or auditing evidence.</span></li>
+</ol>
+<h2><span lang="th" data-lang="th">ตรวจว่างานสำเร็จอย่างไร</span><span lang="en" data-lang="en">How to tell it worked</span></h2>
+<ul class="checklist">
+<li><span lang="th" data-lang="th">พบธุรกรรมที่ต้องการพร้อมรหัสรายการที่อ้างอิงได้</span><span lang="en" data-lang="en">The transaction under review is found, with a quotable transaction id.</span></li>
+<li><span lang="th" data-lang="th">ประวัติเป็นแบบเพิ่มอย่างเดียว จึงไม่มีปุ่มลบหรือแก้ไข</span><span lang="en" data-lang="en">History is append-only, so there is no delete or edit control.</span></li>
+</ul>
+</article>
+<nav class="pager" aria-label="งานก่อนหน้า / งานถัดไป">
+<a href="check-inventory-balances.html" rel="prev"><span lang="th" data-lang="th">← งานก่อนหน้า: ตรวจสอบยอดคงเหลือ</span><span lang="en" data-lang="en">← Previous task: Check inventory balances</span></a>
+<a href="export-data.html" rel="next"><span lang="th" data-lang="th">งานถัดไป: ส่งออกข้อมูล →</span><span lang="en" data-lang="en">Next task: Export data →</span></a>
+</nav>
+</main>
+<footer class="site-footer">
+<p><span lang="th" data-lang="th">สร้างจาก scripts/manual/tasks.mjs ด้วยคำสั่ง pnpm manual:build</span><span lang="en" data-lang="en">Generated from scripts/manual/tasks.mjs by pnpm manual:build.</span></p>
+<p><span lang="th" data-lang="th">ห้ามแก้ไขไฟล์ในโฟลเดอร์นี้โดยตรง แก้ที่แคตตาล็อกแล้วสร้างใหม่</span><span lang="en" data-lang="en">Do not edit files in this directory; change the catalogue and regenerate.</span></p>
+</footer>
+<script src="../assets/manual.js" defer></script>
+</body>
+</html>

@@ -19,11 +19,7 @@ export function FactoryFileButton({
 }) {
   const environment = useAppEnvironment();
   const t = useTranslations("OrderToShip");
-  if (
-    environment.previewMode ||
-    !environment.backendConfigured ||
-    !environment.identityConfigured
-  ) {
+  if (!environment.backendConfigured || !environment.identityConfigured) {
     return (
       <Button type="button" variant="outline" disabled>
         {t("download")}

@@ -2,7 +2,7 @@ import { screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
-  previewEnvironment,
+  testEnvironment,
   renderWithIntl,
   unconfiguredEnvironment,
 } from "../../../tests/fixtures/intl-render";
@@ -14,7 +14,7 @@ import { WorkspaceProvider } from "@/components/providers/WorkspaceProvider";
 import type { ObservabilityEvent } from "@/lib/observability/event";
 import type { ObservabilityPort } from "@/lib/observability/port";
 import { SLI_CODES } from "@/lib/observability/sli";
-import { PREVIEW_WAREHOUSES } from "@/lib/preview/ledgerPreview";
+import { PREVIEW_WAREHOUSES } from "@tests/fixtures/data/ledger";
 import { WAREHOUSE_STORAGE_KEY } from "@/lib/workspace/warehouseStore";
 
 const recordingPort = (): ObservabilityPort & {
@@ -34,7 +34,7 @@ afterEach(() => {
  * data out of the building.
  */
 describe("ledger read SLI, as the panel emits it", () => {
-  it("reports a successful preview read, marked as preview", () => {
+  it("reports a successful server read", () => {
     const port = recordingPort();
     window.localStorage.setItem(
       WAREHOUSE_STORAGE_KEY,
@@ -47,7 +47,7 @@ describe("ledger read SLI, as the panel emits it", () => {
           <BalancesPanel />
         </WorkspaceProvider>
       </ObservabilityProvider>,
-      { environment: previewEnvironment },
+      { environment: testEnvironment },
     );
 
     expect(screen.getByRole("table")).toBeInTheDocument();
@@ -57,7 +57,6 @@ describe("ledger read SLI, as the panel emits it", () => {
     expect(read?.dimensions).toMatchObject({
       surface: "balances",
       outcome: "READY",
-      preview: true,
     });
   });
 
@@ -92,7 +91,7 @@ describe("ledger read SLI, as the panel emits it", () => {
           <BalancesPanel />
         </WorkspaceProvider>
       </ObservabilityProvider>,
-      { environment: previewEnvironment },
+      { environment: testEnvironment },
     );
 
     const serialized = JSON.stringify(port.events);
@@ -117,7 +116,7 @@ describe("ledger read SLI, as the panel emits it", () => {
           <BalancesPanel />
         </WorkspaceProvider>
       </ObservabilityProvider>,
-      { environment: previewEnvironment },
+      { environment: testEnvironment },
     );
 
     /*

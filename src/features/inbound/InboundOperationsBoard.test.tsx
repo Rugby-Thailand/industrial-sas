@@ -6,7 +6,7 @@ import { WorkspaceProvider } from "@/components/providers/WorkspaceProvider";
 import { writeStoredWarehouse } from "@/lib/workspace/warehouseStore";
 
 import {
-  previewEnvironment,
+  testEnvironment,
   renderWithIntl,
 } from "../../../tests/fixtures/intl-render";
 import { navigationMock } from "../../../tests/fixtures/navigation-mock";
@@ -22,7 +22,7 @@ const renderBoard = (locale: "th" | "en" = "th") =>
     <WorkspaceProvider>
       <InboundOperationsBoard />
     </WorkspaceProvider>,
-    { locale, environment: previewEnvironment },
+    { locale, environment: testEnvironment },
   );
 
 beforeEach(() => writeStoredWarehouse(BANG_PU));

@@ -36,17 +36,8 @@ does not support is why people stop trusting manuals.
 
 ## ก่อนเริ่มอบรม · Before a session
 
-ระบบยังไม่ได้เชื่อมต่อผู้ให้บริการยืนยันตัวตน (Clerk) ดังนั้นการอบรมจึงทำได้สองแบบ:
-
-1. **โหมดตัวอย่าง (preview)** — ข้อมูลสังเคราะห์ ไม่มีการบันทึกใด ๆ ทุกหน้าจอจะขึ้น
-   แถบแจ้งเตือนว่าเป็นข้อมูลตัวอย่าง เหมาะกับการสอนลำดับขั้นตอนและคำศัพท์
-2. **ระบบจริงที่ตั้งค่าแล้ว** — ต้องมีบัญชีผู้ใช้จริงและสิทธิ์ที่ถูกต้อง ยังเป็นขั้นตอนที่
-   รอการตั้งค่าภายนอก
-
-Until an identity provider is configured, training runs against preview data.
-Every preview screen carries a banner saying the data is synthetic, and every
-write answers **ไม่ได้บันทึกข้อมูล / demonstrated** rather than "saved" — that
-wording is deliberate and is worth pointing at during the session.
+การอบรมใช้ระบบพัฒนาที่ตั้งค่า Clerk และ Convex แล้ว ผู้เข้าอบรมต้องมีบัญชี
+องค์กร และสิทธิ์ที่ตรงกับบทบาท ห้ามใช้ข้อมูลลูกค้าจริงในการอบรม
 
 ## Related
 

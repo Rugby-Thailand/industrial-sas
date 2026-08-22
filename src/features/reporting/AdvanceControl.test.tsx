@@ -16,7 +16,7 @@ import {
   renderWithIntl,
 } from "../../../tests/fixtures/intl-render";
 import { writeStoredWarehouse } from "@/lib/workspace/warehouseStore";
-import { PREVIEW_REPORT_JOBS } from "@/lib/preview/reportingPreview";
+import { PREVIEW_REPORT_JOBS } from "@tests/fixtures/data/reporting";
 
 import { ServerAdvance } from "./ExportWorkbench";
 

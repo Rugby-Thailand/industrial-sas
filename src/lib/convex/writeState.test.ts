@@ -18,27 +18,10 @@ const environment = (overrides: Partial<AppEnvironment> = {}): AppEnvironment =>
   ({
     backendConfigured: true,
     identityConfigured: true,
-    previewMode: false,
     ...overrides,
   }) as AppEnvironment;
 
 describe("resolveWriteGate", () => {
-  it("puts preview ahead of the configuration checks", () => {
-    /*
-     * A preview deployment has neither a backend nor an identity provider, so
-     * checking those first would show "not configured" on the one screen whose
-     * whole purpose is to be usable without either.
-     */
-    const gate = resolveWriteGate(
-      environment({
-        previewMode: true,
-        backendConfigured: false,
-        identityConfigured: false,
-      }),
-    );
-    expect(gate.kind).toBe("PREVIEW");
-  });
-
   it("refuses to submit before a backend exists", () => {
     expect(
       resolveWriteGate(environment({ backendConfigured: false })).kind,
@@ -53,9 +36,8 @@ describe("resolveWriteGate", () => {
     ).toBe("SIGN_IN_REQUIRED");
   });
 
-  it("permits a submission in preview and when configured, and nowhere else", () => {
+  it("permits a submission only when configured", () => {
     expect(canSubmit({ kind: "READY" })).toBe(true);
-    expect(canSubmit({ kind: "PREVIEW" })).toBe(true);
     expect(canSubmit({ kind: "BACKEND_MISSING" })).toBe(false);
     expect(canSubmit({ kind: "SIGN_IN_REQUIRED" })).toBe(false);
   });
@@ -187,7 +169,6 @@ describe("terminality", () => {
     ["SAVED", { kind: "SAVED" as const, documentId: "d", replayed: false }],
     ["DENIED", { kind: "DENIED" as const, requestId: "r" }],
     ["REFUSED", { kind: "REFUSED" as const, code: "FIELD_INVALID" }],
-    ["DEMONSTRATED", { kind: "DEMONSTRATED" as const }],
   ])("treats %s as final", (_name, state) => {
     expect(isTerminal(state)).toBe(true);
   });

@@ -4,8 +4,8 @@
  * One form for every master-data write.
  *
  * Presentational and Convex-free on purpose: it knows about labels, focus,
- * validity, and the touch target, and nothing about mutations, tenancy, or
- * preview mode. That split is what lets a component test render the refusal
+ * validity, and the touch target, and nothing about mutations or tenancy. That
+ * split lets a component test render the refusal
  * states — a field the server blamed, a duplicate key, a denial — without a
  * deployment.
  *

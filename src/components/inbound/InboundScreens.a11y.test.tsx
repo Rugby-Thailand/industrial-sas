@@ -6,7 +6,7 @@ import { navigationMock } from "../../../tests/fixtures/navigation-mock";
 vi.mock("@/i18n/navigation", () => navigationMock);
 
 import {
-  previewEnvironment,
+  testEnvironment,
   renderWithIntl,
 } from "../../../tests/fixtures/intl-render";
 import { writeStoredWarehouse } from "@/lib/workspace/warehouseStore";
@@ -39,7 +39,7 @@ import {
   previewReceivableLines,
   previewReceiptLinesFor,
   previewReceiptsFor,
-} from "@/lib/preview/inboundPreview";
+} from "@tests/fixtures/data/inbound";
 
 /**
  * `INV-0010-09` for the inbound screens.
@@ -122,7 +122,7 @@ describe("inbound table accessibility", () => {
       async (locale) => {
         const { container } = renderWithIntl(render(), {
           locale,
-          environment: previewEnvironment,
+          environment: testEnvironment,
         });
         expect(await axe(container)).toHaveNoViolations();
       },
@@ -144,7 +144,7 @@ describe("inbound form accessibility", () => {
           lines={previewReceivableLines()}
           locationId="prv_loc_DOCK-IN-1"
         />,
-        { locale, environment: previewEnvironment },
+        { locale, environment: testEnvironment },
       );
       expect(await axe(container)).toHaveNoViolations();
     },
@@ -154,7 +154,7 @@ describe("inbound form accessibility", () => {
     seed();
     const { container } = renderWithIntl(
       <DispositionForm inspectionId="prv_qc_3001" />,
-      { locale, environment: previewEnvironment },
+      { locale, environment: testEnvironment },
     );
     expect(await axe(container)).toHaveNoViolations();
   });
@@ -163,7 +163,7 @@ describe("inbound form accessibility", () => {
     seed();
     const { container } = renderWithIntl(<ApproveDispositionControl />, {
       locale,
-      environment: previewEnvironment,
+      environment: testEnvironment,
     });
     expect(await axe(container)).toHaveNoViolations();
   });
@@ -180,7 +180,7 @@ describe("inbound form accessibility", () => {
             { value: "prv_loc_B04-11-3", label: "B04-11-3" },
           ]}
         />,
-        { locale, environment: previewEnvironment },
+        { locale, environment: testEnvironment },
       );
       expect(await axe(container)).toHaveNoViolations();
     },
@@ -190,7 +190,7 @@ describe("inbound form accessibility", () => {
     seed();
     const { container } = renderWithIntl(<ImportWorkbench />, {
       locale,
-      environment: previewEnvironment,
+      environment: testEnvironment,
     });
     expect(await axe(container)).toHaveNoViolations();
   });

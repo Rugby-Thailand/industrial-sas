@@ -121,19 +121,14 @@ The toolchain is installed, pinned, and green end to end. What is present:
 - Real unit, accessibility, property, integration, isolation, and end-to-end
   suites over all of it, including a two-tenant `convex-test` world, negative
   tests that prove the guards fail when they should, property-tier negative
-  controls that fail against deliberately weakened implementations, axe-core
-  assertions rendered against the **Thai** catalogue (Latin placeholder text
-  hides Thai wrapping defects), and Playwright journeys over locale negotiation,
-  both shells, the setup gate, and the inventory read path.
+  controls that fail against deliberately weakened implementations, Thai
+  axe-core assertions, and Playwright checks over locale, auth gates, and
+  security headers.
 
 What is deliberately still missing, because claiming otherwise would be wrong:
 
-- **No Clerk instance is connected yet, so there is no authenticated tenant.**
-  The middleware, provider hierarchy, Convex auth config, and Clerk-owned sign-in
-  surface are implemented, but this checkout has no development Clerk keys or
-  issuer configured. There is still no sign-in bypass, development token, or
-  hand-built `setAuth` path. Local preview data (below) renders synthetic rows
-  through the same screens and is labelled as such on every one of them.
+- **Clerk and Convex must be configured locally.** The app has no sign-in bypass,
+  development token, or public tenant-data path. See the development setup guide.
 - **No printed label and no printer.** Label templates are authored, versioned,
   and published under maker-checker, and a print job records versioned evidence —
   but nothing renders ZPL to a device. There is no printer transport (`INT-04`),
@@ -174,22 +169,6 @@ What is deliberately still missing, because claiming otherwise would be wrong:
 
 CI runs the guards described below and nothing more. Do not run this anywhere but
 locally.
-
-### Local preview data
-
-`NEXT_PUBLIC_LOCAL_PREVIEW=1` under `pnpm dev` renders a small synthetic dataset
-through the real inventory screens, so the layout, the Thai copy, the
-formatters, and the paging can be evaluated before an identity provider exists.
-It is not a fake backend: it has no authorization, no tenant resolution, and no
-writes, every screen showing it carries a banner that cannot be dismissed, and
-the connectivity badge reads "local preview data" rather than "connected".
-
-It cannot be enabled in production. The flag must be exactly `"1"` **and**
-`NODE_ENV` must not be `"production"`, and Next.js replaces `NODE_ENV`
-statically at build time, so no runtime value turns it on in anything `next
-build` produced. The fixture rows are still shipped as unreachable code in that
-bundle, which is why nothing in the fixture is sensitive and every identifier in
-it carries a `prv_` prefix.
 
 What else exists is the design record: twelve accepted ADRs,
 the domain glossary, the permission catalogue, the release-gate register, the
@@ -302,56 +281,10 @@ pnpm exec playwright install --with-deps
 pnpm test:e2e
 ```
 
-`pnpm test:e2e` runs `scripts/run-e2e.mjs`, which prepares both servers
-sequentially and only then hands over to Playwright. Run it that way rather than
-calling `playwright test` directly; the config refuses to start against a build
-nobody prepared.
-
-| Port                         | Server                                             | Started by | Specs                           |
-| ---------------------------- | -------------------------------------------------- | ---------- | ------------------------------- |
-| `PLAYWRIGHT_PORT` (3100)     | `next start` over a build in `.next-e2e`           | Playwright | everything except `*.preview.*` |
-| `PLAYWRIGHT_PORT + 1` (3101) | `next dev` in `.next-e2e-preview`, preview mode on | the runner | `*.preview*.e2e.spec.ts`        |
-
-The vendor variables are set to the empty string rather than left unset, so the
-suite behaves identically on a machine with a populated `.env.local` and in CI,
-which has none. Neither server touches `.next` or `.next-preview`, so a
-`pnpm dev` you already have running is unaffected.
-
-The shape is not arbitrary — it is the fix for a defect that presented as
-flakiness, with a different spec failing each run and both servers logging
-`Unexpected non-whitespace character after JSON`. Two causes, both real:
-
-1. **A shared source file.** Next rewrites `next-env.d.ts` to name its own
-   `distDir`, so two dev servers rewrote it in turn and retriggered each other's
-   compilers. Now only one dev server exists, and the other server serves a
-   finished build that writes nothing.
-2. **A manifest rewritten without truncating.** `next dev` rewrites
-   `<distDir>/dev/prerender-manifest.json` as it compiles routes on demand, and a
-   shorter write over a longer file leaves the old tail behind — valid JSON
-   followed by garbage, which every later render fails to read. Two triggers were
-   measured: several workers compiling routes at once, and a _second_ `next dev`
-   starting over a directory an earlier one had filled. So the runner starts the
-   preview server once on an empty directory, compiles every route **serially**,
-   checks that the artifacts parse, keeps that same server up for the whole
-   suite, and stops it in a `finally`. Playwright declares no dev server at all.
-
-The preview server has to stay `next dev`: preview mode is gated on
-`NODE_ENV !== "production"` on purpose (`src/lib/environment.ts`), so a
-production build ignores `NEXT_PUBLIC_LOCAL_PREVIEW` entirely and serves the
-setup gate.
-
-The runner owns every process it starts and signals them **only by handle** — no
-`pkill`, no port search, so nothing belonging to another checkout is ever
-touched. Ctrl-C forwards the signal to the build, the development server, or the
-Playwright run that is in flight, escalates to `SIGKILL` after a grace period,
-waits for them, and only then restores `next-env.d.ts` byte-for-byte; a server
-still running would rewrite that file again. Measured: an interrupt during
-warm-up exits non-zero in 39 ms and one during the suite in 244 ms, both leaving
-ports 3100 and 3101 free, no surviving process from this repository, and
-`next-env.d.ts` byte-identical. `tests/integration/e2e-server-isolation.integration.test.ts`
-asserts the configuration can never put two writers in one place, and the runner
-refuses to start the suite — and fails the run afterwards — if either build
-directory holds an unparseable artifact.
+`pnpm test:e2e` creates an isolated production build in `.next-e2e`, then runs
+Playwright against one `next start` server. Vendor variables are blank, so the
+suite proves every feature route redirects signed-out users to localized sign-in.
+It never reads `.env.local` or touches the developer-owned `.next` directory.
 
 ## Continuous integration
 

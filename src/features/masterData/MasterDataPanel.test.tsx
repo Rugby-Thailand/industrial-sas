@@ -3,17 +3,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   configuredEnvironment,
-  previewEnvironment,
+  testEnvironment,
   renderWithIntl,
   unconfiguredEnvironment,
 } from "../../../tests/fixtures/intl-render";
 
 import { SuppliersPanel } from "./EntityPanels";
-
-import { WorkspaceProvider } from "@/components/providers/WorkspaceProvider";
+import { PREVIEW_SUPPLIERS } from "@tests/fixtures/data/masterData";
 
 const convex = vi.hoisted(() => ({
   useConvexAuth: vi.fn(),
+  useMutation: vi.fn(() => async () => undefined),
   useQuery: vi.fn(),
 }));
 
@@ -33,30 +33,33 @@ vi.mock("convex/react", () => convex);
  * renders without a warehouse having to be chosen first.
  */
 const renderPanel = (environment: Parameters<typeof renderWithIntl>[1]) =>
-  renderWithIntl(
-    <WorkspaceProvider>
-      <SuppliersPanel />
-    </WorkspaceProvider>,
-    environment,
-  );
+  renderWithIntl(<SuppliersPanel />, { ...environment, workspace: false });
 
 afterEach(() => {
   window.localStorage.clear();
 });
 
 beforeEach(() => {
+  vi.clearAllMocks();
   convex.useConvexAuth.mockReturnValue({
-    isAuthenticated: false,
+    isAuthenticated: true,
     isLoading: false,
   });
-  convex.useQuery.mockImplementation(() => {
-    throw new Error("anonymous query");
+  convex.useQuery.mockReturnValue({
+    ok: true,
+    requestId: "test_request",
+    value: {
+      ok: true,
+      items: PREVIEW_SUPPLIERS,
+      nextCursor: null,
+      complete: true,
+    },
   });
 });
 
 describe("MasterDataPanel paging chrome", () => {
   it("names the pager and its controls in Thai", () => {
-    renderPanel({ environment: previewEnvironment });
+    renderPanel({ environment: testEnvironment });
 
     // By accessible name, because that is the thing a key path would break: a
     // missing message renders as `Pagination.previousPage`, which still matches
@@ -74,7 +77,7 @@ describe("MasterDataPanel paging chrome", () => {
     // The preview supplier list is shorter than a page, so the panel reports the
     // end of the data rather than a page number. Both branches read from the
     // same namespace; this is the one an operator sees on most master data.
-    renderPanel({ environment: previewEnvironment });
+    renderPanel({ environment: testEnvironment });
 
     expect(screen.getByText("แสดงครบทุกรายการแล้ว")).toBeInTheDocument();
   });
@@ -89,6 +92,13 @@ describe("MasterDataPanel paging chrome", () => {
   });
 
   it("does not query tenant data before Convex authenticates", () => {
+    convex.useConvexAuth.mockReturnValue({
+      isAuthenticated: false,
+      isLoading: false,
+    });
+    convex.useQuery.mockImplementation(() => {
+      throw new Error("anonymous query");
+    });
     renderPanel({ environment: configuredEnvironment });
 
     expect(screen.getByTestId("panel-SIGN_IN_REQUIRED")).toBeInTheDocument();

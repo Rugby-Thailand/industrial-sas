@@ -1,16 +1,10 @@
 # Purchase orders, receiving, QC, handling units, labels, and putaway
 
-**Current availability: Read and write surfaces plus desktop and handheld
-screens; unauthenticated.** The inbound vertical slice exists end to end: schema,
+**Current availability: Authenticated read and write surfaces on desktop and
+handheld.** The inbound vertical slice exists end to end: schema,
 pure domain kernels, permissions, idempotent audited mutations, bounded reads, a
 two-tenant isolation suite, and Thai-first operator screens on both shells. With
-no Clerk instance configured every tenant-bound call is denied, so none of it has
-run against a resolved tenant.
-
-Every screen is usable on `localhost` today through the local preview path
-(`NEXT_PUBLIC_LOCAL_PREVIEW=1` outside production): synthetic rows carrying every
-state a screen must tell apart, forms that validate and submit, and outcomes that
-say plainly that nothing was stored.
+users without a verified tenant membership are stopped before these screens.
 
 ## What exists
 
@@ -307,13 +301,9 @@ gate (`RG-031`, `RG-026`):
 
 ## What the screens say, and why
 
-Three states are worded rather than implied, because each has a version that
+Two states are worded rather than implied, because each has a version that
 misleads:
 
-- **Preview stores nothing, and says so in the title.** A submission answers
-  `DEMONSTRATED`, the typed values stay on screen, and the import counter says
-  how many rows were _walked_ rather than written. A counter that said "written"
-  would be false on the one screen whose whole point is that it stored nothing.
 - **A parked disposition is not a failure.** Release and scrap wait for a second
   person, and the QC screen explains that before the operator submits, so the
   `PENDING_APPROVAL` state reads as the rule working.
@@ -340,23 +330,12 @@ a field nobody could have filled correctly, which reads as a broken screen rathe
 than as a missing choice. `tests/integration/inbound-real-mode.integration.test.ts`
 asserts the rule structurally over the feature source, because the failure is
 invisible to the type checker — `"prv_loc_DOCK-IN-1"` is a perfectly good
-`string` — and invisible in preview, where the value happens to be right.
+`string` — and can be missed when tests use a valid fixture value.
 
 The approver's inspection is chosen from the pending queue for the same reason
 with a sharper edge: the approver is by construction _not_ the person who
 submitted, so an inspection ID typed into their screen would have to have reached
 them by screenshot.
-
-### What the preview walkthrough does, and does not, pretend
-
-Preview writes nothing, so opening a receipt returns no receipt ID. Rather than
-stopping the handheld flow at the step an operator spends their whole shift in,
-the walkthrough continues against a receipt that already exists in the fixture —
-and says so, by name, in a notice above the capture form. The transition is an
-explicit `onDemonstrated`, kept separate from `onSaved` in `EntityWriteForm`
-precisely so a caller cannot treat a demonstration as something that created a
-document. The capture submission answers `DEMONSTRATED` like every other preview
-write.
 
 ## What is deliberately absent
 

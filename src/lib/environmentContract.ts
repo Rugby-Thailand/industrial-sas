@@ -6,7 +6,7 @@
  * production — and requires separate identity instances, Convex deployments,
  * file-storage apps, and telemetry projects for each. That decision is worth
  * nothing as prose: the failure it prevents is a preview deployment pointed at
- * the production Convex URL, or a production build with local preview data
+ * the production Convex URL, or a production build with incomplete identity
  * switched on, and both of those are configuration mistakes that look fine
  * until a tenant's stock is on someone's laptop.
  *
@@ -150,14 +150,6 @@ export const VARIABLE_CONTRACTS: readonly VariableContract[] = Object.freeze([
     recommended: DEPLOYED,
     rationale:
       "File storage is unwired today; when it lands, each class needs its own app with private ACLs (D-20).",
-  },
-  {
-    variable: "NEXT_PUBLIC_LOCAL_PREVIEW",
-    required: NONE,
-    forbidden: ["staging", "production"],
-    recommended: NONE,
-    rationale:
-      "Synthetic rows must never reach an environment a person could mistake for the product; the build-time NODE_ENV gate already blocks production, and this makes staging explicit too.",
   },
   {
     variable: "NEXT_PUBLIC_APP_URL",

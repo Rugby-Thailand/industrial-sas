@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import {
   configuredEnvironment,
-  previewEnvironment,
+  testEnvironment,
   renderWithIntl,
   unconfiguredEnvironment,
 } from "../../../tests/fixtures/intl-render";
@@ -14,7 +14,7 @@ import { WorkspaceProvider } from "@/components/providers/WorkspaceProvider";
 import {
   PREVIEW_WAREHOUSES,
   previewBalancesFor,
-} from "@/lib/preview/ledgerPreview";
+} from "@tests/fixtures/data/ledger";
 import { WAREHOUSE_STORAGE_KEY } from "@/lib/workspace/warehouseStore";
 
 const warehouse = PREVIEW_WAREHOUSES[0];
@@ -62,14 +62,14 @@ describe("BalancesPanel in preview mode", () => {
   it("still requires a warehouse", () => {
     // Two preview warehouses exist, so nothing is auto-selected; a preview that
     // skipped the selector would not be exercising the real screen.
-    renderPanel({ environment: previewEnvironment });
+    renderPanel({ environment: testEnvironment });
 
     expect(screen.getByTestId("panel-WAREHOUSE_MISSING")).toBeInTheDocument();
   });
 
   it("renders synthetic rows for the remembered warehouse", () => {
     window.localStorage.setItem(WAREHOUSE_STORAGE_KEY, warehouse?.id ?? "");
-    renderPanel({ environment: previewEnvironment });
+    renderPanel({ environment: testEnvironment });
 
     const rows = previewBalancesFor(warehouse?.id ?? "");
     expect(screen.getByRole("table")).toBeInTheDocument();
@@ -78,7 +78,7 @@ describe("BalancesPanel in preview mode", () => {
 
   it("disables the previous control on the first page", () => {
     window.localStorage.setItem(WAREHOUSE_STORAGE_KEY, warehouse?.id ?? "");
-    renderPanel({ environment: previewEnvironment });
+    renderPanel({ environment: testEnvironment });
 
     expect(screen.getByRole("button", { name: "หน้าก่อนหน้า" })).toBeDisabled();
   });
@@ -86,7 +86,7 @@ describe("BalancesPanel in preview mode", () => {
   it("offers no control that could write a balance", () => {
     // `INV-0003-11`: no API sets a balance, so no screen may appear to.
     window.localStorage.setItem(WAREHOUSE_STORAGE_KEY, warehouse?.id ?? "");
-    renderPanel({ environment: previewEnvironment });
+    renderPanel({ environment: testEnvironment });
 
     const buttons = screen
       .getAllByRole("button")

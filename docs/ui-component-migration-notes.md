@@ -70,9 +70,8 @@ Sidebar"`, `"Sidebar"`, `"Displays the mobile sidebar"`, and the Sheet's
    already used, and it is a `useSyncExternalStore` rather than
    `useState` + effect (the repository's lint rules reject the latter, correctly).
 6. **The desktop shell does not use the Sidebar's own desktop branch.** That
-   branch is `fixed inset-y-0 h-svh`, which would overlap this shell's header —
-   the preview banner, connection state, and organization/warehouse context all
-   live there. The rail is rendered in flow with `collapsible="none"` and the
+   branch is `fixed inset-y-0 h-svh`, which would overlap this shell's workspace
+   header. The rail is rendered in flow with `collapsible="none"` and the
    mobile Sheet is composed explicitly, so exactly one navigation tree exists at
    any width.
 

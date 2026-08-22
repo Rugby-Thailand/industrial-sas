@@ -16,9 +16,6 @@
  * second row (`convex/lib/idempotency.ts`). A key released on failure would turn
  * one flaky network moment into two suppliers with the same name.
  *
- * In preview mode nothing is sent. The form validates, the outcome says plainly
- * that nothing was stored, and the typed values stay on screen: clearing them
- * would imply a save that did not happen.
  */
 import { useMutation } from "convex/react";
 import type { FunctionReference } from "convex/server";
@@ -75,15 +72,6 @@ export interface EntityWriteFormProps<Args extends Record<string, unknown>> {
    * those facts are the whole reason the calling screen exists.
    */
   readonly onSaved?: (outcome: Record<string, unknown>) => void;
-  /**
-   * Called after a preview-mode submission, which stored nothing.
-   *
-   * Separate from `onSaved` on purpose: a caller that treated the two as the
-   * same would advance real state on a demonstration. A caller that wants to
-   * walk a multi-step flow in preview opts in here and says on screen that
-   * nothing was stored.
-   */
-  readonly onDemonstrated?: () => void;
   readonly testId?: string;
 }
 
@@ -96,37 +84,7 @@ export function EntityWriteForm<Args extends Record<string, unknown>>(
   if (gate.kind === "BACKEND_MISSING" || gate.kind === "SIGN_IN_REQUIRED") {
     return <LedgerPanelStatus state={{ kind: gate.kind }} />;
   }
-  if (gate.kind === "PREVIEW") return <PreviewWriteForm {...props} />;
   return <ServerWriteForm {...props} />;
-}
-
-function PreviewWriteForm<Args extends Record<string, unknown>>({
-  legend,
-  description,
-  submitLabel,
-  requiredMessage,
-  fields,
-  testId,
-  onDemonstrated,
-}: EntityWriteFormProps<Args>) {
-  const [state, setState] = useState<WriteState>(IDLE);
-
-  return (
-    <EntityForm
-      legend={legend}
-      {...(description === undefined ? {} : { description })}
-      fields={fields}
-      submitLabel={submitLabel}
-      requiredMessage={requiredMessage}
-      busy={false}
-      outcome={<WriteOutcomeNotice state={state} />}
-      onSubmit={() => {
-        setState({ kind: "DEMONSTRATED" });
-        onDemonstrated?.();
-      }}
-      {...(testId === undefined ? {} : { testId })}
-    />
-  );
 }
 
 function ServerWriteForm<Args extends Record<string, unknown>>({

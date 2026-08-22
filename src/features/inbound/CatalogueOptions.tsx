@@ -36,13 +36,6 @@ import {
   type ReasonCodeRow,
   type SupplierRow,
 } from "@/lib/convex/masterDataApi";
-import {
-  PREVIEW_LABEL_TEMPLATES,
-  PREVIEW_SUPPLIERS,
-  previewItems,
-  previewReasonCodes,
-} from "@/lib/preview/masterDataPreview";
-
 import { OptionGate, type OptionSet } from "./OptionPicker";
 
 /** What every catalogue source hands its caller. */
@@ -73,9 +66,9 @@ const ready = <Value,>(values: readonly Value[]): OptionSet<Value> => ({
 export function CatalogueGate({
   render,
 }: {
-  readonly render: (preview: boolean) => ReactNode;
+  readonly render: () => ReactNode;
 }): ReactNode {
-  return <QueryGate scope="ORG">{(_, preview) => render(preview)}</QueryGate>;
+  return <QueryGate scope="ORG">{() => render()}</QueryGate>;
 }
 
 /** Turn a query answer into an option set, with `LOADING` kept distinct. */
@@ -96,24 +89,7 @@ function toOptions<Row>(
 /* -------------------------------------------------------------------------- */
 
 export function ActiveSuppliers(props: CatalogueSourceProps<SupplierRow>) {
-  return (
-    <CatalogueGate
-      render={(preview) =>
-        preview ? (
-          <OptionGate
-            {...props}
-            options={ready(
-              PREVIEW_SUPPLIERS.filter((row) => row.status === "ACTIVE"),
-            )}
-          >
-            {props.children}
-          </OptionGate>
-        ) : (
-          <ServerSuppliers {...props} />
-        )
-      }
-    />
-  );
+  return <CatalogueGate render={() => <ServerSuppliers {...props} />} />;
 }
 
 function ServerSuppliers({
@@ -145,24 +121,7 @@ function ServerSuppliers({
 /* -------------------------------------------------------------------------- */
 
 export function ActiveItems(props: CatalogueSourceProps<ItemRow>) {
-  return (
-    <CatalogueGate
-      render={(preview) =>
-        preview ? (
-          <OptionGate
-            {...props}
-            options={ready(
-              previewItems().filter((row) => row.status === "ACTIVE"),
-            )}
-          >
-            {props.children}
-          </OptionGate>
-        ) : (
-          <ServerItems {...props} />
-        )
-      }
-    />
-  );
+  return <CatalogueGate render={() => <ServerItems {...props} />} />;
 }
 
 function ServerItems({ children, ...rest }: CatalogueSourceProps<ItemRow>) {
@@ -206,22 +165,7 @@ export function ActiveReasonCodes({
 }: CatalogueSourceProps<ReasonCodeRow> & { readonly scope: string }) {
   return (
     <CatalogueGate
-      render={(preview) =>
-        preview ? (
-          <OptionGate
-            {...props}
-            options={ready(
-              previewReasonCodes().filter(
-                (row) => row.status === "ACTIVE" && row.scope === scope,
-              ),
-            )}
-          >
-            {props.children}
-          </OptionGate>
-        ) : (
-          <ServerReasonCodes {...props} scope={scope} />
-        )
-      }
+      render={() => <ServerReasonCodes {...props} scope={scope} />}
     />
   );
 }
@@ -265,24 +209,7 @@ function ServerReasonCodes({
 export function PublishedLabelTemplates(
   props: CatalogueSourceProps<LabelTemplateRow>,
 ) {
-  return (
-    <CatalogueGate
-      render={(preview) =>
-        preview ? (
-          <OptionGate
-            {...props}
-            options={ready(
-              PREVIEW_LABEL_TEMPLATES.filter((row) => row.status === "ACTIVE"),
-            )}
-          >
-            {props.children}
-          </OptionGate>
-        ) : (
-          <ServerTemplates {...props} />
-        )
-      }
-    />
-  );
+  return <CatalogueGate render={() => <ServerTemplates {...props} />} />;
 }
 
 function ServerTemplates({

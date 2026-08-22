@@ -28,19 +28,6 @@ import { MasterCardRevisionDraftForm } from "./MasterCardDraftForm";
 
 const PAGE_SIZE = 20;
 
-const previewCards = (): readonly MasterCardRow[] => [
-  {
-    masterCardId: "prv_mc_gold_991",
-    cardNumber: "MC-00991",
-    customerId: "prv_customer_gold",
-    customerProductCode: "GOLD-BOX-991",
-    designKey: "RSC|300x200x150|KA125/C/KA125|C2",
-    name: "Export carton",
-    status: "ACTIVE",
-    releasedRevisionId: "prv_rev_4",
-  },
-];
-
 export function EngineeringMasterCardLibrary() {
   const t = useTranslations("OrderToShip");
   return (
@@ -67,7 +54,6 @@ export function EngineeringMasterCardLibrary() {
           maxPageSize: PAGE_SIZE,
           ...(cursor === undefined ? {} : { cursor }),
         })}
-        previewRowsFor={previewCards}
         paginationLabel={t("masterCardPagination")}
         renderRows={(rows) => (
           <ul className="grid gap-3">
@@ -113,14 +99,6 @@ function MasterCardItem({ card }: { readonly card: MasterCardRow }) {
 
 function RevisionHistory({ card }: { readonly card: MasterCardRow }) {
   const environment = useAppEnvironment();
-  const t = useTranslations("OrderToShip");
-  if (environment.previewMode) {
-    return (
-      <div className="mt-4 rounded border border-border bg-raised p-3 text-sm text-muted">
-        {t("previewRevisionHistory")}
-      </div>
-    );
-  }
   if (!environment.backendConfigured) {
     return <LedgerPanelStatus state={{ kind: "BACKEND_MISSING" }} />;
   }
@@ -150,7 +128,6 @@ function ServerRevisionHistory({ card }: { readonly card: MasterCardRow }) {
           maxPageSize: PAGE_SIZE,
           ...(cursor === undefined ? {} : { cursor }),
         })}
-        previewRowsFor={() => []}
         paginationLabel={t("revisionPagination")}
         renderRows={(revisions) => (
           <ol className="grid gap-4">

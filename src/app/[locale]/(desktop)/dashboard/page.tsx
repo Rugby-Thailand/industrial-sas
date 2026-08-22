@@ -1,14 +1,10 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
 
-import { SetupChecklist } from "@/components/system/SetupChecklist";
-import { Card, CardContent } from "@/components/ui/card";
 import { DashboardScope } from "@/features/reporting/DashboardScope";
+import { DashboardQuickActions } from "@/features/reporting/DashboardQuickActions";
 import { OccupancyMap } from "@/features/reporting/OccupancyMap";
 import { OperationsTiles } from "@/features/reporting/OperationsTiles";
-import { Notice } from "@/components/ui/Notice";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { Link } from "@/i18n/navigation";
-import { ROUTES } from "@/lib/navigation";
 
 /**
  * The supervisor entry point.
@@ -51,104 +47,41 @@ export default async function DashboardPage({
   const { locale } = await params;
   setRequestLocale(locale);
   const t = await getTranslations("Dashboard");
-  // The checklist itself no longer opens with this sentence, because the setup
-  // page states it in its header and printing it twice on one screen is what the
-  // audit found. The section that mounts the checklist here supplies it instead.
-  const setupT = await getTranslations("Setup");
-
-  const entries = [
-    { href: ROUTES.receiving, labelKey: "receivingCard" },
-    { href: ROUTES.quality, labelKey: "qualityCard" },
-    { href: ROUTES.putaway, labelKey: "putawayCard" },
-    { href: ROUTES.items, labelKey: "itemsCard" },
-    { href: ROUTES.balances, labelKey: "balancesCard" },
-    { href: ROUTES.history, labelKey: "historyCard" },
-    { href: ROUTES.handheld, labelKey: "handheldCard" },
-    { href: ROUTES.reports, labelKey: "reportsCard" },
-  ] as const;
-
   return (
     <>
-      <PageHeader title={t("title")} description={t("description")} />
-      <DashboardScope />
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <PageHeader title={t("title")} description={t("description")} />
+        <DashboardScope />
+      </div>
 
-      <section className="mb-8" aria-labelledby="tiles-heading">
+      <section className="mb-6" aria-labelledby="tiles-heading">
         <h2 id="tiles-heading" className="mb-3 text-lg font-semibold text-text">
           {t("tilesHeading")}
         </h2>
         <OperationsTiles />
       </section>
 
-      <section className="mb-8" aria-labelledby="occupancy-heading">
-        <h2
-          id="occupancy-heading"
-          className="mb-3 text-lg font-semibold text-text"
-        >
-          {t("occupancyHeading")}
-        </h2>
-        <OccupancyMap />
-      </section>
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(20rem,1fr)]">
+        <section aria-labelledby="occupancy-heading">
+          <h2
+            id="occupancy-heading"
+            className="mb-3 text-lg font-semibold text-text"
+          >
+            {t("occupancyHeading")}
+          </h2>
+          <OccupancyMap />
+        </section>
 
-      <section className="mb-8" aria-labelledby="entry-heading">
-        <h2 id="entry-heading" className="mb-3 text-lg font-semibold text-text">
-          {t("entryHeading")}
-        </h2>
-        {/*
-         * The work queue is a list of links rather than a list of tasks, because
-         * the tasks live behind warehouse-scoped reads this server component
-         * cannot make. Each entry is still the shortest path from "something is
-         * waiting" to the screen that clears it, which is the job an operations
-         * dashboard's queue does.
-         */}
-        <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {entries.map((entry) => (
-            <li key={entry.href}>
-              <Card size="sm" className="h-full hover:border-accent">
-                <CardContent>
-                  <Link
-                    href={entry.href}
-                    className="flex min-h-touch items-center text-sm font-medium text-text"
-                  >
-                    {t(entry.labelKey)}
-                  </Link>
-                </CardContent>
-              </Card>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <section className="mb-8" aria-labelledby="capability-heading">
-        <h2
-          id="capability-heading"
-          className="mb-3 text-lg font-semibold text-text"
-        >
-          {t("capabilityHeading")}
-        </h2>
-        {/*
-         * The callout's title is not the section's heading repeated. The
-         * heading asks the question — what works today — and the callout
-         * answers it for *this* deployment, which is the local preview one.
-         */}
-        <Notice
-          tone="neutral"
-          title={t("capabilityNoticeTitle")}
-          body={t("capabilityBody")}
-        />
-      </section>
-
-      <section aria-labelledby="system-heading">
-        <h2
-          id="system-heading"
-          className="mb-3 text-lg font-semibold text-text"
-        >
-          {t("systemHeading")}
-        </h2>
-        <p className="mb-3 max-w-prose text-sm leading-relaxed text-muted">
-          {setupT("intro")}
-        </p>
-        <SetupChecklist />
-      </section>
+        <section aria-labelledby="entry-heading">
+          <h2
+            id="entry-heading"
+            className="mb-3 text-lg font-semibold text-text"
+          >
+            {t("entryHeading")}
+          </h2>
+          <DashboardQuickActions />
+        </section>
+      </div>
     </>
   );
 }

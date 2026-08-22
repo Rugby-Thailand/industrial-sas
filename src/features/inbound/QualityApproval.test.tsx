@@ -6,7 +6,7 @@ import { navigationMock } from "../../../tests/fixtures/navigation-mock";
 vi.mock("@/i18n/navigation", () => navigationMock);
 
 import {
-  previewEnvironment,
+  testEnvironment,
   renderWithIntl,
 } from "../../../tests/fixtures/intl-render";
 import { writeStoredWarehouse } from "@/lib/workspace/warehouseStore";
@@ -26,7 +26,7 @@ const render = (locale: "th" | "en" = "th") => {
   writeStoredWarehouse(BANG_PU);
   return renderWithIntl(<ApproveDispositionControl />, {
     locale,
-    environment: previewEnvironment,
+    environment: testEnvironment,
   });
 };
 

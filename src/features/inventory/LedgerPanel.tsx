@@ -5,8 +5,8 @@
  *
  * Both inventory screens are the same component with a different function
  * reference and a different table, because the interesting part is identical:
- * decide whether the read is even possible, ask the server (or the preview
- * fixture), map the answer onto the states in `ledgerState.ts`, and page.
+ * decide whether the read is possible, ask the server, map the answer onto the
+ * states in `ledgerState.ts`, and page.
  *
  * ### The order of the checks
  *
@@ -65,9 +65,8 @@ import {
   recordClientError,
   type LedgerReadSurface,
 } from "@/lib/observability/sli";
-import { previewPage } from "@/lib/preview/ledgerPreview";
 
-import { LedgerErrorBoundary } from "./LedgerErrorBoundary";
+import { QueryErrorBoundary } from "@/components/system/QueryErrorBoundary";
 import { useLedgerReadSli } from "./useLedgerReadSli";
 
 import { Button } from "@/components/ui/button";
@@ -82,8 +81,6 @@ export interface LedgerPanelProps<Row> {
     LedgerPageArgs,
     TenantOutcome<LedgerPage<Row>>
   >;
-  /** Synthetic rows of the same shape, used only in preview mode. */
-  readonly previewRowsFor: (warehouseId: string) => readonly Row[];
   /** Renders one page of rows. */
   readonly renderRows: (rows: readonly Row[]) => ReactNode;
   /**
@@ -95,7 +92,6 @@ export interface LedgerPanelProps<Row> {
 
 export function LedgerPanel<Row>({
   queryRef,
-  previewRowsFor,
   renderRows,
   surface,
 }: LedgerPanelProps<Row>) {
@@ -114,7 +110,6 @@ export function LedgerPanel<Row>({
         <PagedLedger
           key={warehouseId}
           queryRef={queryRef}
-          previewRowsFor={previewRowsFor}
           renderRows={renderRows}
           surface={surface}
           warehouseId={warehouseId}
@@ -127,7 +122,6 @@ export function LedgerPanel<Row>({
 
 function PagedLedger<Row>({
   queryRef,
-  previewRowsFor,
   renderRows,
   surface,
   warehouseId,
@@ -151,20 +145,8 @@ function PagedLedger<Row>({
     />
   );
 
-  if (environment.previewMode) {
-    return (
-      <PreviewLedgerPanel
-        warehouseId={warehouseId}
-        cursor={cursor}
-        previewRowsFor={previewRowsFor}
-        surface={surface}
-        render={render}
-      />
-    );
-  }
-
   return (
-    <LedgerErrorBoundary
+    <QueryErrorBoundary
       resetKey={`${warehouseId}:${cursor ?? ""}`}
       onFailure={(failure) =>
         recordClientError(observability, {
@@ -192,7 +174,7 @@ function PagedLedger<Row>({
         environment={environment}
         render={render}
       />
-    </LedgerErrorBoundary>
+    </QueryErrorBoundary>
   );
 }
 
@@ -222,59 +204,7 @@ function ServerLedgerPanel<Row>({
   });
   const state = toLedgerPanelState<Row>({ environment, warehouseId, outcome });
 
-  useLedgerReadSli({ surface, state, preview: false, cursor });
-
-  return <>{render(state)}</>;
-}
-
-/**
- * The preview source, paged through the same contract the server uses.
- *
- * `previewPage` can only refuse on a malformed cursor, which the controls below
- * cannot produce; an out-of-range cursor collapses to an empty final page rather
- * than a fabricated error, because a synthetic failure would be indistinguishable
- * on screen from a real one.
- */
-function PreviewLedgerPanel<Row>({
-  warehouseId,
-  cursor,
-  previewRowsFor,
-  surface,
-  render,
-}: {
-  readonly warehouseId: string;
-  readonly cursor: string | undefined;
-  readonly previewRowsFor: (warehouseId: string) => readonly Row[];
-  readonly surface: LedgerReadSurface;
-  readonly render: (state: LedgerPanelState<Row>) => ReactNode;
-}) {
-  const page = previewPage(
-    previewRowsFor(warehouseId),
-    DEFAULT_LEDGER_PAGE_SIZE,
-    cursor,
-  );
-  const state: LedgerPanelState<Row> = page.ok
-    ? {
-        kind: "READY",
-        rows: page.items,
-        nextCursor: page.nextCursor,
-        complete: page.complete,
-        requestId: "preview",
-      }
-    : {
-        kind: "READY",
-        rows: [],
-        nextCursor: null,
-        complete: true,
-        requestId: "preview",
-      };
-
-  /*
-   * Preview reads are recorded too, and carry `preview: true`. An SLI series
-   * that silently mixed synthetic and real reads would be worse than one that
-   * omitted the synthetic ones; a dimension makes them separable.
-   */
-  useLedgerReadSli({ surface, state, preview: true, cursor });
+  useLedgerReadSli({ surface, state, cursor });
 
   return <>{render(state)}</>;
 }

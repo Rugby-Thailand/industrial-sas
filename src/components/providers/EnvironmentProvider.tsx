@@ -7,7 +7,7 @@
  * one reason: tests. `resolveAppEnvironment` is pure and already covered on its
  * own, but a component that reads `process.env` directly can only be tested in
  * whatever environment the test runner happens to have. With a provider, a test
- * renders the "no backend" screen and the "preview" screen in the same file.
+ * renders the "no backend" screen without reading process globals in a component.
  *
  * The default value is the real environment, so a component mounted without a
  * provider — which is every screen in the running application — behaves exactly

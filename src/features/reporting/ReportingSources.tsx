@@ -27,11 +27,6 @@ import {
   type OccupancyCell,
   type ReportJobRow,
 } from "@/lib/convex/reportingApi";
-import {
-  PREVIEW_REPORT_JOBS,
-  previewDashboardTiles,
-  previewOccupancyFor,
-} from "@/lib/preview/reportingPreview";
 
 /** What every reporting source hands its caller. */
 export interface ReportingSourceProps<Value> {
@@ -42,11 +37,11 @@ export interface ReportingSourceProps<Value> {
 function GateOr({
   render,
 }: {
-  readonly render: (warehouseId: string, preview: boolean) => ReactNode;
+  readonly render: (warehouseId: string) => ReactNode;
 }): ReactNode {
   return (
     <QueryGate scope="WAREHOUSE">
-      {(warehouseId, preview) => render(warehouseId, preview)}
+      {(warehouseId) => render(warehouseId)}
     </QueryGate>
   );
 }
@@ -89,13 +84,9 @@ function Answered<Value>({
 export function OperationsCounters(props: ReportingSourceProps<DashboardTile>) {
   return (
     <GateOr
-      render={(warehouseId, preview) =>
-        preview ? (
-          <>{props.children(previewDashboardTiles())}</>
-        ) : (
-          <ServerCounters {...props} warehouseId={warehouseId} />
-        )
-      }
+      render={(warehouseId) => (
+        <ServerCounters {...props} warehouseId={warehouseId} />
+      )}
     />
   );
 }
@@ -132,20 +123,9 @@ export function Occupancy({
 }) {
   return (
     <GateOr
-      render={(warehouseId, preview) =>
-        preview ? (
-          <>
-            {children({
-              cells: previewOccupancyFor(warehouseId),
-              complete: true,
-            })}
-          </>
-        ) : (
-          <ServerOccupancy warehouseId={warehouseId}>
-            {children}
-          </ServerOccupancy>
-        )
-      }
+      render={(warehouseId) => (
+        <ServerOccupancy warehouseId={warehouseId}>{children}</ServerOccupancy>
+      )}
     />
   );
 }
@@ -200,15 +180,9 @@ export function ReportJobs({
 
   return (
     <GateOr
-      render={(warehouseId, preview) =>
-        preview ? (
-          <>{render(PREVIEW_REPORT_JOBS)}</>
-        ) : (
-          <ServerReportJobs warehouseId={warehouseId}>
-            {render}
-          </ServerReportJobs>
-        )
-      }
+      render={(warehouseId) => (
+        <ServerReportJobs warehouseId={warehouseId}>{render}</ServerReportJobs>
+      )}
     />
   );
 }

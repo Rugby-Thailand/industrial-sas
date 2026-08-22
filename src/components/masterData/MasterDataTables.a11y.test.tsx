@@ -9,7 +9,7 @@ import { LocationsTable } from "./LocationsTable";
 import {
   PREVIEW_ITEMS,
   previewLocationsFor,
-} from "@/lib/preview/masterDataPreview";
+} from "@tests/fixtures/data/masterData";
 
 /**
  * `INV-0010-09`, extended to the master-data screens. Checked in both locales

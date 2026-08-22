@@ -12,7 +12,7 @@ import {
 vi.mock("@/i18n/navigation", () => navigationMock);
 
 import {
-  previewEnvironment,
+  testEnvironment,
   renderWithIntl,
   unconfiguredEnvironment,
 } from "../../../tests/fixtures/intl-render";
@@ -27,8 +27,8 @@ import {
   previewBarcodesFor,
   previewItems,
   previewLocationsFor,
-} from "@/lib/preview/masterDataPreview";
-import { previewOrderLinesFor } from "@/lib/preview/inboundPreview";
+} from "@tests/fixtures/data/masterData";
+import { previewOrderLinesFor } from "@tests/fixtures/data/inbound";
 
 import { ReceiptLineForm } from "./InboundForms";
 
@@ -63,7 +63,7 @@ describe("OptionGate", () => {
       >
         {child}
       </OptionGate>,
-      { environment: previewEnvironment },
+      { environment: testEnvironment },
     );
 
   it("says nothing is configured rather than rendering an empty picker", () => {
@@ -107,7 +107,7 @@ describe("LocationChooser", () => {
         label="ตำแหน่งที่รับเข้า"
         placeholder="เลือกตำแหน่งที่รับเข้า"
       />,
-      { environment: previewEnvironment },
+      { environment: testEnvironment },
     );
 
   it("offers the tenant's own locations by code", () => {
@@ -186,7 +186,7 @@ describe("ReceiptDetail in real mode", () => {
     // tenant does not have.
     writeStoredWarehouse(BANG_PU);
     renderWithIntl(<ReceiptDetail receiptId="prv_rcpt_5010" />, {
-      environment: previewEnvironment,
+      environment: testEnvironment,
     });
 
     expect(screen.getByTestId("label-target-missing")).toBeInTheDocument();
@@ -196,7 +196,7 @@ describe("ReceiptDetail in real mode", () => {
   it("offers the label control once the receipt has a pallet", () => {
     writeStoredWarehouse(BANG_PU);
     renderWithIntl(<ReceiptDetail receiptId="prv_rcpt_5001" />, {
-      environment: previewEnvironment,
+      environment: testEnvironment,
     });
 
     expect(screen.getByTestId("form-label")).toBeInTheDocument();
@@ -214,14 +214,14 @@ describe("HandheldReceive in real mode", () => {
      * completes wearing gloves.
      */
     writeStoredWarehouse(BANG_PU);
-    renderWithIntl(<HandheldReceive />, { environment: previewEnvironment });
+    renderWithIntl(<HandheldReceive />, { environment: testEnvironment });
 
     expect(screen.queryByTestId("handheld-receipt-id")).not.toBeInTheDocument();
   });
 
   it("lists the tenant's own open orders to choose from", () => {
     writeStoredWarehouse(BANG_PU);
-    renderWithIntl(<HandheldReceive />, { environment: previewEnvironment });
+    renderWithIntl(<HandheldReceive />, { environment: testEnvironment });
 
     // The fixture's two open orders; the draft is not offered, because a draft
     // has no lines and cannot be received against.
@@ -235,7 +235,7 @@ describe("HandheldReceive in real mode", () => {
 
   it("waits for a receipt before offering the capture step", () => {
     writeStoredWarehouse(BANG_PU);
-    renderWithIntl(<HandheldReceive />, { environment: previewEnvironment });
+    renderWithIntl(<HandheldReceive />, { environment: testEnvironment });
 
     // Nothing chosen yet: the screen says which step is missing.
     expect(screen.getByTestId("handheld-no-order")).toBeInTheDocument();
@@ -246,7 +246,7 @@ describe("HandheldReceive in real mode", () => {
 describe("PutawayWorkbench in real mode", () => {
   it("offers no confirmation until a task is selected", () => {
     writeStoredWarehouse(BANG_PU);
-    renderWithIntl(<PutawayWorkbench />, { environment: previewEnvironment });
+    renderWithIntl(<PutawayWorkbench />, { environment: testEnvironment });
 
     expect(screen.getByTestId("putaway-none-selected")).toBeInTheDocument();
     expect(
@@ -275,7 +275,7 @@ describe("the receipt-line capture form", () => {
         lines={lines}
         locationId="prv_loc_DOCK-IN-1"
       />,
-      { environment: previewEnvironment },
+      { environment: testEnvironment },
     );
   };
 

@@ -11,9 +11,6 @@
  * - **`SAVED`** distinguishes a first write from a replay. A replay is not a
  *   failure and not a duplicate — it is the idempotency key doing its job — and
  *   saying so is what stops someone from "fixing" it by submitting again.
- * - **`DEMONSTRATED`** is preview mode, and it says *nothing was stored* in the
- *   title rather than in a footnote. This is the state a stakeholder is most
- *   likely to misread, so it is the one that gets the plainest wording.
  * - **`DENIED`** shows the request ID and nothing else. The server refuses to
  *   say which permission was missing (`INV-0002-07`), and inventing a reason
  *   here would be a guess that turns the screen into a permission oracle.
@@ -68,13 +65,6 @@ export function WriteOutcomeNotice({ state }: { readonly state: WriteState }) {
               title: t("saved"),
               body: t("savedHint"),
             };
-      case "DEMONSTRATED":
-        return {
-          tone: "accent",
-          role: "status",
-          title: t("demonstrated"),
-          body: t("demonstratedHint"),
-        };
       case "DENIED":
         return {
           tone: "danger",

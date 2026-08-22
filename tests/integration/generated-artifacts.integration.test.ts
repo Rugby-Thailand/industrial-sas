@@ -89,7 +89,7 @@ describe("the end-to-end runner tolerates a missing next-env.d.ts", () => {
      * names neither the suite nor the cause.
      */
     const runner = readFileSync(join(ROOT, "scripts", "run-e2e.mjs"), "utf8");
-    expect(runner).toMatch(/existsSync\(NEXT_ENV\)\s*\?\s*readFileSync/);
-    expect(runner).toContain("if (snapshot === null) return;");
+    expect(runner).toMatch(/existsSync\(nextEnvPath\)[\s\S]*readFileSync/);
+    expect(runner).toContain("if (nextEnv !== undefined)");
   });
 });

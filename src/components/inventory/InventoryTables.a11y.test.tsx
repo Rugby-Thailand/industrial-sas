@@ -9,7 +9,7 @@ import { TransactionsTable } from "./TransactionsTable";
 import {
   PREVIEW_BALANCES,
   PREVIEW_TRANSACTIONS,
-} from "@/lib/preview/ledgerPreview";
+} from "@tests/fixtures/data/ledger";
 
 /**
  * The tables are checked against the preview fixture rather than a two-row

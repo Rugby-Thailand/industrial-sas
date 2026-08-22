@@ -34,12 +34,6 @@ import {
 } from "@/lib/convex/inboundApi";
 import { codeLabel, type CodeTranslator } from "@/lib/domainLabels";
 import { purchaseOrderPath, receiptPath, ROUTES } from "@/lib/navigation";
-import {
-  previewInspectionsFor,
-  previewPurchaseOrdersFor,
-  previewPutawayTasksFor,
-  previewReceiptsFor,
-} from "@/lib/preview/inboundPreview";
 
 import { MasterDataPanel } from "../masterData/MasterDataPanel";
 
@@ -156,7 +150,6 @@ function PurchaseOrderCards() {
       scope="WAREHOUSE"
       paginationLabel={t("ordersPagination")}
       buildArgs={({ warehouseId, cursor }) => args(warehouseId, cursor)}
-      previewRowsFor={previewPurchaseOrdersFor}
       renderRows={(rows) => (
         <CardList count={rows.length}>
           {rows.map((row) => (
@@ -205,7 +198,6 @@ function ReceiptCards() {
       scope="WAREHOUSE"
       paginationLabel={t("receiptsPagination")}
       buildArgs={({ warehouseId, cursor }) => args(warehouseId, cursor)}
-      previewRowsFor={previewReceiptsFor}
       renderRows={(rows) => (
         <CardList count={rows.length}>
           {rows.map((row) => (
@@ -250,7 +242,6 @@ function InspectionCards() {
       scope="WAREHOUSE"
       paginationLabel={t("qualityPagination")}
       buildArgs={({ warehouseId, cursor }) => args(warehouseId, cursor)}
-      previewRowsFor={previewInspectionsFor}
       renderRows={(rows) => (
         <CardList count={rows.length}>
           {rows.map((row) => (
@@ -304,7 +295,6 @@ function PutawayCards() {
       scope="WAREHOUSE"
       paginationLabel={t("putawayPagination")}
       buildArgs={({ warehouseId, cursor }) => args(warehouseId, cursor)}
-      previewRowsFor={previewPutawayTasksFor}
       renderRows={(rows) => (
         <CardList count={rows.length}>
           {rows.map((row) => (

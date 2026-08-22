@@ -18,8 +18,8 @@
  *
  * The registry's own desktop branch is `fixed inset-y-0 h-svh`, an app-shell
  * rail that owns the full viewport height. This shell's header is not decoration
- * — the preview banner, the connection state, and the organization/warehouse
- * context all live above the fold and must not be overlapped — so the rail is
+ * — the organization/warehouse context lives above the fold and must not be
+ * overlapped — so the rail is
  * rendered in flow with `collapsible="none"` and the sheet is composed
  * explicitly. Everything else is the registry's: the provider, the content,
  * group, menu, and menu-button parts, and the Sheet the mobile branch uses.
@@ -30,10 +30,12 @@
  * width, and only the container they sit in changes. The handheld shell is a
  * different route the operator chooses.
  *
- * The rail can collapse to icons on desktop, while keeping every link in the
- * accessibility tree and exposing its label in a tooltip. The registry's
- * `Ctrl`/`Cmd`+`B` accelerator stays disabled because a HID scanner types into
- * the document. Compact widths still use the sheet opener below.
+ * The rail does not collapse on desktop. shadcn ships a collapse toggle and a
+ * `Ctrl`/`Cmd`+`B` accelerator; the accelerator was removed from the vendored
+ * primitive because a HID scanner types into the document, and the toggle is not
+ * offered because a supervisor screen has room for the rail and a nav that can
+ * disappear is a nav somebody loses. The one trigger this shell renders is the
+ * `lg:hidden` sheet opener, which is exactly what the shell had before.
  *
  * ### Skip link
  *
@@ -68,8 +70,6 @@ import {
 } from "lucide-react";
 import { type ReactNode } from "react";
 
-import { ConnectionIndicator } from "@/components/system/ConnectionIndicator";
-import { PreviewBanner } from "@/components/system/PreviewBanner";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -94,6 +94,7 @@ import { Link, usePathname } from "@/i18n/navigation";
 import { DESKTOP_NAVIGATION, isActivePath, ROUTES } from "@/lib/navigation";
 
 import { LocaleSwitcher } from "./LocaleSwitcher";
+import { AccountButton } from "./AccountButton";
 import { WorkspaceContextBar } from "./WorkspaceContextBar";
 
 const MAIN_ID = "main-content";
@@ -111,29 +112,23 @@ export function DesktopShell({ children }: { readonly children: ReactNode }) {
         {t("skipToContent")}
       </a>
 
-      <PreviewBanner />
-
-      <header className="border-b border-border bg-surface">
-        <div className="flex flex-wrap items-center justify-between gap-4 px-4 py-3">
-          <div className="flex items-center gap-3">
-            <NavigationDisclosure />
-          </div>
-          <div className="flex flex-wrap items-center gap-4">
-            <ConnectionIndicator />
-            <LocaleSwitcher />
-          </div>
-        </div>
-        <div className="border-t border-border px-4 py-3">
-          <WorkspaceContextBar />
-        </div>
-      </header>
-
-      <div className="flex min-w-0 flex-1 flex-col lg:flex-row">
+      <div className="flex min-w-0 flex-1">
         <NavigationRegion />
-
-        <main id={MAIN_ID} className="min-w-0 flex-1 p-4 lg:p-6">
-          {children}
-        </main>
+        <div className="flex min-w-0 flex-1 flex-col">
+          <header className="border-b border-border bg-surface px-4 py-3 lg:px-6">
+            <div className="flex flex-wrap items-center gap-4">
+              <NavigationDisclosure />
+              <div className="min-w-0 flex-1">
+                <WorkspaceContextBar />
+              </div>
+              <LocaleSwitcher />
+              <AccountButton />
+            </div>
+          </header>
+          <main id={MAIN_ID} className="min-w-0 flex-1 p-4 lg:p-6">
+            {children}
+          </main>
+        </div>
       </div>
     </SidebarProvider>
   );
@@ -214,12 +209,12 @@ function NavigationRegion() {
   return (
     <Sidebar
       collapsible="none"
-      className={`w-full border-b border-border transition-[width] duration-200 lg:shrink-0 lg:border-r lg:border-b-0 ${
-        collapsed ? "lg:w-16" : "lg:w-56"
+      className={`hidden h-dvh shrink-0 border-r border-border transition-[width] duration-200 lg:flex ${
+        collapsed ? "w-16" : "w-56"
       }`}
     >
       <div
-        className={`hidden h-12 shrink-0 items-center border-b border-sidebar-border px-2 lg:flex ${
+        className={`flex h-12 shrink-0 items-center border-b border-sidebar-border px-2 ${
           collapsed ? "justify-center" : "justify-end"
         }`}
       >

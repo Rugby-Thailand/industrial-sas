@@ -5,17 +5,14 @@
  *
  * Separate from `ImportWorkbench` because the chunk form owns a decision the
  * workbench should not: **when the cursor advances**. On a real deployment the
- * cursor comes from the server's answer, and in preview it advances locally so
- * the resume path can be walked — with a notice that says nothing was stored.
- * Putting both in the workbench would bury that distinction inside a screen that
- * is otherwise about layout.
+ * cursor comes from the server's answer. Keeping that transition here avoids
+ * burying write progress inside a screen that is otherwise about layout.
  */
 import { useTranslations } from "next-intl";
 
 import { useWorkspace } from "@/components/providers/WorkspaceProvider";
 import { LedgerPanelStatus } from "@/components/system/LedgerPanelStatus";
 import { applyPurchaseOrderImportChunkRef } from "@/lib/convex/inboundApi";
-import { DEFAULT_CHUNK_SIZE } from "@/lib/inbound/importChunking";
 
 import { OpenPurchaseOrders } from "./InboundOptions";
 import { EntityWriteForm } from "../masterData/EntityWriteForm";
@@ -106,11 +103,6 @@ export function ImportChunkForm({
               { readonly nextCursor?: number | null } | undefined;
             const next = value?.nextCursor;
             onAdvance(typeof next === "number" ? next : total);
-          }}
-          onDemonstrated={() => {
-            // Preview walks the same arithmetic the server would, so the resume path
-            // is reviewable. The outcome notice says nothing was stored.
-            onAdvance(Math.min(total, cursor + DEFAULT_CHUNK_SIZE));
           }}
         />
       )}

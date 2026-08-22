@@ -37,13 +37,13 @@ describe("redactDimensions", () => {
         outcome: "DENIED",
         surface: "balances",
         latencyBucketMs: 800,
-        preview: false,
+        healthy: false,
       }),
     ).toEqual({
       outcome: "DENIED",
       surface: "balances",
       latencyBucketMs: 800,
-      preview: false,
+      healthy: false,
     });
   });
 
@@ -195,7 +195,6 @@ describe("ledger read SLI", () => {
       ledgerReadEvent({
         surface: "balances",
         outcome: "READY",
-        preview: false,
         occurredAt: 0,
       }).code,
     ).toBe(SLI_CODES.ledgerRead);
@@ -203,7 +202,6 @@ describe("ledger read SLI", () => {
       ledgerReadEvent({
         surface: "balances",
         outcome: "DENIED",
-        preview: false,
         occurredAt: 0,
       }).code,
     ).toBe(SLI_CODES.ledgerReadFailed);
@@ -216,7 +214,6 @@ describe("ledger read SLI", () => {
       ledgerReadEvent({
         surface: "history",
         outcome: "DENIED",
-        preview: false,
         occurredAt: 0,
       }).severity,
     ).toBe("warning");
@@ -224,7 +221,6 @@ describe("ledger read SLI", () => {
       ledgerReadEvent({
         surface: "history",
         outcome: "ERROR",
-        preview: false,
         occurredAt: 0,
       }).severity,
     ).toBe("error");
@@ -232,21 +228,9 @@ describe("ledger read SLI", () => {
       ledgerReadEvent({
         surface: "history",
         outcome: "WAREHOUSE_MISSING",
-        preview: false,
         occurredAt: 0,
       }).severity,
     ).toBe("info");
-  });
-
-  it("marks a preview read so a series can exclude synthetic data", () => {
-    const port = recordingPort();
-    recordLedgerRead(port, {
-      surface: "balances",
-      outcome: "READY",
-      preview: true,
-      occurredAt: 0,
-    });
-    expect(port.events[0]?.dimensions).toMatchObject({ preview: true });
   });
 
   it("buckets the duration and never sends the raw milliseconds", () => {
@@ -255,7 +239,6 @@ describe("ledger read SLI", () => {
       surface: "balances",
       outcome: "READY",
       durationMs: 437,
-      preview: false,
       occurredAt: 0,
     });
 
@@ -270,7 +253,6 @@ describe("ledger read SLI", () => {
     recordLedgerRead(port, {
       surface: "balances",
       outcome: "READY",
-      preview: false,
       occurredAt: 0,
     });
     expect(Object.keys(port.events[0]?.dimensions ?? {})).not.toContain(

@@ -8,7 +8,7 @@ import {
   setMockPathname,
 } from "../../../tests/fixtures/navigation-mock";
 import {
-  previewEnvironment,
+  testEnvironment,
   renderWithIntl,
   unconfiguredEnvironment,
 } from "../../../tests/fixtures/intl-render";
@@ -44,7 +44,7 @@ describe("the warehouse selector", () => {
 
   it("offers the tenant's warehouses in Thai", () => {
     renderWithIntl(<WorkspaceContextBar />, {
-      environment: previewEnvironment,
+      environment: testEnvironment,
       locale: "th",
     });
 
@@ -54,20 +54,19 @@ describe("the warehouse selector", () => {
     ]);
   });
 
-  it("offers the same warehouses in English", () => {
+  it("keeps stored warehouse names stable when the interface is English", () => {
     /*
-     * The same rows, the same IDs, the other language. The label is data on the
-     * warehouse (`B-10`) rather than a translation key, so this is the check
-     * that the *catalogue* and the *record* stay in step.
+     * Names are tenant master data, not catalogue strings. Changing the interface
+     * language must not silently translate a legal site name.
      */
     renderWithIntl(<WorkspaceContextBar />, {
-      environment: previewEnvironment,
+      environment: testEnvironment,
       locale: "en",
     });
 
     expect(selectOptionLabels("Warehouse")).toEqual([
-      "BPU · Bang Pu plant store",
-      "LPN · Lamphun finished goods",
+      "BPU · คลังบางปู",
+      "LPN · คลังลำพูน",
     ]);
   });
 
@@ -75,7 +74,7 @@ describe("the warehouse selector", () => {
     // The selection is the argument the server revalidates on every call
     // (`INV-0006-04`), so choosing has to survive the render that follows it.
     renderWithIntl(<WorkspaceContextBar />, {
-      environment: previewEnvironment,
+      environment: testEnvironment,
       locale: "th",
     });
 
@@ -87,7 +86,7 @@ describe("the warehouse selector", () => {
 
   it("asks for a choice rather than picking one when several sites exist", () => {
     renderWithIntl(<WorkspaceContextBar />, {
-      environment: previewEnvironment,
+      environment: testEnvironment,
       locale: "th",
     });
 

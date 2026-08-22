@@ -17,11 +17,6 @@ const configured: AppEnvironment = resolveAppEnvironment({
   clerkPublishableKey: "pk_test_Zm9vLWJhci0xMy5jbGVyay5hY2NvdW50cy5kZXYk",
 });
 
-const preview: AppEnvironment = resolveAppEnvironment({
-  localPreviewFlag: "1",
-  nodeEnv: "development",
-});
-
 const row: BalanceRow = {
   bucketKey: "IB1|3:org",
   stockStatus: "AVAILABLE",
@@ -65,22 +60,6 @@ describe("resolveLedgerGate", () => {
   it("carries the narrowed warehouse when a query may be issued", () => {
     const gate = resolveLedgerGate(configured, "wh_1");
     expect(gate).toEqual({ kind: "READY_TO_QUERY", warehouseId: "wh_1" });
-  });
-
-  /*
-   * Preview mode is the reason both configuration checks are conditional. It
-   * has to reach the rows without a deployment or an identity provider — and it
-   * must still refuse without a warehouse, because a preview that ignored the
-   * selector would not be exercising the real screen.
-   */
-  it("lets preview mode through with neither dependency configured", () => {
-    expect(resolveLedgerGate(preview, "prv_wh_bangpoo")).toEqual({
-      kind: "READY_TO_QUERY",
-      warehouseId: "prv_wh_bangpoo",
-    });
-    expect(resolveLedgerGate(preview, undefined).kind).toBe(
-      "WAREHOUSE_MISSING",
-    );
   });
 });
 

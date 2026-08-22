@@ -11,7 +11,6 @@
  * | `IDLE`         | Nothing submitted yet.                                       |
  * | `SUBMITTING`   | Sent; no answer.                                             |
  * | `SAVED`        | The server wrote it, and says whether this was a replay.      |
- * | `DEMONSTRATED` | Preview mode. The form works; **nothing was sent or stored**. |
  * | `DENIED`       | Authorization refused (`INV-0006-01`). Generic, by contract.  |
  * | `REFUSED`      | Authorized, but the write itself was rejected (field, key).   |
  * | `FAILED`       | Transport or unknown. The write **may or may not** have run.  |
@@ -42,28 +41,21 @@ import type { AppEnvironment } from "../environment";
 /**
  * What can be decided before a mutation is issued.
  *
- * `PREVIEW` is first and is not a degraded `READY`. Preview mode has no
- * deployment and no identity, so a write cannot be attempted at all; the form
- * still renders and still validates, and the outcome says plainly that nothing
- * was stored. Ordering `PREVIEW` after the configuration checks would show
- * "not configured" on a screen whose entire point is to be usable without one.
+ * A real write is offered only when backend and identity are configured.
  */
 export type WriteGate =
-  | { readonly kind: "PREVIEW" }
   | { readonly kind: "BACKEND_MISSING" }
   | { readonly kind: "SIGN_IN_REQUIRED" }
   | { readonly kind: "READY" };
 
 export function resolveWriteGate(environment: AppEnvironment): WriteGate {
-  if (environment.previewMode) return { kind: "PREVIEW" };
   if (!environment.backendConfigured) return { kind: "BACKEND_MISSING" };
   if (!environment.identityConfigured) return { kind: "SIGN_IN_REQUIRED" };
   return { kind: "READY" };
 }
 
 /** Whether a gate permits a real mutation to be sent. */
-export const canSubmit = (gate: WriteGate): boolean =>
-  gate.kind === "READY" || gate.kind === "PREVIEW";
+export const canSubmit = (gate: WriteGate): boolean => gate.kind === "READY";
 
 /* -------------------------------------------------------------------------- */
 /* State                                                                       */
@@ -78,7 +70,6 @@ export type WriteState =
       /** True when the server recognised the request ID and did not re-run. */
       readonly replayed: boolean;
     }
-  | { readonly kind: "DEMONSTRATED" }
   | { readonly kind: "DENIED"; readonly requestId: string }
   | {
       readonly kind: "REFUSED";
@@ -139,10 +130,7 @@ export function toWriteState(input: {
  * a network blip becomes a duplicate row.
  */
 export const isTerminal = (state: WriteState): boolean =>
-  state.kind === "SAVED" ||
-  state.kind === "DENIED" ||
-  state.kind === "REFUSED" ||
-  state.kind === "DEMONSTRATED";
+  state.kind === "SAVED" || state.kind === "DENIED" || state.kind === "REFUSED";
 
 /** Whether a control should be disabled because a request is outstanding. */
 export const isBusy = (state: WriteState): boolean =>

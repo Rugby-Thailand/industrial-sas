@@ -79,7 +79,6 @@ export function recordLedgerRead(
     readonly outcome: LedgerReadOutcome;
     readonly durationMs?: number;
     readonly requestId?: string;
-    readonly preview: boolean;
     readonly occurredAt: number;
   },
 ): void {
@@ -92,7 +91,6 @@ export function ledgerReadEvent(input: {
   readonly outcome: LedgerReadOutcome;
   readonly durationMs?: number;
   readonly requestId?: string;
-  readonly preview: boolean;
   readonly occurredAt: number;
 }): ObservabilityEvent {
   return observabilityEvent({
@@ -110,7 +108,6 @@ export function ledgerReadEvent(input: {
     dimensions: {
       surface: input.surface,
       outcome: input.outcome,
-      preview: input.preview,
       ...(input.durationMs === undefined
         ? {}
         : { latencyBucketMs: latencyBucketMs(input.durationMs) }),

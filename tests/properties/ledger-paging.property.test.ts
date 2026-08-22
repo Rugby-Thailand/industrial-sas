@@ -11,7 +11,7 @@ import {
   type CursorState,
 } from "../../src/lib/convex/pagination";
 import type { LedgerPage } from "../../src/lib/convex/ledgerApi";
-import { previewPage } from "../../src/lib/preview/ledgerPreview";
+import { previewPage } from "@tests/fixtures/data/ledger";
 
 /**
  * Paging is a fold over a list, and folds are where off-by-one defects live.

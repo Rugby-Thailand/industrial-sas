@@ -6,14 +6,14 @@ import { navigationMock } from "../../../tests/fixtures/navigation-mock";
 vi.mock("@/i18n/navigation", () => navigationMock);
 
 import {
-  previewEnvironment,
+  testEnvironment,
   renderWithIntl,
 } from "../../../tests/fixtures/intl-render";
 import { writeStoredWarehouse } from "@/lib/workspace/warehouseStore";
 
 import { PurchaseOrderDetail } from "./PurchaseOrderDetail";
 
-import { previewOrderLinesFor } from "@/lib/preview/inboundPreview";
+import { previewOrderLinesFor } from "@tests/fixtures/data/inbound";
 
 const BANG_PU = "prv_wh_bangpoo";
 
@@ -31,7 +31,7 @@ describe("PurchaseOrderDetail", () => {
     writeStoredWarehouse(BANG_PU);
     return renderWithIntl(
       <PurchaseOrderDetail purchaseOrderId="prv_po_2601" />,
-      { locale, environment: previewEnvironment },
+      { locale, environment: testEnvironment },
     );
   };
 

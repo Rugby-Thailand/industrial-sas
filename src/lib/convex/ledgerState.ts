@@ -138,10 +138,10 @@ export function resolveLedgerGate(
   warehouseId: string | undefined,
   scope: ReadScope = "WAREHOUSE",
 ): LedgerGate {
-  if (!environment.backendConfigured && !environment.previewMode) {
+  if (!environment.backendConfigured) {
     return { kind: "BACKEND_MISSING" };
   }
-  if (!environment.identityConfigured && !environment.previewMode) {
+  if (!environment.identityConfigured) {
     return { kind: "SIGN_IN_REQUIRED" };
   }
   if (scope === "ORG") return { kind: "READY_TO_QUERY", warehouseId: "" };

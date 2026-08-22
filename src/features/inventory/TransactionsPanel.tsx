@@ -9,7 +9,6 @@ import {
   listTransactionsRef,
   type TransactionRow,
 } from "@/lib/convex/ledgerApi";
-import { previewTransactionsFor } from "@/lib/preview/ledgerPreview";
 
 import { LedgerPanel } from "./LedgerPanel";
 
@@ -17,7 +16,6 @@ export function TransactionsPanel() {
   return (
     <LedgerPanel<TransactionRow>
       queryRef={listTransactionsRef}
-      previewRowsFor={previewTransactionsFor}
       surface="history"
       renderRows={(rows) => <TransactionsTable rows={rows} />}
     />

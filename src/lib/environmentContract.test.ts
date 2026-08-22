@@ -70,36 +70,6 @@ describe("validateEnvironment", () => {
     ]);
   });
 
-  /*
-   * The three rules that actually stop an incident, rather than a missing
-   * variable that would have shown up on the first page load anyway.
-   */
-  it("refuses local preview data in staging and production", () => {
-    for (const environmentClass of ["staging", "production"] as const) {
-      const report = validateEnvironment(environmentClass, {
-        ...deployed(environmentClass),
-        NEXT_PUBLIC_LOCAL_PREVIEW: "1",
-      });
-      expect(
-        errorsOf(report).map((finding) => [finding.variable, finding.rule]),
-      ).toContainEqual(["NEXT_PUBLIC_LOCAL_PREVIEW", "FORBIDDEN_PRESENT"]);
-    }
-  });
-
-  it("allows local preview data in developer and preview classes", () => {
-    for (const environmentClass of ["developer", "preview"] as const) {
-      const report = validateEnvironment(environmentClass, {
-        ...(environmentClass === "preview" ? deployed("preview") : {}),
-        NEXT_PUBLIC_LOCAL_PREVIEW: "1",
-        NEXT_PUBLIC_CONVEX_URL: "https://x.convex.cloud",
-        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_x",
-      });
-      expect(errorsOf(report).map((finding) => finding.variable)).not.toContain(
-        "NEXT_PUBLIC_LOCAL_PREVIEW",
-      );
-    }
-  });
-
   it("refuses a developer deployment name in a deployed environment", () => {
     // `CONVEX_DEPLOYMENT` is written by `convex dev`. In a build it means a
     // laptop's deployment leaked into a deployed artifact.

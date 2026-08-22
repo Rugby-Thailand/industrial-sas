@@ -31,34 +31,11 @@ export function SimilarDesignCandidates({
       </Button>
       {open ? (
         <QueryGate scope="ORG">
-          {(_, preview) => (
-            <CandidateResults
-              designRequestId={designRequestId}
-              previewMode={preview}
-            />
-          )}
+          {() => <ServerCandidates designRequestId={designRequestId} />}
         </QueryGate>
       ) : null}
     </div>
   );
-}
-
-function CandidateResults({
-  designRequestId,
-  previewMode,
-}: {
-  readonly designRequestId: string;
-  readonly previewMode: boolean;
-}) {
-  const t = useTranslations("OrderToShip");
-  if (previewMode) {
-    return (
-      <p className="mt-3 rounded border border-border bg-raised p-3 text-sm text-muted">
-        {t("previewSimilarityCandidates")}
-      </p>
-    );
-  }
-  return <ServerCandidates designRequestId={designRequestId} />;
 }
 
 function ServerCandidates({

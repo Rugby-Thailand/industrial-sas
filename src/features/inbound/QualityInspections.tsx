@@ -25,7 +25,6 @@ import {
   submitDispositionRef,
   type InspectionRow,
 } from "@/lib/convex/inboundApi";
-import { previewInspectionsFor } from "@/lib/preview/inboundPreview";
 
 import { MasterDataPanel } from "../masterData/MasterDataPanel";
 import { EntityWriteForm } from "../masterData/EntityWriteForm";
@@ -49,7 +48,6 @@ export function InspectionsPanel({
       queryRef={listInspectionsRef}
       scope="WAREHOUSE"
       buildArgs={({ warehouseId, cursor }) => pageArgs(warehouseId, cursor)}
-      previewRowsFor={previewInspectionsFor}
       renderRows={(rows) => (
         <InspectionsTable
           rows={rows}

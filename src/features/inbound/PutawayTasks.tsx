@@ -23,7 +23,6 @@ import {
   listPutawayTasksRef,
   type PutawayTaskRow,
 } from "@/lib/convex/inboundApi";
-import { previewPutawayTasksFor } from "@/lib/preview/inboundPreview";
 
 import { MasterDataPanel } from "../masterData/MasterDataPanel";
 import { EntityWriteForm } from "../masterData/EntityWriteForm";
@@ -47,7 +46,6 @@ export function PutawayTasksPanel({
       queryRef={listPutawayTasksRef}
       scope="WAREHOUSE"
       buildArgs={({ warehouseId, cursor }) => pageArgs(warehouseId, cursor)}
-      previewRowsFor={previewPutawayTasksFor}
       renderRows={(rows) => (
         <RowWriteRegion mutationRef={claimPutawayTaskRef}>
           {({ submit, busy }) => (

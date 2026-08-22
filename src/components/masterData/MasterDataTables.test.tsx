@@ -9,7 +9,7 @@ import { LocationsTable } from "./LocationsTable";
 import {
   PREVIEW_ITEMS,
   previewLocationsFor,
-} from "@/lib/preview/masterDataPreview";
+} from "@tests/fixtures/data/masterData";
 
 describe("ItemsTable", () => {
   it("is a real table with a caption and column headers", () => {

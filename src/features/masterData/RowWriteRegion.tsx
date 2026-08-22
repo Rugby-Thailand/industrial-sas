@@ -72,25 +72,7 @@ export function RowWriteRegion<Args extends Record<string, unknown>>(
   if (gate.kind === "BACKEND_MISSING" || gate.kind === "SIGN_IN_REQUIRED") {
     return <LedgerPanelStatus state={{ kind: gate.kind }} />;
   }
-  if (gate.kind === "PREVIEW") return <PreviewRegion {...props} />;
   return <ServerRegion {...props} />;
-}
-
-function PreviewRegion<Args extends Record<string, unknown>>({
-  children,
-}: RowWriteRegionProps<Args>) {
-  const [state, setState] = useState<WriteState>(IDLE);
-
-  return (
-    <div className="flex flex-col gap-4">
-      <WriteOutcomeNotice state={state} />
-      {children({
-        submit: () => setState({ kind: "DEMONSTRATED" }),
-        state,
-        busy: false,
-      })}
-    </div>
-  );
 }
 
 function ServerRegion<Args extends Record<string, unknown>>({

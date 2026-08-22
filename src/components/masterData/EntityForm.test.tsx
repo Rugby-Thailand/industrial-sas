@@ -223,13 +223,6 @@ describe("WriteOutcomeNotice", () => {
     expect(replay.getByText("บันทึกไว้แล้วก่อนหน้านี้")).toBeInTheDocument();
   });
 
-  it("says in the title that preview mode stored nothing", () => {
-    renderWithIntl(<WriteOutcomeNotice state={{ kind: "DEMONSTRATED" }} />);
-    expect(screen.getByTestId("write-DEMONSTRATED")).toHaveTextContent(
-      "ไม่ได้บันทึกข้อมูล",
-    );
-  });
-
   it("quotes the request ID on a denial and explains nothing further", () => {
     // The server refuses to say which permission was missing (`INV-0002-07`).
     renderWithIntl(

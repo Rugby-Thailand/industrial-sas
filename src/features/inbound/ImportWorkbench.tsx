@@ -29,7 +29,6 @@ import {
   ImportRejectedTable,
 } from "@/components/inbound/InboundTables";
 import { EntityForm } from "@/components/masterData/EntityForm";
-import { useAppEnvironment } from "@/components/providers/EnvironmentProvider";
 import { LedgerPanelStatus } from "@/components/system/LedgerPanelStatus";
 import { QueryGate } from "@/components/system/QueryGate";
 import { Notice } from "@/components/ui/Notice";
@@ -37,10 +36,6 @@ import {
   previewPurchaseOrderImportRef,
   type ImportPreviewOutcome,
 } from "@/lib/convex/inboundApi";
-import {
-  PREVIEW_IMPORT_TEXT,
-  previewImportOutcome,
-} from "@/lib/preview/inboundPreview";
 
 import { ImportChunkForm, InboundSectionHeading } from "./ImportWorkbenchParts";
 
@@ -64,8 +59,6 @@ function ReadyImportWorkbench({
 }) {
   const t = useTranslations("Purchasing");
   const writeT = useTranslations("Write");
-  const environment = useAppEnvironment();
-
   const [request, setRequest] = useState<Request | undefined>(undefined);
   const [cursor, setCursor] = useState(0);
 
@@ -106,10 +99,7 @@ function ReadyImportWorkbench({
               required: true,
               monospace: true,
               hint: t("importTextHint"),
-              // Seeded in preview so a reviewer has something to check without
-              // typing a CSV by hand; empty otherwise, because a real operator's
-              // file is their own.
-              initialValue: environment.previewMode ? PREVIEW_IMPORT_TEXT : "",
+              initialValue: "",
             },
           ]}
           onSubmit={(values) => {
@@ -152,18 +142,6 @@ function ImportResult({
   readonly cursor: number;
   readonly onAdvance: (next: number) => void;
 }) {
-  const environment = useAppEnvironment();
-
-  if (environment.previewMode) {
-    return (
-      <ImportResultBody
-        outcome={previewImportOutcome(request.batchRef)}
-        request={request}
-        cursor={cursor}
-        onAdvance={onAdvance}
-      />
-    );
-  }
   return (
     <ServerImportResult
       warehouseId={warehouseId}
@@ -223,8 +201,6 @@ function ImportResultBody({
   readonly onAdvance: (next: number) => void;
 }) {
   const t = useTranslations("Purchasing");
-  const environment = useAppEnvironment();
-
   if (!outcome.ok) {
     // A whole-file refusal: a missing header column, an unterminated quote, a
     // file past the row bound. The code is what an operator quotes.
@@ -282,22 +258,12 @@ function ImportResultBody({
       {outcome.empty ? null : (
         <section className="flex flex-col gap-4">
           <InboundSectionHeading title={t("importApplyLegend")} />
-          {/*
-           * The counter is worded differently in preview, and that is not
-           * decoration: nothing was written, so "written so far" would be false.
-           * Preview walks the same arithmetic so the resume path is reviewable,
-           * and says so.
-           */}
           <Notice
             tone={complete ? "success" : "accent"}
             title={
-              environment.previewMode
-                ? complete
-                  ? t("importCompletePreview")
-                  : t("importProgressPreview", { applied: cursor, total })
-                : complete
-                  ? t("importComplete")
-                  : t("importProgress", { applied: cursor, total })
+              complete
+                ? t("importComplete")
+                : t("importProgress", { applied: cursor, total })
             }
             testId="import-progress"
           />

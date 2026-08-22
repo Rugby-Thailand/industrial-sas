@@ -26,7 +26,6 @@ import {
   OpenOrderLines,
   OpenPurchaseOrders,
   ReceivingLocations,
-  useDemonstrationReceiptId,
 } from "./InboundOptions";
 import { OpenReceiptForm, ReceiptLineForm } from "./InboundForms";
 import { InboundSection } from "./InboundPrimitives";
@@ -41,14 +40,6 @@ export function HandheldReceive() {
   const [order, setOrder] = useState<PurchaseOrderRow | undefined>(undefined);
   const [receiptId, setReceiptId] = useState<string | undefined>(undefined);
   const [locationId, setLocationId] = useState<string | undefined>(undefined);
-  /*
-   * Whether the receipt below came from a write or from a demonstration. Kept
-   * separately from the ID so the capture step can say which it is: a walkthrough
-   * that looked identical to a real receipt would be the dishonest version of
-   * this screen.
-   */
-  const [demonstrated, setDemonstrated] = useState(false);
-  const demonstrationReceiptId = useDemonstrationReceiptId();
 
   return (
     <div className="flex flex-col gap-6" data-testid="handheld-receive">
@@ -79,7 +70,6 @@ export function HandheldReceive() {
                       // A different order means a different receipt; carrying the
                       // old one over would post lines onto the wrong document.
                       setReceiptId(undefined);
-                      setDemonstrated(false);
                     }}
                     className="w-full justify-start border-2 py-2 text-base"
                   >
@@ -111,18 +101,6 @@ export function HandheldReceive() {
                */
               onOpened={(opened) => {
                 setReceiptId(opened);
-                setDemonstrated(false);
-              }}
-              /*
-               * Preview writes nothing, so there is no ID to carry — and stopping
-               * here would leave capture, the step an operator actually spends
-               * their shift in, unreachable on the shell it was designed for. The
-               * walkthrough continues against a receipt that already exists in the
-               * fixture, and the next section says so.
-               */
-              onDemonstrated={() => {
-                setReceiptId(demonstrationReceiptId);
-                setDemonstrated(demonstrationReceiptId !== undefined);
               }}
             />
           </InboundSection>
@@ -143,16 +121,6 @@ export function HandheldReceive() {
               >
                 {(locations) => (
                   <div className="flex flex-col gap-4">
-                    {demonstrated ? (
-                      <Notice
-                        tone="accent"
-                        title={t("demonstrationReceipt")}
-                        body={t("demonstrationReceiptHint", {
-                          receiptId: receiptId ?? "",
-                        })}
-                        testId="handheld-demonstration-receipt"
-                      />
-                    ) : null}
                     <LocationChooser
                       locations={locations}
                       value={locationId ?? locations[0]?.locationId ?? ""}

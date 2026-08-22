@@ -198,13 +198,12 @@ in Thai and English, on the page, next to the field.
 `src/lib/convex/writeState.ts` names every ending a write can have, because a
 screen that collapses two of them lies to an operator:
 
-| State          | What is actually true                                              |
-| -------------- | ------------------------------------------------------------------ |
-| `SAVED`        | The server wrote it, and says whether this was a replay.           |
-| `DEMONSTRATED` | Preview mode. The form works; **nothing was sent or stored**.      |
-| `DENIED`       | Authorization refused. Generic, by contract; quote the request ID. |
-| `REFUSED`      | Authorized, but the write was rejected — a field, a duplicate key. |
-| `FAILED`       | Transport or unknown. The write **may or may not** have run.       |
+| State     | What is actually true                                              |
+| --------- | ------------------------------------------------------------------ |
+| `SAVED`   | The server wrote it, and says whether this was a replay.           |
+| `DENIED`  | Authorization refused. Generic, by contract; quote the request ID. |
+| `REFUSED` | Authorized, but the write was rejected — a field, a duplicate key. |
+| `FAILED`  | Transport or unknown. The write **may or may not** have run.       |
 
 `FAILED` is the one that earns the module. A network failure after the mutation
 reached the server is indistinguishable from one before it, so the screen does
@@ -220,22 +219,6 @@ first row's key with different arguments would produce
 A replay is reported as a replay (`savedReplayed`), not as a fresh save. It is the
 idempotency key doing its job, and saying so is what stops an operator "fixing"
 it by submitting again.
-
-## Preview mode
-
-With `NEXT_PUBLIC_LOCAL_PREVIEW=1` outside production, the screens render
-synthetic rows from `src/lib/preview/masterDataPreview.ts`. Every identifier is
-`prv_`-prefixed and the preview banner is on every screen.
-
-The forms are fully operable and **nothing is stored**. A submission validates,
-then reports `DEMONSTRATED` — whose title says nothing was saved — and leaves the
-typed values on screen, because clearing them would imply a save. No local array
-is appended to, because a preview that quietly grew a register would demonstrate
-a system this repository does not have.
-
-The preview GTIN carries a **valid** check digit. A made-up number would
-demonstrate a row the real server would refuse, and would quietly teach that the
-check does not exist.
 
 ## Permissions added with this slice
 

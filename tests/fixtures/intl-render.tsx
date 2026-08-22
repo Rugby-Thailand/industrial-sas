@@ -17,6 +17,7 @@ import { render, type RenderResult } from "@testing-library/react";
 import type { ReactElement } from "react";
 
 import { EnvironmentProvider } from "@/components/providers/EnvironmentProvider";
+import { WorkspaceProvider } from "@/components/providers/WorkspaceProvider";
 import { messagesFor } from "@/i18n/messages";
 import { DEFAULT_TIME_ZONE, type AppLocale } from "@/i18n/routing";
 import { resolveAppEnvironment, type AppEnvironment } from "@/lib/environment";
@@ -32,21 +33,25 @@ export const unconfiguredEnvironment: AppEnvironment = resolveAppEnvironment(
   {},
 );
 
-/** Local preview data, as `next dev` with the opt-in set produces it. */
-export const previewEnvironment: AppEnvironment = resolveAppEnvironment({
-  localPreviewFlag: "1",
-  nodeEnv: "development",
-});
+/** Configured test environment backed by the test-only Convex hook fixture. */
+export const testEnvironment: AppEnvironment = configuredEnvironment;
 
 export function renderWithIntl(
   ui: ReactElement,
   options: {
     readonly locale?: AppLocale;
     readonly environment?: AppEnvironment;
+    readonly workspace?: boolean;
   } = {},
 ): RenderResult {
   const locale = options.locale ?? "th";
   const environment = options.environment ?? unconfiguredEnvironment;
+  const content =
+    environment === configuredEnvironment && options.workspace !== false ? (
+      <WorkspaceProvider>{ui}</WorkspaceProvider>
+    ) : (
+      ui
+    );
 
   return render(
     <NextIntlClientProvider
@@ -54,7 +59,9 @@ export function renderWithIntl(
       messages={messagesFor(locale)}
       timeZone={DEFAULT_TIME_ZONE}
     >
-      <EnvironmentProvider environment={environment}>{ui}</EnvironmentProvider>
+      <EnvironmentProvider environment={environment}>
+        {content}
+      </EnvironmentProvider>
     </NextIntlClientProvider>,
   );
 }

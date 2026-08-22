@@ -21,7 +21,6 @@ import { Notice } from "@/components/ui/Notice";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { resolveScanToItemRef } from "@/lib/convex/masterDataApi";
-import { previewResolveScan } from "@/lib/preview/masterDataPreview";
 
 import { CatalogueGate } from "./CatalogueOptions";
 
@@ -59,17 +58,11 @@ export function ScanToItem({
 }) {
   return (
     <CatalogueGate
-      render={(preview) =>
-        preview ? (
-          <PreviewScanToItem label={label} hint={hint}>
-            {children}
-          </PreviewScanToItem>
-        ) : (
-          <ServerScanToItem label={label} hint={hint}>
-            {children}
-          </ServerScanToItem>
-        )
-      }
+      render={() => (
+        <ServerScanToItem label={label} hint={hint}>
+          {children}
+        </ServerScanToItem>
+      )}
     />
   );
 }
@@ -78,24 +71,6 @@ interface ScanBranchProps {
   readonly label: string;
   readonly hint: string;
   readonly children: (scanned: ScannedItem | undefined) => ReactNode;
-}
-
-function PreviewScanToItem({ label, hint, children }: ScanBranchProps) {
-  const [scan, setScan] = useState("");
-  const resolved = scan === "" ? undefined : previewResolveScan(scan);
-
-  return (
-    <ScanShell
-      label={label}
-      hint={hint}
-      onScan={setScan}
-      // Preview resolves from the fixture the moment the scan is entered, so
-      // there is no in-flight state to report.
-      miss={scan !== "" && resolved === undefined}
-    >
-      {children(resolved)}
-    </ScanShell>
-  );
 }
 
 function ServerScanToItem({ label, hint, children }: ScanBranchProps) {

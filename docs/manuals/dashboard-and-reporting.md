@@ -219,13 +219,9 @@ does too. A production-scale export needs the storage vendor.
 
 ## What is deliberately absent
 
-**A reachable real-mode advance control.** Outside preview the workspace resolves
-no warehouse list until an identity provider exists, so the demonstrated branch is
-what renders today. `ServerAdvance` is the component that runs the moment a tenant
-resolves; it handles all four endings — ran, refused with the server's code,
-denied with a request ID, or a transport failure where pressing again is right —
-each announced through `role="alert"`, because the answer arrives after the press
-and a screen-reader user has already moved on.
+**A reachable advance control requires a provisioned tenant.** `ServerAdvance`
+runs once the workspace resolves; it handles ran, refused, denied, and transport
+failure outcomes, each announced through `role="alert"`.
 
 **A scheduled runner.** Chunks are advanced by a control the operator presses,
 one bounded page per press, with the row count moving where they can see it. The

@@ -1,9 +1,9 @@
-import { fireEvent, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import {
   configuredEnvironment,
-  previewEnvironment,
+  testEnvironment,
   renderWithIntl,
   unconfiguredEnvironment,
 } from "../../../tests/fixtures/intl-render";
@@ -59,55 +59,6 @@ describe("EntityWriteForm gating", () => {
     supplierForm(backendOnlyEnvironment);
     expect(screen.getByTestId("panel-SIGN_IN_REQUIRED")).toBeInTheDocument();
   });
-
-  it("renders the form in preview mode, where neither is configured", () => {
-    // Preview is checked before the configuration gates on purpose: it has no
-    // backend and no identity, and "not configured" would be the wrong answer
-    // on the one screen built to work without either.
-    supplierForm(previewEnvironment);
-    expect(screen.getByRole("button", { name: "บันทึก" })).toBeInTheDocument();
-  });
-});
-
-describe("EntityWriteForm in preview mode", () => {
-  it("says plainly that nothing was stored", () => {
-    supplierForm(previewEnvironment);
-
-    fireEvent.change(screen.getByLabelText("รหัส"), {
-      target: { value: "NEW-SUP" },
-    });
-    fireEvent.change(screen.getByLabelText("ชื่อ"), {
-      target: { value: "ผู้ขายใหม่" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "บันทึก" }));
-
-    expect(screen.getByTestId("write-DEMONSTRATED")).toHaveTextContent(
-      "ไม่ได้บันทึกข้อมูล",
-    );
-  });
-
-  it("keeps the typed values, because clearing them would imply a save", () => {
-    supplierForm(previewEnvironment);
-
-    fireEvent.change(screen.getByLabelText("รหัส"), {
-      target: { value: "NEW-SUP" },
-    });
-    fireEvent.change(screen.getByLabelText("ชื่อ"), {
-      target: { value: "ผู้ขายใหม่" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "บันทึก" }));
-
-    expect(screen.getByLabelText("รหัส")).toHaveValue("NEW-SUP");
-  });
-
-  it("still refuses an incomplete form, so the flow is the real one", () => {
-    supplierForm(previewEnvironment);
-
-    fireEvent.click(screen.getByRole("button", { name: "บันทึก" }));
-
-    expect(screen.queryByTestId("write-DEMONSTRATED")).not.toBeInTheDocument();
-    expect(screen.getAllByText("ต้องกรอกช่องนี้")).toHaveLength(2);
-  });
 });
 
 describe("RowWriteRegion", () => {
@@ -131,13 +82,6 @@ describe("RowWriteRegion", () => {
       { environment },
     );
 
-  it("demonstrates the control in preview without sending anything", () => {
-    region(previewEnvironment);
-
-    fireEvent.click(screen.getByRole("button", { name: "ปิดใช้งาน" }));
-    expect(screen.getByTestId("write-DEMONSTRATED")).toBeInTheDocument();
-  });
-
   it("explains a missing backend rather than rendering a dead control", () => {
     region(unconfiguredEnvironment);
 
@@ -145,11 +89,6 @@ describe("RowWriteRegion", () => {
     expect(
       screen.queryByRole("button", { name: "ปิดใช้งาน" }),
     ).not.toBeInTheDocument();
-  });
-
-  it("is quiet until the operator presses something", () => {
-    region(previewEnvironment);
-    expect(screen.queryByTestId("write-DEMONSTRATED")).not.toBeInTheDocument();
   });
 });
 
@@ -172,7 +111,7 @@ describe("LocationForm preconditions", () => {
   it("asks for a warehouse once the environment can answer for one", () => {
     // Preview mode has warehouses to choose from, so the selection is now the
     // real precondition rather than a symptom of an unconfigured machine.
-    renderWithIntl(<LocationForm />, { environment: previewEnvironment });
+    renderWithIntl(<LocationForm />, { environment: testEnvironment });
 
     expect(screen.getByTestId("panel-WAREHOUSE_MISSING")).toBeInTheDocument();
   });
@@ -188,6 +127,5 @@ describe("a configured deployment", () => {
      */
     expect(configuredEnvironment.backendConfigured).toBe(true);
     expect(configuredEnvironment.identityConfigured).toBe(true);
-    expect(configuredEnvironment.previewMode).toBe(false);
   });
 });
