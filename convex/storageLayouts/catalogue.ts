@@ -1,93 +1,18 @@
 import { v } from "convex/values";
 
-import type { TenantOrgId } from "../lib/tenantDb";
+import type { Doc } from "../_generated/dataModel";
 import {
   queryWithOrg,
   type TenantFunctionContext,
 } from "../lib/tenantFunctions";
 import { storageLayoutStatus } from "../lib/validators";
 
-interface BuildingDocument {
-  readonly _id: string;
-  readonly orgId: TenantOrgId;
-  readonly warehouseId: string;
-  readonly code: string;
-  readonly name: string;
-  readonly widthMm: number;
-  readonly depthMm: number;
-  readonly defaultFloorHeightMm: number;
-  readonly floorCount: number;
-  readonly totalHeightMm: number;
-  readonly grossAreaSqMm: number;
-  readonly reservedAreaSqMm: number;
-  readonly usableAreaSqMm: number;
-  readonly status: "DRAFT" | "ACTIVE" | "ARCHIVED";
-  readonly version: number;
-}
-
-interface FloorDocument {
-  readonly _id: string;
-  readonly orgId: TenantOrgId;
-  readonly buildingId: string;
-  readonly warehouseId: string;
-  readonly floorNumber: number;
-  readonly widthMm?: number;
-  readonly depthMm?: number;
-  readonly heightMm?: number;
-  readonly offsetXMm?: number;
-  readonly offsetYMm?: number;
-  readonly grossAreaSqMm: number;
-  readonly reservedAreaSqMm: number;
-  readonly usableAreaSqMm: number;
-  readonly version: number;
-}
-
-interface BlockDocument {
-  readonly _id: string;
-  readonly orgId: TenantOrgId;
-  readonly buildingId: string;
-  readonly floorId: string;
-  readonly warehouseId: string;
-  readonly label: string;
-  readonly xMm: number;
-  readonly yMm: number;
-  readonly widthMm: number;
-  readonly depthMm: number;
-}
-
-interface ZoneDocument {
-  readonly _id: string;
-  readonly orgId: TenantOrgId;
-  readonly locationId: string;
-  readonly code: string;
-  readonly label: string;
-  readonly qrValue: string;
-  readonly xMm: number;
-  readonly yMm: number;
-  readonly widthMm: number;
-  readonly depthMm: number;
-  readonly maxStackHeightMm: number;
-  readonly status: "ACTIVE" | "INACTIVE";
-}
-
-interface PlacementDocument {
-  readonly _id: string;
-  readonly orgId: TenantOrgId;
-  readonly handlingUnitId: string;
-  readonly levelIndex: number;
-  readonly widthMm: number;
-  readonly depthMm: number;
-  readonly heightMm: number;
-  readonly orientation: "DEFAULT" | "ROTATED";
-  readonly placedAt: number;
-}
-
-interface HandlingUnitDocument {
-  readonly _id: string;
-  readonly orgId: TenantOrgId;
-  readonly lpn: string;
-  readonly currentLocationId?: string;
-}
+type BuildingDocument = Doc<"storageBuildings">;
+type FloorDocument = Doc<"storageFloors">;
+type BlockDocument = Doc<"storageFloorReservedBlocks">;
+type ZoneDocument = Doc<"storageZones">;
+type PlacementDocument = Doc<"storageStackPlacements">;
+type HandlingUnitDocument = Doc<"handlingUnits">;
 
 const buildingArgs = {
   warehouseId: v.id("warehouses"),

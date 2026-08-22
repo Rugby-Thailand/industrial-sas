@@ -25,6 +25,7 @@
  */
 import { v } from "convex/values";
 
+import type { Doc } from "../_generated/dataModel";
 import {
   CODE_FIELD,
   createMasterDataRow,
@@ -38,10 +39,10 @@ import {
   pageOf,
   pageOptions,
   pageRefusal,
+  pageResult,
   pageRequestOf,
 } from "../lib/listEnvelope";
 import { mutationWithOrg, queryWithOrg } from "../lib/tenantFunctions";
-import type { TenantOrgId } from "../lib/tenantDb";
 import { masterDataStatus } from "../lib/validators";
 import {
   refusal,
@@ -71,13 +72,7 @@ export const SALES_CUSTOMER_OPERATIONS = Object.freeze({
 /* Documents                                                                   */
 /* -------------------------------------------------------------------------- */
 
-interface CustomerDocument {
-  readonly _id: string;
-  readonly orgId: TenantOrgId;
-  readonly code: string;
-  readonly name: string;
-  readonly status: string;
-}
+type CustomerDocument = Doc<"customers">;
 
 /** `(orgId, code)`: a customer code is unique per organization. */
 const codeUniqueness = (code: string): readonly UniquenessCheck[] => [
@@ -209,16 +204,14 @@ export const listCustomers = queryWithOrg({
       )
       .page(pageOptions(request.value));
 
-    return {
-      ok: true as const,
-      items: page.page.map((customer) => ({
+    return pageResult(
+      page.page.map((customer) => ({
         customerId: customer._id as never,
         code: customer.code,
         name: customer.name,
         status: customer.status as never,
       })),
-      nextCursor: page.isDone ? null : page.continueCursor,
-      complete: page.isDone,
-    };
+      page,
+    );
   },
 });

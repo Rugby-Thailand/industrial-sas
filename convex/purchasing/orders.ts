@@ -49,6 +49,7 @@ import {
   pageOptions,
   pageRefusal,
   pageRequestOf,
+  pageResult,
 } from "../lib/listEnvelope";
 import {
   purchaseOrderLineStatus,
@@ -839,9 +840,8 @@ export const listPurchaseOrders = queryWithOrg({
       )
       .page(pageOptions(request.value));
 
-    return {
-      ok: true as const,
-      items: page.page.map((order) => ({
+    return pageResult(
+      page.page.map((order) => ({
         purchaseOrderId: order._id as never,
         warehouseId: order.warehouseId as never,
         poNumber: order.poNumber,
@@ -851,9 +851,8 @@ export const listPurchaseOrders = queryWithOrg({
           ? {}
           : { externalRef: order.externalRef }),
       })),
-      nextCursor: page.isDone ? null : page.continueCursor,
-      complete: page.isDone,
-    };
+      page,
+    );
   },
 });
 
@@ -929,9 +928,8 @@ export const listPurchaseOrderLines = queryWithOrg({
       baseUomByItemId.set(line.itemId, item?.baseUom);
     }
 
-    return {
-      ok: true as const,
-      items: page.page.map((line) => {
+    return pageResult(
+      page.page.map((line) => {
         const baseUom = baseUomByItemId.get(line.itemId);
         return {
           purchaseOrderLineId: line._id as never,
@@ -945,9 +943,8 @@ export const listPurchaseOrderLines = queryWithOrg({
           status: line.status as never,
         };
       }),
-      nextCursor: page.isDone ? null : page.continueCursor,
-      complete: page.isDone,
-    };
+      page,
+    );
   },
 });
 

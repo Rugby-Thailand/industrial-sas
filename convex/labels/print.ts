@@ -27,6 +27,14 @@
 import { v } from "convex/values";
 
 import { sha256Hex } from "../lib/idempotency";
+import {
+  listArgs,
+  pageOf,
+  pageOptions,
+  pageRefusal,
+  pageRequestOf,
+  pageResult,
+} from "../lib/listEnvelope";
 import { createMasterDataRow } from "../lib/masterDataStore";
 import type { TenantOrgId } from "../lib/tenantDb";
 import {
@@ -41,10 +49,7 @@ import {
   written,
 } from "../lib/writeEnvelope";
 import { printReason, printJobStatus } from "../lib/validators";
-import {
-  MAX_JOB_PAGE_SIZE,
-  makeJobPageRequest,
-} from "../model/inventory/jobPage";
+import { MAX_JOB_PAGE_SIZE } from "../model/inventory/jobPage";
 import {
   renderLabel,
   requiresReprintPermission,
@@ -221,31 +226,15 @@ export const listPrintJobsForTarget = queryWithOrg({
     warehouseId: v.id("warehouses"),
     targetKind: v.string(),
     targetId: v.string(),
-    maxPageSize: v.optional(v.number()),
-    cursor: v.optional(v.string()),
+    ...listArgs,
   },
-  returns: v.union(
-    v.object({
-      ok: v.literal(true),
-      items: v.array(printJobValidator),
-      nextCursor: v.union(v.string(), v.null()),
-      complete: v.boolean(),
-    }),
-    v.object({ ok: v.literal(false), error: v.object({ code: v.string() }) }),
-  ),
+  returns: pageOf(printJobValidator),
   permissionCode: "label.print.read",
   target: { table: "labelPrintJobs" },
   warehouseId: ({ warehouseId }) => warehouseId,
   handler: async (ctx, args) => {
-    const request = makeJobPageRequest({
-      ...(args.maxPageSize === undefined
-        ? {}
-        : { maxPageSize: args.maxPageSize }),
-      ...(args.cursor === undefined ? {} : { cursor: args.cursor }),
-    });
-    if (!request.ok) {
-      return { ok: false as const, error: { code: request.error.code } };
-    }
+    const request = pageRequestOf(args);
+    if (!request.ok) return pageRefusal(request.error.code);
 
     const page = await ctx.tenantDb
       .byIndex<{ readonly _id: string; readonly orgId: TenantOrgId }>(
@@ -256,16 +245,10 @@ export const listPrintJobsForTarget = queryWithOrg({
           { field: "targetId", value: args.targetId },
         ],
       )
-      .page({
-        limit: request.value.maxPageSize,
-        ...(request.value.cursor === null
-          ? {}
-          : { cursor: request.value.cursor }),
-      });
+      .page(pageOptions(request.value));
 
-    return {
-      ok: true as const,
-      items: page.page.map((row) => {
+    return pageResult(
+      page.page.map((row) => {
         const record = row as unknown as Record<string, unknown>;
         return {
           labelPrintJobId: row._id as never,
@@ -279,9 +262,8 @@ export const listPrintJobsForTarget = queryWithOrg({
           occurredAt: record["occurredAt"] as number,
         };
       }),
-      nextCursor: page.isDone ? null : page.continueCursor,
-      complete: page.isDone,
-    };
+      page,
+    );
   },
 });
 

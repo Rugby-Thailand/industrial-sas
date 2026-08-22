@@ -23,6 +23,14 @@
 import { v } from "convex/values";
 
 import { postLedgerTransaction } from "../lib/inventoryLedgerStore";
+import {
+  listArgs,
+  pageOf,
+  pageOptions,
+  pageRefusal,
+  pageRequestOf,
+  pageResult,
+} from "../lib/listEnvelope";
 import type { LedgerTransactionDraft } from "../model/inventory/ledgerTransaction";
 import type { TenantOrgId } from "../lib/tenantDb";
 import {
@@ -33,10 +41,7 @@ import {
 import { adjustRollup } from "../lib/rollupStore";
 import { refusal } from "../lib/writeEnvelope";
 import { putawayTaskStatus } from "../lib/validators";
-import {
-  MAX_JOB_PAGE_SIZE,
-  makeJobPageRequest,
-} from "../model/inventory/jobPage";
+import { MAX_JOB_PAGE_SIZE } from "../model/inventory/jobPage";
 import {
   assertConfirmable,
   decideClaim,
@@ -621,31 +626,15 @@ export const listPutawayTasks = queryWithOrg({
   args: {
     warehouseId: v.id("warehouses"),
     status: v.optional(putawayTaskStatus),
-    maxPageSize: v.optional(v.number()),
-    cursor: v.optional(v.string()),
+    ...listArgs,
   },
-  returns: v.union(
-    v.object({
-      ok: v.literal(true),
-      items: v.array(taskValidator),
-      nextCursor: v.union(v.string(), v.null()),
-      complete: v.boolean(),
-    }),
-    v.object({ ok: v.literal(false), error: v.object({ code: v.string() }) }),
-  ),
+  returns: pageOf(taskValidator),
   permissionCode: "putaway.task.read",
   target: { table: "putawayTasks" },
   warehouseId: ({ warehouseId }) => warehouseId,
   handler: async (ctx, args) => {
-    const request = makeJobPageRequest({
-      ...(args.maxPageSize === undefined
-        ? {}
-        : { maxPageSize: args.maxPageSize }),
-      ...(args.cursor === undefined ? {} : { cursor: args.cursor }),
-    });
-    if (!request.ok) {
-      return { ok: false as const, error: { code: request.error.code } };
-    }
+    const request = pageRequestOf(args);
+    if (!request.ok) return pageRefusal(request.error.code);
 
     const page = await ctx.tenantDb
       .byIndex<TaskDocument & Record<string, never>>(
@@ -658,12 +647,7 @@ export const listPutawayTasks = queryWithOrg({
             : [{ field: "status", value: args.status }]),
         ],
       )
-      .page({
-        limit: request.value.maxPageSize,
-        ...(request.value.cursor === null
-          ? {}
-          : { cursor: request.value.cursor }),
-      });
+      .page(pageOptions(request.value));
 
     /*
      * The base unit of each distinct item on the page, read once per item.
@@ -683,9 +667,8 @@ export const listPutawayTasks = queryWithOrg({
       baseUomByItemId.set(itemId, item?.baseUom);
     }
 
-    return {
-      ok: true as const,
-      items: page.page.map((row) => {
+    return pageResult(
+      page.page.map((row) => {
         const record = row as unknown as Record<string, unknown>;
         const optional = (name: string) =>
           record[name] === undefined ? {} : { [name]: record[name] as never };
@@ -706,9 +689,8 @@ export const listPutawayTasks = queryWithOrg({
           ...optional("chosenLocationId"),
         };
       }),
-      nextCursor: page.isDone ? null : page.continueCursor,
-      complete: page.isDone,
-    };
+      page,
+    );
   },
 });
 

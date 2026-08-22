@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 
+import type { Doc } from "../_generated/dataModel";
 import {
   createMasterDataRow,
   normalizeDisplayName,
@@ -8,11 +9,10 @@ import {
 } from "../lib/masterDataStore";
 import type { TenantFunctionContext } from "../lib/tenantFunctions";
 import { mutationWithOrg } from "../lib/tenantFunctions";
-import type { TenantOrgId } from "../lib/tenantDb";
+import { refusal, writeContextOf, written } from "../lib/writeEnvelope";
 import {
   validateAndSummarizeStorageLayout,
   type StorageFloorInput,
-  type StorageLayoutInput,
 } from "../model/storageLayout/storageLayout";
 
 const blockValidator = v.object({
@@ -34,65 +34,26 @@ const floorValidator = v.object({
 });
 const outcome = v.any();
 
-interface BuildingDocument extends StorageLayoutInput {
-  readonly _id: string;
-  readonly orgId: TenantOrgId;
-  readonly warehouseId: string;
-  readonly code: string;
-  readonly name: string;
-  readonly floorCount: number;
-  readonly status: "DRAFT" | "ACTIVE" | "ARCHIVED";
-  readonly version: number;
-}
-interface FloorDocument {
-  readonly _id: string;
-  readonly orgId: TenantOrgId;
-  readonly buildingId: string;
-  readonly warehouseId: string;
-  readonly floorNumber: number;
-  readonly widthMm?: number;
-  readonly depthMm?: number;
-  readonly heightMm?: number;
-  readonly offsetXMm?: number;
-  readonly offsetYMm?: number;
-  readonly version: number;
-}
-interface BlockDocument {
-  readonly _id: string;
-  readonly orgId: TenantOrgId;
-  readonly floorId: string;
-  readonly label: string;
-  readonly xMm: number;
-  readonly yMm: number;
-  readonly widthMm: number;
-  readonly depthMm: number;
-}
+type BuildingDocument = Doc<"storageBuildings">;
+type FloorDocument = Doc<"storageFloors">;
+type BlockDocument = Doc<"storageFloorReservedBlocks">;
 
-const failure = (code: string, field?: string) => ({
-  written: false as const,
-  error: { code, ...(field === undefined ? {} : { field }) },
-});
-const success = (documentId: string, replayed: boolean) => ({
-  written: true as const,
-  documentId,
-  replayed,
-});
+const failure = (code: string, field?: string) => refusal({ code, field });
+const success = (documentId: string, replayed: boolean) =>
+  written({ documentId, replayed });
 const writeContext = (
   ctx: TenantFunctionContext,
   table: "storageBuildings" | "storageFloors",
   operation: string,
   requestId: string,
   warehouseId: string,
-) => ({
-  tenantDb: ctx.tenantDb,
-  table,
-  operation,
-  requestId,
-  permissionCode: ctx.permission.code,
-  actorUserId: ctx.tenant.actor._id,
-  warehouseId,
-  now: Date.now(),
-});
+) =>
+  writeContextOf(ctx, {
+    table,
+    operation,
+    requestId,
+    warehouseId,
+  });
 
 async function readLayout(
   ctx: TenantFunctionContext,

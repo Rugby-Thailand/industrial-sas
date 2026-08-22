@@ -23,6 +23,14 @@
 import { v } from "convex/values";
 
 import { postLedgerTransaction } from "../lib/inventoryLedgerStore";
+import {
+  listArgs,
+  pageOf,
+  pageOptions,
+  pageRefusal,
+  pageRequestOf,
+  pageResult,
+} from "../lib/listEnvelope";
 import type { LedgerTransactionDraft } from "../model/inventory/ledgerTransaction";
 import { adjustRollup } from "../lib/rollupStore";
 import type { TenantOrgId } from "../lib/tenantDb";
@@ -38,10 +46,7 @@ import {
   qcDisposition,
   samplingStrategy,
 } from "../lib/validators";
-import {
-  MAX_JOB_PAGE_SIZE,
-  makeJobPageRequest,
-} from "../model/inventory/jobPage";
+import { MAX_JOB_PAGE_SIZE } from "../model/inventory/jobPage";
 import {
   assertSubmittable,
   planDisposition,
@@ -540,31 +545,15 @@ export const listInspections = queryWithOrg({
   args: {
     warehouseId: v.id("warehouses"),
     status: v.optional(inspectionStatus),
-    maxPageSize: v.optional(v.number()),
-    cursor: v.optional(v.string()),
+    ...listArgs,
   },
-  returns: v.union(
-    v.object({
-      ok: v.literal(true),
-      items: v.array(inspectionValidator),
-      nextCursor: v.union(v.string(), v.null()),
-      complete: v.boolean(),
-    }),
-    v.object({ ok: v.literal(false), error: v.object({ code: v.string() }) }),
-  ),
+  returns: pageOf(inspectionValidator),
   permissionCode: "quality.inspection.read",
   target: { table: "qcInspections" },
   warehouseId: ({ warehouseId }) => warehouseId,
   handler: async (ctx, args) => {
-    const request = makeJobPageRequest({
-      ...(args.maxPageSize === undefined
-        ? {}
-        : { maxPageSize: args.maxPageSize }),
-      ...(args.cursor === undefined ? {} : { cursor: args.cursor }),
-    });
-    if (!request.ok) {
-      return { ok: false as const, error: { code: request.error.code } };
-    }
+    const request = pageRequestOf(args);
+    if (!request.ok) return pageRefusal(request.error.code);
 
     const page = await ctx.tenantDb
       .byIndex<InspectionDocument & Record<string, never>>(
@@ -577,16 +566,10 @@ export const listInspections = queryWithOrg({
             : [{ field: "status", value: args.status }]),
         ],
       )
-      .page({
-        limit: request.value.maxPageSize,
-        ...(request.value.cursor === null
-          ? {}
-          : { cursor: request.value.cursor }),
-      });
+      .page(pageOptions(request.value));
 
-    return {
-      ok: true as const,
-      items: page.page.map((row) => {
+    return pageResult(
+      page.page.map((row) => {
         const record = row as unknown as Record<string, unknown>;
         return {
           inspectionId: row._id as never,
@@ -602,9 +585,8 @@ export const listInspections = queryWithOrg({
             : { disposition: record["disposition"] as never }),
         };
       }),
-      nextCursor: page.isDone ? null : page.continueCursor,
-      complete: page.isDone,
-    };
+      page,
+    );
   },
 });
 

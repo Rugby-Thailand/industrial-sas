@@ -19,12 +19,21 @@
  * field worth naming — a parent the caller cannot read must look exactly like a
  * parent that does not exist (`INV-0002-03`).
  */
-import { v } from "convex/values";
+import { v, type Validator } from "convex/values";
 
 import { makeJobPageRequest } from "../model/inventory/jobPage";
 
+const pageErrorValidator = v.object({ code: v.string() });
+
 /** `{ ok: true, items, nextCursor, complete }` or `{ ok: false, error }`. */
-export const pageOf = <Row extends Parameters<typeof v.array>[0]>(row: Row) =>
+export const pageOf = <
+  Row extends Validator<unknown, "required", string>,
+  Error extends Validator<unknown, "required", string> =
+    typeof pageErrorValidator,
+>(
+  row: Row,
+  error: Error = pageErrorValidator as unknown as Error,
+) =>
   v.union(
     v.object({
       ok: v.literal(true),
@@ -32,10 +41,7 @@ export const pageOf = <Row extends Parameters<typeof v.array>[0]>(row: Row) =>
       nextCursor: v.union(v.string(), v.null()),
       complete: v.boolean(),
     }),
-    v.object({
-      ok: v.literal(false),
-      error: v.object({ code: v.string() }),
-    }),
+    v.object({ ok: v.literal(false), error }),
   );
 
 /** The two arguments every list query takes on top of its own filters. */
@@ -75,4 +81,15 @@ export const pageOptions = (request: {
 }) => ({
   limit: request.maxPageSize,
   ...(request.cursor === null ? {} : { cursor: request.cursor }),
+});
+
+/** Complete the wire envelope from one bounded Convex page. */
+export const pageResult = <Item>(
+  items: Item[],
+  page: { readonly isDone: boolean; readonly continueCursor: string },
+) => ({
+  ok: true as const,
+  items,
+  nextCursor: page.isDone ? null : page.continueCursor,
+  complete: page.isDone,
 });

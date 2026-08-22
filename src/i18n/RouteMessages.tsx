@@ -8,6 +8,25 @@ import {
   type RouteMessageScope,
 } from "./clientMessages";
 
+export interface RouteMessagesLayoutProps {
+  readonly children: ReactNode;
+  readonly params: Promise<{ locale: string }>;
+}
+
+type RouteMessagesProps = {
+  readonly scope: RouteMessageScope;
+  readonly children: ReactNode;
+} & (
+  | {
+      readonly params: Promise<{ locale: string }>;
+      readonly locale?: never;
+    }
+  | {
+      readonly locale: string;
+      readonly params?: never;
+    }
+);
+
 /**
  * The message provider for one route subtree.
  *
@@ -25,15 +44,10 @@ import {
  * repeat it: reading messages without it opts the subtree into dynamic
  * rendering, and every route in this application is prerendered.
  */
-export async function RouteMessages({
-  scope,
-  locale,
-  children,
-}: {
-  readonly scope: RouteMessageScope;
-  readonly locale: string;
-  readonly children: ReactNode;
-}) {
+export async function RouteMessages(props: RouteMessagesProps) {
+  const { scope, children } = props;
+  const locale =
+    props.locale === undefined ? (await props.params).locale : props.locale;
   setRequestLocale(locale);
   const messages = await getMessages();
 

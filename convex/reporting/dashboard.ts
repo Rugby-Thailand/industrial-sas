@@ -27,6 +27,7 @@
  */
 import { v } from "convex/values";
 
+import type { Doc } from "../_generated/dataModel";
 import { bandFor } from "../model/reporting/occupancy";
 import {
   ROLLUP_METRICS,
@@ -36,7 +37,6 @@ import {
 } from "../model/reporting/rollup";
 import { readRollup, readRollupPage } from "../lib/rollupStore";
 import { queryWithOrg } from "../lib/tenantFunctions";
-import type { TenantOrgId } from "../lib/tenantDb";
 import { rollupMetric } from "../lib/validators";
 
 /** The site-wide tiles, in the order a supervisor reads them. */
@@ -54,14 +54,7 @@ export const DASHBOARD_METRICS = Object.freeze(
  */
 export const MAX_OCCUPANCY_LOCATIONS = 100;
 
-interface LocationDocument {
-  readonly _id: string;
-  readonly orgId: TenantOrgId;
-  readonly warehouseId: string;
-  readonly code: string;
-  readonly locationType: string;
-  readonly status: string;
-}
+type LocationDocument = Doc<"locations">;
 
 const tileValidator = v.object({
   metric: rollupMetric,

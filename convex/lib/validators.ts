@@ -19,28 +19,34 @@
  * Identifiers are English (D-06); Thai belongs in UI copy and bilingual master
  * data only.
  */
-import { v, type Infer } from "convex/values";
+import { v, type Infer, type VLiteral } from "convex/values";
+
+type LiteralValidators<Values extends readonly string[]> = {
+  -readonly [Index in keyof Values]: VLiteral<Values[Index], "required">;
+};
+
+const literalUnion = <const Values extends readonly [string, ...string[]]>(
+  ...values: Values
+) => {
+  const members = values.map((value) =>
+    v.literal(value),
+  ) as unknown as LiteralValidators<Values>;
+  return v.union(...members);
+};
 
 /* -------------------------------------------------------------------------- */
 /* Tenancy and identity                                                        */
 /* -------------------------------------------------------------------------- */
 
 /** Lifecycle of a tenant (`G-001`). Mirrored from onboarding, not from Clerk. */
-export const organizationStatus = v.union(
-  v.literal("ACTIVE"),
-  v.literal("SUSPENDED"),
-  v.literal("CLOSED"),
-);
+export const organizationStatus = literalUnion("ACTIVE", "SUSPENDED", "CLOSED");
 export type OrganizationStatus = Infer<typeof organizationStatus>;
 
 /**
  * Lifecycle of a mirrored Clerk user (`G-003`). Clerk owns the account; this is
  * only the mirror's view of whether the person is still usable as an actor.
  */
-export const userStatus = v.union(
-  v.literal("ACTIVE"),
-  v.literal("DEACTIVATED"),
-);
+export const userStatus = literalUnion("ACTIVE", "DEACTIVATED");
 export type UserStatus = Infer<typeof userStatus>;
 
 /**
@@ -48,11 +54,7 @@ export type UserStatus = Infer<typeof userStatus>;
  * observable locally so a request can fail closed without calling Clerk
  * (`INV-0001-03`).
  */
-export const membershipStatus = v.union(
-  v.literal("ACTIVE"),
-  v.literal("SUSPENDED"),
-  v.literal("REVOKED"),
-);
+export const membershipStatus = literalUnion("ACTIVE", "SUSPENDED", "REVOKED");
 export type MembershipStatus = Infer<typeof membershipStatus>;
 
 /**
@@ -62,10 +64,7 @@ export type MembershipStatus = Infer<typeof membershipStatus>;
  * This is an explicit mode rather than "empty warehouse set means all", because
  * an accidentally empty set must deny, not escalate.
  */
-export const membershipScopeMode = v.union(
-  v.literal("ORG_WIDE"),
-  v.literal("WAREHOUSE_SCOPED"),
-);
+export const membershipScopeMode = literalUnion("ORG_WIDE", "WAREHOUSE_SCOPED");
 export type MembershipScopeMode = Infer<typeof membershipScopeMode>;
 
 /* -------------------------------------------------------------------------- */
@@ -79,15 +78,11 @@ export type MembershipScopeMode = Infer<typeof membershipScopeMode>;
  * `WAREHOUSE` is the catalogue's `WH` column: the target warehouse participates
  * in the decision. `PLATFORM` codes are never granted to a tenant role.
  */
-export const permissionScope = v.union(
-  v.literal("ORG"),
-  v.literal("WAREHOUSE"),
-  v.literal("PLATFORM"),
-);
+export const permissionScope = literalUnion("ORG", "WAREHOUSE", "PLATFORM");
 export type PermissionScope = Infer<typeof permissionScope>;
 
 /** Lifecycle of a tenant-editable role (`G-005`). Roles are archived, not deleted. */
-export const roleStatus = v.union(v.literal("ACTIVE"), v.literal("ARCHIVED"));
+export const roleStatus = literalUnion("ACTIVE", "ARCHIVED");
 export type RoleStatus = Infer<typeof roleStatus>;
 
 /* -------------------------------------------------------------------------- */
@@ -95,25 +90,18 @@ export type RoleStatus = Infer<typeof roleStatus>;
 /* -------------------------------------------------------------------------- */
 
 /** Lifecycle of a warehouse (`G-020`). Minimal: this slice needs it for scope only. */
-export const warehouseStatus = v.union(
-  v.literal("ACTIVE"),
-  v.literal("INACTIVE"),
-);
+export const warehouseStatus = literalUnion("ACTIVE", "INACTIVE");
 export type WarehouseStatus = Infer<typeof warehouseStatus>;
 
 /**
  * Form factor of a registered device (`G-013`, D-02, D-03). A device is context
  * recorded on transactions, never an authorization subject.
  */
-export const deviceType = v.union(
-  v.literal("HANDHELD"),
-  v.literal("WORKSTATION"),
-  v.literal("TABLET"),
-);
+export const deviceType = literalUnion("HANDHELD", "WORKSTATION", "TABLET");
 export type DeviceType = Infer<typeof deviceType>;
 
 /** Lifecycle of a registered device. Retired devices keep their audit history. */
-export const deviceStatus = v.union(v.literal("ACTIVE"), v.literal("RETIRED"));
+export const deviceStatus = literalUnion("ACTIVE", "RETIRED");
 export type DeviceStatus = Infer<typeof deviceStatus>;
 
 /* -------------------------------------------------------------------------- */
@@ -232,15 +220,11 @@ export type StepUpDecisionValue = Infer<typeof stepUpDecision>;
  * exists so support access is attributable, and it is only reachable under an
  * enabled support grant, which ships disabled (`ADR-0006` §7).
  */
-export const actorKind = v.union(
-  v.literal("USER"),
-  v.literal("SYSTEM"),
-  v.literal("PLATFORM_SUPPORT"),
-);
+export const actorKind = literalUnion("USER", "SYSTEM", "PLATFORM_SUPPORT");
 export type ActorKind = Infer<typeof actorKind>;
 
 /** Whether the audited attempt was permitted. Denials are audited too (`INV-0006-10`). */
-export const auditOutcome = v.union(v.literal("ALLOWED"), v.literal("DENIED"));
+export const auditOutcome = literalUnion("ALLOWED", "DENIED");
 export type AuditOutcome = Infer<typeof auditOutcome>;
 
 /**
@@ -250,14 +234,14 @@ export type AuditOutcome = Infer<typeof auditOutcome>;
  * applies: "ask for the permission", "you are at the wrong site", "get an
  * approval", "reverify". Collapsing them into one message is a support cost.
  */
-export const denialReason = v.union(
-  v.literal("NO_PERMISSION"),
-  v.literal("OUT_OF_WAREHOUSE_SCOPE"),
-  v.literal("THRESHOLD_EXCEEDED"),
-  v.literal("APPROVAL_REQUIRED"),
-  v.literal("REVERIFICATION_REQUIRED"),
-  v.literal("ENTITLEMENT_DISABLED"),
-  v.literal("INACTIVE_MEMBERSHIP"),
+export const denialReason = literalUnion(
+  "NO_PERMISSION",
+  "OUT_OF_WAREHOUSE_SCOPE",
+  "THRESHOLD_EXCEEDED",
+  "APPROVAL_REQUIRED",
+  "REVERIFICATION_REQUIRED",
+  "ENTITLEMENT_DISABLED",
+  "INACTIVE_MEMBERSHIP",
 );
 export type DenialReason = Infer<typeof denialReason>;
 
@@ -265,10 +249,10 @@ export type DenialReason = Infer<typeof denialReason>;
  * State of an idempotency record (§5 Q30, Q35). `IN_PROGRESS` is recorded before
  * the effect so a concurrent replay can be rejected rather than duplicated.
  */
-export const idempotencyStatus = v.union(
-  v.literal("IN_PROGRESS"),
-  v.literal("SUCCEEDED"),
-  v.literal("FAILED"),
+export const idempotencyStatus = literalUnion(
+  "IN_PROGRESS",
+  "SUCCEEDED",
+  "FAILED",
 );
 export type IdempotencyStatus = Infer<typeof idempotencyStatus>;
 
@@ -283,13 +267,13 @@ export type IdempotencyStatus = Infer<typeof idempotencyStatus>;
  * `STEP_UP_VERIFIED` and `STEP_UP_DENIED` exist so step-up freshness
  * (`INV-0006-07`) has an auditable history on shared handhelds.
  */
-export const sessionsAuditEventType = v.union(
-  v.literal("SIGN_IN"),
-  v.literal("SIGN_OUT"),
-  v.literal("ORGANIZATION_SWITCH"),
-  v.literal("STEP_UP_VERIFIED"),
-  v.literal("STEP_UP_DENIED"),
-  v.literal("SESSION_REVOKED"),
+export const sessionsAuditEventType = literalUnion(
+  "SIGN_IN",
+  "SIGN_OUT",
+  "ORGANIZATION_SWITCH",
+  "STEP_UP_VERIFIED",
+  "STEP_UP_DENIED",
+  "SESSION_REVOKED",
 );
 export type SessionsAuditEventType = Infer<typeof sessionsAuditEventType>;
 
@@ -304,13 +288,13 @@ export type SessionsAuditEventType = Infer<typeof sessionsAuditEventType>;
  * `ACTIVE` is only reachable with an expiry in the future, and expiry is a
  * transition, not an absence of one.
  */
-export const supportGrantStatus = v.union(
-  v.literal("REQUESTED"),
-  v.literal("APPROVED"),
-  v.literal("ACTIVE"),
-  v.literal("REJECTED"),
-  v.literal("EXPIRED"),
-  v.literal("REVOKED"),
+export const supportGrantStatus = literalUnion(
+  "REQUESTED",
+  "APPROVED",
+  "ACTIVE",
+  "REJECTED",
+  "EXPIRED",
+  "REVOKED",
 );
 export type SupportGrantStatus = Infer<typeof supportGrantStatus>;
 
@@ -318,10 +302,7 @@ export type SupportGrantStatus = Infer<typeof supportGrantStatus>;
  * What a support grant may do. `READ_ONLY` is the default; `READ_WRITE` requires
  * two distinct platform approvals plus tenant approval (`INV-0006-09`).
  */
-export const supportAccessMode = v.union(
-  v.literal("READ_ONLY"),
-  v.literal("READ_WRITE"),
-);
+export const supportAccessMode = literalUnion("READ_ONLY", "READ_WRITE");
 export type SupportAccessMode = Infer<typeof supportAccessMode>;
 
 /* -------------------------------------------------------------------------- */
@@ -329,11 +310,11 @@ export type SupportAccessMode = Infer<typeof supportAccessMode>;
 /* -------------------------------------------------------------------------- */
 
 /** Interface locale: Thai first, English fallback (D-06, B-10). */
-export const locale = v.union(v.literal("th"), v.literal("en"));
+export const locale = literalUnion("th", "en");
 export type Locale = Infer<typeof locale>;
 
 /** Currency. MVP is single-currency per organization, THB (D-07). */
-export const currency = v.union(v.literal("THB"));
+export const currency = literalUnion("THB");
 export type Currency = Infer<typeof currency>;
 
 /**
@@ -381,18 +362,11 @@ export type OrganizationSettings = Infer<typeof organizationSettings>;
  * (`ADR-0005`: hierarchy, capacity, storage classes, LPN lifecycle) brings its own
  * states with it.
  */
-export const masterDataStatus = v.union(
-  v.literal("ACTIVE"),
-  v.literal("INACTIVE"),
-);
+export const masterDataStatus = literalUnion("ACTIVE", "INACTIVE");
 export type MasterDataStatus = Infer<typeof masterDataStatus>;
 
 /** Lifecycle of a warehouse storage-layout plan. */
-export const storageLayoutStatus = v.union(
-  v.literal("DRAFT"),
-  v.literal("ACTIVE"),
-  v.literal("ARCHIVED"),
-);
+export const storageLayoutStatus = literalUnion("DRAFT", "ACTIVE", "ARCHIVED");
 export type StorageLayoutStatus = Infer<typeof storageLayoutStatus>;
 
 /**
@@ -400,11 +374,7 @@ export type StorageLayoutStatus = Infer<typeof storageLayoutStatus>;
  * disabled (`INV-0005-08`); declaring it now is what keeps enabling serials from
  * re-keying the ledger later.
  */
-export const itemTrackingMode = v.union(
-  v.literal("NONE"),
-  v.literal("LOT"),
-  v.literal("LOT_SERIAL"),
-);
+export const itemTrackingMode = literalUnion("NONE", "LOT", "LOT_SERIAL");
 export type ItemTrackingMode = Infer<typeof itemTrackingMode>;
 
 /**
@@ -415,22 +385,22 @@ export type ItemTrackingMode = Infer<typeof itemTrackingMode>;
  * (`ADR-0003` §2). A tenant that could deactivate or re-parent the counterparty
  * the ledger balances against could make its own history unbalanced.
  */
-export const locationType = v.union(
-  v.literal("DOCK"),
-  v.literal("STAGING"),
-  v.literal("RACK_BIN"),
-  v.literal("FLOOR_BLOCK"),
-  v.literal("QUARANTINE"),
-  v.literal("OVERFLOW"),
+export const locationType = literalUnion(
+  "DOCK",
+  "STAGING",
+  "RACK_BIN",
+  "FLOOR_BLOCK",
+  "QUARANTINE",
+  "OVERFLOW",
 );
 export type LocationType = Infer<typeof locationType>;
 
 /** What a reason code may be cited for. Closed, so a code cannot drift in use. */
-export const reasonCodeScope = v.union(
-  v.literal("ADJUSTMENT"),
-  v.literal("SCRAP"),
-  v.literal("REVERSAL"),
-  v.literal("STATUS_CHANGE"),
+export const reasonCodeScope = literalUnion(
+  "ADJUSTMENT",
+  "SCRAP",
+  "REVERSAL",
+  "STATUS_CHANGE",
 );
 export type ReasonCodeScope = Infer<typeof reasonCodeScope>;
 
@@ -443,12 +413,7 @@ export type ReasonCodeScope = Infer<typeof reasonCodeScope>;
  * supplier printed. Storing a barcode without its kind would make an SSCC and a
  * GTIN indistinguishable at the moment a receipt has to resolve one.
  */
-export const barcodeKind = v.union(
-  v.literal("GTIN"),
-  v.literal("SSCC"),
-  v.literal("INTERNAL"),
-  v.literal("SUPPLIER"),
-);
+export const barcodeKind = literalUnion("GTIN", "SSCC", "INTERNAL", "SUPPLIER");
 export type BarcodeKind = Infer<typeof barcodeKind>;
 
 /**
@@ -470,67 +435,63 @@ export type BarcodeKind = Infer<typeof barcodeKind>;
  * somebody stopped it. A reconciliation that merged them would report a
  * fulfilment rate that is simply false.
  */
-export const purchaseOrderStatus = v.union(
-  v.literal("DRAFT"),
-  v.literal("OPEN"),
-  v.literal("CLOSED"),
-  v.literal("CANCELLED"),
+export const purchaseOrderStatus = literalUnion(
+  "DRAFT",
+  "OPEN",
+  "CLOSED",
+  "CANCELLED",
 );
 export type PurchaseOrderStatusValue = Infer<typeof purchaseOrderStatus>;
 
 /** Mirrors `PurchaseOrderLineStatus` in `convex/model/inbound/receiptPolicy.ts`. */
-export const purchaseOrderLineStatus = v.union(
-  v.literal("OPEN"),
-  v.literal("COMPLETE"),
-  v.literal("CLOSED_SHORT"),
-  v.literal("CANCELLED"),
+export const purchaseOrderLineStatus = literalUnion(
+  "OPEN",
+  "COMPLETE",
+  "CLOSED_SHORT",
+  "CANCELLED",
 );
 export type PurchaseOrderLineStatusValue = Infer<
   typeof purchaseOrderLineStatus
 >;
 
 /** How a receipt line came to exist (`INV-0007-04`). Mirrors `ReceiptLineKind`. */
-export const receiptLineKind = v.union(
-  v.literal("ORDERED"),
-  v.literal("UNEXPECTED"),
-  v.literal("CANCELLED_LINE"),
-  v.literal("BLIND"),
+export const receiptLineKind = literalUnion(
+  "ORDERED",
+  "UNEXPECTED",
+  "CANCELLED_LINE",
+  "BLIND",
 );
 export type ReceiptLineKindValue = Infer<typeof receiptLineKind>;
 
 /** What `assessReceipt` decided about a posting. Stored as receipt evidence. */
-export const receiptClassification = v.union(
-  v.literal("PARTIAL"),
-  v.literal("COMPLETE"),
-  v.literal("OVER_WITHIN_TOLERANCE"),
-  v.literal("OVER_BEYOND_TOLERANCE"),
+export const receiptClassification = literalUnion(
+  "PARTIAL",
+  "COMPLETE",
+  "OVER_WITHIN_TOLERANCE",
+  "OVER_BEYOND_TOLERANCE",
 );
 export type ReceiptClassificationValue = Infer<typeof receiptClassification>;
 
 /** The sampling strategies this repository implements (`ADR-0007` §5). */
-export const samplingStrategy = v.union(
-  v.literal("ALL"),
-  v.literal("FIXED"),
-  v.literal("PERCENT"),
-);
+export const samplingStrategy = literalUnion("ALL", "FIXED", "PERCENT");
 export type SamplingStrategyValue = Infer<typeof samplingStrategy>;
 
 /** Where held stock may go (`ADR-0007` §6). Mirrors `QcDisposition`. */
-export const qcDisposition = v.union(
-  v.literal("RELEASE"),
-  v.literal("QUARANTINE"),
-  v.literal("REJECT"),
-  v.literal("SCRAP"),
-  v.literal("REWORK"),
+export const qcDisposition = literalUnion(
+  "RELEASE",
+  "QUARANTINE",
+  "REJECT",
+  "SCRAP",
+  "REWORK",
 );
 export type QcDispositionValue = Infer<typeof qcDisposition>;
 
 /** An inspection's state. Mirrors `InspectionStatus`. */
-export const inspectionStatus = v.union(
-  v.literal("OPEN"),
-  v.literal("PENDING_APPROVAL"),
-  v.literal("DISPOSED"),
-  v.literal("CANCELLED"),
+export const inspectionStatus = literalUnion(
+  "OPEN",
+  "PENDING_APPROVAL",
+  "DISPOSED",
+  "CANCELLED",
 );
 export type InspectionStatusValue = Infer<typeof inspectionStatus>;
 
@@ -543,27 +504,19 @@ export type InspectionStatusValue = Infer<typeof inspectionStatus>;
  * the state machine is complete rather than retrofitted, and are unreachable
  * until a transport exists.
  */
-export const printJobStatus = v.union(
-  v.literal("GENERATED"),
-  v.literal("DISPATCHED"),
-  v.literal("FAILED"),
-);
+export const printJobStatus = literalUnion("GENERATED", "DISPATCHED", "FAILED");
 export type PrintJobStatusValue = Infer<typeof printJobStatus>;
 
 /** Why a payload was generated. A reprint is audited *as* a reprint (§10). */
-export const printReason = v.union(
-  v.literal("INITIAL"),
-  v.literal("REPRINT"),
-  v.literal("PREVIEW"),
-);
+export const printReason = literalUnion("INITIAL", "REPRINT", "PREVIEW");
 export type PrintReasonValue = Infer<typeof printReason>;
 
 /** A putaway task's state. Mirrors `PutawayTaskStatus`. */
-export const putawayTaskStatus = v.union(
-  v.literal("READY"),
-  v.literal("CLAIMED"),
-  v.literal("CONFIRMED"),
-  v.literal("CANCELLED"),
+export const putawayTaskStatus = literalUnion(
+  "READY",
+  "CLAIMED",
+  "CONFIRMED",
+  "CANCELLED",
 );
 export type PutawayTaskStatusValue = Infer<typeof putawayTaskStatus>;
 
@@ -576,21 +529,21 @@ export type PutawayTaskStatusValue = Infer<typeof putawayTaskStatus>;
  * stock against it. Without the record there is no maker, the evaluator denies
  * fail-closed, and an unexpected delivery could not be received at all.
  */
-export const receivingExceptionStatus = v.union(
-  v.literal("RAISED"),
-  v.literal("CONSUMED"),
-  v.literal("WITHDRAWN"),
+export const receivingExceptionStatus = literalUnion(
+  "RAISED",
+  "CONSUMED",
+  "WITHDRAWN",
 );
 export type ReceivingExceptionStatusValue = Infer<
   typeof receivingExceptionStatus
 >;
 
 /** An import batch's state (`INV-0007-12`). */
-export const importBatchStatus = v.union(
-  v.literal("PREVIEWED"),
-  v.literal("APPLYING"),
-  v.literal("APPLIED"),
-  v.literal("ABANDONED"),
+export const importBatchStatus = literalUnion(
+  "PREVIEWED",
+  "APPLYING",
+  "APPLIED",
+  "ABANDONED",
 );
 export type ImportBatchStatusValue = Infer<typeof importBatchStatus>;
 
@@ -693,7 +646,7 @@ export const varianceRisk = v.union(
 );
 export type VarianceRiskValue = Infer<typeof varianceRisk>;
 
-export const labelTemplateFormat = v.union(v.literal("ZPL"), v.literal("PDF"));
+export const labelTemplateFormat = literalUnion("ZPL", "PDF");
 export type LabelTemplateFormat = Infer<typeof labelTemplateFormat>;
 
 /**
@@ -705,11 +658,7 @@ export type LabelTemplateFormat = Infer<typeof labelTemplateFormat>;
  * printed label is audit evidence, and evidence whose template changed
  * underneath it proves nothing.
  */
-export const labelTemplateStatus = v.union(
-  v.literal("DRAFT"),
-  v.literal("ACTIVE"),
-  v.literal("RETIRED"),
-);
+export const labelTemplateStatus = literalUnion("DRAFT", "ACTIVE", "RETIRED");
 export type LabelTemplateStatus = Infer<typeof labelTemplateStatus>;
 
 /* -------------------------------------------------------------------------- */
@@ -727,13 +676,13 @@ export type LabelTemplateStatus = Infer<typeof labelTemplateStatus>;
  * or that pure module importing `convex/values` — and plan §6.2 forbids the
  * second.
  */
-export const stockStatus = v.union(
-  v.literal("AVAILABLE"),
-  v.literal("QC_HOLD"),
-  v.literal("QUARANTINE"),
-  v.literal("REJECTED"),
-  v.literal("SCRAP"),
-  v.literal("EXPIRED"),
+export const stockStatus = literalUnion(
+  "AVAILABLE",
+  "QC_HOLD",
+  "QUARANTINE",
+  "REJECTED",
+  "SCRAP",
+  "EXPIRED",
 );
 export type StockStatusValue = Infer<typeof stockStatus>;
 
@@ -746,38 +695,35 @@ export type StockStatusValue = Infer<typeof stockStatus>;
  * optionality — so the kind is the field that decides, and the store refuses a row
  * whose kind and payload disagree.
  */
-export const ledgerLocationKind = v.union(
-  v.literal("PHYSICAL"),
-  v.literal("VIRTUAL"),
-);
+export const ledgerLocationKind = literalUnion("PHYSICAL", "VIRTUAL");
 export type LedgerLocationKindValue = Infer<typeof ledgerLocationKind>;
 
 /** Code-owned counterparties outside the warehouse. Mirrors `VIRTUAL_BOUNDARIES`. */
-export const virtualBoundaryCode = v.union(
-  v.literal("SUPPLIER_RECEIPT"),
-  v.literal("CUSTOMER_SHIPMENT"),
-  v.literal("CUSTOMER_RETURN"),
-  v.literal("PRODUCTION_ISSUE"),
-  v.literal("PRODUCTION_RECEIPT"),
-  v.literal("INVENTORY_ADJUSTMENT"),
-  v.literal("SCRAP_DAMAGE"),
-  v.literal("RECONCILIATION"),
-  v.literal("TRANSFER_IN_TRANSIT"),
+export const virtualBoundaryCode = literalUnion(
+  "SUPPLIER_RECEIPT",
+  "CUSTOMER_SHIPMENT",
+  "CUSTOMER_RETURN",
+  "PRODUCTION_ISSUE",
+  "PRODUCTION_RECEIPT",
+  "INVENTORY_ADJUSTMENT",
+  "SCRAP_DAMAGE",
+  "RECONCILIATION",
+  "TRANSFER_IN_TRANSIT",
 );
 export type VirtualBoundaryCodeValue = Infer<typeof virtualBoundaryCode>;
 
 /** What kind of movement a transaction records. Mirrors `INVENTORY_TRANSACTION_TYPES`. */
-export const inventoryTransactionType = v.union(
-  v.literal("RECEIPT"),
-  v.literal("PUTAWAY"),
-  v.literal("MOVE"),
-  v.literal("STATUS_CHANGE"),
-  v.literal("ADJUSTMENT"),
-  v.literal("SCRAP"),
-  v.literal("SHIPMENT"),
-  v.literal("PRODUCTION_ISSUE"),
-  v.literal("PRODUCTION_RECEIPT"),
-  v.literal("REVERSAL"),
+export const inventoryTransactionType = literalUnion(
+  "RECEIPT",
+  "PUTAWAY",
+  "MOVE",
+  "STATUS_CHANGE",
+  "ADJUSTMENT",
+  "SCRAP",
+  "SHIPMENT",
+  "PRODUCTION_ISSUE",
+  "PRODUCTION_RECEIPT",
+  "REVERSAL",
 );
 export type InventoryTransactionTypeValue = Infer<
   typeof inventoryTransactionType
@@ -828,22 +774,22 @@ export type SignedQuantity = Infer<typeof signedQuantity>;
  *
  * `LOCATION_OCCUPANCY` is the only per-subject metric; the rest are site totals.
  */
-export const rollupMetric = v.union(
-  v.literal("RECEIPTS_OPENED"),
-  v.literal("RECEIPT_LINES_POSTED"),
-  v.literal("QC_PENDING"),
-  v.literal("QC_PARKED"),
-  v.literal("PUTAWAY_READY"),
-  v.literal("PUTAWAY_CLAIMED"),
-  v.literal("LOCATION_OCCUPANCY"),
+export const rollupMetric = literalUnion(
+  "RECEIPTS_OPENED",
+  "RECEIPT_LINES_POSTED",
+  "QC_PENDING",
+  "QC_PARKED",
+  "PUTAWAY_READY",
+  "PUTAWAY_CLAIMED",
+  "LOCATION_OCCUPANCY",
 );
 export type RollupMetricValue = Infer<typeof rollupMetric>;
 
 /** What an export contains. Closed, because each kind names its own columns. */
-export const reportKind = v.union(
-  v.literal("INVENTORY_BALANCES"),
-  v.literal("RECEIPT_LINES"),
-  v.literal("PUTAWAY_TASKS"),
+export const reportKind = literalUnion(
+  "INVENTORY_BALANCES",
+  "RECEIPT_LINES",
+  "PUTAWAY_TASKS",
 );
 export type ReportKindValue = Infer<typeof reportKind>;
 
@@ -855,11 +801,11 @@ export type ReportKindValue = Infer<typeof reportKind>;
  * missing job because a caller who asked for an export is owed the difference
  * (`INV-0011-03`).
  */
-export const reportJobStatus = v.union(
-  v.literal("QUEUED"),
-  v.literal("RUNNING"),
-  v.literal("COMPLETE"),
-  v.literal("FAILED"),
+export const reportJobStatus = literalUnion(
+  "QUEUED",
+  "RUNNING",
+  "COMPLETE",
+  "FAILED",
 );
 export type ReportJobStatusValue = Infer<typeof reportJobStatus>;
 
@@ -881,10 +827,10 @@ export type ReportJobStatusValue = Infer<typeof reportJobStatus>;
  * factory hand-off. Inventing a closure state before anything can close one would
  * be a status nothing sets.
  */
-export const customerOrderStatus = v.union(
-  v.literal("DRAFT"),
-  v.literal("RELEASED"),
-  v.literal("CANCELLED"),
+export const customerOrderStatus = literalUnion(
+  "DRAFT",
+  "RELEASED",
+  "CANCELLED",
 );
 export type CustomerOrderStatusValue = Infer<typeof customerOrderStatus>;
 
@@ -896,11 +842,11 @@ export type CustomerOrderStatusValue = Infer<typeof customerOrderStatus>;
  * revision is pinned to this line. A single `OPEN` would collapse the one
  * distinction the factory hand-off depends on.
  */
-export const customerOrderLineStatus = v.union(
-  v.literal("AWAITING_DESIGN"),
-  v.literal("DESIGN_READY"),
-  v.literal("HANDED_OFF"),
-  v.literal("CANCELLED"),
+export const customerOrderLineStatus = literalUnion(
+  "AWAITING_DESIGN",
+  "DESIGN_READY",
+  "HANDED_OFF",
+  "CANCELLED",
 );
 export type CustomerOrderLineStatusValue = Infer<
   typeof customerOrderLineStatus
@@ -1126,7 +1072,7 @@ export type TransportFileStorageStateValue = Infer<
  * suggested — is open, and a `SIMILAR` value would be a decision this repository
  * has not been given.
  */
-export const designSource = v.union(v.literal("EXISTING"), v.literal("NEW"));
+export const designSource = literalUnion("EXISTING", "NEW");
 export type DesignSourceValue = Infer<typeof designSource>;
 
 /**
@@ -1137,21 +1083,21 @@ export type DesignSourceValue = Infer<typeof designSource>;
  * `FULFILLED` means a released revision now exists and the line was pinned to it;
  * there is no `IN_PROGRESS`, because nothing observes it.
  */
-export const designRequestStatus = v.union(
-  v.literal("OPEN"),
-  v.literal("ASSIGNED"),
-  v.literal("IN_PROGRESS"),
-  v.literal("IN_REVIEW"),
-  v.literal("FULFILLED"),
-  v.literal("CANCELLED"),
+export const designRequestStatus = literalUnion(
+  "OPEN",
+  "ASSIGNED",
+  "IN_PROGRESS",
+  "IN_REVIEW",
+  "FULFILLED",
+  "CANCELLED",
 );
 export type DesignRequestStatusValue = Infer<typeof designRequestStatus>;
 
-export const designRequestPriority = v.union(
-  v.literal("LOW"),
-  v.literal("NORMAL"),
-  v.literal("HIGH"),
-  v.literal("URGENT"),
+export const designRequestPriority = literalUnion(
+  "LOW",
+  "NORMAL",
+  "HIGH",
+  "URGENT",
 );
 export type DesignRequestPriorityValue = Infer<typeof designRequestPriority>;
 
@@ -1166,12 +1112,12 @@ export type DesignRequestPriorityValue = Infer<typeof designRequestPriority>;
  * revision has been released without changing a single thing the packets that
  * pinned this one describe.
  */
-export const masterCardRevisionStatus = v.union(
-  v.literal("DRAFT"),
-  v.literal("IN_REVIEW"),
-  v.literal("RELEASED"),
-  v.literal("REJECTED"),
-  v.literal("SUPERSEDED"),
+export const masterCardRevisionStatus = literalUnion(
+  "DRAFT",
+  "IN_REVIEW",
+  "RELEASED",
+  "REJECTED",
+  "SUPERSEDED",
 );
 export type MasterCardRevisionStatusValue = Infer<
   typeof masterCardRevisionStatus
@@ -1185,11 +1131,11 @@ export type MasterCardRevisionStatusValue = Infer<
  * an open string would make "show me the dieline" a full scan of names somebody
  * typed. `OTHER` exists so a real attachment is never blocked by this list.
  */
-export const masterCardFileKind = v.union(
-  v.literal("DIELINE"),
-  v.literal("ARTWORK"),
-  v.literal("PHOTO"),
-  v.literal("OTHER"),
+export const masterCardFileKind = literalUnion(
+  "DIELINE",
+  "ARTWORK",
+  "PHOTO",
+  "OTHER",
 );
 export type MasterCardFileKindValue = Infer<typeof masterCardFileKind>;
 
@@ -1200,10 +1146,10 @@ export type MasterCardFileKindValue = Infer<typeof masterCardFileKind>;
  * private adapter can retrieve the object, and `FAILED` keeps a visible retryable
  * failure. Only `AVAILABLE` satisfies revision submission.
  */
-export const masterCardFileStorageState = v.union(
-  v.literal("REGISTERED"),
-  v.literal("AVAILABLE"),
-  v.literal("FAILED"),
+export const masterCardFileStorageState = literalUnion(
+  "REGISTERED",
+  "AVAILABLE",
+  "FAILED",
 );
 export type MasterCardFileStorageStateValue = Infer<
   typeof masterCardFileStorageState
@@ -1217,10 +1163,10 @@ export type MasterCardFileStorageStateValue = Infer<
  * status nothing advances would be a screen telling a planner something the
  * system does not know.
  */
-export const factoryPacketStatus = v.union(
-  v.literal("ISSUED"),
-  v.literal("ACKNOWLEDGED"),
-  v.literal("CANCELLED"),
+export const factoryPacketStatus = literalUnion(
+  "ISSUED",
+  "ACKNOWLEDGED",
+  "CANCELLED",
 );
 export type FactoryPacketStatusValue = Infer<typeof factoryPacketStatus>;
 

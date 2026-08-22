@@ -39,6 +39,7 @@
  */
 import { v } from "convex/values";
 
+import type { Doc } from "../_generated/dataModel";
 import {
   CODE_FIELD,
   appendDomainAudit,
@@ -54,10 +55,10 @@ import {
   pageOf,
   pageOptions,
   pageRefusal,
+  pageResult,
   pageRequestOf,
 } from "../lib/listEnvelope";
 import { mutationWithOrg, queryWithOrg } from "../lib/tenantFunctions";
-import type { TenantOrgId } from "../lib/tenantDb";
 import { boxSpecification, factoryPacketStatus } from "../lib/validators";
 import {
   refusal,
@@ -65,8 +66,6 @@ import {
   writeOutcomeValidator,
   written,
 } from "../lib/writeEnvelope";
-import type { CustomerOrderLineState } from "../model/orderToShip/customerOrder";
-import type { DesignSpecification } from "../model/orderToShip/designSpecification";
 import { MAX_FILES_PER_REVISION } from "../model/orderToShip/masterCardFile";
 import {
   checkPacketAcknowledgement,
@@ -91,73 +90,13 @@ const FILE_ACCESS_GRANT_LIFETIME_MS = 5 * 60 * 1_000;
 /* Documents                                                                   */
 /* -------------------------------------------------------------------------- */
 
-interface PacketDocument {
-  readonly _id: string;
-  readonly orgId: TenantOrgId;
-  readonly warehouseId: string;
-  readonly packetNumber: string;
-  readonly customerOrderLineId: string;
-  readonly masterCardRevisionId: string;
-  readonly status: "ISSUED" | "ACKNOWLEDGED" | "CANCELLED";
-  readonly issuedByUserId: string;
-  readonly acknowledgedByUserId?: string;
-  readonly acknowledgedAt?: number;
-}
-
-interface LineDocument {
-  readonly _id: string;
-  readonly orgId: TenantOrgId;
-  readonly customerOrderId: string;
-  readonly lineNumber: number;
-  readonly status: CustomerOrderLineState["status"];
-  readonly orderedQuantity: number;
-  readonly masterCardRevisionId?: string;
-}
-
-interface PacketFileDocument {
-  readonly _id: string;
-  readonly orgId: TenantOrgId;
-  readonly factoryPacketId: string;
-  readonly masterCardFileId: string;
-}
-
-interface RoutedFulfillmentLineDocument {
-  readonly _id: string;
-  readonly orgId: TenantOrgId;
-  readonly customerOrderLineId: string;
-  readonly warehouseId: string;
-  readonly routeDecision?: "AVAILABLE_STOCK" | "PRODUCTION";
-  readonly productionShortageBaseMinorUnits?: number;
-}
-
-interface OrderDocument {
-  readonly _id: string;
-  readonly orgId: TenantOrgId;
-  readonly orderNumber: string;
-  readonly customerId: string;
-  readonly status: string;
-  readonly customerReference?: string;
-}
-
-interface RevisionDocument {
-  readonly _id: string;
-  readonly orgId: TenantOrgId;
-  readonly revisionNumber: number;
-  readonly status: string;
-  readonly specification: DesignSpecification;
-  readonly decidedByUserId?: string;
-  readonly decidedAt?: number;
-  readonly decisionNote?: string;
-}
-
-interface FileDocument {
-  readonly _id: string;
-  readonly orgId: TenantOrgId;
-  readonly storageState: string;
-  readonly storageId?: string;
-  readonly uploadThingKey?: string;
-  readonly verifiedAt?: number;
-}
+type PacketDocument = Doc<"factoryPackets">;
+type LineDocument = Doc<"customerOrderLines">;
+type PacketFileDocument = Doc<"factoryPacketFiles">;
+type RoutedFulfillmentLineDocument = Doc<"fulfillmentLines">;
+type OrderDocument = Doc<"customerOrders">;
+type RevisionDocument = Doc<"masterCardRevisions">;
+type FileDocument = Doc<"masterCardFiles">;
 
 /** `(orgId, packetNumber)`: a packet number is unique per organization. */
 const packetNumberUniqueness = (
@@ -739,12 +678,7 @@ export const listFactoryPackets = queryWithOrg({
       });
     }
 
-    return {
-      ok: true as const,
-      items,
-      nextCursor: page.isDone ? null : page.continueCursor,
-      complete: page.isDone,
-    };
+    return pageResult(items, page);
   },
 });
 

@@ -42,6 +42,7 @@
  */
 import { v } from "convex/values";
 
+import type { Doc } from "../_generated/dataModel";
 import {
   summarizeDesignChange,
   type DesignChangeSummary,
@@ -63,6 +64,7 @@ import {
   pageOf,
   pageOptions,
   pageRefusal,
+  pageResult,
   pageRequestOf,
 } from "../lib/listEnvelope";
 import {
@@ -92,7 +94,6 @@ import {
 import {
   checkRevisionSubmission,
   nextRevisionNumber,
-  type MasterCardRevisionState,
 } from "../model/orderToShip/masterCardRevision";
 import { planMasterCardDecision } from "../model/orderToShip/masterCardRelease";
 import { MAX_FILES_PER_REVISION } from "../model/orderToShip/masterCardFile";
@@ -112,40 +113,8 @@ export const ENGINEERING_CARD_OPERATIONS = Object.freeze({
 /* Documents                                                                   */
 /* -------------------------------------------------------------------------- */
 
-interface CardDocument {
-  readonly _id: string;
-  readonly orgId: TenantOrgId;
-  readonly cardNumber: string;
-  readonly customerId: string;
-  readonly customerProductCode: string;
-  readonly designKey: string;
-  readonly name: string;
-  readonly status: string;
-  readonly releasedRevisionId?: string;
-}
-
-interface RevisionDocument {
-  readonly _id: string;
-  readonly orgId: TenantOrgId;
-  readonly masterCardId: string;
-  readonly revisionNumber: number;
-  readonly status: MasterCardRevisionState["status"];
-  readonly designKey: string;
-  readonly authoredByUserId: string;
-  readonly submittedByUserId?: string;
-  readonly decidedByUserId?: string;
-  readonly decidedAt?: number;
-  readonly decisionNote?: string;
-  readonly supersededByRevisionId?: string;
-  readonly specification: {
-    readonly styleCode: string;
-    readonly internalLengthMm: number;
-    readonly internalWidthMm: number;
-    readonly internalHeightMm: number;
-    readonly boardGrade: string;
-    readonly printColourCount: number;
-  };
-}
+type CardDocument = Doc<"masterCards">;
+type RevisionDocument = Doc<"masterCardRevisions">;
 
 interface ProductionOrderDocument {
   readonly _id: string;
@@ -984,9 +953,8 @@ export const listMasterCards = queryWithOrg({
       )
       .page(pageOptions(request.value));
 
-    return {
-      ok: true as const,
-      items: page.page.map((card) => ({
+    return pageResult(
+      page.page.map((card) => ({
         masterCardId: card._id as never,
         cardNumber: card.cardNumber,
         customerId: card.customerId as never,
@@ -998,9 +966,8 @@ export const listMasterCards = queryWithOrg({
           ? {}
           : { releasedRevisionId: card.releasedRevisionId as never }),
       })),
-      nextCursor: page.isDone ? null : page.continueCursor,
-      complete: page.isDone,
-    };
+      page,
+    );
   },
 });
 
@@ -1036,9 +1003,8 @@ export const listMasterCardRevisions = queryWithOrg({
       )
       .page(pageOptions(request.value));
 
-    return {
-      ok: true as const,
-      items: page.page.map((revision) => ({
+    return pageResult(
+      page.page.map((revision) => ({
         masterCardRevisionId: revision._id as never,
         masterCardId: revision.masterCardId as never,
         revisionNumber: revision.revisionNumber,
@@ -1064,8 +1030,7 @@ export const listMasterCardRevisions = queryWithOrg({
               supersededByRevisionId: revision.supersededByRevisionId as never,
             }),
       })),
-      nextCursor: page.isDone ? null : page.continueCursor,
-      complete: page.isDone,
-    };
+      page,
+    );
   },
 });
