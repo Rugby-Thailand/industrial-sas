@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 
+import type { Doc } from "../_generated/dataModel";
 import { postLedgerTransaction } from "../lib/inventoryLedgerStore";
 import {
   createMasterDataRow,
@@ -7,11 +8,11 @@ import {
   normalizeField,
   updateMasterDataRow,
 } from "../lib/masterDataStore";
-import type { TenantOrgId } from "../lib/tenantDb";
 import {
   mutationWithOrg,
   type TenantFunctionContext,
 } from "../lib/tenantFunctions";
+import { refusal, writeContextOf } from "../lib/writeEnvelope";
 import type { LedgerTransactionDraft } from "../model/inventory/ledgerTransaction";
 import {
   makeStorageZoneCode,
@@ -23,121 +24,17 @@ import {
 
 const outcome = v.any();
 
-interface BuildingDocument {
-  readonly _id: string;
-  readonly orgId: TenantOrgId;
-  readonly warehouseId: string;
-  readonly code: string;
-  readonly widthMm: number;
-  readonly depthMm: number;
-  readonly defaultFloorHeightMm: number;
-}
+type BuildingDocument = Doc<"storageBuildings">;
+type FloorDocument = Doc<"storageFloors">;
+type ReservedBlockDocument = Doc<"storageFloorReservedBlocks">;
+type ZoneDocument = Doc<"storageZones">;
+type PlacementDocument = Doc<"storageStackPlacements">;
+type HandlingUnitDocument = Doc<"handlingUnits">;
+type BalanceDocument = Doc<"inventoryBalances">;
+type TransactionDocument = Doc<"inventoryTransactions">;
+type IdempotencyDocument = Doc<"idempotencyRecords">;
 
-interface FloorDocument {
-  readonly _id: string;
-  readonly orgId: TenantOrgId;
-  readonly buildingId: string;
-  readonly warehouseId: string;
-  readonly floorNumber: number;
-  readonly widthMm?: number;
-  readonly depthMm?: number;
-  readonly heightMm?: number;
-}
-
-interface ReservedBlockDocument {
-  readonly _id: string;
-  readonly orgId: TenantOrgId;
-  readonly floorId: string;
-  readonly xMm: number;
-  readonly yMm: number;
-  readonly widthMm: number;
-  readonly depthMm: number;
-}
-
-interface ZoneDocument {
-  readonly _id: string;
-  readonly orgId: TenantOrgId;
-  readonly buildingId: string;
-  readonly floorId: string;
-  readonly warehouseId: string;
-  readonly locationId: string;
-  readonly code: string;
-  readonly label: string;
-  readonly qrValue: string;
-  readonly xMm: number;
-  readonly yMm: number;
-  readonly widthMm: number;
-  readonly depthMm: number;
-  readonly maxStackHeightMm: number;
-  readonly status: "ACTIVE" | "INACTIVE";
-}
-
-interface PlacementDocument {
-  readonly _id: string;
-  readonly orgId: TenantOrgId;
-  readonly zoneId: string;
-  readonly locationId: string;
-  readonly warehouseId: string;
-  readonly handlingUnitId: string;
-  readonly levelIndex: number;
-  readonly widthMm: number;
-  readonly depthMm: number;
-  readonly heightMm: number;
-  readonly orientation: "DEFAULT" | "ROTATED";
-  readonly status: "ACTIVE" | "REMOVED";
-  readonly transactionId: string;
-}
-
-interface HandlingUnitDocument {
-  readonly _id: string;
-  readonly orgId: TenantOrgId;
-  readonly warehouseId: string;
-  readonly lpn: string;
-  readonly currentLocationId?: string;
-  readonly status: "ACTIVE" | "INACTIVE";
-}
-
-interface BalanceDocument {
-  readonly _id: string;
-  readonly orgId: TenantOrgId;
-  readonly warehouseId: string;
-  readonly itemId: string;
-  readonly locationKind: "PHYSICAL" | "VIRTUAL";
-  readonly locationId?: string;
-  readonly virtualBoundary?:
-    | "SUPPLIER_RECEIPT"
-    | "CUSTOMER_SHIPMENT"
-    | "PRODUCTION_ISSUE"
-    | "PRODUCTION_RECEIPT"
-    | "INVENTORY_ADJUSTMENT"
-    | "SCRAP_DAMAGE"
-    | "RECONCILIATION";
-  readonly lotId?: string;
-  readonly serialId?: string;
-  readonly handlingUnitId?: string;
-  readonly ownerId?: string;
-  readonly stockStatus:
-    "AVAILABLE" | "QC_HOLD" | "QUARANTINE" | "REJECTED" | "SCRAP" | "EXPIRED";
-  readonly quantity: { readonly uom: string; readonly minorUnits: number };
-}
-
-interface TransactionDocument {
-  readonly _id: string;
-  readonly orgId: TenantOrgId;
-  readonly requestId: string;
-  readonly operation: string;
-}
-
-interface IdempotencyDocument {
-  readonly _id: string;
-  readonly orgId: TenantOrgId;
-  readonly resultRef?: string;
-}
-
-const failure = (code: string, field?: string) => ({
-  written: false as const,
-  error: { code, ...(field === undefined ? {} : { field }) },
-});
+const failure = (code: string, field?: string) => refusal({ code, field });
 
 function writeContext(
   ctx: TenantFunctionContext,
@@ -146,16 +43,12 @@ function writeContext(
   requestId: string,
   warehouseId: string,
 ) {
-  return {
-    tenantDb: ctx.tenantDb,
+  return writeContextOf(ctx, {
     table,
     operation,
     requestId,
-    permissionCode: ctx.permission.code,
-    actorUserId: ctx.tenant.actor._id,
     warehouseId,
-    now: Date.now(),
-  };
+  });
 }
 
 async function readBuildingFloor(

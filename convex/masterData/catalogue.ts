@@ -52,8 +52,14 @@
  * scan. Omitting it returns every status, which is what an administrator
  * auditing a deactivation needs.
  */
-import { v, type Validator } from "convex/values";
+import { v } from "convex/values";
 
+import {
+  listArgs,
+  pageOf,
+  pageOptions,
+  pageRequestOf,
+} from "../lib/listEnvelope";
 import type {
   TenantDocumentAccess,
   TenantOrgId,
@@ -73,7 +79,6 @@ import {
 } from "../lib/validators";
 import {
   MAX_JOB_PAGE_SIZE,
-  makeJobPageRequest,
   type JobPageRequest,
 } from "../model/inventory/jobPage";
 import {
@@ -86,10 +91,9 @@ import {
 /* -------------------------------------------------------------------------- */
 
 /** The arguments every master-data list takes. */
-const listArgs = {
+const masterDataListArgs = {
   status: v.optional(masterDataStatus),
-  maxPageSize: v.optional(v.number()),
-  cursor: v.optional(v.string()),
+  ...listArgs,
 };
 
 /** The refusal shape, matching the ledger's so a client has one error union. */
@@ -101,48 +105,11 @@ const listErrorValidator = v.object({
   length: v.optional(v.number()),
 });
 
-/**
- * The wire shape of a master-data page: the rows, the cursor, completion — or a
- * refusal. Generic over the row validator so each entity keeps its own,
- * type-checked, rather than sharing a widened one.
- */
-const pageOf = <Row extends Validator<unknown, "required", string>>(
-  rowValidator: Row,
-) =>
-  v.union(
-    v.object({
-      ok: v.literal(true),
-      items: v.array(rowValidator),
-      nextCursor: v.union(v.string(), v.null()),
-      complete: v.boolean(),
-    }),
-    v.object({ ok: v.literal(false), error: listErrorValidator }),
-  );
-
 /** A refusal, flattened for the wire. */
 const refusal = (error: Record<string, unknown>) => ({
   ok: false as const,
   error: { ...error } as { code: string },
 });
-
-/**
- * Turn the optional page arguments into a validated request.
- *
- * Shared so every list refuses an over-large page and a malformed cursor by the
- * same rule and with the same code. A caller that asked for 5,000 rows finds
- * out, rather than silently receiving a hundred.
- */
-function pageRequest(args: {
-  readonly maxPageSize?: number;
-  readonly cursor?: string;
-}) {
-  return makeJobPageRequest({
-    ...(args.maxPageSize === undefined
-      ? {}
-      : { maxPageSize: args.maxPageSize }),
-    ...(args.cursor === undefined ? {} : { cursor: args.cursor }),
-  });
-}
 
 /**
  * Read one page through a tenant-bound index.
@@ -162,10 +129,9 @@ async function readPage<Document extends TenantOwnedDocument>(
   readonly nextCursor: string | null;
   readonly complete: boolean;
 }> {
-  const page = await tenantDb.byIndex<Document>(table, index, equality).page({
-    limit: request.maxPageSize,
-    ...(request.cursor === null ? {} : { cursor: request.cursor }),
-  });
+  const page = await tenantDb
+    .byIndex<Document>(table, index, equality)
+    .page(pageOptions(request));
 
   return {
     items: page.page,
@@ -214,12 +180,12 @@ interface ItemDocument {
  * yet and byte-ordering Thai would be worse than ordering by a code.
  */
 export const listItems = queryWithOrg({
-  args: listArgs,
-  returns: pageOf(itemValidator),
+  args: masterDataListArgs,
+  returns: pageOf(itemValidator, listErrorValidator),
   permissionCode: "masterData.item.read",
   target: { table: "items" },
   handler: async (ctx, args) => {
-    const request = pageRequest(args);
+    const request = pageRequestOf(args);
     if (!request.ok) return refusal(request.error);
 
     const page = await readPage<ItemDocument>(
@@ -317,15 +283,12 @@ interface WarehouseDocument {
  * takes one (`INV-0006-04`); knowing a site exists is not knowing its stock.
  */
 export const listWarehouses = queryWithOrg({
-  args: {
-    maxPageSize: v.optional(v.number()),
-    cursor: v.optional(v.string()),
-  },
-  returns: pageOf(warehouseValidator),
+  args: listArgs,
+  returns: pageOf(warehouseValidator, listErrorValidator),
   permissionCode: "masterData.warehouse.read",
   target: { table: "warehouses" },
   handler: async (ctx, args) => {
-    const request = pageRequest(args);
+    const request = pageRequestOf(args);
     if (!request.ok) return refusal(request.error);
 
     const page = await readPage<WarehouseDocument>(
@@ -373,13 +336,13 @@ interface LocationDocument {
 
 /** One warehouse's locations, by code. Warehouse-scoped (`INV-0006-04`). */
 export const listLocations = queryWithOrg({
-  args: { warehouseId: v.id("warehouses"), ...listArgs },
-  returns: pageOf(locationValidator),
+  args: { warehouseId: v.id("warehouses"), ...masterDataListArgs },
+  returns: pageOf(locationValidator, listErrorValidator),
   permissionCode: "masterData.location.read",
   target: { table: "locations" },
   warehouseId: ({ warehouseId }) => warehouseId,
   handler: async (ctx, args) => {
-    const request = pageRequest(args);
+    const request = pageRequestOf(args);
     if (!request.ok) return refusal(request.error);
 
     const page = await readPage<LocationDocument>(
@@ -515,12 +478,12 @@ interface LotDocument {
  * before the index is read.
  */
 export const listLotsForItem = queryWithOrg({
-  args: { itemId: v.id("items"), ...listArgs },
-  returns: pageOf(lotValidator),
+  args: { itemId: v.id("items"), ...masterDataListArgs },
+  returns: pageOf(lotValidator, listErrorValidator),
   permissionCode: "masterData.lot.read",
   target: { table: "lots" },
   handler: async (ctx, args) => {
-    const request = pageRequest(args);
+    const request = pageRequestOf(args);
     if (!request.ok) return refusal(request.error);
 
     /*
@@ -614,16 +577,14 @@ interface HandlingUnitDocument {
 export const listHandlingUnits = queryWithOrg({
   args: {
     warehouseId: v.id("warehouses"),
-    status: v.optional(masterDataStatus),
-    maxPageSize: v.optional(v.number()),
-    cursor: v.optional(v.string()),
+    ...masterDataListArgs,
   },
-  returns: pageOf(handlingUnitValidator),
+  returns: pageOf(handlingUnitValidator, listErrorValidator),
   permissionCode: "handlingUnit.read",
   target: { table: "handlingUnits" },
   warehouseId: ({ warehouseId }) => warehouseId,
   handler: async (ctx, args) => {
-    const request = pageRequest(args);
+    const request = pageRequestOf(args);
     if (!request.ok) return refusal(request.error);
 
     /*
@@ -699,14 +660,13 @@ interface ReasonCodeDocument {
 export const listReasonCodes = queryWithOrg({
   args: {
     scope: v.optional(reasonCodeScope),
-    maxPageSize: v.optional(v.number()),
-    cursor: v.optional(v.string()),
+    ...listArgs,
   },
-  returns: pageOf(reasonCodeValidator),
+  returns: pageOf(reasonCodeValidator, listErrorValidator),
   permissionCode: "masterData.reasonCode.read",
   target: { table: "reasonCodes" },
   handler: async (ctx, args) => {
-    const request = pageRequest(args);
+    const request = pageRequestOf(args);
     if (!request.ok) return refusal(request.error);
 
     const page = await readPage<ReasonCodeDocument>(
@@ -762,15 +722,12 @@ interface OwnerDocument {
  * settings read, not this.
  */
 export const listOwners = queryWithOrg({
-  args: {
-    maxPageSize: v.optional(v.number()),
-    cursor: v.optional(v.string()),
-  },
-  returns: pageOf(ownerValidator),
+  args: listArgs,
+  returns: pageOf(ownerValidator, listErrorValidator),
   permissionCode: "masterData.owner.read",
   target: { table: "owners" },
   handler: async (ctx, args) => {
-    const request = pageRequest(args);
+    const request = pageRequestOf(args);
     if (!request.ok) return refusal(request.error);
 
     const page = await readPage<OwnerDocument>(
@@ -816,12 +773,12 @@ interface SupplierDocument {
 
 /** The tenant's suppliers, by code. */
 export const listSuppliers = queryWithOrg({
-  args: listArgs,
-  returns: pageOf(supplierValidator),
+  args: masterDataListArgs,
+  returns: pageOf(supplierValidator, listErrorValidator),
   permissionCode: "masterData.supplier.read",
   target: { table: "suppliers" },
   handler: async (ctx, args) => {
-    const request = pageRequest(args);
+    const request = pageRequestOf(args);
     if (!request.ok) return refusal(request.error);
 
     const page = await readPage<SupplierDocument>(
@@ -875,12 +832,12 @@ interface StorageClassDocument {
  * depend on which site they happened to have chosen.
  */
 export const listStorageClasses = queryWithOrg({
-  args: listArgs,
-  returns: pageOf(storageClassValidator),
+  args: masterDataListArgs,
+  returns: pageOf(storageClassValidator, listErrorValidator),
   permissionCode: "masterData.storageClass.read",
   target: { table: "storageClasses" },
   handler: async (ctx, args) => {
-    const request = pageRequest(args);
+    const request = pageRequestOf(args);
     if (!request.ok) return refusal(request.error);
 
     const page = await readPage<StorageClassDocument>(
@@ -935,12 +892,12 @@ interface BarcodeDocument {
  * (`resolveBarcode`).
  */
 export const listBarcodesForItem = queryWithOrg({
-  args: { itemId: v.id("items"), ...listArgs },
-  returns: pageOf(barcodeValidator),
+  args: { itemId: v.id("items"), ...masterDataListArgs },
+  returns: pageOf(barcodeValidator, listErrorValidator),
   permissionCode: "masterData.item.read",
   target: { table: "itemBarcodes" },
   handler: async (ctx, args) => {
-    const request = pageRequest(args);
+    const request = pageRequestOf(args);
     if (!request.ok) return refusal(request.error);
 
     const item = await ctx.tenantDb.get<ItemDocument>("items", args.itemId);
@@ -1180,12 +1137,12 @@ const uomProfileValidator = v.union(
 
 /** One item's declared alternate units, paged. */
 export const listItemUoms = queryWithOrg({
-  args: { itemId: v.id("items"), ...listArgs },
-  returns: pageOf(itemUomValidator),
+  args: { itemId: v.id("items"), ...masterDataListArgs },
+  returns: pageOf(itemUomValidator, listErrorValidator),
   permissionCode: "masterData.item.read",
   target: { table: "itemUoms" },
   handler: async (ctx, args) => {
-    const request = pageRequest(args);
+    const request = pageRequestOf(args);
     if (!request.ok) return refusal(request.error);
 
     const item = await ctx.tenantDb.get<ItemDocument>("items", args.itemId);
@@ -1321,14 +1278,13 @@ interface LabelTemplateDocument {
 export const listLabelTemplates = queryWithOrg({
   args: {
     status: v.optional(labelTemplateStatus),
-    maxPageSize: v.optional(v.number()),
-    cursor: v.optional(v.string()),
+    ...listArgs,
   },
-  returns: pageOf(labelTemplateValidator),
+  returns: pageOf(labelTemplateValidator, listErrorValidator),
   permissionCode: "label.template.read",
   target: { table: "labelTemplates" },
   handler: async (ctx, args) => {
-    const request = pageRequest(args);
+    const request = pageRequestOf(args);
     if (!request.ok) return refusal(request.error);
 
     const page = await readPage<LabelTemplateDocument>(

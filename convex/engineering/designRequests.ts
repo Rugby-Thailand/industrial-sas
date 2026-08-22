@@ -27,7 +27,7 @@
  */
 import { v, type Infer } from "convex/values";
 
-import type { Id } from "../_generated/dataModel";
+import type { Doc, Id } from "../_generated/dataModel";
 import {
   appendDomainAudit,
   replayTenantWriteIfPresent,
@@ -38,6 +38,7 @@ import {
   pageOf,
   pageOptions,
   pageRefusal,
+  pageResult,
   pageRequestOf,
 } from "../lib/listEnvelope";
 import { mutationWithOrg, queryWithOrg } from "../lib/tenantFunctions";
@@ -55,14 +56,12 @@ import {
   written,
 } from "../lib/writeEnvelope";
 import { checkDesignFulfilment } from "../model/orderToShip/customerOrder";
-import type { CustomerOrderLineState } from "../model/orderToShip/customerOrder";
 import {
   checkDesignRequestFulfilment,
   isDesignRequestOverdue,
   planDesignRequestAssignment,
   planDesignRequestProgress,
   planSimilarDesignConfirmation,
-  type DesignRequestState,
 } from "../model/orderToShip/designRequest";
 import {
   designSimilarityScore,
@@ -84,62 +83,14 @@ export const ENGINEERING_REQUEST_OPERATIONS = Object.freeze({
 /* Documents                                                                   */
 /* -------------------------------------------------------------------------- */
 
-interface RequestDocument {
-  readonly _id: string;
-  readonly orgId: TenantOrgId;
-  readonly requestNumber: string;
-  readonly customerOrderLineId: string;
-  readonly status: DesignRequestState["status"];
-  readonly priority: "LOW" | "NORMAL" | "HIGH" | "URGENT";
-  readonly dueAt?: number;
-  readonly assignedToUserId?: string;
-  readonly masterCardRevisionId?: string;
-}
-
-interface LineDocument {
-  readonly _id: string;
-  readonly orgId: TenantOrgId;
-  readonly customerOrderId: string;
-  readonly customerProductCode: string;
-  readonly designKey: string;
-  readonly status: CustomerOrderLineState["status"];
-  readonly masterCardRevisionId?: string;
-  readonly specification: DesignSpecification;
-  readonly designSource: string;
-}
-
-interface OrderDocument {
-  readonly _id: string;
-  readonly orgId: TenantOrgId;
-  readonly customerId: string;
-}
-
-interface RevisionDocument {
-  readonly _id: string;
-  readonly orgId: TenantOrgId;
-  readonly status: string;
-  readonly designKey: string;
-  readonly masterCardId: string;
-  readonly specification: DesignSpecification;
-}
-
-interface CardDocument {
-  readonly _id: string;
-  readonly orgId: TenantOrgId;
-  readonly customerProductCode: string;
-  readonly customerId: string;
-  readonly status?: string;
-  readonly cardNumber?: string;
-  readonly releasedRevisionId?: string;
-}
+type RequestDocument = Doc<"designRequests">;
+type LineDocument = Doc<"customerOrderLines">;
+type OrderDocument = Doc<"customerOrders">;
+type RevisionDocument = Doc<"masterCardRevisions">;
+type CardDocument = Doc<"masterCards">;
 
 /** Only enough of a membership to answer "is this person a member here". */
-interface MembershipRow {
-  readonly _id: string;
-  readonly orgId: TenantOrgId;
-  readonly userId: string;
-  readonly status: string;
-}
+type MembershipRow = Doc<"memberships">;
 
 /* -------------------------------------------------------------------------- */
 /* Writes                                                                      */
@@ -645,12 +596,7 @@ export const listDesignRequests = queryWithOrg({
       });
     }
 
-    return {
-      ok: true as const,
-      items,
-      nextCursor: page.isDone ? null : page.continueCursor,
-      complete: page.isDone,
-    };
+    return pageResult(items, page);
   },
 });
 
@@ -791,17 +737,15 @@ export const listReleasedRevisions = queryWithOrg({
       ])
       .page(pageOptions(request.value));
 
-    return {
-      ok: true as const,
-      items: page.page.map((revision) => ({
+    return pageResult(
+      page.page.map((revision) => ({
         masterCardRevisionId: revision._id as never,
         revisionNumber: revision.revisionNumber,
         designKey: revision.designKey,
         specification: { ...revision.specification } as never,
         status: revision.status as never,
       })),
-      nextCursor: page.isDone ? null : page.continueCursor,
-      complete: page.isDone,
-    };
+      page,
+    );
   },
 });

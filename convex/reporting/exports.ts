@@ -32,6 +32,7 @@
  */
 import { v } from "convex/values";
 
+import type { Doc } from "../_generated/dataModel";
 import {
   csvHeader,
   csvRows,
@@ -47,7 +48,7 @@ import {
 import { MAX_JOB_PAGE_SIZE } from "../model/inventory/jobPage";
 import { formatQuantity, makeQuantity } from "../model/uom/quantity";
 import { mutationWithOrg, queryWithOrg } from "../lib/tenantFunctions";
-import type { TenantDocumentAccess, TenantOrgId } from "../lib/tenantDb";
+import type { TenantDocumentAccess } from "../lib/tenantDb";
 import { reportJobStatus, reportKind } from "../lib/validators";
 import {
   refusal,
@@ -68,52 +69,10 @@ export const MAX_ARTIFACT_BYTES = 512 * 1024;
 /** Rows appended per chunk. One bounded page, like every other read. */
 export const EXPORT_CHUNK_ROWS = MAX_JOB_PAGE_SIZE;
 
-interface ReportJobDocument {
-  readonly _id: string;
-  readonly orgId: TenantOrgId;
-  readonly warehouseId: string;
-  readonly kind: "INVENTORY_BALANCES" | "RECEIPT_LINES" | "PUTAWAY_TASKS";
-  readonly status: "QUEUED" | "RUNNING" | "COMPLETE" | "FAILED";
-  readonly requestId: string;
-  readonly cursor?: string;
-  readonly rowCount: number;
-  readonly artifact: string;
-  readonly artifactBytes: number;
-}
-
-interface BalanceRow {
-  readonly _id: string;
-  readonly orgId: TenantOrgId;
-  readonly bucketKey: string;
-  readonly itemId: string;
-  readonly locationId?: string;
-  readonly stockStatus: string;
-  readonly quantity: { readonly uom: string; readonly minorUnits: number };
-  readonly updatedAt: number;
-}
-
-interface ReceiptLineRow {
-  readonly _id: string;
-  readonly orgId: TenantOrgId;
-  readonly receiptId: string;
-  readonly itemId: string;
-  readonly locationId: string;
-  readonly baseMinorUnits: number;
-  readonly kind: string;
-  readonly classification: string;
-  readonly stockStatus: string;
-}
-
-interface PutawayTaskRow {
-  readonly _id: string;
-  readonly orgId: TenantOrgId;
-  readonly itemId: string;
-  readonly status: string;
-  readonly fromLocationId: string;
-  readonly chosenLocationId?: string;
-  readonly recommendedLocationId?: string;
-  readonly baseMinorUnits: number;
-}
+type ReportJobDocument = Doc<"reportJobs">;
+type BalanceRow = Doc<"inventoryBalances">;
+type ReceiptLineRow = Doc<"receiptLines">;
+type PutawayTaskRow = Doc<"putawayTasks">;
 
 /**
  * The columns of each export, and the row renderer that fills them.
@@ -280,7 +239,7 @@ async function readSourcePage(
     // can only drain one of them anyway, and the extra IDs would have to be
     // carried in the cursor.
     const receipts = await tenantDb
-      .byIndex<{ readonly _id: string; readonly orgId: TenantOrgId }>(
+      .byIndex<Pick<Doc<"receipts">, "_id" | "orgId">>(
         "receipts",
         "by_orgId_warehouseId_occurredAt",
         [{ field: "warehouseId", value: job.warehouseId }],

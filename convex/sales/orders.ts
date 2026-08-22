@@ -32,6 +32,7 @@
  */
 import { v } from "convex/values";
 
+import type { Doc } from "../_generated/dataModel";
 import {
   CODE_FIELD,
   appendDomainAudit,
@@ -48,6 +49,7 @@ import {
   pageOf,
   pageOptions,
   pageRefusal,
+  pageResult,
   pageRequestOf,
 } from "../lib/listEnvelope";
 import {
@@ -101,50 +103,10 @@ export const SALES_ORDER_OPERATIONS = Object.freeze({
 /* Documents                                                                   */
 /* -------------------------------------------------------------------------- */
 
-interface OrderDocument {
-  readonly _id: string;
-  readonly orgId: TenantOrgId;
-  readonly orderNumber: string;
-  readonly customerId: string;
-  readonly status: "DRAFT" | "RELEASED" | "CANCELLED";
-  readonly customerReference?: string;
-  readonly orderedAt: number;
-}
-
-interface OrderLineDocument {
-  readonly _id: string;
-  readonly orgId: TenantOrgId;
-  readonly customerOrderId: string;
-  readonly lineNumber: number;
-  readonly customerProductCode: string;
-  readonly designKey: string;
-  readonly designSource: "EXISTING" | "NEW";
-  readonly status: CustomerOrderLineState["status"];
-  readonly orderedQuantity: number;
-  readonly masterCardRevisionId?: string;
-  readonly specification: {
-    readonly styleCode: string;
-    readonly internalLengthMm: number;
-    readonly internalWidthMm: number;
-    readonly internalHeightMm: number;
-    readonly boardGrade: string;
-    readonly printColourCount: number;
-  };
-}
-
-interface MasterCardDocument {
-  readonly _id: string;
-  readonly orgId: TenantOrgId;
-  readonly releasedRevisionId?: string;
-  readonly customerProductCode: string;
-  readonly status: string;
-}
-
-interface RevisionDocument {
-  readonly _id: string;
-  readonly orgId: TenantOrgId;
-  readonly status: string;
-}
+type OrderDocument = Doc<"customerOrders">;
+type OrderLineDocument = Doc<"customerOrderLines">;
+type MasterCardDocument = Doc<"masterCards">;
+type RevisionDocument = Doc<"masterCardRevisions">;
 
 /* -------------------------------------------------------------------------- */
 /* Uniqueness                                                                  */
@@ -852,9 +814,8 @@ export const listCustomerOrders = queryWithOrg({
       )
       .page(pageOptions(request.value));
 
-    return {
-      ok: true as const,
-      items: page.page.map((order) => ({
+    return pageResult(
+      page.page.map((order) => ({
         customerOrderId: order._id as never,
         orderNumber: order.orderNumber,
         customerId: order.customerId as never,
@@ -864,9 +825,8 @@ export const listCustomerOrders = queryWithOrg({
         status: order.status as never,
         orderedAt: order.orderedAt,
       })),
-      nextCursor: page.isDone ? null : page.continueCursor,
-      complete: page.isDone,
-    };
+      page,
+    );
   },
 });
 
@@ -914,9 +874,8 @@ export const listCustomerOrderLines = queryWithOrg({
       )
       .page(pageOptions(request.value));
 
-    return {
-      ok: true as const,
-      items: page.page.map((line) => ({
+    return pageResult(
+      page.page.map((line) => ({
         customerOrderLineId: line._id as never,
         customerOrderId: line.customerOrderId as never,
         lineNumber: line.lineNumber,
@@ -930,8 +889,7 @@ export const listCustomerOrderLines = queryWithOrg({
           ? {}
           : { masterCardRevisionId: line.masterCardRevisionId as never }),
       })),
-      nextCursor: page.isDone ? null : page.continueCursor,
-      complete: page.isDone,
-    };
+      page,
+    );
   },
 });

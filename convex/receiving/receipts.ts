@@ -54,6 +54,7 @@ import {
   pageOptions,
   pageRefusal,
   pageRequestOf,
+  pageResult,
 } from "../lib/listEnvelope";
 import {
   receiptClassification,
@@ -1222,9 +1223,8 @@ export const listReceipts = queryWithOrg({
       poNumberByOrderId.set(orderId, order?.poNumber);
     }
 
-    return {
-      ok: true as const,
-      items: page.page.map((receipt) => {
+    return pageResult(
+      page.page.map((receipt) => {
         const poNumber =
           receipt.purchaseOrderId === undefined
             ? undefined
@@ -1241,9 +1241,8 @@ export const listReceipts = queryWithOrg({
           ...(poNumber === undefined ? {} : { poNumber }),
         };
       }),
-      nextCursor: page.isDone ? null : page.continueCursor,
-      complete: page.isDone,
-    };
+      page,
+    );
   },
 });
 
@@ -1336,9 +1335,8 @@ export const listReceiptLines = queryWithOrg({
       ])
       .page(pageOptions(request.value));
 
-    return {
-      ok: true as const,
-      items: page.page.map((line) => {
+    return pageResult(
+      page.page.map((line) => {
         const row = line as unknown as Record<string, unknown>;
         return {
           receiptLineId: line._id as never,
@@ -1358,9 +1356,8 @@ export const listReceiptLines = queryWithOrg({
             : { handlingUnitId: row["handlingUnitId"] as never }),
         };
       }),
-      nextCursor: page.isDone ? null : page.continueCursor,
-      complete: page.isDone,
-    };
+      page,
+    );
   },
 });
 

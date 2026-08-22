@@ -51,16 +51,14 @@ import {
   toPublicLedgerError,
   type LedgerStoreError,
 } from "../lib/inventoryLedgerStore";
+import { pageRequestOf } from "../lib/listEnvelope";
 import { queryWithOrg } from "../lib/tenantFunctions";
 import { fail, ok, type Result } from "../model/result";
 import {
   EXPIRY_SOURCE_STATUSES,
   isExpiredAsOf,
 } from "../model/inventory/expiryReclassification";
-import {
-  MAX_JOB_PAGE_SIZE,
-  makeJobPageRequest,
-} from "../model/inventory/jobPage";
+import { MAX_JOB_PAGE_SIZE } from "../model/inventory/jobPage";
 import {
   MAX_PAGES_PER_RUN,
   initialCheckpoint,
@@ -177,11 +175,7 @@ export const reconcileWarehouse = queryWithOrg({
   target: { table: "inventoryBalances" },
   warehouseId: ({ warehouseId }) => warehouseId,
   handler: async (ctx, args) => {
-    const pageRequest = makeJobPageRequest({
-      ...(args.maxPageSize === undefined
-        ? {}
-        : { maxPageSize: args.maxPageSize }),
-    });
+    const pageRequest = pageRequestOf(args);
     if (!pageRequest.ok) {
       return {
         ok: false as const,
@@ -331,11 +325,7 @@ export const planExpiry = queryWithOrg({
       return { ok: false as const, error: { code: asOf.error, field: "asOf" } };
     }
 
-    const pageRequest = makeJobPageRequest({
-      ...(args.maxPageSize === undefined
-        ? {}
-        : { maxPageSize: args.maxPageSize }),
-    });
+    const pageRequest = pageRequestOf(args);
     if (!pageRequest.ok) {
       return {
         ok: false as const,

@@ -1,26 +1,14 @@
 /** Bounded workspace context for the signed-in membership. */
-import { v, type GenericId } from "convex/values";
+import { v } from "convex/values";
 
+import type { Doc } from "../_generated/dataModel";
 import type { TenantFunctionContext } from "../lib/tenantFunctions";
 import { queryWithOrg } from "../lib/tenantFunctions";
-import type { TenantOrgId, TenantOwnedDocument } from "../lib/tenantDb";
 
 const MAX_WORKSPACES = 100;
 
-interface WarehouseDocument extends TenantOwnedDocument {
-  readonly _id: GenericId<"warehouses">;
-  readonly orgId: TenantOrgId;
-  readonly code: string;
-  readonly name: string;
-  readonly status: "ACTIVE" | "INACTIVE";
-}
-
-interface MembershipWarehouseDocument extends TenantOwnedDocument {
-  readonly _id: GenericId<"membershipWarehouses">;
-  readonly orgId: TenantOrgId;
-  readonly membershipId: GenericId<"memberships">;
-  readonly warehouseId: GenericId<"warehouses">;
-}
+type WarehouseDocument = Doc<"warehouses">;
+type MembershipWarehouseDocument = Doc<"membershipWarehouses">;
 
 const workspaceValidator = v.object({
   organization: v.object({ id: v.id("organizations"), name: v.string() }),

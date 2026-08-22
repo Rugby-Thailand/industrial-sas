@@ -1,6 +1,7 @@
-import type { ReactNode } from "react";
-
-import { RouteMessages } from "@/i18n/RouteMessages";
+import {
+  RouteMessages,
+  type RouteMessagesLayoutProps,
+} from "@/i18n/RouteMessages";
 
 /**
  * The client message scope for every master-data screen, list and detail alike.
@@ -10,17 +11,6 @@ import { RouteMessages } from "@/i18n/RouteMessages";
  * the reasoning, and `clientMessages.test.ts` proves it still matches what the
  * client components here actually ask for.
  */
-export default async function MasterDataLayout({
-  children,
-  params,
-}: {
-  readonly children: ReactNode;
-  readonly params: Promise<{ locale: string }>;
-}) {
-  const { locale } = await params;
-  return (
-    <RouteMessages scope="(desktop)/master-data" locale={locale}>
-      {children}
-    </RouteMessages>
-  );
+export default function MasterDataLayout(props: RouteMessagesLayoutProps) {
+  return <RouteMessages scope="(desktop)/master-data" {...props} />;
 }

@@ -26,6 +26,7 @@
 import { internalMutationGeneric } from "convex/server";
 import { v } from "convex/values";
 
+import type { Doc } from "../_generated/dataModel";
 import {
   CODE_FIELD,
   appendDomainAudit,
@@ -41,6 +42,7 @@ import {
   pageOf,
   pageOptions,
   pageRefusal,
+  pageResult,
   pageRequestOf,
 } from "../lib/listEnvelope";
 import {
@@ -48,7 +50,6 @@ import {
   queryWithOrg,
   type TenantFunctionContext,
 } from "../lib/tenantFunctions";
-import type { TenantOrgId } from "../lib/tenantDb";
 import {
   masterCardFileKind,
   masterCardFileStorageState,
@@ -59,10 +60,7 @@ import {
   writeOutcomeValidator,
   written,
 } from "../lib/writeEnvelope";
-import {
-  checkFileAttachment,
-  type MasterCardRevisionState,
-} from "../model/orderToShip/masterCardRevision";
+import { checkFileAttachment } from "../model/orderToShip/masterCardRevision";
 import { MAX_FILES_PER_REVISION } from "../model/orderToShip/masterCardFile";
 
 /* -------------------------------------------------------------------------- */
@@ -108,42 +106,9 @@ const CONTENT_TYPE_PATTERN =
 /* Documents                                                                   */
 /* -------------------------------------------------------------------------- */
 
-interface RevisionDocument {
-  readonly _id: string;
-  readonly orgId: TenantOrgId;
-  readonly status: MasterCardRevisionState["status"];
-  readonly authoredByUserId: string;
-  readonly submittedByUserId?: string;
-}
-
-interface FileDocument {
-  readonly _id: string;
-  readonly orgId: TenantOrgId;
-  readonly masterCardRevisionId?: string;
-  readonly fileKey: string;
-  readonly fileName: string;
-  readonly kind: string;
-  readonly contentType: string;
-  readonly byteSize: number;
-  readonly contentDigest: string;
-  readonly storageState: string;
-  readonly storageId?: string;
-  readonly verifiedAt?: number;
-  readonly attachedByUserId: string;
-}
-
-interface UploadGrantDocument {
-  readonly _id: string;
-  readonly orgId: TenantOrgId;
-  readonly masterCardRevisionId?: string;
-  readonly batchRef?: string;
-  readonly sourceRow?: number;
-  readonly expiresAt: number;
-  readonly uploadStartedAt?: number;
-  readonly consumedStorageId?: string;
-  readonly consumedAt?: number;
-  readonly attachedAt?: number;
-}
+type RevisionDocument = Doc<"masterCardRevisions">;
+type FileDocument = Doc<"masterCardFiles">;
+type UploadGrantDocument = Doc<"masterCardUploadGrants">;
 
 const EXPIRED_GRANT_CLEANUP_BATCH = 25;
 
@@ -727,9 +692,8 @@ export const listMasterCardFiles = queryWithOrg({
       )
       .page(pageOptions(request.value));
 
-    return {
-      ok: true as const,
-      items: page.page.map((file) => ({
+    return pageResult(
+      page.page.map((file) => ({
         masterCardFileId: file._id as never,
         masterCardRevisionId: file.masterCardRevisionId as never,
         fileKey: file.fileKey,
@@ -747,8 +711,7 @@ export const listMasterCardFiles = queryWithOrg({
         storageState: file.storageState as never,
         attachedByUserId: file.attachedByUserId as never,
       })),
-      nextCursor: page.isDone ? null : page.continueCursor,
-      complete: page.isDone,
-    };
+      page,
+    );
   },
 });

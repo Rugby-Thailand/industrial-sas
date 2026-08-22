@@ -64,6 +64,7 @@ import {
   queryWithOrg,
   type TenantPolicyContext,
 } from "../lib/tenantFunctions";
+import { pageRequestOf } from "../lib/listEnvelope";
 import {
   inventoryTransactionSource,
   inventoryTransactionType,
@@ -72,10 +73,7 @@ import {
   stockStatus,
   virtualBoundaryCode,
 } from "../lib/validators";
-import {
-  MAX_JOB_PAGE_SIZE,
-  makeJobPageRequest,
-} from "../model/inventory/jobPage";
+import { MAX_JOB_PAGE_SIZE } from "../model/inventory/jobPage";
 import { LEDGER_OPERATIONS } from "../model/inventory/requestIdentity";
 import {
   decodeBucketKey,
@@ -611,12 +609,7 @@ export const listTransactions = queryWithOrg({
     ctx,
     args,
   ): Promise<WirePage<ReturnType<typeof wireTransactionSummary>>> => {
-    const request = makeJobPageRequest({
-      ...(args.maxPageSize === undefined
-        ? {}
-        : { maxPageSize: args.maxPageSize }),
-      ...(args.cursor === undefined ? {} : { cursor: args.cursor }),
-    });
+    const request = pageRequestOf(args);
     if (!request.ok) {
       return {
         ok: false as const,
@@ -683,12 +676,7 @@ export const listBalances = queryWithOrg({
     ctx,
     args,
   ): Promise<WirePage<ReturnType<typeof wireBalanceSummary>>> => {
-    const request = makeJobPageRequest({
-      ...(args.maxPageSize === undefined
-        ? {}
-        : { maxPageSize: args.maxPageSize }),
-      ...(args.cursor === undefined ? {} : { cursor: args.cursor }),
-    });
+    const request = pageRequestOf(args);
     if (!request.ok) {
       return {
         ok: false as const,
@@ -809,12 +797,7 @@ export const reconcileBucket = queryWithOrg({
       };
     }
 
-    const request = makeJobPageRequest({
-      ...(args.maxPageSize === undefined
-        ? {}
-        : { maxPageSize: args.maxPageSize }),
-      ...(args.cursor === undefined ? {} : { cursor: args.cursor }),
-    });
+    const request = pageRequestOf(args);
     if (!request.ok) {
       return {
         ok: false as const,

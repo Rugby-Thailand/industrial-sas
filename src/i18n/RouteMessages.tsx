@@ -8,6 +8,11 @@ import {
   type RouteMessageScope,
 } from "./clientMessages";
 
+export interface RouteMessagesLayoutProps {
+  readonly children: ReactNode;
+  readonly params: Promise<{ locale: string }>;
+}
+
 /**
  * The message provider for one route subtree.
  *
@@ -27,13 +32,12 @@ import {
  */
 export async function RouteMessages({
   scope,
-  locale,
   children,
-}: {
+  params,
+}: RouteMessagesLayoutProps & {
   readonly scope: RouteMessageScope;
-  readonly locale: string;
-  readonly children: ReactNode;
 }) {
+  const { locale } = await params;
   setRequestLocale(locale);
   const messages = await getMessages();
 
