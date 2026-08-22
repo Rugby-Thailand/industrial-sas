@@ -79,7 +79,6 @@ const NAV_ID = "primary-navigation";
 
 export function DesktopShell({ children }: { readonly children: ReactNode }) {
   const t = useTranslations("Navigation");
-  const appT = useTranslations("App");
 
   return (
     <SidebarProvider className="min-h-dvh flex-col bg-canvas text-text">
@@ -96,9 +95,6 @@ export function DesktopShell({ children }: { readonly children: ReactNode }) {
         <div className="flex flex-wrap items-center justify-between gap-4 px-4 py-3">
           <div className="flex items-center gap-3">
             <NavigationDisclosure />
-            <span className="text-base font-bold tracking-tight">
-              {appT("name")}
-            </span>
           </div>
           <div className="flex flex-wrap items-center gap-4">
             <ConnectionIndicator />
@@ -128,8 +124,8 @@ export function DesktopShell({ children }: { readonly children: ReactNode }) {
  * `toggleSidebar`, which branches on viewport width. The desktop rail is not
  * collapsible here, so a single meaning for "expanded" is the honest one: the
  * sheet is open or it is not. The visible control is the conventional
- * hamburger/close icon so it does not compete with the product name in the
- * compact header; its localized accessible name still says the action in full.
+ * hamburger/close icon so it stays compact; its localized accessible name
+ * still says the action in full.
  * `aria-controls` is dropped while the tree is absent from the document rather
  * than left pointing at an id nothing has.
  */
@@ -169,7 +165,7 @@ function NavigationRegion() {
         <SheetContent
           side="left"
           closeLabel={t("closeMenu")}
-          className="w-72 gap-0 p-0"
+          className="gap-0 p-0 data-[side=left]:w-64 data-[side=left]:sm:max-w-64"
         >
           {/*
            * Radix requires a title on a dialog. The sheet's own heading is
@@ -180,6 +176,10 @@ function NavigationRegion() {
             <SheetTitle>{t("primary")}</SheetTitle>
           </SheetHeader>
           <Sidebar collapsible="none" className="h-full w-full">
+            <div
+              aria-hidden="true"
+              className="h-12 shrink-0 border-b border-sidebar-border"
+            />
             <NavigationTree onNavigate={() => setOpenMobile(false)} />
           </Sidebar>
         </SheetContent>
@@ -190,7 +190,7 @@ function NavigationRegion() {
   return (
     <Sidebar
       collapsible="none"
-      className="w-full border-b border-border lg:w-64 lg:shrink-0 lg:border-r lg:border-b-0"
+      className="w-full border-b border-border lg:w-56 lg:shrink-0 lg:border-r lg:border-b-0"
     >
       <NavigationTree />
     </Sidebar>

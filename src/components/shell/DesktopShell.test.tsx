@@ -85,6 +85,8 @@ describe("DesktopShell", () => {
     expect(close).toHaveAttribute("aria-expanded", "true");
     expect(close).toHaveTextContent("");
     expect(close.querySelector("svg.lucide-x")).toHaveClass("size-6");
+    expect(screen.getByRole("navigation").parentElement).toHaveClass("lg:w-56");
+    expect(screen.queryByText("Industrial SAS")).not.toBeInTheDocument();
   });
 
   it("reports an unconfigured deployment rather than a connection attempt", () => {
