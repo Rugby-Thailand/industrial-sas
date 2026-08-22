@@ -368,6 +368,10 @@ describe("StorageZonesPanel", () => {
       { locale: "en", workspace: false },
     );
 
+    expect(
+      screen.getByRole("button", { name: "Add storage zone" }).parentElement,
+    ).toHaveClass("grid-cols-[minmax(0,1fr)_auto]");
+
     fireEvent.click(
       screen.getByRole("button", { name: "Edit QA Finished Goods Stack" }),
     );
