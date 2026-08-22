@@ -1298,37 +1298,37 @@ export function FloorPlan({
           </button>
         </div>
       </figcaption>
-      {view === "3d" ? (
-        <FloorVolume
-          widthMm={widthMm}
-          depthMm={depthMm}
-          heightMm={heightMm}
-          baseWidthMm={baseWidthMm}
-          baseDepthMm={baseDepthMm}
-          floorNumber={floorNumber}
-          offsetXMm={offsetXMm}
-          offsetYMm={offsetYMm}
-          onPlacementChange={onPlacementChange}
-          blocks={blocks}
-          zones={zones}
-        />
-      ) : (
-        <FloorPlanDrawing
-          widthMm={widthMm}
-          depthMm={depthMm}
-          baseWidthMm={baseWidthMm}
-          baseDepthMm={baseDepthMm}
-          offsetXMm={offsetXMm}
-          offsetYMm={offsetYMm}
-          blocks={blocks}
-          zones={zones}
-        />
-      )}
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-background px-3 py-2 text-xs">
-        <span className="font-medium text-text">
-          {t("positionOn", { base: baseLabel })}
-        </span>
-        <span className="text-muted tabular-nums">
+      <div className="relative">
+        {view === "3d" ? (
+          <FloorVolume
+            widthMm={widthMm}
+            depthMm={depthMm}
+            heightMm={heightMm}
+            baseWidthMm={baseWidthMm}
+            baseDepthMm={baseDepthMm}
+            floorNumber={floorNumber}
+            offsetXMm={offsetXMm}
+            offsetYMm={offsetYMm}
+            onPlacementChange={onPlacementChange}
+            blocks={blocks}
+            zones={zones}
+          />
+        ) : (
+          <FloorPlanDrawing
+            widthMm={widthMm}
+            depthMm={depthMm}
+            baseWidthMm={baseWidthMm}
+            baseDepthMm={baseDepthMm}
+            offsetXMm={offsetXMm}
+            offsetYMm={offsetYMm}
+            blocks={blocks}
+            zones={zones}
+          />
+        )}
+        <span
+          aria-live="polite"
+          className="pointer-events-none absolute right-3 bottom-3 rounded-md border border-border/80 bg-background/90 px-3 py-2 text-xs text-muted tabular-nums shadow-sm backdrop-blur-sm"
+        >
           X {metres(offsetXMm)} m · Y {metres(offsetYMm)} m
         </span>
       </div>

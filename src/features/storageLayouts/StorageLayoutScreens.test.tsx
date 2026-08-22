@@ -190,9 +190,13 @@ describe("FloorPlan", () => {
     expect(screen.getByText("H 5 m")).toBeInTheDocument();
     expect(screen.getByText("Lift core")).toBeInTheDocument();
     expect(
-      screen.getByText("Position on Floor 1 footprint"),
-    ).toBeInTheDocument();
-    expect(screen.getByText("X 5 m · Y 1 m")).toBeInTheDocument();
+      screen.queryByText("Position on Floor 1 footprint"),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("X 5 m · Y 1 m")).toHaveClass(
+      "absolute",
+      "right-3",
+      "bottom-3",
+    );
 
     fireEvent.keyDown(screen.getByRole("button", { name: "Drag floor 2" }), {
       key: "ArrowRight",
