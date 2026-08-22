@@ -30,12 +30,10 @@
  * width, and only the container they sit in changes. The handheld shell is a
  * different route the operator chooses.
  *
- * The rail does not collapse on desktop. shadcn ships a collapse toggle and a
- * `Ctrl`/`Cmd`+`B` accelerator; the accelerator was removed from the vendored
- * primitive because a HID scanner types into the document, and the toggle is not
- * offered because a supervisor screen has room for the rail and a nav that can
- * disappear is a nav somebody loses. The one trigger this shell renders is the
- * `lg:hidden` sheet opener, which is exactly what the shell had before.
+ * The rail can collapse to icons on desktop, while keeping every link in the
+ * accessibility tree and exposing its label in a tooltip. The registry's
+ * `Ctrl`/`Cmd`+`B` accelerator stays disabled because a HID scanner types into
+ * the document. Compact widths still use the sheet opener below.
  *
  * ### Skip link
  *
@@ -44,7 +42,30 @@
  * is a real cost (`INV-0010-08`).
  */
 import { useTranslations } from "next-intl";
-import { Menu, X } from "lucide-react";
+import {
+  BarChart3,
+  Boxes,
+  ClipboardCheck,
+  ClipboardList,
+  Factory,
+  FileDown,
+  FileStack,
+  History,
+  Import,
+  LayoutDashboard,
+  MapPin,
+  Menu,
+  PackageCheck,
+  PackageSearch,
+  PanelLeftClose,
+  PanelLeftOpen,
+  ScanLine,
+  Settings2,
+  Truck,
+  Users,
+  X,
+  type LucideIcon,
+} from "lucide-react";
 import { type ReactNode } from "react";
 
 import { ConnectionIndicator } from "@/components/system/ConnectionIndicator";
@@ -68,8 +89,9 @@ import {
   SidebarProvider,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { Link, usePathname } from "@/i18n/navigation";
-import { DESKTOP_NAVIGATION, isActivePath } from "@/lib/navigation";
+import { DESKTOP_NAVIGATION, isActivePath, ROUTES } from "@/lib/navigation";
 
 import { LocaleSwitcher } from "./LocaleSwitcher";
 import { WorkspaceContextBar } from "./WorkspaceContextBar";
@@ -157,7 +179,9 @@ function NavigationDisclosure() {
 /** The rail, or the sheet holding the same rail. Never both. */
 function NavigationRegion() {
   const t = useTranslations("Navigation");
-  const { isMobile, openMobile, setOpenMobile } = useSidebar();
+  const { isMobile, openMobile, setOpenMobile, state, toggleSidebar } =
+    useSidebar();
+  const collapsed = state === "collapsed";
 
   if (isMobile) {
     return (
@@ -190,12 +214,59 @@ function NavigationRegion() {
   return (
     <Sidebar
       collapsible="none"
-      className="w-full border-b border-border lg:w-56 lg:shrink-0 lg:border-r lg:border-b-0"
+      className={`w-full border-b border-border transition-[width] duration-200 lg:shrink-0 lg:border-r lg:border-b-0 ${
+        collapsed ? "lg:w-16" : "lg:w-56"
+      }`}
     >
-      <NavigationTree />
+      <div
+        className={`hidden h-12 shrink-0 items-center border-b border-sidebar-border px-2 lg:flex ${
+          collapsed ? "justify-center" : "justify-end"
+        }`}
+      >
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          aria-label={t(collapsed ? "expandSidebar" : "collapseSidebar")}
+          aria-expanded={!collapsed}
+          aria-controls={NAV_ID}
+          onClick={toggleSidebar}
+        >
+          {collapsed ? (
+            <PanelLeftOpen aria-hidden="true" className="size-5" />
+          ) : (
+            <PanelLeftClose aria-hidden="true" className="size-5" />
+          )}
+        </Button>
+      </div>
+      <TooltipProvider>
+        <NavigationTree collapsed={collapsed} />
+      </TooltipProvider>
     </Sidebar>
   );
 }
+
+const NAVIGATION_ICONS: Readonly<Record<string, LucideIcon>> = Object.freeze({
+  [ROUTES.dashboard]: LayoutDashboard,
+  [ROUTES.items]: Boxes,
+  [ROUTES.suppliers]: Users,
+  [ROUTES.storageClasses]: Settings2,
+  [ROUTES.labelTemplates]: FileStack,
+  [ROUTES.locations]: MapPin,
+  [ROUTES.customerOrders]: ClipboardList,
+  [ROUTES.engineeringQueue]: BarChart3,
+  [ROUTES.factoryPackets]: Factory,
+  [ROUTES.purchaseOrders]: Truck,
+  [ROUTES.inboundBoard]: PackageSearch,
+  [ROUTES.purchaseImport]: Import,
+  [ROUTES.receiving]: PackageCheck,
+  [ROUTES.quality]: ClipboardCheck,
+  [ROUTES.putaway]: ScanLine,
+  [ROUTES.balances]: Boxes,
+  [ROUTES.history]: History,
+  [ROUTES.reports]: FileDown,
+  [ROUTES.handheld]: ScanLine,
+});
 
 /**
  * The links, rendered once.
@@ -204,7 +275,13 @@ function NavigationRegion() {
  * only place a route appears and the only place `isActivePath` is called, so
  * "the current page" cannot be two different answers on one screen.
  */
-function NavigationTree({ onNavigate }: { readonly onNavigate?: () => void }) {
+function NavigationTree({
+  onNavigate,
+  collapsed = false,
+}: {
+  readonly onNavigate?: () => void;
+  readonly collapsed?: boolean;
+}) {
   const t = useTranslations("Navigation");
   const pathname = usePathname();
 
@@ -214,22 +291,36 @@ function NavigationTree({ onNavigate }: { readonly onNavigate?: () => void }) {
       aria-label={t("primary")}
       className="flex min-h-0 flex-1 flex-col"
     >
-      <SidebarContent className="gap-0 p-3">
+      <SidebarContent className={collapsed ? "gap-0 p-2" : "gap-0 p-3"}>
         {DESKTOP_NAVIGATION.map((section) => (
-          <SidebarGroup key={section.labelKey} className="p-0 pb-4 last:pb-0">
-            <SidebarGroupLabel className="px-3 text-xs font-semibold tracking-wide text-muted uppercase">
+          <SidebarGroup
+            key={section.labelKey}
+            className={collapsed ? "p-0 pb-2 last:pb-0" : "p-0 pb-4 last:pb-0"}
+          >
+            <SidebarGroupLabel
+              className={
+                collapsed
+                  ? "sr-only"
+                  : "px-3 text-xs font-semibold tracking-wide text-muted uppercase"
+              }
+            >
               {t(section.labelKey)}
             </SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 {section.items.map((item) => {
                   const active = isActivePath(pathname, item.href);
+                  const Icon = NAVIGATION_ICONS[item.href] ?? Boxes;
+                  const label = t(item.labelKey);
                   return (
                     <SidebarMenuItem key={item.href}>
                       <SidebarMenuButton
                         asChild
                         isActive={active}
-                        className={`min-h-touch px-3 text-sm font-medium ${
+                        {...(collapsed ? { tooltip: label } : {})}
+                        className={`min-h-touch text-sm font-medium ${
+                          collapsed ? "justify-center px-2" : "px-3"
+                        } ${
                           active
                             ? "border-l-4 border-accent bg-raised font-semibold text-accent"
                             : "text-text"
@@ -242,7 +333,10 @@ function NavigationTree({ onNavigate }: { readonly onNavigate?: () => void }) {
                             ? {}
                             : { onClick: onNavigate })}
                         >
-                          {t(item.labelKey)}
+                          <Icon aria-hidden="true" className="size-4" />
+                          <span className={collapsed ? "sr-only" : "truncate"}>
+                            {label}
+                          </span>
                         </Link>
                       </SidebarMenuButton>
                     </SidebarMenuItem>

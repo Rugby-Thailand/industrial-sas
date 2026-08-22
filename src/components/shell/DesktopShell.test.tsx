@@ -66,6 +66,29 @@ describe("DesktopShell", () => {
     );
   });
 
+  it("collapses the desktop rail to labelled icon buttons", async () => {
+    const user = userEvent.setup();
+    renderWithIntl(<DesktopShell>content</DesktopShell>, {
+      environment: unconfiguredEnvironment,
+    });
+
+    const navigation = screen.getByRole("navigation");
+    expect(navigation.parentElement).toHaveClass("lg:w-56");
+
+    await user.click(screen.getByRole("button", { name: "ย่อแถบนำทาง" }));
+
+    expect(
+      screen.getByRole("button", { name: "ขยายแถบนำทาง" }),
+    ).toHaveAttribute("aria-expanded", "false");
+    expect(navigation.parentElement).toHaveClass("lg:w-16");
+
+    const dashboard = screen.getByRole("link", { name: "แดชบอร์ด" });
+    expect(dashboard.querySelector("span")).toHaveClass("sr-only");
+
+    await user.hover(dashboard);
+    expect(await screen.findByRole("tooltip")).toHaveTextContent("แดชบอร์ด");
+  });
+
   it("exposes the compact navigation disclosure state", async () => {
     const user = userEvent.setup();
     renderWithIntl(<DesktopShell>content</DesktopShell>, {

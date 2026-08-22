@@ -15,6 +15,8 @@
     "primary": "เมนูหลัก",
     "openMenu": "เปิดเมนู",
     "closeMenu": "ปิดเมนู",
+    "collapseSidebar": "ย่อแถบนำทาง",
+    "expandSidebar": "ขยายแถบนำทาง",
     "sectionOverview": "ภาพรวม",
     "sectionInventory": "สินค้าคงคลัง",
     "sectionOperator": "งานหน้างาน",
