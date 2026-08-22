@@ -350,7 +350,7 @@ otherwise be picked up silently.
 | `actions/setup-node`      | `v7.0.0` | `820762786026740c76f36085b0efc47a31fe5020` |
 | `actions/cache`           | `v6.1.0` | `55cc8345863c7cc4c66a329aec7e433d2d1c52a9` |
 | `actions/upload-artifact` | `v7.0.1` | `043fb46d1a93c77aae656e7c1c64a875d1fc6a0a` |
-| `pnpm/action-setup`       | `v6.0.9` | `0ebf47130e4866e96fce0953f49152a61190b271` |
+| `pnpm/action-setup`       | `v6.0.10` | `0977fd99725f1db4007ccb2928dbb4e90d06cc86` |
 
 Local composite actions are referenced by path (`./.github/actions/...`), not by
 SHA: they are versioned by the commit that contains them.
