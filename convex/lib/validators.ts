@@ -21,16 +21,18 @@
  */
 import { v, type Infer, type VLiteral } from "convex/values";
 
-type Literal = string | number | bigint | boolean;
+type LiteralValidators<Values extends readonly string[]> = {
+  -readonly [Index in keyof Values]: VLiteral<Values[Index], "required">;
+};
 
-const literalUnion = <const Values extends readonly [Literal, ...Literal[]]>(
+const literalUnion = <const Values extends readonly [string, ...string[]]>(
   ...values: Values
-) =>
-  v.union(
-    ...values.map((value): VLiteral<Values[number], "required"> =>
-      v.literal(value),
-    ),
-  );
+) => {
+  const members = values.map((value) =>
+    v.literal(value),
+  ) as unknown as LiteralValidators<Values>;
+  return v.union(...members);
+};
 
 /* -------------------------------------------------------------------------- */
 /* Tenancy and identity                                                        */
