@@ -344,13 +344,13 @@ Every `uses:` reference is pinned to a full 40-character commit SHA with the tag
 in a trailing comment. Tags are mutable; a compromised or retagged action would
 otherwise be picked up silently.
 
-| Action                    | Version  | SHA                                        |
-| ------------------------- | -------- | ------------------------------------------ |
-| `actions/checkout`        | `v7.0.1` | `3d3c42e5aac5ba805825da76410c181273ba90b1` |
-| `actions/setup-node`      | `v7.0.0` | `820762786026740c76f36085b0efc47a31fe5020` |
-| `actions/cache`           | `v6.1.0` | `55cc8345863c7cc4c66a329aec7e433d2d1c52a9` |
-| `actions/upload-artifact` | `v7.0.1` | `043fb46d1a93c77aae656e7c1c64a875d1fc6a0a` |
-| `pnpm/action-setup`       | `v6.0.9` | `0ebf47130e4866e96fce0953f49152a61190b271` |
+| Action                    | Version   | SHA                                        |
+| ------------------------- | --------- | ------------------------------------------ |
+| `actions/checkout`        | `v7.0.1`  | `3d3c42e5aac5ba805825da76410c181273ba90b1` |
+| `actions/setup-node`      | `v7.0.0`  | `820762786026740c76f36085b0efc47a31fe5020` |
+| `actions/cache`           | `v6.1.0`  | `55cc8345863c7cc4c66a329aec7e433d2d1c52a9` |
+| `actions/upload-artifact` | `v7.0.1`  | `043fb46d1a93c77aae656e7c1c64a875d1fc6a0a` |
+| `pnpm/action-setup`       | `v6.0.10` | `0977fd99725f1db4007ccb2928dbb4e90d06cc86` |
 
 Local composite actions are referenced by path (`./.github/actions/...`), not by
 SHA: they are versioned by the commit that contains them.
