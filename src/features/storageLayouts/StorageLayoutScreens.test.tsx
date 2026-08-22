@@ -27,6 +27,7 @@ import {
   BuildingSettingsSheet,
   FloorPlan,
   IsometricBuilding,
+  ReservedBlocks,
   StorageZoneDraftPreview,
   StorageZonesPanel,
 } from "./StorageLayoutScreens";
@@ -262,6 +263,75 @@ describe("StorageZoneDraftPreview", () => {
 
     expect(movedTop).not.toBe(initialTop);
     expect(screen.getByText("Outside floor limits")).toBeInTheDocument();
+  });
+});
+
+describe("ReservedBlocks", () => {
+  it("opens a draggable live 3D editor for a new reserved zone", () => {
+    const setBlocks = vi.fn();
+    renderWithIntl(
+      <ReservedBlocks
+        blocks={[]}
+        setBlocks={setBlocks}
+        floorWidthMm={10_000}
+        floorDepthMm={10_000}
+        floorHeightMm={3_000}
+        zones={[]}
+      />,
+      { locale: "en", workspace: false },
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Add reserved zone" }));
+
+    expect(
+      screen.getByRole("dialog", { name: "Add reserved zone" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("img", { name: "Live 3D reserved area" }),
+    ).toBeInTheDocument();
+    fireEvent.keyDown(
+      screen.getByRole("button", { name: "Drag reserved zone" }),
+      { key: "ArrowRight" },
+    );
+    expect(
+      screen.getByRole("spinbutton", { name: "X position (m)" }),
+    ).toHaveValue(0.1);
+  });
+
+  it("opens an existing reserved zone in the same editor", () => {
+    renderWithIntl(
+      <ReservedBlocks
+        blocks={[
+          {
+            id: "reserved-a",
+            label: "Lift core",
+            xMm: 2_000,
+            yMm: 3_000,
+            widthMm: 1_000,
+            depthMm: 1_500,
+          },
+        ]}
+        setBlocks={vi.fn()}
+        floorWidthMm={10_000}
+        floorDepthMm={10_000}
+        floorHeightMm={3_000}
+        zones={[]}
+      />,
+      { locale: "en", workspace: false },
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit Lift core" }));
+
+    expect(
+      screen.getByRole("dialog", { name: "Edit reserved zone" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Zone label" })).toHaveValue(
+      "Lift core",
+    );
+    expect(
+      screen.getByRole("spinbutton", { name: "X position (m)" }),
+    ).toHaveValue(2);
+    expect(screen.getByRole("button", { name: "Save changes" })).toBeVisible();
   });
 });
 

@@ -1129,7 +1129,14 @@ function FloorForm({
             />
           </div>
         </section>
-        <ReservedBlocks blocks={blocks} setBlocks={setBlocks} />
+        <ReservedBlocks
+          blocks={blocks}
+          setBlocks={setBlocks}
+          floorWidthMm={actualWidth}
+          floorDepthMm={actualDepth}
+          floorHeightMm={actualHeight}
+          zones={floor.storageZones}
+        />
         <StorageZonesPanel
           warehouseId={warehouseId}
           buildingId={detail.building.buildingId}
@@ -1138,6 +1145,7 @@ function FloorForm({
           floorDepthMm={actualDepth}
           floorHeightMm={actualHeight}
           zones={floor.storageZones}
+          reservedBlocks={blocks}
         />
         {message === undefined ? null : (
           <Notice tone={message.tone} title={message.text} />
@@ -1909,15 +1917,24 @@ function FloorPlanDrawing({
   );
 }
 
-function ReservedBlocks({
+export function ReservedBlocks({
   blocks,
   setBlocks,
+  floorWidthMm,
+  floorDepthMm,
+  floorHeightMm,
+  zones,
 }: {
   readonly blocks: readonly EditableBlock[];
   readonly setBlocks: (blocks: EditableBlock[]) => void;
+  readonly floorWidthMm: number;
+  readonly floorDepthMm: number;
+  readonly floorHeightMm: number;
+  readonly zones: readonly StorageZoneRow[];
 }) {
   const t = useTranslations("StorageLayouts");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingBlockId, setEditingBlockId] = useState<string>();
   const [draft, setDraft] = useState({
     label: "",
     x: "0",
@@ -1925,110 +1942,171 @@ function ReservedBlocks({
     width: "1",
     depth: "1",
   });
-  const patchBlock = (
-    index: number,
-    field: keyof EditableBlock,
-    value: string,
-  ) =>
-    setBlocks(
-      blocks.map((block, current) =>
-        current === index
-          ? {
-              ...block,
-              [field]: field === "label" ? value : millimetres(value),
-            }
-          : block,
-      ),
-    );
-  const openAddDialog = (open: boolean) => {
+  const openDialog = (open: boolean) => {
     setDialogOpen(open);
-    if (open) {
-      setDraft({
-        label: t("newReservedZoneLabel", { number: blocks.length + 1 }),
-        x: "0",
-        y: "0",
-        width: "1",
-        depth: "1",
-      });
-    }
+    if (!open) setEditingBlockId(undefined);
   };
-  const addReservedBlock = () => {
-    setBlocks([
-      ...blocks,
-      {
-        id: requestId(),
-        label: draft.label.trim(),
-        xMm: millimetres(draft.x),
-        yMm: millimetres(draft.y),
-        widthMm: millimetres(draft.width),
-        depthMm: millimetres(draft.depth),
-      },
-    ]);
+  const startNewReservedBlock = () => {
+    setEditingBlockId(undefined);
+    setDraft({
+      label: t("newReservedZoneLabel", { number: blocks.length + 1 }),
+      x: "0",
+      y: "0",
+      width: "1",
+      depth: "1",
+    });
+  };
+  const startEditingReservedBlock = (block: EditableBlock) => {
+    setEditingBlockId(block.id);
+    setDraft({
+      label: block.label,
+      x: String(metres(block.xMm)),
+      y: String(metres(block.yMm)),
+      width: String(metres(block.widthMm)),
+      depth: String(metres(block.depthMm)),
+    });
+    setDialogOpen(true);
+  };
+  const draftBlock = {
+    id: editingBlockId ?? "draft",
+    label: draft.label.trim(),
+    xMm: millimetres(draft.x),
+    yMm: millimetres(draft.y),
+    widthMm: millimetres(draft.width),
+    depthMm: millimetres(draft.depth),
+  };
+  const otherBlocks = blocks.filter((block) => block.id !== editingBlockId);
+  const overlaps = [...otherBlocks, ...zones].some(
+    (area) =>
+      draftBlock.xMm < area.xMm + area.widthMm &&
+      draftBlock.xMm + draftBlock.widthMm > area.xMm &&
+      draftBlock.yMm < area.yMm + area.depthMm &&
+      draftBlock.yMm + draftBlock.depthMm > area.yMm,
+  );
+  const validDraft =
+    draftBlock.label !== "" &&
+    draftBlock.xMm >= 0 &&
+    draftBlock.yMm >= 0 &&
+    draftBlock.widthMm > 0 &&
+    draftBlock.depthMm > 0 &&
+    draftBlock.xMm + draftBlock.widthMm <= floorWidthMm &&
+    draftBlock.yMm + draftBlock.depthMm <= floorDepthMm &&
+    !overlaps;
+  const saveReservedBlock = () => {
+    const nextBlock = {
+      ...draftBlock,
+      id: editingBlockId ?? requestId(),
+    };
+    setBlocks(
+      editingBlockId === undefined
+        ? [...blocks, nextBlock]
+        : blocks.map((block) =>
+            block.id === editingBlockId ? nextBlock : block,
+          ),
+    );
     setDialogOpen(false);
+    setEditingBlockId(undefined);
   };
   return (
     <section className="rounded-2xl border border-border bg-surface p-5 shadow-sm">
       <div className="flex items-center justify-between gap-3">
         <h2 className="font-semibold text-text">{t("reservedZones")}</h2>
-        <Dialog open={dialogOpen} onOpenChange={openAddDialog}>
+        <Dialog open={dialogOpen} onOpenChange={openDialog}>
           <DialogTrigger asChild>
-            <Button type="button" variant="outline">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={startNewReservedBlock}
+            >
               <Plus className="size-4" />
               {t("addZone")}
             </Button>
           </DialogTrigger>
-          <DialogContent closeLabel={t("closeDialog")}>
+          <DialogContent closeLabel={t("closeDialog")} className="max-w-5xl">
             <DialogHeader>
-              <DialogTitle>{t("addReservedZoneTitle")}</DialogTitle>
+              <DialogTitle>
+                {t(
+                  editingBlockId === undefined
+                    ? "addReservedZoneTitle"
+                    : "editReservedZoneTitle",
+                )}
+              </DialogTitle>
               <DialogDescription>
-                {t("addReservedZoneDescription")}
+                {t(
+                  editingBlockId === undefined
+                    ? "addReservedZoneDescription"
+                    : "editReservedZoneDescription",
+                )}
               </DialogDescription>
             </DialogHeader>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="sm:col-span-2">
-                <Label htmlFor="reserved-zone-dialog-label">
-                  {t("zoneLabel")}
-                </Label>
-                <Input
-                  id="reserved-zone-dialog-label"
-                  className="mt-2"
-                  value={draft.label}
-                  onChange={(event) =>
-                    setDraft((current) => ({
-                      ...current,
-                      label: event.target.value,
-                    }))
-                  }
-                />
-              </div>
-              {(
-                [
-                  ["x", "x"],
-                  ["y", "y"],
-                  ["zoneWidth", "width"],
-                  ["zoneDepth", "depth"],
-                ] as const
-              ).map(([labelKey, field]) => (
-                <div key={field}>
-                  <Label htmlFor={`reserved-zone-dialog-${field}`}>
-                    {t(labelKey)}
+            <div className="grid gap-5 md:grid-cols-[minmax(0,1.05fr)_minmax(19rem,0.95fr)]">
+              <StorageZoneDraftPreview
+                floorWidthMm={floorWidthMm}
+                floorDepthMm={floorDepthMm}
+                floorHeightMm={floorHeightMm}
+                zoneX={draft.x}
+                zoneY={draft.y}
+                zoneWidth={draft.width}
+                zoneDepth={draft.depth}
+                stackHeight={String(metres(floorHeightMm))}
+                zones={zones}
+                reservedBlocks={otherBlocks}
+                variant="reserved"
+                onPositionChange={({ xMm, yMm }) =>
+                  setDraft((current) => ({
+                    ...current,
+                    x: String(metres(xMm)),
+                    y: String(metres(yMm)),
+                  }))
+                }
+              />
+              <div className="grid content-start gap-4 sm:grid-cols-2">
+                <div className="sm:col-span-2">
+                  <Label htmlFor="reserved-zone-dialog-label">
+                    {t("zoneLabel")}
                   </Label>
                   <Input
-                    id={`reserved-zone-dialog-${field}`}
+                    id="reserved-zone-dialog-label"
                     className="mt-2"
-                    type="number"
-                    min={field === "x" || field === "y" ? "0" : "0.1"}
-                    step="0.1"
-                    value={draft[field]}
+                    value={draft.label}
                     onChange={(event) =>
                       setDraft((current) => ({
                         ...current,
-                        [field]: event.target.value,
+                        label: event.target.value,
                       }))
                     }
                   />
                 </div>
-              ))}
+                {(
+                  [
+                    ["x", "x", 0, floorWidthMm],
+                    ["y", "y", 0, floorDepthMm],
+                    ["zoneWidth", "width", 0.1, floorWidthMm],
+                    ["zoneDepth", "depth", 0.1, floorDepthMm],
+                  ] as const
+                ).map(([labelKey, field, min, max]) => (
+                  <div key={field}>
+                    <Label htmlFor={`reserved-zone-dialog-${field}`}>
+                      {t(labelKey)}
+                    </Label>
+                    <Input
+                      id={`reserved-zone-dialog-${field}`}
+                      className="mt-2"
+                      type="number"
+                      min={min}
+                      max={metres(max)}
+                      step="0.1"
+                      value={draft[field]}
+                      onChange={(event) =>
+                        setDraft((current) => ({
+                          ...current,
+                          [field]: event.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                ))}
+              </div>
             </div>
             <DialogFooter>
               <DialogClose asChild>
@@ -2038,77 +2116,66 @@ function ReservedBlocks({
               </DialogClose>
               <Button
                 type="button"
-                onClick={addReservedBlock}
-                disabled={
-                  draft.label.trim() === "" ||
-                  millimetres(draft.width) <= 0 ||
-                  millimetres(draft.depth) <= 0
-                }
+                onClick={saveReservedBlock}
+                disabled={!validDraft}
               >
-                <Plus className="size-4" />
-                {t("addReservedZoneAction")}
+                {editingBlockId === undefined ? (
+                  <Plus className="size-4" />
+                ) : (
+                  <PencilLine className="size-4" />
+                )}
+                {t(
+                  editingBlockId === undefined
+                    ? "addReservedZoneAction"
+                    : "saveReservedZoneChanges",
+                )}
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>
-      <div className="mt-5 space-y-3">
-        {blocks.map((block, index) => (
-          <div
+      <div className="mt-5 grid gap-3 md:grid-cols-2">
+        {blocks.map((block) => (
+          <article
             key={block.id}
-            className="grid gap-3 rounded-xl border border-border bg-background p-4 sm:grid-cols-6"
+            className="rounded-xl border border-border bg-background p-4"
           >
-            <div className="sm:col-span-2">
-              <Label htmlFor={`storage-zone-${block.id}-label`}>
-                {t("zoneLabel")}
-              </Label>
-              <Input
-                id={`storage-zone-${block.id}-label`}
-                className="mt-2"
-                value={block.label}
-                onChange={(event) =>
-                  patchBlock(index, "label", event.target.value)
-                }
-              />
-            </div>
-            {(
-              [
-                ["x", "xMm"],
-                ["y", "yMm"],
-                ["zoneWidth", "widthMm"],
-                ["zoneDepth", "depthMm"],
-              ] as const
-            ).map(([label, field]) => (
-              <div key={field}>
-                <Label htmlFor={`storage-zone-${block.id}-${field}`}>
-                  {t(label)}
-                </Label>
-                <Input
-                  id={`storage-zone-${block.id}-${field}`}
-                  className="mt-2"
-                  type="number"
-                  min="0"
-                  step="0.1"
-                  value={metres(block[field])}
-                  onChange={(event) =>
-                    patchBlock(index, field, event.target.value)
-                  }
-                />
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h3 className="truncate font-semibold text-text">
+                  {block.label}
+                </h3>
+                <p className="mt-1 text-xs text-muted tabular-nums">
+                  X {metres(block.xMm)} · Y {metres(block.yMm)} m · W{" "}
+                  {metres(block.widthMm)} × D {metres(block.depthMm)} m
+                </p>
               </div>
-            ))}
-            <div className="flex items-end sm:col-span-6">
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() =>
-                  setBlocks(blocks.filter((_, current) => current !== index))
-                }
-              >
-                <Trash2 className="size-4" />
-                {t("remove")}
-              </Button>
+              <div className="flex shrink-0 gap-1">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => startEditingReservedBlock(block)}
+                  aria-label={t("editReservedZone", { label: block.label })}
+                >
+                  <PencilLine className="size-3.5" />
+                  {t("edit")}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() =>
+                    setBlocks(blocks.filter((current) => current !== block))
+                  }
+                  aria-label={t("removeReservedZone", { label: block.label })}
+                >
+                  <Trash2 className="size-3.5" />
+                  {t("remove")}
+                </Button>
+              </div>
             </div>
-          </div>
+          </article>
         ))}
       </div>
     </section>
@@ -2130,6 +2197,8 @@ export function StorageZoneDraftPreview({
   zoneDepth,
   stackHeight,
   zones,
+  reservedBlocks = [],
+  variant = "storage",
   onPositionChange,
 }: {
   readonly floorWidthMm: number;
@@ -2141,6 +2210,8 @@ export function StorageZoneDraftPreview({
   readonly zoneDepth: string;
   readonly stackHeight: string;
   readonly zones: readonly StorageZoneRow[];
+  readonly reservedBlocks?: readonly EditableBlock[];
+  readonly variant?: "storage" | "reserved";
   readonly onPositionChange: (position: {
     readonly xMm: number;
     readonly yMm: number;
@@ -2165,6 +2236,23 @@ export function StorageZoneDraftPreview({
   const widthMm = draftMillimetres(zoneWidth);
   const depthMm = draftMillimetres(zoneDepth);
   const heightMm = draftMillimetres(stackHeight);
+  const isReserved = variant === "reserved";
+  const previewLabel = t(
+    isReserved ? "reservedZonePreview" : "storageZonePreview",
+  );
+  const dragLabel = t(isReserved ? "dragReservedZone" : "dragStorageZone");
+  const dragHint = t(
+    isReserved ? "dragReservedZoneHint" : "dragStorageZoneHint",
+  );
+  const overlapsContext =
+    isReserved &&
+    [...reservedBlocks, ...zones].some(
+      (area) =>
+        xMm < area.xMm + area.widthMm &&
+        xMm + widthMm > area.xMm &&
+        yMm < area.yMm + area.depthMm &&
+        yMm + depthMm > area.yMm,
+    );
   const fitsFloor =
     xMm >= 0 &&
     yMm >= 0 &&
@@ -2173,7 +2261,8 @@ export function StorageZoneDraftPreview({
     heightMm > 0 &&
     xMm + widthMm <= floorWidthMm &&
     yMm + depthMm <= floorDepthMm &&
-    heightMm <= floorHeightMm;
+    heightMm <= floorHeightMm &&
+    !overlapsContext;
   const drawnWidthMm = Math.max(100, Math.min(widthMm, floorWidthMm));
   const drawnDepthMm = Math.max(100, Math.min(depthMm, floorDepthMm));
   const drawnHeightMm = Math.max(100, Math.min(heightMm, floorHeightMm));
@@ -2277,9 +2366,7 @@ export function StorageZoneDraftPreview({
     <figure className="overflow-hidden rounded-xl border border-border bg-background">
       <figcaption className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
         <div>
-          <p className="text-sm font-semibold text-text">
-            {t("storageZonePreview")}
-          </p>
+          <p className="text-sm font-semibold text-text">{previewLabel}</p>
           <p className="mt-0.5 text-xs text-muted tabular-nums">
             X {metres(xMm)} · Y {metres(yMm)} m
           </p>
@@ -2293,13 +2380,15 @@ export function StorageZoneDraftPreview({
           }
         >
           <CheckCircle2 className="size-4" />
-          {fitsFloor ? t("zoneFitsFloor") : t("zoneOutsideFloor")}
+          {fitsFloor
+            ? t(isReserved ? "reservedZoneFitsFloor" : "zoneFitsFloor")
+            : t(isReserved ? "reservedZoneOutsideFloor" : "zoneOutsideFloor")}
         </span>
       </figcaption>
       <svg
         ref={svgRef}
         role="img"
-        aria-label={t("storageZonePreview")}
+        aria-label={previewLabel}
         viewBox={`${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`}
         className="h-72 w-full"
         onPointerMove={(event) => {
@@ -2357,6 +2446,22 @@ export function StorageZoneDraftPreview({
             strokeWidth="0.75"
           />
         ))}
+        {reservedBlocks.map((block) => {
+          const shape = [
+            point(block.xMm, block.yMm),
+            point(block.xMm + block.widthMm, block.yMm),
+            point(block.xMm + block.widthMm, block.yMm + block.depthMm),
+            point(block.xMm, block.yMm + block.depthMm),
+          ];
+          return (
+            <polygon
+              key={block.id}
+              points={pointsAttribute(shape)}
+              className="fill-warning/15 stroke-warning/45"
+              strokeWidth="1.25"
+            />
+          );
+        })}
         {zones.map((zone) => {
           const shape = [
             point(zone.xMm, zone.yMm),
@@ -2376,7 +2481,7 @@ export function StorageZoneDraftPreview({
         <g
           role="button"
           tabIndex={0}
-          aria-label={t("dragStorageZone")}
+          aria-label={dragLabel}
           aria-describedby={dragHintId}
           className="cursor-grab outline-none active:cursor-grabbing focus-visible:[&>polygon]:stroke-text"
           style={{ touchAction: "none" }}
@@ -2417,7 +2522,9 @@ export function StorageZoneDraftPreview({
             ])}
             className={
               fitsFloor
-                ? "fill-accent/25 stroke-accent"
+                ? isReserved
+                  ? "fill-warning/25 stroke-warning"
+                  : "fill-accent/25 stroke-accent"
                 : "fill-warning/25 stroke-warning"
             }
           />
@@ -2431,7 +2538,9 @@ export function StorageZoneDraftPreview({
             ])}
             className={
               fitsFloor
-                ? "fill-accent/35 stroke-accent"
+                ? isReserved
+                  ? "fill-warning/35 stroke-warning"
+                  : "fill-accent/35 stroke-accent"
                 : "fill-warning/35 stroke-warning"
             }
           />
@@ -2440,7 +2549,9 @@ export function StorageZoneDraftPreview({
             points={pointsAttribute(zoneTop)}
             className={
               fitsFloor
-                ? "fill-accent/45 stroke-accent"
+                ? isReserved
+                  ? "fill-warning/45 stroke-warning"
+                  : "fill-accent/45 stroke-accent"
                 : "fill-warning/45 stroke-warning"
             }
             strokeWidth="2"
@@ -2478,7 +2589,7 @@ export function StorageZoneDraftPreview({
         id={dragHintId}
         className="border-t border-border px-3 py-2 text-center text-xs text-muted"
       >
-        {t("dragStorageZoneHint")}
+        {dragHint}
       </p>
     </figure>
   );
@@ -2492,6 +2603,7 @@ export function StorageZonesPanel({
   floorDepthMm,
   floorHeightMm,
   zones,
+  reservedBlocks = [],
 }: {
   readonly warehouseId: string;
   readonly buildingId: string;
@@ -2500,6 +2612,7 @@ export function StorageZonesPanel({
   readonly floorDepthMm: number;
   readonly floorHeightMm: number;
   readonly zones: readonly StorageZoneRow[];
+  readonly reservedBlocks?: readonly EditableBlock[];
 }) {
   const t = useTranslations("StorageLayouts");
   const createZone = useMutation(storageLayoutRefs.createZone);
@@ -2728,6 +2841,7 @@ export function StorageZonesPanel({
                     ? zones
                     : zones.filter((zone) => zone.zoneId !== editingZone.zoneId)
                 }
+                reservedBlocks={reservedBlocks}
                 onPositionChange={({ xMm, yMm }) => {
                   setZoneX(String(metres(xMm)));
                   setZoneY(String(metres(yMm)));
