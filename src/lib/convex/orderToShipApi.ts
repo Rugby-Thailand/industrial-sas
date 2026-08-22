@@ -56,6 +56,22 @@ export type FactoryPacketStatus = "ISSUED" | "ACKNOWLEDGED" | "CANCELLED";
 
 export type RevisionDecision = "APPROVE" | "REJECT";
 
+export type DesignRequirementKey =
+  | "CUSTOMER_PRODUCT_IDENTITY"
+  | "DIMENSIONS"
+  | "CONSTRUCTION"
+  | "PRINT"
+  | "PACKING"
+  | "ROUTE"
+  | "MATERIALS"
+  | "QUALITY";
+
+export type DesignReadinessStatus = "INCOMPLETE" | "READY";
+
+export type DesignRequirementConfirmations = Readonly<
+  Record<DesignRequirementKey, boolean>
+>;
+
 /* -------------------------------------------------------------------------- */
 /* Row shapes                                                                  */
 /* -------------------------------------------------------------------------- */
@@ -140,6 +156,56 @@ export interface CustomerOrderRow {
   readonly orderedAt: number;
 }
 
+export interface CustomerOrderLineRow {
+  readonly customerOrderLineId: string;
+  readonly customerOrderId: string;
+  readonly lineNumber: number;
+  readonly customerProductCode: string;
+  readonly specification: BoxSpecification;
+  readonly designKey: string;
+  readonly designSource: DesignSource;
+  readonly status: CustomerOrderLineStatus;
+  readonly orderedQuantity: number;
+  readonly masterCardRevisionId?: string;
+  readonly similarityConfirmation?: {
+    readonly score: number;
+    readonly reason: string;
+    readonly confirmedByUserId: string;
+    readonly confirmedAt: number;
+  };
+}
+
+export interface DesignRequirementVersionRow {
+  readonly designRequirementVersionId: string;
+  readonly version: number;
+  readonly confirmations: DesignRequirementConfirmations;
+  readonly status: DesignReadinessStatus;
+  readonly missing: readonly DesignRequirementKey[];
+  readonly note?: string;
+  readonly recordedByUserId: string;
+  readonly recordedAt: number;
+}
+
+export interface DesignChangeImpactRow {
+  readonly designChangeImpactId: string;
+  readonly warehouseId: string;
+  readonly masterCardId: string;
+  readonly fromRevisionId: string;
+  readonly toRevisionId: string;
+  readonly productionOrderId: string;
+  readonly productionOrderNumber: string;
+  readonly productionOrderStatus: string;
+  readonly severity: "NO_IMPACT" | "REVIEW_REQUIRED" | "BLOCKING";
+  readonly changedFields: readonly string[];
+  readonly categories: readonly string[];
+  readonly status: "OPEN" | "ACKNOWLEDGED";
+  readonly createdByUserId: string;
+  readonly createdAt: number;
+  readonly acknowledgedByUserId?: string;
+  readonly acknowledgedAt?: number;
+  readonly acknowledgementNote?: string;
+}
+
 export interface DesignRequestRow {
   readonly designRequestId: string;
   readonly requestNumber: string;
@@ -154,6 +220,11 @@ export interface DesignRequestRow {
   readonly overdue: boolean;
   readonly assignedToUserId?: string;
   readonly masterCardRevisionId?: string;
+  readonly latestRequirementVersion?: number;
+  readonly requirementReadiness?: DesignReadinessStatus;
+  readonly missingRequirements?: readonly DesignRequirementKey[];
+  readonly requirementsRecordedByUserId?: string;
+  readonly requirementsRecordedAt?: number;
 }
 
 export interface MasterCardRow {
@@ -227,8 +298,20 @@ export interface FactoryPacketRow {
 export const listCustomerOrdersRef = clientRef(
   api.sales.orders.listCustomerOrders,
 );
+export const listCustomerOrderLinesRef = clientRef(
+  api.sales.orders.listCustomerOrderLines,
+);
+export const listRoutableCustomerOrderLinesRef = clientRef(
+  api.sales.orders.listRoutableCustomerOrderLines,
+);
 export const listDesignRequestsRef = clientRef(
   api.engineering.designRequests.listDesignRequests,
+);
+export const listDesignRequirementVersionsRef = clientRef(
+  api.engineering.requirements.listDesignRequirementVersions,
+);
+export const listDesignChangeImpactsRef = clientRef(
+  api.engineering.changeImpacts.listDesignChangeImpacts,
 );
 
 export const listSimilarReleasedDesignsRef = clientRef(
@@ -277,6 +360,9 @@ export const assignDesignRequestRef = clientRef(
 export const progressDesignRequestRef = clientRef(
   api.engineering.designRequests.progressDesignRequest,
 );
+export const recordDesignRequirementsRef = clientRef(
+  api.engineering.requirements.recordDesignRequirements,
+);
 export const fulfilDesignRequestRef = clientRef(
   api.engineering.designRequests.fulfilDesignRequest,
 );
@@ -302,6 +388,9 @@ export const submitMasterCardRevisionRef = clientRef(
  */
 export const decideMasterCardRevisionRef = clientRef(
   api.engineering.masterCards.decideMasterCardRevision,
+);
+export const acknowledgeDesignChangeImpactRef = clientRef(
+  api.engineering.changeImpacts.acknowledgeDesignChangeImpact,
 );
 export const attachMasterCardFileRef = clientRef(
   api.engineering.files.attachMasterCardFile,

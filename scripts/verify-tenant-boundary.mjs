@@ -168,12 +168,15 @@ export const TENANT_BOUNDARY_ALLOWLIST = Object.freeze({
   "internal-registration": Object.freeze([
     "convex/engineering/files.ts",
     "convex/lib/identityMirrorConvex.ts",
+    "convex/lib/taskFileComplete.ts",
+    "convex/lib/transportFileComplete.ts",
     "convex/lib/tenantFunctions.ts",
   ]),
   "http-registration": Object.freeze([
     "convex/lib/clerkWebhook.ts",
     "convex/lib/privateFileDownload.ts",
     "convex/lib/privateFileUpload.ts",
+    "convex/lib/uploadThingComplete.ts",
   ]),
   "raw-database": Object.freeze([
     "convex/lib/authorizationLookupsConvex.ts",
@@ -182,6 +185,9 @@ export const TENANT_BOUNDARY_ALLOWLIST = Object.freeze({
     // The opaque, one-use file grant is intentionally redeemed without caller
     // tenancy: possession of the random grant ID is the short-lived capability.
     "convex/engineering/files.ts",
+    "convex/lib/taskFileComplete.ts",
+    // Same HMAC-gated UploadThing completion seam for transport/POD evidence.
+    "convex/lib/transportFileComplete.ts",
     "convex/lib/tenantStorage.ts",
     // The wrapper reads only Convex's global `_storage` metadata to expose a
     // verification port; feature handlers still receive no raw database.

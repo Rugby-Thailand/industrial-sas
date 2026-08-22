@@ -59,6 +59,12 @@ export const mutationWithOrg = (handler: unknown) =>
   "convex/lib/identityMirrorConvex.ts": `import { internalMutationGeneric } from "convex/server";
 export const apply = internalMutationGeneric({ handler: (ctx: { db: unknown }) => ctx.db });
 `,
+  "convex/lib/taskFileComplete.ts": `import { internalMutationGeneric } from "convex/server";
+export const complete = internalMutationGeneric({ handler: (ctx: { db: unknown }) => ctx.db });
+`,
+  "convex/lib/transportFileComplete.ts": `import { internalMutationGeneric } from "convex/server";
+export const complete = internalMutationGeneric({ handler: (ctx: { db: unknown }) => ctx.db });
+`,
   "convex/lib/clerkWebhook.ts": `import { httpActionGeneric } from "convex/server";
 export const webhook = httpActionGeneric(async () => new Response(null));
 `,
@@ -77,6 +83,9 @@ export const webhook = httpActionGeneric(async () => new Response(null));
   "convex/lib/privateFileDownload.ts": `export {};
 `,
   "convex/lib/privateFileUpload.ts": `export {};
+`,
+  "convex/lib/uploadThingComplete.ts": `import { httpActionGeneric } from "convex/server";
+export const complete = httpActionGeneric(async () => new Response(null));
 `,
 };
 

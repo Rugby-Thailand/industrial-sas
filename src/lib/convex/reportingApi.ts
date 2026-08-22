@@ -45,6 +45,112 @@ export const readOccupancyRef = clientRef(
   api.reporting.dashboard.readOccupancy,
 );
 
+export interface StockBalanceReportRow {
+  readonly bucketKey: string;
+  readonly itemId: string;
+  readonly sku: string;
+  readonly itemName: string;
+  readonly locationId?: string;
+  readonly locationCode?: string;
+  readonly lotId?: string;
+  readonly lotCode?: string;
+  readonly expirationDate?: string;
+  readonly stockStatus: string;
+  readonly baseUom: string;
+  readonly baseMinorUnits: number;
+  readonly lastTransactionId: string;
+  readonly updatedAt: number;
+}
+
+export interface StockSkuReportRow {
+  readonly itemId: string;
+  readonly sku: string;
+  readonly itemName: string;
+  readonly baseUom: string;
+  readonly availableBaseMinorUnits: number;
+  readonly committedBaseMinorUnits: number;
+  readonly atpBaseMinorUnits: number;
+  readonly qcHoldBaseMinorUnits: number;
+  readonly rejectedBaseMinorUnits: number;
+  readonly otherBaseMinorUnits: number;
+}
+
+export interface StockLotReportRow {
+  readonly itemId: string;
+  readonly sku: string;
+  readonly lotId: string;
+  readonly lotCode: string;
+  readonly expirationDate?: string;
+  readonly baseUom: string;
+  readonly availableBaseMinorUnits: number;
+  readonly restrictedBaseMinorUnits: number;
+}
+
+export interface StockReportsPayload {
+  readonly ok: true;
+  readonly asOf: number;
+  readonly complete: boolean;
+  readonly balances: readonly StockBalanceReportRow[];
+  readonly sku: readonly StockSkuReportRow[];
+  readonly lots: readonly StockLotReportRow[];
+}
+
+export const readStockReportsRef = clientRef(
+  api.reporting.operationalViews.readStockReports,
+);
+
+export interface StockMovementReportRow {
+  readonly ledgerLineId: string;
+  readonly transactionId: string;
+  readonly type: string;
+  readonly operation: string;
+  readonly occurredAt: number;
+  readonly businessDate: string;
+  readonly itemId: string;
+  readonly sku: string;
+  readonly lotCode?: string;
+  readonly location: string;
+  readonly stockStatus: string;
+  readonly baseUom: string;
+  readonly signedBaseMinorUnits: number;
+  readonly actorUserId: string;
+  readonly deviceId?: string;
+  readonly reversalOfTransactionId?: string;
+}
+
+export interface StockMovementsPayload {
+  readonly ok: true;
+  readonly asOf: number;
+  readonly complete: boolean;
+  readonly movements: readonly StockMovementReportRow[];
+}
+
+export const readStockMovementsRef = clientRef(
+  api.reporting.operationalViews.readStockMovements,
+);
+
+export interface OperationalExceptionRow {
+  readonly sourceType: string;
+  readonly sourceId: string;
+  readonly severity: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
+  readonly titleCode: string;
+  readonly detail: string;
+  readonly occurredAt: number;
+  readonly ownerUserId?: string;
+  readonly deepLink: string;
+}
+
+export interface OperationalExceptionsPayload {
+  readonly ok: true;
+  readonly asOf: number;
+  readonly complete: boolean;
+  readonly exceptions: readonly OperationalExceptionRow[];
+}
+
+export const readOperationalExceptionsRef = clientRef(
+  api.reporting.operationalViews.readOperationalExceptions,
+);
+
 export interface RollupComparison {
   readonly metric: RollupMetric;
   readonly subjectKey: string;

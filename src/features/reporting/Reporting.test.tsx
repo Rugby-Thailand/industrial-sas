@@ -93,6 +93,31 @@ describe("the operations tiles", () => {
       previewDashboardTiles().length,
     );
   });
+
+  it("separates actionable backlog from cumulative volume", () => {
+    render();
+
+    const backlogHeading = screen.getByRole("heading", {
+      name: "งานค้างที่ต้องทำ",
+    });
+    const volumeHeading = screen.getByRole("heading", {
+      name: "ปริมาณงานที่บันทึกแล้ว",
+    });
+    const backlogGroup = backlogHeading.closest("section");
+    const volumeGroup = volumeHeading.closest("section");
+
+    expect(backlogGroup).not.toBeNull();
+    expect(volumeGroup).not.toBeNull();
+    expect(
+      within(backlogGroup as HTMLElement).getByTestId("tile-QC_PENDING"),
+    ).toBeInTheDocument();
+    expect(
+      within(volumeGroup as HTMLElement).getByTestId("tile-RECEIPTS_OPENED"),
+    ).toBeInTheDocument();
+    expect(
+      within(backlogGroup as HTMLElement).queryByTestId("tile-RECEIPTS_OPENED"),
+    ).not.toBeInTheDocument();
+  });
 });
 
 describe("the occupancy map", () => {

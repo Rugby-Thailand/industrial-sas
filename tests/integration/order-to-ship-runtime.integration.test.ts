@@ -8,6 +8,7 @@ import {
   addCustomerOrderLine,
   createCustomerOrder,
   listCustomerOrderLines,
+  listRoutableCustomerOrderLines,
   releaseCustomerOrder,
 } from "../../convex/sales/orders";
 import {
@@ -15,6 +16,7 @@ import {
   attachMasterCardFile,
   claimMasterCardUploadGrant,
   completeMasterCardUploadGrant,
+  completeUploadThingMasterCardUploadGrant,
 } from "../../convex/engineering/files";
 import {
   createMasterCard,
@@ -27,11 +29,13 @@ import {
   listDesignRequests,
   listSimilarReleasedDesigns,
 } from "../../convex/engineering/designRequests";
+import { recordDesignRequirements } from "../../convex/engineering/requirements";
 import {
   acknowledgeFactoryPacket,
   issueFactoryPacket,
   listFactoryPackets,
 } from "../../convex/production/packets";
+import { routeCustomerOrderLine } from "../../convex/fulfillment/orders";
 import type { DataModel } from "../../convex/schema";
 import {
   createConvexInventoryWorld,
@@ -66,6 +70,28 @@ const value = (outcome: Record<string, unknown>) => {
   return outcome["value"] as Record<string, unknown>;
 };
 
+const routeForProduction = async (
+  world: ConvexInventoryWorld,
+  customerOrderLineId: string,
+  code: string,
+) =>
+  value(
+    await call(world, routeCustomerOrderLine, {
+      requestId: `route-${code}`,
+      warehouseId: world.warehouses.alphaA,
+      fulfillmentNumber: `FF-${code}`,
+      customerOrderLineId,
+      itemId: world.a.item,
+      allowPartial: true,
+      shipTo: {
+        name: "Journey customer DC",
+        addressLine1: "99 Industrial Road",
+        province: "Bangkok",
+        countryCode: "TH",
+      },
+    }),
+  );
+
 const specification = {
   styleCode: "RSC",
   internalLengthMm: 300,
@@ -82,6 +108,8 @@ const completeSpecification = {
   sheetLengthMm: 720,
   sheetWidthMm: 460,
   fluteCode: "C",
+  printColours: ["BLACK", "RED"],
+  packingInstructions: "Bundle and palletize to customer standard",
   layers: [{ position: 1, paperCode: "KA125", grammageGsm: 125 }],
   route: [{ sequence: 1, workCenterCode: "PRN-01", operationCode: "PRINT" }],
   materials: [
@@ -468,6 +496,45 @@ describe("order-to-ship public Convex functions", () => {
       replayed: true,
     });
 
+    const vendorUpload = value(
+      await call(world, authorizeMasterCardFileUpload, {
+        masterCardRevisionId: revisionId,
+        transport: "UPLOADTHING",
+      }),
+    );
+    const vendorDigest = createHash("sha256")
+      .update("verified vendor artwork")
+      .digest("hex");
+    const completeVendor = (uploaderClerkUserId: string) =>
+      world.t.run(async (ctx) =>
+        (
+          completeUploadThingMasterCardUploadGrant as unknown as RuntimeFunction
+        )._handler(ctx as GenericMutationCtx<DataModel>, {
+          grantId: vendorUpload["uploadGrantId"],
+          providerKey: "uploadthing_private_artwork_1",
+          uploaderClerkUserId,
+          contentDigest: vendorDigest,
+          contentType: "image/webp",
+          byteSize: 23,
+        }),
+      );
+    expect(await completeVendor("different_clerk_subject")).toBe(false);
+    expect(await completeVendor(identity.subject)).toBe(true);
+    value(
+      await call(world, attachMasterCardFile, {
+        requestId: "journey-vendor-file",
+        masterCardRevisionId: revisionId,
+        fileKey: "ARTWORK-1",
+        fileName: "journey-artwork.webp",
+        kind: "ARTWORK",
+        contentType: "image/webp",
+        byteSize: 23,
+        contentDigest: vendorDigest,
+        uploadThingKey: "uploadthing_private_artwork_1",
+        uploadGrantId: vendorUpload["uploadGrantId"],
+      }),
+    );
+
     const submitArgs = {
       requestId: "journey-submit",
       masterCardRevisionId: revisionId,
@@ -509,10 +576,59 @@ describe("order-to-ship public Convex functions", () => {
       designRequestId: requestId,
       masterCardRevisionId: revisionId,
     };
+    expect(
+      value(await call(world, fulfilDesignRequest, fulfilArgs)),
+    ).toMatchObject({
+      written: false,
+      error: { reason: "REQUIREMENTS_INCOMPLETE" },
+    });
+    const requirementArgs = {
+      requestId: "journey-requirements",
+      designRequestId: requestId,
+      confirmations: {
+        CUSTOMER_PRODUCT_IDENTITY: true,
+        DIMENSIONS: true,
+        CONSTRUCTION: true,
+        PRINT: true,
+        PACKING: true,
+        ROUTE: true,
+        MATERIALS: true,
+        QUALITY: true,
+      },
+      note: "Customer Service and Engineering confirmed the production hand-off.",
+    };
+    expect(
+      value(await call(world, recordDesignRequirements, requirementArgs)),
+    ).toMatchObject({ written: true, replayed: false });
+    expect(
+      value(await call(world, recordDesignRequirements, requirementArgs)),
+    ).toMatchObject({ written: true, replayed: true });
     value(await call(world, fulfilDesignRequest, fulfilArgs));
     expect(
       value(await call(world, fulfilDesignRequest, fulfilArgs))["replayed"],
     ).toBe(true);
+
+    expect(
+      value(
+        await call(world, listRoutableCustomerOrderLines, {
+          maxPageSize: 20,
+        }),
+      )["items"],
+    ).toEqual([
+      expect.objectContaining({
+        customerOrderLineId: lineId,
+        status: "DESIGN_READY",
+      }),
+    ]);
+
+    await routeForProduction(world, lineId, "JOURNEY-1");
+    expect(
+      value(
+        await call(world, listRoutableCustomerOrderLines, {
+          maxPageSize: 20,
+        }),
+      )["items"],
+    ).toEqual([]);
 
     const packetArgs = {
       requestId: "journey-packet",
@@ -562,9 +678,12 @@ describe("order-to-ship public Convex functions", () => {
     expect(storedEvidence.packet).not.toHaveProperty("customerOrderNumber");
     expect(storedEvidence.packet).not.toHaveProperty("specification");
     expect(storedEvidence.packet).not.toHaveProperty("approvedFileIds");
-    expect(storedEvidence.packetFiles).toEqual([
-      expect.objectContaining({ masterCardFileId: expect.any(String) }),
-    ]);
+    expect(storedEvidence.packetFiles).toHaveLength(2);
+    expect(storedEvidence.packetFiles).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ masterCardFileId: expect.any(String) }),
+      ]),
+    );
     const packetPage = (await call(world, listFactoryPackets, {
       warehouseId: world.warehouses.alphaA,
     })) as Record<string, unknown>;
@@ -574,7 +693,7 @@ describe("order-to-ship public Convex functions", () => {
       )[0],
     ).toMatchObject({
       customerOrderNumber: "SO-JOURNEY-1",
-      approvedFileIds: [expect.any(String)],
+      approvedFileIds: [expect.any(String), expect.any(String)],
       releaseEvidence: { releasedByUserId: checker },
       specification: expect.objectContaining(specification),
       quantity: 250,
@@ -632,6 +751,7 @@ describe("order-to-ship public Convex functions", () => {
         customerOrderId: reuseOrderId,
       }),
     );
+    await routeForProduction(world, reuseLineId, "JOURNEY-REUSE");
     const reusePacketId = value(
       await call(world, issueFactoryPacket, {
         requestId: "journey-reuse-packet",
@@ -762,6 +882,7 @@ describe("order-to-ship public Convex functions", () => {
       written: false,
       error: { reason: "FILE_NOT_RETRIEVABLE" },
     });
+    await routeForProduction(world, seeded.lineId, "DEAD-BLOB");
     expect(
       value(
         await call(world, issueFactoryPacket, {

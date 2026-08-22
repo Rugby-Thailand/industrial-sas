@@ -81,61 +81,86 @@ export function TileList({
     );
   }
 
+  const backlog = tiles.filter((tile) => BACKLOG_METRICS.has(tile.metric));
+  const cumulative = tiles.filter((tile) => !BACKLOG_METRICS.has(tile.metric));
+
+  const renderTile = (tile: DashboardTile) => (
+    <Card
+      key={tile.metric}
+      size="sm"
+      data-testid={"tile-" + tile.metric}
+      className={tile.suspect ? "border-warning" : ""}
+    >
+      <dt className="px-4 text-sm font-medium text-muted">
+        {metricT(tile.metric)}
+      </dt>
+      <dd className="px-4">
+        <span className="block font-mono text-3xl font-semibold text-text tabular-nums">
+          {format.number(tile.count)}
+        </span>
+        <span className="mt-2 block text-xs text-muted">
+          {tile.updatedAt === undefined
+            ? t("tileNeverMoved")
+            : t("tileAsOf", {
+                when: format.dateTime(new Date(tile.updatedAt), {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                }),
+              })}
+        </span>
+        {tile.suspect ? (
+          <div className="mt-2">
+            <Notice
+              tone="warning"
+              title={t("tileSuspectTitle")}
+              body={t("tileSuspect")}
+              testId={"tile-suspect-" + tile.metric}
+            />
+          </div>
+        ) : null}
+        {BACKLOG_METRICS.has(tile.metric) ? null : (
+          <span className="mt-2 block text-xs text-muted">
+            {t("tileCumulative")}
+          </span>
+        )}
+      </dd>
+    </Card>
+  );
+
   return (
-    <dl
+    <div
+      role="group"
       aria-label={label}
       data-testid="dashboard-tiles"
-      className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
+      className="grid items-start gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(16rem,1fr)]"
     >
-      {tiles.map((tile) => (
-        <Card
-          key={tile.metric}
-          size="sm"
-          data-testid={`tile-${tile.metric}`}
-          className={tile.suspect ? "border-warning" : ""}
-        >
-          {/*
-           * `dt` and `dd` are direct children of the card. A `dl` may contain
-           * only `dt`/`dd` pairs or a single `div` wrapping each pair, and the
-           * card *is* that div — nesting the header and content wrappers inside
-           * it would add a second level and break the structure a screen reader
-           * walks. So the card's own padding is applied here instead.
-           */}
-          <dt className="px-4 text-sm font-medium text-muted">
-            {metricT(tile.metric)}
-          </dt>
-          <dd className="px-4">
-            <span className="block font-mono text-3xl font-semibold text-text tabular-nums">
-              {format.number(tile.count)}
-            </span>
-            <span className="mt-2 block text-xs text-muted">
-              {tile.updatedAt === undefined
-                ? t("tileNeverMoved")
-                : t("tileAsOf", {
-                    when: format.dateTime(new Date(tile.updatedAt), {
-                      dateStyle: "medium",
-                      timeStyle: "short",
-                    }),
-                  })}
-            </span>
-            {tile.suspect ? (
-              <div className="mt-2">
-                <Notice
-                  tone="warning"
-                  title={t("tileSuspectTitle")}
-                  body={t("tileSuspect")}
-                  testId={`tile-suspect-${tile.metric}`}
-                />
-              </div>
-            ) : null}
-            {BACKLOG_METRICS.has(tile.metric) ? null : (
-              <span className="mt-2 block text-xs text-muted">
-                {t("tileCumulative")}
-              </span>
-            )}
-          </dd>
-        </Card>
-      ))}
-    </dl>
+      {backlog.length === 0 ? null : (
+        <section aria-labelledby="dashboard-backlog-heading">
+          <h3
+            id="dashboard-backlog-heading"
+            className="mb-2 text-sm font-semibold text-text"
+          >
+            {t("backlogHeading")}
+          </h3>
+          <dl className="grid gap-3 sm:grid-cols-2">
+            {backlog.map(renderTile)}
+          </dl>
+        </section>
+      )}
+
+      {cumulative.length === 0 ? null : (
+        <section aria-labelledby="dashboard-volume-heading">
+          <h3
+            id="dashboard-volume-heading"
+            className="mb-2 text-sm font-semibold text-text"
+          >
+            {t("volumeHeading")}
+          </h3>
+          <dl className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+            {cumulative.map(renderTile)}
+          </dl>
+        </section>
+      )}
+    </div>
   );
 }

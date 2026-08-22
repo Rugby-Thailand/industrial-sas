@@ -8,13 +8,31 @@
 - Covers plan ADR backlog (§11) items: 12
 - Implementation status: **Foundation only.** A web app manifest and its icons
   exist (`public/manifest.webmanifest`). The former connection badge was removed
-  because it did not help operators complete work.
-  There is still **no service worker, no cached reference data, no intent queue,
-  and no pending state**, because there is no write flow to queue: the two
-  inventory screens read and nothing posts. `INV-0009-01` through `INV-0009-06`
-  therefore have nothing to apply to yet, and `INV-0009-03` (blocking
-  correctness-sensitive operations while disconnected) lands with the first
-  operation that posts.
+  because it did not help operators complete work. The application does not infer
+  server reachability from `navigator.onLine`.
+  The **code-owned command classification** now exists
+  (`convex/model/platform/commandClassification.ts`): every command this
+  repository posts under is declared `QUEUEABLE` or `BLOCKED_OFFLINE` from two
+  stated facts — idempotent, and independent of stock, location, QC, or lease
+  state — an unclassified operation is blocked fail-closed, and the derivation
+  is asserted rather than hand-written. Exactly one command is queueable today
+  (`platform.device.seen`); a heartbeat and an evidence append are deliberately
+  not, because both assert something about _now_ that a replay twenty minutes
+  later would misstate. The **browser-side intent queue**
+  (`src/lib/offline/intentQueue.ts`) holds only queueable intents, keeps the
+  request ID minted when the operator acted, has `PENDING`/`SENDING`/`FAILED`
+  and deliberately no `SUCCEEDED` state. At its cap it may evict the oldest
+  pending/failed intent with visible dropped evidence, but never an in-flight
+  intent; if every slot is sending, the new intent is visibly blocked instead.
+  The first operator surface consumes both:
+  `src/features/operator/OperatorWorkBoard.tsx` disables a blocked control and
+  names the reason in Thai and English instead of offering a tap that would be
+  refused (`INV-0009-02`, `INV-0009-03`).
+  There is still **no service worker and no cached reference data**, so
+  `INV-0009-06` (marking a stale reference document) is a parameter the
+  classification accepts and nothing yet supplies, and no queued intent has ever
+  been replayed against a deployment — the drain loop and its rehearsal on a
+  degraded network remain open.
 
 ## Context
 
@@ -115,14 +133,32 @@ and correctness-sensitive tasks stop when connectivity is lost.
 
 ## Verification
 
-Present: the application does not claim offline support.
+Present:
+
+- Unit tests: intent classification — queueable versus blocked, the fail-closed
+  answer for an unclassified operation, and the rule that a state-dependent or
+  non-idempotent command can never be queueable
+  (`convex/model/platform/commandClassification.test.ts`); the queue's
+  request-ID lifetime, its absent success state, and its overflow behaviour
+  (`src/lib/offline/intentQueue.test.ts`).
+- Component tests: a blocked control is disabled with its reason on screen
+  rather than offered and refused
+  (`src/features/operator/OperatorWorkBoard.test.tsx`).
+- Integration tests: a repeated evidence request replays the row it already
+  wrote instead of appending a second one, and the same request ID carrying
+  different arguments is refused. A repeated step-up request resolves to its
+  original approval rather than minting multiple single-use credentials
+  (`tests/integration/operator-work.integration.test.ts`).
+- E2E: an unconfigured deployment reports "not configured" rather than
+  connecting indefinitely to a host that does not exist.
 
 Planned, not present.
 
-- Unit tests: intent classification (queueable vs blocked), request-ID lifetime,
-  freshness marking.
-- Integration tests: replay of queued intents commits exactly once; blocked
-  operations fail closed while disconnected.
+- Freshness marking of cached reference data: the classification accepts a
+  `referenceDataStale` input and nothing supplies it, because no service worker
+  and no cache exist.
+- Integration tests: replay of queued intents against a deployment, and the
+  drain loop that sends them on reconnection.
 - E2E: simulated disconnect and reconnect showing pending state, safe replay, and
   blocked correctness-sensitive actions (plan §12).
 - Field measurement: p95/p99 scan-to-ack at the pilot site on real Wi-Fi.

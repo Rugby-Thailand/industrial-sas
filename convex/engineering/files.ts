@@ -128,6 +128,7 @@ interface FileDocument {
   readonly contentDigest: string;
   readonly storageState: string;
   readonly storageId?: string;
+  readonly uploadThingKey?: string;
   readonly verifiedAt?: number;
   readonly attachedByUserId: string;
 }
@@ -138,9 +139,14 @@ interface UploadGrantDocument {
   readonly masterCardRevisionId?: string;
   readonly batchRef?: string;
   readonly sourceRow?: number;
+  readonly authorizedClerkUserId?: string;
   readonly expiresAt: number;
   readonly uploadStartedAt?: number;
   readonly consumedStorageId?: string;
+  readonly consumedUploadThingKey?: string;
+  readonly consumedContentDigest?: string;
+  readonly consumedContentType?: string;
+  readonly consumedByteSize?: number;
   readonly consumedAt?: number;
   readonly attachedAt?: number;
 }
@@ -165,6 +171,14 @@ export async function cleanupExpiredMasterCardUploadGrants(
   let removed = 0;
   for (const grant of grants) {
     if (grant.expiresAt >= now) break;
+    // Preserve the only reference until the planned UploadThing orphan sweep
+    // can delete this object. Attached grants can be discarded normally.
+    if (
+      grant.attachedAt === undefined &&
+      grant.consumedUploadThingKey !== undefined
+    ) {
+      continue;
+    }
     if (
       grant.attachedAt === undefined &&
       grant.consumedStorageId !== undefined &&
@@ -199,10 +213,13 @@ const fileUniqueness = (
 
 /** Mint a one-purpose private upload URL after checking the target revision. */
 export const authorizeMasterCardFileUpload = mutationWithOrg({
-  args: { masterCardRevisionId: v.id("masterCardRevisions") },
+  args: {
+    masterCardRevisionId: v.id("masterCardRevisions"),
+    transport: v.optional(v.literal("UPLOADTHING")),
+  },
   returns: v.union(
     v.object({
-      uploadUrl: v.string(),
+      uploadUrl: v.optional(v.string()),
       uploadGrantId: v.id("masterCardUploadGrants"),
       expiresAt: v.number(),
     }),
@@ -235,6 +252,12 @@ export const authorizeMasterCardFileUpload = mutationWithOrg({
       masterCardRevisionId: args.masterCardRevisionId,
       authorizedByUserId: context.actorUserId,
       expiresAt,
+      ...(args.transport === "UPLOADTHING"
+        ? {
+            uploadStartedAt: context.now,
+            authorizedClerkUserId: ctx.tenant.actor.clerkUserId,
+          }
+        : {}),
     };
     const uploadGrantId = await ctx.tenantDb.insert(
       "masterCardUploadGrants",
@@ -245,6 +268,9 @@ export const authorizeMasterCardFileUpload = mutationWithOrg({
       entityId: uploadGrantId,
       changes: insertedFields(document),
     });
+    if (args.transport === "UPLOADTHING") {
+      return { uploadGrantId: uploadGrantId as never, expiresAt };
+    }
     const siteUrl = process.env.CONVEX_SITE_URL;
     if (siteUrl === undefined || siteUrl.trim().length === 0) {
       return refusal({
@@ -280,6 +306,7 @@ export const claimMasterCardUploadGrant = internalMutationGeneric({
       grant === null ||
       grant.uploadStartedAt !== undefined ||
       grant.consumedStorageId !== undefined ||
+      grant.consumedUploadThingKey !== undefined ||
       grant.attachedAt !== undefined ||
       grant.expiresAt < Date.now()
     ) {
@@ -300,6 +327,7 @@ export const releaseMasterCardUploadGrant = internalMutationGeneric({
       grant === null ||
       grant.uploadStartedAt === undefined ||
       grant.consumedStorageId !== undefined ||
+      grant.consumedUploadThingKey !== undefined ||
       grant.attachedAt !== undefined ||
       grant.expiresAt < Date.now()
     ) {
@@ -323,6 +351,7 @@ export const completeMasterCardUploadGrant = internalMutationGeneric({
       grant === null ||
       grant.uploadStartedAt === undefined ||
       grant.consumedStorageId !== undefined ||
+      grant.consumedUploadThingKey !== undefined ||
       grant.attachedAt !== undefined ||
       grant.expiresAt < Date.now()
     ) {
@@ -335,6 +364,54 @@ export const completeMasterCardUploadGrant = internalMutationGeneric({
     return true;
   },
 });
+
+/** Bind a verified UploadThing object to the exact claimed capability. */
+export const completeUploadThingMasterCardUploadGrant = internalMutationGeneric(
+  {
+    args: {
+      grantId: v.id("masterCardUploadGrants"),
+      providerKey: v.string(),
+      uploaderClerkUserId: v.string(),
+      contentDigest: v.string(),
+      contentType: v.string(),
+      byteSize: v.number(),
+    },
+    returns: v.boolean(),
+    handler: async (ctx, args) => {
+      const grant = await ctx.db.get(args.grantId);
+      if (
+        grant === null ||
+        grant.uploadStartedAt === undefined ||
+        grant.authorizedClerkUserId !== args.uploaderClerkUserId ||
+        grant.consumedStorageId !== undefined ||
+        grant.consumedUploadThingKey !== undefined ||
+        grant.attachedAt !== undefined ||
+        grant.expiresAt < Date.now()
+      ) {
+        return false;
+      }
+      if (
+        !CONTENT_DIGEST_PATTERN.test(args.contentDigest) ||
+        !CONTENT_TYPE_PATTERN.test(args.contentType) ||
+        !Number.isInteger(args.byteSize) ||
+        args.byteSize <= 0 ||
+        args.byteSize > MAX_DECLARED_BYTE_SIZE ||
+        args.providerKey.length === 0 ||
+        args.providerKey.length > 512
+      ) {
+        return false;
+      }
+      await ctx.db.patch(grant._id, {
+        consumedUploadThingKey: args.providerKey,
+        consumedContentDigest: args.contentDigest.toLowerCase(),
+        consumedContentType: args.contentType,
+        consumedByteSize: args.byteSize,
+        consumedAt: Date.now(),
+      });
+      return true;
+    },
+  },
+);
 
 /**
  * Register a file against a draft revision.
@@ -359,7 +436,8 @@ export const attachMasterCardFile = mutationWithOrg({
     contentType: v.string(),
     byteSize: v.number(),
     contentDigest: v.string(),
-    storageId: v.id("_storage"),
+    storageId: v.optional(v.id("_storage")),
+    uploadThingKey: v.optional(v.string()),
     uploadGrantId: v.id("masterCardUploadGrants"),
   },
   returns: writeOutcomeValidator,
@@ -410,6 +488,16 @@ export const attachMasterCardFile = mutationWithOrg({
             : "NOT_A_POSITIVE_WHOLE_NUMBER",
       });
     }
+    if (
+      (args.storageId === undefined) ===
+      (args.uploadThingKey === undefined)
+    ) {
+      return refusal({
+        code: "FIELD_INVALID",
+        field: "storageProvider",
+        reason: "EXACTLY_ONE_STORAGE_REFERENCE_REQUIRED",
+      });
+    }
 
     const fingerprint = {
       operation: ENGINEERING_FILE_OPERATIONS.attachFile,
@@ -421,7 +509,10 @@ export const attachMasterCardFile = mutationWithOrg({
       contentType: args.contentType,
       byteSize: args.byteSize,
       contentDigest: args.contentDigest,
-      storageId: args.storageId,
+      ...(args.storageId === undefined ? {} : { storageId: args.storageId }),
+      ...(args.uploadThingKey === undefined
+        ? {}
+        : { uploadThingKey: args.uploadThingKey }),
       uploadGrantId: args.uploadGrantId,
     };
     const replay = await replayTenantWriteIfPresent({
@@ -441,10 +532,18 @@ export const attachMasterCardFile = mutationWithOrg({
       "masterCardUploadGrants",
       args.uploadGrantId,
     );
+    const convexGrantMatches =
+      args.storageId !== undefined &&
+      grant?.consumedStorageId === args.storageId &&
+      grant.consumedUploadThingKey === undefined;
+    const uploadThingGrantMatches =
+      args.uploadThingKey !== undefined &&
+      grant?.consumedUploadThingKey === args.uploadThingKey &&
+      grant.consumedStorageId === undefined;
     if (
       grant === null ||
       grant.masterCardRevisionId !== args.masterCardRevisionId ||
-      grant.consumedStorageId !== args.storageId ||
+      (!convexGrantMatches && !uploadThingGrantMatches) ||
       grant.consumedAt === undefined ||
       grant.attachedAt !== undefined ||
       grant.expiresAt < Date.now()
@@ -471,11 +570,23 @@ export const attachMasterCardFile = mutationWithOrg({
       });
     }
 
-    const metadata = await ctx.privateFiles.inspect(args.storageId);
+    const metadata =
+      args.storageId !== undefined
+        ? await ctx.privateFiles.inspect(args.storageId)
+        : grant.consumedUploadThingKey === args.uploadThingKey &&
+            grant.consumedContentDigest !== undefined &&
+            grant.consumedContentType !== undefined &&
+            grant.consumedByteSize !== undefined
+          ? {
+              sha256: grant.consumedContentDigest,
+              contentType: grant.consumedContentType,
+              size: grant.consumedByteSize,
+            }
+          : null;
     if (metadata === null) {
       return refusal({
         code: "PRECONDITION_FAILED",
-        field: "storageId",
+        field: "storageProvider",
         reason: "FILE_NOT_RETRIEVABLE",
       });
     }
@@ -522,7 +633,10 @@ export const attachMasterCardFile = mutationWithOrg({
         contentType: args.contentType,
         byteSize: args.byteSize,
         contentDigest: args.contentDigest,
-        storageId: args.storageId,
+        ...(args.storageId === undefined ? {} : { storageId: args.storageId }),
+        ...(args.uploadThingKey === undefined
+          ? {}
+          : { uploadThingKey: args.uploadThingKey }),
         verifiedAt: context.now,
         storageState: "AVAILABLE",
         attachedByUserId: ctx.tenant.actor._id,
@@ -592,21 +706,29 @@ export const requestMasterCardFileAccess = mutationWithOrg({
       };
     }
 
-    if (file.storageState !== "AVAILABLE" || file.storageId === undefined) {
+    if (
+      file.storageState !== "AVAILABLE" ||
+      (file.storageId === undefined && file.uploadThingKey === undefined)
+    ) {
       return {
         granted: false as const,
         error: { code: "FILE_NOT_AVAILABLE", field: "storageState" },
       };
     }
-    const url = await ctx.privateFiles.createDownloadUrl(file.storageId);
-    if (url === null) {
-      return {
-        granted: false as const,
-        error: { code: "FILE_NOT_RETRIEVABLE", field: "storageId" },
-      };
-    }
     const siteUrl = process.env.CONVEX_SITE_URL;
-    if (siteUrl === undefined || siteUrl.trim().length === 0) {
+    if (file.storageId !== undefined) {
+      const url = await ctx.privateFiles.createDownloadUrl(file.storageId);
+      if (url === null) {
+        return {
+          granted: false as const,
+          error: { code: "FILE_NOT_RETRIEVABLE", field: "storageId" },
+        };
+      }
+    }
+    if (
+      file.storageId !== undefined &&
+      (siteUrl === undefined || siteUrl.trim().length === 0)
+    ) {
       return {
         granted: false as const,
         error: { code: "FILE_GATEWAY_NOT_CONFIGURED" },
@@ -634,7 +756,10 @@ export const requestMasterCardFileAccess = mutationWithOrg({
     });
     return {
       granted: true as const,
-      url: `${siteUrl.replace(/\/$/, "")}/private-master-card-file?grantId=${encodeURIComponent(grantId)}`,
+      url:
+        file.uploadThingKey !== undefined
+          ? `/api/private-files/uploadthing?grantId=${encodeURIComponent(grantId)}`
+          : `${siteUrl!.replace(/\/$/, "")}/private-master-card-file?grantId=${encodeURIComponent(grantId)}`,
       expiresAt,
     };
   },
@@ -666,6 +791,109 @@ export const consumeMasterCardFileAccessGrant = internalMutationGeneric({
     }
     await ctx.db.patch(grant._id, { consumedAt: Date.now() });
     return { storageId: file.storageId, fileName: file.fileName };
+  },
+});
+
+/**
+ * Redeem an UploadThing download grant from the authenticated Next.js gateway.
+ * The grant is still one-use and bound to the user who requested access.
+ */
+export const redeemUploadThingMasterCardFileAccessGrant = mutationWithOrg({
+  args: { grantId: v.id("masterCardFileAccessGrants") },
+  returns: v.union(
+    v.null(),
+    v.object({ providerKey: v.string(), fileName: v.string() }),
+  ),
+  permissionCode: "engineering.file.read",
+  target: {
+    table: "masterCardFileAccessGrants",
+    id: ({ grantId }) => grantId,
+  },
+  handler: async (ctx, args) => {
+    const grant = await ctx.tenantDb.get<{
+      readonly _id: string;
+      readonly orgId: TenantOrgId;
+      readonly masterCardFileId: string;
+      readonly issuedToUserId: string;
+      readonly expiresAt: number;
+      readonly consumedAt?: number;
+    }>("masterCardFileAccessGrants", args.grantId);
+    if (
+      grant === null ||
+      grant.issuedToUserId !== ctx.tenant.actor._id ||
+      grant.consumedAt !== undefined ||
+      grant.expiresAt < Date.now()
+    ) {
+      return null;
+    }
+    const file = await ctx.tenantDb.get<FileDocument>(
+      "masterCardFiles",
+      grant.masterCardFileId,
+    );
+    if (
+      file === null ||
+      file.storageState !== "AVAILABLE" ||
+      file.uploadThingKey === undefined
+    ) {
+      return null;
+    }
+    await ctx.tenantDb.patch("masterCardFileAccessGrants", grant._id, {
+      consumedAt: Date.now(),
+    });
+    return { providerKey: file.uploadThingKey, fileName: file.fileName };
+  },
+});
+
+/** Redeem a packet-issued grant under the production permission namespace. */
+export const redeemUploadThingFactoryPacketFileAccessGrant = mutationWithOrg({
+  args: {
+    grantId: v.id("masterCardFileAccessGrants"),
+    warehouseId: v.id("warehouses"),
+  },
+  returns: v.union(
+    v.null(),
+    v.object({ providerKey: v.string(), fileName: v.string() }),
+  ),
+  permissionCode: "production.packet.read",
+  target: {
+    table: "masterCardFileAccessGrants",
+    id: ({ grantId }) => grantId,
+  },
+  warehouseId: ({ warehouseId }) => warehouseId,
+  handler: async (ctx, args) => {
+    const grant = await ctx.tenantDb.get<{
+      readonly _id: string;
+      readonly orgId: TenantOrgId;
+      readonly masterCardFileId: string;
+      readonly warehouseId?: string;
+      readonly issuedToUserId: string;
+      readonly expiresAt: number;
+      readonly consumedAt?: number;
+    }>("masterCardFileAccessGrants", args.grantId);
+    if (
+      grant === null ||
+      grant.warehouseId !== args.warehouseId ||
+      grant.issuedToUserId !== ctx.tenant.actor._id ||
+      grant.consumedAt !== undefined ||
+      grant.expiresAt < Date.now()
+    ) {
+      return null;
+    }
+    const file = await ctx.tenantDb.get<FileDocument>(
+      "masterCardFiles",
+      grant.masterCardFileId,
+    );
+    if (
+      file === null ||
+      file.storageState !== "AVAILABLE" ||
+      file.uploadThingKey === undefined
+    ) {
+      return null;
+    }
+    await ctx.tenantDb.patch("masterCardFileAccessGrants", grant._id, {
+      consumedAt: Date.now(),
+    });
+    return { providerKey: file.uploadThingKey, fileName: file.fileName };
   },
 });
 

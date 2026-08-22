@@ -23,7 +23,7 @@ export function QueryGate({
   children,
 }: {
   readonly scope: ReadScope;
-  readonly children: (warehouseId: string) => ReactNode;
+  readonly children: (warehouseId: string, preview: false) => ReactNode;
 }): ReactNode {
   const environment = useAppEnvironment();
   const warehouseId = useWorkspace().selectedWarehouseId;
@@ -44,7 +44,7 @@ function AuthenticatedQueryGate({
   children,
 }: {
   readonly warehouseId: string;
-  readonly children: (warehouseId: string) => ReactNode;
+  readonly children: (warehouseId: string, preview: false) => ReactNode;
 }): ReactNode {
   const authentication = useConvexAuth();
 
@@ -54,5 +54,5 @@ function AuthenticatedQueryGate({
   if (!authentication.isAuthenticated) {
     return <LedgerPanelStatus state={{ kind: "SIGN_IN_REQUIRED" }} />;
   }
-  return <>{children(warehouseId)}</>;
+  return <>{children(warehouseId, false)}</>;
 }

@@ -1,8 +1,10 @@
 # INT-03 — `FileStoragePort` (UploadThing private tenant files)
 
-Status: **specification.** `uploadthing` 7.7.4 and `@uploadthing/react` are installed
-and unwired. There is no upload route, no port, and no UploadThing application created
-by this repository.
+Status: **partially implemented.** Engineering master-card files use the private
+UploadThing route, verified completion callback, Convex-owned authorization metadata,
+and fresh one-minute signed download URLs. QC evidence, exports, retention deletion,
+and the orphan sweep remain planned. No cloud application is created by this
+repository.
 
 Owner ADRs:
 [ADR-0008](../adr/0008-adapter-ports-and-release-gates.md),
@@ -11,9 +13,10 @@ Owner ADRs:
 
 ## 1. Capability
 
-Storage for tenant-visible binary artifacts: QC evidence photos, signature images,
-label PDFs, and asynchronous report exports. Files are private; access is granted only
-through short-lived signed URLs issued after a fresh permission check (D-20).
+Storage for tenant-visible binary artifacts: engineering master-card files, QC
+evidence photos, signature images, label PDFs, and asynchronous report exports. Files
+are private; access is granted only through short-lived signed URLs issued after a
+fresh permission check (D-20).
 
 Internal-only artifacts with no tenant visibility may use Convex file storage instead;
 the port covers tenant-visible files.
@@ -30,6 +33,12 @@ the port covers tenant-visible files.
 
 The vendor is never the authorization source. Convex holds the metadata that decides
 who may read a file (§6.1).
+
+The implemented master-card path authorizes a one-use grant in Convex, sends the
+optimized browser file directly to a private UploadThing object, streams that object
+back through a signed URL in the server callback to verify byte count and SHA-256,
+and accepts the metadata only through an HMAC-authenticated Convex HTTP action. The
+browser cannot self-assert a vendor key or digest.
 
 ## 3. Port operations
 
@@ -48,6 +57,10 @@ type FileStoragePort = {
 content type, and a size limit. `UploadGrant` is short-lived and single-purpose.
 
 ## 4. Timeouts and retries
+
+The following is the full-port target. The master-card slice currently relies on the
+UploadThing SDK's client retry behavior; registration failure deletes the just-uploaded
+object from the callback before returning an error.
 
 | Operation                 | Timeout | Retries          | On exhaustion                                     |
 | ------------------------- | ------- | ---------------- | ------------------------------------------------- |
@@ -103,12 +116,12 @@ Token and app identifiers are environment variables per environment; names only 
 
 ## 9. Verification
 
-- Unit tests against the in-memory fake: grant scoping, size and content-type limits,
-  idempotent registration, expiry arithmetic.
-- Integration tests: a download URL is refused without the permission, refused across
-  tenants, and refused for a revoked membership.
+- Unit tests cover final-byte hashing, photo policy, never-increase selection, and the
+  accessible single-file picker.
+- Integration tests cover signed completion, tamper refusal, consumed-grant conflict,
+  and the existing one-use private-file gateways.
 - Isolation tests: a file reference from tenant A is unreadable as tenant B.
-- Job tests: orphan sweep and retention deletion.
+- Job tests for the vendor orphan sweep and retention deletion remain planned.
 - No test contacts the vendor (`INV-0008-05`).
 
 ## 10. Release gates

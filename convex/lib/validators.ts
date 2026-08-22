@@ -117,6 +117,113 @@ export const deviceStatus = v.union(v.literal("ACTIVE"), v.literal("RETIRED"));
 export type DeviceStatus = Infer<typeof deviceStatus>;
 
 /* -------------------------------------------------------------------------- */
+/* Shared operator work (Phase 1 — FF-P1-09, FF-P1-10, FF-P1-11)               */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Where a unit of operator work came from (`FF-P1-09`).
+ *
+ * One member today, deliberately. Phase 1 owns the shared claim/lease/evidence
+ * contract, and the only thing that creates a task in this repository is a
+ * supervisor planning work. A `COUNT_TASK` or `PICK_TASK` member declared now
+ * would be a state nothing writes and nothing reads — the same "invented
+ * domain" this schema refuses elsewhere. Each later phase adds its own member
+ * with the flow that produces it (P2 count, P3 pick, P4 transfer).
+ *
+ * Single-member unions stay closed and grow by a visible one-line diff, exactly
+ * as `currency` does above.
+ */
+export const operatorTaskKind = v.union(v.literal("SUPERVISOR_ASSIGNED"));
+export type OperatorTaskKindValue = Infer<typeof operatorTaskKind>;
+
+/**
+ * A shared task's state.
+ *
+ * `AVAILABLE` covers both "never claimed" and "claimed, then released or
+ * lapsed": the lease, not the status, is what says whether somebody is holding
+ * it right now (`convex/model/platform/taskAssignment.ts`). A separate
+ * `RELEASED` member would be a second way to spell the same fact, and the two
+ * would drift the first time a lease expired without anyone writing a row.
+ */
+export const operatorTaskStatus = v.union(
+  v.literal("AVAILABLE"),
+  v.literal("CLAIMED"),
+  v.literal("COMPLETED"),
+  v.literal("CANCELLED"),
+);
+export type OperatorTaskStatusValue = Infer<typeof operatorTaskStatus>;
+
+/**
+ * What one piece of partial evidence records.
+ *
+ * `HANDOVER` is the member that makes invariant 18 checkable: when a lease
+ * lapses or a supervisor reassigns a task, the change of hands is appended to
+ * the same evidence stream as the work itself, so partial evidence and the
+ * reason it changed owner are read in one place and in one order.
+ */
+export const operatorTaskEvidenceKind = v.union(
+  v.literal("QUANTITY"),
+  v.literal("SCAN"),
+  v.literal("NOTE"),
+  v.literal("HANDOVER"),
+);
+export type OperatorTaskEvidenceKindValue = Infer<
+  typeof operatorTaskEvidenceKind
+>;
+
+/** The lifecycle of a problem raised from shared operator work (`FF-P1-03`). */
+export const operatorTaskExceptionStatus = v.union(
+  v.literal("OPEN"),
+  v.literal("RESOLVED"),
+  v.literal("WITHDRAWN"),
+);
+export type OperatorTaskExceptionStatusValue = Infer<
+  typeof operatorTaskExceptionStatus
+>;
+
+/** What the supervisor decided should happen after reviewing an exception. */
+export const operatorTaskExceptionDisposition = v.union(
+  v.literal("RESUME"),
+  v.literal("REASSIGN"),
+  v.literal("STOP"),
+  v.literal("ESCALATE"),
+);
+export type OperatorTaskExceptionDispositionValue = Infer<
+  typeof operatorTaskExceptionDisposition
+>;
+
+/** Evidence file categories kept deliberately broad across operator modules. */
+export const operatorTaskAttachmentKind = v.union(
+  v.literal("PHOTO"),
+  v.literal("DOCUMENT"),
+  v.literal("OTHER"),
+);
+export type OperatorTaskAttachmentKindValue = Infer<
+  typeof operatorTaskAttachmentKind
+>;
+
+/** How a captured quantity compared with what the task expected (`FF-P1-10`). */
+export const quantityPlausibility = v.union(
+  v.literal("PLAUSIBLE"),
+  v.literal("UNCHECKED"),
+  v.literal("IMPLAUSIBLE"),
+);
+export type QuantityPlausibilityValue = Infer<typeof quantityPlausibility>;
+
+/**
+ * A supervisor's on-device decision (`FF-P1-11`).
+ *
+ * `REJECTED` is stored rather than discarded: "the supervisor looked and said
+ * no" is the evidence an exception review needs, and a table that only held
+ * approvals would make refusals invisible.
+ */
+export const stepUpDecision = v.union(
+  v.literal("APPROVED"),
+  v.literal("REJECTED"),
+);
+export type StepUpDecisionValue = Infer<typeof stepUpDecision>;
+
+/* -------------------------------------------------------------------------- */
 /* Audit, denial, and idempotency                                              */
 /* -------------------------------------------------------------------------- */
 
@@ -487,6 +594,105 @@ export const importBatchStatus = v.union(
 );
 export type ImportBatchStatusValue = Infer<typeof importBatchStatus>;
 
+/* -------------------------------------------------------------------------- */
+/* Inventory truth: opening stock and counting                                */
+/* -------------------------------------------------------------------------- */
+
+/** Reviewed opening-stock import lifecycle (`FF-P2-01`). */
+export const openingStockBatchStatus = v.union(
+  v.literal("DRAFT"),
+  v.literal("READY_FOR_REVIEW"),
+  v.literal("APPROVED"),
+  v.literal("POSTING"),
+  v.literal("POSTED"),
+  v.literal("REJECTED"),
+);
+export type OpeningStockBatchStatusValue = Infer<
+  typeof openingStockBatchStatus
+>;
+
+/** One import row is either postable or retained with a named validation fault. */
+export const openingStockRowStatus = v.union(
+  v.literal("VALID"),
+  v.literal("INVALID"),
+  v.literal("POSTED"),
+);
+export type OpeningStockRowStatusValue = Infer<typeof openingStockRowStatus>;
+
+/** Durable result of one bounded opening-stock ledger chunk. */
+export const openingStockPostChunkStatus = v.union(
+  v.literal("PENDING"),
+  v.literal("POSTED"),
+);
+export type OpeningStockPostChunkStatusValue = Infer<
+  typeof openingStockPostChunkStatus
+>;
+
+export const countScope = v.union(
+  v.literal("FULL"),
+  v.literal("CYCLE"),
+  v.literal("SPOT"),
+);
+export type CountScopeValue = Infer<typeof countScope>;
+
+export const countVisibility = v.union(
+  v.literal("BLIND"),
+  v.literal("VISIBLE"),
+);
+export type CountVisibilityValue = Infer<typeof countVisibility>;
+
+export const countMovementPolicy = v.union(
+  v.literal("FROZEN"),
+  v.literal("MOVEMENT_AWARE"),
+);
+export type CountMovementPolicyValue = Infer<typeof countMovementPolicy>;
+
+export const countPlanStatus = v.union(
+  v.literal("DRAFT"),
+  v.literal("RELEASED"),
+  v.literal("IN_PROGRESS"),
+  v.literal("RECONCILING"),
+  v.literal("COMPLETED"),
+  v.literal("CANCELLED"),
+);
+export type CountPlanStatusValue = Infer<typeof countPlanStatus>;
+
+export const countTaskStatus = v.union(
+  v.literal("AVAILABLE"),
+  v.literal("COUNTING"),
+  v.literal("SUBMITTED"),
+  v.literal("RECOUNT_REQUIRED"),
+  v.literal("RECOUNTING"),
+  v.literal("RECONCILED"),
+  v.literal("CANCELLED"),
+);
+export type CountTaskStatusValue = Infer<typeof countTaskStatus>;
+
+export const countEntrySource = v.union(
+  v.literal("HANDHELD"),
+  v.literal("PAPER_REENTRY"),
+);
+export type CountEntrySourceValue = Infer<typeof countEntrySource>;
+
+export const countReconciliationStatus = v.union(
+  v.literal("PENDING"),
+  v.literal("RECOUNT_REQUIRED"),
+  v.literal("PENDING_APPROVAL"),
+  v.literal("APPROVED"),
+  v.literal("POSTED"),
+  v.literal("MATCHED"),
+);
+export type CountReconciliationStatusValue = Infer<
+  typeof countReconciliationStatus
+>;
+
+export const varianceRisk = v.union(
+  v.literal("MATCH"),
+  v.literal("STANDARD"),
+  v.literal("HIGH"),
+);
+export type VarianceRiskValue = Infer<typeof varianceRisk>;
+
 export const labelTemplateFormat = v.union(v.literal("ZPL"), v.literal("PDF"));
 export type LabelTemplateFormat = Infer<typeof labelTemplateFormat>;
 
@@ -550,11 +756,13 @@ export type LedgerLocationKindValue = Infer<typeof ledgerLocationKind>;
 export const virtualBoundaryCode = v.union(
   v.literal("SUPPLIER_RECEIPT"),
   v.literal("CUSTOMER_SHIPMENT"),
+  v.literal("CUSTOMER_RETURN"),
   v.literal("PRODUCTION_ISSUE"),
   v.literal("PRODUCTION_RECEIPT"),
   v.literal("INVENTORY_ADJUSTMENT"),
   v.literal("SCRAP_DAMAGE"),
   v.literal("RECONCILIATION"),
+  v.literal("TRANSFER_IN_TRANSIT"),
 );
 export type VirtualBoundaryCodeValue = Infer<typeof virtualBoundaryCode>;
 
@@ -698,6 +906,219 @@ export type CustomerOrderLineStatusValue = Infer<
   typeof customerOrderLineStatus
 >;
 
+/* -------------------------------------------------------------------------- */
+/* Available-stock fulfillment (Phase 3 — FF-P3-01)                           */
+/* -------------------------------------------------------------------------- */
+
+/** Commercial commitment lifecycle, kept separate from design and delivery. */
+export const fulfillmentOrderStatus = v.union(
+  v.literal("DRAFT"),
+  v.literal("RELEASED"),
+  v.literal("IN_FULFILLMENT"),
+  v.literal("PARTIALLY_COMPLETE"),
+  v.literal("COMPLETE"),
+  v.literal("CANCELLED"),
+);
+export type FulfillmentOrderStatusValue = Infer<typeof fulfillmentOrderStatus>;
+
+/** Route chosen for one customer-order demand before factory handoff. */
+export const fulfillmentRouteDecision = v.union(
+  v.literal("AVAILABLE_STOCK"),
+  v.literal("PRODUCTION"),
+);
+export type FulfillmentRouteDecisionValue = Infer<
+  typeof fulfillmentRouteDecision
+>;
+
+/** Aggregate route across every line on a fulfillment order. */
+export const fulfillmentOrderRouteDecision = v.union(
+  fulfillmentRouteDecision,
+  v.literal("MIXED"),
+);
+export type FulfillmentOrderRouteDecisionValue = Infer<
+  typeof fulfillmentOrderRouteDecision
+>;
+
+/** The dominant current stage shown for one fulfillment line. */
+export const fulfillmentLineStatus = v.union(
+  v.literal("UNPLANNED"),
+  v.literal("BACKORDERED"),
+  v.literal("RESERVED"),
+  v.literal("PICKING"),
+  v.literal("STAGED"),
+  v.literal("ISSUED"),
+  v.literal("LOADED"),
+  v.literal("PARTIALLY_DELIVERED"),
+  v.literal("DELIVERED"),
+  v.literal("RETURNED"),
+  v.literal("CANCELLED"),
+);
+export type FulfillmentLineStatusValue = Infer<typeof fulfillmentLineStatus>;
+
+/** Stock rotation policy used for an allocation decision. */
+export const allocationStrategy = v.union(v.literal("FIFO"), v.literal("FEFO"));
+export type AllocationStrategyValue = Infer<typeof allocationStrategy>;
+
+/** A reservation remains active until picking consumes or an explicit action releases it. */
+export const inventoryReservationStatus = v.union(
+  v.literal("ACTIVE"),
+  v.literal("PICKING"),
+  v.literal("CONSUMED"),
+  v.literal("RELEASED"),
+  v.literal("EXPIRED"),
+);
+export type InventoryReservationStatusValue = Infer<
+  typeof inventoryReservationStatus
+>;
+
+export const pickWaveStatus = v.union(
+  v.literal("DRAFT"),
+  v.literal("RELEASED"),
+  v.literal("IN_PROGRESS"),
+  v.literal("COMPLETE"),
+  v.literal("CANCELLED"),
+);
+export type PickWaveStatusValue = Infer<typeof pickWaveStatus>;
+
+export const pickTaskStatus = v.union(
+  v.literal("AVAILABLE"),
+  v.literal("IN_PROGRESS"),
+  v.literal("PICKED"),
+  v.literal("CHECKED"),
+  v.literal("PACKED"),
+  v.literal("STAGED"),
+  v.literal("ISSUED"),
+  v.literal("CANCELLED"),
+);
+export type PickTaskStatusValue = Infer<typeof pickTaskStatus>;
+
+export const pickTaskLineStatus = v.union(
+  v.literal("OPEN"),
+  v.literal("COMPLETE"),
+);
+export type PickTaskLineStatusValue = Infer<typeof pickTaskLineStatus>;
+
+export const pickEventKind = v.union(
+  v.literal("PICK"),
+  v.literal("SHORT"),
+  v.literal("DAMAGED"),
+);
+export type PickEventKindValue = Infer<typeof pickEventKind>;
+
+export const fulfillmentPackageStatus = v.union(
+  v.literal("PACKED"),
+  v.literal("STAGED"),
+  v.literal("ISSUED"),
+);
+export type FulfillmentPackageStatusValue = Infer<
+  typeof fulfillmentPackageStatus
+>;
+
+export const shipmentStatus = v.union(
+  v.literal("DRAFT"),
+  v.literal("READY_TO_LOAD"),
+  v.literal("LOADING"),
+  v.literal("LOADED"),
+  v.literal("GATED_OUT"),
+  v.literal("IN_TRANSIT"),
+  v.literal("DELIVERED"),
+  v.literal("DELIVERY_FAILED"),
+  v.literal("RETURNED"),
+  v.literal("CANCELLED"),
+);
+export type ShipmentStatusValue = Infer<typeof shipmentStatus>;
+
+export const shipmentPackageStatus = v.union(
+  v.literal("EXPECTED"),
+  v.literal("LOADED"),
+  v.literal("DELIVERED"),
+  v.literal("RETURNED"),
+);
+export type ShipmentPackageStatusValue = Infer<typeof shipmentPackageStatus>;
+
+export const tripStatus = v.union(
+  v.literal("DRAFT"),
+  v.literal("READY_TO_LOAD"),
+  v.literal("LOADING"),
+  v.literal("SEALED"),
+  v.literal("GATED_OUT"),
+  v.literal("IN_TRANSIT"),
+  v.literal("COMPLETE"),
+  v.literal("CANCELLED"),
+);
+export type TripStatusValue = Infer<typeof tripStatus>;
+
+export const deliveryMilestoneKind = v.union(
+  v.literal("DEPARTED"),
+  v.literal("ARRIVED"),
+  v.literal("DELIVERED"),
+  v.literal("FAILED"),
+  v.literal("RETURNED_TO_WAREHOUSE"),
+);
+export type DeliveryMilestoneKindValue = Infer<typeof deliveryMilestoneKind>;
+
+export const transferSourceKind = v.union(
+  v.literal("SALES_ORDER"),
+  v.literal("INVOICE"),
+  v.literal("PREPARATION"),
+  v.literal("REPLENISHMENT"),
+  v.literal("OTHER"),
+);
+export type TransferSourceKindValue = Infer<typeof transferSourceKind>;
+
+export const transferStatus = v.union(
+  v.literal("DRAFT"),
+  v.literal("APPROVED"),
+  v.literal("DISPATCHING"),
+  v.literal("DISPATCHED"),
+  v.literal("PARTIALLY_RECEIVED"),
+  v.literal("DISCREPANCY"),
+  v.literal("COMPLETE"),
+  v.literal("CANCELLED"),
+);
+export type TransferStatusValue = Infer<typeof transferStatus>;
+
+export const transferDiscrepancyStatus = v.union(
+  v.literal("OPEN"),
+  v.literal("RESOLVED_RECEIVED"),
+  v.literal("RESOLVED_RETURNED"),
+  v.literal("WRITTEN_OFF"),
+);
+export type TransferDiscrepancyStatusValue = Infer<
+  typeof transferDiscrepancyStatus
+>;
+
+export const proofOfDeliveryStatus = v.union(
+  v.literal("CAPTURED"),
+  v.literal("ACCEPTED"),
+  v.literal("REJECTED"),
+);
+export type ProofOfDeliveryStatusValue = Infer<typeof proofOfDeliveryStatus>;
+
+export const documentReturnStatus = v.union(
+  v.literal("EXPECTED"),
+  v.literal("RETURNED"),
+  v.literal("WAIVED"),
+);
+export type DocumentReturnStatusValue = Infer<typeof documentReturnStatus>;
+
+export const transportFileKind = v.union(
+  v.literal("POD"),
+  v.literal("GATE_EVIDENCE"),
+  v.literal("DELIVERY_NOTE"),
+  v.literal("DOCUMENT_RETURN"),
+);
+export type TransportFileKindValue = Infer<typeof transportFileKind>;
+
+export const transportFileStorageState = v.union(
+  v.literal("RESERVED"),
+  v.literal("AVAILABLE"),
+  v.literal("DELETED"),
+);
+export type TransportFileStorageStateValue = Infer<
+  typeof transportFileStorageState
+>;
+
 /**
  * Where a line's design came from (`G-124`).
  *
@@ -802,6 +1223,92 @@ export const factoryPacketStatus = v.union(
   v.literal("CANCELLED"),
 );
 export type FactoryPacketStatusValue = Infer<typeof factoryPacketStatus>;
+
+export const productionOrderStatus = v.union(
+  v.literal("DRAFT"),
+  v.literal("RELEASED"),
+  v.literal("IN_PROGRESS"),
+  v.literal("QC_PENDING"),
+  v.literal("COMPLETE"),
+  v.literal("CLOSED_REJECTED"),
+  v.literal("CANCELLED"),
+);
+export type ProductionOrderStatusValue = Infer<typeof productionOrderStatus>;
+
+export const productionOutputDisposition = v.union(
+  v.literal("QC_HOLD"),
+  v.literal("AVAILABLE"),
+  v.literal("REJECTED"),
+);
+export type ProductionOutputDispositionValue = Infer<
+  typeof productionOutputDisposition
+>;
+
+/** HR attendance and leave lifecycle values (Phase 8 bounded slice). */
+export const employmentStatus = v.union(
+  v.literal("ACTIVE"),
+  v.literal("INACTIVE"),
+);
+export const attendanceEventKind = v.union(
+  v.literal("CLOCK_IN"),
+  v.literal("BREAK_START"),
+  v.literal("BREAK_END"),
+  v.literal("CLOCK_OUT"),
+  v.literal("CORRECTION_APPLIED"),
+);
+export const attendanceDayStatus = v.union(
+  v.literal("OPEN"),
+  v.literal("ON_BREAK"),
+  v.literal("CLOSED"),
+  v.literal("CORRECTED"),
+  v.literal("ANOMALY"),
+);
+export const hrRequestStatus = v.union(
+  v.literal("SUBMITTED"),
+  v.literal("APPROVED"),
+  v.literal("REJECTED"),
+  v.literal("CANCELLED"),
+);
+export const leaveType = v.union(
+  v.literal("ANNUAL"),
+  v.literal("SICK"),
+  v.literal("PERSONAL"),
+  v.literal("UNPAID"),
+  v.literal("OTHER"),
+);
+export const leaveDurationKind = v.union(
+  v.literal("FULL_DAY"),
+  v.literal("HALF_DAY_AM"),
+  v.literal("HALF_DAY_PM"),
+  v.literal("HOURS"),
+);
+
+export const integrationAdapterKind = v.union(
+  v.literal("WEBHOOK"),
+  v.literal("ERP"),
+  v.literal("EMAIL"),
+  v.literal("LINE"),
+  v.literal("PRINTER"),
+);
+export const integrationAdapterStatus = v.union(
+  v.literal("ENABLED"),
+  v.literal("DEGRADED"),
+  v.literal("DISABLED"),
+);
+export const integrationMessageStatus = v.union(
+  v.literal("PENDING"),
+  v.literal("DELIVERING"),
+  v.literal("RETRY_WAIT"),
+  v.literal("DELIVERED"),
+  v.literal("DEAD_LETTER"),
+  v.literal("CANCELLED"),
+);
+export const integrationAttemptOutcome = v.union(
+  v.literal("DELIVERED"),
+  v.literal("RETRYABLE_FAILURE"),
+  v.literal("PERMANENT_FAILURE"),
+  v.literal("LEASE_EXPIRED"),
+);
 
 /**
  * One packaging specification, exactly as ordered (`G-125`).

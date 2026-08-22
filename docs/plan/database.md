@@ -63,6 +63,33 @@ Example:
 - Reverse; never edit posted facts.
 - Use an outbox for external effects.
 
+The local provider-neutral outbox separates three facts:
+
+- `integrationAdapters` names an approved server-side configuration reference and
+  health state; it never stores credentials.
+- `integrationOutboxMessages` owns the stable event key, schema version, payload
+  digest, lease, retry/backoff, and terminal state.
+- `integrationDeliveryAttempts` is immutable evidence for each provider attempt;
+  response bodies and tenant payloads are excluded.
+
+The source mutation and outbox append must share one Convex transaction. A future
+worker may claim and deliver the event, but it may not reconstruct or rewrite the
+already-committed source business fact.
+
+### Customer demand routing
+
+- `fulfillmentOrders` owns the aggregate route (`AVAILABLE_STOCK`, `PRODUCTION`, or
+  `MIXED`) and a monotonic route version.
+- `fulfillmentLines` is the one demand row per customer-order line. It records the
+  ATP-backed available-stock plan, exact production shortage, route decision/time,
+  and conserved execution quantities.
+- `factoryPackets.fulfillmentLineId` proves that production handoff followed routing.
+- `productionOrders.fulfillmentLineId` and `planningSource` explain whether the run
+  target came from routed shortage or a legacy packet. Multiple completed runs may
+  share a packet, while the application refuses overlapping active runs.
+- `by_orgId_warehouseId_itemId_routedAt` supports a bounded sum of unallocated stock
+  commitments so two draft lines cannot claim the same ATP.
+
 ## Contention
 
 Partition balance rows by:

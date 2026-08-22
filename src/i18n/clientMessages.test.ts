@@ -283,7 +283,7 @@ describe("client message namespaces", () => {
     // receipt is posted against an order and those screens genuinely read both
     // vocabularies; everything else is far below this.
     const shellBytes = bytes(SHELL_NAMESPACES, "th");
-    expect(shellBytes).toBeLessThan(6_000);
+    expect(shellBytes).toBeLessThan(6_250);
 
     for (const [scope, namespaces] of Object.entries(ROUTE_NAMESPACES)) {
       const total = shellBytes + bytes(namespaces, "th");

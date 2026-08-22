@@ -43,12 +43,21 @@ export const ROUTES = Object.freeze({
   customerOrders: "/sales/orders",
   engineeringQueue: "/engineering/designs",
   factoryPackets: "/production/packets",
+  productionOrders: "/production/orders",
+  fulfillment: "/fulfillment",
+  transport: "/transport",
+  transfers: "/transfers",
   receiving: "/receiving",
   quality: "/quality",
   putaway: "/putaway",
   reports: "/reports",
+  devices: "/devices",
+  hr: "/hr",
+  integrations: "/integrations",
   balances: "/inventory/balances",
   history: "/inventory/history",
+  openingStock: "/inventory/opening-stock",
+  countPlans: "/inventory/counts",
   setup: "/setup",
   signIn: "/sign-in",
   handheld: "/handheld",
@@ -56,6 +65,14 @@ export const ROUTES = Object.freeze({
   handheldReceive: "/handheld/receive",
   handheldQuality: "/handheld/quality",
   handheldPutaway: "/handheld/putaway",
+  handheldWork: "/handheld/work",
+  handheldCount: "/handheld/count",
+  handheldPick: "/handheld/pick",
+  handheldLoad: "/handheld/load",
+  handheldDelivery: "/handheld/delivery",
+  handheldTransfers: "/handheld/transfers",
+  handheldProduction: "/handheld/production",
+  handheldAttendance: "/handheld/attendance",
 });
 
 export const DESKTOP_NAVIGATION: readonly NavigationSection[] = Object.freeze([
@@ -80,6 +97,9 @@ export const DESKTOP_NAVIGATION: readonly NavigationSection[] = Object.freeze([
       { href: ROUTES.customerOrders, labelKey: "customerOrders" },
       { href: ROUTES.engineeringQueue, labelKey: "engineeringQueue" },
       { href: ROUTES.factoryPackets, labelKey: "factoryPackets" },
+      { href: ROUTES.fulfillment, labelKey: "fulfillment" },
+      { href: ROUTES.transport, labelKey: "transport" },
+      { href: ROUTES.transfers, labelKey: "transfers" },
     ]),
   }),
   Object.freeze({
@@ -98,12 +118,24 @@ export const DESKTOP_NAVIGATION: readonly NavigationSection[] = Object.freeze([
     items: Object.freeze([
       { href: ROUTES.balances, labelKey: "balances" },
       { href: ROUTES.history, labelKey: "history" },
+      { href: ROUTES.openingStock, labelKey: "openingStock" },
+      { href: ROUTES.countPlans, labelKey: "countPlans" },
       { href: ROUTES.reports, labelKey: "reports" },
     ]),
   }),
   Object.freeze({
     labelKey: "sectionOperator",
-    items: Object.freeze([{ href: ROUTES.handheld, labelKey: "handheldHome" }]),
+    items: Object.freeze([
+      { href: ROUTES.hr, labelKey: "hr" },
+      { href: ROUTES.integrations, labelKey: "integrations" },
+      { href: ROUTES.handheld, labelKey: "handheldHome" },
+      /*
+       * The registry is administration rather than an operator task, and it
+       * sits here because it is *about* the handhelds: an administrator opens
+       * it holding a scanner that has stopped checking in.
+       */
+      { href: ROUTES.devices, labelKey: "devices" },
+    ]),
   }),
 ]);
 
@@ -147,6 +179,16 @@ export interface HandheldTask {
 }
 
 export const HANDHELD_TASKS: readonly HandheldTask[] = Object.freeze([
+  /*
+   * First, deliberately. An operator picking the handheld up is in the middle
+   * of something; "what am I holding" is the question the launcher should
+   * answer before it offers a new task (`FF-P1-01`).
+   */
+  Object.freeze({
+    labelKey: "taskWork",
+    href: ROUTES.handheldWork,
+    available: true,
+  }),
   Object.freeze({
     labelKey: "taskLookup",
     href: ROUTES.handheldLookup,
@@ -165,6 +207,41 @@ export const HANDHELD_TASKS: readonly HandheldTask[] = Object.freeze([
   Object.freeze({
     labelKey: "taskPutaway",
     href: ROUTES.handheldPutaway,
+    available: true,
+  }),
+  Object.freeze({
+    labelKey: "taskCount",
+    href: ROUTES.handheldCount,
+    available: true,
+  }),
+  Object.freeze({
+    labelKey: "taskPick",
+    href: ROUTES.handheldPick,
+    available: true,
+  }),
+  Object.freeze({
+    labelKey: "taskLoad",
+    href: ROUTES.handheldLoad,
+    available: true,
+  }),
+  Object.freeze({
+    labelKey: "taskDelivery",
+    href: ROUTES.handheldDelivery,
+    available: true,
+  }),
+  Object.freeze({
+    labelKey: "taskTransfer",
+    href: ROUTES.handheldTransfers,
+    available: true,
+  }),
+  Object.freeze({
+    labelKey: "taskAttendance",
+    href: ROUTES.handheldAttendance,
+    available: true,
+  }),
+  Object.freeze({
+    labelKey: "taskProduction",
+    href: ROUTES.handheldProduction,
     available: true,
   }),
   /*

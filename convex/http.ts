@@ -6,6 +6,7 @@ import {
   privateMasterCardFileUpload,
   privateMasterCardFileUploadOptions,
 } from "./lib/privateFileUpload";
+import { completeUploadThingFile } from "./lib/uploadThingComplete";
 
 const http = httpRouter();
 
@@ -19,6 +20,11 @@ http.route({
   path: "/private-master-card-file-upload",
   method: "OPTIONS",
   handler: privateMasterCardFileUploadOptions,
+});
+http.route({
+  path: "/internal/uploadthing/complete",
+  method: "POST",
+  handler: completeUploadThingFile,
 });
 http.route({
   path: "/private-master-card-file-upload",

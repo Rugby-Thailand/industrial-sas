@@ -7,6 +7,7 @@ import {
   privateMasterCardFileUpload,
   privateMasterCardFileUploadOptions,
 } from "../../convex/lib/privateFileUpload";
+import { completeUploadThingFile } from "../../convex/lib/uploadThingComplete";
 
 describe("public Clerk webhook route", () => {
   it("exposes only the reviewed webhook and private-file gateways", () => {
@@ -14,6 +15,7 @@ describe("public Clerk webhook route", () => {
       "/webhooks/clerk",
       "/private-master-card-file",
       "/private-master-card-file-upload",
+      "/internal/uploadthing/complete",
     ]);
     expect([...http.prefixRoutes.keys()]).toEqual([]);
 
@@ -32,5 +34,11 @@ describe("public Clerk webhook route", () => {
     ]);
     expect(upload?.get("OPTIONS")).toBe(privateMasterCardFileUploadOptions);
     expect(upload?.get("POST")).toBe(privateMasterCardFileUpload);
+
+    const completion = http.exactRoutes.get("/internal/uploadthing/complete");
+    expect(completion === undefined ? [] : [...completion.keys()]).toEqual([
+      "POST",
+    ]);
+    expect(completion?.get("POST")).toBe(completeUploadThingFile);
   });
 });

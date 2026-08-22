@@ -54,6 +54,7 @@
  */
 import { v, type Validator } from "convex/values";
 
+import { resolveItemScan } from "../lib/itemScanResolution";
 import type {
   TenantDocumentAccess,
   TenantOrgId,
@@ -1095,47 +1096,16 @@ export const resolveScanToItem = queryWithOrg({
   permissionCode: "masterData.item.read",
   target: { table: "items" },
   handler: async (ctx, args) => {
-    const scan = args.scan.trim();
-    if (scan === "") {
-      // Named separately because it is the one miss the *caller* caused, and an
-      // empty field is a different message from an unrecognised carton.
-      return { found: false as const, reason: "EMPTY_SCAN" };
-    }
-
-    const answer = (item: ItemDocument | null, via: "BARCODE" | "SKU") =>
-      item === null || item.status !== "ACTIVE"
-        ? null
-        : {
-            found: true as const,
-            itemId: item._id as never,
-            sku: item.sku,
-            name: item.name,
-            via,
-          };
-
-    const barcode = await ctx.tenantDb
-      .byIndex<BarcodeDocument>("itemBarcodes", "by_orgId_barcode", [
-        { field: "barcode", value: scan.toUpperCase() },
-      ])
-      .unique();
-
-    if (barcode !== null && barcode.status === "ACTIVE") {
-      const viaBarcode = answer(
-        await ctx.tenantDb.get<ItemDocument>("items", barcode.itemId),
-        "BARCODE",
-      );
-      if (viaBarcode !== null) return viaBarcode;
-    }
-
-    const bySku = await ctx.tenantDb
-      .byIndex<ItemDocument>("items", "by_orgId_sku", [
-        { field: "sku", value: scan.toUpperCase() },
-      ])
-      .unique();
-
-    return (
-      answer(bySku, "SKU") ?? { found: false as const, reason: "UNKNOWN_SCAN" }
-    );
+    const resolved = await resolveItemScan(ctx.tenantDb, args.scan);
+    if (!resolved.found)
+      return { found: false as const, reason: resolved.reason };
+    return {
+      found: true as const,
+      itemId: resolved.itemId as never,
+      sku: resolved.sku,
+      name: resolved.name,
+      via: resolved.via,
+    };
   },
 });
 

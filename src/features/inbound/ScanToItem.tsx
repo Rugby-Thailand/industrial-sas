@@ -28,6 +28,8 @@ import { CatalogueGate } from "./CatalogueOptions";
 export interface ScannedItem {
   readonly itemId: string;
   readonly sku: string;
+  /** The normalized value that was resolved; safe to pass to a server write. */
+  readonly scanValue: string;
 }
 
 /**
@@ -82,7 +84,11 @@ function ServerScanToItem({ label, hint, children }: ScanBranchProps) {
 
   const resolved =
     outcome !== undefined && outcome.ok && outcome.value.found
-      ? { itemId: outcome.value.itemId, sku: outcome.value.sku }
+      ? {
+          itemId: outcome.value.itemId,
+          sku: outcome.value.sku,
+          scanValue: scan.trim().normalize("NFC").toUpperCase(),
+        }
       : undefined;
 
   return (

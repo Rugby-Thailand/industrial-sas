@@ -93,21 +93,46 @@ import {
   boxSpecification,
   customerOrderLineStatus,
   customerOrderStatus,
+  countEntrySource,
+  countMovementPolicy,
+  countPlanStatus,
+  countReconciliationStatus,
+  countScope,
+  countTaskStatus,
+  countVisibility,
+  deliveryMilestoneKind,
   denialReason,
   designRequestPriority,
   designRequestStatus,
   designSource,
   deviceStatus,
   deviceType,
+  documentReturnStatus,
+  employmentStatus,
   factoryPacketStatus,
+  fulfillmentLineStatus,
+  fulfillmentOrderRouteDecision,
+  fulfillmentOrderStatus,
+  fulfillmentRouteDecision,
+  fulfillmentPackageStatus,
+  attendanceDayStatus,
+  attendanceEventKind,
+  hrRequestStatus,
   idempotencyStatus,
   importBatchStatus,
   inspectionStatus,
+  integrationAdapterKind,
+  integrationAdapterStatus,
+  integrationAttemptOutcome,
+  integrationMessageStatus,
   inventoryTransactionSource,
   inventoryTransactionType,
+  inventoryReservationStatus,
   itemTrackingMode,
   ledgerLocationKind,
   locale,
+  leaveDurationKind,
+  leaveType,
   labelTemplateFormat,
   labelTemplateStatus,
   locationType,
@@ -117,11 +142,28 @@ import {
   masterDataStatus,
   membershipScopeMode,
   membershipStatus,
+  operatorTaskEvidenceKind,
+  operatorTaskExceptionDisposition,
+  operatorTaskExceptionStatus,
+  operatorTaskAttachmentKind,
+  operatorTaskKind,
+  operatorTaskStatus,
+  pickEventKind,
+  pickTaskLineStatus,
+  pickTaskStatus,
+  pickWaveStatus,
+  openingStockBatchStatus,
+  openingStockPostChunkStatus,
+  openingStockRowStatus,
   organizationSettings,
   organizationStatus,
   permissionScope,
+  quantityPlausibility,
   printJobStatus,
   printReason,
+  proofOfDeliveryStatus,
+  productionOrderStatus,
+  productionOutputDisposition,
   purchaseOrderLineStatus,
   purchaseOrderStatus,
   putawayTaskStatus,
@@ -136,14 +178,25 @@ import {
   roleStatus,
   samplingStrategy,
   sessionsAuditEventType,
+  shipmentPackageStatus,
+  shipmentStatus,
   signedQuantity,
+  stepUpDecision,
   stockStatus,
   storageLayoutStatus,
   supportAccessMode,
   supportGrantStatus,
+  transportFileKind,
+  transportFileStorageState,
+  transferDiscrepancyStatus,
+  transferSourceKind,
+  transferStatus,
+  tripStatus,
   userStatus,
+  varianceRisk,
   virtualBoundaryCode,
   warehouseStatus,
+  allocationStrategy,
 } from "./lib/validators";
 
 const schema = defineSchema({
@@ -540,6 +593,11 @@ const schema = defineSchema({
    */
   devices: defineTable(
     tenantFields({
+      /**
+       * The name written on the asset tag. Unique per organization by contract:
+       * a registry with two "DOCK-01 handheld" rows cannot answer "which device
+       * posted this", which is the only question the table exists for.
+       */
       label: v.string(),
       deviceType,
       status: deviceStatus,
@@ -553,11 +611,303 @@ const schema = defineSchema({
        */
       installationId: v.optional(v.string()),
       lastSeenAt: v.optional(v.number()),
+      /**
+       * Who put this device into service. Optional because rows created before
+       * the registry existed have no answer, and inventing one would be worse
+       * than the gap.
+       */
+      registeredByUserId: v.optional(v.id("users")),
+      /**
+       * When it left service, and who withdrew it. A device is retired, never
+       * deleted: seven years of transactions, audit rows, and idempotency
+       * records name it (D-27), and deleting the row would turn all of them
+       * into dangling references.
+       */
+      retiredAt: v.optional(v.number()),
+      retiredByUserId: v.optional(v.id("users")),
     }),
   )
     .index("by_orgId_installationId", byOrg("installationId"))
+    .index("by_orgId_label", byOrg("label"))
     .index("by_orgId_status_label", byOrg("status", "label"))
     .index("by_orgId_warehouseId_status", byOrg("warehouseId", "status")),
+
+  /* ------------------------------------------------------------------------ */
+  /* Shared operator work (Phase 1 — FF-P1-09, FF-P1-10, FF-P1-11)             */
+  /* ------------------------------------------------------------------------ */
+
+  /**
+   * One unit of assignable operator work, with a lease (`FF-P1-09`, plan §4
+   * invariant 18).
+   *
+   * Deliberately **not** a generalization of `putawayTasks`. That table is the
+   * inbound slice's own aggregate: it carries a receipt line, a recommendation
+   * trace, and a chosen location, and folding it into a shared table would
+   * either make every column optional or make putaway carry columns for work it
+   * does not do. This table is what the *later* phases share — the ownership
+   * contract that count, pick, load, and production execution all need and none
+   * of them should reimplement.
+   *
+   * The lease is three fields, and each is a different question:
+   *
+   * - `claimedByUserId` — who holds it. Cleared only when it returns to the
+   *   queue, so "who had it last" survives a lapse until somebody else takes it.
+   * - `leaseExpiresAt` — until when. Compared against the server clock at every
+   *   transition; nothing sweeps, so there is no window in which a cron and a
+   *   mutation disagree about who owns the task.
+   * - `heartbeatAt` — when the device last said it was still there. Evidence,
+   *   not policy: the expiry decides, and the heartbeat explains.
+   *
+   * `evidenceCount` is a stored running total rather than a count over
+   * `operatorTaskEvidence`, for the same reason `purchaseOrderLines` stores its
+   * received total: a release must be able to say how much partial work it is
+   * preserving without paging an unbounded child table inside the transaction.
+   */
+  operatorTasks: defineTable(
+    tenantFields({
+      warehouseId: v.id("warehouses"),
+      /** Tenant-visible reference. Unique per organization by contract. */
+      taskNumber: v.string(),
+      kind: operatorTaskKind,
+      /** What the operator is asked to do, in the supervisor's own words (D-06). */
+      instruction: v.string(),
+      status: operatorTaskStatus,
+      /** The item being handled, when the work names one. Gives quantity entry its UOM. */
+      itemId: v.optional(v.id("items")),
+      /** Where the work happens, when the work names one place. */
+      locationId: v.optional(v.id("locations")),
+      /**
+       * What the supervisor expects, in the item's base minor units. The
+       * plausibility ceiling is derived from it (`FF-P1-10`); absent means a
+       * blind task, and an entry against it is `UNCHECKED` rather than "fine".
+       */
+      expectedBaseMinorUnits: v.optional(v.number()),
+      /** The SLA the shared task header shows. Absent means no stated due time. */
+      dueAt: v.optional(v.number()),
+      claimedByUserId: v.optional(v.id("users")),
+      claimedAt: v.optional(v.number()),
+      leaseExpiresAt: v.optional(v.number()),
+      heartbeatAt: v.optional(v.number()),
+      /** Rows in `operatorTaskEvidence`. Never reset by a release or a handover. */
+      evidenceCount: v.number(),
+      createdByUserId: v.id("users"),
+      completedByUserId: v.optional(v.id("users")),
+      completedAt: v.optional(v.number()),
+      cancelledByUserId: v.optional(v.id("users")),
+      cancelledAt: v.optional(v.number()),
+    }),
+  )
+    .index("by_orgId_taskNumber", byOrg("taskNumber"))
+    // The site board, by state. What a supervisor opens.
+    .index("by_orgId_warehouseId_status", byOrg("warehouseId", "status"))
+    // "My work" — the first screen an operator sees, and the reason the holder
+    // is in the index prefix rather than filtered out of a site-wide page.
+    .index(
+      "by_orgId_claimedByUserId_status",
+      byOrg("claimedByUserId", "status"),
+    ),
+
+  /**
+   * One piece of partial evidence, appended to a task.
+   *
+   * **Append-only in practice and by intent**: a scan that happened, happened.
+   * The rows survive release, lease expiry, and supervisor reassignment, which
+   * is the whole of plan §4 invariant 18 — a counter who scanned forty of sixty
+   * locations before their battery died keeps forty scans, and the operator who
+   * picks the task up sees them.
+   *
+   * `sequence` is the task-local position, assigned server-side from
+   * `evidenceCount`, so the stream has one order that every reader agrees on
+   * regardless of when rows arrived from a queued device.
+   *
+   * A quantity is stored **twice**: `enteredQuantity` in the unit the operator
+   * typed, and `baseMinorUnits` in the item's base unit. Keeping only the base
+   * value would make every later conversation about the entry a translation
+   * exercise ("you said 3" — three what?).
+   */
+  operatorTaskEvidence: defineTable(
+    tenantFields({
+      operatorTaskId: v.id("operatorTasks"),
+      /** Task-local position from 1. Unique per task by contract. */
+      sequence: v.number(),
+      kind: operatorTaskEvidenceKind,
+      capturedByUserId: v.id("users"),
+      /** Server clock. A client instant could backdate evidence. */
+      capturedAt: v.number(),
+      /** Which handheld captured it, when the caller named an installation. */
+      deviceId: v.optional(v.id("devices")),
+      /** As typed, in the operator's own unit. */
+      enteredQuantity: v.optional(signedQuantity),
+      /** The same amount in the item's base minor units, converted server-side. */
+      baseMinorUnits: v.optional(v.number()),
+      /** How it compared with the task's expectation, when there was one. */
+      plausibility: v.optional(quantityPlausibility),
+      /** The approval that let an implausible entry through (`FF-P1-11`). */
+      stepUpApprovalId: v.optional(v.id("stepUpApprovals")),
+      /** A scanned value, normalized. Never the raw wedge text. */
+      scanValue: v.optional(v.string()),
+      /** The active tenant item the server resolved at capture time. */
+      resolvedItemId: v.optional(v.id("items")),
+      /** Immutable display evidence even if the item's name later changes. */
+      resolvedSku: v.optional(v.string()),
+      scanVia: v.optional(v.union(v.literal("BARCODE"), v.literal("SKU"))),
+      scanInputMethod: v.optional(
+        v.union(v.literal("HID"), v.literal("MANUAL")),
+      ),
+      /** Required when an operator declares that they typed the code. */
+      manualEntryReason: v.optional(v.string()),
+      /** The operator's note, or the reason a handover happened. */
+      note: v.optional(v.string()),
+      /** Set on a `HANDOVER` row: who held the task before this point. */
+      previousHolderUserId: v.optional(v.id("users")),
+    }),
+  ).index(
+    "by_orgId_operatorTaskId_sequence",
+    byOrg("operatorTaskId", "sequence"),
+  ),
+
+  /**
+   * A task problem reported by the operator and decided by somebody else.
+   *
+   * The reporter supplies the observation, a reason, a proposed disposition,
+   * and a recoverable next step. Resolution stores the approver and their final
+   * decision rather than overwriting the proposal, so the exception sheet is
+   * an audit record instead of only the latest state.
+   */
+  operatorTaskExceptions: defineTable(
+    tenantFields({
+      warehouseId: v.id("warehouses"),
+      operatorTaskId: v.id("operatorTasks"),
+      reasonCodeId: v.id("reasonCodes"),
+      /** Immutable snapshots: later reason-code edits do not rewrite history. */
+      reasonCode: v.string(),
+      reasonName: v.string(),
+      summary: v.string(),
+      evidence: v.string(),
+      proposedDisposition: operatorTaskExceptionDisposition,
+      proposedRecoveryAction: v.string(),
+      status: operatorTaskExceptionStatus,
+      reportedByUserId: v.id("users"),
+      reportedAt: v.number(),
+      finalDisposition: v.optional(operatorTaskExceptionDisposition),
+      recoveryAction: v.optional(v.string()),
+      approverNote: v.optional(v.string()),
+      resolvedByUserId: v.optional(v.id("users")),
+      resolvedAt: v.optional(v.number()),
+    }),
+  )
+    .index(
+      "by_orgId_operatorTaskId_reportedAt",
+      byOrg("operatorTaskId", "reportedAt"),
+    )
+    .index(
+      "by_orgId_warehouseId_status_reportedAt",
+      byOrg("warehouseId", "status", "reportedAt"),
+    ),
+
+  /** Private UploadThing evidence attached to one operator task. */
+  operatorTaskAttachments: defineTable(
+    tenantFields({
+      warehouseId: v.id("warehouses"),
+      operatorTaskId: v.id("operatorTasks"),
+      fileName: v.string(),
+      kind: operatorTaskAttachmentKind,
+      contentType: v.string(),
+      byteSize: v.number(),
+      contentDigest: v.string(),
+      uploadThingKey: v.string(),
+      note: v.optional(v.string()),
+      verifiedAt: v.number(),
+      attachedByUserId: v.id("users"),
+      attachedAt: v.number(),
+    }),
+  ).index(
+    "by_orgId_operatorTaskId_attachedAt",
+    byOrg("operatorTaskId", "attachedAt"),
+  ),
+
+  /** One-use upload capability bound to a task, actor, and tenant. */
+  operatorTaskUploadGrants: defineTable(
+    tenantFields({
+      warehouseId: v.id("warehouses"),
+      operatorTaskId: v.id("operatorTasks"),
+      authorizedByUserId: v.id("users"),
+      authorizedClerkUserId: v.string(),
+      expiresAt: v.number(),
+      uploadStartedAt: v.number(),
+      consumedUploadThingKey: v.optional(v.string()),
+      consumedContentDigest: v.optional(v.string()),
+      consumedContentType: v.optional(v.string()),
+      consumedByteSize: v.optional(v.number()),
+      consumedAt: v.optional(v.number()),
+      attachedAt: v.optional(v.number()),
+    }),
+  ).index("by_orgId_expiresAt", byOrg("expiresAt")),
+
+  /** One-use, actor-bound download capability for private task evidence. */
+  operatorTaskFileAccessGrants: defineTable(
+    tenantFields({
+      warehouseId: v.id("warehouses"),
+      operatorTaskAttachmentId: v.id("operatorTaskAttachments"),
+      issuedToUserId: v.id("users"),
+      expiresAt: v.number(),
+      consumedAt: v.optional(v.number()),
+    }),
+  ).index(
+    "by_orgId_operatorTaskAttachmentId_expiresAt",
+    byOrg("operatorTaskAttachmentId", "expiresAt"),
+  ),
+
+  /**
+   * One supervisor approval, given on the operator's own device (`FF-P1-11`,
+   * plan §4 invariant 19).
+   *
+   * This is **not** a session, a role grant, or an elevated scope. It is a
+   * single-use capability bound to five things at once — organization,
+   * operation, target, operator, and device — so possession of its ID lets the
+   * operator's browser finish the one action a supervisor watched and nothing
+   * else. `convex/model/platform/stepUp.ts` owns the rules; this table is where
+   * the decision, its reason, and its consumption are evidence.
+   *
+   * `approverUserId` and `operatorUserId` are separate fields precisely so
+   * "the approver approved their own work" is checkable rather than asserted,
+   * inside the same transaction that enforces it.
+   *
+   * No credential material: there is no PIN, no code, no token. The ID is a
+   * document ID, and it authorizes nothing on its own — every check happens
+   * server-side at consumption.
+   */
+  stepUpApprovals: defineTable(
+    tenantFields({
+      /** The code-owned operation this approval may be spent on. */
+      operation: v.string(),
+      /** The document it is about, as an opaque reference. */
+      targetRef: v.string(),
+      /** The person who may spend it. Nobody else can. */
+      operatorUserId: v.id("users"),
+      /** The person who granted it, authenticated as themselves. */
+      approverUserId: v.id("users"),
+      /** The device it was granted on; a different device is refused. */
+      deviceId: v.id("devices"),
+      decision: stepUpDecision,
+      /** Why. Required: there are no silent approvals. */
+      reason: v.string(),
+      grantedAt: v.number(),
+      /** After this instant it is dead, consumed or not. Minutes, not hours. */
+      expiresAt: v.number(),
+      consumedAt: v.optional(v.number()),
+      /** The request that spent it, so a replay is traceable to one command. */
+      consumedRequestId: v.optional(v.string()),
+    }),
+  )
+    // "Which approvals is this operator holding right now" — the screen's read,
+    // and the expiry sweep's.
+    .index(
+      "by_orgId_operatorUserId_expiresAt",
+      byOrg("operatorUserId", "expiresAt"),
+    )
+    // The review question: every decision made about one document.
+    .index("by_orgId_targetRef_grantedAt", byOrg("targetRef", "grantedAt")),
 
   /**
    * Security-relevant session and step-up events (§7.1, §5 Q16).
@@ -1300,6 +1650,7 @@ const schema = defineSchema({
       reasonCodeId: v.id("reasonCodes"),
       /** The maker. A different actor must post against this (`INV-0006-05`). */
       raisedByUserId: v.id("users"),
+      raisedAt: v.optional(v.number()),
       status: receivingExceptionStatus,
       note: v.optional(v.string()),
     }),
@@ -1537,6 +1888,281 @@ const schema = defineSchema({
     .index("by_orgId_requestId", byOrg("requestId")),
 
   /* ------------------------------------------------------------------------ */
+  /* Inventory truth: opening stock and counting (`FF-P2`)                    */
+  /* ------------------------------------------------------------------------ */
+
+  /** One source file and its review/posting lifecycle. Source identity is immutable. */
+  openingStockBatches: defineTable(
+    tenantFields({
+      warehouseId: v.id("warehouses"),
+      /** Tenant-visible idempotent import reference. */
+      batchRef: v.string(),
+      status: openingStockBatchStatus,
+      sourceFileName: v.string(),
+      /** SHA-256 of the exact uploaded bytes. */
+      sourceHash: v.string(),
+      cutoffAt: v.number(),
+      reasonCodeId: v.id("reasonCodes"),
+      declaredRowCount: v.number(),
+      importedRowCount: v.number(),
+      validRowCount: v.number(),
+      validationErrorCount: v.number(),
+      postedRowCount: v.number(),
+      createdByUserId: v.id("users"),
+      createdAt: v.number(),
+      submittedByUserId: v.optional(v.id("users")),
+      submittedAt: v.optional(v.number()),
+      approvedByUserId: v.optional(v.id("users")),
+      approvedAt: v.optional(v.number()),
+      postingStartedAt: v.optional(v.number()),
+      postedByUserId: v.optional(v.id("users")),
+      postedAt: v.optional(v.number()),
+      rejectedByUserId: v.optional(v.id("users")),
+      rejectedAt: v.optional(v.number()),
+      rejectionReason: v.optional(v.string()),
+    }),
+  )
+    .index("by_orgId_batchRef", byOrg("batchRef"))
+    .index(
+      "by_orgId_warehouseId_status_createdAt",
+      byOrg("warehouseId", "status", "createdAt"),
+    ),
+
+  /** A source row retained whether valid or invalid, so dry-run errors are auditable. */
+  openingStockRows: defineTable(
+    tenantFields({
+      warehouseId: v.id("warehouses"),
+      openingStockBatchId: v.id("openingStockBatches"),
+      sourceRowNumber: v.number(),
+      status: openingStockRowStatus,
+      sourceSku: v.string(),
+      sourceLocationCode: v.string(),
+      sourceLotCode: v.optional(v.string()),
+      sourceStockStatus: v.string(),
+      entryUom: v.string(),
+      entryMinorUnits: v.number(),
+      itemId: v.optional(v.id("items")),
+      locationId: v.optional(v.id("locations")),
+      lotId: v.optional(v.id("lots")),
+      baseUom: v.optional(v.string()),
+      baseMinorUnits: v.optional(v.number()),
+      /** Stable code only; source values are already retained in named columns. */
+      validationCode: v.optional(v.string()),
+      postedTransactionId: v.optional(v.id("inventoryTransactions")),
+      importedAt: v.number(),
+    }),
+  )
+    .index(
+      "by_orgId_openingStockBatchId_sourceRowNumber",
+      byOrg("openingStockBatchId", "sourceRowNumber"),
+    )
+    .index(
+      "by_orgId_openingStockBatchId_status_sourceRowNumber",
+      byOrg("openingStockBatchId", "status", "sourceRowNumber"),
+    ),
+
+  /** Durable replay result for one bounded row-import command. */
+  openingStockImportChunks: defineTable(
+    tenantFields({
+      openingStockBatchId: v.id("openingStockBatches"),
+      startSourceRowNumber: v.number(),
+      requestId: v.string(),
+      rowCount: v.number(),
+      validRowCount: v.number(),
+      validationErrorCount: v.number(),
+      importedByUserId: v.id("users"),
+      importedAt: v.number(),
+    }),
+  )
+    .index(
+      "by_orgId_openingStockBatchId_startSourceRowNumber",
+      byOrg("openingStockBatchId", "startSourceRowNumber"),
+    )
+    .index("by_orgId_requestId", byOrg("requestId")),
+
+  /** One ledger-sized posting chunk; the stable request ID makes retries replay. */
+  openingStockPostChunks: defineTable(
+    tenantFields({
+      warehouseId: v.id("warehouses"),
+      openingStockBatchId: v.id("openingStockBatches"),
+      chunkNumber: v.number(),
+      firstSourceRowNumber: v.number(),
+      lastSourceRowNumber: v.number(),
+      rowCount: v.number(),
+      requestId: v.string(),
+      status: openingStockPostChunkStatus,
+      transactionId: v.optional(v.id("inventoryTransactions")),
+      postedByUserId: v.optional(v.id("users")),
+      postedAt: v.optional(v.number()),
+    }),
+  )
+    .index(
+      "by_orgId_openingStockBatchId_chunkNumber",
+      byOrg("openingStockBatchId", "chunkNumber"),
+    )
+    .index(
+      "by_orgId_openingStockBatchId_status_chunkNumber",
+      byOrg("openingStockBatchId", "status", "chunkNumber"),
+    )
+    .index("by_orgId_requestId", byOrg("requestId")),
+
+  /** Supervisor-authored scope and policy for a full, cycle, or spot count. */
+  countPlans: defineTable(
+    tenantFields({
+      warehouseId: v.id("warehouses"),
+      planNumber: v.string(),
+      status: countPlanStatus,
+      scope: countScope,
+      visibility: countVisibility,
+      movementPolicy: countMovementPolicy,
+      freezeExpiresAt: v.optional(v.number()),
+      quantityThresholdBaseMinorUnits: v.number(),
+      valueThresholdMinorUnits: v.number(),
+      taskCount: v.number(),
+      completedTaskCount: v.number(),
+      varianceTaskCount: v.number(),
+      createdByUserId: v.id("users"),
+      createdAt: v.number(),
+      releasedByUserId: v.optional(v.id("users")),
+      releasedAt: v.optional(v.number()),
+      completedByUserId: v.optional(v.id("users")),
+      completedAt: v.optional(v.number()),
+      cancelledByUserId: v.optional(v.id("users")),
+      cancelledAt: v.optional(v.number()),
+      cancellationReason: v.optional(v.string()),
+    }),
+  )
+    .index("by_orgId_planNumber", byOrg("planNumber"))
+    .index(
+      "by_orgId_warehouseId_status_createdAt",
+      byOrg("warehouseId", "status", "createdAt"),
+    ),
+
+  /** One location assignment. Quantities live in snapshots/entries, not this header. */
+  countTasks: defineTable(
+    tenantFields({
+      warehouseId: v.id("warehouses"),
+      countPlanId: v.id("countPlans"),
+      taskNumber: v.number(),
+      locationId: v.id("locations"),
+      status: countTaskStatus,
+      firstCounterUserId: v.optional(v.id("users")),
+      secondCounterUserId: v.optional(v.id("users")),
+      activeCounterUserId: v.optional(v.id("users")),
+      activeCountOrdinal: v.optional(v.number()),
+      submittedCountOrdinal: v.optional(v.number()),
+      firstSubmittedAt: v.optional(v.number()),
+      secondSubmittedAt: v.optional(v.number()),
+      entryCount: v.number(),
+      recountRequestedByUserId: v.optional(v.id("users")),
+      recountRequestedAt: v.optional(v.number()),
+      recountReason: v.optional(v.string()),
+      lastDiscardedByUserId: v.optional(v.id("users")),
+      lastDiscardedAt: v.optional(v.number()),
+      lastDiscardReason: v.optional(v.string()),
+      reconciledByUserId: v.optional(v.id("users")),
+      reconciledAt: v.optional(v.number()),
+    }),
+  )
+    .index(
+      "by_orgId_countPlanId_taskNumber",
+      byOrg("countPlanId", "taskNumber"),
+    )
+    .index(
+      "by_orgId_warehouseId_status_taskNumber",
+      byOrg("warehouseId", "status", "taskNumber"),
+    ),
+
+  /** Immutable ledger baseline for one counted bucket. */
+  countSnapshots: defineTable(
+    tenantFields({
+      warehouseId: v.id("warehouses"),
+      countPlanId: v.id("countPlans"),
+      countTaskId: v.id("countTasks"),
+      bucketKey: v.string(),
+      itemId: v.id("items"),
+      locationId: v.id("locations"),
+      lotId: v.optional(v.id("lots")),
+      stockStatus,
+      baseUom: v.string(),
+      systemBaseMinorUnits: v.number(),
+      inCountMovementBaseMinorUnits: v.number(),
+      itemClass: v.string(),
+      unitValueMinorUnits: v.number(),
+      lastLedgerTransactionId: v.optional(v.id("inventoryTransactions")),
+      capturedAt: v.number(),
+    }),
+  )
+    .index("by_orgId_countTaskId_bucketKey", byOrg("countTaskId", "bucketKey"))
+    .index("by_orgId_countPlanId_bucketKey", byOrg("countPlanId", "bucketKey")),
+
+  /** Immutable accepted line for count pass 1 or 2, retaining entry and base UOM. */
+  countEntries: defineTable(
+    tenantFields({
+      warehouseId: v.id("warehouses"),
+      countPlanId: v.id("countPlans"),
+      countTaskId: v.id("countTasks"),
+      countSnapshotId: v.id("countSnapshots"),
+      countOrdinal: v.number(),
+      source: countEntrySource,
+      entryUom: v.string(),
+      entryMinorUnits: v.number(),
+      baseUom: v.string(),
+      baseMinorUnits: v.number(),
+      capturedByUserId: v.id("users"),
+      capturedAt: v.number(),
+      paperEvidenceId: v.optional(v.string()),
+    }),
+  ).index(
+    "by_orgId_countSnapshotId_countOrdinal",
+    byOrg("countSnapshotId", "countOrdinal"),
+  ),
+
+  /** Comparison, root cause, approval, and final ledger link for one snapshot. */
+  countReconciliations: defineTable(
+    tenantFields({
+      warehouseId: v.id("warehouses"),
+      countPlanId: v.id("countPlans"),
+      countTaskId: v.id("countTasks"),
+      countSnapshotId: v.id("countSnapshots"),
+      status: countReconciliationStatus,
+      risk: varianceRisk,
+      systemSnapshotBaseMinorUnits: v.number(),
+      inCountMovementBaseMinorUnits: v.number(),
+      physicalBaseMinorUnits: v.number(),
+      varianceBaseMinorUnits: v.number(),
+      absoluteVarianceValueMinorUnits: v.number(),
+      rootCauseCode: v.optional(v.string()),
+      counterUserId: v.id("users"),
+      approvedByUserId: v.optional(v.id("users")),
+      approvedAt: v.optional(v.number()),
+      stepUpApprovalId: v.optional(v.id("stepUpApprovals")),
+      postRequestId: v.optional(v.string()),
+      transactionId: v.optional(v.id("inventoryTransactions")),
+      postedAt: v.optional(v.number()),
+    }),
+  )
+    .index("by_orgId_countSnapshotId", byOrg("countSnapshotId"))
+    .index("by_orgId_warehouseId_status", byOrg("warehouseId", "status")),
+
+  /** One of the two independent entries for a sanctioned paper fallback sheet. */
+  countPaperCaptures: defineTable(
+    tenantFields({
+      warehouseId: v.id("warehouses"),
+      countTaskId: v.id("countTasks"),
+      captureOrdinal: v.number(),
+      sheetHash: v.string(),
+      lineCount: v.number(),
+      evidenceId: v.string(),
+      enteredByUserId: v.id("users"),
+      enteredAt: v.number(),
+    }),
+  ).index(
+    "by_orgId_countTaskId_captureOrdinal",
+    byOrg("countTaskId", "captureOrdinal"),
+  ),
+
+  /* ------------------------------------------------------------------------ */
   /* Inventory ledger and projections                                          */
   /* ------------------------------------------------------------------------ */
 
@@ -1661,6 +2287,10 @@ const schema = defineSchema({
     .index(
       "by_orgId_warehouseId_itemId_occurredAt",
       byOrg("warehouseId", "itemId", "occurredAt"),
+    )
+    .index(
+      "by_orgId_warehouseId_occurredAt",
+      byOrg("warehouseId", "occurredAt"),
     ),
 
   /**
@@ -1839,6 +2469,647 @@ const schema = defineSchema({
     .index("by_orgId_status_designKey", byOrg("status", "designKey")),
 
   /* ------------------------------------------------------------------------ */
+  /* Path A — available-stock fulfillment (Phase 3)                           */
+  /* ------------------------------------------------------------------------ */
+
+  /**
+   * Warehouse execution of one released customer order.
+   *
+   * This aggregate owns the route and ship-to snapshot. It does not overload
+   * `customerOrders.status`: commercial acceptance, design readiness, warehouse
+   * fulfillment, and transport are separate dimensions and can progress at
+   * different speeds.
+   */
+  fulfillmentOrders: defineTable(
+    tenantFields({
+      fulfillmentNumber: v.string(),
+      customerOrderId: v.id("customerOrders"),
+      customerId: v.id("customers"),
+      warehouseId: v.id("warehouses"),
+      status: fulfillmentOrderStatus,
+      routeDecision: fulfillmentOrderRouteDecision,
+      routeVersion: v.number(),
+      allowPartial: v.boolean(),
+      requestedDeliveryAt: v.optional(v.number()),
+      shipTo: v.object({
+        name: v.string(),
+        addressLine1: v.string(),
+        addressLine2: v.optional(v.string()),
+        district: v.optional(v.string()),
+        province: v.string(),
+        postalCode: v.optional(v.string()),
+        countryCode: v.string(),
+        recipientName: v.optional(v.string()),
+        recipientPhone: v.optional(v.string()),
+      }),
+      releasedAt: v.optional(v.number()),
+      completedAt: v.optional(v.number()),
+      cancelledAt: v.optional(v.number()),
+      createdByUserId: v.id("users"),
+    }),
+  )
+    .index("by_orgId_fulfillmentNumber", byOrg("fulfillmentNumber"))
+    .index(
+      "by_orgId_customerOrderId_warehouseId",
+      byOrg("customerOrderId", "warehouseId"),
+    )
+    .index(
+      "by_orgId_warehouseId_status_fulfillmentNumber",
+      byOrg("warehouseId", "status", "fulfillmentNumber"),
+    ),
+
+  /**
+   * One customer line translated into exact inventory units at one warehouse.
+   * The ten stage fields are mutually exclusive buckets; their sum always equals
+   * `orderedBaseMinorUnits` and every mutation rechecks that invariant.
+   */
+  fulfillmentLines: defineTable(
+    tenantFields({
+      fulfillmentOrderId: v.id("fulfillmentOrders"),
+      customerOrderLineId: v.id("customerOrderLines"),
+      warehouseId: v.id("warehouses"),
+      itemId: v.id("items"),
+      baseUom: v.string(),
+      orderedBaseMinorUnits: v.number(),
+      routeDecision: v.optional(fulfillmentRouteDecision),
+      routeVersion: v.optional(v.number()),
+      routedAt: v.optional(v.number()),
+      productionShortageBaseMinorUnits: v.optional(v.number()),
+      availableStockPlannedBaseMinorUnits: v.optional(v.number()),
+      status: fulfillmentLineStatus,
+      quantities: v.object({
+        DEMAND: v.number(),
+        RESERVED: v.number(),
+        PICKING: v.number(),
+        STAGED: v.number(),
+        ISSUED: v.number(),
+        LOADED: v.number(),
+        DELIVERED: v.number(),
+        RETURNED: v.number(),
+        BACKORDERED: v.number(),
+        CANCELLED: v.number(),
+      }),
+      cancellationReason: v.optional(v.string()),
+      cancelledAt: v.optional(v.number()),
+      cancelledByUserId: v.optional(v.id("users")),
+      createdByUserId: v.id("users"),
+    }),
+  )
+    .index(
+      "by_orgId_fulfillmentOrderId_customerOrderLineId",
+      byOrg("fulfillmentOrderId", "customerOrderLineId"),
+    )
+    .index("by_orgId_customerOrderLineId", byOrg("customerOrderLineId"))
+    .index(
+      "by_orgId_warehouseId_itemId_routedAt",
+      byOrg("warehouseId", "itemId", "routedAt"),
+    )
+    .index(
+      "by_orgId_warehouseId_status_fulfillmentOrderId",
+      byOrg("warehouseId", "status", "fulfillmentOrderId"),
+    ),
+
+  /** Immutable summary of one ATP/allocation command and its chosen policy. */
+  fulfillmentAllocationRuns: defineTable(
+    tenantFields({
+      fulfillmentLineId: v.id("fulfillmentLines"),
+      warehouseId: v.id("warehouses"),
+      itemId: v.id("items"),
+      strategy: allocationStrategy,
+      allowPartial: v.boolean(),
+      asOfBusinessDate: v.string(),
+      requestedBaseMinorUnits: v.number(),
+      atpBaseMinorUnits: v.number(),
+      reservedBaseMinorUnits: v.number(),
+      backorderedBaseMinorUnits: v.number(),
+      reservationCount: v.number(),
+      createdAt: v.number(),
+      createdByUserId: v.id("users"),
+    }),
+  ).index(
+    "by_orgId_fulfillmentLineId_createdAt",
+    byOrg("fulfillmentLineId", "createdAt"),
+  ),
+
+  /**
+   * A claim on one physical inventory bucket. ATP subtracts only live `ACTIVE`
+   * or `PICKING` rows; expiry never silently frees stock inside a command—the
+   * release/expiry transition is explicit and auditable.
+   */
+  inventoryReservations: defineTable(
+    tenantFields({
+      allocationRunId: v.id("fulfillmentAllocationRuns"),
+      fulfillmentOrderId: v.id("fulfillmentOrders"),
+      fulfillmentLineId: v.id("fulfillmentLines"),
+      warehouseId: v.id("warehouses"),
+      itemId: v.id("items"),
+      bucketKey: v.string(),
+      locationId: v.id("locations"),
+      lotId: v.optional(v.id("lots")),
+      baseUom: v.string(),
+      baseMinorUnits: v.number(),
+      status: inventoryReservationStatus,
+      expiresAt: v.number(),
+      rotationRank: v.number(),
+      rotationExplanation: v.array(
+        v.object({ criterion: v.string(), value: v.string() }),
+      ),
+      consumedBaseMinorUnits: v.number(),
+      releasedBaseMinorUnits: v.number(),
+      createdAt: v.number(),
+      createdByUserId: v.id("users"),
+      releasedAt: v.optional(v.number()),
+      releaseReason: v.optional(v.string()),
+    }),
+  )
+    .index(
+      "by_orgId_allocationRunId_bucketKey",
+      byOrg("allocationRunId", "bucketKey"),
+    )
+    .index(
+      "by_orgId_fulfillmentLineId_status_bucketKey",
+      byOrg("fulfillmentLineId", "status", "bucketKey"),
+    )
+    .index(
+      "by_orgId_fulfillmentOrderId_status_bucketKey",
+      byOrg("fulfillmentOrderId", "status", "bucketKey"),
+    )
+    .index(
+      "by_orgId_warehouseId_itemId_status_expiresAt",
+      byOrg("warehouseId", "itemId", "status", "expiresAt"),
+    )
+    .index(
+      "by_orgId_warehouseId_status_itemId",
+      byOrg("warehouseId", "status", "itemId"),
+    )
+    .index(
+      "by_orgId_warehouseId_bucketKey_status",
+      byOrg("warehouseId", "bucketKey", "status"),
+    ),
+
+  /** A bounded release of active reservations into warehouse pick work. */
+  pickWaves: defineTable(
+    tenantFields({
+      waveNumber: v.string(),
+      warehouseId: v.id("warehouses"),
+      fulfillmentOrderId: v.id("fulfillmentOrders"),
+      status: pickWaveStatus,
+      taskCount: v.number(),
+      completedTaskCount: v.number(),
+      createdByUserId: v.id("users"),
+      createdAt: v.number(),
+      releasedAt: v.optional(v.number()),
+      completedAt: v.optional(v.number()),
+    }),
+  )
+    .index("by_orgId_waveNumber", byOrg("waveNumber"))
+    .index(
+      "by_orgId_fulfillmentOrderId_waveNumber",
+      byOrg("fulfillmentOrderId", "waveNumber"),
+    )
+    .index(
+      "by_orgId_warehouseId_status_waveNumber",
+      byOrg("warehouseId", "status", "waveNumber"),
+    ),
+
+  /** One independently claimable pick assignment for one fulfillment line. */
+  pickTasks: defineTable(
+    tenantFields({
+      pickWaveId: v.id("pickWaves"),
+      taskNumber: v.number(),
+      warehouseId: v.id("warehouses"),
+      fulfillmentOrderId: v.id("fulfillmentOrders"),
+      fulfillmentLineId: v.id("fulfillmentLines"),
+      status: pickTaskStatus,
+      lineCount: v.number(),
+      eventCount: v.number(),
+      pickerUserId: v.optional(v.id("users")),
+      checkerUserId: v.optional(v.id("users")),
+      packerUserId: v.optional(v.id("users")),
+      stagingLocationId: v.optional(v.id("locations")),
+      startedAt: v.optional(v.number()),
+      pickedAt: v.optional(v.number()),
+      checkedAt: v.optional(v.number()),
+      packedAt: v.optional(v.number()),
+      stagedAt: v.optional(v.number()),
+      issuedAt: v.optional(v.number()),
+    }),
+  )
+    .index("by_orgId_pickWaveId_taskNumber", byOrg("pickWaveId", "taskNumber"))
+    .index(
+      "by_orgId_pickWaveId_fulfillmentLineId",
+      byOrg("pickWaveId", "fulfillmentLineId"),
+    )
+    .index(
+      "by_orgId_warehouseId_status_taskNumber",
+      byOrg("warehouseId", "status", "taskNumber"),
+    ),
+
+  /** One reservation instruction within a pick task. */
+  pickTaskLines: defineTable(
+    tenantFields({
+      pickTaskId: v.id("pickTasks"),
+      lineNumber: v.number(),
+      inventoryReservationId: v.id("inventoryReservations"),
+      warehouseId: v.id("warehouses"),
+      itemId: v.id("items"),
+      locationId: v.id("locations"),
+      lotId: v.optional(v.id("lots")),
+      bucketKey: v.string(),
+      baseUom: v.string(),
+      plannedBaseMinorUnits: v.number(),
+      pickedBaseMinorUnits: v.number(),
+      shortBaseMinorUnits: v.number(),
+      damagedBaseMinorUnits: v.number(),
+      status: pickTaskLineStatus,
+    }),
+  )
+    .index("by_orgId_pickTaskId_lineNumber", byOrg("pickTaskId", "lineNumber"))
+    .index("by_orgId_inventoryReservationId", byOrg("inventoryReservationId")),
+
+  /** Immutable scan/exception evidence in task-local sequence order. */
+  pickEvents: defineTable(
+    tenantFields({
+      pickTaskId: v.id("pickTasks"),
+      pickTaskLineId: v.id("pickTaskLines"),
+      sequence: v.number(),
+      kind: pickEventKind,
+      baseUom: v.string(),
+      baseMinorUnits: v.number(),
+      reason: v.optional(v.string()),
+      actorUserId: v.id("users"),
+      occurredAt: v.number(),
+    }),
+  ).index("by_orgId_pickTaskId_sequence", byOrg("pickTaskId", "sequence")),
+
+  /** One initial package per checked pick task; later work may split packages. */
+  fulfillmentPackages: defineTable(
+    tenantFields({
+      packageNumber: v.string(),
+      pickTaskId: v.id("pickTasks"),
+      fulfillmentOrderId: v.id("fulfillmentOrders"),
+      warehouseId: v.id("warehouses"),
+      status: fulfillmentPackageStatus,
+      baseUom: v.string(),
+      packedBaseMinorUnits: v.number(),
+      stagingLocationId: v.optional(v.id("locations")),
+      packedByUserId: v.id("users"),
+      packedAt: v.number(),
+      stagedAt: v.optional(v.number()),
+      issuedTransactionId: v.optional(v.id("inventoryTransactions")),
+      issueReversalTransactionId: v.optional(v.id("inventoryTransactions")),
+      issueReversedAt: v.optional(v.number()),
+    }),
+  )
+    .index("by_orgId_packageNumber", byOrg("packageNumber"))
+    .index("by_orgId_pickTaskId", byOrg("pickTaskId"))
+    .index(
+      "by_orgId_warehouseId_status_packageNumber",
+      byOrg("warehouseId", "status", "packageNumber"),
+    ),
+
+  /** Delivery execution document built only from issued packages. */
+  shipments: defineTable(
+    tenantFields({
+      shipmentNumber: v.string(),
+      fulfillmentOrderId: v.id("fulfillmentOrders"),
+      warehouseId: v.id("warehouses"),
+      status: shipmentStatus,
+      expectedPackageCount: v.number(),
+      loadedPackageCount: v.number(),
+      tripId: v.optional(v.id("trips")),
+      requestedDeliveryAt: v.optional(v.number()),
+      createdByUserId: v.id("users"),
+      createdAt: v.number(),
+      releasedAt: v.optional(v.number()),
+      loadedAt: v.optional(v.number()),
+      gatedOutAt: v.optional(v.number()),
+      departedAt: v.optional(v.number()),
+      deliveredAt: v.optional(v.number()),
+      failedAt: v.optional(v.number()),
+      failureReason: v.optional(v.string()),
+      returnedAt: v.optional(v.number()),
+      returnLocationId: v.optional(v.id("locations")),
+      returnTransactionId: v.optional(v.id("inventoryTransactions")),
+      returnReason: v.optional(v.string()),
+    }),
+  )
+    .index("by_orgId_shipmentNumber", byOrg("shipmentNumber"))
+    .index(
+      "by_orgId_fulfillmentOrderId_shipmentNumber",
+      byOrg("fulfillmentOrderId", "shipmentNumber"),
+    )
+    .index(
+      "by_orgId_warehouseId_status_shipmentNumber",
+      byOrg("warehouseId", "status", "shipmentNumber"),
+    )
+    .index("by_orgId_tripId_shipmentNumber", byOrg("tripId", "shipmentNumber")),
+
+  /** Manifest membership and package-level load/delivery state. */
+  shipmentPackages: defineTable(
+    tenantFields({
+      shipmentId: v.id("shipments"),
+      fulfillmentPackageId: v.id("fulfillmentPackages"),
+      warehouseId: v.id("warehouses"),
+      status: shipmentPackageStatus,
+      loadedByUserId: v.optional(v.id("users")),
+      loadedAt: v.optional(v.number()),
+      deliveredAt: v.optional(v.number()),
+      returnedAt: v.optional(v.number()),
+    }),
+  )
+    .index(
+      "by_orgId_shipmentId_fulfillmentPackageId",
+      byOrg("shipmentId", "fulfillmentPackageId"),
+    )
+    .index("by_orgId_fulfillmentPackageId", byOrg("fulfillmentPackageId")),
+
+  /** One vehicle/driver run. Identity is snapshotted for historical evidence. */
+  trips: defineTable(
+    tenantFields({
+      tripNumber: v.string(),
+      warehouseId: v.id("warehouses"),
+      status: tripStatus,
+      vehicleRegistration: v.string(),
+      driverName: v.string(),
+      driverPhone: v.optional(v.string()),
+      expectedShipmentCount: v.number(),
+      expectedPackageCount: v.number(),
+      loadedPackageCount: v.number(),
+      sealNumber: v.optional(v.string()),
+      createdByUserId: v.id("users"),
+      createdAt: v.number(),
+      releasedAt: v.optional(v.number()),
+      loadingStartedAt: v.optional(v.number()),
+      sealedAt: v.optional(v.number()),
+      gatedOutAt: v.optional(v.number()),
+      departedAt: v.optional(v.number()),
+      completedAt: v.optional(v.number()),
+    }),
+  )
+    .index("by_orgId_tripNumber", byOrg("tripNumber"))
+    .index(
+      "by_orgId_warehouseId_status_tripNumber",
+      byOrg("warehouseId", "status", "tripNumber"),
+    ),
+
+  /** Explicit many-to-many assignment, currently one trip per shipment. */
+  tripShipments: defineTable(
+    tenantFields({
+      tripId: v.id("trips"),
+      shipmentId: v.id("shipments"),
+      warehouseId: v.id("warehouses"),
+      sequence: v.number(),
+    }),
+  )
+    .index("by_orgId_tripId_sequence", byOrg("tripId", "sequence"))
+    .index("by_orgId_shipmentId", byOrg("shipmentId")),
+
+  /** Immutable positive load scans; refused duplicates never become facts. */
+  loadEvents: defineTable(
+    tenantFields({
+      tripId: v.id("trips"),
+      shipmentId: v.id("shipments"),
+      shipmentPackageId: v.id("shipmentPackages"),
+      sequence: v.number(),
+      actorUserId: v.id("users"),
+      occurredAt: v.number(),
+    }),
+  ).index("by_orgId_tripId_sequence", byOrg("tripId", "sequence")),
+
+  /** Auditable release evidence at the warehouse gate. */
+  gatePasses: defineTable(
+    tenantFields({
+      gatePassNumber: v.string(),
+      tripId: v.id("trips"),
+      warehouseId: v.id("warehouses"),
+      sealNumber: v.string(),
+      vehicleRegistration: v.string(),
+      releasedByUserId: v.id("users"),
+      releasedAt: v.number(),
+    }),
+  )
+    .index("by_orgId_gatePassNumber", byOrg("gatePassNumber"))
+    .index("by_orgId_tripId", byOrg("tripId")),
+
+  /** Append-only driver milestones, including failed and return events. */
+  deliveryMilestones: defineTable(
+    tenantFields({
+      tripId: v.id("trips"),
+      shipmentId: v.id("shipments"),
+      sequence: v.number(),
+      kind: deliveryMilestoneKind,
+      latitudeE6: v.optional(v.number()),
+      longitudeE6: v.optional(v.number()),
+      note: v.optional(v.string()),
+      actorUserId: v.id("users"),
+      capturedAt: v.number(),
+      receivedAt: v.number(),
+    }),
+  ).index("by_orgId_shipmentId_sequence", byOrg("shipmentId", "sequence")),
+
+  /** Private files inherit access from their shipment and never expose provider keys. */
+  transportFiles: defineTable(
+    tenantFields({
+      shipmentId: v.id("shipments"),
+      warehouseId: v.id("warehouses"),
+      kind: transportFileKind,
+      fileName: v.string(),
+      mimeType: v.string(),
+      sizeBytes: v.number(),
+      digest: v.string(),
+      storageObjectId: v.string(),
+      storageState: transportFileStorageState,
+      createdByUserId: v.id("users"),
+      createdAt: v.number(),
+    }),
+  )
+    .index(
+      "by_orgId_shipmentId_kind_createdAt",
+      byOrg("shipmentId", "kind", "createdAt"),
+    )
+    .index("by_orgId_storageObjectId", byOrg("storageObjectId")),
+
+  /** One short-lived private UploadThing authorization for a shipment file. */
+  transportFileUploadGrants: defineTable(
+    tenantFields({
+      shipmentId: v.id("shipments"),
+      warehouseId: v.id("warehouses"),
+      kind: transportFileKind,
+      authorizedByUserId: v.id("users"),
+      authorizedClerkUserId: v.string(),
+      expiresAt: v.number(),
+      uploadStartedAt: v.number(),
+      consumedUploadThingKey: v.optional(v.string()),
+      consumedContentDigest: v.optional(v.string()),
+      consumedContentType: v.optional(v.string()),
+      consumedByteSize: v.optional(v.number()),
+      consumedAt: v.optional(v.number()),
+      attachedAt: v.optional(v.number()),
+    }),
+  ).index("by_orgId_shipmentId_expiresAt", byOrg("shipmentId", "expiresAt")),
+
+  /** Actor-bound, one-use download capability redeemed by the Next.js gateway. */
+  transportFileAccessGrants: defineTable(
+    tenantFields({
+      transportFileId: v.id("transportFiles"),
+      warehouseId: v.id("warehouses"),
+      issuedToUserId: v.id("users"),
+      expiresAt: v.number(),
+      consumedAt: v.optional(v.number()),
+    }),
+  ).index(
+    "by_orgId_transportFileId_expiresAt",
+    byOrg("transportFileId", "expiresAt"),
+  ),
+
+  /** Recipient acceptance is reviewed separately from capture. */
+  proofOfDeliveries: defineTable(
+    tenantFields({
+      shipmentId: v.id("shipments"),
+      tripId: v.id("trips"),
+      warehouseId: v.id("warehouses"),
+      status: proofOfDeliveryStatus,
+      recipientName: v.string(),
+      recipientNote: v.optional(v.string()),
+      transportFileId: v.id("transportFiles"),
+      capturedByUserId: v.id("users"),
+      capturedAt: v.number(),
+      reviewedByUserId: v.optional(v.id("users")),
+      reviewedAt: v.optional(v.number()),
+      rejectionReason: v.optional(v.string()),
+    }),
+  )
+    .index("by_orgId_shipmentId", byOrg("shipmentId"))
+    .index(
+      "by_orgId_warehouseId_status_capturedAt",
+      byOrg("warehouseId", "status", "capturedAt"),
+    ),
+
+  /** Tracks return of signed originals without treating capture as return. */
+  documentReturns: defineTable(
+    tenantFields({
+      shipmentId: v.id("shipments"),
+      warehouseId: v.id("warehouses"),
+      status: documentReturnStatus,
+      documentType: v.string(),
+      transportFileId: v.optional(v.id("transportFiles")),
+      receivedByUserId: v.optional(v.id("users")),
+      receivedAt: v.optional(v.number()),
+      note: v.optional(v.string()),
+    }),
+  ).index(
+    "by_orgId_shipmentId_documentType",
+    byOrg("shipmentId", "documentType"),
+  ),
+
+  /* ------------------------------------------------------------------------ */
+  /* Warehouse transfer and replenishment                                     */
+  /* ------------------------------------------------------------------------ */
+
+  /** Two-warehouse movement whose source and destination visibility is explicit. */
+  transferRequests: defineTable(
+    tenantFields({
+      transferNumber: v.string(),
+      sourceWarehouseId: v.id("warehouses"),
+      destinationWarehouseId: v.id("warehouses"),
+      sourceKind: transferSourceKind,
+      sourceReference: v.optional(v.string()),
+      purpose: v.string(),
+      status: transferStatus,
+      lineCount: v.number(),
+      sealNumber: v.optional(v.string()),
+      carrierName: v.optional(v.string()),
+      expectedArrivalAt: v.optional(v.number()),
+      discrepancyOwnerUserId: v.optional(v.id("users")),
+      createdByUserId: v.id("users"),
+      createdAt: v.number(),
+      approvedByUserId: v.optional(v.id("users")),
+      approvedAt: v.optional(v.number()),
+      dispatchedAt: v.optional(v.number()),
+      completedAt: v.optional(v.number()),
+    }),
+  )
+    .index("by_orgId_transferNumber", byOrg("transferNumber"))
+    .index(
+      "by_orgId_sourceWarehouseId_transferNumber",
+      byOrg("sourceWarehouseId", "transferNumber"),
+    )
+    .index(
+      "by_orgId_destinationWarehouseId_transferNumber",
+      byOrg("destinationWarehouseId", "transferNumber"),
+    )
+    .index(
+      "by_orgId_sourceWarehouseId_status_transferNumber",
+      byOrg("sourceWarehouseId", "status", "transferNumber"),
+    )
+    .index(
+      "by_orgId_destinationWarehouseId_status_transferNumber",
+      byOrg("destinationWarehouseId", "status", "transferNumber"),
+    ),
+
+  /** Exact quantity conservation for one item on a transfer request. */
+  transferLines: defineTable(
+    tenantFields({
+      transferRequestId: v.id("transferRequests"),
+      lineNumber: v.number(),
+      itemId: v.id("items"),
+      baseUom: v.string(),
+      quantities: v.object({
+        REQUESTED: v.number(),
+        DISPATCHED: v.number(),
+        RECEIVED: v.number(),
+        RETURNED: v.number(),
+        DISCREPANCY: v.number(),
+        CANCELLED: v.number(),
+      }),
+      sourceBucketKey: v.optional(v.string()),
+      sourceLocationId: v.optional(v.id("locations")),
+      lotId: v.optional(v.id("lots")),
+      destinationLocationId: v.optional(v.id("locations")),
+      dispatchTransactionId: v.optional(v.id("inventoryTransactions")),
+      receiptTransactionId: v.optional(v.id("inventoryTransactions")),
+      returnTransactionId: v.optional(v.id("inventoryTransactions")),
+    }),
+  )
+    .index(
+      "by_orgId_transferRequestId_lineNumber",
+      byOrg("transferRequestId", "lineNumber"),
+    )
+    .index(
+      "by_orgId_itemId_transferRequestId",
+      byOrg("itemId", "transferRequestId"),
+    ),
+
+  /** Quantity that cannot be silently accepted or closed after destination receipt. */
+  transferDiscrepancies: defineTable(
+    tenantFields({
+      transferRequestId: v.id("transferRequests"),
+      transferLineId: v.id("transferLines"),
+      kind: v.union(
+        v.literal("MISSING"),
+        v.literal("DAMAGED"),
+        v.literal("WRONG_TAG"),
+      ),
+      baseUom: v.string(),
+      baseMinorUnits: v.number(),
+      status: transferDiscrepancyStatus,
+      note: v.string(),
+      resolutionNote: v.optional(v.string()),
+      ownerUserId: v.id("users"),
+      createdAt: v.number(),
+      resolvedAt: v.optional(v.number()),
+      resolvedByUserId: v.optional(v.id("users")),
+      resolutionTransactionId: v.optional(v.id("inventoryTransactions")),
+    }),
+  )
+    .index(
+      "by_orgId_transferRequestId_status",
+      byOrg("transferRequestId", "status"),
+    )
+    .index("by_orgId_ownerUserId_status", byOrg("ownerUserId", "status")),
+
+  /* ------------------------------------------------------------------------ */
   /* Order to ship — engineering (Phase 5A)                                    */
   /* ------------------------------------------------------------------------ */
 
@@ -1869,6 +3140,27 @@ const schema = defineSchema({
       assignedToUserId: v.optional(v.id("users")),
       /** The released revision that answered it. Set when `FULFILLED`. */
       masterCardRevisionId: v.optional(v.id("masterCardRevisions")),
+      /** Latest immutable requirement-signoff version; absent on legacy rows. */
+      latestRequirementVersion: v.optional(v.number()),
+      requirementReadiness: v.optional(
+        v.union(v.literal("INCOMPLETE"), v.literal("READY")),
+      ),
+      missingRequirements: v.optional(
+        v.array(
+          v.union(
+            v.literal("CUSTOMER_PRODUCT_IDENTITY"),
+            v.literal("DIMENSIONS"),
+            v.literal("CONSTRUCTION"),
+            v.literal("PRINT"),
+            v.literal("PACKING"),
+            v.literal("ROUTE"),
+            v.literal("MATERIALS"),
+            v.literal("QUALITY"),
+          ),
+        ),
+      ),
+      requirementsRecordedByUserId: v.optional(v.id("users")),
+      requirementsRecordedAt: v.optional(v.number()),
       /** Present only when a person explicitly accepted a similar design. */
       similarityConfirmation: v.optional(
         v.object({
@@ -1883,6 +3175,43 @@ const schema = defineSchema({
     .index("by_orgId_requestNumber", byOrg("requestNumber"))
     .index("by_orgId_customerOrderLineId", byOrg("customerOrderLineId"))
     .index("by_orgId_status_requestNumber", byOrg("status", "requestNumber")),
+
+  /** Immutable, versioned evidence of the requirement checklist handed to engineering. */
+  designRequirementVersions: defineTable(
+    tenantFields({
+      designRequestId: v.id("designRequests"),
+      version: v.number(),
+      confirmations: v.object({
+        CUSTOMER_PRODUCT_IDENTITY: v.boolean(),
+        DIMENSIONS: v.boolean(),
+        CONSTRUCTION: v.boolean(),
+        PRINT: v.boolean(),
+        PACKING: v.boolean(),
+        ROUTE: v.boolean(),
+        MATERIALS: v.boolean(),
+        QUALITY: v.boolean(),
+      }),
+      status: v.union(v.literal("INCOMPLETE"), v.literal("READY")),
+      missing: v.array(
+        v.union(
+          v.literal("CUSTOMER_PRODUCT_IDENTITY"),
+          v.literal("DIMENSIONS"),
+          v.literal("CONSTRUCTION"),
+          v.literal("PRINT"),
+          v.literal("PACKING"),
+          v.literal("ROUTE"),
+          v.literal("MATERIALS"),
+          v.literal("QUALITY"),
+        ),
+      ),
+      note: v.optional(v.string()),
+      recordedByUserId: v.id("users"),
+      recordedAt: v.number(),
+    }),
+  ).index(
+    "by_orgId_designRequestId_version",
+    byOrg("designRequestId", "version"),
+  ),
 
   /**
    * The identity of one design, across every revision of it (`G-126`).
@@ -1982,6 +3311,45 @@ const schema = defineSchema({
     .index("by_orgId_masterCardId_status", byOrg("masterCardId", "status"))
     .index("by_orgId_status_masterCardId", byOrg("status", "masterCardId")),
 
+  /** Reviewer-facing impact of a new release on an already-pinned production order. */
+  designChangeImpacts: defineTable(
+    tenantFields({
+      warehouseId: v.id("warehouses"),
+      masterCardId: v.id("masterCards"),
+      fromRevisionId: v.id("masterCardRevisions"),
+      toRevisionId: v.id("masterCardRevisions"),
+      productionOrderId: v.id("productionOrders"),
+      productionOrderNumber: v.string(),
+      productionOrderStatus: v.string(),
+      severity: v.union(
+        v.literal("NO_IMPACT"),
+        v.literal("REVIEW_REQUIRED"),
+        v.literal("BLOCKING"),
+      ),
+      changedFields: v.array(v.string()),
+      categories: v.array(v.string()),
+      status: v.union(v.literal("OPEN"), v.literal("ACKNOWLEDGED")),
+      createdByUserId: v.id("users"),
+      createdAt: v.number(),
+      acknowledgedByUserId: v.optional(v.id("users")),
+      acknowledgedAt: v.optional(v.number()),
+      acknowledgementNote: v.optional(v.string()),
+    }),
+  )
+    .index(
+      "by_orgId_toRevisionId_productionOrderId",
+      byOrg("toRevisionId", "productionOrderId"),
+    )
+    .index("by_orgId_status_createdAt", byOrg("status", "createdAt"))
+    .index(
+      "by_orgId_warehouseId_status_createdAt",
+      byOrg("warehouseId", "status", "createdAt"),
+    )
+    .index(
+      "by_orgId_productionOrderId_createdAt",
+      byOrg("productionOrderId", "createdAt"),
+    ),
+
   /**
    * A dieline, artwork file, or photo attached to one revision (`G-128`).
    *
@@ -2009,6 +3377,8 @@ const schema = defineSchema({
       byteSize: v.number(),
       /** Lowercase hex SHA-256 the uploader declared, for later verification. */
       contentDigest: v.string(),
+      /** UploadThing's opaque private-object key. Legacy rows use `storageId`. */
+      uploadThingKey: v.optional(v.string()),
       storageId: v.optional(v.id("_storage")),
       verifiedAt: v.optional(v.number()),
       storageState: masterCardFileStorageState,
@@ -2031,9 +3401,15 @@ const schema = defineSchema({
       batchRef: v.optional(v.string()),
       sourceRow: v.optional(v.number()),
       authorizedByUserId: v.id("users"),
+      /** Clerk subject that UploadThing must report for this grant. */
+      authorizedClerkUserId: v.optional(v.string()),
       expiresAt: v.number(),
       uploadStartedAt: v.optional(v.number()),
       consumedStorageId: v.optional(v.id("_storage")),
+      consumedUploadThingKey: v.optional(v.string()),
+      consumedContentDigest: v.optional(v.string()),
+      consumedContentType: v.optional(v.string()),
+      consumedByteSize: v.optional(v.number()),
       consumedAt: v.optional(v.number()),
       attachedAt: v.optional(v.number()),
     }),
@@ -2052,6 +3428,7 @@ const schema = defineSchema({
   masterCardFileAccessGrants: defineTable(
     tenantFields({
       masterCardFileId: v.id("masterCardFiles"),
+      warehouseId: v.optional(v.id("warehouses")),
       issuedToUserId: v.id("users"),
       expiresAt: v.number(),
       consumedAt: v.optional(v.number()),
@@ -2115,6 +3492,8 @@ const schema = defineSchema({
       packetNumber: v.string(),
       /** Unique per organization by contract: one packet per line. */
       customerOrderLineId: v.id("customerOrderLines"),
+      /** Demand decided before factory handoff; absent only on legacy rows. */
+      fulfillmentLineId: v.optional(v.id("fulfillmentLines")),
       /** The pinned release. Never changes for the life of the packet. */
       masterCardRevisionId: v.id("masterCardRevisions"),
       status: factoryPacketStatus,
@@ -2151,6 +3530,379 @@ const schema = defineSchema({
       "by_orgId_masterCardFileId_factoryPacketId",
       byOrg("masterCardFileId", "factoryPacketId"),
     ),
+
+  /* ------------------------------------------------------------------------ */
+  /* Repeat production execution (Phase 5B)                                   */
+  /* ------------------------------------------------------------------------ */
+
+  /** A released, revision-pinned run that turns material ledger facts into FG. */
+  productionOrders: defineTable(
+    tenantFields({
+      warehouseId: v.id("warehouses"),
+      productionOrderNumber: v.string(),
+      factoryPacketId: v.id("factoryPackets"),
+      customerOrderLineId: v.id("customerOrderLines"),
+      fulfillmentLineId: v.optional(v.id("fulfillmentLines")),
+      planningSource: v.optional(
+        v.union(v.literal("ROUTED_SHORTAGE"), v.literal("LEGACY_PACKET")),
+      ),
+      masterCardRevisionId: v.id("masterCardRevisions"),
+      revisionNumber: v.number(),
+      outputItemId: v.id("items"),
+      outputBaseUom: v.string(),
+      targetBaseMinorUnits: v.number(),
+      quantities: v.object({
+        target: v.number(),
+        good: v.number(),
+        scrap: v.number(),
+        rework: v.number(),
+        received: v.number(),
+        qcReleased: v.number(),
+        qcRejected: v.number(),
+      }),
+      route: v.array(
+        v.object({
+          sequence: v.number(),
+          workCenterCode: v.string(),
+          operationCode: v.string(),
+          instruction: v.optional(v.string()),
+        }),
+      ),
+      status: productionOrderStatus,
+      dueAt: v.number(),
+      createdByUserId: v.id("users"),
+      createdAt: v.number(),
+      releasedByUserId: v.optional(v.id("users")),
+      releasedAt: v.optional(v.number()),
+      completedAt: v.optional(v.number()),
+    }),
+  )
+    .index("by_orgId_productionOrderNumber", byOrg("productionOrderNumber"))
+    .index("by_orgId_factoryPacketId", byOrg("factoryPacketId"))
+    .index(
+      "by_orgId_masterCardRevisionId_dueAt",
+      byOrg("masterCardRevisionId", "dueAt"),
+    )
+    .index(
+      "by_orgId_warehouseId_status_dueAt",
+      byOrg("warehouseId", "status", "dueAt"),
+    )
+    .index("by_orgId_warehouseId_dueAt", byOrg("warehouseId", "dueAt")),
+
+  /** One pinned BOM requirement and its exact cumulative ledger issue. */
+  productionMaterialRequirements: defineTable(
+    tenantFields({
+      productionOrderId: v.id("productionOrders"),
+      lineNumber: v.number(),
+      itemId: v.id("items"),
+      materialCode: v.string(),
+      description: v.string(),
+      baseUom: v.string(),
+      requiredBaseMinorUnits: v.number(),
+      issuedBaseMinorUnits: v.number(),
+      sourceBucketKey: v.optional(v.string()),
+      sourceLotId: v.optional(v.id("lots")),
+      issueTransactionId: v.optional(v.id("inventoryTransactions")),
+    }),
+  )
+    .index(
+      "by_orgId_productionOrderId_lineNumber",
+      byOrg("productionOrderId", "lineNumber"),
+    )
+    .index(
+      "by_orgId_itemId_productionOrderId",
+      byOrg("itemId", "productionOrderId"),
+    ),
+
+  /** Immutable genealogy edge for each physical material lot issued to a run. */
+  productionMaterialIssues: defineTable(
+    tenantFields({
+      productionOrderId: v.id("productionOrders"),
+      productionMaterialRequirementId: v.id("productionMaterialRequirements"),
+      itemId: v.id("items"),
+      sourceBucketKey: v.string(),
+      sourceLotId: v.optional(v.id("lots")),
+      baseUom: v.string(),
+      baseMinorUnits: v.number(),
+      issueTransactionId: v.id("inventoryTransactions"),
+      issuedByUserId: v.id("users"),
+      issuedAt: v.number(),
+    }),
+  ).index(
+    "by_orgId_productionOrderId_issuedAt",
+    byOrg("productionOrderId", "issuedAt"),
+  ),
+
+  /** Immutable operator attribution for one operation report. */
+  productionOperationReports: defineTable(
+    tenantFields({
+      productionOrderId: v.id("productionOrders"),
+      operationSequence: v.number(),
+      workCenterCode: v.string(),
+      operationCode: v.string(),
+      goodBaseMinorUnits: v.number(),
+      scrapBaseMinorUnits: v.number(),
+      reworkBaseMinorUnits: v.number(),
+      downtimeMinutes: v.number(),
+      downtimeReason: v.optional(v.string()),
+      operatorUserId: v.id("users"),
+      reportedAt: v.number(),
+    }),
+  ).index(
+    "by_orgId_productionOrderId_operationSequence_reportedAt",
+    byOrg("productionOrderId", "operationSequence", "reportedAt"),
+  ),
+
+  /** A partial FG receipt that stays on QC hold until an independent decision. */
+  productionOutputReceipts: defineTable(
+    tenantFields({
+      productionOrderId: v.id("productionOrders"),
+      warehouseId: v.id("warehouses"),
+      outputItemId: v.id("items"),
+      outputLotId: v.id("lots"),
+      destinationLocationId: v.id("locations"),
+      baseUom: v.string(),
+      baseMinorUnits: v.number(),
+      disposition: productionOutputDisposition,
+      receiptTransactionId: v.id("inventoryTransactions"),
+      receivedByUserId: v.id("users"),
+      receivedAt: v.number(),
+      qualityTransactionId: v.optional(v.id("inventoryTransactions")),
+      qualityDecidedByUserId: v.optional(v.id("users")),
+      qualityDecidedAt: v.optional(v.number()),
+      qualityNote: v.optional(v.string()),
+    }),
+  )
+    .index(
+      "by_orgId_productionOrderId_receivedAt",
+      byOrg("productionOrderId", "receivedAt"),
+    )
+    .index(
+      "by_orgId_warehouseId_disposition_receivedAt",
+      byOrg("warehouseId", "disposition", "receivedAt"),
+    ),
+
+  /** HR person record, deliberately distinct from authentication identity. */
+  employees: defineTable(
+    tenantFields({
+      employeeNumber: v.string(),
+      userId: v.optional(v.id("users")),
+      displayName: v.string(),
+      warehouseId: v.id("warehouses"),
+      teamId: v.optional(v.id("hrTeams")),
+      supervisorEmployeeId: v.optional(v.id("employees")),
+      status: employmentStatus,
+      startedOn: v.string(),
+      endedOn: v.optional(v.string()),
+      createdByUserId: v.id("users"),
+      createdAt: v.number(),
+    }),
+  )
+    .index("by_orgId_employeeNumber", byOrg("employeeNumber"))
+    .index("by_orgId_userId", byOrg("userId"))
+    .index(
+      "by_orgId_warehouseId_status_employeeNumber",
+      byOrg("warehouseId", "status", "employeeNumber"),
+    )
+    .index(
+      "by_orgId_teamId_status_employeeNumber",
+      byOrg("teamId", "status", "employeeNumber"),
+    ),
+
+  /** Supervisor boundary used by the team inbox; no sensitive leave fields. */
+  hrTeams: defineTable(
+    tenantFields({
+      code: v.string(),
+      name: v.string(),
+      warehouseId: v.id("warehouses"),
+      supervisorEmployeeId: v.optional(v.id("employees")),
+      status: employmentStatus,
+      createdByUserId: v.id("users"),
+      createdAt: v.number(),
+    }),
+  )
+    .index("by_orgId_code", byOrg("code"))
+    .index(
+      "by_orgId_warehouseId_status_code",
+      byOrg("warehouseId", "status", "code"),
+    ),
+
+  /** Immutable clock/correction evidence; device time is evidence, server time orders it. */
+  attendanceEvents: defineTable(
+    tenantFields({
+      employeeId: v.id("employees"),
+      warehouseId: v.id("warehouses"),
+      attendanceDayId: v.id("attendanceDays"),
+      businessDate: v.string(),
+      kind: attendanceEventKind,
+      commandId: v.string(),
+      deviceOccurredAt: v.optional(v.number()),
+      serverReceivedAt: v.number(),
+      timezone: v.string(),
+      actorUserId: v.id("users"),
+      correctionRequestId: v.optional(v.id("attendanceCorrections")),
+    }),
+  )
+    .index("by_orgId_commandId", byOrg("commandId"))
+    .index(
+      "by_orgId_employeeId_serverReceivedAt",
+      byOrg("employeeId", "serverReceivedAt"),
+    )
+    .index(
+      "by_orgId_attendanceDayId_serverReceivedAt",
+      byOrg("attendanceDayId", "serverReceivedAt"),
+    ),
+
+  /** Rebuildable current projection for one employee business date. */
+  attendanceDays: defineTable(
+    tenantFields({
+      employeeId: v.id("employees"),
+      warehouseId: v.id("warehouses"),
+      businessDate: v.string(),
+      status: attendanceDayStatus,
+      clockInAt: v.optional(v.number()),
+      breakStartedAt: v.optional(v.number()),
+      breakMinutes: v.number(),
+      clockOutAt: v.optional(v.number()),
+      lastEventAt: v.number(),
+      timezone: v.string(),
+    }),
+  )
+    .index(
+      "by_orgId_employeeId_businessDate",
+      byOrg("employeeId", "businessDate"),
+    )
+    .index(
+      "by_orgId_warehouseId_businessDate_status",
+      byOrg("warehouseId", "businessDate", "status"),
+    ),
+
+  /** Employee request; approval creates an immutable correction event. */
+  attendanceCorrections: defineTable(
+    tenantFields({
+      requestId: v.string(),
+      employeeId: v.id("employees"),
+      warehouseId: v.id("warehouses"),
+      attendanceDayId: v.id("attendanceDays"),
+      requestedClockInAt: v.number(),
+      requestedClockOutAt: v.number(),
+      requestedBreakMinutes: v.number(),
+      reason: v.string(),
+      status: hrRequestStatus,
+      requestedByUserId: v.id("users"),
+      requestedAt: v.number(),
+      decidedByUserId: v.optional(v.id("users")),
+      decidedAt: v.optional(v.number()),
+      decisionNote: v.optional(v.string()),
+    }),
+  )
+    .index("by_orgId_requestId", byOrg("requestId"))
+    .index(
+      "by_orgId_employeeId_status_requestedAt",
+      byOrg("employeeId", "status", "requestedAt"),
+    )
+    .index(
+      "by_orgId_warehouseId_status_requestedAt",
+      byOrg("warehouseId", "status", "requestedAt"),
+    ),
+
+  /** Leave reason stays private to self/HR; supervisor list returns only capacity facts. */
+  leaveRequests: defineTable(
+    tenantFields({
+      requestId: v.string(),
+      employeeId: v.id("employees"),
+      warehouseId: v.id("warehouses"),
+      startDate: v.string(),
+      endDate: v.string(),
+      leaveType,
+      durationKind: leaveDurationKind,
+      hours: v.optional(v.number()),
+      privateReason: v.optional(v.string()),
+      status: hrRequestStatus,
+      requestedByUserId: v.id("users"),
+      requestedAt: v.number(),
+      decidedByUserId: v.optional(v.id("users")),
+      decidedAt: v.optional(v.number()),
+      decisionNote: v.optional(v.string()),
+    }),
+  )
+    .index("by_orgId_requestId", byOrg("requestId"))
+    .index(
+      "by_orgId_employeeId_status_startDate",
+      byOrg("employeeId", "status", "startDate"),
+    )
+    .index(
+      "by_orgId_warehouseId_status_startDate",
+      byOrg("warehouseId", "status", "startDate"),
+    ),
+
+  /** Configured external port; credential material remains outside application data. */
+  integrationAdapters: defineTable(
+    tenantFields({
+      code: v.string(),
+      displayName: v.string(),
+      kind: integrationAdapterKind,
+      status: integrationAdapterStatus,
+      configurationKey: v.string(),
+      lastSuccessAt: v.optional(v.number()),
+      lastFailureAt: v.optional(v.number()),
+      lastFailureCode: v.optional(v.string()),
+      updatedByUserId: v.id("users"),
+      updatedAt: v.number(),
+    }),
+  )
+    .index("by_orgId_code", byOrg("code"))
+    .index("by_orgId_status_code", byOrg("status", "code")),
+
+  /** Transactional outbox row; provider delivery never rewrites the source aggregate. */
+  integrationOutboxMessages: defineTable(
+    tenantFields({
+      eventKey: v.string(),
+      adapterId: v.id("integrationAdapters"),
+      eventType: v.string(),
+      schemaVersion: v.number(),
+      sourceTable: v.string(),
+      sourceId: v.string(),
+      payloadJson: v.string(),
+      payloadDigest: v.string(),
+      status: integrationMessageStatus,
+      attemptCount: v.number(),
+      availableAt: v.number(),
+      claimedAt: v.optional(v.number()),
+      claimRequestId: v.optional(v.string()),
+      resultRequestId: v.optional(v.string()),
+      leaseExpiresAt: v.optional(v.number()),
+      deliveredAt: v.optional(v.number()),
+      lastFailureCode: v.optional(v.string()),
+      createdAt: v.number(),
+    }),
+  )
+    .index("by_orgId_eventKey", byOrg("eventKey"))
+    .index(
+      "by_orgId_adapterId_status_availableAt",
+      byOrg("adapterId", "status", "availableAt"),
+    ),
+
+  /** Append-only delivery evidence; response bodies and provider secrets are never stored. */
+  integrationDeliveryAttempts: defineTable(
+    tenantFields({
+      messageId: v.id("integrationOutboxMessages"),
+      adapterId: v.id("integrationAdapters"),
+      attemptNumber: v.number(),
+      correlationId: v.string(),
+      outcome: integrationAttemptOutcome,
+      startedAt: v.number(),
+      finishedAt: v.number(),
+      errorCode: v.optional(v.string()),
+      responseStatus: v.optional(v.number()),
+      actorUserId: v.id("users"),
+    }),
+  )
+    .index(
+      "by_orgId_messageId_attemptNumber",
+      byOrg("messageId", "attemptNumber"),
+    )
+    .index("by_orgId_adapterId_finishedAt", byOrg("adapterId", "finishedAt")),
 });
 
 export default schema;

@@ -42,6 +42,7 @@ superseded ADR keeps its number and gains a `Superseded by` line.
 | `ADR-0013` | [Order to ship: design authority and the factory packet](./0013-order-to-ship-design-authority.md)   | Accepted | Phase 5A only   |
 | `ADR-0014` | [Storage building layout rendering](./0014-storage-building-layout-rendering.md)                     | Accepted | Implemented     |
 | `ADR-0015` | [QR-addressable storage stacks](./0015-qr-addressable-storage-stacks.md)                             | Accepted | Implemented     |
+| `ADR-0016` | [Route customer demand before factory handoff](./0016-demand-routing-before-factory-handoff.md)      | Accepted | Local slice     |
 
 ## Coverage of the plan's ADR backlog
 

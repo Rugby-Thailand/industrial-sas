@@ -6,9 +6,11 @@
 - Decision baseline: [PROJECT_PLAN.md](../../PROJECT_PLAN.md) §3.2 (D-16, D-20,
   D-25), §4 (B-03, B-05), §5 Q8, Q9, Q32, Q39, Q47, Q49, §6, §10 Phase 0
 - Covers plan ADR backlog (§11) items: 2, 14, 15, 16, 26
-- Implementation status: **Not implemented.** No port interface, adapter, or vendor
-  configuration exists. `uploadthing` and `@uploadthing/react` are installed and
-  unwired. No cloud resource has been created by this repository.
+- Implementation status: **Partial.** The private engineering master-card slice has
+  an UploadThing adapter boundary, verified completion receipt, Convex authorization,
+  and short-lived signed downloads. The broader file port, retention/orphan jobs,
+  hardware adapters, and production vendor configuration remain open. No cloud
+  resource is created by this repository.
 
 ## Context
 
@@ -133,12 +135,13 @@ Vendor lock-in is the deepest architectural risk in the plan (§5 Q49).
 
 ## Verification
 
-Planned, not present.
+The private master-card path has unit and integration coverage; full-port and physical
+evidence remains planned.
 
-- Unit tests: each port's contract exercised against its fake adapter, including
-  timeout, retry, and idempotent-replay behaviour.
-- Integration tests: adapter wiring with `convex-test` and fakes; signed-URL
-  authorization checks; webhook signature verification.
+- Unit tests: client photo optimization, final-byte hashing, and the accessible ReUI
+  file picker. Tests for every future port operation remain planned.
+- Integration tests: one-use grants, server completion HMAC/tamper checks, and private
+  gateway behavior. Live-vendor tests remain outside the automated suite.
 - Static checks: vendor SDK imports confined to adapter directories; no adapter
   import inside `convex/model/**`.
 - Physical/manual evidence: latency benchmark, scanner spike, printer spike, file

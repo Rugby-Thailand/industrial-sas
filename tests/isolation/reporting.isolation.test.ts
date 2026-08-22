@@ -15,6 +15,11 @@ import { describe, expect, it } from "vitest";
 
 import { readDashboard, readOccupancy } from "../../convex/reporting/dashboard";
 import { getReportJob, requestExport } from "../../convex/reporting/exports";
+import {
+  readOperationalExceptions,
+  readStockMovements,
+  readStockReports,
+} from "../../convex/reporting/operationalViews";
 import type { DataModel } from "../../convex/schema";
 import {
   createConvexInventoryWorld,
@@ -113,6 +118,21 @@ describe("reporting across tenants", () => {
         warehouseId: world.warehouses.alphaA,
       }),
     ).rejects.toThrow(/WAREHOUSE_UNKNOWN/);
+  });
+
+  it("applies the same warehouse boundary to stock and exception reports", async () => {
+    const world = await createConvexInventoryWorld();
+    for (const report of [
+      readStockReports,
+      readStockMovements,
+      readOperationalExceptions,
+    ]) {
+      await expect(
+        callAs(world, "b", report, {
+          warehouseId: world.warehouses.alphaA,
+        }),
+      ).rejects.toThrow(/WAREHOUSE_UNKNOWN/);
+    }
   });
 
   it("draws only the asking tenant's locations on the occupancy map", async () => {

@@ -74,6 +74,7 @@ describe("stock status", () => {
 describe("virtual boundaries", () => {
   it("covers every external flow the plan names, and no more", () => {
     expect(virtualBoundaryCodes()).toEqual([
+      "CUSTOMER_RETURN",
       "CUSTOMER_SHIPMENT",
       "INVENTORY_ADJUSTMENT",
       "PRODUCTION_ISSUE",
@@ -81,6 +82,7 @@ describe("virtual boundaries", () => {
       "RECONCILIATION",
       "SCRAP_DAMAGE",
       "SUPPLIER_RECEIPT",
+      "TRANSFER_IN_TRANSIT",
     ]);
   });
 
@@ -88,9 +90,11 @@ describe("virtual boundaries", () => {
     expect(virtualBoundaryByCode("SUPPLIER_RECEIPT")?.flow).toBe("SOURCE");
     expect(virtualBoundaryByCode("PRODUCTION_RECEIPT")?.flow).toBe("SOURCE");
     expect(virtualBoundaryByCode("CUSTOMER_SHIPMENT")?.flow).toBe("SINK");
+    expect(virtualBoundaryByCode("CUSTOMER_RETURN")?.flow).toBe("SOURCE");
     expect(virtualBoundaryByCode("PRODUCTION_ISSUE")?.flow).toBe("SINK");
     expect(virtualBoundaryByCode("SCRAP_DAMAGE")?.flow).toBe("SINK");
     expect(virtualBoundaryByCode("INVENTORY_ADJUSTMENT")?.flow).toBe("BOTH");
+    expect(virtualBoundaryByCode("TRANSFER_IN_TRANSIT")?.flow).toBe("BOTH");
     expect(virtualBoundaryByCode("RECONCILIATION")?.flow).toBe("BOTH");
   });
 
