@@ -1,8 +1,24 @@
 "use client";
 
+import { Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
+import { Button } from "@/components/ui/button";
+import {
+  Kanban,
+  KanbanBoard,
+  KanbanColumn,
+  KanbanColumnContent,
+} from "@/components/ui/kanban";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { MasterDataPanel } from "@/features/masterData/MasterDataPanel";
 import { Link } from "@/i18n/navigation";
 import {
@@ -34,6 +50,13 @@ import {
 export type OrderToShipView = "sales" | "engineering" | "factory";
 
 const PAGE_SIZE = 12;
+const CUSTOMER_ORDER_STATUSES = ["DRAFT", "RELEASED", "CANCELLED"] as const;
+const EMPTY_ORDER_COLUMNS = Object.freeze({
+  DRAFT: Object.freeze([]),
+  RELEASED: Object.freeze([]),
+  CANCELLED: Object.freeze([]),
+});
+
 const tone = (status: string): BadgeTone => {
   if (["RELEASED", "FULFILLED", "ACKNOWLEDGED"].includes(status))
     return "success";
@@ -142,59 +165,138 @@ function SalesRegister() {
     <QueueSection
       title={t("salesRegister")}
       description={t("salesRegisterDetail")}
+      action={<CreateOrderSheet />}
     >
-      <OrderIntakeForm />
-      <MasterDataPanel<
-        CustomerOrderRow,
-        {
-          maxPageSize?: number;
-          cursor?: string;
-          status?: CustomerOrderRow["status"];
-        }
+      <Kanban<never>
+        value={EMPTY_ORDER_COLUMNS as unknown as Record<string, never[]>}
+        onValueChange={() => undefined}
+        getItemValue={() => ""}
       >
-        queryRef={listCustomerOrdersRef}
-        scope="ORG"
-        buildArgs={({ cursor }) => ({
-          maxPageSize: PAGE_SIZE,
-          ...(cursor === undefined ? {} : { cursor }),
-        })}
-        previewRowsFor={previewCustomerOrders}
-        paginationLabel={t("salesPagination")}
-        renderRows={(rows) => (
-          <ul className="grid gap-3 lg:grid-cols-2">
-            {rows.map((row) => (
-              <li
-                key={row.customerOrderId}
-                className="rounded-lg border border-border-strong bg-surface p-4"
-              >
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <h3 className="font-bold text-text">{row.orderNumber}</h3>
-                    <p className="mt-1 text-sm text-muted">
-                      {t("customerPo")}:{" "}
-                      {row.customerReference ?? t("notProvided")}
-                    </p>
-                  </div>
-                  <StatusBadge
-                    tone={tone(row.status)}
-                    label={t(`status.${row.status}`)}
-                  />
-                </div>
-                <p className="mt-3 font-mono text-xs break-all text-muted">
-                  {t("customerOrderId")}: {row.customerOrderId}
-                </p>
-                <details className="mt-3">
-                  <summary className="min-h-touch cursor-pointer py-2 font-semibold text-text">
-                    {t("orderActions")}
-                  </summary>
-                  <SalesWorkflowActions customerOrderId={row.customerOrderId} />
-                </details>
-              </li>
-            ))}
-          </ul>
-        )}
-      />
+        <KanbanBoard
+          role="region"
+          aria-label={t("salesBoard")}
+          className="auto-cols-[minmax(18rem,1fr)] grid-flow-col grid-cols-none items-start overflow-x-auto pb-3 sm:grid-cols-none xl:grid-flow-row xl:grid-cols-3"
+        >
+          {CUSTOMER_ORDER_STATUSES.map((status) => (
+            <CustomerOrderColumn key={status} status={status} />
+          ))}
+        </KanbanBoard>
+      </Kanban>
     </QueueSection>
+  );
+}
+
+function CreateOrderSheet() {
+  const t = useTranslations("OrderToShip");
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Sheet open={open} onOpenChange={setOpen}>
+      <SheetTrigger asChild>
+        <Button type="button">
+          <Plus aria-hidden="true" />
+          {t("createSalesOrder")}
+        </Button>
+      </SheetTrigger>
+      <SheetContent
+        side="right"
+        closeLabel={t("closeNewOrder")}
+        className="overflow-y-auto sm:max-w-xl"
+      >
+        <SheetHeader className="sr-only">
+          <SheetTitle>{t("newOrder")}</SheetTitle>
+          <SheetDescription>{t("newOrderDetail")}</SheetDescription>
+        </SheetHeader>
+        <div className="px-4 pb-6">
+          <OrderIntakeForm onSaved={() => setOpen(false)} />
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+function CustomerOrderColumn({
+  status,
+}: {
+  readonly status: CustomerOrderRow["status"];
+}) {
+  const t = useTranslations("OrderToShip");
+  const headingId = `customer-orders-${status.toLowerCase()}`;
+
+  return (
+    <KanbanColumn
+      value={status}
+      disabled
+      role="region"
+      aria-labelledby={headingId}
+      className="min-h-80 rounded-lg border border-border-strong bg-surface p-3"
+    >
+      <div className="mb-3 flex items-center justify-between gap-3 border-b border-border pb-3">
+        <h3 id={headingId} className="text-sm font-bold text-text">
+          {t(`status.${status}`)}
+        </h3>
+        <StatusBadge tone={tone(status)} label={t(`status.${status}`)} />
+      </div>
+      <KanbanColumnContent value={status} className="gap-3">
+        <MasterDataPanel<
+          CustomerOrderRow,
+          {
+            maxPageSize?: number;
+            cursor?: string;
+            status?: CustomerOrderRow["status"];
+          }
+        >
+          queryRef={listCustomerOrdersRef}
+          scope="ORG"
+          buildArgs={({ cursor }) => ({
+            maxPageSize: PAGE_SIZE,
+            status,
+            ...(cursor === undefined ? {} : { cursor }),
+          })}
+          previewRowsFor={() =>
+            previewCustomerOrders().filter((row) => row.status === status)
+          }
+          paginationLabel={`${t(`status.${status}`)} · ${t("salesPagination")}`}
+          renderRows={(rows) => (
+            <ul className="grid gap-3">
+              {rows.map((row) => (
+                <li
+                  key={row.customerOrderId}
+                  className="rounded-lg border border-border-strong bg-surface p-4"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <h3 className="font-bold text-text">{row.orderNumber}</h3>
+                      <p className="mt-1 text-sm text-muted">
+                        {t("customerPo")}:{" "}
+                        {row.customerReference ?? t("notProvided")}
+                      </p>
+                    </div>
+                    <StatusBadge
+                      tone={tone(row.status)}
+                      label={t(`status.${row.status}`)}
+                    />
+                  </div>
+                  <p className="mt-3 font-mono text-xs break-all text-muted">
+                    {t("customerOrderId")}: {row.customerOrderId}
+                  </p>
+                  {row.status === "DRAFT" ? (
+                    <details className="mt-3">
+                      <summary className="min-h-touch cursor-pointer py-2 font-semibold text-text">
+                        {t("orderActions")}
+                      </summary>
+                      <SalesWorkflowActions
+                        customerOrderId={row.customerOrderId}
+                      />
+                    </details>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          )}
+        />
+      </KanbanColumnContent>
+    </KanbanColumn>
   );
 }
 
@@ -647,10 +749,12 @@ function PacketList({
 function QueueSection({
   title,
   description,
+  action,
   children,
 }: {
   readonly title: string;
   readonly description: string;
+  readonly action?: ReactNode;
   readonly children: ReactNode;
 }) {
   return (
@@ -658,16 +762,19 @@ function QueueSection({
       aria-labelledby={`section-${title.replace(/\s/g, "-")}`}
       className="space-y-4"
     >
-      <div>
-        <h2
-          id={`section-${title.replace(/\s/g, "-")}`}
-          className="text-lg font-bold text-text"
-        >
-          {title}
-        </h2>
-        <p className="mt-1 max-w-prose text-sm leading-relaxed text-muted">
-          {description}
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2
+            id={`section-${title.replace(/\s/g, "-")}`}
+            className="text-lg font-bold text-text"
+          >
+            {title}
+          </h2>
+          <p className="mt-1 max-w-prose text-sm leading-relaxed text-muted">
+            {description}
+          </p>
+        </div>
+        {action}
       </div>
       {children}
     </section>

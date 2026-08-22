@@ -1,4 +1,5 @@
-import { screen } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { axe } from "jest-axe";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -36,6 +37,36 @@ describe("OrderToShipWorkspace", () => {
       screen.getByText(/customer product code decide exact reuse/i),
     ).toBeInTheDocument();
     expect(screen.getByText("SO-26018")).toBeInTheDocument();
+  });
+
+  it("groups customer orders into system-controlled status columns", () => {
+    renderWorkspace("sales");
+
+    const board = screen.getByRole("region", {
+      name: "Customer order status board",
+    });
+    const draft = within(board).getByRole("region", { name: "Draft" });
+    const released = within(board).getByRole("region", { name: "Released" });
+    const cancelled = within(board).getByRole("region", { name: "Cancelled" });
+
+    expect(within(draft).getByText("SO-26019")).toBeInTheDocument();
+    expect(within(draft).queryByText("SO-26018")).not.toBeInTheDocument();
+    expect(within(released).getByText("SO-26018")).toBeInTheDocument();
+    expect(within(cancelled).getByText("No data")).toBeInTheDocument();
+  });
+
+  it("opens the sales-order form from the board action", async () => {
+    const user = userEvent.setup();
+    renderWorkspace("sales");
+
+    expect(screen.queryByTestId("customer-order-form")).not.toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: "Create sales order" }),
+    );
+
+    expect(
+      screen.getByRole("dialog", { name: "Create customer order" }),
+    ).toContainElement(screen.getByTestId("customer-order-form"));
   });
 
   it("shows overdue engineering work without relying on colour", () => {

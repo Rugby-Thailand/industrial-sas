@@ -6,7 +6,11 @@ import { EntityWriteForm } from "@/features/masterData/EntityWriteForm";
 import { createCustomerOrderRef } from "@/lib/convex/orderToShipApi";
 
 /** The first durable step of the sales journey. */
-export function OrderIntakeForm() {
+export function OrderIntakeForm({
+  onSaved,
+}: {
+  readonly onSaved?: () => void;
+}) {
   const t = useTranslations("OrderToShip");
   return (
     <EntityWriteForm
@@ -16,6 +20,7 @@ export function OrderIntakeForm() {
       submitLabel={t("saveOrder")}
       requiredMessage={t("requiredField")}
       testId="customer-order-form"
+      {...(onSaved === undefined ? {} : { onSaved })}
       fields={[
         {
           name: "orderNumber",
