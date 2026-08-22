@@ -2,21 +2,12 @@
  * Typed references to the ledger's public Convex functions, and the wire types
  * of what they answer.
  *
- * ### Why these are hand-declared rather than imported from `convex/_generated`
+ * ### Generated references, presentation-owned wire types
  *
- * `convex/_generated/` is git-ignored (it is a build artifact of `convex dev`),
- * so it is absent in CI and absent on a machine that has never run the Convex
- * CLI. An import of `convex/_generated/api` would make `pnpm typecheck` and
- * `pnpm build` fail for everyone who has not provisioned a deployment, which is
- * the opposite of this repository's rule that every guard passes with no vendor
- * configuration present.
- *
- * `makeFunctionReference` is the supported alternative: a function reference is
- * just a path string plus the argument and return types, and codegen exists to
- * infer those types, not to create the reference. The cost is that the types
- * below are a *claim* about `convex/inventory/ledger.ts` rather than a
- * derivation from it, so `ledgerApi.test.ts` re-reads that module and fails if a
- * referenced export disappears or is renamed.
+ * Function references come from committed, credential-free Convex codegen, so a
+ * server rename or argument/return change is a type error. The named row/page
+ * types remain here because they are the small presentation interface shared by
+ * the generic ledger panels.
  *
  * ### The envelope
  *
@@ -32,7 +23,9 @@
  * a write UI without a resolved tenant could not post anything, and a button
  * that always denies is worse than no button.
  */
-import { makeFunctionReference } from "convex/server";
+import { api } from "../../../convex/_generated/api";
+
+import { clientRef } from "./clientRef";
 
 /* -------------------------------------------------------------------------- */
 /* Envelope                                                                    */
@@ -118,39 +111,11 @@ export type LedgerPageArgs = {
 /* References                                                                  */
 /* -------------------------------------------------------------------------- */
 
-/**
- * Convex resolves a function by `"<path within convex/>:<export>"`, with the
- * `.ts` extension dropped and directory separators kept. These four strings are
- * the only place the application names a server function.
- */
-export const LEDGER_FUNCTION_PATHS = Object.freeze({
-  listBalances: "inventory/ledger:listBalances",
-  listTransactions: "inventory/ledger:listTransactions",
-});
+export const listBalancesRef = clientRef(api.inventory.ledger.listBalances);
 
-export const listBalancesRef = makeFunctionReference<
-  "query",
-  LedgerPageArgs,
-  TenantOutcome<LedgerPage<BalanceRow>>
->(LEDGER_FUNCTION_PATHS.listBalances);
-
-export const listTransactionsRef = makeFunctionReference<
-  "query",
-  LedgerPageArgs,
-  TenantOutcome<LedgerPage<TransactionRow>>
->(LEDGER_FUNCTION_PATHS.listTransactions);
-
-/**
- * The server's own page-size cap (`MAX_JOB_PAGE_SIZE`, re-exported from the
- * ledger module as `maxLedgerPageSize`).
- *
- * Restated rather than imported because importing `convex/inventory/ledger.ts`
- * into the browser bundle would pull the whole Convex server runtime with it. A
- * page size above the server's cap is *refused* rather than clamped, so a UI that
- * guessed too high would show an error instead of rows; the drift test pins this
- * number against the server constant.
- */
-export const MAX_LEDGER_PAGE_SIZE = 100;
+export const listTransactionsRef = clientRef(
+  api.inventory.ledger.listTransactions,
+);
 
 /** What the screens actually ask for: enough to fill a table, well under the cap. */
 export const DEFAULT_LEDGER_PAGE_SIZE = 25;

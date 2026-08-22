@@ -1,11 +1,8 @@
 /**
  * Typed references to the master-data read functions, and their wire types.
  *
- * The same reasoning as `ledgerApi.ts`: `convex/_generated/` is a git-ignored
- * artifact of `convex dev`, absent in CI and on any machine that has not
- * provisioned a deployment, so the browser names server functions through
- * `makeFunctionReference` and a drift test re-reads the server module to prove
- * the names still resolve.
+ * References come from the committed Convex-generated interface. The named row
+ * types remain the presentation interface consumed by generic tables and forms.
  *
  * Reads and writes are both declared. A write reference carries a `requestId`
  * in its argument type rather than as an afterthought: the key is what makes a
@@ -16,9 +13,11 @@
  * reference nothing type-checks against, which is how a rename survives a build
  * and fails in a warehouse instead.
  */
-import { makeFunctionReference } from "convex/server";
+import { api } from "../../../convex/_generated/api";
 
-import type { TenantOutcome } from "./ledgerApi";
+import { clientRef } from "./clientRef";
+
+export type { ReasonCodeScope } from "../../../convex/lib/validators";
 
 /** A refusal from a master-data list. Narrower than the ledger's. */
 export interface MasterDataErrorPayload {
@@ -86,40 +85,16 @@ export type WarehouseScopedListArgs = MasterDataListArgs & {
   readonly warehouseId: string;
 };
 
-export const MASTER_DATA_FUNCTION_PATHS = Object.freeze({
-  listItems: "masterData/catalogue:listItems",
-  listLocations: "masterData/catalogue:listLocations",
-  listReasonCodes: "masterData/catalogue:listReasonCodes",
-  listHandlingUnits: "masterData/catalogue:listHandlingUnits",
-});
-
-export const listItemsRef = makeFunctionReference<
-  "query",
-  MasterDataListArgs,
-  TenantOutcome<MasterDataPage<ItemRow>>
->(MASTER_DATA_FUNCTION_PATHS.listItems);
-
-export const listLocationsRef = makeFunctionReference<
-  "query",
-  WarehouseScopedListArgs,
-  TenantOutcome<MasterDataPage<LocationRow>>
->(MASTER_DATA_FUNCTION_PATHS.listLocations);
-
-export const listReasonCodesRef = makeFunctionReference<
-  "query",
-  {
-    readonly scope?: string;
-    readonly maxPageSize?: number;
-    readonly cursor?: string;
-  },
-  TenantOutcome<MasterDataPage<ReasonCodeRow>>
->(MASTER_DATA_FUNCTION_PATHS.listReasonCodes);
-
-export const listHandlingUnitsRef = makeFunctionReference<
-  "query",
-  WarehouseScopedListArgs,
-  TenantOutcome<MasterDataPage<HandlingUnitRow>>
->(MASTER_DATA_FUNCTION_PATHS.listHandlingUnits);
+export const listItemsRef = clientRef(api.masterData.catalogue.listItems);
+export const listLocationsRef = clientRef(
+  api.masterData.catalogue.listLocations,
+);
+export const listReasonCodesRef = clientRef(
+  api.masterData.catalogue.listReasonCodes,
+);
+export const listHandlingUnitsRef = clientRef(
+  api.masterData.catalogue.listHandlingUnits,
+);
 
 /* -------------------------------------------------------------------------- */
 /* The five Phase 2 entities                                                   */
@@ -180,54 +155,15 @@ export interface LotRow {
   readonly status: MasterDataStatus;
 }
 
-export type ItemScopedListArgs = MasterDataListArgs & {
-  readonly itemId: string;
-};
-
-export const ENTITY_FUNCTION_PATHS = Object.freeze({
-  getItem: "masterData/catalogue:getItem",
-  resolveScanToItem: "masterData/catalogue:resolveScanToItem",
-  listReceivingLocations: "masterData/catalogue:listReceivingLocations",
-  listLotsForItem: "masterData/catalogue:listLotsForItem",
-  listSuppliers: "masterData/catalogue:listSuppliers",
-  listStorageClasses: "masterData/catalogue:listStorageClasses",
-  listBarcodesForItem: "masterData/catalogue:listBarcodesForItem",
-  listItemUoms: "masterData/catalogue:listItemUoms",
-  listLabelTemplates: "masterData/catalogue:listLabelTemplates",
-});
-
 /** One item, or `{found:false}` — which is also the answer for another tenant's. */
 export type ItemDetail =
   { readonly found: true; readonly item: ItemRow } | { readonly found: false };
 
-export const getItemRef = makeFunctionReference<
-  "query",
-  { readonly itemId: string },
-  TenantOutcome<ItemDetail>
->(ENTITY_FUNCTION_PATHS.getItem);
+export const getItemRef = clientRef(api.masterData.catalogue.getItem);
 
-/**
- * What a scanned or typed string turned out to name.
- *
- * One miss for every reason it could miss (`INV-0002-03`): an unregistered
- * barcode, a withdrawn one, a deactivated item, and another tenant's label are
- * indistinguishable here, because they are the same instruction to an operator.
- */
-export type ScanResolution =
-  | {
-      readonly found: true;
-      readonly itemId: string;
-      readonly sku: string;
-      readonly name: string;
-      readonly via: "BARCODE" | "SKU";
-    }
-  | { readonly found: false; readonly reason: string };
-
-export const resolveScanToItemRef = makeFunctionReference<
-  "query",
-  { readonly scan: string },
-  TenantOutcome<ScanResolution>
->(ENTITY_FUNCTION_PATHS.resolveScanToItem);
+export const resolveScanToItemRef = clientRef(
+  api.masterData.catalogue.resolveScanToItem,
+);
 
 /**
  * The locations a receipt line may be posted to.
@@ -236,55 +172,25 @@ export const resolveScanToItemRef = makeFunctionReference<
  * location type, so rack volume cannot hide a dock and the answer is the whole
  * answer.
  */
-export type ReceivingLocationsOutcome =
-  | { readonly ok: true; readonly items: readonly LocationRow[] }
-  | { readonly ok: false; readonly error: MasterDataErrorPayload };
-
-export const listReceivingLocationsRef = makeFunctionReference<
-  "query",
-  { readonly warehouseId: string },
-  TenantOutcome<ReceivingLocationsOutcome>
->(ENTITY_FUNCTION_PATHS.listReceivingLocations);
-
-export const listLotsForItemRef = makeFunctionReference<
-  "query",
-  ItemScopedListArgs,
-  TenantOutcome<MasterDataPage<LotRow>>
->(ENTITY_FUNCTION_PATHS.listLotsForItem);
-
-export const listSuppliersRef = makeFunctionReference<
-  "query",
-  MasterDataListArgs,
-  TenantOutcome<MasterDataPage<SupplierRow>>
->(ENTITY_FUNCTION_PATHS.listSuppliers);
-
-export const listStorageClassesRef = makeFunctionReference<
-  "query",
-  MasterDataListArgs,
-  TenantOutcome<MasterDataPage<StorageClassRow>>
->(ENTITY_FUNCTION_PATHS.listStorageClasses);
-
-export const listBarcodesForItemRef = makeFunctionReference<
-  "query",
-  ItemScopedListArgs,
-  TenantOutcome<MasterDataPage<BarcodeRow>>
->(ENTITY_FUNCTION_PATHS.listBarcodesForItem);
-
-export const listItemUomsRef = makeFunctionReference<
-  "query",
-  ItemScopedListArgs,
-  TenantOutcome<MasterDataPage<ItemUomRow>>
->(ENTITY_FUNCTION_PATHS.listItemUoms);
-
-export const listLabelTemplatesRef = makeFunctionReference<
-  "query",
-  {
-    readonly status?: LabelTemplateStatus;
-    readonly maxPageSize?: number;
-    readonly cursor?: string;
-  },
-  TenantOutcome<MasterDataPage<LabelTemplateRow>>
->(ENTITY_FUNCTION_PATHS.listLabelTemplates);
+export const listReceivingLocationsRef = clientRef(
+  api.masterData.catalogue.listReceivingLocations,
+);
+export const listLotsForItemRef = clientRef(
+  api.masterData.catalogue.listLotsForItem,
+);
+export const listSuppliersRef = clientRef(
+  api.masterData.catalogue.listSuppliers,
+);
+export const listStorageClassesRef = clientRef(
+  api.masterData.catalogue.listStorageClasses,
+);
+export const listBarcodesForItemRef = clientRef(
+  api.masterData.catalogue.listBarcodesForItem,
+);
+export const listItemUomsRef = clientRef(api.masterData.catalogue.listItemUoms);
+export const listLabelTemplatesRef = clientRef(
+  api.masterData.catalogue.listLabelTemplates,
+);
 
 /* -------------------------------------------------------------------------- */
 /* Write references                                                            */
@@ -314,58 +220,14 @@ export type MasterDataWriteOutcome =
       };
     };
 
-export const WRITE_FUNCTION_PATHS = Object.freeze({
-  createItem: "masterData/writes:createItem",
-  updateItem: "masterData/writes:updateItem",
-  deactivateItem: "masterData/writes:deactivateItem",
-  createLocation: "masterData/writes:createLocation",
-  updateLocation: "masterData/writes:updateLocation",
-  createLot: "masterData/writes:createLot",
-  createSupplier: "masterData/writes:createSupplier",
-  updateSupplier: "masterData/writes:updateSupplier",
-  createStorageClass: "masterData/writes:createStorageClass",
-  updateStorageClass: "masterData/writes:updateStorageClass",
-  createBarcode: "masterData/writes:createBarcode",
-  deactivateBarcode: "masterData/writes:deactivateBarcode",
-  createItemUom: "masterData/writes:createItemUom",
-  deactivateItemUom: "masterData/writes:deactivateItemUom",
-  draftLabelTemplate: "masterData/writes:draftLabelTemplate",
-  publishLabelTemplate: "masterData/writes:publishLabelTemplate",
-});
-
-const writeRef = <Args extends Record<string, unknown>>(path: string) =>
-  makeFunctionReference<
-    "mutation",
-    Args,
-    TenantOutcome<MasterDataWriteOutcome>
-  >(path);
-
-export const createItemRef = writeRef<{
-  requestId: string;
-  sku: string;
-  name: string;
-  baseUom: string;
-  trackingMode: "NONE" | "LOT" | "LOT_SERIAL";
-}>(WRITE_FUNCTION_PATHS.createItem);
-
-export const updateItemRef = writeRef<{
-  requestId: string;
-  itemId: string;
-  name?: string;
-  trackingMode?: "NONE" | "LOT" | "LOT_SERIAL";
-}>(WRITE_FUNCTION_PATHS.updateItem);
-
-export const deactivateItemRef = writeRef<{
-  requestId: string;
-  itemId: string;
-}>(WRITE_FUNCTION_PATHS.deactivateItem);
-
-export const createLocationRef = writeRef<{
-  requestId: string;
-  warehouseId: string;
-  code: string;
-  locationType: string;
-}>(WRITE_FUNCTION_PATHS.createLocation);
+export const createItemRef = clientRef(api.masterData.writes.createItem);
+export const updateItemRef = clientRef(api.masterData.writes.updateItem);
+export const deactivateItemRef = clientRef(
+  api.masterData.writes.deactivateItem,
+);
+export const createLocationRef = clientRef(
+  api.masterData.writes.createLocation,
+);
 
 /**
  * Locations are warehouse-scoped, and the warehouse travels in the arguments.
@@ -375,79 +237,33 @@ export const createLocationRef = writeRef<{
  * because a site-scoped write has to say which site it means, and the answer is
  * the one the shell has selected rather than one derived from the row.
  */
-export const updateLocationRef = writeRef<{
-  requestId: string;
-  warehouseId: string;
-  locationId: string;
-  locationType?: string;
-  status?: MasterDataStatus;
-}>(WRITE_FUNCTION_PATHS.updateLocation);
-
-export const createLotRef = writeRef<{
-  requestId: string;
-  itemId: string;
-  lotCode: string;
-  expirationDate?: string;
-}>(WRITE_FUNCTION_PATHS.createLot);
-
-export const createSupplierRef = writeRef<{
-  requestId: string;
-  code: string;
-  name: string;
-}>(WRITE_FUNCTION_PATHS.createSupplier);
-
-export const updateSupplierRef = writeRef<{
-  requestId: string;
-  supplierId: string;
-  name?: string;
-  status?: MasterDataStatus;
-}>(WRITE_FUNCTION_PATHS.updateSupplier);
-
-export const createStorageClassRef = writeRef<{
-  requestId: string;
-  code: string;
-  name: string;
-}>(WRITE_FUNCTION_PATHS.createStorageClass);
-
-export const updateStorageClassRef = writeRef<{
-  requestId: string;
-  storageClassId: string;
-  name?: string;
-  status?: MasterDataStatus;
-}>(WRITE_FUNCTION_PATHS.updateStorageClass);
-
-export const createBarcodeRef = writeRef<{
-  requestId: string;
-  itemId: string;
-  barcode: string;
-  kind: BarcodeKind;
-}>(WRITE_FUNCTION_PATHS.createBarcode);
-
-export const deactivateBarcodeRef = writeRef<{
-  requestId: string;
-  barcodeId: string;
-}>(WRITE_FUNCTION_PATHS.deactivateBarcode);
-
-export const createItemUomRef = writeRef<{
-  requestId: string;
-  itemId: string;
-  uom: string;
-  toBaseNumerator: number;
-  toBaseDenominator: number;
-}>(WRITE_FUNCTION_PATHS.createItemUom);
-
-export const draftLabelTemplateRef = writeRef<{
-  requestId: string;
-  code: string;
-  name: string;
-  format: LabelTemplateFormat;
-  body: string;
-}>(WRITE_FUNCTION_PATHS.draftLabelTemplate);
-
-export const deactivateItemUomRef = writeRef<{
-  requestId: string;
-  itemUomId: string;
-}>(WRITE_FUNCTION_PATHS.deactivateItemUom);
+export const updateLocationRef = clientRef(
+  api.masterData.writes.updateLocation,
+);
+export const createLotRef = clientRef(api.masterData.writes.createLot);
+export const createSupplierRef = clientRef(
+  api.masterData.writes.createSupplier,
+);
+export const updateSupplierRef = clientRef(
+  api.masterData.writes.updateSupplier,
+);
+export const createStorageClassRef = clientRef(
+  api.masterData.writes.createStorageClass,
+);
+export const updateStorageClassRef = clientRef(
+  api.masterData.writes.updateStorageClass,
+);
+export const createBarcodeRef = clientRef(api.masterData.writes.createBarcode);
+export const deactivateBarcodeRef = clientRef(
+  api.masterData.writes.deactivateBarcode,
+);
+export const createItemUomRef = clientRef(api.masterData.writes.createItemUom);
+export const draftLabelTemplateRef = clientRef(
+  api.masterData.writes.draftLabelTemplate,
+);
+export const deactivateItemUomRef = clientRef(
+  api.masterData.writes.deactivateItemUom,
+);
 
 /**
  * Publishing is the repository's one genuine maker-checker control.
@@ -458,7 +274,6 @@ export const deactivateItemUomRef = writeRef<{
  * "needs a second person" from "you lack the permission" in the payload would
  * make the screen a permission oracle (`INV-0002-07`).
  */
-export const publishLabelTemplateRef = writeRef<{
-  requestId: string;
-  labelTemplateId: string;
-}>(WRITE_FUNCTION_PATHS.publishLabelTemplate);
+export const publishLabelTemplateRef = clientRef(
+  api.masterData.writes.publishLabelTemplate,
+);

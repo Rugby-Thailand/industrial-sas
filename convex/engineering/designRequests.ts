@@ -25,8 +25,9 @@
  * substitute a different box for the one the customer ordered
  * (`INV-0013-02`).
  */
-import { v } from "convex/values";
+import { v, type Infer } from "convex/values";
 
+import type { Id } from "../_generated/dataModel";
 import {
   appendDomainAudit,
   replayTenantWriteIfPresent,
@@ -703,13 +704,13 @@ export const listSimilarReleasedDesigns = queryWithOrg({
       ])
       .take(20);
     const candidates: Array<{
-      masterCardId: never;
-      masterCardRevisionId: never;
+      masterCardId: Id<"masterCards">;
+      masterCardRevisionId: Id<"masterCardRevisions">;
       cardNumber: string;
       customerProductCode: string;
       revisionNumber: number;
       score: number;
-      specification: DesignSpecification;
+      specification: Infer<typeof boxSpecification>;
     }> = [];
     for (const card of cards) {
       if (
@@ -729,13 +730,13 @@ export const listSimilarReleasedDesigns = queryWithOrg({
       );
       if (score <= 0) continue;
       candidates.push({
-        masterCardId: card._id as never,
-        masterCardRevisionId: revision._id as never,
+        masterCardId: card._id as Id<"masterCards">,
+        masterCardRevisionId: revision._id as Id<"masterCardRevisions">,
         cardNumber: card.cardNumber,
         customerProductCode: card.customerProductCode,
         revisionNumber: revision.revisionNumber,
         score,
-        specification: revision.specification,
+        specification: revision.specification as Infer<typeof boxSpecification>,
       });
     }
     return candidates
@@ -744,7 +745,7 @@ export const listSimilarReleasedDesigns = queryWithOrg({
           right.score - left.score ||
           left.cardNumber.localeCompare(right.cardNumber),
       )
-      .slice(0, 20) as never;
+      .slice(0, 20);
   },
 });
 

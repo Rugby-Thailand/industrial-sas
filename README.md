@@ -555,16 +555,18 @@ break a guard.
   `src/i18n/messages.test.ts`. Code identifiers — permission codes, stock
   statuses, error codes — stay English (`D-06`) and are rendered verbatim.
 - `convex/` holds the schema, its helpers, and the ledger's public functions.
-  `convex/_generated/` is a `convex dev` artifact and is git-ignored, so it is
-  absent from a fresh clone and from CI. Nothing in `src/` may import it: the
-  browser names server functions through `makeFunctionReference` in
-  `src/lib/convex/ledgerApi.ts`, and
-  `tests/integration/ledger-client-contract.integration.test.ts` fails the build
-  if those names or the page-size cap drift from the server.
+  The credential-free API/type surface in `convex/_generated/` is committed, so
+  a clean checkout type-checks against the server's inferred function contracts.
+  Run `pnpm codegen` after adding, renaming, or changing a Convex function. The
+  browser adapters use those references through `src/lib/convex/clientRef.ts`,
+  which exposes wire-format document IDs as strings for route and preview data.
 - `convex/model/` holds pure domain modules with no Convex imports (plan §6.2).
   See [`convex/model/README.md`](./convex/model/README.md); the boundary is
   enforced by `pnpm verify:tenant-boundary`, and the tests are colocated
   `*.test.ts` files in the unit tier.
+- `pnpm measure:code` reports production and test SLOC against the accepted
+  reduction baseline; generated output is reported separately and never counts
+  toward the target.
 
 ## Next step
 

@@ -34,6 +34,7 @@ import {
   type ItemRow,
   type LabelTemplateRow,
   type ReasonCodeRow,
+  type ReasonCodeScope,
   type SupplierRow,
 } from "@/lib/convex/masterDataApi";
 import { OptionGate, type OptionSet } from "./OptionPicker";
@@ -162,7 +163,7 @@ function ServerItems({ children, ...rest }: CatalogueSourceProps<ItemRow>) {
 export function ActiveReasonCodes({
   scope,
   ...props
-}: CatalogueSourceProps<ReasonCodeRow> & { readonly scope: string }) {
+}: CatalogueSourceProps<ReasonCodeRow> & { readonly scope: ReasonCodeScope }) {
   return (
     <CatalogueGate
       render={() => <ServerReasonCodes {...props} scope={scope} />}
@@ -174,7 +175,7 @@ function ServerReasonCodes({
   scope,
   children,
   ...rest
-}: CatalogueSourceProps<ReasonCodeRow> & { readonly scope: string }) {
+}: CatalogueSourceProps<ReasonCodeRow> & { readonly scope: ReasonCodeScope }) {
   const outcome = useQuery(listReasonCodesRef, {
     scope,
     maxPageSize: DEFAULT_LEDGER_PAGE_SIZE,

@@ -28,6 +28,7 @@ import {
 import { QueryGate } from "@/components/system/QueryGate";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Notice } from "@/components/ui/Notice";
+import { SelectControl } from "@/components/ui/SelectControl";
 import { StatusBadge, type BadgeTone } from "@/components/ui/StatusBadge";
 import { Button } from "@/components/ui/button";
 import {
@@ -165,21 +166,21 @@ function CatalogueContent({ warehouseId }: { readonly warehouseId: string }) {
             className="pl-10"
           />
         </label>
-        <label>
-          <span className="sr-only">{t("statusFilter")}</span>
-          <select
-            value={status}
-            onChange={(event) =>
-              setStatus(event.target.value as StorageLayoutStatus | "ALL")
-            }
-            className="min-h-touch rounded-md border border-input bg-surface px-3 text-sm text-text outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-          >
-            <option value="ALL">{t("allStatuses")}</option>
-            <option value="DRAFT">{t("draft")}</option>
-            <option value="ACTIVE">{t("active")}</option>
-            <option value="ARCHIVED">{t("archived")}</option>
-          </select>
-        </label>
+        <SelectControl
+          value={status}
+          onValueChange={(value) =>
+            setStatus(value as StorageLayoutStatus | "ALL")
+          }
+          options={[
+            { value: "ALL", label: t("allStatuses") },
+            { value: "DRAFT", label: t("draft") },
+            { value: "ACTIVE", label: t("active") },
+            { value: "ARCHIVED", label: t("archived") },
+          ]}
+          placeholder={t("statusFilter")}
+          emptyLabel={t("allStatuses")}
+          label={t("statusFilter")}
+        />
       </div>
       {buildings.length === 0 ? (
         <EmptyState title={t("noMatches")} body={t("noMatchesBody")} />

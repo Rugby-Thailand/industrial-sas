@@ -47,17 +47,20 @@ import {
   type MasterDataError,
   type UniquenessCheck,
 } from "../lib/masterDataStore";
-import type { TenantDocumentAccess, TenantOrgId } from "../lib/tenantDb";
+import type { TenantOrgId } from "../lib/tenantDb";
 import { parseBusinessDate } from "../model/time/businessDate";
 import {
   fail as failResult,
   ok as okResult,
   type Result,
 } from "../model/result";
+import { mutationWithOrg } from "../lib/tenantFunctions";
 import {
-  mutationWithOrg,
-  type TenantFunctionContext,
-} from "../lib/tenantFunctions";
+  refusal,
+  writeContextOf as contextOf,
+  writeOutcomeValidator,
+  written,
+} from "../lib/writeEnvelope";
 import {
   barcodeKind,
   itemTrackingMode,
@@ -71,80 +74,6 @@ import {
   validateBarcodeAlias,
   validateLabelBody,
 } from "../model/masterData/catalogueRules";
-
-/* -------------------------------------------------------------------------- */
-/* Wire shapes                                                                 */
-/* -------------------------------------------------------------------------- */
-
-/**
- * The refusal shape.
- *
- * Every optional field is a *name* — a field, a table — and never a value.
- * `DUPLICATE_KEY` says which field collided and refuses to say with what, so the
- * same code path cannot become an oracle for a caller who guessed
- * (`INV-0002-07`).
- */
-const writeErrorValidator = v.object({
-  code: v.string(),
-  field: v.optional(v.string()),
-  reason: v.optional(v.string()),
-  table: v.optional(v.string()),
-  requestId: v.optional(v.string()),
-});
-
-const writeOutcomeValidator = v.union(
-  v.object({
-    written: v.literal(true),
-    documentId: v.string(),
-    /** True when an identical request had already been applied. */
-    replayed: v.boolean(),
-  }),
-  v.object({ written: v.literal(false), error: writeErrorValidator }),
-);
-
-/** A refusal, flattened for the wire and stripped of anything structural. */
-const refusal = (error: MasterDataError) => ({
-  written: false as const,
-  error: {
-    code: error.code,
-    ...("field" in error ? { field: error.field } : {}),
-    ...("reason" in error ? { reason: error.reason } : {}),
-    ...("table" in error ? { table: error.table } : {}),
-    ...("requestId" in error ? { requestId: error.requestId } : {}),
-  },
-});
-
-const written = (outcome: {
-  readonly documentId: string;
-  readonly replayed: boolean;
-}) => ({
-  written: true as const,
-  documentId: outcome.documentId,
-  replayed: outcome.replayed,
-});
-
-/** The write context every mutation here builds the same way. */
-const contextOf = (
-  ctx: TenantFunctionContext,
-  input: {
-    readonly table: Parameters<TenantDocumentAccess["byIndex"]>[0];
-    readonly operation: string;
-    readonly requestId: string;
-    readonly warehouseId?: string;
-    readonly installationId?: string;
-  },
-) => ({
-  tenantDb: ctx.tenantDb,
-  table: input.table,
-  operation: input.operation,
-  requestId: input.requestId,
-  permissionCode: ctx.permission.code,
-  actorUserId: ctx.tenant.actor._id,
-  ...(input.warehouseId === undefined
-    ? {}
-    : { warehouseId: input.warehouseId }),
-  now: Date.now(),
-});
 
 /* -------------------------------------------------------------------------- */
 /* Operations                                                                  */

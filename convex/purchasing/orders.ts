@@ -44,14 +44,18 @@ import {
   written,
 } from "../lib/writeEnvelope";
 import {
+  listArgs,
+  pageOf,
+  pageOptions,
+  pageRefusal,
+  pageRequestOf,
+} from "../lib/listEnvelope";
+import {
   purchaseOrderLineStatus,
   purchaseOrderStatus,
   signedQuantity,
 } from "../lib/validators";
-import {
-  MAX_JOB_PAGE_SIZE,
-  makeJobPageRequest,
-} from "../model/inventory/jobPage";
+import { MAX_JOB_PAGE_SIZE } from "../model/inventory/jobPage";
 import {
   DEFAULT_CHUNK_SIZE,
   MAX_CHUNK_SIZE,
@@ -807,25 +811,6 @@ const orderLineValidator = v.object({
   status: purchaseOrderLineStatus,
 });
 
-const pageOf = <Row extends Parameters<typeof v.array>[0]>(row: Row) =>
-  v.union(
-    v.object({
-      ok: v.literal(true),
-      items: v.array(row),
-      nextCursor: v.union(v.string(), v.null()),
-      complete: v.boolean(),
-    }),
-    v.object({
-      ok: v.literal(false),
-      error: v.object({ code: v.string() }),
-    }),
-  );
-
-const listArgs = {
-  maxPageSize: v.optional(v.number()),
-  cursor: v.optional(v.string()),
-};
-
 /** Orders at one site, newest number first by index order. */
 export const listPurchaseOrders = queryWithOrg({
   args: {
@@ -838,15 +823,8 @@ export const listPurchaseOrders = queryWithOrg({
   target: { table: "purchaseOrders" },
   warehouseId: ({ warehouseId }) => warehouseId,
   handler: async (ctx, args) => {
-    const request = makeJobPageRequest({
-      ...(args.maxPageSize === undefined
-        ? {}
-        : { maxPageSize: args.maxPageSize }),
-      ...(args.cursor === undefined ? {} : { cursor: args.cursor }),
-    });
-    if (!request.ok) {
-      return { ok: false as const, error: { code: request.error.code } };
-    }
+    const request = pageRequestOf(args);
+    if (!request.ok) return pageRefusal(request.error.code);
 
     const page = await ctx.tenantDb
       .byIndex<OrderDocument & { readonly externalRef?: string }>(
@@ -859,12 +837,7 @@ export const listPurchaseOrders = queryWithOrg({
             : [{ field: "status", value: args.status }]),
         ],
       )
-      .page({
-        limit: request.value.maxPageSize,
-        ...(request.value.cursor === null
-          ? {}
-          : { cursor: request.value.cursor }),
-      });
+      .page(pageOptions(request.value));
 
     return {
       ok: true as const,
@@ -907,15 +880,8 @@ export const listPurchaseOrderLines = queryWithOrg({
   },
   warehouseId: ({ warehouseId }) => warehouseId,
   handler: async (ctx, args) => {
-    const request = makeJobPageRequest({
-      ...(args.maxPageSize === undefined
-        ? {}
-        : { maxPageSize: args.maxPageSize }),
-      ...(args.cursor === undefined ? {} : { cursor: args.cursor }),
-    });
-    if (!request.ok) {
-      return { ok: false as const, error: { code: request.error.code } };
-    }
+    const request = pageRequestOf(args);
+    if (!request.ok) return pageRefusal(request.error.code);
 
     /*
      * The order is read first, through the tenant-bound accessor, so another
@@ -928,7 +894,7 @@ export const listPurchaseOrderLines = queryWithOrg({
       args.purchaseOrderId,
     );
     if (order === null) {
-      return { ok: false as const, error: { code: "REFERENCE_NOT_FOUND" } };
+      return pageRefusal("REFERENCE_NOT_FOUND");
     }
 
     const page = await ctx.tenantDb
@@ -944,12 +910,7 @@ export const listPurchaseOrderLines = queryWithOrg({
             : [{ field: "status", value: args.status }]),
         ],
       )
-      .page({
-        limit: request.value.maxPageSize,
-        ...(request.value.cursor === null
-          ? {}
-          : { cursor: request.value.cursor }),
-      });
+      .page(pageOptions(request.value));
 
     /*
      * The base unit of each distinct item on the page, read once per item.

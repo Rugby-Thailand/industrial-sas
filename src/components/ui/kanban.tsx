@@ -2,13 +2,11 @@
 
 import {
   DndContext,
-  DragOverlay,
   KeyboardSensor,
   MouseSensor,
   type DragEndEvent,
   type DragOverEvent,
   type DragStartEvent,
-  type DropAnimation,
   type UniqueIdentifier,
   useSensor,
   useSensors,
@@ -22,17 +20,14 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Slot } from "radix-ui";
 import {
   createContext,
   useCallback,
   useContext,
   useMemo,
   useState,
-  type ComponentProps,
   type CSSProperties,
   type HTMLAttributes,
-  type ReactNode,
 } from "react";
 
 import { cn } from "@/lib/utils";
@@ -77,32 +72,6 @@ const KanbanContext = createContext<KanbanContextValue>({
   getItemId: () => "",
   isColumn: () => false,
 });
-
-interface SortableHandleContextValue {
-  readonly attributes?: ReturnType<typeof useSortable>["attributes"];
-  readonly listeners: ReturnType<typeof useSortable>["listeners"];
-  readonly isDragging: boolean;
-  readonly disabled: boolean;
-}
-
-const ColumnHandleContext = createContext<SortableHandleContextValue>({
-  listeners: undefined,
-  isDragging: false,
-  disabled: false,
-});
-
-const ItemHandleContext = createContext<
-  Omit<SortableHandleContextValue, "attributes">
->({ listeners: undefined, isDragging: false, disabled: false });
-
-const dropAnimation: DropAnimation = {
-  sideEffects: ({ active }) => {
-    active.node.style.opacity = "0.4";
-    return () => {
-      active.node.style.opacity = "";
-    };
-  },
-};
 
 export function Kanban<Item>({
   value,
@@ -302,161 +271,31 @@ export function KanbanColumn({
   readonly value: string;
   readonly disabled?: boolean;
 }) {
-  const {
-    setNodeRef,
-    transform,
-    transition,
-    attributes,
-    listeners,
-    isDragging,
-  } = useSortable({ id: value, disabled });
+  const { setNodeRef, transform, transition, isDragging } = useSortable({
+    id: value,
+    disabled,
+  });
   const style: CSSProperties = {
     transition,
     transform: CSS.Translate.toString(transform),
   };
-  const handle = useMemo<SortableHandleContextValue>(
-    () => ({
-      attributes,
-      listeners,
-      isDragging,
-      disabled,
-    }),
-    [attributes, disabled, isDragging, listeners],
-  );
-
   return (
-    <ColumnHandleContext.Provider value={handle}>
-      <div
-        ref={setNodeRef}
-        style={style}
-        data-slot="kanban-column"
-        data-value={value}
-        data-dragging={isDragging}
-        data-disabled={disabled}
-        className={cn(
-          "group/kanban-column flex flex-col",
-          isDragging && "opacity-50",
-          className,
-        )}
-        {...props}
-      >
-        {children}
-      </div>
-    </ColumnHandleContext.Provider>
-  );
-}
-
-export function KanbanColumnHandle({
-  asChild = false,
-  cursor = true,
-  className,
-  children,
-  ...props
-}: HTMLAttributes<HTMLDivElement> & {
-  readonly asChild?: boolean;
-  readonly cursor?: boolean;
-}) {
-  const handle = useContext(ColumnHandleContext);
-  const Component = asChild ? Slot.Root : "div";
-  return (
-    <Component
-      data-slot="kanban-column-handle"
-      data-dragging={handle.isDragging}
-      data-disabled={handle.disabled}
-      {...handle.attributes}
-      {...handle.listeners}
+    <div
+      ref={setNodeRef}
+      style={style}
+      data-slot="kanban-column"
+      data-value={value}
+      data-dragging={isDragging}
+      data-disabled={disabled}
       className={cn(
-        "opacity-0 transition-opacity group-hover/kanban-column:opacity-100",
-        cursor && (handle.isDragging ? "cursor-grabbing" : "cursor-grab"),
+        "group/kanban-column flex flex-col",
+        isDragging && "opacity-50",
         className,
       )}
       {...props}
     >
       {children}
-    </Component>
-  );
-}
-
-export function KanbanItem({
-  value,
-  asChild = false,
-  className,
-  children,
-  disabled = false,
-  ...props
-}: HTMLAttributes<HTMLDivElement> & {
-  readonly value: UniqueIdentifier;
-  readonly asChild?: boolean;
-  readonly disabled?: boolean;
-}) {
-  const {
-    setNodeRef,
-    transform,
-    transition,
-    attributes,
-    listeners,
-    isDragging,
-  } = useSortable({ id: value, disabled });
-  const { activeId, isColumn } = useContext(KanbanContext);
-  const style: CSSProperties = {
-    transition,
-    transform: CSS.Translate.toString(transform),
-  };
-  const Component = asChild ? Slot.Root : "div";
-  const handle = useMemo(
-    () => ({
-      listeners,
-      isDragging: activeId === null ? false : !isColumn(activeId),
-      disabled,
-    }),
-    [activeId, disabled, isColumn, listeners],
-  );
-
-  return (
-    <ItemHandleContext.Provider value={handle}>
-      <Component
-        ref={setNodeRef}
-        style={style}
-        data-slot="kanban-item"
-        data-value={String(value)}
-        data-dragging={isDragging}
-        data-disabled={disabled}
-        {...attributes}
-        className={cn(isDragging && "opacity-50", className)}
-        {...props}
-      >
-        {children}
-      </Component>
-    </ItemHandleContext.Provider>
-  );
-}
-
-export function KanbanItemHandle({
-  asChild = false,
-  cursor = true,
-  className,
-  children,
-  ...props
-}: HTMLAttributes<HTMLDivElement> & {
-  readonly asChild?: boolean;
-  readonly cursor?: boolean;
-}) {
-  const handle = useContext(ItemHandleContext);
-  const Component = asChild ? Slot.Root : "div";
-  return (
-    <Component
-      data-slot="kanban-item-handle"
-      data-dragging={handle.isDragging}
-      data-disabled={handle.disabled}
-      {...handle.listeners}
-      className={cn(
-        cursor && (handle.isDragging ? "cursor-grabbing" : "cursor-grab"),
-        className,
-      )}
-      {...props}
-    >
-      {children}
-    </Component>
+    </div>
   );
 }
 
@@ -483,42 +322,3 @@ export function KanbanColumnContent({
     </SortableContext>
   );
 }
-
-export function KanbanOverlay({
-  children,
-  className,
-}: {
-  readonly children:
-    | ReactNode
-    | ((active: {
-        readonly value: UniqueIdentifier;
-        readonly variant: "column" | "item";
-      }) => ReactNode);
-  readonly className?: string;
-}) {
-  const { activeId, isColumn } = useContext(KanbanContext);
-  const content = useMemo(() => {
-    if (activeId === null) return null;
-    return typeof children === "function"
-      ? children({
-          value: activeId,
-          variant: isColumn(activeId) ? "column" : "item",
-        })
-      : children;
-  }, [activeId, children, isColumn]);
-
-  return (
-    <DragOverlay dropAnimation={dropAnimation}>
-      <div
-        data-slot="kanban-overlay"
-        data-dragging={activeId !== null}
-        className={cn("pointer-events-none cursor-grabbing", className)}
-      >
-        {content}
-      </div>
-    </DragOverlay>
-  );
-}
-
-export type KanbanColumnProps = ComponentProps<typeof KanbanColumn>;
-export type KanbanItemProps = ComponentProps<typeof KanbanItem>;

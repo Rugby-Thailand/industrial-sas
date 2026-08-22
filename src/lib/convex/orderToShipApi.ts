@@ -1,12 +1,8 @@
 /**
  * Typed references to the order-to-ship functions, and their wire types.
  *
- * The same reasoning as `inboundApi.ts` and `masterDataApi.ts`:
- * `convex/_generated/` is a git-ignored artifact of `convex dev`, absent in CI
- * and on any machine that has not provisioned a deployment, so the browser names
- * server functions through `makeFunctionReference` and
- * `tests/integration/order-to-ship-client-contract.integration.test.ts` re-reads
- * the server modules to prove the names still resolve.
+ * Function references come from Convex code generation. The named row and
+ * outcome types remain the presentation vocabulary shared by this workflow.
  *
  * Two shapes here are worth reading closely, because they are the slice's whole
  * point (`ADR-0013`):
@@ -30,14 +26,10 @@
  * code, because a file link is not a row that was written. It is a mutation
  * rather than a query so that the request is audited (`RG-071`: queries are not).
  */
-import { makeFunctionReference } from "convex/server";
+import { api } from "../../../convex/_generated/api";
 
-import type { TenantOutcome } from "./ledgerApi";
-import type {
-  MasterDataPage,
-  MasterDataStatus,
-  MasterDataWriteOutcome,
-} from "./masterDataApi";
+import { clientRef } from "./clientRef";
+import type { MasterDataStatus } from "./masterDataApi";
 
 /* -------------------------------------------------------------------------- */
 /* Closed sets                                                                 */
@@ -138,13 +130,6 @@ export interface BoxSpecification {
   readonly notes?: string;
 }
 
-export interface CustomerRow {
-  readonly customerId: string;
-  readonly code: string;
-  readonly name: string;
-  readonly status: MasterDataStatus;
-}
-
 export interface CustomerOrderRow {
   readonly customerOrderId: string;
   readonly orderNumber: string;
@@ -153,27 +138,6 @@ export interface CustomerOrderRow {
   readonly customerReference?: string;
   readonly status: CustomerOrderStatus;
   readonly orderedAt: number;
-}
-
-export interface CustomerOrderLineRow {
-  readonly customerOrderLineId: string;
-  readonly customerOrderId: string;
-  readonly lineNumber: number;
-  readonly customerProductCode: string;
-  readonly specification: BoxSpecification;
-  /** Derived on the server from the specification. Never composed here. */
-  readonly designKey: string;
-  readonly designSource: DesignSource;
-  readonly status: CustomerOrderLineStatus;
-  readonly orderedQuantity: number;
-  /** Present once a released revision is pinned to the line. */
-  readonly masterCardRevisionId?: string;
-  readonly similarityConfirmation?: {
-    readonly score: number;
-    readonly reason: string;
-    readonly confirmedByUserId: string;
-    readonly confirmedAt: number;
-  };
 }
 
 export interface DesignRequestRow {
@@ -218,15 +182,6 @@ export interface MasterCardRevisionRow {
   readonly supersededByRevisionId?: string;
 }
 
-/** What a design request may be fulfilled with: a released revision, only. */
-export interface ReleasedRevisionRow {
-  readonly masterCardRevisionId: string;
-  readonly revisionNumber: number;
-  readonly designKey: string;
-  readonly specification: BoxSpecification;
-  readonly status: MasterCardRevisionStatus;
-}
-
 export interface MasterCardFileRow {
   readonly masterCardFileId: string;
   readonly masterCardRevisionId: string;
@@ -266,248 +221,39 @@ export interface FactoryPacketRow {
   readonly acknowledgedAt?: number;
 }
 
-export interface LegacyMasterCardImportRow {
-  readonly sourceRow: number;
-  readonly sourceReference: string;
-  readonly cardNumber: string;
-  readonly customerId: string;
-  readonly customerProductCode: string;
-  readonly name: string;
-  readonly verified: boolean;
-  readonly legacyApproval?: {
-    readonly authoredByUserId: string;
-    readonly submittedByUserId?: string;
-    readonly decidedByUserId: string;
-    readonly decidedAt: number;
-    readonly decisionNote: string;
-  };
-  readonly specification: BoxSpecification;
-  readonly files: readonly {
-    readonly fileKey: string;
-    readonly fileName: string;
-    readonly kind: MasterCardFileKind;
-    readonly contentType: string;
-    readonly byteSize: number;
-    readonly contentDigest: string;
-    readonly storageId: string;
-    readonly uploadGrantId: string;
-  }[];
-}
-
-/**
- * The answer to "may I read this file's bytes".
- *
- * A URL is returned only after a fresh permission check and only while the
- * private storage object remains retrievable. Unavailable rows fail closed.
- */
-export type FileAccessOutcome =
-  | { readonly granted: true; readonly url: string; readonly expiresAt: number }
-  | {
-      readonly granted: false;
-      readonly error: {
-        readonly code: string;
-        readonly field?: string;
-        readonly reason?: string;
-      };
-    };
-
-/* -------------------------------------------------------------------------- */
-/* Function paths                                                              */
-/* -------------------------------------------------------------------------- */
-
-export const ORDER_TO_SHIP_QUERY_PATHS = Object.freeze({
-  listCustomers: "sales/customers:listCustomers",
-  listCustomerOrders: "sales/orders:listCustomerOrders",
-  listCustomerOrderLines: "sales/orders:listCustomerOrderLines",
-  listDesignRequests: "engineering/designRequests:listDesignRequests",
-  listSimilarReleasedDesigns:
-    "engineering/designRequests:listSimilarReleasedDesigns",
-  listReleasedRevisions: "engineering/designRequests:listReleasedRevisions",
-  listMasterCards: "engineering/masterCards:listMasterCards",
-  listMasterCardRevisions: "engineering/masterCards:listMasterCardRevisions",
-  listMasterCardFiles: "engineering/files:listMasterCardFiles",
-  listFactoryPackets: "production/packets:listFactoryPackets",
-  previewLegacyMasterCardImport:
-    "engineering/masterCardImports:previewLegacyMasterCardImport",
-});
-
-export const ORDER_TO_SHIP_MUTATION_PATHS = Object.freeze({
-  createCustomer: "sales/customers:createCustomer",
-  updateCustomer: "sales/customers:updateCustomer",
-  createCustomerOrder: "sales/orders:createCustomerOrder",
-  addCustomerOrderLine: "sales/orders:addCustomerOrderLine",
-  releaseCustomerOrder: "sales/orders:releaseCustomerOrder",
-  cancelCustomerOrder: "sales/orders:cancelCustomerOrder",
-  cancelCustomerOrderLine: "sales/orders:cancelCustomerOrderLine",
-  assignDesignRequest: "engineering/designRequests:assignDesignRequest",
-  progressDesignRequest: "engineering/designRequests:progressDesignRequest",
-  fulfilDesignRequest: "engineering/designRequests:fulfilDesignRequest",
-  confirmSimilarDesign: "engineering/designRequests:confirmSimilarDesign",
-  createMasterCard: "engineering/masterCards:createMasterCard",
-  draftMasterCardRevision: "engineering/masterCards:draftMasterCardRevision",
-  submitMasterCardRevision: "engineering/masterCards:submitMasterCardRevision",
-  decideMasterCardRevision: "engineering/masterCards:decideMasterCardRevision",
-  attachMasterCardFile: "engineering/files:attachMasterCardFile",
-  authorizeMasterCardFileUpload:
-    "engineering/files:authorizeMasterCardFileUpload",
-  authorizeLegacyMasterCardFileUpload:
-    "engineering/masterCardImports:authorizeLegacyMasterCardFileUpload",
-  requestMasterCardFileAccess: "engineering/files:requestMasterCardFileAccess",
-  requestFactoryPacketFileAccess:
-    "production/packets:requestFactoryPacketFileAccess",
-  issueFactoryPacket: "production/packets:issueFactoryPacket",
-  acknowledgeFactoryPacket: "production/packets:acknowledgeFactoryPacket",
-  cancelFactoryPacket: "production/packets:cancelFactoryPacket",
-  applyLegacyMasterCardImportChunk:
-    "engineering/masterCardImports:applyLegacyMasterCardImportChunk",
-});
-
 /* -------------------------------------------------------------------------- */
 /* Query references                                                            */
 /* -------------------------------------------------------------------------- */
+export const listCustomerOrdersRef = clientRef(
+  api.sales.orders.listCustomerOrders,
+);
+export const listDesignRequestsRef = clientRef(
+  api.engineering.designRequests.listDesignRequests,
+);
 
-/**
- * The paging arguments an organization-scoped order-to-ship list takes.
- *
- * A customer, an order, a design, and a card belong to the *tenant*, not to a
- * site: a design approved in Bangkok is the same design in Lamphun, and making
- * these reads warehouse-scoped would ask a sales person to choose a warehouse
- * before they could name a customer.
- */
-export type OrgPageArgs = {
-  readonly maxPageSize?: number;
-  readonly cursor?: string;
-};
-
-/** The factory packet is the exception: it is issued *to a site*. */
-export type SitePageArgs = OrgPageArgs & {
-  readonly warehouseId: string;
-};
-
-export const listCustomersRef = makeFunctionReference<
-  "query",
-  OrgPageArgs & { readonly status?: MasterDataStatus },
-  TenantOutcome<MasterDataPage<CustomerRow>>
->(ORDER_TO_SHIP_QUERY_PATHS.listCustomers);
-
-export const listCustomerOrdersRef = makeFunctionReference<
-  "query",
-  OrgPageArgs & { readonly status?: CustomerOrderStatus },
-  TenantOutcome<MasterDataPage<CustomerOrderRow>>
->(ORDER_TO_SHIP_QUERY_PATHS.listCustomerOrders);
-
-export const listCustomerOrderLinesRef = makeFunctionReference<
-  "query",
-  OrgPageArgs & {
-    readonly customerOrderId: string;
-    readonly status?: CustomerOrderLineStatus;
-  },
-  TenantOutcome<MasterDataPage<CustomerOrderLineRow>>
->(ORDER_TO_SHIP_QUERY_PATHS.listCustomerOrderLines);
-
-export const listDesignRequestsRef = makeFunctionReference<
-  "query",
-  OrgPageArgs & { readonly status?: DesignRequestStatus },
-  TenantOutcome<MasterDataPage<DesignRequestRow>>
->(ORDER_TO_SHIP_QUERY_PATHS.listDesignRequests);
-
-export interface SimilarReleasedDesignRow {
-  readonly masterCardId: string;
-  readonly masterCardRevisionId: string;
-  readonly cardNumber: string;
-  readonly customerProductCode: string;
-  readonly revisionNumber: number;
-  readonly score: number;
-  readonly specification: BoxSpecification;
-}
-
-export const listSimilarReleasedDesignsRef = makeFunctionReference<
-  "query",
-  { readonly designRequestId: string },
-  TenantOutcome<readonly SimilarReleasedDesignRow[]>
->(ORDER_TO_SHIP_QUERY_PATHS.listSimilarReleasedDesigns);
-
-export const listReleasedRevisionsRef = makeFunctionReference<
-  "query",
-  OrgPageArgs & { readonly masterCardId: string },
-  TenantOutcome<MasterDataPage<ReleasedRevisionRow>>
->(ORDER_TO_SHIP_QUERY_PATHS.listReleasedRevisions);
-
-export const listMasterCardsRef = makeFunctionReference<
-  "query",
-  OrgPageArgs & { readonly status?: MasterDataStatus },
-  TenantOutcome<MasterDataPage<MasterCardRow>>
->(ORDER_TO_SHIP_QUERY_PATHS.listMasterCards);
-
-export const listMasterCardRevisionsRef = makeFunctionReference<
-  "query",
-  OrgPageArgs & {
-    readonly masterCardId: string;
-    readonly status?: MasterCardRevisionStatus;
-  },
-  TenantOutcome<MasterDataPage<MasterCardRevisionRow>>
->(ORDER_TO_SHIP_QUERY_PATHS.listMasterCardRevisions);
-
-export const listMasterCardFilesRef = makeFunctionReference<
-  "query",
-  OrgPageArgs & { readonly masterCardRevisionId: string },
-  TenantOutcome<MasterDataPage<MasterCardFileRow>>
->(ORDER_TO_SHIP_QUERY_PATHS.listMasterCardFiles);
-
-export const listFactoryPacketsRef = makeFunctionReference<
-  "query",
-  SitePageArgs & { readonly status?: FactoryPacketStatus },
-  TenantOutcome<MasterDataPage<FactoryPacketRow>>
->(ORDER_TO_SHIP_QUERY_PATHS.listFactoryPackets);
-
-export const previewLegacyMasterCardImportRef = makeFunctionReference<
-  "query",
-  { readonly rows: readonly LegacyMasterCardImportRow[] },
-  TenantOutcome<{
-    readonly accepted: readonly (LegacyMasterCardImportRow & {
-      readonly revisionStatus: "DRAFT" | "RELEASED";
-      readonly needsReviewReasons: readonly string[];
-    })[];
-    readonly problems: readonly {
-      readonly sourceRow?: number;
-      readonly field?: string;
-      readonly code: string;
-      readonly reason?: string;
-    }[];
-    readonly nextSourceRow: number | null;
-  }>
->(ORDER_TO_SHIP_QUERY_PATHS.previewLegacyMasterCardImport);
+export const listSimilarReleasedDesignsRef = clientRef(
+  api.engineering.designRequests.listSimilarReleasedDesigns,
+);
+export const listMasterCardsRef = clientRef(
+  api.engineering.masterCards.listMasterCards,
+);
+export const listMasterCardRevisionsRef = clientRef(
+  api.engineering.masterCards.listMasterCardRevisions,
+);
+export const listMasterCardFilesRef = clientRef(
+  api.engineering.files.listMasterCardFiles,
+);
+export const listFactoryPacketsRef = clientRef(
+  api.production.packets.listFactoryPackets,
+);
 
 /* -------------------------------------------------------------------------- */
 /* Mutation references                                                         */
 /* -------------------------------------------------------------------------- */
 
-const writeRef = <Args extends Record<string, unknown>>(path: string) =>
-  makeFunctionReference<
-    "mutation",
-    Args,
-    TenantOutcome<MasterDataWriteOutcome>
-  >(path);
-
-export const createCustomerRef = writeRef<{
-  requestId: string;
-  code: string;
-  name: string;
-}>(ORDER_TO_SHIP_MUTATION_PATHS.createCustomer);
-
-export const updateCustomerRef = writeRef<{
-  requestId: string;
-  customerId: string;
-  name?: string;
-  status?: MasterDataStatus;
-}>(ORDER_TO_SHIP_MUTATION_PATHS.updateCustomer);
-
-export const createCustomerOrderRef = writeRef<{
-  requestId: string;
-  orderNumber: string;
-  customerId: string;
-  customerReference?: string;
-}>(ORDER_TO_SHIP_MUTATION_PATHS.createCustomerOrder);
+export const createCustomerOrderRef = clientRef(
+  api.sales.orders.createCustomerOrder,
+);
 
 /**
  * Add a line, which is where the design decision is taken.
@@ -517,77 +263,35 @@ export const createCustomerOrderRef = writeRef<{
  * and either pins it (`EXISTING`) or raises a design request (`NEW`). The derived
  * structural key is advisory and cannot make this decision.
  */
-export const addCustomerOrderLineRef = writeRef<{
-  requestId: string;
-  customerOrderId: string;
-  lineNumber: number;
-  customerProductCode: string;
-  specification: BoxSpecification;
-  orderedQuantity: number;
-  designPriority?: "LOW" | "NORMAL" | "HIGH" | "URGENT";
-  designDueAt?: number;
-}>(ORDER_TO_SHIP_MUTATION_PATHS.addCustomerOrderLine);
-
-export const releaseCustomerOrderRef = writeRef<{
-  requestId: string;
-  customerOrderId: string;
-}>(ORDER_TO_SHIP_MUTATION_PATHS.releaseCustomerOrder);
+export const addCustomerOrderLineRef = clientRef(
+  api.sales.orders.addCustomerOrderLine,
+);
+export const releaseCustomerOrderRef = clientRef(
+  api.sales.orders.releaseCustomerOrder,
+);
 
 /** Maker-checker: whoever opened the order cannot be the one who kills it. */
-export const cancelCustomerOrderRef = writeRef<{
-  requestId: string;
-  customerOrderId: string;
-}>(ORDER_TO_SHIP_MUTATION_PATHS.cancelCustomerOrder);
-
-export const cancelCustomerOrderLineRef = writeRef<{
-  requestId: string;
-  customerOrderLineId: string;
-}>(ORDER_TO_SHIP_MUTATION_PATHS.cancelCustomerOrderLine);
-
-export const assignDesignRequestRef = writeRef<{
-  requestId: string;
-  designRequestId: string;
-  assignedToUserId?: string;
-}>(ORDER_TO_SHIP_MUTATION_PATHS.assignDesignRequest);
-
-export const progressDesignRequestRef = writeRef<{
-  requestId: string;
-  designRequestId: string;
-  nextStatus: "IN_PROGRESS" | "IN_REVIEW";
-}>(ORDER_TO_SHIP_MUTATION_PATHS.progressDesignRequest);
-
-export const fulfilDesignRequestRef = writeRef<{
-  requestId: string;
-  designRequestId: string;
-  masterCardRevisionId: string;
-}>(ORDER_TO_SHIP_MUTATION_PATHS.fulfilDesignRequest);
-
-export const confirmSimilarDesignRef = writeRef<{
-  requestId: string;
-  designRequestId: string;
-  masterCardRevisionId: string;
-  reason: string;
-}>(ORDER_TO_SHIP_MUTATION_PATHS.confirmSimilarDesign);
-
-export const createMasterCardRef = writeRef<{
-  requestId: string;
-  cardNumber: string;
-  customerId: string;
-  customerProductCode: string;
-  name: string;
-  specification: BoxSpecification;
-}>(ORDER_TO_SHIP_MUTATION_PATHS.createMasterCard);
-
-export const draftMasterCardRevisionRef = writeRef<{
-  requestId: string;
-  masterCardId: string;
-  specification: BoxSpecification;
-}>(ORDER_TO_SHIP_MUTATION_PATHS.draftMasterCardRevision);
-
-export const submitMasterCardRevisionRef = writeRef<{
-  requestId: string;
-  masterCardRevisionId: string;
-}>(ORDER_TO_SHIP_MUTATION_PATHS.submitMasterCardRevision);
+export const assignDesignRequestRef = clientRef(
+  api.engineering.designRequests.assignDesignRequest,
+);
+export const progressDesignRequestRef = clientRef(
+  api.engineering.designRequests.progressDesignRequest,
+);
+export const fulfilDesignRequestRef = clientRef(
+  api.engineering.designRequests.fulfilDesignRequest,
+);
+export const confirmSimilarDesignRef = clientRef(
+  api.engineering.designRequests.confirmSimilarDesign,
+);
+export const createMasterCardRef = clientRef(
+  api.engineering.masterCards.createMasterCard,
+);
+export const draftMasterCardRevisionRef = clientRef(
+  api.engineering.masterCards.draftMasterCardRevision,
+);
+export const submitMasterCardRevisionRef = clientRef(
+  api.engineering.masterCards.submitMasterCardRevision,
+);
 
 /**
  * Approve or reject a submitted revision.
@@ -596,89 +300,26 @@ export const submitMasterCardRevisionRef = writeRef<{
  * a button that disappears teaches nothing, and `SEPARATION_OF_DUTIES` teaches
  * that a second person is required (`INV-0013-03`, `INV-0006-05`).
  */
-export const decideMasterCardRevisionRef = writeRef<{
-  requestId: string;
-  masterCardRevisionId: string;
-  decision: RevisionDecision;
-  note?: string;
-}>(ORDER_TO_SHIP_MUTATION_PATHS.decideMasterCardRevision);
-
-export const attachMasterCardFileRef = writeRef<{
-  requestId: string;
-  masterCardRevisionId: string;
-  fileKey: string;
-  fileName: string;
-  kind: MasterCardFileKind;
-  contentType: string;
-  byteSize: number;
-  contentDigest: string;
-  storageId: string;
-  uploadGrantId: string;
-}>(ORDER_TO_SHIP_MUTATION_PATHS.attachMasterCardFile);
-
-export const authorizeMasterCardFileUploadRef = makeFunctionReference<
-  "mutation",
-  { readonly masterCardRevisionId: string },
-  TenantOutcome<
-    | {
-        readonly uploadUrl: string;
-        readonly uploadGrantId: string;
-        readonly expiresAt: number;
-      }
-    | MasterDataWriteOutcome
-  >
->(ORDER_TO_SHIP_MUTATION_PATHS.authorizeMasterCardFileUpload);
-
-export const authorizeLegacyMasterCardFileUploadRef = makeFunctionReference<
-  "mutation",
-  { readonly batchRef: string; readonly sourceRow: number },
-  TenantOutcome<
-    | {
-        readonly uploadUrl: string;
-        readonly uploadGrantId: string;
-        readonly expiresAt: number;
-      }
-    | MasterDataWriteOutcome
-  >
->(ORDER_TO_SHIP_MUTATION_PATHS.authorizeLegacyMasterCardFileUpload);
+export const decideMasterCardRevisionRef = clientRef(
+  api.engineering.masterCards.decideMasterCardRevision,
+);
+export const attachMasterCardFileRef = clientRef(
+  api.engineering.files.attachMasterCardFile,
+);
+export const authorizeMasterCardFileUploadRef = clientRef(
+  api.engineering.files.authorizeMasterCardFileUpload,
+);
 
 /** Not a write envelope: the answer is a link, or the reason there is none. */
-export const requestMasterCardFileAccessRef = makeFunctionReference<
-  "mutation",
-  { readonly masterCardFileId: string },
-  TenantOutcome<FileAccessOutcome>
->(ORDER_TO_SHIP_MUTATION_PATHS.requestMasterCardFileAccess);
-
-export const requestFactoryPacketFileAccessRef = makeFunctionReference<
-  "mutation",
-  {
-    readonly warehouseId: string;
-    readonly factoryPacketId: string;
-    readonly masterCardFileId: string;
-  },
-  TenantOutcome<FileAccessOutcome>
->(ORDER_TO_SHIP_MUTATION_PATHS.requestFactoryPacketFileAccess);
-
-export const issueFactoryPacketRef = writeRef<{
-  requestId: string;
-  warehouseId: string;
-  customerOrderLineId: string;
-}>(ORDER_TO_SHIP_MUTATION_PATHS.issueFactoryPacket);
-
-export const acknowledgeFactoryPacketRef = writeRef<{
-  requestId: string;
-  warehouseId: string;
-  factoryPacketId: string;
-}>(ORDER_TO_SHIP_MUTATION_PATHS.acknowledgeFactoryPacket);
-
-export const cancelFactoryPacketRef = writeRef<{
-  requestId: string;
-  warehouseId: string;
-  factoryPacketId: string;
-}>(ORDER_TO_SHIP_MUTATION_PATHS.cancelFactoryPacket);
-
-export const applyLegacyMasterCardImportChunkRef = writeRef<{
-  requestId: string;
-  batchRef: string;
-  rows: readonly LegacyMasterCardImportRow[];
-}>(ORDER_TO_SHIP_MUTATION_PATHS.applyLegacyMasterCardImportChunk);
+export const requestMasterCardFileAccessRef = clientRef(
+  api.engineering.files.requestMasterCardFileAccess,
+);
+export const requestFactoryPacketFileAccessRef = clientRef(
+  api.production.packets.requestFactoryPacketFileAccess,
+);
+export const issueFactoryPacketRef = clientRef(
+  api.production.packets.issueFactoryPacket,
+);
+export const acknowledgeFactoryPacketRef = clientRef(
+  api.production.packets.acknowledgeFactoryPacket,
+);

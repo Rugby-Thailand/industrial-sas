@@ -490,14 +490,13 @@ export const updateStorageZone = mutationWithOrg({
         [{ field: "floorId", value: floor._id }],
       )
       .take(20);
-    const zones = (
-      await ctx.tenantDb
-        .byIndex<ZoneDocument>("storageZones", "by_orgId_floorId_status_code", [
-          { field: "floorId", value: floor._id },
-          { field: "status", value: "ACTIVE" },
-        ])
-        .take(STORAGE_ZONE_LIMITS.maximumZonesPerFloor + 1)
-    ).filter((candidate) => candidate._id !== zone._id);
+    const activeZones = await ctx.tenantDb
+      .byIndex<ZoneDocument>("storageZones", "by_orgId_floorId_status_code", [
+        { field: "floorId", value: floor._id },
+        { field: "status", value: "ACTIVE" },
+      ])
+      .take(STORAGE_ZONE_LIMITS.maximumZonesPerFloor + 1);
+    const zones = activeZones.filter((candidate) => candidate._id !== zone._id);
     const candidate = {
       xMm: args.xMm,
       yMm: args.yMm,

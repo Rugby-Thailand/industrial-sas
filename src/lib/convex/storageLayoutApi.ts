@@ -1,6 +1,6 @@
-import { makeFunctionReference } from "convex/server";
+import { api } from "../../../convex/_generated/api";
 
-import type { TenantOutcome } from "./ledgerApi";
+import { clientRef } from "./clientRef";
 
 export type StorageLayoutStatus = "DRAFT" | "ACTIVE" | "ARCHIVED";
 
@@ -81,177 +81,19 @@ export type StorageBuildingDetail =
     }
   | { readonly found: false };
 
-export type StorageWriteOutcome =
-  | {
-      readonly written: true;
-      readonly documentId: string;
-      readonly replayed: boolean;
-    }
-  | {
-      readonly written: false;
-      readonly error: { readonly code: string; readonly field?: string };
-    };
-
-export type StoragePlacementOutcome =
-  | {
-      readonly written: true;
-      readonly documentId: string;
-      readonly replayed: boolean;
-      readonly levelIndex: number;
-      readonly orientation: "DEFAULT" | "ROTATED";
-      readonly occupiedHeightMm: number;
-      readonly resultingHeightMm: number;
-      readonly capacityWarning: boolean;
-    }
-  | {
-      readonly written: false;
-      readonly error: { readonly code: string; readonly field?: string };
-    };
-
 export const storageLayoutRefs = Object.freeze({
-  list: makeFunctionReference<
-    "query",
-    { warehouseId: string; status?: StorageLayoutStatus },
-    TenantOutcome<readonly StorageBuildingRow[]>
-  >("storageLayouts/catalogue:listStorageBuildings"),
-  get: makeFunctionReference<
-    "query",
-    { warehouseId: string; buildingId: string },
-    TenantOutcome<StorageBuildingDetail>
-  >("storageLayouts/catalogue:getStorageBuilding"),
-  create: makeFunctionReference<
-    "mutation",
-    {
-      warehouseId: string;
-      requestId: string;
-      code: string;
-      name: string;
-      widthMm: number;
-      depthMm: number;
-      defaultFloorHeightMm: number;
-      floorCount: number;
-    },
-    TenantOutcome<StorageWriteOutcome>
-  >("storageLayouts/writes:createStorageBuilding"),
-  update: makeFunctionReference<
-    "mutation",
-    {
-      warehouseId: string;
-      buildingId: string;
-      requestId: string;
-      expectedVersion: number;
-      name: string;
-      widthMm: number;
-      depthMm: number;
-      defaultFloorHeightMm: number;
-    },
-    TenantOutcome<StorageWriteOutcome>
-  >("storageLayouts/writes:updateStorageBuilding"),
-  changeFloorCount: makeFunctionReference<
-    "mutation",
-    {
-      warehouseId: string;
-      buildingId: string;
-      requestId: string;
-      expectedVersion: number;
-      floorCount: number;
-    },
-    TenantOutcome<StorageWriteOutcome>
-  >("storageLayouts/writes:changeStorageFloorCount"),
-  saveFloor: makeFunctionReference<
-    "mutation",
-    {
-      warehouseId: string;
-      buildingId: string;
-      requestId: string;
-      expectedBuildingVersion: number;
-      expectedFloorVersion: number;
-      floor: {
-        floorNumber: number;
-        widthMm?: number;
-        depthMm?: number;
-        heightMm?: number;
-        offsetXMm?: number;
-        offsetYMm?: number;
-        reservedBlocks: readonly {
-          id: string;
-          label: string;
-          xMm: number;
-          yMm: number;
-          widthMm: number;
-          depthMm: number;
-        }[];
-      };
-    },
-    TenantOutcome<StorageWriteOutcome>
-  >("storageLayouts/writes:saveStorageFloor"),
-  activate: makeFunctionReference<
-    "mutation",
-    {
-      warehouseId: string;
-      buildingId: string;
-      requestId: string;
-      expectedVersion: number;
-    },
-    TenantOutcome<StorageWriteOutcome>
-  >("storageLayouts/writes:activateStorageBuilding"),
-  archive: makeFunctionReference<
-    "mutation",
-    {
-      warehouseId: string;
-      buildingId: string;
-      requestId: string;
-      expectedVersion: number;
-    },
-    TenantOutcome<StorageWriteOutcome>
-  >("storageLayouts/writes:archiveStorageBuilding"),
-  createZone: makeFunctionReference<
-    "mutation",
-    {
-      warehouseId: string;
-      buildingId: string;
-      floorNumber: number;
-      requestId: string;
-      label: string;
-      xMm: number;
-      yMm: number;
-      widthMm: number;
-      depthMm: number;
-      maxStackHeightMm: number;
-    },
-    TenantOutcome<StorageWriteOutcome>
-  >("storageLayouts/zones:createStorageZone"),
-  updateZone: makeFunctionReference<
-    "mutation",
-    {
-      warehouseId: string;
-      zoneId: string;
-      requestId: string;
-      label: string;
-      xMm: number;
-      yMm: number;
-      widthMm: number;
-      depthMm: number;
-      maxStackHeightMm: number;
-    },
-    TenantOutcome<StorageWriteOutcome>
-  >("storageLayouts/zones:updateStorageZone"),
-  archiveZone: makeFunctionReference<
-    "mutation",
-    { warehouseId: string; zoneId: string; requestId: string },
-    TenantOutcome<StorageWriteOutcome>
-  >("storageLayouts/zones:archiveStorageZone"),
-  placeHandlingUnit: makeFunctionReference<
-    "mutation",
-    {
-      warehouseId: string;
-      requestId: string;
-      lpn: string;
-      zoneScan: string;
-      widthMm: number;
-      depthMm: number;
-      heightMm: number;
-    },
-    TenantOutcome<StoragePlacementOutcome>
-  >("storageLayouts/zones:placeHandlingUnit"),
+  list: clientRef(api.storageLayouts.catalogue.listStorageBuildings),
+  get: clientRef(api.storageLayouts.catalogue.getStorageBuilding),
+  create: clientRef(api.storageLayouts.writes.createStorageBuilding),
+  update: clientRef(api.storageLayouts.writes.updateStorageBuilding),
+  changeFloorCount: clientRef(
+    api.storageLayouts.writes.changeStorageFloorCount,
+  ),
+  saveFloor: clientRef(api.storageLayouts.writes.saveStorageFloor),
+  activate: clientRef(api.storageLayouts.writes.activateStorageBuilding),
+  archive: clientRef(api.storageLayouts.writes.archiveStorageBuilding),
+  createZone: clientRef(api.storageLayouts.zones.createStorageZone),
+  updateZone: clientRef(api.storageLayouts.zones.updateStorageZone),
+  archiveZone: clientRef(api.storageLayouts.zones.archiveStorageZone),
+  placeHandlingUnit: clientRef(api.storageLayouts.zones.placeHandlingUnit),
 });

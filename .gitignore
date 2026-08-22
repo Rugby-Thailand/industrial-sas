@@ -47,10 +47,10 @@ dist/
 /next-env.d.ts
 
 # ---------------------------------------------------------------------------
-# Convex (local / generated)
+# Convex local state. Generated API/type files are committed so clean checkouts
+# use the server's inferred function contracts without hand-maintained mirrors.
 # ---------------------------------------------------------------------------
 .convex/
-convex/_generated/
 
 # ---------------------------------------------------------------------------
 # Environment files — never commit real values

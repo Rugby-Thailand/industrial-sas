@@ -49,16 +49,20 @@ import {
   written,
 } from "../lib/writeEnvelope";
 import {
+  listArgs,
+  pageOf,
+  pageOptions,
+  pageRefusal,
+  pageRequestOf,
+} from "../lib/listEnvelope";
+import {
   receiptClassification,
   receiptLineKind,
   signedQuantity,
   stockStatus,
 } from "../lib/validators";
 import { RECEIVING_LOCATION_TYPES } from "../masterData/catalogue";
-import {
-  MAX_JOB_PAGE_SIZE,
-  makeJobPageRequest,
-} from "../model/inventory/jobPage";
+import { MAX_JOB_PAGE_SIZE } from "../model/inventory/jobPage";
 import {
   NO_TOLERANCE,
   assessReceipt,
@@ -1177,44 +1181,19 @@ const receiptLineValidator = v.object({
   transactionId: v.id("inventoryTransactions"),
 });
 
-const pageOf = <Row extends Parameters<typeof v.array>[0]>(row: Row) =>
-  v.union(
-    v.object({
-      ok: v.literal(true),
-      items: v.array(row),
-      nextCursor: v.union(v.string(), v.null()),
-      complete: v.boolean(),
-    }),
-    v.object({ ok: v.literal(false), error: v.object({ code: v.string() }) }),
-  );
-
-const pageRequest = (args: {
-  readonly maxPageSize?: number;
-  readonly cursor?: string;
-}) =>
-  makeJobPageRequest({
-    ...(args.maxPageSize === undefined
-      ? {}
-      : { maxPageSize: args.maxPageSize }),
-    ...(args.cursor === undefined ? {} : { cursor: args.cursor }),
-  });
-
 /** Receipts at one site, most recent first by index order. */
 export const listReceipts = queryWithOrg({
   args: {
     warehouseId: v.id("warehouses"),
-    maxPageSize: v.optional(v.number()),
-    cursor: v.optional(v.string()),
+    ...listArgs,
   },
   returns: pageOf(receiptValidator),
   permissionCode: "receiving.receipt.read",
   target: { table: "receipts" },
   warehouseId: ({ warehouseId }) => warehouseId,
   handler: async (ctx, args) => {
-    const request = pageRequest(args);
-    if (!request.ok) {
-      return { ok: false as const, error: { code: request.error.code } };
-    }
+    const request = pageRequestOf(args);
+    if (!request.ok) return pageRefusal(request.error.code);
 
     const page = await ctx.tenantDb
       .byIndex<ReceiptDocument & { readonly occurredAt: number }>(
@@ -1222,12 +1201,7 @@ export const listReceipts = queryWithOrg({
         "by_orgId_warehouseId_occurredAt",
         [{ field: "warehouseId", value: args.warehouseId }],
       )
-      .page({
-        limit: request.value.maxPageSize,
-        ...(request.value.cursor === null
-          ? {}
-          : { cursor: request.value.cursor }),
-      });
+      .page(pageOptions(request.value));
 
     /*
      * The order number behind each receipt, read once per distinct order.
@@ -1336,22 +1310,19 @@ export const listReceiptLines = queryWithOrg({
   args: {
     warehouseId: v.id("warehouses"),
     receiptId: v.id("receipts"),
-    maxPageSize: v.optional(v.number()),
-    cursor: v.optional(v.string()),
+    ...listArgs,
   },
   returns: pageOf(receiptLineValidator),
   permissionCode: "receiving.receipt.read",
   target: { table: "receipts", id: ({ receiptId }) => receiptId },
   warehouseId: ({ warehouseId }) => warehouseId,
   handler: async (ctx, args) => {
-    const request = pageRequest(args);
-    if (!request.ok) {
-      return { ok: false as const, error: { code: request.error.code } };
-    }
+    const request = pageRequestOf(args);
+    if (!request.ok) return pageRefusal(request.error.code);
 
     const receipt = await ctx.tenantDb.get("receipts", args.receiptId);
     if (receipt === null) {
-      return { ok: false as const, error: { code: "REFERENCE_NOT_FOUND" } };
+      return pageRefusal("REFERENCE_NOT_FOUND");
     }
 
     const page = await ctx.tenantDb
@@ -1363,12 +1334,7 @@ export const listReceiptLines = queryWithOrg({
       >("receiptLines", "by_orgId_receiptId", [
         { field: "receiptId", value: args.receiptId },
       ])
-      .page({
-        limit: request.value.maxPageSize,
-        ...(request.value.cursor === null
-          ? {}
-          : { cursor: request.value.cursor }),
-      });
+      .page(pageOptions(request.value));
 
     return {
       ok: true as const,

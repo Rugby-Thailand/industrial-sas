@@ -1,27 +1,16 @@
 /**
  * Typed references to the inbound slice's functions, and their wire types.
  *
- * The same reasoning as `masterDataApi.ts`: `convex/_generated/` is a git-ignored
- * artifact of `convex dev`, absent in CI and on any machine that has not
- * provisioned a deployment, so the browser names server functions through
- * `makeFunctionReference` and a drift test re-reads the server modules to prove
- * the names still resolve.
+ * Function references come from Convex code generation. The named row and
+ * outcome types remain the presentation vocabulary shared by inbound screens.
  *
- * Every write reference carries a `requestId` in its argument type. The key is
- * what makes a retry a replay instead of a duplicate receipt, so a caller that
- * could forget it would be a caller that could double-receive a pallet.
- *
- * Three of these functions answer something wider than the shared write
- * envelope — a receipt posting reports its classification and where the stock
- * landed, a claim reports what was recommended, a confirmation reports whether
- * it was an override. Those extra fields are the whole point of the screens that
- * call them, so they get their own outcome types rather than being flattened
- * into `{written, documentId}`.
+ * Every write reference infers its required `requestId` from the server. The key
+ * makes a retry a replay instead of a duplicate receipt, so it must not be
+ * restated in a second client-owned contract that can drift.
  */
-import { makeFunctionReference } from "convex/server";
+import { api } from "../../../convex/_generated/api";
 
-import type { TenantOutcome } from "./ledgerApi";
-import type { MasterDataPage } from "./masterDataApi";
+import { clientRef } from "./clientRef";
 
 /* -------------------------------------------------------------------------- */
 /* Row shapes                                                                  */
@@ -222,338 +211,66 @@ export type ImportPreviewOutcome =
   | { readonly ok: false; readonly error: { readonly code: string } };
 
 /* -------------------------------------------------------------------------- */
-/* Write outcomes                                                              */
-/* -------------------------------------------------------------------------- */
-
-/** The refusal shape shared with the master-data writes. */
-export interface InboundWriteError {
-  readonly code: string;
-  readonly field?: string;
-  readonly reason?: string;
-  readonly table?: string;
-  readonly status?: string;
-  readonly requestId?: string;
-}
-
-export type InboundWriteOutcome =
-  | {
-      readonly written: true;
-      readonly documentId: string;
-      readonly replayed: boolean;
-    }
-  | { readonly written: false; readonly error: InboundWriteError };
-
-/** What a receipt posting reports beyond "it was written". */
-export type ReceiptPostOutcome =
-  | {
-      readonly written: true;
-      readonly documentId: string;
-      readonly replayed: boolean;
-      readonly transactionId: string;
-      readonly classification: ReceiptClassification;
-      readonly kind: ReceiptLineKind;
-      readonly stockStatus: "AVAILABLE" | "QC_HOLD";
-      readonly baseMinorUnits: number;
-      readonly plausibleDuplicate: boolean;
-      readonly inspectionId?: string;
-    }
-  | { readonly written: false; readonly error: InboundWriteError };
-
-export type ImportChunkOutcome =
-  | {
-      readonly written: true;
-      readonly documentId: string;
-      readonly replayed: boolean;
-      readonly createdCount: number;
-      readonly skippedCount: number;
-      readonly nextCursor: number | null;
-      readonly complete: boolean;
-    }
-  | { readonly written: false; readonly error: InboundWriteError };
-
-export type DispositionOutcome =
-  | {
-      readonly written: true;
-      readonly documentId: string;
-      readonly replayed: boolean;
-      readonly status: InspectionStatus;
-      readonly transactionId?: string;
-      readonly toStatus: string;
-    }
-  | { readonly written: false; readonly error: InboundWriteError };
-
-export type ClaimOutcome =
-  | {
-      readonly written: true;
-      readonly documentId: string;
-      readonly replayed: boolean;
-      readonly alreadyHeld: boolean;
-      readonly recommendedLocationId?: string;
-    }
-  | { readonly written: false; readonly error: InboundWriteError };
-
-export type ConfirmOutcome =
-  | {
-      readonly written: true;
-      readonly documentId: string;
-      readonly replayed: boolean;
-      readonly transactionId: string;
-      readonly isOverride: boolean;
-    }
-  | { readonly written: false; readonly error: InboundWriteError };
-
-/* -------------------------------------------------------------------------- */
-/* Function paths                                                              */
-/* -------------------------------------------------------------------------- */
-
-export const INBOUND_QUERY_PATHS = Object.freeze({
-  listPurchaseOrders: "purchasing/orders:listPurchaseOrders",
-  listPurchaseOrderLines: "purchasing/orders:listPurchaseOrderLines",
-  previewPurchaseOrderImport: "purchasing/orders:previewPurchaseOrderImport",
-  getReceipt: "receiving/receipts:getReceipt",
-  listReceipts: "receiving/receipts:listReceipts",
-  listReceiptLines: "receiving/receipts:listReceiptLines",
-  listInspections: "quality/inspections:listInspections",
-  listPutawayTasks: "putaway/tasks:listPutawayTasks",
-  recommendPutawayLocations: "putaway/tasks:recommendPutawayLocations",
-  listPrintJobsForTarget: "labels/print:listPrintJobsForTarget",
-});
-
-export const INBOUND_MUTATION_PATHS = Object.freeze({
-  createPurchaseOrder: "purchasing/orders:createPurchaseOrder",
-  addPurchaseOrderLine: "purchasing/orders:addPurchaseOrderLine",
-  closeLineShort: "purchasing/orders:closeLineShort",
-  applyPurchaseOrderImportChunk:
-    "purchasing/orders:applyPurchaseOrderImportChunk",
-  openReceipt: "receiving/receipts:openReceipt",
-  postReceiptLine: "receiving/receipts:postReceiptLine",
-  raiseReceivingException: "receiving/receipts:raiseReceivingException",
-  postExceptionReceiptLine: "receiving/receipts:postExceptionReceiptLine",
-  buildHandlingUnit: "receiving/receipts:buildHandlingUnit",
-  submitDisposition: "quality/inspections:submitDisposition",
-  approveDisposition: "quality/inspections:approveDisposition",
-  generateLabel: "labels/print:generateLabel",
-  reprintLabel: "labels/print:reprintLabel",
-  claimPutawayTask: "putaway/tasks:claimPutawayTask",
-  confirmPutaway: "putaway/tasks:confirmPutaway",
-});
-
-/* -------------------------------------------------------------------------- */
 /* Query references                                                            */
 /* -------------------------------------------------------------------------- */
 
-/** Every inbound list is warehouse-scoped: a delivery arrives at a site. */
-export type WarehousePageArgs = {
-  readonly warehouseId: string;
-  readonly maxPageSize?: number;
-  readonly cursor?: string;
-};
+export const listPurchaseOrdersRef = clientRef(
+  api.purchasing.orders.listPurchaseOrders,
+);
+export const listPurchaseOrderLinesRef = clientRef(
+  api.purchasing.orders.listPurchaseOrderLines,
+);
+export const previewPurchaseOrderImportRef = clientRef(
+  api.purchasing.orders.previewPurchaseOrderImport,
+);
 
-export const listPurchaseOrdersRef = makeFunctionReference<
-  "query",
-  WarehousePageArgs & { readonly status?: PurchaseOrderStatus },
-  TenantOutcome<MasterDataPage<PurchaseOrderRow>>
->(INBOUND_QUERY_PATHS.listPurchaseOrders);
-
-export const listPurchaseOrderLinesRef = makeFunctionReference<
-  "query",
-  WarehousePageArgs & {
-    readonly purchaseOrderId: string;
-    readonly status?: PurchaseOrderLineStatus;
-  },
-  TenantOutcome<MasterDataPage<PurchaseOrderLineRow>>
->(INBOUND_QUERY_PATHS.listPurchaseOrderLines);
-
-export const previewPurchaseOrderImportRef = makeFunctionReference<
-  "query",
-  {
-    readonly warehouseId: string;
-    readonly batchRef: string;
-    readonly text: string;
-  },
-  TenantOutcome<ImportPreviewOutcome>
->(INBOUND_QUERY_PATHS.previewPurchaseOrderImport);
-
-/** One receipt, or `{found:false}` — which is also another tenant's answer. */
-export type ReceiptDetail =
-  | { readonly found: true; readonly receipt: ReceiptRow }
-  | { readonly found: false };
-
-export const getReceiptRef = makeFunctionReference<
-  "query",
-  { readonly warehouseId: string; readonly receiptId: string },
-  TenantOutcome<ReceiptDetail>
->(INBOUND_QUERY_PATHS.getReceipt);
-
-export const listReceiptsRef = makeFunctionReference<
-  "query",
-  WarehousePageArgs,
-  TenantOutcome<MasterDataPage<ReceiptRow>>
->(INBOUND_QUERY_PATHS.listReceipts);
-
-export const listReceiptLinesRef = makeFunctionReference<
-  "query",
-  WarehousePageArgs & { readonly receiptId: string },
-  TenantOutcome<MasterDataPage<ReceiptLineRow>>
->(INBOUND_QUERY_PATHS.listReceiptLines);
-
-export const listInspectionsRef = makeFunctionReference<
-  "query",
-  WarehousePageArgs & { readonly status?: InspectionStatus },
-  TenantOutcome<MasterDataPage<InspectionRow>>
->(INBOUND_QUERY_PATHS.listInspections);
-
-export const listPutawayTasksRef = makeFunctionReference<
-  "query",
-  WarehousePageArgs & { readonly status?: PutawayTaskStatus },
-  TenantOutcome<MasterDataPage<PutawayTaskRow>>
->(INBOUND_QUERY_PATHS.listPutawayTasks);
-
-export const recommendPutawayLocationsRef = makeFunctionReference<
-  "query",
-  { readonly warehouseId: string; readonly putawayTaskId: string },
-  TenantOutcome<PutawayRecommendationOutcome>
->(INBOUND_QUERY_PATHS.recommendPutawayLocations);
-
-export const listPrintJobsForTargetRef = makeFunctionReference<
-  "query",
-  WarehousePageArgs & {
-    readonly targetKind: string;
-    readonly targetId: string;
-  },
-  TenantOutcome<MasterDataPage<PrintJobRow>>
->(INBOUND_QUERY_PATHS.listPrintJobsForTarget);
+export const getReceiptRef = clientRef(api.receiving.receipts.getReceipt);
+export const listReceiptsRef = clientRef(api.receiving.receipts.listReceipts);
+export const listReceiptLinesRef = clientRef(
+  api.receiving.receipts.listReceiptLines,
+);
+export const listInspectionsRef = clientRef(
+  api.quality.inspections.listInspections,
+);
+export const listPutawayTasksRef = clientRef(
+  api.putaway.tasks.listPutawayTasks,
+);
+export const recommendPutawayLocationsRef = clientRef(
+  api.putaway.tasks.recommendPutawayLocations,
+);
+export const listPrintJobsForTargetRef = clientRef(
+  api.labels.print.listPrintJobsForTarget,
+);
 
 /* -------------------------------------------------------------------------- */
 /* Mutation references                                                         */
 /* -------------------------------------------------------------------------- */
 
-const writeRef = <Args extends Record<string, unknown>, Outcome>(
-  path: string,
-) => makeFunctionReference<"mutation", Args, TenantOutcome<Outcome>>(path);
-
-export const createPurchaseOrderRef = writeRef<
-  {
-    requestId: string;
-    warehouseId: string;
-    poNumber: string;
-    supplierId: string;
-    externalRef?: string;
-  },
-  InboundWriteOutcome
->(INBOUND_MUTATION_PATHS.createPurchaseOrder);
-
-export const addPurchaseOrderLineRef = writeRef<
-  {
-    requestId: string;
-    warehouseId: string;
-    purchaseOrderId: string;
-    lineNumber: number;
-    itemId: string;
-    quantity: Quantity;
-  },
-  InboundWriteOutcome
->(INBOUND_MUTATION_PATHS.addPurchaseOrderLine);
-
-export const closeLineShortRef = writeRef<
-  {
-    requestId: string;
-    warehouseId: string;
-    purchaseOrderLineId: string;
-    reasonCodeId: string;
-  },
-  InboundWriteOutcome
->(INBOUND_MUTATION_PATHS.closeLineShort);
-
-export const applyPurchaseOrderImportChunkRef = writeRef<
-  {
-    requestId: string;
-    warehouseId: string;
-    purchaseOrderId: string;
-    batchRef: string;
-    text: string;
-    cursor?: number;
-    chunkSize?: number;
-  },
-  ImportChunkOutcome
->(INBOUND_MUTATION_PATHS.applyPurchaseOrderImportChunk);
-
-export const openReceiptRef = writeRef<
-  {
-    requestId: string;
-    warehouseId: string;
-    receiptNumber: string;
-    purchaseOrderId?: string;
-  },
-  InboundWriteOutcome
->(INBOUND_MUTATION_PATHS.openReceipt);
-
-export const postReceiptLineRef = writeRef<
-  {
-    requestId: string;
-    warehouseId: string;
-    receiptId: string;
-    locationId: string;
-    itemId: string;
-    purchaseOrderLineId: string;
-    quantity: Quantity;
-    lotCode?: string;
-    manufactureDate?: string;
-    expirationDate?: string;
-    handlingUnitId?: string;
-  },
-  ReceiptPostOutcome
->(INBOUND_MUTATION_PATHS.postReceiptLine);
-
-export const raiseReceivingExceptionRef = writeRef<
-  {
-    requestId: string;
-    warehouseId: string;
-    kind: ReceiptLineKind;
-    itemId?: string;
-    purchaseOrderId?: string;
-    reasonCodeId: string;
-    note?: string;
-  },
-  InboundWriteOutcome
->(INBOUND_MUTATION_PATHS.raiseReceivingException);
-
-export const postExceptionReceiptLineRef = writeRef<
-  {
-    requestId: string;
-    warehouseId: string;
-    receiptId: string;
-    locationId: string;
-    itemId: string;
-    exceptionId: string;
-    quantity: Quantity;
-    lotCode?: string;
-    expirationDate?: string;
-  },
-  ReceiptPostOutcome
->(INBOUND_MUTATION_PATHS.postExceptionReceiptLine);
-
-export const buildHandlingUnitRef = writeRef<
-  {
-    requestId: string;
-    warehouseId: string;
-    lpn: string;
-    locationId: string;
-    receiptLineIds: readonly string[];
-  },
-  InboundWriteOutcome
->(INBOUND_MUTATION_PATHS.buildHandlingUnit);
-
-export const submitDispositionRef = writeRef<
-  {
-    requestId: string;
-    warehouseId: string;
-    inspectionId: string;
-    disposition: QcDisposition;
-    reasonCodeId: string;
-  },
-  DispositionOutcome
->(INBOUND_MUTATION_PATHS.submitDisposition);
+export const createPurchaseOrderRef = clientRef(
+  api.purchasing.orders.createPurchaseOrder,
+);
+export const addPurchaseOrderLineRef = clientRef(
+  api.purchasing.orders.addPurchaseOrderLine,
+);
+export const closeLineShortRef = clientRef(
+  api.purchasing.orders.closeLineShort,
+);
+export const applyPurchaseOrderImportChunkRef = clientRef(
+  api.purchasing.orders.applyPurchaseOrderImportChunk,
+);
+export const openReceiptRef = clientRef(api.receiving.receipts.openReceipt);
+export const postReceiptLineRef = clientRef(
+  api.receiving.receipts.postReceiptLine,
+);
+export const raiseReceivingExceptionRef = clientRef(
+  api.receiving.receipts.raiseReceivingException,
+);
+export const buildHandlingUnitRef = clientRef(
+  api.receiving.receipts.buildHandlingUnit,
+);
+export const submitDispositionRef = clientRef(
+  api.quality.inspections.submitDisposition,
+);
 
 /**
  * Approving a parked disposition.
@@ -563,47 +280,12 @@ export const submitDispositionRef = writeRef<
  * cannot see the button learns nothing, and one who is told "denied — quote this
  * request" learns that a second person is required.
  */
-export const approveDispositionRef = writeRef<
-  { requestId: string; warehouseId: string; inspectionId: string },
-  DispositionOutcome
->(INBOUND_MUTATION_PATHS.approveDisposition);
-
-export const generateLabelRef = writeRef<
-  {
-    requestId: string;
-    warehouseId: string;
-    labelTemplateId: string;
-    targetKind: string;
-    targetId: string;
-    fields: Record<string, string>;
-  },
-  InboundWriteOutcome
->(INBOUND_MUTATION_PATHS.generateLabel);
-
-export const reprintLabelRef = writeRef<
-  {
-    requestId: string;
-    warehouseId: string;
-    labelTemplateId: string;
-    targetKind: string;
-    targetId: string;
-    fields: Record<string, string>;
-  },
-  InboundWriteOutcome
->(INBOUND_MUTATION_PATHS.reprintLabel);
-
-export const claimPutawayTaskRef = writeRef<
-  { requestId: string; warehouseId: string; putawayTaskId: string },
-  ClaimOutcome
->(INBOUND_MUTATION_PATHS.claimPutawayTask);
-
-export const confirmPutawayRef = writeRef<
-  {
-    requestId: string;
-    warehouseId: string;
-    putawayTaskId: string;
-    chosenLocationId: string;
-    overrideReasonCodeId?: string;
-  },
-  ConfirmOutcome
->(INBOUND_MUTATION_PATHS.confirmPutaway);
+export const approveDispositionRef = clientRef(
+  api.quality.inspections.approveDisposition,
+);
+export const generateLabelRef = clientRef(api.labels.print.generateLabel);
+export const reprintLabelRef = clientRef(api.labels.print.reprintLabel);
+export const claimPutawayTaskRef = clientRef(
+  api.putaway.tasks.claimPutawayTask,
+);
+export const confirmPutawayRef = clientRef(api.putaway.tasks.confirmPutaway);

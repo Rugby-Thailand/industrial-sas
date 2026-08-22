@@ -31,7 +31,7 @@ describe("catalogue authentication gate", () => {
   it("does not issue a tenant query before Convex authenticates", () => {
     renderWithIntl(
       <ActiveReasonCodes
-        scope="RECEIVING_EXCEPTION"
+        scope="ADJUSTMENT"
         emptyTitle="ไม่มีรหัสเหตุผล"
         emptyBody="ต้องตั้งค่ารหัสเหตุผลก่อน"
         emptyTestId="reason-codes-empty"
