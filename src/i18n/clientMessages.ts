@@ -112,7 +112,6 @@ export const ROUTE_NAMESPACES = {
     "Occupancy",
     "OccupancyBand",
     "Panel",
-    "Setup",
     "Workspace",
   ],
   "(desktop)/inventory": [

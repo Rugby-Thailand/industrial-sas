@@ -7,11 +7,76 @@ import {
   unconfiguredEnvironment,
 } from "../../../tests/fixtures/intl-render";
 
+import { resolveAppEnvironment } from "@/lib/environment";
+
 import { SetupChecklist } from "./SetupChecklist";
 
+const backendMissingEnvironment = resolveAppEnvironment({
+  clerkPublishableKey: "pk_test_Zm9vLWJhci0xMy5jbGVyay5hY2NvdW50cy5kZXYk",
+});
+
+const identityMissingEnvironment = resolveAppEnvironment({
+  convexUrl: "https://example.convex.cloud",
+});
+
 describe("SetupChecklist", () => {
-  it("names each missing dependency separately", () => {
-    renderWithIntl(<SetupChecklist />, {
+  it("shows only ready confirmation when every dependency is configured", () => {
+    const { container } = renderWithIntl(<SetupChecklist />, {
+      environment: configuredEnvironment,
+    });
+
+    expect(
+      screen.getByText("ตั้งค่าแบ็กเอนด์ Convex แล้ว"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("ตั้งค่าผู้ให้บริการตัวตนแล้ว"),
+    ).toBeInTheDocument();
+    expect(container.textContent).not.toContain("NEXT_PUBLIC_CONVEX_URL");
+    expect(container.textContent).not.toContain(
+      "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
+    );
+    expect(container.textContent).not.toContain(".env.local");
+    expect(container.textContent).not.toContain(
+      "ไม่มีทางลัดสำหรับข้ามการยืนยันตัวตน",
+    );
+  });
+
+  it("gives backend remediation without attaching identity remediation to its ready row", () => {
+    const { container } = renderWithIntl(<SetupChecklist />, {
+      environment: backendMissingEnvironment,
+    });
+
+    expect(
+      screen.getByText("ยังไม่ได้ตั้งค่าแบ็กเอนด์ Convex"),
+    ).toBeInTheDocument();
+    expect(container.textContent).toContain("NEXT_PUBLIC_CONVEX_URL");
+    expect(
+      screen.getByText("ตั้งค่าผู้ให้บริการตัวตนแล้ว"),
+    ).toBeInTheDocument();
+    expect(container.textContent).not.toContain(
+      "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
+    );
+  });
+
+  it("gives identity remediation without attaching backend remediation to its ready row", () => {
+    const { container } = renderWithIntl(<SetupChecklist />, {
+      environment: identityMissingEnvironment,
+    });
+
+    expect(
+      screen.getByText("ตั้งค่าแบ็กเอนด์ Convex แล้ว"),
+    ).toBeInTheDocument();
+    expect(container.textContent).not.toContain("NEXT_PUBLIC_CONVEX_URL");
+    expect(
+      screen.getByText("ยังไม่ได้ตั้งค่าผู้ให้บริการตัวตน"),
+    ).toBeInTheDocument();
+    expect(container.textContent).toContain(
+      "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
+    );
+  });
+
+  it("names and explains both dependencies when both are missing", () => {
+    const { container } = renderWithIntl(<SetupChecklist />, {
       environment: unconfiguredEnvironment,
     });
 
@@ -21,42 +86,19 @@ describe("SetupChecklist", () => {
     expect(
       screen.getByText("ยังไม่ได้ตั้งค่าผู้ให้บริการตัวตน"),
     ).toBeInTheDocument();
-  });
-
-  it("reports a configured dependency as ready", () => {
-    renderWithIntl(<SetupChecklist />, { environment: configuredEnvironment });
-
-    expect(
-      screen.getByText("ตั้งค่าแบ็กเอนด์ Convex แล้ว"),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText("ตั้งค่าผู้ให้บริการตัวตนแล้ว"),
-    ).toBeInTheDocument();
-  });
-
-  it("states that there is no sign-in bypass", () => {
-    /*
-     * The reader of this screen is exactly the person about to look for a
-     * development shortcut past authentication. Saying plainly that none exists
-     * is cheaper than them finding a way to add one.
-     */
-    renderWithIntl(<SetupChecklist />, {
-      environment: unconfiguredEnvironment,
-    });
-
-    expect(
-      screen.getByText(/ไม่มีทางลัดสำหรับข้ามการยืนยันตัวตน/),
-    ).toBeInTheDocument();
+    expect(container.textContent).toContain("NEXT_PUBLIC_CONVEX_URL");
+    expect(container.textContent).toContain(
+      "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
+    );
+    expect(container.textContent).toContain(
+      "คัดลอก .env.example ไปเป็น .env.local",
+    );
+    expect(container.textContent).toContain(
+      "ไม่มีทางลัดสำหรับข้ามการยืนยันตัวตน",
+    );
   });
 
   it("leaves the introduction to whichever screen mounted it", () => {
-    /*
-     * The setup page states `Setup.intro` in its header, the dashboard states it
-     * above its system-state section, and the sign-in page explains itself in
-     * its own notice. The checklist repeating it printed the same sentence twice
-     * on the same screen — the P2 finding. The rows below still carry the whole
-     * of what is missing, so nothing was lost with it.
-     */
     const { container } = renderWithIntl(<SetupChecklist />, {
       environment: unconfiguredEnvironment,
     });
@@ -64,17 +106,13 @@ describe("SetupChecklist", () => {
     expect(container.textContent).not.toContain(
       "แอปพลิเคชันนี้ต้องพึ่งบริการภายนอกที่ยังไม่ได้กำหนดค่าในเครื่องนี้",
     );
-    expect(container.textContent).toContain(
-      "คัดลอก .env.example ไปเป็น .env.local",
-    );
   });
 
-  it("names no secret value, only variable names", () => {
+  it("never renders configured secret values", () => {
     const { container } = renderWithIntl(<SetupChecklist />, {
       environment: configuredEnvironment,
     });
 
-    expect(container.textContent).toContain("NEXT_PUBLIC_CONVEX_URL");
     expect(container.textContent).not.toContain(
       configuredEnvironment.convexUrl,
     );

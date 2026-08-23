@@ -7,6 +7,7 @@ vi.mock("@/i18n/navigation", () => navigationMock);
 
 const advance = vi.fn();
 vi.mock("convex/react", () => ({
+  useConvexAuth: () => ({ isAuthenticated: true, isLoading: false }),
   useMutation: () => advance,
   useQuery: () => undefined,
 }));

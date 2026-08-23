@@ -67,20 +67,42 @@ function ServerTransferWorkspace({
   ) {
     return <LedgerPanelStatus state={{ kind: "LOADING" }} />;
   }
-  if (
-    !source.ok ||
-    !source.value.ok ||
-    !destination.ok ||
-    !destination.value.ok ||
-    !warehouses.ok ||
-    !warehouses.value.ok ||
-    !items.ok ||
-    !items.value.ok
-  ) {
+  if (!source.ok) {
     return (
       <LedgerPanelStatus
         state={{ kind: "DENIED", requestId: source.requestId }}
       />
+    );
+  }
+  if (!destination.ok) {
+    return (
+      <LedgerPanelStatus
+        state={{ kind: "DENIED", requestId: destination.requestId }}
+      />
+    );
+  }
+  if (!warehouses.ok) {
+    return (
+      <LedgerPanelStatus
+        state={{ kind: "DENIED", requestId: warehouses.requestId }}
+      />
+    );
+  }
+  if (!items.ok) {
+    return (
+      <LedgerPanelStatus
+        state={{ kind: "DENIED", requestId: items.requestId }}
+      />
+    );
+  }
+  if (
+    !source.value.ok ||
+    !destination.value.ok ||
+    !warehouses.value.ok ||
+    !items.value.ok
+  ) {
+    return (
+      <LedgerPanelStatus state={{ kind: "ERROR", code: "TRANSFER_READ" }} />
     );
   }
   return (
@@ -110,7 +132,7 @@ function TransferWorkspace({
   const t = useTranslations("Transfers");
   const sourceOptions = sourceTransfers.map((transfer) => ({
     value: transfer.transferRequestId,
-    label: `${transfer.transferNumber} · ${transfer.status}`,
+    label: `${transfer.transferNumber} · ${t(`status.${transfer.status}`)}`,
   }));
   const itemOptions = items
     .filter((item) => item.status === "ACTIVE")
@@ -296,7 +318,9 @@ function TransferQueue({
               <span className="font-mono font-semibold">
                 {transfer.transferNumber}
               </span>
-              <span className="ml-2 text-muted">{transfer.status}</span>
+              <span className="ml-2 text-muted">
+                {t(`status.${transfer.status}`)}
+              </span>
               <p className="mt-1 text-muted">{transfer.purpose}</p>
             </li>
           ))}
@@ -347,17 +371,31 @@ function ServerTransferExecution({
   ) {
     return <LedgerPanelStatus state={{ kind: "LOADING" }} />;
   }
-  if (
-    !lines.ok ||
-    !lines.value.ok ||
-    !locations.ok ||
-    !locations.value.ok ||
-    !discrepancies.ok ||
-    !discrepancies.value.ok
-  ) {
+  if (!lines.ok) {
     return (
       <LedgerPanelStatus
         state={{ kind: "DENIED", requestId: lines.requestId }}
+      />
+    );
+  }
+  if (!locations.ok) {
+    return (
+      <LedgerPanelStatus
+        state={{ kind: "DENIED", requestId: locations.requestId }}
+      />
+    );
+  }
+  if (!discrepancies.ok) {
+    return (
+      <LedgerPanelStatus
+        state={{ kind: "DENIED", requestId: discrepancies.requestId }}
+      />
+    );
+  }
+  if (!lines.value.ok || !locations.value.ok || !discrepancies.value.ok) {
+    return (
+      <LedgerPanelStatus
+        state={{ kind: "ERROR", code: "TRANSFER_EXECUTION_READ" }}
       />
     );
   }

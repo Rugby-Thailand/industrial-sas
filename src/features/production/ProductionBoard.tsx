@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "convex/react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 
 import { LedgerPanelStatus } from "@/components/system/LedgerPanelStatus";
 import { QueryGate } from "@/components/system/QueryGate";
@@ -29,6 +29,8 @@ import {
   reportProductionOperationRef,
   type ProductionOrderRow,
 } from "@/lib/convex/productionApi";
+import type { AppLocale } from "@/i18n/routing";
+import { formatCount, formatInstantDate } from "@/lib/formatters";
 const tone = (status: ProductionOrderRow["status"]): BadgeTone => {
   if (status === "COMPLETE") return "success";
   if (status === "CLOSED_REJECTED" || status === "CANCELLED") return "danger";
@@ -73,20 +75,42 @@ function ServerProductionWorkspace({
   ) {
     return <LedgerPanelStatus state={{ kind: "LOADING" }} />;
   }
-  if (
-    !orders.ok ||
-    !orders.value.ok ||
-    !items.ok ||
-    !items.value.ok ||
-    !locations.ok ||
-    !locations.value.ok ||
-    !impacts.ok ||
-    !impacts.value.ok
-  ) {
+  if (!orders.ok) {
     return (
       <LedgerPanelStatus
         state={{ kind: "DENIED", requestId: orders.requestId }}
       />
+    );
+  }
+  if (!items.ok) {
+    return (
+      <LedgerPanelStatus
+        state={{ kind: "DENIED", requestId: items.requestId }}
+      />
+    );
+  }
+  if (!locations.ok) {
+    return (
+      <LedgerPanelStatus
+        state={{ kind: "DENIED", requestId: locations.requestId }}
+      />
+    );
+  }
+  if (!impacts.ok) {
+    return (
+      <LedgerPanelStatus
+        state={{ kind: "DENIED", requestId: impacts.requestId }}
+      />
+    );
+  }
+  if (
+    !orders.value.ok ||
+    !items.value.ok ||
+    !locations.value.ok ||
+    !impacts.value.ok
+  ) {
+    return (
+      <LedgerPanelStatus state={{ kind: "ERROR", code: "PRODUCTION_READ" }} />
     );
   }
   return (
@@ -516,6 +540,7 @@ function ProductionWorkspace({
 
 function ProductionCard({ order }: { readonly order: ProductionOrderRow }) {
   const t = useTranslations("Production");
+  const locale = useLocale() as AppLocale;
   const q = order.quantities;
   const percent = Math.min(100, Math.round((q.good / q.target) * 100));
   return (
@@ -530,7 +555,7 @@ function ProductionCard({ order }: { readonly order: ProductionOrderRow }) {
           </h3>
           <p className="mt-1 text-sm text-muted">
             {t("revision", { number: order.revisionNumber })} ·{" "}
-            {new Date(order.dueAt).toLocaleDateString()}
+            {formatInstantDate(order.dueAt, locale)}
           </p>
           {order.planningSource === undefined ? null : (
             <p className="mt-1 text-xs font-semibold text-accent">
@@ -567,7 +592,7 @@ function ProductionCard({ order }: { readonly order: ProductionOrderRow }) {
           <div key={key} className="rounded bg-raised p-2">
             <dt className="text-xs text-muted">{t(`quantity.${key}`)}</dt>
             <dd className="mt-1 font-mono font-semibold text-text">
-              {q[key].toLocaleString()}
+              {formatCount(q[key], locale)}
             </dd>
           </div>
         ))}

@@ -1,6 +1,7 @@
 import { act, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { readCurrentWorkspaceRef } from "@/lib/convex/workspaceApi";
 import {
   WAREHOUSE_STORAGE_KEY,
   writeStoredWarehouse,
@@ -8,9 +9,15 @@ import {
 
 import { useWorkspace, WorkspaceProvider } from "./WorkspaceProvider";
 
-const useQueryMock = vi.hoisted(() => vi.fn());
+const { useConvexAuthMock, useQueryMock } = vi.hoisted(() => ({
+  useConvexAuthMock: vi.fn(),
+  useQueryMock: vi.fn(),
+}));
 
-vi.mock("convex/react", () => ({ useQuery: useQueryMock }));
+vi.mock("convex/react", () => ({
+  useConvexAuth: useConvexAuthMock,
+  useQuery: useQueryMock,
+}));
 
 const workspaceOutcome = {
   ok: true as const,
@@ -20,6 +27,10 @@ const workspaceOutcome = {
     warehouses: [
       { id: "wh_bpu", code: "BPU", name: "Bang Pu" },
       { id: "wh_lph", code: "LPH", name: "Lamphun" },
+    ],
+    navigationPermissions: [
+      "reporting.dashboard.read",
+      "inventory.balance.read",
     ],
     complete: true,
   },
@@ -34,6 +45,23 @@ function Consumer({ index }: { readonly index: number }) {
   );
 }
 
+function State() {
+  const workspace = useWorkspace();
+  return (
+    <span data-testid="workspace-state">
+      {JSON.stringify({
+        complete: workspace.complete,
+        denied: workspace.denied,
+        loading: workspace.loading,
+        organization: workspace.organization?.id,
+        navigationPermissions: workspace.navigationPermissions,
+        permissionsReady: workspace.permissionsReady,
+        warehouses: workspace.warehouses.map((warehouse) => warehouse.id),
+      })}
+    </span>
+  );
+}
+
 const consumers = (count: number) =>
   Array.from({ length: count }, (_, index) => (
     <Consumer key={index} index={index} />
@@ -42,6 +70,10 @@ const consumers = (count: number) =>
 describe("the workspace provider", () => {
   beforeEach(() => {
     window.localStorage.clear();
+    useConvexAuthMock.mockReturnValue({
+      isAuthenticated: true,
+      isLoading: false,
+    });
     useQueryMock.mockReturnValue(workspaceOutcome);
   });
 
@@ -73,12 +105,11 @@ describe("the workspace provider", () => {
     expect(screen.getByTestId("consumer-0")).toHaveTextContent("wh_bpu");
   });
 
-  it("exposes loading without inventing workspace data", () => {
-    useQueryMock.mockReturnValue(undefined);
-    function State() {
-      const workspace = useWorkspace();
-      return <span>{workspace.loading ? "loading" : "ready"}</span>;
-    }
+  it("skips the tenant query while authentication is loading", () => {
+    useConvexAuthMock.mockReturnValue({
+      isAuthenticated: false,
+      isLoading: true,
+    });
 
     render(
       <WorkspaceProvider>
@@ -86,6 +117,114 @@ describe("the workspace provider", () => {
       </WorkspaceProvider>,
     );
 
-    expect(screen.getByText("loading")).toBeVisible();
+    expect(useQueryMock.mock.calls.at(-1)?.[0]).toBe(readCurrentWorkspaceRef);
+    expect(useQueryMock.mock.calls.at(-1)?.[1]).toBe("skip");
+    expect(screen.getByTestId("workspace-state")).toHaveTextContent(
+      JSON.stringify({
+        complete: true,
+        denied: false,
+        loading: true,
+        navigationPermissions: [],
+        permissionsReady: false,
+        warehouses: [],
+      }),
+    );
+  });
+
+  it("skips the tenant query for a signed-out session without reporting denial", () => {
+    useConvexAuthMock.mockReturnValue({
+      isAuthenticated: false,
+      isLoading: false,
+    });
+
+    render(
+      <WorkspaceProvider>
+        <State />
+      </WorkspaceProvider>,
+    );
+
+    expect(useQueryMock.mock.calls.at(-1)?.[0]).toBe(readCurrentWorkspaceRef);
+    expect(useQueryMock.mock.calls.at(-1)?.[1]).toBe("skip");
+    expect(screen.getByTestId("workspace-state")).toHaveTextContent(
+      JSON.stringify({
+        complete: true,
+        denied: false,
+        loading: false,
+        navigationPermissions: [],
+        permissionsReady: false,
+        warehouses: [],
+      }),
+    );
+  });
+
+  it("exposes loading without inventing workspace data once authenticated", () => {
+    useQueryMock.mockReturnValue(undefined);
+
+    render(
+      <WorkspaceProvider>
+        <State />
+      </WorkspaceProvider>,
+    );
+
+    expect(useQueryMock.mock.calls.at(-1)?.[0]).toBe(readCurrentWorkspaceRef);
+    expect(useQueryMock.mock.calls.at(-1)?.[1]).toEqual({});
+    expect(screen.getByTestId("workspace-state")).toHaveTextContent(
+      JSON.stringify({
+        complete: true,
+        denied: false,
+        loading: true,
+        navigationPermissions: [],
+        permissionsReady: false,
+        warehouses: [],
+      }),
+    );
+  });
+
+  it("exposes an authenticated workspace result", () => {
+    render(
+      <WorkspaceProvider>
+        <State />
+      </WorkspaceProvider>,
+    );
+
+    expect(screen.getByTestId("workspace-state")).toHaveTextContent(
+      JSON.stringify({
+        complete: true,
+        denied: false,
+        loading: false,
+        organization: "org_1",
+        navigationPermissions: [
+          "reporting.dashboard.read",
+          "inventory.balance.read",
+        ],
+        permissionsReady: true,
+        warehouses: ["wh_bpu", "wh_lph"],
+      }),
+    );
+  });
+
+  it("reports a tenant denial only after authentication succeeds", () => {
+    useQueryMock.mockReturnValue({
+      ok: false,
+      error: { code: "FORBIDDEN", message: "Access denied" },
+      requestId: "req_denied",
+    });
+
+    render(
+      <WorkspaceProvider>
+        <State />
+      </WorkspaceProvider>,
+    );
+
+    expect(screen.getByTestId("workspace-state")).toHaveTextContent(
+      JSON.stringify({
+        complete: true,
+        denied: true,
+        loading: false,
+        navigationPermissions: [],
+        permissionsReady: false,
+        warehouses: [],
+      }),
+    );
   });
 });

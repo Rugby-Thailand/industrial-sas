@@ -15,6 +15,8 @@ export interface OrganizationSummary {
 export interface WorkspaceSnapshot {
   readonly organization: OrganizationSummary;
   readonly warehouses: readonly WarehouseOption[];
+  /** Bounded grants used only to remove destinations that cannot be opened. */
+  readonly navigationPermissions: readonly string[];
   /** False when the membership has more warehouses than this answer includes. */
   readonly complete: boolean;
 }

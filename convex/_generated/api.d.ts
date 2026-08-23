@@ -65,6 +65,7 @@ import type * as lib_validators from "../lib/validators.js";
 import type * as lib_writeEnvelope from "../lib/writeEnvelope.js";
 import type * as masterData_catalogue from "../masterData/catalogue.js";
 import type * as masterData_writes from "../masterData/writes.js";
+import type * as model_authorization_navigationPermissions from "../model/authorization/navigationPermissions.js";
 import type * as model_counting_countLifecycle from "../model/counting/countLifecycle.js";
 import type * as model_counting_openingStock from "../model/counting/openingStock.js";
 import type * as model_counting_reconciliationPolicy from "../model/counting/reconciliationPolicy.js";
@@ -212,6 +213,7 @@ declare const fullApi: ApiFromModules<{
   "lib/writeEnvelope": typeof lib_writeEnvelope;
   "masterData/catalogue": typeof masterData_catalogue;
   "masterData/writes": typeof masterData_writes;
+  "model/authorization/navigationPermissions": typeof model_authorization_navigationPermissions;
   "model/counting/countLifecycle": typeof model_counting_countLifecycle;
   "model/counting/openingStock": typeof model_counting_openingStock;
   "model/counting/reconciliationPolicy": typeof model_counting_reconciliationPolicy;

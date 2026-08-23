@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "convex/react";
+import { useConvexAuth, useQuery } from "convex/react";
 import {
   createContext,
   useCallback,
@@ -31,6 +31,8 @@ export interface WorkspaceContextValue {
   readonly complete: boolean;
   readonly loading: boolean;
   readonly denied: boolean;
+  readonly navigationPermissions: readonly string[];
+  readonly permissionsReady: boolean;
   readonly selectWarehouse: (warehouseId: string) => void;
 }
 
@@ -44,9 +46,13 @@ const EMPTY_WORKSPACE: WorkspaceContextValue = Object.freeze({
   complete: true,
   loading: false,
   denied: false,
+  navigationPermissions: [],
+  permissionsReady: false,
   selectWarehouse: idleSelection,
 });
 
+// Fail closed if a shell is ever mounted outside its required provider. Tests
+// that render a shell in isolation supply an explicit workspace fixture.
 const WorkspaceContext = createContext<WorkspaceContextValue>(EMPTY_WORKSPACE);
 
 export function WorkspaceProvider({
@@ -54,7 +60,13 @@ export function WorkspaceProvider({
 }: {
   readonly children: ReactNode;
 }) {
-  const outcome = useQuery(readCurrentWorkspaceRef, {});
+  const { isAuthenticated, isLoading: isAuthenticationLoading } =
+    useConvexAuth();
+  const canReadWorkspace = !isAuthenticationLoading && isAuthenticated;
+  const outcome = useQuery(
+    readCurrentWorkspaceRef,
+    canReadWorkspace ? {} : "skip",
+  );
   const stored = useSyncExternalStore(
     subscribeWarehouse,
     readStoredWarehouse,
@@ -65,6 +77,12 @@ export function WorkspaceProvider({
   }, []);
 
   const value = useMemo<WorkspaceContextValue>(() => {
+    if (isAuthenticationLoading) {
+      return { ...EMPTY_WORKSPACE, loading: true, selectWarehouse };
+    }
+    if (!isAuthenticated) {
+      return { ...EMPTY_WORKSPACE, selectWarehouse };
+    }
     if (outcome === undefined) {
       return { ...EMPTY_WORKSPACE, loading: true, selectWarehouse };
     }
@@ -76,9 +94,16 @@ export function WorkspaceProvider({
       ...resolveWorkspace(outcome.value, stored ?? undefined),
       loading: false,
       denied: false,
+      permissionsReady: true,
       selectWarehouse,
     };
-  }, [outcome, selectWarehouse, stored]);
+  }, [
+    isAuthenticated,
+    isAuthenticationLoading,
+    outcome,
+    selectWarehouse,
+    stored,
+  ]);
 
   return (
     <WorkspaceContext.Provider value={value}>

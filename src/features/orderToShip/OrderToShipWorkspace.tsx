@@ -1,7 +1,7 @@
 "use client";
 
 import { Plus } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useState, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,8 @@ import {
   type FactoryPacketRow,
 } from "@/lib/convex/orderToShipApi";
 import { ROUTES } from "@/lib/navigation";
+import type { AppLocale } from "@/i18n/routing";
+import { formatCount, formatInstant } from "@/lib/formatters";
 import { StatusBadge, type BadgeTone } from "@/components/ui/StatusBadge";
 import { MasterCardDraftForm } from "./MasterCardDraftForm";
 import { OrderIntakeForm } from "./OrderIntakeForm";
@@ -412,6 +414,7 @@ function EngineeringQueue() {
 
 function FactoryQueue() {
   const t = useTranslations("OrderToShip");
+  const locale = useLocale() as AppLocale;
   return (
     <QueueSection
       title={t("factoryQueue")}
@@ -476,7 +479,7 @@ function FactoryQueue() {
                   />
                   <Fact
                     label={t("quantity")}
-                    value={row.quantity.toLocaleString()}
+                    value={formatCount(row.quantity, locale)}
                   />
                   <Fact
                     label={t("approvedFiles")}
@@ -586,9 +589,10 @@ function FactoryQueue() {
                       />
                       <Fact
                         label={t("releasedAt")}
-                        value={new Date(
+                        value={formatInstant(
                           row.releaseEvidence.releasedAt,
-                        ).toLocaleString()}
+                          locale,
+                        )}
                       />
                       <Fact
                         label={t("decisionNote")}
@@ -644,6 +648,7 @@ function PacketSpecificationDetails({
   readonly specification: FactoryPacketRow["specification"];
 }) {
   const t = useTranslations("OrderToShip");
+  const locale = useLocale() as AppLocale;
   return (
     <div className="mt-5 grid gap-4 lg:grid-cols-2">
       <PacketList
@@ -670,7 +675,7 @@ function PacketSpecificationDetails({
         title={t("calculations")}
         rows={specification.calculations?.map(
           (row) =>
-            `${row.name} (${row.formulaVersion}) · ${row.inputs.map((input) => `${input.name}=${input.value} ${input.unit}`).join(", ")} · ${row.result} ${row.unit} · ${row.passed ? t("calculationPass") : t("calculationFail")} · ${t("verifiedBy")}: ${row.verifiedByUserId} · ${new Date(row.verifiedAt).toLocaleString()}`,
+            `${row.name} (${row.formulaVersion}) · ${row.inputs.map((input) => `${input.name}=${input.value} ${input.unit}`).join(", ")} · ${row.result} ${row.unit} · ${row.passed ? t("calculationPass") : t("calculationFail")} · ${t("verifiedBy")}: ${row.verifiedByUserId} · ${formatInstant(row.verifiedAt, locale)}`,
         )}
       />
       <PacketList

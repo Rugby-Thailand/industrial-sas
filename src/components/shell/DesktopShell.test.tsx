@@ -1,6 +1,6 @@
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   navigationMock,
@@ -14,10 +14,28 @@ import {
 vi.mock("@/i18n/navigation", () => navigationMock);
 
 import { DesktopShell } from "./DesktopShell";
+import { NAVIGATION_PERMISSION_CODES } from "../../../convex/model/authorization/navigationPermissions";
+import * as WorkspaceModule from "@/components/providers/WorkspaceProvider";
 
 describe("DesktopShell", () => {
   beforeEach(() => {
     setMockPathname("/dashboard");
+    vi.spyOn(WorkspaceModule, "useWorkspace").mockReturnValue({
+      organization: { id: "org_1", name: "Siam" },
+      warehouses: [],
+      selectedWarehouseId: undefined,
+      selectable: false,
+      complete: true,
+      loading: false,
+      denied: false,
+      navigationPermissions: NAVIGATION_PERMISSION_CODES,
+      permissionsReady: true,
+      selectWarehouse: vi.fn(),
+    });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it("renders exactly one navigation landmark", () => {
@@ -126,5 +144,35 @@ describe("DesktopShell", () => {
     });
 
     expect(screen.queryByTestId("preview-banner")).toBeNull();
+  });
+
+  it("shows only destinations granted by the workspace capability snapshot", () => {
+    vi.spyOn(WorkspaceModule, "useWorkspace").mockReturnValue({
+      organization: { id: "org_1", name: "Siam" },
+      warehouses: [],
+      selectedWarehouseId: undefined,
+      selectable: false,
+      complete: true,
+      loading: false,
+      denied: false,
+      navigationPermissions: [
+        "production.order.read",
+        "masterData.item.read",
+        "masterData.location.read",
+      ],
+      permissionsReady: true,
+      selectWarehouse: vi.fn(),
+    });
+
+    renderWithIntl(<DesktopShell>content</DesktopShell>, {
+      environment: unconfiguredEnvironment,
+    });
+
+    expect(
+      screen.getByRole("link", { name: "ดำเนินงานผลิต" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "ผู้จัดจำหน่าย" }),
+    ).not.toBeInTheDocument();
   });
 });

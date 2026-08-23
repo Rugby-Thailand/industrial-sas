@@ -5,6 +5,7 @@ import {
   formatBusinessDateIso,
   formatCount,
   formatInstant,
+  formatInstantDate,
   formatMinorUnits,
   UNRENDERABLE,
 } from "./formatters";
@@ -84,6 +85,17 @@ describe("formatInstant", () => {
     expect(formatInstant(instant, "th", "Mars/Olympus_Mons")).toBe(
       UNRENDERABLE,
     );
+  });
+});
+
+describe("formatInstantDate", () => {
+  it("uses the organization timezone at a Bangkok date boundary", () => {
+    const instant = Date.UTC(2026, 7, 10, 18, 30, 0);
+    expect(formatInstantDate(instant, "en")).toContain("08/11/2026");
+  });
+
+  it("keeps the Gregorian year in Thai", () => {
+    expect(formatInstantDate(Date.UTC(2026, 7, 11), "th")).toContain("2026");
   });
 });
 

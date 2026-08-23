@@ -109,6 +109,25 @@ export function formatInstant(
   }
 }
 
+/** A UTC instant rendered as an operational calendar date in the site zone. */
+export function formatInstantDate(
+  epochMilliseconds: number,
+  locale: AppLocale,
+  timeZone: string = DEFAULT_TIME_ZONE,
+): string {
+  if (!Number.isFinite(epochMilliseconds)) return UNRENDERABLE;
+  try {
+    return new Intl.DateTimeFormat(`${locale}-u-ca-gregory`, {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date(epochMilliseconds));
+  } catch {
+    return UNRENDERABLE;
+  }
+}
+
 /**
  * A count, for captions such as "12 balance rows".
  *

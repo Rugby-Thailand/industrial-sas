@@ -5,7 +5,10 @@ import {
   HANDHELD_TASKS,
   isActivePath,
   ROUTES,
+  visibleDesktopNavigation,
+  visibleHandheldTasks,
 } from "./navigation";
+import { NAVIGATION_PERMISSION } from "../../convex/model/authorization/navigationPermissions";
 
 describe("isActivePath", () => {
   it("marks the exact path active", () => {
@@ -71,5 +74,50 @@ describe("navigation data", () => {
     );
 
     expect(unavailable).toEqual(["taskPallet"]);
+  });
+
+  it("places production execution between factory packets and fulfillment", () => {
+    const orderToShip = DESKTOP_NAVIGATION.find(
+      ({ labelKey }) => labelKey === "sectionOrderToShip",
+    );
+    expect(orderToShip?.items.map(({ href }) => href)).toEqual([
+      ROUTES.customerOrders,
+      ROUTES.engineeringQueue,
+      ROUTES.factoryPackets,
+      ROUTES.productionOrders,
+      ROUTES.fulfillment,
+      ROUTES.transport,
+      ROUTES.transfers,
+    ]);
+  });
+
+  it("removes desktop destinations without a matching read grant", () => {
+    const visible = visibleDesktopNavigation([
+      NAVIGATION_PERMISSION.dashboard,
+      NAVIGATION_PERMISSION.production,
+      NAVIGATION_PERMISSION.items,
+      NAVIGATION_PERMISSION.locations,
+    ]).flatMap(({ items }) => items.map(({ href }) => href));
+    expect(visible).toEqual([
+      ROUTES.dashboard,
+      ROUTES.items,
+      ROUTES.locations,
+      ROUTES.productionOrders,
+      ROUTES.reports,
+    ]);
+  });
+
+  it("keeps an independently useful report destination when any source is granted", () => {
+    const visible = visibleDesktopNavigation([
+      NAVIGATION_PERMISSION.exportReports,
+    ]).flatMap(({ items }) => items.map(({ href }) => href));
+    expect(visible).toEqual([ROUTES.reports]);
+  });
+
+  it("keeps the unavailable pallet explanation but hides unauthorized tasks", () => {
+    const visible = visibleHandheldTasks([NAVIGATION_PERMISSION.receiving]).map(
+      ({ labelKey }) => labelKey,
+    );
+    expect(visible).toEqual(["taskReceive", "taskPallet"]);
   });
 });

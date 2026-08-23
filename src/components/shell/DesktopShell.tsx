@@ -45,24 +45,35 @@
  */
 import { useTranslations } from "next-intl";
 import {
+  ArrowLeftRight,
   BarChart3,
+  Barcode,
   Boxes,
+  Building2,
   ChevronsLeft,
   ChevronsRight,
-  ClipboardCheck,
-  ClipboardList,
+  ClipboardPenLine,
+  Container,
+  Database,
   Factory,
-  FileDown,
+  FileCog,
+  FileSpreadsheet,
   FileStack,
+  Forklift,
+  Gauge,
   History,
   Import,
+  Layers3,
   LayoutDashboard,
+  ListChecks,
   MapPin,
   Menu,
-  PackageCheck,
-  PackageSearch,
-  ScanLine,
-  Settings2,
+  PackagePlus,
+  PanelsTopLeft,
+  PlugZap,
+  Route,
+  ShieldCheck,
+  TabletSmartphone,
   Truck,
   Users,
   X,
@@ -71,6 +82,7 @@ import {
 import { type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
+import { useWorkspace } from "@/components/providers/WorkspaceProvider";
 import {
   Sheet,
   SheetContent,
@@ -91,7 +103,11 @@ import {
 } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Link, usePathname } from "@/i18n/navigation";
-import { DESKTOP_NAVIGATION, isActivePath, ROUTES } from "@/lib/navigation";
+import {
+  isActivePath,
+  ROUTES,
+  visibleDesktopNavigation,
+} from "@/lib/navigation";
 
 import { LocaleSwitcher } from "./LocaleSwitcher";
 import { AccountButton } from "./AccountButton";
@@ -243,24 +259,34 @@ function NavigationRegion() {
 
 const NAVIGATION_ICONS: Readonly<Record<string, LucideIcon>> = Object.freeze({
   [ROUTES.dashboard]: LayoutDashboard,
-  [ROUTES.items]: Boxes,
+  [ROUTES.items]: Barcode,
   [ROUTES.suppliers]: Users,
-  [ROUTES.storageClasses]: Settings2,
+  [ROUTES.storageClasses]: Layers3,
   [ROUTES.labelTemplates]: FileStack,
   [ROUTES.locations]: MapPin,
-  [ROUTES.customerOrders]: ClipboardList,
+  [ROUTES.storageLayouts]: Building2,
+  [ROUTES.customerOrders]: ClipboardPenLine,
   [ROUTES.engineeringQueue]: BarChart3,
   [ROUTES.factoryPackets]: Factory,
+  [ROUTES.productionOrders]: Gauge,
+  [ROUTES.fulfillment]: Route,
+  [ROUTES.transport]: Truck,
+  [ROUTES.transfers]: ArrowLeftRight,
   [ROUTES.purchaseOrders]: Truck,
-  [ROUTES.inboundBoard]: PackageSearch,
+  [ROUTES.inboundBoard]: PanelsTopLeft,
   [ROUTES.purchaseImport]: Import,
-  [ROUTES.receiving]: PackageCheck,
-  [ROUTES.quality]: ClipboardCheck,
-  [ROUTES.putaway]: ScanLine,
-  [ROUTES.balances]: Boxes,
+  [ROUTES.receiving]: PackagePlus,
+  [ROUTES.quality]: ShieldCheck,
+  [ROUTES.putaway]: Forklift,
+  [ROUTES.balances]: Database,
   [ROUTES.history]: History,
-  [ROUTES.reports]: FileDown,
-  [ROUTES.handheld]: ScanLine,
+  [ROUTES.openingStock]: Container,
+  [ROUTES.countPlans]: ListChecks,
+  [ROUTES.reports]: FileSpreadsheet,
+  [ROUTES.hr]: Users,
+  [ROUTES.integrations]: PlugZap,
+  [ROUTES.handheld]: TabletSmartphone,
+  [ROUTES.devices]: FileCog,
 });
 
 /**
@@ -279,6 +305,10 @@ function NavigationTree({
 }) {
   const t = useTranslations("Navigation");
   const pathname = usePathname();
+  const workspace = useWorkspace();
+  const sections = workspace.permissionsReady
+    ? visibleDesktopNavigation(workspace.navigationPermissions)
+    : [];
 
   return (
     <nav
@@ -287,7 +317,12 @@ function NavigationTree({
       className="flex min-h-0 flex-1 flex-col"
     >
       <SidebarContent className={collapsed ? "gap-0 p-2" : "gap-0 p-3"}>
-        {DESKTOP_NAVIGATION.map((section) => (
+        {!workspace.permissionsReady ? (
+          <p role="status" className="px-3 py-4 text-sm text-muted">
+            {t("loadingNavigation")}
+          </p>
+        ) : null}
+        {sections.map((section) => (
           <SidebarGroup
             key={section.labelKey}
             className={collapsed ? "p-0 pb-2 last:pb-0" : "p-0 pb-4 last:pb-0"}

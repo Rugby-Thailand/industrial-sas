@@ -11,7 +11,6 @@ import {
   Smartphone,
 } from "lucide-react";
 
-import { SetupChecklist } from "@/components/system/SetupChecklist";
 import {
   Card,
   CardContent,
@@ -23,7 +22,6 @@ import { DashboardScope } from "@/features/reporting/DashboardScope";
 import { OccupancyMap } from "@/features/reporting/OccupancyMap";
 import { OperationsTiles } from "@/features/reporting/OperationsTiles";
 import { WarehouseForkliftAnimation } from "@/features/reporting/WarehouseForkliftAnimation";
-import { Notice } from "@/components/ui/Notice";
 import { Link } from "@/i18n/navigation";
 import { ROUTES } from "@/lib/navigation";
 
@@ -48,12 +46,10 @@ import { ROUTES } from "@/lib/navigation";
  *
  * ### The order of the sections
  *
- * Operations first, system last. The sequence follows the ReUI application
- * dashboard's hierarchy — scope, counters, capacity, work queue, notices — for
- * one reason that survives being restated without the reference: a supervisor
- * opens this page to find out what is waiting, and the deployment's setup state
- * is something they check once a quarter. Putting the checklist above the work
- * queue costs a scroll on every visit to save one on almost none.
+ * The sequence follows the ReUI application dashboard's hierarchy — scope,
+ * counters, capacity, then work queue. A supervisor opens this page to find out
+ * what is waiting, so deployment diagnostics and release-status documentation
+ * live on their own surfaces instead of extending the daily work screen.
  *
  * There is no revenue, growth, or trend section, and there will not be one from
  * this data. Every figure here is a maintained counter or a count of drawn
@@ -68,10 +64,6 @@ export default async function DashboardPage({
   const { locale } = await params;
   setRequestLocale(locale);
   const t = await getTranslations("Dashboard");
-  // The checklist itself no longer opens with this sentence, because the setup
-  // page states it in its header and printing it twice on one screen is what the
-  // audit found. The section that mounts the checklist here supplies it instead.
-  const setupT = await getTranslations("Setup");
 
   const entries = [
     {
@@ -193,35 +185,6 @@ export default async function DashboardPage({
             </CardContent>
           </section>
         </Card>
-      </div>
-
-      <div className="grid items-start gap-6 xl:grid-cols-2">
-        <section aria-labelledby="capability-heading">
-          <h2
-            id="capability-heading"
-            className="mb-3 text-lg font-semibold text-text"
-          >
-            {t("capabilityHeading")}
-          </h2>
-          <Notice
-            tone="neutral"
-            title={t("capabilityNoticeTitle")}
-            body={t("capabilityBody")}
-          />
-        </section>
-
-        <section aria-labelledby="system-heading">
-          <h2
-            id="system-heading"
-            className="mb-3 text-lg font-semibold text-text"
-          >
-            {t("systemHeading")}
-          </h2>
-          <p className="mb-3 max-w-prose text-sm leading-relaxed text-muted">
-            {setupT("intro")}
-          </p>
-          <SetupChecklist />
-        </section>
       </div>
     </>
   );

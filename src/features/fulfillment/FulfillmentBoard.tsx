@@ -120,10 +120,16 @@ function ServerFulfillmentBoard({
   });
   if (outcome === undefined || routable === undefined)
     return <LedgerPanelStatus state={{ kind: "LOADING" }} />;
-  if (!outcome.ok || !routable.ok)
+  if (!outcome.ok)
     return (
       <LedgerPanelStatus
         state={{ kind: "DENIED", requestId: outcome.requestId }}
+      />
+    );
+  if (!routable.ok)
+    return (
+      <LedgerPanelStatus
+        state={{ kind: "DENIED", requestId: routable.requestId }}
       />
     );
   if (!outcome.value.ok || !routable.value.ok)
@@ -192,7 +198,7 @@ function FulfillmentWorkspace({
                     </span>
                     <StatusBadge
                       tone={order.status === "RELEASED" ? "accent" : "neutral"}
-                      label={order.status}
+                      label={t(`orderStatus.${order.status}`)}
                     />
                   </span>
                   <span className="mt-2 block text-sm text-muted">
@@ -374,7 +380,13 @@ function ServerOrderActions({
   });
   if (outcome === undefined)
     return <LedgerPanelStatus state={{ kind: "LOADING" }} />;
-  if (!outcome.ok || !outcome.value.ok)
+  if (!outcome.ok)
+    return (
+      <LedgerPanelStatus
+        state={{ kind: "DENIED", requestId: outcome.requestId }}
+      />
+    );
+  if (!outcome.value.ok)
     return (
       <LedgerPanelStatus state={{ kind: "ERROR", code: "FULFILLMENT_LINES" }} />
     );
@@ -403,7 +415,7 @@ function OrderActionBody({
   const [shipmentId, setShipmentId] = useState<string>();
   const lineOptions = lines.map((line) => ({
     value: line.fulfillmentLineId,
-    label: `${line.itemId} · ${line.orderedBaseMinorUnits / 1000} ${line.baseUom} · ${line.status}`,
+    label: `${line.itemId} · ${line.orderedBaseMinorUnits / 1000} ${line.baseUom} · ${t(`lineStatus.${line.status}`)}`,
   }));
   return (
     <section

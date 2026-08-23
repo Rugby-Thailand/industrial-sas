@@ -17,13 +17,14 @@
  * hand-configuring one would put an unverified token in front of
  * `resolveTenantContext`.
  *
- * The checklist does **not** open with `Setup.intro`. Each of the three screens
- * that mount it already introduces it in its own words — the setup page in its
- * header, the dashboard above its system-state section, the sign-in page in the
- * notice that says why sign-in is unavailable — so rendering the sentence here
- * as well printed it twice on the same screen. The context is necessary; the
- * repetition was not, and the host is the only place that knows whether it has
- * been said already.
+ * The checklist does **not** open with `Setup.intro`. Both screens that mount it
+ * already introduce it in their own words — the setup page in its header and
+ * the sign-in page in the notice that says why sign-in is unavailable. The host
+ * is the only place that knows whether that context has already been stated.
+ *
+ * A configured row is confirmation, not a remediation target. Its missing-state
+ * instructions are therefore omitted, as are the environment and authentication
+ * notes when the whole deployment is ready.
  */
 import { useTranslations } from "next-intl";
 
@@ -41,7 +42,7 @@ export function SetupChecklist() {
       title: environment.backendConfigured
         ? t("convexReady")
         : t("convexTitle"),
-      body: t("convexBody"),
+      body: environment.backendConfigured ? undefined : t("convexBody"),
     },
     {
       key: "identity",
@@ -49,9 +50,10 @@ export function SetupChecklist() {
       title: environment.identityConfigured
         ? t("identityReady")
         : t("identityTitle"),
-      body: t("identityBody"),
+      body: environment.identityConfigured ? undefined : t("identityBody"),
     },
   ] as const;
+  const hasMissingDependency = rows.some((row) => !row.ready);
 
   return (
     <section className="flex flex-col gap-4">
@@ -67,16 +69,22 @@ export function SetupChecklist() {
                 label={row.title}
               />
             </div>
-            <p className="mt-2 text-sm leading-relaxed text-muted">
-              {row.body}
-            </p>
+            {row.body === undefined ? null : (
+              <p className="mt-2 text-sm leading-relaxed text-muted">
+                {row.body}
+              </p>
+            )}
           </li>
         ))}
       </ul>
-      <p className="text-sm text-muted">{t("envHint")}</p>
-      <p className="rounded-lg border border-border-strong bg-surface p-4 text-sm leading-relaxed text-text">
-        {t("noFakeAuth")}
-      </p>
+      {hasMissingDependency ? (
+        <>
+          <p className="text-sm text-muted">{t("envHint")}</p>
+          <p className="rounded-lg border border-border-strong bg-surface p-4 text-sm leading-relaxed text-text">
+            {t("noFakeAuth")}
+          </p>
+        </>
+      ) : null}
     </section>
   );
 }

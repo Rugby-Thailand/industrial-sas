@@ -13,6 +13,7 @@ const snapshot: WorkspaceSnapshot = {
     { id: "wh_bpu", code: "BPU", name: "Bang Pu" },
     { id: "wh_lph", code: "LPH", name: "Lamphun" },
   ],
+  navigationPermissions: ["reporting.dashboard.read"],
   complete: true,
 };
 
