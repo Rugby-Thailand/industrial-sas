@@ -15,7 +15,12 @@ import {
   countScope,
   countVisibility,
 } from "../lib/validators";
-import { writeContextOf } from "../lib/writeEnvelope";
+import {
+  refusal,
+  writeContextOf,
+  writeOutcomeValidator,
+  written,
+} from "../lib/writeEnvelope";
 import {
   decideCountPlanCompletion,
   decideCountPlanRelease,
@@ -78,45 +83,6 @@ interface BalanceDocument {
   readonly lastTransactionId: string;
 }
 
-const errorValidator = v.object({
-  code: v.string(),
-  field: v.optional(v.string()),
-  reason: v.optional(v.string()),
-  table: v.optional(v.string()),
-  status: v.optional(v.string()),
-  requestId: v.optional(v.string()),
-});
-
-const writeResultValidator = v.union(
-  v.object({
-    written: v.literal(true),
-    documentId: v.string(),
-    replayed: v.boolean(),
-  }),
-  v.object({ written: v.literal(false), error: errorValidator }),
-);
-
-const refusal = (error: {
-  readonly code: string;
-  readonly field?: unknown;
-  readonly reason?: unknown;
-  readonly table?: unknown;
-  readonly status?: unknown;
-  readonly requestId?: unknown;
-}) => ({
-  written: false as const,
-  error: {
-    code: error.code,
-    ...(error.field === undefined ? {} : { field: String(error.field) }),
-    ...(error.reason === undefined ? {} : { reason: String(error.reason) }),
-    ...(error.table === undefined ? {} : { table: String(error.table) }),
-    ...(error.status === undefined ? {} : { status: String(error.status) }),
-    ...(error.requestId === undefined
-      ? {}
-      : { requestId: String(error.requestId) }),
-  },
-});
-
 const targetArgument = v.object({
   bucketKey: v.string(),
   /** Snapshot copied from the authoritative costing source by the planner. */
@@ -138,7 +104,7 @@ export const createCountPlan = mutationWithOrg({
     valueThresholdMinorUnits: v.number(),
     targets: v.array(targetArgument),
   },
-  returns: writeResultValidator,
+  returns: writeOutcomeValidator,
   permissionCode: "inventory.count.plan",
   target: { table: "countPlans" },
   warehouseId: ({ warehouseId }) => warehouseId,
@@ -194,11 +160,7 @@ export const createCountPlan = mutationWithOrg({
     });
     if (!replay.ok) return refusal(replay.error);
     if (replay.value !== null) {
-      return {
-        written: true as const,
-        documentId: replay.value.documentId,
-        replayed: true,
-      };
+      return written(replay.value);
     }
 
     const seen = new Set<string>();
@@ -354,7 +316,7 @@ export const releaseCountPlan = mutationWithOrg({
     warehouseId: v.id("warehouses"),
     countPlanId: v.id("countPlans"),
   },
-  returns: writeResultValidator,
+  returns: writeOutcomeValidator,
   permissionCode: "inventory.count.plan",
   target: { table: "countPlans", id: ({ countPlanId }) => countPlanId },
   warehouseId: ({ warehouseId }) => warehouseId,
@@ -368,12 +330,7 @@ export const releaseCountPlan = mutationWithOrg({
       fingerprint,
     });
     if (!replay.ok) return refusal(replay.error);
-    if (replay.value !== null)
-      return {
-        written: true as const,
-        documentId: replay.value.documentId,
-        replayed: true,
-      };
+    if (replay.value !== null) return written(replay.value);
     const plan = await ctx.tenantDb.get<CountPlanDocument>(
       "countPlans",
       args.countPlanId,
@@ -402,13 +359,7 @@ export const releaseCountPlan = mutationWithOrg({
         releasedAt: decision.value.releasedAt,
       },
     });
-    return outcome.ok
-      ? {
-          written: true as const,
-          documentId: outcome.value.documentId,
-          replayed: outcome.value.replayed,
-        }
-      : refusal(outcome.error);
+    return outcome.ok ? written(outcome.value) : refusal(outcome.error);
   },
 });
 
@@ -418,7 +369,7 @@ export const completeCountPlan = mutationWithOrg({
     warehouseId: v.id("warehouses"),
     countPlanId: v.id("countPlans"),
   },
-  returns: writeResultValidator,
+  returns: writeOutcomeValidator,
   permissionCode: "inventory.count.plan",
   target: { table: "countPlans", id: ({ countPlanId }) => countPlanId },
   warehouseId: ({ warehouseId }) => warehouseId,
@@ -432,12 +383,7 @@ export const completeCountPlan = mutationWithOrg({
       fingerprint,
     });
     if (!replay.ok) return refusal(replay.error);
-    if (replay.value !== null)
-      return {
-        written: true as const,
-        documentId: replay.value.documentId,
-        replayed: true,
-      };
+    if (replay.value !== null) return written(replay.value);
     const plan = await ctx.tenantDb.get<CountPlanDocument>(
       "countPlans",
       args.countPlanId,
@@ -485,13 +431,7 @@ export const completeCountPlan = mutationWithOrg({
         completedAt: decision.value.completedAt,
       },
     });
-    return outcome.ok
-      ? {
-          written: true as const,
-          documentId: outcome.value.documentId,
-          replayed: outcome.value.replayed,
-        }
-      : refusal(outcome.error);
+    return outcome.ok ? written(outcome.value) : refusal(outcome.error);
   },
 });
 

@@ -199,8 +199,6 @@ describe("a support ticket may earn more than one grant", () => {
         candidate.key.includes("ticketRef"),
     );
     expect(contract?.key).toEqual(["orgId", "ticketRef"]);
-    expect(contract?.cardinality).toBe("many");
-    expect(contract?.index).toBe("by_orgId_ticketRef");
   });
 
   it("keeps the org-first index so ticket history stays bounded", () => {

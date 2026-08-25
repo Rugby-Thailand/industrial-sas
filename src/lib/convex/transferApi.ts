@@ -1,11 +1,7 @@
-import { makeFunctionReference } from "convex/server";
+/** Typed browser boundary for inter-warehouse transfers. */
+import { api } from "../../../convex/_generated/api";
 
-import type { TenantOutcome } from "./ledgerApi";
-import type { MasterDataWriteOutcome } from "./masterDataApi";
-
-type WriteResult = TenantOutcome<MasterDataWriteOutcome>;
-type WarehouseArgs = { readonly warehouseId: string };
-type RequestArgs = WarehouseArgs & { readonly requestId: string };
+import { clientRef } from "./clientRef";
 
 export interface TransferSummary {
   readonly transferRequestId: string;
@@ -54,113 +50,46 @@ export interface TransferDiscrepancy {
   readonly note: string;
 }
 
-interface Page<Row> {
-  readonly ok: boolean;
-  readonly items: readonly Row[];
-  readonly nextCursor: string | null;
-  readonly complete: boolean;
-}
+export const createTransferRequestRef = clientRef(
+  api.transfers.requests.createTransferRequest,
+);
 
-export const createTransferRequestRef = makeFunctionReference<
-  "mutation",
-  RequestArgs & {
-    readonly destinationWarehouseId: string;
-    readonly transferNumber: string;
-    readonly sourceKind: TransferSummary["sourceKind"];
-    readonly sourceReference?: string;
-    readonly purpose: string;
-  },
-  WriteResult
->("transfers/requests:createTransferRequest");
+export const addTransferLineRef = clientRef(
+  api.transfers.requests.addTransferLine,
+);
 
-export const addTransferLineRef = makeFunctionReference<
-  "mutation",
-  RequestArgs & {
-    readonly transferRequestId: string;
-    readonly itemId: string;
-    readonly requestedBaseMinorUnits: number;
-  },
-  WriteResult
->("transfers/requests:addTransferLine");
+export const approveTransferRequestRef = clientRef(
+  api.transfers.requests.approveTransferRequest,
+);
 
-export const approveTransferRequestRef = makeFunctionReference<
-  "mutation",
-  RequestArgs & { readonly transferRequestId: string },
-  WriteResult
->("transfers/requests:approveTransferRequest");
+export const dispatchTransferLineRef = clientRef(
+  api.transfers.requests.dispatchTransferLine,
+);
 
-export const dispatchTransferLineRef = makeFunctionReference<
-  "mutation",
-  RequestArgs & {
-    readonly transferRequestId: string;
-    readonly transferLineId: string;
-    readonly sourceBucketKey: string;
-    readonly baseMinorUnits: number;
-    readonly sealNumber?: string;
-    readonly carrierName?: string;
-  },
-  WriteResult
->("transfers/requests:dispatchTransferLine");
+export const receiveTransferLineRef = clientRef(
+  api.transfers.requests.receiveTransferLine,
+);
 
-export const receiveTransferLineRef = makeFunctionReference<
-  "mutation",
-  RequestArgs & {
-    readonly transferRequestId: string;
-    readonly transferLineId: string;
-    readonly destinationLocationId: string;
-    readonly receivedBaseMinorUnits: number;
-    readonly discrepancyBaseMinorUnits: number;
-    readonly discrepancyKind?: "MISSING" | "DAMAGED" | "WRONG_TAG";
-    readonly discrepancyNote?: string;
-    readonly stockStatus: "AVAILABLE" | "QC_HOLD" | "QUARANTINE";
-  },
-  WriteResult
->("transfers/requests:receiveTransferLine");
+export const resolveTransferDiscrepancyRef = clientRef(
+  api.transfers.requests.resolveTransferDiscrepancy,
+);
 
-export const resolveTransferDiscrepancyRef = makeFunctionReference<
-  "mutation",
-  RequestArgs & {
-    readonly transferDiscrepancyId: string;
-    readonly resolution: "RECEIVED_AT_DESTINATION" | "RETURNED_TO_SOURCE";
-    readonly destinationLocationId?: string;
-    readonly stockStatus: "AVAILABLE" | "QC_HOLD" | "QUARANTINE";
-    readonly resolutionNote: string;
-  },
-  WriteResult
->("transfers/requests:resolveTransferDiscrepancy");
+export const listSourceTransfersRef = clientRef(
+  api.transfers.requests.listSourceTransfers,
+);
 
-export const listSourceTransfersRef = makeFunctionReference<
-  "query",
-  WarehouseArgs & { readonly maxPageSize?: number; readonly cursor?: string },
-  TenantOutcome<Page<TransferSummary>>
->("transfers/requests:listSourceTransfers");
+export const listDestinationTransfersRef = clientRef(
+  api.transfers.requests.listDestinationTransfers,
+);
 
-export const listDestinationTransfersRef = makeFunctionReference<
-  "query",
-  WarehouseArgs & { readonly maxPageSize?: number; readonly cursor?: string },
-  TenantOutcome<Page<TransferSummary>>
->("transfers/requests:listDestinationTransfers");
+export const listTransferWarehousesRef = clientRef(
+  api.transfers.requests.listTransferWarehouses,
+);
 
-export const listTransferWarehousesRef = makeFunctionReference<
-  "query",
-  WarehouseArgs & { readonly maxPageSize?: number; readonly cursor?: string },
-  TenantOutcome<Page<TransferWarehouse>>
->("transfers/requests:listTransferWarehouses");
+export const listTransferLinesRef = clientRef(
+  api.transfers.requests.listTransferLines,
+);
 
-export const listTransferLinesRef = makeFunctionReference<
-  "query",
-  WarehouseArgs & { readonly transferRequestId: string },
-  TenantOutcome<{
-    readonly ok: boolean;
-    readonly lines: readonly TransferLine[];
-  }>
->("transfers/requests:listTransferLines");
-
-export const listOpenTransferDiscrepanciesRef = makeFunctionReference<
-  "query",
-  WarehouseArgs & { readonly transferRequestId: string },
-  TenantOutcome<{
-    readonly ok: boolean;
-    readonly discrepancies: readonly TransferDiscrepancy[];
-  }>
->("transfers/requests:listOpenTransferDiscrepancies");
+export const listOpenTransferDiscrepanciesRef = clientRef(
+  api.transfers.requests.listOpenTransferDiscrepancies,
+);

@@ -7,6 +7,7 @@ import {
   pageOptions,
   pageRefusal,
   pageRequestOf,
+  pageResult,
 } from "../lib/listEnvelope";
 import {
   postLedgerTransaction,
@@ -1145,9 +1146,8 @@ export const listCapturedProofsOfDelivery = queryWithOrg({
         { field: "status", value: "CAPTURED" },
       ])
       .page(pageOptions(request.value));
-    return {
-      ok: true as const,
-      items: page.page.map((pod) => ({
+    return pageResult(
+      page.page.map((pod) => ({
         proofOfDeliveryId: pod._id as never,
         shipmentId: pod.shipmentId as never,
         tripId: pod.tripId as never,
@@ -1156,8 +1156,7 @@ export const listCapturedProofsOfDelivery = queryWithOrg({
         capturedByUserId: pod.capturedByUserId as never,
         capturedAt: pod.capturedAt,
       })),
-      nextCursor: page.isDone ? null : page.continueCursor,
-      complete: page.isDone,
-    };
+      page,
+    );
   },
 });

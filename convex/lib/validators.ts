@@ -121,7 +121,7 @@ export type DeviceStatus = Infer<typeof deviceStatus>;
  * Single-member unions stay closed and grow by a visible one-line diff, exactly
  * as `currency` does above.
  */
-export const operatorTaskKind = v.union(v.literal("SUPERVISOR_ASSIGNED"));
+export const operatorTaskKind = literalUnion("SUPERVISOR_ASSIGNED");
 export type OperatorTaskKindValue = Infer<typeof operatorTaskKind>;
 
 /**
@@ -133,11 +133,11 @@ export type OperatorTaskKindValue = Infer<typeof operatorTaskKind>;
  * `RELEASED` member would be a second way to spell the same fact, and the two
  * would drift the first time a lease expired without anyone writing a row.
  */
-export const operatorTaskStatus = v.union(
-  v.literal("AVAILABLE"),
-  v.literal("CLAIMED"),
-  v.literal("COMPLETED"),
-  v.literal("CANCELLED"),
+export const operatorTaskStatus = literalUnion(
+  "AVAILABLE",
+  "CLAIMED",
+  "COMPLETED",
+  "CANCELLED",
 );
 export type OperatorTaskStatusValue = Infer<typeof operatorTaskStatus>;
 
@@ -149,52 +149,52 @@ export type OperatorTaskStatusValue = Infer<typeof operatorTaskStatus>;
  * the same evidence stream as the work itself, so partial evidence and the
  * reason it changed owner are read in one place and in one order.
  */
-export const operatorTaskEvidenceKind = v.union(
-  v.literal("QUANTITY"),
-  v.literal("SCAN"),
-  v.literal("NOTE"),
-  v.literal("HANDOVER"),
+export const operatorTaskEvidenceKind = literalUnion(
+  "QUANTITY",
+  "SCAN",
+  "NOTE",
+  "HANDOVER",
 );
 export type OperatorTaskEvidenceKindValue = Infer<
   typeof operatorTaskEvidenceKind
 >;
 
 /** The lifecycle of a problem raised from shared operator work (`FF-P1-03`). */
-export const operatorTaskExceptionStatus = v.union(
-  v.literal("OPEN"),
-  v.literal("RESOLVED"),
-  v.literal("WITHDRAWN"),
+export const operatorTaskExceptionStatus = literalUnion(
+  "OPEN",
+  "RESOLVED",
+  "WITHDRAWN",
 );
 export type OperatorTaskExceptionStatusValue = Infer<
   typeof operatorTaskExceptionStatus
 >;
 
 /** What the supervisor decided should happen after reviewing an exception. */
-export const operatorTaskExceptionDisposition = v.union(
-  v.literal("RESUME"),
-  v.literal("REASSIGN"),
-  v.literal("STOP"),
-  v.literal("ESCALATE"),
+export const operatorTaskExceptionDisposition = literalUnion(
+  "RESUME",
+  "REASSIGN",
+  "STOP",
+  "ESCALATE",
 );
 export type OperatorTaskExceptionDispositionValue = Infer<
   typeof operatorTaskExceptionDisposition
 >;
 
 /** Evidence file categories kept deliberately broad across operator modules. */
-export const operatorTaskAttachmentKind = v.union(
-  v.literal("PHOTO"),
-  v.literal("DOCUMENT"),
-  v.literal("OTHER"),
+export const operatorTaskAttachmentKind = literalUnion(
+  "PHOTO",
+  "DOCUMENT",
+  "OTHER",
 );
 export type OperatorTaskAttachmentKindValue = Infer<
   typeof operatorTaskAttachmentKind
 >;
 
 /** How a captured quantity compared with what the task expected (`FF-P1-10`). */
-export const quantityPlausibility = v.union(
-  v.literal("PLAUSIBLE"),
-  v.literal("UNCHECKED"),
-  v.literal("IMPLAUSIBLE"),
+export const quantityPlausibility = literalUnion(
+  "PLAUSIBLE",
+  "UNCHECKED",
+  "IMPLAUSIBLE",
 );
 export type QuantityPlausibilityValue = Infer<typeof quantityPlausibility>;
 
@@ -205,10 +205,7 @@ export type QuantityPlausibilityValue = Infer<typeof quantityPlausibility>;
  * no" is the evidence an exception review needs, and a table that only held
  * approvals would make refusals invisible.
  */
-export const stepUpDecision = v.union(
-  v.literal("APPROVED"),
-  v.literal("REJECTED"),
-);
+export const stepUpDecision = literalUnion("APPROVED", "REJECTED");
 export type StepUpDecisionValue = Infer<typeof stepUpDecision>;
 
 /* -------------------------------------------------------------------------- */
@@ -552,98 +549,74 @@ export type ImportBatchStatusValue = Infer<typeof importBatchStatus>;
 /* -------------------------------------------------------------------------- */
 
 /** Reviewed opening-stock import lifecycle (`FF-P2-01`). */
-export const openingStockBatchStatus = v.union(
-  v.literal("DRAFT"),
-  v.literal("READY_FOR_REVIEW"),
-  v.literal("APPROVED"),
-  v.literal("POSTING"),
-  v.literal("POSTED"),
-  v.literal("REJECTED"),
+export const openingStockBatchStatus = literalUnion(
+  "DRAFT",
+  "READY_FOR_REVIEW",
+  "APPROVED",
+  "POSTING",
+  "POSTED",
+  "REJECTED",
 );
 export type OpeningStockBatchStatusValue = Infer<
   typeof openingStockBatchStatus
 >;
 
 /** One import row is either postable or retained with a named validation fault. */
-export const openingStockRowStatus = v.union(
-  v.literal("VALID"),
-  v.literal("INVALID"),
-  v.literal("POSTED"),
-);
+export const openingStockRowStatus = literalUnion("VALID", "INVALID", "POSTED");
 export type OpeningStockRowStatusValue = Infer<typeof openingStockRowStatus>;
 
 /** Durable result of one bounded opening-stock ledger chunk. */
-export const openingStockPostChunkStatus = v.union(
-  v.literal("PENDING"),
-  v.literal("POSTED"),
-);
+export const openingStockPostChunkStatus = literalUnion("PENDING", "POSTED");
 export type OpeningStockPostChunkStatusValue = Infer<
   typeof openingStockPostChunkStatus
 >;
 
-export const countScope = v.union(
-  v.literal("FULL"),
-  v.literal("CYCLE"),
-  v.literal("SPOT"),
-);
+export const countScope = literalUnion("FULL", "CYCLE", "SPOT");
 export type CountScopeValue = Infer<typeof countScope>;
 
-export const countVisibility = v.union(
-  v.literal("BLIND"),
-  v.literal("VISIBLE"),
-);
+export const countVisibility = literalUnion("BLIND", "VISIBLE");
 export type CountVisibilityValue = Infer<typeof countVisibility>;
 
-export const countMovementPolicy = v.union(
-  v.literal("FROZEN"),
-  v.literal("MOVEMENT_AWARE"),
-);
+export const countMovementPolicy = literalUnion("FROZEN", "MOVEMENT_AWARE");
 export type CountMovementPolicyValue = Infer<typeof countMovementPolicy>;
 
-export const countPlanStatus = v.union(
-  v.literal("DRAFT"),
-  v.literal("RELEASED"),
-  v.literal("IN_PROGRESS"),
-  v.literal("RECONCILING"),
-  v.literal("COMPLETED"),
-  v.literal("CANCELLED"),
+export const countPlanStatus = literalUnion(
+  "DRAFT",
+  "RELEASED",
+  "IN_PROGRESS",
+  "RECONCILING",
+  "COMPLETED",
+  "CANCELLED",
 );
 export type CountPlanStatusValue = Infer<typeof countPlanStatus>;
 
-export const countTaskStatus = v.union(
-  v.literal("AVAILABLE"),
-  v.literal("COUNTING"),
-  v.literal("SUBMITTED"),
-  v.literal("RECOUNT_REQUIRED"),
-  v.literal("RECOUNTING"),
-  v.literal("RECONCILED"),
-  v.literal("CANCELLED"),
+export const countTaskStatus = literalUnion(
+  "AVAILABLE",
+  "COUNTING",
+  "SUBMITTED",
+  "RECOUNT_REQUIRED",
+  "RECOUNTING",
+  "RECONCILED",
+  "CANCELLED",
 );
 export type CountTaskStatusValue = Infer<typeof countTaskStatus>;
 
-export const countEntrySource = v.union(
-  v.literal("HANDHELD"),
-  v.literal("PAPER_REENTRY"),
-);
+export const countEntrySource = literalUnion("HANDHELD", "PAPER_REENTRY");
 export type CountEntrySourceValue = Infer<typeof countEntrySource>;
 
-export const countReconciliationStatus = v.union(
-  v.literal("PENDING"),
-  v.literal("RECOUNT_REQUIRED"),
-  v.literal("PENDING_APPROVAL"),
-  v.literal("APPROVED"),
-  v.literal("POSTED"),
-  v.literal("MATCHED"),
+export const countReconciliationStatus = literalUnion(
+  "PENDING",
+  "RECOUNT_REQUIRED",
+  "PENDING_APPROVAL",
+  "APPROVED",
+  "POSTED",
+  "MATCHED",
 );
 export type CountReconciliationStatusValue = Infer<
   typeof countReconciliationStatus
 >;
 
-export const varianceRisk = v.union(
-  v.literal("MATCH"),
-  v.literal("STANDARD"),
-  v.literal("HIGH"),
-);
+export const varianceRisk = literalUnion("MATCH", "STANDARD", "HIGH");
 export type VarianceRiskValue = Infer<typeof varianceRisk>;
 
 export const labelTemplateFormat = literalUnion("ZPL", "PDF");
@@ -857,20 +830,20 @@ export type CustomerOrderLineStatusValue = Infer<
 /* -------------------------------------------------------------------------- */
 
 /** Commercial commitment lifecycle, kept separate from design and delivery. */
-export const fulfillmentOrderStatus = v.union(
-  v.literal("DRAFT"),
-  v.literal("RELEASED"),
-  v.literal("IN_FULFILLMENT"),
-  v.literal("PARTIALLY_COMPLETE"),
-  v.literal("COMPLETE"),
-  v.literal("CANCELLED"),
+export const fulfillmentOrderStatus = literalUnion(
+  "DRAFT",
+  "RELEASED",
+  "IN_FULFILLMENT",
+  "PARTIALLY_COMPLETE",
+  "COMPLETE",
+  "CANCELLED",
 );
 export type FulfillmentOrderStatusValue = Infer<typeof fulfillmentOrderStatus>;
 
 /** Route chosen for one customer-order demand before factory handoff. */
-export const fulfillmentRouteDecision = v.union(
-  v.literal("AVAILABLE_STOCK"),
-  v.literal("PRODUCTION"),
+export const fulfillmentRouteDecision = literalUnion(
+  "AVAILABLE_STOCK",
+  "PRODUCTION",
 );
 export type FulfillmentRouteDecisionValue = Infer<
   typeof fulfillmentRouteDecision
@@ -886,180 +859,173 @@ export type FulfillmentOrderRouteDecisionValue = Infer<
 >;
 
 /** The dominant current stage shown for one fulfillment line. */
-export const fulfillmentLineStatus = v.union(
-  v.literal("UNPLANNED"),
-  v.literal("BACKORDERED"),
-  v.literal("RESERVED"),
-  v.literal("PICKING"),
-  v.literal("STAGED"),
-  v.literal("ISSUED"),
-  v.literal("LOADED"),
-  v.literal("PARTIALLY_DELIVERED"),
-  v.literal("DELIVERED"),
-  v.literal("RETURNED"),
-  v.literal("CANCELLED"),
+export const fulfillmentLineStatus = literalUnion(
+  "UNPLANNED",
+  "BACKORDERED",
+  "RESERVED",
+  "PICKING",
+  "STAGED",
+  "ISSUED",
+  "LOADED",
+  "PARTIALLY_DELIVERED",
+  "DELIVERED",
+  "RETURNED",
+  "CANCELLED",
 );
 export type FulfillmentLineStatusValue = Infer<typeof fulfillmentLineStatus>;
 
 /** Stock rotation policy used for an allocation decision. */
-export const allocationStrategy = v.union(v.literal("FIFO"), v.literal("FEFO"));
+export const allocationStrategy = literalUnion("FIFO", "FEFO");
 export type AllocationStrategyValue = Infer<typeof allocationStrategy>;
 
 /** A reservation remains active until picking consumes or an explicit action releases it. */
-export const inventoryReservationStatus = v.union(
-  v.literal("ACTIVE"),
-  v.literal("PICKING"),
-  v.literal("CONSUMED"),
-  v.literal("RELEASED"),
-  v.literal("EXPIRED"),
+export const inventoryReservationStatus = literalUnion(
+  "ACTIVE",
+  "PICKING",
+  "CONSUMED",
+  "RELEASED",
+  "EXPIRED",
 );
 export type InventoryReservationStatusValue = Infer<
   typeof inventoryReservationStatus
 >;
 
-export const pickWaveStatus = v.union(
-  v.literal("DRAFT"),
-  v.literal("RELEASED"),
-  v.literal("IN_PROGRESS"),
-  v.literal("COMPLETE"),
-  v.literal("CANCELLED"),
+export const pickWaveStatus = literalUnion(
+  "DRAFT",
+  "RELEASED",
+  "IN_PROGRESS",
+  "COMPLETE",
+  "CANCELLED",
 );
 export type PickWaveStatusValue = Infer<typeof pickWaveStatus>;
 
-export const pickTaskStatus = v.union(
-  v.literal("AVAILABLE"),
-  v.literal("IN_PROGRESS"),
-  v.literal("PICKED"),
-  v.literal("CHECKED"),
-  v.literal("PACKED"),
-  v.literal("STAGED"),
-  v.literal("ISSUED"),
-  v.literal("CANCELLED"),
+export const pickTaskStatus = literalUnion(
+  "AVAILABLE",
+  "IN_PROGRESS",
+  "PICKED",
+  "CHECKED",
+  "PACKED",
+  "STAGED",
+  "ISSUED",
+  "CANCELLED",
 );
 export type PickTaskStatusValue = Infer<typeof pickTaskStatus>;
 
-export const pickTaskLineStatus = v.union(
-  v.literal("OPEN"),
-  v.literal("COMPLETE"),
-);
+export const pickTaskLineStatus = literalUnion("OPEN", "COMPLETE");
 export type PickTaskLineStatusValue = Infer<typeof pickTaskLineStatus>;
 
-export const pickEventKind = v.union(
-  v.literal("PICK"),
-  v.literal("SHORT"),
-  v.literal("DAMAGED"),
-);
+export const pickEventKind = literalUnion("PICK", "SHORT", "DAMAGED");
 export type PickEventKindValue = Infer<typeof pickEventKind>;
 
-export const fulfillmentPackageStatus = v.union(
-  v.literal("PACKED"),
-  v.literal("STAGED"),
-  v.literal("ISSUED"),
+export const fulfillmentPackageStatus = literalUnion(
+  "PACKED",
+  "STAGED",
+  "ISSUED",
 );
 export type FulfillmentPackageStatusValue = Infer<
   typeof fulfillmentPackageStatus
 >;
 
-export const shipmentStatus = v.union(
-  v.literal("DRAFT"),
-  v.literal("READY_TO_LOAD"),
-  v.literal("LOADING"),
-  v.literal("LOADED"),
-  v.literal("GATED_OUT"),
-  v.literal("IN_TRANSIT"),
-  v.literal("DELIVERED"),
-  v.literal("DELIVERY_FAILED"),
-  v.literal("RETURNED"),
-  v.literal("CANCELLED"),
+export const shipmentStatus = literalUnion(
+  "DRAFT",
+  "READY_TO_LOAD",
+  "LOADING",
+  "LOADED",
+  "GATED_OUT",
+  "IN_TRANSIT",
+  "DELIVERED",
+  "DELIVERY_FAILED",
+  "RETURNED",
+  "CANCELLED",
 );
 export type ShipmentStatusValue = Infer<typeof shipmentStatus>;
 
-export const shipmentPackageStatus = v.union(
-  v.literal("EXPECTED"),
-  v.literal("LOADED"),
-  v.literal("DELIVERED"),
-  v.literal("RETURNED"),
+export const shipmentPackageStatus = literalUnion(
+  "EXPECTED",
+  "LOADED",
+  "DELIVERED",
+  "RETURNED",
 );
 export type ShipmentPackageStatusValue = Infer<typeof shipmentPackageStatus>;
 
-export const tripStatus = v.union(
-  v.literal("DRAFT"),
-  v.literal("READY_TO_LOAD"),
-  v.literal("LOADING"),
-  v.literal("SEALED"),
-  v.literal("GATED_OUT"),
-  v.literal("IN_TRANSIT"),
-  v.literal("COMPLETE"),
-  v.literal("CANCELLED"),
+export const tripStatus = literalUnion(
+  "DRAFT",
+  "READY_TO_LOAD",
+  "LOADING",
+  "SEALED",
+  "GATED_OUT",
+  "IN_TRANSIT",
+  "COMPLETE",
+  "CANCELLED",
 );
 export type TripStatusValue = Infer<typeof tripStatus>;
 
-export const deliveryMilestoneKind = v.union(
-  v.literal("DEPARTED"),
-  v.literal("ARRIVED"),
-  v.literal("DELIVERED"),
-  v.literal("FAILED"),
-  v.literal("RETURNED_TO_WAREHOUSE"),
+export const deliveryMilestoneKind = literalUnion(
+  "DEPARTED",
+  "ARRIVED",
+  "DELIVERED",
+  "FAILED",
+  "RETURNED_TO_WAREHOUSE",
 );
 export type DeliveryMilestoneKindValue = Infer<typeof deliveryMilestoneKind>;
 
-export const transferSourceKind = v.union(
-  v.literal("SALES_ORDER"),
-  v.literal("INVOICE"),
-  v.literal("PREPARATION"),
-  v.literal("REPLENISHMENT"),
-  v.literal("OTHER"),
+export const transferSourceKind = literalUnion(
+  "SALES_ORDER",
+  "INVOICE",
+  "PREPARATION",
+  "REPLENISHMENT",
+  "OTHER",
 );
 export type TransferSourceKindValue = Infer<typeof transferSourceKind>;
 
-export const transferStatus = v.union(
-  v.literal("DRAFT"),
-  v.literal("APPROVED"),
-  v.literal("DISPATCHING"),
-  v.literal("DISPATCHED"),
-  v.literal("PARTIALLY_RECEIVED"),
-  v.literal("DISCREPANCY"),
-  v.literal("COMPLETE"),
-  v.literal("CANCELLED"),
+export const transferStatus = literalUnion(
+  "DRAFT",
+  "APPROVED",
+  "DISPATCHING",
+  "DISPATCHED",
+  "PARTIALLY_RECEIVED",
+  "DISCREPANCY",
+  "COMPLETE",
+  "CANCELLED",
 );
 export type TransferStatusValue = Infer<typeof transferStatus>;
 
-export const transferDiscrepancyStatus = v.union(
-  v.literal("OPEN"),
-  v.literal("RESOLVED_RECEIVED"),
-  v.literal("RESOLVED_RETURNED"),
-  v.literal("WRITTEN_OFF"),
+export const transferDiscrepancyStatus = literalUnion(
+  "OPEN",
+  "RESOLVED_RECEIVED",
+  "RESOLVED_RETURNED",
+  "WRITTEN_OFF",
 );
 export type TransferDiscrepancyStatusValue = Infer<
   typeof transferDiscrepancyStatus
 >;
 
-export const proofOfDeliveryStatus = v.union(
-  v.literal("CAPTURED"),
-  v.literal("ACCEPTED"),
-  v.literal("REJECTED"),
+export const proofOfDeliveryStatus = literalUnion(
+  "CAPTURED",
+  "ACCEPTED",
+  "REJECTED",
 );
 export type ProofOfDeliveryStatusValue = Infer<typeof proofOfDeliveryStatus>;
 
-export const documentReturnStatus = v.union(
-  v.literal("EXPECTED"),
-  v.literal("RETURNED"),
-  v.literal("WAIVED"),
+export const documentReturnStatus = literalUnion(
+  "EXPECTED",
+  "RETURNED",
+  "WAIVED",
 );
 export type DocumentReturnStatusValue = Infer<typeof documentReturnStatus>;
 
-export const transportFileKind = v.union(
-  v.literal("POD"),
-  v.literal("GATE_EVIDENCE"),
-  v.literal("DELIVERY_NOTE"),
-  v.literal("DOCUMENT_RETURN"),
+export const transportFileKind = literalUnion(
+  "POD",
+  "GATE_EVIDENCE",
+  "DELIVERY_NOTE",
+  "DOCUMENT_RETURN",
 );
 export type TransportFileKindValue = Infer<typeof transportFileKind>;
 
-export const transportFileStorageState = v.union(
-  v.literal("RESERVED"),
-  v.literal("AVAILABLE"),
-  v.literal("DELETED"),
+export const transportFileStorageState = literalUnion(
+  "RESERVED",
+  "AVAILABLE",
+  "DELETED",
 );
 export type TransportFileStorageStateValue = Infer<
   typeof transportFileStorageState
@@ -1170,90 +1136,87 @@ export const factoryPacketStatus = literalUnion(
 );
 export type FactoryPacketStatusValue = Infer<typeof factoryPacketStatus>;
 
-export const productionOrderStatus = v.union(
-  v.literal("DRAFT"),
-  v.literal("RELEASED"),
-  v.literal("IN_PROGRESS"),
-  v.literal("QC_PENDING"),
-  v.literal("COMPLETE"),
-  v.literal("CLOSED_REJECTED"),
-  v.literal("CANCELLED"),
+export const productionOrderStatus = literalUnion(
+  "DRAFT",
+  "RELEASED",
+  "IN_PROGRESS",
+  "QC_PENDING",
+  "COMPLETE",
+  "CLOSED_REJECTED",
+  "CANCELLED",
 );
 export type ProductionOrderStatusValue = Infer<typeof productionOrderStatus>;
 
-export const productionOutputDisposition = v.union(
-  v.literal("QC_HOLD"),
-  v.literal("AVAILABLE"),
-  v.literal("REJECTED"),
+export const productionOutputDisposition = literalUnion(
+  "QC_HOLD",
+  "AVAILABLE",
+  "REJECTED",
 );
 export type ProductionOutputDispositionValue = Infer<
   typeof productionOutputDisposition
 >;
 
 /** HR attendance and leave lifecycle values (Phase 8 bounded slice). */
-export const employmentStatus = v.union(
-  v.literal("ACTIVE"),
-  v.literal("INACTIVE"),
+export const employmentStatus = literalUnion("ACTIVE", "INACTIVE");
+export const attendanceEventKind = literalUnion(
+  "CLOCK_IN",
+  "BREAK_START",
+  "BREAK_END",
+  "CLOCK_OUT",
+  "CORRECTION_APPLIED",
 );
-export const attendanceEventKind = v.union(
-  v.literal("CLOCK_IN"),
-  v.literal("BREAK_START"),
-  v.literal("BREAK_END"),
-  v.literal("CLOCK_OUT"),
-  v.literal("CORRECTION_APPLIED"),
+export const attendanceDayStatus = literalUnion(
+  "OPEN",
+  "ON_BREAK",
+  "CLOSED",
+  "CORRECTED",
+  "ANOMALY",
 );
-export const attendanceDayStatus = v.union(
-  v.literal("OPEN"),
-  v.literal("ON_BREAK"),
-  v.literal("CLOSED"),
-  v.literal("CORRECTED"),
-  v.literal("ANOMALY"),
+export const hrRequestStatus = literalUnion(
+  "SUBMITTED",
+  "APPROVED",
+  "REJECTED",
+  "CANCELLED",
 );
-export const hrRequestStatus = v.union(
-  v.literal("SUBMITTED"),
-  v.literal("APPROVED"),
-  v.literal("REJECTED"),
-  v.literal("CANCELLED"),
+export const leaveType = literalUnion(
+  "ANNUAL",
+  "SICK",
+  "PERSONAL",
+  "UNPAID",
+  "OTHER",
 );
-export const leaveType = v.union(
-  v.literal("ANNUAL"),
-  v.literal("SICK"),
-  v.literal("PERSONAL"),
-  v.literal("UNPAID"),
-  v.literal("OTHER"),
-);
-export const leaveDurationKind = v.union(
-  v.literal("FULL_DAY"),
-  v.literal("HALF_DAY_AM"),
-  v.literal("HALF_DAY_PM"),
-  v.literal("HOURS"),
+export const leaveDurationKind = literalUnion(
+  "FULL_DAY",
+  "HALF_DAY_AM",
+  "HALF_DAY_PM",
+  "HOURS",
 );
 
-export const integrationAdapterKind = v.union(
-  v.literal("WEBHOOK"),
-  v.literal("ERP"),
-  v.literal("EMAIL"),
-  v.literal("LINE"),
-  v.literal("PRINTER"),
+export const integrationAdapterKind = literalUnion(
+  "WEBHOOK",
+  "ERP",
+  "EMAIL",
+  "LINE",
+  "PRINTER",
 );
-export const integrationAdapterStatus = v.union(
-  v.literal("ENABLED"),
-  v.literal("DEGRADED"),
-  v.literal("DISABLED"),
+export const integrationAdapterStatus = literalUnion(
+  "ENABLED",
+  "DEGRADED",
+  "DISABLED",
 );
-export const integrationMessageStatus = v.union(
-  v.literal("PENDING"),
-  v.literal("DELIVERING"),
-  v.literal("RETRY_WAIT"),
-  v.literal("DELIVERED"),
-  v.literal("DEAD_LETTER"),
-  v.literal("CANCELLED"),
+export const integrationMessageStatus = literalUnion(
+  "PENDING",
+  "DELIVERING",
+  "RETRY_WAIT",
+  "DELIVERED",
+  "DEAD_LETTER",
+  "CANCELLED",
 );
-export const integrationAttemptOutcome = v.union(
-  v.literal("DELIVERED"),
-  v.literal("RETRYABLE_FAILURE"),
-  v.literal("PERMANENT_FAILURE"),
-  v.literal("LEASE_EXPIRED"),
+export const integrationAttemptOutcome = literalUnion(
+  "DELIVERED",
+  "RETRYABLE_FAILURE",
+  "PERMANENT_FAILURE",
+  "LEASE_EXPIRED",
 );
 
 /**

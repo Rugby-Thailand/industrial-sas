@@ -10,6 +10,7 @@ import {
   sha256Hex,
   writeIdempotencyRecord,
 } from "../lib/idempotency";
+import { pageResult } from "../lib/listEnvelope";
 import type { TenantOrgId } from "../lib/tenantDb";
 import {
   mutationWithOrg,
@@ -178,9 +179,8 @@ export const listTaskExceptions = queryWithOrg({
           ? {}
           : { cursor: request.value.cursor }),
       });
-    return {
-      ok: true as const,
-      items: page.page.map((row) => ({
+    return pageResult(
+      page.page.map((row) => ({
         operatorTaskExceptionId: row._id as never,
         operatorTaskId: row.operatorTaskId as never,
         warehouseId: row.warehouseId as never,
@@ -208,9 +208,8 @@ export const listTaskExceptions = queryWithOrg({
           : { resolvedByUserId: row.resolvedByUserId as never }),
         ...(row.resolvedAt === undefined ? {} : { resolvedAt: row.resolvedAt }),
       })),
-      nextCursor: page.isDone ? null : page.continueCursor,
-      complete: page.isDone,
-    };
+      page,
+    );
   },
 });
 

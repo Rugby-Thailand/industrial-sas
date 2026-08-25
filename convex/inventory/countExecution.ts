@@ -18,7 +18,12 @@ import {
   type TenantPolicyContext,
 } from "../lib/tenantFunctions";
 import { countEntrySource } from "../lib/validators";
-import { writeContextOf } from "../lib/writeEnvelope";
+import {
+  refusal,
+  writeContextOf,
+  writeOutcomeValidator,
+  written,
+} from "../lib/writeEnvelope";
 import {
   captureCountEntry,
   decideCountTaskReconciled,
@@ -168,45 +173,6 @@ interface CountPaperCaptureDocument {
   readonly enteredByUserId: string;
   readonly enteredAt: number;
 }
-
-const errorValidator = v.object({
-  code: v.string(),
-  field: v.optional(v.string()),
-  reason: v.optional(v.string()),
-  table: v.optional(v.string()),
-  status: v.optional(v.string()),
-  requestId: v.optional(v.string()),
-});
-
-const writeResultValidator = v.union(
-  v.object({
-    written: v.literal(true),
-    documentId: v.string(),
-    replayed: v.boolean(),
-  }),
-  v.object({ written: v.literal(false), error: errorValidator }),
-);
-
-const refusal = (error: {
-  readonly code: string;
-  readonly field?: unknown;
-  readonly reason?: unknown;
-  readonly table?: unknown;
-  readonly status?: unknown;
-  readonly requestId?: unknown;
-}) => ({
-  written: false as const,
-  error: {
-    code: error.code,
-    ...(error.field === undefined ? {} : { field: String(error.field) }),
-    ...(error.reason === undefined ? {} : { reason: String(error.reason) }),
-    ...(error.table === undefined ? {} : { table: String(error.table) }),
-    ...(error.status === undefined ? {} : { status: String(error.status) }),
-    ...(error.requestId === undefined
-      ? {}
-      : { requestId: String(error.requestId) }),
-  },
-});
 
 const taskState = (task: CountTaskDocument): CountTaskState => ({
   status: task.status,
@@ -402,7 +368,7 @@ export const recordCountPaperCapture = mutationWithOrg({
     lineCount: v.number(),
     evidenceId: v.string(),
   },
-  returns: writeResultValidator,
+  returns: writeOutcomeValidator,
   permissionCode: "inventory.count.execute",
   target: { table: "countTasks", id: ({ countTaskId }) => countTaskId },
   warehouseId: ({ warehouseId }) => warehouseId,
@@ -433,11 +399,7 @@ export const recordCountPaperCapture = mutationWithOrg({
     });
     if (!replay.ok) return refusal(replay.error);
     if (replay.value !== null) {
-      return {
-        written: true as const,
-        documentId: replay.value.documentId,
-        replayed: true,
-      };
+      return written(replay.value);
     }
     if (args.captureOrdinal === 2) {
       const first = await readPaperCapture(ctx, bundle.task._id, 1);
@@ -484,13 +446,7 @@ export const recordCountPaperCapture = mutationWithOrg({
         enteredAt: Date.now(),
       },
     });
-    return outcome.ok
-      ? {
-          written: true as const,
-          documentId: outcome.value.documentId,
-          replayed: outcome.value.replayed,
-        }
-      : refusal(outcome.error);
+    return outcome.ok ? written(outcome.value) : refusal(outcome.error);
   },
 });
 
@@ -646,7 +602,7 @@ export const startCountTask = mutationWithOrg({
     warehouseId: v.id("warehouses"),
     countTaskId: v.id("countTasks"),
   },
-  returns: writeResultValidator,
+  returns: writeOutcomeValidator,
   permissionCode: "inventory.count.execute",
   target: { table: "countTasks", id: ({ countTaskId }) => countTaskId },
   warehouseId: ({ warehouseId }) => warehouseId,
@@ -661,11 +617,7 @@ export const startCountTask = mutationWithOrg({
     });
     if (!replay.ok) return refusal(replay.error);
     if (replay.value !== null) {
-      return {
-        written: true as const,
-        documentId: replay.value.documentId,
-        replayed: true,
-      };
+      return written(replay.value);
     }
     const bundle = await loadTaskBundle(ctx, args.countTaskId);
     if (bundle === null || bundle.task.warehouseId !== args.warehouseId)
@@ -697,11 +649,7 @@ export const startCountTask = mutationWithOrg({
       await ctx.tenantDb.patch("countPlans", bundle.plan._id, {
         status: "IN_PROGRESS",
       });
-    return {
-      written: true as const,
-      documentId: outcome.value.documentId,
-      replayed: outcome.value.replayed,
-    };
+    return written(outcome.value);
   },
 });
 
@@ -715,7 +663,7 @@ export const captureCountTaskEntry = mutationWithOrg({
     entryMinorUnits: v.number(),
     paperEvidenceId: v.optional(v.string()),
   },
-  returns: writeResultValidator,
+  returns: writeOutcomeValidator,
   permissionCode: "inventory.count.execute",
   target: { table: "countTasks", id: ({ countTaskId }) => countTaskId },
   warehouseId: ({ warehouseId }) => warehouseId,
@@ -744,11 +692,7 @@ export const captureCountTaskEntry = mutationWithOrg({
     });
     if (!replay.ok) return refusal(replay.error);
     if (replay.value !== null) {
-      return {
-        written: true as const,
-        documentId: replay.value.documentId,
-        replayed: true,
-      };
+      return written(replay.value);
     }
     if (
       !["COUNTING", "RECOUNTING"].includes(bundle.task.status) ||
@@ -829,11 +773,7 @@ export const captureCountTaskEntry = mutationWithOrg({
     });
     if (!outcome.ok) return refusal(outcome.error);
     await ctx.tenantDb.patch("countTasks", bundle.task._id, { entryCount: 1 });
-    return {
-      written: true as const,
-      documentId: outcome.value.documentId,
-      replayed: outcome.value.replayed,
-    };
+    return written(outcome.value);
   },
 });
 
@@ -843,7 +783,7 @@ export const submitCountTask = mutationWithOrg({
     warehouseId: v.id("warehouses"),
     countTaskId: v.id("countTasks"),
   },
-  returns: writeResultValidator,
+  returns: writeOutcomeValidator,
   permissionCode: "inventory.count.execute",
   target: { table: "countTasks", id: ({ countTaskId }) => countTaskId },
   warehouseId: ({ warehouseId }) => warehouseId,
@@ -866,11 +806,7 @@ export const submitCountTask = mutationWithOrg({
     });
     if (!replay.ok) return refusal(replay.error);
     if (replay.value !== null) {
-      return {
-        written: true as const,
-        documentId: replay.value.documentId,
-        replayed: true,
-      };
+      return written(replay.value);
     }
     const decision = decideCountTaskSubmission({
       state: taskState(bundle.task),
@@ -895,13 +831,7 @@ export const submitCountTask = mutationWithOrg({
       uniqueness: [],
       patch: taskPatch(decision.value),
     });
-    return outcome.ok
-      ? {
-          written: true as const,
-          documentId: outcome.value.documentId,
-          replayed: outcome.value.replayed,
-        }
-      : refusal(outcome.error);
+    return outcome.ok ? written(outcome.value) : refusal(outcome.error);
   },
 });
 
@@ -912,7 +842,7 @@ export const requestCountRecount = mutationWithOrg({
     countTaskId: v.id("countTasks"),
     reason: v.string(),
   },
-  returns: writeResultValidator,
+  returns: writeOutcomeValidator,
   permissionCode: "inventory.count.reconcile",
   target: { table: "countTasks", id: ({ countTaskId }) => countTaskId },
   warehouseId: ({ warehouseId }) => warehouseId,
@@ -933,11 +863,7 @@ export const requestCountRecount = mutationWithOrg({
     });
     if (!replay.ok) return refusal(replay.error);
     if (replay.value !== null) {
-      return {
-        written: true as const,
-        documentId: replay.value.documentId,
-        replayed: true,
-      };
+      return written(replay.value);
     }
     const decision = decideCountTaskRecount({
       state: taskState(bundle.task),
@@ -958,13 +884,7 @@ export const requestCountRecount = mutationWithOrg({
       uniqueness: [],
       patch: taskPatch(decision.value),
     });
-    return outcome.ok
-      ? {
-          written: true as const,
-          documentId: outcome.value.documentId,
-          replayed: outcome.value.replayed,
-        }
-      : refusal(outcome.error);
+    return outcome.ok ? written(outcome.value) : refusal(outcome.error);
   },
 });
 
@@ -1003,7 +923,7 @@ export const prepareCountReconciliation = mutationWithOrg({
     countTaskId: v.id("countTasks"),
     rootCauseCode: v.optional(v.string()),
   },
-  returns: writeResultValidator,
+  returns: writeOutcomeValidator,
   permissionCode: "inventory.count.reconcile",
   target: { table: "countTasks", id: ({ countTaskId }) => countTaskId },
   warehouseId: ({ warehouseId }) => warehouseId,
@@ -1029,12 +949,7 @@ export const prepareCountReconciliation = mutationWithOrg({
       });
     }
     if (!replay.ok) return refusal(replay.error);
-    if (replay.value !== null)
-      return {
-        written: true as const,
-        documentId: replay.value.documentId,
-        replayed: true,
-      };
+    if (replay.value !== null) return written(replay.value);
     const bundle = await loadTaskBundle(ctx, args.countTaskId);
     if (bundle === null || bundle.task.warehouseId !== args.warehouseId)
       return refusal({ code: "NOT_FOUND", table: "countTasks" });
@@ -1102,13 +1017,7 @@ export const prepareCountReconciliation = mutationWithOrg({
         uniqueness: [],
         patch: taskPatch(recount.value),
       });
-      return outcome.ok
-        ? {
-            written: true as const,
-            documentId: outcome.value.documentId,
-            replayed: outcome.value.replayed,
-          }
-        : refusal(outcome.error);
+      return outcome.ok ? written(outcome.value) : refusal(outcome.error);
     }
     if (
       assessment.value.varianceBaseMinorUnits !== 0 &&
@@ -1272,7 +1181,7 @@ export const approveCountReconciliation = mutationWithOrg({
     warehouseId: v.id("warehouses"),
     countReconciliationId: v.id("countReconciliations"),
   },
-  returns: writeResultValidator,
+  returns: writeOutcomeValidator,
   permissionCode: "inventory.count.approve",
   target: {
     table: "countReconciliations",
@@ -1290,12 +1199,7 @@ export const approveCountReconciliation = mutationWithOrg({
       fingerprint,
     });
     if (!replay.ok) return refusal(replay.error);
-    if (replay.value !== null)
-      return {
-        written: true as const,
-        documentId: replay.value.documentId,
-        replayed: true,
-      };
+    if (replay.value !== null) return written(replay.value);
     const row = await ctx.tenantDb.get<CountReconciliationDocument>(
       "countReconciliations",
       args.countReconciliationId,
@@ -1398,13 +1302,7 @@ export const approveCountReconciliation = mutationWithOrg({
     });
     if (!outcome.ok) return refusal(outcome.error);
     const reconciled = await reconcileTask(ctx, bundle.task);
-    return reconciled.ok
-      ? {
-          written: true as const,
-          documentId: outcome.value.documentId,
-          replayed: outcome.value.replayed,
-        }
-      : refusal(reconciled.error);
+    return reconciled.ok ? written(outcome.value) : refusal(reconciled.error);
   },
 });
 

@@ -8,6 +8,7 @@ import {
   writeIdempotencyRecord,
 } from "../lib/idempotency";
 import { makeJobPageRequest } from "../model/inventory/jobPage";
+import { pageResult } from "../lib/listEnvelope";
 import type { TenantOrgId } from "../lib/tenantDb";
 import { mutationWithOrg, queryWithOrg } from "../lib/tenantFunctions";
 import { operatorTaskAttachmentKind } from "../lib/validators";
@@ -341,9 +342,8 @@ export const listTaskFiles = queryWithOrg({
           ? {}
           : { cursor: request.value.cursor }),
       });
-    return {
-      ok: true as const,
-      items: page.page.map((row) => ({
+    return pageResult(
+      page.page.map((row) => ({
         operatorTaskAttachmentId: row._id as never,
         operatorTaskId: row.operatorTaskId as never,
         warehouseId: row.warehouseId as never,
@@ -357,9 +357,8 @@ export const listTaskFiles = queryWithOrg({
         attachedByUserId: row.attachedByUserId as never,
         attachedAt: row.attachedAt,
       })),
-      nextCursor: page.isDone ? null : page.continueCursor,
-      complete: page.isDone,
-    };
+      page,
+    );
   },
 });
 

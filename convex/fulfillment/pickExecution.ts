@@ -1261,12 +1261,12 @@ export const getPickTask = queryWithOrg({
   handler: async (ctx, args) => {
     const bundle = await loadTask(ctx, args.pickTaskId);
     if (bundle === null || bundle.task.warehouseId !== args.warehouseId) {
-      return { found: false };
+      return { found: false as const };
     }
     const lines = await taskLines(ctx, bundle.task);
-    if (lines === null) return { found: false };
+    if (lines === null) return { found: false as const };
     return {
-      found: true,
+      found: true as const,
       pickTaskId: bundle.task._id as never,
       taskNumber: bundle.task.taskNumber,
       pickWaveId: bundle.task.pickWaveId as never,

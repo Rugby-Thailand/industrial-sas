@@ -21,6 +21,7 @@ import {
   pageOptions,
   pageRefusal,
   pageRequestOf,
+  pageResult,
 } from "../lib/listEnvelope";
 import {
   mutationWithOrg,
@@ -1242,9 +1243,8 @@ export const listProductionOrders = queryWithOrg({
         ],
       )
       .page(pageOptions(request.value));
-    return {
-      ok: true as const,
-      items: page.page.map((order) => ({
+    return pageResult(
+      page.page.map((order) => ({
         productionOrderId: order._id as never,
         warehouseId: order.warehouseId as never,
         productionOrderNumber: order.productionOrderNumber,
@@ -1266,9 +1266,8 @@ export const listProductionOrders = queryWithOrg({
         status: order.status as never,
         dueAt: order.dueAt,
       })),
-      nextCursor: page.isDone ? null : page.continueCursor,
-      complete: page.isDone,
-    };
+      page,
+    );
   },
 });
 
@@ -1308,9 +1307,8 @@ export const listProductionMaterials = queryWithOrg({
         [{ field: "productionOrderId", value: args.productionOrderId }],
       )
       .page(pageOptions(request.value));
-    return {
-      ok: true as const,
-      items: page.page.map((row) => ({
+    return pageResult(
+      page.page.map((row) => ({
         productionMaterialRequirementId: row._id as never,
         productionOrderId: row.productionOrderId as never,
         lineNumber: row.lineNumber,
@@ -1324,9 +1322,8 @@ export const listProductionMaterials = queryWithOrg({
           ? {}
           : { sourceLotId: row.sourceLotId as never }),
       })),
-      nextCursor: page.isDone ? null : page.continueCursor,
-      complete: page.isDone,
-    };
+      page,
+    );
   },
 });
 
@@ -1359,9 +1356,8 @@ export const listProductionOutputReceipts = queryWithOrg({
         [{ field: "productionOrderId", value: args.productionOrderId }],
       )
       .page(pageOptions(request.value));
-    return {
-      ok: true as const,
-      items: page.page.map((row) => ({
+    return pageResult(
+      page.page.map((row) => ({
         productionOutputReceiptId: row._id as never,
         productionOrderId: row.productionOrderId as never,
         outputLotId: row.outputLotId as never,
@@ -1371,8 +1367,7 @@ export const listProductionOutputReceipts = queryWithOrg({
         disposition: row.disposition,
         receivedAt: row.receivedAt,
       })),
-      nextCursor: page.isDone ? null : page.continueCursor,
-      complete: page.isDone,
-    };
+      page,
+    );
   },
 });

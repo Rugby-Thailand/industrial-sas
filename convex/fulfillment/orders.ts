@@ -15,6 +15,7 @@ import {
   pageOptions,
   pageRefusal,
   pageRequestOf,
+  pageResult,
 } from "../lib/listEnvelope";
 import { mutationWithOrg, queryWithOrg } from "../lib/tenantFunctions";
 import type { TenantOrgId } from "../lib/tenantDb";
@@ -954,9 +955,8 @@ export const listFulfillmentOrders = queryWithOrg({
         ],
       )
       .page(pageOptions(request.value));
-    return {
-      ok: true as const,
-      items: page.page.map((row) => ({
+    return pageResult(
+      page.page.map((row) => ({
         fulfillmentOrderId: row._id as never,
         fulfillmentNumber: row.fulfillmentNumber,
         customerOrderId: row.customerOrderId as never,
@@ -972,9 +972,8 @@ export const listFulfillmentOrders = queryWithOrg({
         shipTo: { ...row.shipTo },
         ...(row.releasedAt === undefined ? {} : { releasedAt: row.releasedAt }),
       })),
-      nextCursor: page.isDone ? null : page.continueCursor,
-      complete: page.isDone,
-    };
+      page,
+    );
   },
 });
 
@@ -1013,9 +1012,8 @@ export const listFulfillmentLines = queryWithOrg({
         ],
       )
       .page(pageOptions(request.value));
-    return {
-      ok: true as const,
-      items: page.page.map((row) => ({
+    return pageResult(
+      page.page.map((row) => ({
         fulfillmentLineId: row._id as never,
         fulfillmentOrderId: row.fulfillmentOrderId as never,
         customerOrderLineId: row.customerOrderLineId as never,
@@ -1045,8 +1043,7 @@ export const listFulfillmentLines = queryWithOrg({
         status: row.status as never,
         quantities: { ...row.quantities },
       })),
-      nextCursor: page.isDone ? null : page.continueCursor,
-      complete: page.isDone,
-    };
+      page,
+    );
   },
 });

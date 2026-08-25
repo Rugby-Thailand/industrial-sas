@@ -1,48 +1,21 @@
 /**
- * Typed references to the Phase 1 shared-platform functions, and their wire
- * types.
+ * Typed references to the Phase 1 shared-platform functions, and the small
+ * presentation vocabulary the operator screens share.
  *
- * Hand-declared for the same reason every other API module here is:
- * `convex/_generated/` is a build artifact of `convex dev`, absent in CI and on
- * a machine that has never provisioned a deployment. `platformApi.test.ts`
- * re-reads the server modules, so a renamed export fails here rather than at
- * runtime.
+ * References come from committed, credential-free Convex codegen, so a server
+ * rename or an argument change is a type error here rather than "function not
+ * found" on a handheld.
  *
  * Every write carries a `requestId` in its argument type, and for the shared
  * operator surfaces that key does double duty: it makes a retry a replay, and
  * it is the identity a queued intent keeps while it waits
  * (`src/lib/offline/intentQueue.ts`).
  */
-import { makeFunctionReference } from "convex/server";
+import { getFunctionName } from "convex/server";
 
-import type { TenantOutcome } from "./ledgerApi";
-import type { MasterDataWriteOutcome } from "./masterDataApi";
+import { api } from "../../../convex/_generated/api";
 
-export const PLATFORM_FUNCTION_PATHS = Object.freeze({
-  listDevices: "platform/devices:listDevices",
-  registerDevice: "platform/devices:registerDevice",
-  renameDevice: "platform/devices:renameDevice",
-  bindDeviceInstallation: "platform/devices:bindDeviceInstallation",
-  retireDevice: "platform/devices:retireDevice",
-  recordDeviceSeen: "platform/devices:recordDeviceSeen",
-  listOperatorTasks: "platform/tasks:listOperatorTasks",
-  listOperatorTaskEvidence: "platform/tasks:listOperatorTaskEvidence",
-  createOperatorTask: "platform/tasks:createOperatorTask",
-  claimOperatorTask: "platform/tasks:claimOperatorTask",
-  heartbeatOperatorTask: "platform/tasks:heartbeatOperatorTask",
-  releaseOperatorTask: "platform/tasks:releaseOperatorTask",
-  reassignOperatorTask: "platform/tasks:reassignOperatorTask",
-  completeOperatorTask: "platform/tasks:completeOperatorTask",
-  recordTaskEvidence: "platform/tasks:recordTaskEvidence",
-  listTaskExceptions: "platform/exceptions:listTaskExceptions",
-  reportTaskException: "platform/exceptions:reportTaskException",
-  resolveTaskException: "platform/exceptions:resolveTaskException",
-  listTaskFiles: "platform/taskFiles:listTaskFiles",
-  authorizeTaskFileUpload: "platform/taskFiles:authorizeTaskFileUpload",
-  attachTaskFile: "platform/taskFiles:attachTaskFile",
-  requestTaskFileAccess: "platform/taskFiles:requestTaskFileAccess",
-  approveOnDevice: "platform/stepUp:approveOnDevice",
-});
+import { clientRef, type RefValue } from "./clientRef";
 
 /* -------------------------------------------------------------------------- */
 /* Devices                                                                     */
@@ -67,73 +40,23 @@ export interface DeviceRow {
   readonly retiredAt?: number;
 }
 
-export interface DevicePage {
-  readonly ok: true;
-  readonly items: readonly DeviceRow[];
-  readonly nextCursor: string | null;
-  readonly complete: boolean;
-}
+export const listDevicesRef = clientRef(api.platform.devices.listDevices);
+export const registerDeviceRef = clientRef(api.platform.devices.registerDevice);
+export const renameDeviceRef = clientRef(api.platform.devices.renameDevice);
+export const bindDeviceInstallationRef = clientRef(
+  api.platform.devices.bindDeviceInstallation,
+);
+export const retireDeviceRef = clientRef(api.platform.devices.retireDevice);
+export const recordDeviceSeenRef = clientRef(
+  api.platform.devices.recordDeviceSeen,
+);
 
+export type DevicePage = Extract<
+  RefValue<typeof listDevicesRef>,
+  { readonly ok: true }
+>;
 export type PageOutcome<Page> =
   Page | { readonly ok: false; readonly error: { readonly code: string } };
-
-export const listDevicesRef = makeFunctionReference<
-  "query",
-  {
-    readonly status?: DeviceStatus;
-    readonly maxPageSize?: number;
-    readonly cursor?: string;
-  },
-  TenantOutcome<PageOutcome<DevicePage>>
->(PLATFORM_FUNCTION_PATHS.listDevices);
-
-export const registerDeviceRef = makeFunctionReference<
-  "mutation",
-  {
-    readonly requestId: string;
-    readonly label: string;
-    readonly deviceType: DeviceType;
-    readonly warehouseId?: string;
-    readonly installationId?: string;
-  },
-  TenantOutcome<MasterDataWriteOutcome>
->(PLATFORM_FUNCTION_PATHS.registerDevice);
-
-export const renameDeviceRef = makeFunctionReference<
-  "mutation",
-  {
-    readonly requestId: string;
-    readonly deviceId: string;
-    readonly label: string;
-  },
-  TenantOutcome<MasterDataWriteOutcome>
->(PLATFORM_FUNCTION_PATHS.renameDevice);
-
-export const bindDeviceInstallationRef = makeFunctionReference<
-  "mutation",
-  {
-    readonly requestId: string;
-    readonly deviceId: string;
-    readonly installationId: string;
-  },
-  TenantOutcome<MasterDataWriteOutcome>
->(PLATFORM_FUNCTION_PATHS.bindDeviceInstallation);
-
-export const retireDeviceRef = makeFunctionReference<
-  "mutation",
-  { readonly requestId: string; readonly deviceId: string },
-  TenantOutcome<MasterDataWriteOutcome>
->(PLATFORM_FUNCTION_PATHS.retireDevice);
-
-export const recordDeviceSeenRef = makeFunctionReference<
-  "mutation",
-  {
-    readonly requestId: string;
-    readonly warehouseId: string;
-    readonly installationId: string;
-  },
-  TenantOutcome<MasterDataWriteOutcome>
->(PLATFORM_FUNCTION_PATHS.recordDeviceSeen);
 
 /* -------------------------------------------------------------------------- */
 /* Tasks                                                                       */
@@ -181,23 +104,11 @@ export interface OperatorTaskRow {
   readonly lease: LeaseView;
 }
 
-export interface OperatorTaskPage {
-  readonly ok: true;
-  readonly items: readonly OperatorTaskRow[];
-  readonly nextCursor: string | null;
-  readonly complete: boolean;
-  /** The server clock the leases were judged against. */
-  readonly asOf: number;
-}
-
-export type TaskEvidenceKind = "QUANTITY" | "SCAN" | "NOTE" | "HANDOVER";
-export type QuantityPlausibility = "PLAUSIBLE" | "UNCHECKED" | "IMPLAUSIBLE";
-
 export interface TaskEvidenceRow {
   readonly evidenceId: string;
   readonly operatorTaskId: string;
   readonly sequence: number;
-  readonly kind: TaskEvidenceKind;
+  readonly kind: "QUANTITY" | "SCAN" | "NOTE" | "HANDOVER";
   readonly capturedByUserId: string;
   readonly capturedAt: number;
   readonly enteredQuantity?: {
@@ -205,7 +116,7 @@ export interface TaskEvidenceRow {
     readonly minorUnits: number;
   };
   readonly baseMinorUnits?: number;
-  readonly plausibility?: QuantityPlausibility;
+  readonly plausibility?: "PLAUSIBLE" | "UNCHECKED" | "IMPLAUSIBLE";
   readonly scanValue?: string;
   readonly resolvedItemId?: string;
   readonly resolvedSku?: string;
@@ -217,147 +128,48 @@ export interface TaskEvidenceRow {
   readonly supervisorApproved: boolean;
 }
 
-export interface TaskEvidencePage {
-  readonly ok: true;
-  readonly items: readonly TaskEvidenceRow[];
-  readonly nextCursor: string | null;
-  readonly complete: boolean;
-}
+export const listOperatorTasksRef = clientRef(
+  api.platform.tasks.listOperatorTasks,
+);
+export const listOperatorTaskEvidenceRef = clientRef(
+  api.platform.tasks.listOperatorTaskEvidence,
+);
+export const claimOperatorTaskRef = clientRef(
+  api.platform.tasks.claimOperatorTask,
+);
+export const heartbeatOperatorTaskRef = clientRef(
+  api.platform.tasks.heartbeatOperatorTask,
+);
+export const releaseOperatorTaskRef = clientRef(
+  api.platform.tasks.releaseOperatorTask,
+);
+export const reassignOperatorTaskRef = clientRef(
+  api.platform.tasks.reassignOperatorTask,
+);
+export const completeOperatorTaskRef = clientRef(
+  api.platform.tasks.completeOperatorTask,
+);
+export const recordTaskEvidenceRef = clientRef(
+  api.platform.tasks.recordTaskEvidence,
+);
 
-export const listOperatorTasksRef = makeFunctionReference<
-  "query",
-  {
-    readonly warehouseId: string;
-    readonly scope?: "SITE" | "MINE";
-    readonly status?: OperatorTaskStatus;
-    readonly maxPageSize?: number;
-    readonly cursor?: string;
-  },
-  TenantOutcome<PageOutcome<OperatorTaskPage>>
->(PLATFORM_FUNCTION_PATHS.listOperatorTasks);
-
-export const listOperatorTaskEvidenceRef = makeFunctionReference<
-  "query",
-  {
-    readonly warehouseId: string;
-    readonly operatorTaskId: string;
-    readonly maxPageSize?: number;
-    readonly cursor?: string;
-  },
-  TenantOutcome<PageOutcome<TaskEvidencePage>>
->(PLATFORM_FUNCTION_PATHS.listOperatorTaskEvidence);
-
-export interface ClaimOutcome {
-  readonly written: true;
-  readonly documentId: string;
-  readonly replayed: boolean;
-  readonly alreadyHeld: boolean;
-  readonly leaseExpiresAt: number;
-  readonly retainedEvidenceCount: number;
-}
-
-export type ClaimResult =
-  | ClaimOutcome
-  | {
-      readonly written: false;
-      readonly error: { readonly code: string; readonly field?: string };
-    };
-
-export const claimOperatorTaskRef = makeFunctionReference<
-  "mutation",
-  {
-    readonly requestId: string;
-    readonly warehouseId: string;
-    readonly operatorTaskId: string;
-  },
-  TenantOutcome<ClaimResult>
->(PLATFORM_FUNCTION_PATHS.claimOperatorTask);
-
-export const heartbeatOperatorTaskRef = makeFunctionReference<
-  "mutation",
-  {
-    readonly requestId: string;
-    readonly warehouseId: string;
-    readonly operatorTaskId: string;
-    readonly installationId?: string;
-  },
-  TenantOutcome<MasterDataWriteOutcome>
->(PLATFORM_FUNCTION_PATHS.heartbeatOperatorTask);
-
-export const releaseOperatorTaskRef = makeFunctionReference<
-  "mutation",
-  {
-    readonly requestId: string;
-    readonly warehouseId: string;
-    readonly operatorTaskId: string;
-    readonly reason: string;
-  },
-  TenantOutcome<MasterDataWriteOutcome>
->(PLATFORM_FUNCTION_PATHS.releaseOperatorTask);
-
-export const reassignOperatorTaskRef = makeFunctionReference<
-  "mutation",
-  {
-    readonly requestId: string;
-    readonly warehouseId: string;
-    readonly operatorTaskId: string;
-    readonly toUserId: string;
-    readonly reason: string;
-  },
-  TenantOutcome<MasterDataWriteOutcome>
->(PLATFORM_FUNCTION_PATHS.reassignOperatorTask);
-
-export const completeOperatorTaskRef = makeFunctionReference<
-  "mutation",
-  {
-    readonly requestId: string;
-    readonly warehouseId: string;
-    readonly operatorTaskId: string;
-  },
-  TenantOutcome<MasterDataWriteOutcome>
->(PLATFORM_FUNCTION_PATHS.completeOperatorTask);
-
-export interface EvidenceOutcome {
-  readonly written: true;
-  readonly documentId: string;
-  readonly replayed: boolean;
-  readonly sequence: number;
-  readonly baseMinorUnits?: number;
-  readonly plausibility?: QuantityPlausibility;
-  readonly resolvedItemId?: string;
-  readonly resolvedSku?: string;
-  readonly scanVia?: "BARCODE" | "SKU";
-}
-
-export type EvidenceResult =
-  | EvidenceOutcome
-  | {
-      readonly written: false;
-      readonly error: {
-        readonly code: string;
-        readonly field?: string;
-        readonly reason?: string;
-      };
-    };
-
-export const recordTaskEvidenceRef = makeFunctionReference<
-  "mutation",
-  {
-    readonly requestId: string;
-    readonly warehouseId: string;
-    readonly operatorTaskId: string;
-    readonly kind: "QUANTITY" | "SCAN" | "NOTE";
-    readonly quantityText?: string;
-    readonly entryUom?: string;
-    readonly scanValue?: string;
-    readonly scanInputMethod?: "HID" | "MANUAL";
-    readonly manualEntryReason?: string;
-    readonly note?: string;
-    readonly installationId?: string;
-    readonly stepUpApprovalId?: string;
-  },
-  TenantOutcome<EvidenceResult>
->(PLATFORM_FUNCTION_PATHS.recordTaskEvidence);
+export type OperatorTaskPage = Extract<
+  RefValue<typeof listOperatorTasksRef>,
+  { readonly ok: true }
+>;
+export type TaskEvidenceKind = TaskEvidenceRow["kind"];
+export type QuantityPlausibility = NonNullable<TaskEvidenceRow["plausibility"]>;
+export type TaskEvidencePage = Extract<
+  RefValue<typeof listOperatorTaskEvidenceRef>,
+  { readonly ok: true }
+>;
+export type ClaimResult = RefValue<typeof claimOperatorTaskRef>;
+export type ClaimOutcome = Extract<ClaimResult, { readonly written: true }>;
+export type EvidenceResult = RefValue<typeof recordTaskEvidenceRef>;
+export type EvidenceOutcome = Extract<
+  EvidenceResult,
+  { readonly written: true }
+>;
 
 /* -------------------------------------------------------------------------- */
 /* Task exceptions                                                            */
@@ -387,51 +199,20 @@ export interface TaskExceptionRow {
   readonly resolvedAt?: number;
 }
 
-export interface TaskExceptionPage {
-  readonly ok: true;
-  readonly items: readonly TaskExceptionRow[];
-  readonly nextCursor: string | null;
-  readonly complete: boolean;
-}
+export const listTaskExceptionsRef = clientRef(
+  api.platform.exceptions.listTaskExceptions,
+);
+export const reportTaskExceptionRef = clientRef(
+  api.platform.exceptions.reportTaskException,
+);
+export const resolveTaskExceptionRef = clientRef(
+  api.platform.exceptions.resolveTaskException,
+);
 
-export const listTaskExceptionsRef = makeFunctionReference<
-  "query",
-  {
-    readonly warehouseId: string;
-    readonly operatorTaskId: string;
-    readonly maxPageSize?: number;
-    readonly cursor?: string;
-  },
-  TenantOutcome<PageOutcome<TaskExceptionPage>>
->(PLATFORM_FUNCTION_PATHS.listTaskExceptions);
-
-export const reportTaskExceptionRef = makeFunctionReference<
-  "mutation",
-  {
-    readonly requestId: string;
-    readonly warehouseId: string;
-    readonly operatorTaskId: string;
-    readonly reasonCodeId: string;
-    readonly summary: string;
-    readonly evidence: string;
-    readonly proposedDisposition: TaskExceptionDisposition;
-    readonly proposedRecoveryAction: string;
-  },
-  TenantOutcome<MasterDataWriteOutcome>
->(PLATFORM_FUNCTION_PATHS.reportTaskException);
-
-export const resolveTaskExceptionRef = makeFunctionReference<
-  "mutation",
-  {
-    readonly requestId: string;
-    readonly warehouseId: string;
-    readonly operatorTaskExceptionId: string;
-    readonly finalDisposition: TaskExceptionDisposition;
-    readonly recoveryAction: string;
-    readonly approverNote?: string;
-  },
-  TenantOutcome<MasterDataWriteOutcome>
->(PLATFORM_FUNCTION_PATHS.resolveTaskException);
+export type TaskExceptionPage = Extract<
+  RefValue<typeof listTaskExceptionsRef>,
+  { readonly ok: true }
+>;
 
 /* -------------------------------------------------------------------------- */
 /* Private task attachments                                                    */
@@ -454,93 +235,59 @@ export interface TaskAttachmentRow {
   readonly attachedAt: number;
 }
 
-export interface TaskAttachmentPage {
-  readonly ok: true;
-  readonly items: readonly TaskAttachmentRow[];
-  readonly nextCursor: string | null;
-  readonly complete: boolean;
-}
+export const listTaskFilesRef = clientRef(api.platform.taskFiles.listTaskFiles);
+export const authorizeTaskFileUploadRef = clientRef(
+  api.platform.taskFiles.authorizeTaskFileUpload,
+);
+export const attachTaskFileRef = clientRef(
+  api.platform.taskFiles.attachTaskFile,
+);
+export const requestTaskFileAccessRef = clientRef(
+  api.platform.taskFiles.requestTaskFileAccess,
+);
 
-export const listTaskFilesRef = makeFunctionReference<
-  "query",
-  {
-    readonly warehouseId: string;
-    readonly operatorTaskId: string;
-    readonly maxPageSize?: number;
-    readonly cursor?: string;
-  },
-  TenantOutcome<PageOutcome<TaskAttachmentPage>>
->(PLATFORM_FUNCTION_PATHS.listTaskFiles);
-
-export const authorizeTaskFileUploadRef = makeFunctionReference<
-  "mutation",
-  { readonly warehouseId: string; readonly operatorTaskId: string },
-  TenantOutcome<
-    | { readonly uploadGrantId: string; readonly expiresAt: number }
-    | MasterDataWriteOutcome
-  >
->(PLATFORM_FUNCTION_PATHS.authorizeTaskFileUpload);
-
-export const attachTaskFileRef = makeFunctionReference<
-  "mutation",
-  {
-    readonly requestId: string;
-    readonly warehouseId: string;
-    readonly operatorTaskId: string;
-    readonly uploadGrantId: string;
-    readonly fileName: string;
-    readonly kind: TaskAttachmentKind;
-    readonly contentType: string;
-    readonly byteSize: number;
-    readonly contentDigest: string;
-    readonly uploadThingKey: string;
-    readonly note?: string;
-  },
-  TenantOutcome<MasterDataWriteOutcome>
->(PLATFORM_FUNCTION_PATHS.attachTaskFile);
-
-export const requestTaskFileAccessRef = makeFunctionReference<
-  "mutation",
-  { readonly warehouseId: string; readonly operatorTaskAttachmentId: string },
-  TenantOutcome<
-    | {
-        readonly granted: true;
-        readonly url: string;
-        readonly expiresAt: number;
-      }
-    | { readonly granted: false; readonly error: { readonly code: string } }
-  >
->(PLATFORM_FUNCTION_PATHS.requestTaskFileAccess);
+export type TaskAttachmentPage = Extract<
+  RefValue<typeof listTaskFilesRef>,
+  { readonly ok: true }
+>;
 
 /* -------------------------------------------------------------------------- */
 /* Step-up                                                                     */
 /* -------------------------------------------------------------------------- */
 
-export interface StepUpApprovalOutcome {
-  readonly written: true;
-  readonly documentId: string;
-  readonly replayed: boolean;
-  readonly expiresAt: number;
-  readonly decision: "APPROVED" | "REJECTED";
-}
+export const approveOnDeviceRef = clientRef(
+  api.platform.stepUp.approveOnDevice,
+);
 
-export type StepUpApprovalResult =
-  | StepUpApprovalOutcome
-  | {
-      readonly written: false;
-      readonly error: { readonly code: string; readonly field?: string };
-    };
+export type StepUpApprovalResult = RefValue<typeof approveOnDeviceRef>;
+export type StepUpApprovalOutcome = Extract<
+  StepUpApprovalResult,
+  { readonly written: true }
+>;
 
-export const approveOnDeviceRef = makeFunctionReference<
-  "mutation",
-  {
-    readonly requestId: string;
-    readonly warehouseId: string;
-    readonly operatorUserId: string;
-    readonly operatorTaskId: string;
-    readonly installationId: string;
-    readonly decision: "APPROVED" | "REJECTED";
-    readonly reason: string;
-  },
-  TenantOutcome<StepUpApprovalResult>
->(PLATFORM_FUNCTION_PATHS.approveOnDevice);
+/** @deprecated Use the generated references above. */
+export const PLATFORM_FUNCTION_PATHS = Object.freeze({
+  listDevices: getFunctionName(listDevicesRef),
+  registerDevice: getFunctionName(registerDeviceRef),
+  renameDevice: getFunctionName(renameDeviceRef),
+  bindDeviceInstallation: getFunctionName(bindDeviceInstallationRef),
+  retireDevice: getFunctionName(retireDeviceRef),
+  recordDeviceSeen: getFunctionName(recordDeviceSeenRef),
+  listOperatorTasks: getFunctionName(listOperatorTasksRef),
+  listOperatorTaskEvidence: getFunctionName(listOperatorTaskEvidenceRef),
+  createOperatorTask: getFunctionName(api.platform.tasks.createOperatorTask),
+  claimOperatorTask: getFunctionName(claimOperatorTaskRef),
+  heartbeatOperatorTask: getFunctionName(heartbeatOperatorTaskRef),
+  releaseOperatorTask: getFunctionName(releaseOperatorTaskRef),
+  reassignOperatorTask: getFunctionName(reassignOperatorTaskRef),
+  completeOperatorTask: getFunctionName(completeOperatorTaskRef),
+  recordTaskEvidence: getFunctionName(recordTaskEvidenceRef),
+  listTaskExceptions: getFunctionName(listTaskExceptionsRef),
+  reportTaskException: getFunctionName(reportTaskExceptionRef),
+  resolveTaskException: getFunctionName(resolveTaskExceptionRef),
+  listTaskFiles: getFunctionName(listTaskFilesRef),
+  authorizeTaskFileUpload: getFunctionName(authorizeTaskFileUploadRef),
+  attachTaskFile: getFunctionName(attachTaskFileRef),
+  requestTaskFileAccess: getFunctionName(requestTaskFileAccessRef),
+  approveOnDevice: getFunctionName(approveOnDeviceRef),
+});

@@ -188,7 +188,7 @@ function ServerExecutionStage({
   status,
 }: {
   readonly warehouseId: string;
-  readonly status: string;
+  readonly status: (typeof ACTION_STAGES)[number];
 }) {
   const outcome = useQuery(listPickTasksByStatusRef, { warehouseId, status });
   if (outcome === undefined)

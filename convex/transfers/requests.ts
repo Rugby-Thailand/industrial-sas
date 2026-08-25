@@ -19,6 +19,7 @@ import {
   pageOptions,
   pageRefusal,
   pageRequestOf,
+  pageResult,
 } from "../lib/listEnvelope";
 import {
   mutationWithOrg,
@@ -1042,9 +1043,8 @@ export const listSourceTransfers = queryWithOrg({
         [{ field: "sourceWarehouseId", value: args.warehouseId }],
       )
       .page(pageOptions(request.value));
-    return {
-      ok: true as const,
-      items: page.page.map((row) => ({
+    return pageResult(
+      page.page.map((row) => ({
         transferRequestId: row._id as never,
         transferNumber: row.transferNumber,
         sourceWarehouseId: row.sourceWarehouseId as never,
@@ -1057,9 +1057,8 @@ export const listSourceTransfers = queryWithOrg({
         status: row.status as never,
         lineCount: row.lineCount,
       })),
-      nextCursor: page.isDone ? null : page.continueCursor,
-      complete: page.isDone,
-    };
+      page,
+    );
   },
 });
 
@@ -1077,16 +1076,14 @@ export const listTransferWarehouses = queryWithOrg({
         { field: "status", value: "ACTIVE" },
       ])
       .page(pageOptions(request.value));
-    return {
-      ok: true as const,
-      items: page.page.map((row) => ({
+    return pageResult(
+      page.page.map((row) => ({
         warehouseId: row._id as never,
         code: row.code,
         name: row.name,
       })),
-      nextCursor: page.isDone ? null : page.continueCursor,
-      complete: page.isDone,
-    };
+      page,
+    );
   },
 });
 
@@ -1106,9 +1103,8 @@ export const listDestinationTransfers = queryWithOrg({
         [{ field: "destinationWarehouseId", value: args.warehouseId }],
       )
       .page(pageOptions(request.value));
-    return {
-      ok: true as const,
-      items: page.page.map((row) => ({
+    return pageResult(
+      page.page.map((row) => ({
         transferRequestId: row._id as never,
         transferNumber: row.transferNumber,
         sourceWarehouseId: row.sourceWarehouseId as never,
@@ -1121,9 +1117,8 @@ export const listDestinationTransfers = queryWithOrg({
         status: row.status as never,
         lineCount: row.lineCount,
       })),
-      nextCursor: page.isDone ? null : page.continueCursor,
-      complete: page.isDone,
-    };
+      page,
+    );
   },
 });
 

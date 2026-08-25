@@ -35,6 +35,7 @@ import {
   writeIdempotencyRecord,
 } from "../lib/idempotency";
 import { normalizeItemScan, resolveItemScan } from "../lib/itemScanResolution";
+import { pageResult } from "../lib/listEnvelope";
 import type { TenantOrgId } from "../lib/tenantDb";
 import { refusal, writeErrorValidator, written } from "../lib/writeEnvelope";
 import {
@@ -501,9 +502,8 @@ export const listOperatorTaskEvidence = queryWithOrg({
           : { cursor: request.value.cursor }),
       });
 
-    return {
-      ok: true as const,
-      items: page.page.map((row) => {
+    return pageResult(
+      page.page.map((row) => {
         const record = row as unknown as Record<string, unknown>;
         const optional = (name: string) =>
           record[name] === undefined ? {} : { [name]: record[name] as never };
@@ -528,9 +528,8 @@ export const listOperatorTaskEvidence = queryWithOrg({
           ...optional("previousHolderUserId"),
         };
       }),
-      nextCursor: page.isDone ? null : page.continueCursor,
-      complete: page.isDone,
-    };
+      page,
+    );
   },
 });
 

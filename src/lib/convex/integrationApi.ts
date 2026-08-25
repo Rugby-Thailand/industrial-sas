@@ -1,70 +1,27 @@
-import { makeFunctionReference } from "convex/server";
+/** Typed browser boundary for provider-neutral integration health and retries. */
+import { api } from "../../../convex/_generated/api";
 
-import type { TenantOutcome } from "./ledgerApi";
-import type { MasterDataWriteOutcome } from "./masterDataApi";
+import { clientRef, type RefValue } from "./clientRef";
 
-export type IntegrationAdapterKind =
-  "WEBHOOK" | "ERP" | "EMAIL" | "LINE" | "PRINTER";
+export const listIntegrationHealthRef = clientRef(
+  api.integrations.delivery.listIntegrationHealth,
+);
 
-export type IntegrationAdapterStatus = "ENABLED" | "DEGRADED" | "DISABLED";
+export const registerIntegrationAdapterRef = clientRef(
+  api.integrations.delivery.registerAdapter,
+);
 
-export interface IntegrationHealthRow {
-  readonly adapterId: string;
-  readonly code: string;
-  readonly displayName: string;
-  readonly kind: IntegrationAdapterKind;
-  readonly status: IntegrationAdapterStatus;
-  readonly pending: number;
-  readonly retrying: number;
-  readonly delivering: number;
-  readonly deadLetter: number;
-  readonly lastSuccessAt?: number;
-  readonly lastFailureAt?: number;
-  readonly lastFailureCode?: string;
-  readonly complete: boolean;
-}
+export const setIntegrationAdapterStatusRef = clientRef(
+  api.integrations.delivery.setAdapterStatus,
+);
 
-export interface IntegrationHealthPayload {
-  readonly adapters: readonly IntegrationHealthRow[];
-  readonly complete: boolean;
-  readonly asOf: number;
-}
+export const retryIntegrationMessageRef = clientRef(
+  api.integrations.delivery.retryMessage,
+);
 
-type WriteResult = TenantOutcome<MasterDataWriteOutcome>;
-
-export const listIntegrationHealthRef = makeFunctionReference<
-  "query",
-  Record<string, never>,
-  TenantOutcome<IntegrationHealthPayload>
->("integrations/delivery:listIntegrationHealth");
-
-export const registerIntegrationAdapterRef = makeFunctionReference<
-  "mutation",
-  {
-    readonly requestId: string;
-    readonly code: string;
-    readonly displayName: string;
-    readonly kind: IntegrationAdapterKind;
-    readonly configurationKey: string;
-  },
-  WriteResult
->("integrations/delivery:registerAdapter");
-
-export const setIntegrationAdapterStatusRef = makeFunctionReference<
-  "mutation",
-  {
-    readonly requestId: string;
-    readonly adapterId: string;
-    readonly status: "ENABLED" | "DISABLED";
-  },
-  WriteResult
->("integrations/delivery:setAdapterStatus");
-
-export const retryIntegrationMessageRef = makeFunctionReference<
-  "mutation",
-  {
-    readonly requestId: string;
-    readonly messageId: string;
-  },
-  WriteResult
->("integrations/delivery:retryMessage");
+export type IntegrationHealthPayload = RefValue<
+  typeof listIntegrationHealthRef
+>;
+export type IntegrationHealthRow = IntegrationHealthPayload["adapters"][number];
+export type IntegrationAdapterKind = IntegrationHealthRow["kind"];
+export type IntegrationAdapterStatus = IntegrationHealthRow["status"];

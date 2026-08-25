@@ -12,6 +12,7 @@ import {
   pageOptions,
   pageRefusal,
   pageRequestOf,
+  pageResult,
 } from "../lib/listEnvelope";
 import { mutationWithOrg, queryWithOrg } from "../lib/tenantFunctions";
 import type { TenantOrgId } from "../lib/tenantDb";
@@ -240,9 +241,8 @@ export const listDesignRequirementVersions = queryWithOrg({
         [{ field: "designRequestId", value: args.designRequestId }],
       )
       .page(pageOptions(request.value));
-    return {
-      ok: true as const,
-      items: page.page.map((row) => ({
+    return pageResult(
+      page.page.map((row) => ({
         designRequirementVersionId: row._id as never,
         version: row.version,
         confirmations: { ...row.confirmations },
@@ -252,8 +252,7 @@ export const listDesignRequirementVersions = queryWithOrg({
         recordedByUserId: row.recordedByUserId as never,
         recordedAt: row.recordedAt,
       })),
-      nextCursor: page.isDone ? null : page.continueCursor,
-      complete: page.isDone,
-    };
+      page,
+    );
   },
 });

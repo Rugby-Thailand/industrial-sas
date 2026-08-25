@@ -48,7 +48,13 @@ import {
   type ItemUomProfile,
 } from "../model/uom/itemUom";
 import { makeRatio } from "../model/uom/ratio";
-import { writeContextOf } from "../lib/writeEnvelope";
+import {
+  refusal,
+  writeContextOf,
+  writeErrorValidator,
+  writeOutcomeValidator,
+  written,
+} from "../lib/writeEnvelope";
 
 export const OPENING_STOCK_OPERATIONS = Object.freeze({
   create: "inventory.opening.create",
@@ -174,24 +180,6 @@ interface ReasonCodeDocument {
   readonly status: string;
 }
 
-const errorValidator = v.object({
-  code: v.string(),
-  field: v.optional(v.string()),
-  reason: v.optional(v.string()),
-  table: v.optional(v.string()),
-  status: v.optional(v.string()),
-  requestId: v.optional(v.string()),
-});
-
-const writeResultValidator = v.union(
-  v.object({
-    written: v.literal(true),
-    documentId: v.string(),
-    replayed: v.boolean(),
-  }),
-  v.object({ written: v.literal(false), error: errorValidator }),
-);
-
 const importResultValidator = v.union(
   v.object({
     written: v.literal(true),
@@ -201,7 +189,7 @@ const importResultValidator = v.union(
     validRowCount: v.number(),
     validationErrorCount: v.number(),
   }),
-  v.object({ written: v.literal(false), error: errorValidator }),
+  v.object({ written: v.literal(false), error: writeErrorValidator }),
 );
 
 const postResultValidator = v.union(
@@ -213,29 +201,8 @@ const postResultValidator = v.union(
     rowCount: v.number(),
     batchComplete: v.boolean(),
   }),
-  v.object({ written: v.literal(false), error: errorValidator }),
+  v.object({ written: v.literal(false), error: writeErrorValidator }),
 );
-
-const refusal = (error: {
-  readonly code: string;
-  readonly field?: unknown;
-  readonly reason?: unknown;
-  readonly table?: unknown;
-  readonly status?: unknown;
-  readonly requestId?: unknown;
-}) => ({
-  written: false as const,
-  error: {
-    code: error.code,
-    ...(error.field === undefined ? {} : { field: String(error.field) }),
-    ...(error.reason === undefined ? {} : { reason: String(error.reason) }),
-    ...(error.table === undefined ? {} : { table: String(error.table) }),
-    ...(error.status === undefined ? {} : { status: String(error.status) }),
-    ...(error.requestId === undefined
-      ? {}
-      : { requestId: String(error.requestId) }),
-  },
-});
 
 const batchValidator = v.object({
   batchId: v.id("openingStockBatches"),
@@ -530,7 +497,7 @@ export const createOpeningStockBatch = mutationWithOrg({
     declaredRowCount: v.number(),
     reasonCodeId: v.id("reasonCodes"),
   },
-  returns: writeResultValidator,
+  returns: writeOutcomeValidator,
   permissionCode: "inventory.opening.manage",
   target: { table: "openingStockBatches" },
   warehouseId: ({ warehouseId }) => warehouseId,
@@ -608,13 +575,7 @@ export const createOpeningStockBatch = mutationWithOrg({
       ],
       document,
     });
-    return outcome.ok
-      ? {
-          written: true as const,
-          documentId: outcome.value.documentId,
-          replayed: outcome.value.replayed,
-        }
-      : refusal(outcome.error);
+    return outcome.ok ? written(outcome.value) : refusal(outcome.error);
   },
 });
 
@@ -820,7 +781,7 @@ export const submitOpeningStockBatch = mutationWithOrg({
     warehouseId: v.id("warehouses"),
     openingStockBatchId: v.id("openingStockBatches"),
   },
-  returns: writeResultValidator,
+  returns: writeOutcomeValidator,
   permissionCode: "inventory.opening.manage",
   target: {
     table: "openingStockBatches",
@@ -837,12 +798,7 @@ export const submitOpeningStockBatch = mutationWithOrg({
       fingerprint,
     });
     if (!replay.ok) return refusal(replay.error);
-    if (replay.value !== null)
-      return {
-        written: true as const,
-        documentId: replay.value.documentId,
-        replayed: true,
-      };
+    if (replay.value !== null) return written(replay.value);
     const batch = await ctx.tenantDb.get<OpeningBatchDocument>(
       "openingStockBatches",
       args.openingStockBatchId,
@@ -873,13 +829,7 @@ export const submitOpeningStockBatch = mutationWithOrg({
         submittedAt: decision.value.submittedAt,
       },
     });
-    return outcome.ok
-      ? {
-          written: true as const,
-          documentId: outcome.value.documentId,
-          replayed: outcome.value.replayed,
-        }
-      : refusal(outcome.error);
+    return outcome.ok ? written(outcome.value) : refusal(outcome.error);
   },
 });
 
@@ -906,7 +856,7 @@ export const approveOpeningStockBatch = mutationWithOrg({
     warehouseId: v.id("warehouses"),
     openingStockBatchId: v.id("openingStockBatches"),
   },
-  returns: writeResultValidator,
+  returns: writeOutcomeValidator,
   permissionCode: "inventory.opening.approve",
   target: {
     table: "openingStockBatches",
@@ -924,12 +874,7 @@ export const approveOpeningStockBatch = mutationWithOrg({
       fingerprint,
     });
     if (!replay.ok) return refusal(replay.error);
-    if (replay.value !== null)
-      return {
-        written: true as const,
-        documentId: replay.value.documentId,
-        replayed: true,
-      };
+    if (replay.value !== null) return written(replay.value);
     const batch = await ctx.tenantDb.get<OpeningBatchDocument>(
       "openingStockBatches",
       args.openingStockBatchId,
@@ -958,13 +903,7 @@ export const approveOpeningStockBatch = mutationWithOrg({
         approvedAt: decision.value.approvedAt,
       },
     });
-    return outcome.ok
-      ? {
-          written: true as const,
-          documentId: outcome.value.documentId,
-          replayed: outcome.value.replayed,
-        }
-      : refusal(outcome.error);
+    return outcome.ok ? written(outcome.value) : refusal(outcome.error);
   },
 });
 
@@ -975,7 +914,7 @@ export const rejectOpeningStockBatch = mutationWithOrg({
     openingStockBatchId: v.id("openingStockBatches"),
     reason: v.string(),
   },
-  returns: writeResultValidator,
+  returns: writeOutcomeValidator,
   permissionCode: "inventory.opening.manage",
   target: {
     table: "openingStockBatches",
@@ -995,12 +934,7 @@ export const rejectOpeningStockBatch = mutationWithOrg({
       fingerprint,
     });
     if (!replay.ok) return refusal(replay.error);
-    if (replay.value !== null)
-      return {
-        written: true as const,
-        documentId: replay.value.documentId,
-        replayed: true,
-      };
+    if (replay.value !== null) return written(replay.value);
     const batch = await ctx.tenantDb.get<OpeningBatchDocument>(
       "openingStockBatches",
       args.openingStockBatchId,
@@ -1031,13 +965,7 @@ export const rejectOpeningStockBatch = mutationWithOrg({
         rejectionReason: decision.value.rejectionReason,
       },
     });
-    return outcome.ok
-      ? {
-          written: true as const,
-          documentId: outcome.value.documentId,
-          replayed: outcome.value.replayed,
-        }
-      : refusal(outcome.error);
+    return outcome.ok ? written(outcome.value) : refusal(outcome.error);
   },
 });
 

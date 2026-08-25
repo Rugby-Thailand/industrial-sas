@@ -7,6 +7,7 @@ import {
   pageOptions,
   pageRefusal,
   pageRequestOf,
+  pageResult,
 } from "../lib/listEnvelope";
 import {
   CODE_FIELD,
@@ -367,9 +368,8 @@ export const listShipments = queryWithOrg({
         [{ field: "warehouseId", value: args.warehouseId }],
       )
       .page(pageOptions(request.value));
-    return {
-      ok: true as const,
-      items: page.page.map((shipment) => ({
+    return pageResult(
+      page.page.map((shipment) => ({
         found: true,
         shipmentId: shipment._id as never,
         shipmentNumber: shipment.shipmentNumber,
@@ -382,8 +382,7 @@ export const listShipments = queryWithOrg({
           ? {}
           : { tripId: shipment.tripId as never }),
       })),
-      nextCursor: page.isDone ? null : page.continueCursor,
-      complete: page.isDone,
-    };
+      page,
+    );
   },
 });

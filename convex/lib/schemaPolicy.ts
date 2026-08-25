@@ -288,12 +288,14 @@ export function whenPresent(...fields: readonly string[]): UniquenessCondition {
 }
 
 /**
- * A key that must be unique, and the index that makes checking it bounded.
+ * A key that must be unique, and — by `uniquenessIndexName` — the index that
+ * makes checking it bounded.
  *
  * Convex has no unique constraint, so uniqueness is always a code obligation.
- * The obligation is only affordable if the check is a single indexed lookup —
- * which is why the contract names both the key and the index, and why a test
- * asserts the index exists with exactly those fields in that order.
+ * The obligation is only affordable if the check is a single indexed lookup, so
+ * the key must be indexed by exactly those fields in that order. The index
+ * *name* is that key spelled out, so it is derived rather than restated: a
+ * second spelling of the same fact is a second thing to get wrong.
  *
  * Every tenant contract begins with `orgId`, so a uniqueness scope never spans
  * tenants: one tenant's warehouse code can never collide with, or disclose,
@@ -305,867 +307,377 @@ export function whenPresent(...fields: readonly string[]): UniquenessCondition {
 export type UniquenessContract = {
   readonly table: string;
   readonly key: readonly string[];
-  readonly index: string;
   readonly condition: UniquenessCondition;
-  readonly rationale: string;
 };
 
+/** The index a uniqueness key must be resolved through: the key, spelled out. */
+export function uniquenessIndexName(key: readonly string[]): string {
+  return `by_${key.join("_")}`;
+}
+
 export const UNIQUENESS_CONTRACTS: readonly UniquenessContract[] = [
-  {
-    table: "organizations",
-    key: ["clerkOrganizationId"],
-    index: "by_clerkOrganizationId",
-    condition: ALWAYS,
-    rationale:
-      "One Clerk organization maps to at most one tenant, both directions (INV-0001-05).",
-  },
-  {
-    table: "users",
-    key: ["clerkUserId"],
-    index: "by_clerkUserId",
-    condition: ALWAYS,
-    rationale:
-      "Actor resolution from a verified Clerk token happens on every request (INV-0001-02).",
-  },
-  {
-    table: "permissions",
-    key: ["code"],
-    index: "by_code",
-    condition: ALWAYS,
-    rationale:
-      "Permission codes are the stable identifiers functions and audit rows cite (INV-0006-02).",
-  },
-  {
-    table: "warehouses",
-    key: ["orgId", "code"],
-    index: "by_orgId_code",
-    condition: ALWAYS,
-    rationale:
-      "Tenant-normalized human identifier, unique per organization (§5 Q4).",
-  },
-  {
-    table: "memberships",
-    key: ["orgId", "userId"],
-    index: "by_orgId_userId",
-    condition: ALWAYS,
-    rationale:
-      "One membership per user per organization; resolved before every operation (INV-0001-03).",
-  },
+  { table: "organizations", key: ["clerkOrganizationId"], condition: ALWAYS },
+  { table: "users", key: ["clerkUserId"], condition: ALWAYS },
+  { table: "permissions", key: ["code"], condition: ALWAYS },
+  { table: "warehouses", key: ["orgId", "code"], condition: ALWAYS },
+  { table: "memberships", key: ["orgId", "userId"], condition: ALWAYS },
   {
     table: "memberships",
     key: ["orgId", "clerkMembershipId"],
-    index: "by_orgId_clerkMembershipId",
     condition: ALWAYS,
-    rationale:
-      "Idempotent application of Clerk membership webhooks (INV-0001-04).",
   },
   {
     table: "membershipRoles",
     key: ["orgId", "membershipId", "roleId"],
-    index: "by_orgId_membershipId_roleId",
     condition: ALWAYS,
-    rationale: "A role is held once per membership; the row is the grant.",
   },
   {
     table: "membershipWarehouses",
     key: ["orgId", "membershipId", "warehouseId"],
-    index: "by_orgId_membershipId_warehouseId",
     condition: ALWAYS,
-    rationale: "Warehouse scope is a set, not a multiset (G-007).",
   },
-  {
-    table: "roles",
-    key: ["orgId", "key"],
-    index: "by_orgId_key",
-    condition: ALWAYS,
-    rationale: "Seeded role keys must be idempotent to reseed (INV-0006-11).",
-  },
+  { table: "roles", key: ["orgId", "key"], condition: ALWAYS },
   {
     table: "rolePermissions",
     key: ["orgId", "roleId", "permissionCode"],
-    index: "by_orgId_roleId_permissionCode",
     condition: ALWAYS,
-    rationale: "A permission is granted to a role once; composition is a set.",
   },
-  {
-    table: "entitlements",
-    key: ["orgId", "key"],
-    index: "by_orgId_key",
-    condition: ALWAYS,
-    rationale:
-      "One entitlement row per key per tenant; absent means disabled (D-30).",
-  },
+  { table: "entitlements", key: ["orgId", "key"], condition: ALWAYS },
   {
     table: "idempotencyRecords",
     key: ["orgId", "operation", "requestId"],
-    index: "by_orgId_operation_requestId",
     condition: ALWAYS,
-    rationale:
-      "Replay detection on the hot path of every mutation; scoped per tenant (§5 Q30). " +
-      "The key locates the record; `requestHash` decides retry versus reused ID (INV-0003-01).",
   },
   {
     table: "devices",
     key: ["orgId", "installationId"],
-    index: "by_orgId_installationId",
     condition: whenPresent("installationId"),
-    rationale:
-      "A reported PWA installation correlates to at most one registered device. " +
-      "`installationId` is optional, so devices that have reported none are not duplicates of each other.",
   },
-  {
-    table: "devices",
-    key: ["orgId", "label"],
-    index: "by_orgId_label",
-    condition: ALWAYS,
-    rationale:
-      "The label is what is written on the asset tag and what a supervisor quotes when a handheld " +
-      "misbehaves. Two rows under one label make 'which device posted this' unanswerable, which is " +
-      "the only question the registry exists for (ADR-0006 §8).",
-  },
-  {
-    table: "operatorTasks",
-    key: ["orgId", "taskNumber"],
-    index: "by_orgId_taskNumber",
-    condition: ALWAYS,
-    rationale:
-      "The task number is what a supervisor and an operator say to each other across a warehouse. " +
-      "Duplicates make every one of those conversations ambiguous, and make a reassignment land on " +
-      "the wrong work.",
-  },
+  { table: "devices", key: ["orgId", "label"], condition: ALWAYS },
+  { table: "operatorTasks", key: ["orgId", "taskNumber"], condition: ALWAYS },
   {
     table: "operatorTaskEvidence",
     key: ["orgId", "operatorTaskId", "sequence"],
-    index: "by_orgId_operatorTaskId_sequence",
     condition: ALWAYS,
-    rationale:
-      "Evidence positions are the task-local order every reader agrees on. Two rows at one position " +
-      "would make partial evidence ambiguous exactly when it matters most — after a lease lapsed and " +
-      "somebody else picked the work up (plan §4 invariant 18).",
   },
-  {
-    table: "items",
-    key: ["orgId", "sku"],
-    index: "by_orgId_sku",
-    condition: ALWAYS,
-    rationale:
-      "A tenant's SKU is its own identifier for an item; two rows would make a scan ambiguous (§5 Q4, ADR-0005 §6).",
-  },
+  { table: "items", key: ["orgId", "sku"], condition: ALWAYS },
   {
     table: "locations",
     key: ["orgId", "warehouseId", "code"],
-    index: "by_orgId_warehouseId_code",
     condition: ALWAYS,
-    rationale:
-      "A location code is unique within its warehouse, not across the tenant: two sites legitimately both have a DOCK-01 (INV-0005-01).",
   },
-  {
-    table: "lots",
-    key: ["orgId", "itemId", "lotCode"],
-    index: "by_orgId_itemId_lotCode",
-    condition: ALWAYS,
-    rationale:
-      "Lot identity is item plus lot code (INV-0005-02); the index is also how a posting proves the lot belongs to the line's item.",
-  },
-  {
-    table: "handlingUnits",
-    key: ["orgId", "lpn"],
-    index: "by_orgId_lpn",
-    condition: ALWAYS,
-    rationale:
-      "An LPN is unique per organization and never reused (INV-0005-05); a rescanned old label must not resolve to new stock.",
-  },
-  {
-    table: "owners",
-    key: ["orgId", "code"],
-    index: "by_orgId_code",
-    condition: ALWAYS,
-    rationale:
-      "Owner code is the tenant's identifier for a consignment counterparty (D-11).",
-  },
-  {
-    table: "reasonCodes",
-    key: ["orgId", "code"],
-    index: "by_orgId_code",
-    condition: ALWAYS,
-    rationale:
-      "A reason code is cited by adjustments, scraps, and reversals; two rows under one code would make the audit evidence ambiguous (ADR-0003 §5).",
-  },
+  { table: "lots", key: ["orgId", "itemId", "lotCode"], condition: ALWAYS },
+  { table: "handlingUnits", key: ["orgId", "lpn"], condition: ALWAYS },
+  { table: "owners", key: ["orgId", "code"], condition: ALWAYS },
+  { table: "reasonCodes", key: ["orgId", "code"], condition: ALWAYS },
   {
     table: "inventoryTransactions",
     key: ["orgId", "operation", "requestId"],
-    index: "by_orgId_operation_requestId",
     condition: ALWAYS,
-    rationale:
-      "The idempotency namespace (INV-0003-01): a replay of one request must find exactly one transaction, and finding two would mean stock was already double-posted.",
   },
   {
     table: "inventoryTransactions",
     key: ["orgId", "reversalOfTransactionId"],
-    index: "by_orgId_reversalOfTransactionId",
     condition: whenPresent("reversalOfTransactionId"),
-    rationale:
-      "A transaction is reversed at most once: two reversals would compensate it twice (INV-0003-08). " +
-      "Conditional because only a REVERSAL carries the link, and every non-reversal leaving it absent is not a collision.",
   },
   {
     table: "inventoryLedgerLines",
     key: ["orgId", "transactionId", "lineIndex"],
-    index: "by_orgId_transactionId_lineIndex",
     condition: ALWAYS,
-    rationale:
-      "Line positions within a transaction are its canonical order; a duplicate index would make a replay non-deterministic (INV-0003-02).",
   },
   {
     table: "inventoryBalances",
     key: ["orgId", "bucketKey"],
-    index: "by_orgId_bucketKey",
     condition: ALWAYS,
-    rationale:
-      "One balance row per bucket. Two rows would make the projection ambiguous and reconciliation unable to say which is drifting (INV-0003-09).",
   },
   {
     table: "operationsRollups",
     key: ["orgId", "warehouseId", "metric", "subjectKey"],
-    index: "by_orgId_warehouseId_metric_subjectKey",
     condition: ALWAYS,
-    rationale:
-      "One counter per (site, metric, subject). Two rows would make a dashboard tile the sum of an " +
-      "arbitrary pair and make verification unable to say which is drifting (INV-0011-09).",
   },
-  {
-    table: "reportJobs",
-    key: ["orgId", "requestId"],
-    index: "by_orgId_requestId",
-    condition: ALWAYS,
-    rationale:
-      "One job per request. A repeated export request replays the job it already created rather than " +
-      "starting a second walk over the same data (INV-0011-02).",
-  },
-  {
-    table: "suppliers",
-    key: ["orgId", "code"],
-    index: "by_orgId_code",
-    condition: ALWAYS,
-    rationale:
-      "Tenant-normalized supplier identifier, unique per organization (§5 Q4).",
-  },
-  {
-    table: "itemBarcodes",
-    key: ["orgId", "barcode"],
-    index: "by_orgId_barcode",
-    condition: ALWAYS,
-    rationale:
-      "A scanned string must resolve to at most one item, or receiving has to ask an operator which " +
-      "SKU they meant while they are holding the carton. Uniqueness is on the barcode alone, " +
-      "deliberately not on (item, barcode).",
-  },
-  {
-    table: "itemUoms",
-    key: ["orgId", "itemId", "uom"],
-    index: "by_orgId_itemId_uom",
-    condition: ALWAYS,
-    rationale:
-      "One factor per alternate unit per item. A second row would give the same UOM two conversion " +
-      "factors, and the kernel's DUPLICATE_UOM exists because a profile with both is not a profile.",
-  },
-  {
-    table: "storageClasses",
-    key: ["orgId", "code"],
-    index: "by_orgId_code",
-    condition: ALWAYS,
-    rationale:
-      "A storage class means the same thing at every site, so its code is unique per organization " +
-      "rather than per warehouse (D-13).",
-  },
+  { table: "reportJobs", key: ["orgId", "requestId"], condition: ALWAYS },
+  { table: "suppliers", key: ["orgId", "code"], condition: ALWAYS },
+  { table: "itemBarcodes", key: ["orgId", "barcode"], condition: ALWAYS },
+  { table: "itemUoms", key: ["orgId", "itemId", "uom"], condition: ALWAYS },
+  { table: "storageClasses", key: ["orgId", "code"], condition: ALWAYS },
   {
     table: "labelTemplates",
     key: ["orgId", "code", "version"],
-    index: "by_orgId_code_version",
     condition: ALWAYS,
-    rationale:
-      "A printed label cites a template code and version as audit evidence (RG-004). Two rows under " +
-      "one version would make that citation ambiguous.",
   },
   {
     table: "openingStockBatches",
     key: ["orgId", "batchRef"],
-    index: "by_orgId_batchRef",
     condition: ALWAYS,
-    rationale:
-      "One source import reference names one opening-stock review; replaying it must not create a second balance seed.",
   },
   {
     table: "openingStockRows",
     key: ["orgId", "openingStockBatchId", "sourceRowNumber"],
-    index: "by_orgId_openingStockBatchId_sourceRowNumber",
     condition: ALWAYS,
-    rationale:
-      "One source row is retained once inside its batch, whether valid or invalid, so a chunk retry cannot duplicate stock.",
   },
   {
     table: "openingStockImportChunks",
     key: ["orgId", "openingStockBatchId", "startSourceRowNumber"],
-    index: "by_orgId_openingStockBatchId_startSourceRowNumber",
     condition: ALWAYS,
-    rationale:
-      "One durable result per import cursor makes a resumed validation replay the committed chunk.",
   },
   {
     table: "openingStockImportChunks",
     key: ["orgId", "requestId"],
-    index: "by_orgId_requestId",
     condition: ALWAYS,
-    rationale:
-      "Each bounded import command has one replay result within the tenant.",
   },
   {
     table: "openingStockPostChunks",
     key: ["orgId", "openingStockBatchId", "chunkNumber"],
-    index: "by_orgId_openingStockBatchId_chunkNumber",
     condition: ALWAYS,
-    rationale:
-      "Each ledger-sized opening-stock chunk posts once and retains its transaction link for replay evidence.",
   },
   {
     table: "openingStockPostChunks",
     key: ["orgId", "requestId"],
-    index: "by_orgId_requestId",
     condition: ALWAYS,
-    rationale:
-      "A repeated post command finds its already-linked ledger transaction before selecting the next rows.",
   },
-  {
-    table: "countPlans",
-    key: ["orgId", "planNumber"],
-    index: "by_orgId_planNumber",
-    condition: ALWAYS,
-    rationale:
-      "A count plan number is the shared supervisor and floor reference and must name one scope only.",
-  },
+  { table: "countPlans", key: ["orgId", "planNumber"], condition: ALWAYS },
   {
     table: "countTasks",
     key: ["orgId", "countPlanId", "taskNumber"],
-    index: "by_orgId_countPlanId_taskNumber",
     condition: ALWAYS,
-    rationale:
-      "A task position occurs once in a plan so two operators cannot count different locations under one number.",
   },
   {
     table: "countSnapshots",
     key: ["orgId", "countTaskId", "bucketKey"],
-    index: "by_orgId_countTaskId_bucketKey",
     condition: ALWAYS,
-    rationale:
-      "A count task freezes one ledger baseline per bucket; two baselines would make variance undefined.",
   },
   {
     table: "countEntries",
     key: ["orgId", "countSnapshotId", "countOrdinal"],
-    index: "by_orgId_countSnapshotId_countOrdinal",
     condition: ALWAYS,
-    rationale:
-      "Each bucket has at most one accepted value in each count pass; retries replay instead of adding another answer.",
   },
   {
     table: "countReconciliations",
     key: ["orgId", "countSnapshotId"],
-    index: "by_orgId_countSnapshotId",
     condition: ALWAYS,
-    rationale:
-      "One snapshot reaches one variance decision and one final ledger adjustment.",
   },
   {
     table: "countPaperCaptures",
     key: ["orgId", "countTaskId", "captureOrdinal"],
-    index: "by_orgId_countTaskId_captureOrdinal",
     condition: ALWAYS,
-    rationale:
-      "A sanctioned paper sheet has exactly two independently attributed capture positions.",
   },
-  {
-    table: "purchaseOrders",
-    key: ["orgId", "poNumber"],
-    index: "by_orgId_poNumber",
-    condition: ALWAYS,
-    rationale:
-      "The order number is what a buyer, a supplier, and a receiving operator all quote. Two orders " +
-      "under one number make every one of those conversations ambiguous (ADR-0007 §1).",
-  },
+  { table: "purchaseOrders", key: ["orgId", "poNumber"], condition: ALWAYS },
   {
     table: "purchaseOrderLines",
     key: ["orgId", "purchaseOrderId", "lineNumber"],
-    index: "by_orgId_purchaseOrderId_lineNumber",
     condition: ALWAYS,
-    rationale:
-      "A receipt is posted against a line by its position on the order. Two lines at one position would " +
-      "make the posting target ambiguous and the running received total meaningless.",
   },
   {
     table: "purchaseOrderLines",
     key: ["orgId", "sourceRowRef"],
-    index: "by_orgId_sourceRowRef",
     condition: whenPresent("sourceRowRef"),
-    rationale:
-      "One imported spreadsheet row creates at most one line, however many times a chunk is replayed " +
-      "after a crash (INV-0007-12).",
   },
-  {
-    table: "poImportBatches",
-    key: ["orgId", "batchRef"],
-    index: "by_orgId_batchRef",
-    condition: ALWAYS,
-    rationale:
-      "The batch reference is half of every imported row's sourceRowRef, which is the row's idempotency " +
-      "key. Two batches under one reference would make a re-run write duplicates (INV-0007-12).",
-  },
-  {
-    table: "receipts",
-    key: ["orgId", "receiptNumber"],
-    index: "by_orgId_receiptNumber",
-    condition: ALWAYS,
-    rationale:
-      "The receipt number is the tenant-visible reference on a goods-received note; duplicates make " +
-      "reconciliation against a supplier's delivery paperwork impossible.",
-  },
+  { table: "poImportBatches", key: ["orgId", "batchRef"], condition: ALWAYS },
+  { table: "receipts", key: ["orgId", "receiptNumber"], condition: ALWAYS },
   {
     table: "qcInspections",
     key: ["orgId", "receiptLineId"],
-    index: "by_orgId_receiptLineId",
     condition: ALWAYS,
-    rationale:
-      "One received line is inspected once. A second inspection row would let two dispositions move the " +
-      "same held quantity, and the ledger would refuse the second with a message about balances rather " +
-      "than about quality (INV-0007-05).",
   },
-  {
-    table: "putawayTasks",
-    key: ["orgId", "receiptLineId"],
-    index: "by_orgId_receiptLineId",
-    condition: ALWAYS,
-    rationale:
-      "One received line becomes one putaway task. Two tasks for one line would let two operators each " +
-      "move the whole quantity, and the second move would post from a bucket already emptied.",
-  },
-  {
-    table: "customers",
-    key: ["orgId", "code"],
-    index: "by_orgId_code",
-    condition: ALWAYS,
-    rationale:
-      "The customer code is what a salesperson quotes on the phone and what every order is filed under. " +
-      "Two customers under one code would let an order be raised against the wrong company.",
-  },
-  {
-    table: "customerOrders",
-    key: ["orgId", "orderNumber"],
-    index: "by_orgId_orderNumber",
-    condition: ALWAYS,
-    rationale:
-      "The order number is the tenant's own reference for a commitment to a customer. Duplicates make " +
-      "every 'where is my order' conversation ambiguous (ADR-0013 §2).",
-  },
+  { table: "putawayTasks", key: ["orgId", "receiptLineId"], condition: ALWAYS },
+  { table: "customers", key: ["orgId", "code"], condition: ALWAYS },
+  { table: "customerOrders", key: ["orgId", "orderNumber"], condition: ALWAYS },
   {
     table: "customerOrders",
     key: ["orgId", "customerId", "customerReference"],
-    index: "by_orgId_customerId_customerReference",
     condition: whenPresent("customerReference"),
-    rationale:
-      "One customer PO becomes one order, so a re-keyed or re-imported PO cannot commit the factory twice. " +
-      "Scoped to the customer, not the organization, because two customers may both number their orders " +
-      "PO-001 and refusing the second would be this system telling a customer their numbering is wrong.",
   },
   {
     table: "customerOrderLines",
     key: ["orgId", "customerOrderId", "lineNumber"],
-    index: "by_orgId_customerOrderId_lineNumber",
     condition: ALWAYS,
-    rationale:
-      "A factory packet is issued against a line by its position on the order. Two lines at one position " +
-      "would make the hand-off target ambiguous.",
   },
   {
     table: "fulfillmentOrders",
     key: ["orgId", "fulfillmentNumber"],
-    index: "by_orgId_fulfillmentNumber",
     condition: ALWAYS,
-    rationale:
-      "The fulfillment number is the warehouse and customer-service reference for one execution aggregate.",
   },
   {
     table: "fulfillmentOrders",
     key: ["orgId", "customerOrderId", "warehouseId"],
-    index: "by_orgId_customerOrderId_warehouseId",
     condition: ALWAYS,
-    rationale:
-      "One released customer order is executed once at a given warehouse; a second aggregate would reserve the same demand twice.",
   },
   {
     table: "fulfillmentLines",
     key: ["orgId", "fulfillmentOrderId", "customerOrderLineId"],
-    index: "by_orgId_fulfillmentOrderId_customerOrderLineId",
     condition: ALWAYS,
-    rationale:
-      "One customer line appears once in its fulfillment aggregate so its stage quantities remain a single conservation equation.",
   },
   {
     table: "fulfillmentLines",
     key: ["orgId", "customerOrderLineId"],
-    index: "by_orgId_customerOrderLineId",
     condition: ALWAYS,
-    rationale:
-      "Path A may claim a customer order line once; multiple fulfillment lines would duplicate demand across warehouses.",
   },
   {
     table: "inventoryReservations",
     key: ["orgId", "allocationRunId", "bucketKey"],
-    index: "by_orgId_allocationRunId_bucketKey",
     condition: ALWAYS,
-    rationale:
-      "One allocation run claims each physical stock bucket at most once, keeping its rotation decision deterministic and replay-safe.",
   },
-  {
-    table: "pickWaves",
-    key: ["orgId", "waveNumber"],
-    index: "by_orgId_waveNumber",
-    condition: ALWAYS,
-    rationale:
-      "A wave number names one bounded release of fulfillment demand on every warehouse surface.",
-  },
+  { table: "pickWaves", key: ["orgId", "waveNumber"], condition: ALWAYS },
   {
     table: "pickTasks",
     key: ["orgId", "pickWaveId", "taskNumber"],
-    index: "by_orgId_pickWaveId_taskNumber",
     condition: ALWAYS,
-    rationale:
-      "Task positions are unique inside a wave so scan evidence cannot attach to an ambiguous instruction.",
   },
   {
     table: "pickTasks",
     key: ["orgId", "pickWaveId", "fulfillmentLineId"],
-    index: "by_orgId_pickWaveId_fulfillmentLineId",
     condition: ALWAYS,
-    rationale:
-      "A wave creates one independently checked pick task for each fulfillment line.",
   },
   {
     table: "pickTaskLines",
     key: ["orgId", "pickTaskId", "lineNumber"],
-    index: "by_orgId_pickTaskId_lineNumber",
     condition: ALWAYS,
-    rationale: "A pick instruction has one stable line number inside its task.",
   },
   {
     table: "pickTaskLines",
     key: ["orgId", "inventoryReservationId"],
-    index: "by_orgId_inventoryReservationId",
     condition: ALWAYS,
-    rationale:
-      "One active reservation is released to one pick line so the same stock cannot appear on two carts.",
   },
   {
     table: "pickEvents",
     key: ["orgId", "pickTaskId", "sequence"],
-    index: "by_orgId_pickTaskId_sequence",
     condition: ALWAYS,
-    rationale:
-      "Task-local event positions make scan, short, and damage evidence replayable in one unambiguous order.",
   },
   {
     table: "fulfillmentPackages",
     key: ["orgId", "packageNumber"],
-    index: "by_orgId_packageNumber",
     condition: ALWAYS,
-    rationale:
-      "A package label must resolve to one package across checking, staging, loading, and POD.",
   },
   {
     table: "fulfillmentPackages",
     key: ["orgId", "pickTaskId"],
-    index: "by_orgId_pickTaskId",
     condition: ALWAYS,
-    rationale:
-      "The initial Path A slice creates one package per checked pick task; a later split design must change this contract explicitly.",
   },
-  {
-    table: "shipments",
-    key: ["orgId", "shipmentNumber"],
-    index: "by_orgId_shipmentNumber",
-    condition: ALWAYS,
-    rationale:
-      "One shipment number resolves to one issued-package manifest and delivery lifecycle.",
-  },
+  { table: "shipments", key: ["orgId", "shipmentNumber"], condition: ALWAYS },
   {
     table: "shipmentPackages",
     key: ["orgId", "shipmentId", "fulfillmentPackageId"],
-    index: "by_orgId_shipmentId_fulfillmentPackageId",
     condition: ALWAYS,
-    rationale:
-      "A package occurs once in a shipment manifest so a repeated load scan cannot increment progress.",
   },
   {
     table: "shipmentPackages",
     key: ["orgId", "fulfillmentPackageId"],
-    index: "by_orgId_fulfillmentPackageId",
     condition: ALWAYS,
-    rationale: "An issued package belongs to one outbound shipment at a time.",
   },
-  {
-    table: "trips",
-    key: ["orgId", "tripNumber"],
-    index: "by_orgId_tripNumber",
-    condition: ALWAYS,
-    rationale:
-      "A trip number names one vehicle, driver snapshot, manifest, seal, and gate journey.",
-  },
-  {
-    table: "tripShipments",
-    key: ["orgId", "shipmentId"],
-    index: "by_orgId_shipmentId",
-    condition: ALWAYS,
-    rationale:
-      "The initial transport slice assigns a shipment to exactly one trip.",
-  },
+  { table: "trips", key: ["orgId", "tripNumber"], condition: ALWAYS },
+  { table: "tripShipments", key: ["orgId", "shipmentId"], condition: ALWAYS },
   {
     table: "loadEvents",
     key: ["orgId", "tripId", "sequence"],
-    index: "by_orgId_tripId_sequence",
     condition: ALWAYS,
-    rationale:
-      "Each accepted package scan has a stable trip-local evidence position.",
   },
-  {
-    table: "gatePasses",
-    key: ["orgId", "gatePassNumber"],
-    index: "by_orgId_gatePassNumber",
-    condition: ALWAYS,
-    rationale:
-      "The printed and scanned gate reference resolves to one auditable release.",
-  },
-  {
-    table: "gatePasses",
-    key: ["orgId", "tripId"],
-    index: "by_orgId_tripId",
-    condition: ALWAYS,
-    rationale: "A trip can leave the warehouse gate once.",
-  },
+  { table: "gatePasses", key: ["orgId", "gatePassNumber"], condition: ALWAYS },
+  { table: "gatePasses", key: ["orgId", "tripId"], condition: ALWAYS },
   {
     table: "deliveryMilestones",
     key: ["orgId", "shipmentId", "sequence"],
-    index: "by_orgId_shipmentId_sequence",
     condition: ALWAYS,
-    rationale:
-      "Driver evidence is append-only and ordered within one shipment without a tenant scan.",
   },
   {
     table: "transportFiles",
     key: ["orgId", "storageObjectId"],
-    index: "by_orgId_storageObjectId",
     condition: ALWAYS,
-    rationale:
-      "A private UploadThing object is adopted once and always inherits one shipment's authorization.",
   },
   {
     table: "proofOfDeliveries",
     key: ["orgId", "shipmentId"],
-    index: "by_orgId_shipmentId",
     condition: ALWAYS,
-    rationale:
-      "One shipment has one reviewed proof-of-delivery record; rejected capture is retained on that record.",
   },
   {
     table: "documentReturns",
     key: ["orgId", "shipmentId", "documentType"],
-    index: "by_orgId_shipmentId_documentType",
     condition: ALWAYS,
-    rationale:
-      "Each required original document has one explicit returned or waived state per shipment.",
   },
   {
     table: "designRequests",
     key: ["orgId", "requestNumber"],
-    index: "by_orgId_requestNumber",
     condition: ALWAYS,
-    rationale:
-      "The request number is what sales quotes when chasing engineering for a date. Duplicates make the " +
-      "chase land on the wrong drawing.",
   },
   {
     table: "designRequirementVersions",
     key: ["orgId", "designRequestId", "version"],
-    index: "by_orgId_designRequestId_version",
     condition: ALWAYS,
-    rationale:
-      "A requirement version is immutable evidence; one request cannot have two different version 2 sign-offs.",
   },
   {
     table: "designChangeImpacts",
     key: ["orgId", "toRevisionId", "productionOrderId"],
-    index: "by_orgId_toRevisionId_productionOrderId",
     condition: ALWAYS,
-    rationale:
-      "One released revision creates one review obligation per already-pinned production order.",
   },
   {
     table: "designRequests",
     key: ["orgId", "customerOrderLineId"],
-    index: "by_orgId_customerOrderLineId",
     condition: ALWAYS,
-    rationale:
-      "One line raises one design request. Two requests for one line would leave two people waiting on one " +
-      "drawing with no way to tell which request the eventual revision answered (INV-0013-05).",
   },
-  {
-    table: "masterCards",
-    key: ["orgId", "cardNumber"],
-    index: "by_orgId_cardNumber",
-    condition: ALWAYS,
-    rationale:
-      "The card number is written on paper on a factory floor. Two cards under one number would make every " +
-      "reference to it ambiguous at the machine.",
-  },
+  { table: "masterCards", key: ["orgId", "cardNumber"], condition: ALWAYS },
   {
     table: "masterCards",
     key: ["orgId", "customerId", "customerProductCode"],
-    index: "by_orgId_customerId_customerProductCode",
     condition: ALWAYS,
-    rationale:
-      "The customer's own product code is the approved exact-match identity. Two cards claiming the same " +
-      "product code for one customer would make automatic reuse ambiguous, while a geometry fingerprint " +
-      "is deliberately advisory only " +
-      "(INV-0013-01).",
   },
   {
     table: "masterCardRevisions",
     key: ["orgId", "masterCardId", "revisionNumber"],
-    index: "by_orgId_masterCardId_revisionNumber",
     condition: ALWAYS,
-    rationale:
-      "'Rev 3' has to name one document forever, including after a rejection and including on paper. Two " +
-      "revisions at one number would make a pinned packet ambiguous about what it was cut from " +
-      "(INV-0013-02).",
   },
   {
     table: "masterCardFiles",
     key: ["orgId", "masterCardRevisionId", "fileKey"],
-    index: "by_orgId_masterCardRevisionId_fileKey",
     condition: ALWAYS,
-    rationale:
-      "The file key is the attachment's identity within its revision, so a retried attach replaces nothing " +
-      "and duplicates nothing. Two rows under one key would make 'which dieline' unanswerable.",
   },
   {
     table: "masterCardImportChunks",
     key: ["orgId", "batchRef", "startSourceRow"],
-    index: "by_orgId_batchRef_startSourceRow",
     condition: ALWAYS,
-    rationale:
-      "One durable result per batch cursor makes migration retries replay the same committed chunk instead of importing the same legacy cards twice.",
   },
   {
     table: "factoryPackets",
     key: ["orgId", "packetNumber"],
-    index: "by_orgId_packetNumber",
     condition: ALWAYS,
-    rationale:
-      "The packet number is the reference a floor supervisor reads off the paper in their hand. Duplicates " +
-      "would let two different jobs answer to one number.",
   },
   {
     table: "factoryPackets",
     key: ["orgId", "customerOrderLineId"],
-    index: "by_orgId_customerOrderLineId",
     condition: ALWAYS,
-    rationale:
-      "One order line is handed to the factory once. Two packets for one line would let it be built twice, " +
-      "with nothing in this phase to reconcile the runs against — splitting a line across production runs " +
-      "is a factory-order concern (WF-02, Phase 5B).",
   },
   {
     table: "factoryPacketFiles",
     key: ["orgId", "factoryPacketId", "masterCardFileId"],
-    index: "by_orgId_factoryPacketId_masterCardFileId",
     condition: ALWAYS,
-    rationale:
-      "A file is approved for a packet once. A duplicate relationship would add no fact and would make " +
-      "file access and packet rendering depend on deduplication order.",
   },
-  {
-    table: "employees",
-    key: ["orgId", "employeeNumber"],
-    index: "by_orgId_employeeNumber",
-    condition: ALWAYS,
-    rationale:
-      "An employee number identifies one employment record in a tenant.",
-  },
+  { table: "employees", key: ["orgId", "employeeNumber"], condition: ALWAYS },
   {
     table: "employees",
     key: ["orgId", "userId"],
-    index: "by_orgId_userId",
     condition: whenPresent("userId"),
-    rationale:
-      "One login identity maps to at most one employee in an organization; employees may have no login.",
   },
-  {
-    table: "hrTeams",
-    key: ["orgId", "code"],
-    index: "by_orgId_code",
-    condition: ALWAYS,
-    rationale:
-      "A team code is the stable tenant-local identifier for supervisor scope.",
-  },
-  {
-    table: "attendanceEvents",
-    key: ["orgId", "commandId"],
-    index: "by_orgId_commandId",
-    condition: ALWAYS,
-    rationale:
-      "A queueable clock command can create at most one immutable event when retried.",
-  },
+  { table: "hrTeams", key: ["orgId", "code"], condition: ALWAYS },
+  { table: "attendanceEvents", key: ["orgId", "commandId"], condition: ALWAYS },
   {
     table: "attendanceDays",
     key: ["orgId", "employeeId", "businessDate"],
-    index: "by_orgId_employeeId_businessDate",
     condition: ALWAYS,
-    rationale:
-      "One current attendance projection represents an employee business day.",
   },
   {
     table: "attendanceCorrections",
     key: ["orgId", "requestId"],
-    index: "by_orgId_requestId",
     condition: ALWAYS,
-    rationale: "A correction request retry creates at most one decision item.",
   },
-  {
-    table: "leaveRequests",
-    key: ["orgId", "requestId"],
-    index: "by_orgId_requestId",
-    condition: ALWAYS,
-    rationale: "A leave request retry creates at most one decision item.",
-  },
-  {
-    table: "integrationAdapters",
-    key: ["orgId", "code"],
-    index: "by_orgId_code",
-    condition: ALWAYS,
-    rationale: "An adapter code is the stable tenant-local routing key.",
-  },
+  { table: "leaveRequests", key: ["orgId", "requestId"], condition: ALWAYS },
+  { table: "integrationAdapters", key: ["orgId", "code"], condition: ALWAYS },
   {
     table: "integrationOutboxMessages",
     key: ["orgId", "eventKey"],
-    index: "by_orgId_eventKey",
     condition: ALWAYS,
-    rationale:
-      "One semantic domain event is queued once even when its source command is retried.",
   },
   {
     table: "integrationDeliveryAttempts",
     key: ["orgId", "messageId", "attemptNumber"],
-    index: "by_orgId_messageId_attemptNumber",
     condition: ALWAYS,
-    rationale:
-      "One immutable delivery outcome occupies each message attempt number.",
   },
 ] as const;
 
@@ -1175,420 +687,93 @@ export const UNIQUENESS_CONTRACTS: readonly UniquenessContract[] = [
 
 /**
  * A key that must be indexed so its reads are bounded, and whose cardinality is
- * explicitly many.
+ * deliberately many.
  *
  * An index alone says nothing about cardinality, and the absence of a uniqueness
- * contract is indistinguishable from an oversight. Stating "many, on purpose"
- * here is what stops a later mutation from inventing a one-per-key rule the
- * domain never asked for.
+ * contract is indistinguishable from an oversight. Listing a key here is what
+ * says "many, on purpose", and what stops a later mutation from inventing a
+ * one-per-key rule the domain never asked for.
+ *
+ * Unlike a uniqueness contract, this names no index: the read is a range over
+ * many rows, so *any* index that begins with the key bounds it, and naming one
+ * would forbid a wider index that serves the same read plus an ordering.
  */
 export type LookupContract = {
   readonly table: string;
   readonly key: readonly string[];
-  readonly index: string;
-  readonly cardinality: "many";
-  readonly rationale: string;
 };
 
 export const BOUNDED_LOOKUP_CONTRACTS: readonly LookupContract[] = [
-  {
-    table: "integrationAdapters",
-    key: ["orgId", "status"],
-    index: "by_orgId_status_code",
-    cardinality: "many",
-    rationale:
-      "A tenant may operate several adapters in the same health state.",
-  },
-  {
-    table: "integrationOutboxMessages",
-    key: ["orgId", "adapterId", "status"],
-    index: "by_orgId_adapterId_status_availableAt",
-    cardinality: "many",
-    rationale: "Each adapter owns a bounded delivery queue per state.",
-  },
-  {
-    table: "integrationDeliveryAttempts",
-    key: ["orgId", "adapterId"],
-    index: "by_orgId_adapterId_finishedAt",
-    cardinality: "many",
-    rationale: "Adapter health is backed by append-only delivery attempts.",
-  },
-  {
-    table: "employees",
-    key: ["orgId", "warehouseId", "status"],
-    index: "by_orgId_warehouseId_status_employeeNumber",
-    cardinality: "many",
-    rationale: "A worksite has many active and inactive employees.",
-  },
-  {
-    table: "employees",
-    key: ["orgId", "teamId", "status"],
-    index: "by_orgId_teamId_status_employeeNumber",
-    cardinality: "many",
-    rationale: "A team contains many employees and keeps employment history.",
-  },
-  {
-    table: "hrTeams",
-    key: ["orgId", "warehouseId", "status"],
-    index: "by_orgId_warehouseId_status_code",
-    cardinality: "many",
-    rationale: "A worksite has many teams.",
-  },
-  {
-    table: "attendanceEvents",
-    key: ["orgId", "employeeId"],
-    index: "by_orgId_employeeId_serverReceivedAt",
-    cardinality: "many",
-    rationale: "An employee accumulates immutable clock evidence over time.",
-  },
-  {
-    table: "attendanceEvents",
-    key: ["orgId", "attendanceDayId"],
-    index: "by_orgId_attendanceDayId_serverReceivedAt",
-    cardinality: "many",
-    rationale: "A day is rebuilt from its ordered attendance events.",
-  },
+  { table: "integrationAdapters", key: ["orgId", "status"] },
+  { table: "integrationOutboxMessages", key: ["orgId", "adapterId", "status"] },
+  { table: "integrationDeliveryAttempts", key: ["orgId", "adapterId"] },
+  { table: "employees", key: ["orgId", "warehouseId", "status"] },
+  { table: "employees", key: ["orgId", "teamId", "status"] },
+  { table: "hrTeams", key: ["orgId", "warehouseId", "status"] },
+  { table: "attendanceEvents", key: ["orgId", "employeeId"] },
+  { table: "attendanceEvents", key: ["orgId", "attendanceDayId"] },
   {
     table: "attendanceDays",
     key: ["orgId", "warehouseId", "businessDate", "status"],
-    index: "by_orgId_warehouseId_businessDate_status",
-    cardinality: "many",
-    rationale:
-      "A supervisor reviews many employee days by site, date, and state.",
   },
-  {
-    table: "attendanceCorrections",
-    key: ["orgId", "employeeId", "status"],
-    index: "by_orgId_employeeId_status_requestedAt",
-    cardinality: "many",
-    rationale: "An employee may submit many traceable correction requests.",
-  },
-  {
-    table: "attendanceCorrections",
-    key: ["orgId", "warehouseId", "status"],
-    index: "by_orgId_warehouseId_status_requestedAt",
-    cardinality: "many",
-    rationale: "A site supervisor reviews many pending corrections.",
-  },
-  {
-    table: "leaveRequests",
-    key: ["orgId", "employeeId", "status"],
-    index: "by_orgId_employeeId_status_startDate",
-    cardinality: "many",
-    rationale: "An employee keeps a leave request history.",
-  },
-  {
-    table: "leaveRequests",
-    key: ["orgId", "warehouseId", "status"],
-    index: "by_orgId_warehouseId_status_startDate",
-    cardinality: "many",
-    rationale:
-      "A site inbox contains many leave decisions without private reasons.",
-  },
-  {
-    table: "masterCardUploadGrants",
-    key: ["orgId", "expiresAt"],
-    index: "by_orgId_expiresAt",
-    cardinality: "many",
-    rationale:
-      "Upload capabilities expire independently. The tenant-wide expiry prefix lets each authorization " +
-      "remove a bounded batch of stale grants and unattached storage without scanning revisions or import batches.",
-  },
-  {
-    table: "operatorTasks",
-    key: ["orgId", "warehouseId", "status"],
-    index: "by_orgId_warehouseId_status",
-    cardinality: "many",
-    rationale:
-      "A site holds many tasks in each state at once — that queue is the board a supervisor works " +
-      "from. The index bounds it per site and state; it does not cap the count.",
-  },
-  {
-    table: "operatorTasks",
-    key: ["orgId", "claimedByUserId"],
-    index: "by_orgId_claimedByUserId_status",
-    cardinality: "many",
-    rationale:
-      "One operator legitimately holds several tasks across a shift. This index is how 'My work' is " +
-      "read without paging a site-wide board and filtering it, which would return short pages that " +
-      "read to an operator as 'you have nothing to do' (INV-0002-04).",
-  },
-  {
-    table: "operatorTaskEvidence",
-    key: ["orgId", "operatorTaskId"],
-    index: "by_orgId_operatorTaskId_sequence",
-    cardinality: "many",
-    rationale:
-      "A task accumulates one row per scan, quantity, note, and handover, and none of them are ever " +
-      "removed. The index makes replaying one task's evidence a bounded page; the position within " +
-      "the task is separately unique.",
-  },
-  {
-    table: "operatorTaskExceptions",
-    key: ["orgId", "operatorTaskId"],
-    index: "by_orgId_operatorTaskId_reportedAt",
-    cardinality: "many",
-    rationale:
-      "A task may accumulate several independently reviewed problems. The task-first index pages " +
-      "the exception sheet without scanning a warehouse queue.",
-  },
-  {
-    table: "operatorTaskAttachments",
-    key: ["orgId", "operatorTaskId"],
-    index: "by_orgId_operatorTaskId_attachedAt",
-    cardinality: "many",
-    rationale:
-      "A task may retain several photos and documents. The task-first index pages metadata without exposing private bytes or scanning a warehouse.",
-  },
-  {
-    table: "stepUpApprovals",
-    key: ["orgId", "operatorUserId"],
-    index: "by_orgId_operatorUserId_expiresAt",
-    cardinality: "many",
-    rationale:
-      "An operator may be handed several approvals over a shift, each single-use. The expiry-ordered " +
-      "index bounds both the screen's read and the sweep of dead grants.",
-  },
-  {
-    table: "stepUpApprovals",
-    key: ["orgId", "targetRef"],
-    index: "by_orgId_targetRef_grantedAt",
-    cardinality: "many",
-    rationale:
-      "One document may be approved, refused, and approved again — a refusal is stored as evidence, " +
-      "so the history is deliberately many-per-key. The index bounds 'what was decided about this'.",
-  },
-  {
-    table: "supportGrants",
-    key: ["orgId", "ticketRef"],
-    index: "by_orgId_ticketRef",
-    cardinality: "many",
-    rationale:
-      "Every grant is bound to a support ticket, but a ticket may earn several grants over its life " +
-      "(reopened, re-requested after expiry, a second engineer). The index bounds ticket history and " +
-      "tenant reconciliation (INV-0006-09); it does not cap the count.",
-  },
-  {
-    table: "inventoryLedgerLines",
-    key: ["orgId", "bucketKey"],
-    index: "by_orgId_bucketKey_occurredAt",
-    cardinality: "many",
-    rationale:
-      "A bucket accumulates a line per movement forever — roughly 1M lines per tenant per year at the B-11 " +
-      "envelope. The index is what makes replaying one bucket a bounded, resumable page rather than a scan " +
-      "(INV-0003-10); it does not cap the count.",
-  },
-  {
-    table: "inventoryTransactions",
-    key: ["orgId", "warehouseId"],
-    index: "by_orgId_warehouseId_occurredAt",
-    cardinality: "many",
-    rationale:
-      "One site posts many transactions. The index bounds the history screen and the reconciliation walk " +
-      "(inventory.history.read); it does not cap the count.",
-  },
+  { table: "attendanceCorrections", key: ["orgId", "employeeId", "status"] },
+  { table: "attendanceCorrections", key: ["orgId", "warehouseId", "status"] },
+  { table: "leaveRequests", key: ["orgId", "employeeId", "status"] },
+  { table: "leaveRequests", key: ["orgId", "warehouseId", "status"] },
+  { table: "masterCardUploadGrants", key: ["orgId", "expiresAt"] },
+  { table: "operatorTasks", key: ["orgId", "warehouseId", "status"] },
+  { table: "operatorTasks", key: ["orgId", "claimedByUserId"] },
+  { table: "operatorTaskEvidence", key: ["orgId", "operatorTaskId"] },
+  { table: "operatorTaskExceptions", key: ["orgId", "operatorTaskId"] },
+  { table: "operatorTaskAttachments", key: ["orgId", "operatorTaskId"] },
+  { table: "stepUpApprovals", key: ["orgId", "operatorUserId"] },
+  { table: "stepUpApprovals", key: ["orgId", "targetRef"] },
+  { table: "supportGrants", key: ["orgId", "ticketRef"] },
+  { table: "inventoryLedgerLines", key: ["orgId", "bucketKey"] },
+  { table: "inventoryTransactions", key: ["orgId", "warehouseId"] },
   {
     table: "inventoryBalances",
     key: ["orgId", "warehouseId", "itemId", "stockStatus"],
-    index: "by_orgId_warehouseId_itemId_stockStatus",
-    cardinality: "many",
-    rationale:
-      "One item in one status is spread across many locations, lots, handling units, and owners — that " +
-      "spread is the point of a narrow bucket. The index bounds 'what is on hand' (inventory.balance.read); " +
-      "it does not cap the count.",
   },
-  {
-    table: "operationsRollups",
-    key: ["orgId", "warehouseId", "metric"],
-    index: "by_orgId_warehouseId_metric_subjectKey",
-    cardinality: "many",
-    rationale:
-      "A per-subject metric — occupancy — has one row per location, so the metric prefix reads a bounded " +
-      "page rather than a single document. A site total has exactly one row under the `-` sentinel.",
-  },
-  {
-    table: "reportJobs",
-    key: ["orgId", "warehouseId", "status"],
-    index: "by_orgId_warehouseId_status",
-    cardinality: "many",
-    rationale:
-      "A site accumulates exports. The index bounds the register screen and the queue the runner drains; " +
-      "it does not cap the count.",
-  },
-  {
-    table: "itemBarcodes",
-    key: ["orgId", "itemId"],
-    index: "by_orgId_itemId_barcode",
-    cardinality: "many",
-    rationale:
-      "One item legitimately carries several aliases — a GTIN, a supplier's own code, an internal " +
-      "label. The index bounds 'show me this item's barcodes'; it does not cap the count.",
-  },
-  {
-    table: "itemUoms",
-    key: ["orgId", "itemId"],
-    index: "by_orgId_itemId_uom",
-    cardinality: "many",
-    rationale:
-      "An item may declare each, case, and pallet. The index bounds rebuilding one item's conversion " +
-      "profile (ADR-0004); it does not cap the count.",
-  },
-  {
-    table: "labelTemplates",
-    key: ["orgId", "code"],
-    index: "by_orgId_code_version",
-    cardinality: "many",
-    rationale:
-      "A template accumulates a version per published change, forever, because a printed label cites " +
-      "the version it was produced from. The index bounds one template's history; it does not cap it.",
-  },
-  {
-    table: "receiptLines",
-    key: ["orgId", "receiptId"],
-    index: "by_orgId_receiptId",
-    cardinality: "many",
-    rationale:
-      "A receipt holds one line per item-and-lot that arrived on it — dozens for a mixed pallet, not " +
-      "thousands. The index is what makes reading one receipt a bounded read rather than a scan.",
-  },
-  {
-    table: "labelPrintJobs",
-    key: ["orgId", "targetKind", "targetId"],
-    index: "by_orgId_targetKind_targetId",
-    cardinality: "many",
-    rationale:
-      "One pallet accumulates a print job per label generated over its life, including every reprint. " +
-      "Reprints are audited as reprints (ADR-0007 §10), so the count grows and is deliberately uncapped.",
-  },
-  {
-    table: "customerOrderLines",
-    key: ["orgId", "customerOrderId"],
-    index: "by_orgId_customerOrderId_lineNumber",
-    cardinality: "many",
-    rationale:
-      "An order holds one line per box ordered — a handful for a phone order, a page for a scheduled " +
-      "call-off. The index is what makes reading one order's lines a bounded page rather than a scan; " +
-      "the position within the order is separately unique.",
-  },
-  {
-    table: "customerOrderLines",
-    key: ["orgId", "status", "designKey"],
-    index: "by_orgId_status_designKey",
-    cardinality: "many",
-    rationale:
-      "Many lines wait on the same new design — the same box ordered by the same customer twice in a " +
-      "week. This index is how the engineering queue is read without scanning every order in the tenant.",
-  },
-  {
-    table: "masterCards",
-    key: ["orgId", "customerId", "designKey"],
-    index: "by_orgId_customerId_designKey",
-    cardinality: "many",
-    rationale:
-      "Several customer product codes may deliberately share one released structural design. The index " +
-      "bounds operator-triggered reuse suggestions without making geometry an automatic identity.",
-  },
-  {
-    table: "masterCardRevisions",
-    key: ["orgId", "masterCardId"],
-    index: "by_orgId_masterCardId_revisionNumber",
-    cardinality: "many",
-    rationale:
-      "A card accumulates a revision per change, forever, because a packet cites the revision it was cut " +
-      "from and superseded revisions stay readable (INV-0013-02). The index bounds one card's history; " +
-      "it does not cap it.",
-  },
-  {
-    table: "masterCardFiles",
-    key: ["orgId", "masterCardRevisionId"],
-    index: "by_orgId_masterCardRevisionId_fileKey",
-    cardinality: "many",
-    rationale:
-      "One revision carries a dieline, artwork, and often a photo of the approved sample. The index makes " +
-      "'show me this revision's files' bounded; the key within the revision is separately unique.",
-  },
+  { table: "operationsRollups", key: ["orgId", "warehouseId", "metric"] },
+  { table: "reportJobs", key: ["orgId", "warehouseId", "status"] },
+  { table: "itemBarcodes", key: ["orgId", "itemId"] },
+  { table: "itemUoms", key: ["orgId", "itemId"] },
+  { table: "labelTemplates", key: ["orgId", "code"] },
+  { table: "receiptLines", key: ["orgId", "receiptId"] },
+  { table: "labelPrintJobs", key: ["orgId", "targetKind", "targetId"] },
+  { table: "customerOrderLines", key: ["orgId", "customerOrderId"] },
+  { table: "customerOrderLines", key: ["orgId", "status", "designKey"] },
+  { table: "masterCards", key: ["orgId", "customerId", "designKey"] },
+  { table: "masterCardRevisions", key: ["orgId", "masterCardId"] },
+  { table: "masterCardFiles", key: ["orgId", "masterCardRevisionId"] },
   {
     table: "masterCardUploadGrants",
     key: ["orgId", "masterCardRevisionId", "expiresAt"],
-    index: "by_orgId_masterCardRevisionId_expiresAt",
-    cardinality: "many",
-    rationale:
-      "A revision may receive several short-lived one-use upload authorizations. The tenant-first index bounds grant review and cleanup without a tenant scan.",
   },
   {
     table: "masterCardUploadGrants",
     key: ["orgId", "batchRef", "sourceRow", "expiresAt"],
-    index: "by_orgId_batchRef_sourceRow_expiresAt",
-    cardinality: "many",
-    rationale:
-      "Legacy migration files use the same one-use upload gateway, bound to one batch row before an import may adopt the resulting storage object.",
   },
   {
     table: "masterCardFileAccessGrants",
     key: ["orgId", "masterCardFileId", "expiresAt"],
-    index: "by_orgId_masterCardFileId_expiresAt",
-    cardinality: "many",
-    rationale:
-      "Each audited file permission check mints one short-lived one-use download capability. The tenant-first index bounds grant cleanup and review.",
   },
-  {
-    table: "masterCardImportChunks",
-    key: ["orgId", "batchRef"],
-    index: "by_orgId_batchRef_startSourceRow",
-    cardinality: "many",
-    rationale:
-      "A large legacy register is applied as bounded chunks. The batch-first index lists its completed cursors without scanning other imports.",
-  },
+  { table: "masterCardImportChunks", key: ["orgId", "batchRef"] },
   {
     table: "masterCardImportChunks",
     key: ["orgId", "batchRef", "nextSourceRow"],
-    index: "by_orgId_batchRef_nextSourceRow",
-    cardinality: "many",
-    rationale:
-      "A resumable import finds its exact predecessor by the next row it expects, so progress remains bounded and deterministic after any number of chunks.",
   },
-  {
-    table: "factoryPackets",
-    key: ["orgId", "warehouseId", "status"],
-    index: "by_orgId_warehouseId_status_packetNumber",
-    cardinality: "many",
-    rationale:
-      "A production site holds many issued packets at once — that queue is the screen the floor works " +
-      "from. The index bounds it per site and status; the packet per line is separately unique.",
-  },
-  {
-    table: "factoryPacketFiles",
-    key: ["orgId", "factoryPacketId"],
-    index: "by_orgId_factoryPacketId_masterCardFileId",
-    cardinality: "many",
-    rationale:
-      "A packet may approve several files. The junction table keeps that repeating group out of the " +
-      "packet row while the packet-first index returns the frozen file set without a scan.",
-  },
-  {
-    table: "factoryPacketFiles",
-    key: ["orgId", "masterCardFileId"],
-    index: "by_orgId_masterCardFileId_factoryPacketId",
-    cardinality: "many",
-    rationale:
-      "One immutable revision file may be approved for several packets; the reverse index keeps impact " +
-      "analysis and retention checks tenant-bounded.",
-  },
+  { table: "factoryPackets", key: ["orgId", "warehouseId", "status"] },
+  { table: "factoryPacketFiles", key: ["orgId", "factoryPacketId"] },
+  { table: "factoryPacketFiles", key: ["orgId", "masterCardFileId"] },
   {
     table: "transportFileUploadGrants",
     key: ["orgId", "shipmentId", "expiresAt"],
-    index: "by_orgId_shipmentId_expiresAt",
-    cardinality: "many",
-    rationale:
-      "A shipment may receive several short-lived upload grants; the index bounds expiry and audit review.",
   },
   {
     table: "transportFileAccessGrants",
     key: ["orgId", "transportFileId", "expiresAt"],
-    index: "by_orgId_transportFileId_expiresAt",
-    cardinality: "many",
-    rationale:
-      "Every permission check mints one actor-bound one-use download capability for the private file.",
   },
 ] as const;
 
@@ -1609,7 +794,6 @@ export type ThirdNormalFormContract = {
   readonly table: string;
   readonly determinant: readonly string[];
   readonly dependentFields: readonly string[];
-  readonly rationale: string;
 };
 
 export const THIRD_NORMAL_FORM_CONTRACTS: readonly ThirdNormalFormContract[] = [
@@ -1622,8 +806,6 @@ export const THIRD_NORMAL_FORM_CONTRACTS: readonly ThirdNormalFormContract[] = [
       "designKey",
       "specification",
     ],
-    rationale:
-      "The order line determines the requested customer, product, fingerprint, and specification.",
   },
   {
     table: "factoryPackets",
@@ -1634,8 +816,6 @@ export const THIRD_NORMAL_FORM_CONTRACTS: readonly ThirdNormalFormContract[] = [
       "customerReference",
       "quantity",
     ],
-    rationale:
-      "The packet's order line determines its customer, order identity, reference, and quantity.",
   },
   {
     table: "factoryPackets",
@@ -1646,8 +826,6 @@ export const THIRD_NORMAL_FORM_CONTRACTS: readonly ThirdNormalFormContract[] = [
       "releaseEvidence",
       "approvedFileIds",
     ],
-    rationale:
-      "The pinned immutable revision determines revision metadata; approved files belong in junction rows.",
   },
 ] as const;
 
@@ -1871,6 +1049,7 @@ export function uniquenessContractViolations(
 
   for (const contract of UNIQUENESS_CONTRACTS) {
     const keyLabel = `[${contract.key.join(", ")}]`;
+    const indexName = uniquenessIndexName(contract.key);
     const facts = byName.get(contract.table);
     if (facts === undefined) {
       problems.push(
@@ -1893,14 +1072,14 @@ export function uniquenessContractViolations(
     for (const field of conditionalFields) {
       if (!contract.key.includes(field)) {
         problems.push(
-          `${contract.table}.${contract.index}: contract ${keyLabel} is conditional on ` +
+          `${contract.table}.${indexName}: contract ${keyLabel} is conditional on ` +
             `"${field}", which is not part of the key`,
         );
         continue;
       }
       if (!facts.optionalFieldNames.includes(field)) {
         problems.push(
-          `${contract.table}.${contract.index}: contract ${keyLabel} is marked "when present" ` +
+          `${contract.table}.${indexName}: contract ${keyLabel} is marked "when present" ` +
             `for "${field}", but the schema declares it required, so the condition can never apply`,
         );
       }
@@ -1912,7 +1091,7 @@ export function uniquenessContractViolations(
         !conditionalFields.includes(field)
       ) {
         problems.push(
-          `${contract.table}.${contract.index}: key field "${field}" is optional but the ` +
+          `${contract.table}.${indexName}: key field "${field}" is optional but the ` +
             `contract ${keyLabel} is unconditional; two absent values are not a collision, so ` +
             'declare it with whenPresent("' +
             field +
@@ -1922,18 +1101,18 @@ export function uniquenessContractViolations(
     }
 
     const index = facts.indexes.find(
-      (candidate) => candidate.name === contract.index,
+      (candidate) => candidate.name === indexName,
     );
     if (index === undefined) {
       problems.push(
-        `${contract.table}: index "${contract.index}" is absent, so the uniqueness ` +
+        `${contract.table}: index "${indexName}" is absent, so the uniqueness ` +
           `check on ${keyLabel} would be unbounded`,
       );
       continue;
     }
     if (index.fields.join(",") !== contract.key.join(",")) {
       problems.push(
-        `${contract.table}.${contract.index}: indexes [${index.fields.join(", ")}] ` +
+        `${contract.table}.${indexName}: indexes [${index.fields.join(", ")}] ` +
           `but the contract key is ${keyLabel}`,
       );
     }
@@ -1945,9 +1124,10 @@ export function uniquenessContractViolations(
 /**
  * Bounded-lookup contracts the schema does not honour.
  *
- * The index must exist and must *begin* with the key — a prefix is correct here,
+ * Some declared index must *begin* with the key — a prefix is correct here,
  * because the read is a range over many rows by design rather than a
- * single-candidate check. A missing index would turn a "show me this ticket's
+ * single-candidate check, and a wider index that adds an ordering serves it just
+ * as well. No index that begins with the key would turn a "show me this ticket's
  * grants" question into a scan of every grant in the table.
  */
 export function lookupContractViolations(
@@ -1975,21 +1155,15 @@ export function lookupContractViolations(
       }
     }
 
-    const index = facts.indexes.find(
-      (candidate) => candidate.name === contract.index,
+    const key = contract.key.join(",");
+    const indexed = facts.indexes.some(
+      (candidate) =>
+        candidate.fields.slice(0, contract.key.length).join(",") === key,
     );
-    if (index === undefined) {
+    if (!indexed) {
       problems.push(
-        `${contract.table}: index "${contract.index}" is absent, so reading ${keyLabel} ` +
+        `${contract.table}: no index begins with ${keyLabel}, so reading it ` +
           "would scan the table",
-      );
-      continue;
-    }
-    const prefix = index.fields.slice(0, contract.key.length).join(",");
-    if (prefix !== contract.key.join(",")) {
-      problems.push(
-        `${contract.table}.${contract.index}: indexes [${index.fields.join(", ")}] ` +
-          `but the bounded-lookup key is ${keyLabel}`,
       );
     }
   }
@@ -2019,7 +1193,7 @@ export function cardinalityContradictions(
     .map(
       (contract) =>
         `${contract.table}: [${contract.key.join(", ")}] is declared both unique and ` +
-        `cardinality "${contract.cardinality}"; the two contracts contradict each other`,
+        'cardinality "many"; the two contracts contradict each other',
     );
 }
 

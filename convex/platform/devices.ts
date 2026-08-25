@@ -28,6 +28,7 @@
  */
 import { v } from "convex/values";
 
+import { pageResult } from "../lib/listEnvelope";
 import type { TenantOrgId } from "../lib/tenantDb";
 import { refusal, writeErrorValidator, written } from "../lib/writeEnvelope";
 import {
@@ -173,9 +174,8 @@ export const listDevices = queryWithOrg({
           : { cursor: request.value.cursor }),
       });
 
-    return {
-      ok: true as const,
-      items: page.page.map((row) => {
+    return pageResult(
+      page.page.map((row) => {
         const record = row as unknown as Record<string, unknown>;
         const optional = (name: string) =>
           record[name] === undefined ? {} : { [name]: record[name] as never };
@@ -190,9 +190,8 @@ export const listDevices = queryWithOrg({
           ...optional("retiredAt"),
         };
       }),
-      nextCursor: page.isDone ? null : page.continueCursor,
-      complete: page.isDone,
-    };
+      page,
+    );
   },
 });
 

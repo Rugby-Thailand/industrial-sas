@@ -8,6 +8,7 @@ import {
   pageOptions,
   pageRefusal,
   pageRequestOf,
+  pageResult,
 } from "../lib/listEnvelope";
 import { mutationWithOrg, queryWithOrg } from "../lib/tenantFunctions";
 import type { TenantOrgId } from "../lib/tenantDb";
@@ -89,9 +90,8 @@ export const listDesignChangeImpacts = queryWithOrg({
         ],
       )
       .page(pageOptions(request.value));
-    return {
-      ok: true as const,
-      items: page.page.map((row) => ({
+    return pageResult(
+      page.page.map((row) => ({
         designChangeImpactId: row._id as never,
         warehouseId: row.warehouseId as never,
         masterCardId: row.masterCardId as never,
@@ -116,9 +116,8 @@ export const listDesignChangeImpacts = queryWithOrg({
           ? {}
           : { acknowledgementNote: row.acknowledgementNote }),
       })),
-      nextCursor: page.isDone ? null : page.continueCursor,
-      complete: page.isDone,
-    };
+      page,
+    );
   },
 });
 

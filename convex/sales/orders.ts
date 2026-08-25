@@ -935,9 +935,8 @@ export const listRoutableCustomerOrderLines = queryWithOrg({
         .first();
       if (routed === null) unrouted.push(line);
     }
-    return {
-      ok: true as const,
-      items: unrouted.map((line) => ({
+    return pageResult(
+      unrouted.map((line) => ({
         customerOrderLineId: line._id as never,
         customerOrderId: line.customerOrderId as never,
         lineNumber: line.lineNumber,
@@ -951,8 +950,7 @@ export const listRoutableCustomerOrderLines = queryWithOrg({
           ? {}
           : { masterCardRevisionId: line.masterCardRevisionId as never }),
       })),
-      nextCursor: page.isDone ? null : page.continueCursor,
-      complete: page.isDone,
-    };
+      page,
+    );
   },
 });

@@ -40,6 +40,7 @@ import {
   thirdNormalFormViolations,
   unclassifiedTables,
   uniquenessContractViolations,
+  uniquenessIndexName,
   type LookupContract,
   type TableFacts,
 } from "../../convex/lib/schemaPolicy";
@@ -363,7 +364,7 @@ describe("a broken bounded-lookup contract is caught", () => {
   it("names a real contract to break", () => {
     expect(contract).toBeDefined();
     expect(contract?.key).toEqual(["orgId", "code"]);
-    expect(contract?.index).toBe("by_orgId_code");
+    expect(uniquenessIndexName(contract!.key)).toBe("by_orgId_code");
   });
 
   it("catches an absent table", () => {
@@ -518,14 +519,9 @@ describe("a uniqueness condition that disagrees with the schema is caught", () =
 });
 
 describe("a broken many-per-key lookup contract is caught", () => {
+  /** A synthetic copy of the real contract, so the guard is proved on fixtures. */
   const manyPerTicket: readonly LookupContract[] = [
-    {
-      table: "supportGrants",
-      key: ["orgId", "ticketRef"],
-      index: "by_orgId_ticketRef",
-      cardinality: "many",
-      rationale: "Synthetic copy of the real contract, for guard proof.",
-    },
+    { table: "supportGrants", key: ["orgId", "ticketRef"] },
   ];
 
   it("catches an absent table", () => {
@@ -534,7 +530,11 @@ describe("a broken many-per-key lookup contract is caught", () => {
     );
   });
 
-  it("catches a missing index, which would turn ticket history into a scan", () => {
+  const SCAN =
+    "supportGrants: no index begins with [orgId, ticketRef], so reading it " +
+    "would scan the table";
+
+  it("catches a table with no index over the key, which would be a scan", () => {
     const problems = lookupContractViolations(
       [
         withFacts({
@@ -546,13 +546,12 @@ describe("a broken many-per-key lookup contract is caught", () => {
       ],
       manyPerTicket,
     );
-    expect(problems).toContain(
-      'supportGrants: index "by_orgId_ticketRef" is absent, so reading ' +
-        "[orgId, ticketRef] would scan the table",
-    );
+    expect(problems).toContain(SCAN);
   });
 
-  it("catches an index that does not begin with the key", () => {
+  it("catches an index whose fields do not begin with the key", () => {
+    // Named as though it served the key, but indexing something else: the name
+    // is not what the check reads, so the disguise does not work.
     const problems = lookupContractViolations(
       [
         withFacts({
@@ -566,10 +565,27 @@ describe("a broken many-per-key lookup contract is caught", () => {
       ],
       manyPerTicket,
     );
-    expect(problems).toContain(
-      "supportGrants.by_orgId_ticketRef: indexes [orgId, status] but the " +
-        "bounded-lookup key is [orgId, ticketRef]",
+    expect(problems).toContain(SCAN);
+  });
+
+  it("accepts a differently named index whose fields begin with the key", () => {
+    const problems = lookupContractViolations(
+      [
+        withFacts({
+          name: "supportGrants",
+          fieldNames: ["orgId", "ticketRef", "requestedAt"],
+          fieldPaths: ["orgId", "ticketRef", "requestedAt"],
+          indexes: [
+            {
+              name: "by_orgId_ticketRef_requestedAt",
+              fields: ["orgId", "ticketRef", "requestedAt"],
+            },
+          ],
+        }),
+      ],
+      manyPerTicket,
     );
+    expect(problems).toEqual([]);
   });
 
   it("accepts a wider index, because a many-per-key read is a range", () => {
@@ -599,9 +615,7 @@ describe("a broken many-per-key lookup contract is caught", () => {
           {
             table: "supportGrants",
             key: ["orgId", "ticketRef"],
-            index: "by_orgId_ticketRef",
             condition: ALWAYS,
-            rationale: "Synthetic contradiction, for guard proof.",
           },
         ],
         manyPerTicket,

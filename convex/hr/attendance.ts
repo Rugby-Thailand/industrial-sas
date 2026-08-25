@@ -1,5 +1,5 @@
 /** Phase 8 HR attendance, correction, and leave vertical slice. */
-import { v, type GenericId } from "convex/values";
+import { v, type GenericId, type Infer } from "convex/values";
 
 import {
   mutationWithOrg,
@@ -298,7 +298,7 @@ export const readMyHr = queryWithOrg({
       corrections: corrections.page.slice(0, MAX_SELF_ROWS).map((request) => ({
         attendanceCorrectionId: request._id,
         attendanceDayId: request.attendanceDayId,
-        status: request.status as "SUBMITTED",
+        status: request.status as Infer<typeof hrRequestStatus>,
         reason: request.reason,
         requestedAt: request.requestedAt,
         ...(request.decisionNote === undefined
@@ -309,13 +309,13 @@ export const readMyHr = queryWithOrg({
         leaveRequestId: request._id,
         startDate: request.startDate,
         endDate: request.endDate,
-        leaveType: request.leaveType as "ANNUAL",
-        durationKind: request.durationKind as "FULL_DAY",
+        leaveType: request.leaveType as Infer<typeof leaveType>,
+        durationKind: request.durationKind as Infer<typeof leaveDurationKind>,
         ...(request.hours === undefined ? {} : { hours: request.hours }),
         ...(request.privateReason === undefined
           ? {}
           : { privateReason: request.privateReason }),
-        status: request.status as "SUBMITTED",
+        status: request.status as Infer<typeof hrRequestStatus>,
         requestedAt: request.requestedAt,
         ...(request.decisionNote === undefined
           ? {}

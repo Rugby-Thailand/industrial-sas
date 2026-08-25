@@ -1,6 +1,7 @@
 import type {
   DefaultFunctionArgs,
   FunctionReference,
+  FunctionReturnType,
   FunctionType,
   FunctionVisibility,
 } from "convex/server";
@@ -51,3 +52,17 @@ export const clientRef = <Reference extends AnyReference>(
   reference: Reference,
 ): ClientReference<Reference> =>
   reference as unknown as ClientReference<Reference>;
+
+/**
+ * The success payload of a tenant-bound reference, as the browser sees it.
+ *
+ * A presentation type that would only restate a server `returns` validator is
+ * derived from this instead. The field list then exists once, on the server, and
+ * a change to it lands as a type error in the screen that reads it.
+ */
+export type RefValue<Reference extends AnyReference> =
+  FunctionReturnType<Reference> extends infer Outcome
+    ? Outcome extends { readonly ok: true; readonly value: infer Value }
+      ? Value
+      : never
+    : never;
