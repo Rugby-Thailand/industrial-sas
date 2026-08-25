@@ -1,25 +1,9 @@
-/**
- * The application route table, read from the code that navigates by it.
- *
- * A manual that says "go to /reports" is a claim about the application, and the
- * cheapest way for it to rot is a route rename. `src/lib/navigation.ts` already
- * holds every locale-free path as data — the desktop sidebar, the handheld
- * launcher, and the route tests all read it — so the manual checks itself against
- * that file rather than against a second list nobody would remember to update.
- *
- * Parsed with the pinned TypeScript compiler, the way the other repository guards
- * do. A regular expression over the same file would match the paths inside the
- * long prose comments above them.
- */
 import { readFileSync } from "node:fs";
 import ts from "typescript";
 
-/** Where the route table lives, relative to the repository root. */
 export const NAVIGATION_SOURCE = "src/lib/navigation.ts";
 
 /**
- * Every string value of the `ROUTES` object.
- *
  * @param {string} source Contents of `src/lib/navigation.ts`.
  * @param {string} [fileName] Used only in error messages.
  * @returns {readonly string[]}
@@ -38,7 +22,6 @@ export function extractRoutes(source, fileName = NAVIGATION_SOURCE) {
   let literal;
 
   const unwrap = (expression) => {
-    // `ROUTES` is written as `Object.freeze({ … })`.
     if (ts.isCallExpression(expression) && expression.arguments.length === 1) {
       return unwrap(expression.arguments[0]);
     }

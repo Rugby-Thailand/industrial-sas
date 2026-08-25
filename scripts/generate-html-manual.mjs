@@ -1,18 +1,3 @@
-/**
- * Build the static HTML operator manual.
- *
- * Offline, from committed inputs only: the catalogue in `scripts/manual/tasks.mjs`
- * and the screenshots in `docs/manuals/assets/operator-guide-th/`. No server, no
- * credentials, no network, no runtime dependency — the output opens by
- * double-clicking `docs/manual-html/index.html`, which is how it reaches a shop
- * floor that has neither a deployment nor a signed-in browser.
- *
- * Deterministic: no timestamps, no absolute paths, no environment values. Running
- * it twice produces identical bytes, which is what lets `pnpm manual:check` say
- * whether the committed output matches the catalogue.
- *
- *   node scripts/generate-html-manual.mjs
- */
 import {
   copyFileSync,
   existsSync,

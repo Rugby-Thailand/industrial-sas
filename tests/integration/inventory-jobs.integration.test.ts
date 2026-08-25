@@ -1,13 +1,3 @@
-/**
- * Integration tier — the reconciliation and expiry job drivers over
- * `convex-test`.
- *
- * Scope: that each driver is bounded, resumable, read-only, and reports drift
- * and expiry honestly against real ledger rows. The two-tenant claims live in
- * `tests/isolation/inventory-jobs.isolation.test.ts`.
- *
- * All data is synthetic (`tests/fixtures/README.md`).
- */
 import type { GenericMutationCtx } from "convex/server";
 import { describe, expect, it } from "vitest";
 
@@ -61,7 +51,6 @@ function value(outcome: Record<string, unknown>): Record<string, unknown> {
   return outcome["value"] as Record<string, unknown>;
 }
 
-/** Post one receipt into a bucket, so the jobs have real rows to read. */
 async function post(
   world: ConvexInventoryWorld,
   input: {
@@ -126,11 +115,6 @@ describe("reconcileWarehouse", () => {
   });
 
   it("detects a balance that no longer matches its ledger lines", async () => {
-    /*
-     * The whole point of reconciliation. The balance is corrupted directly —
-     * something no application code path can do (`INV-0003-11`) — so the job has
-     * a genuine disagreement to find rather than a simulated one.
-     */
     const world = await createConvexInventoryWorld();
     await post(world, {
       requestId: "0193f2c1-0000-7000-8000-000000000002",
@@ -190,7 +174,6 @@ describe("reconcileWarehouse", () => {
     };
     expect(checkpoint.cursor).not.toBeNull();
 
-    // One page per invocation, so the caller drives the loop to completion.
     let current: Record<string, unknown> = first;
     let guard = 0;
     while (current["status"] === "BUDGET_EXHAUSTED") {
@@ -205,8 +188,7 @@ describe("reconcileWarehouse", () => {
     }
 
     expect(current["status"]).toBe("COMPLETE");
-    // The counters accumulate across runs, so the sweep as a whole checked every
-    // bucket exactly once.
+
     const finalCheckpoint = current["checkpoint"] as { itemsProcessed: number };
     expect(finalCheckpoint.itemsProcessed).toBeGreaterThan(
       checkpoint.itemsProcessed,
@@ -268,11 +250,6 @@ describe("reconcileWarehouse", () => {
   });
 
   it("reads exactly one page per invocation, as Convex requires", async () => {
-    /*
-     * Convex permits a single paginated query per function execution. A driver
-     * that looped over pages inside one call would fail at run time in a
-     * deployed backend — which is precisely the failure that shaped this design.
-     */
     const world = await createConvexInventoryWorld();
     for (const [index, location] of [world.a.rack, world.a.dock].entries()) {
       await post(world, {
@@ -363,8 +340,7 @@ describe("planExpiry", () => {
       bucketKey: string;
       minorUnits: number;
     }[];
-    // Exactly one: the physical rack bucket. The virtual `SUPPLIER_RECEIPT`
-    // counterparty holds -4000 and is not stock on a shelf.
+
     expect(expired).toHaveLength(1);
     expect(expired[0]?.minorUnits).toBe(4_000);
   });
@@ -412,10 +388,6 @@ describe("planExpiry", () => {
   });
 
   it("considers only stock that has not already been dispositioned", async () => {
-    // Quarantined, rejected, and scrapped stock is already withheld from use;
-    // moving it again would change no decision.
-    // Imported from the kernel rather than restated in the driver, so the two
-    // cannot drift; this asserts they are literally the same set.
     expect(expirySourceStatuses).toBe(EXPIRY_SOURCE_STATUSES);
     expect([...expirySourceStatuses]).toEqual(["AVAILABLE"]);
   });
@@ -434,8 +406,6 @@ describe("planExpiry", () => {
   });
 
   it("defaults the as-of date to the organization's timezone", async () => {
-    // Never the host's: a shift crossing midnight in Bangkok would otherwise be
-    // counted against the wrong day (D-05).
     const world = await createConvexInventoryWorld();
     const result = value(
       await callAs(world, "a", planExpiry, {

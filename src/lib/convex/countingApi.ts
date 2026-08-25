@@ -1,4 +1,3 @@
-/** Typed browser boundary for opening stock and physical-count workflows. */
 import { api } from "../../../convex/_generated/api";
 
 import { clientRef, type RefValue } from "./clientRef";

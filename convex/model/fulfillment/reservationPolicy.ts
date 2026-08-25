@@ -1,11 +1,3 @@
-/**
- * ATP, reservation allocation, and quantity conservation for Path A.
- *
- * Pure domain code: callers supply current balance and reservation candidates;
- * this module never reads a clock or a database. Quantities are exact base-UOM
- * minor units and are kept in mutually exclusive stages so an order line can be
- * reconciled with a single sum at every transition.
- */
 import { isSafeInt } from "../guards";
 import { fail, ok, type Result } from "../result";
 import {
@@ -113,7 +105,6 @@ const validNonNegative = (value: number): boolean =>
 
 const validPositive = (value: number): boolean => isSafeInt(value) && value > 0;
 
-/** ATP is physical available stock less active reservations, floored at zero. */
 export function calculateAtp(
   candidates: readonly ReservationCandidate[],
 ): Result<number, ReservationError> {
@@ -153,13 +144,6 @@ export function calculateAtp(
   return ok(total);
 }
 
-/**
- * Allocate a demand deterministically under FIFO/FEFO.
- *
- * When partial fulfillment is disabled an insufficient request produces no
- * allocations. That avoids leaving reservation crumbs from a command the user
- * understood as all-or-nothing.
- */
 export function allocateReservation(input: {
   readonly requestedMinorUnits: number;
   readonly candidates: readonly ReservationCandidate[];
@@ -292,9 +276,7 @@ const ALLOWED_STAGE_MOVES: Readonly<
   RESERVED: stages("PICKING", "DEMAND", "BACKORDERED", "CANCELLED"),
   PICKING: stages("STAGED", "RESERVED", "BACKORDERED"),
   STAGED: stages("ISSUED", "RESERVED", "BACKORDERED"),
-  // `ISSUED -> STAGED` is reserved for an exact, approved ledger reversal.
-  // The ordinary forward path never calls it; the mutation also restores the
-  // consumed reservations and refuses once a package belongs to a shipment.
+
   ISSUED: stages("STAGED", "LOADED", "RETURNED"),
   LOADED: stages("DELIVERED", "RETURNED"),
   DELIVERED: stages("RETURNED"),
@@ -303,7 +285,6 @@ const ALLOWED_STAGE_MOVES: Readonly<
   CANCELLED: stages(),
 });
 
-/** Move an exact quantity between two exclusive fulfillment stages. */
 export function moveFulfillmentQuantity(
   quantities: FulfillmentQuantities,
   move: {
@@ -343,7 +324,6 @@ export function moveFulfillmentQuantity(
   );
 }
 
-/** Prove that every ordered minor unit is in exactly one named stage. */
 export function checkFulfillmentConservation(
   orderedMinorUnits: number,
   quantities: FulfillmentQuantities,
@@ -376,7 +356,6 @@ export function checkFulfillmentConservation(
       });
 }
 
-/** Derive the one operational label shown from the conserved stage buckets. */
 export function deriveFulfillmentLineStatus(
   orderedMinorUnits: number,
   quantities: FulfillmentQuantities,

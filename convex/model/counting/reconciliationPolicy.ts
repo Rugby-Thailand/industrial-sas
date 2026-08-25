@@ -1,13 +1,3 @@
-/**
- * Count variance classification, approval policy, and ledger adjustment planning.
- *
- * A reconciliation compares the ledger snapshot plus movements that occurred
- * during the count with the accepted physical count. It never changes a balance
- * directly: an approved, non-zero variance becomes a balanced `ADJUSTMENT`
- * transaction against the `RECONCILIATION` virtual boundary.
- *
- * Pure module: no Convex imports.
- */
 import { frozenArray, isArray, isRecord, isSafeInt, isString } from "../guards";
 import {
   validateLedgerTransaction,
@@ -26,11 +16,10 @@ export const MAX_ROOT_CAUSE_CODE_LENGTH = 64;
 export const MAX_HIGH_RISK_ITEM_CLASSES = 32;
 
 export interface VariancePolicy {
-  /** A variance larger than this absolute base-minor quantity is high risk. */
   readonly quantityThresholdBaseMinorUnits: number;
-  /** A variance value larger than this amount in currency minor units is high risk. */
+
   readonly valueThresholdMinorUnits: number;
-  /** Item classes that are high risk regardless of quantity or value. */
+
   readonly highRiskItemClasses: readonly string[];
 }
 
@@ -69,7 +58,6 @@ export type ReconciliationError =
   | { readonly code: "PAPER_CAPTURES_DIFFER" }
   | { readonly code: "PAPER_DUAL_KEY_REQUIRED" };
 
-/** Matches the master-data code contract, including human-readable hyphens. */
 const CODE_PATTERN = /^[A-Z][A-Z0-9_-]{0,63}$/;
 const IDENTIFIER_PATTERN = /^[A-Za-z0-9_.-]+$/;
 const validIdentifier = (value: unknown): value is string =>
@@ -149,7 +137,7 @@ export function assessCountVariance(input: {
   readonly systemSnapshotBaseMinorUnits: number;
   readonly inCountMovementBaseMinorUnits: number;
   readonly physicalBaseMinorUnits: number;
-  /** Currency minor units per one inventory base minor unit. */
+
   readonly unitValueMinorUnits: number;
   readonly itemClass: string;
   readonly policy: VariancePolicy;
@@ -304,7 +292,6 @@ export function decideReconciliation(input: {
   );
 }
 
-/** Plan the balanced adjustment after `decideReconciliation` has approved it. */
 export function buildCountAdjustmentTransaction(input: {
   readonly orgId: string;
   readonly warehouseId: string;
@@ -314,7 +301,7 @@ export function buildCountAdjustmentTransaction(input: {
   readonly occurredAt: number;
   readonly bucket: InventoryBucket;
   readonly baseUom: string;
-  /** Trusted reason-code document ID resolved from the decision's root-cause code. */
+
   readonly reasonCodeId: string;
   readonly decision: ReconciliationDecision;
 }): Result<LedgerTransactionDraft, ReconciliationError> {
@@ -386,7 +373,6 @@ export interface PaperCountCapture {
   readonly evidenceId: string;
 }
 
-/** Dual-key verification for sanctioned paper fallback re-entry. */
 export function verifyPaperCountReentry(input: {
   readonly first: PaperCountCapture;
   readonly second: PaperCountCapture;

@@ -1,13 +1,3 @@
-/**
- * Credential-safe readiness check for a real development product environment.
- *
- * This deliberately does not print values. It checks the ignored `.env.local`
- * file that Next.js and the Convex CLI use, because the generic environment
- * contract spans every deployment class and therefore cannot require every
- * development-only setting from every contributor.
- *
- * Run with `pnpm dev:check`.
- */
 import { isPublishableKey } from "@clerk/shared/keys";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -133,7 +123,6 @@ function checkUrl(name, protocols) {
   }
 }
 
-/** Parse the simple KEY=value subset used by this repository's env files. */
 function parseEnv(source) {
   const values = new Map();
   for (const rawLine of source.split(/\r?\n/)) {

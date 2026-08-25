@@ -17,15 +17,6 @@ import { previewOrderLinesFor } from "@tests/fixtures/data/inbound";
 
 const BANG_PU = "prv_wh_bangpoo";
 
-/**
- * One purchase order, and the one number on the screen.
- *
- * The audit found the heading claiming zero lines above a table of two. The
- * heading was `linesCaption` with a hard-coded `{count: 0}`: the rows are read
- * by the panel underneath, so nothing at the heading's level ever knew how many
- * there were. These assert that the count is stated once, next to the rows it
- * counts, and that it is the real one.
- */
 describe("PurchaseOrderDetail", () => {
   const renderDetail = (locale: "th" | "en" = "th") => {
     writeStoredWarehouse(BANG_PU);

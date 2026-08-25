@@ -1,16 +1,3 @@
-/**
- * Integration tier — the authorization foundation seed against `convex-test`.
- *
- * Two things are being proved, and they are different claims:
- *
- * 1. The seed function itself: global for `permissions`, tenant-bound for `roles`
- *    and `rolePermissions`, idempotent on rerun, and non-destructive of a tenant
- *    edit (`INV-0006-11`).
- * 2. The provisioning path: an organization mirrored from Clerk is seeded in the
- *    *same* transaction as its insert, so no tenant exists without its roles.
- *
- * All data is synthetic (`tests/fixtures/README.md`).
- */
 import type { GenericMutationCtx } from "convex/server";
 import { describe, expect, it } from "vitest";
 
@@ -62,7 +49,6 @@ describe("authorization foundation seed", () => {
     );
     if (admin === null) throw new Error("missing seeded admin role");
 
-    // A tenant edit of a seeded role: renamed, disowned, and one grant removed.
     const removed = await world.t.run(async (ctx) => {
       await ctx.db.patch("roles", admin._id, {
         name: "ผู้ดูแลที่แก้ไขแล้ว",
@@ -130,7 +116,7 @@ describe("authorization foundation seed", () => {
       name: "ผู้ดูแลที่แก้ไขแล้ว",
       seeded: false,
     });
-    // The removed grant stays removed: a rerun repairs nothing it did not create.
+
     expect(
       state.adminGrants.map(({ permissionCode }) => permissionCode),
     ).not.toContain(removed);
@@ -184,7 +170,7 @@ describe("authorization foundation seed", () => {
         expect(
           seeded?.codes.map(({ permissionCode }) => permissionCode).sort(),
         ).toEqual([...definition.permissionCodes].sort());
-        // Every grant row carries the tenant it was seeded for, never the other.
+
         expect(seeded?.codes.every(({ rowOrgId }) => rowOrgId === orgId)).toBe(
           true,
         );
@@ -241,8 +227,7 @@ describe("authorization foundation seed", () => {
 
   it("rolls the seed back with the transaction that provisioned it", async () => {
     const world = await createConvexTenantWorld();
-    // A second user row makes the mirror's exact user lookup ambiguous, so the
-    // membership event throws after the organization insert and its seed.
+
     await world.t.run(async (ctx) => {
       for (const displayName of ["First", "Second"]) {
         await ctx.db.insert("users", {

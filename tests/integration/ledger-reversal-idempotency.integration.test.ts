@@ -1,21 +1,3 @@
-/**
- * Integration tier — reversal under retry, over `convex-test`.
- *
- * Scope: the one place where two refusals compete. `reverseLedgerTransaction`
- * reads `by_orgId_reversalOfTransactionId` before it posts, and a transaction
- * that already carries a reversal is `REVERSAL_ALREADY_EXISTS`. But a client
- * that retries the *same* request ID after a lost response is not asking for a
- * second reversal — it is asking for the answer it did not receive, and
- * `ADR-0003` says a duplicate `requestId` is a no-op returning the original
- * result (`RG-025`). These three cases fix which refusal wins:
- *
- * - the exact retry replays,
- * - the same request ID with a changed payload is `REQUEST_ARGUMENT_CONFLICT`,
- * - a genuinely different request reversing the same original is
- *   `REVERSAL_ALREADY_EXISTS` (`INV-0003-08`).
- *
- * All data is synthetic (`tests/fixtures/README.md`).
- */
 import type { GenericMutationCtx } from "convex/server";
 import { describe, expect, it } from "vitest";
 
@@ -45,7 +27,6 @@ const run = (value: unknown) => value as RuntimeFunction;
 
 const identity = (subject: string) => ({ subject, org_id: "org_fixture_a" });
 
-/** The maker posts; the checker reverses. Maker-checker denies self-approval. */
 const MAKER = "user_fixture_a";
 const CHECKER = "user_fixture_a2";
 
@@ -62,13 +43,6 @@ async function call(
     )) as Record<string, unknown>;
 }
 
-/**
- * A world whose second actor may reverse what the first actor posted.
- *
- * `inventory.transaction.reverse` carries maker-checker and step-up, so the
- * checker is a different person and carries a fresh reverification. Neither is
- * what these cases are about — they are the cost of reaching the store at all.
- */
 async function createWorld(): Promise<ConvexInventoryWorld> {
   const world = await createConvexInventoryWorld();
   const second = await seedSecondActorForOrgA(world, "WAREHOUSE_MANAGER");
@@ -87,7 +61,6 @@ function value(outcome: Record<string, unknown>): Record<string, unknown> {
   return outcome["value"] as Record<string, unknown>;
 }
 
-/** One receipt, so there is something real to reverse. */
 async function postReceipt(
   world: ConvexInventoryWorld,
   requestId: string,
@@ -175,7 +148,6 @@ describe("reverseTransaction under retry", () => {
     });
     expect(first["posted"], JSON.stringify(first)).toBe(true);
 
-    // Same request ID, different reason: not the retry it claims to be.
     const conflict = await reverse(world, {
       originalTransactionId: original,
       requestId: REVERSE_ID,

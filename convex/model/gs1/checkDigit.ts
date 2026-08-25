@@ -1,23 +1,6 @@
-/**
- * GS1 standard check digit (`G-042`, `G-043`, `ADR-0005` §12).
- *
- * Status: **implemented** for the GS1 modulo-10 check digit, which is the one
- * used by GTIN-8/12/13/14 and SSCC-18. No other GS1 check character scheme is
- * implemented: the price/weight check digit and the check character pair used by
- * some AIs are absent, and this module says so rather than approximating them.
- *
- * The algorithm: weight the data digits alternately 3 and 1 from the rightmost
- * data digit leftwards, sum, and take the difference to the next multiple of ten.
- * It catches every single-digit error and most transpositions, which is why a
- * scanned GTIN with a bad check digit is a rejected scan (`INV-0005-11`) rather
- * than a lookup that happens to miss.
- *
- * Pure module (plan §6.2): no Convex imports.
- */
 import { isString } from "../guards";
 import { fail, ok, type Result } from "../result";
 
-/** Longest data part accepted: 17 digits plus a check digit is an SSCC. */
 export const MAX_GS1_KEY_LENGTH = 18;
 
 export type Gs1CheckDigitError =
@@ -37,10 +20,6 @@ export type Gs1CheckDigitError =
 
 const DIGITS_ONLY = /^[0-9]+$/;
 
-/**
- * The check digit for a string of data digits (the key *without* its check
- * digit).
- */
 export function gs1CheckDigit(
   dataDigits: string,
 ): Result<number, Gs1CheckDigitError> {
@@ -66,10 +45,6 @@ export function gs1CheckDigit(
   return ok((10 - (sum % 10)) % 10);
 }
 
-/**
- * Verifies a complete key, check digit included. Returns the key on success so a
- * caller can use the validated value without re-reading its own input.
- */
 export function verifyGs1CheckDigit(
   key: string,
 ): Result<string, Gs1CheckDigitError> {
@@ -92,6 +67,5 @@ export function verifyGs1CheckDigit(
       });
 }
 
-/** The shape of a value that is not a key at all, for the error field. */
 const describe = (value: unknown): string =>
   value === null ? "null" : typeof value;

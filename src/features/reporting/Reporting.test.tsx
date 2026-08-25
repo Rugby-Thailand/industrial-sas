@@ -20,15 +20,6 @@ import { JobList } from "./ExportWorkbench";
 import { OccupancyGrid } from "./OccupancyMap";
 import { TileList } from "./OperationsTiles";
 
-/**
- * What the reporting screens must say, and what they must never imply.
- *
- * These are presentation claims with operational consequences. A tile that
- * showed `0` without saying when it was last true, a heat map that carried its
- * meaning only in colour, or an export that looked finished when it had stopped
- * short — each is a screen somebody would act on wrongly, and none of them is
- * caught by a type checker.
- */
 const BANG_PU = "prv_wh_bangpoo";
 
 describe("the operations tiles", () => {
@@ -40,7 +31,6 @@ describe("the operations tiles", () => {
   it("labels every counter in the reader's language, never by its code", () => {
     render();
 
-    // `RECEIPTS_OPENED` is a code identifier; a supervisor reads Thai.
     expect(screen.getByTestId("tile-RECEIPTS_OPENED")).not.toHaveTextContent(
       "RECEIPTS_OPENED",
     );
@@ -48,11 +38,6 @@ describe("the operations tiles", () => {
   });
 
   it("says when a counter last moved, so a zero is readable", () => {
-    /*
-     * `0` with no timestamp means "this has never happened here"; `0` stamped
-     * this morning means "the backlog is clear". Those call for opposite
-     * actions.
-     */
     render();
     expect(screen.getAllByText(/ข้อมูล ณ/).length).toBeGreaterThan(0);
   });
@@ -66,13 +51,6 @@ describe("the operations tiles", () => {
   });
 
   it("gives the suspect counter a callout, not a multi-line pill", () => {
-    /*
-     * The mark is two sentences — what happened to the counter, and what to do
-     * before trusting it. As a rounded badge it wrapped to three lines in a
-     * tile, which reads as a control somebody could press. A titled callout is
-     * the shape this application uses for a caveat with a next action in it, and
-     * the title carries the meaning in words rather than in the border colour.
-     */
     render();
 
     const suspect = screen.getByTestId("tile-suspect-QC_PARKED");
@@ -136,7 +114,6 @@ describe("the occupancy map", () => {
   });
 
   it("prints the band as a word in every cell", () => {
-    // `WCAG 2.2` 1.4.1: the fill is redundant, never the channel.
     render();
 
     const dock = screen.getByTestId("occupancy-DOCK-IN-1");
@@ -152,10 +129,6 @@ describe("the occupancy map", () => {
   });
 
   it("says so when the map is not the whole site", () => {
-    /*
-     * "That aisle is empty" and "that aisle is not on this map" are opposite
-     * instructions, and a capped map that stayed quiet would give the first.
-     */
     render(false);
     expect(screen.getByTestId("occupancy-partial")).toBeInTheDocument();
   });
@@ -175,11 +148,6 @@ describe("the export register", () => {
   };
 
   it("shows a stopped export as stopped, with the reason", () => {
-    /*
-     * `ARTIFACT_LIMIT_REACHED` means the file would have been incomplete. A
-     * register that showed it as merely unfinished would invite a retry that
-     * produces the same truncation.
-     */
     render();
 
     const failure = screen.getByTestId("report-job-failure-prv_rpt_7003");

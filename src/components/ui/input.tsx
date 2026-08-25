@@ -2,19 +2,6 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-/**
- * The shadcn/Radix Input, sized for a gloved hand.
- *
- * `min-h-touch` replaces the registry's fixed 32-pixel height, and the control
- * keeps `text-base` below the `md` breakpoint so a handheld never renders form
- * text below 16 pixels — the size at which mobile browsers stop zooming on
- * focus and at which the repository's own type scale starts.
- *
- * No `inputMode`, `autoCapitalize`, or `enterKeyHint` default is set here. A
- * keyboard-wedge scanner types into whatever is focused, and a primitive that
- * silently forced a numeric keypad would be deciding for the scan-target fields
- * whose call sites already make that choice deliberately.
- */
 function Input({ className, type, ...props }: React.ComponentProps<"input">) {
   return (
     <input

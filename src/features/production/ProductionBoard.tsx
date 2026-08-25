@@ -439,7 +439,7 @@ function ProductionWorkspace({
               name: "downtimeReason",
               label: t("downtimeReason"),
               kind: "text",
-              // Only meaningful when the downtime above is non-zero.
+
               importance: "secondary",
             },
           ]}

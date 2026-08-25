@@ -15,21 +15,8 @@ import {
 import { planSample } from "../../convex/model/inbound/qcPolicy";
 import { previewImport, takeChunk } from "../../convex/model/inbound/poImport";
 
-/**
- * The inbound invariants, over generated input.
- *
- * Three of these are the ADR's own claims restated as properties a machine can
- * falsify: tolerance never admits more than the fraction allows (`INV-0007-02`),
- * putaway is deterministic (`INV-0007-10`), and a chunked import visits every
- * accepted row exactly once (`INV-0007-12`).
- */
 describe("receipt tolerance (INV-0007-02)", () => {
   it("never admits more than the exact fraction allows", () => {
-    /*
-     * The floor is what makes this hold at every quantity. Rounding up would let
-     * a tolerance admit more than the tenant configured, by a different amount
-     * at every order size.
-     */
     fc.assert(
       fc.property(
         fc.integer({ min: 1, max: 1_000_000 }),
@@ -49,7 +36,7 @@ describe("receipt tolerance (INV-0007-02)", () => {
           if (!assessment.ok) return;
 
           const allowance = assessment.value.allowanceMinorUnits;
-          // The allowance never exceeds the exact real-valued limit.
+
           expect(allowance * 100).toBeLessThanOrEqual(
             ordered * (100 + percent),
           );
@@ -85,9 +72,6 @@ describe("receipt tolerance (INV-0007-02)", () => {
   });
 
   it("keeps the running total consistent with what it classified", () => {
-    // Whatever the classification, the arithmetic has to add up: the total after
-    // is what was already there plus what arrived, and remaining plus over is
-    // the distance from the ordered quantity.
     fc.assert(
       fc.property(
         fc.integer({ min: 1, max: 100_000 }),
@@ -110,7 +94,6 @@ describe("receipt tolerance (INV-0007-02)", () => {
               assessment.value.overByMinorUnits,
           ).toBe(ordered - total);
 
-          // A line that has met its quantity is never left open.
           expect(statusAfterReceipt(assessment.value)).toBe(
             total < ordered ? "OPEN" : "COMPLETE",
           );
@@ -132,11 +115,6 @@ describe("putaway determinism (INV-0007-10)", () => {
   });
 
   it("ranks identically however the candidates are ordered", () => {
-    /*
-     * The property that makes the recommendation reviewable. Without a total
-     * order the same warehouse would rank differently depending on how the
-     * database happened to return rows.
-     */
     fc.assert(
       fc.property(
         fc.uniqueArray(fc.stringMatching(/^[A-Z]{2}-[0-9]{2}$/), {
@@ -341,8 +319,6 @@ describe("chunked import (INV-0007-12)", () => {
   });
 
   it("gives one file's rows references no other file's rows share", () => {
-    // A reference derived from the row's contents would collapse two legitimate
-    // identical lines — or two legitimate identical files — into one.
     fc.assert(
       fc.property(
         fc.stringMatching(/^[A-Z]{3}-[0-9]{2}$/),

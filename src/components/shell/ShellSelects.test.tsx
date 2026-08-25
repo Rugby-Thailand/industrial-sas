@@ -26,17 +26,6 @@ import { readStoredWarehouse } from "@/lib/workspace/warehouseStore";
 import { LocaleSwitcher } from "./LocaleSwitcher";
 import { WorkspaceContextBar } from "./WorkspaceContextBar";
 
-/**
- * The two selects that live in the shell chrome, in both languages.
- *
- * These are the controls the migration was actually about. The warehouse
- * chooser on `/th/dashboard` was a native `<select>`, so its popup was drawn by
- * the operating system in the operating system's colours — a white list on a
- * dark screen, which no page style could reach. Everything asserted below is
- * behaviour rather than appearance, because appearance is what the Playwright
- * screenshot suite is for; what these prove is that the behaviour the native
- * control gave away for free is still there.
- */
 describe("the warehouse selector", () => {
   beforeEach(() => {
     window.localStorage.clear();
@@ -55,10 +44,6 @@ describe("the warehouse selector", () => {
   });
 
   it("keeps stored warehouse names stable when the interface is English", () => {
-    /*
-     * Names are tenant master data, not catalogue strings. Changing the interface
-     * language must not silently translate a legal site name.
-     */
     renderWithIntl(<WorkspaceContextBar />, {
       environment: testEnvironment,
       locale: "en",
@@ -71,8 +56,6 @@ describe("the warehouse selector", () => {
   });
 
   it("stores the chosen warehouse so every scoped read agrees with it", () => {
-    // The selection is the argument the server revalidates on every call
-    // (`INV-0006-04`), so choosing has to survive the render that follows it.
     renderWithIntl(<WorkspaceContextBar />, {
       environment: testEnvironment,
       locale: "th",
@@ -94,11 +77,6 @@ describe("the warehouse selector", () => {
   });
 
   it("renders the reason instead of an empty menu when there is no organization", () => {
-    /*
-     * Without an identity provider there is no verified organization claim and
-     * therefore no warehouse list. An empty dropdown would read as "this tenant
-     * has no sites"; the sentence says "not available yet".
-     */
     renderWithIntl(<WorkspaceContextBar />, {
       environment: unconfiguredEnvironment,
       locale: "th",
@@ -116,12 +94,6 @@ describe("the language selector", () => {
   });
 
   it("replaces the current route in the other language rather than navigating away", () => {
-    /*
-     * The one behaviour this control has. `usePathname` here is locale-free, so
-     * replacing it with the other locale lands on *this* screen in English —
-     * and `replace` rather than `push` keeps the back button meaning "the
-     * previous screen" instead of "this screen in the other language".
-     */
     renderWithIntl(<LocaleSwitcher />, { locale: "th" });
 
     chooseOption("ภาษา", "อังกฤษ");
@@ -132,8 +104,6 @@ describe("the language selector", () => {
   });
 
   it("offers exactly the two languages the application ships", () => {
-    // Two options stay a menu. Turning a two-item chooser into a search field
-    // would be a worse control, which is why this one is not an autocomplete.
     renderWithIntl(<LocaleSwitcher />, { locale: "th" });
 
     expect(selectOptionLabels("ภาษา")).toEqual(["ไทย", "อังกฤษ"]);

@@ -1,22 +1,3 @@
-/**
- * Property tier — export rendering and maintained counters (`ADR-0011`
- * verification).
- *
- * Two claims, both stated for all inputs because both fail on the value nobody
- * thought to write a fixture for:
- *
- * 1. **A rendered CSV round-trips.** Whatever a tenant typed into an item name —
- *    a comma, a quote, a newline, a leading `=` — parses back to exactly that
- *    string. An export that loses or alters a value is not evidence, and the
- *    values that break parsers are precisely the ones a fixture-based test omits.
- * 2. **A counter never reads negative and never lies about clamping.** The
- *    dashboard is where a wrong number becomes a wrong decision, so the arithmetic
- *    holds for any sequence of deltas, not for the ones a test author imagined.
- *
- * The final block is a set of negative controls. A property suite that passes
- * against a broken implementation proves nothing, so each control removes one
- * guarantee and asserts the corresponding property *fails*.
- */
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
@@ -35,13 +16,6 @@ import {
   summarizeRollups,
 } from "../../convex/model/reporting/rollup";
 
-/**
- * An RFC 4180 reader, written here rather than imported.
- *
- * The point of a round-trip property is that an *independent* reader recovers
- * the value. Parsing with the renderer's own helpers would only prove the
- * renderer agrees with itself.
- */
 function parseCsv(text: string): string[][] {
   const body = text.startsWith(CSV_BOM) ? text.slice(CSV_BOM.length) : text;
   const records: string[][] = [];
@@ -89,28 +63,13 @@ function parseCsv(text: string): string[][] {
   return records;
 }
 
-/** The formula starters the renderer guards against. */
 const FORMULA_STARTERS = ["=", "+", "-", "@", "\t", "\r"];
 
-/**
- * What the contract says a field becomes.
- *
- * Applied to the *expected* value rather than stripped from the parsed one: a
- * tenant may legitimately type a leading apostrophe, and a test that stripped
- * one unconditionally would call a correct renderer wrong.
- */
 const guarded = (value: string): string =>
   FORMULA_STARTERS.some((starter) => value.startsWith(starter))
     ? `'${value}`
     : value;
 
-/**
- * Text a tenant could actually type, including everything that breaks parsers.
- *
- * Thai is in the alphabet because it is the product's first language and three
- * bytes per character in UTF-8; the control characters are there because they
- * are what a pasted spreadsheet cell contains.
- */
 const cellText = fc
   .array(
     fc.constantFrom(
@@ -130,7 +89,6 @@ describe("a rendered export round-trips", () => {
           maxLength: 6,
         }),
         (rows) => {
-          // One rectangular shape, the way a real export has fixed columns.
           const width = rows[0]?.length ?? 1;
           const rectangular = rows.map((row) =>
             Array.from({ length: width }, (_, column) => row[column] ?? ""),
@@ -155,7 +113,6 @@ describe("a rendered export round-trips", () => {
           ? rendered.slice(1, -1).replaceAll('""', '"')
           : rendered;
 
-        // Either the value was harmless, or it is now text.
         const dangerous = ["=", "+", "-", "@", "\t", "\r"].some((starter) =>
           value.startsWith(starter),
         );
@@ -223,8 +180,6 @@ describe("a maintained counter", () => {
   });
 
   it("matches an unclamped total whenever no step underflowed", () => {
-    // The clamp must be inert on the ordinary path: a counter that quietly
-    // rounded up would drift without ever tripping the verifier's flag.
     fc.assert(
       fc.property(fc.array(fc.nat({ max: 5 }), { maxLength: 30 }), (adds) => {
         const clamped = adds.reduce(

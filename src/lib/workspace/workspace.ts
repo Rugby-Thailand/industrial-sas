@@ -1,23 +1,20 @@
-/** A warehouse the current membership may use. */
 export interface WarehouseOption {
   readonly id: string;
   readonly code: string;
   readonly name: string;
 }
 
-/** The organization resolved from the verified identity token. */
 export interface OrganizationSummary {
   readonly id: string;
   readonly name: string;
 }
 
-/** One bounded answer from the server workspace query. */
 export interface WorkspaceSnapshot {
   readonly organization: OrganizationSummary;
   readonly warehouses: readonly WarehouseOption[];
   /** Bounded grants used only to remove destinations that cannot be opened. */
   readonly navigationPermissions: readonly string[];
-  /** False when the membership has more warehouses than this answer includes. */
+
   readonly complete: boolean;
 }
 
@@ -26,10 +23,6 @@ export interface WorkspaceState extends WorkspaceSnapshot {
   readonly selectable: boolean;
 }
 
-/**
- * Resolve the active warehouse from a trusted server list and an untrusted local
- * preference. A stale or foreign preference is ignored.
- */
 export function resolveWorkspace(
   snapshot: WorkspaceSnapshot,
   storedWarehouseId: string | undefined,

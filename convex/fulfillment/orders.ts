@@ -1,4 +1,3 @@
-/** Available-stock fulfillment order setup and release (Path A, FF-P3-01). */
 import { v } from "convex/values";
 
 import {
@@ -492,12 +491,6 @@ export const addFulfillmentLine = mutationWithOrg({
   },
 });
 
-/**
- * Create executable fulfillment demand and choose stock or production before
- * the customer line is handed to the factory. The command is atomic: callers
- * never get a routed header without its demand line, or a demand line without
- * the route evidence that explains it.
- */
 export const routeCustomerOrderLine = mutationWithOrg({
   args: {
     requestId: v.string(),

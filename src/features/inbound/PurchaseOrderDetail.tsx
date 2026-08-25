@@ -1,19 +1,5 @@
 "use client";
 
-/**
- * One purchase order, with the controls that change its lines.
- *
- * The order header is resolved first and the lines are rendered under it. A
- * screen that showed the lines above "no such order" would be answering a
- * question it had not established was answerable — and `{found:false}` is what
- * the server says for a nonexistent order *and* for another tenant's
- * (`INV-0002-03`), so the screen says one thing for both.
- *
- * There is no `getPurchaseOrder` on the server: the header is found in the same
- * warehouse-scoped list the register renders, which is a read the operator has
- * already been authorized for. Adding a single-document read to save a page of
- * rows would be a second permission surface for the same fact.
- */
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
@@ -55,11 +41,6 @@ export function PurchaseOrderDetail({
         <PurchaseOrderLinesPanel
           purchaseOrderId={purchaseOrderId}
           renderAction={(row) =>
-            /*
-             * Closing short is offered on an open line only. A complete line has
-             * no shortfall to explain, and recording one would put a fictional
-             * supplier failure into the tenant's own reporting.
-             */
             row.status === "OPEN" ? (
               <Button
                 type="button"

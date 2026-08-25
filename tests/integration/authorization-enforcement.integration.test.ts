@@ -1,26 +1,3 @@
-/**
- * Integration tier — the authorization kernel against in-memory lookups.
- *
- * Two claims, and they are different from the isolation suite's:
- *
- * 1. **A declaration that cannot be enforced is refused at registration.** Every
- *    branch of `assertAuthorizationDeclaration` is exercised, because each one is a
- *    function that would otherwise deploy and either deny every call or check
- *    nothing.
- * 2. **Fact resolution is exact, bounded, and fails closed.** The fake lookup port
- *    can answer things a real database will not produce on demand — another
- *    tenant's row, a role that vanished between two reads, a reverification stamped
- *    in the future — which is exactly why the kernel takes its facts through a port
- *    instead of reading `ctx.db`.
- *
- * The port here enforces nothing; that is deliberate. What is under test is the
- * kernel's re-verification of every answer, so an honest fake would hide it. The
- * *Convex* adapter's own bounds are proved in
- * `tests/isolation/authorization-enforcement.isolation.test.ts` against
- * `convex-test`.
- *
- * All data is synthetic (`tests/fixtures/README.md`).
- */
 import { describe, expect, it } from "vitest";
 
 import {
@@ -73,7 +50,6 @@ const permission = (code: string) => {
   return definition;
 };
 
-/** An ORG permission with no contextual policy, and a WAREHOUSE one. */
 const AUDIT_READ = permission("admin.audit.read");
 const RECEIPT_POST = permission("receiving.receipt.post");
 const WAREHOUSE_MANAGE = permission("masterData.warehouse.manage");
@@ -91,7 +67,6 @@ interface FakeWorld {
   device: DeviceDocument | null;
 }
 
-/** A document with the two Convex-owned fields a stored row always carries. */
 function stored<Document>(id: string, fields: object): Document {
   return { _id: id, _creationTime: 1, ...fields } as Document;
 }
@@ -123,7 +98,6 @@ function emptyWorld(): FakeWorld {
   };
 }
 
-/** A port that answers from `world` and records what it was asked. */
 function fakeLookups(world: FakeWorld) {
   const calls: { readonly method: string; readonly input: unknown }[] = [];
   const log = <Result>(method: string, input: unknown, result: Result) => {
@@ -194,7 +168,6 @@ async function facts(
   return { result, calls };
 }
 
-/** A world in which the actor's active role grants `code`. */
 function grantingWorld(code: string): FakeWorld {
   return {
     ...emptyWorld(),
@@ -379,7 +352,7 @@ describe("authorization fact resolution", () => {
       targetWarehouseId: WAREHOUSE,
     });
     expect(result.ok && result.facts.granted).toBe(true);
-    // The grant read is the exact triple, not an enumeration of the role.
+
     expect(
       calls.filter(({ method }) => method === "findRolePermission"),
     ).toEqual([
@@ -393,7 +366,6 @@ describe("authorization fact resolution", () => {
       },
     ]);
 
-    // No grant row for the declared code.
     const other = await facts(grantingWorld("admin.audit.read"), {
       targetWarehouseId: WAREHOUSE,
     });
@@ -484,7 +456,6 @@ describe("authorization fact resolution", () => {
       [WAREHOUSE],
     );
 
-    // A scope row belonging to another tenant is not this membership's scope.
     const foreign = grantingWorld("receiving.receipt.post");
     foreign.scope = stored<MembershipWarehouseDocument>("scopeB", {
       orgId: ORG_B,
@@ -496,7 +467,6 @@ describe("authorization fact resolution", () => {
       [],
     );
 
-    // An organization-wide membership needs no scope row, and none is read.
     const orgWide = grantingWorld("receiving.receipt.post");
     orgWide.membership = membershipDocument({ scopeMode: "ORG_WIDE" });
     const wide = await facts(orgWide, { targetWarehouseId: WAREHOUSE });
@@ -587,8 +557,7 @@ describe("authorization fact resolution", () => {
     world.sessionEvents = [
       sessionEvent({ occurredAt: NOW - 5_000, reverifiedAt: NOW - 5_000 }),
       sessionEvent({ occurredAt: NOW - 2_000, reverifiedAt: NOW - 2_000 }),
-      // Ignored: a future stamp, a denied step-up, another actor, another tenant,
-      // an event that is not a step-up, and one outside the freshness window.
+
       sessionEvent({ occurredAt: NOW, reverifiedAt: NOW + 60_000 }),
       sessionEvent({ eventType: "STEP_UP_DENIED", reverifiedAt: NOW }),
       sessionEvent({ outcome: "DENIED", reverifiedAt: NOW }),
@@ -657,8 +626,6 @@ describe("the decision", () => {
   });
 
   it("does not let a warehouse steer an organization-wide decision", () => {
-    // `admin.audit.read` is ORG-scoped: the actor has no scope row for the
-    // warehouse it named, and the decision is unaffected either way.
     expect(
       decideAuthorization({
         permission: AUDIT_READ,
@@ -786,8 +753,7 @@ describe("authorization audit and denial payloads", () => {
       requestId: REQUEST_ID,
       message: expect.stringContaining("request ID"),
     });
-    // No reason, no permission, no warehouse, no actor: the closed reason is
-    // audit-only (`INV-0002-07`).
+
     const serialized = JSON.stringify(denial);
     for (const leak of [
       "NO_PERMISSION",
@@ -863,7 +829,7 @@ describe("authorization audit and denial payloads", () => {
     ]);
     expect(fixture.callsTo("insert")[0]).toMatchObject({
       table: "auditEvents",
-      // The tenant is stamped by the accessor, never supplied by the caller.
+
       payload: { orgId: ORG_A, outcome: "ALLOWED" },
     });
   });

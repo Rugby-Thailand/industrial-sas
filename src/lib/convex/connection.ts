@@ -1,9 +1,3 @@
-/**
- * Connection state derived from Convex's server acknowledgement.
- *
- * Browser link state is not authoritative: only a ready Convex socket means
- * commands may be sent.
- */
 import type { AppEnvironment } from "../environment";
 
 export interface ServerAcknowledgement {

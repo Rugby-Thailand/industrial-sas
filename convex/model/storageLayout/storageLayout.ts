@@ -21,7 +21,7 @@ export interface StorageFloorInput {
   readonly widthMm?: number;
   readonly depthMm?: number;
   readonly heightMm?: number;
-  /** Placement relative to the building (floor 1) or previous floor. */
+
   readonly offsetXMm?: number;
   readonly offsetYMm?: number;
   readonly reservedBlocks: readonly StorageReservedBlockInput[];

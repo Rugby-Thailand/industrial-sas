@@ -1,11 +1,3 @@
-/**
- * Stable, browser-local installation correlation for auditable device context.
- *
- * This value is not a credential and grants no permission. The server only uses
- * it to resolve an installation to a tenant-owned device row. It is deliberately
- * opaque, bounded to the server's accepted alphabet, and never rendered in the
- * registry UI or copied into support text.
- */
 export const INSTALLATION_STORAGE_KEY = "industrial-sas.installation-id.v1";
 
 const INSTALLATION_PATTERN = /^install_[A-Za-z0-9_-]{16,56}$/;
@@ -29,7 +21,6 @@ export const mintInstallationId = (
   return value;
 };
 
-/** Read the installation value, replacing corrupt local state fail-closed. */
 export const readOrCreateInstallationId = (
   storage: InstallationStorage = window.localStorage,
   randomUuid?: () => string,

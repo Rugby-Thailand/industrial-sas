@@ -1,32 +1,3 @@
-/**
- * Optional: measure annotation coordinates from a running application.
- *
- * Today's coordinates were read off screenshots by hand, and every time a screen
- * moves, somebody has to do that again. The durable fix is for the controls a
- * manual points at to *say* what they are, so the box can be measured rather than
- * eyeballed:
- *
- *   <div data-manual-id="receipt-lines-form"> … </div>
- *
- * This script visits each task's route, finds every `[data-manual-id]`, and writes
- * their bounding boxes to a JSON file. An author then copies the numbers into
- * `scripts/manual/tasks.mjs`. It is deliberately *not* part of `pnpm manual:build`:
- * the build must work from committed inputs with no server and no credentials, and
- * this needs both.
- *
- * Nothing in the application exposes `data-manual-id` yet, so a run against the
- * current product finds zero targets and says so. That is the intended failure —
- * see `docs/manuals/operator-manual-authoring.md` for the naming convention new
- * controls should follow.
- *
- *   MANUAL_CAPTURE_BASE_URL=http://localhost:3000 \
- *   node scripts/capture-manual-targets.mjs [--locale=th] \
- *     [--storage-state=<file>] [--out=<file>]
- *
- * For an authenticated application, pass a Playwright storage-state file made
- * by a signed-in setup flow. Without it, protected routes redirect to sign-in and
- * the script reports that instead of pretending it measured something.
- */
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import process from "node:process";
@@ -36,7 +7,6 @@ import { MANUAL_TASKS } from "./manual/tasks.mjs";
 
 const repoRoot = fileURLToPath(new URL("..", import.meta.url));
 
-/** Screenshot width every committed capture uses. */
 const VIEWPORT = { width: 1280, height: 900 };
 
 const fail = (message) => {
@@ -104,7 +74,6 @@ const captured = {};
 const failures = [];
 
 for (const task of MANUAL_TASKS) {
-  // A `{param}` route needs a real document id, which only a seeded tenant has.
   if (task.route.includes("{")) {
     failures.push(
       `${task.id}: route ${task.route} needs a document id; capture it by hand`,

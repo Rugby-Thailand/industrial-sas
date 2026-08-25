@@ -14,7 +14,7 @@ export interface IsometricFloor {
   readonly widthMm: number;
   readonly depthMm: number;
   readonly heightMm: number;
-  /** Placement relative to the building (floor 1) or previous floor. */
+
   readonly offsetXMm?: number;
   readonly offsetYMm?: number;
 }
@@ -33,7 +33,6 @@ export function projectIsometricPoint(
   return { x: point.x - point.y, y: (point.x + point.y) / 2 - point.z };
 }
 
-/** Converts a screen-space drag on a constant-Z plane back to model units. */
 export function unprojectIsometricDelta(
   delta: IsometricPoint2d,
   scale: number,

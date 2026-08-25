@@ -8,7 +8,6 @@ import { WorkspaceProvider } from "@/components/providers/WorkspaceProvider";
 import { HandheldShell } from "@/components/shell/HandheldShell";
 import { readAppAccess } from "@/lib/auth/appAccess";
 
-/** The operator route group. See the desktop layout for why this is a route. */
 export default async function HandheldLayout({
   children,
   params,

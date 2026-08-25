@@ -8,7 +8,6 @@ import { PageHeader } from "./PageHeader";
 
 const LOCALES = ["th", "en"] as const;
 
-/** Both disclosure states, both catalogues (`INV-0010-09`). */
 describe("PageHeader accessibility", () => {
   it.each(LOCALES)("is clean while collapsed in %s", async (locale) => {
     const { container } = renderWithIntl(

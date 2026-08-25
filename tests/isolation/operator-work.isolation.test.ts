@@ -1,16 +1,3 @@
-/**
- * Tenant and warehouse isolation over the Phase 1 shared operator surfaces.
- *
- * Three questions, each asked against a deliberately colliding world:
- *
- * 1. Does one tenant's board ever return another tenant's rows, when both use
- *    the same task number and the same device label?
- * 2. Is a foreign identifier — a task, a step-up approval — indistinguishable
- *    from one that does not exist? A different answer would confirm the row's
- *    existence to a caller who may not read it (`INV-0002-03`).
- * 3. Does warehouse scope hold *within* a tenant, so an operator scoped to one
- *    site cannot claim another site's backlog (`INV-0006-04`)?
- */
 import type { GenericMutationCtx } from "convex/server";
 import type { GenericId } from "convex/values";
 import { describe, expect, it } from "vitest";
@@ -63,10 +50,6 @@ const value = (outcome: Record<string, unknown>) => {
   return outcome["value"] as Record<string, unknown>;
 };
 
-/**
- * Both tenants get a task under the same number, seeded directly so the test
- * is about the read rather than about the writer.
- */
 async function seedCollidingTasks(world: ConvexInventoryWorld): Promise<{
   readonly a: GenericId<"operatorTasks">;
   readonly b: GenericId<"operatorTasks">;
@@ -294,7 +277,7 @@ describe("operator work tenant isolation", () => {
       async (ctx) =>
         await ctx.db.insert("operatorTasks", {
           orgId: world.orgA,
-          // BRAVO, which the fixture membership is not scoped to.
+
           warehouseId: world.warehouses.bravoA,
           taskNumber: "WT-BRAVO",
           kind: "SUPERVISOR_ASSIGNED" as const,
@@ -305,12 +288,6 @@ describe("operator work tenant isolation", () => {
         }),
     );
 
-    /*
-     * Asking for BRAVO is refused while the tenant context is resolved, before
-     * any authorization outcome exists to return — so it arrives as a thrown
-     * `WAREHOUSE_OUT_OF_SCOPE`, not as an envelope. The distinction matters:
-     * the request never reached a handler that could have read the row.
-     */
     await expect(
       call(world, claimOperatorTask, {
         requestId: "req-claim",
@@ -319,8 +296,6 @@ describe("operator work tenant isolation", () => {
       }),
     ).rejects.toThrow(/WAREHOUSE_OUT_OF_SCOPE/);
 
-    // Naming ALPHA to get past the scope check does not reach the task either:
-    // the handler proves the task's own site.
     const mislabelled = value(
       await call(world, claimOperatorTask, {
         requestId: "req-claim-2",

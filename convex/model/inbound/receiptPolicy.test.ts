@@ -35,10 +35,6 @@ describe("makeTolerance", () => {
   });
 
   it("refuses a tolerance of one hundred percent or more", () => {
-    /*
-     * "Accept at least twice what was ordered without approval" should not be
-     * expressible by a typo in a denominator.
-     */
     expect(makeTolerance(100, 100).ok).toBe(false);
     expect(makeTolerance(3, 2).ok).toBe(false);
   });
@@ -59,11 +55,6 @@ describe("toleranceAllowance", () => {
   });
 
   it("rounds the allowance down, never up", () => {
-    /*
-     * The header's rule, in numbers. 2.5% of 41 units is 1.025; rounding up
-     * would admit two, making the tenant's tolerance larger than the one they
-     * configured — and larger by a different amount at every order quantity.
-     */
     const twoAndAHalf = makeTolerance(25, 1000);
     expect(twoAndAHalf.ok).toBe(true);
     if (!twoAndAHalf.ok) return;
@@ -75,7 +66,6 @@ describe("toleranceAllowance", () => {
   });
 
   it("computes a percentage no float represents exactly", () => {
-    // 5% of 1,000,003 is 50,000.15. The allowance is the floor, exactly.
     expect(toleranceAllowance(1_000_003, fivePercent())).toEqual({
       ok: true,
       value: 1_050_003,
@@ -113,11 +103,6 @@ describe("assessReceipt", () => {
   });
 
   it("classifies against the line total, not against one posting", () => {
-    /*
-     * The load-bearing case. Two postings of 60 against an order of 100 is an
-     * over-receipt; a rule that asked "is *this* posting over?" answers no twice
-     * and lets 120 units in without an approval.
-     */
     const assessment = assessReceipt({
       ...base,
       alreadyReceivedMinorUnits: 60_000,
@@ -154,8 +139,6 @@ describe("assessReceipt", () => {
   });
 
   it("requires approval one unit past the allowance", () => {
-    // The boundary is the whole point of `INV-0007-02`, so it is asserted at the
-    // unit either side rather than somewhere comfortably beyond it.
     const inside = assessReceipt({
       ...base,
       tolerance: fivePercent(),
@@ -172,11 +155,6 @@ describe("assessReceipt", () => {
   });
 
   it("distinguishes an unconfigured tolerance from a configured zero", () => {
-    /*
-     * Arithmetically identical, factually different: `OPS-0007-02` requires the
-     * pilot tenant to confirm a tolerance, and "never configured" must not read
-     * as "deliberately set to zero".
-     */
     const none = assessReceipt({ ...base, incomingMinorUnits: 100_001 });
     const zero = assessReceipt({
       ...base,
@@ -193,7 +171,6 @@ describe("assessReceipt", () => {
   });
 
   it("refuses a zero or negative posting", () => {
-    // A correction is a reversal, with its own permission and its own maker.
     expect(assessReceipt({ ...base, incomingMinorUnits: 0 }).ok).toBe(false);
     expect(assessReceipt({ ...base, incomingMinorUnits: -1 }).ok).toBe(false);
   });
@@ -229,8 +206,6 @@ describe("statusAfterReceipt", () => {
   });
 
   it("completes an over-received line rather than leaving it open", () => {
-    // An open over-received line would accumulate forever without crossing any
-    // threshold a human reviews.
     const assessment = assessReceipt({
       orderedMinorUnits: 100,
       alreadyReceivedMinorUnits: 0,
@@ -263,8 +238,6 @@ describe("planUnderClose", () => {
   });
 
   it("refuses to close short without a reason", () => {
-    // `INV-0007-03`. The reason is the row a buyer later reads to ask why the
-    // supplier under-delivered; a close without one discards its own evidence.
     const plan = planUnderClose(open);
     expect(!plan.ok && plan.error.code).toBe("REASON_REQUIRED");
   });
@@ -275,8 +248,6 @@ describe("planUnderClose", () => {
   });
 
   it("refuses to close a line that received everything", () => {
-    // Recording a shortfall of zero would put a fictional supplier failure into
-    // the tenant's own reporting.
     const plan = planUnderClose({
       ...open,
       receivedMinorUnits: 100_000,
@@ -301,11 +272,6 @@ describe("classifyLineKind", () => {
   });
 
   it("separates a cancelled line from an unexpected item", () => {
-    /*
-     * Both are exceptions and the follow-up differs: a cancelled line means
-     * somebody on this side cancelled it, an unexpected item means the supplier
-     * shipped something else.
-     */
     expect(
       classifyLineKind({
         hasOrderLine: true,

@@ -1,25 +1,5 @@
 "use client";
 
-/**
- * Import a spreadsheet: check it, then write it in chunks.
- *
- * The screen is two steps because the server is two steps, and the split is the
- * safety property rather than a layout choice. `previewPurchaseOrderImport` is a
- * **query** — it parses and cannot write — so what the operator approves is a
- * parse whose only effect was to produce the list they are reading.
- *
- * ### The progress counter is derived, never accumulated
- *
- * A chunk answers with a cursor. The screen stores that cursor and nothing else:
- * "written so far" is the cursor, and "how many remain" is the accepted count
- * minus it. A separately accumulated counter would drift the moment a chunk was
- * replayed after a reconnect — which is exactly when an operator is watching it
- * most closely.
- *
- * The resume path is therefore free: the cursor is the whole of the state, so a
- * reload with the same file and the same batch reference picks up where it left
- * off, and re-pressing a chunk that already wrote skips every row it recognises.
- */
 import { useQuery } from "convex/react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
@@ -202,8 +182,6 @@ function ImportResultBody({
 }) {
   const t = useTranslations("Purchasing");
   if (!outcome.ok) {
-    // A whole-file refusal: a missing header column, an unterminated quote, a
-    // file past the row bound. The code is what an operator quotes.
     return (
       <Notice
         tone="danger"

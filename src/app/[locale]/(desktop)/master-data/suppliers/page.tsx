@@ -8,14 +8,6 @@ import {
   SuppliersPanel,
 } from "@/features/masterData/EntityPanels";
 
-/**
- * The supplier register, backed by `masterData/catalogue:listSuppliers` and
- * `masterData/writes:createSupplier`.
- *
- * A supplier code is unique within the organization and nowhere wider: two
- * manufacturers may both buy from the same mill under the same code, and the
- * register says so rather than implying a global namespace.
- */
 export default async function SuppliersPage({
   params,
 }: {

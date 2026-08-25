@@ -1,12 +1,3 @@
-/**
- * Inventory-count planning, task lifecycle, exact entry capture, and blind views.
- *
- * The model deliberately keeps hidden quantities out of returned objects rather
- * than returning them as `undefined`; serializers, logs, exports, and optimistic
- * caches therefore cannot accidentally reveal a blind snapshot or prior count.
- *
- * Pure module: no Convex imports.
- */
 import { isRecord, isSafeInt, isString } from "../guards";
 import { fail, ok, type Result } from "../result";
 import {
@@ -210,7 +201,6 @@ export function decideCountPlanRelease(input: {
   );
 }
 
-/** Apply an authoritative task aggregate rather than incrementing client deltas. */
 export function recordCountPlanProgress(input: {
   readonly state: CountPlanState;
   readonly completedTaskCount: number;
@@ -418,7 +408,6 @@ export function decideCountTaskRecount(input: {
   );
 }
 
-/** Discard one partial attempt and return the task to the proper queue. */
 export function decideCountAttemptDiscard(input: {
   readonly state: CountTaskState;
   readonly actorUserId: string;
@@ -536,13 +525,6 @@ export interface CountTaskProjectionSource {
 
 export type CountTaskProjection = Readonly<Record<string, string | number>>;
 
-/**
- * Build the only role-facing view of count quantities.
- *
- * - Blind counters and recounters never receive system or movement quantities.
- * - A recounter never receives the first counter's result, even in visible mode.
- * - Supervisors and auditors receive the full reconciliation evidence.
- */
 export function projectCountTaskForViewer(input: {
   readonly source: CountTaskProjectionSource;
   readonly role: CountViewerRole;

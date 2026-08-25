@@ -1,14 +1,3 @@
-/**
- * Isolation tier — reporting must not leak across tenants.
- *
- * A dashboard and an export are the two surfaces where a tenant boundary failure
- * would be most damaging and least visible: a counter is a single number with no
- * provenance on screen, and an export is tenant data in its most portable form —
- * once it is in somebody's downloads folder, the boundary is gone.
- *
- * Every statement here is a two-tenant one, which is why it lives in this tier
- * rather than beside the behaviour tests.
- */
 import type { GenericMutationCtx } from "convex/server";
 import type { GenericId } from "convex/values";
 import { describe, expect, it } from "vitest";
@@ -104,13 +93,6 @@ describe("reporting across tenants", () => {
   });
 
   it("denies a warehouse the caller is not a member of", async () => {
-    /*
-     * `INV-0006-04`: the warehouse is revalidated against membership before the
-     * handler runs, so asking about another tenant's site is a *denial* rather
-     * than an empty dashboard. The distinction matters — an empty answer would
-     * say "that site exists and has no work", which is one fact more than a
-     * stranger should learn.
-     */
     const world = await createConvexInventoryWorld();
 
     await expect(
@@ -162,17 +144,6 @@ describe("reporting across tenants", () => {
   });
 
   it("answers another tenant's export exactly as it answers a deleted one", async () => {
-    /*
-     * `INV-0002-03`. The artifact is the whole point: an export ID that answered
-     * "exists but forbidden" would already have told the caller that a warehouse
-     * they cannot see is producing extracts.
-     *
-     * The control is a **real `reportJobs` ID whose document is gone** — created
-     * and then deleted — rather than the same foreign ID asked twice. Comparing
-     * an ID to itself proves only that the function is deterministic; the claim
-     * under test is that two *different* unreachable IDs are indistinguishable,
-     * and a well-formed ID of the right table is the only honest control for it.
-     */
     const world = await createConvexInventoryWorld();
 
     const requested = value(
@@ -183,8 +154,6 @@ describe("reporting across tenants", () => {
       }),
     );
 
-    // Tenant B's own job, then deleted: a valid ID of this table, owned by the
-    // asking tenant, referring to nothing.
     const vanished = value(
       await callAs(world, "b", requestExport, {
         requestId: requestId("iso_export_vanished"),
@@ -217,8 +186,6 @@ describe("reporting across tenants", () => {
   });
 
   it("lets each tenant hold the same request ID without colliding", async () => {
-    // The idempotency namespace is `(orgId, requestId)`. Two tenants retrying
-    // with the same generated ID must get two jobs, not one shared one.
     const world = await createConvexInventoryWorld();
     const shared = requestId("iso_shared_export");
 

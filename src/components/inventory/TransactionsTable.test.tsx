@@ -12,7 +12,7 @@ const original: TransactionRow = {
   type: "RECEIPT",
   operation: "inventory.transaction.post",
   requestId: "req_0191f28e",
-  /* 2026-08-10T17:30:00Z is 2026-08-11 00:30 in Bangkok. */
+
   occurredAt: Date.UTC(2026, 7, 10, 17, 30, 0),
   businessDate: "2026-08-10",
   lineCount: 6,
@@ -54,12 +54,6 @@ describe("TransactionsTable", () => {
   });
 
   it("shows both the instant and the business date, which can disagree", () => {
-    /*
-     * The instant is 00:30 on 11 August in Bangkok; the business date the
-     * warehouse counts it against is the 10th, because the receiving shift
-     * started that day (`D-05`). A screen showing only one of them would make
-     * that look like a defect.
-     */
     renderWithIntl(<TransactionsTable rows={[original]} />);
 
     expect(screen.getByText("2026-08-10")).toBeInTheDocument();
@@ -76,8 +70,6 @@ describe("TransactionsTable", () => {
   });
 
   it("puts the scroller in a named region a keyboard can reach", () => {
-    // Five columns, two of them timestamps: this is the history screen's own
-    // version of the trailing-content finding, and it had no cue and no tab stop.
     renderWithIntl(<TransactionsTable rows={[original]} />);
 
     const caption = "รายการเคลื่อนไหว 1 รายการ";

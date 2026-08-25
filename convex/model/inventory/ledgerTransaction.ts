@@ -1,44 +1,3 @@
-/**
- * The ledger transaction: a header, immutable non-zero lines, and the invariants
- * that make the lines a double entry rather than a list of wishes.
- *
- * Status: **implemented.** Pure module (plan §6.2): no Convex imports, and no
- * imports outside `convex/model/**`.
- *
- * This module answers one question — *is this a postable transaction?* — and it
- * answers it without a database, which is why every rule it can enforce is
- * enforced here and every rule it cannot is named in the doc comment of the thing
- * that owes it. What needs storage (does this item belong to this organization,
- * does this location belong to this warehouse, is the resulting balance negative)
- * lives in `convex/lib/inventoryLedgerStore.ts` and `convex/model/inventory/balanceProjection.ts`.
- *
- * The invariants decided here, from plan §7.5 and `ADR-0003`:
- *
- * - `INV-0003-02` **Balanced.** Lines sum to zero within every *conservation
- *   group* — organization, warehouse, item, lot, serial, owner, UOM — while
- *   location, handling unit, and stock status are free to change. That is the
- *   whole of double entry here: putaway moves a location, a QC release moves a
- *   status, a receipt moves stock across a virtual boundary, and each is balanced.
- * - `INV-0003-03` **No zero line.** Including a line that only becomes zero after
- *   duplicate canonicalization, which is refused rather than dropped: a
- *   disappearing line is an intent nobody can see afterwards.
- * - Cross-warehouse movement is **not** silently expressible. A line whose
- *   warehouse differs from the header's is `LINE_WAREHOUSE_MISMATCH` — its own
- *   error, before the balance check, because "unbalanced" would be a misleading
- *   diagnosis of a transfer someone tried to write as a move.
- * - External flow crosses an explicit **virtual boundary** (`ADR-0003` §2), and
- *   the boundary's declared direction is checked: stock cannot be received *into*
- *   a supplier or scrapped *out of* the scrap sink.
- * - A transaction touches at least one **physical** location. Two virtual
- *   boundaries balancing against each other move nothing real.
- * - A **reason code** is required exactly where a reason is the only explanation:
- *   a reversal, an adjustment, and a scrap.
- *
- * Everything is total and returns a `Result`. Arithmetic goes through
- * `convex/model/uom/quantity.ts`, so the magnitude bound and the safe-integer
- * check are the ones `ADR-0004` already settled — a sum that would exceed
- * 10^12 thousandths is `OUT_OF_RANGE` from there, not a silently wrong total here.
- */
 import {
   MAX_QUANTITY_MINOR_UNITS,
   addQuantities,
@@ -65,17 +24,6 @@ import {
   type RequestIdentityError,
 } from "./requestIdentity";
 
-/* -------------------------------------------------------------------------- */
-/* Closed value sets and bounds                                                */
-/* -------------------------------------------------------------------------- */
-
-/**
- * What kind of movement a transaction records.
- *
- * The type is documentation and a reporting dimension, not an authorization
- * decision — the permission code guards that — and not a licence to skip a rule:
- * every type balances, and every type's lines are immutable.
- */
 export const INVENTORY_TRANSACTION_TYPES = [
   "RECEIPT",
   "PUTAWAY",
@@ -98,62 +46,16 @@ export const isInventoryTransactionType = (
   isString(value) &&
   (INVENTORY_TRANSACTION_TYPES as readonly string[]).includes(value);
 
-/**
- * Types whose only explanation is a reason code.
- *
- * A receipt explains itself through its purchase order and a putaway through its
- * task. An adjustment, a scrap, and a reversal do not: something was wrong, and
- * the reason is the record of what (§7.5, `ADR-0003` §5).
- */
 export const REASON_REQUIRED_TYPES: ReadonlySet<InventoryTransactionType> =
   new Set(["ADJUSTMENT", "SCRAP", "REVERSAL"]);
 
-/**
- * The most lines one transaction may carry.
- *
- * A cap, not a default, and a rejection rather than a truncation. Large inbound
- * batches are chunked and resumable by design (§5 Q26, `ADR-0011`); a
- * thousand-line transaction is a client that skipped the chunking, and letting it
- * through would put an unbounded write set in one Convex transaction — the
- * contention failure plan §13 names.
- *
- * ### Why exactly 100
- *
- * It is `TENANT_INDEX_MAX_PAGE_SIZE`, and the equality is load-bearing rather
- * than a coincidence. A transaction's lines have to be **read back** — a replay
- * reconstructs the original answer from them (`INV-0003-01`), and so does a
- * detail read — and the tenant-bound reader refuses a `take` above that cap
- * rather than clamping it. A line cap above the read cap would therefore be a
- * transaction that could be written and never read: every replay and every
- * detail read of a legal transaction would fail with `INVALID_LIMIT`, which is
- * exactly the defect this constant used to have at 200.
- *
- * The pure module cannot import the storage constant — it has no Convex imports
- * by design (plan §6.2) — so the coupling is stated here and asserted by
- * `tests/integration/inbound-slice.integration.test.ts`, which replays a real
- * posting through a real mutation.
- */
 export const MAX_TRANSACTION_LINES = 100;
 
-/** Longest a `source.type` or `source.id` may be. */
 const MAX_SOURCE_FIELD_LENGTH = 128;
 
-/** `PURCHASE_ORDER`, `PUTAWAY_TASK`, `CYCLE_COUNT`: an upper-snake provenance tag. */
 const SOURCE_TYPE_PATTERN = /^[A-Z][A-Z0-9_]{0,62}$/;
 const IDENTIFIER_PATTERN = /^[A-Za-z0-9_.-]+$/;
 
-/* -------------------------------------------------------------------------- */
-/* Errors                                                                      */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Every way a transaction can be refused, named.
- *
- * Structured, never prose: the UI owns translation (D-06), and a caller that has
- * to match on a message string is a caller that breaks when the message improves.
- * `bucket` and `line` errors nest the underlying value error so the reason a
- * quantity was rejected is not flattened into "invalid line".
- */
 export type LedgerError =
   | { readonly code: "NOT_A_TRANSACTION"; readonly received: string }
   | {
@@ -263,17 +165,11 @@ function describe(value: unknown): string {
   return typeof value;
 }
 
-/* -------------------------------------------------------------------------- */
-/* Values                                                                      */
-/* -------------------------------------------------------------------------- */
-
-/** One posting, as a caller writes it: a bucket and a signed quantity. */
 export interface LedgerLineDraft {
   readonly bucket: InventoryBucket;
   readonly quantity: Quantity;
 }
 
-/** A posting that has been validated, keyed, and grouped. Frozen. */
 export interface ValidatedLedgerLine {
   readonly bucket: InventoryBucket;
   readonly bucketKey: string;
@@ -297,7 +193,6 @@ export interface LedgerTransactionDraft {
   readonly lines: readonly LedgerLineDraft[];
 }
 
-/** The validated header. Frozen; absent optionals are omitted, not `undefined`. */
 export interface ValidatedLedgerHeader {
   readonly orgId: string;
   readonly warehouseId: string;
@@ -312,39 +207,24 @@ export interface ValidatedLedgerHeader {
   readonly reversalOfTransactionId?: string;
 }
 
-/** One conservation group's total, which a valid transaction proves is zero. */
 export interface ConservationTotal {
   readonly conservationKey: string;
   readonly uom: string;
   readonly minorUnits: number;
 }
 
-/** The net effect on one bucket: what the projection applies. */
 export interface BucketDelta {
   readonly bucketKey: string;
   readonly bucket: InventoryBucket;
   readonly quantity: Quantity;
 }
 
-/**
- * A transaction that satisfies every rule this module can decide.
- *
- * `lines` is canonical: duplicates on one bucket are summed, and the result is
- * ordered by `bucketKey`. That ordering is not cosmetic — it makes the stored
- * `lineIndex` a function of the transaction's content rather than of the order a
- * client happened to send, so a replay reconstructs byte-identical lines and two
- * clients expressing the same intent produce the same rows.
- */
 export interface ValidatedLedgerTransaction {
   readonly header: ValidatedLedgerHeader;
   readonly lines: readonly ValidatedLedgerLine[];
   readonly conservation: readonly ConservationTotal[];
   readonly deltas: readonly BucketDelta[];
 }
-
-/* -------------------------------------------------------------------------- */
-/* Header validation                                                           */
-/* -------------------------------------------------------------------------- */
 
 function validateIdentifier(
   field: string,
@@ -375,14 +255,6 @@ function validateOptionalIdentifier(
   return validated.ok ? ok(validated.value) : validated;
 }
 
-/**
- * Validate the header, including the reversal link's consistency with the type.
- *
- * The link and the type must agree in both directions. A `REVERSAL` with no
- * original is a compensating posting with nothing to compensate; a `RECEIPT` that
- * names an original is a transaction claiming a relationship its type does not
- * have, and either would make the reversal index a lie.
- */
 export function validateLedgerHeader(
   draft: LedgerTransactionDraft,
 ): Result<ValidatedLedgerHeader, LedgerError> {
@@ -490,18 +362,6 @@ export function validateLedgerHeader(
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/* Line validation                                                             */
-/* -------------------------------------------------------------------------- */
-
-/**
- * The direction rule for a virtual boundary.
- *
- * A `SOURCE` boundary supplies stock, so its own line is negative — receiving ten
- * cases is `+10` at the dock and `-10` at `SUPPLIER_RECEIPT`. A positive line
- * there says stock was put *into* the supplier, which is a shipment wearing a
- * receipt's clothes.
- */
 function boundaryDirectionViolation(
   index: number,
   location: InventoryBucket["location"],
@@ -572,13 +432,7 @@ function validateLine(
       received: bucket.value.warehouseId,
     });
   }
-  // A reversal runs the boundary backwards on purpose: undoing a receipt puts
-  // stock back on the supplier's side of a `SOURCE`. Its direction is justified by
-  // the original transaction, whose own direction was checked when it posted, and
-  // `planReversal` proves the lines are that original's exact negation. Applying
-  // the rule here would make every reversal of an external flow unpostable —
-  // which would leave a wrong receipt with no correction path at all, the outcome
-  // `ADR-0003` §5 exists to prevent.
+
   const direction =
     header.type === "REVERSAL"
       ? null
@@ -615,22 +469,6 @@ function validateLine(
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/* Transaction validation                                                      */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Validate a whole transaction: header, lines, canonicalization, boundaries, and
- * conservation.
- *
- * Order matters and is deliberate. Every *local* fault — a forged quantity, a
- * foreign warehouse, a boundary posted backwards — is reported as itself before
- * the global balance check runs, because "unbalanced" is a true but useless
- * diagnosis of a transaction whose third line names another tenant's item.
- *
- * The answer is a whole new value; the draft is never mutated, and every record
- * and array in the answer is shallow-frozen.
- */
 export function validateLedgerTransaction(
   draft: LedgerTransactionDraft,
 ): Result<ValidatedLedgerTransaction, LedgerError> {
@@ -697,21 +535,6 @@ export function validateLedgerTransaction(
   );
 }
 
-/**
- * Sum duplicate lines on one bucket, and order the result by `bucketKey`.
- *
- * Two lines on the same bucket are a safe canonicalization — `+3` and `+2` on one
- * bin is `+5` there, and no information is lost — but only when they share a UOM.
- * They cannot legitimately differ: a bucket names one item, and an item has one
- * base UOM (`ADR-0004`). A pair that does differ is `BUCKET_UOM_CONFLICT` rather
- * than two rows, because storing both would make the bucket's balance a value with
- * two units.
- *
- * A merged total of zero is refused, not dropped. `+5` and `-5` on one bin is a
- * caller who has expressed something — probably a movement they meant to route
- * through two different buckets — and a silently vanished pair is the version of
- * that mistake nobody finds later (`INV-0003-03`).
- */
 function canonicalizeLines(
   lines: readonly ValidatedLedgerLine[],
 ): Result<ValidatedLedgerLine[], LedgerError> {
@@ -752,15 +575,6 @@ function canonicalizeLines(
   return ok(canonical);
 }
 
-/**
- * Total every conservation group, in a deterministic order.
- *
- * Each running total goes through `addQuantities`, so an intermediate beyond
- * `MAX_QUANTITY_MINOR_UNITS` is `OUT_OF_RANGE` from the quantity module rather
- * than a double that silently stopped being an integer. That is the overflow
- * rejection: it fires before any balance is written, so an over-large transaction
- * leaves nothing behind.
- */
 function conservationTotals(
   lines: readonly ValidatedLedgerLine[],
 ): Result<ConservationTotal[], LedgerError> {
@@ -790,25 +604,13 @@ function conservationTotals(
   return ok(ordered);
 }
 
-/**
- * The magnitude bound, restated for callers that need to reject an input before
- * building a quantity. Re-exported rather than duplicated (`ADR-0004`).
- */
 export const MAX_LEDGER_MINOR_UNITS = MAX_QUANTITY_MINOR_UNITS;
 
-/**
- * A quantity from signed minor units, for callers assembling a draft.
- *
- * A thin re-export of `makeQuantity`, present so a feature module building a
- * ledger line does not have to import two modules to build one line, and so the
- * bound it is checked against is unambiguously the ledger's.
- */
 export const ledgerQuantity = (
   minorUnits: number,
   uom: string,
 ): Result<Quantity, QuantityError> => makeQuantity(minorUnits, uom);
 
-/** Re-check a quantity read back out of a stored line. */
 export const ledgerStoredQuantity = (
   quantity: Quantity,
 ): Result<Quantity, QuantityError> => validateQuantity(quantity);

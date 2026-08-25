@@ -1,32 +1,3 @@
-/**
- * Proving the dashboard's numbers, and repairing them when they are wrong
- * (`ADR-0011` §6, `INV-0011-09`).
- *
- * A maintained counter is a projection, and every projection in this system owes
- * the same debt the balance projection owes the ledger: it must be derivable
- * from its source, and something must actually derive it. Without that, a
- * counter is a number that was right once.
- *
- * So each metric is paired here with the read that recomputes it, and the pair
- * is the contract. Adding a metric without a derivation is not possible from a
- * call site — `RollupMetric` is closed — and adding one here without wiring its
- * derivation makes this file fail to compile on the exhaustive switch.
- *
- * ### Bounded, like everything else
- *
- * Recomputation walks the source tables in pages (`INV-0011-01`). A site with
- * more rows than one run's budget returns `BUDGET_EXHAUSTED` with a cursor
- * rather than silently checking a prefix and calling the rest balanced — a
- * verifier that lied by omission would be worse than no verifier.
- *
- * ### Verify and repair are separate
- *
- * `verifyRollups` is a query: it reads, compares, and reports. `repairRollup` is
- * a mutation that takes a metric and a derived value and writes it. Splitting
- * them means a drift report can be read by anyone with dashboard permission,
- * while writing a counter needs the permission that owns it — and it means a
- * repair states a number somebody derived rather than one this code assumed.
- */
 import { v } from "convex/values";
 
 import {
@@ -42,18 +13,6 @@ import type { TenantDocumentAccess, TenantOrgId } from "../lib/tenantDb";
 import { rollupMetric } from "../lib/validators";
 import { refusal, writeErrorValidator } from "../lib/writeEnvelope";
 
-/**
- * How many source rows one verification read may count.
- *
- * The tenant page cap, and not a multiple of it. Counting more would mean paging,
- * paging means a cursor, and **a Convex function execution may perform only one
- * indexed read that has a continuation** (`convex/lib/tenantStorage.ts`) — so a
- * verifier that walked five pages per metric across six metrics would work on a
- * small site and fail on every real one.
- *
- * The consequence is stated rather than hidden: a metric whose source exceeds
- * this is reported as unverifiable, not as balanced.
- */
 export const MAX_VERIFY_ROWS = MAX_JOB_PAGE_SIZE;
 
 interface CountableRow {
@@ -61,14 +20,6 @@ interface CountableRow {
   readonly orgId: TenantOrgId;
 }
 
-/**
- * Count the rows of one indexed read, up to the cap.
- *
- * One `.take()`, which creates no continuation and so may be called as often as
- * a handler needs. Reaching the cap is reported rather than silently treated as
- * the total: `100` and "at least 100" support different conclusions, and a
- * verifier that conflated them would report drift on every busy site.
- */
 async function countBounded(
   tenantDb: TenantDocumentAccess,
   table: Parameters<TenantDocumentAccess["byIndex"]>[0],
@@ -82,13 +33,6 @@ async function countBounded(
   return { count: rows.length, capped: rows.length === MAX_VERIFY_ROWS };
 }
 
-/**
- * Recompute one metric from the tables that define it.
- *
- * The switch is exhaustive by type. A metric added to `RollupMetric` without a
- * derivation here is a compile error, which is the only way to keep "every
- * counter is checkable" true as the set grows.
- */
 async function deriveMetric(
   tenantDb: TenantDocumentAccess,
   warehouseId: string,
@@ -149,15 +93,6 @@ async function deriveMetric(
   }
 }
 
-/**
- * Receipt lines belonging to one site.
- *
- * Two levels, both bounded: the site's receipts, then each receipt's lines. It
- * is more work than a single index would be, and the alternative — putting
- * `warehouseId` on `receiptLines` — would be a denormalization that can disagree
- * with the receipt it hangs from. A count that is slower to derive is better
- * than a count that can be derived two ways.
- */
 async function countReceiptLines(
   tenantDb: TenantDocumentAccess,
   warehouseId: string,
@@ -177,8 +112,7 @@ async function countReceiptLines(
       [{ field: "receiptId", value: receipt._id }],
     );
     count += lines.count;
-    // A receipt at the cap means its own lines are a lower bound, so the total
-    // is one too — and a lower bound cannot disprove a counter.
+    // A lower bound cannot disprove a counter, so it is not compared.
     if (lines.capped) return { count, capped: true };
   }
 
@@ -193,18 +127,6 @@ const comparisonValidator = v.object({
   drifted: v.boolean(),
 });
 
-/**
- * Compare every site-wide counter against a fresh derivation.
- *
- * Reports agreement as well as drift, because "checked and fine" and "not
- * checked" are different operational states and a report that only spoke up on
- * failure could not tell them apart.
- *
- * Occupancy is excluded: it has one counter per location, and verifying it is a
- * per-location walk that belongs to a scheduled job rather than to a query a
- * supervisor triggers. The runbook says so rather than this pretending to have
- * covered it.
- */
 export const verifyRollups = queryWithOrg({
   args: { warehouseId: v.id("warehouses") },
   returns: v.object({
@@ -238,7 +160,7 @@ export const verifyRollups = queryWithOrg({
         metric,
       );
       if (derived.capped) {
-        // A lower bound cannot disprove a counter, so it is not compared at all.
+        // A lower bound cannot disprove a counter, so it is not compared.
         incomplete = true;
         continue;
       }
@@ -262,17 +184,6 @@ export const verifyRollups = queryWithOrg({
   },
 });
 
-/**
- * Rewrite one counter from a fresh derivation.
- *
- * The repair half, and a mutation rather than part of the verifier on purpose: a
- * read that silently corrected what it found would make drift undetectable —
- * every run would report balanced, having just fixed the evidence.
- *
- * Refuses when the derivation hit its budget. Writing a lower bound into a
- * counter would replace a number that might be right with one that is certainly
- * wrong.
- */
 export const repairRollup = mutationWithOrg({
   args: {
     requestId: v.string(),
@@ -293,8 +204,6 @@ export const repairRollup = mutationWithOrg({
   warehouseId: ({ warehouseId }) => warehouseId,
   handler: async (ctx, args) => {
     if (args.metric === "LOCATION_OCCUPANCY") {
-      // Per-location repair needs a subject and a per-location walk; refusing is
-      // honest, and the scheduled rebuild is where that belongs.
       return refusal({ code: "METRIC_NOT_REPAIRABLE_HERE" });
     }
 
@@ -327,5 +236,4 @@ export const repairRollup = mutationWithOrg({
   },
 });
 
-/** The read budget, re-exported so a test and a runbook share one number. */
 export const maxVerifyRows = MAX_VERIFY_ROWS;

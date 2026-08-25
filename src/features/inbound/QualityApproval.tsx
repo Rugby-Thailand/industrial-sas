@@ -1,35 +1,5 @@
 "use client";
 
-/**
- * Approving a parked disposition — the second person's control.
- *
- * Its own component and its own section, because it is a *different actor's*
- * action. Putting it beside the submit form would suggest one person does both,
- * which is exactly what `INV-0006-05` refuses: the evaluator denies when the
- * maker and the actor are the same, and the submitter pressing this gets a
- * denial with a request ID.
- *
- * ### The inspection is chosen, never typed
- *
- * The approver is a second signed-in person who did not submit the disposition.
- * Asking them for the inspection's document ID would mean obtaining it from the
- * submitter — by screenshot, or not at all. They pick it from the queue their
- * own permission already lets them read, and the queue is narrowed to exactly
- * the inspections waiting for somebody.
- *
- * The control is shown to everybody, including the submitter. Hiding it would
- * make a maker-checker rule look like a missing feature, and would hide the one
- * message that tells an administrator what to grant (`INV-0002-07`).
- *
- * ### The rule is stated once
- *
- * "Approve this disposition" used to be the section heading, the notice title,
- * the form legend *and* the button, with the rule underneath it twice. Each of
- * those four places now says the thing only it can say: the notice states the
- * rule, the legend says what to pick, and the button is the action. The rule
- * itself has not moved — it is above the control, where somebody meets it before
- * pressing rather than after being denied.
- */
 import { useTranslations } from "next-intl";
 
 import { Notice } from "@/components/ui/Notice";
@@ -79,11 +49,7 @@ export function ApproveDispositionControl() {
                 label: t("selectPending"),
                 kind: "select",
                 required: true,
-                /*
-                 * Labelled by what the approver is deciding — the disposition
-                 * somebody proposed — rather than by an identifier. "Release" is
-                 * the fact they are being asked to stand behind.
-                 */
+
                 options: pending.map((inspection) => ({
                   value: inspection.inspectionId,
                   label:

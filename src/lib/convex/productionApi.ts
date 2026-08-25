@@ -1,4 +1,3 @@
-/** Typed browser boundary for production orders and shop-floor reporting. */
 import { api } from "../../../convex/_generated/api";
 
 import { clientRef } from "./clientRef";

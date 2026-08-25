@@ -51,8 +51,6 @@ const EMPTY_WORKSPACE: WorkspaceContextValue = Object.freeze({
   selectWarehouse: idleSelection,
 });
 
-// Fail closed if a shell is ever mounted outside its required provider. Tests
-// that render a shell in isolation supply an explicit workspace fixture.
 const WorkspaceContext = createContext<WorkspaceContextValue>(EMPTY_WORKSPACE);
 
 export function WorkspaceProvider({

@@ -85,11 +85,6 @@ describe("PurchaseOrdersTable", () => {
 
 describe("PurchaseOrderLinesTable", () => {
   it("shows the ordered quantity in the unit the order was written in", () => {
-    /*
-     * A buyer reading "40 CASE" against a supplier's paperwork must not be
-     * shown the base-unit figure instead, even though that is what the ledger
-     * stores.
-     */
     renderWithIntl(
       <PurchaseOrderLinesTable rows={previewOrderLinesFor("prv_po_2601")} />,
     );
@@ -100,17 +95,11 @@ describe("PurchaseOrderLinesTable", () => {
     renderWithIntl(
       <PurchaseOrderLinesTable rows={previewOrderLinesFor("prv_po_2601")} />,
     );
-    // 500 ordered, 180 received, both in the item's base unit.
+
     expect(screen.getByText("320.000 KG")).toBeInTheDocument();
   });
 
   it("names the unit of every quantity, including the base-unit ones", () => {
-    /*
-     * The audit found "40.000 CASE" ordered against a bare "0" received and a
-     * bare "480" outstanding: three figures under three headings in two units,
-     * with only one of them saying which. The received and outstanding columns
-     * are in the item's base unit, and they now say so.
-     */
     renderWithIntl(
       <PurchaseOrderLinesTable rows={previewOrderLinesFor("prv_po_2601")} />,
     );
@@ -121,11 +110,6 @@ describe("PurchaseOrderLinesTable", () => {
   });
 
   it("marks a quantity unrenderable when its base unit is unknown", () => {
-    /*
-     * The base unit is read from the item document, so a dangling item reference
-     * leaves it absent. A bare number beside "40.000 CASE" would be read as
-     * cases; the marker cannot be.
-     */
     const [, ordered] = previewOrderLinesFor("prv_po_2601");
     const { baseUom: _baseUom, ...withoutUnit } = ordered!;
 
@@ -160,7 +144,6 @@ describe("import tables", () => {
   });
 
   it("numbers a rejected row the way the operator's spreadsheet does", () => {
-    // Header is line 1, so the first data row is line 2.
     renderWithIntl(<ImportRejectedTable rows={rejected} />);
     expect(screen.getByText("4")).toBeInTheDocument();
     expect(screen.getByText("ไม่ได้กรอกค่าที่จำเป็น")).toBeInTheDocument();
@@ -180,8 +163,6 @@ describe("ReceiptLinesTable", () => {
   });
 
   it("shows held stock as held", () => {
-    // `QC_HOLD` is the state an operator most needs to see on a receipt line:
-    // the stock is theirs and they may not use it.
     renderWithIntl(
       <ReceiptLinesTable rows={previewReceiptLinesFor("prv_rcpt_5002")} />,
     );
@@ -196,11 +177,6 @@ describe("ReceiptLinesTable", () => {
   });
 
   it("names the item by its whole identifier", () => {
-    /*
-     * It used to be abbreviated to `…m_resin_hd`: the prefix that says what kind
-     * of document the ID names was the part thrown away, and two different IDs
-     * sharing a tail rendered identically. The column scrolls instead.
-     */
     renderWithIntl(
       <ReceiptLinesTable rows={previewReceiptLinesFor("prv_rcpt_5002")} />,
     );
@@ -211,8 +187,6 @@ describe("ReceiptLinesTable", () => {
   });
 
   it("counts one received line as one line in English", () => {
-    // `1 received lines` was in the audit. English chooses its noun by the
-    // count; Thai marks no plural and its caption is unchanged.
     renderWithIntl(
       <ReceiptLinesTable rows={previewReceiptLinesFor("prv_rcpt_5002")} />,
       { locale: "en" },
@@ -229,11 +203,6 @@ describe("ReceiptsTable", () => {
   });
 
   it("names the order the way the purchasing register names it", () => {
-    /*
-     * `prv_po_2601` is a document ID. `PO-2601` is what the register shows, what
-     * the supplier's paperwork says, and what somebody at a dock can read out.
-     * One order, one name.
-     */
     renderWithIntl(<ReceiptsTable rows={previewReceiptsFor(BANG_PU)} />);
 
     expect(screen.getByText("PO-2601")).toBeInTheDocument();
@@ -241,8 +210,6 @@ describe("ReceiptsTable", () => {
   });
 
   it("leaves the order column empty for a blind receipt", () => {
-    // A blind receipt has no order behind it — that is what "blind" means — so
-    // there is no number to show and nothing is invented in its place.
     renderWithIntl(
       <ReceiptsTable rows={previewReceiptsFor("prv_wh_lamphun")} />,
     );
@@ -269,10 +236,6 @@ describe("InspectionsTable", () => {
   });
 
   it("distinguishes open, parked, and disposed", () => {
-    /*
-     * The parked state is the one that must not read as a failure: it means a
-     * second person is required (`INV-0007-06`), not that anything went wrong.
-     */
     renderWithIntl(<InspectionsTable rows={previewInspectionsFor(BANG_PU)} />);
 
     expect(screen.getByText("รอตรวจ")).toBeInTheDocument();
@@ -295,8 +258,6 @@ describe("InspectionsTable", () => {
 
 describe("PutawayTasksTable", () => {
   it("shows the recommended and the chosen location side by side", () => {
-    // Either alone says nothing about what happened; the pair *is* the override
-    // record (`INV-0007-09`).
     renderWithIntl(
       <PutawayTasksTable rows={previewPutawayTasksFor(BANG_PU)} />,
     );
@@ -319,11 +280,6 @@ describe("PutawayTasksTable", () => {
 
 describe("PrintJobsTable", () => {
   it("never shows a status claiming a label was printed", () => {
-    /*
-     * Nothing in this repository can observe a printer (`INT-04` absent,
-     * `RG-004` open). Every job is `GENERATED`, and what an operator reads is
-     * the catalogue's label for it rather than the stored code.
-     */
     renderWithIntl(
       <PrintJobsTable rows={previewPrintJobsFor("prv_hu_pallet_01")} />,
     );
@@ -356,9 +312,6 @@ describe("PrintJobsTable", () => {
   });
 
   it("falls back to the raw code for a reason the catalogue does not know", () => {
-    // A server deployed ahead of the browser reading it. The code is the string
-    // the audit row and the logs carry, so it is reportable; a placeholder or a
-    // blank cell would not be.
     const [job] = previewPrintJobsFor("prv_hu_pallet_01");
 
     renderWithIntl(
@@ -387,8 +340,6 @@ describe("PrintJobsTable", () => {
 
 describe("PutawayRecommendationPanel", () => {
   it("shows the score components, and they sum to the score", () => {
-    // The whole point of an explainable recommendation is that somebody can
-    // check the arithmetic (D-14).
     renderWithIntl(
       <PutawayRecommendationPanel
         warehouseId={BANG_PU}
@@ -406,7 +357,6 @@ describe("PutawayRecommendationPanel", () => {
   });
 
   it("says why a location was filtered out", () => {
-    // "Why is my bin not in the list?" is the question this panel exists for.
     renderWithIntl(
       <PutawayRecommendationPanel
         warehouseId={BANG_PU}
@@ -416,8 +366,7 @@ describe("PutawayRecommendationPanel", () => {
     );
 
     expect(screen.getByText("DOCK-IN-1")).toBeInTheDocument();
-    // Both the dock and the staging lane were filtered out for the same reason,
-    // so the message appears twice — one row each, which is the point.
+
     expect(
       screen.getAllByText("ไม่ใช่ตำแหน่งจัดเก็บ เช่น ท่ารับหรือพื้นที่พัก"),
     ).toHaveLength(2);
@@ -447,12 +396,6 @@ describe("PutawayRecommendationPanel", () => {
 });
 
 describe("ReceivingExceptionForm", () => {
-  /*
-   * Every inbound write is warehouse-scoped, and the workspace resolves the
-   * selection from browser storage. Seeding it is what puts the form in the
-   * state an operator reaches it in; without it the screen correctly shows
-   * "no warehouse selected" instead.
-   */
   const withWarehouse = () => writeStoredWarehouse("prv_wh_bangpoo");
 
   it("says no warehouse is selected before one is", () => {
@@ -464,10 +407,7 @@ describe("ReceivingExceptionForm", () => {
 
   it("does not offer ORDERED as an exception kind", () => {
     withWarehouse();
-    /*
-     * An ordinary receipt is not an exception, and raising one would create a
-     * maker for a posting that needs no second person.
-     */
+
     renderWithIntl(<ReceivingExceptionForm />, {
       environment: testEnvironment,
     });
@@ -483,21 +423,8 @@ describe("ReceivingExceptionForm", () => {
       environment: testEnvironment,
     });
 
-    /*
-     * Both selects are answered explicitly, because both are `required` and the
-     * form no longer pre-selects a first option for either.
-     *
-     * This used to be one `fireEvent.change` against the reason code, which was
-     * doing nothing at all: the control is a Radix trigger — a `<button>` — and
-     * `change` on a button changes nothing. The submission only ever succeeded
-     * because `EntityForm` silently defaulted every select to `options[0]`, so
-     * the test passed while asserting that an operator can file an exception
-     * without stating its kind. Choosing through the menu is what an operator
-     * does and what the keyboard contract promises.
-     */
     chooseOption("ประเภทข้อยกเว้น", "รับโดยไม่มีใบสั่งซื้อ");
-    // A document ID, chosen from the tenant's own reason codes rather than
-    // typed: a typed value would be a value nobody has.
+
     chooseOption("รหัสเหตุผล", "CYCLE-COUNT · ปรับปรุงจากการนับสต็อก");
     fireEvent.click(screen.getByRole("button", { name: "แจ้งข้อยกเว้น" }));
 
@@ -507,11 +434,6 @@ describe("ReceivingExceptionForm", () => {
   });
 
   it("refuses to file an exception whose kind nobody chose", () => {
-    /*
-     * The reason the test above had to change. An exception report names what
-     * went wrong; filing one as whichever kind sorted first is a maker-checker
-     * record that misstates the event it exists to document.
-     */
     withWarehouse();
     renderWithIntl(<ReceivingExceptionForm />, {
       environment: testEnvironment,

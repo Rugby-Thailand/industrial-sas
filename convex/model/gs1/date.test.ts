@@ -1,12 +1,3 @@
-/**
- * Unit tier — GS1 `YYMMDD` dates.
- *
- * The century rule is the interesting part: the same six digits mean different
- * years depending on when they are read, so the reference year is pinned in every
- * case. If it were taken from the host clock, this file would start failing on
- * 1 January of some future year, which is exactly the bug the injected reference
- * year prevents.
- */
 import { describe, expect, it } from "vitest";
 
 import { expectError, expectOk } from "../../../tests/fixtures/domain-results";
@@ -39,12 +30,12 @@ describe("parseGs1Date", () => {
       const parsed = parseGs1Date(yymmdd, at(reference));
       return parsed.ok ? parsed.value.year : parsed.error.code;
     };
-    // Reference 2026: +50 stays in this century, +51 is the previous one.
+
     expect(year("760101", 2026)).toBe(2076);
     expect(year("770101", 2026)).toBe(1977);
-    // Reference 2026: 50 years behind is still this century.
+
     expect(year("000101", 2026)).toBe(2000);
-    // Reference 2095: a small YY is the next century.
+
     expect(year("100101", 2095)).toBe(2110);
     expect(year("450101", 2095)).toBe(2145);
     expect(year("460101", 2095)).toBe(2046);
@@ -91,8 +82,6 @@ describe("parseGs1Date", () => {
   });
 
   it("reports a resolved year outside the representable range", () => {
-    // Reference 2999 with YY 49 is 50 years "behind", so the rule puts it in the
-    // next century: 3049, which no business date holds.
     const parsed = parseGs1Date("490101", at(2999));
     expect(parsed.ok).toBe(false);
     if (!parsed.ok) expect(parsed.error.code).toBe("OUT_OF_RANGE");
@@ -125,8 +114,7 @@ describe("gs1DateToBusinessDate", () => {
         monthPrecision: "FIRST_DAY_OF_MONTH",
       }),
     ).toEqual({ ok: true, value: { year: 2026, month: 2, day: 1 } });
-    // February 2026 has 28 days, so "the end of the month" is a calendar fact,
-    // not a fixed 30 or 31.
+
     expect(
       gs1DateToBusinessDate(monthPrecision.value, {
         monthPrecision: "LAST_DAY_OF_MONTH",
@@ -139,8 +127,7 @@ describe("forged parsed dates and policies", () => {
   const real = expectOk(parseGs1Date("260803", at(2026)));
 
   it("refuses a date whose precision and day disagree", () => {
-    // `{ precision: "DAY", day: null }` used to fall through to the
-    // month-precision branch and resolve to a day the label never named.
+    // Month-only GS1 dates require an explicit policy; never invent a day.
     const dayWithoutADay = {
       ...real,
       day: null,

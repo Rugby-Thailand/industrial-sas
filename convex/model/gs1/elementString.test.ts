@@ -1,12 +1,3 @@
-/**
- * Unit tier — the GS1 element-string parser.
- *
- * The fixtures are built from keys whose check digits are verified in
- * `checkDigit.test.ts`, so a failure here is a parsing failure rather than an
- * arithmetic one. The negative cases are the ones that decide whether a mis-scan
- * becomes a rejection or a wrong posting: an unknown AI, a truncated fixed field,
- * a variable field past its bound, a bad check digit, and a duplicate AI.
- */
 import { describe, expect, it } from "vitest";
 
 import { expectError, expectOk } from "../../../tests/fixtures/domain-results";
@@ -87,9 +78,6 @@ describe("parseGs1ElementString", () => {
   });
 
   it("rejects a separator in a position the specification has no reading for", () => {
-    // Each of these parsed as well formed while the parser skipped any separator
-    // it met between elements. A scan whose separators are in impossible places
-    // has field boundaries nobody can reconstruct, so it fails closed.
     expect(expectError(parse(`${GROUP_SEPARATOR}01${GTIN14}`))).toEqual({
       code: "UNEXPECTED_SEPARATOR",
       offset: 0,
@@ -139,8 +127,7 @@ describe("parseGs1ElementString", () => {
 
   it("indexes every element by AI and keeps the order in `elements`", () => {
     const scan = expectOk(parse(`01${GTIN14}3005${GROUP_SEPARATOR}10L1`));
-    // `byAi` is a lookup, not a sequence: a record orders integer-like keys
-    // numerically, so order lives in `elements`, which is the value that has it.
+
     expect(gs1ValueOf(scan, "01")).toBe(GTIN14);
     expect(gs1ValueOf(scan, "30")).toBe("05");
     expect(gs1ValueOf(scan, "10")).toBe("L1");
@@ -154,8 +141,6 @@ describe("parseGs1ElementString", () => {
   });
 
   it("rejects an unknown AI, including one this parser deliberately omits", () => {
-    // 3103 is net weight with three decimals: a real AI, not implemented here,
-    // and never guessed at.
     expect(expectError(parse(`01${GTIN14}3103001234`))).toEqual({
       code: "UNKNOWN_AI",
       ai: "31",
@@ -272,10 +257,6 @@ describe("parseGs1ElementString", () => {
   });
 
   it("documents the unseparated-variable-field limitation", () => {
-    // A label that omits the mandatory FNC1 after AI 10 does not silently split
-    // into two elements: the rest of the string is the lot value, and it is
-    // rejected once it passes 20 characters. This is the known parser limitation
-    // the supplier-label corpus (RG-005) exists to measure.
     const scan = expectOk(parse("10LOT-A117260831"));
     expect(scan.lot).toBe("LOT-A117260831");
     expect(scan.expirationDate).toBeNull();
@@ -310,8 +291,6 @@ describe("immutability and forged input", () => {
   const scan = expectOk(parse(`01${GTIN14}10L1`));
 
   it("does not hand out a mutable interpretation", () => {
-    // `byAi` was a live `Map` typed `ReadonlyMap`: this cast rewrote a scan's
-    // interpretation while `raw` and `elements` still described the real label.
     expect(Object.isFrozen(scan.byAi)).toBe(true);
     expect(() => {
       (scan.byAi as Record<string, string>)["01"] = "99999999999999";
@@ -324,8 +303,6 @@ describe("immutability and forged input", () => {
   });
 
   it("does not resolve a lookup through the object prototype", () => {
-    // A record with `Object.prototype` in its chain answers `toString` with a
-    // function while the type promises a string.
     expect(gs1ValueOf(scan, "toString")).toBeNull();
     expect(gs1ValueOf(scan, "constructor")).toBeNull();
     expect(scan.byAi["toString"]).toBeUndefined();

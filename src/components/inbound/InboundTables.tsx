@@ -1,29 +1,5 @@
 "use client";
 
-/**
- * The purchasing, receiving, and label collections, as columns.
- *
- * Built on `EntityTable`, so the structure — caption, one row header, scrolling
- * rather than crushing — is the master-data screens' structure and cannot drift
- * from it. What is here is the decision about *which* facts each screen shows.
- *
- * The inspection queue and the putaway board are *not* here: they are
- * `QualityTables` and `PutawayTables`, because a module is what the bundler and
- * the message manifest split on, and a quality screen that reached this file
- * shipped the purchasing and receiving catalogues with it. Ordering and
- * receiving are together because they are genuinely one flow — a receipt is
- * posted against an order, so both screens need both vocabularies.
- *
- * Two conventions run through all of them:
- *
- * - **A quantity is shown with its unit**, through `formatMinorUnits`. A bare
- *   `180000` on a receiving screen is unreadable and, worse, looks like a count
- *   of pieces when it is thousandths of a kilogram (`ADR-0004`).
- * - **A state is a word and a glyph**, never a colour (`INV-0010-07`). Every
- *   status column is a `StatusBadge` whose label comes from the catalogue, so a
- *   code the client does not know yet falls back to the code itself rather than
- *   to a blank cell.
- */
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
@@ -50,13 +26,6 @@ const ORDER_TONES: Readonly<Record<string, BadgeTone>> = {
   CANCELLED: "danger",
 };
 
-/**
- * `CLOSED_SHORT` is `warning`, not `muted`.
- *
- * It means somebody decided to stop waiting for stock the supplier owed. That is
- * a fact a buyer reviews, and showing it as quietly finished is how it stops
- * being reviewed.
- */
 const LINE_TONES: Readonly<Record<string, BadgeTone>> = {
   OPEN: "accent",
   COMPLETE: "success",
@@ -64,7 +33,6 @@ const LINE_TONES: Readonly<Record<string, BadgeTone>> = {
   CANCELLED: "danger",
 };
 
-/** Every kind but `ORDERED` exercised a permission with a second person on it. */
 const KIND_TONES: Readonly<Record<string, BadgeTone>> = {
   ORDERED: "neutral",
   UNEXPECTED: "warning",
@@ -87,10 +55,6 @@ const STOCK_TONES: Readonly<Record<string, BadgeTone>> = {
   SCRAP: "danger",
   EXPIRED: "danger",
 };
-
-/* -------------------------------------------------------------------------- */
-/* Purchase orders                                                             */
-/* -------------------------------------------------------------------------- */
 
 export function PurchaseOrdersTable({
   rows,
@@ -176,11 +140,7 @@ export function PurchaseOrderLinesTable({
           key: "ordered",
           header: t("columnOrdered"),
           monospace: true,
-          /*
-           * The unit the *order* was written in, not the base unit. A buyer
-           * reading "40 CASE" against a supplier's paperwork must not be shown
-           * "480000 EA" instead, even though that is what the ledger stores.
-           */
+
           render: (row) =>
             withUnit(row.orderedQuantity.minorUnits, row.orderedQuantity.uom),
         },
@@ -188,12 +148,7 @@ export function PurchaseOrderLinesTable({
           key: "received",
           header: t("columnReceived"),
           monospace: true,
-          /*
-           * In the item's base unit, and labelled with it. These two columns
-           * used to render a bare `receivedBaseMinorUnits / 1000` next to an
-           * ordered quantity that carried `CASE`, so three figures in two units
-           * looked like three figures in one.
-           */
+
           render: (row) =>
             withBaseUnit(row.receivedBaseMinorUnits, row.baseUom),
         },
@@ -201,8 +156,7 @@ export function PurchaseOrderLinesTable({
           key: "outstanding",
           header: t("columnOutstanding"),
           monospace: true,
-          // Never negative: an over-receipt is a receiving exception, not a
-          // negative amount still owed.
+
           render: (row) =>
             withBaseUnit(
               Math.max(
@@ -229,10 +183,6 @@ export function PurchaseOrderLinesTable({
     />
   );
 }
-
-/* -------------------------------------------------------------------------- */
-/* Import                                                                      */
-/* -------------------------------------------------------------------------- */
 
 export function ImportAcceptedTable({
   rows,
@@ -306,7 +256,7 @@ export function ImportRejectedTable({
           key: "sourceLine",
           header: t("importColumnLine"),
           rowHeader: true,
-          // The line number in the operator's own spreadsheet, not an index.
+
           render: (row) => String(row.sourceLine),
         },
         {
@@ -324,10 +274,6 @@ export function ImportRejectedTable({
     />
   );
 }
-
-/* -------------------------------------------------------------------------- */
-/* Receiving                                                                   */
-/* -------------------------------------------------------------------------- */
 
 export function ReceiptsTable({
   rows,
@@ -355,24 +301,14 @@ export function ReceiptsTable({
           key: "businessDate",
           header: t("columnBusinessDate"),
           monospace: true,
-          /*
-           * The stored business date, verbatim. It is already in the warehouse's
-           * own timezone (`ADR-0011`); re-formatting it through the browser's
-           * locale could show a different day than the ledger posted against.
-           */
+
           render: (row) => row.businessDate,
         },
         {
           key: "order",
           header: t("columnOrder"),
           monospace: true,
-          /*
-           * The order *number*, which is what the purchasing register shows and
-           * what is on the supplier's paperwork. This column used to render
-           * `purchaseOrderId` — an internal document ID — so one order had two
-           * names one screen apart. A receipt with no number here is a blind
-           * receipt: there is no order behind it to name.
-           */
+
           render: (row) => identifier(row.poNumber),
         },
       ]}
@@ -450,10 +386,6 @@ export function ReceiptLinesTable({
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/* Label evidence                                                              */
-/* -------------------------------------------------------------------------- */
-
 export function PrintJobsTable({
   rows,
 }: {
@@ -489,13 +421,7 @@ export function PrintJobsTable({
         {
           key: "reason",
           header: t("columnReason"),
-          /*
-           * `INITIAL` and `REPRINT` are code identifiers (`D-06`) and they stay
-           * the *stored* value; what an operator reads is the catalogue's label
-           * for them, in Thai on a Thai screen. `codeLabel` falls back to the
-           * code itself for a reason this browser's catalogue does not know yet,
-           * which is the same string the audit row and the logs carry.
-           */
+
           render: (row) => codeLabel(reasonT, row.reason),
         },
         {
@@ -512,8 +438,7 @@ export function PrintJobsTable({
           key: "hash",
           header: t("columnHash"),
           monospace: true,
-          // Truncated: 64 hex characters is unreadable, and the first twelve are
-          // enough to match one row against a server log.
+
           render: (row) => `${row.payloadHash.slice(0, 12)}…`,
         },
       ]}

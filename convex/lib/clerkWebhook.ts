@@ -28,13 +28,6 @@ export interface ClerkWebhookHandlerDependencies {
   readonly apply: ApplyIdentityEvent;
 }
 
-/**
- * The delivery identity Clerk signs alongside the body.
- *
- * `svix-id` is bounded and required to be non-empty here rather than merely
- * present: `headers.get` returns `""` for an empty header, and an unusable event
- * ID must fail as a terminal `400` rather than reach the mirror's watermark.
- */
 function delivery(request: Request) {
   const eventId = request.headers.get("svix-id")?.trim();
   const timestamp = request.headers.get("svix-timestamp")?.trim();
@@ -58,7 +51,6 @@ const response = (status: number, body: string | null = null) =>
     ...(body === null ? {} : { headers: { "content-type": "text/plain" } }),
   });
 
-/** Signature-first, PII-silent HTTP boundary; dependencies keep it offline-testable. */
 export function createClerkWebhookHandler(
   dependencies: ClerkWebhookHandlerDependencies,
 ) {
@@ -107,7 +99,6 @@ const applyClerkIdentityEvent = makeFunctionReference<
   IdentityEventResult
 >;
 
-/** Public only through the exact POST route in `convex/http.ts`. */
 export const clerkWebhook = httpActionGeneric(
   async (ctx, request) =>
     await createClerkWebhookHandler({

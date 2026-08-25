@@ -1,33 +1,5 @@
 "use client";
 
-/**
- * Count-plan authoring, ordered by decision weight.
- *
- * This screen is deliberately not an `EntityWriteForm`: the generic form renders
- * every field with equal weight in declaration order, and a count plan's fields
- * are not equal. What the operator must decide is *what to count* (the physical
- * bucket) and *how* (scope, visibility, movement policy); the risk thresholds
- * have sensible defaults that most plans never touch. So the layout is:
- *
- * 1. **Target first.** The physical bucket select, with the plan number beside
- *    it as the secondary identifier.
- * 2. **Policy as pressed buttons.** Three groups of `aria-pressed` toggles —
- *    the same idiom as the storage-layout view switch — showing translated
- *    labels rather than the enum strings the server receives. Each option
- *    carries a screen-reader hint via `aria-describedby` instead of a visible
- *    paragraph per choice.
- * 3. **Risk settings behind a disclosure.** Collapsed by default with a
- *    "defaults" badge, so four numeric fields stop competing with the two
- *    decisions above. A server refusal that blames a risk field forces the
- *    disclosure open — a validation message must never point at a hidden
- *    control.
- *
- * The write semantics are unchanged from `EntityWriteForm`, on purpose: one
- * idempotency key per attempt, held across transport failures so a retry
- * replays, released only on a terminal answer (`writeState.ts`). Release reuses
- * `RowWriteRegion`, which implements the same contract per row — the saved plan
- * ID is the row key, never an editable field.
- */
 import { useMutation, useQuery } from "convex/react";
 import type { FunctionReference } from "convex/server";
 import {
@@ -142,7 +114,6 @@ function CountPlanForm(props: {
   return <ServerCountPlanForm {...props} />;
 }
 
-/** The values submitted when the risk disclosure is never opened. */
 const RISK_DEFAULTS = Object.freeze({
   quantityThreshold: "1000",
   valueThreshold: "100000",
@@ -175,11 +146,6 @@ const REQUIRED_FIELDS = Object.freeze([
   ...RISK_FIELDS,
 ] as const);
 
-/**
- * Which local control a server refusal points at. The server blames mutation
- * argument names, which differ from the field names for the thresholds and for
- * the single-target array this screen submits.
- */
 const BLAME_TO_FIELD: Readonly<Record<string, PlanField>> = Object.freeze({
   planNumber: "planNumber",
   scope: "scope",
@@ -311,7 +277,7 @@ function ServerCountPlanForm({
           setRiskOpen(false);
         }
       },
-      // The key is deliberately kept: the retry must replay, not write twice.
+      // Keep the request key so a retry replays instead of writing twice.
       (failure: unknown) => setState(toWriteState({ failure })),
     );
   };
@@ -587,13 +553,6 @@ function ServerCountPlanForm({
   );
 }
 
-/**
- * One choose-one policy, as pressed buttons rather than a select.
- *
- * Two or three known options with no popup to open: every choice is visible,
- * one press decides, and the selected state reads through `aria-pressed` — the
- * idiom the storage-layout view switch already established.
- */
 function PolicyGroup({
   controlId,
   label,

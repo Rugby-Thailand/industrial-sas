@@ -32,11 +32,6 @@ describe("describeBucketKey", () => {
   });
 
   it("omits the organization and the warehouse", () => {
-    /*
-     * Both are constant on a warehouse-scoped screen, so both are noise in a
-     * cell whose job is to distinguish. They are still in the key, and the key
-     * is still what the row is loaded by.
-     */
     const parts = describeBucketKey(keyOf(PHYSICAL));
 
     expect(parts.map((part) => part.value)).not.toContain("org_fixture");
@@ -78,8 +73,6 @@ describe("describeBucketKey", () => {
   });
 
   it("reports a virtual boundary as a boundary, not as a location", () => {
-    // The supplier's side of a receipt is a counterparty, not a place anybody
-    // walks to (`G-023`).
     const parts = describeBucketKey(
       keyOf({
         ...PHYSICAL,
@@ -95,7 +88,6 @@ describe("describeBucketKey", () => {
   });
 
   it("distinguishes two buckets that differ in one dimension", () => {
-    // The property the abbreviation it replaced did not have.
     const left = describeBucketKey(keyOf(PHYSICAL));
     const right = describeBucketKey(keyOf({ ...PHYSICAL, lotId: "lot_2608C" }));
 

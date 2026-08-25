@@ -1,4 +1,3 @@
-/** Count targets are tenant-bound before any blind or reconciliation evidence is read. */
 import type { GenericMutationCtx } from "convex/server";
 import { describe, expect, it } from "vitest";
 

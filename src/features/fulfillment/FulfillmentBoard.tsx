@@ -310,11 +310,7 @@ function DemandRoutingForm({
           initialValue: "TH",
           monospace: true,
         },
-        /*
-         * The optional address detail waits behind "More options": name,
-         * street, and province are what routing needs, and the rest is filled
-         * only when the customer supplied it.
-         */
+
         {
           name: "district",
           label: t("district"),

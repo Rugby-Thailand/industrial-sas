@@ -1,11 +1,5 @@
 "use client";
 
-/**
- * The locations panel.
- *
- * Warehouse-scoped, so it waits for a selection and the server revalidates the
- * chosen warehouse against the actor's membership on every call.
- */
 import { useTranslations } from "next-intl";
 
 import { LocationsTable } from "@/components/masterData/LocationsTable";
@@ -47,9 +41,7 @@ export function LocationsPanel() {
                   onClick={() =>
                     submit(row.locationId, (requestId) => ({
                       requestId,
-                      // The row's own warehouse, not the shell's selection: they
-                      // are the same here, and sending the row's is what keeps
-                      // them the same if the shell ever lists across sites.
+
                       warehouseId: row.warehouseId,
                       locationId: row.locationId,
                       status: row.status === "ACTIVE" ? "INACTIVE" : "ACTIVE",

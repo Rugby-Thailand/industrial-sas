@@ -1,4 +1,3 @@
-/** Create and release bounded pick waves from active reservations. */
 import { v } from "convex/values";
 
 import {

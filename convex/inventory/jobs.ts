@@ -1,47 +1,3 @@
-/**
- * The ledger's two maintenance jobs, as callable, bounded, resumable drivers.
- *
- * Both are `queryWithOrg` registrations, which is not an accident of
- * convenience:
- *
- * - **Reconciliation must not repair.** It replays a bucket's ledger lines and
- *   *reports* drift; a job that could write would be a job that could quietly
- *   make the balance agree with a wrong replay (`OPS-0003-02`). A Convex query
- *   cannot write, so the guarantee is the runtime's rather than a reviewer's.
- * - **Expiry reclassification plans, and posting is separate.** The plan says
- *   which buckets have expired and what the compensating movements would be. The
- *   posting is `inventory.transaction.post` with its own permission, its own
- *   idempotency, and its own audit row — because moving stock into `EXPIRED` is a
- *   ledger transaction like any other (§5 Q19), not a side effect of a scan.
- *
- * ### Scheduling
- *
- * There is **no cron registered**, and that is deliberate rather than
- * unfinished. `convex/crons.ts` would schedule work against a deployed backend;
- * this repository has no deployment, and a registered schedule that has never
- * run is a claim nobody can check. What exists is the driver a scheduler calls,
- * with its budget, its checkpoint, and its structured outcome codes — so
- * registering it later is a file that names these functions, not a redesign.
- * The exact external gate is in `docs/manuals/inventory-jobs.md`.
- *
- * ### One page per call, because Convex says so
- *
- * **Convex permits one paginated query per function execution.** That is a
- * platform rule, not a style choice, and it decides the shape of everything
- * here: a driver cannot loop over pages inside a single call, and it certainly
- * cannot page balances *and* page each bucket's ledger lines.
- *
- * So each invocation reads exactly one bounded page and returns the checkpoint
- * to resume from; the **caller** loops. `runJob` — the pure kernel in
- * `convex/model/inventory/jobRun.ts` — is still what drives it, with a budget of
- * one page, because that keeps the checkpoint arithmetic, the
- * cursor-did-not-advance check, and the failure semantics in one tested place
- * rather than inlined here.
- *
- * Per-bucket reconciliation therefore uses `reconcileBucketBounded`, a
- * non-paginated `take` capped at `MAX_BOUNDED_RECONCILE_LINES`. A bucket deeper
- * than that is reported as `RECONCILE_INCOMPLETE` rather than folded partially.
- */
 import { v } from "convex/values";
 
 import {
@@ -78,10 +34,6 @@ import {
   type BusinessDate,
 } from "../model/time/businessDate";
 
-/* -------------------------------------------------------------------------- */
-/* Wire shapes                                                                 */
-/* -------------------------------------------------------------------------- */
-
 const checkpointValidator = v.object({
   cursor: v.union(v.string(), v.null()),
   pagesRead: v.number(),
@@ -96,27 +48,17 @@ const jobErrorValidator = v.object({
   bucketKey: v.optional(v.string()),
 });
 
-/** The arguments both drivers share. */
 const driverArgs = {
   warehouseId: v.id("warehouses"),
-  /** Where to resume. Absent means start at the beginning. */
+
   checkpoint: v.optional(checkpointValidator),
   maxPageSize: v.optional(v.number()),
 };
 
-/**
- * One page per invocation. Not configurable, and not an oversight: Convex
- * permits a single paginated query per function execution, so a budget above one
- * would fail at run time in a deployed backend rather than here.
- */
 const PAGES_PER_INVOCATION = 1;
 
 const checkpointFrom = (supplied: JobCheckpoint | undefined): JobCheckpoint =>
   supplied ?? initialCheckpoint;
-
-/* -------------------------------------------------------------------------- */
-/* Reconciliation                                                              */
-/* -------------------------------------------------------------------------- */
 
 const driftValidator = v.object({
   bucketKey: v.string(),
@@ -153,21 +95,6 @@ interface ReconciliationSummary {
   }[];
 }
 
-/**
- * Sweep one warehouse's balances, reconciling each bucket against a replay of
- * its ledger lines (`INV-0003-10`).
- *
- * Two nested folds, and the nesting is the interesting part. The **outer** fold
- * is `runJob` over pages of `inventoryBalances`. The **inner** one is
- * `reconcileBucketPage` over a single bucket's ledger lines, which is itself
- * paged and resumable — a bucket with more history than one page is folded to
- * completion here, within this run's budget, because a partial total would
- * report drift on every bucket that has any depth.
- *
- * A bucket whose own line history exceeds what one run can read is reported as a
- * drift record of kind `RECONCILE_INCOMPLETE` rather than silently as agreeing.
- * That is the honest answer: the job did not finish checking it.
- */
 export const reconcileWarehouse = queryWithOrg({
   args: driverArgs,
   returns: reconciliationValidator,
@@ -245,10 +172,6 @@ export const reconcileWarehouse = queryWithOrg({
   },
 });
 
-/* -------------------------------------------------------------------------- */
-/* Expiry reclassification                                                     */
-/* -------------------------------------------------------------------------- */
-
 const expiryCandidateValidator = v.object({
   bucketKey: v.string(),
   stockStatus: v.string(),
@@ -265,7 +188,7 @@ const expiryValidator = v.union(
     pagesThisRun: v.number(),
     asOf: v.string(),
     balancesScanned: v.number(),
-    /** Buckets whose lot has expired as of the business date. */
+
     expired: v.array(expiryCandidateValidator),
     error: v.optional(jobErrorValidator),
   }),
@@ -283,32 +206,6 @@ interface ExpirySummary {
   }[];
 }
 
-/**
- * Find the buckets whose stock has expired as of a business date (§5 Q19).
- *
- * **Plans only.** It reads balances, resolves each bucket's lot, asks
- * `isExpiredAsOf` — the same kernel `planExpiryReclassification` uses — and
- * reports what would move. Nothing is posted: the compensating
- * `STATUS_CHANGE` transaction is `inventory.transaction.post`, with its own
- * permission and its own idempotency, because moving stock into `EXPIRED` is a
- * ledger transaction and not a side effect of a scan.
- *
- * `asOf` defaults to today in the organization's timezone, never the host's
- * (D-05). A caller may supply one — a nightly job run at 00:05 Bangkok time
- * reconciling the day that just ended needs to — and it is parsed by the strict
- * business-date kernel, so `2026-8-3` is refused rather than shifted.
- *
- * Only **physical** buckets are considered. A virtual boundary is a counterparty
- * outside the warehouse, not stock on a shelf; its balance is routinely negative
- * because a `SOURCE` boundary supplies rather than holds, and planning a
- * movement out of one would be planning to move stock that is not there.
- *
- * Which statuses count is the kernel's decision, imported rather than restated:
- * `EXPIRY_SOURCE_STATUSES` is `AVAILABLE` alone. Quarantined, rejected, and
- * scrapped stock is already withheld from use, and moving it again would
- * generate a transaction that changes no decision while making the history
- * harder to read.
- */
 export const planExpiry = queryWithOrg({
   args: { ...driverArgs, asOf: v.optional(v.string()) },
   returns: expiryValidator,
@@ -362,8 +259,7 @@ export const planExpiry = queryWithOrg({
           if (!EXPIRY_SOURCE_STATUSES.has(row.stockStatus as StockStatus)) {
             continue;
           }
-          // A zero balance has nothing to move; posting one would be an audited
-          // no-op.
+
           if (row.minorUnits === 0) continue;
 
           const lot = await lotOfBucket(ctx.tenantDb, row.bucketKey);
@@ -418,17 +314,9 @@ interface BalanceRowLite {
   readonly minorUnits: number;
 }
 
-/** `YYYY-MM-DD` for a validated business date. */
 const isoOf = (date: BusinessDate): string =>
   `${String(date.year).padStart(4, "0")}-${String(date.month).padStart(2, "0")}-${String(date.day).padStart(2, "0")}`;
 
-/**
- * The business date the run is judged against.
- *
- * A supplied date is parsed strictly. An absent one is derived from the server
- * clock *in the organization's timezone* — never the host's, which is how a
- * shift that crosses midnight in Bangkok gets counted against the wrong day.
- */
 function resolveAsOf(
   supplied: string | undefined,
   timezone: string,
@@ -444,14 +332,6 @@ function resolveAsOf(
   return derived.ok ? ok(derived.value) : fail(derived.error.code);
 }
 
-/**
- * The expiration date of the lot a bucket names, or `null`.
- *
- * The bucket key is *decoded* rather than pattern-matched: a lot ID is a
- * length-prefixed component, and a substring search would also match a key whose
- * item ID happened to contain it. A bucket with no lot — an item tracked `NONE` —
- * has no expiry and is skipped.
- */
 async function lotOfBucket(
   tenantDb: Parameters<typeof reconcileBucketBounded>[0],
   bucketKey: string,
@@ -465,13 +345,6 @@ async function lotOfBucket(
     });
   }
 
-  /*
-   * A **virtual** bucket is a counterparty outside the warehouse — a supplier
-   * receipt, a production issue, a stock-count adjustment (`G-023`). It is not
-   * stock on a shelf, so it cannot expire, and its balance is routinely negative
-   * because a `SOURCE` boundary supplies rather than holds. Including one would
-   * plan a movement of stock that is not there.
-   */
   if (decoded.value.location.kind !== "PHYSICAL") return ok(null);
 
   const lotId = decoded.value.lotId;
@@ -487,11 +360,10 @@ async function lotOfBucket(
   return parsed.ok ? ok(parsed.value) : ok(null);
 }
 
-/** The per-run page cap the *scheduler* may use, re-exported for its loop. */
 export const maxPagesPerRun = MAX_PAGES_PER_RUN;
-/** The per-bucket line cap a bounded reconciliation folds before giving up. */
+
 export const maxBoundedReconcileLines = MAX_BOUNDED_RECONCILE_LINES;
-/** The per-page row cap, re-exported for the same reason. */
+
 export const maxJobPageSize = MAX_JOB_PAGE_SIZE;
-/** The statuses expiry considers, re-exported so a test can pin them. */
+
 export const expirySourceStatuses = EXPIRY_SOURCE_STATUSES;

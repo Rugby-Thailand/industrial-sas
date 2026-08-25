@@ -21,11 +21,6 @@ export type AttendanceErrorCode =
 
 const MINUTE_MS = 60_000;
 
-/**
- * The small attendance state machine used by both handheld and supervisor flows.
- * It does not trust a device clock: ordering is checked against server receipt
- * time; device time is retained only as evidence.
- */
 export function applyClockIntent(
   current: AttendanceDayState | null,
   kind: ClockIntent,
@@ -93,7 +88,6 @@ export function applyAttendanceCorrection(
   });
 }
 
-/** IANA-timezone business date; cross-midnight clock-out keeps its open day. */
 export function businessDateAt(epochMs: number, timezone: string): string {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: timezone,

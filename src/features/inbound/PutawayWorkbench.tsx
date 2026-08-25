@@ -1,19 +1,5 @@
 "use client";
 
-/**
- * The putaway board, the recommendation, and the confirmation.
- *
- * Three things on one screen because they are one decision: an operator claims a
- * task, reads why a bin was proposed, and either takes it or does not. Splitting
- * them across routes would put a page load between "why this bin?" and the
- * answer.
- *
- * The confirmation offers a **select over the ranked locations**, not a free-text
- * box. A bin that a hard constraint rejected is refused by the server
- * (`INV-0007-08`) — correctly, but only after the pallet has already been
- * moved. Offering only what passed the filters keeps the refusal for the cases
- * that genuinely need it.
- */
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 

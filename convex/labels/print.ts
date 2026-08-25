@@ -1,29 +1,3 @@
-/**
- * Label evidence, and the boundary it stops at.
- *
- * `INV-0007-07` requires that a printed label always be generated from a
- * specific template version, with the payload hash and print job recorded. This
- * module does exactly that much and stops, and where it stops is the point:
- *
- * - The payload is **generated and stored**. That is verifiable and it is true.
- * - The payload is **not transmitted anywhere**. `PrinterTransportPort` is
- *   `INT-04` and does not exist.
- * - No label has been **physically printed, applied, or rescanned**. That is
- *   `RG-004` and `RG-029`, and they are open.
- * - Nothing renders a **PDF**. `pdf-lib` is installed and unused; the PDF
- *   fallback of `ADR-0007` §10 is not implemented.
- *
- * A print job therefore reaches `GENERATED` and no further. There is no
- * `PRINTED` status, because nothing here can observe a printer, and a status
- * claiming otherwise would be the single most misleading row in the database.
- *
- * ### Why reprints are their own permission and their own reason
- *
- * Three labels for one pallet is either three attempts at a jammed printer or a
- * label being applied to stock that has moved. `ADR-0007` §10 requires reprints
- * to be audited *as reprints*, so `label.print.reprint` is a distinct code and
- * `reason` is a stored column rather than a note.
- */
 import { v } from "convex/values";
 
 import { sha256Hex } from "../lib/idempotency";
@@ -71,14 +45,6 @@ interface TemplateDocument {
   readonly body: string;
 }
 
-/**
- * The field values a label may carry.
- *
- * A record of strings rather than a typed shape, because a tenant's template
- * decides which placeholders exist and the server cannot know them in advance.
- * The kernel refuses any placeholder the caller did not fill and any value that
- * could introduce another placeholder, which is where the safety actually lives.
- */
 const labelFields = v.record(v.string(), v.string());
 
 /** Everything both entry points do, so the two cannot drift. */
@@ -114,18 +80,12 @@ async function generate(
   });
   if (!rendered.ok) return refusal(rendered.error);
 
-  /*
-   * The hash is over the *canonical text* — template code, version, format,
-   * then payload — and not over the payload alone. Two template versions can
-   * render byte-identical payloads, and a hash that could not tell them apart
-   * would defeat the versioning it exists to prove.
-   */
   const payloadHash = await sha256Hex(rendered.value.canonicalText);
 
   const document = {
     warehouseId: input.warehouseId,
     labelTemplateId: input.labelTemplateId,
-    // Denormalized so the evidence row survives the template being retired.
+
     templateCode: template.code,
     templateVersion: template.version,
     targetKind: input.targetKind,
@@ -133,7 +93,7 @@ async function generate(
     payload: rendered.value.payload,
     payloadHash,
     reason: input.reason,
-    // The only status a repository with no printer transport can honestly write.
+
     status: "GENERATED",
     requestedByUserId: ctx.tenant.actor._id,
     occurredAt: Date.now(),
@@ -149,8 +109,7 @@ async function generate(
       warehouseId: input.warehouseId,
     }),
     fingerprint: { ...document, occurredAt: undefined },
-    // No uniqueness contract: one pallet legitimately accumulates a job per
-    // label over its life, including every reprint.
+
     uniqueness: [],
     document,
   });
@@ -162,13 +121,12 @@ const targetArgs = {
   requestId: v.string(),
   warehouseId: v.id("warehouses"),
   labelTemplateId: v.id("labelTemplates"),
-  /** What the label is for: `HANDLING_UNIT`, `RECEIPT_LINE`, or `LOT`. */
+
   targetKind: v.string(),
   targetId: v.string(),
   fields: labelFields,
 };
 
-/** Generate a label payload for the first time. */
 export const generateLabel = mutationWithOrg({
   args: targetArgs,
   returns: writeOutcomeValidator,
@@ -179,14 +137,6 @@ export const generateLabel = mutationWithOrg({
     await generate(ctx, { ...args, reason: "INITIAL" }),
 });
 
-/**
- * Generate the payload again, as a reprint.
- *
- * A separate entry point with a separate permission, because the *fact* that
- * this is a second label matters to whoever reads the evidence later. Routing it
- * through `generateLabel` with a flag would let a handheld relabel a pallet
- * without ever touching `label.print.reprint`.
- */
 export const reprintLabel = mutationWithOrg({
   args: targetArgs,
   returns: writeOutcomeValidator,
@@ -196,10 +146,6 @@ export const reprintLabel = mutationWithOrg({
   handler: async (ctx, args) =>
     await generate(ctx, { ...args, reason: "REPRINT" }),
 });
-
-/* -------------------------------------------------------------------------- */
-/* Reads                                                                       */
-/* -------------------------------------------------------------------------- */
 
 const printJobValidator = v.object({
   labelPrintJobId: v.id("labelPrintJobs"),
@@ -213,14 +159,6 @@ const printJobValidator = v.object({
   occurredAt: v.number(),
 });
 
-/**
- * The label evidence for one target.
- *
- * The **payload is not returned**. It is stored, and a screen that listed it
- * would put printer control codes on a warehouse display for no operator
- * benefit; the hash is what proves which bytes were generated, and the version
- * is what proves which template produced them.
- */
 export const listPrintJobsForTarget = queryWithOrg({
   args: {
     warehouseId: v.id("warehouses"),
@@ -267,5 +205,4 @@ export const listPrintJobsForTarget = queryWithOrg({
   },
 });
 
-/** The page cap, re-exported so a client can size its own loop. */
 export const maxLabelPageSize = MAX_JOB_PAGE_SIZE;

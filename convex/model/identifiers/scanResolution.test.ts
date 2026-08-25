@@ -1,12 +1,3 @@
-/**
- * Unit tier — the scan precedence ladder.
- *
- * Each rung gets a case, and so does each rule that sits on top of the order. The
- * rejections are the point of the file: a mis-scanned pallet label, a
- * neighbouring tenant's LPN, a valid SSCC a tenant has not enabled, and a string
- * with two readings must all come back as named refusals with the raw scan
- * attached, never as a plausible SKU.
- */
 import { describe, expect, it } from "vitest";
 
 import { expectError, expectOk } from "../../../tests/fixtures/domain-results";
@@ -55,8 +46,6 @@ describe("resolveScan", () => {
   });
 
   it("refuses to classify an LPN with no namespace policy to classify it by", () => {
-    // An absent or empty `namespaces` used to accept any well-formed internal
-    // LPN, which meant a neighbouring tenant's pallet label resolved as ours.
     for (const rules of [
       { referenceYear: 2026 },
       { referenceYear: 2026, namespaces: [] },
@@ -84,8 +73,6 @@ describe("resolveScan", () => {
   });
 
   it("still reads a numeric item code that only looks like a truncated AI", () => {
-    // "01" followed by too few digits is a shape error, not a content error, so
-    // the ladder continues and the code resolves as the SKU it is.
     expect(expectOk(resolveScan("0100123", policy)).interpretation).toEqual({
       kind: "SKU",
       sku: "0100123",
@@ -155,9 +142,6 @@ describe("rule 3 — a foreign LPN is refused, not reinterpreted", () => {
   });
 
   it("rejects a scan shaped like one of ours with a bad check character", () => {
-    // Right prefix, right length, wrong check character: a damaged or mis-keyed
-    // label of ours. It used to fall through to the SKU rung, which turned a
-    // corrupt pallet label into an item lookup.
     const damaged = `${lpn.value.slice(0, -1)}${
       lpn.value.endsWith("A") ? "B" : "A"
     }`;
@@ -170,8 +154,6 @@ describe("rule 3 — a foreign LPN is refused, not reinterpreted", () => {
   });
 
   it("still lets an LPN-shaped string under no registered prefix be a SKU", () => {
-    // `QQ…` is the right alphabet and length, but no registered namespace claims
-    // it, so nothing here can call it a licence plate.
     const notOurs = `QQ${"A".repeat(13)}`;
     expect(expectOk(resolveScan(notOurs, policy)).interpretation).toEqual({
       kind: "SKU",
@@ -182,9 +164,6 @@ describe("rule 3 — a foreign LPN is refused, not reinterpreted", () => {
 
 describe("rules 6 and 7 — a bare SSCC, and two readings", () => {
   it("rejects a bare SSCC that is also a valid GS1 lot element string", () => {
-    // 106141411234567897 is a valid SSCC and, read as an element string, AI 10
-    // with a 16-character lot code. Enabling bare SSCCs makes both readings
-    // available, and the scan is refused rather than one being preferred.
     expect(
       expectError(resolveScan(SSCC18, { ...policy, bareSscc: true })),
     ).toEqual({
@@ -196,9 +175,6 @@ describe("rules 6 and 7 — a bare SSCC, and two readings", () => {
   });
 
   it("never reads a valid bare SSCC as a lot code, a GTIN, or a SKU", () => {
-    // This is the case the earlier ladder got wrong: with bare SSCCs off, an
-    // 18-digit SSCC beginning `10` resolved as AI 10 with a 16-character lot
-    // code, and stock would have posted against a lot that does not exist.
     expect(expectError(resolveScan(SSCC18, policy))).toEqual({
       code: "BARE_SSCC_DISABLED",
       raw: SSCC18,
@@ -208,8 +184,6 @@ describe("rules 6 and 7 — a bare SSCC, and two readings", () => {
   });
 
   it("rejects a bare SSCC that no other rung can read either", () => {
-    // 18 digits beginning `99` is not a GS1 element string at all, so before the
-    // rule it fell all the way to the SKU rung.
     const body = "99314141123456789";
     const plainSscc = `${body}${expectOk(gs1CheckDigit(body))}`;
     expect(expectOk(lpnFromSscc(plainSscc)).value).toBe(plainSscc);
@@ -222,8 +196,6 @@ describe("rules 6 and 7 — a bare SSCC, and two readings", () => {
   });
 
   it("still rejects an 18-digit string that is not a valid SSCC", () => {
-    // One digit changed: the check digit fails, so it is not an SSCC and the
-    // ladder continues. `10` + 16 digits is a valid AI 10 element string.
     const notAnSscc = "106141411234567890";
     expect(lpnFromSscc(notAnSscc).ok).toBe(false);
     const resolved = expectOk(resolveScan(notAnSscc, policy));
@@ -263,10 +235,6 @@ describe("policy validation", () => {
     expect(rejection.field).toBe("namespaces");
   });
 
-  // A prefix belongs to one organization — that is the whole basis of rule 4,
-  // which decides whose pallet a scan is by matching its prefix. A table that
-  // claimed one prefix for two organizations made that answer meaningless, and the
-  // policy accepted it silently.
   it("rejects one prefix claimed by two organization keys", () => {
     const rejection = expectError(
       resolveScan("bolt-m8", {
@@ -297,8 +265,6 @@ describe("policy validation", () => {
   });
 
   it("rejects a duplicated organization key and prefix pair", () => {
-    // Harmless-looking, and it corrupts what a rejection reports: the registered
-    // prefixes on `FOREIGN_LPN_NAMESPACE` would list the same prefix twice.
     expect(
       expectError(
         resolveScan("bolt-m8", {
@@ -339,12 +305,6 @@ describe("policy validation", () => {
     });
   });
 
-  // `claimedNamespacePrefix` walks the namespaces in order, so the question is
-  // whether two registered prefixes can both claim one scan. They cannot: the
-  // expected length is `prefix.length + 14`, so a scan of a given length can only
-  // be claimed by a prefix of one length, and two prefixes of the same length that
-  // both prefix the same string are the same prefix. These assertions pin that,
-  // because it is the reason the rule can stay a first match.
   it("claims the same prefix whatever order the namespaces are declared in", () => {
     const short = expectOk(makeLpnNamespace("org_acme", "PA"));
     const long = expectOk(makeLpnNamespace("org_acme", "PAB"));

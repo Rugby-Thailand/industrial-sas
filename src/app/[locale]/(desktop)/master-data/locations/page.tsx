@@ -6,7 +6,6 @@ import { LocationForm } from "@/features/masterData/CoreForms";
 import { PanelSection } from "@/features/masterData/EntityPanels";
 import { LocationsPanel } from "@/features/masterData/LocationsPanel";
 
-/** One warehouse's locations, backed by `masterData/catalogue:listLocations`. */
 export default async function LocationsPage({
   params,
 }: {

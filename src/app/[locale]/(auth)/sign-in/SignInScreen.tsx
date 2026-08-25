@@ -8,12 +8,6 @@ import { Link } from "@/i18n/navigation";
 import { resolveClerkPublishableKey } from "@/lib/clerkConfiguration";
 import { ROUTES } from "@/lib/navigation";
 
-/**
- * Clerk's sign-in screen, shared by its entry route and nested path steps.
- *
- * The repository owns no credentials. Clerk owns credentials, MFA, sessions,
- * SSO callbacks, and organization switching (`ADR-0001` §2, C-03).
- */
 export default async function SignInScreen({
   params,
 }: {

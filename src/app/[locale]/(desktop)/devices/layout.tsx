@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 
 import { RouteMessages } from "@/i18n/RouteMessages";
 
-/** The client message scope for the device registry. See the sibling layouts. */
 export default async function DevicesLayout({
   children,
   params,

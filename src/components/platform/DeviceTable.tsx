@@ -1,13 +1,5 @@
 "use client";
 
-/**
- * The device registry, as columns.
- *
- * `installationBound` is rendered as a word, not a tick: "bound" and "not
- * bound" are the two states an administrator acts on — the second means the app
- * has not been installed on that device yet — and a tick with no text is a
- * state only a sighted user who already knows the convention can read.
- */
 import { useLocale, useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
@@ -72,11 +64,7 @@ export function DeviceTable({
           key: "lastSeen",
           header: t("columnLastSeen"),
           monospace: true,
-          /*
-           * "Never" is a real answer and a different one from "a long time ago":
-           * a device that has never checked in was registered but never used,
-           * which is the state an administrator chases before a shift starts.
-           */
+
           render: (row) =>
             row.lastSeenAt === undefined
               ? t("neverSeen")

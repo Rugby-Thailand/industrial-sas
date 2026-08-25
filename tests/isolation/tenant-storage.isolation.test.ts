@@ -1,29 +1,3 @@
-/**
- * Isolation tier — the Convex storage adapter across two tenants
- * (`convex/lib/tenantStorage.ts`, T05b2a; `RG-013`, `RG-031`).
- *
- * The integration tier proves what the adapter refuses and how it translates. This
- * tier proves the property the merge gate exists for: with a real Convex database
- * underneath, one tenant's accessor cannot read, change, delete, enumerate, or
- * detect another tenant's document — and cannot learn, from a code, a message, or
- * the shape of a payload, whether the ID it was refused exists at all
- * (`INV-0002-03`, `INV-0002-07`).
- *
- * The world is deliberately adversarial in the one way that matters: both tenants
- * own a warehouse whose `code` is `ALPHA`. `code` is unique *per organization* by
- * contract, so a read that forgot its tenant would still find a plausible row, and
- * a uniqueness check that forgot its tenant would find two. That is exactly the
- * failure a hand-written fake cannot make visible, because a fake's "index" is
- * whatever its author wrote.
- *
- * Storage is `convex-test`: the real Convex database implementation, real schema
- * validators, real index semantics, offline, no deployment. See
- * `tests/fixtures/convex-tenant-world.ts`.
- *
- * `G-102` remains open: there is still no auth wrapper and no exported Convex
- * function, so nothing here proves that a *request* is confined to a tenant — only
- * that the storage boundary is, given a scope.
- */
 import type { GenericId } from "convex/values";
 import { describe, expect, it } from "vitest";
 
@@ -60,7 +34,6 @@ interface WarehouseLike extends TenantOwnedDocument {
   readonly status: "ACTIVE" | "INACTIVE";
 }
 
-/** An accessor bound to one tenant over a mutation context. */
 function accessFor(
   ctx: TenantMutationContext,
   orgId: TenantOrgId,
@@ -71,7 +44,6 @@ function accessFor(
   );
 }
 
-/** The failure a caller can observe, reduced to what is comparable. */
 async function denial(call: () => Promise<unknown>): Promise<TenantDbError> {
   try {
     await call();
@@ -86,10 +58,6 @@ async function denial(call: () => Promise<unknown>): Promise<TenantDbError> {
   }
   throw new Error("Expected the call to reject, but it resolved.");
 }
-
-/* -------------------------------------------------------------------------- */
-/* Reads by ID                                                                 */
-/* -------------------------------------------------------------------------- */
 
 describe("another tenant's document ID", () => {
   it("is refused, and is refused identically to an ID that never existed", async () => {
@@ -116,8 +84,6 @@ describe("another tenant's document ID", () => {
       }));
     });
 
-    // Same code, same message, same fields, same property order. Any difference
-    // between the three is an existence oracle over another tenant's IDs.
     expect(payloads[0]).toEqual(payloads[1]);
     expect(payloads[1]).toEqual(payloads[2]);
     expect(payloads[0]?.code).toBe("NOT_FOUND");
@@ -144,8 +110,6 @@ describe("another tenant's document ID", () => {
     const world = await createConvexTenantWorld();
 
     const document = await world.t.run(async (ctx) => {
-      // The same ID, the same transaction, a different scope. If this returned
-      // nothing, the test above would prove nothing about isolation.
       const access = accessFor(ctx, world.orgB);
       return await access.getX<WarehouseLike>(TABLE, world.warehouses.alphaB);
     });
@@ -154,10 +118,6 @@ describe("another tenant's document ID", () => {
     expect(document.orgId).toBe(world.orgB);
   });
 });
-
-/* -------------------------------------------------------------------------- */
-/* Writes                                                                      */
-/* -------------------------------------------------------------------------- */
 
 describe("a write aimed at another tenant's document", () => {
   it("is refused as NOT_FOUND and leaves every row byte-identical", async () => {
@@ -204,8 +164,6 @@ describe("a write aimed at another tenant's document", () => {
       const access = accessFor(ctx, world.orgA);
       const port = createMutationTenantStorage(ctx, REQUEST_ID);
 
-      // Through the accessor: naming `orgId` at all is a rejected write, never an
-      // overwritten field (`INV-0001-02`).
       expect(
         (
           await denial(
@@ -218,9 +176,6 @@ describe("a write aimed at another tenant's document", () => {
         ).code,
       ).toBe("INVALID_WRITE");
 
-      // Straight at the port, which is where a future wrapper could reach: the
-      // adapter still refuses a payload whose tenant is not an organization ID,
-      // and does not invent one when it is absent.
       expect(
         (
           await denial(
@@ -244,8 +199,6 @@ describe("a write aimed at another tenant's document", () => {
         port,
       );
 
-      // A's own document, so the refusal is the context's read-only nature and
-      // not ownership.
       expect(
         (
           await denial(
@@ -268,10 +221,6 @@ describe("a write aimed at another tenant's document", () => {
     expect(await storedWarehouses(world)).toEqual(before);
   });
 });
-
-/* -------------------------------------------------------------------------- */
-/* Indexed reads                                                               */
-/* -------------------------------------------------------------------------- */
 
 describe("an indexed read over two tenants", () => {
   it("enumerates only the scope's rows, on a key both tenants share", async () => {
@@ -316,9 +265,6 @@ describe("an indexed read over two tenants", () => {
       };
     });
 
-    // The read every "unique by contract" check owes. Two rows share the code and
-    // differ only by tenant, so a `unique()` that dropped the `orgId` equality
-    // would raise INVALID_INDEX_RESULT instead of answering.
     expect(found.a?._id).toBe(world.warehouses.alphaA);
     expect(found.b?._id).toBe(world.warehouses.alphaB);
   });
@@ -332,7 +278,7 @@ describe("an indexed read over two tenants", () => {
           .byIndex<WarehouseLike>(TABLE, BY_CODE)
           .page({ limit: 2 }),
     );
-    // One page per execution: a continuable page spends Convex's single paginate.
+
     const second = await world.t.run(
       async (ctx) =>
         await accessFor(ctx, world.orgA)
@@ -363,8 +309,6 @@ describe("an indexed read over two tenants", () => {
           .take(TENANT_INDEX_MAX_PAGE_SIZE),
     );
 
-    // A owns three ACTIVE warehouses; B owns one. A prefix of
-    // `["orgId", "status"]` that lost its first term would answer with four.
     expect(active.map((row) => row._id)).toEqual([world.warehouses.alphaB]);
   });
 
@@ -404,15 +348,8 @@ describe("an indexed read over two tenants", () => {
   it("passes a foreign row through to be refused, never dropped", async () => {
     const world = await createConvexTenantWorld();
 
-    // A page carrying another tenant's row cannot be produced by Convex here — the
-    // query carries an `orgId` equality — so it is injected. What must not happen
-    // is the adapter quietly filtering it: a shorter page would make a broken
-    // index, or an adapter that ignored the prefix, look like an ordinary result.
     const foreignRow = await storedWarehouse(world, world.warehouses.alphaB);
 
-    // The error is reduced to plain fields before it crosses back: `t.run`
-    // serializes its result the way a Convex function does, and an `Error` is not a
-    // Convex value.
     const error = await world.t.run(async (ctx) => {
       const port = createMutationTenantStorage(ctx, REQUEST_ID);
       const lying: TenantStoragePort = {
@@ -438,10 +375,6 @@ describe("an indexed read over two tenants", () => {
     expect(error.message).toBe(TENANT_DB_ERROR_MESSAGE);
   });
 });
-
-/* -------------------------------------------------------------------------- */
-/* Global tables                                                               */
-/* -------------------------------------------------------------------------- */
 
 describe("a table this boundary cannot scope", () => {
   it("is refused for reads, writes, and indexed reads alike", async () => {

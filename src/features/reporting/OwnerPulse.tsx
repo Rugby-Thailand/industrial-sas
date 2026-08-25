@@ -215,7 +215,6 @@ export function OwnerPulseCards({
   );
 }
 
-/** Four owner-level facts composed from bounded dashboard and occupancy reads. */
 export function OwnerPulse() {
   return (
     <OperationsCounters>

@@ -1,19 +1,3 @@
-/**
- * Integration tier — the derived tenant index metadata
- * (`convex/lib/tenantIndexPolicy.ts`, T05b1c).
- *
- * Two questions, and they are different: *does the metadata describe the real
- * schema?* and *does the derivation fail closed on a schema that has drifted?*
- * The first is answered against `convex/schema.ts`. The second cannot be — proving
- * a guard by breaking the real schema would leave the repository one forgotten
- * revert away from shipping the break — so it is answered against synthetic
- * `TableFacts`, the same arrangement
- * `tests/isolation/schema-policy-guards.isolation.test.ts` uses.
- *
- * Nothing here reads a document. There is no Convex deployment and no
- * `convex-test`; `G-102` stays open until the Convex adapter and the function
- * wrappers exist.
- */
 import { describe, expect, it } from "vitest";
 
 import schema from "../../convex/schema";
@@ -31,7 +15,6 @@ import {
 
 const REAL_FACTS = describeSchema(schema);
 
-/** A table as the policy would describe it, with only what this module reads. */
 function facts(
   overrides: Partial<TableFacts> & Pick<TableFacts, "name" | "classification">,
 ): TableFacts {
@@ -105,7 +88,6 @@ describe("metadata derived from the real schema", () => {
       /immutable/,
     );
 
-    // Unchanged after every attempt.
     expect(TENANT_INDEX_METADATA.has("organizations")).toBe(false);
     expect(TENANT_INDEX_METADATA.has("warehouses")).toBe(true);
   });
@@ -132,15 +114,14 @@ describe("lookup by (table, index)", () => {
 
   it("answers undefined for every kind of miss", () => {
     for (const [table, index] of [
-      // A global table, whose index exists and is not tenant-scoped.
       ["organizations", "by_clerkOrganizationId"],
-      // A table in no part of the schema.
+
       ["invoices", "by_orgId_number"],
-      // A tenant table, with an index it does not declare.
+
       ["warehouses", "by_orgId_name"],
-      // A tenant table, with the name of another table's index.
+
       ["warehouses", "by_orgId_userId"],
-      // Names that are not names.
+
       ["warehouses", ""],
       ["", "by_orgId_code"],
       ["warehouses", "__proto__"],

@@ -1,6 +1,5 @@
 "use client";
 
-/** Quantity evidence plus the one-action supervisor recovery path. */
 import { useLocale, useTranslations } from "next-intl";
 import { useState } from "react";
 

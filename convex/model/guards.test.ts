@@ -1,12 +1,3 @@
-/**
- * Unit tier — structural guards and runtime-immutable containers.
- *
- * These are the primitives every other module's fail-closed behaviour rests on,
- * so the cases worth writing down are the ones that would make a caller's
- * validation silently vacuous: a guard that narrows a value it should not, a
- * "frozen" container that is not, and a lookup that answers with something from
- * the prototype chain.
- */
 import { describe, expect, it } from "vitest";
 
 import {
@@ -97,9 +88,6 @@ describe("frozenRecord", () => {
   });
 
   it("has no prototype, so a lookup answers only what was put in", () => {
-    // With `Object.prototype` in the chain, `record["toString"]` answers a
-    // function while the type promises a string — a lie a scanned key could
-    // trigger.
     expect(Object.getPrototypeOf(record)).toBeNull();
     expect(record["toString"]).toBeUndefined();
     expect(recordValue(record, "toString")).toBeNull();

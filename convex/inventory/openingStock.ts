@@ -1,10 +1,3 @@
-/**
- * Opening-stock workbench backend (`FF-P2-02`/`FF-P2-03`).
- *
- * A file becomes a durable batch, bounded import chunks retain every valid and
- * invalid source row, a second actor approves it, and bounded post commands feed
- * the existing balanced inventory ledger. No code here writes a balance.
- */
 import { v } from "convex/values";
 
 import {

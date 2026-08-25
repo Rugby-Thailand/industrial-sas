@@ -1,11 +1,3 @@
-/**
- * Unit tier — the business-date value object.
- *
- * The tests that matter are the ones a host timezone could break: the same
- * instant is converted under three process timezones and must yield the same
- * Bangkok day in all of them. The rest is calendar edge cases and the standing
- * rule that Buddhist Era is display-only.
- */
 import { describe, expect, it } from "vitest";
 
 import { expectError, expectOk } from "../../../tests/fixtures/domain-results";
@@ -123,11 +115,6 @@ describe("parseBusinessDate", () => {
 });
 
 describe("businessDateFromInstant", () => {
-  /**
-   * 2026-08-03T17:30:00Z is 2026-08-04 in Bangkok (UTC+7) and 2026-08-03 in UTC.
-   * An implementation that reaches for the host offset gets one of them wrong on
-   * a machine set to the other.
-   */
   const eveningUtc = 1_785_778_200_000;
 
   it("uses the organization zone, not UTC", () => {
@@ -162,7 +149,6 @@ describe("businessDateFromInstant", () => {
   });
 
   it("handles the exact Bangkok midnight boundary", () => {
-    // 2026-08-03T17:00:00Z is exactly 2026-08-04T00:00:00+07:00.
     const midnight = 1_785_776_400_000;
     expect(businessDateFromInstant(midnight, ASIA_BANGKOK)).toEqual({
       ok: true,
@@ -314,9 +300,6 @@ describe("Buddhist Era display", () => {
   });
 
   it("never round-trips back into a stored value", () => {
-    // Re-parsing a BE string yields the Gregorian year 2569, which orders after
-    // 2026. Nothing in this module turns a BE year back into a business date, so
-    // a BE value that leaks into storage is visibly wrong rather than plausible.
     const value = date("2026-08-03");
     const reparsed = parseBusinessDate(
       expectOk(formatBusinessDate(value, "BUDDHIST")),
@@ -328,10 +311,6 @@ describe("Buddhist Era display", () => {
     expect(expectOk(compareBusinessDates(expectOk(reparsed), value))).toBe(1);
   });
 
-  // `DisplayCalendar` is a union of two string literals, and a cast satisfies it.
-  // The rendering branch was `calendar === "GREGORIAN" ? iso : buddhist`, so every
-  // unknown calendar silently became Buddhist Era — a date rendered 543 years off
-  // with nothing on the screen to say so.
   it("names an unsupported calendar instead of falling into Buddhist Era", () => {
     const value = date("2026-08-03");
     expect(
@@ -386,7 +365,6 @@ describe("Buddhist Era display", () => {
 });
 
 describe("forged dates and zones", () => {
-  /** A value that claims to be a `BusinessDate` and is not a calendar day. */
   const forgedDate = (
     year: unknown,
     month: unknown,
@@ -419,8 +397,6 @@ describe("forged dates and zones", () => {
   });
 
   it("refuses a NaN field rather than sorting by it", () => {
-    // `NaN` compares false to everything, so an unvalidated comparator answers
-    // "greater" for a value that has no position at all.
     const notANumber = forgedDate(Number.NaN, 8, 3);
     expect(
       expectError(compareBusinessDates(notANumber, date("2026-08-03"))).code,
@@ -474,8 +450,6 @@ describe("forged dates and zones", () => {
   });
 
   it("keeps the zone registry closed at run time", () => {
-    // The registry was a `Map` typed `ReadonlyMap`: one cast could register a
-    // daylight-saving zone, or replace `Asia/Bangkok`, for the whole process.
     expect(Object.isFrozen(FIXED_OFFSET_ZONES)).toBe(true);
     expect(() => {
       (FIXED_OFFSET_ZONES as Record<string, unknown>)["Europe/Berlin"] = {

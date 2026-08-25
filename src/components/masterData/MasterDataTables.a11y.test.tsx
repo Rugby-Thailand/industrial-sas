@@ -11,12 +11,6 @@ import {
   previewLocationsFor,
 } from "@tests/fixtures/data/masterData";
 
-/**
- * `INV-0010-09`, extended to the master-data screens. Checked in both locales
- * because Thai and English differ in more than glyphs: the accessible name of
- * every header, badge, and caption changes with the catalogue, and a name that
- * is empty in one language is an axe violation only in that language.
- */
 describe("master-data table accessibility", () => {
   it.each(["th", "en"] as const)(
     "ItemsTable has no detectable axe violations in %s",

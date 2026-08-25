@@ -1,17 +1,5 @@
 "use client";
 
-/**
- * A labelled group that is collapsed until the operator asks for it.
- *
- * One idiom for every "advanced / more / secondary" group in the app: an
- * icon-led toggle row with `aria-expanded`/`aria-controls`, an optional muted
- * badge (e.g. "Defaults"), and a chevron that flips. Progressive disclosure is
- * for *infrequent* content only — errors and the current required action must
- * never live behind this component, and a caller whose server blames a field
- * inside the panel must force it open via the controlled `open` prop.
- *
- * Controlled when `open` is given, uncontrolled (starting collapsed) otherwise.
- */
 import { ChevronDown, type LucideIcon } from "lucide-react";
 import { useId, useState, type ReactNode } from "react";
 
@@ -27,12 +15,12 @@ export function CollapsibleSection({
 }: {
   readonly label: string;
   readonly icon?: LucideIcon;
-  /** Small muted chip after the label, e.g. "Defaults". */
+
   readonly badge?: string;
-  /** Controlled open state; omit to start collapsed and self-manage. */
+
   readonly open?: boolean;
   readonly onToggle?: (open: boolean) => void;
-  /** Extra classes on the revealed panel, e.g. a grid. */
+
   readonly contentClassName?: string;
   readonly children: ReactNode;
   readonly testId?: string;

@@ -1,16 +1,3 @@
-/**
- * Property tier — stock rotation ordering (`ADR-0005` verification,
- * `INV-0005-10`).
- *
- * The invariant is not "sorted by expiry" but "the same sequence, every time,
- * from any input order". That needs the comparator to be a strict total order, so
- * the laws are asserted directly — irreflexivity, antisymmetry, transitivity, and
- * totality — and then determinism is asserted over shuffled inputs.
- *
- * The negative control removes the final tie-breaker, which is the change a
- * reviewer would consider harmless, and shows the determinism property catching
- * it.
- */
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
@@ -33,28 +20,19 @@ import { expectOk } from "../fixtures/domain-results";
 
 const asOf: BusinessDate = expectOk(parseBusinessDate("2026-08-03"));
 
-/**
- * The comparator as a bare function, for the order laws. The module deliberately
- * does not export one — an unvalidated comparator handed to `sort` is where a
- * `NaN` comparison silently makes an order intransitive — so the tier builds it
- * from the validating call and unwraps each answer.
- */
 const comparatorFor =
   (rules: StockRotationPolicy) =>
   (left: StockRotationCandidate, right: StockRotationCandidate): number =>
     expectOk(compareRotationCandidates(left, right, rules, asOf));
 
-/** The rotation date under a policy, unwrapped. */
 const rotationDate = (
   candidate: StockRotationCandidate,
   rules: StockRotationPolicy,
 ): BusinessDate | null => expectOk(rotationDateOf(candidate, rules));
 
-/** Chronological order of two validated dates, unwrapped. */
 const compareDates = (left: BusinessDate, right: BusinessDate): number =>
   expectOk(compareBusinessDates(left, right));
 
-/** Dates near `asOf`, so expired and unexpired candidates both occur. */
 const businessDate: fc.Arbitrary<BusinessDate> = fc
   .integer({ min: -30, max: 30 })
   .map((offset) => expectOk(addDays(asOf, offset)));
@@ -81,7 +59,6 @@ const candidateFor = (key: string): fc.Arbitrary<StockRotationCandidate> =>
     manufactureDate: maybeDate,
   });
 
-/** Candidates with distinct keys: the precondition the module requires. */
 const candidates = fc
   .integer({ min: 0, max: 8 })
   .chain((count) =>
@@ -106,7 +83,6 @@ const policy: fc.Arbitrary<StockRotationPolicy> = fc.record({
   expired: fc.constantFrom("EXCLUDE" as const, "ORDER_FIRST" as const),
 });
 
-/** A permutation of the input, driven by the generator rather than by chance. */
 const permute = <T>(items: readonly T[], seed: readonly number[]): T[] => {
   const remaining = [...items];
   const output: T[] = [];
@@ -273,8 +249,6 @@ describe("orderForRotation", () => {
             ).toBe(true);
           }
           if (reason === "EXPIRED") {
-            // Expiry is the expiration date against `asOf`, whatever the policy
-            // rotates by.
             expect(rules.expired).toBe("EXCLUDE");
             expect(candidate.expirationDate).not.toBeNull();
             if (candidate.expirationDate !== null) {
@@ -305,13 +279,6 @@ describe("orderForRotation", () => {
 });
 
 describe("expiry is the expiration date, not the rotation date", () => {
-  /**
-   * `INV-0005-10` is about a deterministic order; this is about not shipping
-   * expired stock, which is the other half of the same requirement. Expiry must be
-   * decided by `expirationDate` alone: the rotation source (§5 Q23) chooses the
-   * order, and reading expiry off it made an old manufacture date look like an
-   * expiry and — the dangerous direction — a passed expiry look fine.
-   */
   it("holds for every rotation source and strategy", () => {
     fc.assert(
       fc.property(policy, candidateFor("bucket-1"), (rules, candidate) => {
@@ -351,10 +318,6 @@ describe("expiry is the expiration date, not the rotation date", () => {
   });
 
   it("negative control: reading expiry off the rotation date is caught", () => {
-    // The mutation is the code that shipped: expiry from the *selected* rotation
-    // date. Under a manufacture-date policy a lot whose expiry has passed is then
-    // ranked as usable, and the counterexample is constructed rather than hoped
-    // for.
     const rules: StockRotationPolicy = {
       strategy: "FEFO",
       rotationDateSource: "MANUFACTURE",
@@ -383,8 +346,6 @@ describe("expiry is the expiration date, not the rotation date", () => {
     );
     expect(details.failed).toBe(true);
 
-    // The module answers the question the requirement asks, so the same lots are
-    // excluded.
     fc.assert(
       fc.property(expiredLots, (candidate) => {
         expect(expectOk(isCandidateExpired(candidate, asOf))).toBe(true);
@@ -399,15 +360,7 @@ describe("expiry is the expiration date, not the rotation date", () => {
 });
 
 describe("negative controls", () => {
-  /**
-   * Both controls are built so the counterexample is guaranteed: the collision the
-   * mutation cannot survive is constructed, not hoped for. A control that only
-   * fails on some seeds would be a flaky test pretending to be evidence.
-   */
   it("determinism fails when the final tie-breaker is removed", () => {
-    // The mutation: order by rotation date alone, with no stable last key. Two
-    // lots that expire on the same day then depend on the input order, which is
-    // exactly the bug that makes two handhelds disagree.
     const withoutTieBreaker =
       (rules: StockRotationPolicy) =>
       (left: StockRotationCandidate, right: StockRotationCandidate): number => {
@@ -424,7 +377,6 @@ describe("negative controls", () => {
       expired: "ORDER_FIRST",
     };
 
-    /** Two lots of one item expiring on the same day: the ordinary case. */
     const sameDayLots = businessDate.map((shared) => [
       sameDayCandidate("bucket-1", shared),
       sameDayCandidate("bucket-2", shared),
@@ -443,7 +395,6 @@ describe("negative controls", () => {
     );
     expect(details.failed).toBe(true);
 
-    // The real comparator orders the same two lots identically either way.
     fc.assert(
       fc.property(sameDayLots, (input) => {
         const compare = comparatorFor(rules);
@@ -458,8 +409,6 @@ describe("negative controls", () => {
   });
 
   it("the totality law fails when candidates carry no unique key", () => {
-    // The mutation: compare only the rotation dates. Two distinct lots expiring on
-    // the same day compare equal, so the order is not a total order at all.
     const details = fc.check(
       fc.property(businessDate, (shared) => {
         const left = sameDayCandidate("bucket-1", shared);
@@ -480,7 +429,6 @@ describe("negative controls", () => {
   });
 });
 
-/** Two of these differ only by key: the input every tie-breaker exists for. */
 function sameDayCandidate(
   candidateKey: string,
   expirationDate: BusinessDate,

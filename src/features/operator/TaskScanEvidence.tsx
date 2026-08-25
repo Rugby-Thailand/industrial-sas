@@ -1,14 +1,5 @@
 "use client";
 
-/**
- * Item scan evidence for one claimed operator task (`FF-P1-02`).
- *
- * A keyboard wedge resolves on Enter but never records evidence on Enter. The
- * resolved item is shown before an explicit confirmation, and the server
- * independently repeats the resolution and task-item comparison. Camera input
- * remains visibly unavailable until the security policy and target-handset
- * adapter are approved; this surface does not pretend otherwise.
- */
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 

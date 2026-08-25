@@ -9,7 +9,6 @@ import {
   VARIABLE_CONTRACTS,
 } from "./environmentContract";
 
-/** A complete, well-formed deployed environment, per class. */
 const deployed = (suffix: string): Record<string, string> => ({
   NEXT_PUBLIC_CONVEX_URL: `https://${suffix}.convex.cloud`,
   NEXT_PUBLIC_CONVEX_SITE_URL: `https://${suffix}.convex.site`,
@@ -74,8 +73,6 @@ describe("validateEnvironment", () => {
   });
 
   it("refuses a developer deployment name in a deployed environment", () => {
-    // `CONVEX_DEPLOYMENT` is written by `convex dev`. In a build it means a
-    // laptop's deployment leaked into a deployed artifact.
     const report = validateEnvironment("production", {
       ...deployed("prod"),
       CONVEX_DEPLOYMENT: "local:someones-laptop",
@@ -123,7 +120,6 @@ describe("validateEnvironment", () => {
 
 describe("crossClassFindings", () => {
   it("finds a shared Convex deployment between two classes", () => {
-    // The incident this exists for: a preview build pointed at production.
     const shared = "https://same.convex.cloud";
     const findings = crossClassFindings(
       {
@@ -198,8 +194,6 @@ describe("the contract table itself", () => {
   });
 
   it("keeps every secret out of the browser-inlined namespace", () => {
-    // A `NEXT_PUBLIC_` prefix means "inlined into the bundle". Nothing whose
-    // rationale describes it as secret may carry that prefix.
     for (const contract of VARIABLE_CONTRACTS) {
       if (!contract.rationale.toLowerCase().includes("secret")) continue;
       expect(

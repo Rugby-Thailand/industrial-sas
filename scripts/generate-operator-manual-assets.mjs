@@ -1,24 +1,3 @@
-/**
- * Rebuild the annotated screenshots the Thai operator guide links to.
- *
- * Annotations are SVG overlays rather than destructive raster edits: the PNG is
- * referenced, never rewritten, so the captured UI stays pixel-exact and moving a
- * red rectangle costs one regenerated text file.
- *
- * What changed from the version this replaces: the coordinates are no longer
- * here. They live in `scripts/manual/tasks.mjs` with the steps they belong to,
- * because the same numbers drive the HTML manual, and two hand-maintained copies
- * of a pixel coordinate is one copy too many. The screen dimensions are gone as
- * well — they are measured from the PNGs now (see `scripts/manual/images.mjs` for
- * what the authored ones were doing wrong).
- *
- * Offline by default. With no argument it re-renders overlays over the committed
- * screenshots and needs nothing but this repository. Given a capture directory it
- * also refreshes the PNGs from it:
- *
- *   node scripts/generate-operator-manual-assets.mjs
- *   node scripts/generate-operator-manual-assets.mjs ../industrial-sas-visual-audit/after-final
- */
 import { copyFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import process from "node:process";
@@ -38,7 +17,6 @@ import {
 const repoRoot = fileURLToPath(new URL("..", import.meta.url));
 const outputRoot = join(repoRoot, SCREENSHOT_DIRECTORY);
 
-/** How the visual-audit capture names a Thai desktop screenshot. */
 const captureName = (image) => `${image}--th--desktop-1280.png`;
 
 const fail = (message) => {
@@ -70,8 +48,7 @@ if (sourceArgument !== undefined) {
       missing.push(captureName(task.image));
       continue;
     }
-    // Also preflight readability and the PNG header before touching the
-    // committed set. A zero-byte or HTML error response is not a screenshot.
+
     try {
       captureSizes[task.image] = readPngSize(from);
     } catch (error) {

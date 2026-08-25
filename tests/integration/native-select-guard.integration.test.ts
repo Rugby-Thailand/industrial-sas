@@ -1,13 +1,3 @@
-/**
- * Integration tier — the native-select guard actually catches one.
- *
- * A guard that passes is indistinguishable from a guard that looks at nothing,
- * and this one is a regular expression away from being the second: `select`
- * appears in prose all over this repository, including in the comments
- * explaining why the native control was replaced. So the guard parses, and this
- * asserts both halves of what parsing buys — that a real `<select>` is found
- * wherever it hides, and that the words around it are not.
- */
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -21,7 +11,6 @@ import {
 
 const roots: string[] = [];
 
-/** A throwaway repository root containing exactly the files given. */
 const rootWith = (files: Readonly<Record<string, string>>): string => {
   const root = mkdtempSync(join(tmpdir(), "native-select-"));
   roots.push(root);
@@ -89,11 +78,6 @@ describe("the native-select guard", () => {
   });
 
   it("does not flag the word in prose, or a capitalised component", () => {
-    /*
-     * The distinction the AST buys. `<Select>` is the shadcn primitive and is
-     * exactly what this migration wants written; the paragraph above it is the
-     * comment explaining why.
-     */
     const root = rootWith({
       "src/components/Documented.tsx": [
         "/**",
@@ -123,18 +107,10 @@ describe("the native-select guard", () => {
   });
 
   it("grants no exceptions at all", () => {
-    /*
-     * The migration's definition of done allows a native select only with a
-     * documented, tested, device-specific reason, and there is none. Asserting
-     * the list is empty is what makes the next entry a decision somebody has to
-     * defend in review rather than a line that slips in.
-     */
     expect(NATIVE_SELECT_ALLOWLIST).toEqual([]);
   });
 
   it("finds nothing in this repository's own production source", () => {
-    // The rule the migration's definition of done states: no native production
-    // `<select>` remains.
     expect(collectNativeSelectViolations()).toEqual([]);
   });
 });

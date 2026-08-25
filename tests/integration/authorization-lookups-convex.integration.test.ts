@@ -1,19 +1,3 @@
-/**
- * Integration tier — the Convex authorization lookup adapter over `convex-test`.
- *
- * The kernel's suites prove the *decision* re-verifies whatever a lookup answered.
- * This suite proves the answers themselves, because this adapter is the only
- * module in the authorization path allowed to hold a raw database
- * (`scripts/verify-tenant-boundary.mjs`, rule `raw-database`), and what it must be
- * right about is Convex: index field order, `take` bounds, descending order,
- * `normalizeId`, and the difference between "no row" and "two rows under a key
- * that is unique by contract".
- *
- * Each case is stated as a claim about tenancy or about a bound, never about a
- * document's fields — those are the schema's business.
- *
- * All data is synthetic (`tests/fixtures/README.md`).
- */
 import { describe, expect, it } from "vitest";
 
 import {
@@ -135,7 +119,7 @@ describe("Convex authorization lookups", () => {
         deleted:
           (await lookups.findRole({ orgId: world.orgA, roleId: vanished }))
             ?._id ?? null,
-        // A well-formed ID of another table, and a string that is no ID at all.
+
         otherTable:
           (
             await lookups.findRole({
@@ -180,7 +164,7 @@ describe("Convex authorization lookups", () => {
       return {
         granted: await read(world.orgA, "receiving.receipt.post"),
         ungranted: await read(world.orgA, "admin.device.manage"),
-        // The same role and code, asked for under the other tenant.
+
         foreign: await read(world.orgB, "receiving.receipt.post"),
       };
     });
@@ -254,8 +238,6 @@ describe("Convex authorization lookups", () => {
       };
     });
 
-    // Newest first, the row outside the window excluded, the other tenant's row
-    // never in range at all.
     expect(read.occurredAt).toEqual([now - 10_000, now - 20_000]);
     expect(read.orgIds).toEqual([world.orgA]);
   });

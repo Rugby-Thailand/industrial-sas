@@ -1,21 +1,5 @@
 "use client";
 
-/**
- * Why this bin — shown as arithmetic, not as a number to be trusted.
- *
- * `ADR-0007` §13 and D-14 both require the recommendation to be *explainable* to
- * an operator or an auditor. That means three things on the screen, and this
- * panel exists because all three have to be visible at once:
- *
- * 1. **The ranked locations, with their score components.** Each component names
- *    the rule, its weight, and the points it contributed, and the components sum
- *    to the score. Somebody can check it.
- * 2. **The locations that were filtered out, and why.** A bin the operator
- *    expected to see is the question the panel most often has to answer, and
- *    "it is not in the list" is not an answer.
- * 3. **The filters that ran.** So a missing rejection means "this filter did not
- *    reject anything" rather than "this filter did not run".
- */
 import { useQuery } from "convex/react";
 import { useTranslations } from "next-intl";
 
@@ -91,12 +75,6 @@ function RecommendationBody({
   ) as unknown as CodeTranslator;
 
   if (!outcome.ok) {
-    /*
-     * `NO_CANDIDATE_LOCATIONS` and `ALL_CANDIDATES_FILTERED` are different
-     * problems — "the warehouse has no bins" and "every bin was ruled out" send
-     * a supervisor to different screens — so the code is shown rather than
-     * flattened into "no recommendation".
-     */
     return (
       <Notice
         tone="warning"
@@ -138,11 +116,7 @@ function RecommendationBody({
           {
             key: "components",
             header: t("columnComponents"),
-            /*
-             * A list rather than a total, and each entry states the weight it
-             * was scored against. The whole point of an explainable
-             * recommendation is that the arithmetic can be checked.
-             */
+
             render: (row) => (
               <ul className="flex flex-col gap-1">
                 {row.components.map((component) => (

@@ -1,34 +1,3 @@
-/**
- * Schema policy: the machine-readable statement of what the schema is allowed to
- * look like, plus the introspection needed to check it.
- *
- * Status: **schema foundation only.** This module is metadata and pure
- * functions. It reads a `SchemaDefinition`; it never touches a database.
- *
- * Why this exists rather than a prose rule in an ADR: `orgId`-first tenancy
- * (D-18, `INV-0002-02`), a fixed global-table allowlist, bounded external
- * lookups, the cardinality each indexed key actually claims, and the absence of
- * credential fields are all properties of the finished schema. A property that
- * only a reviewer checks decays on the first busy week. Everything below is
- * stated once, as data, and asserted by `tests/isolation/` and
- * `tests/integration/`.
- *
- * The design intent is that this file is the *expectation* and `convex/schema.ts`
- * is the *implementation*, so drift in either direction fails: a new table that
- * nobody classified fails as loudly as a tenant table that lost its `orgId`.
- *
- * `schemaPolicyViolations` is the composed entry point; the individual checks stay
- * exported so a failure names one rule. The checks are proved to *fire*, not only
- * to pass, by `tests/isolation/schema-policy-guards.isolation.test.ts`, which
- * feeds them synthetic `TableFacts` and throwaway schema values. Proving a guard
- * by breaking the real schema would leave the repository one forgotten revert away
- * from shipping the break.
- *
- * Baseline:
- * [ADR-0002](../../docs/adr/0002-convex-tenant-boundary-and-index-discipline.md),
- * [ADR-0001](../../docs/adr/0001-multi-tenant-saas-and-identity-ownership.md),
- * [ADR-0006](../../docs/adr/0006-authorization-and-support-access.md).
- */
 import type {
   GenericSchema,
   SchemaDefinition,
@@ -38,26 +7,8 @@ import type { GenericValidator } from "convex/values";
 
 import { TENANT_DISCRIMINATOR } from "./tenantTable";
 
-/* -------------------------------------------------------------------------- */
-/* Table classification                                                        */
-/* -------------------------------------------------------------------------- */
-
-/**
- * The complete allowlist of tables that legitimately have no `orgId`
- * (`ADR-0002` §1).
- *
- * - `organizations` is the tenant root: its document ID *is* the `orgId`.
- * - `users` is a global Clerk identity reference, because one person may hold
- *   memberships in several tenants (C-02). Tenancy lives in `memberships`.
- * - `permissions` is code-owned reference data, identical for every tenant
- *   (`INV-0006-02`).
- *
- * Adding a fourth entry is a security decision, not a schema convenience. It
- * means "this data is readable without a tenant in hand".
- */
 export const GLOBAL_TABLES = ["organizations", "users", "permissions"] as const;
 
-/** Tables that must carry `orgId` and index it first. */
 export const TENANT_TABLES = [
   "warehouses",
   "memberships",
@@ -179,26 +130,12 @@ export type TenantTableName = (typeof TENANT_TABLES)[number];
 
 export type TableClassification = "global" | "tenant" | "unclassified";
 
-/** How this policy classifies a table name. */
 export function classifyTable(name: string): TableClassification {
   if ((GLOBAL_TABLES as readonly string[]).includes(name)) return "global";
   if ((TENANT_TABLES as readonly string[]).includes(name)) return "tenant";
   return "unclassified";
 }
 
-/* -------------------------------------------------------------------------- */
-/* Forbidden field vocabulary                                                  */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Words that must not appear in any field name, at any depth.
- *
- * Clerk owns credentials, MFA, and sessions (C-03), so a field named after one
- * of these is either a mistake or a boundary violation (`INV-0001-06`). The check
- * is on *words*, not substrings, because substring matching on "pin" or "key"
- * flags innocent names like `shipping` or `roles.key` and a noisy guard gets
- * disabled.
- */
 export const FORBIDDEN_FIELD_WORDS = [
   "password",
   "passwd",
@@ -219,10 +156,6 @@ export const FORBIDDEN_FIELD_WORDS = [
   "authorization",
 ] as const;
 
-/**
- * Two-word combinations that are credential material even though neither word is
- * alone. `roles.key` is legitimate; `apiKey` is not.
- */
 export const FORBIDDEN_FIELD_PHRASES = [
   "apikey",
   "accesskey",
@@ -236,11 +169,6 @@ export const FORBIDDEN_FIELD_PHRASES = [
   "backupcode",
 ] as const;
 
-/**
- * Split a field path into lowercase words: `tenantApprovalByUserId` becomes
- * `["tenant", "approval", "by", "user", "id"]`. Array and record markers are
- * dropped; dots and underscores are separators.
- */
 export function fieldWords(fieldPath: string): readonly string[] {
   return fieldPath
     .replaceAll("[]", "")
@@ -251,66 +179,24 @@ export function fieldWords(fieldPath: string): readonly string[] {
     .filter((word) => word.length > 0);
 }
 
-/* -------------------------------------------------------------------------- */
-/* Uniqueness and bounded-lookup contracts                                     */
-/* -------------------------------------------------------------------------- */
-
-/**
- * When a uniqueness contract applies.
- *
- * An optional field cannot be unconditionally unique: two documents that both
- * omit it are two documents, not a collision. Convex has no partial unique index
- * either, so the qualifier has to be carried as data — otherwise the future
- * mutation reads "unique by contract" next to an optional field and has to guess
- * whether `undefined === undefined` is a duplicate.
- *
- * - `always` — every document in the table participates.
- * - `whenPresent` — only documents where every named field is present, and each
- *   named field must be optional in the schema and part of the key.
- */
 export type UniquenessCondition =
   | { readonly kind: "always" }
   | { readonly kind: "whenPresent"; readonly fields: readonly string[] };
 
-/**
- * The contract holds for every document in the table.
- *
- * Frozen because one object is shared by every unconditional contract: an
- * accidental write would silently retype a dozen contracts at once.
- */
 export const ALWAYS: UniquenessCondition = Object.freeze({
   kind: "always",
 } as const);
 
-/** The contract holds only where every named optional field has a value. */
 export function whenPresent(...fields: readonly string[]): UniquenessCondition {
   return { kind: "whenPresent", fields };
 }
 
-/**
- * A key that must be unique, and — by `uniquenessIndexName` — the index that
- * makes checking it bounded.
- *
- * Convex has no unique constraint, so uniqueness is always a code obligation.
- * The obligation is only affordable if the check is a single indexed lookup, so
- * the key must be indexed by exactly those fields in that order. The index
- * *name* is that key spelled out, so it is derived rather than restated: a
- * second spelling of the same fact is a second thing to get wrong.
- *
- * Every tenant contract begins with `orgId`, so a uniqueness scope never spans
- * tenants: one tenant's warehouse code can never collide with, or disclose,
- * another's.
- *
- * `condition` is required rather than defaulted, because "is an absent value a
- * collision?" is exactly the question a default would hide.
- */
 export type UniquenessContract = {
   readonly table: string;
   readonly key: readonly string[];
   readonly condition: UniquenessCondition;
 };
 
-/** The index a uniqueness key must be resolved through: the key, spelled out. */
 export function uniquenessIndexName(key: readonly string[]): string {
   return `by_${key.join("_")}`;
 }
@@ -681,23 +567,8 @@ export const UNIQUENESS_CONTRACTS: readonly UniquenessContract[] = [
   },
 ] as const;
 
-/* -------------------------------------------------------------------------- */
 /* Bounded lookup contracts (indexed, deliberately not unique)                 */
-/* -------------------------------------------------------------------------- */
 
-/**
- * A key that must be indexed so its reads are bounded, and whose cardinality is
- * deliberately many.
- *
- * An index alone says nothing about cardinality, and the absence of a uniqueness
- * contract is indistinguishable from an oversight. Listing a key here is what
- * says "many, on purpose", and what stops a later mutation from inventing a
- * one-per-key rule the domain never asked for.
- *
- * Unlike a uniqueness contract, this names no index: the read is a range over
- * many rows, so *any* index that begins with the key bounds it, and naming one
- * would forbid a wider index that serves the same read plus an ordering.
- */
 export type LookupContract = {
   readonly table: string;
   readonly key: readonly string[];
@@ -777,19 +648,6 @@ export const BOUNDED_LOOKUP_CONTRACTS: readonly LookupContract[] = [
   },
 ] as const;
 
-/* -------------------------------------------------------------------------- */
-/* Third-normal-form contracts                                                 */
-/* -------------------------------------------------------------------------- */
-
-/**
- * A functional dependency that must be resolved through its authoritative row
- * instead of copied onto the named table.
- *
- * Convex cannot infer functional dependencies from validators, so the schema
- * records the ones most likely to regress as explicit policy. Append-only audit
- * evidence and materialized projections are outside this contract; these rules
- * cover mutable operational source-of-truth rows.
- */
 export type ThirdNormalFormContract = {
   readonly table: string;
   readonly determinant: readonly string[];
@@ -829,10 +687,6 @@ export const THIRD_NORMAL_FORM_CONTRACTS: readonly ThirdNormalFormContract[] = [
   },
 ] as const;
 
-/* -------------------------------------------------------------------------- */
-/* Introspection                                                               */
-/* -------------------------------------------------------------------------- */
-
 export type IndexFacts = {
   readonly name: string;
   readonly fields: readonly string[];
@@ -841,16 +695,15 @@ export type IndexFacts = {
 export type TableFacts = {
   readonly name: string;
   readonly classification: TableClassification;
-  /** Top-level document fields, excluding Convex's `_id` and `_creationTime`. */
+
   readonly fieldNames: readonly string[];
-  /** The subset of `fieldNames` declared with `v.optional(...)`. */
+
   readonly optionalFieldNames: readonly string[];
-  /** Every field path, including nested object, array (`[]`), and record (`[*]`) paths. */
+
   readonly fieldPaths: readonly string[];
   readonly indexes: readonly IndexFacts[];
 };
 
-/** Recursively collect nested field paths beneath `path`. */
 function descend(
   validator: GenericValidator,
   path: string,
@@ -878,15 +731,6 @@ function descend(
   }
 }
 
-/**
- * Read the shape of one table definition.
- *
- * Uses `TableDefinition[" indexes"]()`, which Convex documents as experimental.
- * It is the only public read seam for declared indexes; the alternative is
- * parsing `schema.ts` as text, which is worse. If Convex renames it, this
- * function fails to compile — a loud, local failure rather than a silent gap in
- * the guard.
- */
 export function describeTable(
   name: string,
   definition: TableDefinition,
@@ -925,7 +769,6 @@ export function describeTable(
   };
 }
 
-/** Read the shape of every table in a schema. */
 export function describeSchema(
   schema: SchemaDefinition<GenericSchema, boolean>,
 ): readonly TableFacts[] {
@@ -934,23 +777,6 @@ export function describeSchema(
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/* Policy checks                                                               */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Violations of `orgId`-first discipline on a tenant table (D-18,
- * `INV-0002-02`).
- *
- * The discriminator must be present, first, and required. "First" is what makes
- * the rule reviewable at a glance in the schema and in generated types; required
- * is what stops a document from belonging to no tenant, and therefore to every
- * query that forgets to filter.
- *
- * Requiring at least one index is part of the rule: a tenant table with no index
- * can only be read by scanning it, and a scan is how cross-tenant reads happen
- * (`INV-0002-04`).
- */
 export function tenantTableViolations(facts: TableFacts): readonly string[] {
   const problems: string[] = [];
 
@@ -988,11 +814,6 @@ export function tenantTableViolations(facts: TableFacts): readonly string[] {
   return problems;
 }
 
-/**
- * Violations on a global table. A global table must *not* carry `orgId`: a table
- * with a tenant discriminator that nothing enforces is worse than either
- * alternative, because it reads as tenant-scoped.
- */
 export function globalTableViolations(facts: TableFacts): readonly string[] {
   return facts.fieldNames.includes(TENANT_DISCRIMINATOR)
     ? [
@@ -1002,7 +823,6 @@ export function globalTableViolations(facts: TableFacts): readonly string[] {
     : [];
 }
 
-/** Field paths whose names suggest credential material. */
 export function forbiddenFieldPaths(facts: TableFacts): readonly string[] {
   const forbidden: string[] = [];
 
@@ -1024,23 +844,6 @@ export function forbiddenFieldPaths(facts: TableFacts): readonly string[] {
   return forbidden;
 }
 
-/**
- * Contracts that the schema does not honour: a missing table, a missing key
- * field, a missing index, an index whose fields are not exactly the key in
- * order, or a condition that disagrees with the declared optionality of the key.
- *
- * "Exactly, in order" rather than "starts with" because a prefix index makes the
- * uniqueness check a range read over an unbounded set of neighbours, and a
- * uniqueness check that reads more than one candidate is a race waiting for
- * traffic.
- *
- * The condition checks are the part that protects an optional key field. An
- * unconditional contract over an optional field is a trap: the mutation that
- * honours it literally treats two absent values as a collision and refuses a
- * legitimate write. A `whenPresent` contract over a required field is the
- * opposite mistake — a qualifier that can never bite, which teaches the reader to
- * ignore qualifiers.
- */
 export function uniquenessContractViolations(
   allFacts: readonly TableFacts[],
 ): readonly string[] {
@@ -1121,15 +924,6 @@ export function uniquenessContractViolations(
   return problems;
 }
 
-/**
- * Bounded-lookup contracts the schema does not honour.
- *
- * Some declared index must *begin* with the key — a prefix is correct here,
- * because the read is a range over many rows by design rather than a
- * single-candidate check, and a wider index that adds an ordering serves it just
- * as well. No index that begins with the key would turn a "show me this ticket's
- * grants" question into a scan of every grant in the table.
- */
 export function lookupContractViolations(
   allFacts: readonly TableFacts[],
   contracts: readonly LookupContract[] = BOUNDED_LOOKUP_CONTRACTS,
@@ -1171,14 +965,6 @@ export function lookupContractViolations(
   return problems;
 }
 
-/**
- * Keys declared both unique and many-per-key.
- *
- * Two lists that disagree are worse than either list alone: whichever one the
- * next mutation happens to read becomes the rule. Checked over both lists as
- * arguments so the contradiction can be demonstrated on synthetic data without
- * corrupting the real declarations.
- */
 export function cardinalityContradictions(
   unique: readonly UniquenessContract[] = UNIQUENESS_CONTRACTS,
   lookups: readonly LookupContract[] = BOUNDED_LOOKUP_CONTRACTS,
@@ -1197,7 +983,6 @@ export function cardinalityContradictions(
     );
 }
 
-/** Operational rows that copy attributes determined by another non-key field. */
 export function thirdNormalFormViolations(
   allFacts: readonly TableFacts[],
   contracts: readonly ThirdNormalFormContract[] = THIRD_NORMAL_FORM_CONTRACTS,
@@ -1233,7 +1018,6 @@ export function thirdNormalFormViolations(
   return problems;
 }
 
-/** Tables present in the schema that this policy does not classify. */
 export function unclassifiedTables(
   allFacts: readonly TableFacts[],
 ): readonly string[] {
@@ -1242,7 +1026,6 @@ export function unclassifiedTables(
     .map((facts) => facts.name);
 }
 
-/** Tables this policy expects that the schema does not define. */
 export function missingTables(
   allFacts: readonly TableFacts[],
 ): readonly string[] {
@@ -1252,18 +1035,6 @@ export function missingTables(
   );
 }
 
-/**
- * Every violation the policy can see, in one list.
- *
- * The composed function exists so a caller cannot honour most of the checks and
- * believe the schema was vetted. Adding a check here makes it part of the
- * guard everywhere the guard runs; the individual functions stay exported so a
- * failure can be attributed to one rule rather than to "the schema".
- *
- * An empty list means the schema's *shape* is legal. It does not mean tenant
- * isolation holds at runtime: nothing here reads a document, and the tenant-bound
- * accessor (`G-102`) that would enforce isolation does not exist yet.
- */
 export function schemaPolicyViolations(
   allFacts: readonly TableFacts[],
 ): readonly string[] {
@@ -1300,14 +1071,6 @@ export function schemaPolicyViolations(
   ];
 }
 
-/**
- * The exact set of string values a closed validator accepts.
- *
- * Throws when the validator is not a union of string literals, which is the
- * point: it turns "is this field closed?" into a question with an answer instead
- * of a reading exercise. A field that drifts to `v.string()` fails here rather
- * than quietly accepting a state no policy handles.
- */
 export function closedValueSet(validator: GenericValidator): readonly string[] {
   if (validator.kind !== "union") {
     throw new Error(

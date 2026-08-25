@@ -65,8 +65,6 @@ describe("checkPacketIssue", () => {
   it.each(["DRAFT", "IN_REVIEW", "REJECTED", "SUPERSEDED"])(
     "refuses a %s revision before it checks anything else",
     (status) => {
-      // The most expensive mistake in this flow is a factory cutting to a spec
-      // nobody approved, so this guard runs first.
       expect(
         checkPacketIssue({
           line: { ...READY_LINE, status: "DRAFT" },
@@ -181,7 +179,6 @@ describe("checkPacketAcknowledgement", () => {
   });
 
   it("refuses a second acknowledgement rather than absorbing it", () => {
-    // Genuine retries are answered by the idempotency record at the boundary.
     expect(
       checkPacketAcknowledgement({ status: "ACKNOWLEDGED" }),
     ).toStrictEqual({
@@ -217,8 +214,6 @@ describe("checkPacketCancellation", () => {
   });
 
   it("refuses once the factory has acknowledged it", () => {
-    // Material may already be cut; a quiet cancel would describe a floor state
-    // that is not true.
     expect(checkPacketCancellation({ status: "ACKNOWLEDGED" })).toStrictEqual({
       ok: false,
       error: {

@@ -1,17 +1,3 @@
-/**
- * Isolation tier — the master-data reads, from two tenants at once.
- *
- * Every claim here is a two-tenant claim, which is why they are not in the
- * integration file: a list that returned the right rows for one tenant proves
- * nothing about what it returns for the other. This tier is a blocking merge
- * gate (`INV-0012-02`, `RG-031`).
- *
- * The shape of each test is the same: seed both tenants with rows that would be
- * confusable, act as one, and assert that nothing of the other's appears and
- * that a deliberate cross-tenant ID is refused the same way a nonexistent one is.
- *
- * All data is synthetic (`tests/fixtures/README.md`).
- */
 import type { GenericMutationCtx } from "convex/server";
 import { describe, expect, it } from "vitest";
 
@@ -39,11 +25,6 @@ interface RuntimeFunction {
 
 const run = (value: unknown) => value as RuntimeFunction;
 
-/**
- * Both tenants' actors share one Clerk subject in the fixture, which is the
- * whole point: the *only* thing separating them is the active-organization
- * claim, resolved server-side.
- */
 const identity = (org: "a" | "b") => ({
   subject: "user_fixture_a",
   org_id: `org_fixture_${org}`,
@@ -62,17 +43,6 @@ async function callAs(
     )) as Record<string, unknown>;
 }
 
-/**
- * The public payload of a refusal the wrapper *threw*.
- *
- * There are two ways a tenant function says no, and the difference matters
- * here. An **authorization** denial is a returned envelope, so its audit row
- * commits (`INV-0006-03`). A **tenant-context** denial — no membership, an
- * inactive organization, a warehouse that is not this tenant's — is thrown,
- * because there is no tenant to answer for and therefore no row to write
- * against one. A foreign warehouse ID takes the second path: it never reaches
- * the authorization stage at all.
- */
 async function refusalOf(operation: Promise<unknown>): Promise<{
   readonly kind?: unknown;
   readonly code?: unknown;
@@ -104,7 +74,6 @@ const rowsOf = (
   return value["items"] as Record<string, unknown>[];
 };
 
-/** Every ID a page returned, whatever the field names are. */
 const identifiersIn = (rows: readonly Record<string, unknown>[]): string[] =>
   rows.flatMap((row) =>
     Object.entries(row)
@@ -119,8 +88,6 @@ describe("master-data reads are tenant-confined", () => {
     const mine = rowsOf(await callAs(world, "a", listItems, {}));
     const theirs = rowsOf(await callAs(world, "b", listItems, {}));
 
-    // The SKUs are identical by construction — the fixture seeds both tenants
-    // the same way — so only the document IDs can tell the pages apart.
     expect(mine.map((row) => row["sku"])).toEqual(
       theirs.map((row) => row["sku"]),
     );
@@ -146,12 +113,6 @@ describe("master-data reads are tenant-confined", () => {
   });
 
   it("refuses another tenant's warehouse ID before authorization is reached", async () => {
-    /*
-     * Not an empty page — an empty page would confirm the ID parses and names a
-     * warehouse somewhere. And not an authorization denial either: the warehouse
-     * is revalidated during *tenant-context resolution*, so the request is
-     * refused before a permission is even considered.
-     */
     const world = await createConvexInventoryWorld();
 
     for (const fn of [listLocations, listHandlingUnits]) {
@@ -166,11 +127,6 @@ describe("master-data reads are tenant-confined", () => {
   });
 
   it("answers a foreign warehouse exactly as it answers a nonexistent one", async () => {
-    /*
-     * The same rule as for documents (`INV-0002-03`), at the warehouse level: a
-     * caller must not be able to tell "belongs to someone else" from "does not
-     * exist". Both are `WAREHOUSE_UNKNOWN` with one public message.
-     */
     const world = await createConvexInventoryWorld();
 
     const foreign = await refusalOf(
@@ -189,11 +145,6 @@ describe("master-data reads are tenant-confined", () => {
   });
 
   it("answers a foreign item ID exactly as it answers a deleted one", async () => {
-    /*
-     * `INV-0002-03`: one answer for absent, foreign, and unusable. A caller
-     * holding a foreign ID must not be able to learn that it exists — which it
-     * could if "not yours" and "not there" were different codes.
-     */
     const world = await createConvexInventoryWorld();
 
     const foreign = page(
@@ -236,12 +187,6 @@ describe("master-data reads are tenant-confined", () => {
   });
 
   it("does not let a cursor from one tenant page another tenant's rows", async () => {
-    /*
-     * A cursor is opaque and comes from the client, so it is untrusted input.
-     * Resuming tenant A's scan while acting as tenant B must not walk into A's
-     * rows: the index is `orgId`-first and the accessor binds the organization,
-     * so the resumed read is still confined.
-     */
     const world = await createConvexInventoryWorld();
 
     const first = page(await callAs(world, "a", listItems, { maxPageSize: 1 }));
@@ -253,8 +198,6 @@ describe("master-data reads are tenant-confined", () => {
       cursor,
     });
 
-    // Either the cursor is refused, or it pages tenant B's own rows. What it
-    // must never do is return a row belonging to tenant A.
     if (asB["ok"] === true) {
       const value = asB["value"] as Record<string, unknown>;
       if (value["ok"] === true) {

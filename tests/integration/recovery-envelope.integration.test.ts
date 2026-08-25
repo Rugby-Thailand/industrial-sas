@@ -1,12 +1,3 @@
-/**
- * Integration tier — the encrypted export envelope (`ADR-0021`, `RG-006`).
- *
- * The rehearsal script proves the happy path on demand; this proves the
- * *refusals* on every run, because those are what make a backup a backup. An
- * archive that restores to something and is quietly short is the failure every
- * backup story has, and the only defence is a check that runs whether or not
- * anybody remembered to rehearse.
- */
 import { randomBytes } from "node:crypto";
 
 import { describe, expect, it } from "vitest";
@@ -37,18 +28,11 @@ const seal = (secret: Buffer, rows = records) =>
 
 describe("sealing and opening", () => {
   it("round-trips records unchanged, Thai included", () => {
-    // A UTF-8 round trip that only ever saw ASCII proves nothing about the
-    // language this product is written for first.
     const secret = key();
     expect(openExport(seal(secret), secret)).toEqual(records);
   });
 
   it("carries no plaintext in the envelope", () => {
-    /*
-     * The envelope travels as text and may be inspected in transit. Everything
-     * except the ciphertext is metadata; a SKU visible in it would make the
-     * encryption decorative.
-     */
     const envelope = seal(key());
     const rendered = JSON.stringify(envelope);
 
@@ -87,11 +71,6 @@ describe("the refusals that make it a backup", () => {
   });
 
   it("refuses an archive that restores short", () => {
-    /*
-     * The one that matters most. GCM authenticates the bytes it was given, so a
-     * correctly-encrypted *incomplete* dump passes every cryptographic check —
-     * and only the declared record count catches it.
-     */
     const secret = key();
     const envelope = seal(secret, records.slice(0, 1));
 
@@ -110,8 +89,6 @@ describe("the refusals that make it a backup", () => {
 
 describe("the serialization", () => {
   it("is newline-delimited, so a truncated file is obviously short", () => {
-    // A truncated JSON array is unparseable; a truncated NDJSON file parses and
-    // is one record light, which the count then catches.
     expect(serializeRecords(records).split("\n")).toHaveLength(2);
   });
 

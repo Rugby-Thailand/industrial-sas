@@ -1,58 +1,3 @@
-/**
- * The inventory ledger's persistence seam.
- *
- * This is the **only** module that writes `inventoryTransactions`,
- * `inventoryLedgerLines`, or `inventoryBalances`. That is not a convention:
- * `scripts/verify-tenant-boundary.mjs` fails the build if any other production
- * Convex file inserts into a balance table, and if any file at all patches,
- * replaces, or deletes a ledger or audit row (`INV-0003-07`, `INV-0003-11`, plan
- * §12). `convex/inventory/ledger.ts` holds the public functions and calls in here;
- * it cannot write a balance even by accident.
- *
- * Everything below runs inside a caller's Convex transaction, through the
- * tenant-bound accessor it was handed (`TenantDocumentAccess`, `G-102`). It never
- * sees `ctx.db`, never resolves a tenant, and never decides a permission — those
- * happened in `mutationWithOrg` before the handler ran.
- *
- * ### What the posting path does, in order
- *
- * 1. **Idempotency first** (`INV-0003-01`). One bounded read of
- *    `idempotencyRecords.by_orgId_operation_requestId`. A record whose
- *    `requestHash` matches replays the original result and posts nothing; one whose
- *    hash differs is `REQUEST_ARGUMENT_CONFLICT`, because the same key with
- *    different arguments is a reused ID, not a retry.
- * 2. **Reference ownership** (`INV-0003-04`, `INV-0003-05`). Every item, location,
- *    lot, handling unit, owner, and reason code is read *through the accessor*, so
- *    an ID belonging to another tenant is indistinguishable from one that does not
- *    exist. Then the edges: a location belongs to the header's warehouse, a lot
- *    belongs to its line's item, the quantity's UOM is the item's base UOM, a
- *    reason code's scope matches the transaction type.
- * 3. **Pure validation.** `validateLedgerTransaction` decides balance,
- *    canonicalization, boundary direction, zero lines, and magnitude.
- * 4. **Prior balances**, one bounded read per touched bucket.
- * 5. **Project and check.** `applyPostingsChecked` folds the deltas and refuses a
- *    negative physical balance — `AVAILABLE` unconditionally (D-12,
- *    `INV-0003-06`). Nothing has been written at this point, so a refusal leaves
- *    the transaction untouched.
- * 6. **Write**, in one transaction: header, lines, balances, audit row, idempotency
- *    record (`INV-0003-09`, `INV-0003-12`).
- *
- * There is no application lock anywhere. Convex is serializable and retries a
- * conflicting mutation; a lock would add deadlock risk and latency to solve a
- * problem the platform already solves (`OPS-0003-01`, §5 Q30). The read of a
- * bucket's balance and the write of it happen in the same transaction, which is
- * what makes the read-modify-write safe under contention.
- *
- * ### Replay is reconstruction, not storage
- *
- * `idempotencyRecords` stores a reference and two digests, never the payloads —
- * an idempotency table holding requests and responses becomes a second, unaudited
- * copy of domain data and a place for PII to collect (§14). So a replay *rebuilds*
- * the original result from the immutable header and lines and then verifies it
- * against `resultHash`. Because the rows are immutable and the line order is
- * canonical, the rebuild is exact; because it is verified, a rebuild that somehow
- * differs is a named failure rather than a plausible-looking wrong answer.
- */
 import {
   checkIdempotency,
   fingerprintArguments,
@@ -125,18 +70,6 @@ import type {
   ReasonCodeScope,
 } from "./validators";
 
-/* -------------------------------------------------------------------------- */
-/* Errors                                                                      */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Everything the store can refuse that the pure kernel cannot see.
- *
- * Split from `LedgerError` rather than merged into it because the kernel is
- * portable domain algebra with no notion of a document: "this location belongs to
- * another warehouse" is only decidable with storage, and putting the code in the
- * pure union would imply the kernel could raise it.
- */
 export type LedgerReferenceError =
   | {
       readonly code: "REFERENCE_NOT_FOUND";
@@ -223,16 +156,6 @@ export type LedgerReferenceError =
 
 export type LedgerStoreError = LedgerError | LedgerReferenceError;
 
-/**
- * The wire form of a refusal: the code, plus the diagnostic fields that actually
- * occur across both unions.
- *
- * A flat projection rather than the structured error itself, because a Convex
- * `returns` validator has to describe a fixed shape and a discriminated union of
- * thirty members would be unreadable and unmaintainable. `code` is the contract a
- * caller may switch on; everything else is diagnosis. A nested `cause` is
- * flattened to `causeCode` — one level, because that is how deep the unions nest.
- */
 export interface PublicLedgerError {
   readonly code: string;
   readonly field?: string;
@@ -261,7 +184,6 @@ const NUMERIC_ERROR_FIELDS = [
   "length",
 ] as const;
 
-/** Flatten a structured refusal into the wire shape. Never loses the `code`. */
 export function toPublicLedgerError(
   error: LedgerStoreError,
 ): PublicLedgerError {
@@ -309,10 +231,6 @@ export function toPublicLedgerError(
     ...(causeCode === undefined ? {} : { causeCode }),
   });
 }
-
-/* -------------------------------------------------------------------------- */
-/* Stored shapes                                                               */
-/* -------------------------------------------------------------------------- */
 
 type ItemRow = {
   readonly _id: string;
@@ -417,20 +335,8 @@ type BalanceRow = {
   readonly quantity: Quantity;
 };
 
-/**
- * The replay index row, as `convex/lib/idempotency.ts` defines it.
- *
- * Aliased rather than redeclared: two structurally identical declarations of the
- * same table's shape is exactly how a field added in one place goes unread in the
- * other.
- */
 type IdempotencyRow = IdempotencyRecord;
 
-/* -------------------------------------------------------------------------- */
-/* Results                                                                     */
-/* -------------------------------------------------------------------------- */
-
-/** One posted line, as a caller sees it. */
 export interface PostedLine {
   readonly lineIndex: number;
   readonly bucketKey: string;
@@ -440,28 +346,12 @@ export interface PostedLine {
   readonly minorUnits: number;
 }
 
-/** One resulting balance, as a caller sees it. */
 export interface PostedBalance {
   readonly bucketKey: string;
   readonly uom: string;
   readonly minorUnits: number;
 }
 
-/**
- * The result of a posting: the header and its lines, and nothing else.
- *
- * Two deliberate absences. There is no "was this a replay" flag — that is a fact
- * about the *call*, not about the transaction, and mixing it in would make a
- * replayed result structurally different from the original, which is exactly the
- * property `INV-0003-01` asks for. And there are no balances: a balance is current
- * state that later postings legitimately move, so including one would make a
- * replay's answer depend on when it was replayed. Both travel alongside, in
- * `PostOutcome`.
- *
- * What is left is derived entirely from immutable rows in a canonical order, which
- * is why a replay can rebuild it byte for byte and why `resultHash` can verify that
- * it did.
- */
 export interface PostedTransaction {
   readonly transactionId: string;
   readonly requestId: string;
@@ -476,46 +366,12 @@ export interface PostedTransaction {
   readonly lines: readonly PostedLine[];
 }
 
-/**
- * A posting outcome: the replay-stable result, whether this call created it, and
- * the current balances of the buckets it touched.
- *
- * `balances` is what the transaction wrote on a fresh post and what the buckets hold
- * *now* on a replay. Both are true statements about the same buckets, and keeping
- * them out of `result` is what lets the caller compare a replay to an original
- * without a clock in the comparison.
- */
 export interface PostOutcome {
   readonly result: PostedTransaction;
   readonly replayed: boolean;
   readonly balances: readonly PostedBalance[];
 }
 
-/* -------------------------------------------------------------------------- */
-/* Digests                                                                     */
-/* -------------------------------------------------------------------------- */
-
-/*
- * `sha256Hex` is imported from `convex/lib/idempotency.ts`. The two canonical-text
- * builders below stay here: *what* a posting fingerprints is a ledger decision,
- * and the shared module deliberately takes no opinion on it.
- */
-
-/**
- * What a posting fingerprints.
- *
- * Everything that decides what gets written, and nothing that does not: the
- * organization, warehouse, type, operation, request ID, source, reason, reversal
- * link, and the ordered lines. Not the actor, not the device, not the clock — a
- * retry from a second handheld under the same request ID is still the same intent,
- * and fingerprinting the device would turn a legitimate retry into
- * `REQUEST_ARGUMENT_CONFLICT`.
- *
- * Returns the payload rather than the digest, because the shared idempotency
- * module owns canonicalization and hashing while this file owns *which fields
- * count*. That split is what lets a second writer reuse the machinery without
- * inheriting the ledger's opinion about arguments.
- */
 export function ledgerRequestPayload(
   transaction: ValidatedLedgerTransaction,
 ): unknown {
@@ -541,7 +397,6 @@ export function ledgerRequestPayload(
   };
 }
 
-/** The canonical text of a posting result, for the integrity digest. */
 export function ledgerResultCanonicalText(
   result: PostedTransaction,
 ): Result<string, LedgerStoreError> {
@@ -551,10 +406,6 @@ export function ledgerResultCanonicalText(
   }
   return ok(text.value);
 }
-
-/* -------------------------------------------------------------------------- */
-/* Reference resolution                                                        */
-/* -------------------------------------------------------------------------- */
 
 interface ResolvedReferences {
   readonly items: ReadonlyMap<string, ItemRow>;
@@ -582,20 +433,6 @@ async function activeRow<
   return ok(row);
 }
 
-/**
- * Read and cross-check every reference the transaction names.
- *
- * Every read goes through the tenant-bound accessor, so a foreign ID answers
- * `null` and is reported as `REFERENCE_NOT_FOUND` — the same answer as an ID that
- * never existed, which is what stops the error from confirming another tenant's
- * rows (`INV-0002-03`).
- *
- * The edges checked here are the ones plan §7.5 names and a document read can
- * decide: location-in-warehouse, lot-of-item, handling-unit-in-warehouse, the
- * quantity's UOM against the item's base UOM, the tracking mode against the
- * presence of a lot, and the two disabled capabilities (serial flows, consigned
- * stock) refused rather than silently accepted.
- */
 async function resolveReferences(
   tenantDb: TenantDocumentAccess,
   tenant: ActiveTenantContext,
@@ -747,14 +584,6 @@ async function resolveReferences(
   );
 }
 
-/**
- * The reason-code scope a transaction type must cite.
- *
- * `null` means "any active code will do", which is the honest answer for types
- * that may optionally carry one. The three types that *require* a reason each
- * require a matching scope, so a code minted for scrap cannot become the
- * justification for a reversal.
- */
 function reasonScopeForType(
   type: InventoryTransactionTypeValue,
 ): ReasonCodeScope | null {
@@ -771,10 +600,6 @@ function reasonScopeForType(
       return null;
   }
 }
-
-/* -------------------------------------------------------------------------- */
-/* Balance reads and writes                                                    */
-/* -------------------------------------------------------------------------- */
 
 function bucketBalanceOfRow(
   row: BalanceRow,
@@ -804,14 +629,6 @@ function bucketBalanceOfRow(
   );
 }
 
-/**
- * Read the current balance row of every bucket the transaction touches.
- *
- * One `unique()` per bucket, which is a two-row read on an `orgId`-first index —
- * bounded, and it is also where a broken uniqueness contract surfaces: a second
- * row under one bucket key throws `INVALID_INDEX_RESULT` from the accessor rather
- * than silently picking one.
- */
 async function readTouchedBalances(
   tenantDb: TenantDocumentAccess,
   bucketKeys: readonly string[],
@@ -842,7 +659,6 @@ async function readTouchedBalances(
   return ok({ sheet: sheet.value, rows });
 }
 
-/** The dimension columns of a bucket, for a ledger line or a balance row. */
 function bucketColumns(bucket: InventoryBucket): Record<string, unknown> {
   const location: LedgerLocation = bucket.location;
   return {
@@ -861,27 +677,6 @@ function bucketColumns(bucket: InventoryBucket): Record<string, unknown> {
   };
 }
 
-/* -------------------------------------------------------------------------- */
-/* Handling-unit occupancy                                                     */
-/* -------------------------------------------------------------------------- */
-
-/**
- * The one occupancy rule this foundation can enforce (`INV-0005-04`).
- *
- * After the transaction, each handling unit it touched must hold non-zero stock in
- * at most one physical location — decided over the buckets this transaction read or
- * wrote, which is the bounded set it has in hand. A unit whose stored
- * `currentLocationId` names a location the transaction did not touch, and which
- * ends up holding stock somewhere else, is `HANDLING_UNIT_TWO_LOCATIONS`.
- *
- * Stated as a limitation rather than as a guarantee: this cannot see a unit's stock
- * in a bucket the transaction never mentions, because finding that would be an
- * unbounded read of every bucket naming the unit. Full containment accounting —
- * `handlingUnitContents`, split, merge, nest, unnest — is `ADR-0005` §9 and is not
- * in this task. What is guaranteed is that no *single* transaction can put one unit
- * in two places, and that `currentLocationId` is maintained by the ledger rather
- * than edited by hand.
- */
 function resultingUnitLocation(
   sheet: BalanceSheet,
   handlingUnitId: string,
@@ -908,29 +703,17 @@ function resultingUnitLocation(
   return ok(found);
 }
 
-/* -------------------------------------------------------------------------- */
-/* Posting                                                                     */
-/* -------------------------------------------------------------------------- */
-
-/** What the caller hands the store: a draft, and the trusted context around it. */
 export interface PostLedgerTransactionInput {
   readonly tenantDb: TenantDocumentAccess;
   readonly tenant: ActiveTenantContext;
   readonly permissionCode: string;
-  /** Server clock. A client-supplied instant would let a device backdate stock. */
+
   readonly now: number;
-  /** Opaque PWA installation value, for device correlation only. Never a device ID. */
+
   readonly installationId?: string | undefined;
   readonly draft: LedgerTransactionDraft;
 }
 
-/**
- * Post a transaction, or replay the one this request already produced.
- *
- * The whole of the write happens in the caller's transaction, so the header, the
- * lines, the balances, the audit row, and the idempotency record either all commit
- * or none do (`INV-0003-09`, `INV-0003-12`).
- */
 export async function postLedgerTransaction(
   input: PostLedgerTransactionInput,
 ): Promise<Result<PostOutcome, LedgerStoreError>> {
@@ -945,7 +728,6 @@ export async function postLedgerTransaction(
   if (!fingerprint.ok) return fingerprint;
   const requestHash = fingerprint.value;
 
-  // 1. Idempotency, before anything is read or written.
   const decision = await checkIdempotency({
     tenantDb,
     operation: header.operation,
@@ -957,7 +739,6 @@ export async function postLedgerTransaction(
     return await replayPostedTransaction(tenantDb, decision.value.record);
   }
 
-  // 2. References and their edges.
   const references = await resolveReferences(
     tenantDb,
     tenant,
@@ -965,7 +746,6 @@ export async function postLedgerTransaction(
   );
   if (!references.ok) return references;
 
-  // 3. Business date, from the organization's timezone rather than the host's.
   const zone = zoneById(tenant.organization.settings.timezone);
   if (!zone.ok) {
     return fail({
@@ -990,7 +770,6 @@ export async function postLedgerTransaction(
     });
   }
 
-  // 4. Prior balances for the touched buckets, then project and check.
   const bucketKeys = transaction.value.deltas.map((delta) => delta.bucketKey);
   const prior = await readTouchedBalances(tenantDb, bucketKeys);
   if (!prior.ok) return prior;
@@ -999,7 +778,6 @@ export async function postLedgerTransaction(
   const projected = applyPostingsChecked(prior.value.sheet, postings);
   if (!projected.ok) return projected;
 
-  // 5. Handling-unit occupancy over the resulting sheet.
   const touchedUnits = new Set<string>();
   for (const delta of transaction.value.deltas) {
     if (delta.bucket.handlingUnitId !== undefined) {
@@ -1028,8 +806,6 @@ export async function postLedgerTransaction(
     unitLocations.set(unitId, resulting.value);
   }
 
-  // 6. Device correlation: resolved from the opaque installation value through the
-  // organization's own index, never taken as a document ID from the caller.
   let deviceId: string | undefined;
   if (input.installationId !== undefined && input.installationId.length > 0) {
     const device = await tenantDb
@@ -1040,7 +816,6 @@ export async function postLedgerTransaction(
     if (device !== null) deviceId = device._id;
   }
 
-  // 7. Write. Header first, so lines and balances can name it.
   const transactionId = await tenantDb.insert("inventoryTransactions", {
     warehouseId: header.warehouseId,
     type: header.type,
@@ -1110,16 +885,6 @@ export async function postLedgerTransaction(
       await tenantDb.replace("inventoryBalances", row._id, payload);
     }
 
-    /*
-     * Occupancy, maintained here because here is where a location's contents
-     * actually change (`ADR-0011` §6). The counter moves only when a bucket
-     * *crosses* zero: a location holding stock that merely changed quantity is
-     * no more or less occupied, and counting every posting would turn the map
-     * into a measure of activity rather than of what is on the floor.
-     *
-     * Physical locations only. A virtual boundary — the supplier's side of a
-     * receipt — is a counterparty, not a place anybody walks to.
-     */
     const occupancyLocation =
       resulting.bucket.location.kind === "PHYSICAL"
         ? resulting.bucket.location.locationId
@@ -1148,10 +913,6 @@ export async function postLedgerTransaction(
     );
   }
 
-  // 8. Handling-unit current location, maintained by the ledger rather than edited
-  // by hand. `replace` rather than `patch`, because clearing the field when a unit
-  // is emptied is a removal, and a patch that set it to `undefined` would depend on
-  // the accessor's treatment of an absent value rather than saying what it means.
   for (const [unitId, locationId] of [...unitLocations.entries()].sort()) {
     const stored = references.value.handlingUnits.get(unitId);
     if (stored === undefined) continue;
@@ -1187,7 +948,6 @@ export async function postLedgerTransaction(
   if (!resultText.ok) return resultText;
   const resultHash = await sha256Hex(resultText.value);
 
-  // 9. Audit, in the same transaction as the write it describes.
   await tenantDb.insert("auditEvents", {
     occurredAt: now,
     actorKind: "USER" as const,
@@ -1240,13 +1000,6 @@ export async function postLedgerTransaction(
   );
 }
 
-/**
- * Whether a bucket key names a given physical location.
- *
- * Decodes rather than matches a substring: a location ID is a component of a
- * length-prefixed key, and `key.includes(id)` would also be true for a key whose
- * *item* ID happened to contain it.
- */
 function keyNamesLocation(bucketKey: string, locationId: string): boolean {
   const bucket = decodeBucketKey(bucketKey);
   if (!bucket.ok) return false;
@@ -1254,26 +1007,8 @@ function keyNamesLocation(bucketKey: string, locationId: string): boolean {
   return location.kind === "PHYSICAL" && location.locationId === locationId;
 }
 
-/**
- * Idempotency retention, re-exported for the callers that already import it from
- * here. The value and its rationale live in `convex/lib/idempotency.ts`; a second
- * declaration would be a second answer to "how long does a replay window last".
- */
 export const IDEMPOTENCY_RETENTION_MS = SHARED_IDEMPOTENCY_RETENTION_MS;
 
-/**
- * Rebuild the original result of a completed request, verify it, and answer with
- * the buckets' current balances.
- *
- * The rebuild reads the immutable header and its lines and reconstructs exactly the
- * value the first call returned — possible because the rows never change and the
- * line order is canonical. It is then checked against `resultHash`: a mismatch is
- * `REPLAY_RESULT_UNVERIFIABLE`, because it means an immutable row is not what it
- * was, and answering with a plausible-looking value would hide that.
- *
- * Nothing is written. No transaction, no line, no balance, no audit row, and no
- * second idempotency record (`INV-0003-01`).
- */
 async function replayPostedTransaction(
   tenantDb: TenantDocumentAccess,
   record: IdempotencyRow,
@@ -1313,14 +1048,6 @@ async function replayPostedTransaction(
   );
 }
 
-/**
- * The current balance of each named bucket, ordered by key.
- *
- * One bounded `unique()` per bucket, and a bucket with no row yet is omitted rather
- * than reported as zero: "no row" and "zero" are different facts, and the
- * reconciliation that exists to tell them apart should not be handed a fabricated
- * zero here.
- */
 async function readCurrentBalances(
   tenantDb: TenantDocumentAccess,
   bucketKeys: readonly string[],
@@ -1352,19 +1079,6 @@ async function readCurrentBalances(
   return ok(Object.freeze(balances));
 }
 
-/* -------------------------------------------------------------------------- */
-/* Reads                                                                       */
-/* -------------------------------------------------------------------------- */
-
-/**
- * A transaction and its lines, in canonical order.
- *
- * Bounded by `MAX_TRANSACTION_LINES`, which is also the cap a transaction was
- * allowed to be written with, so the read can never be short. A row count that
- * disagrees with the stored `lineCount` is `STORED_ROW_INVALID` rather than a
- * silently partial transaction — that disagreement is real corruption of
- * append-only data, and reporting a shorter transaction would hide it.
- */
 export async function readTransactionDetail(
   tenantDb: TenantDocumentAccess,
   transactionId: string,
@@ -1440,7 +1154,6 @@ export async function readTransactionDetail(
   );
 }
 
-/** A transaction and its lines, plus the current balances of its buckets. */
 export async function readTransactionWithBalances(
   tenantDb: TenantDocumentAccess,
   transactionId: string,
@@ -1461,7 +1174,6 @@ export async function readTransactionWithBalances(
   );
 }
 
-/** One row of a transaction history page. */
 export interface TransactionSummary {
   readonly transactionId: string;
   readonly type: InventoryTransactionTypeValue;
@@ -1473,7 +1185,6 @@ export interface TransactionSummary {
   readonly reversalOfTransactionId?: string;
 }
 
-/** A bounded, resumable page of one warehouse's transaction history. */
 export async function readTransactionHistoryPage(
   tenantDb: TenantDocumentAccess,
   warehouseId: string,
@@ -1519,7 +1230,6 @@ export async function readTransactionHistoryPage(
   return ok(built.value);
 }
 
-/** One row of a balance page. */
 export interface BalanceSummary {
   readonly bucketKey: string;
   readonly stockStatus: StockStatus;
@@ -1527,7 +1237,6 @@ export interface BalanceSummary {
   readonly minorUnits: number;
 }
 
-/** A bounded, resumable page of one warehouse's current balances. */
 export async function readBalancePage(
   tenantDb: TenantDocumentAccess,
   warehouseId: string,
@@ -1578,37 +1287,19 @@ export async function readBalancePage(
   return ok(built.value);
 }
 
-/* -------------------------------------------------------------------------- */
-/* Reconciliation                                                              */
-/* -------------------------------------------------------------------------- */
-
-/** The running total a resumable bucket reconciliation carries between pages. */
 export interface ReconciliationCarry {
   readonly uom: string;
   readonly minorUnits: number;
 }
 
-/** What one page of a bucket reconciliation answers. */
 export interface BucketReconciliationPage {
   readonly bucketKey: string;
   readonly page: JobPage<null>;
   readonly carry: ReconciliationCarry | null;
-  /** Present only on the final page: the verdict for this bucket. */
+
   readonly drift?: readonly BalanceDrift[];
 }
 
-/**
- * Reconcile one bucket, one resumable page of its lines at a time.
- *
- * Per bucket rather than per tenant, and resumable rather than "read all the
- * lines", because a hot bucket accumulates lines forever and `RG-018` is a
- * seven-day soak over a whole tenant. Exactly one `paginate` happens per call,
- * which is also the platform's limit per function execution.
- *
- * The verdict arrives with the last page: only then is the replayed total complete,
- * and comparing a partial total against a stored balance would report drift on
- * every bucket with more lines than one page.
- */
 export async function reconcileBucketPage(
   tenantDb: TenantDocumentAccess,
   bucketKey: string,
@@ -1726,35 +1417,8 @@ export async function reconcileBucketPage(
   );
 }
 
-/**
- * The most ledger lines one bounded reconciliation will fold for a single
- * bucket.
- *
- * `reconcileBucketPage` exists for the resumable, caller-driven fold. This is
- * its non-paginated sibling, and it exists because of a hard platform rule:
- * **Convex permits one paginated query per function execution.** A sweep that
- * pages balances has already spent that budget, so it cannot also page each
- * bucket's lines — it has to read them in one bounded `take`.
- *
- * The value is `TENANT_INDEX_MAX_PAGE_SIZE - 1` and the arithmetic matters: the
- * read asks for one *more* row than the cap so it can tell "exactly this many"
- * from "at least this many", and the accessor refuses a limit above its own cap
- * rather than clamping it.
- *
- * A bucket with more lines than this is reported as `RECONCILE_INCOMPLETE`
- * rather than folded partially. "We did not finish checking" and "we checked and
- * it agrees" are different facts, and a reconciliation that conflated them would
- * be worse than none. Such a bucket needs the resumable `reconcileBucketPage`
- * path, driven by a caller that spends its own pagination budget on it.
- */
 export const MAX_BOUNDED_RECONCILE_LINES = TENANT_INDEX_MAX_PAGE_SIZE - 1;
 
-/**
- * Reconcile one bucket in a single bounded read, with no pagination.
- *
- * Reads `MAX_BOUNDED_RECONCILE_LINES + 1` lines: the extra row is how the caller
- * learns the bucket is too deep for this path without a second query.
- */
 export async function reconcileBucketBounded(
   tenantDb: TenantDocumentAccess,
   bucketKey: string,
@@ -1844,18 +1508,13 @@ export async function reconcileBucketBounded(
   return ok(Object.freeze({ complete: true, drift: drift.value }));
 }
 
-/* -------------------------------------------------------------------------- */
-/* Reversal                                                                    */
-/* -------------------------------------------------------------------------- */
-
-/** What the caller hands the store to reverse one transaction. */
 export interface ReverseLedgerTransactionInput {
   readonly tenantDb: TenantDocumentAccess;
   readonly tenant: ActiveTenantContext;
   readonly permissionCode: string;
   readonly now: number;
   readonly installationId?: string | undefined;
-  /** The warehouse the request was authorized against (`INV-0006-04`). */
+
   readonly warehouseId: string;
   readonly originalTransactionId: string;
   readonly requestId: string;
@@ -1864,21 +1523,6 @@ export interface ReverseLedgerTransactionInput {
   readonly reasonCodeId: string;
 }
 
-/**
- * Reverse a transaction (`INV-0003-08`).
- *
- * The original is read through the tenant-bound accessor, so another tenant's
- * transaction ID is `REFERENCE_NOT_FOUND` — the same answer as one that never
- * existed. `planReversal` then decides every reversal rule on values rather than on
- * documents, and the resulting transaction is posted through the ordinary path, so
- * it gets the same balance checks, the same audit row, and the same idempotency
- * record as any other posting.
- *
- * "Not twice" and "a retry is a no-op" both apply here, and they answer the same
- * observation — a reversal of this original already exists — differently. The
- * request ID separates them: the reversal this request itself wrote is a retry and
- * replays, any other one is `REVERSAL_ALREADY_EXISTS`.
- */
 export async function reverseLedgerTransaction(
   input: ReverseLedgerTransactionInput,
 ): Promise<Result<PostOutcome, LedgerStoreError>> {
@@ -1917,11 +1561,6 @@ export async function reverseLedgerTransaction(
     });
   }
 
-  // The reversal posts where the original posted. If that is not the warehouse the
-  // request was authorized against, refuse rather than post outside the scope the
-  // permission was decided in (`INV-0006-04`) — and rather than post into the
-  // caller's warehouse, which would be a cross-warehouse movement dressed as a
-  // correction.
   if (header.warehouseId !== input.warehouseId) {
     return fail({
       code: "REVERSAL_WAREHOUSE_MISMATCH",
@@ -1964,18 +1603,6 @@ export async function reverseLedgerTransaction(
     )
     .first();
 
-  // A reversal that already names this original ends the request — unless it is
-  // the one *this* request produced. A client whose response was lost retries the
-  // same request ID, and that retry is asking for the answer it did not receive,
-  // not for a second reversal (`ADR-0003`: a duplicate `requestId` is a no-op
-  // returning the original result; `RG-025`). Refusing it `REVERSAL_ALREADY_EXISTS`
-  // would name the wrong reason and would make a retry look like an operator error.
-  //
-  // The decision is handed to `postLedgerTransaction` rather than made here,
-  // because the fingerprint is what separates a retry from a reused ID: an exact
-  // retry replays, and the same ID under different arguments is
-  // `REQUEST_ARGUMENT_CONFLICT`. A *different* request ID against the same original
-  // still stops here, which is `INV-0003-08` — one original, one reversal.
   const ownRetry =
     alreadyReversed !== null &&
     alreadyReversed.operation === input.operation &&
@@ -2032,7 +1659,6 @@ export async function reverseLedgerTransaction(
   });
 }
 
-/** The bucket key of a validated bucket, for callers assembling a draft. */
 export const bucketKeyOf = (
   bucket: InventoryBucket,
 ): Result<string, LedgerError> => {

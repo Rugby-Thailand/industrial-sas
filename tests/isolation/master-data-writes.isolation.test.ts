@@ -1,16 +1,3 @@
-/**
- * Isolation tier — the master-data writes, from two tenants at once.
- *
- * A write is where isolation is most expensive to get wrong: a read that leaked
- * shows one tenant another's data, and a write that leaked *changes* it. Every
- * claim here is a two-tenant claim, and this tier is a blocking merge gate
- * (`INV-0012-02`, `RG-031`).
- *
- * The fixture seeds both tenants identically — same SKUs, same location codes,
- * same lot codes — so nothing here can pass by accident of distinct values.
- *
- * All data is synthetic (`tests/fixtures/README.md`).
- */
 import type { GenericMutationCtx } from "convex/server";
 import { describe, expect, it } from "vitest";
 
@@ -36,7 +23,6 @@ interface RuntimeFunction {
 
 const run = (value: unknown) => value as RuntimeFunction;
 
-/** Both tenants' actors share one Clerk subject; only the org claim differs. */
 const identity = (org: "a" | "b") => ({
   subject: "user_fixture_a",
   org_id: `org_fixture_${org}`,
@@ -76,8 +62,6 @@ const auditRows = async (world: ConvexInventoryWorld) =>
 
 describe("master-data writes are tenant-confined", () => {
   it("stamps the writing tenant, never the caller's choice", async () => {
-    // `orgId` is derived from the resolved context and is not an argument
-    // anywhere in the write path (`INV-0001-02`).
     const world = await createConvexInventoryWorld();
 
     const created = value(
@@ -97,11 +81,6 @@ describe("master-data writes are tenant-confined", () => {
   });
 
   it("lets both tenants hold the same SKU without either colliding", async () => {
-    /*
-     * `(orgId, sku)`. A uniqueness check that forgot the organization would
-     * refuse the second tenant's create — and, worse, would have told them the
-     * SKU exists somewhere.
-     */
     const world = await createConvexInventoryWorld();
     const args = {
       sku: "SHARED-SKU",
@@ -130,11 +109,6 @@ describe("master-data writes are tenant-confined", () => {
   });
 
   it("does not let one tenant's request ID replay into another's", async () => {
-    /*
-     * The idempotency key is `(orgId, operation, requestId)`. If the organization
-     * were not part of it, tenant B's first create would silently return tenant
-     * A's document ID — a cross-tenant leak dressed as a retry.
-     */
     const world = await createConvexInventoryWorld();
     const shared = "req_shared_id";
 
@@ -228,18 +202,13 @@ describe("master-data writes are tenant-confined", () => {
 
     expect(result["written"]).toBe(false);
     expect(errorOf(result).code).toBe("REFERENCE_NOT_FOUND");
-    // No orphan lot was created under either tenant.
+
     expect((await lotRows(world)).some((lot) => lot.lotCode === "X1")).toBe(
       false,
     );
   });
 
   it("refuses a location in another tenant's warehouse before authorization", async () => {
-    /*
-     * A foreign warehouse is revalidated during tenant-context resolution, so
-     * the request never reaches the handler — and the refusal is the same one a
-     * warehouse that never existed produces.
-     */
     const world = await createConvexInventoryWorld();
 
     let refused = false;
@@ -285,7 +254,7 @@ describe("master-data writes are tenant-confined", () => {
     const byOrg = new Map(domain.map((row) => [row.orgId, row]));
     expect(byOrg.has(world.orgA)).toBe(true);
     expect(byOrg.has(world.orgB)).toBe(true);
-    // No audit row names an entity belonging to the other tenant.
+
     const items = await itemRows(world);
     for (const row of domain) {
       const entity = items.find((item) => item._id === row.entityId);
@@ -294,12 +263,6 @@ describe("master-data writes are tenant-confined", () => {
   });
 
   it("does not let a duplicate refusal reveal the other tenant's rows", async () => {
-    /*
-     * Tenant B holds `WIDGET-001` too. Tenant A creating it must succeed or fail
-     * on *its own* catalogue alone — and here it fails, because tenant A also has
-     * one. The point is that the refusal is identical either way and names no
-     * organization.
-     */
     const world = await createConvexInventoryWorld();
 
     const result = value(

@@ -100,10 +100,6 @@ const isCompleteArgs = (value: unknown): value is CompleteArgs => {
   );
 };
 
-/**
- * Trusted server-to-server completion called by UploadThing's verified callback.
- * The shared HMAC prevents a browser from binding an arbitrary vendor key.
- */
 export const completeUploadThingFile = httpActionGeneric(
   async (ctx, request) => {
     const body = await request.text();

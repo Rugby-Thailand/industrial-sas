@@ -1,40 +1,3 @@
-/**
- * The master-data write surface.
- *
- * Six mutations over the reference entities the inbound flows need first: items,
- * locations, and lots. Everything else in the catalogue is read-only until a
- * flow needs to write it — a mutation with no caller is an unproved code path
- * with a permission attached.
- *
- * Every one is registered through `mutationWithOrg`, declares a **manage**
- * permission distinct from the entity's read code, and delegates the invariant
- * work to `convex/lib/masterDataStore.ts`: normalize, fingerprint, check
- * idempotency, check uniqueness, write, audit, index. This file owns the
- * argument shapes, the permission declarations, the wire envelope, and the
- * per-entity uniqueness contracts — nothing else.
- *
- * ### Why `requestId` is an argument and `occurredAt` is not
- *
- * The request ID is minted by the client *at intent time*, before the network
- * call, so a retry after a stall is the same request (`INV-0009-01`). The clock
- * is the server's, always: a client-supplied instant would let a handheld
- * backdate an edit into a closed period, and the audit row's `occurredAt` is
- * evidence.
- *
- * ### What no mutation here does
- *
- * **Delete.** Master data is deactivated, never removed: a ledger line, a lot,
- * and an audit row all reference an item by ID (`INV-0003-04`), and deleting the
- * item turns every one of them into a dangling pointer. `deactivateItem` sets
- * `status` and nothing else, and it carries its own maker-checker permission
- * because withdrawing a SKU from receiving is a decision with a second pair of
- * eyes on it.
- *
- * **Change an item's base UOM.** `ADR-0004` stores every quantity in integer
- * minor units *of the item's base UOM*; changing it would silently reinterpret
- * every balance and every ledger line already posted. It is absent from the
- * update arguments, not validated against — there is no field to send.
- */
 import { v } from "convex/values";
 
 import {
@@ -75,18 +38,6 @@ import {
   validateLabelBody,
 } from "../model/masterData/catalogueRules";
 
-/* -------------------------------------------------------------------------- */
-/* Operations                                                                  */
-/* -------------------------------------------------------------------------- */
-
-/**
- * The logical operation names, which are half of every idempotency key.
- *
- * Code-owned and stable: renaming one makes every in-flight retry look like a
- * fresh request. They are deliberately *not* the permission codes — one
- * permission may guard several operations, and the idempotency namespace has to
- * separate them.
- */
 export const MASTER_DATA_OPERATIONS = Object.freeze({
   createItem: "masterData.item.create",
   updateItem: "masterData.item.update",
@@ -106,10 +57,6 @@ export const MASTER_DATA_OPERATIONS = Object.freeze({
   publishLabelTemplate: "masterData.labelTemplate.publish",
 });
 
-/* -------------------------------------------------------------------------- */
-/* Items                                                                       */
-/* -------------------------------------------------------------------------- */
-
 interface ItemDocument {
   readonly _id: string;
   readonly orgId: TenantOrgId;
@@ -119,7 +66,6 @@ interface ItemDocument {
   readonly status: string;
 }
 
-/** The one uniqueness contract on `items`: `(orgId, sku)`. */
 const itemUniqueness = (sku: string): readonly UniquenessCheck[] => [
   {
     field: "sku",
@@ -128,18 +74,6 @@ const itemUniqueness = (sku: string): readonly UniquenessCheck[] => [
   },
 ];
 
-/**
- * Create an item.
- *
- * `baseUom` is normalized as a code and stored as given thereafter: it is the
- * unit every quantity of this item is expressed in (`ADR-0004`, D-08), and the
- * ledger refuses a posting whose quantity UOM is not it.
- *
- * `LOT_SERIAL` is accepted here and its *flows* stay off (D-09, `INV-0005-08`):
- * the schema is serial-ready, the ledger refuses a serial outright, and the item
- * screen marks the mode as unavailable. Refusing the mode at creation would make
- * the schema's readiness untestable.
- */
 export const createItem = mutationWithOrg({
   args: {
     requestId: v.string(),
@@ -187,15 +121,6 @@ export const createItem = mutationWithOrg({
   },
 });
 
-/**
- * Rename an item, or change its tracking mode.
- *
- * The SKU is **not** updatable and neither is the base UOM. A SKU is the key the
- * ledger, the scan resolver, and every supplier document resolve against;
- * changing it in place would rewrite the meaning of history rather than record a
- * change. A tenant that needs a different SKU deactivates this item and creates
- * another, which leaves both visible.
- */
 export const updateItem = mutationWithOrg({
   args: {
     requestId: v.string(),
@@ -240,36 +165,12 @@ export const updateItem = mutationWithOrg({
   },
 });
 
-/**
- * Withdraw an item from use.
- *
- * A separate mutation with a separate permission — `masterData.item.deactivate`
- * carries maker-checker (catalogue §2) — because deactivating a SKU stops every
- * future receipt of it, and the catalogue treats that as a decision needing a
- * second pair of eyes rather than an ordinary edit.
- *
- * It sets `status` and nothing else. Existing stock, lots, and ledger history are
- * untouched: an inactive item is one that may not be *received*, not one that
- * never existed.
- */
 export const deactivateItem = mutationWithOrg({
   args: { requestId: v.string(), itemId: v.id("items") },
   returns: writeOutcomeValidator,
   permissionCode: "masterData.item.deactivate",
   target: { table: "items", id: ({ itemId }) => itemId },
   policy: async (ctx, args: { readonly itemId: string }) => {
-    /*
-     * Maker-checker on a deactivation: the maker is whoever last wrote this
-     * item, read from the tenant's own audit trail rather than from the request.
-     * Absent a prior write — an item seeded at provisioning — there is no maker,
-     * so `approvalSatisfied` is true and the evaluator allows a single actor to
-     * proceed. That is the honest reading: separation of duties separates two
-     * *people*, and there is no first person to separate from.
-     *
-     * `thresholdExceeded: false` because no threshold policy table exists
-     * (`RG-030`); "nothing exceeds an unconfigured threshold" is the only honest
-     * reading of an absent policy, and it is stated here rather than hidden.
-     */
     const priorWrite = await ctx.tenantDb
       .byIndex<{
         readonly orgId: TenantOrgId;
@@ -309,11 +210,6 @@ export const deactivateItem = mutationWithOrg({
   },
 });
 
-/* -------------------------------------------------------------------------- */
-/* Locations                                                                   */
-/* -------------------------------------------------------------------------- */
-
-/** `(orgId, warehouseId, code)`: a location code is unique within its site. */
 const locationUniqueness = (
   warehouseId: string,
   code: string,
@@ -328,19 +224,6 @@ const locationUniqueness = (
   },
 ];
 
-/**
- * Create a location inside one warehouse.
- *
- * Warehouse-scoped, so the wrapper revalidates the warehouse against the actor's
- * membership before the handler runs (`INV-0006-04`) — a location cannot be
- * created in a site the actor may not act in, and the refusal for a foreign
- * warehouse is the same one a nonexistent warehouse produces.
- *
- * `warehouseId` never changes afterwards (`INV-0005-01`), which is why there is
- * no update mutation that accepts one: a ledger posting proves a location
- * belongs to the header's warehouse through this field, and moving it would
- * retroactively invalidate postings that were correct when made.
- */
 export const createLocation = mutationWithOrg({
   args: {
     requestId: v.string(),
@@ -383,13 +266,6 @@ export const createLocation = mutationWithOrg({
   },
 });
 
-/**
- * Change a location's type or status.
- *
- * Not its code and not its warehouse. Re-parenting a location is
- * `masterData.location.reparent`, a distinct permission carrying step-up and
- * maker-checker, and there is no hierarchy to re-parent within yet.
- */
 export const updateLocation = mutationWithOrg({
   args: {
     requestId: v.string(),
@@ -431,11 +307,6 @@ export const updateLocation = mutationWithOrg({
   },
 });
 
-/* -------------------------------------------------------------------------- */
-/* Lots                                                                        */
-/* -------------------------------------------------------------------------- */
-
-/** `(orgId, itemId, lotCode)`: a lot code is unique within its item. */
 const lotUniqueness = (
   itemId: string,
   lotCode: string,
@@ -450,24 +321,6 @@ const lotUniqueness = (
   },
 ];
 
-/**
- * Create a lot of one item.
- *
- * The item is read through the tenant-bound accessor first, so another tenant's
- * item ID answers `REFERENCE_NOT_FOUND` — the same answer an ID that never
- * existed produces (`INV-0002-03`) — rather than creating an orphan lot.
- *
- * A lot may only be created for an item that is lot-tracked. An item declared
- * `NONE` has no lots by definition (D-09), and a lot pointing at one would be a
- * row the ledger refuses on every posting, discovered at the dock rather than
- * here.
- *
- * The three dates are `YYYY-MM-DD` business dates in the organization's timezone
- * (D-05, `G-105`), never instants. They are validated by the business-date kernel
- * at the point they are *used* — by rotation and expiry — and stored as given
- * here; storing an unparseable date is refused by `parseBusinessDate` below so a
- * malformed value cannot reach FEFO.
- */
 export const createLot = mutationWithOrg({
   args: {
     requestId: v.string(),
@@ -478,19 +331,7 @@ export const createLot = mutationWithOrg({
     bestBeforeDate: v.optional(v.string()),
   },
   returns: writeOutcomeValidator,
-  /*
-   * `masterData.lot.create`, not `.manage`. The catalogue documents `.manage` as
-   * *correcting* a lot's dates and codes, and gives it maker-checker for a good
-   * reason: changing an expiration date changes what FEFO picks and what the
-   * expiry job reclassifies, so it wants a second pair of eyes.
-   *
-   * Creating a lot is not that. It happens at the dock, once per batch, by the
-   * operator holding the goods. Reusing `.manage` here would have made lot
-   * creation impossible — the evaluator denies maker-checker whenever the maker
-   * and the actor are the same person, and at creation there is no other person.
-   * A read code standing in for a write, or a correction code standing in for a
-   * creation, are the same mistake in opposite directions.
-   */
+
   permissionCode: "masterData.lot.create",
   target: { table: "lots" },
   handler: async (ctx, args) => {
@@ -538,13 +379,6 @@ export const createLot = mutationWithOrg({
   },
 });
 
-/**
- * Validate the three optional business dates.
- *
- * Through `parseBusinessDate`, the same strict kernel the ledger uses: `2026-8-3`
- * and `2026-08-03T00:00:00Z` are both refused, because a lenient date parser is
- * how a shelf life silently shifts by a day.
- */
 function validateLotDates(args: {
   readonly manufactureDate?: string;
   readonly expirationDate?: string;
@@ -572,11 +406,6 @@ function validateLotDates(args: {
   return okResult(stored);
 }
 
-/* -------------------------------------------------------------------------- */
-/* Suppliers                                                                   */
-/* -------------------------------------------------------------------------- */
-
-/** `(orgId, code)`: a supplier code is unique per organization. */
 const codeUniqueness = (code: string): readonly UniquenessCheck[] => [
   {
     field: "code",
@@ -585,7 +414,6 @@ const codeUniqueness = (code: string): readonly UniquenessCheck[] => [
   },
 ];
 
-/** Create a supplier. */
 export const createSupplier = mutationWithOrg({
   args: { requestId: v.string(), code: v.string(), name: v.string() },
   returns: writeOutcomeValidator,
@@ -617,13 +445,6 @@ export const createSupplier = mutationWithOrg({
   },
 });
 
-/**
- * Rename a supplier, or withdraw it.
- *
- * The code is not updatable, for the same reason a SKU is not: it is the key a
- * lot's provenance and a supplier barcode will resolve against, and changing it
- * in place rewrites the meaning of anything that already cites it.
- */
 export const updateSupplier = mutationWithOrg({
   args: {
     requestId: v.string(),
@@ -664,18 +485,6 @@ export const updateSupplier = mutationWithOrg({
   },
 });
 
-/* -------------------------------------------------------------------------- */
-/* Storage classes                                                             */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Create a storage class.
- *
- * Organization-scoped with its own permission. A class means the same thing at
- * every site (D-13), so defining one per warehouse would let two sites disagree
- * about what it permits — the disagreement a putaway compatibility rule cannot
- * survive.
- */
 export const createStorageClass = mutationWithOrg({
   args: { requestId: v.string(), code: v.string(), name: v.string() },
   returns: writeOutcomeValidator,
@@ -707,7 +516,6 @@ export const createStorageClass = mutationWithOrg({
   },
 });
 
-/** Rename a storage class, or withdraw it from use. */
 export const updateStorageClass = mutationWithOrg({
   args: {
     requestId: v.string(),
@@ -751,23 +559,6 @@ export const updateStorageClass = mutationWithOrg({
   },
 });
 
-/* -------------------------------------------------------------------------- */
-/* Item barcodes                                                               */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Register a scannable alias for an item.
- *
- * Uniqueness is on `(orgId, barcode)` — **not** on `(orgId, itemId, barcode)`.
- * A scanned string must resolve to at most one item, or the receiving screen has
- * to ask an operator which SKU they meant while they are holding the carton.
- *
- * The value is normalized and checked against the kind it claims through
- * `validateBarcodeAlias`, which delegates a `GTIN`'s check digit to the same
- * kernel the scan resolver uses. A row the resolver would never produce is one
- * no scan can ever match, so it is refused here rather than stored as a dead
- * entry an operator would blame the scanner for.
- */
 export const createBarcode = mutationWithOrg({
   args: {
     requestId: v.string(),
@@ -828,15 +619,6 @@ export const createBarcode = mutationWithOrg({
   },
 });
 
-/**
- * Withdraw a barcode alias.
- *
- * Deactivated, never deleted: a receipt posted last month resolved through this
- * alias, and removing the row would make that history unexplainable. An inactive
- * alias stops resolving (`resolveBarcode` answers `UNKNOWN_BARCODE`) while
- * keeping the unique key occupied, which is correct — the value still means what
- * it meant, it just may not be used.
- */
 export const deactivateBarcode = mutationWithOrg({
   args: { requestId: v.string(), barcodeId: v.id("itemBarcodes") },
   returns: writeOutcomeValidator,
@@ -863,24 +645,6 @@ export const deactivateBarcode = mutationWithOrg({
   },
 });
 
-/* -------------------------------------------------------------------------- */
-/* Alternate item UOMs                                                         */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Declare an alternate packaging unit and its exact factor to the base UOM.
- *
- * The factor is two integers, because `ADR-0004` is exact and a float is not:
- * a case of twelve is `12/1`, and a drum decanted into three is `1/3`, which no
- * float represents. `validateAlternateConversion` reduces it through
- * `makeRatio`, so `24/2` and `12/1` become the same stored row rather than two
- * spellings of one factor.
- *
- * The item's own base UOM is refused as an alternate here rather than left to
- * the profile rebuild: at create time there is no profile yet, and discovering
- * the clash only when the table is next read would mean storing a row that can
- * never be read back.
- */
 export const createItemUom = mutationWithOrg({
   args: {
     requestId: v.string(),
@@ -949,15 +713,6 @@ export const createItemUom = mutationWithOrg({
   },
 });
 
-/**
- * Retire an alternate unit.
- *
- * A factor is never edited in place. A quantity captured last week in `CASE` was
- * converted with the factor that was current then, and the ledger stored the
- * *result* in base units — so changing the factor cannot corrupt history, but it
- * can make two receipts of "one case" mean different amounts with nothing on the
- * screen to say so. Retiring and declaring a new unit leaves both visible.
- */
 export const deactivateItemUom = mutationWithOrg({
   args: { requestId: v.string(), itemUomId: v.id("itemUoms") },
   returns: writeOutcomeValidator,
@@ -984,10 +739,6 @@ export const deactivateItemUom = mutationWithOrg({
   },
 });
 
-/* -------------------------------------------------------------------------- */
-/* Label templates                                                             */
-/* -------------------------------------------------------------------------- */
-
 interface LabelTemplateRow {
   readonly _id: string;
   readonly orgId: TenantOrgId;
@@ -997,20 +748,6 @@ interface LabelTemplateRow {
   readonly draftedByUserId: string;
 }
 
-/**
- * Author a new DRAFT version of a label template.
- *
- * `label.template.draft` carries no flags, because drafting is authoring: it
- * produces a row nothing prints from. Publishing is the controlled step, and it
- * is a **different permission held by a different person** — see
- * `publishLabelTemplate`.
- *
- * The version is derived server-side from the existing versions of this code,
- * never supplied: a client-chosen version would let two drafts claim one number,
- * and a printed label cites the version as evidence.
- *
- * `body` is stored as text. Nothing here renders, transmits, or prints it.
- */
 export const draftLabelTemplate = mutationWithOrg({
   args: {
     requestId: v.string(),
@@ -1037,11 +774,6 @@ export const draftLabelTemplate = mutationWithOrg({
       });
     }
 
-    /*
-     * A bounded read of this code's existing versions. `MAX_TEMPLATE_VERSIONS`
-     * is the depth one draft may look back over; a template with more history
-     * than that needs a paged view rather than a deeper scan here.
-     */
     const existing = await ctx.tenantDb
       .byIndex<LabelTemplateRow>("labelTemplates", "by_orgId_code_version", [
         { field: "code", value: code.value },
@@ -1096,30 +828,8 @@ export const draftLabelTemplate = mutationWithOrg({
   },
 });
 
-/**
- * The deepest version history one draft looks back over. Bounded, like every
- * read here; comfortably under the accessor's own cap.
- */
 export const MAX_TEMPLATE_VERSIONS = 50;
 
-/**
- * Publish a drafted template version.
- *
- * **The repository's first genuine maker-checker workflow.**
- * `label.template.manage` carries maker-checker and step-up (catalogue §2), and
- * the policy below supplies the maker from the row's own `draftedByUserId`. The
- * evaluator then denies when the drafter and the publisher are the same person
- * (`INV-0006-05`), which is exactly the separation of duties a document that
- * becomes audit evidence deserves: one person writes the label, another approves
- * what will be printed on every carton.
- *
- * That also means a **single actor cannot publish**, by design. The denial is
- * the system working, and it commits its audit row.
- *
- * Step-up is a second, independent gate: the evaluator additionally requires a
- * recent reverification (`REVERIFICATION_REQUIRED`), which needs a Clerk
- * instance to produce. Both denials are recorded.
- */
 export const publishLabelTemplate = mutationWithOrg({
   args: {
     requestId: v.string(),
@@ -1132,18 +842,6 @@ export const publishLabelTemplate = mutationWithOrg({
     id: ({ labelTemplateId }) => labelTemplateId,
   },
   policy: async (ctx, args: { readonly labelTemplateId: string }) => {
-    /*
-     * The maker is the drafter, read from the row rather than re-derived from
-     * the audit trail: a stored field is checkable, and an audit scan would make
-     * the decision depend on retention.
-     *
-     * A row this tenant does not own reads as `null`, which yields no maker and
-     * therefore a denial — the same answer a foreign ID gets everywhere else.
-     *
-     * `thresholdExceeded: false` because no threshold policy table exists
-     * (`RG-030`); "nothing exceeds an unconfigured threshold" is the only honest
-     * reading of an absent policy.
-     */
     const row = await ctx.tenantDb.get<LabelTemplateRow>(
       "labelTemplates",
       args.labelTemplateId,

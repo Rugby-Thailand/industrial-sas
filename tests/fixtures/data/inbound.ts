@@ -1,28 +1,3 @@
-/**
- * Synthetic inbound data, in the server's own wire shapes.
- *
- * The same contract as `masterDataPreview.ts`: not a fake backend, no writes, no
- * authorization, every identifier prefixed `prv_`, and a banner on every screen
- * it can reach. It exists so the receiving, QC, and putaway journeys can be
- * walked end to end — on a desktop and on a scanner — before an identity
- * provider exists.
- *
- * The rows are deliberately consistent with the master-data and ledger fixtures:
- * the same two warehouses, the same item SKUs, the same locations. A preview
- * whose receipts referred to items its own catalogue did not have would teach the
- * wrong thing about how the screens relate.
- *
- * ### What the fixture is shaped to demonstrate
- *
- * Each collection carries at least one row of every state a screen must be able
- * to tell apart, because a fixture of uniformly happy rows exercises exactly one
- * branch:
- *
- * - an order that is partly received and one that is complete;
- * - a receipt line that landed `AVAILABLE` and one held in `QC_HOLD`;
- * - an inspection that is open, one parked for a second person, and one disposed;
- * - a putaway task ready, one claimed by somebody else, and one confirmed.
- */
 import type {
   ImportPreviewOutcome,
   InspectionRow,
@@ -40,10 +15,6 @@ import type { MasterDataPage } from "@/lib/convex/masterDataApi";
 
 const BANG_PU = "prv_wh_bangpoo";
 const LAMPHUN = "prv_wh_lamphun";
-
-/* -------------------------------------------------------------------------- */
-/* Purchase orders                                                             */
-/* -------------------------------------------------------------------------- */
 
 interface Placed<Row> {
   readonly warehouseId: string;
@@ -72,8 +43,7 @@ const PLACED_ORDERS: readonly Placed<PurchaseOrderRow>[] = Object.freeze([
       status: "OPEN" as const,
     }),
   }),
-  // A draft has no lines yet and is therefore not receivable; the receiving
-  // screen has to be able to say so rather than showing it as a choice.
+
   Object.freeze({
     warehouseId: BANG_PU,
     row: Object.freeze({
@@ -117,7 +87,7 @@ const ORDER_LINES: readonly PurchaseOrderLineRow[] = Object.freeze([
     itemId: "prv_item_steel_coil",
     orderedQuantity: { uom: "KG", minorUnits: 500_000 },
     orderedBaseMinorUnits: 500_000,
-    // Partly received: the receiving screen must show what is outstanding.
+
     receivedBaseMinorUnits: 180_000,
     baseUom: "KG",
     status: "OPEN" as const,
@@ -156,7 +126,7 @@ const ORDER_LINES: readonly PurchaseOrderLineRow[] = Object.freeze([
     orderedBaseMinorUnits: 100_000,
     receivedBaseMinorUnits: 40_000,
     baseUom: "EA",
-    // Somebody stopped waiting for the rest, with a reason.
+
     status: "CLOSED_SHORT" as const,
   }),
 ]);
@@ -166,21 +136,9 @@ export const previewOrderLinesFor = (
 ): readonly PurchaseOrderLineRow[] =>
   ORDER_LINES.filter((line) => line.purchaseOrderId === purchaseOrderId);
 
-/** Every line a receiving screen may post against, across all open orders. */
 export const previewReceivableLines = (): readonly PurchaseOrderLineRow[] =>
   ORDER_LINES.filter((line) => line.status === "OPEN");
 
-/* -------------------------------------------------------------------------- */
-/* Import                                                                      */
-/* -------------------------------------------------------------------------- */
-
-/**
- * A file with two good rows and two bad ones.
- *
- * The bad rows are the point. A preview that only ever showed a clean parse
- * would leave the row-error list — the part an operator actually has to read —
- * unexercised on every screen that renders it.
- */
 export const PREVIEW_IMPORT_TEXT = [
   "line_number,sku,quantity,uom",
   "1,STEEL-COIL,250,KG",
@@ -223,10 +181,6 @@ export const previewImportOutcome = (
   empty: false,
 });
 
-/* -------------------------------------------------------------------------- */
-/* Receipts                                                                    */
-/* -------------------------------------------------------------------------- */
-
 const PLACED_RECEIPTS: readonly Placed<ReceiptRow>[] = Object.freeze([
   Object.freeze({
     warehouseId: BANG_PU,
@@ -252,7 +206,7 @@ const PLACED_RECEIPTS: readonly Placed<ReceiptRow>[] = Object.freeze([
       businessDate: "2026-08-11",
     }),
   }),
-  // A blind receipt: no order at all, which is what "blind" means.
+
   Object.freeze({
     warehouseId: LAMPHUN,
     row: Object.freeze({
@@ -289,7 +243,7 @@ const RECEIPT_LINES: readonly ReceiptLineRow[] = Object.freeze([
     stockStatus: "AVAILABLE" as const,
     transactionId: "prv_txn_7001",
   }),
-  // Held: the QC screens need something to inspect.
+
   Object.freeze({
     receiptLineId: "prv_rl_9002",
     receiptId: "prv_rcpt_5002",
@@ -302,7 +256,7 @@ const RECEIPT_LINES: readonly ReceiptLineRow[] = Object.freeze([
     stockStatus: "QC_HOLD" as const,
     transactionId: "prv_txn_7002",
   }),
-  // An exception line, so the kind column is not uniformly `ORDERED`.
+
   Object.freeze({
     receiptLineId: "prv_rl_9003",
     receiptId: "prv_rcpt_5010",
@@ -321,10 +275,6 @@ export const previewReceiptLinesFor = (
 ): readonly ReceiptLineRow[] =>
   RECEIPT_LINES.filter((line) => line.receiptId === receiptId);
 
-/* -------------------------------------------------------------------------- */
-/* Quality control                                                             */
-/* -------------------------------------------------------------------------- */
-
 const PLACED_INSPECTIONS: readonly Placed<InspectionRow>[] = Object.freeze([
   Object.freeze({
     warehouseId: BANG_PU,
@@ -339,11 +289,7 @@ const PLACED_INSPECTIONS: readonly Placed<InspectionRow>[] = Object.freeze([
       lotSize: 200,
     }),
   }),
-  /*
-   * Parked for a second person. This is the state the screen most needs to get
-   * right: it is not a failure, and the operator looking at it cannot resolve it
-   * themselves.
-   */
+
   Object.freeze({
     warehouseId: BANG_PU,
     row: Object.freeze({
@@ -387,10 +333,6 @@ export const previewInspectionById = (
   PLACED_INSPECTIONS.find((placed) => placed.row.inspectionId === inspectionId)
     ?.row;
 
-/* -------------------------------------------------------------------------- */
-/* Putaway                                                                     */
-/* -------------------------------------------------------------------------- */
-
 const PLACED_TASKS: readonly Placed<PutawayTaskRow>[] = Object.freeze([
   Object.freeze({
     warehouseId: BANG_PU,
@@ -402,17 +344,13 @@ const PLACED_TASKS: readonly Placed<PutawayTaskRow>[] = Object.freeze([
       lotId: "prv_lot_coil_2608",
       handlingUnitId: "prv_hu_pallet_01",
       baseMinorUnits: 180_000,
-      // The item's own base unit, as the server joins it: the board shows three
-      // different measures in one column, so each figure carries its unit.
+
       baseUom: "KG",
       fromLocationId: "prv_loc_DOCK-IN-1",
       status: "READY" as const,
     }),
   }),
-  /*
-   * Held by somebody else. The board must show this as unavailable *and* say
-   * why: "claimed" and "you may not" are different facts with different fixes.
-   */
+
   Object.freeze({
     warehouseId: BANG_PU,
     row: Object.freeze({
@@ -458,14 +396,6 @@ export const previewPutawayTaskById = (
   PLACED_TASKS.find((placed) => placed.row.putawayTaskId === putawayTaskId)
     ?.row;
 
-/**
- * A worked recommendation, with its arithmetic.
- *
- * The components are real sums against the real default weights, so the
- * explanation panel shows numbers that add up rather than plausible-looking
- * decoration — the whole point of an explainable recommendation is that somebody
- * can check it (D-14).
- */
 export const previewRecommendation = (): PutawayRecommendationOutcome => ({
   ok: true,
   ranked: Object.freeze([
@@ -522,17 +452,6 @@ export const previewRecommendation = (): PutawayRecommendationOutcome => ({
   ]),
 });
 
-/* -------------------------------------------------------------------------- */
-/* Label evidence                                                              */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Two jobs for one pallet: a first print and a reprint.
- *
- * Both are `GENERATED`, and neither claims to have reached a printer. The
- * hashes are 64 hex characters because that is what SHA-256 produces; they are
- * fixture values and not hashes of anything.
- */
 const PRINT_JOBS: readonly PrintJobRow[] = Object.freeze([
   Object.freeze({
     labelPrintJobId: "prv_job_6001",
@@ -561,7 +480,6 @@ const PRINT_JOBS: readonly PrintJobRow[] = Object.freeze([
 export const previewPrintJobsFor = (targetId: string): readonly PrintJobRow[] =>
   PRINT_JOBS.filter((job) => job.targetId === targetId);
 
-/** Page a synthetic inbound collection, through the shared cursor rules. */
 export const previewInboundPage = <Row>(
   rows: readonly Row[],
   maxPageSize: number,

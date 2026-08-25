@@ -1,4 +1,3 @@
-/** Count-plan authoring, snapshot capture, release, and completion (`FF-P2-04`). */
 import { v } from "convex/values";
 
 import {
@@ -85,9 +84,9 @@ interface BalanceDocument {
 
 const targetArgument = v.object({
   bucketKey: v.string(),
-  /** Snapshot copied from the authoritative costing source by the planner. */
+
   itemClass: v.string(),
-  /** Currency minor units per inventory base minor unit. */
+
   unitValueMinorUnits: v.number(),
 });
 

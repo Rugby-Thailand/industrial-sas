@@ -5,14 +5,6 @@ import { useEffect } from "react";
 import { useObservability } from "@/components/providers/ObservabilityProvider";
 import { applicationRenderErrorEvent } from "@/lib/observability/applicationError";
 
-/**
- * Last-resort boundary for failures that replace the locale root layout itself.
- *
- * It owns its `<html>` and `<body>` and carries bilingual literal copy because
- * neither next-intl nor the application's provider stack is guaranteed to exist
- * at this level. Inline critical styles keep the recovery control readable even
- * when the layout that imports the global stylesheet is the thing that failed.
- */
 export default function GlobalError({
   error,
   reset,

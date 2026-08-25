@@ -1,25 +1,3 @@
-/**
- * Putaway: an explainable recommendation, a contended claim, and a balanced move.
- *
- * The scoring lives in `convex/model/inbound/putawayScoring.ts` and is
- * deterministic by construction (`INV-0007-10`). What this module adds is the
- * three things a pure function cannot do:
- *
- * 1. **Read the candidates**, bounded, from the tenant's own locations.
- * 2. **Store the explanation** with the task, so "why this bin?" survives the
- *    session that asked it (`INV-0007-09`, D-14).
- * 3. **Resolve the race.** Two operators on two handhelds press *claim* at the
- *    same moment; the claim is decided against the row as re-read inside the
- *    transaction, so the loser is told they lost rather than both being told
- *    they won (`INV-0007-11`).
- *
- * ### Why the recommendation is stored rather than recomputed at confirmation
- *
- * A confirmation validates the chosen location against the recommendation that
- * *the operator saw*. Recomputing would validate against a warehouse that may
- * have changed while they walked to the rack — and would silently turn a
- * legitimate choice into an override, or an override into a legitimate choice.
- */
 import { v } from "convex/values";
 
 import { postLedgerTransaction } from "../lib/inventoryLedgerStore";
@@ -56,16 +34,6 @@ export const PUTAWAY_OPERATIONS = Object.freeze({
   confirm: "putaway.task.confirm",
 });
 
-/**
- * How many locations one recommendation considers.
- *
- * Bounded because the read is on a handheld's critical path and a warehouse may
- * have thousands of bins. The candidates come from the warehouse's own location
- * index in code order, so the set is stable — which the determinism guarantee
- * needs — and a tenant whose best bin sits outside the first page gets a worse
- * recommendation rather than a slower screen. The alternative, an unbounded
- * scan, is what `INV-0002-05` forbids.
- */
 export const MAX_PUTAWAY_CANDIDATES = 50;
 
 interface TaskDocument {
@@ -105,16 +73,6 @@ interface ItemDocument {
   readonly baseUom: string;
 }
 
-/**
- * Build the candidate set for one task.
- *
- * The preference facts — "this bin already holds the item", "this is its home" —
- * are read from balances where they are cheap and left absent where they are
- * not. An absent fact scores zero rather than guessing, which is the honest
- * behaviour for a tenant that has not modelled capacity or zones: the
- * recommendation degrades to travel and fragmentation rather than inventing
- * numbers.
- */
 async function candidatesFor(
   ctx: TenantFunctionContext,
   task: TaskDocument,
@@ -168,13 +126,6 @@ const recommendationValidator = v.union(
   v.object({ ok: v.literal(false), error: v.object({ code: v.string() }) }),
 );
 
-/**
- * Recommend where a task's stock should go, with the reasoning.
- *
- * A **query**: recommending changes nothing, and an operator refreshing the
- * screen must not write a row. The recommendation is persisted when the task is
- * claimed, which is the moment somebody committed to acting on it.
- */
 export const recommendPutawayLocations = queryWithOrg({
   args: {
     warehouseId: v.id("warehouses"),
@@ -193,14 +144,7 @@ export const recommendPutawayLocations = queryWithOrg({
       return { ok: false as const, error: { code: "NOT_FOUND" } };
     }
 
-    /*
-     * Once the task is claimed, the **stored** trace is the answer — not a fresh
-     * computation. The confirmation validates the chosen location against the
-     * trace that was frozen at claim time (`INV-0007-09`), so a screen shown a
-     * recomputed list could offer a bin the confirmation would then refuse, or
-     * silently turn an override into a non-override because the warehouse
-     * changed while the operator walked to the rack.
-     */
+    // Validate against the stored recommendation the operator actually saw.
     if (task.recommendationTrace !== undefined) {
       try {
         const stored = JSON.parse(
@@ -276,7 +220,7 @@ const claimOutcomeValidator = v.union(
     written: v.literal(true),
     documentId: v.string(),
     replayed: v.boolean(),
-    /** True when this actor already held the task. */
+
     alreadyHeld: v.boolean(),
     recommendedLocationId: v.optional(v.id("locations")),
   }),
@@ -293,15 +237,6 @@ const claimOutcomeValidator = v.union(
   }),
 );
 
-/**
- * Claim a task, and freeze the recommendation the operator will act on.
- *
- * Compare-and-set (`INV-0007-11`): the row is re-read inside this transaction,
- * so two handhelds pressing at once resolve on the write. Re-claiming a task you
- * already hold succeeds — an operator whose screen reconnected should not be told
- * they lost their own task — and does not recompute the recommendation, because
- * the one they are looking at is the one they will be held to.
- */
 export const claimPutawayTask = mutationWithOrg({
   args: {
     requestId: v.string(),
@@ -317,11 +252,7 @@ export const claimPutawayTask = mutationWithOrg({
       "putawayTasks",
       args.putawayTaskId,
     );
-    // The accessor proves the tenant, not the site. A task belonging to another
-    // warehouse answers exactly as one that does not exist, so a warehouse-scoped
-    // actor cannot claim another site's backlog (`INV-0006-04`). Nothing further
-    // down catches it: a claim is a patch and a counter move, with no ledger
-    // posting whose own warehouse checks would refuse first.
+
     if (task === null || task.warehouseId !== args.warehouseId) {
       return refusal({ code: "NOT_FOUND", table: "putawayTasks" });
     }
@@ -377,11 +308,6 @@ export const claimPutawayTask = mutationWithOrg({
       ...(top === undefined ? {} : { recommendedLocationId: top.locationId }),
     });
 
-    /*
-     * The task moves from one backlog to the other, in this transaction. A
-     * re-claim of a task this actor already holds does not reach here — the
-     * status guard above returns first — so the pair cannot be moved twice.
-     */
     await moveTaskCounters(ctx, args.warehouseId, { ready: -1, claimed: 1 });
 
     return {
@@ -402,7 +328,7 @@ const confirmOutcomeValidator = v.union(
     documentId: v.string(),
     replayed: v.boolean(),
     transactionId: v.string(),
-    /** True when the operator did not take the top recommendation. */
+
     isOverride: v.boolean(),
   }),
   v.object({
@@ -418,20 +344,6 @@ const confirmOutcomeValidator = v.union(
   }),
 );
 
-/**
- * Confirm the move (`INV-0007-08`).
- *
- * Posts a balanced `PUTAWAY`: the quantity out of the receiving location and
- * into the chosen one, same item, same lot, same status. The stored
- * recommendation is what the chosen location is validated against, so a bin that
- * failed a hard constraint is refused however the operator reached it — a
- * constraint is compatibility, prohibition, or capacity, and none of those is a
- * preference a handheld may overrule.
- *
- * Taking a runner-up is permitted and needs a reason (`INV-0007-09`). It is
- * recorded on the task with the location that *was* recommended, which is what
- * makes override analytics possible at all.
- */
 export const confirmPutaway = mutationWithOrg({
   args: {
     requestId: v.string(),
@@ -449,7 +361,7 @@ export const confirmPutaway = mutationWithOrg({
       "putawayTasks",
       args.putawayTaskId,
     );
-    // Same reason as the claim path: the site is not proved by the accessor.
+
     if (task === null || task.warehouseId !== args.warehouseId) {
       return refusal({ code: "NOT_FOUND", table: "putawayTasks" });
     }
@@ -568,8 +480,6 @@ export const confirmPutaway = mutationWithOrg({
         : { overrideReasonCodeId: args.overrideReasonCodeId }),
     });
 
-    // Confirmed leaves the board entirely; occupancy is maintained by the ledger
-    // posting above, where the stock actually moved.
     await moveTaskCounters(ctx, args.warehouseId, { claimed: -1 });
 
     // The pallet is where it was put. The one-location invariant is a stored
@@ -590,21 +500,6 @@ export const confirmPutaway = mutationWithOrg({
   },
 });
 
-/* -------------------------------------------------------------------------- */
-/* Reads                                                                       */
-/* -------------------------------------------------------------------------- */
-
-/**
- * `baseUom` is on the wire for the same reason it is on a purchase-order line:
- * the quantity beside it is counted in it, and nothing else on the row says so.
- *
- * A putaway board at one site holds kilograms of coil, litres of resin, and
- * eaches of carton in the same column. Rendering `baseMinorUnits` without its
- * unit makes those one measure — which is what the visual audit found. The unit
- * is the item's, so it is a join, and it is optional because a task whose item
- * cannot be read is a dangling reference rather than a state the board can
- * resolve: the screen shows its unrenderable marker instead of a bare number.
- */
 const taskValidator = v.object({
   putawayTaskId: v.id("putawayTasks"),
   warehouseId: v.id("warehouses"),
@@ -621,7 +516,6 @@ const taskValidator = v.object({
   chosenLocationId: v.optional(v.id("locations")),
 });
 
-/** The task board at one site. */
 export const listPutawayTasks = queryWithOrg({
   args: {
     warehouseId: v.id("warehouses"),
@@ -649,14 +543,6 @@ export const listPutawayTasks = queryWithOrg({
       )
       .page(pageOptions(request.value));
 
-    /*
-     * The base unit of each distinct item on the page, read once per item.
-     *
-     * A page is bounded by `MAX_JOB_PAGE_SIZE` and a board's tasks name far
-     * fewer items than they have rows, so this is a small bounded number of
-     * document reads on a handheld's critical path. An item that cannot be read
-     * is recorded as "no unit" rather than re-read for every task naming it.
-     */
     const baseUomByItemId = new Map<string, string | undefined>();
     for (const row of page.page) {
       const itemId = (row as unknown as Record<string, unknown>)[
@@ -694,14 +580,6 @@ export const listPutawayTasks = queryWithOrg({
   },
 });
 
-/**
- * Move the two board counters together.
- *
- * The pair is one fact — a task is ready, claimed, or gone — so both sides of a
- * transition are written by one helper. Two separate call sites are two chances
- * to move one and forget the other, and the symptom of that is a board whose
- * totals do not add up to the tasks on it.
- */
 async function moveTaskCounters(
   ctx: TenantFunctionContext,
   warehouseId: string,
@@ -728,5 +606,4 @@ async function moveTaskCounters(
   }
 }
 
-/** The page cap, re-exported so a client can size its own loop. */
 export const maxPutawayPageSize = MAX_JOB_PAGE_SIZE;

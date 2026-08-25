@@ -1,4 +1,3 @@
-/** Production acknowledgement queue created when a newer design is released. */
 import { v } from "convex/values";
 
 import { updateMasterDataRow } from "../lib/masterDataStore";

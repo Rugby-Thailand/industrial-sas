@@ -2,13 +2,6 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-/**
- * The shadcn/Radix Textarea, on the repository's tokens.
- *
- * `field-sizing-content` is kept from the registry: a textarea that grows with
- * its content is the right behaviour for a Thai note, where the line count is
- * not predictable from the character count.
- */
 function Textarea({ className, ...props }: React.ComponentProps<"textarea">) {
   return (
     <textarea

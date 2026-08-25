@@ -110,7 +110,6 @@ export const isDesignRequestOverdue = (
   request.status !== "FULFILLED" &&
   request.status !== "CANCELLED";
 
-/** Explicit human confirmation is the only path from similarity to reuse. */
 export function planSimilarDesignConfirmation(input: {
   readonly request: DesignRequestState;
   readonly requestedSpecification: DesignSpecification;

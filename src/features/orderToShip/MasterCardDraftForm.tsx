@@ -239,7 +239,6 @@ const specificationOf = (values: FormValues): BoxSpecification => {
   };
 };
 
-/** Full structured editor for a new card and its first revision. */
 export function MasterCardDraftForm() {
   const t = useTranslations("OrderToShip");
   const fields: readonly FormFieldSpec[] = [
@@ -286,7 +285,6 @@ export function MasterCardDraftForm() {
   );
 }
 
-/** Create a changed immutable revision, prefilled from the revision being viewed. */
 export function MasterCardRevisionDraftForm({
   masterCardId,
   specification,

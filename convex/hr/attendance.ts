@@ -1,4 +1,3 @@
-/** Phase 8 HR attendance, correction, and leave vertical slice. */
 import { v, type GenericId, type Infer } from "convex/values";
 
 import {
@@ -203,7 +202,6 @@ const dayValidator = v.object({
   timezone: v.string(),
 });
 
-/** Self-only view; private leave reasons never enter the team query below. */
 export const readMyHr = queryWithOrg({
   args: {},
   returns: v.union(
@@ -796,7 +794,6 @@ const teamRequestValidator = v.object({
   summary: v.string(),
 });
 
-/** Team inbox omits correction reason and leave type/reason: only capacity facts cross the scope. */
 export const listTeamInbox = queryWithOrg({
   args: { warehouseId: v.id("warehouses") },
   returns: v.object({

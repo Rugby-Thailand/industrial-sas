@@ -1,4 +1,3 @@
-/** Previewed, bounded, resumable legacy master-card migration. */
 import { v } from "convex/values";
 
 import {
@@ -104,7 +103,6 @@ export const previewLegacyMasterCardImport = queryWithOrg({
   handler: (_ctx, args) => previewMasterCardImport(args.rows) as never,
 });
 
-/** Authorize one gateway-bound file for one legacy batch row. */
 export const authorizeLegacyMasterCardFileUpload = mutationWithOrg({
   args: { batchRef: v.string(), sourceRow: v.number() },
   returns: v.union(

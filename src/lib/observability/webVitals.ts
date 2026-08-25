@@ -10,14 +10,6 @@ export interface WebVitalMeasurement {
   readonly navigationType: string;
 }
 
-/**
- * Translate Next.js's browser metric into the repository's redacted event shape.
- *
- * The metric ID and browser attribution are deliberately omitted: neither is
- * needed for the aggregate series, while attribution can contain DOM selectors
- * or other page-specific detail. Route names belong at the approved adapter,
- * where their cardinality and tenant-data implications can be reviewed.
- */
 export function webVitalEvent(
   metric: WebVitalMeasurement,
   occurredAt: number,

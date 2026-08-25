@@ -38,11 +38,6 @@ const rank = (
 
 describe("hard constraints", () => {
   it("removes an inactive location rather than ranking it last", () => {
-    /*
-     * The distinction the module exists for. A rejected bin that were merely
-     * scored low could be floated back to the top by a high enough preference
-     * score, which is exactly what a hard constraint must never allow.
-     */
     const result = rank([
       bin({ code: "A1" }),
       bin({ code: "B1", status: "INACTIVE", holdsSameItem: true }),
@@ -55,8 +50,6 @@ describe("hard constraints", () => {
   });
 
   it("refuses a dock or a staging lane as a putaway target", () => {
-    // Stock left on a working surface is stock that has not been put away; the
-    // task would be "complete" without the pallet moving.
     const result = rank([
       bin({ code: "A1" }),
       bin({ code: "DOCK-1", locationType: "DOCK" }),
@@ -89,17 +82,11 @@ describe("hard constraints", () => {
   });
 
   it("treats unmodelled capacity as no obstacle", () => {
-    // A tenant that has not measured its bins still needs recommendations, and a
-    // guessed capacity would be worse than the omission.
     const result = rank([bin({ code: "A1" })]);
     expect(result.ranked).toHaveLength(1);
   });
 
   it("treats an unclassified location as accepting anything", () => {
-    /*
-     * The opposite reading would make every location incompatible until a tenant
-     * had classified all of them — which is the state every new tenant is in.
-     */
     const result = rank(
       [
         bin({ code: "A1" }),
@@ -117,11 +104,6 @@ describe("hard constraints", () => {
   });
 
   it("says once, not per bin, that the stock may not be put away at all", () => {
-    /*
-     * `INV-0007-05`. Held stock reaching an available bucket would be a release
-     * with no disposition. Reporting it per location would bury one fact under a
-     * hundred rows.
-     */
     const result = rank([bin({ code: "A1" }), bin({ code: "B1" })], {
       stockStatus: "QC_HOLD",
     });
@@ -134,8 +116,6 @@ describe("hard constraints", () => {
   });
 
   it("separates an empty warehouse from a fully filtered one", () => {
-    // "There are no bins" and "every bin was ruled out" send a supervisor to
-    // completely different screens.
     const empty = recommendPutaway({ demand: demand(), candidates: [] });
     const filtered = recommendPutaway({
       demand: demand(),
@@ -177,10 +157,6 @@ describe("preference and scoring", () => {
   });
 
   it("rewards the tightest bin that still fits, not the roomiest", () => {
-    /*
-     * The classic wrong version of this term. Filling the roomy bins first
-     * scatters stock and leaves nowhere for the pallets that need the space.
-     */
     const result = rank([
       bin({ code: "ROOMY", freeCapacityMinorUnits: 120_000 }),
       bin({ code: "TIGHT", freeCapacityMinorUnits: 13_000 }),
@@ -205,8 +181,7 @@ describe("preference and scoring", () => {
 
     const [first, second] = result.ranked;
     expect(first?.code).toBe("A1");
-    // Both saturate to zero closeness, so the tiebreak is the code — which is
-    // the determinism guarantee doing its job.
+
     expect(first?.score).toBe(second?.score);
   });
 
@@ -261,11 +236,6 @@ describe("preference and scoring", () => {
 
 describe("determinism (INV-0007-10)", () => {
   it("does not depend on the order candidates arrive in", () => {
-    /*
-     * The property that makes the recommendation reviewable. Without a total
-     * order, the same warehouse would rank differently depending on how the
-     * database happened to return rows.
-     */
     const candidates = [
       bin({ code: "C3", travelDistance: 20 }),
       bin({ code: "A1", travelDistance: 20 }),
@@ -310,8 +280,6 @@ describe("validateOverride", () => {
   });
 
   it("requires a reason to take a runner-up", () => {
-    // `INV-0007-09`: without the reason, the analytics D-14 asks for is a count
-    // with no content.
     const missing = validateOverride({
       recommendation,
       chosenLocationId: "loc_B2",
@@ -328,10 +296,6 @@ describe("validateOverride", () => {
   });
 
   it("refuses a location a hard constraint rejected, reason or not", () => {
-    /*
-     * `INV-0007-08`. Compatibility, prohibition, and capacity are not
-     * preferences an operator may overrule from a handheld.
-     */
     const result = validateOverride({
       recommendation,
       chosenLocationId: "loc_DEAD",
@@ -347,8 +311,6 @@ describe("validateOverride", () => {
   });
 
   it("separates a stale recommendation from a blocked location", () => {
-    // A location nobody considered usually means the answer was computed before
-    // a bin changed; re-running is the fix, and the message should say so.
     const result = validateOverride({
       recommendation,
       chosenLocationId: "loc_NEVER_SEEN",
@@ -374,8 +336,6 @@ describe("task claiming (INV-0007-11)", () => {
   });
 
   it("lets an actor re-claim their own task", () => {
-    // An operator whose screen reconnected should not be told they lost their
-    // own task.
     const claim = decideClaim({
       status: "CLAIMED",
       claimedByUserId: "user_a",

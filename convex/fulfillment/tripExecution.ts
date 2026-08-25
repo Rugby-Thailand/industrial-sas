@@ -1,4 +1,3 @@
-/** Package loading, sealing, gate release, and departure execution. */
 import { v } from "convex/values";
 
 import {

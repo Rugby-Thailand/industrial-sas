@@ -18,9 +18,6 @@ describe("formatMinorUnits", () => {
   });
 
   it("never inserts a grouping separator", () => {
-    // A locale-aware formatter would render this as "1,234.568" in en and, worse,
-    // as "1.234,568" in a locale that swaps the marks — which reads as a
-    // different quantity on a warehouse screen.
     expect(formatMinorUnits(1_234_568, "L")).toBe("1234.568");
   });
 
@@ -42,9 +39,7 @@ describe("formatBusinessDateIso", () => {
 
   it("adds the Buddhist Era offset only when asked", () => {
     expect(formatBusinessDateIso("2026-08-11", "BUDDHIST")).toBe("2569-08-11");
-    // The default must never be inferred from the Thai locale: BE is display
-    // only, and a screen that opted in by accident writes a wrong year on a
-    // printed document (`INV-0010-04`).
+
     expect(formatBusinessDateIso("2026-08-11")).toBe("2026-08-11");
   });
 
@@ -56,7 +51,6 @@ describe("formatBusinessDateIso", () => {
 });
 
 describe("formatInstant", () => {
-  /* 2026-08-11T02:15:00Z is 09:15 in Bangkok. */
   const instant = Date.UTC(2026, 7, 11, 2, 15, 0);
 
   it("renders in the organization timezone, not the host's", () => {
@@ -64,8 +58,6 @@ describe("formatInstant", () => {
   });
 
   it("uses the Gregorian calendar even in Thai", () => {
-    // `Intl` resolves `th-TH` to the Buddhist calendar by default, which would
-    // put 2569 on every history row without anyone asking for it.
     const rendered = formatInstant(instant, "th");
     expect(rendered).toContain("2026");
     expect(rendered).not.toContain("2569");

@@ -1,13 +1,3 @@
-/**
- * Opening-stock lifecycle and ledger planning.
- *
- * An opening balance is not a mutable balance seed. It is a reviewed import that
- * posts ordinary, balanced `ADJUSTMENT` transactions through the inventory
- * ledger. That preserves replay, audit, business-date, and non-negative-balance
- * checks in the one store that already owns them.
- *
- * Pure module: no Convex imports.
- */
 import { frozenArray, isArray, isRecord, isSafeInt, isString } from "../guards";
 import {
   validateLedgerTransaction,
@@ -29,7 +19,7 @@ import {
 import { makeQuantity, type UomCode } from "../uom/quantity";
 
 export const MAX_OPENING_BATCH_ROWS = 100_000;
-/** Two ledger lines per row and a ledger transaction is capped at 100 lines. */
+
 export const MAX_OPENING_ROWS_PER_TRANSACTION = 50;
 export const MAX_OPENING_REJECTION_REASON_LENGTH = 240;
 
@@ -39,7 +29,7 @@ export type OpeningStockStatus =
 export interface OpeningStockBatchState {
   readonly status: OpeningStockStatus;
   readonly createdByUserId: string;
-  /** Lower-case SHA-256 of the exact source bytes. */
+
   readonly sourceHash: string;
   readonly cutoffAt: number;
   readonly rowCount: number;
@@ -143,7 +133,6 @@ function validateCounts(input: {
   return ok(true);
 }
 
-/** Construct the immutable identity and latest validation summary of an import. */
 export function makeOpeningStockBatch(input: {
   readonly createdByUserId: string;
   readonly sourceHash: string;
@@ -202,7 +191,6 @@ function validateState(
   return ok(state);
 }
 
-/** Submit only a fully valid import; row errors never become approval warnings. */
 export function decideOpeningStockSubmission(input: {
   readonly state: OpeningStockBatchState;
   readonly actorUserId: string;
@@ -298,7 +286,6 @@ export function decideOpeningStockRejection(input: {
   );
 }
 
-/** Record the ledger transaction links after the store has posted every chunk. */
 export function decideOpeningStockPosted(input: {
   readonly state: OpeningStockBatchState;
   readonly actorUserId: string;
@@ -339,14 +326,10 @@ export interface OpeningStockRowDraft {
   readonly bucket: InventoryBucket;
   readonly profile: ItemUomProfile;
   readonly entryUom: UomCode;
-  /** Thousandths of the entry UOM, before exact conversion to base UOM. */
+
   readonly entryMinorUnits: number;
 }
 
-/**
- * Plan one bounded opening-stock posting. The caller chunks larger imports and
- * gives every chunk its own stable request ID.
- */
 export function buildOpeningStockTransactionChunk(input: {
   readonly orgId: string;
   readonly warehouseId: string;

@@ -1,4 +1,3 @@
-/** Explainable ATP and FIFO/FEFO reservations for available-stock fulfillment. */
 import { v } from "convex/values";
 
 import {
@@ -332,11 +331,6 @@ async function loadCandidates(
   };
 }
 
-/**
- * Application-level ATP seam shared by the read model and demand routing.
- * Keeping one loader prevents the route decision and later reservation from
- * disagreeing about active reservations or eligible AVAILABLE buckets.
- */
 export async function readAvailableToPromise(input: {
   readonly tenantDb: TenantDocumentAccess;
   readonly warehouseId: string;
@@ -674,11 +668,6 @@ export const allocateFulfillmentLine = mutationWithOrg({
   },
 });
 
-/**
- * Explicitly return an active reservation to demand/backorder/cancelled state.
- * Expiry is never inferred inside ATP: a server command must observe the expiry,
- * transition the row, and leave audit evidence before the stock becomes ATP.
- */
 export const releaseFulfillmentReservation = mutationWithOrg({
   args: {
     requestId: v.string(),
@@ -816,7 +805,6 @@ export const releaseFulfillmentReservation = mutationWithOrg({
   },
 });
 
-/** Cancel only demand that has not entered picking, preserving delivered work. */
 export const cancelFulfillmentLineRemainder = mutationWithOrg({
   args: {
     requestId: v.string(),

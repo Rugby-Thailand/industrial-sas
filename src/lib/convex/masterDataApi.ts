@@ -1,25 +1,9 @@
-/**
- * Typed references to the master-data read functions, and their wire types.
- *
- * References come from the committed Convex-generated interface. The named row
- * types remain the presentation interface consumed by generic tables and forms.
- *
- * Reads and writes are both declared. A write reference carries a `requestId`
- * in its argument type rather than as an afterthought: the key is what makes a
- * retry a replay instead of a duplicate row, so a caller that could forget it
- * would be a caller that could double-write.
- *
- * Only the writes that have a caller are declared. A reference with no UI is a
- * reference nothing type-checks against, which is how a rename survives a build
- * and fails in a warehouse instead.
- */
 import { api } from "../../../convex/_generated/api";
 
 import { clientRef } from "./clientRef";
 
 export type { ReasonCodeScope } from "../../../convex/lib/validators";
 
-/** A refusal from a master-data list. Narrower than the ledger's. */
 export interface MasterDataErrorPayload {
   readonly code: string;
   readonly received?: string;
@@ -96,10 +80,6 @@ export const listHandlingUnitsRef = clientRef(
   api.masterData.catalogue.listHandlingUnits,
 );
 
-/* -------------------------------------------------------------------------- */
-/* The five Phase 2 entities                                                   */
-/* -------------------------------------------------------------------------- */
-
 export interface SupplierRow {
   readonly supplierId: string;
   readonly code: string;
@@ -155,7 +135,6 @@ export interface LotRow {
   readonly status: MasterDataStatus;
 }
 
-/** One item, or `{found:false}` — which is also the answer for another tenant's. */
 export type ItemDetail =
   { readonly found: true; readonly item: ItemRow } | { readonly found: false };
 
@@ -165,13 +144,6 @@ export const resolveScanToItemRef = clientRef(
   api.masterData.catalogue.resolveScanToItem,
 );
 
-/**
- * The locations a receipt line may be posted to.
- *
- * No truncation flag: the read is served by an index whose prefix includes the
- * location type, so rack volume cannot hide a dock and the answer is the whole
- * answer.
- */
 export const listReceivingLocationsRef = clientRef(
   api.masterData.catalogue.listReceivingLocations,
 );
@@ -192,17 +164,6 @@ export const listLabelTemplatesRef = clientRef(
   api.masterData.catalogue.listLabelTemplates,
 );
 
-/* -------------------------------------------------------------------------- */
-/* Write references                                                            */
-/* -------------------------------------------------------------------------- */
-
-/**
- * What every master-data mutation answers.
- *
- * `written: false` carries a **field name** and a reason code, never the value
- * that was refused: the server declines to say which SKU collided, and the
- * client must not invent it either.
- */
 export type MasterDataWriteOutcome =
   | {
       readonly written: true;
@@ -229,14 +190,6 @@ export const createLocationRef = clientRef(
   api.masterData.writes.createLocation,
 );
 
-/**
- * Locations are warehouse-scoped, and the warehouse travels in the arguments.
- *
- * Not because the client is trusted with it — the wrapper revalidates the
- * membership against the location it is about to touch (`INV-0006-04`) — but
- * because a site-scoped write has to say which site it means, and the answer is
- * the one the shell has selected rather than one derived from the row.
- */
 export const updateLocationRef = clientRef(
   api.masterData.writes.updateLocation,
 );
@@ -265,15 +218,6 @@ export const deactivateItemUomRef = clientRef(
   api.masterData.writes.deactivateItemUom,
 );
 
-/**
- * Publishing is the repository's one genuine maker-checker control.
- *
- * The drafter cannot publish their own draft — the policy compares the stored
- * `draftedByUserId` against the actor (`INV-0006-05`) — and the client is told
- * only that it was denied, with a request ID. That is deliberate: distinguishing
- * "needs a second person" from "you lack the permission" in the payload would
- * make the screen a permission oracle (`INV-0002-07`).
- */
 export const publishLabelTemplateRef = clientRef(
   api.masterData.writes.publishLabelTemplate,
 );

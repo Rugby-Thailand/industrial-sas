@@ -29,13 +29,6 @@ const unavailable = () =>
     headers: { "Cache-Control": "private, no-store" },
   });
 
-/**
- * Redeem one audited, five-minute, one-use file capability.
- *
- * The underlying Convex storage URL never leaves this server response. Every
- * browser download therefore begins with a fresh permission-checked grant, and
- * a copied gateway URL stops working after its first use or expiry.
- */
 export const privateMasterCardFileDownload = httpActionGeneric(
   async (ctx, request) => {
     const grantId = new URL(request.url).searchParams.get("grantId");

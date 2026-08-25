@@ -1,4 +1,3 @@
-/** Bounded operational stock views and the supervisor exception command centre. */
 import { v } from "convex/values";
 
 import { queryWithOrg } from "../lib/tenantFunctions";
@@ -103,7 +102,6 @@ const stockLotRow = v.object({
   restrictedBaseMinorUnits: v.number(),
 });
 
-/** One bounded source read powers Balance, SKU, and Lot without three scans. */
 export const readStockReports = queryWithOrg({
   args: { warehouseId: v.id("warehouses") },
   returns: v.object({

@@ -29,8 +29,6 @@ describe("resolveWriteGate", () => {
   });
 
   it("refuses to submit before an identity provider exists", () => {
-    // A mutation with no verifiable identity is a mutation the wrapper throws
-    // on. Showing the reason before the round trip is the honest ordering.
     expect(
       resolveWriteGate(environment({ identityConfigured: false })).kind,
     ).toBe("SIGN_IN_REQUIRED");
@@ -71,11 +69,6 @@ describe("toWriteState", () => {
   });
 
   it("carries the request ID out of a denial and nothing else", () => {
-    /*
-     * The denial is generic by contract (`INV-0002-07`). What the operator can
-     * act on is the request ID, which an administrator can look up in the audit
-     * trail where the real reason survives.
-     */
     const state = toWriteState({
       outcome: {
         ok: false,
@@ -90,7 +83,7 @@ describe("toWriteState", () => {
     });
 
     expect(state).toEqual({ kind: "DENIED", requestId: "req_denied" });
-    // No permission code, no reason, nothing to enumerate.
+
     expect(JSON.stringify(state)).not.toContain("NO_PERMISSION");
   });
 
@@ -128,7 +121,6 @@ describe("toWriteState", () => {
   });
 
   it("still refuses when the answer has no readable code", () => {
-    // "We got an answer we could not read" is not "saved".
     const state = toWriteState({
       outcome: {
         ok: true,
@@ -147,11 +139,6 @@ describe("toWriteState", () => {
   });
 
   it("reports an anonymous throw as a failure, not a denial", () => {
-    /*
-     * The wrapper throws `ANONYMOUS` when there is no identity at all. It is a
-     * failure rather than a denial because nothing was decided about the
-     * caller's permissions — there was no caller.
-     */
     expect(
       toWriteState({ failure: new ConvexError({ code: "ANONYMOUS" }) }),
     ).toEqual({ kind: "FAILED", code: "ANONYMOUS" });
@@ -174,12 +161,6 @@ describe("terminality", () => {
   });
 
   it("does not treat a transport failure as final", () => {
-    /*
-     * The load-bearing case. A failure after the mutation reached the server is
-     * indistinguishable from one before it, so the retry must reuse the same
-     * idempotency key — which only happens if this says the request is not
-     * finished.
-     */
     expect(isTerminal({ kind: "FAILED", code: "UNKNOWN" })).toBe(false);
   });
 

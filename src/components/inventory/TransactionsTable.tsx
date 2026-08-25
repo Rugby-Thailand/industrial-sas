@@ -1,25 +1,5 @@
 "use client";
 
-/**
- * Posted inventory transactions, newest first.
- *
- * This is a *history*, and the one thing it must never look like is an editable
- * list. There is no row action, no inline edit, and no delete: a correction is a
- * second transaction that names the first (`INV-0003-08`), and the reversal
- * column is how that relationship appears on screen — a marked row that points at
- * the transaction it compensates, with the original left exactly as it was.
- *
- * Both a timestamp and a business date are shown, because they answer different
- * questions and can disagree. The instant is when the server accepted the
- * posting, in UTC, rendered in the organization timezone. The business date is
- * the day the warehouse counts it against (`D-05`) — and a receiving shift that
- * crosses midnight in Bangkok produces rows where the two differ by a day. A
- * screen that showed only one of them would make that look like a defect.
- *
- * Like the balances table, it sits in the shared `TableScroller`: the timestamp
- * and business-date columns are exactly the ones a 360px viewport pushes off the
- * right edge, and until now nothing said so and no keyboard could reach them.
- */
 import { useLocale, useTranslations } from "next-intl";
 
 import { StatusBadge } from "@/components/ui/StatusBadge";

@@ -17,7 +17,7 @@ export interface StorageStackPlacementRow {
   readonly placementId: string;
   readonly handlingUnitId: string;
   readonly lpn: string;
-  /** One is the floor; larger numbers are physically above it. */
+
   readonly levelIndex: number;
   readonly widthMm: number;
   readonly depthMm: number;

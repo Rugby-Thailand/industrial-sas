@@ -1,24 +1,3 @@
-/**
- * Integration tier — the inbound primitives composed, with no Convex.
- *
- * The unit tiers prove each module in isolation. This one proves they fit
- * together in the shape the inbound slice needs: a supplier label is scanned and
- * classified, its GTIN selects an item, its lot and expiry become a business date,
- * a quantity captured in cases converts exactly to base minor units, a pallet is
- * given a licence plate, and two lots are ordered for rotation against a Bangkok
- * business date.
- *
- * Everything below is synthetic and pure. There is no `convex-test` world here on
- * purpose: `convex/model/**` has no Convex imports (plan §6.2, enforced by
- * `pnpm verify:tenant-boundary`), so composing it needs no backend — and the
- * absence of one is what makes this suite evidence about the algebra rather than
- * about a harness.
- *
- * What this is **not**: a receiving flow. There is no purchase order, no receipt,
- * no ledger posting, and no persistence. Resolving a GTIN to an item is a `Map`
- * lookup here; in production it is a tenant-scoped indexed read that does not
- * exist yet.
- */
 import { describe, expect, it } from "vitest";
 
 import {
@@ -61,14 +40,9 @@ import { formatQuantity } from "../../convex/model/uom/quantity";
 import { makeRatio } from "../../convex/model/uom/ratio";
 import { expectError, expectOk } from "../fixtures/domain-results";
 
-/* -------------------------------------------------------------------------- */
-/* Synthetic master data                                                       */
-/* -------------------------------------------------------------------------- */
-
 const ratio = (numerator: number, denominator: number) =>
   expectOk(makeRatio(numerator, denominator));
 
-/** Bolts: base PCS, a case of 12, a pallet of 40 cases. */
 const boltProfile: ItemUomProfile = expectOk(
   makeItemUomProfile({
     itemKey: "ITEM-BOLT-M8",
@@ -80,7 +54,6 @@ const boltProfile: ItemUomProfile = expectOk(
   }),
 );
 
-/** Resin: base KG, sold in 200.5 kg drums. */
 const resinProfile: ItemUomProfile = expectOk(
   makeItemUomProfile({
     itemKey: "ITEM-RESIN",
@@ -89,7 +62,6 @@ const resinProfile: ItemUomProfile = expectOk(
   }),
 );
 
-/** The item master, keyed by the GTIN a supplier prints (`G-043`). */
 const itemsByGtin: ReadonlyMap<string, ItemUomProfile> = new Map([
   ["10614141999993", boltProfile],
   ["10614141888884", resinProfile],
@@ -97,7 +69,6 @@ const itemsByGtin: ReadonlyMap<string, ItemUomProfile> = new Map([
 
 const namespace = expectOk(makeLpnNamespace("org_acme", "PA"));
 
-/** A fixed entropy source: the pallet label is reproducible in a test. */
 const entropy: EntropySource = (byteLength) =>
   new Uint8Array(Array.from({ length: byteLength }, (_u, index) => index + 11));
 
@@ -106,20 +77,10 @@ const scanPolicy: ScanResolutionPolicy = {
   namespaces: [namespace],
 };
 
-/** 2026-08-03T17:30:00Z — the evening of 3 August in UTC, the 4th in Bangkok. */
 const receiptInstant = 1_785_778_200_000;
 
-/**
- * Builds an element string from AI/value pairs, the way a supplier's printer
- * concatenates them. Every AI used here is predefined-length or last in the
- * string, so no FNC1 is required.
- */
 const label = (...pairs: readonly (readonly [string, string])[]): string =>
   pairs.map(([ai, value]) => `${ai}${value}`).join("");
-
-/* -------------------------------------------------------------------------- */
-/* The composition under test                                                  */
-/* -------------------------------------------------------------------------- */
 
 interface CapturedLine {
   readonly itemKey: string;
@@ -135,11 +96,6 @@ type CaptureFailure =
   | { readonly step: "QUANTITY"; readonly reason: string }
   | { readonly step: "LOT"; readonly reason: string };
 
-/**
- * One captured receipt line, assembled from the primitives in the order the
- * handheld would use them. Returns a failure rather than throwing, so each step's
- * refusal is observable.
- */
 function captureLine(input: {
   readonly rawScan: string;
   readonly capturedUom: string;
@@ -218,9 +174,7 @@ function captureLine(input: {
     lotCode = normalized.value;
   }
 
-  // A month-precision expiry resolves to the last usable day, which is what GS1
-  // means by an expiration month — and the policy is stated here, not guessed by
-  // the parser.
+  // Month-only GS1 dates require an explicit policy; never invent a day.
   const expiresOn =
     scan.expirationDate === null
       ? null
@@ -254,10 +208,6 @@ function captureLine(input: {
   };
 }
 
-/* -------------------------------------------------------------------------- */
-/* Tests                                                                       */
-/* -------------------------------------------------------------------------- */
-
 describe("scan, resolve, convert, date", () => {
   it("captures a supplier label into an exact base quantity and a business date", () => {
     const result = captureLine({
@@ -274,11 +224,11 @@ describe("scan, resolve, convert, date", () => {
     if (!result.ok) return;
     expect(result.line).toEqual({
       itemKey: "ITEM-BOLT-M8",
-      // 3 cases of 12 pieces: 36 pieces, exactly, in thousandths.
+
       baseQuantity: "36.000",
       lotCode: "LOT-A1",
       expiresOn: { year: 2026, month: 8, day: 31 },
-      // 17:30 UTC is already the next day in Bangkok (D-05).
+
       receivedOn: { year: 2026, month: 8, day: 4 },
     });
     expect(expectOk(businessDateToIso(result.line.receivedOn))).toBe(
@@ -306,7 +256,6 @@ describe("scan, resolve, convert, date", () => {
   });
 
   it("rejects a half drum instead of rounding it into the ledger", () => {
-    // Half of a 200.5 kg drum is 100.25 kg, which three decimals *can* hold…
     const exact = captureLine({
       rawScan: label(["01", "10614141888884"], ["10", "LOT-R1"]),
       capturedUom: "DRUM",
@@ -408,8 +357,7 @@ describe("building the pallet", () => {
     });
     const rescanned = expectOk(resolveScan(`${lpn.value}\r\n`, scanPolicy));
     expect(rescanned.interpretation).toEqual({ kind: "INTERNAL_LPN", lpn });
-    // The printed value is reproducible from the same clock and entropy, which is
-    // what makes a reprint (`G-046`) distinguishable from a relabel.
+
     expect(
       expectOk(
         generateInternalLpn({ namespace, nowMs: receiptInstant, entropy }),
@@ -434,7 +382,6 @@ describe("building the pallet", () => {
 describe("rotation over what was received", () => {
   const asOf = expectOk(businessDateFromInstant(receiptInstant, ASIA_BANGKOK));
 
-  /** Three lots of the bolt item, as they would arrive from three labels. */
   const lots: readonly StockRotationCandidate[] = [
     {
       candidateKey: "bucket-lot-c",
@@ -469,8 +416,7 @@ describe("rotation over what was received", () => {
       lotCode: "LOT-B2",
       receivedOn: asOf,
       receiptSequence: 2,
-      // Expired the day before this receipt: still physically present, and not
-      // available for work.
+
       expirationDate: expectOk(
         parseGs1Expiry(
           label(["01", "10614141999993"], ["17", "260803"], ["10", "LOT-B2"]),
@@ -514,7 +460,6 @@ describe("rotation over what was received", () => {
       orderForRotation(lots, { ...fefo, strategy: "FIFO" }, { asOf }),
     );
     expect(order.ordered.map((ranking) => ranking.candidate.lotCode)).toEqual([
-      // Received a day earlier, despite expiring five months later.
       "LOT-C3",
       "LOT-A1",
     ]);
@@ -533,11 +478,6 @@ describe("rotation over what was received", () => {
   });
 
   it("keeps expired stock out under every rotation source", () => {
-    // §5 Q23 lets an item class rotate by manufacture or best-before date. That
-    // chooses the *order*; it must not change which stock has expired. Reading
-    // expiry off the configured rotation date made `LOT-B2` — expired the day
-    // before this receipt — available for work as soon as the tenant rotated by
-    // anything other than expiry.
     const withManufactureDates = lots.map((lot) => ({
       ...lot,
       manufactureDate: asOf,
@@ -568,8 +508,6 @@ describe("rotation over what was received", () => {
   });
 
   it("does not treat an old manufacture date as an expiry", () => {
-    // The mirror image: a lot made years ago with a valid expiry is old, not
-    // expired, and a manufacture-date rotation must still offer it first.
     const oldButGood = {
       ...(lots[1] as StockRotationCandidate),
       candidateKey: "bucket-lot-old",
@@ -605,9 +543,6 @@ describe("rotation over what was received", () => {
 
 describe("a bare pallet label is never reinterpreted", () => {
   it("refuses a valid bare SSCC while the tenant has not enabled them", () => {
-    // `10` + 16 digits is both a valid AI 10 element string and, for this digit
-    // string, a valid SSCC. The capture path used to read it as a lot code, which
-    // would have posted stock against a lot nobody printed.
     const bareSscc = "106141411234567897";
     expect(expectOk(lpnFromSscc(bareSscc)).value).toBe(bareSscc);
     const rejection = expectError(resolveScan(bareSscc, scanPolicy));
@@ -616,8 +551,7 @@ describe("a bare pallet label is never reinterpreted", () => {
     const enabled = expectError(
       resolveScan(bareSscc, { ...scanPolicy, bareSscc: true }),
     );
-    // Enabling bare SSCCs does not resolve this one either: both readings then
-    // exist, so it is ambiguous. Either way it is a named refusal.
+
     expect(enabled.code).toBe("AMBIGUOUS_SCAN");
     if (enabled.code !== "AMBIGUOUS_SCAN") return;
     expect(enabled.candidates).toEqual(["GS1", "SSCC"]);
@@ -637,7 +571,6 @@ describe("a bare pallet label is never reinterpreted", () => {
   });
 });
 
-/** The expiry a label carries, as a business date. Used to build the lots above. */
 function parseGs1Expiry(raw: string) {
   const scan = expectOk(parseGs1ElementString(raw, { referenceYear: 2026 }));
   const expiry = scan.expirationDate;

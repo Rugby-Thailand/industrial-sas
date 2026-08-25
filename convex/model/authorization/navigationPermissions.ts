@@ -1,12 +1,3 @@
-/**
- * The bounded permission vocabulary used to decide which application routes are
- * useful to the current membership.
- *
- * This is presentation guidance, not authorization. Every destination still
- * enforces its own permission through the tenant function wrappers. Keeping the
- * vocabulary in a pure shared module lets the server return only these known
- * grants and lets the browser map them to routes without duplicating strings.
- */
 export const NAVIGATION_PERMISSION = Object.freeze({
   dashboard: "reporting.dashboard.read",
   items: "masterData.item.read",

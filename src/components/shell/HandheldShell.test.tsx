@@ -11,15 +11,6 @@ vi.mock("@/i18n/navigation", () => navigationMock);
 
 import { HandheldShell } from "./HandheldShell";
 
-/**
- * The handheld shell is a *handheld* shell wherever it is opened.
- *
- * On a 1280px desktop the same markup stretched a one-task screen across the
- * whole window — a single field with a metre of empty space beside it. jsdom
- * lays nothing out, so what is asserted is the constraint that produces the
- * shape: a bounded, centred column. The cap is above every phone width this
- * application targets, so a 360px viewport is unaffected.
- */
 describe("HandheldShell layout", () => {
   const render = () =>
     renderWithIntl(
@@ -37,8 +28,6 @@ describe("HandheldShell layout", () => {
   });
 
   it("keeps the column full-height and full-width on a narrow screen", () => {
-    // `max-w-md` is 448 CSS pixels and `w-full` is what makes a 360px viewport
-    // fill the column, so nothing here narrows a scanner's screen.
     render();
 
     const workspace = screen.getByTestId("handheld-workspace");

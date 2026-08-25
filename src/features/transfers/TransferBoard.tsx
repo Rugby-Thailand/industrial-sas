@@ -206,8 +206,7 @@ function TransferWorkspace({
               name: "sourceReference",
               label: t("sourceReference"),
               kind: "text",
-              // Optional cross-document pointer; the kind above already
-              // classifies the request.
+
               importance: "secondary",
             },
             {
@@ -449,8 +448,7 @@ function TransferExecution({
   readonly resolutionMode: "RECEIVED_AT_DESTINATION" | "RETURNED_TO_SOURCE";
 }) {
   const t = useTranslations("Transfers");
-  // The SKU an operator recognises, never the document ID; the ID keeps a
-  // deactivated item legible rather than blank.
+
   const skuOf = (itemId: string) =>
     items.find((item) => item.itemId === itemId)?.sku ?? itemId;
   const lineOptions = lines.map((line) => ({
@@ -494,8 +492,7 @@ function TransferExecution({
               kind: "number",
               required: true,
             },
-            // Optional trailer facts captured only when the truck carries
-            // them; the line, tag, and quantity are the dispatch decision.
+
             {
               name: "sealNumber",
               label: t("seal"),
@@ -564,11 +561,7 @@ function TransferExecution({
               required: true,
               initialValue: "0",
             },
-            /*
-             * The discrepancy detail is the exception path: most receipts post
-             * with the zero default above, so kind and note wait behind "More
-             * options". A server refusal that blames either reopens the group.
-             */
+
             {
               name: "discrepancyKind",
               label: t("discrepancyKind"),

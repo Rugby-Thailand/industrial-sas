@@ -1,30 +1,3 @@
-/**
- * The engineering queue: what design work is owed, and to which order line.
- *
- * Status: **implemented** (Phase 5A).
- *
- * A design request is raised by `addCustomerOrderLine` when the exact-match
- * lookup finds no released revision (`INV-0013-01`). It is never created by
- * hand: a request with no line behind it would be a drawing nobody ordered, and
- * fulfilling it would pin a revision to nothing.
- *
- * ### Why fulfilment writes a sales row under an engineering permission
- *
- * `fulfilDesignRequest` patches `customerOrderLines` — a sales table — while the
- * caller holds `engineering.request.assign`. That is the point of the step: the
- * line is `AWAITING_DESIGN` precisely because engineering owes it something, and
- * the moment engineering delivers, the line is ready. Requiring a sales
- * permission as well would mean an engineer cannot finish their own work without
- * a salesperson at their shoulder; requiring sales to do it would mean sales
- * choosing which revision a factory builds from.
- *
- * What the permission does *not* let an engineer do is decide what "delivered"
- * means. The revision must already be `RELEASED`, which took
- * `engineering.masterCard.release` and a second pair of eyes, and its design key
- * must equal the key the request was raised for — so fulfilment cannot quietly
- * substitute a different box for the one the customer ordered
- * (`INV-0013-02`).
- */
 import { v, type Infer } from "convex/values";
 
 import type { Doc, Id } from "../_generated/dataModel";
@@ -46,6 +19,7 @@ import { mutationWithOrg, queryWithOrg } from "../lib/tenantFunctions";
 import type { TenantOrgId } from "../lib/tenantDb";
 import {
   boxSpecification,
+  designRequirementKey,
   designRequestPriority,
   designRequestStatus,
   masterCardRevisionStatus,
@@ -69,10 +43,6 @@ import {
   type DesignSpecification,
 } from "../model/orderToShip/designSpecification";
 
-/* -------------------------------------------------------------------------- */
-/* Operations                                                                  */
-/* -------------------------------------------------------------------------- */
-
 export const ENGINEERING_REQUEST_OPERATIONS = Object.freeze({
   assignRequest: "engineering.request.assign",
   progressRequest: "engineering.request.progress",
@@ -80,33 +50,14 @@ export const ENGINEERING_REQUEST_OPERATIONS = Object.freeze({
   confirmSimilar: "engineering.request.confirmSimilar",
 });
 
-/* -------------------------------------------------------------------------- */
-/* Documents                                                                   */
-/* -------------------------------------------------------------------------- */
-
 type RequestDocument = Doc<"designRequests">;
 type LineDocument = Doc<"customerOrderLines">;
 type OrderDocument = Doc<"customerOrders">;
 type RevisionDocument = Doc<"masterCardRevisions">;
 type CardDocument = Doc<"masterCards">;
 
-/** Only enough of a membership to answer "is this person a member here". */
 type MembershipRow = Doc<"memberships">;
 
-/* -------------------------------------------------------------------------- */
-/* Writes                                                                      */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Put a name against an open request, or take it off one.
- *
- * `ASSIGNED` and `OPEN` are distinct because "nobody has picked this up" and
- * "someone owes it" are different answers for a salesperson chasing a date.
- * Passing no `assignedToUserId` returns the request to the unclaimed queue.
- *
- * Refused once the request is `FULFILLED` or `CANCELLED`: assigning finished
- * work to somebody puts a task in their queue that has nothing left to do.
- */
 export const assignDesignRequest = mutationWithOrg({
   args: {
     requestId: v.string(),
@@ -147,11 +98,6 @@ export const assignDesignRequest = mutationWithOrg({
     );
     if (!assignment.ok) return refusal(assignment.error);
 
-    // Checked against `memberships`, not `users`. `users` is the cross-org
-    // identity mirror and has no `orgId`, so "does this user exist" is not a
-    // question this tenant is entitled to ask — a stranger's ID would answer
-    // yes and leak that they exist somewhere. "Is this person an active member
-    // here" is the question that actually matters, and it is tenant-scoped.
     if (args.assignedToUserId !== undefined) {
       const membership = await ctx.tenantDb
         .byIndex<MembershipRow>("memberships", "by_orgId_status_userId", [
@@ -188,7 +134,6 @@ export const assignDesignRequest = mutationWithOrg({
   },
 });
 
-/** Advance assigned engineering work through visible execution/review states. */
 export const progressDesignRequest = mutationWithOrg({
   args: {
     requestId: v.string(),
@@ -245,21 +190,6 @@ export const progressDesignRequest = mutationWithOrg({
   },
 });
 
-/**
- * Close a request with a released revision, and pin the line to it.
- *
- * Four things are checked, and each rules out a different way of getting the
- * wrong box onto a factory floor:
- *
- * 1. The request is still open — a fulfilled request already has an answer.
- * 2. The revision is `RELEASED` — a draft describes a design nobody approved.
- * 3. The revision's design key equals the request's — otherwise this is a
- *    different box than the one the customer ordered, and nothing downstream
- *    would ever notice (`INV-0013-02`).
- * 4. The line is still `AWAITING_DESIGN` — re-pinning a ready line would
- *    silently change what a packet is about to be cut from, and a handed-off
- *    line has already been sent.
- */
 export const fulfilDesignRequest = mutationWithOrg({
   args: {
     requestId: v.string(),
@@ -358,11 +288,6 @@ export const fulfilDesignRequest = mutationWithOrg({
 
     if (!outcome.ok) return refusal(outcome.error);
 
-    /*
-     * The line and the request move together. A `FULFILLED` request whose line
-     * is still `AWAITING_DESIGN` would be a drawing nobody can use and a queue
-     * that says the work is done.
-     */
     if (!outcome.value.replayed) {
       await ctx.tenantDb.patch("customerOrderLines", line._id, {
         status: fulfilment.value,
@@ -385,7 +310,6 @@ export const fulfilDesignRequest = mutationWithOrg({
   },
 });
 
-/** Human-authorized reuse of a similar released design, with reason evidence. */
 export const confirmSimilarDesign = mutationWithOrg({
   args: {
     requestId: v.string(),
@@ -512,10 +436,6 @@ export const confirmSimilarDesign = mutationWithOrg({
   },
 });
 
-/* -------------------------------------------------------------------------- */
-/* Reads                                                                       */
-/* -------------------------------------------------------------------------- */
-
 const requestValidator = v.object({
   designRequestId: v.id("designRequests"),
   requestNumber: v.string(),
@@ -534,7 +454,7 @@ const requestValidator = v.object({
   requirementReadiness: v.optional(
     v.union(v.literal("INCOMPLETE"), v.literal("READY")),
   ),
-  missingRequirements: v.optional(v.array(v.string())),
+  missingRequirements: v.optional(v.array(designRequirementKey)),
   requirementsRecordedByUserId: v.optional(v.id("users")),
   requirementsRecordedAt: v.optional(v.number()),
   similarityConfirmation: v.optional(
@@ -547,13 +467,6 @@ const requestValidator = v.object({
   ),
 });
 
-/**
- * The engineering queue, in request-number order.
- *
- * `status` narrows through `by_orgId_status_requestNumber`, which is how the
- * screen shows only what is still owed without paging through years of
- * fulfilled requests to find it.
- */
 export const listDesignRequests = queryWithOrg({
   args: { status: v.optional(designRequestStatus), ...listArgs },
   returns: pageOf(requestValidator),
@@ -630,7 +543,6 @@ export const listDesignRequests = queryWithOrg({
   },
 });
 
-/** Bounded customer candidates ranked for a person; never an automatic match. */
 export const listSimilarReleasedDesigns = queryWithOrg({
   args: { designRequestId: v.id("designRequests") },
   returns: v.array(
@@ -665,14 +577,7 @@ export const listSimilarReleasedDesigns = queryWithOrg({
       line.customerOrderId,
     );
     if (order === null) return [];
-    /*
-     * Suggestions are deliberately the structurally identical design key under
-     * a different customer product code. This indexed definition is complete:
-     * it cannot lose the best candidate behind an arbitrary lexical or score
-     * bucket, and it keeps the reactive read set to at most twenty cards.
-     * Approximate geometry remains a human search concern, never an authority
-     * the server silently widens.
-     */
+
     const cards = await ctx.tenantDb
       .byIndex<CardDocument>("masterCards", "by_orgId_customerId_designKey", [
         { field: "customerId", value: order.customerId },
@@ -725,14 +630,6 @@ export const listSimilarReleasedDesigns = queryWithOrg({
   },
 });
 
-/**
- * The released revisions an engineer may fulfil a request with.
- *
- * Narrowed to `RELEASED` at the index, not filtered after the fact: offering a
- * draft in a picker would be offering a choice `fulfilDesignRequest` refuses,
- * and a filtered page would return fewer rows than asked for and break the
- * caller's "am I done" test.
- */
 export const listReleasedRevisions = queryWithOrg({
   args: { masterCardId: v.id("masterCards"), ...listArgs },
   returns: pageOf(

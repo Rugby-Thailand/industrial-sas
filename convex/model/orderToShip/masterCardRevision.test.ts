@@ -54,7 +54,6 @@ describe("nextRevisionNumber", () => {
   });
 
   it("increments past the highest number ever used, including rejected ones", () => {
-    // Numbers are never reused: "rev 3" must mean one document forever.
     expect(nextRevisionNumber(3)).toStrictEqual({ ok: true, value: 4 });
   });
 
@@ -79,7 +78,6 @@ describe("checkRevisionEdit", () => {
   });
 
   it("refuses a released revision by naming immutability", () => {
-    // This refusal is what makes a pinned revision mean the same thing forever.
     expect(checkRevisionEdit(revision("RELEASED"))).toStrictEqual({
       ok: false,
       error: {
@@ -224,8 +222,6 @@ describe("checkRevisionDecision", () => {
   });
 
   it("refuses the author, on approval and on rejection alike", () => {
-    // A review the author can decide is a record of one person agreeing with
-    // themselves — for approval *and* for rejection.
     for (const decision of ["APPROVE", "REJECT"] as const) {
       expect(
         checkRevisionDecision(inReview, { deciderUserId: AUTHOR, decision }),
@@ -257,7 +253,6 @@ describe("checkRevisionDecision", () => {
   });
 
   it("checks status before identity", () => {
-    // A draft is not decidable by anyone, including a stranger to it.
     expect(
       checkRevisionDecision(revision("DRAFT"), {
         deciderUserId: APPROVER,

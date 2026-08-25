@@ -1,45 +1,3 @@
-/**
- * Master cards and their revisions — the design authority.
- *
- * Status: **implemented** (Phase 5A).
- *
- * A master card is the stable name of a design; a revision is one version of it.
- * Everything downstream — a factory packet, a line's `DESIGN_READY` status, the
- * exact-match lookup a salesperson triggers — points at a *revision*, never at a
- * card, because the card holds no specification of its own to point at
- * (`ADR-0013`).
- *
- * ### Why a released revision is immutable
- *
- * A factory packet pins one exact revision (`INV-0013-04`) and gets printed. If
- * that revision could be edited afterwards, the paper on the shop floor and the
- * record in the system would describe different boxes, and there would be no way
- * to tell which one the operator built from. So `checkRevisionEdit` refuses
- * every edit to a `RELEASED` revision with `RELEASED_IS_IMMUTABLE`, and the only
- * patch this module ever applies to one is `supersededByRevisionId` — a pointer
- * to the newer revision that changes nothing about what the old one claimed.
- *
- * The way to change a released design is a new revision with its own number.
- * Numbers are never reused, including after a rejection: "rev 3" names one
- * document forever, including on paper.
- *
- * ### Why the author cannot approve their own revision, twice over
- *
- * `engineering.masterCard.release` carries `MAKER_CHECKER`, so the authorization
- * evaluator denies when the maker and the actor are the same person
- * (`INV-0006-05`). Independently, `checkRevisionDecision` refuses when the
- * decider is the author *or* the submitter (`INV-0013-03`). Two checks, because
- * they fail differently: the evaluator's is a permission denial recorded in the
- * authorization trail, the kernel's is a domain refusal that names which field —
- * `authoredByUserId` or `submittedByUserId` — made the actor the wrong person.
- * Neither is a substitute for the other.
- *
- * ### Why `ENGINEERING_APPROVER` cannot draft
- *
- * The default role that holds `engineering.masterCard.release` holds neither
- * `draft` nor `submit`. A checker who can become a maker is not a checker; they
- * are one person with two hats and a queue of their own work to sign off.
- */
 import { v } from "convex/values";
 
 import type { Doc } from "../_generated/dataModel";
@@ -98,20 +56,12 @@ import {
 import { planMasterCardDecision } from "../model/orderToShip/masterCardRelease";
 import { MAX_FILES_PER_REVISION } from "../model/orderToShip/masterCardFile";
 
-/* -------------------------------------------------------------------------- */
-/* Operations                                                                  */
-/* -------------------------------------------------------------------------- */
-
 export const ENGINEERING_CARD_OPERATIONS = Object.freeze({
   createCard: "engineering.masterCard.create",
   draftRevision: "engineering.masterCard.draftRevision",
   submitRevision: "engineering.masterCard.submitRevision",
   decideRevision: "engineering.masterCard.decideRevision",
 });
-
-/* -------------------------------------------------------------------------- */
-/* Documents                                                                   */
-/* -------------------------------------------------------------------------- */
 
 type CardDocument = Doc<"masterCards">;
 type RevisionDocument = Doc<"masterCardRevisions">;
@@ -124,7 +74,6 @@ interface ProductionOrderDocument {
   readonly status: string;
 }
 
-/** `(orgId, cardNumber)`: a card number is unique per organization. */
 const cardNumberUniqueness = (
   cardNumber: string,
 ): readonly UniquenessCheck[] => [
@@ -135,13 +84,6 @@ const cardNumberUniqueness = (
   },
 ];
 
-/**
- * `(orgId, customerId, customerProductCode)`: the customer's exact identity.
- *
- * Structural similarity is deliberately allowed across different customer
- * product codes. It may be suggested to a person, but can never choose a card
- * automatically.
- */
 const customerProductUniqueness = (
   customerId: string,
   customerProductCode: string,
@@ -156,7 +98,6 @@ const customerProductUniqueness = (
   },
 ];
 
-/** `(orgId, masterCardId, revisionNumber)`: revision numbers do not repeat. */
 const revisionUniqueness = (
   masterCardId: string,
   revisionNumber: number,
@@ -171,38 +112,10 @@ const revisionUniqueness = (
   },
 ];
 
-/** The longest reviewer note this repository will store. */
 export const MAX_DECISION_NOTE = 500;
 
-/**
- * The most revisions of one card this module will read to find the highest
- * number.
- *
- * The revision-number index reads forward from 1, so finding the top means
- * reading the history — and a read whose size is a property of the card rather
- * than of the request is exactly what `INV-0002-05` forbids. The cap is a bound,
- * and hitting it is a **refusal**, not a truncation: guessing a revision number
- * from a partial history would hand a new document a number an old one already
- * has, and "rev 3" would stop naming one thing. `MAX_REVISION_NUMBER` is 9 999
- * and a real card has single digits, so no card reaches this.
- */
 const MAX_REVISIONS_SCANNED = 100;
 
-/* -------------------------------------------------------------------------- */
-/* Writes                                                                      */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Open a master card with its first draft revision.
- *
- * The card and revision 1 are written together because a card with no revision
- * describes nothing: it has no specification of its own, so it would be a name
- * with no design behind it occupying the customer-product identity slot.
- *
- * `designKey` on the card starts as the *drafted* key and is repointed when a
- * revision is released. This remains an advisory structural fingerprint; the
- * customer-product uniqueness check above prevents competing draft authorities.
- */
 export const createMasterCard = mutationWithOrg({
   args: {
     requestId: v.string(),
@@ -300,14 +213,6 @@ export const createMasterCard = mutationWithOrg({
   },
 });
 
-/**
- * Draft the next revision of an existing card.
- *
- * Refused while another revision of the same card is still open — `DRAFT` or
- * `IN_REVIEW`. Two open revisions of one card is two answers to "what are we
- * about to release", and the reviewer of the first would be deciding about a
- * design that a second draft has already moved past.
- */
 export const draftMasterCardRevision = mutationWithOrg({
   args: {
     requestId: v.string(),
@@ -366,11 +271,6 @@ export const draftMasterCardRevision = mutationWithOrg({
       });
     }
 
-    /*
-     * The highest existing number, from the last row of the number index rather
-     * than a count: numbers are never reused after a rejection, so a count would
-     * hand a rejected revision's number to a new document.
-     */
     const highest = await ctx.tenantDb
       .byIndex<RevisionDocument>(
         "masterCardRevisions",
@@ -428,14 +328,6 @@ export const draftMasterCardRevision = mutationWithOrg({
   },
 });
 
-/**
- * Put a draft revision up for review.
- *
- * Requires at least one attached file. A revision with no dieline and no artwork
- * is nothing to review, and approving one would produce a `RELEASED` revision a
- * factory packet could pin and a factory could not build from
- * (`INV-0013-05`).
- */
 export const submitMasterCardRevision = mutationWithOrg({
   args: {
     requestId: v.string(),
@@ -470,11 +362,6 @@ export const submitMasterCardRevision = mutationWithOrg({
     if (!replay.ok) return refusal(replay.error);
     if (replay.value !== null) return written(replay.value);
 
-    /*
-     * `take(1)` and not a count: the kernel asks whether *any* file is attached,
-     * and reading the whole set to answer a boolean would read a revision's
-     * entire file list on every submission.
-     */
     const files = await ctx.tenantDb
       .byIndex<{
         readonly _id: string;
@@ -565,18 +452,6 @@ export const submitMasterCardRevision = mutationWithOrg({
   },
 });
 
-/**
- * Approve or reject a revision under review.
- *
- * Approval is the moment a design becomes buildable, and it does three things at
- * once, in one transaction: the revision becomes `RELEASED`, the card's
- * `releasedRevisionId` and `designKey` repoint to it, and the revision it
- * replaces receives only a `supersededByRevisionId` pointer. Splitting them across mutations would leave a
- * window where a card points at a revision that is not released, or two
- * revisions of one card both claim to be current.
- *
- * Rejection writes only the revision: nothing downstream ever pointed at it.
- */
 export const decideMasterCardRevision = mutationWithOrg({
   args: {
     requestId: v.string(),
@@ -642,11 +517,6 @@ export const decideMasterCardRevision = mutationWithOrg({
       requestId: args.requestId,
     });
 
-    /*
-     * The revision being replaced is read *before* the write, so an approval
-     * that cannot legally supersede the current release — a stale draft whose
-     * number is lower — is refused rather than half-applied.
-     */
     const previous =
       card.releasedRevisionId === undefined
         ? null
@@ -807,19 +677,6 @@ export const decideMasterCardRevision = mutationWithOrg({
   },
 });
 
-/* -------------------------------------------------------------------------- */
-/* Policy                                                                      */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Who made this revision, read from the revision itself.
- *
- * The submitter when there is one, the author otherwise: submitting work for
- * review is an endorsement of it, so the submitter is the maker the evaluator
- * must keep away from the decision. `checkRevisionDecision` independently
- * refuses both people, so this fact being the submitter does not let the author
- * through.
- */
 async function revisionMakerPolicy(
   ctx: TenantPolicyContext,
   args: { readonly masterCardRevisionId: string },
@@ -847,11 +704,6 @@ async function revisionMakerPolicy(
   });
 }
 
-/* -------------------------------------------------------------------------- */
-/* Internals                                                                   */
-/* -------------------------------------------------------------------------- */
-
-/** The card's open revision, if one exists. `DRAFT` and `IN_REVIEW` both count. */
 async function openRevisionOf(
   tenantDb: TenantDocumentAccess,
   masterCardId: string,
@@ -872,7 +724,6 @@ async function openRevisionOf(
   return null;
 }
 
-/** Insert revision 1 alongside a freshly created card, and audit it. */
 async function insertRevision(
   tenantDb: TenantDocumentAccess,
   context: Parameters<typeof appendDomainAudit>[0],
@@ -901,10 +752,6 @@ async function insertRevision(
   return revisionId;
 }
 
-/* -------------------------------------------------------------------------- */
-/* Reads                                                                       */
-/* -------------------------------------------------------------------------- */
-
 const cardValidator = v.object({
   masterCardId: v.id("masterCards"),
   cardNumber: v.string(),
@@ -931,7 +778,6 @@ const revisionValidator = v.object({
   supersededByRevisionId: v.optional(v.id("masterCardRevisions")),
 });
 
-/** Cards, in card-number order. */
 export const listMasterCards = queryWithOrg({
   args: { status: v.optional(masterDataStatus), ...listArgs },
   returns: pageOf(cardValidator),
@@ -971,7 +817,6 @@ export const listMasterCards = queryWithOrg({
   },
 });
 
-/** The revision history of one card, oldest number first. */
 export const listMasterCardRevisions = queryWithOrg({
   args: {
     masterCardId: v.id("masterCards"),

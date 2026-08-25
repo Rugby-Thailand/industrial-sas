@@ -1,36 +1,3 @@
-/**
- * The colour tokens, checked against WCAG 2.2 by measurement rather than by
- * comment.
- *
- * `globals.css` states an invariant about itself — "every foreground below
- * clears 4.5:1 against the surface it is used on, in both schemes" — and until
- * this file existed nothing checked it. It was not true: the primary button's
- * hover fill was written as `bg-primary/80`, an *alpha* modifier, so the accent
- * was composited against the light surface behind it and white-on-accent
- * measured 4.34:1. Nothing failed, because the only thing asserting the claim
- * was the sentence making it.
- *
- * So the palette is parsed out of the stylesheet — not restated here, which
- * would be a second copy to forget — and every pair a component actually paints
- * is measured in both schemes.
- *
- * ### Thresholds
- *
- * - **4.5:1** for text (`WCAG 2.2` 1.4.3 AA). Every foreground here is used at
- *   `text-sm`/`text-xs`, which is never "large text", so the large-text 3:1
- *   allowance does not apply to anything below.
- * - **3:1** for a non-text boundary or indicator (1.4.11) — the focus ring and
- *   `border-strong`.
- *
- * ### What is deliberately not asserted
- *
- * `--token-disabled` measures 4.42:1 on `canvas` and 4.11:1 on `raised` in the
- * light scheme. That is *not* a violation and it is not fixed here: 1.4.3
- * exempts text that is part of an inactive control, and lifting the token until
- * it passed would make a disabled control look enabled, which is a worse
- * failure than the one being avoided. It is called out rather than silently
- * omitted so the next person does not "fix" it.
- */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -40,14 +7,6 @@ const STYLESHEET = join(process.cwd(), "src", "app", "globals.css");
 
 type Palette = Readonly<Record<string, string>>;
 
-/**
- * Every `--token-*: #rrggbb` declaration inside one block of the stylesheet.
- *
- * Hex only, on purpose: the palette is authored in hex and a token that turned
- * up as `oklch(...)` or a `var()` alias would silently contribute nothing to a
- * regex that skipped it. Anything unparseable therefore has to fail the count
- * assertion below rather than quietly reduce coverage.
- */
 function tokensIn(block: string): Palette {
   const found: Record<string, string> = {};
   for (const [, name, value] of block.matchAll(
@@ -78,12 +37,8 @@ const darkAt = css.indexOf("@media (prefers-color-scheme: dark)");
 if (darkAt < 0) throw new Error("No dark colour-scheme block in globals.css");
 
 const light = tokensIn(blockAfter(css, css.indexOf(":root")));
-/* The dark block overrides a subset in principle; spreading keeps any it omits. */
-const dark: Palette = { ...light, ...tokensIn(blockAfter(css, darkAt)) };
 
-/* -------------------------------------------------------------------------- */
-/* WCAG 2.x relative luminance and contrast                                    */
-/* -------------------------------------------------------------------------- */
+const dark: Palette = { ...light, ...tokensIn(blockAfter(css, darkAt)) };
 
 const channel = (value: number): number => {
   const c = value / 255;
@@ -100,18 +55,16 @@ const contrast = (a: string, b: string): number => {
   return (Math.max(x!, y!) + 0.05) / (Math.min(x!, y!) + 0.05);
 };
 
-/** One pair a component paints, and the rule it has to satisfy. */
 interface Pair {
   readonly foreground: string;
   readonly background: string;
   readonly minimum: 3 | 4.5;
-  /** Where this combination is rendered, so a failure names something real. */
+
   readonly where: string;
 }
 
 const SURFACES = ["canvas", "surface", "raised"] as const;
 
-/** Foregrounds used as *text* on the three page surfaces. */
 const TEXT_ON_SURFACES = [
   "text",
   "muted",
@@ -138,11 +91,6 @@ const PAIRS: readonly Pair[] = [
     where: "Button variant=default at rest, and a highlighted SelectItem",
   },
   {
-    /*
-     * The regression this file was written for. An opaque hover token is what
-     * makes this measurable at all — an alpha fill has no single answer, because
-     * its value depends on whatever surface the button was placed on.
-     */
     foreground: "accent-contrast",
     background: "accent-hover",
     minimum: 4.5,
@@ -202,8 +150,6 @@ describe.each([
 
 describe("the stylesheet itself", () => {
   it("parses both schemes rather than silently measuring nothing", () => {
-    // A regex that stopped matching would otherwise turn every assertion above
-    // into a vacuous pass over an empty palette.
     expect(Object.keys(light).length).toBeGreaterThanOrEqual(20);
     expect(Object.keys(dark).length).toBe(Object.keys(light).length);
   });
@@ -212,8 +158,7 @@ describe("the stylesheet itself", () => {
     const shared = Object.keys(light).filter(
       (name) => light[name] === dark[name],
     );
-    // `accent-contrast` is white in light and near-black in dark, and so on:
-    // no token should carry a light value into the dark scheme by accident.
+
     expect(shared).toEqual([]);
   });
 

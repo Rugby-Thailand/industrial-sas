@@ -1,25 +1,3 @@
-/**
- * Quality control: held stock, and the balanced transition that releases it.
- *
- * The design decision this module exists to enforce is `ADR-0007` §6: a
- * disposition is a **ledger transition**, never a status edit. Setting a field on
- * the receipt line would move stock between buckets that no transaction records,
- * so a balance query and the transaction history would disagree — and the
- * disagreement would be invisible until somebody counted the rack.
- *
- * So every disposition posts a `STATUS_CHANGE` with two lines: the held quantity
- * out of `QC_HOLD` at the location it sits in, and the same quantity into the
- * target status at the same location. The transaction balances, the projection
- * follows, and the movement is auditable (`INV-0007-06`).
- *
- * ### Why release and scrap need a second person and the others do not
- *
- * `RELEASE` and `SCRAP` are the irreversible ones in practice: released stock
- * ships, scrapped stock is destroyed. `QUARANTINE`, `REJECT`, and `REWORK` keep
- * the stock unavailable and recoverable, so a single inspector may take them and
- * the delivery is not blocked waiting for a supervisor. The split lives in
- * `qcPolicy`, and this module reads it rather than restating it.
- */
 import { v } from "convex/values";
 
 import { postLedgerTransaction } from "../lib/inventoryLedgerStore";
@@ -88,13 +66,6 @@ interface ItemDocument {
   readonly baseUom: string;
 }
 
-/**
- * Post the balanced transition a disposition describes.
- *
- * Both lines name the same location, the same lot, and the same handling unit;
- * only the stock status differs. That is what makes it a *status change* rather
- * than a move, and it is why the transaction type says so.
- */
 async function postDisposition(
   ctx: TenantFunctionContext,
   input: {
@@ -169,7 +140,6 @@ async function postDisposition(
   return { ok: true, transactionId: posted.value.result.transactionId };
 }
 
-/** Read the rows a disposition needs, or say which reference is missing. */
 async function loadInspection(
   ctx: TenantFunctionContext,
   inspectionId: string,
@@ -187,11 +157,7 @@ async function loadInspection(
     "qcInspections",
     inspectionId,
   );
-  // The accessor proves the tenant; it does not prove the *site*. An inspection
-  // belonging to another warehouse answers exactly as one that does not exist,
-  // so a warehouse-scoped actor can neither dispose it nor learn it is there
-  // (`INV-0006-04`). The parked branch below writes with no ledger posting to
-  // fall back on, so this is the only place that check can happen.
+
   if (inspection === null || inspection.warehouseId !== warehouseId) {
     return {
       ok: false,
@@ -226,7 +192,7 @@ const dispositionOutcomeValidator = v.union(
     documentId: v.string(),
     replayed: v.boolean(),
     status: inspectionStatus,
-    /** Present only when the disposition posted; a parked one has no movement. */
+
     transactionId: v.optional(v.string()),
     toStatus: v.string(),
   }),
@@ -243,15 +209,6 @@ const dispositionOutcomeValidator = v.union(
   }),
 );
 
-/**
- * Decide what happens to held stock.
- *
- * A disposition that needs no second person posts immediately. One that does is
- * *parked* — recorded with its reason and its submitter, and moved to
- * `PENDING_APPROVAL` — and posts nothing. Parking rather than posting-and-
- * reversing is the difference between "this has not been decided yet" and "this
- * happened and was undone", and only the first is true.
- */
 export const submitDisposition = mutationWithOrg({
   args: {
     requestId: v.string(),
@@ -296,11 +253,7 @@ export const submitDisposition = mutationWithOrg({
         reasonCodeId: args.reasonCodeId,
         submittedByUserId: ctx.tenant.actor._id,
       });
-      /*
-       * The inspection leaves the queue and joins the parked backlog. Both
-       * counters move together, in this transaction, so a supervisor's two tiles
-       * cannot disagree about the same inspection (`ADR-0011` §6).
-       */
+
       await moveInspectionCounters(ctx, args.warehouseId, {
         pending: -1,
         parked: 1,
@@ -331,10 +284,9 @@ export const submitDisposition = mutationWithOrg({
       submittedByUserId: ctx.tenant.actor._id,
       transactionId: posted.transactionId,
     });
-    // Decided without a second person, so it never entered the parked backlog.
+
     await moveInspectionCounters(ctx, args.warehouseId, { pending: -1 });
-    // The receipt line now holds stock in a different bucket; the line's own
-    // status field must follow, or the putaway gate would read a stale hold.
+
     await ctx.tenantDb.patch("receiptLines", loaded.line._id, {
       stockStatus: plan.value.toStatus,
     });
@@ -350,14 +302,6 @@ export const submitDisposition = mutationWithOrg({
   },
 });
 
-/**
- * Move the two inspection counters together.
- *
- * One helper rather than two call sites per transition, because the pair is a
- * single fact — an inspection is in exactly one of the two backlogs — and two
- * separately-written adjustments are two chances to update one and forget the
- * other.
- */
 async function moveInspectionCounters(
   ctx: TenantFunctionContext,
   warehouseId: string,
@@ -384,14 +328,6 @@ async function moveInspectionCounters(
   }
 }
 
-/**
- * The maker-checker facts for approving a parked disposition.
- *
- * The maker is the inspector who submitted it, read from the tenant's own row.
- * The evaluator denies when the maker and the actor are the same person
- * (`INV-0006-05`), so an inspector cannot approve their own release — which is
- * the entire reason release and scrap are parked in the first place.
- */
 async function approvalPolicy(
   ctx: TenantPolicyContext,
   args: { readonly inspectionId: string },
@@ -421,7 +357,6 @@ async function approvalPolicy(
   });
 }
 
-/** Approve a parked disposition and post its movement (`INV-0007-06`). */
 export const approveDisposition = mutationWithOrg({
   args: {
     requestId: v.string(),
@@ -475,11 +410,6 @@ export const approveDisposition = mutationWithOrg({
       stockStatus: plan.value.toStatus,
     });
 
-    /*
-     * A release makes the stock putawayable, so the task is created here rather
-     * than at receipt. Creating it at receipt would have put held stock in the
-     * putaway queue, which is exactly the bypass `INV-0007-05` forbids.
-     */
     if (plan.value.toStatus === "AVAILABLE") {
       const existing = await ctx.tenantDb
         .byIndex<{ readonly _id: string; readonly orgId: TenantOrgId }>(
@@ -524,10 +454,6 @@ export const approveDisposition = mutationWithOrg({
   },
 });
 
-/* -------------------------------------------------------------------------- */
-/* Reads                                                                       */
-/* -------------------------------------------------------------------------- */
-
 const inspectionValidator = v.object({
   inspectionId: v.id("qcInspections"),
   warehouseId: v.id("warehouses"),
@@ -540,7 +466,6 @@ const inspectionValidator = v.object({
   disposition: v.optional(qcDisposition),
 });
 
-/** The inspection queue at one site, by status. */
 export const listInspections = queryWithOrg({
   args: {
     warehouseId: v.id("warehouses"),
@@ -590,5 +515,4 @@ export const listInspections = queryWithOrg({
   },
 });
 
-/** The page cap, re-exported so a client can size its own loop. */
 export const maxQualityPageSize = MAX_JOB_PAGE_SIZE;

@@ -28,11 +28,6 @@ afterEach(() => {
   window.localStorage.clear();
 });
 
-/**
- * The SLI is only worth having if it is actually emitted by the screen, with
- * the dimensions the series depends on and nothing that would carry a tenant's
- * data out of the building.
- */
 describe("ledger read SLI, as the panel emits it", () => {
   it("reports a successful server read", () => {
     const port = recordingPort();
@@ -95,8 +90,7 @@ describe("ledger read SLI, as the panel emits it", () => {
     );
 
     const serialized = JSON.stringify(port.events);
-    // A bucket key, a SKU, a lot code, a UOM, and a quantity are all on screen
-    // and none of them may be in the telemetry.
+
     expect(serialized).not.toContain("IB1|");
     expect(serialized).not.toContain("prv_item");
     expect(serialized).not.toContain("prv_lot");
@@ -119,11 +113,6 @@ describe("ledger read SLI, as the panel emits it", () => {
       { environment: testEnvironment },
     );
 
-    /*
-     * The workspace provider resolves the stored warehouse through an external
-     * store, so this tree renders more than once before it settles. A counter
-     * that incremented per render would measure React rather than the ledger.
-     */
     expect(
       port.events.filter((event) => event.code === SLI_CODES.ledgerRead),
     ).toHaveLength(1);

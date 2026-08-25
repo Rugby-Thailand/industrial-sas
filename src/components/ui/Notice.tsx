@@ -1,18 +1,3 @@
-/**
- * A persistent, titled message with a next action — the shape every non-happy
- * state on a warehouse screen takes.
- *
- * Not a toast. The UX plan (§2.4, §6) is explicit that a state an operator has
- * to act on stays on the page near what it refers to; a message that disappears
- * on a timer is unreadable to someone whose hands are busy and unavailable to
- * anyone who looked away.
- *
- * `role` is a parameter with a deliberate default of `"status"` (polite).
- * `"alert"` interrupts a screen reader mid-sentence, which is right for a
- * failure the operator must handle now and wrong for "loading" and "no rows" —
- * and a component that hard-coded `role="alert"` would make every empty table
- * shout.
- */
 import type { ReactNode } from "react";
 
 import { type BadgeTone } from "./StatusBadge";
@@ -49,9 +34,9 @@ export function Notice({
   readonly title: string;
   readonly body?: string;
   readonly role?: "status" | "alert";
-  /** A stable hook for end-to-end assertions; never affects presentation. */
+
   readonly testId?: string;
-  /** Actions, links, or detail. Rendered under the body. */
+
   readonly children?: ReactNode;
 }) {
   return (

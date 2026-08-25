@@ -1,4 +1,3 @@
-/** Pure pick/check/pack lifecycle and exact line accounting (FF-P3-02). */
 import { isSafeInt } from "../guards";
 import { fail, ok, type Result } from "../result";
 

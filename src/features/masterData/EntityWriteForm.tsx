@@ -1,22 +1,5 @@
 "use client";
 
-/**
- * A master-data write, gated and sent.
- *
- * The write-side counterpart of `MasterDataPanel`, and it splits into the same
- * three branches for the same reason: `useMutation` throws without a
- * `ConvexProvider`, and there is no provider when no deployment is configured
- * (`ConvexClientProvider`). So the gate is decided *before* the hook is reached,
- * and the branch that calls it is a separate component.
- *
- * The idempotency key is the part worth reading closely. One key is minted per
- * *attempt*, held in a ref, and released only when the server gives a final
- * answer. A transport failure is not a final answer — the mutation may have run
- * — so the retry reuses the key, and the server replays instead of writing a
- * second row (`convex/lib/idempotency.ts`). A key released on failure would turn
- * one flaky network moment into two suppliers with the same name.
- *
- */
 import { useMutation } from "convex/react";
 import type { FunctionReference } from "convex/server";
 import { useRef, useState, type ReactNode } from "react";
@@ -42,7 +25,6 @@ import {
   type WriteState,
 } from "@/lib/convex/writeState";
 
-/** A mutation that answers the master-data write envelope. */
 export type WriteRef<Args extends Record<string, unknown>> = FunctionReference<
   "mutation",
   "public",
@@ -57,20 +39,9 @@ export interface EntityWriteFormProps<Args extends Record<string, unknown>> {
   readonly submitLabel: string;
   readonly requiredMessage: string;
   readonly fields: readonly FormFieldSpec[];
-  /**
-   * Build the mutation's arguments. Given the request ID so the key travels
-   * with the arguments it is a fingerprint of, rather than being bolted on
-   * afterwards where an argument change could slip past it.
-   */
+
   readonly toArgs: (values: FormValues, requestId: string) => Args;
-  /**
-   * Called after the server confirms a write.
-   *
-   * Receives the write envelope, because some mutations answer with more than
-   * "it was written" — a receipt posting reports its classification and where
-   * the stock landed, an import chunk reports the cursor to resume from — and
-   * those facts are the whole reason the calling screen exists.
-   */
+
   readonly onSaved?: (outcome: Record<string, unknown>) => void;
   readonly testId?: string;
 }
@@ -98,13 +69,7 @@ function ServerWriteForm<Args extends Record<string, unknown>>({
   onSaved,
   testId,
 }: EntityWriteFormProps<Args>) {
-  /*
-   * The generic is erased here and only here, for the reason `MasterDataPanel`
-   * documents: `useMutation`'s argument type cannot be resolved while `Args` is
-   * still open. The caller's types survive, because `toArgs` is checked against
-   * the reference's own argument type at the point where a wrong argument would
-   * actually be written.
-   */
+  // Keep the cast at this boundary; Convex cannot resolve the open generic.
   const mutate = useMutation(
     mutationRef as unknown as FunctionReference<
       "mutation",
@@ -128,7 +93,7 @@ function ServerWriteForm<Args extends Record<string, unknown>>({
         const next = toWriteState({
           outcome: outcome as TenantOutcome<MasterDataWriteOutcome>,
         });
-        // Final answer: the next submission is a new request and needs a new key.
+
         if (isTerminal(next)) requestIdRef.current = undefined;
         setState(next);
         if (next.kind === "SAVED") {
@@ -137,7 +102,7 @@ function ServerWriteForm<Args extends Record<string, unknown>>({
         }
       },
       (failure: unknown) => {
-        // The key is deliberately *not* released: the retry must replay.
+        // Keep the request key so a retry replays instead of writing twice.
         setState(toWriteState({ failure }));
       },
     );

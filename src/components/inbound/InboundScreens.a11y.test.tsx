@@ -41,25 +41,10 @@ import {
   previewReceiptsFor,
 } from "@tests/fixtures/data/inbound";
 
-/**
- * `INV-0010-09` for the inbound screens.
- *
- * Both locales, because Thai and English differ in more than glyphs: every
- * accessible name — header, label, badge, caption — comes from the catalogue,
- * and a name that is empty in one language is a violation only in that language.
- *
- * The *forms* are the part worth checking hardest. A table is accessible while
- * it is a table; a form breaks the moment it grows a select, a hint, a live
- * region, and an error — which is exactly the state an operator reaches it in.
- */
 const BANG_PU = "prv_wh_bangpoo";
 const LOCALES = ["th", "en"] as const;
 const importOutcome = previewImportOutcome("BATCH-1");
 
-/*
- * Thunks rather than elements: an array of JSX is an array React would want keys
- * for, and these are rendered one at a time rather than as a list.
- */
 const cases = [
   [
     "PurchaseOrdersTable",
@@ -131,7 +116,6 @@ describe("inbound table accessibility", () => {
 });
 
 describe("inbound form accessibility", () => {
-  /** Every inbound write is warehouse-scoped; the forms need a selection. */
   const seed = () => writeStoredWarehouse(BANG_PU);
 
   it.each(LOCALES)(

@@ -1,18 +1,3 @@
-/**
- * Integration tier — the operator-manual catalogue, its renderers, and its guard.
- *
- * A generated manual is a place where "the tests pass" and "the document is
- * wrong" coexist comfortably: nothing about a red box in the wrong place, or an
- * English step that was never written, breaks a build. So the checks that *can*
- * be mechanical are asserted twice here — once that the shipped catalogue
- * satisfies them, and once that the validator actually refuses when they are
- * violated. A validator with no negative tests is indistinguishable from a
- * function returning an empty array.
- *
- * The guard is exercised against a synthetic repository in a temporary
- * directory — real screenshots, real navigation table, generated output — so it
- * can be made stale on purpose without touching the working tree.
- */
 import {
   copyFileSync,
   existsSync,
@@ -80,7 +65,6 @@ const validate = (input: unknown): readonly Problem[] =>
 const messagesOf = (problems: readonly Problem[]): string =>
   problems.map((problem) => `${problem.path}: ${problem.message}`).join("\n");
 
-/** A task that passes every rule, for a fixture image 1000×800 at route `/demo`. */
 const wellFormedTask = (): Record<string, unknown> => ({
   id: "demo-task",
   category: "demo",
@@ -120,11 +104,6 @@ afterEach(() => {
   }
 });
 
-/**
- * A throwaway repository the guard can be pointed at: the real navigation table,
- * the real screenshots each task needs, freshly rendered overlays, a Markdown
- * guide that references them, and a current generated site.
- */
 const materialize = (tasks: readonly Task[] = MANUAL_TASKS): string => {
   const root = mkdtempSync(join(tmpdir(), "operator-manual-"));
   temporaryRoots.push(root);
@@ -313,7 +292,6 @@ describe("the catalogue validator", () => {
   });
 
   it("refuses a box whose number badge would be cropped", () => {
-    // The shape itself is inside the image; only the overhanging badge is not.
     const problems = validate(
       fixture({
         annotations: [
@@ -625,7 +603,7 @@ describe("the generated HTML manual", () => {
     expect(page).toContain(task?.prerequisites[0]?.th ?? "");
     expect(page).toContain(task?.success[0]?.en ?? "");
     expect(page).toContain('<ol class="steps" role="list">');
-    // Steps 1 and 3 are annotated on this screen; step 2 is not.
+
     expect(page).toContain('<li class="step annotated" data-step="1">');
     expect(page).toContain('<li class="step" data-step="2">');
     expect(page).toContain('<li class="step annotated" data-step="3">');
@@ -638,8 +616,7 @@ describe("the generated HTML manual", () => {
     expect(page).toContain('height="2007"');
     expect(page).toContain('<svg class="overlay" viewBox="0 0 1280 2007"');
     expect(page).toContain('stroke="#ff3b30"');
-    // The standalone overlay is offered as a link to open full size, never as the
-    // image source: an SVG loaded through <img> may not fetch its own PNG.
+
     expect(page).toContain('href="../assets/images/dashboard-annotated.svg"');
     expect(page).not.toContain(
       'src="../assets/images/dashboard-annotated.svg"',

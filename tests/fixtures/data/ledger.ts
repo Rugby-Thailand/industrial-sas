@@ -1,38 +1,3 @@
-/**
- * Synthetic ledger data for local development, in the server's own wire shapes.
- *
- * ### What this is for, and what it must never become
- *
- * The screens in this milestone read a Convex deployment that, with no identity
- * provider configured, denies every request. That is the honest state and it is
- * also uninformative: a table that only ever renders "sign-in required" cannot
- * show whether Thai copy wraps, whether a quantity column lines up, or whether a
- * page of a hundred rows is legible on a handheld. This module supplies rows for
- * exactly that purpose.
- *
- * It is not a fake backend. It has no authorization, no tenant resolution, and
- * no writes; it cannot post a transaction, and no production build can reach it
- * (`resolveAppEnvironment` — reach, not *contain*: these rows are still shipped
- * as unreachable code, which is why every identifier here carries a `prv_`
- * prefix and nothing here is sensitive). Every screen that renders it also
- * renders a banner saying so.
- *
- * ### Why the keys are real
- *
- * The bucket keys are produced by `encodeBucketKey`, the same encoder the ledger
- * store uses, rather than by string concatenation. A hand-written key that looked
- * plausible would hide exactly the defect worth catching early — a truncation, a
- * separator, a column too narrow for the real thing. A key that fails to encode
- * is dropped rather than substituted, and `ledgerPreview.test.ts` asserts the
- * dataset is non-empty, so a dropped key fails the build instead of thinning the
- * table silently.
- *
- * ### Why every value is a constant
- *
- * No `Math.random`, no `Date.now`. Rows are identical on the server and the
- * client, so hydration matches; identical between two runs, so a screenshot diff
- * means something; and identical in tests, so an assertion can name a row.
- */
 import {
   encodeBucketKey,
   type InventoryBucket,
@@ -44,13 +9,12 @@ import type {
   TransactionRow,
 } from "@/lib/convex/ledgerApi";
 
-/** The synthetic tenant. `prv_` prefixes make a leaked value obvious in a log. */
 export const PREVIEW_ORG_ID = "prv_org_siam_industrial";
 
 export interface PreviewWarehouse {
   readonly id: string;
   readonly code: string;
-  /** Thai name — the layout baseline is Thai, so the fixture is too. */
+
   readonly nameTh: string;
   readonly nameEn: string;
 }
@@ -70,7 +34,6 @@ export const PREVIEW_WAREHOUSES: readonly PreviewWarehouse[] = Object.freeze([
   }),
 ]);
 
-/** One synthetic balance, before it is turned into a wire row. */
 interface PreviewBalanceSeed {
   readonly warehouseId: string;
   readonly itemId: string;
@@ -81,14 +44,6 @@ interface PreviewBalanceSeed {
   readonly minorUnits: number;
 }
 
-/*
- * Deliberate variety, because each row proves something a uniform fixture
- * cannot: four stock statuses (so the status column is exercised, and
- * `INV-0010-07` — no colour-only state — is visible), three unit codes of
- * different widths, a quantity with a non-zero fraction, a quantity large enough
- * to test column width, and a zero balance (a real and common row: stock that
- * moved out of a bucket leaves the bucket behind).
- */
 const BALANCE_SEEDS: readonly PreviewBalanceSeed[] = Object.freeze([
   {
     warehouseId: "prv_wh_bangpoo",
@@ -172,7 +127,6 @@ const bucketOf = (seed: PreviewBalanceSeed): InventoryBucket => ({
   stockStatus: seed.stockStatus,
 });
 
-/** A row together with the warehouse it belongs to, so scoping needs no parsing. */
 interface PlacedRow<Row> {
   readonly warehouseId: string;
   readonly row: Row;
@@ -196,24 +150,10 @@ const PLACED_BALANCES: readonly PlacedRow<BalanceRow>[] = Object.freeze(
   }),
 );
 
-/**
- * Every synthetic balance row.
- *
- * A seed whose bucket the real encoder refuses is dropped rather than
- * substituted. That can only happen if a seed above is edited into an illegal
- * shape, and `ledgerPreview.test.ts` asserts the exact row count, so the drop is
- * a failing test rather than a quietly shorter table.
- */
 export const PREVIEW_BALANCES: readonly BalanceRow[] = Object.freeze(
   PLACED_BALANCES.map((placed) => placed.row),
 );
 
-/**
- * A fixed instant the transaction fixture is built backwards from:
- * `2026-08-11T09:15:00+07:00`, a plausible mid-morning receiving shift in
- * Bangkok. Written as an epoch constant rather than parsed from a string so this
- * module has no dependency on the host's date parsing.
- */
 const PREVIEW_ANCHOR_MS = 1_786_414_500_000;
 
 const MINUTE_MS = 60_000;
@@ -229,11 +169,6 @@ interface PreviewTransactionSeed {
   readonly reversalOfSuffix?: string;
 }
 
-/*
- * The last transaction reverses the third (`INV-0003-08`): the original is
- * untouched and the correction names it. That pairing is the one thing a history
- * screen must not render as an edit, so the fixture contains it from the start.
- */
 const TRANSACTION_SEEDS: readonly PreviewTransactionSeed[] = Object.freeze([
   {
     warehouseId: "prv_wh_bangpoo",
@@ -329,26 +264,11 @@ export const PREVIEW_TRANSACTIONS: readonly TransactionRow[] = Object.freeze(
   PLACED_TRANSACTIONS.map((placed) => placed.row),
 );
 
-/**
- * Page a synthetic collection the way the server pages a real one.
- *
- * The cursor is the offset as a string, which is not what the server's cursor is
- * — but the *contract* is the same one the screens have to satisfy: an opaque
- * token, `null` when there is no more, and a `complete` flag that is not the same
- * question as "was this page full". Reimplementing the shape here is what lets
- * the pagination controls be exercised without a deployment.
- */
 export function previewPage<Row>(
   rows: readonly Row[],
   maxPageSize: number,
   cursor: string | undefined,
 ): LedgerPage<Row> {
-  /*
-   * `Number.parseInt` is deliberately not used: it reads `"1.5"` as `1` and
-   * `"2abc"` as `2`, so a malformed cursor would silently page from somewhere
-   * plausible. A cursor is an opaque token, and a token this module did not
-   * mint is a refusal.
-   */
   const offset =
     cursor === undefined ? 0 : /^\d+$/.test(cursor) ? Number(cursor) : -1;
   if (!Number.isSafeInteger(offset) || offset < 0 || offset > rows.length) {
@@ -374,18 +294,10 @@ const rowsIn = <Row>(
     .filter((candidate) => candidate.warehouseId === warehouseId)
     .map((candidate) => candidate.row);
 
-/** Synthetic balances for one warehouse, in declaration order. */
 export const previewBalancesFor = (
   warehouseId: string,
 ): readonly BalanceRow[] => rowsIn(PLACED_BALANCES, warehouseId);
 
-/**
- * Synthetic transactions for one warehouse, newest first.
- *
- * Sorted rather than assumed: `listTransactions` reads a descending index, and a
- * fixture whose order came from how the seeds happened to be typed would let a
- * screen that ignores order look correct.
- */
 export const previewTransactionsFor = (
   warehouseId: string,
 ): readonly TransactionRow[] =>

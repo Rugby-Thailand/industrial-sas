@@ -9,7 +9,7 @@ import {
 
 export interface ClerkWebhookDelivery {
   readonly eventId: string;
-  /** Delivery timestamp in milliseconds. */
+
   readonly eventAt: number;
 }
 
@@ -27,13 +27,6 @@ function record(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
-/**
- * A required field, bounded by the kernel's own published limit.
- *
- * The bound is enforced here, not only in the kernel, so a verified payload the
- * kernel would refuse is refused at the boundary as a terminal `400` instead of
- * surfacing as a `503` Clerk retries forever.
- */
 function requiredString(value: unknown, max: number): string {
   if (typeof value !== "string") throw new InvalidClerkWebhookPayloadError();
   const trimmed = value.trim();
@@ -72,10 +65,6 @@ function preferredLocale(value: unknown): "th" | "en" | undefined {
   return primary === "th" || primary === "en" ? primary : undefined;
 }
 
-/**
- * Reduce a signature-verified Clerk event to the only fields the WMS mirror owns.
- * Unsupported event types deliberately return null without inspecting their data.
- */
 export function normalizeVerifiedClerkEvent(
   event: Pick<WebhookEvent, "type" | "data">,
   delivery: ClerkWebhookDelivery,

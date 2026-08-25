@@ -1,15 +1,3 @@
-/**
- * Unit tier — exact rational arithmetic.
- *
- * The cases worth writing down are the ones a float implementation gets wrong:
- * thirds, a value that reduces to a whole number only after cross-reduction, and
- * a product that would silently pass 2^53.
- *
- * The second half of this file is about forged operands. `Ratio` is an interface,
- * so `{ numerator: 1, denominator: 0 } as Ratio` compiles; every public function
- * must answer a named error for one, and in particular must not divide by zero,
- * scale stock to nothing, flip a sign, or hang.
- */
 import { describe, expect, it } from "vitest";
 
 import { expectError, expectOk } from "../../../tests/fixtures/domain-results";
@@ -33,7 +21,6 @@ import {
 const ratio = (numerator: number, denominator: number) =>
   expectOk(makeRatio(numerator, denominator));
 
-/** A value that claims to be a `Ratio` and is not one. */
 const forged = (numerator: unknown, denominator: unknown): Ratio =>
   ({ numerator, denominator }) as unknown as Ratio;
 
@@ -137,9 +124,6 @@ describe("makeExactFraction", () => {
     ).toBe("COMPONENT_OUT_OF_RANGE");
   });
 
-  // The type says an `ExactFraction` is reduced, and two callers rely on it: an
-  // `INEXACT` conversion outcome is compared and rendered by its components, so
-  // `2/4` and `1/2` would be two different explanations of one value.
   it("reduces by the greatest common divisor", () => {
     expect(expectOk(makeExactFraction(2, 4))).toEqual({
       numerator: 1,
@@ -167,9 +151,7 @@ describe("makeExactFraction", () => {
       numerator: 0,
       denominator: 1,
     });
-    // `-0` survives JSON only in one direction — `JSON.stringify` writes it as
-    // `0`, while `JSON.parse("-0")` yields it — and `Object.is` separates it from
-    // `0`, so two zero remainders would otherwise fail to compare equal.
+
     expect(Object.is(expectOk(makeExactFraction(-0, 7)).numerator, 0)).toBe(
       true,
     );
@@ -186,8 +168,6 @@ describe("makeExactFraction", () => {
 });
 
 describe("validateExactFraction", () => {
-  // `ExactFraction` is an interface, so an unreduced literal compiles and is
-  // exactly what a document read back or a `JSON.parse` produces.
   it("reduces a forged unreduced fraction rather than passing it through", () => {
     expect(expectOk(validateExactFraction(forged(2, 4)))).toEqual({
       numerator: 1,
@@ -211,9 +191,6 @@ describe("validateExactFraction", () => {
 
 describe("composeRatios", () => {
   it("cross-reduces instead of overflowing", () => {
-    // 1000000/3 × 3/1000000 is 1/1. Multiplying the numerators first would be
-    // 3,000,000,000,000 — still exact, but the same shape at larger components
-    // is not, which is why the reduction happens before the multiply.
     expect(
       composeRatios(
         ratio(MAX_RATIO_COMPONENT, 3),
@@ -339,8 +316,6 @@ describe("scaleInteger", () => {
   });
 
   it("reports the exact fraction rather than rounding", () => {
-    // 1000 thousandths of a unit that is 1/3 of the base is 333.33… — a value no
-    // scale of three decimals can hold, and one no ledger may round.
     expect(expectOk(scaleInteger(1000, ratio(1, 3)))).toEqual({
       kind: "INEXACT",
       exact: { numerator: 1000, denominator: 3 },
@@ -360,9 +335,6 @@ describe("scaleInteger", () => {
     }
   });
 
-  // The remainder is reduced against the denominator before the multiply, so the
-  // components were already coprime; this pins that `makeExactFraction`'s
-  // reduction does not change any `INEXACT` value it used to report.
   it("reports an INEXACT remainder already in lowest terms", () => {
     const cases: readonly [number, Ratio][] = [
       [1000, ratio(1, 3)],
@@ -398,9 +370,6 @@ describe("scaleInteger", () => {
   });
 
   it("rejects a forged factor instead of scaling by it", () => {
-    // Each of these was a wrong answer before the factor was validated:
-    // `1/0` reported an exact fraction over zero, `0/1` reported that the stock
-    // had scaled to nothing, and `1/-1` flipped the sign of a posting.
     expect(expectError(scaleInteger(1000, forged(1, 0))).code).toBe(
       "NOT_POSITIVE",
     );
@@ -410,8 +379,7 @@ describe("scaleInteger", () => {
     expect(expectError(scaleInteger(1000, forged(1, -1))).code).toBe(
       "NOT_POSITIVE",
     );
-    // An unreduced forgery is not an error; it is reduced before it is used, so
-    // `2/4` scales exactly like `1/2` rather than skipping the exactness test.
+
     expect(expectOk(scaleInteger(1000, forged(2, 4)))).toEqual({
       kind: "EXACT",
       value: 500,
@@ -419,9 +387,6 @@ describe("scaleInteger", () => {
   });
 
   it("terminates on a non-finite factor", () => {
-    // Euclid's algorithm exits on `b !== 0`, and every remainder of a non-finite
-    // operand is `NaN`, which is never `0`. Reaching the gcd with an unvalidated
-    // denominator was an unbounded loop, not a wrong number.
     const started = Date.now();
     expect(
       expectError(scaleInteger(1, forged(1, Number.POSITIVE_INFINITY))).code,

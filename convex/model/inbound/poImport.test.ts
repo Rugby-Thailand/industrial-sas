@@ -35,10 +35,6 @@ describe("tokenizeDelimited", () => {
   });
 
   it("refuses an unterminated quote rather than swallowing the file", () => {
-    /*
-     * The swallowing version is how a 900-line import silently becomes one line
-     * — and the one line it becomes looks plausible.
-     */
     const rows = tokenizeDelimited('a,"b\nc,d\n');
     expect(!rows.ok && rows.error.code).toBe("UNTERMINATED_QUOTE");
   });
@@ -71,10 +67,6 @@ describe("previewImport", () => {
   });
 
   it("reports the bad rows and still accepts the good ones", () => {
-    /*
-     * Refusing the whole file over one bad line teaches people to fix the file
-     * by deleting rows, which loses the very lines somebody needs to see.
-     */
     const result = preview(
       file("1,BOLT,10,EA", "2,,5,EA", "3,STEEL,notanumber,KG", "4,RESIN,7,L"),
     );
@@ -85,14 +77,11 @@ describe("previewImport", () => {
   });
 
   it("numbers rejected rows the way the operator's spreadsheet does", () => {
-    // Header is line 1, so the first data row is line 2.
     const result = preview(file("1,,5,EA"));
     expect(result.rejected[0]?.sourceLine).toBe(2);
   });
 
   it("reports a row with the wrong column count rather than guessing", () => {
-    // Guessing puts the quantity in the item column and orders a product that
-    // does not exist.
     const result = preview(file("1,BOLT,10"));
     expect(result.rejected[0]?.problem.code).toBe("COLUMN_COUNT_MISMATCH");
   });
@@ -138,10 +127,6 @@ describe("previewImport", () => {
 
 describe("sourceRowRef", () => {
   it("is stable across re-parses of the same file", () => {
-    /*
-     * The property the whole resumable design rests on: a chunk re-run after a
-     * crash must recognise the rows it already created (`INV-0007-12`).
-     */
     const text = file("1,BOLT,10,EA", "2,STEEL,4,KG");
     expect(preview(text).accepted.map((row) => row.sourceRowRef)).toEqual(
       preview(text).accepted.map((row) => row.sourceRowRef),
@@ -149,8 +134,6 @@ describe("sourceRowRef", () => {
   });
 
   it("distinguishes two files that contain identical rows", () => {
-    // A reference derived from the row's *contents* would collapse two
-    // legitimate identical lines into one.
     const text = file("1,BOLT,10,EA");
     const first = preview(text, "BATCH-1").accepted[0]?.sourceRowRef;
     const second = preview(text, "BATCH-2").accepted[0]?.sourceRowRef;
@@ -163,19 +146,12 @@ describe("sourceRowRef", () => {
 
 describe("parseDecimalCell", () => {
   it("converts three decimal places exactly", () => {
-    /*
-     * Parsed from the string rather than through `Number`, because
-     * `Number("0.1") * 1000` is 100.00000000000001 and the ledger stores
-     * integers (`ADR-0004`).
-     */
     expect(parseDecimalCell("0.1")).toEqual({ ok: true, value: 100 });
     expect(parseDecimalCell("12.345")).toEqual({ ok: true, value: 12_345 });
     expect(parseDecimalCell("7")).toEqual({ ok: true, value: 7_000 });
   });
 
   it("refuses more precision than the ledger stores", () => {
-    // `1.0005` means something the tenant has to resolve; storing `1.000` or
-    // `1.001` decides it for them.
     const result = parseDecimalCell("1.0005");
     expect(!result.ok && result.error.code).toBe("QUANTITY_TOO_PRECISE");
   });
@@ -233,7 +209,6 @@ describe("takeChunk", () => {
   });
 
   it("refuses a cursor past the end rather than answering an empty page", () => {
-    // A stale client should be told so, not handed a silent success.
     const result = takeChunk({ accepted: rows, cursor: rows.length + 1 });
     expect(!result.ok && result.error.code).toBe("CURSOR_INVALID");
   });

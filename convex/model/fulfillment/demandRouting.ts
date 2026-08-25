@@ -1,5 +1,3 @@
-/** Pure policy for turning released customer demand into an executable route. */
-
 export type DemandRouteDecision = "AVAILABLE_STOCK" | "PRODUCTION";
 export type AggregateRouteDecision = DemandRouteDecision | "MIXED";
 

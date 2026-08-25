@@ -154,7 +154,7 @@ export function EngineeringWorkflowActions({
               name: "requirementsNote",
               label: t("requirementsNote"),
               kind: "textarea" as const,
-              // Optional commentary; the eight confirmations are the record.
+
               importance: "secondary" as const,
             },
           ]}
@@ -275,7 +275,7 @@ export function EngineeringWorkflowActions({
               name: "note",
               label: t("decisionNote"),
               kind: "textarea",
-              // Optional; the decision select above is the record.
+
               importance: "secondary",
             },
           ]}

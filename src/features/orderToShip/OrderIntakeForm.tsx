@@ -5,7 +5,6 @@ import { useTranslations } from "next-intl";
 import { EntityWriteForm } from "@/features/masterData/EntityWriteForm";
 import { createCustomerOrderRef } from "@/lib/convex/orderToShipApi";
 
-/** The first durable step of the sales journey. */
 export function OrderIntakeForm({
   onSaved,
 }: {
@@ -41,7 +40,7 @@ export function OrderIntakeForm({
           name: "customerReference",
           label: t("customerPo"),
           kind: "text",
-          // The customer's own PO number, captured when the paperwork has one.
+
           importance: "secondary",
           monospace: true,
         },

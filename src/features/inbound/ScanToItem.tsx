@@ -1,18 +1,5 @@
 "use client";
 
-/**
- * The scan box that turns what came off the carton into an item.
- *
- * Its own module rather than a section of `CatalogueOptions` because it is the
- * one control in that file that reads the receiving catalogue, and it is used by
- * exactly one form (`ReceiptLineForm`). While it lived there, every screen that
- * needed a supplier, an item, or a reason code — including quality and putaway,
- * which never scan anything — reached the `Receiving` namespace through it, and
- * that namespace is 10.5 kB of Thai.
- *
- * The gate and the option conventions are still `CatalogueOptions`'; only the
- * scan control moved.
- */
 import { useQuery } from "convex/react";
 import { useTranslations } from "next-intl";
 import { useState, type ReactNode } from "react";
@@ -24,31 +11,13 @@ import { resolveScanToItemRef } from "@/lib/convex/masterDataApi";
 
 import { CatalogueGate } from "./CatalogueOptions";
 
-/** What a scan box has last decided. `undefined` means nothing scanned yet. */
 export interface ScannedItem {
   readonly itemId: string;
   readonly sku: string;
-  /** The normalized value that was resolved; safe to pass to a server write. */
+
   readonly scanValue: string;
 }
 
-/**
- * A scan box that turns what came off the carton into an item.
- *
- * The counterpart to the pickers above, for the moment when the operator is not
- * choosing from a list at all: they are holding a box, and the wedge scanner has
- * just typed a barcode into whatever had focus. Resolution is a server read
- * (`resolveScanToItem`) over the tenant's own barcodes and SKUs, because the
- * catalogue is the only thing that can say what a string refers to.
- *
- * A render prop rather than a callback, like every other source in this file:
- * the caller renders *with* the scanned item, so there is no effect firing into
- * somebody else's state and no moment where the form and the scan disagree.
- *
- * It is a separate control rather than a field inside the capture form for a
- * plain reason: a scanner ends its input with Enter, and a field that submitted
- * the whole receipt line on Enter would post half-filled lines all shift.
- */
 export function ScanToItem({
   label,
   hint,
@@ -96,11 +65,7 @@ function ServerScanToItem({ label, hint, children }: ScanBranchProps) {
       label={label}
       hint={hint}
       onScan={setScan}
-      /*
-       * A miss only once the read has answered. Showing "unknown barcode" while
-       * the query is still in flight would teach operators to rescan a label
-       * that was about to resolve.
-       */
+
       miss={scan !== "" && outcome !== undefined && resolved === undefined}
     >
       {children(resolved)}
@@ -108,7 +73,6 @@ function ServerScanToItem({ label, hint, children }: ScanBranchProps) {
   );
 }
 
-/** The input, its explanation, its miss, and whatever the scan unlocked. */
 function ScanShell({
   label,
   hint,
@@ -143,10 +107,7 @@ function ScanShell({
             aria-describedby="scan-to-item-hint"
             value={text}
             onChange={(event) => setText(event.target.value)}
-            /*
-             * Enter resolves rather than submits. This control sits outside the
-             * capture form precisely so a wedge's terminator cannot post a line.
-             */
+            // Enter resolves the scan; it must never submit the surrounding form.
             onKeyDown={(event) => {
               if (event.key === "Enter") {
                 event.preventDefault();

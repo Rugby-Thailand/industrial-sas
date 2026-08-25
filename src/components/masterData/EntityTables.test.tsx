@@ -44,8 +44,6 @@ describe("SuppliersTable", () => {
   });
 
   it("keeps the code English in both locales", () => {
-    // `D-06`: a code identifier is the string a buyer searches for and a log
-    // line quotes. Translating it would break both.
     const thai = renderWithIntl(<SuppliersTable rows={PREVIEW_SUPPLIERS} />);
     expect(thai.getByText("SIAM-STEEL")).toBeInTheDocument();
     thai.unmount();
@@ -60,8 +58,6 @@ describe("SuppliersTable", () => {
   });
 
   it("shows a deactivated supplier rather than hiding it", () => {
-    // "No longer bought from" and "never existed" are different facts, and a
-    // buyer looking for a missing supplier needs to tell them apart.
     renderWithIntl(<SuppliersTable rows={PREVIEW_SUPPLIERS} />);
     expect(screen.getByText("เลิกใช้")).toBeInTheDocument();
   });
@@ -101,8 +97,6 @@ describe("StorageClassesTable", () => {
 
 describe("BarcodesTable", () => {
   it("shows the padded GTIN exactly as the server stores it", () => {
-    // 14 digits with the leading zero: the stored value is what a scan is
-    // normalized to, and trimming it for display would teach the wrong string.
     renderWithIntl(<BarcodesTable rows={previewBarcodesFor(BOLT)} />);
     expect(screen.getByText("00614141000036")).toBeInTheDocument();
   });
@@ -128,16 +122,12 @@ describe("ItemUomsTable", () => {
 
     expect(screen.getByText("CASE")).toBeInTheDocument();
     expect(screen.getByText("12")).toBeInTheDocument();
-    // `12/1` reads as a defect, so the denominator is dropped when it is one.
+
     expect(screen.queryByText("12/1")).not.toBeInTheDocument();
   });
 
   it("renders a fraction that no decimal represents", () => {
-    /*
-     * The property the whole two-integer schema exists for. `200/3` litres per
-     * third-drum has no decimal expansion, and rounding it for display would put
-     * a number on screen that the ledger will never agree with.
-     */
+    // Keep ratios exact; decimal formatting would invent rounded values.
     renderWithIntl(
       <ItemUomsTable rows={previewItemUomsFor(RESIN)} baseUom="L" />,
     );
@@ -177,18 +167,11 @@ describe("ItemUomsTable", () => {
 
 describe("LotsTable", () => {
   it("shows a missing date as unrenderable rather than as blank", () => {
-    // A blank cell reads as "no expiry" and as "we do not know" at the same
-    // time. The placeholder means only the second.
     renderWithIntl(<LotsTable rows={previewLotsFor(BOLT)} />);
     expect(screen.getByText("——")).toBeInTheDocument();
   });
 
   it("shows a business date verbatim, not through a locale formatter", () => {
-    /*
-     * The stored value is a business date in the warehouse's timezone
-     * (`ADR-0011`). Re-formatting it through the browser's locale could show a
-     * different day than the one the ledger posted against.
-     */
     renderWithIntl(<LotsTable rows={previewLotsFor(RESIN)} />);
     expect(screen.getByText("2026-09-02")).toBeInTheDocument();
   });
@@ -211,8 +194,6 @@ describe("LabelTemplatesTable", () => {
   });
 
   it("offers a control only where the caller supplies one", () => {
-    // Publishing is offered on drafts alone; the panel decides that, and the
-    // table renders whatever it is handed — including nothing.
     renderWithIntl(
       <LabelTemplatesTable
         rows={PREVIEW_LABEL_TEMPLATES}

@@ -131,8 +131,7 @@ const completeSpecification = {
       result: 4680,
       unit: "N",
       passed: true,
-      // Public arguments carry placeholders; the master-card function replaces
-      // these with the authorized actor and server clock.
+
       verifiedByUserId: "SERVER",
       verifiedAt: 1,
     },

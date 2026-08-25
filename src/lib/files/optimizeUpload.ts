@@ -38,11 +38,6 @@ const canvasBlob = (
 ): Promise<Blob | null> =>
   new Promise((resolve) => canvas.toBlob(resolve, "image/webp", quality));
 
-/**
- * Resize and encode in the browser before any bytes leave the device. The
- * quality ladder is intentionally bounded so a very detailed production photo
- * cannot spend unbounded time in an engineer's browser.
- */
 export const optimizePhotoInBrowser = async (file: File): Promise<File> => {
   if (!PHOTO_TYPES.has(file.type) || typeof createImageBitmap !== "function") {
     return file;

@@ -15,7 +15,6 @@ import { RowActionButton, RowWriteRegion } from "./RowWriteRegion";
 import { createSupplierRef } from "@/lib/convex/masterDataApi";
 import { resolveAppEnvironment, type AppEnvironment } from "@/lib/environment";
 
-/** A deployment URL with no identity provider. */
 const backendOnlyEnvironment = resolveAppEnvironment({
   convexUrl: "https://example.convex.cloud",
 });
@@ -42,11 +41,6 @@ const supplierForm = (environment: AppEnvironment) =>
 
 describe("EntityWriteForm gating", () => {
   it("explains a missing backend instead of offering a form", () => {
-    /*
-     * There is no `ConvexProvider` when no deployment is configured, so a form
-     * rendered here could not send anything — and `useMutation` would throw
-     * before the operator found that out.
-     */
     supplierForm(unconfiguredEnvironment);
 
     expect(screen.getByTestId("panel-BACKEND_MISSING")).toBeInTheDocument();
@@ -94,12 +88,6 @@ describe("RowWriteRegion", () => {
 
 describe("LocationForm preconditions", () => {
   it("blames the missing backend, not the missing warehouse", () => {
-    /*
-     * A machine with no deployment has no warehouses to select, so blaming the
-     * selection would make one screen give two different reasons for one cause —
-     * and send an administrator hunting for a warehouse picker instead of an
-     * environment variable.
-     */
     renderWithIntl(<LocationForm />, { environment: unconfiguredEnvironment });
 
     expect(screen.getByTestId("panel-BACKEND_MISSING")).toBeInTheDocument();
@@ -109,8 +97,6 @@ describe("LocationForm preconditions", () => {
   });
 
   it("asks for a warehouse once the environment can answer for one", () => {
-    // Preview mode has warehouses to choose from, so the selection is now the
-    // real precondition rather than a symptom of an unconfigured machine.
     renderWithIntl(<LocationForm />, { environment: testEnvironment });
 
     expect(screen.getByTestId("panel-WAREHOUSE_MISSING")).toBeInTheDocument();
@@ -119,12 +105,6 @@ describe("LocationForm preconditions", () => {
 
 describe("a configured deployment", () => {
   it("is what the form waits for before it will send a mutation", () => {
-    /*
-     * Rendering the server branch needs a `ConvexProvider`, which needs a real
-     * client and a socket; that path is covered end to end by the integration
-     * tests against the real functions. What is asserted here is the decision
-     * that gets us there — a fully configured environment passes the gate.
-     */
     expect(configuredEnvironment.backendConfigured).toBe(true);
     expect(configuredEnvironment.identityConfigured).toBe(true);
   });

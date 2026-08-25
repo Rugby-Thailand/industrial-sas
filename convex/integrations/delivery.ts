@@ -1,4 +1,3 @@
-/** Versioned transactional-outbox delivery and provider-neutral health views. */
 import { v, type GenericId } from "convex/values";
 
 import { sha256Hex } from "../lib/idempotency";
@@ -70,10 +69,6 @@ const deliveryStateOf = (message: MessageRow): DeliveryState => ({
     : { lastFailureCode: message.lastFailureCode }),
 });
 
-/**
- * Application-service seam for domain mutations. Call in the same transaction as
- * the source write; the stable event key makes command retry a no-op.
- */
 export async function enqueueOutboxMessage(input: {
   readonly tenantDb: TenantDocumentAccess;
   readonly adapterId: GenericId<"integrationAdapters">;

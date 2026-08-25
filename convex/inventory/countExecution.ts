@@ -1,4 +1,3 @@
-/** Physical-count execution, blind projections, recount, and reconciliation. */
 import { v } from "convex/values";
 
 import {
@@ -232,8 +231,7 @@ const taskPatch = (state: CountTaskState) => ({
   ...(state.secondCounterUserId === undefined
     ? {}
     : { secondCounterUserId: state.secondCounterUserId }),
-  // Convex patch treats `undefined` as field removal. Explicitly clear a lease
-  // after submit/discard; omitting the key would leave the old counter active.
+
   activeCounterUserId: state.activeCounterUserId,
   activeCountOrdinal: state.activeCountOrdinal,
   ...(state.submittedCountOrdinal === undefined
@@ -1168,8 +1166,7 @@ export async function countApprovalPolicy(
     : Object.freeze({
         thresholdExceeded: row.risk === "HIGH",
         thresholdApproved: row.risk === "HIGH",
-        // A completed row remains authorizable so the handler can return the
-        // stored idempotent outcome for the same request without posting again.
+
         approvalSatisfied: ["PENDING_APPROVAL", "POSTED"].includes(row.status),
         makerUserId: row.counterUserId,
       });

@@ -1,20 +1,3 @@
-/**
- * Isolation tier — proof that the schema guards fail on a bad schema.
- *
- * `tenant-schema-boundary.isolation.test.ts` proves the real schema passes the
- * policy. On its own that is a weak claim: a check that returns "no problems" for
- * every input passes just as happily. This file feeds each check the shape it is
- * supposed to catch and asserts it complains.
- *
- * The inputs are synthetic: hand-written `TableFacts` values, and throwaway
- * `defineTable`/`defineSchema` values that exist only inside a test. The real
- * schema is never modified to demonstrate a guard, because a demonstration that
- * requires editing `convex/schema.ts` is one forgotten revert away from being the
- * committed state.
- *
- * Nothing here proves runtime isolation. These are shape checks over declarations;
- * there is no database, no Convex function, and no tenant-bound accessor yet.
- */
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 import { describe, expect, it } from "vitest";
@@ -45,10 +28,6 @@ import {
   type TableFacts,
 } from "../../convex/lib/schemaPolicy";
 
-/**
- * A legal tenant table, as facts. Each test below mutates exactly one property of
- * a copy, so a failure names the single rule under test rather than "the fixture".
- */
 const soundTenantTable: TableFacts = {
   name: "widgets",
   classification: "tenant",
@@ -454,9 +433,6 @@ describe("a uniqueness condition that disagrees with the schema is caught", () =
   });
 
   it("catches an unconditional contract over an optional key field", () => {
-    // `warehouses.code` is unconditionally unique. If the schema ever made it
-    // optional, a mutation honouring the contract literally would treat two
-    // code-less warehouses as duplicates of each other.
     const problems = uniquenessContractViolations([
       withFacts({ name: "warehouses", optionalFieldNames: ["code"] }),
     ]);
@@ -490,13 +466,6 @@ describe("a uniqueness condition that disagrees with the schema is caught", () =
   });
 
   it("accepts the conditional contract when the field is optional", () => {
-    /*
-     * The synthetic table carries *both* of the device contracts — the
-     * unconditional `label` one and the conditional `installationId` one —
-     * because the assertion below is "no device problem at all". A fixture
-     * describing only half the table would fail on the missing half and say
-     * nothing about the qualifier this test exists for.
-     */
     const problems = uniquenessContractViolations([
       withFacts({
         name: "devices",
@@ -519,7 +488,6 @@ describe("a uniqueness condition that disagrees with the schema is caught", () =
 });
 
 describe("a broken many-per-key lookup contract is caught", () => {
-  /** A synthetic copy of the real contract, so the guard is proved on fixtures. */
   const manyPerTicket: readonly LookupContract[] = [
     { table: "supportGrants", key: ["orgId", "ticketRef"] },
   ];
@@ -550,8 +518,6 @@ describe("a broken many-per-key lookup contract is caught", () => {
   });
 
   it("catches an index whose fields do not begin with the key", () => {
-    // Named as though it served the key, but indexing something else: the name
-    // is not what the check reads, so the disguise does not work.
     const problems = lookupContractViolations(
       [
         withFacts({
@@ -659,7 +625,7 @@ describe("the composed check reports every rule at once", () => {
           "from GLOBAL_TABLES",
       ]),
     );
-    // Tables the policy expects but this synthetic set omits are reported too.
+
     expect(problems).toContain(
       "supportGrants: table expected by the policy is not defined in the schema",
     );

@@ -1,16 +1,3 @@
-/**
- * Property tier — identifiers: normalization, GS1 element strings, and LPNs
- * (`ADR-0005` verification, `RG-005`).
- *
- * The claims are the ones a mis-scan would violate: normalization is stable and
- * injective on the codes operators actually confuse, a GS1 element string
- * round-trips through the parser, an LPN survives generation and validation, and
- * the LPN check character catches every single-character substitution and every
- * transposition — not most of them.
- *
- * The negative controls at the end weaken each guarantee and assert that the
- * corresponding property fails, so a green suite cannot be a vacuous one.
- */
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
@@ -50,7 +37,6 @@ const digits = (length: number) =>
 
 const namespace = expectOk(makeLpnNamespace("org_acme", "PA"));
 
-/** Bytes from a generated array: deterministic per test case, uniform enough. */
 const entropyFrom = (bytes: readonly number[]): EntropySource => {
   let offset = 0;
   return (byteLength: number) => {
@@ -197,9 +183,6 @@ describe("GS1 element strings", () => {
   it("round-trips an SSCC pallet label, with the lot last or separated", () => {
     fc.assert(
       fc.property(ssccBody, lotValue, fc.boolean(), (sscc, lot, separate) => {
-        // A trailing FNC1 terminates nothing, so the separated form needs a
-        // following element. Separator placement is part of the grammar here, not
-        // something the parser shrugs at.
         const raw = separate
           ? `00${sscc}10${lot}${GROUP_SEPARATOR}3012`
           : `00${sscc}10${lot}`;
@@ -264,8 +247,6 @@ describe("LPN generation and validation", () => {
           entropy: entropyFrom(entropyBytes),
         });
         if (!issued.ok) {
-          // The only permitted failure is a source that never clears the
-          // rejection threshold.
           expect(issued.error.code).toBe("ENTROPY_EXHAUSTED");
           return;
         }
@@ -372,13 +353,7 @@ describe("LPN generation and validation", () => {
 });
 
 describe("negative controls", () => {
-  /**
-   * Every control below is built so its counterexample is guaranteed rather than
-   * likely: a control that only fails on some seeds is a flaky test masquerading
-   * as evidence.
-   */
   it("the substitution property fails for a check character that ignores values", () => {
-    // The mutation: a constant check character.
     const constantCheck = () => LPN_ALPHABET[0] as string;
     const validates = (value: string): boolean =>
       value.slice(-1) === constantCheck();
@@ -400,7 +375,6 @@ describe("negative controls", () => {
   });
 
   it("the transposition property fails for an unweighted checksum", () => {
-    // The mutation: sum the character values without position weights.
     const unweighted = (body: string): string => {
       let sum = 0;
       for (const character of body) sum += LPN_ALPHABET.indexOf(character);
@@ -419,7 +393,6 @@ describe("negative controls", () => {
     );
     expect(details.failed).toBe(true);
 
-    // The real check character does see it.
     fc.assert(
       fc.property(
         fc.stringMatching(/^[0-9ABCDEFGHJKMNPQRSTVWXY]{12}$/),
@@ -433,7 +406,6 @@ describe("negative controls", () => {
   });
 
   it("the normalization property fails for a trimming normalizer", () => {
-    // The mutation: strip leading zeros, the classic identifier bug.
     const trimZeros = (raw: string): string => raw.replace(/^0+/, "");
 
     const details = fc.check(
@@ -445,7 +417,6 @@ describe("negative controls", () => {
   });
 
   it("the GTIN property fails when the check digit is not verified", () => {
-    // The mutation: pad to 14 digits without verifying anything.
     const unverifiedGtin = (raw: string): string => raw.padStart(14, "0");
 
     const details = fc.check(
@@ -458,7 +429,7 @@ describe("negative controls", () => {
       }),
     );
     expect(details.failed).toBe(true);
-    // …and the real normalizer refuses the same input.
+
     const valid = `${"061414100000".slice(0, 12)}`;
     const digit = expectOk(gs1CheckDigit(valid));
     expect(normalizeGtin(`${valid}${(digit + 1) % 10}`).ok).toBe(false);

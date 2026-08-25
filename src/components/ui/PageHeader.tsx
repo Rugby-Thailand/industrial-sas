@@ -1,19 +1,5 @@
 "use client";
 
-/**
- * The single `<h1>` of a screen, with its explanation on demand.
- *
- * Centralised so that every route has exactly one top-level heading and the
- * heading order below it starts at `<h2>`. Skipped levels are one of the most
- * common axe findings and the easiest to reintroduce screen by screen.
- *
- * The description no longer occupies permanent vertical space: on a warehouse
- * screen the operator reads it once during training and then scrolls past it
- * every shift. It sits behind an icon-led disclosure instead — a touch-sized
- * `aria-expanded` toggle beside the title — so the help is one tap away without
- * costing the first row of every list its place above the fold, which matters
- * most on the handheld.
- */
 import { Info } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useId, useState } from "react";

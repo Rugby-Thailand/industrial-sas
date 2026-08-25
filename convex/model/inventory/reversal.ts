@@ -1,42 +1,3 @@
-/**
- * Correction by reversal, and only by reversal.
- *
- * Status: **implemented.** Pure module (plan §6.2): no Convex imports, and no
- * imports outside `convex/model/**`.
- *
- * There is no "fix the number" path in this system (`ADR-0003` §5, plan §7.5). A
- * wrong transaction is corrected by a second transaction that posts the exact
- * negation of the first, names it, carries a reason, and leaves it untouched. This
- * module builds that second transaction and proves it is exact.
- *
- * The five rules, and why each is here rather than in the mutation:
- *
- * - **Exactly one original** (`INV-0003-08`). The draft names one
- *   `reversalOfTransactionId`, and `validateLedgerHeader` already refuses a
- *   `REVERSAL` without one and a non-reversal with one.
- * - **Exact compensation.** Every line negated, same bucket, same UOM, nothing
- *   added, nothing dropped. `verifyExactCompensation` checks it as a separate
- *   function so the store can re-check what it is about to write rather than
- *   trusting that this module built it.
- * - **No reversal of a reversal.** Refused two ways, because a stored row can be
- *   inconsistent: by `type === "REVERSAL"` and by the presence of the original's
- *   own `reversalOfTransactionId`. A compensating chain would make "what is the
- *   current state of this receipt" a graph traversal instead of a lookup.
- * - **Not twice.** An original that already has a reversal is refused. Two
- *   reversals of one original compensate it twice, which is not compensation; the
- *   caller passes what a bounded `by_orgId_reversalOfTransactionId` read found, and
- *   a non-`null` answer ends it here. `ADR-0003` §5 says "references exactly one
- *   original"; this is the other half of that sentence, made mechanical.
- * - **Never across organizations.** The original's `orgId` must equal the active
- *   tenant's. The store also reads the original through the tenant-bound accessor,
- *   so a foreign ID resolves to nothing long before this check — which is exactly
- *   why the check is stated here too: two independent refusals, and this one works
- *   on a value that was handed over rather than read.
- *
- * A reason code is required, and it is required by `validateLedgerHeader`'s
- * `REASON_REQUIRED_TYPES` rather than by a second rule here, so "which types need a
- * reason" has one answer in one place.
- */
 import {
   negateQuantity,
   validateQuantity,
@@ -59,14 +20,6 @@ import {
   type ValidatedLedgerTransaction,
 } from "./ledgerTransaction";
 
-/**
- * The original, as the store read it back.
- *
- * A plain structural record rather than a document type: this module never sees a
- * Convex document, and the store is what turns rows into this. `lines` are the
- * stored postings, which are re-validated here — a stored line is a document field
- * and is exactly as forgeable as any other.
- */
 export interface OriginalTransaction {
   readonly transactionId: string;
   readonly orgId: string;
@@ -79,7 +32,6 @@ export interface OriginalTransaction {
   }[];
 }
 
-/** What the caller supplies to reverse one transaction. */
 export interface ReversalRequest {
   readonly orgId: string;
   readonly operation: string;
@@ -89,23 +41,10 @@ export interface ReversalRequest {
   readonly reasonCodeId: string;
   readonly deviceId?: string | undefined;
   readonly original: OriginalTransaction;
-  /**
-   * The ID of a reversal that already names this original, if a bounded read found
-   * one. `null` means the read ran and found nothing — not "we did not look".
-   */
+
   readonly existingReversalId: string | null;
 }
 
-/**
- * Build and validate the compensating transaction.
- *
- * Answers a fully validated `ValidatedLedgerTransaction`, not a draft: a reversal
- * that cannot pass the ordinary rules is not a reversal, and returning a draft
- * would let a caller post one without checking. The warehouse comes from the
- * original, never from the request — a reversal happens where the original
- * happened, and letting a caller name a different site would be a cross-warehouse
- * movement dressed as a correction.
- */
 export function planReversal(
   request: ReversalRequest,
 ): Result<ValidatedLedgerTransaction, LedgerError> {
@@ -221,24 +160,11 @@ export function planReversal(
   const validated = validateLedgerTransaction(draft);
   if (!validated.ok) return validated;
 
-  // Belt and braces: the negation above is per line, and `validateLedgerTransaction`
-  // canonicalizes duplicates. If the original itself carried two lines on one
-  // bucket — it cannot, because it was canonicalized when it posted, but a stored
-  // row is a stored row — the merge would change the line count and the result
-  // would no longer be an exact compensation. Prove it rather than assume it.
   const exact = verifyExactCompensation(original, validated.value);
   if (!exact.ok) return exact;
   return validated;
 }
 
-/**
- * Prove a candidate reversal is the exact negation of an original.
- *
- * Compares bucket-key sets and per-bucket quantities, not line order: the stored
- * order is canonical (`bucketKey` ascending) on both sides, but comparing by key
- * makes the check independent of that and therefore still correct if the ordering
- * rule ever changes.
- */
 export function verifyExactCompensation(
   original: OriginalTransaction,
   reversal: ValidatedLedgerTransaction,

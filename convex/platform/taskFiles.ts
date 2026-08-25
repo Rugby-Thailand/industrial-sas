@@ -1,4 +1,3 @@
-/** Private UploadThing evidence for shared operator tasks (`FF-P1-03`). */
 import { v } from "convex/values";
 
 import {
@@ -90,7 +89,6 @@ const validHeldTask = (
   return null;
 };
 
-/** Mint one private upload capability only while the operator owns the task. */
 export const authorizeTaskFileUpload = mutationWithOrg({
   args: {
     warehouseId: v.id("warehouses"),
@@ -290,7 +288,6 @@ const attachmentRow = v.object({
   attachedAt: v.number(),
 });
 
-/** Page attachment metadata. Provider keys never leave the server. */
 export const listTaskFiles = queryWithOrg({
   args: {
     warehouseId: v.id("warehouses"),
@@ -374,7 +371,6 @@ const fileAccess = v.union(
   }),
 );
 
-/** Mint an audited one-use route, never a durable provider URL. */
 export const requestTaskFileAccess = mutationWithOrg({
   args: {
     warehouseId: v.id("warehouses"),
@@ -410,7 +406,6 @@ export const requestTaskFileAccess = mutationWithOrg({
   },
 });
 
-/** Authenticated Next.js gateway redeems the actor-bound task capability once. */
 export const redeemUploadThingTaskFileAccessGrant = mutationWithOrg({
   args: {
     grantId: v.id("operatorTaskFileAccessGrants"),

@@ -1,30 +1,5 @@
 "use client";
 
-/**
- * Switching between Thai and English without losing the page.
- *
- * `usePathname` from `@/i18n/navigation` returns the path *without* its locale
- * segment, so `router.replace(pathname, { locale })` lands on the same screen in
- * the other language. Replacing rather than pushing keeps the back button
- * meaning "the previous screen" rather than "the same screen in the other
- * language", which is what an operator expects after an accidental tap.
- *
- * `next-intl` persists the choice in its own cookie, which is the "user
- * preference" half of `INV-0010-05`: the next visit to `/` resolves to the
- * language chosen here rather than re-negotiating `Accept-Language`.
- *
- * Two languages, so this stays a Select rather than becoming an autocomplete —
- * a search field over two options is a worse control than a list of two. The
- * choice was a native `<select>` until the shared Radix Select existed, on the
- * grounds that it needed no focus management to be correct; that argument held
- * for the keyboard and failed for the colour scheme, because a native popup is
- * painted by the operating system and stayed white on a dark screen.
- *
- * The control disables itself while the route transition is in flight. That is
- * `pending`, not `disabled`: the shared Select marks it `aria-busy`, so the
- * reason it cannot be used is available to a screen reader and not only to
- * whoever can see it greyed.
- */
 import { useLocale, useTranslations } from "next-intl";
 import { useId, useTransition } from "react";
 

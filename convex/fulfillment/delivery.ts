@@ -1,4 +1,3 @@
-/** Driver delivery evidence, independent POD review, and order completion. */
 import { v } from "convex/values";
 
 import {
@@ -733,7 +732,6 @@ export const recordFailedDelivery = mutationWithOrg({
   },
 });
 
-/** Receive every failed-delivery package back into QC hold at one controlled location. */
 export const returnFailedShipmentToWarehouse = mutationWithOrg({
   args: {
     requestId: v.string(),

@@ -1,6 +1,5 @@
 "use client";
 
-/** One-action, same-device supervisor approval for a selected operator task. */
 import { useLocale, useTranslations } from "next-intl";
 import { useState } from "react";
 

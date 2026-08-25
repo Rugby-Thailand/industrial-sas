@@ -1,33 +1,3 @@
-/**
- * Organization provisioning seed for the authorization foundation.
- *
- * Called from the organization insert in `identityMirrorConvex.ts`, inside that
- * mutation's transaction, so a provisioned tenant either has its roles or does not
- * exist. There is no separate seed command and no scheduled follow-up: a tenant
- * that existed for one moment without roles is a tenant whose first privileged
- * request is decided against an empty composition.
- *
- * Two writes with different shapes:
- *
- * - `permissions` is global, code-owned reference data (`INV-0006-02`). Every
- *   organization's provisioning converges it on `PERMISSION_CATALOGUE`, inserting
- *   what is missing and patching a row whose policy flags have drifted from code.
- * - `roles` and `rolePermissions` are tenant rows, written once. A rerun that finds
- *   a role by `(orgId, key)` leaves it and its composition exactly as the tenant
- *   left them (`INV-0006-11`), which is why the compositions are not reconciled:
- *   a "repair" would silently undo an edit the tenant made deliberately.
- *
- * The consequence, stated because it is a real limit rather than an oversight: a
- * release that adds a catalogue code does not add it to the roles of an
- * organization that already exists. Distributing a new code to existing tenants is
- * a migration under D-22 (`convex/migrations/**`), not a reseed. Enforcement is
- * unaffected — the evaluator reads the code-owned catalogue, not this table.
- *
- * Raw `ctx.db` rather than the tenant accessor, and allowlisted in
- * `scripts/verify-tenant-boundary.mjs` for it: `permissions` is a global table the
- * tenant-bound accessor cannot address by construction, and this runs during
- * provisioning, before there is a tenant context to bind to.
- */
 import { type GenericMutationCtx } from "convex/server";
 import type { GenericId } from "convex/values";
 
@@ -41,7 +11,6 @@ export interface AuthorizationSeedResult {
   readonly rolePermissionsInserted: number;
 }
 
-/** Seed code-owned permissions and create editable defaults without overwriting them. */
 export async function seedAuthorizationForOrganization(
   ctx: GenericMutationCtx<DataModel>,
   orgId: GenericId<"organizations">,

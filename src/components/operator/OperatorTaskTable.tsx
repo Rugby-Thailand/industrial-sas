@@ -1,17 +1,5 @@
 "use client";
 
-/**
- * The shared work board, as columns.
- *
- * One table for "My work" and for the site queue, because they are the same
- * rows read through two indexes; a second table would drift the moment either
- * gained a column.
- *
- * The lease is rendered as **words plus a glyph**, never as a colour alone
- * (plan §17): "held by you, 4 min left", "lease lapsed — free to take",
- * "unclaimed". A lapsed lease is deliberately not styled as an error — nobody
- * did anything wrong, and the row is now an opportunity rather than a fault.
- */
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
@@ -34,7 +22,6 @@ const LEASE_TONES: Readonly<Record<LeaseView["kind"], BadgeTone>> = {
   CLOSED: "muted",
 };
 
-/** Whole minutes, rounded up, so "0 min left" never means "still yours". */
 const minutesLeft = (remainingMs: number): number =>
   Math.max(1, Math.ceil(remainingMs / 60_000));
 
@@ -44,7 +31,7 @@ export function OperatorTaskTable({
   renderAction,
 }: {
   readonly rows: readonly OperatorTaskRow[];
-  /** Who is looking, so "held by you" is distinguishable from "held". */
+
   readonly currentUserId?: string;
   readonly renderAction?: (row: OperatorTaskRow) => ReactNode;
 }) {
@@ -111,12 +98,7 @@ export function OperatorTaskTable({
           key: "evidence",
           header: t("columnEvidence"),
           monospace: true,
-          /*
-           * The count is shown on every row, including zero, because it is what
-           * an operator picking up a lapsed task needs to know before they
-           * start: partial work is preserved, and a blank cell would read as
-           * "nothing was done" exactly where that is most expensive.
-           */
+
           render: (row) => t("evidenceCount", { count: row.evidenceCount }),
         },
       ]}

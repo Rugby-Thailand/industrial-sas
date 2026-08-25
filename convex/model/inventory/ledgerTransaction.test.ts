@@ -1,12 +1,3 @@
-/**
- * Unit tier — the ledger transaction algebra.
- *
- * What is proved here: a balanced transaction is accepted, an unbalanced one is
- * refused with the group that failed, and every *local* fault is reported as itself
- * before the balance check runs. The last part matters more than it looks: a caller
- * whose third line names another tenant's warehouse should be told that, not told
- * "unbalanced".
- */
 import { describe, expect, it } from "vitest";
 
 import { makeQuantity, type Quantity } from "../uom/quantity";
@@ -71,7 +62,6 @@ const draft = (
   ...overrides,
 });
 
-/** A supplier receipt: ten cases onto the dock, ten off the supplier boundary. */
 const receipt = (units = 10_000): readonly LedgerLineDraft[] => [
   { bucket: physical("dock"), quantity: quantity(units) },
   { bucket: boundary("SUPPLIER_RECEIPT"), quantity: quantity(-units) },
@@ -244,7 +234,6 @@ describe("line validation", () => {
   });
 
   it("reports a local fault before the balance check, not as an imbalance", () => {
-    // Unbalanced *and* cross-warehouse. The specific fault wins.
     const refused = validateLedgerTransaction(
       draft([
         { bucket: physical("dock"), quantity: quantity(10) },
@@ -582,9 +571,6 @@ describe("conservation", () => {
   });
 
   it("refuses a merged magnitude beyond the bound instead of losing precision", () => {
-    // Two lines on one bucket, each at the bound. Canonicalization sums them
-    // before anything is written, and `addQuantities` refuses the result rather
-    // than producing a double that has stopped being an exact integer.
     const refused = validateLedgerTransaction(
       draft([
         { bucket: physical("dock"), quantity: quantity(1_000_000_000_000) },
@@ -603,8 +589,6 @@ describe("conservation", () => {
   });
 
   it("refuses a conservation total beyond the bound", () => {
-    // Canonical order puts the two same-signed physical lines adjacent, so the
-    // running conservation total exceeds the bound before the group closes.
     const refused = validateLedgerTransaction(
       draft([
         { bucket: physical("dockA"), quantity: quantity(1_000_000_000_000) },
@@ -688,7 +672,7 @@ describe("statuses in a bucket", () => {
           { type: "STATUS_CHANGE", source: { type: "QC", id: "q1" } },
         ),
       );
-      // AVAILABLE to AVAILABLE is the one that cancels to zero and is refused.
+
       expect(validated.ok, status).toBe(status !== "AVAILABLE");
     }
   });

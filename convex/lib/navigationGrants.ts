@@ -11,7 +11,6 @@ type MembershipRoleDocument = Doc<"membershipRoles">;
 type RoleDocument = Doc<"roles">;
 type RolePermissionDocument = Doc<"rolePermissions">;
 
-/** Resolve the bounded route grant snapshot for the active membership. */
 export async function grantedNavigationPermissions(
   ctx: TenantFunctionContext,
 ): Promise<NavigationPermissionCode[]> {

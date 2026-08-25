@@ -22,7 +22,6 @@ import {
 import type { ObservabilityEvent } from "./event";
 import type { ObservabilityPort } from "./port";
 
-/** A port that keeps what it was given, so a test can assert on it. */
 const recordingPort = (): ObservabilityPort & {
   readonly events: ObservabilityEvent[];
 } => {
@@ -47,11 +46,6 @@ describe("redactDimensions", () => {
     });
   });
 
-  /*
-   * The point of the module. Each of these is a plausible thing a well-meaning
-   * caller would attach, and each of them is a tenant's data leaving the
-   * building.
-   */
   it.each([
     ["a free-text error message", { detail: "Item BOLT-M8 not found" }],
     ["an email address", { actor: "somchai@example.co.th" }],
@@ -67,7 +61,6 @@ describe("redactDimensions", () => {
   });
 
   it("drops rather than truncates an over-long value", () => {
-    // A truncated identifier is still an identifier.
     const long = "A".repeat(MAX_DIMENSION_LENGTH + 1);
     expect(redactDimensions({ code: long })).toEqual({});
   });
@@ -175,8 +168,7 @@ describe("latencyBucketMs", () => {
     expect(latencyBucketMs(0)).toBe(100);
     expect(latencyBucketMs(100)).toBe(100);
     expect(latencyBucketMs(101)).toBe(250);
-    // The product target (ADR-0009 §8) is its own boundary, so an alert on it
-    // is an alert on a real threshold.
+
     expect(LATENCY_BUCKET_BOUNDS_MS).toContain(800);
     expect(latencyBucketMs(800)).toBe(800);
     expect(latencyBucketMs(801)).toBe(1_500);
@@ -208,8 +200,6 @@ describe("ledger read SLI", () => {
   });
 
   it("reports a denial as a warning, not an error", () => {
-    // A denial is the system working. Paging it as an error trains people to
-    // ignore the channel.
     expect(
       ledgerReadEvent({
         surface: "history",
@@ -247,8 +237,6 @@ describe("ledger read SLI", () => {
   });
 
   it("never reports how many rows a tenant has", () => {
-    // A row count survives redaction — it is a number — and is a tenant's stock
-    // profile. It is absent from the event by construction.
     const port = recordingPort();
     recordLedgerRead(port, {
       surface: "balances",

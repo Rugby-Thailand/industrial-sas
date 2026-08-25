@@ -1,37 +1,3 @@
-/**
- * Deterministic in-memory tenant world for the tenant-context resolution suites.
- *
- * This is a fixture, not a test: it is imported by
- * `tests/integration/tenant-context-resolution.integration.test.ts` and
- * `tests/isolation/tenant-context-isolation.isolation.test.ts`, and it is
- * deliberately outside every Vitest project's `include` glob.
- *
- * What it is: five `Map` lookups over documents built from
- * [`convex/schema.ts`](../../convex/schema.ts)'s declared shapes, wired to the
- * `TenantContextLookups` port. Every lookup is an exact key `get` — there is no
- * iteration, no predicate, and no way for a fake lookup to answer a question the
- * production port cannot ask, because the fake's job is to make the production
- * algorithm's branches reachable, not to be lenient about which ones exist.
- *
- * What it is not: a Convex database. There is no transaction, no index, no
- * `convex-test`, and no deployment. Both suites therefore prove properties of the
- * resolution *algorithm*. Runtime isolation over a real Convex `ctx.db` arrives
- * with the tenant-bound accessor and its own suite (`RG-013`, `RG-031`).
- *
- * Two details are load-bearing for the suites:
- *
- * - **Document IDs are derived from a table and a caller-chosen key**, so a test
- *   can build two tenants whose warehouses have the *same key* and therefore
- *   ID-shaped near-collisions, and prove that resolution still separates them.
- * - **Every lookup call is recorded**, so a test can assert that a denial
- *   happened *before* a lookup (an anonymous caller must not cause a read) and
- *   that resolution never asks a question it has not earned.
- *
- * `FIXTURE_SENSITIVE_VALUES` is the corpus the leak test scans denials against:
- * synthetic Thai names, external Clerk references, claim values, warehouse codes,
- * and the generated document IDs. All of it is invented — no real customer,
- * supplier, or personal data (PDPA, see `tests/fixtures/README.md`).
- */
 import type { UserIdentity } from "convex/server";
 import type { GenericId, JSONValue } from "convex/values";
 
@@ -56,23 +22,6 @@ import type {
   WarehouseStatus,
 } from "../../convex/lib/validators";
 
-/* -------------------------------------------------------------------------- */
-/* Identifiers                                                                 */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Build a document ID for a table from a stable key.
- *
- * `GenericId<T>` is a branded string, so producing one outside Convex needs one
- * assertion. It is confined to this function, it is the narrowest form available
- * (`string` to a branded `string`), and it exists only because there is no
- * generated code and no deployment to mint real IDs. Nothing in `convex/`
- * asserts anything of the kind.
- *
- * The `table:key` shape is what lets a test build `warehouses:north` in two
- * different tenants and confirm that similarity of *shape* buys an attacker
- * nothing: resolution compares documents, not strings that look alike.
- */
 export function fixtureId<Table extends string>(
   table: Table,
   key: string,
@@ -80,15 +29,9 @@ export function fixtureId<Table extends string>(
   return `${table}:${key}` as GenericId<Table>;
 }
 
-/** Creation timestamps are fixed: nothing here may depend on the wall clock. */
 export const FIXTURE_CREATION_TIME = 1_767_225_600_000;
 
-/* -------------------------------------------------------------------------- */
-/* World specification                                                         */
-/* -------------------------------------------------------------------------- */
-
 export type OrganizationSpec = {
-  /** Fixture-local key; also the document ID suffix. */
   readonly key: string;
   readonly clerkOrganizationId: string;
   readonly name: string;
@@ -104,9 +47,9 @@ export type UserSpec = {
 
 export type MembershipSpec = {
   readonly key: string;
-  /** `OrganizationSpec.key` of the tenant this membership belongs to. */
+
   readonly organization: string;
-  /** `UserSpec.key` of the member. */
+
   readonly user: string;
   readonly clerkMembershipId: string;
   readonly status: MembershipStatus;
@@ -116,13 +59,12 @@ export type MembershipSpec = {
 export type WarehouseSpec = {
   readonly key: string;
   readonly organization: string;
-  /** The tenant's human identifier. Two tenants may legitimately reuse one. */
+
   readonly code: string;
   readonly name: string;
   readonly status: WarehouseStatus;
 };
 
-/** An explicit scope row: this membership may act in this warehouse. */
 export type MembershipWarehouseSpec = {
   readonly membership: string;
   readonly warehouse: string;
@@ -136,7 +78,6 @@ export type WorldSpec = {
   readonly membershipWarehouses?: readonly MembershipWarehouseSpec[];
 };
 
-/** Which lookup was called, for the ordering and no-read-before-denial assertions. */
 export type LookupCall =
   | "findUserByClerkUserId"
   | "findOrganizationByClerkOrganizationId"
@@ -146,7 +87,7 @@ export type LookupCall =
 
 export type FakeWorld = {
   readonly lookups: TenantContextLookups;
-  /** Lookup names in call order. Mutable by design: the world records into it. */
+
   readonly calls: LookupCall[];
   readonly organization: (key: string) => OrganizationDocument;
   readonly user: (key: string) => UserDocument;
@@ -158,10 +99,6 @@ export type FakeWorld = {
   readonly warehouseId: (key: string) => WarehouseId;
 };
 
-/* -------------------------------------------------------------------------- */
-/* World construction                                                         */
-/* -------------------------------------------------------------------------- */
-
 function required<Value>(map: ReadonlyMap<string, Value>, key: string): Value {
   const value = map.get(key);
   if (value === undefined) {
@@ -170,13 +107,6 @@ function required<Value>(map: ReadonlyMap<string, Value>, key: string): Value {
   return value;
 }
 
-/**
- * Build a world and its lookup port.
- *
- * The port's implementations are exact-key reads, in the same shape the real
- * index-backed implementations will have: one argument set in, at most one
- * document out.
- */
 export function createFakeWorld(spec: WorldSpec): FakeWorld {
   const calls: LookupCall[] = [];
 
@@ -309,38 +239,10 @@ export function createFakeWorld(spec: WorldSpec): FakeWorld {
   };
 }
 
-/* -------------------------------------------------------------------------- */
-/* Verified identities                                                         */
-/* -------------------------------------------------------------------------- */
-
-/**
- * An email that only ever exists inside a token.
- *
- * Clerk session tokens routinely carry `email`, and `UserIdentity` exposes it.
- * The mirror deliberately stores none (`users` has no contact field, §14), so a
- * denial that mentioned this string could only have got it from the token — which
- * makes it the sharpest single probe in the leak test.
- */
 export const FIXTURE_IDENTITY_EMAIL = "siriwan.t@example.com";
 
-/**
- * The issuer these fixture tokens claim to come from.
- *
- * A reserved `example.com` host (RFC 2606), so no fixture value can ever be
- * mistaken for — or resolve to — a real identity provider. This repository
- * verifies no token, so the value's only job is to be unmistakably synthetic.
- */
 export const FIXTURE_ISSUER = "https://clerk.example.com";
 
-/**
- * A verified identity, as `ctx.auth.getUserIdentity()` would return one.
- *
- * "Verified" is the premise, not a claim this fixture proves: token verification
- * is Clerk's and Convex's, and this module never signs or checks anything. The
- * `claims` argument is deliberately as loose as the real index signature on
- * `UserIdentity`, so a suite can present a claim that is a number, an object, or
- * absent, without an assertion.
- */
 export function fixtureIdentity(
   subject: string,
   claims: Readonly<Record<string, JSONValue>> = {},
@@ -354,29 +256,12 @@ export function fixtureIdentity(
   };
 }
 
-/** A Clerk v2 active-organization claim. */
 export function activeOrganizationClaim(
   value: JSONValue,
 ): Readonly<Record<string, JSONValue>> {
   return { o: { id: value } };
 }
 
-/* -------------------------------------------------------------------------- */
-/* The two-tenant world both suites use                                        */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Two tenants that are as similar as the domain allows, so that any separation
- * the resolver achieves is separation it earned:
- *
- * - both have a warehouse whose human `code` is `NORTH` (`warehouses.code` is
- *   unique *per organization*, never globally — §5 Q4);
- * - `siriwan` holds an active membership in both tenants, which is the multi-org
- *   person C-02 exists for;
- * - `siriwan`'s membership in tenant A is `ORG_WIDE` and in tenant B is
- *   `WAREHOUSE_SCOPED` to one warehouse only, so the same human is in and out of
- *   scope depending on which tenant is active.
- */
 export const TWO_TENANT_WORLD: WorldSpec = {
   organizations: [
     {
@@ -524,14 +409,6 @@ export const TWO_TENANT_WORLD: WorldSpec = {
   ],
 };
 
-/**
- * Every string in the fixture that a denial must never contain: display names,
- * organization names, external Clerk references, warehouse codes and names, and
- * the document IDs derived from the keys above.
- *
- * Assembled from the spec rather than hand-listed, so adding a fixture value
- * automatically widens the leak test instead of quietly escaping it.
- */
 export const FIXTURE_SENSITIVE_VALUES: readonly string[] = [
   FIXTURE_IDENTITY_EMAIL,
   ...TWO_TENANT_WORLD.organizations.flatMap((org) => [

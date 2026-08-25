@@ -26,8 +26,6 @@ describe("cursor paging", () => {
   });
 
   it("ignores an advance past the end", () => {
-    // `nextCursor: null` is the server saying there is no next page. Pushing
-    // it would send `"null"` back as a cursor on the following read.
     const state = advance(initialCursorState, null);
     expect(state).toBe(initialCursorState);
   });

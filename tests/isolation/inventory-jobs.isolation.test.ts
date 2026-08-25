@@ -1,13 +1,3 @@
-/**
- * Isolation tier — the reconciliation and expiry drivers, from two tenants.
- *
- * A job sweeps a whole warehouse, which makes it the surface most likely to
- * over-read: it is the one place in the system that deliberately walks an entire
- * index. Every claim here is a two-tenant claim, and this tier is a blocking
- * merge gate (`INV-0012-02`, `RG-031`).
- *
- * All data is synthetic (`tests/fixtures/README.md`).
- */
 import type { GenericMutationCtx } from "convex/server";
 import { describe, expect, it } from "vitest";
 
@@ -52,7 +42,6 @@ function value(outcome: Record<string, unknown>): Record<string, unknown> {
   return outcome["value"] as Record<string, unknown>;
 }
 
-/** Post one balanced receipt for the named tenant. */
 async function post(
   world: ConvexInventoryWorld,
   org: "a" | "b",
@@ -94,7 +83,6 @@ async function post(
   expect(outcome["posted"], JSON.stringify(outcome)).toBe(true);
 }
 
-/** Give both tenants stock, so neither sweep can be empty by accident. */
 async function seedBothTenants(world: ConvexInventoryWorld): Promise<void> {
   await post(world, "a", {
     requestId: "0193f2c1-0000-7000-8000-0000000000a1",
@@ -138,17 +126,12 @@ describe("job drivers are tenant-confined", () => {
 
     expect(a["bucketsChecked"]).toBe(countFor(world.orgA));
     expect(b["bucketsChecked"]).toBe(countFor(world.orgB));
-    // Both tenants have rows, so neither count is trivially zero.
+
     expect(a["bucketsChecked"]).toBeGreaterThan(0);
     expect(b["bucketsChecked"]).toBeGreaterThan(0);
   });
 
   it("reports no drift caused by the other tenant's rows", async () => {
-    /*
-     * The failure this catches: a reconciliation whose line read forgot the
-     * organization would fold *both* tenants' lines into one bucket total and
-     * report drift on a warehouse that is perfectly consistent.
-     */
     const world = await createConvexInventoryWorld();
     await seedBothTenants(world);
 
@@ -209,11 +192,6 @@ describe("job drivers are tenant-confined", () => {
   });
 
   it("does not let a checkpoint from one tenant walk another's index", async () => {
-    /*
-     * A checkpoint crosses the wire, so its cursor is untrusted input. Resuming
-     * tenant A's sweep while acting as tenant B must not read A's rows: the
-     * index is `orgId`-first and the accessor binds the organization.
-     */
     const world = await createConvexInventoryWorld();
     await seedBothTenants(world);
 
@@ -247,8 +225,6 @@ describe("job drivers are tenant-confined", () => {
       expect((guard += 1)).toBeLessThan(20);
     }
 
-    // Whatever the foreign cursor did to the starting position, the sweep never
-    // read more rows than tenant B owns.
     expect(total).toBeLessThanOrEqual(bCount);
   });
 
@@ -283,7 +259,7 @@ describe("job drivers are tenant-confined", () => {
     expect(aKeys.length).toBeGreaterThan(0);
     expect(bKeys.length).toBeGreaterThan(0);
     expect(aKeys.some((key) => bKeys.includes(key))).toBe(false);
-    // Every reported key names the calling tenant's organization.
+
     for (const key of aKeys) expect(key).toContain(world.orgA);
     for (const key of bKeys) expect(key).toContain(world.orgB);
   });

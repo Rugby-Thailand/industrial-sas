@@ -91,7 +91,6 @@ export function previewOrderImport(
   return ok(Object.freeze(ready));
 }
 
-/** Resume cursor is the next source row; callers persist it after each commit. */
 export const nextOrderImportCursor = (
   accepted: readonly ReadyOrderImportRow[],
 ): number | null =>

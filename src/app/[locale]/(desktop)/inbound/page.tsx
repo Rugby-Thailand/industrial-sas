@@ -3,7 +3,6 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { InboundOperationsBoard } from "@/features/inbound/InboundOperationsBoard";
 
-/** The supervisor's PO-to-putaway control board for the selected warehouse. */
 export default async function InboundBoardPage({
   params,
 }: {

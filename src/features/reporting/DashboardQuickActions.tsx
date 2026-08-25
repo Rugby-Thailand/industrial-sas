@@ -313,7 +313,6 @@ export function QuickActionMenu({
   );
 }
 
-/** Account-scoped, permission-filtered shortcuts for the signed-in membership. */
 export function DashboardQuickActions() {
   return (
     <QueryGate scope="WAREHOUSE">

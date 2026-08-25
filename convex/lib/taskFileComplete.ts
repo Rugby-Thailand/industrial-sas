@@ -1,4 +1,3 @@
-/** Trusted internal registration of a verified UploadThing task object. */
 import { internalMutationGeneric } from "convex/server";
 import { v } from "convex/values";
 
@@ -7,7 +6,6 @@ export const MAX_TASK_FILE_BYTES = 64 * 1024 * 1024;
 const DIGEST = /^[0-9a-f]{64}$/;
 const MEDIA_TYPE = /^[a-z0-9][a-z0-9!#$&^_.+-]*\/[a-z0-9][a-z0-9!#$&^_.+-]*$/;
 
-/** Only the HMAC-gated HTTP callback calls this raw-database seam. */
 export const completeUploadThingTaskUploadGrant = internalMutationGeneric({
   args: {
     grantId: v.id("operatorTaskUploadGrants"),

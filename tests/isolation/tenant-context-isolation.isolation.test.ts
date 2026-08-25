@@ -1,38 +1,3 @@
-/**
- * Isolation tier — cross-tenant properties of active tenant context resolution.
- *
- * Scope, stated before the assertions so the tier is not over-read: this suite
- * runs the production resolver
- * ([`resolveTenantContext`](../../convex/lib/tenantContext.ts)) against a
- * deterministic in-memory world, not against Convex. It does **not** close
- * `RG-013` or `RG-031`: there is still no exported Convex function, no
- * tenant-bound accessor, and no deployment, so nothing here proves that a real
- * `ctx.db` rejects a foreign document ID. What it proves is the layer above that
- * one — that the resolution algebra never lets tenant A's identity end up holding
- * tenant B's organization, membership, or warehouse, including when the lookup
- * port hands it one.
- *
- * The four properties:
- *
- * 1. **Human identifiers are tenant-local.** Two tenants both own a warehouse
- *    with `code` `NORTH` (`warehouses.code` is unique per organization, §5 Q4).
- *    Each resolves to its own document, and neither resolution mentions the
- *    other's.
- * 2. **A foreign ID buys nothing.** Presenting tenant B's warehouse ID while
- *    tenant A is active is denied, and denied as `WAREHOUSE_UNKNOWN` — the same
- *    code as an ID that never existed, so the caller cannot use the resolver as
- *    an existence oracle over another tenant's data.
- * 3. **ID shape is not identity.** The fixture mints IDs as `table:key`, so
- *    similar keys give near-identical strings. Resolution compares documents to
- *    the resolved organization, so lookalike IDs and cross-tenant swaps are
- *    refused for the same reason a random string is.
- * 4. **The same person is a different actor per tenant.** One user with active
- *    memberships in both tenants gets a different membership, a different scope
- *    mode, and therefore different warehouse access depending only on the
- *    active-organization claim — with `ORG_WIDE` as the schema's explicit
- *    all-warehouse representation and an explicit `membershipWarehouses` row as
- *    the alternative.
- */
 import { describe, expect, it } from "vitest";
 
 import {
@@ -78,10 +43,6 @@ function requestFor(
   };
 }
 
-/* -------------------------------------------------------------------------- */
-/* Tenant-local human identifiers                                              */
-/* -------------------------------------------------------------------------- */
-
 describe("two tenants may reuse a warehouse code", () => {
   it("declares the same code in both tenants, on different documents", () => {
     const fake = world();
@@ -126,10 +87,6 @@ describe("two tenants may reuse a warehouse code", () => {
     );
   });
 });
-
-/* -------------------------------------------------------------------------- */
-/* Foreign and lookalike IDs                                                   */
-/* -------------------------------------------------------------------------- */
 
 describe("a warehouse ID from another tenant", () => {
   it("is denied while the other tenant is active", async () => {
@@ -193,9 +150,6 @@ describe("a warehouse ID from another tenant", () => {
     const requested = fake.warehouseId("beta-north");
     const lookalike = fake.warehouse("beta-south");
 
-    // The two IDs differ only in their key suffix, which is exactly the kind of
-    // near-collision an attacker would try. Identity is the document, not the
-    // string's shape.
     expect(String(requested).startsWith("warehouses:beta-")).toBe(true);
     expect(String(lookalike._id).startsWith("warehouses:beta-")).toBe(true);
 
@@ -223,7 +177,7 @@ describe("a membership from another tenant", () => {
       requestFor(fake, ALPHA_CLAIM, {
         lookups: {
           ...fake.lookups,
-          // Tenant B's membership for the same person: same user, wrong tenant.
+
           findMembershipByOrganizationAndUser: () =>
             Promise.resolve(fake.membership("siriwan-beta")),
         },
@@ -253,10 +207,6 @@ describe("a membership from another tenant", () => {
     expect(result.denial.code).toBe("MEMBERSHIP_MISSING");
   });
 });
-
-/* -------------------------------------------------------------------------- */
-/* Scope: all-warehouse mode versus explicit grants                            */
-/* -------------------------------------------------------------------------- */
 
 describe("warehouse scope depends on the active tenant's membership", () => {
   it("gives an ORG_WIDE membership every active warehouse of its own tenant", async () => {
@@ -329,10 +279,6 @@ describe("warehouse scope depends on the active tenant's membership", () => {
     expect(result.denial.code).toBe("WAREHOUSE_OUT_OF_SCOPE");
   });
 });
-
-/* -------------------------------------------------------------------------- */
-/* Non-leakage across tenants                                                  */
-/* -------------------------------------------------------------------------- */
 
 describe("a cross-tenant denial says nothing about the other tenant", () => {
   it("mentions no fixture value from either tenant", async () => {

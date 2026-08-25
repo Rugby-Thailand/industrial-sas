@@ -1,35 +1,3 @@
-/**
- * Integration tier — active tenant context resolution.
- *
- * The subject is the production algorithm itself:
- * [`resolveTenantContext`](../../convex/lib/tenantContext.ts) is imported and
- * called, never re-implemented. What is faked is only the five bounded lookups it
- * is given (`tests/fixtures/tenant-context-world.ts`), because the alternative —
- * a Convex deployment — is neither available nor necessary to decide whether the
- * algorithm's branches are correct.
- *
- * This suite covers the *decision surface*:
- *
- * - the three shapes of success (no warehouse, org-wide warehouse, explicitly
- *   scoped warehouse) and the fact that the returned context is the documents the
- *   world holds, frozen;
- * - every declared denial code and every declared internal cause, each asserted
- *   by exact `(code, cause)` pair, with a table-completeness test that fails if a
- *   new code or cause is declared and never exercised;
- * - the port lying: for each lookup, an answer that is *a* document but not the
- *   document that was asked for is a denial, not an accepted document;
- * - request correlation and non-leakage: every denial carries the request ID, and
- *   neither the internal denial nor the public payload contains any string from
- *   the fixture corpus — names, external Clerk references, claim values,
- *   warehouse codes, document IDs, or the token-only email.
- *
- * Cross-tenant separation properties — two tenants reusing a warehouse code, a
- * foreign ID presented deliberately, scope differing by active tenant — are the
- * isolation tier's, in `tests/isolation/tenant-context-isolation.isolation.test.ts`.
- *
- * No Convex deployment, no Clerk account, no network, no environment variable
- * (`INV-0008-05`).
- */
 import { describe, expect, it } from "vitest";
 
 import {
@@ -59,7 +27,6 @@ import {
   type FakeWorld,
 } from "../fixtures/tenant-context-world";
 
-/** A UUIDv7-shaped, server-minted correlation ID (plan §7.4). */
 const REQUEST_ID = "0198f0d7-0c5b-7c19-9a1e-52a63d9f0a11";
 
 const ALPHA_CLAIM = "org_alpha_2f8c";
@@ -70,17 +37,12 @@ function world(): FakeWorld {
   return createFakeWorld(TWO_TENANT_WORLD);
 }
 
-/** A lookup port that answers as the world does, except where overridden. */
 function lyingPort(
   base: FakeWorld,
   overrides: Partial<TenantContextLookups>,
 ): TenantContextLookups {
   return { ...base.lookups, ...overrides };
 }
-
-/* -------------------------------------------------------------------------- */
-/* Success                                                                     */
-/* -------------------------------------------------------------------------- */
 
 describe("resolving a context without a warehouse", () => {
   it("returns the mirrored actor, organization, and active membership", async () => {
@@ -195,7 +157,7 @@ describe("resolving a context with a warehouse", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.context.warehouse).toBe(fake.warehouse("alpha-north"));
-    // An org-wide membership needs no scope row, so none is read.
+
     expect(fake.calls).not.toContain("findMembershipWarehouse");
   });
 
@@ -226,15 +188,6 @@ describe("resolving a context with a warehouse", () => {
   });
 });
 
-/* -------------------------------------------------------------------------- */
-/* Denials                                                                     */
-/* -------------------------------------------------------------------------- */
-
-/**
- * One denial to prove, and the request that produces it.
- *
- * Each case builds its own world so no case can observe another's lookup log.
- */
 type DenialCase = {
   readonly name: string;
   readonly code: TenantContextDenialCode;
@@ -258,8 +211,6 @@ const DENIAL_CASES: readonly DenialCase[] = [
     code: "IDENTITY_MALFORMED",
     cause: "SUBJECT_NOT_A_STRING",
     request: (fake) => ({
-      // A token that lies about the type of `sub`. The declared type says
-      // `string`; the resolver does not take the declaration's word for it.
       identity: {
         ...fixtureIdentity(
           SIRIWAN_SUBJECT,
@@ -554,8 +505,7 @@ const DENIAL_CASES: readonly DenialCase[] = [
         activeOrganizationClaim(ALPHA_CLAIM),
       ),
       warehouseId: fake.warehouseId("beta-north"),
-      // The org-scoped lookup would return `null`; this port hands over the
-      // foreign document, which the resolver must still refuse.
+
       lookups: lyingPort(fake, {
         findWarehouseByOrganizationAndId: () =>
           Promise.resolve(fake.warehouse("beta-north")),
@@ -687,10 +637,6 @@ describe("denials", () => {
   });
 });
 
-/* -------------------------------------------------------------------------- */
-/* Correlation and non-leakage                                                 */
-/* -------------------------------------------------------------------------- */
-
 describe("every denial is correlated and carries nothing else", () => {
   it("uses the caller's request ID, whatever the denial", async () => {
     const other = "0198f0d7-0c5b-7c19-9a1e-52a63d9f0b22";
@@ -785,10 +731,6 @@ describe("the public conversion seam", () => {
     expect(Object.isFrozen(publicDenial)).toBe(true);
   });
 });
-
-/* -------------------------------------------------------------------------- */
-/* Request ID validation                                                       */
-/* -------------------------------------------------------------------------- */
 
 describe("the request ID is a server obligation, not a denial", () => {
   const identity = fixtureIdentity(

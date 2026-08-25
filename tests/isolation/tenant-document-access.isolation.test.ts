@@ -1,39 +1,3 @@
-/**
- * Isolation tier — cross-tenant properties of adapter-backed document access
- * (`createTenantDocumentAccess` in `convex/lib/tenantDb.ts`, T05b1b).
- *
- * The isolation tier is a blocking merge gate (`RG-031`). This file does not
- * close it, and it does not close `RG-013` or `G-102`: there is still no Convex
- * adapter, no index-backed read, and no deployed function, so nothing here proves
- * that a *deployed* query rejects a cross-tenant document ID. What it proves is
- * the layer such a query will be built on, by attacking it — two accessors, two
- * tenants, one permissive store between them.
- *
- * The store is the in-memory port fixture, which checks nothing: it will happily
- * hand over another tenant's document and happily patch it. Every refusal
- * observed here is the accessor's, and every call the fixture records is a call
- * the accessor chose to make. That is what makes "no mutation happened" a
- * provable statement rather than an inference from an answer.
- *
- * The properties under attack:
- *
- * - a document ID from another tenant is answered as `null` by `get` and as
- *   `NOT_FOUND` by `getX`, indistinguishable from an ID that was never written
- *   (`INV-0002-03`) — a document ID needs no index, so a caller can hold one
- *   without ever having been allowed to see it;
- * - a denied patch, replace, or delete reaches no mutating method on the port at
- *   all, so the denial is not a rolled-back write (`ADR-0002` §2);
- * - the tenant on a write comes from the scope, never the payload
- *   (`INV-0001-02`), on insert and on replace alike;
- * - a tenant-scoped path cannot be aimed at a global table, even one whose row
- *   would pass the ownership check (`ADR-0002` §1);
- * - no failure carries a table name, a document ID, an `orgId`, a field name, or
- *   any part of a payload (`INV-0002-07`).
- *
- * The two tenants' documents are given the same key on purpose. Similarity of
- * shape must buy an attacker nothing: ownership is decided by comparing keys, not
- * by how different they look.
- */
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { GLOBAL_TABLES, TENANT_TABLES } from "../../convex/lib/schemaPolicy";
@@ -54,25 +18,22 @@ import {
 
 const REQUEST_ID = "req_01JBZ0000000000000000000";
 
-/** The reader's tenant. */
 const ORG_HOME: TenantOrgId = fixtureId("organizations", "home");
-/** Another customer's tenant. Same shape, different key. */
+
 const ORG_FOREIGN: TenantOrgId = fixtureId("organizations", "foreign");
 
 const TABLE: TenantTableName = "warehouses";
-/** Same table, same key shape, different tenant. */
+
 const HOME_ID = fixtureId("warehouses", "north-home");
 const FOREIGN_ID = fixtureId("warehouses", "north-foreign");
 const ABSENT_ID = fixtureId("warehouses", "north-absent");
 
-/** The foreign document, verbatim: nothing here may ever surface in a failure. */
 const FOREIGN_DOCUMENT = {
   orgId: ORG_FOREIGN,
   code: "SECRET_LOT_CODE",
   supplierPriceThb: 1234,
 } as const;
 
-/** Values that must never appear anywhere in a failure. */
 const SECRETS = [
   ORG_FOREIGN,
   "foreign",
@@ -87,9 +48,9 @@ interface WarehouseLike extends TenantOwnedDocument {
 }
 
 let storage: TenantStoragePortFixture;
-/** The accessor under attack. */
+
 let home: TenantDocumentAccess;
-/** The other tenant's accessor, over the same store. */
+
 let foreign: TenantDocumentAccess;
 
 beforeEach(() => {
@@ -107,7 +68,6 @@ beforeEach(() => {
   storage.seed(TABLE, FOREIGN_ID, FOREIGN_DOCUMENT);
 });
 
-/** Everything a caller can see of a rejected operation. */
 async function failure(call: () => Promise<unknown>): Promise<{
   readonly error: TenantDbError;
   readonly surface: string;
@@ -118,8 +78,7 @@ async function failure(call: () => Promise<unknown>): Promise<{
     if (!(caught instanceof TenantDbError)) {
       throw new Error(`Expected a TenantDbError, received ${String(caught)}.`);
     }
-    // Everything reachable without a debugger: the payload, the message, the
-    // error's own enumerable properties, and its default serialization.
+
     const surface = [
       JSON.stringify(caught.toPublic()),
       caught.message,
@@ -149,7 +108,6 @@ describe("two tenants reading by document ID over one store", () => {
   });
 
   it("hands back the foreign document to nobody, though the store offers it", async () => {
-    // The store is willing: the accessor is what refuses.
     expect(await storage.port.get(TABLE, FOREIGN_ID)).toEqual(FOREIGN_DOCUMENT);
     expect(await home.get(TABLE, FOREIGN_ID)).toBeNull();
   });
@@ -263,8 +221,6 @@ describe("a denied write is not a rolled-back write", () => {
       await failure(() => attempt(FOREIGN_ID));
     }
 
-    // The very object seeded, not an equal copy: a merge or a replace would have
-    // substituted a new one, and a delete would have left `undefined`.
     expect(storage.stored(TABLE, FOREIGN_ID)).toBe(before);
     expect(storage.stored(TABLE, FOREIGN_ID)).toEqual(FOREIGN_DOCUMENT);
     expect(await foreign.getX<WarehouseLike>(TABLE, FOREIGN_ID)).toEqual(
@@ -323,7 +279,6 @@ describe("a write cannot choose its tenant", () => {
 describe("the tenant-scoped path cannot be pointed at a global table", () => {
   it("refuses each global table on a read, and asks storage nothing", async () => {
     for (const name of GLOBAL_TABLES) {
-      // Boundary cast: a name the compiler would reject, arriving as a `string`.
       const table = name as unknown as TenantTableName;
 
       expect((await failure(() => home.getX(table, HOME_ID))).error.code).toBe(

@@ -1,31 +1,3 @@
-/**
- * Shared operator work: the board, the lease, and the evidence stream
- * (`FF-P1-09`, `FF-P1-10`, plan §4 invariants 18 and 20).
- *
- * The state machine is `convex/model/platform/taskAssignment.ts` and the
- * quantity rules are `convex/model/platform/quantityEntry.ts`. What this module
- * owns is what only a transaction can:
- *
- * 1. **Resolving the race.** Two handhelds claim at once; the row is re-read
- *    inside the transaction, so the loser is told they lost.
- * 2. **Preserving partial evidence.** Every change of hands — release, takeover
- *    of a lapsed lease, supervisor reassignment — appends a `HANDOVER` row to
- *    the same stream as the work itself. Nothing is deleted, so an operator who
- *    inherits a task inherits what was already done and can see who did it.
- * 3. **Converting a quantity exactly**, server-side, from the operator's entry
- *    unit to the item's base minor units, and judging it against what the task
- *    expected.
- * 4. **Spending a supervisor approval**, once, inside the same transaction as
- *    the evidence it authorizes.
- *
- * ### Why evidence is a separate table and not a JSON column
- *
- * `putawayTasks.recommendationTrace` is a JSON string because it is written
- * once and read whole. Evidence is neither: it grows one row at a time across
- * a shift, it is appended by different people after a handover, and it is
- * ordered. A column would make every append a read-modify-write of a growing
- * document — the lost-update shape this schema avoids everywhere else.
- */
 import { v } from "convex/values";
 
 import {
@@ -82,11 +54,9 @@ export const WORK_OPERATIONS = Object.freeze({
   evidence: "work.evidence.record",
 });
 
-/** The operation an implausible quantity needs a supervisor to approve. */
 export const IMPLAUSIBLE_QUANTITY_OPERATION =
   "work.evidence.implausibleQuantity";
 
-/** How many alternate units one item may declare before the profile is trimmed. */
 const MAX_ITEM_UOMS = 20;
 
 interface TaskDocument {
@@ -177,14 +147,6 @@ const taskStateOf = (task: TaskDocument): OperatorTaskState => ({
   evidenceCount: task.evidenceCount,
 });
 
-/**
- * Load a task and prove it belongs to the named site.
- *
- * The accessor proves the tenant, not the warehouse, so a task at another site
- * has to be refused here — exactly as `putaway/tasks.ts` does, and for the same
- * reason: a claim writes a patch, and no ledger posting downstream would catch
- * the site mismatch (`INV-0006-04`).
- */
 async function loadTask(
   ctx: TenantFunctionContext,
   taskId: string,
@@ -195,13 +157,6 @@ async function loadTask(
   return task;
 }
 
-/**
- * Append one evidence row and move the task's stored counter with it.
- *
- * The sequence comes from the counter rather than from a count of rows,
- * because the counter is read inside this transaction and a count would be an
- * unbounded read on the write path.
- */
 async function appendEvidence(
   ctx: TenantFunctionContext,
   task: TaskDocument,
@@ -269,10 +224,6 @@ async function appendEvidence(
   return { evidenceId, sequence };
 }
 
-/* -------------------------------------------------------------------------- */
-/* Reads                                                                       */
-/* -------------------------------------------------------------------------- */
-
 const leaseViewValidator = v.union(
   v.object({ kind: v.literal("UNCLAIMED") }),
   v.object({
@@ -297,29 +248,16 @@ const taskRowValidator = v.object({
   instruction: v.string(),
   status: operatorTaskStatus,
   itemId: v.optional(v.id("items")),
-  /** The base unit the expectation is counted in; absent when no item is named. */
+
   baseUom: v.optional(v.string()),
   locationId: v.optional(v.id("locations")),
   expectedBaseMinorUnits: v.optional(v.number()),
   dueAt: v.optional(v.number()),
   evidenceCount: v.number(),
-  /**
-   * The lease as it reads *now*, computed against the server clock.
-   *
-   * Sent rather than the three raw fields, so a screen cannot decide for itself
-   * whether a lease has lapsed using a device clock that may be minutes out.
-   */
+
   lease: leaseViewValidator,
 });
 
-/**
- * The site board, or one operator's own work.
- *
- * `scope: "MINE"` reads the holder-first index rather than filtering a site
- * page, because a filtered page is drawn before the filter runs: an operator
- * holding two tasks at a busy site would see an empty screen and read it as
- * "you have nothing to do" (`INV-0002-04`).
- */
 export const listOperatorTasks = queryWithOrg({
   args: {
     warehouseId: v.id("warehouses"),
@@ -334,7 +272,7 @@ export const listOperatorTasks = queryWithOrg({
       items: v.array(taskRowValidator),
       nextCursor: v.union(v.string(), v.null()),
       complete: v.boolean(),
-      /** The server clock the leases above were judged against. */
+
       asOf: v.number(),
     }),
     v.object({ ok: v.literal(false), error: v.object({ code: v.string() }) }),
@@ -447,11 +385,10 @@ const evidenceRowValidator = v.object({
   manualEntryReason: v.optional(v.string()),
   note: v.optional(v.string()),
   previousHolderUserId: v.optional(v.id("users")),
-  /** True when a supervisor approval was spent on this row (`FF-P1-11`). */
+
   supervisorApproved: v.boolean(),
 });
 
-/** One task's evidence, oldest first: what an operator inherits after a handover. */
 export const listOperatorTaskEvidence = queryWithOrg({
   args: {
     warehouseId: v.id("warehouses"),
@@ -533,10 +470,6 @@ export const listOperatorTaskEvidence = queryWithOrg({
   },
 });
 
-/* -------------------------------------------------------------------------- */
-/* Writes                                                                      */
-/* -------------------------------------------------------------------------- */
-
 const taskOutcomeValidator = v.union(
   v.object({
     written: v.literal(true),
@@ -546,7 +479,6 @@ const taskOutcomeValidator = v.union(
   v.object({ written: v.literal(false), error: writeErrorValidator }),
 );
 
-/** Plan a unit of work and put it on the site board. */
 export const createOperatorTask = mutationWithOrg({
   args: {
     requestId: v.string(),
@@ -636,22 +568,15 @@ const claimOutcomeValidator = v.union(
     written: v.literal(true),
     documentId: v.string(),
     replayed: v.boolean(),
-    /** True when this actor already held the task and simply renewed it. */
+
     alreadyHeld: v.boolean(),
     leaseExpiresAt: v.number(),
-    /** How much partial evidence came with the task. */
+
     retainedEvidenceCount: v.number(),
   }),
   v.object({ written: v.literal(false), error: writeErrorValidator }),
 );
 
-/**
- * Claim a task and start its lease.
- *
- * Taking over a lapsed lease writes a `HANDOVER` row naming the operator it was
- * taken from, in the same transaction. Without it, a task would silently change
- * hands and the evidence above the handover would read as this operator's work.
- */
 export const claimOperatorTask = mutationWithOrg({
   args: {
     requestId: v.string(),
@@ -715,19 +640,12 @@ const heartbeatOutcomeValidator = v.union(
     documentId: v.string(),
     replayed: v.boolean(),
     leaseExpiresAt: v.number(),
-    /** True when the lease had lapsed and this renewal recovered it. */
+
     recovered: v.boolean(),
   }),
   v.object({ written: v.literal(false), error: writeErrorValidator }),
 );
 
-/**
- * Renew a lease.
- *
- * Classified `BLOCKED_OFFLINE`: a heartbeat replayed from a queue would assert
- * a liveness the operator did not have while they were out of range, which is
- * the opposite of what a lease is for.
- */
 export const heartbeatOperatorTask = mutationWithOrg({
   args: {
     requestId: v.string(),
@@ -778,13 +696,12 @@ const releaseOutcomeValidator = v.union(
     written: v.literal(true),
     documentId: v.string(),
     replayed: v.boolean(),
-    /** Evidence rows the task kept. A release never discards partial work. */
+
     retainedEvidenceCount: v.number(),
   }),
   v.object({ written: v.literal(false), error: writeErrorValidator }),
 );
 
-/** Hand a task back to the queue, with a reason and with its evidence intact. */
 export const releaseOperatorTask = mutationWithOrg({
   args: {
     requestId: v.string(),
@@ -839,13 +756,6 @@ export const releaseOperatorTask = mutationWithOrg({
   },
 });
 
-/**
- * Move a task to another operator.
- *
- * The only path that may take a *live* lease, which is why it carries its own
- * permission. The previous holder's partial evidence stays exactly where it
- * was, and the handover row records who lost the task, who gained it, and why.
- */
 export const reassignOperatorTask = mutationWithOrg({
   args: {
     requestId: v.string(),
@@ -867,12 +777,6 @@ export const reassignOperatorTask = mutationWithOrg({
       return refusal({ code: "NOT_FOUND", table: "operatorTasks" });
     }
 
-    /*
-     * The recipient must be a member of *this* tenant, proved through the
-     * tenant's own membership index rather than by the ID looking plausible.
-     * `users` is a global table, so a valid-looking user ID from another
-     * tenant would otherwise resolve.
-     */
     const membership = await ctx.tenantDb
       .byIndex<MembershipDocument & Record<string, never>>(
         "memberships",
@@ -921,7 +825,6 @@ export const reassignOperatorTask = mutationWithOrg({
   },
 });
 
-/** Finish a task the actor holds under a live lease. */
 export const completeOperatorTask = mutationWithOrg({
   args: {
     requestId: v.string(),
@@ -960,17 +863,13 @@ export const completeOperatorTask = mutationWithOrg({
   },
 });
 
-/* -------------------------------------------------------------------------- */
-/* Evidence                                                                    */
-/* -------------------------------------------------------------------------- */
-
 const evidenceOutcomeValidator = v.union(
   v.object({
     written: v.literal(true),
     documentId: v.string(),
     replayed: v.boolean(),
     sequence: v.number(),
-    /** The converted amount, in the item's base minor units. */
+
     baseMinorUnits: v.optional(v.number()),
     plausibility: v.optional(quantityPlausibility),
     resolvedItemId: v.optional(v.id("items")),
@@ -980,13 +879,6 @@ const evidenceOutcomeValidator = v.union(
   v.object({ written: v.literal(false), error: writeErrorValidator }),
 );
 
-/**
- * Build the item's conversion profile from its own rows.
- *
- * Bounded: an item declares a handful of packaging units, and the read is
- * capped so a misconfigured tenant costs a worse profile rather than an
- * unbounded read on a handheld's critical path.
- */
 async function itemProfile(
   ctx: TenantFunctionContext,
   item: ItemDocument,
@@ -1016,35 +908,22 @@ async function itemProfile(
   });
 }
 
-/**
- * Append one piece of evidence to a task the actor holds.
- *
- * Idempotent through the shared helper: the same `requestId` with the same
- * arguments replays the evidence row it already wrote rather than appending a
- * second one, which is what makes a retry after a stalled network safe
- * (`INV-0003-01`).
- *
- * A quantity beyond the task's plausibility ceiling is **refused unless a
- * supervisor approval is spent on it**. The approval is consumed in this
- * transaction, so it cannot authorize a second entry, and the evidence row
- * records which approval let it through.
- */
 export const recordTaskEvidence = mutationWithOrg({
   args: {
     requestId: v.string(),
     warehouseId: v.id("warehouses"),
     operatorTaskId: v.id("operatorTasks"),
     kind: v.union(v.literal("QUANTITY"), v.literal("SCAN"), v.literal("NOTE")),
-    /** What the operator typed, exactly, before any repair. */
+
     quantityText: v.optional(v.string()),
-    /** The unit they say they counted in. */
+
     entryUom: v.optional(v.string()),
     scanValue: v.optional(v.string()),
     scanInputMethod: v.optional(v.union(v.literal("HID"), v.literal("MANUAL"))),
     manualEntryReason: v.optional(v.string()),
     note: v.optional(v.string()),
     installationId: v.optional(v.string()),
-    /** A supervisor approval, when the entry needs one (`FF-P1-11`). */
+
     stepUpApprovalId: v.optional(v.id("stepUpApprovals")),
   },
   returns: evidenceOutcomeValidator,
@@ -1320,14 +1199,6 @@ export const recordTaskEvidence = mutationWithOrg({
   },
 });
 
-/**
- * Spend one supervisor approval, in this transaction.
- *
- * Resolving the device from the installation ID rather than trusting a
- * client-supplied device ID is what makes "the approval was given on *this*
- * device" checkable: the installation resolves through the organization's own
- * index, so a value from another tenant resolves to nothing.
- */
 async function spendApproval(
   ctx: TenantFunctionContext,
   input: {
@@ -1397,16 +1268,6 @@ async function spendApproval(
   return { ok: true, approvalId: decision.value.approvalId };
 }
 
-/**
- * The maker-checker facts `work.stepUp.approve` needs.
- *
- * Exported here rather than in `stepUp.ts` because the maker is the *operator*
- * named in the request, and the evaluator's rule — a checker may not be the
- * maker — is exactly the "no self-approval" rule this slice needs. Handing the
- * operator as the maker means the shared evaluator denies a supervisor
- * approving their own entry, with the same `APPROVAL_REQUIRED` audit reason as
- * every other maker-checker refusal in the system.
- */
 export async function stepUpApprovalPolicy(
   _ctx: TenantPolicyContext,
   args: { readonly operatorUserId: string },
@@ -1423,5 +1284,4 @@ export async function stepUpApprovalPolicy(
   });
 }
 
-/** The page cap, re-exported so a client can size its own loop. */
 export const maxOperatorTaskPageSize = MAX_JOB_PAGE_SIZE;

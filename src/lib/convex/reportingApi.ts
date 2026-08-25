@@ -1,9 +1,3 @@
-/**
- * Typed references to the reporting functions, and the wire types they answer.
- *
- * Function references come from Convex code generation; the named row types are
- * the smaller presentation vocabulary used by the reporting screens.
- */
 import { api } from "../../../convex/_generated/api";
 import type {
   DashboardActionId,
@@ -12,7 +6,6 @@ import type {
 
 import { clientRef } from "./clientRef";
 
-/** Every maintained metric a tile can show. Mirrors the server's closed set. */
 export type RollupMetric =
   | "RECEIPTS_OPENED"
   | "RECEIPT_LINES_POSTED"
@@ -25,9 +18,9 @@ export type RollupMetric =
 export interface DashboardTile {
   readonly metric: RollupMetric;
   readonly count: number;
-  /** Absent when the counter has never been touched — not the same as zero. */
+
   readonly updatedAt?: number;
-  /** A decrement once clamped, so the number is suspect until verified. */
+
   readonly suspect: boolean;
 }
 

@@ -1,23 +1,5 @@
 "use client";
 
-/**
- * The operator's first screen: **My work**, the site queue, and the two
- * controls that move a task between them (`FF-P1-01`, `FF-P1-09`).
- *
- * Three things this screen does that a task list would not:
- *
- * 1. **It says who holds what, in words and with time left.** The lease is
- *    computed server-side and sent as a decided fact, so a handheld whose clock
- *    is minutes out cannot render "4 min left" for a task it has already lost.
- * 2. **It shows how much partial work a task already carries.** A lapsed lease
- *    with twelve scans on it is a different proposition from an untouched one,
- *    and the evidence count is what makes an operator pick the right task.
- * 3. **It tells the operator what the connection permits *before* they press.**
- *    Claiming and releasing are `BLOCKED_OFFLINE`
- *    (`convex/model/platform/commandClassification.ts`), so while the link is
- *    down the controls are disabled with the reason rather than offered and
- *    then refused.
- */
 import { useConvexConnectionState } from "convex/react";
 import { useTranslations } from "next-intl";
 import { useState, type ReactNode } from "react";
@@ -49,17 +31,8 @@ import { TaskExceptionSheet } from "./TaskExceptionSheet";
 import { TaskQuantityEvidence } from "./TaskQuantityEvidence";
 import { TaskScanEvidence } from "./TaskScanEvidence";
 
-/** What the board is showing: this operator's work, or the whole site. */
 export type WorkScope = "MINE" | "SITE";
 
-/**
- * Resolve the shell's connection status without assuming a Convex client.
- *
- * `useConvexConnectionState` throws outside a provider, and there is no
- * provider on an unconfigured machine or in preview mode — the same split
- * `ConnectionIndicator` makes, for the same reason, so the board renders in
- * preview without a socket.
- */
 function WithConnectionStatus({
   children,
 }: {
@@ -103,11 +76,7 @@ function WorkBoardBody({ status }: { readonly status: ConnectionStatus }) {
   const t = useTranslations("OperatorWork");
   const [scope, setScope] = useState<WorkScope>("MINE");
   const [selectedTask, setSelectedTask] = useState<OperatorTaskRow>();
-  /*
-   * Claim and release are both `BLOCKED_OFFLINE`, so one verdict covers both
-   * controls. If they ever diverge, this becomes two and the screen says so per
-   * control rather than by implication.
-   */
+
   const availability: CommandAvailability = availabilityFor({
     operation: "work.task.claim",
     status,
@@ -162,8 +131,6 @@ function WorkBoardBody({ status }: { readonly status: ConnectionStatus }) {
           cursor?: string;
         }
       >
-        // The cursor belongs to the query that produced it, and switching scope
-        // switches the index the page came from.
         key={scope}
         queryRef={listOperatorTasksRef}
         scope="WAREHOUSE"
@@ -272,13 +239,6 @@ function WorkBoardBody({ status }: { readonly status: ConnectionStatus }) {
   );
 }
 
-/**
- * Hand a task back, with the reason the release needs.
- *
- * A separate control rather than a row action: a release requires a reason, and
- * a reason typed into a table row is a reason nobody reads. The reason is
- * required by the server too, so the field is not decoration.
- */
 export function ReleaseTaskForm({
   operatorTaskId,
   warehouseId,

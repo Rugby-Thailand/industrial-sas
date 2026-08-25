@@ -1,12 +1,5 @@
 #!/usr/bin/env node
-/**
- * Read-only integrity check for the normalized order-to-ship relationships.
- *
- * The schema contract prevents legacy fields from being declared again. This
- * check complements it by examining deployed data for dangling references,
- * cross-tenant relationships, and logical duplicates that Convex indexes cannot
- * enforce as unique constraints.
- */
+
 import { spawnSync } from "node:child_process";
 import process from "node:process";
 

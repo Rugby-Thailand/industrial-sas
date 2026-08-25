@@ -91,8 +91,6 @@ describe("EntityForm", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "บันทึก" }));
 
-    // `kind` is optional and was never touched, so it submits empty rather than
-    // as the first option nobody chose. See the select suite below.
     expect(onSubmit).toHaveBeenCalledWith({
       code: "SIAM-STEEL",
       name: "สยามสตีล",
@@ -101,11 +99,6 @@ describe("EntityForm", () => {
   });
 
   it("names a blank required field instead of disabling the button", () => {
-    /*
-     * A disabled submit with no explanation is the least actionable state on a
-     * warehouse screen. Submitting an incomplete form has to produce a message
-     * that says which field, next to that field.
-     */
     const { onSubmit } = renderForm();
 
     fireEvent.click(screen.getByRole("button", { name: "บันทึก" }));
@@ -149,15 +142,6 @@ describe("EntityForm", () => {
   });
 
   it("keeps what was typed until the caller raises the reset signal", () => {
-    /*
-     * The signal is raised on a *confirmed* write and nothing else. Clearing on
-     * any submission would wipe an operator's typing after a refusal they were
-     * about to correct — which is the moment the values matter most.
-     *
-     * The signal is raised from inside the tree rather than by re-rendering the
-     * root, because replacing the root remounts the form and an empty field
-     * would then prove nothing.
-     */
     renderWithIntl(<ResetHarness />);
 
     fireEvent.change(screen.getByLabelText("รหัส"), {
@@ -171,7 +155,6 @@ describe("EntityForm", () => {
   });
 });
 
-/** A form whose reset signal can be raised without remounting it. */
 function ResetHarness() {
   const [resetSignal, setResetSignal] = useState(0);
 
@@ -202,11 +185,6 @@ describe("WriteOutcomeNotice", () => {
   });
 
   it("distinguishes a first write from a replay", () => {
-    /*
-     * A replay is the idempotency key doing its job, not a failure and not a
-     * duplicate. Saying so is what stops someone "fixing" it by submitting
-     * again.
-     */
     const first = renderWithIntl(
       <WriteOutcomeNotice
         state={{ kind: "SAVED", documentId: "d1", replayed: false }}
@@ -224,7 +202,6 @@ describe("WriteOutcomeNotice", () => {
   });
 
   it("quotes the request ID on a denial and explains nothing further", () => {
-    // The server refuses to say which permission was missing (`INV-0002-07`).
     renderWithIntl(
       <WriteOutcomeNotice state={{ kind: "DENIED", requestId: "req_42" }} />,
     );
@@ -242,7 +219,6 @@ describe("WriteOutcomeNotice", () => {
       />,
     );
 
-    // The code is the only string that connects a screenshot to a server log.
     expect(screen.getByText("DUPLICATE_KEY")).toBeInTheDocument();
     expect(screen.getByTestId("write-REFUSED")).toHaveTextContent(
       "มีรายการที่ใช้รหัสนี้อยู่แล้ว",
@@ -250,8 +226,6 @@ describe("WriteOutcomeNotice", () => {
   });
 
   it("falls back to the raw code for a refusal the catalogue does not know", () => {
-    // The server is versioned separately from the browser. A code the client
-    // has no message for is still better shown than swallowed.
     renderWithIntl(
       <WriteOutcomeNotice
         state={{ kind: "REFUSED", code: "NEW_SERVER_CODE" }}
@@ -270,15 +244,6 @@ describe("WriteOutcomeNotice", () => {
   });
 });
 
-/**
- * The select branch, which every `kind: "select"` field specification renders
- * through.
- *
- * Twenty-odd specifications across master data, purchasing, receiving, quality,
- * putaway, and exports reach this one code path. None of them was edited when
- * the native `<select>` became a Radix menu, which is the point of the seam —
- * and the reason these states are asserted here rather than once per caller.
- */
 describe("EntityForm select fields", () => {
   const withSelect = (
     overrides: Partial<Parameters<typeof EntityForm>[0]> = {},
@@ -307,16 +272,6 @@ describe("EntityForm select fields", () => {
   });
 
   it("starts with nothing chosen and shows the placeholder", () => {
-    /*
-     * The regression this asserts had a real cost. `initialValues` used to fall
-     * back to `options[0]`, so the item form opened with `trackingMode` already
-     * reading "NONE" — the operator never chose it, the placeholder never
-     * appeared, and the item was created unable to hold a lot. The defect was
-     * invisible on screen precisely because the control looked answered.
-     *
-     * `SelectControl` documents the placeholder as required for this reason;
-     * this is the assertion that the form above it does not defeat it.
-     */
     withSelect({
       fields: [
         {
@@ -362,11 +317,6 @@ describe("EntityForm select fields", () => {
   });
 
   it("refuses to submit a required select nobody answered", () => {
-    /*
-     * The half of the fix that matters most. While the first option was
-     * pre-selected, a `required` select could never be blank, so this branch was
-     * unreachable and a consequential choice was made by list order.
-     */
     const { onSubmit } = withSelect();
 
     fireEvent.change(screen.getByLabelText("รหัส"), {
@@ -392,11 +342,6 @@ describe("EntityForm select fields", () => {
   });
 
   it("still honours an explicit initialValue, which is how the edit forms load", () => {
-    /*
-     * The edit forms (`CoreForms.tsx`) pass the stored value as `initialValue`.
-     * Removing the `options[0]` fallback must not touch that path: an edit form
-     * that opened blank would silently clear the field it was meant to change.
-     */
     const { onSubmit } = withSelect({
       fields: [
         {
@@ -447,8 +392,6 @@ describe("EntityForm select fields", () => {
   });
 
   it("marks a select the server blamed", () => {
-    // Same treatment as a text field: the refusal names a field, and the field
-    // says so where the operator is looking (`INV-0002-*`).
     withSelect({ invalidField: "kind" });
     expect(selectTrigger("ชนิด")).toHaveAttribute("aria-invalid", "true");
   });
@@ -461,9 +404,7 @@ describe("EntityForm select fields", () => {
           label: "รหัสเหตุผล",
           kind: "select",
           required: true,
-          // No `initialValue`, and an option list whose first entry is blank:
-          // the form starts with nothing chosen, which is what a required
-          // select is for.
+
           options: [{ value: "", label: "—" }],
         },
       ],
@@ -484,21 +425,11 @@ describe("EntityForm select fields", () => {
   });
 
   it("closes its selects while a request is in flight", () => {
-    /*
-     * The fieldset is disabled, and a Radix trigger is a real `<button>` inside
-     * it — so the browser disables it for the same reason it disables the text
-     * inputs, and a second submission cannot be started from a menu.
-     */
     withSelect({ busy: true });
     expect(selectTrigger("ชนิด")).toBeDisabled();
   });
 });
 
-/**
- * Progressive disclosure: secondary optional fields collapse into "More
- * options", the description collapses behind the help toggle, and neither may
- * ever hide a required field or a field the server has blamed.
- */
 describe("EntityForm progressive disclosure", () => {
   const DISCLOSURE_FIELDS: readonly FormFieldSpec[] = [
     { name: "code", label: "รหัส", kind: "text", required: true },
@@ -575,7 +506,6 @@ describe("EntityForm progressive disclosure", () => {
   });
 });
 
-/** A form with a select whose reset signal can be raised without remounting. */
 function SelectResetHarness() {
   const [resetSignal, setResetSignal] = useState(0);
 

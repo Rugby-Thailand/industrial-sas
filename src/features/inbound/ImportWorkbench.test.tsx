@@ -13,13 +13,6 @@ import { writeStoredWarehouse } from "@/lib/workspace/warehouseStore";
 
 import { ImportWorkbench } from "./ImportWorkbench";
 
-/**
- * The first import step said "Check the file" three times — as the section
- * heading, as the form's legend, and on the button — which is the P2 finding.
- * Each of the three answers a different question, and the button's is the one
- * that mattered: this step is a *query*, so the label has to say that pressing
- * it writes nothing.
- */
 const BANG_PU = "prv_wh_bangpoo";
 
 const render = (locale: "th" | "en" = "th") => {
@@ -53,10 +46,6 @@ describe("the import workbench's first step", () => {
   });
 
   it("says behind the form's help toggle that this step writes nothing", () => {
-    // The page header already carries the two-step summary; repeating it inside
-    // the form said nothing new. What the form says instead is the property that
-    // makes the step safe to press — one tap away behind the accessible help
-    // disclosure, so it no longer occupies permanent space above the controls.
     render();
 
     const form = screen.getByTestId("form-import-preview");

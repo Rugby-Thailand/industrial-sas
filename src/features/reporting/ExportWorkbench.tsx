@@ -1,32 +1,5 @@
 "use client";
 
-/**
- * Requesting an export, watching it run, and taking the file.
- *
- * An export is a *job*, and the screen says so rather than pretending to be a
- * download button. That is not a limitation being apologised for — it is the
- * honest shape of the operation. A button that appeared to produce a file
- * instantly would be a button that either lied about small exports or timed out
- * on large ones, and the tenant most likely to ask is the one with the most
- * data.
- *
- * ### The three endings, all worded
- *
- * - **Complete** carries a row count and a download control.
- * - **Running** carries the rows so far, so a long walk visibly progresses.
- * - **Failed** carries its code — `ARTIFACT_LIMIT_REACHED` is the one that
- *   matters, and it means *the file would have been incomplete*, not "try
- *   again". A truncated stock extract that looked whole is the worst outcome
- *   this feature can have, so the failure is loud.
- *
- * ### Where delivery stops
- *
- * `INV-0011-08` wants a short-lived signed URL from a file-storage vendor that
- * is not configured. There is none, and none is faked: the artifact is fetched
- * through a permission-checked query and handed to the browser as a local blob.
- * The notice on the page says exactly that, because "downloaded" and "delivered
- * through a signed URL" are different security claims.
- */
 import { useMutation, useQuery } from "convex/react";
 import { Download, Play } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
@@ -50,7 +23,6 @@ import { ReportJobs } from "./ReportingSources";
 
 import { Button } from "@/components/ui/button";
 
-/** The exports a supervisor may ask for. Mirrors the server's closed set. */
 const REPORT_KINDS = [
   "INVENTORY_BALANCES",
   "RECEIPT_LINES",
@@ -169,15 +141,6 @@ export function JobList({ jobs }: { readonly jobs: readonly ReportJobRow[] }) {
   );
 }
 
-/**
- * Advance a running export by one chunk.
- *
- * Driven from the client on purpose, and the same shape the purchase-order
- * import already uses: one bounded step per press, with the row count moving
- * where the operator can see it. A scheduled worker would be the production
- * shape and needs the job-queue vendor (`INT-06`) that is not configured; a
- * button that visibly does one page is honest about which of those exists.
- */
 function AdvanceControl({ job }: { readonly job: ReportJobRow }) {
   const warehouseId = useWorkspace().selectedWarehouseId;
   return warehouseId === undefined ? null : (
@@ -185,15 +148,6 @@ function AdvanceControl({ job }: { readonly job: ReportJobRow }) {
   );
 }
 
-/**
- * What the last attempt to advance this job ended as.
- *
- * Four states, because collapsing any two of them removes an instruction the
- * operator needs. `DENIED` carries a request ID a supervisor can quote;
- * `REFUSED` carries the server's own code, which is the only string that
- * connects this screen to a log line; `FAILED` is a transport problem and the
- * only one where pressing again is the right response.
- */
 type AdvanceState =
   | { readonly kind: "IDLE" }
   | { readonly kind: "RUNNING" }
@@ -201,12 +155,6 @@ type AdvanceState =
   | { readonly kind: "REFUSED"; readonly code: string }
   | { readonly kind: "FAILED" };
 
-/**
- * Exported for its own test.
- *
- * Kept separate because it owns the mutation and its transport state while the
- * list above only decides which job is actionable.
- */
 export function ServerAdvance({
   job,
   warehouseId,
@@ -218,12 +166,6 @@ export function ServerAdvance({
   const advance = useMutation(runExportChunkRef);
   const [state, setState] = useState<AdvanceState>({ kind: "IDLE" });
 
-  /*
-   * Every ending is handled. A control that ignored the answer would leave a
-   * refused chunk looking exactly like a successful one — the row count simply
-   * would not move — and an operator would press it again, and again, on an
-   * export that had already stopped.
-   */
   const run = () => {
     setState({ kind: "RUNNING" });
     void advance({ warehouseId, reportJobId: job.reportJobId }).then(
@@ -300,14 +242,6 @@ export function ServerAdvance({
   );
 }
 
-/**
- * Fetch a finished artifact and hand it to the browser.
- *
- * A blob rather than a link, because there is no signed URL to link to. The file
- * is produced from a value this session already fetched through a
- * permission-checked query, so nothing is reachable that the caller could not
- * already read.
- */
 function DownloadControl({ job }: { readonly job: ReportJobRow }) {
   const t = useTranslations("Reports");
   return <ServerDownload job={job} label={t("download")} />;
@@ -357,11 +291,7 @@ function DownloadButton({
       data-testid={`report-download-${job.reportJobId}`}
       onClick={() => {
         if (artifact === undefined) return;
-        /*
-         * `text/csv;charset=utf-8` with the renderer's byte-order mark already
-         * in the string: without both, a Thai item name opens as mojibake in the
-         * spreadsheet application this file exists for.
-         */
+
         const blob = new Blob([artifact], {
           type: "text/csv;charset=utf-8",
         });

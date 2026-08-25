@@ -1,13 +1,3 @@
-/**
- * The Phase 1 shared operator experience, end to end against `convex-test`:
- * the device registry, the task lease, partial evidence, the shared quantity
- * contract, and supervisor step-up on the operator's device.
- *
- * These run the registered functions through their real wrappers, so every
- * assertion below is also an assertion that the tenant boundary, the permission
- * declaration, and the audit write happened — a handler called directly would
- * prove none of that.
- */
 import type { GenericMutationCtx } from "convex/server";
 import type { GenericId } from "convex/values";
 import { describe, expect, it } from "vitest";
@@ -98,7 +88,6 @@ const documentId = (outcome: Record<string, unknown>): string => {
   return written["documentId"] as string;
 };
 
-/** A registered, installation-bound handheld in tenant A. */
 const seedDevice = async (
   world: ConvexInventoryWorld,
   installationId = "installation-a-0001",
@@ -114,7 +103,6 @@ const seedDevice = async (
       }),
   );
 
-/** A task on tenant A's ALPHA site, optionally with an item and expectation. */
 const seedTask = async (
   world: ConvexInventoryWorld,
   overrides: Record<string, unknown> = {},
@@ -156,7 +144,7 @@ describe("device registry", () => {
     const rows = listed["items"] as Record<string, unknown>[];
     expect(rows).toHaveLength(1);
     expect(rows[0]!["label"]).toBe("Dock 1 handheld");
-    // The registry says an installation is bound; it never echoes the value.
+
     expect(rows[0]!["installationBound"]).toBe(true);
     expect(Object.keys(rows[0]!)).not.toContain("installationId");
   });
@@ -243,8 +231,7 @@ describe("device registry", () => {
       warehouseId: world.warehouses.alphaA,
       installationId: "installation-a-0001",
     });
-    // The retirement released the binding, so the installation resolves to
-    // nothing at all — which is the same answer as an unknown device.
+
     expect(errorCode(afterRetirement)).toBe("NOT_FOUND");
   });
 });
@@ -356,7 +343,6 @@ describe("task lease", () => {
       scanValue: "WIDGET-001",
     });
 
-    // Age the lease past its expiry, exactly as a flat battery would.
     await world.t.run(async (ctx) => {
       await ctx.db.patch("operatorTasks", taskId, {
         leaseExpiresAt: Date.now() - TASK_LEASE_MS,
@@ -376,8 +362,7 @@ describe("task lease", () => {
       ),
     );
     expect(takeover["alreadyHeld"]).toBe(false);
-    // The scan the first operator took is still there, and is why the takeover
-    // reports what it inherited.
+
     expect(takeover["retainedEvidenceCount"]).toBe(1);
 
     const evidence = value(
@@ -424,7 +409,7 @@ describe("task lease", () => {
     );
     expect(stored?.status).toBe("AVAILABLE");
     expect(stored?.claimedByUserId).toBeUndefined();
-    // Two rows: the scan, and the handover that explains why it stopped.
+
     expect(stored?.evidenceCount).toBe(2);
   });
 
@@ -439,9 +424,6 @@ describe("task lease", () => {
       operatorTaskId: taskId,
     });
 
-    // Moving the task to the person already holding it is refused rather than
-    // accepted as a no-op: a supervisor who meant to move the work would read
-    // the success as proof it moved.
     const toHolder = await call(
       world,
       reassignOperatorTask,
@@ -548,7 +530,7 @@ describe("task lease", () => {
     const mineRows = mine["items"] as Record<string, unknown>[];
     expect(mineRows).toHaveLength(1);
     expect(mineRows[0]!["taskNumber"]).toBe("WT-0001");
-    // The lease is computed server-side against the server clock.
+
     expect((mineRows[0]!["lease"] as Record<string, unknown>)["kind"]).toBe(
       "HELD",
     );
@@ -980,7 +962,6 @@ describe("shared quantity entry", () => {
       operatorTaskId: taskId,
     });
 
-    // Thai digits, in an alternate unit: ๓ cases of twelve is 36 base units.
     const recorded = value(
       await call(world, recordTaskEvidence, {
         requestId: "req-evidence-1",
@@ -1323,8 +1304,7 @@ describe("supervisor step-up on the operator device", () => {
       approveArgs(world, taskId, { operatorUserId: supervisor.userId }),
       { subject: supervisor.clerkUserId, org_id: "org_fixture_a" },
     );
-    // The shared evaluator refuses it, so this is an authorization denial —
-    // not a domain refusal — and it is audited as one.
+
     expect(selfApproval["ok"]).toBe(false);
   });
 

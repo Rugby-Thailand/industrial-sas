@@ -1,15 +1,5 @@
 "use client";
 
-/**
- * One warehouse's locations.
- *
- * The location `code` is what an operator scans and what a putaway
- * recommendation names, so it is the row header and it is monospaced. The
- * warehouse is deliberately *not* a column: the whole table is one warehouse's,
- * chosen in the shell chrome, and repeating it on every row would suggest the
- * list could span sites — which it cannot, because the read is warehouse-scoped
- * and the server revalidates the scope on every call (`INV-0006-04`).
- */
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
@@ -27,7 +17,7 @@ export function LocationsTable({
   renderAction,
 }: {
   readonly rows: readonly LocationRow[];
-  /** A per-row control, when the screen has one. See `ItemsTable`. */
+
   readonly renderAction?: (row: LocationRow) => ReactNode;
 }) {
   const t = useTranslations("MasterData");

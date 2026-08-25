@@ -81,8 +81,6 @@ describe("tenantFields refuses a caller-provided orgId", () => {
       return tenantFields({ orgId: v.optional(v.id("organizations")) });
     };
 
-    // The three directives above are the compile-time half of this test: if the
-    // type ever stops rejecting these calls, `tsc` fails on an unused directive.
     expect(wrongValidator).toThrow(/received its own "orgId" field/);
     expect(rightValidator).toThrow(/never taken from a caller/);
     expect(optionalDiscriminator).toThrow(/INV-0001-02/);

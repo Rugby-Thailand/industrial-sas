@@ -1,6 +1,5 @@
 import type { GenericId } from "convex/values";
 
-/** Private binary storage available to authorized tenant handlers. */
 export interface PrivateFileStoragePort {
   readonly inspect: (storageId: string) => Promise<PrivateFileMetadata | null>;
   readonly createDownloadUrl: (storageId: string) => Promise<string | null>;
@@ -24,10 +23,6 @@ interface RawStorageWriter extends RawStorageReader {
   readonly delete: (storageId: GenericId<"_storage">) => Promise<void>;
 }
 
-/**
- * Adapter over Convex private storage. URLs are minted only after the tenant
- * function wrapper has authenticated, scoped, authorized, and audited access.
- */
 export function createPrivateFileStorage(
   storage: RawStorageReader & Partial<RawStorageWriter>,
   inspectStoredFile?: (

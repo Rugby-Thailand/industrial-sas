@@ -49,12 +49,7 @@ function SheetContent({
 }: React.ComponentProps<typeof SheetPrimitive.Content> & {
   side?: "top" | "right" | "bottom" | "left";
   showCloseButton?: boolean;
-  /**
-   * The accessible name of the close control. A prop rather than the
-   * registry's hard-coded `"Close"`: this application ships Thai and English,
-   * and an accessible name that stays English is a parity defect a visual
-   * check cannot see (`ADR-0010`).
-   */
+
   closeLabel?: string;
 }) {
   return (

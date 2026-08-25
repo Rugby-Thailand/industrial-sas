@@ -1,25 +1,3 @@
-/**
- * CI configuration guard.
- *
- * GitHub validates workflow YAML only once it is pushed, and it never has an
- * opinion about supply-chain hygiene. This script checks the rules we actually
- * care about, locally and in CI, using nothing but the Node standard library —
- * a linter for the pipeline would otherwise be an unpinned dependency of the
- * thing it lints.
- *
- * Enforced:
- *   1. Every non-local `uses:` is pinned to a full 40-character commit SHA and
- *      carries a `# vX.Y.Z` comment, so a human can read the version and a tag
- *      cannot be moved under us.
- *   2. No job or workflow grants a write permission, and no `write-all`.
- *   3. No `${{ secrets.* }}` reference: the pipeline must stay credential-free.
- *   4. Every workflow declares top-level `on:`, `permissions:`, and
- *      `concurrency:`.
- *   5. Any literal `pnpm@<version>` in CI matches package.json
- *      `packageManager`, and that field is an exact pin.
- *
- * Run with `pnpm verify:workflows`.
- */
 import { readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import process from "node:process";
@@ -29,9 +7,8 @@ const repoRoot = fileURLToPath(new URL("..", import.meta.url));
 const githubDir = join(repoRoot, ".github");
 const workflowsDir = join(githubDir, "workflows");
 
-/** `owner/repo@<40 hex>` or `owner/repo/sub/path@<40 hex>`. */
 const PINNED_USES = /^[\w.-]+\/[\w.-]+(?:\/[\w./-]+)?@[0-9a-f]{40}$/;
-/** A readable version tag, e.g. `# v7.0.1` or `# v6`. */
+
 const VERSION_COMMENT = /^v\d+(?:\.\d+)*(?:[-+.\w]*)$/;
 const USES_LINE = /^\s*(?:-\s+)?uses:\s*(?<ref>\S+)\s*(?<comment>#.*)?$/;
 const WRITE_PERMISSION = /^\s+[a-z-]+:\s*write\s*$/;
@@ -88,8 +65,7 @@ function checkYamlFile(absolutePath, packageManager) {
       const comment = (uses.groups["comment"] ?? "")
         .replace(/^#\s*/, "")
         .trim();
-      // Local composite actions are versioned by this commit, so a SHA would be
-      // circular; everything else must be immutable.
+
       if (!ref.startsWith("./")) {
         if (!PINNED_USES.test(ref)) {
           fail(

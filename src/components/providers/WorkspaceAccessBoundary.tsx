@@ -7,7 +7,6 @@ import { QueryErrorBoundary } from "@/components/system/QueryErrorBoundary";
 import { Notice } from "@/components/ui/Notice";
 import { PageHeader } from "@/components/ui/PageHeader";
 
-/** Turn an unprovisioned tenant query into a clear access state. */
 export function WorkspaceAccessBoundary({
   children,
 }: {

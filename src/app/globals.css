@@ -1,55 +1,10 @@
 @import "tailwindcss";
 
-/*
- * The two stylesheets the vendored shadcn/Radix primitives in
- * `src/components/ui/` depend on. Both are behaviour, not palette:
- *
- * - `tw-animate-css` supplies the `animate-in`/`animate-out` enter and exit
- *   utilities a portalled menu uses. The global `prefers-reduced-motion` rule
- *   at the bottom of this file still overrides every one of them.
- * - `shadcn/tailwind.css` supplies the `data-open`/`data-closed`/`data-disabled`
- *   custom variants and the accordion keyframes the registry source is written
- *   against. It contains no colours.
- *
- * There is deliberately no `@custom-variant dark (&:is(.dark *))` here, which is
- * what `shadcn init` writes by default. This application has no theme toggle and
- * no `.dark` class: the colour scheme follows the operator's device
- * (`prefers-color-scheme`), which is what `dark:` already means in Tailwind v4
- * without the override. Adding the override would silently disable every
- * `dark:` utility in the vendored components — the exact failure the migration
- * plan names, a native-looking light menu on a dark screen.
- */
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-/*
- ---break---
- */
+
 @custom-variant dark (&:is(.dark *));
 
-/*
- * Semantic design tokens.
- *
- * Named for meaning, never for colour: a screen asks for `surface` or `danger`,
- * not for grey or red, so the light and dark values below can change without a
- * component changing. The UX plan (§5) fixes the set — canvas, surface, raised
- * surface, border, text, muted text, focus, accent, success, warning, danger,
- * pending, QC hold, disabled.
- *
- * Two rules the values here are chosen against:
- *
- * - **Text contrast at 4.5:1, non-text and focus at 3:1** (WCAG 2.2 AA, D-24).
- *   Every foreground below clears 4.5:1 against the surface it is used on, in
- *   both schemes. `border` is decorative and `border-strong` is the one used
- *   wherever a boundary carries meaning, because a 1.5:1 hairline disappears
- *   under warehouse lighting.
- * - **No state by colour alone** (`INV-0010-07`). These tokens exist to
- *   reinforce a label, never to replace one. A status in this application is
- *   always a word; the colour is the second signal.
- *
- * The palette is flat and low-chroma on purpose: harsh lighting and cheap
- * handheld panels wash out gradients and shadows long before they wash out a
- * border.
- */
 @theme inline {
   --font-sans:
     ui-sans-serif, system-ui, "Noto Sans Thai", "Helvetica Neue", Arial,
@@ -73,56 +28,13 @@
   --color-qc-hold: var(--token-qc-hold);
   --color-disabled: var(--token-disabled);
 
-  /*
-   * Occupancy bands (`ADR-0011` §8). Four fills for the 2D map, ordered from
-   * empty to full. Named tokens rather than literal colours because the map is
-   * the one screen where a fill carries meaning, and a meaning that lived in a
-   * class string could not be checked for contrast in both schemes.
-   *
-   * Every fill keeps `--token-text` above 4.5:1 (`WCAG 2.2` 1.4.3), and the
-   * band is always printed as a word beside it — colour is redundant here, never
-   * the channel (1.4.1).
-   */
   --color-band-empty: var(--token-band-empty);
   --color-band-light: var(--token-band-light);
   --color-band-busy: var(--token-band-busy);
   --color-band-full: var(--token-band-full);
 
-  /*
-   * The glove-compatible minimum (`INV-0010-06`, D-24): 48 CSS pixels. Exposed
-   * as a spacing token so a component asks for `min-h-touch` rather than
-   * repeating a magic number that can drift one screen at a time.
-   */
   --spacing-touch: 3rem;
 
-  /*
-   * The shadcn/Radix vocabulary, expressed in the tokens above.
-   *
-   * The vendored primitives in `src/components/ui/` are written against a fixed
-   * set of names — `bg-popover`, `text-muted-foreground`, `border-input`,
-   * `ring-ring`. `shadcn init` fills those with a hard-coded oklch palette,
-   * which would give this application two disagreeing colour systems and put
-   * literal colours back into a file whose entire point is that there are none.
-   *
-   * So the names are aliases instead. A primitive keeps its upstream class
-   * strings — it can still be diffed against the registry — and every colour it
-   * paints is one of the semantic tokens above, in both schemes.
-   *
-   * Three of the mappings are decisions rather than renames:
-   *
-   * - `accent` already exists here and means the *action* colour, not shadcn's
-   *   subtle hover grey. It is left alone, and `accent-foreground` is paired
-   *   with it as `accent-contrast` — so a highlighted menu item is the action
-   *   colour with its own contrast text, not near-black on blue. Vendored
-   *   source that wanted the hover grey asks for `raised`.
-   * - `muted` already exists here and is a *text* colour. `muted-foreground`
-   *   therefore maps to it, and vendored `bg-muted` fills were rewritten to
-   *   `bg-raised`; painting a surface with a text token is how a hover state
-   *   ends up unreadable.
-   * - `input` is the border of an interactive control, so it maps to
-   *   `border-strong` rather than to the decorative hairline. A 1.5:1 outline on
-   *   a select trigger is the one that disappears under warehouse lighting.
-   */
   --color-background: var(--token-canvas);
   --color-foreground: var(--token-text);
   --color-card: var(--token-surface);
@@ -131,20 +43,7 @@
   --color-popover-foreground: var(--token-text);
   --color-primary: var(--token-accent);
   --color-primary-foreground: var(--token-accent-contrast);
-  /*
-   * The hover fill of an accent action, as its own token rather than as
-   * `bg-primary/80`.
-   *
-   * An alpha modifier composites the accent against whatever is behind it, and
-   * what is behind it is a light surface — so `primary/80` *lightened* the fill
-   * and dropped white-on-accent to 4.34:1 against `surface` and 4.45:1 against
-   * `canvas`, both under the 4.5:1 this file claims for every foreground. An
-   * opaque token cannot be diluted by its backdrop, so the hover state has one
-   * measurable contrast instead of one per surface it happens to sit on.
-   *
-   * Each scheme moves *away* from its background — darker on light, lighter on
-   * dark — so hovering raises contrast rather than trading it for feedback.
-   */
+
   --color-primary-hover: var(--token-accent-hover);
   --color-secondary: var(--token-raised);
   --color-secondary-foreground: var(--token-text);
@@ -155,12 +54,6 @@
   --color-input: var(--token-border-strong);
   --color-ring: var(--token-accent);
 
-  /*
-   * The sidebar surface is the same surface as everything else. A distinct
-   * sidebar palette is a shadcn default that exists so a marketing shell can
-   * tint its rail; here it would be one more pair of colours to keep above
-   * 4.5:1 for no gain.
-   */
   --color-sidebar: var(--token-surface);
   --color-sidebar-foreground: var(--token-text);
   --color-sidebar-primary: var(--token-accent);
@@ -189,16 +82,12 @@
   --token-muted: #4d5560;
   --token-accent: #0b5cad;
   --token-accent-contrast: #ffffff;
-  /* Darker than `accent`: white on it is 8.86:1, against 6.67:1 at rest. */
+
   --token-accent-hover: #094a8c;
   --token-success: #0f6b3f;
   --token-warning: #8a5300;
   --token-danger: #b3261e;
-  /*
-   * What may be printed *on* `danger`. It is not simply white: in the dark
-   * scheme `danger` is a pale salmon, so white-on-danger would fail 4.5:1 in
-   * exactly the scheme a destructive confirmation matters most.
-   */
+
   --token-danger-contrast: #ffffff;
   --token-pending: #5a3fb8;
   --token-qc-hold: #8a5300;
@@ -230,7 +119,7 @@
     --token-muted: #a8b1bd;
     --token-accent: #7cb6ff;
     --token-accent-contrast: #06121f;
-    /* Lighter than `accent` here: 10.88:1, against 8.97:1 at rest. */
+
     --token-accent-hover: #9cc8ff;
     --token-success: #58d19a;
     --token-warning: #f0b357;
@@ -255,24 +144,11 @@ body {
   font-family: var(--font-sans);
 }
 
-/*
- * A focus ring that is never removed and never subtle.
- *
- * Declared globally rather than per component because the failure mode is a
- * component that forgets: a keyboard-and-scanner-only flow (`INV-0010-08`) is
- * unusable the moment focus becomes invisible. `:focus-visible` keeps it off a
- * mouse click and on for every keyboard and HID interaction.
- */
 :focus-visible {
   outline: 3px solid var(--token-accent);
   outline-offset: 2px;
 }
 
-/*
- * Quantities, codes, and identifiers line up column-to-column. Proportional
- * digits make two stacked figures of the same magnitude look different lengths,
- * which is exactly the comparison an operator makes on a balance screen.
- */
 .tabular {
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum";
@@ -289,9 +165,7 @@ body {
     scroll-behavior: auto !important;
   }
 }
-/*
- ---break---
- */
+
 .dark {
   --destructive-foreground: var(--color-red-600);
   --success: var(--color-emerald-500);

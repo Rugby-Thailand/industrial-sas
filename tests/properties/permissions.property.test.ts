@@ -1,13 +1,3 @@
-/**
- * Property tier — the two claims about authorization that hold for every input
- * rather than for a chosen fixture (ADR-0006 verification).
- *
- * Both are written so a passing run cannot be vacuous. The scope case decides
- * whether the target is one the membership holds, so the generator is guaranteed
- * to produce allowed *and* denied `before` decisions — asserted at the end, because
- * "adding a warehouse never removes access" is trivially true if access was never
- * granted. The catalogue case draws from the whole catalogue plus invented codes.
- */
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
@@ -58,13 +48,12 @@ describe("warehouse scope resolution", () => {
           const before = evaluateAuthorization(scoped(held, target));
           outcomes.add(before.allowed);
 
-          // Monotonicity: a warehouse chosen independently of the target is added.
           if (before.allowed) {
             expect(
               evaluateAuthorization(scoped([...held, added], target)),
             ).toMatchObject({ allowed: true });
           }
-          // Adding the target itself always grants, whatever was held before.
+
           expect(
             evaluateAuthorization(scoped([...held, target], target)),
           ).toMatchObject({ allowed: true });

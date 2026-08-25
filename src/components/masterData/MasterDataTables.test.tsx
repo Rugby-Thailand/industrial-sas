@@ -60,8 +60,6 @@ describe("ItemsTable", () => {
   });
 
   it("offers no control that could edit master data", () => {
-    // The read surface has no write; a button here would be the first place
-    // that stopped being true.
     renderWithIntl(<ItemsTable rows={PREVIEW_ITEMS} />);
 
     expect(screen.queryAllByRole("button")).toHaveLength(0);

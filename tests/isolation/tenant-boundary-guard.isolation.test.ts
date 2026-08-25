@@ -1,18 +1,3 @@
-/**
- * Isolation tier — proof that the tenant boundary guard fails on a bypass.
- *
- * The guard passing over `convex/` is a weak claim on its own: a check that
- * answers "no problems" to everything passes just as happily. So every case here
- * builds a throwaway source tree in `os.tmpdir()`, one stub per allowlisted path
- * plus whatever the case is about, and asserts which rules fire. The real
- * `convex/` tree is read once — to prove it is clean — and never written: a
- * demonstration that needs a production file edited is one forgotten revert away
- * from being the committed state.
- *
- * Nothing here proves runtime isolation. This is a static reachability guard over
- * source text: it says a module cannot name the registration builders or the raw
- * database, not that a deployed function scoped its reads.
- */
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -23,11 +8,6 @@ import {
   collectTenantBoundaryViolations,
 } from "../../scripts/verify-tenant-boundary.mjs";
 
-/**
- * The minimum tree the allowlist claims exists. Each stub does the thing its
- * real counterpart is allowed to do, so a passing run is evidence about the
- * allowlist and not about an empty directory.
- */
 const ALLOWLISTED_STUBS: Readonly<Record<string, string>> = {
   "convex/lib/tenantDb.ts": `export interface TenantStoragePort {
   readonly get: (table: string, id: string) => Promise<unknown>;
@@ -89,14 +69,6 @@ export const complete = httpActionGeneric(async () => new Response(null));
 `,
 };
 
-/**
- * A catalogue stub for the declaration rule.
- *
- * The rule reads `convex/lib/permissions.ts` with the same parser rather than
- * importing it, so a synthetic tree needs a synthetic catalogue. Three rows are
- * enough: a tenant code, a second tenant code, and a platform code no tenant role
- * may hold.
- */
 const PERMISSION_CATALOGUE_STUB = {
   "convex/lib/permissions.ts": `const permission = (code: string, scope: string) => ({ code, scope });
 export const PERMISSION_CATALOGUE = [
@@ -107,7 +79,6 @@ export const PERMISSION_CATALOGUE = [
 `,
 };
 
-/** Scan a synthetic tree; `files` overrides or extends the allowlisted stubs. */
 function scanTree(
   files: Readonly<Record<string, string>>,
   options: { readonly omit?: readonly string[] } = {},
@@ -127,7 +98,6 @@ function scanTree(
   }
 }
 
-/** The distinct rules a scan reported, sorted, for a single readable assertion. */
 const rulesOf = (files: Readonly<Record<string, string>>): string[] =>
   [...new Set(scanTree(files).map((violation) => violation.rule))].sort();
 
@@ -240,7 +210,7 @@ export async function later() {
     expect([...new Set(violations.map((v) => v.rule))]).toEqual([
       "raw-database",
     ]);
-    // One report per line, and every offending line is named.
+
     expect(violations.map((violation) => violation.line)).toEqual([4, 5, 6, 7]);
   });
 
@@ -264,7 +234,7 @@ export function read(port: TenantStoragePort) {
 `,
       }),
     ).toEqual(["storage-port"]);
-    // A locally declared look-alike port is the same bypass with a new name.
+
     expect(
       rulesOf({
         "convex/receiving/ownPort.ts": `export interface TenantReceiptStoragePort {
@@ -383,8 +353,7 @@ export const read = queryWithOrg({
     expect([...new Set(violations.map((violation) => violation.rule))]).toEqual(
       ["audit-append-only"],
     );
-    // One report per offending line, and the append and the other table are not
-    // among them.
+
     expect(violations.map((violation) => violation.line)).toEqual([7, 8, 9]);
   });
 
@@ -401,10 +370,6 @@ export const read = queryWithOrg({
   });
 
   it("fails a pure domain module that imports anything outside convex/model", () => {
-    // Plan §6.2 makes `convex/model/**` portable domain algebra. Each of these is
-    // a different way to lose that: the values package, a sibling library that
-    // itself imports Convex, the generated tree, a bare dependency, and a dynamic
-    // import that no identifier would reveal.
     expect(
       rulesOf({
         "convex/model/uom/quantity.ts": `import { v } from "convex/values";

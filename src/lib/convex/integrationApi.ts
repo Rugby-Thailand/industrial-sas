@@ -1,4 +1,3 @@
-/** Typed browser boundary for provider-neutral integration health and retries. */
 import { api } from "../../../convex/_generated/api";
 
 import { clientRef, type RefValue } from "./clientRef";

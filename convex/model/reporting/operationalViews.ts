@@ -31,7 +31,6 @@ export interface StockSkuSummary {
   readonly otherBaseMinorUnits: number;
 }
 
-/** Aggregate only physical bucket facts; callers own the bounded read contract. */
 export function summarizeStockBySku(
   balances: readonly StockBalanceFact[],
   reservations: readonly ReservationFact[],

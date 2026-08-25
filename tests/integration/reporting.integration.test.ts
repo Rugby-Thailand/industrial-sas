@@ -1,20 +1,3 @@
-/**
- * Integration tier — dashboard rollups, occupancy, verification, and exports.
- *
- * The claim under test is the one a supervisor's screen rests on: **a maintained
- * counter equals what a fresh derivation says it is, after a real journey through
- * the real functions.** A counter that were merely *plausible* would be
- * indistinguishable from a correct one by looking at the tile, so every case here
- * drives the actual mutations — open a receipt, post a line, park a disposition,
- * claim a task — and then compares the tile to a recomputation of the tables that
- * define it.
- *
- * The export cases prove the other half of `ADR-0011`: a walk that is bounded per
- * chunk, resumable, replayed rather than restarted on a repeated request, and
- * stopped rather than truncated when the artifact will not fit.
- *
- * Every seeded row is synthetic (`tests/fixtures/README.md`).
- */
 import type { GenericMutationCtx } from "convex/server";
 import type { GenericId } from "convex/values";
 import { describe, expect, it } from "vitest";
@@ -82,7 +65,6 @@ const okWrite = (outcome: Record<string, unknown>): Record<string, unknown> => {
   return result;
 };
 
-/** A UUIDv7-shaped request ID derived from a readable name (the ledger's rule). */
 const requestId = (name: string): string => {
   let hash = 0;
   for (const character of name) {
@@ -91,7 +73,6 @@ const requestId = (name: string): string => {
   return `0193f2c1-0000-7000-8000-0000${hash.toString(16).padStart(8, "0")}`;
 };
 
-/** One tile's count, by metric. */
 const tileFor = (tiles: unknown, metric: string): number => {
   const found = (tiles as { metric: string; count: number }[]).find(
     (tile) => tile.metric === metric,
@@ -125,7 +106,6 @@ async function seedReporting(world: ConvexInventoryWorld) {
   });
 }
 
-/** Open an order with one line for the untracked item. */
 async function orderWithLine(
   world: ConvexInventoryWorld,
   supplier: GenericId<"suppliers">,
@@ -154,7 +134,6 @@ async function orderWithLine(
   };
 }
 
-/** Open a receipt and post one ordinary line against it. */
 async function receiveOneLine(
   world: ConvexInventoryWorld,
   supplier: GenericId<"suppliers">,
@@ -270,11 +249,6 @@ describe("dashboard rollups", () => {
   });
 
   it("starts every tile at zero rather than omitting it", async () => {
-    /*
-     * A missing tile reads as a missing feature. A counter that has never moved
-     * is a real, correct zero — and the screen can tell the two apart because
-     * `updatedAt` is absent on the untouched one.
-     */
     const world = await createConvexInventoryWorld();
     const result = await dashboard(world);
 
@@ -293,16 +267,11 @@ describe("dashboard rollups", () => {
 
     expect(tileFor(result["tiles"], "RECEIPTS_OPENED")).toBe(1);
     expect(tileFor(result["tiles"], "RECEIPT_LINES_POSTED")).toBe(1);
-    // Available stock creates a putaway task, so that backlog moved too.
+
     expect(tileFor(result["tiles"], "PUTAWAY_READY")).toBe(1);
   });
 
   it("does not count a replayed request twice", async () => {
-    /*
-     * The failure this prevents: a handheld retries through a dropped
-     * connection, the idempotency machinery correctly replays the receipt, and
-     * the tile climbs anyway — so the counter measures network quality.
-     */
     const world = await createConvexInventoryWorld();
     const seeded = await seedReporting(world);
     const order = await orderWithLine(world, seeded.supplier);
@@ -374,7 +343,6 @@ describe("dashboard rollups", () => {
       }),
     );
 
-    // Release needs a second person, so the inspection parks rather than closes.
     const tiles = (await dashboard(world))["tiles"];
     expect(tileFor(tiles, "QC_PENDING")).toBe(0);
     expect(tileFor(tiles, "QC_PARKED")).toBe(1);
@@ -403,11 +371,6 @@ describe("dashboard rollups", () => {
 
 describe("rollup verification", () => {
   it("agrees with a fresh derivation after a real journey", async () => {
-    /*
-     * The claim the dashboard rests on. Not "the counter is plausible" but "the
-     * counter equals what counting the source tables says", proved after the
-     * mutations that moved it.
-     */
     const world = await createConvexInventoryWorld();
     const seeded = await seedReporting(world);
     await receiveOneLine(world, seeded.supplier);
@@ -450,15 +413,6 @@ describe("rollup verification", () => {
   });
 
   it("reports a site it cannot fully count as unverifiable, not as balanced", async () => {
-    /*
-     * Two failures in one. A verifier that paged would need a second cursored
-     * read in the same execution, which Convex refuses — so it would work on a
-     * small site and throw on every real one. A verifier that counted a capped
-     * page as the total would report drift on every busy site.
-     *
-     * The honest answer for a source larger than one bounded read is "not
-     * checked", and `incomplete` is how it says so.
-     */
     const world = await createConvexInventoryWorld();
     const seeded = await seedReporting(world);
     const { posted } = await receiveOneLine(world, seeded.supplier);
@@ -485,8 +439,7 @@ describe("rollup verification", () => {
     );
 
     expect(report["incomplete"]).toBe(true);
-    // The metric it could not count is absent from the comparison entirely: a
-    // lower bound cannot disprove a counter.
+    // A lower bound cannot disprove a counter, so it is not compared.
     expect(
       (report["drifted"] as { metric: string }[]).some(
         (entry) => entry.metric === "PUTAWAY_READY",
@@ -545,7 +498,6 @@ describe("rollup verification", () => {
 
 describe("occupancy", () => {
   it("draws every active location, including the empty ones", async () => {
-    // A hole in the map reads as "no such location" rather than as "empty".
     const world = await createConvexInventoryWorld();
     const map = value(
       await call(world, readOccupancy, {
@@ -605,12 +557,6 @@ describe("exports", () => {
     world: ConvexInventoryWorld,
     reportJobId: string,
   ): Promise<Record<string, unknown>> => {
-    /*
-     * Generous, because a two-level walk spends a chunk advancing to each
-     * receipt before draining it. A loop that ran out would silently assert
-     * against a half-finished export, which is the failure this suite exists to
-     * catch.
-     */
     let last: Record<string, unknown> = {};
     for (let step = 0; step < 200; step += 1) {
       last = value(
@@ -647,7 +593,7 @@ describe("exports", () => {
 
     expect(fetched["found"]).toBe(true);
     const artifact = fetched["artifact"] as string;
-    // The byte-order mark is what makes Excel read Thai as Thai.
+
     expect(artifact.startsWith("﻿")).toBe(true);
     expect(artifact).toContain("bucketKey");
     expect((fetched["job"] as { rowCount: number }).rowCount).toBeGreaterThan(
@@ -721,16 +667,6 @@ describe("exports", () => {
   });
 
   it("exports every line of a receipt larger than one page", async () => {
-    /*
-     * The defect this replaces: the walk took a fixed number of lines per
-     * receipt, so a delivery with more lines than the page size silently lost
-     * the rest — and the finished file looked complete. A stock extract that is
-     * quietly short is the worst outcome this feature has.
-     *
-     * `EXPORT_CHUNK_ROWS + 7` is deliberately over the boundary rather than a
-     * round multiple, so an off-by-one in the resume path shows up as a missing
-     * or duplicated row rather than as a clean pass.
-     */
     const world = await createConvexInventoryWorld();
     const seeded = await seedReporting(world);
     const { receiptId } = await receiveOneLine(world, seeded.supplier);
@@ -766,7 +702,7 @@ describe("exports", () => {
     const last = await drain(world, requested["documentId"] as string);
 
     expect(last["complete"]).toBe(true);
-    // One line from the receiving journey, plus everything seeded above.
+
     expect(last["rowCount"]).toBe(extra + 1);
 
     const fetched = value(
@@ -778,20 +714,13 @@ describe("exports", () => {
     const body = (fetched["artifact"] as string)
       .split("\r\n")
       .filter((line) => line !== "");
-    // Header plus one record per line, and no record written twice.
+
     expect(body).toHaveLength(extra + 2);
     expect(new Set(body).size).toBe(body.length);
   });
 
   it("keeps every chunk to a single cursored read", async () => {
-    /*
-     * A Convex execution may perform only one indexed read that has a
-     * continuation. The two-level walk respects that by alternating: a chunk
-     * either advances to the next receipt, appending nothing, or drains a page
-     * of that receipt's lines. Asserting the *shape* here is what stops somebody
-     * folding the two back together for tidiness and meeting the limit only on
-     * the tenant with the most receipts.
-     */
+    // Convex permits only one paginated read per function execution.
     const world = await createConvexInventoryWorld();
     const seeded = await seedReporting(world);
     await receiveOneLine(world, seeded.supplier);
@@ -811,7 +740,7 @@ describe("exports", () => {
         reportJobId: jobId,
       }),
     );
-    // Step one advances to the receipt and appends nothing.
+
     expect(first).toMatchObject({ rowCount: 0, complete: false });
 
     const second = value(
@@ -832,8 +761,6 @@ describe("exports", () => {
   });
 
   it("fails honestly when its stored position cannot be read", async () => {
-    // Restarting the walk would duplicate every row already written, so an
-    // unreadable cursor stops the job with the reason instead.
     const world = await createConvexInventoryWorld();
     const requested = okWrite(
       await call(world, requestExport, {
@@ -865,11 +792,6 @@ describe("exports", () => {
   });
 
   it("refuses a request ID reused for a different export", async () => {
-    /*
-     * Answering with the earlier job would hand back a balances extract to
-     * somebody who asked for putaway tasks. It would look like a successful
-     * export until they read it.
-     */
     const world = await createConvexInventoryWorld();
     const shared = requestId("rpt_export_conflict");
 
@@ -896,17 +818,6 @@ describe("exports", () => {
   });
 
   it("never lets a reused request ID reach a site the caller cannot use", async () => {
-    /*
-     * The cross-site half of the same defect, and it is caught one layer
-     * earlier: the warehouse is revalidated against membership before the
-     * handler runs (`INV-0006-04`), so a reused request ID pointed at another
-     * site is a *denial* rather than a refusal — and certainly not the earlier
-     * job handed back.
-     *
-     * Asserted here as well as in the isolation tier because the two failures
-     * would be indistinguishable to a caller, and only one of them is the one
-     * this code is responsible for.
-     */
     const world = await createConvexInventoryWorld();
     const shared = requestId("rpt_export_conflict_site");
 
@@ -928,16 +839,6 @@ describe("exports", () => {
   });
 
   it("does not hand a job to a caller asking about a different site", async () => {
-    /*
-     * The reachable half of the scoping question, and the one the explicit
-     * warehouse check in `getReportJob` actually defends. A cross-*tenant* ID is
-     * already `null` from the accessor, so it proves nothing about this code; a
-     * job belonging to another **site of the same tenant** reaches the handler
-     * and must still answer `found: false`.
-     *
-     * Without the check, a supervisor scoped to one site could read another
-     * site's stock extract by quoting its job ID.
-     */
     const world = await createConvexInventoryWorld();
 
     const foreignSiteJob = await world.t.run(
@@ -967,9 +868,6 @@ describe("exports", () => {
   });
 
   it("does not advance a job belonging to a different site", async () => {
-    // The same scoping question on the write side, where the consequence is
-    // worse: advancing another site's export would append that site's rows to
-    // an artifact somebody else can read.
     const world = await createConvexInventoryWorld();
 
     const foreignSiteJob = await world.t.run(
@@ -1000,14 +898,9 @@ describe("exports", () => {
   });
 
   it("stops rather than truncating when the artifact will not fit", async () => {
-    /*
-     * A spreadsheet that looks complete and is not is the worst outcome an
-     * export can have — somebody counts stock from it. The job fails loudly
-     * instead, with a code the register shows.
-     */
     const world = await createConvexInventoryWorld();
     const seeded = await seedReporting(world);
-    // One posted line, so the export has at least one row to try to append.
+
     await receiveOneLine(world, seeded.supplier);
 
     const requested = okWrite(
@@ -1018,8 +911,6 @@ describe("exports", () => {
       }),
     );
 
-    // The artifact is declared already full, which is the state a long export
-    // reaches on its own; forcing it keeps the test from writing half a megabyte.
     await world.t.run(async (ctx) => {
       await ctx.db.patch(
         "reportJobs",
@@ -1040,7 +931,6 @@ describe("exports", () => {
       "ARTIFACT_LIMIT_REACHED",
     );
 
-    // And the job says so afterwards, rather than looking merely unfinished.
     const fetched = value(
       await call(world, getReportJob, {
         warehouseId: world.warehouses.alphaA,

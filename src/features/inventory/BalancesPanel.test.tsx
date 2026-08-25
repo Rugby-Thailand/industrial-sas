@@ -31,13 +31,8 @@ afterEach(() => {
   window.localStorage.clear();
 });
 
-/**
- * The gate first, then the data path. These are the two behaviours the panel
- * actually owns; the table and the state mapping are covered on their own.
- */
 describe("BalancesPanel gating", () => {
   it("says the backend is unconfigured before asking anything", () => {
-    // Not "loading". Nothing was asked, and nothing can be.
     renderPanel({ environment: unconfiguredEnvironment });
 
     expect(screen.getByTestId("panel-BACKEND_MISSING")).toBeInTheDocument();
@@ -60,8 +55,6 @@ describe("BalancesPanel gating", () => {
 
 describe("BalancesPanel in preview mode", () => {
   it("still requires a warehouse", () => {
-    // Two preview warehouses exist, so nothing is auto-selected; a preview that
-    // skipped the selector would not be exercising the real screen.
     renderPanel({ environment: testEnvironment });
 
     expect(screen.getByTestId("panel-WAREHOUSE_MISSING")).toBeInTheDocument();
@@ -84,7 +77,6 @@ describe("BalancesPanel in preview mode", () => {
   });
 
   it("offers no control that could write a balance", () => {
-    // `INV-0003-11`: no API sets a balance, so no screen may appear to.
     window.localStorage.setItem(WAREHOUSE_STORAGE_KEY, warehouse?.id ?? "");
     renderPanel({ environment: testEnvironment });
 

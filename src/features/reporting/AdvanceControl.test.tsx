@@ -21,26 +21,8 @@ import { PREVIEW_REPORT_JOBS } from "@tests/fixtures/data/reporting";
 
 import { ServerAdvance } from "./ExportWorkbench";
 
-/**
- * What the advance control does with an answer it does not like.
- *
- * The defect this covers: the control fired the mutation and ignored the result.
- * A refused chunk then looked exactly like a successful one — the row count
- * simply did not move — so an operator pressed it again, and again, on an export
- * that had already stopped. Nothing on screen and nothing announced.
- *
- * Every ending is asserted, and each is announced through `role="alert"`,
- * because the answer arrives after the press: a screen-reader user has already
- * moved on and has to be *told* rather than shown.
- */
 const RUNNING_JOB = PREVIEW_REPORT_JOBS.find((job) => job.status === "RUNNING");
 
-/*
- * Rendered directly rather than through `JobList`. Outside preview the workspace
- * resolves no warehouse until an identity provider exists, so the parent cannot
- * currently select this branch — testing through it would assert the Clerk gate
- * instead of this component's behaviour.
- */
 const render = () => {
   writeStoredWarehouse("prv_wh_bangpoo");
   if (RUNNING_JOB === undefined) throw new Error("fixture has no running job");
@@ -70,10 +52,6 @@ describe("advancing an export in real mode", () => {
   });
 
   it("shows a refusal with the server's own code", async () => {
-    /*
-     * `ARTIFACT_LIMIT_REACHED` means pressing again cannot help. The code stays
-     * English because it is the only string that ties this screen to a log line.
-     */
     advance.mockResolvedValueOnce({
       ok: true,
       requestId: "req_2",

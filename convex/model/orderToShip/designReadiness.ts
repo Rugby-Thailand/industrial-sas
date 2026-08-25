@@ -24,13 +24,6 @@ export interface DesignReadinessAssessment {
   readonly missing: readonly DesignRequirementKey[];
 }
 
-/**
- * Assess the sales-to-engineering hand-off without inventing factory facts.
- *
- * A checkbox is evidence that a person confirmed the requirement. Structured
- * route/material/quality data must also exist; a checked empty section is not a
- * buildable specification.
- */
 export function assessDesignReadiness(
   specification: DesignSpecification,
   confirmations: DesignRequirementConfirmations,
@@ -110,7 +103,6 @@ const BLOCKING_CATEGORIES = new Set<DesignRequirementKey>([
   "QUALITY",
 ]);
 
-/** Stable, reviewer-facing top-level semantic diff between two immutable revisions. */
 export function summarizeDesignChange(
   before: DesignSpecification,
   after: DesignSpecification,
@@ -147,7 +139,6 @@ export type DesignReadinessError = {
 export function requireDesignReady(
   status: DesignReadinessStatus | undefined,
 ): Result<true, DesignReadinessError> {
-  // Rows created before the readiness gate was introduced remain migratable.
   if (status === undefined || status === "READY") return ok(true);
   return fail({
     code: "PRECONDITION_FAILED",

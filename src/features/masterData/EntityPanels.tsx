@@ -1,23 +1,5 @@
 "use client";
 
-/**
- * The register-and-maintain panels for the Phase 2 master-data entities.
- *
- * Each screen is the same three parts, and the order is the same everywhere: the
- * rows, then the controls that change a row, then the form that adds one.
- * Reading before writing is the order an operator works in, and it is also the
- * order that makes an accidental write less likely — the form is not the first
- * thing under the cursor.
- *
- * The write controls sit *inside* `renderRows`, so they exist only when there
- * are rows to act on. A deactivate button rendered above a `DENIED` notice would
- * be a control the server has already said this operator may not use.
- *
- * Nothing here decides whether a write is allowed. The server does, and a denial
- * is shown as a denial (`INV-0006-01`); a screen that hid the button to avoid
- * the denial would be guessing at a permission it cannot see, and would hide the
- * one message that tells an administrator what to grant.
- */
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
@@ -61,15 +43,10 @@ import { EntityWriteForm } from "./EntityWriteForm";
 import { MasterDataPanel } from "./MasterDataPanel";
 import { RowActionButton, RowWriteRegion } from "./RowWriteRegion";
 
-/** The paging arguments every organization-scoped list takes. */
 const pageArgs = (cursor: string | undefined) => ({
   maxPageSize: DEFAULT_LEDGER_PAGE_SIZE,
   ...(cursor === undefined ? {} : { cursor }),
 });
-
-/* -------------------------------------------------------------------------- */
-/* Suppliers                                                                   */
-/* -------------------------------------------------------------------------- */
 
 export function SuppliersPanel() {
   const t = useTranslations("MasterData");
@@ -140,10 +117,6 @@ export function SupplierForm() {
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/* Storage classes                                                             */
-/* -------------------------------------------------------------------------- */
-
 export function StorageClassesPanel() {
   const t = useTranslations("MasterData");
 
@@ -213,10 +186,6 @@ export function StorageClassForm() {
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/* Label templates                                                             */
-/* -------------------------------------------------------------------------- */
-
 export function LabelTemplatesPanel() {
   const t = useTranslations("MasterData");
 
@@ -233,14 +202,7 @@ export function LabelTemplatesPanel() {
           {({ submit, busy }) => (
             <LabelTemplatesTable
               rows={rows}
-              /*
-               * Only a draft offers the control, because only a draft can be
-               * published. The button is offered to *everyone* who can see the
-               * row, including the person who drafted it: they will be denied
-               * (`INV-0006-05`), and that denial is the honest way to teach that
-               * a second person is required. Hiding it would look like the
-               * feature is missing.
-               */
+
               renderAction={(row) =>
                 row.status === "DRAFT" ? (
                   <RowActionButton
@@ -303,7 +265,7 @@ export function LabelTemplateForm() {
           kind: "textarea",
           required: true,
           monospace: true,
-          // Says plainly that nothing here is rendered or sent to a printer.
+
           hint: t("bodyHint"),
           placeholder: "^XA\n^FO50,50^A0N,40,40^FD...^FS\n^XZ",
         },
@@ -318,10 +280,6 @@ export function LabelTemplateForm() {
     />
   );
 }
-
-/* -------------------------------------------------------------------------- */
-/* Item-scoped: barcodes, alternate units, lots                                */
-/* -------------------------------------------------------------------------- */
 
 export function ItemBarcodesPanel({ itemId }: { readonly itemId: string }) {
   const t = useTranslations("MasterData");
@@ -339,14 +297,7 @@ export function ItemBarcodesPanel({ itemId }: { readonly itemId: string }) {
           {({ submit, busy }) => (
             <BarcodesTable
               rows={rows}
-              /*
-               * A deactivated alias keeps its unique key. The value still means
-               * what it meant — it is printed on cartons in a warehouse — so it
-               * must not become available for something else; it simply stops
-               * resolving. There is no reactivate control for the same reason
-               * there is no delete: re-pointing a printed barcode is a decision,
-               * not a toggle.
-               */
+
               renderAction={(row) =>
                 row.status === "ACTIVE" ? (
                   <RowActionButton
@@ -509,11 +460,7 @@ export function ItemUomForm({
         requestId,
         itemId,
         uom: values["uom"] ?? "",
-        /*
-         * `Number` rather than `parseInt`: `parseInt("12abc")` is 12, which
-         * would send a value the operator did not type. `Number("12abc")` is
-         * `NaN`, and the server refuses it by naming the field.
-         */
+
         toBaseNumerator: Number(values["toBaseNumerator"]),
         toBaseDenominator: Number(values["toBaseDenominator"]),
       })}
@@ -560,13 +507,11 @@ export function LotForm({ itemId }: { readonly itemId: string }) {
           name: "expirationDate",
           label: t("columnExpirationDate"),
           kind: "text",
-          // Optional and usually absent: most lots are created without a dated
-          // expiry, so the field waits behind "More options".
+
           importance: "secondary",
           monospace: true,
           placeholder: "2026-12-31",
-          // A business date in the warehouse's own timezone (`ADR-0011`), never
-          // the browser's: the two disagree for eight hours of every day.
+
           hint: t("businessDateHint"),
         },
       ]}
@@ -582,16 +527,6 @@ export function LotForm({ itemId }: { readonly itemId: string }) {
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/* Shared layout                                                               */
-/* -------------------------------------------------------------------------- */
-
-/**
- * A titled block on a maintenance screen.
- *
- * The heading level is fixed at `<h2>`: `PageHeader` owns the single `<h1>`, and
- * a screen that assembled its own levels is a screen that eventually skips one.
- */
 export function PanelSection({
   title,
   children,
@@ -607,7 +542,6 @@ export function PanelSection({
   );
 }
 
-/** The warehouse the shell has selected, for warehouse-scoped writes. */
 export function useSelectedWarehouseId(): string | undefined {
   return useWorkspace().selectedWarehouseId;
 }

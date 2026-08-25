@@ -1,39 +1,7 @@
-/**
- * Typed references to the order-to-ship functions, and their wire types.
- *
- * Function references come from Convex code generation. The named row and
- * outcome types remain the presentation vocabulary shared by this workflow.
- *
- * Two shapes here are worth reading closely, because they are the slice's whole
- * point (`ADR-0013`):
- *
- * - **A line carries a customer product code, advisory structural `designKey`,
- *   and `designSource`.** The browser never derives either decision. `EXISTING`
- *   means customer + normalized product code resolved to a released revision;
- *   geometry can only support a human similarity suggestion.
- * - **A packet carries a `masterCardRevisionId`, a `revisionNumber`, *and* a
- *   `specification` snapshot.** The pin and the copy are both on the row on
- *   purpose: the pin is what the packet is, and the snapshot is what the factory
- *   reads on paper, so a screen never has to reach into engineering to render a
- *   packet (`INV-0013-04`).
- *
- * Every write reference carries a `requestId`. The key is what makes a retry a
- * replay instead of a second customer order, so a caller that could forget it
- * would be a caller that could order the same boxes twice.
- *
- * One function does not answer the shared write envelope:
- * `requestMasterCardFileAccess` answers `granted` plus either a URL or a refusal
- * code, because a file link is not a row that was written. It is a mutation
- * rather than a query so that the request is audited (`RG-071`: queries are not).
- */
 import { api } from "../../../convex/_generated/api";
 
 import { clientRef } from "./clientRef";
 import type { MasterDataStatus } from "./masterDataApi";
-
-/* -------------------------------------------------------------------------- */
-/* Closed sets                                                                 */
-/* -------------------------------------------------------------------------- */
 
 export type CustomerOrderStatus = "DRAFT" | "RELEASED" | "CANCELLED";
 
@@ -72,18 +40,6 @@ export type DesignRequirementConfirmations = Readonly<
   Record<DesignRequirementKey, boolean>
 >;
 
-/* -------------------------------------------------------------------------- */
-/* Row shapes                                                                  */
-/* -------------------------------------------------------------------------- */
-
-/**
- * One packaging specification, exactly as ordered.
- *
- * Whole millimetres, because that is the unit a converting machine is set to.
- * Nothing derived appears here — blank size and board consumption need formulas
- * `WF-11` says must be confirmed with Engineering before they are coded, and a
- * screen that computed one would be publishing an unreviewed formula.
- */
 export interface BoxSpecification {
   readonly styleCode: string;
   readonly internalLengthMm: number;
@@ -150,7 +106,7 @@ export interface CustomerOrderRow {
   readonly customerOrderId: string;
   readonly orderNumber: string;
   readonly customerId: string;
-  /** The customer's own PO number, stored exactly as they wrote it. */
+
   readonly customerReference?: string;
   readonly status: CustomerOrderStatus;
   readonly orderedAt: number;
@@ -292,9 +248,6 @@ export interface FactoryPacketRow {
   readonly acknowledgedAt?: number;
 }
 
-/* -------------------------------------------------------------------------- */
-/* Query references                                                            */
-/* -------------------------------------------------------------------------- */
 export const listCustomerOrdersRef = clientRef(
   api.sales.orders.listCustomerOrders,
 );
@@ -330,22 +283,10 @@ export const listFactoryPacketsRef = clientRef(
   api.production.packets.listFactoryPackets,
 );
 
-/* -------------------------------------------------------------------------- */
-/* Mutation references                                                         */
-/* -------------------------------------------------------------------------- */
-
 export const createCustomerOrderRef = clientRef(
   api.sales.orders.createCustomerOrder,
 );
 
-/**
- * Add a line, which is where the design decision is taken.
- *
- * The client sends a specification and nothing else about the design. The server
- * normalizes the customer product code, looks for that customer's released card,
- * and either pins it (`EXISTING`) or raises a design request (`NEW`). The derived
- * structural key is advisory and cannot make this decision.
- */
 export const addCustomerOrderLineRef = clientRef(
   api.sales.orders.addCustomerOrderLine,
 );
@@ -379,13 +320,6 @@ export const submitMasterCardRevisionRef = clientRef(
   api.engineering.masterCards.submitMasterCardRevision,
 );
 
-/**
- * Approve or reject a submitted revision.
- *
- * The author is refused by the server, and the control is still offered to them:
- * a button that disappears teaches nothing, and `SEPARATION_OF_DUTIES` teaches
- * that a second person is required (`INV-0013-03`, `INV-0006-05`).
- */
 export const decideMasterCardRevisionRef = clientRef(
   api.engineering.masterCards.decideMasterCardRevision,
 );
@@ -399,7 +333,6 @@ export const authorizeMasterCardFileUploadRef = clientRef(
   api.engineering.files.authorizeMasterCardFileUpload,
 );
 
-/** Not a write envelope: the answer is a link, or the reason there is none. */
 export const requestMasterCardFileAccessRef = clientRef(
   api.engineering.files.requestMasterCardFileAccess,
 );

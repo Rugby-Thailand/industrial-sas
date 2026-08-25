@@ -243,7 +243,6 @@ function createConvexIdentityMirrorPort(
   };
 }
 
-/** The sole raw-database path for signature-verified Clerk mirror events. */
 export const applyClerkIdentityEvent = internalMutationGeneric({
   args: { event: identityWebhookEventValidator },
   returns: v.object({

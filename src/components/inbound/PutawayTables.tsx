@@ -1,13 +1,5 @@
 "use client";
 
-/**
- * The putaway board, as columns.
- *
- * Its own module for the same reason as `QualityTables`: putaway is a terminal
- * inbound workflow, nothing in purchasing or receiving renders this table, and
- * keeping it beside those tables made every putaway screen carry their
- * namespaces.
- */
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
@@ -54,15 +46,7 @@ export function PutawayTasksTable({
           key: "quantity",
           header: t("columnQuantity"),
           monospace: true,
-          /*
-           * The task's quantity is stored in the item's base unit, so it is
-           * shown with that unit — the same treatment the order lines get. It
-           * used to be a bare `baseMinorUnits / 1000`, which on a board holding
-           * kilograms, litres, and eaches at once is three different measures
-           * rendered as one. The unit is joined from the item document and can
-           * be absent when that reference dangles, and an unlabelled figure is
-           * worse than an explicit marker.
-           */
+
           render: (row) => withBaseUnit(row.baseMinorUnits, row.baseUom),
         },
         {

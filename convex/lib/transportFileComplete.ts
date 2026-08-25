@@ -1,4 +1,3 @@
-/** Trusted internal registration of a verified UploadThing transport object. */
 import { internalMutationGeneric } from "convex/server";
 import { v } from "convex/values";
 

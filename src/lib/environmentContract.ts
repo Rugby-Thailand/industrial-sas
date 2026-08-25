@@ -1,33 +1,3 @@
-/**
- * The four environment classes, and what each one is contractually allowed to
- * be missing.
- *
- * `ADR-0012` §2 names them — developer, PR preview, persistent staging, and
- * production — and requires separate identity instances, Convex deployments,
- * file-storage apps, and telemetry projects for each. That decision is worth
- * nothing as prose: the failure it prevents is a preview deployment pointed at
- * the production Convex URL, or a production build with incomplete identity
- * switched on, and both of those are configuration mistakes that look fine
- * until a tenant's stock is on someone's laptop.
- *
- * So the contract is data here, and `scripts/verify-environment.mjs` checks a
- * real environment against it.
- *
- * ### Why this module is pure and takes the environment as an argument
- *
- * The interesting cases are the ones nobody has: a production environment with
- * a missing key, a staging environment carrying a deploy key it should not, a
- * preview with the local-preview flag set. A validator that read `process.env`
- * could only ever check the machine it happens to run on. This one checks any
- * environment, including the six invented in its own test.
- *
- * ### What this is not
- *
- * It is not a secret store, and it never reads a value it reports. Every
- * finding names a *variable*, never its content — the same rule the
- * documentation set follows (`docs/README.md`, "No secrets, no tenant data").
- */
-
 export const ENVIRONMENT_CLASSES = [
   "developer",
   "preview",
@@ -41,12 +11,11 @@ export const isEnvironmentClass = (value: unknown): value is EnvironmentClass =>
   typeof value === "string" &&
   (ENVIRONMENT_CLASSES as readonly string[]).includes(value);
 
-/** How badly a rule's violation matters. */
 export type FindingSeverity = "error" | "warning";
 
 export interface EnvironmentFinding {
   readonly severity: FindingSeverity;
-  /** The variable this is about. Never its value. */
+
   readonly variable: string;
   readonly rule:
     | "REQUIRED_MISSING"
@@ -59,23 +28,16 @@ export interface EnvironmentFinding {
 export interface EnvironmentReport {
   readonly environmentClass: EnvironmentClass;
   readonly findings: readonly EnvironmentFinding[];
-  /** No `error` findings. Warnings do not block. */
+
   readonly ok: boolean;
 }
 
-/**
- * One variable's contract across the four classes.
- *
- * `required` means the class cannot function without it. `forbidden` means its
- * presence is a defect in that class — not merely unnecessary. `recommended`
- * is a warning: the class works without it but something is degraded.
- */
 interface VariableContract {
   readonly variable: string;
   readonly required: readonly EnvironmentClass[];
   readonly forbidden: readonly EnvironmentClass[];
   readonly recommended: readonly EnvironmentClass[];
-  /** Why, in one sentence, so a failure explains itself. */
+
   readonly rationale: string;
 }
 
@@ -193,7 +155,6 @@ export const VARIABLE_CONTRACTS: readonly VariableContract[] = Object.freeze([
   },
 ]);
 
-/** Variables whose *value* must differ between any two classes that have them. */
 export const CLASS_SCOPED_VARIABLES: readonly string[] = Object.freeze([
   "NEXT_PUBLIC_CONVEX_URL",
   "NEXT_PUBLIC_CONVEX_SITE_URL",
@@ -204,17 +165,9 @@ export const CLASS_SCOPED_VARIABLES: readonly string[] = Object.freeze([
   "NEXT_PUBLIC_APP_URL",
 ]);
 
-/** A value counts as present only if it is a non-empty, non-whitespace string. */
 const present = (value: string | undefined): boolean =>
   typeof value === "string" && value.trim().length > 0;
 
-/**
- * Check one environment against its class's contract.
- *
- * Findings are ordered by severity then variable name, so two runs over the
- * same environment produce byte-identical output and a diff of two reports is
- * readable.
- */
 export function validateEnvironment(
   environmentClass: EnvironmentClass,
   environment: Readonly<Record<string, string | undefined>>,
@@ -261,14 +214,6 @@ export function validateEnvironment(
   });
 }
 
-/**
- * Findings for two environments that must not share a value.
- *
- * The failure this catches is the one `ADR-0012` §2 is actually about: a
- * preview deployment pointed at staging's Convex URL, or staging and production
- * sharing a Clerk instance. Comparing values is unavoidable here — and the
- * finding still names only the variable, never what it held.
- */
 export function crossClassFindings(
   left: {
     readonly environmentClass: EnvironmentClass;
@@ -310,7 +255,6 @@ const compareFindings = (
   SEVERITY_ORDER[left.severity] - SEVERITY_ORDER[right.severity] ||
   left.variable.localeCompare(right.variable);
 
-/** Every variable the contract knows about, for the `.env.example` coverage check. */
 export const CONTRACTED_VARIABLES: readonly string[] = Object.freeze(
   VARIABLE_CONTRACTS.map((contract) => contract.variable),
 );

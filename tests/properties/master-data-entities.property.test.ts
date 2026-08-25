@@ -12,16 +12,6 @@ import {
   MAX_LABEL_BODY_LENGTH,
 } from "../../convex/model/masterData/catalogueRules";
 
-/**
- * The new entities' domain rules, over generated input.
- *
- * Two of these are load-bearing rather than tidy:
- *
- * - **A stored conversion round-trips through the kernel.** If it did not, a
- *   factor an administrator entered would convert to something else at a dock.
- * - **Reduction is canonical.** Two spellings of one factor must produce one
- *   stored row, or a uniqueness check becomes a comparison of spellings.
- */
 describe("alternate conversions", () => {
   it("stores a reduced factor, so equal factors store identically", () => {
     fc.assert(
@@ -81,8 +71,6 @@ describe("alternate conversions", () => {
   });
 
   it("refuses the base unit however it is spelled", () => {
-    // Case folding happens before the comparison, so `ea`, `EA`, and ` Ea ` are
-    // all the base unit and none of them may be an alternate.
     fc.assert(
       fc.property(
         fc.stringMatching(/^[A-Za-z]{1,6}$/),
@@ -102,11 +90,6 @@ describe("alternate conversions", () => {
   });
 
   it("round-trips a stored factor through the conversion kernel", () => {
-    /*
-     * The property that matters at a dock. A whole number of alternate units
-     * converts to exactly `count * factor` base minor units — computed by the
-     * kernel, not by anything in the tested module.
-     */
     fc.assert(
       fc.property(
         fc.integer({ min: 1, max: 500 }),
@@ -191,8 +174,6 @@ describe("alternate conversions", () => {
 
 describe("barcode aliases", () => {
   it("accepts every GTIN it can build a valid check digit for", () => {
-    // Generated from the same modulo-10 rule `normalizeGtin` verifies, so this
-    // asserts agreement rather than restating the algorithm as a constant.
     fc.assert(
       fc.property(
         fc.array(fc.integer({ min: 0, max: 9 }), {
@@ -247,8 +228,6 @@ describe("barcode aliases", () => {
   });
 
   it("never answers a blank or whitespace-only alias", () => {
-    // A stored alias made of spaces is unscannable and would still occupy the
-    // unique key that guarantees a scan resolves to one item.
     fc.assert(
       fc.property(
         fc.stringMatching(/^[ \t]{0,10}$/),
@@ -337,7 +316,7 @@ describe("label bodies and versions", () => {
           if (!next.ok) return;
 
           expect(next.value).toBe(Math.max(0, ...versions) + 1);
-          // Never collides with an existing version, whatever the gaps.
+
           expect(versions.includes(next.value)).toBe(false);
         },
       ),

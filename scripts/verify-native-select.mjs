@@ -1,38 +1,3 @@
-/**
- * Native-select guard.
- *
- * A `<select>` renders its popup with the *operating system's* widget, in the
- * operating system's colours. On a dark-scheme scanner that meant a white list
- * over a dark screen, on every screen that had one, and no page style could
- * reach it. Four production renderers had the defect independently, which is
- * what a defect looks like when the control is a browser default rather than a
- * decision — nobody chose it four times, and nobody would notice a fifth.
- *
- * So the rule is narrow and structural: **production source under `src/` may not
- * create a `<select>` element** outside the allowlist below. Every choose-one
- * control goes through `SelectControl`, which composes the shadcn/Radix
- * primitive.
- *
- * What this deliberately does **not** forbid:
- *
- * - `<option>`. It is meaningless without a `select`, and flagging it would be
- *   two rules for one thing.
- * - Radix's own hidden native control. It is created inside `radix-ui`, in
- *   `node_modules`, and is what keeps `name`/`value` working in a real form
- *   submission — nothing under `src/` writes it.
- * - Buttons, inputs, tables, labels, and links. The migration plan is explicit
- *   that enforcement stays incremental until the scanner and semantic exceptions
- *   are documented (§F.5), and a raw `<input>` in a keyboard-wedge flow is a
- *   decision somebody may still need to make.
- * - Test files. A test that renders a native select to prove something *about*
- *   native selects is doing its job.
- *
- * The check is AST-only. "select" appears in prose throughout this repository —
- * in the very comments explaining why the native control was replaced — and a
- * text scan would either flag those or be loosened until it flagged nothing.
- *
- * Run with `pnpm verify:native-select`.
- */
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, relative, resolve, sep } from "node:path";
 import process from "node:process";
@@ -41,28 +6,18 @@ import ts from "typescript";
 
 const repoRoot = fileURLToPath(new URL("..", import.meta.url));
 
-/** Production application source. */
 const SCAN_DIRECTORY = "src";
 const SKIPPED_DIRECTORIES = new Set(["node_modules", "__fixtures__", "tests"]);
 const SKIPPED_FILES = /(?:\.d\.ts|\.(?:test|spec|a11y)\.tsx?)$/;
 const SOURCE_FILES = /\.tsx?$/;
 
 /**
- * Files that may still create a native `<select>`.
- *
- * **Empty, and it should stay that way.** An entry here is a claim that one
- * screen has a tested, device-specific reason to hand its popup to the operating
- * system — the migration plan requires exactly that justification — so each
- * addition needs the reason written beside it and the device it was measured on.
- * A file added tomorrow is denied without this list being touched.
- *
  * @type {readonly string[]}
  */
 export const NATIVE_SELECT_ALLOWLIST = Object.freeze([]);
 
 /** @typedef {{ file: string, line: number, message: string }} NativeSelectViolation */
 
-/** Every production source file under a directory, repository-relative. */
 export function productionFilesIn(directory, root) {
   if (!existsSync(directory)) return [];
 
@@ -82,13 +37,6 @@ export function productionFilesIn(directory, root) {
   return files.sort();
 }
 
-/**
- * The tag name of a JSX element, when it is an intrinsic one.
- *
- * `<select>` is intrinsic and lower-case; `<Select>` is a component reference
- * and is exactly what this migration wants people writing. Only the first is a
- * finding.
- */
 const intrinsicTagOf = (node) => {
   const tag =
     ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)
@@ -99,7 +47,6 @@ const intrinsicTagOf = (node) => {
   return name === name.toLowerCase() ? name : undefined;
 };
 
-/** `React.createElement("select", …)` and `createElement("select", …)`. */
 const createElementLiteralOf = (node) => {
   if (!ts.isCallExpression(node)) return undefined;
   const callee = node.expression;

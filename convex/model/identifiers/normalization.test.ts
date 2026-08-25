@@ -1,10 +1,3 @@
-/**
- * Unit tier — identifier normalization.
- *
- * The load-bearing assertions are the ones about what normalization must *not* do:
- * leading zeros survive, a lot code keeps its case, and a zero-width character is
- * refused rather than removed.
- */
 import { describe, expect, it } from "vitest";
 
 import { expectError, expectOk } from "../../../tests/fixtures/domain-results";
@@ -75,7 +68,7 @@ describe("normalizeSku", () => {
     expect(normalizeSku("0001")).toEqual({ ok: true, value: "0001" });
     expect(normalizeSku("0")).toEqual({ ok: true, value: "0" });
     expect(normalizeSku("000")).toEqual({ ok: true, value: "000" });
-    // The four codes stay four codes.
+
     const codes = ["1", "01", "001", "0001"].map((raw) =>
       expectOk(normalizeSku(raw)),
     );
@@ -97,7 +90,6 @@ describe("normalizeSku", () => {
   });
 
   it("applies NFC so two encodings of one string agree", () => {
-    // "é" as one code point and as "e" plus a combining acute.
     const composed = "CAF\u00c9";
     const decomposed = "CAFE\u0301";
     expect(expectOk(normalizeSku(decomposed))).toBe(composed);
@@ -110,13 +102,11 @@ describe("normalizeSku", () => {
     expect(expectError(normalizeSku("BOLT M8")).code).toBe(
       "WHITESPACE_NOT_ALLOWED",
     );
-    // A tab is both whitespace and a control character; the control check runs
-    // first, so that is the code reported.
+
     expect(expectError(normalizeSku("BOLT\tM8")).code).toBe(
       "CONTROL_CHARACTER",
     );
-    // A zero-width space is refused, not silently stripped: the stored key must
-    // match what a human can read on the screen.
+
     expect(expectError(normalizeSku("BOLT\u200bM8")).code).toBe(
       "CONTROL_CHARACTER",
     );

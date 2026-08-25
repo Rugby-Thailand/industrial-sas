@@ -1,36 +1,5 @@
 "use client";
 
-/**
- * One paged ledger read, from environment gate to rendered rows.
- *
- * Both inventory screens are the same component with a different function
- * reference and a different table, because the interesting part is identical:
- * decide whether the read is possible, ask the server, map the answer onto the
- * states in `ledgerState.ts`, and page.
- *
- * ### The order of the checks
- *
- * The gate runs *before* anything is asked. `BACKEND_MISSING`,
- * `SIGN_IN_REQUIRED`, and `WAREHOUSE_MISSING` are decided from the environment
- * and the workspace alone, so an unconfigured machine shows the reason
- * immediately instead of a spinner that becomes a denial one round trip later —
- * and, just as importantly, `useQuery` is never called without a
- * `ConvexProvider` above it, which would throw.
- *
- * ### Why paging resets on a warehouse change
- *
- * A cursor is only meaningful inside the query that produced it. Carrying one
- * across warehouses asks the server to resume a scan of a different index, and
- * the honest outcomes are a refusal or, worse, a page of the wrong site's rows.
- *
- * ### What this component cannot do
- *
- * Write. There is no mutation here, no optimistic update, and no local edit of a
- * balance: `INV-0003-11` is that no API sets a balance, and `INV-0009-04` is
- * that no client cache pretends one changed. Convex query subscriptions are
- * live, so a confirmed posting arrives on its own — which is the only way a
- * number on this screen ever changes.
- */
 import { useQuery } from "convex/react";
 import type { FunctionReference } from "convex/server";
 import { useTranslations } from "next-intl";
@@ -74,19 +43,15 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/EmptyState";
 
 export interface LedgerPanelProps<Row> {
-  /** The public query this panel reads. */
   readonly queryRef: FunctionReference<
     "query",
     "public",
     LedgerPageArgs,
     TenantOutcome<LedgerPage<Row>>
   >;
-  /** Renders one page of rows. */
+
   readonly renderRows: (rows: readonly Row[]) => ReactNode;
-  /**
-   * Which screen is asking. A closed set, because it becomes a telemetry
-   * dimension and a free-form label there is an unbounded cardinality problem.
-   */
+
   readonly surface: LedgerReadSurface;
 }
 
@@ -97,13 +62,6 @@ export function LedgerPanel<Row>({
 }: LedgerPanelProps<Row>) {
   const environment = useAppEnvironment();
 
-  /*
-   * `key` is how the paging state resets when the warehouse changes. The
-   * alternative — an effect that sets the cursor back to the first page — is a
-   * cascading render and, worse, leaves one render in which the old cursor is
-   * paired with the new warehouse. Remounting makes the reset atomic, and it is
-   * React's own answer to "state that should not survive an input change".
-   */
   return (
     <QueryGate scope="WAREHOUSE">
       {(warehouseId) => (
@@ -178,10 +136,6 @@ function PagedLedger<Row>({
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/* Sources                                                                     */
-/* -------------------------------------------------------------------------- */
-
 function ServerLedgerPanel<Row>({
   queryRef,
   warehouseId,
@@ -208,10 +162,6 @@ function ServerLedgerPanel<Row>({
 
   return <>{render(state)}</>;
 }
-
-/* -------------------------------------------------------------------------- */
-/* Rendering                                                                   */
-/* -------------------------------------------------------------------------- */
 
 function LedgerPanelBody<Row>({
   state,

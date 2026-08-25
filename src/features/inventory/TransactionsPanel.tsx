@@ -1,9 +1,5 @@
 "use client";
 
-/**
- * The transaction-history screen's data panel. See `BalancesPanel` for why this
- * file is three lines of configuration.
- */
 import { TransactionsTable } from "@/components/inventory/TransactionsTable";
 import {
   listTransactionsRef,

@@ -1,40 +1,3 @@
-/**
- * Integration tier — the Convex storage adapter
- * (`createQueryTenantStorage` / `createMutationTenantStorage` in
- * `convex/lib/tenantStorage.ts`, T05b2a).
- *
- * This tier proves the adapter's contract against the real Convex database
- * implementation: which Convex operations it reaches, what it refuses before
- * reaching them, how it translates an ID, an equality prefix, a limit and a
- * cursor, and what it does with an answer that is not the documented shape. The
- * cross-tenant properties — a foreign ID, a colliding code, a page that must never
- * carry another tenant's row — are proved in
- * `tests/isolation/tenant-storage.isolation.test.ts`, because those are the
- * properties that block the merge gate (`RG-013`, `RG-031`).
- *
- * Storage is `convex-test`: the Convex-authored in-process mock, running the real
- * database implementation, the real schema validators, the real index semantics,
- * and the real one-`paginate()`-per-function-execution budget. It needs no
- * deployment, no `convex dev`, no account, and no environment variable. See
- * `tests/fixtures/convex-tenant-world.ts` for why that, and not another
- * hand-written fake.
- *
- * Two things `convex-test` cannot do, by construction, and how they are covered
- * here instead:
- *
- * - It cannot store a document the schema rejects, so a malformed *document* is
- *   unreachable through it. That case is already the accessor's
- *   (`tests/isolation/tenant-document-access.isolation.test.ts`), which owns the
- *   ownership predicate.
- * - It cannot return a malformed *page*, because its `paginate` is correct. Those
- *   answers are injected through `stubMutationContext` below — a structural stub of
- *   exactly the seven Convex operations the adapter is allowed to reach, which also
- *   throws if the adapter ever reaches for `filter`, `collect`, `order`, or a full
- *   scan.
- *
- * This does not close `G-102`: there is still no auth wrapper and no exported
- * Convex function.
- */
 import type { GenericId } from "convex/values";
 import { describe, expect, it } from "vitest";
 
@@ -63,9 +26,9 @@ import {
 } from "../fixtures/convex-tenant-world";
 
 const TABLE: TenantTableName = "warehouses";
-/** `["orgId", "code"]` — one field after the discriminator. */
+
 const BY_CODE = "by_orgId_code";
-/** `["orgId", "status", "code"]` — two fields after the discriminator. */
+
 const BY_STATUS_CODE = "by_orgId_status_code";
 
 interface WarehouseLike extends TenantOwnedDocument {
@@ -74,7 +37,6 @@ interface WarehouseLike extends TenantOwnedDocument {
   readonly status: "ACTIVE" | "INACTIVE";
 }
 
-/** The failure a caller can observe, reduced to what is comparable. */
 async function denial(call: () => Promise<unknown>): Promise<TenantDbError> {
   try {
     await call();
@@ -90,11 +52,8 @@ async function denial(call: () => Promise<unknown>): Promise<TenantDbError> {
   throw new Error("Expected the call to reject, but it resolved.");
 }
 
-/* -------------------------------------------------------------------------- */
 /* Structural stub, for answers convex-test cannot produce                     */
-/* -------------------------------------------------------------------------- */
 
-/** What the stub saw the adapter do, in order. */
 interface StubLog {
   readonly index: string[];
   readonly eq: { field: string; value: unknown }[];
@@ -107,16 +66,6 @@ interface StubBehaviour {
   readonly paginate?: () => unknown;
 }
 
-/**
- * A mutation context over a stub database that implements exactly the operations
- * the adapter is allowed to reach, and throws on the ones it is not.
- *
- * Its purpose is fault injection: `convex-test`'s `paginate` is correct, so the
- * only way to prove the adapter rejects an answer that is not a bounded page is to
- * hand it one. Everything else about the stub is deliberately hostile — `filter`,
- * `collect`, `order`, and `fullTableScan` are present and throw, so a read that
- * reached for an unbounded query would fail here rather than pass quietly.
- */
 function stubMutationContext(behaviour: StubBehaviour): {
   readonly ctx: TenantMutationContext;
   readonly log: StubLog;
@@ -140,8 +89,7 @@ function stubMutationContext(behaviour: StubBehaviour): {
   const boundedQuery = {
     take: async (count: number): Promise<unknown> => {
       log.take.push(count);
-      // Presence, not `??`: an override of `null` is a case worth injecting, and
-      // `??` would quietly replace it with the honest default.
+
       return behaviour.take === undefined ? [] : behaviour.take();
     },
     paginate: async (options: {
@@ -161,8 +109,6 @@ function stubMutationContext(behaviour: StubBehaviour): {
   };
 
   const db = {
-    // Any non-empty string is a usable ID here: the stub is not the thing under
-    // test, and a real `normalizeId` is exercised through convex-test elsewhere.
     normalizeId: (_table: string, id: string): string | null =>
       typeof id === "string" && id.length > 0 ? id : null,
     get: async (): Promise<unknown> => null,
@@ -183,16 +129,8 @@ function stubMutationContext(behaviour: StubBehaviour): {
     delete: async (): Promise<void> => undefined,
   };
 
-  // Documented cast: the stub implements the seven operations the adapter reaches
-  // and nothing else, so it is not assignable to Convex's overloaded, per-table
-  // database types. That narrowness is the point — a stub that satisfied the full
-  // interface would have to implement operations the adapter must never call.
   return { ctx: { db } as unknown as TenantMutationContext, log };
 }
-
-/* -------------------------------------------------------------------------- */
-/* The port a context yields                                                   */
-/* -------------------------------------------------------------------------- */
 
 describe("the port a Convex context yields", () => {
   it("exposes exactly the six port methods, frozen, and no database", async () => {
@@ -230,10 +168,6 @@ describe("the port a Convex context yields", () => {
   });
 });
 
-/* -------------------------------------------------------------------------- */
-/* Reads by document ID                                                        */
-/* -------------------------------------------------------------------------- */
-
 describe("a read by document ID", () => {
   it("answers this tenant's document through the accessor", async () => {
     const world = await createConvexTenantWorld();
@@ -267,8 +201,6 @@ describe("a read by document ID", () => {
       );
     });
 
-    // `null` for every reason: deleted, another table's, malformed, empty. The
-    // accessor folds all of them into one `NOT_FOUND` (`INV-0002-03`).
     expect(answers).toEqual([null, null, null, null, null, null]);
   });
 
@@ -285,10 +217,6 @@ describe("a read by document ID", () => {
     expect(log.index).toEqual([]);
   });
 });
-
-/* -------------------------------------------------------------------------- */
-/* Writes                                                                      */
-/* -------------------------------------------------------------------------- */
 
 describe("a write through a mutation context", () => {
   it("stamps the scope's tenant and stores a readable document", async () => {
@@ -386,8 +314,6 @@ describe("a write through a mutation context", () => {
     await world.t.run(async (ctx) => {
       const port = createMutationTenantStorage(ctx, REQUEST_ID);
 
-      // An insert into a tenant table must carry a real organization ID: an
-      // untenanted row is a row no tenant-scoped read can ever reach again.
       for (const document of [
         { code: "F", name: "F", status: "ACTIVE" },
         { orgId: "", code: "F" },
@@ -399,8 +325,6 @@ describe("a write through a mutation context", () => {
         ).toBe("INVALID_WRITE");
       }
 
-      // A patch that re-states the tenant is a patch that could move a document
-      // between tenants, so the field is refused rather than compared.
       expect(
         (
           await denial(
@@ -445,10 +369,6 @@ describe("a write through a mutation context", () => {
   });
 });
 
-/* -------------------------------------------------------------------------- */
-/* Bounded indexed reads                                                       */
-/* -------------------------------------------------------------------------- */
-
 describe("an indexed read", () => {
   it("applies the equality fields in order, beginning with orgId", async () => {
     const { ctx, log } = stubMutationContext({});
@@ -492,8 +412,6 @@ describe("an indexed read", () => {
       return { active, all };
     });
 
-    // Index order, and only this tenant's rows: `DELTA` is INACTIVE and B's
-    // `ALPHA` is another tenant's.
     expect(rows.active.map((row) => row.code)).toEqual([
       "ALPHA",
       "BRAVO",
@@ -536,9 +454,6 @@ describe("an indexed read", () => {
   it("spends no pagination budget on a read whose range fits", async () => {
     const world = await createConvexTenantWorld();
 
-    // Convex allows one `.paginate()` per function execution. Four exhausted
-    // reads in one execution prove the adapter used `.take()` for all of them —
-    // which is what lets a mutation perform more than one uniqueness check.
     const counts = await world.t.run(async (ctx) => {
       const access = createTenantDocumentAccess(
         { orgId: world.orgA, requestId: REQUEST_ID },
@@ -597,8 +512,6 @@ describe("an indexed read", () => {
     expect(overfull.log.take).toEqual([3]);
     expect(overfull.log.paginate).toEqual([{ numItems: 2, cursor: null }]);
 
-    // A supplied cursor is a resume: there is nothing to probe for, so the
-    // pagination happens immediately and verbatim.
     const resumed = stubMutationContext({
       paginate: () => ({ page: [], isDone: true, continueCursor: "end" }),
     });
@@ -623,9 +536,6 @@ describe("an indexed read", () => {
         createMutationTenantStorage(ctx, REQUEST_ID),
       ).byIndex<WarehouseLike>(TABLE, BY_CODE);
 
-    // One execution per page: a continuable page spends the single paginate, so
-    // two of them in one Convex function would be a runtime error in a deployed
-    // backend as much as here.
     const first = await world.t.run(
       async (ctx) => await reader(ctx).page({ limit: 2 }),
     );
@@ -673,11 +583,8 @@ describe("an indexed read", () => {
       readonly index: string;
       readonly equality: TenantIndexEquality;
     }[] = [
-      // Nothing at all: a read of a tenant table with no `orgId` equality is the
-      // scan this boundary exists to forbid.
       { index: BY_CODE, equality: [] },
-      // `orgId` not first, which Convex itself would answer with a message naming
-      // the field it expected.
+
       { index: BY_CODE, equality: [{ field: "code", value: "ALPHA" }] },
       {
         index: BY_STATUS_CODE,
@@ -695,7 +602,7 @@ describe("an indexed read", () => {
           { field: "code", value: "ALPHA" },
         ],
       },
-      // Longer than the index.
+
       {
         index: BY_CODE,
         equality: [
@@ -704,12 +611,12 @@ describe("an indexed read", () => {
           { field: "extra", value: 1 },
         ],
       },
-      // A term that is not a `{ field, value }` object.
+
       { index: BY_CODE, equality: ["orgId"] as unknown as TenantIndexEquality },
-      // An `orgId` that is not an organization ID.
+
       { index: BY_CODE, equality: [{ field: "orgId", value: "" }] },
       { index: BY_CODE, equality: [{ field: "orgId", value: 7 }] },
-      // "Equal to nothing" is not an equality.
+
       { index: BY_CODE, equality: [{ field: "orgId", value: undefined }] },
     ];
 
@@ -722,8 +629,7 @@ describe("an indexed read", () => {
           }),
       );
       expect(error.code).toBe("INVALID_INDEX_QUERY");
-      // No table, index, field, or tenant in the payload — and in particular not
-      // Convex's own "expected orgId, got code" (`INV-0002-07`).
+
       expect(error.message).toBe(TENANT_DB_ERROR_MESSAGE);
       expect(Object.keys(error.toPublic()).sort()).toEqual([
         "code",
@@ -777,10 +683,6 @@ describe("an indexed read", () => {
     expect(log.paginate).toEqual([]);
   });
 });
-
-/* -------------------------------------------------------------------------- */
-/* Answers that are not the documented shape                                   */
-/* -------------------------------------------------------------------------- */
 
 describe("an answer Convex should never have given", () => {
   const equality: TenantIndexEquality = [{ field: "orgId", value: "org-1" }];
@@ -856,8 +758,6 @@ describe("an answer Convex should never have given", () => {
   });
 
   it("carries only the three documented page fields back", async () => {
-    // Convex answers with `splitCursor` and `pageStatus` as well. Neither is part
-    // of the port's contract, so neither crosses the boundary.
     const { ctx } = stubMutationContext({
       take: () => [{ orgId: "org-1" }, { orgId: "org-1" }],
       paginate: () => ({
@@ -885,8 +785,7 @@ describe("an answer Convex should never have given", () => {
 
   it("rejects an insert whose ID Convex would not recognize", async () => {
     const { ctx } = stubMutationContext({});
-    // The stub's `normalizeId` rejects an empty string, so an insert answering
-    // with one is an ID the caller could never use again.
+
     const db = (ctx as unknown as { db: { insert: () => Promise<unknown> } })
       .db;
     db.insert = async (): Promise<unknown> => "";
@@ -899,10 +798,6 @@ describe("an answer Convex should never have given", () => {
     expect(error.code).toBe("INVALID_WRITE");
   });
 });
-
-/* -------------------------------------------------------------------------- */
-/* Query contexts                                                              */
-/* -------------------------------------------------------------------------- */
 
 describe("a query context", () => {
   it("reads by ID and by index", async () => {
@@ -955,8 +850,6 @@ describe("a query context", () => {
         expect(error.requestId).toBe(REQUEST_ID);
       }
 
-      // Not a policy but an absence of capability: a query's database has no
-      // write method for the adapter to have called by mistake.
       const db = ctx.db as unknown as Record<string, unknown>;
       for (const method of ["insert", "patch", "replace", "delete"]) {
         expect(typeof db[method]).not.toBe("function");

@@ -13,13 +13,6 @@ import { writeStoredWarehouse } from "@/lib/workspace/warehouseStore";
 
 import { ApproveDispositionControl } from "./QualityApproval";
 
-/**
- * "Approve this disposition" was the notice's title, the form's legend, the
- * button, and — one level up — the section heading, with the maker-checker rule
- * printed underneath it twice. The rule has not moved: it is still stated above
- * the control, where somebody meets it before pressing rather than after being
- * denied. It is just stated once.
- */
 const BANG_PU = "prv_wh_bangpoo";
 
 const render = (locale: "th" | "en" = "th") => {
@@ -42,7 +35,6 @@ describe("the disposition approval control", () => {
   });
 
   it("keeps the rule visible above the control", () => {
-    // Hiding it would make a maker-checker rule look like a missing feature.
     render();
 
     const notice = screen.getByTestId("quality-approval-rule");
@@ -58,7 +50,7 @@ describe("the disposition approval control", () => {
     expect(
       screen.getByRole("button", { name: "อนุมัติผลนี้" }),
     ).toBeInTheDocument();
-    // The legend names what to pick, which is not what the button does.
+
     expect(screen.getByText("เลือกผลที่จะอนุมัติ")).toBeInTheDocument();
   });
 

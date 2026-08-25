@@ -13,15 +13,6 @@ import { OwnerAttentionList } from "@/features/reporting/OwnerAttentionList";
 import { OwnerOperationsSummary } from "@/features/reporting/OwnerOperationsSummary";
 import { OwnerPulse } from "@/features/reporting/OwnerPulse";
 
-/**
- * The first owner dashboard release.
- *
- * The top of the page answers three owner questions: what needs attention,
- * where capacity is tightening, and where to act next. Values remain bounded
- * server reads; the UI deliberately does not invent revenue, trends, or targets
- * that the current model cannot prove. Team-level counters and the detailed
- * occupancy map remain available lower on the page for operational follow-up.
- */
 export default async function DashboardPage({
   params,
 }: {

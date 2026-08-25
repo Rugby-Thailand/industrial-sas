@@ -49,11 +49,7 @@ export interface KanbanProps<Item> extends Omit<
   readonly value: BoardValue<Item>;
   readonly onValueChange: (value: BoardValue<Item>) => void;
   readonly getItemValue: (item: Item) => UniqueIdentifier;
-  /**
-   * When supplied, moving a card is owned by the caller. This is the seam for a
-   * domain command; the primitive never pretends that rearranging pixels is a
-   * successful warehouse transaction.
-   */
+
   readonly onMove?: (move: KanbanMoveEvent) => void;
 }
 

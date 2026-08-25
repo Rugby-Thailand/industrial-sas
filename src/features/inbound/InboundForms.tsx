@@ -1,25 +1,5 @@
 "use client";
 
-/**
- * The inbound write controls.
- *
- * All of them go through `EntityWriteForm`, which is the Phase 2 contract: gate
- * first, mint one idempotency key per attempt, hold the key across a transport
- * failure so a retry replays, and report the ending in words. Receiving a pallet
- * twice because a handheld lost Wi-Fi mid-post is exactly the failure that
- * machinery exists to prevent, so the inbound forms do not get their own version
- * of it.
- *
- * What is specific to this file is the **fields**, and in a few places a wider
- * outcome: a receipt posting answers with its classification and where the stock
- * landed, and those are the two facts an operator at a dock actually needs. They
- * are surfaced by `ReceiptOutcomeNotice` rather than collapsed into "saved".
- *
- * The quality and putaway writes are not here — they are `QualityInspections`
- * and `PutawayTasks` — because importing one form from this file reaches all of
- * them, and a screen that only records a disposition has no use for the ordering
- * and receiving vocabularies this file carries.
- */
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
@@ -52,7 +32,6 @@ import { ScanToItem, type ScannedItem } from "./ScanToItem";
 
 import { EntityWriteForm } from "../masterData/EntityWriteForm";
 
-/** A quantity captured as two fields: the number, and the unit it is counted in. */
 const quantityFields = (
   quantityLabel: string,
   uomLabel: string,
@@ -73,15 +52,6 @@ const quantityFields = (
   },
 ];
 
-/**
- * Read a decimal quantity into integer minor units.
- *
- * The same three-decimal rule the server parses with (`ADR-0004`). Parsed from
- * the string rather than multiplied as a float, because `0.1 * 1000` is
- * `100.00000000000001` and the ledger stores integers. Anything unparseable
- * becomes `NaN`, which the server refuses by naming the field — the client does
- * not guess.
- */
 export function toMinorUnits(text: string): number {
   const match = /^(\d+)(?:\.(\d{1,3}))?$/.exec(text.trim());
   if (match === null) return Number.NaN;
@@ -89,10 +59,6 @@ export function toMinorUnits(text: string): number {
     Number(match[1] ?? "0") * 1000 + Number((match[2] ?? "").padEnd(3, "0"))
   );
 }
-
-/* -------------------------------------------------------------------------- */
-/* Purchase orders                                                             */
-/* -------------------------------------------------------------------------- */
 
 export function PurchaseOrderForm() {
   const t = useTranslations("Purchasing");
@@ -127,14 +93,11 @@ export function PurchaseOrderForm() {
                   label: t("fieldSupplier"),
                   kind: "select",
                   required: true,
-                  // The empty control says which choice is outstanding, rather
-                  // than repeating the label above it.
+
                   placeholder: t("selectSupplier"),
                   options: suppliers.map((supplier) => ({
                     value: supplier.supplierId,
-                    // The code is what a buyer recognises; the ID is what the
-                    // mutation needs. Showing one and sending the other is the whole
-                    // point of a selector.
+
                     label: `${supplier.code} · ${supplier.name}`,
                   })),
                 },
@@ -142,7 +105,7 @@ export function PurchaseOrderForm() {
                   name: "externalRef",
                   label: t("columnExternalRef"),
                   kind: "text",
-                  // A cross-system reference most orders never carry.
+
                   importance: "secondary",
                   monospace: true,
                 },
@@ -284,35 +247,13 @@ export function CloseLineShortForm({
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/* Receiving                                                                   */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Open a receipt.
- *
- * `chooseOrder` decides whether the operator picks the order here. The desk
- * screen opens a receipt without one in hand, so it chooses; the order-detail
- * screen and the handheld flow already know which order, and asking again would
- * be asking somebody to confirm what they just clicked.
- *
- * Either way the order is *selected*, never typed: a pre-filled document ID is
- * still a document ID somebody can corrupt with a keystroke.
- */
 export function OpenReceiptForm({
   purchaseOrderId,
   onOpened,
   chooseOrder = false,
 }: {
   readonly purchaseOrderId?: string | undefined;
-  /**
-   * The receipt the server just created.
-   *
-   * Handed to the caller rather than left for the operator to find, because the
-   * next step posts against it: a handheld that made somebody read a Convex
-   * document ID off one screen and type it into the next is a flow nobody
-   * completes wearing gloves.
-   */
+
   readonly onOpened?: (receiptId: string) => void;
   readonly chooseOrder?: boolean;
 }) {
@@ -345,7 +286,6 @@ export function OpenReceiptForm({
   );
 }
 
-/** The receipt-opening form itself, once the order question is settled. */
 function OpenReceiptFormBody({
   purchaseOrderId,
   onOpened,
@@ -422,37 +362,13 @@ function OpenReceiptFormBody({
   );
 }
 
-/**
- * Capture one received line.
- *
- * The field order is the order an operator works in: what came off the truck,
- * how much, which lot, when it expires.
- *
- * ### The item is scanned or chosen, never typed as an ID
- *
- * `postReceiptLine` takes an item's document ID, and an operator at a dock does
- * not have one. So the screen offers the two things they *do* have: the barcode
- * on the carton, resolved by the server against this tenant's catalogue, and a
- * list of the items the order actually asked for. The scan box sits outside the
- * form so a wedge scanner's Enter cannot post a half-filled line.
- *
- * A scan that resolves to something not on the order is named as such rather
- * than silently accepted: the ordinary path posts ordered items, and an
- * unexpected delivery goes through the exception a second person decides on
- * (`INV-0007-06`).
- *
- * Every domain rule stays on the server — the lot requirement, the unit
- * conversion, the tolerance. The form does not pre-check any of them, because a
- * second implementation of the tolerance in the browser would eventually
- * disagree with the one that decides.
- */
 export function ReceiptLineForm({
   receiptId,
   lines,
   locationId,
 }: {
   readonly receiptId: string;
-  /** The order lines this receipt may post against. */
+
   readonly lines: readonly PurchaseOrderLineRow[];
   readonly locationId: string;
 }) {
@@ -508,17 +424,9 @@ function ReceiptLineFormBody({
   const t = useTranslations("Receiving");
   const writeT = useTranslations("Write");
 
-  // The SKU a person recognises, for an ID they never see. Falling back to the
-  // ID keeps a newly created item legible rather than blank.
   const skuOf = (itemId: string) =>
     items.find((item) => item.itemId === itemId)?.sku ?? itemId;
 
-  /*
-   * The line the scan points at, if the order has one. A scan for an item the
-   * order did not ask for leaves the form on its default line and is called out
-   * above it — quietly switching to an unrelated line would be worse than not
-   * reacting at all.
-   */
   const scannedLine = lines.find((line) => line.itemId === scanned?.itemId);
   const defaultLine = scannedLine ?? lines[0];
   const notOnOrder = scanned !== undefined && scannedLine === undefined;
@@ -536,11 +444,6 @@ function ReceiptLineFormBody({
       <WithWarehouse
         render={(warehouseId) => (
           <EntityWriteForm
-            /*
-             * Remounted when the scan changes, so the resolved line and item
-             * become the form's starting values. Without the key the operator
-             * would scan a carton and watch the form keep the previous item.
-             */
             key={scannedLine?.purchaseOrderLineId ?? "manual"}
             testId="form-receipt-line"
             mutationRef={postReceiptLineRef}
@@ -570,11 +473,7 @@ function ReceiptLineFormBody({
                 required: true,
                 placeholder: t("selectItemChoice"),
                 hint: t("fieldItemChoiceHint"),
-                /*
-                 * The items this order asked for, not the whole catalogue: the
-                 * ordinary path refuses anything else, and offering the catalogue
-                 * would be offering a refusal.
-                 */
+
                 options: [...new Set(lines.map((line) => line.itemId))].map(
                   (itemId) => ({ value: itemId, label: skuOf(itemId) }),
                 ),
@@ -594,12 +493,7 @@ function ReceiptLineFormBody({
                 name: "expirationDate",
                 label: t("fieldExpirationDate"),
                 kind: "text",
-                /*
-                 * Secondary, unlike the lot code: a lot-tracked item refuses to
-                 * post without its lot, so that field stays primary, while the
-                 * expiry is only sometimes captured at the dock. A server
-                 * refusal that blames it reopens the group.
-                 */
+
                 importance: "secondary",
                 monospace: true,
                 placeholder: "2027-05-01",
@@ -630,13 +524,6 @@ function ReceiptLineFormBody({
   );
 }
 
-/**
- * Raise a receiving exception, so somebody else can post against it.
- *
- * The description says what the server enforces: the raiser and the receiver
- * must differ. An operator who reads that before pressing is an operator who
- * does not experience the denial as a bug.
- */
 export function ReceivingExceptionForm() {
   const t = useTranslations("Receiving");
   const kindT = useTranslations("ReceiptLineKind");
@@ -666,9 +553,7 @@ export function ReceivingExceptionForm() {
                   kind: "select",
                   required: true,
                   placeholder: t("selectExceptionKind"),
-                  // `ORDERED` is absent: an ordinary receipt is not an exception,
-                  // and raising one would create a maker for a posting that needs
-                  // no second person.
+
                   options: (
                     ["UNEXPECTED", "CANCELLED_LINE", "BLIND"] as const
                   ).map((kind) => ({ value: kind, label: kindT(kind) })),
@@ -688,8 +573,7 @@ export function ReceivingExceptionForm() {
                   name: "note",
                   label: t("exceptionNote"),
                   kind: "textarea",
-                  // Optional context for the second person; the kind and reason
-                  // code above already carry the decision.
+
                   importance: "secondary",
                 },
               ]}
@@ -753,18 +637,6 @@ export function BuildPalletForm({
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/* Labels                                                                      */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Generate a label payload, or generate it again as a reprint.
- *
- * Two mutations behind one form, chosen by a control the operator can see. The
- * reprint is not a hidden retry: `label.print.reprint` is a distinct permission
- * and the stored `reason` is what an auditor reads, so the screen makes the
- * choice explicit rather than inferring it from how many jobs already exist.
- */
 export function LabelForm({
   targetKind,
   targetId,
@@ -804,12 +676,6 @@ export function LabelForm({
           <WithWarehouse
             render={(warehouseId) => (
               <EntityWriteForm
-                /*
-                 * Keyed by the mode so switching it remounts the form. Without the
-                 * key, a `SAVED` notice from the first print would still be on
-                 * screen under a button that now says "reprint", which reads as a
-                 * reprint that already happened.
-                 */
                 key={reprint ? "reprint" : "initial"}
                 testId="form-label"
                 mutationRef={reprint ? reprintLabelRef : generateLabelRef}

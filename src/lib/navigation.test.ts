@@ -24,7 +24,6 @@ describe("isActivePath", () => {
   });
 
   it("does not match a sibling that merely shares a prefix", () => {
-    // Unguarded `startsWith` would light up "history" for "historical".
     expect(isActivePath("/inventory/historical", "/inventory/history")).toBe(
       false,
     );
@@ -37,8 +36,6 @@ describe("isActivePath", () => {
 
 describe("navigation data", () => {
   it("only points at routes named in the route table", () => {
-    // Widened to `string`: `ROUTES` is frozen, so its values are literal types
-    // and a `Set` of them would refuse the `string` an item carries.
     const known = new Set<string>(Object.values(ROUTES));
 
     for (const section of DESKTOP_NAVIGATION) {
@@ -53,9 +50,6 @@ describe("navigation data", () => {
   });
 
   it("gives an unavailable handheld task no destination", () => {
-    // The launcher renders these as marked, unfocusable rows. A task with both
-    // `available: false` and an `href` would be a link to a page that does not
-    // exist.
     for (const task of HANDHELD_TASKS) {
       expect(task.available === (task.href !== undefined), task.labelKey).toBe(
         true,
@@ -64,11 +58,6 @@ describe("navigation data", () => {
   });
 
   it("lists the one unbuilt task rather than hiding it", () => {
-    /*
-     * Receive, QC, and putaway are built. Pallet building is not a standalone
-     * task — it happens inside the receiving flow — and it stays listed and
-     * marked unavailable so an operator trained on it finds out where it went.
-     */
     const unavailable = HANDHELD_TASKS.filter((task) => !task.available).map(
       (task) => task.labelKey,
     );

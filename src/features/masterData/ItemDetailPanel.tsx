@@ -1,19 +1,5 @@
 "use client";
 
-/**
- * Everything that hangs off one item, on one screen.
- *
- * Barcodes, alternate units, and lots are all identified *by* the item and are
- * meaningless without it — a conversion of `12` says nothing until you know the
- * base unit is `EA`. So the item is resolved first, and the sub-panels are
- * rendered only once it is known; a screen that showed three empty tables above
- * "no such item" would be three wrong answers to one question.
- *
- * `{found:false}` is what the server answers for a nonexistent item **and** for
- * another tenant's (`INV-0002-03`). The screen says the same thing in both
- * cases, because saying anything else would confirm that an identifier exists
- * somewhere.
- */
 import { useQuery } from "convex/react";
 import { useTranslations } from "next-intl";
 

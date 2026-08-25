@@ -1,4 +1,3 @@
-/** Opening-stock import → validation → maker-checker → balanced ledger posting. */
 import type { GenericMutationCtx } from "convex/server";
 import type { GenericId } from "convex/values";
 import { describe, expect, it } from "vitest";

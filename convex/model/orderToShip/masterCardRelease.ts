@@ -29,10 +29,6 @@ export interface MasterCardDecisionPlan {
   };
 }
 
-/**
- * The complete release state change. Callers load rows and apply this plan in
- * one transaction; no public handler invents lifecycle patches of its own.
- */
 export function planMasterCardDecision(input: {
   readonly revision: ReleaseRevisionState;
   readonly card: ReleaseCardState;

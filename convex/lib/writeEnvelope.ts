@@ -1,22 +1,8 @@
-/**
- * The wire envelope every tenant-bound write answers with.
- *
- * Extracted from `convex/masterData/writes.ts`, which proved the shape over
- * sixteen mutations, so the inbound slice's own writes cannot drift from it. One
- * envelope means one client-side state machine
- * (`src/lib/convex/writeState.ts`) rather than one per feature.
- *
- * The rule the shape enforces is the one that matters: **a refusal names a field
- * and never a value**. `DUPLICATE_KEY` says which column collided and refuses to
- * say with what, so the same code path cannot become an oracle for a caller who
- * guessed (`INV-0002-07`).
- */
 import { v } from "convex/values";
 
 import type { TenantDocumentAccess } from "./tenantDb";
 import type { TenantFunctionContext } from "./tenantFunctions";
 
-/** Every optional field here is a *name* — a field, a table — never a value. */
 export const writeErrorValidator = v.object({
   code: v.string(),
   field: v.optional(v.string()),
@@ -30,13 +16,12 @@ export const writeOutcomeValidator = v.union(
   v.object({
     written: v.literal(true),
     documentId: v.string(),
-    /** True when an identical request had already been applied. */
+
     replayed: v.boolean(),
   }),
   v.object({ written: v.literal(false), error: writeErrorValidator }),
 );
 
-/** Anything a domain kernel or a store may refuse with. */
 export interface StructuredError {
   readonly code: string;
   readonly field?: unknown;
@@ -46,14 +31,6 @@ export interface StructuredError {
   readonly requestId?: unknown;
 }
 
-/**
- * Flatten a refusal for the wire.
- *
- * Every field is copied through `String` only when present, so an error carrying
- * a structural extra — a bucket key, an index — loses it here rather than
- * leaking a shape a caller could probe. Anything worth showing an operator is on
- * the envelope by name.
- */
 export const refusal = (error: StructuredError) => ({
   written: false as const,
   error: {
@@ -77,13 +54,6 @@ export const written = (outcome: {
   replayed: outcome.replayed,
 });
 
-/**
- * The write context every mutation builds the same way.
- *
- * `now` is taken here, from the server's clock, and is never an argument. A
- * client-supplied instant would let a handheld backdate stock into a closed
- * period, and the audit row's `occurredAt` is evidence.
- */
 export const writeContextOf = (
   ctx: TenantFunctionContext,
   input: {

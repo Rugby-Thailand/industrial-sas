@@ -1,62 +1,3 @@
-/**
- * Tenant boundary guard.
- *
- * `convex/lib/tenantFunctions.ts` is the only registration path a public Convex
- * function may take, and `TenantDocumentAccess` is the only database a handler
- * may reach. Neither is a claim TypeScript can make: nothing stops a new module
- * from importing `mutationGeneric` and touching `ctx.db`, and the function that
- * results would compile, deploy, and read every tenant's rows.
- *
- * This script parses every production file under `convex/` with the TypeScript
- * parser already pinned here. Each rule carries an allowlist of exact
- * repository-relative paths:
- *
- *   - `registration`    a public registration builder — `queryGeneric`,
- *     `mutationGeneric`, `actionGeneric`, or `query`/`mutation`/`action` from a
- *     Convex server module — imported, aliased, re-exported, dynamically
- *     imported, or reached through a namespace.
- *   - `internal-registration` an internal Convex registration builder.
- *   - `http-registration` an HTTP action registration builder.
- *   - `raw-database`    a raw `.db` read, `["db"]` access, or `{ db }` binding.
- *   - `storage-factory` `createQueryTenantStorage`/`createMutationTenantStorage`.
- *   - `storage-port`    a `Tenant*StoragePort` type.
- *   - `authorization-declaration` a `queryWithOrg`/`mutationWithOrg`/
- *     `actionWithOrg` call whose `permissionCode` is missing, is not a string
- *     literal, or is not a non-`PLATFORM` code of the catalogue in
- *     `convex/lib/permissions.ts` (`INV-0006-01`, `INV-0006-02`).
- *   - `audit-append-only` a `patch`, `replace`, or `delete` naming an append-only
- *     table — `auditEvents`, `inventoryTransactions`, `inventoryLedgerLines`
- *     (plan §12, `INV-0003-07`, `INV-0003-12`: nothing rewrites the ledger or the
- *     audit trail).
- *   - `balance-projection-seam` an `insert`, `patch`, `replace`, or `delete` naming
- *     `inventoryBalances` outside the single ledger persistence module
- *     (`INV-0003-09`, `INV-0003-11`: balances are projected in the posting
- *     transaction and there is no other write path, public or otherwise).
- *   - `unbounded-read` a `collect()` or `fullTableScan()`, or a `filter()` on a
- *     database query chain (`INV-0002-04`, plan §12: no tenant read is a scan, and
- *     tenant selection is never a predicate).
- *   - `tenant-index-prefix` an index on a tenant table in `convex/schema.ts` whose
- *     field list is not `byOrg(...)` or does not begin with `"orgId"` (D-18,
- *     `INV-0002-02`).
- *   - `model-purity`    an import in `convex/model/**` that reaches outside it,
- *     including any Convex package (plan §6.2: pure domain modules). Static and
- *     dynamic imports, re-exports, `require`, and `import x = require(…)` all
- *     count, and a dynamic specifier this script cannot read fails closed: a
- *     template literal can name `convex/server` at run time.
- *   - `allowlist-drift` an allowlisted path that no longer exists.
- *
- * Five have **empty** allowlists: there is no file that may declare an
- * unenforceable permission, none that may rewrite an audit or ledger row, none that
- * may scan a tenant table, none that may declare an index that does not start with
- * the tenant discriminator, and no pure domain module that may import Convex.
- *
- * A file added tomorrow is therefore denied without that list being touched.
- * The checks are AST-only on purpose: `ctx.db` and `TenantStoragePort` appear in
- * prose all over `convex/lib`, and a text scan would either flag the prose or be
- * loosened until it flagged nothing.
- *
- * Run with `pnpm verify:tenant-boundary`.
- */
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, relative, resolve, sep } from "node:path";
 import process from "node:process";
@@ -65,7 +6,6 @@ import ts from "typescript";
 
 const repoRoot = fileURLToPath(new URL("..", import.meta.url));
 
-/** Production Convex source: generated, vendored, and test trees are not it. */
 const SCAN_DIRECTORY = "convex";
 const SKIPPED_DIRECTORIES = new Set([
   "_generated",
@@ -78,9 +18,8 @@ const SKIPPED_DIRECTORIES = new Set([
 const SKIPPED_FILES = /(?:\.d\.ts|\.(?:test|spec|a11y)\.tsx?)$/;
 const SOURCE_FILES = /\.tsx?$/;
 
-/** Registration builders that only ever come from a Convex server module. */
 const SCOPED_BUILDERS = new Set(["query", "mutation", "action"]);
-/** Registration builders whose names are unambiguous wherever they appear. */
+
 const DISTINCTIVE_BUILDERS = new Set([
   "queryGeneric",
   "mutationGeneric",
@@ -98,43 +37,33 @@ const INTERNAL_DISTINCTIVE_BUILDERS = new Set([
 ]);
 const HTTP_SCOPED_BUILDERS = new Set(["httpAction"]);
 const HTTP_DISTINCTIVE_BUILDERS = new Set(["httpActionGeneric"]);
-/** The concrete Convex storage adapters. */
+
 const STORAGE_FACTORIES = new Set([
   "createQueryTenantStorage",
   "createMutationTenantStorage",
 ]);
-/** `TenantStoragePort`, `TenantQueryStoragePort`, and any future sibling. */
+
 const STORAGE_PORT_NAME = /^Tenant\w*StoragePort$/;
-/** The three tenant-bound registration paths every public function must take. */
+
 const TENANT_WRAPPERS = new Set([
   "queryWithOrg",
   "mutationWithOrg",
   "actionWithOrg",
 ]);
-/** Tables application code may append to and never rewrite (plan §12). */
+
 const APPEND_ONLY_TABLES = new Set([
   "auditEvents",
   "inventoryTransactions",
   "inventoryLedgerLines",
 ]);
-/** Methods that would rewrite or remove a row. */
+
 const REWRITING_METHODS = new Set(["patch", "replace", "delete"]);
-/**
- * The projection table only the ledger persistence seam may write.
- *
- * Insert included, unlike the append-only rule: a balance is *derived*, so writing
- * one anywhere else — even for the first time — is a second source of truth
- * (`INV-0003-11`).
- */
+
 const PROJECTION_TABLES = new Set(["inventoryBalances"]);
 const WRITING_METHODS = new Set(["insert", "patch", "replace", "delete"]);
-/**
- * Reads with no bound. `collect` and `fullTableScan` exist only on a Convex query
- * builder, so naming them is unambiguous; `filter` is checked against its receiver
- * because arrays have one too.
- */
+
 const UNBOUNDED_READ_METHODS = new Set(["collect", "fullTableScan"]);
-/** Names that mark an expression as a database query chain rather than an array. */
+
 const QUERY_CHAIN_NAMES = new Set([
   "db",
   "query",
@@ -143,26 +72,17 @@ const QUERY_CHAIN_NAMES = new Set([
   "byIndex",
   "indexedPage",
 ]);
-/** The schema module whose index declarations the prefix rule reads. */
+
 const SCHEMA_FILE = "convex/schema.ts";
-/** Tables that legitimately have no `orgId` (`ADR-0002` §1, `schemaPolicy.ts`). */
+
 const GLOBAL_TABLES = new Set(["organizations", "users", "permissions"]);
-/** The tenant discriminator every tenant index must begin with (D-18). */
+
 const TENANT_DISCRIMINATOR = "orgId";
-/** The module the code-owned permission catalogue is declared in. */
+
 const PERMISSION_CATALOGUE_FILE = "convex/lib/permissions.ts";
-/**
- * The directory plan §6.2 keeps free of Convex: `convex/model/**` is pure
- * TypeScript domain algebra. "Pure" is a claim the type checker cannot make —
- * nothing stops a model module from importing `convex/values` or reaching into
- * `convex/lib` — and once one does, the algebra is no longer portable, no longer
- * testable without a Convex world, and no longer replayable inside a mutation.
- * So the rule is mechanical: a file under this prefix may import only relative
- * paths that stay under the prefix.
- */
+
 const PURE_MODEL_PREFIX = "convex/model/";
 
-/** Exact paths permitted to break each rule; everything absent is denied. */
 export const TENANT_BOUNDARY_ALLOWLIST = Object.freeze({
   registration: Object.freeze(["convex/lib/tenantFunctions.ts"]),
   "internal-registration": Object.freeze([
@@ -186,11 +106,10 @@ export const TENANT_BOUNDARY_ALLOWLIST = Object.freeze({
     // tenancy: possession of the random grant ID is the short-lived capability.
     "convex/engineering/files.ts",
     "convex/lib/taskFileComplete.ts",
-    // Same HMAC-gated UploadThing completion seam for transport/POD evidence.
+
     "convex/lib/transportFileComplete.ts",
     "convex/lib/tenantStorage.ts",
-    // The wrapper reads only Convex's global `_storage` metadata to expose a
-    // verification port; feature handlers still receive no raw database.
+
     "convex/lib/tenantFunctions.ts",
     "convex/lib/tenantContextLookups.ts",
   ]),
@@ -203,15 +122,11 @@ export const TENANT_BOUNDARY_ALLOWLIST = Object.freeze({
     "convex/lib/tenantDb.ts",
     "convex/lib/tenantStorage.ts",
   ]),
-  // The one module allowed to write a balance projection. Everything else — the
-  // public ledger functions included — can only ask it to (`INV-0003-11`).
+
   "balance-projection-seam": Object.freeze([
     "convex/lib/inventoryLedgerStore.ts",
   ]),
-  // No exemptions: an unenforceable declaration, a rewritten audit or ledger row, a
-  // scan of a tenant table, and an index that does not start with the tenant
-  // discriminator are wrong in every file, including the ones that own the
-  // boundary. Nor may any pure domain module import Convex.
+
   "authorization-declaration": Object.freeze([]),
   "audit-append-only": Object.freeze([]),
   "unbounded-read": Object.freeze([]),
@@ -266,13 +181,6 @@ function productionFilesIn(directory, root) {
 }
 
 /**
- * Whether an import in a pure domain module reaches outside `convex/model/**`.
- *
- * A bare specifier always does: it is a package, and `convex` is a package. A
- * relative one is resolved textually — the paths here are already
- * repository-relative with `/` separators — so `../lib/permissions` is caught
- * while `../result` is not.
- *
  * @param {string} file repository-relative path of the importing file
  * @param {string} specifier
  * @returns {boolean}
@@ -302,14 +210,6 @@ function escapesPureModel(file, specifier) {
 }
 
 /**
- * Whether an expression is a database query chain rather than an array.
- *
- * `filter` exists on both, so the receiver decides. A chain is anything whose
- * subtree names `db`, `query`, `withIndex`, `byIndex`, or a sibling — which is what
- * every route to a Convex query builder in this repository goes through. An array
- * expression names none of them, so `PERMISSION_CATALOGUE.filter(…)` and
- * `page.filter(…)` are not flagged and a `ctx.db.query("items").filter(…)` is.
- *
  * @param {ts.Node} node
  * @returns {boolean}
  */
@@ -334,23 +234,6 @@ function isQueryChain(node) {
 }
 
 /**
- * Report any index on a tenant table whose field list does not begin with `orgId`.
- *
- * Reads the `defineSchema({ … })` object literal, so the *table* an index belongs to
- * is known rather than guessed: each property of that literal is a table name, and
- * every `.index(name, fields)` inside its initializer belongs to it.
- *
- * Two shapes pass, and only two: `byOrg("status", "code")`, the construction helper
- * that prepends the discriminator, and a literal array whose first element is the
- * string `"orgId"`. Anything else — a variable, a spread, a helper this script
- * cannot read — fails closed, because an index field list it cannot see is one it
- * cannot clear.
- *
- * `convex/lib/schemaPolicy.ts` proves the same property over the *finished* schema,
- * which is stronger. This rule exists so the failure arrives at the diff rather than
- * at the test, and so a schema that cannot be loaded still cannot ship a
- * cross-tenant index.
- *
  * @param {ts.SourceFile} tree
  * @param {(rule: TenantBoundaryRule, node: ts.Node, message: string) => void} report
  */
@@ -423,18 +306,6 @@ function checkTenantIndexPrefixes(tree, report) {
 }
 
 /**
- * Read the code-owned permission catalogue out of `convex/lib/permissions.ts`.
- *
- * The catalogue is TypeScript, and this script has no dependency it could import
- * it with, so it is parsed rather than executed: every `permission("code",
- * "SCOPE", …)` call in that module is one row. Parsing keeps the guard a guard —
- * importing the module would run repository code to decide whether repository
- * code is allowed.
- *
- * Answers `null` when the catalogue cannot be read at all, which the declaration
- * rule treats as a failure rather than a pass: a guard that cannot see the
- * catalogue cannot approve a code.
- *
  * @param {string} root
  * @returns {Map<string, string> | null} code to scope
  */
@@ -477,8 +348,6 @@ export function readPermissionCatalogue(root) {
 }
 
 /**
- * Check one file's syntax tree.
- *
  * @param {string} file repository-relative path; the allowlist keys on it.
  * @param {string} source
  * @param {Map<string, string> | null} [catalogue] code-to-scope map from
@@ -497,7 +366,7 @@ export function scanTenantBoundarySource(file, source, catalogue = null) {
 
   /** @type {TenantBoundaryViolation[]} */
   const violations = [];
-  /** One report per rule per line: the same bypass is often several nodes. */
+
   const seen = new Set();
 
   /** @param {TenantBoundaryRule} rule @param {ts.Node} node @param {string} message */
@@ -511,11 +380,9 @@ export function scanTenantBoundarySource(file, source, catalogue = null) {
     violations.push({ file, line, rule, message });
   };
 
-  // Namespace bindings first: `server.query(...)` is a registration only when
-  // `server` is a Convex server module, and the import may sit below the use.
   /** @type {Set<string>} */
   const serverNamespaces = new Set();
-  /** Local names bound to a tenant wrapper, including aliases. */
+
   const wrapperNames = new Set(TENANT_WRAPPERS);
   for (const statement of tree.statements) {
     if (!ts.isImportDeclaration(statement)) continue;
@@ -542,8 +409,6 @@ export function scanTenantBoundarySource(file, source, catalogue = null) {
   }
 
   /**
-   * The declared name, not the local alias.
-   *
    * @param {string} from @param {"imports" | "re-exports"} verb
    * @param {readonly (ts.ImportSpecifier | ts.ExportSpecifier)[]} elements
    */
@@ -582,13 +447,6 @@ export function scanTenantBoundarySource(file, source, catalogue = null) {
   };
 
   /**
-   * Check the `permissionCode` a wrapper call declares.
-   *
-   * Syntax only: the value must be a string literal in the catalogue and not a
-   * `PLATFORM` code. A computed code would defeat the check, so it is refused
-   * rather than resolved — a permission code is a constant of the operation, in
-   * the same way its name is.
-   *
    * @param {ts.CallExpression} node @param {string} callee
    */
   const checkDeclaration = (node, callee) => {
@@ -674,15 +532,12 @@ export function scanTenantBoundarySource(file, source, catalogue = null) {
       if (clause && (ts.isNamedImports(clause) || ts.isNamedExports(clause))) {
         checkNamedBindings(from, verb, clause.elements);
       } else if (ts.isExportDeclaration(node) && isConvexServerModule(from)) {
-        // `export *` and `export * as ns` re-export every builder unnamed.
         report("registration", node, `re-exports all of "${from}"`);
         report("internal-registration", node, `re-exports all of "${from}"`);
         report("http-registration", node, `re-exports all of "${from}"`);
       }
     }
 
-    // `await import("convex/server")` hands over the builders with no
-    // identifier to flag.
     if (
       ts.isCallExpression(node) &&
       node.expression.kind === ts.SyntaxKind.ImportKeyword
@@ -713,10 +568,6 @@ export function scanTenantBoundarySource(file, source, catalogue = null) {
           );
         }
       } else if (file.startsWith(PURE_MODEL_PREFIX)) {
-        // A specifier this guard cannot read is a specifier it cannot clear: a
-        // template literal or a variable can name any module at run time,
-        // `convex/server` included. The rule fails closed rather than resolving
-        // it.
         report(
           "model-purity",
           node,
@@ -725,10 +576,6 @@ export function scanTenantBoundarySource(file, source, catalogue = null) {
       }
     }
 
-    // `require("convex/server")` and `import x = require("…")` are the CommonJS
-    // routes to the same modules. Neither appears in this repository, which is
-    // why the rule has to name them: a pure module that grew one would otherwise
-    // pass.
     if (
       file.startsWith(PURE_MODEL_PREFIX) &&
       ts.isCallExpression(node) &&
@@ -873,8 +720,6 @@ export function scanTenantBoundarySource(file, source, catalogue = null) {
       }
     }
 
-    // Whatever is left: a call, a type position, an aliased local, or a
-    // declaration of a look-alike port.
     if (ts.isIdentifier(node)) {
       const rule = classifyName(node.text);
       if (rule !== null) report(rule, node, `references \`${node.text}\``);
@@ -906,8 +751,6 @@ export function collectTenantBoundaryViolations(root = repoRoot) {
     );
   }
 
-  // A rename must fail loudly: an allowlist entry that points at nothing is an
-  // exemption nobody can see being used.
   const allowlisted = new Set(
     Object.values(TENANT_BOUNDARY_ALLOWLIST).flatMap((paths) => [...paths]),
   );

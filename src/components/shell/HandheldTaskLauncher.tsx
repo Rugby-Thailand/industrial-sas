@@ -32,12 +32,6 @@ interface HandheldTaskLauncherProps {
   };
 }
 
-/**
- * One glyph per task so a gloved operator can find "receive" by shape before
- * reading. Decorative only — the adjacent text is the accessible name — and
- * keyed by `labelKey` here rather than in `lib/navigation`, which stays free
- * of rendering concerns.
- */
 const TASK_ICONS: Readonly<Record<string, LucideIcon>> = {
   taskWork: ClipboardList,
   taskLookup: PackageSearch,
@@ -54,7 +48,6 @@ const TASK_ICONS: Readonly<Record<string, LucideIcon>> = {
   taskPallet: Boxes,
 };
 
-/** Permission-aware task choices for the authenticated handheld membership. */
 export function HandheldTaskLauncher({ labels }: HandheldTaskLauncherProps) {
   const workspace = useWorkspace();
 

@@ -1,28 +1,3 @@
-/**
- * The file register for master-card revisions — dielines, artwork, photos.
- *
- * Status: **private storage adapter implemented for Phase 5A.**
- *
- * ### What this module honestly is
- *
- * Upload authorization and download resolution use `PrivateFileStoragePort`
- * after the tenant wrapper has authenticated and authorized the request. A row
- * becomes `AVAILABLE` only after the adapter resolves its storage object.
- *
- * ### Why access is a mutation and not a query
- *
- * A query is not audited (`RG-071`), and file access is precisely the thing that
- * has to be. Privacy here is a permission decision made on **every access**,
- * not a property of a link: `engineering.file.read` is re-evaluated each time and
- * each evaluation lands in the authorization trail. A signed URL that has escaped
- * is a permission check that happened once, months ago, for somebody who may
- * since have left the company — so the check is repeated rather than cached into
- * a token.
- *
- * That is also why this is a mutation rather than a query even though it changes
- * nothing: `mutationWithOrg` audits, `queryWithOrg` does not, and an unaudited
- * file read is the failure this design exists to prevent.
- */
 import { internalMutationGeneric } from "convex/server";
 import { v } from "convex/values";
 
@@ -64,25 +39,18 @@ import {
 import { checkFileAttachment } from "../model/orderToShip/masterCardRevision";
 import { MAX_FILES_PER_REVISION } from "../model/orderToShip/masterCardFile";
 
-/* -------------------------------------------------------------------------- */
-/* Operations                                                                  */
-/* -------------------------------------------------------------------------- */
-
 export const ENGINEERING_FILE_OPERATIONS = Object.freeze({
   authorizeUpload: "engineering.file.authorizeUpload",
   attachFile: "engineering.file.attach",
   requestAccess: "engineering.file.access",
 });
 
-/** The largest declared file size this register will record, in bytes. */
 export const MAX_DECLARED_BYTE_SIZE = 512 * 1024 * 1024;
 export const UPLOAD_GRANT_LIFETIME_MS = 15 * 60 * 1_000;
 export const FILE_ACCESS_GRANT_LIFETIME_MS = 5 * 60 * 1_000;
 
-/** A lowercase hex SHA-256, and nothing else. */
 const CONTENT_DIGEST_PATTERN = /^[0-9a-f]{64}$/;
 
-/** Convex system metadata may expose SHA-256 as base64; the file contract is hex. */
 export const storageDigestAsHex = (digest: string): string => {
   const normalized = digest.trim();
   if (CONTENT_DIGEST_PATTERN.test(normalized.toLowerCase())) {
@@ -99,13 +67,8 @@ export const storageDigestAsHex = (digest: string): string => {
   }
 };
 
-/** A conservative MIME-type shape: `type/subtype`, no parameters. */
 const CONTENT_TYPE_PATTERN =
   /^[a-z0-9][a-z0-9!#$&^_.+-]*\/[a-z0-9][a-z0-9!#$&^_.+-]*$/;
-
-/* -------------------------------------------------------------------------- */
-/* Documents                                                                   */
-/* -------------------------------------------------------------------------- */
 
 type RevisionDocument = Doc<"masterCardRevisions">;
 type FileDocument = Doc<"masterCardFiles">;
@@ -113,10 +76,6 @@ type UploadGrantDocument = Doc<"masterCardUploadGrants">;
 
 const EXPIRED_GRANT_CLEANUP_BATCH = 25;
 
-/**
- * Bounded, tenant-scoped cleanup for expired capabilities and unattached bytes.
- * Called opportunistically whenever either upload workflow mints a new grant.
- */
 export async function cleanupExpiredMasterCardUploadGrants(
   ctx: Pick<TenantFunctionContext, "tenantDb" | "privateFiles">,
   now = Date.now(),
@@ -131,8 +90,7 @@ export async function cleanupExpiredMasterCardUploadGrants(
   let removed = 0;
   for (const grant of grants) {
     if (grant.expiresAt >= now) break;
-    // Preserve the only reference until the planned UploadThing orphan sweep
-    // can delete this object. Attached grants can be discarded normally.
+
     if (
       grant.attachedAt === undefined &&
       grant.consumedUploadThingKey !== undefined
@@ -152,7 +110,6 @@ export async function cleanupExpiredMasterCardUploadGrants(
   return removed;
 }
 
-/** `(orgId, masterCardRevisionId, fileKey)`: a key names one file per revision. */
 const fileUniqueness = (
   masterCardRevisionId: string,
   fileKey: string,
@@ -167,11 +124,6 @@ const fileUniqueness = (
   },
 ];
 
-/* -------------------------------------------------------------------------- */
-/* Writes                                                                      */
-/* -------------------------------------------------------------------------- */
-
-/** Mint a one-purpose private upload URL after checking the target revision. */
 export const authorizeMasterCardFileUpload = mutationWithOrg({
   args: {
     masterCardRevisionId: v.id("masterCardRevisions"),
@@ -277,7 +229,6 @@ export const claimMasterCardUploadGrant = internalMutationGeneric({
   },
 });
 
-/** Release a claim that failed before any object was bound, so it can retry. */
 export const releaseMasterCardUploadGrant = internalMutationGeneric({
   args: { grantId: v.id("masterCardUploadGrants") },
   returns: v.boolean(),
@@ -298,7 +249,6 @@ export const releaseMasterCardUploadGrant = internalMutationGeneric({
   },
 });
 
-/** Bind the exact stored object produced by the claimed upload capability. */
 export const completeMasterCardUploadGrant = internalMutationGeneric({
   args: {
     grantId: v.id("masterCardUploadGrants"),
@@ -325,7 +275,6 @@ export const completeMasterCardUploadGrant = internalMutationGeneric({
   },
 });
 
-/** Bind a verified UploadThing object to the exact claimed capability. */
 export const completeUploadThingMasterCardUploadGrant = internalMutationGeneric(
   {
     args: {
@@ -373,19 +322,6 @@ export const completeUploadThingMasterCardUploadGrant = internalMutationGeneric(
   },
 );
 
-/**
- * Register a file against a draft revision.
- *
- * Draft only. A revision under review must be the document the reviewer was
- * shown, and a released one is immutable — adding a dieline to a revision a
- * factory is already building from would change what the packet on the floor
- * describes without changing the packet.
- *
- * `contentDigest` is required and checked for shape, not for truth: nothing has
- * read the bytes. It is stored so that when an adapter does arrive, it can prove
- * the bytes it receives are the bytes that were declared, rather than having to
- * trust whatever it is handed.
- */
 export const attachMasterCardFile = mutationWithOrg({
   args: {
     requestId: v.string(),
@@ -633,19 +569,6 @@ const fileAccessValidator = v.union(
   }),
 );
 
-/**
- * Ask for a link to a registered file.
- *
- * Resolves a download URL only for an `AVAILABLE` row whose object the private
- * adapter can still retrieve. The permission is evaluated and the request is
- * audited before every resolution.
- *
- * The file row is read first, through the tenant-bound accessor, so another
- * tenant's file ID answers `NOT_FOUND` exactly as a nonexistent one does
- * (`INV-0002-03`). Refusing on the adapter before reading would be a cheaper
- * code path that also told a caller nothing — but it would skip the read that
- * proves this repository's story about cross-tenant refusal.
- */
 export const requestMasterCardFileAccess = mutationWithOrg({
   args: { masterCardFileId: v.id("masterCardFiles") },
   returns: fileAccessValidator,
@@ -754,10 +677,6 @@ export const consumeMasterCardFileAccessGrant = internalMutationGeneric({
   },
 });
 
-/**
- * Redeem an UploadThing download grant from the authenticated Next.js gateway.
- * The grant is still one-use and bound to the user who requested access.
- */
 export const redeemUploadThingMasterCardFileAccessGrant = mutationWithOrg({
   args: { grantId: v.id("masterCardFileAccessGrants") },
   returns: v.union(
@@ -804,7 +723,6 @@ export const redeemUploadThingMasterCardFileAccessGrant = mutationWithOrg({
   },
 });
 
-/** Redeem a packet-issued grant under the production permission namespace. */
 export const redeemUploadThingFactoryPacketFileAccessGrant = mutationWithOrg({
   args: {
     grantId: v.id("masterCardFileAccessGrants"),
@@ -857,10 +775,6 @@ export const redeemUploadThingFactoryPacketFileAccessGrant = mutationWithOrg({
   },
 });
 
-/* -------------------------------------------------------------------------- */
-/* Reads                                                                       */
-/* -------------------------------------------------------------------------- */
-
 const fileValidator = v.object({
   masterCardFileId: v.id("masterCardFiles"),
   masterCardRevisionId: v.id("masterCardRevisions"),
@@ -876,14 +790,6 @@ const fileValidator = v.object({
   attachedByUserId: v.id("users"),
 });
 
-/**
- * The files registered against one revision, in key order.
- *
- * This lists *records*, which is why it is a query while access to the bytes is
- * a mutation: knowing that a dieline named `DIE-001` was attached by an engineer
- * on a given revision is metadata the engineering screen needs to render at all,
- * and it is guarded by `engineering.file.read` like everything else here.
- */
 export const listMasterCardFiles = queryWithOrg({
   args: { masterCardRevisionId: v.id("masterCardRevisions"), ...listArgs },
   returns: pageOf(fileValidator),

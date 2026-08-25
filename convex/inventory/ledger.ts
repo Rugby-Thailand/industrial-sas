@@ -1,45 +1,3 @@
-/**
- * The inventory ledger's public surface.
- *
- * Six functions, all registered through `queryWithOrg`/`mutationWithOrg`, which is
- * the only registration path this repository permits
- * (`scripts/verify-tenant-boundary.mjs`, rule `registration`). Each declares a
- * code-owned permission and cannot be registered without one (`INV-0006-01`), and
- * each is warehouse-scoped, so the server revalidates the target warehouse against
- * the actor's membership before the handler runs (`INV-0006-04`).
- *
- * Nothing here writes. Every write goes through `convex/lib/inventoryLedgerStore.ts`
- * — the one module allowed to touch `inventoryTransactions`,
- * `inventoryLedgerLines`, and `inventoryBalances` — and the guard fails the build if
- * this file, or any other, inserts a balance row. That split is the point: the
- * public surface owns arguments, authorization declarations, and the wire shape; the
- * store owns the invariants.
- *
- * ### What the client is not allowed to supply
- *
- * - **`orgId`.** Never an argument. It comes from the resolved tenant context
- *   (`INV-0001-02`).
- * - **`actorUserId`.** From the mirrored actor the wrapper resolved from a verified
- *   Clerk token, never from the request.
- * - **`occurredAt`.** The server clock. A client-supplied instant would let a
- *   handheld backdate stock into a closed period.
- * - **`deviceId`.** Only the opaque `installationId` the PWA mints, resolved through
- *   the organization's own index. A device is correlation, never an authorization
- *   subject (`ADR-0006` §8).
- * - **`serialId`.** Not in any argument shape. The schema is serial-ready and the
- *   flows stay off (D-09, `INV-0005-08`); the store refuses a serial outright.
- * - **A balance.** There is no function here that sets, edits, or deletes one
- *   (`INV-0003-11`).
- *
- * ### Failures are values, not throws
- *
- * A domain refusal — unbalanced, negative, a foreign reference, a reused request ID
- * — comes back as `{ posted: false, error }` inside the wrapper's success envelope.
- * A caller has to handle it to compile, and a Thai or English message is the UI's to
- * choose from the `code` (D-06). An *authorization* denial is the wrapper's own
- * envelope (`{ ok: false, denial }`), which keeps "you may not" and "that would be
- * wrong" distinguishable on the client.
- */
 import { v, type GenericId } from "convex/values";
 
 import {
@@ -84,18 +42,7 @@ import {
 } from "../model/inventory/stockIdentity";
 import type { LedgerLineDraft } from "../model/inventory/ledgerTransaction";
 
-/* -------------------------------------------------------------------------- */
-/* Argument and return shapes                                                  */
-/* -------------------------------------------------------------------------- */
-
-/**
- * One line, as a client writes it.
- *
- * `locationKind` is the discriminant and both payload fields are optional, because
- * Convex validators cannot express dependent optionality. The pure kernel decides
- * which combination is legal; a `PHYSICAL` line with no `locationId` is
- * `LINE_BUCKET_INVALID` from there rather than a row with a hole in it.
- */
+// Convex validators cannot express this discriminated input shape.
 const ledgerLineArgument = v.object({
   itemId: v.id("items"),
   locationKind: ledgerLocationKind,
@@ -157,13 +104,6 @@ const postedBalanceValidator = v.object({
   minorUnits: v.number(),
 });
 
-/**
- * The wire shape of a posting.
- *
- * `replayed` sits beside `transaction` rather than inside it, so a retry's
- * `transaction` is structurally identical to the original's — which is the
- * observable form of `INV-0003-01` and is what the property test compares.
- */
 const postOutcomeValidator = v.union(
   v.object({
     posted: v.literal(true),
@@ -177,14 +117,6 @@ const postOutcomeValidator = v.union(
   }),
 );
 
-/**
- * The wire form of a posted transaction.
- *
- * A shallow copy with mutable arrays, because a Convex `returns` validator
- * describes the serialized value and `readonly` is not part of that description.
- * The copy is the boundary: the store's own values stay frozen, and nothing a
- * caller does to what it receives can reach them.
- */
 function wireTransaction(transaction: PostedTransaction) {
   return {
     transactionId:
@@ -214,7 +146,6 @@ function wireTransaction(transaction: PostedTransaction) {
   };
 }
 
-/** The wire form of one transaction-history row. */
 const wireTransactionSummary = (item: TransactionSummary) => ({
   transactionId: item.transactionId as GenericId<"inventoryTransactions">,
   type: item.type,
@@ -231,7 +162,6 @@ const wireTransactionSummary = (item: TransactionSummary) => ({
       }),
 });
 
-/** The wire form of one balance row. */
 const wireBalanceSummary = (item: BalanceSummary) => ({
   bucketKey: item.bucketKey,
   stockStatus: item.stockStatus,
@@ -239,7 +169,6 @@ const wireBalanceSummary = (item: BalanceSummary) => ({
   minorUnits: item.minorUnits,
 });
 
-/** The wire form of a balance list. */
 const wireBalances = (balances: readonly PostedBalance[]) =>
   balances.map((balance) => ({
     bucketKey: balance.bucketKey,
@@ -247,7 +176,6 @@ const wireBalances = (balances: readonly PostedBalance[]) =>
     minorUnits: balance.minorUnits,
   }));
 
-/** A refusal, with the structured error flattened for the wire. */
 const refusal = (error: LedgerStoreError) => ({
   posted: false as const,
   error: { ...toPublicLedgerError(error) },
@@ -261,12 +189,10 @@ const posted = (outcome: PostOutcome) => ({
   balances: wireBalances(outcome.balances),
 });
 
-/** The wire error, with mutable optional fields as a Convex validator sees them. */
 type WireLedgerError = {
   -readonly [Key in keyof PublicLedgerError]: PublicLedgerError[Key];
 };
 
-/** A paged wire answer: the items, the cursor, and completion — or a refusal. */
 type WirePage<Item> =
   | {
       ok: true;
@@ -275,10 +201,6 @@ type WirePage<Item> =
       complete: boolean;
     }
   | { ok: false; error: WireLedgerError };
-
-/* -------------------------------------------------------------------------- */
-/* Argument translation                                                        */
-/* -------------------------------------------------------------------------- */
 
 type LedgerLineArgument = {
   readonly itemId: string;
@@ -292,15 +214,6 @@ type LedgerLineArgument = {
   readonly quantity: { readonly uom: string; readonly minorUnits: number };
 };
 
-/**
- * Turn the flat wire line into the kernel's bucket-plus-quantity shape.
- *
- * A translation and nothing else: no defaulting, no coercion, no dropped field. Any
- * value that is wrong — a `PHYSICAL` line with a boundary, a boundary code the
- * catalogue does not define, a non-integer quantity — reaches
- * `validateLedgerTransaction` and is refused by name there, which keeps one module
- * responsible for what a legal line is.
- */
 function draftLine(
   orgId: string,
   warehouseId: string,
@@ -328,30 +241,15 @@ function draftLine(
   return { bucket, quantity: line.quantity };
 }
 
-/* -------------------------------------------------------------------------- */
-/* Posting                                                                     */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Post a balanced inventory transaction, or replay the one this request already
- * produced.
- *
- * The foundation primitive. The inbound features — receipt, QC disposition, pallet
- * build, putaway confirmation — will each own their own permission and their own
- * argument shape and will call the same store, so the invariants are proved once.
- * Until they exist, this is how a transaction is posted, which is why the permission
- * it declares (`inventory.transaction.post`) is granted only to roles that supervise
- * stock rather than to every handheld operator.
- */
 export const postTransaction = mutationWithOrg({
   args: {
     warehouseId: v.id("warehouses"),
-    /** Client-generated UUIDv7, stable across retries of one intent (§5 Q30). */
+
     requestId: v.string(),
     type: inventoryTransactionType,
     source: inventoryTransactionSource,
     reasonCodeId: v.optional(v.id("reasonCodes")),
-    /** Opaque PWA installation value, for device correlation only. */
+
     installationId: v.optional(v.string()),
     lines: v.array(ledgerLineArgument),
   },
@@ -395,36 +293,6 @@ export const postTransaction = mutationWithOrg({
   },
 });
 
-/* -------------------------------------------------------------------------- */
-/* Reversal                                                                    */
-/* -------------------------------------------------------------------------- */
-
-/**
- * The server-computed policy facts for a reversal.
- *
- * `inventory.transaction.reverse` carries threshold, maker-checker, and step-up
- * (catalogue §2.8), so the wrapper requires a policy callback and refuses to
- * register the function without one. Both facts below are computed here, from the
- * trusted context and the tenant's own rows — never from a request field, which is
- * the whole reason the callback exists rather than an argument.
- *
- * - **Maker-checker** is separation of duties on the correction: `makerUserId` is
- *   the actor who posted the *original* transaction, read through the tenant-bound
- *   accessor, and `approvalSatisfied` is true once that original has been found and
- *   belongs to this tenant. The evaluator then denies with `APPROVAL_REQUIRED` when
- *   the maker and the actor are the same person (`INV-0006-05`). A reversal is
- *   therefore always a second pair of eyes, enforced rather than asked for.
- * - **Threshold** is `thresholdExceeded: false`, and that is **provisional**. No
- *   threshold values exist yet: there is no policy table and `RG-030` is open (§5
- *   Q26). "Nothing exceeds an unconfigured threshold" is the only honest reading of
- *   an absent policy, and it is stated here rather than hidden so the gate is
- *   findable. When `RG-030` lands, this reads the configured limit against the
- *   reversal's own magnitude, and the denial becomes reachable.
- *
- * A callback that throws contributes no facts and the request denies, which is the
- * wrapper's behaviour and the correct one: a broken policy must not become an
- * allowed reversal.
- */
 async function reversalPolicy(
   ctx: TenantPolicyContext,
   args: { readonly originalTransactionId: string },
@@ -451,15 +319,6 @@ async function reversalPolicy(
   });
 }
 
-/**
- * Reverse one transaction with an exact compensating posting (`INV-0003-08`).
- *
- * The original is never modified, never deleted, and never marked: it stays exactly
- * as it was, and the correction is a second transaction that names it. A reversal
- * cannot be reversed, a transaction cannot be reversed twice, and neither can be
- * reversed across organizations or outside the warehouse the permission was decided
- * in.
- */
 export const reverseTransaction = mutationWithOrg({
   args: {
     warehouseId: v.id("warehouses"),
@@ -500,10 +359,6 @@ export const reverseTransaction = mutationWithOrg({
   },
 });
 
-/* -------------------------------------------------------------------------- */
-/* Reads                                                                       */
-/* -------------------------------------------------------------------------- */
-
 const transactionDetailValidator = v.union(
   v.object({
     found: v.literal(true),
@@ -513,15 +368,6 @@ const transactionDetailValidator = v.union(
   v.object({ found: v.literal(false), error: publicLedgerErrorValidator }),
 );
 
-/**
- * One transaction and its lines, plus the current balances of its buckets.
- *
- * The transaction is read through the tenant-bound accessor, so another tenant's ID
- * answers `REFERENCE_NOT_FOUND` — the same answer as an ID that never existed. The
- * warehouse is then checked as well: within one tenant, a warehouse-scoped actor
- * must not read another site's ledger just because the permission decision was made
- * for a warehouse they do hold (`INV-0006-04`).
- */
 export const getTransaction = queryWithOrg({
   args: {
     warehouseId: v.id("warehouses"),
@@ -586,15 +432,6 @@ const historyPageValidator = v.union(
   v.object({ ok: v.literal(false), error: publicLedgerErrorValidator }),
 );
 
-/**
- * A bounded, resumable page of one warehouse's transaction history.
- *
- * There is no unpaged variant, and no `collect`: the accessor this reads through has
- * neither, and a tenant accumulates roughly a million ledger lines a year (B-11). A
- * page size above `MAX_JOB_PAGE_SIZE` is refused rather than clamped, so a caller
- * that asked for five thousand rows finds out instead of silently receiving a
- * hundred.
- */
 export const listTransactions = queryWithOrg({
   args: {
     warehouseId: v.id("warehouses"),
@@ -655,13 +492,6 @@ const balancePageValidator = v.union(
   v.object({ ok: v.literal(false), error: publicLedgerErrorValidator }),
 );
 
-/**
- * A bounded, resumable page of one warehouse's current balances.
- *
- * Read-only, and the only way to see a balance. There is deliberately no companion
- * that writes one: `INV-0003-11` is that no such API exists, and the guard proves
- * it for the whole `convex/` tree rather than for this file alone.
- */
 export const listBalances = queryWithOrg({
   args: {
     warehouseId: v.id("warehouses"),
@@ -728,32 +558,12 @@ const reconciliationPageValidator = v.union(
     complete: v.boolean(),
     carryUom: v.union(v.string(), v.null()),
     carryMinorUnits: v.union(v.number(), v.null()),
-    /** Present only on the final page: the verdict for this bucket. */
+
     drift: v.optional(v.array(driftValidator)),
   }),
   v.object({ ok: v.literal(false), error: publicLedgerErrorValidator }),
 );
 
-/**
- * Reconcile one bucket, one resumable page of its ledger lines at a time
- * (`INV-0003-10`).
- *
- * A query, not a cron. Nothing here schedules anything and no cloud resource is
- * created: the scheduling boundary is the caller's — a Convex cron, a Workpool job,
- * or a test loop — and this is the bounded step it drives (`ADR-0011`, §5 Q34).
- * Making it a query is also what makes it safe: reconciliation *reports* drift and
- * must not repair it, and a query cannot write (`OPS-0003-02`).
- *
- * The caller carries the running total between pages (`carryUom`,
- * `carryMinorUnits`), because a resumable fold has to keep its accumulator
- * somewhere and a server-side scratch table would be state nobody audits. The
- * verdict arrives with the final page, where the replayed total is complete;
- * comparing a partial total would report drift on every bucket with more history
- * than one page.
- *
- * The bucket key is checked against the authorized warehouse by *decoding* it, so a
- * key naming another site — or another tenant — is refused before a line is read.
- */
 export const reconcileBucket = queryWithOrg({
   args: {
     warehouseId: v.id("warehouses"),
@@ -840,5 +650,4 @@ export const reconcileBucket = queryWithOrg({
   },
 });
 
-/** The strict page-size cap, re-exported so a client can size its own loop. */
 export const maxLedgerPageSize = MAX_JOB_PAGE_SIZE;

@@ -4,12 +4,6 @@ import { HandheldTaskLauncher } from "@/components/shell/HandheldTaskLauncher";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { HANDHELD_TASKS } from "@/lib/navigation";
 
-/**
- * A task launcher rather than a small dashboard: an operator arriving at a
- * handheld is starting work, so every available destination begins a task.
- * Unbuilt tasks remain explicit to distinguish unavailable functionality from
- * a task that the signed-in operator is not permitted to perform.
- */
 export default async function HandheldHomePage({
   params,
 }: {

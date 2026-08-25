@@ -1,17 +1,3 @@
-/**
- * Synthetic master data, in the server's own wire shapes.
- *
- * The same contract as `ledgerPreview.ts`: not a fake backend, no writes, no
- * authorization, every identifier prefixed `prv_`, and a banner on every screen
- * it can reach. It exists so the master-data screens can be evaluated for Thai
- * wrapping, column widths, and status legibility before an identity provider
- * exists.
- *
- * The rows are deliberately consistent with the ledger fixture: the same two
- * warehouses, and item SKUs that match the `prv_item_*` identifiers the balance
- * bucket keys are built from. A preview whose catalogue disagreed with its
- * balances would teach the wrong thing about how the two screens relate.
- */
 import type {
   BarcodeRow,
   ItemRow,
@@ -68,11 +54,7 @@ export const PREVIEW_ITEMS: readonly ItemRow[] = Object.freeze([
     trackingMode: "LOT" as const,
     status: "ACTIVE" as const,
   }),
-  /*
-   * One inactive row, because "deactivated" is a state a supervisor has to be
-   * able to see and tell apart from "absent" — and a fixture with only active
-   * rows would never exercise the status column.
-   */
+
   Object.freeze({
     itemId: "prv_item_retired_gasket",
     sku: "GASKET-OLD",
@@ -150,12 +132,7 @@ export const PREVIEW_REASON_CODES: readonly ReasonCodeRow[] = Object.freeze([
     scope: "REVERSAL",
     status: "ACTIVE" as const,
   }),
-  /*
-   * A QC disposition cites a `STATUS_CHANGE` reason: releasing or rejecting held
-   * stock changes what the stock *is* available for, not how much of it there
-   * is. Without one in the fixture the disposition form correctly reported an
-   * empty catalogue, which made a configured screen look unbuilt.
-   */
+
   Object.freeze({
     reasonCodeId: "prv_reason_qc_release",
     code: "QC-RELEASE",
@@ -165,10 +142,8 @@ export const PREVIEW_REASON_CODES: readonly ReasonCodeRow[] = Object.freeze([
   }),
 ]);
 
-/** Synthetic items, in the server's index order (by SKU). */
 export const previewItems = (): readonly ItemRow[] => PREVIEW_ITEMS;
 
-/** Synthetic locations for one warehouse, in code order. */
 export const previewLocationsFor = (
   warehouseId: string,
 ): readonly LocationRow[] =>
@@ -178,10 +153,6 @@ export const previewLocationsFor = (
 
 export const previewReasonCodes = (): readonly ReasonCodeRow[] =>
   PREVIEW_REASON_CODES;
-
-/* -------------------------------------------------------------------------- */
-/* The five Phase 2 entities                                                   */
-/* -------------------------------------------------------------------------- */
 
 export const PREVIEW_SUPPLIERS: readonly SupplierRow[] = Object.freeze([
   Object.freeze({
@@ -239,12 +210,6 @@ interface ItemScoped<Row> {
   readonly row: Row;
 }
 
-/*
- * Barcodes carry a *valid* GTIN check digit, and that is not decoration. The
- * catalogue refuses a `GTIN` whose check digit fails, so a fixture with a made-up
- * number would demonstrate a row the real server would never store — and would
- * quietly teach that the check does not exist.
- */
 const PREVIEW_BARCODE_ROWS: readonly ItemScoped<BarcodeRow>[] = Object.freeze([
   Object.freeze({
     itemId: "prv_item_bolt_m8",
@@ -288,12 +253,6 @@ const PREVIEW_BARCODE_ROWS: readonly ItemScoped<BarcodeRow>[] = Object.freeze([
   }),
 ]);
 
-/*
- * Conversions are stored reduced, as the server stores them. `PALLET = 960 EA`
- * rather than `80 CASE` because the column is "to base", and a fixture that
- * expressed one alternate in terms of another would model a rule the kernel does
- * not have.
- */
 const PREVIEW_ITEM_UOM_ROWS: readonly ItemScoped<ItemUomRow>[] = Object.freeze([
   Object.freeze({
     itemId: "prv_item_bolt_m8",
@@ -317,8 +276,7 @@ const PREVIEW_ITEM_UOM_ROWS: readonly ItemScoped<ItemUomRow>[] = Object.freeze([
       status: "ACTIVE" as const,
     }),
   }),
-  // A fraction no float represents, which is the reason the schema stores two
-  // integers instead of one number.
+
   Object.freeze({
     itemId: "prv_item_resin_hd",
     row: Object.freeze({
@@ -367,15 +325,6 @@ const PREVIEW_LOT_ROWS: readonly ItemScoped<LotRow>[] = Object.freeze([
   }),
 ]);
 
-/*
- * One template per status, because the status is the whole workflow: a `DRAFT`
- * is authored, an `ACTIVE` version has been published by a second person
- * (`INV-0006-05`), and a `RETIRED` one is kept because a label printed last year
- * cites the version that produced it.
- *
- * The bodies are ZPL-shaped text and nothing renders them. This repository has
- * no printer transport (`INT-04`) and no physical print evidence (`RG-004`).
- */
 export const PREVIEW_LABEL_TEMPLATES: readonly LabelTemplateRow[] =
   Object.freeze([
     Object.freeze({
@@ -404,7 +353,6 @@ export const PREVIEW_LABEL_TEMPLATES: readonly LabelTemplateRow[] =
     }),
   ]);
 
-/** Synthetic suppliers, in the server's index order (by code). */
 export const previewSuppliers = (): readonly SupplierRow[] => PREVIEW_SUPPLIERS;
 
 export const previewStorageClasses = (): readonly StorageClassRow[] =>
@@ -422,13 +370,6 @@ const scopedTo = <Row>(
 export const previewBarcodesFor = (itemId: string): readonly BarcodeRow[] =>
   scopedTo(PREVIEW_BARCODE_ROWS, itemId);
 
-/**
- * What a scanned string names, in the fixture.
- *
- * The same two rungs the server's `resolveScanToItem` uses — an active barcode,
- * then an active SKU, barcode first — so the preview walkthrough teaches the
- * behaviour the real read has rather than a friendlier version of it.
- */
 export const previewResolveScan = (
   scan: string,
 ): { readonly itemId: string; readonly sku: string } | undefined => {
@@ -455,18 +396,9 @@ export const previewItemUomsFor = (itemId: string): readonly ItemUomRow[] =>
 export const previewLotsFor = (itemId: string): readonly LotRow[] =>
   scopedTo(PREVIEW_LOT_ROWS, itemId);
 
-/** A synthetic item by its identifier, or `undefined` if the route named one
- * that does not exist — which a preview URL typed by hand easily does. */
 export const previewItemById = (itemId: string): ItemRow | undefined =>
   PREVIEW_ITEMS.find((item) => item.itemId === itemId);
 
-/**
- * Page a synthetic master-data collection.
- *
- * Re-exported through `previewPage` rather than reimplemented, so the preview
- * and the ledger preview cannot drift on what a cursor means or when `complete`
- * is true.
- */
 export const previewMasterDataPage = <Row>(
   rows: readonly Row[],
   maxPageSize: number,

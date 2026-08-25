@@ -1,5 +1,3 @@
-/** Pure, PII-minimal kernel for applying normalized Clerk identity events. */
-
 export const IDENTITY_EVENT_TYPES = [
   "organization.upsert",
   "organization.delete",
@@ -118,19 +116,8 @@ function isPlainRecord(value: unknown): value is Record<string, unknown> {
   );
 }
 
-/**
- * Control and separator characters, rejected everywhere.
- *
- * A NUL or newline inside a mirrored identifier is never legitimate Clerk data,
- * and it is exactly what turns a composite tenant key into an ambiguous one:
- * `("org_a\u0000", "mem_b")` and `("org_a", "\u0000mem_b")` are two different
- * tenants that a delimited key would conflate. Rejecting the characters is
- * cheaper than trusting every future key encoding. `\p{Cc}` covers C0 and C1, so
- * this needs no control-character literal in the pattern.
- */
 const UNSAFE_TEXT = /[\p{Cc}\u2028\u2029]/u;
 
-/** One shared text contract for the HTTP normalizer and mirror kernel. */
 export function isValidIdentityText(
   value: unknown,
   max: number,

@@ -10,7 +10,6 @@ import {
   normalizeThaiDigits,
 } from "./quantityEntry";
 
-/** One case is twelve eaches; the base unit is `PCS`. */
 const caseProfile: ItemUomProfile = (() => {
   const profile = makeItemUomProfile({
     itemKey: "WIDGET-001",

@@ -1,21 +1,5 @@
 "use client";
 
-/**
- * The inspection queue and the disposition that closes one.
- *
- * A panel and the write attached to it, in one module, because that is the pair
- * a quality screen mounts and nothing else mounts. `InboundPanels` and
- * `InboundForms` hold the purchasing and receiving equivalents; keeping the
- * quality pair there meant every quality screen reached — and shipped — the
- * ordering, receiving, and putaway vocabularies for controls it never renders.
- *
- * The conventions are the ones those files document and do not change here: the
- * write goes through `EntityWriteForm` (gate, one idempotency key per attempt,
- * the key held across a transport failure), the panel is warehouse-scoped
- * because an inspection happens at a site, and nothing here decides whether a
- * write is allowed — the server does, and a denial is shown as a denial with its
- * request ID (`INV-0002-07`).
- */
 import { useTranslations } from "next-intl";
 
 import { InspectionsTable } from "@/components/inbound/QualityTables";
@@ -35,7 +19,6 @@ import { pageArgs, WithWarehouse } from "./InboundPrimitives";
 export function InspectionsPanel({
   onSelect,
 }: {
-  /** Called with an inspection the operator wants to decide. */
   readonly onSelect?: (row: InspectionRow) => void;
 }) {
   const t = useTranslations("Quality");
@@ -55,13 +38,6 @@ export function InspectionsPanel({
             ? {}
             : {
                 renderAction: (row: InspectionRow) =>
-                  /*
-                   * Only an open inspection offers the control. A parked one is
-                   * waiting for a *different* person, and a disposed one is
-                   * finished; offering "decide" on either would be offering an
-                   * action the server will refuse for reasons the operator
-                   * cannot fix from this screen.
-                   */
                   row.status === "OPEN" ? (
                     <Button
                       type="button"
@@ -91,11 +67,6 @@ export function DispositionForm({
 
   return (
     <ActiveReasonCodes
-      /*
-       * `STATUS_CHANGE`, because a disposition *is* one: the stock moves between
-       * buckets and the reason is the audit evidence for that movement. A code
-       * minted for scrap must not be offered here (`ADR-0003` §5).
-       */
       scope="STATUS_CHANGE"
       emptyTitle={writeT("noReasonCodes")}
       emptyBody={writeT("noReasonCodesHint")}

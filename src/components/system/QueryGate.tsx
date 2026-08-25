@@ -1,14 +1,5 @@
 "use client";
 
-/**
- * A session-aware gate in front of tenant-bound Convex reads.
- *
- * Environment configuration answers whether authentication can exist. Convex
- * authentication answers whether it exists for this session. Those are
- * different facts: a configured Clerk instance may still have a signed-out
- * browser. Server queries must wait for both or the tenant wrapper correctly
- * throws `ANONYMOUS` during render.
- */
 import { useConvexAuth } from "convex/react";
 import type { ReactNode } from "react";
 

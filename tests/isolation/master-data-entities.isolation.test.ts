@@ -1,13 +1,3 @@
-/**
- * Isolation tier — the five Phase 2 master-data entities, from two tenants.
- *
- * The barcode cases matter most. A barcode's unique key is `(orgId, barcode)`,
- * and the whole point of the `orgId` half is that two tenants may print the same
- * GTIN on different products — a check that forgot it would refuse the second
- * tenant's registration *and* tell them the value exists somewhere.
- *
- * Blocking merge gate (`INV-0012-02`, `RG-031`). All data is synthetic.
- */
 import type { GenericMutationCtx } from "convex/server";
 import { describe, expect, it } from "vitest";
 
@@ -43,7 +33,6 @@ interface RuntimeFunction {
 
 const run = (value: unknown) => value as RuntimeFunction;
 
-/** Both tenants' actors share one subject; only the org claim differs. */
 const identity = (org: "a" | "b") => ({
   subject: "user_fixture_a",
   org_id: `org_fixture_${org}`,
@@ -70,11 +59,6 @@ function value(outcome: Record<string, unknown>): Record<string, unknown> {
 const errorOf = (result: Record<string, unknown>) =>
   result["error"] as { code: string; field?: string };
 
-/*
- * One reader per table rather than a union-typed helper: a union of five row
- * shapes has only the fields they share, so `row.barcode` would not type-check
- * even where it is the right field.
- */
 const supplierRows = async (world: ConvexInventoryWorld) =>
   await world.t.run(async (ctx) => ctx.db.query("suppliers").collect());
 const storageClassRows = async (world: ConvexInventoryWorld) =>
@@ -131,12 +115,6 @@ describe("the new master-data entities are tenant-confined", () => {
   });
 
   it("lets both tenants register the same GTIN on different products", async () => {
-    /*
-     * The case the `orgId` half of the key exists for. Two manufacturers may
-     * legitimately stock the same purchased part, and a uniqueness check that
-     * forgot the organization would refuse the second one — and, worse, would
-     * have disclosed that the value exists somewhere.
-     */
     const world = await createConvexInventoryWorld();
     const barcode = "0614141000036";
 
@@ -218,11 +196,6 @@ describe("the new master-data entities are tenant-confined", () => {
   });
 
   it("resolves a shared SKU to each tenant's own item", async () => {
-    /*
-     * Two tenants routinely stock the same part and buy it under the same
-     * supplier's SKU. The capture screen resolves the string a person read off a
-     * box, so this is the read that decides *whose* part it is.
-     */
     const world = await createConvexInventoryWorld();
 
     const asA = value(
@@ -283,7 +256,6 @@ describe("the new master-data entities are tenant-confined", () => {
       (profile["alternates"] as { toBaseNumerator: number }[])[0]
         ?.toBaseNumerator;
 
-    // The same unit code, two different factors, neither leaking into the other.
     expect(factorOf(a)).toBe(12);
     expect(factorOf(b)).toBe(24);
   });
@@ -331,12 +303,6 @@ describe("the new master-data entities are tenant-confined", () => {
   });
 
   it("does not let one tenant publish another tenant's draft", async () => {
-    /*
-     * The publish policy reads `draftedByUserId` from the row. A row this tenant
-     * does not own reads as `null`, which yields no maker and therefore a
-     * denial — the same answer a foreign ID gets everywhere else, and crucially
-     * *not* an error that would confirm the draft exists.
-     */
     const world = await createConvexInventoryWorld({}, { roleA: "ORG_ADMIN" });
     const draft = value(
       await callAs(world, "b", draftLabelTemplate, {
@@ -429,8 +395,7 @@ describe("the new master-data entities are tenant-confined", () => {
 
     for (const [table, rows] of tables) {
       expect(rows.length, table).toBeGreaterThan(0);
-      // `orgId` is derived from the resolved context; it is not an argument
-      // anywhere in the write path (`INV-0001-02`).
+
       expect(
         rows.every((row) => row.orgId === world.orgA),
         table,

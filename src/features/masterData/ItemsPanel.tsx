@@ -1,13 +1,5 @@
 "use client";
 
-/**
- * The item catalogue panel.
- *
- * Organization-scoped: an item belongs to the tenant, not to a site, so this
- * does not wait for a warehouse selection. The warehouse the shell happens to
- * have chosen is irrelevant here, and saying "select a warehouse" would be a
- * false explanation for an empty screen.
- */
 import { useTranslations } from "next-intl";
 
 import { ItemsTable } from "@/components/masterData/ItemsTable";
@@ -32,11 +24,7 @@ export function ItemsPanel() {
       renderRows={(rows) => (
         <ItemsTable
           rows={rows}
-          /*
-           * A link rather than an inline editor. Barcodes, alternate units, and
-           * lots all hang off one item, and a row that expanded into three
-           * sub-tables would put a page inside a cell.
-           */
+
           renderAction={(row) => (
             <Link
               href={itemDetailPath(row.itemId)}

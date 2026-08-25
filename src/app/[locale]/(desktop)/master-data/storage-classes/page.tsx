@@ -8,14 +8,6 @@ import {
   StorageClassesPanel,
 } from "@/features/masterData/EntityPanels";
 
-/**
- * Storage classes.
- *
- * Organization-scoped rather than warehouse-scoped, and that is the decision
- * worth stating: "flammable" means the same thing at every site (D-13). A class
- * defined per warehouse would let two sites disagree about what a rule is while
- * both calling it by the same name.
- */
 export default async function StorageClassesPage({
   params,
 }: {

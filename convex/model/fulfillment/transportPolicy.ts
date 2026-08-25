@@ -1,4 +1,3 @@
-/** Pure shipment, load, gate, delivery, and POD lifecycle for Path A. */
 import { isSafeInt } from "../guards";
 import { fail, ok, type Result } from "../result";
 

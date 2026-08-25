@@ -27,26 +27,9 @@ import {
   previewLotsFor,
 } from "@tests/fixtures/data/masterData";
 
-/**
- * `INV-0010-09` for the Phase 2 maintenance screens.
- *
- * Both locales, because Thai and English differ in more than glyphs: the
- * accessible name of every header, label, badge, and caption comes from the
- * catalogue, and a name that is empty in one language is a violation only in
- * that language.
- *
- * The write states are checked too. A form is easy to keep accessible while it
- * is empty and easy to break the moment it grows an error message, an
- * `aria-invalid`, and a live region — which is exactly the state an operator
- * reaches it in.
- */
 const BOLT = "prv_item_bolt_m8";
 const LOCALES = ["th", "en"] as const;
 
-/*
- * Thunks rather than elements: an array of JSX is an array React would want
- * keys for, and these are rendered one at a time rather than as a list.
- */
 const cases = [
   ["SuppliersTable", () => <SuppliersTable rows={PREVIEW_SUPPLIERS} />],
   [
@@ -177,8 +160,6 @@ describe("write control accessibility", () => {
   it.each(LOCALES)(
     "the preview supplier form is clean in %s",
     async (locale) => {
-      // The whole assembled screen control, translated, in the environment a
-      // reviewer will actually open it in.
       const { container } = renderWithIntl(<SupplierForm />, {
         locale,
         environment: testEnvironment,

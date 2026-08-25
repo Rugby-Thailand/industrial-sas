@@ -1,4 +1,3 @@
-/** Typed browser boundary for Path A fulfillment and transport. */
 import { api } from "../../../convex/_generated/api";
 
 import { clientRef, type RefValue } from "./clientRef";
@@ -98,10 +97,6 @@ export interface CapturedPodRow {
   readonly capturedAt: number;
 }
 
-/* -------------------------------------------------------------------------- */
-/* Orders and routing                                                          */
-/* -------------------------------------------------------------------------- */
-
 export const listFulfillmentOrdersRef = clientRef(
   api.fulfillment.orders.listFulfillmentOrders,
 );
@@ -125,10 +120,6 @@ export const allocateFulfillmentLineRef = clientRef(
 export const cancelFulfillmentLineRemainderRef = clientRef(
   api.fulfillment.reservations.cancelFulfillmentLineRemainder,
 );
-
-/* -------------------------------------------------------------------------- */
-/* Picking                                                                     */
-/* -------------------------------------------------------------------------- */
 
 export const createPickWaveRef = clientRef(
   api.fulfillment.pickPlanning.createPickWave,
@@ -183,10 +174,6 @@ export const issuePickTaskRef = clientRef(
 export const reverseIssuedPickTaskRef = clientRef(
   api.fulfillment.pickExecution.reverseIssuedPickTask,
 );
-
-/* -------------------------------------------------------------------------- */
-/* Shipments, trips and delivery                                               */
-/* -------------------------------------------------------------------------- */
 
 export const createShipmentRef = clientRef(
   api.fulfillment.shipments.createShipment,

@@ -102,7 +102,6 @@ export function OwnerAttentionListView({
   );
 }
 
-/** Owner-first slice of the existing bounded operational exception view. */
 export function OwnerAttentionList() {
   return (
     <QueryGate scope="WAREHOUSE">

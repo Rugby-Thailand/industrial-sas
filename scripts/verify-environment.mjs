@@ -1,30 +1,3 @@
-/**
- * Environment contract guard.
- *
- * Two jobs, both of which fail the build rather than warn:
- *
- * 1. **`.env.example` covers the contract.** Every variable
- *    `src/lib/environmentContract.ts` has an opinion about is named in the
- *    template, and every `NEXT_PUBLIC_*` name in the template is one the
- *    contract knows — so a variable cannot be added to the code and forgotten in
- *    the template, or added to the template and never enforced.
- * 2. **`.env.example` holds no values.** The template is tracked; a filled one
- *    is a committed secret (`INV-0012-05`). Anything after `=` on a variable
- *    line is a failure, including a "harmless" default.
- *
- * Optionally, with `--class=<developer|preview|staging|production>`, it also
- * validates the *current* process environment against that class's contract.
- * That form is for a developer or a deploy step, not for CI: CI has no
- * environment to validate, which is the point of a credential-free pipeline.
- *
- * The contract itself lives in TypeScript because the application reads it too.
- * This script re-derives it from the source text rather than importing it,
- * because a Node script that needed a TypeScript loader would be a build step
- * in front of a guard — see `verify-workflows.mjs` for the same reasoning about
- * a YAML parser.
- *
- * Run with `pnpm verify:environment`.
- */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
@@ -43,19 +16,8 @@ const problems = [];
  */
 const fail = (file, message) => problems.push({ file, message });
 
-/* -------------------------------------------------------------------------- */
-/* The contract, read out of its own source                                    */
-/* -------------------------------------------------------------------------- */
-
 const contractSource = readFileSync(contractPath, "utf8");
 
-/**
- * Every `variable: "NAME"` in the contract table.
- *
- * A regex rather than a parse: the shape is a literal array of object literals
- * with one `variable` key each, and this script's failure mode should be "found
- * nothing" — which is checked below — not "silently matched the wrong thing".
- */
 const contractedVariables = [
   ...contractSource.matchAll(/^\s*variable:\s*"([A-Z0-9_]+)",$/gm),
 ].map((match) => match[1]);
@@ -89,10 +51,6 @@ if (classMatches.length !== 4) {
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/* .env.example                                                                */
-/* -------------------------------------------------------------------------- */
-
 const envExample = readFileSync(envExamplePath, "utf8");
 const envLines = envExample.split("\n");
 
@@ -124,18 +82,12 @@ for (const variable of contractedVariables) {
 for (const name of [...templated].sort()) {
   if (!name.startsWith("NEXT_PUBLIC_")) continue;
   if (contractedVariables.includes(name)) continue;
-  // Only the public names are required to be contracted. A server-side name may
-  // legitimately be documented ahead of the code that reads it; a public one is
-  // inlined into the browser bundle, so it is a decision that needs a rule.
+
   fail(
     ".env.example",
     `\`${name}\` is inlined into the browser bundle but has no entry in the environment contract.`,
   );
 }
-
-/* -------------------------------------------------------------------------- */
-/* Optional: validate the running environment                                  */
-/* -------------------------------------------------------------------------- */
 
 const classArgument = process.argv
   .slice(2)
@@ -154,14 +106,6 @@ if (classArgument !== undefined) {
 }
 
 /**
- * Apply the required/forbidden lists to `process.env`.
- *
- * The lists are re-derived from the contract source the same way the variable
- * names were. This deliberately duplicates a little of the TypeScript module's
- * logic; the module's own behaviour is proved by `environmentContract.test.ts`,
- * and what this adds is the ability to run against a real machine with no
- * TypeScript toolchain in the path.
- *
  * @param {string} environmentClass
  */
 function validateProcessEnvironment(environmentClass) {
@@ -191,9 +135,6 @@ function validateProcessEnvironment(environmentClass) {
 }
 
 /**
- * The environment classes named on one `required:`/`forbidden:` line, including
- * through the `ALL`, `NONE`, and `DEPLOYED` aliases the contract defines.
- *
  * @param {string} block
  * @param {"required" | "forbidden"} key
  * @returns {string[]}
@@ -206,10 +147,6 @@ function listAfter(block, key) {
   if (raw === "DEPLOYED") return ["preview", "staging", "production"];
   return [...raw.matchAll(/"([a-z]+)"/g)].map((match) => match[1]);
 }
-
-/* -------------------------------------------------------------------------- */
-/* Report                                                                      */
-/* -------------------------------------------------------------------------- */
 
 if (problems.length > 0) {
   const report = problems

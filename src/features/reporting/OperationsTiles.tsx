@@ -1,37 +1,5 @@
 "use client";
 
-/**
- * The numbers a supervisor opens the day with.
- *
- * Presentation decisions, each avoiding a specific way a KPI tile misleads:
- *
- * - **A definition list, not a grid of `div`s.** Each tile is a term and its
- *   value, which is what it is; a screen reader then reads "receipts opened,
- *   eighteen" rather than two unrelated strings. The shadcn `Card` supplies the
- *   surface and nothing else — it wraps the `dt`/`dd` pair rather than replacing
- *   it, because a card is a look and a definition list is a meaning.
- * - **The number is never the only thing.** A tile carries its label, its value,
- *   and when the counter last moved. `0` with no timestamp means "this has never
- *   happened here"; `0` timestamped this morning means "the backlog is clear".
- *   Those call for opposite actions and look identical without the date.
- * - **A suspect counter says so in words.** `suspect` means a decrement once
- *   clamped at zero, so the number may be low. It is still shown — a warehouse
- *   runs fine on an approximate backlog — but it is marked, and the mark's text
- *   carries the meaning rather than a colour alone (`WCAG 2.2` 1.4.1). The mark
- *   is a `Notice`, not a pill: it is two sentences, and a rounded badge wrapped
- *   to three lines reads as a control somebody could press rather than as an
- *   explanation. A pill is for one short state; a titled callout is for a
- *   caveat with a next action in it, which is what this is.
- * - **Digits are Latin, always.** Thai numerals would be authentic and
- *   unreadable next to a scanner display; `ADR-0010` fixes Latin digits for
- *   quantities and counts in both languages.
- *
- * The tiles are split into waiting work and cumulative volume, which is the
- * split an operations dashboard is organised around: the first is a queue
- * somebody has to act on today, and the second is a total that only moves up.
- * Sorting them into one row each is the whole difference between a dashboard and
- * a wall of numbers.
- */
 import { useFormatter, useTranslations } from "next-intl";
 
 import { Card } from "@/components/ui/card";
@@ -42,7 +10,6 @@ import { OperationsCounters } from "./ReportingSources";
 
 import { EmptyState } from "@/components/ui/EmptyState";
 
-/** The tiles that describe waiting work rather than cumulative volume. */
 const BACKLOG_METRICS = new Set([
   "QC_PENDING",
   "QC_PARKED",

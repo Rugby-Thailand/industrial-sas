@@ -1,4 +1,3 @@
-/** Typed browser boundary for attendance, corrections and leave. */
 import type { Infer } from "convex/values";
 
 import { api } from "../../../convex/_generated/api";
@@ -24,18 +23,12 @@ export const decideAttendanceCorrectionRef = clientRef(
 
 export const decideLeaveRef = clientRef(api.hr.attendance.decideLeave);
 
-/** The self view, which answers "no employee record" as its own branch. */
 export type MyHrPayload = RefValue<typeof readMyHrRef>;
 
-/** The self view once an active employee record has been found. */
 export type MyHrRecord = Extract<MyHrPayload, { found: true }>;
 
 export type AttendanceDayRow = MyHrRecord["days"][number];
 
-/**
- * The closed request lifecycle, taken from the schema validator rather than the
- * self view: the read narrows what it returns to the states it can produce.
- */
 export type HrRequestStatus = Infer<typeof hrRequestStatus>;
 
 export type TeamHrInboxPayload = RefValue<typeof listTeamInboxRef>;

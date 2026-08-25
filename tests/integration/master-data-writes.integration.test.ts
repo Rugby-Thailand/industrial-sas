@@ -1,12 +1,3 @@
-/**
- * Integration tier — the master-data write surface over `convex-test`.
- *
- * Scope: normalization, idempotent replay, uniqueness by contract, the audit
- * diff, and the shape of every refusal. The *cross-tenant* claims live in
- * `tests/isolation/master-data-writes.isolation.test.ts`.
- *
- * All data is synthetic (`tests/fixtures/README.md`).
- */
 import type { GenericMutationCtx } from "convex/server";
 import { describe, expect, it } from "vitest";
 
@@ -52,7 +43,6 @@ async function callAs(
     )) as Record<string, unknown>;
 }
 
-/** The `value` of a successful wrapper envelope. */
 function value(outcome: Record<string, unknown>): Record<string, unknown> {
   expect(outcome["ok"], JSON.stringify(outcome)).toBe(true);
   return outcome["value"] as Record<string, unknown>;
@@ -73,11 +63,6 @@ const auditRows = async (world: ConvexInventoryWorld) =>
 
 describe("createItem", () => {
   it("normalizes the SKU and the base UOM server-side", async () => {
-    /*
-     * The browser sent a padded, lower-case SKU. The server decides the stored
-     * form — a uniqueness check that ran before normalization would let
-     * ` widget-x ` and `WIDGET-X` both exist.
-     */
     const world = await createConvexInventoryWorld();
     const result = value(
       await callAs(world, "a", createItem, {
@@ -95,8 +80,7 @@ describe("createItem", () => {
     );
     expect(created?.sku).toBe("NEW-WIDGET");
     expect(created?.baseUom).toBe("PCS");
-    // A display name keeps its case and its Thai characters; it is content, not
-    // an identifier.
+
     expect(created?.name).toBe("วิดเจ็ตใหม่");
     expect(created?.status).toBe("ACTIVE");
   });
@@ -106,7 +90,7 @@ describe("createItem", () => {
     const result = value(
       await callAs(world, "a", createItem, {
         requestId: "req_dupe",
-        // The fixture already seeds `WIDGET-001`.
+
         sku: "widget-001",
         name: "Duplicate",
         baseUom: "PCS",
@@ -117,8 +101,7 @@ describe("createItem", () => {
     expect(result["written"]).toBe(false);
     expect(errorOf(result).code).toBe("DUPLICATE_KEY");
     expect(errorOf(result).field).toBe("sku");
-    // Naming the colliding value or its document ID would make the same code
-    // path an oracle for a caller who guessed.
+
     expect(JSON.stringify(result)).not.toContain("WIDGET-001");
   });
 
@@ -191,8 +174,6 @@ describe("createItem", () => {
   });
 
   it("refuses the same request ID with different arguments", async () => {
-    // A reused ID is not a retry. Answering with the first result would
-    // silently discard the second request.
     const world = await createConvexInventoryWorld();
     await callAs(world, "a", createItem, {
       requestId: "req_reused",
@@ -220,11 +201,6 @@ describe("createItem", () => {
   });
 
   it("normalizes before fingerprinting, so a padded retry is still a retry", async () => {
-    /*
-     * The subtle one. If the fingerprint covered the *raw* arguments, a retry
-     * whose SKU gained a space would read as `REQUEST_ARGUMENT_CONFLICT` — a
-     * spurious failure on a legitimate retry.
-     */
     const world = await createConvexInventoryWorld();
     const base = {
       requestId: "req_padded",
@@ -275,11 +251,6 @@ describe("createItem", () => {
   });
 
   it("writes the authorization row and the domain row separately", async () => {
-    /*
-     * Two rows, two questions. The wrapper's row records that the actor *was
-     * allowed*; this module's records what they *did*, with the diff. Collapsing
-     * them would lose one of the two.
-     */
     const world = await createConvexInventoryWorld();
     const created = value(
       await callAs(world, "a", createItem, {
@@ -328,11 +299,6 @@ describe("updateItem", () => {
   });
 
   it("has no field for the SKU or the base UOM", async () => {
-    /*
-     * Not "rejects" — there is no argument to send. Changing a SKU rewrites the
-     * meaning of history, and changing a base UOM silently reinterprets every
-     * quantity already posted (`ADR-0004`).
-     */
     const args = Object.keys(
       (updateItem as unknown as { exportArgs: () => string }).exportArgs(),
     );
@@ -360,8 +326,6 @@ describe("updateItem", () => {
   });
 
   it("still audits an update that changed nothing", async () => {
-    // "Someone submitted an update that changed nothing" is a fact worth
-    // keeping; an absent row would make it look like the request never arrived.
     const world = await createConvexInventoryWorld();
     const result = value(
       await callAs(world, "a", updateItem, {
@@ -381,17 +345,6 @@ describe("updateItem", () => {
 });
 
 describe("deactivateItem", () => {
-  /*
-   * `masterData.item.deactivate` carries maker-checker (catalogue §2), and the
-   * evaluator denies whenever the maker and the actor are the same person — or
-   * when there is no maker at all. Both are fail-closed, and both are correct:
-   * withdrawing a SKU from receiving stops every future receipt of it.
-   *
-   * These tests therefore assert the *denial*, which is the behaviour a single
-   * actor gets today. A satisfied deactivation needs a second mirrored actor in
-   * the same organization, which arrives with the membership-management slice;
-   * the mutation is complete and its approval path is not reachable yet.
-   */
   it("denies a single actor who is also the item's last writer", async () => {
     const world = await createConvexInventoryWorld();
 
@@ -415,7 +368,6 @@ describe("deactivateItem", () => {
       "AUTHORIZATION_DENIED",
     );
 
-    // The item is untouched: a denied attempt writes no domain change.
     const after = (await itemRows(world)).find(
       (row) => row._id === created["documentId"],
     );
@@ -423,8 +375,6 @@ describe("deactivateItem", () => {
   });
 
   it("records the denied attempt with its own permission code", async () => {
-    // A denial on a *mutation* commits its audit row (`INV-0006-03`), which is
-    // what makes "who tried to deactivate this SKU" answerable.
     const world = await createConvexInventoryWorld();
     await callAs(world, "a", deactivateItem, {
       requestId: "req_deactivate_perm",
@@ -462,15 +412,6 @@ describe("createLocation", () => {
   });
 
   it("scopes uniqueness to the warehouse, not the organization", async () => {
-    /*
-     * `(orgId, warehouseId, code)`. Two sites may both have the same code, and a
-     * tenant-wide uniqueness check would refuse the second one for no reason.
-     *
-     * The second site is asserted from the fixture's seeded row rather than by
-     * creating one: this tenant's membership is `WAREHOUSE_SCOPED` to `alphaA`,
-     * so a create in `bravoA` is refused during tenant-context resolution —
-     * which is the correct behaviour and a different claim from this one.
-     */
     const world = await createConvexInventoryWorld();
     const seeded = (await locationRows(world)).filter(
       (row) => row.orgId === world.orgA,
@@ -492,8 +433,6 @@ describe("createLocation", () => {
     expect(errorOf(duplicateSameSite).code).toBe("DUPLICATE_KEY");
     expect(errorOf(duplicateSameSite).field).toBe("code");
 
-    // The same code in a different site is a different key, so the seeded row
-    // and the refused one can coexist.
     const codes = seeded.map((row) => `${row.warehouseId}:${row.code}`);
     expect(new Set(codes).size).toBe(codes.length);
   });
@@ -537,15 +476,12 @@ describe("createLot", () => {
     const created = (await lotRows(world)).find(
       (row) => row._id === result["documentId"],
     );
-    // Case is preserved: a supplier's `ab12` and `AB12` may be different
-    // batches, so folding them would silently merge two lots.
+
     expect(created?.lotCode).toBe("ab12");
     expect(created?.expirationDate).toBe("2027-01-31");
   });
 
   it("refuses a lot for an item that is not lot-tracked", async () => {
-    // An item declared `NONE` has no lots by definition (D-09). A lot pointing
-    // at one is a row the ledger refuses on every posting.
     const world = await createConvexInventoryWorld();
     const result = value(
       await callAs(world, "a", createLot, {
@@ -562,9 +498,6 @@ describe("createLot", () => {
   it("refuses a malformed business date rather than shifting it", async () => {
     const world = await createConvexInventoryWorld();
 
-    // Short, distinct lot codes: `MAX_LOT_CODE_LENGTH` is 20, so a code built
-    // from the date under test would itself be refused and the assertion would
-    // pass for the wrong reason.
     const cases = [
       ["2027-1-31", "L1"],
       ["2027-02-30", "L2"],

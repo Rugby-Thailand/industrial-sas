@@ -1,4 +1,3 @@
-/** Typed browser boundary for inter-warehouse transfers. */
 import { api } from "../../../convex/_generated/api";
 
 import { clientRef } from "./clientRef";

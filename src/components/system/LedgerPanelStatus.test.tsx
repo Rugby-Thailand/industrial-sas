@@ -33,8 +33,6 @@ describe("LedgerPanelStatus", () => {
   });
 
   it("interrupts for a denial and stays polite for a wait", () => {
-    // `role="alert"` is right for something an operator must handle now and
-    // wrong for "loading", which would otherwise shout on every page.
     const denied = render({ kind: "DENIED", requestId: "req_1" });
     expect(denied.getByRole("alert")).toBeInTheDocument();
     denied.unmount();
@@ -45,8 +43,6 @@ describe("LedgerPanelStatus", () => {
   });
 
   it("prints a ledger error code verbatim and in English", () => {
-    // A code identifier is the only string connecting a screenshot to a server
-    // log, so it is never translated (`D-06`).
     render({
       kind: "LEDGER_ERROR",
       code: "BUCKET_OUT_OF_WAREHOUSE_SCOPE",
@@ -59,9 +55,6 @@ describe("LedgerPanelStatus", () => {
   });
 
   it("never speculates about which permission was missing", () => {
-    // The server answers one generic denial on purpose (`INV-0002-07`). A UI
-    // that guessed the permission would be a permission oracle when it guessed
-    // right.
     const { container } = render({ kind: "DENIED", requestId: "req_3" });
 
     expect(container.textContent).not.toMatch(/inventory\.[a-z]+\.[a-z]+/);

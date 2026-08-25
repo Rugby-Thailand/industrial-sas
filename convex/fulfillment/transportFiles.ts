@@ -1,4 +1,3 @@
-/** Private UploadThing-backed POD and delivery-document lifecycle. */
 import { v } from "convex/values";
 
 import {

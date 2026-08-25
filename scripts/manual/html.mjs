@@ -1,50 +1,16 @@
-/**
- * The static manual, rendered from the catalogue.
- *
- * Pure: it takes the catalogue plus measured screenshot sizes and answers a map
- * of relative path to file contents. Nothing here reads or writes a file, so the
- * whole site can be rendered twice in a test and compared — which is how
- * `pnpm manual:check` tells "the output is stale" from "the output is fine".
- *
- * Three shapes of decision are worth knowing before reading it:
- *
- * - **Both languages are in every page.** Not two sites, not a `fetch` of a JSON
- *   catalogue — `file://` forbids the second and doubles the first. A class on
- *   `<html>` decides which `[data-lang]` spans are visible, so Thai renders with
- *   JavaScript disabled and the switch is instant when it is not.
- * - **The screenshot is composed in the document**: a PNG `<img>` with an inline
- *   SVG overlay above it. A linked `*-annotated.svg` cannot fetch its own PNG
- *   when loaded through `<img>`, which would leave red boxes over white space.
- * - **Every catalogue string is escaped** on the way in. The catalogue is
- *   authored by hand today, and "authored by hand" is exactly the input that
- *   eventually contains an ampersand.
- */
 import { renderInlineOverlay } from "./annotations.mjs";
 import { MANUAL_CSS } from "./styles.mjs";
 import { MANUAL_JS } from "./client.mjs";
 
-/** Where the manual is generated, relative to the repository root. */
 export const MANUAL_OUTPUT_DIRECTORY = "docs/manual-html";
 
-/** Where the committed screenshots live, relative to the repository root. */
 export const SCREENSHOT_DIRECTORY = "docs/manuals/assets/operator-guide-th";
 
-/**
- * Written into the output directory on every build.
- *
- * The build clears its output first, so it needs to be certain the directory is
- * one it made. A marker is that certainty: an existing directory without it is
- * somebody's own folder that happens to share the name, and the build refuses
- * rather than deleting it.
- */
 export const GENERATED_MARKER = ".generated-by";
 
-/** Contents of that marker. */
 export const GENERATED_MARKER_CONTENT = "scripts/generate-html-manual.mjs\n";
 
 /**
- * HTML text escaping.
- *
  * @param {string} value
  * @returns {string}
  */
@@ -128,11 +94,6 @@ const UI = Object.freeze({
 });
 
 /**
- * A localized string as two spans, one per locale.
- *
- * `lang` is set as well as `data-lang` so a screen reader switches voice, and a
- * printed page keeps the right hyphenation rules for the language on it.
- *
  * @param {import("./schema.mjs").LocalizedText} text
  * @param {{ class?: string }} [options]
  * @returns {string}
@@ -175,8 +136,6 @@ const term = (terms, id) => {
 };
 
 /**
- * The document shell every page shares.
- *
  * @param {object} input
  * @param {import("./schema.mjs").LocalizedText} input.title
  * @param {string} input.assetPrefix `""` at the root, `"../"` inside `tasks/`.
@@ -215,12 +174,6 @@ ${body}
 `;
 
 /**
- * Searchable text for one task, in one locale.
- *
- * Pre-computed at build time so the filter never walks the DOM: on a scanner the
- * difference between reading an attribute and reading thirteen subtrees per
- * keystroke is visible.
- *
  * @param {import("./schema.mjs").ManualTask} task
  * @param {import("./schema.mjs").LocalizedText} categoryLabel
  * @param {import("./schema.mjs").LocalizedText} audienceLabel
@@ -327,12 +280,6 @@ ${cards}
 };
 
 /**
- * One localized string per pager link.
- *
- * Composed before rendering rather than as `label + ": " + title` in markup: the
- * link is an inline-flex box, so every span inside it becomes a flex item and the
- * whitespace between items disappears. One span per locale has no such seams.
- *
  * @param {import("./schema.mjs").LocalizedText} label
  * @param {import("./schema.mjs").LocalizedText} title
  * @param {string} prefix
@@ -447,15 +394,6 @@ ${
 };
 
 /**
- * The whole site, as content keyed by relative path.
- *
- * `images` and `overlays` are files the *build* copies: a screenshot is binary,
- * and an overlay is already a generated artefact beside it. Copying the overlay
- * rather than re-rendering it here keeps one definition of it — the one
- * `pnpm manual:assets` wrote and a reviewer looked at — and, opened as a document
- * rather than through `<img>`, it can load its own PNG, which is what makes the
- * "full-size image" link work on a phone.
- *
  * @param {object} input
  * @param {readonly import("./schema.mjs").ManualTask[]} input.tasks
  * @param {readonly import("./schema.mjs").ManualTerm[]} input.categories

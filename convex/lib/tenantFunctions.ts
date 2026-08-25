@@ -1,81 +1,3 @@
-/**
- * Tenant-bound registration paths for every public Convex function, and the one
- * place authorization is enforced.
- *
- * Every public function in this repository is registered through `queryWithOrg`,
- * `mutationWithOrg`, or `actionWithOrg`. `scripts/verify-tenant-boundary.mjs`
- * fails the build if any other production Convex module names a registration
- * builder, and — since T07b — if any of these three is called without a
- * code-owned, non-`PLATFORM` `permissionCode` literal. There is therefore no
- * public entry point that is authenticated but unauthorized (`INV-0006-01`).
- *
- * ### What one request does
- *
- * 1. **Mint a request ID** server-side. The caller cannot supply or influence it
- *    (plan §7.4); every denial and every audit row quotes it.
- * 2. **Resolve the tenant** through `resolveTenantContext` — verified identity,
- *    active-organization claim, mirrored actor, active membership, and (when the
- *    definition selects one) a warehouse proved to exist, belong to this tenant, be
- *    `ACTIVE`, and be inside the membership's scope.
- * 3. **Authorize** by reading the actor's authorization facts from the active
- *    tenant only (`authorizationLookupsConvex.ts`), running the server-side context
- *    policy when the permission has one, and handing the result to the ordered
- *    fail-closed evaluator in `permissions.ts`.
- * 4. **Audit the attempt** — allowed or denied — where the execution model can
- *    commit it (see below).
- * 5. **Run the handler** only if the decision allowed it, with a context that
- *    holds no raw database.
- *
- * ### Why a denial is a return value, not a throw
- *
- * A Convex mutation is one transaction: a row written and then a `throw` is a row
- * that never existed. An authorization denial that threw would therefore *delete
- * its own audit record*, and an audit trail that records only permitted attempts
- * cannot answer "who tried" — the question `INV-0006-10` exists for.
- *
- * So the three wrappers answer with a discriminated `TenantFunctionOutcome`:
- * `{ ok: true, value }` or `{ ok: false, denial }`. The denial branch lets the
- * transaction commit, which is what makes the `DENIED` row durable. Callers switch
- * on `ok`; nothing about the failure is thrown, so nothing about it can be lost by
- * rolling back.
- *
- * Per execution model, stated exactly:
- *
- * - **`mutationWithOrg`** — the decision and its audit row are written in the same
- *   transaction as the operation they guard (`INV-0006-03`). A denial commits the
- *   `DENIED` row and returns. An allowed attempt commits the `ALLOWED` row *and*
- *   the handler's writes together; if the handler throws, both roll back, so there
- *   is no audit row claiming an effect that did not happen.
- * - **`actionWithOrg`** — an action is not transactional and has no database, so
- *   authorization runs in an internal *mutation* preflight that commits its audit
- *   row before any external work begins. The action then either returns the denial
- *   or runs the handler. A preflight that threw would roll its own row back, which
- *   is why it returns its verdict too.
- * - **`queryWithOrg`** — a Convex query cannot write, so **an authorization
- *   attempt on a query produces no audit row.** That is a real observability gap,
- *   not an oversight: denied reads are not recorded, so "who tried to read this"
- *   is unanswerable from `auditEvents` today. The decision is still enforced, and
- *   still returns the same generic denial. Closing the gap needs a write-capable
- *   path for read attempts — an action or scheduled sink that a query cannot
- *   invoke — and is tracked as gate `RG-071` (docs/release-gates.md) together with
- *   the sink obligation in
- *   [INT-05](../../docs/integration-contracts/observability-port.md).
- *
- * ### What a caller cannot influence
- *
- * `orgId`, the actor, the permission code, the entitlement key, the audit target
- * table, the request ID, the step-up window, and the threshold and maker-checker
- * facts are all server-owned. The only client-influenced inputs are the selected
- * warehouse (revalidated before it is used, and only read by a `WAREHOUSE`-scoped
- * decision), the audit target ID (recorded only after this tenant is proved to own
- * it), and the device installation ID (correlation only — it resolves an
- * organization-bound device row and grants nothing, `ADR-0006` §8).
- *
- * Baseline: [PROJECT_PLAN.md](../../PROJECT_PLAN.md) §6.1, §6.2, §7.4, §12;
- * [ADR-0001](../../docs/adr/0001-multi-tenant-saas-and-identity-ownership.md),
- * [ADR-0002](../../docs/adr/0002-convex-tenant-boundary-and-index-discipline.md),
- * [ADR-0006](../../docs/adr/0006-authorization-and-support-access.md).
- */
 import {
   actionGeneric,
   internalMutationGeneric,
@@ -151,18 +73,24 @@ import type { DenialReason } from "./validators";
 type FunctionValidator =
   PropertyValidators | Validator<unknown, "required", string> | void;
 
-/** The complete capability set a tenant feature handler receives. */
+type IsAny<Value> = 0 extends 1 & Value ? true : false;
+
+// Concrete validators define the public contract; v.any() keeps handler inference.
+type RegisteredReturn<ReturnsValidator extends FunctionValidator, ReturnValue> =
+  IsAny<Awaited<ReturnValueForOptionalValidator<ReturnsValidator>>> extends true
+    ? Awaited<ReturnValue>
+    : Awaited<ReturnValueForOptionalValidator<ReturnsValidator>>;
+
 export interface TenantFunctionContext {
   readonly requestId: string;
   readonly identity: UserIdentity;
   readonly tenant: ActiveTenantContext;
   readonly tenantDb: TenantDocumentAccess;
   readonly privateFiles: PrivateFileStoragePort;
-  /** The catalogue definition this call was authorized against. */
+
   readonly permission: PermissionDefinition;
 }
 
-/** Actions receive identity and tenancy, never database or raw Convex runners. */
 export interface TenantActionFunctionContext {
   readonly requestId: string;
   readonly identity: UserIdentity;
@@ -170,7 +98,6 @@ export interface TenantActionFunctionContext {
   readonly permission: PermissionDefinition;
 }
 
-/** What a context policy is given: trusted tenancy, and a bound database. */
 export interface TenantPolicyContext {
   readonly requestId: string;
   readonly tenant: ActiveTenantContext;
@@ -186,13 +113,6 @@ export interface PublicTenantFunctionFailure {
   readonly requestId: string;
 }
 
-/**
- * What a public tenant function answers with.
- *
- * A value or a denial, never a thrown denial — see the module note. `requestId` is
- * on both branches because a caller that succeeded still needs the correlation ID
- * to report a problem with what it got back.
- */
 export type TenantFunctionOutcome<Value> =
   | { readonly ok: true; readonly requestId: string; readonly value: Value }
   | {
@@ -201,16 +121,6 @@ export type TenantFunctionOutcome<Value> =
       readonly denial: PublicAuthorizationDenial;
     };
 
-/**
- * The audit target of an operation: a tenant table, and optionally a document in
- * it selected from the arguments.
- *
- * The table is a code-owned constant, checked at registration. The ID is a
- * selector, and what it returns is *verified* before it is recorded — the wrapper
- * reads the document through the tenant-bound accessor and records the ID only if
- * this tenant owns it, so an audit row can never name another tenant's document
- * (`INV-0002-03`).
- */
 export interface TenantFunctionTarget<Args> {
   readonly table: TenantTableName;
   readonly id?: (args: Args) => string | undefined;
@@ -224,21 +134,17 @@ type TenantFunctionDefinition<
 > = {
   readonly args?: ArgsValidator;
   readonly returns?: ReturnsValidator;
-  /** The code-owned permission this operation requires (`INV-0006-01`). */
+
   readonly permissionCode: string;
-  /** What the audit row names as the target of the attempt. */
+
   readonly target: TenantFunctionTarget<OneOrZeroArgs[0]>;
-  /** A code-owned entitlement key this operation additionally requires (D-30). */
+
   readonly entitlementKey?: string;
-  /** Selects the warehouse to revalidate, when this operation is warehouse-bound. */
+
   readonly warehouseId?: (args: OneOrZeroArgs[0]) => WarehouseId | undefined;
-  /** Selects the opaque device installation ID, for correlation only. */
+
   readonly installationId?: (args: OneOrZeroArgs[0]) => string | undefined;
-  /**
-   * Computes threshold and maker-checker facts server-side, from the trusted
-   * context and database. Required for a permission that needs them, refused for
-   * one that does not (`INV-0006-06`).
-   */
+
   readonly policy?: (
     ctx: TenantPolicyContext,
     ...args: OneOrZeroArgs
@@ -287,7 +193,6 @@ class SafeTenantFunctionFailure extends Error {
   }
 }
 
-/** Mint a UUIDv7 without accepting correlation data from the caller. */
 export function mintRequestId(now = Date.now()): string {
   if (!Number.isSafeInteger(now) || now < 0 || now > 0xffffffffffff) {
     throw new Error("Cannot mint a request ID from this clock value.");
@@ -343,11 +248,6 @@ function isSafePreflightFailure(data: Value, requestId: string): boolean {
   return databaseFailure || contextFailure;
 }
 
-/* -------------------------------------------------------------------------- */
-/* Return validators                                                           */
-/* -------------------------------------------------------------------------- */
-
-/** The declared shape of a public denial, so the envelope validates truthfully. */
 const denialValidator = v.object({
   kind: v.literal("AUTHORIZATION_DENIED"),
   code: v.literal(AUTHORIZATION_DENIAL_CODE),
@@ -355,20 +255,12 @@ const denialValidator = v.object({
   message: v.literal(AUTHORIZATION_DENIAL_MESSAGE),
 });
 
-/** A Convex validator, as distinct from a bare map of field validators. */
 function isValidator(
   value: PropertyValidators | Validator<unknown, "required", string>,
 ): value is Validator<unknown, "required", string> {
   return "isConvexValidator" in value;
 }
 
-/**
- * Wrap a definition's `returns` validator in the outcome envelope.
- *
- * Necessary because the envelope is what the function actually answers with: a
- * declared validator describing only the success value would reject every denial
- * at the boundary, which is a denial turning into an internal error.
- */
 function outcomeReturns(
   returns: PropertyValidators | Validator<unknown, "required", string>,
 ): Validator<unknown, "required", string> {
@@ -383,11 +275,6 @@ function outcomeReturns(
   ) as unknown as Validator<unknown, "required", string>;
 }
 
-/* -------------------------------------------------------------------------- */
-/* Authorization                                                               */
-/* -------------------------------------------------------------------------- */
-
-/** Everything the wrapper needs to authorize one call, resolved at registration. */
 interface AuthorizationSpec<Args extends readonly unknown[]> {
   readonly permission: PermissionDefinition;
   readonly target: TenantFunctionTarget<Args[0]>;
@@ -399,19 +286,6 @@ interface AuthorizationSpec<Args extends readonly unknown[]> {
   ) => AuthorizationPolicyFacts | Promise<AuthorizationPolicyFacts>;
 }
 
-/**
- * Decide one request and record the attempt.
- *
- * `audit` is `false` only for a query, which cannot write; every other caller
- * passes `true` and the row is committed by the surrounding transaction. The
- * decision is identical either way — the audit row is evidence, never the check.
- *
- * A policy callback that throws contributes no facts. That is deliberately not a
- * pass-through of the error: the permission that has a policy is by construction
- * one that requires threshold or maker-checker facts, so absent facts deny with
- * the reason the audit row needs, and a broken policy cannot become an allowed
- * request.
- */
 async function authorizeTenantRequest<Args extends readonly unknown[]>(input: {
   readonly rawContext: RawTenantContext;
   readonly requestId: string;
@@ -425,9 +299,7 @@ async function authorizeTenantRequest<Args extends readonly unknown[]>(input: {
   const now = Date.now();
   const orgId = tenant.organization._id;
   const actorUserId = tenant.actor._id;
-  // The warehouse the *server* resolved and revalidated, never the argument the
-  // caller sent: `resolveTenantContext` proved existence, ownership, status, and
-  // membership scope before this line (`INV-0006-04`).
+
   const targetWarehouseId = tenant.warehouse?._id;
   const lookups = createConvexAuthorizationLookups(rawContext, requestId);
   const permission = spec.permission;
@@ -511,15 +383,6 @@ async function authorizeTenantRequest<Args extends readonly unknown[]>(input: {
   return reason === undefined;
 }
 
-/**
- * Resolve the device an installation ID names, for correlation only.
- *
- * Never a client-supplied `devices` document ID: the only accepted input is the
- * opaque installation value the PWA mints, and it is resolved through the
- * organization's own index, so a value belonging to another tenant resolves to
- * nothing. A missing or unusable value costs the row its `deviceId` and changes no
- * decision (`ADR-0006` §8).
- */
 async function resolveDeviceCorrelation(input: {
   readonly lookups: ReturnType<typeof createConvexAuthorizationLookups>;
   readonly orgId: OrganizationId;
@@ -534,14 +397,6 @@ async function resolveDeviceCorrelation(input: {
   return device === null ? undefined : device._id;
 }
 
-/**
- * Narrow a selected target ID to one this tenant provably owns, or `undefined`.
- *
- * The read is the tenant-bound accessor's, so absent, malformed, and foreign are
- * one answer. An audit row therefore names either a document of this tenant or no
- * document at all — never an ID the caller made up, and never an ID that would
- * confirm the existence of another tenant's row.
- */
 async function verifiedTargetId(input: {
   readonly tenantDb: TenantDocumentAccess;
   readonly table: TenantTableName;
@@ -552,10 +407,6 @@ async function verifiedTargetId(input: {
   const document = await tenantDb.get(table, id);
   return document === null ? undefined : id;
 }
-
-/* -------------------------------------------------------------------------- */
-/* Query and mutation                                                         */
-/* -------------------------------------------------------------------------- */
 
 async function runTenantHandler<Args extends readonly unknown[], ReturnValue>(
   rawContext: RawTenantContext,
@@ -640,37 +491,12 @@ async function runTenantHandler<Args extends readonly unknown[], ReturnValue>(
       throw new ConvexError(error.data);
     }
     if (error instanceof TenantDbError) {
-      // Spread rather than passed straight through: `PublicTenantDbError` is an
-      // interface, so it has no implicit index signature and is not a `Value`.
-      // The spread keeps `toPublic()` as the single conversion seam, so a field
-      // added or redacted there still reaches the client through this throw.
       throw new ConvexError(publicDatabaseFailure(error));
     }
     throw new ConvexError(internalFailure(requestId));
   }
 }
 
-/* -------------------------------------------------------------------------- */
-/* Action preflight                                                            */
-/* -------------------------------------------------------------------------- */
-
-/**
- * The authenticated, authorized, audited preflight used only by `actionWithOrg`.
- *
- * An internal **mutation**, not a query, for one reason: it must be able to commit
- * the audit row of an authorization attempt before the action does anything
- * external. Its own transaction commits when it returns — including when it
- * returns a denial — which is why a denial here is a value and not a throw.
- *
- * It re-validates the declaration it is handed rather than trusting the caller.
- * Only a Convex function can call an internal function, and the only caller is
- * `actionWithOrg` a few lines below, but "the only caller is correct" is a claim
- * with a shelf life; `assertAuthorizationDeclaration` is cheap and total.
- *
- * There is no `policy` parameter and no way to add one: a callback cannot cross a
- * function reference, so a threshold or maker-checker permission is refused on an
- * action outright (`authorization.ts`).
- */
 export const actionAuthorizationPreflight = internalMutationGeneric({
   args: {
     requestId: v.string(),
@@ -743,7 +569,6 @@ export const actionAuthorizationPreflight = internalMutationGeneric({
   },
 });
 
-/** The verdict the preflight hands back to the action. */
 type PreflightVerdict =
   | { readonly ok: true; readonly context: ActiveTenantContext }
   | { readonly ok: false };
@@ -808,7 +633,6 @@ async function runTenantAction<Args extends readonly unknown[], ReturnValue>(
 
   if (identity === null) throw new ConvexError(internalFailure(requestId));
   if (!verdict.ok) {
-    // The preflight's transaction has already committed the `DENIED` audit row.
     return Object.freeze({
       ok: false as const,
       requestId,
@@ -834,18 +658,6 @@ async function runTenantAction<Args extends readonly unknown[], ReturnValue>(
   }
 }
 
-/* -------------------------------------------------------------------------- */
-/* Registration                                                                */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Build the authorization spec of a definition, refusing to register it when the
- * declaration cannot be enforced.
- *
- * Runs at module evaluation. A mis-declared function therefore fails when its
- * module is imported — by a test, by `convex dev`, or by a deploy — rather than on
- * the first request that needed the check.
- */
 function authorizationSpecOf<Args extends readonly unknown[]>(
   kind: TenantFunctionKind,
   definition: {
@@ -883,13 +695,6 @@ function authorizationSpecOf<Args extends readonly unknown[]>(
   });
 }
 
-/**
- * The envelope validator for a definition's declared `returns`, or nothing.
- *
- * Separated so the three registration paths spread one expression instead of
- * repeating the cast that tells the compiler the runtime validator describes the
- * envelope while the generic still describes the inner value.
- */
 function outcomeReturnsProperty<ReturnsValidator extends FunctionValidator>(
   returns: ReturnsValidator | undefined,
 ): { returns?: ReturnsValidator } {
@@ -918,7 +723,7 @@ export function queryWithOrg<
 ): RegisteredQuery<
   "public",
   ArgsArrayToObject<OneOrZeroArgs>,
-  TenantFunctionOutcome<Awaited<ReturnValue>>
+  TenantFunctionOutcome<RegisteredReturn<ReturnsValidator, ReturnValue>>
 > {
   const spec = authorizationSpecOf<OneOrZeroArgs>("query", definition);
 
@@ -929,8 +734,7 @@ export function queryWithOrg<
     OneOrZeroArgs
   >({
     ...(definition.args === undefined ? {} : { args: definition.args }),
-    // The declared validator describes the envelope, which is what the function
-    // answers with; the generic still describes the handler's own value.
+
     ...outcomeReturnsProperty<ReturnsValidator>(definition.returns),
     handler: (ctx, ...args) =>
       runTenantHandler(
@@ -951,11 +755,10 @@ export function queryWithOrg<
   }) as unknown as RegisteredQuery<
     "public",
     ArgsArrayToObject<OneOrZeroArgs>,
-    TenantFunctionOutcome<Awaited<ReturnValue>>
+    TenantFunctionOutcome<RegisteredReturn<ReturnsValidator, ReturnValue>>
   >;
 }
 
-/** Register a public mutation whose writes are tenant-owned and same-transaction. */
 export function mutationWithOrg<
   ArgsValidator extends FunctionValidator,
   ReturnsValidator extends FunctionValidator,
@@ -972,7 +775,7 @@ export function mutationWithOrg<
 ): RegisteredMutation<
   "public",
   ArgsArrayToObject<OneOrZeroArgs>,
-  TenantFunctionOutcome<Awaited<ReturnValue>>
+  TenantFunctionOutcome<RegisteredReturn<ReturnsValidator, ReturnValue>>
 > {
   const spec = authorizationSpecOf<OneOrZeroArgs>("mutation", definition);
 
@@ -1001,11 +804,10 @@ export function mutationWithOrg<
   }) as unknown as RegisteredMutation<
     "public",
     ArgsArrayToObject<OneOrZeroArgs>,
-    TenantFunctionOutcome<Awaited<ReturnValue>>
+    TenantFunctionOutcome<RegisteredReturn<ReturnsValidator, ReturnValue>>
   >;
 }
 
-/** Register a public action after an audited, same-identity internal preflight. */
 export function actionWithOrg<
   ArgsValidator extends FunctionValidator,
   ReturnsValidator extends FunctionValidator,
@@ -1022,7 +824,7 @@ export function actionWithOrg<
 ): RegisteredAction<
   "public",
   ArgsArrayToObject<OneOrZeroArgs>,
-  TenantFunctionOutcome<Awaited<ReturnValue>>
+  TenantFunctionOutcome<RegisteredReturn<ReturnsValidator, ReturnValue>>
 > {
   const spec = authorizationSpecOf<OneOrZeroArgs>("action", definition);
 
@@ -1045,6 +847,6 @@ export function actionWithOrg<
   }) as unknown as RegisteredAction<
     "public",
     ArgsArrayToObject<OneOrZeroArgs>,
-    TenantFunctionOutcome<Awaited<ReturnValue>>
+    TenantFunctionOutcome<RegisteredReturn<ReturnsValidator, ReturnValue>>
   >;
 }

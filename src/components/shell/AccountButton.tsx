@@ -5,7 +5,6 @@ import { UserButton } from "@clerk/nextjs";
 import { useAppEnvironment } from "@/components/providers/EnvironmentProvider";
 import { resolveClerkPublishableKey } from "@/lib/clerkConfiguration";
 
-/** The authenticated account menu. Hidden only in unconfigured test/setup UI. */
 export function AccountButton() {
   const environment = useAppEnvironment();
   const publishableKey = resolveClerkPublishableKey(

@@ -1,14 +1,3 @@
-/**
- * Integration tier — the master-data read surface over `convex-test`.
- *
- * Scope: that each list resolves the tenant, enforces its own read permission,
- * pages within the cap, and answers the reference rows the ledger already
- * depends on. The *cross-tenant* claims are in
- * `tests/isolation/master-data-isolation.isolation.test.ts`, because every one
- * of those is a two-tenant statement.
- *
- * All data is synthetic (`tests/fixtures/README.md`).
- */
 import type { GenericMutationCtx } from "convex/server";
 import { describe, expect, it } from "vitest";
 
@@ -46,7 +35,6 @@ const identity = (org: "a" | "b") => ({
   org_id: `org_fixture_${org}`,
 });
 
-/** Invoke a registered query as the given tenant's actor. */
 async function callAs(
   world: ConvexInventoryWorld,
   org: "a" | "b",
@@ -61,7 +49,6 @@ async function callAs(
   return outcome as Record<string, unknown>;
 }
 
-/** The `value` of a successful wrapper envelope, or a failure the test can read. */
 function value(outcome: Record<string, unknown>): Record<string, unknown> {
   expect(outcome["ok"], JSON.stringify(outcome)).toBe(true);
   return outcome["value"] as Record<string, unknown>;
@@ -74,7 +61,7 @@ describe("master-data catalogue", () => {
 
     expect(page["ok"]).toBe(true);
     const skus = (page["items"] as { sku: string }[]).map((row) => row.sku);
-    // Index order is `(orgId, sku)`, so the answer is sorted by code.
+
     expect(skus).toEqual(["BULK-001", "SERIAL-001", "WIDGET-001"]);
   });
 
@@ -105,7 +92,6 @@ describe("master-data catalogue", () => {
   });
 
   it("refuses a page larger than the cap rather than clamping it", async () => {
-    // A caller that asked for five thousand rows finds out.
     const world = await createConvexInventoryWorld();
     const page = value(
       await callAs(world, "a", listItems, {
@@ -171,7 +157,6 @@ describe("master-data catalogue", () => {
     );
     expect((mine["items"] as { lotCode: string }[]).length).toBeGreaterThan(0);
 
-    // Another tenant's item ID answers the same refusal a nonexistent one does.
     const theirs = value(
       await callAs(world, "a", listLotsForItem, { itemId: world.b.item }),
     );
@@ -188,20 +173,9 @@ describe("master-data catalogue", () => {
     );
   });
 
-  /*
-   * The status filter on the two item-scoped lists, which used to be a predicate
-   * applied to an already-drawn page.
-   *
-   * Each of these seeds rows so that the *first* page holds only rows the filter
-   * rejects. That is the shape the old code got wrong and the shape a fixture
-   * with one matching row cannot expose: filtering after the read returned an
-   * empty `items` alongside `complete: false`, which a screen rendering one page
-   * reads as "this item has no lots" for an item that has them.
-   */
   it("serves an item's lot status filter from the index, not from the page", async () => {
     const world = await createConvexInventoryWorld();
-    // Two archived lots sort before the active one, so a page of two is entirely
-    // rejected by a post-read predicate.
+
     await world.t.run(async (ctx) => {
       await ctx.db.insert("lots", {
         orgId: world.orgA,
@@ -226,7 +200,7 @@ describe("master-data catalogue", () => {
     );
 
     const rows = page["items"] as { lotCode: string; status: string }[];
-    // Under the old post-page filter this was `[]` with `complete: false`.
+
     expect(rows.map((row) => row.lotCode)).toEqual(["LOT-A"]);
     expect(rows.every((row) => row.status === "ACTIVE")).toBe(true);
     expect(page["complete"]).toBe(true);
@@ -290,19 +264,13 @@ describe("master-data catalogue", () => {
     );
 
     const rows = page["items"] as { barcode: string; status: string }[];
-    // Under the old post-page filter this was `[]` with `complete: false`.
+
     expect(rows.map((row) => row.barcode)).toEqual(["08850000000034"]);
     expect(page["complete"]).toBe(true);
     expect(page["nextCursor"]).toBeNull();
   });
 
   it("pages a status-filtered lot list without dropping or repeating a row", async () => {
-    /*
-     * The other half of the same defect: with the filter after the read, a
-     * cursor walk over a status-filtered list yielded pages whose sizes bore no
-     * relation to `maxPageSize`, and the caller could not tell a short page from
-     * the last one.
-     */
     const world = await createConvexInventoryWorld();
     await world.t.run(async (ctx) => {
       for (const [index, status] of (
@@ -367,9 +335,6 @@ describe("master-data catalogue", () => {
   });
 
   it("lists owners even though consigned stock ships disabled", async () => {
-    // "No owners" and "owners are off" are different questions; this answers the
-    // first one, and the ledger still refuses an `ownerId` while the setting is
-    // off (D-11).
     const world = await createConvexInventoryWorld();
     const page = value(await callAs(world, "a", listOwners, {}));
 
@@ -388,13 +353,6 @@ describe("master-data catalogue", () => {
 
 describe("master-data catalogue authorization", () => {
   it("denies a role that holds the entity's read on no other grounds than its own grants", async () => {
-    /*
-     * `VIEWER` reads master data but is not granted `masterData.owner.read`
-     * (docs/permissions.md §4) — consigned stock is supervisory. The answer is
-     * the wrapper's single generic denial, not an empty page: an empty page
-     * would say "this tenant has no owners", which is a different and false
-     * statement.
-     */
     const world = await createConvexInventoryWorld({}, { roleA: "VIEWER" });
     const outcome = await callAs(world, "a", listOwners, {});
 
@@ -423,16 +381,6 @@ describe("master-data catalogue authorization", () => {
 });
 
 describe("listReceivingLocations", () => {
-  /**
-   * A dock hidden behind rack volume is the failure this read exists to avoid.
-   *
-   * The locations index is `(orgId, warehouseId, status, locationType, code)`,
-   * so the type is part of the prefix and a warehouse with thousands of racks
-   * costs nothing: the read never touches them. A bounded scan filtered
-   * afterwards would have missed this dock entirely, and the screen would have
-   * said the site has no receiving location — which is the most confusing
-   * possible answer for an operator standing on one.
-   */
   it("finds a dock behind more racks than any bounded scan would read", async () => {
     const world = await createConvexInventoryWorld();
 
@@ -441,8 +389,7 @@ describe("listReceivingLocations", () => {
         await ctx.db.insert("locations", {
           orgId: world.orgA,
           warehouseId: world.warehouses.alphaA,
-          // Codes sort before the fixture's `DOCK-01`, so a code-ordered scan
-          // would exhaust its budget on racks.
+
           code: `AAA-${String(index).padStart(4, "0")}`,
           locationType: "RACK_BIN",
           status: "ACTIVE",
@@ -519,19 +466,6 @@ describe("listReceivingLocations", () => {
 });
 
 describe("resolveScanToItem", () => {
-  /**
-   * The read that lets a capture form stop asking for a document ID.
-   *
-   * An operator at a dock has a carton in front of them with a barcode on it, or
-   * a printed SKU on the packing note. They do not have — and cannot obtain — the
-   * Convex ID of the item, so a capture form whose item field was free text was a
-   * form that could only be completed by somebody with database access.
-   *
-   * Two rungs, in this order, because they cannot collide: a barcode is unique
-   * per tenant and a SKU is unique per tenant, and a string that is both is
-   * answered as the barcode — the thing physically on the carton wins over the
-   * thing written about it.
-   */
   it("answers an item for one of its barcodes", async () => {
     const world = await createConvexInventoryWorld();
     await world.t.run(async (ctx) => {
@@ -563,8 +497,7 @@ describe("resolveScanToItem", () => {
         scan: "widget-001",
       }),
     );
-    // Case-folded: a keyboard wedge and a person typing disagree about case, and
-    // the SKU is stored in one canonical form.
+
     expect(result["found"]).toBe(true);
     expect(result["itemId"]).toBe(world.a.item);
     expect(result["via"]).toBe("SKU");

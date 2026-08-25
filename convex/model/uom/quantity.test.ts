@@ -1,10 +1,3 @@
-/**
- * Unit tier — quantity as integer minor units.
- *
- * Three groups matter: what the decimal parser refuses (because that is the
- * operator-facing surface), what the bounds refuse (because that is where
- * exactness ends), and that a forged value cannot slip into arithmetic.
- */
 import { describe, expect, it } from "vitest";
 
 import { expectError, expectOk } from "../../../tests/fixtures/domain-results";
@@ -33,10 +26,8 @@ import {
 const kilograms = (minorUnits: number) =>
   expectOk(makeQuantity(minorUnits, "KG"));
 
-/** The options bag, named locally so the forged-cast lines stay readable. */
 type FormatOptions = QuantityFormatOptions;
 
-/** A value that claims to be a `Quantity` and is not one. */
 const forged = (minorUnits: unknown, uom: unknown): Quantity =>
   ({ minorUnits, uom }) as unknown as Quantity;
 
@@ -150,8 +141,7 @@ describe("parseDecimalQuantity", () => {
         maximumDecimals: QUANTITY_DECIMALS,
       },
     });
-    // Even trailing zeros are refused: accepting "1.0000" while refusing
-    // "1.0001" is a rule no operator can predict.
+
     expect(parseDecimalQuantity("1.0000", "KG").ok).toBe(false);
   });
 
@@ -303,9 +293,6 @@ describe("formatQuantity", () => {
   });
 
   it("refuses to render a forged quantity as digits", () => {
-    // `NaN.NaN` on a warehouse screen is worse than a rejection: it looks like a
-    // reading. Formatting claims the digits shown are the digits stored, which is
-    // only true of a value this module built.
     expect(expectError(formatQuantity(forged(Number.NaN, "KG"))).code).toBe(
       "NOT_AN_INTEGER",
     );
@@ -321,10 +308,6 @@ describe("formatQuantity", () => {
     });
   });
 
-  // The options bag is as forgeable as the quantity: it arrives from a caller
-  // whose type checker may have been satisfied by a cast, or from a value that
-  // was `undefined` one call earlier. Dereferencing it threw a `TypeError` out of
-  // a module that promises every failure is a `Result`.
   it("names an options bag that is not an object instead of throwing", () => {
     expect(
       expectError(
@@ -345,8 +328,7 @@ describe("formatQuantity", () => {
         formatQuantity(kilograms(1005), (() => {}) as unknown as FormatOptions),
       ).code,
     ).toBe("INVALID_FORMAT_OPTIONS");
-    // An array has no `trimTrailingZeros`, so it would have been read as the
-    // default rather than as the caller error it is.
+
     expect(
       expectError(
         formatQuantity(kilograms(1005), [] as unknown as FormatOptions),
@@ -385,10 +367,7 @@ describe("formatQuantity", () => {
     expect(
       expectOk(formatQuantity(kilograms(12_000), { trimTrailingZeros: false })),
     ).toBe("12.000");
-    // `exactOptionalPropertyTypes` is on, so an explicit `undefined` is not
-    // expressible without a cast — and is exactly what a preferences document
-    // read back, or an object literal built from an absent field, hands over. The
-    // interface stays strict and the cast stands in for that caller.
+
     expect(
       expectOk(
         formatQuantity(kilograms(12_000), {
@@ -399,9 +378,6 @@ describe("formatQuantity", () => {
   });
 
   it("reports the invalid options before the quantity", () => {
-    // Both are wrong here. The options are what the caller controls, and a
-    // rejection that blamed the quantity would send them looking in the wrong
-    // place.
     expect(
       expectError(
         formatQuantity(

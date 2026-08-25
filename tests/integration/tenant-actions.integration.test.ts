@@ -1,14 +1,3 @@
-/**
- * Integration tier — the tenant-bound action wrapper over `convex-test`.
- *
- * An action is the one path where authorization cannot happen in the caller's
- * transaction, because an action has neither. What is proved here is the shape of
- * the substitute: an internal mutation preflight that resolves the tenant,
- * authorizes, and **commits its audit row before the handler runs**, and an action
- * that answers with the outcome envelope rather than a throw.
- *
- * All data is synthetic (`tests/fixtures/README.md`).
- */
 import { makeFunctionReference } from "convex/server";
 import { ConvexError, v, type GenericId, type Value } from "convex/values";
 import { describe, expect, it } from "vitest";
@@ -128,8 +117,6 @@ describe("tenant-bound Convex actions", () => {
       "tenant",
     ]);
 
-    // The preflight is a mutation, so its audit row is committed in its own
-    // transaction — before the action's external work, and independent of it.
     const audit = await storedAuditEvents(world, world.orgA);
     expect(audit).toHaveLength(1);
     expect(audit[0]).toMatchObject({
@@ -181,8 +168,7 @@ describe("tenant-bound Convex actions", () => {
 
     expect(data).toMatchObject({ kind: "TENANT_CONTEXT_DENIED", code });
     expect(JSON.stringify(data)).not.toContain(String(warehouseId));
-    // A tenancy denial happens before any authorization decision, so there is
-    // nothing to audit and no tenant to audit it against.
+
     expect(await storedAuditEvents(world, world.orgA)).toHaveLength(0);
   });
 
@@ -197,8 +183,7 @@ describe("tenant-bound Convex actions", () => {
 
     expect(data).toMatchObject({ code: "INTERNAL_ERROR" });
     expect(JSON.stringify(data)).not.toContain("action-handler-secret");
-    // The preflight committed before the handler ran, so the attempt survives the
-    // handler's failure: that is the difference between an action and a mutation.
+
     const audit = await storedAuditEvents(world, world.orgA);
     expect(audit).toHaveLength(1);
     expect(audit[0]).toMatchObject({ outcome: "ALLOWED" });

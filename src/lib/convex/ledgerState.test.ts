@@ -175,8 +175,6 @@ describe("failureCodeOf", () => {
   });
 
   it("never surfaces an error's own message", () => {
-    // A message from an unknown source is not something to render on a
-    // warehouse screen; only a code the server chose to publish is.
     expect(failureCodeOf(new Error("connection to db.internal refused"))).toBe(
       UNKNOWN_FAILURE_CODE,
     );

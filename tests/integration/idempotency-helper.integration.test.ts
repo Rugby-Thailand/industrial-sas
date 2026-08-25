@@ -1,14 +1,3 @@
-/**
- * Integration tier — the extracted idempotency helper over `convex-test`.
- *
- * The ledger's own suites already prove the *posting* path is idempotent. This
- * file proves the machinery is correct **on its own**, because it now has a
- * second caller: a defect here would be a duplicate master-data row rather than a
- * duplicate posting, and a suite that only exercised it through the ledger would
- * not catch a regression in the generic part.
- *
- * All data is synthetic (`tests/fixtures/README.md`).
- */
 import type { GenericMutationCtx } from "convex/server";
 import { describe, expect, it } from "vitest";
 
@@ -35,7 +24,6 @@ import {
 
 const OPERATION = "masterData.item.create";
 
-/** Run a body with a tenant-bound accessor for one organization. */
 async function withTenantDb<T>(
   world: ConvexTenantWorld,
   orgId: string,
@@ -55,8 +43,6 @@ async function withTenantDb<T>(
 
 describe("fingerprintArguments", () => {
   it("is stable across key order, because canonicalization sorts", () => {
-    // Two structurally equal argument sets must fingerprint identically, or a
-    // retry that serialized its object differently would read as a conflict.
     return Promise.all([
       fingerprintArguments({ b: 2, a: 1 }),
       fingerprintArguments({ a: 1, b: 2 }),
@@ -89,12 +75,6 @@ describe("fingerprintArguments", () => {
   });
 
   it("is exactly the digest of the kernel's canonical text", async () => {
-    /*
-     * Composed from the two pieces rather than compared against a literal: the
-     * canonical encoding is the kernel's business and is deliberately not JSON,
-     * so a test that hard-coded `{"a":1}` would be asserting a format this module
-     * does not own.
-     */
     const canonical = canonicalArgumentText({ a: 1 });
     expect(canonical.ok).toBe(true);
     if (!canonical.ok) return;
@@ -156,11 +136,6 @@ describe("checkIdempotency", () => {
   });
 
   it("refuses the same request ID with different arguments", async () => {
-    /*
-     * The rule that makes idempotency safe rather than merely convenient: a
-     * reused ID is not a retry. Answering with the first result would silently
-     * discard the second request.
-     */
     const world = await createConvexTenantWorld();
     await seedConvexTenantIdentities(world);
 
@@ -190,16 +165,13 @@ describe("checkIdempotency", () => {
     expect(!decision.ok && decision.error.code).toBe(
       "REQUEST_ARGUMENT_CONFLICT",
     );
-    // The refusal names the request ID and nothing else: the stored arguments
-    // are not this module's to disclose.
+
     expect(!decision.ok && JSON.stringify(decision.error)).not.toContain(
       "hash-original",
     );
   });
 
   it("scopes the key by operation, so two operations may share a request ID", async () => {
-    // The key is `(orgId, operation, requestId)`. A handheld that mints one ID
-    // per intent and uses it for a receipt and its label print is not retrying.
     const world = await createConvexTenantWorld();
     await seedConvexTenantIdentities(world);
 
@@ -231,12 +203,6 @@ describe("checkIdempotency", () => {
 
 describe("writeIdempotencyRecord", () => {
   it("stores a reference and two digests, and no payload", async () => {
-    /*
-     * An idempotency table holding requests and responses becomes a second,
-     * unaudited copy of domain data and a place for PII to collect (plan §14).
-     * The stored row is asserted field by field so an added payload column
-     * fails here rather than in a privacy review.
-     */
     const world = await createConvexTenantWorld();
     await seedConvexTenantIdentities(world);
 
@@ -302,7 +268,7 @@ describe("writeIdempotencyRecord", () => {
     expect(record?.firstSeenAt).toBe(now);
     expect(record?.completedAt).toBe(now);
     expect(record?.expiresAt).toBe(now + IDEMPOTENCY_RETENTION_MS);
-    // 30 days, not the seven years D-27 gives the ledger and the audit trail.
+
     expect(IDEMPOTENCY_RETENTION_MS).toBe(30 * 24 * 60 * 60 * 1000);
   });
 

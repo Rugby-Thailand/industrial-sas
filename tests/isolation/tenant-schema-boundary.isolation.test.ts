@@ -1,27 +1,3 @@
-/**
- * Isolation tier — tenant boundary properties of the Convex schema.
- *
- * This is the first real content of the isolation tier, which is a blocking merge
- * gate (`RG-031`). It does **not** close that gate, and it does not close
- * `RG-013`: there is no Convex function, no tenant-bound accessor, and no
- * two-tenant fixture yet, so nothing here proves a cross-tenant document ID is
- * rejected at runtime. What it proves is narrower and still worth a gate — the
- * schema cannot express a cheap cross-tenant read:
- *
- * - every tenant table carries `orgId` as its first field, and declares it as a
- *   required field;
- * - every index on a tenant table begins with `orgId` (D-18, `INV-0002-02`);
- * - the set of tables that may omit `orgId` is exactly three, and each of them is
- *   there for a stated reason (`ADR-0002` §1);
- * - no table, at any depth, has a field named after credential material
- *   (`INV-0001-06`).
- *
- * That the checks themselves fire is proved separately, against synthetic inputs,
- * in `schema-policy-guards.isolation.test.ts`.
- *
- * Runs with no environment variable, no Convex deployment, and no generated code:
- * a `SchemaDefinition` is an ordinary value.
- */
 import { describe, expect, it } from "vitest";
 
 import {
@@ -146,8 +122,6 @@ describe("credential material", () => {
   });
 
   it("checks nested field paths, not only top-level fields", () => {
-    // Proves the walk descends: settings.locale is only reachable through a
-    // nested object, changes[].field only through an array element.
     expect(tableFacts("organizations").fieldPaths).toContain("settings.locale");
     expect(tableFacts("auditEvents").fieldPaths).toContain("changes[].field");
   });

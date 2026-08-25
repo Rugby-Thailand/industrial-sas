@@ -27,11 +27,11 @@ import {
   requestAttendanceCorrectionRef,
   requestLeaveRef,
   type HrRequestStatus,
-  type MyHrPayload,
+  type MyHrRecord,
   type TeamHrInboxPayload,
 } from "@/lib/convex/hrApi";
 
-const PREVIEW_SELF: MyHrPayload = {
+const PREVIEW_SELF: MyHrRecord = {
   found: true,
   employee: {
     employeeId: "prv_employee_001",
@@ -151,7 +151,8 @@ function ServerHrWorkspace({ warehouseId }: { readonly warehouseId: string }) {
   if (selfOutcome === undefined || teamOutcome === undefined) {
     return <LedgerPanelStatus state={{ kind: "LOADING" }} />;
   }
-  const self = selfOutcome.ok ? selfOutcome.value : undefined;
+  const self =
+    selfOutcome.ok && selfOutcome.value.found ? selfOutcome.value : undefined;
   const team = teamOutcome.ok ? teamOutcome.value : undefined;
   if (self === undefined && team === undefined) {
     return (
@@ -176,7 +177,7 @@ function HrContent({
   preview = false,
 }: {
   readonly warehouseId: string;
-  readonly self?: MyHrPayload;
+  readonly self?: MyHrRecord;
   readonly team?: TeamHrInboxPayload;
   readonly preview?: boolean;
 }) {
@@ -534,10 +535,9 @@ function Fact({
   );
 }
 
-function RequestHistory({ self }: { readonly self: MyHrPayload }) {
+function RequestHistory({ self }: { readonly self: MyHrRecord }) {
   const t = useTranslations("HR");
-  // The day a person recognises, not the document ID: the correction points
-  // at an attendance day, and the business date is that day's human name.
+
   const businessDateOf = (attendanceDayId: string) =>
     (self.days ?? []).find((day) => day.attendanceDayId === attendanceDayId)
       ?.businessDate ?? attendanceDayId;

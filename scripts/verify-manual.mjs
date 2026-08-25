@@ -1,22 +1,3 @@
-/**
- * The operator-manual guard.
- *
- * A generated manual fails quietly: nobody notices that a screen was renamed, or
- * that the English half of a step was never written, or that an overlay still
- * carries coordinates from before a screenshot was recaptured. Each of those is a
- * fact this script can check, so each is checked here rather than left to the
- * reader who finds it on a shop floor.
- *
- * It needs no server, no credentials, and no browser. Everything it reads is
- * committed: the catalogue, the screenshots, `src/lib/navigation.ts`, the Thai
- * Markdown guide, and the generated output.
- *
- *   pnpm manual:build && pnpm manual:check
- *
- * `manual:build` first, because one of the things this proves is that the output
- * on disk is what the catalogue currently renders — the check cannot regenerate
- * it itself without losing the ability to say "stale".
- */
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
@@ -38,12 +19,9 @@ import {
   MANUAL_TASKS,
 } from "./manual/tasks.mjs";
 
-/** The Thai guide that links the overlays, relative to the repository root. */
 export const MARKDOWN_GUIDE = "docs/manuals/visual-operator-guide-th.md";
 
 /**
- * Every relative file path under a directory, sorted.
- *
  * @param {string} root
  * @param {string} [prefix]
  * @returns {string[]}
@@ -63,8 +41,6 @@ const walk = (root, prefix = "") => {
 };
 
 /**
- * Everything wrong with the manual in one repository.
- *
  * @param {object} [options]
  * @param {string} [options.repoRoot]
  * @param {readonly import("./manual/schema.mjs").ManualTask[]} [options.tasks]
@@ -130,7 +106,6 @@ export function collectManualProblems(options = {}) {
   // trying would bury the ones that matter.
   if (problems.length > 0) return problems;
 
-  // 1. The SVG overlays beside the screenshots are what the catalogue renders.
   for (const task of tasks) {
     const size = imageSizes[task.image];
     const expected = renderAnnotatedSvg({
@@ -175,7 +150,6 @@ export function collectManualProblems(options = {}) {
     }
   }
 
-  // 3. The generated site is present, complete, and current.
   if (!existsSync(outputRoot)) {
     problems.push({
       path: MANUAL_OUTPUT_DIRECTORY,
@@ -237,8 +211,6 @@ export function collectManualProblems(options = {}) {
     });
   }
 
-  // 4. Absolute paths in the output would make it machine-specific, and a
-  //    `file://` reader would follow a link into somebody else's home directory.
   for (const [path, content] of files) {
     if (content.includes(repoRoot)) {
       problems.push({

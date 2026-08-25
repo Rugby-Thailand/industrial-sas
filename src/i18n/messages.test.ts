@@ -3,21 +3,8 @@ import { describe, expect, it } from "vitest";
 import { ALL_CATALOGUES, messagesFor } from "./messages";
 import { DEFAULT_LOCALE, LOCALES } from "./routing";
 
-/**
- * The run-time half of `INV-0010-02`.
- *
- * The compile-time half is `MessageCatalogue = typeof th` plus the `satisfies`
- * on the English import, which catches a key present in English and missing in
- * Thai. This file catches the other direction and the failures a type cannot
- * see: an empty string, a key left in English inside the Thai file, and — the
- * one that actually breaks a screen — a message whose ICU placeholders differ
- * between locales, so `deniedHint` renders a request ID in one language and a
- * literal `{requestId}` in the other.
- */
-
 type Json = Record<string, unknown>;
 
-/** Every leaf, as `Namespace.key`, so a failure names the exact message. */
 function flatten(value: Json, prefix = ""): ReadonlyMap<string, string> {
   const entries = new Map<string, string>();
   for (const [key, member] of Object.entries(value)) {
@@ -82,16 +69,6 @@ describe("message catalogues", () => {
     }
   });
 
-  /*
-   * `1 lots`, `1 received lines`, `1 rows parsed`: the audit found the same
-   * defect in nine captions, because English marks plural and a template does
-   * not. ICU's `plural` is the fix and it has to be used at the point the count
-   * is interpolated, so the rule is mechanical: no English message may drop a
-   * count into a sentence without choosing the noun that follows it.
-   *
-   * Thai is exempt by grammar rather than by exception — it marks no plural, so
-   * `{count}` there is already correct and a `plural` block would have one arm.
-   */
   it("never interpolates a bare count into an English message", () => {
     const bare: string[] = [];
     for (const [key, message] of FLATTENED.get("en") ?? []) {
@@ -101,12 +78,6 @@ describe("message catalogues", () => {
     expect(bare).toEqual([]);
   });
 
-  /*
-   * A select's placeholder is what an empty control says, and repeating the
-   * label above it states the field twice and the outstanding choice not at
-   * all. Each pair below is a control this application renders; the assertion is
-   * mechanical so a new placeholder cannot be added by copying its label.
-   */
   it("never lets a select placeholder repeat its own field label", () => {
     const pairs: readonly (readonly [string, string])[] = [
       ["Purchasing.fieldSupplier", "Purchasing.selectSupplier"],
@@ -138,13 +109,6 @@ describe("message catalogues", () => {
     }
   });
 
-  /*
-   * Thai distinguishes the two states English collapsed: an order is
-   * `เปิดรับได้` — open, and receivable against — while a line is `ยังรับได้`,
-   * still receivable. Both rendered as "Open" in English, so a register and an
-   * order detail showed one word for two different facts about two different
-   * documents. The stored codes are untouched; only the labels differ.
-   */
   it("gives an open order and an open order line distinct English labels", () => {
     for (const locale of LOCALES) {
       const catalogue = FLATTENED.get(locale) ?? new Map<string, string>();
@@ -157,9 +121,6 @@ describe("message catalogues", () => {
     }
   });
 
-  /*
-   * The quality approval step once said "approve this disposition" four times.
-   */
   it("does not print one heading twice as its own callout", () => {
     for (const locale of LOCALES) {
       const catalogue = FLATTENED.get(locale) ?? new Map<string, string>();
@@ -175,11 +136,6 @@ describe("message catalogues", () => {
     }
   });
 
-  /*
-   * One import step, three labels: the heading names the step, the legend names
-   * what is being asked for, and the button names what pressing it does — which
-   * for a query is "nothing is written".
-   */
   it("keeps the import check's heading, legend, and action distinct", () => {
     for (const locale of LOCALES) {
       const catalogue = FLATTENED.get(locale) ?? new Map<string, string>();
@@ -197,16 +153,6 @@ describe("message catalogues", () => {
     }
   });
 
-  /*
-   * Not a translation-quality check — that is `OPS-0010-01`, and a reviewer with
-   * warehouse Thai is the only thing that closes it. This catches the mechanical
-   * failure of a Thai value that was never translated at all, which is what
-   * happens when a key is added to both files by copy-paste.
-   *
-   * Codes, brand names, and identifiers are exempt by construction: the
-   * exemptions below are the namespaces whose values are deliberately English
-   * (`D-06` keeps code identifiers English) plus the product name.
-   */
   it("has Thai characters in Thai prose messages", () => {
     const thaiCharacters = /[฀-๿]/;
     const exemptPrefixes = ["App.", "Locale.th", "Locale.en"];

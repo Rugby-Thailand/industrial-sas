@@ -1,28 +1,3 @@
-/**
- * The customer register.
- *
- * Status: **implemented** (Phase 5A).
- *
- * ### Why a customer is not a supplier
- *
- * `suppliers` is who the tenant buys board from; `customers` is who the tenant
- * sells boxes to. The same legal entity is occasionally both, and that is exactly
- * why they are separate tables rather than one party table with a flag: a design
- * key is unique *per customer* (`INV-0013-01`), an outstanding-demand view reads
- * customers, and a receiving view reads suppliers. One table with a role flag
- * would put sales demand inside every receiving query and make the uniqueness
- * contract on `masterCards` mean "per party in either direction", which is not a
- * rule anybody stated.
- *
- * ### What is here and what is not
- *
- * Create, rename or withdraw, and list. No delete: a customer order, a master
- * card, and an audit row all reference a customer by ID, and removing the row
- * turns each of those into a dangling pointer (same rule as master data,
- * `INV-0003-04`). Withdrawal is `status: "INACTIVE"`, which the order screen
- * reads to keep a retired customer out of the picker without hiding the orders
- * already placed under it.
- */
 import { v } from "convex/values";
 
 import type { Doc } from "../_generated/dataModel";
@@ -51,30 +26,13 @@ import {
   written,
 } from "../lib/writeEnvelope";
 
-/* -------------------------------------------------------------------------- */
-/* Operations                                                                  */
-/* -------------------------------------------------------------------------- */
-
-/**
- * The logical operation names, which are half of every idempotency key.
- *
- * Code-owned and stable, and deliberately *not* the permission codes: one
- * permission (`sales.customer.manage`) guards two operations, and the
- * idempotency namespace has to keep a create and an update from colliding on the
- * same request ID.
- */
 export const SALES_CUSTOMER_OPERATIONS = Object.freeze({
   createCustomer: "sales.customer.create",
   updateCustomer: "sales.customer.update",
 });
 
-/* -------------------------------------------------------------------------- */
-/* Documents                                                                   */
-/* -------------------------------------------------------------------------- */
-
 type CustomerDocument = Doc<"customers">;
 
-/** `(orgId, code)`: a customer code is unique per organization. */
 const codeUniqueness = (code: string): readonly UniquenessCheck[] => [
   {
     field: "code",
@@ -83,11 +41,6 @@ const codeUniqueness = (code: string): readonly UniquenessCheck[] => [
   },
 ];
 
-/* -------------------------------------------------------------------------- */
-/* Writes                                                                      */
-/* -------------------------------------------------------------------------- */
-
-/** Register a customer. */
 export const createCustomer = mutationWithOrg({
   args: { requestId: v.string(), code: v.string(), name: v.string() },
   returns: writeOutcomeValidator,
@@ -119,13 +72,6 @@ export const createCustomer = mutationWithOrg({
   },
 });
 
-/**
- * Rename a customer, or withdraw it.
- *
- * The code is not updatable, for the same reason a SKU's is not: it is what a
- * purchase order document, an export, and a person all cite, and changing it in
- * place rewrites the meaning of every artefact that already names it.
- */
 export const updateCustomer = mutationWithOrg({
   args: {
     requestId: v.string(),
@@ -166,10 +112,6 @@ export const updateCustomer = mutationWithOrg({
   },
 });
 
-/* -------------------------------------------------------------------------- */
-/* Reads                                                                       */
-/* -------------------------------------------------------------------------- */
-
 const customerValidator = v.object({
   customerId: v.id("customers"),
   code: v.string(),
@@ -177,14 +119,6 @@ const customerValidator = v.object({
   status: masterDataStatus,
 });
 
-/**
- * Customers, in code order.
- *
- * `status` narrows through `by_orgId_status_code` rather than by filtering a
- * wider page, so asking for the active customers reads active rows only — a
- * filtered page would return fewer rows than the page size and make the caller's
- * "am I done" test wrong.
- */
 export const listCustomers = queryWithOrg({
   args: { status: v.optional(masterDataStatus), ...listArgs },
   returns: pageOf(customerValidator),

@@ -39,8 +39,6 @@ describe("DesktopShell", () => {
   });
 
   it("renders exactly one navigation landmark", () => {
-    // Two copies of the nav — one for narrow, one for wide — would produce two
-    // landmarks and duplicate every link for a screen reader.
     renderWithIntl(<DesktopShell>content</DesktopShell>, {
       environment: unconfiguredEnvironment,
     });

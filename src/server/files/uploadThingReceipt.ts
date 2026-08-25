@@ -1,4 +1,3 @@
-/** Sign the exact callback payload forwarded from Next.js to Convex. */
 export async function signUploadThingCompletion(
   body: string,
   secret: string,

@@ -35,11 +35,6 @@ describe("renderLabel", () => {
   });
 
   it("refuses a placeholder nobody filled", () => {
-    /*
-     * The rule the module exists for. A blank lot code looks exactly like a
-     * correct one from two metres away on a forklift, so an unfilled placeholder
-     * is an error rather than a gap.
-     */
     const rendered = renderLabel({
       template: template(),
       fields: { SKU: "BOLT-M8-30" },
@@ -67,10 +62,6 @@ describe("renderLabel", () => {
   });
 
   it("refuses a value that could introduce another placeholder", () => {
-    /*
-     * A lot code of `{{PRICE}}` must not cause a second substitution pass to
-     * interpolate something the template never asked for.
-     */
     const rendered = renderLabel({
       template: template(),
       fields: { SKU: "A", LOT: "{{PRICE}}" },
@@ -80,7 +71,6 @@ describe("renderLabel", () => {
   });
 
   it("refuses a value carrying a control character", () => {
-    // A control byte inside a value changes how a printer parses the stream.
     const rendered = renderLabel({
       template: template(),
       fields: { SKU: "A", LOT: "L1\u0007" },
@@ -97,7 +87,6 @@ describe("renderLabel", () => {
   });
 
   it("refuses a field name that is not a code identifier", () => {
-    // `D-06`: placeholder names are code identifiers and stay English.
     const rendered = renderLabel({
       template: template(),
       fields: { "lot code": "L1" },
@@ -106,8 +95,6 @@ describe("renderLabel", () => {
   });
 
   it("refuses a template with a malformed placeholder", () => {
-    // `{{LOT` is a mistyped template far more often than a printer command, and
-    // printing it is a wasted label at best.
     const rendered = renderLabel({
       template: template({ body: "^XA {{LOT ^XZ" }),
       fields: { LOT: "L1" },
@@ -154,12 +141,6 @@ describe("renderLabel", () => {
 
 describe("canonicalTextFor", () => {
   it("distinguishes two versions that rendered identical bytes", () => {
-    /*
-     * The reason the hash is not taken over the payload alone. Two template
-     * versions can render byte-identical payloads when every substituted field
-     * happens to match, and an evidence hash that could not tell them apart
-     * would defeat the versioning it exists to prove (`INV-0007-07`).
-     */
     const first = renderLabel({
       template: template({ version: 1 }),
       fields: { SKU: "A", LOT: "B" },
@@ -191,18 +172,11 @@ describe("canonicalTextFor", () => {
 
 describe("print-job honesty", () => {
   it("has no status that claims a label was printed", () => {
-    /*
-     * Nothing in this repository can observe a printer (`INT-04` absent,
-     * `RG-004` open), so a `PRINTED` status would be a claim no code here is in
-     * a position to make.
-     */
     expect(LOCALLY_REACHABLE_STATUSES).toEqual(["GENERATED"]);
     expect(LOCALLY_REACHABLE_STATUSES).not.toContain("PRINTED");
   });
 
   it("separates a reprint from a first print", () => {
-    // Three labels for one pallet is either a jammed printer or a label being
-    // applied to stock that moved, and the two must be tellable apart.
     expect(requiresReprintPermission("REPRINT")).toBe(true);
     expect(requiresReprintPermission("INITIAL")).toBe(false);
     expect(requiresReprintPermission("PREVIEW")).toBe(false);

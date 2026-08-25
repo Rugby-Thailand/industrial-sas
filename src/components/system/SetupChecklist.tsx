@@ -1,31 +1,5 @@
 "use client";
 
-/**
- * What is configured, what is not, and what to do about it.
- *
- * This is the honest gate `ADR-0001` implies. Identity is Clerk's and
- * authorization is Convex's; with neither configured the application cannot
- * resolve a tenant, and the useful thing to show is *which* dependency is
- * missing rather than a generic error. Each row is a fact about this machine,
- * derived from the same `resolveAppEnvironment` every other screen uses, so the
- * checklist and the panels can never disagree.
- *
- * The last line is the one that matters most, and it is deliberately a claim
- * about the codebase rather than an instruction: there is no bypass. Someone
- * reading this screen while trying to see data is exactly the person who would
- * otherwise go looking for a development shortcut, and the answer is that
- * hand-configuring one would put an unverified token in front of
- * `resolveTenantContext`.
- *
- * The checklist does **not** open with `Setup.intro`. Both screens that mount it
- * already introduce it in their own words — the setup page in its header and
- * the sign-in page in the notice that says why sign-in is unavailable. The host
- * is the only place that knows whether that context has already been stated.
- *
- * A configured row is confirmation, not a remediation target. Its missing-state
- * instructions are therefore omitted, as are the environment and authentication
- * notes when the whole deployment is ready.
- */
 import { useTranslations } from "next-intl";
 
 import { useAppEnvironment } from "@/components/providers/EnvironmentProvider";

@@ -1,6 +1,5 @@
 "use client";
 
-/** Shared task exception report and maker-checker resolution surface. */
 import { useLocale, useTranslations } from "next-intl";
 
 import { StatusBadge } from "@/components/ui/StatusBadge";

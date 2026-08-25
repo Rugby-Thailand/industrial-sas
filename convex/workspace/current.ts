@@ -1,4 +1,3 @@
-/** Bounded workspace context for the signed-in membership. */
 import { v } from "convex/values";
 
 import type { Doc } from "../_generated/dataModel";

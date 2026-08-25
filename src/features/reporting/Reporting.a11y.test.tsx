@@ -19,13 +19,6 @@ import {
 
 import { JobList } from "./ExportWorkbench";
 
-/**
- * The refusal paragraph, in isolation.
- *
- * Rendered here rather than driven through the mutation, because the a11y tier
- * asks a structural question — is the failure announced? — and mocking a
- * transport to answer it would test the mock.
- */
 function FailedAdvance({ code }: { readonly code: string }) {
   return (
     <p role="alert" className="text-xs text-danger">
@@ -40,15 +33,6 @@ import { OwnerOperationsSummaryView } from "./OwnerOperationsSummary";
 import { OwnerPulseCards } from "./OwnerPulse";
 import { QuickActionMenu } from "./DashboardQuickActions";
 
-/**
- * Accessibility tier — the reporting surfaces (`ADR-0010`, WCAG 2.2 AA).
- *
- * The occupancy map is the one worth stating a reason for. A heat map is the
- * classic place where meaning ends up encoded in hue alone, which fails 1.4.1
- * and, more practically, fails a supervisor reading a screen in direct sunlight
- * on a dock. It is rendered as a table with the band written in every cell, so
- * the automated pass here and the manual greyscale check test the same artefact.
- */
 const BANG_PU = "prv_wh_bangpoo";
 
 const clean = async (ui: React.ReactElement) => {
@@ -127,11 +111,6 @@ describe("reporting accessibility", () => {
   });
 
   it("an advance failure is announced, not merely coloured", async () => {
-    /*
-     * The answer arrives after the press, so a screen-reader user has already
-     * moved on: a colour change would be invisible to them and a silent one to
-     * everybody in direct sunlight. `role="alert"` is what makes it arrive.
-     */
     const { container } = renderWithIntl(
       <FailedAdvance code="ARTIFACT_LIMIT_REACHED" />,
       { environment: testEnvironment },

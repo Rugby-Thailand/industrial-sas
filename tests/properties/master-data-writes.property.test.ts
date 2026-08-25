@@ -11,18 +11,6 @@ import {
   MAX_DISPLAY_NAME_LENGTH,
 } from "../../convex/lib/masterDataStore";
 
-/**
- * The pure parts of the write path, over generated input.
- *
- * The example-based suite covers the cases someone thought of. These cover the
- * shapes nobody wrote down — and two of them are load-bearing security
- * properties rather than conveniences:
- *
- * - **Normalization is idempotent.** If it were not, a retry would fingerprint
- *   differently from its original and read as `REQUEST_ARGUMENT_CONFLICT`.
- * - **The fingerprint separates every distinct argument set.** If two different
- *   requests collided, the second would silently replay the first's result.
- */
 describe("code normalization", () => {
   it("is idempotent: normalizing twice changes nothing", () => {
     fc.assert(
@@ -39,8 +27,6 @@ describe("code normalization", () => {
   });
 
   it("accepts a padded or differently-cased form of anything it accepts", () => {
-    // The retry case: a client that trimmed differently on the second attempt is
-    // still sending the same code.
     fc.assert(
       fc.property(
         fc.stringMatching(/^[A-Za-z0-9][A-Za-z0-9_.-]{0,40}$/),
@@ -63,8 +49,6 @@ describe("code normalization", () => {
   });
 
   it("never answers a value containing whitespace", () => {
-    // A stored code with an interior space would be unscannable and would sort
-    // unpredictably next to its trimmed twin.
     fc.assert(
       fc.property(fc.string({ maxLength: 80 }), (raw) => {
         const result = normalizeField("code", raw, CODE_FIELD);
@@ -89,11 +73,6 @@ describe("code normalization", () => {
   });
 
   it("preserves lot-code case, and folds ordinary code case", () => {
-    /*
-     * A supplier's `ab12` and `AB12` may be different batches (D-09 lot
-     * identity), so folding them would silently merge two lots. An item SKU is
-     * the opposite: case-insensitive by policy.
-     */
     fc.assert(
       fc.property(fc.stringMatching(/^[a-z][a-z0-9]{0,10}$/), (lower) => {
         const lot = normalizeField("lotCode", lower, LOT_CODE_FIELD);
@@ -124,8 +103,6 @@ describe("code normalization", () => {
 
 describe("display-name normalization", () => {
   it("keeps everything but the outer whitespace", () => {
-    // A name is content, not an identifier: Thai text, spaces, and case all
-    // survive.
     fc.assert(
       fc.property(fc.string({ minLength: 1, maxLength: 100 }), (raw) => {
         const result = normalizeDisplayName("name", raw);
@@ -166,8 +143,6 @@ describe("argument fingerprinting", () => {
           { maxKeys: 6 },
         ),
         async (payload) => {
-          // Rebuilt with its keys in the opposite order: a retry that serialized
-          // its object differently is still the same request.
           const reversed = Object.fromEntries(
             Object.entries(payload).reverse(),
           );
@@ -237,7 +212,7 @@ describe("audit diff", () => {
           for (const [field, next] of Object.entries(after)) {
             expect(changed.has(field)).toBe(before[field] !== next);
           }
-          // Never reports a field the patch did not mention.
+
           for (const change of changes) {
             expect(Object.hasOwn(after, change.field)).toBe(true);
           }

@@ -1,6 +1,5 @@
 "use client";
 
-/** Shared document/owner/SLA/progress/connection header for operator work. */
 import { useLocale, useTranslations } from "next-intl";
 
 import { Notice } from "@/components/ui/Notice";

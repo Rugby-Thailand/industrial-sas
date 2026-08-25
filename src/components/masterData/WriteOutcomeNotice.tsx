@@ -1,26 +1,5 @@
 "use client";
 
-/**
- * Every write ending, rendered.
- *
- * The sibling of `LedgerPanelStatus`, and separate for the same reason the state
- * machines are separate: the endings differ. A read has no "may or may not have
- * happened"; a write does, and it is the ending that decides what the operator
- * should do next.
- *
- * - **`SAVED`** distinguishes a first write from a replay. A replay is not a
- *   failure and not a duplicate — it is the idempotency key doing its job — and
- *   saying so is what stops someone from "fixing" it by submitting again.
- * - **`DENIED`** shows the request ID and nothing else. The server refuses to
- *   say which permission was missing (`INV-0002-07`), and inventing a reason
- *   here would be a guess that turns the screen into a permission oracle.
- * - **`FAILED`** tells the operator to retry, because the retry replays: the
- *   same request ID is reused, so a write that did reach the server is not
- *   applied twice.
- *
- * Refusal codes are shown verbatim and in English (`D-06`): the code is the only
- * string that connects a screenshot to a server log.
- */
 import { useTranslations } from "next-intl";
 
 import { Notice } from "@/components/ui/Notice";

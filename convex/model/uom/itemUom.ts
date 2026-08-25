@@ -1,35 +1,3 @@
-/**
- * Item UOM profile: one base UOM per item plus exact alternate conversions
- * (`G-029`, `G-030`, `ADR-0004`, `INV-0004-02`, `INV-0004-03`, `INV-0004-04`).
- *
- * Status: **implemented** as pure logic. The `itemUoms` master-data table in plan
- * §7.2 does not exist, so nothing loads a profile from anywhere yet; a caller
- * builds one from values it already holds.
- *
- * A conversion belongs to an item, not to a pair of UOM codes. `1 CASE = 12 PCS`
- * for one item and `1 CASE = 6 PCS` for another; a global table would receive
- * both and be wrong for one of them. So every conversion here goes through the
- * profile of exactly one item, and a UOM the item does not declare is rejected
- * rather than resolved from somewhere else. Because the profile carries its
- * `itemKey`, converting item A's stock with item B's factors is a named error
- * (`ITEM_MISMATCH`) instead of a plausible number.
- *
- * The two outcomes that matter are `EXACT` and `INEXACT`. `INEXACT` is not an
- * error: it is the true value, as a fraction, for a caller that must explain why
- * `1 CASE` of a 1/3 KG item cannot be received. What no caller gets is a rounded
- * quantity (`INV-0004-05`), because a rounded receipt creates or destroys stock
- * that later shows up as unexplainable drift.
- *
- * Every entry point re-validates the profile it is handed
- * (`validateItemUomProfile`), because a profile is an interface: a cast, a
- * document read back, or a `JSON.parse` can produce one whose factor is `1/0` or
- * whose item key carries a zero-width joiner. A profile's `alternates` is a
- * frozen array rather than a `ReadonlyMap` for the same reason — a `ReadonlyMap`
- * is an ordinary `Map` at run time, so anything holding a profile could have
- * rewritten the item's conversion table.
- *
- * Pure module (plan §6.2): no Convex imports.
- */
 import { frozenArray, isArray, isRecord, isString } from "../guards";
 import { fail, ok, type Result } from "../result";
 import {
@@ -56,38 +24,20 @@ import {
   type UomCode,
 } from "./quantity";
 
-/**
- * Longest item key accepted. A key is a normalized SKU or a document id, so the
- * bound is the SKU bound (`identifiers/normalization.ts`); the two must not
- * disagree, or a SKU that normalizes cleanly could still be refused here.
- */
 export const MAX_ITEM_KEY_LENGTH = MAX_CODE_LENGTH;
 
-/** A declared packaging unit and its exact factor to the item's base UOM. */
 export interface UomConversion {
   readonly uom: UomCode;
-  /** Base units per one `uom`: `1 uom = numerator/denominator base units`. */
+
   readonly toBase: Ratio;
 }
 
-/**
- * One item's UOM vocabulary. Immutable in fact: `makeItemUomProfile` is the only
- * source, and it hands back a frozen profile whose `alternates` is a frozen array
- * of frozen entries.
- *
- * `alternates` is an array rather than a map because a `ReadonlyMap` is an
- * ordinary `Map` at run time — `(profile.alternates as Map<string, Ratio>).set(…)`
- * would have compiled and rewritten one tenant's conversion table from anywhere
- * holding a profile. Look a factor up with `conversionToBase`, which validates the
- * code first.
- */
 export interface ItemUomProfile {
   readonly itemKey: string;
   readonly baseUom: UomCode;
   readonly alternates: readonly UomConversion[];
 }
 
-/** A quantity that knows which item it counts. Prevents cross-item arithmetic. */
 export interface ItemQuantity {
   readonly itemKey: string;
   readonly quantity: Quantity;
@@ -127,16 +77,6 @@ export type ItemUomError =
       readonly toUom: UomCode;
     };
 
-/**
- * The result of a conversion. Three cases, all caller-visible:
- *
- * - `EXACT` — a whole number of minor units; the only case a posting may use.
- * - `INEXACT` — the exact value is `exact.numerator / exact.denominator` minor
- *   units of `uom`. Nothing rounds it; the caller decides what to tell the
- *   operator, and the ledger's answer is "reject".
- * - `REJECTED` — the conversion could not be attempted at all: unknown UOM,
- *   wrong item, invalid input, or an overflow.
- */
 export type UomConversionOutcome =
   | { readonly kind: "EXACT"; readonly quantity: Quantity }
   | {
@@ -146,20 +86,6 @@ export type UomConversionOutcome =
     }
   | { readonly kind: "REJECTED"; readonly error: ItemUomError };
 
-/* -------------------------------------------------------------------------- */
-/* Construction                                                                */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Builds a profile. Rejects a duplicate alternate and an alternate that repeats
- * the base UOM: the base factor is `1/1` by definition, and a declaration that
- * could disagree with it is a trap.
- *
- * The item key goes through the same normalizer a SKU does, so a key carrying a
- * zero-width joiner, an internal space, a control character, or a decomposed Thai
- * sequence is rejected rather than stored as a second key for the same item.
- * Case is preserved, because a key may be a Convex document id.
- */
 export function makeItemUomProfile(input: {
   readonly itemKey: string;
   readonly baseUom: UomCode;
@@ -210,11 +136,6 @@ export function makeItemUomProfile(input: {
   );
 }
 
-/**
- * Re-checks a value that claims to be a profile. Every function below goes
- * through it, so a cast-built profile with a forged factor or a mutable
- * `alternates` array cannot drive a conversion.
- */
 export function validateItemUomProfile(
   profile: ItemUomProfile,
 ): Result<ItemUomProfile, ItemUomError> {
@@ -228,15 +149,6 @@ export function validateItemUomProfile(
   });
 }
 
-/**
- * The declared alternate UOM codes, in declaration order.
- *
- * Returns a `Result` like every other public operation here, and for the same
- * reason: it used to map `conversion.uom` out of whatever it was handed, so a
- * forged profile made its declared `readonly UomCode[]` — an alias for `string[]`
- * — come back holding a number or an object, and an entry that was not a record
- * was silently dropped, answering a shorter list than the profile declared.
- */
 export function alternateUoms(
   profile: ItemUomProfile,
 ): Result<readonly UomCode[], ItemUomError> {
@@ -247,7 +159,6 @@ export function alternateUoms(
   );
 }
 
-/** The factor from `uom` to the base UOM, or a named reason there is none. */
 export function conversionToBase(
   profile: ItemUomProfile,
   uom: UomCode,
@@ -269,16 +180,6 @@ export function conversionToBase(
     : ok(found.toBase);
 }
 
-/* -------------------------------------------------------------------------- */
-/* Conversion                                                                  */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Converts a captured amount, in minor units of `fromUom`, into the item's base
- * UOM. The amount is in thousandths of the *captured* unit, so `1.5 CASE` is
- * `1500` — an operator may type a fractional case, and a fractional case that
- * does not land on a whole base minor unit is exactly the case B-12 rejects.
- */
 export function convertToBase(
   profile: ItemUomProfile,
   fromUom: UomCode,
@@ -302,11 +203,6 @@ export function convertToBase(
   });
 }
 
-/**
- * Converts a base-UOM quantity into an alternate UOM, for display and for
- * printing a pack count on a label. Requires the quantity to be in the item's
- * base UOM: a quantity in some other UOM is not this item's stock.
- */
 export function convertFromBase(
   profile: ItemUomProfile,
   toUom: UomCode,
@@ -358,12 +254,6 @@ export function convertFromBase(
   );
 }
 
-/**
- * Converts between two alternate UOMs of the same item by composing the two
- * factors exactly — never by converting to base and back, which would reject a
- * pair that is exact end to end (6 half-cases is 3 cases even when a half-case
- * is not a whole base unit).
- */
 export function convertBetween(
   profile: ItemUomProfile,
   fromUom: UomCode,
@@ -407,11 +297,6 @@ export function convertBetween(
   });
 }
 
-/* -------------------------------------------------------------------------- */
-/* Item-scoped quantities                                                      */
-/* -------------------------------------------------------------------------- */
-
-/** Binds a base-UOM quantity to its item. Rejects any other UOM. */
 export function makeItemQuantity(
   profile: ItemUomProfile,
   quantity: Quantity,
@@ -437,11 +322,6 @@ export function makeItemQuantity(
   );
 }
 
-/**
- * Adds two item quantities. Fails on a different item even when the UOM codes
- * match, which is the case a UOM check alone cannot see: two items measured in
- * `KG` are still two items.
- */
 export function addItemQuantities(
   left: ItemQuantity,
   right: ItemQuantity,
@@ -474,7 +354,6 @@ export function addItemQuantities(
   );
 }
 
-/** Re-checks a value that claims to be an item-scoped quantity. */
 export function validateItemQuantity(
   itemQuantity: ItemQuantity,
 ): Result<ItemQuantity, ItemUomError> {
@@ -491,10 +370,6 @@ export function validateItemQuantity(
     Object.freeze({ itemKey: itemKey.value, quantity: quantity.value }),
   );
 }
-
-/* -------------------------------------------------------------------------- */
-/* Internals                                                                   */
-/* -------------------------------------------------------------------------- */
 
 function applyConversion(
   profile: ItemUomProfile,
@@ -548,7 +423,6 @@ function applyConversion(
   return { kind: "EXACT", quantity: converted.value };
 }
 
-/** The item key rules, in one place: the SKU normalizer with case preserved. */
 function validateItemKey(raw: string): Result<string, ItemUomError> {
   if (!isString(raw)) {
     return fail({
@@ -570,10 +444,8 @@ function validateItemKey(raw: string): Result<string, ItemUomError> {
       });
 }
 
-/** A string for an error field, whatever arrived. */
 const rawText = (value: unknown): string =>
   isString(value) ? value : describe(value);
 
-/** The shape of a value that is not what the field claims, for the error field. */
 const describe = (value: unknown): string =>
   value === null ? "null" : typeof value;

@@ -5,19 +5,6 @@ import { renderWithIntl } from "../../../tests/fixtures/intl-render";
 
 import { EntityTable, type ColumnSpec } from "./EntityTable";
 
-/**
- * The shared table structure, and the narrow-screen behaviour the audit asked
- * for.
- *
- * The structural assertions are here rather than repeated per entity because
- * the structure is what `EntityTable` exists to make uniform: one row header,
- * a caption, a column header for every column. The rest is the response to the
- * finding that a 360px viewport hid UOM, dates, and the action control with
- * nothing on screen saying they were there. jsdom lays nothing out, so what can
- * be asserted is the region, its name, its tab stop, the hint, and the classes
- * that pin the trailing column — which is the part that regresses silently.
- */
-
 interface Row {
   readonly id: string;
   readonly code: string;
@@ -71,12 +58,6 @@ describe("EntityTable", () => {
   });
 
   it("puts the scroller in a named region a keyboard can reach", () => {
-    /*
-     * An `overflow-x-auto` box that no element inside can take focus is
-     * unscrollable without a pointer (WCAG 2.2 2.1.1, axe
-     * `scrollable-region-focusable`). The name is the caption, so the region
-     * says which table it belongs to rather than "region".
-     */
     renderTable();
 
     const region = screen.getByRole("region", { name: CAPTION });
@@ -91,8 +72,7 @@ describe("EntityTable", () => {
     const hint = screen.getByText(
       "เลื่อนตารางไปทางซ้าย-ขวาเพื่อดูคอลัมน์ที่เหลือ",
     );
-    // The handheld shell stays narrow in a desktop viewport, so this follows
-    // the table container instead of the viewport.
+
     expect(hint).toHaveClass("@2xl/table:hidden");
   });
 
@@ -106,8 +86,6 @@ describe("EntityTable", () => {
   });
 
   it("pins the trailing action only when the table container is wide", () => {
-    // An always-sticky cell hid the end of status and quantity values inside
-    // the handheld shell. Container-query variants keep the narrow view honest.
     renderTable(withAction());
 
     const header = screen.getByRole("columnheader", { name: "การทำงาน" });
@@ -136,8 +114,6 @@ describe("EntityTable", () => {
   });
 
   it("keeps identifier columns on one line so scrolling is the only reflow", () => {
-    // A code that wraps mid-token is unreadable and unscannable; the table
-    // scrolls instead (`UX §3`).
     renderTable();
 
     expect(screen.getByRole("rowheader", { name: "STEEL-COIL" })).toHaveClass(

@@ -1,45 +1,6 @@
-/**
- * What a customer is actually ordering, plus an advisory structural fingerprint.
- *
- * Status: **implemented.** Pure; no clock, no database, no Convex import
- * (plan §6.2).
- *
- * Automatic reuse is customer + normalized customer product code. `designKeyOf`
- * is deliberately separate: it fingerprints structure so the UI can rank
- * possible near-matches for a person, never so the server can auto-pin one.
- *
- * ### Exact matching only, and the refusal to approximate
- *
- * `WF-04` asks whether near-matches should be suggested. It is open, and nothing
- * here guesses: a 305 mm box does not match a 300 mm box, and a module that
- * decided it "probably" did would put a wrong dieline on a factory floor. When
- * the decision lands, similarity belongs in a *separate* function that ranks
- * candidates for a human — never in the key.
- *
- * ### Why dimensions are whole millimetres
- *
- * The dimension a converting machine is set to is a whole millimetre; a
- * specification carrying `300.5` would be a number nobody can set a machine to
- * and a number that makes two keys differ for a difference nobody can cut. A
- * fractional dimension is refused by name rather than rounded, because rounding
- * an internal dimension is how a box ends up too small for what goes in it.
- *
- * ### What is deliberately *not* here
- *
- * Blank size, board consumption, and any other computed geometry. `WF-11` says
- * the calculation formulas must be confirmed with Engineering and QA before they
- * are coded, and a formula invented here would be an authoritative-looking
- * number with no author. The specification records what was *asked for*; it does
- * not compute what it would take to make.
- */
 import { fail, ok, type Result } from "../result";
 
-/* -------------------------------------------------------------------------- */
-/* Errors                                                                      */
-/* -------------------------------------------------------------------------- */
-
 export type DesignSpecificationError =
-  /** A text field was empty, over-long, or carried a character the key reserves. */
   | {
       readonly code: "FIELD_INVALID";
       readonly field: string;
@@ -52,54 +13,19 @@ export type DesignSpecificationError =
       readonly reason: string;
     };
 
-/* -------------------------------------------------------------------------- */
-/* Bounds                                                                      */
-/* -------------------------------------------------------------------------- */
-
-/** The longest a style code or board grade may be. Matches `MAX_CODE_LENGTH`. */
 export const MAX_DESIGN_CODE_LENGTH = 64;
 
-/**
- * The largest internal dimension a line may state, in millimetres.
- *
- * Ten metres. Not a converting limit — this repository knows none — but a bound
- * that keeps a mistyped `3000000` out of the database while leaving every real
- * carton, crate, and sheet comfortably inside.
- */
 export const MAX_DIMENSION_MM = 10_000;
 
-/** The most print colours a specification may state. */
 export const MAX_PRINT_COLOURS = 12;
 
-/** Bounds for human-authored detail that is stored on every immutable revision. */
 export const MAX_SPEC_TEXT_LENGTH = 2_000;
 export const MAX_FINISHING_ROWS = 50;
 
-/**
- * The separator between key segments.
- *
- * Reserved: a style code or board grade containing it is refused rather than
- * escaped, because two specifications whose segments merely *concatenate* the
- * same way are not the same specification, and an escaping scheme is one more
- * thing that has to agree on both sides of a comparison forever.
- */
 export const DESIGN_KEY_SEPARATOR = "|";
 
-/** Customer-owned product codes are the authoritative exact-match identity. */
 export const MAX_CUSTOMER_PRODUCT_CODE_LENGTH = 96;
 
-/* -------------------------------------------------------------------------- */
-/* The specification                                                           */
-/* -------------------------------------------------------------------------- */
-
-/**
- * One packaging specification, normalized.
- *
- * `styleCode` and `boardGrade` are the tenant's own vocabulary — `RSC`, `HSC`,
- * `KA125/C/KA125` — deliberately not a closed union. This repository does not own
- * the catalogue of box styles or board grades any Thai converter uses, and a
- * closed union would be a claim it does.
- */
 export interface DesignSpecification {
   readonly styleCode: string;
   readonly internalLengthMm: number;
@@ -174,7 +100,6 @@ export interface CalculationInput {
   readonly unit: string;
 }
 
-/** The raw shape a caller submits, before any of it is trusted. */
 export interface DesignSpecificationInput {
   readonly styleCode: string;
   readonly internalLengthMm: number;
@@ -204,14 +129,6 @@ export interface DesignSpecificationInput {
   readonly notes?: string;
 }
 
-/**
- * Normalize one code-like field: trimmed, upper-cased, bounded, separator-free.
- *
- * Upper-cased for the same reason a SKU is: `rsc` and `RSC` are one style, and a
- * key that distinguished them would make the factory re-engineer a box over a
- * shift key. Internal whitespace is collapsed rather than rejected, because
- * `KA125 / C / KA125` and `KA125/C/KA125` are one grade written by two people.
- */
 function normalizeDesignCode(
   field: string,
   raw: string,
@@ -236,10 +153,6 @@ function normalizeDesignCode(
   return ok(collapsed);
 }
 
-/**
- * Normalize the customer's own product code without deriving identity from
- * geometry. Customer + this value is the only automatic-reuse key.
- */
 export function normalizeCustomerProductCode(
   raw: string,
 ): Result<string, DesignSpecificationError> {
@@ -268,7 +181,6 @@ export function normalizeCustomerProductCode(
   return ok(normalized);
 }
 
-/** A whole-number measurement in an inclusive range, or a named refusal. */
 function requireWholeNumber(
   field: string,
   value: number,
@@ -278,11 +190,6 @@ function requireWholeNumber(
     return fail({ code: "MEASUREMENT_INVALID", field, reason: "NOT_A_NUMBER" });
   }
   if (!Number.isInteger(value)) {
-    /*
-     * Refused, never rounded. A machine is set to a whole millimetre, and
-     * rounding an *internal* dimension down is how a box ends up too small for
-     * what the customer puts in it.
-     */
     return fail({
       code: "MEASUREMENT_INVALID",
       field,
@@ -355,13 +262,6 @@ const boundedRows = (
     ? fail({ code: "FIELD_INVALID", field, reason: "TOO_MANY_ROWS" })
     : ok(true);
 
-/**
- * Build a specification, or refuse it by naming the field at fault.
- *
- * Every refusal names a field and never the value that failed, which is the same
- * rule the write envelope enforces at the boundary (`INV-0002-07`): the caller
- * sent the value and can already see it.
- */
 export function makeDesignSpecification(
   input: DesignSpecificationInput,
 ): Result<DesignSpecification, DesignSpecificationError> {
@@ -397,11 +297,6 @@ export function makeDesignSpecification(
   );
   if (!height.ok) return height;
 
-  /*
-   * Zero is legal and one is not a default: a plain brown box with no print is
-   * the ordinary case, and defaulting it to one colour would put an ink setup on
-   * a job that has none.
-   */
   const colours = requireWholeNumber(
     "printColourCount",
     input.printColourCount,
@@ -772,7 +667,6 @@ export function makeDesignSpecification(
   );
 }
 
-/** Fields required before a revision may leave draft. */
 export function missingReleaseFields(
   specification: DesignSpecification,
 ): readonly string[] {
@@ -791,20 +685,6 @@ export function missingReleaseFields(
   return Object.freeze(missing);
 }
 
-/* -------------------------------------------------------------------------- */
-/* The key                                                                     */
-/* -------------------------------------------------------------------------- */
-
-/**
- * The structural fingerprint for one specification.
- *
- * Total over `DesignSpecification`, which is the point of taking the *validated*
- * type rather than the input: every field is already normalized, so the key is a
- * pure function of the value and two equal specifications cannot produce two
- * keys. Dimensions are ordered L, W, H and never sorted — a 300×200×150 box and a
- * 200×300×150 box have different dielines, and sorting would silently declare
- * them one design.
- */
 export function designKeyOf(specification: DesignSpecification): string {
   return [
     specification.styleCode,
@@ -814,51 +694,21 @@ export function designKeyOf(specification: DesignSpecification): string {
   ].join(DESIGN_KEY_SEPARATOR);
 }
 
-/**
- * Whether two specifications have the same core structure.
- *
- * This is suitable for similarity hints only. Exact automatic reuse is decided
- * by customer plus normalized customer product code in `decideDesignSource`.
- */
 export const isSameDesign = (
   left: DesignSpecification,
   right: DesignSpecification,
 ): boolean => designKeyOf(left) === designKeyOf(right);
 
-/* -------------------------------------------------------------------------- */
-/* The decision                                                                */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Where a line's design comes from.
- *
- * `EXISTING` means a released master-card revision was found for this exact key;
- * `NEW` means none was, and engineering has to draw one. There is no third value
- * for "close enough" (`WF-04`).
- */
 export type DesignSource = "EXISTING" | "NEW";
 
 export interface DesignDecision {
   readonly source: DesignSource;
   readonly customerProductCode?: string;
   readonly designKey: string;
-  /** The released revision this line pins. Present exactly when `EXISTING`. */
+
   readonly masterCardRevisionId?: string;
 }
 
-/**
- * Decide where a line's design comes from, given whatever the exact-key lookup
- * found.
- *
- * A candidate is only usable if it is `RELEASED`. A draft or in-review revision
- * describes a design nobody has approved, and pinning one would let a factory
- * cut to a spec that is still being argued about — which is the same failure
- * `RELEASED`-only visibility exists to prevent (operating plan §5.2).
- *
- * A `REJECTED` or `SUPERSEDED` candidate is treated as absent rather than as an
- * error: the master card exists, this revision is simply not the one to build
- * from, and the honest consequence is a new design request.
- */
 export function decideDesignSource(input: {
   readonly customerProductCode: string;
   readonly specification: DesignSpecification;
@@ -904,10 +754,6 @@ export function decideDesignSource(input: {
   );
 }
 
-/**
- * Rank a possible visual/structural near-match for a person to confirm. This
- * value never enters `decideDesignSource`, so similarity cannot auto-pin work.
- */
 export function designSimilarityScore(
   requested: DesignSpecification,
   candidate: DesignSpecification,

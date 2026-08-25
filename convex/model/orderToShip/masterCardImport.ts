@@ -28,7 +28,7 @@ export interface LegacyMasterCardRow {
   readonly customerProductCode: string;
   readonly name: string;
   readonly verified: boolean;
-  /** Explicit approval evidence from the legacy authority; never inferred. */
+
   readonly legacyApproval?: LegacyApprovalEvidence;
   readonly specification: DesignSpecificationInput;
   readonly files: readonly LegacyMasterCardFile[];
@@ -65,7 +65,6 @@ export interface MasterCardImportPreview {
   readonly nextSourceRow: number | null;
 }
 
-/** Deterministic, side-effect-free migration preview with all row problems. */
 export function previewMasterCardImport(
   rows: readonly LegacyMasterCardRow[],
 ): MasterCardImportPreview {

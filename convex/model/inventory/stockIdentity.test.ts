@@ -1,12 +1,3 @@
-/**
- * Unit tier — bucket identity, the canonical key, and the virtual boundaries.
- *
- * The key's job is to be a *total injection*: two different buckets must never
- * encode alike, because a colliding key would put one bucket's stock in another's
- * balance row. The cases below cover the collisions a delimiter-joined key would
- * actually produce, and `inventory-ledger.property.test.ts` proves injectivity over
- * randomized buckets.
- */
 import { describe, expect, it } from "vitest";
 
 import {
@@ -242,18 +233,17 @@ describe("canonical bucket key", () => {
   });
 
   it("does not alias two buckets a delimiter-joined key would collide", () => {
-    // The classic shift: moving a character across a component boundary.
     expect(key(bucket({ itemId: "ab", lotId: "c" }))).not.toBe(
       key(bucket({ itemId: "a", lotId: "bc" })),
     );
     expect(key(bucket({ warehouseId: "wh", itemId: "1item" }))).not.toBe(
       key(bucket({ warehouseId: "wh1", itemId: "item" })),
     );
-    // "absent lot" is not "lot whose ID is the next component".
+
     expect(key(bucket({ lotId: undefined, handlingUnitId: "hu1" }))).not.toBe(
       key(bucket({ lotId: "hu1", handlingUnitId: undefined })),
     );
-    // A physical location ID equal to a boundary code is still a different bucket.
+
     expect(
       key(
         bucket({ location: { kind: "PHYSICAL", locationId: "SCRAP_DAMAGE" } }),

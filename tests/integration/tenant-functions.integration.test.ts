@@ -1,14 +1,3 @@
-/**
- * Integration tier — the tenant-bound wrappers over `convex-test`.
- *
- * Scope: the wrapper's own contract — request-ID minting, tenant resolution, the
- * absence of a raw database in a handler context, the outcome envelope, and the
- * redaction of anything a handler or the resolver produced. The *authorization*
- * matrix lives in `tests/isolation/authorization-enforcement.isolation.test.ts`,
- * because every one of its cases is a two-tenant claim.
- *
- * All data is synthetic (`tests/fixtures/README.md`).
- */
 import type { GenericMutationCtx } from "convex/server";
 import { ConvexError, v, type Value } from "convex/values";
 import { describe, expect, it } from "vitest";
@@ -56,7 +45,6 @@ async function failureData(operation: Promise<unknown>) {
   }
 }
 
-/** The success branch of an outcome, or a readable failure if it was denied. */
 function allowedValue(outcome: unknown): unknown {
   const envelope = outcome as {
     readonly ok: boolean;
@@ -162,8 +150,7 @@ describe("tenant-bound Convex function wrappers", () => {
   it("binds mutation writes to the resolved organization", async () => {
     const world = await createConvexTenantWorld();
     await seedConvexAuthorization(world);
-    // `masterData.warehouse.manage` is a step-up ORG permission, so the actor
-    // needs a fresh reverification as well as the grant.
+
     await recordStepUp(world, {
       orgId: world.orgB,
       userId: world.userA,
@@ -258,8 +245,7 @@ describe("tenant-bound Convex function wrappers", () => {
     };
 
     expect(JSON.parse(runtime.exportArgs())).toMatchObject({ type: "object" });
-    // A union of the allowed and denied branches: a declared validator that
-    // described only the success value would reject every denial at the boundary.
+
     expect(returns.type).toBe("union");
     expect(returns.value).toHaveLength(2);
     expect(JSON.stringify(returns)).toContain("AUTHORIZATION_DENIED");
@@ -270,8 +256,6 @@ describe("tenant-bound Convex function wrappers", () => {
     const world = await createConvexTenantWorld();
     await seedConvexTenantIdentities(world);
 
-    // Unknown code, platform code, warehouse permission with no selector, and a
-    // policy nothing would read: each fails at registration, not at call time.
     expect(() =>
       queryWithOrg({
         args: {},

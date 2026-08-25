@@ -1,18 +1,5 @@
 "use client";
 
-/**
- * The reporting reads, gated the same way every other data source here is.
- *
- * `useQuery` throws without a `ConvexProvider`, and there is no provider when no
- * deployment is configured — so the gate is resolved first and the branch that
- * queries is a separate component. Same split as `MasterDataPanel` and the
- * inbound option sources; stated again because a new feature is exactly where
- * somebody reaches for a hook and finds out at runtime.
- *
- * Each source hands its caller the rows *and* the honest failure states, because
- * a dashboard that rendered zeroes for "denied" would be the worst version of
- * this screen: a supervisor would act on numbers that were never read.
- */
 import { useQuery } from "convex/react";
 import type { ReactNode } from "react";
 
@@ -28,12 +15,10 @@ import {
   type ReportJobRow,
 } from "@/lib/convex/reportingApi";
 
-/** What every reporting source hands its caller. */
 export interface ReportingSourceProps<Value> {
   readonly children: (values: readonly Value[]) => ReactNode;
 }
 
-/** Resolve the warehouse gate, or render the reason it could not be resolved. */
 function GateOr({
   render,
 }: {
@@ -46,14 +31,6 @@ function GateOr({
   );
 }
 
-/**
- * A read that has answered, is still answering, or was refused.
- *
- * Three endings rendered in one place so no reporting screen invents a fourth.
- * `LOADING` matters here more than elsewhere: a tile that showed `0` while its
- * read was in flight would flicker from "nothing to do" to "seven waiting",
- * which is precisely the moment a supervisor decides to walk away.
- */
 function Answered<Value>({
   outcome,
   rows,
@@ -76,10 +53,6 @@ function Answered<Value>({
   }
   return <>{children(rows())}</>;
 }
-
-/* -------------------------------------------------------------------------- */
-/* Dashboard tiles                                                             */
-/* -------------------------------------------------------------------------- */
 
 export function OperationsCounters(props: ReportingSourceProps<DashboardTile>) {
   return (
@@ -106,10 +79,6 @@ function ServerCounters({
     </Answered>
   );
 }
-
-/* -------------------------------------------------------------------------- */
-/* Occupancy                                                                   */
-/* -------------------------------------------------------------------------- */
 
 export interface OccupancyAnswer {
   readonly cells: readonly OccupancyCell[];
@@ -153,10 +122,6 @@ function ServerOccupancy({
     </Answered>
   );
 }
-
-/* -------------------------------------------------------------------------- */
-/* Export register                                                             */
-/* -------------------------------------------------------------------------- */
 
 export function ReportJobs({
   emptyTitle,

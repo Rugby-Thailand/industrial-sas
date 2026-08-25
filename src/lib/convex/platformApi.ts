@@ -1,25 +1,8 @@
-/**
- * Typed references to the Phase 1 shared-platform functions, and the small
- * presentation vocabulary the operator screens share.
- *
- * References come from committed, credential-free Convex codegen, so a server
- * rename or an argument change is a type error here rather than "function not
- * found" on a handheld.
- *
- * Every write carries a `requestId` in its argument type, and for the shared
- * operator surfaces that key does double duty: it makes a retry a replay, and
- * it is the identity a queued intent keeps while it waits
- * (`src/lib/offline/intentQueue.ts`).
- */
 import { getFunctionName } from "convex/server";
 
 import { api } from "../../../convex/_generated/api";
 
 import { clientRef, type RefValue } from "./clientRef";
-
-/* -------------------------------------------------------------------------- */
-/* Devices                                                                     */
-/* -------------------------------------------------------------------------- */
 
 export type DeviceType = "HANDHELD" | "WORKSTATION" | "TABLET";
 export type DeviceStatus = "ACTIVE" | "RETIRED";
@@ -30,11 +13,7 @@ export interface DeviceRow {
   readonly deviceType: DeviceType;
   readonly status: DeviceStatus;
   readonly warehouseId?: string;
-  /**
-   * Whether an installation is bound, never which one. The registry has no
-   * reason to render a correlation value, and echoing it would put a
-   * device-identifying string on every row.
-   */
+
   readonly installationBound: boolean;
   readonly lastSeenAt?: number;
   readonly retiredAt?: number;
@@ -58,20 +37,9 @@ export type DevicePage = Extract<
 export type PageOutcome<Page> =
   Page | { readonly ok: false; readonly error: { readonly code: string } };
 
-/* -------------------------------------------------------------------------- */
-/* Tasks                                                                       */
-/* -------------------------------------------------------------------------- */
-
 export type OperatorTaskStatus =
   "AVAILABLE" | "CLAIMED" | "COMPLETED" | "CANCELLED";
 
-/**
- * The lease as the server read it, not as the browser guesses it.
- *
- * A handheld clock can be minutes out, so "has this lapsed" is decided against
- * the server clock and sent as a decided fact. `remainingMs` is what a countdown
- * counts down from — the screen may age it locally, but it may not re-derive it.
- */
 export type LeaseView =
   | { readonly kind: "UNCLAIMED" }
   | {
@@ -95,7 +63,7 @@ export interface OperatorTaskRow {
   readonly instruction: string;
   readonly status: OperatorTaskStatus;
   readonly itemId?: string;
-  /** The base unit the expectation is counted in. Absent when no item is named. */
+
   readonly baseUom?: string;
   readonly locationId?: string;
   readonly expectedBaseMinorUnits?: number;
@@ -171,10 +139,6 @@ export type EvidenceOutcome = Extract<
   { readonly written: true }
 >;
 
-/* -------------------------------------------------------------------------- */
-/* Task exceptions                                                            */
-/* -------------------------------------------------------------------------- */
-
 export type TaskExceptionDisposition =
   "RESUME" | "REASSIGN" | "STOP" | "ESCALATE";
 
@@ -214,10 +178,6 @@ export type TaskExceptionPage = Extract<
   { readonly ok: true }
 >;
 
-/* -------------------------------------------------------------------------- */
-/* Private task attachments                                                    */
-/* -------------------------------------------------------------------------- */
-
 export type TaskAttachmentKind = "PHOTO" | "DOCUMENT" | "OTHER";
 
 export interface TaskAttachmentRow {
@@ -251,10 +211,6 @@ export type TaskAttachmentPage = Extract<
   { readonly ok: true }
 >;
 
-/* -------------------------------------------------------------------------- */
-/* Step-up                                                                     */
-/* -------------------------------------------------------------------------- */
-
 export const approveOnDeviceRef = clientRef(
   api.platform.stepUp.approveOnDevice,
 );
@@ -265,7 +221,6 @@ export type StepUpApprovalOutcome = Extract<
   { readonly written: true }
 >;
 
-/** @deprecated Use the generated references above. */
 export const PLATFORM_FUNCTION_PATHS = Object.freeze({
   listDevices: getFunctionName(listDevicesRef),
   registerDevice: getFunctionName(registerDeviceRef),

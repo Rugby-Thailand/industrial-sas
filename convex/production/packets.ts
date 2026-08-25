@@ -1,42 +1,3 @@
-/**
- * Factory packets — the one document that crosses from the office to the floor.
- *
- * Status: **implemented** (Phase 5A).
- *
- * ### Why the packet stores references and the query returns a projection
- *
- * A packet stores the order-line and released-revision identifiers. Its read
- * model resolves the order, immutable revision, and approved-file junction rows
- * inside the server and returns one floor-facing object. Production users still
- * call only a production function and gain no engineering endpoint permission.
- *
- * That is what makes the release gate hold. `PRODUCTION_PLANNER` and
- * `WAREHOUSE_MANAGER` carry no `engineering.*` permission whatsoever, so a
- * production screen physically cannot render a draft revision: there is no
- * function it may call that returns one. The production query performs the
- * authoritative join only after its own permission and tenant checks.
- *
- * This keeps the operational tables in third normal form: order identity and
- * quantity live on the order/line, revision metadata lives on the revision, and
- * the repeating approved-file set lives in `factoryPacketFiles`.
- *
- * ### Why quantity is derived and never an argument
- *
- * `checkPacketIssue` takes the quantity from `line.orderedQuantity`. A packet
- * whose quantity could be typed in would let a planner commit the factory to a
- * different number of boxes than the customer ordered, with nothing anywhere
- * recording that the two had diverged. Over- and under-runs are a factory-order
- * concern (`WF-02`, Phase 5B) and will be modelled as their own quantities
- * against this one, not as a free-text override of it.
- *
- * ### Why issuing is warehouse-scoped and everything upstream is not
- *
- * `production.packet.*` is `WAREHOUSE`-scoped, so a planner at one site cannot
- * issue work to another. Sales and engineering are `ORG`-scoped because an order
- * and a design belong to the tenant, not to a building. `warehouseId` naming a
- * production site is provisional — `WF-03` is open — and is the honest smallest
- * thing that works, because the scope machinery already understands warehouses.
- */
 import { v } from "convex/values";
 
 import type { Doc } from "../_generated/dataModel";
@@ -73,10 +34,6 @@ import {
   checkPacketIssue,
 } from "../model/orderToShip/factoryPacket";
 
-/* -------------------------------------------------------------------------- */
-/* Operations                                                                  */
-/* -------------------------------------------------------------------------- */
-
 export const PRODUCTION_PACKET_OPERATIONS = Object.freeze({
   issuePacket: "production.packet.issue",
   acknowledgePacket: "production.packet.acknowledge",
@@ -86,10 +43,6 @@ export const PRODUCTION_PACKET_OPERATIONS = Object.freeze({
 
 const FILE_ACCESS_GRANT_LIFETIME_MS = 5 * 60 * 1_000;
 
-/* -------------------------------------------------------------------------- */
-/* Documents                                                                   */
-/* -------------------------------------------------------------------------- */
-
 type PacketDocument = Doc<"factoryPackets">;
 type LineDocument = Doc<"customerOrderLines">;
 type PacketFileDocument = Doc<"factoryPacketFiles">;
@@ -98,7 +51,6 @@ type OrderDocument = Doc<"customerOrders">;
 type RevisionDocument = Doc<"masterCardRevisions">;
 type FileDocument = Doc<"masterCardFiles">;
 
-/** `(orgId, packetNumber)`: a packet number is unique per organization. */
 const packetNumberUniqueness = (
   packetNumber: string,
 ): readonly UniquenessCheck[] => [
@@ -109,13 +61,6 @@ const packetNumberUniqueness = (
   },
 ];
 
-/**
- * `(orgId, customerOrderLineId)`: one packet per line.
- *
- * Without it, two planners issuing the same line concurrently would each get a
- * packet, and the line would be built twice — the expensive kind of duplicate,
- * because it is made of board.
- */
 const linePacketUniqueness = (
   customerOrderLineId: string,
 ): readonly UniquenessCheck[] => [
@@ -126,24 +71,6 @@ const linePacketUniqueness = (
   },
 ];
 
-/* -------------------------------------------------------------------------- */
-/* Writes                                                                      */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Hand one order line to a production site.
- *
- * The packet and the line's `HANDED_OFF` status are written in one transaction.
- * A packet whose line still said `DESIGN_READY` would be issuable again; a line
- * marked handed off with no packet would be work that vanished between sales and
- * the floor.
- *
- * `packetNumber` is derived from the order number and line number rather than
- * supplied, so the same request produces the same number and the uniqueness
- * contract has something stable to refuse against. It is also the number a
- * person reads back over a radio, and deriving it means it always matches the
- * order it came from.
- */
 export const issueFactoryPacket = mutationWithOrg({
   args: {
     requestId: v.string(),
@@ -179,12 +106,6 @@ export const issueFactoryPacket = mutationWithOrg({
       return refusal({ code: "REFERENCE_NOT_FOUND", field: "customerOrderId" });
     }
 
-    /*
-     * An unpinned line is refused here rather than by the kernel, because there
-     * is no revision to hand the kernel: the check it would make is the reason
-     * this read has nothing to read. The refusal names the same field the
-     * kernel's would.
-     */
     if (line.masterCardRevisionId === undefined) {
       return refusal({
         code: "PRECONDITION_FAILED",
@@ -365,13 +286,6 @@ export const issueFactoryPacket = mutationWithOrg({
   },
 });
 
-/**
- * Record that the factory has the packet.
- *
- * The one signal that the hand-off completed. Until it arrives, a planner
- * looking at an `ISSUED` packet knows the paper may still be on a desk, which is
- * the difference between chasing the printer and chasing the shop floor.
- */
 export const acknowledgeFactoryPacket = mutationWithOrg({
   args: {
     requestId: v.string(),
@@ -393,12 +307,7 @@ export const acknowledgeFactoryPacket = mutationWithOrg({
     if (packet === null) {
       return refusal({ code: "NOT_FOUND", table: "factoryPackets" });
     }
-    /*
-     * A packet belonging to another site is refused by field, not by silence.
-     * The wrapper scoped the *permission* to `warehouseId`; this checks that the
-     * document the caller named is actually at that site, which is a different
-     * question and one the wrapper cannot answer without reading the row.
-     */
+
     if (packet.warehouseId !== args.warehouseId) {
       return refusal({ code: "REFERENCE_NOT_FOUND", field: "warehouseId" });
     }
@@ -447,24 +356,6 @@ export const acknowledgeFactoryPacket = mutationWithOrg({
   },
 });
 
-/**
- * Withdraw a packet the factory has not picked up yet, releasing its line.
- *
- * Refused once acknowledged: material may already be cut, and a cancellation
- * that reached the system but not the floor would be worse than none — the line
- * would look re-issuable while a run of it was in progress.
- *
- * Cancelling returns the line to `DESIGN_READY`, which is the status it had
- * before the packet existed. Its pinned revision is untouched: nothing about the
- * design changed, only the decision to build it now.
- *
- * Guarded by `production.packet.issue` rather than a code of its own. Withdrawing
- * a packet nobody has picked up is the same authority as issuing it — it undoes
- * exactly what that permission did, and only while it can still be undone. A
- * separate `production.packet.cancel` would be a code every role that can issue
- * would have to hold anyway, which is a distinction the catalogue does not need
- * to carry.
- */
 export const cancelFactoryPacket = mutationWithOrg({
   args: {
     requestId: v.string(),
@@ -551,10 +442,6 @@ export const cancelFactoryPacket = mutationWithOrg({
   },
 });
 
-/* -------------------------------------------------------------------------- */
-/* Reads                                                                       */
-/* -------------------------------------------------------------------------- */
-
 const packetValidator = v.object({
   factoryPacketId: v.id("factoryPackets"),
   warehouseId: v.id("warehouses"),
@@ -579,13 +466,6 @@ const packetValidator = v.object({
   acknowledgedAt: v.optional(v.number()),
 });
 
-/**
- * The packets at one site, in packet-number order.
- *
- * This remains the only query a production screen calls. The server joins each
- * bounded page to authoritative order-line, order, immutable revision, and file
- * junction rows; production roles still hold no engineering endpoint permission.
- */
 export const listFactoryPackets = queryWithOrg({
   args: {
     warehouseId: v.id("warehouses"),
@@ -698,7 +578,6 @@ const packetFileAccessValidator = v.union(
   }),
 );
 
-/** Mint an audited one-use download for a file pinned into this packet. */
 export const requestFactoryPacketFileAccess = mutationWithOrg({
   args: {
     warehouseId: v.id("warehouses"),

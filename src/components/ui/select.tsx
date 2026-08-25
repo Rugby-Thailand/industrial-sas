@@ -1,41 +1,5 @@
 "use client";
 
-/**
- * The shadcn/Radix Select, vendored and adapted for a warehouse floor.
- *
- * This is the official `Select / SelectTrigger > SelectValue / SelectContent >
- * SelectItem` composition from the shadcn Radix registry. Four things were
- * changed from the generated source, each for a reason this application already
- * had before the component existed:
- *
- * - **Colours are the repository's semantic tokens.** The registry paints with
- *   its own oklch palette; `globals.css` aliases the shadcn names onto
- *   `--token-*` instead, so a menu is `surface` on `border-strong` in both
- *   colour schemes. This is the whole point of the migration: a native
- *   `<select>` renders its popup with the *operating system's* colours, which is
- *   why the warehouse chooser showed as a white list on a dark screen no matter
- *   what the page did.
- * - **Every target clears 48 CSS pixels** (`INV-0010-06`, D-24). The registry
- *   ships a 32-pixel trigger and a 28-pixel row, which is a desktop density; a
- *   gloved hand on a rugged scanner needs `min-h-touch`, and this markup is
- *   shared with the handheld shell.
- * - **Labels wrap; they are never clipped.** The registry's `whitespace-nowrap`
- *   trigger and `line-clamp-1` value would truncate a Thai warehouse name at
- *   360 pixels, and a truncated identifier is the one an operator needs whole.
- *   Thai spaces separate phrases rather than words, so the wrap point is a
- *   phrase boundary and the string grows downward instead of disappearing.
- * - **`position="popper"` and `align="start"` are the defaults.** The registry
- *   default (`item-aligned`) positions the list over the trigger with the
- *   selected row under the cursor, which on a narrow screen puts the menu
- *   half off-viewport. Popper anchors it to the trigger's edge.
- *
- * Everything else is Radix's, deliberately: roving focus, typeahead, Home/End,
- * Escape, the focus return to the trigger on close, the `aria-activedescendant`
- * bookkeeping, and the hidden native control that keeps `name`/`value` working
- * inside a real form submission. None of that is worth reimplementing, and a
- * reimplementation is what a hand-rolled menu would have been.
- */
-
 import * as React from "react";
 import { Select as SelectPrimitive } from "radix-ui";
 import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react";
@@ -109,12 +73,7 @@ function SelectContent({
           data-position={position}
           className={cn(
             "p-1",
-            /*
-             * The menu is at least as wide as the trigger it belongs to, never
-             * exactly as wide: a Thai location description is routinely longer
-             * than the control that shows it, and a list clamped to the trigger
-             * width would hide the end of every row.
-             */
+
             "data-[position=popper]:w-full data-[position=popper]:min-w-(--radix-select-trigger-width)",
           )}
         >
@@ -136,12 +95,7 @@ function SelectItem({
       data-slot="select-item"
       className={cn(
         "relative flex min-h-touch w-full cursor-default items-center gap-2 rounded-md py-2 pr-9 pl-3 text-sm outline-hidden select-none",
-        /*
-         * The highlight is the action colour with its own contrast text rather
-         * than a grey wash, so the current row survives a sunlit dock and a
-         * colour-vision deficiency alike — and the check mark on the right says
-         * the same thing again without colour (`WCAG 2.2` 1.4.1).
-         */
+
         "focus:bg-accent focus:text-accent-foreground",
         "data-disabled:pointer-events-none data-disabled:text-disabled",
         "[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",

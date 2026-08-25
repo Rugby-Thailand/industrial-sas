@@ -5,13 +5,6 @@ import { PurchaseOrderForm } from "@/features/inbound/InboundForms";
 import { PurchaseOrdersPanel } from "@/features/inbound/InboundPanels";
 import { InboundSection } from "@/features/inbound/InboundPrimitives";
 
-/**
- * The purchase-order register for one site.
- *
- * Warehouse-scoped, because a delivery arrives at a *site*: an order that
- * belonged only to the organization would be receivable by an actor with no
- * membership at the dock it turned up on (`INV-0006-04`).
- */
 export default async function PurchaseOrdersPage({
   params,
 }: {

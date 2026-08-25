@@ -1,50 +1,9 @@
-/**
- * The factory packet: the one document that crosses from the office to the shop
- * floor, and the pin that makes it mean one exact thing.
- *
- * Status: **implemented.** Pure; no clock, no database, no Convex import
- * (plan §6.2).
- *
- * ### Why the packet pins references and the read model composes them
- *
- * A packet pins one released revision by id. Its production read model composes
- * the immutable revision with the order line, order, and approved-file junction
- * rows after the production permission check. That keeps the stored relations in
- * third normal form without exposing an engineering endpoint to the floor.
- *
- * ### Why an unreleased revision can never be pinned
- *
- * The single most expensive mistake in this flow is a factory cutting to a spec
- * nobody approved. `checkPacketIssue` refuses any revision that is not
- * `RELEASED`, and refuses it before it looks at anything else.
- *
- * ### Why quantity is derived rather than typed
- *
- * The packet is for the line, whole. A separately entered quantity is a number
- * that can differ from the line it claims to satisfy, and the difference would
- * only be noticed when the customer counted the delivery. Partial and split
- * production runs are a factory-order concern (`WF-02`, Phase 5B), not a packet
- * concern, and are deliberately absent here rather than half-built.
- */
 import { fail, ok, type Result } from "../result";
 
-/* -------------------------------------------------------------------------- */
-/* Statuses                                                                    */
-/* -------------------------------------------------------------------------- */
-
-/**
- * `ISSUED` — handed to the factory, not yet picked up.
- * `ACKNOWLEDGED` — the factory has confirmed receipt; work may begin.
- * `CANCELLED` — terminal; withdrawn before the factory picked it up.
- */
 export type FactoryPacketStatus = "ISSUED" | "ACKNOWLEDGED" | "CANCELLED";
 
 export const FACTORY_PACKET_STATUSES: readonly FactoryPacketStatus[] =
   Object.freeze(["ISSUED", "ACKNOWLEDGED", "CANCELLED"] as const);
-
-/* -------------------------------------------------------------------------- */
-/* Errors                                                                      */
-/* -------------------------------------------------------------------------- */
 
 export type FactoryPacketError =
   | {
@@ -59,44 +18,24 @@ export type FactoryPacketError =
       readonly reason: string;
     };
 
-/* -------------------------------------------------------------------------- */
-/* The pin                                                                     */
-/* -------------------------------------------------------------------------- */
-
-/** The released revision relationship a packet freezes at issue time. */
 export interface FactoryPacketPin {
   readonly masterCardRevisionId: string;
 }
 
-/** What this module needs to know about a packet. */
 export interface FactoryPacketState {
   readonly status: FactoryPacketStatus;
 }
 
-/** What this module needs to know about the revision being pinned. */
 export interface PinnableRevision {
   readonly revisionId: string;
   readonly status: string;
 }
 
-/* -------------------------------------------------------------------------- */
-/* Issue                                                                       */
-/* -------------------------------------------------------------------------- */
-
-/** What a successful issue decision produces. */
 export interface PacketIssue {
   readonly status: FactoryPacketStatus;
   readonly pin: FactoryPacketPin;
 }
 
-/**
- * Whether a packet may be issued, and exactly what it would pin.
- *
- * The line's pinned revision and the revision handed in must be the same
- * document. They are separate parameters because the caller loads them
- * separately, and a mismatch means the line moved between the two reads — which
- * is precisely the race that would put yesterday's dieline on today's packet.
- */
 export function checkPacketIssue(input: {
   readonly line: {
     readonly status: string;
@@ -157,20 +96,6 @@ export function checkPacketIssue(input: {
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/* Acknowledge and cancel                                                      */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Whether the factory may acknowledge this packet.
- *
- * A second acknowledgement is refused rather than absorbed. Genuine retries — a
- * dropped response, a double-tapped button — are already answered by the
- * idempotency record at the boundary, which replays the first result; what
- * reaches this module is a *different* request claiming to acknowledge a packet
- * that is already claimed, and reporting that plainly is more useful than
- * pretending it worked.
- */
 export function checkPacketAcknowledgement(
   packet: FactoryPacketState,
 ): Result<FactoryPacketStatus, FactoryPacketError> {
@@ -193,14 +118,6 @@ export function checkPacketAcknowledgement(
   return ok("ACKNOWLEDGED");
 }
 
-/**
- * Whether a packet may be withdrawn.
- *
- * Only before the factory picks it up. Once acknowledged, material may already
- * be cut, and a system that quietly cancelled it would be describing a floor
- * state that is not true. Withdrawing acknowledged work needs a factory-order
- * conversation (`WF-02`, Phase 5B) rather than a status flip here.
- */
 export function checkPacketCancellation(
   packet: FactoryPacketState,
 ): Result<FactoryPacketStatus, FactoryPacketError> {

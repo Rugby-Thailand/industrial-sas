@@ -1,29 +1,3 @@
-/**
- * Supervisor step-up, granted on the operator's own device (`FF-P1-11`, plan §4
- * invariant 19).
- *
- * The rules are `convex/model/platform/stepUp.ts`; the consumption is
- * `convex/platform/tasks.ts`. What happens here is the mint, and the two things
- * that make it safe are both enforced by machinery this repository already
- * owns rather than by anything invented for this module:
- *
- * - **Freshness.** `work.stepUp.approve` carries `STEP_UP`, so the existing
- *   evaluator refuses unless Clerk reverified *the approver* inside the
- *   step-up window (`INV-0006-07`). The supervisor proves who they are on the
- *   handheld in their hand; the operator's session is untouched.
- * - **No self-approval.** The same permission carries `MAKER_CHECKER`, and the
- *   policy hands the *operator* to the evaluator as the maker, so an approver
- *   who is the operator is denied with the ordinary `APPROVAL_REQUIRED` reason
- *   and the ordinary audit row. The domain's `APPROVER_IS_OPERATOR` refusal is
- *   a second, independent check rather than the only one.
- *
- * What this mutation does **not** do is give the browser anything reusable. It
- * returns a document ID whose every property is checked again at consumption:
- * operation, target, operator, device, expiry, and single use. Possession of it
- * cannot be spent on a second entry, on another task, on another device, or by
- * another person — which is the difference between an approval and an
- * elevation.
- */
 import { v } from "convex/values";
 
 import {
@@ -74,31 +48,22 @@ const approvalOutcomeValidator = v.union(
     written: v.literal(true),
     documentId: v.string(),
     replayed: v.boolean(),
-    /** When the approval dies, so the screen can show a countdown, not a promise. */
+
     expiresAt: v.number(),
     decision: stepUpDecision,
   }),
   v.object({ written: v.literal(false), error: writeErrorValidator }),
 );
 
-/**
- * Approve — or refuse — one blocked action, on the operator's device.
- *
- * The device is resolved from the installation ID the operator's browser
- * reports, through this organization's own index. A client-supplied device
- * document ID is never accepted: the point of binding the approval to a device
- * is that it cannot be spent on a different one, and a caller who could name
- * any device could name the one they were about to move to.
- */
 export const approveOnDevice = mutationWithOrg({
   args: {
     requestId: v.string(),
     warehouseId: v.id("warehouses"),
-    /** The operator who will spend it. Never the approver. */
+
     operatorUserId: v.id("users"),
-    /** The task the approval is about. */
+
     operatorTaskId: v.id("operatorTasks"),
-    /** The operator device this is being decided on. */
+
     installationId: v.string(),
     decision: stepUpDecision,
     reason: v.string(),
@@ -121,11 +86,6 @@ export const approveOnDevice = mutationWithOrg({
       return refusal({ code: "NOT_FOUND", table: "operatorTasks" });
     }
 
-    /*
-     * The operator must be a member of this tenant. `users` is global, so a
-     * plausible ID from another tenant would otherwise resolve to a person this
-     * supervisor has no standing to approve for.
-     */
     const membership = await ctx.tenantDb
       .byIndex<MembershipDocument & Record<string, never>>(
         "memberships",
@@ -162,12 +122,6 @@ export const approveOnDevice = mutationWithOrg({
       return refusal({ ...grant.error, table: "stepUpApprovals" });
     }
 
-    /*
-     * A transport retry must resolve to the approval already minted. Without
-     * this record, one supervisor tap could become several independently
-     * spendable approvals when the acknowledgement is lost, defeating the
-     * single-use guarantee even though each individual row is consumed once.
-     */
     const fingerprint = await fingerprintArguments({
       warehouseId: args.warehouseId,
       operatorUserId: grant.value.operatorUserId,

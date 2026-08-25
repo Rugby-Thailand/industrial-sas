@@ -32,20 +32,6 @@ import { previewOrderLinesFor } from "@tests/fixtures/data/inbound";
 
 import { ReceiptLineForm } from "./InboundForms";
 
-/**
- * What the inbound screens do when the data is real — or when it is missing.
- *
- * The preview suite proves the screens *render*; this one proves they never
- * invent an identifier to render with. Two failure shapes are covered:
- *
- * 1. **An empty-but-successful read.** A warehouse with no dock configured is a
- *    master-data job, not an error, and the screen must say which. An empty
- *    `<select>` would let an operator submit a form whose refusal names a field
- *    they were never able to fill.
- * 2. **A blocked read.** No backend, no identity, or no chosen site. That is a
- *    different fix from an empty warehouse, and telling them apart is the whole
- *    reason `OptionSet` has three states.
- */
 const BANG_PU = "prv_wh_bangpoo";
 
 describe("OptionGate", () => {
@@ -74,7 +60,6 @@ describe("OptionGate", () => {
   });
 
   it("distinguishes a read in flight from an empty answer", () => {
-    // A read that has not answered has not said there is nothing.
     gate({ kind: "LOADING" });
 
     expect(screen.queryByTestId("none")).not.toBeInTheDocument();
@@ -82,11 +67,6 @@ describe("OptionGate", () => {
   });
 
   it("names the gate when the read cannot happen at all", () => {
-    /*
-     * "You have not chosen a warehouse" is one click; "this site has no dock" is
-     * a supervisor's afternoon. A screen that showed the same message for both
-     * would send an operator to the wrong place.
-     */
     gate({ kind: "BLOCKED", gate: { kind: "WAREHOUSE_MISSING" } });
     expect(screen.getByTestId("panel-WAREHOUSE_MISSING")).toBeInTheDocument();
   });
@@ -117,11 +97,6 @@ describe("LocationChooser", () => {
       "option",
     );
 
-    /*
-     * Codes on the label, document identifiers underneath. An operator reads
-     * `DOCK-IN-1` off a sign; the mutation takes the ID, and asserting both is
-     * what stops one being quietly substituted for the other.
-     */
     expect(options.length).toBeGreaterThan(0);
     expect(
       options.every((option) =>
@@ -134,12 +109,6 @@ describe("LocationChooser", () => {
   });
 
   it("hands the chosen dock's identifier to its caller", () => {
-    /*
-     * The receiving flow is shared by the desktop receipt screen and the
-     * handheld one — the same component, the same props, one keyboard path. If
-     * the dock did not come back as an ID here, the pallet and the lines on it
-     * would be recorded at different places.
-     */
     const onChange = vi.fn();
     const dock = previewLocationsFor(BANG_PU)[0];
     expect(dock).toBeDefined();
@@ -165,11 +134,6 @@ describe("LocationChooser", () => {
 
 describe("ReceiptDetail in real mode", () => {
   it("blocks every step rather than assuming a dock", () => {
-    /*
-     * With no backend configured there is no receiving-location read, so the
-     * capture step is blocked. The screen previously hard-coded a dock here and
-     * would have sent a synthetic identifier to a real mutation.
-     */
     writeStoredWarehouse(BANG_PU);
     renderWithIntl(<ReceiptDetail receiptId="rcpt_real_1" />, {
       environment: unconfiguredEnvironment,
@@ -182,8 +146,6 @@ describe("ReceiptDetail in real mode", () => {
   });
 
   it("offers no label control until a pallet exists", () => {
-    // A label for a pallet that does not exist would carry a `targetId` the
-    // tenant does not have.
     writeStoredWarehouse(BANG_PU);
     renderWithIntl(<ReceiptDetail receiptId="prv_rcpt_5010" />, {
       environment: testEnvironment,
@@ -208,11 +170,6 @@ describe("ReceiptDetail in real mode", () => {
 
 describe("HandheldReceive in real mode", () => {
   it("has no field for typing a receipt identifier", () => {
-    /*
-     * The receipt ID comes out of the write that created it. Asking an operator
-     * to copy a Convex document ID between screens is not a flow anybody
-     * completes wearing gloves.
-     */
     writeStoredWarehouse(BANG_PU);
     renderWithIntl(<HandheldReceive />, { environment: testEnvironment });
 
@@ -237,7 +194,6 @@ describe("HandheldReceive in real mode", () => {
     writeStoredWarehouse(BANG_PU);
     renderWithIntl(<HandheldReceive />, { environment: testEnvironment });
 
-    // Nothing chosen yet: the screen says which step is missing.
     expect(screen.getByTestId("handheld-no-order")).toBeInTheDocument();
     expect(screen.queryByTestId("form-receipt-line")).not.toBeInTheDocument();
   });
@@ -256,15 +212,6 @@ describe("PutawayWorkbench in real mode", () => {
 });
 
 describe("the receipt-line capture form", () => {
-  /**
-   * The form that used to ask for an item's document ID.
-   *
-   * A capture screen is where the free-text-identifier problem is worst: it is
-   * the one an operator uses hundreds of times a shift, on a scanner, wearing
-   * gloves. So the item arrives one of two ways — resolved from what is printed
-   * on the carton, or picked from what the order asked for — and neither is a
-   * string only somebody with database access could produce.
-   */
   const lines = previewOrderLinesFor("prv_po_2601");
 
   const render = () => {
@@ -284,17 +231,13 @@ describe("the receipt-line capture form", () => {
 
     const labels = selectOptionLabels("สินค้าที่รับ");
     expect(labels.length).toBeGreaterThan(0);
-    // A SKU a person reads off a box, not a `prv_`-shaped document ID.
+
     expect(labels.every((label) => !label.startsWith("prv_"))).toBe(true);
   });
 
   it("selects the ordered line a scanned barcode resolves to", () => {
     render();
 
-    /*
-     * Deliberately not the first line: the form defaults to that one, so a test
-     * that scanned it would pass whether or not the scan did anything.
-     */
     const target = lines.find(
       (line) =>
         line.purchaseOrderLineId !== lines[0]?.purchaseOrderLineId &&
@@ -310,11 +253,6 @@ describe("the receipt-line capture form", () => {
     });
     fireEvent.click(screen.getByTestId("scan-to-item-resolve"));
 
-    /*
-     * The Radix trigger shows the *label* of the chosen row rather than its
-     * value, which is the better assertion anyway: a document ID proves the
-     * wiring, and the SKU proves the operator can read what the scan picked.
-     */
     const sku = previewItems().find(
       (item) => item.itemId === target?.itemId,
     )?.sku;
@@ -337,11 +275,6 @@ describe("the receipt-line capture form", () => {
   });
 
   it("names an item that resolved but is not on this order", () => {
-    /*
-     * The ordinary path posts what was ordered. An unexpected delivery is a
-     * second person's decision (`INV-0007-06`), so the screen says so instead of
-     * quietly letting the server refuse a field the operator filled correctly.
-     */
     render();
 
     const offOrder = previewItems().find(

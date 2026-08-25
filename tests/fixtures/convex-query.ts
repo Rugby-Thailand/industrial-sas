@@ -63,7 +63,6 @@ const page = (rows: readonly unknown[], args: Args) => {
   return previewMasterDataPage(rows, maxPageSize, cursor);
 };
 
-/** Test-only Convex answers for component rendering. */
 export function resolveTestQuery(name: string, args: Args): unknown {
   const warehouseId = String(args.warehouseId ?? "prv_wh_bangpoo");
   const itemId = String(args.itemId ?? "");

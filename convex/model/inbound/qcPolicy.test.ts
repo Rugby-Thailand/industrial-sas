@@ -20,8 +20,6 @@ describe("planSample", () => {
   });
 
   it("rounds a percentage sample up", () => {
-    // 10% of 15 is 1.5. Inspecting one would be less than the tenant configured,
-    // and would weaken every plan on an odd lot size.
     const plan = planSample({
       strategy: "PERCENT",
       parameter: 10,
@@ -31,10 +29,6 @@ describe("planSample", () => {
   });
 
   it("never plans a sample of zero for a delivery that exists", () => {
-    /*
-     * A configured plan that inspects nothing reads as a *passed* inspection in
-     * every report that counts them.
-     */
     const percent = planSample({
       strategy: "PERCENT",
       parameter: 1,
@@ -44,7 +38,6 @@ describe("planSample", () => {
   });
 
   it("never plans a sample larger than the delivery", () => {
-    // `FIXED 100` against 30 units inspects 30: the other 70 do not exist.
     const plan = planSample({ strategy: "FIXED", parameter: 100, lotSize: 30 });
 
     expect(plan.ok && plan.value.sampleSize).toBe(30);
@@ -61,11 +54,6 @@ describe("planSample", () => {
   it.each(UNSUPPORTED_SAMPLING_STRATEGIES)(
     "refuses %s by name rather than falling back",
     (strategy) => {
-      /*
-       * Falling back to `ALL` would be the most expensive wrong answer; falling
-       * back to `FIXED` would let a regulated customer believe a sampling plan
-       * had been applied that never was (plan §2.3, B-01).
-       */
       const plan = planSample({ strategy, parameter: 4, lotSize: 100 });
 
       expect(plan.ok).toBe(false);
@@ -110,11 +98,6 @@ describe("resolveQcApplicability", () => {
   };
 
   it("is not controlled when no profile matches", () => {
-    /*
-     * The honest default for an unconfigured tenant. Inventing a hold nobody
-     * configured would strand stock at the dock on day one, and `OPS-0007-03` is
-     * the open gate that says which items and suppliers are gated.
-     */
     const applicability = resolveQcApplicability([]);
 
     expect(applicability.controlled).toBe(false);
@@ -122,8 +105,6 @@ describe("resolveQcApplicability", () => {
   });
 
   it("lets the item profile beat the supplier profile", () => {
-    // "This component is critical" is a stronger statement than "this vendor is
-    // generally reliable".
     const applicability = resolveQcApplicability([
       supplierProfile,
       itemProfile,
@@ -144,8 +125,6 @@ describe("resolveQcApplicability", () => {
   });
 
   it("honours a matched profile that is switched off", () => {
-    // A disabled item profile is a decision, and it beats an enabled supplier
-    // profile for the same reason an enabled one would.
     const applicability = resolveQcApplicability([
       { ...supplierProfile, enabled: true },
       { ...itemProfile, enabled: false },
@@ -173,18 +152,11 @@ describe("planDisposition", () => {
   });
 
   it("marks rework as a re-inspection rather than a movement", () => {
-    // Not a no-op: the ledger records that a decision was taken, and losing that
-    // would lose the only evidence anybody looked.
     const plan = planDisposition({ ...held, disposition: "REWORK" });
     expect(plan.ok && plan.value.isReinspection).toBe(true);
   });
 
   it("refuses to release stock that is not held", () => {
-    /*
-     * There is no hold to lift. Posting the transition anyway would move
-     * quantity out of a bucket that does not hold it, and the ledger would
-     * refuse it later with a message about balances rather than about quality.
-     */
     const plan = planDisposition({
       disposition: "RELEASE",
       sourceStatus: "AVAILABLE",
@@ -195,8 +167,6 @@ describe("planDisposition", () => {
   });
 
   it("requires a reason for every disposition", () => {
-    // The reason is the only durable record of *why* a batch was rejected once
-    // the inspector has gone home (`ADR-0003` §5).
     for (const disposition of [
       "RELEASE",
       "QUARANTINE",

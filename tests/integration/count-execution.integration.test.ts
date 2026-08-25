@@ -1,4 +1,3 @@
-/** Count plan → blind count → independent recount → approved ledger adjustment. */
 import type { GenericMutationCtx } from "convex/server";
 import type { GenericId } from "convex/values";
 import { describe, expect, it } from "vitest";

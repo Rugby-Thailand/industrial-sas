@@ -1,4 +1,3 @@
-/** Pick, independent check, pack, stage, and inventory issue execution. */
 import { v } from "convex/values";
 
 import {
@@ -1068,7 +1067,6 @@ async function issueReversalPolicy(
   };
 }
 
-/** Reverse an unshipped issue and restore its exact reservation/pick state. */
 export const reverseIssuedPickTask = mutationWithOrg({
   args: {
     requestId: v.string(),

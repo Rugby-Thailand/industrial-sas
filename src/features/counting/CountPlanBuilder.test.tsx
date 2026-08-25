@@ -22,17 +22,6 @@ import {
 
 import { CountPlanBuilder } from "./CountPlanBuilder";
 
-/**
- * The count-plan authoring screen, driven the way an operator drives it.
- *
- * What is protected here is the redesign's contract rather than its markup:
- * the risk thresholds are hidden until asked for but still submitted at their
- * documented defaults; the three policies read as labelled pressed buttons
- * rather than enum strings; and a successful create offers exactly one next
- * step — release — with the saved plan ID travelling inside the mutation
- * arguments, never through an editable field an operator could corrupt.
- */
-
 const bucket = encodeBucketKey({
   orgId: "org_1",
   warehouseId: "warehouse_1",
@@ -125,7 +114,7 @@ describe("risk settings disclosure", () => {
 
     const disclosure = screen.getByRole("button", { name: /Risk settings/ });
     expect(disclosure).toHaveAttribute("aria-expanded", "false");
-    // The badge says the hidden values are the documented defaults.
+
     expect(disclosure).toHaveTextContent("Defaults");
     expect(
       screen.queryByRole("textbox", { name: "High-risk quantity threshold" }),
@@ -212,7 +201,6 @@ describe("policy controls", () => {
   it("offers each policy as labelled pressed buttons, never enum strings", () => {
     renderBuilder();
 
-    // The defaults read as selected through `aria-pressed`.
     expect(screen.getByRole("button", { name: /^Cycle/ })).toHaveAttribute(
       "aria-pressed",
       "true",
@@ -225,7 +213,6 @@ describe("policy controls", () => {
       screen.getByRole("button", { name: /^Movement-aware/ }),
     ).toHaveAttribute("aria-pressed", "true");
 
-    // The wire values stay off the screen.
     expect(screen.queryByText("MOVEMENT_AWARE")).not.toBeInTheDocument();
     expect(screen.queryByText("BLIND")).not.toBeInTheDocument();
 
@@ -251,7 +238,6 @@ describe("after a successful create", () => {
     const created = await screen.findByTestId("count-plan-created");
     expect(created).toHaveTextContent("Plan COUNT-9 created");
 
-    // The saved ID travels inside the mutation, never through a field.
     expect(screen.queryByDisplayValue("plan_123")).not.toBeInTheDocument();
     expect(screen.queryByText("plan_123")).not.toBeInTheDocument();
 

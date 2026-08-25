@@ -8,12 +8,6 @@ import { BalancesTable } from "./BalancesTable";
 
 import type { BalanceRow } from "@/lib/convex/ledgerApi";
 
-/**
- * Keys built by the real encoder, not by hand.
- *
- * The cell decodes what it renders, so a hand-written approximation of a key
- * would exercise the fallback path and prove nothing about the ordinary one.
- */
 const keyFor = (bucket: {
   readonly itemId: string;
   readonly locationId: string;
@@ -75,8 +69,6 @@ describe("BalancesTable", () => {
   });
 
   it("names every stock status in words, never by colour alone", () => {
-    // `INV-0010-07`. The badge tone is a second signal; this asserts the first
-    // one exists, in Thai.
     renderWithIntl(<BalancesTable rows={rows} />);
 
     expect(screen.getByText("พร้อมใช้")).toBeInTheDocument();
@@ -91,8 +83,6 @@ describe("BalancesTable", () => {
   });
 
   it("falls back to the raw code for a status the catalogue does not know", () => {
-    // A server deployed ahead of the browser that is reading it. The code is the
-    // same string the logs use, so it is reportable; a placeholder would not be.
     renderWithIntl(
       <BalancesTable
         rows={[{ ...rows[0]!, stockStatus: "SOME_FUTURE_STATUS" }]}
@@ -103,11 +93,6 @@ describe("BalancesTable", () => {
   });
 
   it("names each dimension of the bucket, whole and labelled", () => {
-    /*
-     * The key itself is not for reading, and the abbreviation that used to stand
-     * in for it discarded the only part that varies. What a row is *about* is
-     * its item, its location, and its lot.
-     */
     renderWithIntl(<BalancesTable rows={rows} />);
 
     expect(screen.getByText("item_steel_coil")).toBeInTheDocument();
@@ -117,8 +102,6 @@ describe("BalancesTable", () => {
   });
 
   it("omits a dimension the bucket does not have", () => {
-    // The second row has no lot. A label with nothing under it would read as a
-    // lot whose code is missing.
     renderWithIntl(<BalancesTable rows={rows} />);
 
     expect(screen.getAllByText("ล็อต")).toHaveLength(1);
@@ -126,11 +109,6 @@ describe("BalancesTable", () => {
   });
 
   it("tells two buckets apart when only their lot differs", () => {
-    /*
-     * The defect this replaced: both rows abbreviated to the same text, because
-     * what the abbreviation kept — the organization prefix and the stock status
-     * — is what every row of one screen shares.
-     */
     const first = keyFor({
       itemId: "item_steel_coil",
       locationId: "loc_A01-02-1",
@@ -160,8 +138,6 @@ describe("BalancesTable", () => {
   });
 
   it("shows a key it cannot decode as itself, rather than as a guess", () => {
-    // A row written by an encoding this browser does not know. The string is the
-    // only thing left that is true about it, so none of it is thrown away.
     const malformed = "IB1|3:org|11:wh_bangpoo";
     renderWithIntl(
       <BalancesTable rows={[{ ...rows[0]!, bucketKey: malformed }]} />,
@@ -172,7 +148,6 @@ describe("BalancesTable", () => {
   });
 
   it("counts one row as one row in English", () => {
-    // `1 balance rows` was in the audit. The caption chooses its noun.
     renderWithIntl(<BalancesTable rows={[rows[0]!]} />, { locale: "en" });
 
     expect(screen.getByText("1 balance row")).toBeInTheDocument();
@@ -192,12 +167,6 @@ describe("BalancesTable", () => {
   });
 
   it("puts the scroller in a named region a keyboard can reach", () => {
-    /*
-     * The UOM column is the one a 360px viewport pushes off the right edge, and
-     * an `overflow-x-auto` box that nothing inside can focus is unscrollable
-     * without a pointer (WCAG 2.2 2.1.1, axe `scrollable-region-focusable`).
-     * The region is named by the caption, so it says which table it belongs to.
-     */
     renderWithIntl(<BalancesTable rows={rows} />);
 
     const caption = "ยอดคงเหลือ 2 รายการ";
@@ -210,8 +179,6 @@ describe("BalancesTable", () => {
   });
 
   it("tells a narrow screen that the columns continue past the edge", () => {
-    // The same sentence, from the same namespace, as every master-data table:
-    // the cue is the inventory screens' too, not only the register's.
     renderWithIntl(<BalancesTable rows={rows} />);
 
     const hint = screen.getByText(

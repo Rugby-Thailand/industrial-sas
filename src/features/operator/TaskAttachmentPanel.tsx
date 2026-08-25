@@ -1,6 +1,5 @@
 "use client";
 
-/** Capability-gated private UploadThing evidence for one operator task. */
 import { useMutation } from "convex/react";
 import { useLocale, useTranslations } from "next-intl";
 import { useState } from "react";

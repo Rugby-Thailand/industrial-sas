@@ -1,23 +1,5 @@
 "use client";
 
-/**
- * The option lists the inbound write forms choose from.
- *
- * Every one answers the same question in the same shape: *what may this operator
- * pick right now?* — a receiving dock, an open order, an order's open lines, a
- * task's ranked bins. Each is a component with a render prop rather than a hook,
- * and that is forced rather than stylistic: `useQuery` throws without a
- * `ConvexProvider`, there is no provider when no deployment is configured, and a
- * hook cannot decline to run. So the gate is resolved first and the branch that
- * queries is a separate component — the same split `MasterDataPanel` and
- * `EntityWriteForm` already use.
- *
- * The three endings are `OptionGate`'s, and the distinction that matters is
- * `READY` with zero options versus `BLOCKED`. "This warehouse has no dock
- * configured" is a master-data job for a supervisor; "you have not chosen a
- * warehouse" is one click. A form that showed an empty select for both would
- * send an operator to the wrong place.
- */
 import { useQuery } from "convex/react";
 import type { ReactNode } from "react";
 
@@ -43,7 +25,6 @@ import {
 } from "@/lib/convex/masterDataApi";
 import { OptionGate, type OptionSet } from "./OptionPicker";
 
-/** What every option source hands its caller. */
 export interface OptionSourceProps<Value> {
   readonly emptyTitle: string;
   readonly emptyBody: string;
@@ -56,14 +37,6 @@ const ready = <Value,>(values: readonly Value[]): OptionSet<Value> => ({
   values,
 });
 
-/**
- * The gate every inbound picker shares.
- *
- * Warehouse-scoped, because every inbound read is: a delivery arrives at a site,
- * and a picker that answered before a site was chosen would be answering about
- * nowhere.
- */
-/** Render the gate's own status, or hand the caller a resolved warehouse. */
 function GateOr({
   render,
 }: {
@@ -76,20 +49,6 @@ function GateOr({
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/* Receiving locations                                                         */
-/* -------------------------------------------------------------------------- */
-
-/**
- * The docks and staging lanes a receipt line may be posted to.
- *
- * The type rule lives on the server (`RECEIVING_LOCATION_TYPES`) and is not
- * restated on this side: a client-side filter would be a second copy of a domain
- * rule, and the copy is the one that drifts.
- *
- * The answer is complete: the server reads through an index whose prefix
- * includes the location type, so rack volume cannot hide a dock.
- */
 export function ReceivingLocations(props: OptionSourceProps<LocationRow>) {
   return (
     <GateOr
@@ -121,11 +80,6 @@ function ServerReceivingLocations({
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/* Purchase orders and their open lines                                        */
-/* -------------------------------------------------------------------------- */
-
-/** The orders at this site that may still be received against. */
 export function OpenPurchaseOrders(props: OptionSourceProps<PurchaseOrderRow>) {
   return (
     <GateOr
@@ -161,13 +115,6 @@ function ServerOpenOrders({
   );
 }
 
-/**
- * The lines of one order that are still open.
- *
- * Narrowed by the server through `by_orgId_purchaseOrderId_status`, not filtered
- * here: a complete, cancelled, or short-closed line cannot be received against,
- * and offering one would be offering a choice the server refuses.
- */
 export function OpenOrderLines({
   purchaseOrderId,
   ...props
@@ -223,17 +170,6 @@ function ServerOpenLines({
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/* One receipt, and the lines posted against it                                */
-/* -------------------------------------------------------------------------- */
-
-/**
- * The receipt a screen is working on.
- *
- * Empty when the identifier names nothing this tenant owns — the same answer a
- * nonexistent receipt produces, because the server cannot distinguish them
- * either (`INV-0002-03`).
- */
 export function Receipt({
   receiptId,
   ...props
@@ -276,14 +212,6 @@ function ServerReceipt({
   );
 }
 
-/**
- * The lines already posted against a receipt.
- *
- * The pallet build and the label both need them: a pallet is built *from*
- * received lines, and the label is generated for the pallet those lines were put
- * on. Reading them here keeps both steps honest when the receipt is empty — the
- * sections say so instead of offering a control that would refuse.
- */
 export function PostedReceiptLines({
   receiptId,
   ...props
@@ -330,23 +258,6 @@ function ServerReceiptLines({
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/* Inspections waiting for a second person                                     */
-/* -------------------------------------------------------------------------- */
-
-/**
- * The inspections a *different* actor may approve.
- *
- * Read as a list rather than typed as an ID, and that is what preserves
- * maker-checker in practice: the approver is a second signed-in person who did
- * not submit the disposition, and asking them to obtain the inspection's
- * document ID from the submitter would either not happen or happen by
- * screenshot. They pick it from the queue their own permission can read.
- *
- * The server still decides. `quality.disposition.approve` carries maker-checker,
- * and the submitter selecting their own inspection here is denied
- * (`INV-0006-05`) — the list is a convenience, never the control.
- */
 export function PendingInspections(props: OptionSourceProps<InspectionRow>) {
   return (
     <GateOr
@@ -382,20 +293,7 @@ function ServerPendingInspections({
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/* Putaway confirmation options                                                */
-/* -------------------------------------------------------------------------- */
-
-/**
- * The locations a confirmation may choose from.
- *
- * These come from the **same recommendation the operator was shown** — after a
- * claim, the trace the server stored. That is what makes the picker
- * hard-constraint safe without the client knowing what a hard constraint is: a
- * bin the filters rejected never entered the ranked list, so it can never be
- * offered, and the server validates the choice against the same trace
- * (`INV-0007-08`).
- */
+// Validate against the stored recommendation the operator actually saw.
 export function RankedPutawayLocations({
   putawayTaskId,
   ...props

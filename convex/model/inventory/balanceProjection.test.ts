@@ -1,12 +1,3 @@
-/**
- * Unit tier — balance projection, the non-negativity rule, and reconciliation.
- *
- * The two folds — incremental and replay — have to agree exactly, and
- * `tests/properties/inventory-ledger.property.test.ts` proves that over randomized
- * sequences. What is pinned here is the behaviour at the edges: a zero balance that
- * is kept rather than dropped, a virtual boundary that may go negative and a physical
- * bucket that may not, and drift reported rather than repaired.
- */
 import { describe, expect, it } from "vitest";
 
 import { makeQuantity, type Quantity } from "../uom/quantity";

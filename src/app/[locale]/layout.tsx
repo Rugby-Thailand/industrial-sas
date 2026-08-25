@@ -15,29 +15,6 @@ import { routing } from "@/i18n/routing";
 
 import "../globals.css";
 
-/**
- * The root layout, inside the locale segment.
- *
- * There is deliberately no `src/app/layout.tsx`. Every route in this
- * application is locale-prefixed (`localePrefix: "always"`), so this *is* the
- * root — and it has to be, because `<html lang>` must carry the resolved locale
- * from the very first byte. A root layout above this one could only hard-code a
- * language, and a Thai page announcing `lang="en"` is read out by a screen
- * reader in the wrong voice and hyphenated by the wrong rules.
- *
- * `setRequestLocale` is what lets these pages render statically: without it,
- * anything reading a translation opts the route into dynamic rendering.
- *
- * An unknown segment is a 404 rather than a silent fallback to Thai. `/xx/…` is
- * a URL nobody meant to visit, and quietly serving Thai for it would make every
- * typo look like a working page.
- *
- * The client provider here carries the *shell* namespaces only. Given no
- * `messages` prop it would inherit the entire request configuration and
- * serialize all 46 namespaces into every route's payload; it used to, and that
- * was 82.8% of the bytes of every prerendered `.rsc`. Each route subtree mounts
- * its own provider through `RouteMessages`. See `@/i18n/clientMessages`.
- */
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));
 }
@@ -64,11 +41,7 @@ export async function generateMetadata({
     description: t("description"),
     applicationName: t("name"),
     manifest: "/manifest.webmanifest",
-    /*
-     * This application has no public surface and never should: it is a tenant's
-     * warehouse data behind an identity provider. `noindex, nofollow` stays
-     * until there is a marketing site that wants the opposite.
-     */
+
     robots: { index: false, follow: false },
   };
 }

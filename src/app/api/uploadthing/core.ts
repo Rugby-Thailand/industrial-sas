@@ -75,8 +75,6 @@ const registerWithConvex = async (payload: {
 export const uploadRouter = {
   masterCardFile: f(
     {
-      // `blob` is UploadThing's catch-all route key. Keeping one key gives
-      // engineering formats, PDFs, and optimized photos the same explicit cap.
       blob: {
         maxFileSize: "64MB",
         maxFileCount: 1,

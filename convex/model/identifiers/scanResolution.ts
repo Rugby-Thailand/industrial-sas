@@ -1,60 +1,3 @@
-/**
- * Scan precedence (`ADR-0005` §13, `INV-0005-11`, `INV-0005-12`, §5 Q29).
- *
- * Status: **implemented** as syntactic classification only. Resolving an
- * interpretation to a document — a GTIN to an item, an LPN to a handling unit — is
- * a tenant-scoped lookup and belongs to the Convex layer, which does not exist
- * yet. This module decides *what a string is*, never *what it refers to*.
- *
- * The plan's ladder is GS1, then internal LPN, then GTIN, then SKU, otherwise
- * explicit rejection. A ladder alone is not enough, because the alphabets overlap:
- * an 18-digit SSCC begins with digits that are also a valid Application
- * Identifier, and a numeric item code can begin with `01`. A first-match ladder
- * would resolve those to whichever rung it happened to reach first, which is the
- * best-effort guessing the ADR rejects. So these rules sit on top of the order:
- *
- * 1. **A scan that can only be GS1 is decided by the GS1 parser alone.** If a
- *    symbology identifier or an FNC1 separator is present, the string is a GS1
- *    element string; if it does not parse, the scan is rejected with the parse
- *    error rather than retried as something else.
- * 2. **A content error in a GS1-shaped scan is fatal; a shape error is not.** A
- *    bad check digit, an impossible date, or a repeated AI means "this is GS1 and
- *    it is wrong" — a mis-scanned pallet label, not an item code. A truncated
- *    field or an unknown AI means "this is probably not GS1", and the remaining
- *    rungs are tried. Without the distinction, a mis-scanned GTIN would silently
- *    become a SKU lookup.
- * 3. **An internal LPN needs a namespace policy to be classified at all.** A
- *    well-formed internal LPN is somebody's pallet. Without the current tenant's
- *    registered prefixes there is no way to say whose, so an absent or empty
- *    `namespaces` is `LPN_NAMESPACE_POLICY_MISSING` rather than an acceptance of
- *    any label that happens to satisfy the check character.
- * 4. **A valid LPN that belongs to another prefix is rejected as foreign.** It is
- *    definitely a licence plate; it is definitely not this organization's. Reading
- *    it as a SKU would be the guess again.
- * 5. **A scan shaped like one of this tenant's LPNs but carrying a bad check
- *    character is `INVALID_LPN_SCAN`.** It matches a registered prefix and the
- *    exact internal length; it is a mis-keyed or damaged pallet label, and the
- *    rungs below must not be offered it — falling through would turn a corrupt
- *    LPN into a SKU lookup.
- * 6. **A bare 18-digit SSCC is never reinterpreted.** With `bareSscc` off it is
- *    `BARE_SSCC_DISABLED`, not a lot code, a GTIN, or a SKU: `10` + 16 digits is
- *    both a valid AI 10 element string and, for some digit strings, a valid SSCC,
- *    and the earlier ladder resolved exactly that case to a lot. With `bareSscc`
- *    on it is a candidate like any other, so a second reading makes it ambiguous.
- * 7. **A bare scan that satisfies two rungs is rejected as ambiguous**, naming the
- *    candidates. The SKU rung is excluded from that count: it is the deliberate
- *    catch-all, so counting it would make every scan ambiguous.
- *
- * The policy itself is validated before any of it (`INVALID_SCAN_POLICY`): a
- * reference year the GS1 date rule cannot use, a namespace that is not a
- * registered one, a prefix claimed by more than one organization key, or a flag
- * that is not a boolean would each decide a classification silently.
- *
- * The raw scan travels with every result and every rejection, because
- * `INV-0005-12` requires it to be persisted next to its interpretation.
- *
- * Pure module (plan §6.2): no Convex imports.
- */
 import {
   frozenArray,
   isArray,
@@ -90,7 +33,6 @@ import {
   type IdentifierError,
 } from "./normalization";
 
-/** The rungs, in the order they are tried. */
 export type ScanStage = "GS1" | "INTERNAL_LPN" | "SSCC" | "GTIN" | "SKU";
 
 export type ScanInterpretation =
@@ -101,14 +43,12 @@ export type ScanInterpretation =
   | { readonly kind: "SKU"; readonly sku: string };
 
 export interface ResolvedScan {
-  /** The scan exactly as received (`G-047`). */
   readonly raw: string;
-  /** The scan with the wedge terminator removed: what was actually parsed. */
+
   readonly normalized: string;
   readonly interpretation: ScanInterpretation;
 }
 
-/** Why one rung declined, so a rejection can be explained rung by rung. */
 export interface ScanStageFailure {
   readonly stage: ScanStage;
   readonly reason:
@@ -119,7 +59,6 @@ export interface ScanStageFailure {
     | IdentifierError["code"];
 }
 
-/** The policy field a rejected policy blamed. */
 export type ScanPolicyField =
   "referenceYear" | "namespaces" | "bareSscc" | "skuFallback";
 
@@ -180,24 +119,15 @@ export type ScanRejection =
     };
 
 export interface ScanResolutionPolicy {
-  /** Required by the GS1 date AIs; never taken from the host clock. */
   readonly referenceYear: number;
-  /**
-   * The organization's LPN namespaces. Required to classify an internal LPN at
-   * all: absent or empty, a well-formed internal LPN is rejected with
-   * `LPN_NAMESPACE_POLICY_MISSING` rather than accepted as anybody's.
-   */
+
   readonly namespaces?: readonly LpnNamespace[];
-  /** Accept a bare 18-digit SSCC carrying no AI. Off by default. */
+
   readonly bareSscc?: boolean;
-  /** Accept a plain tenant item code as the last rung. On by default. */
+
   readonly skuFallback?: boolean;
 }
 
-/**
- * GS1 parse failures that mean the scan *is* a GS1 element string with wrong
- * content. Anything else means the string was probably never GS1.
- */
 const FATAL_GS1_ERRORS: ReadonlySet<Gs1ParseError["code"]> = new Set([
   "INVALID_CHECK_DIGIT",
   "INVALID_DATE",
@@ -232,7 +162,6 @@ export function resolveScan(
   const resolved = (interpretation: ScanInterpretation) =>
     ok<ResolvedScan>(Object.freeze({ raw, normalized, interpretation }));
 
-  // Rule 1: a symbology identifier or an FNC1 leaves no other reading available.
   const onlyGs1 =
     normalized.startsWith("]") || normalized.includes(GROUP_SEPARATOR);
   if (onlyGs1) {
@@ -263,7 +192,6 @@ export function resolveScan(
         interpretation: { kind: "GS1", scan: parsed.value },
       });
     } else {
-      // Rule 2: a content error is fatal, a shape error is not.
       if (FATAL_GS1_ERRORS.has(parsed.error.code)) {
         return fail({
           code: "INVALID_GS1_SCAN",
@@ -292,8 +220,7 @@ export function resolveScan(
           prefix,
         });
       }
-      // Rule 4: a valid LPN with a prefix this organization does not own is
-      // rejected outright, not reinterpreted.
+
       if (!rules.namespaces.some((namespace) => namespace.prefix === prefix)) {
         return fail({
           code: "FOREIGN_LPN_NAMESPACE",
@@ -310,8 +237,6 @@ export function resolveScan(
         interpretation: { kind: "INTERNAL_LPN", lpn: structural.value },
       });
     } else {
-      // Rule 5: shaped like one of ours and structurally wrong is a broken label
-      // of ours, not a code from a lower rung.
       const claimed = claimedNamespacePrefix(normalized, rules.namespaces);
       if (claimed !== null) {
         return fail({
@@ -328,7 +253,6 @@ export function resolveScan(
     attempts.push({ stage: "INTERNAL_LPN", reason: "NOT_APPLICABLE" });
   }
 
-  // Rule 6: a syntactically valid bare SSCC is never quietly something else.
   const sscc = lpnFromSscc(normalized);
   if (sscc.ok) {
     if (!rules.bareSscc) {
@@ -360,7 +284,6 @@ export function resolveScan(
     attempts.push({ stage: "GTIN", reason: gtin.error.code });
   }
 
-  // Rule 7: two readings of one bare scan is an ambiguity, not a preference.
   if (candidates.length > 1) {
     return fail({
       code: "AMBIGUOUS_SCAN",
@@ -388,11 +311,6 @@ export function resolveScan(
   });
 }
 
-/* -------------------------------------------------------------------------- */
-/* Internals                                                                   */
-/* -------------------------------------------------------------------------- */
-
-/** The policy as this module will use it, or the field that made it unusable. */
 interface ValidatedScanPolicy {
   readonly referenceYear: number;
   readonly namespaces: readonly LpnNamespace[];
@@ -420,13 +338,7 @@ function validatePolicy(
   const declared = policy.namespaces;
   if (declared !== undefined && !isArray(declared)) return fail("namespaces");
   const namespaces: LpnNamespace[] = [];
-  // A prefix belongs to one organization. That is the basis of rule 4, which
-  // decides whose pallet a scan is by matching its prefix and nothing else, so a
-  // table claiming one prefix for two organization keys makes that answer
-  // meaningless. Rejecting any repeated prefix covers both the collision and a
-  // duplicated pair, which is harmless in itself but would list the same prefix
-  // twice on a `FOREIGN_LPN_NAMESPACE` rejection. Comparison is on the normalized
-  // prefix, so case folding is not a way around it.
+
   const claimedPrefixes = new Set<string>();
   for (const namespace of declared ?? []) {
     const validated = validateLpnNamespace(namespace);
@@ -445,20 +357,6 @@ function validatePolicy(
   );
 }
 
-/**
- * The registered prefix a scan claims by shape: it starts with that prefix and is
- * exactly as long as an internal LPN issued under it. That is what separates "one
- * of ours, damaged" from "a string that happens to use the same alphabet".
- *
- * A first match is safe, and that is a property rather than a hope. The expected
- * length is `prefix.length + LPN_TIME_LENGTH + LPN_RANDOM_LENGTH + 1`, so a scan
- * of a given length can only be claimed by a prefix of one particular length; two
- * prefixes of the same length that both prefix the same string are the same
- * string. Overlapping prefixes (`PA` and `PAB`) therefore claim different scans
- * rather than competing for one, and `validatePolicy` has already refused a
- * repeated prefix, so no two entries here are equal. Reordering the namespaces
- * cannot change the answer, which the unit tier asserts directly.
- */
 function claimedNamespacePrefix(
   normalized: string,
   namespaces: readonly LpnNamespace[],

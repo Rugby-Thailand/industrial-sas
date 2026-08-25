@@ -11,11 +11,6 @@ import {
   PREVIEW_TRANSACTIONS,
 } from "@tests/fixtures/data/ledger";
 
-/**
- * The tables are checked against the preview fixture rather than a two-row
- * stub: it carries every stock status, a reversal, a zero balance, and real
- * encoded bucket keys, so the axe pass covers the cells that actually differ.
- */
 describe("inventory table accessibility", () => {
   it("BalancesTable has no detectable axe violations in Thai", async () => {
     const { container } = renderWithIntl(

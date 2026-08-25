@@ -1,4 +1,3 @@
-/** Revision-pinned production execution with ledger-backed material and FG movement. */
 import { v } from "convex/values";
 
 import {

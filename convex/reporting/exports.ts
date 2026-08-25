@@ -1,35 +1,3 @@
-/**
- * Asynchronous exports: request, chunk, artifact (`ADR-0011` §7,
- * `INV-0011-01`, `INV-0011-02`, `INV-0011-08`).
- *
- * An export is the request most likely to be written as a scan. "Give me this
- * warehouse's balances as a spreadsheet" reads naturally as one call that walks
- * a table, and that call is the one that times out on the tenant with the most
- * data — which is the tenant most likely to have asked.
- *
- * So it is a job. `requestExport` creates a record and returns; `runExportChunk`
- * advances it by one bounded page, appending rendered rows to the artifact and
- * storing the cursor it stopped at. An interrupted run resumes rather than
- * restarting, and a repeated request replays the job it already created instead
- * of starting a second walk over the same rows.
- *
- * ### Where this stops, precisely
- *
- * `INV-0011-08` requires artifacts to be private and delivered through a
- * short-lived signed URL. That is `FileStoragePort`
- * ([INT-08](../../docs/integration-contracts/file-storage-port.md)), whose
- * vendor is not configured, so there is no signed URL to issue and none is
- * pretended. The artifact instead lives on the job document and is readable only
- * through `getReportJob`, which checks `reporting.export.read` for the site.
- * That is a *narrower* channel than a signed URL, not a substitute for one: it
- * cannot be forwarded, cannot be opened by an unauthenticated fetch, and expires
- * with the job rather than on a timer.
- *
- * The consequence is a real cap. A document has a size limit, so the artifact
- * does too, and an export that reaches it stops with `ARTIFACT_LIMIT_REACHED`
- * rather than silently truncating. A truncated spreadsheet that looked complete
- * would be the worst possible outcome for a stock count.
- */
 import { v } from "convex/values";
 
 import type { Doc } from "../_generated/dataModel";
@@ -56,17 +24,8 @@ import {
   writeOutcomeValidator,
 } from "../lib/writeEnvelope";
 
-/**
- * The most an artifact may hold, in bytes.
- *
- * Half of Convex's document limit, so the row that crosses the line still fits
- * with the rest of the document around it. Bytes rather than characters because
- * Thai is three bytes per character and a character-counted cap would be a third
- * of the intended size on the product's first language.
- */
 export const MAX_ARTIFACT_BYTES = 512 * 1024;
 
-/** Rows appended per chunk. One bounded page, like every other read. */
 export const EXPORT_CHUNK_ROWS = MAX_JOB_PAGE_SIZE;
 
 type ReportJobDocument = Doc<"reportJobs">;
@@ -74,17 +33,6 @@ type BalanceRow = Doc<"inventoryBalances">;
 type ReceiptLineRow = Doc<"receiptLines">;
 type PutawayTaskRow = Doc<"putawayTasks">;
 
-/**
- * The columns of each export, and the row renderer that fills them.
- *
- * Declared together so a column cannot be added to the header without a value,
- * which is how an export ends up with a blank column nobody can explain.
- *
- * Quantities are rendered through `formatQuantity` — the same kernel the screens
- * use — so a spreadsheet and a screen never disagree about a number. A raw
- * `minorUnits` would be thousandths, and somebody would eventually read 500000
- * as five hundred thousand kilograms.
- */
 const REPORTS = {
   INVENTORY_BALANCES: {
     columns: [
@@ -148,13 +96,6 @@ const REPORTS = {
   },
 } as const;
 
-/**
- * A quantity as a person reads it.
- *
- * Falls back to the raw integer when the value is outside the kernel's declared
- * bound, because an export that dropped a row it could not format would be
- * quietly incomplete — and being obviously odd beats being silently short.
- */
 function renderQuantity(uom: string, minorUnits: number): string {
   const quantity = makeQuantity(minorUnits, uom === "" ? "BASE" : uom);
   if (!quantity.ok) return String(minorUnits);
@@ -162,28 +103,13 @@ function renderQuantity(uom: string, minorUnits: number): string {
   return formatted.ok ? formatted.value : String(minorUnits);
 }
 
-/** What one chunk read, and where the next one resumes. */
 interface SourcePage {
   readonly rows: readonly (readonly string[])[];
   readonly position: ExportPosition;
   readonly done: boolean;
 }
 
-/**
- * Read one page of the source a report kind walks.
- *
- * **One cursored read per call.** A Convex function execution may perform only
- * one indexed read that has a continuation, so a two-level walk cannot advance
- * its parent *and* drain a child in the same chunk. Receipt lines therefore
- * alternate: a chunk either moves to the next receipt (appending nothing) or
- * drains a page of the current receipt's lines. `stepFor` names which, from the
- * stored position, so the rule is a decision in the code rather than a comment
- * somebody has to honour.
- *
- * The alternative — taking a fixed number of lines per receipt — is what this
- * replaces. It was bounded and it was wrong: a delivery with more lines than the
- * page size silently lost the rest, and the finished file looked complete.
- */
+// Convex permits only one paginated read per function execution.
 async function readSourcePage(
   tenantDb: TenantDocumentAccess,
   job: ReportJobDocument,
@@ -222,22 +148,13 @@ async function readSourcePage(
     };
   }
 
-  /*
-   * Receipt lines are walked through their receipts, because a line has no
-   * warehouse of its own.
-   */
   const step = stepFor(position);
 
   if (step === "FINISHED") {
-    // The parent walk was exhausted by an earlier chunk and its last subject has
-    // been drained. Nothing is left to read at all.
     return { rows: [], position: {}, done: true };
   }
 
   if (step === "ADVANCE_SUBJECT") {
-    // One receipt at a time. A wider page would be wasted: the very next chunk
-    // can only drain one of them anyway, and the extra IDs would have to be
-    // carried in the cursor.
     const receipts = await tenantDb
       .byIndex<Pick<Doc<"receipts">, "_id" | "orgId">>(
         "receipts",
@@ -248,15 +165,9 @@ async function readSourcePage(
 
     const receipt = receipts.page[0];
     if (receipt === undefined) {
-      // The parent walk is exhausted, so the export is complete.
       return { rows: [], position: {}, done: true };
     }
 
-    /*
-     * `parentDone` is carried rather than the absence of a cursor. "No cursor"
-     * is the *start* of a walk, and reading exhaustion as a start is a live
-     * lock: the first receipt would be exported again for ever.
-     */
     return {
       rows: [],
       position: {
@@ -280,12 +191,6 @@ async function readSourcePage(
 
   const rows = lines.page.map(REPORTS.RECEIPT_LINES.render);
 
-  /*
-   * Draining never reports `done`. Even the last receipt's last page leaves the
-   * parent walk to confirm exhaustion on the following chunk — one extra call,
-   * in exchange for never having to decide completeness from two cursors at
-   * once.
-   */
   const parentPosition = {
     ...(position.outer === undefined ? {} : { outer: position.outer }),
     ...(position.parentDone === true ? { parentDone: true } : {}),
@@ -315,29 +220,18 @@ const jobValidator = v.object({
   failureCode: v.optional(v.string()),
 });
 
-/**
- * Ask for an export.
- *
- * Returns immediately with a `QUEUED` job. The walk happens in `runExportChunk`,
- * which the client drives one page at a time — the same shape the purchase-order
- * import already uses, and for the same reason: a bounded step a caller can see
- * the progress of beats an unbounded one it can only wait for.
- */
 export const requestExport = mutationWithOrg({
   args: {
     requestId: v.string(),
     warehouseId: v.id("warehouses"),
     kind: reportKind,
   },
-  // The shared write envelope, so one client contract covers every mutation in
-  // the system: `documentId` is the report job's own ID.
+
   returns: writeOutcomeValidator,
   permissionCode: "reporting.export.execute",
   target: { table: "reportJobs" },
   warehouseId: ({ warehouseId }) => warehouseId,
   handler: async (ctx, args) => {
-    // One job per request. A retry through a dropped connection resumes the walk
-    // it already started rather than beginning a second one (`INV-0011-02`).
     const existing = await ctx.tenantDb
       .byIndex<ReportJobDocument>("reportJobs", "by_orgId_requestId", [
         { field: "requestId", value: args.requestId },
@@ -345,17 +239,6 @@ export const requestExport = mutationWithOrg({
       .unique();
 
     if (existing !== null) {
-      /*
-       * A replay is only a replay if it asks for the same thing. The same
-       * request ID with a different warehouse or a different kind is not a
-       * retry — it is a client bug or a collision, and answering with the
-       * *earlier* job would hand back a balances extract to somebody who asked
-       * for putaway tasks, or another site's data to somebody who asked for
-       * this one. Both look like a successful export until read.
-       *
-       * `REQUEST_ARGUMENT_CONFLICT` is the vocabulary the idempotency module
-       * already uses for exactly this (`convex/lib/idempotency.ts`).
-       */
       if (
         existing.warehouseId !== args.warehouseId ||
         existing.kind !== args.kind
@@ -391,14 +274,6 @@ export const requestExport = mutationWithOrg({
   },
 });
 
-/**
- * Advance an export by one page.
- *
- * Idempotent in the way that matters: running a chunk twice appends the same
- * page twice, so the cursor is written in the same transaction as the rows it
- * produced. A caller that retries after a transport failure re-runs a chunk that
- * either committed entirely or not at all.
- */
 export const runExportChunk = mutationWithOrg({
   args: {
     warehouseId: v.id("warehouses"),
@@ -422,8 +297,7 @@ export const runExportChunk = mutationWithOrg({
       "reportJobs",
       args.reportJobId,
     );
-    // A foreign job answers exactly what a nonexistent one answers
-    // (`INV-0002-03`).
+
     if (job === null) return refusal({ code: "NOT_FOUND" });
     if (job.warehouseId !== args.warehouseId) {
       return refusal({ code: "NOT_FOUND" });
@@ -440,11 +314,6 @@ export const runExportChunk = mutationWithOrg({
 
     const position = decodeExportPosition(job.cursor);
     if (!position.ok) {
-      /*
-       * A stored position nobody can read is not recoverable by continuing:
-       * restarting the walk would duplicate every row already written. The job
-       * fails with the reason, and a fresh request starts a clean one.
-       */
       await ctx.tenantDb.patch("reportJobs", job._id, {
         status: "FAILED",
         failureCode: position.error.code,
@@ -458,10 +327,6 @@ export const runExportChunk = mutationWithOrg({
     const additionBytes = utf8Bytes(addition);
 
     if (!fitsWithin(job.artifactBytes, additionBytes, MAX_ARTIFACT_BYTES)) {
-      /*
-       * Stopped, not truncated. A spreadsheet that looked complete and was not
-       * is the worst outcome an export can have — somebody counts stock from it.
-       */
       await ctx.tenantDb.patch("reportJobs", job._id, {
         status: "FAILED",
         failureCode: "ARTIFACT_LIMIT_REACHED",
@@ -505,13 +370,6 @@ export const runExportChunk = mutationWithOrg({
   },
 });
 
-/**
- * One job, with its artifact.
- *
- * A separate permission from running an export: the person who may *generate* a
- * stock extract and the person who may *read* one are not necessarily the same,
- * and an export is tenant data in its most portable form.
- */
 export const getReportJob = queryWithOrg({
   args: {
     warehouseId: v.id("warehouses"),
@@ -562,13 +420,6 @@ export const getReportJob = queryWithOrg({
   },
 });
 
-/**
- * This site's exports, one bounded page per status.
- *
- * Read per status rather than as one list, because `(orgId, warehouseId,
- * status)` is the index and a register that showed only the first page of a
- * status-ordered read would hide every completed export behind the queued ones.
- */
 export const listReportJobs = queryWithOrg({
   args: { warehouseId: v.id("warehouses") },
   returns: v.object({ ok: v.literal(true), jobs: v.array(jobValidator) }),
@@ -615,7 +466,6 @@ export const listReportJobs = queryWithOrg({
   },
 });
 
-/** Caps re-exported so a client and a test share one number. */
 export const maxArtifactBytes = MAX_ARTIFACT_BYTES;
 export const exportChunkRows = EXPORT_CHUNK_ROWS;
 export const reportColumns = REPORTS;

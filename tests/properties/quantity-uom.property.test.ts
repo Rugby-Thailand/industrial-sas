@@ -1,19 +1,3 @@
-/**
- * Property tier — exact quantity and UOM arithmetic (`ADR-0004` verification,
- * `RG-020`).
- *
- * Every property here is a claim the ledger will depend on, so each is stated as
- * something that holds for all inputs rather than for chosen fixtures:
- * reduction is canonical, composition is a commutative monoid, an exact
- * conversion round-trips, an inexact one reports the true value, and nothing ever
- * returns a number outside the declared bound.
- *
- * The last block is a set of negative controls. A property suite that passes
- * against a deliberately broken implementation proves nothing, so each control
- * removes one guarantee — rounding an inexact conversion, dropping the overflow
- * check, ignoring the precision cap — and asserts that the corresponding property
- * *fails*. `fc.check` is used there because a failing run is the expected result.
- */
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
@@ -45,14 +29,12 @@ import { expectOk } from "../fixtures/domain-results";
 
 const component = fc.integer({ min: 1, max: MAX_RATIO_COMPONENT });
 
-/** Ratios that always construct, so a property is never vacuously true. */
 const ratio: fc.Arbitrary<Ratio> = fc
   .tuple(component, component)
   .map(([numerator, denominator]) =>
     expectOk(makeRatio(numerator, denominator)),
   );
 
-/** Small ratios, for properties whose products must stay comfortably bounded. */
 const smallRatio: fc.Arbitrary<Ratio> = fc
   .tuple(fc.integer({ min: 1, max: 1000 }), fc.integer({ min: 1, max: 1000 }))
   .map(([numerator, denominator]) =>
@@ -64,11 +46,6 @@ const minorUnits = fc.integer({
   max: MAX_QUANTITY_MINOR_UNITS,
 });
 
-/**
- * A gcd written for the test rather than imported from the module under test: an
- * oracle that shares the implementation proves nothing, and `ratio.ts` no longer
- * exports one — a public gcd loops forever on a non-finite operand.
- */
 const gcd = (left: number, right: number): number => {
   let a = Math.abs(left);
   let b = Math.abs(right);
@@ -86,8 +63,7 @@ describe("ratio reduction", () => {
         (numerator, denominator, factor) => {
           const base = expectOk(makeRatio(numerator, denominator));
           const scaled = makeRatio(numerator * factor, denominator * factor);
-          // The scaled pair may leave the declared range; when it constructs, it
-          // must reduce to exactly the same ratio.
+
           if (!scaled.ok) return;
           expect(scaled.value).toEqual(base);
         },
@@ -219,8 +195,7 @@ describe("exact scaling", () => {
         (value, input) => {
           const scaled = expectOk(scaleInteger(input, value));
           if (scaled.kind !== "INEXACT") return;
-          // p/q === input × n/d, checked by cross-multiplication so the assertion
-          // itself never divides.
+
           expect(scaled.exact.numerator * value.denominator).toBe(
             input * value.numerator * scaled.exact.denominator,
           );
@@ -353,8 +328,6 @@ describe("item UOM conversion", () => {
         const outcome = convertToBase(profileFor(toBase), "PACK", captured);
         expect(["EXACT", "INEXACT", "REJECTED"]).toContain(outcome.kind);
         if (outcome.kind === "EXACT") {
-          // An exact outcome is divisible: the captured amount was a multiple of
-          // the denominator, and the stored value is a whole minor unit.
           expect(captured % toBase.denominator === 0).toBe(true);
           expect(Number.isSafeInteger(outcome.quantity.minorUnits)).toBe(true);
         }
@@ -367,19 +340,10 @@ describe("item UOM conversion", () => {
 });
 
 describe("negative controls", () => {
-  /**
-   * Each control removes one guarantee and shows the matching property failing.
-   * The generators are built so the counterexample is guaranteed rather than
-   * likely: a control that only fails for some seeds is itself a flaky test, and a
-   * flaky control is worse than none.
-   */
   it("the exactness property fails when a conversion is allowed to round", () => {
-    // The mutation: return the nearest integer instead of reporting INEXACT.
     const roundingScale = (input: number, value: Ratio): number =>
       Math.round((input * value.numerator) / value.denominator);
 
-    // Denominator at least two, and an input that is never a multiple of it, so
-    // every generated case is one the real module reports as INEXACT.
     const inexactCase = fc
       .tuple(
         fc.integer({ min: 2, max: 1000 }),
@@ -403,15 +367,13 @@ describe("negative controls", () => {
   });
 
   it("the overflow property fails without the safe-integer check", () => {
-    // The mutation: multiply first and trust the result.
     const unguardedScale = (input: number, value: Ratio): number =>
       (input * value.numerator) / value.denominator;
 
     const details = fc.check(
       fc.property(
         fc.integer({ min: 2 ** 45, max: Number.MAX_SAFE_INTEGER }),
-        // A numerator of at least a thousand over a unit denominator always puts
-        // the product past 2^53.
+
         fc
           .integer({ min: 1000, max: MAX_RATIO_COMPONENT })
           .map((numerator) => expectOk(makeRatio(numerator, 1))),
@@ -424,7 +386,6 @@ describe("negative controls", () => {
   });
 
   it("the precision property fails when a fourth decimal is truncated", () => {
-    // The mutation: keep three decimals and drop the rest.
     const truncatingParse = (raw: string): number => {
       const [whole, decimals = ""] = raw.split(".");
       return Number(`${whole}${decimals.slice(0, 3).padEnd(3, "0")}`);
@@ -432,8 +393,6 @@ describe("negative controls", () => {
 
     const details = fc.check(
       fc.property(fc.stringMatching(/^[0-9]{1,4}\.[0-9]{4}$/), (raw) => {
-        // The claim the real parser makes: input with four decimals is refused,
-        // so no two distinct inputs can collapse onto one stored value.
         const truncated = truncatingParse(raw);
         expect(truncatingParse(`${raw}9`)).not.toBe(truncated);
       }),

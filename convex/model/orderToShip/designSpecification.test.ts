@@ -26,7 +26,6 @@ const VALID: DesignSpecificationInput = Object.freeze({
   printColourCount: 2,
 });
 
-/** Build a specification in tests, failing loudly if the fixture is wrong. */
 function specificationOf(
   overrides: Partial<DesignSpecificationInput> = {},
 ): DesignSpecification {
@@ -141,7 +140,7 @@ describe("makeDesignSpecification", () => {
     });
 
     expect(built.ok).toBe(false);
-    // `INV-0002-07`: refusals identify the field, never the value.
+
     expect(JSON.stringify(built)).not.toContain("SECRET-LOOKING-VALUE");
   });
 
@@ -308,7 +307,6 @@ describe("designKeyOf", () => {
   });
 
   it("treats a near miss as a different design (`WF-04` stays open)", () => {
-    // 305 mm is not 300 mm. Nothing here guesses that they are "close enough".
     expect(
       isSameDesign(
         specificationOf(),
@@ -393,8 +391,6 @@ describe("decideDesignSource", () => {
   it.each(["DRAFT", "IN_REVIEW", "REJECTED", "SUPERSEDED"])(
     "treats a %s candidate as absent and asks engineering for a new design",
     (status) => {
-      // Pinning an unreleased revision would let a factory cut to a spec that is
-      // still being argued about.
       expect(
         decideDesignSource({
           customerProductCode: "CUST-001",

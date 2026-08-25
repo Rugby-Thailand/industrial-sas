@@ -1,23 +1,3 @@
-/**
- * Integration tier — the end-to-end runner's process lifecycle, against real
- * processes.
- *
- * `scripts/run-e2e.mjs` starts a production build, a development server, and
- * Playwright. If it can lose track of any of them, a developer's Ctrl-C leaves a
- * `next dev` holding port 3101 and rewriting `next-env.d.ts` — which is the
- * shared-writable-file defect the whole runner exists to prevent, reintroduced
- * through the exit path.
- *
- * Every claim here is made against a spawned Node process rather than against
- * the source text, because the failures are all about *timing*: a listener
- * attached one tick too late, a timer that outlives the thing it was guarding, a
- * handler that exits before its cleanup finishes. None of those are visible in a
- * regular expression over the file.
- *
- * The children are `node -e` one-liners with no side effects. Nothing here
- * signals by name or by port; every process is addressed through the handle the
- * test itself created.
- */
 import { spawn, type ChildProcess } from "node:child_process";
 
 import { afterEach, describe, expect, it } from "vitest";
@@ -40,25 +20,13 @@ const node = (script: string): ChildProcess => {
   return child;
 };
 
-/** A process that sits there until it is told to go. */
 const sleeper = () => node("setInterval(() => {}, 1000)");
 
-/**
- * A process that refuses `SIGTERM`.
- *
- * The one that proves escalation is real. A server wedged mid-compile behaves
- * like this, and a runner that only ever sends `SIGTERM` waits for it forever.
- *
- * It announces itself on stdout, and callers wait for that. Signalling a Node
- * process before it has finished booting kills it by default disposition — the
- * handler is not installed yet — which would make this fixture prove nothing.
- */
 const stubborn = () =>
   node(
     "process.on('SIGTERM', () => {}); setInterval(() => {}, 1000); console.log('up')",
   );
 
-/** Resolve once the child has printed anything, so its handlers are installed. */
 const started = (child: ChildProcess): Promise<ChildProcess> =>
   new Promise((resolve) => {
     child.stdout?.once("data", () => resolve(child));
@@ -95,15 +63,6 @@ describe("stopChild", () => {
   });
 
   it("resolves at once for a child a signal already killed", async () => {
-    /*
-     * The case a naive guard misses. A child killed by a signal has a **null**
-     * `exitCode` and a set `signalCode`, so `if (child.exitCode !== null)` reads
-     * it as still running: the stop signals a reaped pid and then waits for a
-     * `close` that fired long ago, resolving only when the grace period expires.
-     *
-     * The grace here is thirty seconds and the assertion is under one, so a
-     * regression cannot pass by being merely slow.
-     */
     const child = sleeper();
     child.kill("SIGKILL");
     await closed(child);
@@ -132,11 +91,6 @@ describe("stopChild", () => {
   });
 
   it("leaves no timer holding the event loop open", async () => {
-    /*
-     * The escalation timer must be cleared when the child goes quietly, and
-     * unreferenced while it waits. An uncleared ten-second timer is why a runner
-     * that has finished sits there doing nothing before the shell returns.
-     */
     const before = process.getActiveResourcesInfo().filter(isTimeout).length;
     const child = sleeper();
 
@@ -167,7 +121,7 @@ describe("the child registry", () => {
     const child = registry.track(node(""));
 
     await closed(child);
-    // The `close` listener runs on the same event, so give it its turn.
+
     await new Promise((resolve) => setImmediate(resolve));
 
     expect(registry.size()).toBe(0);
@@ -175,7 +129,6 @@ describe("the child registry", () => {
 });
 
 describe("the shutdown handler", () => {
-  /** Capture the handlers rather than installing them on this test process. */
   const harness = () => {
     const handlers = new Map<string, () => void>();
     const exits: { code: number; stillRunning: number }[] = [];
@@ -188,7 +141,6 @@ describe("the shutdown handler", () => {
         order.push("cleanup");
       },
       exit: (code) => {
-        // What was still running *at the moment of exit* is the whole question.
         exits.push({ code, stillRunning: registry.size() });
         order.push("exit");
       },
@@ -200,11 +152,6 @@ describe("the shutdown handler", () => {
   };
 
   it("stops the children before it exits, not after", async () => {
-    /*
-     * The defect this replaces: `process.on("SIGINT", () => process.exit(1))`.
-     * That ends the event loop immediately, so no `finally` runs, the
-     * development server survives its parent, and the port stays held.
-     */
     const { handlers, exits, registry } = harness();
     const child = registry.track(sleeper());
 
@@ -212,15 +159,11 @@ describe("the shutdown handler", () => {
     await new Promise((resolve) => setTimeout(resolve, 500));
 
     expect(child.exitCode === null && child.signalCode === null).toBe(false);
-    // Nothing of ours was still running when the exit was taken. A handler that
-    // exited first would leave the count above zero — and, in the real runner,
-    // a development server holding port 3101.
+
     expect(exits).toEqual([{ code: 1, stillRunning: 0 }]);
   });
 
   it("restores the working tree only once the writers are gone", async () => {
-    // A development server that is still alive rewrites `next-env.d.ts`, so a
-    // cleanup that ran first would restore the file to the wrong thing.
     const { handlers, order, registry } = harness();
     registry.track(sleeper());
 
@@ -240,10 +183,6 @@ describe("the shutdown handler", () => {
   });
 
   it("runs one teardown however many times it is asked", async () => {
-    /*
-     * A second Ctrl-C while a server is shutting down must not start a second
-     * teardown, and must not skip the first one's restore.
-     */
     const { handlers, order, registry } = harness();
     registry.track(await started(stubborn()));
 
@@ -269,14 +208,6 @@ describe("the shutdown handler", () => {
 });
 
 describe("waiting for the preview server", () => {
-  /**
-   * The silent failure this replaces.
-   *
-   * A readiness loop that ran out of attempts and simply fell through left the
-   * warm-up talking to a port nobody was on: every request failed to connect,
-   * no route compiled, and Playwright then reported 123 broken specs instead of
-   * the one fact that mattered — the server never listened.
-   */
   it("throws when the server never accepts a request", async () => {
     let probes = 0;
 
@@ -296,9 +227,6 @@ describe("waiting for the preview server", () => {
   });
 
   it("names the process, not the timeout, when it died during boot", async () => {
-    // A server that crashed on startup is a different fix from a slow one, and
-    // waiting out the full timeout to say so wastes two minutes of somebody's
-    // attention.
     await expect(
       waitForServer({
         probe: () => Promise.reject(new Error("ECONNREFUSED")),

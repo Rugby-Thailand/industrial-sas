@@ -23,7 +23,6 @@ const permission = (
     requiresThreshold: flags.includes("THRESHOLD"),
   });
 
-/** Code-owned catalogue; tenant roles may compose these codes but never add one. */
 export const PERMISSION_CATALOGUE = Object.freeze([
   permission("admin.organization.read", "ORG"),
   permission("admin.organization.update", "ORG", ["STEP_UP"]),
@@ -220,19 +219,7 @@ export const PERMISSION_CATALOGUE = Object.freeze([
   permission("reporting.export.execute", "WAREHOUSE"),
   permission("reporting.export.read", "WAREHOUSE"),
   permission("reporting.jobRun.read", "ORG"),
-  /*
-   * Shared operator work (`FF-P1-09`–`FF-P1-11`). Warehouse-scoped, because a
-   * task belongs to a site: an org-wide code would let an actor with no
-   * membership at that site claim its backlog (`INV-0006-04`).
-   *
-   * `work.stepUp.approve` carries both flags on purpose. Step-up makes the
-   * existing evaluator demand fresh Clerk reverification of the *approver*
-   * before an approval can be minted, and maker-checker makes it refuse an
-   * approver who is the operator — so the "approve your own work" case is
-   * denied by the same code path that denies it everywhere else, and the
-   * domain's own `APPROVER_IS_OPERATOR` guard is a second, independent check
-   * rather than the only one.
-   */
+
   permission("work.task.read", "WAREHOUSE"),
   permission("work.task.manage", "WAREHOUSE"),
   permission("work.task.claim", "WAREHOUSE"),
@@ -244,13 +231,7 @@ export const PERMISSION_CATALOGUE = Object.freeze([
   permission("work.exception.report", "WAREHOUSE"),
   permission("work.exception.resolve", "WAREHOUSE", ["MAKER_CHECKER"]),
   permission("work.stepUp.approve", "WAREHOUSE", ["STEP_UP", "MAKER_CHECKER"]),
-  /*
-   * The device's own "I am here" ping — the one command in this slice that is
-   * genuinely queueable while the link is down
-   * (`convex/model/platform/commandClassification.ts`). It writes a timestamp
-   * and nothing else, which is why an operator role may hold it and why a
-   * replay of it changes nothing.
-   */
+
   permission("work.device.seen", "WAREHOUSE"),
   permission("platform.supportGrant.request", "PLATFORM"),
   permission("platform.supportGrant.approve", "PLATFORM", ["MAKER_CHECKER"]),
@@ -322,12 +303,7 @@ export const DEFAULT_ROLES: readonly DefaultRoleDefinition[] = Object.freeze([
       "masterData.storageLayout.read",
       "masterData.storageLayout.manage",
       "masterData.storageLayout.activate",
-      /*
-       * A site manager sees what their floor is being asked to make and may issue
-       * and acknowledge the packets, but holds no engineering code: releasing a
-       * design is not a site decision, and a manager who could read drafts is a
-       * route for an unapproved spec to reach a machine.
-       */
+
       "sales.customer.read",
       "sales.order.read",
       "fulfillment.order.read",
@@ -765,14 +741,7 @@ export const DEFAULT_ROLES: readonly DefaultRoleDefinition[] = Object.freeze([
       "work.task.read",
     ),
   },
-  /*
-   * The four roles below are the order-to-ship slice (ADR-0013). They are
-   * separate roles rather than additions to the warehouse roles because the
-   * separation is the control: an engineer who could also release a customer
-   * order, or a planner who could read an unreleased revision, would defeat the
-   * two rules the slice exists to hold — approve-your-own-work and
-   * released-only visibility.
-   */
+
   {
     key: "SALES_CUSTOMER_SERVICE",
     name: "Sales and customer service",
@@ -796,12 +765,7 @@ export const DEFAULT_ROLES: readonly DefaultRoleDefinition[] = Object.freeze([
       "fulfillment.shipment.read",
       "fulfillment.transport.read",
       "fulfillment.pod.read",
-      /*
-       * Read-only on engineering, and no `engineering.file.read`. Sales needs to
-       * tell a customer which revision their order is pinned to; they do not need
-       * the dieline, and a customer-facing role holding artwork is how another
-       * customer's artwork leaves the building.
-       */
+
       "engineering.request.read",
       "engineering.masterCard.read",
       "production.packet.read",
@@ -920,7 +884,6 @@ const denied = (
     : { permission: permissionDefinition }),
 });
 
-/** Pure, ordered and fail-closed authorization policy. Support grants are not an input. */
 export function evaluateAuthorization(
   input: AuthorizationInput,
 ): AuthorizationDecision {

@@ -105,7 +105,7 @@ describe("QuantityEntryField", () => {
     );
     await userEvent.type(screen.getByTestId("quantity"), "12{Enter}");
     expect(onSubmit).not.toHaveBeenCalled();
-    // The number the operator typed survives the scan terminator.
+
     expect(screen.getByTestId("quantity")).toHaveValue("12");
   });
 

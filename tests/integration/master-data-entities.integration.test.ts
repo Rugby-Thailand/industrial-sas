@@ -1,13 +1,3 @@
-/**
- * Integration tier — the five Phase 2 master-data entities over `convex-test`.
- *
- * Scope: suppliers, item barcodes, alternate UOMs, storage classes, and label
- * templates — their reads, their idempotent audited writes, and the domain rules
- * each one owns. Cross-tenant claims live in
- * `tests/isolation/master-data-entities.isolation.test.ts`.
- *
- * All data is synthetic (`tests/fixtures/README.md`).
- */
 import type { GenericMutationCtx } from "convex/server";
 import { describe, expect, it } from "vitest";
 
@@ -86,10 +76,6 @@ const errorOf = (result: Record<string, unknown>) =>
 const auditRows = async (world: ConvexInventoryWorld) =>
   await world.t.run(async (ctx) => ctx.db.query("auditEvents").collect());
 
-/* -------------------------------------------------------------------------- */
-/* Suppliers                                                                   */
-/* -------------------------------------------------------------------------- */
-
 describe("suppliers", () => {
   it("creates, normalizes, and lists a supplier", async () => {
     const world = await createConvexInventoryWorld();
@@ -106,7 +92,7 @@ describe("suppliers", () => {
     const rows = page["items"] as { code: string; name: string }[];
     expect(rows).toHaveLength(1);
     expect(rows[0]?.code).toBe("ACME-CO");
-    // A display name keeps its Thai characters and its case.
+
     expect(rows[0]?.name).toBe("บริษัท แอคมี จำกัด");
   });
 
@@ -162,7 +148,6 @@ describe("suppliers", () => {
     );
     expect(updated["written"]).toBe(true);
 
-    // The code is the key a lot's provenance will resolve against.
     const exported = (
       updateSupplier as unknown as { exportArgs: () => string }
     ).exportArgs();
@@ -177,10 +162,6 @@ describe("suppliers", () => {
     ]);
   });
 });
-
-/* -------------------------------------------------------------------------- */
-/* Storage classes                                                             */
-/* -------------------------------------------------------------------------- */
 
 describe("storage classes", () => {
   it("creates and lists an organization-scoped class", async () => {
@@ -242,10 +223,6 @@ describe("storage classes", () => {
   });
 });
 
-/* -------------------------------------------------------------------------- */
-/* Item barcodes                                                               */
-/* -------------------------------------------------------------------------- */
-
 describe("item barcodes", () => {
   it("registers a GTIN, padding it and verifying its check digit", async () => {
     const world = await createConvexInventoryWorld();
@@ -269,10 +246,6 @@ describe("item barcodes", () => {
   });
 
   it("refuses a GTIN whose check digit is wrong", async () => {
-    /*
-     * A row the scan resolver would never produce is an alias no scan can ever
-     * match — a dead catalogue entry an operator would blame the scanner for.
-     */
     const world = await createConvexInventoryWorld();
     const result = value(
       await callAs(world, ACTOR_A, createBarcode, {
@@ -289,8 +262,6 @@ describe("item barcodes", () => {
   });
 
   it("refuses the same barcode on a second item", async () => {
-    // Uniqueness is on the barcode alone: a scan must resolve to at most one
-    // item, or receiving has to ask which SKU while holding the carton.
     const world = await createConvexInventoryWorld();
     await callAs(world, ACTOR_A, createBarcode, {
       requestId: "req_bc_u1",
@@ -334,11 +305,6 @@ describe("item barcodes", () => {
   });
 
   it("answers an unknown and a deactivated barcode identically", async () => {
-    /*
-     * "No such barcode" and "a barcode you may not use" are the same instruction
-     * to an operator, and distinguishing them would make the function an oracle
-     * over the catalogue.
-     */
     const world = await createConvexInventoryWorld();
     const created = value(
       await callAs(world, ACTOR_A, createBarcode, {
@@ -371,7 +337,6 @@ describe("item barcodes", () => {
   });
 
   it("keeps the deactivated alias's unique key occupied", async () => {
-    // The value still means what it meant; it just may not be used.
     const world = await createConvexInventoryWorld();
     const created = value(
       await callAs(world, ACTOR_A, createBarcode, {
@@ -411,10 +376,6 @@ describe("item barcodes", () => {
   });
 });
 
-/* -------------------------------------------------------------------------- */
-/* Alternate item UOMs                                                         */
-/* -------------------------------------------------------------------------- */
-
 describe("alternate item UOMs", () => {
   it("stores a reduced exact ratio", async () => {
     const world = await createConvexInventoryWorld();
@@ -447,7 +408,7 @@ describe("alternate item UOMs", () => {
       await callAs(world, ACTOR_A, createItemUom, {
         requestId: "req_uom_base",
         itemId: world.a.item,
-        // The fixture's items use `PCS` as their base.
+
         uom: "pcs",
         toBaseNumerator: 1,
         toBaseDenominator: 1,
@@ -548,8 +509,6 @@ describe("alternate item UOMs", () => {
   });
 
   it("omits a retired unit from the profile", async () => {
-    // A retired unit must stop being offered for capture; leaving it in the
-    // profile would keep it convertible.
     const world = await createConvexInventoryWorld();
     const created = value(
       await callAs(world, ACTOR_A, createItemUom, {
@@ -571,10 +530,6 @@ describe("alternate item UOMs", () => {
     expect(profile["alternates"]).toEqual([]);
   });
 });
-
-/* -------------------------------------------------------------------------- */
-/* Label templates                                                             */
-/* -------------------------------------------------------------------------- */
 
 const ZPL = "^XA\n^FO50,50^A0N,40,40^FDSTEEL^FS\n^XZ";
 
@@ -604,8 +559,6 @@ describe("label templates", () => {
   });
 
   it("has no client-supplied version argument", async () => {
-    // A client-chosen version would let two drafts claim one number, and a
-    // printed label cites the version as evidence.
     const exported = (
       draftLabelTemplate as unknown as { exportArgs: () => string }
     ).exportArgs();
@@ -651,8 +604,6 @@ describe("label templates", () => {
   });
 
   it("returns the body only from the detail read, never from the list", async () => {
-    // A list is for choosing a template; shipping every version's payload to
-    // render a table would be an unbounded response for no reader.
     const world = await createConvexInventoryWorld();
     const created = value(
       await callAs(world, ACTOR_A, draftLabelTemplate, {
@@ -677,15 +628,6 @@ describe("label templates", () => {
 
   describe("publishing is genuine maker-checker", () => {
     it("denies the drafter publishing their own version", async () => {
-      /*
-       * `INV-0006-05`, and the repository's first workflow that actually
-       * exercises it: one person writes the label, another approves what will be
-       * printed on every carton.
-       *
-       * The acting role is `ORG_ADMIN` because `label.template.manage` is granted
-       * to nobody else (catalogue §4). With a narrower role the denial would be
-       * `NO_PERMISSION`, which is a different and less interesting statement.
-       */
       const world = await createConvexInventoryWorld(
         {},
         { roleA: "ORG_ADMIN" },
@@ -719,13 +661,6 @@ describe("label templates", () => {
     });
 
     it("still denies a second actor without step-up, and says which gate", async () => {
-      /*
-       * Two independent gates. With a different publisher the maker-checker
-       * requirement is satisfied, and `label.template.manage` *also* carries
-       * step-up — which needs a recent reverification only a Clerk instance can
-       * produce. The denial reason distinguishes them, which is the whole point
-       * of recording it.
-       */
       const world = await createConvexInventoryWorld(
         {},
         { roleA: "ORG_ADMIN" },
@@ -753,7 +688,7 @@ describe("label templates", () => {
           row.permissionCode === "label.template.manage" &&
           row.outcome === "DENIED",
       );
-      // Maker-checker is satisfied by the second actor; step-up is not.
+
       expect(denied.at(-1)?.denialReason).toBe("REVERIFICATION_REQUIRED");
     });
 
@@ -774,7 +709,6 @@ describe("label templates", () => {
         }),
       );
 
-      // A fresh step-up for the *publisher*, which is what the evaluator reads.
       const now = Date.now();
       await recordStepUp(world, {
         orgId: world.orgA,

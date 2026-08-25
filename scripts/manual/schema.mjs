@@ -1,34 +1,10 @@
-/**
- * The operator-manual contract, and the validator that holds it.
- *
- * One catalogue (`tasks.mjs`) is the source of truth for three outputs: the SVG
- * overlays on the committed screenshots, the static HTML manual, and the check
- * that says whether either is stale. That only works if the catalogue is
- * checkable, so every rule a generator relies on is written here as data rather
- * than assumed by the generator that happens to read the field.
- *
- * Nothing in this module touches the filesystem or the network. The generators
- * pass in the facts they gathered — image sizes, route table — so the same rules
- * run in a test with synthetic data and in `pnpm manual:check` against the real
- * repository.
- *
- * Validation answers a list of problems rather than throwing on the first one:
- * an author who mistyped three coordinates should see three lines, not three
- * runs.
- */
-
 /** @typedef {"th" | "en"} ManualLocale */
 
 /**
- * A string in every supported locale. Thai is authored first (`INV-0010-01`
- * treats Thai as the product language, not a translation of English).
- *
  * @typedef {Readonly<Record<ManualLocale, string>>} LocalizedText
  */
 
 /**
- * A red rectangle around a control, numbered with the step it belongs to.
- *
  * @typedef {object} ManualRectAnnotation
  * @property {"rect"} kind
  * @property {number} step 1-based index into the task's `steps`.
@@ -39,10 +15,6 @@
  */
 
 /**
- * A red underline beneath a value, numbered with the step it belongs to. Used
- * where a rectangle would swallow half a table row — a single field, a status
- * word, one column heading.
- *
  * @typedef {object} ManualUnderlineAnnotation
  * @property {"underline"} kind
  * @property {number} step 1-based index into the task's `steps`.
@@ -54,10 +26,6 @@
 /** @typedef {ManualRectAnnotation | ManualUnderlineAnnotation} ManualAnnotation */
 
 /**
- * One documented workflow: what it is for, who does it, where it lives, what it
- * needs first, the ordered steps, how the operator knows it worked, and the
- * annotated screenshot the steps point at.
- *
  * @typedef {object} ManualTask
  * @property {string} id Stable slug. Appears in URLs and in `data-manual-id`.
  * @property {string} category Id from `MANUAL_CATEGORIES`.
@@ -73,9 +41,6 @@
  */
 
 /**
- * A category or audience: an id the catalogue references and the label each
- * locale shows for it.
- *
  * @typedef {object} ManualTerm
  * @property {string} id
  * @property {string} th
@@ -85,41 +50,30 @@
 /** @typedef {{ readonly width: number, readonly height: number }} ImageSize */
 
 /**
- * One thing wrong, addressed to the file and field the author must open.
- *
  * @typedef {object} ManualProblem
  * @property {string} path
  * @property {string} message
  */
 
-/** Locales the manual is generated in. Thai is the default. */
 export const MANUAL_LOCALES = /** @type {readonly ManualLocale[]} */ ([
   "th",
   "en",
 ]);
 
-/** Stroke colour of every annotation. iOS red, unchanged since the first pass. */
 export const ANNOTATION_COLOR = "#ff3b30";
 
-/** Rectangle stroke width, in screenshot pixels. */
 export const RECT_STROKE_WIDTH = 7;
 
-/** Underline stroke width, in screenshot pixels. */
 export const UNDERLINE_STROKE_WIDTH = 8;
 
-/** Radius of the numbered badge drawn at an annotation's origin. */
 export const BADGE_RADIUS = 22;
 
-/** How far inside the origin the badge centre sits, on both axes. */
 export const BADGE_INSET = 8;
 
-/** Slug shape for a task id and an image basename. */
 const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
-/** Any Thai character. Used to tell an authored Thai string from a copy of English. */
 const THAI = /[\u0E00-\u0E7F]/;
 
-/** A `{param}` segment in a task route. */
 const ROUTE_PARAMETER = /^\{[a-zA-Z][a-zA-Z0-9]*\}$/;
 
 const isPlainObject = (value) =>
@@ -132,14 +86,6 @@ const isPositiveInteger = (value) =>
   typeof value === "number" && Number.isInteger(value) && value > 0;
 
 /**
- * The application path a task route points at, with its `{param}` segments
- * removed.
- *
- * `/receiving/{receiptId}` is documented against the receipt detail screen,
- * whose route is built by `receiptPath()` and can therefore never appear in
- * `ROUTES`. Stripping the parameters is what lets a detail page still be checked
- * against the one route table the application actually navigates by.
- *
  * @param {string} route
  * @returns {{ basePath: string, parameters: readonly string[] }}
  */
@@ -160,12 +106,6 @@ export function resolveTaskRoute(route) {
 }
 
 /**
- * The visual extent of an annotation, badge included.
- *
- * The badge deliberately overhangs the shape it numbers — that is what makes it
- * readable against a dense screen — so bounds checking has to consider it, or a
- * box flush against the left edge would validate with half its number cropped.
- *
  * @param {ManualAnnotation} annotation
  * @returns {{ left: number, top: number, right: number, bottom: number }}
  */
@@ -383,8 +323,6 @@ const checkAnnotations = (task, path, size, problems) => {
 };
 
 /**
- * Every rule the generators rely on, checked against one catalogue.
- *
  * @param {object} input
  * @param {readonly ManualTask[]} input.tasks
  * @param {readonly ManualTerm[]} input.categories
@@ -560,8 +498,6 @@ export function validateCatalogue({
 }
 
 /**
- * Problems as lines a human can act on, longest-lived path first.
- *
  * @param {readonly ManualProblem[]} problems
  * @returns {string}
  */

@@ -1,25 +1,9 @@
 #!/usr/bin/env node
-/**
- * The restore rehearsal (`ADR-0021`, plan §10 Phase 4, `RG-006`).
- *
- * A backup nobody has restored is a hypothesis. This script turns it into a
- * measurement that runs on a laptop with no cloud account: build a dataset, seal
- * it, open it, and prove the result is byte-identical to what went in — then
- * prove the three ways it can fail actually fail.
- *
- * It rehearses the *format and the procedure*, which is the half that can be
- * verified locally. What it deliberately does not claim is a production restore:
- * that needs a real Convex snapshot, a real key from the operator's key store,
- * and a stopwatch against the agreed RTO. `docs/runbooks/backup-and-restore.md`
- * carries that procedure and names it as an open gate.
- *
- * Exits non-zero on any mismatch, so it can be a CI step rather than a ritual.
- */
+
 import { randomBytes } from "node:crypto";
 
 import { KEY_BYTES, openExport, sealExport } from "./lib/exportEnvelope.mjs";
 
-/** Rows shaped like the tenant data an export actually carries. */
 function syntheticRecords(count) {
   return Array.from({ length: count }, (_, index) => ({
     table: "inventoryBalances",
@@ -62,7 +46,6 @@ function main() {
     JSON.stringify(restored) === JSON.stringify(records),
   );
 
-  // The archive must be unreadable without the key it was sealed with.
   check(
     "refuses a wrong key",
     (() => {
@@ -90,7 +73,6 @@ function main() {
     })(),
   );
 
-  // And the case a backup story usually misses: it restores, but short.
   check(
     "refuses an archive that is short",
     (() => {

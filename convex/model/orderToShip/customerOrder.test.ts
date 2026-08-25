@@ -74,7 +74,6 @@ describe("checkOrderRelease", () => {
   });
 
   it("releases even while a line is still awaiting design", () => {
-    // Commercial commitment does not wait for engineering; the hand-off does.
     expect(
       checkOrderRelease({ status: "DRAFT" }, [line("AWAITING_DESIGN")]).ok,
     ).toBe(true);
@@ -138,8 +137,6 @@ describe("checkOrderCancellation", () => {
   });
 
   it("refuses while a factory holds a packet for one of its lines", () => {
-    // Cancelling here would leave the shop floor building against a commitment
-    // the system says no longer exists.
     expect(
       checkOrderCancellation({ status: "RELEASED" }, [
         line("DESIGN_READY", "rev_1"),
@@ -263,7 +260,6 @@ describe("checkLineHandoff", () => {
   );
 
   it("refuses a ready line with nothing pinned to it", () => {
-    // A packet with no dieline is the failure this guard exists for.
     expect(checkLineHandoff(released, line("DESIGN_READY"))).toStrictEqual({
       ok: false,
       error: {
@@ -317,7 +313,6 @@ describe("status catalogues", () => {
   });
 
   it("covers every order status in the transition guards", () => {
-    // Every status is either releasable or refused by name — none falls through.
     const outcomes = CUSTOMER_ORDER_STATUSES.map(
       (status: CustomerOrderStatus) =>
         checkOrderRelease({ status }, [line("DESIGN_READY", "rev_1")]),

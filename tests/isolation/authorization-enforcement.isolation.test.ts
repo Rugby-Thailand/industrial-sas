@@ -1,29 +1,3 @@
-/**
- * Isolation tier — server-side authorization across two tenants, over
- * `convex-test`.
- *
- * Every case here is a claim that cannot be made with one tenant, one actor, or a
- * fake: a grant row that belongs to the other organization, a warehouse the actor
- * may not act in, an approval whose maker is the actor, a step-up event stamped in
- * the future, an enabled support grant that must still grant nothing. The
- * functions under test are registered through the real wrappers and called through
- * `convexTest`, so the schema validators, index semantics, and — the point of this
- * file — Convex's **transaction boundaries** are the real ones.
- *
- * Two behaviours are proved here that no unit test can show:
- *
- * - **A denial commits its audit row.** The wrappers answer a denied request with
- *   `{ ok: false, denial }` instead of throwing, because a mutation that throws
- *   rolls back the row it just wrote. The `DENIED` rows asserted below exist only
- *   because of that choice.
- * - **An allowed attempt is atomic with the operation.** When the handler throws,
- *   the `ALLOWED` row disappears with the handler's writes, so no audit row claims
- *   an effect that did not happen.
- *
- * `RECEIVER`/`SUPERVISOR` compositions come from the production seed, not from
- * this file: a fixture that invented its own grants would prove the wrapper agrees
- * with the fixture. All data is synthetic (`tests/fixtures/README.md`).
- */
 import { makeFunctionReference } from "convex/server";
 import { ConvexError, v, type GenericId, type Value } from "convex/values";
 import { describe, expect, it } from "vitest";
@@ -45,18 +19,6 @@ import {
   type ConvexTenantWorld,
   type ConvexTestModuleMap,
 } from "../fixtures/convex-tenant-world";
-
-/* -------------------------------------------------------------------------- */
-/* Functions under test                                                       */
-/* -------------------------------------------------------------------------- */
-
-/*
- * The handlers write a `warehouses` row as a stand-in for the domain write no
- * table exists for yet: this task adds enforcement, not warehouse management. The
- * permission each function declares is the one under test, and the write is only
- * there so "the operation happened" and "the operation rolled back" are
- * distinguishable.
- */
 
 const scopedWrite = mutationWithOrg({
   args: {
@@ -104,13 +66,6 @@ const stepUpWrite = mutationWithOrg({
   handler: () => null,
 });
 
-/**
- * An ORG-scoped permission that nonetheless names a warehouse.
- *
- * Legitimate — an organization-wide operation can still be *about* a site — and
- * the case worth pinning: the warehouse is revalidated like any other, so it can
- * only narrow the request, never widen it, and the decision itself never reads it.
- */
 const orgWriteAboutWarehouse = mutationWithOrg({
   args: { warehouseId: v.id("warehouses") },
   returns: v.null(),
@@ -139,8 +94,7 @@ const grantedRead = queryWithOrg({
 const thresholdWrite = mutationWithOrg({
   args: {
     warehouseId: v.id("warehouses"),
-    // A browser field with the name of a policy fact. It is never read: the
-    // decision uses the callback's server-computed answer (`INV-0006-06`).
+
     thresholdExceeded: v.optional(v.boolean()),
   },
   returns: v.null(),
@@ -148,8 +102,6 @@ const thresholdWrite = mutationWithOrg({
   target: { table: "warehouses", id: ({ warehouseId }) => warehouseId },
   warehouseId: ({ warehouseId }) => warehouseId,
   policy: async ({ tenantDb }, { warehouseId }) => {
-    // Server-computed from stored data: the marker for "above the limit" is the
-    // target warehouse's own code, which only a tenant write can change.
     const warehouse = await tenantDb.get<{
       readonly orgId: GenericId<"organizations">;
       readonly code: string;
@@ -169,8 +121,6 @@ const approveStatus = mutationWithOrg({
   target: { table: "warehouses", id: ({ warehouseId }) => warehouseId },
   warehouseId: ({ warehouseId }) => warehouseId,
   policy: async ({ tenantDb }) => {
-    // The submission this approval is for, read from the tenant's own audit
-    // trail: the maker is whoever the recorded attempt attributes it to.
     const submission = await tenantDb
       .byIndex<{
         readonly orgId: GenericId<"organizations">;
@@ -296,10 +246,6 @@ const printLabelRef = reference<
   null
 >("printLabel");
 
-/* -------------------------------------------------------------------------- */
-/* Harness                                                                     */
-/* -------------------------------------------------------------------------- */
-
 function identity(org: "a" | "b", subject = "user_fixture_a") {
   return { subject, org_id: `org_fixture_${org}` };
 }
@@ -312,7 +258,6 @@ async function authorizedWorld(
   return { world, seeded };
 }
 
-/** The `ConvexError` payload of a *tenancy* failure, which is still a throw. */
 async function thrownData(operation: Promise<unknown>): Promise<Value> {
   try {
     await operation;
@@ -323,7 +268,6 @@ async function thrownData(operation: Promise<unknown>): Promise<Value> {
   }
 }
 
-/** Assert a denial: generic payload, correlated, and carrying no reason. */
 function expectDenied(outcome: TenantFunctionOutcome<unknown>): string {
   if (outcome.ok) {
     throw new Error(`Expected a denial, got ${JSON.stringify(outcome)}`);
@@ -339,7 +283,6 @@ function expectDenied(outcome: TenantFunctionOutcome<unknown>): string {
   return outcome.requestId;
 }
 
-/** The single audit row of one tenant, with the fields a reader depends on. */
 async function onlyAuditRow(
   world: ConvexTenantWorld,
   orgId: GenericId<"organizations">,
@@ -348,10 +291,6 @@ async function onlyAuditRow(
   expect(rows).toHaveLength(1);
   return rows[0]!;
 }
-
-/* -------------------------------------------------------------------------- */
-/* Cases                                                                       */
-/* -------------------------------------------------------------------------- */
 
 describe("server-side authorization across two tenants", () => {
   it("allows a granted, in-scope write and audits it in the same transaction", async () => {
@@ -385,12 +324,11 @@ describe("server-side authorization across two tenants", () => {
     expect(row["deviceId"]).toBeDefined();
     expect(row).not.toHaveProperty("denialReason");
 
-    // The handler's own write committed with it.
     const written = await storedWarehouses(world);
     expect(
       written.filter((warehouse) => warehouse["code"] === "MARKER-A"),
     ).toHaveLength(1);
-    // The other tenant sees nothing of either.
+
     expect(await storedAuditEvents(world, world.orgB)).toHaveLength(0);
   });
 
@@ -406,7 +344,6 @@ describe("server-side authorization across two tenants", () => {
     // silently.
     expect(await storedAuditEvents(world, world.orgA)).toHaveLength(0);
 
-    // The same shape on a mutation *is* recorded, with the closed reason.
     const { world: second, seeded } = await authorizedWorld();
     await second.t.run(async (ctx) => {
       await ctx.db.delete("membershipRoles", seeded.membershipRoleA);
@@ -501,7 +438,7 @@ describe("server-side authorization across two tenants", () => {
       );
       expect(data).toMatchObject({ kind: "TENANT_CONTEXT_DENIED", code });
       expect(JSON.stringify(data)).not.toContain(String(warehouseId));
-      // Tenancy failed, so there is no resolved tenant to audit against.
+
       expect(await storedAuditEvents(world, world.orgA)).toHaveLength(0);
       expect(await storedAuditEvents(world, world.orgB)).toHaveLength(0);
     },
@@ -577,7 +514,6 @@ describe("server-side authorization across two tenants", () => {
       denialReason: "ENTITLEMENT_DISABLED",
     });
 
-    // Disabled, and enabled *for the other tenant*, are both still disabled.
     const { world: second } = await authorizedWorld();
     await recordEntitlement(second, {
       orgId: second.orgA,
@@ -651,7 +587,6 @@ describe("server-side authorization across two tenants", () => {
       });
     }
 
-    // Evidence recorded for the *other* tenant is not evidence here.
     const { world: foreign } = await authorizedWorld();
     await recordStepUp(foreign, {
       orgId: foreign.orgA,
@@ -682,8 +617,6 @@ describe("server-side authorization across two tenants", () => {
   it("decides a threshold from server-computed data, never from the argument", async () => {
     const { world } = await authorizedWorld();
 
-    // The policy computes "above the limit" from the stored warehouse code, and
-    // the argument that claims otherwise is ignored.
     expectDenied(
       await world.t.withIdentity(identity("a")).mutation(thresholdWriteRef, {
         warehouseId: world.warehouses.alphaA,
@@ -695,8 +628,6 @@ describe("server-side authorization across two tenants", () => {
       permissionCode: "putaway.task.override",
     });
 
-    // Change the stored fact and the same call is allowed, with the same argument
-    // absent — the policy, not the caller, moved the decision.
     const { world: second } = await authorizedWorld();
     await second.t.run(async (ctx) => {
       await ctx.db.patch("warehouses", second.warehouses.alphaA, {
@@ -723,7 +654,6 @@ describe("server-side authorization across two tenants", () => {
         }),
     );
 
-    // A submission attributed to the approver: self-approval, denied.
     const selfSubmission = async (
       target: ConvexTenantWorld,
       actorUserId: GenericId<"users">,
@@ -774,9 +704,6 @@ describe("server-side authorization across two tenants", () => {
     );
     expect(data).toMatchObject({ code: "INTERNAL_ERROR" });
 
-    // Neither the handler's row nor the `ALLOWED` audit row survives: one
-    // transaction, one outcome. This is exactly why a *denial* returns instead of
-    // throwing — a thrown denial would take its own `DENIED` row with it.
     expect(await storedAuditEvents(world, world.orgA)).toHaveLength(0);
     expect(
       (await storedWarehouses(world)).filter(
@@ -796,8 +723,6 @@ describe("server-side authorization across two tenants", () => {
       .action(printLabelRef, { warehouseId: world.warehouses.alphaA });
     const requestId = expectDenied(outcome);
 
-    // The preflight is a separate transaction that committed before the action
-    // returned, so the denial is durable even though the action refused to work.
     expect(await onlyAuditRow(world, world.orgA)).toMatchObject({
       outcome: "DENIED",
       denialReason: "NO_PERMISSION",
@@ -829,8 +754,6 @@ describe("server-side authorization across two tenants", () => {
       deviceId: deviceA,
     });
 
-    // The other tenant's installation ID resolves to nothing here, and changes
-    // no decision: a device is context, never capability.
     const { world: second } = await authorizedWorld();
     await recordDevice(second, {
       orgId: second.orgB,
@@ -858,7 +781,7 @@ describe("server-side authorization across two tenants", () => {
         displayName: "Outsider",
         status: "ACTIVE",
       });
-      // The most permissive grant the schema can express, and enabled by policy.
+
       await ctx.db.patch("organizations", world.orgA, {
         settings: {
           ...(await ctx.db.get("organizations", world.orgA))!.settings,
@@ -883,7 +806,6 @@ describe("server-side authorization across two tenants", () => {
       });
     });
 
-    // An actor with no membership in the tenant is still anonymous to it.
     expect(
       await thrownData(
         world.t.withIdentity(identity("a", outsider)).query(grantedReadRef, {}),
@@ -893,7 +815,6 @@ describe("server-side authorization across two tenants", () => {
       code: "MEMBERSHIP_MISSING",
     });
 
-    // And a member's own missing permission is still missing.
     expectDenied(
       await world.t.withIdentity(identity("a")).query(ungrantedReadRef, {}),
     );
@@ -923,8 +844,6 @@ describe("server-side authorization across two tenants", () => {
     });
     expect(JSON.stringify(data)).not.toContain(String(world.warehouses.alphaB));
 
-    // This tenant's in-scope warehouse is allowed, and the audit row names the
-    // warehouse the server resolved rather than the argument it was sent.
     const allowed = await world.t
       .withIdentity(identity("a"))
       .mutation(orgWriteAboutWarehouseRef, {
@@ -940,7 +859,6 @@ describe("server-side authorization across two tenants", () => {
   });
 
   it("keeps two tenants' decisions independent for the same code and actor", async () => {
-    // A holds `VIEWER` (no receipt posting), B holds `ORG_ADMIN` (everything).
     const { world } = await authorizedWorld({ roleA: "VIEWER" });
 
     expectDenied(

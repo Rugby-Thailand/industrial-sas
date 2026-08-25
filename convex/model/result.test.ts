@@ -1,11 +1,3 @@
-/**
- * Unit tier — the result wrapper.
- *
- * There is almost nothing to test here except the one claim the type cannot make:
- * that the wrapper is immutable at run time. `readonly ok: true` is erased, so
- * without the freeze `(result as { ok: boolean }).ok = false` turns a success into
- * something every caller reads as a failure — with a `value` still attached.
- */
 import { describe, expect, it } from "vitest";
 
 import { fail, ok, type Result } from "./result";
@@ -38,8 +30,6 @@ describe("ok and fail", () => {
   });
 
   it("is shallow: the value is immutable only if its constructor froze it", () => {
-    // Stated rather than hidden. Every constructor under `convex/model/**` freezes
-    // what it returns, which is what makes the guarantee hold end to end.
     const wrapped: Result<{ mutable: number }, never> = ok({ mutable: 1 });
     expect(Object.isFrozen(wrapped)).toBe(true);
     if (!wrapped.ok) return;

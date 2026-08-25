@@ -1,34 +1,3 @@
-/**
- * Integration tier — schema contracts that span the schema and the policy,
- * validator, and defaults modules.
- *
- * No `convex-test`, no Convex deployment, no environment variable: `convex-test`
- * needs generated code and an edge-runtime environment that this repository does
- * not have yet, and a test that needs cloud state is not a guard. Everything here
- * reads plain values.
- *
- * What it proves:
- *
- * - every uniqueness key has an index that makes its check bounded, and every
- *   tenant key begins with `orgId` (Convex has no unique constraint, so this is
- *   the only thing that makes uniqueness affordable to honour);
- * - every uniqueness contract states *when* it applies, so an optional key field
- *   is never claimed unique unconditionally (`devices.installationId` is unique
- *   per organization only when present);
- * - a key that is indexed for bounded reads but deliberately many-per-key says so
- *   (`supportGrants.ticketRef`: every grant is bound to a ticket, and a ticket may
- *   earn more than one grant);
- * - `idempotencyRecords` can express "same key replays, changed request is
- *   rejected" — the request hash exists from creation, the response hash and
- *   replay reference arrive on completion, and no payload is stored;
- * - the value sets that policy branches on are closed, with exactly the expected
- *   members;
- * - a new organization starts with Thai/THB/`Asia/Bangkok` and every capability
- *   flag off, support grants included;
- * - `supportGrants` is schema-ready with no bypass field;
- * - audit, idempotency, session, and device rows carry actor, request, and device
- *   context.
- */
 import { describe, expect, it } from "vitest";
 
 import {
@@ -231,10 +200,6 @@ describe("idempotency replay shape", () => {
   });
 
   it("can decide retry versus reused request ID from the key plus the request hash", () => {
-    // The invariant the future wrapper owes (INV-0003-01): the same
-    // (orgId, operation, requestId) replays the original result, and a changed
-    // request under that key is rejected. Both inputs to that decision are
-    // declared and available at creation time.
     const contract = UNIQUENESS_CONTRACTS.find(
       (candidate) => candidate.table === "idempotencyRecords",
     );

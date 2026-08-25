@@ -1,22 +1,3 @@
-/**
- * The guard that keeps the message catalogue out of the client payload.
- *
- * Picking namespaces by hand is only safe if something checks the hand. This
- * file derives, from the source itself, which namespaces each route's *client*
- * components reach, and asserts `clientMessages.ts` says exactly that — in both
- * directions:
- *
- * - a namespace the graph needs and the manifest omits would render
- *   `Receiving.title` to an operator, so the test fails;
- * - a namespace the manifest carries and nothing needs is dead weight in every
- *   payload of that subtree, so the test fails too.
- *
- * The derivation is a plain import walk rather than a type-aware pass because
- * every `useTranslations` call in this repository names its namespace with a
- * string literal, and the test asserts that stays true. If someone ever writes
- * `useTranslations(someVariable)`, this file fails loudly instead of quietly
- * under-reporting — which is the failure mode that would matter.
- */
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative, resolve, sep } from "node:path";
 
@@ -34,7 +15,6 @@ const REPO = resolve(__dirname, "..", "..");
 const SRC = join(REPO, "src");
 const APP = join(SRC, "app", "[locale]");
 
-/** Every non-test source file, which is the universe the walk resolves within. */
 function sourceFiles(dir: string): readonly string[] {
   const out: string[] = [];
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -47,13 +27,11 @@ function sourceFiles(dir: string): readonly string[] {
 }
 
 interface Module {
-  /** Whether the file carries the `"use client"` directive itself. */
   readonly isClientEntry: boolean;
   readonly imports: readonly string[];
   readonly namespaces: readonly MessageNamespace[];
 }
 
-/** Resolve an import specifier the way the `@/*` alias and the bundler do. */
 function resolveImport(from: string, specifier: string): string | undefined {
   let base: string;
   if (specifier.startsWith("@/")) base = join(SRC, specifier.slice(2));
@@ -78,11 +56,7 @@ const nonLiteralNamespaces: string[] = [];
 for (const file of sourceFiles(SRC)) {
   const source = readFileSync(file, "utf8");
   const imports: string[] = [];
-  // `export ... from` as well as `import ... from`: a re-export is an edge in
-  // the bundler's graph exactly like an import is, so a barrel module that
-  // forwarded a client component would otherwise be a hole in this walk — and a
-  // hole here *under*-reports, which is the direction that ships
-  // `Receiving.title` to a warehouse screen rather than merely wasting bytes.
+
   for (const match of source.matchAll(
     /(?:^|\n)\s*(?:import|export)\s[^;]*?from\s*["']([^"']+)["']/g,
   ))
@@ -113,14 +87,6 @@ for (const file of sourceFiles(SRC)) {
   });
 }
 
-/**
- * The namespaces reachable from `entries` through a `"use client"` boundary.
- *
- * A module is visited once per "am I inside client code" state, because the same
- * helper can be imported by a server component (whose translations are rendered
- * away on the server) and by a client one (whose translations must be shipped).
- * Only the client visit contributes.
- */
 function clientNamespaces(entries: readonly string[]): ReadonlySet<string> {
   const found = new Set<string>();
   const seen = new Set<string>();
@@ -149,7 +115,6 @@ function clientNamespaces(entries: readonly string[]): ReadonlySet<string> {
   return found;
 }
 
-/** Every `page.tsx` and `not-found.tsx` under the locale segment. */
 const routeEntries = sourceFiles(APP).filter((file) =>
   /(?:^|\/)(page|not-found)\.tsx$/.test(file.split(sep).join("/")),
 );
@@ -174,13 +139,6 @@ const bytes = (namespaces: Iterable<string>, locale: "en" | "th"): number => {
 
 const FULL_TH = Buffer.byteLength(JSON.stringify(ALL_CATALOGUES.th), "utf8");
 
-/**
- * The inbound workflows that end at a decision rather than hand on to another.
- *
- * An inspection is decided and a pallet is put away; neither screen renders an
- * order, a receipt, or a label. They are named once here because two assertions
- * below depend on that being true of them and not of purchasing or receiving.
- */
 const TERMINAL_INBOUND = [
   "(desktop)/quality",
   "(desktop)/putaway",
@@ -190,14 +148,10 @@ const TERMINAL_INBOUND = [
 
 describe("client message namespaces", () => {
   it("names every namespace with a string literal", () => {
-    // The walk below reads namespaces syntactically. A computed one would make
-    // every assertion here an under-estimate, so it is banned outright.
     expect(nonLiteralNamespaces).toEqual([]);
   });
 
   it("resolves the source graph it is about to assert on", () => {
-    // Guards against the walk silently finding nothing — a resolver regression
-    // would otherwise make every "no extra namespaces" assertion pass.
     expect(modules.size).toBeGreaterThan(100);
     expect(routeEntries.length).toBeGreaterThan(20);
     expect(
@@ -241,8 +195,7 @@ describe("client message namespaces", () => {
       )) {
         const scope = match[1] ?? "";
         expect(declared).toContain(scope);
-        // The provider has to sit inside the subtree it describes, or it would
-        // ship those namespaces to routes that never asked for them.
+
         expect(relative(REPO, file)).toContain(scope.split("/").join(sep));
         expect(mounted.has(scope)).toBe(false);
         mounted.set(scope, file);
@@ -252,9 +205,6 @@ describe("client message namespaces", () => {
   });
 
   it("leaves no route outside a scope needing more than the shell", () => {
-    // `/[locale]` (a redirect), `/handheld` (a launcher), and `not-found` render
-    // no client translations today. If one ever does, it needs its own scope
-    // rather than a quiet addition to the shell that every page would pay for.
     const shell = new Set<string>(SHELL_NAMESPACES);
     for (const file of routeEntries) {
       if (scopeOf(file) !== undefined) continue;
@@ -278,10 +228,6 @@ describe("client message namespaces", () => {
   });
 
   it("keeps each route's Thai payload well under the full catalogue", () => {
-    // The budget is deliberately loose: it is a floor against regression, not a
-    // target. The purchasing and receiving scopes are the largest, because a
-    // receipt is posted against an order and those screens genuinely read both
-    // vocabularies; everything else is far below this.
     const shellBytes = bytes(SHELL_NAMESPACES, "th");
     expect(shellBytes).toBeLessThan(6_250);
 
@@ -293,8 +239,6 @@ describe("client message namespaces", () => {
       ).toEqual({ scope, withinBudget: true });
     }
 
-    // The screens an operator opens most should be dramatically smaller, not
-    // marginally: these are the reason for the whole arrangement.
     for (const scope of [
       "(auth)/sign-in",
       "(desktop)/dashboard",
@@ -308,17 +252,6 @@ describe("client message namespaces", () => {
       ).toEqual({ scope, small: true });
     }
 
-    /*
-     * Quality and putaway are held to their own line, because what keeps them
-     * there is different: they carry almost nothing but their own vocabulary,
-     * and `Putaway` plus its two score namespaces are 4.9 kB on their own. That
-     * is the floor those words set, not slack — before the module seam was
-     * split these two shipped more than half the catalogue.
-     *
-     * Putaway is the larger of the pair at 24.5%, so 28% is roughly 2 kB of
-     * headroom: enough for the screens to gain wording, tight enough that
-     * another namespace arriving through a shared module fails here.
-     */
     for (const scope of TERMINAL_INBOUND) {
       const total = shellBytes + bytes(ROUTE_NAMESPACES[scope], "th");
       expect(
@@ -329,18 +262,6 @@ describe("client message namespaces", () => {
   });
 
   it("keeps the shared paging chrome off the inventory vocabulary", () => {
-    /*
-     * `LedgerPanel` and `MasterDataPanel` render the pager for every paged list
-     * in the application, inventory screens and master-data screens alike. Both
-     * once read their five pager strings from `Inventory`, which is why eight
-     * scopes that never show a balance carried the column headings, the
-     * captions, and the read-only notice with them — 1.5 kB of Thai each.
-     *
-     * Stated as a rule rather than as byte counts: a component that renders on
-     * every screen may only name chrome namespaces. The exact-match test above
-     * would accept `useTranslations("Inventory")` here and simply grow the
-     * manifest to suit.
-     */
     const CHROME = ["Panel", "Pagination"];
     for (const panel of [
       join(SRC, "features", "inventory", "LedgerPanel.tsx"),
@@ -358,9 +279,6 @@ describe("client message namespaces", () => {
   });
 
   it("declares Inventory only where an inventory screen renders", () => {
-    // The consequence of the rule above, checked from the manifest's side: the
-    // balances and history screens read the inventory vocabulary, and nothing
-    // else in the application does.
     const carriers = Object.entries(ROUTE_NAMESPACES)
       .filter(([, namespaces]) =>
         (namespaces as readonly string[]).includes("Inventory"),
@@ -374,22 +292,6 @@ describe("client message namespaces", () => {
   });
 
   it("keeps quality and putaway off the ordering and receiving catalogues", () => {
-    /*
-     * The seam this file's manifest was reorganised around, asserted as a rule
-     * rather than as a list of namespaces.
-     *
-     * Quality and putaway are terminal inbound workflows: an inspection is
-     * decided and a pallet is put away, and neither screen renders an order, a
-     * receipt, or a label. They nonetheless carried `Purchasing`, `Receiving`,
-     * and `LabelEvidence` — 18.7 kB of Thai between them — because they reached
-     * those namespaces through modules they imported for other reasons: a
-     * heading, a warehouse gate, a reason-code picker, a paging helper.
-     *
-     * Restating that as an assertion, rather than trusting the numbers above to
-     * be noticed, is the point: the exact-match test would happily accept a
-     * regression here, because a regression makes the manifest bigger *and*
-     * still true. This is what would make it false.
-     */
     const foreign = [
       "ImportProblem",
       "LabelEvidence",
@@ -411,13 +313,6 @@ describe("client message namespaces", () => {
   });
 
   it("keeps the modules every inbound screen imports free of translations", () => {
-    /*
-     * The other half of the seam. `InboundPrimitives` (a heading, a warehouse
-     * gate, paging arguments) and `InboundCells` (two value formatters) are
-     * imported by every inbound screen in both shells, so a `useTranslations`
-     * call added to either would put that namespace back on all of them — which
-     * is exactly how the quality and putaway payloads grew the first time.
-     */
     for (const shared of [
       join(SRC, "features", "inbound", "InboundPrimitives.tsx"),
       join(SRC, "components", "inbound", "InboundCells.tsx"),
@@ -431,9 +326,6 @@ describe("client message namespaces", () => {
   });
 
   it("keeps the app's providers from inheriting the catalogue implicitly", () => {
-    // `NextIntlClientProvider` with no `messages` prop inherits the entire
-    // request configuration. That is the exact regression this file exists to
-    // prevent, and it is invisible at the call site, so it is checked textually.
     const users = [...sourceFiles(APP), join(SRC, "i18n", "RouteMessages.tsx")];
     const bare: string[] = [];
     for (const file of users) {
@@ -458,8 +350,6 @@ describe("pickMessages", () => {
   });
 
   it("throws rather than shipping a hole when a namespace is gone", () => {
-    // Every caller runs during static generation, so this fails `next build`
-    // instead of rendering a key path onto a warehouse screen.
     expect(() =>
       pickMessages({ App: {} }, ["App", "Setup" as MessageNamespace]),
     ).toThrow(/Setup/);

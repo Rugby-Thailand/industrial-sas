@@ -57,16 +57,10 @@ const invalidPayload = () =>
     },
   );
 
-/** CORS preflight for the capability-based browser upload. */
 export const privateMasterCardFileUploadOptions = httpActionGeneric(
   async () => new Response(null, { status: 204, headers: corsHeaders }),
 );
 
-/**
- * Store bytes only after atomically claiming a tenant/revision upload grant.
- * The gateway then binds the resulting storage object to that exact grant, so
- * attachment can never adopt an object uploaded for another tenant or revision.
- */
 export const privateMasterCardFileUpload = httpActionGeneric(
   async (ctx, request) => {
     const grantId = new URL(request.url).searchParams.get("grantId");

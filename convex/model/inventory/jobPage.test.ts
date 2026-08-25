@@ -1,10 +1,3 @@
-/**
- * Unit tier — bounded, resumable job pages.
- *
- * Three properties are pinned: the size cap rejects rather than clamps, a cursor is
- * validated even though it is never parsed, and completion is a stored fact whose
- * biconditional with `nextCursor` cannot be broken.
- */
 import { describe, expect, it } from "vitest";
 
 import {

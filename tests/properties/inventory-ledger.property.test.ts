@@ -1,18 +1,3 @@
-/**
- * Property tier — the ledger invariants, over randomized input.
- *
- * `ADR-0003` calls this the heaviest test obligation in the project, and plan §12
- * names the properties: any valid sequence balances, replay equals the projection,
- * reversal restores the exact prior projection, a duplicate request is a no-op, and
- * negative or cross-tenant postings are rejected. Each of those is a `fc.assert`
- * below.
- *
- * Every property is paired with a **negative control** — a deliberately weakened
- * reimplementation of the rule the property covers — and the control asserts that
- * the property *fails* against it. A property that passes against a broken
- * implementation is not testing anything, and the only way to know is to break one
- * on purpose.
- */
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
@@ -62,16 +47,6 @@ const quantity = (minorUnits: number): Quantity => {
   return made.value;
 };
 
-/* -------------------------------------------------------------------------- */
-/* Generators                                                                  */
-/* -------------------------------------------------------------------------- */
-
-/**
- * A component of a bucket key: the character set the identity module accepts.
- *
- * Deliberately includes `-`, `.`, and `_`, and deliberately includes single
- * characters, because the aliasing risk is highest where components are short.
- */
 const component = fc.stringMatching(/^[A-Za-z0-9_.-]{1,12}$/);
 
 const stockStatus: fc.Arbitrary<StockStatus> = fc.constantFrom(
@@ -115,7 +90,6 @@ const arbitraryBucket: fc.Arbitrary<InventoryBucket> = fc.record(
   },
 );
 
-/** A UUIDv7, built rather than matched, so the version and variant are right. */
 const requestId = fc
   .tuple(
     fc.stringMatching(/^[0-9a-f]{12}$/),
@@ -129,14 +103,6 @@ const requestId = fc
       `${time.slice(0, 8)}-${time.slice(8)}-7${rest}-${variant}${tail}-${node}`,
   );
 
-/**
- * A movement within one conservation group: `count` physical destinations sharing a
- * total, drawn out of one source.
- *
- * Generating *balanced* transactions directly, rather than generating arbitrary
- * lines and filtering, is what keeps the generator useful: an arbitrary line list
- * is essentially never balanced, so a filtered generator would test almost nothing.
- */
 interface MovementPlan {
   readonly orgId: string;
   readonly warehouseId: string;
@@ -177,8 +143,7 @@ const movement: fc.Arbitrary<MovementPlan> = fc
         itemId,
         ...(lotId === undefined ? {} : { lotId }),
       };
-      // Distinct destinations only: two identical buckets would be canonicalized,
-      // which is legal but makes the expected line count harder to state.
+
       const seen = new Set<string>();
       const destinations: { bucket: InventoryBucket; units: number }[] = [];
       for (const split of splits) {
@@ -253,10 +218,6 @@ const sheetOrThrow = (
   return result.value;
 };
 
-/* -------------------------------------------------------------------------- */
-/* Bucket key injectivity                                                     */
-/* -------------------------------------------------------------------------- */
-
 describe("canonical bucket keys never alias", () => {
   it("decodes back to the bucket it encoded, for every valid bucket", () => {
     fc.assert(
@@ -292,16 +253,6 @@ describe("canonical bucket keys never alias", () => {
     );
   });
 
-  /**
-   * Negative control for the encoding *mechanism*, not for the field order.
-   *
-   * A `|`-join over components that cannot contain `|` is in fact injective, which
-   * is exactly why `stockIdentity.ts` also rejects `|` and `:` in a component. The
-   * length prefix is the defence that does not depend on that rejection — so the
-   * control below is a join over *unrestricted* components, and it shows two things
-   * in one property: the join collides, and the length-prefixed encoding of the same
-   * components does not.
-   */
   it("negative control: a delimiter-join over unrestricted components aliases", () => {
     const unrestricted = fc
       .array(fc.constantFrom("a", "b", "|"), { maxLength: 4 })
@@ -324,7 +275,6 @@ describe("canonical bucket keys never alias", () => {
     };
     expect(joinIsInjective).toThrow();
 
-    // The mechanism the real encoder uses survives the same generator.
     fc.assert(
       fc.property(pair, pair, (left, right) => {
         const same = left[0] === right[0] && left[1] === right[1];
@@ -334,10 +284,6 @@ describe("canonical bucket keys never alias", () => {
     );
   });
 });
-
-/* -------------------------------------------------------------------------- */
-/* Balance                                                                    */
-/* -------------------------------------------------------------------------- */
 
 describe("every valid transaction balances", () => {
   it("accepts a generated movement and reports zero for every group", () => {
@@ -398,8 +344,6 @@ describe("every valid transaction balances", () => {
 
   it("negative control: a validator that skips the balance check accepts a perturbation", () => {
     const weakened = (draft: LedgerTransactionDraft): boolean => {
-      // Everything the real validator does except conservation: the lines are
-      // still non-zero, still owned, still bounded.
       const validated = validateLedgerTransaction(draft);
       if (validated.ok) return true;
       return validated.error.code === "UNBALANCED_TRANSACTION";
@@ -425,9 +369,7 @@ describe("every valid transaction balances", () => {
   });
 });
 
-/* -------------------------------------------------------------------------- */
 /* Replay equals projection                                                   */
-/* -------------------------------------------------------------------------- */
 
 describe("replay equals the incrementally applied projection", () => {
   const sequence = fc.array(fc.tuple(movement, requestId), {
@@ -458,7 +400,7 @@ describe("replay equals the incrementally applied projection", () => {
         expect(balanceEntries(incremental)).toEqual(
           balanceEntries(replayed.value),
         );
-        // And reconciling one against the other finds nothing.
+
         const drift = reconcileBalances(replayed.value, incremental);
         expect(drift.ok).toBe(true);
         if (drift.ok) expect(drift.value).toEqual([]);
@@ -499,7 +441,7 @@ describe("replay equals the incrementally applied projection", () => {
         fc.property(movement, requestId, (plan, id) => {
           const validated = validateLedgerTransaction(draftOf(plan, id, 1_000));
           if (!validated.ok) return;
-          // Post, then reverse: every bucket lands on zero.
+
           const reversed = validated.value.deltas.map((delta) => ({
             ...delta,
             quantity: quantity(-delta.quantity.minorUnits),
@@ -520,10 +462,6 @@ describe("replay equals the incrementally applied projection", () => {
     expect(stillMatches).toThrow();
   });
 });
-
-/* -------------------------------------------------------------------------- */
-/* Reversal                                                                   */
-/* -------------------------------------------------------------------------- */
 
 describe("a reversal restores the exact prior projection", () => {
   it("returns every touched bucket to the balance it had before", () => {
@@ -654,10 +592,6 @@ describe("a reversal restores the exact prior projection", () => {
   });
 });
 
-/* -------------------------------------------------------------------------- */
-/* Request identity                                                            */
-/* -------------------------------------------------------------------------- */
-
 describe("request identity", () => {
   it("accepts a generated UUIDv7 and namespaces it per organization", () => {
     fc.assert(
@@ -698,8 +632,7 @@ describe("request identity", () => {
     fc.assert(
       fc.property(movement, requestId, (plan, id) => {
         const first = validateLedgerTransaction(draftOf(plan, id, 1_000));
-        // The same intent sent again, with the lines in reverse order and a
-        // different clock: still the same request.
+
         const draft = draftOf(plan, id, 9_999);
         const retry = validateLedgerTransaction({
           ...draft,
@@ -745,10 +678,6 @@ describe("request identity", () => {
   });
 });
 
-/* -------------------------------------------------------------------------- */
-/* Refusals leave nothing behind                                              */
-/* -------------------------------------------------------------------------- */
-
 describe("an invalid posting fails without a partial result", () => {
   it("leaves the balance sheet it was given untouched", () => {
     fc.assert(
@@ -764,7 +693,6 @@ describe("an invalid posting fails without a partial result", () => {
           );
           const snapshot = balanceEntries(before);
 
-          // A posting that would drive a physical bucket negative.
           const overdraw = valid.value.deltas
             .filter((delta) => delta.bucket.location.kind === "PHYSICAL")
             .map((delta) => ({
@@ -864,10 +792,6 @@ describe("an invalid posting fails without a partial result", () => {
     );
   });
 });
-
-/* -------------------------------------------------------------------------- */
-/* Job pages                                                                  */
-/* -------------------------------------------------------------------------- */
 
 describe("bounded job pages", () => {
   it("walks any row count in bounded, deterministic, terminating pages", () => {

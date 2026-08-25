@@ -25,17 +25,7 @@ const SIDEBAR_WIDTH = "16rem";
 const SIDEBAR_WIDTH_MOBILE = "18rem";
 const SIDEBAR_WIDTH_ICON = "3rem";
 
-/*
- * The registry's `Ctrl`/`Cmd`+`B` global shortcut is deliberately absent.
- *
- * A HID barcode scanner is a keyboard: it types the payload and presses Enter,
- * and a document-level `keydown` listener sees every one of those characters. A
- * global single-letter accelerator is a scan away from collapsing the navigation
- * mid-task, and the UX research note already rules out exactly this pattern —
- * global shortcuts must be suspended while a scan buffer is active, which is not
- * something a primitive can know. The trigger button is the only affordance, and
- * it is reachable by Tab like everything else (`INV-0010-08`).
- */
+// Avoid global shortcuts: HID barcode scanners emit keyboard events.
 
 type SidebarContextProps = {
   state: "expanded" | "collapsed";
@@ -74,8 +64,6 @@ function SidebarProvider({
   const isMobile = useIsMobile();
   const [openMobile, setOpenMobile] = React.useState(false);
 
-  // This is the internal state of the sidebar.
-  // We use openProp and setOpenProp for control from outside the component.
   const [_open, _setOpen] = React.useState(defaultOpen);
   const open = openProp ?? _open;
   const setOpen = React.useCallback(
@@ -87,19 +75,15 @@ function SidebarProvider({
         _setOpen(openState);
       }
 
-      // This sets the cookie to keep the sidebar state.
       document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`;
     },
     [setOpenProp, open],
   );
 
-  // Helper to toggle the sidebar.
   const toggleSidebar = React.useCallback(() => {
     return isMobile ? setOpenMobile((open) => !open) : setOpen((open) => !open);
   }, [isMobile, setOpen, setOpenMobile]);
 
-  // We add a state so that we can do data-state="expanded" or "collapsed".
-  // This makes it easier to style the sidebar with Tailwind classes.
   const state = open ? "expanded" : "collapsed";
 
   const contextValue = React.useMemo<SidebarContextProps>(
@@ -153,11 +137,7 @@ function Sidebar({
   side?: "left" | "right";
   variant?: "sidebar" | "floating" | "inset";
   collapsible?: "offcanvas" | "icon" | "none";
-  /**
-   * Accessible names for the mobile sheet. Props rather than the registry's
-   * hard-coded English, because this application ships Thai and English and an
-   * accessible name is copy like any other (`ADR-0010`).
-   */
+
   mobileTitle?: string;
   mobileDescription?: string;
   mobileCloseLabel?: string;
@@ -236,7 +216,7 @@ function Sidebar({
         data-side={side}
         className={cn(
           "fixed inset-y-0 z-10 hidden h-svh w-(--sidebar-width) transition-[left,right,width] duration-200 ease-linear data-[side=left]:left-0 data-[side=left]:group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)] data-[side=right]:right-0 data-[side=right]:group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)] lg:flex",
-          // Adjust the padding for floating and inset variants.
+
           variant === "floating" || variant === "inset"
             ? "p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4))+2px)]"
             : "group-data-[collapsible=icon]:w-(--sidebar-width-icon) group-data-[side=left]:border-r group-data-[side=right]:border-l",

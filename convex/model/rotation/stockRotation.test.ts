@@ -1,11 +1,3 @@
-/**
- * Unit tier — FIFO and FEFO ordering.
- *
- * Determinism is asserted the only way that means anything: the same candidates
- * are ordered from several input permutations and the results must be identical.
- * The rest covers each policy switch and the exclusions, which are the decisions
- * an operator will ask about when a lot they expected is not offered.
- */
 import { describe, expect, it } from "vitest";
 
 import { expectError, expectOk } from "../../../tests/fixtures/domain-results";
@@ -71,9 +63,6 @@ describe("rotationDateOf", () => {
   });
 
   it("rejects a rotation source this module does not implement", () => {
-    // The switch had no default, so a forged source answered `undefined` while
-    // the type said `BusinessDate | null` — and the next comparison read fields
-    // off it.
     expect(
       expectError(
         rotationDateOf(lot, {
@@ -107,9 +96,6 @@ describe("isCandidateExpired", () => {
   });
 
   it("reads expiry from the expiration date alone", () => {
-    // Expiry used to be read off the configured rotation date. Under a
-    // manufacture-date policy that called an old lot "expired", and — the
-    // dangerous half — called a genuinely expired lot good.
     const oldManufacture = candidate({
       candidateKey: "b-old",
       manufactureDate: date("2020-01-01"),
@@ -436,9 +422,6 @@ describe("compareRotationCandidates", () => {
   });
 
   it("refuses to order values it has not validated", () => {
-    // A bare comparator handed to `sort` is where an unvalidated value does the
-    // most damage: a `NaN` comparison makes the order intransitive and the
-    // resulting sequence implementation-defined.
     const good = candidate({
       candidateKey: "a",
       expirationDate: date("2026-09-01"),
@@ -667,8 +650,6 @@ describe("expiry is independent of the rotation source", () => {
   });
 
   it("does not call an old manufacture date an expiry", () => {
-    // Rotating by manufacture date must still order the old lot first; it is old,
-    // not expired.
     const order = expectOk(
       orderForRotation(
         [usable, expiredButNewlyMade],

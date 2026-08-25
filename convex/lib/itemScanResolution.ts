@@ -1,11 +1,3 @@
-/**
- * Resolve the item named by a keyboard-wedge or manually entered scan.
- *
- * This is database-facing infrastructure rather than UI parsing: the catalogue
- * query and every mutation that records item evidence must use the same
- * tenant-bound, active-only answer. Keeping it here prevents a client from
- * resolving one item for display while a write records an unchecked string.
- */
 import type { TenantDocumentAccess, TenantOrgId } from "./tenantDb";
 
 interface ItemDocument {
@@ -39,7 +31,6 @@ export type ItemScanResolution =
       readonly reason: "EMPTY_SCAN" | "UNKNOWN_SCAN";
     };
 
-/** Normalize once before lookup, fingerprinting, persistence, and comparison. */
 export const normalizeItemScan = (scan: string): string =>
   scan.trim().normalize("NFC").toUpperCase();
 

@@ -1,38 +1,4 @@
-/**
- * Where to put it, and why — deterministic and explainable.
- *
- * `ADR-0007` §12–14 asks for three things that pull against each other, and the
- * shape of this module is the resolution:
- *
- * 1. **Hard constraints filter first.** A location that fails one is not a
- *    low-scoring candidate; it is not a candidate. Scoring an incompatible bin
- *    down to last place would let a high enough preference score float it back up.
- * 2. **Preference, then score.** Preference is about *this* stock (the same item
- *    is already there, this is its home); score is about the warehouse (capacity,
- *    travel, fragmentation). Mixing them into one number makes "why this bin?"
- *    unanswerable.
- * 3. **Every answer explains itself.** The result carries the filters that were
- *    applied, why each rejected location was rejected, and each score component
- *    with its weight — so an operator or an auditor can read the recommendation
- *    rather than trust it (`INV-0007-09`, D-14).
- *
- * ### Determinism is a tested property, not an aspiration
- *
- * `INV-0007-10`: identical inputs yield an identical ordered list. That means no
- * clock, no randomness, no `Map` iteration order dependence, and — the one that
- * actually bites — **a total order**. Two locations with the same score are
- * broken apart by location code, which is unique per warehouse by contract, so
- * the sort can never depend on the order the caller happened to pass candidates
- * in. Without that tiebreak the same inputs would rank differently depending on
- * how the database returned rows.
- *
- * No clock, no database, no Convex import (plan §6.2).
- */
 import { fail, ok, type Result } from "../result";
-
-/* -------------------------------------------------------------------------- */
-/* Errors                                                                      */
-/* -------------------------------------------------------------------------- */
 
 export type PutawayError =
   | { readonly code: "NO_CANDIDATE_LOCATIONS" }
@@ -41,79 +7,48 @@ export type PutawayError =
   | { readonly code: "CANDIDATE_INVALID"; readonly field: string }
   | { readonly code: "WEIGHTS_INVALID"; readonly field: string };
 
-/* -------------------------------------------------------------------------- */
-/* Inputs                                                                      */
-/* -------------------------------------------------------------------------- */
-
-/**
- * A location as the recommender sees it.
- *
- * Deliberately flat and dumb: every field is a fact the caller read from a row,
- * and nothing here is derived. A candidate that carried, say, a pre-computed
- * "suitability" would move the decision out of this module and out of the test
- * suite that proves it deterministic.
- */
 export interface PutawayCandidate {
   readonly locationId: string;
-  /** Unique per warehouse by contract; the deterministic tiebreak. */
+
   readonly code: string;
   readonly locationType: string;
   readonly status: string;
-  /** Free capacity in the item's base minor units. `undefined` means unmodelled. */
+
   readonly freeCapacityMinorUnits?: number | undefined;
-  /** Storage classes this location accepts. Empty means it accepts anything. */
+
   readonly storageClassCodes?: readonly string[] | undefined;
-  /** Distance from the dock in whatever unit the tenant measures travel in. */
+
   readonly travelDistance?: number | undefined;
-  /** How many distinct items already sit here. Drives the fragmentation term. */
+
   readonly distinctItemCount?: number | undefined;
-  /** True when this location already holds the item being put away. */
+
   readonly holdsSameItem?: boolean | undefined;
-  /** True when it already holds this exact lot. */
+
   readonly holdsSameLot?: boolean | undefined;
-  /** True when the item's configured home is this location. */
+
   readonly isItemHome?: boolean | undefined;
-  /** True when the location sits in the item's preferred zone. */
+
   readonly isPreferredZone?: boolean | undefined;
-  /** Tenant rule: this location may never receive putaway. */
+
   readonly prohibited?: boolean | undefined;
 }
 
-/** What is being put away. */
 export interface PutawayDemand {
   readonly itemId: string;
   readonly lotId?: string | undefined;
   readonly minorUnits: number;
-  /** The storage class the item requires, when the tenant configured one. */
+
   readonly requiredStorageClassCode?: string | undefined;
-  /** Stock in this status may not be put away to a normal bin (`INV-0007-05`). */
+
   readonly stockStatus: string;
 }
 
-/**
- * The location types putaway may target.
- *
- * A dock and a staging lane are working surfaces: stock left there is stock that
- * has not been put away, and recommending one would let the task be "completed"
- * without the pallet moving. `OVERFLOW` is included because it is the fallback
- * the policy explicitly wants (D-14).
- */
 export const PUTAWAY_TARGET_TYPES: readonly string[] = Object.freeze([
   "RACK_BIN",
   "FLOOR_BLOCK",
   "OVERFLOW",
 ]);
 
-/**
- * Statuses whose stock must not reach a normal storage bin.
- *
- * `QC_HOLD` is the one `INV-0007-05` names: held stock putaway to an available
- * bucket would be released without a disposition, which is the bypass the whole
- * QC design exists to prevent. `QUARANTINE` and `REJECTED` are here for the same
- * reason — a quarantine bin is a location decision the tenant configures, and
- * until they have, the honest answer is "no recommendation" rather than a normal
- * rack.
- */
 export const NON_PUTAWAYABLE_STATUSES: readonly string[] = Object.freeze([
   "QC_HOLD",
   "QUARANTINE",
@@ -122,13 +57,6 @@ export const NON_PUTAWAYABLE_STATUSES: readonly string[] = Object.freeze([
   "EXPIRED",
 ]);
 
-/**
- * Score weights, as whole numbers.
- *
- * Integers rather than fractions so the total is exact and two runs cannot
- * disagree in the last bit. The defaults say: filling a bin that already holds
- * this lot beats a shorter walk, and a shorter walk beats a tidier warehouse.
- */
 export interface PutawayWeights {
   readonly sameLot: number;
   readonly sameItem: number;
@@ -149,11 +77,6 @@ export const DEFAULT_PUTAWAY_WEIGHTS: PutawayWeights = Object.freeze({
   fragmentation: 40,
 });
 
-/* -------------------------------------------------------------------------- */
-/* Outputs                                                                     */
-/* -------------------------------------------------------------------------- */
-
-/** Why a location was removed from consideration. */
 export type PutawayFilterReason =
   | "LOCATION_INACTIVE"
   | "LOCATION_TYPE_NOT_STORAGE"
@@ -168,12 +91,11 @@ export interface PutawayRejection {
   readonly reason: PutawayFilterReason;
 }
 
-/** One named contribution to a candidate's score. */
 export interface ScoreComponent {
   readonly name: string;
-  /** The weight this component was scored against. */
+
   readonly weight: number;
-  /** The contribution, already multiplied out. Always an integer. */
+
   readonly points: number;
 }
 
@@ -182,23 +104,18 @@ export interface ScoredLocation {
   readonly code: string;
   readonly score: number;
   readonly components: readonly ScoreComponent[];
-  /** True when this location was reached through the overflow fallback. */
+
   readonly viaOverflow: boolean;
 }
 
 export interface PutawayRecommendation {
-  /** Best first. Deterministic: score descending, then location code ascending. */
   readonly ranked: readonly ScoredLocation[];
-  /** Every location that was considered and removed, with its reason. */
+
   readonly rejected: readonly PutawayRejection[];
   /** The filters that ran, in order, so the trace states what was applied. */
   readonly filtersApplied: readonly string[];
   readonly weights: PutawayWeights;
 }
-
-/* -------------------------------------------------------------------------- */
-/* Recommendation                                                              */
-/* -------------------------------------------------------------------------- */
 
 const FILTER_ORDER: readonly string[] = Object.freeze([
   "STOCK_STATUS_PUTAWAYABLE",
@@ -211,18 +128,6 @@ const FILTER_ORDER: readonly string[] = Object.freeze([
 
 const isCount = (value: number): boolean => Number.isSafeInteger(value);
 
-/**
- * Rank the locations a pallet may go to.
- *
- * Returns a *list*, not a winner. The handheld shows the top candidate and the
- * runners-up, because the recommendation is advice: an operator who can see the
- * second choice can take it without an override, and one who can only see the
- * first has to fight the system to do the obvious thing.
- *
- * `ALL_CANDIDATES_FILTERED` is a distinct refusal from `NO_CANDIDATE_LOCATIONS`.
- * "The warehouse has no bins" and "every bin was ruled out" send a supervisor to
- * completely different screens.
- */
 export function recommendPutaway(input: {
   readonly demand: PutawayDemand;
   readonly candidates: readonly PutawayCandidate[];
@@ -245,12 +150,6 @@ export function recommendPutaway(input: {
 
   const rejected: PutawayRejection[] = [];
 
-  /*
-   * The stock-status filter is not per-location and runs first: if the stock may
-   * not be put away at all, every location fails for the same reason, and saying
-   * so once is the honest explanation. Reporting it per bin would bury one fact
-   * under a hundred rows.
-   */
   if (NON_PUTAWAYABLE_STATUSES.includes(demand.stockStatus)) {
     return ok(
       Object.freeze({
@@ -298,11 +197,6 @@ export function recommendPutaway(input: {
     scoreCandidate(candidate, demand, weights),
   );
 
-  /*
-   * The total order. Score descending, then code ascending — never the caller's
-   * order, which is whatever the database returned and is not a property of the
-   * warehouse (`INV-0007-10`).
-   */
   const ranked = [...scored].sort((left, right) =>
     left.score === right.score
       ? left.code.localeCompare(right.code, "en")
@@ -319,7 +213,6 @@ export function recommendPutaway(input: {
   );
 }
 
-/** The first hard constraint this location fails, or `undefined` if it passes. */
 function hardFilterReason(
   candidate: PutawayCandidate,
   demand: PutawayDemand,
@@ -330,12 +223,6 @@ function hardFilterReason(
   }
   if (candidate.prohibited === true) return "LOCATION_PROHIBITED";
 
-  /*
-   * An empty or absent storage-class list means "accepts anything", not "accepts
-   * nothing". The opposite reading would make every location incompatible until
-   * a tenant had classified all of them, which is the state every new tenant is
-   * in.
-   */
   const required = demand.requiredStorageClassCode;
   if (required !== undefined && required.length > 0) {
     const accepted = candidate.storageClassCodes ?? [];
@@ -344,8 +231,6 @@ function hardFilterReason(
     }
   }
 
-  // Unmodelled capacity does not block: a tenant that has not measured its bins
-  // still needs recommendations, and a guess would be worse than the omission.
   const free = candidate.freeCapacityMinorUnits;
   if (free !== undefined && free < demand.minorUnits) {
     return "INSUFFICIENT_CAPACITY";
@@ -353,13 +238,6 @@ function hardFilterReason(
   return undefined;
 }
 
-/**
- * Score one surviving candidate.
- *
- * Every component is an integer contribution with its weight recorded, so the
- * stored trace can be read back as arithmetic rather than as a number somebody
- * has to take on faith.
- */
 function scoreCandidate(
   candidate: PutawayCandidate,
   demand: PutawayDemand,
@@ -372,7 +250,6 @@ function scoreCandidate(
     components.push({ name, weight, points: weight * multiplier });
   };
 
-  // Preference: facts about this stock.
   if (candidate.holdsSameLot === true && demand.lotId !== undefined) {
     add("SAME_LOT", weights.sameLot, 1);
   }
@@ -382,24 +259,12 @@ function scoreCandidate(
     add("PREFERRED_ZONE", weights.preferredZone, 1);
   }
 
-  /*
-   * Capacity fit rewards the *tightest* bin that still fits, on a 0–10 integer
-   * scale. Filling a bin that barely holds the pallet leaves the roomy bins for
-   * pallets that need them; rewarding the roomiest instead would scatter stock
-   * across the warehouse and is the classic wrong version of this term.
-   */
   const free = candidate.freeCapacityMinorUnits;
   if (free !== undefined && free > 0) {
     const fit = Math.min(10, Math.floor((demand.minorUnits * 10) / free));
     add("CAPACITY_FIT", weights.capacityFit, fit);
   }
 
-  /*
-   * Travel is scored as closeness on a 0–10 integer scale, saturating at 100
-   * distance units. Saturating rather than scaling by the warehouse's longest
-   * aisle keeps two tenants' scores comparable and keeps one distant location
-   * from compressing every other candidate into a tie.
-   */
   const distance = candidate.travelDistance;
   if (distance !== undefined && distance >= 0) {
     const closeness = Math.max(
@@ -409,7 +274,6 @@ function scoreCandidate(
     add("TRAVEL", weights.travel, closeness);
   }
 
-  // Fragmentation: prefer bins that already hold few distinct items.
   const distinct = candidate.distinctItemCount;
   if (distinct !== undefined && distinct >= 0) {
     add("FRAGMENTATION", weights.fragmentation, Math.max(0, 5 - distinct));
@@ -429,22 +293,11 @@ function scoreCandidate(
   });
 }
 
-/* -------------------------------------------------------------------------- */
-/* Override                                                                    */
-/* -------------------------------------------------------------------------- */
-
-/**
- * What an override has to record (`INV-0007-09`).
- *
- * All four facts, together. The recommended location alone does not say what the
- * operator did; the chosen location alone does not say what the system advised;
- * and without a reason the analytics D-14 asks for is a count with no content.
- */
 export interface OverrideRecord {
   readonly recommendedLocationId: string | undefined;
   readonly chosenLocationId: string;
   readonly reasonCodeId: string;
-  /** True when the chosen location was not the top recommendation. */
+
   readonly isOverride: boolean;
 }
 
@@ -462,19 +315,6 @@ export type OverrideError =
     }
   | { readonly code: "LOCATION_NOT_CONSIDERED" };
 
-/**
- * Validate a chosen location against the recommendation that produced it.
- *
- * An override may pick any location the recommender *ranked*, including the last
- * one — that is the operator's judgement and the system's job is to record it.
- * It may **not** pick a location a hard constraint rejected (`INV-0007-08`): the
- * constraints are compatibility, prohibition, and capacity, and none of them is
- * a preference an operator is entitled to overrule from a handheld.
- *
- * A location that was never considered is refused separately. It usually means
- * the recommendation is stale — the operator is looking at an answer computed
- * before a bin was deactivated — and re-running it is the fix.
- */
 export function validateOverride(
   input: OverrideInput,
 ): Result<OverrideRecord, OverrideError> {
@@ -514,10 +354,6 @@ export function validateOverride(
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/* Task claiming                                                               */
-/* -------------------------------------------------------------------------- */
-
 export type PutawayTaskStatus = "READY" | "CLAIMED" | "CONFIRMED" | "CANCELLED";
 
 export type ClaimError =
@@ -525,17 +361,6 @@ export type ClaimError =
   | { readonly code: "TASK_CLAIMED_BY_ANOTHER" }
   | { readonly code: "TASK_NOT_CLAIMED_BY_ACTOR" };
 
-/**
- * Decide a compare-and-set claim (`INV-0007-11`).
- *
- * The comparison is on the *observed* state, so the caller re-reads the row
- * inside its transaction and hands what it saw to this function. Two operators
- * pressing at once therefore resolve on the write, not on a read that both of
- * them passed.
- *
- * Re-claiming a task you already hold succeeds and is not an error: an operator
- * whose screen reconnected should not be told they lost their own task.
- */
 export function decideClaim(input: {
   readonly status: PutawayTaskStatus;
   readonly claimedByUserId?: string | undefined;
@@ -552,7 +377,6 @@ export function decideClaim(input: {
     : fail({ code: "TASK_CLAIMED_BY_ANOTHER" });
 }
 
-/** Whether this actor may confirm this task. */
 export function assertConfirmable(input: {
   readonly status: PutawayTaskStatus;
   readonly claimedByUserId?: string | undefined;

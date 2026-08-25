@@ -1,14 +1,3 @@
-/**
- * The inbound vertical slice, end to end, against the real functions.
- *
- * `RG-051` asks that a real PO complete receive → QC → pallet → print → putaway
- * → inventory history. That gate is a *pilot hardware* gate and stays open. What
- * this file proves is the half that is local: the same journey through the same
- * public Convex functions, with the ledger, the permissions, the idempotency
- * machinery, and the maker-checker evaluator all real.
- *
- * Every seeded row is synthetic (PDPA, plan §12).
- */
 import type { GenericMutationCtx } from "convex/server";
 import type { GenericId } from "convex/values";
 import { describe, expect, it } from "vitest";
@@ -65,7 +54,6 @@ interface RuntimeFunction {
 
 const run = (value: unknown) => value as RuntimeFunction;
 
-/** Tenant A's own actor, and a second one for the maker-checker halves. */
 const identityA = { subject: "user_fixture_a", org_id: "org_fixture_a" };
 
 async function callAs(
@@ -92,14 +80,6 @@ function value(outcome: Record<string, unknown>): Record<string, unknown> {
   return outcome["value"] as Record<string, unknown>;
 }
 
-/**
- * Unwrap a mutation's answer to the write envelope inside it.
- *
- * Every tenant-bound function answers `TenantOutcome` — `{ok, requestId, value}`
- * — and the write envelope is the `value`. Unwrapping in one place keeps the
- * two failure modes distinguishable: `ok: false` is the wrapper refusing the
- * *caller*, and `written: false` is the handler refusing the *request*.
- */
 const writeOf = (outcome: Record<string, unknown>): Record<string, unknown> =>
   value(outcome);
 
@@ -112,11 +92,6 @@ const okWrite = (outcome: Record<string, unknown>): Record<string, unknown> => {
 const errorOf = (result: Record<string, unknown>) =>
   result["error"] as { code: string; field?: string; status?: string };
 
-/*
- * One reader per table rather than a bare `ctx.db.get`. `get` is typed as the
- * union of every table's row, so `row.status` would not type-check even where it
- * is the right field.
- */
 const readOrder = async (world: ConvexInventoryWorld, id: string) =>
   await world.t.run(
     async (ctx) => await ctx.db.get(id as GenericId<"purchaseOrders">),
@@ -142,14 +117,6 @@ const readTask = async (world: ConvexInventoryWorld, id: string) =>
     async (ctx) => await ctx.db.get(id as GenericId<"putawayTasks">),
   );
 
-/**
- * A UUIDv7-shaped request ID derived from a readable name.
- *
- * The ledger refuses a request ID that is not a UUIDv7 (`requestIdentity`), and
- * `"line_1"` is not one. Deriving the UUID from a name keeps the tests readable
- * while sending the shape the server actually contracts for — and keeps a retry
- * in a test genuinely identical to its first attempt.
- */
 const requestId = (name: string): string => {
   let hash = 0;
   for (const character of name) {
@@ -159,7 +126,6 @@ const requestId = (name: string): string => {
   return `0193f2c1-0000-7000-8000-0000${tail}`;
 };
 
-/** The rows the inbound flows need that the shared world does not seed. */
 async function seedInbound(world: ConvexInventoryWorld) {
   return await world.t.run(async (ctx) => {
     const supplier = await ctx.db.insert("suppliers", {
@@ -203,7 +169,6 @@ async function seedInbound(world: ConvexInventoryWorld) {
   });
 }
 
-/** Enable QC for one item, so the receipt lands held. */
 async function enableQcFor(
   world: ConvexInventoryWorld,
   itemId: GenericId<"items">,
@@ -219,7 +184,6 @@ async function enableQcFor(
   });
 }
 
-/** Open an order with one line for the untracked item, and return both IDs. */
 async function openOrderWithLine(
   world: ConvexInventoryWorld,
   seeded: Awaited<ReturnType<typeof seedInbound>>,
@@ -269,16 +233,8 @@ async function openReceiptFor(
   return receipt["documentId"] as string;
 }
 
-/* -------------------------------------------------------------------------- */
-/* Purchase orders                                                             */
-/* -------------------------------------------------------------------------- */
-
 describe("purchase orders", () => {
   it("opens only once it has a line to receive against", async () => {
-    /*
-     * An order created already open would sit in the receiving queue with
-     * nothing on it for somebody to stand in front of at a dock.
-     */
     const world = await createConvexInventoryWorld();
     const seeded = await seedInbound(world);
 
@@ -332,7 +288,7 @@ describe("purchase orders", () => {
     expect(clash["written"]).toBe(false);
     expect(errorOf(clash).code).toBe("DUPLICATE_KEY");
     expect(errorOf(clash).field).toBe("poNumber");
-    // The refusal names the field and refuses to say what collided with it.
+
     expect(JSON.stringify(clash)).not.toContain("PO-3001");
   });
 
@@ -354,8 +310,6 @@ describe("purchase orders", () => {
   });
 
   it("closes a line short only with a reason", async () => {
-    // `INV-0007-03`. The reason is the row a buyer later reads to ask why the
-    // supplier under-delivered.
     const world = await createConvexInventoryWorld({}, { roleA: "ORG_ADMIN" });
     const seeded = await seedInbound(world);
     const { purchaseOrderLineId } = await openOrderWithLine(world, seeded);
@@ -376,10 +330,6 @@ describe("purchase orders", () => {
   });
 });
 
-/* -------------------------------------------------------------------------- */
-/* Import                                                                      */
-/* -------------------------------------------------------------------------- */
-
 describe("previewed import", () => {
   const file = [
     "line_number,sku,quantity,uom",
@@ -389,11 +339,6 @@ describe("previewed import", () => {
   ].join("\n");
 
   it("previews without writing anything", async () => {
-    /*
-     * The preview is a query, and this is the assertion that makes it matter: an
-     * operator approving a list is approving a parse whose only effect was to
-     * produce the list.
-     */
     const world = await createConvexInventoryWorld();
     await seedInbound(world);
 
@@ -418,7 +363,6 @@ describe("previewed import", () => {
   });
 
   it("writes each source row exactly once, however often the chunk replays", async () => {
-    // `INV-0007-12`. A chunk re-run after a crash must recognise its own rows.
     const world = await createConvexInventoryWorld();
     const seeded = await seedInbound(world);
 
@@ -461,10 +405,6 @@ describe("previewed import", () => {
   });
 });
 
-/* -------------------------------------------------------------------------- */
-/* Receiving                                                                   */
-/* -------------------------------------------------------------------------- */
-
 describe("receiving", () => {
   it("posts a partial receipt and leaves the line open", async () => {
     const world = await createConvexInventoryWorld();
@@ -497,11 +437,6 @@ describe("receiving", () => {
   });
 
   it("classifies against the line total, not against one posting", async () => {
-    /*
-     * Two postings of 60 against an order of 100 is an over-receipt. A rule that
-     * asked "is *this* posting over?" would answer no twice and let 120 in with
-     * no approval (`INV-0007-02`).
-     */
     const world = await createConvexInventoryWorld();
     const seeded = await seedInbound(world);
     const { purchaseOrderId, purchaseOrderLineId } = await openOrderWithLine(
@@ -566,18 +501,13 @@ describe("receiving", () => {
       stockStatus: string;
       minorUnits: number;
     }[];
-    /*
-     * Two buckets: the dock, holding the stock, and the supplier boundary at
-     * minus the same amount. Their sum is zero, which is the conservation the
-     * ledger enforces; the dock's own figure is what an operator sees.
-     */
+
     const available = rows.filter((row) => row.stockStatus === "AVAILABLE");
     expect(available.reduce((sum, row) => sum + row.minorUnits, 0)).toBe(0);
     expect(available.some((row) => row.minorUnits === 25_000)).toBe(true);
   });
 
   it("replays a double-submitted posting instead of receiving twice", async () => {
-    // `INV-0007-01` / `RG-025`: a retry or a double scan never posts twice.
     const world = await createConvexInventoryWorld();
     const seeded = await seedInbound(world);
     const { purchaseOrderId, purchaseOrderLineId } = await openOrderWithLine(
@@ -602,7 +532,7 @@ describe("receiving", () => {
     expect(replay["replayed"]).toBe(true);
 
     const line = await readOrderLine(world, purchaseOrderLineId);
-    // The running total advanced once, not twice.
+
     expect(line?.receivedBaseMinorUnits).toBe(10_000);
 
     const lines = await world.t.run(
@@ -668,10 +598,6 @@ describe("receiving", () => {
   });
 
   it("refuses an unexpected item on the ordinary path", async () => {
-    /*
-     * `INV-0007-04`. The kind is decided by the server from the rows it read; a
-     * handheld cannot declare its own posting ordinary.
-     */
     const world = await createConvexInventoryWorld();
     const seeded = await seedInbound(world);
     const { purchaseOrderId, purchaseOrderLineId } = await openOrderWithLine(
@@ -686,7 +612,7 @@ describe("receiving", () => {
         warehouseId: world.warehouses.alphaA,
         receiptId,
         locationId: world.a.dock,
-        // The order line is for `untrackedItem`; this is a different SKU.
+
         itemId: world.a.item,
         purchaseOrderLineId,
         lotCode: "L-X",
@@ -694,21 +620,10 @@ describe("receiving", () => {
       }),
     );
 
-    /*
-     * The server derives `UNEXPECTED` and refuses, rather than posting it. The
-     * ordinary entry point declared `receiving.receipt.post`; an unexpected item
-     * needs `receiving.receipt.unexpected`, which carries maker-checker, so
-     * posting it here would route the delivery around the control built to catch
-     * it (`INV-0007-04`).
-     */
     expect(wrongItem["written"]).toBe(false);
     expect(errorOf(wrongItem).code).toBe("ITEM_NOT_ON_LINE");
   });
 });
-
-/* -------------------------------------------------------------------------- */
-/* Receiving preconditions the server owns                                     */
-/* -------------------------------------------------------------------------- */
 
 describe("receiving preconditions", () => {
   async function ready(world: ConvexInventoryWorld) {
@@ -731,18 +646,12 @@ describe("receiving preconditions", () => {
         itemId: world.a.untrackedItem,
         quantity: { uom: FIXTURE_UOM, minorUnits: 1_000 },
         ...input,
-        // Last, so the readable name in each case becomes the UUID the ledger
-        // contracts for rather than being overwritten by the spread.
+
         requestId: requestId(String(input["requestId"] ?? "precondition")),
       }),
     );
 
   it("refuses a rack: stock is received to a dock, and putaway moves it off", async () => {
-    /*
-     * A receipt straight to a rack makes the putaway task a fiction — the stock
-     * is already where putaway would have moved it. The rule is the server's,
-     * because a client-side picker is a suggestion and this is a constraint.
-     */
     const world = await createConvexInventoryWorld();
     const { receiptId, purchaseOrderLineId } = await ready(world);
 
@@ -776,11 +685,6 @@ describe("receiving preconditions", () => {
   });
 
   it("refuses a dock in another warehouse of the same tenant", async () => {
-    /*
-     * Same tenant, wrong site. The warehouse edge is a real boundary
-     * (`INV-0006-04`) and one the operator can cross by accident: two sites'
-     * docks look alike in a picker.
-     */
     const world = await createConvexInventoryWorld();
     const { receiptId, purchaseOrderLineId } = await ready(world);
 
@@ -795,11 +699,6 @@ describe("receiving preconditions", () => {
   });
 
   it("refuses a line belonging to a different order than the receipt", async () => {
-    /*
-     * The receipt names an order; the line must be on it. Otherwise a posting
-     * would advance the received total of an order nobody is receiving, and the
-     * two documents would disagree about what arrived.
-     */
     const world = await createConvexInventoryWorld();
     const { seeded, receiptId } = await ready(world);
 
@@ -833,8 +732,6 @@ describe("receiving preconditions", () => {
   });
 
   it("refuses an item that is not the one the line ordered", async () => {
-    // The ordinary path is for what was ordered. A different item is an
-    // exception with its own permission and its own maker (`INV-0007-04`).
     const world = await createConvexInventoryWorld();
     const { receiptId, purchaseOrderLineId } = await ready(world);
 
@@ -865,17 +762,8 @@ describe("receiving preconditions", () => {
   });
 });
 
-/* -------------------------------------------------------------------------- */
-/* Exceptions and maker-checker                                                */
-/* -------------------------------------------------------------------------- */
-
 describe("receiving exceptions", () => {
   it("denies posting against an exception the same actor raised", async () => {
-    /*
-     * `receiving.receipt.unexpected` carries maker-checker, and the maker is
-     * whoever raised the exception. Raising your own and receiving against it is
-     * exactly what the permission exists to prevent (`INV-0006-05`).
-     */
     const world = await createConvexInventoryWorld({}, { roleA: "ORG_ADMIN" });
     const seeded = await seedInbound(world);
     const { purchaseOrderId } = await openOrderWithLine(world, seeded);
@@ -941,15 +829,10 @@ describe("receiving exceptions", () => {
 
     expect(posted["kind"]).toBe("BLIND");
 
-    // One raised exception authorizes one posting, not a standing bypass.
     const row = await readException(world, raised["documentId"] as string);
     expect(row?.status).toBe("CONSUMED");
   });
 });
-
-/* -------------------------------------------------------------------------- */
-/* Quality control                                                             */
-/* -------------------------------------------------------------------------- */
 
 describe("quality control", () => {
   async function receiveHeldStock(world: ConvexInventoryWorld) {
@@ -986,18 +869,13 @@ describe("quality control", () => {
       world,
       posted["inspectionId"] as string,
     );
-    // 10% of 40 whole units, rounded up.
+
     expect(inspection?.lotSize).toBe(40);
     expect(inspection?.sampleSize).toBe(4);
     expect(inspection?.status).toBe("OPEN");
   });
 
   it("posts a rejection immediately, as a balanced transition", async () => {
-    /*
-     * `ADR-0007` §6: a disposition is a ledger transition, never a status edit.
-     * `REJECT` keeps the stock unavailable and recoverable, so one inspector may
-     * take it without blocking the delivery.
-     */
     const world = await createConvexInventoryWorld();
     const { seeded, posted } = await receiveHeldStock(world);
 
@@ -1029,15 +907,11 @@ describe("quality control", () => {
         .filter((row) => row.stockStatus === status && row.minorUnits > 0)
         .reduce((sum, row) => sum + row.minorUnits, 0);
 
-    // The hold is emptied and the rejected bucket holds it instead — one
-    // balanced transition, not a status edit.
     expect(totalIn("QC_HOLD")).toBe(0);
     expect(totalIn("REJECTED")).toBe(40_000);
   });
 
   it("parks a release and refuses to let the submitter approve it", async () => {
-    // `INV-0007-06`. An inspector approving their own release is the whole
-    // failure maker-checker exists to prevent.
     const world = await createConvexInventoryWorld({}, { roleA: "ORG_ADMIN" });
     const { seeded, posted } = await receiveHeldStock(world);
 
@@ -1106,11 +980,6 @@ describe("quality control", () => {
 
     expect(approved["toStatus"]).toBe("AVAILABLE");
 
-    /*
-     * The putaway task is created here, not at receipt. Creating it at receipt
-     * would have put held stock in the putaway queue, which is the bypass
-     * `INV-0007-05` forbids.
-     */
     const tasks = await world.t.run(
       async (ctx) => await ctx.db.query("putawayTasks").collect(),
     );
@@ -1131,10 +1000,6 @@ describe("quality control", () => {
     expect((open["items"] as unknown[]).length).toBe(1);
   });
 });
-
-/* -------------------------------------------------------------------------- */
-/* Handling units and labels                                                   */
-/* -------------------------------------------------------------------------- */
 
 describe("handling units and label evidence", () => {
   async function receiveOnto(world: ConvexInventoryWorld) {
@@ -1219,10 +1084,7 @@ describe("handling units and label evidence", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]?.templateVersion).toBe(1);
     expect(rows[0]?.payloadHash).toMatch(/^[0-9a-f]{64}$/);
-    /*
-     * `GENERATED` and never `PRINTED`. Nothing in this repository can observe a
-     * printer (`INT-04` absent, `RG-004` open).
-     */
+
     expect(rows[0]?.status).toBe("GENERATED");
     expect(rows[0]?.reason).toBe("INITIAL");
   });
@@ -1260,10 +1122,6 @@ describe("handling units and label evidence", () => {
     expect(errorOf(refused).code).toBe("TEMPLATE_NOT_PUBLISHED");
   });
 });
-
-/* -------------------------------------------------------------------------- */
-/* Putaway                                                                     */
-/* -------------------------------------------------------------------------- */
 
 describe("putaway", () => {
   async function readyTask(world: ConvexInventoryWorld) {
@@ -1303,12 +1161,6 @@ describe("putaway", () => {
   });
 
   it("gives each task the base unit its quantity is counted in", async () => {
-    /*
-     * A board at one site holds kilograms of coil, litres of resin, and eaches
-     * of carton in the same column, so `baseMinorUnits` without its unit is
-     * three measures rendered as one — the visual audit's finding. The unit is
-     * the item's, so the read joins it exactly as the order lines do.
-     */
     const world = await createConvexInventoryWorld();
     await readyTask(world);
 
@@ -1328,8 +1180,6 @@ describe("putaway", () => {
   });
 
   it("recommends a rack and never the dock it is sitting on", async () => {
-    // Stock left on a working surface has not been put away; a recommendation
-    // that offered one would let the task complete without the pallet moving.
     const world = await createConvexInventoryWorld();
     const { taskId } = await readyTask(world);
 
@@ -1354,7 +1204,6 @@ describe("putaway", () => {
   });
 
   it("lets exactly one actor claim a task", async () => {
-    // `INV-0007-11`, resolved on the write rather than on a read both passed.
     const world = await createConvexInventoryWorld({}, { roleA: "ORG_ADMIN" });
     const { taskId } = await readyTask(world);
     const second = await seedSecondActorForOrgA(world, "ORG_ADMIN");
@@ -1436,18 +1285,12 @@ describe("putaway", () => {
       bucketKey: string;
       minorUnits: number;
     }[];
-    /*
-     * The dock is empty, the rack holds the stock, and the supplier boundary
-     * still carries the negative it was received against: the whole warehouse
-     * sums to zero, which is what "balanced" means here.
-     */
+
     expect(rows.reduce((sum, row) => sum + row.minorUnits, 0)).toBe(0);
     expect(rows.some((row) => row.minorUnits === 20_000)).toBe(true);
   });
 
   it("requires a reason to take a runner-up, and records what was recommended", async () => {
-    // `INV-0007-09`. Without all four facts, override analytics is a count with
-    // no content.
     const world = await createConvexInventoryWorld();
     const { seeded, taskId } = await readyTask(world);
 
@@ -1492,10 +1335,6 @@ describe("putaway", () => {
   });
 
   it("refuses a location a hard constraint rejected", async () => {
-    /*
-     * `INV-0007-08`. Compatibility, prohibition, and capacity are not
-     * preferences an operator may overrule from a handheld.
-     */
     const world = await createConvexInventoryWorld();
     const { seeded, taskId } = await readyTask(world);
 
@@ -1519,12 +1358,6 @@ describe("putaway", () => {
   });
 
   it("answers with the stored trace once a task is claimed", async () => {
-    /*
-     * The confirmation validates against the trace frozen at claim time. A
-     * recommendation query that recomputed could offer a bin the confirmation
-     * would then refuse — or silently turn an override into a non-override
-     * because the warehouse changed while the operator walked to the rack.
-     */
     const world = await createConvexInventoryWorld();
     const { taskId } = await readyTask(world);
 
@@ -1575,20 +1408,6 @@ describe("putaway", () => {
   });
 });
 
-/* -------------------------------------------------------------------------- */
-/* What the screens read                                                       */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Two fields that exist for a screen rather than for the domain, and are
- * therefore easy to drop: the unit a line's base quantities are counted in, and
- * the order number a receipt was posted against.
- *
- * Both are joins — the item document and the order document — so neither can be
- * asserted from the row's own table, and both are what the visual audit found
- * missing: a bare `0` under "Received" beside `40.000 CASE` ordered, and
- * `prv_po_2601` where the register says `PO-2601`.
- */
 describe("screen-facing read shapes", () => {
   it("gives each order line the base unit its received figure is counted in", async () => {
     const world = await createConvexInventoryWorld();
@@ -1608,8 +1427,7 @@ describe("screen-facing read shapes", () => {
 
     expect(lines).toHaveLength(1);
     expect(lines[0]?.baseUom).toBe(FIXTURE_UOM);
-    // The ordered unit is still the unit the order was written in; the two are
-    // separate facts even when a fixture makes them the same string.
+
     expect(lines[0]?.orderedQuantity.uom).toBe(FIXTURE_UOM);
   });
 
@@ -1636,8 +1454,6 @@ describe("screen-facing read shapes", () => {
   });
 
   it("leaves the order number absent on a blind receipt", async () => {
-    // A blind receipt has no order behind it, so there is no number to join to
-    // and nothing is invented in its place.
     const world = await createConvexInventoryWorld();
     await seedInbound(world);
 

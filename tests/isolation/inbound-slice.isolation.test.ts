@@ -1,15 +1,3 @@
-/**
- * Isolation tier — the inbound slice, from two tenants.
- *
- * The inbound flows are the first in this repository where one tenant's write
- * *reads* several of their own rows first: an order line, an item, a location, a
- * QC profile, a raised exception. Every one of those reads is a place a foreign
- * ID could leak in, and every one of them answers through the tenant-bound
- * accessor — so this file proves the answers are identical for "another
- * tenant's" and "does not exist" (`INV-0002-03`).
- *
- * Blocking merge gate (`INV-0012-02`, `RG-031`, `RG-026`). All data is synthetic.
- */
 import type { GenericMutationCtx } from "convex/server";
 import type { GenericId } from "convex/values";
 import { describe, expect, it } from "vitest";
@@ -49,7 +37,6 @@ interface RuntimeFunction {
 
 const run = (value: unknown) => value as RuntimeFunction;
 
-/** Both tenants' actors share one subject; only the org claim differs. */
 const identity = (org: "a" | "b") => ({
   subject: "user_fixture_a",
   org_id: `org_fixture_${org}`,
@@ -84,7 +71,6 @@ const requestId = (name: string): string => {
   return `0193f2c1-0000-7000-8000-0000${hash.toString(16).padStart(8, "0")}`;
 };
 
-/** One supplier and one reason code per tenant, so both can author an order. */
 async function seedBoth(world: ConvexInventoryWorld) {
   return await world.t.run(async (ctx) => {
     const forOrg = async (orgId: GenericId<"organizations">) => ({
@@ -118,12 +104,6 @@ async function seedBoth(world: ConvexInventoryWorld) {
 
 describe("purchase orders are tenant-confined", () => {
   it("lets both tenants hold the same order number", async () => {
-    /*
-     * The case the `orgId` half of the key exists for. Two manufacturers
-     * numbering their orders `PO-1` from one is the normal case, and a check
-     * that forgot the organization would refuse the second *and* disclose that
-     * the number exists somewhere.
-     */
     const world = await createConvexInventoryWorld();
     const seeded = await seedBoth(world);
 
@@ -250,8 +230,6 @@ describe("receiving is tenant-confined", () => {
   });
 
   it("refuses a posting into another tenant's receipt", async () => {
-    // The receipt is read through the tenant-bound accessor, so a foreign ID
-    // answers what a nonexistent one answers.
     const world = await createConvexInventoryWorld();
     const foreign = await receiptFor(world, "b");
 
@@ -291,12 +269,6 @@ describe("receiving is tenant-confined", () => {
   });
 
   it("refuses a dock belonging to another tenant", async () => {
-    /*
-     * The location check is a *tenant* check before it is a type check:
-     * `tenantDb.get` refuses a foreign document exactly as it refuses a
-     * nonexistent one, so B's dock is not merely the wrong type to A — it does
-     * not exist (`INV-0002-03`).
-     */
     const world = await createConvexInventoryWorld();
     const seeded = await seedBoth(world);
 
@@ -382,7 +354,7 @@ describe("receiving is tenant-confined", () => {
     const rows = await world.t.run(
       async (ctx) => await ctx.db.query("receivingExceptions").collect(),
     );
-    // The row exists and belongs to B; A's own queries can never reach it.
+
     expect(rows).toHaveLength(1);
     expect(rows[0]?.orgId).toBe(world.orgB);
   });
@@ -585,7 +557,6 @@ describe("quality, labels, and putaway are tenant-confined", () => {
       }),
     );
 
-    // Identical to the answer a task that never existed produces.
     expect(errorOf(result).code).toBe("NOT_FOUND");
 
     const task = await world.t.run(async (ctx) => await ctx.db.get(taskId));
@@ -594,16 +565,6 @@ describe("quality, labels, and putaway are tenant-confined", () => {
   });
 });
 
-/**
- * The second boundary, inside one tenant.
- *
- * The accessor proves the organization, so every case above passes on tenancy
- * alone. It proves nothing about the *site*: a row of this tenant's other
- * warehouse is a row the accessor happily returns. `INV-0006-04` says a request
- * authorized for one warehouse may not write another's, and these two paths are
- * the ones with no ledger posting behind them whose own warehouse checks would
- * refuse first — a parked disposition and a claim are a patch and a counter move.
- */
 describe("a request authorized for one warehouse cannot write another's", () => {
   it("refuses a disposition on an inspection in the tenant's other warehouse", async () => {
     const world = await createConvexInventoryWorld();
@@ -655,9 +616,6 @@ describe("a request authorized for one warehouse cannot write another's", () => 
       });
     });
 
-    // `REJECT` parks rather than posts, so nothing downstream would have caught
-    // the site mismatch: without the guard this writes the other warehouse's row
-    // and moves this warehouse's counters.
     const result = value(
       await callAs(world, "a", submitDisposition, {
         requestId: requestId("disp_wh_cross"),
@@ -742,18 +700,6 @@ describe("a request authorized for one warehouse cannot write another's", () => 
   });
 
   it("refuses to confirm a task in the tenant's other warehouse", async () => {
-    /*
-     * The confirmation is the half of the pair that *posts*, and the task below
-     * is seeded already `CLAIMED` by this very actor, with a stored trace whose
-     * top rank is the chosen location: holder, trace, and override all pass, so
-     * the site guard is the check that answers.
-     *
-     * It has to be this guard and not the ledger's. Drop it and the posting's own
-     * `LOCATION_WAREHOUSE_MISMATCH` still refuses the write — but only after
-     * naming which constraint the other warehouse's row broke, which is the
-     * disclosure `INV-0006-04` and `INV-0002-03` exist to prevent. A task at
-     * another site must answer exactly as one that does not exist.
-     */
     const world = await createConvexInventoryWorld();
     const seeded = await world.t.run(async (ctx) => {
       const rack = await ctx.db.insert("locations", {
@@ -845,7 +791,6 @@ describe("a request authorized for one warehouse cannot write another's", () => 
     expect(task?.chosenLocationId).toBeUndefined();
     expect(task?.transactionId).toBeUndefined();
 
-    // Nothing posted: the seed transaction is still the only one in the world.
     const transactions = await world.t.run(
       async (ctx) => await ctx.db.query("inventoryTransactions").collect(),
     );
@@ -855,8 +800,6 @@ describe("a request authorized for one warehouse cannot write another's", () => 
 
 describe("every inbound row carries the writing tenant", () => {
   it("stamps orgId from the resolved context, never from an argument", async () => {
-    // `INV-0001-02`: `orgId` is derived from the verified identity and is not an
-    // argument anywhere in the write path.
     const world = await createConvexInventoryWorld();
     const seeded = await seedBoth(world);
 

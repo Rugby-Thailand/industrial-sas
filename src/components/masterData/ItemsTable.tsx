@@ -1,24 +1,5 @@
 "use client";
 
-/**
- * The item catalogue, as a semantic table.
- *
- * The columns are what the ledger actually depends on, and nothing decorative:
- *
- * - **SKU** — the tenant's normalized code, unique per organization by contract.
- *   A code identifier, so it stays English (`D-06`) and is rendered monospaced.
- * - **Name** — may be Thai, and is the column allowed to wrap. Thai has no word
- *   spaces, so it breaks differently from Latin text; giving it the flexible
- *   column is what keeps a long Thai name from pushing the quantity-bearing
- *   columns off a handheld screen.
- * - **Base UOM** — the one unit quantities are stored in (`ADR-0004`). Shown
- *   because a lot code means nothing without it.
- * - **Tracking mode** — decides whether a lot is required on a posting (D-09).
- *   `LOT_SERIAL` is displayed and deliberately marked: the schema is
- *   serial-ready and the flows are off, so an operator seeing one should know
- *   it is not yet postable.
- * - **Status** — a word plus a glyph, never colour alone (`INV-0010-07`).
- */
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
@@ -31,13 +12,6 @@ const STATUS_TONES: Readonly<Record<string, BadgeTone>> = {
   INACTIVE: "muted",
 };
 
-/**
- * `LOT_SERIAL` is `warning`, not `neutral`.
- *
- * Its flows are feature-disabled (D-09, `INV-0005-08`) and the ledger refuses a
- * serial outright, so an item in that mode cannot be received today. That is a
- * fact worth showing on the row rather than discovering at the dock.
- */
 const TRACKING_TONES: Readonly<Record<string, BadgeTone>> = {
   NONE: "neutral",
   LOT: "accent",
@@ -49,12 +23,7 @@ export function ItemsTable({
   renderAction,
 }: {
   readonly rows: readonly ItemRow[];
-  /**
-   * A per-row control, when the screen has one. Optional so the read-only
-   * rendering of this table stays exactly what it was: a table that grew a
-   * blank column for screens with no controls would be a table with a header
-   * an assistive technology reads out for nothing.
-   */
+
   readonly renderAction?: (row: ItemRow) => ReactNode;
 }) {
   const t = useTranslations("MasterData");

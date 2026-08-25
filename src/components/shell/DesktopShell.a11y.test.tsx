@@ -15,14 +15,6 @@ vi.mock("@/i18n/navigation", () => navigationMock);
 
 import { DesktopShell } from "./DesktopShell";
 
-/**
- * `INV-0010-09`: zero axe violations for every shipped screen.
- *
- * Rendered with the Thai catalogue, which is the layout baseline (`ADR-0010`
- * §5) — Latin placeholder text hides Thai line-height and wrapping defects, and
- * axe checks that depend on text (name, contrast of text nodes) should see the
- * strings an operator sees.
- */
 describe("DesktopShell accessibility", () => {
   it("has no detectable violations in its default state", async () => {
     setMockPathname("/dashboard");

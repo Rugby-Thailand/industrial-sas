@@ -1,31 +1,3 @@
-/**
- * The device registry: registration, naming, installation binding, and
- * retirement (`FF-P1-08`, `ADR-0006` §8).
- *
- * The rules live in `convex/model/platform/deviceRegistry.ts`. What this module
- * adds is the three things a pure function cannot do: prove the tenant owns the
- * row, honour the two uniqueness contracts Convex cannot express, and write the
- * change inside the transaction that audits it.
- *
- * ### Why a device is registered by an administrator and not by itself
- *
- * A handheld that could register itself is a handheld that can name itself, and
- * the registry's whole purpose is that a human can look at a scanner, read the
- * label on its case, and find the same label here. `admin.device.manage` is
- * therefore the write permission, and the value the browser contributes is
- * exactly one opaque correlation string.
- *
- * ### Two uniqueness contracts, both checked here
- *
- * - `(orgId, label)` unconditionally: two rows called `DOCK-01 handheld` make
- *   the registry unable to answer the only question it exists for.
- * - `(orgId, installationId)` when present: one browser installation
- *   correlates to at most one device row. Absent is not a collision, so the
- *   check runs only when a value was supplied.
- *
- * Both are single bounded index reads, which is what makes the obligation
- * affordable on the write path (`schemaPolicy.ts`).
- */
 import { v } from "convex/values";
 
 import { pageResult } from "../lib/listEnvelope";
@@ -77,7 +49,6 @@ const asRegistered = (device: DeviceDocument): RegisteredDevice => ({
     : { installationId: device.installationId }),
 });
 
-/** One bounded read per uniqueness contract. See the module note. */
 async function findByLabel(
   ctx: TenantFunctionContext,
   label: string,
@@ -110,20 +81,12 @@ const deviceRowValidator = v.object({
   deviceType,
   status: deviceStatus,
   warehouseId: v.optional(v.id("warehouses")),
-  /**
-   * Whether an installation is bound, not which one.
-   *
-   * The value itself is a correlation string the tenant has no reason to read
-   * back on a list screen, and echoing it would put a device-identifying value
-   * into every registry render for no reader. "Bound" is the fact an
-   * administrator acts on.
-   */
+
   installationBound: v.boolean(),
   lastSeenAt: v.optional(v.number()),
   retiredAt: v.optional(v.number()),
 });
 
-/** The registry, newest state included, as a bounded page. */
 export const listDevices = queryWithOrg({
   args: {
     status: v.optional(deviceStatus),
@@ -152,13 +115,6 @@ export const listDevices = queryWithOrg({
       return { ok: false as const, error: { code: request.error.code } };
     }
 
-    /*
-     * Read through the status index even when no status was asked for: the
-     * label is the second term, so an unfiltered read still comes back in
-     * label order within each status, which is the order the registry is read
-     * aloud in. Filtering a label-ordered page by status afterwards would
-     * return short pages that read as "no retired devices" (`INV-0002-04`).
-     */
     const page = await ctx.tenantDb
       .byIndex<DeviceDocument & Record<string, never>>(
         "devices",
@@ -204,14 +160,6 @@ const deviceOutcomeValidator = v.union(
   v.object({ written: v.literal(false), error: writeErrorValidator }),
 );
 
-/**
- * Put a device into service.
- *
- * Registering the *same label* twice is refused rather than replayed: a second
- * registration under one label is an administrator registering a second
- * physical device with a duplicate asset tag, and telling them so is more
- * useful than silently handing back the first device's ID.
- */
 export const registerDevice = mutationWithOrg({
   args: {
     requestId: v.string(),
@@ -277,7 +225,6 @@ export const registerDevice = mutationWithOrg({
   },
 });
 
-/** Rename a device that is still in service. */
 export const renameDevice = mutationWithOrg({
   args: {
     requestId: v.string(),
@@ -318,17 +265,6 @@ export const renameDevice = mutationWithOrg({
   },
 });
 
-/**
- * Bind the installed PWA on one browser to a registered device.
- *
- * Separate from registration because the two happen at different moments: a
- * device is registered when it is bought, and its installation is bound when
- * somebody installs the app on it — often after a re-image, which is exactly
- * the case that must not silently move another device's binding.
- *
- * Binding an installation that already names this device answers `replayed`,
- * so an administrator who taps twice is not told they failed.
- */
 export const bindDeviceInstallation = mutationWithOrg({
   args: {
     requestId: v.string(),
@@ -368,13 +304,6 @@ export const bindDeviceInstallation = mutationWithOrg({
   },
 });
 
-/**
- * Take a device out of service.
- *
- * The row stays, and so does every transaction that names it. The installation
- * binding is released in the same patch, so a re-imaged handheld can register
- * cleanly rather than resolving to a device the tenant believes is gone.
- */
 export const retireDevice = mutationWithOrg({
   args: {
     requestId: v.string(),
@@ -402,28 +331,13 @@ export const retireDevice = mutationWithOrg({
       status: plan.value.status,
       retiredAt: plan.value.retiredAt,
       retiredByUserId: ctx.tenant.actor._id,
-      // `undefined` clears the field through the tenant accessor's patch, which
-      // is what releases the installation for a re-imaged handheld.
+
       ...(plan.value.releasesInstallation ? { installationId: undefined } : {}),
     });
     return written({ documentId: args.deviceId, replayed: false });
   },
 });
 
-/**
- * Record that a device is still in service.
- *
- * The one command in this slice classified `QUEUEABLE`
- * (`convex/model/platform/commandClassification.ts`): it writes a timestamp,
- * reads no stock, and a replay of it is indistinguishable from the original.
- * An operator holds `work.device.seen`, which is warehouse-scoped, so a ping
- * still proves the actor may act at the site it names.
- *
- * The device is resolved from the installation ID through the organization's
- * own index — never from a client-supplied document ID — so a value belonging
- * to another tenant resolves to nothing and a retired device is refused rather
- * than quietly revived.
- */
 export const recordDeviceSeen = mutationWithOrg({
   args: {
     requestId: v.string(),
@@ -453,5 +367,4 @@ export const recordDeviceSeen = mutationWithOrg({
   },
 });
 
-/** The page cap, re-exported so a client can size its own loop. */
 export const maxDevicePageSize = MAX_JOB_PAGE_SIZE;

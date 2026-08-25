@@ -13,7 +13,6 @@ export function resolveAppAccess(input: {
   return input.orgId === undefined ? "ORGANIZATION_REQUIRED" : "APP";
 }
 
-/** Resolve the browser's entry state without exposing identity details to callers. */
 export async function readAppAccess(): Promise<AppAccess> {
   const identityConfigured =
     resolveClerkPublishableKey(

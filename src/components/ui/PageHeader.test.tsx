@@ -5,11 +5,6 @@ import { renderWithIntl } from "../../../tests/fixtures/intl-render";
 
 import { PageHeader } from "./PageHeader";
 
-/**
- * The description is help, not state: hidden until asked for, one accessible
- * toggle away, and absent entirely — toggle included — when a route has no
- * description to show.
- */
 describe("PageHeader", () => {
   it("keeps the title as the single h1 and hides the description by default", () => {
     renderWithIntl(<PageHeader title="งานคลัง" description="คำอธิบายหน้า" />);

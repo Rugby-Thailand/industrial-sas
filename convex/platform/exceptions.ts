@@ -1,7 +1,3 @@
-/**
- * Shared task exceptions: operator observation, retained evidence, and a
- * maker-checker supervisor decision (`FF-P1-03`).
- */
 import { v } from "convex/values";
 
 import {
@@ -131,7 +127,6 @@ async function loadTask(
   return task === null || task.warehouseId !== warehouseId ? null : task;
 }
 
-/** One task's exception history, including resolved decisions. */
 export const listTaskExceptions = queryWithOrg({
   args: {
     warehouseId: v.id("warehouses"),
@@ -213,7 +208,6 @@ export const listTaskExceptions = queryWithOrg({
   },
 });
 
-/** Report a problem while the actor still owns the live task lease. */
 export const reportTaskException = mutationWithOrg({
   args: {
     requestId: v.string(),
@@ -348,7 +342,6 @@ async function resolutionPolicy(
       };
 }
 
-/** Resolve an exception as a different actor, preserving proposal and decision. */
 export const resolveTaskException = mutationWithOrg({
   args: {
     requestId: v.string(),

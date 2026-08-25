@@ -1,12 +1,3 @@
-/**
- * Unit tier — item UOM profiles and conversions.
- *
- * The scenarios are the ones ADR-0004 argues about: a clean pack factor, a factor
- * that cannot land on a whole minor unit, an alternate-to-alternate conversion
- * that only works because it does not detour through the base, and the two
- * mistakes a UOM check alone cannot catch (another item's factors, another item's
- * stock).
- */
 import { describe, expect, it } from "vitest";
 
 import { expectError, expectOk } from "../../../tests/fixtures/domain-results";
@@ -29,7 +20,6 @@ import { makeRatio, MAX_RATIO_COMPONENT } from "./ratio";
 const ratio = (numerator: number, denominator: number) =>
   expectOk(makeRatio(numerator, denominator));
 
-/** A case of twelve pieces, and a pallet of forty cases. */
 const boltsProfile: ItemUomProfile = expectOk(
   makeItemUomProfile({
     itemKey: "ITEM-BOLT-M8",
@@ -41,7 +31,6 @@ const boltsProfile: ItemUomProfile = expectOk(
   }),
 );
 
-/** A resin sold in drums of 200.5 kg and in thirds of a kilogram. */
 const resinProfile: ItemUomProfile = expectOk(
   makeItemUomProfile({
     itemKey: "ITEM-RESIN",
@@ -138,7 +127,6 @@ describe("makeItemUomProfile", () => {
 
 describe("convertToBase", () => {
   it("converts an exact pack quantity", () => {
-    // 3 CASE = 36 PCS = 36000 minor units.
     expect(convertToBase(boltsProfile, "CASE", 3000)).toEqual({
       kind: "EXACT",
       quantity: { uom: "PCS", minorUnits: 36_000 },
@@ -146,12 +134,11 @@ describe("convertToBase", () => {
   });
 
   it("converts a fractional pack quantity when it is still exact", () => {
-    // 0.5 CASE = 6 PCS.
     expect(convertToBase(boltsProfile, "CASE", 500)).toEqual({
       kind: "EXACT",
       quantity: { uom: "PCS", minorUnits: 6000 },
     });
-    // 2 DRUM = 401 KG.
+
     expect(convertToBase(resinProfile, "DRUM", 2000)).toEqual({
       kind: "EXACT",
       quantity: { uom: "KG", minorUnits: 401_000 },
@@ -165,7 +152,7 @@ describe("convertToBase", () => {
       uom: "KG",
       exact: { numerator: 1000, denominator: 3 },
     });
-    // 1 DRUM is 200.5 KG, and a thousandth of a drum is 0.2005 KG.
+
     expect(convertToBase(resinProfile, "DRUM", 1)).toEqual({
       kind: "INEXACT",
       uom: "KG",
@@ -224,7 +211,7 @@ describe("convertToBase", () => {
         toUom: "PCS",
       },
     });
-    // 10^12 × 10^3 is exact, and still past the quantity bound.
+
     expect(convertToBase(profile, "KILO", 1_000_000_000_000)).toEqual({
       kind: "REJECTED",
       error: {
@@ -249,7 +236,6 @@ describe("convertFromBase", () => {
   });
 
   it("reports the exact fraction, reduced, for a part pack", () => {
-    // One piece is 1/12 of a case: 1000/12 thousandths, reduced to 250/3.
     const stock = expectOk(makeQuantity(1000, "PCS"));
     expect(convertFromBase(boltsProfile, "CASE", stock)).toEqual({
       kind: "INEXACT",
@@ -279,13 +265,11 @@ describe("convertFromBase", () => {
 
 describe("convertBetween", () => {
   it("composes both factors instead of detouring through the base", () => {
-    // 1 PALLET = 40 CASE, and the composition is exact even though a single
-    // piece is not a whole case.
     expect(convertBetween(boltsProfile, "PALLET", "CASE", 1000)).toEqual({
       kind: "EXACT",
       quantity: { uom: "CASE", minorUnits: 40_000 },
     });
-    // 3 THIRD = 1 KG exactly, though one THIRD is not a whole KG minor unit.
+
     expect(convertBetween(resinProfile, "THIRD", "KG", 3000)).toEqual({
       kind: "EXACT",
       quantity: { uom: "KG", minorUnits: 1000 },
@@ -293,12 +277,11 @@ describe("convertBetween", () => {
   });
 
   it("still reports an inexact composition", () => {
-    // One case is 0.025 pallet, which three decimals hold exactly…
     expect(convertBetween(boltsProfile, "CASE", "PALLET", 1000)).toEqual({
       kind: "EXACT",
       quantity: { uom: "PALLET", minorUnits: 25 },
     });
-    // …but one piece is 1/480 of a pallet, which they do not.
+
     expect(convertBetween(boltsProfile, "PCS", "PALLET", 1000)).toEqual({
       kind: "INEXACT",
       uom: "PALLET",
@@ -377,8 +360,6 @@ describe("item-scoped quantities", () => {
 
 describe("profile immutability and forged input", () => {
   it("does not hand out a mutable conversion table", () => {
-    // `alternates` was a `Map` typed `ReadonlyMap`, so this cast rewrote one
-    // tenant's pack factor for every holder of the profile.
     expect(Object.isFrozen(boltsProfile.alternates)).toBe(true);
     expect(() => {
       (
@@ -452,11 +433,6 @@ describe("profile immutability and forged input", () => {
     ).toEqual({ code: "NOT_A_PROFILE", received: "null" });
   });
 
-  // `alternateUoms` was the one public operation that did not validate. It mapped
-  // `conversion.uom` straight out of whatever it was handed, so its declared
-  // `readonly UomCode[]` — an alias for `string[]` — could come back holding a
-  // number, an object, or a UOM code no normalizer would accept. Every caller of
-  // it is about to be a Convex function building a picker or a label.
   it("refuses a forged profile rather than returning values that are not UOM codes", () => {
     const forgedProfile = (alternates: unknown): ItemUomProfile =>
       ({
@@ -465,7 +441,6 @@ describe("profile immutability and forged input", () => {
         alternates,
       }) as unknown as ItemUomProfile;
 
-    // A non-string `uom` used to be returned as-is, typed `string`.
     expect(
       expectError(
         alternateUoms(forgedProfile([{ uom: 42, toBase: ratio(2, 1) }])),
@@ -483,13 +458,13 @@ describe("profile immutability and forged input", () => {
         ),
       ).code,
     ).toBe("INVALID_UOM_CODE");
-    // A code the normalizer would never issue.
+
     expect(
       expectError(
         alternateUoms(forgedProfile([{ uom: "1CASE", toBase: ratio(2, 1) }])),
       ).code,
     ).toBe("INVALID_UOM_CODE");
-    // A factor that would make stock vanish, on an otherwise plausible entry.
+
     expect(
       expectError(
         alternateUoms(
@@ -499,8 +474,7 @@ describe("profile immutability and forged input", () => {
         ),
       ).code,
     ).toBe("RATIO_INVALID");
-    // An entry that is not a record at all was silently filtered out, so the
-    // answer was a shorter list than the profile declared.
+
     expect(expectError(alternateUoms(forgedProfile(["CASE"]))).code).toBe(
       "NOT_A_PROFILE",
     );

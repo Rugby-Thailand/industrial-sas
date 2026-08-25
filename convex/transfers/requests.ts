@@ -1,4 +1,3 @@
-/** Two-leg warehouse transfers with explicit in-transit and discrepancy ownership. */
 import { v } from "convex/values";
 
 import {

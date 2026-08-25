@@ -1,10 +1,3 @@
-/**
- * Unit tier — correction by reversal, and only by reversal.
- *
- * Every rule in `ADR-0003` §5 and `INV-0003-08` has a case here, including the two
- * that a stored row can break independently of the type field: a reversal chain and
- * a second reversal of one original.
- */
 import { describe, expect, it } from "vitest";
 
 import { makeQuantity, type Quantity } from "../uom/quantity";

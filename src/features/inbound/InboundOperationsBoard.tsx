@@ -1,15 +1,5 @@
 "use client";
 
-/**
- * The inbound control board: four bounded, warehouse-scoped work queues in the
- * order stock moves through them.
- *
- * This is intentionally a system-driven Kanban. A PO does not become received
- * because somebody dragged a card; receipt posting creates ledger entries, QC
- * disposition can require another person, and putaway is a balanced movement.
- * Cards therefore link to the workflow that owns the transition. The Kanban
- * primitive supplies the board composition without bypassing those commands.
- */
 import { ArrowRight } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";

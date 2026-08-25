@@ -1,94 +1,35 @@
-/**
- * Licence plate number (`G-041`, `ADR-0005` §12, D-15, §5 Q24).
- *
- * Status: **implemented** as pure value logic. Uniqueness and never-reuse
- * (`INV-0005-05`) are **not** implemented and cannot be: they are properties of
- * the `handlingUnits` table, which does not exist. This module can only make a
- * collision unlikely and a typo detectable; the mutation that issues an LPN still
- * owes the uniqueness check.
- *
- * Two kinds of LPN exist, exactly as D-15 requires:
- *
- * - `SSCC` — an 18-digit GS1 serial shipping container code, used when the tenant
- *   has a GS1 prefix. Its check digit is the GS1 modulo-10 one.
- * - `INTERNAL` — issued here when the tenant has no GS1 prefix, encoded in Code
- *   128 on the label.
- *
- * The internal format is `PREFIX · TIME(9) · RANDOM(4) · CHECK(1)`:
- *
- * - **Prefix** — 1-6 characters, the organization's own namespace. It must start
- *   with a letter, which is what keeps an internal LPN from ever looking like an
- *   SSCC or a GTIN: those are all digits. A prefix belongs to one organization, so
- *   validating against a registered namespace rejects another tenant's label
- *   before any lookup happens.
- * - **Time** — 9 base-31 characters of milliseconds since 2026-01-01Z, giving
- *   roughly 838 years of range and making LPNs issued in order sort in order. The
- *   clock is an argument, never `Date.now()`, so a test issues a known LPN.
- * - **Random** — 4 base-31 characters (about 923,000 values per millisecond) drawn
- *   from an injected entropy source with rejection sampling, so the distribution
- *   is uniform rather than modulo-biased.
- * - **Check** — one character over a 31-symbol alphabet: `sum(value_i × (i+1)) mod
- *   31`. This is **not** a GS1 or ISO 7064 check character and is not described as
- *   one. It is chosen because 31 is prime and the alphabet has exactly 31 symbols,
- *   which makes two properties provable rather than hopeful: every single-character
- *   substitution is caught, and every transposition of two different characters is
- *   caught. Both are asserted in the property suite.
- *
- * The alphabet omits `I`, `L`, `O`, `U`, and `Z`: the first four are the pairs a
- * human misreads on a scuffed thermal label, and dropping one more letter buys the
- * prime modulus the check character needs.
- *
- * Pure module (plan §6.2): no Convex imports.
- */
 import { isFunction, isRecord, isSafeInt, isString } from "../guards";
 import { fail, ok, type Result } from "../result";
 import { verifyGs1CheckDigit } from "../gs1/checkDigit";
 import { normalizeCode, MAX_CODE_LENGTH } from "./normalization";
 
-/** 31 symbols: digits plus letters, less `I`, `L`, `O`, `U`, `Z`. Prime size. */
 export const LPN_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXY";
 
-/** Base-31 digits of the timestamp component. */
 export const LPN_TIME_LENGTH = 9;
 
-/** Base-31 digits of the random component. */
 export const LPN_RANDOM_LENGTH = 4;
 
-/** Longest prefix an organization may register. */
 export const LPN_MAX_PREFIX_LENGTH = 6;
 
-/**
- * Longest organization key accepted: a document id or a tenant slug. It matches
- * the code bound in `identifiers/normalization.ts`, which is the normalizer this
- * module runs a key through; the two must not disagree, or a key that normalizes
- * cleanly there could still be refused here.
- */
 export const MAX_ORGANIZATION_KEY_LENGTH = MAX_CODE_LENGTH;
 
-/** Hard bound on the printed value, so a label layout can be fixed. */
 export const LPN_MAX_LENGTH =
   LPN_MAX_PREFIX_LENGTH + LPN_TIME_LENGTH + LPN_RANDOM_LENGTH + 1;
 
-/** Shortest possible internal LPN: a one-character prefix. */
 export const LPN_MIN_LENGTH = 1 + LPN_TIME_LENGTH + LPN_RANDOM_LENGTH + 1;
 
-/** 2026-01-01T00:00:00Z, as a literal so no `Date` call runs at import. */
 export const LPN_EPOCH_MS = 1_767_225_600_000;
 
-/** 31^9 milliseconds after the epoch: the last representable issue time. */
 export const LPN_MAX_ELAPSED_MS = 31 ** LPN_TIME_LENGTH - 1;
 
-/** An SSCC is 18 digits including its GS1 check digit. */
 const SSCC_LENGTH = 18;
 
 const ALPHABET_VALUES: ReadonlyMap<string, number> = new Map(
   [...LPN_ALPHABET].map((character, index) => [character, index]),
 );
 
-/** Bytes of entropy. Injected so generation is deterministic under test. */
 export type EntropySource = (byteLength: number) => Uint8Array;
 
-/** An organization's LPN namespace. One prefix, one tenant. */
 export interface LpnNamespace {
   readonly organizationKey: string;
   readonly prefix: string;
@@ -141,22 +82,6 @@ export type LpnError =
   | { readonly code: "ENTROPY_EXHAUSTED"; readonly attempts: number }
   | { readonly code: "INVALID_SSCC"; readonly raw: string };
 
-/* -------------------------------------------------------------------------- */
-/* Namespaces                                                                  */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Registers a namespace. The prefix is folded to upper case, must consist of
- * alphabet characters, and must begin with a letter so the result can never be
- * mistaken for a numeric GS1 key.
- *
- * The organization key goes through the same normalizer a SKU and an item key do,
- * with case preserved because the key may be a Convex document id. Trimming and a
- * length bound were not enough for a value that identifies a tenant: a key
- * carrying an internal space, a zero-width joiner, a bidi override, or a NUL is a
- * second key for the same organization, which is how one tenant's prefix ends up
- * registered twice under names an operator cannot tell apart.
- */
 export function makeLpnNamespace(
   organizationKey: string,
   prefix: string,
@@ -191,7 +116,6 @@ export function makeLpnNamespace(
   return ok(Object.freeze({ organizationKey: key.value, prefix: folded }));
 }
 
-/** Re-checks a value that claims to be a registered namespace. */
 export const validateLpnNamespace = (
   namespace: LpnNamespace,
 ): Result<LpnNamespace, LpnError> =>
@@ -199,22 +123,6 @@ export const validateLpnNamespace = (
     ? makeLpnNamespace(namespace.organizationKey, namespace.prefix)
     : fail({ code: "INVALID_PREFIX", raw: describe(namespace) });
 
-/* -------------------------------------------------------------------------- */
-/* Generation                                                                  */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Issues an internal LPN. Both sources of non-determinism are arguments: a clock
- * reading and an entropy function. Nothing here consults the ambient environment,
- * which is what lets a test assert an exact value and what keeps this module
- * usable inside a Convex mutation, where `Math.random` is not allowed.
- *
- * An injected dependency can misbehave, and misbehaviour must be a `Result` and
- * not a thrown exception: a Web Crypto call inside a sandbox, an exhausted
- * hardware source, or a stub in a test can all throw. A throw from `entropy` is
- * `ENTROPY_UNAVAILABLE`, as is a source that returns the wrong number of bytes, a
- * byte that is not a byte, or anything that is not a `Uint8Array` at all.
- */
 export function generateInternalLpn(input: {
   readonly namespace: LpnNamespace;
   readonly nowMs: number;
@@ -276,19 +184,6 @@ export function generateInternalLpn(input: {
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/* Validation                                                                  */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Validates an internal LPN's structure and check character, and — when a
- * namespace is supplied — that the prefix is that organization's. Without the
- * namespace argument this proves the label is well formed, not that it is yours.
- *
- * A supplied namespace is itself validated: comparing against a forged namespace
- * whose prefix is lower case or empty would reject this organization's own label,
- * or accept a label under a prefix nobody registered.
- */
 export function parseInternalLpn(
   raw: string,
   options: { readonly namespace?: LpnNamespace } = {},
@@ -354,7 +249,6 @@ export function parseInternalLpn(
   );
 }
 
-/** Wraps a validated SSCC as an LPN (D-15). Verifies the GS1 check digit. */
 export function lpnFromSscc(raw: string): Result<SsccLpn, LpnError> {
   if (!isString(raw)) {
     return fail({ code: "INVALID_SSCC", raw: describe(raw) });
@@ -368,10 +262,6 @@ export function lpnFromSscc(raw: string): Result<SsccLpn, LpnError> {
     : fail({ code: "INVALID_SSCC", raw });
 }
 
-/**
- * A cheap syntactic test for the scan-precedence ladder: does this look like an
- * internal LPN at all? Structure only — `parseInternalLpn` decides.
- */
 export const looksLikeInternalLpn = (raw: string): boolean => {
   if (!isString(raw)) return false;
   const trimmed = raw.trim();
@@ -384,20 +274,6 @@ export const looksLikeInternalLpn = (raw: string): boolean => {
   return isAlphabetOnly(folded) && !isDigit(folded[0] as string);
 };
 
-/* -------------------------------------------------------------------------- */
-/* Internals                                                                   */
-/* -------------------------------------------------------------------------- */
-
-/**
- * `sum(value_i × (i+1)) mod 31`, rendered as an alphabet character, or `null` for
- * a body carrying a character the alphabet does not contain.
- *
- * The modulus equals the alphabet size and is prime, so every character value is
- * distinct modulo 31 and every weight is invertible — which is what makes
- * single-character substitutions and transpositions detectable rather than
- * probable. `null` rather than `""` for a bad body: an empty check character would
- * compare equal to the empty tail of a malformed value.
- */
 export function checkCharacter(body: string): string | null {
   if (!isString(body) || body.length === 0) return null;
   let sum = 0;
@@ -409,11 +285,6 @@ export function checkCharacter(body: string): string | null {
   return LPN_ALPHABET[sum] as string;
 }
 
-/**
- * Fixed-width base-31, most significant character first, or `null` when the value
- * does not fit the width or is not a non-negative safe integer. A silent
- * truncation here would issue two different pallets the same LPN.
- */
 export function encodeBase31(value: number, width: number): string | null {
   if (!isSafeInt(value) || value < 0) return null;
   if (!isSafeInt(width) || width < 1 || width > LPN_TIME_LENGTH) return null;
@@ -427,11 +298,6 @@ export function encodeBase31(value: number, width: number): string | null {
   return characters.reverse().join("");
 }
 
-/**
- * Inverse of `encodeBase31`, or `null` for a string carrying a character outside
- * the alphabet. It used to read an unknown character as zero, which turned a
- * corrupt time component into a plausible issue date.
- */
 export function decodeBase31(encoded: string): number | null {
   if (!isString(encoded) || encoded.length === 0) return null;
   let value = 0;
@@ -443,13 +309,6 @@ export function decodeBase31(encoded: string): number | null {
   return isSafeInt(value) ? value : null;
 }
 
-/**
- * A uniform integer in `[0, bound)` from injected bytes, by rejection sampling:
- * values in the incomplete final block are discarded rather than folded, so the
- * distribution has no modulo bias. Eight rejections in a row means the source is
- * not behaving, and that fails closed instead of looping. A source that throws, or
- * that returns something this module will not read as bytes, is the same outcome.
- */
 function uniformBelow(
   entropy: EntropySource,
   bound: number,
@@ -478,24 +337,6 @@ function uniformBelow(
   return fail({ code: "ENTROPY_EXHAUSTED", attempts: maxAttempts });
 }
 
-/**
- * The big-endian integer a byte view carries, or `null` for any value this module
- * will not read as one.
- *
- * `EntropySource` says `Uint8Array`, and the check is that and nothing looser.
- * Structural checks were not enough: `{ length: 3 }` satisfies "a record with the
- * expected length", and the `for…of` that followed threw `TypeError: bytes is not
- * iterable` out of `generateInternalLpn`, whose contract is that a misbehaving
- * injected dependency is a `Result`. `Symbol.toStringTag` makes the usual brand
- * test forgeable by a plain object, so `instanceof` is what decides; the entropy
- * source is called in this isolate, so there is no cross-realm view to admit.
- *
- * Two further precautions, because `instanceof` only settles the prototype:
- * reads are by index rather than by iteration, so a subclass or a `Proxy` that
- * overrides `Symbol.iterator` has nothing to override; and the whole read sits in
- * a `try`, because a `Proxy` forwards `getPrototypeOf` while throwing from `get`.
- * The 0-255 range check is the last backstop on what was actually read.
- */
 function readEntropyBytes(bytes: unknown, byteLength: number): number | null {
   try {
     if (!(bytes instanceof Uint8Array)) return null;
@@ -524,6 +365,5 @@ const isAlphabetOnly = (value: string): boolean => {
 const isDigit = (character: string): boolean =>
   isString(character) && character >= "0" && character <= "9";
 
-/** The shape of a value that is not an LPN or a namespace, for the error field. */
 const describe = (value: unknown): string =>
   value === null ? "null" : typeof value;

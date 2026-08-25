@@ -1,23 +1,5 @@
 "use client";
 
-/**
- * The organization and warehouse an operator is currently acting in.
- *
- * The UX plan (§1) puts this above decoration for a reason: a supervisor with
- * two sites and a handheld shared between shifts needs to see, without asking,
- * whose stock they are looking at. So it is permanent shell chrome, not a
- * setting buried in a menu.
- *
- * The organization is a **label**, never a control. It comes from the verified
- * token's active-organization claim server-side (`INV-0001-02`); switching it is
- * Clerk's organization switcher, not a dropdown in this application. The
- * warehouse *is* a control, because it is an argument the server revalidates on
- * every call (`INV-0006-04`).
- *
- * With no identity provider configured there is no organization to name and no
- * warehouse list to offer, so this renders the reason rather than an empty
- * dropdown — the difference between "nothing here" and "not available yet".
- */
 import { Building2, Warehouse as WarehouseIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useId } from "react";
@@ -40,13 +22,6 @@ export function WorkspaceContextBar() {
     );
   }
 
-  /*
-   * One compact row instead of two stacked labeled blocks: the icons carry the
-   * visual grouping (decorative — the accessible names are the sr-only texts
-   * beside them), so the context costs the shell a single line without losing
-   * either fact. The organization stays a label and the warehouse stays a
-   * control, exactly as before.
-   */
   return (
     <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2 text-sm">
       <span

@@ -1,18 +1,5 @@
 "use client";
 
-/**
- * The putaway board and the confirmation that closes a task.
- *
- * Split out of `InboundPanels` and `InboundForms` for the reason
- * `QualityInspections` documents: putaway is a terminal inbound workflow, so a
- * putaway screen has no use for the ordering, receiving, or quality
- * vocabularies, and while these two lived beside those controls it shipped all
- * of them.
- *
- * The claim control sits inside `renderRows`, so it exists only when there are
- * rows to act on: a claim button rendered above a `DENIED` notice would be a
- * control the server has already said this operator may not use.
- */
 import { useTranslations } from "next-intl";
 
 import { PutawayTasksTable } from "@/components/inbound/PutawayTables";
@@ -58,22 +45,7 @@ export function PutawayTasksPanel({
                     <RowActionButton
                       busy={busy}
                       testId={`task-claim-${row.putawayTaskId}`}
-                      /*
-                       * A claimed task still offers the control, and the label
-                       * is an *action* rather than a state. It used to read
-                       * "Already claimed", which is a fact about the task and
-                       * not a thing pressing the button does — a terminal state
-                       * dressed as an enabled control, which the audit found.
-                       * The state itself is in the status column, once, as a
-                       * static glyph-and-word badge.
-                       *
-                       * The control stays live because re-claiming your own task
-                       * after a reconnect succeeds; claiming somebody else's is
-                       * refused by the server with a message that says which
-                       * (`INV-0007-11`), and the hint says so before it is
-                       * pressed. Disabling it would make a reconnect look like a
-                       * lost task.
-                       */
+
                       label={
                         row.status === "CLAIMED" ? t("claimAgain") : t("claim")
                       }
@@ -115,7 +87,7 @@ export function ConfirmPutawayForm({
   locations,
 }: {
   readonly putawayTaskId: string;
-  /** The ranked locations, so the operator chooses from what was recommended. */
+
   readonly locations: readonly {
     readonly value: string;
     readonly label: string;
@@ -148,20 +120,10 @@ export function ConfirmPutawayForm({
                   kind: "select",
                   required: true,
                   placeholder: t("selectChosenLocation"),
-                  /*
-                   * A select over the *ranked* locations. A free-text box would let
-                   * an operator name a bin a hard constraint rejected, and the
-                   * server would refuse it — correctly, but only after the pallet
-                   * had already been moved.
-                   */
+
                   options: [...locations],
                 },
                 {
-                  /*
-                   * Optional: taking the top recommendation needs no reason. The
-                   * empty choice is first and explicit, so an operator who did take
-                   * it is not nudged into inventing one.
-                   */
                   name: "overrideReasonCodeId",
                   label: t("fieldOverrideReason"),
                   kind: "select",

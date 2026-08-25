@@ -1,4 +1,3 @@
-/** Trip creation, manifest assignment, and controlled release. */
 import { v } from "convex/values";
 
 import {

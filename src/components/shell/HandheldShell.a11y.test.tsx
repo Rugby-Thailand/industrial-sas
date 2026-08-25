@@ -25,13 +25,6 @@ describe("HandheldShell accessibility", () => {
   });
 
   it("gives every interactive control the glove-compatible minimum size", () => {
-    /*
-     * `INV-0010-06` is 48×48 CSS pixels. jsdom computes no layout, so the
-     * assertion is on the token that produces the size — `min-h-touch`, which
-     * resolves to the 3rem spacing token — rather than on a measured box. The
-     * physical check is a manual acceptance item (`RG-042`); this catches the
-     * control that was written without the class at all.
-     */
     renderWithIntl(
       <HandheldShell>
         <p>เนื้อหา</p>

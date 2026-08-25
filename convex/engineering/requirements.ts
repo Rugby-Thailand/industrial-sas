@@ -1,4 +1,3 @@
-/** Versioned requirement sign-off between Customer Service and Engineering. */
 import { v } from "convex/values";
 
 import {
@@ -17,6 +16,10 @@ import {
 import { mutationWithOrg, queryWithOrg } from "../lib/tenantFunctions";
 import type { TenantOrgId } from "../lib/tenantDb";
 import {
+  designRequirementConfirmations,
+  designRequirementKey,
+} from "../lib/validators";
+import {
   refusal,
   writeContextOf,
   writeOutcomeValidator,
@@ -28,28 +31,6 @@ import {
   type DesignRequirementKey,
 } from "../model/orderToShip/designReadiness";
 import type { DesignSpecification } from "../model/orderToShip/designSpecification";
-
-const requirementKey = v.union(
-  v.literal("CUSTOMER_PRODUCT_IDENTITY"),
-  v.literal("DIMENSIONS"),
-  v.literal("CONSTRUCTION"),
-  v.literal("PRINT"),
-  v.literal("PACKING"),
-  v.literal("ROUTE"),
-  v.literal("MATERIALS"),
-  v.literal("QUALITY"),
-);
-
-const confirmationsValidator = v.object({
-  CUSTOMER_PRODUCT_IDENTITY: v.boolean(),
-  DIMENSIONS: v.boolean(),
-  CONSTRUCTION: v.boolean(),
-  PRINT: v.boolean(),
-  PACKING: v.boolean(),
-  ROUTE: v.boolean(),
-  MATERIALS: v.boolean(),
-  QUALITY: v.boolean(),
-});
 
 interface RequestDocument {
   readonly _id: string;
@@ -85,7 +66,7 @@ export const recordDesignRequirements = mutationWithOrg({
   args: {
     requestId: v.string(),
     designRequestId: v.id("designRequests"),
-    confirmations: confirmationsValidator,
+    confirmations: designRequirementConfirmations,
     note: v.optional(v.string()),
   },
   returns: writeOutcomeValidator,
@@ -213,9 +194,9 @@ export const listDesignRequirementVersions = queryWithOrg({
     v.object({
       designRequirementVersionId: v.id("designRequirementVersions"),
       version: v.number(),
-      confirmations: confirmationsValidator,
+      confirmations: designRequirementConfirmations,
       status: v.union(v.literal("INCOMPLETE"), v.literal("READY")),
-      missing: v.array(requirementKey),
+      missing: v.array(designRequirementKey),
       note: v.optional(v.string()),
       recordedByUserId: v.id("users"),
       recordedAt: v.number(),

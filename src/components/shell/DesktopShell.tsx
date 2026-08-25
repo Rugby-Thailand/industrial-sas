@@ -1,48 +1,5 @@
 "use client";
 
-/**
- * The supervisor shell: persistent navigation, permanent context chrome, dense
- * content.
- *
- * ### One navigation tree, one DOM node
- *
- * Built on the shadcn Sidebar primitives, and on the half of that structure this
- * shell can actually use. Above the `lg` breakpoint the tree is an in-flow rail
- * beside the content; below it, the *same* tree moves into a Sheet — one at a
- * time, never both. That distinction is the whole reason the structure is safe
- * to adopt: rendering two copies, one `lg:hidden` and one `hidden lg:block`, is
- * the usual shortcut and it produces two navigation landmarks, duplicate link
- * text for a screen reader, and two elements competing to be "the active page".
- * The links come from one `DESKTOP_NAVIGATION` and the active route is computed
- * once, in `NavigationTree` below.
- *
- * The registry's own desktop branch is `fixed inset-y-0 h-svh`, an app-shell
- * rail that owns the full viewport height. This shell's header is not decoration
- * — the organization/warehouse context lives above the fold and must not be
- * overlapped — so the rail is
- * rendered in flow with `collapsible="none"` and the sheet is composed
- * explicitly. Everything else is the registry's: the provider, the content,
- * group, menu, and menu-button parts, and the Sheet the mobile branch uses.
- *
- * The disclosure state is *not* device detection. The UX plan (§7) is explicit
- * that viewport sniffing must never move an operator into a different workflow:
- * this is the same shell, the same links, and the same active route at every
- * width, and only the container they sit in changes. The handheld shell is a
- * different route the operator chooses.
- *
- * The rail does not collapse on desktop. shadcn ships a collapse toggle and a
- * `Ctrl`/`Cmd`+`B` accelerator; the accelerator was removed from the vendored
- * primitive because a HID scanner types into the document, and the toggle is not
- * offered because a supervisor screen has room for the rail and a nav that can
- * disappear is a nav somebody loses. The one trigger this shell renders is the
- * `lg:hidden` sheet opener, which is exactly what the shell had before.
- *
- * ### Skip link
- *
- * First focusable element on the page, visible when focused, targeting the main
- * region. With a scanner acting as a keyboard, tabbing past a nav on every screen
- * is a real cost (`INV-0010-08`).
- */
 import { useTranslations } from "next-intl";
 import {
   ArrowLeftRight,
@@ -152,18 +109,6 @@ export function DesktopShell({ children }: { readonly children: ReactNode }) {
   );
 }
 
-/**
- * The one control that opens and closes the compact navigation.
- *
- * Bound to `openMobile` explicitly rather than through the registry's
- * `toggleSidebar`, which branches on viewport width. The desktop rail is not
- * collapsible here, so a single meaning for "expanded" is the honest one: the
- * sheet is open or it is not. The visible control is the conventional
- * hamburger/close icon so it stays compact; its localized accessible name
- * still says the action in full.
- * `aria-controls` is dropped while the tree is absent from the document rather
- * than left pointing at an id nothing has.
- */
 function NavigationDisclosure() {
   const t = useTranslations("Navigation");
   const { openMobile, setOpenMobile, isMobile } = useSidebar();
@@ -189,7 +134,6 @@ function NavigationDisclosure() {
   );
 }
 
-/** The rail, or the sheet holding the same rail. Never both. */
 function NavigationRegion() {
   const t = useTranslations("Navigation");
   const { isMobile, openMobile, setOpenMobile, state, toggleSidebar } =
@@ -291,13 +235,6 @@ const NAVIGATION_ICONS: Readonly<Record<string, LucideIcon>> = Object.freeze({
   [ROUTES.devices]: FileCog,
 });
 
-/**
- * The links, rendered once.
- *
- * Whichever container the region chose — the rail or the sheet — this is the
- * only place a route appears and the only place `isActivePath` is called, so
- * "the current page" cannot be two different answers on one screen.
- */
 function NavigationTree({
   onNavigate,
   collapsed = false,

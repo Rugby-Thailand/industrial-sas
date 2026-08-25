@@ -1,11 +1,3 @@
-/**
- * Unit tier — LPN generation and validation.
- *
- * Generation is deterministic here because both non-deterministic inputs are
- * arguments: a fixed clock reading and a fixed byte source. That is what lets the
- * suite assert an exact printed value, and it is the same property a Convex
- * mutation needs in order to be replayable.
- */
 import { describe, expect, it } from "vitest";
 
 import { expectError, expectOk } from "../../../tests/fixtures/domain-results";
@@ -30,7 +22,6 @@ import {
 const namespace = expectOk(makeLpnNamespace("org_acme", "PA"));
 const other = expectOk(makeLpnNamespace("org_rival", "XQ"));
 
-/** A byte source that always returns the same bytes: deterministic by design. */
 const fixedEntropy =
   (...bytes: readonly number[]): EntropySource =>
   (byteLength: number) =>
@@ -73,10 +64,6 @@ describe("makeLpnNamespace", () => {
     );
   });
 
-  // The key was only trimmed and length-checked, so anything in between survived.
-  // It identifies a tenant, and a key carrying a zero-width joiner or an internal
-  // space is a second key for the same organization — which is how one tenant's
-  // prefix ends up registered twice under names an operator cannot tell apart.
   it("rejects a key that is not a bounded whitespace-free identifier", () => {
     const rejected = [
       "",
@@ -114,9 +101,7 @@ describe("makeLpnNamespace", () => {
     expect(expectOk(makeLpnNamespace(" org_acme ", "PA")).organizationKey).toBe(
       "org_acme",
     );
-    // Every kind of whitespace is trimmed from the ends, not just a space. What
-    // is refused is whitespace *inside* the key, which is where two keys start
-    // looking like one.
+
     expect(
       expectOk(makeLpnNamespace("\u2028org_acme\u00a0", "PA")).organizationKey,
     ).toBe("org_acme");
@@ -164,7 +149,7 @@ describe("generateInternalLpn", () => {
     expect(lpn.value.startsWith("PA")).toBe(true);
     expect(lpn.value.length).toBeLessThanOrEqual(LPN_MAX_LENGTH);
     expect(lpn.value.length).toBeGreaterThanOrEqual(LPN_MIN_LENGTH);
-    // The time component decodes back to the issuing instant.
+
     expect(decodeBase31(lpn.value.slice(2, 11))).toBe(nowMs - LPN_EPOCH_MS);
   });
 
@@ -245,8 +230,7 @@ describe("generateInternalLpn", () => {
         }),
       ).code,
     ).toBe("ENTROPY_UNAVAILABLE");
-    // Three 0xff bytes are always in the rejected tail, so sampling never
-    // succeeds and the loop gives up instead of folding a biased value in.
+
     expect(
       expectError(
         generateInternalLpn({
@@ -310,8 +294,7 @@ describe("parseInternalLpn", () => {
     expect(expectError(parseInternalLpn(lpn.value.slice(2))).code).toBe(
       "INVALID_LENGTH",
     );
-    // A one-character deletion still has a legal length for a shorter prefix, so
-    // it is the check character that refuses it.
+
     expect(expectError(parseInternalLpn(lpn.value.slice(1))).code).toBe(
       "CHECK_CHARACTER_MISMATCH",
     );
@@ -321,8 +304,7 @@ describe("parseInternalLpn", () => {
     expect(expectError(parseInternalLpn(`PAO${lpn.value.slice(3)}`)).code).toBe(
       "INVALID_CHARACTER",
     );
-    // All zeros satisfies the check character (the weighted sum is zero), and is
-    // still refused: an all-digit value is a GS1 key's shape, not an LPN's.
+
     expect(expectError(parseInternalLpn("0".repeat(LPN_MIN_LENGTH))).code).toBe(
       "INVALID_PREFIX",
     );
@@ -376,10 +358,6 @@ describe("base-31 coding", () => {
   });
 
   it("answers null rather than a plausible wrong value", () => {
-    // `decodeBase31` read an unknown character as zero, which turned a corrupt
-    // time component into a believable issue date; `encodeBase31` silently
-    // truncated a value too large for its width, which would have issued two
-    // pallets the same LPN.
     expect(decodeBase31("AB!")).toBeNull();
     expect(decodeBase31("")).toBeNull();
     expect(decodeBase31(null as unknown as string)).toBeNull();
@@ -395,9 +373,6 @@ describe("base-31 coding", () => {
 
 describe("misbehaving injected dependencies", () => {
   it("returns a structured error when the entropy source throws", () => {
-    // Web Crypto inside a sandbox, an exhausted hardware source, and a stub in a
-    // test can all throw. A throw at this boundary would have escaped every
-    // caller's `Result` handling.
     const throwing: EntropySource = () => {
       throw new Error("no entropy device");
     };
@@ -419,23 +394,17 @@ describe("misbehaving injected dependencies", () => {
     }
   });
 
-  // The byte reader used to accept anything with a plausible `length` and then
-  // iterate it. `{ length: 3 }` satisfied `isRecord` and the length check, so the
-  // `for…of` threw "is not iterable" straight out of `generateInternalLpn` — the
-  // one function in this module whose whole contract is that a misbehaving
-  // injected dependency is a `Result`.
   it("refuses a forged byte view instead of throwing while reading it", () => {
     const forgedSources: readonly EntropySource[] = [
-      // The original defect: a record with the right `length` and no bytes.
       (() => ({ length: 3 })) as unknown as EntropySource,
       (() => ({ length: 3, 0: 1, 1: 2, 2: 3 })) as unknown as EntropySource,
-      // An array is indexable and iterable, and is still not the contract.
+
       (() => [1, 2, 3]) as unknown as EntropySource,
       (() => new Int8Array([1, 2, 3])) as unknown as EntropySource,
       (() => new Uint16Array([1, 2, 3])) as unknown as EntropySource,
       (() => new DataView(new ArrayBuffer(3))) as unknown as EntropySource,
       (() => new ArrayBuffer(3)) as unknown as EntropySource,
-      // A plain object that brands itself as a `Uint8Array` via `toStringTag`.
+
       (() =>
         ({
           length: 3,
@@ -483,7 +452,7 @@ describe("misbehaving injected dependencies", () => {
       });
     const throwingGetter: EntropySource = () => {
       const bytes = new Uint8Array([1, 2, 3]);
-      // A subclass instance is a `Uint8Array`, and this one throws on iteration.
+
       class Hostile extends Uint8Array {
         override [Symbol.iterator](): ArrayIterator<number> {
           throw new Error("hostile subclass");
@@ -501,9 +470,7 @@ describe("misbehaving injected dependencies", () => {
         generateInternalLpn({ namespace, nowMs, entropy }),
       ).not.toThrow();
       const issued = generateInternalLpn({ namespace, nowMs, entropy });
-      // A hostile source either fails closed or is read as the bytes it really
-      // holds. What it must never do is throw, and it must never produce an LPN
-      // out of a value this module could not read.
+
       if (issued.ok) {
         expect(parseInternalLpn(issued.value.value, { namespace }).ok).toBe(
           true,
@@ -557,9 +524,6 @@ describe("misbehaving injected dependencies", () => {
   });
 
   it("validates a namespace it is asked to check a scan against", () => {
-    // A namespace reached this comparison unchecked, so a forged one decided
-    // whose label a scan was. An unusable prefix is now an error, and a merely
-    // unnormalized one is folded rather than silently failing to match.
     const lpn = expectOk(
       generateInternalLpn({ namespace, nowMs, entropy: fixedEntropy(1, 1, 1) }),
     );
