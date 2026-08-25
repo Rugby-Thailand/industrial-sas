@@ -19,6 +19,7 @@ const resolve = { tsconfigPaths: true } as const;
 const convexRuntimeTests = [
   "tests/integration/authorization-lookups-convex.integration.test.ts",
   "tests/integration/authorization-seed-convex.integration.test.ts",
+  "tests/integration/dashboard-preferences.integration.test.ts",
   "tests/integration/idempotency-helper.integration.test.ts",
   "tests/integration/identity-mirror-convex.integration.test.ts",
   "tests/integration/tenant-actions.integration.test.ts",

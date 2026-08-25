@@ -148,6 +148,7 @@ describe("the occupancy map", () => {
   it("counts each band in the legend", () => {
     render();
     expect(screen.getByTestId("legend-FULL")).toHaveTextContent("เต็ม");
+    expect(screen.queryByTestId("occupancy-pressure")).not.toBeInTheDocument();
   });
 
   it("says so when the map is not the whole site", () => {

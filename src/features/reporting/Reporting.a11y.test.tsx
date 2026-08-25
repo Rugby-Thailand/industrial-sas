@@ -1,4 +1,6 @@
 import { axe } from "jest-axe";
+import { screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { navigationMock } from "../../../tests/fixtures/navigation-mock";
@@ -33,6 +35,10 @@ function FailedAdvance({ code }: { readonly code: string }) {
 }
 import { OccupancyGrid } from "./OccupancyMap";
 import { TileList } from "./OperationsTiles";
+import { OwnerAttentionListView } from "./OwnerAttentionList";
+import { OwnerOperationsSummaryView } from "./OwnerOperationsSummary";
+import { OwnerPulseCards } from "./OwnerPulse";
+import { QuickActionMenu } from "./DashboardQuickActions";
 
 /**
  * Accessibility tier — the reporting surfaces (`ADR-0010`, WCAG 2.2 AA).
@@ -71,6 +77,53 @@ describe("reporting accessibility", () => {
 
   it("the export register has no violations", async () => {
     await clean(<JobList jobs={PREVIEW_REPORT_JOBS} />);
+  });
+
+  it("the owner pulse and attention list have no violations", async () => {
+    const { container } = renderWithIntl(
+      <>
+        <OwnerPulseCards
+          tiles={previewDashboardTiles()}
+          occupancy={{ cells: previewOccupancyFor(BANG_PU), complete: true }}
+        />
+        <OwnerAttentionListView
+          payload={{
+            ok: true,
+            asOf: Date.now(),
+            complete: true,
+            exceptions: [],
+          }}
+        />
+        <OwnerOperationsSummaryView tiles={previewDashboardTiles()} />
+      </>,
+      { environment: testEnvironment },
+    );
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("the quick-action editor has no violations", async () => {
+    const user = userEvent.setup();
+    renderWithIntl(
+      <QuickActionMenu
+        preference={{
+          pageKey: "OWNER_DASHBOARD",
+          presetVersion: 1,
+          customized: false,
+          selectedActionIds: ["CUSTOMER_ORDERS", "INVENTORY_HEALTH"],
+          availableActionIds: [
+            "CUSTOMER_ORDERS",
+            "INVENTORY_HEALTH",
+            "OPERATIONAL_REPORTS",
+          ],
+        }}
+        busy={false}
+        onSave={async () => true}
+        onReset={async () => undefined}
+      />,
+      { environment: testEnvironment },
+    );
+    await user.click(screen.getByRole("button", { name: "ปรับแต่ง" }));
+    expect(await axe(document.body)).toHaveNoViolations();
   });
 
   it("an advance failure is announced, not merely coloured", async () => {

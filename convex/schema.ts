@@ -1844,6 +1844,26 @@ const schema = defineSchema({
     ),
 
   /**
+   * One dashboard layout owned by one active tenant membership.
+   *
+   * Stable action/widget IDs are preferences only. Every read intersects them
+   * with current server-derived permissions, so a stale row can never restore a
+   * revoked destination. The membership boundary matters because one global
+   * user may belong to several organizations.
+   */
+  dashboardPreferences: defineTable(
+    tenantFields({
+      membershipId: v.id("memberships"),
+      pageKey: v.string(),
+      presetVersion: v.number(),
+      quickActionIds: v.array(v.string()),
+      widgetIds: v.array(v.string()),
+      hiddenWidgetIds: v.array(v.string()),
+      updatedAt: v.number(),
+    }),
+  ).index("by_orgId_membershipId_pageKey", byOrg("membershipId", "pageKey")),
+
+  /**
    * An asynchronous export, from request to artifact (`ADR-0011` §7).
    *
    * Asynchronous because the alternative is a request that reads a warehouse's

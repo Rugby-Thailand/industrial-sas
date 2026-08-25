@@ -5,6 +5,10 @@
  * the smaller presentation vocabulary used by the reporting screens.
  */
 import { api } from "../../../convex/_generated/api";
+import type {
+  DashboardActionId,
+  DashboardSelectionErrorCode,
+} from "../../../convex/model/reporting/dashboardPreferences";
 
 import { clientRef } from "./clientRef";
 
@@ -29,6 +33,32 @@ export interface DashboardTile {
 
 export const readDashboardRef = clientRef(
   api.reporting.dashboard.readDashboard,
+);
+
+export interface DashboardPreferencePayload {
+  readonly pageKey: "OWNER_DASHBOARD";
+  readonly presetVersion: number;
+  readonly customized: boolean;
+  readonly selectedActionIds: readonly DashboardActionId[];
+  readonly availableActionIds: readonly DashboardActionId[];
+  readonly updatedAt?: number;
+}
+
+export type DashboardPreferenceWriteResult =
+  | {
+      readonly accepted: true;
+      readonly preference: DashboardPreferencePayload;
+    }
+  | { readonly accepted: false; readonly code: DashboardSelectionErrorCode };
+
+export const readDashboardPreferencesRef = clientRef(
+  api.reporting.dashboardPreferences.readPreferences,
+);
+export const updateDashboardPreferencesRef = clientRef(
+  api.reporting.dashboardPreferences.updatePreferences,
+);
+export const resetDashboardPreferencesRef = clientRef(
+  api.reporting.dashboardPreferences.resetPreferences,
 );
 
 export type OccupancyBand = "EMPTY" | "LIGHT" | "BUSY" | "FULL";

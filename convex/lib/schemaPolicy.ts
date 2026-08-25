@@ -118,6 +118,7 @@ export const TENANT_TABLES = [
   "labelPrintJobs",
   "putawayTasks",
   "operationsRollups",
+  "dashboardPreferences",
   "reportJobs",
   "customers",
   "customerOrders",

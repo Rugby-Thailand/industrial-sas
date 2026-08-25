@@ -146,7 +146,6 @@ export function OccupancyGrid({
     band,
     total: cells.filter((cell) => cell.band === band).length,
   }));
-
   return (
     <div className="flex flex-col gap-4" data-testid="occupancy-map">
       <CapacityBar counts={counts} total={cells.length} label={t("capacity")} />

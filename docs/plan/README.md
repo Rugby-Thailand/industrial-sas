@@ -11,16 +11,19 @@ restore, and pilot proof remain open.
 
 ## Concerns
 
-| Concern              | Owner                                                |
-| -------------------- | ---------------------------------------------------- |
-| Goal and scope       | [Project goal](./project-goal.md)                    |
-| Customer and revenue | [Business model](./business-model.md)                |
-| Domain rules         | [Business logic](./business-logic.md)                |
-| Data and scale       | [Database](./database.md)                            |
-| Stack and modules    | [Technology](./technology.md)                        |
-| Work and order       | [Delivery](./delivery.md)                            |
-| Proof and release    | [Quality](./quality.md)                              |
-| Proposed full flow   | [Implementation plan](./full-flow-implementation.md) |
+| Concern              | Owner                                                         |
+| -------------------- | ------------------------------------------------------------- |
+| Goal and scope       | [Project goal](./project-goal.md)                             |
+| Customer and revenue | [Business model](./business-model.md)                         |
+| Domain rules         | [Business logic](./business-logic.md)                         |
+| Data and scale       | [Database](./database.md)                                     |
+| Stack and modules    | [Technology](./technology.md)                                 |
+| Work and order       | [Delivery](./delivery.md)                                     |
+| Proof and release    | [Quality](./quality.md)                                       |
+| Proposed full flow   | [Implementation plan](./full-flow-implementation.md)          |
+| Authenticated E2E    | [Authenticated vertical slice](./authenticated-e2e/README.md) |
+| Gate evidence        | [Release-gate refresh](./release-gate-refresh.md)             |
+| Module structure     | [Selective decomposition](./module-decomposition/README.md)   |
 
 ## Rules
 

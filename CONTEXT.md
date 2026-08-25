@@ -47,3 +47,22 @@ Storage building
             └─ Stack placement (level 1 bottom → level N top)
                  └─ Handling unit ── groups ── Inventory balance buckets
 ```
+
+## Customer-order fulfillment routing
+
+- **Released customer-product design** — the approved immutable design revision
+  identified by the exact customer and customer product code. A merely similar
+  design is not this design.
+- **Design-required line** — a customer-order line for which no released
+  customer-product design exists and Engineering must create or explicitly
+  resolve one.
+- **Customer-specific finished good** — a finished item identified for the
+  customer's product and approved design, not any physically similar item.
+- **Finished-goods availability** — the uncommitted quantity of that finished good
+  eligible to satisfy a customer-order line. Physical on-hand already promised to
+  other demand is not available.
+- **Production shortage** — the part of a customer-order line not covered by
+  available finished goods and therefore requiring production.
+- **Material shortage** — the part of the production requirement not covered by
+  eligible ingredient or raw-material inventory and therefore requiring
+  purchasing demand.

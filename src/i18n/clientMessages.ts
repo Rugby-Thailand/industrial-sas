@@ -107,12 +107,12 @@ export const ROUTE_NAMESPACES = {
   "(auth)/sign-in": ["Setup"],
 
   "(desktop)/dashboard": [
-    "Dashboard",
     "Metric",
     "Occupancy",
     "OccupancyBand",
+    "OperationalReports",
+    "OwnerDashboard",
     "Panel",
-    "Workspace",
   ],
   "(desktop)/inventory": [
     "Count",

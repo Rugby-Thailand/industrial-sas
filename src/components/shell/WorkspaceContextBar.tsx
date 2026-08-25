@@ -40,15 +40,15 @@ export function WorkspaceContextBar() {
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
-      <span className="flex flex-col">
+    <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] items-end gap-3 text-sm sm:flex sm:flex-wrap sm:items-center sm:gap-x-6 sm:gap-y-2">
+      <span className="flex min-w-0 flex-col">
         <span className="text-xs text-muted">{t("organization")}</span>
         <span className="font-semibold text-text">
           {organizationLabel(workspace.organization)}
         </span>
       </span>
 
-      <span className="flex flex-col gap-1">
+      <span className="flex min-w-0 flex-col gap-1">
         {/*
          * `htmlFor` rather than a wrapping `<label>`: the Radix trigger is a
          * `<button>`, which is a labelable element, but only an explicit `for`
@@ -64,7 +64,7 @@ export function WorkspaceContextBar() {
           onValueChange={(warehouse) => workspace.selectWarehouse(warehouse)}
           placeholder={t("selectWarehouse")}
           emptyLabel={t("noWarehouses")}
-          className="w-full font-semibold sm:w-64"
+          className="w-full min-w-0 font-semibold sm:w-64"
           testId="warehouse-select"
           options={workspace.warehouses.map((warehouse) => ({
             value: warehouse.id,

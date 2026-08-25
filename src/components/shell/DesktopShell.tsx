@@ -132,12 +132,14 @@ export function DesktopShell({ children }: { readonly children: ReactNode }) {
         <NavigationRegion />
         <div className="flex min-w-0 flex-1 flex-col">
           <header className="border-b border-border bg-surface px-4 py-3 lg:px-6">
-            <div className="flex flex-wrap items-center gap-4">
+            <div className="grid grid-cols-[auto_1fr_auto] items-center gap-3 sm:flex sm:flex-wrap sm:gap-4">
               <NavigationDisclosure />
-              <div className="min-w-0 flex-1">
+              <div className="order-last col-span-3 min-w-0 sm:order-none sm:flex-1">
                 <WorkspaceContextBar />
               </div>
-              <LocaleSwitcher />
+              <div className="min-w-0 justify-self-end">
+                <LocaleSwitcher />
+              </div>
               <AccountButton />
             </div>
           </header>

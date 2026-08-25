@@ -427,7 +427,6 @@
     "title": "Dashboard",
     "description": "Current warehouse workload, capacity, and the next operational actions.",
     "controlTowerEyebrow": "Warehouse control tower",
-    "heroAssetLabel": "Warehouse operations",
     "heroStartAction": "Start receiving work",
     "heroReportAction": "Open operations reports",
     "entryHeading": "Start work",
@@ -454,6 +453,122 @@
     "tileSuspect": "This number may be low: a counter was corrected downwards. Run the verification before relying on it.",
     "tileCumulative": "Total since this site was created",
     "reportsCard": "Exports"
+  },
+  "OwnerDashboard": {
+    "eyebrow": "Owner workspace",
+    "title": "Business overview",
+    "quickActionsTitle": "Quick actions",
+    "customize": "Customize",
+    "customizeTitle": "Customize quick actions",
+    "customizeDescription": "Choose up to six shortcuts and put the most important work first. This layout is saved for your membership in this organization.",
+    "selectedActions": "{count, plural, one {# selected action of 6} other {# selected actions of 6}}",
+    "availableActions": "Available actions",
+    "emptySelection": "No shortcuts selected. Add actions below or save an intentionally empty menu.",
+    "moveUp": "Move {label} up",
+    "moveDown": "Move {label} down",
+    "remove": "Remove {label}",
+    "add": "Add {label}",
+    "save": "Save changes",
+    "saving": "Saving…",
+    "cancel": "Cancel",
+    "reset": "Reset to owner default",
+    "saved": "Quick actions saved for this account.",
+    "resetDone": "Quick actions reset to the current owner default.",
+    "saveDenied": "The change was not allowed. Technical reference: {requestId}",
+    "noQuickActions": "No quick actions selected. Use Customize to add the workflows you use most.",
+    "saveErrors": {
+      "TOO_MANY_ACTIONS": "Choose no more than six actions.",
+      "UNKNOWN_ACTION": "One action is no longer recognized. Reopen the editor and try again.",
+      "DUPLICATE_ACTION": "Each action can appear only once.",
+      "ACTION_NOT_AVAILABLE": "One action is no longer available to this account. Reopen the editor to refresh the list."
+    },
+    "pulseTitle": "Business pulse",
+    "pulseHelp": "Live operational signals for the selected warehouse.",
+    "attentionTitle": "Needs attention",
+    "attentionHelp": "Highest-impact exceptions, ordered by severity and time.",
+    "attentionEmpty": "All clear",
+    "attentionEmptyBody": "No quality, receiving, production, or operator exceptions for the selected warehouse.",
+    "attentionIncomplete": "This list is partial. Open reports before treating it as complete.",
+    "capacityTitle": "Capacity detail",
+    "capacityHelp": "Location-by-location occupancy for spotting constrained aisles and open space.",
+    "operationsTitle": "Operational detail",
+    "operationsHelp": "Maintained queue and recorded-volume counters for teams running the warehouse.",
+    "volumeTitle": "Recorded flow",
+    "volumeHelp": "Cumulative warehouse activity from maintained counters.",
+    "queueTitle": "Queue composition",
+    "queueHelp": "Current work waiting across quality and putaway.",
+    "activePutaway": "{count, plural, one {# active putaway task} other {# active putaway tasks}}",
+    "queueClear": "All tracked queues are clear",
+    "noRecordedVolume": "No recorded flow yet",
+    "latestActivity": "Latest counter activity {when}",
+    "liveData": "Live warehouse data",
+    "metric": {
+      "inspections": "Inspections waiting",
+      "decisions": "Decisions awaiting approval",
+      "putaway": "Putaway work in progress",
+      "capacity": "Capacity pressure",
+      "workItems": "{count, plural, one {# work item} other {# work items}}",
+      "locations": "{count, plural, one {# constrained location} other {# constrained locations}}",
+      "clear": "No waiting work",
+      "clearLabel": "Clear",
+      "attentionLabel": "Needs action",
+      "never": "No activity recorded yet",
+      "asOf": "Updated {when}",
+      "capacityPartial": "Partial location view",
+      "capacityComplete": "Across {count, plural, one {# mapped location} other {# mapped locations}}",
+      "suspect": "This maintained counter needs verification",
+      "pressure": "of mapped locations constrained"
+    },
+    "actions": {
+      "CUSTOMER_ORDERS": {
+        "label": "Customer orders",
+        "description": "Review demand and order status."
+      },
+      "FULFILLMENT": {
+        "label": "Fulfillment",
+        "description": "Unblock allocation, picking, and shipping."
+      },
+      "PRODUCTION_STATUS": {
+        "label": "Production status",
+        "description": "Track released and active work orders."
+      },
+      "INVENTORY_HEALTH": {
+        "label": "Inventory health",
+        "description": "Check current balances and availability."
+      },
+      "OPERATIONAL_REPORTS": {
+        "label": "Operational reports",
+        "description": "Investigate exceptions and exports."
+      },
+      "INTEGRATION_HEALTH": {
+        "label": "Integration health",
+        "description": "Monitor connected systems and delivery queues."
+      },
+      "RECEIVING": {
+        "label": "Receiving",
+        "description": "Open expected and unexpected receipts."
+      },
+      "QUALITY": {
+        "label": "Quality",
+        "description": "Review inspections and disposition decisions."
+      },
+      "PUTAWAY": {
+        "label": "Putaway",
+        "description": "Move accepted stock into storage."
+      },
+      "INVENTORY_HISTORY": {
+        "label": "Inventory history",
+        "description": "Read the immutable movement record."
+      },
+      "STOCK_COUNTS": {
+        "label": "Stock counts",
+        "description": "Plan and review physical counts."
+      },
+      "ITEM_REGISTER": {
+        "label": "Item register",
+        "description": "Browse the organization item catalogue."
+      }
+    }
   },
   "Inventory": {
     "balancesTitle": "Balances",
@@ -1102,7 +1217,10 @@
     "emptyHint": "A master-data administrator has to create locations before the map can show anything.",
     "partial": "This map does not show every location",
     "partialHint": "The site has more locations than one page of the map. What is drawn is accurate; what is missing is not empty.",
-    "capacity": "Share of drawn locations by band"
+    "capacity": "Share of drawn locations by band",
+    "pressure": "Capacity pressure",
+    "mapped": "{count, plural, one {# mapped location} other {# mapped locations}}",
+    "open": "{count, plural, one {# open or lightly used} other {# open or lightly used}}"
   },
   "OccupancyBand": {
     "EMPTY": "Empty",
