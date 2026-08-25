@@ -128,6 +128,44 @@ describe("write control accessibility", () => {
     },
   );
 
+  it.each(LOCALES)(
+    "a form whose blamed field lives in the forced-open More options group is clean in %s",
+    async (locale) => {
+      const { container } = renderWithIntl(
+        <EntityForm
+          legend="เพิ่มรายการ"
+          description="คำอธิบาย"
+          fields={[
+            { name: "code", label: "รหัส", kind: "text", required: true },
+            {
+              name: "externalRef",
+              label: "อ้างอิงภายนอก",
+              kind: "text",
+              importance: "secondary",
+            },
+          ]}
+          submitLabel="บันทึก"
+          requiredMessage="ต้องกรอกช่องนี้"
+          busy={false}
+          invalidField="externalRef"
+          outcome={
+            <WriteOutcomeNotice
+              state={{
+                kind: "REFUSED",
+                code: "DUPLICATE_KEY",
+                field: "externalRef",
+              }}
+            />
+          }
+          onSubmit={() => undefined}
+        />,
+        { locale },
+      );
+
+      expect(await axe(container)).toHaveNoViolations();
+    },
+  );
+
   it.each(LOCALES)("a denied outcome is clean in %s", async (locale) => {
     const { container } = renderWithIntl(
       <WriteOutcomeNotice state={{ kind: "DENIED", requestId: "req_1" }} />,

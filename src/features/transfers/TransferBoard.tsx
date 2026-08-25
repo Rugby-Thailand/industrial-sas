@@ -206,6 +206,9 @@ function TransferWorkspace({
               name: "sourceReference",
               label: t("sourceReference"),
               kind: "text",
+              // Optional cross-document pointer; the kind above already
+              // classifies the request.
+              importance: "secondary",
             },
             {
               name: "purpose",
@@ -288,6 +291,7 @@ function TransferWorkspace({
         warehouseId={warehouseId}
         sourceTransfers={sourceTransfers}
         destinationTransfers={destinationTransfers}
+        items={items}
       />
     </section>
   );
@@ -334,10 +338,12 @@ function ServerTransferExecution({
   warehouseId,
   sourceTransfers,
   destinationTransfers,
+  items,
 }: {
   readonly warehouseId: string;
   readonly sourceTransfers: readonly TransferSummary[];
   readonly destinationTransfers: readonly TransferSummary[];
+  readonly items: readonly ItemRow[];
 }) {
   const destination = destinationTransfers.find((row) =>
     ["DISPATCHED", "PARTIALLY_RECEIVED", "DISCREPANCY"].includes(row.status),
@@ -412,6 +418,7 @@ function ServerTransferExecution({
       }
       lines={lines.value.lines}
       locations={locations.value.items}
+      items={items}
       discrepancies={discrepancies.value.discrepancies}
       resolutionMode={
         destination === undefined
@@ -428,6 +435,7 @@ function TransferExecution({
   destinationTransfers,
   lines,
   locations,
+  items,
   discrepancies,
   resolutionMode,
 }: {
@@ -436,13 +444,18 @@ function TransferExecution({
   readonly destinationTransfers: readonly TransferSummary[];
   readonly lines: readonly TransferLine[];
   readonly locations: readonly LocationRow[];
+  readonly items: readonly ItemRow[];
   readonly discrepancies: readonly TransferDiscrepancy[];
   readonly resolutionMode: "RECEIVED_AT_DESTINATION" | "RETURNED_TO_SOURCE";
 }) {
   const t = useTranslations("Transfers");
+  // The SKU an operator recognises, never the document ID; the ID keeps a
+  // deactivated item legible rather than blank.
+  const skuOf = (itemId: string) =>
+    items.find((item) => item.itemId === itemId)?.sku ?? itemId;
   const lineOptions = lines.map((line) => ({
     value: line.transferLineId,
-    label: `${t("line", { number: line.lineNumber })} · ${line.itemId}`,
+    label: `${t("line", { number: line.lineNumber })} · ${skuOf(line.itemId)}`,
   }));
   const source = sourceTransfers.find((row) =>
     ["APPROVED", "DISPATCHING"].includes(row.status),
@@ -481,8 +494,20 @@ function TransferExecution({
               kind: "number",
               required: true,
             },
-            { name: "sealNumber", label: t("seal"), kind: "text" },
-            { name: "carrierName", label: t("carrier"), kind: "text" },
+            // Optional trailer facts captured only when the truck carries
+            // them; the line, tag, and quantity are the dispatch decision.
+            {
+              name: "sealNumber",
+              label: t("seal"),
+              kind: "text",
+              importance: "secondary",
+            },
+            {
+              name: "carrierName",
+              label: t("carrier"),
+              kind: "text",
+              importance: "secondary",
+            },
           ]}
           toArgs={(values, requestId) => ({
             requestId,
@@ -539,16 +564,27 @@ function TransferExecution({
               required: true,
               initialValue: "0",
             },
+            /*
+             * The discrepancy detail is the exception path: most receipts post
+             * with the zero default above, so kind and note wait behind "More
+             * options". A server refusal that blames either reopens the group.
+             */
             {
               name: "discrepancyKind",
               label: t("discrepancyKind"),
               kind: "select",
+              importance: "secondary",
               options: ["MISSING", "DAMAGED", "WRONG_TAG"].map((value) => ({
                 value,
                 label: t(`kind${value}`),
               })),
             },
-            { name: "note", label: t("discrepancyNote"), kind: "text" },
+            {
+              name: "note",
+              label: t("discrepancyNote"),
+              kind: "text",
+              importance: "secondary",
+            },
             {
               name: "stockStatus",
               label: t("stockStatus"),

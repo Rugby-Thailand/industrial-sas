@@ -142,6 +142,8 @@ export function PurchaseOrderForm() {
                   name: "externalRef",
                   label: t("columnExternalRef"),
                   kind: "text",
+                  // A cross-system reference most orders never carry.
+                  importance: "secondary",
                   monospace: true,
                 },
               ]}
@@ -592,6 +594,13 @@ function ReceiptLineFormBody({
                 name: "expirationDate",
                 label: t("fieldExpirationDate"),
                 kind: "text",
+                /*
+                 * Secondary, unlike the lot code: a lot-tracked item refuses to
+                 * post without its lot, so that field stays primary, while the
+                 * expiry is only sometimes captured at the dock. A server
+                 * refusal that blames it reopens the group.
+                 */
+                importance: "secondary",
                 monospace: true,
                 placeholder: "2027-05-01",
               },
@@ -675,7 +684,14 @@ export function ReceivingExceptionForm() {
                     label: `${reason.code} · ${reason.name}`,
                   })),
                 },
-                { name: "note", label: t("exceptionNote"), kind: "textarea" },
+                {
+                  name: "note",
+                  label: t("exceptionNote"),
+                  kind: "textarea",
+                  // Optional context for the second person; the kind and reason
+                  // code above already carry the decision.
+                  importance: "secondary",
+                },
               ]}
               toArgs={(values, requestId) => ({
                 requestId,

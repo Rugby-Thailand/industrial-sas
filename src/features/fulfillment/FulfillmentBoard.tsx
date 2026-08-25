@@ -296,14 +296,12 @@ function DemandRoutingForm({
           kind: "text",
           required: true,
         },
-        { name: "district", label: t("district"), kind: "text" },
         {
           name: "province",
           label: t("province"),
           kind: "text",
           required: true,
         },
-        { name: "postalCode", label: t("postalCode"), kind: "text" },
         {
           name: "countryCode",
           label: t("countryCode"),
@@ -312,8 +310,35 @@ function DemandRoutingForm({
           initialValue: "TH",
           monospace: true,
         },
-        { name: "recipientName", label: t("recipientName"), kind: "text" },
-        { name: "recipientPhone", label: t("recipientPhone"), kind: "text" },
+        /*
+         * The optional address detail waits behind "More options": name,
+         * street, and province are what routing needs, and the rest is filled
+         * only when the customer supplied it.
+         */
+        {
+          name: "district",
+          label: t("district"),
+          kind: "text",
+          importance: "secondary",
+        },
+        {
+          name: "postalCode",
+          label: t("postalCode"),
+          kind: "text",
+          importance: "secondary",
+        },
+        {
+          name: "recipientName",
+          label: t("recipientName"),
+          kind: "text",
+          importance: "secondary",
+        },
+        {
+          name: "recipientPhone",
+          label: t("recipientPhone"),
+          kind: "text",
+          importance: "secondary",
+        },
       ]}
       toArgs={(values, requestId) => ({
         requestId,
@@ -592,10 +617,14 @@ function OrderActionBody({
           onSaved={(outcome) => setShipmentId(idFromOutcome(outcome))}
         />
         <div className="flex flex-col gap-3">
+          {/*
+           * The success notices no longer print the created document ID: it is
+           * a Convex identifier nobody can act on, and the release control
+           * that appears below is the actual next step.
+           */}
           <Notice
             tone={waveId === undefined ? "muted" : "success"}
             title={waveId === undefined ? t("wavePending") : t("waveCreated")}
-            {...(waveId === undefined ? {} : { body: waveId })}
           />
           <Notice
             tone={shipmentId === undefined ? "muted" : "success"}
@@ -604,7 +633,6 @@ function OrderActionBody({
                 ? t("shipmentPending")
                 : t("shipmentCreated")
             }
-            {...(shipmentId === undefined ? {} : { body: shipmentId })}
           />
           {waveId === undefined ? null : (
             <EntityWriteForm

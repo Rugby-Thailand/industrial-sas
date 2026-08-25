@@ -1,10 +1,12 @@
 "use client";
 
 import { useQuery } from "convex/react";
+import { ListOrdered } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
 import { LedgerPanelStatus } from "@/components/system/LedgerPanelStatus";
 import { QueryGate } from "@/components/system/QueryGate";
+import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import { Notice } from "@/components/ui/Notice";
 import { StatusBadge, type BadgeTone } from "@/components/ui/StatusBadge";
 import { EntityWriteForm } from "@/features/masterData/EntityWriteForm";
@@ -244,22 +246,27 @@ function ProductionWorkspace({
         )}
       </section>
 
-      <ol
-        aria-label={t("flowLabel")}
-        className="grid gap-2 text-sm md:grid-cols-5"
-      >
-        {["pin", "issue", "run", "hold", "release"].map((step, index) => (
-          <li
-            key={step}
-            className="rounded-lg border border-border bg-raised p-3"
-          >
-            <span className="font-mono text-xs text-muted">{index + 1}/5</span>
-            <strong className="mt-1 block text-text">
-              {t(`flow.${step}`)}
-            </strong>
-          </li>
-        ))}
-      </ol>
+      {/*
+       * The five-step explainer is training material: collapsed so the live
+       * orders — the operator's actual state — sit directly under the impacts.
+       */}
+      <CollapsibleSection label={t("flowLabel")} icon={ListOrdered}>
+        <ol className="grid gap-2 text-sm md:grid-cols-5">
+          {["pin", "issue", "run", "hold", "release"].map((step, index) => (
+            <li
+              key={step}
+              className="rounded-lg border border-border bg-raised p-3"
+            >
+              <span className="font-mono text-xs text-muted">
+                {index + 1}/5
+              </span>
+              <strong className="mt-1 block text-text">
+                {t(`flow.${step}`)}
+              </strong>
+            </li>
+          ))}
+        </ol>
+      </CollapsibleSection>
 
       {orders.length === 0 ? (
         <Notice tone="muted" title={t("empty")} />
@@ -432,6 +439,8 @@ function ProductionWorkspace({
               name: "downtimeReason",
               label: t("downtimeReason"),
               kind: "text",
+              // Only meaningful when the downtime above is non-zero.
+              importance: "secondary",
             },
           ]}
           toArgs={(values, requestId) => ({
@@ -607,9 +616,6 @@ function ProductionCard({ order }: { readonly order: ProductionOrderRow }) {
           </li>
         ))}
       </ol>
-      <p className="mt-3 font-mono text-xs break-all text-muted">
-        {t("orderId")}: {order.productionOrderId}
-      </p>
     </li>
   );
 }

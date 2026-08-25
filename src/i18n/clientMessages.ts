@@ -46,14 +46,16 @@ export type MessageNamespace = keyof MessageCatalogue;
  * The chrome that renders above every route, from the root locale layout.
  *
  * `Access` is the tenant-provisioning fallback, `Locale` the language switcher,
- * `Navigation` the shell links, and `Workspace` the warehouse bar. The `App`
- * namespace is used only by server-rendered metadata, so it does not belong in
- * the client payload.
+ * `Navigation` the shell links, and `Workspace` the warehouse bar. `App`
+ * carries the page-help toggle label that the client `PageHeader` renders on
+ * every route, which is why it rides in the shell *and* in each route entry —
+ * a nested provider replaces, not merges (see below).
  * Nothing domain-specific belongs here: a namespace added to this list is paid
  * for by every page in the application.
  */
 export const SHELL_NAMESPACES = [
   "Access",
+  "App",
   "Error",
   "Locale",
   "Navigation",
@@ -104,7 +106,7 @@ export const SHELL_NAMESPACES = [
  * whose every key is a code.
  */
 export const ROUTE_NAMESPACES = {
-  "(auth)/sign-in": ["Setup"],
+  "(auth)/sign-in": ["App", "Setup"],
 
   "(desktop)/dashboard": [
     "Metric",
@@ -115,6 +117,7 @@ export const ROUTE_NAMESPACES = {
     "Panel",
   ],
   "(desktop)/inventory": [
+    "App",
     "Count",
     "Inventory",
     "Pagination",
@@ -126,6 +129,7 @@ export const ROUTE_NAMESPACES = {
     "WriteError",
   ],
   "(desktop)/inbound": [
+    "App",
     "InboundBoard",
     "InspectionStatus",
     "Pagination",
@@ -133,10 +137,17 @@ export const ROUTE_NAMESPACES = {
     "PurchaseOrderStatus",
     "PutawayTaskStatus",
   ],
-  "(desktop)/fulfillment": ["Fulfillment", "Panel", "Write", "WriteError"],
-  "(desktop)/transport": ["Panel", "Transport", "Write", "WriteError"],
-  "(desktop)/transfers": ["Panel", "Transfers", "Write", "WriteError"],
+  "(desktop)/fulfillment": [
+    "App",
+    "Fulfillment",
+    "Panel",
+    "Write",
+    "WriteError",
+  ],
+  "(desktop)/transport": ["App", "Panel", "Transport", "Write", "WriteError"],
+  "(desktop)/transfers": ["App", "Panel", "Transfers", "Write", "WriteError"],
   "(desktop)/master-data": [
+    "App",
     "BarcodeKind",
     "LabelTemplateStatus",
     "LocationType",
@@ -151,6 +162,7 @@ export const ROUTE_NAMESPACES = {
     "WriteError",
   ],
   "(desktop)/purchasing": [
+    "App",
     "ImportProblem",
     "LabelEvidence",
     "LabelPrintReason",
@@ -169,6 +181,7 @@ export const ROUTE_NAMESPACES = {
     "WriteError",
   ],
   "(desktop)/devices": [
+    "App",
     "DeviceRegistry",
     "DeviceStatus",
     "DeviceType",
@@ -179,6 +192,7 @@ export const ROUTE_NAMESPACES = {
     "WriteError",
   ],
   "(desktop)/putaway": [
+    "App",
     "Pagination",
     "Panel",
     "Putaway",
@@ -190,6 +204,7 @@ export const ROUTE_NAMESPACES = {
     "WriteError",
   ],
   "(desktop)/quality": [
+    "App",
     "InspectionStatus",
     "Pagination",
     "Panel",
@@ -201,6 +216,7 @@ export const ROUTE_NAMESPACES = {
     "WriteError",
   ],
   "(desktop)/receiving": [
+    "App",
     "ImportProblem",
     "LabelEvidence",
     "LabelPrintReason",
@@ -219,6 +235,7 @@ export const ROUTE_NAMESPACES = {
     "WriteError",
   ],
   "(desktop)/reports": [
+    "App",
     "OperationalReports",
     "Panel",
     "ReportJobStatus",
@@ -229,6 +246,7 @@ export const ROUTE_NAMESPACES = {
     "WriteError",
   ],
   "(desktop)/sales": [
+    "App",
     "OrderToShip",
     "Pagination",
     "Panel",
@@ -236,6 +254,7 @@ export const ROUTE_NAMESPACES = {
     "WriteError",
   ],
   "(desktop)/engineering": [
+    "App",
     "OrderToShip",
     "Pagination",
     "Panel",
@@ -243,6 +262,7 @@ export const ROUTE_NAMESPACES = {
     "WriteError",
   ],
   "(desktop)/production": [
+    "App",
     "OrderToShip",
     "Pagination",
     "Panel",
@@ -250,47 +270,71 @@ export const ROUTE_NAMESPACES = {
     "Write",
     "WriteError",
   ],
-  "(desktop)/hr": ["HR", "Panel", "Table", "Write", "WriteError"],
+  "(desktop)/hr": ["App", "HR", "Panel", "Table", "Write", "WriteError"],
   "(desktop)/integrations": [
+    "App",
     "Integrations",
     "Panel",
     "Table",
     "Write",
     "WriteError",
   ],
-  "(desktop)/setup": ["Setup"],
+  "(desktop)/setup": ["App", "Setup"],
 
   "(handheld)/handheld/inventory": [
+    "App",
     "Inventory",
     "Pagination",
     "Panel",
     "StockStatus",
     "Table",
   ],
-  "(handheld)/handheld/count": ["Count", "Panel", "Write", "WriteError"],
+  "(handheld)/handheld/count": ["App", "Count", "Panel", "Write", "WriteError"],
   "(handheld)/handheld/transfers": [
+    "App",
     "Panel",
     "Transfers",
     "Write",
     "WriteError",
   ],
   "(handheld)/handheld/production": [
+    "App",
     "Panel",
     "Production",
     "Write",
     "WriteError",
   ],
   "(handheld)/handheld/attendance": [
+    "App",
     "HR",
     "Panel",
     "Table",
     "Write",
     "WriteError",
   ],
-  "(handheld)/handheld/pick": ["Fulfillment", "Panel", "Write", "WriteError"],
-  "(handheld)/handheld/load": ["Panel", "Transport", "Write", "WriteError"],
-  "(handheld)/handheld/delivery": ["Panel", "Transport", "Write", "WriteError"],
+  "(handheld)/handheld/pick": [
+    "App",
+    "Fulfillment",
+    "Panel",
+    "Write",
+    "WriteError",
+  ],
+  "(handheld)/handheld/load": [
+    "App",
+    "Panel",
+    "Transport",
+    "Write",
+    "WriteError",
+  ],
+  "(handheld)/handheld/delivery": [
+    "App",
+    "Panel",
+    "Transport",
+    "Write",
+    "WriteError",
+  ],
   "(handheld)/handheld/putaway": [
+    "App",
     "Pagination",
     "Panel",
     "Putaway",
@@ -302,6 +346,7 @@ export const ROUTE_NAMESPACES = {
     "WriteError",
   ],
   "(handheld)/handheld/work": [
+    "App",
     "OperatorTaskStatus",
     "OperatorWork",
     "Pagination",
@@ -314,6 +359,7 @@ export const ROUTE_NAMESPACES = {
     "WriteError",
   ],
   "(handheld)/handheld/quality": [
+    "App",
     "InspectionStatus",
     "Pagination",
     "Panel",
@@ -325,6 +371,7 @@ export const ROUTE_NAMESPACES = {
     "WriteError",
   ],
   "(handheld)/handheld/receive": [
+    "App",
     "ImportProblem",
     "LabelEvidence",
     "LabelPrintReason",

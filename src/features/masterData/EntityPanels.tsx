@@ -560,6 +560,9 @@ export function LotForm({ itemId }: { readonly itemId: string }) {
           name: "expirationDate",
           label: t("columnExpirationDate"),
           kind: "text",
+          // Optional and usually absent: most lots are created without a dated
+          // expiry, so the field waits behind "More options".
+          importance: "secondary",
           monospace: true,
           placeholder: "2026-12-31",
           // A business date in the warehouse's own timezone (`ADR-0011`), never

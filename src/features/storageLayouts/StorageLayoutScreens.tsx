@@ -26,6 +26,7 @@ import {
 } from "react";
 
 import { QueryGate } from "@/components/system/QueryGate";
+import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Notice } from "@/components/ui/Notice";
 import { SelectControl } from "@/components/ui/SelectControl";
@@ -1107,29 +1108,28 @@ function FloorForm({
           blocks={blocks}
           zones={floor.storageZones}
         />
-        <section className="rounded-2xl border border-border bg-surface p-5 shadow-sm">
-          <div className="flex items-center gap-2">
-            <Ruler className="size-5 text-accent" />
-            <h2 className="font-semibold text-text">{t("dimensions")}</h2>
-          </div>
-          <div className="mt-5 grid gap-4 sm:grid-cols-3">
-            <OverrideField
-              label={t("width")}
-              value={width}
-              onChange={setWidth}
-            />
-            <OverrideField
-              label={t("depth")}
-              value={depth}
-              onChange={setDepth}
-            />
-            <OverrideField
-              label={t("height")}
-              value={height}
-              onChange={setHeight}
-            />
-          </div>
-        </section>
+        {/*
+         * Dimension overrides are the exception, not the everyday edit: a
+         * floor inherits the building's footprint unless somebody says
+         * otherwise. Collapsed with an "inherits" badge while untouched, so
+         * the plan and zones stay the screen's subject.
+         */}
+        <CollapsibleSection
+          label={t("dimensions")}
+          icon={Ruler}
+          {...(width === "" && depth === "" && height === ""
+            ? { badge: t("inherits") }
+            : { open: true })}
+          contentClassName="grid gap-4 sm:grid-cols-3"
+        >
+          <OverrideField label={t("width")} value={width} onChange={setWidth} />
+          <OverrideField label={t("depth")} value={depth} onChange={setDepth} />
+          <OverrideField
+            label={t("height")}
+            value={height}
+            onChange={setHeight}
+          />
+        </CollapsibleSection>
         <ReservedBlocks
           blocks={blocks}
           setBlocks={setBlocks}

@@ -236,6 +236,9 @@ function TransportWorkspace({
               label: t("driverPhone"),
               kind: "text",
               required: false,
+              // Optional contact detail; the trip itself needs only the three
+              // identities above.
+              importance: "secondary",
             },
           ]}
           toArgs={(values, requestId) => ({

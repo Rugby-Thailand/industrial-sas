@@ -18,6 +18,7 @@
  * warehouse list to offer, so this renders the reason rather than an empty
  * dropdown — the difference between "nothing here" and "not available yet".
  */
+import { Building2, Warehouse as WarehouseIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useId } from "react";
 
@@ -39,23 +40,39 @@ export function WorkspaceContextBar() {
     );
   }
 
+  /*
+   * One compact row instead of two stacked labeled blocks: the icons carry the
+   * visual grouping (decorative — the accessible names are the sr-only texts
+   * beside them), so the context costs the shell a single line without losing
+   * either fact. The organization stays a label and the warehouse stays a
+   * control, exactly as before.
+   */
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] items-end gap-3 text-sm sm:flex sm:flex-wrap sm:items-center sm:gap-x-6 sm:gap-y-2">
-      <span className="flex min-w-0 flex-col">
-        <span className="text-xs text-muted">{t("organization")}</span>
-        <span className="font-semibold text-text">
+    <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+      <span
+        className="flex min-w-0 items-center gap-1.5"
+        title={t("organization")}
+      >
+        <Building2 aria-hidden="true" className="size-4 shrink-0 text-muted" />
+        <span className="sr-only">{t("organization")}</span>
+        <span className="truncate font-semibold text-text">
           {organizationLabel(workspace.organization)}
         </span>
       </span>
 
-      <span className="flex min-w-0 flex-col gap-1">
+      <span className="flex min-w-0 flex-1 items-center gap-1.5 sm:flex-none">
+        <WarehouseIcon
+          aria-hidden="true"
+          className="size-4 shrink-0 text-muted"
+        />
         {/*
          * `htmlFor` rather than a wrapping `<label>`: the Radix trigger is a
          * `<button>`, which is a labelable element, but only an explicit `for`
          * reaches it — a wrapping label associates with nothing and the control
-         * loses its accessible name.
+         * loses its accessible name. The label is sr-only; the warehouse glyph
+         * plus the selected value carry the meaning visually.
          */}
-        <label htmlFor={warehouseId} className="text-xs text-muted">
+        <label htmlFor={warehouseId} className="sr-only">
           {t("warehouse")}
         </label>
         <SelectControl

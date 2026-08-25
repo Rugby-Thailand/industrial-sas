@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { fireEvent, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { navigationMock } from "../../../tests/fixtures/navigation-mock";
@@ -52,13 +52,22 @@ describe("the import workbench's first step", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("says on the form that this step writes nothing", () => {
+  it("says behind the form's help toggle that this step writes nothing", () => {
     // The page header already carries the two-step summary; repeating it inside
     // the form said nothing new. What the form says instead is the property that
-    // makes the step safe to press.
+    // makes the step safe to press — one tap away behind the accessible help
+    // disclosure, so it no longer occupies permanent space above the controls.
     render();
 
     const form = screen.getByTestId("form-import-preview");
+    expect(form.textContent).not.toContain("ขั้นตอนนี้เป็นการอ่านไฟล์เท่านั้น");
+
+    const help = within(form).getByRole("button", {
+      name: "เกี่ยวกับฟอร์มนี้",
+    });
+    expect(help).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(help);
+    expect(help).toHaveAttribute("aria-expanded", "true");
     expect(form.textContent).toContain("ขั้นตอนนี้เป็นการอ่านไฟล์เท่านั้น");
   });
 

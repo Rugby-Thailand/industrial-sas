@@ -3,7 +3,8 @@
     "name": "Industrial SAS",
     "shortName": "SAS",
     "description": "ระบบจัดการคลังสินค้าสำหรับผู้ผลิตในประเทศไทย",
-    "documentTitle": "{page} · Industrial SAS"
+    "documentTitle": "{page} · Industrial SAS",
+    "aboutPage": "เกี่ยวกับหน้านี้"
   },
   "Locale": {
     "label": "ภาษา",
@@ -635,6 +636,25 @@
     "targetBucket": "ถังสต็อกจริง",
     "createPlan": "สร้างแผน",
     "releasePlan": "ปล่อยงานนับ",
+    "policyLegend": "นโยบายการนับ",
+    "scopeFull": "นับทั้งหมด",
+    "scopeCycle": "นับตามรอบ",
+    "scopeSpot": "นับเฉพาะจุด",
+    "scopeFullHint": "นับครบทุกตำแหน่งในครั้งเดียว",
+    "scopeCycleHint": "นับหมุนเวียนตามรอบเวลา",
+    "scopeSpotHint": "ตรวจนับเฉพาะจุดแบบครั้งเดียว",
+    "visibilityBlind": "ปิดยอด",
+    "visibilityVisible": "แสดงยอด",
+    "visibilityBlindHint": "ผู้นับไม่เห็นยอดระบบ",
+    "visibilityVisibleHint": "ผู้นับเห็นยอดระบบที่ได้รับอนุญาต",
+    "movementAware": "นับระหว่างเคลื่อนไหว",
+    "movementFrozen": "หยุดเคลื่อนไหว",
+    "movementAwareHint": "สต็อกเคลื่อนไหวได้ ระบบชดเชยยอดให้",
+    "movementFrozenHint": "ระงับการเคลื่อนไหวหนึ่งชั่วโมง",
+    "riskSettings": "เกณฑ์ความเสี่ยง",
+    "riskDefaults": "ค่าเริ่มต้น",
+    "planCreated": "สร้างแผน {number} แล้ว",
+    "planCreatedNext": "ปล่อยงานนับเพื่อให้ผู้นับเริ่มงานได้",
     "queueTitle": "งานนับที่พร้อมรับ",
     "queueEmpty": "ไม่มีงานนับที่ปล่อยแล้วรออยู่ในคลังนี้",
     "task": "งาน {number} · แผน {plan}",
@@ -851,7 +871,9 @@
     "deniedHint": "ระบบไม่ระบุเหตุผลของการปฏิเสธ โปรดแจ้งรหัสอ้างอิงคำขอนี้แก่ผู้ดูแลระบบ: {requestId}",
     "refused": "บันทึกไม่สำเร็จ",
     "failed": "ติดต่อเซิร์ฟเวอร์ไม่สำเร็จ",
-    "failedHint": "ไม่ทราบว่าคำขอถูกบันทึกหรือไม่ กดบันทึกอีกครั้งได้อย่างปลอดภัย เพราะระบบใช้รหัสกันการบันทึกซ้ำเดิม"
+    "failedHint": "ไม่ทราบว่าคำขอถูกบันทึกหรือไม่ กดบันทึกอีกครั้งได้อย่างปลอดภัย เพราะระบบใช้รหัสกันการบันทึกซ้ำเดิม",
+    "aboutForm": "เกี่ยวกับฟอร์มนี้",
+    "moreOptions": "ตัวเลือกเพิ่มเติม"
   },
   "WriteError": {
     "FIELD_INVALID": "ค่าที่กรอกไม่ผ่านการตรวจสอบ โปรดตรวจช่องที่ทำเครื่องหมายไว้",

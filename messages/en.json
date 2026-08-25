@@ -3,7 +3,8 @@
     "name": "Industrial SAS",
     "shortName": "SAS",
     "description": "Warehouse management system for Thai manufacturers",
-    "documentTitle": "{page} · Industrial SAS"
+    "documentTitle": "{page} · Industrial SAS",
+    "aboutPage": "About this page"
   },
   "Locale": {
     "label": "Language",
@@ -635,6 +636,25 @@
     "targetBucket": "Physical stock bucket",
     "createPlan": "Create plan",
     "releasePlan": "Release tasks",
+    "policyLegend": "Counting policy",
+    "scopeFull": "Full",
+    "scopeCycle": "Cycle",
+    "scopeSpot": "Spot",
+    "scopeFullHint": "Count every location at once.",
+    "scopeCycleHint": "Recurring counts on a schedule.",
+    "scopeSpotHint": "One-off check of specific stock.",
+    "visibilityBlind": "Blind",
+    "visibilityVisible": "Visible",
+    "visibilityBlindHint": "Counters cannot see system quantities.",
+    "visibilityVisibleHint": "Counters see the permitted system quantity.",
+    "movementAware": "Movement-aware",
+    "movementFrozen": "Frozen",
+    "movementAwareHint": "Stock keeps moving; the count adjusts for it.",
+    "movementFrozenHint": "Movements are blocked for one hour.",
+    "riskSettings": "Risk settings",
+    "riskDefaults": "Defaults",
+    "planCreated": "Plan {number} created",
+    "planCreatedNext": "Release tasks so counters can start.",
     "queueTitle": "Available count tasks",
     "queueEmpty": "No released count task is waiting in this warehouse.",
     "task": "Task {number} · plan {plan}",
@@ -851,7 +871,9 @@
     "deniedHint": "No reason is given. Quote this request reference to an administrator: {requestId}",
     "refused": "Not saved",
     "failed": "Could not reach the server",
-    "failedHint": "Whether the request was applied is unknown. Submitting again is safe: the same idempotency key is reused."
+    "failedHint": "Whether the request was applied is unknown. Submitting again is safe: the same idempotency key is reused.",
+    "aboutForm": "About this form",
+    "moreOptions": "More options"
   },
   "WriteError": {
     "FIELD_INVALID": "A value did not pass validation. Check the marked field.",

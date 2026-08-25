@@ -1,10 +1,12 @@
 "use client";
 
 import { useQuery } from "convex/react";
+import { ListOrdered } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { LedgerPanelStatus } from "@/components/system/LedgerPanelStatus";
 import { QueryGate } from "@/components/system/QueryGate";
+import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import { Notice } from "@/components/ui/Notice";
 import { StatusBadge, type BadgeTone } from "@/components/ui/StatusBadge";
 import { TableScroller } from "@/components/ui/TableScroller";
@@ -195,11 +197,12 @@ function HrContent({
         />
       ) : null}
 
-      <section aria-labelledby="hr-flow-title">
-        <h2 id="hr-flow-title" className="text-xl font-semibold text-text">
-          {t("flowTitle")}
-        </h2>
-        <ol className="mt-3 grid gap-3 md:grid-cols-4">
+      {/*
+       * The four-step explainer is training material, not state: it collapses
+       * so the operator's own attendance card is the first thing on screen.
+       */}
+      <CollapsibleSection label={t("flowTitle")} icon={ListOrdered}>
+        <ol className="grid gap-3 md:grid-cols-4">
           {(["clock", "correct", "leave", "review"] as const).map(
             (step, index) => (
               <li
@@ -216,7 +219,7 @@ function HrContent({
             ),
           )}
         </ol>
-      </section>
+      </CollapsibleSection>
 
       {self?.found === true && self.employee !== undefined ? (
         <section className="space-y-4" aria-labelledby="my-attendance-title">
@@ -380,6 +383,9 @@ function HrContent({
                 name: "privateReason",
                 label: t("privateReason"),
                 kind: "textarea",
+                // Optional and private by design; `hours` above stays primary
+                // because an HOURS-duration request cannot post without it.
+                importance: "secondary",
                 hint: t("privateReasonHint"),
               },
             ]}
@@ -530,11 +536,16 @@ function Fact({
 
 function RequestHistory({ self }: { readonly self: MyHrPayload }) {
   const t = useTranslations("HR");
+  // The day a person recognises, not the document ID: the correction points
+  // at an attendance day, and the business date is that day's human name.
+  const businessDateOf = (attendanceDayId: string) =>
+    (self.days ?? []).find((day) => day.attendanceDayId === attendanceDayId)
+      ?.businessDate ?? attendanceDayId;
   const rows = [
     ...(self.corrections ?? []).map((request) => ({
       id: request.attendanceCorrectionId,
       kind: t("kindCorrection"),
-      period: request.attendanceDayId,
+      period: businessDateOf(request.attendanceDayId),
       status: request.status,
       requestedAt: request.requestedAt,
     })),

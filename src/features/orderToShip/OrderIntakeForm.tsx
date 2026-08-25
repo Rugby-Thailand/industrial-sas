@@ -41,6 +41,8 @@ export function OrderIntakeForm({
           name: "customerReference",
           label: t("customerPo"),
           kind: "text",
+          // The customer's own PO number, captured when the paperwork has one.
+          importance: "secondary",
           monospace: true,
         },
       ]}

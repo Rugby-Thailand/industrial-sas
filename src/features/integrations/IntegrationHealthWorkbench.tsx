@@ -1,10 +1,12 @@
 "use client";
 
 import { useQuery } from "convex/react";
+import { ListOrdered } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { LedgerPanelStatus } from "@/components/system/LedgerPanelStatus";
 import { QueryGate } from "@/components/system/QueryGate";
+import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import { Notice } from "@/components/ui/Notice";
 import { StatusBadge, type BadgeTone } from "@/components/ui/StatusBadge";
 import { TableScroller } from "@/components/ui/TableScroller";
@@ -143,14 +145,12 @@ function IntegrationContent({
         />
       ) : null}
 
-      <section aria-labelledby="integration-flow-title">
-        <h2
-          id="integration-flow-title"
-          className="text-xl font-semibold text-text"
-        >
-          {t("flowTitle")}
-        </h2>
-        <ol className="mt-3 grid gap-3 md:grid-cols-5">
+      {/*
+       * The delivery-pipeline explainer is training material: collapsed so the
+       * live health summary is what an operator lands on.
+       */}
+      <CollapsibleSection label={t("flowTitle")} icon={ListOrdered}>
+        <ol className="grid gap-3 md:grid-cols-5">
           {(["commit", "queue", "deliver", "recover", "verify"] as const).map(
             (step, index) => (
               <li
@@ -167,7 +167,7 @@ function IntegrationContent({
             ),
           )}
         </ol>
-      </section>
+      </CollapsibleSection>
 
       <section
         className="grid gap-4 sm:grid-cols-3"

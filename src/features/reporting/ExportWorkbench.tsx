@@ -28,6 +28,7 @@
  * through a signed URL" are different security claims.
  */
 import { useMutation, useQuery } from "convex/react";
+import { Download, Play } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useState } from "react";
 
@@ -256,7 +257,9 @@ export function ServerAdvance({
         disabled={state.kind === "RUNNING"}
         data-testid={`report-advance-${job.reportJobId}`}
         onClick={run}
+        className="gap-2"
       >
+        <Play aria-hidden="true" className="size-4" />
         {state.kind === "RUNNING" ? t("advanceRunning") : t("advance")}
       </Button>
 
@@ -369,7 +372,9 @@ function DownloadButton({
         anchor.click();
         URL.revokeObjectURL(url);
       }}
+      className="gap-2"
     >
+      <Download aria-hidden="true" className="size-4" />
       {artifact === undefined ? t("downloadPreparing") : label}
     </Button>
   );

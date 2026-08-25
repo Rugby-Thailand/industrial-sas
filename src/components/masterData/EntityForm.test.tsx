@@ -494,6 +494,87 @@ describe("EntityForm select fields", () => {
   });
 });
 
+/**
+ * Progressive disclosure: secondary optional fields collapse into "More
+ * options", the description collapses behind the help toggle, and neither may
+ * ever hide a required field or a field the server has blamed.
+ */
+describe("EntityForm progressive disclosure", () => {
+  const DISCLOSURE_FIELDS: readonly FormFieldSpec[] = [
+    { name: "code", label: "รหัส", kind: "text", required: true },
+    {
+      name: "externalRef",
+      label: "อ้างอิงภายนอก",
+      kind: "text",
+      importance: "secondary",
+    },
+  ];
+
+  it("collapses a secondary optional field behind More options", () => {
+    renderForm({ fields: DISCLOSURE_FIELDS });
+
+    expect(screen.queryByLabelText("อ้างอิงภายนอก")).not.toBeInTheDocument();
+
+    const toggle = screen.getByRole("button", { name: "ตัวเลือกเพิ่มเติม" });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByLabelText("อ้างอิงภายนอก")).toBeInTheDocument();
+  });
+
+  it("renders no More options group when every field is primary", () => {
+    renderForm();
+    expect(
+      screen.queryByRole("button", { name: "ตัวเลือกเพิ่มเติม" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("never collapses a required field, whatever the caller declared", () => {
+    renderForm({
+      fields: [
+        {
+          name: "code",
+          label: "รหัส",
+          kind: "text",
+          required: true,
+          importance: "secondary",
+        },
+      ],
+    });
+
+    expect(screen.getByLabelText("รหัส")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "ตัวเลือกเพิ่มเติม" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("opens the group and focuses the control when the server blames a collapsed field", () => {
+    renderForm({
+      fields: DISCLOSURE_FIELDS,
+      invalidField: "externalRef",
+    });
+
+    const blamed = screen.getByLabelText("อ้างอิงภายนอก");
+    expect(blamed).toHaveAttribute("aria-invalid", "true");
+    expect(blamed).toHaveFocus();
+    expect(
+      screen.getByRole("button", { name: "ตัวเลือกเพิ่มเติม" }),
+    ).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("keeps the description behind the labelled help toggle", () => {
+    renderForm({ description: "คำอธิบายฟอร์ม" });
+
+    expect(screen.queryByText("คำอธิบายฟอร์ม")).not.toBeInTheDocument();
+
+    const help = screen.getByRole("button", { name: "เกี่ยวกับฟอร์มนี้" });
+    expect(help).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(help);
+    expect(help).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByText("คำอธิบายฟอร์ม")).toBeInTheDocument();
+  });
+});
+
 /** A form with a select whose reset signal can be raised without remounting. */
 function SelectResetHarness() {
   const [resetSignal, setResetSignal] = useState(0);

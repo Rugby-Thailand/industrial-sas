@@ -56,6 +56,22 @@ describe("HandheldTaskLauncher", () => {
     expect(screen.getByText("Not available yet")).toBeInTheDocument();
   });
 
+  it("decorates each task with icons without touching its accessible name", () => {
+    /*
+     * The task glyph and the forward chevron are for scanning with the eyes,
+     * not for the accessibility tree: both are `aria-hidden`, so the link's
+     * name stays exactly the translated label the tests above rely on.
+     */
+    vi.spyOn(WorkspaceModule, "useWorkspace").mockReturnValue(workspace());
+
+    render(<HandheldTaskLauncher labels={labels} />);
+
+    const link = screen.getByRole("link", { name: "Receive goods" });
+    const icons = link.querySelectorAll('svg[aria-hidden="true"]');
+    expect(icons).toHaveLength(2); // task glyph + forward chevron
+    expect(link.querySelector("svg:not([aria-hidden])")).toBeNull();
+  });
+
   it("does not reveal task destinations before permissions are ready", () => {
     vi.spyOn(WorkspaceModule, "useWorkspace").mockReturnValue(
       workspace({ permissionsReady: false, navigationPermissions: [] }),
