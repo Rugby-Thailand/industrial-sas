@@ -18,6 +18,7 @@ interface PrivateFileUploadProps {
   readonly accept: string;
   readonly maxSize: number;
   readonly disabled?: boolean;
+  readonly showLimit?: boolean;
   readonly resetKey: number;
   readonly labels: {
     readonly drop: string;
@@ -33,6 +34,7 @@ export function PrivateFileUpload({
   accept,
   maxSize,
   disabled = false,
+  showLimit = true,
   resetKey,
   labels,
   onFileChange,
@@ -43,6 +45,7 @@ export function PrivateFileUpload({
       accept={accept}
       maxSize={maxSize}
       disabled={disabled}
+      showLimit={showLimit}
       labels={labels}
       onFileChange={onFileChange}
     />
@@ -53,6 +56,7 @@ function PrivateFileUploadState({
   accept,
   maxSize,
   disabled,
+  showLimit,
   labels,
   onFileChange,
 }: Omit<PrivateFileUploadProps, "resetKey">) {
@@ -94,9 +98,11 @@ function PrivateFileUploadState({
             </div>
             <div className="space-y-1.5">
               <p className="font-semibold text-text">{labels.drop}</p>
-              <p className="text-xs leading-relaxed text-muted">
-                {labels.limit}
-              </p>
+              {showLimit ? (
+                <p className="text-xs leading-relaxed text-muted">
+                  {labels.limit}
+                </p>
+              ) : null}
             </div>
             <Button
               type="button"

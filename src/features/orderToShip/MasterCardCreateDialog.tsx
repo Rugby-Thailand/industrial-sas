@@ -208,6 +208,7 @@ function AssetUpload({
           accept={acceptedTypesFor(kind)}
           maxSize={maximumInputBytesFor(kind)}
           disabled={false}
+          showLimit={false}
           resetKey={0}
           labels={{
             drop: t("dropPrivateFile"),
