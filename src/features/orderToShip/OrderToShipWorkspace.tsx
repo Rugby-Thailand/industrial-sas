@@ -1,25 +1,16 @@
 "use client";
 
-import { Plus } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 
-import { Button } from "@/components/ui/button";
 import {
   Kanban,
   KanbanBoard,
   KanbanColumn,
   KanbanColumnContent,
 } from "@/components/ui/kanban";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
 import { MasterDataPanel } from "@/features/masterData/MasterDataPanel";
+import { WriteDialog } from "@/features/masterData/WriteDialog";
 import { Link } from "@/i18n/navigation";
 import {
   listCustomerOrdersRef,
@@ -33,7 +24,7 @@ import { ROUTES } from "@/lib/navigation";
 import type { AppLocale } from "@/i18n/routing";
 import { formatCount, formatInstant } from "@/lib/formatters";
 import { StatusBadge, type BadgeTone } from "@/components/ui/StatusBadge";
-import { MasterCardCreateSheet } from "./MasterCardCreateSheet";
+import { MasterCardCreateDialog } from "./MasterCardCreateDialog";
 import { OrderIntakeForm } from "./OrderIntakeForm";
 import { EngineeringMasterCardLibrary } from "./EngineeringMasterCardLibrary";
 import { FactoryFileButton } from "./FactoryFileButton";
@@ -162,7 +153,7 @@ function SalesRegister() {
     <QueueSection
       title={t("salesRegister")}
       description={t("salesRegisterDetail")}
-      action={<CreateOrderSheet />}
+      action={<CreateOrderDialog />}
     >
       <Kanban<never>
         value={EMPTY_ORDER_COLUMNS as unknown as Record<string, never[]>}
@@ -183,32 +174,20 @@ function SalesRegister() {
   );
 }
 
-function CreateOrderSheet() {
+function CreateOrderDialog() {
   const t = useTranslations("OrderToShip");
-  const [open, setOpen] = useState(false);
 
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger asChild>
-        <Button type="button">
-          <Plus aria-hidden="true" />
-          {t("createSalesOrder")}
-        </Button>
-      </SheetTrigger>
-      <SheetContent
-        side="right"
-        closeLabel={t("closeNewOrder")}
-        className="overflow-y-auto sm:max-w-xl"
-      >
-        <SheetHeader className="sr-only">
-          <SheetTitle>{t("newOrder")}</SheetTitle>
-          <SheetDescription>{t("newOrderDetail")}</SheetDescription>
-        </SheetHeader>
-        <div className="px-4 pb-6">
-          <OrderIntakeForm onSaved={() => setOpen(false)} />
-        </div>
-      </SheetContent>
-    </Sheet>
+    <WriteDialog
+      triggerLabel={t("createSalesOrder")}
+      title={t("newOrder")}
+      description={t("newOrderDetail")}
+      closeLabel={t("closeNewOrder")}
+      size="compact"
+      testId="customer-order-dialog"
+    >
+      <OrderIntakeForm />
+    </WriteDialog>
   );
 }
 
@@ -299,7 +278,7 @@ function EngineeringQueue() {
     <QueueSection
       title={t("engineeringQueue")}
       description={t("engineeringQueueDetail")}
-      action={<MasterCardCreateSheet />}
+      action={<MasterCardCreateDialog />}
     >
       <MasterDataPanel<
         DesignRequestRow,

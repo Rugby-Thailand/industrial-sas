@@ -1,6 +1,12 @@
 "use client";
 
-import { Check, Info, SlidersHorizontal } from "lucide-react";
+import {
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Info,
+  SlidersHorizontal,
+} from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
   useEffect,
@@ -13,6 +19,17 @@ import {
 import { Button } from "@/components/ui/button";
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import {
+  Stepper,
+  StepperContent,
+  StepperIndicator,
+  StepperItem,
+  StepperNav,
+  StepperPanel,
+  StepperSeparator,
+  StepperTitle,
+  StepperTrigger,
+} from "@/components/reui/stepper";
+import {
   Field,
   FieldDescription,
   FieldError,
@@ -24,6 +41,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { SelectControl } from "@/components/ui/SelectControl";
 import { Textarea } from "@/components/ui/textarea";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { cn } from "@/lib/utils";
 
 export type FormFieldKind = "text" | "number" | "select" | "textarea";
 
@@ -50,6 +69,20 @@ export interface FormFieldSpec {
 
 export type FormValues = Readonly<Record<string, string>>;
 
+export interface FormSectionSpec {
+  readonly id: string;
+  readonly title: string;
+  readonly description?: string;
+  readonly fields: readonly string[];
+  readonly content?: ReactNode;
+}
+
+export interface MobileStepperLabels {
+  readonly step: (current: number, total: number) => string;
+  readonly previous: string;
+  readonly next: string;
+}
+
 export interface EntityFormProps {
   readonly legend: string;
   readonly description?: string;
@@ -67,6 +100,8 @@ export interface EntityFormProps {
   readonly onSubmit: (values: FormValues) => void;
   readonly testId?: string;
   readonly legendPresentation?: "visible" | "sr-only";
+  readonly sections?: readonly FormSectionSpec[];
+  readonly mobileStepperLabels?: MobileStepperLabels;
 }
 
 const initialValues = (fields: readonly FormFieldSpec[]): FormValues =>
@@ -87,14 +122,18 @@ export function EntityForm({
   onSubmit,
   testId,
   legendPresentation = "visible",
+  sections,
+  mobileStepperLabels,
 }: EntityFormProps) {
   const t = useTranslations("Write");
+  const isMobile = useIsMobile();
   const formId = useId();
   const [values, setValues] = useState<FormValues>(() => initialValues(fields));
   const [missing, setMissing] = useState<readonly string[]>([]);
   const [seenReset, setSeenReset] = useState(resetSignal);
   const [showHelp, setShowHelp] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [currentStep, setCurrentStep] = useState(1);
 
   const secondaryFields = fields.filter(
     (field) => field.importance === "secondary" && field.required !== true,
@@ -118,6 +157,7 @@ export function EntityForm({
     setSeenReset(resetSignal);
     setValues(initialValues(fields));
     setMissing([]);
+    setCurrentStep(1);
   }
 
   const change = (name: string, next: string) => {
@@ -136,7 +176,15 @@ export function EntityForm({
       .map((field) => field.name);
 
     setMissing(blank);
-    if (blank.length > 0) return;
+    if (blank.length > 0) {
+      if (isMobile && sections !== undefined) {
+        const firstInvalidStep = sections.findIndex((section) =>
+          section.fields.some((name) => blank.includes(name)),
+        );
+        if (firstInvalidStep >= 0) setCurrentStep(firstInvalidStep + 1);
+      }
+      return;
+    }
 
     onSubmit(
       Object.fromEntries(
@@ -235,12 +283,76 @@ export function EntityForm({
   };
 
   const helpId = `${formId}-help`;
+  const fieldsByName = new Map(fields.map((field) => [field.name, field]));
+  const sectionFields = (section: FormSectionSpec) =>
+    section.fields.flatMap((name) => {
+      const field = fieldsByName.get(name);
+      return field === undefined ? [] : [field];
+    });
+  const renderSection = (section: FormSectionSpec) => (
+    <section
+      key={section.id}
+      className="rounded-xl border border-border bg-raised/35 p-4 sm:p-5"
+      aria-labelledby={`${formId}-section-${section.id}`}
+    >
+      <div className="mb-4">
+        <h3
+          id={`${formId}-section-${section.id}`}
+          className="font-semibold text-text"
+        >
+          {section.title}
+        </h3>
+        {section.description === undefined ? null : (
+          <p className="mt-1 text-sm text-muted">{section.description}</p>
+        )}
+      </div>
+      {section.fields.length === 0 ? null : (
+        <FieldGroup className="grid gap-4 @xl/form:grid-cols-2">
+          {sectionFields(section).map(renderField)}
+        </FieldGroup>
+      )}
+      {section.content === undefined ? null : (
+        <div className={cn(section.fields.length > 0 && "mt-4")}>
+          {section.content}
+        </div>
+      )}
+    </section>
+  );
+
+  const validateCurrentStep = () => {
+    if (sections === undefined) return;
+    const section = sections[currentStep - 1];
+    if (section === undefined) return;
+    const blank = sectionFields(section)
+      .filter(
+        (field) =>
+          field.required === true &&
+          (values[field.name] ?? "").trim().length === 0,
+      )
+      .map((field) => field.name);
+    setMissing(blank);
+    if (blank.length === 0) {
+      setCurrentStep((step) => Math.min(step + 1, sections.length));
+    }
+  };
+
+  const submitButton = (
+    <Button type="submit" className="gap-2">
+      <Check aria-hidden="true" className="size-4" />
+      {submitLabel}
+    </Button>
+  );
 
   return (
     <form
       noValidate
       onSubmit={submit}
-      className="@container/form relative flex flex-col gap-4 rounded-lg border border-border bg-surface p-4"
+      className={cn(
+        "@container/form relative flex flex-col gap-4",
+        sections === undefined
+          ? "rounded-lg border border-border bg-surface p-4"
+          : "py-4",
+      )}
       {...(testId === undefined ? {} : { "data-testid": testId })}
     >
       <FieldSet disabled={busy} className="border-0 p-0">
@@ -288,11 +400,63 @@ export function EntityForm({
 
         {outcome}
 
-        <FieldGroup className="grid gap-4 @xl/form:grid-cols-2">
-          {primaryFields.map(renderField)}
-        </FieldGroup>
+        {sections === undefined ? (
+          <FieldGroup className="grid gap-4 @xl/form:grid-cols-2">
+            {primaryFields.map(renderField)}
+          </FieldGroup>
+        ) : isMobile && mobileStepperLabels !== undefined ? (
+          <Stepper
+            value={currentStep}
+            onValueChange={setCurrentStep}
+            indicators={{
+              completed: <Check aria-hidden="true" className="size-3.5" />,
+            }}
+            className="space-y-5"
+          >
+            <div className="overflow-x-auto pb-1">
+              <StepperNav className="min-w-max gap-2 pr-2">
+                {sections.map((section, index) => (
+                  <StepperItem
+                    key={section.id}
+                    step={index + 1}
+                    className="relative min-w-28 items-start"
+                  >
+                    <StepperTrigger
+                      type="button"
+                      className="flex w-full flex-col items-start gap-2 rounded-lg p-2 text-left"
+                    >
+                      <StepperIndicator className="size-8 border-2 data-[state=inactive]:bg-transparent">
+                        {index + 1}
+                      </StepperIndicator>
+                      <div>
+                        <span className="text-[10px] font-semibold tracking-wide text-muted uppercase">
+                          {mobileStepperLabels.step(index + 1, sections.length)}
+                        </span>
+                        <StepperTitle className="mt-1 max-w-28 leading-snug">
+                          {section.title}
+                        </StepperTitle>
+                      </div>
+                    </StepperTrigger>
+                    {index < sections.length - 1 ? (
+                      <StepperSeparator className="absolute top-6 left-10 w-[calc(100%-1.5rem)]" />
+                    ) : null}
+                  </StepperItem>
+                ))}
+              </StepperNav>
+            </div>
+            <StepperPanel>
+              {sections.map((section, index) => (
+                <StepperContent key={section.id} value={index + 1}>
+                  {renderSection(section)}
+                </StepperContent>
+              ))}
+            </StepperPanel>
+          </Stepper>
+        ) : (
+          <div className="space-y-4">{sections.map(renderSection)}</div>
+        )}
 
-        {secondaryFields.length === 0 ? null : (
+        {sections !== undefined || secondaryFields.length === 0 ? null : (
           <CollapsibleSection
             label={t("moreOptions")}
             icon={SlidersHorizontal}
@@ -304,11 +468,41 @@ export function EntityForm({
           </CollapsibleSection>
         )}
 
-        <div>
-          <Button type="submit" variant="outline" className="gap-2">
-            <Check aria-hidden="true" className="size-4" />
-            {submitLabel}
-          </Button>
+        <div
+          className={cn(
+            "flex items-center gap-2",
+            sections !== undefined &&
+              "sticky bottom-0 z-10 -mx-4 -mb-4 border-t border-border bg-popover/95 p-4 backdrop-blur sm:-mx-6 sm:px-6",
+            sections === undefined && "justify-start",
+            sections !== undefined && !isMobile && "justify-end",
+            sections !== undefined && isMobile && "justify-between",
+          )}
+        >
+          {sections !== undefined &&
+          isMobile &&
+          mobileStepperLabels !== undefined ? (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={currentStep === 1}
+                onClick={() => setCurrentStep((step) => Math.max(1, step - 1))}
+              >
+                <ChevronLeft aria-hidden="true" className="size-4" />
+                {mobileStepperLabels.previous}
+              </Button>
+              {currentStep === sections.length ? (
+                submitButton
+              ) : (
+                <Button type="button" onClick={validateCurrentStep}>
+                  {mobileStepperLabels.next}
+                  <ChevronRight aria-hidden="true" className="size-4" />
+                </Button>
+              )}
+            </>
+          ) : (
+            submitButton
+          )}
         </div>
       </FieldSet>
     </form>

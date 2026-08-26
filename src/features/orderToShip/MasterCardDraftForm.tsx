@@ -1,9 +1,11 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import type { ReactNode } from "react";
 
 import type {
   FormFieldSpec,
+  FormSectionSpec,
   FormValues,
 } from "@/components/masterData/EntityForm";
 import { EntityWriteForm } from "@/features/masterData/EntityWriteForm";
@@ -241,8 +243,10 @@ const specificationOf = (values: FormValues): BoxSpecification => {
 
 export function MasterCardDraftForm({
   onSaved,
+  assets,
 }: {
   readonly onSaved?: (outcome: Record<string, unknown>) => void;
+  readonly assets?: ReactNode;
 } = {}) {
   const t = useTranslations("OrderToShip");
   const fields: readonly FormFieldSpec[] = [
@@ -268,6 +272,77 @@ export function MasterCardDraftForm({
     { name: "name", label: t("masterCardName"), kind: "text", required: true },
     ...baseSpecificationFields(t),
   ];
+  const sections: readonly FormSectionSpec[] = [
+    {
+      id: "identity",
+      title: t("masterCardSectionIdentity"),
+      description: t("masterCardSectionIdentityDetail"),
+      fields: [
+        "cardNumber",
+        "customerId",
+        "customerProductCode",
+        "name",
+        "productNameEn",
+        "productNameTh",
+      ],
+    },
+    {
+      id: "structure",
+      title: t("masterCardSectionStructure"),
+      description: t("masterCardSectionStructureDetail"),
+      fields: [
+        "styleCode",
+        "boardGrade",
+        "fluteCode",
+        "internalLengthMm",
+        "internalWidthMm",
+        "internalHeightMm",
+        "sheetLengthMm",
+        "sheetWidthMm",
+        "lengthToleranceMm",
+        "widthToleranceMm",
+        "heightToleranceMm",
+      ],
+    },
+    {
+      id: "production",
+      title: t("masterCardSectionProduction"),
+      description: t("masterCardSectionProductionDetail"),
+      fields: [
+        "printColourCount",
+        "printMethod",
+        "printColours",
+        "finishing",
+        "bundleQuantity",
+        "palletQuantity",
+        "packingInstructions",
+      ],
+    },
+    {
+      id: "process",
+      title: t("masterCardSectionProcess"),
+      description: t("masterCardSectionProcessDetail"),
+      fields: [
+        "layerRows",
+        "routeRows",
+        "materialRows",
+        "qualityRows",
+        "calculationRows",
+        "notes",
+      ],
+    },
+    ...(assets === undefined
+      ? []
+      : [
+          {
+            id: "assets",
+            title: t("masterCardAssets"),
+            description: t("masterCardAssetsDetail"),
+            fields: [],
+            content: assets,
+          },
+        ]),
+  ];
   return (
     <EntityWriteForm
       mutationRef={createMasterCardRef}
@@ -278,6 +353,12 @@ export function MasterCardDraftForm({
       testId="master-card-editor"
       {...(onSaved === undefined ? {} : { onSaved })}
       fields={fields}
+      sections={sections}
+      mobileStepperLabels={{
+        step: (current, total) => t("stepProgress", { current, total }),
+        previous: t("previousStep"),
+        next: t("nextStep"),
+      }}
       toArgs={(values, requestId) => ({
         requestId,
         cardNumber: values.cardNumber ?? "",

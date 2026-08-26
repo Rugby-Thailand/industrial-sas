@@ -24,7 +24,7 @@ import type {
 
 import {
   BuildingModelWorkspace,
-  BuildingSettingsSheet,
+  BuildingSettingsDialog,
   FloorPlan,
   IsometricBuilding,
   ReservedBlocks,
@@ -107,10 +107,10 @@ describe("BuildingModelWorkspace", () => {
   });
 });
 
-describe("BuildingSettingsSheet", () => {
+describe("BuildingSettingsDialog", () => {
   it("opens the removed building form from a compact plus action", () => {
     renderWithIntl(
-      <BuildingSettingsSheet warehouseId="warehouse-a" building={building} />,
+      <BuildingSettingsDialog warehouseId="warehouse-a" building={building} />,
       { locale: "en", workspace: false },
     );
 

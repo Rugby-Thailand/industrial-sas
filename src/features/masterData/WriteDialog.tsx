@@ -19,14 +19,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 
 interface WriteSurfaceContextValue {
@@ -49,7 +41,6 @@ export interface WriteDialogProps {
   readonly description?: string;
   readonly closeLabel: string;
   readonly children: ReactNode;
-  readonly surface?: "dialog" | "sheet";
   readonly size?: "compact" | "wide" | "workspace";
   readonly triggerVariant?: ComponentProps<typeof Button>["variant"];
   readonly showPlus?: boolean;
@@ -60,13 +51,8 @@ export interface WriteDialogProps {
 const dialogSize = {
   compact: "max-w-2xl",
   wide: "max-w-5xl",
-  workspace: "max-w-[calc(100vw-2rem)] xl:max-w-7xl",
-} as const;
-
-const sheetSize = {
-  compact: "overflow-y-auto sm:max-w-xl",
-  wide: "overflow-y-auto sm:max-w-3xl lg:max-w-5xl",
-  workspace: "overflow-y-auto sm:max-w-[min(92vw,90rem)]",
+  workspace:
+    "h-[calc(100dvh-1rem)] !max-h-[calc(100dvh-1rem)] !max-w-none sm:h-[calc(100dvh-2rem)] sm:w-[calc(100vw-2rem)] sm:!max-h-[calc(100dvh-2rem)]",
 } as const;
 
 export function WriteDialog({
@@ -75,7 +61,6 @@ export function WriteDialog({
   description,
   closeLabel,
   children,
-  surface = "dialog",
   size = "compact",
   triggerVariant = "default",
   showPlus = true,
@@ -108,43 +93,37 @@ export function WriteDialog({
     </WriteSurfaceContext.Provider>
   );
 
-  if (surface === "sheet") {
-    return (
-      <Sheet open={open} onOpenChange={setOpen}>
-        <SheetTrigger asChild>{trigger}</SheetTrigger>
-        <SheetContent
-          side="right"
-          closeLabel={closeLabel}
-          className={sheetSize[size]}
-          {...(testId === undefined ? {} : { "data-testid": testId })}
-        >
-          <SheetHeader className="border-b border-border pr-12">
-            <SheetTitle>{title}</SheetTitle>
-            {description === undefined ? null : (
-              <SheetDescription>{description}</SheetDescription>
-            )}
-          </SheetHeader>
-          <div className="px-4 pb-6">{body}</div>
-        </SheetContent>
-      </Sheet>
-    );
-  }
-
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent
         closeLabel={closeLabel}
-        className={cn(dialogSize[size], "gap-4")}
+        className={cn(
+          dialogSize[size],
+          size === "workspace"
+            ? "grid grid-rows-[auto_minmax(0,1fr)] gap-0 overflow-hidden p-0"
+            : "gap-4",
+        )}
         {...(testId === undefined ? {} : { "data-testid": testId })}
       >
-        <DialogHeader>
+        <DialogHeader
+          className={cn(
+            size === "workspace" &&
+              "border-b border-border px-5 py-4 pr-14 sm:px-6",
+          )}
+        >
           <DialogTitle>{title}</DialogTitle>
           {description === undefined ? null : (
             <DialogDescription>{description}</DialogDescription>
           )}
         </DialogHeader>
-        {body}
+        <div
+          className={cn(
+            size === "workspace" && "min-h-0 overflow-y-auto px-4 pb-6 sm:px-6",
+          )}
+        >
+          {body}
+        </div>
       </DialogContent>
     </Dialog>
   );

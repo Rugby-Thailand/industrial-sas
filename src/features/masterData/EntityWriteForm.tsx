@@ -8,7 +8,9 @@ import { useRef, useState, type ReactNode } from "react";
 import {
   EntityForm,
   type FormFieldSpec,
+  type FormSectionSpec,
   type FormValues,
+  type MobileStepperLabels,
 } from "@/components/masterData/EntityForm";
 import { WriteOutcomeNotice } from "@/components/masterData/WriteOutcomeNotice";
 import { useAppEnvironment } from "@/components/providers/EnvironmentProvider";
@@ -48,9 +50,10 @@ export interface EntityWriteFormProps<Args extends Record<string, unknown>> {
   readonly onSaved?: (outcome: Record<string, unknown>) => void;
   readonly testId?: string;
   readonly presentation?: "auto" | "inline";
-  readonly dialogSurface?: "dialog" | "sheet";
   readonly dialogSize?: "compact" | "wide" | "workspace";
   readonly dialogIntent?: "create" | "action";
+  readonly sections?: readonly FormSectionSpec[];
+  readonly mobileStepperLabels?: MobileStepperLabels;
 }
 
 export function EntityWriteForm<Args extends Record<string, unknown>>(
@@ -73,7 +76,6 @@ export function EntityWriteForm<Args extends Record<string, unknown>>(
           ? {}
           : { description: props.description })}
         closeLabel={writeT("closeForm")}
-        surface={props.dialogSurface ?? "dialog"}
         size={props.dialogSize ?? "compact"}
         showPlus={props.dialogIntent === "create"}
         triggerVariant={props.dialogIntent === "create" ? "default" : "outline"}
@@ -96,6 +98,8 @@ function ServerWriteForm<Args extends Record<string, unknown>>({
   toArgs,
   onSaved,
   testId,
+  sections,
+  mobileStepperLabels,
 }: EntityWriteFormProps<Args>) {
   const writeSurface = useWriteSurface();
   // Keep the cast at this boundary; Convex cannot resolve the open generic.
@@ -152,6 +156,8 @@ function ServerWriteForm<Args extends Record<string, unknown>>({
       outcome={<WriteOutcomeNotice state={state} />}
       resetSignal={resetSignal}
       legendPresentation={writeSurface?.embedded ? "sr-only" : "visible"}
+      {...(sections === undefined ? {} : { sections })}
+      {...(mobileStepperLabels === undefined ? {} : { mobileStepperLabels })}
       onSubmit={submit}
       {...(testId === undefined ? {} : { testId })}
     />

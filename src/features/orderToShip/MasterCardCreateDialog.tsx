@@ -16,6 +16,7 @@ import {
   acceptedTypesFor,
   maximumInputBytesFor,
 } from "@/lib/files/optimizeUpload";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 import { MasterCardDraftForm } from "./MasterCardDraftForm";
 import { useMasterCardFileUpload } from "./useMasterCardFileUpload";
@@ -27,7 +28,7 @@ const documentId = (outcome: Record<string, unknown>): string | undefined => {
     : undefined;
 };
 
-export function MasterCardCreateSheet() {
+export function MasterCardCreateDialog() {
   const t = useTranslations("OrderToShip");
   return (
     <WriteDialog
@@ -35,10 +36,9 @@ export function MasterCardCreateSheet() {
       title={t("masterCardEditor")}
       description={t("masterCardEditorDetail")}
       closeLabel={t("closeMasterCard")}
-      surface="sheet"
       size="workspace"
       closeOnSaved={false}
-      testId="master-card-create-sheet"
+      testId="master-card-create-dialog"
     >
       <MasterCardCreateWorkspace />
     </WriteDialog>
@@ -47,6 +47,7 @@ export function MasterCardCreateSheet() {
 
 function MasterCardCreateWorkspace() {
   const t = useTranslations("OrderToShip");
+  const isMobile = useIsMobile();
   const surface = useWriteSurface();
   const [masterCardId, setMasterCardId] = useState<string>();
   const [photo, setPhoto] = useState<File | null>(null);
@@ -140,23 +141,53 @@ function MasterCardCreateWorkspace() {
     );
   }
 
+  const assets = (
+    <MasterCardAssetUploads photoChange={setPhoto} drawingChange={setDrawing} />
+  );
+
   return (
-    <div className="grid gap-5 py-4 xl:grid-cols-[minmax(0,2fr)_minmax(20rem,0.8fr)]">
-      <MasterCardDraftForm onSaved={saved} />
-      <aside className="space-y-4" aria-label={t("masterCardAssets")}>
-        <AssetUpload
-          title={t("productImage")}
-          detail={t("productImageDetail")}
-          kind="PHOTO"
-          onChange={setPhoto}
-        />
-        <AssetUpload
-          title={t("drawingFile")}
-          detail={t("drawingFileDetail")}
-          kind="DIELINE"
-          onChange={setDrawing}
-        />
-      </aside>
+    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_22rem]">
+      <MasterCardDraftForm onSaved={saved} {...(isMobile ? { assets } : {})} />
+      {isMobile ? null : (
+        <aside
+          className="sticky top-4 h-fit space-y-4 py-4"
+          aria-label={t("masterCardAssets")}
+        >
+          <div>
+            <h2 className="font-semibold text-text">{t("masterCardAssets")}</h2>
+            <p className="mt-1 text-sm text-muted">
+              {t("masterCardAssetsDetail")}
+            </p>
+          </div>
+          {assets}
+        </aside>
+      )}
+    </div>
+  );
+}
+
+function MasterCardAssetUploads({
+  photoChange,
+  drawingChange,
+}: {
+  readonly photoChange: (file: File | null) => void;
+  readonly drawingChange: (file: File | null) => void;
+}) {
+  const t = useTranslations("OrderToShip");
+  return (
+    <div className="space-y-4">
+      <AssetUpload
+        title={t("productImage")}
+        detail={t("productImageDetail")}
+        kind="PHOTO"
+        onChange={photoChange}
+      />
+      <AssetUpload
+        title={t("drawingFile")}
+        detail={t("drawingFileDetail")}
+        kind="DIELINE"
+        onChange={drawingChange}
+      />
     </div>
   );
 }
@@ -174,7 +205,7 @@ function AssetUpload({
 }) {
   const t = useTranslations("OrderToShip");
   return (
-    <section className="rounded-lg border border-border bg-surface p-4">
+    <section className="rounded-xl border border-border bg-surface p-4 shadow-sm">
       <h3 className="font-semibold text-text">{title}</h3>
       <p className="mt-1 text-sm text-muted">{detail}</p>
       <div className="mt-4">

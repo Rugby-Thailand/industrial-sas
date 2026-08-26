@@ -28,7 +28,11 @@ const renderWorkspace = (view: OrderToShipView, locale: "th" | "en" = "en") =>
   );
 
 beforeEach(() => writeStoredWarehouse("prv_wh_bangpoo"));
-afterEach(() => window.localStorage.clear());
+const desktopMatchMedia = window.matchMedia;
+afterEach(() => {
+  window.localStorage.clear();
+  window.matchMedia = desktopMatchMedia;
+});
 
 describe("OrderToShipWorkspace", () => {
   it("makes customer product identity and the human-confirmation rule visible", () => {
@@ -72,7 +76,7 @@ describe("OrderToShipWorkspace", () => {
     }
   });
 
-  it("creates a sales order from a sheet instead of an inline form", async () => {
+  it("creates a sales order from a centered dialog instead of an inline form", async () => {
     const user = userEvent.setup();
     renderWorkspace("sales");
 
@@ -81,19 +85,20 @@ describe("OrderToShipWorkspace", () => {
       screen.getByRole("button", { name: "Create sales order" }),
     );
 
-    const sheet = screen.getByRole("dialog", {
+    const dialog = screen.getByRole("dialog", {
       name: "Create customer order",
     });
+    expect(dialog).toHaveAttribute("data-slot", "dialog-content");
     await user.type(
-      within(sheet).getByRole("textbox", { name: "Sales order number" }),
+      within(dialog).getByRole("textbox", { name: "Sales order number" }),
       "SO-26020",
     );
     await user.type(
-      within(sheet).getByRole("textbox", { name: "Customer record ID" }),
+      within(dialog).getByRole("textbox", { name: "Customer record ID" }),
       "prv_customer_gold",
     );
     await user.click(
-      within(sheet).getByRole("button", { name: "Save draft order" }),
+      within(dialog).getByRole("button", { name: "Save draft order" }),
     );
 
     await waitFor(() =>
@@ -101,6 +106,67 @@ describe("OrderToShipWorkspace", () => {
         screen.queryByRole("dialog", { name: "Create customer order" }),
       ).not.toBeInTheDocument(),
     );
+  });
+
+  it("opens the master-card workspace as a full centered dialog", async () => {
+    const user = userEvent.setup();
+    renderWorkspace("engineering");
+
+    await user.click(
+      screen.getByRole("button", { name: "Release-ready master card draft" }),
+    );
+
+    const dialog = screen.getByRole("dialog", {
+      name: "Release-ready master card draft",
+    });
+    expect(dialog).toHaveAttribute("data-slot", "dialog-content");
+    expect(dialog).not.toHaveAttribute("data-side");
+    expect(
+      within(dialog).getByRole("heading", { name: "Product identity" }),
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).getByRole("complementary", {
+        name: "Master card files",
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("uses the installed stepper for the master-card editor on mobile", async () => {
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+      matches: true,
+      media: query,
+      onchange: null,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+      addListener: () => undefined,
+      removeListener: () => undefined,
+      dispatchEvent: () => false,
+    }));
+    const user = userEvent.setup();
+    renderWorkspace("engineering");
+
+    await user.click(
+      screen.getByRole("button", { name: "Release-ready master card draft" }),
+    );
+    const dialog = screen.getByRole("dialog", {
+      name: "Release-ready master card draft",
+    });
+    expect(within(dialog).getByRole("tablist")).toBeInTheDocument();
+    expect(
+      within(dialog).getByRole("tab", { name: /Product identity/ }),
+    ).toHaveAttribute("aria-selected", "true");
+
+    await user.click(
+      within(dialog).getByRole("tab", { name: /Structure and dimensions/ }),
+    );
+
+    expect(
+      within(dialog).getByRole("textbox", { name: "Internal length (mm)" }),
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).queryByRole("textbox", { name: "Master card number" }),
+    ).not.toBeInTheDocument();
+    expect(await axe(dialog)).toHaveNoViolations();
   });
 
   it("shows overdue engineering work without relying on colour", () => {

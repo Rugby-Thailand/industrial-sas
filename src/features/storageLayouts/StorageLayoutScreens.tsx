@@ -44,14 +44,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
 import { Link, useRouter } from "@/i18n/navigation";
 import {
   storageBuildingPath,
@@ -489,7 +481,7 @@ function BuildingContent({
           floors={floors}
           settingsAction={
             building.status === "DRAFT" ? (
-              <BuildingSettingsSheet
+              <BuildingSettingsDialog
                 warehouseId={warehouseId}
                 building={building}
               />
@@ -544,7 +536,7 @@ function BuildingContent({
   );
 }
 
-export function BuildingSettingsSheet({
+export function BuildingSettingsDialog({
   warehouseId,
   building,
 }: {
@@ -553,8 +545,8 @@ export function BuildingSettingsSheet({
 }) {
   const t = useTranslations("StorageLayouts");
   return (
-    <Sheet>
-      <SheetTrigger asChild>
+    <Dialog>
+      <DialogTrigger asChild>
         <Button
           type="button"
           size="icon"
@@ -565,21 +557,20 @@ export function BuildingSettingsSheet({
         >
           <Plus className="size-5" />
         </Button>
-      </SheetTrigger>
-      <SheetContent
-        side="right"
+      </DialogTrigger>
+      <DialogContent
         closeLabel={t("closeSettings")}
-        className="w-full gap-0 overflow-y-auto p-0 sm:max-w-xl"
+        className="max-w-3xl gap-0 overflow-hidden p-0"
       >
-        <SheetHeader className="border-b border-border px-6 py-5 pr-16">
-          <SheetTitle>{t("dimensions")}</SheetTitle>
-          <SheetDescription>{t("settingsDescription")}</SheetDescription>
-        </SheetHeader>
-        <div className="p-6">
+        <DialogHeader className="border-b border-border px-6 py-5 pr-16">
+          <DialogTitle>{t("dimensions")}</DialogTitle>
+          <DialogDescription>{t("settingsDescription")}</DialogDescription>
+        </DialogHeader>
+        <div className="max-h-[calc(100dvh-10rem)] overflow-y-auto p-6">
           <BuildingSettings warehouseId={warehouseId} building={building} />
         </div>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }
 
