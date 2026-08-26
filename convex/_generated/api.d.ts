@@ -37,6 +37,7 @@ import type * as lib_authorizationLookupsConvex from "../lib/authorizationLookup
 import type * as lib_authorizationSeedConvex from "../lib/authorizationSeedConvex.js";
 import type * as lib_clerkWebhook from "../lib/clerkWebhook.js";
 import type * as lib_clerkWebhookNormalizer from "../lib/clerkWebhookNormalizer.js";
+import type * as lib_demoDataSeed from "../lib/demoDataSeed.js";
 import type * as lib_idempotency from "../lib/idempotency.js";
 import type * as lib_identityMirrorConvex from "../lib/identityMirrorConvex.js";
 import type * as lib_identityWebhook from "../lib/identityWebhook.js";
@@ -188,6 +189,7 @@ declare const fullApi: ApiFromModules<{
   "lib/authorizationSeedConvex": typeof lib_authorizationSeedConvex;
   "lib/clerkWebhook": typeof lib_clerkWebhook;
   "lib/clerkWebhookNormalizer": typeof lib_clerkWebhookNormalizer;
+  "lib/demoDataSeed": typeof lib_demoDataSeed;
   "lib/idempotency": typeof lib_idempotency;
   "lib/identityMirrorConvex": typeof lib_identityMirrorConvex;
   "lib/identityWebhook": typeof lib_identityWebhook;

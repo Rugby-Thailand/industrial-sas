@@ -87,6 +87,9 @@ export const TENANT_BOUNDARY_ALLOWLIST = Object.freeze({
   registration: Object.freeze(["convex/lib/tenantFunctions.ts"]),
   "internal-registration": Object.freeze([
     "convex/engineering/files.ts",
+    // Developer-only, confirmation-gated demo seed. The helper validates the
+    // organization/warehouse relationship before creating tenant rows.
+    "convex/lib/demoDataSeed.ts",
     "convex/lib/identityMirrorConvex.ts",
     "convex/lib/taskFileComplete.ts",
     "convex/lib/transportFileComplete.ts",
@@ -101,6 +104,9 @@ export const TENANT_BOUNDARY_ALLOWLIST = Object.freeze({
   "raw-database": Object.freeze([
     "convex/lib/authorizationLookupsConvex.ts",
     "convex/lib/authorizationSeedConvex.ts",
+    // Developer-only, confirmation-gated demo seed. Raw access is necessary
+    // because the Convex CLI does not carry an authenticated tenant context.
+    "convex/lib/demoDataSeed.ts",
     "convex/lib/identityMirrorConvex.ts",
     // The opaque, one-use file grant is intentionally redeemed without caller
     // tenancy: possession of the random grant ID is the short-lived capability.

@@ -52,6 +52,9 @@ export const webhook = httpActionGeneric(async () => new Response(null));
   return ctx.db;
 }
 `,
+  "convex/lib/demoDataSeed.ts": `import { internalMutationGeneric } from "convex/server";
+export const seed = internalMutationGeneric({ handler: (ctx: { db: unknown }) => ctx.db });
+`,
   "convex/lib/authorizationLookupsConvex.ts": `export function createLookups(ctx: { db: { query: () => unknown } }) {
   return () => ctx.db.query();
 }
