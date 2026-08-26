@@ -4,6 +4,16 @@ These manuals describe the features that exist in the repository today. They are
 written for operators, tenant administrators, support staff, and developers who
 need to integrate the current backend and domain modules.
 
+## Full application operator manual
+
+For the current page-by-page operating guide, use the
+[Full Application Operator Manual](./full-application-operator-manual.md). It
+covers all 53 source route pages across access, desktop, and handheld workflows,
+plus end-to-end procedures, permissions, handoffs, troubleshooting, and a visual
+control appendix. Red squares in the screenshots match the numbered control
+descriptions beneath each image. Build the shareable PDF with
+`uv run --with reportlab python scripts/build-full-application-manual-pdf.py`.
+
 ## Read the availability label first
 
 A feature marked **Application surface** has screens that run and call the server,
