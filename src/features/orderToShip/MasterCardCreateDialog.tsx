@@ -32,7 +32,7 @@ export function MasterCardCreateDialog() {
   const t = useTranslations("OrderToShip");
   return (
     <WriteDialog
-      triggerLabel={t("masterCardEditor")}
+      triggerLabel={t("masterCardTrigger")}
       title={t("masterCardEditor")}
       description={t("masterCardEditorDetail")}
       closeLabel={t("closeMasterCard")}

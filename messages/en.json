@@ -1668,6 +1668,7 @@
     "orderNumber": "Sales order number",
     "customerId": "Customer record ID",
     "customerIdHint": "Use the customer ID from the customer register; the server verifies that it belongs to this organization.",
+    "masterCardTrigger": "New card",
     "masterCardEditor": "Release-ready master card draft",
     "masterCardEditorDetail": "Capture the first structured row for paper, route, material, quality and calculation evidence. A verified private file and an independent approver are still required before release.",
     "masterCardAssets": "Master card files",
