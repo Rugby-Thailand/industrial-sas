@@ -51,6 +51,20 @@ describe("design requirement readiness", () => {
     });
   });
 
+  it("accepts carton and converting details as structured packing facts", () => {
+    const { bundleQuantity: _bundleQuantity, ...withoutBundle } = complete;
+    expect(
+      assessDesignReadiness(
+        {
+          ...withoutBundle,
+          unitsPerCarton: 10,
+          jointType: "Glue joint",
+        },
+        confirmed,
+      ),
+    ).toMatchObject({ status: "READY", missing: [] });
+  });
+
   it("blocks an explicitly incomplete request while allowing legacy rows to migrate", () => {
     expect(requireDesignReady("INCOMPLETE")).toMatchObject({
       ok: false,
@@ -89,5 +103,19 @@ describe("revision change summary", () => {
         productNameTh: "กล่องใหม่",
       }),
     ).toMatchObject({ severity: "REVIEW_REQUIRED" });
+  });
+
+  it("categorizes new tooling and yield fields for revision review", () => {
+    expect(
+      summarizeDesignChange(complete, {
+        ...complete,
+        dieBlockCode: "DIE-17",
+        piecesPerSheet: 2,
+      }),
+    ).toStrictEqual({
+      severity: "BLOCKING",
+      changedFields: ["dieBlockCode", "piecesPerSheet"],
+      categories: ["CONSTRUCTION", "PRINT"],
+    });
   });
 });

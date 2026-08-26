@@ -125,6 +125,20 @@ describe("OrderToShipWorkspace", () => {
       within(dialog).getByRole("heading", { name: "Product identity" }),
     ).toBeInTheDocument();
     expect(
+      within(dialog).getByRole("heading", { name: "Converting and packing" }),
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).getByRole("textbox", {
+        name: "Finished-good item / SKU",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).getByRole("textbox", { name: "Die-block code" }),
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).getByRole("textbox", { name: "Units per carton" }),
+    ).toBeInTheDocument();
+    expect(
       within(dialog).getByRole("complementary", {
         name: "Master card files",
       }),

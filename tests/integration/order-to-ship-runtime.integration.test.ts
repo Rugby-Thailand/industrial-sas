@@ -103,12 +103,27 @@ const specification = {
 
 const completeSpecification = {
   ...specification,
+  finishedGoodItemCode: "FG-EXPORT-BOX",
+  boxType: "Die cut",
   productNameEn: "Export carton",
   productNameTh: "กล่องส่งออก",
   sheetLengthMm: 720,
   sheetWidthMm: 460,
+  piecesPerSheet: 2,
+  piecesPerSet: 1,
   fluteCode: "C",
   printColours: ["BLACK", "RED"],
+  printSide: "Outside",
+  coatingSide: "Outside",
+  creaseSide: "Inside",
+  dieBlockCode: "DIE-17",
+  dieBlockStorageLocation: "Rack D-04",
+  printingPlateCode: "PLATE-8505",
+  printingPlateStorageLocation: "Plate room P-03",
+  jointType: "Glue joint",
+  glueType: "PVA",
+  wirePerCarton: 0,
+  unitsPerCarton: 10,
   packingInstructions: "Bundle and palletize to customer standard",
   layers: [{ position: 1, paperCode: "KA125", grammageGsm: 125 }],
   route: [{ sequence: 1, workCenterCode: "PRN-01", operationCode: "PRINT" }],
@@ -404,28 +419,44 @@ describe("order-to-ship public Convex functions", () => {
       written: false,
       error: { code: "REQUEST_ARGUMENT_CONFLICT" },
     });
-    const { revisionId, requestId } = await world.t.run(async (ctx) => {
-      const revision = await ctx.db
-        .query("masterCardRevisions")
-        .withIndex("by_orgId_masterCardId_revisionNumber", (query) =>
-          query
-            .eq("orgId", world.orgA)
-            .eq("masterCardId", cardId as GenericId<"masterCards">)
-            .eq("revisionNumber", 1),
-        )
-        .unique();
-      const request = await ctx.db
-        .query("designRequests")
-        .withIndex("by_orgId_customerOrderLineId", (query) =>
-          query
-            .eq("orgId", world.orgA)
-            .eq(
-              "customerOrderLineId",
-              lineId as GenericId<"customerOrderLines">,
-            ),
-        )
-        .unique();
-      return { revisionId: revision!._id, requestId: request!._id };
+    const { revisionId, requestId, revisionSpecification } = await world.t.run(
+      async (ctx) => {
+        const revision = await ctx.db
+          .query("masterCardRevisions")
+          .withIndex("by_orgId_masterCardId_revisionNumber", (query) =>
+            query
+              .eq("orgId", world.orgA)
+              .eq("masterCardId", cardId as GenericId<"masterCards">)
+              .eq("revisionNumber", 1),
+          )
+          .unique();
+        const request = await ctx.db
+          .query("designRequests")
+          .withIndex("by_orgId_customerOrderLineId", (query) =>
+            query
+              .eq("orgId", world.orgA)
+              .eq(
+                "customerOrderLineId",
+                lineId as GenericId<"customerOrderLines">,
+              ),
+          )
+          .unique();
+        return {
+          revisionId: revision!._id,
+          requestId: request!._id,
+          revisionSpecification: revision!.specification,
+        };
+      },
+    );
+    expect(revisionSpecification).toMatchObject({
+      finishedGoodItemCode: "FG-EXPORT-BOX",
+      boxType: "Die cut",
+      piecesPerSheet: 2,
+      piecesPerSet: 1,
+      dieBlockCode: "DIE-17",
+      printingPlateCode: "PLATE-8505",
+      jointType: "Glue joint",
+      unitsPerCarton: 10,
     });
 
     const upload = value(

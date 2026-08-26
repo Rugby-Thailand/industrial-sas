@@ -33,10 +33,14 @@ export interface DesignSpecification {
   readonly internalHeightMm: number;
   readonly boardGrade: string;
   readonly printColourCount: number;
+  readonly finishedGoodItemCode?: string;
+  readonly boxType?: string;
   readonly productNameEn?: string;
   readonly productNameTh?: string;
   readonly sheetLengthMm?: number;
   readonly sheetWidthMm?: number;
+  readonly piecesPerSheet?: number;
+  readonly piecesPerSet?: number;
   readonly lengthToleranceMm?: number;
   readonly widthToleranceMm?: number;
   readonly heightToleranceMm?: number;
@@ -44,7 +48,18 @@ export interface DesignSpecification {
   readonly layers?: readonly PaperLayer[];
   readonly printMethod?: string;
   readonly printColours?: readonly string[];
+  readonly printSide?: string;
+  readonly coatingSide?: string;
+  readonly creaseSide?: string;
+  readonly dieBlockCode?: string;
+  readonly dieBlockStorageLocation?: string;
+  readonly printingPlateCode?: string;
+  readonly printingPlateStorageLocation?: string;
   readonly finishing?: readonly string[];
+  readonly jointType?: string;
+  readonly glueType?: string;
+  readonly wirePerCarton?: number;
+  readonly unitsPerCarton?: number;
   readonly bundleQuantity?: number;
   readonly palletQuantity?: number;
   readonly packingInstructions?: string;
@@ -107,10 +122,14 @@ export interface DesignSpecificationInput {
   readonly internalHeightMm: number;
   readonly boardGrade: string;
   readonly printColourCount: number;
+  readonly finishedGoodItemCode?: string;
+  readonly boxType?: string;
   readonly productNameEn?: string;
   readonly productNameTh?: string;
   readonly sheetLengthMm?: number;
   readonly sheetWidthMm?: number;
+  readonly piecesPerSheet?: number;
+  readonly piecesPerSet?: number;
   readonly lengthToleranceMm?: number;
   readonly widthToleranceMm?: number;
   readonly heightToleranceMm?: number;
@@ -118,7 +137,18 @@ export interface DesignSpecificationInput {
   readonly layers?: readonly PaperLayer[];
   readonly printMethod?: string;
   readonly printColours?: readonly string[];
+  readonly printSide?: string;
+  readonly coatingSide?: string;
+  readonly creaseSide?: string;
+  readonly dieBlockCode?: string;
+  readonly dieBlockStorageLocation?: string;
+  readonly printingPlateCode?: string;
+  readonly printingPlateStorageLocation?: string;
   readonly finishing?: readonly string[];
+  readonly jointType?: string;
+  readonly glueType?: string;
+  readonly wirePerCarton?: number;
+  readonly unitsPerCarton?: number;
   readonly bundleQuantity?: number;
   readonly palletQuantity?: number;
   readonly packingInstructions?: string;
@@ -327,10 +357,20 @@ export function makeDesignSpecification(
   for (const [field, value] of [
     ["bundleQuantity", input.bundleQuantity],
     ["palletQuantity", input.palletQuantity],
+    ["piecesPerSheet", input.piecesPerSheet],
+    ["piecesPerSet", input.piecesPerSet],
+    ["unitsPerCarton", input.unitsPerCarton],
   ] as const) {
     if (value === undefined) continue;
     const checked = requireWholeNumber(field, value, {
       min: 1,
+      max: 1_000_000,
+    });
+    if (!checked.ok) return checked;
+  }
+  if (input.wirePerCarton !== undefined) {
+    const checked = requireWholeNumber("wirePerCarton", input.wirePerCarton, {
+      min: 0,
       max: 1_000_000,
     });
     if (!checked.ok) return checked;
@@ -356,6 +396,14 @@ export function makeDesignSpecification(
   let calculations: CalculationEvidence[] | undefined;
   let printColours: string[] | undefined;
   let finishing: string[] | undefined;
+  const finishedGoodItemCode = optionalText(
+    "finishedGoodItemCode",
+    input.finishedGoodItemCode,
+    96,
+  );
+  if (!finishedGoodItemCode.ok) return finishedGoodItemCode;
+  const boxType = optionalText("boxType", input.boxType, 100);
+  if (!boxType.ok) return boxType;
   const productNameEn = optionalText("productNameEn", input.productNameEn, 500);
   if (!productNameEn.ok) return productNameEn;
   const productNameTh = optionalText("productNameTh", input.productNameTh, 500);
@@ -364,6 +412,36 @@ export function makeDesignSpecification(
   if (!fluteCode.ok) return fluteCode;
   const printMethod = optionalText("printMethod", input.printMethod, 500);
   if (!printMethod.ok) return printMethod;
+  const printSide = optionalText("printSide", input.printSide, 200);
+  if (!printSide.ok) return printSide;
+  const coatingSide = optionalText("coatingSide", input.coatingSide, 200);
+  if (!coatingSide.ok) return coatingSide;
+  const creaseSide = optionalText("creaseSide", input.creaseSide, 200);
+  if (!creaseSide.ok) return creaseSide;
+  const dieBlockCode = optionalText("dieBlockCode", input.dieBlockCode, 96);
+  if (!dieBlockCode.ok) return dieBlockCode;
+  const dieBlockStorageLocation = optionalText(
+    "dieBlockStorageLocation",
+    input.dieBlockStorageLocation,
+    200,
+  );
+  if (!dieBlockStorageLocation.ok) return dieBlockStorageLocation;
+  const printingPlateCode = optionalText(
+    "printingPlateCode",
+    input.printingPlateCode,
+    96,
+  );
+  if (!printingPlateCode.ok) return printingPlateCode;
+  const printingPlateStorageLocation = optionalText(
+    "printingPlateStorageLocation",
+    input.printingPlateStorageLocation,
+    200,
+  );
+  if (!printingPlateStorageLocation.ok) return printingPlateStorageLocation;
+  const jointType = optionalText("jointType", input.jointType, 200);
+  if (!jointType.ok) return jointType;
+  const glueType = optionalText("glueType", input.glueType, 200);
+  if (!glueType.ok) return glueType;
   const packingInstructions = optionalText(
     "packingInstructions",
     input.packingInstructions,
@@ -599,6 +677,10 @@ export function makeDesignSpecification(
       internalHeightMm: height.value,
       boardGrade: boardGrade.value,
       printColourCount: colours.value,
+      ...(finishedGoodItemCode.value === undefined
+        ? {}
+        : { finishedGoodItemCode: finishedGoodItemCode.value.toUpperCase() }),
+      ...(boxType.value === undefined ? {} : { boxType: boxType.value }),
       ...(productNameEn.value === undefined
         ? {}
         : { productNameEn: productNameEn.value }),
@@ -611,6 +693,12 @@ export function makeDesignSpecification(
       ...(input.sheetWidthMm === undefined
         ? {}
         : { sheetWidthMm: input.sheetWidthMm }),
+      ...(input.piecesPerSheet === undefined
+        ? {}
+        : { piecesPerSheet: input.piecesPerSheet }),
+      ...(input.piecesPerSet === undefined
+        ? {}
+        : { piecesPerSet: input.piecesPerSet }),
       ...(input.lengthToleranceMm === undefined
         ? {}
         : { lengthToleranceMm: input.lengthToleranceMm }),
@@ -632,9 +720,36 @@ export function makeDesignSpecification(
       ...(input.printColours === undefined
         ? {}
         : { printColours: Object.freeze(printColours ?? []) }),
+      ...(printSide.value === undefined ? {} : { printSide: printSide.value }),
+      ...(coatingSide.value === undefined
+        ? {}
+        : { coatingSide: coatingSide.value }),
+      ...(creaseSide.value === undefined
+        ? {}
+        : { creaseSide: creaseSide.value }),
+      ...(dieBlockCode.value === undefined
+        ? {}
+        : { dieBlockCode: dieBlockCode.value.toUpperCase() }),
+      ...(dieBlockStorageLocation.value === undefined
+        ? {}
+        : { dieBlockStorageLocation: dieBlockStorageLocation.value }),
+      ...(printingPlateCode.value === undefined
+        ? {}
+        : { printingPlateCode: printingPlateCode.value.toUpperCase() }),
+      ...(printingPlateStorageLocation.value === undefined
+        ? {}
+        : { printingPlateStorageLocation: printingPlateStorageLocation.value }),
       ...(input.finishing === undefined
         ? {}
         : { finishing: Object.freeze(finishing ?? []) }),
+      ...(jointType.value === undefined ? {} : { jointType: jointType.value }),
+      ...(glueType.value === undefined ? {} : { glueType: glueType.value }),
+      ...(input.wirePerCarton === undefined
+        ? {}
+        : { wirePerCarton: input.wirePerCarton }),
+      ...(input.unitsPerCarton === undefined
+        ? {}
+        : { unitsPerCarton: input.unitsPerCarton }),
       ...(input.bundleQuantity === undefined
         ? {}
         : { bundleQuantity: input.bundleQuantity }),

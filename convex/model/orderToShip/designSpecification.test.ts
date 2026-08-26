@@ -70,6 +70,65 @@ describe("makeDesignSpecification", () => {
     expect(Object.isFrozen(specificationOf())).toBe(true);
   });
 
+  it("normalizes and preserves the complete production hand-off details", () => {
+    const built = makeDesignSpecification({
+      ...VALID,
+      finishedGoodItemCode: " fg-box-01 ",
+      boxType: "Die cut",
+      piecesPerSheet: 2,
+      piecesPerSet: 1,
+      printSide: "Outside",
+      coatingSide: "Outside",
+      creaseSide: "Inside",
+      dieBlockCode: " die-17 ",
+      dieBlockStorageLocation: "Rack D-04",
+      printingPlateCode: " plate-8505 ",
+      printingPlateStorageLocation: "Plate room P-03",
+      jointType: "Glue joint",
+      glueType: "PVA",
+      wirePerCarton: 0,
+      unitsPerCarton: 10,
+    });
+
+    expect(built).toMatchObject({
+      ok: true,
+      value: {
+        finishedGoodItemCode: "FG-BOX-01",
+        boxType: "Die cut",
+        piecesPerSheet: 2,
+        piecesPerSet: 1,
+        printSide: "Outside",
+        coatingSide: "Outside",
+        creaseSide: "Inside",
+        dieBlockCode: "DIE-17",
+        dieBlockStorageLocation: "Rack D-04",
+        printingPlateCode: "PLATE-8505",
+        printingPlateStorageLocation: "Plate room P-03",
+        jointType: "Glue joint",
+        glueType: "PVA",
+        wirePerCarton: 0,
+        unitsPerCarton: 10,
+      },
+    });
+  });
+
+  it.each([
+    ["piecesPerSheet", { piecesPerSheet: 0 }, "TOO_SMALL"],
+    ["piecesPerSet", { piecesPerSet: 1.5 }, "NOT_A_WHOLE_NUMBER"],
+    ["wirePerCarton", { wirePerCarton: -1 }, "TOO_SMALL"],
+    ["unitsPerCarton", { unitsPerCarton: 0 }, "TOO_SMALL"],
+  ])("validates production quantity %s", (field, override, reason) => {
+    expect(
+      makeDesignSpecification({
+        ...VALID,
+        ...(override as Partial<DesignSpecificationInput>),
+      }),
+    ).toStrictEqual({
+      ok: false,
+      error: { code: "MEASUREMENT_INVALID", field, reason },
+    });
+  });
+
   it.each([
     ["styleCode", { styleCode: "   " }, "FIELD_INVALID", "EMPTY"],
     [

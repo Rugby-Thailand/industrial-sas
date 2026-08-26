@@ -42,6 +42,10 @@ export function assessDesignReadiness(
     PACKING:
       (specification.bundleQuantity ?? 0) > 0 ||
       (specification.palletQuantity ?? 0) > 0 ||
+      (specification.unitsPerCarton ?? 0) > 0 ||
+      (specification.wirePerCarton ?? 0) > 0 ||
+      (specification.jointType?.trim().length ?? 0) > 0 ||
+      (specification.glueType?.trim().length ?? 0) > 0 ||
       (specification.packingInstructions?.trim().length ?? 0) > 0,
     ROUTE: (specification.route?.length ?? 0) > 0,
     MATERIALS: (specification.materials?.length ?? 0) > 0,
@@ -73,10 +77,14 @@ const FIELD_CATEGORY: Readonly<
   internalHeightMm: "DIMENSIONS",
   boardGrade: "CONSTRUCTION",
   printColourCount: "PRINT",
+  finishedGoodItemCode: "CUSTOMER_PRODUCT_IDENTITY",
+  boxType: "CUSTOMER_PRODUCT_IDENTITY",
   productNameEn: "CUSTOMER_PRODUCT_IDENTITY",
   productNameTh: "CUSTOMER_PRODUCT_IDENTITY",
   sheetLengthMm: "CONSTRUCTION",
   sheetWidthMm: "CONSTRUCTION",
+  piecesPerSheet: "CONSTRUCTION",
+  piecesPerSet: "CONSTRUCTION",
   lengthToleranceMm: "DIMENSIONS",
   widthToleranceMm: "DIMENSIONS",
   heightToleranceMm: "DIMENSIONS",
@@ -84,7 +92,18 @@ const FIELD_CATEGORY: Readonly<
   layers: "CONSTRUCTION",
   printMethod: "PRINT",
   printColours: "PRINT",
+  printSide: "PRINT",
+  coatingSide: "PRINT",
+  creaseSide: "CONSTRUCTION",
+  dieBlockCode: "PRINT",
+  dieBlockStorageLocation: "PRINT",
+  printingPlateCode: "PRINT",
+  printingPlateStorageLocation: "PRINT",
   finishing: "CONSTRUCTION",
+  jointType: "PACKING",
+  glueType: "PACKING",
+  wirePerCarton: "PACKING",
+  unitsPerCarton: "PACKING",
   bundleQuantity: "PACKING",
   palletQuantity: "PACKING",
   packingInstructions: "PACKING",

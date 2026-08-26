@@ -93,6 +93,8 @@ const baseSpecificationFields = (
       : { initialValue: initialValue(name)! }),
   });
   return [
+    field("finishedGoodItemCode", "finishedGoodItemCode", "text"),
+    field("boxType", "boxType", "text"),
     field("productNameEn", "productNameEn", "text", true),
     field("productNameTh", "productNameTh", "text", true),
     field("styleCode", "styleCode", "text", true),
@@ -103,6 +105,8 @@ const baseSpecificationFields = (
     field("internalHeightMm", "internalHeightMm", "number", true),
     field("sheetLengthMm", "sheetLengthMm", "number", true),
     field("sheetWidthMm", "sheetWidthMm", "number", true),
+    field("piecesPerSheet", "piecesPerSheet", "number"),
+    field("piecesPerSet", "piecesPerSet", "number"),
     field("lengthToleranceMm", "lengthToleranceMm", "number"),
     field("widthToleranceMm", "widthToleranceMm", "number"),
     field("heightToleranceMm", "heightToleranceMm", "number"),
@@ -115,7 +119,22 @@ const baseSpecificationFields = (
       false,
       "commaSeparatedHint",
     ),
+    field("printSide", "printSide", "text"),
+    field("coatingSide", "coatingSide", "text"),
+    field("creaseSide", "creaseSide", "text"),
+    field("dieBlockCode", "dieBlockCode", "text"),
+    field("dieBlockStorageLocation", "dieBlockStorageLocation", "text"),
+    field("printingPlateCode", "printingPlateCode", "text"),
+    field(
+      "printingPlateStorageLocation",
+      "printingPlateStorageLocation",
+      "text",
+    ),
     field("finishing", "finishing", "textarea", false, "commaSeparatedHint"),
+    field("jointType", "jointType", "text"),
+    field("glueType", "glueType", "text"),
+    field("wirePerCarton", "wirePerCarton", "number"),
+    field("unitsPerCarton", "unitsPerCarton", "number"),
     field("bundleQuantity", "bundleQuantity", "number"),
     field("palletQuantity", "palletQuantity", "number"),
     field("packingInstructions", "packingInstructions", "textarea"),
@@ -147,6 +166,10 @@ const specificationOf = (values: FormValues): BoxSpecification => {
   const lengthToleranceMm = optionalWhole(values.lengthToleranceMm);
   const widthToleranceMm = optionalWhole(values.widthToleranceMm);
   const heightToleranceMm = optionalWhole(values.heightToleranceMm);
+  const piecesPerSheet = optionalWhole(values.piecesPerSheet);
+  const piecesPerSet = optionalWhole(values.piecesPerSet);
+  const wirePerCarton = optionalWhole(values.wirePerCarton);
+  const unitsPerCarton = optionalWhole(values.unitsPerCarton);
   const bundleQuantity = optionalWhole(values.bundleQuantity);
   const palletQuantity = optionalWhole(values.palletQuantity);
   return {
@@ -156,10 +179,16 @@ const specificationOf = (values: FormValues): BoxSpecification => {
     internalHeightMm: whole(values.internalHeightMm),
     boardGrade: values.boardGrade ?? "",
     printColourCount: whole(values.printColourCount),
+    ...(values.finishedGoodItemCode
+      ? { finishedGoodItemCode: values.finishedGoodItemCode }
+      : {}),
+    ...(values.boxType ? { boxType: values.boxType } : {}),
     productNameEn: values.productNameEn ?? "",
     productNameTh: values.productNameTh ?? "",
     sheetLengthMm: whole(values.sheetLengthMm),
     sheetWidthMm: whole(values.sheetWidthMm),
+    ...(piecesPerSheet === undefined ? {} : { piecesPerSheet }),
+    ...(piecesPerSet === undefined ? {} : { piecesPerSet }),
     ...(lengthToleranceMm === undefined ? {} : { lengthToleranceMm }),
     ...(widthToleranceMm === undefined ? {} : { widthToleranceMm }),
     ...(heightToleranceMm === undefined ? {} : { heightToleranceMm }),
@@ -168,9 +197,26 @@ const specificationOf = (values: FormValues): BoxSpecification => {
     ...(splitList(values.printColours).length === 0
       ? {}
       : { printColours: splitList(values.printColours) }),
+    ...(values.printSide ? { printSide: values.printSide } : {}),
+    ...(values.coatingSide ? { coatingSide: values.coatingSide } : {}),
+    ...(values.creaseSide ? { creaseSide: values.creaseSide } : {}),
+    ...(values.dieBlockCode ? { dieBlockCode: values.dieBlockCode } : {}),
+    ...(values.dieBlockStorageLocation
+      ? { dieBlockStorageLocation: values.dieBlockStorageLocation }
+      : {}),
+    ...(values.printingPlateCode
+      ? { printingPlateCode: values.printingPlateCode }
+      : {}),
+    ...(values.printingPlateStorageLocation
+      ? { printingPlateStorageLocation: values.printingPlateStorageLocation }
+      : {}),
     ...(splitList(values.finishing).length === 0
       ? {}
       : { finishing: splitList(values.finishing) }),
+    ...(values.jointType ? { jointType: values.jointType } : {}),
+    ...(values.glueType ? { glueType: values.glueType } : {}),
+    ...(wirePerCarton === undefined ? {} : { wirePerCarton }),
+    ...(unitsPerCarton === undefined ? {} : { unitsPerCarton }),
     ...(bundleQuantity === undefined ? {} : { bundleQuantity }),
     ...(palletQuantity === undefined ? {} : { palletQuantity }),
     ...(values.packingInstructions
@@ -241,6 +287,101 @@ const specificationOf = (values: FormValues): BoxSpecification => {
   };
 };
 
+const masterCardSections = (
+  t: ReturnType<typeof useTranslations>,
+  identityPrefix: readonly string[],
+  assets?: ReactNode,
+): readonly FormSectionSpec[] => [
+  {
+    id: "identity",
+    title: t("masterCardSectionIdentity"),
+    description: t("masterCardSectionIdentityDetail"),
+    fields: [
+      ...identityPrefix,
+      "finishedGoodItemCode",
+      "productNameEn",
+      "productNameTh",
+      "boxType",
+    ],
+  },
+  {
+    id: "structure",
+    title: t("masterCardSectionStructure"),
+    description: t("masterCardSectionStructureDetail"),
+    fields: [
+      "styleCode",
+      "boardGrade",
+      "fluteCode",
+      "internalLengthMm",
+      "internalWidthMm",
+      "internalHeightMm",
+      "sheetLengthMm",
+      "sheetWidthMm",
+      "piecesPerSheet",
+      "piecesPerSet",
+      "lengthToleranceMm",
+      "widthToleranceMm",
+      "heightToleranceMm",
+    ],
+  },
+  {
+    id: "production",
+    title: t("masterCardSectionProduction"),
+    description: t("masterCardSectionProductionDetail"),
+    fields: [
+      "printColourCount",
+      "printMethod",
+      "printColours",
+      "printSide",
+      "coatingSide",
+      "creaseSide",
+      "dieBlockCode",
+      "dieBlockStorageLocation",
+      "printingPlateCode",
+      "printingPlateStorageLocation",
+      "finishing",
+    ],
+  },
+  {
+    id: "packing",
+    title: t("masterCardSectionPacking"),
+    description: t("masterCardSectionPackingDetail"),
+    fields: [
+      "jointType",
+      "glueType",
+      "wirePerCarton",
+      "unitsPerCarton",
+      "bundleQuantity",
+      "palletQuantity",
+      "packingInstructions",
+    ],
+  },
+  {
+    id: "process",
+    title: t("masterCardSectionProcess"),
+    description: t("masterCardSectionProcessDetail"),
+    fields: [
+      "layerRows",
+      "routeRows",
+      "materialRows",
+      "qualityRows",
+      "calculationRows",
+      "notes",
+    ],
+  },
+  ...(assets === undefined
+    ? []
+    : [
+        {
+          id: "assets",
+          title: t("masterCardAssets"),
+          description: t("masterCardAssetsDetail"),
+          fields: [],
+          content: assets,
+        },
+      ]),
+];
+
 export function MasterCardDraftForm({
   onSaved,
   assets,
@@ -272,77 +413,11 @@ export function MasterCardDraftForm({
     { name: "name", label: t("masterCardName"), kind: "text", required: true },
     ...baseSpecificationFields(t),
   ];
-  const sections: readonly FormSectionSpec[] = [
-    {
-      id: "identity",
-      title: t("masterCardSectionIdentity"),
-      description: t("masterCardSectionIdentityDetail"),
-      fields: [
-        "cardNumber",
-        "customerId",
-        "customerProductCode",
-        "name",
-        "productNameEn",
-        "productNameTh",
-      ],
-    },
-    {
-      id: "structure",
-      title: t("masterCardSectionStructure"),
-      description: t("masterCardSectionStructureDetail"),
-      fields: [
-        "styleCode",
-        "boardGrade",
-        "fluteCode",
-        "internalLengthMm",
-        "internalWidthMm",
-        "internalHeightMm",
-        "sheetLengthMm",
-        "sheetWidthMm",
-        "lengthToleranceMm",
-        "widthToleranceMm",
-        "heightToleranceMm",
-      ],
-    },
-    {
-      id: "production",
-      title: t("masterCardSectionProduction"),
-      description: t("masterCardSectionProductionDetail"),
-      fields: [
-        "printColourCount",
-        "printMethod",
-        "printColours",
-        "finishing",
-        "bundleQuantity",
-        "palletQuantity",
-        "packingInstructions",
-      ],
-    },
-    {
-      id: "process",
-      title: t("masterCardSectionProcess"),
-      description: t("masterCardSectionProcessDetail"),
-      fields: [
-        "layerRows",
-        "routeRows",
-        "materialRows",
-        "qualityRows",
-        "calculationRows",
-        "notes",
-      ],
-    },
-    ...(assets === undefined
-      ? []
-      : [
-          {
-            id: "assets",
-            title: t("masterCardAssets"),
-            description: t("masterCardAssetsDetail"),
-            fields: [],
-            content: assets,
-          },
-        ]),
-  ];
+  const sections = masterCardSections(
+    t,
+    ["cardNumber", "customerId", "customerProductCode", "name"],
+    assets,
+  );
   return (
     <EntityWriteForm
       mutationRef={createMasterCardRef}
@@ -350,6 +425,7 @@ export function MasterCardDraftForm({
       description={t("masterCardEditorDetail")}
       submitLabel={t("saveMasterCard")}
       requiredMessage={t("requiredField")}
+      dialogSize="workspace"
       testId="master-card-editor"
       {...(onSaved === undefined ? {} : { onSaved })}
       fields={fields}
@@ -386,6 +462,7 @@ export function MasterCardRevisionDraftForm({
       description={t("draftChangedRevisionDetail")}
       submitLabel={t("saveChangedRevision")}
       requiredMessage={t("requiredField")}
+      dialogSize="workspace"
       fields={[
         {
           name: "masterCardId",
@@ -397,6 +474,12 @@ export function MasterCardRevisionDraftForm({
         },
         ...baseSpecificationFields(t, specification),
       ]}
+      sections={masterCardSections(t, ["masterCardId"])}
+      mobileStepperLabels={{
+        step: (current, total) => t("stepProgress", { current, total }),
+        previous: t("previousStep"),
+        next: t("nextStep"),
+      }}
       toArgs={(values, requestId) => ({
         requestId,
         masterCardId: values.masterCardId ?? "",
