@@ -9,6 +9,7 @@ import {
   assignDesignRequestRef,
   confirmSimilarDesignRef,
   decideMasterCardRevisionRef,
+  editDesignRequestRef,
   fulfilDesignRequestRef,
   issueFactoryPacketRef,
   progressDesignRequestRef,
@@ -18,6 +19,68 @@ import {
 } from "@/lib/convex/orderToShipApi";
 
 const whole = (value: string | undefined) => Number.parseInt(value ?? "", 10);
+
+const dateInputValue = (epochMilliseconds: number | undefined) =>
+  epochMilliseconds === undefined
+    ? ""
+    : new Date(epochMilliseconds).toISOString().slice(0, 10);
+
+export function DesignRequestEditForm({
+  designRequestId,
+  priority,
+  dueAt,
+}: {
+  readonly designRequestId: string;
+  readonly priority: "LOW" | "NORMAL" | "HIGH" | "URGENT";
+  readonly dueAt?: number;
+}) {
+  const t = useTranslations("OrderToShip");
+  return (
+    <EntityWriteForm
+      mutationRef={editDesignRequestRef}
+      legend={t("editDesignRequest")}
+      description={t("editDesignRequestDetail")}
+      submitLabel={t("saveDesignRequestChanges")}
+      requiredMessage={t("requiredField")}
+      testId={`edit-design-request-${designRequestId}`}
+      fields={[
+        {
+          name: "priority",
+          label: t("priority"),
+          kind: "select",
+          required: true,
+          initialValue: priority,
+          options: (["LOW", "NORMAL", "HIGH", "URGENT"] as const).map(
+            (value) => ({ value, label: t(`priorityValue.${value}`) }),
+          ),
+        },
+        {
+          name: "dueAt",
+          label: t("designDueDate"),
+          kind: "text",
+          initialValue: dateInputValue(dueAt),
+          placeholder: "2026-08-31",
+          hint: t("designDueDateHint"),
+        },
+      ]}
+      toArgs={(values, requestId) => {
+        const dueDate = values.dueAt ?? "";
+        const parsedDueAt =
+          dueDate === "" ? null : Date.parse(`${dueDate}T12:00:00Z`);
+        return {
+          requestId,
+          designRequestId,
+          priority: (values.priority ?? priority) as
+            "LOW" | "NORMAL" | "HIGH" | "URGENT",
+          dueAt:
+            parsedDueAt === null || Number.isFinite(parsedDueAt)
+              ? parsedDueAt
+              : 0,
+        };
+      }}
+    />
+  );
+}
 
 export function SalesWorkflowActions({
   customerOrderId,

@@ -5,6 +5,7 @@ import {
   isDesignRequestOverdue,
   planDesignRequestAssignment,
   planDesignRequestProgress,
+  planDesignRequestQueueEdit,
   planSimilarDesignConfirmation,
   type DesignRequestState,
 } from "./designRequest";
@@ -69,6 +70,33 @@ describe("design request workflow", () => {
     expect(
       isDesignRequestOverdue(request({ status: "FULFILLED", dueAt: 99 }), 100),
     ).toBe(false);
+  });
+
+  it("edits queue priority and due date without changing workflow state", () => {
+    expect(
+      planDesignRequestQueueEdit(request({ status: "IN_PROGRESS" }), {
+        priority: "URGENT",
+        dueAt: Date.UTC(2026, 7, 31, 12),
+      }),
+    ).toStrictEqual({
+      ok: true,
+      value: { priority: "URGENT", dueAt: Date.UTC(2026, 7, 31, 12) },
+    });
+  });
+
+  it("rejects invalid dates and edits to closed requests", () => {
+    expect(
+      planDesignRequestQueueEdit(request(), {
+        priority: "NORMAL",
+        dueAt: 0,
+      }),
+    ).toMatchObject({ ok: false, error: { field: "dueAt" } });
+    expect(
+      planDesignRequestQueueEdit(request({ status: "FULFILLED" }), {
+        priority: "LOW",
+        dueAt: null,
+      }),
+    ).toMatchObject({ ok: false, error: { field: "status" } });
   });
 });
 

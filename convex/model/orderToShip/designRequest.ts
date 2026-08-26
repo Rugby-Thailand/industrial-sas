@@ -15,6 +15,11 @@ export interface DesignRequestState {
   readonly dueAt?: number;
 }
 
+export interface DesignRequestQueueEdit {
+  readonly priority: DesignRequestPriority;
+  readonly dueAt?: number;
+}
+
 export type DesignRequestError = {
   readonly code: "ILLEGAL_TRANSITION" | "PRECONDITION_FAILED" | "FIELD_INVALID";
   readonly field: string;
@@ -63,6 +68,40 @@ export function planDesignRequestProgress(
     });
   }
   return ok(next);
+}
+
+export function planDesignRequestQueueEdit(
+  request: DesignRequestState,
+  input: {
+    readonly priority: DesignRequestPriority;
+    readonly dueAt: number | null;
+  },
+): Result<DesignRequestQueueEdit, DesignRequestError> {
+  if (request.status === "FULFILLED" || request.status === "CANCELLED") {
+    return fail({
+      code: "ILLEGAL_TRANSITION",
+      field: "status",
+      reason: "REQUEST_CLOSED",
+      status: request.status,
+    });
+  }
+  if (
+    input.dueAt !== null &&
+    (!Number.isSafeInteger(input.dueAt) || input.dueAt <= 0)
+  ) {
+    return fail({
+      code: "FIELD_INVALID",
+      field: "dueAt",
+      reason: "INVALID_DUE_DATE",
+    });
+  }
+
+  return ok(
+    Object.freeze({
+      priority: input.priority,
+      ...(input.dueAt === null ? {} : { dueAt: input.dueAt }),
+    }),
+  );
 }
 
 export function checkDesignRequestFulfilment(input: {

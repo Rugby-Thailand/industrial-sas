@@ -313,6 +313,9 @@ export const releaseCustomerOrderRef = clientRef(
 export const assignDesignRequestRef = clientRef(
   api.engineering.designRequests.assignDesignRequest,
 );
+export const editDesignRequestRef = clientRef(
+  api.engineering.designRequests.editDesignRequest,
+);
 export const progressDesignRequestRef = clientRef(
   api.engineering.designRequests.progressDesignRequest,
 );

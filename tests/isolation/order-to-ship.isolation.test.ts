@@ -7,6 +7,7 @@ import {
 } from "../../convex/sales/orders";
 import {
   confirmSimilarDesign,
+  editDesignRequest,
   listDesignRequests,
   listSimilarReleasedDesigns,
 } from "../../convex/engineering/designRequests";
@@ -329,6 +330,16 @@ describe("order-to-ship tenant isolation", () => {
       reason: "should never be visible",
     });
     expect(confirmation["value"]).toMatchObject({
+      written: false,
+      error: { code: "NOT_FOUND" },
+    });
+    const edit = await callAs(world, "b", editDesignRequest, {
+      requestId: "foreign-request-edit",
+      designRequestId: foreign.requestId,
+      priority: "URGENT",
+      dueAt: null,
+    });
+    expect(edit["value"]).toMatchObject({
       written: false,
       error: { code: "NOT_FOUND" },
     });

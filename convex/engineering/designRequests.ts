@@ -36,6 +36,7 @@ import {
   isDesignRequestOverdue,
   planDesignRequestAssignment,
   planDesignRequestProgress,
+  planDesignRequestQueueEdit,
   planSimilarDesignConfirmation,
 } from "../model/orderToShip/designRequest";
 import {
@@ -44,6 +45,7 @@ import {
 } from "../model/orderToShip/designSpecification";
 
 export const ENGINEERING_REQUEST_OPERATIONS = Object.freeze({
+  editRequest: "engineering.request.edit",
   assignRequest: "engineering.request.assign",
   progressRequest: "engineering.request.progress",
   fulfilRequest: "engineering.request.fulfil",
@@ -57,6 +59,68 @@ type RevisionDocument = Doc<"masterCardRevisions">;
 type CardDocument = Doc<"masterCards">;
 
 type MembershipRow = Doc<"memberships">;
+
+export const editDesignRequest = mutationWithOrg({
+  args: {
+    requestId: v.string(),
+    designRequestId: v.id("designRequests"),
+    priority: designRequestPriority,
+    dueAt: v.union(v.number(), v.null()),
+  },
+  returns: writeOutcomeValidator,
+  permissionCode: "engineering.request.assign",
+  target: {
+    table: "designRequests",
+    id: ({ designRequestId }) => designRequestId,
+  },
+  handler: async (ctx, args) => {
+    const request = await ctx.tenantDb.get<RequestDocument>(
+      "designRequests",
+      args.designRequestId,
+    );
+    if (request === null) {
+      return refusal({ code: "NOT_FOUND", table: "designRequests" });
+    }
+    const fingerprint = {
+      operation: ENGINEERING_REQUEST_OPERATIONS.editRequest,
+      requestId: args.requestId,
+      designRequestId: args.designRequestId,
+      priority: args.priority,
+      dueAt: args.dueAt,
+    };
+    const replay = await replayTenantWriteIfPresent({
+      tenantDb: ctx.tenantDb,
+      table: "designRequests",
+      operation: ENGINEERING_REQUEST_OPERATIONS.editRequest,
+      requestId: args.requestId,
+      fingerprint,
+    });
+    if (!replay.ok) return refusal(replay.error);
+    if (replay.value !== null) return written(replay.value);
+
+    const edit = planDesignRequestQueueEdit(request, {
+      priority: args.priority,
+      dueAt: args.dueAt,
+    });
+    if (!edit.ok) return refusal(edit.error);
+
+    const outcome = await updateMasterDataRow({
+      ...writeContextOf(ctx, {
+        table: "designRequests",
+        operation: ENGINEERING_REQUEST_OPERATIONS.editRequest,
+        requestId: args.requestId,
+      }),
+      documentId: args.designRequestId,
+      fingerprint,
+      uniqueness: [],
+      patch: {
+        priority: edit.value.priority,
+        dueAt: edit.value.dueAt,
+      },
+    });
+    return outcome.ok ? written(outcome.value) : refusal(outcome.error);
+  },
+});
 
 export const assignDesignRequest = mutationWithOrg({
   args: {

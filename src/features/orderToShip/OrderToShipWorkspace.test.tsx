@@ -189,6 +189,27 @@ describe("OrderToShipWorkspace", () => {
     expect(screen.getByText("Overdue")).toBeInTheDocument();
   });
 
+  it("edits queue priority and due date from the design-request card", async () => {
+    const user = userEvent.setup();
+    renderWorkspace("engineering");
+
+    const requestNumber = screen.getByText("SO-26019-1");
+    const card = requestNumber.closest("li");
+    expect(card).not.toBeNull();
+    await user.click(within(card!).getByRole("button", { name: "Edit" }));
+
+    const dialog = screen.getByRole("dialog", { name: "Edit" });
+    expect(dialog).toHaveAttribute("data-slot", "dialog-content");
+    expect(
+      within(dialog).getByRole("combobox", { name: "Priority" }),
+    ).toHaveTextContent("High");
+    expect(
+      within(dialog).getByRole("textbox", {
+        name: "Due date (YYYY-MM-DD)",
+      }),
+    ).toHaveValue("2026-08-16");
+  });
+
   it("renders the immutable factory evidence snapshot", () => {
     renderWorkspace("factory");
     expect(screen.getByText("SO-26018-1")).toBeInTheDocument();

@@ -25,6 +25,7 @@ import {
   submitMasterCardRevision,
 } from "../../convex/engineering/masterCards";
 import {
+  editDesignRequest,
   fulfilDesignRequest,
   listDesignRequests,
   listSimilarReleasedDesigns,
@@ -381,6 +382,43 @@ describe("order-to-ship public Convex functions", () => {
       customerProductCode: "JRN-BOX-1",
       designKey: expect.any(String),
       specification: expect.objectContaining(specification),
+    });
+    const queueRequest = (
+      (designRequestPage["value"] as Record<string, unknown>)[
+        "items"
+      ] as Record<string, unknown>[]
+    )[0]!;
+    const editArgs = {
+      requestId: "journey-request-edit",
+      designRequestId: queueRequest["designRequestId"],
+      priority: "URGENT",
+      dueAt: Date.UTC(2026, 7, 31, 12),
+    } as const;
+    expect(value(await call(world, editDesignRequest, editArgs))).toMatchObject(
+      {
+        written: true,
+        replayed: false,
+      },
+    );
+    expect(value(await call(world, editDesignRequest, editArgs))).toMatchObject(
+      {
+        written: true,
+        replayed: true,
+      },
+    );
+    const editedPage = await call(world, listDesignRequests, {
+      status: "OPEN",
+    });
+    expect(
+      (
+        (editedPage["value"] as Record<string, unknown>)["items"] as Record<
+          string,
+          unknown
+        >[]
+      )[0],
+    ).toMatchObject({
+      priority: "URGENT",
+      dueAt: Date.UTC(2026, 7, 31, 12),
     });
 
     const releaseArgs = {

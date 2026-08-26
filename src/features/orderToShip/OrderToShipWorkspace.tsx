@@ -22,7 +22,11 @@ import {
 } from "@/lib/convex/orderToShipApi";
 import { ROUTES } from "@/lib/navigation";
 import type { AppLocale } from "@/i18n/routing";
-import { formatCount, formatInstant } from "@/lib/formatters";
+import {
+  formatCount,
+  formatInstant,
+  formatInstantDate,
+} from "@/lib/formatters";
 import { StatusBadge, type BadgeTone } from "@/components/ui/StatusBadge";
 import { MasterCardCreateDialog } from "./MasterCardCreateDialog";
 import { OrderIntakeForm } from "./OrderIntakeForm";
@@ -30,6 +34,7 @@ import { EngineeringMasterCardLibrary } from "./EngineeringMasterCardLibrary";
 import { FactoryFileButton } from "./FactoryFileButton";
 import { SimilarDesignCandidates } from "./SimilarDesignCandidates";
 import {
+  DesignRequestEditForm,
   EngineeringWorkflowActions,
   FactoryWorkflowActions,
   SalesWorkflowActions,
@@ -274,6 +279,7 @@ function CustomerOrderColumn({
 
 function EngineeringQueue() {
   const t = useTranslations("OrderToShip");
+  const locale = useLocale() as AppLocale;
   return (
     <QueueSection
       title={t("engineeringQueue")}
@@ -329,12 +335,25 @@ function EngineeringQueue() {
                           : t("requirementsIncomplete")
                       }
                     />
+                    <DesignRequestEditForm
+                      designRequestId={row.designRequestId}
+                      priority={row.priority}
+                      {...(row.dueAt === undefined ? {} : { dueAt: row.dueAt })}
+                    />
                   </div>
                 </div>
                 <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
                   <Fact
                     label={t("priority")}
                     value={t(`priorityValue.${row.priority}`)}
+                  />
+                  <Fact
+                    label={t("designDueDateLabel")}
+                    value={
+                      row.dueAt === undefined
+                        ? t("notProvided")
+                        : formatInstantDate(row.dueAt, locale)
+                    }
                   />
                   <Fact
                     label={t("flute")}
