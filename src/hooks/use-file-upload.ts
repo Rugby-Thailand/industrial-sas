@@ -3,6 +3,7 @@
 import type React from "react";
 import {
   useCallback,
+  useEffect,
   useRef,
   useState,
   type ChangeEvent,
@@ -86,6 +87,18 @@ export const useFileUpload = (
   });
 
   const inputRef = useRef<HTMLInputElement>(null);
+  const onFilesChangeRef = useRef(onFilesChange);
+  const lastNotifiedFilesRef = useRef(state.files);
+
+  useEffect(() => {
+    onFilesChangeRef.current = onFilesChange;
+  }, [onFilesChange]);
+
+  useEffect(() => {
+    if (lastNotifiedFilesRef.current === state.files) return;
+    lastNotifiedFilesRef.current = state.files;
+    onFilesChangeRef.current?.(state.files);
+  }, [state.files]);
 
   const validateFile = useCallback(
     (file: File | FileMetadata): string | null => {
@@ -168,10 +181,9 @@ export const useFileUpload = (
         errors: [],
       };
 
-      onFilesChange?.(newState.files);
       return newState;
     });
-  }, [onFilesChange]);
+  }, []);
 
   const addFiles = useCallback(
     (newFiles: FileList | File[]) => {
@@ -241,7 +253,6 @@ export const useFileUpload = (
           const newFiles = !multiple
             ? validFiles
             : [...prev.files, ...validFiles];
-          onFilesChange?.(newFiles);
           return {
             ...prev,
             files: newFiles,
@@ -269,37 +280,31 @@ export const useFileUpload = (
       createPreview,
       generateUniqueId,
       clearFiles,
-      onFilesChange,
       onFilesAdded,
       onError,
     ],
   );
 
-  const removeFile = useCallback(
-    (id: string) => {
-      setState((prev) => {
-        const fileToRemove = prev.files.find((file) => file.id === id);
-        if (
-          fileToRemove &&
-          fileToRemove.preview &&
-          fileToRemove.file instanceof File &&
-          fileToRemove.file.type.startsWith("image/")
-        ) {
-          URL.revokeObjectURL(fileToRemove.preview);
-        }
+  const removeFile = useCallback((id: string) => {
+    setState((prev) => {
+      const fileToRemove = prev.files.find((file) => file.id === id);
+      if (
+        fileToRemove &&
+        fileToRemove.preview &&
+        fileToRemove.file instanceof File &&
+        fileToRemove.file.type.startsWith("image/")
+      ) {
+        URL.revokeObjectURL(fileToRemove.preview);
+      }
 
-        const newFiles = prev.files.filter((file) => file.id !== id);
-        onFilesChange?.(newFiles);
-
-        return {
-          ...prev,
-          files: newFiles,
-          errors: [],
-        };
-      });
-    },
-    [onFilesChange],
-  );
+      const newFiles = prev.files.filter((file) => file.id !== id);
+      return {
+        ...prev,
+        files: newFiles,
+        errors: [],
+      };
+    });
+  }, []);
 
   const clearErrors = useCallback(() => {
     setState((prev) => ({

@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
+import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { PrivateFileUpload } from "./PrivateFileUpload";
@@ -12,6 +13,46 @@ const labels = {
 };
 
 describe("PrivateFileUpload", () => {
+  it("can update parent file state without triggering a render-phase update", () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    function Parent() {
+      const [file, setFile] = useState<File | null>(null);
+      return (
+        <>
+          <PrivateFileUpload
+            accept="*"
+            maxSize={1024}
+            resetKey={0}
+            labels={labels}
+            onFileChange={setFile}
+          />
+          <output>{file?.name}</output>
+        </>
+      );
+    }
+
+    render(<Parent />);
+    fireEvent.change(screen.getByLabelText(labels.browse), {
+      target: {
+        files: [
+          new File(["private"], "approved.pdf", {
+            type: "application/pdf",
+          }),
+        ],
+      },
+    });
+    expect(document.querySelector("output")).toHaveTextContent("approved.pdf");
+
+    fireEvent.click(screen.getByRole("button", { name: labels.remove }));
+
+    const errors = consoleError.mock.calls.flat().join(" ");
+    consoleError.mockRestore();
+    expect(document.querySelector("output")).toBeEmptyDOMElement();
+    expect(errors).not.toContain("Cannot update a component");
+  });
+
   it("opens the file picker from the whole empty drop zone without a nested browse button", () => {
     const inputClick = vi.spyOn(HTMLInputElement.prototype, "click");
     render(
