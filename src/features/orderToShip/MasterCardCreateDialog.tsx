@@ -178,13 +178,11 @@ function MasterCardAssetUploads({
     <div className="space-y-4">
       <AssetUpload
         title={t("productImage")}
-        detail={t("productImageDetail")}
         kind="PHOTO"
         onChange={photoChange}
       />
       <AssetUpload
         title={t("drawingFile")}
-        detail={t("drawingFileDetail")}
         kind="DIELINE"
         onChange={drawingChange}
       />
@@ -194,12 +192,10 @@ function MasterCardAssetUploads({
 
 function AssetUpload({
   title,
-  detail,
   kind,
   onChange,
 }: {
   readonly title: string;
-  readonly detail: string;
   readonly kind: "PHOTO" | "DIELINE";
   readonly onChange: (file: File | null) => void;
 }) {
@@ -207,7 +203,6 @@ function AssetUpload({
   return (
     <section className="rounded-xl border border-border bg-surface p-4 shadow-sm">
       <h3 className="font-semibold text-text">{title}</h3>
-      <p className="mt-1 text-sm text-muted">{detail}</p>
       <div className="mt-4">
         <PrivateFileUpload
           accept={acceptedTypesFor(kind)}
