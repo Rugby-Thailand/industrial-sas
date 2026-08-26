@@ -92,7 +92,12 @@ function PrivateFileUploadState({
           tabIndex={-1}
         />
         {selected === undefined ? (
-          <div className="flex min-h-52 flex-col items-center justify-center gap-4 p-6 text-center">
+          <button
+            type="button"
+            disabled={disabled}
+            className="flex min-h-52 w-full cursor-pointer flex-col items-center justify-center gap-4 rounded-xl p-6 text-center transition-colors hover:bg-primary/5 focus-visible:ring-3 focus-visible:ring-primary/25 focus-visible:outline-none disabled:cursor-not-allowed"
+            onClick={actions.openFileDialog}
+          >
             <div className="rounded-full bg-primary/10 p-4 text-primary">
               <CloudUploadIcon aria-hidden="true" className="size-8" />
             </div>
@@ -104,16 +109,10 @@ function PrivateFileUploadState({
                 </p>
               ) : null}
             </div>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={disabled}
-              onClick={actions.openFileDialog}
-            >
-              <UploadIcon aria-hidden="true" className="size-4" />
+            <span className="text-sm font-medium text-primary">
               {labels.browse}
-            </Button>
-          </div>
+            </span>
+          </button>
         ) : (
           <div className="relative min-h-52">
             {selectedIsImage && selected.preview !== undefined ? (

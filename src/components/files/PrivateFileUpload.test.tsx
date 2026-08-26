@@ -12,6 +12,29 @@ const labels = {
 };
 
 describe("PrivateFileUpload", () => {
+  it("opens the file picker from the whole empty drop zone without a nested browse button", () => {
+    const inputClick = vi.spyOn(HTMLInputElement.prototype, "click");
+    render(
+      <PrivateFileUpload
+        accept="*"
+        maxSize={1024}
+        resetKey={0}
+        labels={labels}
+        onFileChange={vi.fn()}
+      />,
+    );
+
+    const dropZone = screen.getByRole("button", {
+      name: `${labels.drop} ${labels.limit} ${labels.browse}`,
+    });
+    expect(dropZone).toContainElement(screen.getByText(labels.browse));
+
+    fireEvent.click(dropZone);
+
+    expect(inputClick).toHaveBeenCalledOnce();
+    inputClick.mockRestore();
+  });
+
   it("offers an accessible file input and reports the selected file", () => {
     const onFileChange = vi.fn();
     render(
