@@ -13,6 +13,7 @@ export function OrderIntakeForm({
   const t = useTranslations("OrderToShip");
   return (
     <EntityWriteForm
+      presentation="inline"
       mutationRef={createCustomerOrderRef}
       legend={t("newOrder")}
       description={t("newOrderDetail")}

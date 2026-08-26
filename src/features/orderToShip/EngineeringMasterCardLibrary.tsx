@@ -12,8 +12,6 @@ import { Input } from "@/components/ui/input";
 import { SelectControl } from "@/components/ui/SelectControl";
 import { MasterDataPanel } from "@/features/masterData/MasterDataPanel";
 import {
-  attachMasterCardFileRef,
-  authorizeMasterCardFileUploadRef,
   listMasterCardFilesRef,
   listMasterCardRevisionsRef,
   listMasterCardsRef,
@@ -22,16 +20,14 @@ import {
   type MasterCardRevisionRow,
   type MasterCardRow,
 } from "@/lib/convex/orderToShipApi";
-import { newRequestId } from "@/lib/convex/writeState";
 import {
   acceptedTypesFor,
   maximumInputBytesFor,
-  optimizeUpload,
 } from "@/lib/files/optimizeUpload";
-import { useUploadThing } from "@/lib/uploadthing/client";
 
 import { EngineeringWorkflowActions } from "./WorkflowActionForms";
 import { MasterCardRevisionDraftForm } from "./MasterCardDraftForm";
+import { useMasterCardFileUpload } from "./useMasterCardFileUpload";
 
 const PAGE_SIZE = 20;
 
@@ -292,74 +288,38 @@ function RevisionFiles({
     masterCardRevisionId: revisionId,
     maxPageSize: 20,
   });
-  const authorize = useMutation(authorizeMasterCardFileUploadRef);
-  const attach = useMutation(attachMasterCardFileRef);
   const [fileKey, setFileKey] = useState("DIELINE-1");
   const [kind, setKind] = useState<"DIELINE" | "ARTWORK" | "PHOTO" | "OTHER">(
     "DIELINE",
   );
   const [selected, setSelected] = useState<File | null>(null);
   const [notice, setNotice] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [progress, setProgress] = useState(0);
   const [resetKey, setResetKey] = useState(0);
   const kindControlId = `master-card-file-kind-${revisionId}`;
-  const { startUpload, isUploading } = useUploadThing("masterCardFile", {
-    onUploadProgress: setProgress,
-  });
+  const { upload: uploadFile, busy, progress } = useMasterCardFileUpload();
 
   const upload = async () => {
     if (selected === null || fileKey.trim().length === 0 || busy) return;
-    setBusy(true);
-    setProgress(0);
     setNotice(kind === "PHOTO" ? t("optimizingFile") : t("uploadingFile"));
     try {
-      const prepared = await optimizeUpload(selected, kind);
-      setNotice(
-        prepared.optimized
-          ? t("fileOptimized", {
-              before: formatFileSize(prepared.originalBytes),
-              after: formatFileSize(prepared.file.size),
-            })
-          : t("uploadingFile"),
-      );
-      const authorization = await authorize({
-        masterCardRevisionId: revisionId,
-        transport: "UPLOADTHING",
-      });
-      if (!authorization.ok || !("uploadGrantId" in authorization.value)) {
-        throw new Error("UPLOAD_AUTHORIZATION_REFUSED");
-      }
-      const uploads = await startUpload([prepared.file], {
-        grantId: authorization.value.uploadGrantId,
-        contentDigest: prepared.contentDigest,
-      });
-      const verified = uploads?.[0]?.serverData;
-      if (verified === null || verified === undefined) {
-        throw new Error("UPLOAD_VERIFICATION_FAILED");
-      }
-      const attached = await attach({
-        requestId: newRequestId(),
+      const prepared = await uploadFile({
         masterCardRevisionId: revisionId,
         fileKey: fileKey.trim(),
-        fileName: prepared.file.name,
         kind,
-        contentType: verified.contentType,
-        byteSize: verified.byteSize,
-        contentDigest: verified.contentDigest,
-        uploadThingKey: verified.providerKey,
-        uploadGrantId: authorization.value.uploadGrantId,
+        file: selected,
       });
-      if (!attached.ok || !attached.value.written) {
-        throw new Error("ATTACH_FAILED");
-      }
-      setNotice(t("fileAttached"));
+      setNotice(
+        prepared.optimized
+          ? t("fileOptimizedAttached", {
+              before: formatFileSize(prepared.originalBytes),
+              after: formatFileSize(prepared.uploadedBytes),
+            })
+          : t("fileAttached"),
+      );
       setSelected(null);
       setResetKey((current) => current + 1);
     } catch {
       setNotice(t("fileUploadFailed"));
-    } finally {
-      setBusy(false);
     }
   };
 
@@ -398,7 +358,7 @@ function RevisionFiles({
               <PrivateFileUpload
                 accept={acceptedTypesFor(kind)}
                 maxSize={maximumInputBytesFor(kind)}
-                disabled={busy || isUploading}
+                disabled={busy}
                 resetKey={resetKey}
                 labels={{
                   drop: t("dropPrivateFile"),
@@ -416,13 +376,13 @@ function RevisionFiles({
           <div className="mt-3 flex flex-wrap items-center gap-3">
             <Button
               type="button"
-              disabled={busy || isUploading || selected === null}
+              disabled={busy || selected === null}
               onClick={() => void upload()}
             >
               {t("uploadAndAttach")}
             </Button>
             <span role="status" className="text-sm text-muted">
-              {isUploading && progress > 0
+              {busy && progress > 0
                 ? `${notice} ${Math.round(progress)}%`
                 : notice}
             </span>

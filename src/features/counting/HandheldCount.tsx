@@ -98,6 +98,7 @@ function CountQueue({
         <Notice tone="muted" title={t("queueEmpty")} />
       ) : (
         <EntityWriteForm
+          presentation="inline"
           mutationRef={startCountTaskRef}
           legend={t("queueTitle")}
           submitLabel={t("startTask")}
@@ -218,6 +219,7 @@ function CountTaskBody({
           : { body: String(systemSnapshotBaseMinorUnits) })}
       />
       <EntityWriteForm
+        presentation="inline"
         mutationRef={captureCountTaskEntryRef}
         legend={t("countTitle")}
         submitLabel={t("saveCount")}
@@ -250,6 +252,7 @@ function CountTaskBody({
       />
       {!captured ? null : (
         <EntityWriteForm
+          presentation="inline"
           mutationRef={submitCountTaskRef}
           legend={t("submitCount")}
           submitLabel={t("submitCount")}

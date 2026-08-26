@@ -33,7 +33,7 @@ import { ROUTES } from "@/lib/navigation";
 import type { AppLocale } from "@/i18n/routing";
 import { formatCount, formatInstant } from "@/lib/formatters";
 import { StatusBadge, type BadgeTone } from "@/components/ui/StatusBadge";
-import { MasterCardDraftForm } from "./MasterCardDraftForm";
+import { MasterCardCreateSheet } from "./MasterCardCreateSheet";
 import { OrderIntakeForm } from "./OrderIntakeForm";
 import { EngineeringMasterCardLibrary } from "./EngineeringMasterCardLibrary";
 import { FactoryFileButton } from "./FactoryFileButton";
@@ -299,8 +299,8 @@ function EngineeringQueue() {
     <QueueSection
       title={t("engineeringQueue")}
       description={t("engineeringQueueDetail")}
+      action={<MasterCardCreateSheet />}
     >
-      <MasterCardDraftForm />
       <MasterDataPanel<
         DesignRequestRow,
         {

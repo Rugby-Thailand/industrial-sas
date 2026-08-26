@@ -66,6 +66,7 @@ export interface EntityFormProps {
   readonly resetSignal?: number;
   readonly onSubmit: (values: FormValues) => void;
   readonly testId?: string;
+  readonly legendPresentation?: "visible" | "sr-only";
 }
 
 const initialValues = (fields: readonly FormFieldSpec[]): FormValues =>
@@ -85,6 +86,7 @@ export function EntityForm({
   resetSignal = 0,
   onSubmit,
   testId,
+  legendPresentation = "visible",
 }: EntityFormProps) {
   const t = useTranslations("Write");
   const formId = useId();
@@ -245,7 +247,11 @@ export function EntityForm({
         <FieldLegend
           variant="label"
           className={
-            description === undefined ? "text-text" : "pr-10 text-text"
+            legendPresentation === "sr-only"
+              ? "sr-only"
+              : description === undefined
+                ? "text-text"
+                : "pr-10 text-text"
           }
         >
           {legend}

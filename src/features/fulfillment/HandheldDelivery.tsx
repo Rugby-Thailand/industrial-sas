@@ -147,6 +147,7 @@ function DeliveryWorkspace({
       </h2>
       {shipment?.status === "DELIVERY_FAILED" ? (
         <EntityWriteForm
+          presentation="inline"
           mutationRef={returnFailedShipmentToWarehouseRef}
           legend={t("returnTitle")}
           description={t("returnHelp")}
@@ -189,6 +190,7 @@ function DeliveryWorkspace({
       )}
       {shipment?.status !== "IN_TRANSIT" ? null : (
         <EntityWriteForm
+          presentation="inline"
           mutationRef={recordFailedDeliveryRef}
           legend={t("failedDeliveryTitle")}
           description={t("failedDeliveryHelp")}

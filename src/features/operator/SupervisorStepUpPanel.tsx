@@ -116,6 +116,7 @@ export function SupervisorStepUpPanel({
           />
         ) : (
           <EntityWriteForm
+            presentation="inline"
             testId="form-step-up-approval"
             mutationRef={approveOnDeviceRef}
             legend={t("legend")}

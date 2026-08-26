@@ -149,6 +149,7 @@ function TripNextAction({
   if (trip.status === "READY_TO_LOAD")
     return (
       <EntityWriteForm
+        presentation="inline"
         mutationRef={startTripLoadingRef}
         legend={t("startLoading")}
         description={t("startLoadingHelp")}
@@ -162,6 +163,7 @@ function TripNextAction({
     return (
       <div className="flex flex-col gap-5">
         <EntityWriteForm
+          presentation="inline"
           mutationRef={scanPackageLoadedRef}
           legend={t("scanPackage")}
           description={t("scanPackageHelp")}
@@ -184,6 +186,7 @@ function TripNextAction({
           })}
         />
         <EntityWriteForm
+          presentation="inline"
           mutationRef={sealTripRef}
           legend={t("sealTrip")}
           description={t("sealHelp")}
@@ -210,6 +213,7 @@ function TripNextAction({
   if (trip.status === "SEALED")
     return (
       <EntityWriteForm
+        presentation="inline"
         mutationRef={gateOutRef}
         legend={t("gateOut")}
         description={t("gateHelp")}
@@ -234,6 +238,7 @@ function TripNextAction({
     );
   return (
     <EntityWriteForm
+      presentation="inline"
       mutationRef={departTripRef}
       legend={t("depart")}
       description={t("departHelp")}

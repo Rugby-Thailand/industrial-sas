@@ -105,6 +105,7 @@ function PickQueue({
     return <Notice tone="muted" title={t("pickQueueEmpty")} />;
   return (
     <EntityWriteForm
+      presentation="inline"
       mutationRef={startPickTaskRef}
       legend={t("pickQueue")}
       description={t("pickQueueHelp")}
@@ -248,6 +249,7 @@ function PickTaskBody({
             ) : (
               <div className="mt-4">
                 <EntityWriteForm
+                  presentation="inline"
                   mutationRef={recordPickEventRef}
                   legend={t("recordPick")}
                   submitLabel={t("confirmEvidence")}
@@ -331,6 +333,7 @@ function PickTaskBody({
       })}
       {!complete ? null : (
         <EntityWriteForm
+          presentation="inline"
           mutationRef={submitPickTaskRef}
           legend={t("submitPick")}
           description={t("submitPickHelp")}

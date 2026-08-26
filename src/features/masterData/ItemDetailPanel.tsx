@@ -26,6 +26,7 @@ import {
   LotForm,
   PanelSection,
 } from "./EntityPanels";
+import { WriteDialog } from "./WriteDialog";
 
 export function ItemDetailPanel({ itemId }: { readonly itemId: string }) {
   return (
@@ -118,17 +119,45 @@ function ItemDetailBody({ item }: { readonly item: ItemRow }) {
         </div>
       ) : null}
 
-      <PanelSection title={t("sectionBarcodes")}>
+      <PanelSection
+        title={t("sectionBarcodes")}
+        action={
+          <WriteDialog
+            triggerLabel={t("barcodeFormLegend")}
+            closeLabel={t("closeForm")}
+          >
+            <BarcodeForm itemId={item.itemId} />
+          </WriteDialog>
+        }
+      >
         <ItemBarcodesPanel itemId={item.itemId} />
-        <BarcodeForm itemId={item.itemId} />
       </PanelSection>
 
-      <PanelSection title={t("sectionUoms")}>
+      <PanelSection
+        title={t("sectionUoms")}
+        action={
+          <WriteDialog
+            triggerLabel={t("uomFormLegend")}
+            closeLabel={t("closeForm")}
+          >
+            <ItemUomForm itemId={item.itemId} baseUom={item.baseUom} />
+          </WriteDialog>
+        }
+      >
         <ItemUomsPanel itemId={item.itemId} baseUom={item.baseUom} />
-        <ItemUomForm itemId={item.itemId} baseUom={item.baseUom} />
       </PanelSection>
 
-      <PanelSection title={t("sectionLots")}>
+      <PanelSection
+        title={t("sectionLots")}
+        action={
+          <WriteDialog
+            triggerLabel={t("lotFormLegend")}
+            closeLabel={t("closeForm")}
+          >
+            <LotForm itemId={item.itemId} />
+          </WriteDialog>
+        }
+      >
         <ItemLotsPanel itemId={item.itemId} />
         {/*
          * The lot form is offered whatever the tracking mode. An item tracked as
@@ -136,11 +165,22 @@ function ItemDetailBody({ item }: { readonly item: ItemRow }) {
          * that teaches the rule; hiding the form would leave an operator
          * wondering whether the feature exists.
          */}
-        <LotForm itemId={item.itemId} />
       </PanelSection>
 
-      <PanelSection title={t("sectionEdit")}>
-        <ItemEditForm item={item} />
+      <PanelSection
+        title={t("sectionEdit")}
+        action={
+          <WriteDialog
+            triggerLabel={t("itemEditLegend")}
+            closeLabel={t("closeForm")}
+            showPlus={false}
+            triggerVariant="outline"
+          >
+            <ItemEditForm item={item} />
+          </WriteDialog>
+        }
+      >
+        <Notice tone="muted" title={t("itemEditDescription")} />
       </PanelSection>
     </div>
   );

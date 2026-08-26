@@ -1,12 +1,10 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
 
-import { Notice } from "@/components/ui/Notice";
-import { PageHeader } from "@/components/ui/PageHeader";
 import {
-  PanelSection,
   SupplierForm,
   SuppliersPanel,
 } from "@/features/masterData/EntityPanels";
+import { MasterDataCreateLayout } from "@/features/masterData/MasterDataCreateLayout";
 
 export default async function SuppliersPage({
   params,
@@ -18,20 +16,15 @@ export default async function SuppliersPage({
   const t = await getTranslations("MasterData");
 
   return (
-    <>
-      <PageHeader
-        title={t("suppliersTitle")}
-        description={t("suppliersDescription")}
-      />
-      <div className="mb-6">
-        <Notice tone="muted" title={t("maintainNotice")} />
-      </div>
-      <PanelSection title={t("sectionRegister")}>
-        <SuppliersPanel />
-      </PanelSection>
-      <PanelSection title={t("sectionAdd")}>
-        <SupplierForm />
-      </PanelSection>
-    </>
+    <MasterDataCreateLayout
+      title={t("suppliersTitle")}
+      description={t("suppliersDescription")}
+      notice={t("maintainNotice")}
+      registerTitle={t("sectionRegister")}
+      createLabel={t("supplierFormLegend")}
+      closeLabel={t("closeForm")}
+      register={<SuppliersPanel />}
+      form={<SupplierForm />}
+    />
   );
 }

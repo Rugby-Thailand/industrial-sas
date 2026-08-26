@@ -34,6 +34,7 @@ import { Input } from "@/components/ui/input";
 import { Notice } from "@/components/ui/Notice";
 import { SelectControl } from "@/components/ui/SelectControl";
 import { RowWriteRegion } from "@/features/masterData/RowWriteRegion";
+import { WriteDialog } from "@/features/masterData/WriteDialog";
 import {
   createCountPlanRef,
   releaseCountPlanRef,
@@ -58,10 +59,23 @@ import {
 import { describeBucketKey } from "@/lib/inventory/bucketIdentity";
 
 export function CountPlanBuilder() {
+  const t = useTranslations("Count");
+  const writeT = useTranslations("Write");
   return (
-    <QueryGate scope="WAREHOUSE">
-      {(warehouseId) => <ServerCountPlanBuilder warehouseId={warehouseId} />}
-    </QueryGate>
+    <div className="flex justify-end">
+      <WriteDialog
+        triggerLabel={t("planLegend")}
+        closeLabel={writeT("closeForm")}
+        size="wide"
+        testId="count-plan-dialog"
+      >
+        <QueryGate scope="WAREHOUSE">
+          {(warehouseId) => (
+            <ServerCountPlanBuilder warehouseId={warehouseId} />
+          )}
+        </QueryGate>
+      </WriteDialog>
+    </div>
   );
 }
 

@@ -60,6 +60,7 @@ export function TaskExceptionSheet({
           >
             {(reasons) => (
               <EntityWriteForm
+                presentation="inline"
                 testId="form-task-exception-report"
                 mutationRef={reportTaskExceptionRef}
                 legend={t("exceptionReportLegend")}
@@ -238,6 +239,7 @@ function ExceptionList({
           {row.status === "OPEN" && canResolve ? (
             <div className="mt-5 border-t border-border pt-4">
               <EntityWriteForm
+                presentation="inline"
                 testId={`form-task-exception-resolve-${row.operatorTaskExceptionId}`}
                 mutationRef={resolveTaskExceptionRef}
                 legend={t("exceptionResolveLegend")}

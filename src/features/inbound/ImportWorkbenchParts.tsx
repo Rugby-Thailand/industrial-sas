@@ -43,6 +43,7 @@ export function ImportChunkForm({
     >
       {(orders) => (
         <EntityWriteForm
+          presentation="inline"
           testId="form-import-chunk"
           mutationRef={applyPurchaseOrderImportChunkRef}
           legend={t("importApplyLegend")}

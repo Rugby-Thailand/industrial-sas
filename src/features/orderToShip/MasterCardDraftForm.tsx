@@ -239,7 +239,11 @@ const specificationOf = (values: FormValues): BoxSpecification => {
   };
 };
 
-export function MasterCardDraftForm() {
+export function MasterCardDraftForm({
+  onSaved,
+}: {
+  readonly onSaved?: (outcome: Record<string, unknown>) => void;
+} = {}) {
   const t = useTranslations("OrderToShip");
   const fields: readonly FormFieldSpec[] = [
     {
@@ -272,6 +276,7 @@ export function MasterCardDraftForm() {
       submitLabel={t("saveMasterCard")}
       requiredMessage={t("requiredField")}
       testId="master-card-editor"
+      {...(onSaved === undefined ? {} : { onSaved })}
       fields={fields}
       toArgs={(values, requestId) => ({
         requestId,

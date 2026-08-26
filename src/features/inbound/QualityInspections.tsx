@@ -76,6 +76,7 @@ export function DispositionForm({
         <WithWarehouse
           render={(warehouseId) => (
             <EntityWriteForm
+              presentation="inline"
               testId="form-disposition"
               mutationRef={submitDispositionRef}
               legend={t("dispositionLegend")}

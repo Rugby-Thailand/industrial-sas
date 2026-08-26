@@ -529,14 +529,19 @@ export function LotForm({ itemId }: { readonly itemId: string }) {
 
 export function PanelSection({
   title,
+  action,
   children,
 }: {
   readonly title: string;
+  readonly action?: ReactNode;
   readonly children: ReactNode;
 }) {
   return (
     <section className="mb-8 flex flex-col gap-4">
-      <h2 className="text-lg font-semibold text-text">{title}</h2>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-lg font-semibold text-text">{title}</h2>
+        {action}
+      </div>
       {children}
     </section>
   );

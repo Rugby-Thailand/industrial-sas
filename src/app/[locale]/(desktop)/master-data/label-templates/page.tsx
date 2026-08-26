@@ -1,12 +1,10 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
 
-import { Notice } from "@/components/ui/Notice";
-import { PageHeader } from "@/components/ui/PageHeader";
 import {
   LabelTemplateForm,
   LabelTemplatesPanel,
-  PanelSection,
 } from "@/features/masterData/EntityPanels";
+import { MasterDataCreateLayout } from "@/features/masterData/MasterDataCreateLayout";
 
 export default async function LabelTemplatesPage({
   params,
@@ -18,20 +16,15 @@ export default async function LabelTemplatesPage({
   const t = await getTranslations("MasterData");
 
   return (
-    <>
-      <PageHeader
-        title={t("labelTemplatesTitle")}
-        description={t("labelTemplatesDescription")}
-      />
-      <div className="mb-6">
-        <Notice tone="muted" title={t("maintainNotice")} />
-      </div>
-      <PanelSection title={t("sectionRegister")}>
-        <LabelTemplatesPanel />
-      </PanelSection>
-      <PanelSection title={t("sectionAdd")}>
-        <LabelTemplateForm />
-      </PanelSection>
-    </>
+    <MasterDataCreateLayout
+      title={t("labelTemplatesTitle")}
+      description={t("labelTemplatesDescription")}
+      notice={t("maintainNotice")}
+      registerTitle={t("sectionRegister")}
+      createLabel={t("templateFormLegend")}
+      closeLabel={t("closeForm")}
+      register={<LabelTemplatesPanel />}
+      form={<LabelTemplateForm />}
+    />
   );
 }

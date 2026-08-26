@@ -1,4 +1,5 @@
 import { screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -104,6 +105,22 @@ describe("LocationForm preconditions", () => {
 });
 
 describe("a configured deployment", () => {
+  it("keeps a write form behind the shared dialog action by default", async () => {
+    const user = userEvent.setup();
+    supplierForm(configuredEnvironment);
+
+    expect(
+      screen.queryByRole("button", { name: "บันทึก" }),
+    ).not.toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: "เพิ่มผู้จัดจำหน่าย" }),
+    );
+
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "บันทึก" })).toBeInTheDocument();
+  });
+
   it("is what the form waits for before it will send a mutation", () => {
     expect(configuredEnvironment.backendConfigured).toBe(true);
     expect(configuredEnvironment.identityConfigured).toBe(true);

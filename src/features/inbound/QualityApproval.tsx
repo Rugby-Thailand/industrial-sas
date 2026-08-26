@@ -38,6 +38,7 @@ export function ApproveDispositionControl() {
       >
         {(pending) => (
           <EntityWriteForm
+            presentation="inline"
             testId="form-approve-disposition"
             mutationRef={approveDispositionRef}
             legend={t("approveLegend")}

@@ -107,6 +107,7 @@ export function ConfirmPutawayForm({
         <WithWarehouse
           render={(warehouseId) => (
             <EntityWriteForm
+              presentation="inline"
               testId="form-confirm-putaway"
               mutationRef={confirmPutawayRef}
               legend={t("confirmLegend")}

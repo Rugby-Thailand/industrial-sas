@@ -140,6 +140,7 @@ function CatalogueContent({ warehouseId }: { readonly warehouseId: string }) {
         action={
           <Button asChild>
             <Link href={`${ROUTES.storageLayouts}/new`}>
+              <Plus aria-hidden="true" className="size-4" />
               {t("newBuilding")}
             </Link>
           </Button>
@@ -156,33 +157,12 @@ function CatalogueContent({ warehouseId }: { readonly warehouseId: string }) {
   );
   return (
     <div className="space-y-5">
-      <div className="flex flex-col gap-3 rounded-xl border border-border bg-surface p-4 shadow-sm sm:flex-row">
-        <label className="relative min-w-0 flex-1">
-          <span className="sr-only">{t("search")}</span>
-          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted" />
-          <Input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder={t("search")}
-            className="pl-10"
-          />
-        </label>
-        <SelectControl
-          value={status}
-          onValueChange={(value) =>
-            setStatus(value as StorageLayoutStatus | "ALL")
-          }
-          options={[
-            { value: "ALL", label: t("allStatuses") },
-            { value: "DRAFT", label: t("draft") },
-            { value: "ACTIVE", label: t("active") },
-            { value: "ARCHIVED", label: t("archived") },
-          ]}
-          placeholder={t("statusFilter")}
-          emptyLabel={t("allStatuses")}
-          label={t("statusFilter")}
-        />
-      </div>
+      <StorageCatalogueFilters
+        search={search}
+        status={status}
+        onSearchChange={setSearch}
+        onStatusChange={setStatus}
+      />
       {buildings.length === 0 ? (
         <EmptyState title={t("noMatches")} body={t("noMatchesBody")} />
       ) : (
@@ -232,6 +212,53 @@ function CatalogueContent({ warehouseId }: { readonly warehouseId: string }) {
         tone="muted"
         title={t("planningNotice")}
         body={t("planningNoticeBody")}
+      />
+    </div>
+  );
+}
+
+export function StorageCatalogueFilters({
+  search,
+  status,
+  onSearchChange,
+  onStatusChange,
+}: {
+  readonly search: string;
+  readonly status: StorageLayoutStatus | "ALL";
+  readonly onSearchChange: (value: string) => void;
+  readonly onStatusChange: (value: StorageLayoutStatus | "ALL") => void;
+}) {
+  const t = useTranslations("StorageLayouts");
+
+  return (
+    <div
+      data-testid="storage-catalogue-filters"
+      className="grid gap-3 rounded-xl border border-border bg-surface p-4 shadow-sm sm:grid-cols-[minmax(0,1fr)_14rem]"
+    >
+      <label className="relative min-w-0">
+        <span className="sr-only">{t("search")}</span>
+        <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted" />
+        <Input
+          value={search}
+          onChange={(event) => onSearchChange(event.target.value)}
+          placeholder={t("search")}
+          className="pl-10"
+        />
+      </label>
+      <SelectControl
+        value={status}
+        onValueChange={(value) =>
+          onStatusChange(value as StorageLayoutStatus | "ALL")
+        }
+        options={[
+          { value: "ALL", label: t("allStatuses") },
+          { value: "DRAFT", label: t("draft") },
+          { value: "ACTIVE", label: t("active") },
+          { value: "ARCHIVED", label: t("archived") },
+        ]}
+        placeholder={t("statusFilter")}
+        emptyLabel={t("allStatuses")}
+        label={t("statusFilter")}
       />
     </div>
   );

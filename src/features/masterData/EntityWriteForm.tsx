@@ -2,6 +2,7 @@
 
 import { useMutation } from "convex/react";
 import type { FunctionReference } from "convex/server";
+import { useTranslations } from "next-intl";
 import { useRef, useState, type ReactNode } from "react";
 
 import {
@@ -25,6 +26,8 @@ import {
   type WriteState,
 } from "@/lib/convex/writeState";
 
+import { WriteDialog, useWriteSurface } from "./WriteDialog";
+
 export type WriteRef<Args extends Record<string, unknown>> = FunctionReference<
   "mutation",
   "public",
@@ -44,6 +47,10 @@ export interface EntityWriteFormProps<Args extends Record<string, unknown>> {
 
   readonly onSaved?: (outcome: Record<string, unknown>) => void;
   readonly testId?: string;
+  readonly presentation?: "auto" | "inline";
+  readonly dialogSurface?: "dialog" | "sheet";
+  readonly dialogSize?: "compact" | "wide" | "workspace";
+  readonly dialogIntent?: "create" | "action";
 }
 
 export function EntityWriteForm<Args extends Record<string, unknown>>(
@@ -51,9 +58,30 @@ export function EntityWriteForm<Args extends Record<string, unknown>>(
 ): ReactNode {
   const environment = useAppEnvironment();
   const gate = resolveWriteGate(environment);
+  const writeSurface = useWriteSurface();
+  const writeT = useTranslations("Write");
 
   if (gate.kind === "BACKEND_MISSING" || gate.kind === "SIGN_IN_REQUIRED") {
     return <LedgerPanelStatus state={{ kind: gate.kind }} />;
+  }
+  if (props.presentation !== "inline" && writeSurface === null) {
+    return (
+      <WriteDialog
+        triggerLabel={props.legend}
+        title={props.legend}
+        {...(props.description === undefined
+          ? {}
+          : { description: props.description })}
+        closeLabel={writeT("closeForm")}
+        surface={props.dialogSurface ?? "dialog"}
+        size={props.dialogSize ?? "compact"}
+        showPlus={props.dialogIntent === "create"}
+        triggerVariant={props.dialogIntent === "create" ? "default" : "outline"}
+        {...(props.testId === undefined ? {} : { testId: props.testId })}
+      >
+        <ServerWriteForm {...props} />
+      </WriteDialog>
+    );
   }
   return <ServerWriteForm {...props} />;
 }
@@ -69,6 +97,7 @@ function ServerWriteForm<Args extends Record<string, unknown>>({
   onSaved,
   testId,
 }: EntityWriteFormProps<Args>) {
+  const writeSurface = useWriteSurface();
   // Keep the cast at this boundary; Convex cannot resolve the open generic.
   const mutate = useMutation(
     mutationRef as unknown as FunctionReference<
@@ -99,6 +128,7 @@ function ServerWriteForm<Args extends Record<string, unknown>>({
         if (next.kind === "SAVED") {
           setResetSignal((current) => current + 1);
           onSaved?.(outcome as unknown as Record<string, unknown>);
+          if (writeSurface?.closeOnSaved === true) writeSurface.complete();
         }
       },
       (failure: unknown) => {
@@ -121,6 +151,7 @@ function ServerWriteForm<Args extends Record<string, unknown>>({
       {...(blamed === undefined ? {} : { invalidField: blamed })}
       outcome={<WriteOutcomeNotice state={state} />}
       resetSignal={resetSignal}
+      legendPresentation={writeSurface?.embedded ? "sr-only" : "visible"}
       onSubmit={submit}
       {...(testId === undefined ? {} : { testId })}
     />

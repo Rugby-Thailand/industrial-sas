@@ -74,6 +74,7 @@ export function PurchaseOrderForm() {
         <WithWarehouse
           render={(warehouseId) => (
             <EntityWriteForm
+              presentation="inline"
               testId="form-purchase-order"
               mutationRef={createPurchaseOrderRef}
               legend={t("formLegend")}
@@ -146,6 +147,7 @@ export function PurchaseOrderLineForm({
         <WithWarehouse
           render={(warehouseId) => (
             <EntityWriteForm
+              presentation="inline"
               testId="form-order-line"
               mutationRef={addPurchaseOrderLineRef}
               legend={t("lineFormLegend")}
@@ -214,6 +216,7 @@ export function CloseLineShortForm({
         <WithWarehouse
           render={(warehouseId) => (
             <EntityWriteForm
+              presentation="inline"
               testId="form-close-short"
               mutationRef={closeLineShortRef}
               legend={t("closeShort")}
@@ -306,6 +309,7 @@ function OpenReceiptFormBody({
     <WithWarehouse
       render={(warehouseId) => (
         <EntityWriteForm
+          presentation="inline"
           testId="form-open-receipt"
           mutationRef={openReceiptRef}
           legend={t("openFormLegend")}
@@ -444,6 +448,7 @@ function ReceiptLineFormBody({
       <WithWarehouse
         render={(warehouseId) => (
           <EntityWriteForm
+            presentation="inline"
             key={scannedLine?.purchaseOrderLineId ?? "manual"}
             testId="form-receipt-line"
             mutationRef={postReceiptLineRef}
@@ -540,6 +545,7 @@ export function ReceivingExceptionForm() {
         <WithWarehouse
           render={(warehouseId) => (
             <EntityWriteForm
+              presentation="inline"
               testId="form-receiving-exception"
               mutationRef={raiseReceivingExceptionRef}
               legend={t("exceptionLegend")}
@@ -609,6 +615,7 @@ export function BuildPalletForm({
     <WithWarehouse
       render={(warehouseId) => (
         <EntityWriteForm
+          presentation="inline"
           testId="form-build-pallet"
           mutationRef={buildHandlingUnitRef}
           legend={t("palletLegend")}
@@ -676,6 +683,7 @@ export function LabelForm({
           <WithWarehouse
             render={(warehouseId) => (
               <EntityWriteForm
+                presentation="inline"
                 key={reprint ? "reprint" : "initial"}
                 testId="form-label"
                 mutationRef={reprint ? reprintLabelRef : generateLabelRef}

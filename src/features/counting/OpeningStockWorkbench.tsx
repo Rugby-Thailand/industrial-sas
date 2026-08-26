@@ -48,6 +48,7 @@ function OpeningJourney({
     <div className="flex flex-col gap-6">
       {preview ? <Notice tone="accent" title={t("previewOnly")} /> : null}
       <EntityWriteForm
+        presentation="inline"
         mutationRef={createOpeningStockBatchRef}
         legend={t("openingLegend")}
         description={t("openingDescription")}
@@ -103,6 +104,7 @@ function OpeningJourney({
         <>
           <Notice tone="success" title={t("batchReady", { id: batchId })} />
           <EntityWriteForm
+            presentation="inline"
             mutationRef={importOpeningStockRowsRef}
             legend={t("importRow")}
             submitLabel={t("importRow")}
@@ -178,6 +180,7 @@ function OpeningJourney({
 
       {!imported || batchId === undefined ? null : (
         <EntityWriteForm
+          presentation="inline"
           mutationRef={submitOpeningStockBatchRef}
           legend={t("submitReview")}
           submitLabel={t("submitReview")}
@@ -203,6 +206,7 @@ function OpeningJourney({
 
       {!submitted || batchId === undefined ? null : (
         <EntityWriteForm
+          presentation="inline"
           mutationRef={approveOpeningStockBatchRef}
           legend={t("approve")}
           description={t("openingDescription")}
@@ -229,6 +233,7 @@ function OpeningJourney({
 
       {!approved || batchId === undefined ? null : (
         <EntityWriteForm
+          presentation="inline"
           mutationRef={postNextOpeningStockChunkRef}
           legend={t("post")}
           submitLabel={t("post")}

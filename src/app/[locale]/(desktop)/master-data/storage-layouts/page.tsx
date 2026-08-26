@@ -1,4 +1,5 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
+import { Plus } from "lucide-react";
 
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -19,7 +20,10 @@ export default async function StorageLayoutsPage({
       <div className="flex flex-wrap items-start justify-between gap-4">
         <PageHeader title={t("title")} description={t("description")} />
         <Button asChild>
-          <Link href={`${ROUTES.storageLayouts}/new`}>{t("newBuilding")}</Link>
+          <Link href={`${ROUTES.storageLayouts}/new`}>
+            <Plus aria-hidden="true" className="size-4" />
+            {t("newBuilding")}
+          </Link>
         </Button>
       </div>
       <StorageBuildingCatalogue />

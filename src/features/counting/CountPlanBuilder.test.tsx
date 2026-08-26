@@ -91,11 +91,14 @@ beforeEach(() => {
   });
 });
 
-const renderBuilder = (locale: "en" | "th" = "en") =>
-  renderWithIntl(<CountPlanBuilder />, {
+const renderBuilder = (locale: "en" | "th" = "en") => {
+  const view = renderWithIntl(<CountPlanBuilder />, {
     locale,
     environment: testEnvironment,
   });
+  fireEvent.click(screen.getByTestId("count-plan-dialog-trigger"));
+  return view;
+};
 
 const createPlan = () => {
   chooseOption(

@@ -28,9 +28,34 @@ import {
   FloorPlan,
   IsometricBuilding,
   ReservedBlocks,
+  StorageCatalogueFilters,
   StorageZoneDraftPreview,
   StorageZonesPanel,
 } from "./StorageLayoutScreens";
+
+describe("StorageCatalogueFilters", () => {
+  it("keeps search and status in distinct responsive columns", () => {
+    renderWithIntl(
+      <StorageCatalogueFilters
+        search=""
+        status="ALL"
+        onSearchChange={vi.fn()}
+        onStatusChange={vi.fn()}
+      />,
+      { locale: "en", workspace: false },
+    );
+
+    expect(
+      screen.getByRole("textbox", { name: "Search buildings" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("combobox", { name: "Filter by status" }),
+    ).toHaveTextContent("All statuses");
+    expect(screen.getByTestId("storage-catalogue-filters")).toHaveClass(
+      "sm:grid-cols-[minmax(0,1fr)_14rem]",
+    );
+  });
+});
 
 const building: StorageBuildingRow = {
   buildingId: "building-a",

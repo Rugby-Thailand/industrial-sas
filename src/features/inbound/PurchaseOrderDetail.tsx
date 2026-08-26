@@ -1,9 +1,6 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useState } from "react";
-
-import type { PurchaseOrderLineRow } from "@/lib/convex/inboundApi";
 
 import {
   CloseLineShortForm,
@@ -13,7 +10,7 @@ import {
 import { PurchaseOrderLinesPanel } from "./InboundPanels";
 import { InboundSection } from "./InboundPrimitives";
 
-import { Button } from "@/components/ui/button";
+import { WriteDialog } from "@/features/masterData/WriteDialog";
 
 export function PurchaseOrderDetail({
   purchaseOrderId,
@@ -22,10 +19,7 @@ export function PurchaseOrderDetail({
 }) {
   const t = useTranslations("Purchasing");
   const receivingT = useTranslations("Receiving");
-  const [closing, setClosing] = useState<PurchaseOrderLineRow | undefined>(
-    undefined,
-  );
-
+  const writeT = useTranslations("Write");
   return (
     <div data-testid="purchase-order-detail">
       {/*
@@ -42,33 +36,34 @@ export function PurchaseOrderDetail({
           purchaseOrderId={purchaseOrderId}
           renderAction={(row) =>
             row.status === "OPEN" ? (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setClosing(row)}
-                data-testid={`line-close-short-${row.lineNumber}`}
-                className="px-3 text-xs"
+              <WriteDialog
+                triggerLabel={t("closeShort")}
+                closeLabel={writeT("closeForm")}
+                showPlus={false}
+                triggerVariant="outline"
+                testId={`line-close-short-${row.lineNumber}`}
               >
-                {t("closeShort")}
-              </Button>
+                <CloseLineShortForm line={row} />
+              </WriteDialog>
             ) : null
           }
         />
       </InboundSection>
 
-      {closing === undefined ? null : (
-        <InboundSection title={t("closeShort")}>
-          <CloseLineShortForm line={closing} />
-        </InboundSection>
-      )}
-
-      <InboundSection title={t("lineFormLegend")}>
-        <PurchaseOrderLineForm purchaseOrderId={purchaseOrderId} />
-      </InboundSection>
-
-      <InboundSection title={receivingT("sectionOpen")}>
-        <OpenReceiptForm purchaseOrderId={purchaseOrderId} />
-      </InboundSection>
+      <div className="flex flex-wrap justify-end gap-3">
+        <WriteDialog
+          triggerLabel={t("lineFormLegend")}
+          closeLabel={writeT("closeForm")}
+        >
+          <PurchaseOrderLineForm purchaseOrderId={purchaseOrderId} />
+        </WriteDialog>
+        <WriteDialog
+          triggerLabel={receivingT("sectionOpen")}
+          closeLabel={writeT("closeForm")}
+        >
+          <OpenReceiptForm purchaseOrderId={purchaseOrderId} />
+        </WriteDialog>
+      </div>
     </div>
   );
 }
