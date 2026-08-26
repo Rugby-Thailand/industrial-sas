@@ -37,6 +37,7 @@ export function useWriteSurface(): WriteSurfaceContextValue | null {
 
 export interface WriteDialogProps {
   readonly triggerLabel: string;
+  readonly triggerIcon?: ReactNode;
   readonly title?: string;
   readonly description?: string;
   readonly closeLabel: string;
@@ -57,6 +58,7 @@ const dialogSize = {
 
 export function WriteDialog({
   triggerLabel,
+  triggerIcon,
   title = triggerLabel,
   description,
   closeLabel,
@@ -80,11 +82,19 @@ export function WriteDialog({
     <Button
       type="button"
       variant={triggerVariant}
-      className="shrink-0 gap-2"
+      size={triggerIcon === undefined ? "touch" : "icon"}
+      className="shrink-0"
+      {...(triggerIcon === undefined
+        ? {}
+        : { "aria-label": triggerLabel, title: triggerLabel })}
       {...(testId === undefined ? {} : { "data-testid": `${testId}-trigger` })}
     >
-      {showPlus ? <Plus aria-hidden="true" className="size-4" /> : null}
-      {triggerLabel}
+      {triggerIcon ?? (
+        <>
+          {showPlus ? <Plus aria-hidden="true" className="size-4" /> : null}
+          {triggerLabel}
+        </>
+      )}
     </Button>
   );
   const body = (

@@ -1,5 +1,6 @@
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { PencilLine } from "lucide-react";
 import { describe, expect, it } from "vitest";
 
 import { renderWithIntl } from "@tests/fixtures/intl-render";
@@ -57,5 +58,28 @@ describe("WriteDialog", () => {
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Add" })).toHaveFocus();
+  });
+
+  it("uses an accessible icon-only trigger when an icon is provided", async () => {
+    const user = userEvent.setup();
+    renderWithIntl(
+      <WriteDialog
+        triggerLabel="Edit"
+        triggerIcon={<PencilLine aria-hidden="true" />}
+        closeLabel="Close"
+      >
+        <div data-testid="write-content" />
+      </WriteDialog>,
+      { locale: "en", workspace: false },
+    );
+
+    const trigger = screen.getByRole("button", { name: "Edit" });
+    expect(trigger).toHaveAttribute("data-size", "icon");
+    expect(trigger).toHaveAttribute("title", "Edit");
+    expect(trigger).not.toHaveTextContent("Edit");
+    expect(trigger.querySelector("svg")).toHaveClass("lucide-pencil-line");
+
+    await user.click(trigger);
+    expect(screen.getByRole("dialog", { name: "Edit" })).toBeInTheDocument();
   });
 });

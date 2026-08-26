@@ -1,5 +1,6 @@
 "use client";
 
+import { PencilLine } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { EntityWriteForm } from "@/features/masterData/EntityWriteForm";
@@ -39,6 +40,7 @@ export function DesignRequestEditForm({
     <EntityWriteForm
       mutationRef={editDesignRequestRef}
       legend={t("editDesignRequest")}
+      triggerIcon={<PencilLine aria-hidden="true" className="size-4" />}
       description={t("editDesignRequestDetail")}
       submitLabel={t("saveDesignRequestChanges")}
       requiredMessage={t("requiredField")}

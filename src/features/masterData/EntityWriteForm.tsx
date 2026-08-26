@@ -40,6 +40,7 @@ export type WriteRef<Args extends Record<string, unknown>> = FunctionReference<
 export interface EntityWriteFormProps<Args extends Record<string, unknown>> {
   readonly mutationRef: WriteRef<Args>;
   readonly legend: string;
+  readonly triggerIcon?: ReactNode;
   readonly description?: string;
   readonly submitLabel: string;
   readonly requiredMessage: string;
@@ -71,6 +72,9 @@ export function EntityWriteForm<Args extends Record<string, unknown>>(
     return (
       <WriteDialog
         triggerLabel={props.legend}
+        {...(props.triggerIcon === undefined
+          ? {}
+          : { triggerIcon: props.triggerIcon })}
         title={props.legend}
         {...(props.description === undefined
           ? {}

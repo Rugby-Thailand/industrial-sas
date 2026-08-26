@@ -196,7 +196,11 @@ describe("OrderToShipWorkspace", () => {
     const requestNumber = screen.getByText("SO-26019-1");
     const card = requestNumber.closest("li");
     expect(card).not.toBeNull();
-    await user.click(within(card!).getByRole("button", { name: "Edit" }));
+    const edit = within(card!).getByRole("button", { name: "Edit" });
+    expect(edit).toHaveAttribute("data-size", "icon");
+    expect(edit).not.toHaveTextContent("Edit");
+    expect(edit.querySelector("svg")).toHaveClass("lucide-pencil-line");
+    await user.click(edit);
 
     const dialog = screen.getByRole("dialog", { name: "Edit" });
     expect(dialog).toHaveAttribute("data-slot", "dialog-content");
