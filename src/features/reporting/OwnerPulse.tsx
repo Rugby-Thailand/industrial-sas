@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 
 import { Card } from "@/components/ui/card";
 import type { DashboardTile } from "@/lib/convex/reportingApi";
+import { cn } from "@/lib/utils";
 
 import {
   Occupancy,
@@ -172,9 +173,11 @@ const tile = (
 export function OwnerPulseCards({
   tiles,
   occupancy,
+  layout = "grid",
 }: {
   readonly tiles: readonly DashboardTile[];
   readonly occupancy: OccupancyAnswer;
+  readonly layout?: "grid" | "compact";
 }) {
   const inspections = tile(tiles, "QC_PENDING");
   const decisions = tile(tiles, "QC_PARKED");
@@ -188,7 +191,12 @@ export function OwnerPulseCards({
   ).length;
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    <div
+      className={cn(
+        "grid gap-3 sm:grid-cols-2",
+        layout === "grid" && "xl:grid-cols-4",
+      )}
+    >
       <MetricCard
         metric="inspections"
         value={inspections?.count ?? 0}
@@ -215,13 +223,21 @@ export function OwnerPulseCards({
   );
 }
 
-export function OwnerPulse() {
+export function OwnerPulse({
+  layout = "grid",
+}: {
+  readonly layout?: "grid" | "compact";
+}) {
   return (
     <OperationsCounters>
       {(tiles) => (
         <Occupancy>
           {(occupancy) => (
-            <OwnerPulseCards tiles={tiles} occupancy={occupancy} />
+            <OwnerPulseCards
+              tiles={tiles}
+              occupancy={occupancy}
+              layout={layout}
+            />
           )}
         </Occupancy>
       )}

@@ -45,6 +45,9 @@ import {
   updateDashboardPreferencesRef,
 } from "@/lib/convex/reportingApi";
 import { ROUTES } from "@/lib/navigation";
+import { cn } from "@/lib/utils";
+
+export type DashboardQuickActionsLayout = "grid" | "compact" | "rail";
 
 const ACTIONS = {
   CUSTOMER_ORDERS: { href: ROUTES.customerOrders, icon: ShoppingCart },
@@ -97,6 +100,7 @@ export function QuickActionMenu({
   onSave,
   onReset,
   statusMessage,
+  layout = "grid",
 }: {
   readonly preference: DashboardPreferencePayload;
   readonly busy: boolean;
@@ -105,6 +109,7 @@ export function QuickActionMenu({
   ) => Promise<boolean>;
   readonly onReset: () => Promise<void>;
   readonly statusMessage?: string | undefined;
+  readonly layout?: DashboardQuickActionsLayout;
 }) {
   const t = useTranslations("OwnerDashboard");
   const [open, setOpen] = useState(false);
@@ -267,7 +272,12 @@ export function QuickActionMenu({
         </Card>
       ) : (
         <ul
-          className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3"
+          className={cn(
+            "grid",
+            layout === "grid" && "gap-3 sm:grid-cols-2 xl:grid-cols-3",
+            layout === "compact" && "gap-2 sm:grid-cols-2 xl:grid-cols-3",
+            layout === "rail" && "gap-2",
+          )}
           data-testid="dashboard-actions"
         >
           {preference.selectedActionIds.map((id) => {
@@ -277,20 +287,33 @@ export function QuickActionMenu({
               <li key={id}>
                 <Link
                   href={action.href}
-                  className="group relative flex h-full min-h-24 items-center gap-3 overflow-hidden rounded-xl border border-border bg-raised/45 p-4 transition hover:-translate-y-0.5 hover:border-accent hover:bg-raised focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none"
+                  className={cn(
+                    "group relative flex h-full items-center gap-3 overflow-hidden rounded-xl border border-border bg-raised/45 transition hover:-translate-y-0.5 hover:border-accent hover:bg-raised focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none",
+                    layout === "grid" ? "min-h-24 p-4" : "min-h-16 p-3",
+                  )}
                 >
                   <span
                     aria-hidden="true"
                     className="absolute inset-y-4 left-0 w-0.5 rounded-full bg-accent opacity-70"
                   />
-                  <span className="grid size-11 shrink-0 place-items-center rounded-xl border border-border bg-surface text-accent shadow-sm">
+                  <span
+                    className={cn(
+                      "grid shrink-0 place-items-center rounded-xl border border-border bg-surface text-accent shadow-sm",
+                      layout === "grid" ? "size-11" : "size-9",
+                    )}
+                  >
                     <Icon aria-hidden="true" className="size-5" />
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block text-sm font-semibold text-text">
                       {actionLabel(id)}
                     </span>
-                    <span className="mt-0.5 block text-xs leading-relaxed text-muted">
+                    <span
+                      className={cn(
+                        "mt-0.5 text-xs leading-relaxed text-muted",
+                        layout === "grid" ? "block" : "sr-only",
+                      )}
+                    >
                       {t(`actions.${id}.description`)}
                     </span>
                   </span>
@@ -313,7 +336,11 @@ export function QuickActionMenu({
   );
 }
 
-export function DashboardQuickActions() {
+export function DashboardQuickActions({
+  layout = "grid",
+}: {
+  readonly layout?: DashboardQuickActionsLayout;
+}) {
   return (
     <QueryGate scope="WAREHOUSE">
       {(warehouseId, preview) =>
@@ -323,9 +350,13 @@ export function DashboardQuickActions() {
             busy={false}
             onSave={async () => false}
             onReset={async () => undefined}
+            layout={layout}
           />
         ) : (
-          <ServerDashboardQuickActions warehouseId={warehouseId} />
+          <ServerDashboardQuickActions
+            warehouseId={warehouseId}
+            layout={layout}
+          />
         )
       }
     </QueryGate>
@@ -334,8 +365,10 @@ export function DashboardQuickActions() {
 
 function ServerDashboardQuickActions({
   warehouseId,
+  layout,
 }: {
   readonly warehouseId: string;
+  readonly layout: DashboardQuickActionsLayout;
 }) {
   const t = useTranslations("OwnerDashboard");
   const outcome = useQuery(readDashboardPreferencesRef, { warehouseId });
@@ -396,6 +429,7 @@ function ServerDashboardQuickActions({
       onSave={onSave}
       onReset={onReset}
       statusMessage={statusMessage}
+      layout={layout}
     />
   );
 }

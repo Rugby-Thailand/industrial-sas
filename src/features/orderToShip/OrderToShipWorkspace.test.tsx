@@ -55,6 +55,23 @@ describe("OrderToShipWorkspace", () => {
     expect(within(cancelled).getByText("No data")).toBeInTheDocument();
   });
 
+  it("shows each customer-order column status only once in its header", () => {
+    renderWorkspace("sales");
+
+    const board = screen.getByRole("region", {
+      name: "Customer order status board",
+    });
+
+    for (const label of ["Draft", "Released", "Cancelled"]) {
+      const column = within(board).getByRole("region", { name: label });
+      const heading = within(column).getByRole("heading", { name: label });
+      const header = heading.parentElement;
+
+      expect(header).not.toBeNull();
+      expect(within(header!).getAllByText(label)).toHaveLength(1);
+    }
+  });
+
   it("creates a sales order from a sheet instead of an inline form", async () => {
     const user = userEvent.setup();
     renderWorkspace("sales");

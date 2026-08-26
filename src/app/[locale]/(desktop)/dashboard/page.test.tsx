@@ -11,6 +11,12 @@ const { getTranslations, setRequestLocale } = vi.hoisted(() => ({
 
 vi.mock("next-intl/server", () => ({ getTranslations, setRequestLocale }));
 
+vi.mock("@/components/prototype/PrototypeSwitcher", () => ({
+  PrototypeSwitcher: ({ current }: { readonly current: string }) => (
+    <div data-testid="prototype-switcher">{current}</div>
+  ),
+}));
+
 vi.mock("@/i18n/navigation", () => ({
   Link: ({
     children,
@@ -91,5 +97,42 @@ describe("DashboardPage", () => {
     expect(getTranslations).not.toHaveBeenCalledWith("Dashboard");
     expect(getTranslations).not.toHaveBeenCalledWith("Setup");
     expect(setRequestLocale).toHaveBeenCalledWith("en");
+  });
+
+  it.each([
+    ["a", "dashboard-style-a"],
+    ["b", "dashboard-style-b"],
+    ["c", "dashboard-style-c"],
+  ])(
+    "renders style %s from the shareable query parameter",
+    async (variant, testId) => {
+      render(
+        await DashboardPage({
+          params: Promise.resolve({ locale: "en" }),
+          searchParams: Promise.resolve({ variant }),
+        }),
+      );
+
+      expect(screen.getByTestId(testId)).toBeInTheDocument();
+      expect(screen.getByTestId("prototype-switcher")).toHaveTextContent(
+        variant,
+      );
+
+      const headingLabels = screen
+        .getAllByRole("heading")
+        .map((heading) => heading.textContent);
+      expect(new Set(headingLabels).size).toBe(headingLabels.length);
+    },
+  );
+
+  it("falls back to style A for an unknown variant", async () => {
+    render(
+      await DashboardPage({
+        params: Promise.resolve({ locale: "en" }),
+        searchParams: Promise.resolve({ variant: "unknown" }),
+      }),
+    );
+
+    expect(screen.getByTestId("dashboard-style-a")).toBeInTheDocument();
   });
 });

@@ -503,6 +503,18 @@
     "noRecordedVolume": "No recorded flow yet",
     "latestActivity": "Latest counter activity {when}",
     "liveData": "Live warehouse data",
+    "prototype": {
+      "switcherLabel": "Dashboard style prototype",
+      "previous": "Previous dashboard style",
+      "next": "Next dashboard style",
+      "styleA": "A · Executive brief",
+      "styleB": "B · Action queue",
+      "styleC": "C · Spatial command",
+      "styleAContext": "Executive scan",
+      "styleBContext": "Exception-led workspace",
+      "styleCContext": "Spatial operations board",
+      "reviewQueue": "Review queue"
+    },
     "metric": {
       "inspections": "Inspections waiting",
       "decisions": "Decisions awaiting approval",
@@ -857,6 +869,7 @@
   },
   "Write": {
     "required": "This field is required.",
+    "selectOption": "Select an option",
     "reasonCodeLabel": "Reason code",
     "selectReasonCode": "Choose the reason this is being recorded",
     "noReasonCodes": "No active reason code",

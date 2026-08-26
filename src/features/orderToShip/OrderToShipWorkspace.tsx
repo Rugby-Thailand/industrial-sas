@@ -228,11 +228,10 @@ function CustomerOrderColumn({
       aria-labelledby={headingId}
       className="min-h-80 rounded-lg border border-border-strong bg-surface p-3"
     >
-      <div className="mb-3 flex items-center justify-between gap-3 border-b border-border pb-3">
+      <div className="mb-3 border-b border-border pb-3">
         <h3 id={headingId} className="text-sm font-bold text-text">
           {t(`status.${status}`)}
         </h3>
-        <StatusBadge tone={tone(status)} label={t(`status.${status}`)} />
       </div>
       <KanbanColumnContent value={status} className="gap-3">
         <MasterDataPanel<

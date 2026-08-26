@@ -151,6 +151,7 @@ export function EntityForm({
     const isBlamed = invalidField === field.name;
     const invalid = isMissing || isBlamed;
     const value = values[field.name] ?? "";
+    const selectPlaceholder = field.placeholder ?? t("selectOption");
 
     const describedBy = [
       field.hint === undefined ? undefined : hintId,
@@ -184,8 +185,8 @@ export function EntityForm({
             value={value}
             options={field.options ?? []}
             onValueChange={(next) => change(field.name, next)}
-            placeholder={field.placeholder ?? field.label}
-            emptyLabel={field.placeholder ?? field.label}
+            placeholder={selectPlaceholder}
+            emptyLabel={selectPlaceholder}
             invalid={invalid}
             describedBy={describedBy}
             {...(field.required === true ? { required: true } : {})}

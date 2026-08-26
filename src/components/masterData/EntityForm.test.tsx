@@ -292,6 +292,14 @@ describe("EntityForm select fields", () => {
     expect(trigger).not.toHaveTextContent("ไม่ติดตาม");
   });
 
+  it("uses a prompt instead of repeating the field label when no placeholder is supplied", () => {
+    withSelect();
+
+    const trigger = selectTrigger("ชนิด");
+    expect(trigger).toHaveTextContent("เลือกตัวเลือก");
+    expect(trigger).not.toHaveTextContent("ชนิด");
+  });
+
   it("submits an untouched optional select as empty, not as its first option", () => {
     const { onSubmit } = withSelect({
       fields: [
