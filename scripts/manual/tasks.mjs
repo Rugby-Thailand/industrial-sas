@@ -1,30 +1,9 @@
 /**
- * The operator-manual catalogue — the one source of truth.
- *
- * Thirteen workflows, exactly the thirteen the Thai visual guide documented by
- * hand (`docs/manuals/visual-operator-guide-th.md`). Nothing here is aspirational:
- * a task is listed because a screen exists, a screenshot of it is committed, and
- * an operator can be walked through it. Adding a fourteenth means capturing a
- * screenshot first — see `docs/manuals/operator-manual-authoring.md`.
- *
- * Thai is authored, not translated. The Thai text is the wording the previous
- * hand-written guide shipped with, carried across so no operator sees a sentence
- * change meaning because the storage format changed; English is the equivalent,
- * written for support staff and integrators.
- *
- * Coordinates are unscaled screenshot pixels, inherited from the hard-coded
- * overlay generator this file replaced. `pnpm manual:check` proves every one of
- * them lands inside the screenshot it annotates; it cannot prove one points at
- * the right button, which is what a human review of the generated overlay is
- * for.
- *
  * @typedef {import("./schema.mjs").ManualTask} ManualTask
  * @typedef {import("./schema.mjs").ManualTerm} ManualTerm
  */
 
 /**
- * Filter groups on the manual index, in the order an operator meets them.
- *
  * @type {readonly ManualTerm[]}
  */
 export const MANUAL_CATEGORIES = Object.freeze([
@@ -52,12 +31,6 @@ export const MANUAL_CATEGORIES = Object.freeze([
 ]);
 
 /**
- * Who performs a task.
- *
- * The distinction is operational rather than a permission claim: authorization is
- * owned by the permission catalogue (`docs/permissions.md`), and a manual that
- * restated it would be a second place to be wrong.
- *
  * @type {readonly ManualTerm[]}
  */
 export const MANUAL_AUDIENCES = Object.freeze([
@@ -71,8 +44,6 @@ export const MANUAL_AUDIENCES = Object.freeze([
 ]);
 
 /**
- * Every documented workflow.
- *
  * @type {readonly ManualTask[]}
  */
 export const MANUAL_TASKS = Object.freeze([
