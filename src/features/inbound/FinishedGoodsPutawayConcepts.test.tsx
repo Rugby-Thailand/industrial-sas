@@ -47,7 +47,7 @@ describe("finished-goods putaway concepts", () => {
     expect(screen.getByText("วัด LPN นี้แล้ว")).toBeInTheDocument();
   });
 
-  it("compares candidates, records a selection, and enters scan-ready state", () => {
+  it("compares candidates and captures a destination with the scanner fallback", () => {
     renderConcepts();
 
     fireEvent.click(screen.getByRole("tab", { name: /2 · เทียบก่อนเลือก/ }));
@@ -61,7 +61,17 @@ describe("finished-goods putaway concepts", () => {
     fireEvent.click(
       within(panel).getByRole("button", { name: "สแกน Area ปลายทาง" }),
     );
+    expect(
+      screen.getByRole("dialog", { name: "สแกน QR หรือบาร์โค้ดปลายทาง" }),
+    ).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("สแกนไม่ได้? กรอกรหัสจากป้าย"), {
+      target: { value: "FG-EAST" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "ใช้รหัสนี้" }));
+
     expect(screen.getByText("พร้อมสแกน FG-EAST")).toBeInTheDocument();
+    expect(screen.getByText(/อ่านรหัส FG-EAST แล้ว/)).toBeInTheDocument();
   });
 
   it("supports keyboard navigation between the three style tabs", () => {

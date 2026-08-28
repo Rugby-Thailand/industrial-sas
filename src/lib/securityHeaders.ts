@@ -24,7 +24,7 @@ const REPORTED_CSP = [
 
 const PERMISSIONS_POLICY = [
   "accelerometer=()",
-  "camera=()",
+  "camera=(self)",
   "display-capture=()",
   "geolocation=()",
   "gyroscope=()",

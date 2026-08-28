@@ -100,6 +100,7 @@ export const ROUTE_NAMESPACES = {
   ],
   "(desktop)/putaway": [
     "App",
+    "CameraScanner",
     "FinishedGoodsPutawayFlow",
     "FinishedGoodsPutawayPrototype",
     "Pagination",
@@ -245,6 +246,7 @@ export const ROUTE_NAMESPACES = {
   ],
   "(handheld)/handheld/putaway": [
     "App",
+    "CameraScanner",
     "FinishedGoodsPutawayFlow",
     "FinishedGoodsPutawayPrototype",
     "Pagination",

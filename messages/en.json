@@ -1295,6 +1295,23 @@
       }
     }
   },
+  "CameraScanner": {
+    "title": "Scan destination QR or barcode",
+    "description": "Point the rear camera at the Area or exact Position label. The camera stops as soon as one code is captured.",
+    "videoLabel": "Live camera preview for destination scanning",
+    "starting": "Requesting camera access…",
+    "ready": "Camera is ready — hold the code inside the frame",
+    "denied": "Camera permission was not granted",
+    "unavailable": "The camera could not be started",
+    "deniedHint": "Allow camera access in the browser, then close and open this scanner again. Manual entry remains available.",
+    "unavailableHint": "Use a supported camera browser, an HID scanner, or enter the label value below.",
+    "privacyHint": "Video stays on this device and is used only to decode the visible label.",
+    "manualLabel": "Can't scan? Enter the label value",
+    "manualPlaceholder": "Area code, Position code, or QR value",
+    "useCode": "Use code",
+    "cancel": "Cancel",
+    "close": "Close scanner"
+  },
   "FinishedGoodsPutawayPrototype": {
     "prototypeBadge": "Interactive prototype",
     "prototypeNote": "Uses realistic demo data; it does not post stock",
@@ -1369,6 +1386,7 @@
     "measureNow": "Measure now",
     "visualConfirmationRequired": "Operator must confirm the actual footprint before placement",
     "scanReady": "Ready to scan {code}",
+    "scanCaptured": "Captured {value}",
     "scanReadyHint": "The server will recheck eligibility before posting the movement.",
     "guided": {
       "command": "Recommended next move",

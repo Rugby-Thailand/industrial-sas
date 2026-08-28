@@ -20,6 +20,7 @@ import {
 import { useTranslations } from "next-intl";
 import { useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 
+import { CameraBarcodeScanner } from "@/components/operator/CameraBarcodeScanner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { StatusBadge, type BadgeTone } from "@/components/ui/StatusBadge";
@@ -97,6 +98,7 @@ export function FinishedGoodsPutawayConcepts() {
   const [measurement, setMeasurement] = useState<MeasurementState>("MEASURED");
   const [selectedId, setSelectedId] = useState<CandidateId>("BULK_A");
   const [scanReady, setScanReady] = useState(false);
+  const [destinationScan, setDestinationScan] = useState<string>();
   const tabRefs = useRef<Partial<Record<Concept, HTMLButtonElement | null>>>(
     {},
   );
@@ -107,14 +109,21 @@ export function FinishedGoodsPutawayConcepts() {
   const chooseConcept = (next: Concept) => {
     setConcept(next);
     setScanReady(false);
+    setDestinationScan(undefined);
   };
   const chooseMeasurement = (next: MeasurementState) => {
     setMeasurement(next);
     setScanReady(false);
+    setDestinationScan(undefined);
   };
   const chooseCandidate = (next: CandidateId) => {
     setSelectedId(next);
     setScanReady(false);
+    setDestinationScan(undefined);
+  };
+  const captureDestination = (value: string) => {
+    setDestinationScan(value);
+    setScanReady(true);
   };
   const onTabKeyDown = (
     event: KeyboardEvent<HTMLButtonElement>,
@@ -246,7 +255,7 @@ export function FinishedGoodsPutawayConcepts() {
             measurement={measurement}
             selected={selected}
             onChoose={chooseCandidate}
-            onScan={() => setScanReady(true)}
+            onScan={captureDestination}
             onMeasure={() => chooseMeasurement("MEASURED")}
           />
         ) : concept === "COMPARE" ? (
@@ -254,14 +263,14 @@ export function FinishedGoodsPutawayConcepts() {
             measurement={measurement}
             selected={selected}
             onChoose={chooseCandidate}
-            onScan={() => setScanReady(true)}
+            onScan={captureDestination}
           />
         ) : (
           <MapConcept
             measurement={measurement}
             selected={selected}
             onChoose={chooseCandidate}
-            onScan={() => setScanReady(true)}
+            onScan={captureDestination}
           />
         )}
 
@@ -270,7 +279,10 @@ export function FinishedGoodsPutawayConcepts() {
             <div className="flex flex-wrap items-center gap-2 rounded-lg border border-success bg-success/10 px-4 py-3 text-sm text-success">
               <ScanLine aria-hidden="true" />
               <strong>{t("scanReady", { code: selected.code })}</strong>
-              <span>{t("scanReadyHint")}</span>
+              <span>
+                {t("scanCaptured", { value: destinationScan ?? "—" })} ·{" "}
+                {t("scanReadyHint")}
+              </span>
             </div>
           ) : null}
         </div>
@@ -388,12 +400,15 @@ function GuidedConcept({
             <ReasonList candidate={selected} compact />
           </div>
           <div className="flex flex-col gap-2 md:w-56">
-            <Button type="button" onClick={onScan} className="w-full">
-              <ScanLine aria-hidden="true" />
-              {measurement === "MEASURED"
-                ? t("scanDestination")
-                : t("visualConfirmAndScan")}
-            </Button>
+            <CameraBarcodeScanner
+              className="w-full"
+              onDetected={onScan}
+              triggerLabel={
+                measurement === "MEASURED"
+                  ? t("scanDestination")
+                  : t("visualConfirmAndScan")
+              }
+            />
             {measurement === "UNMEASURED" ? (
               <Button type="button" variant="outline" onClick={onMeasure}>
                 <Ruler aria-hidden="true" />
@@ -542,12 +557,14 @@ function CompareConcept({
             {selected.code}
           </strong>
         </div>
-        <Button type="button" onClick={onScan}>
-          <ScanLine aria-hidden="true" />
-          {measurement === "MEASURED"
-            ? t("scanDestination")
-            : t("visualConfirmAndScan")}
-        </Button>
+        <CameraBarcodeScanner
+          onDetected={onScan}
+          triggerLabel={
+            measurement === "MEASURED"
+              ? t("scanDestination")
+              : t("visualConfirmAndScan")
+          }
+        />
       </div>
     </div>
   );
@@ -678,12 +695,15 @@ function MapConcept({ measurement, selected, onChoose, onScan }: ConceptProps) {
         </div>
         <ReasonList candidate={selected} />
 
-        <Button type="button" onClick={onScan} className="mt-5 w-full">
-          <ScanLine aria-hidden="true" />
-          {measurement === "MEASURED"
-            ? t("map.confirm", { code: selected.code })
-            : t("visualConfirmAndScan")}
-        </Button>
+        <CameraBarcodeScanner
+          className="mt-5 w-full"
+          onDetected={onScan}
+          triggerLabel={
+            measurement === "MEASURED"
+              ? t("map.confirm", { code: selected.code })
+              : t("visualConfirmAndScan")
+          }
+        />
       </aside>
     </div>
   );
@@ -777,5 +797,5 @@ interface ConceptProps {
   readonly measurement: MeasurementState;
   readonly selected: Candidate;
   readonly onChoose: (candidateId: CandidateId) => void;
-  readonly onScan: () => void;
+  readonly onScan: (value: string) => void;
 }

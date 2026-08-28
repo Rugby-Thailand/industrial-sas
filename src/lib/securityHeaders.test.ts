@@ -24,10 +24,9 @@ describe("securityHeaders", () => {
     );
   });
 
-  it("denies every browser feature the application does not use", () => {
+  it("allows only the same-origin camera and denies unused browser features", () => {
     const policy = asMap(true).get("Permissions-Policy") ?? "";
     for (const feature of [
-      "camera",
       "microphone",
       "geolocation",
       "payment",
@@ -37,6 +36,7 @@ describe("securityHeaders", () => {
       expect(policy, feature).toContain(`${feature}=()`);
     }
 
+    expect(policy).toContain("camera=(self)");
     expect(policy).not.toMatch(/=\s*\*/);
   });
 
