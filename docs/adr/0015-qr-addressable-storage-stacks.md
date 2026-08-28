@@ -5,6 +5,9 @@
 - Date: 2026-08-21
 - Decision baseline: user-approved storage-zone and finished-good scan workflow
 - Implementation status: **Implemented**
+- Evolved by: [ADR-0017](./0017-storage-areas-and-leaf-positions.md). The
+  one-zone/one-stack rule remains the migration-compatible `SIMPLE` mode, but is
+  no longer the meaning of every storage zone.
 
 ## Context
 

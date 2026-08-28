@@ -25,24 +25,26 @@ IDs (`RG-025`) are quoted from tests, code comments, and the
 [coverage matrix](../specification-coverage.md), so they are never renumbered. A
 superseded ADR keeps its number and gains a `Superseded by` line.
 
-| ID         | Title                                                                                                | Status   | Implementation  |
-| ---------- | ---------------------------------------------------------------------------------------------------- | -------- | --------------- |
-| `ADR-0001` | [Multi-tenant SaaS and identity ownership](./0001-multi-tenant-saas-and-identity-ownership.md)       | Accepted | Partial         |
-| `ADR-0002` | [Convex tenant boundary and index discipline](./0002-convex-tenant-boundary-and-index-discipline.md) | Accepted | Partial         |
-| `ADR-0003` | [Append-only inventory ledger](./0003-append-only-inventory-ledger.md)                               | Accepted | Not implemented |
-| `ADR-0004` | [Exact quantities and UOM](./0004-exact-quantities-and-uom.md)                                       | Accepted | Partial         |
-| `ADR-0005` | [Warehouse, location, and stock identity](./0005-warehouse-location-and-stock-identity.md)           | Accepted | Partial         |
-| `ADR-0006` | [Authorization and support access](./0006-authorization-and-support-access.md)                       | Accepted | Partial         |
-| `ADR-0007` | [Inbound slice scope](./0007-inbound-slice-scope.md)                                                 | Accepted | Not implemented |
-| `ADR-0008` | [Adapter ports and release gates](./0008-adapter-ports-and-release-gates.md)                         | Accepted | Not implemented |
-| `ADR-0009` | [Degraded-online connectivity](./0009-degraded-online-connectivity.md)                               | Accepted | Not implemented |
-| `ADR-0010` | [Thai-first i18n and accessibility](./0010-thai-first-i18n-and-accessibility.md)                     | Accepted | Not implemented |
-| `ADR-0011` | [Async jobs, reporting, and observability](./0011-async-jobs-reporting-and-observability.md)         | Accepted | Not implemented |
-| `ADR-0012` | [Delivery, release, DR, and quality gates](./0012-delivery-release-and-quality-gates.md)             | Accepted | Foundation only |
-| `ADR-0013` | [Order to ship: design authority and the factory packet](./0013-order-to-ship-design-authority.md)   | Accepted | Phase 5A only   |
-| `ADR-0014` | [Storage building layout rendering](./0014-storage-building-layout-rendering.md)                     | Accepted | Implemented     |
-| `ADR-0015` | [QR-addressable storage stacks](./0015-qr-addressable-storage-stacks.md)                             | Accepted | Implemented     |
-| `ADR-0016` | [Route customer demand before factory handoff](./0016-demand-routing-before-factory-handoff.md)      | Accepted | Local slice     |
+| ID         | Title                                                                                                        | Status   | Implementation  |
+| ---------- | ------------------------------------------------------------------------------------------------------------ | -------- | --------------- |
+| `ADR-0001` | [Multi-tenant SaaS and identity ownership](./0001-multi-tenant-saas-and-identity-ownership.md)               | Accepted | Partial         |
+| `ADR-0002` | [Convex tenant boundary and index discipline](./0002-convex-tenant-boundary-and-index-discipline.md)         | Accepted | Partial         |
+| `ADR-0003` | [Append-only inventory ledger](./0003-append-only-inventory-ledger.md)                                       | Accepted | Not implemented |
+| `ADR-0004` | [Exact quantities and UOM](./0004-exact-quantities-and-uom.md)                                               | Accepted | Partial         |
+| `ADR-0005` | [Warehouse, location, and stock identity](./0005-warehouse-location-and-stock-identity.md)                   | Accepted | Partial         |
+| `ADR-0006` | [Authorization and support access](./0006-authorization-and-support-access.md)                               | Accepted | Partial         |
+| `ADR-0007` | [Inbound slice scope](./0007-inbound-slice-scope.md)                                                         | Accepted | Not implemented |
+| `ADR-0008` | [Adapter ports and release gates](./0008-adapter-ports-and-release-gates.md)                                 | Accepted | Not implemented |
+| `ADR-0009` | [Degraded-online connectivity](./0009-degraded-online-connectivity.md)                                       | Accepted | Not implemented |
+| `ADR-0010` | [Thai-first i18n and accessibility](./0010-thai-first-i18n-and-accessibility.md)                             | Accepted | Not implemented |
+| `ADR-0011` | [Async jobs, reporting, and observability](./0011-async-jobs-reporting-and-observability.md)                 | Accepted | Not implemented |
+| `ADR-0012` | [Delivery, release, DR, and quality gates](./0012-delivery-release-and-quality-gates.md)                     | Accepted | Foundation only |
+| `ADR-0013` | [Order to ship: design authority and the factory packet](./0013-order-to-ship-design-authority.md)           | Accepted | Phase 5A only   |
+| `ADR-0014` | [Storage building layout rendering](./0014-storage-building-layout-rendering.md)                             | Accepted | Implemented     |
+| `ADR-0015` | [QR-addressable storage stacks](./0015-qr-addressable-storage-stacks.md)                                     | Accepted | Implemented     |
+| `ADR-0016` | [Route customer demand before factory handoff](./0016-demand-routing-before-factory-handoff.md)              | Accepted | Local slice     |
+| `ADR-0017` | [Storage areas and exact leaf positions](./0017-storage-areas-and-leaf-positions.md)                         | Accepted | Implemented     |
+| `ADR-0018` | [General-area stock and confidence-aware FG putaway](./0018-general-area-stock-and-fg-putaway-confidence.md) | Accepted | Not implemented |
 
 ## Coverage of the plan's ADR backlog
 

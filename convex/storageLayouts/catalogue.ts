@@ -6,11 +6,13 @@ import {
   type TenantFunctionContext,
 } from "../lib/tenantFunctions";
 import { storageLayoutStatus } from "../lib/validators";
+import { effectiveStorageAreaMode } from "../model/storageLayout/storagePosition";
 
 type BuildingDocument = Doc<"storageBuildings">;
 type FloorDocument = Doc<"storageFloors">;
 type BlockDocument = Doc<"storageFloorReservedBlocks">;
 type ZoneDocument = Doc<"storageZones">;
+type PositionDocument = Doc<"storagePositions">;
 type PlacementDocument = Doc<"storageStackPlacements">;
 type HandlingUnitDocument = Doc<"handlingUnits">;
 type LocationDocument = Doc<"locations">;
@@ -21,52 +23,18 @@ const buildingArgs = {
 };
 
 async function resolveZone(ctx: TenantFunctionContext, zone: ZoneDocument) {
-  const placements = await ctx.tenantDb
-    .byIndex<PlacementDocument>(
-      "storageStackPlacements",
-      "by_orgId_zoneId_status_levelIndex",
-      [
-        { field: "zoneId", value: zone._id },
-        { field: "status", value: "ACTIVE" },
-      ],
-    )
-    .take(50);
-  const resolved = await Promise.all(
-    placements.map(async (placement) => {
-      const unit = await ctx.tenantDb.get<HandlingUnitDocument>(
-        "handlingUnits",
-        placement.handlingUnitId,
-      );
-      if (unit === null || unit.currentLocationId !== zone.locationId)
-        return null;
-      return {
-        placementId: placement._id,
-        handlingUnitId: placement.handlingUnitId,
-        lpn: unit.lpn,
-        levelIndex: placement.levelIndex,
-        widthMm: placement.widthMm,
-        depthMm: placement.depthMm,
-        heightMm: placement.heightMm,
-        orientation: placement.orientation,
-        placedAt: placement.placedAt,
-      };
-    }),
+  const floor = await ctx.tenantDb.get<FloorDocument>(
+    "storageFloors",
+    zone.floorId,
   );
-  return {
-    zoneId: zone._id,
-    locationId: zone.locationId,
-    code: zone.code,
-    label: zone.label,
-    qrValue: zone.qrValue,
-    xMm: zone.xMm,
-    yMm: zone.yMm,
-    widthMm: zone.widthMm,
-    depthMm: zone.depthMm,
-    maxStackHeightMm: zone.maxStackHeightMm,
-    placements: resolved
-      .filter((placement) => placement !== null)
-      .sort((left, right) => left.levelIndex - right.levelIndex),
-  };
+  if (floor === null) throw new Error("Storage zone floor is missing");
+  const resolvedFloor = await readFloor(ctx, floor);
+  const resolvedZone = resolvedFloor.storageZones.find(
+    (candidate) => candidate.zoneId === zone._id,
+  );
+  if (resolvedZone === undefined)
+    throw new Error("Active storage zone could not be resolved");
+  return resolvedZone;
 }
 
 async function readFloor(ctx: TenantFunctionContext, floor: FloorDocument) {
@@ -82,7 +50,141 @@ async function readFloor(ctx: TenantFunctionContext, floor: FloorDocument) {
     ])
     .take(50);
   const storageZones = await Promise.all(
-    zones.map((zone) => resolveZone(ctx, zone)),
+    zones.map(async (zone) => {
+      const storedPositions = await ctx.tenantDb
+        .byIndex<PositionDocument>(
+          "storagePositions",
+          "by_orgId_zoneId_status_code",
+          [
+            { field: "zoneId", value: zone._id },
+            { field: "status", value: "ACTIVE" },
+          ],
+        )
+        .take(100);
+      const positions =
+        storedPositions.length === 0 &&
+        effectiveStorageAreaMode(zone.mode) === "SIMPLE"
+          ? [
+              {
+                locationId: zone.locationId,
+                code: zone.code,
+                label: zone.label,
+                qrValue: zone.qrValue,
+                kind: "DEFAULT" as const,
+                isDefault: true,
+                xMm: zone.xMm,
+                yMm: zone.yMm,
+                widthMm: zone.widthMm,
+                depthMm: zone.depthMm,
+              },
+            ]
+          : storedPositions;
+      const resolvedPositions = await Promise.all(
+        positions.map(async (position) => {
+          const placements = await ctx.tenantDb
+            .byIndex<PlacementDocument>(
+              "storageStackPlacements",
+              "by_orgId_locationId_status",
+              [
+                { field: "locationId", value: position.locationId },
+                { field: "status", value: "ACTIVE" },
+              ],
+            )
+            .take(50);
+          const resolved = await Promise.all(
+            placements.map(async (placement) => {
+              const unit = await ctx.tenantDb.get<HandlingUnitDocument>(
+                "handlingUnits",
+                placement.handlingUnitId,
+              );
+              if (
+                unit === null ||
+                unit.currentLocationId !== position.locationId
+              ) {
+                return null;
+              }
+              return {
+                placementId: placement._id,
+                handlingUnitId: placement.handlingUnitId,
+                lpn: unit.lpn,
+                levelIndex: placement.levelIndex,
+                widthMm: placement.widthMm,
+                depthMm: placement.depthMm,
+                heightMm: placement.heightMm,
+                orientation: placement.orientation,
+                placedAt: placement.placedAt,
+              };
+            }),
+          );
+          const positionId = "_id" in position ? position._id : undefined;
+          const fixture =
+            "fixtureCode" in position ? position.fixtureCode : undefined;
+          const bay = "bayIndex" in position ? position.bayIndex : undefined;
+          const level =
+            "levelIndex" in position ? position.levelIndex : undefined;
+          const slot = "slotIndex" in position ? position.slotIndex : undefined;
+          const breadcrumb =
+            position.kind === "RACK_SLOT"
+              ? `Floor ${floor.floorNumber} › ${zone.label} › ${fixture ?? "Rack"} › Bay ${String(bay ?? 0).padStart(2, "0")} › Level ${String(level ?? 0).padStart(2, "0")}${(slot ?? 1) > 1 ? ` › Slot ${String(slot).padStart(2, "0")}` : ""}`
+              : `Floor ${floor.floorNumber} › ${zone.label}${position.isDefault ? "" : ` › ${position.label}`}`;
+          return {
+            ...(positionId === undefined ? {} : { positionId }),
+            locationId: position.locationId,
+            code: position.code,
+            label: position.label,
+            qrValue: position.qrValue,
+            kind: position.kind,
+            isDefault: position.isDefault,
+            ...(position.xMm === undefined ? {} : { xMm: position.xMm }),
+            ...(position.yMm === undefined ? {} : { yMm: position.yMm }),
+            ...(position.widthMm === undefined
+              ? {}
+              : { widthMm: position.widthMm }),
+            ...(position.depthMm === undefined
+              ? {}
+              : { depthMm: position.depthMm }),
+            ...(fixture === undefined ? {} : { fixtureCode: fixture }),
+            ...(bay === undefined ? {} : { bayIndex: bay }),
+            ...(level === undefined ? {} : { levelIndex: level }),
+            ...(slot === undefined ? {} : { slotIndex: slot }),
+            ...("elevationMm" in position && position.elevationMm !== undefined
+              ? { elevationMm: position.elevationMm }
+              : {}),
+            breadcrumb,
+            placements: resolved
+              .filter((placement) => placement !== null)
+              .sort((left, right) => left.levelIndex - right.levelIndex),
+          };
+        }),
+      );
+      return {
+        zoneId: zone._id,
+        locationId: zone.locationId,
+        code: zone.code,
+        label: zone.label,
+        qrValue: zone.qrValue,
+        mode: effectiveStorageAreaMode(zone.mode),
+        ...(zone.baseElevationMm === undefined
+          ? {}
+          : { baseElevationMm: zone.baseElevationMm }),
+        xMm: zone.xMm,
+        yMm: zone.yMm,
+        widthMm: zone.widthMm,
+        depthMm: zone.depthMm,
+        maxStackHeightMm: zone.maxStackHeightMm,
+        positions: resolvedPositions,
+        placements: resolvedPositions.flatMap((position) =>
+          position.placements.map((placement) => ({
+            ...placement,
+            ...(position.positionId === undefined
+              ? {}
+              : { positionId: position.positionId }),
+            positionCode: position.code,
+            breadcrumb: position.breadcrumb,
+          })),
+        ),
+      };
+    }),
   );
   return {
     floorId: floor._id,

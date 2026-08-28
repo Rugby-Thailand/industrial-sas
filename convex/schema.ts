@@ -733,6 +733,19 @@ const schema = defineSchema({
       code: v.string(),
       label: v.string(),
       qrValue: v.string(),
+      /**
+       * Optional for online migration: a missing value is the original SIMPLE
+       * one-area/one-position behaviour.
+       */
+      mode: v.optional(
+        v.union(
+          v.literal("SIMPLE"),
+          v.literal("FLOOR_POSITIONS"),
+          v.literal("RACK"),
+          v.literal("PLATFORM"),
+        ),
+      ),
+      baseElevationMm: v.optional(v.number()),
       xMm: v.number(),
       yMm: v.number(),
       widthMm: v.number(),
@@ -750,9 +763,54 @@ const schema = defineSchema({
     .index("by_orgId_qrValue", byOrg("qrValue"))
     .index("by_orgId_warehouseId_code", byOrg("warehouseId", "code")),
 
+  storagePositions: defineTable(
+    tenantFields({
+      buildingId: v.id("storageBuildings"),
+      floorId: v.id("storageFloors"),
+      zoneId: v.id("storageZones"),
+      warehouseId: v.id("warehouses"),
+      locationId: v.id("locations"),
+      code: v.string(),
+      label: v.string(),
+      qrValue: v.string(),
+      kind: v.union(
+        v.literal("DEFAULT"),
+        v.literal("FLOOR"),
+        v.literal("RACK_SLOT"),
+        v.literal("PLATFORM"),
+      ),
+      isDefault: v.boolean(),
+      xMm: v.optional(v.number()),
+      yMm: v.optional(v.number()),
+      widthMm: v.optional(v.number()),
+      depthMm: v.optional(v.number()),
+      fixtureCode: v.optional(v.string()),
+      bayIndex: v.optional(v.number()),
+      levelIndex: v.optional(v.number()),
+      slotIndex: v.optional(v.number()),
+      /** Derived from rack level or the platform base, never free-form floor Z. */
+      elevationMm: v.optional(v.number()),
+      status: masterDataStatus,
+      createdAt: v.number(),
+      createdByUserId: v.id("users"),
+      updatedAt: v.number(),
+      updatedByUserId: v.id("users"),
+    }),
+  )
+    .index("by_orgId_zoneId_status_code", byOrg("zoneId", "status", "code"))
+    .index("by_orgId_locationId", byOrg("locationId"))
+    .index("by_orgId_qrValue", byOrg("qrValue"))
+    .index("by_orgId_warehouseId_code", byOrg("warehouseId", "code"))
+    .index(
+      "by_orgId_zoneId_fixtureCode_bayIndex_levelIndex_slotIndex",
+      byOrg("zoneId", "fixtureCode", "bayIndex", "levelIndex", "slotIndex"),
+    ),
+
   storageStackPlacements: defineTable(
     tenantFields({
       zoneId: v.id("storageZones"),
+      /** Optional only for placements created before storage-position backfill. */
+      positionId: v.optional(v.id("storagePositions")),
       locationId: v.id("locations"),
       warehouseId: v.id("warehouses"),
       handlingUnitId: v.id("handlingUnits"),
@@ -772,6 +830,10 @@ const schema = defineSchema({
     .index(
       "by_orgId_zoneId_status_levelIndex",
       byOrg("zoneId", "status", "levelIndex"),
+    )
+    .index(
+      "by_orgId_positionId_status_levelIndex",
+      byOrg("positionId", "status", "levelIndex"),
     )
     .index("by_orgId_handlingUnitId_status", byOrg("handlingUnitId", "status"))
     .index("by_orgId_locationId_status", byOrg("locationId", "status")),

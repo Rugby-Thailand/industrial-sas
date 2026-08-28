@@ -32,6 +32,7 @@ import {
   virtualBoundaryCode,
 } from "../lib/validators";
 import { MAX_JOB_PAGE_SIZE } from "../model/inventory/jobPage";
+import { storageLocationBreadcrumb } from "../lib/storageAddressStore";
 import { LEDGER_OPERATIONS } from "../model/inventory/requestIdentity";
 import {
   decodeBucketKey,
@@ -146,7 +147,10 @@ function wireTransaction(transaction: PostedTransaction) {
   };
 }
 
-const wireTransactionSummary = (item: TransactionSummary) => ({
+const wireTransactionSummary = (
+  item: TransactionSummary,
+  locationBreadcrumbs: readonly string[] = [],
+) => ({
   transactionId: item.transactionId as GenericId<"inventoryTransactions">,
   type: item.type,
   operation: item.operation,
@@ -154,6 +158,7 @@ const wireTransactionSummary = (item: TransactionSummary) => ({
   occurredAt: item.occurredAt,
   businessDate: item.businessDate,
   lineCount: item.lineCount,
+  locationBreadcrumbs: [...locationBreadcrumbs],
   ...(item.reversalOfTransactionId === undefined
     ? {}
     : {
@@ -162,11 +167,12 @@ const wireTransactionSummary = (item: TransactionSummary) => ({
       }),
 });
 
-const wireBalanceSummary = (item: BalanceSummary) => ({
+const wireBalanceSummary = (item: BalanceSummary, breadcrumb?: string) => ({
   bucketKey: item.bucketKey,
   stockStatus: item.stockStatus,
   uom: item.uom,
   minorUnits: item.minorUnits,
+  ...(breadcrumb === undefined ? {} : { locationBreadcrumb: breadcrumb }),
 });
 
 const wireBalances = (balances: readonly PostedBalance[]) =>
@@ -420,6 +426,7 @@ const transactionSummaryValidator = v.object({
   businessDate: v.string(),
   lineCount: v.number(),
   reversalOfTransactionId: v.optional(v.id("inventoryTransactions")),
+  locationBreadcrumbs: v.array(v.string()),
 });
 
 const historyPageValidator = v.union(
@@ -468,7 +475,32 @@ export const listTransactions = queryWithOrg({
     }
     return {
       ok: true as const,
-      items: page.value.items.map(wireTransactionSummary),
+      items: await Promise.all(
+        page.value.items.map(async (item) => {
+          const lines = await ctx.tenantDb
+            .byIndex<{
+              readonly _id: string;
+              readonly orgId: TenantOrgId;
+              readonly bucketKey: string;
+            }>("inventoryLedgerLines", "by_orgId_transactionId_lineIndex", [
+              { field: "transactionId", value: item.transactionId },
+            ])
+            .take(100);
+          const breadcrumbs = new Set<string>();
+          for (const line of lines) {
+            const decoded = decodeBucketKey(line.bucketKey);
+            if (!decoded.ok || decoded.value.location.kind !== "PHYSICAL") {
+              continue;
+            }
+            const breadcrumb = await storageLocationBreadcrumb(
+              ctx.tenantDb,
+              decoded.value.location.locationId,
+            );
+            if (breadcrumb !== undefined) breadcrumbs.add(breadcrumb);
+          }
+          return wireTransactionSummary(item, [...breadcrumbs]);
+        }),
+      ),
       nextCursor: page.value.nextCursor,
       complete: page.value.complete,
     };
@@ -480,6 +512,7 @@ const balanceSummaryValidator = v.object({
   stockStatus,
   uom: v.string(),
   minorUnits: v.number(),
+  locationBreadcrumb: v.optional(v.string()),
 });
 
 const balancePageValidator = v.union(
@@ -528,7 +561,19 @@ export const listBalances = queryWithOrg({
     }
     return {
       ok: true as const,
-      items: page.value.items.map(wireBalanceSummary),
+      items: await Promise.all(
+        page.value.items.map(async (item) => {
+          const decoded = decodeBucketKey(item.bucketKey);
+          const breadcrumb =
+            decoded.ok && decoded.value.location.kind === "PHYSICAL"
+              ? await storageLocationBreadcrumb(
+                  ctx.tenantDb,
+                  decoded.value.location.locationId,
+                )
+              : undefined;
+          return wireBalanceSummary(item, breadcrumb);
+        }),
+      ),
       nextCursor: page.value.nextCursor,
       complete: page.value.complete,
     };

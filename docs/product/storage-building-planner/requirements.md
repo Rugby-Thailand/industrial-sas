@@ -1,6 +1,6 @@
 # Storage Building Planner — Product Requirements
 
-Status: Implemented and verified
+Status: Implemented and evolved by ADR-0017
 Scope: Desktop-first, warehouse-scoped master data
 Goal: Let an authorized user create a simple 3D representation of a storage building, change its dimensions and floor count, and give each floor a different usable footprint.
 
@@ -217,3 +217,14 @@ Audit events record building/floor identifiers, changed field names, previous an
 - Who is the named customer/user making 3D a committed requirement?
 - What is the real maximum floor count and dimension envelope?
 - When should floors link to current scan locations, and can one location span floors?
+
+## 14. Evolved storage addressing (ADR-0017)
+
+The earlier non-goal for rack/bin modelling and the future-only location link are
+superseded for storage addressing by ADR-0017. A floor now contains large storage
+areas. Each area chooses Simple, Floor Positions, Rack, or Platform mode, and its
+leaf positions own the physical ledger location identities. Existing zones become
+Simple areas/default positions without changing their location IDs or QR labels.
+The planner retains the same accessible SVG and Quick Change behavior: geometry is
+editable, occupied edits require named-LPN confirmation, and occupied leaves cannot
+be deleted.

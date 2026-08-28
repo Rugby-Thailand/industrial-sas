@@ -31,6 +31,7 @@ export interface BalanceRow {
   readonly stockStatus: string;
   readonly uom: string;
   readonly minorUnits: number;
+  readonly locationBreadcrumb?: string;
 }
 
 export interface TransactionRow {
@@ -41,6 +42,7 @@ export interface TransactionRow {
   readonly occurredAt: number;
   readonly businessDate: string;
   readonly lineCount: number;
+  readonly locationBreadcrumbs?: readonly string[];
   readonly reversalOfTransactionId?: string;
 }
 

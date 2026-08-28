@@ -38,6 +38,14 @@ export function TransactionsTable({
           render: (row) => (
             <span title={row.transactionId}>
               {abbreviateIdentifier(row.transactionId, 8)}
+              {(row.locationBreadcrumbs ?? []).map((breadcrumb) => (
+                <span
+                  key={breadcrumb}
+                  className="mt-1 block font-sans text-xs text-text"
+                >
+                  {breadcrumb}
+                </span>
+              ))}
               {row.reversalOfTransactionId === undefined ? null : (
                 <span
                   className="mt-1 block"

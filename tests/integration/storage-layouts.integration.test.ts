@@ -12,8 +12,14 @@ import {
   saveStorageFloor,
 } from "../../convex/storageLayouts/writes";
 import {
+  archiveStoragePosition,
+  backfillStoragePositions,
+  createStoragePosition,
   createStorageZone,
+  generateRackStoragePositions,
   placeHandlingUnit,
+  resolveStorageAddress,
+  updateStoragePosition,
   updateStorageZone,
 } from "../../convex/storageLayouts/zones";
 import type { DataModel } from "../../convex/schema";
@@ -310,6 +316,27 @@ describe("storage building planner", () => {
       capacityWarning: false,
     });
 
+    const activeQuickChangeNeedsReview = value(
+      await call(world, updateStorageZone, {
+        warehouseId,
+        zoneId: zone["documentId"],
+        requestId: "storage-zone-active-update-review-1",
+        label: "Finished goods live stack",
+        xMm: 13_000,
+        yMm: 1_000,
+        widthMm: 3_000,
+        depthMm: 2_500,
+        maxStackHeightMm: 1_000,
+      }),
+    );
+    expect(activeQuickChangeNeedsReview).toMatchObject({
+      written: false,
+      error: {
+        code: "OCCUPIED_AREA_CONFIRMATION_REQUIRED",
+        affectedLpns: ["INV-0001-01"],
+      },
+    });
+
     const activeQuickChange = value(
       await call(world, updateStorageZone, {
         warehouseId,
@@ -321,6 +348,7 @@ describe("storage building planner", () => {
         widthMm: 3_000,
         depthMm: 2_500,
         maxStackHeightMm: 1_000,
+        confirmOccupiedChange: true,
       }),
     );
     expect(activeQuickChange).toMatchObject({
@@ -340,6 +368,7 @@ describe("storage building planner", () => {
         widthMm: 500,
         depthMm: 500,
         maxStackHeightMm: 1_000,
+        confirmOccupiedChange: true,
       }),
     );
     expect(impossibleQuickChange).toMatchObject({
@@ -450,6 +479,377 @@ describe("storage building planner", () => {
     expect(activated).toMatchObject({
       written: false,
       error: { code: "STORAGE_STACK_REQUIRED" },
+    });
+  });
+
+  it("keeps area scans unambiguous while floor and rack leaves stay exact", async () => {
+    const world = await createConvexInventoryWorld();
+    const warehouseId = world.warehouses.alphaA;
+    const building = value(
+      await call(world, createStorageBuilding, {
+        warehouseId,
+        requestId: "position-building-1",
+        code: "POSITION-BLDG",
+        name: "Exact storage",
+        widthMm: 30_000,
+        depthMm: 20_000,
+        defaultFloorHeightMm: 6_000,
+        floorCount: 1,
+      }),
+    );
+    const buildingId = building["documentId"] as string;
+    const bulk = value(
+      await call(world, createStorageZone, {
+        warehouseId,
+        buildingId,
+        floorNumber: 1,
+        requestId: "bulk-area-1",
+        label: "BULK-A",
+        mode: "FLOOR_POSITIONS",
+        xMm: 0,
+        yMm: 0,
+        widthMm: 12_000,
+        depthMm: 8_000,
+        maxStackHeightMm: 6_000,
+      }),
+    );
+    const defaultPosition = await world.t.run(async (ctx) =>
+      ctx.db
+        .query("storagePositions")
+        .withIndex("by_orgId_zoneId_status_code", (query) =>
+          query
+            .eq("orgId", world.orgA)
+            .eq("zoneId", bulk["documentId"] as never)
+            .eq("status", "ACTIVE"),
+        )
+        .first(),
+    );
+    expect(defaultPosition).toBeNull();
+
+    const p12 = value(
+      await call(world, createStoragePosition, {
+        warehouseId,
+        zoneId: bulk["documentId"],
+        requestId: "bulk-p12-1",
+        code: "P-12",
+        label: "P-12",
+        xMm: 1_000,
+        yMm: 1_000,
+        widthMm: 2_000,
+        depthMm: 2_000,
+      }),
+    );
+    value(
+      await call(world, createStoragePosition, {
+        warehouseId,
+        zoneId: bulk["documentId"],
+        requestId: "bulk-grid-b4-1",
+        code: "GRID-B4",
+        label: "GRID-B4",
+        xMm: 4_000,
+        yMm: 2_000,
+        widthMm: 2_000,
+        depthMm: 2_000,
+      }),
+    );
+
+    const resolvedArea = value(
+      await call(world, resolveStorageAddress, {
+        warehouseId,
+        scan: bulk["qrValue"],
+      }),
+    );
+    expect(resolvedArea).toMatchObject({
+      found: true,
+      resolution: "AREA_NEEDS_POSITION",
+      area: { label: "BULK-A" },
+    });
+    expect(resolvedArea["positions"]).toHaveLength(2);
+
+    const activated = value(
+      await call(world, activateStorageBuilding, {
+        warehouseId,
+        buildingId,
+        requestId: "position-building-activate-1",
+        expectedVersion: 1,
+      }),
+    );
+    expect(activated).toMatchObject({ written: true });
+
+    const receipt = value(
+      await call(world, postTransaction, {
+        warehouseId,
+        requestId: "0193f2c1-0000-7000-8000-000000000031",
+        type: "RECEIPT",
+        source: { type: "TEST", id: "position-receipt" },
+        lines: [
+          {
+            itemId: world.a.item,
+            locationKind: "PHYSICAL",
+            locationId: world.a.rack,
+            lotId: world.a.lot,
+            handlingUnitId: world.a.pallet,
+            stockStatus: "AVAILABLE",
+            quantity: { uom: FIXTURE_UOM, minorUnits: 1_000 },
+          },
+          {
+            itemId: world.a.item,
+            locationKind: "VIRTUAL",
+            virtualBoundary: "SUPPLIER_RECEIPT",
+            lotId: world.a.lot,
+            handlingUnitId: world.a.pallet,
+            stockStatus: "AVAILABLE",
+            quantity: { uom: FIXTURE_UOM, minorUnits: -1_000 },
+          },
+        ],
+      }),
+    );
+    expect(receipt["posted"]).toBe(true);
+    const ambiguous = value(
+      await call(world, placeHandlingUnit, {
+        warehouseId,
+        requestId: "0193f2c1-0000-7000-8000-000000000032",
+        lpn: "INV-0001-01",
+        zoneScan: bulk["qrValue"],
+        widthMm: 1_200,
+        depthMm: 1_000,
+        heightMm: 1_400,
+      }),
+    );
+    expect(ambiguous).toMatchObject({
+      written: false,
+      error: { code: "EXACT_POSITION_REQUIRED" },
+    });
+
+    const placed = value(
+      await call(world, placeHandlingUnit, {
+        warehouseId,
+        requestId: "0193f2c1-0000-7000-8000-000000000033",
+        lpn: "INV-0001-01",
+        zoneScan: "POSITION-BLDG-F01-Z01-P-12",
+        positionId: p12["documentId"],
+        widthMm: 1_200,
+        depthMm: 1_000,
+        heightMm: 1_400,
+      }),
+    );
+    expect(placed).toMatchObject({
+      written: true,
+      positionCode: "POSITION-BLDG-F01-Z01-P-12",
+    });
+
+    const beforeEdit = await world.t.run(async (ctx) =>
+      ctx.db.get(p12["documentId"] as never),
+    );
+    const needsConfirmation = value(
+      await call(world, updateStoragePosition, {
+        warehouseId,
+        positionId: p12["documentId"],
+        requestId: "p12-move-1",
+        label: "P-12 moved",
+        xMm: 2_000,
+        yMm: 1_000,
+        widthMm: 2_000,
+        depthMm: 2_000,
+      }),
+    );
+    expect(needsConfirmation).toMatchObject({
+      written: false,
+      error: {
+        code: "OCCUPIED_POSITION_CONFIRMATION_REQUIRED",
+        affectedLpns: ["INV-0001-01"],
+      },
+    });
+    value(
+      await call(world, updateStoragePosition, {
+        warehouseId,
+        positionId: p12["documentId"],
+        requestId: "p12-move-2",
+        label: "P-12 moved",
+        xMm: 2_000,
+        yMm: 1_000,
+        widthMm: 2_000,
+        depthMm: 2_000,
+        confirmOccupiedChange: true,
+      }),
+    );
+    const afterEdit = await world.t.run(async (ctx) =>
+      ctx.db.get(p12["documentId"] as never),
+    );
+    expect(afterEdit).toMatchObject({
+      locationId: (beforeEdit as { locationId: string }).locationId,
+      qrValue: (beforeEdit as { qrValue: string }).qrValue,
+      xMm: 2_000,
+    });
+    const occupiedDelete = value(
+      await call(world, archiveStoragePosition, {
+        warehouseId,
+        positionId: p12["documentId"],
+        requestId: "p12-archive-1",
+      }),
+    );
+    expect(occupiedDelete).toMatchObject({
+      written: false,
+      error: { code: "POSITION_NOT_EMPTY" },
+    });
+
+    const rack = value(
+      await call(world, createStorageZone, {
+        warehouseId,
+        buildingId,
+        floorNumber: 1,
+        requestId: "rack-area-1",
+        label: "Finished goods rack",
+        mode: "RACK",
+        xMm: 14_000,
+        yMm: 0,
+        widthMm: 9_000,
+        depthMm: 4_000,
+        maxStackHeightMm: 6_000,
+      }),
+    );
+    const generated = value(
+      await call(world, generateRackStoragePositions, {
+        warehouseId,
+        zoneId: rack["documentId"],
+        requestId: "rack-a-generate-1",
+        fixtureCode: "RACK-A",
+        bayCount: 3,
+        levelCount: 2,
+        slotsPerBay: 1,
+        bayWidthMm: 3_000,
+        rackDepthMm: 1_200,
+        levelHeightMm: 1_800,
+      }),
+    );
+    expect(generated).toMatchObject({ written: true, createdCount: 6 });
+    const rackPositions = await world.t.run(async (ctx) =>
+      ctx.db
+        .query("storagePositions")
+        .withIndex("by_orgId_zoneId_status_code", (query) =>
+          query
+            .eq("orgId", world.orgA)
+            .eq("zoneId", rack["documentId"] as never)
+            .eq("status", "ACTIVE"),
+        )
+        .collect(),
+    );
+    expect(rackPositions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          fixtureCode: "RACK-A",
+          bayIndex: 3,
+          levelIndex: 2,
+          elevationMm: 1_800,
+        }),
+      ]),
+    );
+  });
+
+  it("backfills a legacy zone without changing its location or printed QR", async () => {
+    const world = await createConvexInventoryWorld();
+    const warehouseId = world.warehouses.alphaA;
+    const building = value(
+      await call(world, createStorageBuilding, {
+        warehouseId,
+        requestId: "legacy-building-1",
+        code: "LEGACY-BLDG",
+        name: "Legacy storage",
+        widthMm: 10_000,
+        depthMm: 10_000,
+        defaultFloorHeightMm: 4_000,
+        floorCount: 1,
+      }),
+    );
+    const zone = value(
+      await call(world, createStorageZone, {
+        warehouseId,
+        buildingId: building["documentId"],
+        floorNumber: 1,
+        requestId: "legacy-zone-1",
+        label: "Legacy stack",
+        xMm: 0,
+        yMm: 0,
+        widthMm: 4_000,
+        depthMm: 4_000,
+        maxStackHeightMm: 4_000,
+      }),
+    );
+    const original = await world.t.run(async (ctx) => {
+      const storedZone = await ctx.db.get(zone["documentId"] as never);
+      const position = await ctx.db
+        .query("storagePositions")
+        .withIndex("by_orgId_zoneId_status_code", (query) =>
+          query
+            .eq("orgId", world.orgA)
+            .eq("zoneId", zone["documentId"] as never)
+            .eq("status", "ACTIVE"),
+        )
+        .unique();
+      if (position !== null) await ctx.db.delete(position._id);
+      return storedZone as { locationId: string; qrValue: string };
+    });
+    const backfilled = value(
+      await call(world, backfillStoragePositions, {
+        warehouseId,
+        requestId: "legacy-backfill-1",
+      }),
+    );
+    expect(backfilled).toMatchObject({ written: true, createdCount: 1 });
+    const migrated = await world.t.run(async (ctx) =>
+      ctx.db
+        .query("storagePositions")
+        .withIndex("by_orgId_locationId", (query) =>
+          query
+            .eq("orgId", world.orgA)
+            .eq("locationId", original.locationId as never),
+        )
+        .unique(),
+    );
+    expect(migrated).toMatchObject({
+      locationId: original.locationId,
+      qrValue: original.qrValue,
+      kind: "DEFAULT",
+      isDefault: true,
+    });
+  });
+
+  it("rejects a platform whose base plus stack height exceeds the floor", async () => {
+    const world = await createConvexInventoryWorld();
+    const warehouseId = world.warehouses.alphaA;
+    const building = value(
+      await call(world, createStorageBuilding, {
+        warehouseId,
+        requestId: "platform-height-building-1",
+        code: "PLATFORM-BLDG",
+        name: "Raised storage",
+        widthMm: 20_000,
+        depthMm: 20_000,
+        defaultFloorHeightMm: 4_000,
+        floorCount: 1,
+      }),
+    );
+
+    const platform = value(
+      await call(world, createStorageZone, {
+        warehouseId,
+        buildingId: building["documentId"],
+        floorNumber: 1,
+        requestId: "platform-height-zone-1",
+        label: "Raised overflow",
+        mode: "PLATFORM",
+        baseElevationMm: 2_000,
+        xMm: 0,
+        yMm: 0,
+        widthMm: 4_000,
+        depthMm: 4_000,
+        maxStackHeightMm: 3_000,
+      }),
+    );
+
+    expect(platform).toMatchObject({
+      written: false,
+      error: { code: "BASE_ELEVATION_INVALID", field: "baseElevationMm" },
     });
   });
 });

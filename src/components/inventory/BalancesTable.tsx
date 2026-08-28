@@ -32,7 +32,13 @@ const BUCKET_LABEL_KEYS: Readonly<Record<BucketDimension, string>> = {
   owner: "bucketOwner",
 };
 
-function BucketIdentity({ bucketKey }: { readonly bucketKey: string }) {
+function BucketIdentity({
+  bucketKey,
+  locationBreadcrumb,
+}: {
+  readonly bucketKey: string;
+  readonly locationBreadcrumb?: string;
+}) {
   const t = useTranslations("Inventory");
   const parts = describeBucketKey(bucketKey);
 
@@ -55,7 +61,9 @@ function BucketIdentity({ bucketKey }: { readonly bucketKey: string }) {
               {t(BUCKET_LABEL_KEYS[part.dimension])}
             </dt>
             <dd className="font-mono whitespace-nowrap text-text">
-              {part.value}
+              {part.dimension === "location" && locationBreadcrumb !== undefined
+                ? locationBreadcrumb
+                : part.value}
             </dd>
           </Fragment>
         ))
@@ -85,7 +93,14 @@ export function BalancesTable({
           header: t("columnBucket"),
           rowHeader: true,
           monospace: false,
-          render: (row) => <BucketIdentity bucketKey={row.bucketKey} />,
+          render: (row) => (
+            <BucketIdentity
+              bucketKey={row.bucketKey}
+              {...(row.locationBreadcrumb === undefined
+                ? {}
+                : { locationBreadcrumb: row.locationBreadcrumb })}
+            />
+          ),
         },
         {
           key: "status",

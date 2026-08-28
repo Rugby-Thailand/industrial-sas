@@ -10,6 +10,7 @@ import {
 } from "../lib/masterDataStore";
 import {
   mutationWithOrg,
+  queryWithOrg,
   type TenantFunctionContext,
 } from "../lib/tenantFunctions";
 import { refusal, writeContextOf } from "../lib/writeEnvelope";
@@ -21,6 +22,15 @@ import {
   STORAGE_ZONE_LIMITS,
   validateStorageZone,
 } from "../model/storageLayout/storageZone";
+import {
+  effectiveStorageAreaMode,
+  generateRackPositions,
+  kindForAreaMode,
+  STORAGE_POSITION_LIMITS,
+  storagePositionQrValue,
+  validateStoragePosition,
+  type StorageAreaMode,
+} from "../model/storageLayout/storagePosition";
 
 const outcome = v.any();
 
@@ -28,6 +38,7 @@ type BuildingDocument = Doc<"storageBuildings">;
 type FloorDocument = Doc<"storageFloors">;
 type ReservedBlockDocument = Doc<"storageFloorReservedBlocks">;
 type ZoneDocument = Doc<"storageZones">;
+type PositionDocument = Doc<"storagePositions">;
 type PlacementDocument = Doc<"storageStackPlacements">;
 type HandlingUnitDocument = Doc<"handlingUnits">;
 type LocationDocument = Doc<"locations">;
@@ -39,7 +50,7 @@ const failure = (code: string, field?: string) => refusal({ code, field });
 
 function writeContext(
   ctx: TenantFunctionContext,
-  table: "locations" | "storageZones",
+  table: "locations" | "storageZones" | "storagePositions",
   operation: string,
   requestId: string,
   warehouseId: string,
@@ -50,6 +61,179 @@ function writeContext(
     requestId,
     warehouseId,
   });
+}
+
+function areaMode(zone: ZoneDocument): StorageAreaMode {
+  return effectiveStorageAreaMode(zone.mode);
+}
+
+function zoneGeometry(zone: ZoneDocument) {
+  return {
+    xMm: zone.xMm,
+    yMm: zone.yMm,
+    widthMm: zone.widthMm,
+    depthMm: zone.depthMm,
+    maxStackHeightMm: zone.maxStackHeightMm,
+    ...(zone.baseElevationMm === undefined
+      ? {}
+      : { baseElevationMm: zone.baseElevationMm }),
+  };
+}
+
+async function activePositions(
+  ctx: TenantFunctionContext,
+  zone: ZoneDocument,
+): Promise<readonly PositionDocument[]> {
+  return await ctx.tenantDb
+    .byIndex<PositionDocument>(
+      "storagePositions",
+      "by_orgId_zoneId_status_code",
+      [
+        { field: "zoneId", value: zone._id },
+        { field: "status", value: "ACTIVE" },
+      ],
+    )
+    .take(STORAGE_POSITION_LIMITS.maximumPositionsPerArea);
+}
+
+async function ensureDefaultPosition(
+  ctx: TenantFunctionContext,
+  zone: ZoneDocument,
+  requestId: string,
+): Promise<PositionDocument | null> {
+  const existing = await ctx.tenantDb
+    .byIndex<PositionDocument>("storagePositions", "by_orgId_locationId", [
+      { field: "locationId", value: zone.locationId },
+    ])
+    .unique();
+  if (existing !== null) return existing;
+
+  const now = Date.now();
+  const created = await createMasterDataRow({
+    ...writeContext(
+      ctx,
+      "storagePositions",
+      "storageLayout.position.default.backfill",
+      requestId,
+      zone.warehouseId,
+    ),
+    fingerprint: {
+      zoneId: zone._id,
+      locationId: zone.locationId,
+      code: zone.code,
+    },
+    uniqueness: [
+      {
+        field: "locationId",
+        index: "by_orgId_locationId",
+        equality: [{ field: "locationId", value: zone.locationId }],
+      },
+      {
+        field: "code",
+        index: "by_orgId_warehouseId_code",
+        equality: [
+          { field: "warehouseId", value: zone.warehouseId },
+          { field: "code", value: zone.code },
+        ],
+      },
+    ],
+    document: {
+      buildingId: zone.buildingId,
+      floorId: zone.floorId,
+      zoneId: zone._id,
+      warehouseId: zone.warehouseId,
+      locationId: zone.locationId,
+      code: zone.code,
+      label: zone.label,
+      qrValue: zone.qrValue,
+      kind: "DEFAULT",
+      isDefault: true,
+      xMm: zone.xMm,
+      yMm: zone.yMm,
+      widthMm: zone.widthMm,
+      depthMm: zone.depthMm,
+      status: "ACTIVE",
+      createdAt: now,
+      createdByUserId: ctx.tenant.actor._id,
+      updatedAt: now,
+      updatedByUserId: ctx.tenant.actor._id,
+    },
+  });
+  if (!created.ok) return null;
+  return await ctx.tenantDb.get<PositionDocument>(
+    "storagePositions",
+    created.value.documentId,
+  );
+}
+
+async function findZoneByScan(
+  ctx: TenantFunctionContext,
+  warehouseId: string,
+  scan: string,
+): Promise<ZoneDocument | null> {
+  const raw = scan.trim();
+  let zone = await ctx.tenantDb
+    .byIndex<ZoneDocument>("storageZones", "by_orgId_qrValue", [
+      { field: "qrValue", value: raw },
+    ])
+    .unique();
+  if (zone !== null) return zone.warehouseId === warehouseId ? zone : null;
+  const code = normalizeField("scan", raw, {
+    caseFolding: "UPPERCASE",
+    maxLength: 128,
+  });
+  if (!code.ok) return null;
+  zone = await ctx.tenantDb
+    .byIndex<ZoneDocument>("storageZones", "by_orgId_warehouseId_code", [
+      { field: "warehouseId", value: warehouseId },
+      { field: "code", value: code.value },
+    ])
+    .unique();
+  return zone;
+}
+
+async function findPositionByScan(
+  ctx: TenantFunctionContext,
+  warehouseId: string,
+  scan: string,
+): Promise<PositionDocument | null> {
+  const raw = scan.trim();
+  let position = await ctx.tenantDb
+    .byIndex<PositionDocument>("storagePositions", "by_orgId_qrValue", [
+      { field: "qrValue", value: raw },
+    ])
+    .unique();
+  if (position !== null) {
+    return position.warehouseId === warehouseId ? position : null;
+  }
+  const code = normalizeField("scan", raw, {
+    caseFolding: "UPPERCASE",
+    maxLength: 128,
+  });
+  if (!code.ok) return null;
+  return await ctx.tenantDb
+    .byIndex<PositionDocument>(
+      "storagePositions",
+      "by_orgId_warehouseId_code",
+      [
+        { field: "warehouseId", value: warehouseId },
+        { field: "code", value: code.value },
+      ],
+    )
+    .unique();
+}
+
+function breadcrumbOf(
+  building: BuildingDocument,
+  floor: FloorDocument,
+  zone: ZoneDocument,
+  position: PositionDocument,
+): string {
+  const floorLabel = `Floor ${floor.floorNumber}`;
+  if (position.kind === "RACK_SLOT") {
+    return `${floorLabel} › ${zone.label} › ${position.fixtureCode ?? "Rack"} › Bay ${String(position.bayIndex ?? 0).padStart(2, "0")} › Level ${String(position.levelIndex ?? 0).padStart(2, "0")}${(position.slotIndex ?? 1) > 1 ? ` › Slot ${String(position.slotIndex).padStart(2, "0")}` : ""}`;
+  }
+  return `${floorLabel} › ${zone.label} › ${position.label || building.code}`;
 }
 
 async function readBuildingFloor(
@@ -89,6 +273,15 @@ export const createStorageZone = mutationWithOrg({
     widthMm: v.number(),
     depthMm: v.number(),
     maxStackHeightMm: v.number(),
+    mode: v.optional(
+      v.union(
+        v.literal("SIMPLE"),
+        v.literal("FLOOR_POSITIONS"),
+        v.literal("RACK"),
+        v.literal("PLATFORM"),
+      ),
+    ),
+    baseElevationMm: v.optional(v.number()),
   },
   returns: outcome,
   permissionCode: "masterData.storageLayout.manage",
@@ -107,6 +300,20 @@ export const createStorageZone = mutationWithOrg({
     }
     const label = normalizeDisplayName("label", args.label);
     if (!label.ok) return failure(label.error.code, "label");
+    const mode = effectiveStorageAreaMode(args.mode);
+    const floorHeightMm =
+      scope.floor.heightMm ?? scope.building.defaultFloorHeightMm;
+    if (
+      (mode === "PLATFORM" &&
+        (!Number.isSafeInteger(args.baseElevationMm) ||
+          (args.baseElevationMm ?? -1) < 0 ||
+          (args.baseElevationMm ?? 0) >= floorHeightMm ||
+          (args.baseElevationMm ?? 0) + args.maxStackHeightMm >
+            floorHeightMm)) ||
+      (mode !== "PLATFORM" && args.baseElevationMm !== undefined)
+    ) {
+      return failure("BASE_ELEVATION_INVALID", "baseElevationMm");
+    }
 
     const replayRecord = await ctx.tenantDb
       .byIndex<IdempotencyDocument>(
@@ -166,6 +373,10 @@ export const createStorageZone = mutationWithOrg({
           code: replayZone.code,
           label: replayZone.label,
           qrValue: replayZone.qrValue,
+          ...(replayZone.mode === undefined ? {} : { mode: replayZone.mode }),
+          ...(replayZone.baseElevationMm === undefined
+            ? {}
+            : { baseElevationMm: replayZone.baseElevationMm }),
           xMm: replayZone.xMm,
           yMm: replayZone.yMm,
           widthMm: replayZone.widthMm,
@@ -179,6 +390,9 @@ export const createStorageZone = mutationWithOrg({
         },
       });
       if (!replayed.ok) return failure(replayed.error.code);
+      if (areaMode(replayZone) === "SIMPLE") {
+        await ensureDefaultPosition(ctx, replayZone, args.requestId);
+      }
       return {
         written: true as const,
         documentId: replayed.value.documentId,
@@ -315,6 +529,10 @@ export const createStorageZone = mutationWithOrg({
         code,
         label: label.value,
         qrValue,
+        mode,
+        ...(args.baseElevationMm === undefined
+          ? {}
+          : { baseElevationMm: args.baseElevationMm }),
         ...candidate,
         status: "ACTIVE",
         createdAt: now,
@@ -324,6 +542,18 @@ export const createStorageZone = mutationWithOrg({
       },
     });
     if (!zone.ok) return failure(zone.error.code);
+    const createdZone = await ctx.tenantDb.get<ZoneDocument>(
+      "storageZones",
+      zone.value.documentId,
+    );
+    if (createdZone === null) return failure("WRITE_VERIFICATION_FAILED");
+    if (mode === "SIMPLE") {
+      if (
+        (await ensureDefaultPosition(ctx, createdZone, args.requestId)) === null
+      ) {
+        return failure("DEFAULT_POSITION_CREATE_FAILED");
+      }
+    }
     return {
       written: true as const,
       documentId: zone.value.documentId,
@@ -345,6 +575,16 @@ export const updateStorageZone = mutationWithOrg({
     widthMm: v.number(),
     depthMm: v.number(),
     maxStackHeightMm: v.number(),
+    mode: v.optional(
+      v.union(
+        v.literal("SIMPLE"),
+        v.literal("FLOOR_POSITIONS"),
+        v.literal("RACK"),
+        v.literal("PLATFORM"),
+      ),
+    ),
+    baseElevationMm: v.optional(v.number()),
+    confirmOccupiedChange: v.optional(v.boolean()),
   },
   returns: outcome,
   permissionCode: "masterData.storageLayout.manage",
@@ -383,6 +623,22 @@ export const updateStorageZone = mutationWithOrg({
     }
     const label = normalizeDisplayName("label", args.label);
     if (!label.ok) return failure(label.error.code, "label");
+    const mode = effectiveStorageAreaMode(args.mode ?? zone.mode);
+    const baseElevationMm =
+      mode === "PLATFORM"
+        ? (args.baseElevationMm ?? zone.baseElevationMm)
+        : undefined;
+    const floorHeightMm = floor.heightMm ?? building.defaultFloorHeightMm;
+    if (
+      (mode === "PLATFORM" &&
+        (!Number.isSafeInteger(baseElevationMm) ||
+          (baseElevationMm ?? -1) < 0 ||
+          (baseElevationMm ?? 0) >= floorHeightMm ||
+          (baseElevationMm ?? 0) + args.maxStackHeightMm > floorHeightMm)) ||
+      (mode !== "PLATFORM" && args.baseElevationMm !== undefined)
+    ) {
+      return failure("BASE_ELEVATION_INVALID", "baseElevationMm");
+    }
     const reserved = await ctx.tenantDb
       .byIndex<ReservedBlockDocument>(
         "storageFloorReservedBlocks",
@@ -428,6 +684,33 @@ export const updateStorageZone = mutationWithOrg({
         ],
       )
       .take(STORAGE_ZONE_LIMITS.maximumPlacementsPerZone + 1);
+    const geometryChanged =
+      zone.xMm !== candidate.xMm ||
+      zone.yMm !== candidate.yMm ||
+      zone.widthMm !== candidate.widthMm ||
+      zone.depthMm !== candidate.depthMm ||
+      zone.maxStackHeightMm !== candidate.maxStackHeightMm;
+    if (
+      geometryChanged &&
+      placements.length > 0 &&
+      args.confirmOccupiedChange !== true
+    ) {
+      const affectedLpns = (
+        await Promise.all(
+          placements.map(async (placement) => {
+            const unit = await ctx.tenantDb.get<HandlingUnitDocument>(
+              "handlingUnits",
+              placement.handlingUnitId,
+            );
+            return unit?.lpn;
+          }),
+        )
+      ).filter((value): value is string => value !== undefined);
+      return refusal({
+        code: "OCCUPIED_AREA_CONFIRMATION_REQUIRED",
+        affectedLpns,
+      } as unknown as { code: string });
+    }
     const allPlacementsFit = placements.every((placement) =>
       placement.orientation === "ROTATED"
         ? placement.depthMm <= candidate.widthMm &&
@@ -436,6 +719,41 @@ export const updateStorageZone = mutationWithOrg({
           placement.depthMm <= candidate.depthMm,
     );
     if (!allPlacementsFit) return failure("HANDLING_UNIT_DOES_NOT_FIT");
+
+    const positions = await activePositions(ctx, zone);
+    const movedArea = {
+      ...candidate,
+      ...(baseElevationMm === undefined ? {} : { baseElevationMm }),
+    };
+    if (
+      positions.some((position) => {
+        if (position.isDefault) return false;
+        if (
+          position.xMm === undefined ||
+          position.yMm === undefined ||
+          position.widthMm === undefined ||
+          position.depthMm === undefined
+        ) {
+          return true;
+        }
+        return !validateStoragePosition({
+          mode,
+          area: movedArea,
+          position: {
+            kind: position.kind,
+            xMm: position.xMm,
+            yMm: position.yMm,
+            widthMm: position.widthMm,
+            depthMm: position.depthMm,
+            ...(position.elevationMm === undefined
+              ? {}
+              : { elevationMm: position.elevationMm }),
+          },
+        }).ok;
+      })
+    ) {
+      return failure("POSITION_OUT_OF_AREA");
+    }
 
     const updated = await updateMasterDataRow({
       ...writeContext(
@@ -450,7 +768,432 @@ export const updateStorageZone = mutationWithOrg({
       uniqueness: [],
       patch: {
         label: label.value,
+        mode,
+        ...(mode === "PLATFORM"
+          ? { baseElevationMm }
+          : { baseElevationMm: undefined }),
         ...candidate,
+        updatedAt: Date.now(),
+        updatedByUserId: ctx.tenant.actor._id,
+      },
+    });
+    if (!updated.ok) return failure(updated.error.code);
+    const defaultPosition =
+      mode === "SIMPLE"
+        ? await ensureDefaultPosition(ctx, zone, `${args.requestId}:default`)
+        : await ctx.tenantDb
+            .byIndex<PositionDocument>(
+              "storagePositions",
+              "by_orgId_locationId",
+              [{ field: "locationId", value: zone.locationId }],
+            )
+            .unique();
+    if (defaultPosition !== null) {
+      await ctx.tenantDb.patch("storagePositions", defaultPosition._id, {
+        label: label.value,
+        xMm: candidate.xMm,
+        yMm: candidate.yMm,
+        widthMm: candidate.widthMm,
+        depthMm: candidate.depthMm,
+        updatedAt: Date.now(),
+        updatedByUserId: ctx.tenant.actor._id,
+      });
+    }
+    return {
+      written: true as const,
+      documentId: zone._id,
+      replayed: updated.value.replayed,
+    };
+  },
+});
+
+async function createPositionRecords(
+  ctx: TenantFunctionContext,
+  input: {
+    readonly zone: ZoneDocument;
+    readonly requestId: string;
+    readonly code: string;
+    readonly label: string;
+    readonly kind: "FLOOR" | "RACK_SLOT" | "PLATFORM";
+    readonly xMm: number;
+    readonly yMm: number;
+    readonly widthMm: number;
+    readonly depthMm: number;
+    readonly fixtureCode?: string;
+    readonly bayIndex?: number;
+    readonly levelIndex?: number;
+    readonly slotIndex?: number;
+    readonly elevationMm?: number;
+  },
+) {
+  const location = await createMasterDataRow({
+    ...writeContext(
+      ctx,
+      "locations",
+      "storageLayout.position.location.create",
+      input.requestId,
+      input.zone.warehouseId,
+    ),
+    fingerprint: {
+      zoneId: input.zone._id,
+      code: input.code,
+      kind: input.kind,
+    },
+    uniqueness: [
+      {
+        field: "code",
+        index: "by_orgId_warehouseId_code",
+        equality: [
+          { field: "warehouseId", value: input.zone.warehouseId },
+          { field: "code", value: input.code },
+        ],
+      },
+    ],
+    document: {
+      warehouseId: input.zone.warehouseId,
+      code: input.code,
+      locationType: input.kind === "RACK_SLOT" ? "RACK_BIN" : "FLOOR_BLOCK",
+      status: "ACTIVE",
+    },
+  });
+  if (!location.ok) return location;
+  const qrValue = storagePositionQrValue(location.value.documentId);
+  const now = Date.now();
+  return await createMasterDataRow({
+    ...writeContext(
+      ctx,
+      "storagePositions",
+      "storageLayout.position.create",
+      input.requestId,
+      input.zone.warehouseId,
+    ),
+    fingerprint: { ...input, locationId: location.value.documentId },
+    uniqueness: [
+      {
+        field: "locationId",
+        index: "by_orgId_locationId",
+        equality: [{ field: "locationId", value: location.value.documentId }],
+      },
+      {
+        field: "code",
+        index: "by_orgId_warehouseId_code",
+        equality: [
+          { field: "warehouseId", value: input.zone.warehouseId },
+          { field: "code", value: input.code },
+        ],
+      },
+      {
+        field: "qrValue",
+        index: "by_orgId_qrValue",
+        equality: [{ field: "qrValue", value: qrValue }],
+      },
+    ],
+    document: {
+      buildingId: input.zone.buildingId,
+      floorId: input.zone.floorId,
+      zoneId: input.zone._id,
+      warehouseId: input.zone.warehouseId,
+      locationId: location.value.documentId,
+      code: input.code,
+      label: input.label,
+      qrValue,
+      kind: input.kind,
+      isDefault: false,
+      xMm: input.xMm,
+      yMm: input.yMm,
+      widthMm: input.widthMm,
+      depthMm: input.depthMm,
+      ...(input.fixtureCode === undefined
+        ? {}
+        : { fixtureCode: input.fixtureCode }),
+      ...(input.bayIndex === undefined ? {} : { bayIndex: input.bayIndex }),
+      ...(input.levelIndex === undefined
+        ? {}
+        : { levelIndex: input.levelIndex }),
+      ...(input.slotIndex === undefined ? {} : { slotIndex: input.slotIndex }),
+      ...(input.elevationMm === undefined
+        ? {}
+        : { elevationMm: input.elevationMm }),
+      status: "ACTIVE",
+      createdAt: now,
+      createdByUserId: ctx.tenant.actor._id,
+      updatedAt: now,
+      updatedByUserId: ctx.tenant.actor._id,
+    },
+  });
+}
+
+export const createStoragePosition = mutationWithOrg({
+  args: {
+    warehouseId: v.id("warehouses"),
+    zoneId: v.id("storageZones"),
+    requestId: v.string(),
+    code: v.string(),
+    label: v.string(),
+    xMm: v.number(),
+    yMm: v.number(),
+    widthMm: v.number(),
+    depthMm: v.number(),
+  },
+  returns: outcome,
+  permissionCode: "masterData.storageLayout.manage",
+  target: { table: "storagePositions" },
+  warehouseId: ({ warehouseId }) => warehouseId,
+  handler: async (ctx, args) => {
+    const zone = await ctx.tenantDb.get<ZoneDocument>(
+      "storageZones",
+      args.zoneId,
+    );
+    if (
+      zone === null ||
+      zone.warehouseId !== args.warehouseId ||
+      zone.status !== "ACTIVE"
+    ) {
+      return failure("NOT_FOUND");
+    }
+    const mode = areaMode(zone);
+    if (mode === "SIMPLE" || mode === "RACK") {
+      return failure("POSITION_MODE_MISMATCH", "mode");
+    }
+    const codePart = normalizeField("code", args.code, {
+      caseFolding: "UPPERCASE",
+      maxLength: 48,
+    });
+    const label = normalizeDisplayName("label", args.label);
+    if (!codePart.ok) return failure(codePart.error.code, "code");
+    if (!label.ok) return failure(label.error.code, "label");
+    const code = `${zone.code}-${codePart.value}`;
+    const kind = kindForAreaMode(mode) as "FLOOR" | "PLATFORM";
+    const geometry = {
+      kind,
+      xMm: args.xMm,
+      yMm: args.yMm,
+      widthMm: args.widthMm,
+      depthMm: args.depthMm,
+      ...(kind === "PLATFORM" && zone.baseElevationMm !== undefined
+        ? { elevationMm: zone.baseElevationMm }
+        : {}),
+    };
+    const valid = validateStoragePosition({
+      mode,
+      area: zoneGeometry(zone),
+      position: geometry,
+    });
+    if (!valid.ok) {
+      return failure(
+        valid.error.code,
+        "field" in valid.error ? valid.error.field : undefined,
+      );
+    }
+    const positions = await activePositions(ctx, zone);
+    if (positions.length >= STORAGE_POSITION_LIMITS.maximumPositionsPerArea) {
+      return failure("POSITION_LIMIT_EXCEEDED");
+    }
+    const created = await createPositionRecords(ctx, {
+      zone,
+      requestId: args.requestId,
+      code,
+      label: label.value,
+      ...geometry,
+    });
+    if (!created.ok) return failure(created.error.code);
+    return {
+      written: true as const,
+      documentId: created.value.documentId,
+      replayed: created.value.replayed,
+      code,
+    };
+  },
+});
+
+export const generateRackStoragePositions = mutationWithOrg({
+  args: {
+    warehouseId: v.id("warehouses"),
+    zoneId: v.id("storageZones"),
+    requestId: v.string(),
+    fixtureCode: v.string(),
+    bayCount: v.number(),
+    levelCount: v.number(),
+    slotsPerBay: v.number(),
+    bayWidthMm: v.number(),
+    rackDepthMm: v.number(),
+    levelHeightMm: v.number(),
+  },
+  returns: outcome,
+  permissionCode: "masterData.storageLayout.manage",
+  target: { table: "storagePositions" },
+  warehouseId: ({ warehouseId }) => warehouseId,
+  handler: async (ctx, args) => {
+    const zone = await ctx.tenantDb.get<ZoneDocument>(
+      "storageZones",
+      args.zoneId,
+    );
+    if (
+      zone === null ||
+      zone.warehouseId !== args.warehouseId ||
+      zone.status !== "ACTIVE"
+    ) {
+      return failure("NOT_FOUND");
+    }
+    if (areaMode(zone) !== "RACK") {
+      return failure("POSITION_MODE_MISMATCH", "mode");
+    }
+    const generated = generateRackPositions({
+      area: zoneGeometry(zone),
+      fixtureCode: args.fixtureCode,
+      bayCount: args.bayCount,
+      levelCount: args.levelCount,
+      slotsPerBay: args.slotsPerBay,
+      bayWidthMm: args.bayWidthMm,
+      rackDepthMm: args.rackDepthMm,
+      levelHeightMm: args.levelHeightMm,
+    });
+    if (!generated.ok) {
+      return failure(
+        generated.error.code,
+        "field" in generated.error ? generated.error.field : undefined,
+      );
+    }
+    const positions = await activePositions(ctx, zone);
+    if (
+      positions.length + generated.value.length >
+      STORAGE_POSITION_LIMITS.maximumPositionsPerArea
+    ) {
+      return failure("POSITION_LIMIT_EXCEEDED");
+    }
+    const createdIds: string[] = [];
+    for (const candidate of generated.value) {
+      const code = `${zone.code}-${candidate.codeSuffix}`;
+      const created = await createPositionRecords(ctx, {
+        zone,
+        requestId: `${args.requestId}:${candidate.codeSuffix}`,
+        code,
+        label: `${candidate.fixtureCode} / Bay ${String(candidate.bayIndex).padStart(2, "0")} / Level ${String(candidate.levelIndex).padStart(2, "0")}${candidate.slotIndex > 1 ? ` / Slot ${String(candidate.slotIndex).padStart(2, "0")}` : ""}`,
+        ...candidate,
+      });
+      if (!created.ok) return failure(created.error.code);
+      createdIds.push(created.value.documentId);
+    }
+    return {
+      written: true as const,
+      documentId: zone._id,
+      replayed: false,
+      createdCount: createdIds.length,
+      positionIds: createdIds,
+    };
+  },
+});
+
+export const updateStoragePosition = mutationWithOrg({
+  args: {
+    warehouseId: v.id("warehouses"),
+    positionId: v.id("storagePositions"),
+    requestId: v.string(),
+    label: v.string(),
+    xMm: v.number(),
+    yMm: v.number(),
+    widthMm: v.number(),
+    depthMm: v.number(),
+    confirmOccupiedChange: v.optional(v.boolean()),
+  },
+  returns: outcome,
+  permissionCode: "masterData.storageLayout.manage",
+  target: {
+    table: "storagePositions",
+    id: ({ positionId }) => positionId,
+  },
+  warehouseId: ({ warehouseId }) => warehouseId,
+  handler: async (ctx, args) => {
+    const position = await ctx.tenantDb.get<PositionDocument>(
+      "storagePositions",
+      args.positionId,
+    );
+    if (
+      position === null ||
+      position.warehouseId !== args.warehouseId ||
+      position.status !== "ACTIVE"
+    ) {
+      return failure("NOT_FOUND");
+    }
+    const zone = await ctx.tenantDb.get<ZoneDocument>(
+      "storageZones",
+      position.zoneId,
+    );
+    if (zone === null || zone.warehouseId !== args.warehouseId) {
+      return failure("NOT_FOUND");
+    }
+    const label = normalizeDisplayName("label", args.label);
+    if (!label.ok) return failure(label.error.code, "label");
+    const valid = validateStoragePosition({
+      mode: areaMode(zone),
+      area: zoneGeometry(zone),
+      position: {
+        kind: position.kind,
+        xMm: args.xMm,
+        yMm: args.yMm,
+        widthMm: args.widthMm,
+        depthMm: args.depthMm,
+        ...(position.elevationMm === undefined
+          ? {}
+          : { elevationMm: position.elevationMm }),
+      },
+    });
+    if (!valid.ok) return failure(valid.error.code);
+    const geometryChanged =
+      position.xMm !== args.xMm ||
+      position.yMm !== args.yMm ||
+      position.widthMm !== args.widthMm ||
+      position.depthMm !== args.depthMm;
+    const balances = await ctx.tenantDb
+      .byIndex<BalanceDocument>(
+        "inventoryBalances",
+        "by_orgId_locationId_bucketKey",
+        [{ field: "locationId", value: position.locationId }],
+      )
+      .take(100);
+    const occupied = balances.filter((row) => row.quantity.minorUnits !== 0);
+    if (
+      geometryChanged &&
+      occupied.length > 0 &&
+      args.confirmOccupiedChange !== true
+    ) {
+      const affectedLpns = (
+        await Promise.all(
+          [...new Set(occupied.map((row) => row.handlingUnitId))].map(
+            async (handlingUnitId) =>
+              handlingUnitId === undefined
+                ? undefined
+                : (
+                    await ctx.tenantDb.get<HandlingUnitDocument>(
+                      "handlingUnits",
+                      handlingUnitId,
+                    )
+                  )?.lpn,
+          ),
+        )
+      ).filter((value): value is string => value !== undefined);
+      return refusal({
+        code: "OCCUPIED_POSITION_CONFIRMATION_REQUIRED",
+        affectedLpns,
+      } as unknown as { code: string });
+    }
+    const updated = await updateMasterDataRow({
+      ...writeContext(
+        ctx,
+        "storagePositions",
+        "storageLayout.position.update",
+        args.requestId,
+        args.warehouseId,
+      ),
+      documentId: position._id,
+      fingerprint: args,
+      uniqueness: [],
+      patch: {
+        label: label.value,
+        xMm: args.xMm,
+        yMm: args.yMm,
+        widthMm: args.widthMm,
+        depthMm: args.depthMm,
         updatedAt: Date.now(),
         updatedByUserId: ctx.tenant.actor._id,
       },
@@ -458,8 +1201,272 @@ export const updateStorageZone = mutationWithOrg({
     if (!updated.ok) return failure(updated.error.code);
     return {
       written: true as const,
-      documentId: zone._id,
+      documentId: position._id,
       replayed: updated.value.replayed,
+    };
+  },
+});
+
+export const archiveStoragePosition = mutationWithOrg({
+  args: {
+    warehouseId: v.id("warehouses"),
+    positionId: v.id("storagePositions"),
+    requestId: v.string(),
+  },
+  returns: outcome,
+  permissionCode: "masterData.storageLayout.manage",
+  target: {
+    table: "storagePositions",
+    id: ({ positionId }) => positionId,
+  },
+  warehouseId: ({ warehouseId }) => warehouseId,
+  handler: async (ctx, args) => {
+    const position = await ctx.tenantDb.get<PositionDocument>(
+      "storagePositions",
+      args.positionId,
+    );
+    if (position === null || position.warehouseId !== args.warehouseId) {
+      return failure("NOT_FOUND");
+    }
+    const zone = await ctx.tenantDb.get<ZoneDocument>(
+      "storageZones",
+      position.zoneId,
+    );
+    if (zone === null || zone.warehouseId !== args.warehouseId) {
+      return failure("NOT_FOUND");
+    }
+    const positions = await activePositions(ctx, zone);
+    if (positions.length <= 1) return failure("AREA_REQUIRES_LEAF_POSITION");
+    const balances = await ctx.tenantDb
+      .byIndex<BalanceDocument>(
+        "inventoryBalances",
+        "by_orgId_locationId_bucketKey",
+        [{ field: "locationId", value: position.locationId }],
+      )
+      .take(100);
+    if (balances.some((row) => row.quantity.minorUnits !== 0)) {
+      return failure("POSITION_NOT_EMPTY");
+    }
+    const placement = await ctx.tenantDb
+      .byIndex<PlacementDocument>(
+        "storageStackPlacements",
+        "by_orgId_locationId_status",
+        [
+          { field: "locationId", value: position.locationId },
+          { field: "status", value: "ACTIVE" },
+        ],
+      )
+      .first();
+    if (placement !== null) return failure("POSITION_NOT_EMPTY");
+    const location = await updateMasterDataRow({
+      ...writeContext(
+        ctx,
+        "locations",
+        "storageLayout.position.location.archive",
+        args.requestId,
+        args.warehouseId,
+      ),
+      documentId: position.locationId,
+      fingerprint: args,
+      uniqueness: [],
+      patch: { status: "INACTIVE" },
+    });
+    if (!location.ok) return failure(location.error.code);
+    const updated = await updateMasterDataRow({
+      ...writeContext(
+        ctx,
+        "storagePositions",
+        "storageLayout.position.archive",
+        args.requestId,
+        args.warehouseId,
+      ),
+      documentId: position._id,
+      fingerprint: args,
+      uniqueness: [],
+      patch: {
+        status: "INACTIVE",
+        updatedAt: Date.now(),
+        updatedByUserId: ctx.tenant.actor._id,
+      },
+    });
+    if (!updated.ok) return failure(updated.error.code);
+    return {
+      written: true as const,
+      documentId: position._id,
+      replayed: updated.value.replayed,
+    };
+  },
+});
+
+export const backfillStoragePositions = mutationWithOrg({
+  args: {
+    warehouseId: v.id("warehouses"),
+    requestId: v.string(),
+  },
+  returns: outcome,
+  permissionCode: "masterData.storageLayout.manage",
+  target: { table: "storagePositions" },
+  warehouseId: ({ warehouseId }) => warehouseId,
+  handler: async (ctx, args) => {
+    const zones = await ctx.tenantDb
+      .byIndex<ZoneDocument>("storageZones", "by_orgId_warehouseId_code", [
+        { field: "warehouseId", value: args.warehouseId },
+      ])
+      .take(100);
+    let createdCount = 0;
+    for (const zone of zones) {
+      if (areaMode(zone) !== "SIMPLE") continue;
+      const before = await ctx.tenantDb
+        .byIndex<PositionDocument>("storagePositions", "by_orgId_locationId", [
+          { field: "locationId", value: zone.locationId },
+        ])
+        .unique();
+      if (before !== null) continue;
+      const created = await ensureDefaultPosition(
+        ctx,
+        zone,
+        `${args.requestId}:${zone._id}`,
+      );
+      if (created === null) return failure("DEFAULT_POSITION_CREATE_FAILED");
+      createdCount += 1;
+    }
+    return {
+      written: true as const,
+      documentId: args.warehouseId,
+      replayed: createdCount === 0,
+      createdCount,
+    };
+  },
+});
+
+function wireResolvedPosition(
+  building: BuildingDocument,
+  floor: FloorDocument,
+  zone: ZoneDocument,
+  position: PositionDocument,
+) {
+  return {
+    positionId: position._id,
+    locationId: position.locationId,
+    code: position.code,
+    label: position.label,
+    qrValue: position.qrValue,
+    kind: position.kind,
+    isDefault: position.isDefault,
+    ...(position.xMm === undefined ? {} : { xMm: position.xMm }),
+    ...(position.yMm === undefined ? {} : { yMm: position.yMm }),
+    ...(position.widthMm === undefined ? {} : { widthMm: position.widthMm }),
+    ...(position.depthMm === undefined ? {} : { depthMm: position.depthMm }),
+    ...(position.fixtureCode === undefined
+      ? {}
+      : { fixtureCode: position.fixtureCode }),
+    ...(position.bayIndex === undefined ? {} : { bayIndex: position.bayIndex }),
+    ...(position.levelIndex === undefined
+      ? {}
+      : { levelIndex: position.levelIndex }),
+    ...(position.slotIndex === undefined
+      ? {}
+      : { slotIndex: position.slotIndex }),
+    ...(position.elevationMm === undefined
+      ? {}
+      : { elevationMm: position.elevationMm }),
+    breadcrumb: breadcrumbOf(building, floor, zone, position),
+  };
+}
+
+export const resolveStorageAddress = queryWithOrg({
+  args: {
+    warehouseId: v.id("warehouses"),
+    scan: v.string(),
+  },
+  returns: v.any(),
+  permissionCode: "masterData.storageLayout.read",
+  target: { table: "storagePositions" },
+  warehouseId: ({ warehouseId }) => warehouseId,
+  handler: async (ctx, args) => {
+    const zone = await findZoneByScan(ctx, args.warehouseId, args.scan);
+    if (zone !== null && zone.status === "ACTIVE") {
+      const building = await ctx.tenantDb.get<BuildingDocument>(
+        "storageBuildings",
+        zone.buildingId,
+      );
+      const floor = await ctx.tenantDb.get<FloorDocument>(
+        "storageFloors",
+        zone.floorId,
+      );
+      if (building === null || floor === null) {
+        return { found: false as const };
+      }
+      const positions = await activePositions(ctx, zone);
+      if (positions.length === 0) {
+        return {
+          found: true as const,
+          resolution: "AREA_AUTO" as const,
+          area: { zoneId: zone._id, code: zone.code, label: zone.label },
+          position: {
+            locationId: zone.locationId,
+            code: zone.code,
+            label: zone.label,
+            qrValue: zone.qrValue,
+            kind: "DEFAULT" as const,
+            isDefault: true,
+            xMm: zone.xMm,
+            yMm: zone.yMm,
+            widthMm: zone.widthMm,
+            depthMm: zone.depthMm,
+            breadcrumb: `Floor ${floor.floorNumber} › ${zone.label}`,
+          },
+        };
+      }
+      const wire = positions.map((position) =>
+        wireResolvedPosition(building, floor, zone, position),
+      );
+      return positions.length === 1
+        ? {
+            found: true as const,
+            resolution: "AREA_AUTO" as const,
+            area: { zoneId: zone._id, code: zone.code, label: zone.label },
+            position: wire[0],
+          }
+        : {
+            found: true as const,
+            resolution: "AREA_NEEDS_POSITION" as const,
+            area: { zoneId: zone._id, code: zone.code, label: zone.label },
+            positions: wire,
+          };
+    }
+
+    const position = await findPositionByScan(ctx, args.warehouseId, args.scan);
+    if (position === null || position.status !== "ACTIVE") {
+      return { found: false as const };
+    }
+    const exactZone = await ctx.tenantDb.get<ZoneDocument>(
+      "storageZones",
+      position.zoneId,
+    );
+    if (exactZone === null || exactZone.status !== "ACTIVE") {
+      return { found: false as const };
+    }
+    const building = await ctx.tenantDb.get<BuildingDocument>(
+      "storageBuildings",
+      exactZone.buildingId,
+    );
+    const floor = await ctx.tenantDb.get<FloorDocument>(
+      "storageFloors",
+      exactZone.floorId,
+    );
+    if (building === null || floor === null) {
+      return { found: false as const };
+    }
+    return {
+      found: true as const,
+      resolution: "POSITION" as const,
+      area: {
+        zoneId: exactZone._id,
+        code: exactZone.code,
+        label: exactZone.label,
+      },
+      position: wireResolvedPosition(building, floor, exactZone, position),
     };
   },
 });
@@ -489,6 +1496,7 @@ export const archiveStorageZone = mutationWithOrg({
     if (building === null || building.status === "ARCHIVED") {
       return failure("LAYOUT_NOT_EDITABLE");
     }
+    const positions = await activePositions(ctx, zone);
     const placement = await ctx.tenantDb
       .byIndex<PlacementDocument>(
         "storageStackPlacements",
@@ -500,15 +1508,20 @@ export const archiveStorageZone = mutationWithOrg({
       )
       .first();
     if (placement !== null) return failure("ZONE_NOT_EMPTY");
-    const balances = await ctx.tenantDb
-      .byIndex<BalanceDocument>(
-        "inventoryBalances",
-        "by_orgId_locationId_bucketKey",
-        [{ field: "locationId", value: zone.locationId }],
-      )
-      .take(100);
-    if (balances.some((row) => row.quantity.minorUnits !== 0)) {
-      return failure("ZONE_NOT_EMPTY");
+    for (const locationId of new Set([
+      zone.locationId,
+      ...positions.map((position) => position.locationId),
+    ])) {
+      const balances = await ctx.tenantDb
+        .byIndex<BalanceDocument>(
+          "inventoryBalances",
+          "by_orgId_locationId_bucketKey",
+          [{ field: "locationId", value: locationId }],
+        )
+        .take(100);
+      if (balances.some((row) => row.quantity.minorUnits !== 0)) {
+        return failure("ZONE_NOT_EMPTY");
+      }
     }
     const now = Date.now();
     const location = await updateMasterDataRow({
@@ -525,6 +1538,18 @@ export const archiveStorageZone = mutationWithOrg({
       patch: { status: "INACTIVE" },
     });
     if (!location.ok) return failure(location.error.code);
+    for (const position of positions) {
+      if (position.locationId !== zone.locationId) {
+        await ctx.tenantDb.patch("locations", position.locationId, {
+          status: "INACTIVE",
+        });
+      }
+      await ctx.tenantDb.patch("storagePositions", position._id, {
+        status: "INACTIVE",
+        updatedAt: now,
+        updatedByUserId: ctx.tenant.actor._id,
+      });
+    }
     const updated = await updateMasterDataRow({
       ...writeContext(
         ctx,
@@ -557,6 +1582,7 @@ export const placeHandlingUnit = mutationWithOrg({
     requestId: v.string(),
     lpn: v.string(),
     zoneScan: v.string(),
+    positionId: v.optional(v.id("storagePositions")),
     widthMm: v.number(),
     depthMm: v.number(),
     heightMm: v.number(),
@@ -587,31 +1613,66 @@ export const placeHandlingUnit = mutationWithOrg({
       return failure("HANDLING_UNIT_HAS_NO_STOCK_LOCATION");
     }
 
-    const rawScan = args.zoneScan.trim();
-    let zone = await ctx.tenantDb
-      .byIndex<ZoneDocument>("storageZones", "by_orgId_qrValue", [
-        { field: "qrValue", value: rawScan },
-      ])
-      .unique();
-    if (zone === null) {
-      const code = normalizeField("zoneScan", rawScan, {
-        caseFolding: "UPPERCASE",
-        maxLength: 128,
-      });
-      if (!code.ok) return failure("ZONE_NOT_FOUND", "zoneScan");
-      zone = await ctx.tenantDb
-        .byIndex<ZoneDocument>("storageZones", "by_orgId_warehouseId_code", [
-          { field: "warehouseId", value: args.warehouseId },
-          { field: "code", value: code.value },
-        ])
-        .unique();
+    let zone: ZoneDocument | null = null;
+    let position: PositionDocument | null = null;
+    if (args.positionId !== undefined) {
+      position = await ctx.tenantDb.get<PositionDocument>(
+        "storagePositions",
+        args.positionId,
+      );
+      if (
+        position === null ||
+        position.warehouseId !== args.warehouseId ||
+        position.status !== "ACTIVE"
+      ) {
+        return failure("POSITION_NOT_FOUND");
+      }
+      zone = await ctx.tenantDb.get<ZoneDocument>(
+        "storageZones",
+        position.zoneId,
+      );
+    } else {
+      zone = await findZoneByScan(ctx, args.warehouseId, args.zoneScan);
+      if (zone !== null && zone.status === "ACTIVE") {
+        if (areaMode(zone) === "SIMPLE") {
+          await ensureDefaultPosition(ctx, zone, `${args.requestId}:default`);
+        }
+        const positions = await activePositions(ctx, zone);
+        if (positions.length > 1) {
+          return refusal({
+            code: "EXACT_POSITION_REQUIRED",
+            positions: positions.map((candidate) => ({
+              positionId: candidate._id,
+              code: candidate.code,
+              label: candidate.label,
+            })),
+          } as unknown as { code: string });
+        }
+        position = positions[0] ?? null;
+      } else {
+        position = await findPositionByScan(
+          ctx,
+          args.warehouseId,
+          args.zoneScan,
+        );
+        zone =
+          position === null
+            ? null
+            : await ctx.tenantDb.get<ZoneDocument>(
+                "storageZones",
+                position.zoneId,
+              );
+      }
     }
     if (
       zone === null ||
+      position === null ||
       zone.warehouseId !== args.warehouseId ||
-      zone.status !== "ACTIVE"
+      zone.status !== "ACTIVE" ||
+      position.warehouseId !== args.warehouseId ||
+      position.status !== "ACTIVE"
     ) {
-      return failure("ZONE_NOT_FOUND");
+      return failure("POSITION_NOT_FOUND");
     }
     const [building, location] = await Promise.all([
       ctx.tenantDb.get<BuildingDocument>("storageBuildings", zone.buildingId),
@@ -642,7 +1703,7 @@ export const placeHandlingUnit = mutationWithOrg({
         previous.transactionId,
       );
       if (
-        previous.zoneId === zone._id &&
+        previous.locationId === position.locationId &&
         previous.widthMm === args.widthMm &&
         previous.depthMm === args.depthMm &&
         previous.heightMm === args.heightMm &&
@@ -659,21 +1720,29 @@ export const placeHandlingUnit = mutationWithOrg({
       return failure("HANDLING_UNIT_ALREADY_STACKED");
     }
 
-    const placements = await ctx.tenantDb
-      .byIndex<PlacementDocument>(
-        "storageStackPlacements",
-        "by_orgId_zoneId_status_levelIndex",
-        [
-          { field: "zoneId", value: zone._id },
-          { field: "status", value: "ACTIVE" },
-        ],
-      )
-      .take(STORAGE_ZONE_LIMITS.maximumPlacementsPerZone + 1);
+    const placements = [
+      await ctx.tenantDb
+        .byIndex<PlacementDocument>(
+          "storageStackPlacements",
+          "by_orgId_locationId_status",
+          [
+            { field: "locationId", value: position.locationId },
+            { field: "status", value: "ACTIVE" },
+          ],
+        )
+        .take(STORAGE_ZONE_LIMITS.maximumPlacementsPerZone + 1),
+    ]
+      .flat()
+      .sort((left, right) => left.levelIndex - right.levelIndex);
     if (placements.length >= STORAGE_ZONE_LIMITS.maximumPlacementsPerZone) {
       return failure("STACK_LIMIT_EXCEEDED");
     }
     const plan = planStackPlacement({
-      zone,
+      zone: {
+        widthMm: position.widthMm ?? zone.widthMm,
+        depthMm: position.depthMm ?? zone.depthMm,
+        maxStackHeightMm: zone.maxStackHeightMm,
+      },
       placements,
       handlingUnit: {
         widthMm: args.widthMm,
@@ -735,7 +1804,7 @@ export const placeHandlingUnit = mutationWithOrg({
       requestId: args.requestId,
       actorUserId: ctx.tenant.actor._id,
       occurredAt: now,
-      source: { type: "STORAGE_ZONE", id: zone._id },
+      source: { type: "STORAGE_POSITION", id: position._id },
       lines: balances.flatMap((row) => [
         {
           bucket: bucketAt(row, unit.currentLocationId as string),
@@ -745,7 +1814,7 @@ export const placeHandlingUnit = mutationWithOrg({
           },
         },
         {
-          bucket: bucketAt(row, zone.locationId),
+          bucket: bucketAt(row, position.locationId),
           quantity: row.quantity,
         },
       ]),
@@ -761,7 +1830,8 @@ export const placeHandlingUnit = mutationWithOrg({
 
     const placementId = await ctx.tenantDb.insert("storageStackPlacements", {
       zoneId: zone._id,
-      locationId: zone.locationId,
+      positionId: position._id,
+      locationId: position.locationId,
       warehouseId: args.warehouseId,
       handlingUnitId: unit._id,
       levelIndex: plan.value.levelIndex,
@@ -788,6 +1858,8 @@ export const placeHandlingUnit = mutationWithOrg({
       occupiedHeightMm: plan.value.occupiedHeightMm,
       resultingHeightMm: plan.value.resultingHeightMm,
       capacityWarning: plan.value.capacityWarning,
+      positionId: position._id,
+      positionCode: position.code,
     };
   },
 });

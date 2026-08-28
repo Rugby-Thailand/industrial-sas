@@ -74,6 +74,22 @@ describe("industrial SaaS demo data seed", () => {
           query.eq("orgId", world.orgA).eq("poNumber", "PO-DEMO-1001"),
         )
         .unique();
+      const storageAreas = await ctx.db
+        .query("storageZones")
+        .withIndex("by_orgId_warehouseId_code", (query) =>
+          query
+            .eq("orgId", world.orgA)
+            .eq("warehouseId", world.warehouses.alphaA),
+        )
+        .collect();
+      const positions = await ctx.db
+        .query("storagePositions")
+        .withIndex("by_orgId_warehouseId_code", (query) =>
+          query
+            .eq("orgId", world.orgA)
+            .eq("warehouseId", world.warehouses.alphaA),
+        )
+        .collect();
       const customerOrder = await ctx.db
         .query("customerOrders")
         .withIndex("by_orgId_orderNumber", (query) =>
@@ -158,6 +174,8 @@ describe("industrial SaaS demo data seed", () => {
         fullRollup,
         taskExceptions,
         receivingExceptions,
+        storageAreas,
+        positions,
       };
     });
 
@@ -173,6 +191,19 @@ describe("industrial SaaS demo data seed", () => {
     expect(evidence.fullRollup?.count).toBe(8);
     expect(evidence.taskExceptions).toHaveLength(1);
     expect(evidence.receivingExceptions).toHaveLength(1);
+    expect(evidence.storageAreas.map((area) => area.mode)).toEqual(
+      expect.arrayContaining(["SIMPLE", "FLOOR_POSITIONS", "RACK"]),
+    );
+    expect(evidence.positions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "DEMO-BLDG-F01-Z03-P-12" }),
+        expect.objectContaining({
+          fixtureCode: "RACK-A",
+          bayIndex: 3,
+          levelIndex: 2,
+        }),
+      ]),
+    );
   });
 
   it("requires the explicit safety confirmation", async () => {

@@ -10,6 +10,7 @@ import type { PutawayTaskRow } from "@/lib/convex/inboundApi";
 import { StorageStackPlacementWorkbench } from "@/features/storageLayouts/StorageStackPlacement";
 
 import { RankedPutawayLocations } from "./InboundOptions";
+import { FinishedGoodsPutawayConcepts } from "./FinishedGoodsPutawayConcepts";
 import { InboundSection } from "./InboundPrimitives";
 import { ConfirmPutawayForm, PutawayTasksPanel } from "./PutawayTasks";
 import { PutawayRecommendationPanel } from "./PutawayRecommendation";
@@ -23,6 +24,8 @@ export function PutawayWorkbench() {
 
   return (
     <div data-testid="putaway-workbench">
+      <FinishedGoodsPutawayConcepts />
+
       <InboundSection title={t("sectionBoard")}>
         <PutawayTasksPanel onSelect={setSelected} />
       </InboundSection>

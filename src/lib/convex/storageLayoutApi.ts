@@ -24,6 +24,33 @@ export interface StorageStackPlacementRow {
   readonly heightMm: number;
   readonly orientation: "DEFAULT" | "ROTATED";
   readonly placedAt: number;
+  readonly positionId?: string;
+  readonly positionCode?: string;
+  readonly breadcrumb?: string;
+}
+
+export type StorageAreaMode =
+  "SIMPLE" | "FLOOR_POSITIONS" | "RACK" | "PLATFORM";
+
+export interface StoragePositionRow {
+  readonly positionId?: string;
+  readonly locationId: string;
+  readonly code: string;
+  readonly label: string;
+  readonly qrValue: string;
+  readonly kind: "DEFAULT" | "FLOOR" | "RACK_SLOT" | "PLATFORM";
+  readonly isDefault: boolean;
+  readonly xMm?: number;
+  readonly yMm?: number;
+  readonly widthMm?: number;
+  readonly depthMm?: number;
+  readonly fixtureCode?: string;
+  readonly bayIndex?: number;
+  readonly levelIndex?: number;
+  readonly slotIndex?: number;
+  readonly elevationMm?: number;
+  readonly breadcrumb: string;
+  readonly placements: readonly StorageStackPlacementRow[];
 }
 
 export interface StorageZoneRow {
@@ -32,11 +59,14 @@ export interface StorageZoneRow {
   readonly code: string;
   readonly label: string;
   readonly qrValue: string;
+  readonly mode: StorageAreaMode;
+  readonly baseElevationMm?: number;
   readonly xMm: number;
   readonly yMm: number;
   readonly widthMm: number;
   readonly depthMm: number;
   readonly maxStackHeightMm: number;
+  readonly positions: readonly StoragePositionRow[];
   readonly placements: readonly StorageStackPlacementRow[];
 }
 
@@ -109,4 +139,14 @@ export const storageLayoutRefs = Object.freeze({
   updateZone: clientRef(api.storageLayouts.zones.updateStorageZone),
   archiveZone: clientRef(api.storageLayouts.zones.archiveStorageZone),
   placeHandlingUnit: clientRef(api.storageLayouts.zones.placeHandlingUnit),
+  createPosition: clientRef(api.storageLayouts.zones.createStoragePosition),
+  generateRackPositions: clientRef(
+    api.storageLayouts.zones.generateRackStoragePositions,
+  ),
+  updatePosition: clientRef(api.storageLayouts.zones.updateStoragePosition),
+  archivePosition: clientRef(api.storageLayouts.zones.archiveStoragePosition),
+  resolveAddress: clientRef(api.storageLayouts.zones.resolveStorageAddress),
+  backfillPositions: clientRef(
+    api.storageLayouts.zones.backfillStoragePositions,
+  ),
 });

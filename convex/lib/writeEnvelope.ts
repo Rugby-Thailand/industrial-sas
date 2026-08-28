@@ -10,6 +10,7 @@ export const writeErrorValidator = v.object({
   table: v.optional(v.string()),
   status: v.optional(v.string()),
   requestId: v.optional(v.string()),
+  affectedLpns: v.optional(v.array(v.string())),
 });
 
 export const writeOutcomeValidator = v.union(
@@ -29,6 +30,7 @@ export interface StructuredError {
   readonly table?: unknown;
   readonly status?: unknown;
   readonly requestId?: unknown;
+  readonly affectedLpns?: readonly string[];
 }
 
 export const refusal = (error: StructuredError) => ({
@@ -42,6 +44,9 @@ export const refusal = (error: StructuredError) => ({
     ...(error.requestId === undefined
       ? {}
       : { requestId: String(error.requestId) }),
+    ...(error.affectedLpns === undefined
+      ? {}
+      : { affectedLpns: [...error.affectedLpns] }),
   },
 });
 

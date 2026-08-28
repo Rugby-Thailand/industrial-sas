@@ -3013,7 +3013,11 @@ export function StorageZonesPanel({
         maxStackHeightMm: millimetres(stackHeight),
       };
       const outcome = isEditing
-        ? await updateZone({ ...draft, zoneId: editingZone.zoneId })
+        ? await updateZone({
+            ...draft,
+            zoneId: editingZone.zoneId,
+            ...(confirmingImpact ? { confirmOccupiedChange: true } : {}),
+          })
         : await createZone({ ...draft, buildingId, floorNumber });
       if (!outcome.ok) {
         setMessage({
@@ -3299,11 +3303,13 @@ export function StorageZonesPanel({
               className="rounded-xl border border-border bg-background p-4"
             >
               <div className="flex gap-4">
-                <div
-                  aria-label={t("qrForZone", { code: zone.code })}
-                  className="shrink-0 rounded-lg bg-white p-2"
-                >
-                  <QRCodeSVG value={zone.qrValue} size={104} level="M" />
+                <div className="shrink-0 rounded-lg bg-white p-2">
+                  <QRCodeSVG
+                    value={zone.qrValue}
+                    size={104}
+                    level="M"
+                    aria-label={t("qrForZone", { code: zone.code })}
+                  />
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-semibold tracking-wider text-success uppercase">

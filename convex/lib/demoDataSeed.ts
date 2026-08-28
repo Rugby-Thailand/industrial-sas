@@ -574,6 +574,10 @@ export async function seedDemoDataForTenant(
     label: string,
     xMm: number,
     yMm: number,
+    widthMm = 4_000,
+    depthMm = 4_000,
+    mode: "SIMPLE" | "FLOOR_POSITIONS" | "RACK" | "PLATFORM" = "SIMPLE",
+    includeCompatibilityDefault = true,
   ) => {
     const locationId = await ensureLocation(code, "FLOOR_BLOCK");
     const zoneId = await ensureCurrent(
@@ -599,10 +603,11 @@ export async function seedDemoDataForTenant(
         code,
         label,
         qrValue: `ISAS:LOCATION:1:${locationId}`,
+        mode,
         xMm,
         yMm,
-        widthMm: 4_000,
-        depthMm: 4_000,
+        widthMm,
+        depthMm,
         maxStackHeightMm: 3_000,
         status: "ACTIVE",
         createdAt: now,
@@ -611,6 +616,73 @@ export async function seedDemoDataForTenant(
         updatedByUserId: actorUserId,
       },
     );
+    // Demo seeds are intentionally refreshable: keep the stable zone/location
+    // identities while evolving the illustrative geometry and addressing mode.
+    await ctx.db.patch(zoneId, {
+      label,
+      mode,
+      xMm,
+      yMm,
+      widthMm,
+      depthMm,
+      maxStackHeightMm: 3_000,
+      status: "ACTIVE",
+      updatedAt: now,
+      updatedByUserId: actorUserId,
+    });
+    const existingDefaultPosition = await ctx.db
+      .query("storagePositions")
+      .withIndex("by_orgId_locationId", (query) =>
+        query.eq("orgId", orgId).eq("locationId", locationId),
+      )
+      .unique();
+    if (includeCompatibilityDefault) {
+      const defaultPositionId = await ensure(
+        ctx,
+        stats,
+        "storagePositions",
+        async () => existingDefaultPosition,
+        {
+          orgId,
+          buildingId,
+          floorId: firstFloorId,
+          zoneId,
+          warehouseId,
+          locationId,
+          code,
+          label,
+          qrValue: `ISAS:LOCATION:1:${locationId}`,
+          kind: "DEFAULT",
+          isDefault: true,
+          xMm,
+          yMm,
+          widthMm,
+          depthMm,
+          status: "ACTIVE",
+          createdAt: now,
+          createdByUserId: actorUserId,
+          updatedAt: now,
+          updatedByUserId: actorUserId,
+        },
+      );
+      await ctx.db.patch(defaultPositionId, {
+        zoneId,
+        label,
+        xMm,
+        yMm,
+        widthMm,
+        depthMm,
+        status: "ACTIVE",
+        updatedAt: now,
+        updatedByUserId: actorUserId,
+      });
+    } else if (existingDefaultPosition?.status === "ACTIVE") {
+      await ctx.db.patch(existingDefaultPosition._id, {
+        status: "INACTIVE",
+        updatedAt: now,
+        updatedByUserId: actorUserId,
+      });
+    }
     return { zoneId, locationId };
   };
   const primaryZone = await ensureZone(
@@ -625,6 +697,137 @@ export async function seedDemoDataForTenant(
     5_000,
     0,
   );
+  const bulkZone = await ensureZone(
+    "DEMO-BLDG-F01-Z03",
+    "BULK-A พื้นที่กองขนาดใหญ่",
+    10_000,
+    0,
+    8_000,
+    6_000,
+    "FLOOR_POSITIONS",
+  );
+  const rackZone = await ensureZone(
+    "DEMO-BLDG-F01-Z04",
+    "ชั้นวางสินค้าสำเร็จรูป",
+    18_000,
+    0,
+    6_000,
+    4_000,
+    "RACK",
+    false,
+  );
+
+  const ensurePosition = async (input: {
+    zoneId: typeof bulkZone.zoneId;
+    zoneCode: string;
+    codeSuffix: string;
+    label: string;
+    kind: "FLOOR" | "RACK_SLOT";
+    xMm: number;
+    yMm: number;
+    widthMm: number;
+    depthMm: number;
+    fixtureCode?: string;
+    bayIndex?: number;
+    levelIndex?: number;
+    slotIndex?: number;
+    elevationMm?: number;
+  }) => {
+    const code = `${input.zoneCode}-${input.codeSuffix}`;
+    const locationId = await ensureLocation(
+      code,
+      input.kind === "RACK_SLOT" ? "RACK_BIN" : "FLOOR_BLOCK",
+    );
+    await ensure(
+      ctx,
+      stats,
+      "storagePositions",
+      async () =>
+        await ctx.db
+          .query("storagePositions")
+          .withIndex("by_orgId_locationId", (query) =>
+            query.eq("orgId", orgId).eq("locationId", locationId),
+          )
+          .unique(),
+      {
+        orgId,
+        buildingId,
+        floorId: firstFloorId,
+        zoneId: input.zoneId,
+        warehouseId,
+        locationId,
+        code,
+        label: input.label,
+        qrValue: `ISAS:LOCATION:1:${locationId}`,
+        kind: input.kind,
+        isDefault: false,
+        xMm: input.xMm,
+        yMm: input.yMm,
+        widthMm: input.widthMm,
+        depthMm: input.depthMm,
+        ...(input.fixtureCode === undefined
+          ? {}
+          : { fixtureCode: input.fixtureCode }),
+        ...(input.bayIndex === undefined ? {} : { bayIndex: input.bayIndex }),
+        ...(input.levelIndex === undefined
+          ? {}
+          : { levelIndex: input.levelIndex }),
+        ...(input.slotIndex === undefined
+          ? {}
+          : { slotIndex: input.slotIndex }),
+        ...(input.elevationMm === undefined
+          ? {}
+          : { elevationMm: input.elevationMm }),
+        status: "ACTIVE",
+        createdAt: now,
+        createdByUserId: actorUserId,
+        updatedAt: now,
+        updatedByUserId: actorUserId,
+      },
+    );
+  };
+  await ensurePosition({
+    zoneId: bulkZone.zoneId,
+    zoneCode: "DEMO-BLDG-F01-Z03",
+    codeSuffix: "P-12",
+    label: "P-12 กองวัตถุดิบ",
+    kind: "FLOOR",
+    xMm: 11_000,
+    yMm: 1_000,
+    widthMm: 2_000,
+    depthMm: 2_000,
+  });
+  await ensurePosition({
+    zoneId: bulkZone.zoneId,
+    zoneCode: "DEMO-BLDG-F01-Z03",
+    codeSuffix: "GRID-B4",
+    label: "GRID-B4",
+    kind: "FLOOR",
+    xMm: 14_000,
+    yMm: 3_000,
+    widthMm: 2_000,
+    depthMm: 2_000,
+  });
+  for (let bay = 1; bay <= 3; bay += 1) {
+    for (let level = 1; level <= 2; level += 1) {
+      await ensurePosition({
+        zoneId: rackZone.zoneId,
+        zoneCode: "DEMO-BLDG-F01-Z04",
+        codeSuffix: `RACK-A-B${String(bay).padStart(2, "0")}-L${String(level).padStart(2, "0")}-S01`,
+        label: `Rack A / Bay ${String(bay).padStart(2, "0")} / Level ${String(level).padStart(2, "0")}`,
+        kind: "RACK_SLOT",
+        xMm: 18_000 + (bay - 1) * 2_000,
+        yMm: 0,
+        widthMm: 2_000,
+        depthMm: 1_200,
+        fixtureCode: "RACK-A",
+        bayIndex: bay,
+        levelIndex: level,
+        slotIndex: 1,
+        elevationMm: (level - 1) * 1_800,
+      });
+    }
+  }
 
   const handlingUnitId = await ensure(
     ctx,

@@ -1114,6 +1114,106 @@
     "noPendingInspectionsHint": "An inspection arrives here when somebody records a release or a scrap.",
     "selectPending": "Choose an inspection waiting for approval"
   },
+  "FinishedGoodsPutawayPrototype": {
+    "prototypeBadge": "Interactive prototype",
+    "prototypeNote": "Uses realistic demo data; it does not post stock",
+    "title": "Choose the finished-goods putaway experience",
+    "description": "Compare three UI styles with the same completed FG handling unit. Switch between measured and unmeasured to see how confidence and operator actions change.",
+    "measurementChooser": "Finished-good measurement state",
+    "styleChooser": "Putaway interface style",
+    "measurement": {
+      "MEASURED": "Measured",
+      "UNMEASURED": "Not measured"
+    },
+    "concept": {
+      "GUIDED": {
+        "title": "1 · Guided mission",
+        "description": "One destination and one next action for fast handheld work"
+      },
+      "COMPARE": {
+        "title": "2 · Decision cockpit",
+        "description": "Compare three eligible Areas and their ranking evidence"
+      },
+      "MAP": {
+        "title": "3 · Warehouse radar",
+        "description": "See the recommended Areas and order clusters spatially"
+      }
+    },
+    "lpnLabel": "Finished-good LPN",
+    "productionOrderLabel": "Production order",
+    "customerOrderLabel": "Customer order",
+    "customerLabel": "Customer",
+    "demoCustomer": "Siam Beverage Co.",
+    "measuredBadge": "This LPN was measured",
+    "measuredSource": "Captured at FG completion · 10:42",
+    "unmeasuredBadge": "Dimensions not recorded",
+    "unmeasuredSource": "The recommendation uses order affinity and safe general Areas only",
+    "confidence": {
+      "high": "High confidence",
+      "low": "Low confidence"
+    },
+    "fit": {
+      "verified": "Verified fit",
+      "estimated": "Estimated fit",
+      "unknown": "Fit not verified"
+    },
+    "space": {
+      "verified": "{area} of contiguous usable area remains after placement",
+      "estimated": "About {area} remains; contiguous fit is not proven",
+      "unknown": "Remaining area cannot be calculated without dimensions"
+    },
+    "reason": {
+      "sameProductionOrder": "{count, plural, one {# LPN from the same production order is already here} other {# LPNs from the same production order are already here}}",
+      "sameCustomerOrder": "{count, plural, one {# LPN for the same open customer order is already here} other {# LPNs for the same open customer order are already here}}",
+      "sameCustomer": "{count, plural, one {# active LPN for the same customer is nearby} other {# active LPNs for the same customer are nearby}}"
+    },
+    "candidate": {
+      "BULK_A": {
+        "breadcrumb": "Floor 1 › Finished goods › BULK-A · General Area address",
+        "summary": "Best grouping and shortest route from FG completion"
+      },
+      "FG_EAST": {
+        "breadcrumb": "Floor 1 › Finished goods east › FG-EAST · General Area address",
+        "summary": "More free area, but separates this production order"
+      },
+      "OVERFLOW": {
+        "breadcrumb": "Floor 1 › FG overflow › FG-OVERFLOW · General Area address",
+        "summary": "Broad fallback Area; physical fit needs a floor check"
+      }
+    },
+    "generalAreaAddress": "General Area stock address · no child Position required",
+    "rank": "Recommendation #{rank}",
+    "scanDestination": "Scan destination Area",
+    "visualConfirmAndScan": "Check the floor and scan Area",
+    "measureNow": "Measure now",
+    "visualConfirmationRequired": "Operator must confirm the actual footprint before placement",
+    "scanReady": "Ready to scan {code}",
+    "scanReadyHint": "The server will recheck eligibility before posting the movement.",
+    "guided": {
+      "command": "Recommended next move",
+      "takeTo": "Take it to {code}",
+      "alternatives": "See two alternative Areas"
+    },
+    "compare": {
+      "hardRulesPassed": "All three candidates passed known hard rules",
+      "hardRulesHint": "Affinity scores cannot override QC, prohibition, fit, clearance, or rated load.",
+      "choose": "Choose the Area the operator will scan",
+      "rankingScore": "Ranking score",
+      "scoreDisclaimer": "Operational preference, not a safety percentage",
+      "selected": "Selected destination"
+    },
+    "map": {
+      "floorPlan": "Finished-goods floor · live recommendation layer",
+      "verified": "Verified fit",
+      "needsCheck": "Needs floor check",
+      "affinity": "order affinity",
+      "mapLabel": "Map of eligible finished-goods Areas",
+      "reserved": "Reserved aisle · never a stock address",
+      "areaLabel": "{code}, recommendation {rank}, {status}",
+      "ghostFootprint": "Projected footprint of the measured LPN",
+      "confirm": "Scan and use {code}"
+    }
+  },
   "Putaway": {
     "title": "Putaway",
     "description": "Putaway tasks for the selected warehouse, with the reasoning behind each recommendation.",
@@ -1984,11 +2084,36 @@
     "editStorageZone": "Edit {label}",
     "editStorageZoneTitle": "Edit storage stack",
     "editStorageZoneDescription": "Change this zone's position and capacity. Its location code and QR value stay the same.",
+    "areaMode": "Storage mode",
+    "modeSimple": "Simple stack",
+    "modeFloorPositions": "Floor positions",
+    "modeRack": "Rack / shelves",
+    "modePlatform": "Raised platform",
+    "modeSimpleHelp": "Backwards-compatible default: one automatic leaf position and no rack setup.",
+    "modeFloorPositionsHelp": "Add named markers or grid cells such as P-12 and GRID-B4 with exact X/Y geometry.",
+    "modeRackHelp": "Generate exact leaf addresses from rack identity, bay, level, and slot. Elevation comes from the rack level.",
+    "modePlatformHelp": "Set the platform base elevation, then add exact positions on its surface.",
+    "modeGuide": "How each mode works",
+    "modeGuideOpen": "Show storage mode guide",
+    "modeGuideDescription": "Compare addressing, scan behavior, and elevation rules before choosing a mode.",
+    "selectedMode": "Selected",
+    "modeSimpleRule": "1 automatic leaf · area scan selects it · fixed at floor Z = 0",
+    "modeFloorPositionsRule": "Multiple X/Y leaves · area scan requires an exact child · fixed at floor Z = 0",
+    "modeRackRule": "Fixture › bay › level › slot · Z is derived from the rack level",
+    "modePlatformRule": "Surface positions inherit base Z · base elevation + stack height must fit the floor",
+    "baseElevation": "Platform base elevation (m)",
+    "baseElevationSlider": "Platform base elevation Z",
     "edit": "Edit",
     "saveStorageZoneChanges": "Save changes",
     "updating": "Updating…",
     "storageZonePreview": "Live 3D position",
     "storageZonePlanPreview": "Live 2D position plan",
+    "rotatePreviewView": "Rotate 3D viewpoint · view {current} of {total}",
+    "inspectStorageArea": "Show height for storage area {label}",
+    "inspectReservedArea": "Show height for reserved area {label}",
+    "storageAreaHeightSummary": "Base Z {base} m · maximum height {height} m · top Z {top} m",
+    "reservedAreaHeightSummary": "Z 0–{height} m · reserved through the full floor height",
+    "closeContextHeight": "Close height details",
     "dragStorageZone": "Drag storage zone",
     "dragStorageZoneHint": "Drag the stack to position it · Arrow keys move 0.1 m",
     "zoneFitsFloor": "Fits within floor",
@@ -1996,6 +2121,32 @@
     "storageZoneCreated": "Storage stack created. Its location code and QR label are ready for activation.",
     "storageZoneUpdated": "Storage stack updated. Its location code and QR label are unchanged.",
     "storageZoneArchived": "Storage stack archived.",
+    "leafCount": "{count, plural, one {# leaf position} other {# leaf positions}}",
+    "exactPositions": "Exact leaf positions",
+    "addPosition": "Add position",
+    "addPositionTitle": "Add exact position",
+    "editPositionTitle": "Edit exact position",
+    "positionEditorHelp": "Position identity and QR stay unchanged when its X/Y geometry moves.",
+    "positionCode": "Position marker / code",
+    "positionLabel": "Position label",
+    "savePosition": "Save position",
+    "positionSaved": "Exact position saved. Its location identity and QR remain stable.",
+    "positionArchived": "Exact position archived.",
+    "editPosition": "Edit position {label}",
+    "archivePosition": "Archive position {label}",
+    "occupiedPositionConfirmation": "This geometry change affects occupied position LPNs: {lpns}. Confirm only after checking the physical move.",
+    "confirmOccupiedChange": "Confirm occupied change",
+    "generateRack": "Generate rack",
+    "generateRackTitle": "Generate rack positions",
+    "generateRackHelp": "Create stable leaf addresses for every bay, level, and slot. Level elevation is derived automatically.",
+    "fixtureCode": "Rack identity",
+    "bayCount": "Bays",
+    "levelCount": "Levels",
+    "slotsPerBay": "Slots per bay",
+    "bayWidth": "Bay width (m)",
+    "rackDepth": "Rack depth (m)",
+    "levelHeight": "Level height (m)",
+    "elevationValue": "elevation {value} m",
     "maxStackHeight": "Maximum stack height (m)",
     "qrForZone": "QR code for zone {code}",
     "stackUsed": "{used} of {maximum} m used",
@@ -2005,12 +2156,14 @@
     "emptyStack": "No handling units in this stack.",
     "top": "Top",
     "level": "Level {level}",
-    "scanPlacement": "Scan finished goods into a stack",
-    "scanPlacementHelp": "Select or scan a handling unit, then scan the zone QR. The stock ledger records the location and the stack list records its vertical level.",
+    "scanPlacement": "Scan finished goods to an exact position",
+    "scanPlacementHelp": "A one-position area selects automatically. A multi-position area requires the operator to scan or choose the exact child leaf before the ledger move.",
     "handlingUnit": "Finished good / handling unit",
     "scanLpn": "Scan or enter LPN",
     "zoneCodeOrQr": "Zone code or QR value",
     "scanZone": "Scan zone QR",
+    "exactPositionRequired": "This area has multiple leaf positions. Scan one or choose its exact address:",
+    "addressNotFound": "No active storage area or position matches this scan.",
     "unitWidth": "Unit width (m)",
     "unitDepth": "Unit depth (m)",
     "unitHeight": "Unit height (m)",

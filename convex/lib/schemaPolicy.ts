@@ -44,6 +44,7 @@ export const TENANT_TABLES = [
   "storageFloors",
   "storageFloorReservedBlocks",
   "storageZones",
+  "storagePositions",
   "storageStackPlacements",
   "openingStockBatches",
   "openingStockRows",
@@ -249,6 +250,21 @@ export const UNIQUENESS_CONTRACTS: readonly UniquenessContract[] = [
   { table: "items", key: ["orgId", "sku"], condition: ALWAYS },
   {
     table: "locations",
+    key: ["orgId", "warehouseId", "code"],
+    condition: ALWAYS,
+  },
+  {
+    table: "storagePositions",
+    key: ["orgId", "locationId"],
+    condition: ALWAYS,
+  },
+  {
+    table: "storagePositions",
+    key: ["orgId", "qrValue"],
+    condition: ALWAYS,
+  },
+  {
+    table: "storagePositions",
     key: ["orgId", "warehouseId", "code"],
     condition: ALWAYS,
   },
@@ -601,6 +617,7 @@ export const BOUNDED_LOOKUP_CONTRACTS: readonly LookupContract[] = [
   { table: "stepUpApprovals", key: ["orgId", "targetRef"] },
   { table: "supportGrants", key: ["orgId", "ticketRef"] },
   { table: "inventoryLedgerLines", key: ["orgId", "bucketKey"] },
+  { table: "storagePositions", key: ["orgId", "zoneId", "status"] },
   { table: "inventoryTransactions", key: ["orgId", "warehouseId"] },
   {
     table: "inventoryBalances",

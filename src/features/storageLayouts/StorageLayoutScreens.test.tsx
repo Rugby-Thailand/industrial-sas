@@ -452,6 +452,8 @@ describe("StorageZonesPanel", () => {
       widthMm: 2_000,
       depthMm: 2_000,
       maxStackHeightMm: 3_000,
+      mode: "SIMPLE",
+      positions: [],
       placements: [],
     };
 
@@ -503,6 +505,8 @@ describe("StorageZonesPanel", () => {
       widthMm: 3_000,
       depthMm: 3_000,
       maxStackHeightMm: 4_000,
+      mode: "SIMPLE",
+      positions: [],
       placements: [
         {
           placementId: "placement-live",

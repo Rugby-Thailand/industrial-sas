@@ -18,6 +18,7 @@ import {
   type TenantFunctionContext,
 } from "../lib/tenantFunctions";
 import { adjustRollup } from "../lib/rollupStore";
+import { storageLocationBreadcrumb } from "../lib/storageAddressStore";
 import { refusal } from "../lib/writeEnvelope";
 import { putawayTaskStatus } from "../lib/validators";
 import { MAX_JOB_PAGE_SIZE } from "../model/inventory/jobPage";
@@ -112,7 +113,9 @@ async function candidatesFor(
       }
       return {
         locationId: location._id,
-        code: location.code,
+        code:
+          (await storageLocationBreadcrumb(ctx.tenantDb, location._id)) ??
+          location.code,
         locationType: location.locationType,
         status: location.status,
         ...(prohibited ? { prohibited } : {}),
