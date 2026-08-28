@@ -4,11 +4,11 @@ import type { MessageCatalogue } from "./messages";
 export type MessageNamespace = keyof MessageCatalogue;
 
 export const SHELL_NAMESPACES = [
-  "Access",
   "App",
   "Error",
   "Locale",
   "Navigation",
+  "Panel",
   "Workspace",
 ] as const satisfies readonly MessageNamespace[];
 

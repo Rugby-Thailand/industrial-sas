@@ -10,6 +10,7 @@ vi.mock("convex/react", () => ({
   useConvexAuth: () => ({ isAuthenticated: true, isLoading: false }),
   useMutation: () => advance,
   useQuery: () => undefined,
+  useQuery_experimental: () => ({ status: "pending" }),
 }));
 
 import {

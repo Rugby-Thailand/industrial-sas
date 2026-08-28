@@ -21,10 +21,10 @@ export default async function HandheldLayout({
   if (access === "SIGN_IN") redirect(`/${locale}/sign-in`);
   if (access === "ORGANIZATION_REQUIRED") return <OrganizationRequired />;
   return (
-    <WorkspaceAccessBoundary>
-      <WorkspaceProvider>
+    <WorkspaceProvider>
+      <WorkspaceAccessBoundary>
         <HandheldShell>{children}</HandheldShell>
-      </WorkspaceProvider>
-    </WorkspaceAccessBoundary>
+      </WorkspaceAccessBoundary>
+    </WorkspaceProvider>
   );
 }

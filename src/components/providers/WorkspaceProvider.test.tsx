@@ -9,14 +9,14 @@ import {
 
 import { useWorkspace, WorkspaceProvider } from "./WorkspaceProvider";
 
-const { useConvexAuthMock, useQueryMock } = vi.hoisted(() => ({
+const { useConvexAuthMock, useQueryExperimentalMock } = vi.hoisted(() => ({
   useConvexAuthMock: vi.fn(),
-  useQueryMock: vi.fn(),
+  useQueryExperimentalMock: vi.fn(),
 }));
 
 vi.mock("convex/react", () => ({
   useConvexAuth: useConvexAuthMock,
-  useQuery: useQueryMock,
+  useQuery_experimental: useQueryExperimentalMock,
 }));
 
 const workspaceOutcome = {
@@ -52,6 +52,7 @@ function State() {
       {JSON.stringify({
         complete: workspace.complete,
         denied: workspace.denied,
+        ...(workspace.failed ? { failed: true } : {}),
         loading: workspace.loading,
         organization: workspace.organization?.id,
         navigationPermissions: workspace.navigationPermissions,
@@ -74,7 +75,10 @@ describe("the workspace provider", () => {
       isAuthenticated: true,
       isLoading: false,
     });
-    useQueryMock.mockReturnValue(workspaceOutcome);
+    useQueryExperimentalMock.mockReturnValue({
+      status: "success",
+      data: workspaceOutcome,
+    });
   });
 
   afterEach(() => {
@@ -117,8 +121,10 @@ describe("the workspace provider", () => {
       </WorkspaceProvider>,
     );
 
-    expect(useQueryMock.mock.calls.at(-1)?.[0]).toBe(readCurrentWorkspaceRef);
-    expect(useQueryMock.mock.calls.at(-1)?.[1]).toBe("skip");
+    expect(useQueryExperimentalMock.mock.calls.at(-1)?.[0]).toEqual({
+      query: readCurrentWorkspaceRef,
+      args: "skip",
+    });
     expect(screen.getByTestId("workspace-state")).toHaveTextContent(
       JSON.stringify({
         complete: true,
@@ -143,8 +149,10 @@ describe("the workspace provider", () => {
       </WorkspaceProvider>,
     );
 
-    expect(useQueryMock.mock.calls.at(-1)?.[0]).toBe(readCurrentWorkspaceRef);
-    expect(useQueryMock.mock.calls.at(-1)?.[1]).toBe("skip");
+    expect(useQueryExperimentalMock.mock.calls.at(-1)?.[0]).toEqual({
+      query: readCurrentWorkspaceRef,
+      args: "skip",
+    });
     expect(screen.getByTestId("workspace-state")).toHaveTextContent(
       JSON.stringify({
         complete: true,
@@ -158,7 +166,7 @@ describe("the workspace provider", () => {
   });
 
   it("exposes loading without inventing workspace data once authenticated", () => {
-    useQueryMock.mockReturnValue(undefined);
+    useQueryExperimentalMock.mockReturnValue({ status: "pending" });
 
     render(
       <WorkspaceProvider>
@@ -166,8 +174,10 @@ describe("the workspace provider", () => {
       </WorkspaceProvider>,
     );
 
-    expect(useQueryMock.mock.calls.at(-1)?.[0]).toBe(readCurrentWorkspaceRef);
-    expect(useQueryMock.mock.calls.at(-1)?.[1]).toEqual({});
+    expect(useQueryExperimentalMock.mock.calls.at(-1)?.[0]).toEqual({
+      query: readCurrentWorkspaceRef,
+      args: {},
+    });
     expect(screen.getByTestId("workspace-state")).toHaveTextContent(
       JSON.stringify({
         complete: true,
@@ -204,10 +214,13 @@ describe("the workspace provider", () => {
   });
 
   it("reports a tenant denial only after authentication succeeds", () => {
-    useQueryMock.mockReturnValue({
-      ok: false,
-      error: { code: "FORBIDDEN", message: "Access denied" },
-      requestId: "req_denied",
+    useQueryExperimentalMock.mockReturnValue({
+      status: "success",
+      data: {
+        ok: false,
+        error: { code: "FORBIDDEN", message: "Access denied" },
+        requestId: "req_denied",
+      },
     });
 
     render(
@@ -225,6 +238,27 @@ describe("the workspace provider", () => {
         permissionsReady: false,
         warehouses: [],
       }),
+    );
+  });
+
+  it("contains a transient backend failure instead of throwing from the workspace root", () => {
+    useQueryExperimentalMock.mockReturnValue({
+      status: "error",
+      error: new Error("Your request timed out performing system operations."),
+    });
+
+    render(
+      <WorkspaceProvider>
+        <State />
+      </WorkspaceProvider>,
+    );
+
+    expect(useQueryExperimentalMock).toHaveBeenCalledWith({
+      query: readCurrentWorkspaceRef,
+      args: {},
+    });
+    expect(screen.getByTestId("workspace-state")).toHaveTextContent(
+      '"failed":true',
     );
   });
 });

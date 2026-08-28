@@ -25,6 +25,26 @@ vi.mock("convex/react", async (importOriginal) => {
       args === "skip"
         ? undefined
         : resolveTestQuery(getFunctionName(reference), args),
+    useQuery_experimental: ({
+      query,
+      args,
+    }: {
+      query: Parameters<typeof getFunctionName>[0];
+      args: Record<string, unknown> | "skip";
+    }) => {
+      if (args === "skip") return { status: "pending" as const };
+      try {
+        const data = resolveTestQuery(getFunctionName(query), args);
+        return data === undefined
+          ? { status: "pending" as const }
+          : { status: "success" as const, data };
+      } catch (error) {
+        return {
+          status: "error" as const,
+          error: error instanceof Error ? error : new Error("Query failed"),
+        };
+      }
+    },
   };
 });
 

@@ -21,10 +21,10 @@ export default async function DesktopLayout({
   if (access === "SIGN_IN") redirect(`/${locale}/sign-in`);
   if (access === "ORGANIZATION_REQUIRED") return <OrganizationRequired />;
   return (
-    <WorkspaceAccessBoundary>
-      <WorkspaceProvider>
+    <WorkspaceProvider>
+      <WorkspaceAccessBoundary>
         <DesktopShell>{children}</DesktopShell>
-      </WorkspaceProvider>
-    </WorkspaceAccessBoundary>
+      </WorkspaceAccessBoundary>
+    </WorkspaceProvider>
   );
 }

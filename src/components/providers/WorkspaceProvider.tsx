@@ -1,6 +1,6 @@
 "use client";
 
-import { useConvexAuth, useQuery } from "convex/react";
+import { useConvexAuth, useQuery_experimental } from "convex/react";
 import {
   createContext,
   useCallback,
@@ -30,6 +30,7 @@ export interface WorkspaceContextValue {
   readonly selectable: boolean;
   readonly complete: boolean;
   readonly loading: boolean;
+  readonly failed: boolean;
   readonly denied: boolean;
   readonly navigationPermissions: readonly string[];
   readonly permissionsReady: boolean;
@@ -45,6 +46,7 @@ const EMPTY_WORKSPACE: WorkspaceContextValue = Object.freeze({
   selectable: false,
   complete: true,
   loading: false,
+  failed: false,
   denied: false,
   navigationPermissions: [],
   permissionsReady: false,
@@ -61,10 +63,10 @@ export function WorkspaceProvider({
   const { isAuthenticated, isLoading: isAuthenticationLoading } =
     useConvexAuth();
   const canReadWorkspace = !isAuthenticationLoading && isAuthenticated;
-  const outcome = useQuery(
-    readCurrentWorkspaceRef,
-    canReadWorkspace ? {} : "skip",
-  );
+  const queryState = useQuery_experimental({
+    query: readCurrentWorkspaceRef,
+    args: canReadWorkspace ? {} : "skip",
+  });
   const stored = useSyncExternalStore(
     subscribeWarehouse,
     readStoredWarehouse,
@@ -81,9 +83,13 @@ export function WorkspaceProvider({
     if (!isAuthenticated) {
       return { ...EMPTY_WORKSPACE, selectWarehouse };
     }
-    if (outcome === undefined) {
+    if (queryState.status === "error") {
+      return { ...EMPTY_WORKSPACE, failed: true, selectWarehouse };
+    }
+    if (queryState.status === "pending") {
       return { ...EMPTY_WORKSPACE, loading: true, selectWarehouse };
     }
+    const outcome = queryState.data;
     if (!outcome.ok) {
       return { ...EMPTY_WORKSPACE, denied: true, selectWarehouse };
     }
@@ -91,6 +97,7 @@ export function WorkspaceProvider({
     return {
       ...resolveWorkspace(outcome.value, stored ?? undefined),
       loading: false,
+      failed: false,
       denied: false,
       permissionsReady: true,
       selectWarehouse,
@@ -98,7 +105,7 @@ export function WorkspaceProvider({
   }, [
     isAuthenticated,
     isAuthenticationLoading,
-    outcome,
+    queryState,
     selectWarehouse,
     stored,
   ]);

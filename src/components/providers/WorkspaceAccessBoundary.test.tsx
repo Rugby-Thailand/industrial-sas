@@ -15,7 +15,7 @@ function DeniedWorkspace(): never {
 afterEach(() => vi.restoreAllMocks());
 
 describe("WorkspaceAccessBoundary", () => {
-  it("shows an access state when workspace provisioning is missing", () => {
+  it("shows a retryable backend state when a query throws", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
 
     renderWithIntl(
@@ -25,9 +25,10 @@ describe("WorkspaceAccessBoundary", () => {
       { environment: testEnvironment, workspace: false },
     );
 
-    expect(screen.getByTestId("organization-required")).toBeInTheDocument();
+    expect(screen.getByTestId("workspace-query-error")).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "ต้องมีสิทธิ์องค์กร" }),
+      screen.getByRole("heading", { name: "เกิดข้อผิดพลาด" }),
     ).toBeVisible();
+    expect(screen.getByRole("button", { name: "ลองใหม่" })).toBeVisible();
   });
 });

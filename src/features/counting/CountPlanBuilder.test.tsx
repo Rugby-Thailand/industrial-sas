@@ -6,6 +6,7 @@ const convex = vi.hoisted(() => ({
   useConvexAuth: vi.fn(),
   useMutation: vi.fn(),
   useQuery: vi.fn(),
+  useQuery_experimental: vi.fn(),
 }));
 
 vi.mock("convex/react", () => convex);
@@ -74,6 +75,12 @@ beforeEach(() => {
       ? balancesOutcome
       : workspaceOutcome;
   });
+  convex.useQuery_experimental.mockImplementation(
+    ({ args }: { readonly args: unknown }) =>
+      args === "skip"
+        ? { status: "pending" }
+        : { status: "success", data: workspaceOutcome },
+  );
   convex.useMutation.mockImplementation((ref: unknown) => {
     if (ref === createCountPlanRef) return createMutation;
     if (ref === releaseCountPlanRef) return releaseMutation;

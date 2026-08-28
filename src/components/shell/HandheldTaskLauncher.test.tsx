@@ -29,6 +29,7 @@ function workspace(
     selectable: false,
     complete: true,
     loading: false,
+    failed: false,
     denied: false,
     navigationPermissions: ["receiving.receipt.read"],
     permissionsReady: true,

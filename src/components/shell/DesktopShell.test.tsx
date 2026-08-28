@@ -27,6 +27,7 @@ describe("DesktopShell", () => {
       selectable: false,
       complete: true,
       loading: false,
+      failed: false,
       denied: false,
       navigationPermissions: NAVIGATION_PERMISSION_CODES,
       permissionsReady: true,
@@ -152,6 +153,7 @@ describe("DesktopShell", () => {
       selectable: false,
       complete: true,
       loading: false,
+      failed: false,
       denied: false,
       navigationPermissions: [
         "production.order.read",
