@@ -59,4 +59,20 @@ describe("PurchaseOrderDetail", () => {
     expect(screen.getByText("2 lines")).toBeInTheDocument();
     expect(screen.queryByText("0 lines")).not.toBeInTheDocument();
   });
+
+  it("uses compact accessible icon actions for open lines", () => {
+    renderDetail();
+
+    const actions = screen.getAllByRole("button", {
+      name: "ปิดบรรทัดทั้งที่ยังไม่ครบ",
+    });
+    expect(actions).toHaveLength(2);
+    for (const action of actions) {
+      expect(action).toHaveAttribute("title", "ปิดบรรทัดทั้งที่ยังไม่ครบ");
+      expect(action.querySelector("svg")).not.toBeNull();
+    }
+    expect(
+      screen.queryByText("ปิดบรรทัดทั้งที่ยังไม่ครบ"),
+    ).not.toBeInTheDocument();
+  });
 });

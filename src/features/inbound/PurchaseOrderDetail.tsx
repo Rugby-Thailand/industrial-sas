@@ -1,5 +1,6 @@
 "use client";
 
+import { CircleStop } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import {
@@ -38,9 +39,12 @@ export function PurchaseOrderDetail({
             row.status === "OPEN" ? (
               <WriteDialog
                 triggerLabel={t("closeShort")}
+                triggerIcon={
+                  <CircleStop aria-hidden="true" className="size-4" />
+                }
                 closeLabel={writeT("closeForm")}
                 showPlus={false}
-                triggerVariant="outline"
+                triggerVariant="ghost"
                 testId={`line-close-short-${row.lineNumber}`}
               >
                 <CloseLineShortForm line={row} />

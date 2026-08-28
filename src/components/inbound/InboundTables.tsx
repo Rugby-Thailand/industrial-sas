@@ -1,5 +1,12 @@
 "use client";
 
+import {
+  Ban,
+  CircleStop,
+  Clock3,
+  PackageCheck,
+  PackageOpen,
+} from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
@@ -27,11 +34,28 @@ const ORDER_TONES: Readonly<Record<string, BadgeTone>> = {
 };
 
 const LINE_TONES: Readonly<Record<string, BadgeTone>> = {
-  OPEN: "accent",
+  WAITING: "pending",
+  PARTIAL: "accent",
   COMPLETE: "success",
   CLOSED_SHORT: "warning",
   CANCELLED: "danger",
 };
+
+type PurchaseOrderLineProgress =
+  "WAITING" | "PARTIAL" | "COMPLETE" | "CLOSED_SHORT" | "CANCELLED";
+
+const lineProgress = (row: PurchaseOrderLineRow): PurchaseOrderLineProgress => {
+  if (row.status !== "OPEN") return row.status;
+  return row.receivedBaseMinorUnits > 0 ? "PARTIAL" : "WAITING";
+};
+
+const LINE_PROGRESS_ICONS = {
+  WAITING: Clock3,
+  PARTIAL: PackageOpen,
+  COMPLETE: PackageCheck,
+  CLOSED_SHORT: CircleStop,
+  CANCELLED: Ban,
+} as const;
 
 const KIND_TONES: Readonly<Record<string, BadgeTone>> = {
   ORDERED: "neutral",
@@ -117,6 +141,44 @@ export function PurchaseOrderLinesTable({
     "PurchaseOrderLineStatus",
   ) as unknown as CodeTranslator;
 
+  const renderLineStatus = (row: PurchaseOrderLineRow) => {
+    const progress = lineProgress(row);
+    const Icon = LINE_PROGRESS_ICONS[progress];
+    const label =
+      progress === "WAITING"
+        ? t("lineStatusWaiting")
+        : progress === "PARTIAL"
+          ? t("lineStatusPartial")
+          : codeLabel(statusT, row.status);
+    const percent =
+      progress === "PARTIAL" && row.orderedBaseMinorUnits > 0
+        ? Math.min(
+            100,
+            Math.round(
+              (row.receivedBaseMinorUnits / row.orderedBaseMinorUnits) * 100,
+            ),
+          )
+        : undefined;
+
+    return (
+      <StatusBadge
+        tone={LINE_TONES[progress] ?? "neutral"}
+        label={label}
+        title={t("lineStatusProgress", {
+          received: withBaseUnit(row.receivedBaseMinorUnits, row.baseUom),
+          ordered: withBaseUnit(row.orderedBaseMinorUnits, row.baseUom),
+        })}
+        icon={<Icon className="size-3.5" />}
+      >
+        {percent === undefined ? null : (
+          <span className="border-l border-current/30 pl-1.5 tabular-nums">
+            {percent}%
+          </span>
+        )}
+      </StatusBadge>
+    );
+  };
+
   return (
     <DataTable<PurchaseOrderLineRow>
       testId="table-order-lines"
@@ -168,13 +230,8 @@ export function PurchaseOrderLinesTable({
         },
         {
           key: "status",
-          header: t("columnStatus"),
-          render: (row) => (
-            <StatusBadge
-              tone={LINE_TONES[row.status] ?? "neutral"}
-              label={codeLabel(statusT, row.status)}
-            />
-          ),
+          header: t("columnLineStatus"),
+          render: renderLineStatus,
         },
       ]}
       {...(renderAction === undefined

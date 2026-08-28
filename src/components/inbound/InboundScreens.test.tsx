@@ -99,6 +99,29 @@ describe("PurchaseOrderLinesTable", () => {
     expect(screen.getByText("320.000 KG")).toBeInTheDocument();
   });
 
+  it("distinguishes a partial receipt from a line that is still waiting", () => {
+    renderWithIntl(
+      <PurchaseOrderLinesTable rows={previewOrderLinesFor("prv_po_2601")} />,
+    );
+
+    expect(screen.getByText("รับบางส่วน")).toBeInTheDocument();
+    expect(screen.getByText("36%")).toBeInTheDocument();
+    expect(screen.getByText("รอรับสินค้า")).toBeInTheDocument();
+    expect(screen.queryByText("ยังรับได้")).not.toBeInTheDocument();
+  });
+
+  it("explains receiving progress on the status itself", () => {
+    renderWithIntl(
+      <PurchaseOrderLinesTable
+        rows={previewOrderLinesFor("prv_po_2601").slice(0, 1)}
+      />,
+    );
+
+    expect(
+      screen.getByText("รับบางส่วน").closest("span[title]"),
+    ).toHaveAttribute("title", "รับแล้ว 180.000 KG จาก 500.000 KG");
+  });
+
   it("names the unit of every quantity, including the base-unit ones", () => {
     renderWithIntl(
       <PurchaseOrderLinesTable rows={previewOrderLinesFor("prv_po_2601")} />,

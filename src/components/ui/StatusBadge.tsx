@@ -27,6 +27,7 @@ export function StatusBadge({
   tone,
   label,
   title,
+  icon,
   children,
 }: {
   readonly tone: BadgeTone;
@@ -34,6 +35,8 @@ export function StatusBadge({
   readonly label: string;
 
   readonly title?: string;
+
+  readonly icon?: ReactNode;
 
   readonly children?: ReactNode;
 }) {
@@ -43,7 +46,7 @@ export function StatusBadge({
       {...(title === undefined ? {} : { title })}
     >
       <span aria-hidden="true" className="shrink-0">
-        {TONE_GLYPHS[tone]}
+        {icon ?? TONE_GLYPHS[tone]}
       </span>
       <span>{label}</span>
       {children}
