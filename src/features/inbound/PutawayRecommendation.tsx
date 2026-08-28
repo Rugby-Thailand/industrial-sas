@@ -3,7 +3,7 @@
 import { useQuery } from "convex/react";
 import { useTranslations } from "next-intl";
 
-import { EntityTable } from "@/components/masterData/EntityTable";
+import { DataTable } from "@/components/table/DataTable";
 import { useAppEnvironment } from "@/components/providers/EnvironmentProvider";
 import { LedgerPanelStatus } from "@/components/system/LedgerPanelStatus";
 import { Notice } from "@/components/ui/Notice";
@@ -95,7 +95,7 @@ function RecommendationBody({
         {t("filtersApplied", { filters: outcome.filtersApplied.join(", ") })}
       </p>
 
-      <EntityTable<RankedLocation>
+      <DataTable<RankedLocation>
         testId="table-recommendation-ranked"
         caption={t("recommendationCaption", { count: outcome.ranked.length })}
         rows={outcome.ranked}
@@ -140,7 +140,7 @@ function RecommendationBody({
       />
 
       {outcome.rejected.length === 0 ? null : (
-        <EntityTable<RejectedLocation>
+        <DataTable<RejectedLocation>
           testId="table-recommendation-rejected"
           caption={t("rejectedCaption", { count: outcome.rejected.length })}
           rows={outcome.rejected}

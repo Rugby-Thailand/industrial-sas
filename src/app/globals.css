@@ -14,6 +14,7 @@
   --color-canvas: var(--token-canvas);
   --color-surface: var(--token-surface);
   --color-raised: var(--token-raised);
+  --color-overlay: var(--token-overlay);
   --color-border: var(--token-border);
   --color-border-strong: var(--token-border-strong);
   --color-text: var(--token-text);
@@ -27,6 +28,12 @@
   --color-pending: var(--token-pending);
   --color-qc-hold: var(--token-qc-hold);
   --color-disabled: var(--token-disabled);
+  --color-disabled-surface: var(--token-disabled-surface);
+  --color-accent-surface: var(--token-accent-surface);
+  --color-success-surface: var(--token-success-surface);
+  --color-warning-surface: var(--token-warning-surface);
+  --color-danger-surface: var(--token-danger-surface);
+  --color-pending-surface: var(--token-pending-surface);
 
   --color-band-empty: var(--token-band-empty);
   --color-band-light: var(--token-band-light);
@@ -39,7 +46,7 @@
   --color-foreground: var(--token-text);
   --color-card: var(--token-surface);
   --color-card-foreground: var(--token-text);
-  --color-popover: var(--token-surface);
+  --color-popover: var(--token-overlay);
   --color-popover-foreground: var(--token-text);
   --color-primary: var(--token-accent);
   --color-primary-foreground: var(--token-accent-contrast);
@@ -76,6 +83,7 @@
   --token-canvas: #f3f5f7;
   --token-surface: #ffffff;
   --token-raised: #e9edf1;
+  --token-overlay: #ffffff;
   --token-border: #d3d8df;
   --token-border-strong: #69727e;
   --token-text: #12161c;
@@ -92,6 +100,13 @@
   --token-pending: #5a3fb8;
   --token-qc-hold: #8a5300;
   --token-disabled: #6b7280;
+  --token-disabled-surface: #e1e5ea;
+
+  --token-accent-surface: #e5f0fb;
+  --token-success-surface: #e3f3ea;
+  --token-warning-surface: #fff0d0;
+  --token-danger-surface: #fee9e7;
+  --token-pending-surface: #eeeaff;
 
   --token-band-empty: #f3f5f7;
   --token-band-light: #d7e9fb;
@@ -111,10 +126,11 @@
 @media (prefers-color-scheme: dark) {
   :root {
     --token-canvas: #0b0e12;
-    --token-surface: #14181e;
-    --token-raised: #1c222a;
-    --token-border: #2c333d;
-    --token-border-strong: #79828f;
+    --token-surface: #1a2028;
+    --token-raised: #252e39;
+    --token-overlay: #303b48;
+    --token-border: #46515f;
+    --token-border-strong: #8994a2;
     --token-text: #eef1f5;
     --token-muted: #a8b1bd;
     --token-accent: #7cb6ff;
@@ -127,12 +143,19 @@
     --token-danger-contrast: #3d1210;
     --token-pending: #b3a0ff;
     --token-qc-hold: #f0b357;
-    --token-disabled: #8b939e;
+    --token-disabled: #9aa4b0;
+    --token-disabled-surface: #2c333d;
 
-    --token-band-empty: #14181e;
-    --token-band-light: #17293a;
-    --token-band-busy: #3a2c14;
-    --token-band-full: #3d1f1d;
+    --token-accent-surface: #1c3854;
+    --token-success-surface: #183c2e;
+    --token-warning-surface: #49361c;
+    --token-danger-surface: #492725;
+    --token-pending-surface: #312b50;
+
+    --token-band-empty: #1a2028;
+    --token-band-light: #1c3854;
+    --token-band-busy: #49361c;
+    --token-band-full: #492725;
   }
 }
 

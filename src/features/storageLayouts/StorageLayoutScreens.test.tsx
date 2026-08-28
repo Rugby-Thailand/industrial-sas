@@ -228,7 +228,7 @@ describe("FloorPlan", () => {
     });
     expect(onPlacementChange).toHaveBeenCalledWith({ xMm: 6_000, yMm: 1_000 });
 
-    fireEvent.click(screen.getByRole("button", { name: "Plan" }));
+    fireEvent.click(screen.getByRole("button", { name: "2D plan" }));
 
     expect(
       screen.getByRole("img", { name: "Floor space plan" }),
@@ -268,6 +268,22 @@ describe("StorageZoneDraftPreview", () => {
       { key: "ArrowRight" },
     );
     expect(onPositionChange).toHaveBeenCalledWith({ xMm: 100, yMm: 0 });
+
+    fireEvent.click(screen.getByRole("button", { name: "2D plan" }));
+    expect(
+      screen.getByRole("img", { name: "Live 2D position plan" }),
+    ).toHaveAttribute("data-view-mode", "plan");
+    expect(screen.getByRole("button", { name: "2D plan" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+
+    onPositionChange.mockClear();
+    fireEvent.keyDown(
+      screen.getByRole("button", { name: "Drag storage zone" }),
+      { key: "ArrowDown" },
+    );
+    expect(onPositionChange).toHaveBeenCalledWith({ xMm: 0, yMm: 100 });
     initial.unmount();
 
     renderWithIntl(
@@ -291,7 +307,41 @@ describe("StorageZoneDraftPreview", () => {
       ?.getAttribute("points");
 
     expect(movedTop).not.toBe(initialTop);
-    expect(screen.getByText("Outside floor limits")).toBeInTheDocument();
+    expect(
+      screen.getByText("Outside the floor or overlaps an existing area"),
+    ).toBeInTheDocument();
+  });
+
+  it("rejects a storage stack that overlaps an unavailable area", () => {
+    renderWithIntl(
+      <StorageZoneDraftPreview
+        floorWidthMm={10_000}
+        floorDepthMm={10_000}
+        floorHeightMm={3_000}
+        zoneX="1"
+        zoneY="1"
+        zoneWidth="2"
+        zoneDepth="2"
+        stackHeight="2"
+        zones={[]}
+        reservedBlocks={[
+          {
+            id: "lift-core",
+            label: "Lift core",
+            xMm: 2_000,
+            yMm: 2_000,
+            widthMm: 2_000,
+            depthMm: 2_000,
+          },
+        ]}
+        onPositionChange={vi.fn()}
+      />,
+      { locale: "en", workspace: false },
+    );
+
+    expect(
+      screen.getByText("Outside the floor or overlaps an existing area"),
+    ).toBeInTheDocument();
   });
 });
 
@@ -310,10 +360,12 @@ describe("ReservedBlocks", () => {
       { locale: "en", workspace: false },
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Add reserved zone" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Add unavailable area" }),
+    );
 
     expect(
-      screen.getByRole("dialog", { name: "Add reserved zone" }),
+      screen.getByRole("dialog", { name: "Add unavailable area" }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("img", { name: "Live 3D reserved area" }),
@@ -352,7 +404,7 @@ describe("ReservedBlocks", () => {
     fireEvent.click(screen.getByRole("button", { name: "Edit Lift core" }));
 
     expect(
-      screen.getByRole("dialog", { name: "Edit reserved zone" }),
+      screen.getByRole("dialog", { name: "Edit unavailable area" }),
     ).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "Zone label" })).toHaveValue(
       "Lift core",
@@ -365,6 +417,29 @@ describe("ReservedBlocks", () => {
 });
 
 describe("StorageZonesPanel", () => {
+  it("requires saving unavailable areas before storage stacks can be drawn", () => {
+    renderWithIntl(
+      <StorageZonesPanel
+        warehouseId="warehouse-a"
+        buildingId="building-a"
+        floorNumber={4}
+        floorWidthMm={10_000}
+        floorDepthMm={10_000}
+        floorHeightMm={3_000}
+        zones={[]}
+        blocked
+      />,
+      { locale: "en", workspace: false },
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Add storage stack" }),
+    ).toBeDisabled();
+    expect(
+      screen.getByText("Save unavailable areas before drawing storage stacks"),
+    ).toBeInTheDocument();
+  });
+
   it("opens an existing zone in the draggable 3D editor", () => {
     const zone: StorageZoneRow = {
       zoneId: "zone-a",
@@ -394,7 +469,7 @@ describe("StorageZonesPanel", () => {
     );
 
     expect(
-      screen.getByRole("button", { name: "Add storage zone" }).parentElement,
+      screen.getByRole("button", { name: "Add storage stack" }).parentElement,
     ).toHaveClass("grid-cols-[minmax(0,1fr)_auto]");
 
     fireEvent.click(
@@ -402,7 +477,7 @@ describe("StorageZonesPanel", () => {
     );
 
     expect(
-      screen.getByRole("dialog", { name: "Edit storage zone" }),
+      screen.getByRole("dialog", { name: "Edit storage stack" }),
     ).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "Zone label" })).toHaveValue(
       "QA Finished Goods Stack",
@@ -414,5 +489,64 @@ describe("StorageZonesPanel", () => {
       screen.getByRole("spinbutton", { name: "Y position (m)" }),
     ).toHaveValue(1.1);
     expect(screen.getByRole("button", { name: "Save changes" })).toBeVisible();
+  });
+
+  it("keeps active stacks editable and reviews occupied impact before saving", () => {
+    const zone: StorageZoneRow = {
+      zoneId: "zone-live",
+      locationId: "location-live",
+      code: "BLDG-A-F04-Z02",
+      label: "Live finished goods stack",
+      qrValue: "ISAS:LOCATION:1:location-live",
+      xMm: 4_000,
+      yMm: 1_000,
+      widthMm: 3_000,
+      depthMm: 3_000,
+      maxStackHeightMm: 4_000,
+      placements: [
+        {
+          placementId: "placement-live",
+          handlingUnitId: "handling-unit-live",
+          lpn: "LPN-LIVE-01",
+          levelIndex: 1,
+          widthMm: 1_200,
+          depthMm: 1_000,
+          heightMm: 1_400,
+          orientation: "DEFAULT",
+          placedAt: 1,
+        },
+      ],
+    };
+
+    renderWithIntl(
+      <StorageZonesPanel
+        warehouseId="warehouse-a"
+        buildingId="building-a"
+        floorNumber={4}
+        floorWidthMm={10_000}
+        floorDepthMm={10_000}
+        floorHeightMm={4_000}
+        zones={[zone]}
+        layoutStatus="ACTIVE"
+      />,
+      { locale: "en", workspace: false },
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Add storage stack" }),
+    ).toBeEnabled();
+    expect(screen.getByText("Quick Change is available")).toBeVisible();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Edit Live finished goods stack" }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Review impact" }));
+
+    expect(screen.getByText("Review impact before saving")).toBeVisible();
+    expect(screen.getAllByText("LPN-LIVE-01")).toHaveLength(2);
+    expect(screen.getByText("1.4 m")).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Confirm changes" }),
+    ).toBeVisible();
   });
 });

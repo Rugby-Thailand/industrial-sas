@@ -55,8 +55,8 @@ function MetricCard({
           <span
             className={`grid size-11 shrink-0 place-items-center rounded-xl ${
               active
-                ? "bg-warning/10 text-warning"
-                : "bg-success/10 text-success"
+                ? "bg-warning-surface text-warning"
+                : "bg-success-surface text-success"
             }`}
           >
             {icon}
@@ -133,8 +133,8 @@ function CapacityMetricCard({
           <span
             className={`grid size-11 shrink-0 place-items-center rounded-xl ${
               active
-                ? "bg-warning/10 text-warning"
-                : "bg-success/10 text-success"
+                ? "bg-warning-surface text-warning"
+                : "bg-success-surface text-success"
             }`}
           >
             {active ? (

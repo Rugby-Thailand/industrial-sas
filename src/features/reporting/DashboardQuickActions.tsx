@@ -147,7 +147,7 @@ export function QuickActionMenu({
             <Button
               variant="ghost"
               size="icon"
-              className="text-accent hover:bg-accent/10 hover:text-accent"
+              className="text-accent hover:bg-accent-surface hover:text-accent"
               aria-label={t("customize")}
               title={t("customize")}
             >
@@ -288,7 +288,7 @@ export function QuickActionMenu({
                 <Link
                   href={action.href}
                   className={cn(
-                    "group relative flex h-full items-center gap-3 overflow-hidden rounded-xl border border-border bg-raised/45 transition hover:-translate-y-0.5 hover:border-accent hover:bg-raised focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none",
+                    "group relative flex h-full items-center gap-3 overflow-hidden rounded-xl border border-border bg-raised transition hover:-translate-y-0.5 hover:border-accent hover:bg-overlay focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none",
                     layout === "grid" ? "min-h-24 p-4" : "min-h-16 p-3",
                   )}
                 >

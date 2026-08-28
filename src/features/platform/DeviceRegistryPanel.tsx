@@ -1,13 +1,15 @@
 "use client";
 
+import { Archive, Link2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { DeviceTable } from "@/components/platform/DeviceTable";
 import { useWorkspace } from "@/components/providers/WorkspaceProvider";
 import {
-  RowActionButton,
-  RowWriteRegion,
-} from "@/features/masterData/RowWriteRegion";
+  TableAction,
+  TableRowActions,
+} from "@/components/table/TableRowControls";
+import { RowWriteRegion } from "@/features/masterData/RowWriteRegion";
 import { MasterDataPanel } from "@/features/masterData/MasterDataPanel";
 import {
   bindDeviceInstallationRef,
@@ -96,13 +98,12 @@ export function DeviceRegistryPanel() {
                           {t("retiredNote")}
                         </span>
                       ) : (
-                        <span className="flex flex-wrap gap-2">
+                        <TableRowActions>
                           {row.installationBound ? null : (
-                            <RowActionButton
-                              busy={binding || retiring}
-                              testId={`device-bind-${row.deviceId}`}
+                            <TableAction
                               label={t("bindCurrent")}
-                              title={t("bindCurrentActionHint")}
+                              disabled={binding || retiring}
+                              data-testid={`device-bind-${row.deviceId}`}
                               onClick={() =>
                                 bind(row.deviceId, (requestId) => ({
                                   requestId,
@@ -110,21 +111,25 @@ export function DeviceRegistryPanel() {
                                   installationId: readOrCreateInstallationId(),
                                 }))
                               }
-                            />
+                            >
+                              <Link2 aria-hidden="true" className="size-4" />
+                            </TableAction>
                           )}
-                          <RowActionButton
-                            busy={binding || retiring}
-                            testId={`device-retire-${row.deviceId}`}
+                          <TableAction
                             label={t("retire")}
-                            title={t("retireHint")}
+                            variant="destructive"
+                            disabled={binding || retiring}
+                            data-testid={`device-retire-${row.deviceId}`}
                             onClick={() =>
                               retire(row.deviceId, (requestId) => ({
                                 requestId,
                                 deviceId: row.deviceId,
                               }))
                             }
-                          />
-                        </span>
+                          >
+                            <Archive aria-hidden="true" className="size-4" />
+                          </TableAction>
+                        </TableRowActions>
                       )
                     }
                   />

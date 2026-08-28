@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
-import { EntityTable } from "@/components/masterData/EntityTable";
+import { DataTable } from "@/components/table/DataTable";
 import { StatusBadge, type BadgeTone } from "@/components/ui/StatusBadge";
 import type {
   ImportRow,
@@ -69,7 +69,7 @@ export function PurchaseOrdersTable({
   ) as unknown as CodeTranslator;
 
   return (
-    <EntityTable<PurchaseOrderRow>
+    <DataTable<PurchaseOrderRow>
       testId="table-purchase-orders"
       caption={t("ordersCaption", { count: rows.length })}
       rows={rows}
@@ -118,7 +118,7 @@ export function PurchaseOrderLinesTable({
   ) as unknown as CodeTranslator;
 
   return (
-    <EntityTable<PurchaseOrderLineRow>
+    <DataTable<PurchaseOrderLineRow>
       testId="table-order-lines"
       caption={t("linesCaption", { count: rows.length })}
       rows={rows}
@@ -192,7 +192,7 @@ export function ImportAcceptedTable({
   const t = useTranslations("Purchasing");
 
   return (
-    <EntityTable<ImportRow>
+    <DataTable<ImportRow>
       testId="table-import-accepted"
       caption={t("importAcceptedCaption", { count: rows.length })}
       rows={rows}
@@ -246,7 +246,7 @@ export function ImportRejectedTable({
   ) as unknown as CodeTranslator;
 
   return (
-    <EntityTable<RejectedImportRow>
+    <DataTable<RejectedImportRow>
       testId="table-import-rejected"
       caption={t("importRejectedCaption", { count: rows.length })}
       rows={rows}
@@ -285,7 +285,7 @@ export function ReceiptsTable({
   const t = useTranslations("Receiving");
 
   return (
-    <EntityTable<ReceiptRow>
+    <DataTable<ReceiptRow>
       testId="table-receipts"
       caption={t("receiptsCaption", { count: rows.length })}
       rows={rows}
@@ -332,7 +332,7 @@ export function ReceiptLinesTable({
   const stockT = useTranslations("StockStatus") as unknown as CodeTranslator;
 
   return (
-    <EntityTable<ReceiptLineRow>
+    <DataTable<ReceiptLineRow>
       testId="table-receipt-lines"
       caption={t("linesCaption", { count: rows.length })}
       rows={rows}
@@ -400,7 +400,7 @@ export function PrintJobsTable({
   ) as unknown as CodeTranslator;
 
   return (
-    <EntityTable<PrintJobRow>
+    <DataTable<PrintJobRow>
       testId="table-print-jobs"
       caption={t("caption", { count: rows.length })}
       rows={rows}

@@ -1,4 +1,4 @@
-import { fireEvent, screen } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { navigationMock } from "../../../tests/fixtures/navigation-mock";
@@ -417,7 +417,7 @@ describe("ReceivingExceptionForm", () => {
     expect(options).toContain("รับโดยไม่มีใบสั่งซื้อ");
   });
 
-  it("shows the server-confirmed save outcome", async () => {
+  it("does not show a generic success notice after saving", async () => {
     withWarehouse();
     renderWithIntl(<ReceivingExceptionForm />, {
       environment: testEnvironment,
@@ -428,9 +428,10 @@ describe("ReceivingExceptionForm", () => {
     chooseOption("รหัสเหตุผล", "CYCLE-COUNT · ปรับปรุงจากการนับสต็อก");
     fireEvent.click(screen.getByRole("button", { name: "แจ้งข้อยกเว้น" }));
 
-    expect(await screen.findByTestId("write-SAVED")).toHaveTextContent(
-      "บันทึกแล้ว",
-    );
+    await waitFor(() => {
+      expect(screen.queryByTestId("write-SUBMITTING")).not.toBeInTheDocument();
+    });
+    expect(screen.queryByTestId("write-SAVED")).not.toBeInTheDocument();
   });
 
   it("refuses to file an exception whose kind nobody chose", () => {

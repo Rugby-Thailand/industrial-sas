@@ -14,6 +14,7 @@ import {
   validateAndSummarizeStorageLayout,
   type StorageFloorInput,
 } from "../model/storageLayout/storageLayout";
+import { validateStorageZone } from "../model/storageLayout/storageZone";
 
 const blockValidator = v.object({
   id: v.string(),
@@ -37,6 +38,7 @@ const outcome = v.any();
 type BuildingDocument = Doc<"storageBuildings">;
 type FloorDocument = Doc<"storageFloors">;
 type BlockDocument = Doc<"storageFloorReservedBlocks">;
+type ZoneDocument = Doc<"storageZones">;
 
 const failure = (code: string, field?: string) => refusal({ code, field });
 const success = (documentId: string, replayed: boolean) =>
@@ -100,6 +102,47 @@ async function readLayout(
     }),
   );
   return { floors, documents };
+}
+
+async function activeZonesForFloor(
+  ctx: TenantFunctionContext,
+  floorId: string,
+): Promise<readonly ZoneDocument[]> {
+  return await ctx.tenantDb
+    .byIndex<ZoneDocument>("storageZones", "by_orgId_floorId_status_code", [
+      { field: "floorId", value: floorId },
+      { field: "status", value: "ACTIVE" },
+    ])
+    .take(50);
+}
+
+function validateFloorZones(input: {
+  readonly building: BuildingDocument;
+  readonly floor: FloorDocument;
+  readonly floorInput: StorageFloorInput;
+  readonly zones: readonly ZoneDocument[];
+}) {
+  const floorWidthMm = input.floorInput.widthMm ?? input.building.widthMm;
+  const floorDepthMm = input.floorInput.depthMm ?? input.building.depthMm;
+  const floorHeightMm =
+    input.floorInput.heightMm ?? input.building.defaultFloorHeightMm;
+
+  for (const zone of input.zones) {
+    const otherZones: ZoneDocument[] = [];
+    for (const candidate of input.zones) {
+      if (candidate._id !== zone._id) otherZones.push(candidate);
+    }
+    const valid = validateStorageZone({
+      floorWidthMm,
+      floorDepthMm,
+      floorHeightMm,
+      candidate: zone,
+      reserved: input.floorInput.reservedBlocks,
+      zones: otherZones,
+    });
+    if (!valid.ok) return valid;
+  }
+  return { ok: true as const };
 }
 
 export const createStorageBuilding = mutationWithOrg({
@@ -226,7 +269,7 @@ export const updateStorageBuilding = mutationWithOrg({
     );
     if (building === null || building.warehouseId !== args.warehouseId)
       return failure("NOT_FOUND");
-    if (building.status !== "DRAFT") return failure("LAYOUT_NOT_EDITABLE");
+    if (building.status === "ARCHIVED") return failure("LAYOUT_NOT_EDITABLE");
     if (building.version !== args.expectedVersion)
       return failure("VERSION_CONFLICT");
     const name = normalizeDisplayName("name", args.name);
@@ -239,6 +282,30 @@ export const updateStorageBuilding = mutationWithOrg({
       floors: current.floors,
     });
     if (!summary.ok) return failure(summary.error.code);
+    const proposedBuilding = {
+      ...building,
+      widthMm: args.widthMm,
+      depthMm: args.depthMm,
+      defaultFloorHeightMm: args.defaultFloorHeightMm,
+    };
+    for (const floor of current.documents) {
+      const floorInput = current.floors.find(
+        (candidate) => candidate.floorNumber === floor.floorNumber,
+      );
+      if (floorInput === undefined) return failure("NOT_FOUND");
+      const zonesValid = validateFloorZones({
+        building: proposedBuilding,
+        floor,
+        floorInput,
+        zones: await activeZonesForFloor(ctx, floor._id),
+      });
+      if (!zonesValid.ok) {
+        return failure(
+          zonesValid.error.code,
+          "field" in zonesValid.error ? zonesValid.error.field : undefined,
+        );
+      }
+    }
     const now = Date.now();
     const updated = await updateMasterDataRow({
       ...writeContext(
@@ -302,7 +369,7 @@ export const changeStorageFloorCount = mutationWithOrg({
     );
     if (building === null || building.warehouseId !== args.warehouseId)
       return failure("NOT_FOUND");
-    if (building.status !== "DRAFT") return failure("LAYOUT_NOT_EDITABLE");
+    if (building.status === "ARCHIVED") return failure("LAYOUT_NOT_EDITABLE");
     if (building.version !== args.expectedVersion)
       return failure("VERSION_CONFLICT");
     if (
@@ -404,7 +471,7 @@ export const saveStorageFloor = mutationWithOrg({
     );
     if (building === null || building.warehouseId !== args.warehouseId)
       return failure("NOT_FOUND");
-    if (building.status !== "DRAFT") return failure("LAYOUT_NOT_EDITABLE");
+    if (building.status === "ARCHIVED") return failure("LAYOUT_NOT_EDITABLE");
     if (building.version !== args.expectedBuildingVersion)
       return failure("VERSION_CONFLICT");
     const current = await readLayout(ctx, building);
@@ -424,6 +491,19 @@ export const saveStorageFloor = mutationWithOrg({
       floors,
     });
     if (!summary.ok) return failure(summary.error.code);
+    const zones = await activeZonesForFloor(ctx, floorDocument._id);
+    const zonesValid = validateFloorZones({
+      building,
+      floor: floorDocument,
+      floorInput: args.floor,
+      zones,
+    });
+    if (!zonesValid.ok) {
+      return failure(
+        zonesValid.error.code,
+        "field" in zonesValid.error ? zonesValid.error.field : undefined,
+      );
+    }
     const floorSummary = summary.value.floors[args.floor.floorNumber - 1]!;
     const now = Date.now();
     const updated = await updateMasterDataRow({
@@ -518,8 +598,13 @@ async function changeStatus(
     return failure("NOT_FOUND");
   if (building.version !== args.expectedVersion)
     return failure("VERSION_CONFLICT");
+  const layout = await readLayout(ctx, building);
+  const zones: ZoneDocument[] = [];
+  for (const floor of layout.documents) {
+    zones.push(...(await activeZonesForFloor(ctx, floor._id)));
+  }
   if (status === "ACTIVE") {
-    const layout = await readLayout(ctx, building);
+    if (zones.length === 0) return failure("STORAGE_STACK_REQUIRED");
     const validated = validateAndSummarizeStorageLayout({
       widthMm: building.widthMm,
       depthMm: building.depthMm,
@@ -527,6 +612,28 @@ async function changeStatus(
       floors: layout.floors,
     });
     if (!validated.ok) return failure(validated.error.code);
+    for (const floor of layout.documents) {
+      const floorInput = layout.floors.find(
+        (candidate) => candidate.floorNumber === floor.floorNumber,
+      );
+      if (floorInput === undefined) return failure("NOT_FOUND");
+      const floorZones: ZoneDocument[] = [];
+      for (const zone of zones) {
+        if (zone.floorId === floor._id) floorZones.push(zone);
+      }
+      const zonesValid = validateFloorZones({
+        building,
+        floor,
+        floorInput,
+        zones: floorZones,
+      });
+      if (!zonesValid.ok) {
+        return failure(
+          zonesValid.error.code,
+          "field" in zonesValid.error ? zonesValid.error.field : undefined,
+        );
+      }
+    }
   }
   const now = Date.now();
   const updated = await updateMasterDataRow({
@@ -550,9 +657,15 @@ async function changeStatus(
         : {}),
     },
   });
-  return updated.ok
-    ? success(updated.value.documentId, updated.value.replayed)
-    : failure(updated.error.code);
+  if (!updated.ok) return failure(updated.error.code);
+  if (!updated.value.replayed) {
+    for (const zone of zones) {
+      await ctx.tenantDb.patch("locations", zone.locationId, {
+        status: status === "ACTIVE" ? "ACTIVE" : "INACTIVE",
+      });
+    }
+  }
+  return success(updated.value.documentId, updated.value.replayed);
 }
 
 const statusArgs = {

@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
-import { EntityTable } from "@/components/masterData/EntityTable";
+import { DataTable } from "@/components/table/DataTable";
 import { StatusBadge, type BadgeTone } from "@/components/ui/StatusBadge";
 import type { LeaseView, OperatorTaskRow } from "@/lib/convex/platformApi";
 import { codeLabel, type CodeTranslator } from "@/lib/domainLabels";
@@ -56,7 +56,7 @@ export function OperatorTaskTable({
   };
 
   return (
-    <EntityTable<OperatorTaskRow>
+    <DataTable<OperatorTaskRow>
       testId="table-operator-tasks"
       caption={t("caption", { count: rows.length })}
       rows={rows}

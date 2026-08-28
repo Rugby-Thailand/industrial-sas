@@ -146,7 +146,7 @@ function ResolvedTaskScan({
       )}
 
       {duplicate ? (
-        <label className="flex min-h-12 items-center gap-2 rounded-lg border border-warning/50 bg-warning/10 px-3 text-sm text-text">
+        <label className="flex min-h-12 items-center gap-2 rounded-lg border border-warning/60 bg-warning-surface px-3 text-sm text-text">
           <input
             type="checkbox"
             checked={duplicateConfirmed}

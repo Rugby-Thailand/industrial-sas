@@ -4,12 +4,12 @@ import { useQuery } from "convex/react";
 import { ListOrdered } from "lucide-react";
 import { useTranslations } from "next-intl";
 
+import { DataTable } from "@/components/table/DataTable";
 import { LedgerPanelStatus } from "@/components/system/LedgerPanelStatus";
 import { QueryGate } from "@/components/system/QueryGate";
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import { Notice } from "@/components/ui/Notice";
 import { StatusBadge, type BadgeTone } from "@/components/ui/StatusBadge";
-import { TableScroller } from "@/components/ui/TableScroller";
 import {
   Card,
   CardContent,
@@ -345,86 +345,89 @@ function HealthTable({
   const t = useTranslations("Integrations");
   const caption = t("healthCaption");
   return (
-    <TableScroller label={caption}>
-      <table className="w-full min-w-[960px] border-collapse text-sm">
-        <caption className="sr-only">{caption}</caption>
-        <thead className="bg-raised text-left text-xs text-muted">
-          <tr>
-            <th scope="col" className="px-4 py-3">
-              {t("adapter")}
-            </th>
-            <th scope="col" className="px-4 py-3">
-              {t("status")}
-            </th>
-            <th scope="col" className="px-4 py-3 text-right">
-              {t("pending")}
-            </th>
-            <th scope="col" className="px-4 py-3 text-right">
-              {t("retrying")}
-            </th>
-            <th scope="col" className="px-4 py-3 text-right">
-              {t("deadLetter")}
-            </th>
-            <th scope="col" className="px-4 py-3">
-              {t("lastResult")}
-            </th>
-            <th scope="col" className="px-4 py-3">
-              {t("nextAction")}
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <tr
-              key={row.adapterId}
-              className="border-t border-border align-top"
-            >
-              <th scope="row" className="px-4 py-3 text-left">
-                <span className="block font-mono font-semibold text-text">
-                  {row.code}
-                </span>
-                <span className="block text-xs font-normal text-muted">
-                  {row.displayName} · {t(`kindValue.${row.kind}`)}
-                </span>
-              </th>
-              <td className="px-4 py-3">
-                <StatusBadge
-                  tone={toneOf(row.status)}
-                  label={t(`statusValue.${row.status}`)}
-                />
-              </td>
-              <td className="px-4 py-3 text-right tabular-nums">
-                {row.pending + row.delivering}
-              </td>
-              <td className="px-4 py-3 text-right tabular-nums">
-                {row.retrying}
-              </td>
-              <td className="px-4 py-3 text-right tabular-nums">
-                {row.deadLetter}
-              </td>
-              <td className="px-4 py-3">
-                <span className="block">{dateTime(row.lastSuccessAt)}</span>
-                {row.lastFailureCode === undefined ? null : (
-                  <code className="mt-1 block text-xs text-danger">
-                    {row.lastFailureCode}
-                  </code>
-                )}
-              </td>
-              <td className="px-4 py-3 text-xs text-muted">
-                {t(
-                  row.status === "DISABLED"
-                    ? "actionDisabled"
-                    : row.deadLetter > 0
-                      ? "actionBlocked"
-                      : row.retrying > 0
-                        ? "actionDelayed"
-                        : "actionHealthy",
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </TableScroller>
+    <DataTable<IntegrationHealthRow>
+      caption={caption}
+      tableClassName="min-w-[960px]"
+      rows={rows}
+      rowKey={(row) => row.adapterId}
+      columns={[
+        {
+          key: "adapter",
+          header: t("adapter"),
+          rowHeader: true,
+          monospace: false,
+          render: (row) => (
+            <>
+              <span className="block font-mono font-semibold text-text">
+                {row.code}
+              </span>
+              <span className="block text-xs font-normal text-muted">
+                {row.displayName} · {t(`kindValue.${row.kind}`)}
+              </span>
+            </>
+          ),
+        },
+        {
+          key: "status",
+          header: t("status"),
+          render: (row) => (
+            <StatusBadge
+              tone={toneOf(row.status)}
+              label={t(`statusValue.${row.status}`)}
+            />
+          ),
+        },
+        {
+          key: "pending",
+          header: t("pending"),
+          align: "right",
+          cellClassName: "tabular-nums",
+          render: (row) => row.pending + row.delivering,
+        },
+        {
+          key: "retrying",
+          header: t("retrying"),
+          align: "right",
+          cellClassName: "tabular-nums",
+          render: (row) => row.retrying,
+        },
+        {
+          key: "deadLetter",
+          header: t("deadLetter"),
+          align: "right",
+          cellClassName: "tabular-nums",
+          render: (row) => row.deadLetter,
+        },
+        {
+          key: "lastResult",
+          header: t("lastResult"),
+          render: (row) => (
+            <>
+              <span className="block">{dateTime(row.lastSuccessAt)}</span>
+              {row.lastFailureCode === undefined ? null : (
+                <code className="mt-1 block text-xs text-danger">
+                  {row.lastFailureCode}
+                </code>
+              )}
+            </>
+          ),
+        },
+        {
+          key: "nextAction",
+          header: t("nextAction"),
+          cellClassName: "text-xs text-muted",
+          render: (row) =>
+            t(
+              row.status === "DISABLED"
+                ? "actionDisabled"
+                : row.deadLetter > 0
+                  ? "actionBlocked"
+                  : row.retrying > 0
+                    ? "actionDelayed"
+                    : "actionHealthy",
+            ),
+        },
+      ]}
+    />
   );
 }

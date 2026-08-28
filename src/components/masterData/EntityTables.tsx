@@ -15,7 +15,7 @@ import type {
 import { codeLabel, type CodeTranslator } from "@/lib/domainLabels";
 import { UNRENDERABLE } from "@/lib/formatters";
 
-import { EntityTable, type ColumnSpec } from "./EntityTable";
+import { DataTable, type DataTableColumn } from "@/components/table/DataTable";
 
 const STATUS_TONES: Readonly<Record<string, BadgeTone>> = {
   ACTIVE: "success",
@@ -38,23 +38,27 @@ const BARCODE_TONES: Readonly<Record<string, BadgeTone>> = {
 const statusCell = <Row extends { readonly status: string }>(
   header: string,
   translate: CodeTranslator,
+  renderStatus?: (row: Row) => ReactNode,
   tones: Readonly<Record<string, BadgeTone>> = STATUS_TONES,
-): ColumnSpec<Row> => ({
+): DataTableColumn<Row> => ({
   key: "status",
   header,
-  render: (row) => (
-    <StatusBadge
-      tone={tones[row.status] ?? "neutral"}
-      label={codeLabel(translate, row.status)}
-    />
-  ),
+  render: (row) =>
+    renderStatus?.(row) ?? (
+      <StatusBadge
+        tone={tones[row.status] ?? "neutral"}
+        label={codeLabel(translate, row.status)}
+      />
+    ),
 });
 
 export function SuppliersTable({
   rows,
+  renderStatus,
   renderAction,
 }: {
   readonly rows: readonly SupplierRow[];
+  readonly renderStatus?: (row: SupplierRow) => ReactNode;
   readonly renderAction?: (row: SupplierRow) => ReactNode;
 }) {
   const t = useTranslations("MasterData");
@@ -63,7 +67,7 @@ export function SuppliersTable({
   ) as unknown as CodeTranslator;
 
   return (
-    <EntityTable<SupplierRow>
+    <DataTable<SupplierRow>
       testId="table-suppliers"
       caption={t("suppliersCaption", { count: rows.length })}
       rows={rows}
@@ -76,7 +80,7 @@ export function SuppliersTable({
           render: (row) => row.code,
         },
         { key: "name", header: t("columnName"), render: (row) => row.name },
-        statusCell<SupplierRow>(t("columnStatus"), statusT),
+        statusCell<SupplierRow>(t("columnStatus"), statusT, renderStatus),
       ]}
       {...(renderAction === undefined
         ? {}
@@ -87,9 +91,11 @@ export function SuppliersTable({
 
 export function StorageClassesTable({
   rows,
+  renderStatus,
   renderAction,
 }: {
   readonly rows: readonly StorageClassRow[];
+  readonly renderStatus?: (row: StorageClassRow) => ReactNode;
   readonly renderAction?: (row: StorageClassRow) => ReactNode;
 }) {
   const t = useTranslations("MasterData");
@@ -98,7 +104,7 @@ export function StorageClassesTable({
   ) as unknown as CodeTranslator;
 
   return (
-    <EntityTable<StorageClassRow>
+    <DataTable<StorageClassRow>
       testId="table-storage-classes"
       caption={t("storageClassesCaption", { count: rows.length })}
       rows={rows}
@@ -111,7 +117,7 @@ export function StorageClassesTable({
           render: (row) => row.code,
         },
         { key: "name", header: t("columnName"), render: (row) => row.name },
-        statusCell<StorageClassRow>(t("columnStatus"), statusT),
+        statusCell<StorageClassRow>(t("columnStatus"), statusT, renderStatus),
       ]}
       {...(renderAction === undefined
         ? {}
@@ -134,7 +140,7 @@ export function BarcodesTable({
   const kindT = useTranslations("BarcodeKind") as unknown as CodeTranslator;
 
   return (
-    <EntityTable<BarcodeRow>
+    <DataTable<BarcodeRow>
       testId="table-barcodes"
       caption={t("barcodesCaption", { count: rows.length })}
       rows={rows}
@@ -187,7 +193,7 @@ export function ItemUomsTable({
   ) as unknown as CodeTranslator;
 
   return (
-    <EntityTable<ItemUomRow>
+    <DataTable<ItemUomRow>
       testId="table-item-uoms"
       caption={t("itemUomsCaption", { count: rows.length, baseUom })}
       rows={rows}
@@ -221,7 +227,7 @@ export function LotsTable({ rows }: { readonly rows: readonly LotRow[] }) {
   ) as unknown as CodeTranslator;
 
   return (
-    <EntityTable<LotRow>
+    <DataTable<LotRow>
       testId="table-lots"
       caption={t("lotsCaption", { count: rows.length })}
       rows={rows}
@@ -265,7 +271,7 @@ export function LabelTemplatesTable({
   ) as unknown as CodeTranslator;
 
   return (
-    <EntityTable<LabelTemplateRow>
+    <DataTable<LabelTemplateRow>
       testId="table-label-templates"
       caption={t("labelTemplatesCaption", { count: rows.length })}
       rows={rows}
@@ -294,6 +300,7 @@ export function LabelTemplatesTable({
         statusCell<LabelTemplateRow>(
           t("columnStatus"),
           statusT,
+          undefined,
           TEMPLATE_TONES,
         ),
       ]}

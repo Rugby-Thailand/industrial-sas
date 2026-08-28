@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
+import { DataTable } from "@/components/table/DataTable";
 import { StatusBadge, type BadgeTone } from "@/components/ui/StatusBadge";
 import type { ItemRow } from "@/lib/convex/masterDataApi";
 import { codeLabel, type CodeTranslator } from "@/lib/domainLabels";
@@ -35,68 +36,49 @@ export function ItemsTable({
   ) as unknown as CodeTranslator;
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-border bg-surface">
-      <table className="w-full border-collapse text-sm">
-        <caption className="px-4 py-3 text-left text-sm text-muted">
-          {t("itemsCaption", { count: rows.length })}
-        </caption>
-        <thead>
-          <tr className="border-b border-border-strong text-left">
-            <th scope="col" className="px-4 py-2 font-semibold">
-              {t("columnSku")}
-            </th>
-            <th scope="col" className="px-4 py-2 font-semibold">
-              {t("columnName")}
-            </th>
-            <th scope="col" className="px-4 py-2 font-semibold">
-              {t("columnBaseUom")}
-            </th>
-            <th scope="col" className="px-4 py-2 font-semibold">
-              {t("columnTrackingMode")}
-            </th>
-            <th scope="col" className="px-4 py-2 font-semibold">
-              {t("columnStatus")}
-            </th>
-            {renderAction === undefined ? null : (
-              <th scope="col" className="px-4 py-2 font-semibold">
-                {t("columnAction")}
-              </th>
-            )}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <tr
-              key={row.itemId}
-              className="border-b border-border last:border-0"
-            >
-              <th
-                scope="row"
-                className="px-4 py-3 text-left font-mono text-xs font-normal text-text"
-              >
-                {row.sku}
-              </th>
-              <td className="px-4 py-3">{row.name}</td>
-              <td className="px-4 py-3 font-mono text-xs">{row.baseUom}</td>
-              <td className="px-4 py-3">
-                <StatusBadge
-                  tone={TRACKING_TONES[row.trackingMode] ?? "neutral"}
-                  label={codeLabel(trackingT, row.trackingMode)}
-                />
-              </td>
-              <td className="px-4 py-3">
-                <StatusBadge
-                  tone={STATUS_TONES[row.status] ?? "neutral"}
-                  label={codeLabel(statusT, row.status)}
-                />
-              </td>
-              {renderAction === undefined ? null : (
-                <td className="px-4 py-3">{renderAction(row)}</td>
-              )}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <DataTable<ItemRow>
+      testId="table-items"
+      caption={t("itemsCaption", { count: rows.length })}
+      rows={rows}
+      rowKey={(row) => row.itemId}
+      columns={[
+        {
+          key: "sku",
+          header: t("columnSku"),
+          rowHeader: true,
+          render: (row) => row.sku,
+        },
+        { key: "name", header: t("columnName"), render: (row) => row.name },
+        {
+          key: "baseUom",
+          header: t("columnBaseUom"),
+          monospace: true,
+          render: (row) => row.baseUom,
+        },
+        {
+          key: "trackingMode",
+          header: t("columnTrackingMode"),
+          render: (row) => (
+            <StatusBadge
+              tone={TRACKING_TONES[row.trackingMode] ?? "neutral"}
+              label={codeLabel(trackingT, row.trackingMode)}
+            />
+          ),
+        },
+        {
+          key: "status",
+          header: t("columnStatus"),
+          render: (row) => (
+            <StatusBadge
+              tone={STATUS_TONES[row.status] ?? "neutral"}
+              label={codeLabel(statusT, row.status)}
+            />
+          ),
+        },
+      ]}
+      {...(renderAction === undefined
+        ? {}
+        : { actionHeader: t("columnAction"), renderAction })}
+    />
   );
 }

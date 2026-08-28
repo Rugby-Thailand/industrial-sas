@@ -292,7 +292,7 @@ export function EntityForm({
   const renderSection = (section: FormSectionSpec) => (
     <section
       key={section.id}
-      className="rounded-xl border border-border bg-raised/35 p-4 sm:p-5"
+      className="rounded-xl border border-border bg-raised p-4 sm:p-5"
       aria-labelledby={`${formId}-section-${section.id}`}
     >
       <div className="mb-4">

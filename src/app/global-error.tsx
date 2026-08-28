@@ -20,7 +20,29 @@ export default function GlobalError({
   }, [error, observability]);
 
   return (
-    <html lang="th">
+    <html lang="th" style={{ colorScheme: "light dark" }}>
+      <head>
+        <style>{`
+          :root {
+            --global-error-canvas: #f3f5f7;
+            --global-error-surface: #ffffff;
+            --global-error-text: #12161c;
+            --global-error-danger: #b3261e;
+            --global-error-accent: #0b5cad;
+            --global-error-accent-text: #ffffff;
+          }
+          @media (prefers-color-scheme: dark) {
+            :root {
+              --global-error-canvas: #0b0e12;
+              --global-error-surface: #303b48;
+              --global-error-text: #eef1f5;
+              --global-error-danger: #ffaaa2;
+              --global-error-accent: #86bdff;
+              --global-error-accent-text: #071522;
+            }
+          }
+        `}</style>
+      </head>
       <body
         style={{
           margin: 0,
@@ -29,8 +51,8 @@ export default function GlobalError({
           placeItems: "center",
           padding: "24px",
           boxSizing: "border-box",
-          color: "#17202a",
-          background: "#f6f7f9",
+          color: "var(--global-error-text)",
+          background: "var(--global-error-canvas)",
           fontFamily: "system-ui, sans-serif",
         }}
       >
@@ -40,10 +62,10 @@ export default function GlobalError({
           style={{
             width: "min(100%, 560px)",
             padding: "24px",
-            border: "1px solid #b42318",
+            border: "1px solid var(--global-error-danger)",
             borderLeftWidth: "4px",
             borderRadius: "12px",
-            background: "#ffffff",
+            background: "var(--global-error-surface)",
           }}
         >
           <h1
@@ -66,8 +88,8 @@ export default function GlobalError({
               padding: "0 20px",
               border: 0,
               borderRadius: "8px",
-              color: "#ffffff",
-              background: "#1859a9",
+              color: "var(--global-error-accent-text)",
+              background: "var(--global-error-accent)",
               font: "inherit",
               fontWeight: 700,
               cursor: "pointer",

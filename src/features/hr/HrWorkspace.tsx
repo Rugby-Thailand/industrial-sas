@@ -4,12 +4,12 @@ import { useQuery } from "convex/react";
 import { ListOrdered } from "lucide-react";
 import { useTranslations } from "next-intl";
 
+import { DataTable } from "@/components/table/DataTable";
 import { LedgerPanelStatus } from "@/components/system/LedgerPanelStatus";
 import { QueryGate } from "@/components/system/QueryGate";
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import { Notice } from "@/components/ui/Notice";
 import { StatusBadge, type BadgeTone } from "@/components/ui/StatusBadge";
-import { TableScroller } from "@/components/ui/TableScroller";
 import {
   Card,
   CardContent,
@@ -125,6 +125,14 @@ const dateTime = (value: number | undefined) =>
         dateStyle: "medium",
         timeStyle: "short",
       }).format(value);
+
+interface RequestHistoryRow {
+  readonly id: string;
+  readonly kind: string;
+  readonly period: string;
+  readonly status: HrRequestStatus;
+  readonly requestedAt: number;
+}
 
 export function HrWorkspace() {
   return (
@@ -541,7 +549,7 @@ function RequestHistory({ self }: { readonly self: MyHrRecord }) {
   const businessDateOf = (attendanceDayId: string) =>
     (self.days ?? []).find((day) => day.attendanceDayId === attendanceDayId)
       ?.businessDate ?? attendanceDayId;
-  const rows = [
+  const rows: readonly RequestHistoryRow[] = [
     ...(self.corrections ?? []).map((request) => ({
       id: request.attendanceCorrectionId,
       kind: t("kindCorrection"),
@@ -558,72 +566,85 @@ function RequestHistory({ self }: { readonly self: MyHrRecord }) {
     })),
   ];
   return (
-    <TableScroller label={t("myRequests")}>
-      <table className="w-full min-w-[44rem] border-collapse text-sm">
-        <caption className="px-4 py-3 text-left font-semibold text-text">
-          {t("myRequests")}
-        </caption>
-        <thead>
-          <tr className="border-y border-border bg-raised text-left">
-            <th className="px-4 py-3">{t("type")}</th>
-            <th className="px-4 py-3">{t("period")}</th>
-            <th className="px-4 py-3">{t("requestedAt")}</th>
-            <th className="px-4 py-3">{t("status")}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <tr key={row.id} className="border-b border-border">
-              <td className="px-4 py-3">{row.kind}</td>
-              <td className="px-4 py-3 font-mono">{row.period}</td>
-              <td className="px-4 py-3">{dateTime(row.requestedAt)}</td>
-              <td className="px-4 py-3">
-                <StatusBadge
-                  tone={requestTone(row.status)}
-                  label={t(`requestStatus.${row.status}`)}
-                />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </TableScroller>
+    <DataTable<RequestHistoryRow>
+      caption={t("myRequests")}
+      tableClassName="min-w-[44rem]"
+      rows={rows}
+      rowKey={(row) => row.id}
+      columns={[
+        {
+          key: "type",
+          header: t("type"),
+          rowHeader: true,
+          monospace: false,
+          render: (row) => row.kind,
+        },
+        {
+          key: "period",
+          header: t("period"),
+          monospace: true,
+          render: (row) => row.period,
+        },
+        {
+          key: "requestedAt",
+          header: t("requestedAt"),
+          render: (row) => dateTime(row.requestedAt),
+        },
+        {
+          key: "status",
+          header: t("status"),
+          render: (row) => (
+            <StatusBadge
+              tone={requestTone(row.status)}
+              label={t(`requestStatus.${row.status}`)}
+            />
+          ),
+        },
+      ]}
+    />
   );
 }
 
 function TeamInbox({ team }: { readonly team: TeamHrInboxPayload }) {
   const t = useTranslations("HR");
   return (
-    <TableScroller label={t("teamInboxTable")} testId="hr-team-inbox">
-      <table className="w-full min-w-[44rem] border-collapse text-sm">
-        <caption className="px-4 py-3 text-left font-semibold text-text">
-          {t("teamInboxCaption", { count: team.items.length })}
-        </caption>
-        <thead>
-          <tr className="border-y border-border bg-raised text-left">
-            <th className="px-4 py-3">{t("employee")}</th>
-            <th className="px-4 py-3">{t("type")}</th>
-            <th className="px-4 py-3">{t("period")}</th>
-            <th className="px-4 py-3">{t("requestedAt")}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {team.items.map((item) => (
-            <tr key={item.requestId} className="border-b border-border">
-              <td className="px-4 py-3">
-                <span className="font-mono">{item.employeeNumber}</span>
-                <br />
-                {item.displayName}
-              </td>
-              <td className="px-4 py-3">
-                {t(item.kind === "CORRECTION" ? "kindCorrection" : "kindLeave")}
-              </td>
-              <td className="px-4 py-3">{item.summary}</td>
-              <td className="px-4 py-3">{dateTime(item.requestedAt)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </TableScroller>
+    <DataTable<TeamHrInboxPayload["items"][number]>
+      testId="hr-team-inbox"
+      caption={t("teamInboxCaption", { count: team.items.length })}
+      tableClassName="min-w-[44rem]"
+      rows={team.items}
+      rowKey={(item) => item.requestId}
+      columns={[
+        {
+          key: "employee",
+          header: t("employee"),
+          rowHeader: true,
+          monospace: false,
+          render: (item) => (
+            <>
+              <span className="font-mono">{item.employeeNumber}</span>
+              <br />
+              {item.displayName}
+            </>
+          ),
+        },
+        {
+          key: "type",
+          header: t("type"),
+          render: (item) =>
+            t(item.kind === "CORRECTION" ? "kindCorrection" : "kindLeave"),
+        },
+        {
+          key: "period",
+          header: t("period"),
+          render: (item) => item.summary,
+        },
+        {
+          key: "requestedAt",
+          header: t("requestedAt"),
+          render: (item) => dateTime(item.requestedAt),
+        },
+      ]}
+    />
   );
 }

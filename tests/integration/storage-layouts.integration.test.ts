@@ -1,7 +1,10 @@
 import type { GenericMutationCtx } from "convex/server";
 import { describe, expect, it } from "vitest";
 
-import { getStorageBuilding } from "../../convex/storageLayouts/catalogue";
+import {
+  getStorageBuilding,
+  getStorageLocationMap,
+} from "../../convex/storageLayouts/catalogue";
 import { postTransaction } from "../../convex/inventory/ledger";
 import {
   activateStorageBuilding,
@@ -183,6 +186,43 @@ describe("storage building planner", () => {
       depthMm: 2_500,
       maxStackHeightMm: 4_000,
     });
+    const linkedLocationId = (updatedStoredZone as { locationId: string })
+      .locationId;
+    const draftLocation = await world.t.run(async (ctx) =>
+      ctx.db.get(linkedLocationId as never),
+    );
+    expect(draftLocation).toMatchObject({
+      locationType: "FLOOR_BLOCK",
+      status: "INACTIVE",
+    });
+
+    const overlappingFloor = value(
+      await call(world, saveStorageFloor, {
+        warehouseId,
+        buildingId,
+        requestId: "storage-floor-overlap-1",
+        expectedBuildingVersion: 2,
+        expectedFloorVersion: 2,
+        floor: {
+          floorNumber: 1,
+          heightMm: 4_500,
+          reservedBlocks: [
+            {
+              id: "blocked-stack",
+              label: "Blocked stack",
+              xMm: 12_000,
+              yMm: 1_000,
+              widthMm: 3_000,
+              depthMm: 2_500,
+            },
+          ],
+        },
+      }),
+    );
+    expect(overlappingFloor).toMatchObject({
+      written: false,
+      error: { code: "ZONE_OVERLAPS_RESERVED_SPACE" },
+    });
 
     const receipt = value(
       await call(world, postTransaction, {
@@ -217,6 +257,41 @@ describe("storage building planner", () => {
     );
     expect(receipt["posted"], JSON.stringify(receipt)).toBe(true);
 
+    const placementWhileDraft = value(
+      await call(world, placeHandlingUnit, {
+        warehouseId,
+        requestId: "0193f2c1-0000-7000-8000-000000000020",
+        lpn: "inv-0001-01",
+        zoneScan: zone["qrValue"],
+        widthMm: 1_200,
+        depthMm: 1_000,
+        heightMm: 1_400,
+      }),
+    );
+    expect(placementWhileDraft).toMatchObject({
+      written: false,
+      error: { code: "ZONE_NOT_FOUND" },
+    });
+
+    const activated = value(
+      await call(world, activateStorageBuilding, {
+        warehouseId,
+        buildingId,
+        requestId: "storage-activate-1",
+        expectedVersion: 2,
+      }),
+    );
+    expect(activated["written"]).toBe(true);
+    const activatedRows = await world.t.run(async (ctx) => ({
+      building: await ctx.db.get(buildingId as never),
+      location: await ctx.db.get(linkedLocationId as never),
+    }));
+    expect(activatedRows.building).toMatchObject({
+      status: "ACTIVE",
+      version: 3,
+    });
+    expect(activatedRows.location).toMatchObject({ status: "ACTIVE" });
+
     const placed = value(
       await call(world, placeHandlingUnit, {
         warehouseId,
@@ -235,18 +310,104 @@ describe("storage building planner", () => {
       capacityWarning: false,
     });
 
+    const activeQuickChange = value(
+      await call(world, updateStorageZone, {
+        warehouseId,
+        zoneId: zone["documentId"],
+        requestId: "storage-zone-active-update-1",
+        label: "Finished goods live stack",
+        xMm: 13_000,
+        yMm: 1_000,
+        widthMm: 3_000,
+        depthMm: 2_500,
+        maxStackHeightMm: 1_000,
+      }),
+    );
+    expect(activeQuickChange).toMatchObject({
+      written: true,
+      replayed: false,
+      documentId: zone["documentId"],
+    });
+
+    const impossibleQuickChange = value(
+      await call(world, updateStorageZone, {
+        warehouseId,
+        zoneId: zone["documentId"],
+        requestId: "storage-zone-active-update-2",
+        label: "Finished goods live stack",
+        xMm: 13_000,
+        yMm: 1_000,
+        widthMm: 500,
+        depthMm: 500,
+        maxStackHeightMm: 1_000,
+      }),
+    );
+    expect(impossibleQuickChange).toMatchObject({
+      written: false,
+      error: { code: "HANDLING_UNIT_DOES_NOT_FIT" },
+    });
+
+    const newActiveZone = value(
+      await call(world, createStorageZone, {
+        warehouseId,
+        buildingId,
+        floorNumber: 1,
+        requestId: "storage-zone-active-create-1",
+        label: "Live overflow stack",
+        xMm: 20_000,
+        yMm: 0,
+        widthMm: 2_000,
+        depthMm: 2_000,
+        maxStackHeightMm: 4_000,
+      }),
+    );
+    const newActiveZoneRows = await world.t.run(async (ctx) => {
+      const storedActiveZone = await ctx.db.get(
+        newActiveZone["documentId"] as never,
+      );
+      return {
+        zone: storedActiveZone,
+        location: await ctx.db.get(
+          (storedActiveZone as { locationId: string }).locationId as never,
+        ),
+      };
+    });
+    expect(newActiveZoneRows.zone).toMatchObject({
+      code: "BLDG-A-F01-Z02",
+      status: "ACTIVE",
+    });
+    expect(newActiveZoneRows.location).toMatchObject({ status: "ACTIVE" });
+
     const withZone = value(
       await call(world, getStorageBuilding, { warehouseId, buildingId }),
     );
     const withZoneFloors = withZone["floors"] as Record<string, unknown>[];
-    expect(withZoneFloors[0]?.["storageZones"]).toEqual([
-      expect.objectContaining({
-        code: "BLDG-A-F01-Z01",
-        placements: [
-          expect.objectContaining({ lpn: "INV-0001-01", levelIndex: 1 }),
-        ],
+    expect(withZoneFloors[0]?.["storageZones"]).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "BLDG-A-F01-Z01",
+          placements: [
+            expect.objectContaining({ lpn: "INV-0001-01", levelIndex: 1 }),
+          ],
+        }),
+      ]),
+    );
+    const locationMap = value(
+      await call(world, getStorageLocationMap, {
+        warehouseId,
+        locationId: linkedLocationId,
       }),
-    ]);
+    );
+    expect(locationMap).toMatchObject({
+      found: true,
+      building: { code: "BLDG-A" },
+      floor: { floorNumber: 1 },
+      zone: {
+        code: "BLDG-A-F01-Z01",
+        xMm: 13_000,
+        yMm: 1_000,
+      },
+    });
     const movedUnit = await world.t.run(async (ctx) =>
       ctx.db.get(world.a.pallet),
     );
@@ -259,19 +420,36 @@ describe("storage building planner", () => {
       depthMm: 1_000,
       heightMm: 1_400,
     });
+  });
+
+  it("refuses activation until the draft contains a storage stack", async () => {
+    const world = await createConvexInventoryWorld();
+    const warehouseId = world.warehouses.alphaA;
+    const created = value(
+      await call(world, createStorageBuilding, {
+        warehouseId,
+        requestId: "storage-empty-create-1",
+        code: "EMPTY",
+        name: "Empty layout",
+        widthMm: 10_000,
+        depthMm: 10_000,
+        defaultFloorHeightMm: 4_000,
+        floorCount: 1,
+      }),
+    );
 
     const activated = value(
       await call(world, activateStorageBuilding, {
         warehouseId,
-        buildingId,
-        requestId: "storage-activate-1",
-        expectedVersion: 2,
+        buildingId: created["documentId"],
+        requestId: "storage-empty-activate-1",
+        expectedVersion: 1,
       }),
     );
-    expect(activated["written"]).toBe(true);
-    const active = await world.t.run(async (ctx) =>
-      ctx.db.get(buildingId as never),
-    );
-    expect(active).toMatchObject({ status: "ACTIVE", version: 3 });
+
+    expect(activated).toMatchObject({
+      written: false,
+      error: { code: "STORAGE_STACK_REQUIRED" },
+    });
   });
 });

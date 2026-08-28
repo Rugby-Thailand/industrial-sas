@@ -81,9 +81,22 @@ export type StorageBuildingDetail =
     }
   | { readonly found: false };
 
+export type StorageLocationMapDetail =
+  | {
+      readonly found: true;
+      readonly building: StorageBuildingRow;
+      readonly floor: StorageFloorRow;
+      readonly zone: StorageZoneRow;
+    }
+  | { readonly found: false };
+
 export const storageLayoutRefs = Object.freeze({
   list: clientRef(api.storageLayouts.catalogue.listStorageBuildings),
   get: clientRef(api.storageLayouts.catalogue.getStorageBuilding),
+  locationMap: clientRef(api.storageLayouts.catalogue.getStorageLocationMap),
+  listOperationalZones: clientRef(
+    api.storageLayouts.catalogue.listOperationalStorageZones,
+  ),
   create: clientRef(api.storageLayouts.writes.createStorageBuilding),
   update: clientRef(api.storageLayouts.writes.updateStorageBuilding),
   changeFloorCount: clientRef(

@@ -609,7 +609,7 @@ function PolicyGroup({
               aria-pressed={choice.value === value}
               aria-describedby={hintId}
               onClick={() => onChange(choice.value)}
-              className="flex min-h-touch items-center gap-2 rounded-md border border-border bg-surface px-3 text-sm font-medium text-muted transition outline-none hover:text-text focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-pressed:border-accent aria-pressed:bg-accent/15 aria-pressed:text-accent"
+              className="flex min-h-touch items-center gap-2 rounded-md border border-border bg-surface px-3 text-sm font-medium text-muted transition outline-none hover:text-text focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-pressed:border-accent aria-pressed:bg-accent-surface aria-pressed:text-accent"
             >
               <Icon aria-hidden="true" className="size-4" />
               {choice.label}

@@ -4,11 +4,11 @@ import { useQuery } from "convex/react";
 import { useLocale, useTranslations } from "next-intl";
 import { useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 
+import { DataTable } from "@/components/table/DataTable";
 import { LedgerPanelStatus } from "@/components/system/LedgerPanelStatus";
 import { QueryGate } from "@/components/system/QueryGate";
 import { Notice } from "@/components/ui/Notice";
 import { StatusBadge, type BadgeTone } from "@/components/ui/StatusBadge";
-import { TableScroller } from "@/components/ui/TableScroller";
 import { Link } from "@/i18n/navigation";
 import type { AppLocale } from "@/i18n/routing";
 import {
@@ -295,48 +295,27 @@ function ReportTable({
   readonly rows: readonly (readonly ReactNode[])[];
   readonly testId: string;
 }) {
+  const dataRows = rows.map((cells, index) => ({
+    key: String(index),
+    cells,
+  }));
+
   return (
-    <TableScroller label={caption} testId={testId}>
-      <table className="w-full border-collapse text-sm">
-        <caption className="px-4 py-3 text-left text-sm text-muted">
-          {caption}
-        </caption>
-        <thead>
-          <tr className="border-b border-border-strong text-left">
-            {headers.map((header) => (
-              <th
-                key={header}
-                scope="col"
-                className="px-4 py-2 font-semibold whitespace-nowrap"
-              >
-                {header}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, index) => (
-            <tr key={index} className="border-b border-border last:border-0">
-              {row.map((cell, cellIndex) =>
-                cellIndex === 0 ? (
-                  <th
-                    key={cellIndex}
-                    scope="row"
-                    className="px-4 py-3 text-left font-semibold whitespace-nowrap"
-                  >
-                    {cell}
-                  </th>
-                ) : (
-                  <td key={cellIndex} className="px-4 py-3 whitespace-nowrap">
-                    {cell}
-                  </td>
-                ),
-              )}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </TableScroller>
+    <DataTable<(typeof dataRows)[number]>
+      caption={caption}
+      testId={testId}
+      rows={dataRows}
+      rowKey={(row) => row.key}
+      columns={headers.map((header, index) => ({
+        key: String(index),
+        header,
+        rowHeader: index === 0,
+        monospace: false,
+        cellClassName:
+          index === 0 ? "font-semibold whitespace-nowrap" : "whitespace-nowrap",
+        render: (row) => row.cells[index],
+      }))}
+    />
   );
 }
 

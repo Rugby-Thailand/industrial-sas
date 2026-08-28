@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { renderWithIntl } from "../../../tests/fixtures/intl-render";
 
-import { EntityTable, type ColumnSpec } from "./EntityTable";
+import { DataTable, type DataTableColumn } from "@/components/table/DataTable";
 
 interface Row {
   readonly id: string;
@@ -16,7 +16,7 @@ const ROWS: readonly Row[] = [
   { id: "2", code: "RESIN-HD", name: "เม็ดพลาสติก" },
 ];
 
-const COLUMNS: readonly ColumnSpec<Row>[] = [
+const COLUMNS: readonly DataTableColumn<Row>[] = [
   { key: "code", header: "รหัส", rowHeader: true, render: (row) => row.code },
   { key: "name", header: "ชื่อ", render: (row) => row.name },
 ];
@@ -24,11 +24,11 @@ const COLUMNS: readonly ColumnSpec<Row>[] = [
 const CAPTION = "รายการทดสอบ 2 รายการ";
 
 const renderTable = (
-  props: Partial<Parameters<typeof EntityTable<Row>>[0]> = {},
+  props: Partial<Parameters<typeof DataTable<Row>>[0]> = {},
   locale: "th" | "en" = "th",
 ) =>
   renderWithIntl(
-    <EntityTable<Row>
+    <DataTable<Row>
       caption={CAPTION}
       columns={COLUMNS}
       rows={ROWS}
@@ -45,7 +45,7 @@ const withAction = () => ({
   ),
 });
 
-describe("EntityTable", () => {
+describe("DataTable", () => {
   it("is a semantic table with a caption, column headers, and a row header", () => {
     renderTable();
 

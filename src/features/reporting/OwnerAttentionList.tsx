@@ -36,13 +36,13 @@ export function OwnerAttentionListView({
 
   if (payload.exceptions.length === 0) {
     return (
-      <div className="relative overflow-hidden rounded-xl border border-success/30 bg-success/5 p-5">
+      <div className="relative overflow-hidden rounded-xl border border-success/60 bg-success-surface p-5">
         <div
           aria-hidden="true"
           className="absolute -top-12 -right-12 size-36 rounded-full bg-success/10 blur-2xl"
         />
         <div className="relative flex items-start gap-4">
-          <span className="grid size-11 shrink-0 place-items-center rounded-full bg-success/15 text-success">
+          <span className="grid size-11 shrink-0 place-items-center rounded-full bg-raised text-success">
             <CircleCheckBig aria-hidden="true" className="size-6" />
           </span>
           <div>
@@ -67,7 +67,7 @@ export function OwnerAttentionListView({
         {payload.exceptions.slice(0, 6).map((row) => (
           <li
             key={`${row.sourceType}:${row.sourceId}`}
-            className="rounded-xl border border-border bg-raised/35 p-4"
+            className="rounded-xl border border-border bg-raised p-4"
           >
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0 flex-1">

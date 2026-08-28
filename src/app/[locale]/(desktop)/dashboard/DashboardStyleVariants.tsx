@@ -30,7 +30,7 @@ export function resolveDashboardStyle(
 
 function LiveBadge({ label }: { readonly label: string }) {
   return (
-    <span className="inline-flex min-h-8 items-center gap-2 rounded-full border border-success/30 bg-success/10 px-3 text-xs font-semibold text-success">
+    <span className="inline-flex min-h-8 items-center gap-2 rounded-full border border-success/60 bg-success-surface px-3 text-xs font-semibold text-success">
       <span aria-hidden="true" className="size-2 rounded-full bg-success" />
       {label}
     </span>
@@ -176,7 +176,7 @@ export async function ActionQueueDashboard() {
       <div className="mb-4 grid items-start gap-4 xl:grid-cols-[minmax(0,1.7fr)_minmax(19rem,0.8fr)]">
         <Card className="min-w-0 border-warning/40 shadow-sm">
           <section aria-labelledby="style-b-attention-heading">
-            <CardHeader className="border-b border-border bg-warning/5">
+            <CardHeader className="border-b border-warning/60 bg-warning-surface">
               <CardTitle className="flex items-center gap-2">
                 <CircleDotDashed
                   aria-hidden="true"
@@ -225,7 +225,7 @@ export async function SpatialCommandDashboard() {
 
   return (
     <div
-      className="mx-auto max-w-[105rem] rounded-2xl border border-border bg-raised/35 p-3 sm:p-4"
+      className="mx-auto max-w-[105rem] rounded-2xl border border-border bg-raised p-3 sm:p-4"
       data-testid="dashboard-style-c"
       data-dashboard-style="spatial-command"
     >

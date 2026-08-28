@@ -19,9 +19,10 @@ and the ledger disagree.
 
 1. One storage zone is one rectangular, QR-addressable vertical stack in the
    first release.
-2. Creating a zone also creates an active `FLOOR_BLOCK` inventory location. The
-   QR payload identifies that location with the versioned value
-   `ISAS:LOCATION:1:<locationId>`.
+2. Creating a zone also creates an inactive `FLOOR_BLOCK` inventory location.
+   Activating the reviewed building activates all linked stack locations;
+   archiving it deactivates them. The QR payload identifies the location with
+   the versioned value `ISAS:LOCATION:1:<locationId>`.
 3. Finished goods are placed as handling units identified by LPN/SSCC.
 4. Placing a handling unit posts a balanced `MOVE` transaction for all its
    positive balance buckets and records the stack level in the same Convex
@@ -45,6 +46,8 @@ and the ledger disagree.
 - `INV-0015-04` Stack levels are contiguous and increase bottom-to-top.
 - `INV-0015-05` The inventory ledger move and stack placement commit atomically.
 - `INV-0015-06` A non-empty zone cannot be archived.
+- `INV-0015-07` Draft layouts cannot receive stock or appear as putaway
+  destinations; an active layout must contain at least one storage stack.
 
 ### Operational assumptions
 
@@ -57,6 +60,8 @@ and the ledger disagree.
 
 - Inventory screens and the floor visualization resolve the same physical
   location.
+- Planning changes do not silently move stock. Operators place finished goods
+  from Putaway only after the building layout is active.
 - The product can answer which unit is topmost or bottommost without inferring
   from timestamps.
 - Side-by-side bins inside one drawn rectangle require separate zones; arbitrary

@@ -13,11 +13,61 @@ type BlockDocument = Doc<"storageFloorReservedBlocks">;
 type ZoneDocument = Doc<"storageZones">;
 type PlacementDocument = Doc<"storageStackPlacements">;
 type HandlingUnitDocument = Doc<"handlingUnits">;
+type LocationDocument = Doc<"locations">;
 
 const buildingArgs = {
   warehouseId: v.id("warehouses"),
   buildingId: v.id("storageBuildings"),
 };
+
+async function resolveZone(ctx: TenantFunctionContext, zone: ZoneDocument) {
+  const placements = await ctx.tenantDb
+    .byIndex<PlacementDocument>(
+      "storageStackPlacements",
+      "by_orgId_zoneId_status_levelIndex",
+      [
+        { field: "zoneId", value: zone._id },
+        { field: "status", value: "ACTIVE" },
+      ],
+    )
+    .take(50);
+  const resolved = await Promise.all(
+    placements.map(async (placement) => {
+      const unit = await ctx.tenantDb.get<HandlingUnitDocument>(
+        "handlingUnits",
+        placement.handlingUnitId,
+      );
+      if (unit === null || unit.currentLocationId !== zone.locationId)
+        return null;
+      return {
+        placementId: placement._id,
+        handlingUnitId: placement.handlingUnitId,
+        lpn: unit.lpn,
+        levelIndex: placement.levelIndex,
+        widthMm: placement.widthMm,
+        depthMm: placement.depthMm,
+        heightMm: placement.heightMm,
+        orientation: placement.orientation,
+        placedAt: placement.placedAt,
+      };
+    }),
+  );
+  return {
+    zoneId: zone._id,
+    locationId: zone.locationId,
+    code: zone.code,
+    label: zone.label,
+    qrValue: zone.qrValue,
+    xMm: zone.xMm,
+    yMm: zone.yMm,
+    widthMm: zone.widthMm,
+    depthMm: zone.depthMm,
+    maxStackHeightMm: zone.maxStackHeightMm,
+    placements: resolved
+      .filter((placement) => placement !== null)
+      .sort((left, right) => left.levelIndex - right.levelIndex),
+  };
+}
 
 async function readFloor(ctx: TenantFunctionContext, floor: FloorDocument) {
   const blocks = await ctx.tenantDb
@@ -32,55 +82,7 @@ async function readFloor(ctx: TenantFunctionContext, floor: FloorDocument) {
     ])
     .take(50);
   const storageZones = await Promise.all(
-    zones.map(async (zone) => {
-      const placements = await ctx.tenantDb
-        .byIndex<PlacementDocument>(
-          "storageStackPlacements",
-          "by_orgId_zoneId_status_levelIndex",
-          [
-            { field: "zoneId", value: zone._id },
-            { field: "status", value: "ACTIVE" },
-          ],
-        )
-        .take(50);
-      const resolved = await Promise.all(
-        placements.map(async (placement) => {
-          const unit = await ctx.tenantDb.get<HandlingUnitDocument>(
-            "handlingUnits",
-            placement.handlingUnitId,
-          );
-          if (unit === null || unit.currentLocationId !== zone.locationId) {
-            return null;
-          }
-          return {
-            placementId: placement._id,
-            handlingUnitId: placement.handlingUnitId,
-            lpn: unit.lpn,
-            levelIndex: placement.levelIndex,
-            widthMm: placement.widthMm,
-            depthMm: placement.depthMm,
-            heightMm: placement.heightMm,
-            orientation: placement.orientation,
-            placedAt: placement.placedAt,
-          };
-        }),
-      );
-      return {
-        zoneId: zone._id,
-        locationId: zone.locationId,
-        code: zone.code,
-        label: zone.label,
-        qrValue: zone.qrValue,
-        xMm: zone.xMm,
-        yMm: zone.yMm,
-        widthMm: zone.widthMm,
-        depthMm: zone.depthMm,
-        maxStackHeightMm: zone.maxStackHeightMm,
-        placements: resolved
-          .filter((placement) => placement !== null)
-          .sort((left, right) => left.levelIndex - right.levelIndex),
-      };
-    }),
+    zones.map((zone) => resolveZone(ctx, zone)),
   );
   return {
     floorId: floor._id,
@@ -194,3 +196,82 @@ export const getStorageFloor = queryWithOrg({
 });
 
 export const getStorageBuildingReview = getStorageBuilding;
+
+export const getStorageLocationMap = queryWithOrg({
+  args: {
+    warehouseId: v.id("warehouses"),
+    locationId: v.id("locations"),
+  },
+  returns: v.any(),
+  permissionCode: "masterData.storageLayout.read",
+  target: { table: "storageZones" },
+  warehouseId: ({ warehouseId }) => warehouseId,
+  handler: async (ctx, args) => {
+    const zone = await ctx.tenantDb
+      .byIndex<ZoneDocument>("storageZones", "by_orgId_locationId", [
+        { field: "locationId", value: args.locationId },
+      ])
+      .unique();
+    if (zone === null || zone.status !== "ACTIVE") {
+      return { found: false as const };
+    }
+
+    const [building, floor] = await Promise.all([
+      ctx.tenantDb.get<BuildingDocument>("storageBuildings", zone.buildingId),
+      ctx.tenantDb.get<FloorDocument>("storageFloors", zone.floorId),
+    ]);
+    if (
+      building === null ||
+      building.warehouseId !== args.warehouseId ||
+      floor === null ||
+      floor.buildingId !== building._id
+    ) {
+      return { found: false as const };
+    }
+
+    return {
+      found: true as const,
+      building: { ...building, buildingId: building._id },
+      floor: await readFloor(ctx, floor),
+      zone: await resolveZone(ctx, zone),
+    };
+  },
+});
+
+export const listOperationalStorageZones = queryWithOrg({
+  args: { warehouseId: v.id("warehouses") },
+  returns: v.any(),
+  permissionCode: "putaway.task.read",
+  target: { table: "storageZones" },
+  warehouseId: ({ warehouseId }) => warehouseId,
+  handler: async (ctx, args) => {
+    const locations = await ctx.tenantDb
+      .byIndex<LocationDocument>(
+        "locations",
+        "by_orgId_warehouseId_status_locationType_code",
+        [
+          { field: "warehouseId", value: args.warehouseId },
+          { field: "status", value: "ACTIVE" },
+          { field: "locationType", value: "FLOOR_BLOCK" },
+        ],
+      )
+      .take(100);
+    const rows = [];
+    for (const location of locations) {
+      const zone = await ctx.tenantDb
+        .byIndex<ZoneDocument>("storageZones", "by_orgId_locationId", [
+          { field: "locationId", value: location._id },
+        ])
+        .unique();
+      if (zone === null || zone.status !== "ACTIVE") continue;
+      const building = await ctx.tenantDb.get<BuildingDocument>(
+        "storageBuildings",
+        zone.buildingId,
+      );
+      if (building?.status === "ACTIVE") {
+        rows.push(await resolveZone(ctx, zone));
+      }
+    }
+    return rows;
+  },
+});

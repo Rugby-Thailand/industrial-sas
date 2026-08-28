@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 
+import type { Doc } from "../_generated/dataModel";
 import { postLedgerTransaction } from "../lib/inventoryLedgerStore";
 import {
   listArgs,
@@ -73,6 +74,9 @@ interface ItemDocument {
   readonly baseUom: string;
 }
 
+type StorageBuildingDocument = Doc<"storageBuildings">;
+type StorageZoneDocument = Doc<"storageZones">;
+
 async function candidatesFor(
   ctx: TenantFunctionContext,
   task: TaskDocument,
@@ -88,12 +92,33 @@ async function candidatesFor(
     )
     .take(MAX_PUTAWAY_CANDIDATES);
 
-  return locations.map((location) => ({
-    locationId: location._id,
-    code: location.code,
-    locationType: location.locationType,
-    status: location.status,
-  }));
+  return await Promise.all(
+    locations.map(async (location) => {
+      let prohibited = false;
+      if (location.locationType === "FLOOR_BLOCK") {
+        const zone = await ctx.tenantDb
+          .byIndex<StorageZoneDocument>("storageZones", "by_orgId_locationId", [
+            { field: "locationId", value: location._id },
+          ])
+          .unique();
+        if (zone !== null) {
+          const building = await ctx.tenantDb.get<StorageBuildingDocument>(
+            "storageBuildings",
+            zone.buildingId,
+          );
+          prohibited =
+            zone.status !== "ACTIVE" || building?.status !== "ACTIVE";
+        }
+      }
+      return {
+        locationId: location._id,
+        code: location.code,
+        locationType: location.locationType,
+        status: location.status,
+        ...(prohibited ? { prohibited } : {}),
+      };
+    }),
+  );
 }
 
 const componentValidator = v.object({

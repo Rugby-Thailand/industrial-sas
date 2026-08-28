@@ -103,4 +103,25 @@ describe("LocationsTable", () => {
     );
     expect(screen.getByText("SOME_FUTURE_TYPE")).toBeInTheDocument();
   });
+
+  it("can place an interactive switch in the status column and icon actions separately", () => {
+    renderWithIntl(
+      <LocationsTable
+        rows={[rows[0]!]}
+        renderStatus={(row) => (
+          <button type="button" aria-label={`toggle ${row.code}`} />
+        )}
+        renderAction={(row) => (
+          <button type="button" aria-label={`map ${row.code}`} />
+        )}
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: "toggle A01-02-1" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "map A01-02-1" }),
+    ).toBeInTheDocument();
+  });
 });

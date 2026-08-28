@@ -3,7 +3,7 @@
 import { useLocale, useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
-import { EntityTable } from "@/components/masterData/EntityTable";
+import { DataTable } from "@/components/table/DataTable";
 import { StatusBadge, type BadgeTone } from "@/components/ui/StatusBadge";
 import type { DeviceRow } from "@/lib/convex/platformApi";
 import { codeLabel, type CodeTranslator } from "@/lib/domainLabels";
@@ -28,7 +28,7 @@ export function DeviceTable({
   const locale = useLocale() as AppLocale;
 
   return (
-    <EntityTable<DeviceRow>
+    <DataTable<DeviceRow>
       testId="table-devices"
       caption={t("caption", { count: rows.length })}
       rows={rows}

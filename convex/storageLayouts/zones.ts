@@ -30,6 +30,7 @@ type ReservedBlockDocument = Doc<"storageFloorReservedBlocks">;
 type ZoneDocument = Doc<"storageZones">;
 type PlacementDocument = Doc<"storageStackPlacements">;
 type HandlingUnitDocument = Doc<"handlingUnits">;
+type LocationDocument = Doc<"locations">;
 type BalanceDocument = Doc<"inventoryBalances">;
 type TransactionDocument = Doc<"inventoryTransactions">;
 type IdempotencyDocument = Doc<"idempotencyRecords">;
@@ -101,6 +102,9 @@ export const createStorageZone = mutationWithOrg({
       args.floorNumber,
     );
     if (scope === null) return failure("NOT_FOUND");
+    if (scope.building.status === "ARCHIVED") {
+      return failure("LAYOUT_NOT_EDITABLE");
+    }
     const label = normalizeDisplayName("label", args.label);
     if (!label.ok) return failure(label.error.code, "label");
 
@@ -136,7 +140,7 @@ export const createStorageZone = mutationWithOrg({
           warehouseId: args.warehouseId,
           code: replayZone.code,
           locationType: "FLOOR_BLOCK",
-          status: "ACTIVE",
+          status: scope.building.status === "ACTIVE" ? "ACTIVE" : "INACTIVE",
         },
       });
       if (!location.ok) return failure(location.error.code);
@@ -269,7 +273,7 @@ export const createStorageZone = mutationWithOrg({
         warehouseId: args.warehouseId,
         code,
         locationType: "FLOOR_BLOCK",
-        status: "ACTIVE",
+        status: scope.building.status === "ACTIVE" ? "ACTIVE" : "INACTIVE",
       },
     });
     if (!location.ok) return failure(location.error.code);
@@ -374,6 +378,9 @@ export const updateStorageZone = mutationWithOrg({
     ) {
       return failure("NOT_FOUND");
     }
+    if (building.status === "ARCHIVED") {
+      return failure("LAYOUT_NOT_EDITABLE");
+    }
     const label = normalizeDisplayName("label", args.label);
     if (!label.ok) return failure(label.error.code, "label");
     const reserved = await ctx.tenantDb
@@ -474,6 +481,13 @@ export const archiveStorageZone = mutationWithOrg({
     );
     if (zone === null || zone.warehouseId !== args.warehouseId) {
       return failure("NOT_FOUND");
+    }
+    const building = await ctx.tenantDb.get<BuildingDocument>(
+      "storageBuildings",
+      zone.buildingId,
+    );
+    if (building === null || building.status === "ARCHIVED") {
+      return failure("LAYOUT_NOT_EDITABLE");
     }
     const placement = await ctx.tenantDb
       .byIndex<PlacementDocument>(
@@ -596,6 +610,18 @@ export const placeHandlingUnit = mutationWithOrg({
       zone === null ||
       zone.warehouseId !== args.warehouseId ||
       zone.status !== "ACTIVE"
+    ) {
+      return failure("ZONE_NOT_FOUND");
+    }
+    const [building, location] = await Promise.all([
+      ctx.tenantDb.get<BuildingDocument>("storageBuildings", zone.buildingId),
+      ctx.tenantDb.get<LocationDocument>("locations", zone.locationId),
+    ]);
+    if (
+      building === null ||
+      building.status !== "ACTIVE" ||
+      location === null ||
+      location.status !== "ACTIVE"
     ) {
       return failure("ZONE_NOT_FOUND");
     }

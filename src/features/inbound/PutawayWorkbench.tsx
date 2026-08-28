@@ -7,6 +7,7 @@ import { Notice } from "@/components/ui/Notice";
 import { useWorkspace } from "@/components/providers/WorkspaceProvider";
 import { LedgerPanelStatus } from "@/components/system/LedgerPanelStatus";
 import type { PutawayTaskRow } from "@/lib/convex/inboundApi";
+import { StorageStackPlacementWorkbench } from "@/features/storageLayouts/StorageStackPlacement";
 
 import { RankedPutawayLocations } from "./InboundOptions";
 import { InboundSection } from "./InboundPrimitives";
@@ -90,6 +91,9 @@ export function PutawayWorkbench() {
           </InboundSection>
         </>
       )}
+      <div className="mt-8">
+        <StorageStackPlacementWorkbench />
+      </div>
     </div>
   );
 }

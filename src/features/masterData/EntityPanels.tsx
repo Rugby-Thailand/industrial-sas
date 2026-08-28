@@ -1,5 +1,6 @@
 "use client";
 
+import { Ban, Rocket } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
@@ -12,6 +13,10 @@ import {
   SuppliersTable,
 } from "@/components/masterData/EntityTables";
 import { useWorkspace } from "@/components/providers/WorkspaceProvider";
+import {
+  TableAction,
+  TableStatusSwitch,
+} from "@/components/table/TableRowControls";
 import { DEFAULT_LEDGER_PAGE_SIZE } from "@/lib/convex/ledgerApi";
 import {
   createBarcodeRef,
@@ -41,7 +46,7 @@ import {
 
 import { EntityWriteForm } from "./EntityWriteForm";
 import { MasterDataPanel } from "./MasterDataPanel";
-import { RowActionButton, RowWriteRegion } from "./RowWriteRegion";
+import { RowWriteRegion } from "./RowWriteRegion";
 
 const pageArgs = (cursor: string | undefined) => ({
   maxPageSize: DEFAULT_LEDGER_PAGE_SIZE,
@@ -61,18 +66,20 @@ export function SuppliersPanel() {
           {({ submit, busy }) => (
             <SuppliersTable
               rows={rows}
-              renderAction={(row) => (
-                <RowActionButton
-                  busy={busy}
-                  testId={`supplier-toggle-${row.code}`}
-                  label={
+              renderStatus={(row) => (
+                <TableStatusSwitch
+                  checked={row.status === "ACTIVE"}
+                  disabled={busy}
+                  label={t("toggleSupplierStatus", { code: row.code })}
+                  actionLabel={
                     row.status === "ACTIVE" ? t("deactivate") : t("reactivate")
                   }
-                  onClick={() =>
+                  testId={`supplier-toggle-${row.code}`}
+                  onCheckedChange={(checked) =>
                     submit(row.supplierId, (requestId) => ({
                       requestId,
                       supplierId: row.supplierId,
-                      status: row.status === "ACTIVE" ? "INACTIVE" : "ACTIVE",
+                      status: checked ? "ACTIVE" : "INACTIVE",
                     }))
                   }
                 />
@@ -130,18 +137,20 @@ export function StorageClassesPanel() {
           {({ submit, busy }) => (
             <StorageClassesTable
               rows={rows}
-              renderAction={(row) => (
-                <RowActionButton
-                  busy={busy}
-                  testId={`storage-class-toggle-${row.code}`}
-                  label={
+              renderStatus={(row) => (
+                <TableStatusSwitch
+                  checked={row.status === "ACTIVE"}
+                  disabled={busy}
+                  label={t("toggleStorageClassStatus", { code: row.code })}
+                  actionLabel={
                     row.status === "ACTIVE" ? t("deactivate") : t("reactivate")
                   }
-                  onClick={() =>
+                  testId={`storage-class-toggle-${row.code}`}
+                  onCheckedChange={(checked) =>
                     submit(row.storageClassId, (requestId) => ({
                       requestId,
                       storageClassId: row.storageClassId,
-                      status: row.status === "ACTIVE" ? "INACTIVE" : "ACTIVE",
+                      status: checked ? "ACTIVE" : "INACTIVE",
                     }))
                   }
                 />
@@ -205,17 +214,19 @@ export function LabelTemplatesPanel() {
 
               renderAction={(row) =>
                 row.status === "DRAFT" ? (
-                  <RowActionButton
-                    busy={busy}
-                    testId={`template-publish-${row.code}-${row.version}`}
+                  <TableAction
                     label={t("publish")}
+                    disabled={busy}
+                    data-testid={`template-publish-${row.code}-${row.version}`}
                     onClick={() =>
                       submit(row.labelTemplateId, (requestId) => ({
                         requestId,
                         labelTemplateId: row.labelTemplateId,
                       }))
                     }
-                  />
+                  >
+                    <Rocket aria-hidden="true" className="size-4" />
+                  </TableAction>
                 ) : null
               }
             />
@@ -300,17 +311,19 @@ export function ItemBarcodesPanel({ itemId }: { readonly itemId: string }) {
 
               renderAction={(row) =>
                 row.status === "ACTIVE" ? (
-                  <RowActionButton
-                    busy={busy}
-                    testId={`barcode-deactivate-${row.barcode}`}
+                  <TableAction
                     label={t("deactivate")}
+                    disabled={busy}
+                    data-testid={`barcode-deactivate-${row.barcode}`}
                     onClick={() =>
                       submit(row.barcodeId, (requestId) => ({
                         requestId,
                         barcodeId: row.barcodeId,
                       }))
                     }
-                  />
+                  >
+                    <Ban aria-hidden="true" className="size-4" />
+                  </TableAction>
                 ) : null
               }
             />
@@ -390,17 +403,19 @@ export function ItemUomsPanel({
               baseUom={baseUom}
               renderAction={(row) =>
                 row.status === "ACTIVE" ? (
-                  <RowActionButton
-                    busy={busy}
-                    testId={`uom-deactivate-${row.uom}`}
+                  <TableAction
                     label={t("deactivate")}
+                    disabled={busy}
+                    data-testid={`uom-deactivate-${row.uom}`}
                     onClick={() =>
                       submit(row.itemUomId, (requestId) => ({
                         requestId,
                         itemUomId: row.itemUomId,
                       }))
                     }
-                  />
+                  >
+                    <Ban aria-hidden="true" className="size-4" />
+                  </TableAction>
                 ) : null
               }
             />

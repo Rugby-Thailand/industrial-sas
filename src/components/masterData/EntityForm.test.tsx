@@ -1,4 +1,4 @@
-import { fireEvent, screen } from "@testing-library/react";
+import { act, fireEvent, screen } from "@testing-library/react";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -10,6 +10,7 @@ import {
 } from "../../../tests/fixtures/select-control";
 
 import { EntityForm, type FormFieldSpec } from "./EntityForm";
+import { FloatingAlertProvider } from "../providers/FloatingAlertProvider";
 import { WriteOutcomeNotice } from "./WriteOutcomeNotice";
 
 const FIELDS: readonly FormFieldSpec[] = [
@@ -184,13 +185,13 @@ describe("WriteOutcomeNotice", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("distinguishes a first write from a replay", () => {
+  it("stays silent after both a first write and a replay", () => {
     const first = renderWithIntl(
       <WriteOutcomeNotice
         state={{ kind: "SAVED", documentId: "d1", replayed: false }}
       />,
     );
-    expect(first.getByText("บันทึกแล้ว")).toBeInTheDocument();
+    expect(first.container).toBeEmptyDOMElement();
     first.unmount();
 
     const replay = renderWithIntl(
@@ -198,7 +199,7 @@ describe("WriteOutcomeNotice", () => {
         state={{ kind: "SAVED", documentId: "d1", replayed: true }}
       />,
     );
-    expect(replay.getByText("บันทึกไว้แล้วก่อนหน้านี้")).toBeInTheDocument();
+    expect(replay.container).toBeEmptyDOMElement();
   });
 
   it("quotes the request ID on a denial and explains nothing further", () => {
@@ -241,6 +242,33 @@ describe("WriteOutcomeNotice", () => {
     expect(screen.getByTestId("write-FAILED")).toHaveTextContent(
       "กดบันทึกอีกครั้งได้อย่างปลอดภัย",
     );
+  });
+
+  it("shows write errors as a floating alert and dismisses them after 10 seconds", () => {
+    vi.useFakeTimers();
+
+    try {
+      renderWithIntl(
+        <FloatingAlertProvider>
+          <WriteOutcomeNotice
+            state={{ kind: "DENIED", requestId: "req_timed" }}
+          />
+        </FloatingAlertProvider>,
+      );
+
+      expect(screen.getByTestId("floating-alert-viewport")).toHaveClass(
+        "fixed",
+      );
+      expect(screen.getByTestId("write-DENIED")).toHaveTextContent("req_timed");
+
+      act(() => vi.advanceTimersByTime(9_999));
+      expect(screen.getByTestId("write-DENIED")).toBeInTheDocument();
+
+      act(() => vi.advanceTimersByTime(1));
+      expect(screen.queryByTestId("write-DENIED")).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

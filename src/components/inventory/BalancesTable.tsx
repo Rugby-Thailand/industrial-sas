@@ -3,8 +3,8 @@
 import { useTranslations } from "next-intl";
 import { Fragment } from "react";
 
+import { DataTable } from "@/components/table/DataTable";
 import { StatusBadge, type BadgeTone } from "@/components/ui/StatusBadge";
-import { TableScroller } from "@/components/ui/TableScroller";
 import type { BalanceRow } from "@/lib/convex/ledgerApi";
 import { codeLabel, type CodeTranslator } from "@/lib/domainLabels";
 import { formatMinorUnits } from "@/lib/formatters";
@@ -74,53 +74,43 @@ export function BalancesTable({
   const caption = t("balancesCaption", { count: rows.length });
 
   return (
-    <TableScroller label={caption} testId="table-balances">
-      <table className="w-full border-collapse text-sm">
-        <caption className="px-4 py-3 text-left text-sm text-muted">
-          {caption}
-        </caption>
-        <thead>
-          <tr className="border-b border-border-strong text-left">
-            <th scope="col" className="px-4 py-2 font-semibold">
-              {t("columnBucket")}
-            </th>
-            <th scope="col" className="px-4 py-2 font-semibold">
-              {t("columnStatus")}
-            </th>
-            <th scope="col" className="px-4 py-2 text-right font-semibold">
-              {t("columnQuantity")}
-            </th>
-            <th scope="col" className="px-4 py-2 font-semibold">
-              {t("columnUom")}
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <tr
-              key={row.bucketKey}
-              className="border-b border-border last:border-0"
-            >
-              <th
-                scope="row"
-                className="px-4 py-3 text-left align-top font-normal text-text"
-              >
-                <BucketIdentity bucketKey={row.bucketKey} />
-              </th>
-              <td className="px-4 py-3">
-                <StatusBadge
-                  tone={STATUS_TONES[row.stockStatus] ?? "neutral"}
-                  label={codeLabel(statusT, row.stockStatus)}
-                />
-              </td>
-              <td className="tabular px-4 py-3 text-right font-semibold">
-                {formatMinorUnits(row.minorUnits, row.uom)}
-              </td>
-              <td className="px-4 py-3 font-mono text-xs">{row.uom}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </TableScroller>
+    <DataTable<BalanceRow>
+      testId="table-balances"
+      caption={caption}
+      rows={rows}
+      rowKey={(row) => row.bucketKey}
+      columns={[
+        {
+          key: "bucket",
+          header: t("columnBucket"),
+          rowHeader: true,
+          monospace: false,
+          render: (row) => <BucketIdentity bucketKey={row.bucketKey} />,
+        },
+        {
+          key: "status",
+          header: t("columnStatus"),
+          render: (row) => (
+            <StatusBadge
+              tone={STATUS_TONES[row.stockStatus] ?? "neutral"}
+              label={codeLabel(statusT, row.stockStatus)}
+            />
+          ),
+        },
+        {
+          key: "quantity",
+          header: t("columnQuantity"),
+          align: "right",
+          cellClassName: "tabular-nums font-semibold",
+          render: (row) => formatMinorUnits(row.minorUnits, row.uom),
+        },
+        {
+          key: "uom",
+          header: t("columnUom"),
+          monospace: true,
+          render: (row) => row.uom,
+        },
+      ]}
+    />
   );
 }

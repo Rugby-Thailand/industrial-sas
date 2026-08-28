@@ -9,14 +9,18 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary-hover",
+        default:
+          "bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-disabled-surface disabled:text-disabled",
+        success:
+          "bg-success text-background hover:bg-success/90 disabled:border-border disabled:bg-disabled-surface disabled:text-disabled",
         outline:
-          "border-input bg-surface text-text hover:bg-raised aria-expanded:bg-raised",
+          "border-input bg-surface text-text hover:bg-raised aria-expanded:bg-raised disabled:border-border disabled:bg-disabled-surface disabled:text-disabled",
         secondary:
-          "bg-secondary text-secondary-foreground hover:bg-border aria-expanded:bg-secondary",
-        ghost: "text-text hover:bg-raised aria-expanded:bg-raised",
+          "border-border bg-secondary text-secondary-foreground hover:border-border-strong hover:bg-overlay aria-expanded:bg-overlay disabled:bg-disabled-surface disabled:text-disabled",
+        ghost:
+          "text-text hover:bg-raised aria-expanded:bg-raised disabled:bg-transparent disabled:text-disabled",
         destructive:
-          "border-destructive/40 bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
+          "border-destructive/60 bg-danger-surface text-destructive hover:border-destructive hover:bg-destructive/20 focus-visible:border-destructive/60 focus-visible:ring-destructive/20 disabled:border-border disabled:bg-disabled-surface disabled:text-disabled dark:focus-visible:ring-destructive/40",
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {

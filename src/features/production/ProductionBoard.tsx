@@ -183,7 +183,7 @@ function ProductionWorkspace({
             {impacts.map((impact) => (
               <li
                 key={impact.designChangeImpactId}
-                className="rounded-lg border border-warning/50 bg-raised p-3"
+                className="rounded-lg border border-warning/60 bg-warning-surface p-3"
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <strong className="text-text">

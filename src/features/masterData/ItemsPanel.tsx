@@ -1,8 +1,10 @@
 "use client";
 
+import { SquareArrowOutUpRight } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { ItemsTable } from "@/components/masterData/ItemsTable";
+import { TableAction } from "@/components/table/TableRowControls";
 import { Link } from "@/i18n/navigation";
 import { itemDetailPath } from "@/lib/navigation";
 import { listItemsRef, type ItemRow } from "@/lib/convex/masterDataApi";
@@ -24,15 +26,15 @@ export function ItemsPanel() {
       renderRows={(rows) => (
         <ItemsTable
           rows={rows}
-
           renderAction={(row) => (
-            <Link
-              href={itemDetailPath(row.itemId)}
-              className="inline-flex min-h-touch items-center rounded-md border border-border-strong px-3 text-xs font-semibold"
-              data-testid={`item-open-${row.sku}`}
-            >
-              {t("openItem")}
-            </Link>
+            <TableAction asChild label={t("openItem")}>
+              <Link
+                href={itemDetailPath(row.itemId)}
+                data-testid={`item-open-${row.sku}`}
+              >
+                <SquareArrowOutUpRight aria-hidden="true" className="size-4" />
+              </Link>
+            </TableAction>
           )}
         />
       )}

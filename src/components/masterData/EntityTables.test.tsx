@@ -82,6 +82,23 @@ describe("SuppliersTable", () => {
       PREVIEW_SUPPLIERS.length,
     );
   });
+
+  it("lets a screen replace the status badge with a direct switch", () => {
+    renderWithIntl(
+      <SuppliersTable
+        rows={[PREVIEW_SUPPLIERS[0]!]}
+        renderStatus={(row) => (
+          <button type="button" role="switch" aria-checked="true">
+            {`toggle ${row.code}`}
+          </button>
+        )}
+      />,
+    );
+
+    expect(
+      screen.getByRole("switch", { name: "toggle SIAM-STEEL" }),
+    ).toBeInTheDocument();
+  });
 });
 
 describe("StorageClassesTable", () => {

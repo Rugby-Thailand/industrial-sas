@@ -34,7 +34,7 @@ export function OwnerOperationsSummaryView({
         />
         <div className="relative">
           <div className="flex items-start gap-3">
-            <span className="grid size-10 place-items-center rounded-xl bg-accent/10 text-accent">
+            <span className="grid size-10 place-items-center rounded-xl bg-accent-surface text-accent">
               <PackageOpen aria-hidden="true" className="size-5" />
             </span>
             <div>
@@ -46,7 +46,7 @@ export function OwnerOperationsSummaryView({
           </div>
           <dl className="mt-6 grid grid-cols-2 gap-3">
             <div
-              className="rounded-xl border border-border bg-raised/55 p-4"
+              className="rounded-xl border border-border bg-raised p-4"
               data-testid="owner-volume-receipts"
             >
               <dt className="text-xs font-medium text-muted">
@@ -57,7 +57,7 @@ export function OwnerOperationsSummaryView({
               </dd>
             </div>
             <div
-              className="rounded-xl border border-border bg-raised/55 p-4"
+              className="rounded-xl border border-border bg-raised p-4"
               data-testid="owner-volume-lines"
             >
               <dt className="text-xs font-medium text-muted">

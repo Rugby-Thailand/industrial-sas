@@ -1,88 +1,98 @@
 "use client";
 
+import { useEffect, useMemo } from "react";
 import { useTranslations } from "next-intl";
 
+import {
+  FloatingAlertCard,
+  type FloatingAlertPayload,
+  useFloatingAlerts,
+  WRITE_ERROR_ALERT_DURATION_MS,
+} from "@/components/providers/FloatingAlertProvider";
 import { Notice } from "@/components/ui/Notice";
-import type { BadgeTone } from "@/components/ui/StatusBadge";
 import { codeLabel, type CodeTranslator } from "@/lib/domainLabels";
 import type { WriteState } from "@/lib/convex/writeState";
 
 export function WriteOutcomeNotice({ state }: { readonly state: WriteState }) {
   const t = useTranslations("Write");
   const errorT = useTranslations("WriteError") as unknown as CodeTranslator;
+  const floatingAlerts = useFloatingAlerts();
+  const requestId = state.kind === "DENIED" ? state.requestId : undefined;
+  const errorCode =
+    state.kind === "REFUSED" || state.kind === "FAILED"
+      ? state.code
+      : undefined;
+  const errorField = state.kind === "REFUSED" ? state.field : undefined;
 
-  if (state.kind === "IDLE" || state.kind === "SUBMITTING") {
-    return state.kind === "SUBMITTING" ? (
+  const presentation = useMemo<FloatingAlertPayload | null>(() => {
+    switch (state.kind) {
+      case "DENIED":
+        return {
+          id: `write-DENIED-${requestId}`,
+          variant: "destructive",
+          title: t("denied"),
+          body: t("deniedHint", { requestId: requestId ?? "" }),
+          dismissLabel: t("dismissError"),
+          durationMs: WRITE_ERROR_ALERT_DURATION_MS,
+          testId: "write-DENIED",
+        };
+      case "REFUSED":
+        return {
+          id: `write-REFUSED-${errorCode}-${errorField ?? ""}`,
+          variant: "warning",
+          title: t("refused"),
+          body: codeLabel(errorT, errorCode ?? "UNKNOWN"),
+          code: errorCode ?? "UNKNOWN",
+          dismissLabel: t("dismissError"),
+          durationMs: WRITE_ERROR_ALERT_DURATION_MS,
+          testId: "write-REFUSED",
+        };
+      case "FAILED":
+        return {
+          id: `write-FAILED-${errorCode}`,
+          variant: "destructive",
+          title: t("failed"),
+          body: t("failedHint"),
+          code: errorCode ?? "UNKNOWN",
+          dismissLabel: t("dismissError"),
+          durationMs: WRITE_ERROR_ALERT_DURATION_MS,
+          testId: "write-FAILED",
+        };
+      case "IDLE":
+      case "SAVED":
+      case "SUBMITTING":
+        return null;
+    }
+  }, [errorCode, errorField, errorT, requestId, state.kind, t]);
+
+  useEffect(() => {
+    if (presentation !== null && floatingAlerts !== null) {
+      floatingAlerts.pushAlert(presentation);
+    }
+  }, [floatingAlerts, presentation]);
+
+  if (state.kind === "IDLE" || state.kind === "SAVED") {
+    return null;
+  }
+
+  if (state.kind === "SUBMITTING") {
+    return (
       <Notice
         tone="pending"
         title={t("submitting")}
         body={t("submittingHint")}
         testId="write-SUBMITTING"
       />
-    ) : null;
+    );
   }
 
-  const presentation = ((): {
-    tone: BadgeTone;
-    role: "status" | "alert";
-    title: string;
-    body: string;
-    code?: string;
-  } => {
-    switch (state.kind) {
-      case "SAVED":
-        return state.replayed
-          ? {
-              tone: "success",
-              role: "status",
-              title: t("savedReplayed"),
-              body: t("savedReplayedHint"),
-            }
-          : {
-              tone: "success",
-              role: "status",
-              title: t("saved"),
-              body: t("savedHint"),
-            };
-      case "DENIED":
-        return {
-          tone: "danger",
-          role: "alert",
-          title: t("denied"),
-          body: t("deniedHint", { requestId: state.requestId }),
-        };
-      case "REFUSED":
-        return {
-          tone: "warning",
-          role: "alert",
-          title: t("refused"),
-          body: codeLabel(errorT, state.code),
-          code: state.code,
-        };
-      case "FAILED":
-        return {
-          tone: "danger",
-          role: "alert",
-          title: t("failed"),
-          body: t("failedHint"),
-          code: state.code,
-        };
-    }
-  })();
+  if (floatingAlerts !== null) {
+    return null;
+  }
 
-  return (
-    <Notice
-      tone={presentation.tone}
-      role={presentation.role}
-      title={presentation.title}
-      body={presentation.body}
-      testId={`write-${state.kind}`}
-    >
-      {presentation.code === undefined ? undefined : (
-        <code className="rounded bg-raised px-2 py-1 font-mono text-xs text-text">
-          {presentation.code}
-        </code>
-      )}
-    </Notice>
-  );
+  if (presentation === null) {
+    return null;
+  }
+
+  return <FloatingAlertCard alert={presentation} />;
 }

@@ -119,7 +119,7 @@ export function ItemEditForm({ item }: { readonly item: ItemRow }) {
   );
 }
 
-const LOCATION_TYPES = [
+export const LOCATION_TYPES = [
   "DOCK",
   "STAGING",
   "RACK_BIN",
@@ -127,6 +127,8 @@ const LOCATION_TYPES = [
   "QUARANTINE",
   "OVERFLOW",
 ] as const;
+
+export type LocationType = (typeof LOCATION_TYPES)[number];
 
 export function LocationForm() {
   const t = useTranslations("MasterData");

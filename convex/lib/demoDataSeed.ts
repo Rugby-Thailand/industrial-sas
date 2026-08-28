@@ -41,6 +41,23 @@ async function ensure<TableName extends TableNames>(
   return await ctx.db.insert(table, document);
 }
 
+async function ensureCurrent<TableName extends TableNames>(
+  ctx: GenericMutationCtx<DataModel>,
+  stats: SeedStats,
+  table: TableName,
+  find: () => Promise<Doc<TableName> | null>,
+  document: InsertDocument<TableName>,
+): Promise<Id<TableName>> {
+  const existing = await find();
+  if (existing !== null) {
+    stats.reused += 1;
+    await ctx.db.replace(existing._id, document as never);
+    return existing._id;
+  }
+  stats.inserted += 1;
+  return await ctx.db.insert(table, document);
+}
+
 function demoSpecification() {
   return {
     styleCode: "RSC",
@@ -349,7 +366,7 @@ export async function seedDemoDataForTenant(
     );
   }
 
-  await ensure(
+  const damagedReasonId = await ensure(
     ctx,
     stats,
     "reasonCodes",
@@ -423,7 +440,7 @@ export async function seedDemoDataForTenant(
       | "OVERFLOW",
     targetWarehouseId = warehouseId,
   ) =>
-    await ensure(
+    await ensureCurrent(
       ctx,
       stats,
       "locations",
@@ -457,7 +474,7 @@ export async function seedDemoDataForTenant(
     secondaryWarehouseId,
   );
 
-  const buildingId = await ensure(
+  const buildingId = await ensureCurrent(
     ctx,
     stats,
     "storageBuildings",
@@ -559,7 +576,7 @@ export async function seedDemoDataForTenant(
     yMm: number,
   ) => {
     const locationId = await ensureLocation(code, "FLOOR_BLOCK");
-    const zoneId = await ensure(
+    const zoneId = await ensureCurrent(
       ctx,
       stats,
       "storageZones",
@@ -602,7 +619,12 @@ export async function seedDemoDataForTenant(
     0,
     0,
   );
-  await ensureZone("DEMO-BLDG-F01-Z02", "สินค้าสำเร็จรูป B", 5_000, 0);
+  const fullZone = await ensureZone(
+    "DEMO-BLDG-F01-Z02",
+    "สินค้าสำเร็จรูป B · เต็ม",
+    5_000,
+    0,
+  );
 
   const handlingUnitId = await ensure(
     ctx,
@@ -1424,6 +1446,227 @@ export async function seedDemoDataForTenant(
     },
   );
 
+  const fullLocationTransactionId = await ensure(
+    ctx,
+    stats,
+    "inventoryTransactions",
+    async () =>
+      await ctx.db
+        .query("inventoryTransactions")
+        .withIndex("by_orgId_operation_requestId", (query) =>
+          query
+            .eq("orgId", orgId)
+            .eq("operation", "demo.capacity")
+            .eq("requestId", "demo-full-storage-stack"),
+        )
+        .unique(),
+    {
+      orgId,
+      warehouseId,
+      type: "ADJUSTMENT",
+      operation: "demo.capacity",
+      requestId: "demo-full-storage-stack",
+      actorUserId,
+      occurredAt: now - 6 * 3_600_000,
+      businessDate: BUSINESS_DATE,
+      source: { type: "DEMO_SEED", id: "FULL-STORAGE-STACK" },
+      reasonCodeId: countVarianceReasonId,
+      lineCount: 16,
+      conservationGroupCount: 8,
+    },
+  );
+
+  for (let index = 0; index < 8; index += 1) {
+    const ordinal = String(index + 1).padStart(2, "0");
+    const lotId = await ensure(
+      ctx,
+      stats,
+      "lots",
+      async () =>
+        await ctx.db
+          .query("lots")
+          .withIndex("by_orgId_itemId_lotCode", (query) =>
+            query
+              .eq("orgId", orgId)
+              .eq("itemId", finishedItemId)
+              .eq("lotCode", `LOT-FULL-${ordinal}`),
+          )
+          .unique(),
+      {
+        orgId,
+        itemId: finishedItemId,
+        lotCode: `LOT-FULL-${ordinal}`,
+        manufactureDate: "2026-08-20",
+        bestBeforeDate: "2027-08-20",
+        status: "ACTIVE",
+      },
+    );
+    const handlingUnitId = await ensure(
+      ctx,
+      stats,
+      "handlingUnits",
+      async () =>
+        await ctx.db
+          .query("handlingUnits")
+          .withIndex("by_orgId_lpn", (query) =>
+            query.eq("orgId", orgId).eq("lpn", `LPN-FULL-${ordinal}`),
+          )
+          .unique(),
+      {
+        orgId,
+        warehouseId,
+        lpn: `LPN-FULL-${ordinal}`,
+        currentLocationId: fullZone.locationId,
+        widthMm: 1_200,
+        depthMm: 1_000,
+        heightMm: 350,
+        status: "ACTIVE",
+      },
+    );
+    const physicalKey = bucketKey({
+      organizationId: orgId,
+      warehouseId,
+      itemId: finishedItemId,
+      locationId: fullZone.locationId,
+      lotId,
+      handlingUnitId,
+      stockStatus: "AVAILABLE",
+    });
+    const virtualKey = virtualBucketKey({
+      organizationId: orgId,
+      warehouseId,
+      itemId: finishedItemId,
+      boundary: "INVENTORY_ADJUSTMENT",
+      lotId,
+      stockStatus: "AVAILABLE",
+    });
+    const conservationKey = `DEMO:FULL:${finishedItemId}:${lotId}`;
+    for (const line of [
+      {
+        lineIndex: index * 2,
+        locationKind: "VIRTUAL" as const,
+        virtualBoundary: "INVENTORY_ADJUSTMENT" as const,
+        bucketKey: virtualKey,
+        minorUnits: -100_000,
+      },
+      {
+        lineIndex: index * 2 + 1,
+        locationKind: "PHYSICAL" as const,
+        locationId: fullZone.locationId,
+        bucketKey: physicalKey,
+        minorUnits: 100_000,
+      },
+    ]) {
+      await ensure(
+        ctx,
+        stats,
+        "inventoryLedgerLines",
+        async () =>
+          await ctx.db
+            .query("inventoryLedgerLines")
+            .withIndex("by_orgId_transactionId_lineIndex", (query) =>
+              query
+                .eq("orgId", orgId)
+                .eq("transactionId", fullLocationTransactionId)
+                .eq("lineIndex", line.lineIndex),
+            )
+            .unique(),
+        {
+          orgId,
+          transactionId: fullLocationTransactionId,
+          lineIndex: line.lineIndex,
+          warehouseId,
+          occurredAt: now - 6 * 3_600_000,
+          itemId: finishedItemId,
+          locationKind: line.locationKind,
+          ...(line.locationKind === "PHYSICAL"
+            ? { locationId: line.locationId }
+            : { virtualBoundary: line.virtualBoundary }),
+          lotId,
+          handlingUnitId,
+          stockStatus: "AVAILABLE",
+          bucketKey: line.bucketKey,
+          conservationKey,
+          quantity: { uom: "EA", minorUnits: line.minorUnits },
+        },
+      );
+    }
+    for (const balance of [
+      {
+        bucketKey: virtualKey,
+        locationKind: "VIRTUAL" as const,
+        virtualBoundary: "INVENTORY_ADJUSTMENT" as const,
+        minorUnits: -100_000,
+      },
+      {
+        bucketKey: physicalKey,
+        locationKind: "PHYSICAL" as const,
+        locationId: fullZone.locationId,
+        minorUnits: 100_000,
+      },
+    ]) {
+      await ensure(
+        ctx,
+        stats,
+        "inventoryBalances",
+        async () =>
+          await ctx.db
+            .query("inventoryBalances")
+            .withIndex("by_orgId_bucketKey", (query) =>
+              query.eq("orgId", orgId).eq("bucketKey", balance.bucketKey),
+            )
+            .unique(),
+        {
+          orgId,
+          bucketKey: balance.bucketKey,
+          warehouseId,
+          itemId: finishedItemId,
+          locationKind: balance.locationKind,
+          ...(balance.locationKind === "PHYSICAL"
+            ? { locationId: balance.locationId }
+            : { virtualBoundary: balance.virtualBoundary }),
+          lotId,
+          handlingUnitId,
+          stockStatus: "AVAILABLE",
+          quantity: { uom: "EA", minorUnits: balance.minorUnits },
+          lastTransactionId: fullLocationTransactionId,
+          updatedAt: now,
+        },
+      );
+    }
+    await ensure(
+      ctx,
+      stats,
+      "storageStackPlacements",
+      async () =>
+        await ctx.db
+          .query("storageStackPlacements")
+          .withIndex("by_orgId_handlingUnitId_status", (query) =>
+            query
+              .eq("orgId", orgId)
+              .eq("handlingUnitId", handlingUnitId)
+              .eq("status", "ACTIVE"),
+          )
+          .unique(),
+      {
+        orgId,
+        zoneId: fullZone.zoneId,
+        locationId: fullZone.locationId,
+        warehouseId,
+        handlingUnitId,
+        levelIndex: index + 1,
+        widthMm: 1_200,
+        depthMm: 1_000,
+        heightMm: 350,
+        orientation: "DEFAULT",
+        status: "ACTIVE",
+        transactionId: fullLocationTransactionId,
+        placedAt: now - (8 - index) * 1_800_000,
+        placedByUserId: actorUserId,
+      },
+    );
+  }
+
   const countPlanId = await ensure(
     ctx,
     stats,
@@ -1626,7 +1869,7 @@ export async function seedDemoDataForTenant(
       registeredByUserId: actorUserId,
     },
   );
-  await ensure(
+  const operatorTaskId = await ensure(
     ctx,
     stats,
     "operatorTasks",
@@ -1650,6 +1893,81 @@ export async function seedDemoDataForTenant(
       dueAt: now + 86_400_000,
       evidenceCount: 0,
       createdByUserId: actorUserId,
+    },
+  );
+
+  await ensure(
+    ctx,
+    stats,
+    "operatorTaskExceptions",
+    async () => {
+      const exceptions = await ctx.db
+        .query("operatorTaskExceptions")
+        .withIndex("by_orgId_operatorTaskId_reportedAt", (query) =>
+          query.eq("orgId", orgId).eq("operatorTaskId", operatorTaskId),
+        )
+        .take(25);
+
+      return (
+        exceptions.find(
+          (exception) => exception.evidence === "DEMO:STACK-LABEL-DAMAGED",
+        ) ?? null
+      );
+    },
+    {
+      orgId,
+      warehouseId,
+      operatorTaskId,
+      reasonCodeId: damagedReasonId,
+      reasonCode: "DAMAGED",
+      reasonName: "ป้ายกองจัดเก็บเสียหาย",
+      summary:
+        "ป้าย QR ของกอง DEMO-BLDG-F01-Z01 อ่านไม่ชัด ต้องพิมพ์ใหม่ก่อนรอบตรวจนับ",
+      evidence: "DEMO:STACK-LABEL-DAMAGED",
+      proposedDisposition: "ESCALATE",
+      proposedRecoveryAction:
+        "พิมพ์ป้าย QR ใหม่และยืนยันด้วยเครื่องสแกน HH-DEMO-01",
+      status: "OPEN",
+      reportedByUserId: actorUserId,
+      reportedAt: now - 45 * 60_000,
+    },
+  );
+
+  const receivingExceptionNote =
+    "ตัวอย่างเดโม: พาเลตกระดาษ 1 พาเลตมีมุมยุบ รอหัวหน้าคลังตัดสินใจ";
+  await ensure(
+    ctx,
+    stats,
+    "receivingExceptions",
+    async () => {
+      const exceptions = await ctx.db
+        .query("receivingExceptions")
+        .withIndex("by_orgId_warehouseId_status_kind", (query) =>
+          query
+            .eq("orgId", orgId)
+            .eq("warehouseId", warehouseId)
+            .eq("status", "RAISED")
+            .eq("kind", "UNEXPECTED"),
+        )
+        .take(25);
+
+      return (
+        exceptions.find(
+          (exception) => exception.note === receivingExceptionNote,
+        ) ?? null
+      );
+    },
+    {
+      orgId,
+      warehouseId,
+      kind: "UNEXPECTED",
+      itemId: boardItemId,
+      purchaseOrderId,
+      reasonCodeId: damagedReasonId,
+      raisedByUserId: actorUserId,
+      raisedAt: now - 2 * 3_600_000,
+      status: "RAISED",
+      note: receivingExceptionNote,
     },
   );
 
@@ -1847,9 +2165,11 @@ export async function seedDemoDataForTenant(
     ["PUTAWAY_READY", "SITE", 1],
     ["PUTAWAY_CLAIMED", "SITE", 0],
     ["LOCATION_OCCUPANCY", primaryZone.locationId, 1],
+    ["LOCATION_OCCUPANCY", fullZone.locationId, 8],
+    ["LOCATION_OCCUPANCY", stagingLocationId, 1],
   ] as const;
   for (const [metric, subjectKey, count] of rollups) {
-    await ensure(
+    await ensureCurrent(
       ctx,
       stats,
       "operationsRollups",

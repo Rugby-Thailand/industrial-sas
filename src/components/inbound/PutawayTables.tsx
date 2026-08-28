@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
-import { EntityTable } from "@/components/masterData/EntityTable";
+import { DataTable } from "@/components/table/DataTable";
 import { StatusBadge, type BadgeTone } from "@/components/ui/StatusBadge";
 import type { PutawayTaskRow } from "@/lib/convex/inboundApi";
 import { codeLabel, type CodeTranslator } from "@/lib/domainLabels";
@@ -30,7 +30,7 @@ export function PutawayTasksTable({
   ) as unknown as CodeTranslator;
 
   return (
-    <EntityTable<PutawayTaskRow>
+    <DataTable<PutawayTaskRow>
       testId="table-putaway-tasks"
       caption={t("caption", { count: rows.length })}
       rows={rows}

@@ -80,6 +80,69 @@ describe("industrial SaaS demo data seed", () => {
           query.eq("orgId", world.orgA).eq("orderNumber", "SO-DEMO-26001"),
         )
         .unique();
+      const fullZone = await ctx.db
+        .query("storageZones")
+        .withIndex("by_orgId_warehouseId_code", (query) =>
+          query
+            .eq("orgId", world.orgA)
+            .eq("warehouseId", world.warehouses.alphaA)
+            .eq("code", "DEMO-BLDG-F01-Z02"),
+        )
+        .unique();
+      const fullPlacements =
+        fullZone === null
+          ? []
+          : await ctx.db
+              .query("storageStackPlacements")
+              .withIndex("by_orgId_zoneId_status_levelIndex", (query) =>
+                query
+                  .eq("orgId", world.orgA)
+                  .eq("zoneId", fullZone._id)
+                  .eq("status", "ACTIVE"),
+              )
+              .collect();
+      const fullBalances =
+        fullZone === null
+          ? []
+          : await ctx.db
+              .query("inventoryBalances")
+              .withIndex("by_orgId_locationId_bucketKey", (query) =>
+                query
+                  .eq("orgId", world.orgA)
+                  .eq("locationId", fullZone.locationId),
+              )
+              .collect();
+      const fullRollup =
+        fullZone === null
+          ? null
+          : await ctx.db
+              .query("operationsRollups")
+              .withIndex("by_orgId_warehouseId_metric_subjectKey", (query) =>
+                query
+                  .eq("orgId", world.orgA)
+                  .eq("warehouseId", world.warehouses.alphaA)
+                  .eq("metric", "LOCATION_OCCUPANCY")
+                  .eq("subjectKey", fullZone.locationId),
+              )
+              .unique();
+      const taskExceptions = await ctx.db
+        .query("operatorTaskExceptions")
+        .withIndex("by_orgId_warehouseId_status_reportedAt", (query) =>
+          query
+            .eq("orgId", world.orgA)
+            .eq("warehouseId", world.warehouses.alphaA)
+            .eq("status", "OPEN"),
+        )
+        .collect();
+      const receivingExceptions = await ctx.db
+        .query("receivingExceptions")
+        .withIndex("by_orgId_warehouseId_status_kind", (query) =>
+          query
+            .eq("orgId", world.orgA)
+            .eq("warehouseId", world.warehouses.alphaA)
+            .eq("status", "RAISED"),
+        )
+        .collect();
 
       return {
         item,
@@ -89,6 +152,12 @@ describe("industrial SaaS demo data seed", () => {
         building,
         purchaseOrder,
         customerOrder,
+        fullZone,
+        fullPlacements,
+        fullBalances,
+        fullRollup,
+        taskExceptions,
+        receivingExceptions,
       };
     });
 
@@ -98,6 +167,12 @@ describe("industrial SaaS demo data seed", () => {
     expect(evidence.building?.floorCount).toBe(2);
     expect(evidence.purchaseOrder?.status).toBe("OPEN");
     expect(evidence.customerOrder?.status).toBe("RELEASED");
+    expect(evidence.fullZone?.label).toContain("เต็ม");
+    expect(evidence.fullPlacements).toHaveLength(8);
+    expect(evidence.fullBalances).toHaveLength(8);
+    expect(evidence.fullRollup?.count).toBe(8);
+    expect(evidence.taskExceptions).toHaveLength(1);
+    expect(evidence.receivingExceptions).toHaveLength(1);
   });
 
   it("requires the explicit safety confirmation", async () => {

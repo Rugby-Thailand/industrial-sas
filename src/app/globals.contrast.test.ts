@@ -42,7 +42,7 @@ const dark: Palette = { ...light, ...tokensIn(blockAfter(css, darkAt)) };
 
 const channel = (value: number): number => {
   const c = value / 255;
-  return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
 };
 
 const luminance = (hex: string): number => {
@@ -63,7 +63,7 @@ interface Pair {
   readonly where: string;
 }
 
-const SURFACES = ["canvas", "surface", "raised"] as const;
+const SURFACES = ["canvas", "surface", "raised", "overlay"] as const;
 
 const TEXT_ON_SURFACES = [
   "text",
@@ -102,6 +102,26 @@ const PAIRS: readonly Pair[] = [
     minimum: 4.5,
     where: "text printed on a solid danger fill",
   },
+  ...(
+    [
+      ["accent", "accent-surface"],
+      ["success", "success-surface"],
+      ["warning", "warning-surface"],
+      ["danger", "danger-surface"],
+      ["pending", "pending-surface"],
+    ] as const
+  ).map(([foreground, background]): Pair => ({
+    foreground,
+    background,
+    minimum: 4.5,
+    where: `semantic text-${foreground} on bg-${background}`,
+  })),
+  {
+    foreground: "disabled",
+    background: "disabled-surface",
+    minimum: 3,
+    where: "disabled button text on its dedicated disabled fill",
+  },
   ...(["band-empty", "band-light", "band-busy", "band-full"] as const).map(
     (background): Pair => ({
       foreground: background === "band-empty" ? "muted" : "text",
@@ -121,6 +141,12 @@ const PAIRS: readonly Pair[] = [
     background: "surface",
     minimum: 3,
     where: "the border of an interactive control (border-input)",
+  },
+  {
+    foreground: "border-strong",
+    background: "overlay",
+    minimum: 3,
+    where: "the border of an interactive control on an elevated overlay",
   },
 ];
 
@@ -174,6 +200,22 @@ describe("the stylesheet itself", () => {
         contrast(palette["accent-hover"]!, palette["accent"]!),
         `${scheme}: accent-hover against accent`,
       ).toBeGreaterThan(1.1);
+    }
+  });
+
+  it("keeps dark elevation layers visibly distinct", () => {
+    const layers = [
+      ["surface", "canvas", 1.15],
+      ["raised", "surface", 1.15],
+      ["overlay", "raised", 1.15],
+      ["border", "surface", 2],
+    ] as const;
+
+    for (const [foreground, background, minimum] of layers) {
+      expect(
+        contrast(dark[foreground]!, dark[background]!),
+        `${foreground} against ${background}`,
+      ).toBeGreaterThanOrEqual(minimum);
     }
   });
 });

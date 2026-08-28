@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 
 import { LocationsTable } from "@/components/masterData/LocationsTable";
+import { TableStatusSwitch } from "@/components/table/TableRowControls";
 import { DEFAULT_LEDGER_PAGE_SIZE } from "@/lib/convex/ledgerApi";
 import {
   listLocationsRef,
@@ -11,8 +12,9 @@ import {
 } from "@/lib/convex/masterDataApi";
 import { updateLocationRef } from "@/lib/convex/masterDataApi";
 
+import { LocationRowActions } from "./LocationRowActions";
 import { MasterDataPanel } from "./MasterDataPanel";
-import { RowActionButton, RowWriteRegion } from "./RowWriteRegion";
+import { RowWriteRegion } from "./RowWriteRegion";
 
 export function LocationsPanel() {
   const t = useTranslations("MasterData");
@@ -31,20 +33,35 @@ export function LocationsPanel() {
           {({ submit, busy }) => (
             <LocationsTable
               rows={rows}
-              renderAction={(row) => (
-                <RowActionButton
-                  busy={busy}
-                  testId={`location-toggle-${row.code}`}
-                  label={
+              renderStatus={(row) => (
+                <TableStatusSwitch
+                  checked={row.status === "ACTIVE"}
+                  disabled={busy}
+                  label={t("toggleLocationStatus", { code: row.code })}
+                  actionLabel={
                     row.status === "ACTIVE" ? t("deactivate") : t("reactivate")
                   }
-                  onClick={() =>
+                  testId={`location-toggle-${row.code}`}
+                  onCheckedChange={(checked) =>
                     submit(row.locationId, (requestId) => ({
                       requestId,
-
                       warehouseId: row.warehouseId,
                       locationId: row.locationId,
-                      status: row.status === "ACTIVE" ? "INACTIVE" : "ACTIVE",
+                      status: checked ? "ACTIVE" : "INACTIVE",
+                    }))
+                  }
+                />
+              )}
+              renderAction={(row) => (
+                <LocationRowActions
+                  row={row}
+                  busy={busy}
+                  onTypeChange={(locationType) =>
+                    submit(row.locationId, (requestId) => ({
+                      requestId,
+                      warehouseId: row.warehouseId,
+                      locationId: row.locationId,
+                      locationType,
                     }))
                   }
                 />
