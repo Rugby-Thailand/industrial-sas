@@ -100,6 +100,7 @@ export const ROUTE_NAMESPACES = {
   ],
   "(desktop)/putaway": [
     "App",
+    "FinishedGoodsPutawayFlow",
     "FinishedGoodsPutawayPrototype",
     "Pagination",
     "Panel",
@@ -244,6 +245,7 @@ export const ROUTE_NAMESPACES = {
   ],
   "(handheld)/handheld/putaway": [
     "App",
+    "FinishedGoodsPutawayFlow",
     "FinishedGoodsPutawayPrototype",
     "Pagination",
     "Panel",

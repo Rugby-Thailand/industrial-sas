@@ -1114,6 +1114,187 @@
     "noPendingInspectionsHint": "An inspection arrives here when somebody records a release or a scrap.",
     "selectPending": "Choose an inspection waiting for approval"
   },
+  "FinishedGoodsPutawayFlow": {
+    "eyebrow": "Operator decision flow",
+    "title": "From finished good to an audited stock address",
+    "description": "Choose a case to see what the operator sees, which rules run, and when the system may recommend an Area, require an exact child position, or stop the move.",
+    "caseChooser": "Finished-goods putaway case",
+    "flowLabel": "Selected finished-goods putaway flow",
+    "stepNumber": "Step {step}",
+    "cases": {
+      "MEASURED_AREA": {
+        "title": "Measured · general Area",
+        "summary": "Trusted dimensions and no child address required",
+        "confidence": "High confidence",
+        "outcome": "Recommend general Area",
+        "operatorInstruction": "Scan the suggested Area. No rack or child-position setup is required.",
+        "steps": {
+          "1": {
+            "title": "Scan finished-good LPN",
+            "detail": "Load the handling unit, production order, customer order, customer, item, and warehouse context."
+          },
+          "2": {
+            "title": "Trust measured evidence",
+            "detail": "Use the LPN's verified width, depth, height, weight, timestamp, and measurement source."
+          },
+          "3": {
+            "title": "Filter hard constraints",
+            "detail": "Remove prohibited, incompatible, inactive, structurally unsafe, or dimensionally impossible destinations."
+          },
+          "4": {
+            "title": "Rank eligible Areas",
+            "detail": "Prefer the same production order, then customer order, customer, item/package, contiguous usable space, and travel."
+          },
+          "5": {
+            "title": "Revalidate and post",
+            "detail": "Scan the general Area, recheck current capacity and policy, then move every balance bucket and write the audit evidence atomically."
+          }
+        }
+      },
+      "MEASURED_EXACT": {
+        "title": "Measured · exact child",
+        "summary": "Rack, shelf, grid, or exact-position policy",
+        "confidence": "High confidence",
+        "outcome": "Require exact position",
+        "operatorInstruction": "An Area scan opens its map/list. The operator must scan or choose one exact child address.",
+        "steps": {
+          "1": {
+            "title": "Scan finished-good LPN",
+            "detail": "Load the LPN and its production/customer demand context before suggesting a fixture or position."
+          },
+          "2": {
+            "title": "Verify footprint and load",
+            "detail": "Use trusted measurements to check the rack bay, shelf level, slot, platform surface, and access clearances."
+          },
+          "3": {
+            "title": "Filter exact leaves",
+            "detail": "Reject inactive, occupied-incompatible, prohibited, overloaded, or geometrically impossible child positions."
+          },
+          "4": {
+            "title": "Prompt after Area scan",
+            "detail": "Because the Area has exact addressing, show the eligible map/list instead of leaving stock ambiguously at the parent."
+          },
+          "5": {
+            "title": "Scan child and post",
+            "detail": "Revalidate the chosen leaf, derive rack elevation from its level, and post stock, placement, breadcrumb, and audit together."
+          }
+        }
+      },
+      "MEASURED_BLOCKED": {
+        "title": "Measured · no safe fit",
+        "summary": "Every candidate violates a hard rule",
+        "confidence": "Move blocked",
+        "outcome": "Stage or raise exception",
+        "operatorInstruction": "Do not present an unsafe fallback as a recommendation. Route to FG staging or exception handling.",
+        "steps": {
+          "1": {
+            "title": "Scan finished-good LPN",
+            "detail": "Load the exact handling unit and its order, item, storage-class, and quality context."
+          },
+          "2": {
+            "title": "Evaluate measured facts",
+            "detail": "The verified footprint, height, weight, or class exposes a known incompatibility."
+          },
+          "3": {
+            "title": "Hard rules reject all",
+            "detail": "Prohibition, physical fit, structural load, quality, or clearance rules remove every candidate."
+          },
+          "4": {
+            "title": "Do not rank unsafe options",
+            "detail": "Show the blocking reasons and the affected attributes; preferences and available-area scores cannot override them."
+          },
+          "5": {
+            "title": "Send to controlled exception",
+            "detail": "Move to approved FG staging only if eligible, or create an exception for supervisor/planner action. No destination ledger move is posted."
+          }
+        }
+      },
+      "PACKAGE_PROFILE": {
+        "title": "Unmeasured · package profile",
+        "summary": "Verified equivalent packaging supplies an estimate",
+        "confidence": "Medium confidence",
+        "outcome": "Estimated fit + visual check",
+        "operatorInstruction": "Show the evidence source and require a visual confirmation before scanning the destination.",
+        "steps": {
+          "1": {
+            "title": "Scan unmeasured LPN",
+            "detail": "The LPN has no direct dimensions, but its item, package, production order, and customer context are known."
+          },
+          "2": {
+            "title": "Find trusted fallback",
+            "detail": "Use only a verified matching package/HU profile with provenance; never treat missing dimensions as zero."
+          },
+          "3": {
+            "title": "Filter known hard rules",
+            "detail": "Apply storage class, quality, prohibition, load, and known dimensional constraints while marking fit as estimated."
+          },
+          "4": {
+            "title": "Rank with medium confidence",
+            "detail": "Rank eligible Areas using order/customer affinity and usable space, while visibly naming the package-profile evidence."
+          },
+          "5": {
+            "title": "Visually confirm and post",
+            "detail": "The operator checks physical fit, scans the chosen address, and the audit records estimated fit, evidence, and confirmation."
+          }
+        }
+      },
+      "UNKNOWN": {
+        "title": "Unmeasured · no profile",
+        "summary": "Neither direct dimensions nor trusted fallback",
+        "confidence": "Low confidence",
+        "outcome": "Measure or controlled suggestion",
+        "operatorInstruction": "Prefer measurement staging. A low-confidence general-Area suggestion is allowed only when site policy permits visual confirmation.",
+        "steps": {
+          "1": {
+            "title": "Scan unmeasured LPN",
+            "detail": "Order, customer, item, and storage-class context may exist, but physical dimensions are unknown."
+          },
+          "2": {
+            "title": "No trusted size evidence",
+            "detail": "No direct measurement or verified matching package profile is available, so verified fit cannot be claimed."
+          },
+          "3": {
+            "title": "Filter only known violations",
+            "detail": "Still reject known prohibitions, quality conflicts, inactive locations, and class incompatibilities; unknown fit remains unknown."
+          },
+          "4": {
+            "title": "Choose controlled fallback",
+            "detail": "Send to FG measurement staging, or show a low-confidence general-Area suggestion with mandatory visual confirmation if policy allows."
+          },
+          "5": {
+            "title": "Measure or record confirmation",
+            "detail": "After measurement, rerun the flow. If visually confirmed, preserve the low confidence, operator confirmation, chosen address, and reasons in audit."
+          }
+        }
+      }
+    },
+    "checklists": {
+      "hardFilters": {
+        "title": "Must pass before ranking",
+        "items": {
+          "1": "Storage class, quality status, prohibited-location rules, and active lifecycle.",
+          "2": "Footprint, height, structural load, fire/access clearance, and fixture compatibility.",
+          "3": "Current occupancy and whether the destination requires a general Area or exact child address."
+        }
+      },
+      "ranking": {
+        "title": "Preferences after eligibility",
+        "items": {
+          "1": "Same production order, then same customer order, then same customer and item/package.",
+          "2": "Contiguous usable geometry and reliable occupancy—not aggregate free square metres alone.",
+          "3": "Travel distance and fragmentation are tie-breakers; they never override a hard rule."
+        }
+      },
+      "commit": {
+        "title": "Confirmation and audit",
+        "items": {
+          "1": "Revalidate the selected address immediately before confirmation.",
+          "2": "An override requires a reason and preserves alternatives, confidence, evidence, and operator identity.",
+          "3": "Move every positive balance bucket and write placement/history in one transaction."
+        }
+      }
+    }
+  },
   "FinishedGoodsPutawayPrototype": {
     "prototypeBadge": "Interactive prototype",
     "prototypeNote": "Uses realistic demo data; it does not post stock",

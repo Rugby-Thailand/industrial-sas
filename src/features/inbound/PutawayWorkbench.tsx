@@ -11,6 +11,7 @@ import { StorageStackPlacementWorkbench } from "@/features/storageLayouts/Storag
 
 import { RankedPutawayLocations } from "./InboundOptions";
 import { FinishedGoodsPutawayConcepts } from "./FinishedGoodsPutawayConcepts";
+import { FinishedGoodsPutawayFlow } from "./FinishedGoodsPutawayFlow";
 import { InboundSection } from "./InboundPrimitives";
 import { ConfirmPutawayForm, PutawayTasksPanel } from "./PutawayTasks";
 import { PutawayRecommendationPanel } from "./PutawayRecommendation";
@@ -24,6 +25,7 @@ export function PutawayWorkbench() {
 
   return (
     <div data-testid="putaway-workbench">
+      <FinishedGoodsPutawayFlow />
       <FinishedGoodsPutawayConcepts />
 
       <InboundSection title={t("sectionBoard")}>
