@@ -7,6 +7,7 @@ import {
 } from "../../../tests/fixtures/intl-render";
 
 import { LedgerPanelStatus } from "./LedgerPanelStatus";
+import { RouteLoading } from "./RouteLoading";
 import { SetupChecklist } from "./SetupChecklist";
 
 import type { LedgerPanelState } from "@/lib/convex/ledgerState";
@@ -39,6 +40,14 @@ describe("system panel accessibility", () => {
 
   it("SetupChecklist has no detectable axe violations", async () => {
     const { container } = renderWithIntl(<SetupChecklist />, {
+      environment: unconfiguredEnvironment,
+    });
+
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("RouteLoading has no detectable axe violations", async () => {
+    const { container } = renderWithIntl(<RouteLoading />, {
       environment: unconfiguredEnvironment,
     });
 

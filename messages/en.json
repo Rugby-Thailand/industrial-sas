@@ -62,7 +62,8 @@
     "handheldLoad": "Load vehicle",
     "handheldDelivery": "Delivery and POD",
     "productionOrders": "Production execution",
-    "loadingNavigation": "Loading available work…"
+    "loadingNavigation": "Loading available work…",
+    "loadingPage": "Loading page…"
   },
   "Transfers": {
     "title": "Warehouse transfers",

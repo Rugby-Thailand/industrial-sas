@@ -62,7 +62,8 @@
     "handheldLoad": "โหลดสินค้า",
     "handheldDelivery": "ส่งมอบและ POD",
     "productionOrders": "ดำเนินงานผลิต",
-    "loadingNavigation": "กำลังโหลดงานที่ใช้งานได้…"
+    "loadingNavigation": "กำลังโหลดงานที่ใช้งานได้…",
+    "loadingPage": "กำลังโหลดหน้า…"
   },
   "Transfers": {
     "title": "โอนย้ายระหว่างคลัง",

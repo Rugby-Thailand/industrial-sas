@@ -68,6 +68,7 @@ import {
 
 import { LocaleSwitcher } from "./LocaleSwitcher";
 import { AccountButton } from "./AccountButton";
+import { NavigationPendingIndicator } from "./NavigationPendingIndicator";
 import { WorkspaceContextBar } from "./WorkspaceContextBar";
 
 const MAIN_ID = "main-content";
@@ -297,6 +298,7 @@ function NavigationTree({
                       >
                         <Link
                           href={item.href}
+                          className="relative"
                           aria-current={active ? "page" : undefined}
                           {...(onNavigate === undefined
                             ? {}
@@ -306,6 +308,7 @@ function NavigationTree({
                           <span className={collapsed ? "sr-only" : "truncate"}>
                             {label}
                           </span>
+                          <NavigationPendingIndicator />
                         </Link>
                       </SidebarMenuButton>
                     </SidebarMenuItem>

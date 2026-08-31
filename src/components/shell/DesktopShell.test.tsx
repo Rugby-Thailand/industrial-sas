@@ -1,5 +1,6 @@
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -16,6 +17,25 @@ vi.mock("@/i18n/navigation", () => navigationMock);
 import { DesktopShell } from "./DesktopShell";
 import { NAVIGATION_PERMISSION_CODES } from "../../../convex/model/authorization/navigationPermissions";
 import * as WorkspaceModule from "@/components/providers/WorkspaceProvider";
+
+function DesktopNavigationHarness() {
+  const [page, setPage] = useState("dashboard-content");
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => {
+          setMockPathname("/inventory/balances");
+          setPage("balances-content");
+        }}
+      >
+        Navigate fixture
+      </button>
+      <DesktopShell>{page}</DesktopShell>
+    </>
+  );
+}
 
 describe("DesktopShell", () => {
   beforeEach(() => {
@@ -135,6 +155,25 @@ describe("DesktopShell", () => {
     expect(dashboard.querySelector("span")).toHaveClass("sr-only");
     await user.hover(dashboard);
     expect(await screen.findByRole("tooltip")).toHaveTextContent("แดชบอร์ด");
+  });
+
+  it("preserves shell state while sibling page content changes", async () => {
+    const user = userEvent.setup();
+    renderWithIntl(<DesktopNavigationHarness />, {
+      environment: unconfiguredEnvironment,
+    });
+
+    await user.click(screen.getByRole("button", { name: "ย่อแถบนำทาง" }));
+    await user.click(screen.getByRole("button", { name: "Navigate fixture" }));
+
+    expect(screen.getByText("balances-content")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "ขยายแถบนำทาง" }),
+    ).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getByRole("link", { name: "ยอดคงเหลือ" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
   });
 
   it("does not add development banners to the application shell", () => {
