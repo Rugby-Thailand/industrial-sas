@@ -9,6 +9,7 @@ import { QueryGate } from "@/components/system/QueryGate";
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import { Notice } from "@/components/ui/Notice";
 import { StatusBadge, type BadgeTone } from "@/components/ui/StatusBadge";
+import { WorkflowStageRail } from "@/components/workflow/WorkflowStageRail";
 import { EntityWriteForm } from "@/features/masterData/EntityWriteForm";
 import {
   acknowledgeDesignChangeImpactRef,
@@ -33,6 +34,7 @@ import {
 } from "@/lib/convex/productionApi";
 import type { AppLocale } from "@/i18n/routing";
 import { formatCount, formatInstantDate } from "@/lib/formatters";
+import { ROUTES } from "@/lib/navigation";
 const tone = (status: ProductionOrderRow["status"]): BadgeTone => {
   if (status === "COMPLETE") return "success";
   if (status === "CLOSED_REJECTED" || status === "CANCELLED") return "danger";
@@ -156,17 +158,89 @@ function ProductionWorkspace({
     value: impact.designChangeImpactId,
     label: `${impact.productionOrderNumber} · ${impact.severity}`,
   }));
+  const activeOrder =
+    orders.find((order) => order.status === "IN_PROGRESS") ?? orders[0];
+  const runningCount = orders.filter(
+    (order) => order.status === "IN_PROGRESS",
+  ).length;
+  const qualityCount = orders.filter(
+    (order) => order.status === "QC_PENDING",
+  ).length;
+  const blockingCount = impacts.filter(
+    (impact) => impact.severity === "BLOCKING",
+  ).length;
   return (
     <section aria-labelledby="production-board-title" className="space-y-6">
-      <div>
-        <h2
-          id="production-board-title"
-          className="text-xl font-semibold text-text"
-        >
-          {t("boardTitle")}
-        </h2>
-        <p className="mt-1 text-sm text-muted">{t("boardHelp")}</p>
-      </div>
+      <span id="production-board-title" className="sr-only">
+        {t("boardTitle")}
+      </span>
+      <WorkflowStageRail
+        eyebrow={t("workspace.eyebrow")}
+        title={
+          activeOrder === undefined
+            ? t("workspace.emptyTitle")
+            : t("workspace.title", {
+                order: activeOrder.productionOrderNumber,
+              })
+        }
+        detail={t("workspace.detail")}
+        currentStage={3}
+        stages={[
+          { label: t("workspace.stage.intake"), href: ROUTES.customerOrders },
+          { label: t("workspace.stage.design"), href: ROUTES.engineeringQueue },
+          { label: t("workspace.stage.plan"), href: ROUTES.factoryPackets },
+          {
+            label: t("workspace.stage.produce"),
+            href: ROUTES.productionOrders,
+          },
+          { label: t("workspace.stage.quality"), href: ROUTES.quality },
+          { label: t("workspace.stage.store"), href: ROUTES.putaway },
+        ]}
+        signal={{
+          tone: blockingCount > 0 ? "attention" : "clear",
+          label:
+            blockingCount > 0
+              ? t("workspace.blocking", { count: blockingCount })
+              : t("workspace.onPlan"),
+        }}
+        nextAction={{
+          label: t("workspace.nextBestAction"),
+          title:
+            activeOrder === undefined
+              ? t("workspace.createAction")
+              : t(`workspace.action.${activeOrder.status}`),
+          detail: t("workspace.actionDetail"),
+          action: (
+            <a
+              href="#production-actions"
+              className="inline-flex min-h-touch items-center rounded-md bg-accent px-4 py-2 text-sm font-bold text-accent-contrast hover:bg-accent-hover"
+            >
+              {t("workspace.openActions")}
+            </a>
+          ),
+        }}
+      />
+
+      <dl className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {[
+          [t("workspace.metric.orders"), orders.length],
+          [t("workspace.metric.running"), runningCount],
+          [t("workspace.metric.quality"), qualityCount],
+          [t("workspace.metric.exceptions"), impacts.length],
+        ].map(([label, value]) => (
+          <div
+            key={String(label)}
+            className="rounded-xl border border-border bg-surface px-4 py-3"
+          >
+            <dt className="text-xs font-bold tracking-wide text-muted uppercase">
+              {label}
+            </dt>
+            <dd className="mt-1 text-2xl font-black text-text tabular-nums">
+              {value}
+            </dd>
+          </div>
+        ))}
+      </dl>
 
       <section
         aria-labelledby="design-impact-title"
@@ -278,270 +352,283 @@ function ProductionWorkspace({
         </ul>
       )}
 
-      <div className="grid gap-4 xl:grid-cols-2">
-        <EntityWriteForm
-          mutationRef={createProductionOrderRef}
-          legend={t("createTitle")}
-          description={t("createHelp")}
-          submitLabel={t("create")}
-          requiredMessage={t("required")}
-          testId="production-create-form"
-          fields={[
-            {
-              name: "factoryPacketId",
-              label: t("factoryPacketId"),
-              kind: "text",
-              required: true,
-              monospace: true,
-            },
-            {
-              name: "productionOrderNumber",
-              label: t("orderNumber"),
-              kind: "text",
-              required: true,
-              initialValue: "MO-",
-            },
-            {
-              name: "outputItemId",
-              label: t("outputItem"),
-              kind: "select",
-              required: true,
-              options: itemOptions,
-            },
-            {
-              name: "dueDate",
-              label: t("dueDate"),
-              kind: "text",
-              required: true,
-              placeholder: "2026-08-20",
-            },
-          ]}
-          toArgs={(values, requestId) => ({
-            requestId,
-            warehouseId,
-            factoryPacketId: values["factoryPacketId"] ?? "",
-            productionOrderNumber: values["productionOrderNumber"] ?? "",
-            outputItemId: values["outputItemId"] ?? "",
-            dueAt: Date.parse(`${values["dueDate"] ?? ""}T12:00:00Z`),
-          })}
-        />
-        <EntityWriteForm
-          mutationRef={releaseProductionOrderRef}
-          legend={t("releaseOrderTitle")}
-          description={t("releaseOrderHelp")}
-          submitLabel={t("releaseOrder")}
-          requiredMessage={t("required")}
-          testId="production-release-form"
-          fields={[
-            {
-              name: "productionOrderId",
-              label: t("productionOrder"),
-              kind: "select",
-              required: true,
-              options: orderOptions,
-            },
-          ]}
-          toArgs={(values, requestId) => ({
-            requestId,
-            warehouseId,
-            productionOrderId: values["productionOrderId"] ?? "",
-          })}
-        />
-        <EntityWriteForm
-          mutationRef={issueProductionMaterialRef}
-          legend={t("issueTitle")}
-          description={t("issueHelp")}
-          submitLabel={t("issue")}
-          requiredMessage={t("required")}
-          testId="production-issue-form"
-          fields={[
-            {
-              name: "productionOrderId",
-              label: t("productionOrder"),
-              kind: "select",
-              required: true,
-              options: orderOptions,
-            },
-            {
-              name: "requirementId",
-              label: t("requirementId"),
-              kind: "text",
-              required: true,
-              monospace: true,
-            },
-            {
-              name: "sourceBucketKey",
-              label: t("sourceTag"),
-              kind: "text",
-              required: true,
-              monospace: true,
-            },
-            {
-              name: "quantity",
-              label: t("quantityMinor"),
-              kind: "number",
-              required: true,
-            },
-          ]}
-          toArgs={(values, requestId) => ({
-            requestId,
-            warehouseId,
-            productionOrderId: values["productionOrderId"] ?? "",
-            productionMaterialRequirementId: values["requirementId"] ?? "",
-            sourceBucketKey: values["sourceBucketKey"] ?? "",
-            baseMinorUnits: Number(values["quantity"] ?? "0"),
-          })}
-        />
-        <EntityWriteForm
-          mutationRef={reportProductionOperationRef}
-          legend={t("reportTitle")}
-          description={t("reportHelp")}
-          submitLabel={t("report")}
-          requiredMessage={t("required")}
-          testId="production-report-form"
-          fields={[
-            {
-              name: "productionOrderId",
-              label: t("productionOrder"),
-              kind: "select",
-              required: true,
-              options: orderOptions,
-            },
-            {
-              name: "sequence",
-              label: t("operationSequence"),
-              kind: "number",
-              required: true,
-            },
-            { name: "good", label: t("good"), kind: "number", required: true },
-            {
-              name: "scrap",
-              label: t("scrap"),
-              kind: "number",
-              required: true,
-              initialValue: "0",
-            },
-            {
-              name: "rework",
-              label: t("rework"),
-              kind: "number",
-              required: true,
-              initialValue: "0",
-            },
-            {
-              name: "downtime",
-              label: t("downtime"),
-              kind: "number",
-              required: true,
-              initialValue: "0",
-            },
-            {
-              name: "downtimeReason",
-              label: t("downtimeReason"),
-              kind: "text",
+      <div id="production-actions" className="scroll-mt-6">
+        <CollapsibleSection
+          label={t("workspace.actionLibrary")}
+          icon={ListOrdered}
+        >
+          <div className="grid gap-4 xl:grid-cols-2">
+            <EntityWriteForm
+              mutationRef={createProductionOrderRef}
+              legend={t("createTitle")}
+              description={t("createHelp")}
+              submitLabel={t("create")}
+              requiredMessage={t("required")}
+              testId="production-create-form"
+              fields={[
+                {
+                  name: "factoryPacketId",
+                  label: t("factoryPacketId"),
+                  kind: "text",
+                  required: true,
+                  monospace: true,
+                },
+                {
+                  name: "productionOrderNumber",
+                  label: t("orderNumber"),
+                  kind: "text",
+                  required: true,
+                  initialValue: "MO-",
+                },
+                {
+                  name: "outputItemId",
+                  label: t("outputItem"),
+                  kind: "select",
+                  required: true,
+                  options: itemOptions,
+                },
+                {
+                  name: "dueDate",
+                  label: t("dueDate"),
+                  kind: "text",
+                  required: true,
+                  placeholder: "2026-08-20",
+                },
+              ]}
+              toArgs={(values, requestId) => ({
+                requestId,
+                warehouseId,
+                factoryPacketId: values["factoryPacketId"] ?? "",
+                productionOrderNumber: values["productionOrderNumber"] ?? "",
+                outputItemId: values["outputItemId"] ?? "",
+                dueAt: Date.parse(`${values["dueDate"] ?? ""}T12:00:00Z`),
+              })}
+            />
+            <EntityWriteForm
+              mutationRef={releaseProductionOrderRef}
+              legend={t("releaseOrderTitle")}
+              description={t("releaseOrderHelp")}
+              submitLabel={t("releaseOrder")}
+              requiredMessage={t("required")}
+              testId="production-release-form"
+              fields={[
+                {
+                  name: "productionOrderId",
+                  label: t("productionOrder"),
+                  kind: "select",
+                  required: true,
+                  options: orderOptions,
+                },
+              ]}
+              toArgs={(values, requestId) => ({
+                requestId,
+                warehouseId,
+                productionOrderId: values["productionOrderId"] ?? "",
+              })}
+            />
+            <EntityWriteForm
+              mutationRef={issueProductionMaterialRef}
+              legend={t("issueTitle")}
+              description={t("issueHelp")}
+              submitLabel={t("issue")}
+              requiredMessage={t("required")}
+              testId="production-issue-form"
+              fields={[
+                {
+                  name: "productionOrderId",
+                  label: t("productionOrder"),
+                  kind: "select",
+                  required: true,
+                  options: orderOptions,
+                },
+                {
+                  name: "requirementId",
+                  label: t("requirementId"),
+                  kind: "text",
+                  required: true,
+                  monospace: true,
+                },
+                {
+                  name: "sourceBucketKey",
+                  label: t("sourceTag"),
+                  kind: "text",
+                  required: true,
+                  monospace: true,
+                },
+                {
+                  name: "quantity",
+                  label: t("quantityMinor"),
+                  kind: "number",
+                  required: true,
+                },
+              ]}
+              toArgs={(values, requestId) => ({
+                requestId,
+                warehouseId,
+                productionOrderId: values["productionOrderId"] ?? "",
+                productionMaterialRequirementId: values["requirementId"] ?? "",
+                sourceBucketKey: values["sourceBucketKey"] ?? "",
+                baseMinorUnits: Number(values["quantity"] ?? "0"),
+              })}
+            />
+            <EntityWriteForm
+              mutationRef={reportProductionOperationRef}
+              legend={t("reportTitle")}
+              description={t("reportHelp")}
+              submitLabel={t("report")}
+              requiredMessage={t("required")}
+              testId="production-report-form"
+              fields={[
+                {
+                  name: "productionOrderId",
+                  label: t("productionOrder"),
+                  kind: "select",
+                  required: true,
+                  options: orderOptions,
+                },
+                {
+                  name: "sequence",
+                  label: t("operationSequence"),
+                  kind: "number",
+                  required: true,
+                },
+                {
+                  name: "good",
+                  label: t("good"),
+                  kind: "number",
+                  required: true,
+                },
+                {
+                  name: "scrap",
+                  label: t("scrap"),
+                  kind: "number",
+                  required: true,
+                  initialValue: "0",
+                },
+                {
+                  name: "rework",
+                  label: t("rework"),
+                  kind: "number",
+                  required: true,
+                  initialValue: "0",
+                },
+                {
+                  name: "downtime",
+                  label: t("downtime"),
+                  kind: "number",
+                  required: true,
+                  initialValue: "0",
+                },
+                {
+                  name: "downtimeReason",
+                  label: t("downtimeReason"),
+                  kind: "text",
 
-              importance: "secondary",
-            },
-          ]}
-          toArgs={(values, requestId) => ({
-            requestId,
-            warehouseId,
-            productionOrderId: values["productionOrderId"] ?? "",
-            operationSequence: Number(values["sequence"] ?? "0"),
-            goodBaseMinorUnits: Number(values["good"] ?? "0"),
-            scrapBaseMinorUnits: Number(values["scrap"] ?? "0"),
-            reworkBaseMinorUnits: Number(values["rework"] ?? "0"),
-            downtimeMinutes: Number(values["downtime"] ?? "0"),
-            ...(values["downtimeReason"]
-              ? { downtimeReason: values["downtimeReason"] }
-              : {}),
-          })}
-        />
-        <EntityWriteForm
-          mutationRef={receiveProductionOutputRef}
-          legend={t("receiveTitle")}
-          description={t("receiveHelp")}
-          submitLabel={t("receive")}
-          requiredMessage={t("required")}
-          testId="production-receive-form"
-          fields={[
-            {
-              name: "productionOrderId",
-              label: t("productionOrder"),
-              kind: "select",
-              required: true,
-              options: orderOptions,
-            },
-            {
-              name: "outputLotId",
-              label: t("outputLotId"),
-              kind: "text",
-              required: true,
-              monospace: true,
-            },
-            {
-              name: "destinationLocationId",
-              label: t("destination"),
-              kind: "select",
-              required: true,
-              options: locationOptions,
-            },
-            {
-              name: "quantity",
-              label: t("quantityMinor"),
-              kind: "number",
-              required: true,
-            },
-          ]}
-          toArgs={(values, requestId) => ({
-            requestId,
-            warehouseId,
-            productionOrderId: values["productionOrderId"] ?? "",
-            outputLotId: values["outputLotId"] ?? "",
-            destinationLocationId: values["destinationLocationId"] ?? "",
-            baseMinorUnits: Number(values["quantity"] ?? "0"),
-          })}
-        />
-        <EntityWriteForm
-          mutationRef={decideProductionOutputQualityRef}
-          legend={t("qualityTitle")}
-          description={t("qualityHelp")}
-          submitLabel={t("qualityDecide")}
-          requiredMessage={t("required")}
-          testId="production-quality-form"
-          fields={[
-            {
-              name: "receiptId",
-              label: t("outputReceiptId"),
-              kind: "text",
-              required: true,
-              monospace: true,
-            },
-            {
-              name: "decision",
-              label: t("decision"),
-              kind: "select",
-              required: true,
-              options: [
-                { value: "RELEASE", label: t("decisionRelease") },
-                { value: "REJECT", label: t("decisionReject") },
-              ],
-            },
-            {
-              name: "note",
-              label: t("qualityNote"),
-              kind: "textarea",
-              required: true,
-            },
-          ]}
-          toArgs={(values, requestId) => ({
-            requestId,
-            warehouseId,
-            productionOutputReceiptId: values["receiptId"] ?? "",
-            decision: (values["decision"] ?? "REJECT") as "RELEASE" | "REJECT",
-            note: values["note"] ?? "",
-          })}
-        />
+                  importance: "secondary",
+                },
+              ]}
+              toArgs={(values, requestId) => ({
+                requestId,
+                warehouseId,
+                productionOrderId: values["productionOrderId"] ?? "",
+                operationSequence: Number(values["sequence"] ?? "0"),
+                goodBaseMinorUnits: Number(values["good"] ?? "0"),
+                scrapBaseMinorUnits: Number(values["scrap"] ?? "0"),
+                reworkBaseMinorUnits: Number(values["rework"] ?? "0"),
+                downtimeMinutes: Number(values["downtime"] ?? "0"),
+                ...(values["downtimeReason"]
+                  ? { downtimeReason: values["downtimeReason"] }
+                  : {}),
+              })}
+            />
+            <EntityWriteForm
+              mutationRef={receiveProductionOutputRef}
+              legend={t("receiveTitle")}
+              description={t("receiveHelp")}
+              submitLabel={t("receive")}
+              requiredMessage={t("required")}
+              testId="production-receive-form"
+              fields={[
+                {
+                  name: "productionOrderId",
+                  label: t("productionOrder"),
+                  kind: "select",
+                  required: true,
+                  options: orderOptions,
+                },
+                {
+                  name: "outputLotId",
+                  label: t("outputLotId"),
+                  kind: "text",
+                  required: true,
+                  monospace: true,
+                },
+                {
+                  name: "destinationLocationId",
+                  label: t("destination"),
+                  kind: "select",
+                  required: true,
+                  options: locationOptions,
+                },
+                {
+                  name: "quantity",
+                  label: t("quantityMinor"),
+                  kind: "number",
+                  required: true,
+                },
+              ]}
+              toArgs={(values, requestId) => ({
+                requestId,
+                warehouseId,
+                productionOrderId: values["productionOrderId"] ?? "",
+                outputLotId: values["outputLotId"] ?? "",
+                destinationLocationId: values["destinationLocationId"] ?? "",
+                baseMinorUnits: Number(values["quantity"] ?? "0"),
+              })}
+            />
+            <EntityWriteForm
+              mutationRef={decideProductionOutputQualityRef}
+              legend={t("qualityTitle")}
+              description={t("qualityHelp")}
+              submitLabel={t("qualityDecide")}
+              requiredMessage={t("required")}
+              testId="production-quality-form"
+              fields={[
+                {
+                  name: "receiptId",
+                  label: t("outputReceiptId"),
+                  kind: "text",
+                  required: true,
+                  monospace: true,
+                },
+                {
+                  name: "decision",
+                  label: t("decision"),
+                  kind: "select",
+                  required: true,
+                  options: [
+                    { value: "RELEASE", label: t("decisionRelease") },
+                    { value: "REJECT", label: t("decisionReject") },
+                  ],
+                },
+                {
+                  name: "note",
+                  label: t("qualityNote"),
+                  kind: "textarea",
+                  required: true,
+                },
+              ]}
+              toArgs={(values, requestId) => ({
+                requestId,
+                warehouseId,
+                productionOutputReceiptId: values["receiptId"] ?? "",
+                decision: (values["decision"] ?? "REJECT") as
+                  "RELEASE" | "REJECT",
+                note: values["note"] ?? "",
+              })}
+            />
+          </div>
+        </CollapsibleSection>
       </div>
     </section>
   );

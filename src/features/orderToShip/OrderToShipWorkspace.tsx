@@ -11,7 +11,6 @@ import {
 } from "@/components/ui/kanban";
 import { MasterDataPanel } from "@/features/masterData/MasterDataPanel";
 import { WriteDialog } from "@/features/masterData/WriteDialog";
-import { Link } from "@/i18n/navigation";
 import {
   listCustomerOrdersRef,
   listDesignRequestsRef,
@@ -28,6 +27,10 @@ import {
   formatInstantDate,
 } from "@/lib/formatters";
 import { StatusBadge, type BadgeTone } from "@/components/ui/StatusBadge";
+import {
+  NextActionLink,
+  WorkflowStageRail,
+} from "@/components/workflow/WorkflowStageRail";
 import { MasterCardCreateDialog } from "./MasterCardCreateDialog";
 import { OrderIntakeForm } from "./OrderIntakeForm";
 import { EngineeringMasterCardLibrary } from "./EngineeringMasterCardLibrary";
@@ -65,43 +68,50 @@ export function OrderToShipWorkspace({
   readonly view: OrderToShipView;
 }) {
   const t = useTranslations("OrderToShip");
+  const currentStage = view === "sales" ? 0 : view === "engineering" ? 1 : 2;
+  const nextAction =
+    view === "sales" ? (
+      <CreateOrderDialog />
+    ) : view === "engineering" ? (
+      <MasterCardCreateDialog />
+    ) : (
+      <NextActionLink href={ROUTES.productionOrders}>
+        {t("openProductionOrders")}
+      </NextActionLink>
+    );
 
   return (
     <div className="space-y-6">
-      <nav
-        aria-label={t("workflowNavigation")}
-        className="flex flex-wrap gap-2"
-      >
-        {(
-          [
-            ["sales", ROUTES.customerOrders, t("salesTab")],
-            ["engineering", ROUTES.engineeringQueue, t("engineeringTab")],
-            ["factory", ROUTES.factoryPackets, t("factoryTab")],
-          ] as const
-        ).map(([key, href, label]) => (
-          <Link
-            key={key}
-            href={href}
-            aria-current={view === key ? "page" : undefined}
-            className={`min-h-touch rounded-md border px-4 py-2 text-sm font-semibold ${
-              view === key
-                ? "border-accent bg-accent text-accent-contrast"
-                : "border-border-strong bg-surface text-text hover:bg-raised"
-            }`}
-          >
-            {label}
-          </Link>
-        ))}
-      </nav>
+      <WorkflowStageRail
+        eyebrow={t("workflowNavigation")}
+        title={t(`workspace.${view}.title`)}
+        detail={t(`workspace.${view}.detail`)}
+        currentStage={currentStage}
+        stages={[
+          { label: t("stage.intake"), href: ROUTES.customerOrders },
+          { label: t("stage.design"), href: ROUTES.engineeringQueue },
+          { label: t("stage.plan"), href: ROUTES.factoryPackets },
+          { label: t("stage.produce"), href: ROUTES.productionOrders },
+          { label: t("stage.quality"), href: ROUTES.quality },
+          { label: t("stage.store"), href: ROUTES.putaway },
+        ]}
+        signal={{
+          tone: view === "engineering" ? "attention" : "clear",
+          label: t(`workspace.${view}.signal`),
+        }}
+        nextAction={{
+          label: t("nextBestAction"),
+          title: t(`workspace.${view}.actionTitle`),
+          detail: t(`workspace.${view}.actionDetail`),
+          action: nextAction,
+        }}
+      />
 
-      <section
-        aria-labelledby="flow-summary-title"
-        className="rounded-lg border border-border-strong bg-raised p-4"
-      >
-        <h2 id="flow-summary-title" className="text-base font-bold text-text">
+      <details className="rounded-lg border border-border bg-raised px-4 py-3">
+        <summary className="min-h-touch cursor-pointer py-2 text-sm font-bold text-text">
           {t("flowSummary")}
-        </h2>
-        <ol className="mt-3 grid gap-3 text-sm sm:grid-cols-3">
+        </summary>
+        <ol className="mt-2 grid gap-3 pb-2 text-sm sm:grid-cols-3">
           <FlowStep
             number="1"
             title={t("flowSales")}
@@ -118,7 +128,7 @@ export function OrderToShipWorkspace({
             detail={t("flowFactoryDetail")}
           />
         </ol>
-      </section>
+      </details>
 
       {view === "sales" ? <SalesRegister /> : null}
       {view === "engineering" ? <EngineeringQueue /> : null}
@@ -158,7 +168,6 @@ function SalesRegister() {
     <QueueSection
       title={t("salesRegister")}
       description={t("salesRegisterDetail")}
-      action={<CreateOrderDialog />}
     >
       <Kanban<never>
         value={EMPTY_ORDER_COLUMNS as unknown as Record<string, never[]>}
@@ -254,9 +263,6 @@ function CustomerOrderColumn({
                       label={t(`status.${row.status}`)}
                     />
                   </div>
-                  <p className="mt-3 font-mono text-xs break-all text-muted">
-                    {t("customerOrderId")}: {row.customerOrderId}
-                  </p>
                   {row.status === "DRAFT" ? (
                     <details className="mt-3">
                       <summary className="min-h-touch cursor-pointer py-2 font-semibold text-text">
@@ -284,7 +290,6 @@ function EngineeringQueue() {
     <QueueSection
       title={t("engineeringQueue")}
       description={t("engineeringQueueDetail")}
-      action={<MasterCardCreateDialog />}
     >
       <MasterDataPanel<
         DesignRequestRow,
@@ -380,9 +385,6 @@ function EngineeringQueue() {
                       : ""}
                   </p>
                 )}
-                <p className="mt-3 font-mono text-xs break-all text-muted">
-                  {t("designRequestId")}: {row.designRequestId}
-                </p>
                 <details className="mt-3">
                   <summary className="min-h-touch cursor-pointer py-2 font-semibold text-text">
                     {t("designActions")}
@@ -417,13 +419,12 @@ function FactoryQueue() {
       title={t("factoryQueue")}
       description={t("factoryQueueDetail")}
     >
-      <Link
-        href={ROUTES.productionOrders}
-        className="inline-flex min-h-touch items-center rounded-md border border-accent px-4 py-2 text-sm font-semibold text-accent hover:bg-raised"
-      >
-        {t("openProductionOrders")}
-      </Link>
-      <FactoryWorkflowActions issueOnly />
+      <details className="rounded-lg border border-border bg-raised px-4 py-3 print:hidden">
+        <summary className="min-h-touch cursor-pointer py-2 text-sm font-bold text-text">
+          {t("manualPacketActions")}
+        </summary>
+        <FactoryWorkflowActions issueOnly />
+      </details>
       <MasterDataPanel<
         FactoryPacketRow,
         {
@@ -466,9 +467,6 @@ function FactoryQueue() {
                     label={t(`status.${row.status}`)}
                   />
                 </div>
-                <p className="mt-3 font-mono text-xs break-all text-muted print:hidden">
-                  {t("factoryPacketId")}: {row.factoryPacketId}
-                </p>
                 <dl className="mt-5 grid gap-3 border-y border-border py-4 text-sm sm:grid-cols-4">
                   <Fact
                     label={t("revision")}
@@ -603,12 +601,14 @@ function FactoryQueue() {
                 <section className="mt-5" aria-label={t("approvedFiles")}>
                   <h4 className="font-bold text-text">{t("approvedFiles")}</h4>
                   <ul className="mt-2 flex flex-wrap gap-2">
-                    {row.approvedFileIds.map((fileId) => (
+                    {row.approvedFileIds.map((fileId, index) => (
                       <li
                         key={fileId}
-                        className="rounded bg-raised px-2 py-1 font-mono text-xs text-text"
+                        className="rounded bg-raised px-2 py-1 text-xs font-semibold text-text"
                       >
-                        <span className="break-all">{fileId}</span>
+                        <span>
+                          {t("approvedFileNumber", { number: index + 1 })}
+                        </span>
                         <span className="ml-2 print:hidden">
                           <FactoryFileButton
                             warehouseId={row.warehouseId}

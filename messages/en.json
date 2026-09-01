@@ -1088,6 +1088,26 @@
   "Quality": {
     "title": "Quality",
     "description": "The inspection queue for the selected warehouse, and its dispositions.",
+    "workspace": {
+      "eyebrow": "Order to finished goods",
+      "title": "Quality release workspace",
+      "detail": "Select one inspection, record the evidence, then hand the decision to a second person without leaving this screen.",
+      "queueReady": "Inspection queue ready",
+      "decisionPending": "Decision in progress",
+      "nextBestAction": "Next best action",
+      "selectAction": "Select the next inspection",
+      "decideAction": "Record the disposition",
+      "actionDetail": "The system keeps the stock on hold until the required maker-checker approval is complete.",
+      "openQueue": "Open inspection queue",
+      "stage": {
+        "intake": "Intake",
+        "design": "Design",
+        "plan": "Plan",
+        "produce": "Produce",
+        "quality": "Quality",
+        "store": "Store"
+      }
+    },
     "caption": "{count, plural, one {# inspection} other {# inspections}}",
     "columnItem": "Item",
     "columnStatus": "Status",
@@ -1421,6 +1441,30 @@
   "Putaway": {
     "title": "Putaway",
     "description": "Putaway tasks for the selected warehouse, with the reasoning behind each recommendation.",
+    "workspace": {
+      "eyebrow": "Order to finished goods",
+      "title": "Quality-cleared goods to storage",
+      "detail": "Claim one task, review the best safe location, and confirm the physical placement from one focused workspace.",
+      "queueReady": "Storage queue ready",
+      "claimPending": "Task selected · claim required",
+      "locationPending": "Location confirmation pending",
+      "nextBestAction": "Next best action",
+      "selectAction": "Select and claim a task",
+      "claimAction": "Claim the selected task",
+      "confirmAction": "Confirm the recommended location",
+      "actionDetail": "Only safe locations enter the ranked list. An override remains possible with a recorded reason.",
+      "openTasks": "Open task board",
+      "rulesAndExamples": "Placement rules and exception examples",
+      "storageMap": "Storage map and stack placement",
+      "stage": {
+        "intake": "Intake",
+        "design": "Design",
+        "plan": "Plan",
+        "produce": "Produce",
+        "quality": "Quality",
+        "store": "Store"
+      }
+    },
     "caption": "{count, plural, one {# task} other {# tasks}}",
     "columnItem": "Item",
     "columnQuantity": "Quantity",
@@ -1841,6 +1885,42 @@
     "handheldDescription": "One connected floor flow for issue, output, downtime, receipt, and QC hand-off.",
     "boardTitle": "Production order board",
     "boardHelp": "Every run pins the released packet and reconciles target, good, scrap, rework, received, and quality-decided quantities.",
+    "workspace": {
+      "eyebrow": "Order to finished goods",
+      "title": "Production command · {order}",
+      "emptyTitle": "Production command center",
+      "detail": "Run the pinned plan, see exceptions immediately, and keep detailed posting controls out of the way until they are needed.",
+      "onPlan": "No blocking revision change",
+      "blocking": "{count, plural, one {# blocking change} other {# blocking changes}}",
+      "nextBestAction": "Next best action",
+      "createAction": "Create the first production order",
+      "actionDetail": "Open the action library for the selected production step. Existing ledger and approval controls stay unchanged.",
+      "openActions": "Open production actions",
+      "actionLibrary": "Production action library",
+      "metric": {
+        "orders": "Orders in view",
+        "running": "Running",
+        "quality": "Waiting for QC",
+        "exceptions": "Revision exceptions"
+      },
+      "action": {
+        "DRAFT": "Release the pinned production order",
+        "RELEASED": "Issue the next material lot",
+        "IN_PROGRESS": "Report the next operation",
+        "QC_PENDING": "Record the quality decision",
+        "COMPLETE": "Review the completed output",
+        "CLOSED_REJECTED": "Review the rejected output",
+        "CANCELLED": "Review the cancelled order"
+      },
+      "stage": {
+        "intake": "Intake",
+        "design": "Design",
+        "plan": "Plan",
+        "produce": "Produce",
+        "quality": "Quality",
+        "store": "Store"
+      }
+    },
     "previewOnly": "Preview mode demonstrates the workflow but does not post material or finished-goods stock.",
     "flowLabel": "Production flow",
     "flow": {
@@ -1941,6 +2021,40 @@
     "factoryTitle": "Factory packets",
     "factoryDescription": "Use only released revision snapshots with approved files, route, quality requirements, and order references.",
     "workflowNavigation": "Order-to-ship workflow",
+    "nextBestAction": "Next best action",
+    "stage": {
+      "intake": "Intake",
+      "design": "Design",
+      "plan": "Plan",
+      "produce": "Produce",
+      "quality": "Quality",
+      "store": "Store"
+    },
+    "workspace": {
+      "sales": {
+        "title": "Customer order workspace",
+        "detail": "Capture the commitment once. Product identity then decides whether the line can reuse a released design or needs Engineering.",
+        "signal": "Order intake ready",
+        "actionTitle": "Create the next customer order",
+        "actionDetail": "Start with the order identity; add product lines and design evidence only after the draft exists."
+      },
+      "engineering": {
+        "title": "Engineering exception workspace",
+        "detail": "Only new or changed designs stop here. Reusable released designs continue without an unnecessary hand-off.",
+        "signal": "Design review needs attention",
+        "actionTitle": "Create or complete the master card",
+        "actionDetail": "Capture the structured design once, then submit the immutable revision for independent release."
+      },
+      "factory": {
+        "title": "Released factory packet workspace",
+        "detail": "The floor sees one trusted revision snapshot with route, materials, quality checks, files, and customer references.",
+        "signal": "Released packet ready",
+        "actionTitle": "Continue to production execution",
+        "actionDetail": "Use the acknowledged packet to create and release the production order; manual packet controls remain below."
+      }
+    },
+    "manualPacketActions": "Manual packet controls",
+    "approvedFileNumber": "Approved file {number}",
     "salesTab": "1. Sales orders",
     "engineeringTab": "2. Engineering",
     "factoryTab": "3. Factory",
