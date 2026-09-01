@@ -47,8 +47,8 @@ vi.mock("@/features/reporting/OwnerOperationsSummary", () => ({
   OwnerOperationsSummary: () => <div data-testid="owner-operations-summary" />,
 }));
 
-vi.mock("@/features/reporting/OwnerPressureRadar", () => ({
-  OwnerPressureRadar: () => <div data-testid="owner-pressure-radar" />,
+vi.mock("@/features/reporting/OwnerPressureBar", () => ({
+  OwnerPressureBar: () => <div data-testid="owner-pressure-bar" />,
 }));
 
 import DashboardPage from "./page";
@@ -80,7 +80,7 @@ describe("DashboardPage", () => {
     expect(screen.getByTestId("owner-pulse")).toBeInTheDocument();
     expect(screen.getByTestId("owner-attention-list")).toBeInTheDocument();
     expect(screen.getByTestId("owner-operations-summary")).toBeInTheDocument();
-    expect(screen.getByTestId("owner-pressure-radar")).toBeInTheDocument();
+    expect(screen.getByTestId("owner-pressure-bar")).toBeInTheDocument();
     expect(screen.getByTestId("occupancy-map")).toBeInTheDocument();
     expect(
       screen.queryByTestId("warehouse-control-hero"),

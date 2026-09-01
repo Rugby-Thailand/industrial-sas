@@ -500,11 +500,11 @@
     "queueTitle": "Queue composition",
     "queueHelp": "Current work waiting across quality and putaway.",
     "pressure": {
-      "title": "Operational pressure",
-      "help": "Current queued work and constrained locations. A smaller shape means fewer blockers.",
-      "scale": "Shared scale: 0–{maximum}",
-      "clear": "All tracked pressure points are clear",
-      "largest": "Largest pressure: {label} ({value})",
+      "title": "Operational bottlenecks",
+      "help": "Queued work and constrained locations, sorted from largest to smallest.",
+      "valueLabel": "Current count",
+      "clear": "No current bottlenecks in the tracked steps",
+      "largest": "Largest bottleneck: {label} ({value})",
       "axis": {
         "inspections": "Inspection",
         "decisions": "Approval",

@@ -12,7 +12,7 @@ import { DashboardQuickActions } from "@/features/reporting/DashboardQuickAction
 import { OccupancyMap } from "@/features/reporting/OccupancyMap";
 import { OwnerAttentionList } from "@/features/reporting/OwnerAttentionList";
 import { OwnerOperationsSummary } from "@/features/reporting/OwnerOperationsSummary";
-import { OwnerPressureRadar } from "@/features/reporting/OwnerPressureRadar";
+import { OwnerPressureBar } from "@/features/reporting/OwnerPressureBar";
 import { OwnerPulse } from "@/features/reporting/OwnerPulse";
 
 // Three dashboard directions, switchable through ?variant=, on the existing route.
@@ -103,7 +103,7 @@ export async function ExecutiveBriefDashboard() {
           className="min-w-0 xl:col-span-3"
           aria-label={t("pressure.title")}
         >
-          <OwnerPressureRadar />
+          <OwnerPressureBar />
         </section>
 
         <Card className="min-w-0 shadow-sm xl:col-span-4">
@@ -222,7 +222,7 @@ export async function ActionQueueDashboard() {
         </Card>
         <div className="grid min-w-0 gap-4">
           <section aria-label={t("pressure.title")}>
-            <OwnerPressureRadar />
+            <OwnerPressureBar />
           </section>
           <section aria-label={t("volumeTitle")}>
             <OwnerOperationsSummary />
@@ -298,7 +298,7 @@ export async function SpatialCommandDashboard() {
             <OwnerOperationsSummary />
           </section>
           <section aria-label={t("pressure.title")}>
-            <OwnerPressureRadar />
+            <OwnerPressureBar />
           </section>
         </div>
       </div>
