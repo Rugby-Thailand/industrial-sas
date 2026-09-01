@@ -12,6 +12,7 @@ import { DashboardQuickActions } from "@/features/reporting/DashboardQuickAction
 import { OccupancyMap } from "@/features/reporting/OccupancyMap";
 import { OwnerAttentionList } from "@/features/reporting/OwnerAttentionList";
 import { OwnerOperationsSummary } from "@/features/reporting/OwnerOperationsSummary";
+import { OwnerPressureRadar } from "@/features/reporting/OwnerPressureRadar";
 import { OwnerPulse } from "@/features/reporting/OwnerPulse";
 
 // Three dashboard directions, switchable through ?variant=, on the existing route.
@@ -83,8 +84,8 @@ export async function ExecutiveBriefDashboard() {
         <OwnerPulse />
       </section>
 
-      <div className="mb-7 grid items-start gap-4 xl:grid-cols-5">
-        <Card className="min-w-0 border-l-4 border-l-warning shadow-sm xl:col-span-3">
+      <div className="mb-7 grid items-start gap-4 xl:grid-cols-12">
+        <Card className="min-w-0 border-l-4 border-l-warning shadow-sm xl:col-span-5">
           <section aria-labelledby="style-a-attention-heading">
             <CardHeader>
               <CardTitle>
@@ -98,7 +99,14 @@ export async function ExecutiveBriefDashboard() {
           </section>
         </Card>
 
-        <Card className="min-w-0 shadow-sm xl:col-span-2">
+        <section
+          className="min-w-0 xl:col-span-3"
+          aria-label={t("pressure.title")}
+        >
+          <OwnerPressureRadar />
+        </section>
+
+        <Card className="min-w-0 shadow-sm xl:col-span-4">
           <section aria-labelledby="style-a-capacity-heading">
             <CardHeader>
               <CardTitle>
@@ -212,9 +220,14 @@ export async function ActionQueueDashboard() {
             </CardContent>
           </section>
         </Card>
-        <section className="min-w-0" aria-label={t("volumeTitle")}>
-          <OwnerOperationsSummary />
-        </section>
+        <div className="grid min-w-0 gap-4">
+          <section aria-label={t("pressure.title")}>
+            <OwnerPressureRadar />
+          </section>
+          <section aria-label={t("volumeTitle")}>
+            <OwnerOperationsSummary />
+          </section>
+        </div>
       </div>
     </div>
   );
@@ -283,6 +296,9 @@ export async function SpatialCommandDashboard() {
           </section>
           <section aria-label={t("volumeTitle")}>
             <OwnerOperationsSummary />
+          </section>
+          <section aria-label={t("pressure.title")}>
+            <OwnerPressureRadar />
           </section>
         </div>
       </div>

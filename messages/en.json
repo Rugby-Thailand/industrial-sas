@@ -499,6 +499,20 @@
     "volumeHelp": "Cumulative warehouse activity from maintained counters.",
     "queueTitle": "Queue composition",
     "queueHelp": "Current work waiting across quality and putaway.",
+    "pressure": {
+      "title": "Operational pressure",
+      "help": "Current queued work and constrained locations. A smaller shape means fewer blockers.",
+      "scale": "Shared scale: 0–{maximum}",
+      "clear": "All tracked pressure points are clear",
+      "largest": "Largest pressure: {label} ({value})",
+      "axis": {
+        "inspections": "Inspection",
+        "decisions": "Approval",
+        "putawayReady": "Ready",
+        "putawayActive": "Active",
+        "capacity": "Capacity"
+      }
+    },
     "activePutaway": "{count, plural, one {# active putaway task} other {# active putaway tasks}}",
     "queueClear": "All tracked queues are clear",
     "noRecordedVolume": "No recorded flow yet",
