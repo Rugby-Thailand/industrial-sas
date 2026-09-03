@@ -39,9 +39,6 @@ export function OwnerOperationsSummaryView({
             </span>
             <div>
               <h3 className="font-semibold text-text">{t("volumeTitle")}</h3>
-              <p className="mt-0.5 text-xs leading-relaxed text-muted">
-                {t("volumeHelp")}
-              </p>
             </div>
           </div>
           <dl className="mt-6 grid grid-cols-2 gap-3">

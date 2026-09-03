@@ -13,7 +13,6 @@ import {
 import {
   Card,
   CardContent,
-  CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
@@ -114,14 +113,11 @@ export function OwnerPressureBarView({
           <CardTitle>
             <h3 id="owner-pressure-bar-title">{t("pressure.title")}</h3>
           </CardTitle>
-          <CardDescription className="text-xs leading-relaxed">
-            {t("pressure.help")}
-          </CardDescription>
         </CardHeader>
 
         <CardContent>
           <ChartContainer
-            className="aspect-auto h-[17rem] w-full min-w-0"
+            className="aspect-auto h-[14rem] w-full min-w-0"
             config={chartConfig}
           >
             <BarChart

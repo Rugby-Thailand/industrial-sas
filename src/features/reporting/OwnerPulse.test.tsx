@@ -74,7 +74,6 @@ describe("OwnerPulseCards", () => {
     expect(screen.getByTestId("owner-metric-decisions")).toHaveTextContent("2");
     expect(screen.getByTestId("owner-metric-putaway")).toHaveTextContent("10");
     const capacity = screen.getByTestId("owner-metric-capacity");
-    expect(screen.getByText("Across 3 mapped locations")).toBeInTheDocument();
     expect(screen.getByText("67%")).toBeInTheDocument();
     expect(within(capacity).queryByText("2")).not.toBeInTheDocument();
     expect(screen.queryByText(/4 work items/)).not.toBeInTheDocument();
@@ -134,8 +133,7 @@ describe("OwnerPulseCards", () => {
     );
 
     const capacity = screen.getByTestId("owner-metric-capacity");
-    expect(capacity).toHaveTextContent("พื้นที่จัดเก็บใกล้เต็ม");
-    expect(capacity).toHaveTextContent("ตรวจจากตำแหน่งจัดเก็บ 1 แห่ง");
+    expect(capacity).toHaveTextContent("ใกล้เต็ม");
     expect(capacity).not.toHaveTextContent("แรงกดดันด้านพื้นที่");
     expect(capacity).not.toHaveTextContent("ตำแหน่งที่ตึงตัว");
   });

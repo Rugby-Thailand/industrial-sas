@@ -36,9 +36,10 @@ describe("OwnerAttentionListView", () => {
       screen.getByText("Finished goods awaiting quality decision"),
     ).toBeInTheDocument();
     expect(screen.getByText("Critical")).toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: "Open source workflow" }),
-    ).toHaveAttribute("href", "/quality");
+    expect(screen.getByRole("link", { name: "Open" })).toHaveAttribute(
+      "href",
+      "/quality",
+    );
     expect(screen.getByText(/This list is partial/)).toBeInTheDocument();
   });
 });

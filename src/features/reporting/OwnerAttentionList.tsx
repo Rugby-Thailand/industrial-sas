@@ -63,18 +63,18 @@ export function OwnerAttentionListView({
       {!payload.complete ? (
         <Notice tone="warning" title={owner("attentionIncomplete")} />
       ) : null}
-      <ul className="mt-3 grid gap-3" data-testid="owner-attention-list">
+      <ul className="mt-2 grid gap-2" data-testid="owner-attention-list">
         {payload.exceptions.slice(0, 6).map((row) => (
           <li
             key={`${row.sourceType}:${row.sourceId}`}
-            className="rounded-xl border border-border bg-raised p-4"
+            className="rounded-xl border border-border bg-raised p-3"
           >
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0 flex-1">
                 <h3 className="text-sm font-semibold text-text">
                   {reports(`exceptionCode.${row.titleCode}`)}
                 </h3>
-                <p className="mt-1 text-sm leading-relaxed text-muted">
+                <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-muted">
                   {row.detail}
                 </p>
               </div>
@@ -83,10 +83,13 @@ export function OwnerAttentionListView({
                 label={reports(`severity.${row.severity}`)}
               />
             </div>
-            <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-              <p className="text-xs text-muted">
-                {reports("occurredAt")}: {formatInstant(row.occurredAt, locale)}
-              </p>
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+              <time
+                className="text-xs text-muted"
+                dateTime={new Date(row.occurredAt).toISOString()}
+              >
+                {formatInstant(row.occurredAt, locale)}
+              </time>
               <Link
                 href={row.deepLink}
                 className="inline-flex min-h-touch items-center gap-1 text-sm font-semibold text-accent underline underline-offset-4"

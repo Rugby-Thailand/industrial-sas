@@ -19,13 +19,11 @@ type MetricKey = "inspections" | "decisions" | "putaway";
 function MetricCard({
   metric,
   value,
-  updatedAt,
   suspect = false,
   icon,
 }: {
   readonly metric: MetricKey;
   readonly value: number;
-  readonly updatedAt?: number | undefined;
   readonly suspect?: boolean | undefined;
   readonly icon: ReactNode;
 }) {
@@ -35,25 +33,25 @@ function MetricCard({
 
   return (
     <Card
-      className="relative min-h-44 overflow-hidden p-0 shadow-sm"
+      className="relative min-h-36 overflow-hidden p-0 shadow-sm"
       data-testid={`owner-metric-${metric}`}
     >
       <div
         aria-hidden="true"
         className={`h-1 w-full ${active ? "bg-warning" : "bg-success"}`}
       />
-      <div className="p-5">
+      <div className="p-4">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-sm font-medium text-muted">
+            <p className="text-xs font-semibold text-muted">
               {t(`metric.${metric}`)}
             </p>
-            <p className="mt-2 font-mono text-4xl font-semibold tracking-tight text-text tabular-nums">
+            <p className="mt-1 font-mono text-3xl font-semibold tracking-tight text-text tabular-nums">
               {format.number(value)}
             </p>
           </div>
           <span
-            className={`grid size-11 shrink-0 place-items-center rounded-xl ${
+            className={`grid size-9 shrink-0 place-items-center rounded-lg ${
               active
                 ? "bg-warning-surface text-warning"
                 : "bg-success-surface text-success"
@@ -62,7 +60,7 @@ function MetricCard({
             {icon}
           </span>
         </div>
-        <div className="mt-4 flex items-center gap-2">
+        <div className="mt-3 flex items-center gap-2">
           <span
             aria-hidden="true"
             className={`size-2 rounded-full ${active ? "bg-warning" : "bg-success"}`}
@@ -73,16 +71,6 @@ function MetricCard({
             {active ? t("metric.attentionLabel") : t("metric.clearLabel")}
           </span>
         </div>
-        {updatedAt === undefined ? null : (
-          <p className="mt-3 border-t border-border pt-3 text-xs text-muted">
-            {t("metric.asOf", {
-              when: format.dateTime(updatedAt, {
-                dateStyle: "medium",
-                timeStyle: "short",
-              }),
-            })}
-          </p>
-        )}
       </div>
       {suspect ? (
         <span
@@ -113,25 +101,25 @@ function CapacityMetricCard({
 
   return (
     <Card
-      className="relative min-h-44 overflow-hidden p-0 shadow-sm"
+      className="relative min-h-36 overflow-hidden p-0 shadow-sm"
       data-testid="owner-metric-capacity"
     >
       <div
         aria-hidden="true"
         className={`h-1 w-full ${active ? "bg-warning" : "bg-success"}`}
       />
-      <div className="p-5">
+      <div className="p-4">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-sm font-medium text-muted">
+            <p className="text-xs font-semibold text-muted">
               {t("metric.capacity")}
             </p>
-            <p className="mt-2 font-mono text-4xl font-semibold tracking-tight text-text tabular-nums">
+            <p className="mt-1 font-mono text-3xl font-semibold tracking-tight text-text tabular-nums">
               {pressure}%
             </p>
           </div>
           <span
-            className={`grid size-11 shrink-0 place-items-center rounded-xl ${
+            className={`grid size-9 shrink-0 place-items-center rounded-lg ${
               active
                 ? "bg-warning-surface text-warning"
                 : "bg-success-surface text-success"
@@ -144,7 +132,7 @@ function CapacityMetricCard({
             )}
           </span>
         </div>
-        <div className="mt-4 flex items-center gap-2">
+        <div className="mt-3 flex items-center gap-2">
           <span
             aria-hidden="true"
             className={`size-2 rounded-full ${active ? "bg-warning" : "bg-success"}`}
@@ -155,11 +143,6 @@ function CapacityMetricCard({
             {active ? t("metric.attentionLabel") : t("metric.clearLabel")}
           </span>
         </div>
-        <p className="mt-3 border-t border-border pt-3 text-xs text-muted">
-          {occupancy.complete
-            ? t("metric.capacityComplete", { count: occupancy.cells.length })
-            : t("metric.capacityPartial")}
-        </p>
       </div>
     </Card>
   );
@@ -184,8 +167,6 @@ export function OwnerPulseCards({
   const ready = tile(tiles, "PUTAWAY_READY");
   const claimed = tile(tiles, "PUTAWAY_CLAIMED");
   const putawayCount = (ready?.count ?? 0) + (claimed?.count ?? 0);
-  const putawayUpdatedAt =
-    Math.max(ready?.updatedAt ?? 0, claimed?.updatedAt ?? 0) || undefined;
   const constrained = occupancy.cells.filter(
     ({ band }) => band === "BUSY" || band === "FULL",
   ).length;
@@ -200,21 +181,18 @@ export function OwnerPulseCards({
       <MetricCard
         metric="inspections"
         value={inspections?.count ?? 0}
-        updatedAt={inspections?.updatedAt}
         suspect={inspections?.suspect}
         icon={<ClipboardCheck aria-hidden="true" className="size-5" />}
       />
       <MetricCard
         metric="decisions"
         value={decisions?.count ?? 0}
-        updatedAt={decisions?.updatedAt}
         suspect={decisions?.suspect}
         icon={<Gauge aria-hidden="true" className="size-5" />}
       />
       <MetricCard
         metric="putaway"
         value={putawayCount}
-        updatedAt={putawayUpdatedAt}
         suspect={Boolean(ready?.suspect || claimed?.suspect)}
         icon={<Warehouse aria-hidden="true" className="size-5" />}
       />
