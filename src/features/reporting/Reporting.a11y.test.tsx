@@ -30,6 +30,7 @@ import { OccupancyGrid } from "./OccupancyMap";
 import { TileList } from "./OperationsTiles";
 import { OwnerAttentionListView } from "./OwnerAttentionList";
 import { OwnerOperationsSummaryView } from "./OwnerOperationsSummary";
+import { OwnerPressureBarView } from "./OwnerPressureBar";
 import { OwnerPulseCards } from "./OwnerPulse";
 import { QuickActionMenu } from "./DashboardQuickActions";
 
@@ -79,6 +80,13 @@ describe("reporting accessibility", () => {
           }}
         />
         <OwnerOperationsSummaryView tiles={previewDashboardTiles()} />
+        <OwnerPressureBarView
+          tiles={previewDashboardTiles()}
+          occupancy={{
+            cells: previewOccupancyFor(BANG_PU),
+            complete: true,
+          }}
+        />
       </>,
       { environment: testEnvironment },
     );

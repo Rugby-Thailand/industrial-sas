@@ -12,6 +12,7 @@ import { DashboardQuickActions } from "@/features/reporting/DashboardQuickAction
 import { OccupancyMap } from "@/features/reporting/OccupancyMap";
 import { OwnerAttentionList } from "@/features/reporting/OwnerAttentionList";
 import { OwnerOperationsSummary } from "@/features/reporting/OwnerOperationsSummary";
+import { OwnerPressureBar } from "@/features/reporting/OwnerPressureBar";
 import { OwnerPulse } from "@/features/reporting/OwnerPulse";
 
 // Three dashboard directions, switchable through ?variant=, on the existing route.
@@ -55,42 +56,48 @@ export async function ExecutiveBriefDashboard() {
       data-testid="dashboard-style-a"
       data-dashboard-style="executive-brief"
     >
-      <header className="mb-6 flex flex-wrap items-end justify-between gap-4 border-b border-border pb-5">
+      <header className="mb-4 flex flex-wrap items-end justify-between gap-4 border-b border-border pb-4">
         <div>
           <Eyebrow label={t("eyebrow")} />
-          <h1 className="mt-3 text-3xl font-bold tracking-tight text-text sm:text-4xl">
+          <h1 className="mt-2 text-2xl font-bold tracking-tight text-text sm:text-3xl">
             {t("title")}
           </h1>
-          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">
-            {t("pulseHelp")}
-          </p>
         </div>
         <LiveBadge label={t("liveData")} />
       </header>
 
-      <section className="mb-7" aria-labelledby="style-a-pulse-heading">
-        <div className="mb-3 flex items-center justify-between gap-3">
+      <section className="mb-4" aria-labelledby="style-a-pulse-heading">
+        <div className="mb-2">
           <h2
             id="style-a-pulse-heading"
             className="text-lg font-semibold text-text"
           >
             {t("pulseTitle")}
           </h2>
-          <span className="hidden text-xs font-medium tracking-wide text-muted uppercase sm:inline">
-            {t("prototype.styleAContext")}
-          </span>
         </div>
         <OwnerPulse />
       </section>
 
-      <div className="mb-7 grid items-start gap-4 xl:grid-cols-5">
-        <Card className="min-w-0 border-l-4 border-l-warning shadow-sm xl:col-span-3">
+      <Card className="mb-4 min-w-0 shadow-sm">
+        <section aria-labelledby="style-a-capacity-heading">
+          <CardHeader className="pb-3">
+            <CardTitle>
+              <h2 id="style-a-capacity-heading">{t("capacityTitle")}</h2>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <OccupancyMap />
+          </CardContent>
+        </section>
+      </Card>
+
+      <div className="mb-4 grid items-start gap-4 xl:grid-cols-12">
+        <Card className="min-w-0 border-l-4 border-l-warning shadow-sm xl:col-span-7">
           <section aria-labelledby="style-a-attention-heading">
             <CardHeader>
               <CardTitle>
                 <h2 id="style-a-attention-heading">{t("attentionTitle")}</h2>
               </CardTitle>
-              <CardDescription>{t("attentionHelp")}</CardDescription>
             </CardHeader>
             <CardContent>
               <OwnerAttentionList />
@@ -98,19 +105,12 @@ export async function ExecutiveBriefDashboard() {
           </section>
         </Card>
 
-        <Card className="min-w-0 shadow-sm xl:col-span-2">
-          <section aria-labelledby="style-a-capacity-heading">
-            <CardHeader>
-              <CardTitle>
-                <h2 id="style-a-capacity-heading">{t("capacityTitle")}</h2>
-              </CardTitle>
-              <CardDescription>{t("capacityHelp")}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <OccupancyMap />
-            </CardContent>
-          </section>
-        </Card>
+        <section
+          className="min-w-0 xl:col-span-5"
+          aria-label={t("pressure.title")}
+        >
+          <OwnerPressureBar />
+        </section>
       </div>
 
       <div className="grid items-start gap-4 xl:grid-cols-5">
@@ -212,9 +212,14 @@ export async function ActionQueueDashboard() {
             </CardContent>
           </section>
         </Card>
-        <section className="min-w-0" aria-label={t("volumeTitle")}>
-          <OwnerOperationsSummary />
-        </section>
+        <div className="grid min-w-0 gap-4">
+          <section aria-label={t("pressure.title")}>
+            <OwnerPressureBar />
+          </section>
+          <section aria-label={t("volumeTitle")}>
+            <OwnerOperationsSummary />
+          </section>
+        </div>
       </div>
     </div>
   );
@@ -283,6 +288,9 @@ export async function SpatialCommandDashboard() {
           </section>
           <section aria-label={t("volumeTitle")}>
             <OwnerOperationsSummary />
+          </section>
+          <section aria-label={t("pressure.title")}>
+            <OwnerPressureBar />
           </section>
         </div>
       </div>

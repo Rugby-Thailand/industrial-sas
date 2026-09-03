@@ -128,6 +128,18 @@ describe("the occupancy map", () => {
     expect(screen.queryByTestId("occupancy-pressure")).not.toBeInTheDocument();
   });
 
+  it("shows the percentage of mapped locations that contain stock", () => {
+    render();
+
+    const progress = screen.getByRole("progressbar", {
+      name: /ใช้ตำแหน่งที่แสดง 80%/,
+    });
+    expect(progress).toHaveAttribute("aria-valuenow", "80");
+    expect(screen.getByTestId("occupancy-utilization")).toHaveTextContent(
+      "มีสินค้า 4 จาก 5 ตำแหน่ง",
+    );
+  });
+
   it("says so when the map is not the whole site", () => {
     render(false);
     expect(screen.getByTestId("occupancy-partial")).toBeInTheDocument();
