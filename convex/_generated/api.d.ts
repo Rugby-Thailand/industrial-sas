@@ -150,6 +150,7 @@ import type * as reporting_rollups from "../reporting/rollups.js";
 import type * as sales_customers from "../sales/customers.js";
 import type * as sales_orders from "../sales/orders.js";
 import type * as storageLayouts_catalogue from "../storageLayouts/catalogue.js";
+import type * as storageLayouts_locationCatalogue from "../storageLayouts/locationCatalogue.js";
 import type * as storageLayouts_writes from "../storageLayouts/writes.js";
 import type * as storageLayouts_zones from "../storageLayouts/zones.js";
 import type * as transfers_requests from "../transfers/requests.js";
@@ -304,6 +305,7 @@ declare const fullApi: ApiFromModules<{
   "sales/customers": typeof sales_customers;
   "sales/orders": typeof sales_orders;
   "storageLayouts/catalogue": typeof storageLayouts_catalogue;
+  "storageLayouts/locationCatalogue": typeof storageLayouts_locationCatalogue;
   "storageLayouts/writes": typeof storageLayouts_writes;
   "storageLayouts/zones": typeof storageLayouts_zones;
   "transfers/requests": typeof transfers_requests;

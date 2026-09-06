@@ -20,6 +20,7 @@ import { useTranslations } from "next-intl";
 import { QRCodeSVG } from "qrcode.react";
 import {
   useId,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -75,6 +76,11 @@ import {
   projectIsometricPoint,
   unprojectIsometricDelta,
 } from "@/lib/storageLayouts/isometricGeometry";
+
+import {
+  StorageLocationCatalogue,
+  type CatalogueFilters,
+} from "./StorageLocationCatalogue";
 
 const metres = (millimetres: number) => millimetres / 1_000;
 const millimetres = (value: string) => Math.round(Number(value) * 1_000);
@@ -173,18 +179,27 @@ function ChangeImpactSummary({
 export function StorageBuildingCatalogue() {
   return (
     <QueryGate scope="WAREHOUSE">
-      {(warehouseId) => <CatalogueContent warehouseId={warehouseId} />}
+      {(warehouseId) => (
+        <StorageLocationCatalogue key={warehouseId} warehouseId={warehouseId}>
+          {(filters) => (
+            <CatalogueContent warehouseId={warehouseId} {...filters} />
+          )}
+        </StorageLocationCatalogue>
+      )}
     </QueryGate>
   );
 }
 
-function CatalogueContent({ warehouseId }: { readonly warehouseId: string }) {
+function CatalogueContent({
+  warehouseId,
+  search,
+  status,
+  onSearchChange,
+  onStatusChange,
+}: { readonly warehouseId: string } & CatalogueFilters) {
   const t = useTranslations("StorageLayouts");
-  const [search, setSearch] = useState("");
-  const [status, setStatus] = useState<StorageLayoutStatus | "ALL">("ALL");
   const outcome = useQuery(storageLayoutRefs.list, {
     warehouseId,
-    ...(status === "ALL" ? {} : { status }),
   });
   if (outcome === undefined) return <LoadingCard />;
   if (!outcome.ok) return <QueryFailure />;
@@ -207,17 +222,18 @@ function CatalogueContent({ warehouseId }: { readonly warehouseId: string }) {
   const normalizedSearch = search.trim().toLocaleLowerCase();
   const buildings = outcome.value.filter(
     (building) =>
-      normalizedSearch.length === 0 ||
-      building.code.toLocaleLowerCase().includes(normalizedSearch) ||
-      building.name.toLocaleLowerCase().includes(normalizedSearch),
+      (status === "ALL" || building.status === status) &&
+      (normalizedSearch.length === 0 ||
+        building.code.toLocaleLowerCase().includes(normalizedSearch) ||
+        building.name.toLocaleLowerCase().includes(normalizedSearch)),
   );
   return (
     <div className="space-y-5">
       <StorageCatalogueFilters
         search={search}
         status={status}
-        onSearchChange={setSearch}
-        onStatusChange={setStatus}
+        onSearchChange={onSearchChange}
+        onStatusChange={onStatusChange}
       />
       {buildings.length === 0 ? (
         <EmptyState title={t("noMatches")} body={t("noMatchesBody")} />
@@ -289,7 +305,7 @@ export function StorageCatalogueFilters({
   return (
     <div
       data-testid="storage-catalogue-filters"
-      className="grid gap-3 rounded-xl border border-border bg-surface p-4 shadow-sm sm:grid-cols-[minmax(0,1fr)_14rem]"
+      className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_14rem]"
     >
       <label className="relative min-w-0">
         <span className="sr-only">{t("search")}</span>
@@ -2936,6 +2952,25 @@ export function StorageZonesPanel({
   const [stackHeight, setStackHeight] = useState(String(metres(floorHeightMm)));
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editingZone, setEditingZone] = useState<StorageZoneRow>();
+  const openedFromLink = useRef(false);
+  useEffect(() => {
+    const requested = new URLSearchParams(window.location.search).get(
+      "editZone",
+    );
+    const zone = zones.find((item) => item.zoneId === requested);
+    if (editable && zone && !openedFromLink.current) {
+      openedFromLink.current = true;
+      setEditingZone(zone);
+      setLabel(zone.label);
+      setStorageCondition(zone.storageCondition?.trim().toUpperCase() || "ANY");
+      setZoneX(String(metres(zone.xMm)));
+      setZoneY(String(metres(zone.yMm)));
+      setZoneWidth(String(metres(zone.widthMm)));
+      setZoneDepth(String(metres(zone.depthMm)));
+      setStackHeight(String(metres(zone.maxStackHeightMm)));
+      setCreateDialogOpen(true);
+    }
+  }, [editable, zones]);
   const [confirmingImpact, setConfirmingImpact] = useState(false);
   const [pendingAction, setPendingAction] = useState<string>();
   const [message, setMessage] = useState<{
@@ -3300,7 +3335,8 @@ export function StorageZonesPanel({
           return (
             <article
               key={zone.zoneId}
-              className="rounded-xl border border-border bg-background p-4"
+              id={`storage-zone-${zone.zoneId}`}
+              className="scroll-mt-6 rounded-xl border border-border bg-background p-4 target:border-accent target:ring-1 target:ring-accent"
             >
               <div className="flex gap-4">
                 <div className="shrink-0 rounded-lg bg-white p-2">
