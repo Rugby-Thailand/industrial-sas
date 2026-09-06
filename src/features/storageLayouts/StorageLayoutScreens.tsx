@@ -2050,8 +2050,8 @@ function FloorPlanDrawing({
         width={baseWidthMm}
         height={baseDepthMm}
         className="fill-none stroke-muted"
-        strokeDasharray={`${padding / 5} ${padding / 5}`}
-        strokeWidth={Math.max(30, drawingWidth / 900)}
+        strokeDasharray="6 4"
+        strokeWidth={1.5}
         vectorEffect="non-scaling-stroke"
       />
       <rect
@@ -2060,7 +2060,7 @@ function FloorPlanDrawing({
         width={widthMm}
         height={depthMm}
         className="fill-accent/15 stroke-accent"
-        strokeWidth={Math.max(40, drawingWidth / 700)}
+        strokeWidth={2}
         vectorEffect="non-scaling-stroke"
       />
       <text
@@ -2113,7 +2113,7 @@ function FloorPlanDrawing({
             width={zone.widthMm}
             height={zone.depthMm}
             className="fill-success/30 stroke-success"
-            strokeWidth={Math.max(40, drawingWidth / 700)}
+            strokeWidth={2}
             vectorEffect="non-scaling-stroke"
           />
           <text
