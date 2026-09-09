@@ -12,6 +12,8 @@ import tseslint from "typescript-eslint";
 export default tseslint.config(
   {
     ignores: [
+      ".cache/**",
+      ".next-build/**",
       ".next/**",
       ".next-preview/**",
       // The dedicated Playwright build directories (see playwright.config.ts).

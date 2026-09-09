@@ -1,0 +1,72 @@
+chapter,step,title,image,capture_url,status
+chapter-01,01-01,เลือกคลัง ภาษา และเมนู,screenshots/original/01-01.jpg,http://localhost:3100/th/finished-goods,captured
+chapter-01,01-02,เปลี่ยนคลังสินค้า,screenshots/original/01-02.jpg,http://localhost:3100/th/finished-goods,captured
+chapter-01,01-03,เลือกภาษาไทยหรืออังกฤษ,screenshots/original/01-03.jpg,http://localhost:3100/th/finished-goods,captured
+chapter-02,02-01,เริ่มจากรายการสินค้า,screenshots/original/02-01.jpg,http://localhost:3100/th/finished-goods,captured
+chapter-02,02-02,กรองและเรียงข้อมูล,screenshots/original/02-02.jpg,http://localhost:3100/th/finished-goods?fg=%7B%22search%22%3A%22BATCH-QA-0906%22%7D,captured
+chapter-02,02-03,ดูผลลัพธ์และล้างเงื่อนไข,screenshots/original/02-03.jpg,http://localhost:3100/th/finished-goods?fg=%7B%22search%22%3A%22BATCH-QA-0906%22%2C%22products%22%3A%7B%22formats%22%3A%5B%22BOX%22%5D%7D%7D,captured
+chapter-02,02-04,เมื่อค้นหาไม่พบ,screenshots/original/02-04.jpg,http://localhost:3100/th/finished-goods?fg=%7B%22search%22%3A%22%E0%B9%84%E0%B8%A1%E0%B9%88%E0%B8%A1%E0%B8%B5%E0%B8%AA%E0%B8%B4%E0%B8%99%E0%B8%84%E0%B9%89%E0%B8%B2%E0%B8%8A%E0%B8%B7%E0%B9%88%E0%B8%AD%E0%B8%99%E0%B8%B5%E0%B9%89%22%2C%22products%22%3A%7B%22formats%22%3A%5B%22BOX%22%5D%7D%7D,captured
+chapter-02,02-05,ใช้ตารางและแก้ไขจากแถว,screenshots/original/02-05.jpg,http://localhost:3100/th/finished-goods?fg=%7B%22layout%22%3A%22table%22%7D,captured
+chapter-02,02-06,ตั้งช่วงจำนวนและลำดับ,screenshots/original/02-06.jpg,http://localhost:3100/th/finished-goods?fg=%7B%22layout%22%3A%22table%22%7D,captured
+chapter-02,02-07,ค้นหาหน่วยจัดเก็บและเปิดรายการที่ต้องการ,screenshots/original/02-07.jpg,http://localhost:3100/th/finished-goods?fg=%7B%22tab%22%3A%22pallets%22%2C%22layout%22%3A%22table%22%2C%22search%22%3A%22MANUAL%22%7D,captured
+chapter-02,02-08,กรองตามขนาดและเรียงลำดับ,screenshots/original/02-08.jpg,http://localhost:3100/th/finished-goods?fg=%7B%22tab%22%3A%22pallets%22%2C%22layout%22%3A%22table%22%2C%22search%22%3A%22MANUAL%22%7D,captured
+chapter-03,03-01,สร้างข้อมูลสินค้า FG,screenshots/original/03-01.jpg,http://localhost:3100/th/finished-goods/new,captured
+chapter-03,03-02,กำหนดการจัดเก็บและไปบรรจุ,screenshots/original/03-02.jpg,http://localhost:3100/th/finished-goods/new,captured
+chapter-03,03-03,แก้ข้อมูล FG และเปิดชุดจัดเตรียม,screenshots/original/03-03.jpg,http://localhost:3100/th/finished-goods/products/n97cytm28pdx9xzqnrazzwc2xh8dz9cq,captured
+chapter-04,04-01,กำหนดจำนวนและแบ่งบรรจุ,screenshots/original/04-01.jpg,http://localhost:3100/th/finished-goods/products/n97cytm28pdx9xzqnrazzwc2xh8dz9cq/packing,captured
+chapter-04,04-02,วัดขนาดภายนอกจริง,screenshots/original/04-02.jpg,http://localhost:3100/th/finished-goods/products/n97cytm28pdx9xzqnrazzwc2xh8dz9cq/packing,captured
+chapter-04,04-03,คัดลอกขนาดเพื่อลดการกรอกซ้ำ,screenshots/original/04-03.jpg,http://localhost:3100/th/finished-goods/products/n97cytm28pdx9xzqnrazzwc2xh8dz9cq/packing,captured
+chapter-04,04-04,ตรวจยอดรวมก่อนสร้าง,screenshots/original/04-04.jpg,http://localhost:3100/th/finished-goods/products/n97cytm28pdx9xzqnrazzwc2xh8dz9cq/packing,captured
+chapter-04,04-05,ยืนยันสร้างหน่วยจัดเก็บ,screenshots/original/04-05.jpg,http://localhost:3100/th/finished-goods/products/n97cytm28pdx9xzqnrazzwc2xh8dz9cq/packing,captured
+chapter-04,04-06,ผลลัพธ์หลังสร้าง,screenshots/original/04-06.jpg,http://localhost:3100/th/finished-goods/products/n97cytm28pdx9xzqnrazzwc2xh8dz9cq/packing,captured
+chapter-04,04-07,ทางเลือก: แบ่งเท่ากันตามจำนวนหน่วย,screenshots/original/04-07.jpg,http://localhost:3100/th/finished-goods/products/n97cytm28pdx9xzqnrazzwc2xh8dz9cq/packing?draft=e2f6993c-9265-4c69-a213-e8a6ea869f9b,captured
+chapter-04,04-08,ทางเลือก: กำหนดเอง เพิ่มหรือลบหน่วย,screenshots/original/04-08.jpg,http://localhost:3100/th/finished-goods/products/n97cytm28pdx9xzqnrazzwc2xh8dz9cq/packing?draft=e2f6993c-9265-4c69-a213-e8a6ea869f9b,captured
+chapter-05,05-01,เลือกแก้เฉพาะหน่วยหรือทั้งชุดที่ยังว่าง,screenshots/original/05-01.jpg,http://localhost:3100/th/finished-goods/products/n97cytm28pdx9xzqnrazzwc2xh8dz9cq,captured
+chapter-05,05-02,ตรวจว่ากำลังแก้หน่วยที่ถูกต้อง,screenshots/original/05-02.jpg,http://localhost:3100/th/finished-goods/products/n97cytm28pdx9xzqnrazzwc2xh8dz9cq,captured
+chapter-05,05-03,ออกจากหน้าที่มีการแก้ไขค้างอยู่,screenshots/original/05-03.jpg,http://localhost:3100/th/finished-goods/products/n97cytm28pdx9xzqnrazzwc2xh8dz9cq,captured
+chapter-05,05-04,แบ่ง 4 พาเลทให้เหลือ 2 พาเลท,screenshots/original/05-04.jpg,http://localhost:3100/th/finished-goods/products/n97cytm28pdx9xzqnrazzwc2xh8dz9cq,captured
+chapter-05,05-05,ยืนยันจำนวนหน่วยทดแทน,screenshots/original/05-05.jpg,http://localhost:3100/th/finished-goods/products/n97cytm28pdx9xzqnrazzwc2xh8dz9cq,captured
+chapter-05,05-06,ผลหลังแบ่งใหม่: สองพาเลท ยอดรวมเดิม,screenshots/original/05-06.jpg,http://localhost:3100/th/finished-goods/products/n97cytm28pdx9xzqnrazzwc2xh8dz9cq,captured
+chapter-05,05-07,ตรวจประวัติการแบ่งบรรจุ,screenshots/original/05-07.jpg,http://localhost:3100/th/finished-goods/products/n97cytm28pdx9xzqnrazzwc2xh8dz9cq,captured
+chapter-06,06-01,เปิดอาคารหรือสร้างอาคารใหม่,screenshots/original/06-01.jpg,http://localhost:3100/th/master-data/storage-layouts,captured
+chapter-06,06-02,กำหนดขนาดอาคาร,screenshots/original/06-02.jpg,http://localhost:3100/th/master-data/storage-layouts/new,captured
+chapter-06,06-03,เลือกชั้นและแก้ไขอาคาร,screenshots/original/06-03.jpg,http://localhost:3100/th/master-data/storage-layouts/rs7crk5dp2rhx2b54bthkvb2wx8dzpz7,captured
+chapter-06,06-04,แก้ขนาดหรือเพิ่มชั้น,screenshots/original/06-04.jpg,http://localhost:3100/th/master-data/storage-layouts/rs7crk5dp2rhx2b54bthkvb2wx8dzpz7,captured
+chapter-06,06-05,ตรวจสอบก่อนเปิดใช้งาน,screenshots/original/06-05.jpg,http://localhost:3100/th/master-data/storage-layouts/rs7crk5dp2rhx2b54bthkvb2wx8dzpz7/review,captured
+chapter-07,07-01,วางแผนพื้นที่ชั้น,screenshots/original/07-01.jpg,http://localhost:3100/th/master-data/storage-layouts/rs7crk5dp2rhx2b54bthkvb2wx8dzpz7/floors/1,captured
+chapter-07,07-02,กำหนดพื้นที่ห้ามจัดเก็บ,screenshots/original/07-02.jpg,http://localhost:3100/th/master-data/storage-layouts/rs7crk5dp2rhx2b54bthkvb2wx8dzpz7/floors/1,captured
+chapter-07,07-03,บันทึกผังก่อนเพิ่มจุดจัดเก็บ,screenshots/original/07-03.jpg,http://localhost:3100/th/master-data/storage-layouts/rs7crk5dp2rhx2b54bthkvb2wx8dzpz7/floors/1,captured
+chapter-07,07-04,ตั้งชื่อและขอบเขตจุดจัดเก็บ,screenshots/original/07-04.jpg,http://localhost:3100/th/master-data/storage-layouts/rs7crk5dp2rhx2b54bthkvb2wx8dzpz7/floors/1,captured
+chapter-07,07-05,อ่านชื่อ Location และรหัส QR,screenshots/original/07-05.jpg,http://localhost:3100/th/master-data/storage-layouts/rs7crk5dp2rhx2b54bthkvb2wx8dzpz7/floors/1,captured
+chapter-07,07-06,แก้ไขจุดจัดเก็บจากหน้าพาเลทโดยตรง,screenshots/original/07-06.jpg,http://localhost:3100/th/master-data/storage-layouts/rs7crk5dp2rhx2b54bthkvb2wx8dzpz7/floors/1?editZone=s97exz1yjvhat53ya0ww0f59r58dy5b6#storage-zone-s97exz1yjvhat53ya0ww0f59r58dy5b6,captured
+chapter-08,08-01,เปิดหน่วยและเลือกพื้นที่จัดเก็บ,screenshots/original/08-01.jpg,http://localhost:3100/th/finished-goods/pallets/n178kx5n3hgj0m6v538tcrkyyh8dz4g3,captured
+chapter-08,08-02,ค้นหาและเลือก Location,screenshots/original/08-02.jpg,http://localhost:3100/th/finished-goods/pallets/n178kx5n3hgj0m6v538tcrkyyh8dz4g3/storage,captured
+chapter-08,08-03,กำหนดตำแหน่งย่อยภายใน Location,screenshots/original/08-03.jpg,http://localhost:3100/th/finished-goods/pallets/n178kx5n3hgj0m6v538tcrkyyh8dz4g3/storage,captured
+chapter-08,08-04,ตำแหน่งสีแดงหมายถึงวางไม่ได้,screenshots/original/08-04.jpg,http://localhost:3100/th/finished-goods/pallets/n178kx5n3hgj0m6v538tcrkyyh8dz4g3/storage,captured
+chapter-08,08-05,ตรวจปลายทางก่อนจอง,screenshots/original/08-05.jpg,http://localhost:3100/th/finished-goods/pallets/n178kx5n3hgj0m6v538tcrkyyh8dz4g3/storage,captured
+chapter-08,08-06,นำหน่วยไปยังตำแหน่งที่จอง,screenshots/original/08-06.jpg,http://localhost:3100/th/finished-goods/pallets/n178kx5n3hgj0m6v538tcrkyyh8dz4g3,captured
+chapter-08,08-07,สแกนหรือกรอกรหัสปลายทาง,screenshots/original/08-07.jpg,http://localhost:3100/th/finished-goods/pallets/n178kx5n3hgj0m6v538tcrkyyh8dz4g3,captured
+chapter-08,08-08,รหัสผิดต้องแก้ก่อนยืนยัน,screenshots/original/08-08.jpg,http://localhost:3100/th/finished-goods/pallets/n178kx5n3hgj0m6v538tcrkyyh8dz4g3,captured
+chapter-08,08-09,ยืนยันหลังวางจริง,screenshots/original/08-09.jpg,http://localhost:3100/th/finished-goods/pallets/n178kx5n3hgj0m6v538tcrkyyh8dz4g3,captured
+chapter-08,08-10,ผลสำเร็จและทางแก้ไขที่อยู่ใกล้ข้อมูล,screenshots/original/08-10.jpg,http://localhost:3100/th/finished-goods/pallets/n178kx5n3hgj0m6v538tcrkyyh8dz4g3,captured
+chapter-09,09-01,เลือกที่ใหม่ก่อนเริ่มย้าย,screenshots/original/09-01.jpg,http://localhost:3100/th/finished-goods/pallets/n178kx5n3hgj0m6v538tcrkyyh8dz4g3/move,captured
+chapter-09,09-02,ตรวจต้นทางและปลายทาง,screenshots/original/09-02.jpg,http://localhost:3100/th/finished-goods/pallets/n178kx5n3hgj0m6v538tcrkyyh8dz4g3/move,captured
+chapter-09,09-03,ตรวจพาเลทก่อนเริ่มย้าย,screenshots/original/09-03.jpg,http://localhost:3100/th/finished-goods/pallets/n178kx5n3hgj0m6v538tcrkyyh8dz4g3/move,captured
+chapter-09,09-04,ตรวจปลายทางหลังเคลื่อนย้าย,screenshots/original/09-04.jpg,http://localhost:3100/th/finished-goods/pallets/n178kx5n3hgj0m6v538tcrkyyh8dz4g3/move,captured
+chapter-09,09-05,รายงานปัญหาระหว่างย้าย,screenshots/original/09-05.jpg,http://localhost:3100/th/finished-goods/pallets/n178kx5n3hgj0m6v538tcrkyyh8dz4g3/move,captured
+chapter-09,09-06,ตรวจตำแหน่งใหม่และประวัติ,screenshots/original/09-06.jpg,http://localhost:3100/th/finished-goods/pallets/n178kx5n3hgj0m6v538tcrkyyh8dz4g3,captured
+chapter-09,09-07,คืนต้นทางเมื่อย้ายต่อไม่ได้,screenshots/original/09-07.jpg,http://localhost:3100/th/finished-goods/pallets/n1700hqc99t29bjty2wh6r6y518dyrr4/move,captured
+chapter-10,10-01,อนุญาตให้พาเลทเป็นฐานรองรับ,screenshots/original/10-01.jpg,http://localhost:3100/th/finished-goods/pallets/n178kx5n3hgj0m6v538tcrkyyh8dz4g3/stack,captured
+chapter-10,10-02,เลือกพาเลทด้านบนและตรวจระดับสูง,screenshots/original/10-02.jpg,http://localhost:3100/th/finished-goods/pallets/n178kx5n3hgj0m6v538tcrkyyh8dz4g3/stack,captured
+chapter-10,10-03,ตรวจรอยวางจากด้านบน,screenshots/original/10-03.jpg,http://localhost:3100/th/finished-goods/pallets/n178kx5n3hgj0m6v538tcrkyyh8dz4g3/stack,captured
+chapter-10,10-04,ตรวจรหัสทั้งฐานและพาเลทด้านบน,screenshots/original/10-04.jpg,http://localhost:3100/th/finished-goods/pallets/n1700hqc99t29bjty2wh6r6y518dyrr4,captured
+chapter-10,10-05,ซ้อนสำเร็จ,screenshots/original/10-05.jpg,http://localhost:3100/th/finished-goods/pallets/n1700hqc99t29bjty2wh6r6y518dyrr4,captured
+chapter-10,10-06,ฐานถูกล็อกเมื่อมีพาเลทด้านบน,screenshots/original/10-06.jpg,http://localhost:3100/th/finished-goods/pallets/n178kx5n3hgj0m6v538tcrkyyh8dz4g3,captured
+chapter-10,10-07,วางเหลื่อมฐาน: ยกสูงแต่ยังใช้ไม่ได้,screenshots/original/10-07.jpg,http://localhost:3100/th/finished-goods/pallets/n1700hqc99t29bjty2wh6r6y518dyrr4/move,captured
+chapter-10,10-08,ย้ายพาเลทด้านบนลงพื้น,screenshots/original/10-08.jpg,http://localhost:3100/th/finished-goods/pallets/n1700hqc99t29bjty2wh6r6y518dyrr4/move,captured
+chapter-10,10-09,ฐานปลดล็อกเมื่อย้ายด้านบนออกสำเร็จ,screenshots/original/10-09.jpg,http://localhost:3100/th/finished-goods/pallets/n178kx5n3hgj0m6v538tcrkyyh8dz4g3,captured
+chapter-11,11-01,เปิดลิงก์เดิมหลังมีการแบ่งบรรจุใหม่,screenshots/original/11-01.jpg,http://localhost:3100/th/finished-goods/products/n97cytm28pdx9xzqnrazzwc2xh8dz9cq/packing,captured
+chapter-11,11-02,ชุดที่ใช้งานอยู่ถูกป้องกันการแบ่งใหม่,screenshots/original/11-02.jpg,http://localhost:3100/th/finished-goods/batches/p97830fsart3d1sm1dwzwsnkq18dzy1n,captured
+chapter-12,12-01,ค้นหาและเปิดรายการบนมือถือ,screenshots/original/12-01.jpg,http://localhost:3100/th/finished-goods?fg=%7B%22tab%22%3A%22pallets%22%2C%22search%22%3A%22MANUAL%22%7D,captured
+chapter-12,12-02,ตัวกรองบนจอเล็ก,screenshots/original/12-02.jpg,http://localhost:3100/th/finished-goods?fg=%7B%22tab%22%3A%22pallets%22%2C%22search%22%3A%22MANUAL%22%7D,captured
+chapter-12,12-03,ดูตำแหน่งและแก้ไขบนมือถือ,screenshots/original/12-03.jpg,http://localhost:3100/th/finished-goods/pallets/n1700hqc99t29bjty2wh6r6y518dyrr4,captured

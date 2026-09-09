@@ -7,6 +7,8 @@ import { SelectControl } from "@/components/ui/SelectControl";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import { LOCALES, type AppLocale } from "@/i18n/routing";
 
+const LANGUAGE_FLAGS: Record<AppLocale, string> = { th: "🇹🇭", en: "🇬🇧" };
+
 export function LocaleSwitcher() {
   const t = useTranslations("Locale");
   const locale = useLocale();
@@ -17,7 +19,7 @@ export function LocaleSwitcher() {
 
   return (
     <span className="inline-flex items-center gap-2 text-sm">
-      <label htmlFor={controlId} className="text-muted">
+      <label htmlFor={controlId} className="sr-only">
         {t("label")}
       </label>
       <SelectControl
@@ -26,15 +28,20 @@ export function LocaleSwitcher() {
         pending={isPending}
         placeholder={t("label")}
         emptyLabel={t("label")}
-        className="w-40"
+        className="h-8 min-h-8! w-28 rounded-full border-border px-3 py-0 text-xs whitespace-nowrap"
         testId="locale-select"
         options={LOCALES.map((candidate) => ({
           value: candidate,
-          label: t(candidate),
+          label: `${LANGUAGE_FLAGS[candidate]} ${t(candidate)}`,
         }))}
         onValueChange={(next) => {
           startTransition(() => {
-            router.replace(pathname, { locale: next as AppLocale });
+            router.replace(
+              `${pathname}${window.location.search}${window.location.hash}`,
+              {
+                locale: next as AppLocale,
+              },
+            );
           });
         }}
       />

@@ -1,0 +1,48 @@
+{
+  "width": 1728,
+  "height": 940,
+  "fps": 10,
+  "durationMs": 2632,
+  "frames": [
+    {
+      "path": "recording/frame-0000.png",
+      "timestampMs": 0
+    },
+    {
+      "path": "recording/frame-0001.png",
+      "timestampMs": 241
+    },
+    {
+      "path": "recording/frame-0002.png",
+      "timestampMs": 503
+    },
+    {
+      "path": "recording/frame-0003.png",
+      "timestampMs": 769
+    },
+    {
+      "path": "recording/frame-0004.png",
+      "timestampMs": 1040
+    },
+    {
+      "path": "recording/frame-0005.png",
+      "timestampMs": 1325
+    },
+    {
+      "path": "recording/frame-0006.png",
+      "timestampMs": 1594
+    },
+    {
+      "path": "recording/frame-0007.png",
+      "timestampMs": 1864
+    },
+    {
+      "path": "recording/frame-0008.png",
+      "timestampMs": 2108
+    },
+    {
+      "path": "recording/frame-0009.png",
+      "timestampMs": 2360
+    }
+  ]
+}

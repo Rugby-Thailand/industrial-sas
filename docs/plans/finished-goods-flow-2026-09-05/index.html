@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="en">
+  <meta charset="utf-8" /><meta
+    name="viewport"
+    content="width=device-width,initial-scale=1"
+  /><title>Finished goods — action flow proposal</title
+  ><style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      background: #0b1116;
+      color: #e9eef3;
+      font:
+        16px/1.6 system-ui,
+        sans-serif;
+    }
+    main {
+      max-width: 1500px;
+      margin: auto;
+      padding: 40px 28px;
+    }
+    h1 {
+      font-size: 32px;
+      line-height: 1.2;
+      margin: 8px 0 16px;
+    }
+    p {
+      max-width: 900px;
+      color: #b6c2ce;
+    }
+    .tag {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.13em;
+      color: #87b9ff;
+    }
+    nav {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      position: sticky;
+      top: 0;
+      background: #0b1116ed;
+      padding: 14px 0;
+      z-index: 2;
+    }
+    a {
+      color: #9dc6ff;
+    }
+    nav a {
+      padding: 6px 12px;
+      text-decoration: none;
+      border: 1px solid #344452;
+      border-radius: 24px;
+      font-size: 13px;
+    }
+    section {
+      scroll-margin-top: 90px;
+      border-top: 1px solid #344452;
+      padding: 24px 0 38px;
+    }
+    h2 {
+      font-size: 22px;
+      margin: 0 0 8px;
+    }
+    .number {
+      color: #87b9ff;
+      margin-right: 12px;
+    }
+    img {
+      display: block;
+      width: 100%;
+      height: auto;
+      border: 1px solid #344452;
+      border-radius: 12px;
+    }
+    details {
+      background: #17212b;
+      border-radius: 12px;
+      padding: 16px 22px;
+      margin: 20px 0 30px;
+    }
+    summary {
+      cursor: pointer;
+    }
+    ol {
+      padding-left: 22px;
+    }
+    footer {
+      padding: 30px 0;
+      color: #9baab9;
+    }
+  </style>
+  <main>
+    <div class="tag">Design history · Generated concepts</div>
+    <h1>Finished goods → measurement → exact storage</h1>
+    <p>
+      Two creation steps, followed by storage selection and physical
+      confirmation. <strong>FG-001</strong> is the product,
+      <strong>P-001</strong> is the pallet, <strong>FG-1</strong> is the
+      location, and <strong>P01</strong> is a precise position inside that
+      location.
+    </p>
+    <p>
+      <a href="flow.md">Current implemented flow and diagram</a> ·
+      <a href="design-proposal.md">Original design proposal</a> ·
+      <a href="prompts.json">Image-generation prompts</a>
+    </p>
+    <nav>
+      <a href="#action1">1. Add finished good</a
+      ><a href="#action2">2. Next: Measure</a
+      ><a href="#action3">3. Save and find storage</a
+      ><a href="#action4">4. Adjust position</a
+      ><a href="#action5">5. Confirm spot</a
+      ><a href="#action6">6. Reserve spot</a
+      ><a href="#action7">7. Scan destination QR</a
+      ><a href="#action8">8. Confirm stored</a>
+    </nav>
+    <details open>
+      <summary>Click-by-click flow</summary>
+      <ol>
+        <li>
+          <strong>Add finished good</strong> → Opens the full product-details
+          page. This is step 1 of 2.
+        </li>
+        <li>
+          <strong>Next: Measure</strong> → Opens step 2 for the physical pallet,
+          actual quantity, and external dimensions.
+        </li>
+        <li>
+          <strong>Save and find storage</strong> → Shows a precise proposed
+          position inside a location, with fit checks.
+        </li>
+        <li>
+          <strong>Adjust position</strong> → Opens an inline panel for dragging,
+          X/Y coordinates, and 90° pallet rotation.
+        </li>
+        <li>
+          <strong>Confirm spot</strong> → Opens a destination-review dialog.
+          Nothing is reserved until Reserve spot is clicked.
+        </li>
+        <li>
+          <strong>Reserve spot</strong> → Holds the space and shows movement
+          instructions. The pallet is still awaiting storage.
+        </li>
+        <li>
+          <strong>Scan destination QR</strong> → Opens a scanner dialog. A
+          matching code enables physical storage confirmation.
+        </li>
+        <li>
+          <strong>Confirm stored</strong> → Records the operator-confirmed exact
+          placement and shows the occupied position.
+        </li>
+      </ol>
+    </details>
+    <section id="action1">
+      <h2><span class="number">01</span>Add finished good</h2>
+      <p>Opens the full product-details page. This is step 1 of 2.</p>
+      <a href="01-add-finished-good.png"
+        ><img
+          src="01-add-finished-good.png"
+          alt="Proposed screen 1: Add finished good"
+          loading="eager"
+      /></a>
+    </section>
+    <section id="action2">
+      <h2><span class="number">02</span>Next: Measure</h2>
+      <p>
+        Opens step 2 for the physical pallet, actual quantity, and external
+        dimensions.
+      </p>
+      <a href="02-measure-pallet.png"
+        ><img
+          src="02-measure-pallet.png"
+          alt="Proposed screen 2: Next: Measure"
+          loading="lazy"
+      /></a>
+    </section>
+    <section id="action3">
+      <h2><span class="number">03</span>Save and find storage</h2>
+      <p>
+        Shows a precise proposed position inside a location, with fit checks.
+      </p>
+      <a href="03-recommended-exact-position.png"
+        ><img
+          src="03-recommended-exact-position.png"
+          alt="Proposed screen 3: Save and find storage"
+          loading="lazy"
+      /></a>
+    </section>
+    <section id="action4">
+      <h2><span class="number">04</span>Adjust position</h2>
+      <p>
+        Opens an inline panel for dragging, X/Y coordinates, and 90° pallet
+        rotation.
+      </p>
+      <a href="04-adjust-position.png"
+        ><img
+          src="04-adjust-position.png"
+          alt="Proposed screen 4: Adjust position"
+          loading="lazy"
+      /></a>
+    </section>
+    <section id="action5">
+      <h2><span class="number">05</span>Confirm spot</h2>
+      <p>
+        Opens a destination-review dialog. Nothing is reserved until Reserve
+        spot is clicked.
+      </p>
+      <a href="05-confirm-reservation-dialog.png"
+        ><img
+          src="05-confirm-reservation-dialog.png"
+          alt="Proposed screen 5: Confirm spot"
+          loading="lazy"
+      /></a>
+    </section>
+    <section id="action6">
+      <h2><span class="number">06</span>Reserve spot</h2>
+      <p>
+        Holds the space and shows movement instructions. The pallet is still
+        awaiting storage.
+      </p>
+      <a href="06-reserved-destination.png"
+        ><img
+          src="06-reserved-destination.png"
+          alt="Proposed screen 6: Reserve spot"
+          loading="lazy"
+      /></a>
+    </section>
+    <section id="action7">
+      <h2><span class="number">07</span>Scan destination QR</h2>
+      <p>
+        Opens a scanner dialog. A matching code enables physical storage
+        confirmation.
+      </p>
+      <a href="07-scan-destination-dialog.png"
+        ><img
+          src="07-scan-destination-dialog.png"
+          alt="Proposed screen 7: Scan destination QR"
+          loading="lazy"
+      /></a>
+    </section>
+    <section id="action8">
+      <h2><span class="number">08</span>Confirm stored</h2>
+      <p>
+        Records the operator-confirmed exact placement and shows the occupied
+        position.
+      </p>
+      <a href="08-stored-success.png"
+        ><img
+          src="08-stored-success.png"
+          alt="Proposed screen 8: Confirm stored"
+          loading="lazy"
+      /></a>
+    </section>
+    <footer>
+      Generated with the built-in image generation tool. These are concept
+      images, not a running implementation. The written specification governs
+      exact behavior where generated labels differ.
+    </footer>
+  </main>
+</html>

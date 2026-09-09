@@ -1,0 +1,12 @@
+{
+  "audioTracks" : 0,
+  "bytes" : 1056917,
+  "codec" : "avc1",
+  "durationSeconds" : 8.1150000000000002,
+  "encodedFrames" : 82,
+  "fps" : 10,
+  "height" : 940,
+  "output" : "\/Users\/macbook\/Development\/industrial-sas-storage-planner\/artifacts\/ui-optimization-2026-09-07\/ui-demo.mp4",
+  "sourceFrames" : 14,
+  "width" : 1728
+}

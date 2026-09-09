@@ -1,0 +1,356 @@
+[
+  {
+    "path": "frames/001.jpg",
+    "timestampMs": 0,
+    "label": "Authenticated catalogue with saved filter",
+    "url": "http://localhost:3100/th/finished-goods"
+  },
+  {
+    "path": "frames/002.jpg",
+    "timestampMs": 38996,
+    "label": "Create FG form",
+    "url": "http://localhost:3100/th/finished-goods/new"
+  },
+  {
+    "path": "frames/003.jpg",
+    "timestampMs": 39467,
+    "label": "Enter SKU and product name",
+    "url": "http://localhost:3100/th/finished-goods/new"
+  },
+  {
+    "path": "frames/004.jpg",
+    "timestampMs": 79116,
+    "label": "Packing empty state blocks creation",
+    "url": "http://localhost:3100/th/finished-goods/products/n97ev3m5kpp6qyc1544cjjsrsd8e17px/packing"
+  },
+  {
+    "path": "frames/005.jpg",
+    "timestampMs": 135230,
+    "label": "100 pieces split into two units",
+    "url": "http://localhost:3100/th/finished-goods/products/n97ev3m5kpp6qyc1544cjjsrsd8e17px/packing"
+  },
+  {
+    "path": "frames/006.jpg",
+    "timestampMs": 135684,
+    "label": "Sub-millimetre length rejected",
+    "url": "http://localhost:3100/th/finished-goods/products/n97ev3m5kpp6qyc1544cjjsrsd8e17px/packing"
+  },
+  {
+    "path": "frames/007.jpg",
+    "timestampMs": 136300,
+    "label": "Measured dimensions confirmed",
+    "url": "http://localhost:3100/th/finished-goods/products/n97ev3m5kpp6qyc1544cjjsrsd8e17px/packing"
+  },
+  {
+    "path": "frames/008.jpg",
+    "timestampMs": 198699,
+    "label": "Copied dimensions still require actual confirmation",
+    "url": "http://localhost:3100/th/finished-goods/products/n97ev3m5kpp6qyc1544cjjsrsd8e17px/packing"
+  },
+  {
+    "path": "frames/009.jpg",
+    "timestampMs": 199374,
+    "label": "Confirm second pallet measurements",
+    "url": "http://localhost:3100/th/finished-goods/products/n97ev3m5kpp6qyc1544cjjsrsd8e17px/packing"
+  },
+  {
+    "path": "frames/010.jpg",
+    "timestampMs": 256748,
+    "label": "Review exactly two measured pallets before creation",
+    "url": "http://localhost:3100/th/finished-goods/products/n97ev3m5kpp6qyc1544cjjsrsd8e17px/packing"
+  },
+  {
+    "path": "frames/011.jpg",
+    "timestampMs": 265194,
+    "label": "Receipt: 100 pieces, exactly two active pallets",
+    "url": "http://localhost:3100/th/finished-goods/products/n97ev3m5kpp6qyc1544cjjsrsd8e17px/packing"
+  },
+  {
+    "path": "frames/012.jpg",
+    "timestampMs": 370587,
+    "label": "Filter destinations by building code",
+    "url": "http://localhost:3100/th/finished-goods/pallets/n171wg61bgw29nnev3zm9pdr8n8e0whv/storage"
+  },
+  {
+    "path": "frames/013.jpg",
+    "timestampMs": 371318,
+    "label": "Invalid footprint: red preview and disabled reservation",
+    "url": "http://localhost:3100/th/finished-goods/pallets/n171wg61bgw29nnev3zm9pdr8n8e0whv/storage"
+  },
+  {
+    "path": "frames/014.jpg",
+    "timestampMs": 410582,
+    "label": "Refresh preserves MANUAL filter, invalid X=4 and 2D view",
+    "url": "http://localhost:3100/th/finished-goods/pallets/n171wg61bgw29nnev3zm9pdr8n8e0whv/storage"
+  },
+  {
+    "path": "frames/015.jpg",
+    "timestampMs": 491322,
+    "label": "Edit link opens the exact unit, leaving other 50 pieces unchanged",
+    "url": "http://localhost:3100/th/finished-goods/products/n97ev3m5kpp6qyc1544cjjsrsd8e17px?editUnit=n171wg61bgw29nnev3zm9pdr8n8e0whv&returnToUnit=n171wg61bgw29nnev3zm9pdr8n8e0whv"
+  },
+  {
+    "path": "frames/016.jpg",
+    "timestampMs": 612204,
+    "label": "Corrected coordinates X2.5 Y2.5; fit validation passes",
+    "url": "http://localhost:3100/th/finished-goods/pallets/n171wg61bgw29nnev3zm9pdr8n8e0whv/storage"
+  },
+  {
+    "path": "frames/017.jpg",
+    "timestampMs": 627959,
+    "label": "Reserved position opens inline verification without a dialog",
+    "url": "http://localhost:3100/th/finished-goods/pallets/n171wg61bgw29nnev3zm9pdr8n8e0whv"
+  },
+  {
+    "path": "frames/018.jpg",
+    "timestampMs": 640800,
+    "label": "Wrong destination code keeps physical confirmation disabled",
+    "url": "http://localhost:3100/th/finished-goods/pallets/n171wg61bgw29nnev3zm9pdr8n8e0whv"
+  },
+  {
+    "path": "frames/019.jpg",
+    "timestampMs": 641162,
+    "label": "Correct code verified; physical confirmation remains separate",
+    "url": "http://localhost:3100/th/finished-goods/pallets/n171wg61bgw29nnev3zm9pdr8n8e0whv"
+  },
+  {
+    "path": "frames/020.jpg",
+    "timestampMs": 647819,
+    "label": "First pallet stored at the confirmed position",
+    "url": "http://localhost:3100/th/finished-goods/pallets/n171wg61bgw29nnev3zm9pdr8n8e0whv"
+  },
+  {
+    "path": "frames/021.jpg",
+    "timestampMs": 718215,
+    "label": "Stacking starts with explicit support permission",
+    "url": "http://localhost:3100/th/finished-goods/pallets/n171wg61bgw29nnev3zm9pdr8n8e0whv/stack"
+  },
+  {
+    "path": "frames/022.jpg",
+    "timestampMs": 734830,
+    "label": "Configure maximum two levels including the base",
+    "url": "http://localhost:3100/th/finished-goods/pallets/n171wg61bgw29nnev3zm9pdr8n8e0whv/stack"
+  },
+  {
+    "path": "frames/023.jpg",
+    "timestampMs": 832474,
+    "label": "Upper pallet preview: automatic Z0.5, total height1m, two levels",
+    "url": "http://localhost:3100/th/finished-goods/pallets/n171wg61bgw29nnev3zm9pdr8n8e0whv/stack"
+  },
+  {
+    "path": "frames/024.jpg",
+    "timestampMs": 919810,
+    "label": "Reserved stack requires both pallet identities and physical acknowledgement",
+    "url": "http://localhost:3100/th/finished-goods/pallets/n17b1zr3rbyfhw281wh874pdm58e0yhw"
+  },
+  {
+    "path": "frames/025.jpg",
+    "timestampMs": 920696,
+    "label": "Both stack identities verified and physical placement acknowledged",
+    "url": "http://localhost:3100/th/finished-goods/pallets/n17b1zr3rbyfhw281wh874pdm58e0yhw"
+  },
+  {
+    "path": "frames/026.jpg",
+    "timestampMs": 927494,
+    "label": "Upper pallet stored on its support at Z0.5",
+    "url": "http://localhost:3100/th/finished-goods/pallets/n17b1zr3rbyfhw281wh874pdm58e0yhw"
+  },
+  {
+    "path": "frames/027.jpg",
+    "timestampMs": 969064,
+    "label": "Supporting pallet locked: move action unavailable while upper pallet remains",
+    "url": "http://localhost:3100/th/finished-goods/pallets/n171wg61bgw29nnev3zm9pdr8n8e0whv"
+  },
+  {
+    "path": "frames/028.jpg",
+    "timestampMs": 1066901,
+    "label": "Move preview: upper pallet returns to floor at X1.2 Y3 Z0",
+    "url": "http://localhost:3100/th/finished-goods/pallets/n17b1zr3rbyfhw281wh874pdm58e0yhw/move"
+  },
+  {
+    "path": "frames/029.jpg",
+    "timestampMs": 1081357,
+    "label": "Prepared move holds both source and target",
+    "url": "http://localhost:3100/th/finished-goods/pallets/n17b1zr3rbyfhw281wh874pdm58e0yhw/move"
+  },
+  {
+    "path": "frames/030.jpg",
+    "timestampMs": 1340494,
+    "label": "Cancel move explains that the stored source remains occupied",
+    "url": "http://localhost:3100/th/finished-goods/pallets/n17b1zr3rbyfhw281wh874pdm58e0yhw/move"
+  },
+  {
+    "path": "frames/031.jpg",
+    "timestampMs": 1377014,
+    "label": "Pickup identity checked; explicit physical pickup enables start",
+    "url": "http://localhost:3100/th/finished-goods/pallets/n17b1zr3rbyfhw281wh874pdm58e0yhw/move"
+  },
+  {
+    "path": "frames/032.jpg",
+    "timestampMs": 1391903,
+    "label": "In-transit move keeps both positions held until final placement",
+    "url": "http://localhost:3100/th/finished-goods/pallets/n17b1zr3rbyfhw281wh874pdm58e0yhw/move"
+  },
+  {
+    "path": "frames/033.jpg",
+    "timestampMs": 1403952,
+    "label": "Return requires support identity and physical return acknowledgement",
+    "url": "http://localhost:3100/th/finished-goods/pallets/n17b1zr3rbyfhw281wh874pdm58e0yhw/move"
+  },
+  {
+    "path": "frames/034.jpg",
+    "timestampMs": 1420300,
+    "label": "Wrong move destination is rejected and confirmation stays disabled",
+    "url": "http://localhost:3100/th/finished-goods/pallets/n17b1zr3rbyfhw281wh874pdm58e0yhw/move"
+  },
+  {
+    "path": "frames/035.jpg",
+    "timestampMs": 1461564,
+    "label": "Correct destination and physical placement unlock final move confirmation",
+    "url": "http://localhost:3100/th/finished-goods/pallets/n17b1zr3rbyfhw281wh874pdm58e0yhw/move"
+  },
+  {
+    "path": "frames/036.jpg",
+    "timestampMs": 1477877,
+    "label": "Move completed: upper pallet on floor and immutable move history visible",
+    "url": "http://localhost:3100/th/finished-goods/pallets/n17b1zr3rbyfhw281wh874pdm58e0yhw"
+  },
+  {
+    "path": "frames/037.jpg",
+    "timestampMs": 1486469,
+    "label": "Support lock released: lower pallet Move action restored after upper placement",
+    "url": "http://localhost:3100/th/finished-goods/pallets/n171wg61bgw29nnev3zm9pdr8n8e0whv"
+  },
+  {
+    "path": "frames/038.jpg",
+    "timestampMs": 1523580,
+    "label": "After stacking and moving: original batch still exactly 100 pieces and two pallets",
+    "url": "http://localhost:3100/th/finished-goods/products/n97ev3m5kpp6qyc1544cjjsrsd8e17px"
+  },
+  {
+    "path": "frames/039.jpg",
+    "timestampMs": 1540520,
+    "label": "Separate batch: 100 pieces split into four units of 25",
+    "url": "http://localhost:3100/th/finished-goods/products/n97ev3m5kpp6qyc1544cjjsrsd8e17px/packing?draft=9f05471c-78fa-4649-bbda-6e49d86d60ae"
+  },
+  {
+    "path": "frames/040.jpg",
+    "timestampMs": 1558508,
+    "label": "Four measured units each hold 25 pieces",
+    "url": "http://localhost:3100/th/finished-goods/products/n97ev3m5kpp6qyc1544cjjsrsd8e17px/packing?draft=9f05471c-78fa-4649-bbda-6e49d86d60ae"
+  },
+  {
+    "path": "frames/041.jpg",
+    "timestampMs": 1578229,
+    "label": "Created four active units, total 100 pieces",
+    "url": "http://localhost:3100/th/finished-goods/products/n97ev3m5kpp6qyc1544cjjsrsd8e17px/packing?draft=9f05471c-78fa-4649-bbda-6e49d86d60ae"
+  },
+  {
+    "path": "frames/042.jpg",
+    "timestampMs": 1595386,
+    "label": "Repack preview changes four units to two; measurement acknowledgement resets",
+    "url": "http://localhost:3100/th/finished-goods/batches/p9702eqyf2r2dsx8nvkpdeanex8e1hqf"
+  },
+  {
+    "path": "frames/043.jpg",
+    "timestampMs": 1611932,
+    "label": "Replacement packing: two measured units of 50; total remains 100",
+    "url": "http://localhost:3100/th/finished-goods/batches/p9702eqyf2r2dsx8nvkpdeanex8e1hqf"
+  },
+  {
+    "path": "frames/044.jpg",
+    "timestampMs": 1618169,
+    "label": "Explicit repacking review: before four, after two, same 100 pieces",
+    "url": "http://localhost:3100/th/finished-goods/batches/p9702eqyf2r2dsx8nvkpdeanex8e1hqf"
+  },
+  {
+    "path": "frames/045.jpg",
+    "timestampMs": 1643200,
+    "label": "Repacking saved exactly two replacement units, 50 plus 50",
+    "url": "http://localhost:3100/th/finished-goods/batches/p9702eqyf2r2dsx8nvkpdeanex8e1hqf"
+  },
+  {
+    "path": "frames/046.jpg",
+    "timestampMs": 1663266,
+    "label": "Correction start: selected MANUAL destination, X3.3 Y0.2 and 2D view",
+    "url": "http://localhost:3100/th/finished-goods/pallets/n17942md556jj5nravdjztq6zn8e1tct/storage"
+  },
+  {
+    "path": "frames/047.jpg",
+    "timestampMs": 1675481,
+    "label": "Exact-unit correction opens only P36, preserving the other 50 pieces",
+    "url": "http://localhost:3100/th/finished-goods/products/n97ev3m5kpp6qyc1544cjjsrsd8e17px?editUnit=n17942md556jj5nravdjztq6zn8e1tct&returnToUnit=n17942md556jj5nravdjztq6zn8e1tct"
+  },
+  {
+    "path": "frames/048.jpg",
+    "timestampMs": 1683945,
+    "label": "Closing correction returns automatically with destination, X3.3 Y0.2 and 2D retained",
+    "url": "http://localhost:3100/th/finished-goods/pallets/n17942md556jj5nravdjztq6zn8e1tct/storage"
+  },
+  {
+    "path": "frames/049.jpg",
+    "timestampMs": 1693078,
+    "label": "Thai mobile390: recommendation and correction controls",
+    "url": "http://localhost:3100/th/finished-goods/pallets/n17942md556jj5nravdjztq6zn8e1tct/storage"
+  },
+  {
+    "path": "frames/050.jpg",
+    "timestampMs": 1751230,
+    "label": "English mobile retains selected location and preview across language switch",
+    "url": "http://localhost:3100/en/finished-goods/pallets/n17942md556jj5nravdjztq6zn8e1tct/storage"
+  },
+  {
+    "path": "frames/051.jpg",
+    "timestampMs": 1766735,
+    "label": "Mobile inline QR input: wrong destination rejected without a dialog",
+    "url": "http://localhost:3100/en/finished-goods/pallets/n17942md556jj5nravdjztq6zn8e1tct"
+  },
+  {
+    "path": "frames/052.jpg",
+    "timestampMs": 1868263,
+    "label": "Fixed: cancellation opens without stale QR error",
+    "url": "http://localhost:3100/en/finished-goods/pallets/n17942md556jj5nravdjztq6zn8e1tct"
+  },
+  {
+    "path": "frames/053.jpg",
+    "timestampMs": 1890541,
+    "label": "Cancellation returns unit to placement selection; no storage confirmation",
+    "url": "http://localhost:3100/en/finished-goods/pallets/n17942md556jj5nravdjztq6zn8e1tct/storage"
+  },
+  {
+    "path": "frames/054.jpg",
+    "timestampMs": 1890625,
+    "label": "Mobile empty destination search retains current preview and offers clear search",
+    "url": "http://localhost:3100/en/finished-goods/pallets/n17942md556jj5nravdjztq6zn8e1tct/storage"
+  },
+  {
+    "path": "frames/055.jpg",
+    "timestampMs": 1906493,
+    "label": "Mobile unit cards expose Choose storage directly",
+    "url": "http://localhost:3100/en/finished-goods?fg=%7B%22tab%22%3A%22pallets%22%2C%22search%22%3A%22SIMPLIFY-QA-0908%22%7D"
+  },
+  {
+    "path": "frames/056.jpg",
+    "timestampMs": 1918620,
+    "label": "One card action opens the exact unit recommendation without a detail-page detour",
+    "url": "http://localhost:3100/en/finished-goods/pallets/n17e4pm7g0mjwt74e8ng5q79h58e1y8m/storage"
+  },
+  {
+    "path": "frames/057.jpg",
+    "timestampMs": 1953960,
+    "label": "Desktop table exposes the same next actions as cards",
+    "url": "http://localhost:3100/en/finished-goods?fg=%7B%22tab%22%3A%22pallets%22%2C%22layout%22%3A%22table%22%2C%22search%22%3A%22SIMPLIFY-QA-0908%22%7D"
+  },
+  {
+    "path": "frames/058.jpg",
+    "timestampMs": 1984352,
+    "label": "Production build renders authenticated QA catalogue",
+    "url": "http://localhost:3104/en/finished-goods?fg=%7B%22search%22%3A%22SIMPLIFY-QA-0908%22%7D"
+  },
+  {
+    "path": "frames/059.jpg",
+    "timestampMs": 2016375,
+    "label": "Production editor: shared picker, correction link and direct reserve",
+    "url": "http://localhost:3104/en/finished-goods/pallets/n17e4pm7g0mjwt74e8ng5q79h58e1y8m/storage"
+  }
+]

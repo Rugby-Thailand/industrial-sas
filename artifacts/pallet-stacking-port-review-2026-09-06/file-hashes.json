@@ -1,0 +1,62 @@
+{
+  "source": "/Users/macbook/Development/industrial-sas-pallet-stacking",
+  "destination": "/Users/macbook/Development/industrial-sas-storage-planner",
+  "files": {
+    "convex/schema.ts": {
+      "source": "67ce6b49546d23634ab20d18843ced5655413514dfbe6cc0f68ea358f7a9658e",
+      "destination": "90a8f4ac182a56c9072a751e2d830058491a82b6fe1136e6a97f2b0b3fd2f805"
+    },
+    "convex/finishedGoods/workflow.ts": {
+      "source": "4efd01066ef75b86e947d76bd0c5eba3110fea33f20bbd8cd07728d9b18c1e98",
+      "destination": "8daffcd04c46a5447a5e86f7811b96fd99df5519896a50636a5db13a88613d1b"
+    },
+    "src/features/finishedGoods/StackScreen.tsx": {
+      "source": "74411241f0fe9a0743cb0f277678f0d07f827b31d00a33867ecb9ab7c4ba68f9",
+      "destination": null
+    },
+    "src/features/finishedGoods/StackScreen.test.tsx": {
+      "source": "1ace7160bab7934cead51ccaa33c5a6a6202bd20feb926e8e7ff5f50438acbca",
+      "destination": null
+    },
+    "src/features/finishedGoods/PalletScreens.tsx": {
+      "source": "d7194623bf93abe11f265c897e4dd8e8fb608f7208e72a65e64867de11e03b14",
+      "destination": "3cbe2c2cc14cbf03cf2b518410873b0f70d913e86a2a074f4d1cdbecfc6a7cfc"
+    },
+    "src/features/finishedGoods/MoveScreen.tsx": {
+      "source": "2515c58f7cf852e11850e66dd1e232539f97f78cf5452dd265396274420956b7",
+      "destination": "2a27fd5d56c2c382ec0cb80ec1b232321b36f9f0e273b856a6f7e240ac242ac4"
+    },
+    "src/features/finishedGoods/DestinationScanner.tsx": {
+      "source": "4762ca8ecdb5e62731904959eb0e14f4c6b1091e5fc8c6a7ba031ccea35e631c",
+      "destination": "c868b5c36185fc3aecc8c282cc5ad3f14fa8f4838d884b0de60e200910214b0b"
+    },
+    "src/features/finishedGoods/shared.tsx": {
+      "source": "5f7725b131a5897a25c373206e69488815d4b789f088b2c5559a32e51f10636d",
+      "destination": "9a8c5c2353f7744825c0dcd881fa996e0974ce47517f50b6a04688385af6bb76"
+    },
+    "src/lib/convex/finishedGoodsApi.ts": {
+      "source": "defe875e96232ee7a769e6dbf1d53fe3eb02ba2a7225e4977c47fb9be02df3ca",
+      "destination": "1ce399a0a749f29c524813b4f7b7de7aeacea93f5f4481f5b912c2cfd25b6c4f"
+    },
+    "tests/fixtures/finished-goods-ui.ts": {
+      "source": "7cbeab6ff0bc5347647634c532debf2d8fcb9a6dc1c66082ae28cf97d652d5d5",
+      "destination": "a9f70e6ae3254f6fe3cd36e1a436d7d4c1c50cccb3374f6a46ae89fda83187a4"
+    },
+    "tests/integration/finished-goods-stacking.integration.test.ts": {
+      "source": "83bac6dabdaa9fdf658caa98e4af899f6c4defee844341822a55e48aff5ecd1c",
+      "destination": null
+    },
+    "src/app/[locale]/(desktop)/finished-goods/pallets/[palletId]/stack/page.tsx": {
+      "source": "4e59cfd7657ebc7825e004d693dd1d1542b9124bd1bff6d454497be3d6522eef",
+      "destination": null
+    },
+    "convex/finishedGoods/batches.ts": {
+      "source": null,
+      "destination": "fa34e8a1a6603e5d13ff92673d7eddeefa0ae801721dd4f544167535a56dd435"
+    },
+    "src/features/finishedGoods/PackingScreen.tsx": {
+      "source": "b5442ecb543bd69f3e8320a816055e2fdd1795c4a83861c52d7edd9004160149",
+      "destination": "6aea92407d076cd407bd3efa49cdf809b22b9bcb4db6fc52413769bcf10b6b9d"
+    }
+  }
+}

@@ -5,6 +5,7 @@ import type {
 
 import type { DataModel } from "../schema";
 import {
+  TENANT_INDEX_MAX_BATCH_SIZE,
   TENANT_INDEX_MAX_CURSOR_LENGTH,
   TENANT_INDEX_MAX_PAGE_SIZE,
   TenantDbError,
@@ -112,7 +113,7 @@ function organizationIdCheck(
 function createReads(
   db: ConvexReadDatabase,
   requestId: string,
-): Pick<TenantStoragePort, "get" | "indexedPage"> {
+): Pick<TenantStoragePort, "get" | "indexedPage" | "indexedBatch"> {
   const invalidQuery = (): TenantDbError =>
     new TenantDbError("INVALID_INDEX_QUERY", requestId);
   const invalidResult = (): TenantDbError =>
@@ -266,7 +267,36 @@ function createReads(
     return answeredPage(rows as readonly unknown[], isDone, continueCursor);
   };
 
-  return { get, indexedPage };
+  const indexedBatch = async (
+    table: TenantTableName,
+    index: string,
+    equality: TenantIndexEquality,
+    limit: number,
+  ): Promise<unknown> => {
+    const name = checkedTable(table);
+    const facts = describeTenantIndex(name, index);
+    if (!facts) throw invalidQuery();
+    const terms = checkedTerms(facts, equality);
+    if (
+      !Number.isSafeInteger(limit) ||
+      limit < 1 ||
+      limit > TENANT_INDEX_MAX_BATCH_SIZE
+    )
+      throw new TenantDbError("INVALID_LIMIT", requestId);
+    const answer: unknown = await db
+      .query(name)
+      .withIndex(facts.name, (builder) => {
+        let range = builder;
+        for (const term of terms) range = range.eq(term.field, term.value);
+        return range;
+      })
+      .take(limit + 1);
+    if (!Array.isArray(answer)) throw invalidResult();
+    if (answer.length > limit)
+      throw new TenantDbError("CAPACITY_DATA_LIMIT", requestId);
+    return answer;
+  };
+  return { get, indexedPage, indexedBatch };
 }
 
 function checkedDocument(

@@ -1,0 +1,29 @@
+{
+  "source": {
+    "convex/finishedGoods/workflow.ts": "8c726def9a5c4e23809c641e19e75bc60c1fbd94d149a2714ff9bd22baf2837e",
+    "src/features/finishedGoods/palletGeometry.ts": "84507062fa92be9adba138b921e5df92379bcd6dd8dd3f8a6a688111e4ac782a",
+    "src/features/finishedGoods/PalletScene.tsx": "31ab1de57d951136542d85bd4c6a585000079d2dbfc3c60d2939f826a815f1cd",
+    "src/features/finishedGoods/PalletScreens.tsx": "cda3736f6fe6f22544090d4e917e651473263a382b3ef69f6948b6d03a8f1d37",
+    "src/features/finishedGoods/MoveScreen.tsx": "9e4548dbf336e41d47bcf34cde75525b2d3fbadbcd61081763228fb3fa600791",
+    "src/features/finishedGoods/palletGeometry.test.ts": "ebf722adbb36f4940701e73d616134fd58574737302572fb25993565751a2320",
+    "src/features/finishedGoods/PalletScene.test.tsx": "30e8484ce880e5c487f1759b5af4ae11e0a7adcbd9361449d5093c8999ee1e26",
+    "src/features/finishedGoods/PalletScreens.test.tsx": "f51a4907184a05e092a8dbebaefa8f6cf2f73e4ae7cedb13714cb0175de899ae",
+    "src/features/finishedGoods/MoveScreen.test.tsx": "87665bc020b95a37011028aefb0825ea7e61b17c03fd56d84822fe0c363ac85c",
+    "tests/integration/finished-goods-stacking.integration.test.ts": "5b5626e051b3a578e3c13cc9fdb379e3ea839a7f5c76d2e7cc3fe7d0f39f6aa4",
+    "src/lib/convex/finishedGoodsApi.ts": "defe875e96232ee7a769e6dbf1d53fe3eb02ba2a7225e4977c47fb9be02df3ca"
+  },
+  "destination": {
+    "convex/finishedGoods/workflow.ts": "faa325382f3847d256f022e225a31ff1a8e87480a733a074d8ac5f71720b9fcf",
+    "src/features/finishedGoods/palletGeometry.ts": "f277ab2722a27b77da98727aa2e798592c18df16036bbe07793ddce25858a6a1",
+    "src/features/finishedGoods/PalletScene.tsx": "56579a36da097b09f5bcc7ec1163f5585e188701384ffdc03cad5b4b7f4daea0",
+    "src/features/finishedGoods/PalletScreens.tsx": "594fd1e9a86a51fe20a334d5cab4674a9e5928282d343f9d6d3f5606a2fd564a",
+    "src/features/finishedGoods/MoveScreen.tsx": "918d067c509c877cab778b6875251daac2ebbf760f177ee4162e16bc4de4599e",
+    "src/features/finishedGoods/palletGeometry.test.ts": "506141b09cca4849e77c48f7647f638d2c1ce8a19d32f61967197e694b5a39c3",
+    "src/features/finishedGoods/PalletScene.test.tsx": "03fd368b274a6a9255d11d4abeabb867daa6a93c358acb193233de06be914f2d",
+    "src/features/finishedGoods/PalletScreens.test.tsx": "c2a2228dabffbff0bb035d0e8a86f3bda72c6e06a23baebf24dfe533ce37f7aa",
+    "src/features/finishedGoods/MoveScreen.test.tsx": "9933f85b297088d39ffe22d0165fa9809baa42949bc421d426e3a9d47282315c",
+    "tests/integration/finished-goods-stacking.integration.test.ts": "b481e50e05007cf675dcfff0421db316db946eeb610ab977d1836679141d31ac",
+    "convex/finishedGoods/batches.ts": "f34692e381924acb9c1c40203405c06649fa63dffcc62666d8e09337fde782aa",
+    "src/lib/convex/finishedGoodsApi.ts": "35ee928358e39c7bdab4c88ab810d3fa1a7b959b30d87c342836af8e045a9775"
+  }
+}

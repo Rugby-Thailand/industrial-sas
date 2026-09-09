@@ -15,11 +15,24 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Notice } from "@/components/ui/Notice";
 import { Link, useRouter } from "@/i18n/navigation";
 import { fgRefs, type Product } from "@/lib/convex/finishedGoodsApi";
-import { PalletScene } from "./PalletScene";
+import { CatalogueFiltersButton, FilterChips } from "./CatalogueFilterControls";
+import {
+  catalogueRows,
+  filterRows,
+  hasFilters,
+  newFilters,
+} from "./catalogueFilters";
+import { useCatalogueState } from "./useCatalogueState";
 import { FinishedGoodsTable } from "./FinishedGoodsTable";
+import { unitNextAction } from "./unitNextAction";
+import {
+  productPalletSummary,
+  summaryFormatText,
+  summaryStatusText,
+} from "./productPalletSummary";
+import { ProductBatches } from "./ProductBatches";
 import {
   ErrorNotice,
   FG_PATH,
@@ -31,8 +44,10 @@ import {
   Steps,
   measurePath,
   palletPath,
+  palletDisplayStatus,
   panel,
   productPath,
+  unitNoun,
   useFGText,
   useDraftKey,
   useCanManage,
@@ -43,46 +58,77 @@ import {
 } from "./shared";
 
 export function FinishedGoodsCatalogue() {
+  const viewScope = useDraftKey("fg-catalogue");
+  if (!viewScope) return <Loading />;
   return (
     <QueryGate scope="WAREHOUSE">
       {(warehouseId) => (
-        <Catalogue key={warehouseId} warehouseId={warehouseId} />
+        <Catalogue
+          key={`${viewScope}:${warehouseId}`}
+          warehouseId={warehouseId}
+          viewKey={`${viewScope}:${warehouseId}`}
+        />
       )}
     </QueryGate>
   );
 }
-function Catalogue({ warehouseId }: { warehouseId: string }) {
-  const { tr } = useFGText();
+function Catalogue({
+  warehouseId,
+  viewKey,
+}: {
+  warehouseId: string;
+  viewKey: string;
+}) {
+  const { tr, locale } = useFGText();
   const canManage = useCanManage();
   const outcome = useQuery(fgRefs.list, { warehouseId });
-  const [tab, setTab] = useState<"products" | "pallets">("products");
-  const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("ALL");
-  const [layout, setLayout] = useState<"cards" | "table">("cards");
+  const { state, update: updateState } = useCatalogueState(viewKey);
+  const { tab, search, layout } = state;
+  const filters = state[tab];
+  const clearFilters = () => updateState({ search: "", [tab]: newFilters() });
   if (!outcome) return <Loading />;
   if (!outcome.ok) return <Missing />;
   const products = outcome.value.products;
-  const pallets = outcome.value.pallets;
-  const needle = search.trim().toLocaleLowerCase();
-  const shownProducts = products.filter(
+  const pallets = outcome.value.pallets.filter(
     (p) =>
-      `${p.sku} ${p.name}`.toLocaleLowerCase().includes(needle) &&
-      (status === "ALL" || p.status === status),
+      p.retiredAt === undefined &&
+      !["CANCELLED", "REPLACED"].includes(p.status),
   );
-  const shownPallets = pallets.filter(
-    (p) =>
-      `${p.code} ${products.find((product) => product._id === p.productId)?.sku ?? ""} ${products.find((product) => product._id === p.productId)?.name ?? ""} ${p.lot ?? ""}`
-        .toLocaleLowerCase()
-        .includes(needle) &&
-      (status === "ALL" || p.status === status),
-  );
+  const rows = catalogueRows(outcome.value);
+  const productById = new Map(products.map((p) => [p._id as string, p]));
+  const palletById = new Map(pallets.map((p) => [p._id as string, p]));
+  const shownProducts = filterRows(
+    rows.products,
+    state.products,
+    search,
+    locale,
+  ).flatMap((r) => {
+    const p = productById.get(r.id);
+    return p ? [p] : [];
+  });
+  const shownPallets = filterRows(
+    rows.pallets,
+    state.pallets,
+    search,
+    locale,
+  ).flatMap((r) => {
+    const p = palletById.get(r.id);
+    return p ? [p] : [];
+  });
+  const filterControls = {
+    tab,
+    filters,
+    units: [...new Set(products.map((p) => p.unit))].filter(Boolean).sort(),
+    onChange: (next: typeof filters) => updateState({ [tab]: next }),
+  };
+  const filtered = Boolean(search.trim()) || hasFilters(filters, tab);
   return (
     <>
       <Heading
         title={tr("Finished goods", "สินค้าสำเร็จรูป")}
         description={tr(
-          "Create products, measure each pallet and find its exact storage position.",
-          "สร้างสินค้า วัดขนาดพาเลท และเลือกตำแหน่งจัดเก็บที่แน่นอน",
+          "Prepare goods, measure storage units and choose their exact positions.",
+          "จัดเตรียมสินค้า วัดขนาดหน่วยจัดเก็บ และเลือกตำแหน่งจัดเก็บที่แน่นอน",
         )}
       >
         {canManage && (
@@ -114,8 +160,10 @@ function Catalogue({ warehouseId }: { warehouseId: string }) {
             ).length,
           ],
           [
-            tr("Stored pallets", "พาเลทที่จัดเก็บแล้ว"),
-            pallets.filter((p) => p.status === "STORED").length,
+            tr("Stored units", "หน่วยที่จัดเก็บแล้ว"),
+            pallets.filter(
+              (p) => p.status === "STORED" && p.moveStatus !== "IN_TRANSIT",
+            ).length,
           ],
         ].map(([label, count], index) => (
           <div
@@ -127,6 +175,12 @@ function Catalogue({ warehouseId }: { warehouseId: string }) {
           </div>
         ))}
       </div>
+      {pallets.some((p) => p.moveStatus === "IN_TRANSIT") && (
+        <p role="status" className="mb-4 text-sm text-warning">
+          {tr("Moving units", "หน่วยที่กำลังย้าย")}:{" "}
+          {pallets.filter((p) => p.moveStatus === "IN_TRANSIT").length}
+        </p>
+      )}
       <div
         className="mb-4 flex flex-wrap gap-2"
         role="group"
@@ -137,14 +191,11 @@ function Catalogue({ warehouseId }: { warehouseId: string }) {
             key={value}
             variant={tab === value ? "default" : "outline"}
             aria-pressed={tab === value}
-            onClick={() => {
-              setTab(value);
-              setStatus("ALL");
-            }}
+            onClick={() => updateState({ tab: value })}
           >
             {value === "products"
               ? tr("Products", "รายการสินค้า")
-              : tr("Pallets", "รายการพาเลท")}
+              : tr("Storage units", "รายการหน่วยจัดเก็บ")}
           </Button>
         ))}
         <div
@@ -168,7 +219,7 @@ function Catalogue({ warehouseId }: { warehouseId: string }) {
                   ? tr("Card view", "มุมมองการ์ด")
                   : tr("Table view", "มุมมองตาราง")
               }
-              onClick={() => setLayout(value)}
+              onClick={() => updateState({ layout: value })}
             >
               {value === "cards" ? (
                 <LayoutGrid className="size-4" aria-hidden="true" />
@@ -188,45 +239,34 @@ function Catalogue({ warehouseId }: { warehouseId: string }) {
           <Input
             aria-label={tr("Search finished goods", "ค้นหาสินค้าสำเร็จรูป")}
             placeholder={tr(
-              "Search SKU, name or pallet…",
-              "ค้นหารหัส ชื่อสินค้า หรือพาเลท…",
+              "Search SKU, name or storage unit…",
+              "ค้นหารหัส ชื่อสินค้า หรือหน่วยจัดเก็บ…",
             )}
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => updateState({ search: e.target.value })}
             className="pl-10"
           />
         </div>
-        <SelectControl
-          value={status}
-          onValueChange={setStatus}
-          label={tr("Status", "สถานะ")}
-          placeholder={tr("All statuses", "ทุกสถานะ")}
-          emptyLabel=""
-          className="w-full sm:w-56"
-          options={(tab === "products"
-            ? ["ALL", "DRAFT", "ACTIVE"]
-            : [
-                "ALL",
-                "AWAITING_MEASUREMENT",
-                "AWAITING_PLACEMENT",
-                "RESERVED",
-                "STORED",
-              ]
-          ).map((value) => ({
-            value,
-            label:
-              value === "ALL"
-                ? tr("All statuses", "ทุกสถานะ")
-                : statusName(value, tr),
-          }))}
-        />
+        <CatalogueFiltersButton {...filterControls} />
       </div>
+      <FilterChips
+        {...filterControls}
+        search={search}
+        onClearSearch={() => updateState({ search: "" })}
+        onClearAll={clearFilters}
+      />
+      <p role="status" className="mb-3 text-xs text-muted">
+        {tr("Showing", "แสดง")}{" "}
+        {tab === "products" ? shownProducts.length : shownPallets.length} /{" "}
+        {tab === "products" ? products.length : pallets.length}{" "}
+        {tr("records", "รายการ")}
+      </p>
       {(tab === "products" ? shownProducts.length : shownPallets.length) ===
       0 ? (
         <div className={`${panel} py-12 text-center`}>
           <Box className="mx-auto mb-4 size-10 text-muted" aria-hidden="true" />
           <h2 className="text-lg font-semibold">
-            {search || status !== "ALL"
+            {filtered
               ? tr("No matching records", "ไม่พบรายการที่ตรงกัน")
               : tab === "products"
                 ? canManage
@@ -235,25 +275,25 @@ function Catalogue({ warehouseId }: { warehouseId: string }) {
                       "เริ่มสร้างสินค้าสำเร็จรูปแรก",
                     )
                   : tr("No products yet", "ยังไม่มีสินค้า")
-                : tr("No pallets yet", "ยังไม่มีพาเลท")}
+                : tr("No storage units yet", "ยังไม่มีหน่วยจัดเก็บ")}
           </h2>
           <p className="mx-auto mt-2 max-w-lg text-sm text-muted">
-            {search || status !== "ALL"
+            {filtered
               ? tr(
-                  "Try a different search or clear the status filter.",
-                  "ลองค้นหาใหม่หรือล้างตัวกรองสถานะ",
+                  "Try a different search or clear the filters.",
+                  "ลองค้นหาใหม่หรือล้างตัวกรอง",
                 )
               : canManage
                 ? tr(
-                    "Create a product, then add a physical pallet to measure and store.",
-                    "สร้างสินค้า แล้วเพิ่มพาเลทจริงเพื่อวัดขนาดและจัดเก็บ",
+                    "Create a product, then prepare a batch to pack, measure and store.",
+                    "สร้างสินค้า แล้วจัดเตรียมชุดเพื่อแบ่งบรรจุ วัดขนาด และจัดเก็บ",
                   )
                 : tr(
                     "No records are available in this warehouse yet.",
                     "ยังไม่มีข้อมูลในคลังสินค้านี้",
                   )}
           </p>
-          {!search && status === "ALL" ? (
+          {!filtered ? (
             canManage ? (
               <Button asChild className="mt-5">
                 <Link href={`${FG_PATH}/new`}>
@@ -262,14 +302,7 @@ function Catalogue({ warehouseId }: { warehouseId: string }) {
               </Button>
             ) : null
           ) : (
-            <Button
-              variant="outline"
-              className="mt-5"
-              onClick={() => {
-                setSearch("");
-                setStatus("ALL");
-              }}
-            >
+            <Button variant="outline" className="mt-5" onClick={clearFilters}>
               {tr("Clear filters", "ล้างตัวกรอง")}
             </Button>
           )}
@@ -282,94 +315,116 @@ function Catalogue({ warehouseId }: { warehouseId: string }) {
           allProducts={products}
           allPallets={pallets}
           canManage={canManage}
+          filterControls={filterControls}
         />
       ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {tab === "products"
-            ? shownProducts.map((product) => (
-                <Link
-                  key={product._id}
-                  href={productPath(product._id)}
-                  className={`${panel} transition hover:border-accent`}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <Box className="size-8 text-accent" aria-hidden="true" />
-                    <Status value={product.status} />
-                  </div>
-                  <p className="mt-5 font-mono text-xs break-all text-muted">
-                    {product.sku || tr("No SKU yet", "ยังไม่มีรหัส")}
-                  </p>
-                  <h2 className="mt-1 text-lg font-semibold break-words">
-                    {product.name ||
-                      tr("Untitled draft", "ฉบับร่างยังไม่มีชื่อ")}
-                  </h2>
-                  <p className="mt-3 text-sm text-muted">
-                    {product.defaultQuantity ?? "—"} {product.unit} /{" "}
-                    {product.storageFormat}
-                  </p>
-                  <p className="mt-2 text-xs text-muted">
-                    {pallets.filter((p) => p.productId === product._id).length}{" "}
-                    {tr("pallets", "พาเลท")}
-                  </p>
-                </Link>
-              ))
-            : shownPallets.map((pallet) => (
-                <Link
-                  key={pallet._id}
-                  href={
-                    canManage && pallet.status === "AWAITING_MEASUREMENT"
-                      ? measurePath(pallet._id)
-                      : palletPath(pallet._id)
-                  }
-                  className={`${panel} transition hover:border-accent`}
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <p className="font-mono font-semibold">{pallet.code}</p>
-                    <Status value={pallet.status} />
-                  </div>
-                  <h2 className="mt-4 font-medium">
-                    {products.find((p) => p._id === pallet.productId)?.name ??
-                      "—"}
-                  </h2>
-                  <p className="mt-2 text-sm text-muted">
-                    {pallet.quantity}{" "}
-                    {products.find((p) => p._id === pallet.productId)?.unit ??
-                      ""}
-                    {pallet.lot ? ` · ${pallet.lot}` : ""}
-                  </p>
-                  <p className="mt-2 text-xs text-muted">
-                    {pallet.lengthMm && pallet.widthMm && pallet.heightMm
-                      ? `${pallet.lengthMm / 1000} × ${pallet.widthMm / 1000} × ${pallet.heightMm / 1000} m`
-                      : tr("Dimensions not complete", "ยังวัดขนาดไม่ครบ")}
-                  </p>
-                </Link>
-              ))}
+            ? shownProducts.map((product) => {
+                const summary = productPalletSummary(
+                  product._id,
+                  pallets,
+                  product.storageFormat,
+                );
+                return (
+                  <Link
+                    key={product._id}
+                    href={productPath(product._id)}
+                    className={`${panel} transition hover:border-accent`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <Box className="size-8 text-accent" aria-hidden="true" />
+                      <Status value={product.status} />
+                    </div>
+                    <p className="mt-5 font-mono text-xs break-all text-muted">
+                      {product.sku || tr("No SKU yet", "ยังไม่มีรหัส")}
+                    </p>
+                    <h2 className="mt-1 text-lg font-semibold break-words">
+                      {product.name ||
+                        tr("Untitled draft", "ฉบับร่างยังไม่มีชื่อ")}
+                    </h2>
+                    <p className="mt-3 text-sm text-muted">
+                      {tr(
+                        "Total in storage units",
+                        "สินค้าที่บันทึกในหน่วยจัดเก็บ",
+                      )}
+                      : {summary.quantity} {product.unit}
+                    </p>
+                    <p className="mt-2 text-xs text-muted">
+                      {summaryFormatText(summary, tr)}
+                    </p>
+                    <p className="mt-2 text-xs text-muted">
+                      {summaryStatusText(summary, tr)}
+                    </p>
+                  </Link>
+                );
+              })
+            : shownPallets.map((pallet) => {
+                const product = products.find(
+                  (p) => p._id === pallet.productId,
+                );
+                const action = unitNextAction(pallet, canManage);
+                return (
+                  <article
+                    key={pallet._id}
+                    className={`${panel} flex flex-col`}
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div>
+                        <Link
+                          href={palletPath(pallet._id)}
+                          className="font-mono font-semibold hover:underline"
+                        >
+                          {pallet.code}
+                        </Link>
+                        <p className="mt-1 text-xs text-muted">
+                          {unitNoun(
+                            pallet.storageFormat ?? product?.storageFormat,
+                            tr,
+                          )}
+                        </p>
+                      </div>
+                      <Status value={palletDisplayStatus(pallet)} />
+                    </div>
+                    <h2 className="mt-4 font-medium">
+                      <Link
+                        href={palletPath(pallet._id)}
+                        className="hover:underline"
+                      >
+                        {product?.name ?? "—"}
+                      </Link>
+                    </h2>
+                    <p className="mt-2 text-sm text-muted">
+                      {pallet.quantity} {product?.unit ?? ""}
+                      {pallet.lot ? ` · ${pallet.lot}` : ""}
+                    </p>
+                    <p className="mt-2 text-xs text-muted">
+                      {pallet.lengthMm && pallet.widthMm && pallet.heightMm
+                        ? `${pallet.lengthMm / 1000} × ${pallet.widthMm / 1000} × ${pallet.heightMm / 1000} m`
+                        : tr("Dimensions not complete", "ยังวัดขนาดไม่ครบ")}
+                    </p>
+                    <div className="mt-auto pt-4">
+                      <Button asChild variant="outline" className="w-full">
+                        <Link
+                          href={action.href}
+                          aria-label={`${tr(...action.label)} ${pallet.code}`}
+                        >
+                          {tr(...action.label)}
+                        </Link>
+                      </Button>
+                    </div>
+                  </article>
+                );
+              })}
         </div>
       )}
     </>
   );
 }
-function statusName(value: string, tr: (en: string, th: string) => string) {
-  return (
-    (
-      {
-        DRAFT: tr("Draft", "ฉบับร่าง"),
-        ACTIVE: tr("Ready", "พร้อมใช้งาน"),
-        AWAITING_MEASUREMENT: tr("Awaiting measurement", "รอวัดขนาด"),
-        AWAITING_PLACEMENT: tr("Awaiting placement", "รอเลือกจุดจัดเก็บ"),
-        RESERVED: tr("Reserved", "จองแล้ว"),
-        STORED: tr("Stored", "จัดเก็บแล้ว"),
-      } as Record<string, string>
-    )[value] ?? value
-  );
-}
-
 type ProductDraft = {
   sku: string;
   name: string;
   unit: string;
-  storageFormat: "PALLET" | "BOX" | "OTHER";
-  defaultQuantity: string;
   storageCondition: string;
   notes: string;
   customerReference: string;
@@ -384,8 +439,6 @@ function initialDraft(
     sku: product?.sku ?? "",
     name: product?.name ?? "",
     unit: product?.unit ?? (locale === "th" ? "ชิ้น" : "pieces"),
-    storageFormat: product?.storageFormat ?? "PALLET",
-    defaultQuantity: String(product?.defaultQuantity ?? ""),
     storageCondition: product?.storageCondition ?? "ANY",
     notes: product?.notes ?? "",
     customerReference: product?.customerReference ?? "",
@@ -400,18 +453,13 @@ function readDraft(key: string, fallback: ProductDraft): ProductDraft {
     const value: unknown = JSON.parse(raw);
     if (typeof value !== "object" || value === null) return fallback;
     const candidate = value as Record<string, unknown>;
-    if (
-      typeof candidate.sku !== "string" ||
-      typeof candidate.name !== "string" ||
-      typeof candidate.defaultQuantity !== "string"
-    )
+    if (typeof candidate.sku !== "string" || typeof candidate.name !== "string")
       return fallback;
     const clean = { ...fallback };
     for (const field of [
       "sku",
       "name",
       "unit",
-      "defaultQuantity",
       "storageCondition",
       "notes",
       "customerReference",
@@ -419,12 +467,6 @@ function readDraft(key: string, fallback: ProductDraft): ProductDraft {
     ] as const) {
       if (typeof candidate[field] === "string") clean[field] = candidate[field];
     }
-    if (
-      candidate.storageFormat === "PALLET" ||
-      candidate.storageFormat === "BOX" ||
-      candidate.storageFormat === "OTHER"
-    )
-      clean.storageFormat = candidate.storageFormat;
     if (typeof candidate.savedProductId === "string")
       clean.savedProductId = candidate.savedProductId;
     return clean;
@@ -526,7 +568,6 @@ function ProductForm({
   const canManage = useCanManage();
   const router = useRouter();
   const saveProduct = useMutation(fgRefs.saveProduct);
-  const createPallet = useMutation(fgRefs.createPallet);
   const key = `${draftScope}:${warehouseId}:${product?._id ?? "new"}`;
   const op = useOperation(key);
   const [form, setForm] = useState(() =>
@@ -570,13 +611,7 @@ function ProductForm({
   async function save(next: boolean, packing = false) {
     await op.run(async () => {
       if (!canManage) throw new Error("ACCESS_DENIED");
-      if (
-        next &&
-        (!form.sku.trim() ||
-          !form.name.trim() ||
-          !form.unit.trim() ||
-          !(Number(form.defaultQuantity) > 0))
-      )
+      if (next && (!form.sku.trim() || !form.name.trim() || !form.unit.trim()))
         throw new Error("INVALID_INPUT");
       const payload = {
         warehouseId,
@@ -584,10 +619,6 @@ function ProductForm({
         sku: form.sku,
         name: form.name,
         unit: form.unit,
-        storageFormat: form.storageFormat,
-        ...(form.defaultQuantity.trim()
-          ? { defaultQuantity: Number(form.defaultQuantity) }
-          : {}),
         storageCondition: form.storageCondition,
         notes: form.notes,
         customerReference: form.customerReference,
@@ -607,42 +638,23 @@ function ProductForm({
           JSON.stringify({ ...form, savedProductId: id }),
         );
       } catch {}
-      if (next && packing) {
-        setDirty(false);
-        op.clearRequests();
-        try {
-          localStorage.removeItem(key);
-        } catch {}
-        router.push(`${productPath(id)}/packing`);
-      } else if (next) {
-        const palletId =
-          resumePalletId ??
-          written(
-            await createPallet({
-              warehouseId,
-              productId: id,
-              requestId: op.request(`pallet:${id}`),
-            }),
-          );
-        setDirty(false);
-        op.clearRequests();
-        try {
-          localStorage.removeItem(key);
-        } catch {}
-        router.push(measurePath(palletId));
-      } else {
-        setDirty(false);
-        op.clearRequests();
-        try {
-          localStorage.removeItem(key);
-        } catch {}
-        router.push(FG_PATH);
-      }
+      setDirty(false);
+      op.clearRequests();
+      try {
+        localStorage.removeItem(key);
+      } catch {}
+      router.push(
+        next && packing
+          ? `${productPath(id)}/packing${product ? `?draft=${crypto.randomUUID()}` : ""}`
+          : next && resumePalletId
+            ? measurePath(resumePalletId)
+            : FG_PATH,
+      );
     });
   }
   function submit(event: FormEvent) {
     event.preventDefault();
-    void save(true);
+    void save(resumePalletId ? true : !product, !product);
   }
   return (
     <>
@@ -653,14 +665,14 @@ function ProductForm({
             : tr("Create finished good", "สร้างสินค้าสำเร็จรูป")
         }
         description={tr(
-          "Define the product first. Measure the physical pallet in the next step.",
-          "กำหนดข้อมูลสินค้า แล้ววัดขนาดพาเลทจริงในขั้นตอนถัดไป",
+          "Define the product, then prepare a batch with its quantities, packaging and actual dimensions.",
+          "กำหนดข้อมูลสินค้า แล้วจัดเตรียมชุดสินค้า ระบุจำนวน แบ่งบรรจุ และวัดขนาดจริง",
         )}
       >
         {product ? <Status value={product.status} /> : null}
       </Heading>
       {canManage ? (
-        <Steps step={1} />
+        <Steps step={1} packing={!resumePalletId} />
       ) : (
         <div className="mb-5">
           <ViewOnlyNotice />
@@ -704,49 +716,6 @@ function ProductForm({
                     required
                     maxLength={32}
                   />
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium">
-                      {tr("Storage format", "รูปแบบการจัดเก็บ")}
-                    </p>
-                    <SelectControl
-                      label={tr("Storage format", "รูปแบบการจัดเก็บ")}
-                      value={form.storageFormat}
-                      onValueChange={(v) =>
-                        change(
-                          "storageFormat",
-                          v as ProductDraft["storageFormat"],
-                        )
-                      }
-                      options={[
-                        { value: "PALLET", label: tr("Pallet", "พาเลท") },
-                        { value: "BOX", label: tr("Box", "กล่อง") },
-                        {
-                          value: "OTHER",
-                          label: tr("Other storage unit", "หน่วยจัดเก็บอื่น"),
-                        },
-                      ]}
-                      placeholder=""
-                      emptyLabel=""
-                    />
-                  </div>
-                  <div className="sm:col-span-2">
-                    <Field
-                      label={tr(
-                        "Default quantity per storage unit",
-                        "จำนวนต่อหน่วยจัดเก็บ (ค่าเริ่มต้น)",
-                      )}
-                      value={form.defaultQuantity}
-                      onChange={(v) => change("defaultQuantity", v)}
-                      type="number"
-                      min={0.001}
-                      step="any"
-                      required
-                      hint={tr(
-                        "You can change the actual quantity for each pallet.",
-                        "แก้ไขจำนวนจริงสำหรับแต่ละพาเลทได้ในขั้นตอนวัดขนาด",
-                      )}
-                    />
-                  </div>
                 </div>
               </section>
               <section className={panel}>
@@ -798,46 +767,40 @@ function ProductForm({
               </details>
             </fieldset>
             <aside className={`${panel} xl:sticky xl:top-4`}>
-              <h2 className="mb-3 font-semibold">
-                {tr("Product preview", "ภาพตัวอย่างสินค้า")}
+              <h2 className="font-semibold">
+                {tr("Product information only", "ข้อมูลสินค้าเท่านั้น")}
               </h2>
-              <PalletScene
-                dimensions={{ widthMm: 1000, depthMm: 1200, heightMm: 1400 }}
-                showDimensions={false}
-                locale={locale}
-                label={tr(
-                  "Illustration — dimensions not measured yet",
-                  "ภาพประกอบ — ยังไม่ได้วัดขนาดจริง",
+              <p className="mt-3 text-sm text-muted">
+                {tr(
+                  "Quantities, packaging and actual outer dimensions belong to each preparation batch in the next step. Saving this form never changes existing storage units.",
+                  "จำนวนสินค้า การแบ่งบรรจุ และขนาดภายนอกจริงอยู่ในชุดจัดเตรียมแต่ละชุดในขั้นตอนถัดไป การบันทึกหน้านี้ไม่เปลี่ยนหน่วยจัดเก็บที่มีอยู่",
                 )}
-              />
-              <dl className="mt-4 divide-y divide-border text-sm">
-                {[
-                  [tr("SKU", "รหัสสินค้า"), form.sku || "—"],
-                  [tr("Product name", "ชื่อสินค้า"), form.name || "—"],
-                  [
-                    tr("Quantity per unit", "จำนวนต่อหน่วยจัดเก็บ"),
-                    `${form.defaultQuantity || "—"} ${form.unit}`,
-                  ],
-                  [
-                    tr("Measurement", "การวัดขนาด"),
-                    tr("Next step", "ขั้นตอนถัดไป"),
-                  ],
-                ].map(([label, value]) => (
-                  <div key={label} className="flex justify-between gap-4 py-3">
-                    <dt className="text-muted">{label}</dt>
-                    <dd className="max-w-[65%] text-right font-medium break-words">
-                      {value}
-                    </dd>
-                  </div>
-                ))}
+              </p>
+              <dl className="mt-4 space-y-3 text-sm">
+                <div>
+                  <dt className="text-muted">SKU</dt>
+                  <dd className="break-words">{form.sku || "—"}</dd>
+                </div>
+                <div>
+                  <dt className="text-muted">
+                    {tr("Product name", "ชื่อสินค้า")}
+                  </dt>
+                  <dd className="break-words">{form.name || "—"}</dd>
+                </div>
+                <div>
+                  <dt className="text-muted">
+                    {tr("Counting unit", "หน่วยนับสินค้า")}
+                  </dt>
+                  <dd>{form.unit || "—"}</dd>
+                </div>
               </dl>
             </aside>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border bg-surface p-4">
             <p className="max-w-xl text-xs text-muted">
               {tr(
-                "Creating a product does not mark any physical stock as stored.",
-                "การสร้างสินค้ายังไม่บันทึกว่ามีสินค้าจัดเก็บในคลัง",
+                "Saving product details does not add storage units. Prepare more goods to start a separate batch.",
+                "บันทึกข้อมูลสินค้าไม่เพิ่มหน่วยจัดเก็บ เลือกจัดเตรียมสินค้าเพิ่มเพื่อเริ่มชุดใหม่",
               )}
             </p>
             <div className="flex w-full flex-wrap gap-2 sm:w-auto">
@@ -849,7 +812,7 @@ function ProductForm({
               >
                 {tr("Cancel", "ยกเลิก")}
               </Button>
-              {canManage && (
+              {canManage && (!product || resumePalletId) && (
                 <Button
                   type="button"
                   variant="outline"
@@ -857,11 +820,11 @@ function ProductForm({
                   onClick={() => void save(false)}
                 >
                   {product?.status === "ACTIVE"
-                    ? tr("Save changes", "บันทึกการเปลี่ยนแปลง")
+                    ? tr("Save product details", "บันทึกข้อมูลสินค้า")
                     : tr("Save draft", "บันทึกฉบับร่าง")}
                 </Button>
               )}
-              {canManage && !resumePalletId && (
+              {canManage && product && !resumePalletId && (
                 <Button
                   type="button"
                   variant="outline"
@@ -869,7 +832,7 @@ function ProductForm({
                   onClick={() => void save(true, true)}
                 >
                   <PackagePlus className="size-4" aria-hidden="true" />
-                  {tr("Pack pallets", "จัดสรรพาเลท")}
+                  {tr("Prepare more goods", "จัดเตรียมสินค้าเพิ่ม")}
                 </Button>
               )}
               {canManage && (
@@ -880,8 +843,8 @@ function ProductForm({
                     : resumePalletId
                       ? tr("Return to measurement", "กลับไปวัดขนาด")
                       : product
-                        ? tr("Add pallet & measure", "เพิ่มพาเลทและวัดขนาด")
-                        : tr("Next: Measure", "ถัดไป: วัดขนาด")}
+                        ? tr("Save product details", "บันทึกข้อมูลสินค้า")
+                        : tr("Next: Packing", "ถัดไป: บรรจุ")}
                 </Button>
               )}
             </div>
@@ -928,16 +891,7 @@ function ProductForm({
         </p>
       ) : null}
       {product ? (
-        <Notice
-          title={tr(
-            "Each physical pallet is measured separately",
-            "แต่ละพาเลทจริงวัดขนาดแยกกัน",
-          )}
-          body={tr(
-            "Adding another pallet keeps this product definition and creates a new pallet ID.",
-            "การเพิ่มพาเลทจะใช้ข้อมูลสินค้านี้และสร้างรหัสพาเลทใหม่",
-          )}
-        />
+        <ProductBatches warehouseId={warehouseId} product={product} />
       ) : null}
     </>
   );

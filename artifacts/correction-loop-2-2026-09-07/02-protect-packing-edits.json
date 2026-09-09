@@ -1,0 +1,92 @@
+{
+  "frames": [
+    {
+      "path": "02-protect-packing-edits-frames/00000.png",
+      "timestampMs": 0
+    },
+    {
+      "path": "02-protect-packing-edits-frames/00001.png",
+      "timestampMs": 486
+    },
+    {
+      "path": "02-protect-packing-edits-frames/00002.png",
+      "timestampMs": 978
+    },
+    {
+      "path": "02-protect-packing-edits-frames/00003.png",
+      "timestampMs": 1480
+    },
+    {
+      "path": "02-protect-packing-edits-frames/00004.png",
+      "timestampMs": 1675
+    },
+    {
+      "path": "02-protect-packing-edits-frames/00005.png",
+      "timestampMs": 2197
+    },
+    {
+      "path": "02-protect-packing-edits-frames/00006.png",
+      "timestampMs": 2576
+    },
+    {
+      "path": "02-protect-packing-edits-frames/00007.png",
+      "timestampMs": 2801
+    },
+    {
+      "path": "02-protect-packing-edits-frames/00008.png",
+      "timestampMs": 3316
+    },
+    {
+      "path": "02-protect-packing-edits-frames/00009.png",
+      "timestampMs": 3837
+    },
+    {
+      "path": "02-protect-packing-edits-frames/00010.png",
+      "timestampMs": 4034
+    },
+    {
+      "path": "02-protect-packing-edits-frames/00011.png",
+      "timestampMs": 4520
+    },
+    {
+      "path": "02-protect-packing-edits-frames/00012.png",
+      "timestampMs": 5019
+    },
+    {
+      "path": "02-protect-packing-edits-frames/00013.png",
+      "timestampMs": 5512
+    },
+    {
+      "path": "02-protect-packing-edits-frames/00014.png",
+      "timestampMs": 6130
+    },
+    {
+      "path": "02-protect-packing-edits-frames/00015.png",
+      "timestampMs": 6617
+    },
+    {
+      "path": "02-protect-packing-edits-frames/00016.png",
+      "timestampMs": 7106
+    },
+    {
+      "path": "02-protect-packing-edits-frames/00017.png",
+      "timestampMs": 7597
+    },
+    {
+      "path": "02-protect-packing-edits-frames/00018.png",
+      "timestampMs": 8090
+    },
+    {
+      "path": "02-protect-packing-edits-frames/00019.png",
+      "timestampMs": 8587
+    },
+    {
+      "path": "02-protect-packing-edits-frames/00020.png",
+      "timestampMs": 9073
+    }
+  ],
+  "durationMs": 9255,
+  "width": 1728,
+  "height": 996,
+  "fps": 10
+}

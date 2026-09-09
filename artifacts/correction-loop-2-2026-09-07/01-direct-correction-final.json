@@ -1,0 +1,64 @@
+{
+  "frames": [
+    {
+      "path": "01-direct-correction-final-frames/00000.png",
+      "timestampMs": 0
+    },
+    {
+      "path": "01-direct-correction-final-frames/00001.png",
+      "timestampMs": 516
+    },
+    {
+      "path": "01-direct-correction-final-frames/00002.png",
+      "timestampMs": 1035
+    },
+    {
+      "path": "01-direct-correction-final-frames/00003.png",
+      "timestampMs": 1608
+    },
+    {
+      "path": "01-direct-correction-final-frames/00004.png",
+      "timestampMs": 3339
+    },
+    {
+      "path": "01-direct-correction-final-frames/00005.png",
+      "timestampMs": 3823
+    },
+    {
+      "path": "01-direct-correction-final-frames/00006.png",
+      "timestampMs": 4327
+    },
+    {
+      "path": "01-direct-correction-final-frames/00007.png",
+      "timestampMs": 4908
+    },
+    {
+      "path": "01-direct-correction-final-frames/00008.png",
+      "timestampMs": 5409
+    },
+    {
+      "path": "01-direct-correction-final-frames/00009.png",
+      "timestampMs": 5898
+    },
+    {
+      "path": "01-direct-correction-final-frames/00010.png",
+      "timestampMs": 6404
+    },
+    {
+      "path": "01-direct-correction-final-frames/00011.png",
+      "timestampMs": 6927
+    },
+    {
+      "path": "01-direct-correction-final-frames/00012.png",
+      "timestampMs": 7411
+    },
+    {
+      "path": "01-direct-correction-final-frames/00013.png",
+      "timestampMs": 7709
+    }
+  ],
+  "durationMs": 7960,
+  "width": 1728,
+  "height": 996,
+  "fps": 10
+}

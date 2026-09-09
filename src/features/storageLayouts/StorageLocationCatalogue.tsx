@@ -322,7 +322,7 @@ function LocationCatalogueContent({
                                     "ตำแหน่งย่อย / การจัดเก็บ",
                                   )}{" "}
                                   ({row.positions.length} /{" "}
-                                  {row.placements.length})
+                                  {row.palletCount ?? row.placements.length})
                                 </summary>
                                 <div className="mt-2 space-y-2 text-xs">
                                   {row.positions.length +
@@ -342,6 +342,23 @@ function LocationCatalogueContent({
                                           "X/Y ตำแหน่งย่อยอ้างอิงชั้น; X/Y พาเลทอ้างอิงจุดจัดเก็บ; Z คือระดับฐาน",
                                         )}
                                       </p>
+                                      {row.occupiedFootprintAreaSqMm !==
+                                        undefined && (
+                                        <p className="text-muted">
+                                          {tr(
+                                            "Occupied and reserved footprint",
+                                            "พื้นที่ฐานที่ใช้และจอง",
+                                          )}
+                                          :{" "}
+                                          {(
+                                            row.occupiedFootprintAreaSqMm /
+                                            1_000_000
+                                          ).toLocaleString(undefined, {
+                                            maximumFractionDigits: 3,
+                                          })}{" "}
+                                          m²
+                                        </p>
+                                      )}
                                       {row.positions.map((p) => (
                                         <p key={p.id}>
                                           {p.label} · {p.code} · X{" "}
@@ -361,9 +378,24 @@ function LocationCatalogueContent({
                                           {p.code} · X {p.xMm / 1000} / Y{" "}
                                           {p.yMm / 1000} / Z {p.zMm / 1000} m ·{" "}
                                           {p.rotation}° ·{" "}
-                                          {p.status === "STORED"
-                                            ? tr("Stored", "จัดเก็บแล้ว")
-                                            : tr("Reserved", "จองแล้ว")}
+                                          {p.moveRole === "TARGET"
+                                            ? tr(
+                                                "Move destination reserved",
+                                                "จองปลายทางการย้าย",
+                                              )
+                                            : p.moveRole === "SOURCE"
+                                              ? p.moveState === "IN_TRANSIT"
+                                                ? tr(
+                                                    "Last confirmed position · moving",
+                                                    "ตำแหน่งยืนยันล่าสุด · กำลังย้าย",
+                                                  )
+                                                : tr(
+                                                    "Move source",
+                                                    "ต้นทางการย้าย",
+                                                  )
+                                              : p.status === "STORED"
+                                                ? tr("Stored", "จัดเก็บแล้ว")
+                                                : tr("Reserved", "จองแล้ว")}
                                         </p>
                                       ))}
                                     </>

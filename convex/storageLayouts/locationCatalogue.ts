@@ -1,6 +1,8 @@
 import { v } from "convex/values";
 import type { Doc } from "../_generated/dataModel";
 import { queryWithOrg } from "../lib/tenantFunctions";
+import { occupiedFootprintAreaSqMm } from "../model/storageLayout/occupancy";
+import { readMoveOccupancy } from "./moveOccupancy";
 
 /** Warehouse-wide location inventory. Bounded reads fail explicitly rather than truncate. */
 export const list = queryWithOrg({
@@ -10,6 +12,7 @@ export const list = queryWithOrg({
   target: { table: "storageZones" },
   warehouseId: (args) => args.warehouseId,
   handler: async (ctx, { warehouseId }) => {
+    const moves = await readMoveOccupancy(ctx, warehouseId);
     const scope = [{ field: "warehouseId", value: warehouseId }];
     const [zones, buildings, positions] = await Promise.all([
       ctx.tenantDb
@@ -75,6 +78,8 @@ export const list = queryWithOrg({
           widthMm: zone.widthMm,
           depthMm: zone.depthMm,
           heightMm: zone.maxStackHeightMm,
+          palletCount: new Set(placements.map((p) => p.palletId)).size,
+          occupiedFootprintAreaSqMm: occupiedFootprintAreaSqMm(placements),
           positions: positions
             .filter((p) => p.zoneId === zone._id && !p.isDefault)
             .map((p) => ({
@@ -88,12 +93,14 @@ export const list = queryWithOrg({
             })),
           placements: placements.map((p) => ({
             id: p._id,
+            palletId: p.palletId,
             code: p.positionCode,
             xMm: p.xMm,
             yMm: p.yMm,
             zMm: p.zMm,
             status: p.status,
             rotation: p.rotation,
+            ...moves.get(p._id),
           })),
         };
       }),

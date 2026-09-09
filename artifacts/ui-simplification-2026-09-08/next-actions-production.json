@@ -1,0 +1,28 @@
+{
+  "width": 1728,
+  "height": 940,
+  "fps": 10,
+  "durationMs": 12500,
+  "frames": [
+    {
+      "path": "frames/055.jpg",
+      "timestampMs": 0
+    },
+    {
+      "path": "frames/056.jpg",
+      "timestampMs": 2500
+    },
+    {
+      "path": "frames/057.jpg",
+      "timestampMs": 5000
+    },
+    {
+      "path": "frames/058.jpg",
+      "timestampMs": 7500
+    },
+    {
+      "path": "frames/059.jpg",
+      "timestampMs": 10000
+    }
+  ]
+}

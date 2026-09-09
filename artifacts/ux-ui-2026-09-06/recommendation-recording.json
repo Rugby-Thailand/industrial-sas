@@ -1,0 +1,160 @@
+{
+  "width": 1728,
+  "height": 940,
+  "fps": 10,
+  "durationMs": 17276,
+  "frames": [
+    {
+      "path": "recording/frame-0000.png",
+      "timestampMs": 0
+    },
+    {
+      "path": "recording/frame-0001.png",
+      "timestampMs": 456
+    },
+    {
+      "path": "recording/frame-0002.png",
+      "timestampMs": 890
+    },
+    {
+      "path": "recording/frame-0003.png",
+      "timestampMs": 1321
+    },
+    {
+      "path": "recording/frame-0004.png",
+      "timestampMs": 1754
+    },
+    {
+      "path": "recording/frame-0005.png",
+      "timestampMs": 2186
+    },
+    {
+      "path": "recording/frame-0006.png",
+      "timestampMs": 2645
+    },
+    {
+      "path": "recording/frame-0007.png",
+      "timestampMs": 3118
+    },
+    {
+      "path": "recording/frame-0008.png",
+      "timestampMs": 3571
+    },
+    {
+      "path": "recording/frame-0009.png",
+      "timestampMs": 4034
+    },
+    {
+      "path": "recording/frame-0010.png",
+      "timestampMs": 4495
+    },
+    {
+      "path": "recording/frame-0011.png",
+      "timestampMs": 4960
+    },
+    {
+      "path": "recording/frame-0012.png",
+      "timestampMs": 5429
+    },
+    {
+      "path": "recording/frame-0013.png",
+      "timestampMs": 5890
+    },
+    {
+      "path": "recording/frame-0014.png",
+      "timestampMs": 6351
+    },
+    {
+      "path": "recording/frame-0015.png",
+      "timestampMs": 6810
+    },
+    {
+      "path": "recording/frame-0016.png",
+      "timestampMs": 7264
+    },
+    {
+      "path": "recording/frame-0017.png",
+      "timestampMs": 7722
+    },
+    {
+      "path": "recording/frame-0018.png",
+      "timestampMs": 8189
+    },
+    {
+      "path": "recording/frame-0019.png",
+      "timestampMs": 8657
+    },
+    {
+      "path": "recording/frame-0020.png",
+      "timestampMs": 9156
+    },
+    {
+      "path": "recording/frame-0021.png",
+      "timestampMs": 9622
+    },
+    {
+      "path": "recording/frame-0022.png",
+      "timestampMs": 10075
+    },
+    {
+      "path": "recording/frame-0023.png",
+      "timestampMs": 10514
+    },
+    {
+      "path": "recording/frame-0024.png",
+      "timestampMs": 10986
+    },
+    {
+      "path": "recording/frame-0025.png",
+      "timestampMs": 11460
+    },
+    {
+      "path": "recording/frame-0026.png",
+      "timestampMs": 11905
+    },
+    {
+      "path": "recording/frame-0027.png",
+      "timestampMs": 12373
+    },
+    {
+      "path": "recording/frame-0028.png",
+      "timestampMs": 12800
+    },
+    {
+      "path": "recording/frame-0029.png",
+      "timestampMs": 13234
+    },
+    {
+      "path": "recording/frame-0030.png",
+      "timestampMs": 13663
+    },
+    {
+      "path": "recording/frame-0031.png",
+      "timestampMs": 14103
+    },
+    {
+      "path": "recording/frame-0032.png",
+      "timestampMs": 14541
+    },
+    {
+      "path": "recording/frame-0033.png",
+      "timestampMs": 15011
+    },
+    {
+      "path": "recording/frame-0034.png",
+      "timestampMs": 15449
+    },
+    {
+      "path": "recording/frame-0035.png",
+      "timestampMs": 15914
+    },
+    {
+      "path": "recording/frame-0036.png",
+      "timestampMs": 16358
+    },
+    {
+      "path": "recording/frame-0037.png",
+      "timestampMs": 16813
+    }
+  ]
+}

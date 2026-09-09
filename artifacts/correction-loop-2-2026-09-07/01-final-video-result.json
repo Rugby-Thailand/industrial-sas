@@ -1,0 +1,12 @@
+{
+  "audioTracks" : 0,
+  "bytes" : 520369,
+  "codec" : "avc1",
+  "durationSeconds" : 7.96,
+  "encodedFrames" : 80,
+  "fps" : 10,
+  "height" : 996,
+  "output" : "\/Users\/macbook\/Development\/industrial-sas-storage-planner\/artifacts\/correction-loop-2-2026-09-07\/01-direct-correction-final.mp4",
+  "sourceFrames" : 14,
+  "width" : 1728
+}

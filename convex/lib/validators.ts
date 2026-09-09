@@ -189,6 +189,39 @@ export const locationType = literalUnion(
 );
 export type LocationType = Infer<typeof locationType>;
 
+/**
+ * The location types the storage-building planner owns.
+ *
+ * A rack bin or a floor block is not a thing anyone types in: it is the ledger
+ * face of a storage area or a rack slot drawn on a building floor, created and
+ * retired with it. Master data must not mint a second, unplaced copy — an
+ * operator scanning a code that exists twice has no way to tell which one the
+ * stock is in.
+ */
+export const LAYOUT_MANAGED_LOCATION_TYPES = Object.freeze([
+  "RACK_BIN",
+  "FLOOR_BLOCK",
+] as const);
+
+export type LayoutManagedLocationType =
+  (typeof LAYOUT_MANAGED_LOCATION_TYPES)[number];
+
+export const isLayoutManagedLocationType = (value: string): boolean =>
+  (LAYOUT_MANAGED_LOCATION_TYPES as readonly string[]).includes(value);
+
+/**
+ * The location types a person defines by hand: places the building plan has no
+ * geometry for — a dock door, a staging lane, a quarantine pen, an overflow
+ * yard. These are the only types the master-data screen may create.
+ */
+export const operationalLocationType = literalUnion(
+  "DOCK",
+  "STAGING",
+  "QUARANTINE",
+  "OVERFLOW",
+);
+export type OperationalLocationType = Infer<typeof operationalLocationType>;
+
 /** What a reason code may be cited for. Closed, so a code cannot drift in use. */
 export const reasonCodeScope = literalUnion(
   "ADJUSTMENT",

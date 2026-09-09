@@ -1,0 +1,1100 @@
+--- before/convex/finishedGoods/workflow.ts
++++ after/convex/finishedGoods/workflow.ts
+@@ -617,6 +617,7 @@
+     supportPositionId?: Id<"storagePositions">;
+     supportPalletId?: Id<"finishedGoodsPallets">;
+     supportCode?: string;
++    baseSupportPositionId?: Id<"storagePositions">;
+     surface: Surface;
+   }> = [];
+   if (!zone.mode || zone.mode === "SIMPLE")
+@@ -721,6 +722,7 @@
+       continue;
+     const zMm = lower.zMm + lower.heightMm;
+     supports.push({
++      ...compact({ baseSupportPositionId: root.supportPositionId }),
+       supportPalletId: lower.palletId,
+       supportCode: lowerPallet.code,
+       surface: {
+@@ -736,7 +738,16 @@
+   return { zone, building, floor, positions, supports, unavailable, occupancy };
+ }
+ type LocationContext = NonNullable<Awaited<ReturnType<typeof locationContext>>>;
++export interface PreviewSupport {
++  supportPositionId?: Id<"storagePositions">;
++  supportPalletId?: Id<"finishedGoodsPallets">;
++  baseSupportPositionId?: Id<"storagePositions">;
++  supportCode?: string;
++  blockedReason?: string;
++  surface: Surface;
++}
+ export interface Destination {
++  previewSupports?: PreviewSupport[];
+   zoneId: Id<"storageZones">;
+   locationId: Id<"locations">;
+   locationName: string;
+@@ -911,6 +922,7 @@
+     [{ field: "warehouseId", value: args.warehouseId }],
+   );
+   const candidates: Candidate[] = [];
++  const previewCandidates: Candidate[] = [];
+   const reasons = new Set<string>();
+   let active = 0;
+   for (const zone of zones) {
+@@ -925,19 +937,23 @@
+       reasons.add("NO_SUPPORT_SURFACE");
+       continue;
+     }
++    const previewSupports: PreviewSupport[] = [];
+     for (const support of context.supports) {
++      if (support.supportPalletId === pallet._id) continue;
++      const blockedReason = support.supportPalletId
++        ? await validateStack(ctx, pallet, support.supportPalletId)
++        : null;
++      previewSupports.push({
++        ...support,
++        ...compact({ blockedReason: blockedReason ?? undefined }),
++      });
++    }
++    for (const support of previewSupports) {
+       // A selectable height must be backed by a valid floor, rack, or pallet.
+       // Re-run the same stack rules here and again when the reservation commits.
+-      if (support.supportPalletId) {
+-        const stackError = await validateStack(
+-          ctx,
+-          pallet,
+-          support.supportPalletId,
+-        );
+-        if (stackError) {
+-          reasons.add(stackError);
+-          continue;
+-        }
++      if (support.blockedReason) {
++        reasons.add(support.blockedReason);
++        continue;
+       }
+       const box = firstFit(
+         pallet,
+@@ -946,6 +962,27 @@
+         context.unavailable,
+       );
+       if (!box) {
++        // Keep an inspectable floor/rack context even when no placement fits.
++        // This is a preview, never a reservation: geometry is checked in the UI
++        // and again by reserve/confirm on the server.
++        if (!support.supportPalletId) {
++          previewCandidates.push({
++            ...destination(
++              context,
++              support,
++              {
++                xMm: support.surface.xMm,
++                yMm: support.surface.yMm,
++                zMm: support.surface.zMm,
++                rotation: 0,
++                ...dimensions(pallet, 0),
++              },
++              product,
++              pallet._id,
++            ),
++            previewSupports,
++          });
++        }
+         reasons.add(
+           pallet.heightMm > support.surface.heightMm
+             ? "HEIGHT_EXCEEDED"
+@@ -953,7 +990,10 @@
+         );
+         continue;
+       }
+-      candidates.push(destination(context, support, box, product, pallet._id));
++      candidates.push({
++        ...destination(context, support, box, product, pallet._id),
++        previewSupports,
++      });
+     }
+   }
+   candidates.sort(
+@@ -967,6 +1007,7 @@
+   );
+   return {
+     candidates,
++    previewCandidates,
+     reasons: candidates.length
+       ? []
+       : active
+--- before/src/features/finishedGoods/palletGeometry.ts
++++ after/src/features/finishedGoods/palletGeometry.ts
+@@ -29,6 +29,44 @@
+   readonly xMm: number;
+   readonly yMm: number;
+   readonly zMm: number;
++}
++
++/** Preview surfaces include rejected supports so invalid attempts remain visible. */
++export interface PlacementSurface extends PalletSupport {
++  readonly supportPalletId?: string | undefined;
++  readonly supportPositionId?: string | undefined;
++  readonly baseSupportPositionId?: string | undefined;
++  readonly supportCode?: string | undefined;
++  readonly blockedReason?: string | undefined;
++}
++
++export function resolvePalletSupport(
++  placement: PalletPlacement,
++  dimensions: PalletDimensions,
++  base: PlacementSurface,
++  surfaces: readonly PlacementSurface[],
++): PlacementSurface {
++  const footprint = palletFootprint(dimensions, placement.rotation);
++  const overlaps = (other: PlacementSurface) =>
++    placement.xMm < other.xMm + other.widthMm &&
++    placement.xMm + footprint.widthMm > other.xMm &&
++    placement.yMm < other.yMm + other.depthMm &&
++    placement.yMm + footprint.depthMm > other.yMm;
++  return (
++    surfaces
++      .filter(
++        (s) =>
++          s.supportPalletId &&
++          s.baseSupportPositionId === base.supportPositionId &&
++          s.zMm >= base.zMm &&
++          overlaps(s),
++      )
++      .sort(
++        (a, b) =>
++          b.zMm - a.zMm ||
++          (a.supportPalletId ?? "").localeCompare(b.supportPalletId ?? ""),
++      )[0] ?? base
++  );
+ }
+ 
+ export interface UnavailablePalletArea {
+@@ -98,7 +136,7 @@
+   occupied: readonly OccupiedPallet[],
+   support?: PalletSupport,
+   unavailable: readonly UnavailablePalletArea[] = [],
+-): "dimensions" | "boundary" | "height" | "overlap" | undefined {
++): "dimensions" | "boundary" | "support" | "height" | "overlap" | undefined {
+   if (!validDimensions(dimensions) || !validDimensions(area))
+     return "dimensions";
+   const footprint = palletFootprint(dimensions, placement.rotation);
+@@ -118,7 +156,7 @@
+       placement.xMm + footprint.widthMm > support.xMm + support.widthMm ||
+       placement.yMm + footprint.depthMm > support.yMm + support.depthMm)
+   )
+-    return "boundary";
++    return "support";
+   const elevation = placement.zMm ?? support?.zMm ?? 0;
+   if (
+     !Number.isFinite(elevation) ||
+--- before/src/features/finishedGoods/PalletScene.tsx
++++ after/src/features/finishedGoods/PalletScene.tsx
+@@ -9,6 +9,8 @@
+ 
+ import {
+   constrainPalletPlacement,
++  resolvePalletSupport,
++  type PlacementSurface,
+   palletFootprint,
+   palletPlacementIssue,
+   projectPalletPoint,
+@@ -38,6 +40,9 @@
+   /** Reference geometry only: never contributes to collision checks. */
+   readonly sourceFootprint?: Omit<OccupiedPallet, "status">;
+   readonly support?: PalletSupport;
++  readonly automaticSupports?: readonly PlacementSurface[];
++  readonly baseSupport?: PlacementSurface;
++  readonly issueMessage?: string;
+   readonly unavailable?: readonly UnavailablePalletArea[];
+   readonly onPlacementChange?: (placement: PalletPlacement) => void;
+   readonly editable?: boolean;
+@@ -74,6 +79,8 @@
+     fits: "Fits at this position",
+     dimensions: "Enter valid dimensions to preview the pallet.",
+     boundary: "Pallet extends outside this location",
++    support:
++      "The supporting base is too small or the pallet overhangs its edge",
+     height: "Pallet exceeds the available height",
+     overlap: "This position overlaps a stored or reserved pallet",
+     area: "Location",
+@@ -106,6 +113,7 @@
+     fits: "จัดเก็บในตำแหน่งนี้ได้",
+     dimensions: "กรอกขนาดที่ถูกต้องเพื่อดูภาพพาเลท",
+     boundary: "พาเลทอยู่นอกขอบเขตจุดจัดเก็บ",
++    support: "ฐานรองรับเล็กเกินไป หรือพาเลทวางเหลื่อมออกนอกฐาน",
+     height: "พาเลทสูงเกินพื้นที่ที่ใช้ได้",
+     overlap: "ตำแหน่งนี้ทับซ้อนพาเลทที่จัดเก็บหรือจองแล้ว",
+     area: "จุดจัดเก็บ",
+@@ -133,6 +141,9 @@
+   showDimensions = true,
+   status = "PROPOSED",
+   support: requestedSupport,
++  automaticSupports,
++  baseSupport,
++  issueMessage,
+   unavailable = [],
+ }: PalletSceneProps) {
+   const t = Object.fromEntries(
+@@ -156,7 +167,10 @@
+   >(undefined);
+   const supportValid =
+     requestedSupport === undefined ||
+-    (validDimensions(requestedSupport) &&
++    (validDimensions({
++      ...requestedSupport,
++      heightMm: Math.max(1, requestedSupport.heightMm),
++    }) &&
+       [requestedSupport.xMm, requestedSupport.yMm, requestedSupport.zMm].every(
+         (value) => Number.isFinite(value) && value >= 0,
+       ));
+@@ -189,8 +203,9 @@
+           xMm: Number.isFinite(placement.xMm) ? placement.xMm : 0,
+           yMm: Number.isFinite(placement.yMm) ? placement.yMm : 0,
+         };
+-  const issue =
+-    !dimensionsValid || !areaValid || !supportValid
++  const issue = issueMessage
++    ? "blocked"
++    : !dimensionsValid || !areaValid || !supportValid
+       ? "dimensions"
+       : area === undefined
+         ? undefined
+@@ -242,23 +257,23 @@
+     )
+       ? sourceFootprint
+       : undefined;
++  const cameraHeight = automaticSupports
++    ? Math.max(
++        surface.heightMm,
++        ...automaticSupports.map((s) => s.zMm + footprint.heightMm),
++      )
++    : elevation + footprint.heightMm;
+   const extent = Math.max(
+     surface.widthMm,
+     surface.depthMm,
+     footprint.widthMm,
+     footprint.depthMm,
+-    elevation + footprint.heightMm,
++    cameraHeight,
+   );
+   const allPoints = [
+     ...corners(0, 0, surface.widthMm, surface.depthMm),
+     // Keep the camera steady while a pallet moves across its supporting surface.
+-    ...corners(
+-      0,
+-      0,
+-      surface.widthMm,
+-      surface.depthMm,
+-      elevation + footprint.heightMm,
+-    ),
++    ...corners(0, 0, surface.widthMm, surface.depthMm, cameraHeight),
+     ...corners(
+       drawnPlacement.xMm,
+       drawnPlacement.yMm,
+@@ -315,10 +330,26 @@
+     return p.matrixTransform(matrix.inverse());
+   };
+   const updatePlacement = (next: PalletPlacement) => {
+-    if (canMove && area)
++    if (canMove && area) {
++      const constrained = constrainPalletPlacement(
++        next,
++        dimensions,
++        area,
++        automaticSupports ? undefined : support,
++      );
++      const resolved =
++        automaticSupports && baseSupport
++          ? resolvePalletSupport(
++              constrained,
++              dimensions,
++              baseSupport,
++              automaticSupports,
++            )
++          : undefined;
+       onPlacementChange?.(
+-        constrainPalletPlacement(next, dimensions, area, support),
++        resolved ? { ...constrained, zMm: resolved.zMm } : constrained,
+       );
++    }
+   };
+   const finishDrag = (pointerId: number) => {
+     if (drag.current?.pointerId !== pointerId) return;
+@@ -916,7 +947,9 @@
+               <CircleCheck className="size-4 shrink-0" aria-hidden="true" />
+             )}
+             {issue
+-              ? t[issue]
++              ? issue === "blocked"
++                ? issueMessage
++                : t[issue]
+               : area
+                 ? sourceStatus
+                   ? t.sourcePosition
+--- before/src/features/finishedGoods/PalletScreens.tsx
++++ after/src/features/finishedGoods/PalletScreens.tsx
+@@ -33,10 +33,15 @@
+   type Destination,
+ } from "@/lib/convex/finishedGoodsApi";
+ import { PalletScene, type PalletPlacement } from "./PalletScene";
+-import { palletPlacementIssue } from "./palletGeometry";
++import {
++  palletPlacementIssue,
++  resolvePalletSupport,
++  type PlacementSurface,
++} from "./palletGeometry";
+ import { DestinationScanner } from "./DestinationScanner";
+ import {
+   ErrorNotice,
++  errorText,
+   Field,
+   Heading,
+   Loading,
+@@ -528,7 +533,12 @@
+     );
+   if (!outcome) return <Loading />;
+   if (!outcome.ok) return <Missing />;
+-  const candidates = outcome.value.candidates;
++  const candidates = [
++    ...outcome.value.candidates,
++    ...("previewCandidates" in outcome.value
++      ? outcome.value.previewCandidates
++      : []),
++  ];
+   const keyOf = destinationKey;
+   const current =
+     candidates.find((c) => keyOf(c) === selected) ?? candidates[0];
+@@ -611,7 +621,7 @@
+                 <div className="flex flex-wrap items-center gap-2">
+                   <MapPin className="size-4 text-accent" aria-hidden="true" />
+                   <span className="font-semibold">{c.locationName}</span>
+-                  {index === 0 ? (
++                  {index === 0 && outcome.value.candidates.length > 0 ? (
+                     <span className="rounded-full bg-success/10 px-2 py-1 text-[10px] text-success">
+                       {tr("Recommended", "แนะนำ")}
+                     </span>
+@@ -639,7 +649,6 @@
+             detail={detail}
+             candidate={current}
+             destinations={candidates}
+-            onDestinationChange={(next) => setSelected(keyOf(next))}
+           />
+         </div>
+       )}
+@@ -706,7 +715,8 @@
+     area: {
+       widthMm: destination.zone.widthMm,
+       depthMm: destination.zone.depthMm,
+-      heightMm: destination.zone.maxStackHeightMm,
++      heightMm:
++        destination.zone.maxStackHeightMm + destination.zone.baseElevationMm,
+     },
+     support: destination.support,
+     unavailable: destination.unavailable,
+@@ -777,9 +787,8 @@
+ export function PlacementEditor({
+   warehouseId,
+   detail,
+-  candidate,
+-  destinations = [candidate],
+-  onDestinationChange,
++  candidate: initialCandidate,
++  destinations = [initialCandidate],
+   moving = false,
+   onReserved,
+ }: {
+@@ -787,7 +796,6 @@
+   detail: PalletDetail;
+   candidate: Candidate;
+   destinations?: readonly Candidate[];
+-  onDestinationChange?: (candidate: Candidate) => void;
+   moving?: boolean;
+   onReserved?: () => void;
+ }) {
+@@ -803,14 +811,70 @@
+     detail.pallet.storageFormat ?? detail.product?.storageFormat,
+   );
+   const [reason, setReason] = useState("");
+-  const [placement, setPlacement] = useState<PalletPlacement>({
+-    xMm: candidate.xMm,
+-    yMm: candidate.yMm,
+-    zMm: candidate.zMm,
+-    rotation: candidate.rotation,
++  const [requested, setPlacement] = useState<PalletPlacement>({
++    xMm: initialCandidate.xMm,
++    yMm: initialCandidate.yMm,
++    zMm: initialCandidate.zMm,
++    rotation: initialCandidate.rotation,
+   });
+   const [adjust, setAdjust] = useState(false);
+   const [confirm, setConfirm] = useState(false);
++  const initialProps = sceneProps(initialCandidate, detail);
++  const allSurfaces: PlacementSurface[] = initialCandidate.previewSupports
++    ? initialCandidate.previewSupports.map(({ surface, ...metadata }) => ({
++        ...surface,
++        ...metadata,
++      }))
++    : destinations
++        .filter((d) => d.zoneId === initialCandidate.zoneId)
++        .map((d) => ({
++          ...d.support,
++          supportPalletId: d.supportPalletId,
++          supportPositionId: d.supportPositionId,
++          supportCode: d.supportCode,
++        }));
++  const allowsPalletStacking =
++    (detail.pallet.storageFormat ?? detail.product?.storageFormat) === "PALLET";
++  const surfaces = allSurfaces.filter(
++    (s) => !s.supportPalletId || allowsPalletStacking,
++  );
++  const selectedSurface = surfaces.find(
++    (s) =>
++      s.supportPalletId === initialCandidate.supportPalletId &&
++      s.supportPositionId === initialCandidate.supportPositionId,
++  );
++  const base = surfaces.find(
++    (s) =>
++      !s.supportPalletId &&
++      s.supportPositionId ===
++        (selectedSurface?.baseSupportPositionId ??
++          initialCandidate.supportPositionId),
++  ) ?? {
++    ...initialCandidate.support,
++    supportPositionId: initialCandidate.supportPositionId,
++  };
++  const resolved = resolvePalletSupport(
++    requested,
++    initialProps.dimensions,
++    base,
++    surfaces,
++  );
++  const placement = { ...requested, zMm: resolved.zMm };
++  const candidate: { -readonly [K in keyof Candidate]: Candidate[K] } = {
++    ...initialCandidate,
++    support: resolved,
++    ...placement,
++  };
++  delete candidate.supportPalletId;
++  delete candidate.supportPositionId;
++  delete candidate.supportCode;
++  delete candidate.supportLabel;
++  if (resolved.supportPalletId)
++    candidate.supportPalletId = resolved.supportPalletId;
++  if (resolved.supportPositionId)
++    candidate.supportPositionId = resolved.supportPositionId;
++  if (resolved.supportCode)
++    candidate.supportCode = candidate.supportLabel = resolved.supportCode;
+   const props = sceneProps(candidate, detail);
+   const unchanged =
+     moving &&
+@@ -821,14 +885,16 @@
+     detail.placement?.yMm === placement.yMm &&
+     detail.placement?.zMm === placement.zMm &&
+     detail.placement?.rotation === placement.rotation;
+-  const issue = palletPlacementIssue(
+-    props.dimensions,
+-    props.area,
+-    placement,
+-    props.occupied,
+-    props.support,
+-    props.unavailable,
+-  );
++  const issue =
++    resolved.blockedReason ??
++    palletPlacementIssue(
++      props.dimensions,
++      props.area,
++      placement,
++      props.occupied,
++      props.support,
++      props.unavailable,
++    );
+   async function reserve() {
+     await op.run(async () => {
+       if (issue || unchanged) throw new Error("SPACE_UNAVAILABLE");
+@@ -908,6 +974,11 @@
+               : {})}
+             placement={placement}
+             onPlacementChange={setPlacement}
++            automaticSupports={surfaces}
++            baseSupport={base}
++            {...(resolved.blockedReason
++              ? { issueMessage: errorText(resolved.blockedReason, tr) }
++              : {})}
+             editable={adjust}
+             locale={locale}
+             label={detail.pallet.code}
+@@ -920,50 +991,17 @@
+               : tr("Destination", "ปลายทาง")}
+           </h2>
+           <DestinationSummary destination={candidate} placement={placement} />
+-          <div className="space-y-3">
+-            <label className="block space-y-2 text-sm">
+-              <span>{tr("Placement level (Z)", "ระดับจัดเก็บ (Z)")}</span>
+-              <select
+-                className="h-11 w-full min-w-0 rounded-lg border border-border bg-background px-3"
+-                value={destinationKey(candidate)}
+-                disabled={!onDestinationChange || op.busy}
+-                onChange={(event) => {
+-                  const next = destinations.find(
+-                    (item) => destinationKey(item) === event.target.value,
+-                  );
+-                  if (next) onDestinationChange?.(next);
+-                }}
+-              >
+-                {destinations.map((item) => (
+-                  <option
+-                    key={destinationKey(item)}
+-                    value={destinationKey(item)}
+-                  >
+-                    Z {mmText(item.zMm)} ·{" "}
+-                    {item.supportPalletId
+-                      ? `${tr("On pallet", "บนพาเลท")} ${item.supportCode}`
+-                      : (item.supportLabel ??
+-                        tr("Location floor", "พื้นจุดจัดเก็บ"))}{" "}
+-                    · {item.locationName} · {item.buildingCode} ·{" "}
+-                    {tr("Floor", "ชั้น")} {item.floorNumber}
+-                  </option>
+-                ))}
+-              </select>
+-            </label>
+-            <Field
+-              label="Z (m)"
+-              type="number"
+-              value={String((placement.zMm ?? 0) / 1000)}
+-              onChange={() => {}}
+-              disabled
+-            />
+-            <p className="text-xs text-muted">
+-              {tr(
+-                "Change height by choosing a floor, rack level or supporting pallet. Z follows the selected surface; only valid available supports are listed.",
+-                "เปลี่ยนความสูงโดยเลือกพื้น ระดับชั้นวาง หรือพาเลทรองรับ ค่า Z อ้างอิงผิวที่เลือก และแสดงเฉพาะตำแหน่งที่วางได้",
+-              )}
+-            </p>
+-          </div>
++          <p className="text-xs text-muted">
++            {allowsPalletStacking
++              ? tr(
++                  "Drag onto a pallet to stack automatically; drag clear to return to the supporting floor or rack. Red shows why placement is not allowed.",
++                  "ลากเหนือพาเลทเพื่อซ้อนอัตโนมัติ ลากออกเพื่อลงพื้นหรือชั้นวาง สีแดงแสดงตำแหน่งที่วางไม่ได้พร้อมเหตุผล",
++                )
++              : tr(
++                  "Drag to adjust the position on the floor or rack. Red shows why placement is not allowed.",
++                  "ลากเพื่อปรับตำแหน่งบนพื้นหรือชั้นวาง สีแดงแสดงตำแหน่งที่วางไม่ได้พร้อมเหตุผล",
++                )}
++          </p>
+           {adjust ? (
+             <>
+               <div className="grid grid-cols-2 gap-3">
+@@ -997,10 +1035,10 @@
+                 className="w-full"
+                 onClick={() =>
+                   setPlacement({
+-                    xMm: candidate.xMm,
+-                    yMm: candidate.yMm,
+-                    zMm: candidate.zMm,
+-                    rotation: candidate.rotation,
++                    xMm: initialCandidate.xMm,
++                    yMm: initialCandidate.yMm,
++                    zMm: initialCandidate.zMm,
++                    rotation: initialCandidate.rotation,
+                   })
+                 }
+               >
+--- before/src/features/finishedGoods/MoveScreen.tsx
++++ after/src/features/finishedGoods/MoveScreen.tsx
+@@ -151,7 +151,14 @@
+     palletId: detail.pallet._id,
+   });
+   const [selected, setSelected] = useState("");
+-  const candidates = outcome?.ok ? outcome.value.candidates : [];
++  const candidates = outcome?.ok
++    ? [
++        ...outcome.value.candidates,
++        ...("previewCandidates" in outcome.value
++          ? outcome.value.previewCandidates
++          : []),
++      ]
++    : [];
+   const keyOf = destinationKey;
+   const current =
+     candidates.find((candidate) => keyOf(candidate) === selected) ??
+@@ -242,7 +249,6 @@
+             detail={detail}
+             candidate={current}
+             destinations={candidates}
+-            onDestinationChange={(next) => setSelected(keyOf(next))}
+             moving
+             onReserved={onReserved}
+           />
+--- before/src/features/finishedGoods/palletGeometry.test.ts
++++ after/src/features/finishedGoods/palletGeometry.test.ts
+@@ -2,6 +2,8 @@
+ 
+ import {
+   constrainPalletPlacement,
++  resolvePalletSupport,
++  type PlacementSurface,
+   palletPlacementIssue,
+   projectPalletPoint,
+   unprojectPalletDelta,
+@@ -119,7 +121,7 @@
+       ),
+     ).toEqual({ rotation: 0, xMm: 500, yMm: 1_500, zMm: 1_500 });
+     expect(palletPlacementIssue(dimensions, area, origin, [], support)).toBe(
+-      "boundary",
++      "support",
+     );
+     expect(
+       palletPlacementIssue(
+@@ -166,3 +168,111 @@
+     },
+   );
+ });
++
++describe("automatic pallet support", () => {
++  const base: PlacementSurface = { ...area, xMm: 0, yMm: 0, zMm: 0 };
++  const lower: PlacementSurface = {
++    ...dimensions,
++    xMm: 500,
++    yMm: 500,
++    zMm: 1400,
++    heightMm: 1600,
++    supportPalletId: "lower",
++  };
++  const resolve = (
++    p: typeof origin | { xMm: number; yMm: number; rotation: 0 | 90 },
++    surfaces: PlacementSurface[] = [lower],
++  ) => resolvePalletSupport(p, dimensions, base, surfaces);
++  it("raises a footprint onto the top even when only partially overlapping", () => {
++    const p = { ...origin, xMm: 400, yMm: 500 };
++    const support = resolve(p);
++    expect(support.zMm).toBe(1400);
++    expect(
++      palletPlacementIssue(
++        dimensions,
++        area,
++        { ...p, zMm: support.zMm },
++        [],
++        support,
++      ),
++    ).toBe("support");
++  });
++  it("allows an exact fit without intersecting the lower pallet volume", () => {
++    const p = { ...origin, xMm: 500, yMm: 500, zMm: 1400 };
++    expect(
++      palletPlacementIssue(
++        dimensions,
++        area,
++        p,
++        [
++          {
++            ...dimensions,
++            xMm: 500,
++            yMm: 500,
++            zMm: 0,
++            id: "lower",
++            label: "Lower",
++            status: "STORED",
++          },
++        ],
++        resolve(p),
++      ),
++    ).toBeUndefined();
++  });
++  it("keeps the preview above a small base or low ceiling", () => {
++    const p = { ...origin, xMm: 500, yMm: 500 };
++    for (const candidate of [
++      { ...lower, widthMm: 600 },
++      { ...lower, heightMm: 300 },
++    ]) {
++      const support = resolve(p, [candidate]);
++      expect(support.zMm).toBe(1400);
++      expect(
++        palletPlacementIssue(
++          dimensions,
++          area,
++          { ...p, zMm: support.zMm },
++          [],
++          support,
++        ),
++      ).toBe(candidate.widthMm === 600 ? "support" : "height");
++    }
++  });
++  it("keeps an overloaded support visible and carries its rejection", () => {
++    expect(
++      resolve({ ...origin, xMm: 500, yMm: 500 }, [
++        { ...lower, blockedReason: "STACK_LEVELS_EXCEEDED" },
++      ]),
++    ).toMatchObject({ zMm: 1400, blockedReason: "STACK_LEVELS_EXCEEDED" });
++  });
++  it("drops to the floor when clear or just touching the base", () => {
++    expect(resolve({ ...origin, xMm: 1700, yMm: 500 })).toBe(base);
++    expect(resolve({ ...origin, xMm: 1800, yMm: 1900 })).toBe(base);
++  });
++  it("chooses the highest intersecting top and ignores unrelated rack levels", () => {
++    expect(
++      resolve({ ...origin, xMm: 500, yMm: 500 }, [
++        lower,
++        { ...lower, zMm: 2800, supportPalletId: "upper" },
++        { ...lower, zMm: 4000, baseSupportPositionId: "other-rack" },
++      ]).zMm,
++    ).toBe(2800);
++  });
++  it("uses the rotated footprint and returns to an elevated rack", () => {
++    const rack = { ...base, zMm: 1000, supportPositionId: "rack" };
++    const top = {
++      ...lower,
++      xMm: 1100,
++      baseSupportPositionId: "rack",
++      zMm: 2000,
++    };
++    expect(
++      resolvePalletSupport({ ...origin, rotation: 0 }, dimensions, rack, [top])
++        .zMm,
++    ).toBe(2000);
++    expect(
++      resolvePalletSupport({ ...origin, rotation: 90 }, dimensions, rack, [top])
++        .zMm,
++    ).toBe(1000);
++  });
++});
+--- before/src/features/finishedGoods/PalletScene.test.tsx
++++ after/src/features/finishedGoods/PalletScene.test.tsx
+@@ -8,6 +8,70 @@
+ const placement = { xMm: 0, yMm: 0, rotation: 0 } as const;
+ 
+ describe("PalletScene", () => {
++  it("moves onto and off a pallet top without clamping to the old support or moving the camera", () => {
++    const base = { ...area, xMm: 0, yMm: 0, zMm: 0 };
++    const top = {
++      ...dimensions,
++      xMm: 500,
++      yMm: 500,
++      zMm: 1400,
++      heightMm: 1600,
++      supportPalletId: "lower",
++    };
++    const onPlacementChange = vi.fn();
++    const props = {
++      dimensions,
++      area,
++      locale: "en" as const,
++      editable: true,
++      onPlacementChange,
++      automaticSupports: [top],
++      baseSupport: base,
++    };
++    const view = render(
++      <PalletScene
++        {...props}
++        support={base}
++        placement={{ xMm: 1700, yMm: 500, zMm: 0, rotation: 0 }}
++      />,
++    );
++    const frame = view.container
++      .querySelector("svg[data-view]")
++      ?.getAttribute("viewBox");
++    fireEvent.keyDown(screen.getByRole("button", { name: "Move pallet" }), {
++      key: "ArrowLeft",
++    });
++    expect(onPlacementChange).toHaveBeenLastCalledWith({
++      xMm: 1600,
++      yMm: 500,
++      zMm: 1400,
++      rotation: 0,
++    });
++    view.rerender(
++      <PalletScene
++        {...props}
++        support={top}
++        placement={{ xMm: 1600, yMm: 500, zMm: 1400, rotation: 0 }}
++      />,
++    );
++    expect(view.container.querySelector("svg[data-view]")).toHaveAttribute(
++      "viewBox",
++      frame,
++    );
++    expect(
++      screen.getByText(/supporting base is too small/),
++    ).toBeInTheDocument();
++    fireEvent.keyDown(screen.getByRole("button", { name: "Move pallet" }), {
++      key: "ArrowRight",
++    });
++    expect(onPlacementChange).toHaveBeenLastCalledWith({
++      xMm: 1700,
++      yMm: 500,
++      zMm: 0,
++      rotation: 0,
++    });
++  });
++
+   it("labels an in-transit source as last confirmed instead of stored or reserved", () => {
+     render(
+       <PalletScene
+--- before/src/features/finishedGoods/PalletScreens.test.tsx
++++ after/src/features/finishedGoods/PalletScreens.test.tsx
+@@ -334,7 +334,156 @@
+ });
+ 
+ describe("exact storage recommendations", () => {
+-  it("selects a pallet-top destination and submits its support identity", async () => {
++  it.each([
++    [
++      "small base",
++      { widthMm: 600 },
++      undefined,
++      "The supporting base is too small",
++    ],
++    [
++      "low ceiling",
++      { heightMm: 100 },
++      undefined,
++      "Pallet exceeds the available height",
++    ],
++    [
++      "level limit",
++      {},
++      "STACK_LEVELS_EXCEEDED",
++      "This would exceed the configured number of stack levels",
++    ],
++  ] as const)(
++    "keeps a rejected %s preview elevated and blocks confirmation",
++    (_name, size, blockedReason, message) => {
++      const top = {
++        surface: {
++          ...finishedGoodDestination.support,
++          xMm: 200,
++          yMm: 200,
++          zMm: 1400,
++          heightMm: 1600,
++          ...size,
++        },
++        supportPalletId: "lower",
++        supportCode: "LOWER",
++        ...(blockedReason ? { blockedReason } : {}),
++      };
++      mocks.query.mockImplementation((name) =>
++        name.endsWith(":getPallet")
++          ? querySuccess(currentDetail)
++          : querySuccess({
++              candidates: [
++                {
++                  ...finishedGoodDestination,
++                  previewSupports: [
++                    { surface: finishedGoodDestination.support },
++                    top,
++                  ],
++                },
++              ],
++              reasons: [],
++            }),
++      );
++      renderPallet("storage");
++      fireEvent.click(screen.getByRole("button", { name: "Adjust position" }));
++      fireEvent.change(screen.getByRole("spinbutton", { name: "X (m)" }), {
++        target: { value: "0.2" },
++      });
++      expect(
++        screen.getByText(/Position: X 0.2 m · Y 0.2 m · Z 1.4 m/),
++      ).toBeInTheDocument();
++      expect(screen.getByText(new RegExp(message))).toBeInTheDocument();
++      expect(
++        screen.getByRole("button", { name: "Use this position" }),
++      ).toBeDisabled();
++      expect(callsFor("reserve")).toHaveLength(0);
++    },
++  );
++
++  it.each(["BOX", "OTHER"] as const)(
++    "keeps %s on the fixed surface even when pallet preview supports exist",
++    (storageFormat) => {
++      currentDetail = {
++        ...currentDetail,
++        pallet: { ...currentDetail.pallet, storageFormat },
++      };
++      const candidate = {
++        ...finishedGoodDestination,
++        previewSupports: [
++          { surface: finishedGoodDestination.support },
++          {
++            surface: {
++              ...finishedGoodDestination.support,
++              zMm: 1400,
++              heightMm: 1600,
++            },
++            supportPalletId: "lower",
++          },
++        ],
++      };
++      mocks.query.mockImplementation((name) =>
++        name.endsWith(":getPallet")
++          ? querySuccess(currentDetail)
++          : querySuccess({ candidates: [candidate], reasons: [] }),
++      );
++      renderPallet("storage");
++      fireEvent.click(screen.getByRole("button", { name: "Adjust position" }));
++      number("X (m)", "0.3");
++      expect(
++        screen.getByText(/Position: X 0.3 m · Y 0.2 m · Z 0 m/),
++      ).toBeInTheDocument();
++      expect(
++        screen.queryByRole("spinbutton", { name: /Z/ }),
++      ).not.toBeInTheDocument();
++      expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
++      expect(screen.queryByText(/stack automatically/)).not.toBeInTheDocument();
++      expect(
++        screen.getByText(/Drag to adjust the position on the floor or rack/),
++      ).toBeVisible();
++    },
++  );
++
++  it("shows an invalid elevated preview even when there are no valid recommendations", () => {
++    const candidate = {
++      ...finishedGoodDestination,
++      previewSupports: [
++        { surface: finishedGoodDestination.support },
++        {
++          surface: {
++            ...finishedGoodDestination.support,
++            zMm: 2800,
++            heightMm: 200,
++          },
++          supportPalletId: "lower",
++        },
++      ],
++    };
++    mocks.query.mockImplementation((name) =>
++      name.endsWith(":getPallet")
++        ? querySuccess(currentDetail)
++        : querySuccess({
++            candidates: [],
++            previewCandidates: [candidate],
++            reasons: ["NO_FREE_FOOTPRINT"],
++          }),
++    );
++    renderPallet("storage");
++    fireEvent.click(screen.getByRole("button", { name: "Adjust position" }));
++    number("X (m)", "0.3");
++    expect(
++      screen.getByText(/Position: X 0.3 m · Y 0.2 m · Z 2.8 m/),
++    ).toBeInTheDocument();
++    expect(
++      screen.getByText(/Pallet exceeds the available height/),
++    ).toBeInTheDocument();
++    expect(
++      screen.getByRole("button", { name: "Use this position" }),
++    ).toBeDisabled();
++    expect(callsFor("reserve")).toHaveLength(0);
++  });
++
++  it("automatically raises an edited position onto a pallet and submits that support identity", async () => {
+     const stack = {
+       ...finishedGoodDestination,
+       supportPalletId: "lower-pallet",
+@@ -356,8 +505,14 @@
+           }),
+     );
+     renderPallet("storage");
+-    fireEvent.click(screen.getByRole("button", { name: /LOWER-1 · Z 1.4 m/ }));
+-    expect(screen.getByText(/Position:.*Z 1.4 m/)).toBeInTheDocument();
++    fireEvent.click(screen.getByRole("button", { name: "Adjust position" }));
++    fireEvent.change(screen.getByRole("spinbutton", { name: "X (m)" }), {
++      target: { value: "0.3" },
++    });
++    expect(
++      screen.getByText(/Position: X 0.3 m · Y 0.2 m · Z 1.4 m/),
++    ).toBeInTheDocument();
++    fireEvent.click(screen.getByRole("button", { name: "Use this position" }));
+     fireEvent.click(screen.getByRole("button", { name: "Confirm spot" }));
+     fireEvent.click(screen.getByRole("button", { name: "Reserve spot" }));
+     await waitFor(() => expect(callsFor("reserve")).toHaveLength(1));
+--- before/src/features/finishedGoods/MoveScreen.test.tsx
++++ after/src/features/finishedGoods/MoveScreen.test.tsx
+@@ -148,7 +148,7 @@
+   fireEvent.click(screen.getByRole("button", { name: "Verify entered code" }));
+ }
+ describe("stored pallet movement", () => {
+-  it("selects a pallet-backed Z level and preserves its support when moving", async () => {
++  it("automatically selects a pallet top during movement and preserves its support", async () => {
+     const stack = {
+       ...finishedGoodDestination,
+       supportPalletId: "lower-pallet",
+@@ -169,11 +169,14 @@
+           }),
+     );
+     renderMove();
+-    fireEvent.change(
+-      screen.getByRole("combobox", { name: "Placement level (Z)" }),
+-      { target: { value: `${stack.zoneId}:pallet:lower-pallet` } },
+-    );
+-    expect(screen.getByRole("spinbutton", { name: "Z (m)" })).toHaveValue(1.4);
++    fireEvent.click(screen.getByRole("button", { name: "Adjust position" }));
++    fireEvent.change(screen.getByRole("spinbutton", { name: "X (m)" }), {
++      target: { value: "0.3" },
++    });
++    expect(
++      screen.getByText(/Position: X 0.3 m · Y 0.2 m · Z 1.4 m/),
++    ).toBeInTheDocument();
++    fireEvent.click(screen.getByRole("button", { name: "Use this position" }));
+     fireEvent.click(screen.getByRole("button", { name: "Review move" }));
+     fireEvent.click(
+       within(screen.getByRole("dialog")).getByRole("button", {
+--- before/tests/integration/finished-goods-stacking.integration.test.ts
++++ after/tests/integration/finished-goods-stacking.integration.test.ts
+@@ -284,6 +284,19 @@
+       false,
+     );
+     expect(candidates.some((c) => c.zMm === 0)).toBe(true);
++    expect(result["candidates"]).toEqual(
++      expect.arrayContaining([
++        expect.objectContaining({
++          previewSupports: expect.arrayContaining([
++            expect.objectContaining({
++              supportPalletId: w.palletId,
++              blockedReason: "STACK_LIMITS_REQUIRED",
++              surface: expect.objectContaining({ zMm: 1400 }),
++            }),
++          ]),
++        }),
++      ]),
++    );
+   });
+ 
+   it("offers valid pallet-top Z levels in ordinary storage and move recommendations", async () => {
+@@ -1012,3 +1025,34 @@
+     ),
+   ).toBe(false);
+ });
++
++it("retains rejected support geometry when no valid destination fits", async () => {
++  const w = await stackingWorld();
++  await w.t.run((ctx) =>
++    ctx.db.patch(w.zoneId, {
++      widthMm: 1000,
++      depthMm: 1200,
++      maxStackHeightMm: 2000,
++    }),
++  );
++  const result = value(
++    await call(w, workflow.recommend, {
++      warehouseId: w.warehouseId,
++      palletId: w.upperId,
++    }),
++  );
++  expect(result["candidates"]).toHaveLength(0);
++  expect(result["previewCandidates"]).toEqual(
++    expect.arrayContaining([
++      expect.objectContaining({
++        previewSupports: expect.arrayContaining([
++          expect.objectContaining({
++            supportPalletId: w.palletId,
++            surface: expect.objectContaining({ zMm: 1400, heightMm: 600 }),
++          }),
++        ]),
++      }),
++    ]),
++  );
++  error(await call(w, workflow.reserve, w.stack), "HEIGHT_EXCEEDED");
++});

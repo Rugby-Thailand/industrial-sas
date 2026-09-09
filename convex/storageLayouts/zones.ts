@@ -1,7 +1,6 @@
 import { v } from "convex/values";
 
 import type { Doc } from "../_generated/dataModel";
-import { postLedgerTransaction } from "../lib/inventoryLedgerStore";
 import {
   createMasterDataRow,
   normalizeDisplayName,
@@ -14,11 +13,9 @@ import {
   type TenantFunctionContext,
 } from "../lib/tenantFunctions";
 import { refusal, writeContextOf } from "../lib/writeEnvelope";
-import type { LedgerTransactionDraft } from "../model/inventory/ledgerTransaction";
 import {
   makeStorageZoneCode,
   makeStorageZoneQrValue,
-  planStackPlacement,
   STORAGE_ZONE_LIMITS,
   validateStorageZone,
 } from "../model/storageLayout/storageZone";
@@ -32,6 +29,8 @@ import {
   type StorageAreaMode,
 } from "../model/storageLayout/storagePosition";
 
+import { hasOccupiedStorage } from "./catalogue";
+
 const outcome = v.any();
 
 type BuildingDocument = Doc<"storageBuildings">;
@@ -39,11 +38,6 @@ type FloorDocument = Doc<"storageFloors">;
 type ReservedBlockDocument = Doc<"storageFloorReservedBlocks">;
 type ZoneDocument = Doc<"storageZones">;
 type PositionDocument = Doc<"storagePositions">;
-type PlacementDocument = Doc<"storageStackPlacements">;
-type HandlingUnitDocument = Doc<"handlingUnits">;
-type LocationDocument = Doc<"locations">;
-type BalanceDocument = Doc<"inventoryBalances">;
-type TransactionDocument = Doc<"inventoryTransactions">;
 type IdempotencyDocument = Doc<"idempotencyRecords">;
 
 const failure = (code: string, field?: string) => refusal({ code, field });
@@ -268,6 +262,7 @@ export const createStorageZone = mutationWithOrg({
     floorNumber: v.number(),
     requestId: v.string(),
     label: v.string(),
+    storageCondition: v.optional(v.string()),
     xMm: v.number(),
     yMm: v.number(),
     widthMm: v.number(),
@@ -300,6 +295,9 @@ export const createStorageZone = mutationWithOrg({
     }
     const label = normalizeDisplayName("label", args.label);
     if (!label.ok) return failure(label.error.code, "label");
+    const storageCondition = (args.storageCondition ?? "").trim() || undefined;
+    if ((storageCondition?.length ?? 0) > 100)
+      return failure("TEXT_TOO_LONG", "storageCondition");
     const mode = effectiveStorageAreaMode(args.mode);
     const floorHeightMm =
       scope.floor.heightMm ?? scope.building.defaultFloorHeightMm;
@@ -529,6 +527,7 @@ export const createStorageZone = mutationWithOrg({
         code,
         label: label.value,
         qrValue,
+        ...(storageCondition === undefined ? {} : { storageCondition }),
         mode,
         ...(args.baseElevationMm === undefined
           ? {}
@@ -570,6 +569,7 @@ export const updateStorageZone = mutationWithOrg({
     zoneId: v.id("storageZones"),
     requestId: v.string(),
     label: v.string(),
+    storageCondition: v.optional(v.string()),
     xMm: v.number(),
     yMm: v.number(),
     widthMm: v.number(),
@@ -623,11 +623,32 @@ export const updateStorageZone = mutationWithOrg({
     }
     const label = normalizeDisplayName("label", args.label);
     if (!label.ok) return failure(label.error.code, "label");
+    const storageCondition =
+      args.storageCondition === undefined
+        ? zone.storageCondition
+        : args.storageCondition.trim() || undefined;
+    if ((storageCondition?.length ?? 0) > 100)
+      return failure("TEXT_TOO_LONG", "storageCondition");
     const mode = effectiveStorageAreaMode(args.mode ?? zone.mode);
     const baseElevationMm =
       mode === "PLATFORM"
         ? (args.baseElevationMm ?? zone.baseElevationMm)
         : undefined;
+    const geometryChanged =
+      args.xMm !== zone.xMm ||
+      args.yMm !== zone.yMm ||
+      args.widthMm !== zone.widthMm ||
+      args.depthMm !== zone.depthMm ||
+      args.maxStackHeightMm !== zone.maxStackHeightMm ||
+      mode !== areaMode(zone) ||
+      baseElevationMm !== zone.baseElevationMm ||
+      (storageCondition?.trim().toUpperCase() || "ANY") !==
+        (zone.storageCondition?.trim().toUpperCase() || "ANY");
+    if (
+      geometryChanged &&
+      (await hasOccupiedStorage(ctx, { zoneId: zone._id }))
+    )
+      return failure("LOCATION_OCCUPIED");
     const floorHeightMm = floor.heightMm ?? building.defaultFloorHeightMm;
     if (
       (mode === "PLATFORM" &&
@@ -674,52 +695,6 @@ export const updateStorageZone = mutationWithOrg({
         "field" in valid.error ? valid.error.field : undefined,
       );
     }
-    const placements = await ctx.tenantDb
-      .byIndex<PlacementDocument>(
-        "storageStackPlacements",
-        "by_orgId_zoneId_status_levelIndex",
-        [
-          { field: "zoneId", value: zone._id },
-          { field: "status", value: "ACTIVE" },
-        ],
-      )
-      .take(STORAGE_ZONE_LIMITS.maximumPlacementsPerZone + 1);
-    const geometryChanged =
-      zone.xMm !== candidate.xMm ||
-      zone.yMm !== candidate.yMm ||
-      zone.widthMm !== candidate.widthMm ||
-      zone.depthMm !== candidate.depthMm ||
-      zone.maxStackHeightMm !== candidate.maxStackHeightMm;
-    if (
-      geometryChanged &&
-      placements.length > 0 &&
-      args.confirmOccupiedChange !== true
-    ) {
-      const affectedLpns = (
-        await Promise.all(
-          placements.map(async (placement) => {
-            const unit = await ctx.tenantDb.get<HandlingUnitDocument>(
-              "handlingUnits",
-              placement.handlingUnitId,
-            );
-            return unit?.lpn;
-          }),
-        )
-      ).filter((value): value is string => value !== undefined);
-      return refusal({
-        code: "OCCUPIED_AREA_CONFIRMATION_REQUIRED",
-        affectedLpns,
-      } as unknown as { code: string });
-    }
-    const allPlacementsFit = placements.every((placement) =>
-      placement.orientation === "ROTATED"
-        ? placement.depthMm <= candidate.widthMm &&
-          placement.widthMm <= candidate.depthMm
-        : placement.widthMm <= candidate.widthMm &&
-          placement.depthMm <= candidate.depthMm,
-    );
-    if (!allPlacementsFit) return failure("HANDLING_UNIT_DOES_NOT_FIT");
-
     const positions = await activePositions(ctx, zone);
     const movedArea = {
       ...candidate,
@@ -768,6 +743,7 @@ export const updateStorageZone = mutationWithOrg({
       uniqueness: [],
       patch: {
         label: label.value,
+        storageCondition,
         mode,
         ...(mode === "PLATFORM"
           ? { baseElevationMm }
@@ -826,6 +802,10 @@ async function createPositionRecords(
     readonly elevationMm?: number;
   },
 ) {
+  const building = await ctx.tenantDb.get<BuildingDocument>(
+    "storageBuildings",
+    input.zone.buildingId,
+  );
   const location = await createMasterDataRow({
     ...writeContext(
       ctx,
@@ -853,7 +833,7 @@ async function createPositionRecords(
       warehouseId: input.zone.warehouseId,
       code: input.code,
       locationType: input.kind === "RACK_SLOT" ? "RACK_BIN" : "FLOOR_BLOCK",
-      status: "ACTIVE",
+      status: building?.status === "ACTIVE" ? "ACTIVE" : "INACTIVE",
     },
   });
   if (!location.ok) return location;
@@ -951,6 +931,18 @@ export const createStoragePosition = mutationWithOrg({
     ) {
       return failure("NOT_FOUND");
     }
+    const building = await ctx.tenantDb.get<BuildingDocument>(
+      "storageBuildings",
+      zone.buildingId,
+    );
+    if (
+      building === null ||
+      building.status === "ARCHIVED" ||
+      zone.status !== "ACTIVE"
+    )
+      return failure("LAYOUT_NOT_EDITABLE");
+    if (await hasOccupiedStorage(ctx, { zoneId: zone._id }))
+      return failure("LOCATION_OCCUPIED");
     const mode = areaMode(zone);
     if (mode === "SIMPLE" || mode === "RACK") {
       return failure("POSITION_MODE_MISMATCH", "mode");
@@ -1035,6 +1027,18 @@ export const generateRackStoragePositions = mutationWithOrg({
     ) {
       return failure("NOT_FOUND");
     }
+    const building = await ctx.tenantDb.get<BuildingDocument>(
+      "storageBuildings",
+      zone.buildingId,
+    );
+    if (
+      building === null ||
+      building.status === "ARCHIVED" ||
+      zone.status !== "ACTIVE"
+    )
+      return failure("LAYOUT_NOT_EDITABLE");
+    if (await hasOccupiedStorage(ctx, { zoneId: zone._id }))
+      return failure("LOCATION_OCCUPIED");
     if (areaMode(zone) !== "RACK") {
       return failure("POSITION_MODE_MISMATCH", "mode");
     }
@@ -1122,6 +1126,26 @@ export const updateStoragePosition = mutationWithOrg({
     if (zone === null || zone.warehouseId !== args.warehouseId) {
       return failure("NOT_FOUND");
     }
+    const building = await ctx.tenantDb.get<BuildingDocument>(
+      "storageBuildings",
+      zone.buildingId,
+    );
+    if (
+      building === null ||
+      building.status === "ARCHIVED" ||
+      zone.status !== "ACTIVE"
+    )
+      return failure("LAYOUT_NOT_EDITABLE");
+    const geometryChanged =
+      args.xMm !== position.xMm ||
+      args.yMm !== position.yMm ||
+      args.widthMm !== position.widthMm ||
+      args.depthMm !== position.depthMm;
+    if (
+      geometryChanged &&
+      (await hasOccupiedStorage(ctx, { zoneId: zone._id }))
+    )
+      return failure("LOCATION_OCCUPIED");
     const label = normalizeDisplayName("label", args.label);
     if (!label.ok) return failure(label.error.code, "label");
     const valid = validateStoragePosition({
@@ -1139,44 +1163,6 @@ export const updateStoragePosition = mutationWithOrg({
       },
     });
     if (!valid.ok) return failure(valid.error.code);
-    const geometryChanged =
-      position.xMm !== args.xMm ||
-      position.yMm !== args.yMm ||
-      position.widthMm !== args.widthMm ||
-      position.depthMm !== args.depthMm;
-    const balances = await ctx.tenantDb
-      .byIndex<BalanceDocument>(
-        "inventoryBalances",
-        "by_orgId_locationId_bucketKey",
-        [{ field: "locationId", value: position.locationId }],
-      )
-      .take(100);
-    const occupied = balances.filter((row) => row.quantity.minorUnits !== 0);
-    if (
-      geometryChanged &&
-      occupied.length > 0 &&
-      args.confirmOccupiedChange !== true
-    ) {
-      const affectedLpns = (
-        await Promise.all(
-          [...new Set(occupied.map((row) => row.handlingUnitId))].map(
-            async (handlingUnitId) =>
-              handlingUnitId === undefined
-                ? undefined
-                : (
-                    await ctx.tenantDb.get<HandlingUnitDocument>(
-                      "handlingUnits",
-                      handlingUnitId,
-                    )
-                  )?.lpn,
-          ),
-        )
-      ).filter((value): value is string => value !== undefined);
-      return refusal({
-        code: "OCCUPIED_POSITION_CONFIRMATION_REQUIRED",
-        affectedLpns,
-      } as unknown as { code: string });
-    }
     const updated = await updateMasterDataRow({
       ...writeContext(
         ctx,
@@ -1235,29 +1221,20 @@ export const archiveStoragePosition = mutationWithOrg({
     if (zone === null || zone.warehouseId !== args.warehouseId) {
       return failure("NOT_FOUND");
     }
+    const building = await ctx.tenantDb.get<BuildingDocument>(
+      "storageBuildings",
+      zone.buildingId,
+    );
+    if (
+      building === null ||
+      building.status === "ARCHIVED" ||
+      zone.status !== "ACTIVE"
+    )
+      return failure("LAYOUT_NOT_EDITABLE");
+    if (await hasOccupiedStorage(ctx, { zoneId: zone._id }))
+      return failure("LOCATION_OCCUPIED");
     const positions = await activePositions(ctx, zone);
     if (positions.length <= 1) return failure("AREA_REQUIRES_LEAF_POSITION");
-    const balances = await ctx.tenantDb
-      .byIndex<BalanceDocument>(
-        "inventoryBalances",
-        "by_orgId_locationId_bucketKey",
-        [{ field: "locationId", value: position.locationId }],
-      )
-      .take(100);
-    if (balances.some((row) => row.quantity.minorUnits !== 0)) {
-      return failure("POSITION_NOT_EMPTY");
-    }
-    const placement = await ctx.tenantDb
-      .byIndex<PlacementDocument>(
-        "storageStackPlacements",
-        "by_orgId_locationId_status",
-        [
-          { field: "locationId", value: position.locationId },
-          { field: "status", value: "ACTIVE" },
-        ],
-      )
-      .first();
-    if (placement !== null) return failure("POSITION_NOT_EMPTY");
     const location = await updateMasterDataRow({
       ...writeContext(
         ctx,
@@ -1394,7 +1371,12 @@ export const resolveStorageAddress = queryWithOrg({
         "storageFloors",
         zone.floorId,
       );
-      if (building === null || floor === null) {
+      if (
+        building === null ||
+        building.status !== "ACTIVE" ||
+        building.warehouseId !== args.warehouseId ||
+        floor === null
+      ) {
         return { found: false as const };
       }
       const positions = await activePositions(ctx, zone);
@@ -1455,7 +1437,12 @@ export const resolveStorageAddress = queryWithOrg({
       "storageFloors",
       exactZone.floorId,
     );
-    if (building === null || floor === null) {
+    if (
+      building === null ||
+      building.status !== "ACTIVE" ||
+      building.warehouseId !== args.warehouseId ||
+      floor === null
+    ) {
       return { found: false as const };
     }
     return {
@@ -1496,33 +1483,9 @@ export const archiveStorageZone = mutationWithOrg({
     if (building === null || building.status === "ARCHIVED") {
       return failure("LAYOUT_NOT_EDITABLE");
     }
+    if (await hasOccupiedStorage(ctx, { zoneId: zone._id }))
+      return failure("LOCATION_OCCUPIED");
     const positions = await activePositions(ctx, zone);
-    const placement = await ctx.tenantDb
-      .byIndex<PlacementDocument>(
-        "storageStackPlacements",
-        "by_orgId_zoneId_status_levelIndex",
-        [
-          { field: "zoneId", value: zone._id },
-          { field: "status", value: "ACTIVE" },
-        ],
-      )
-      .first();
-    if (placement !== null) return failure("ZONE_NOT_EMPTY");
-    for (const locationId of new Set([
-      zone.locationId,
-      ...positions.map((position) => position.locationId),
-    ])) {
-      const balances = await ctx.tenantDb
-        .byIndex<BalanceDocument>(
-          "inventoryBalances",
-          "by_orgId_locationId_bucketKey",
-          [{ field: "locationId", value: locationId }],
-        )
-        .take(100);
-      if (balances.some((row) => row.quantity.minorUnits !== 0)) {
-        return failure("ZONE_NOT_EMPTY");
-      }
-    }
     const now = Date.now();
     const location = await updateMasterDataRow({
       ...writeContext(
@@ -1572,294 +1535,6 @@ export const archiveStorageZone = mutationWithOrg({
       written: true as const,
       documentId: zone._id,
       replayed: updated.value.replayed,
-    };
-  },
-});
-
-export const placeHandlingUnit = mutationWithOrg({
-  args: {
-    warehouseId: v.id("warehouses"),
-    requestId: v.string(),
-    lpn: v.string(),
-    zoneScan: v.string(),
-    positionId: v.optional(v.id("storagePositions")),
-    widthMm: v.number(),
-    depthMm: v.number(),
-    heightMm: v.number(),
-  },
-  returns: outcome,
-  permissionCode: "putaway.task.confirm",
-  target: { table: "storageStackPlacements" },
-  warehouseId: ({ warehouseId }) => warehouseId,
-  handler: async (ctx, args) => {
-    const lpn = normalizeField("lpn", args.lpn, {
-      caseFolding: "UPPERCASE",
-      maxLength: 128,
-    });
-    if (!lpn.ok) return failure(lpn.error.code, "lpn");
-    const unit = await ctx.tenantDb
-      .byIndex<HandlingUnitDocument>("handlingUnits", "by_orgId_lpn", [
-        { field: "lpn", value: lpn.value },
-      ])
-      .unique();
-    if (
-      unit === null ||
-      unit.warehouseId !== args.warehouseId ||
-      unit.status !== "ACTIVE"
-    ) {
-      return failure("HANDLING_UNIT_NOT_FOUND");
-    }
-    if (unit.currentLocationId === undefined) {
-      return failure("HANDLING_UNIT_HAS_NO_STOCK_LOCATION");
-    }
-
-    let zone: ZoneDocument | null = null;
-    let position: PositionDocument | null = null;
-    if (args.positionId !== undefined) {
-      position = await ctx.tenantDb.get<PositionDocument>(
-        "storagePositions",
-        args.positionId,
-      );
-      if (
-        position === null ||
-        position.warehouseId !== args.warehouseId ||
-        position.status !== "ACTIVE"
-      ) {
-        return failure("POSITION_NOT_FOUND");
-      }
-      zone = await ctx.tenantDb.get<ZoneDocument>(
-        "storageZones",
-        position.zoneId,
-      );
-    } else {
-      zone = await findZoneByScan(ctx, args.warehouseId, args.zoneScan);
-      if (zone !== null && zone.status === "ACTIVE") {
-        if (areaMode(zone) === "SIMPLE") {
-          await ensureDefaultPosition(ctx, zone, `${args.requestId}:default`);
-        }
-        const positions = await activePositions(ctx, zone);
-        if (positions.length > 1) {
-          return refusal({
-            code: "EXACT_POSITION_REQUIRED",
-            positions: positions.map((candidate) => ({
-              positionId: candidate._id,
-              code: candidate.code,
-              label: candidate.label,
-            })),
-          } as unknown as { code: string });
-        }
-        position = positions[0] ?? null;
-      } else {
-        position = await findPositionByScan(
-          ctx,
-          args.warehouseId,
-          args.zoneScan,
-        );
-        zone =
-          position === null
-            ? null
-            : await ctx.tenantDb.get<ZoneDocument>(
-                "storageZones",
-                position.zoneId,
-              );
-      }
-    }
-    if (
-      zone === null ||
-      position === null ||
-      zone.warehouseId !== args.warehouseId ||
-      zone.status !== "ACTIVE" ||
-      position.warehouseId !== args.warehouseId ||
-      position.status !== "ACTIVE"
-    ) {
-      return failure("POSITION_NOT_FOUND");
-    }
-    const [building, location] = await Promise.all([
-      ctx.tenantDb.get<BuildingDocument>("storageBuildings", zone.buildingId),
-      ctx.tenantDb.get<LocationDocument>("locations", zone.locationId),
-    ]);
-    if (
-      building === null ||
-      building.status !== "ACTIVE" ||
-      location === null ||
-      location.status !== "ACTIVE"
-    ) {
-      return failure("ZONE_NOT_FOUND");
-    }
-
-    const previous = await ctx.tenantDb
-      .byIndex<PlacementDocument>(
-        "storageStackPlacements",
-        "by_orgId_handlingUnitId_status",
-        [
-          { field: "handlingUnitId", value: unit._id },
-          { field: "status", value: "ACTIVE" },
-        ],
-      )
-      .first();
-    if (previous !== null) {
-      const transaction = await ctx.tenantDb.get<TransactionDocument>(
-        "inventoryTransactions",
-        previous.transactionId,
-      );
-      if (
-        previous.locationId === position.locationId &&
-        previous.widthMm === args.widthMm &&
-        previous.depthMm === args.depthMm &&
-        previous.heightMm === args.heightMm &&
-        transaction?.requestId === args.requestId
-      ) {
-        return {
-          written: true as const,
-          documentId: previous._id,
-          replayed: true,
-          levelIndex: previous.levelIndex,
-          capacityWarning: false,
-        };
-      }
-      return failure("HANDLING_UNIT_ALREADY_STACKED");
-    }
-
-    const placements = [
-      await ctx.tenantDb
-        .byIndex<PlacementDocument>(
-          "storageStackPlacements",
-          "by_orgId_locationId_status",
-          [
-            { field: "locationId", value: position.locationId },
-            { field: "status", value: "ACTIVE" },
-          ],
-        )
-        .take(STORAGE_ZONE_LIMITS.maximumPlacementsPerZone + 1),
-    ]
-      .flat()
-      .sort((left, right) => left.levelIndex - right.levelIndex);
-    if (placements.length >= STORAGE_ZONE_LIMITS.maximumPlacementsPerZone) {
-      return failure("STACK_LIMIT_EXCEEDED");
-    }
-    const plan = planStackPlacement({
-      zone: {
-        widthMm: position.widthMm ?? zone.widthMm,
-        depthMm: position.depthMm ?? zone.depthMm,
-        maxStackHeightMm: zone.maxStackHeightMm,
-      },
-      placements,
-      handlingUnit: {
-        widthMm: args.widthMm,
-        depthMm: args.depthMm,
-        heightMm: args.heightMm,
-      },
-    });
-    if (!plan.ok) {
-      return failure(
-        plan.error.code,
-        "field" in plan.error ? plan.error.field : undefined,
-      );
-    }
-
-    const allBalances = await ctx.tenantDb
-      .byIndex<BalanceDocument>(
-        "inventoryBalances",
-        "by_orgId_handlingUnitId_bucketKey",
-        [{ field: "handlingUnitId", value: unit._id }],
-      )
-      .take(100);
-    if (allBalances.length === 100)
-      return failure("BALANCE_BUCKET_LIMIT_EXCEEDED");
-    const balances = allBalances.filter((row) => row.quantity.minorUnits > 0);
-    if (balances.length === 0) return failure("HANDLING_UNIT_HAS_NO_STOCK");
-    if (balances.length * 2 > 100)
-      return failure("BALANCE_BUCKET_LIMIT_EXCEEDED");
-    if (
-      balances.some(
-        (row) =>
-          row.locationKind !== "PHYSICAL" ||
-          row.locationId !== unit.currentLocationId ||
-          row.warehouseId !== args.warehouseId,
-      )
-    ) {
-      return failure("HANDLING_UNIT_LOCATION_CONFLICT");
-    }
-
-    const orgId = ctx.tenant.organization._id;
-    const now = Date.now();
-    const bucketAt = (row: BalanceDocument, locationId: string) => ({
-      orgId,
-      warehouseId: args.warehouseId,
-      itemId: row.itemId,
-      location: { kind: "PHYSICAL" as const, locationId },
-      stockStatus: row.stockStatus,
-      ...(row.lotId === undefined ? {} : { lotId: row.lotId }),
-      ...(row.serialId === undefined ? {} : { serialId: row.serialId }),
-      ...(row.handlingUnitId === undefined
-        ? {}
-        : { handlingUnitId: row.handlingUnitId }),
-      ...(row.ownerId === undefined ? {} : { ownerId: row.ownerId }),
-    });
-    const draft: LedgerTransactionDraft = {
-      orgId,
-      warehouseId: args.warehouseId,
-      type: "MOVE",
-      operation: "storageLayout.stack.place",
-      requestId: args.requestId,
-      actorUserId: ctx.tenant.actor._id,
-      occurredAt: now,
-      source: { type: "STORAGE_POSITION", id: position._id },
-      lines: balances.flatMap((row) => [
-        {
-          bucket: bucketAt(row, unit.currentLocationId as string),
-          quantity: {
-            uom: row.quantity.uom,
-            minorUnits: -row.quantity.minorUnits,
-          },
-        },
-        {
-          bucket: bucketAt(row, position.locationId),
-          quantity: row.quantity,
-        },
-      ]),
-    };
-    const posted = await postLedgerTransaction({
-      tenantDb: ctx.tenantDb,
-      tenant: ctx.tenant,
-      permissionCode: ctx.permission.code,
-      now,
-      draft,
-    });
-    if (!posted.ok) return failure(posted.error.code);
-
-    const placementId = await ctx.tenantDb.insert("storageStackPlacements", {
-      zoneId: zone._id,
-      positionId: position._id,
-      locationId: position.locationId,
-      warehouseId: args.warehouseId,
-      handlingUnitId: unit._id,
-      levelIndex: plan.value.levelIndex,
-      widthMm: args.widthMm,
-      depthMm: args.depthMm,
-      heightMm: args.heightMm,
-      orientation: plan.value.orientation,
-      status: "ACTIVE",
-      transactionId: posted.value.result.transactionId,
-      placedAt: now,
-      placedByUserId: ctx.tenant.actor._id,
-    });
-    await ctx.tenantDb.patch("handlingUnits", unit._id, {
-      widthMm: args.widthMm,
-      depthMm: args.depthMm,
-      heightMm: args.heightMm,
-    });
-    return {
-      written: true as const,
-      documentId: placementId,
-      replayed: posted.value.replayed,
-      levelIndex: plan.value.levelIndex,
-      orientation: plan.value.orientation,
-      occupiedHeightMm: plan.value.occupiedHeightMm,
-      resultingHeightMm: plan.value.resultingHeightMm,
-      capacityWarning: plan.value.capacityWarning,
-      positionId: position._id,
-      positionCode: position.code,
     };
   },
 });

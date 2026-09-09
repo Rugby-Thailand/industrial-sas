@@ -1,3 +1,4 @@
+import type { ComponentProps } from "react";
 import { screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -32,3 +33,9 @@ describe("WorkspaceAccessBoundary", () => {
     expect(screen.getByRole("button", { name: "ลองใหม่" })).toBeVisible();
   });
 });
+
+vi.mock("@/i18n/navigation", () => ({
+  Link: ({ href, ...props }: ComponentProps<"a">) => (
+    <a href={href} {...props} />
+  ),
+}));

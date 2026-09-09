@@ -1,7 +1,3 @@
-import { api } from "../../../convex/_generated/api";
-
-import { clientRef } from "./clientRef";
-
 export interface PublicDenial {
   readonly kind: "AUTHORIZATION_DENIED";
   readonly code: string;
@@ -60,11 +56,3 @@ export type LedgerPageArgs = {
   readonly maxPageSize?: number;
   readonly cursor?: string;
 };
-
-export const listBalancesRef = clientRef(api.inventory.ledger.listBalances);
-
-export const listTransactionsRef = clientRef(
-  api.inventory.ledger.listTransactions,
-);
-
-export const DEFAULT_LEDGER_PAGE_SIZE = 25;

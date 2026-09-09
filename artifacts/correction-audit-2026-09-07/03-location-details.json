@@ -1,0 +1,112 @@
+{
+  "frames": [
+    {
+      "path": "03-location-details-frames/00000.png",
+      "timestampMs": 0
+    },
+    {
+      "path": "03-location-details-frames/00001.png",
+      "timestampMs": 505
+    },
+    {
+      "path": "03-location-details-frames/00002.png",
+      "timestampMs": 1000
+    },
+    {
+      "path": "03-location-details-frames/00003.png",
+      "timestampMs": 1487
+    },
+    {
+      "path": "03-location-details-frames/00004.png",
+      "timestampMs": 1981
+    },
+    {
+      "path": "03-location-details-frames/00005.png",
+      "timestampMs": 2577
+    },
+    {
+      "path": "03-location-details-frames/00006.png",
+      "timestampMs": 3071
+    },
+    {
+      "path": "03-location-details-frames/00007.png",
+      "timestampMs": 3563
+    },
+    {
+      "path": "03-location-details-frames/00008.png",
+      "timestampMs": 4056
+    },
+    {
+      "path": "03-location-details-frames/00009.png",
+      "timestampMs": 4554
+    },
+    {
+      "path": "03-location-details-frames/00010.png",
+      "timestampMs": 5044
+    },
+    {
+      "path": "03-location-details-frames/00011.png",
+      "timestampMs": 5533
+    },
+    {
+      "path": "03-location-details-frames/00012.png",
+      "timestampMs": 6030
+    },
+    {
+      "path": "03-location-details-frames/00013.png",
+      "timestampMs": 6293
+    },
+    {
+      "path": "03-location-details-frames/00014.png",
+      "timestampMs": 7061
+    },
+    {
+      "path": "03-location-details-frames/00015.png",
+      "timestampMs": 11041
+    },
+    {
+      "path": "03-location-details-frames/00016.png",
+      "timestampMs": 11268
+    },
+    {
+      "path": "03-location-details-frames/00017.png",
+      "timestampMs": 11780
+    },
+    {
+      "path": "03-location-details-frames/00018.png",
+      "timestampMs": 12307
+    },
+    {
+      "path": "03-location-details-frames/00019.png",
+      "timestampMs": 12802
+    },
+    {
+      "path": "03-location-details-frames/00020.png",
+      "timestampMs": 13458
+    },
+    {
+      "path": "03-location-details-frames/00021.png",
+      "timestampMs": 13954
+    },
+    {
+      "path": "03-location-details-frames/00022.png",
+      "timestampMs": 14442
+    },
+    {
+      "path": "03-location-details-frames/00023.png",
+      "timestampMs": 14939
+    },
+    {
+      "path": "03-location-details-frames/00024.png",
+      "timestampMs": 15561
+    },
+    {
+      "path": "03-location-details-frames/00025.png",
+      "timestampMs": 16066
+    }
+  ],
+  "durationMs": 16260,
+  "width": 1728,
+  "height": 996,
+  "fps": 10
+}

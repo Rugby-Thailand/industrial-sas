@@ -1,0 +1,1224 @@
+{
+  "width": 1440,
+  "height": 900,
+  "fps": 10,
+  "durationMs": 68431,
+  "label": "Edited browser viewport recording; pauses and refresh troubleshooting omitted",
+  "sourceManifest": "manifest.json",
+  "frames": [
+    {
+      "path": "frames/000000.png",
+      "timestampMs": 0,
+      "sourceFrameIndex": 0,
+      "sourceTimestampMs": 0
+    },
+    {
+      "path": "frames/000001.png",
+      "timestampMs": 43,
+      "sourceFrameIndex": 1,
+      "sourceTimestampMs": 43
+    },
+    {
+      "path": "frames/000002.png",
+      "timestampMs": 319,
+      "sourceFrameIndex": 2,
+      "sourceTimestampMs": 319
+    },
+    {
+      "path": "frames/000003.png",
+      "timestampMs": 592,
+      "sourceFrameIndex": 3,
+      "sourceTimestampMs": 592
+    },
+    {
+      "path": "frames/000004.png",
+      "timestampMs": 883,
+      "sourceFrameIndex": 4,
+      "sourceTimestampMs": 883
+    },
+    {
+      "path": "frames/000005.png",
+      "timestampMs": 1157,
+      "sourceFrameIndex": 5,
+      "sourceTimestampMs": 1157
+    },
+    {
+      "path": "frames/000006.png",
+      "timestampMs": 1452,
+      "sourceFrameIndex": 6,
+      "sourceTimestampMs": 1452
+    },
+    {
+      "path": "frames/000007.png",
+      "timestampMs": 1752,
+      "sourceFrameIndex": 7,
+      "sourceTimestampMs": 1752
+    },
+    {
+      "path": "frames/000008.png",
+      "timestampMs": 2050,
+      "sourceFrameIndex": 8,
+      "sourceTimestampMs": 2050
+    },
+    {
+      "path": "frames/000009.png",
+      "timestampMs": 5050,
+      "sourceFrameIndex": 9,
+      "sourceTimestampMs": 19678
+    },
+    {
+      "path": "frames/000010.png",
+      "timestampMs": 5094,
+      "sourceFrameIndex": 10,
+      "sourceTimestampMs": 19722
+    },
+    {
+      "path": "frames/000011.png",
+      "timestampMs": 5394,
+      "sourceFrameIndex": 11,
+      "sourceTimestampMs": 20022
+    },
+    {
+      "path": "frames/000012.png",
+      "timestampMs": 5667,
+      "sourceFrameIndex": 12,
+      "sourceTimestampMs": 20295
+    },
+    {
+      "path": "frames/000013.png",
+      "timestampMs": 5948,
+      "sourceFrameIndex": 13,
+      "sourceTimestampMs": 20576
+    },
+    {
+      "path": "frames/000014.png",
+      "timestampMs": 6235,
+      "sourceFrameIndex": 14,
+      "sourceTimestampMs": 20863
+    },
+    {
+      "path": "frames/000015.png",
+      "timestampMs": 6517,
+      "sourceFrameIndex": 15,
+      "sourceTimestampMs": 21145
+    },
+    {
+      "path": "frames/000016.png",
+      "timestampMs": 6789,
+      "sourceFrameIndex": 16,
+      "sourceTimestampMs": 21417
+    },
+    {
+      "path": "frames/000017.png",
+      "timestampMs": 7090,
+      "sourceFrameIndex": 17,
+      "sourceTimestampMs": 21718
+    },
+    {
+      "path": "frames/000018.png",
+      "timestampMs": 7388,
+      "sourceFrameIndex": 18,
+      "sourceTimestampMs": 22016
+    },
+    {
+      "path": "frames/000019.png",
+      "timestampMs": 7447,
+      "sourceFrameIndex": 19,
+      "sourceTimestampMs": 22075
+    },
+    {
+      "path": "frames/000020.png",
+      "timestampMs": 7467,
+      "sourceFrameIndex": 20,
+      "sourceTimestampMs": 22095
+    },
+    {
+      "path": "frames/000021.png",
+      "timestampMs": 7745,
+      "sourceFrameIndex": 21,
+      "sourceTimestampMs": 22373
+    },
+    {
+      "path": "frames/000022.png",
+      "timestampMs": 8022,
+      "sourceFrameIndex": 22,
+      "sourceTimestampMs": 22650
+    },
+    {
+      "path": "frames/000023.png",
+      "timestampMs": 8324,
+      "sourceFrameIndex": 23,
+      "sourceTimestampMs": 22952
+    },
+    {
+      "path": "frames/000024.png",
+      "timestampMs": 8674,
+      "sourceFrameIndex": 24,
+      "sourceTimestampMs": 23302
+    },
+    {
+      "path": "frames/000025.png",
+      "timestampMs": 8962,
+      "sourceFrameIndex": 25,
+      "sourceTimestampMs": 23590
+    },
+    {
+      "path": "frames/000026.png",
+      "timestampMs": 9239,
+      "sourceFrameIndex": 26,
+      "sourceTimestampMs": 23867
+    },
+    {
+      "path": "frames/000027.png",
+      "timestampMs": 9514,
+      "sourceFrameIndex": 27,
+      "sourceTimestampMs": 24142
+    },
+    {
+      "path": "frames/000028.png",
+      "timestampMs": 9799,
+      "sourceFrameIndex": 28,
+      "sourceTimestampMs": 24427
+    },
+    {
+      "path": "frames/000029.png",
+      "timestampMs": 10090,
+      "sourceFrameIndex": 29,
+      "sourceTimestampMs": 24718
+    },
+    {
+      "path": "frames/000030.png",
+      "timestampMs": 10365,
+      "sourceFrameIndex": 30,
+      "sourceTimestampMs": 24993
+    },
+    {
+      "path": "frames/000031.png",
+      "timestampMs": 10661,
+      "sourceFrameIndex": 31,
+      "sourceTimestampMs": 25289
+    },
+    {
+      "path": "frames/000032.png",
+      "timestampMs": 10931,
+      "sourceFrameIndex": 32,
+      "sourceTimestampMs": 25559
+    },
+    {
+      "path": "frames/000033.png",
+      "timestampMs": 13931,
+      "sourceFrameIndex": 33,
+      "sourceTimestampMs": 45328
+    },
+    {
+      "path": "frames/000034.png",
+      "timestampMs": 13986,
+      "sourceFrameIndex": 34,
+      "sourceTimestampMs": 45383
+    },
+    {
+      "path": "frames/000035.png",
+      "timestampMs": 14276,
+      "sourceFrameIndex": 35,
+      "sourceTimestampMs": 45673
+    },
+    {
+      "path": "frames/000036.png",
+      "timestampMs": 14563,
+      "sourceFrameIndex": 36,
+      "sourceTimestampMs": 45960
+    },
+    {
+      "path": "frames/000037.png",
+      "timestampMs": 14857,
+      "sourceFrameIndex": 37,
+      "sourceTimestampMs": 46254
+    },
+    {
+      "path": "frames/000038.png",
+      "timestampMs": 15133,
+      "sourceFrameIndex": 38,
+      "sourceTimestampMs": 46530
+    },
+    {
+      "path": "frames/000039.png",
+      "timestampMs": 15432,
+      "sourceFrameIndex": 39,
+      "sourceTimestampMs": 46829
+    },
+    {
+      "path": "frames/000040.png",
+      "timestampMs": 15745,
+      "sourceFrameIndex": 40,
+      "sourceTimestampMs": 47142
+    },
+    {
+      "path": "frames/000041.png",
+      "timestampMs": 16026,
+      "sourceFrameIndex": 41,
+      "sourceTimestampMs": 47423
+    },
+    {
+      "path": "frames/000042.png",
+      "timestampMs": 16057,
+      "sourceFrameIndex": 42,
+      "sourceTimestampMs": 47454
+    },
+    {
+      "path": "frames/000043.png",
+      "timestampMs": 16084,
+      "sourceFrameIndex": 43,
+      "sourceTimestampMs": 47481
+    },
+    {
+      "path": "frames/000044.png",
+      "timestampMs": 16360,
+      "sourceFrameIndex": 44,
+      "sourceTimestampMs": 47757
+    },
+    {
+      "path": "frames/000045.png",
+      "timestampMs": 16640,
+      "sourceFrameIndex": 45,
+      "sourceTimestampMs": 48037
+    },
+    {
+      "path": "frames/000046.png",
+      "timestampMs": 16946,
+      "sourceFrameIndex": 46,
+      "sourceTimestampMs": 48343
+    },
+    {
+      "path": "frames/000047.png",
+      "timestampMs": 17235,
+      "sourceFrameIndex": 47,
+      "sourceTimestampMs": 48632
+    },
+    {
+      "path": "frames/000048.png",
+      "timestampMs": 17536,
+      "sourceFrameIndex": 48,
+      "sourceTimestampMs": 48933
+    },
+    {
+      "path": "frames/000049.png",
+      "timestampMs": 17815,
+      "sourceFrameIndex": 49,
+      "sourceTimestampMs": 49212
+    },
+    {
+      "path": "frames/000050.png",
+      "timestampMs": 18092,
+      "sourceFrameIndex": 50,
+      "sourceTimestampMs": 49489
+    },
+    {
+      "path": "frames/000051.png",
+      "timestampMs": 18363,
+      "sourceFrameIndex": 51,
+      "sourceTimestampMs": 49760
+    },
+    {
+      "path": "frames/000052.png",
+      "timestampMs": 18651,
+      "sourceFrameIndex": 52,
+      "sourceTimestampMs": 50048
+    },
+    {
+      "path": "frames/000053.png",
+      "timestampMs": 18926,
+      "sourceFrameIndex": 53,
+      "sourceTimestampMs": 50323
+    },
+    {
+      "path": "frames/000054.png",
+      "timestampMs": 19203,
+      "sourceFrameIndex": 54,
+      "sourceTimestampMs": 50600
+    },
+    {
+      "path": "frames/000055.png",
+      "timestampMs": 19486,
+      "sourceFrameIndex": 55,
+      "sourceTimestampMs": 50883
+    },
+    {
+      "path": "frames/000056.png",
+      "timestampMs": 19780,
+      "sourceFrameIndex": 56,
+      "sourceTimestampMs": 51177
+    },
+    {
+      "path": "frames/000057.png",
+      "timestampMs": 20090,
+      "sourceFrameIndex": 57,
+      "sourceTimestampMs": 51487
+    },
+    {
+      "path": "frames/000058.png",
+      "timestampMs": 20368,
+      "sourceFrameIndex": 58,
+      "sourceTimestampMs": 51765
+    },
+    {
+      "path": "frames/000059.png",
+      "timestampMs": 20670,
+      "sourceFrameIndex": 59,
+      "sourceTimestampMs": 52067
+    },
+    {
+      "path": "frames/000060.png",
+      "timestampMs": 20957,
+      "sourceFrameIndex": 60,
+      "sourceTimestampMs": 52354
+    },
+    {
+      "path": "frames/000061.png",
+      "timestampMs": 21240,
+      "sourceFrameIndex": 61,
+      "sourceTimestampMs": 52637
+    },
+    {
+      "path": "frames/000062.png",
+      "timestampMs": 21531,
+      "sourceFrameIndex": 62,
+      "sourceTimestampMs": 52928
+    },
+    {
+      "path": "frames/000063.png",
+      "timestampMs": 21822,
+      "sourceFrameIndex": 63,
+      "sourceTimestampMs": 53219
+    },
+    {
+      "path": "frames/000064.png",
+      "timestampMs": 22108,
+      "sourceFrameIndex": 64,
+      "sourceTimestampMs": 53505
+    },
+    {
+      "path": "frames/000065.png",
+      "timestampMs": 22404,
+      "sourceFrameIndex": 65,
+      "sourceTimestampMs": 53801
+    },
+    {
+      "path": "frames/000066.png",
+      "timestampMs": 22684,
+      "sourceFrameIndex": 66,
+      "sourceTimestampMs": 54081
+    },
+    {
+      "path": "frames/000067.png",
+      "timestampMs": 22745,
+      "sourceFrameIndex": 67,
+      "sourceTimestampMs": 54142
+    },
+    {
+      "path": "frames/000068.png",
+      "timestampMs": 22771,
+      "sourceFrameIndex": 68,
+      "sourceTimestampMs": 54168
+    },
+    {
+      "path": "frames/000069.png",
+      "timestampMs": 23046,
+      "sourceFrameIndex": 69,
+      "sourceTimestampMs": 54443
+    },
+    {
+      "path": "frames/000070.png",
+      "timestampMs": 23321,
+      "sourceFrameIndex": 70,
+      "sourceTimestampMs": 54718
+    },
+    {
+      "path": "frames/000071.png",
+      "timestampMs": 23606,
+      "sourceFrameIndex": 71,
+      "sourceTimestampMs": 55003
+    },
+    {
+      "path": "frames/000072.png",
+      "timestampMs": 23889,
+      "sourceFrameIndex": 72,
+      "sourceTimestampMs": 55286
+    },
+    {
+      "path": "frames/000073.png",
+      "timestampMs": 24167,
+      "sourceFrameIndex": 73,
+      "sourceTimestampMs": 55564
+    },
+    {
+      "path": "frames/000074.png",
+      "timestampMs": 24451,
+      "sourceFrameIndex": 74,
+      "sourceTimestampMs": 55848
+    },
+    {
+      "path": "frames/000075.png",
+      "timestampMs": 24737,
+      "sourceFrameIndex": 75,
+      "sourceTimestampMs": 56134
+    },
+    {
+      "path": "frames/000076.png",
+      "timestampMs": 25038,
+      "sourceFrameIndex": 76,
+      "sourceTimestampMs": 56435
+    },
+    {
+      "path": "frames/000077.png",
+      "timestampMs": 28038,
+      "sourceFrameIndex": 77,
+      "sourceTimestampMs": 73129
+    },
+    {
+      "path": "frames/000078.png",
+      "timestampMs": 28101,
+      "sourceFrameIndex": 78,
+      "sourceTimestampMs": 73192
+    },
+    {
+      "path": "frames/000079.png",
+      "timestampMs": 28386,
+      "sourceFrameIndex": 79,
+      "sourceTimestampMs": 73477
+    },
+    {
+      "path": "frames/000080.png",
+      "timestampMs": 28712,
+      "sourceFrameIndex": 80,
+      "sourceTimestampMs": 73803
+    },
+    {
+      "path": "frames/000081.png",
+      "timestampMs": 28994,
+      "sourceFrameIndex": 81,
+      "sourceTimestampMs": 74085
+    },
+    {
+      "path": "frames/000082.png",
+      "timestampMs": 29269,
+      "sourceFrameIndex": 82,
+      "sourceTimestampMs": 74360
+    },
+    {
+      "path": "frames/000083.png",
+      "timestampMs": 29553,
+      "sourceFrameIndex": 83,
+      "sourceTimestampMs": 74644
+    },
+    {
+      "path": "frames/000084.png",
+      "timestampMs": 29858,
+      "sourceFrameIndex": 84,
+      "sourceTimestampMs": 74949
+    },
+    {
+      "path": "frames/000085.png",
+      "timestampMs": 30134,
+      "sourceFrameIndex": 85,
+      "sourceTimestampMs": 75225
+    },
+    {
+      "path": "frames/000086.png",
+      "timestampMs": 30156,
+      "sourceFrameIndex": 86,
+      "sourceTimestampMs": 75247
+    },
+    {
+      "path": "frames/000087.png",
+      "timestampMs": 30209,
+      "sourceFrameIndex": 87,
+      "sourceTimestampMs": 75300
+    },
+    {
+      "path": "frames/000088.png",
+      "timestampMs": 30484,
+      "sourceFrameIndex": 88,
+      "sourceTimestampMs": 75575
+    },
+    {
+      "path": "frames/000089.png",
+      "timestampMs": 30759,
+      "sourceFrameIndex": 89,
+      "sourceTimestampMs": 75850
+    },
+    {
+      "path": "frames/000090.png",
+      "timestampMs": 31076,
+      "sourceFrameIndex": 90,
+      "sourceTimestampMs": 76167
+    },
+    {
+      "path": "frames/000091.png",
+      "timestampMs": 31352,
+      "sourceFrameIndex": 91,
+      "sourceTimestampMs": 76443
+    },
+    {
+      "path": "frames/000092.png",
+      "timestampMs": 31649,
+      "sourceFrameIndex": 92,
+      "sourceTimestampMs": 76740
+    },
+    {
+      "path": "frames/000093.png",
+      "timestampMs": 31956,
+      "sourceFrameIndex": 93,
+      "sourceTimestampMs": 77047
+    },
+    {
+      "path": "frames/000094.png",
+      "timestampMs": 32235,
+      "sourceFrameIndex": 94,
+      "sourceTimestampMs": 77326
+    },
+    {
+      "path": "frames/000095.png",
+      "timestampMs": 32524,
+      "sourceFrameIndex": 95,
+      "sourceTimestampMs": 77615
+    },
+    {
+      "path": "frames/000096.png",
+      "timestampMs": 32806,
+      "sourceFrameIndex": 96,
+      "sourceTimestampMs": 77897
+    },
+    {
+      "path": "frames/000097.png",
+      "timestampMs": 33082,
+      "sourceFrameIndex": 97,
+      "sourceTimestampMs": 78173
+    },
+    {
+      "path": "frames/000098.png",
+      "timestampMs": 33351,
+      "sourceFrameIndex": 98,
+      "sourceTimestampMs": 78442
+    },
+    {
+      "path": "frames/000099.png",
+      "timestampMs": 33645,
+      "sourceFrameIndex": 99,
+      "sourceTimestampMs": 78736
+    },
+    {
+      "path": "frames/000100.png",
+      "timestampMs": 33919,
+      "sourceFrameIndex": 100,
+      "sourceTimestampMs": 79010
+    },
+    {
+      "path": "frames/000101.png",
+      "timestampMs": 33999,
+      "sourceFrameIndex": 101,
+      "sourceTimestampMs": 79090
+    },
+    {
+      "path": "frames/000102.png",
+      "timestampMs": 34024,
+      "sourceFrameIndex": 102,
+      "sourceTimestampMs": 79115
+    },
+    {
+      "path": "frames/000103.png",
+      "timestampMs": 34300,
+      "sourceFrameIndex": 103,
+      "sourceTimestampMs": 79391
+    },
+    {
+      "path": "frames/000104.png",
+      "timestampMs": 34577,
+      "sourceFrameIndex": 104,
+      "sourceTimestampMs": 79668
+    },
+    {
+      "path": "frames/000105.png",
+      "timestampMs": 34874,
+      "sourceFrameIndex": 105,
+      "sourceTimestampMs": 79965
+    },
+    {
+      "path": "frames/000106.png",
+      "timestampMs": 35160,
+      "sourceFrameIndex": 106,
+      "sourceTimestampMs": 80251
+    },
+    {
+      "path": "frames/000107.png",
+      "timestampMs": 35447,
+      "sourceFrameIndex": 107,
+      "sourceTimestampMs": 80538
+    },
+    {
+      "path": "frames/000108.png",
+      "timestampMs": 35855,
+      "sourceFrameIndex": 108,
+      "sourceTimestampMs": 80946
+    },
+    {
+      "path": "frames/000109.png",
+      "timestampMs": 36135,
+      "sourceFrameIndex": 109,
+      "sourceTimestampMs": 81226
+    },
+    {
+      "path": "frames/000110.png",
+      "timestampMs": 36426,
+      "sourceFrameIndex": 110,
+      "sourceTimestampMs": 81517
+    },
+    {
+      "path": "frames/000111.png",
+      "timestampMs": 36735,
+      "sourceFrameIndex": 111,
+      "sourceTimestampMs": 81826
+    },
+    {
+      "path": "frames/000112.png",
+      "timestampMs": 37030,
+      "sourceFrameIndex": 112,
+      "sourceTimestampMs": 82121
+    },
+    {
+      "path": "frames/000113.png",
+      "timestampMs": 37317,
+      "sourceFrameIndex": 113,
+      "sourceTimestampMs": 82408
+    },
+    {
+      "path": "frames/000114.png",
+      "timestampMs": 37607,
+      "sourceFrameIndex": 114,
+      "sourceTimestampMs": 82698
+    },
+    {
+      "path": "frames/000115.png",
+      "timestampMs": 37886,
+      "sourceFrameIndex": 115,
+      "sourceTimestampMs": 82977
+    },
+    {
+      "path": "frames/000116.png",
+      "timestampMs": 38169,
+      "sourceFrameIndex": 116,
+      "sourceTimestampMs": 83260
+    },
+    {
+      "path": "frames/000117.png",
+      "timestampMs": 38478,
+      "sourceFrameIndex": 117,
+      "sourceTimestampMs": 83569
+    },
+    {
+      "path": "frames/000118.png",
+      "timestampMs": 38763,
+      "sourceFrameIndex": 118,
+      "sourceTimestampMs": 83854
+    },
+    {
+      "path": "frames/000119.png",
+      "timestampMs": 39046,
+      "sourceFrameIndex": 119,
+      "sourceTimestampMs": 84137
+    },
+    {
+      "path": "frames/000120.png",
+      "timestampMs": 39328,
+      "sourceFrameIndex": 120,
+      "sourceTimestampMs": 84419
+    },
+    {
+      "path": "frames/000121.png",
+      "timestampMs": 39636,
+      "sourceFrameIndex": 121,
+      "sourceTimestampMs": 84727
+    },
+    {
+      "path": "frames/000122.png",
+      "timestampMs": 39910,
+      "sourceFrameIndex": 122,
+      "sourceTimestampMs": 85001
+    },
+    {
+      "path": "frames/000123.png",
+      "timestampMs": 40207,
+      "sourceFrameIndex": 123,
+      "sourceTimestampMs": 85298
+    },
+    {
+      "path": "frames/000124.png",
+      "timestampMs": 40490,
+      "sourceFrameIndex": 124,
+      "sourceTimestampMs": 85581
+    },
+    {
+      "path": "frames/000125.png",
+      "timestampMs": 43490,
+      "sourceFrameIndex": 125,
+      "sourceTimestampMs": 97830
+    },
+    {
+      "path": "frames/000126.png",
+      "timestampMs": 43516,
+      "sourceFrameIndex": 126,
+      "sourceTimestampMs": 97856
+    },
+    {
+      "path": "frames/000127.png",
+      "timestampMs": 43795,
+      "sourceFrameIndex": 127,
+      "sourceTimestampMs": 98135
+    },
+    {
+      "path": "frames/000128.png",
+      "timestampMs": 44116,
+      "sourceFrameIndex": 128,
+      "sourceTimestampMs": 98456
+    },
+    {
+      "path": "frames/000129.png",
+      "timestampMs": 44400,
+      "sourceFrameIndex": 129,
+      "sourceTimestampMs": 98740
+    },
+    {
+      "path": "frames/000130.png",
+      "timestampMs": 44676,
+      "sourceFrameIndex": 130,
+      "sourceTimestampMs": 99016
+    },
+    {
+      "path": "frames/000131.png",
+      "timestampMs": 44958,
+      "sourceFrameIndex": 131,
+      "sourceTimestampMs": 99298
+    },
+    {
+      "path": "frames/000132.png",
+      "timestampMs": 45245,
+      "sourceFrameIndex": 132,
+      "sourceTimestampMs": 99585
+    },
+    {
+      "path": "frames/000133.png",
+      "timestampMs": 45550,
+      "sourceFrameIndex": 133,
+      "sourceTimestampMs": 99890
+    },
+    {
+      "path": "frames/000134.png",
+      "timestampMs": 45575,
+      "sourceFrameIndex": 134,
+      "sourceTimestampMs": 99915
+    },
+    {
+      "path": "frames/000135.png",
+      "timestampMs": 45593,
+      "sourceFrameIndex": 135,
+      "sourceTimestampMs": 99933
+    },
+    {
+      "path": "frames/000136.png",
+      "timestampMs": 45868,
+      "sourceFrameIndex": 136,
+      "sourceTimestampMs": 100208
+    },
+    {
+      "path": "frames/000137.png",
+      "timestampMs": 46151,
+      "sourceFrameIndex": 137,
+      "sourceTimestampMs": 100491
+    },
+    {
+      "path": "frames/000138.png",
+      "timestampMs": 46432,
+      "sourceFrameIndex": 138,
+      "sourceTimestampMs": 100772
+    },
+    {
+      "path": "frames/000139.png",
+      "timestampMs": 46710,
+      "sourceFrameIndex": 139,
+      "sourceTimestampMs": 101050
+    },
+    {
+      "path": "frames/000140.png",
+      "timestampMs": 47017,
+      "sourceFrameIndex": 140,
+      "sourceTimestampMs": 101357
+    },
+    {
+      "path": "frames/000141.png",
+      "timestampMs": 47321,
+      "sourceFrameIndex": 141,
+      "sourceTimestampMs": 101661
+    },
+    {
+      "path": "frames/000142.png",
+      "timestampMs": 47633,
+      "sourceFrameIndex": 142,
+      "sourceTimestampMs": 101973
+    },
+    {
+      "path": "frames/000143.png",
+      "timestampMs": 50633,
+      "sourceFrameIndex": 143,
+      "sourceTimestampMs": 124642
+    },
+    {
+      "path": "frames/000144.png",
+      "timestampMs": 50688,
+      "sourceFrameIndex": 144,
+      "sourceTimestampMs": 124697
+    },
+    {
+      "path": "frames/000145.png",
+      "timestampMs": 50975,
+      "sourceFrameIndex": 145,
+      "sourceTimestampMs": 124984
+    },
+    {
+      "path": "frames/000146.png",
+      "timestampMs": 51295,
+      "sourceFrameIndex": 146,
+      "sourceTimestampMs": 125304
+    },
+    {
+      "path": "frames/000147.png",
+      "timestampMs": 51578,
+      "sourceFrameIndex": 147,
+      "sourceTimestampMs": 125587
+    },
+    {
+      "path": "frames/000148.png",
+      "timestampMs": 51864,
+      "sourceFrameIndex": 148,
+      "sourceTimestampMs": 125873
+    },
+    {
+      "path": "frames/000149.png",
+      "timestampMs": 52144,
+      "sourceFrameIndex": 149,
+      "sourceTimestampMs": 126153
+    },
+    {
+      "path": "frames/000150.png",
+      "timestampMs": 52427,
+      "sourceFrameIndex": 150,
+      "sourceTimestampMs": 126436
+    },
+    {
+      "path": "frames/000151.png",
+      "timestampMs": 52705,
+      "sourceFrameIndex": 151,
+      "sourceTimestampMs": 126714
+    },
+    {
+      "path": "frames/000152.png",
+      "timestampMs": 55705,
+      "sourceFrameIndex": 152,
+      "sourceTimestampMs": 140735
+    },
+    {
+      "path": "frames/000153.png",
+      "timestampMs": 55759,
+      "sourceFrameIndex": 153,
+      "sourceTimestampMs": 140789
+    },
+    {
+      "path": "frames/000154.png",
+      "timestampMs": 56039,
+      "sourceFrameIndex": 154,
+      "sourceTimestampMs": 141069
+    },
+    {
+      "path": "frames/000155.png",
+      "timestampMs": 56342,
+      "sourceFrameIndex": 155,
+      "sourceTimestampMs": 141372
+    },
+    {
+      "path": "frames/000156.png",
+      "timestampMs": 56647,
+      "sourceFrameIndex": 156,
+      "sourceTimestampMs": 141677
+    },
+    {
+      "path": "frames/000157.png",
+      "timestampMs": 56937,
+      "sourceFrameIndex": 157,
+      "sourceTimestampMs": 141967
+    },
+    {
+      "path": "frames/000158.png",
+      "timestampMs": 57214,
+      "sourceFrameIndex": 158,
+      "sourceTimestampMs": 142244
+    },
+    {
+      "path": "frames/000159.png",
+      "timestampMs": 57489,
+      "sourceFrameIndex": 159,
+      "sourceTimestampMs": 142519
+    },
+    {
+      "path": "frames/000160.png",
+      "timestampMs": 57780,
+      "sourceFrameIndex": 160,
+      "sourceTimestampMs": 142810
+    },
+    {
+      "path": "frames/000174.png",
+      "timestampMs": 57801,
+      "sourceFrameIndex": 174,
+      "sourceTimestampMs": 299964
+    },
+    {
+      "path": "frames/000175.png",
+      "timestampMs": 57822,
+      "sourceFrameIndex": 175,
+      "sourceTimestampMs": 299985
+    },
+    {
+      "path": "frames/000176.png",
+      "timestampMs": 57843,
+      "sourceFrameIndex": 176,
+      "sourceTimestampMs": 300006
+    },
+    {
+      "path": "frames/000177.png",
+      "timestampMs": 58123,
+      "sourceFrameIndex": 177,
+      "sourceTimestampMs": 300286
+    },
+    {
+      "path": "frames/000178.png",
+      "timestampMs": 58410,
+      "sourceFrameIndex": 178,
+      "sourceTimestampMs": 300573
+    },
+    {
+      "path": "frames/000179.png",
+      "timestampMs": 58699,
+      "sourceFrameIndex": 179,
+      "sourceTimestampMs": 300862
+    },
+    {
+      "path": "frames/000180.png",
+      "timestampMs": 58982,
+      "sourceFrameIndex": 180,
+      "sourceTimestampMs": 301145
+    },
+    {
+      "path": "frames/000181.png",
+      "timestampMs": 59263,
+      "sourceFrameIndex": 181,
+      "sourceTimestampMs": 301426
+    },
+    {
+      "path": "frames/000182.png",
+      "timestampMs": 59539,
+      "sourceFrameIndex": 182,
+      "sourceTimestampMs": 301702
+    },
+    {
+      "path": "frames/000183.png",
+      "timestampMs": 59840,
+      "sourceFrameIndex": 183,
+      "sourceTimestampMs": 302003
+    },
+    {
+      "path": "frames/000184.png",
+      "timestampMs": 60124,
+      "sourceFrameIndex": 184,
+      "sourceTimestampMs": 302287
+    },
+    {
+      "path": "frames/000185.png",
+      "timestampMs": 63124,
+      "sourceFrameIndex": 185,
+      "sourceTimestampMs": 333350
+    },
+    {
+      "path": "frames/000186.png",
+      "timestampMs": 63145,
+      "sourceFrameIndex": 186,
+      "sourceTimestampMs": 333371
+    },
+    {
+      "path": "frames/000187.png",
+      "timestampMs": 63420,
+      "sourceFrameIndex": 187,
+      "sourceTimestampMs": 333646
+    },
+    {
+      "path": "frames/000188.png",
+      "timestampMs": 63708,
+      "sourceFrameIndex": 188,
+      "sourceTimestampMs": 333934
+    },
+    {
+      "path": "frames/000189.png",
+      "timestampMs": 63998,
+      "sourceFrameIndex": 189,
+      "sourceTimestampMs": 334224
+    },
+    {
+      "path": "frames/000190.png",
+      "timestampMs": 64287,
+      "sourceFrameIndex": 190,
+      "sourceTimestampMs": 334513
+    },
+    {
+      "path": "frames/000191.png",
+      "timestampMs": 64573,
+      "sourceFrameIndex": 191,
+      "sourceTimestampMs": 334799
+    },
+    {
+      "path": "frames/000192.png",
+      "timestampMs": 64853,
+      "sourceFrameIndex": 192,
+      "sourceTimestampMs": 335079
+    },
+    {
+      "path": "frames/000193.png",
+      "timestampMs": 65125,
+      "sourceFrameIndex": 193,
+      "sourceTimestampMs": 335351
+    },
+    {
+      "path": "frames/000194.png",
+      "timestampMs": 65431,
+      "sourceFrameIndex": 194,
+      "sourceTimestampMs": 335657
+    }
+  ],
+  "actions": [
+    {
+      "label": "01 \u2014 Add finished good",
+      "timestampMs": 0,
+      "sourceTimestampMs": 0
+    },
+    {
+      "label": "02 \u2014 Enter product details",
+      "timestampMs": 5050,
+      "sourceTimestampMs": 19678
+    },
+    {
+      "label": "03 \u2014 Create product and continue to measurement",
+      "timestampMs": 7447,
+      "sourceTimestampMs": 22075
+    },
+    {
+      "label": "04 \u2014 Measure the physical pallet",
+      "timestampMs": 13931,
+      "sourceTimestampMs": 45328
+    },
+    {
+      "label": "05 \u2014 Inspect the same 3D controls",
+      "timestampMs": 16057,
+      "sourceTimestampMs": 47454
+    },
+    {
+      "label": "06 \u2014 Save measurements and calculate storage",
+      "timestampMs": 22745,
+      "sourceTimestampMs": 54142
+    },
+    {
+      "label": "07 \u2014 Choose location FG-1",
+      "timestampMs": 28038,
+      "sourceTimestampMs": 73129
+    },
+    {
+      "label": "08 \u2014 Adjust exact position and orientation",
+      "timestampMs": 30156,
+      "sourceTimestampMs": 75247
+    },
+    {
+      "label": "09 \u2014 Review placement confirmation",
+      "timestampMs": 33999,
+      "sourceTimestampMs": 79090
+    },
+    {
+      "label": "10 \u2014 Reserve the exact position",
+      "timestampMs": 43490,
+      "sourceTimestampMs": 97830
+    },
+    {
+      "label": "11 \u2014 Open destination verification",
+      "timestampMs": 45575,
+      "sourceTimestampMs": 99915
+    },
+    {
+      "label": "12 \u2014 Verify the destination label manually",
+      "timestampMs": 50633,
+      "sourceTimestampMs": 124642
+    },
+    {
+      "label": "13 \u2014 Confirm physical storage",
+      "timestampMs": 55705,
+      "sourceTimestampMs": 140735
+    },
+    {
+      "label": "15 \u2014 Open the building floor and occupied location",
+      "timestampMs": 57822,
+      "sourceTimestampMs": 299985
+    },
+    {
+      "label": "16 \u2014 Inspect the occupied location card and fixed QR labels",
+      "timestampMs": 63124,
+      "sourceTimestampMs": 333350
+    }
+  ],
+  "edits": {
+    "omittedIntervalMs": {
+      "fromInclusive": 142831,
+      "toExclusive": 299964
+    },
+    "maxIdleGapMs": 3000,
+    "finalFrameHoldMs": 3000,
+    "shortenedGaps": [
+      {
+        "beforeSourceFrame": 9,
+        "sourceGapMs": 17628,
+        "keptGapMs": 3000
+      },
+      {
+        "beforeSourceFrame": 33,
+        "sourceGapMs": 19769,
+        "keptGapMs": 3000
+      },
+      {
+        "beforeSourceFrame": 77,
+        "sourceGapMs": 16694,
+        "keptGapMs": 3000
+      },
+      {
+        "beforeSourceFrame": 125,
+        "sourceGapMs": 12249,
+        "keptGapMs": 3000
+      },
+      {
+        "beforeSourceFrame": 143,
+        "sourceGapMs": 22669,
+        "keptGapMs": 3000
+      },
+      {
+        "beforeSourceFrame": 152,
+        "sourceGapMs": 14021,
+        "keptGapMs": 3000
+      },
+      {
+        "beforeSourceFrame": 185,
+        "sourceGapMs": 31063,
+        "keptGapMs": 3000
+      }
+    ]
+  }
+}

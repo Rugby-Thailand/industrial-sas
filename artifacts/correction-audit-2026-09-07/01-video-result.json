@@ -1,0 +1,12 @@
+{
+  "audioTracks" : 0,
+  "bytes" : 2957136,
+  "codec" : "avc1",
+  "durationSeconds" : 21.136666666666667,
+  "encodedFrames" : 212,
+  "fps" : 10,
+  "height" : 996,
+  "output" : "\/Users\/macbook\/Development\/industrial-sas-storage-planner\/artifacts\/correction-audit-2026-09-07\/01-move-location.mp4",
+  "sourceFrames" : 42,
+  "width" : 1728
+}

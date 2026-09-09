@@ -1,0 +1,9 @@
+คู่มือ Storage Planner
+
+1. storage-planner-complete-guide.html — คู่มือฉบับเต็ม 71 ภาพ
+2. storage-recommendation-highlight.html — คู่มือไฮไลต์แนะนำที่จัดเก็บ 5 ภาพ
+
+เปิดไฟล์ HTML ด้วย Chrome, Edge หรือ Safari ได้ทันที
+ภาพทั้งหมดฝังอยู่ใน HTML แล้ว ไม่ต้องส่งโฟลเดอร์รูปและไม่ต้องเปิด dev server
+ส่งไฟล์ HTML ต่อได้โดยตรง หรือส่ง ZIP นี้แล้วให้ผู้รับแตกไฟล์ก่อนเปิด
+หากแอปแชตไม่แสดง HTML ให้บันทึกไฟล์แล้วเปิดด้วยเบราว์เซอร์

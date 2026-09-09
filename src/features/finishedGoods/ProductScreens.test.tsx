@@ -23,6 +23,7 @@ const mocks = vi.hoisted(() => ({
   canManage: true,
   authLoaded: true,
   actorId: "user-a",
+  warehouseId: "warehouse-a",
   push: vi.fn(),
   save: vi.fn<
     (
@@ -64,7 +65,7 @@ vi.mock("convex/react", () => ({
 }));
 vi.mock("@/components/system/QueryGate", () => ({
   QueryGate: ({ children }: { children: (warehouseId: string) => ReactNode }) =>
-    children("warehouse-a"),
+    children(mocks.warehouseId),
 }));
 vi.mock("@/i18n/navigation", () => ({
   Link: ({ children, ...props }: ComponentProps<"a">) => (
@@ -74,7 +75,6 @@ vi.mock("@/i18n/navigation", () => ({
 }));
 
 import { renderWithIntl } from "@tests/fixtures/intl-render";
-import { chooseOption } from "@tests/fixtures/select-control";
 import {
   finishedGoodsWorkspace,
   measuredPalletDetail,
@@ -87,7 +87,18 @@ import {
   writeFailure,
 } from "@tests/fixtures/finished-goods-ui";
 import { FinishedGoodsCatalogue, ProductScreen } from "./ProductScreens";
+import { ProductBatches } from "./ProductBatches";
 
+function chooseStatus(label: string) {
+  fireEvent.click(screen.getByRole("button", { name: /^Filters(?: \(|$)/ }));
+  const dialog = screen.getByRole("dialog");
+  const status = within(dialog).getByRole("group", { name: "Status" });
+  for (const option of within(status).getAllByRole("checkbox")) {
+    if ((option as HTMLInputElement).checked) fireEvent.click(option);
+  }
+  fireEvent.click(within(status).getByRole("checkbox", { name: label }));
+  fireEvent.click(within(dialog).getByRole("button", { name: "Apply" }));
+}
 const renderProduct = (productId?: string) =>
   renderWithIntl(<ProductScreen {...(productId ? { productId } : {})} />, {
     locale: "en",
@@ -104,12 +115,6 @@ function fillValidProduct() {
   fireEvent.change(screen.getByRole("textbox", { name: "Counting unit" }), {
     target: { value: "pieces" },
   });
-  fireEvent.change(
-    screen.getByRole("spinbutton", {
-      name: "Default quantity per storage unit",
-    }),
-    { target: { value: "500" } },
-  );
 }
 function submitProduct() {
   const form = screen.getByRole("textbox", { name: "SKU" }).closest("form");
@@ -129,25 +134,29 @@ const storedDraft = {
 };
 
 beforeEach(() => {
+  window.history.replaceState(null, "", "/");
   localStorage.clear();
   mocks.canManage = true;
   mocks.authLoaded = true;
   mocks.actorId = "user-a";
+  mocks.warehouseId = "warehouse-a";
   mocks.push.mockReset();
   mocks.save.mockReset().mockResolvedValue(savedProductOutcome);
   mocks.pallet.mockReset().mockResolvedValue(createdPalletOutcome);
   mocks.query.mockReset().mockImplementation((name) =>
-    name.endsWith(":getProduct")
-      ? querySuccess(finishedGoodProduct)
-      : name.endsWith(":getPallet")
-        ? querySuccess({
-            ...measuredPalletDetail,
-            pallet: {
-              ...measuredPalletDetail.pallet,
-              _id: "pallet-original",
-            },
-          })
-        : querySuccess(finishedGoodsList),
+    name.endsWith(":listProductBatches")
+      ? querySuccess({ batches: [], legacyUnits: [] })
+      : name.endsWith(":getProduct")
+        ? querySuccess(finishedGoodProduct)
+        : name.endsWith(":getPallet")
+          ? querySuccess({
+              ...measuredPalletDetail,
+              pallet: {
+                ...measuredPalletDetail.pallet,
+                _id: "pallet-original",
+              },
+            })
+          : querySuccess(finishedGoodsList),
   );
 });
 
@@ -157,10 +166,12 @@ describe("finished good creation", () => {
     fireEvent.change(screen.getByRole("textbox", { name: "Product name" }), {
       target: { value: "Edited packing product" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Pack pallets" }));
+    fireEvent.click(screen.getByRole("button", { name: "Prepare more goods" }));
     await waitFor(() =>
       expect(mocks.push).toHaveBeenCalledWith(
-        "/finished-goods/products/product-a/packing",
+        expect.stringMatching(
+          /^\/finished-goods\/products\/product-a\/packing\?draft=[0-9a-f-]+$/,
+        ),
       ),
     );
     expect(mocks.save).toHaveBeenCalledWith(
@@ -178,7 +189,9 @@ describe("finished good creation", () => {
     fireEvent.change(screen.getByRole("textbox", { name: "Product name" }), {
       target: { value: "Renamed finished good" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Save product details" }),
+    );
     await waitFor(() =>
       expect(mocks.push).toHaveBeenCalledWith("/finished-goods"),
     );
@@ -192,13 +205,13 @@ describe("finished good creation", () => {
     expect(mocks.pallet).not.toHaveBeenCalled();
   });
 
-  it("creates one product then one physical pallet and navigates to measurement", async () => {
+  it("saves a product and opens packing without creating physical pallets", async () => {
     renderProduct();
     fillValidProduct();
-    fireEvent.click(screen.getByRole("button", { name: "Next: Measure" }));
+    fireEvent.click(screen.getByRole("button", { name: "Next: Packing" }));
     await waitFor(() =>
       expect(mocks.push).toHaveBeenCalledWith(
-        "/finished-goods/pallets/pallet-a/measure",
+        "/finished-goods/products/product-a/packing",
       ),
     );
     expect(mocks.save).toHaveBeenCalledTimes(1);
@@ -208,19 +221,10 @@ describe("finished good creation", () => {
         sku: "FG-001",
         name: "Packaging cartons",
         unit: "pieces",
-        defaultQuantity: 500,
         draft: false,
       }),
     );
-    expect(mocks.pallet).toHaveBeenCalledWith(
-      expect.objectContaining({
-        warehouseId: "warehouse-a",
-        productId: "product-a",
-      }),
-    );
-    expect(mocks.save.mock.invocationCallOrder[0]).toBeLessThan(
-      mocks.pallet.mock.invocationCallOrder[0]!,
-    );
+    expect(mocks.pallet).not.toHaveBeenCalled();
     expect(localStorage.getItem(draftKey)).toBeNull();
   });
 
@@ -244,22 +248,17 @@ describe("finished good creation", () => {
     expect(mocks.pallet).not.toHaveBeenCalled();
   });
 
-  it.each(["", "0", "-2"])(
-    "rejects missing or non-positive quantity %j before writes",
-    async (quantity) => {
+  it.each(["SKU", "Product name", "Counting unit"])(
+    "rejects an empty %s before writes",
+    async (field) => {
       renderProduct();
       fillValidProduct();
-      fireEvent.change(
-        screen.getByRole("spinbutton", {
-          name: "Default quantity per storage unit",
-        }),
-        { target: { value: quantity } },
-      );
-      // Direct submit also checks the component guard, not just native number validation.
+      fireEvent.change(screen.getByRole("textbox", { name: field }), {
+        target: { value: "" },
+      });
       submitProduct();
       expect(await screen.findByRole("alert")).toBeVisible();
       expect(mocks.save).not.toHaveBeenCalled();
-      expect(mocks.pallet).not.toHaveBeenCalled();
     },
   );
 
@@ -276,7 +275,7 @@ describe("finished good creation", () => {
     submitProduct();
     await waitFor(() =>
       expect(mocks.push).toHaveBeenCalledWith(
-        "/finished-goods/pallets/pallet-a/measure",
+        "/finished-goods/products/product-a/packing",
       ),
     );
     expect(mocks.save.mock.calls[0]?.[0].requestId).toBe(
@@ -299,28 +298,22 @@ describe("finished good creation", () => {
     ).toHaveAttribute("href", "/finished-goods/products/product-a");
   });
 
-  it("continues the already saved product if pallet creation fails", async () => {
-    mocks.pallet.mockRejectedValueOnce(new Error("Connection lost"));
+  it("continues an already saved product recovered from a local draft without creating pallets", async () => {
+    localStorage.setItem(
+      draftKey,
+      JSON.stringify({ ...storedDraft, savedProductId: "product-a" }),
+    );
     renderProduct();
-    fillValidProduct();
-    submitProduct();
-    expect(await screen.findByRole("alert")).toBeVisible();
-    expect(JSON.parse(localStorage.getItem(draftKey) ?? "{}")).toMatchObject({
-      savedProductId: "product-a",
-    });
     submitProduct();
     await waitFor(() =>
       expect(mocks.push).toHaveBeenCalledWith(
-        "/finished-goods/pallets/pallet-a/measure",
+        "/finished-goods/products/product-a/packing",
       ),
     );
-    expect(mocks.save.mock.calls[1]?.[0]).toHaveProperty(
-      "productId",
-      "product-a",
+    expect(mocks.save).toHaveBeenCalledWith(
+      expect.objectContaining({ productId: "product-a", sku: "LOCAL-01" }),
     );
-    expect(mocks.pallet.mock.calls[0]?.[0].requestId).toBe(
-      mocks.pallet.mock.calls[1]?.[0].requestId,
-    );
+    expect(mocks.pallet).not.toHaveBeenCalled();
   });
 
   it("restores local work after refresh and warns before discarding it", () => {
@@ -329,11 +322,7 @@ describe("finished good creation", () => {
     expect(screen.getByRole("textbox", { name: "SKU" })).toHaveValue(
       "LOCAL-01",
     );
-    expect(
-      screen.getByRole("spinbutton", {
-        name: "Default quantity per storage unit",
-      }),
-    ).toHaveValue(125);
+    expect(screen.queryByRole("spinbutton")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(
       screen.getByRole("dialog", { name: "Discard unsaved changes?" }),
@@ -359,8 +348,8 @@ describe("finished good creation", () => {
       "",
     );
     expect(
-      screen.getByRole("combobox", { name: "Storage format" }),
-    ).toHaveTextContent("Pallet");
+      screen.queryByRole("combobox", { name: "Storage format" }),
+    ).not.toBeInTheDocument();
   });
 
   it("ignores invalid JSON drafts", () => {
@@ -381,22 +370,38 @@ describe("finished good creation", () => {
     expect(mocks.push).toHaveBeenCalledWith("/finished-goods");
   });
 
-  it("adds a distinct pallet for an existing product without creating another product", async () => {
+  it("repeated product detail edits never submit packing settings or create storage units", async () => {
     renderProduct("product-a");
-    fireEvent.click(
-      screen.getByRole("button", { name: "Add pallet & measure" }),
-    );
-    await waitFor(() =>
-      expect(mocks.push).toHaveBeenCalledWith(
-        "/finished-goods/pallets/pallet-a/measure",
-      ),
-    );
-    expect(mocks.save).toHaveBeenCalledWith(
-      expect.objectContaining({ productId: "product-a", draft: false }),
-    );
-    expect(mocks.pallet).toHaveBeenCalledWith(
-      expect.objectContaining({ productId: "product-a" }),
-    );
+    expect(screen.queryByRole("spinbutton")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("combobox", { name: "Storage format" }),
+    ).not.toBeInTheDocument();
+    for (const name of ["First edit", "Second edit"]) {
+      fireEvent.change(screen.getByRole("textbox", { name: "Product name" }), {
+        target: { value: name },
+      });
+      submitProduct();
+      await waitFor(() =>
+        expect(mocks.save).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            productId: "product-a",
+            name,
+            draft: false,
+          }),
+        ),
+      );
+      await waitFor(() =>
+        expect(
+          screen.getByRole("button", { name: "Save product details" }),
+        ).toBeEnabled(),
+      );
+    }
+    for (const [payload] of mocks.save.mock.calls) {
+      expect(payload).not.toHaveProperty("defaultQuantity");
+      expect(payload).not.toHaveProperty("storageFormat");
+    }
+    expect(mocks.save).toHaveBeenCalledTimes(2);
+    expect(mocks.pallet).not.toHaveBeenCalled();
   });
 });
 
@@ -453,11 +458,13 @@ describe("resume context validation", () => {
               },
             };
       mocks.query.mockImplementation((name) =>
-        name.endsWith(":getProduct")
-          ? querySuccess(finishedGoodProduct)
-          : name.endsWith(":getPallet")
-            ? querySuccess(invalid)
-            : querySuccess(finishedGoodsList),
+        name.endsWith(":listProductBatches")
+          ? querySuccess({ batches: [], legacyUnits: [] })
+          : name.endsWith(":getProduct")
+            ? querySuccess(finishedGoodProduct)
+            : name.endsWith(":getPallet")
+              ? querySuccess(invalid)
+              : querySuccess(finishedGoodsList),
       );
       renderWithIntl(
         <ProductScreen productId="product-a" resumePalletId="pallet-a" />,
@@ -507,7 +514,7 @@ describe("read-only product access", () => {
       screen.queryByRole("textbox", { name: "SKU" }),
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: "Next: Measure" }),
+      screen.queryByRole("button", { name: "Next: Packing" }),
     ).not.toBeInTheDocument();
   });
   it("retains readable product values but cannot save or create a pallet", () => {
@@ -516,7 +523,7 @@ describe("read-only product access", () => {
     expect(
       screen.getByRole("textbox", { name: "Product name" }),
     ).toBeDisabled();
-    const add = screen.queryByRole("button", { name: "Add pallet & measure" });
+    const add = screen.queryByRole("button", { name: "Prepare more goods" });
     if (add) expect(add).toBeDisabled();
     submitProduct();
     expect(mocks.save).not.toHaveBeenCalled();
@@ -542,28 +549,34 @@ describe("product async save safety", () => {
       screen.getByRole("textbox", { name: "Product name" }),
     ).toBeDisabled();
     expect(
-      screen.getByRole("combobox", { name: "Storage format" }),
+      screen.getByRole("combobox", { name: "Storage condition" }),
     ).toBeDisabled();
     await act(async () => {
       finish?.(savedProductOutcome);
     });
   });
 
-  it("retains the physical-pallet request identity across refresh after an uncertain response", async () => {
-    mocks.pallet.mockRejectedValueOnce(
+  it("retains the product request identity across refresh after an uncertain save without adding pallets", async () => {
+    mocks.save.mockRejectedValueOnce(
       new Error("Response lost after server committed"),
     );
     const first = renderProduct();
     fillValidProduct();
     submitProduct();
     expect(await screen.findByRole("alert")).toBeVisible();
-    const firstRequest = mocks.pallet.mock.calls[0]?.[0].requestId;
+    const firstRequest = mocks.save.mock.calls[0]?.[0].requestId;
     expect(firstRequest).toBeTruthy();
     first.unmount();
     renderProduct();
     submitProduct();
-    await waitFor(() => expect(mocks.pallet).toHaveBeenCalledTimes(2));
-    expect(mocks.pallet.mock.calls[1]?.[0].requestId).toBe(firstRequest);
+    await waitFor(() => expect(mocks.save).toHaveBeenCalledTimes(2));
+    expect(mocks.save.mock.calls[1]?.[0].requestId).toBe(firstRequest);
+    await waitFor(() =>
+      expect(mocks.push).toHaveBeenCalledWith(
+        "/finished-goods/products/product-a/packing",
+      ),
+    );
+    expect(mocks.pallet).not.toHaveBeenCalled();
   });
 });
 
@@ -573,6 +586,175 @@ describe("finished goods catalogue", () => {
       locale: "en",
       workspace: false,
     });
+  it("restores search, status, tab and table layout after returning to the catalogue", () => {
+    const first = renderCatalogue();
+    fireEvent.click(screen.getByRole("button", { name: "Storage units" }));
+    fireEvent.click(screen.getByRole("button", { name: "Table view" }));
+    fireEvent.change(
+      screen.getByRole("textbox", { name: "Search finished goods" }),
+      { target: { value: "Packaging cartons" } },
+    );
+    chooseStatus("Awaiting measurement");
+    first.unmount();
+    renderCatalogue();
+    expect(
+      screen.getByRole("textbox", { name: "Search finished goods" }),
+    ).toHaveValue("Packaging cartons");
+    expect(
+      screen.getByRole("button", { name: "Storage units" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Table view" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(
+      screen.getByRole("button", {
+        name: "Remove filter Status: Awaiting measurement",
+      }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("table", { name: "Storage units table" }),
+    ).toBeVisible();
+  });
+
+  it("keeps catalogue context separate for each actor and warehouse", () => {
+    const element = () => (
+      <NextIntlClientProvider locale="en" messages={{}} timeZone="Asia/Bangkok">
+        <FinishedGoodsCatalogue />
+      </NextIntlClientProvider>
+    );
+    const view = render(element());
+    const search = () =>
+      screen.getByRole("textbox", { name: "Search finished goods" });
+    fireEvent.change(search(), { target: { value: "Actor A warehouse A" } });
+    mocks.actorId = "user-b";
+    view.rerender(element());
+    expect(search()).toHaveValue("");
+    fireEvent.change(search(), { target: { value: "Actor B warehouse A" } });
+    mocks.warehouseId = "warehouse-b";
+    view.rerender(element());
+    expect(search()).toHaveValue("");
+    fireEvent.change(search(), { target: { value: "Actor B warehouse B" } });
+    mocks.warehouseId = "warehouse-a";
+    view.rerender(element());
+    expect(search()).toHaveValue("Actor B warehouse A");
+    mocks.actorId = "user-a";
+    view.rerender(element());
+    expect(search()).toHaveValue("Actor A warehouse A");
+    mocks.authLoaded = false;
+    view.rerender(element());
+    expect(
+      screen.queryByRole("textbox", { name: "Search finished goods" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it.each([
+    "{broken",
+    "null",
+    "[]",
+    JSON.stringify({
+      tab: "unknown",
+      search: 42,
+      status: "STORED",
+      layout: "unknown",
+    }),
+  ])("recovers invalid saved catalogue context %s", (saved) => {
+    localStorage.setItem("fg-catalogue:user-a:warehouse-a", saved);
+    renderCatalogue();
+    expect(
+      screen.getByRole("textbox", { name: "Search finished goods" }),
+    ).toHaveValue("");
+    expect(screen.getByRole("button", { name: "Products" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.getByRole("button", { name: "Card view" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(
+      screen.queryByRole("button", { name: /^Remove filter Status:/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("persists cleared filters while preserving the chosen tab and layout", () => {
+    const first = renderCatalogue();
+    fireEvent.click(screen.getByRole("button", { name: "Storage units" }));
+    fireEvent.click(screen.getByRole("button", { name: "Table view" }));
+    chooseStatus("Stored");
+    fireEvent.change(
+      screen.getByRole("textbox", { name: "Search finished goods" }),
+      {
+        target: { value: "No such unit" },
+      },
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
+    first.unmount();
+    renderCatalogue();
+    expect(
+      screen.getByRole("textbox", { name: "Search finished goods" }),
+    ).toHaveValue("");
+    expect(
+      screen.queryByRole("button", { name: /^Remove filter Status:/ }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("table", { name: "Storage units table" }),
+    ).toBeVisible();
+  });
+
+  it("restores the same view when the catalogue is reopened in Thai", () => {
+    const first = renderCatalogue();
+    fireEvent.click(screen.getByRole("button", { name: "Storage units" }));
+    fireEvent.click(screen.getByRole("button", { name: "Table view" }));
+    fireEvent.change(
+      screen.getByRole("textbox", { name: "Search finished goods" }),
+      { target: { value: "Packaging cartons" } },
+    );
+    first.unmount();
+    renderWithIntl(<FinishedGoodsCatalogue />, {
+      locale: "th",
+      workspace: false,
+    });
+    expect(
+      screen.getByRole("textbox", { name: "ค้นหาสินค้าสำเร็จรูป" }),
+    ).toHaveValue("Packaging cartons");
+    expect(
+      screen.getByRole("table", { name: "ตารางหน่วยจัดเก็บ" }),
+    ).toBeVisible();
+  });
+
+  it("continues filtering when browser storage cannot be read or written", () => {
+    const read = vi
+      .spyOn(Storage.prototype, "getItem")
+      .mockImplementation(() => {
+        throw new Error("Storage unavailable");
+      });
+    const write = vi
+      .spyOn(Storage.prototype, "setItem")
+      .mockImplementation(() => {
+        throw new Error("Storage unavailable");
+      });
+    try {
+      renderCatalogue();
+      fireEvent.change(
+        screen.getByRole("textbox", { name: "Search finished goods" }),
+        {
+          target: { value: "No such unit" },
+        },
+      );
+      expect(
+        screen.getByRole("heading", { name: "No matching records" }),
+      ).toBeVisible();
+      fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
+      expect(
+        screen.getByRole("heading", { name: "Packaging cartons" }),
+      ).toBeVisible();
+    } finally {
+      read.mockRestore();
+      write.mockRestore();
+    }
+  });
+
   it("shows a useful empty state and creation link", () => {
     mocks.query.mockReturnValue(querySuccess({ products: [], pallets: [] }));
     renderCatalogue();
@@ -584,9 +766,9 @@ describe("finished goods catalogue", () => {
     expect(
       screen.getByRole("link", { name: "Create finished good" }),
     ).toHaveAttribute("href", "/finished-goods/new");
-    fireEvent.click(screen.getByRole("button", { name: "Pallets" }));
+    fireEvent.click(screen.getByRole("button", { name: "Storage units" }));
     expect(
-      screen.getByRole("heading", { name: "No pallets yet" }),
+      screen.getByRole("heading", { name: "No storage units yet" }),
     ).toBeVisible();
   });
 
@@ -603,11 +785,11 @@ describe("finished goods catalogue", () => {
     expect(
       screen.getByRole("heading", { name: "Packaging cartons" }),
     ).toBeVisible();
-    chooseOption("Status", "Draft");
+    chooseStatus("Draft");
     expect(
       screen.getByRole("heading", { name: "No matching records" }),
     ).toBeVisible();
-    chooseOption("Status", "Ready");
+    chooseStatus("Ready");
     expect(
       screen.getByRole("heading", { name: "Packaging cartons" }),
     ).toBeVisible();
@@ -615,19 +797,21 @@ describe("finished goods catalogue", () => {
 
   it("finds a pallet by its product name and sends unmeasured pallets to measurement", () => {
     renderCatalogue();
-    fireEvent.click(screen.getByRole("button", { name: "Pallets" }));
+    fireEvent.click(screen.getByRole("button", { name: "Storage units" }));
     fireEvent.change(
       screen.getByRole("textbox", { name: "Search finished goods" }),
       { target: { value: "Packaging cartons" } },
     );
     const name = screen.getByRole("heading", { name: "Packaging cartons" });
-    const card = name.closest("a");
-    expect(card).toHaveAttribute(
-      "href",
-      "/finished-goods/pallets/pallet-a/measure",
-    );
+    const card = name.closest("article");
     if (!card) throw new Error("Pallet card missing");
-    expect(within(card).getByText("P-001")).toBeVisible();
+    expect(
+      within(card).getByRole("link", { name: "Measure P-001" }),
+    ).toHaveAttribute("href", "/finished-goods/pallets/pallet-a/measure");
+    expect(within(card).getByRole("link", { name: "P-001" })).toHaveAttribute(
+      "href",
+      "/finished-goods/pallets/pallet-a",
+    );
   });
 });
 
@@ -720,11 +904,11 @@ it("can create a product when browser recovery storage is unavailable", async ()
     submitProduct();
     await waitFor(() =>
       expect(mocks.push).toHaveBeenCalledWith(
-        "/finished-goods/pallets/pallet-a/measure",
+        "/finished-goods/products/product-a/packing",
       ),
     );
     expect(mocks.save).toHaveBeenCalledOnce();
-    expect(mocks.pallet).toHaveBeenCalledOnce();
+    expect(mocks.pallet).not.toHaveBeenCalled();
   } finally {
     read.mockRestore();
     write.mockRestore();
@@ -757,8 +941,10 @@ describe("catalogue table view", () => {
     ).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
     expect(screen.getByRole("table")).toBeVisible();
-    fireEvent.click(screen.getByRole("button", { name: "Pallets" }));
-    expect(screen.getByRole("table", { name: "Pallets table" })).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Storage units" }));
+    expect(
+      screen.getByRole("table", { name: "Storage units table" }),
+    ).toBeVisible();
     expect(
       within(screen.getByRole("table")).getByRole("link", {
         name: finishedGoodsList.pallets[0]!.code,
@@ -785,5 +971,566 @@ describe("catalogue table view", () => {
       "href",
       "/finished-goods/products/product-a",
     );
+  });
+});
+
+describe("pallet relocation in catalogue", () => {
+  it("shows moving pallets separately from stored stock in cards, tables and filters", () => {
+    const pallet = finishedGoodsList.pallets[0]!;
+    mocks.query.mockReturnValue(
+      querySuccess({
+        ...finishedGoodsList,
+        pallets: [{ ...pallet, status: "STORED", moveStatus: "IN_TRANSIT" }],
+      }),
+    );
+    renderWithIntl(<FinishedGoodsCatalogue />, {
+      locale: "en",
+      workspace: false,
+    });
+    expect(screen.getByText("Moving units: 1")).toBeVisible();
+    expect(screen.getByText("Stored units").parentElement).toHaveTextContent(
+      "Stored units0",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Storage units" }));
+    expect(screen.getByText("Moving", { exact: true })).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Table view" }));
+    expect(within(screen.getByRole("table")).getByText("Moving")).toBeVisible();
+    chooseStatus("Stored");
+    expect(
+      screen.getByRole("heading", { name: "No matching records" }),
+    ).toBeVisible();
+    chooseStatus("Moving");
+    expect(screen.getByRole("table")).toBeVisible();
+  });
+});
+
+describe("product quantity and recorded pallet count", () => {
+  it("separates the saved total from the default quantity in cards and tables", () => {
+    const product = {
+      ...finishedGoodsList.products[0]!,
+      defaultQuantity: 50,
+      unit: "pieces",
+    };
+    const pallet = finishedGoodsList.pallets[0]!;
+    mocks.query.mockReturnValue(
+      querySuccess({
+        products: [product],
+        pallets: Array.from({ length: 4 }, (_, i) => ({
+          ...pallet,
+          _id: `pallet-${i}`,
+          productId: product._id,
+          quantity: 100,
+        })),
+      }),
+    );
+    renderWithIntl(<FinishedGoodsCatalogue />, {
+      locale: "en",
+      workspace: false,
+    });
+    expect(
+      screen.getByText("Total in storage units: 400 pieces"),
+    ).toBeVisible();
+    expect(screen.getByText("4 pallets")).toBeVisible();
+    expect(
+      screen.queryByText("Default per storage unit: 50 pieces"),
+    ).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Table view" }));
+    expect(
+      within(screen.getByRole("table")).getByText("400 pieces"),
+    ).toBeVisible();
+    expect(
+      within(screen.getByRole("table")).queryByText("Default: 50 pieces"),
+    ).not.toBeInTheDocument();
+  });
+  it("shows 100 pieces and two pallets when two 50-piece pallets are recorded", () => {
+    const product = {
+      ...finishedGoodsList.products[0]!,
+      defaultQuantity: 100,
+      unit: "pieces",
+    };
+    const pallet = finishedGoodsList.pallets[0]!;
+    mocks.query.mockReturnValue(
+      querySuccess({
+        products: [product],
+        pallets: [
+          { ...pallet, _id: "pallet-1", productId: product._id, quantity: 50 },
+          { ...pallet, _id: "pallet-2", productId: product._id, quantity: 50 },
+        ],
+      }),
+    );
+    renderWithIntl(<FinishedGoodsCatalogue />, {
+      locale: "en",
+      workspace: false,
+    });
+    expect(
+      screen.getByText("Total in storage units: 100 pieces"),
+    ).toBeVisible();
+    expect(screen.getByText("2 pallets")).toBeVisible();
+  });
+});
+
+describe("preparation batches and legacy review", () => {
+  const renderBatches = (value: unknown, locale: "en" | "th" = "en") => {
+    mocks.query.mockReturnValue(querySuccess(value));
+    return renderWithIntl(
+      <ProductBatches
+        warehouseId="warehouse-a"
+        product={finishedGoodProduct}
+      />,
+      { locale, workspace: false },
+    );
+  };
+  const unit = {
+    ...measuredPalletDetail.pallet,
+    quantity: 50,
+    storageFormat: "BOX",
+    productId: finishedGoodProduct._id,
+  };
+  const batch = {
+    _id: "batch-one",
+    totalQuantity: 100,
+    storageFormat: "BOX",
+    status: "CREATED",
+    lot: "LOT-QA",
+  };
+  it("separates saved batches, resumable drafts and legacy records without counting draft rows", () => {
+    renderBatches({
+      batches: [
+        {
+          batch,
+          units: [unit, { ...unit, _id: "unit-2", code: "U-2" }],
+          history: [],
+          editable: true,
+        },
+        {
+          batch: {
+            ...batch,
+            _id: "batch-draft",
+            status: "DRAFT",
+            totalQuantity: 900,
+          },
+          units: [],
+          history: [],
+          editable: true,
+        },
+      ],
+      legacyUnits: [
+        {
+          ...unit,
+          _id: "legacy-1",
+          code: "OLD-1",
+          quantity: 25,
+          storageFormat: "OTHER",
+        },
+      ],
+    });
+    expect(
+      screen.getByText(
+        "Total in storage units: 125 pieces · 2 boxes · 1 storage unit",
+      ),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Edit available units atch-one" }),
+    ).toBeVisible();
+    expect(screen.getByRole("link", { name: "Resume draft" })).toHaveAttribute(
+      "href",
+      "/finished-goods/batches/batch-draft",
+    );
+    expect(
+      screen.getByRole("heading", { name: "Legacy units — no recorded batch" }),
+    ).toBeVisible();
+    expect(screen.getByText("Storage unit · OLD-1")).toBeVisible();
+  });
+  it("reviews exact before and after totals and requires a reason before cancelling a legacy record", async () => {
+    renderBatches({
+      batches: [],
+      legacyUnits: [unit, { ...unit, _id: "unit-2", code: "U-2" }],
+    });
+    fireEvent.click(
+      screen.getAllByRole("button", { name: "Review cancellation" })[0]!,
+    );
+    const dialog = screen.getByRole("dialog");
+    expect(
+      within(dialog).getByText("100 pieces · 2 storage units"),
+    ).toBeVisible();
+    expect(
+      within(dialog).getByText("50 pieces · 1 storage unit"),
+    ).toBeVisible();
+    expect(
+      within(dialog).getByRole("button", { name: "Confirm cancellation" }),
+    ).toBeDisabled();
+    fireEvent.change(
+      within(dialog).getByRole("textbox", { name: "Cancellation reason" }),
+      { target: { value: "Duplicate entered by mistake" } },
+    );
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Confirm cancellation" }),
+    );
+    await waitFor(() =>
+      expect(mocks.pallet).toHaveBeenCalledWith(
+        expect.objectContaining({
+          palletId: unit._id,
+          expectedUpdatedAt: unit.updatedAt,
+          reason: "Duplicate entered by mistake",
+        }),
+      ),
+    );
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
+  });
+  it("protects reserved and moving records and keeps read-only batch actions hidden", () => {
+    mocks.canManage = false;
+    renderBatches({
+      batches: [
+        {
+          batch,
+          units: [{ ...unit, status: "STORED", moveStatus: "IN_TRANSIT" }],
+          history: [],
+          editable: false,
+          blockedReason: "BATCH_NOT_EDITABLE",
+        },
+      ],
+      legacyUnits: [{ ...unit, status: "RESERVED" }],
+    });
+    expect(screen.getByText("Moving")).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "Review cancellation" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Edit packing" }),
+    ).not.toBeInTheDocument();
+  });
+  it("shows saved packing revisions and Thai format-aware unit names", () => {
+    renderBatches(
+      {
+        batches: [
+          {
+            batch,
+            units: [unit],
+            history: [
+              {
+                ...batch,
+                _id: "revision-one",
+                revision: 1,
+                palletIds: ["old-1", "old-2"],
+                packages: [{ quantity: 50 }, { quantity: 50 }],
+              },
+            ],
+            editable: true,
+          },
+        ],
+        legacyUnits: [],
+      },
+      "th",
+    );
+    expect(screen.getByText(`กล่อง · ${unit.code}`)).toBeVisible();
+    expect(screen.queryByText(/OTHER/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText("ประวัติการแบ่งบรรจุ (1)"));
+    expect(screen.getByText("ครั้งที่ 1 · 100 pieces · 2 กล่อง")).toBeVisible();
+  });
+});
+
+describe("column filter interactions", () => {
+  const catalogue = () =>
+    renderWithIntl(<FinishedGoodsCatalogue />, {
+      locale: "en",
+      workspace: false,
+    });
+  it("applies and cancels header filters, shows chips and preserves filters between layouts", () => {
+    catalogue();
+    fireEvent.click(screen.getByRole("button", { name: "Table view" }));
+    expect(
+      screen.getAllByRole("button", { name: /^Filter and sort/ }),
+    ).toHaveLength(5);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Filter and sort Product" }),
+    );
+    fireEvent.change(screen.getByRole("textbox", { name: "Name or SKU" }), {
+      target: { value: "missing" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.getByRole("table")).toBeVisible();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Filter and sort Product" }),
+    );
+    fireEvent.change(screen.getByRole("textbox", { name: "Name or SKU" }), {
+      target: { value: "FG-001" },
+    });
+    fireEvent.change(screen.getByRole("combobox", { name: "Sort by" }), {
+      target: { value: "sku:desc" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+    expect(
+      screen
+        .getByRole("button", { name: "Filter and sort Product" })
+        .closest("th"),
+    ).toHaveAttribute("aria-sort", "descending");
+    fireEvent.click(screen.getByRole("button", { name: "Card view" }));
+    expect(
+      screen.getByRole("button", { name: "Remove filter Product: FG-001" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("heading", { name: "Packaging cartons" }),
+    ).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Clear all" }));
+    expect(
+      screen.queryByRole("group", { name: "Active filters" }),
+    ).not.toBeInTheDocument();
+  });
+  it("blocks invalid quantity ranges and applies valid ranges from the shared sheet", () => {
+    catalogue();
+    fireEvent.click(screen.getByRole("button", { name: "Filters" }));
+    fireEvent.change(
+      screen.getByRole("spinbutton", { name: "Quantity minimum" }),
+      { target: { value: "100" } },
+    );
+    expect(screen.getByRole("button", { name: "Apply" })).toBeDisabled();
+    fireEvent.change(screen.getByRole("combobox", { name: "Counting unit" }), {
+      target: { value: "pieces" },
+    });
+    fireEvent.change(
+      screen.getByRole("spinbutton", { name: "Quantity maximum" }),
+      { target: { value: "50" } },
+    );
+    expect(screen.getByRole("button", { name: "Apply" })).toBeDisabled();
+    fireEvent.change(
+      screen.getByRole("spinbutton", { name: "Quantity maximum" }),
+      { target: { value: "500" } },
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+    expect(
+      screen.getByRole("heading", { name: "Packaging cartons" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", {
+        name: "Remove filter Quantity: 100–500 pieces",
+      }),
+    ).toBeVisible();
+  });
+  it("migrates saved view preferences and restores them from a plain catalogue link", () => {
+    localStorage.setItem(
+      "fg-catalogue:user-a:warehouse-a",
+      JSON.stringify({
+        tab: "pallets",
+        layout: "table",
+        search: "LOT",
+        status: "AWAITING_MEASUREMENT",
+      }),
+    );
+    const first = catalogue();
+    expect(
+      screen.getByRole("table", { name: "Storage units table" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", {
+        name: "Remove filter Status: Awaiting measurement",
+      }),
+    ).toBeVisible();
+    fireEvent.change(
+      screen.getByRole("textbox", { name: "Search finished goods" }),
+      { target: { value: "FG-001" } },
+    );
+    first.unmount();
+    window.history.replaceState(null, "", "/finished-goods");
+    catalogue();
+    expect(
+      screen.getByRole("textbox", { name: "Search finished goods" }),
+    ).toHaveValue("FG-001");
+  });
+  it("lets Next synchronize external history updates instead of reusing its internal update markers", () => {
+    window.history.replaceState(
+      { __NA: true, _N: true, retained: true },
+      "",
+      "/finished-goods",
+    );
+    const replace = vi.spyOn(window.history, "replaceState");
+    catalogue();
+    fireEvent.click(screen.getByRole("button", { name: "Table view" }));
+    const data = replace.mock.calls.at(-1)?.[0];
+    expect(data).toMatchObject({ retained: true });
+    expect(data.__NA).toBeUndefined();
+    expect(data._N).toBeUndefined();
+    replace.mockRestore();
+  });
+  it("applies storage-unit dimensions and sorting after changing tabs", () => {
+    catalogue();
+    fireEvent.click(screen.getByRole("button", { name: "Table view" }));
+    fireEvent.click(screen.getByRole("button", { name: "Storage units" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Filter and sort Dimensions (m)" }),
+    );
+    fireEvent.change(
+      screen.getByRole("spinbutton", { name: "Length (m) maximum" }),
+      { target: { value: "0.5" } },
+    );
+    fireEvent.change(screen.getByRole("combobox", { name: "Sort by" }), {
+      target: { value: "length:asc" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+    expect(
+      screen.getByRole("heading", { name: "No matching records" }),
+    ).toBeVisible();
+    const saved = JSON.parse(
+      new URLSearchParams(window.location.search).get("fg")!,
+    );
+    expect(saved.pallets.length.max).toBe("0.5");
+    expect(saved.pallets.sort).toBe("length:asc");
+  });
+  it("restores search, sorting, tab and layout on remount and browser navigation", () => {
+    window.history.replaceState(
+      { retained: true },
+      "",
+      "/finished-goods?other=keep#records",
+    );
+    const view = catalogue();
+    fireEvent.click(screen.getByRole("button", { name: "Storage units" }));
+    fireEvent.click(screen.getByRole("button", { name: "Table view" }));
+    fireEvent.change(
+      screen.getByRole("textbox", { name: "Search finished goods" }),
+      { target: { value: "LOT-001" } },
+    );
+    const saved = window.location.href;
+    expect(new URL(saved).searchParams.get("other")).toBe("keep");
+    expect(window.location.hash).toBe("#records");
+    expect(window.history.state).toMatchObject({ retained: true });
+    view.unmount();
+    catalogue();
+    expect(
+      screen.getByRole("textbox", { name: "Search finished goods" }),
+    ).toHaveValue("LOT-001");
+    expect(
+      screen.getByRole("table", { name: "Storage units table" }),
+    ).toBeVisible();
+    act(() => {
+      window.history.replaceState(
+        { fgCatalogueScope: "fg-catalogue:user-a:warehouse-a" },
+        "",
+        "/finished-goods",
+      );
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+    expect(screen.getByRole("button", { name: "Card view" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    act(() => {
+      window.history.replaceState(null, "", saved);
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+    expect(
+      screen.getByRole("table", { name: "Storage units table" }),
+    ).toBeVisible();
+  });
+});
+
+describe("direct catalogue unit actions", () => {
+  it.each([
+    [
+      "AWAITING_MEASUREMENT",
+      "Measure",
+      "/finished-goods/pallets/pallet-a/measure",
+    ],
+    [
+      "AWAITING_PLACEMENT",
+      "Choose storage",
+      "/finished-goods/pallets/pallet-a/storage",
+    ],
+    ["RESERVED", "Continue placement", "/finished-goods/pallets/pallet-a"],
+    ["STORED", "View details", "/finished-goods/pallets/pallet-a"],
+  ] as const)(
+    "shows the same explicit action for %s in cards and tables",
+    (status, label, href) => {
+      mocks.query.mockReturnValue(
+        querySuccess({
+          ...finishedGoodsList,
+          pallets: [{ ...finishedGoodsList.pallets[0]!, status }],
+        }),
+      );
+      renderWithIntl(<FinishedGoodsCatalogue />, {
+        locale: "en",
+        workspace: false,
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Storage units" }));
+      expect(
+        screen.getByRole("link", { name: `${label} P-001` }),
+      ).toHaveAttribute("href", href);
+      expect(screen.getByRole("link", { name: "P-001" })).toHaveAttribute(
+        "href",
+        "/finished-goods/pallets/pallet-a",
+      );
+      fireEvent.click(screen.getByRole("button", { name: "Table view" }));
+      expect(
+        screen.getByRole("link", { name: `${label} P-001` }),
+      ).toHaveAttribute("href", href);
+      expect(screen.getByRole("link", { name: "P-001" })).toHaveAttribute(
+        "href",
+        "/finished-goods/pallets/pallet-a",
+      );
+    },
+  );
+
+  it("skips the intermediate measurement screen for a preparation batch", () => {
+    mocks.query.mockReturnValue(
+      querySuccess({
+        ...finishedGoodsList,
+        pallets: [
+          { ...finishedGoodsList.pallets[0]!, preparationBatchId: "batch-a" },
+        ],
+      }),
+    );
+    renderWithIntl(<FinishedGoodsCatalogue />, {
+      locale: "en",
+      workspace: false,
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Storage units" }));
+    expect(screen.getByRole("link", { name: "Measure P-001" })).toHaveAttribute(
+      "href",
+      "/finished-goods/products/product-a?editUnit=pallet-a",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Table view" }));
+    expect(screen.getByRole("link", { name: "Measure P-001" })).toHaveAttribute(
+      "href",
+      "/finished-goods/products/product-a?editUnit=pallet-a",
+    );
+  });
+
+  it("resumes moves directly but keeps read-only users on unit details", () => {
+    mocks.query.mockReturnValue(
+      querySuccess({
+        ...finishedGoodsList,
+        pallets: [
+          {
+            ...finishedGoodsList.pallets[0]!,
+            status: "STORED",
+            moveStatus: "IN_TRANSIT",
+          },
+        ],
+      }),
+    );
+    const view = renderWithIntl(<FinishedGoodsCatalogue />, {
+      locale: "en",
+      workspace: false,
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Storage units" }));
+    expect(
+      screen.getByRole("link", { name: "Continue move P-001" }),
+    ).toHaveAttribute("href", "/finished-goods/pallets/pallet-a/move");
+    fireEvent.click(screen.getByRole("button", { name: "Table view" }));
+    expect(
+      screen.getByRole("link", { name: "Continue move P-001" }),
+    ).toHaveAttribute("href", "/finished-goods/pallets/pallet-a/move");
+    view.unmount();
+    mocks.canManage = false;
+    renderWithIntl(<FinishedGoodsCatalogue />, {
+      locale: "en",
+      workspace: false,
+    });
+    expect(
+      screen.queryByRole("link", { name: "Continue move P-001" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "View details P-001" }),
+    ).toHaveAttribute("href", "/finished-goods/pallets/pallet-a");
   });
 });

@@ -1,0 +1,96 @@
+{
+  "frames": [
+    {
+      "path": "02-packing-correction-frames/00000.png",
+      "timestampMs": 0
+    },
+    {
+      "path": "02-packing-correction-frames/00001.png",
+      "timestampMs": 499
+    },
+    {
+      "path": "02-packing-correction-frames/00002.png",
+      "timestampMs": 999
+    },
+    {
+      "path": "02-packing-correction-frames/00003.png",
+      "timestampMs": 1492
+    },
+    {
+      "path": "02-packing-correction-frames/00004.png",
+      "timestampMs": 1975
+    },
+    {
+      "path": "02-packing-correction-frames/00005.png",
+      "timestampMs": 2466
+    },
+    {
+      "path": "02-packing-correction-frames/00006.png",
+      "timestampMs": 2962
+    },
+    {
+      "path": "02-packing-correction-frames/00007.png",
+      "timestampMs": 3454
+    },
+    {
+      "path": "02-packing-correction-frames/00008.png",
+      "timestampMs": 3950
+    },
+    {
+      "path": "02-packing-correction-frames/00009.png",
+      "timestampMs": 4442
+    },
+    {
+      "path": "02-packing-correction-frames/00010.png",
+      "timestampMs": 4959
+    },
+    {
+      "path": "02-packing-correction-frames/00011.png",
+      "timestampMs": 5447
+    },
+    {
+      "path": "02-packing-correction-frames/00012.png",
+      "timestampMs": 5935
+    },
+    {
+      "path": "02-packing-correction-frames/00013.png",
+      "timestampMs": 6123
+    },
+    {
+      "path": "02-packing-correction-frames/00014.png",
+      "timestampMs": 6630
+    },
+    {
+      "path": "02-packing-correction-frames/00015.png",
+      "timestampMs": 7129
+    },
+    {
+      "path": "02-packing-correction-frames/00016.png",
+      "timestampMs": 7620
+    },
+    {
+      "path": "02-packing-correction-frames/00017.png",
+      "timestampMs": 8113
+    },
+    {
+      "path": "02-packing-correction-frames/00018.png",
+      "timestampMs": 8678
+    },
+    {
+      "path": "02-packing-correction-frames/00019.png",
+      "timestampMs": 9171
+    },
+    {
+      "path": "02-packing-correction-frames/00020.png",
+      "timestampMs": 9671
+    },
+    {
+      "path": "02-packing-correction-frames/00021.png",
+      "timestampMs": 9711
+    }
+  ],
+  "durationMs": 9896,
+  "width": 1728,
+  "height": 996,
+  "fps": 10
+}

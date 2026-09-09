@@ -1,0 +1,38 @@
+[
+  {
+    "level": "warn",
+    "message": "Clerk: Clerk has been loaded with development keys. Development instances have strict usage limits and should not be used when deploying your application to production. Learn more: https://clerk.com/docs/deployments/overview",
+    "timestamp": "2026-09-08T07:09:25.703Z",
+    "url": "webpack-internal:///(app-pages-browser)/./node_modules/.pnpm/next@16.2.12_@babel+core@7.29.7_@playwright+test@1.62.1_@types+node@24.13.3_react-dom@19.2.8_react@19.2.8__react@19.2.8/node_modules/next/dist/next-devtools/shared/forward-logs-shared.js"
+  },
+  {
+    "level": "warn",
+    "message": "[Fast Refresh] performing full reload\n\nFast Refresh will perform a full reload when you edit a file that's imported by modules outside of the React rendering tree.\nYou might have a file which exports a React component but also exports a value that is imported by a non-React component file.\nConsider migrating the non-React component export to a separate file and importing it into both files.\n\nIt is also possible the parent component of the component you edited is a class component, which disables Fast Refresh.\nFast Refresh requires at least one parent function component in your React tree.",
+    "timestamp": "2026-09-08T07:10:40.298Z",
+    "url": "webpack-internal:///(app-pages-browser)/./node_modules/.pnpm/next@16.2.12_@babel+core@7.29.7_@playwright+test@1.62.1_@types+node@24.13.3_react-dom@19.2.8_react@19.2.8__react@19.2.8/node_modules/next/dist/next-devtools/shared/forward-logs-shared.js"
+  },
+  {
+    "level": "warn",
+    "message": "Clerk: Clerk has been loaded with development keys. Development instances have strict usage limits and should not be used when deploying your application to production. Learn more: https://clerk.com/docs/deployments/overview",
+    "timestamp": "2026-09-08T07:10:50.146Z",
+    "url": "webpack-internal:///(app-pages-browser)/./node_modules/.pnpm/next@16.2.12_@babel+core@7.29.7_@playwright+test@1.62.1_@types+node@24.13.3_react-dom@19.2.8_react@19.2.8__react@19.2.8/node_modules/next/dist/next-devtools/shared/forward-logs-shared.js"
+  },
+  {
+    "level": "warn",
+    "message": "Clerk: Clerk has been loaded with development keys. Development instances have strict usage limits and should not be used when deploying your application to production. Learn more: https://clerk.com/docs/deployments/overview",
+    "timestamp": "2026-09-08T07:12:05.622Z",
+    "url": "webpack-internal:///(app-pages-browser)/./node_modules/.pnpm/next@16.2.12_@babel+core@7.29.7_@playwright+test@1.62.1_@types+node@24.13.3_react-dom@19.2.8_react@19.2.8__react@19.2.8/node_modules/next/dist/next-devtools/shared/forward-logs-shared.js"
+  },
+  {
+    "level": "warn",
+    "message": "Clerk: Clerk has been loaded with development keys. Development instances have strict usage limits and should not be used when deploying your application to production. Learn more: https://clerk.com/docs/deployments/overview",
+    "timestamp": "2026-09-08T07:12:31.858Z",
+    "url": "webpack-internal:///(app-pages-browser)/./node_modules/.pnpm/next@16.2.12_@babel+core@7.29.7_@playwright+test@1.62.1_@types+node@24.13.3_react-dom@19.2.8_react@19.2.8__react@19.2.8/node_modules/next/dist/next-devtools/shared/forward-logs-shared.js"
+  },
+  {
+    "level": "warn",
+    "message": "Clerk: Clerk has been loaded with development keys. Development instances have strict usage limits and should not be used when deploying your application to production. Learn more: https://clerk.com/docs/deployments/overview",
+    "timestamp": "2026-09-08T07:13:05.866Z",
+    "url": "https://creative-doberman-56.clerk.accounts.dev/npm/@clerk/clerk-js@6/dist/clerk.browser.js"
+  }
+]

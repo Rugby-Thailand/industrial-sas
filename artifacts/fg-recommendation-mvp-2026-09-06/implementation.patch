@@ -1,0 +1,838 @@
+--- before/src/features/finishedGoods/PalletScreens.tsx
++++ after/src/features/finishedGoods/PalletScreens.tsx
+@@ -166,6 +166,19 @@
+       <span>
+         {detail.pallet.quantity} {detail.product?.unit}
+       </span>
++      {detail.pallet.lengthMm &&
++      detail.pallet.widthMm &&
++      detail.pallet.heightMm ? (
++        <span
++          aria-label={tr(
++            "Outer dimensions: length × width × height",
++            "ขนาดภายนอก: ยาว × กว้าง × สูง",
++          )}
++        >
++          {mmText(detail.pallet.lengthMm)} × {mmText(detail.pallet.widthMm)} ×{" "}
++          {mmText(detail.pallet.heightMm)}
++        </span>
++      ) : null}
+       {detail.pallet.lot ? (
+         <span>
+           {tr("Lot", "ล็อต")} {detail.pallet.lot}
+@@ -513,6 +526,8 @@
+     measured ? { warehouseId, palletId: detail.pallet._id } : "skip",
+   );
+   const [selected, setSelected] = useState("");
++  const [showUnavailable, setShowUnavailable] = useState(false);
++  const [includeStacking, setIncludeStacking] = useState(false);
+   if (!measured)
+     return (
+       <>
+@@ -532,13 +547,38 @@
+       </>
+     );
+   if (!outcome) return <Loading />;
+-  if (!outcome.ok) return <Missing />;
+-  const candidates = [
+-    ...outcome.value.candidates,
+-    ...("previewCandidates" in outcome.value
+-      ? outcome.value.previewCandidates
+-      : []),
+-  ];
++  if (!outcome.ok)
++    return (
++      <>
++        <Heading
++          title={tr("Recommended storage", "พื้นที่จัดเก็บที่แนะนำ")}
++          back={
++            detail.pallet.preparationBatchId
++              ? batchPath(detail.pallet.preparationBatchId)
++              : measurePath(detail.pallet._id)
++          }
++          backLabel={tr("Back to measurements", "กลับไปวัดขนาด")}
++        />
++        <Notice
++          tone="danger"
++          title={tr("Could not load recommendations", "โหลดคำแนะนำไม่สำเร็จ")}
++          body={tr(
++            "Your saved measurements are unchanged. Try loading again.",
++            "ขนาดที่บันทึกไว้ยังคงเดิม กรุณาลองโหลดอีกครั้ง",
++          )}
++        >
++          <Button onClick={() => window.location.reload()}>
++            {tr("Try again", "ลองอีกครั้ง")}
++          </Button>
++        </Notice>
++      </>
++    );
++  const validCandidates = outcome.value.candidates.filter(
++    (c) => includeStacking || !c.supportPalletId,
++  );
++  const previews =
++    "previewCandidates" in outcome.value ? outcome.value.previewCandidates : [];
++  const candidates = [...validCandidates, ...(showUnavailable ? previews : [])];
+   const keyOf = destinationKey;
+   const current =
+     candidates.find((c) => keyOf(c) === selected) ?? candidates[0];
+@@ -553,11 +593,55 @@
+         }
+         backLabel={tr("Back to measurements", "กลับไปวัดขนาด")}
+         description={tr(
+-          "Choose a location and the exact position within it. Green shows the proposed pallet footprint.",
+-          "เลือกจุดจัดเก็บและตำแหน่งที่แน่นอนภายในจุดนั้น สีเขียวคือพื้นที่พาเลทที่แนะนำ",
++          "A position that fits your measured unit, based on recorded space. Previewing does not reserve space or confirm storage.",
++          "ตำแหน่งที่พอดีกับขนาดหน่วยจัดเก็บตามข้อมูลพื้นที่ในระบบ การดูตัวอย่างยังไม่จองพื้นที่หรือยืนยันจัดเก็บ",
+         )}
+       />
+       <Summary detail={detail} />
++      <div className="mb-4 flex flex-wrap items-center gap-3 text-sm">
++        {(detail.pallet.storageFormat ?? detail.product?.storageFormat) ===
++          "PALLET" && (
++          <Button
++            variant="outline"
++            aria-pressed={includeStacking}
++            onClick={() => {
++              setIncludeStacking(!includeStacking);
++              setSelected("");
++            }}
++          >
++            {tr("Include pallet stacking", "รวมตำแหน่งซ้อนพาเลท")}
++          </Button>
++        )}
++        {previews.length > 0 && (
++          <Button
++            variant="ghost"
++            aria-pressed={showUnavailable}
++            onClick={() => {
++              setShowUnavailable(!showUnavailable);
++              setSelected("");
++            }}
++          >
++            {showUnavailable
++              ? tr("Show fitting positions only", "แสดงเฉพาะตำแหน่งที่วางได้")
++              : tr("Inspect unavailable areas", "ตรวจดูพื้นที่ที่ยังวางไม่ได้")}
++          </Button>
++        )}
++        <span className="text-muted">
++          {tr("Fitting positions", "ตำแหน่งที่วางได้")}:{" "}
++          {validCandidates.length}
++        </span>
++      </div>
++      {current && !validCandidates.some((c) => keyOf(c) === keyOf(current)) && (
++        <div className="mb-4">
++          <Notice
++            tone="warning"
++            title={tr(
++              "Inspection only — no fitting position found here",
++              "ภาพสำหรับตรวจสอบ — ยังไม่พบตำแหน่งที่วางได้ในพื้นที่นี้",
++            )}
++          />
++        </div>
++      )}
+       {detail.pallet.status === "RESERVED" ? (
+         <div className="mb-4">
+           <Notice
+@@ -621,7 +705,7 @@
+                 <div className="flex flex-wrap items-center gap-2">
+                   <MapPin className="size-4 text-accent" aria-hidden="true" />
+                   <span className="font-semibold">{c.locationName}</span>
+-                  {index === 0 && outcome.value.candidates.length > 0 ? (
++                  {index === 0 && validCandidates.length > 0 ? (
+                     <span className="rounded-full bg-success/10 px-2 py-1 text-[10px] text-success">
+                       {tr("Recommended", "แนะนำ")}
+                     </span>
+@@ -648,7 +732,7 @@
+             warehouseId={warehouseId}
+             detail={detail}
+             candidate={current}
+-            destinations={candidates}
++            destinations={outcome.value.candidates}
+           />
+         </div>
+       )}
+@@ -817,7 +901,35 @@
+     zMm: initialCandidate.zMm,
+     rotation: initialCandidate.rotation,
+   });
+-  const [adjust, setAdjust] = useState(false);
++  const [coordinateDraft, setCoordinateDraft] = useState({
++    x: String(initialCandidate.xMm / 1000),
++    y: String(initialCandidate.yMm / 1000),
++  });
++  const coordinateInvalid = Object.values(coordinateDraft).some(
++    (value) =>
++      value.trim() === "" ||
++      !Number.isFinite(Number(value)) ||
++      Number(value) < 0,
++  );
++  const coordinateMessage = tr(
++    "Enter valid X and Y coordinates, zero or greater.",
++    "กรอกพิกัด X และ Y ให้ถูกต้อง ตั้งแต่ศูนย์ขึ้นไป",
++  );
++  function updatePlacement(next: PalletPlacement) {
++    setPlacement(next);
++    setCoordinateDraft({
++      x: String(next.xMm / 1000),
++      y: String(next.yMm / 1000),
++    });
++  }
++  function updateCoordinate(axis: "x" | "y", value: string) {
++    setCoordinateDraft((previous) => ({ ...previous, [axis]: value }));
++    if (value.trim() !== "" && Number.isFinite(Number(value)))
++      setPlacement((previous) => ({
++        ...previous,
++        [axis === "x" ? "xMm" : "yMm"]: Math.round(Number(value) * 1000),
++      }));
++  }
+   const [confirm, setConfirm] = useState(false);
+   const initialProps = sceneProps(initialCandidate, detail);
+   const allSurfaces: PlacementSurface[] = initialCandidate.previewSupports
+@@ -886,6 +998,7 @@
+     detail.placement?.zMm === placement.zMm &&
+     detail.placement?.rotation === placement.rotation;
+   const issue =
++    (coordinateInvalid ? "boundary" : undefined) ??
+     resolved.blockedReason ??
+     palletPlacementIssue(
+       props.dimensions,
+@@ -973,22 +1086,22 @@
+                 }
+               : {})}
+             placement={placement}
+-            onPlacementChange={setPlacement}
++            onPlacementChange={updatePlacement}
+             automaticSupports={surfaces}
+             baseSupport={base}
+-            {...(resolved.blockedReason
+-              ? { issueMessage: errorText(resolved.blockedReason, tr) }
+-              : {})}
+-            editable={adjust}
++            {...(coordinateInvalid
++              ? { issueMessage: coordinateMessage }
++              : resolved.blockedReason
++                ? { issueMessage: errorText(resolved.blockedReason, tr) }
++                : {})}
++            editable
+             locale={locale}
+             label={detail.pallet.code}
+           />
+         </div>
+         <aside className={`${panel} space-y-5`}>
+           <h2 className="font-semibold">
+-            {adjust
+-              ? tr("Adjust exact position", "ปรับตำแหน่งที่แน่นอน")
+-              : tr("Destination", "ปลายทาง")}
++            {tr("Exact position", "ตำแหน่งที่แน่นอน")}
+           </h2>
+           <DestinationSummary destination={candidate} placement={placement} />
+           <p className="text-xs text-muted">
+@@ -1002,72 +1115,59 @@
+                   "ลากเพื่อปรับตำแหน่งบนพื้นหรือชั้นวาง สีแดงแสดงตำแหน่งที่วางไม่ได้พร้อมเหตุผล",
+                 )}
+           </p>
+-          {adjust ? (
+-            <>
+-              <div className="grid grid-cols-2 gap-3">
+-                <Field
+-                  label="X (m)"
+-                  value={String(placement.xMm / 1000)}
+-                  onChange={(v) =>
+-                    setPlacement({
+-                      ...placement,
+-                      xMm: Math.round(Number(v) * 1000),
+-                    })
+-                  }
+-                  type="number"
+-                  step="0.1"
+-                />
+-                <Field
+-                  label="Y (m)"
+-                  value={String(placement.yMm / 1000)}
+-                  onChange={(v) =>
+-                    setPlacement({
+-                      ...placement,
+-                      yMm: Math.round(Number(v) * 1000),
+-                    })
+-                  }
+-                  type="number"
+-                  step="0.1"
+-                />
+-              </div>
+-              <Button
+-                variant="outline"
+-                className="w-full"
+-                onClick={() =>
+-                  setPlacement({
+-                    xMm: initialCandidate.xMm,
+-                    yMm: initialCandidate.yMm,
+-                    zMm: initialCandidate.zMm,
+-                    rotation: initialCandidate.rotation,
+-                  })
+-                }
+-              >
+-                {tr("Reset to recommendation", "คืนค่าที่แนะนำ")}
+-              </Button>
+-              <Button
+-                className="w-full"
+-                disabled={!!issue}
+-                onClick={() => setAdjust(false)}
+-              >
+-                {tr("Use this position", "ใช้ตำแหน่งนี้")}
+-              </Button>
+-            </>
+-          ) : (
++          <div className="grid grid-cols-2 gap-3">
++            <Field
++              label="X (m)"
++              value={coordinateDraft.x}
++              onChange={(v) => updateCoordinate("x", v)}
++              type="number"
++              step="0.1"
++            />
++            <Field
++              label="Y (m)"
++              value={coordinateDraft.y}
++              onChange={(v) => updateCoordinate("y", v)}
++              type="number"
++              step="0.1"
++            />
++          </div>
++          <Button
++            variant="outline"
++            className="w-full"
++            onClick={() =>
++              updatePlacement({
++                xMm: initialCandidate.xMm,
++                yMm: initialCandidate.yMm,
++                zMm: initialCandidate.zMm,
++                rotation: initialCandidate.rotation,
++              })
++            }
++          >
++            {tr("Reset to recommendation", "คืนค่าที่แนะนำ")}
++          </Button>
++          {!issue && (
+             <>
+               <div className="space-y-2 border-t border-border pt-4 text-sm">
+                 {[
+-                  tr("Boundary and footprint", "ขอบเขตและพื้นที่"),
+-                  tr("Available height", "ความสูงที่ใช้ได้"),
+                   tr(
+-                    "No occupied-space overlap",
+-                    "ไม่ทับซ้อนพื้นที่ที่ใช้แล้ว",
++                    "Dimensions fit inside the support",
++                    "ขนาดวางพอดีภายในฐานรองรับ",
++                  ),
++                  tr("Enough height clearance", "ความสูงเพียงพอ"),
++                  tr(
++                    "Does not overlap recorded occupancy",
++                    "ไม่ทับตำแหน่งที่ระบบบันทึกไว้",
+                   ),
+                 ].map((label) => (
+                   <p
+                     key={label}
+                     className={`flex items-center gap-2 ${issue ? "text-warning" : "text-success"}`}
+                   >
+-                    <Check className="size-4" aria-hidden="true" />
++                    {issue ? (
++                      <TriangleAlert className="size-4" aria-hidden="true" />
++                    ) : (
++                      <Check className="size-4" aria-hidden="true" />
++                    )}
+                     {label}
+                   </p>
+                 ))}
+@@ -1080,24 +1180,17 @@
+                       )}
+                 </p>
+               </div>
+-              <Button
+-                variant="outline"
+-                className="w-full"
+-                onClick={() => setAdjust(true)}
+-              >
+-                {tr("Adjust position", "ปรับตำแหน่ง")}
+-              </Button>
+-              <Button
+-                className="w-full"
+-                disabled={op.busy || !!issue || unchanged}
+-                onClick={() => setConfirm(true)}
+-              >
+-                {moving
+-                  ? tr("Review move", "ตรวจสอบการย้าย")
+-                  : tr("Confirm spot", "ยืนยันจุดจัดเก็บ")}
+-              </Button>
+             </>
+-          )}
++          )}{" "}
++          <Button
++            className="w-full"
++            disabled={op.busy || !!issue || unchanged}
++            onClick={() => setConfirm(true)}
++          >
++            {moving
++              ? tr("Review move", "ตรวจสอบการย้าย")
++              : tr("Confirm spot", "ยืนยันจุดจัดเก็บ")}
++          </Button>
+           {unchanged ? (
+             <Notice
+               title={tr(
+@@ -1441,6 +1534,9 @@
+             </>
+           ) : (
+             <PalletScene
++              storageFormat={
++                pallet.storageFormat ?? detail.product?.storageFormat
++              }
+               dimensions={{
+                 widthMm: pallet.widthMm ?? 0,
+                 depthMm: pallet.lengthMm ?? 0,
+@@ -1615,7 +1711,7 @@
+               {pallet.status === "AWAITING_PLACEMENT" ? (
+                 <Button asChild>
+                   <Link href={storagePath(pallet._id)}>
+-                    {tr("Find storage", "หาจุดจัดเก็บ")}
++                    {tr("Recommend storage", "แนะนำพื้นที่")}
+                   </Link>
+                 </Button>
+               ) : null}
+--- before/src/features/finishedGoods/PalletScreens.test.tsx
++++ after/src/features/finishedGoods/PalletScreens.test.tsx
+@@ -334,6 +334,76 @@
+ });
+ 
+ describe("exact storage recommendations", () => {
++  it("edits immediately and rejects empty coordinates without silently using zero", () => {
++    renderPallet("storage");
++    expect(
++      screen.queryByRole("button", { name: "Adjust position" }),
++    ).not.toBeInTheDocument();
++    expect(
++      screen.queryByRole("button", { name: "Use this position" }),
++    ).not.toBeInTheDocument();
++    number("X (m)", "");
++    expect(screen.getByRole("spinbutton", { name: "X (m)" })).toHaveValue(null);
++    expect(
++      screen.getByText("Enter valid X and Y coordinates, zero or greater."),
++    ).toBeVisible();
++    expect(screen.getByRole("button", { name: "Confirm spot" })).toBeDisabled();
++    expect(
++      screen.queryByText("Dimensions fit inside the support"),
++    ).not.toBeInTheDocument();
++    number("X (m)", "0.3");
++    expect(screen.getByRole("button", { name: "Confirm spot" })).toBeEnabled();
++  });
++  it("defaults to fixed surfaces, shows real dimensions and only includes stacking when requested", () => {
++    const stack = {
++      ...finishedGoodDestination,
++      supportPalletId: "lower",
++      supportCode: "LOWER",
++      supportLabel: "LOWER",
++      zMm: 1400,
++    };
++    mocks.query.mockImplementation((name) =>
++      name.endsWith(":getPallet")
++        ? querySuccess(currentDetail)
++        : querySuccess({
++            candidates: [finishedGoodDestination, stack],
++            reasons: [],
++          }),
++    );
++    renderPallet("storage");
++    expect(
++      screen.getByLabelText("Outer dimensions: length × width × height"),
++    ).toHaveTextContent("1.2 m × 1 m × 1.4 m");
++    expect(screen.getByText(/Previewing does not reserve space/)).toBeVisible();
++    expect(
++      screen.queryByRole("button", { name: /LOWER/ }),
++    ).not.toBeInTheDocument();
++    fireEvent.click(
++      screen.getByRole("button", { name: "Include pallet stacking" }),
++    );
++    expect(screen.getByRole("button", { name: /LOWER/ })).toBeVisible();
++    expect(callsFor("reserve")).toHaveLength(0);
++  });
++  it("distinguishes failed recommendation loading from an empty result", () => {
++    mocks.query.mockImplementation((name) =>
++      name.endsWith(":getPallet")
++        ? querySuccess(currentDetail)
++        : { ok: false, requestId: "failed" },
++    );
++    renderPallet("storage");
++    expect(screen.getByText("Could not load recommendations")).toBeVisible();
++    expect(screen.getByRole("button", { name: "Try again" })).toBeVisible();
++    expect(
++      screen.getByRole("link", { name: "Back to measurements" }),
++    ).toHaveAttribute(
++      "href",
++      `/finished-goods/pallets/${currentDetail.pallet._id}/measure`,
++    );
++    expect(
++      screen.queryByRole("heading", { name: "No suitable space found" }),
++    ).not.toBeInTheDocument();
++  });
++
+   it.each([
+     [
+       "small base",
+@@ -386,7 +456,6 @@
+             }),
+       );
+       renderPallet("storage");
+-      fireEvent.click(screen.getByRole("button", { name: "Adjust position" }));
+       fireEvent.change(screen.getByRole("spinbutton", { name: "X (m)" }), {
+         target: { value: "0.2" },
+       });
+@@ -395,7 +464,7 @@
+       ).toBeInTheDocument();
+       expect(screen.getByText(new RegExp(message))).toBeInTheDocument();
+       expect(
+-        screen.getByRole("button", { name: "Use this position" }),
++        screen.getByRole("button", { name: "Confirm spot" }),
+       ).toBeDisabled();
+       expect(callsFor("reserve")).toHaveLength(0);
+     },
+@@ -428,7 +497,6 @@
+           : querySuccess({ candidates: [candidate], reasons: [] }),
+       );
+       renderPallet("storage");
+-      fireEvent.click(screen.getByRole("button", { name: "Adjust position" }));
+       number("X (m)", "0.3");
+       expect(
+         screen.getByText(/Position: X 0.3 m · Y 0.2 m · Z 0 m/),
+@@ -469,7 +537,15 @@
+           }),
+     );
+     renderPallet("storage");
+-    fireEvent.click(screen.getByRole("button", { name: "Adjust position" }));
++    expect(
++      screen.getByRole("heading", { name: "No suitable space found" }),
++    ).toBeVisible();
++    expect(
++      screen.queryByText("Recommended", { exact: true }),
++    ).not.toBeInTheDocument();
++    fireEvent.click(
++      screen.getByRole("button", { name: "Inspect unavailable areas" }),
++    );
+     number("X (m)", "0.3");
+     expect(
+       screen.getByText(/Position: X 0.3 m · Y 0.2 m · Z 2.8 m/),
+@@ -477,9 +553,7 @@
+     expect(
+       screen.getByText(/Pallet exceeds the available height/),
+     ).toBeInTheDocument();
+-    expect(
+-      screen.getByRole("button", { name: "Use this position" }),
+-    ).toBeDisabled();
++    expect(screen.getByRole("button", { name: "Confirm spot" })).toBeDisabled();
+     expect(callsFor("reserve")).toHaveLength(0);
+   });
+ 
+@@ -505,14 +579,12 @@
+           }),
+     );
+     renderPallet("storage");
+-    fireEvent.click(screen.getByRole("button", { name: "Adjust position" }));
+     fireEvent.change(screen.getByRole("spinbutton", { name: "X (m)" }), {
+       target: { value: "0.3" },
+     });
+     expect(
+       screen.getByText(/Position: X 0.3 m · Y 0.2 m · Z 1.4 m/),
+     ).toBeInTheDocument();
+-    fireEvent.click(screen.getByRole("button", { name: "Use this position" }));
+     fireEvent.click(screen.getByRole("button", { name: "Confirm spot" }));
+     fireEvent.click(screen.getByRole("button", { name: "Reserve spot" }));
+     await waitFor(() => expect(callsFor("reserve")).toHaveLength(1));
+@@ -560,9 +632,7 @@
+     expect(
+       screen.getByText(/Storage condition is not configured/),
+     ).toBeVisible();
+-    fireEvent.click(screen.getByRole("button", { name: "Adjust position" }));
+     number("X (m)", "0.2");
+-    fireEvent.click(screen.getByRole("button", { name: "Use this position" }));
+     fireEvent.click(screen.getByRole("button", { name: "Confirm spot" }));
+     const dialog = screen.getByRole("dialog", {
+       name: "Confirm storage destination",
+@@ -590,11 +660,8 @@
+ 
+   it("blocks an invalid manually adjusted footprint and can reset it", () => {
+     renderPallet("storage");
+-    fireEvent.click(screen.getByRole("button", { name: "Adjust position" }));
+     number("X (m)", "1.5");
+-    expect(
+-      screen.getByRole("button", { name: "Use this position" }),
+-    ).toBeDisabled();
++    expect(screen.getByRole("button", { name: "Confirm spot" })).toBeDisabled();
+     expect(
+       screen.getByText(
+         "This position is not valid. Adjust it before continuing.",
+@@ -603,9 +670,7 @@
+     fireEvent.click(
+       screen.getByRole("button", { name: "Reset to recommendation" }),
+     );
+-    expect(
+-      screen.getByRole("button", { name: "Use this position" }),
+-    ).toBeEnabled();
++    expect(screen.getByRole("button", { name: "Confirm spot" })).toBeEnabled();
+   });
+ 
+   it("keeps the confirmation dialog and proposed position on reservation conflict", async () => {
+--- before/src/features/finishedGoods/ProductScreens.tsx
++++ after/src/features/finishedGoods/ProductScreens.tsx
+@@ -17,6 +17,14 @@
+ } from "@/components/ui/dialog";
+ import { Link, useRouter } from "@/i18n/navigation";
+ import { fgRefs, type Product } from "@/lib/convex/finishedGoodsApi";
++import { CatalogueFiltersButton, FilterChips } from "./CatalogueFilterControls";
++import {
++  catalogueRows,
++  filterRows,
++  hasFilters,
++  newFilters,
++} from "./catalogueFilters";
++import { useCatalogueState } from "./useCatalogueState";
+ import { FinishedGoodsTable } from "./FinishedGoodsTable";
+ import {
+   productPalletSummary,
+@@ -49,22 +57,34 @@
+ } from "./shared";
+ 
+ export function FinishedGoodsCatalogue() {
++  const viewScope = useDraftKey("fg-catalogue");
++  if (!viewScope) return <Loading />;
+   return (
+     <QueryGate scope="WAREHOUSE">
+       {(warehouseId) => (
+-        <Catalogue key={warehouseId} warehouseId={warehouseId} />
++        <Catalogue
++          key={`${viewScope}:${warehouseId}`}
++          warehouseId={warehouseId}
++          viewKey={`${viewScope}:${warehouseId}`}
++        />
+       )}
+     </QueryGate>
+   );
+ }
+-function Catalogue({ warehouseId }: { warehouseId: string }) {
+-  const { tr } = useFGText();
++function Catalogue({
++  warehouseId,
++  viewKey,
++}: {
++  warehouseId: string;
++  viewKey: string;
++}) {
++  const { tr, locale } = useFGText();
+   const canManage = useCanManage();
+   const outcome = useQuery(fgRefs.list, { warehouseId });
+-  const [tab, setTab] = useState<"products" | "pallets">("products");
+-  const [search, setSearch] = useState("");
+-  const [status, setStatus] = useState("ALL");
+-  const [layout, setLayout] = useState<"cards" | "table">("cards");
++  const { state, update: updateState } = useCatalogueState(viewKey);
++  const { tab, search, layout } = state;
++  const filters = state[tab];
++  const clearFilters = () => updateState({ search: "", [tab]: newFilters() });
+   if (!outcome) return <Loading />;
+   if (!outcome.ok) return <Missing />;
+   const products = outcome.value.products;
+@@ -73,19 +93,34 @@
+       p.retiredAt === undefined &&
+       !["CANCELLED", "REPLACED"].includes(p.status),
+   );
+-  const needle = search.trim().toLocaleLowerCase();
+-  const shownProducts = products.filter(
+-    (p) =>
+-      `${p.sku} ${p.name}`.toLocaleLowerCase().includes(needle) &&
+-      (status === "ALL" || p.status === status),
+-  );
+-  const shownPallets = pallets.filter(
+-    (p) =>
+-      `${p.code} ${products.find((product) => product._id === p.productId)?.sku ?? ""} ${products.find((product) => product._id === p.productId)?.name ?? ""} ${p.lot ?? ""}`
+-        .toLocaleLowerCase()
+-        .includes(needle) &&
+-      (status === "ALL" || palletDisplayStatus(p) === status),
+-  );
++  const rows = catalogueRows(outcome.value);
++  const productById = new Map(products.map((p) => [p._id as string, p]));
++  const palletById = new Map(pallets.map((p) => [p._id as string, p]));
++  const shownProducts = filterRows(
++    rows.products,
++    state.products,
++    search,
++    locale,
++  ).flatMap((r) => {
++    const p = productById.get(r.id);
++    return p ? [p] : [];
++  });
++  const shownPallets = filterRows(
++    rows.pallets,
++    state.pallets,
++    search,
++    locale,
++  ).flatMap((r) => {
++    const p = palletById.get(r.id);
++    return p ? [p] : [];
++  });
++  const filterControls = {
++    tab,
++    filters,
++    units: [...new Set(products.map((p) => p.unit))].filter(Boolean).sort(),
++    onChange: (next: typeof filters) => updateState({ [tab]: next }),
++  };
++  const filtered = Boolean(search.trim()) || hasFilters(filters, tab);
+   return (
+     <>
+       <Heading
+@@ -155,10 +190,7 @@
+             key={value}
+             variant={tab === value ? "default" : "outline"}
+             aria-pressed={tab === value}
+-            onClick={() => {
+-              setTab(value);
+-              setStatus("ALL");
+-            }}
++            onClick={() => updateState({ tab: value })}
+           >
+             {value === "products"
+               ? tr("Products", "รายการสินค้า")
+@@ -186,7 +218,7 @@
+                   ? tr("Card view", "มุมมองการ์ด")
+                   : tr("Table view", "มุมมองตาราง")
+               }
+-              onClick={() => setLayout(value)}
++              onClick={() => updateState({ layout: value })}
+             >
+               {value === "cards" ? (
+                 <LayoutGrid className="size-4" aria-hidden="true" />
+@@ -210,43 +242,30 @@
+               "ค้นหารหัส ชื่อสินค้า หรือหน่วยจัดเก็บ…",
+             )}
+             value={search}
+-            onChange={(e) => setSearch(e.target.value)}
++            onChange={(e) => updateState({ search: e.target.value })}
+             className="pl-10"
+           />
+         </div>
+-        <SelectControl
+-          value={status}
+-          onValueChange={setStatus}
+-          label={tr("Status", "สถานะ")}
+-          placeholder={tr("All statuses", "ทุกสถานะ")}
+-          emptyLabel=""
+-          className="w-full sm:w-56"
+-          options={(tab === "products"
+-            ? ["ALL", "DRAFT", "ACTIVE"]
+-            : [
+-                "ALL",
+-                "AWAITING_MEASUREMENT",
+-                "AWAITING_PLACEMENT",
+-                "RESERVED",
+-                "STORED",
+-                "MOVE_RESERVED",
+-                "IN_TRANSIT",
+-              ]
+-          ).map((value) => ({
+-            value,
+-            label:
+-              value === "ALL"
+-                ? tr("All statuses", "ทุกสถานะ")
+-                : statusName(value, tr),
+-          }))}
+-        />
++        <CatalogueFiltersButton {...filterControls} />
+       </div>
++      <FilterChips
++        {...filterControls}
++        search={search}
++        onClearSearch={() => updateState({ search: "" })}
++        onClearAll={clearFilters}
++      />
++      <p role="status" className="mb-3 text-xs text-muted">
++        {tr("Showing", "แสดง")}{" "}
++        {tab === "products" ? shownProducts.length : shownPallets.length} /{" "}
++        {tab === "products" ? products.length : pallets.length}{" "}
++        {tr("records", "รายการ")}
++      </p>
+       {(tab === "products" ? shownProducts.length : shownPallets.length) ===
+       0 ? (
+         <div className={`${panel} py-12 text-center`}>
+           <Box className="mx-auto mb-4 size-10 text-muted" aria-hidden="true" />
+           <h2 className="text-lg font-semibold">
+-            {search || status !== "ALL"
++            {filtered
+               ? tr("No matching records", "ไม่พบรายการที่ตรงกัน")
+               : tab === "products"
+                 ? canManage
+@@ -258,10 +277,10 @@
+                 : tr("No storage units yet", "ยังไม่มีหน่วยจัดเก็บ")}
+           </h2>
+           <p className="mx-auto mt-2 max-w-lg text-sm text-muted">
+-            {search || status !== "ALL"
++            {filtered
+               ? tr(
+-                  "Try a different search or clear the status filter.",
+-                  "ลองค้นหาใหม่หรือล้างตัวกรองสถานะ",
++                  "Try a different search or clear the filters.",
++                  "ลองค้นหาใหม่หรือล้างตัวกรอง",
+                 )
+               : canManage
+                 ? tr(
+@@ -273,7 +292,7 @@
+                     "ยังไม่มีข้อมูลในคลังสินค้านี้",
+                   )}
+           </p>
+-          {!search && status === "ALL" ? (
++          {!filtered ? (
+             canManage ? (
+               <Button asChild className="mt-5">
+                 <Link href={`${FG_PATH}/new`}>
+@@ -282,14 +301,7 @@
+               </Button>
+             ) : null
+           ) : (
+-            <Button
+-              variant="outline"
+-              className="mt-5"
+-              onClick={() => {
+-                setSearch("");
+-                setStatus("ALL");
+-              }}
+-            >
++            <Button variant="outline" className="mt-5" onClick={clearFilters}>
+               {tr("Clear filters", "ล้างตัวกรอง")}
+             </Button>
+           )}
+@@ -302,6 +314,7 @@
+           allProducts={products}
+           allPallets={pallets}
+           canManage={canManage}
++          filterControls={filterControls}
+         />
+       ) : (
+         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+@@ -406,23 +419,6 @@
+     </>
+   );
+ }
+-function statusName(value: string, tr: (en: string, th: string) => string) {
+-  return (
+-    (
+-      {
+-        DRAFT: tr("Draft", "ฉบับร่าง"),
+-        ACTIVE: tr("Ready", "พร้อมใช้งาน"),
+-        AWAITING_MEASUREMENT: tr("Awaiting measurement", "รอวัดขนาด"),
+-        AWAITING_PLACEMENT: tr("Awaiting placement", "รอเลือกจุดจัดเก็บ"),
+-        RESERVED: tr("Reserved", "จองแล้ว"),
+-        STORED: tr("Stored", "จัดเก็บแล้ว"),
+-        MOVE_RESERVED: tr("Move prepared", "เตรียมย้ายแล้ว"),
+-        IN_TRANSIT: tr("Moving", "กำลังย้าย"),
+-      } as Record<string, string>
+-    )[value] ?? value
+-  );
+-}
+-
+ type ProductDraft = {
+   sku: string;
+   name: string;

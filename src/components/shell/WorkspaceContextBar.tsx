@@ -1,12 +1,12 @@
 "use client";
 
-import { Building2, Warehouse as WarehouseIcon } from "lucide-react";
+import { Warehouse as WarehouseIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useId } from "react";
 
 import { useWorkspace } from "@/components/providers/WorkspaceProvider";
 import { SelectControl } from "@/components/ui/SelectControl";
-import { organizationLabel, warehouseLabel } from "@/lib/workspace/workspace";
+import { warehouseLabel } from "@/lib/workspace/workspace";
 
 export function WorkspaceContextBar() {
   const t = useTranslations("Workspace");
@@ -24,17 +24,6 @@ export function WorkspaceContextBar() {
 
   return (
     <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-      <span
-        className="flex min-w-0 items-center gap-1.5"
-        title={t("organization")}
-      >
-        <Building2 aria-hidden="true" className="size-4 shrink-0 text-muted" />
-        <span className="sr-only">{t("organization")}</span>
-        <span className="truncate font-semibold text-text">
-          {organizationLabel(workspace.organization)}
-        </span>
-      </span>
-
       <span className="flex min-w-0 flex-1 items-center gap-1.5 sm:flex-none">
         <WarehouseIcon
           aria-hidden="true"
@@ -56,7 +45,7 @@ export function WorkspaceContextBar() {
           onValueChange={(warehouse) => workspace.selectWarehouse(warehouse)}
           placeholder={t("selectWarehouse")}
           emptyLabel={t("noWarehouses")}
-          className="w-full min-w-0 font-semibold sm:w-64"
+          className="h-8 min-h-8! w-full min-w-0 rounded-full border-border px-3 py-0 text-xs font-medium sm:w-56 [&_[data-slot=select-value]]:block [&_[data-slot=select-value]]:truncate"
           testId="warehouse-select"
           options={workspace.warehouses.map((warehouse) => ({
             value: warehouse.id,

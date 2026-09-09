@@ -1,0 +1,44 @@
+{
+  "width": 1302,
+  "height": 1248,
+  "fps": 10,
+  "durationMs": 31500,
+  "frames": [
+    {
+      "path": "/Users/macbook/Development/industrial-sas-storage-planner/artifacts/readability-2026-09-08/desktop-th.png",
+      "timestampMs": 0
+    },
+    {
+      "path": "/Users/macbook/Development/industrial-sas-storage-planner/artifacts/readability-2026-09-08/confirm-enabled.png",
+      "timestampMs": 3500
+    },
+    {
+      "path": "/Users/macbook/Development/industrial-sas-storage-planner/artifacts/readability-2026-09-08/optional-qr.png",
+      "timestampMs": 7000
+    },
+    {
+      "path": "/Users/macbook/Development/industrial-sas-storage-planner/artifacts/readability-2026-09-08/map-labels-2d.png",
+      "timestampMs": 10500
+    },
+    {
+      "path": "/Users/macbook/Development/industrial-sas-storage-planner/artifacts/readability-2026-09-08/return-dialog.png",
+      "timestampMs": 14000
+    },
+    {
+      "path": "/Users/macbook/Development/industrial-sas-storage-planner/artifacts/readability-2026-09-08/desktop-en.png",
+      "timestampMs": 17500
+    },
+    {
+      "path": "/Users/macbook/Development/industrial-sas-storage-planner/artifacts/readability-2026-09-08/building-map.png",
+      "timestampMs": 21000
+    },
+    {
+      "path": "/Users/macbook/Development/industrial-sas-storage-planner/artifacts/readability-2026-09-08/building-map-clean.png",
+      "timestampMs": 24500
+    },
+    {
+      "path": "/Users/macbook/Development/industrial-sas-storage-planner/artifacts/readability-2026-09-08/floor-inspector.png",
+      "timestampMs": 28000
+    }
+  ]
+}

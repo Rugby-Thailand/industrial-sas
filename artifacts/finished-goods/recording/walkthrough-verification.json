@@ -1,0 +1,102 @@
+{
+  "audioTracks": 0,
+  "bytes": 4536107,
+  "codec": "avc1",
+  "durationSeconds": 68.43166666666667,
+  "encodedFrames": 685,
+  "fps": 10,
+  "height": 900,
+  "output": "../finished-goods-walkthrough.mp4",
+  "sourceFrames": 182,
+  "width": 1440,
+  "label": "Edited browser viewport recording; pauses and refresh troubleshooting omitted",
+  "rawManifestSHA256": "ba12436ab0eeefc066f994460636f4723708cf3e191b107dc9424d2273327d31",
+  "videoSHA256": "c51d0c0f5fd68d96dadca1baace95694470b9c21a0db57d8b17ca08f442963b1",
+  "sampleChecks": [
+    {
+      "meanAbsoluteRGBError": 2.411655092592593,
+      "sourceFrame": "000000.png",
+      "videoSeconds": 0
+    },
+    {
+      "meanAbsoluteRGBError": 2.712031893004115,
+      "sourceFrame": "000013.png",
+      "videoSeconds": 6
+    },
+    {
+      "meanAbsoluteRGBError": 2.636676697530864,
+      "sourceFrame": "000028.png",
+      "videoSeconds": 10
+    },
+    {
+      "meanAbsoluteRGBError": 2.694786779835391,
+      "sourceFrame": "000035.png",
+      "videoSeconds": 14.5
+    },
+    {
+      "meanAbsoluteRGBError": 2.6213590534979425,
+      "sourceFrame": "000053.png",
+      "videoSeconds": 19
+    },
+    {
+      "meanAbsoluteRGBError": 2.5437538580246914,
+      "sourceFrame": "000075.png",
+      "videoSeconds": 25
+    },
+    {
+      "meanAbsoluteRGBError": 2.54096579218107,
+      "sourceFrame": "000079.png",
+      "videoSeconds": 28.5
+    },
+    {
+      "meanAbsoluteRGBError": 2.485034465020576,
+      "sourceFrame": "000091.png",
+      "videoSeconds": 31.5
+    },
+    {
+      "meanAbsoluteRGBError": 2.519752829218107,
+      "sourceFrame": "000105.png",
+      "videoSeconds": 35
+    },
+    {
+      "meanAbsoluteRGBError": 2.588201646090535,
+      "sourceFrame": "000127.png",
+      "videoSeconds": 44
+    },
+    {
+      "meanAbsoluteRGBError": 3.209182098765432,
+      "sourceFrame": "000142.png",
+      "videoSeconds": 48
+    },
+    {
+      "meanAbsoluteRGBError": 3.3302965534979423,
+      "sourceFrame": "000151.png",
+      "videoSeconds": 53
+    },
+    {
+      "meanAbsoluteRGBError": 2.5347476851851853,
+      "sourceFrame": "000157.png",
+      "videoSeconds": 57
+    },
+    {
+      "meanAbsoluteRGBError": 3.5972080761316874,
+      "sourceFrame": "000176.png",
+      "videoSeconds": 57.9
+    },
+    {
+      "meanAbsoluteRGBError": 3.620943158436214,
+      "sourceFrame": "000183.png",
+      "videoSeconds": 60
+    },
+    {
+      "meanAbsoluteRGBError": 3.355883487654321,
+      "sourceFrame": "000192.png",
+      "videoSeconds": 65
+    },
+    {
+      "meanAbsoluteRGBError": 3.3575354938271604,
+      "sourceFrame": "000194.png",
+      "videoSeconds": 68
+    }
+  ]
+}

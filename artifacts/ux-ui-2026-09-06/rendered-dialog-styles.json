@@ -1,0 +1,90 @@
+[
+  {
+    "background": "rgba(0, 0, 0, 0)",
+    "border": "rgb(168, 177, 189)",
+    "color": "rgb(168, 177, 189)",
+    "disabled": false,
+    "height": 20,
+    "text": "P-000019 · BATCH-QA-0906 · 50 ชิ้น"
+  },
+  {
+    "background": "rgba(0, 0, 0, 0)",
+    "border": "rgb(168, 177, 189)",
+    "color": "rgb(168, 177, 189)",
+    "disabled": false,
+    "height": 20,
+    "text": "Pallet dimensions: 1.2 m × 1 m × 1.4 m"
+  },
+  {
+    "background": "rgba(0, 0, 0, 0)",
+    "border": "rgb(238, 241, 245)",
+    "color": "rgb(238, 241, 245)",
+    "disabled": false,
+    "height": 20,
+    "text": "DEMO-BLDG → Floor 1 → สินค้าสำเร็จรูป A → POS-000015"
+  },
+  {
+    "background": "rgba(0, 0, 0, 0)",
+    "border": "rgb(168, 177, 189)",
+    "color": "rgb(168, 177, 189)",
+    "disabled": false,
+    "height": 16,
+    "text": "X/Y are measured from the marked origin inside this location."
+  },
+  {
+    "background": "rgba(0, 0, 0, 0)",
+    "border": "rgb(238, 241, 245)",
+    "color": "rgb(238, 241, 245)",
+    "disabled": false,
+    "height": 20,
+    "text": "DEMO-BLDG → Floor 1 → สินค้าสำเร็จรูป A → P-000018 → Proposed position"
+  },
+  {
+    "background": "rgba(0, 0, 0, 0)",
+    "border": "rgb(168, 177, 189)",
+    "color": "rgb(168, 177, 189)",
+    "disabled": false,
+    "height": 16,
+    "text": "X/Y are measured from the marked origin inside this location."
+  },
+  {
+    "background": "rgba(0, 0, 0, 0)",
+    "border": "rgb(238, 241, 245)",
+    "color": "rgb(238, 241, 245)",
+    "disabled": false,
+    "height": 20,
+    "text": "Reserve first, then move the pallet"
+  },
+  {
+    "background": "rgba(0, 0, 0, 0)",
+    "border": "rgb(168, 177, 189)",
+    "color": "rgb(168, 177, 189)",
+    "disabled": false,
+    "height": 45.5,
+    "text": "Both the source and destination stay held. The stored position changes only after destinat"
+  },
+  {
+    "background": "rgb(26, 32, 40)",
+    "border": "rgb(137, 148, 162)",
+    "color": "rgb(238, 241, 245)",
+    "disabled": false,
+    "height": 48,
+    "text": "Back to edit"
+  },
+  {
+    "background": "rgb(124, 182, 255)",
+    "border": "rgba(0, 0, 0, 0)",
+    "color": "rgb(6, 18, 31)",
+    "disabled": false,
+    "height": 48,
+    "text": "Reserve spot"
+  },
+  {
+    "background": "rgba(0, 0, 0, 0)",
+    "border": "rgba(0, 0, 0, 0)",
+    "color": "rgb(238, 241, 245)",
+    "disabled": false,
+    "height": 48,
+    "text": "Close"
+  }
+]

@@ -1,0 +1,22 @@
+ M convex/finishedGoods/workflow.ts
+ M convex/schema.ts
+ M scripts/dev.mjs
+ M src/features/finishedGoods/DestinationScanner.tsx
+ M src/features/finishedGoods/MoveScreen.test.tsx
+ M src/features/finishedGoods/MoveScreen.tsx
+ M src/features/finishedGoods/PalletScene.test.tsx
+ M src/features/finishedGoods/PalletScene.tsx
+ M src/features/finishedGoods/PalletScreens.test.tsx
+ M src/features/finishedGoods/PalletScreens.tsx
+ M src/features/finishedGoods/palletGeometry.test.ts
+ M src/features/finishedGoods/palletGeometry.ts
+ M src/features/finishedGoods/shared.tsx
+ M src/lib/convex/finishedGoodsApi.ts
+ M tests/fixtures/finished-goods-ui.ts
+?? artifacts/stacking/
+?? docs/plans/automatic-pallet-stacking.md
+?? docs/plans/pallet-stacking.md
+?? src/app/[locale]/(desktop)/finished-goods/pallets/[palletId]/stack/
+?? src/features/finishedGoods/StackScreen.test.tsx
+?? src/features/finishedGoods/StackScreen.tsx
+?? tests/integration/finished-goods-stacking.integration.test.ts

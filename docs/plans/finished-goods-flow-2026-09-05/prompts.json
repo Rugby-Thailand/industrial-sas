@@ -1,0 +1,46 @@
+{
+  "tool": "built-in image_gen.imagegen",
+  "base": "Use case: ui-mockup. Create ONE high fidelity desktop application screenshot for an exact click-by-click UI proposal, landscape 1600x1100 approximately, legible Thai text. Dark industrial warehouse application \"Industrial SAS\": near black canvas #0b1116, slate panels #1b242d, subtle gray borders, pale blue primary buttons, white text, muted gray secondary, green success. Flat actual software UI, no laptop frame, no decorative background. Persistent narrow left sidebar with simple unhighlighted hamburger menu, navigation \"สินค้าสำเร็จรูป\" and \"อาคารและจุดจัดเก็บ\"; top compact rounded warehouse selector \"QA-MAIN\" and compact language pill \"ไทย\". Keep all content within frame. Put slim annotation strip ABOVE app, separate from app chrome, containing action number, exact trigger, and result in English. Clearly show click target with small blue numbered callout and pointer; no huge highlights. Consistent examples: product SKU FG-001, product name กล่องบรรจุภัณฑ์; physical pallet P-001; 500 pieces; lot LOT-001. FG-1 is a LOCATION NAME and never a product name. Pallet outside dimensions 1.2 x 1.0 x 1.4 m. No invented navigation modules or notifications.",
+  "screens": [
+    {
+      "n": 1,
+      "name": "01-add-finished-good",
+      "spec": "Annotation: \"01 · Click Add finished good → Product details page\". Show resulting full page, NOT modal. Heading \"สร้างสินค้าสำเร็จรูป\". Two-step indicator \"1 ข้อมูลสินค้า\" active, \"2 วัดขนาด\" inactive. Left 60% form: SKU FG-001, ชื่อสินค้า กล่องบรรจุภัณฑ์; หน่วยนับ ชิ้น; รูปแบบจัดเก็บ พาเลท; จำนวนต่อพาเลท (ค่าเริ่มต้น) 500; เงื่อนไขการจัดเก็บ พื้นที่แห้ง; notes; optional customer and product references collapsed. Right compact realistic cardboard cartons on pallet preview and product summary. Note \"ยังไม่บันทึกเป็นสินค้าที่จัดเก็บแล้ว\". Bottom Cancel \"ยกเลิก\", secondary \"บันทึกฉบับร่าง\", primary \"ถัดไป: วัดขนาด\" indicated as next click with small callout2. Creation fields fully visible. Add small breadcrumb \"สินค้าสำเร็จรูป / สร้างใหม่\"."
+    },
+    {
+      "n": 2,
+      "name": "02-measure-pallet",
+      "spec": "Annotation: \"02 · Click Next: Measure → Measure the physical pallet\". Full page heading \"วัดขนาดพาเลท\", two-step indicator step1 done and step2 active. Header summary FG-001 • P-001 • 500 ชิ้น • LOT-001. Left large interactive isometric 3D cardboard pallet with dimension arrows length1.2m width1.0m height1.4m, toolbar rotate and reset view. Right form identity P-001, actual quantity500, optional lotLOT-001 then unit toggle เมตร / เซนติเมตร, inputs ความยาว1.2 ความกว้าง1.0 ความสูง1.4, น้ำหนัก (ไม่บังคับ) empty. Helper dimensions include pallet and packaging. Footer \"ย้อนกลับ\", \"บันทึกและออก\", blue \"บันทึกและหาจุดจัดเก็บ\" with small click callout3. No location recommendation before measurements saved."
+    },
+    {
+      "n": 3,
+      "name": "03-recommended-exact-position",
+      "spec": "Annotation: \"03 · Click Save and find storage → Exact position recommendation\". Heading \"พื้นที่จัดเก็บที่แนะนำ\". Compact summary P-001 • FG-001 • 500 ชิ้น • 1.2 × 1.0 × 1.4 ม. Three columns: left two location options, selected card \"FG-1\" badge แนะนำ, breadcrumb BLDG-A / ชั้น4 and secondary alternative \"กองจัดเก็บ 2\". Central large isometric 3D control of FG-1 as a 2m by2m floor and transparent 3m high boundary, green outlined ghost pallet1.2x1.0x1.4 sitting on floor offset x0.2 y0.3 measured from visible corner origin; precise position callout P01. Ghost occupies sensible portion of2x2 floor, no floating pallet. Other unavailable sample area shaded in far unused corner outside proposed pallet. Toolbar \"2D / 3D\", \"หมุนมุมมอง\", \"รีเซ็ต\". Right destination \"BLDG-A → ชั้น 4 → FG-1 → P01\", fit checklist พื้นที่เพียงพอ / ความสูงผ่าน / พื้นที่แห้ง; position X0.20ม Y0.30ม, base height0, orientation0°. Actions \"ปรับตำแหน่ง\" and \"ยืนยันจุดจัดเก็บ\". Add click callout4 on adjust. Legend muted gray unavailable, green proposed. This recommends exact coordinates INSIDE LOCATION FG-1, not merely choosing FG-1."
+    },
+    {
+      "n": 4,
+      "name": "04-adjust-position",
+      "spec": "Annotation: \"04 · Click Adjust position → Drag, rotate, or enter coordinates\". Same recommendation screen with large location FG-1 3D workspace,2x2m floor3m max height and selected pallet1.2x1.0x1.4 on floor. A right side adjustment panel titled \"ปรับตำแหน่ง P01\". Show drag handles and origin X/Y on ground, green proposed pallet at X0.20 Y0.30, no impossible overlap. Controls exact X0.20m Y0.30m, orientation0°, button \"หมุน 90°\"; clear separate view toolbar2D/3D and reset camera. Small directional arrow keypad for precise moves and helper step0.10m. Green feedback \"ตำแหน่งนี้จัดเก็บได้\". Footer inside panel \"คืนค่าที่แนะนำ\" and blue \"ใช้ตำแหน่งนี้\" with click callout5. Display subtle instructional caption \"ลากพาเลท หรือระบุตำแหน่ง\". This is object placement, camera rotate is distinct. Do not draw a free vertical stacking control."
+    },
+    {
+      "n": 5,
+      "name": "05-confirm-reservation-dialog",
+      "spec": "Annotation: \"05 · Click Confirm spot → Review destination dialog\". Show dimmed recommendation page behind centered crisp dialog width600. Title \"ยืนยันจุดจัดเก็บ\". Small isometric miniature of green pallet on FG-1 floor. Readable details P-001 • FG-001 • 500 ชิ้น. Destination BLDG-A / ชั้น4 / FG-1 / P01. Position X0.20ม Y0.30ม, rotation0°, pallet1.2x1.0x1.4m. Important helper \"จองพื้นที่ก่อนเคลื่อนย้าย สินค้ายังไม่ถูกบันทึกว่าจัดเก็บแล้ว\". Buttons \"กลับไปแก้ไข\" and primary \"จองจุดนี้\" with click callout6. Close X top right. No success stored state yet."
+    },
+    {
+      "n": 6,
+      "name": "06-reserved-destination",
+      "spec": "Annotation: \"06 · Click Reserve spot → Placement instructions\". Full page heading \"นำพาเลทไปจัดเก็บ\", amber badge \"จองพื้นที่แล้ว • รอจัดเก็บ\". Main left location FG-1 same interactive3D floor with green reserved ghost pallet P-001 at spotP01 X0.20 Y0.30 on floor. Right instruction card \"BLDG-A → ชั้น 4 → FG-1 → P01\", palletP-001 and quantity500, exact coordinates and orientation; numbered instructions move pallet to destination, scan location QR, place at highlighted position, confirm stored. A tidy fixed square white QR holder with even white padding, label \"จุดจัดเก็บ P01\" shown as destination reference, not scan result. Footer secondary \"เปลี่ยนจุดจัดเก็บ\", \"ยกเลิกการจอง\"; primary \"สแกน QR ปลายทาง\" indicated callout7. Confirm stored disabled until verification. No invented reservation timeout."
+    },
+    {
+      "n": 7,
+      "name": "07-scan-destination-dialog",
+      "spec": "Annotation: \"07 · Click Scan destination QR → Verify location dialog\". Dimmed reserved placement page. Centered scanner dialog titled \"ตรวจสอบปลายทาง\". Dialog camera pane with scanner reticle and small decorative QR under it, even white QR quiet zone. Show successful location scan status green \"ตรงกับปลายทาง: FG-1\". Below explain exact selected spot \"ตำแหน่งที่ต้องวาง: P01 • X0.20ม • Y0.30ม\" and small 3D destination thumbnail. Location scanning verifies FG-1; exact position still shown separately, do not claim QR proves physical coordinates. Helper \"วางพาเลทในตำแหน่งที่แสดง แล้วกดยืนยัน\". Bottom \"สแกนอีกครั้ง\" and blue \"ยืนยันว่าจัดเก็บแล้ว\" with callout8; action only after operator physically places. Close icon. Concise camera fallback text \"ค้นหารหัสปลายทาง\" as a secondary link. Scan is a modal not another creation step."
+    },
+    {
+      "n": 8,
+      "name": "08-stored-success",
+      "spec": "Annotation: \"08 · Click Confirm stored → Saved exact placement\". Full detail page with green small check and heading \"จัดเก็บสำเร็จ\". Status green \"จัดเก็บแล้ว\". Clear summary productFG-001 กล่องบรรจุภัณฑ์, palletP-001, quantity500ชิ้น, lotLOT-001. Exact destination breadcrumb BLDG-A / ชั้น4 / FG-1 / P01. Left 3D viewer FG-1 2x2m location showing a SOLID stored pallet at X0.20 Y0.30, label P-001; legend stored vs available. Right card coordinatesX0.20m Y0.30m base0m orientation0°, measured dimensions1.2x1.0x1.4m. QR box square with constant even white padding and label P-001. Footer actions \"ดูตำแหน่งจัดเก็บ\", \"เพิ่มพาเลทถัดไป\", \"กลับรายการ\". This is actual confirmed occupied storage, no ghost pending badge. Keep all text sparse and legible."
+    }
+  ]
+}

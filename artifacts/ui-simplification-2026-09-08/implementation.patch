@@ -1,0 +1,4221 @@
+--- before/src/features/finishedGoods/BatchManager.test.tsx
++++ after/src/features/finishedGoods/BatchManager.test.tsx
+@@ -654,3 +654,62 @@
+   window.dispatchEvent(saved);
+   expect(saved.defaultPrevented).toBe(false);
+ });
++
++it("rejects sub-millimetre corrections instead of silently rounding measurements", () => {
++  render(component("edit", "en", "free-a"));
++  fireEvent.change(screen.getByLabelText("Length (m) · 1"), {
++    target: { value: "0.5004" },
++  });
++  checkDimensions();
++  expect(screen.getByRole("button", { name: "Review changes" })).toBeDisabled();
++  expect(screen.getByText(/nearest millimetre/)).toBeVisible();
++  expect(mocks.write).not.toHaveBeenCalled();
++});
++it("retains measured weight when correcting only dimensions", async () => {
++  data = {
++    ...data,
++    units: data.units.map((unit) => ({ ...unit, weightKg: 25 })),
++  };
++  render(component("edit", "en", "free-a"));
++  fireEvent.change(screen.getByLabelText("Length (m) · 1"), {
++    target: { value: "0.8" },
++  });
++  checkDimensions();
++  fireEvent.click(screen.getByRole("button", { name: "Review changes" }));
++  fireEvent.click(screen.getByRole("button", { name: "Confirm repacking" }));
++  await waitFor(() =>
++    expect(mocks.write).toHaveBeenCalledWith(
++      "finishedGoods/batchManagement:repackAvailable",
++      expect.objectContaining({
++        packages: [expect.objectContaining({ weightKg: 25, lengthMm: 800 })],
++      }),
++    ),
++  );
++});
++
++it("drops old weights when available quantities are redistributed without changing the total", async () => {
++  data = {
++    ...data,
++    units: data.units.map((unit) => ({ ...unit, weightKg: 25 })),
++  };
++  render(component("edit"));
++  for (const index of [1, 2]) {
++    fireEvent.change(screen.getByLabelText(`Quantity · ${index}`), {
++      target: { value: "30" },
++    });
++  }
++  checkDimensions();
++  fireEvent.click(screen.getByRole("button", { name: "Review changes" }));
++  fireEvent.click(screen.getByRole("button", { name: "Confirm repacking" }));
++  await waitFor(() =>
++    expect(mocks.write).toHaveBeenCalledWith(
++      "finishedGoods/batchManagement:repackAvailable",
++      expect.objectContaining({
++        packages: [
++          expect.not.objectContaining({ weightKg: 25 }),
++          expect.not.objectContaining({ weightKg: 25 }),
++        ],
++      }),
++    ),
++  );
++});
+--- before/src/features/finishedGoods/BatchManager.tsx
++++ after/src/features/finishedGoods/BatchManager.tsx
+@@ -51,6 +51,16 @@
+   useUnsavedWarning,
+   written,
+ } from "./shared";
++
++import {
++  newPackingRow as newRow,
++  rowFromPackage,
++  packedUnit,
++  packingIssueText,
++  updatePackingRow,
++  type PackingRow,
++} from "./packingRows";
++import { PackingDimensionFields } from "./PackingDimensionFields";
+ 
+ type Mode = "view" | "edit";
+ type EditorState = { dirty: boolean; busy: boolean };
+@@ -427,24 +437,7 @@
+   );
+ }
+ 
+-type EditRow = {
+-  id: string;
+-  originalCode?: string;
+-  quantity: string;
+-  length: string;
+-  width: string;
+-  height: string;
+-  checked: boolean;
+-  weightKg?: number | undefined;
+-};
+-const newRow = (): EditRow => ({
+-  id: crypto.randomUUID(),
+-  quantity: "",
+-  length: "",
+-  width: "",
+-  height: "",
+-  checked: false,
+-});
++type EditRow = PackingRow & { originalCode?: string };
+ function AvailableEditor({
+   data,
+   warehouseId,
+@@ -470,14 +463,9 @@
+   }));
+   const [rows, setRows] = useState<EditRow[]>(() =>
+     initial.map((u) => ({
++      originalCode: u.code,
++      ...rowFromPackage({ ...u, dimensionsChecked: false }),
+       id: u._id,
+-      originalCode: u.code,
+-      quantity: String(u.quantity),
+-      length: u.lengthMm ? String(u.lengthMm / 1000) : "",
+-      width: u.widthMm ? String(u.widthMm / 1000) : "",
+-      height: u.heightMm ? String(u.heightMm / 1000) : "",
+-      checked: false,
+-      weightKg: u.weightKg,
+     })),
+   );
+   const [originalRows] = useState(() => JSON.stringify(rows));
+@@ -504,14 +492,7 @@
+   const stale =
+     data.batch.revision !== base.revision ||
+     base.ids.some((id) => !data.units.some((u) => u._id === id && u.editable));
+-  const packages = rows.map((r) => ({
+-    quantity: Number(r.quantity),
+-    lengthMm: Math.round(Number(r.length) * 1000),
+-    widthMm: Math.round(Number(r.width) * 1000),
+-    heightMm: Math.round(Number(r.height) * 1000),
+-    dimensionsChecked: r.checked,
+-    ...(r.weightKg === undefined ? {} : { weightKg: r.weightKg }),
+-  }));
++  const packages = rows.map(packedUnit);
+   const invalid = validatePacking(base.total, packages, data.product.unit);
+   const allocatedMinor = packages.reduce(
+     (sum, p) => sum + (quantityToMinor(p.quantity, data.product.unit) ?? 0),
+@@ -548,19 +529,10 @@
+             )}
+       </div>
+     );
+-  function update(id: string, field: keyof EditRow, value: string | boolean) {
++  function update(id: string, changes: Partial<PackingRow>) {
+     setReview(false);
+     setRows((old) =>
+-      old.map((r) =>
+-        r.id === id
+-          ? {
+-              ...r,
+-              [field]: value,
+-              ...(field !== "checked" ? { checked: false } : {}),
+-              ...(field === "quantity" ? { weightKg: undefined } : {}),
+-            }
+-          : r,
+-      ),
++      old.map((r) => (r.id === id ? updatePackingRow(r, changes) : r)),
+     );
+   }
+   async function commit() {
+@@ -681,30 +653,27 @@
+                 </Button>
+               </div>
+               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+-                {(
+-                  [
+-                    ["quantity", tr("Quantity", "จำนวน")],
+-                    ["length", tr("Length (m)", "ยาว (ม.)")],
+-                    ["width", tr("Width (m)", "กว้าง (ม.)")],
+-                    ["height", tr("Height (m)", "สูง (ม.)")],
+-                  ] as const
+-                ).map(([key, label]) => (
+-                  <Field
+-                    key={key}
+-                    label={`${label} · ${i + 1}`}
+-                    type="number"
+-                    min={0.001}
+-                    step="0.001"
+-                    value={r[key]}
+-                    onChange={(value) => update(r.id, key, value)}
+-                  />
+-                ))}
++                <Field
++                  label={`${tr("Quantity", "จำนวน")} · ${i + 1}`}
++                  type="number"
++                  min={0.001}
++                  step="0.001"
++                  value={r.quantity}
++                  onChange={(value) => update(r.id, { quantity: value })}
++                />
++                <PackingDimensionFields
++                  row={r}
++                  label={(field) =>
++                    `${field === "length" ? tr("Length (m)", "ยาว (ม.)") : field === "width" ? tr("Width (m)", "กว้าง (ม.)") : tr("Height (m)", "สูง (ม.)")} · ${i + 1}`
++                  }
++                  onChange={(changes) => update(r.id, changes)}
++                />
+               </div>
+               <label className="mt-3 flex items-center gap-2 text-xs">
+                 <input
+                   type="checkbox"
+                   checked={r.checked}
+-                  onChange={(e) => update(r.id, "checked", e.target.checked)}
++                  onChange={(e) => update(r.id, { checked: e.target.checked })}
+                 />
+                 {tr(
+                   "Actual outside dimensions checked",
+@@ -748,12 +717,7 @@
+         </Button>
+       </div>
+       {invalid && (
+-        <p className="text-xs text-muted">
+-          {tr(
+-            "Enter positive quantities and dimensions, keep the same total, and confirm each unit’s measurements.",
+-            "กรอกจำนวนและขนาดมากกว่าศูนย์ รักษายอดรวม และยืนยันขนาดจริงของทุกหน่วย",
+-          )}
+-        </p>
++        <p className="text-xs text-muted">{packingIssueText(invalid, tr)}</p>
+       )}
+       {review && (
+         <div
+--- before/src/features/finishedGoods/DestinationPicker.test.tsx
++++ after/src/features/finishedGoods/DestinationPicker.test.tsx
+@@ -0,0 +1,147 @@
++import { fireEvent, render, screen, within } from "@testing-library/react";
++import { NextIntlClientProvider } from "next-intl";
++import type { ComponentProps } from "react";
++import { beforeEach, describe, expect, it, vi } from "vitest";
++import type { Candidate } from "@/lib/convex/finishedGoodsApi";
++import { finishedGoodDestination } from "@tests/fixtures/finished-goods-ui";
++import {
++  DestinationPicker,
++  destinationKey,
++  filterDestinations,
++} from "./DestinationPicker";
++
++vi.mock("@/i18n/navigation", () => ({
++  Link: ({ children, ...props }: ComponentProps<"a">) => (
++    <a {...props}>{children}</a>
++  ),
++}));
++
++const destination: Candidate = {
++  ...finishedGoodDestination,
++  zoneId: "zone-b",
++  locationName: "Dispatch",
++  locationCode: "SHIP-Z02",
++  buildingName: "Outbound Warehouse",
++  buildingCode: "OUT-B",
++  floorNumber: 7,
++  supportPositionId: "rack-b",
++  supportLabel: "Loading rack",
++  supportCode: "RACK-07",
++};
++const candidates = [finishedGoodDestination, destination];
++
++beforeEach(() => sessionStorage.clear());
++
++describe("shared destination search", () => {
++  it.each([
++    "dispatch",
++    "SHIP-Z02",
++    "outbound",
++    "out-b",
++    "Floor 7",
++    "ชั้น 7",
++    "Loading rack",
++    "rack-07",
++    "  DiSpAtCh  ",
++  ])(
++    "finds the same destination by %s without changing server order",
++    (search) => {
++      expect(filterDestinations(candidates, search)).toEqual([destination]);
++      expect(filterDestinations(candidates, " ")).toEqual(candidates);
++    },
++  );
++
++  it("keeps floor, shelf and pallet surfaces separate within one location", () => {
++    const surfaces = [
++      finishedGoodDestination,
++      { ...finishedGoodDestination, supportPositionId: "same-id" },
++      { ...finishedGoodDestination, supportPalletId: "same-id" },
++    ];
++    expect(new Set(surfaces.map(destinationKey)).size).toBe(3);
++  });
++
++  it.each(["storage", "move"] as const)(
++    "searching %s never selects or changes the recommendation",
++    (context) => {
++      const onSelect = vi.fn();
++      render(
++        <NextIntlClientProvider locale="en" messages={{}}>
++          <DestinationPicker
++            context={context}
++            candidates={candidates}
++            selected={destinationKey(finishedGoodDestination)}
++            onSelect={onSelect}
++            recommended={finishedGoodDestination}
++          />
++        </NextIntlClientProvider>,
++      );
++      const search = screen.getByRole("textbox");
++      fireEvent.change(search, { target: { value: "SHIP-Z02" } });
++      const option = screen.getByRole("button", { name: /Dispatch/ });
++      expect(option).toHaveAttribute("aria-pressed", "false");
++      expect(option).not.toHaveTextContent("Recommended");
++      expect(onSelect).not.toHaveBeenCalled();
++      fireEvent.click(option);
++      expect(onSelect).toHaveBeenCalledExactlyOnceWith(
++        destinationKey(destination),
++      );
++      fireEvent.change(search, { target: { value: "unmatched" } });
++      expect(screen.getByRole("status")).toHaveTextContent("No matching");
++      expect(screen.getByText("0 / 2")).toBeVisible();
++      fireEvent.click(screen.getByRole("button", { name: "Clear search" }));
++      expect(search).toHaveValue("");
++      const options = within(screen.getByRole("region"));
++      expect(options.getAllByRole("button")).toHaveLength(2);
++      expect(options.getByRole("button", { name: /FG-1/ })).toHaveAttribute(
++        "aria-pressed",
++        "true",
++      );
++      expect(options.getByText("Recommended")).toBeVisible();
++    },
++  );
++
++  it("shows Thai controls and keeps an empty list recoverable", () => {
++    render(
++      <NextIntlClientProvider locale="th" messages={{}}>
++        <DestinationPicker candidates={[]} selected="" onSelect={vi.fn()} />
++      </NextIntlClientProvider>,
++    );
++    expect(
++      screen.getByRole("textbox", { name: "ค้นหาจุดจัดเก็บ" }),
++    ).toBeVisible();
++    expect(screen.getByRole("status")).toHaveTextContent(
++      "ไม่พบจุดจัดเก็บที่ตรงกัน",
++    );
++    expect(screen.queryByRole("region")).not.toBeInTheDocument();
++  });
++
++  it("restores search after a correction round trip only within the caller's scope", () => {
++    const open = (stateKey: string) =>
++      render(
++        <NextIntlClientProvider locale="en" messages={{}}>
++          <DestinationPicker
++            candidates={candidates}
++            selected={destinationKey(finishedGoodDestination)}
++            onSelect={vi.fn()}
++            stateKey={stateKey}
++          />
++        </NextIntlClientProvider>,
++      );
++    const first = open("actor-a:warehouse-a:unit-a:search");
++    fireEvent.change(screen.getByRole("textbox"), {
++      target: { value: "SHIP-Z02" },
++    });
++    first.unmount();
++    const returned = open("actor-a:warehouse-a:unit-a:search");
++    expect(screen.getByRole("textbox")).toHaveValue("SHIP-Z02");
++    expect(
++      within(screen.getByRole("region")).getAllByRole("button"),
++    ).toHaveLength(1);
++    returned.unmount();
++    open("actor-b:warehouse-a:unit-a:search");
++    expect(screen.getByRole("textbox")).toHaveValue("");
++    expect(
++      within(screen.getByRole("region")).getAllByRole("button"),
++    ).toHaveLength(2);
++  });
++});
+--- before/src/features/finishedGoods/DestinationPicker.tsx
++++ after/src/features/finishedGoods/DestinationPicker.tsx
+@@ -0,0 +1,176 @@
++"use client";
++
++import { MapPin, Search, X } from "lucide-react";
++import { Button } from "@/components/ui/button";
++import { Input } from "@/components/ui/input";
++import type { Candidate } from "@/lib/convex/finishedGoodsApi";
++import { mmText, useFGText } from "./shared";
++import { usePreviewState } from "./usePreviewState";
++
++export function destinationKey(candidate: Candidate) {
++  const support = candidate.supportPalletId
++    ? `pallet:${candidate.supportPalletId}`
++    : candidate.supportPositionId
++      ? `position:${candidate.supportPositionId}`
++      : "floor";
++  return `${candidate.zoneId}:${support}`;
++}
++
++export function filterDestinations(
++  candidates: readonly Candidate[],
++  search: string,
++) {
++  const needle = search.trim().toLocaleLowerCase();
++  return candidates.filter((candidate) =>
++    [
++      candidate.locationName,
++      candidate.locationCode,
++      candidate.buildingName,
++      candidate.buildingCode,
++      `Floor ${candidate.floorNumber}`,
++      `ชั้น ${candidate.floorNumber}`,
++      candidate.supportLabel,
++      candidate.supportCode,
++    ]
++      .join(" ")
++      .toLocaleLowerCase()
++      .includes(needle),
++  );
++}
++
++/** The caller owns eligibility, ordering and selection; search only narrows the list. */
++export function DestinationPicker({
++  candidates,
++  selected,
++  onSelect,
++  recommended,
++  context = "storage",
++  stateKey,
++}: {
++  candidates: readonly Candidate[];
++  selected: string;
++  onSelect: (key: string) => void;
++  recommended?: Candidate | undefined;
++  context?: "storage" | "move";
++  stateKey?: string | undefined;
++}) {
++  const { tr } = useFGText();
++  const [{ search }, setSearchState] = usePreviewState(stateKey, {
++    search: "",
++  });
++  const setSearch = (search: string) => setSearchState({ search });
++  const filtered = filterDestinations(candidates, search);
++  const moving = context === "move";
++  return (
++    <section className="min-w-0 space-y-3">
++      <h2 className="text-sm font-semibold">
++        {moving
++          ? tr("Available destinations", "ปลายทางที่ใช้ได้")
++          : tr("Available locations", "จุดจัดเก็บที่ใช้ได้")}
++        <span className="ml-2 font-normal text-muted" aria-live="polite">
++          {search.trim()
++            ? `${filtered.length} / ${candidates.length}`
++            : candidates.length}
++        </span>
++      </h2>
++      <div className="relative">
++        <Search
++          className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted"
++          aria-hidden="true"
++        />
++        <Input
++          aria-label={
++            moving
++              ? tr("Search move destinations", "ค้นหาปลายทางย้าย")
++              : tr("Search storage locations", "ค้นหาจุดจัดเก็บ")
++          }
++          placeholder={tr(
++            "Building, location or rack…",
++            "อาคาร จุดจัดเก็บ หรือชั้นวาง…",
++          )}
++          value={search}
++          onChange={(event) => setSearch(event.target.value)}
++          className="pr-12 pl-9"
++        />
++        {search && (
++          <Button
++            variant="ghost"
++            size="icon"
++            className="absolute top-1/2 right-0 -translate-y-1/2"
++            aria-label={tr("Clear search", "ล้างคำค้น")}
++            title={tr("Clear search", "ล้างคำค้น")}
++            onClick={() => setSearch("")}
++          >
++            <X aria-hidden="true" />
++          </Button>
++        )}
++      </div>
++      {filtered.length === 0 ? (
++        <div className="space-y-2 rounded-xl border border-dashed border-border p-4 text-sm">
++          <p role="status">
++            {moving
++              ? tr("No matching destinations", "ไม่พบปลายทางที่ตรงกัน")
++              : tr("No matching locations", "ไม่พบจุดจัดเก็บที่ตรงกัน")}
++          </p>
++          <p className="text-xs text-muted">
++            {tr(
++              "Your current preview is kept. Clear the search to see all locations.",
++              "ภาพตำแหน่งที่เลือกยังคงอยู่ ล้างคำค้นเพื่อดูจุดจัดเก็บทั้งหมด",
++            )}
++          </p>
++        </div>
++      ) : (
++        <div
++          role="region"
++          aria-label={
++            moving
++              ? tr("Destination options", "ตัวเลือกปลายทาง")
++              : tr("Location options", "ตัวเลือกจุดจัดเก็บ")
++          }
++          tabIndex={0}
++          className="flex gap-2 overflow-x-auto rounded-xl pb-2 outline-none focus-visible:ring-2 focus-visible:ring-ring 2xl:max-h-[32rem] 2xl:flex-col 2xl:overflow-y-auto 2xl:pr-2"
++        >
++          {filtered.map((candidate) => {
++            const key = destinationKey(candidate);
++            return (
++              <button
++                key={key}
++                type="button"
++                aria-pressed={key === selected}
++                onClick={() => onSelect(key)}
++                className={`min-w-52 shrink-0 rounded-xl border p-3 text-left transition outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset 2xl:min-w-0 ${key === selected ? "border-accent bg-accent/10" : "border-border bg-surface hover:border-accent/60"}`}
++              >
++                <span className="flex flex-wrap items-center gap-2">
++                  <MapPin className="size-4 text-accent" aria-hidden="true" />
++                  <span className="font-semibold">
++                    {candidate.locationName}
++                  </span>
++                  {recommended && key === destinationKey(recommended) && (
++                    <span className="rounded-full bg-success/10 px-2 py-1 text-[10px] text-success">
++                      {tr("Recommended", "แนะนำ")}
++                    </span>
++                  )}
++                </span>
++                <span className="mt-2 block text-xs text-muted">
++                  {candidate.buildingCode} · {tr("Floor", "ชั้น")}{" "}
++                  {candidate.floorNumber}
++                </span>
++                <span className="mt-2 block text-xs text-muted">
++                  {mmText(candidate.support.widthMm)} ×{" "}
++                  {mmText(candidate.support.depthMm)}
++                </span>
++                <span className="mt-2 block text-xs text-muted">
++                  {candidate.supportLabel ??
++                    candidate.supportCode ??
++                    tr("Location floor", "พื้นจุดจัดเก็บ")}
++                  {" · Z "}
++                  {mmText(candidate.support.zMm)}
++                </span>
++              </button>
++            );
++          })}
++        </div>
++      )}
++    </section>
++  );
++}
+--- before/src/features/finishedGoods/FinishedGoodsTable.tsx
++++ after/src/features/finishedGoods/FinishedGoodsTable.tsx
+@@ -6,6 +6,7 @@
+   filterLabel,
+ } from "./CatalogueFilterControls";
+ import { columns, sortColumn } from "./catalogueFilters";
++import { unitNextAction } from "./unitNextAction";
+ import { ArrowUpRight, Pencil } from "lucide-react";
+ import { Button } from "@/components/ui/button";
+ import {
+@@ -24,7 +25,6 @@
+   summaryStatusText,
+ } from "./productPalletSummary";
+ import {
+-  measurePath,
+   palletPath,
+   palletDisplayStatus,
+   productPath,
+@@ -107,87 +107,71 @@
+         </TableHeader>
+         <TableBody>
+           {isProduct
+-            ? products.map((product) => (
+-                <TableRow key={product._id}>
+-                  <TableCell className="max-w-80 py-4 pl-4 whitespace-normal">
+-                    <Link
+-                      href={productPath(product._id)}
+-                      className="font-medium break-words hover:underline"
+-                    >
+-                      {product.name ||
+-                        tr("Untitled draft", "ฉบับร่างยังไม่มีชื่อ")}
+-                    </Link>
+-                    <p className="mt-1 font-mono text-xs break-all text-muted">
+-                      {product.sku || tr("No SKU yet", "ยังไม่มีรหัส")}
+-                    </p>
+-                  </TableCell>
+-                  <TableCell>
+-                    {
+-                      productPalletSummary(
+-                        product._id,
+-                        allPallets,
+-                        product.storageFormat,
+-                      ).quantity
+-                    }{" "}
+-                    {product.unit}
+-                  </TableCell>
+-                  <TableCell>
+-                    {summaryFormatText(
+-                      productPalletSummary(
+-                        product._id,
+-                        allPallets,
+-                        product.storageFormat,
+-                      ),
+-                      tr,
+-                    )}
+-                  </TableCell>
+-                  <TableCell>
+-                    {summaryStatusText(
+-                      productPalletSummary(
+-                        product._id,
+-                        allPallets,
+-                        product.storageFormat,
+-                      ),
+-                      tr,
+-                    ) || "—"}
+-                  </TableCell>
+-                  <TableCell>
+-                    <Status value={product.status} />
+-                  </TableCell>
+-                  <TableCell className="pr-4 text-right">
+-                    <Button asChild variant="ghost" size="icon">
++            ? products.map((product) => {
++                const summary = productPalletSummary(
++                  product._id,
++                  allPallets,
++                  product.storageFormat,
++                );
++                return (
++                  <TableRow key={product._id}>
++                    <TableCell className="max-w-80 py-4 pl-4 whitespace-normal">
+                       <Link
+                         href={productPath(product._id)}
+-                        aria-label={`${canManage ? tr("Edit", "แก้ไข") : tr("View", "ดู")} ${product.sku || product.name}`}
+-                        title={
+-                          canManage
+-                            ? tr("Edit product", "แก้ไขสินค้า")
+-                            : tr("View product", "ดูสินค้า")
+-                        }
++                        className="font-medium break-words hover:underline"
+                       >
+-                        {canManage ? (
+-                          <Pencil className="size-4" aria-hidden="true" />
+-                        ) : (
+-                          <ArrowUpRight className="size-4" aria-hidden="true" />
+-                        )}
++                        {product.name ||
++                          tr("Untitled draft", "ฉบับร่างยังไม่มีชื่อ")}
+                       </Link>
+-                    </Button>
+-                  </TableCell>
+-                </TableRow>
+-              ))
++                      <p className="mt-1 font-mono text-xs break-all text-muted">
++                        {product.sku || tr("No SKU yet", "ยังไม่มีรหัส")}
++                      </p>
++                    </TableCell>
++                    <TableCell>
++                      {summary.quantity} {product.unit}
++                    </TableCell>
++                    <TableCell>{summaryFormatText(summary, tr)}</TableCell>
++                    <TableCell>
++                      {summaryStatusText(summary, tr) || "—"}
++                    </TableCell>
++                    <TableCell>
++                      <Status value={product.status} />
++                    </TableCell>
++                    <TableCell className="pr-4 text-right">
++                      <Button asChild variant="ghost" size="icon">
++                        <Link
++                          href={productPath(product._id)}
++                          aria-label={`${canManage ? tr("Edit", "แก้ไข") : tr("View", "ดู")} ${product.sku || product.name}`}
++                          title={
++                            canManage
++                              ? tr("Edit product", "แก้ไขสินค้า")
++                              : tr("View product", "ดูสินค้า")
++                          }
++                        >
++                          {canManage ? (
++                            <Pencil className="size-4" aria-hidden="true" />
++                          ) : (
++                            <ArrowUpRight
++                              className="size-4"
++                              aria-hidden="true"
++                            />
++                          )}
++                        </Link>
++                      </Button>
++                    </TableCell>
++                  </TableRow>
++                );
++              })
+             : pallets.map((pallet) => {
+                 const product = allProducts.find(
+                   (p) => p._id === pallet.productId,
+                 );
+-                const href =
+-                  canManage && pallet.status === "AWAITING_MEASUREMENT"
+-                    ? measurePath(pallet._id)
+-                    : palletPath(pallet._id);
++                const action = unitNextAction(pallet, canManage);
+                 return (
+                   <TableRow key={pallet._id}>
+                     <TableCell className="max-w-80 py-4 pl-4 whitespace-normal">
+                       <Link
+-                        href={href}
++                        href={palletPath(pallet._id)}
+                         className="font-mono font-medium hover:underline"
+                       >
+                         {pallet.code}
+@@ -215,13 +199,12 @@
+                       <Status value={palletDisplayStatus(pallet)} />
+                     </TableCell>
+                     <TableCell className="pr-4 text-right">
+-                      <Button asChild variant="ghost" size="icon">
++                      <Button asChild variant="outline">
+                         <Link
+-                          href={href}
+-                          aria-label={`${tr("View", "ดู")} ${pallet.code}`}
+-                          title={tr("Open storage unit", "เปิดหน่วยจัดเก็บ")}
++                          href={action.href}
++                          aria-label={`${tr(...action.label)} ${pallet.code}`}
+                         >
+-                          <ArrowUpRight className="size-4" aria-hidden="true" />
++                          {tr(...action.label)}
+                         </Link>
+                       </Button>
+                     </TableCell>
+--- before/src/features/finishedGoods/MoveScreen.test.tsx
++++ after/src/features/finishedGoods/MoveScreen.test.tsx
+@@ -130,6 +130,7 @@
+   mocks.write.mock.calls.filter(([method]) => method.endsWith(`:${name}`));
+ beforeEach(() => {
+   localStorage.clear();
++  sessionStorage.clear();
+   mocks.canManage = true;
+   mocks.authLoaded = true;
+   mocks.actorId = "user-a";
+@@ -180,11 +181,11 @@
+         within(source).getByRole("heading", { name: fromLabel }),
+       ).toBeInTheDocument();
+       expect(source).toHaveTextContent(
+-        `BLDG-A · ${floorLabel} → FG-1 → Lower P-002 → POS-007`,
++        `BLDG-A → ${floorLabel} → FG-1 → Lower P-002 → POS-007`,
+       );
+       expect(source).toHaveTextContent("X0.125 m");
+       expect(source).toHaveTextContent("Y0.35 m");
+-      expect(source).toHaveTextContent("Z1.4 m");
++      expect(source).toHaveTextContent(locale === "en" ? "Base elevation1.4 m" : "ระดับฐาน1.4 m");
+       expect(source).toHaveTextContent(`${orientationLabel}90°`);
+       fireEvent.change(screen.getByRole("spinbutton", { name: "X (m)" }), {
+         target: { value: "0.7" },
+@@ -300,11 +301,8 @@
+       ).getByRole("button", { name: /Dispatch/ }),
+     ).toHaveAttribute("aria-pressed", "true");
+     expect(screen.getByRole("spinbutton", { name: "X (m)" })).toHaveValue(0.7);
+-    fireEvent.click(screen.getByRole("button", { name: "Review move" }));
+-    fireEvent.click(
+-      within(screen.getByRole("dialog")).getByRole("button", {
+-        name: /Reserve/,
+-      }),
++    fireEvent.click(
++      screen.getByRole("button", { name: "Reserve this position" }),
+     );
+     await waitFor(() => expect(callsFor("reserveMove")).toHaveLength(1));
+     expect(callsFor("reserveMove")[0]?.[1]).toMatchObject({
+@@ -340,11 +338,8 @@
+     expect(
+       screen.getByText(/Position: X 0.3 m · Y 0.2 m · Z 1.4 m/),
+     ).toBeInTheDocument();
+-    fireEvent.click(screen.getByRole("button", { name: "Review move" }));
+-    fireEvent.click(
+-      within(screen.getByRole("dialog")).getByRole("button", {
+-        name: /Reserve/,
+-      }),
++    fireEvent.click(
++      screen.getByRole("button", { name: "Reserve this position" }),
+     );
+     await waitFor(() => expect(callsFor("reserveMove")).toHaveLength(1));
+     expect(callsFor("reserveMove")[0]?.[1]).toMatchObject({
+@@ -356,11 +351,16 @@
+ 
+   it("reviews source and target before reserving with a source revision", async () => {
+     renderMove();
+-    fireEvent.click(screen.getByRole("button", { name: "Review move" }));
+-    const dialog = screen.getByRole("dialog");
+-    expect(within(dialog).getByText("From")).toBeInTheDocument();
+-    expect(within(dialog).getByText("To")).toBeInTheDocument();
+-    fireEvent.click(within(dialog).getByRole("button", { name: /Reserve/ }));
++    expect(screen.getAllByText("From").length).toBeGreaterThan(0);
++    expect(screen.getAllByText("To").length).toBeGreaterThan(0);
++    expect(mocks.write).not.toHaveBeenCalled();
++    fireEvent.change(
++      screen.getByRole("textbox", { name: "Reason (optional)" }),
++      { target: { value: "Closer to dispatch" } },
++    );
++    fireEvent.click(
++      screen.getByRole("button", { name: "Reserve this position" }),
++    );
+     await waitFor(() => expect(callsFor("reserveMove")).toHaveLength(1));
+     expect(callsFor("reserveMove")[0]?.[1]).toMatchObject({
+       palletId: "pallet-a",
+@@ -376,7 +376,9 @@
+         : querySuccess({ candidates: [finishedGoodDestination], reasons: [] }),
+     );
+     renderMove();
+-    expect(screen.getByRole("button", { name: "Review move" })).toBeDisabled();
++    expect(
++      screen.getByRole("button", { name: "Reserve this position" }),
++    ).toBeDisabled();
+     expect(
+       screen.getByText("Choose a different position or orientation."),
+     ).toBeInTheDocument();
+@@ -509,11 +511,8 @@
+     currentDetail = active();
+     renderMove();
+     fireEvent.click(screen.getByRole("button", { name: "Change destination" }));
+-    fireEvent.click(screen.getByRole("button", { name: "Review move" }));
+-    fireEvent.click(
+-      within(screen.getByRole("dialog")).getByRole("button", {
+-        name: "Reserve spot",
+-      }),
++    fireEvent.click(
++      screen.getByRole("button", { name: "Reserve this position" }),
+     );
+     await waitFor(() => expect(callsFor("reserveMove")).toHaveLength(1));
+     expect(callsFor("reserveMove")[0]?.[1]).toMatchObject({
+--- before/src/features/finishedGoods/MoveScreen.tsx
++++ after/src/features/finishedGoods/MoveScreen.tsx
+@@ -2,10 +2,8 @@
+ 
+ import { useMutation, useQuery } from "convex/react";
+ import { useState } from "react";
+-import { MapPin, Search, X } from "lucide-react";
+ import { QueryGate } from "@/components/system/QueryGate";
+ import { Button } from "@/components/ui/button";
+-import { Input } from "@/components/ui/input";
+ import { Notice } from "@/components/ui/Notice";
+ import {
+   Dialog,
+@@ -18,12 +16,13 @@
+ import { useRouter } from "@/i18n/navigation";
+ import { fgRefs, type PalletDetail } from "@/lib/convex/finishedGoodsApi";
+ import { DestinationScanner } from "./DestinationScanner";
++import { DestinationPicker, destinationKey } from "./DestinationPicker";
++import { PlacementEditor } from "./PlacementEditor";
++import { usePreviewState } from "./usePreviewState";
+ import { PalletScene } from "./PalletScene";
+ import {
+   DestinationSummary,
+-  destinationKey,
+   MoveHistory,
+-  PlacementEditor,
+   Summary,
+   recommendationReason,
+   sceneProps,
+@@ -35,7 +34,6 @@
+   Loading,
+   Missing,
+   palletPath,
+-  mmText,
+   panel,
+   useCanManage,
+   useDraftKey,
+@@ -152,8 +150,15 @@
+     warehouseId,
+     palletId: detail.pallet._id,
+   });
+-  const [selected, setSelected] = useState("");
+-  const [locationSearch, setLocationSearch] = useState("");
++  const pickerScope = useDraftKey("fg-move-destinations");
++  const pickerKey = pickerScope
++    ? `${pickerScope}:${warehouseId}:${detail.pallet._id}`
++    : undefined;
++  const [selection, setSelection] = usePreviewState(pickerKey, {
++    selected: "",
++  });
++  const selected = selection.selected;
++  const setSelected = (selected: string) => setSelection({ selected });
+   const candidates = outcome?.ok
+     ? [
+         ...outcome.value.candidates,
+@@ -162,26 +167,19 @@
+           : []),
+       ]
+     : [];
+-  const locationNeedle = locationSearch.trim().toLocaleLowerCase();
+-  const filteredCandidates = candidates.filter((candidate) =>
+-    [
+-      candidate.locationName,
+-      candidate.locationCode,
+-      candidate.buildingName,
+-      candidate.buildingCode,
+-      `Floor ${candidate.floorNumber}`,
+-      `ชั้น ${candidate.floorNumber}`,
+-      candidate.supportLabel,
+-      candidate.supportCode,
+-    ]
+-      .join(" ")
+-      .toLocaleLowerCase()
+-      .includes(locationNeedle),
+-  );
+   const keyOf = destinationKey;
+-  const current =
+-    candidates.find((candidate) => keyOf(candidate) === selected) ??
+-    candidates[0];
++  const current = selected
++    ? candidates.find((candidate) => keyOf(candidate) === selected)
++    : candidates[0];
++  const picker = (
++    <DestinationPicker
++      stateKey={pickerKey ? `${pickerKey}:search` : undefined}
++      context="move"
++      candidates={candidates}
++      selected={current ? keyOf(current) : ""}
++      onSelect={setSelected}
++    />
++  );
+   return (
+     <>
+       <Heading
+@@ -194,37 +192,10 @@
+         )}
+       />
+       <Summary detail={detail} />
+-      {detail.destination && detail.placement ? (
+-        <section
+-          aria-label={tr("Current stored position", "ตำแหน่งจัดเก็บปัจจุบัน")}
+-          className="mb-4 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl border border-border bg-surface px-4 py-3 text-sm"
+-        >
+-          <h2 className="font-semibold text-muted">{tr("From", "จาก")}</h2>
+-          <p className="min-w-0 break-words">
+-            {detail.destination.buildingCode} · {tr("Floor", "ชั้น")}{" "}
+-            {detail.destination.floorNumber} → {detail.destination.locationName}
+-            {detail.destination.supportLabel || detail.destination.supportCode
+-              ? ` → ${detail.destination.supportLabel ?? detail.destination.supportCode}`
+-              : ""}
+-            {" → "}
+-            {detail.destination.positionCode}
+-          </p>
+-          <dl className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
+-            {[
+-              ["X", mmText(detail.placement.xMm)],
+-              ["Y", mmText(detail.placement.yMm)],
+-              [
+-                "Z",
+-                mmText(detail.placement.zMm ?? detail.destination.support.zMm),
+-              ],
+-              [tr("Orientation", "ทิศทาง"), `${detail.placement.rotation}°`],
+-            ].map(([label, value]) => (
+-              <div key={label} className="flex items-baseline gap-1">
+-                <dt className="text-muted">{label}</dt>
+-                <dd className="font-mono">{value}</dd>
+-              </div>
+-            ))}
+-          </dl>
++      {!current && detail.destination && detail.placement ? (
++        <section aria-label={tr("Current stored position", "ตำแหน่งจัดเก็บปัจจุบัน")} className={`${panel} mb-4`}>
++          <h2 className="mb-2 font-semibold">{tr("From", "จาก")}</h2>
++          <DestinationSummary destination={detail.destination} placement={detail.placement} />
+         </section>
+       ) : null}
+       {!outcome ? (
+@@ -237,6 +208,17 @@
+             "โหลดปลายทางไม่ได้ กรุณารีเฟรชเพื่อลองใหม่",
+           )}
+         />
++      ) : !current && candidates.length > 0 ? (
++        <div className="space-y-4">
++          <Notice
++            tone="warning"
++            title={tr(
++              "The previous location is no longer available. Select another destination to continue.",
++              "จุดเดิมไม่พร้อมใช้งานแล้ว เลือกปลายทางใหม่เพื่อดำเนินการต่อ",
++            )}
++          />
++          {picker}
++        </div>
+       ) : !current ? (
+         <section className={`${panel} space-y-3`}>
+           <Notice
+@@ -254,95 +236,10 @@
+         </section>
+       ) : (
+         <div className="grid items-start gap-4 2xl:grid-cols-[230px_1fr]">
+-          <section className="min-w-0 space-y-3">
+-            <h2 className="text-sm font-semibold">
+-              {tr("Available destinations", "ปลายทางที่ใช้ได้")}
+-              <span className="ml-2 font-normal text-muted" aria-live="polite">
+-                {locationNeedle
+-                  ? `${filteredCandidates.length} / ${candidates.length}`
+-                  : candidates.length}
+-              </span>
+-            </h2>
+-            <div className="relative">
+-              <Search
+-                className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted"
+-                aria-hidden="true"
+-              />
+-              <Input
+-                aria-label={tr("Search move destinations", "ค้นหาปลายทางย้าย")}
+-                placeholder={tr(
+-                  "Building, location or rack…",
+-                  "อาคาร จุดจัดเก็บ หรือชั้นวาง…",
+-                )}
+-                value={locationSearch}
+-                onChange={(event) => setLocationSearch(event.target.value)}
+-                className="pr-12 pl-9"
+-              />
+-              {locationSearch && (
+-                <Button
+-                  variant="ghost"
+-                  size="icon"
+-                  className="absolute top-1/2 right-0 -translate-y-1/2"
+-                  aria-label={tr("Clear search", "ล้างคำค้น")}
+-                  title={tr("Clear search", "ล้างคำค้น")}
+-                  onClick={() => setLocationSearch("")}
+-                >
+-                  <X aria-hidden="true" />
+-                </Button>
+-              )}
+-            </div>
+-            {filteredCandidates.length === 0 ? (
+-              <div className="space-y-2 rounded-xl border border-dashed border-border p-4 text-sm">
+-                <p role="status">
+-                  {tr("No matching destinations", "ไม่พบปลายทางที่ตรงกัน")}
+-                </p>
+-                <p className="text-xs text-muted">
+-                  {tr(
+-                    "Your current preview is kept. Clear the search to see all destinations.",
+-                    "ภาพตำแหน่งที่เลือกยังคงอยู่ ล้างคำค้นเพื่อดูปลายทางทั้งหมด",
+-                  )}
+-                </p>
+-              </div>
+-            ) : (
+-              <div
+-                role="region"
+-                aria-label={tr("Destination options", "ตัวเลือกปลายทาง")}
+-                tabIndex={0}
+-                className="flex gap-2 overflow-x-auto rounded-xl pb-2 outline-none focus-visible:ring-2 focus-visible:ring-ring 2xl:max-h-[32rem] 2xl:flex-col 2xl:overflow-y-auto 2xl:pr-2"
+-              >
+-                {filteredCandidates.map((candidate) => (
+-                  <button
+-                    key={keyOf(candidate)}
+-                    type="button"
+-                    aria-pressed={keyOf(candidate) === keyOf(current)}
+-                    className={`min-w-52 shrink-0 rounded-xl border p-3 text-left transition outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset 2xl:min-w-0 ${keyOf(candidate) === keyOf(current) ? "border-accent bg-accent/10" : "border-border bg-surface hover:border-accent/60"}`}
+-                    onClick={() => setSelected(keyOf(candidate))}
+-                  >
+-                    <span className="flex items-center gap-2 font-semibold">
+-                      <MapPin
+-                        className="size-4 text-accent"
+-                        aria-hidden="true"
+-                      />
+-                      {candidate.locationName}
+-                    </span>
+-                    <span className="mt-2 block text-xs text-muted">
+-                      {candidate.buildingCode} · {tr("Floor", "ชั้น")}{" "}
+-                      {candidate.floorNumber}
+-                    </span>
+-                    <span className="mt-2 block text-xs text-muted">
+-                      {candidate.supportLabel ??
+-                        candidate.supportCode ??
+-                        tr("Location floor", "พื้นจุดจัดเก็บ")}
+-                      {" · Z "}
+-                      {candidate.zMm / 1000} m
+-                    </span>
+-                  </button>
+-                ))}
+-              </div>
+-            )}
+-          </section>
++          {picker}
+           <PlacementEditor
+             key={keyOf(current)}
++            onActivate={() => setSelected(keyOf(current))}
+             warehouseId={warehouseId}
+             detail={detail}
+             candidate={current}
+--- before/src/features/finishedGoods/PackingDimensionFields.tsx
++++ after/src/features/finishedGoods/PackingDimensionFields.tsx
+@@ -0,0 +1,39 @@
++import { Field } from "./shared";
++import type { PackingRow } from "./packingRows";
++
++type Dimension = "length" | "width" | "height";
++/** Rows always store metres; changing the display unit never changes the saved measurement. */
++export function PackingDimensionFields({
++  row,
++  onChange,
++  label,
++  displayUnit = "m",
++  required = false,
++}: {
++  row: PackingRow;
++  onChange: (changes: Partial<PackingRow>) => void;
++  label: (field: Dimension) => string;
++  displayUnit?: "m" | "cm";
++  required?: boolean;
++}) {
++  const scale = displayUnit === "cm" ? 100 : 1;
++  return (["length", "width", "height"] as const).map((field) => (
++    <Field
++      key={field}
++      label={label(field)}
++      value={
++        row[field]
++          ? String(Number((Number(row[field]) * scale).toFixed(8)))
++          : ""
++      }
++      onChange={(value) =>
++        onChange({ [field]: value.trim() ? String(Number(value) / scale) : "" })
++      }
++      type="number"
++      min={0.001 * scale}
++      max={100 * scale}
++      step={String(0.001 * scale)}
++      required={required}
++    />
++  ));
++}
+--- before/src/features/finishedGoods/PackingScreen.test.tsx
++++ after/src/features/finishedGoods/PackingScreen.test.tsx
+@@ -786,3 +786,19 @@
+     );
+   });
+ });
++
++it("clears stale measured weight and confirmation when a unit quantity changes", () => {
++  show();
++  prepare();
++  input("Weight (kg, optional)", "25");
++  input("Unit quantity", "40");
++  expect(
++    screen.getByRole("spinbutton", { name: "Weight (kg, optional)" }),
++  ).toHaveValue(null);
++  expect(
++    screen.getByRole("checkbox", { name: /I checked this unit/ }),
++  ).not.toBeChecked();
++  expect(
++    screen.getByRole("button", { name: "Review and create" }),
++  ).toBeDisabled();
++});
+--- before/src/features/finishedGoods/PackingScreen.tsx
++++ after/src/features/finishedGoods/PackingScreen.tsx
+@@ -43,16 +43,22 @@
+   written,
+ } from "./shared";
+ 
++import {
++  newPackingRow as newRow,
++  rowFromPackage,
++  textNumber,
++  millimetres as mm,
++  packageDraft,
++  packingIssueText,
++  packedUnit,
++  updatePackingRow,
++  type PackingRow as Row,
++  type PackageDraft,
++} from "./packingRows";
++import { PackingDimensionFields } from "./PackingDimensionFields";
++
+ type Format = "PALLET" | "BOX" | "OTHER";
+ type Mode = "CAPACITY" | "EQUAL" | "MANUAL";
+-type PackageDraft = {
+-  quantity?: number;
+-  lengthMm?: number;
+-  widthMm?: number;
+-  heightMm?: number;
+-  weightKg?: number;
+-  dimensionsChecked: boolean;
+-};
+ type Batch = {
+   _id: string;
+   revision: number;
+@@ -78,15 +84,6 @@
+   packages: PackageDraft[];
+   requestId: string;
+ };
+-type Row = {
+-  id: string;
+-  quantity: string;
+-  length: string;
+-  width: string;
+-  height: string;
+-  weight: string;
+-  checked: boolean;
+-};
+ type Draft = {
+   total: string;
+   capacity: string;
+@@ -105,28 +102,8 @@
+   completed?: readonly string[];
+   recoveryBlocked?: boolean;
+ };
+-const newRow = (quantity = ""): Row => ({
+-  id: crypto.randomUUID(),
+-  quantity,
+-  length: "",
+-  width: "",
+-  height: "",
+-  weight: "",
+-  checked: false,
+-});
+-const textNumber = (value: number | undefined, divisor = 1) =>
+-  value === undefined ? "" : String(value / divisor);
+ function initialDraft(_product: Product, batch?: Batch): Draft {
+-  const rows = batch
+-    ? batch.packages.map((unit) => ({
+-        ...newRow(textNumber(unit.quantity)),
+-        length: textNumber(unit.lengthMm, 1000),
+-        width: textNumber(unit.widthMm, 1000),
+-        height: textNumber(unit.heightMm, 1000),
+-        weight: textNumber(unit.weightKg),
+-        checked: unit.dimensionsChecked,
+-      }))
+-    : [newRow()];
++  const rows = batch ? batch.packages.map(rowFromPackage) : [newRow()];
+   return {
+     total: textNumber(batch?.totalQuantity),
+     capacity: textNumber(batch?.capacity),
+@@ -251,18 +228,6 @@
+ }
+ const optionalNumber = (value: string) =>
+   value.trim() ? Number(value) : undefined;
+-const mm = (value: string) => {
+-  const n = Number(value) * 1000;
+-  return Math.abs(n - Math.round(n)) < 1e-7 ? Math.round(n) : n;
+-};
+-const packageDraft = (r: Row): PackageDraft => ({
+-  ...(r.quantity.trim() ? { quantity: Number(r.quantity) } : {}),
+-  ...(r.length.trim() ? { lengthMm: mm(r.length) } : {}),
+-  ...(r.width.trim() ? { widthMm: mm(r.width) } : {}),
+-  ...(r.height.trim() ? { heightMm: mm(r.height) } : {}),
+-  ...(r.weight.trim() ? { weightKg: Number(r.weight) } : {}),
+-  dimensionsChecked: r.checked,
+-});
+ const batchPath = (id: string) => `${FG_PATH}/batches/${id}`;
+ 
+ export function PackingScreen({
+@@ -414,14 +379,7 @@
+   const packages = draft.rows.map(packageDraft);
+   const issue = validatePacking(
+     Number(draft.total),
+-    packages.map((p) => ({
+-      quantity: p.quantity ?? 0,
+-      lengthMm: p.lengthMm ?? 0,
+-      widthMm: p.widthMm ?? 0,
+-      heightMm: p.heightMm ?? 0,
+-      ...(p.weightKg === undefined ? {} : { weightKg: p.weightKg }),
+-      dimensionsChecked: p.dimensionsChecked,
+-    })),
++    draft.rows.map(packedUnit),
+     product.unit,
+   );
+   const preview =
+@@ -456,33 +414,7 @@
+     !stale;
+   const dimensionLabel = (field: "length" | "width" | "height") =>
+     `${field === "length" ? tr("Length", "ความยาว") : field === "width" ? tr("Width", "ความกว้าง") : tr("Height", "ความสูง")} (${draft.displayUnit === "m" ? tr("m", "ม.") : tr("cm", "ซม.")})`;
+-  const issueText =
+-    issue === "QUANTITY_MISMATCH"
+-      ? tr(
+-          "Allocated quantity must equal the batch total.",
+-          "จำนวนที่จัดสรรต้องเท่ากับยอดรวมของชุด",
+-        )
+-      : issue === "QUANTITY_INVALID"
+-        ? tr(
+-            "Enter positive quantities with the precision allowed for this unit.",
+-            "กรอกจำนวนมากกว่าศูนย์และทศนิยมที่หน่วยนับรองรับ",
+-          )
+-        : issue === "DIMENSIONS_UNCHECKED"
+-          ? tr(
+-              "Confirm the actual dimensions of every storage unit, including copied dimensions.",
+-              "ยืนยันขนาดจริงของทุกหน่วย รวมถึงหน่วยที่คัดลอกขนาดมา",
+-            )
+-          : issue === "WEIGHT_INVALID"
+-            ? tr(
+-                "Weight must be positive when supplied.",
+-                "น้ำหนักต้องมากกว่าศูนย์เมื่อระบุ",
+-              )
+-            : issue
+-              ? tr(
+-                  "Complete each unit’s quantity and outer dimensions (0–100 m, to the nearest millimetre).",
+-                  "กรอกจำนวนและขนาดภายนอกของทุกหน่วยให้ครบ (มากกว่า 0 ถึง 100 ม. ละเอียดถึงมิลลิเมตร)",
+-                )
+-              : "";
++  const issueText = packingIssueText(issue, tr);
+   function persist(next: Draft, required = false) {
+     try {
+       localStorage.setItem(key, JSON.stringify(next));
+@@ -528,17 +460,7 @@
+         ? { mode: "MANUAL" as const, splitPending: false }
+         : {}),
+       rows: draft.rows.map((r) =>
+-        r.id === id
+-          ? {
+-              ...r,
+-              ...changes,
+-              ...(["quantity", "length", "width", "height"].some(
+-                (f) => f in changes,
+-              )
+-                ? { checked: false }
+-                : {}),
+-            }
+-          : r,
++        r.id === id ? updatePackingRow(r, changes) : r,
+       ),
+     });
+   }
+@@ -1080,39 +1002,13 @@
+                     ))}
+                   </div>
+                   <div className="grid gap-4 sm:grid-cols-3">
+-                    {(["length", "width", "height"] as const).map((field) => (
+-                      <Field
+-                        key={field}
+-                        label={dimensionLabel(field)}
+-                        value={
+-                          selected[field]
+-                            ? String(
+-                                Number(
+-                                  (
+-                                    Number(selected[field]) *
+-                                    (draft.displayUnit === "cm" ? 100 : 1)
+-                                  ).toFixed(8),
+-                                ),
+-                              )
+-                            : ""
+-                        }
+-                        onChange={(v) =>
+-                          updateRow(selected.id, {
+-                            [field]: v.trim()
+-                              ? String(
+-                                  Number(v) /
+-                                    (draft.displayUnit === "cm" ? 100 : 1),
+-                                )
+-                              : "",
+-                          })
+-                        }
+-                        type="number"
+-                        min={draft.displayUnit === "m" ? 0.001 : 0.1}
+-                        max={draft.displayUnit === "m" ? 100 : 10000}
+-                        step={draft.displayUnit === "m" ? "0.001" : "0.1"}
+-                        required
+-                      />
+-                    ))}
++                    <PackingDimensionFields
++                      row={selected}
++                      required
++                      label={dimensionLabel}
++                      displayUnit={draft.displayUnit}
++                      onChange={(changes) => updateRow(selected.id, changes)}
++                    />
+                   </div>
+                   <Field
+                     label={tr(
+--- before/src/features/finishedGoods/PalletScene.tsx
++++ after/src/features/finishedGoods/PalletScene.tsx
+@@ -1,6 +1,7 @@
+ "use client";
+ 
+-import { useId, useRef, useState } from "react";
++import { usePreviewState } from "./usePreviewState";
++import { useId, useRef } from "react";
+ import {
+   CircleCheck,
+   RotateCcw,
+@@ -39,6 +40,7 @@
+ } from "./palletGeometry";
+ 
+ export interface PalletSceneProps {
++  readonly viewStateKey?: string | undefined;
+   readonly dimensions: PalletDimensions;
+   readonly area?: PalletDimensions;
+   readonly placement?: PalletPlacement;
+@@ -152,6 +154,7 @@
+   locale,
+   label,
+   storageFormat,
++  viewStateKey,
+   showDimensions = true,
+   status = "PROPOSED",
+   support: requestedSupport,
+@@ -166,9 +169,26 @@
+       unitCopy(value, storageFormat),
+     ]),
+   ) as Record<keyof typeof copy.en, string>;
+-  const [planView, setPlanView] = useState(false);
+-  const [quarterTurns, setQuarterTurns] = useState(0);
+-  const [zoom, setZoom] = useState(1);
++  const [view, setView] = usePreviewState(viewStateKey, {
++    planView: false as boolean,
++    quarterTurns: 0,
++    zoom: 1,
++  });
++  const planView = view.planView;
++  const quarterTurns = Math.abs(Math.trunc(view.quarterTurns)) % 4;
++  const zoom = Math.min(2.5, Math.max(1, view.zoom));
++  const setPlanView = (planView: boolean) =>
++    setView((previous) => ({ ...previous, planView }));
++  const setQuarterTurns = (next: number | ((value: number) => number)) =>
++    setView((previous) => ({
++      ...previous,
++      quarterTurns: typeof next === "function" ? next(quarterTurns) : next,
++    }));
++  const setZoom = (next: number | ((value: number) => number)) =>
++    setView((previous) => ({
++      ...previous,
++      zoom: typeof next === "function" ? next(zoom) : next,
++    }));
+   const hintId = useId();
+   const svgRef = useRef<SVGSVGElement>(null);
+   const drag = useRef<
+--- before/src/features/finishedGoods/PalletScreens.a11y.test.tsx
++++ after/src/features/finishedGoods/PalletScreens.a11y.test.tsx
+@@ -1,6 +1,6 @@
+ import type * as ClerkModule from "@clerk/nextjs";
+ import type * as WorkspaceModule from "@/components/providers/WorkspaceProvider";
+-import { fireEvent, screen } from "@testing-library/react";
++import { screen } from "@testing-library/react";
+ import { axe } from "jest-axe";
+ import type { ComponentProps, ReactNode } from "react";
+ import { getFunctionName } from "convex/server";
+@@ -67,18 +67,16 @@
+   },
+ );
+ 
+-it("keeps exact placement adjustment and review dialog accessible", async () => {
++it("keeps exact placement adjustment and inline reservation accessible", async () => {
+   const { container } = renderWithIntl(
+     <PalletScreen palletId="pallet-a" view="storage" />,
+     { locale: "en", workspace: false },
+   );
+   expect(await axe(container)).toHaveNoViolations();
+-  fireEvent.click(screen.getByRole("button", { name: "Confirm spot" }));
+   expect(
+-    await axe(
+-      screen.getByRole("dialog", { name: "Confirm storage destination" }),
+-    ),
+-  ).toHaveNoViolations();
++    screen.getByRole("button", { name: "Reserve this position" }),
++  ).toBeEnabled();
++  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+ });
+ 
+ it("keeps manual verification and physical confirmation clearly named", async () => {
+@@ -87,10 +85,9 @@
+     locale: "en",
+     workspace: false,
+   });
+-  fireEvent.click(screen.getByRole("button", { name: "Scan destination QR" }));
+   expect(
+     await axe(
+-      screen.getByRole("dialog", { name: "Verify destination and placement" }),
++      screen.getByRole("region", { name: "Verify destination and placement" }),
+     ),
+   ).toHaveNoViolations();
+ });
+--- before/src/features/finishedGoods/PalletScreens.test.tsx
++++ after/src/features/finishedGoods/PalletScreens.test.tsx
+@@ -95,6 +95,7 @@
+ 
+ beforeEach(() => {
+   localStorage.clear();
++  sessionStorage.clear();
+   mocks.canManage = true;
+   mocks.authLoaded = true;
+   mocks.actorId = "user-a";
+@@ -472,12 +473,16 @@
+     expect(
+       screen.getByText("Enter valid X and Y coordinates, zero or greater."),
+     ).toBeVisible();
+-    expect(screen.getByRole("button", { name: "Confirm spot" })).toBeDisabled();
++    expect(
++      screen.getByRole("button", { name: "Reserve this position" }),
++    ).toBeDisabled();
+     expect(
+       screen.queryByText("Dimensions fit inside the support"),
+     ).not.toBeInTheDocument();
+     number("X (m)", "0.3");
+-    expect(screen.getByRole("button", { name: "Confirm spot" })).toBeEnabled();
++    expect(
++      screen.getByRole("button", { name: "Reserve this position" }),
++    ).toBeEnabled();
+   });
+   it("defaults to fixed surfaces, shows real dimensions and only includes stacking when requested", () => {
+     const stack = {
+@@ -589,7 +594,7 @@
+       ).toBeInTheDocument();
+       expect(screen.getByText(new RegExp(message))).toBeInTheDocument();
+       expect(
+-        screen.getByRole("button", { name: "Confirm spot" }),
++        screen.getByRole("button", { name: "Reserve this position" }),
+       ).toBeDisabled();
+       expect(callsFor("reserve")).toHaveLength(0);
+     },
+@@ -678,7 +683,9 @@
+     expect(
+       screen.getByText(/Pallet exceeds the available height/),
+     ).toBeInTheDocument();
+-    expect(screen.getByRole("button", { name: "Confirm spot" })).toBeDisabled();
++    expect(
++      screen.getByRole("button", { name: "Reserve this position" }),
++    ).toBeDisabled();
+     expect(callsFor("reserve")).toHaveLength(0);
+   });
+ 
+@@ -710,8 +717,9 @@
+     expect(
+       screen.getByText(/Position: X 0.3 m · Y 0.2 m · Z 1.4 m/),
+     ).toBeInTheDocument();
+-    fireEvent.click(screen.getByRole("button", { name: "Confirm spot" }));
+-    fireEvent.click(screen.getByRole("button", { name: "Reserve spot" }));
++    fireEvent.click(
++      screen.getByRole("button", { name: "Reserve this position" }),
++    );
+     await waitFor(() => expect(callsFor("reserve")).toHaveLength(1));
+     expect(callsFor("reserve")[0]?.[1]).toMatchObject({
+       supportPalletId: "lower-pallet",
+@@ -751,22 +759,19 @@
+     expect(screen.getByRole("link", { name: "Save for later" })).toBeVisible();
+   });
+ 
+-  it("previews and reviews a local coordinate without reserving until explicit Reserve", async () => {
++  it("previews a local coordinate and reserves in one explicit action", async () => {
+     renderPallet("storage");
+     expect(mocks.write).not.toHaveBeenCalled();
+     expect(
+       screen.getByText(/Storage condition is not configured/),
+     ).toBeVisible();
+     number("X (m)", "0.2");
+-    fireEvent.click(screen.getByRole("button", { name: "Confirm spot" }));
+-    const dialog = screen.getByRole("dialog", {
+-      name: "Confirm storage destination",
+-    });
+-    expect(dialog).toHaveTextContent("BLDG-A");
+-    expect(dialog).toHaveTextContent("FG-1");
++    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
++    expect(screen.getAllByText(/BLDG-A/).length).toBeGreaterThan(0);
++    expect(screen.getAllByText(/FG-1/).length).toBeGreaterThan(0);
+     expect(mocks.write).not.toHaveBeenCalled();
+     fireEvent.click(
+-      within(dialog).getByRole("button", { name: "Reserve spot" }),
++      screen.getByRole("button", { name: "Reserve this position" }),
+     );
+     await waitFor(() =>
+       expect(mocks.push).toHaveBeenCalledWith(
+@@ -783,30 +788,211 @@
+     expect(callsFor("confirmStored")).toHaveLength(0);
+   });
+ 
+-  it("blocks an invalid manually adjusted footprint and can reset it", () => {
+-    renderPallet("storage");
++  it("restores an invalid position and camera after returning, then revalidates measurements", () => {
++    const view = renderPallet("storage");
+     number("X (m)", "1.5");
+-    expect(screen.getByRole("button", { name: "Confirm spot" })).toBeDisabled();
++    fireEvent.click(screen.getByRole("button", { name: "2D plan" }));
++    view.unmount();
++    const restored = renderPallet("storage");
++    expect(screen.getByRole("spinbutton", { name: "X (m)" })).toHaveValue(1.5);
++    expect(screen.getByRole("button", { name: "2D plan" })).toHaveAttribute(
++      "aria-pressed",
++      "true",
++    );
++    expect(
++      screen.getByRole("button", { name: "Reserve this position" }),
++    ).toBeDisabled();
++    restored.unmount();
++    currentDetail = {
++      ...measuredPalletDetail,
++      pallet: {
++        ...measuredPalletDetail.pallet,
++        widthMm: 100,
++        lengthMm: 100,
++        updatedAt: 2000,
++      },
++    };
++    renderPallet("storage");
++    expect(screen.getByRole("spinbutton", { name: "X (m)" })).toHaveValue(1.5);
++    expect(
++      screen.getByRole("button", { name: "Reserve this position" }),
++    ).toBeEnabled();
++  });
++
++  it("keeps the selected destination and draft visible when corrected dimensions make it preview-only", () => {
++    const alternative = {
++      ...finishedGoodDestination,
++      zoneId: "zone-larger",
++      locationName: "Larger location",
++      zone: { ...finishedGoodDestination.zone, widthMm: 4000 },
++      support: { ...finishedGoodDestination.support, widthMm: 4000 },
++    };
++    let corrected = false;
++    mocks.query.mockImplementation((name) =>
++      name.endsWith(":getPallet")
++        ? querySuccess(currentDetail)
++        : querySuccess({
++            candidates: corrected
++              ? [alternative]
++              : [alternative, finishedGoodDestination],
++            previewCandidates: corrected ? [finishedGoodDestination] : [],
++            reasons: [],
++          }),
++    );
++    const first = renderPallet("storage");
++    fireEvent.click(screen.getByRole("button", { name: /FG-1/ }));
++    number("X (m)", "0.6");
++    fireEvent.click(screen.getByRole("button", { name: "2D plan" }));
++    first.unmount();
++    corrected = true;
++    currentDetail = {
++      ...measuredPalletDetail,
++      pallet: {
++        ...measuredPalletDetail.pallet,
++        widthMm: 2500,
++        updatedAt: 2000,
++      },
++    };
++    renderPallet("storage");
++    expect(screen.getByRole("button", { name: /FG-1/ })).toHaveAttribute(
++      "aria-pressed",
++      "true",
++    );
++    expect(screen.getByRole("spinbutton", { name: "X (m)" })).toHaveValue(0.6);
++    expect(screen.getByRole("button", { name: "2D plan" })).toHaveAttribute(
++      "aria-pressed",
++      "true",
++    );
++    expect(
++      screen.getByRole("button", { name: "Inspect unavailable areas" }),
++    ).toHaveAttribute("aria-pressed", "false");
++    expect(
++      screen.getByRole("button", { name: "Reserve this position" }),
++    ).toBeDisabled();
+     expect(
+       screen.getByText(
+         "This position is not valid. Adjust it before continuing.",
+       ),
+     ).toBeVisible();
++    expect(callsFor("reserve")).toHaveLength(0);
++  });
++
++  it("keeps the implicitly selected destination after editing it and recommendations reorder", () => {
++    const alternative = {
++      ...finishedGoodDestination,
++      zoneId: "zone-b",
++      locationName: "Second location",
++      xMm: 500,
++    };
++    let reordered = false;
++    mocks.query.mockImplementation((name) =>
++      name.endsWith(":getPallet")
++        ? querySuccess(currentDetail)
++        : querySuccess({
++            candidates: reordered
++              ? [alternative, finishedGoodDestination]
++              : [finishedGoodDestination, alternative],
++            reasons: [],
++          }),
++    );
++    const first = renderPallet("storage");
++    // Editing the already selected recommendation must not require clicking its card first.
++    number("X (m)", "0.6");
++    first.unmount();
++    reordered = true;
++    renderPallet("storage");
++    expect(screen.getByRole("button", { name: /FG-1/ })).toHaveAttribute(
++      "aria-pressed",
++      "true",
++    );
++    expect(
++      screen.getByRole("button", { name: /Second location/ }),
++    ).toHaveAttribute("aria-pressed", "false");
++    expect(screen.getByRole("spinbutton", { name: "X (m)" })).toHaveValue(0.6);
++    expect(callsFor("reserve")).toHaveLength(0);
++  });
++
++  it("requires an explicit replacement when the selected destination disappears from both candidate lists", () => {
++    const alternative = {
++      ...finishedGoodDestination,
++      zoneId: "zone-b",
++      locationName: "Second location",
++      xMm: 500,
++    };
++    let removed = false;
++    mocks.query.mockImplementation((name) =>
++      name.endsWith(":getPallet")
++        ? querySuccess(currentDetail)
++        : querySuccess({
++            candidates: removed
++              ? [alternative]
++              : [finishedGoodDestination, alternative],
++            previewCandidates: [],
++            reasons: [],
++          }),
++    );
++    const first = renderPallet("storage");
++    number("X (m)", "0.6");
++    first.unmount();
++    removed = true;
++    renderPallet("storage");
++    expect(
++      screen.getByText(
++        "The previous location is no longer available. Select another destination to continue.",
++      ),
++    ).toBeVisible();
++    expect(
++      screen.queryByRole("spinbutton", { name: "X (m)" }),
++    ).not.toBeInTheDocument();
++    expect(
++      screen.queryByRole("button", { name: "Reserve this position" }),
++    ).not.toBeInTheDocument();
++    const other = screen.getByRole("button", { name: /Second location/ });
++    expect(other).toHaveAttribute("aria-pressed", "false");
++    fireEvent.click(other);
++    expect(screen.getByRole("spinbutton", { name: "X (m)" })).toHaveValue(0.5);
++    expect(
++      screen.getByRole("button", { name: "Reserve this position" }),
++    ).toBeEnabled();
++    expect(callsFor("reserve")).toHaveLength(0);
++  });
++
++  it("does not restore another actor's proposed coordinates", () => {
++    const view = renderPallet("storage");
++    number("X (m)", "0.7");
++    view.unmount();
++    mocks.actorId = "user-b";
++    renderPallet("storage");
++    expect(screen.getByRole("spinbutton", { name: "X (m)" })).toHaveValue(0.1);
++  });
++
++  it("blocks an invalid manually adjusted footprint and can reset it", () => {
++    renderPallet("storage");
++    number("X (m)", "1.5");
++    expect(
++      screen.getByRole("button", { name: "Reserve this position" }),
++    ).toBeDisabled();
++    expect(
++      screen.getByText(
++        "This position is not valid. Adjust it before continuing.",
++      ),
++    ).toBeVisible();
+     fireEvent.click(
+       screen.getByRole("button", { name: "Reset to recommendation" }),
+     );
+-    expect(screen.getByRole("button", { name: "Confirm spot" })).toBeEnabled();
+-  });
+-
+-  it("keeps the confirmation dialog and proposed position on reservation conflict", async () => {
++    expect(
++      screen.getByRole("button", { name: "Reserve this position" }),
++    ).toBeEnabled();
++  });
++
++  it("keeps the proposed position visible on reservation conflict", async () => {
+     mocks.write.mockResolvedValue(writeFailure("SPACE_OCCUPIED"));
+     renderPallet("storage");
+-    fireEvent.click(screen.getByRole("button", { name: "Confirm spot" }));
+-    fireEvent.click(screen.getByRole("button", { name: "Reserve spot" }));
+-    const dialog = screen.getByRole("dialog", {
+-      name: "Confirm storage destination",
+-    });
+-    expect(await within(dialog).findByRole("alert")).toHaveTextContent(
++    fireEvent.click(
++      screen.getByRole("button", { name: "Reserve this position" }),
++    );
++    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
++    expect(await screen.findByRole("alert")).toHaveTextContent(
+       /reserved this space/,
+     );
+     expect(mocks.push).not.toHaveBeenCalled();
+@@ -820,10 +1006,7 @@
+   it("keeps storage confirmation disabled after a wrong destination", async () => {
+     mocks.write.mockResolvedValue(writeFailure("DESTINATION_MISMATCH"));
+     renderPallet();
+-    fireEvent.click(
+-      screen.getByRole("button", { name: "Scan destination QR" }),
+-    );
+-    const dialog = screen.getByRole("dialog", {
++    const dialog = screen.getByRole("region", {
+       name: "Verify destination and placement",
+     });
+     expect(
+@@ -845,13 +1028,15 @@
+       within(dialog).getByRole("button", { name: "Confirm stored" }),
+     ).toBeDisabled();
+     expect(callsFor("confirmStored")).toHaveLength(0);
++    await screen.findByRole("alert");
++    fireEvent.click(screen.getByRole("button", { name: "Cancel reservation" }));
++    expect(
++      within(screen.getByRole("dialog")).queryByRole("alert"),
++    ).not.toBeInTheDocument();
+   });
+ 
+   it("requires a separate physical confirmation after successful verification", async () => {
+     const view = renderPallet();
+-    fireEvent.click(
+-      screen.getByRole("button", { name: "Scan destination QR" }),
+-    );
+     fireEvent.change(screen.getByLabelText("Destination code"), {
+       target: { value: "ISAS:LOCATION:1:location-a" },
+     });
+@@ -938,8 +1123,8 @@
+       expect(screen.getByText(/FG-001 · Packaging cartons/)).toBeVisible();
+       noEnabledButton("Save and find storage");
+       noEnabledButton("Save and exit");
+-      noEnabledButton("Confirm spot");
+-      noEnabledButton("Reserve spot");
++      noEnabledButton("Reserve this position");
++      noEnabledButton("Reserve this position");
+       expect(mocks.write).not.toHaveBeenCalled();
+     },
+   );
+@@ -984,9 +1169,6 @@
+       },
+     };
+     renderPallet();
+-    fireEvent.click(
+-      screen.getByRole("button", { name: "Scan destination QR" }),
+-    );
+     expect(screen.getByLabelText("Destination code")).toBeEnabled();
+     expect(screen.getByRole("button", { name: "Start camera" })).toBeEnabled();
+     expect(
+@@ -1067,9 +1249,6 @@
+     },
+   };
+   renderPallet("detail");
+-  fireEvent.click(
+-    screen.getByRole("button", { name: "Verify pallet identities" }),
+-  );
+   expect(
+     screen.getByRole("textbox", { name: "Supporting pallet code" }),
+   ).toBeVisible();
+--- before/src/features/finishedGoods/PalletScreens.tsx
++++ after/src/features/finishedGoods/PalletScreens.tsx
+@@ -1,9 +1,9 @@
+ "use client";
+ 
+ import { useMutation, useQuery } from "convex/react";
++import { useSearchParams } from "next/navigation";
+ import { useState, type FormEvent } from "react";
+ import {
+-  Check,
+   CheckCircle2,
+   MapPin,
+   Pencil,
+@@ -11,15 +11,10 @@
+   Layers3,
+   LockKeyhole,
+   Ruler,
+-  ScanLine,
+-  Search,
+-  X,
+-  ShieldCheck,
+   TriangleAlert,
+ } from "lucide-react";
+ import { QueryGate } from "@/components/system/QueryGate";
+ import { Button } from "@/components/ui/button";
+-import { Input } from "@/components/ui/input";
+ import { Notice } from "@/components/ui/Notice";
+ import {
+   Dialog,
+@@ -30,22 +25,25 @@
+   DialogFooter,
+ } from "@/components/ui/dialog";
+ import { Link, useRouter } from "@/i18n/navigation";
++import { fgRefs, type PalletDetail } from "@/lib/convex/finishedGoodsApi";
+ import {
+-  fgRefs,
+-  type PalletDetail,
+-  type Candidate,
+-  type Destination,
+-} from "@/lib/convex/finishedGoodsApi";
+-import { PalletScene, type PalletPlacement } from "./PalletScene";
+-import {
+-  palletPlacementIssue,
+-  resolvePalletSupport,
+-  type PlacementSurface,
+-} from "./palletGeometry";
++  PlacementEditor,
++  DestinationSummary,
++  sceneProps,
++  correctionPath,
++} from "./PlacementEditor";
++export {
++  PlacementEditor,
++  DestinationSummary,
++  sceneProps,
++} from "./PlacementEditor";
++import { PalletScene } from "./PalletScene";
++import { usePreviewState } from "./usePreviewState";
+ import { DestinationScanner } from "./DestinationScanner";
++import { DestinationPicker, destinationKey } from "./DestinationPicker";
++export { destinationKey } from "./DestinationPicker";
+ import {
+   ErrorNotice,
+-  errorText,
+   Field,
+   Heading,
+   Loading,
+@@ -53,16 +51,13 @@
+   QR,
+   Status,
+   Steps,
+-  measurePath,
+   mmText,
+   palletPath,
+   palletDisplayStatus,
+   panel,
+   productPath,
+   storagePath,
+-  useFGText,
+   useUnitText,
+-  unitCorrectionPath,
+   useCanManage,
+   useDraftKey,
+   useOperation,
+@@ -128,11 +123,6 @@
+     return <Recommendations warehouseId={warehouseId} detail={detail} />;
+   return <PalletDetailScreen warehouseId={warehouseId} detail={detail} />;
+ }
+-function correctionPath(detail: PalletDetail) {
+-  return detail.pallet.preparationBatchId
+-    ? unitCorrectionPath(detail.pallet.productId, detail.pallet._id)
+-    : measurePath(detail.pallet._id);
+-}
+ function BatchMeasurementLink({ detail }: { detail: PalletDetail }) {
+   const { tr } = useUnitText(
+     detail.pallet.storageFormat ?? detail.product?.storageFormat,
+@@ -228,6 +218,8 @@
+   const router = useRouter();
+   const mutate = useMutation(fgRefs.saveMeasurement);
+   const pallet = detail.pallet;
++  const returnToPlacement =
++    useSearchParams()?.get("returnToUnit") === pallet._id;
+   const key = `${draftScope}:${warehouseId}:${pallet._id}`;
+   const op = useOperation(
+     key,
+@@ -340,7 +332,11 @@
+       try {
+         localStorage.removeItem(key);
+       } catch {}
+-      router.push(find ? storagePath(pallet._id) : palletPath(pallet._id));
++      router.push(
++        find || returnToPlacement
++          ? storagePath(pallet._id)
++          : palletPath(pallet._id),
++      );
+     });
+   }
+   function submit(event: FormEvent) {
+@@ -351,8 +347,16 @@
+     <>
+       <Heading
+         title={tr("Measure pallet", "วัดขนาดพาเลท")}
+-        back={`${productPath(pallet.productId)}?resumePalletId=${encodeURIComponent(pallet._id)}`}
+-        backLabel={tr("Product details", "ข้อมูลสินค้า")}
++        back={
++          returnToPlacement
++            ? storagePath(pallet._id)
++            : `${productPath(pallet.productId)}?resumePalletId=${encodeURIComponent(pallet._id)}`
++        }
++        backLabel={
++          returnToPlacement
++            ? tr("Return to placement", "กลับไปเลือกตำแหน่ง")
++            : tr("Product details", "ข้อมูลสินค้า")
++        }
+         description={tr(
+           "Measure the outside of the complete storage unit, including its pallet and packaging.",
+           "วัดขนาดภายนอกของหน่วยจัดเก็บทั้งหมด รวมฐานพาเลทและบรรจุภัณฑ์",
+@@ -532,10 +536,18 @@
+     fgRefs.recommend,
+     measured ? { warehouseId, palletId: detail.pallet._id } : "skip",
+   );
+-  const [selected, setSelected] = useState("");
+-  const [showUnavailable, setShowUnavailable] = useState(false);
+-  const [locationSearch, setLocationSearch] = useState("");
+-  const [includeStacking, setIncludeStacking] = useState(false);
++  const scope = useDraftKey("fg-destinations");
++  const [selection, setSelection] = usePreviewState(
++    scope ? `${scope}:${warehouseId}:${detail.pallet._id}` : undefined,
++    {
++      selected: "",
++      showUnavailable: false as boolean,
++      includeStacking: false as boolean,
++    },
++  );
++  const { selected, showUnavailable, includeStacking } = selection;
++  const setSelected = (selected: string) =>
++    setSelection((previous) => ({ ...previous, selected }));
+   if (!measured)
+     return (
+       <>
+@@ -582,23 +594,29 @@
+   );
+   const previews =
+     "previewCandidates" in outcome.value ? outcome.value.previewCandidates : [];
+-  const candidates = [...validCandidates, ...(showUnavailable ? previews : [])];
+-  const locationNeedle = locationSearch.trim().toLocaleLowerCase();
+-  const filteredCandidates = candidates.filter((c) =>
+-    [
+-      c.locationName,
+-      c.buildingCode,
+-      c.floorNumber,
+-      c.supportLabel,
+-      c.supportCode,
+-    ]
+-      .join(" ")
+-      .toLocaleLowerCase()
+-      .includes(locationNeedle),
+-  );
+   const keyOf = destinationKey;
+-  const current =
+-    candidates.find((c) => keyOf(c) === selected) ?? candidates[0];
++  const candidates = [
++    ...validCandidates,
++    ...(showUnavailable
++      ? previews
++      : previews.filter((c) => keyOf(c) === selected)),
++  ];
++  const current = selected
++    ? candidates.find((c) => keyOf(c) === selected)
++    : candidates[0];
++  const picker = (
++    <DestinationPicker
++      stateKey={
++        scope
++          ? `${scope}:${warehouseId}:${detail.pallet._id}:search`
++          : undefined
++      }
++      candidates={candidates}
++      selected={current ? keyOf(current) : ""}
++      onSelect={setSelected}
++      recommended={validCandidates[0]}
++    />
++  );
+   return (
+     <>
+       <Heading
+@@ -618,7 +636,10 @@
+             variant="outline"
+             aria-pressed={includeStacking}
+             onClick={() => {
+-              setIncludeStacking(!includeStacking);
++              setSelection((previous) => ({
++                ...previous,
++                includeStacking: !includeStacking,
++              }));
+               setSelected("");
+             }}
+           >
+@@ -630,7 +651,10 @@
+             variant="ghost"
+             aria-pressed={showUnavailable}
+             onClick={() => {
+-              setShowUnavailable(!showUnavailable);
++              setSelection((previous) => ({
++                ...previous,
++                showUnavailable: !showUnavailable,
++              }));
+               setSelected("");
+             }}
+           >
+@@ -666,7 +690,18 @@
+           />
+         </div>
+       ) : null}
+-      {!current ? (
++      {!current && selected && candidates.length > 0 ? (
++        <div className="space-y-4">
++          <Notice
++            tone="warning"
++            title={tr(
++              "The previous location is no longer available. Select another destination to continue.",
++              "จุดเดิมไม่พร้อมใช้งานแล้ว เลือกปลายทางใหม่เพื่อดำเนินการต่อ",
++            )}
++          />
++          {picker}
++        </div>
++      ) : !current ? (
+         <div className={`${panel} space-y-4 py-8`}>
+           <TriangleAlert className="size-8 text-warning" aria-hidden="true" />
+           <h2 className="text-xl font-semibold">
+@@ -703,103 +738,10 @@
+         </div>
+       ) : (
+         <div className="grid items-start gap-4 2xl:grid-cols-[230px_1fr]">
+-          <section className="min-w-0 space-y-3">
+-            <h2 className="text-sm font-semibold">
+-              {tr("Available locations", "จุดจัดเก็บที่ใช้ได้")}
+-              <span className="ml-2 font-normal text-muted" aria-live="polite">
+-                {locationNeedle
+-                  ? `${filteredCandidates.length} / ${candidates.length}`
+-                  : candidates.length}
+-              </span>
+-            </h2>
+-            <div className="relative">
+-              <Search
+-                className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted"
+-                aria-hidden="true"
+-              />
+-              <Input
+-                aria-label={tr("Search storage locations", "ค้นหาจุดจัดเก็บ")}
+-                placeholder={tr(
+-                  "Building, location or rack…",
+-                  "อาคาร จุดจัดเก็บ หรือชั้นวาง…",
+-                )}
+-                value={locationSearch}
+-                onChange={(event) => setLocationSearch(event.target.value)}
+-                className="pr-12 pl-9"
+-              />
+-              {locationSearch && (
+-                <Button
+-                  variant="ghost"
+-                  size="icon"
+-                  className="absolute top-1/2 right-0 -translate-y-1/2"
+-                  aria-label={tr("Clear search", "ล้างคำค้น")}
+-                  title={tr("Clear search", "ล้างคำค้น")}
+-                  onClick={() => setLocationSearch("")}
+-                >
+-                  <X aria-hidden="true" />
+-                </Button>
+-              )}
+-            </div>
+-            {filteredCandidates.length === 0 ? (
+-              <div className="space-y-2 rounded-xl border border-dashed border-border p-4 text-sm">
+-                <p role="status">
+-                  {tr("No matching locations", "ไม่พบจุดจัดเก็บที่ตรงกัน")}
+-                </p>
+-                <p className="text-xs text-muted">
+-                  {tr(
+-                    "Your current preview is kept. Clear the search to see all locations.",
+-                    "ภาพตำแหน่งที่เลือกยังคงอยู่ ล้างคำค้นเพื่อดูจุดจัดเก็บทั้งหมด",
+-                  )}
+-                </p>
+-              </div>
+-            ) : (
+-              <div
+-                role="region"
+-                aria-label={tr("Location options", "ตัวเลือกจุดจัดเก็บ")}
+-                tabIndex={0}
+-                className="flex gap-2 overflow-x-auto rounded-xl pb-2 outline-none focus-visible:ring-2 focus-visible:ring-ring 2xl:max-h-[32rem] 2xl:flex-col 2xl:overflow-y-auto 2xl:pr-2"
+-              >
+-                {filteredCandidates.map((c) => (
+-                  <button
+-                    key={keyOf(c)}
+-                    type="button"
+-                    aria-pressed={keyOf(current) === keyOf(c)}
+-                    onClick={() => setSelected(keyOf(c))}
+-                    className={`min-w-52 shrink-0 rounded-xl border p-3 text-left transition outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset 2xl:min-w-0 ${keyOf(current) === keyOf(c) ? "border-accent bg-accent/10" : "border-border bg-surface hover:border-accent/60"}`}
+-                  >
+-                    <div className="flex flex-wrap items-center gap-2">
+-                      <MapPin
+-                        className="size-4 text-accent"
+-                        aria-hidden="true"
+-                      />
+-                      <span className="font-semibold">{c.locationName}</span>
+-                      {validCandidates[0] &&
+-                      keyOf(c) === keyOf(validCandidates[0]) ? (
+-                        <span className="rounded-full bg-success/10 px-2 py-1 text-[10px] text-success">
+-                          {tr("Recommended", "แนะนำ")}
+-                        </span>
+-                      ) : null}
+-                    </div>
+-                    <p className="mt-2 text-xs text-muted">
+-                      {c.buildingCode} · {tr("Floor", "ชั้น")} {c.floorNumber}
+-                    </p>
+-                    <p className="mt-2 text-xs text-muted">
+-                      {mmText(c.support.widthMm)} × {mmText(c.support.depthMm)}
+-                    </p>
+-                    <p className="mt-2 text-xs text-muted">
+-                      {c.supportLabel ??
+-                        c.supportCode ??
+-                        tr("Location floor", "พื้นจุดจัดเก็บ")}
+-                      {" · Z "}
+-                      {mmText(c.support.zMm)}
+-                    </p>
+-                  </button>
+-                ))}
+-              </div>
+-            )}
+-          </section>
++          {picker}
+           <PlacementEditor
+             key={keyOf(current)}
++            onActivate={() => setSelected(keyOf(current))}
+             warehouseId={warehouseId}
+             detail={detail}
+             candidate={current}
+@@ -856,516 +798,6 @@
+         "ไม่มีตำแหน่งที่ตรงกับขนาดและข้อกำหนดการจัดเก็บในขณะนี้",
+       );
+ }
+-export function sceneProps(
+-  destination: Candidate | Destination,
+-  detail: PalletDetail,
+-) {
+-  return {
+-    storageFormat: detail.pallet.storageFormat ?? detail.product?.storageFormat,
+-    dimensions: {
+-      widthMm: detail.pallet.widthMm ?? 0,
+-      depthMm: detail.pallet.lengthMm ?? 0,
+-      heightMm: detail.pallet.heightMm ?? 0,
+-    },
+-    area: {
+-      widthMm: destination.zone.widthMm,
+-      depthMm: destination.zone.depthMm,
+-      heightMm:
+-        destination.zone.maxStackHeightMm + destination.zone.baseElevationMm,
+-    },
+-    support: destination.support,
+-    unavailable: destination.unavailable,
+-    occupied: destination.occupied
+-      .filter((p) => p.palletId !== detail.pallet._id)
+-      .map((p) => ({ ...p, id: p.placementId, label: p.positionCode })),
+-  };
+-}
+-export function DestinationSummary({
+-  destination,
+-  placement,
+-}: {
+-  destination: Candidate | Destination;
+-  placement: PalletPlacement;
+-}) {
+-  const { tr } = useFGText();
+-  return (
+-    <div className="space-y-4">
+-      <p className="text-sm font-medium break-words">
+-        {destination.buildingCode} <span className="text-muted">→</span>{" "}
+-        {tr("Floor", "ชั้น")} {destination.floorNumber}{" "}
+-        <span className="text-muted">→</span> {destination.locationName}{" "}
+-        {destination.supportLabel || destination.supportCode ? (
+-          <>
+-            <span className="text-muted">→</span>{" "}
+-            {destination.supportLabel ?? destination.supportCode}{" "}
+-          </>
+-        ) : null}
+-        <span className="text-muted">→</span>{" "}
+-        {destination.positionCode === "Proposed"
+-          ? tr("Proposed position", "ตำแหน่งที่เสนอ")
+-          : destination.positionCode}
+-      </p>
+-      <dl className="grid grid-cols-2 gap-3 text-sm">
+-        {[
+-          ["X", mmText(placement.xMm)],
+-          ["Y", mmText(placement.yMm)],
+-          [
+-            tr("Base elevation", "ระดับฐาน"),
+-            mmText(placement.zMm ?? destination.support.zMm),
+-          ],
+-          [tr("Orientation", "ทิศทาง"), `${placement.rotation}°`],
+-        ].map(([label, value]) => (
+-          <div key={label}>
+-            <dt className="text-xs text-muted">{label}</dt>
+-            <dd className="mt-1 font-mono">{value}</dd>
+-          </div>
+-        ))}
+-      </dl>
+-      <p className="text-xs text-muted">
+-        {tr(
+-          "X/Y are measured from the marked origin inside this location.",
+-          "พิกัด X/Y อ้างอิงจากจุดเริ่มต้นที่แสดงภายในจุดจัดเก็บนี้",
+-        )}
+-      </p>
+-    </div>
+-  );
+-}
+-export function destinationKey(candidate: Candidate) {
+-  const support = candidate.supportPalletId
+-    ? `pallet:${candidate.supportPalletId}`
+-    : candidate.supportPositionId
+-      ? `position:${candidate.supportPositionId}`
+-      : "floor";
+-  return `${candidate.zoneId}:${support}`;
+-}
+-
+-export function PlacementEditor({
+-  warehouseId,
+-  detail,
+-  candidate: initialCandidate,
+-  destinations = [initialCandidate],
+-  moving = false,
+-  onReserved,
+-}: {
+-  warehouseId: string;
+-  detail: PalletDetail;
+-  candidate: Candidate;
+-  destinations?: readonly Candidate[];
+-  moving?: boolean;
+-  onReserved?: () => void;
+-}) {
+-  const { tr, locale } = useUnitText(
+-    detail.pallet.storageFormat ?? detail.product?.storageFormat,
+-  );
+-  const router = useRouter();
+-  const mutate = useMutation(fgRefs.reserve);
+-  const moveMutation = useMutation(fgRefs.reserveMove);
+-  const actorScope = useDraftKey("fg-move-reserve");
+-  const op = useOperation(
+-    moving ? `${actorScope}:${warehouseId}:${detail.pallet._id}` : undefined,
+-    detail.pallet.storageFormat ?? detail.product?.storageFormat,
+-  );
+-  const [reason, setReason] = useState("");
+-  const [requested, setPlacement] = useState<PalletPlacement>({
+-    xMm: initialCandidate.xMm,
+-    yMm: initialCandidate.yMm,
+-    zMm: initialCandidate.zMm,
+-    rotation: initialCandidate.rotation,
+-  });
+-  const [coordinateDraft, setCoordinateDraft] = useState({
+-    x: String(initialCandidate.xMm / 1000),
+-    y: String(initialCandidate.yMm / 1000),
+-  });
+-  const coordinateInvalid = Object.values(coordinateDraft).some(
+-    (value) =>
+-      value.trim() === "" ||
+-      !Number.isFinite(Number(value)) ||
+-      Number(value) < 0,
+-  );
+-  const coordinateMessage = tr(
+-    "Enter valid X and Y coordinates, zero or greater.",
+-    "กรอกพิกัด X และ Y ให้ถูกต้อง ตั้งแต่ศูนย์ขึ้นไป",
+-  );
+-  function updatePlacement(next: PalletPlacement) {
+-    setPlacement(next);
+-    setCoordinateDraft({
+-      x: String(next.xMm / 1000),
+-      y: String(next.yMm / 1000),
+-    });
+-  }
+-  function updateCoordinate(axis: "x" | "y", value: string) {
+-    setCoordinateDraft((previous) => ({ ...previous, [axis]: value }));
+-    if (value.trim() !== "" && Number.isFinite(Number(value)))
+-      setPlacement((previous) => ({
+-        ...previous,
+-        [axis === "x" ? "xMm" : "yMm"]: Math.round(Number(value) * 1000),
+-      }));
+-  }
+-  const [confirm, setConfirm] = useState(false);
+-  const initialProps = sceneProps(initialCandidate, detail);
+-  const allSurfaces: PlacementSurface[] = initialCandidate.previewSupports
+-    ? initialCandidate.previewSupports.map(({ surface, ...metadata }) => ({
+-        ...surface,
+-        ...metadata,
+-      }))
+-    : destinations
+-        .filter((d) => d.zoneId === initialCandidate.zoneId)
+-        .map((d) => ({
+-          ...d.support,
+-          supportPalletId: d.supportPalletId,
+-          supportPositionId: d.supportPositionId,
+-          supportCode: d.supportCode,
+-        }));
+-  const allowsPalletStacking =
+-    (detail.pallet.storageFormat ?? detail.product?.storageFormat) === "PALLET";
+-  const surfaces = allSurfaces.filter(
+-    (s) => !s.supportPalletId || allowsPalletStacking,
+-  );
+-  const selectedSurface = surfaces.find(
+-    (s) =>
+-      s.supportPalletId === initialCandidate.supportPalletId &&
+-      s.supportPositionId === initialCandidate.supportPositionId,
+-  );
+-  const base = surfaces.find(
+-    (s) =>
+-      !s.supportPalletId &&
+-      s.supportPositionId ===
+-        (selectedSurface?.baseSupportPositionId ??
+-          initialCandidate.supportPositionId),
+-  ) ?? {
+-    ...initialCandidate.support,
+-    supportPositionId: initialCandidate.supportPositionId,
+-  };
+-  const resolved = resolvePalletSupport(
+-    requested,
+-    initialProps.dimensions,
+-    base,
+-    surfaces,
+-  );
+-  const placement = { ...requested, zMm: resolved.zMm };
+-  const candidate: { -readonly [K in keyof Candidate]: Candidate[K] } = {
+-    ...initialCandidate,
+-    support: resolved,
+-    ...placement,
+-  };
+-  delete candidate.supportPalletId;
+-  delete candidate.supportPositionId;
+-  delete candidate.supportCode;
+-  delete candidate.supportLabel;
+-  if (resolved.supportPalletId)
+-    candidate.supportPalletId = resolved.supportPalletId;
+-  if (resolved.supportPositionId)
+-    candidate.supportPositionId = resolved.supportPositionId;
+-  if (resolved.supportCode)
+-    candidate.supportCode = candidate.supportLabel = resolved.supportCode;
+-  const props = sceneProps(candidate, detail);
+-  const unchanged =
+-    moving &&
+-    detail.placement?.zoneId === candidate.zoneId &&
+-    detail.placement?.supportPositionId === candidate.supportPositionId &&
+-    detail.placement?.supportPalletId === candidate.supportPalletId &&
+-    detail.placement?.xMm === placement.xMm &&
+-    detail.placement?.yMm === placement.yMm &&
+-    detail.placement?.zMm === placement.zMm &&
+-    detail.placement?.rotation === placement.rotation;
+-  const issue =
+-    (coordinateInvalid ? "boundary" : undefined) ??
+-    resolved.blockedReason ??
+-    palletPlacementIssue(
+-      props.dimensions,
+-      props.area,
+-      placement,
+-      props.occupied,
+-      props.support,
+-      props.unavailable,
+-    );
+-  async function reserve() {
+-    await op.run(async () => {
+-      if (issue || unchanged) throw new Error("SPACE_UNAVAILABLE");
+-      const args = {
+-        warehouseId,
+-        palletId: detail.pallet._id,
+-        zoneId: candidate.zoneId,
+-        ...(candidate.supportPositionId
+-          ? { supportPositionId: candidate.supportPositionId }
+-          : {}),
+-        ...(candidate.supportPalletId
+-          ? { supportPalletId: candidate.supportPalletId }
+-          : {}),
+-        xMm: placement.xMm,
+-        yMm: placement.yMm,
+-        rotation: placement.rotation,
+-        expectedMeasurementUpdatedAt: detail.pallet.updatedAt,
+-      };
+-      if (moving) {
+-        if (!detail.placement) throw new Error("LOCATION_UNAVAILABLE");
+-        const moveArgs = {
+-          ...args,
+-          ...(reason.trim() ? { reason: reason.trim() } : {}),
+-          expectedSourcePlacementId: detail.placement._id,
+-          ...(detail.activeMove ? { moveId: detail.activeMove._id } : {}),
+-        };
+-        written(
+-          await moveMutation({
+-            ...moveArgs,
+-            requestId: op.request(JSON.stringify(moveArgs)),
+-          }),
+-        );
+-      } else {
+-        written(
+-          await mutate({
+-            ...args,
+-            requestId: op.request(JSON.stringify(args)),
+-          }),
+-        );
+-      }
+-      op.clearRequests();
+-      setConfirm(false);
+-      onReserved?.();
+-      router.push(
+-        moving
+-          ? `${palletPath(detail.pallet._id)}/move`
+-          : palletPath(detail.pallet._id),
+-      );
+-    });
+-  }
+-  return (
+-    <div className="space-y-4">
+-      <ErrorNotice message={op.error} />
+-      <fieldset
+-        disabled={op.busy}
+-        className="grid min-w-0 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_300px]"
+-      >
+-        <div className="min-w-0">
+-          <h2 className="mb-3 font-semibold">{candidate.locationName}</h2>
+-          <PalletScene
+-            {...props}
+-            {...(moving &&
+-            detail.placement &&
+-            detail.placement.zoneId === candidate.zoneId
+-              ? {
+-                  sourceFootprint: {
+-                    id: detail.placement._id,
+-                    label: tr("Source position", "ตำแหน่งต้นทาง"),
+-                    xMm: detail.placement.xMm,
+-                    yMm: detail.placement.yMm,
+-                    zMm: detail.placement.zMm,
+-                    widthMm: detail.placement.widthMm,
+-                    depthMm: detail.placement.depthMm,
+-                    heightMm: detail.placement.heightMm,
+-                  },
+-                }
+-              : {})}
+-            placement={placement}
+-            onPlacementChange={updatePlacement}
+-            automaticSupports={surfaces}
+-            baseSupport={base}
+-            {...(coordinateInvalid
+-              ? { issueMessage: coordinateMessage }
+-              : resolved.blockedReason
+-                ? { issueMessage: errorText(resolved.blockedReason, tr) }
+-                : {})}
+-            editable
+-            locale={locale}
+-            label={detail.pallet.code}
+-          />
+-        </div>
+-        <aside className={`${panel} space-y-4`}>
+-          <h2 className="font-semibold">
+-            {tr("Exact position", "ตำแหน่งที่แน่นอน")}
+-          </h2>
+-          <DestinationSummary destination={candidate} placement={placement} />
+-          <p className="text-xs text-muted">
+-            {allowsPalletStacking
+-              ? tr(
+-                  "Drag onto a pallet to stack automatically; drag clear to return to the supporting floor or rack. Red shows why placement is not allowed.",
+-                  "ลากเหนือพาเลทเพื่อซ้อนอัตโนมัติ ลากออกเพื่อลงพื้นหรือชั้นวาง สีแดงแสดงตำแหน่งที่วางไม่ได้พร้อมเหตุผล",
+-                )
+-              : tr(
+-                  "Drag to adjust the position on the floor or rack. Red shows why placement is not allowed.",
+-                  "ลากเพื่อปรับตำแหน่งบนพื้นหรือชั้นวาง สีแดงแสดงตำแหน่งที่วางไม่ได้พร้อมเหตุผล",
+-                )}
+-          </p>
+-          <div className="grid grid-cols-2 gap-3">
+-            <Field
+-              label="X (m)"
+-              value={coordinateDraft.x}
+-              onChange={(v) => updateCoordinate("x", v)}
+-              type="number"
+-              step="0.1"
+-            />
+-            <Field
+-              label="Y (m)"
+-              value={coordinateDraft.y}
+-              onChange={(v) => updateCoordinate("y", v)}
+-              type="number"
+-              step="0.1"
+-            />
+-          </div>
+-          <Button
+-            variant="outline"
+-            className="w-full"
+-            onClick={() =>
+-              updatePlacement({
+-                xMm: initialCandidate.xMm,
+-                yMm: initialCandidate.yMm,
+-                zMm: initialCandidate.zMm,
+-                rotation: initialCandidate.rotation,
+-              })
+-            }
+-          >
+-            {tr("Reset to recommendation", "คืนค่าที่แนะนำ")}
+-          </Button>
+-          {!issue && (
+-            <>
+-              <div className="space-y-2 border-t border-border pt-4 text-sm">
+-                {[
+-                  tr(
+-                    "Dimensions fit inside the support",
+-                    "ขนาดวางพอดีภายในฐานรองรับ",
+-                  ),
+-                  tr("Enough height clearance", "ความสูงเพียงพอ"),
+-                  tr(
+-                    "Does not overlap recorded occupancy",
+-                    "ไม่ทับตำแหน่งที่ระบบบันทึกไว้",
+-                  ),
+-                ].map((label) => (
+-                  <p
+-                    key={label}
+-                    className={`flex items-center gap-2 ${issue ? "text-warning" : "text-success"}`}
+-                  >
+-                    {issue ? (
+-                      <TriangleAlert className="size-4" aria-hidden="true" />
+-                    ) : (
+-                      <Check className="size-4" aria-hidden="true" />
+-                    )}
+-                    {label}
+-                  </p>
+-                ))}
+-                <p className="text-xs text-muted">
+-                  {candidate.checks.storageCondition === "MATCH"
+-                    ? tr("Storage condition matches", "เงื่อนไขจัดเก็บตรงกัน")
+-                    : tr(
+-                        "Storage condition is not configured for this location. Confirm suitability before reserving.",
+-                        "จุดนี้ยังไม่ระบุเงื่อนไขจัดเก็บ กรุณาตรวจสอบความเหมาะสมก่อนจอง",
+-                      )}
+-                </p>
+-              </div>
+-            </>
+-          )}{" "}
+-          <Button
+-            className="w-full"
+-            disabled={op.busy || !!issue || unchanged}
+-            onClick={() => setConfirm(true)}
+-          >
+-            {moving
+-              ? tr("Review move", "ตรวจสอบการย้าย")
+-              : tr("Confirm spot", "ยืนยันจุดจัดเก็บ")}
+-          </Button>
+-          {unchanged ? (
+-            <Notice
+-              title={tr(
+-                "Choose a different position or orientation.",
+-                "เลือกตำแหน่งหรือทิศทางใหม่",
+-              )}
+-            />
+-          ) : null}
+-          {issue ? (
+-            <Notice
+-              tone="danger"
+-              title={tr(
+-                "This position is not valid. Adjust it before continuing.",
+-                "ตำแหน่งนี้ไม่ถูกต้อง กรุณาปรับก่อนดำเนินการต่อ",
+-              )}
+-            />
+-          ) : null}
+-        </aside>
+-      </fieldset>
+-      <Dialog
+-        open={confirm}
+-        onOpenChange={(open) => {
+-          if (!op.busy) setConfirm(open);
+-        }}
+-      >
+-        <DialogContent closeLabel={tr("Close", "ปิด")}>
+-          <DialogHeader>
+-            <DialogTitle>
+-              {moving
+-                ? tr("Review move", "ตรวจสอบการย้าย")
+-                : tr("Confirm storage destination", "ยืนยันปลายทางจัดเก็บ")}
+-            </DialogTitle>
+-            <DialogDescription>
+-              {detail.pallet.code} · {detail.product?.sku} ·{" "}
+-              {detail.pallet.quantity} {detail.product?.unit}
+-            </DialogDescription>
+-          </DialogHeader>
+-          {moving ? (
+-            <p className="text-sm text-muted">
+-              {tr("Pallet dimensions", "ขนาดพาเลท")}:{" "}
+-              {mmText(detail.pallet.lengthMm ?? 0)} ×{" "}
+-              {mmText(detail.pallet.widthMm ?? 0)} ×{" "}
+-              {mmText(detail.pallet.heightMm ?? 0)}
+-            </p>
+-          ) : null}
+-          {moving && detail.destination && detail.placement ? (
+-            <section className="space-y-2">
+-              <h3 className="font-semibold">{tr("From", "จาก")}</h3>
+-              <DestinationSummary
+-                destination={detail.destination}
+-                placement={detail.placement}
+-              />
+-              <h3 className="font-semibold">{tr("To", "ไปยัง")}</h3>
+-            </section>
+-          ) : null}
+-          <DestinationSummary destination={candidate} placement={placement} />
+-          {moving ? (
+-            <Field
+-              label={tr("Reason (optional)", "เหตุผล (ไม่บังคับ)")}
+-              value={reason}
+-              onChange={setReason}
+-              disabled={op.busy}
+-            />
+-          ) : null}
+-          <Notice
+-            title={tr(
+-              "Reserve first, then move the pallet",
+-              "จองพื้นที่ก่อนเคลื่อนย้ายพาเลท",
+-            )}
+-            body={
+-              moving
+-                ? tr(
+-                    "Both the source and destination stay held. The stored position changes only after destination verification and confirmation of physical placement.",
+-                    "ทั้งต้นทางและปลายทางยังถูกกันไว้ ตำแหน่งจัดเก็บจะเปลี่ยนหลังตรวจสอบปลายทางและยืนยันวางพาเลทจริงเท่านั้น",
+-                  )
+-                : tr(
+-                    "This holds the space. The pallet is marked stored only after destination verification and your physical confirmation.",
+-                    "ขั้นตอนนี้จองพื้นที่ พาเลทจะเป็นสถานะจัดเก็บแล้วหลังตรวจสอบปลายทางและยืนยันการวางจริง",
+-                  )
+-            }
+-          />
+-          <ErrorNotice message={op.error} />
+-          <DialogFooter>
+-            <Button
+-              variant="outline"
+-              disabled={op.busy}
+-              onClick={() => setConfirm(false)}
+-            >
+-              {tr("Back to edit", "กลับไปแก้ไข")}
+-            </Button>
+-            <Button
+-              disabled={op.busy || !!issue}
+-              onClick={() => void reserve()}
+-            >
+-              {op.busy
+-                ? tr("Reserving…", "กำลังจอง…")
+-                : tr("Reserve spot", "จองจุดนี้")}
+-            </Button>
+-          </DialogFooter>
+-        </DialogContent>
+-      </Dialog>
+-    </div>
+-  );
+-}
+ function PalletDetailScreen({
+   warehouseId,
+   detail,
+@@ -1385,7 +817,6 @@
+     undefined,
+     detail.pallet.storageFormat ?? detail.product?.storageFormat,
+   );
+-  const [scanner, setScanner] = useState(false);
+   const [cancel, setCancel] = useState(false);
+   const [upperCode, setUpperCode] = useState("");
+   const [physicalStack, setPhysicalStack] = useState(false);
+@@ -1425,7 +856,6 @@
+             : {}),
+         }),
+       );
+-      setScanner(false);
+     });
+   }
+   async function release() {
+@@ -1497,7 +927,9 @@
+           />
+         </div>
+       ) : null}
+-      {!scanner && !cancel ? <ErrorNotice message={op.error} /> : null}
++      {!(reserved && canManage) && !cancel ? (
++        <ErrorNotice message={op.error} />
++      ) : null}
+       {(reserved || stored) && !destination ? (
+         <div className="mb-5">
+           <Notice
+@@ -1705,54 +1137,80 @@
+             </dl>
+           </section>
+           {reserved && canManage ? (
+-            <section className={`${panel} space-y-4`}>
++            <section
++              className={`${panel} space-y-4`}
++              aria-label={tr(
++                "Verify destination and placement",
++                "ตรวจสอบปลายทางและการวาง",
++              )}
++            >
+               <h2 className="font-semibold">
+-                {tr("Placement instructions", "ขั้นตอนการจัดเก็บ")}
++                {tr(
++                  "Verify destination and placement",
++                  "ตรวจสอบปลายทางและการวาง",
++                )}
+               </h2>
+-              <ol className="list-decimal space-y-2 pl-5 text-sm text-muted">
+-                <li>
+-                  {tr(
+-                    "Move the pallet to the named location.",
+-                    "นำพาเลทไปยังจุดจัดเก็บที่ระบุ",
+-                  )}
+-                </li>
+-                <li>
+-                  {tr(
+-                    "Scan the destination label or verify its code manually.",
+-                    "สแกนป้ายปลายทางหรือตรวจสอบรหัสด้วยตนเอง",
+-                  )}
+-                </li>
+-                <li>
+-                  {tr(
+-                    "Place it at the highlighted X/Y position.",
+-                    "วางพาเลทตามพิกัด X/Y ที่แสดง",
+-                  )}
+-                </li>
+-                <li>
+-                  {tr(
+-                    "Confirm stored after physical placement.",
+-                    "ยืนยันจัดเก็บหลังวางพาเลทจริง",
+-                  )}
+-                </li>
+-              </ol>
+-              {verified ? (
+-                <p className="flex items-center gap-2 text-sm text-success">
+-                  <ShieldCheck className="size-4" aria-hidden="true" />
+-                  {placement?.verificationMethod === "MANUAL"
+-                    ? tr(
+-                        "Destination verified manually",
+-                        "ตรวจสอบปลายทางด้วยตนเองแล้ว",
+-                      )
+-                    : tr("Destination QR verified", "ตรวจสอบ QR ปลายทางแล้ว")}
+-                </p>
++              <DestinationScanner
++                storageFormat={
++                  detail.pallet.storageFormat ?? detail.product?.storageFormat
++                }
++                expectedLocation={
++                  detail.supportPallet?.code ?? destination?.locationName ?? ""
++                }
++                purpose={detail.supportPallet ? "SUPPORT" : "DESTINATION"}
++                showVerificationErrors={false}
++                onCode={verify}
++                busy={op.busy}
++                verified={verified}
++              />
++              {placement?.supportPalletId ? (
++                <div className="space-y-3">
++                  <p className="text-sm font-semibold">
++                    {tr("Supporting pallet", "พาเลทรองรับ")}:{" "}
++                    {detail.supportPallet?.code}
++                  </p>
++                  <Field
++                    label={tr(
++                      "Upper pallet code or QR",
++                      "รหัสหรือ QR พาเลทด้านบน",
++                    )}
++                    value={upperCode}
++                    onChange={setUpperCode}
++                  />
++                  <label className="flex items-start gap-2 text-sm">
++                    <input
++                      type="checkbox"
++                      checked={physicalStack}
++                      onChange={(e) => setPhysicalStack(e.target.checked)}
++                    />
++                    {tr(
++                      "I placed this upper pallet on the support at the shown position.",
++                      "ฉันวางพาเลทด้านบนบนพาเลทรองรับตามตำแหน่งที่แสดงแล้ว",
++                    )}
++                  </label>
++                </div>
+               ) : null}
+-              <Button className="w-full" onClick={() => setScanner(true)}>
+-                <ScanLine className="size-4" aria-hidden="true" />
+-                {verified
+-                  ? tr("Confirm physical placement", "ยืนยันการวางจริง")
+-                  : placement?.supportPalletId
+-                    ? tr("Verify pallet identities", "ตรวจสอบรหัสพาเลททั้งสอง")
+-                    : tr("Scan destination QR", "สแกน QR ปลายทาง")}
++              <p className="text-sm text-muted">
++                {tr(
++                  "Scanning verifies the location identity. Place the pallet at the exact highlighted position, then confirm below.",
++                  "การสแกนตรวจสอบจุดจัดเก็บ กรุณาวางพาเลทตามตำแหน่งที่แสดง แล้วกดยืนยันด้านล่าง",
++                )}
++              </p>
++              <ErrorNotice message={op.error} />
++              <Button
++                disabled={
++                  !verified ||
++                  op.busy ||
++                  Boolean(
++                    placement?.supportPalletId &&
++                    (!physicalStack || !upperCode.trim()),
++                  )
++                }
++                onClick={() => void store()}
++              >
++                {op.busy
++                  ? tr("Saving…", "กำลังบันทึก…")
++                  : tr("Confirm stored", "ยืนยันว่าจัดเก็บแล้ว")}
+               </Button>
+             </section>
+           ) : null}
+@@ -1765,7 +1223,10 @@
+               <Button
+                 variant="ghost"
+                 disabled={op.busy}
+-                onClick={() => setCancel(true)}
++                onClick={() => {
++                  op.setError("");
++                  setCancel(true);
++                }}
+               >
+                 {tr("Cancel reservation", "ยกเลิกการจอง")}
+               </Button>
+@@ -1813,88 +1274,6 @@
+         </div>
+       </div>
+       <MoveHistory detail={detail} />
+-      <Dialog open={scanner && canManage && reserved} onOpenChange={setScanner}>
+-        <DialogContent closeLabel={tr("Close", "ปิด")}>
+-          <DialogHeader>
+-            <DialogTitle>
+-              {tr(
+-                "Verify destination and placement",
+-                "ตรวจสอบปลายทางและการวาง",
+-              )}
+-            </DialogTitle>
+-            <DialogDescription>
+-              {destination?.locationName} · {placement?.positionCode}
+-            </DialogDescription>
+-          </DialogHeader>
+-          <DestinationScanner
+-            storageFormat={
+-              detail.pallet.storageFormat ?? detail.product?.storageFormat
+-            }
+-            expectedLocation={
+-              detail.supportPallet?.code ?? destination?.locationName ?? ""
+-            }
+-            purpose={detail.supportPallet ? "SUPPORT" : "DESTINATION"}
+-            showVerificationErrors={false}
+-            onCode={verify}
+-            busy={op.busy}
+-            verified={verified}
+-          />
+-          {placement?.supportPalletId ? (
+-            <div className="space-y-3">
+-              <p className="text-sm font-semibold">
+-                {tr("Supporting pallet", "พาเลทรองรับ")}:{" "}
+-                {detail.supportPallet?.code}
+-              </p>
+-              <Field
+-                label={tr("Upper pallet code or QR", "รหัสหรือ QR พาเลทด้านบน")}
+-                value={upperCode}
+-                onChange={setUpperCode}
+-              />
+-              <label className="flex items-start gap-2 text-sm">
+-                <input
+-                  type="checkbox"
+-                  checked={physicalStack}
+-                  onChange={(e) => setPhysicalStack(e.target.checked)}
+-                />
+-                {tr(
+-                  "I placed this upper pallet on the support at the shown position.",
+-                  "ฉันวางพาเลทด้านบนบนพาเลทรองรับตามตำแหน่งที่แสดงแล้ว",
+-                )}
+-              </label>
+-            </div>
+-          ) : null}
+-          {destination && coords ? (
+-            <DestinationSummary destination={destination} placement={coords} />
+-          ) : null}
+-          <p className="text-sm text-muted">
+-            {tr(
+-              "Scanning verifies the location identity. Place the pallet at the exact highlighted position, then confirm below.",
+-              "การสแกนตรวจสอบจุดจัดเก็บ กรุณาวางพาเลทตามตำแหน่งที่แสดง แล้วกดยืนยันด้านล่าง",
+-            )}
+-          </p>
+-          <ErrorNotice message={op.error} />
+-          <DialogFooter>
+-            <Button variant="outline" onClick={() => setScanner(false)}>
+-              {tr("Close", "ปิด")}
+-            </Button>
+-            <Button
+-              disabled={
+-                !verified ||
+-                op.busy ||
+-                Boolean(
+-                  placement?.supportPalletId &&
+-                  (!physicalStack || !upperCode.trim()),
+-                )
+-              }
+-              onClick={() => void store()}
+-            >
+-              {op.busy
+-                ? tr("Saving…", "กำลังบันทึก…")
+-                : tr("Confirm stored", "ยืนยันว่าจัดเก็บแล้ว")}
+-            </Button>
+-          </DialogFooter>
+-        </DialogContent>
+-      </Dialog>
+       <Dialog open={cancel && canManage && reserved} onOpenChange={setCancel}>
+         <DialogContent closeLabel={tr("Close", "ปิด")}>
+           <DialogHeader>
+--- before/src/features/finishedGoods/PlacementEditor.tsx
++++ after/src/features/finishedGoods/PlacementEditor.tsx
+@@ -0,0 +1,523 @@
++"use client";
++import { useMutation } from "convex/react";
++import { Check, Pencil } from "lucide-react";
++import { Button } from "@/components/ui/button";
++import { Notice } from "@/components/ui/Notice";
++import { Link, useRouter } from "@/i18n/navigation";
++import {
++  fgRefs,
++  type Candidate,
++  type Destination,
++  type PalletDetail,
++} from "@/lib/convex/finishedGoodsApi";
++import { PalletScene, type PalletPlacement } from "./PalletScene";
++import {
++  palletPlacementIssue,
++  resolvePalletSupport,
++  type PlacementSurface,
++} from "./palletGeometry";
++import { destinationKey } from "./DestinationPicker";
++import { usePreviewState } from "./usePreviewState";
++import {
++  ErrorNotice,
++  errorText,
++  Field,
++  mmText,
++  palletPath,
++  panel,
++  useFGText,
++  useUnitText,
++  useDraftKey,
++  useOperation,
++  written,
++  unitCorrectionPath,
++  measurePath,
++} from "./shared";
++
++export function correctionPath(detail: PalletDetail) {
++  return detail.pallet.preparationBatchId
++    ? unitCorrectionPath(detail.pallet.productId, detail.pallet._id)
++    : measurePath(detail.pallet._id);
++}
++
++export function sceneProps(
++  destination: Candidate | Destination,
++  detail: PalletDetail,
++) {
++  return {
++    storageFormat: detail.pallet.storageFormat ?? detail.product?.storageFormat,
++    dimensions: {
++      widthMm: detail.pallet.widthMm ?? 0,
++      depthMm: detail.pallet.lengthMm ?? 0,
++      heightMm: detail.pallet.heightMm ?? 0,
++    },
++    area: {
++      widthMm: destination.zone.widthMm,
++      depthMm: destination.zone.depthMm,
++      heightMm:
++        destination.zone.maxStackHeightMm + destination.zone.baseElevationMm,
++    },
++    support: destination.support,
++    unavailable: destination.unavailable,
++    occupied: destination.occupied
++      .filter((p) => p.palletId !== detail.pallet._id)
++      .map((p) => ({ ...p, id: p.placementId, label: p.positionCode })),
++  };
++}
++export function DestinationSummary({
++  destination,
++  placement,
++}: {
++  destination: Candidate | Destination;
++  placement: PalletPlacement;
++}) {
++  const { tr } = useFGText();
++  return (
++    <div className="space-y-4">
++      <p className="text-sm font-medium break-words">
++        {destination.buildingCode} <span className="text-muted">→</span>{" "}
++        {tr("Floor", "ชั้น")} {destination.floorNumber}{" "}
++        <span className="text-muted">→</span> {destination.locationName}{" "}
++        {destination.supportLabel || destination.supportCode ? (
++          <>
++            <span className="text-muted">→</span>{" "}
++            {destination.supportLabel ?? destination.supportCode}{" "}
++          </>
++        ) : null}
++        <span className="text-muted">→</span>{" "}
++        {destination.positionCode === "Proposed"
++          ? tr("Proposed position", "ตำแหน่งที่เสนอ")
++          : destination.positionCode}
++      </p>
++      <dl className="grid grid-cols-2 gap-3 text-sm">
++        {[
++          ["X", mmText(placement.xMm)],
++          ["Y", mmText(placement.yMm)],
++          [
++            tr("Base elevation", "ระดับฐาน"),
++            mmText(placement.zMm ?? destination.support.zMm),
++          ],
++          [tr("Orientation", "ทิศทาง"), `${placement.rotation}°`],
++        ].map(([label, value]) => (
++          <div key={label}>
++            <dt className="text-xs text-muted">{label}</dt>
++            <dd className="mt-1 font-mono">{value}</dd>
++          </div>
++        ))}
++      </dl>
++      <p className="text-xs text-muted">
++        {tr(
++          "X/Y are measured from the marked origin inside this location.",
++          "พิกัด X/Y อ้างอิงจากจุดเริ่มต้นที่แสดงภายในจุดจัดเก็บนี้",
++        )}
++      </p>
++    </div>
++  );
++}
++export function PlacementEditor({
++  warehouseId,
++  detail,
++  candidate: initialCandidate,
++  destinations = [initialCandidate],
++  moving = false,
++  onReserved,
++  onActivate,
++}: {
++  warehouseId: string;
++  detail: PalletDetail;
++  candidate: Candidate;
++  destinations?: readonly Candidate[];
++  moving?: boolean;
++  onReserved?: () => void;
++  onActivate?: () => void;
++}) {
++  const { tr, locale } = useUnitText(
++    detail.pallet.storageFormat ?? detail.product?.storageFormat,
++  );
++  const router = useRouter();
++  const mutate = useMutation(fgRefs.reserve);
++  const moveMutation = useMutation(fgRefs.reserveMove);
++  const actorScope = useDraftKey("fg-move-reserve");
++  const op = useOperation(
++    moving ? `${actorScope}:${warehouseId}:${detail.pallet._id}` : undefined,
++    detail.pallet.storageFormat ?? detail.product?.storageFormat,
++  );
++  const previewKey = actorScope
++    ? `${actorScope}:${warehouseId}:${detail.pallet._id}:${moving ? "move" : "store"}:${destinationKey(initialCandidate)}`
++    : undefined;
++  const [draft, setDraft, clearDraft] = usePreviewState(previewKey, {
++    x: String(initialCandidate.xMm / 1000),
++    y: String(initialCandidate.yMm / 1000),
++    rotation: initialCandidate.rotation as number,
++    reason: "",
++  });
++  const reason = draft.reason;
++  const setReason = (reason: string) =>
++    setDraft((previous) => ({ ...previous, reason }));
++  const coordinateDraft = { x: draft.x, y: draft.y };
++  const requested: PalletPlacement = {
++    xMm: Number.isFinite(Number(draft.x))
++      ? Math.round(Number(draft.x) * 1000)
++      : initialCandidate.xMm,
++    yMm: Number.isFinite(Number(draft.y))
++      ? Math.round(Number(draft.y) * 1000)
++      : initialCandidate.yMm,
++    zMm: initialCandidate.zMm,
++    rotation: draft.rotation === 90 ? 90 : 0,
++  };
++  const coordinateInvalid = Object.values(coordinateDraft).some(
++    (value) =>
++      value.trim() === "" ||
++      !Number.isFinite(Number(value)) ||
++      Number(value) < 0,
++  );
++  const coordinateMessage = tr(
++    "Enter valid X and Y coordinates, zero or greater.",
++    "กรอกพิกัด X และ Y ให้ถูกต้อง ตั้งแต่ศูนย์ขึ้นไป",
++  );
++  function updatePlacement(next: PalletPlacement) {
++    onActivate?.();
++    setDraft((previous) => ({
++      ...previous,
++      x: String(next.xMm / 1000),
++      y: String(next.yMm / 1000),
++      rotation: next.rotation,
++    }));
++  }
++  function updateCoordinate(axis: "x" | "y", value: string) {
++    onActivate?.();
++    setDraft((previous) => ({ ...previous, [axis]: value }));
++  }
++  const initialProps = sceneProps(initialCandidate, detail);
++  const allSurfaces: PlacementSurface[] = initialCandidate.previewSupports
++    ? initialCandidate.previewSupports.map(({ surface, ...metadata }) => ({
++        ...surface,
++        ...metadata,
++      }))
++    : destinations
++        .filter((d) => d.zoneId === initialCandidate.zoneId)
++        .map((d) => ({
++          ...d.support,
++          supportPalletId: d.supportPalletId,
++          supportPositionId: d.supportPositionId,
++          supportCode: d.supportCode,
++        }));
++  const allowsPalletStacking =
++    (detail.pallet.storageFormat ?? detail.product?.storageFormat) === "PALLET";
++  const surfaces = allSurfaces.filter(
++    (s) => !s.supportPalletId || allowsPalletStacking,
++  );
++  const selectedSurface = surfaces.find(
++    (s) =>
++      s.supportPalletId === initialCandidate.supportPalletId &&
++      s.supportPositionId === initialCandidate.supportPositionId,
++  );
++  const base = surfaces.find(
++    (s) =>
++      !s.supportPalletId &&
++      s.supportPositionId ===
++        (selectedSurface?.baseSupportPositionId ??
++          initialCandidate.supportPositionId),
++  ) ?? {
++    ...initialCandidate.support,
++    supportPositionId: initialCandidate.supportPositionId,
++  };
++  const resolved = resolvePalletSupport(
++    requested,
++    initialProps.dimensions,
++    base,
++    surfaces,
++  );
++  const placement = { ...requested, zMm: resolved.zMm };
++  const candidate: { -readonly [K in keyof Candidate]: Candidate[K] } = {
++    ...initialCandidate,
++    support: resolved,
++    ...placement,
++  };
++  delete candidate.supportPalletId;
++  delete candidate.supportPositionId;
++  delete candidate.supportCode;
++  delete candidate.supportLabel;
++  if (resolved.supportPalletId)
++    candidate.supportPalletId = resolved.supportPalletId;
++  if (resolved.supportPositionId)
++    candidate.supportPositionId = resolved.supportPositionId;
++  if (resolved.supportCode)
++    candidate.supportCode = candidate.supportLabel = resolved.supportCode;
++  const props = sceneProps(candidate, detail);
++  const unchanged =
++    moving &&
++    detail.placement?.zoneId === candidate.zoneId &&
++    detail.placement?.supportPositionId === candidate.supportPositionId &&
++    detail.placement?.supportPalletId === candidate.supportPalletId &&
++    detail.placement?.xMm === placement.xMm &&
++    detail.placement?.yMm === placement.yMm &&
++    detail.placement?.zMm === placement.zMm &&
++    detail.placement?.rotation === placement.rotation;
++  const issue =
++    (coordinateInvalid ? "boundary" : undefined) ??
++    resolved.blockedReason ??
++    palletPlacementIssue(
++      props.dimensions,
++      props.area,
++      placement,
++      props.occupied,
++      props.support,
++      props.unavailable,
++    );
++  async function reserve() {
++    await op.run(async () => {
++      if (issue || unchanged) throw new Error("SPACE_UNAVAILABLE");
++      const args = {
++        warehouseId,
++        palletId: detail.pallet._id,
++        zoneId: candidate.zoneId,
++        ...(candidate.supportPositionId
++          ? { supportPositionId: candidate.supportPositionId }
++          : {}),
++        ...(candidate.supportPalletId
++          ? { supportPalletId: candidate.supportPalletId }
++          : {}),
++        xMm: placement.xMm,
++        yMm: placement.yMm,
++        rotation: placement.rotation,
++        expectedMeasurementUpdatedAt: detail.pallet.updatedAt,
++      };
++      if (moving) {
++        if (!detail.placement) throw new Error("LOCATION_UNAVAILABLE");
++        const moveArgs = {
++          ...args,
++          ...(reason.trim() ? { reason: reason.trim() } : {}),
++          expectedSourcePlacementId: detail.placement._id,
++          ...(detail.activeMove ? { moveId: detail.activeMove._id } : {}),
++        };
++        written(
++          await moveMutation({
++            ...moveArgs,
++            requestId: op.request(JSON.stringify(moveArgs)),
++          }),
++        );
++      } else {
++        written(
++          await mutate({
++            ...args,
++            requestId: op.request(JSON.stringify(args)),
++          }),
++        );
++      }
++      op.clearRequests();
++      clearDraft();
++      onReserved?.();
++      router.push(
++        moving
++          ? `${palletPath(detail.pallet._id)}/move`
++          : palletPath(detail.pallet._id),
++      );
++    });
++  }
++  return (
++    <div className="space-y-4">
++      <ErrorNotice message={op.error} />
++      <fieldset
++        disabled={op.busy}
++        className="grid min-w-0 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_300px]"
++      >
++        <div className="min-w-0">
++          <h2 className="mb-3 font-semibold">{candidate.locationName}</h2>
++          <PalletScene
++            {...props}
++            {...(moving &&
++            detail.placement &&
++            detail.placement.zoneId === candidate.zoneId
++              ? {
++                  sourceFootprint: {
++                    id: detail.placement._id,
++                    label: tr("Source position", "ตำแหน่งต้นทาง"),
++                    xMm: detail.placement.xMm,
++                    yMm: detail.placement.yMm,
++                    zMm: detail.placement.zMm,
++                    widthMm: detail.placement.widthMm,
++                    depthMm: detail.placement.depthMm,
++                    heightMm: detail.placement.heightMm,
++                  },
++                }
++              : {})}
++            viewStateKey={previewKey ? `${previewKey}:view` : undefined}
++            placement={placement}
++            onPlacementChange={updatePlacement}
++            automaticSupports={surfaces}
++            baseSupport={base}
++            {...(coordinateInvalid
++              ? { issueMessage: coordinateMessage }
++              : resolved.blockedReason
++                ? { issueMessage: errorText(resolved.blockedReason, tr) }
++                : {})}
++            editable
++            locale={locale}
++            label={detail.pallet.code}
++          />
++        </div>
++        <aside className={`${panel} space-y-4`}>
++          <h2 className="font-semibold">
++            {tr("Exact position", "ตำแหน่งที่แน่นอน")}
++          </h2>
++          {!moving && detail.pallet.status === "AWAITING_PLACEMENT" && (
++            <Link
++              onClick={onActivate}
++              href={`${correctionPath(detail)}${correctionPath(detail).includes("?") ? "&" : "?"}returnToUnit=${encodeURIComponent(detail.pallet._id)}`}
++              className="flex items-center gap-2 text-sm text-accent hover:underline"
++            >
++              <Pencil className="size-4" aria-hidden="true" />
++              {tr("Edit measurements", "แก้ไขขนาด")} ·{" "}
++              {mmText(props.dimensions.depthMm)} ×{" "}
++              {mmText(props.dimensions.widthMm)} ×{" "}
++              {mmText(props.dimensions.heightMm)}
++            </Link>
++          )}
++          {moving && detail.destination && detail.placement ? (
++            <section
++              aria-label={tr(
++                "Current stored position",
++                "ตำแหน่งจัดเก็บปัจจุบัน",
++              )}
++              className="space-y-2 border-b border-border pb-4"
++            >
++              <h3 className="text-sm font-semibold">{tr("From", "จาก")}</h3>
++              <DestinationSummary
++                destination={detail.destination}
++                placement={detail.placement}
++              />
++              <h3 className="text-sm font-semibold">{tr("To", "ไปยัง")}</h3>
++            </section>
++          ) : null}
++          <DestinationSummary destination={candidate} placement={placement} />
++          <p className="text-xs text-muted">
++            {allowsPalletStacking
++              ? tr(
++                  "Drag onto a pallet to stack automatically; drag clear to return to the supporting floor or rack. Red shows why placement is not allowed.",
++                  "ลากเหนือพาเลทเพื่อซ้อนอัตโนมัติ ลากออกเพื่อลงพื้นหรือชั้นวาง สีแดงแสดงตำแหน่งที่วางไม่ได้พร้อมเหตุผล",
++                )
++              : tr(
++                  "Drag to adjust the position on the floor or rack. Red shows why placement is not allowed.",
++                  "ลากเพื่อปรับตำแหน่งบนพื้นหรือชั้นวาง สีแดงแสดงตำแหน่งที่วางไม่ได้พร้อมเหตุผล",
++                )}
++          </p>
++          <div className="grid grid-cols-2 gap-3">
++            <Field
++              label="X (m)"
++              value={coordinateDraft.x}
++              onChange={(v) => updateCoordinate("x", v)}
++              type="number"
++              step="0.1"
++            />
++            <Field
++              label="Y (m)"
++              value={coordinateDraft.y}
++              onChange={(v) => updateCoordinate("y", v)}
++              type="number"
++              step="0.1"
++            />
++          </div>
++          <Button
++            variant="outline"
++            className="w-full"
++            onClick={() =>
++              updatePlacement({
++                xMm: initialCandidate.xMm,
++                yMm: initialCandidate.yMm,
++                zMm: initialCandidate.zMm,
++                rotation: initialCandidate.rotation,
++              })
++            }
++          >
++            {tr("Reset to recommendation", "คืนค่าที่แนะนำ")}
++          </Button>
++          {!issue && (
++            <>
++              <div className="space-y-2 border-t border-border pt-4 text-sm">
++                {[
++                  tr(
++                    "Dimensions fit inside the support",
++                    "ขนาดวางพอดีภายในฐานรองรับ",
++                  ),
++                  tr("Enough height clearance", "ความสูงเพียงพอ"),
++                  tr(
++                    "Does not overlap recorded occupancy",
++                    "ไม่ทับตำแหน่งที่ระบบบันทึกไว้",
++                  ),
++                ].map((label) => (
++                  <p
++                    key={label}
++                    className="flex items-center gap-2 text-success"
++                  >
++                    <Check className="size-4" aria-hidden="true" />
++                    {label}
++                  </p>
++                ))}
++                <p className="text-xs text-muted">
++                  {candidate.checks.storageCondition === "MATCH"
++                    ? tr("Storage condition matches", "เงื่อนไขจัดเก็บตรงกัน")
++                    : tr(
++                        "Storage condition is not configured for this location. Confirm suitability before reserving.",
++                        "จุดนี้ยังไม่ระบุเงื่อนไขจัดเก็บ กรุณาตรวจสอบความเหมาะสมก่อนจอง",
++                      )}
++                </p>
++              </div>
++            </>
++          )}{" "}
++          {moving ? (
++            <Field
++              label={tr("Reason (optional)", "เหตุผล (ไม่บังคับ)")}
++              value={reason}
++              onChange={setReason}
++              disabled={op.busy}
++            />
++          ) : null}
++          <Notice
++            title={tr(
++              "Reserve first, then move the pallet",
++              "จองพื้นที่ก่อนเคลื่อนย้ายพาเลท",
++            )}
++            body={
++              moving
++                ? tr(
++                    "Both the source and destination stay held. The stored position changes only after destination verification and confirmation of physical placement.",
++                    "ทั้งต้นทางและปลายทางยังถูกกันไว้ ตำแหน่งจัดเก็บจะเปลี่ยนหลังตรวจสอบปลายทางและยืนยันวางพาเลทจริงเท่านั้น",
++                  )
++                : tr(
++                    "This holds the space. The pallet is marked stored only after destination verification and your physical confirmation.",
++                    "ขั้นตอนนี้จองพื้นที่ พาเลทจะเป็นสถานะจัดเก็บแล้วหลังตรวจสอบปลายทางและยืนยันการวางจริง",
++                  )
++            }
++          />
++          <Button
++            className="w-full"
++            disabled={op.busy || !!issue || unchanged}
++            onClick={() => void reserve()}
++          >
++            {op.busy
++              ? tr("Reserving…", "กำลังจอง…")
++              : tr("Reserve this position", "จองตำแหน่งนี้")}
++          </Button>
++          {unchanged ? (
++            <Notice
++              title={tr(
++                "Choose a different position or orientation.",
++                "เลือกตำแหน่งหรือทิศทางใหม่",
++              )}
++            />
++          ) : null}
++          {issue ? (
++            <Notice
++              tone="danger"
++              title={tr(
++                "This position is not valid. Adjust it before continuing.",
++                "ตำแหน่งนี้ไม่ถูกต้อง กรุณาปรับก่อนดำเนินการต่อ",
++              )}
++            />
++          ) : null}
++        </aside>
++      </fieldset>
++    </div>
++  );
++}
+--- before/src/features/finishedGoods/ProductBatches.navigation.test.tsx
++++ after/src/features/finishedGoods/ProductBatches.navigation.test.tsx
+@@ -12,6 +12,7 @@
+ 
+ const mocks = vi.hoisted(() => ({
+   canManage: true,
++  push: vi.fn(),
+   search: new URLSearchParams(),
+   query: vi.fn<(name: string, args: unknown) => unknown>(),
+ }));
+@@ -33,6 +34,7 @@
+   }),
+ }));
+ vi.mock("@/i18n/navigation", () => ({
++  useRouter: () => ({ push: mocks.push }),
+   Link: ({ children, ...props }: ComponentProps<"a">) => (
+     <a {...props}>{children}</a>
+   ),
+@@ -213,6 +215,7 @@
+   {
+     editable: true,
+     canManage: true,
++    push: vi.fn(),
+     href: "/finished-goods/products/product-a?editUnit=unit-a",
+   },
+   { editable: false, canManage: true, href: "/finished-goods/pallets/unit-a" },
+@@ -391,3 +394,18 @@
+     screen.getByRole("textbox", { name: "Local editor draft" }),
+   ).toHaveValue("");
+ });
++
++it("returns directly to the active unit after closing a correction", () => {
++  navigate("?editUnit=unit-a&returnToUnit=unit-a");
++  render(component());
++  fireEvent.click(screen.getByRole("button", { name: "Close editor" }));
++  expect(mocks.push).toHaveBeenCalledWith(
++    "/finished-goods/pallets/unit-a/storage",
++  );
++});
++it("does not navigate to a retired or foreign return unit", () => {
++  navigate("?returnToUnit=retired-unit");
++  render(component());
++  expect(screen.getByText(/This unit was replaced/)).toBeVisible();
++  expect(mocks.push).not.toHaveBeenCalled();
++});
+--- before/src/features/finishedGoods/ProductBatches.tsx
++++ after/src/features/finishedGoods/ProductBatches.tsx
+@@ -14,7 +14,7 @@
+   DialogDescription,
+   DialogFooter,
+ } from "@/components/ui/dialog";
+-import { Link } from "@/i18n/navigation";
++import { Link, useRouter } from "@/i18n/navigation";
+ import { fgRefs, type Product } from "@/lib/convex/finishedGoodsApi";
+ import {
+   ErrorNotice,
+@@ -23,6 +23,7 @@
+   Status,
+   measurePath,
+   palletPath,
++  storagePath,
+   palletDisplayStatus,
+   panel,
+   unitNoun,
+@@ -48,6 +49,7 @@
+   const { tr } = useFGText();
+   const canManage = useCanManage();
+   const searchParams = useSearchParams();
++  const router = useRouter();
+   const followedCorrection = useRef("");
+   const [correctionError, setCorrectionError] = useState(false);
+   const correctionNotice = useRef<HTMLDivElement>(null);
+@@ -111,6 +113,15 @@
+   }
+ 
+   function closeManager() {
++    const returnId = searchParams?.get("returnToUnit");
++    const current = outcome?.ok
++      ? [
++          ...outcome.value.batches.flatMap((entry) => entry.units),
++          ...outcome.value.legacyUnits,
++        ]
++      : [];
++    if (returnId && current.some((unit) => unit._id === returnId))
++      router.push(storagePath(returnId));
+     setManage(undefined);
+     setCorrectionError(false);
+     // Keep the consumed request until the search hook observes its removal.
+@@ -242,6 +253,21 @@
+       className="mt-6 space-y-4"
+       aria-label={tr("Preparation batches", "ชุดจัดเตรียมสินค้า")}
+     >
++      {searchParams?.get("returnToUnit") &&
++        !manage &&
++        !allUnits.some(
++          (unit) => unit._id === searchParams?.get("returnToUnit"),
++        ) && (
++          <p
++            role="status"
++            className="rounded-lg border border-border p-3 text-sm text-muted"
++          >
++            {tr(
++              "This unit was replaced. Choose an active replacement below to plan its storage. Previous reservations and coordinates are not transferred.",
++              "หน่วยเดิมถูกแทนที่แล้ว เลือกหน่วยใหม่ด้านล่างเพื่อจัดเก็บ ระบบไม่โอนการจองและพิกัดเดิมไปยังหน่วยใหม่",
++            )}
++          </p>
++        )}
+       {correctionError && (
+         <div ref={correctionNotice} tabIndex={-1} className="outline-none">
+           <ErrorNotice
+--- before/src/features/finishedGoods/ProductScreens.test.tsx
++++ after/src/features/finishedGoods/ProductScreens.test.tsx
+@@ -803,13 +803,15 @@
+       { target: { value: "Packaging cartons" } },
+     );
+     const name = screen.getByRole("heading", { name: "Packaging cartons" });
+-    const card = name.closest("a");
+-    expect(card).toHaveAttribute(
++    const card = name.closest("article");
++    if (!card) throw new Error("Pallet card missing");
++    expect(
++      within(card).getByRole("link", { name: "Measure P-001" }),
++    ).toHaveAttribute("href", "/finished-goods/pallets/pallet-a/measure");
++    expect(within(card).getByRole("link", { name: "P-001" })).toHaveAttribute(
+       "href",
+-      "/finished-goods/pallets/pallet-a/measure",
+-    );
+-    if (!card) throw new Error("Pallet card missing");
+-    expect(within(card).getByText("P-001")).toBeVisible();
++      "/finished-goods/pallets/pallet-a",
++    );
+   });
+ });
+ 
+@@ -1421,3 +1423,114 @@
+     ).toBeVisible();
+   });
+ });
++
++describe("direct catalogue unit actions", () => {
++  it.each([
++    [
++      "AWAITING_MEASUREMENT",
++      "Measure",
++      "/finished-goods/pallets/pallet-a/measure",
++    ],
++    [
++      "AWAITING_PLACEMENT",
++      "Choose storage",
++      "/finished-goods/pallets/pallet-a/storage",
++    ],
++    ["RESERVED", "Continue placement", "/finished-goods/pallets/pallet-a"],
++    ["STORED", "View details", "/finished-goods/pallets/pallet-a"],
++  ] as const)(
++    "shows the same explicit action for %s in cards and tables",
++    (status, label, href) => {
++      mocks.query.mockReturnValue(
++        querySuccess({
++          ...finishedGoodsList,
++          pallets: [{ ...finishedGoodsList.pallets[0]!, status }],
++        }),
++      );
++      renderWithIntl(<FinishedGoodsCatalogue />, {
++        locale: "en",
++        workspace: false,
++      });
++      fireEvent.click(screen.getByRole("button", { name: "Storage units" }));
++      expect(
++        screen.getByRole("link", { name: `${label} P-001` }),
++      ).toHaveAttribute("href", href);
++      expect(screen.getByRole("link", { name: "P-001" })).toHaveAttribute(
++        "href",
++        "/finished-goods/pallets/pallet-a",
++      );
++      fireEvent.click(screen.getByRole("button", { name: "Table view" }));
++      expect(
++        screen.getByRole("link", { name: `${label} P-001` }),
++      ).toHaveAttribute("href", href);
++      expect(screen.getByRole("link", { name: "P-001" })).toHaveAttribute(
++        "href",
++        "/finished-goods/pallets/pallet-a",
++      );
++    },
++  );
++
++  it("skips the intermediate measurement screen for a preparation batch", () => {
++    mocks.query.mockReturnValue(
++      querySuccess({
++        ...finishedGoodsList,
++        pallets: [
++          { ...finishedGoodsList.pallets[0]!, preparationBatchId: "batch-a" },
++        ],
++      }),
++    );
++    renderWithIntl(<FinishedGoodsCatalogue />, {
++      locale: "en",
++      workspace: false,
++    });
++    fireEvent.click(screen.getByRole("button", { name: "Storage units" }));
++    expect(screen.getByRole("link", { name: "Measure P-001" })).toHaveAttribute(
++      "href",
++      "/finished-goods/products/product-a?editUnit=pallet-a",
++    );
++    fireEvent.click(screen.getByRole("button", { name: "Table view" }));
++    expect(screen.getByRole("link", { name: "Measure P-001" })).toHaveAttribute(
++      "href",
++      "/finished-goods/products/product-a?editUnit=pallet-a",
++    );
++  });
++
++  it("resumes moves directly but keeps read-only users on unit details", () => {
++    mocks.query.mockReturnValue(
++      querySuccess({
++        ...finishedGoodsList,
++        pallets: [
++          {
++            ...finishedGoodsList.pallets[0]!,
++            status: "STORED",
++            moveStatus: "IN_TRANSIT",
++          },
++        ],
++      }),
++    );
++    const view = renderWithIntl(<FinishedGoodsCatalogue />, {
++      locale: "en",
++      workspace: false,
++    });
++    fireEvent.click(screen.getByRole("button", { name: "Storage units" }));
++    expect(
++      screen.getByRole("link", { name: "Continue move P-001" }),
++    ).toHaveAttribute("href", "/finished-goods/pallets/pallet-a/move");
++    fireEvent.click(screen.getByRole("button", { name: "Table view" }));
++    expect(
++      screen.getByRole("link", { name: "Continue move P-001" }),
++    ).toHaveAttribute("href", "/finished-goods/pallets/pallet-a/move");
++    view.unmount();
++    mocks.canManage = false;
++    renderWithIntl(<FinishedGoodsCatalogue />, {
++      locale: "en",
++      workspace: false,
++    });
++    expect(
++      screen.queryByRole("link", { name: "Continue move P-001" }),
++    ).not.toBeInTheDocument();
++    expect(
++      screen.getByRole("link", { name: "View details P-001" }),
++    ).toHaveAttribute("href", "/finished-goods/pallets/pallet-a");
++  });
++});
+--- before/src/features/finishedGoods/ProductScreens.tsx
++++ after/src/features/finishedGoods/ProductScreens.tsx
+@@ -26,6 +26,7 @@
+ } from "./catalogueFilters";
+ import { useCatalogueState } from "./useCatalogueState";
+ import { FinishedGoodsTable } from "./FinishedGoodsTable";
++import { unitNextAction } from "./unitNextAction";
+ import {
+   productPalletSummary,
+   summaryFormatText,
+@@ -319,101 +320,102 @@
+       ) : (
+         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+           {tab === "products"
+-            ? shownProducts.map((product) => (
+-                <Link
+-                  key={product._id}
+-                  href={productPath(product._id)}
+-                  className={`${panel} transition hover:border-accent`}
+-                >
+-                  <div className="flex items-start justify-between gap-3">
+-                    <Box className="size-8 text-accent" aria-hidden="true" />
+-                    <Status value={product.status} />
+-                  </div>
+-                  <p className="mt-5 font-mono text-xs break-all text-muted">
+-                    {product.sku || tr("No SKU yet", "ยังไม่มีรหัส")}
+-                  </p>
+-                  <h2 className="mt-1 text-lg font-semibold break-words">
+-                    {product.name ||
+-                      tr("Untitled draft", "ฉบับร่างยังไม่มีชื่อ")}
+-                  </h2>
+-                  <p className="mt-3 text-sm text-muted">
+-                    {tr(
+-                      "Total in storage units",
+-                      "สินค้าที่บันทึกในหน่วยจัดเก็บ",
+-                    )}
+-                    :{" "}
+-                    {
+-                      productPalletSummary(
+-                        product._id,
+-                        pallets,
+-                        product.storageFormat,
+-                      ).quantity
+-                    }{" "}
+-                    {product.unit}
+-                  </p>
+-                  <p className="mt-2 text-xs text-muted">
+-                    {summaryFormatText(
+-                      productPalletSummary(
+-                        product._id,
+-                        pallets,
+-                        product.storageFormat,
+-                      ),
+-                      tr,
+-                    )}
+-                  </p>
+-                  <p className="mt-2 text-xs text-muted">
+-                    {summaryStatusText(
+-                      productPalletSummary(
+-                        product._id,
+-                        pallets,
+-                        product.storageFormat,
+-                      ),
+-                      tr,
+-                    )}
+-                  </p>
+-                </Link>
+-              ))
+-            : shownPallets.map((pallet) => (
+-                <Link
+-                  key={pallet._id}
+-                  href={
+-                    canManage && pallet.status === "AWAITING_MEASUREMENT"
+-                      ? measurePath(pallet._id)
+-                      : palletPath(pallet._id)
+-                  }
+-                  className={`${panel} transition hover:border-accent`}
+-                >
+-                  <div className="flex flex-wrap items-start justify-between gap-2">
+-                    <p className="font-mono font-semibold">
+-                      {pallet.code}
+-                      <span className="mt-1 block font-sans text-xs font-normal text-muted">
+-                        {unitNoun(
+-                          pallet.storageFormat ??
+-                            products.find((p) => p._id === pallet.productId)
+-                              ?.storageFormat,
+-                          tr,
+-                        )}
+-                      </span>
++            ? shownProducts.map((product) => {
++                const summary = productPalletSummary(
++                  product._id,
++                  pallets,
++                  product.storageFormat,
++                );
++                return (
++                  <Link
++                    key={product._id}
++                    href={productPath(product._id)}
++                    className={`${panel} transition hover:border-accent`}
++                  >
++                    <div className="flex items-start justify-between gap-3">
++                      <Box className="size-8 text-accent" aria-hidden="true" />
++                      <Status value={product.status} />
++                    </div>
++                    <p className="mt-5 font-mono text-xs break-all text-muted">
++                      {product.sku || tr("No SKU yet", "ยังไม่มีรหัส")}
+                     </p>
+-                    <Status value={palletDisplayStatus(pallet)} />
+-                  </div>
+-                  <h2 className="mt-4 font-medium">
+-                    {products.find((p) => p._id === pallet.productId)?.name ??
+-                      "—"}
+-                  </h2>
+-                  <p className="mt-2 text-sm text-muted">
+-                    {pallet.quantity}{" "}
+-                    {products.find((p) => p._id === pallet.productId)?.unit ??
+-                      ""}
+-                    {pallet.lot ? ` · ${pallet.lot}` : ""}
+-                  </p>
+-                  <p className="mt-2 text-xs text-muted">
+-                    {pallet.lengthMm && pallet.widthMm && pallet.heightMm
+-                      ? `${pallet.lengthMm / 1000} × ${pallet.widthMm / 1000} × ${pallet.heightMm / 1000} m`
+-                      : tr("Dimensions not complete", "ยังวัดขนาดไม่ครบ")}
+-                  </p>
+-                </Link>
+-              ))}
++                    <h2 className="mt-1 text-lg font-semibold break-words">
++                      {product.name ||
++                        tr("Untitled draft", "ฉบับร่างยังไม่มีชื่อ")}
++                    </h2>
++                    <p className="mt-3 text-sm text-muted">
++                      {tr(
++                        "Total in storage units",
++                        "สินค้าที่บันทึกในหน่วยจัดเก็บ",
++                      )}
++                      : {summary.quantity} {product.unit}
++                    </p>
++                    <p className="mt-2 text-xs text-muted">
++                      {summaryFormatText(summary, tr)}
++                    </p>
++                    <p className="mt-2 text-xs text-muted">
++                      {summaryStatusText(summary, tr)}
++                    </p>
++                  </Link>
++                );
++              })
++            : shownPallets.map((pallet) => {
++                const product = products.find(
++                  (p) => p._id === pallet.productId,
++                );
++                const action = unitNextAction(pallet, canManage);
++                return (
++                  <article
++                    key={pallet._id}
++                    className={`${panel} flex flex-col`}
++                  >
++                    <div className="flex flex-wrap items-start justify-between gap-2">
++                      <div>
++                        <Link
++                          href={palletPath(pallet._id)}
++                          className="font-mono font-semibold hover:underline"
++                        >
++                          {pallet.code}
++                        </Link>
++                        <p className="mt-1 text-xs text-muted">
++                          {unitNoun(
++                            pallet.storageFormat ?? product?.storageFormat,
++                            tr,
++                          )}
++                        </p>
++                      </div>
++                      <Status value={palletDisplayStatus(pallet)} />
++                    </div>
++                    <h2 className="mt-4 font-medium">
++                      <Link
++                        href={palletPath(pallet._id)}
++                        className="hover:underline"
++                      >
++                        {product?.name ?? "—"}
++                      </Link>
++                    </h2>
++                    <p className="mt-2 text-sm text-muted">
++                      {pallet.quantity} {product?.unit ?? ""}
++                      {pallet.lot ? ` · ${pallet.lot}` : ""}
++                    </p>
++                    <p className="mt-2 text-xs text-muted">
++                      {pallet.lengthMm && pallet.widthMm && pallet.heightMm
++                        ? `${pallet.lengthMm / 1000} × ${pallet.widthMm / 1000} × ${pallet.heightMm / 1000} m`
++                        : tr("Dimensions not complete", "ยังวัดขนาดไม่ครบ")}
++                    </p>
++                    <div className="mt-auto pt-4">
++                      <Button asChild variant="outline" className="w-full">
++                        <Link
++                          href={action.href}
++                          aria-label={`${tr(...action.label)} ${pallet.code}`}
++                        >
++                          {tr(...action.label)}
++                        </Link>
++                      </Button>
++                    </div>
++                  </article>
++                );
++              })}
+         </div>
+       )}
+     </>
+--- before/src/features/finishedGoods/packingRows.ts
++++ after/src/features/finishedGoods/packingRows.ts
+@@ -0,0 +1,100 @@
++import type { PackedUnit } from "../../../convex/model/finishedGoods/packing";
++
++export type PackageDraft = Partial<Omit<PackedUnit, "dimensionsChecked">> & {
++  dimensionsChecked: boolean;
++};
++export type PackingRow = {
++  id: string;
++  quantity: string;
++  length: string;
++  width: string;
++  height: string;
++  weight: string;
++  checked: boolean;
++};
++export const textNumber = (value: number | undefined, divisor = 1) =>
++  value === undefined ? "" : String(value / divisor);
++export const newPackingRow = (quantity = ""): PackingRow => ({
++  id: crypto.randomUUID(),
++  quantity,
++  length: "",
++  width: "",
++  height: "",
++  weight: "",
++  checked: false,
++});
++export const rowFromPackage = (unit: PackageDraft): PackingRow => ({
++  ...newPackingRow(textNumber(unit.quantity)),
++  length: textNumber(unit.lengthMm, 1000),
++  width: textNumber(unit.widthMm, 1000),
++  height: textNumber(unit.heightMm, 1000),
++  weight: textNumber(unit.weightKg),
++  checked: unit.dimensionsChecked,
++});
++/** Remove floating-point noise, but preserve sub-mm values so validation rejects them. */
++export const millimetres = (value: string) => {
++  const n = Number(value) * 1000;
++  return Math.abs(n - Math.round(n)) < 1e-7 ? Math.round(n) : n;
++};
++export const packageDraft = (row: PackingRow): PackageDraft => ({
++  ...(row.quantity.trim() ? { quantity: Number(row.quantity) } : {}),
++  ...(row.length.trim() ? { lengthMm: millimetres(row.length) } : {}),
++  ...(row.width.trim() ? { widthMm: millimetres(row.width) } : {}),
++  ...(row.height.trim() ? { heightMm: millimetres(row.height) } : {}),
++  ...(row.weight.trim() ? { weightKg: Number(row.weight) } : {}),
++  dimensionsChecked: row.checked,
++});
++export const packedUnit = (row: PackingRow): PackedUnit => ({
++  quantity: 0,
++  lengthMm: 0,
++  widthMm: 0,
++  heightMm: 0,
++  ...packageDraft(row),
++});
++export function updatePackingRow<T extends PackingRow>(
++  row: T,
++  changes: Partial<PackingRow>,
++): T {
++  return {
++    ...row,
++    ...changes,
++    ...(["quantity", "length", "width", "height"].some(
++      (field) => field in changes,
++    )
++      ? { checked: false }
++      : {}),
++    ...("quantity" in changes ? { weight: "" } : {}),
++  };
++}
++
++export function packingIssueText(
++  issue: string | null,
++  tr: (en: string, th: string) => string,
++): string {
++  return issue === "QUANTITY_MISMATCH"
++    ? tr(
++        "Allocated quantity must equal the batch total.",
++        "จำนวนที่จัดสรรต้องเท่ากับยอดรวมของชุด",
++      )
++    : issue === "QUANTITY_INVALID"
++      ? tr(
++          "Enter positive quantities with the precision allowed for this unit.",
++          "กรอกจำนวนมากกว่าศูนย์และทศนิยมที่หน่วยนับรองรับ",
++        )
++      : issue === "DIMENSIONS_UNCHECKED"
++        ? tr(
++            "Confirm the actual dimensions of every storage unit, including copied dimensions.",
++            "ยืนยันขนาดจริงของทุกหน่วย รวมถึงหน่วยที่คัดลอกขนาดมา",
++          )
++        : issue === "WEIGHT_INVALID"
++          ? tr(
++              "Weight must be positive when supplied.",
++              "น้ำหนักต้องมากกว่าศูนย์เมื่อระบุ",
++            )
++          : issue
++            ? tr(
++                "Complete each unit’s quantity and outer dimensions (0–100 m, to the nearest millimetre).",
++                "กรอกจำนวนและขนาดภายนอกของทุกหน่วยให้ครบ (มากกว่า 0 ถึง 100 ม. ละเอียดถึงมิลลิเมตร)",
++              )
++            : "";
++}
+--- before/src/features/finishedGoods/unitNextAction.test.ts
++++ after/src/features/finishedGoods/unitNextAction.test.ts
+@@ -0,0 +1,67 @@
++import { describe, expect, it, vi } from "vitest";
++import { finishedGoodsList } from "@tests/fixtures/finished-goods-ui";
++import { unitNextAction } from "./unitNextAction";
++
++vi.mock("@/i18n/navigation", () => ({ Link: () => null }));
++
++const unit = finishedGoodsList.pallets[0]!;
++
++describe("unit next action", () => {
++  it("opens legacy measurement directly and batch measurement at the exact unit", () => {
++    expect(unitNextAction(unit, true).href).toBe(
++      "/finished-goods/pallets/pallet-a/measure",
++    );
++    expect(
++      unitNextAction({ ...unit, preparationBatchId: "batch-a" }, true).href,
++    ).toBe("/finished-goods/products/product-a?editUnit=pallet-a");
++  });
++
++  it("takes measured units directly to storage and reservations to verification", () => {
++    expect(
++      unitNextAction({ ...unit, status: "AWAITING_PLACEMENT" }, true),
++    ).toEqual({
++      href: "/finished-goods/pallets/pallet-a/storage",
++      label: ["Choose storage", "เลือกจุดจัดเก็บ"],
++    });
++    expect(unitNextAction({ ...unit, status: "RESERVED" }, true)).toEqual({
++      href: "/finished-goods/pallets/pallet-a",
++      label: ["Continue placement", "ดำเนินการจัดเก็บต่อ"],
++    });
++  });
++
++  it.each(["RESERVED", "IN_TRANSIT"] as const)(
++    "resumes an active %s move instead of treating the unit as stored",
++    (moveStatus) => {
++      expect(
++        unitNextAction({ ...unit, status: "STORED", moveStatus }, true),
++      ).toEqual({
++        href: "/finished-goods/pallets/pallet-a/move",
++        label: ["Continue move", "ดำเนินการย้ายต่อ"],
++      });
++    },
++  );
++
++  it("does not offer a new move before the stored unit's support locks are known", () => {
++    expect(unitNextAction({ ...unit, status: "STORED" }, true)).toEqual({
++      href: "/finished-goods/pallets/pallet-a",
++      label: ["View details", "ดูรายละเอียด"],
++    });
++  });
++
++  it("keeps read-only and retired records on detail without offering changes", () => {
++    for (const status of [
++      "AWAITING_MEASUREMENT",
++      "AWAITING_PLACEMENT",
++      "RESERVED",
++      "STORED",
++    ] as const) {
++      expect(
++        unitNextAction({ ...unit, status, moveStatus: "IN_TRANSIT" }, false)
++          .label[0],
++      ).toBe("View details");
++      expect(
++        unitNextAction({ ...unit, status, retiredAt: 1000 }, true).label[0],
++      ).toBe("View details");
++    }
++  });
++});
+--- before/src/features/finishedGoods/unitNextAction.ts
++++ after/src/features/finishedGoods/unitNextAction.ts
+@@ -0,0 +1,45 @@
++import type { FinishedGoodsList } from "@/lib/convex/finishedGoodsApi";
++import {
++  measurePath,
++  palletPath,
++  storagePath,
++  unitCorrectionPath,
++} from "./shared";
++
++type Unit = FinishedGoodsList["pallets"][number];
++type Action = { href: string; label: readonly [string, string] };
++
++export function unitNextAction(unit: Unit, canManage: boolean): Action {
++  const detail = {
++    href: palletPath(unit._id),
++    label: ["View details", "ดูรายละเอียด"] as const,
++  };
++  if (!canManage || unit.retiredAt) return detail;
++  if (unit.moveStatus === "RESERVED" || unit.moveStatus === "IN_TRANSIT")
++    return {
++      href: `${palletPath(unit._id)}/move`,
++      label: ["Continue move", "ดำเนินการย้ายต่อ"],
++    };
++  switch (unit.status) {
++    case "AWAITING_MEASUREMENT":
++      return {
++        href: unit.preparationBatchId
++          ? unitCorrectionPath(unit.productId, unit._id)
++          : measurePath(unit._id),
++        label: ["Measure", "วัดขนาด"],
++      };
++    case "AWAITING_PLACEMENT":
++      return {
++        href: storagePath(unit._id),
++        label: ["Choose storage", "เลือกจุดจัดเก็บ"],
++      };
++    case "RESERVED":
++      return {
++        href: palletPath(unit._id),
++        label: ["Continue placement", "ดำเนินการจัดเก็บต่อ"],
++      };
++    default:
++      // List rows do not include support locks. The detail screen decides whether moving is allowed.
++      return detail;
++  }
++}
+--- before/src/features/finishedGoods/usePreviewState.ts
++++ after/src/features/finishedGoods/usePreviewState.ts
+@@ -0,0 +1,48 @@
++"use client";
++import { useState, type SetStateAction } from "react";
++
++/** Session-only presentation state. Never stores occupancy, permissions or locks. */
++export function usePreviewState<
++  T extends Record<string, string | number | boolean>,
++>(key: string | undefined, initial: T) {
++  const [value, setValue] = useState<T>(() => {
++    if (!key) return initial;
++    try {
++      const saved: unknown = JSON.parse(sessionStorage.getItem(key) ?? "null");
++      if (!saved || typeof saved !== "object") return initial;
++      const result = { ...initial };
++      for (const field of Object.keys(initial) as (keyof T)[]) {
++        const candidate = (saved as Record<keyof T, unknown>)[field];
++        if (
++          typeof candidate === typeof initial[field] &&
++          (typeof candidate !== "number" || Number.isFinite(candidate))
++        )
++          result[field] = candidate as T[keyof T];
++      }
++      return result;
++    } catch {
++      return initial;
++    }
++  });
++  function update(next: SetStateAction<T>) {
++    setValue((previous) => {
++      const result = typeof next === "function" ? next(previous) : next;
++      if (key) {
++        try {
++          sessionStorage.setItem(key, JSON.stringify(result));
++        } catch {
++          /* Editing still works without browser storage. */
++        }
++      }
++      return result;
++    });
++  }
++  function clear() {
++    if (key) {
++      try {
++        sessionStorage.removeItem(key);
++      } catch {}
++    }
++  }
++  return [value, update, clear] as const;
++}

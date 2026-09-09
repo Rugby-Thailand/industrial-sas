@@ -1,0 +1,12 @@
+{
+  "audioTracks" : 0,
+  "bytes" : 569146,
+  "codec" : "avc1",
+  "durationSeconds" : 9.8966666666666665,
+  "encodedFrames" : 99,
+  "fps" : 10,
+  "height" : 996,
+  "output" : "\/Users\/macbook\/Development\/industrial-sas-storage-planner\/artifacts\/correction-audit-2026-09-07\/02-packing-correction.mp4",
+  "sourceFrames" : 22,
+  "width" : 1728
+}

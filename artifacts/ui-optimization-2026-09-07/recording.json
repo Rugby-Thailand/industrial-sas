@@ -1,0 +1,64 @@
+{
+  "width": 1728,
+  "height": 940,
+  "fps": 10,
+  "durationMs": 8115,
+  "frames": [
+    {
+      "path": "recording/0000.png",
+      "timestampMs": 0
+    },
+    {
+      "path": "recording/0001.png",
+      "timestampMs": 451
+    },
+    {
+      "path": "recording/0002.png",
+      "timestampMs": 892
+    },
+    {
+      "path": "recording/0003.png",
+      "timestampMs": 1363
+    },
+    {
+      "path": "recording/0004.png",
+      "timestampMs": 1835
+    },
+    {
+      "path": "recording/0005.png",
+      "timestampMs": 2312
+    },
+    {
+      "path": "recording/0006.png",
+      "timestampMs": 2787
+    },
+    {
+      "path": "recording/0007.png",
+      "timestampMs": 3255
+    },
+    {
+      "path": "recording/0008.png",
+      "timestampMs": 3695
+    },
+    {
+      "path": "recording/0009.png",
+      "timestampMs": 4166
+    },
+    {
+      "path": "recording/0010.png",
+      "timestampMs": 4618
+    },
+    {
+      "path": "recording/0011.png",
+      "timestampMs": 5053
+    },
+    {
+      "path": "recording/0012.png",
+      "timestampMs": 5526
+    },
+    {
+      "path": "recording/0013.png",
+      "timestampMs": 7384
+    }
+  ]
+}

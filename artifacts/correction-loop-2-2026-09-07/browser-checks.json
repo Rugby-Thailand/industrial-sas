@@ -1,0 +1,33 @@
+{
+  "desktop": {
+    "locale": "en",
+    "viewport": "1728x996",
+    "directEditor": "passed",
+    "keepEditing": "height remains 0.3",
+    "storageTabRoundTrip": "passed",
+    "discardNavigation": "exact unit details",
+    "cleanClose": "passed",
+    "refreshStaysClosed": "passed",
+    "unavailableRequest": {
+      "dialogs": 0,
+      "alertFocused": true,
+      "scrollY": 504
+    }
+  },
+  "mobile": {
+    "locale": "th",
+    "viewport": "390x844",
+    "documentWidth": 390,
+    "dialogClientWidth": 356,
+    "dialogScrollWidth": 356,
+    "localizedConfirmation": "passed",
+    "restoreThenClose": "passed",
+    "refreshStaysClosed": "passed"
+  },
+  "data": {
+    "changesSaved": false,
+    "totalProductQuantity": 210,
+    "activeBoxes": 3,
+    "activePallets": 2
+  }
+}

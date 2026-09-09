@@ -1,102 +1,69 @@
-# Development product setup
+# Development setup
 
-This runbook creates the usable development product. It does not configure or
-deploy production. Development must use Clerk test credentials and either a local
-or cloud **development** Convex deployment; never copy production keys here.
+This worktree runs a Next.js app against an isolated local Convex database, using the existing Clerk development instance for identity. It must not replace the original application's cloud backend or webhook.
 
-## What is already in the repository
-
-- Clerk middleware is composed with locale routing.
-- `ClerkProvider` wraps `ConvexProviderWithClerk` only when Clerk is configured.
-- `convex/auth.config.ts` validates the normal Clerk session token with
-  `applicationID: "convex"`; no custom JWT template is needed.
-- Clerk v2 `o.id` is the active organization claim. The deprecated v1 `org_id`
-  shape is accepted only as a migration fallback.
-- `/[locale]/sign-in` mounts Clerk's sign-in component when configured and shows
-  the setup checklist otherwise.
-
-## 1. Create the Clerk development instance
-
-In a Clerk **development** instance:
-
-1. Enable Organizations and disable Personal Accounts. This product requires an
-   active organization for every tenant-bound request.
-2. Activate the Convex integration. Keep the default `aud=convex` mapping.
-3. Use Clerk session-token version 2. Do not add an `org_id` custom claim; the
-   application reads the built-in `o.id` claim.
-4. Create a development organization and add the first development user to it.
-5. Copy the test publishable key (`pk_test_...`), test secret key (`sk_test_...`),
-   and Frontend API URL (`https://…clerk.accounts.dev`).
-
-## 2. Fill the ignored local environment
-
-Preserve the Convex values already written by `convex dev`, then add these values
-to `.env.local`:
-
-```dotenv
-NEXT_PUBLIC_APP_URL=http://localhost:3000
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_REPLACE_ME
-CLERK_SECRET_KEY=sk_test_REPLACE_ME
-CLERK_JWT_ISSUER_DOMAIN=https://REPLACE_ME.clerk.accounts.dev
-NEXT_PUBLIC_CLERK_SIGN_IN_URL=/th/sign-in
-CLERK_WEBHOOK_SIGNING_SECRET=whsec_REPLACE_AFTER_STEP_4
-```
-
-Do not add `CONVEX_DEPLOY_KEY` to a developer machine. Do not commit
-`.env.local`. Check the local file without exposing values:
+## Existing configured worktree
 
 ```sh
-pnpm dev:check
+pnpm install --frozen-lockfile
+pnpm dev
 ```
 
-## 3. Configure and sync the Convex development backend
+Use Node.js 24 and pnpm 10.33.2. Open http://localhost:3100, sign in, select the intended organization and warehouse, then open Buildings and storage locations or Finished goods. Local Convex uses port 3320; its HTTP actions use 3321.
 
-Convex functions do not read `.env.local`, so set the issuer on the selected
-development deployment and sync the auth config:
+`pnpm dev` starts the Convex development process and Next.js with Webpack. It rejects a `CONVEX_DEPLOYMENT` that is not prefixed `local:` or `anonymous:`. Ctrl+C or either child exiting shuts down both children. `PORT=3101 pnpm dev` changes the web port only; update the app URL/configuration when using another origin.
 
-```sh
-pnpm exec convex env set CLERK_JWT_ISSUER_DOMAIN \
-  'https://REPLACE_ME.clerk.accounts.dev'
-pnpm exec convex dev --once
-```
+Development Webpack ignores generated `artifacts/`, `.cache/`, and `docs/plans/` files while retaining source hot reload. This prevents screenshots and recording frames from triggering repeated client rebuilds. See the [refresh investigation](plans/finished-goods-flow-2026-09-05/dev-refresh-investigation.md).
 
-Run `pnpm dev` to start Convex and Next.js together. `Ctrl+C` stops both.
-Use `pnpm dev:web` or `pnpm dev:backend` only when debugging one side.
+The local database persists across server restarts. This worktree's initial data copied planner layouts, identities, workspace membership, and authorization records; it did not import original orders or stock placements. Credentials, local database files, and the import archive are ignored by Git.
 
-## 4. Configure the Clerk development webhook
+## Fresh checkout
 
-The callback is the Convex HTTP origin plus `/webhooks/clerk`. For a local Convex
-deployment, use a secure tunnel that preserves the raw request body; Clerk cannot
-reach localhost directly. A shared cloud development deployment avoids that
-tunnel.
+1. Copy `.env.example` to `.env.local`. Supply the Clerk development publishable key, server secret, and issuer domain through your approved local credential source. Do not commit them.
+2. Start a separate local Convex deployment, letting the CLI configure the local deployment and public backend URLs:
 
-Subscribe to only these event families:
+   ```sh
+   CONVEX_AGENT_MODE=anonymous pnpm exec convex dev --local-cloud-port 3320 --local-site-port 3321
+   ```
 
-- organization created, updated, and deleted;
-- user created, updated, and deleted;
-- organization membership created, updated, and deleted.
+3. Verify `.env.local` identifies this local deployment and its public Convex URL uses port 3320. Set `CLERK_JWT_ISSUER_DOMAIN` on that local Convex deployment with `pnpm exec convex env set CLERK_JWT_ISSUER_DOMAIN <issuer-domain>`. The Next.js environment alone does not configure backend authentication.
+4. Enable Clerk's Convex integration and organizations. Preserve `applicationID: "convex"` in `convex/auth.config.ts`.
+5. Provision the intended local organization, warehouse, mirrored identity/membership, and role assignment through the existing trusted development setup. A fresh database does not automatically grant warehouse access to a new sign-in. Do not bypass authorization to make an empty environment appear ready.
+6. Stop the one-time Convex setup process before running `pnpm dev`, so only one process owns the local backend ports.
 
-Copy the endpoint signing secret to both `.env.local` and the selected Convex
-deployment:
+The signed Clerk webhook endpoint is `/webhooks/clerk` on the Convex HTTP service. For ongoing local identity or organization changes, configure a separate development webhook through a local tunnel and set `CLERK_WEBHOOK_SIGNING_SECRET` on the local deployment. Keep the original app's webhook unchanged. Existing copied accounts can work without a new webhook, but new membership changes need mirroring before workspace access can resolve.
 
-```sh
-pnpm exec convex env set CLERK_WEBHOOK_SIGNING_SECRET 'whsec_REPLACE_ME'
-```
+## Authorization
 
-Send test events and require HTTP `204`. The mirror provisions safe tenant
-defaults and code-owned permissions when the organization event arrives.
+Both planner and finished-goods queries require `masterData.storageLayout.read`; mutations require `masterData.storageLayout.manage`. These are the extracted application's existing permissions, resolved from active organization/warehouse role assignments. Read-only users can inspect products, pallets, and layouts; mutation controls are hidden or disabled. Backend checks remain authoritative, including direct URLs and manually issued requests.
 
-## 5. Development acceptance check
+Local recovery drafts are scoped to the signed-in Clerk user, warehouse, and record. Saved products, measurements, reservations, and verification live on the backend. Changing accounts does not recover another user's local form draft, and only the operator who verified a destination can confirm that pallet stored.
 
-1. Run `pnpm dev:check`, then `pnpm guards`.
-2. Start both development processes.
-3. Open `http://localhost:3000/th/sign-in` and sign in with the development user.
-4. Activate the development organization.
-5. Confirm Convex auth is authenticated and the workspace resolves the mirrored
-   organization without `ACTIVE_ORGANIZATION_MISSING` or `USER_UNKNOWN`.
-6. Confirm `.env.local` contains no live (`pk_live_` / `sk_live_`) Clerk key and
-   no `CONVEX_DEPLOY_KEY`.
+## Commands
 
-Production setup is a separate operation with a separate Clerk production
-instance, Convex production deployment, domain, webhook endpoint, secrets, and
-release-gate evidence. Do not promote or reuse this development instance.
+| Command                             | Purpose                                                                             |
+| ----------------------------------- | ----------------------------------------------------------------------------------- |
+| `pnpm dev`                          | Start the isolated backend and web app on port 3100                                 |
+| `PORT=3101 pnpm dev`                | Use an alternate web port                                                           |
+| `pnpm dev:web`                      | Web app only, fixed port 3100; backend must already run                             |
+| `pnpm dev:backend`                  | Convex only; verify local environment first                                         |
+| `pnpm codegen`                      | Refresh Convex generated API types for the configured deployment                    |
+| `pnpm typecheck`                    | TypeScript validation                                                               |
+| `pnpm lint`                         | ESLint with no warnings                                                             |
+| `pnpm test`                         | All Vitest projects: unit, accessibility, property, runtime, integration, isolation |
+| `pnpm test:unit` / `pnpm test:a11y` | Focused UI/model or accessibility suites                                            |
+| `pnpm check`                        | Typecheck, lint, and tests                                                          |
+| `pnpm build`                        | Production Next.js build                                                            |
+| `pnpm start`                        | Serve that build on port 3100; backend remains separately required                  |
+
+`dev:backend` and `codegen` call Convex directly and do not include the combined runner's deployment-prefix guard. Inspect the local environment before using those commands. There is no deployment step in this development workflow.
+
+## Useful checks
+
+- No workspace: verify the selected Clerk organization, mirrored membership, local warehouse, and active role assignment. Sign-in alone is not authorization.
+- No recommendation: activate a valid building and location, configure usable geometry/supports, and inspect the specific no-fit reasons. Existing reservations count as occupied space.
+- Refresh after reserving: reopen the pallet detail; the hold persists. Refresh after verification retains confirmation eligibility only for the same operator.
+- Camera unavailable: use the explicitly labeled manual destination-code method. Camera access starts only on the scanner's Start camera action; real physical camera/QR hardware was not verified in this development run.
+- A capacity-read limit error is a deliberate refusal to use incomplete occupancy data. Do not weaken it by truncating results.
+
+See the [current user flow](plans/finished-goods-flow-2026-09-05/flow.md), [implementation notes](plans/finished-goods-flow-2026-09-05/implementation-notes.md), and [QA matrix](plans/finished-goods-flow-2026-09-05/qa-matrix.md) for behavior and evidence.

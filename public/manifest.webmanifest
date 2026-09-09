@@ -1,7 +1,7 @@
 {
-  "name": "Industrial SAS",
-  "short_name": "SAS",
-  "description": "Warehouse management system for Thai manufacturers",
+  "name": "Storage Planner",
+  "short_name": "Planner",
+  "description": "Building and storage spot planner",
   "lang": "th",
   "dir": "ltr",
   "start_url": "/th/dashboard",

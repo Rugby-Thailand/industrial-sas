@@ -1,0 +1,8 @@
+{
+  "src/features/finishedGoods/PalletScreens.tsx": "1f2aa5dd29a39cca7af38225da7cb033d3e78fed9c05a0a22421ba3618d673bf",
+  "src/features/finishedGoods/PalletScreens.test.tsx": "b9ddb3317222b56a18148d83f0d3a0ee7adfa2e976b22641a3d79aab3c1bb70a",
+  "src/features/finishedGoods/ProductScreens.tsx": "e743d1b84ec7852426e751818d520f606816ea549e34975aed3c715ff3b252e3",
+  "src/features/finishedGoods/MoveScreen.tsx": "d3e4acac3f825dfc5c6300ab6ffccc695d0495e88c8a7eb912f055801da3abe0",
+  "src/features/finishedGoods/shared.tsx": "b1c2761e17a15fa76aec86b59e4d6c91a9b1be991479883e1b99d11bc8ea0b03",
+  "src/app/globals.css": "4d63afd75fb2ba4761a94fcfee1ae7b99acdf664233491464694d80545c54a36"
+}

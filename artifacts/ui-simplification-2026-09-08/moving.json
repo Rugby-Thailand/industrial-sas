@@ -1,0 +1,52 @@
+{
+  "width": 1728,
+  "height": 940,
+  "fps": 10,
+  "durationMs": 27500,
+  "frames": [
+    {
+      "path": "frames/028.jpg",
+      "timestampMs": 0
+    },
+    {
+      "path": "frames/029.jpg",
+      "timestampMs": 2500
+    },
+    {
+      "path": "frames/030.jpg",
+      "timestampMs": 5000
+    },
+    {
+      "path": "frames/031.jpg",
+      "timestampMs": 7500
+    },
+    {
+      "path": "frames/032.jpg",
+      "timestampMs": 10000
+    },
+    {
+      "path": "frames/033.jpg",
+      "timestampMs": 12500
+    },
+    {
+      "path": "frames/034.jpg",
+      "timestampMs": 15000
+    },
+    {
+      "path": "frames/035.jpg",
+      "timestampMs": 17500
+    },
+    {
+      "path": "frames/036.jpg",
+      "timestampMs": 20000
+    },
+    {
+      "path": "frames/037.jpg",
+      "timestampMs": 22500
+    },
+    {
+      "path": "frames/038.jpg",
+      "timestampMs": 25000
+    }
+  ]
+}

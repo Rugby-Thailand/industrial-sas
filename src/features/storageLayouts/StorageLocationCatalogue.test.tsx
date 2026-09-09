@@ -163,3 +163,36 @@ it("shows read failure without reporting an empty warehouse", () => {
   );
   expect(screen.queryByText(/No locations yet/)).not.toBeInTheDocument();
 });
+
+it("distinguishes both move holds while displaying one pallet and the union footprint", () => {
+  mock.rows = [
+    {
+      ...row,
+      palletCount: 1,
+      occupiedFootprintAreaSqMm: 1_800_000,
+      placements: [
+        { ...row.placements[0]!, moveRole: "SOURCE", moveState: "IN_TRANSIT" },
+        {
+          ...row.placements[0]!,
+          id: "target",
+          code: "STOCK-2",
+          status: "RESERVED",
+          moveRole: "TARGET",
+          moveState: "IN_TRANSIT",
+        },
+      ],
+    },
+  ];
+  renderPage();
+  fireEvent.click(screen.getByRole("button", { name: "All locations" }));
+  const summary = screen.getByText(/Sublocations \/ occupancy/);
+  expect(summary).toHaveTextContent("(1 / 1)");
+  fireEvent.click(summary);
+  expect(
+    screen.getByText(/STOCK-1.*Last confirmed position · moving/),
+  ).toBeVisible();
+  expect(screen.getByText(/STOCK-2.*Move destination reserved/)).toBeVisible();
+  expect(
+    screen.getByText("Occupied and reserved footprint: 1.8 m²"),
+  ).toBeVisible();
+});

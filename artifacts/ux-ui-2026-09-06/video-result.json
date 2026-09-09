@@ -1,0 +1,12 @@
+{
+  "audioTracks" : 0,
+  "bytes" : 1640217,
+  "codec" : "avc1",
+  "durationSeconds" : 17.276666666666667,
+  "encodedFrames" : 173,
+  "fps" : 10,
+  "height" : 940,
+  "output" : "\/Users\/macbook\/Development\/industrial-sas-storage-planner\/artifacts\/ux-ui-2026-09-06\/recommendation-flow.mp4",
+  "sourceFrames" : 38,
+  "width" : 1728
+}

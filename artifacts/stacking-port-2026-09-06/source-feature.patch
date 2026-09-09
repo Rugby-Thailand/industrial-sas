@@ -1,0 +1,1314 @@
+diff --git a/convex/finishedGoods/workflow.ts b/convex/finishedGoods/workflow.ts
+index b221f34..28d88c8 100644
+--- a/convex/finishedGoods/workflow.ts
++++ b/convex/finishedGoods/workflow.ts
+@@ -603,6 +603,8 @@ async function locationContext(
+   );
+   const supports: Array<{
+     supportPositionId?: Id<"storagePositions">;
++    supportPalletId?: Id<"finishedGoodsPallets">;
++    supportCode?: string;
+     surface: Surface;
+   }> = [];
+   if (!zone.mode || zone.mode === "SIMPLE")
+@@ -683,6 +685,42 @@ async function locationContext(
+         },
+       });
+     }
++  // Derive pallet tops from confirmed placement geometry. Preserve the root rack ceiling.
++  const fixedSupports = [...supports];
++  for (const lower of stored) {
++    let root = lower;
++    const seen = new Set<string>([lower.palletId]);
++    while (root.supportPalletId) {
++      if (seen.has(root.supportPalletId) || seen.size >= 10) break;
++      seen.add(root.supportPalletId);
++      const parent = stored.find((p) => p.palletId === root.supportPalletId);
++      if (!parent) break;
++      root = parent;
++    }
++    if (root.supportPalletId) continue;
++    const fixed = fixedSupports.find(
++      (p) => p.supportPositionId === root.supportPositionId,
++    );
++    const lowerPallet = await palletOf(ctx, {
++      warehouseId,
++      palletId: lower.palletId,
++    });
++    if (!fixed || !lowerPallet || lowerPallet.placementId !== lower._id)
++      continue;
++    const zMm = lower.zMm + lower.heightMm;
++    supports.push({
++      supportPalletId: lower.palletId,
++      supportCode: lowerPallet.code,
++      surface: {
++        xMm: lower.xMm,
++        yMm: lower.yMm,
++        zMm,
++        widthMm: lower.widthMm,
++        depthMm: lower.depthMm,
++        heightMm: Math.max(0, fixed.surface.zMm + fixed.surface.heightMm - zMm),
++      },
++    });
++  }
+   return { zone, building, floor, positions, supports, unavailable, occupancy };
+ }
+ type LocationContext = NonNullable<Awaited<ReturnType<typeof locationContext>>>;
+@@ -706,6 +744,7 @@ export interface Destination {
+     baseElevationMm: number;
+   };
+   supportPositionId?: Id<"storagePositions">;
++  supportPalletId?: Id<"finishedGoodsPallets">;
+   supportLabel?: string;
+   supportCode?: string;
+   support: Surface;
+@@ -808,6 +847,13 @@ function destination(
+       maxStackHeightMm: zone.maxStackHeightMm,
+       baseElevationMm: zone.baseElevationMm ?? 0,
+     },
++    ...(support.supportPalletId
++      ? {
++          supportPalletId: support.supportPalletId,
++          supportCode: support.supportCode,
++          supportLabel: support.supportCode,
++        }
++      : {}),
+     ...(support.supportPositionId
+       ? { supportPositionId: support.supportPositionId }
+       : {}),
+@@ -868,6 +914,19 @@ async function recommendations(
+       continue;
+     }
+     for (const support of context.supports) {
++      // A selectable height must be backed by a valid floor, rack, or pallet.
++      // Re-run the same stack rules here and again when the reservation commits.
++      if (support.supportPalletId) {
++        const stackError = await validateStack(
++          ctx,
++          pallet,
++          support.supportPalletId,
++        );
++        if (stackError) {
++          reasons.add(stackError);
++          continue;
++        }
++      }
+       const box = firstFit(
+         pallet,
+         support.surface,
+@@ -925,6 +984,8 @@ export const recommendMove = queryWithOrg({
+         candidates: [] as Candidate[],
+         reasons: ["STORED_PALLET_REQUIRED"],
+       };
++    if ((await stackChildren(ctx, pallet._id)).length)
++      return { candidates: [], reasons: ["PALLET_SUPPORTING_STACK"] };
+     return recommendations(ctx, args);
+   },
+ });
+@@ -961,7 +1022,9 @@ async function detail(
+       placement.zoneId,
+     );
+     const support = context?.supports.find(
+-      (s) => s.supportPositionId === placement.supportPositionId,
++      (s) =>
++        s.supportPositionId === placement.supportPositionId &&
++        s.supportPalletId === placement.supportPalletId,
+     );
+     if (context && support)
+       resolved = destination(
+@@ -978,6 +1041,13 @@ async function detail(
+     product,
+     placement,
+     destination: resolved,
++    stackChildren: await stackChildren(ctx, pallet._id),
++    supportPallet: placement?.supportPalletId
++      ? await palletOf(ctx, {
++          warehouseId: pallet.warehouseId,
++          palletId: placement.supportPalletId,
++        })
++      : null,
+     ...(await (async () => {
+       const moves = (await movesOf(ctx, pallet._id)).sort(
+         (a, b) => b.createdAt - a.createdAt,
+@@ -1082,6 +1152,7 @@ export const reserve = mutationWithOrg({
+     ...writeArgs,
+     zoneId: v.id("storageZones"),
+     supportPositionId: v.optional(v.id("storagePositions")),
++    supportPalletId: v.optional(v.id("finishedGoodsPallets")),
+     xMm: v.number(),
+     yMm: v.number(),
+     rotation: v.union(v.literal(0), v.literal(90)),
+@@ -1119,9 +1190,17 @@ export const reserve = mutationWithOrg({
+         );
+         if (!context) return failure("LOCATION_UNAVAILABLE");
+         const support = context.supports.find(
+-          (s) => s.supportPositionId === args.supportPositionId,
++          (s) =>
++            s.supportPositionId === args.supportPositionId &&
++            s.supportPalletId === args.supportPalletId,
+         );
+         if (!support) return failure("SUPPORT_REQUIRED");
++        const stackError = await validateStack(
++          ctx,
++          pallet,
++          args.supportPalletId,
++        );
++        if (stackError) return failure(stackError);
+         if (conditionCheck(context, product) === "MISMATCH")
+           return failure("STORAGE_CONDITION_MISMATCH");
+         const box = {
+@@ -1148,6 +1227,7 @@ export const reserve = mutationWithOrg({
+             floorId: context.floor._id,
+             zoneId: context.zone._id,
+             locationId: context.zone.locationId,
++            ...compact({ supportPalletId: args.supportPalletId }),
+             ...(args.supportPositionId
+               ? { supportPositionId: args.supportPositionId }
+               : {}),
+@@ -1218,9 +1298,17 @@ async function validReserved(
+   );
+   if (!context) return { error: "LOCATION_UNAVAILABLE" } as const;
+   const support = context.supports.find(
+-    (s) => s.supportPositionId === placement.supportPositionId,
++    (s) =>
++      s.supportPositionId === placement.supportPositionId &&
++      s.supportPalletId === placement.supportPalletId,
+   );
+   if (!support) return { error: "SUPPORT_REQUIRED" } as const;
++  const stackError = await validateStack(
++    ctx,
++    pallet,
++    placement.supportPalletId,
++  );
++  if (stackError) return { error: stackError };
+   const product = await productOf(ctx, {
+     warehouseId: pallet.warehouseId,
+     productId: pallet.productId,
+@@ -1275,14 +1363,15 @@ export const verifyDestination = mutationWithOrg({
+           placement.positionCode,
+           ...(support ? [support.code] : []),
+         ];
+-        const matches =
+-          code.length > 0 &&
+-          code.length <= 500 &&
+-          (qrCodes.includes(code) ||
+-            (args.method === "MANUAL" &&
+-              manualCodes.some(
+-                (expected) => expected.toUpperCase() === code.toUpperCase(),
+-              )));
++        const matches = placement.supportPalletId
++          ? matchesLocation(code, args.method, placement, valid.context)
++          : code.length > 0 &&
++            code.length <= 500 &&
++            (qrCodes.includes(code) ||
++              (args.method === "MANUAL" &&
++                manualCodes.some(
++                  (expected) => expected.toUpperCase() === code.toUpperCase(),
++                )));
+         if (!matches) {
+           await ctx.tenantDb.patch("finishedGoodsPlacements", placement._id, {
+             verifiedAt: undefined,
+@@ -1303,7 +1392,11 @@ export const verifyDestination = mutationWithOrg({
+     ),
+ });
+ export const confirmStored = mutationWithOrg({
+-  args: writeArgs,
++  args: {
++    ...writeArgs,
++    physicalConfirmed: v.optional(v.boolean()),
++    palletCode: v.optional(v.string()),
++  },
+   returns: v.any(),
+   permissionCode: MANAGE,
+   target: { table: "finishedGoodsPallets" },
+@@ -1328,6 +1421,15 @@ export const confirmStored = mutationWithOrg({
+           placement.verifiedByUserId !== ctx.tenant.actor._id
+         )
+           return failure("DESTINATION_NOT_VERIFIED");
++        if (
++          placement.supportPalletId &&
++          (!args.physicalConfirmed ||
++            ![
++              pallet.code.toUpperCase(),
++              `ISAS:PALLET:1:${pallet._id}`.toUpperCase(),
++            ].includes(args.palletCode?.trim().toUpperCase() ?? ""))
++        )
++          return failure("STACK_PHYSICAL_VERIFICATION_REQUIRED");
+         const valid = await validReserved(ctx, pallet, placement);
+         if ("error" in valid) return failure(valid.error!);
+         await ctx.tenantDb.patch("finishedGoodsPlacements", placement._id, {
+@@ -1378,7 +1480,9 @@ async function resolvePlacement(
+     placement.zoneId,
+   );
+   const support = context?.supports.find(
+-    (s) => s.supportPositionId === placement.supportPositionId,
++    (s) =>
++      s.supportPositionId === placement.supportPositionId &&
++      s.supportPalletId === placement.supportPalletId,
+   );
+   return product && context && support
+     ? destination(
+@@ -1432,6 +1536,8 @@ async function moveContext(
+     move.warehouseId !== args.warehouseId
+   )
+     return { error: "NOT_FOUND" } as const;
++  if ((await stackChildren(ctx, pallet._id)).length)
++    return { error: "PALLET_SUPPORTING_STACK" } as const;
+   if (move.ownerUserId !== ctx.tenant.actor._id)
+     return { error: "MOVE_OWNED_BY_ANOTHER_OPERATOR" } as const;
+   if (!isActiveMove(move)) return { error: "MOVE_NOT_ACTIVE" } as const;
+@@ -1476,10 +1582,18 @@ async function validMovePlacement(
+     placement.zoneId,
+   );
+   const support = context?.supports.find(
+-    (s) => s.supportPositionId === placement.supportPositionId,
++    (s) =>
++      s.supportPositionId === placement.supportPositionId &&
++      s.supportPalletId === placement.supportPalletId,
+   );
+   if (!context) return { error: "LOCATION_UNAVAILABLE" } as const;
+   if (!support) return { error: "SUPPORT_REQUIRED" } as const;
++  const stackError = await validateStack(
++    ctx,
++    pallet,
++    placement.supportPalletId,
++  );
++  if (stackError) return { error: stackError };
+   const product = await productOf(ctx, {
+     warehouseId: pallet.warehouseId,
+     productId: pallet.productId,
+@@ -1512,6 +1626,16 @@ function matchesLocation(
+ ) {
+   const trimmed = code.trim();
+   if (!trimmed || trimmed.length > 500) return false;
++  if (placement.supportPalletId) {
++    const support = context.supports.find(
++      (p) => p.supportPalletId === placement.supportPalletId,
++    );
++    return (
++      trimmed === `ISAS:PALLET:1:${placement.supportPalletId}` ||
++      (method === "MANUAL" &&
++        trimmed.toUpperCase() === support?.supportCode?.toUpperCase())
++    );
++  }
+   const support = context.positions.find(
+     (p) => p._id === placement.supportPositionId,
+   );
+@@ -1534,6 +1658,7 @@ export const reserveMove = mutationWithOrg({
+     ...writeArgs,
+     zoneId: v.id("storageZones"),
+     supportPositionId: v.optional(v.id("storagePositions")),
++    supportPalletId: v.optional(v.id("finishedGoodsPallets")),
+     xMm: v.number(),
+     yMm: v.number(),
+     rotation: v.union(v.literal(0), v.literal(90)),
+@@ -1557,6 +1682,8 @@ export const reserveMove = mutationWithOrg({
+         if (!pallet || pallet.status !== "STORED")
+           return failure("STORED_PALLET_REQUIRED");
+         if (!measured(pallet)) return failure("MEASUREMENTS_REQUIRED");
++        if ((await stackChildren(ctx, pallet._id)).length)
++          return failure("PALLET_SUPPORTING_STACK");
+         if ((args.reason?.trim().length ?? 0) > 2000)
+           return failure("FIELD_INVALID", "reason");
+         const source = await currentPlacement(ctx, pallet);
+@@ -1592,9 +1719,17 @@ export const reserveMove = mutationWithOrg({
+         if (!product) return failure("NOT_FOUND");
+         if (!context) return failure("LOCATION_UNAVAILABLE");
+         const support = context.supports.find(
+-          (s) => s.supportPositionId === args.supportPositionId,
++          (s) =>
++            s.supportPositionId === args.supportPositionId &&
++            s.supportPalletId === args.supportPalletId,
+         );
+         if (!support) return failure("SUPPORT_REQUIRED");
++        const stackError = await validateStack(
++          ctx,
++          pallet,
++          args.supportPalletId,
++        );
++        if (stackError) return failure(stackError);
+         if (conditionCheck(context, product) === "MISMATCH")
+           return failure("STORAGE_CONDITION_MISMATCH");
+         const box = {
+@@ -1630,7 +1765,10 @@ export const reserveMove = mutationWithOrg({
+           floorId: context.floor._id,
+           zoneId: context.zone._id,
+           locationId: context.zone.locationId,
+-          ...compact({ supportPositionId: args.supportPositionId }),
++          ...compact({
++            supportPositionId: args.supportPositionId,
++            supportPalletId: args.supportPalletId,
++          }),
+           positionCode,
+           qrValue: `ISAS:FG-POSITION:1:${args.warehouseId}:${positionCode}`,
+           ...box,
+@@ -1943,3 +2081,233 @@ export const reportMoveIssue = mutationWithOrg({
+       },
+     ),
+ });
++
++/** A column has one pallet per level. Reservations hold both space and support capacity. */
++async function stackChildren(
++  ctx: TenantFunctionContext,
++  palletId: Id<"finishedGoodsPallets">,
++) {
++  return (
++    await rows<Doc<"finishedGoodsPlacements">>(
++      ctx,
++      "finishedGoodsPlacements",
++      "by_orgId_supportPalletId",
++      [{ field: "supportPalletId", value: palletId }],
++    )
++  ).filter((p) => p.status !== "RELEASED");
++}
++async function validateStack(
++  ctx: TenantFunctionContext,
++  upper: Doc<"finishedGoodsPallets">,
++  supportPalletId?: Id<"finishedGoodsPallets">,
++): Promise<string | null> {
++  if (!supportPalletId) return null;
++  if (
++    !upper.weightKg ||
++    !Number.isFinite(upper.weightKg) ||
++    upper.weightKg <= 0
++  )
++    return "STACK_WEIGHT_REQUIRED";
++  if ((await stackChildren(ctx, upper._id)).length)
++    return "PALLET_SUPPORTING_STACK";
++  let parentId: Id<"finishedGoodsPallets"> | undefined = supportPalletId;
++  let childId = upper._id,
++    load = upper.weightKg,
++    levels = 2;
++  const seen = new Set<string>([upper._id]);
++  while (parentId) {
++    if (seen.has(parentId) || levels > 10) return "STACK_CYCLE";
++    seen.add(parentId);
++    const parent = await palletOf(ctx, {
++      warehouseId: upper.warehouseId,
++      palletId: parentId,
++    });
++    if (!parent || parent.status !== "STORED")
++      return "STACK_SUPPORT_UNAVAILABLE";
++    if ((await movesOf(ctx, parent._id)).some(isActiveMove))
++      return "STACK_SUPPORT_MOVING";
++    if (
++      !parent.stackable ||
++      !parent.weightKg ||
++      !Number.isFinite(parent.weightKg) ||
++      parent.weightKg <= 0 ||
++      !parent.maxAboveLoadKg ||
++      !Number.isFinite(parent.maxAboveLoadKg) ||
++      parent.maxAboveLoadKg <= 0 ||
++      !Number.isSafeInteger(parent.maxStackLevels) ||
++      parent.maxStackLevels! < 2
++    )
++      return "STACK_LIMITS_REQUIRED";
++    if (load > parent.maxAboveLoadKg) return "STACK_LOAD_EXCEEDED";
++    if (levels > parent.maxStackLevels!) return "STACK_LEVELS_EXCEEDED";
++    if (
++      (await stackChildren(ctx, parent._id)).some(
++        (p) => p.palletId !== childId && p.palletId !== upper._id,
++      )
++    )
++      return "STACK_SUPPORT_OCCUPIED";
++    const placement = await currentPlacement(ctx, parent);
++    if (!placement || placement.status !== "STORED")
++      return "STACK_SUPPORT_UNAVAILABLE";
++    load += parent.weightKg;
++    childId = parent._id;
++    parentId = placement.supportPalletId;
++    levels++;
++  }
++  return null;
++}
++export const saveStackingLimits = mutationWithOrg({
++  args: {
++    ...writeArgs,
++    weightKg: v.number(),
++    stackable: v.boolean(),
++    maxAboveLoadKg: v.optional(v.number()),
++    maxStackLevels: v.optional(v.number()),
++  },
++  returns: v.any(),
++  permissionCode: MANAGE,
++  target: { table: "finishedGoodsPallets" },
++  warehouseId: (a) => a.warehouseId,
++  handler: async (ctx, args) =>
++    command(
++      ctx,
++      args,
++      "finishedGoods.stacking.configure",
++      "finishedGoodsPallets",
++      async () => {
++        const pallet = await palletOf(ctx, args);
++        if (!pallet) return failure("NOT_FOUND");
++        if ((await movesOf(ctx, pallet._id)).some(isActiveMove))
++          return failure("MOVE_ALREADY_ACTIVE");
++        if ((await stackChildren(ctx, pallet._id)).length)
++          return failure("PALLET_SUPPORTING_STACK");
++        const placement = await currentPlacement(ctx, pallet);
++        if (placement?.supportPalletId || pallet.status === "RESERVED")
++          return failure("STACK_SETTINGS_LOCKED");
++        if (
++          !Number.isFinite(args.weightKg) ||
++          args.weightKg <= 0 ||
++          args.weightKg > 1_000_000
++        )
++          return failure("STACK_WEIGHT_REQUIRED", "weightKg");
++        if (
++          args.stackable &&
++          (!args.maxAboveLoadKg ||
++            !Number.isFinite(args.maxAboveLoadKg) ||
++            args.maxAboveLoadKg <= 0 ||
++            args.maxAboveLoadKg > 1_000_000 ||
++            !Number.isSafeInteger(args.maxStackLevels) ||
++            args.maxStackLevels! < 2 ||
++            args.maxStackLevels! > 10)
++        )
++          return failure("STACK_LIMITS_REQUIRED");
++        await ctx.tenantDb.patch("finishedGoodsPallets", pallet._id, {
++          ...stamp(ctx),
++          weightKg: args.weightKg,
++          stackable: args.stackable,
++          maxAboveLoadKg: args.stackable ? args.maxAboveLoadKg : undefined,
++          maxStackLevels: args.stackable ? args.maxStackLevels : undefined,
++        });
++        return { documentId: pallet._id };
++      },
++    ),
++});
++export const stackOptions = queryWithOrg({
++  args: {
++    ...palletArgs,
++    upperPalletId: v.optional(v.id("finishedGoodsPallets")),
++    rotation: v.union(v.literal(0), v.literal(90)),
++  },
++  returns: v.any(),
++  permissionCode: READ,
++  target: { table: "finishedGoodsPallets" },
++  warehouseId: (a) => a.warehouseId,
++  handler: async (ctx, args) => {
++    const lower = await palletOf(ctx, args);
++    if (!lower || lower.status !== "STORED") return null;
++    const placement = await currentPlacement(ctx, lower);
++    if (!placement) return null;
++    const context = await locationContext(
++      ctx,
++      args.warehouseId,
++      placement.zoneId,
++    );
++    const support = context?.supports.find(
++      (s) => s.supportPalletId === lower._id,
++    );
++    const pallets = (
++      await rows<Doc<"finishedGoodsPallets">>(
++        ctx,
++        "finishedGoodsPallets",
++        "by_orgId_warehouseId_code",
++        [{ field: "warehouseId", value: args.warehouseId }],
++      )
++    ).filter(
++      (p) =>
++        p._id !== lower._id &&
++        measured(p) &&
++        ["AWAITING_PLACEMENT", "STORED", "RESERVED"].includes(p.status),
++    );
++    const upper = pallets.find((p) => p._id === args.upperPalletId);
++    let candidate: Destination | null = null;
++    let error: string | null = null;
++    if (upper) {
++      error = await validateStack(ctx, upper, lower._id);
++      if ((await movesOf(ctx, upper._id)).some(isActiveMove))
++        error = "MOVE_ALREADY_ACTIVE";
++      const product = await productOf(ctx, {
++        warehouseId: args.warehouseId,
++        productId: upper.productId,
++      });
++      if (!context || !support || !product)
++        error ??= "STACK_SUPPORT_UNAVAILABLE";
++      else if (measured(upper)) {
++        const size = dimensions(upper, args.rotation);
++        const box = {
++          ...size,
++          xMm:
++            support.surface.xMm +
++            Math.floor((support.surface.widthMm - size.widthMm) / 2),
++          yMm:
++            support.surface.yMm +
++            Math.floor((support.surface.depthMm - size.depthMm) / 2),
++          zMm: support.surface.zMm,
++          rotation: args.rotation,
++        };
++        candidate = destination(context, support, box, product, upper._id);
++        error ??= placementError(
++          box,
++          support.surface,
++          context.occupancy.filter((p) => p.palletId !== upper._id),
++          context.unavailable,
++        );
++        if (conditionCheck(context, product) === "MISMATCH")
++          error ??= "STORAGE_CONDITION_MISMATCH";
++        const current = await currentPlacement(ctx, upper);
++        if (
++          upper.status === "STORED" &&
++          current?.zoneId === candidate.zoneId &&
++          current.xMm === box.xMm &&
++          current.yMm === box.yMm &&
++          current.zMm === box.zMm &&
++          current.rotation === box.rotation
++        )
++          error ??= "MOVE_UNCHANGED";
++      }
++    }
++    return {
++      lower,
++      lowerSettingsLocked:
++        Boolean(placement.supportPalletId) ||
++        (await movesOf(ctx, lower._id)).some(isActiveMove),
++      upperSettingsLocked: upper
++        ? Boolean((await currentPlacement(ctx, upper))?.supportPalletId) ||
++          (await movesOf(ctx, upper._id)).some(isActiveMove)
++        : false,
++      children: await stackChildren(ctx, lower._id),
++      pallets,
++      candidate,
++      error,
++    };
++  },
++});
+diff --git a/convex/schema.ts b/convex/schema.ts
+index 91a89f0..4482b7b 100644
+--- a/convex/schema.ts
++++ b/convex/schema.ts
+@@ -372,6 +372,9 @@ const schema = defineSchema({
+       widthMm: v.optional(v.number()),
+       heightMm: v.optional(v.number()),
+       weightKg: v.optional(v.number()),
++      stackable: v.optional(v.boolean()),
++      maxAboveLoadKg: v.optional(v.number()),
++      maxStackLevels: v.optional(v.number()),
+       status: v.union(
+         v.literal("AWAITING_MEASUREMENT"),
+         v.literal("AWAITING_PLACEMENT"),
+@@ -397,6 +400,7 @@ const schema = defineSchema({
+       zoneId: v.id("storageZones"),
+       locationId: v.id("locations"),
+       supportPositionId: v.optional(v.id("storagePositions")),
++      supportPalletId: v.optional(v.id("finishedGoodsPallets")),
+       positionCode: v.string(),
+       qrValue: v.string(),
+       xMm: v.number(),
+@@ -422,6 +426,7 @@ const schema = defineSchema({
+       updatedByUserId: v.id("users"),
+     }),
+   )
++    .index("by_orgId_supportPalletId", byOrg("supportPalletId"))
+     .index("by_orgId_zoneId_status", byOrg("zoneId", "status"))
+     .index("by_orgId_buildingId_status", byOrg("buildingId", "status"))
+     .index("by_orgId_palletId", byOrg("palletId"))
+diff --git a/src/features/finishedGoods/DestinationScanner.tsx b/src/features/finishedGoods/DestinationScanner.tsx
+index 9f143e3..cd3a5b9 100644
+--- a/src/features/finishedGoods/DestinationScanner.tsx
++++ b/src/features/finishedGoods/DestinationScanner.tsx
+@@ -18,7 +18,7 @@ export interface DestinationScannerProps {
+   readonly expectedLocation: string;
+   /** Parent workflows can show their precise business error without a duplicate generic notice. */
+   readonly showVerificationErrors?: boolean;
+-  readonly purpose?: "DESTINATION" | "PALLET" | "SOURCE";
++  readonly purpose?: "DESTINATION" | "PALLET" | "SOURCE" | "SUPPORT";
+ }
+ 
+ /** Reads destination identity only; the parent verifies it and confirms storage. */
+@@ -190,23 +190,30 @@ export function DestinationScanner({
+     <div className="space-y-4">
+       <div className="rounded-lg border border-border bg-surface p-3">
+         <p className="text-xs text-muted">
+-          {purpose === "PALLET"
+-            ? tr("Expected pallet", "พาเลทที่ต้องการ")
+-            : purpose === "SOURCE"
+-              ? tr("Expected source", "ต้นทางที่ต้องการ")
+-              : tr("Expected destination", "ปลายทางที่ต้องการ")}
++          {purpose === "SUPPORT"
++            ? tr("Supporting pallet", "พาเลทรองรับ")
++            : purpose === "PALLET"
++              ? tr("Expected pallet", "พาเลทที่ต้องการ")
++              : purpose === "SOURCE"
++                ? tr("Expected source", "ต้นทางที่ต้องการ")
++                : tr("Expected destination", "ปลายทางที่ต้องการ")}
+         </p>
+         <p className="mt-1 font-medium break-words">{expectedLocation}</p>
+         <p className="mt-2 text-xs leading-relaxed text-muted">
+-          {purpose === "PALLET"
++          {purpose === "SUPPORT"
+             ? tr(
+-                "Scan the pallet label or enter its pallet code before confirming pickup.",
+-                "สแกนป้ายพาเลทหรือกรอกรหัสพาเลทก่อนยืนยันรับ",
++                "Identify the lower pallet that supports this placement. Then confirm placement on its top surface.",
++                "ตรวจสอบพาเลทด้านล่างที่รองรับตำแหน่งนี้ แล้วยืนยันการวางบนผิวด้านบน",
+               )
+-            : tr(
+-                "Verify the location label, then follow the exact position shown in the placement guide.",
+-                "ตรวจสอบป้ายจุดจัดเก็บ แล้ววางตามตำแหน่งที่แน่นอนในภาพแนะนำ",
+-              )}
++            : purpose === "PALLET"
++              ? tr(
++                  "Scan the pallet label or enter its pallet code before confirming pickup.",
++                  "สแกนป้ายพาเลทหรือกรอกรหัสพาเลทก่อนยืนยันรับ",
++                )
++              : tr(
++                  "Verify the location label, then follow the exact position shown in the placement guide.",
++                  "ตรวจสอบป้ายจุดจัดเก็บ แล้ววางตามตำแหน่งที่แน่นอนในภาพแนะนำ",
++                )}
+         </p>
+       </div>
+       <div className="space-y-2">
+@@ -257,11 +264,13 @@ export function DestinationScanner({
+       >
+         <div className="space-y-2">
+           <Label htmlFor={inputId}>
+-            {purpose === "PALLET"
+-              ? tr("Pallet code", "รหัสพาเลท")
+-              : purpose === "SOURCE"
+-                ? tr("Source code", "รหัสต้นทาง")
+-                : tr("Destination code", "รหัสปลายทาง")}
++            {purpose === "SUPPORT"
++              ? tr("Supporting pallet code", "รหัสพาเลทรองรับ")
++              : purpose === "PALLET"
++                ? tr("Pallet code", "รหัสพาเลท")
++                : purpose === "SOURCE"
++                  ? tr("Source code", "รหัสต้นทาง")
++                  : tr("Destination code", "รหัสปลายทาง")}
+           </Label>
+           <Input
+             id={inputId}
+@@ -272,7 +281,9 @@ export function DestinationScanner({
+             spellCheck={false}
+             maxLength={500}
+             placeholder={
+-              purpose === "PALLET" ? "ISAS:PALLET:1:…" : "ISAS:LOCATION:1:…"
++              purpose === "PALLET" || purpose === "SUPPORT"
++                ? "ISAS:PALLET:1:…"
++                : "ISAS:LOCATION:1:…"
+             }
+             aria-describedby={`${inputId}-hint`}
+           />
+@@ -302,27 +313,34 @@ export function DestinationScanner({
+         <Notice
+           tone="success"
+           title={
+-            purpose === "PALLET"
+-              ? tr("Pallet identified", "ระบุพาเลทแล้ว")
+-              : purpose === "SOURCE"
+-                ? tr("Source code captured", "รับรหัสต้นทางแล้ว")
+-                : tr("Destination verified", "ตรวจสอบปลายทางแล้ว")
++            purpose === "SUPPORT"
++              ? tr("Supporting pallet verified", "ตรวจสอบพาเลทรองรับแล้ว")
++              : purpose === "PALLET"
++                ? tr("Pallet identified", "ระบุพาเลทแล้ว")
++                : purpose === "SOURCE"
++                  ? tr("Source code captured", "รับรหัสต้นทางแล้ว")
++                  : tr("Destination verified", "ตรวจสอบปลายทางแล้ว")
+           }
+           body={
+-            purpose === "PALLET"
++            purpose === "SUPPORT"
+               ? tr(
+-                  "Confirm pickup only after physically picking up this pallet.",
+-                  "ยืนยันรับหลังรับพาเลทจริงเท่านั้น",
++                  "Place the upper pallet at the shown coordinates before confirming.",
++                  "วางพาเลทด้านบนตามพิกัดที่แสดงก่อนยืนยัน",
+                 )
+-              : purpose === "SOURCE"
++              : purpose === "PALLET"
+                 ? tr(
+-                    "Confirm return only after physically returning to the exact source position. The server checks the code again when you confirm.",
+-                    "ยืนยันคืนหลังคืนพาเลทตามตำแหน่งต้นทางจริง ระบบตรวจรหัสอีกครั้งเมื่อยืนยัน",
+-                  )
+-                : tr(
+-                    "Place the pallet at the guided position before confirming storage.",
+-                    "วางพาเลทตามตำแหน่งที่แนะนำก่อนยืนยันจัดเก็บ",
++                    "Confirm pickup only after physically picking up this pallet.",
++                    "ยืนยันรับหลังรับพาเลทจริงเท่านั้น",
+                   )
++                : purpose === "SOURCE"
++                  ? tr(
++                      "Confirm return only after physically returning to the exact source position. The server checks the code again when you confirm.",
++                      "ยืนยันคืนหลังคืนพาเลทตามตำแหน่งต้นทางจริง ระบบตรวจรหัสอีกครั้งเมื่อยืนยัน",
++                    )
++                  : tr(
++                      "Place the pallet at the guided position before confirming storage.",
++                      "วางพาเลทตามตำแหน่งที่แนะนำก่อนยืนยันจัดเก็บ",
++                    )
+           }
+         />
+       ) : null}
+diff --git a/src/features/finishedGoods/MoveScreen.test.tsx b/src/features/finishedGoods/MoveScreen.test.tsx
+index 11ac753..e38ad48 100644
+--- a/src/features/finishedGoods/MoveScreen.test.tsx
++++ b/src/features/finishedGoods/MoveScreen.test.tsx
+@@ -148,6 +148,46 @@ function enterCode(label: string, value: string) {
+   fireEvent.click(screen.getByRole("button", { name: "Verify entered code" }));
+ }
+ describe("stored pallet movement", () => {
++  it("selects a pallet-backed Z level and preserves its support when moving", async () => {
++    const stack = {
++      ...finishedGoodDestination,
++      supportPalletId: "lower-pallet",
++      supportCode: "LOWER-1",
++      zMm: 1400,
++      support: {
++        ...finishedGoodDestination.support,
++        zMm: 1400,
++        heightMm: 1600,
++      },
++    };
++    mocks.query.mockImplementation((name) =>
++      name.endsWith(":getPallet")
++        ? querySuccess(currentDetail)
++        : querySuccess({
++            candidates: [finishedGoodDestination, stack],
++            reasons: [],
++          }),
++    );
++    renderMove();
++    fireEvent.change(
++      screen.getByRole("combobox", { name: "Placement level (Z)" }),
++      { target: { value: `${stack.zoneId}:pallet:lower-pallet` } },
++    );
++    expect(screen.getByRole("spinbutton", { name: "Z (m)" })).toHaveValue(1.4);
++    fireEvent.click(screen.getByRole("button", { name: "Review move" }));
++    fireEvent.click(
++      within(screen.getByRole("dialog")).getByRole("button", {
++        name: /Reserve/,
++      }),
++    );
++    await waitFor(() => expect(callsFor("reserveMove")).toHaveLength(1));
++    expect(callsFor("reserveMove")[0]?.[1]).toMatchObject({
++      supportPalletId: "lower-pallet",
++      expectedSourcePlacementId: "placement-a",
++    });
++    expect(callsFor("reserveMove")[0]?.[1]).not.toHaveProperty("zMm");
++  });
++
+   it("reviews source and target before reserving with a source revision", async () => {
+     renderMove();
+     fireEvent.click(screen.getByRole("button", { name: "Review move" }));
+diff --git a/src/features/finishedGoods/MoveScreen.tsx b/src/features/finishedGoods/MoveScreen.tsx
+index 82ac9e5..2168931 100644
+--- a/src/features/finishedGoods/MoveScreen.tsx
++++ b/src/features/finishedGoods/MoveScreen.tsx
+@@ -20,6 +20,7 @@ import { DestinationScanner } from "./DestinationScanner";
+ import { PalletScene } from "./PalletScene";
+ import {
+   DestinationSummary,
++  destinationKey,
+   MoveHistory,
+   PlacementEditor,
+   Summary,
+@@ -144,8 +145,7 @@ function MoveSelection({
+   });
+   const [selected, setSelected] = useState("");
+   const candidates = outcome?.ok ? outcome.value.candidates : [];
+-  const keyOf = (candidate: (typeof candidates)[number]) =>
+-    `${candidate.zoneId}:${candidate.supportPositionId ?? "floor"}`;
++  const keyOf = destinationKey;
+   const current =
+     candidates.find((candidate) => keyOf(candidate) === selected) ??
+     candidates[0];
+@@ -221,6 +221,8 @@ function MoveSelection({
+                   {candidate.floorNumber} ·{" "}
+                   {candidate.supportLabel ??
+                     tr("Location floor", "พื้นจุดจัดเก็บ")}
++                  {" · Z "}
++                  {candidate.zMm / 1000} m
+                 </span>
+               </button>
+             ))}
+@@ -230,6 +232,8 @@ function MoveSelection({
+             warehouseId={warehouseId}
+             detail={detail}
+             candidate={current}
++            destinations={candidates}
++            onDestinationChange={(next) => setSelected(keyOf(next))}
+             moving
+             onReserved={onReserved}
+           />
+@@ -513,7 +517,16 @@ function ActiveMove({
+                 onCode={verify}
+                 busy={op.busy}
+                 verified={move.destinationVerifiedForCurrentUser}
+-                expectedLocation={move.targetDestination?.locationName ?? ""}
++                expectedLocation={
++                  move.targetDestination?.supportPalletId
++                    ? (move.targetDestination.supportCode ?? "")
++                    : (move.targetDestination?.locationName ?? "")
++                }
++                purpose={
++                  move.targetDestination?.supportPalletId
++                    ? "SUPPORT"
++                    : "DESTINATION"
++                }
+                 showVerificationErrors={false}
+               />
+             ) : (
+@@ -662,19 +675,37 @@ function ActiveMove({
+                 />
+               ) : null}
+               <DestinationScanner
+-                purpose="SOURCE"
+-                expectedLocation={move.sourceDestination?.locationName ?? ""}
++                purpose={
++                  move.sourceDestination?.supportPalletId ? "SUPPORT" : "SOURCE"
++                }
++                expectedLocation={
++                  move.sourceDestination?.supportPalletId
++                    ? (move.sourceDestination.supportCode ?? "")
++                    : (move.sourceDestination?.locationName ?? "")
++                }
+                 busy={op.busy}
+                 verified={!!returnCode}
+                 showVerificationErrors={false}
+                 onCode={async (code, method) => {
+-                  const accepted = [
+-                    move.sourceDestination?.locationQrValue,
+-                    move.sourceDestination?.locationCode,
+-                    move.sourcePlacement?.qrValue,
+-                    move.sourcePlacement?.positionCode,
+-                  ];
+-                  if (!accepted.includes(code)) {
++                  const accepted = move.sourceDestination?.supportPalletId
++                    ? [
++                        move.sourceDestination.supportCode,
++                        `ISAS:PALLET:1:${move.sourceDestination.supportPalletId}`,
++                      ]
++                    : [
++                        move.sourceDestination?.locationQrValue,
++                        move.sourceDestination?.locationCode,
++                        move.sourcePlacement?.qrValue,
++                        move.sourcePlacement?.positionCode,
++                      ];
++                  if (
++                    !accepted.some(
++                      (c) =>
++                        c === code ||
++                        (method === "MANUAL" &&
++                          c?.toUpperCase() === code.trim().toUpperCase()),
++                    )
++                  ) {
+                     op.setError(
+                       tr(
+                         "This code does not match the source.",
+diff --git a/src/features/finishedGoods/PalletScreens.test.tsx b/src/features/finishedGoods/PalletScreens.test.tsx
+index ba7878e..d5e00e9 100644
+--- a/src/features/finishedGoods/PalletScreens.test.tsx
++++ b/src/features/finishedGoods/PalletScreens.test.tsx
+@@ -294,6 +294,41 @@ describe("measurement command lifecycle", () => {
+ });
+ 
+ describe("exact storage recommendations", () => {
++  it("automatically raises an edited position onto a pallet and submits that support identity", async () => {
++    const stack = {
++      ...finishedGoodDestination,
++      supportPalletId: "lower-pallet",
++      supportCode: "LOWER-1",
++      supportLabel: "LOWER-1",
++      zMm: 1400,
++      support: {
++        ...finishedGoodDestination.support,
++        zMm: 1400,
++        heightMm: 1600,
++      },
++    };
++    mocks.query.mockImplementation((name) =>
++      name.endsWith(":getPallet")
++        ? querySuccess(currentDetail)
++        : querySuccess({
++            candidates: [finishedGoodDestination, stack],
++            reasons: [],
++          }),
++    );
++    renderPallet("storage");
++    fireEvent.click(screen.getByRole("button", { name: "Adjust position" }));
++    fireEvent.change(screen.getByRole("spinbutton", { name: "X (m)" }), { target: { value: "0.3" } });
++    expect(screen.getByText(/Position: X 0.3 m · Y 0.2 m · Z 1.4 m/)).toBeInTheDocument();
++    fireEvent.click(screen.getByRole("button", { name: "Use this position" }));
++    fireEvent.click(screen.getByRole("button", { name: "Confirm spot" }));
++    fireEvent.click(screen.getByRole("button", { name: "Reserve spot" }));
++    await waitFor(() => expect(callsFor("reserve")).toHaveLength(1));
++    expect(callsFor("reserve")[0]?.[1]).toMatchObject({
++      supportPalletId: "lower-pallet",
++    });
++    expect(callsFor("reserve")[0]?.[1]).not.toHaveProperty("zMm");
++  });
++
+   it("requires measurement on a direct storage URL for an unmeasured pallet", () => {
+     currentDetail = { ...measuredPalletDetail, pallet: finishedGoodPallet };
+     renderPallet("storage");
+diff --git a/src/features/finishedGoods/PalletScreens.tsx b/src/features/finishedGoods/PalletScreens.tsx
+index d760047..98db83e 100644
+--- a/src/features/finishedGoods/PalletScreens.tsx
++++ b/src/features/finishedGoods/PalletScreens.tsx
+@@ -8,6 +8,8 @@ import {
+   CheckCircle2,
+   MapPin,
+   MoveRight,
++  Layers3,
++  LockKeyhole,
+   Ruler,
+   ScanLine,
+   ShieldCheck,
+@@ -459,8 +461,7 @@ function Recommendations({
+   if (!outcome) return <Loading />;
+   if (!outcome.ok) return <Missing />;
+   const candidates = outcome.value.candidates;
+-  const keyOf = (c: Candidate) =>
+-    `${c.zoneId}:${c.supportPositionId ?? "floor"}`;
++  const keyOf = destinationKey;
+   const current =
+     candidates.find((c) => keyOf(c) === selected) ?? candidates[0];
+   return (
+@@ -563,6 +564,8 @@ function Recommendations({
+             warehouseId={warehouseId}
+             detail={detail}
+             candidate={current}
++            destinations={candidates}
++            onDestinationChange={(next) => setSelected(keyOf(next))}
+           />
+         </div>
+       )}
+@@ -687,16 +690,29 @@ export function DestinationSummary({
+     </div>
+   );
+ }
++export function destinationKey(candidate: Candidate) {
++  const support = candidate.supportPalletId
++    ? `pallet:${candidate.supportPalletId}`
++    : candidate.supportPositionId
++      ? `position:${candidate.supportPositionId}`
++      : "floor";
++  return `${candidate.zoneId}:${support}`;
++}
++
+ export function PlacementEditor({
+   warehouseId,
+   detail,
+   candidate,
++  destinations = [candidate],
++  onDestinationChange,
+   moving = false,
+   onReserved,
+ }: {
+   warehouseId: string;
+   detail: PalletDetail;
+   candidate: Candidate;
++  destinations?: readonly Candidate[];
++  onDestinationChange?: (candidate: Candidate) => void;
+   moving?: boolean;
+   onReserved?: () => void;
+ }) {
+@@ -722,6 +738,7 @@ export function PlacementEditor({
+     moving &&
+     detail.placement?.zoneId === candidate.zoneId &&
+     detail.placement?.supportPositionId === candidate.supportPositionId &&
++    detail.placement?.supportPalletId === candidate.supportPalletId &&
+     detail.placement?.xMm === placement.xMm &&
+     detail.placement?.yMm === placement.yMm &&
+     detail.placement?.zMm === placement.zMm &&
+@@ -744,6 +761,9 @@ export function PlacementEditor({
+         ...(candidate.supportPositionId
+           ? { supportPositionId: candidate.supportPositionId }
+           : {}),
++        ...(candidate.supportPalletId
++          ? { supportPalletId: candidate.supportPalletId }
++          : {}),
+         xMm: placement.xMm,
+         yMm: placement.yMm,
+         rotation: placement.rotation,
+@@ -822,6 +842,50 @@ export function PlacementEditor({
+               : tr("Destination", "ปลายทาง")}
+           </h2>
+           <DestinationSummary destination={candidate} placement={placement} />
++          <div className="space-y-3">
++            <label className="block space-y-2 text-sm">
++              <span>{tr("Placement level (Z)", "ระดับจัดเก็บ (Z)")}</span>
++              <select
++                className="h-11 w-full min-w-0 rounded-lg border border-border bg-background px-3"
++                value={destinationKey(candidate)}
++                disabled={!onDestinationChange || op.busy}
++                onChange={(event) => {
++                  const next = destinations.find(
++                    (item) => destinationKey(item) === event.target.value,
++                  );
++                  if (next) onDestinationChange?.(next);
++                }}
++              >
++                {destinations.map((item) => (
++                  <option
++                    key={destinationKey(item)}
++                    value={destinationKey(item)}
++                  >
++                    Z {mmText(item.zMm)} ·{" "}
++                    {item.supportPalletId
++                      ? `${tr("On pallet", "บนพาเลท")} ${item.supportCode}`
++                      : (item.supportLabel ??
++                        tr("Location floor", "พื้นจุดจัดเก็บ"))}{" "}
++                    · {item.locationName} · {item.buildingCode} ·{" "}
++                    {tr("Floor", "ชั้น")} {item.floorNumber}
++                  </option>
++                ))}
++              </select>
++            </label>
++            <Field
++              label="Z (m)"
++              type="number"
++              value={String((placement.zMm ?? 0) / 1000)}
++              onChange={() => {}}
++              disabled
++            />
++            <p className="text-xs text-muted">
++              {tr(
++                "Change height by choosing a floor, rack level or supporting pallet. Z follows the selected surface; only valid available supports are listed.",
++                "เปลี่ยนความสูงโดยเลือกพื้น ระดับชั้นวาง หรือพาเลทรองรับ ค่า Z อ้างอิงผิวที่เลือก และแสดงเฉพาะตำแหน่งที่วางได้",
++              )}
++            </p>
++          </div>
+           {adjust ? (
+             <>
+               <div className="grid grid-cols-2 gap-3">
+@@ -1052,6 +1116,8 @@ function PalletDetailScreen({
+   const op = useOperation();
+   const [scanner, setScanner] = useState(false);
+   const [cancel, setCancel] = useState(false);
++  const [upperCode, setUpperCode] = useState("");
++  const [physicalStack, setPhysicalStack] = useState(false);
+   const pallet = detail.pallet;
+   const destination = detail.destination;
+   const placement = detail.placement;
+@@ -1080,7 +1146,12 @@ function PalletDetailScreen({
+         await storeMutation({
+           warehouseId,
+           palletId: pallet._id,
+-          requestId: op.request(`store:${placement?._id}`),
++          requestId: op.request(
++            `store:${placement?._id}:${upperCode}:${physicalStack}`,
++          ),
++          ...(placement?.supportPalletId
++            ? { palletCode: upperCode, physicalConfirmed: physicalStack }
++            : {}),
+         }),
+       );
+       setScanner(false);
+@@ -1198,6 +1269,45 @@ function PalletDetailScreen({
+           </span>
+         </div>
+       ) : null}
++      {detail.supportPallet ? (
++        <div className={`${panel} mb-5 text-sm`}>
++          {tr("Supported by", "รองรับโดย")}{" "}
++          <Link
++            className="text-primary underline"
++            href={palletPath(detail.supportPallet._id)}
++          >
++            {detail.supportPallet.code}
++          </Link>
++          {reserved ? (
++            <p className="mt-2">
++              {tr(
++                "Verify this supporting pallet’s QR or code before confirming the stack.",
++                "ตรวจสอบ QR หรือรหัสพาเลทรองรับก่อนยืนยันการซ้อน",
++              )}
++            </p>
++          ) : null}
++        </div>
++      ) : null}
++      {detail.stackChildren?.length ? (
++        <div className={`${panel} mb-5 space-y-2 text-sm`}>
++          <p className="flex items-center gap-2">
++            <LockKeyhole className="size-4" />
++            {tr(
++              "Move locked — remove the upper pallet first",
++              "ย้ายไม่ได้ — กรุณาย้ายพาเลทด้านบนก่อน",
++            )}
++          </p>
++          {detail.stackChildren.map((child) => (
++            <Link
++              className="block text-primary underline"
++              key={child._id}
++              href={palletPath(child.palletId)}
++            >
++              {tr("View upper pallet", "ดูพาเลทด้านบน")} · {child.positionCode}
++            </Link>
++          ))}
++        </div>
++      ) : null}
+       <div className="grid items-start gap-5 xl:grid-cols-[1.3fr_1fr]">
+         <div className={panel}>
+           {destination && coords ? (
+@@ -1356,7 +1466,10 @@ function PalletDetailScreen({
+                   </Link>
+                 </Button>
+               ) : null}
+-              {canManage && !activeMove && destination ? (
++              {canManage &&
++              !activeMove &&
++              destination &&
++              !detail.stackChildren?.length ? (
+                 <Button asChild>
+                   <Link href={`${palletPath(pallet._id)}/move`}>
+                     <MoveRight className="size-4" aria-hidden="true" />
+@@ -1364,6 +1477,17 @@ function PalletDetailScreen({
+                   </Link>
+                 </Button>
+               ) : null}
++              {canManage &&
++              !activeMove &&
++              destination &&
++              !detail.stackChildren?.length ? (
++                <Button variant="outline" asChild>
++                  <Link href={`${palletPath(pallet._id)}/stack`}>
++                    <Layers3 className="size-4" />
++                    {tr("Stack on top", "ซ้อนด้านบน")}
++                  </Link>
++                </Button>
++              ) : null}
+               {canManage ? (
+                 <Button variant="outline" asChild>
+                   <Link href={productPath(pallet.productId)}>
+@@ -1406,12 +1530,39 @@ function PalletDetailScreen({
+             </DialogDescription>
+           </DialogHeader>
+           <DestinationScanner
+-            expectedLocation={destination?.locationName ?? ""}
++            expectedLocation={
++              detail.supportPallet?.code ?? destination?.locationName ?? ""
++            }
++            purpose={detail.supportPallet ? "SUPPORT" : "DESTINATION"}
+             showVerificationErrors={false}
+             onCode={verify}
+             busy={op.busy}
+             verified={verified}
+           />
++          {placement?.supportPalletId ? (
++            <div className="space-y-3">
++              <p className="text-sm font-semibold">
++                {tr("Supporting pallet", "พาเลทรองรับ")}:{" "}
++                {detail.supportPallet?.code}
++              </p>
++              <Field
++                label={tr("Upper pallet code or QR", "รหัสหรือ QR พาเลทด้านบน")}
++                value={upperCode}
++                onChange={setUpperCode}
++              />
++              <label className="flex items-start gap-2 text-sm">
++                <input
++                  type="checkbox"
++                  checked={physicalStack}
++                  onChange={(e) => setPhysicalStack(e.target.checked)}
++                />
++                {tr(
++                  "I placed this upper pallet on the support at the shown position.",
++                  "ฉันวางพาเลทด้านบนบนพาเลทรองรับตามตำแหน่งที่แสดงแล้ว",
++                )}
++              </label>
++            </div>
++          ) : null}
+           {destination && coords ? (
+             <DestinationSummary destination={destination} placement={coords} />
+           ) : null}
+@@ -1427,7 +1578,14 @@ function PalletDetailScreen({
+               {tr("Close", "ปิด")}
+             </Button>
+             <Button
+-              disabled={!verified || op.busy}
++              disabled={
++                !verified ||
++                op.busy ||
++                Boolean(
++                  placement?.supportPalletId &&
++                  (!physicalStack || !upperCode.trim()),
++                )
++              }
+               onClick={() => void store()}
+             >
+               {op.busy
+diff --git a/src/features/finishedGoods/shared.tsx b/src/features/finishedGoods/shared.tsx
+index 33ff583..8d55c7a 100644
+--- a/src/features/finishedGoods/shared.tsx
++++ b/src/features/finishedGoods/shared.tsx
+@@ -267,6 +267,50 @@ export function Status({ value }: { value: string }) {
+   );
+ }
+ const errorMessages: Record<string, readonly [string, string]> = {
++  STACK_WEIGHT_REQUIRED: [
++    "Enter the actual total pallet weight, including packaging.",
++    "กรอกน้ำหนักจริงรวมพาเลทและบรรจุภัณฑ์",
++  ],
++  STACK_LIMITS_REQUIRED: [
++    "The support needs weight, maximum load above, and maximum stack levels before stacking.",
++    "กรอกน้ำหนัก น้ำหนักที่รับได้ด้านบน และจำนวนชั้นสูงสุดก่อนซ้อน",
++  ],
++  STACK_LOAD_EXCEEDED: [
++    "The combined load exceeds a supporting pallet’s limit.",
++    "น้ำหนักรวมเกินขีดจำกัดของพาเลทด้านล่าง",
++  ],
++  STACK_LEVELS_EXCEEDED: [
++    "This would exceed the configured number of stack levels.",
++    "จำนวนชั้นเกินขีดจำกัดที่กำหนด",
++  ],
++  STACK_CYCLE: [
++    "A pallet cannot support itself or its own support.",
++    "พาเลทไม่สามารถรองรับตัวเองหรือพาเลทที่รองรับมันอยู่",
++  ],
++  STACK_SUPPORT_UNAVAILABLE: [
++    "The supporting pallet is no longer stored here. Choose another support.",
++    "พาเลทรองรับไม่ได้อยู่ที่นี่แล้ว กรุณาเลือกใหม่",
++  ],
++  STACK_SUPPORT_MOVING: [
++    "The supporting pallet has an active move. Finish or cancel that move first.",
++    "พาเลทรองรับมีงานย้ายอยู่ กรุณาจบหรือยกเลิกงานย้ายก่อน",
++  ],
++  STACK_SUPPORT_OCCUPIED: [
++    "Another pallet already occupies or reserves this support. Move the top pallet first.",
++    "มีพาเลทอยู่หรือจองด้านบนแล้ว กรุณาย้ายพาเลทด้านบนก่อน",
++  ],
++  PALLET_SUPPORTING_STACK: [
++    "Move or release the upper pallet first. This pallet supports a stack.",
++    "ย้ายพาเลทด้านบนหรือยกเลิกการจองก่อน พาเลทนี้รองรับกองซ้อนอยู่",
++  ],
++  STACK_SETTINGS_LOCKED: [
++    "Stacking settings are locked while this pallet is reserved or stacked.",
++    "แก้ไขข้อกำหนดไม่ได้ขณะพาเลทถูกจองหรือซ้อนอยู่",
++  ],
++  STACK_PHYSICAL_VERIFICATION_REQUIRED: [
++    "Identify the upper pallet and confirm it has been physically placed on the support.",
++    "ตรวจสอบรหัสพาเลทด้านบนและยืนยันการวางจริงบนพาเลทรองรับ",
++  ],
+   BATCH_QUANTITY_LOCKED: [
+     "This quantity belongs to a completed packing allocation and cannot be changed individually.",
+     "จำนวนนี้เป็นส่วนหนึ่งของการจัดสรรพาเลทที่บันทึกแล้ว จึงแก้ไขแยกไม่ได้",
+diff --git a/src/lib/convex/finishedGoodsApi.ts b/src/lib/convex/finishedGoodsApi.ts
+index 6f16f94..3867ce4 100644
+--- a/src/lib/convex/finishedGoodsApi.ts
++++ b/src/lib/convex/finishedGoodsApi.ts
+@@ -2,6 +2,8 @@ import { api } from "../../../convex/_generated/api";
+ import { clientRef, type RefValue } from "./clientRef";
+ 
+ export const fgRefs = Object.freeze({
++  stackOptions: clientRef(api.finishedGoods.workflow.stackOptions),
++  saveStackingLimits: clientRef(api.finishedGoods.workflow.saveStackingLimits),
+   list: clientRef(api.finishedGoods.workflow.list),
+   getProduct: clientRef(api.finishedGoods.workflow.getProduct),
+   getPallet: clientRef(api.finishedGoods.workflow.getPallet),
+diff --git a/tests/fixtures/finished-goods-ui.ts b/tests/fixtures/finished-goods-ui.ts
+index 0ec3dc5..344667b 100644
+--- a/tests/fixtures/finished-goods-ui.ts
++++ b/tests/fixtures/finished-goods-ui.ts
+@@ -152,6 +152,8 @@ export const finishedGoodPlacement: Placement = {
+ };
+ export const measuredPalletDetail: PalletDetail = {
+   destinationVerifiedForCurrentUser: false,
++  stackChildren: [],
++  supportPallet: null,
+   pallet: {
+     ...finishedGoodPallet,
+     status: "AWAITING_PLACEMENT",

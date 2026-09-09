@@ -1,0 +1,88 @@
+{
+  "frames": [
+    {
+      "path": "03-direct-location-edit-frames/00000.png",
+      "timestampMs": 0
+    },
+    {
+      "path": "03-direct-location-edit-frames/00001.png",
+      "timestampMs": 514
+    },
+    {
+      "path": "03-direct-location-edit-frames/00002.png",
+      "timestampMs": 1011
+    },
+    {
+      "path": "03-direct-location-edit-frames/00003.png",
+      "timestampMs": 1519
+    },
+    {
+      "path": "03-direct-location-edit-frames/00004.png",
+      "timestampMs": 2203
+    },
+    {
+      "path": "03-direct-location-edit-frames/00005.png",
+      "timestampMs": 2836
+    },
+    {
+      "path": "03-direct-location-edit-frames/00006.png",
+      "timestampMs": 4062
+    },
+    {
+      "path": "03-direct-location-edit-frames/00007.png",
+      "timestampMs": 4557
+    },
+    {
+      "path": "03-direct-location-edit-frames/00008.png",
+      "timestampMs": 5047
+    },
+    {
+      "path": "03-direct-location-edit-frames/00009.png",
+      "timestampMs": 5541
+    },
+    {
+      "path": "03-direct-location-edit-frames/00010.png",
+      "timestampMs": 5767
+    },
+    {
+      "path": "03-direct-location-edit-frames/00011.png",
+      "timestampMs": 6355
+    },
+    {
+      "path": "03-direct-location-edit-frames/00012.png",
+      "timestampMs": 6873
+    },
+    {
+      "path": "03-direct-location-edit-frames/00013.png",
+      "timestampMs": 7388
+    },
+    {
+      "path": "03-direct-location-edit-frames/00014.png",
+      "timestampMs": 7870
+    },
+    {
+      "path": "03-direct-location-edit-frames/00015.png",
+      "timestampMs": 8400
+    },
+    {
+      "path": "03-direct-location-edit-frames/00016.png",
+      "timestampMs": 8886
+    },
+    {
+      "path": "03-direct-location-edit-frames/00017.png",
+      "timestampMs": 9374
+    },
+    {
+      "path": "03-direct-location-edit-frames/00018.png",
+      "timestampMs": 10122
+    },
+    {
+      "path": "03-direct-location-edit-frames/00019.png",
+      "timestampMs": 10620
+    }
+  ],
+  "durationMs": 10816,
+  "width": 1728,
+  "height": 996,
+  "fps": 10
+}

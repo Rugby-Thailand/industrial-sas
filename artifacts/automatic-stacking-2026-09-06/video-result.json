@@ -1,0 +1,12 @@
+{
+  "audioTracks" : 0,
+  "bytes" : 286575,
+  "codec" : "avc1",
+  "durationSeconds" : 2.6316666666666668,
+  "encodedFrames" : 27,
+  "fps" : 10,
+  "height" : 940,
+  "output" : "\/Users\/macbook\/Development\/industrial-sas-storage-planner\/artifacts\/automatic-stacking-2026-09-06\/automatic-stacking-demo.mp4",
+  "sourceFrames" : 10,
+  "width" : 1728
+}

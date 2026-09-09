@@ -1,0 +1,100 @@
+{
+  "frames": [
+    {
+      "path": "01-direct-unit-correction-frames/00000.png",
+      "timestampMs": 0
+    },
+    {
+      "path": "01-direct-unit-correction-frames/00001.png",
+      "timestampMs": 521
+    },
+    {
+      "path": "01-direct-unit-correction-frames/00002.png",
+      "timestampMs": 1806
+    },
+    {
+      "path": "01-direct-unit-correction-frames/00003.png",
+      "timestampMs": 2297
+    },
+    {
+      "path": "01-direct-unit-correction-frames/00004.png",
+      "timestampMs": 2788
+    },
+    {
+      "path": "01-direct-unit-correction-frames/00005.png",
+      "timestampMs": 3274
+    },
+    {
+      "path": "01-direct-unit-correction-frames/00006.png",
+      "timestampMs": 3762
+    },
+    {
+      "path": "01-direct-unit-correction-frames/00007.png",
+      "timestampMs": 3875
+    },
+    {
+      "path": "01-direct-unit-correction-frames/00008.png",
+      "timestampMs": 4059
+    },
+    {
+      "path": "01-direct-unit-correction-frames/00009.png",
+      "timestampMs": 4551
+    },
+    {
+      "path": "01-direct-unit-correction-frames/00010.png",
+      "timestampMs": 5036
+    },
+    {
+      "path": "01-direct-unit-correction-frames/00011.png",
+      "timestampMs": 5522
+    },
+    {
+      "path": "01-direct-unit-correction-frames/00012.png",
+      "timestampMs": 6019
+    },
+    {
+      "path": "01-direct-unit-correction-frames/00013.png",
+      "timestampMs": 6506
+    },
+    {
+      "path": "01-direct-unit-correction-frames/00014.png",
+      "timestampMs": 6992
+    },
+    {
+      "path": "01-direct-unit-correction-frames/00015.png",
+      "timestampMs": 7486
+    },
+    {
+      "path": "01-direct-unit-correction-frames/00016.png",
+      "timestampMs": 7985
+    },
+    {
+      "path": "01-direct-unit-correction-frames/00017.png",
+      "timestampMs": 8474
+    },
+    {
+      "path": "01-direct-unit-correction-frames/00018.png",
+      "timestampMs": 8680
+    },
+    {
+      "path": "01-direct-unit-correction-frames/00019.png",
+      "timestampMs": 9181
+    },
+    {
+      "path": "01-direct-unit-correction-frames/00020.png",
+      "timestampMs": 10358
+    },
+    {
+      "path": "01-direct-unit-correction-frames/00021.png",
+      "timestampMs": 10895
+    },
+    {
+      "path": "01-direct-unit-correction-frames/00022.png",
+      "timestampMs": 11391
+    }
+  ],
+  "durationMs": 11581,
+  "width": 1728,
+  "height": 996,
+  "fps": 10
+}

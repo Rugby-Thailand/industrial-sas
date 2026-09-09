@@ -1,0 +1,2030 @@
+[
+  {
+    "id": "01-01",
+    "title": "เลือกคลัง ภาษา และเมนู",
+    "instruction": "1 เลือกคลังที่ทำงาน 2 เปลี่ยนภาษา 3 ย่อหรือเปิดแถบนำทาง",
+    "image": "screenshots/original/01-01.jpg",
+    "width": 1728,
+    "height": 869,
+    "marks": [
+      {
+        "height": 32,
+        "width": 224,
+        "x": 270,
+        "y": 12,
+        "label": "1"
+      },
+      {
+        "height": 32,
+        "width": 112,
+        "x": 1548,
+        "y": 12,
+        "label": "2"
+      },
+      {
+        "height": 48,
+        "width": 48,
+        "x": 167,
+        "y": -0.5,
+        "label": "3"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/finished-goods"
+  },
+  {
+    "id": "01-02",
+    "title": "เปลี่ยนคลังสินค้า",
+    "instruction": "เลือกคลังจากรายการ งานและหน่วยจัดเก็บที่เห็นจะอิงคลังที่เลือก",
+    "image": "screenshots/original/01-02.jpg",
+    "width": 1728,
+    "height": 869,
+    "marks": [
+      {
+        "height": 106,
+        "width": 287.078125,
+        "x": 270,
+        "y": 48,
+        "label": "1"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/finished-goods"
+  },
+  {
+    "id": "01-03",
+    "title": "เลือกภาษาไทยหรืออังกฤษ",
+    "instruction": "คลิกภาษาที่ต้องการ ป้ายกำกับเปลี่ยนตามภาษาโดยยังอยู่ในงานเดิม",
+    "image": "screenshots/original/01-03.jpg",
+    "width": 1728,
+    "height": 869,
+    "marks": [
+      {
+        "height": 106,
+        "width": 144,
+        "x": 1548,
+        "y": 48,
+        "label": "1"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/finished-goods"
+  },
+  {
+    "id": "02-01",
+    "title": "เริ่มจากรายการสินค้า",
+    "instruction": "1 สลับระหว่างสินค้าและหน่วยจัดเก็บ 2 ค้นหารหัสหรือชื่อ 3 สลับการ์ดและตาราง",
+    "image": "screenshots/original/02-01.jpg",
+    "width": 1728,
+    "height": 869,
+    "marks": [
+      {
+        "height": 48,
+        "width": 1456,
+        "x": 248,
+        "y": 335,
+        "label": "1"
+      },
+      {
+        "height": 48,
+        "width": 1339.6171875,
+        "x": 248,
+        "y": 399,
+        "label": "2"
+      },
+      {
+        "height": 48,
+        "width": 100,
+        "x": 1604,
+        "y": 335,
+        "label": "3"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/finished-goods"
+  },
+  {
+    "id": "02-02",
+    "title": "กรองและเรียงข้อมูล",
+    "instruction": "1 กำหนดชื่อหรือรหัส 2 เลือกหน่วยนับก่อนใส่ช่วงจำนวน 3 เลือกรูปแบบหรือสถานะ แล้วกดใช้ตัวกรอง",
+    "image": "screenshots/original/02-02.jpg",
+    "width": 1728,
+    "height": 869,
+    "marks": [
+      {
+        "height": 48,
+        "width": 389,
+        "x": 1310,
+        "y": 168,
+        "label": "1"
+      },
+      {
+        "height": 40,
+        "width": 389,
+        "x": 1310,
+        "y": 397,
+        "label": "2"
+      },
+      {
+        "height": 263,
+        "width": 415,
+        "x": 1297,
+        "y": 698,
+        "label": "3"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/finished-goods?fg=%7B%22search%22%3A%22BATCH-QA-0906%22%7D"
+  },
+  {
+    "id": "02-03",
+    "title": "ดูผลลัพธ์และล้างเงื่อนไข",
+    "instruction": "ป้ายใต้ช่องค้นหาแสดงเงื่อนไขที่ใช้อยู่ กดกากบาทบนแต่ละป้ายเพื่อลบเงื่อนไขเดียว หรือกดล้างทั้งหมด",
+    "image": "screenshots/original/02-03.jpg",
+    "width": 1728,
+    "height": 869,
+    "marks": [
+      {
+        "height": 30,
+        "width": 1456,
+        "x": 248,
+        "y": 467,
+        "label": "1"
+      },
+      {
+        "height": 28,
+        "width": 80.640625,
+        "x": 556.4296875,
+        "y": 468,
+        "label": "2"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/finished-goods?fg=%7B%22search%22%3A%22BATCH-QA-0906%22%2C%22products%22%3A%7B%22formats%22%3A%5B%22BOX%22%5D%7D%7D"
+  },
+  {
+    "id": "02-04",
+    "title": "เมื่อค้นหาไม่พบ",
+    "instruction": "กดล้างตัวกรองเพื่อกลับมาดูทั้งหมด หรือแก้คำค้น ไม่ต้องสร้างสินค้าใหม่เพียงเพราะรายการถูกกรองออก",
+    "image": "screenshots/original/02-04.jpg",
+    "width": 1728,
+    "height": 869,
+    "marks": [
+      {
+        "height": 28,
+        "width": 1414,
+        "x": 269,
+        "y": 618,
+        "label": "1"
+      },
+      {
+        "height": 48,
+        "width": 102.1875,
+        "x": 924.90625,
+        "y": 694,
+        "label": "2"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/finished-goods?fg=%7B%22search%22%3A%22%E0%B9%84%E0%B8%A1%E0%B9%88%E0%B8%A1%E0%B8%B5%E0%B8%AA%E0%B8%B4%E0%B8%99%E0%B8%84%E0%B9%89%E0%B8%B2%E0%B8%8A%E0%B8%B7%E0%B9%88%E0%B8%AD%E0%B8%99%E0%B8%B5%E0%B9%89%22%2C%22products%22%3A%7B%22formats%22%3A%5B%22BOX%22%5D%7D%7D"
+  },
+  {
+    "id": "02-05",
+    "title": "ใช้ตารางและแก้ไขจากแถว",
+    "instruction": "1 เปิดตัวกรองเฉพาะคอลัมน์ 2 กดดินสอท้ายแถวเพื่อแก้ข้อมูลสินค้านั้น",
+    "image": "screenshots/original/02-05.jpg",
+    "width": 1728,
+    "height": 869,
+    "marks": [
+      {
+        "height": 32,
+        "width": 32,
+        "x": 780.1953125,
+        "y": 499.75,
+        "label": "1"
+      },
+      {
+        "height": 48,
+        "width": 48,
+        "x": 1639,
+        "y": 548.5,
+        "label": "2"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/finished-goods?fg=%7B%22layout%22%3A%22table%22%7D"
+  },
+  {
+    "id": "02-06",
+    "title": "ตั้งช่วงจำนวนและลำดับ",
+    "instruction": "1 เลือกหน่วยนับ 2 ใส่ต่ำสุด–สูงสุด 3 เลือกลำดับแล้วกดใช้ตัวกรอง",
+    "image": "screenshots/original/02-06.jpg",
+    "width": 1728,
+    "height": 869,
+    "marks": [
+      {
+        "height": 40,
+        "width": 286,
+        "x": 797,
+        "y": 112,
+        "label": "1"
+      },
+      {
+        "height": 102,
+        "width": 286,
+        "x": 797,
+        "y": 168,
+        "label": "2"
+      },
+      {
+        "height": 48,
+        "width": 95.984375,
+        "x": 987.015625,
+        "y": 429,
+        "label": "3"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/finished-goods?fg=%7B%22layout%22%3A%22table%22%7D"
+  },
+  {
+    "id": "03-01",
+    "title": "สร้างข้อมูลสินค้า FG",
+    "instruction": "จากรายการกดเพิ่มสินค้าสำเร็จรูป แล้วกรอก 1 รหัสที่ไม่ซ้ำ 2 ชื่อสินค้า 3 หน่วยนับสินค้า",
+    "image": "screenshots/original/03-01.jpg",
+    "width": 1728,
+    "height": 975,
+    "marks": [
+      {
+        "height": 48,
+        "width": 376.8203125,
+        "x": 269,
+        "y": 352,
+        "label": "1"
+      },
+      {
+        "height": 48,
+        "width": 376.828125,
+        "x": 661.8203125,
+        "y": 352,
+        "label": "2"
+      },
+      {
+        "height": 48,
+        "width": 376.8203125,
+        "x": 269,
+        "y": 438,
+        "label": "3"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/finished-goods/new"
+  },
+  {
+    "id": "03-02",
+    "title": "กำหนดการจัดเก็บและไปบรรจุ",
+    "instruction": "1 เลือกเงื่อนไขและหมายเหตุ ถ้ามี 2 บันทึกฉบับร่างเพื่อกลับมาทำต่อ หรือ 3 ถัดไป: บรรจุ เพื่อจัดเตรียมจำนวนสินค้า",
+    "image": "screenshots/original/03-02.jpg",
+    "width": 1728,
+    "height": 975,
+    "marks": [
+      {
+        "height": 48,
+        "width": 769.6484375,
+        "x": 269,
+        "y": 584,
+        "label": "1"
+      },
+      {
+        "height": 48,
+        "width": 116.53125,
+        "x": 1432.3984375,
+        "y": 858,
+        "label": "2"
+      },
+      {
+        "height": 48,
+        "width": 130.0703125,
+        "x": 1556.9296875,
+        "y": 858,
+        "label": "3"
+      }
+    ],
+    "note": "การบันทึกข้อมูล FG เพียงอย่างเดียวไม่เพิ่มจำนวนสินค้าในคลัง",
+    "url": "http://localhost:3100/th/finished-goods/new"
+  },
+  {
+    "id": "04-01",
+    "title": "กำหนดจำนวนและแบ่งบรรจุ",
+    "instruction": "1 ใส่จำนวนรวม 100 ชิ้น 2 เลือกพาเลท กล่อง หรือหน่วยอื่น 3 เลือกวิธีแบ่งและจำนวนต่อหน่วย ตัวอย่างนี้ 25 ชิ้นต่อพาเลทจึงได้ 4 พาเลท",
+    "image": "screenshots/original/04-01.jpg",
+    "width": 1728,
+    "height": 1583,
+    "marks": [
+      {
+        "height": 48,
+        "width": 460.6640625,
+        "x": 269,
+        "y": 260,
+        "label": "1"
+      },
+      {
+        "height": 44,
+        "width": 460.6640625,
+        "x": 745.6640625,
+        "y": 258,
+        "label": "2"
+      },
+      {
+        "height": 48,
+        "width": 460.6640625,
+        "x": 745.6640625,
+        "y": 346,
+        "label": "3"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/finished-goods/products/n97cytm28pdx9xzqnrazzwc2xh8dz9cq/packing"
+  },
+  {
+    "id": "04-02",
+    "title": "วัดขนาดภายนอกจริง",
+    "instruction": "1 เลือกหน่วยที่ต้องการวัด 2 กรอกความยาว กว้าง สูง รวมฐานและบรรจุภัณฑ์ 3 ยืนยันว่าตรวจขนาดจริงแล้ว",
+    "image": "screenshots/original/04-02.jpg",
+    "width": 1728,
+    "height": 1596,
+    "marks": [
+      {
+        "height": 48,
+        "width": 718,
+        "x": 248,
+        "y": 475,
+        "label": "1"
+      },
+      {
+        "height": 604,
+        "width": 718,
+        "x": 986,
+        "y": 475,
+        "label": "2"
+      },
+      {
+        "height": 16,
+        "width": 16,
+        "x": 1007,
+        "y": 922,
+        "label": "3"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/finished-goods/products/n97cytm28pdx9xzqnrazzwc2xh8dz9cq/packing"
+  },
+  {
+    "id": "04-03",
+    "title": "คัดลอกขนาดเพื่อลดการกรอกซ้ำ",
+    "instruction": "เลือกเฉพาะหน่วยที่มีขนาดเท่ากัน แล้วกดคัดลอกขนาดที่เลือก จากนั้นเปิดแต่ละหน่วยเพื่อตรวจสอบและยืนยันขนาดจริง",
+    "image": "screenshots/original/04-03.jpg",
+    "width": 1728,
+    "height": 1596,
+    "marks": [
+      {
+        "height": 13,
+        "width": 13,
+        "x": 1007,
+        "y": 985.5,
+        "label": "1"
+      },
+      {
+        "height": 48,
+        "width": 172.171875,
+        "x": 1007,
+        "y": 1010,
+        "label": "2"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/finished-goods/products/n97cytm28pdx9xzqnrazzwc2xh8dz9cq/packing"
+  },
+  {
+    "id": "04-04",
+    "title": "ตรวจยอดรวมก่อนสร้าง",
+    "instruction": "ทุกหน่วยต้องตรวจขนาดแล้ว ยอดจัดสรรต้องเท่ากับยอดรวมและคงเหลือเป็นศูนย์ จากนั้นกดตรวจสอบและสร้าง",
+    "image": "screenshots/original/04-04.jpg",
+    "width": 1728,
+    "height": 1560,
+    "marks": [
+      {
+        "height": 212,
+        "width": 1414,
+        "x": 269,
+        "y": 1193,
+        "label": "1"
+      },
+      {
+        "height": 48,
+        "width": 142.25,
+        "x": 1540.75,
+        "y": 1467,
+        "label": "2"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/finished-goods/products/n97cytm28pdx9xzqnrazzwc2xh8dz9cq/packing"
+  },
+  {
+    "id": "04-05",
+    "title": "ยืนยันสร้างหน่วยจัดเก็บ",
+    "instruction": "ตรวจรายการ จำนวน และขนาดอีกครั้ง ถ้าผิดกดกลับไปแก้ไข ถ้าถูกกดยืนยันสร้าง 4 พาเลท",
+    "image": "screenshots/original/04-05.jpg",
+    "width": 1728,
+    "height": 869,
+    "marks": [
+      {
+        "height": 48,
+        "width": 107.9296875,
+        "x": 907.0234375,
+        "y": 639,
+        "label": "1"
+      },
+      {
+        "height": 48,
+        "width": 152.046875,
+        "x": 1022.953125,
+        "y": 639,
+        "label": "2"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/finished-goods/products/n97cytm28pdx9xzqnrazzwc2xh8dz9cq/packing"
+  },
+  {
+    "id": "04-06",
+    "title": "ผลลัพธ์หลังสร้าง",
+    "instruction": "1 เลือกที่จัดเก็บของแต่ละหน่วย 2 ตรวจสอบหรือแก้ชุดนี้เพื่อปรับการบรรจุ 3 จัดเตรียมสินค้าอีกชุดเมื่อต้องการเพิ่มจำนวนคนละชุด",
+    "image": "screenshots/original/04-06.jpg",
+    "width": 1728,
+    "height": 869,
+    "marks": [
+      {
+        "height": 48,
+        "width": 701,
+        "x": 269,
+        "y": 366,
+        "label": "1"
+      },
+      {
+        "height": 48,
+        "width": 157.5234375,
+        "x": 430.921875,
+        "y": 490,
+        "label": "2"
+      },
+      {
+        "height": 48,
+        "width": 155.3359375,
+        "x": 588.4453125,
+        "y": 490,
+        "label": "3"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/finished-goods/products/n97cytm28pdx9xzqnrazzwc2xh8dz9cq/packing"
+  },
+  {
+    "id": "03-03",
+    "title": "แก้ข้อมูล FG และเปิดชุดจัดเตรียม",
+    "instruction": "1 แก้ชื่อหรือข้อกำหนดสินค้า แล้วกดบันทึกข้อมูลสินค้า 2 จัดเตรียมสินค้าเพิ่มสร้างชุดใหม่แยกต่างหาก ข้อมูลจำนวนของชุดเดิมไม่เปลี่ยน",
+    "image": "screenshots/original/03-03.jpg",
+    "width": 1728,
+    "height": 1476,
+    "marks": [
+      {
+        "height": 48,
+        "width": 159.71875,
+        "x": 1527.28125,
+        "y": 858,
+        "label": "1"
+      },
+      {
+        "height": 48,
+        "width": 167.90625,
+        "x": 1351.375,
+        "y": 858,
+        "label": "2"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/finished-goods/products/n97cytm28pdx9xzqnrazzwc2xh8dz9cq"
+  },
+  {
+    "id": "05-01",
+    "title": "เลือกแก้เฉพาะหน่วยหรือทั้งชุดที่ยังว่าง",
+    "instruction": "1 ดินสอท้ายหน่วยแก้เฉพาะหน่วยนั้น 2 ดินสอข้างชื่อชุดแก้หน่วยที่ยังไม่ถูกจัดเก็บทั้งชุด 3 ไอคอนดูการจัดเก็บใช้ดูตำแหน่ง",
+    "image": "screenshots/original/05-01.jpg",
+    "width": 1728,
+    "height": 1476,
+    "marks": [
+      {
+        "height": 48,
+        "width": 48,
+        "x": 1579,
+        "y": 1152,
+        "label": "1"
+      },
+      {
+        "height": 48,
+        "width": 48,
+        "x": 1635,
+        "y": 1040,
+        "label": "2"
+      },
+      {
+        "height": 48,
+        "width": 48,
+        "x": 1635,
+        "y": 1152,
+        "label": "3"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/finished-goods/products/n97cytm28pdx9xzqnrazzwc2xh8dz9cq"
+  },
+  {
+    "id": "05-02",
+    "title": "ตรวจว่ากำลังแก้หน่วยที่ถูกต้อง",
+    "instruction": "1 หัวข้อระบุรหัสที่กำลังแก้ 2 แก้จำนวนหรือขนาด 3 ตรวจขนาดจริงแล้วจึงตรวจสอบการแก้ไข หน่วยอื่นคงเดิม",
+    "image": "screenshots/original/05-02.jpg",
+    "width": 1728,
+    "height": 869,
+    "marks": [
+      {
+        "height": 20,
+        "width": 974,
+        "x": 377,
+        "y": 237.5,
+        "label": "1"
+      },
+      {
+        "height": 48,
+        "width": 227,
+        "x": 1107,
+        "y": 518.5,
+        "label": "2"
+      },
+      {
+        "height": 13,
+        "width": 13,
+        "x": 390,
+        "y": 580,
+        "label": "3"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/finished-goods/products/n97cytm28pdx9xzqnrazzwc2xh8dz9cq"
+  },
+  {
+    "id": "05-03",
+    "title": "ออกจากหน้าที่มีการแก้ไขค้างอยู่",
+    "instruction": "กดแก้ไขต่อเพื่อเก็บค่าที่กรอกไว้ หรือทิ้งการแก้ไขเพื่อออกโดยไม่บันทึก การสลับแท็บการจัดเก็บกับแก้ไขจะยังเก็บค่าที่กรอกไว้",
+    "image": "screenshots/original/05-03.jpg",
+    "width": 1728,
+    "height": 869,
+    "marks": [
+      {
+        "height": 48,
+        "width": 83.234375,
+        "x": 867.4375,
+        "y": 456.5,
+        "label": "1"
+      },
+      {
+        "height": 48,
+        "width": 104.328125,
+        "x": 958.671875,
+        "y": 456.5,
+        "label": "2"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/finished-goods/products/n97cytm28pdx9xzqnrazzwc2xh8dz9cq"
+  },
+  {
+    "id": "05-04",
+    "title": "แบ่ง 4 พาเลทให้เหลือ 2 พาเลท",
+    "instruction": "ในแท็บแก้หน่วยที่ยังไม่จัดเก็บ ใส่ 50 ต่อหน่วยแล้วกดแบ่งใหม่ กรอกขนาดและยืนยันทั้งสองหน่วย ยอดรวมยังเป็น 100 ชิ้น",
+    "image": "screenshots/original/05-04.jpg",
+    "width": 1728,
+    "height": 869,
+    "marks": [
+      {
+        "height": 48,
+        "width": 182,
+        "x": 377,
+        "y": 235.26171875,
+        "label": "1"
+      },
+      {
+        "height": 48,
+        "width": 227,
+        "x": 390,
+        "y": 383.26171875,
+        "label": "2"
+      },
+      {
+        "height": 48,
+        "width": 227,
+        "x": 390,
+        "y": 575.26171875,
+        "label": "3"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/finished-goods/products/n97cytm28pdx9xzqnrazzwc2xh8dz9cq"
+  },
+  {
+    "id": "05-05",
+    "title": "ยืนยันจำนวนหน่วยทดแทน",
+    "instruction": "ตรวจข้อความ 4 → 2 และยอด 100 ชิ้นก่อนยืนยัน รหัสเดิมจะอยู่ในประวัติและหน่วยทดแทนจะได้รหัสใหม่",
+    "image": "screenshots/original/05-05.jpg",
+    "width": 1728,
+    "height": 869,
+    "marks": [
+      {
+        "height": 150,
+        "width": 974,
+        "x": 377,
+        "y": 659.23828125,
+        "label": "1"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/finished-goods/products/n97cytm28pdx9xzqnrazzwc2xh8dz9cq"
+  },
+  {
+    "id": "06-01",
+    "title": "เปิดอาคารหรือสร้างอาคารใหม่",
+    "instruction": "เข้าจากเมนูอาคารและจุดจัดเก็บ 1 สร้างอาคารใหม่ 2 ค้นหาอาคารหรือกรองสถานะ 3 สลับไปดูจุดจัดเก็บทั้งหมด",
+    "image": "screenshots/original/06-01.jpg",
+    "width": 1728,
+    "height": 869,
+    "marks": [
+      {
+        "height": 48,
+        "width": 149.5625,
+        "x": 1554.4375,
+        "y": 113,
+        "label": "1"
+      },
+      {
+        "height": 48,
+        "width": 1220,
+        "x": 248,
+        "y": 289,
+        "label": "2"
+      },
+      {
+        "height": 48,
+        "width": 48,
+        "x": 304,
+        "y": 225,
+        "label": "3"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/master-data/storage-layouts"
+  },
+  {
+    "id": "06-02",
+    "title": "กำหนดขนาดอาคาร",
+    "instruction": "กรอกรหัส ชื่อ ความกว้าง ความลึก ความสูงต่อชั้น และจำนวนชั้น ตรวจหน่วยเป็นเมตร แล้วกดสร้างอาคาร",
+    "image": "screenshots/original/06-02.jpg",
+    "width": 1728,
+    "height": 869,
+    "marks": [
+      {
+        "height": 48.25,
+        "width": 373.8828125,
+        "x": 273,
+        "y": 300.25,
+        "label": "1"
+      },
+      {
+        "height": 48.25,
+        "width": 373.8828125,
+        "x": 273,
+        "y": 390.75,
+        "label": "2"
+      },
+      {
+        "height": 48.5,
+        "width": 100.9453125,
+        "x": 273,
+        "y": 549.5,
+        "label": "3"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/master-data/storage-layouts/new"
+  },
+  {
+    "id": "06-03",
+    "title": "เลือกชั้นและแก้ไขอาคาร",
+    "instruction": "1 เปิดดินสอของชั้นเพื่อแก้ผัง 2 ปุ่มตั้งค่าอาคารใช้แก้ขนาด/ชื่อ 3 ตรวจสอบและเปิดใช้งานเมื่อแผนพร้อม",
+    "image": "screenshots/original/06-03.jpg",
+    "width": 1728,
+    "height": 869,
+    "marks": [
+      {
+        "height": 60,
+        "width": 44,
+        "x": 443,
+        "y": 303,
+        "label": "1"
+      },
+      {
+        "height": 48,
+        "width": 48,
+        "x": 1262,
+        "y": 271,
+        "label": "2"
+      },
+      {
+        "height": 48,
+        "width": 352,
+        "x": 1352,
+        "y": 798,
+        "label": "3"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/master-data/storage-layouts/rs7crk5dp2rhx2b54bthkvb2wx8dzpz7"
+  },
+  {
+    "id": "06-04",
+    "title": "แก้ขนาดหรือเพิ่มชั้น",
+    "instruction": "1 แก้ชื่อและขนาดแล้วบันทึกขนาดอาคาร 2 ระบุจำนวนชั้นใหม่แล้วกดเพิ่มชั้น หากเพียงดูให้ปิดตัวแก้ไขอาคาร",
+    "image": "screenshots/original/06-04.jpg",
+    "width": 1728,
+    "height": 869,
+    "marks": [
+      {
+        "height": 32,
+        "width": 718,
+        "x": 505,
+        "y": 499.5,
+        "label": "1"
+      },
+      {
+        "height": 32,
+        "width": 62.265625,
+        "x": 1160.734375,
+        "y": 602.5,
+        "label": "2"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/master-data/storage-layouts/rs7crk5dp2rhx2b54bthkvb2wx8dzpz7"
+  },
+  {
+    "id": "07-01",
+    "title": "วางแผนพื้นที่ชั้น",
+    "instruction": "1 สลับ 2D/3D เพื่อตรวจผัง 2 เพิ่มพื้นที่ห้ามจัดเก็บ 3 เพิ่มจุดจัดเก็บในพื้นที่ว่าง",
+    "image": "screenshots/original/07-01.jpg",
+    "width": 1728,
+    "height": 1231,
+    "marks": [
+      {
+        "height": 50,
+        "width": 175.0234375,
+        "x": 1083.9765625,
+        "y": 274,
+        "label": "1"
+      },
+      {
+        "height": 48,
+        "width": 171.2578125,
+        "x": 1087.7421875,
+        "y": 984,
+        "label": "2"
+      },
+      {
+        "height": 48,
+        "width": 142.5546875,
+        "x": 1116.4453125,
+        "y": 1118,
+        "label": "3"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/master-data/storage-layouts/rs7crk5dp2rhx2b54bthkvb2wx8dzpz7/floors/1"
+  },
+  {
+    "id": "07-02",
+    "title": "กำหนดพื้นที่ห้ามจัดเก็บ",
+    "instruction": "ตั้งชื่อพื้นที่และพิกัด X/Y หรือใช้การลากในภาพ ระบุขนาดแล้วเพิ่มพื้นที่ห้ามจัดเก็บ พื้นที่นี้จะถูกหักจากพื้นที่ใช้งานได้",
+    "image": "screenshots/original/07-02.jpg",
+    "width": 1728,
+    "height": 869,
+    "marks": [
+      {
+        "height": 48,
+        "width": 453.1484375,
+        "x": 897.84375,
+        "y": 236.5,
+        "label": "1"
+      },
+      {
+        "height": 48,
+        "width": 218.5703125,
+        "x": 897.84375,
+        "y": 322.5,
+        "label": "2"
+      },
+      {
+        "height": 48,
+        "width": 171.2578125,
+        "x": 1179.7421875,
+        "y": 678.5,
+        "label": "3"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/master-data/storage-layouts/rs7crk5dp2rhx2b54bthkvb2wx8dzpz7/floors/1"
+  },
+  {
+    "id": "07-03",
+    "title": "บันทึกผังก่อนเพิ่มจุดจัดเก็บ",
+    "instruction": "หลังเพิ่มหรือแก้พื้นที่ห้ามจัดเก็บ ให้กดบันทึกและไปกำหนดกองจัดเก็บก่อน เพื่อให้ระบบใช้พื้นที่ล่าสุด",
+    "image": "screenshots/original/07-03.jpg",
+    "width": 1728,
+    "height": 1406,
+    "marks": [
+      {
+        "height": 48,
+        "width": 400,
+        "x": 1304,
+        "y": 609,
+        "label": "1"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/master-data/storage-layouts/rs7crk5dp2rhx2b54bthkvb2wx8dzpz7/floors/1"
+  },
+  {
+    "id": "07-04",
+    "title": "ตั้งชื่อและขอบเขตจุดจัดเก็บ",
+    "instruction": "ชื่อพื้นที่คือชื่อ Location เช่น โซน FG คู่มือ ระบุพิกัด ความกว้าง ความลึก และความสูงสูงสุด ตรวจภาพแล้วสร้างกองจัดเก็บ",
+    "image": "screenshots/original/07-04.jpg",
+    "width": 1728,
+    "height": 869,
+    "marks": [
+      {
+        "height": 48,
+        "width": 453.1484375,
+        "x": 897.84375,
+        "y": 231,
+        "label": "1"
+      },
+      {
+        "height": 48,
+        "width": 218.5703125,
+        "x": 897.84375,
+        "y": 403,
+        "label": "2"
+      },
+      {
+        "height": 48,
+        "width": 453.1484375,
+        "x": 897.84375,
+        "y": 599,
+        "label": "3"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/master-data/storage-layouts/rs7crk5dp2rhx2b54bthkvb2wx8dzpz7/floors/1"
+  },
+  {
+    "id": "07-05",
+    "title": "อ่านชื่อ Location และรหัส QR",
+    "instruction": "1 ชื่อจุดจัดเก็บใช้บอกพื้นที่จริง 2 แก้ไขเมื่อตำแหน่งหรือขนาดไม่ถูกต้อง 3 เก็บถาวรสำหรับจุดที่เลิกใช้ โดยต้องผ่านเงื่อนไขของระบบ",
+    "image": "screenshots/original/07-05.jpg",
+    "width": 1728,
+    "height": 1675,
+    "marks": [
+      {
+        "height": 24,
+        "width": 317,
+        "x": 422,
+        "y": 1301,
+        "label": "1"
+      },
+      {
+        "height": 28,
+        "width": 69.4296875,
+        "x": 422,
+        "y": 1380,
+        "label": "2"
+      },
+      {
+        "height": 28,
+        "width": 87.2890625,
+        "x": 499.4296875,
+        "y": 1380,
+        "label": "3"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/master-data/storage-layouts/rs7crk5dp2rhx2b54bthkvb2wx8dzpz7/floors/1"
+  },
+  {
+    "id": "06-05",
+    "title": "ตรวจสอบก่อนเปิดใช้งาน",
+    "instruction": "ตรวจตารางพื้นที่และข้อความพร้อมเปิดใช้งาน หากผิดกลับไปแก้ไขผัง เมื่อพร้อมกดเปิดใช้งานผัง",
+    "image": "screenshots/original/06-05.jpg",
+    "width": 1728,
+    "height": 869,
+    "marks": [
+      {
+        "height": 133,
+        "width": 1078,
+        "x": 249,
+        "y": 736,
+        "label": "1"
+      },
+      {
+        "height": 48,
+        "width": 352,
+        "x": 1352,
+        "y": 666.5,
+        "label": "2"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/master-data/storage-layouts/rs7crk5dp2rhx2b54bthkvb2wx8dzpz7/review"
+  },
+  {
+    "id": "05-06",
+    "title": "ผลหลังแบ่งใหม่: สองพาเลท ยอดรวมเดิม",
+    "instruction": "รายการเหลือสองพาเลท หน่วยละ 50 ชิ้น รวม 100 ชิ้น เปิดประวัติการแบ่งบรรจุเพื่อดูการแทนที่รหัสเดิม",
+    "image": "screenshots/original/05-06.jpg",
+    "width": 1728,
+    "height": 1330,
+    "marks": [
+      {
+        "height": 359,
+        "width": 1456,
+        "x": 248,
+        "y": 947,
+        "label": "1"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/finished-goods/products/n97cytm28pdx9xzqnrazzwc2xh8dz9cq"
+  },
+  {
+    "id": "05-07",
+    "title": "ตรวจประวัติการแบ่งบรรจุ",
+    "instruction": "ประวัติเก็บหลักฐานการสร้างและการแบ่งใหม่ หน่วยที่เลิกใช้งานจะไม่กลับมาเป็นตัวเลือกจัดเก็บ",
+    "image": "screenshots/original/05-07.jpg",
+    "width": 1728,
+    "height": 1482,
+    "marks": [
+      {
+        "height": 20,
+        "width": 1414,
+        "x": 269,
+        "y": 1104,
+        "label": "1"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/finished-goods/products/n97cytm28pdx9xzqnrazzwc2xh8dz9cq"
+  },
+  {
+    "id": "08-01",
+    "title": "เปิดหน่วยและเลือกพื้นที่จัดเก็บ",
+    "instruction": "ตรวจรหัสและขนาดจริงก่อน 1 วัดขนาดพาเลทเปิดตัวแก้ของหน่วยนี้โดยตรง 2 แนะนำพื้นที่เพื่อหาตำแหน่งที่พอดี",
+    "image": "screenshots/original/08-01.jpg",
+    "width": 1728,
+    "height": 1028,
+    "marks": [
+      {
+        "height": 48,
+        "width": 145.3671875,
+        "x": 1433.0625,
+        "y": 939,
+        "label": "1"
+      },
+      {
+        "height": 48,
+        "width": 100.5703125,
+        "x": 1586.4296875,
+        "y": 939,
+        "label": "2"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/finished-goods/pallets/n178kx5n3hgj0m6v538tcrkyyh8dz4g3"
+  },
+  {
+    "id": "08-02",
+    "title": "ค้นหาและเลือก Location",
+    "instruction": "พิมพ์ชื่ออาคารหรือจุดจัดเก็บ แล้วเลือกการ์ดของพื้นที่ที่ต้องการ ภาพด้านขวาจะเปลี่ยนตามพื้นที่นั้น",
+    "image": "screenshots/original/08-02.jpg",
+    "width": 1728,
+    "height": 1078,
+    "marks": [
+      {
+        "height": 48,
+        "width": 230,
+        "x": 248,
+        "y": 381,
+        "label": "1"
+      },
+      {
+        "height": 122,
+        "width": 222,
+        "x": 248,
+        "y": 441,
+        "label": "2"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/finished-goods/pallets/n178kx5n3hgj0m6v538tcrkyyh8dz4g3/storage"
+  },
+  {
+    "id": "08-03",
+    "title": "กำหนดตำแหน่งย่อยภายใน Location",
+    "instruction": "1 ลากพาเลทหรือกรอก X/Y เพื่อระบุจุดวางจริง 2 สลับ 2D/3D 3 หมุนพาเลทเปลี่ยนทิศทาง ส่วนหมุนมุมมองหมุนเฉพาะกล้อง",
+    "image": "screenshots/original/08-03.jpg",
+    "width": 1728,
+    "height": 1078,
+    "marks": [
+      {
+        "height": 48,
+        "width": 123,
+        "x": 1425,
+        "y": 708,
+        "label": "1"
+      },
+      {
+        "height": 58,
+        "width": 167.375,
+        "x": 1203.625,
+        "y": 398,
+        "label": "2"
+      },
+      {
+        "height": 48,
+        "width": 98.375,
+        "x": 615,
+        "y": 477,
+        "label": "3"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/finished-goods/pallets/n178kx5n3hgj0m6v538tcrkyyh8dz4g3/storage"
+  },
+  {
+    "id": "08-04",
+    "title": "ตำแหน่งสีแดงหมายถึงวางไม่ได้",
+    "instruction": "เมื่อพาเลทล้ำขอบหรือทับสิ่งกีดขวาง ระบบแสดงเหตุผลและปิดการยืนยัน แก้พิกัดหรือลากกลับเข้าเขต",
+    "image": "screenshots/original/08-04.jpg",
+    "width": 1728,
+    "height": 1032,
+    "marks": [
+      {
+        "height": 48,
+        "width": 123,
+        "x": 1425,
+        "y": 708,
+        "label": "1"
+      },
+      {
+        "height": 48,
+        "width": 258,
+        "x": 1425,
+        "y": 836,
+        "label": "2"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/finished-goods/pallets/n178kx5n3hgj0m6v538tcrkyyh8dz4g3/storage"
+  },
+  {
+    "id": "08-05",
+    "title": "ตรวจปลายทางก่อนจอง",
+    "instruction": "ตรวจอาคาร ชั้น Location และพิกัด X/Y/Z หากถูกกดจองจุดนี้ หากผิดกลับไปแก้ไข การจองยังไม่ใช่การยืนยันว่าได้วางจริงแล้ว",
+    "image": "screenshots/original/08-05.jpg",
+    "width": 1728,
+    "height": 869,
+    "marks": [
+      {
+        "height": 467.75,
+        "width": 672,
+        "x": 528,
+        "y": 200.625,
+        "label": "1"
+      },
+      {
+        "height": 48,
+        "width": 81.234375,
+        "x": 1093.765625,
+        "y": 595.375,
+        "label": "2"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/finished-goods/pallets/n178kx5n3hgj0m6v538tcrkyyh8dz4g3/storage"
+  },
+  {
+    "id": "08-06",
+    "title": "นำหน่วยไปยังตำแหน่งที่จอง",
+    "instruction": "ตรวจปลายทางและพิกัด วางของตามตำแหน่งจริง แล้วกดสแกน QR ปลายทาง หากยังไม่ดำเนินการสามารถยกเลิกการจองได้",
+    "image": "screenshots/original/08-06.jpg",
+    "width": 1728,
+    "height": 1434,
+    "marks": [
+      {
+        "height": 483,
+        "width": 624.3515625,
+        "x": 1079.6484375,
+        "y": 285,
+        "label": "1"
+      },
+      {
+        "height": 48,
+        "width": 582.3515625,
+        "x": 1100.6484375,
+        "y": 1239,
+        "label": "2"
+      },
+      {
+        "height": 48,
+        "width": 116.9296875,
+        "x": 1570.0703125,
+        "y": 1345,
+        "label": "3"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/finished-goods/pallets/n178kx5n3hgj0m6v538tcrkyyh8dz4g3"
+  },
+  {
+    "id": "08-07",
+    "title": "สแกนหรือกรอกรหัสปลายทาง",
+    "instruction": "1 เปิดกล้องเมื่อจะสแกน QR จริง หรือ 2 กรอกรหัสจากป้าย แล้ว 3 ตรวจสอบรหัสที่กรอก ขั้นตอนในคู่มือนี้ใช้การกรอกรหัส",
+    "image": "screenshots/original/08-07.jpg",
+    "width": 1728,
+    "height": 869,
+    "marks": [
+      {
+        "height": 48,
+        "width": 622,
+        "x": 553,
+        "y": 264,
+        "label": "1"
+      },
+      {
+        "height": 48,
+        "width": 622,
+        "x": 553,
+        "y": 350,
+        "label": "2"
+      },
+      {
+        "height": 48,
+        "width": 622,
+        "x": 553,
+        "y": 437.5,
+        "label": "3"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/finished-goods/pallets/n178kx5n3hgj0m6v538tcrkyyh8dz4g3"
+  },
+  {
+    "id": "08-08",
+    "title": "รหัสผิดต้องแก้ก่อนยืนยัน",
+    "instruction": "รหัสที่ไม่ตรงปลายทางไม่ผ่านการตรวจสอบ ปุ่มยืนยันยังใช้ไม่ได้ ให้สแกนหรือกรอกรหัสจากป้าย Location ที่ถูกต้อง",
+    "image": "screenshots/original/08-08.jpg",
+    "width": 1728,
+    "height": 869,
+    "marks": [
+      {
+        "height": 48,
+        "width": 622,
+        "x": 553,
+        "y": 313,
+        "label": "1"
+      },
+      {
+        "height": 48,
+        "width": 144.6171875,
+        "x": 1030.3828125,
+        "y": 779.5,
+        "label": "2"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/finished-goods/pallets/n178kx5n3hgj0m6v538tcrkyyh8dz4g3"
+  },
+  {
+    "id": "08-09",
+    "title": "ยืนยันหลังวางจริง",
+    "instruction": "เมื่อรหัสถูกต้อง ตรวจว่าของวางตรงพิกัดที่ระบุแล้วจึงกดยืนยันว่าจัดเก็บแล้ว ระบบจึงเปลี่ยนจากจองเป็นจัดเก็บ",
+    "image": "screenshots/original/08-09.jpg",
+    "width": 1728,
+    "height": 869,
+    "marks": [
+      {
+        "height": 48,
+        "width": 144.6171875,
+        "x": 1030.3828125,
+        "y": 801.75,
+        "label": "1"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/finished-goods/pallets/n178kx5n3hgj0m6v538tcrkyyh8dz4g3"
+  },
+  {
+    "id": "08-10",
+    "title": "ผลสำเร็จและทางแก้ไขที่อยู่ใกล้ข้อมูล",
+    "instruction": "เมื่อจัดเก็บแล้ว หน้านี้แสดงตำแหน่งจริง 1 ย้ายพาเลทเพื่อเปลี่ยนที่วาง 2 แก้ไขข้อมูลจุดจัดเก็บเมื่อชื่อหรือข้อมูล Location ผิด 3 ซ้อนด้านบนสำหรับพาเลท",
+    "image": "screenshots/original/08-10.jpg",
+    "width": 1728,
+    "height": 1246,
+    "marks": [
+      {
+        "height": 48,
+        "width": 120.1484375,
+        "x": 1562.8515625,
+        "y": 384,
+        "label": "1"
+      },
+      {
+        "height": 48,
+        "width": 178.53125,
+        "x": 1100.6484375,
+        "y": 620,
+        "label": "2"
+      },
+      {
+        "height": 48,
+        "width": 125.8671875,
+        "x": 1391.2109375,
+        "y": 1157,
+        "label": "3"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/finished-goods/pallets/n178kx5n3hgj0m6v538tcrkyyh8dz4g3"
+  },
+  {
+    "id": "09-01",
+    "title": "เลือกที่ใหม่ก่อนเริ่มย้าย",
+    "instruction": "ตรวจตำแหน่งปัจจุบันด้านบน ค้นหาปลายทาง เลือก Location แล้วกำหนดพิกัดใหม่ จากนั้นตรวจสอบการย้าย",
+    "image": "screenshots/original/09-01.jpg",
+    "width": 1728,
+    "height": 1076,
+    "marks": [
+      {
+        "height": 48,
+        "width": 230,
+        "x": 248,
+        "y": 379,
+        "label": "1"
+      },
+      {
+        "height": 48,
+        "width": 123,
+        "x": 1425,
+        "y": 706,
+        "label": "2"
+      },
+      {
+        "height": 48,
+        "width": 258,
+        "x": 1425,
+        "y": 983,
+        "label": "3"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/finished-goods/pallets/n178kx5n3hgj0m6v538tcrkyyh8dz4g3/move"
+  },
+  {
+    "id": "09-02",
+    "title": "ตรวจต้นทางและปลายทาง",
+    "instruction": "ตรวจส่วนจากและไปยัง ใส่เหตุผลถ้าต้องการ แล้วจองจุดนี้ ต้นทางยังถูกกันไว้จนกว่าจะยืนยันจบ",
+    "image": "screenshots/original/09-02.jpg",
+    "width": 1728,
+    "height": 869,
+    "marks": [
+      {
+        "height": 837,
+        "width": 672,
+        "x": 528,
+        "y": 16,
+        "label": "1"
+      },
+      {
+        "height": 48,
+        "width": 81.234375,
+        "x": 1093.765625,
+        "y": 780,
+        "label": "2"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/finished-goods/pallets/n178kx5n3hgj0m6v538tcrkyyh8dz4g3/move"
+  },
+  {
+    "id": "09-03",
+    "title": "ตรวจพาเลทก่อนเริ่มย้าย",
+    "instruction": "1 สแกนหรือกรอกรหัสพาเลท แล้วตรวจสอบ 2 ยืนยันว่ารับพาเลทจากต้นทางจริง 3 เริ่มย้าย หากยังไม่รับ สามารถเปลี่ยนปลายทางหรือยกเลิกการย้ายได้",
+    "image": "screenshots/original/09-03.jpg",
+    "width": 1728,
+    "height": 1386,
+    "marks": [
+      {
+        "height": 48,
+        "width": 582.3515625,
+        "x": 1100.6484375,
+        "y": 877.5,
+        "label": "1"
+      },
+      {
+        "height": 16,
+        "width": 16,
+        "x": 1113.6484375,
+        "y": 1046,
+        "label": "2"
+      },
+      {
+        "height": 48,
+        "width": 582.3515625,
+        "x": 1100.6484375,
+        "y": 1091,
+        "label": "3"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/finished-goods/pallets/n178kx5n3hgj0m6v538tcrkyyh8dz4g3/move"
+  },
+  {
+    "id": "09-04",
+    "title": "ตรวจปลายทางหลังเคลื่อนย้าย",
+    "instruction": "1 ตรวจรหัสปลายทาง 2 ยืนยันว่าของอยู่ตรงพิกัดและทิศทาง 3 ยืนยันวางแล้ว หากต้องย้อนการย้ายให้ใช้คืนต้นทาง ไม่ใช่เพียงปิดหน้า",
+    "image": "screenshots/original/09-04.jpg",
+    "width": 1728,
+    "height": 1386,
+    "marks": [
+      {
+        "height": 48,
+        "width": 582.3515625,
+        "x": 1100.6484375,
+        "y": 877.5,
+        "label": "1"
+      },
+      {
+        "height": 16,
+        "width": 16,
+        "x": 1113.6484375,
+        "y": 1046,
+        "label": "2"
+      },
+      {
+        "height": 48,
+        "width": 91.890625,
+        "x": 1488.828125,
+        "y": 1314,
+        "label": "3"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/finished-goods/pallets/n178kx5n3hgj0m6v538tcrkyyh8dz4g3/move"
+  },
+  {
+    "id": "09-05",
+    "title": "รายงานปัญหาระหว่างย้าย",
+    "instruction": "อธิบายสิ่งที่พบแล้วบันทึกปัญหา การรายงานไม่ปล่อยพื้นที่ต้นทางหรือปลายทาง ต้องจัดการย้ายหรือคืนให้จบ",
+    "image": "screenshots/original/09-05.jpg",
+    "width": 1728,
+    "height": 869,
+    "marks": [
+      {
+        "height": 48,
+        "width": 622,
+        "x": 553,
+        "y": 415,
+        "label": "1"
+      },
+      {
+        "height": 48,
+        "width": 105.8359375,
+        "x": 1069.1640625,
+        "y": 500,
+        "label": "2"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/finished-goods/pallets/n178kx5n3hgj0m6v538tcrkyyh8dz4g3/move"
+  },
+  {
+    "id": "09-06",
+    "title": "ตรวจตำแหน่งใหม่และประวัติ",
+    "instruction": "เมื่อย้ายสำเร็จ ตำแหน่งเปลี่ยนเป็น X 1.5 / Y 0.5 และประวัติแสดงต้นทาง ปลายทาง เวลา และเหตุผล",
+    "image": "screenshots/original/09-06.jpg",
+    "width": 1728,
+    "height": 1445,
+    "marks": [
+      {
+        "height": 483,
+        "width": 624.3515625,
+        "x": 1079.6484375,
+        "y": 363,
+        "label": "1"
+      },
+      {
+        "height": 24,
+        "width": 1414,
+        "x": 269,
+        "y": 1263,
+        "label": "2"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/finished-goods/pallets/n178kx5n3hgj0m6v538tcrkyyh8dz4g3"
+  },
+  {
+    "id": "10-01",
+    "title": "อนุญาตให้พาเลทเป็นฐานรองรับ",
+    "instruction": "จากพาเลทที่จัดเก็บแล้วกดซ้อนด้านบน 1 เปิดอนุญาต 2 ระบุจำนวนชั้นสูงสุดรวมฐาน 3 บันทึกข้อกำหนดก่อนเลือกพาเลทด้านบน",
+    "image": "screenshots/original/10-01.jpg",
+    "width": 1728,
+    "height": 869,
+    "marks": [
+      {
+        "height": 13,
+        "width": 13,
+        "x": 1113.9296875,
+        "y": 281.5,
+        "label": "1"
+      },
+      {
+        "height": 48,
+        "width": 278.53125,
+        "x": 1113.9296875,
+        "y": 332,
+        "label": "2"
+      },
+      {
+        "height": 48,
+        "width": 175.921875,
+        "x": 1113.9296875,
+        "y": 392,
+        "label": "3"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/finished-goods/pallets/n178kx5n3hgj0m6v538tcrkyyh8dz4g3/stack"
+  },
+  {
+    "id": "10-02",
+    "title": "เลือกพาเลทด้านบนและตรวจระดับสูง",
+    "instruction": "เลือก P-000029 เป็นพาเลทด้านบน ภาพแสดง Z 0.5 ม. ซึ่งคำนวณจากฐาน P-000028 โดยอัตโนมัติ ตรวจความสูงรวมและเพดานก่อนจอง",
+    "image": "screenshots/original/10-02.jpg",
+    "width": 1728,
+    "height": 1202,
+    "marks": [
+      {
+        "height": 44,
+        "width": 569.0703125,
+        "x": 1113.9296875,
+        "y": 518,
+        "label": "1"
+      },
+      {
+        "height": 623,
+        "width": 782.9296875,
+        "x": 269,
+        "y": 278,
+        "label": "2"
+      },
+      {
+        "height": 48,
+        "width": 209.5390625,
+        "x": 248,
+        "y": 1130,
+        "label": "3"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/finished-goods/pallets/n178kx5n3hgj0m6v538tcrkyyh8dz4g3/stack"
+  },
+  {
+    "id": "10-03",
+    "title": "ตรวจรอยวางจากด้านบน",
+    "instruction": "ใช้ผัง 2D เพื่อตรวจขอบเขตพาเลทด้านบนกับฐาน และใช้ 3D ตรวจระดับสูง ปุ่ม 90° เปลี่ยนทิศทางพาเลท",
+    "image": "screenshots/original/10-03.jpg",
+    "width": 1728,
+    "height": 1202,
+    "marks": [
+      {
+        "height": 58,
+        "width": 167.375,
+        "x": 867.5546875,
+        "y": 291,
+        "label": "1"
+      },
+      {
+        "height": 48,
+        "width": 82.8671875,
+        "x": 969.0625,
+        "y": 917,
+        "label": "2"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/finished-goods/pallets/n178kx5n3hgj0m6v538tcrkyyh8dz4g3/stack"
+  },
+  {
+    "id": "10-04",
+    "title": "ตรวจรหัสทั้งฐานและพาเลทด้านบน",
+    "instruction": "1 ตรวจรหัสพาเลทรองรับ 2 กรอกรหัสด้านบน 3 ยืนยันการวางจริง แล้วกดยืนยันว่าจัดเก็บแล้ว รหัส Location อย่างเดียวไม่พอสำหรับการซ้อน",
+    "image": "screenshots/original/10-04.jpg",
+    "width": 1728,
+    "height": 869,
+    "marks": [
+      {
+        "height": 48,
+        "width": 622,
+        "x": 553,
+        "y": 312.5,
+        "label": "1"
+      },
+      {
+        "height": 48,
+        "width": 622,
+        "x": 553,
+        "y": 522,
+        "label": "2"
+      },
+      {
+        "height": 13,
+        "width": 13,
+        "x": 553,
+        "y": 582,
+        "label": "3"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/finished-goods/pallets/n1700hqc99t29bjty2wh6r6y518dyrr4"
+  },
+  {
+    "id": "10-05",
+    "title": "ซ้อนสำเร็จ",
+    "instruction": "ผลลัพธ์แสดงพาเลทด้านบนที่ Z 0.5 ม. และมีรหัสฐานอยู่ในเส้นทางปลายทาง จำนวนสินค้าของทั้งสองพาเลทไม่เปลี่ยน",
+    "image": "screenshots/original/10-05.jpg",
+    "width": 1728,
+    "height": 1328,
+    "marks": [
+      {
+        "height": 483,
+        "width": 624.3515625,
+        "x": 1079.6484375,
+        "y": 445,
+        "label": "1"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/finished-goods/pallets/n1700hqc99t29bjty2wh6r6y518dyrr4"
+  },
+  {
+    "id": "10-06",
+    "title": "ฐานถูกล็อกเมื่อมีพาเลทด้านบน",
+    "instruction": "ฐาน P-000028 ย้ายไม่ได้ขณะที่มี P-000029 อยู่ด้านบน ให้เปิดพาเลทด้านบนและย้ายออกก่อน",
+    "image": "screenshots/original/10-06.jpg",
+    "width": 1728,
+    "height": 869,
+    "marks": [
+      {
+        "height": 20,
+        "width": 1414,
+        "x": 269,
+        "y": 412,
+        "label": "1"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/finished-goods/pallets/n178kx5n3hgj0m6v538tcrkyyh8dz4g3"
+  },
+  {
+    "id": "10-07",
+    "title": "วางเหลื่อมฐาน: ยกสูงแต่ยังใช้ไม่ได้",
+    "instruction": "เมื่อเลื่อนเหนือฐาน ระบบยก Z อัตโนมัติ หากวางเหลื่อมยังคงแสดงด้านบนแต่เป็นสีแดงพร้อมเหตุผล ต้องให้พาเลทอยู่บนฐานเต็มพื้นที่ก่อนยืนยัน",
+    "image": "screenshots/original/10-07.jpg",
+    "width": 1728,
+    "height": 1078,
+    "marks": [
+      {
+        "height": 671,
+        "width": 894,
+        "x": 494,
+        "y": 383,
+        "label": "1"
+      },
+      {
+        "height": 48,
+        "width": 123,
+        "x": 1425,
+        "y": 706,
+        "label": "2"
+      },
+      {
+        "height": 48,
+        "width": 258,
+        "x": 1425,
+        "y": 834,
+        "label": "3"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/finished-goods/pallets/n1700hqc99t29bjty2wh6r6y518dyrr4/move"
+  },
+  {
+    "id": "10-08",
+    "title": "ย้ายพาเลทด้านบนลงพื้น",
+    "instruction": "ลากออกจากฐานหรือเปลี่ยน X/Y ให้พ้นฐาน ระบบคำนวณ Z กลับเป็นพื้น/ชั้นวาง ตัวอย่างนี้ X 0.2, Y 2, Z 0 แล้วใช้ขั้นตอนย้ายเดิมจนจบ",
+    "image": "screenshots/original/10-08.jpg",
+    "width": 1728,
+    "height": 1078,
+    "marks": [
+      {
+        "height": 671,
+        "width": 894,
+        "x": 494,
+        "y": 383,
+        "label": "1"
+      },
+      {
+        "height": 48,
+        "width": 258,
+        "x": 1425,
+        "y": 983,
+        "label": "2"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/finished-goods/pallets/n1700hqc99t29bjty2wh6r6y518dyrr4/move"
+  },
+  {
+    "id": "09-07",
+    "title": "คืนต้นทางเมื่อย้ายต่อไม่ได้",
+    "instruction": "นำพาเลทกลับตำแหน่งต้นทางจริง ตรวจรหัสต้นทางหรือฐานรองรับ ทำเครื่องหมายยืนยันการคืน แล้วกดยืนยันคืนแล้ว การปิดหน้าต่างอย่างเดียวไม่คืนพื้นที่",
+    "image": "screenshots/original/09-07.jpg",
+    "width": 1728,
+    "height": 869,
+    "marks": [
+      {
+        "height": 48,
+        "width": 622,
+        "x": 553,
+        "y": 517,
+        "label": "1"
+      },
+      {
+        "height": 16,
+        "width": 16,
+        "x": 566,
+        "y": 685.5,
+        "label": "2"
+      },
+      {
+        "height": 48,
+        "width": 109.78125,
+        "x": 1065.21875,
+        "y": 751.5,
+        "label": "3"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/finished-goods/pallets/n1700hqc99t29bjty2wh6r6y518dyrr4/move"
+  },
+  {
+    "id": "10-09",
+    "title": "ฐานปลดล็อกเมื่อย้ายด้านบนออกสำเร็จ",
+    "instruction": "หลังยืนยันย้าย P-000029 ลงพื้น ฐาน P-000028 มีปุ่มย้ายพาเลทและซ้อนด้านบนกลับมา การปลดล็อกเกิดหลังยืนยันจบ ไม่ใช่แค่ดูภาพตัวอย่าง",
+    "image": "screenshots/original/10-09.jpg",
+    "width": 1728,
+    "height": 1445,
+    "marks": [
+      {
+        "height": 48,
+        "width": 120.1484375,
+        "x": 1562.8515625,
+        "y": 384,
+        "label": "1"
+      },
+      {
+        "height": 48,
+        "width": 125.8671875,
+        "x": 1391.2109375,
+        "y": 1157,
+        "label": "2"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/finished-goods/pallets/n178kx5n3hgj0m6v538tcrkyyh8dz4g3"
+  },
+  {
+    "id": "07-06",
+    "title": "แก้ไขจุดจัดเก็บจากหน้าพาเลทโดยตรง",
+    "instruction": "แก้ชื่อ ตำแหน่ง หรือขนาดในหน้าต่างนี้ แล้วกดบันทึก ระบบคงรหัสและ QR เดิมไว้ ตรวจว่าพื้นที่ใหม่ยังครอบคลุมหน่วยจัดเก็บที่อยู่ภายใน",
+    "image": "screenshots/original/07-06.jpg",
+    "width": 1728,
+    "height": 869,
+    "marks": [
+      {
+        "height": 48,
+        "width": 453.1484375,
+        "x": 897.84375,
+        "y": 231,
+        "label": "1"
+      },
+      {
+        "height": 48,
+        "width": 218.5703125,
+        "x": 897.84375,
+        "y": 317,
+        "label": "2"
+      },
+      {
+        "height": 48,
+        "width": 187.1640625,
+        "x": 1163.8359375,
+        "y": 684,
+        "label": "3"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/master-data/storage-layouts/rs7crk5dp2rhx2b54bthkvb2wx8dzpz7/floors/1?editZone=s97exz1yjvhat53ya0ww0f59r58dy5b6#storage-zone-s97exz1yjvhat53ya0ww0f59r58dy5b6"
+  },
+  {
+    "id": "02-07",
+    "title": "ค้นหาหน่วยจัดเก็บและเปิดรายการที่ต้องการ",
+    "instruction": "เลือกแท็บรายการหน่วยจัดเก็บ ค้นหารหัสสินค้า ล็อต หรือหน่วยจัดเก็บ แล้วเปิดรหัสหน่วยเพื่อดูตำแหน่งหรือดำเนินการต่อ",
+    "image": "screenshots/original/02-07.jpg",
+    "width": 1728,
+    "height": 869,
+    "marks": [
+      {
+        "height": 48,
+        "width": 150.75,
+        "x": 367.8984375,
+        "y": 335,
+        "label": "1"
+      },
+      {
+        "height": 48,
+        "width": 1339.6171875,
+        "x": 248,
+        "y": 399,
+        "label": "2"
+      },
+      {
+        "height": 16.5,
+        "width": 67.4296875,
+        "x": 265,
+        "y": 600.5,
+        "label": "3"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/finished-goods?fg=%7B%22tab%22%3A%22pallets%22%2C%22layout%22%3A%22table%22%2C%22search%22%3A%22MANUAL%22%7D"
+  },
+  {
+    "id": "02-08",
+    "title": "กรองตามขนาดและเรียงลำดับ",
+    "instruction": "เลือกสถานะการวัด กรอกช่วงขนาดที่ต้องการ และเลือกลำดับ จากนั้นกดใช้ตัวกรอง ใช้รีเซ็ตเพื่อล้างเฉพาะตัวกรองคอลัมน์นี้",
+    "image": "screenshots/original/02-08.jpg",
+    "width": 1728,
+    "height": 869,
+    "marks": [
+      {
+        "height": 40,
+        "width": 286,
+        "x": 1052.5,
+        "y": 95,
+        "label": "1"
+      },
+      {
+        "height": 102,
+        "width": 286,
+        "x": 1052.5,
+        "y": 151,
+        "label": "2"
+      },
+      {
+        "height": 48,
+        "width": 95.984375,
+        "x": 1242.515625,
+        "y": 474.75,
+        "label": "3"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/finished-goods?fg=%7B%22tab%22%3A%22pallets%22%2C%22layout%22%3A%22table%22%2C%22search%22%3A%22MANUAL%22%7D"
+  },
+  {
+    "id": "12-01",
+    "title": "ค้นหาและเปิดรายการบนมือถือ",
+    "instruction": "ใช้เมนูมุมซ้ายบนเปลี่ยนหน้า เลือกแท็บสินค้า/หน่วยจัดเก็บ แล้วค้นหาหรือเปิดตัวกรอง การ์ดจะแสดงเรียงลงมา",
+    "image": "screenshots/original/12-01.jpg",
+    "width": 390,
+    "height": 1178,
+    "marks": [
+      {
+        "height": 48,
+        "width": 48,
+        "x": 16,
+        "y": 12,
+        "label": "1"
+      },
+      {
+        "height": 48,
+        "width": 241.6171875,
+        "x": 16,
+        "y": 664,
+        "label": "2"
+      },
+      {
+        "height": 48,
+        "width": 104.3828125,
+        "x": 269.6171875,
+        "y": 664,
+        "label": "3"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/finished-goods?fg=%7B%22tab%22%3A%22pallets%22%2C%22search%22%3A%22MANUAL%22%7D"
+  },
+  {
+    "id": "12-02",
+    "title": "ตัวกรองบนจอเล็ก",
+    "instruction": "เลื่อนภายในแผงเพื่อเลือกเงื่อนไขครบทุกหมวด ปุ่มใช้ตัวกรองอยู่ด้านล่าง ส่วนยกเลิกจะปิดโดยไม่ใช้การเปลี่ยนแปลง",
+    "image": "screenshots/original/12-02.jpg",
+    "width": 390,
+    "height": 844,
+    "marks": [
+      {
+        "height": 48,
+        "width": 331,
+        "x": 30,
+        "y": 168,
+        "label": "1"
+      },
+      {
+        "height": 48,
+        "width": 95.984375,
+        "x": 278.015625,
+        "y": 780,
+        "label": "2"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/finished-goods?fg=%7B%22tab%22%3A%22pallets%22%2C%22search%22%3A%22MANUAL%22%7D"
+  },
+  {
+    "id": "12-03",
+    "title": "ดูตำแหน่งและแก้ไขบนมือถือ",
+    "instruction": "เลื่อนลงจากภาพ 3D เพื่อดูพิกัด ปุ่มย้ายพาเลทใช้เปลี่ยนตำแหน่งสินค้า ส่วนแก้ไขข้อมูลจุดจัดเก็บใช้แก้ชื่อหรือขอบเขตโซน",
+    "image": "screenshots/original/12-03.jpg",
+    "width": 390,
+    "height": 2214,
+    "marks": [
+      {
+        "height": 48,
+        "width": 120.1484375,
+        "x": 236.8515625,
+        "y": 1149,
+        "label": "1"
+      },
+      {
+        "height": 48,
+        "width": 178.53125,
+        "x": 33,
+        "y": 1405,
+        "label": "2"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/finished-goods/pallets/n1700hqc99t29bjty2wh6r6y518dyrr4"
+  },
+  {
+    "id": "11-01",
+    "title": "เปิดลิงก์เดิมหลังมีการแบ่งบรรจุใหม่",
+    "instruction": "ถ้าพบข้อความว่าชุดนี้มีการเปลี่ยนแปลงแล้ว ให้โหลดชุดล่าสุดก่อนดำเนินการ หน่วยเก่าอยู่ในประวัติและไม่ควรถูกนำไปจัดเก็บซ้ำ",
+    "image": "screenshots/original/11-01.jpg",
+    "width": 1728,
+    "height": 869,
+    "marks": [
+      {
+        "height": 48,
+        "width": 116.921875,
+        "x": 268,
+        "y": 292.75,
+        "label": "1"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/finished-goods/products/n97cytm28pdx9xzqnrazzwc2xh8dz9cq/packing"
+  },
+  {
+    "id": "11-02",
+    "title": "ชุดที่ใช้งานอยู่ถูกป้องกันการแบ่งใหม่",
+    "instruction": "เมื่อมีหน่วยจัดเก็บแล้ว จอง หรือกำลังย้าย ระบบปิดการแก้ทั้งชุด ให้กลับข้อมูลสินค้าเพื่อตรวจสถานะและทำงานที่ค้างให้จบ การย้ายตำแหน่งไม่ใช่การเพิ่มหรือลดจำนวนสินค้า",
+    "image": "screenshots/original/11-02.jpg",
+    "width": 1728,
+    "height": 1565,
+    "marks": [
+      {
+        "height": 44,
+        "width": 90.46875,
+        "x": 248,
+        "y": 81,
+        "label": "1"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/finished-goods/batches/p97830fsart3d1sm1dwzwsnkq18dzy1n"
+  },
+  {
+    "id": "04-07",
+    "title": "ทางเลือก: แบ่งเท่ากันตามจำนวนหน่วย",
+    "instruction": "เลือกแบ่งเท่ากันแล้วระบุจำนวนหน่วย ตัวอย่าง 100 ชิ้นแบ่งเป็น 2 หน่วย ได้ 50 + 50 ตรวจผลการแบ่งและวัดขนาดทุกหน่วยก่อนสร้าง",
+    "image": "screenshots/original/04-07.jpg",
+    "width": 1728,
+    "height": 869,
+    "marks": [
+      {
+        "height": 44,
+        "width": 460.6640625,
+        "x": 269,
+        "y": 344,
+        "label": "1"
+      },
+      {
+        "height": 48,
+        "width": 460.6640625,
+        "x": 745.6640625,
+        "y": 346,
+        "label": "2"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/finished-goods/products/n97cytm28pdx9xzqnrazzwc2xh8dz9cq/packing?draft=e2f6993c-9265-4c69-a213-e8a6ea869f9b"
+  },
+  {
+    "id": "04-08",
+    "title": "ทางเลือก: กำหนดเอง เพิ่มหรือลบหน่วย",
+    "instruction": "เลือกกำหนดเองเพื่อแก้จำนวนแต่ละหน่วย ใช้เพิ่มหน่วยหรือปุ่มลบหน่วยที่เลือก แล้วตรวจว่ายอดจัดสรรรวมเท่ากับยอดชุดก่อนยืนยัน",
+    "image": "screenshots/original/04-08.jpg",
+    "width": 1728,
+    "height": 1532,
+    "marks": [
+      {
+        "height": 44,
+        "width": 460.6640625,
+        "x": 269,
+        "y": 344,
+        "label": "1"
+      },
+      {
+        "height": 48,
+        "width": 676,
+        "x": 1007,
+        "y": 576,
+        "label": "2"
+      },
+      {
+        "height": 48,
+        "width": 48,
+        "x": 1635,
+        "y": 490,
+        "label": "3"
+      },
+      {
+        "height": 48,
+        "width": 160.515625,
+        "x": 986,
+        "y": 1085,
+        "label": "4"
+      }
+    ],
+    "note": "",
+    "url": "http://localhost:3100/th/finished-goods/products/n97cytm28pdx9xzqnrazzwc2xh8dz9cq/packing?draft=e2f6993c-9265-4c69-a213-e8a6ea869f9b"
+  }
+]

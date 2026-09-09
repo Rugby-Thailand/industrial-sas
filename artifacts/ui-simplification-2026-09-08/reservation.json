@@ -1,0 +1,44 @@
+{
+  "width": 1728,
+  "height": 940,
+  "fps": 10,
+  "durationMs": 22500,
+  "frames": [
+    {
+      "path": "frames/012.jpg",
+      "timestampMs": 0
+    },
+    {
+      "path": "frames/013.jpg",
+      "timestampMs": 2500
+    },
+    {
+      "path": "frames/014.jpg",
+      "timestampMs": 5000
+    },
+    {
+      "path": "frames/015.jpg",
+      "timestampMs": 7500
+    },
+    {
+      "path": "frames/016.jpg",
+      "timestampMs": 10000
+    },
+    {
+      "path": "frames/017.jpg",
+      "timestampMs": 12500
+    },
+    {
+      "path": "frames/018.jpg",
+      "timestampMs": 15000
+    },
+    {
+      "path": "frames/019.jpg",
+      "timestampMs": 17500
+    },
+    {
+      "path": "frames/020.jpg",
+      "timestampMs": 20000
+    }
+  ]
+}

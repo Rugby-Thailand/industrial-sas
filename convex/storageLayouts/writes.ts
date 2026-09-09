@@ -15,6 +15,7 @@ import {
   type StorageFloorInput,
 } from "../model/storageLayout/storageLayout";
 import { validateStorageZone } from "../model/storageLayout/storageZone";
+import { hasOccupiedStorage } from "./catalogue";
 
 const blockValidator = v.object({
   id: v.string(),
@@ -274,6 +275,13 @@ export const updateStorageBuilding = mutationWithOrg({
       return failure("VERSION_CONFLICT");
     const name = normalizeDisplayName("name", args.name);
     if (!name.ok) return failure(name.error.code, "name");
+    if (
+      (args.widthMm !== building.widthMm ||
+        args.depthMm !== building.depthMm ||
+        args.defaultFloorHeightMm !== building.defaultFloorHeightMm) &&
+      (await hasOccupiedStorage(ctx, { buildingId: building._id }))
+    )
+      return failure("LOCATION_OCCUPIED");
     const current = await readLayout(ctx, building);
     const summary = validateAndSummarizeStorageLayout({
       widthMm: args.widthMm,
@@ -481,6 +489,10 @@ export const saveStorageFloor = mutationWithOrg({
     if (floorDocument === undefined) return failure("NOT_FOUND");
     if (floorDocument.version !== args.expectedFloorVersion)
       return failure("VERSION_CONFLICT");
+    // A lower floor's elevation and reserved-space changes can affect access to
+    // pallets on upper floors too. Require reassignment before structural edits.
+    if (await hasOccupiedStorage(ctx, { buildingId: building._id }))
+      return failure("LOCATION_OCCUPIED");
     const floors = current.floors.map((floor) =>
       floor.floorNumber === args.floor.floorNumber ? args.floor : floor,
     );
@@ -598,6 +610,11 @@ async function changeStatus(
     return failure("NOT_FOUND");
   if (building.version !== args.expectedVersion)
     return failure("VERSION_CONFLICT");
+  if (
+    status === "ARCHIVED" &&
+    (await hasOccupiedStorage(ctx, { buildingId: building._id }))
+  )
+    return failure("LOCATION_OCCUPIED");
   const layout = await readLayout(ctx, building);
   const zones: ZoneDocument[] = [];
   for (const floor of layout.documents) {
@@ -663,6 +680,23 @@ async function changeStatus(
       await ctx.tenantDb.patch("locations", zone.locationId, {
         status: status === "ACTIVE" ? "ACTIVE" : "INACTIVE",
       });
+      const positions = await ctx.tenantDb
+        .byIndex<Doc<"storagePositions">>(
+          "storagePositions",
+          "by_orgId_zoneId_status_code",
+          [
+            { field: "zoneId", value: zone._id },
+            { field: "status", value: "ACTIVE" },
+          ],
+        )
+        .all(100);
+      for (const position of positions) {
+        if (position.locationId !== zone.locationId) {
+          await ctx.tenantDb.patch("locations", position.locationId, {
+            status: status === "ACTIVE" ? "ACTIVE" : "INACTIVE",
+          });
+        }
+      }
     }
   }
   return success(updated.value.documentId, updated.value.replayed);

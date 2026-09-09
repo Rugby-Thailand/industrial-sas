@@ -10,9 +10,15 @@ import {
   updateStoragePosition,
 } from "../../convex/storageLayouts/zones";
 import {
-  createConvexInventoryWorld,
-  type ConvexInventoryWorld,
-} from "../fixtures/convex-inventory-world";
+  createConvexTenantWorld,
+  seedConvexAuthorization,
+  type ConvexTenantWorld,
+} from "../fixtures/convex-tenant-world";
+async function createPlannerWorld() {
+  const world = await createConvexTenantWorld();
+  await seedConvexAuthorization(world, { roleA: "ORG_ADMIN" });
+  return world;
+}
 
 interface RuntimeFunction {
   readonly _handler: (
@@ -27,7 +33,7 @@ const identity = (org: "a" | "b") => ({
 });
 
 async function callAs(
-  world: ConvexInventoryWorld,
+  world: ConvexTenantWorld,
   org: "a" | "b",
   fn: unknown,
   args: unknown,
@@ -49,7 +55,7 @@ function value(outcome: Record<string, unknown>): Record<string, unknown> {
 
 describe("storage positions are tenant and warehouse confined", () => {
   it("does not resolve or mutate another tenant's leaf identity", async () => {
-    const world = await createConvexInventoryWorld();
+    const world = await createPlannerWorld();
     const building = value(
       await callAs(world, "a", createStorageBuilding, {
         warehouseId: world.warehouses.alphaA,
@@ -115,5 +121,26 @@ describe("storage positions are tenant and warehouse confined", () => {
       written: false,
       error: { code: "NOT_FOUND" },
     });
+  });
+  it("refuses unauthenticated planner writes", async () => {
+    const world = await createPlannerWorld();
+    await expect(
+      world.t.run(async (ctx) =>
+        (createStorageBuilding as unknown as RuntimeFunction)._handler(ctx, {
+          warehouseId: world.warehouses.alphaA,
+          requestId: "anonymous-create",
+          code: "NO-AUTH",
+          name: "Unauthorized",
+          widthMm: 12000,
+          depthMm: 10000,
+          defaultFloorHeightMm: 4000,
+          floorCount: 1,
+        }),
+      ),
+    ).rejects.toMatchObject({ data: { code: "ANONYMOUS" } });
+    const buildings = await world.t.run((ctx) =>
+      ctx.db.query("storageBuildings").collect(),
+    );
+    expect(buildings).toEqual([]);
   });
 });

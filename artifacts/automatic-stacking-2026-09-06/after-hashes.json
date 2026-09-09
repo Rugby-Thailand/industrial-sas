@@ -1,0 +1,14 @@
+{
+  "convex/finishedGoods/workflow.ts": "8dc29bdcc028852a4c10b45e07558a2791de1ef746d4f7cef437d0d66d352fb8",
+  "src/features/finishedGoods/palletGeometry.ts": "84507062fa92be9adba138b921e5df92379bcd6dd8dd3f8a6a688111e4ac782a",
+  "src/features/finishedGoods/PalletScene.tsx": "acaf3520621935edd935a98f64b3c981b6a76d7710c3a838a95471cf884ab8b1",
+  "src/features/finishedGoods/PalletScreens.tsx": "9095e808b63d43df8f319e491acf1a139d2ad36a7f154679ba927f650ff7b066",
+  "src/features/finishedGoods/MoveScreen.tsx": "d3e4acac3f825dfc5c6300ab6ffccc695d0495e88c8a7eb912f055801da3abe0",
+  "src/features/finishedGoods/palletGeometry.test.ts": "38ae56bed65d6a6d2d91d08b7a8da77bf9e4e7cb69d5abaa552262b261433c3d",
+  "src/features/finishedGoods/PalletScene.test.tsx": "30e8484ce880e5c487f1759b5af4ae11e0a7adcbd9361449d5093c8999ee1e26",
+  "src/features/finishedGoods/PalletScreens.test.tsx": "261cdb7c4137bceada23b2f2d39516802c78b5fa2906f5ee2507f213895dc5b3",
+  "src/features/finishedGoods/MoveScreen.test.tsx": "87665bc020b95a37011028aefb0825ea7e61b17c03fd56d84822fe0c363ac85c",
+  "tests/integration/finished-goods-stacking.integration.test.ts": "47c0452d597f68f673b5bf0894b330daa182890f43231f6f41cd96eb2765df2d",
+  "convex/finishedGoods/batches.ts": "f34692e381924acb9c1c40203405c06649fa63dffcc62666d8e09337fde782aa",
+  "src/lib/convex/finishedGoodsApi.ts": "35ee928358e39c7bdab4c88ab810d3fa1a7b959b30d87c342836af8e045a9775"
+}

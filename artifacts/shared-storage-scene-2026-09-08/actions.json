@@ -1,0 +1,56 @@
+{
+  "width": 1600,
+  "height": 900,
+  "fps": 10,
+  "durationMs": 42000,
+  "frames": [
+    {
+      "path": "/Users/macbook/Development/industrial-sas-storage-planner/artifacts/shared-storage-scene-2026-09-08/editor-3d-th.png",
+      "timestampMs": 0
+    },
+    {
+      "path": "/Users/macbook/Development/industrial-sas-storage-planner/artifacts/shared-storage-scene-2026-09-08/editor-2d-th.png",
+      "timestampMs": 3500
+    },
+    {
+      "path": "/Users/macbook/Development/industrial-sas-storage-planner/artifacts/shared-storage-scene-2026-09-08/occupied-edit-blocked.png",
+      "timestampMs": 7000
+    },
+    {
+      "path": "/Users/macbook/Development/industrial-sas-storage-planner/artifacts/shared-storage-scene-2026-09-08/floor-selected-3d.png",
+      "timestampMs": 10500
+    },
+    {
+      "path": "/Users/macbook/Development/industrial-sas-storage-planner/artifacts/shared-storage-scene-2026-09-08/floor-selected-2d.png",
+      "timestampMs": 14000
+    },
+    {
+      "path": "/Users/macbook/Development/industrial-sas-storage-planner/artifacts/shared-storage-scene-2026-09-08/floor-rotated.png",
+      "timestampMs": 17500
+    },
+    {
+      "path": "/Users/macbook/Development/industrial-sas-storage-planner/artifacts/shared-storage-scene-2026-09-08/floor-location-only.png",
+      "timestampMs": 21000
+    },
+    {
+      "path": "/Users/macbook/Development/industrial-sas-storage-planner/artifacts/shared-storage-scene-2026-09-08/floor-p000005-selected.png",
+      "timestampMs": 24500
+    },
+    {
+      "path": "/Users/macbook/Development/industrial-sas-storage-planner/artifacts/shared-storage-scene-2026-09-08/editor-3d-en.png",
+      "timestampMs": 28000
+    },
+    {
+      "path": "/Users/macbook/Development/industrial-sas-storage-planner/artifacts/shared-storage-scene-2026-09-08/pallet-3d-en.png",
+      "timestampMs": 31500
+    },
+    {
+      "path": "/Users/macbook/Development/industrial-sas-storage-planner/artifacts/shared-storage-scene-2026-09-08/pallet-2d-en.png",
+      "timestampMs": 35000
+    },
+    {
+      "path": "/Users/macbook/Development/industrial-sas-storage-planner/artifacts/shared-storage-scene-2026-09-08/pallet-rotated-en.png",
+      "timestampMs": 38500
+    }
+  ]
+}
