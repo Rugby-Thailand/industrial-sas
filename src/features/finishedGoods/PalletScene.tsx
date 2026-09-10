@@ -1,4 +1,6 @@
 "use client";
+import { SceneToolbar } from "@/components/storageScene/SceneToolbar";
+import { StorageViewModeToggle } from "@/components/storageLayouts/StorageZoneVisualizer";
 import { SceneBox, SceneLegendMark } from "@/components/storageScene/SceneBox";
 
 import { usePreviewState } from "./usePreviewState";
@@ -582,132 +584,121 @@ export function PalletScene({
 
   return (
     <figure className="min-w-0 overflow-hidden rounded-xl border border-border bg-background">
-      <figcaption className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
-        <span className="text-sm font-semibold text-text">
-          {label ?? t.title}
-        </span>
-        <div
-          role="group"
-          aria-label={t.view}
-          className="flex gap-1 rounded-lg border border-border p-1"
-        >
-          <Button
-            type="button"
-            variant={planView ? "secondary" : "ghost"}
-            size="touch"
-            className="px-3"
-            aria-pressed={planView}
-            onClick={() => setPlanView(true)}
-          >
-            {t.plan}
-          </Button>
-          <Button
-            type="button"
-            variant={!planView ? "secondary" : "ghost"}
-            size="touch"
-            className="px-3"
-            aria-pressed={!planView}
-            onClick={() => setPlanView(false)}
-          >
-            {t.threeD}
-          </Button>
-        </div>
+      <figcaption className="border-b border-border px-2">
+        <SceneToolbar
+          title={label ?? t.title}
+          moreLabel={t.camera}
+          primary={
+            <>
+              <StorageViewModeToggle
+                value={planView ? "plan" : "3d"}
+                onChange={(mode) => setPlanView(mode === "plan")}
+                label={t.view}
+                planLabel={t.plan}
+                threeDLabel={t.threeD}
+              />{" "}
+              {canMove && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="touch"
+                  className="px-2"
+                  aria-label={t.rotatePallet}
+                  title={t.rotatePallet}
+                  onClick={() =>
+                    updatePlacement({
+                      ...placement,
+                      rotation: placement.rotation === 0 ? 90 : 0,
+                    })
+                  }
+                >
+                  <RotateCw aria-hidden="true" />
+                </Button>
+              )}
+              <div
+                role="group"
+                aria-label={t.zoom}
+                className="flex items-center gap-1"
+              >
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  aria-label={t.zoomOut}
+                  title={t.zoomOut}
+                  disabled={zoom === 1}
+                  onClick={() => setZoom((value) => Math.max(1, value - 0.25))}
+                >
+                  <ZoomOut aria-hidden="true" />
+                </Button>
+                <output
+                  aria-label={t.zoom}
+                  className="min-w-10 text-center text-xs text-muted tabular-nums"
+                >
+                  {Math.round(zoom * 100)}%
+                </output>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  aria-label={t.zoomIn}
+                  title={t.zoomIn}
+                  disabled={zoom === 2.5}
+                  onClick={() =>
+                    setZoom((value) => Math.min(2.5, value + 0.25))
+                  }
+                >
+                  <ZoomIn aria-hidden="true" />
+                </Button>
+              </div>
+            </>
+          }
+          secondary={
+            <>
+              {" "}
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-label={t.rotateView}
+                title={t.rotateView}
+                onClick={() => setQuarterTurns((turn) => (turn + 1) % 4)}
+              >
+                <RotateCw aria-hidden="true" />
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-label={t.reset}
+                title={t.reset}
+                onClick={() => {
+                  setQuarterTurns(0);
+                  setPlanView(false);
+                  setZoom(1);
+                }}
+              >
+                <RotateCcw aria-hidden="true" />
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-pressed={annotations}
+                aria-label={
+                  locale === "th" ? "ป้ายและขนาด" : "Labels and dimensions"
+                }
+                title={
+                  locale === "th" ? "ป้ายและขนาด" : "Labels and dimensions"
+                }
+                onClick={() => setAnnotations((value) => !value)}
+              >
+                <Tags aria-hidden="true" />
+              </Button>
+            </>
+          }
+        />
       </figcaption>
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-3 py-2">
-        <div
-          role="group"
-          aria-label={t.camera}
-          className="flex items-center gap-1"
-        >
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            aria-label={t.rotateView}
-            title={t.rotateView}
-            onClick={() => setQuarterTurns((turn) => (turn + 1) % 4)}
-          >
-            <RotateCw aria-hidden="true" />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            aria-label={t.reset}
-            title={t.reset}
-            onClick={() => {
-              setQuarterTurns(0);
-              setPlanView(false);
-              setZoom(1);
-            }}
-          >
-            <RotateCcw aria-hidden="true" />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            aria-pressed={annotations}
-            aria-label={
-              locale === "th" ? "ป้ายและขนาด" : "Labels and dimensions"
-            }
-            title={locale === "th" ? "ป้ายและขนาด" : "Labels and dimensions"}
-            onClick={() => setAnnotations((value) => !value)}
-          >
-            <Tags aria-hidden="true" />
-          </Button>
-          {canMove && (
-            <Button
-              type="button"
-              variant="outline"
-              size="touch"
-              className="ml-1 px-2 text-xs"
-              onClick={() =>
-                updatePlacement({
-                  ...placement,
-                  rotation: placement.rotation === 0 ? 90 : 0,
-                })
-              }
-            >
-              {t.rotatePallet}
-            </Button>
-          )}
-        </div>
-        <div
-          role="group"
-          aria-label={t.zoom}
-          className="flex items-center gap-1"
-        >
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            aria-label={t.zoomOut}
-            title={t.zoomOut}
-            disabled={zoom === 1}
-            onClick={() => setZoom((value) => Math.max(1, value - 0.25))}
-          >
-            <ZoomOut aria-hidden="true" />
-          </Button>
-          <output
-            aria-label={t.zoom}
-            className="min-w-10 text-center text-xs text-muted tabular-nums"
-          >
-            {Math.round(zoom * 100)}%
-          </output>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            aria-label={t.zoomIn}
-            title={t.zoomIn}
-            disabled={zoom === 2.5}
-            onClick={() => setZoom((value) => Math.min(2.5, value + 0.25))}
-          >
-            <ZoomIn aria-hidden="true" />
-          </Button>
-        </div>
-      </div>
       {source && <p className="px-4 pt-2 text-xs text-muted">{source.label}</p>}
       <svg
         ref={svgRef}

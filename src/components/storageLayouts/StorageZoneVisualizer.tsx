@@ -123,23 +123,27 @@ export function StorageViewModeToggle({
     <div
       role="group"
       aria-label={label}
-      className="inline-flex rounded-lg border border-border bg-background p-1"
+      className="inline-flex rounded-lg border border-border bg-background p-0.5"
     >
       <button
         type="button"
+        aria-label={planLabel}
+        title={planLabel}
         aria-pressed={value === "plan"}
         onClick={() => onChange("plan")}
         className="min-h-9 rounded-md px-3 text-xs font-medium text-muted transition hover:text-text focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none aria-pressed:bg-accent-surface aria-pressed:text-accent"
       >
-        {planLabel}
+        2D
       </button>
       <button
         type="button"
+        aria-label={threeDLabel}
+        title={threeDLabel}
         aria-pressed={value === "3d"}
         onClick={() => onChange("3d")}
         className="min-h-9 rounded-md px-3 text-xs font-medium text-muted transition hover:text-text focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none aria-pressed:bg-accent-surface aria-pressed:text-accent"
       >
-        {threeDLabel}
+        3D
       </button>
     </div>
   );

@@ -1,4 +1,6 @@
 "use client";
+import { SceneToolbar } from "@/components/storageScene/SceneToolbar";
+import { StorageViewModeToggle } from "./StorageZoneVisualizer";
 import { SceneBox, SceneLegendMark } from "@/components/storageScene/SceneBox";
 
 import { useState, useId, type ReactNode } from "react";
@@ -144,63 +146,61 @@ export function FloorMap(props: FloorMapProps) {
         }
       }}
     >
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h2 className="font-semibold">
-            {t("floor", { floor: props.floorNumber })} · {t("floorSpace")}
-          </h2>
-          <p className="mt-1 text-[13px] text-muted">
-            {m(props.widthMm)} × {m(props.depthMm)} × {m(props.heightMm)} m
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <div
-            role="group"
-            aria-label={t("viewMode")}
-            className="flex rounded-lg border border-border p-1"
-          >
-            {(["plan", "3d"] as const).map((mode) => (
-              <Button
-                key={mode}
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-10 px-3 aria-pressed:bg-accent-surface aria-pressed:text-accent"
-                aria-pressed={view === mode}
-                onClick={() => setView(mode)}
-              >
-                {t(mode === "3d" ? "threeDView" : "planView")}
-              </Button>
-            ))}
-          </div>
-          {action(
-            t("mapZoomOut"),
-            <ZoomOut />,
-            () => setZoom(Math.max(1, zoom - 0.25)),
-            zoom <= 1,
-          )}
-          {action(
-            t("mapZoomIn"),
-            <ZoomIn />,
-            () => setZoom(Math.min(2.5, zoom + 0.25)),
-            zoom >= 2.5,
-          )}
-          {action(t("mapFit"), <Maximize />, () => setZoom(1))}
-          {action(
-            t("mapRotate"),
-            <RotateCw />,
-            () => setRotation((rotation + 1) % 4),
-            view === "plan",
-          )}
-          {action(
-            props.baseLabel,
-            <Layers3 />,
-            () => setReference(!reference),
-            false,
-            reference,
-          )}
-        </div>
-      </div>
+      <SceneToolbar
+        title={
+          <>
+            <h2 className="truncate text-sm font-semibold">
+              {t("floor", { floor: props.floorNumber })} · {t("floorSpace")}
+            </h2>
+            <p className="text-xs font-normal text-muted">
+              {m(props.widthMm)} × {m(props.depthMm)} × {m(props.heightMm)} m
+            </p>
+          </>
+        }
+        moreLabel={t("viewMode")}
+        primary={
+          <>
+            <StorageViewModeToggle
+              value={view}
+              onChange={setView}
+              label={t("viewMode")}
+              planLabel={t("planView")}
+              threeDLabel={t("threeDView")}
+            />{" "}
+            {action(
+              t("mapZoomOut"),
+              <ZoomOut />,
+              () => setZoom(Math.max(1, zoom - 0.25)),
+              zoom <= 1,
+            )}
+            {action(
+              t("mapZoomIn"),
+              <ZoomIn />,
+              () => setZoom(Math.min(2.5, zoom + 0.25)),
+              zoom >= 2.5,
+            )}
+          </>
+        }
+        secondary={
+          <>
+            {" "}
+            {action(t("mapFit"), <Maximize />, () => setZoom(1))}
+            {action(
+              t("mapRotate"),
+              <RotateCw />,
+              () => setRotation((rotation + 1) % 4),
+              view === "plan",
+            )}
+            {action(
+              props.baseLabel,
+              <Layers3 />,
+              () => setReference(!reference),
+              false,
+              reference,
+            )}
+          </>
+        }
+      />
       <div className="relative mt-4">
         <label htmlFor={searchId} className="sr-only">
           {t("searchStorageSpots")}

@@ -235,7 +235,7 @@ export function StorageZoneDraftPreview({
 
   return (
     <figure className="overflow-hidden rounded-xl border border-border bg-background">
-      <figcaption className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
+      <figcaption className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-2 py-1">
         <div>
           <p className="text-sm font-semibold text-text">{previewLabel}</p>
           <p className="mt-0.5 text-xs text-muted tabular-nums">

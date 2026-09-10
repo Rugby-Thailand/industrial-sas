@@ -1,4 +1,5 @@
 "use client";
+import { StorageViewModeToggle } from "@/components/storageLayouts/StorageZoneVisualizer";
 import { StorageZoneDraftPreview } from "@/components/storageLayouts/StorageZoneDraftPreview";
 export { StorageZoneDraftPreview } from "@/components/storageLayouts/StorageZoneDraftPreview";
 import { rectanglesOverlap } from "@/lib/storageLayouts/storagePlacementGeometry";
@@ -1655,28 +1656,13 @@ function FloorOffsetPlan({
             {metres(widthMm)} × {metres(depthMm)} × {metres(heightMm)} m
           </p>
         </div>
-        <div
-          role="group"
-          aria-label={t("viewMode")}
-          className="inline-flex rounded-lg border border-border bg-background p-1"
-        >
-          <button
-            type="button"
-            aria-pressed={view === "3d"}
-            onClick={() => setView("3d")}
-            className="min-h-10 rounded-md px-4 text-sm font-medium text-muted transition hover:text-text aria-pressed:bg-accent-surface aria-pressed:text-accent"
-          >
-            {t("threeDView")}
-          </button>
-          <button
-            type="button"
-            aria-pressed={view === "plan"}
-            onClick={() => setView("plan")}
-            className="min-h-10 rounded-md px-4 text-sm font-medium text-muted transition hover:text-text aria-pressed:bg-accent-surface aria-pressed:text-accent"
-          >
-            {t("planView")}
-          </button>
-        </div>
+        <StorageViewModeToggle
+          value={view}
+          onChange={setView}
+          label={t("viewMode")}
+          planLabel={t("planView")}
+          threeDLabel={t("threeDView")}
+        />
       </figcaption>
       <div className="relative">
         {view === "3d" ? (
