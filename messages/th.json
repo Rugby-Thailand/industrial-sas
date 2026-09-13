@@ -206,6 +206,8 @@
     "archived": "เก็บถาวร",
     "grossArea": "พื้นที่รวม",
     "usableArea": "พื้นที่ใช้งานได้",
+    "blockedArea": "พื้นที่ทางเดิน / ห้ามจัดเก็บ",
+    "areaOverview": "ใช้งานได้ {usable} ตร.ม. · ทางเดิน / ห้ามจัดเก็บ {blocked} ตร.ม.",
     "reservedArea": "พื้นที่สงวน",
     "totalHeight": "ความสูงรวม",
     "editBuilding": "ผังอาคาร",

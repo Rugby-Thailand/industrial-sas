@@ -206,6 +206,8 @@
     "archived": "Archived",
     "grossArea": "Gross area",
     "usableArea": "Usable area",
+    "blockedArea": "Blocked area",
+    "areaOverview": "{usable} m² usable · {blocked} m² blocked",
     "reservedArea": "Reserved area",
     "totalHeight": "Total height",
     "editBuilding": "Building layout",

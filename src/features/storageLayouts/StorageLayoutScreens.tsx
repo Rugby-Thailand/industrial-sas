@@ -1,4 +1,6 @@
 "use client";
+
+import { AreaOverview } from "./AreaOverview";
 import { StorageViewModeToggle } from "@/components/storageLayouts/StorageZoneVisualizer";
 import { StorageZoneDraftPreview } from "@/components/storageLayouts/StorageZoneDraftPreview";
 export { StorageZoneDraftPreview } from "@/components/storageLayouts/StorageZoneDraftPreview";
@@ -285,15 +287,13 @@ function CatalogueContent({
                   label={t("dimensions")}
                   value={`${metres(building.widthMm)} × ${metres(building.depthMm)} m`}
                 />
-                <Metric
-                  label={t("usableArea")}
-                  value={`${squareMetres(building.usableAreaSqMm).toLocaleString()} m²`}
-                />
-                <Metric
-                  label={t("available")}
-                  value={`${Math.round((building.usableAreaSqMm / building.grossAreaSqMm) * 100)}%`}
-                />
               </dl>
+              <div className="mt-4">
+                <AreaOverview
+                  grossAreaSqMm={building.grossAreaSqMm}
+                  usableAreaSqMm={building.usableAreaSqMm}
+                />
+              </div>
             </Link>
           ))}
         </div>
@@ -622,10 +622,8 @@ function BuildingContent({
               label={t("totalHeight")}
               value={`${metres(building.totalHeightMm)} m`}
             />
-            <Metric label={t("floors")} value={String(building.floorCount)} />
           </dl>
         </section>
-        <CapacitySummary building={building} />
         {building.status === "ARCHIVED" ||
         quickChangeFloor === undefined ? null : (
           <Button className="w-full" variant="outline" asChild>
@@ -853,44 +851,6 @@ function BuildingSettings({
         </div>
       )}
     </div>
-  );
-}
-
-function CapacitySummary({
-  building,
-}: {
-  readonly building: StorageBuildingRow;
-}) {
-  const t = useTranslations("StorageLayouts");
-  const usablePercent =
-    building.grossAreaSqMm === 0
-      ? 0
-      : Math.round((building.usableAreaSqMm / building.grossAreaSqMm) * 100);
-  return (
-    <section className="rounded-2xl border border-border bg-surface p-5 shadow-sm">
-      <h2 className="font-semibold text-text">{t("capacity")}</h2>
-      <div className="mt-4 h-2 overflow-hidden rounded-full bg-warning-surface">
-        <div
-          className="h-full rounded-full bg-success"
-          style={{ width: `${usablePercent}%` }}
-        />
-      </div>
-      <dl className="mt-5 grid grid-cols-2 gap-4">
-        <Metric
-          label={t("grossArea")}
-          value={`${squareMetres(building.grossAreaSqMm).toLocaleString()} m²`}
-        />
-        <Metric
-          label={t("usableArea")}
-          value={`${squareMetres(building.usableAreaSqMm).toLocaleString()} m²`}
-        />
-        <Metric
-          label={t("reservedArea")}
-          value={`${squareMetres(building.reservedAreaSqMm).toLocaleString()} m²`}
-        />
-        <Metric label={t("available")} value={`${usablePercent}%`} />
-      </dl>
-    </section>
   );
 }
 
@@ -1337,10 +1297,6 @@ function FloorForm({
     0,
   );
   const usableAreaSqMm = Math.max(0, grossAreaSqMm - reservedAreaSqMm);
-  const availablePercent =
-    grossAreaSqMm === 0
-      ? 0
-      : Math.round((usableAreaSqMm / grossAreaSqMm) * 1_000) / 10;
   const placements = detail.floors.flatMap((candidate) =>
     candidate.storageZones.flatMap((zone) => zone.placements),
   );
@@ -1395,10 +1351,7 @@ function FloorForm({
     }
   }
   return (
-    <form
-      onSubmit={submit}
-      className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_25rem]"
-    >
+    <form onSubmit={submit} className="space-y-6">
       <div className="xl:col-span-2">
         <FloorPlan
           widthMm={actualWidth}
@@ -1460,6 +1413,12 @@ function FloorForm({
             disabled={!editable}
           />
         </CollapsibleSection>
+        <div role="status" aria-atomic="true">
+          <AreaOverview
+            grossAreaSqMm={grossAreaSqMm}
+            usableAreaSqMm={usableAreaSqMm}
+          />
+        </div>
         <ReservedBlocks
           editable={editable}
           blocks={blocks}
@@ -1498,35 +1457,6 @@ function FloorForm({
             {metres(actualWidth)} × {metres(actualDepth)} ×{" "}
             {metres(actualHeight)} m
           </p>
-        </section>
-        <section className="rounded-2xl border border-border bg-surface p-5 shadow-sm">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="size-5 text-success" />
-            <h2 className="font-semibold text-text">{t("capacity")}</h2>
-          </div>
-          <div className="mt-4 h-2 overflow-hidden rounded-full bg-warning-surface">
-            <div
-              className="h-full rounded-full bg-success transition-[width]"
-              style={{
-                width: `${Math.max(0, Math.min(100, availablePercent))}%`,
-              }}
-            />
-          </div>
-          <dl className="mt-5 grid grid-cols-2 gap-4">
-            <Metric
-              label={t("grossArea")}
-              value={`${squareMetres(grossAreaSqMm).toLocaleString()} m²`}
-            />
-            <Metric
-              label={t("reservedArea")}
-              value={`${squareMetres(reservedAreaSqMm).toLocaleString()} m²`}
-            />
-            <Metric
-              label={t("usableArea")}
-              value={`${squareMetres(usableAreaSqMm).toLocaleString()} m²`}
-            />
-            <Metric label={t("available")} value={`${availablePercent}%`} />
-          </dl>
         </section>
         {confirmingImpact ? (
           <ChangeImpactSummary
@@ -3555,7 +3485,7 @@ function ReviewContent({
     }
   }
   return (
-    <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
+    <div className="space-y-6">
       <div className="min-w-0 space-y-6">
         <IsometricBuilding building={building} floors={floors} />
         <DataTable<StorageFloorRow>
@@ -3584,7 +3514,7 @@ function ReviewContent({
             },
             {
               key: "reservedArea",
-              header: t("reservedArea"),
+              header: t("blockedArea"),
               render: (floor) => `${squareMetres(floor.reservedAreaSqMm)} m²`,
             },
             {
@@ -3632,7 +3562,6 @@ function ReviewContent({
               : t("storageStackRequiredHelp")
           }
         />
-        <CapacitySummary building={building} />
         {error === undefined ? null : (
           <Notice tone="warning" title={storageErrorMessage(t, error)} />
         )}
