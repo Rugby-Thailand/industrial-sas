@@ -667,3 +667,58 @@ describe("stored pallet movement", () => {
     ).toBeInTheDocument();
   });
 });
+
+it.each(["en", "th"])(
+  "excludes non-fitting previews from available move destinations in %s",
+  (locale) => {
+    mocks.query.mockImplementation((name) =>
+      name.endsWith(":getPallet")
+        ? querySuccess(currentDetail)
+        : querySuccess({
+            candidates: [finishedGoodDestination],
+            previewCandidates: [
+              {
+                ...finishedGoodDestination,
+                zoneId: "full-zone",
+                locationName: "FULL-B unavailable",
+              },
+              {
+                ...finishedGoodDestination,
+                zoneId: "small-rack",
+                locationName: "Rack too small",
+              },
+            ],
+            reasons: [],
+          }),
+    );
+    renderMove(locale);
+    expect(screen.queryByText("FULL-B unavailable")).not.toBeInTheDocument();
+    expect(screen.queryByText("Rack too small")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", {
+        name:
+          locale === "en" ? /^Available destinations\s*1$/ : /^ปลายทางที่ใช้ได้\s*1$/,
+      }),
+    ).toBeVisible();
+  },
+);
+
+it("shows no suitable move destination when only invalid previews remain", () => {
+  mocks.query.mockImplementation((name) =>
+    name.endsWith(":getPallet")
+      ? querySuccess(currentDetail)
+      : querySuccess({
+          candidates: [],
+          previewCandidates: [
+            { ...finishedGoodDestination, locationName: "FULL-B unavailable" },
+          ],
+          reasons: ["HEIGHT_EXCEEDED"],
+        }),
+  );
+  renderMove();
+  expect(screen.getByText("No suitable space found")).toBeVisible();
+  expect(
+    screen.queryByRole("button", { name: "Reserve this position" }),
+  ).not.toBeInTheDocument();
+  expect(mocks.write).not.toHaveBeenCalled();
+});

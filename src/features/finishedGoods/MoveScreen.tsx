@@ -159,14 +159,9 @@ function MoveSelection({
   });
   const selected = selection.selected;
   const setSelected = (selected: string) => setSelection({ selected });
-  const candidates = outcome?.ok
-    ? [
-        ...outcome.value.candidates,
-        ...("previewCandidates" in outcome.value
-          ? outcome.value.previewCandidates
-          : []),
-      ]
-    : [];
+  // Preview-only areas have no valid placement for this pallet. They must
+  // never be counted or selected as available move destinations.
+  const candidates = outcome?.ok ? outcome.value.candidates : [];
   const keyOf = destinationKey;
   const current = selected
     ? candidates.find((candidate) => keyOf(candidate) === selected)
