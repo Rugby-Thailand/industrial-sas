@@ -2,6 +2,7 @@
 
 import { storageFootprintUsage } from "../../../convex/model/storageLayout/areaUsage";
 import { AreaOverview } from "./AreaOverview";
+import { BuildingAreaDetails } from "./BuildingAreaDetails";
 import { StorageViewModeToggle } from "@/components/storageLayouts/StorageZoneVisualizer";
 import { StorageZoneDraftPreview } from "@/components/storageLayouts/StorageZoneDraftPreview";
 export { StorageZoneDraftPreview } from "@/components/storageLayouts/StorageZoneDraftPreview";
@@ -261,10 +262,9 @@ function CatalogueContent({
       ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {buildings.map((building) => (
-            <Link
+            <article
               key={building.buildingId}
-              href={storageBuildingPath(building.buildingId)}
-              className="group rounded-2xl border border-border bg-surface p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-accent hover:shadow-md"
+              className="group relative rounded-2xl border border-border bg-surface p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-accent hover:shadow-md"
             >
               <div className="flex items-start justify-between gap-4">
                 <CompactBuildingModel building={building} />
@@ -277,7 +277,7 @@ function CatalogueContent({
                 {building.code}
               </p>
               <h2 className="mt-1 text-lg font-semibold text-text group-hover:text-accent">
-                {building.name}
+                <Link href={storageBuildingPath(building.buildingId)} className="after:absolute after:inset-0 after:rounded-2xl focus-visible:after:ring-2 focus-visible:after:ring-accent">{building.name}</Link>
               </h2>
               <dl className="mt-5 grid grid-cols-2 gap-3 border-t border-border pt-4 text-sm">
                 <Metric
@@ -290,14 +290,9 @@ function CatalogueContent({
                 />
               </dl>
               <div className="mt-4">
-                <AreaOverview
-                  grossAreaSqMm={building.grossAreaSqMm}
-                  usableAreaSqMm={building.usableAreaSqMm}
-                  storedFootprintAreaSqMm={building.storedFootprintAreaSqMm ?? 0}
-                  heldFootprintAreaSqMm={building.heldFootprintAreaSqMm ?? 0}
-                />
+                <BuildingAreaDetails building={building} />
               </div>
-            </Link>
+            </article>
           ))}
         </div>
       )}

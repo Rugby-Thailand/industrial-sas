@@ -776,3 +776,9 @@ it("updates building free-space inputs after reserve, store and release without 
   await world.t.run(async ctx => { await ctx.db.patch(placementId, {status:"RELEASED"}); });
   expect(await read()).toMatchObject({storedFootprintAreaSqMm:0, heldFootprintAreaSqMm:0});
 });
+
+it("includes product and quantity details for building inventory drilldown", async () => {
+  const { world, warehouseId, building } = await occupiedWorld("STORED");
+  const detail = value(await call(world, getStorageBuilding, { warehouseId, buildingId: building._id }));
+  expect(detail).toMatchObject({ found: true, floors: [ { storageZones: [ { placements: [ { lpn: "PAL-001", productName: "Boxes", productSku: "SKU", quantity: 500, unit: "pieces", positionCode: "EXACT-001" } ] } ] } ] });
+});

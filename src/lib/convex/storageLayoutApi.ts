@@ -14,6 +14,10 @@ export interface StorageReservedBlockRow {
 }
 
 export interface StorageStackPlacementRow {
+  readonly productName?: string;
+  readonly productSku?: string;
+  readonly quantity?: number;
+  readonly unit?: string;
   readonly placementId: string;
   readonly handlingUnitId: string;
   readonly lpn: string;

@@ -70,7 +70,21 @@ async function readZonePlacements(
         "finishedGoodsPallets",
         placement.palletId,
       );
+      const product = pallet
+        ? await ctx.tenantDb.get<Doc<"finishedGoodsProducts">>(
+            "finishedGoodsProducts",
+            pallet.productId,
+          )
+        : null;
       return {
+        ...(product
+          ? {
+              productName: product.name,
+              productSku: product.sku,
+              unit: product.unit,
+            }
+          : {}),
+        ...(pallet ? { quantity: pallet.quantity } : {}),
         placementId: placement._id,
         handlingUnitId: placement.palletId,
         lpn: pallet?.code ?? placement.positionCode,
