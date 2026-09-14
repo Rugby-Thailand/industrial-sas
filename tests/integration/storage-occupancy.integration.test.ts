@@ -2,7 +2,7 @@ import type { GenericMutationCtx } from "convex/server";
 import { describe, expect, it } from "vitest";
 
 import type { DataModel } from "../../convex/schema";
-import { getStorageBuilding } from "../../convex/storageLayouts/catalogue";
+import { listStorageBuildings, getStorageBuilding } from "../../convex/storageLayouts/catalogue";
 import { list as listLocations } from "../../convex/storageLayouts/locationCatalogue";
 import {
   activateStorageBuilding,
@@ -765,4 +765,14 @@ describe("planner protects finished goods occupancy", () => {
       await world.t.run(async (ctx) => ctx.db.get(placementId)),
     ).toMatchObject({ status: "RESERVED" });
   });
+});
+
+it("updates building free-space inputs after reserve, store and release without editing the building", async () => {
+  const {world, warehouseId, placementId} = await occupiedWorld("RESERVED");
+  const read = async () => value(await call(world, listStorageBuildings, {warehouseId}))["0"];
+  expect(await read()).toMatchObject({storedFootprintAreaSqMm:0, heldFootprintAreaSqMm:1_200_000});
+  await world.t.run(async ctx => { await ctx.db.patch(placementId, {status:"STORED"}); });
+  expect(await read()).toMatchObject({storedFootprintAreaSqMm:1_200_000, heldFootprintAreaSqMm:0});
+  await world.t.run(async ctx => { await ctx.db.patch(placementId, {status:"RELEASED"}); });
+  expect(await read()).toMatchObject({storedFootprintAreaSqMm:0, heldFootprintAreaSqMm:0});
 });

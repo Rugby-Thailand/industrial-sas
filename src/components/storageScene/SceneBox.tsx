@@ -1,3 +1,4 @@
+import { sceneColors } from "@/components/storageScene/sceneColors";
 import {
   pointsAttribute,
   type IsometricPoint2d,
@@ -20,16 +21,16 @@ export function sceneStyle({
   return {
     solid: kind === "package" && selected,
     stroke: invalid
-      ? "#ff817d"
+      ? sceneColors.invalid
       : selected
-        ? "#7cb6ff"
+        ? sceneColors.selected
         : source
           ? "#b6c2d1"
           : held
-            ? "#e5af52"
+            ? sceneColors.reserved
             : kind === "location"
-              ? "#58d19a"
-              : "#8fa5bb",
+              ? sceneColors.free
+              : sceneColors.stored,
     strokeWidth: selected ? 2.2 : 1.2,
     dash: held || source ? "5 4" : undefined,
   };

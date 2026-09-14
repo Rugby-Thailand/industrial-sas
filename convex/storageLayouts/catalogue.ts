@@ -1,3 +1,4 @@
+import { storageFootprintUsage } from "../model/storageLayout/areaUsage";
 import { v } from "convex/values";
 
 import type { Doc } from "../_generated/dataModel";
@@ -285,7 +286,39 @@ export const listStorageBuildings = queryWithOrg({
             ],
       )
       .take(100);
-    return rows.map((row) => ({ ...row, buildingId: row._id }));
+    return await Promise.all(
+      rows.map(async (row) => {
+        const placements = (
+          await Promise.all(
+            (["STORED", "RESERVED"] as const).map((status) =>
+              ctx.tenantDb
+                .byIndex<PlacementDocument>(
+                  "finishedGoodsPlacements",
+                  "by_orgId_buildingId_status",
+                  [
+                    { field: "buildingId", value: row._id },
+                    { field: "status", value: status },
+                  ],
+                )
+                .all(10_000),
+            ),
+          )
+        ).flat();
+        const zones = new Map<string, PlacementDocument[]>();
+        for (const placement of placements) {
+          const group = zones.get(placement.zoneId) ?? [];
+          group.push(placement);
+          zones.set(placement.zoneId, group);
+        }
+        return {
+          ...row,
+          buildingId: row._id,
+          ...storageFootprintUsage(
+            [...zones.values()].map((placements) => ({ placements })),
+          ),
+        };
+      }),
+    );
   },
 });
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { storageFootprintUsage } from "../../../convex/model/storageLayout/areaUsage";
 import { AreaOverview } from "./AreaOverview";
 import { StorageViewModeToggle } from "@/components/storageLayouts/StorageZoneVisualizer";
 import { StorageZoneDraftPreview } from "@/components/storageLayouts/StorageZoneDraftPreview";
@@ -292,6 +293,8 @@ function CatalogueContent({
                 <AreaOverview
                   grossAreaSqMm={building.grossAreaSqMm}
                   usableAreaSqMm={building.usableAreaSqMm}
+                  storedFootprintAreaSqMm={building.storedFootprintAreaSqMm ?? 0}
+                  heldFootprintAreaSqMm={building.heldFootprintAreaSqMm ?? 0}
                 />
               </div>
             </Link>
@@ -1417,6 +1420,7 @@ function FloorForm({
           <AreaOverview
             grossAreaSqMm={grossAreaSqMm}
             usableAreaSqMm={usableAreaSqMm}
+                  {...storageFootprintUsage(floor.storageZones)}
           />
         </div>
         <ReservedBlocks

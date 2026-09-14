@@ -98,6 +98,8 @@ export interface StorageFloorRow {
 }
 
 export interface StorageBuildingRow {
+  readonly storedFootprintAreaSqMm?: number;
+  readonly heldFootprintAreaSqMm?: number;
   readonly buildingId: string;
   readonly warehouseId: string;
   readonly code: string;
