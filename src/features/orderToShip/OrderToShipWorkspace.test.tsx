@@ -112,9 +112,7 @@ describe("OrderToShipWorkspace", () => {
     const user = userEvent.setup();
     renderWorkspace("engineering");
 
-    await user.click(
-      screen.getByRole("button", { name: "New card" }),
-    );
+    await user.click(screen.getByRole("button", { name: "New card" }));
 
     const dialog = screen.getByRole("dialog", {
       name: "Release-ready master card draft",
@@ -159,9 +157,7 @@ describe("OrderToShipWorkspace", () => {
     const user = userEvent.setup();
     renderWorkspace("engineering");
 
-    await user.click(
-      screen.getByRole("button", { name: "New card" }),
-    );
+    await user.click(screen.getByRole("button", { name: "New card" }));
     const dialog = screen.getByRole("dialog", {
       name: "Release-ready master card draft",
     });

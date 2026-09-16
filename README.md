@@ -441,7 +441,7 @@ D-29). Floating ranges are not allowed.
 
 | Area                     | Choice                                               | Version        |
 | ------------------------ | ---------------------------------------------------- | -------------- |
-| Framework                | Next.js (App Router, Turbopack)                      | 16.2.12        |
+| Framework                | Next.js (App Router, Turbopack)                      | 16.3.3         |
 | UI runtime               | React                                                | 19.2.8         |
 | Language                 | TypeScript (strict)                                  | 6.0.3          |
 | Styling                  | Tailwind CSS (PostCSS plugin, no config file)        | 4.3.3          |
@@ -499,15 +499,15 @@ middleware, and sign-in UI), `svix` (signed integration fixtures), and
 
 Some advisories are against a package this repository does not choose. `next`
 pins `postcss` exactly, and `postcss` pins `nanoid`; no change to a direct
-dependency can move either. Those are pinned through `pnpm.overrides` in
-`package.json`, scoped to the exact path `pnpm audit` reported so nothing
+dependency can move either. Those are pinned through `overrides` in
+`pnpm-workspace.yaml`, scoped to the exact path `pnpm audit` reported so nothing
 outside it moves:
 
-| Override         | Version   | Why it is safe                                                                                                                                                                                                                                                                                                |
-| ---------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `next>postcss`   | `8.5.25`  | `next` pins `8.4.31`; `8.5.25` is what `@tailwindcss/postcss` and `vite` already resolve in this build, so the override **dedupes** to a version this repository was compiling with rather than introducing one.                                                                                              |
-| `postcss>nanoid` | `^3.3.18` | Both `postcss` copies resolved `3.3.16`; `postcss` asks for `^3.3.16`, so this is inside its declared range.                                                                                                                                                                                                  |
-| `next>sharp`     | `^0.35.3` | `next@16.2.12` declares `^0.34.5`, but `next@16.3.0` declares `^0.35.3` against the same 16.x image optimizer — first-party evidence that 0.35 is API-compatible. `sharp` is an `optionalDependency`, and this application uses no `next/image` and ships no raster assets, so it is never loaded either way. |
+| Override         | Version   | Why it is safe                                                                                                                                                                                                   |
+| ---------------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `next>postcss`   | `8.5.25`  | `next` pins `8.5.23`; `8.5.25` is what `@tailwindcss/postcss` and `vite` already resolve in this build, so the override **dedupes** to a version this repository was compiling with rather than introducing one. |
+| `postcss>nanoid` | `^3.3.18` | Both `postcss` copies resolved `3.3.16`; `postcss` asks for `^3.3.16`, so this is inside its declared range.                                                                                                     |
+| `next>sharp`     | `^0.35.4` | Raises the minimum to the security-patched release within Next.js 16.3.3's declared `^0.35.3` range.                                                                                                             |
 
 Each is a candidate for deletion, not permanence: when `next` ships a release
 whose own ranges are clean, the corresponding line should go. `pnpm audit:prod`
