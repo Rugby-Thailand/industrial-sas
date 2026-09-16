@@ -275,10 +275,12 @@ export const updateStorageBuilding = mutationWithOrg({
       return failure("VERSION_CONFLICT");
     const name = normalizeDisplayName("name", args.name);
     if (!name.ok) return failure(name.error.code, "name");
+    // Width and depth can safely change while pallets stay put: the proposed
+    // floor and zone validation below rejects any envelope that would exclude
+    // an existing area. A floor-height change, however, moves the elevation of
+    // upper floors, so keep that protected until occupied locations are clear.
     if (
-      (args.widthMm !== building.widthMm ||
-        args.depthMm !== building.depthMm ||
-        args.defaultFloorHeightMm !== building.defaultFloorHeightMm) &&
+      args.defaultFloorHeightMm !== building.defaultFloorHeightMm &&
       (await hasOccupiedStorage(ctx, { buildingId: building._id }))
     )
       return failure("LOCATION_OCCUPIED");

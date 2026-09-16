@@ -315,9 +315,9 @@ describe("planner protects finished goods occupancy", () => {
             buildingId: building._id,
             expectedVersion: 2,
             name: "Safety",
-            widthMm: 11_000,
+            widthMm: 10_000,
             depthMm: 10_000,
-            defaultFloorHeightMm: 4_000,
+            defaultFloorHeightMm: 5_000,
           },
         ],
         [
@@ -578,7 +578,7 @@ describe("planner protects finished goods occupancy", () => {
     ).toBeUndefined();
   });
 
-  it("allows label changes and adding floors without moving occupied geometry", async () => {
+  it("allows widening an occupied building while blocking floor-height changes", async () => {
     const { world, warehouseId, building, zone, position } =
       await occupiedWorld("STORED");
     expect(
@@ -589,12 +589,26 @@ describe("planner protects finished goods occupancy", () => {
           requestId: "rename-building",
           expectedVersion: 2,
           name: "Renamed",
-          widthMm: 10_000,
+          widthMm: 11_000,
           depthMm: 10_000,
           defaultFloorHeightMm: 4_000,
         }),
       ),
     ).toMatchObject({ written: true });
+    expect(
+      value(
+        await call(world, updateStorageBuilding, {
+          warehouseId,
+          buildingId: building._id,
+          requestId: "blocked-height",
+          expectedVersion: 3,
+          name: "Renamed",
+          widthMm: 11_000,
+          depthMm: 10_000,
+          defaultFloorHeightMm: 5_000,
+        }),
+      ),
+    ).toMatchObject({ written: false, error: { code: "LOCATION_OCCUPIED" } });
     expect(
       value(
         await call(world, updateStorageZone, {

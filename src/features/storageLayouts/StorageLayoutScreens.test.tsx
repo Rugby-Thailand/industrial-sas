@@ -1194,7 +1194,7 @@ it("localizes a concurrent occupancy refusal instead of displaying its raw code"
   expect(screen.queryByText(/LOCATION_OCCUPIED/)).not.toBeInTheDocument();
 });
 
-it("blocks occupied building dimension confirmation without blocking its name", () => {
+it("allows widening an occupied building but blocks changing its floor height", async () => {
   renderWithIntl(
     <BuildingSettingsDialog
       warehouseId="warehouse-a"
@@ -1209,6 +1209,25 @@ it("blocks occupied building dimension confirmation without blocking its name", 
   fireEvent.change(screen.getByRole("spinbutton", { name: "Width (m)" }), {
     target: { value: "31" },
   });
+  fireEvent.click(screen.getByRole("button", { name: "Save dimensions" }));
+  expect(mutation).toHaveBeenCalledWith(
+    expect.objectContaining({
+      widthMm: 31_000,
+      depthMm: 20_000,
+      defaultFloorHeightMm: 4_000,
+    }),
+  );
+  await waitFor(() =>
+    expect(
+      screen.getByRole("button", { name: "Save dimensions" }),
+    ).toBeEnabled(),
+  );
+
+  mutation.mockClear();
+  fireEvent.change(
+    screen.getByRole("spinbutton", { name: "Floor height (m)" }),
+    { target: { value: "5" } },
+  );
   fireEvent.click(screen.getByRole("button", { name: "Review impact" }));
   expect(
     screen.getByRole("button", { name: "Confirm changes" }),

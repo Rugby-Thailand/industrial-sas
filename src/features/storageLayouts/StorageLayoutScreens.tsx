@@ -700,16 +700,14 @@ function BuildingSettings({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string>();
   const [confirmingImpact, setConfirmingImpact] = useState(false);
-  const [buildingGeometryChanged, setBuildingGeometryChanged] = useState(false);
+  const [floorHeightChanged, setFloorHeightChanged] = useState(false);
 
   async function saveDimensions(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    const geometryChanged =
-      millimetres(String(data.get("width"))) !== building.widthMm ||
-      millimetres(String(data.get("depth"))) !== building.depthMm ||
+    const heightChanged =
       millimetres(String(data.get("height"))) !== building.defaultFloorHeightMm;
-    if (placements.length > 0 && geometryChanged) {
+    if (placements.length > 0 && heightChanged) {
       setConfirmingImpact(true);
       setError(undefined);
       return;
@@ -762,11 +760,9 @@ function BuildingSettings({
         onChange={(event) => {
           setConfirmingImpact(false);
           const data = new FormData(event.currentTarget);
-          setBuildingGeometryChanged(
-            millimetres(String(data.get("width"))) !== building.widthMm ||
-              millimetres(String(data.get("depth"))) !== building.depthMm ||
-              millimetres(String(data.get("height"))) !==
-                building.defaultFloorHeightMm,
+          setFloorHeightChanged(
+            millimetres(String(data.get("height"))) !==
+              building.defaultFloorHeightMm,
           );
         }}
         className="grid gap-4"
@@ -820,7 +816,7 @@ function BuildingSettings({
             ? t("saving")
             : confirmingImpact
               ? t("confirmChanges")
-              : buildingGeometryChanged && placements.length > 0
+              : floorHeightChanged && placements.length > 0
                 ? t("reviewImpact")
                 : t("saveBuilding")}
         </Button>
