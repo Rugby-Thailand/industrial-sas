@@ -12,6 +12,7 @@ import {
   DialogDescription,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { SelectControl } from "@/components/ui/SelectControl";
 import { sceneColors } from "@/components/storageScene/sceneColors";
 import {
   storageLayoutRefs,
@@ -199,18 +200,22 @@ export function BuildingUsageContent({
           {th ? "สินค้าและตำแหน่งจัดเก็บ" : "Inventory and locations"} (
           {visible.length})
         </h3>
-        <label className="flex items-center gap-2 text-sm">
-          {th ? "สถานะ" : "Status"}
-          <select
-            className="min-h-10 rounded-md border border-border bg-surface px-3 text-text"
+        <div className="flex items-center gap-2 text-sm">
+          <span>{th ? "สถานะ" : "Status"}</span>
+          <SelectControl
+            label={th ? "สถานะ" : "Status"}
             value={filter}
-            onChange={(event) => setFilter(event.target.value)}
-          >
-            <option value="ALL">{th ? "ทั้งหมด" : "All"}</option>
-            <option value="STORED">{th ? "จัดเก็บแล้ว" : "Stored"}</option>
-            <option value="RESERVED">{th ? "จองแล้ว" : "Reserved"}</option>
-          </select>
-        </label>
+            onValueChange={setFilter}
+            options={[
+              { value: "ALL", label: th ? "ทั้งหมด" : "All" },
+              { value: "STORED", label: th ? "จัดเก็บแล้ว" : "Stored" },
+              { value: "RESERVED", label: th ? "จองแล้ว" : "Reserved" },
+            ]}
+            placeholder={th ? "ทั้งหมด" : "All"}
+            emptyLabel={th ? "ไม่มีสถานะให้เลือก" : "No statuses available"}
+            className="w-36"
+          />
+        </div>
       </div>
       {visible.length === 0 ? (
         <p className="rounded-lg border border-border p-4 text-sm text-muted">

@@ -1,7 +1,13 @@
 import { axe } from "jest-axe";
 import type * as ClerkModule from "@clerk/nextjs";
 import type * as WorkspaceModule from "@/components/providers/WorkspaceProvider";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import type { ComponentProps, ReactNode } from "react";
 import { getFunctionName } from "convex/server";
 import { NextIntlClientProvider } from "next-intl";
@@ -9,6 +15,7 @@ import { beforeEach, expect, it, vi } from "vitest";
 import type { fgRefs } from "@/lib/convex/finishedGoodsApi";
 import type { RefValue } from "@/lib/convex/clientRef";
 import type { writeSuccess } from "@tests/fixtures/finished-goods-ui";
+import { openSelect } from "@tests/fixtures/select-control";
 
 const mocks = vi.hoisted(() => ({
   canManage: true,
@@ -74,6 +81,12 @@ function mount() {
     </NextIntlClientProvider>,
   );
 }
+function chooseUpperPallet(label = "2. Upper pallet") {
+  const option = within(openSelect(label)).getByRole("option", {
+    name: /^P-002/,
+  });
+  fireEvent.keyDown(option, { key: "Enter" });
+}
 beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
@@ -126,9 +139,7 @@ it("keeps reservation disabled until an upper pallet is chosen", () => {
 });
 it("reserves using explicit supporting pallet identity and server-derived preview coordinates", async () => {
   mount();
-  fireEvent.change(screen.getByRole("combobox", { name: "2. Upper pallet" }), {
-    target: { value: "upper" },
-  });
+  chooseUpperPallet();
   fireEvent.click(
     screen.getByRole("button", { name: "Reserve stack and verify" }),
   );
@@ -150,9 +161,7 @@ it("uses the existing move workflow for a stored upper pallet", async () => {
     })),
   };
   mount();
-  fireEvent.change(screen.getByRole("combobox", { name: "2. Upper pallet" }), {
-    target: { value: "upper" },
-  });
+  chooseUpperPallet();
   fireEvent.click(
     screen.getByRole("button", { name: "Reserve stack and prepare move" }),
   );
@@ -171,9 +180,7 @@ it("uses the existing move workflow for a stored upper pallet", async () => {
 it("shows level-limit failures and prevents confirmation", () => {
   data = { ...data, error: "STACK_LEVELS_EXCEEDED" };
   mount();
-  fireEvent.change(screen.getByRole("combobox", { name: "2. Upper pallet" }), {
-    target: { value: "upper" },
-  });
+  chooseUpperPallet();
   expect(
     screen.getByText(
       "This would exceed the configured number of stack levels.",
@@ -195,9 +202,7 @@ it("shows a useful empty state", () => {
 it("viewers cannot save limits or reserve a stack", () => {
   mocks.canManage = false;
   mount();
-  fireEvent.change(screen.getByRole("combobox", { name: "2. Upper pallet" }), {
-    target: { value: "upper" },
-  });
+  chooseUpperPallet();
   expect(
     screen.queryByRole("button", { name: "Save stacking limits" }),
   ).not.toBeInTheDocument();
@@ -208,9 +213,7 @@ it("viewers cannot save limits or reserve a stack", () => {
 it("shows recoverable mutation failures", async () => {
   mocks.write.mockRejectedValue(new Error("STACK_SUPPORT_MOVING"));
   mount();
-  fireEvent.change(screen.getByRole("combobox", { name: "2. Upper pallet" }), {
-    target: { value: "upper" },
-  });
+  chooseUpperPallet();
   fireEvent.click(
     screen.getByRole("button", { name: "Reserve stack and verify" }),
   );
@@ -223,9 +226,7 @@ it("shows recoverable mutation failures", async () => {
 });
 it("requires saving edited limits before reserving", () => {
   mount();
-  fireEvent.change(screen.getByRole("combobox", { name: "2. Upper pallet" }), {
-    target: { value: "upper" },
-  });
+  chooseUpperPallet();
   fireEvent.change(
     screen.getAllByRole("spinbutton", {
       name: "Maximum levels, including this pallet",
@@ -251,9 +252,7 @@ it.each(["en", "th"])(
         <StackScreen palletId="lower" />
       </NextIntlClientProvider>,
     );
-    fireEvent.change(screen.getAllByRole("combobox")[0]!, {
-      target: { value: "upper" },
-    });
+    chooseUpperPallet(locale === "th" ? "2. พาเลทด้านบน" : "2. Upper pallet");
     expect(await axe(container)).toHaveNoViolations();
   },
 );

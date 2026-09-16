@@ -75,6 +75,7 @@ vi.mock("@/i18n/navigation", () => ({
 }));
 
 import { renderWithIntl } from "@tests/fixtures/intl-render";
+import { chooseOption } from "@tests/fixtures/select-control";
 import {
   finishedGoodsWorkspace,
   measuredPalletDetail,
@@ -1257,9 +1258,7 @@ describe("column filter interactions", () => {
     fireEvent.change(screen.getByRole("textbox", { name: "Name or SKU" }), {
       target: { value: "FG-001" },
     });
-    fireEvent.change(screen.getByRole("combobox", { name: "Sort by" }), {
-      target: { value: "sku:desc" },
-    });
+    chooseOption("Sort by", "SKU · Descending");
     fireEvent.click(screen.getByRole("button", { name: "Apply" }));
     expect(
       screen
@@ -1286,9 +1285,7 @@ describe("column filter interactions", () => {
       { target: { value: "100" } },
     );
     expect(screen.getByRole("button", { name: "Apply" })).toBeDisabled();
-    fireEvent.change(screen.getByRole("combobox", { name: "Counting unit" }), {
-      target: { value: "pieces" },
-    });
+    chooseOption("Counting unit", "pieces");
     fireEvent.change(
       screen.getByRole("spinbutton", { name: "Quantity maximum" }),
       { target: { value: "50" } },
@@ -1364,9 +1361,7 @@ describe("column filter interactions", () => {
       screen.getByRole("spinbutton", { name: "Length (m) maximum" }),
       { target: { value: "0.5" } },
     );
-    fireEvent.change(screen.getByRole("combobox", { name: "Sort by" }), {
-      target: { value: "length:asc" },
-    });
+    chooseOption("Sort by", "Length (m) · Ascending");
     fireEvent.click(screen.getByRole("button", { name: "Apply" }));
     expect(
       screen.getByRole("heading", { name: "No matching records" }),

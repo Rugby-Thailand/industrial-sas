@@ -4,6 +4,7 @@ import { Popover } from "radix-ui";
 import { ArrowDown, ArrowUp, Filter, SlidersHorizontal, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { SelectControl } from "@/components/ui/SelectControl";
 import {
   Sheet,
   SheetContent,
@@ -86,8 +87,6 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
     </label>
   );
 }
-const selectClass =
-  "h-10 w-full min-w-0 rounded-md border border-border bg-background px-2 text-sm text-text";
 function RangeFields({
   label,
   value,
@@ -174,27 +173,24 @@ function FilterFields({
       {column === "quantity" && (
         <>
           <Field label={tr("Counting unit", "หน่วยนับ")}>
-            <select
-              className={selectClass}
+            <SelectControl
+              label={tr("Counting unit", "หน่วยนับ")}
               value={f.unit}
-              onChange={(e) =>
+              onValueChange={(unit) =>
                 update({
-                  unit: e.target.value,
-                  ...(!e.target.value
-                    ? { quantity: { min: "", max: "" } }
-                    : {}),
+                  unit,
+                  ...(!unit ? { quantity: { min: "", max: "" } } : {}),
                 })
               }
-            >
-              <option value="">{tr("All units", "ทุกหน่วยนับ")}</option>
-              {[...new Set([...units, ...(f.unit ? [f.unit] : [])])].map(
-                (u) => (
-                  <option key={u} value={u}>
-                    {u}
-                  </option>
+              options={[
+                { value: "", label: tr("All units", "ทุกหน่วยนับ") },
+                ...[...new Set([...units, ...(f.unit ? [f.unit] : [])])].map(
+                  (unit) => ({ value: unit, label: unit }),
                 ),
-              )}
-            </select>
+              ]}
+              placeholder={tr("All units", "ทุกหน่วยนับ")}
+              emptyLabel={tr("No units available", "ไม่มีหน่วยนับให้เลือก")}
+            />
           </Field>
           <RangeFields
             label={tr("Quantity", "จำนวน")}
@@ -238,18 +234,23 @@ function FilterFields({
       {column === "dimensions" && (
         <>
           <Field label={tr("Measurement", "การวัดขนาด")}>
-            <select
-              className={selectClass}
+            <SelectControl
+              label={tr("Measurement", "การวัดขนาด")}
               value={f.measurement}
-              onChange={(e) => update({ measurement: e.target.value })}
-            >
-              <option value="">{tr("All", "ทั้งหมด")}</option>
-              {["measured", "unmeasured"].map((v) => (
-                <option key={v} value={v}>
-                  {filterLabel(v, tab, tr)}
-                </option>
-              ))}
-            </select>
+              onValueChange={(measurement) => update({ measurement })}
+              options={[
+                { value: "", label: tr("All", "ทั้งหมด") },
+                ...["measured", "unmeasured"].map((value) => ({
+                  value,
+                  label: filterLabel(value, tab, tr),
+                })),
+              ]}
+              placeholder={tr("All", "ทั้งหมด")}
+              emptyLabel={tr(
+                "No measurements available",
+                "ไม่มีสถานะการวัดให้เลือก",
+              )}
+            />
           </Field>
           {(["length", "width", "height"] as const).map((key) => (
             <RangeFields
@@ -262,23 +263,29 @@ function FilterFields({
         </>
       )}
       <Field label={tr("Sort by", "เรียงตาม")}>
-        <select
-          className={selectClass}
+        <SelectControl
+          label={tr("Sort by", "เรียงตาม")}
           value={sortColumn(f.sort) === column ? f.sort : ""}
-          onChange={(e) => update({ sort: e.target.value })}
-        >
-          <option value="">{tr("Default order", "ลำดับเริ่มต้น")}</option>
-          {columnSorts(column, tab).flatMap((key) =>
-            (["asc", "desc"] as const).map((direction) => (
-              <option key={`${key}:${direction}`} value={`${key}:${direction}`}>
-                {filterLabel(key, tab, tr)} ·{" "}
-                {direction === "asc"
-                  ? tr("Ascending", "น้อยไปมาก / ก–ฮ")
-                  : tr("Descending", "มากไปน้อย / ฮ–ก")}
-              </option>
-            )),
+          onValueChange={(sort) => update({ sort })}
+          options={[
+            { value: "", label: tr("Default order", "ลำดับเริ่มต้น") },
+            ...columnSorts(column, tab).flatMap((key) =>
+              (["asc", "desc"] as const).map((direction) => ({
+                value: `${key}:${direction}`,
+                label: `${filterLabel(key, tab, tr)} · ${
+                  direction === "asc"
+                    ? tr("Ascending", "น้อยไปมาก / ก–ฮ")
+                    : tr("Descending", "มากไปน้อย / ฮ–ก")
+                }`,
+              })),
+            ),
+          ]}
+          placeholder={tr("Default order", "ลำดับเริ่มต้น")}
+          emptyLabel={tr(
+            "No sort options available",
+            "ไม่มีตัวเลือกการเรียงลำดับ",
           )}
-        </select>
+        />
       </Field>
     </div>
   );

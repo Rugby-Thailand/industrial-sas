@@ -70,6 +70,7 @@ import {
   finishedGoodProduct,
   querySuccess,
 } from "@tests/fixtures/finished-goods-ui";
+import { chooseOption } from "@tests/fixtures/select-control";
 import { PackingScreen } from "./PackingScreen";
 const key = "fg-batch-packing:user-a:warehouse-a:new:product-a";
 const show = (batchId?: string, locale: "en" | "th" = "en") =>
@@ -211,16 +212,14 @@ describe("batch packing", () => {
     show();
     split();
     input("Unit quantity", "45");
-    fireEvent.change(screen.getByRole("combobox", { name: "Split method" }), {
-      target: { value: "CAPACITY" },
-    });
+    chooseOption("Split method", "By quantity per unit");
     input("Quantity per pallet", "25");
     fireEvent.click(
       screen.getByRole("button", { name: "Keep current entries" }),
     );
-    expect(screen.getByRole("combobox", { name: "Split method" })).toHaveValue(
-      "MANUAL",
-    );
+    expect(
+      screen.getByRole("combobox", { name: "Split method" }),
+    ).toHaveTextContent("Manual");
     expect(
       screen.getByRole("spinbutton", { name: "Unit quantity" }),
     ).toHaveValue(45);
@@ -341,9 +340,7 @@ describe("batch packing", () => {
   it("keeps decimal totals exact and adds only the remainder", () => {
     mocks.unit = "kg";
     show();
-    fireEvent.change(screen.getByRole("combobox", { name: "Split method" }), {
-      target: { value: "MANUAL" },
-    });
+    chooseOption("Split method", "Manual");
     input("Batch total quantity", "0.3");
     input("Unit quantity", "0.1");
     expect(screen.getByText("Remaining: 0.2 kg")).toBeVisible();
@@ -355,18 +352,14 @@ describe("batch packing", () => {
   });
   it("uses box and other storage-unit nouns and never raw OTHER", () => {
     show();
-    fireEvent.change(screen.getByRole("combobox", { name: "Packing format" }), {
-      target: { value: "BOX" },
-    });
+    chooseOption("Packing format", "Box");
     expect(
       screen.getByRole("spinbutton", { name: "Quantity per box" }),
     ).toBeVisible();
     expect(
       screen.getByRole("button", { name: "box 1", pressed: true }),
     ).toBeVisible();
-    fireEvent.change(screen.getByRole("combobox", { name: "Packing format" }), {
-      target: { value: "OTHER" },
-    });
+    chooseOption("Packing format", "Other storage unit");
     expect(
       screen.getByRole("spinbutton", { name: "Quantity per storage unit" }),
     ).toBeVisible();
@@ -675,9 +668,7 @@ describe("batch packing", () => {
   it("auto-splits a pristine box batch after selecting its packing format", () => {
     show();
     input("Batch total quantity", "110");
-    fireEvent.change(screen.getByRole("combobox", { name: "Packing format" }), {
-      target: { value: "BOX" },
-    });
+    chooseOption("Packing format", "Box");
     input("Quantity per box", "50");
     expect(
       screen.getByText("Packing preview: 110 pieces → 3 boxes (50 + 50 + 10)"),
@@ -697,9 +688,7 @@ describe("batch packing", () => {
     show();
     split("100", "25");
     measure();
-    fireEvent.change(screen.getByRole("combobox", { name: "Packing format" }), {
-      target: { value: "BOX" },
-    });
+    chooseOption("Packing format", "Box");
     expect(
       screen.getByRole("checkbox", { name: /I checked/ }),
     ).not.toBeChecked();

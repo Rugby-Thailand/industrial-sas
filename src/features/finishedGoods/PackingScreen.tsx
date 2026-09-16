@@ -6,6 +6,7 @@ import { Plus, Trash2, Copy, PackageCheck } from "lucide-react";
 import { QueryGate } from "@/components/system/QueryGate";
 import { Button } from "@/components/ui/button";
 import { Notice } from "@/components/ui/Notice";
+import { SelectControl } from "@/components/ui/SelectControl";
 import {
   Dialog,
   DialogContent,
@@ -785,47 +786,56 @@ function PackingForm({
               disabled={batch?.status === "CREATED"}
               required
             />
-            <label className="space-y-2 text-sm">
+            <div className="space-y-2 text-sm">
               <span>{tr("Packing format", "รูปแบบบรรจุ")}</span>
-              <select
-                className="h-11 w-full rounded-md border border-input bg-background px-3"
+              <SelectControl
+                label={tr("Packing format", "รูปแบบบรรจุ")}
                 value={draft.storageFormat}
-                onChange={(e) =>
+                onValueChange={(storageFormat) =>
                   persist({
                     ...draft,
-                    storageFormat: e.target.value as Format,
+                    storageFormat: storageFormat as Format,
                     rows: draft.rows.map((r) => ({ ...r, checked: false })),
                   })
                 }
-              >
-                <option value="PALLET">{tr("Pallet", "พาเลท")}</option>
-                <option value="BOX">{tr("Box", "กล่อง")}</option>
-                <option value="OTHER">
-                  {tr("Other storage unit", "หน่วยจัดเก็บอื่น")}
-                </option>
-              </select>
-            </label>
+                options={[
+                  { value: "PALLET", label: tr("Pallet", "พาเลท") },
+                  { value: "BOX", label: tr("Box", "กล่อง") },
+                  {
+                    value: "OTHER",
+                    label: tr("Other storage unit", "หน่วยจัดเก็บอื่น"),
+                  },
+                ]}
+                placeholder={tr("Pallet", "พาเลท")}
+                emptyLabel={tr(
+                  "No packing formats available",
+                  "ไม่มีรูปแบบบรรจุ",
+                )}
+              />
+            </div>
             <Field
               label={tr("Batch lot (optional)", "ล็อตของชุด (ไม่บังคับ)")}
               value={draft.lot}
               onChange={(lot) => persist({ ...draft, lot })}
             />
-            <label className="space-y-2 text-sm">
+            <div className="space-y-2 text-sm">
               <span>{tr("Split method", "วิธีแบ่ง")}</span>
-              <select
-                className="h-11 w-full rounded-md border border-input bg-background px-3"
+              <SelectControl
+                label={tr("Split method", "วิธีแบ่ง")}
                 value={draft.mode}
-                onChange={(e) => revise({ mode: e.target.value as Mode })}
-              >
-                <option value="CAPACITY">
-                  {tr("By quantity per unit", "ตามจำนวนต่อหน่วย")}
-                </option>
-                <option value="EQUAL">
-                  {tr("Split equally", "แบ่งเท่ากัน")}
-                </option>
-                <option value="MANUAL">{tr("Manual", "กำหนดเอง")}</option>
-              </select>
-            </label>
+                onValueChange={(mode) => revise({ mode: mode as Mode })}
+                options={[
+                  {
+                    value: "CAPACITY",
+                    label: tr("By quantity per unit", "ตามจำนวนต่อหน่วย"),
+                  },
+                  { value: "EQUAL", label: tr("Split equally", "แบ่งเท่ากัน") },
+                  { value: "MANUAL", label: tr("Manual", "กำหนดเอง") },
+                ]}
+                placeholder={tr("By quantity per unit", "ตามจำนวนต่อหน่วย")}
+                emptyLabel={tr("No split methods available", "ไม่มีวิธีแบ่ง")}
+              />
+            </div>
             {draft.mode === "CAPACITY" && (
               <Field
                 label={`${tr("Quantity per", "จำนวนต่อ")}${locale === "th" ? "" : " "}${noun}`}

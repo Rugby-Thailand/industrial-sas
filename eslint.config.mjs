@@ -44,5 +44,17 @@ export default tseslint.config(
       ],
     },
   },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "JSXOpeningElement[name.name='select']",
+          message: "Use SelectControl instead of a native <select> element.",
+        },
+      ],
+    },
+  },
   prettier,
 );

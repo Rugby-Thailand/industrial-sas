@@ -4,6 +4,7 @@ import { useMutation, useQuery } from "convex/react";
 import { Layers3, RotateCw, LockKeyhole, CheckCircle2 } from "lucide-react";
 import { QueryGate } from "@/components/system/QueryGate";
 import { Button } from "@/components/ui/button";
+import { SelectControl } from "@/components/ui/SelectControl";
 import { Link, useRouter } from "@/i18n/navigation";
 import { fgRefs, type Pallet } from "@/lib/convex/finishedGoodsApi";
 import { PalletScene } from "./PalletScene";
@@ -357,33 +358,49 @@ function StackLoader({
             ))}
           </section>
           <section className={`${panel} space-y-4`}>
-            <label className="block space-y-2 text-sm">
+            <div className="block space-y-2 text-sm">
               <span className="font-semibold">
                 2. {tr("Upper pallet", "พาเลทด้านบน")}
               </span>
-              <select
+              <SelectControl
+                label={`2. ${tr("Upper pallet", "พาเลทด้านบน")}`}
                 disabled={lowerDirty || upperDirty || op.busy}
-                className="h-11 w-full rounded-lg border border-border bg-background px-3"
                 value={upperId}
-                onChange={(e) => {
-                  setUpperId(e.target.value);
+                onValueChange={(nextUpperId) => {
+                  setUpperId(nextUpperId);
                   setUpperDirty(false);
                   op.setError("");
                 }}
-              >
-                <option value="">
-                  {tr("Choose a measured pallet", "เลือกพาเลทที่วัดขนาดแล้ว")}
-                </option>
-                {pallets.map((p) => (
-                  <option key={p._id} value={p._id}>
-                    {p.code} · {p.quantity} ·{" "}
-                    {p.status === "STORED"
-                      ? tr("Stored — move to stack", "จัดเก็บแล้ว — ย้ายไปซ้อน")
-                      : tr("Awaiting storage", "รอจัดเก็บ")}
-                  </option>
-                ))}
-              </select>
-            </label>
+                options={[
+                  {
+                    value: "",
+                    label: tr(
+                      "Choose a measured pallet",
+                      "เลือกพาเลทที่วัดขนาดแล้ว",
+                    ),
+                  },
+                  ...pallets.map((p) => ({
+                    value: p._id,
+                    label: `${p.code} · ${p.quantity} · ${
+                      p.status === "STORED"
+                        ? tr(
+                            "Stored — move to stack",
+                            "จัดเก็บแล้ว — ย้ายไปซ้อน",
+                          )
+                        : tr("Awaiting storage", "รอจัดเก็บ")
+                    }`,
+                  })),
+                ]}
+                placeholder={tr(
+                  "Choose a measured pallet",
+                  "เลือกพาเลทที่วัดขนาดแล้ว",
+                )}
+                emptyLabel={tr(
+                  "No measured pallets available",
+                  "ไม่มีพาเลทที่วัดขนาดแล้ว",
+                )}
+              />
+            </div>
             {!pallets.length ? (
               <p className="text-sm text-muted">
                 {tr(

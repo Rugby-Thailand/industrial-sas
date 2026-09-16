@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { describe, expect, it, vi } from "vitest";
@@ -10,6 +10,7 @@ import type {
   StorageBuildingDetail,
   StorageBuildingRow,
 } from "@/lib/convex/storageLayoutApi";
+import { chooseOption } from "@tests/fixtures/select-control";
 
 const query = vi.hoisted(() => vi.fn());
 vi.mock("convex/react", () => ({
@@ -147,9 +148,10 @@ describe("building space drilldown", () => {
       const table = screen.getByRole("table");
       expect(within(table).getAllByRole("row")).toHaveLength(3);
       expect(within(table).getByText("BOX · 10 PCS")).toBeVisible();
-      fireEvent.change(screen.getByRole("combobox"), {
-        target: { value: "RESERVED" },
-      });
+      chooseOption(
+        locale === "th" ? "สถานะ" : "Status",
+        locale === "th" ? "จองแล้ว" : "Reserved",
+      );
       expect(within(table).queryByText("P-001")).not.toBeInTheDocument();
       expect(within(table).getByText("P-002")).toBeVisible();
     },
