@@ -13,7 +13,9 @@ test.describe("security headers", () => {
     expect(headers["x-frame-options"]).toBe("DENY");
     expect(headers["x-content-type-options"]).toBe("nosniff");
     expect(headers["referrer-policy"]).toBe("strict-origin-when-cross-origin");
-    expect(headers["permissions-policy"]).toContain("camera=()");
+    // The destination scanner needs same-origin camera access.
+    expect(headers["permissions-policy"]).toContain("camera=(self)");
+    expect(headers["permissions-policy"]).toContain("microphone=()");
     expect(headers["content-security-policy-report-only"]).toContain(
       "default-src 'self'",
     );
