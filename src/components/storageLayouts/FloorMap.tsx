@@ -1,6 +1,10 @@
 "use client";
 import { SceneToolbar } from "@/components/storageScene/SceneToolbar";
-import { StorageViewModeToggle } from "./StorageZoneVisualizer";
+import {
+  ReservedAreaShape,
+  ReservedAreaLegend,
+  StorageViewModeToggle,
+} from "./StorageZoneVisualizer";
 import { SceneBox, SceneLegendMark } from "@/components/storageScene/SceneBox";
 
 import { useState, useId, type ReactNode } from "react";
@@ -35,6 +39,7 @@ import {
 } from "@/lib/storageLayouts/storagePlacementGeometry";
 
 interface Area {
+  readonly color?: string;
   readonly xMm: number;
   readonly yMm: number;
   readonly widthMm: number;
@@ -281,12 +286,7 @@ export function FloorMap(props: FloorMapProps) {
               {t("mapSelected")}
             </span>
           </div>
-          {props.blocks.length > 0 && (
-            <p className="mt-2 text-[13px] text-muted">
-              <span className="mr-2 inline-block h-3 w-5 border border-slate-400 bg-slate-600" />
-              {t("mapAisles")}
-            </p>
-          )}
+          <ReservedAreaLegend areas={props.blocks} />
           <div
             className="mt-3 flex max-h-36 flex-wrap gap-2 overflow-auto"
             role="group"
@@ -537,7 +537,6 @@ function MapDrawing({
   onSelect: (id: string, palletId?: string) => void;
 }) {
   const t = useTranslations("StorageLayouts");
-  const aislePattern = useId();
   const rawPoint = (x: number, y: number, z = 0) => {
     const dx = x - props.widthMm / 2,
       dy = y - props.depthMm / 2;
@@ -704,26 +703,6 @@ function MapDrawing({
       }}
       tabIndex={-1}
     >
-      <defs>
-        <pattern
-          id={aislePattern}
-          width="12"
-          height="12"
-          patternUnits="userSpaceOnUse"
-          patternTransform="rotate(45)"
-        >
-          <rect width="12" height="12" fill="#263640" />
-          <line
-            x1="0"
-            y1="0"
-            x2="0"
-            y2="12"
-            stroke="#8296a3"
-            strokeWidth="3"
-            opacity=".45"
-          />
-        </pattern>
-      </defs>
       <g
         transform={`translate(${460 - center.x * zoom} ${330 - center.y * zoom}) scale(${zoom})`}
       >
@@ -800,25 +779,13 @@ function MapDrawing({
         )}
         {props.blocks.map((b, i) => (
           <g key={i} data-unavailable-area="true">
-            <title>{b.label}</title>
-            <polygon
-              points={pts(rect(b.xMm, b.yMm, b.widthMm, b.depthMm))}
-              fill={`url(#${aislePattern})`}
-              stroke="#a4b6c2"
-              strokeDasharray="5 3"
+            <ReservedAreaShape
+              color={b.color}
+              label={b.label}
+              mode={view}
+              fontSize={17}
+              points={rect(b.xMm, b.yMm, b.widthMm, b.depthMm)}
             />
-            <text
-              x={point(b.xMm + b.widthMm / 2, b.yMm + b.depthMm / 2).x}
-              y={point(b.xMm + b.widthMm / 2, b.yMm + b.depthMm / 2).y}
-              textAnchor="middle"
-              fill="#e5edf3"
-              stroke="#14212b"
-              strokeWidth="4"
-              paintOrder="stroke"
-              fontSize="17"
-            >
-              {b.label}
-            </text>
           </g>
         ))}
         {props.zones.map((zone) => {

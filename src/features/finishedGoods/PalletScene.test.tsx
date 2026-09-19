@@ -8,6 +8,48 @@ const area = { widthMm: 3_000, depthMm: 3_000, heightMm: 3_000 };
 const placement = { xMm: 0, yMm: 0, rotation: 0 } as const;
 
 describe("PalletScene", () => {
+  it("keeps unavailable area colors and names in both views", () => {
+    const { container } = render(
+      <PalletScene
+        dimensions={dimensions}
+        area={area}
+        locale="en"
+        unavailable={[
+          {
+            id: "office",
+            label: "Office",
+            color: "#FFFABC",
+            xMm: 2000,
+            yMm: 0,
+            widthMm: 500,
+            depthMm: 500,
+          },
+          {
+            id: "stairs",
+            label: "Stairs",
+            color: "#123456",
+            xMm: 2000,
+            yMm: 1000,
+            widthMm: 500,
+            depthMm: 500,
+          },
+        ]}
+      />,
+    );
+    const assertColors = () => {
+      expect(
+        container.querySelector('[data-unavailable-color="#FFFABC"] polygon'),
+      ).toHaveAttribute("fill", "#FFFABC");
+      expect(
+        container.querySelector('[data-unavailable-color="#123456"] polygon'),
+      ).toHaveAttribute("fill", "#123456");
+      expect(screen.getAllByText("Office").length).toBeGreaterThan(1);
+      expect(screen.getAllByText("Stairs").length).toBeGreaterThan(1);
+    };
+    assertColors();
+    fireEvent.click(screen.getByRole("button", { name: "2D plan" }));
+    assertColors();
+  });
   it("moves onto and off a pallet top without clamping to the old support or moving the camera", () => {
     const base = { ...area, xMm: 0, yMm: 0, zMm: 0 };
     const top = {

@@ -665,6 +665,7 @@ const schema = defineSchema({
       floorId: v.id("storageFloors"),
       warehouseId: v.id("warehouses"),
       label: v.string(),
+      color: v.optional(v.string()),
       xMm: v.number(),
       yMm: v.number(),
       widthMm: v.number(),

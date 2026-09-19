@@ -71,6 +71,8 @@ export function resolvePalletSupport(
 
 export interface UnavailablePalletArea {
   readonly id?: string;
+  readonly label?: string;
+  readonly color?: string;
   readonly xMm: number;
   readonly yMm: number;
   readonly widthMm: number;

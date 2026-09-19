@@ -176,3 +176,61 @@ describe("planner occupancy rendering", () => {
     }
   });
 });
+
+describe("unavailable area colors", () => {
+  it.each(["plan", "3d"] as const)(
+    "preserves individual fills, labels and selection in %s",
+    (mode) => {
+      const { container } = render(
+        <StorageZoneVisualizer
+          mode={mode}
+          ariaLabel="Floor"
+          floorWidthMm={10000}
+          floorDepthMm={10000}
+          floorHeightMm={3000}
+          variant="reserved"
+          selection={{ ...selection, color: "#112233", label: "Equipment" }}
+          zones={[]}
+          reservedBlocks={[
+            {
+              id: "one",
+              label: "Office",
+              color: "#FFFFCC",
+              xMm: 0,
+              yMm: 0,
+              widthMm: 1000,
+              depthMm: 1000,
+            },
+            {
+              id: "two",
+              label: "Walkway",
+              color: "#222222",
+              xMm: 1000,
+              yMm: 0,
+              widthMm: 1000,
+              depthMm: 1000,
+            },
+          ]}
+        />,
+      );
+      for (const [color, label, foreground] of [
+        ["#FFFFCC", "Office", "#000000"],
+        ["#222222", "Walkway", "#FFFFFF"],
+        ["#112233", "Equipment", "#FFFFFF"],
+      ]) {
+        const area = container.querySelector(`[data-area-color="${color}"]`)!;
+        expect(area.querySelector("polygon")).toHaveAttribute("fill", color);
+        expect(area.querySelector("text")).toHaveTextContent(label!);
+        expect(area.querySelector("text")).toHaveAttribute("fill", foreground);
+        expect(container.querySelector("ul")).toHaveTextContent(label!);
+      }
+      const selected = container.querySelector('[data-area-color="#112233"]')!;
+      expect(
+        selected.querySelector('polygon[stroke="#77b6ff"]'),
+      ).not.toBeNull();
+      expect(selected.querySelectorAll('polygon[fill="#112233"]')).toHaveLength(
+        mode === "3d" ? 3 : 1,
+      );
+    },
+  );
+});

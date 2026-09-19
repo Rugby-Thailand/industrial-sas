@@ -1,9 +1,16 @@
 "use client";
 
+import { isStorageFloorColorOnlyChange } from "../../../convex/model/storageLayout/storageLayout";
 import { storageFootprintUsage } from "../../../convex/model/storageLayout/areaUsage";
 import { AreaOverview } from "./AreaOverview";
 import { BuildingAreaDetails } from "./BuildingAreaDetails";
-import { StorageViewModeToggle } from "@/components/storageLayouts/StorageZoneVisualizer";
+import { AreaColorPicker } from "@/components/storageLayouts/AreaColorPicker";
+import { resolveAreaColor } from "@/lib/storageLayouts/areaColors";
+import {
+  ReservedAreaShape,
+  ReservedAreaLegend,
+  StorageViewModeToggle,
+} from "@/components/storageLayouts/StorageZoneVisualizer";
 import { StorageZoneDraftPreview } from "@/components/storageLayouts/StorageZoneDraftPreview";
 export { StorageZoneDraftPreview } from "@/components/storageLayouts/StorageZoneDraftPreview";
 import { rectanglesOverlap } from "@/lib/storageLayouts/storagePlacementGeometry";
@@ -114,6 +121,7 @@ function storageErrorMessage(
   t: ReturnType<typeof useTranslations<"StorageLayouts">>,
   code: string,
 ) {
+  if (code === "RESERVED_BLOCK_COLOR_INVALID") return t("areaColor.invalid");
   if (code === "LOCATION_OCCUPIED") return t("occupiedChangeBlocked");
   if (code === "VERSION_CONFLICT") return t("layoutChangedRetry");
   return t("writeError", { code });
@@ -1308,6 +1316,7 @@ function FloorForm({
     floor.reservedBlocks.map((block) => ({
       id: block.blockId,
       label: block.label,
+      ...(block.color === undefined ? {} : { color: block.color }),
       xMm: block.xMm,
       yMm: block.yMm,
       widthMm: block.widthMm,
@@ -1345,12 +1354,20 @@ function FloorForm({
       Math.max(0, Math.floor((baseDepthMm - initialDepthMm) / 2)),
   };
   const blockShape = (block: {
+    readonly color?: string;
     readonly label: string;
     readonly xMm: number;
     readonly yMm: number;
     readonly widthMm: number;
     readonly depthMm: number;
-  }) => [block.label, block.xMm, block.yMm, block.widthMm, block.depthMm];
+  }) => [
+    block.label,
+    resolveAreaColor(block.color),
+    block.xMm,
+    block.yMm,
+    block.widthMm,
+    block.depthMm,
+  ];
   const hasUnsavedFloorChanges =
     width !==
       (floor.widthMm === undefined ? "" : String(metres(floor.widthMm))) ||
@@ -1368,13 +1385,39 @@ function FloorForm({
     0,
   );
   const usableAreaSqMm = Math.max(0, grossAreaSqMm - reservedAreaSqMm);
+  const colorOnlyChange = isStorageFloorColorOnlyChange(
+    {
+      floorNumber: floor.floorNumber,
+      reservedBlocks: floor.reservedBlocks.map((block) => ({
+        ...block,
+        id: block.blockId,
+      })),
+    },
+    { floorNumber: floor.floorNumber, reservedBlocks: blocks },
+    {
+      ...floor,
+      widthMm: initialWidthMm,
+      depthMm: initialDepthMm,
+      heightMm: floor.heightMm ?? detail.building.defaultFloorHeightMm,
+      offsetXMm: initialPlacement.xMm,
+      offsetYMm: initialPlacement.yMm,
+    },
+    {
+      ...floor,
+      widthMm: actualWidth,
+      depthMm: actualDepth,
+      heightMm: actualHeight,
+      offsetXMm: actualPlacement.xMm,
+      offsetYMm: actualPlacement.yMm,
+    },
+  );
   const placements = detail.floors.flatMap((candidate) =>
     candidate.storageZones.flatMap((zone) => zone.placements),
   );
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (!editable || pending) return;
-    if (placements.length > 0) {
+    if (placements.length > 0 && !colorOnlyChange) {
       setConfirmingImpact(true);
       setMessage(undefined);
       return;
@@ -1554,16 +1597,18 @@ function FloorForm({
             !editable ||
             pending ||
             !hasUnsavedFloorChanges ||
-            (confirmingImpact && placements.length > 0)
+            (confirmingImpact && placements.length > 0 && !colorOnlyChange)
           }
         >
           {pending
             ? t("saving")
-            : confirmingImpact
+            : confirmingImpact && !colorOnlyChange
               ? t("confirmChanges")
               : !hasUnsavedFloorChanges
                 ? t("floorSaved")
-                : detail.building.status === "ACTIVE" && placements.length > 0
+                : detail.building.status === "ACTIVE" &&
+                    placements.length > 0 &&
+                    !colorOnlyChange
                   ? t("reviewImpact")
                   : t("saveAndContinue")}
         </Button>
@@ -1708,10 +1753,7 @@ function FloorOffsetPlan({
           <i className="mr-2 inline-block size-3 rounded-sm bg-success" />
           {t("available")}
         </span>
-        <span>
-          <i className="mr-2 inline-block size-3 rounded-sm bg-warning" />
-          {t("unavailable")}
-        </span>
+        <ReservedAreaLegend areas={blocks} />
         <span>
           <i className="mr-2 inline-block size-3 rounded-sm border border-success bg-success-surface" />
           {t("storageZones")}
@@ -2022,36 +2064,20 @@ function FloorVolume({
           className="fill-success/15 stroke-accent"
           strokeWidth="2"
         />
-        {blocks.map((block) => {
-          const shape = [
-            topPoint(block.xMm, block.yMm),
-            topPoint(block.xMm + block.widthMm, block.yMm),
-            topPoint(block.xMm + block.widthMm, block.yMm + block.depthMm),
-            topPoint(block.xMm, block.yMm + block.depthMm),
-          ];
-          const labelPoint = topPoint(
-            block.xMm + block.widthMm / 2,
-            block.yMm + block.depthMm / 2,
-          );
-          return (
-            <g key={block.id}>
-              <polygon
-                points={pointsAttribute(shape)}
-                className="fill-warning/50 stroke-warning"
-                strokeWidth="1.5"
-              />
-              <text
-                x={labelPoint.x}
-                y={labelPoint.y}
-                textAnchor="middle"
-                dominantBaseline="central"
-                className="fill-text text-[11px] font-semibold"
-              >
-                {block.label}
-              </text>
-            </g>
-          );
-        })}
+        {blocks.map((block) => (
+          <ReservedAreaShape
+            key={block.id}
+            points={[
+              topPoint(block.xMm, block.yMm),
+              topPoint(block.xMm + block.widthMm, block.yMm),
+              topPoint(block.xMm + block.widthMm, block.yMm + block.depthMm),
+              topPoint(block.xMm, block.yMm + block.depthMm),
+            ]}
+            color={block.color}
+            label={block.label}
+            mode="3d"
+          />
+        ))}
         {zones.map((zone) => {
           const shape = [
             topPoint(zone.xMm, zone.yMm),
@@ -2279,27 +2305,28 @@ function FloorPlanDrawing({
         {metres(depthMm)} m
       </text>
       {blocks.map((block) => (
-        <g key={block.id}>
-          <rect
-            x={offsetXMm + block.xMm}
-            y={offsetYMm + block.yMm}
-            width={block.widthMm}
-            height={block.depthMm}
-            fill="url(#storage-reserved-hatch)"
-            className="stroke-warning"
-            vectorEffect="non-scaling-stroke"
-          />
-          <text
-            x={offsetXMm + block.xMm + block.widthMm / 2}
-            y={offsetYMm + block.yMm + block.depthMm / 2}
-            textAnchor="middle"
-            dominantBaseline="central"
-            className="fill-warning font-semibold"
-            style={{ fontSize: labelSize }}
-          >
-            {block.label}
-          </text>
-        </g>
+        <ReservedAreaShape
+          key={block.id}
+          points={[
+            { x: offsetXMm + block.xMm, y: offsetYMm + block.yMm },
+            {
+              x: offsetXMm + block.xMm + block.widthMm,
+              y: offsetYMm + block.yMm,
+            },
+            {
+              x: offsetXMm + block.xMm + block.widthMm,
+              y: offsetYMm + block.yMm + block.depthMm,
+            },
+            {
+              x: offsetXMm + block.xMm,
+              y: offsetYMm + block.yMm + block.depthMm,
+            },
+          ]}
+          color={block.color}
+          label={block.label}
+          mode="plan"
+          fontSize={labelSize}
+        />
       ))}
       {zones.map((zone) => (
         <g key={zone.zoneId}>
@@ -2365,6 +2392,7 @@ export function ReservedBlocks({
   const [editingBlockId, setEditingBlockId] = useState<string>();
   const [draft, setDraft] = useState({
     label: "",
+    color: resolveAreaColor(),
     x: "0",
     y: "0",
     width: "1",
@@ -2380,6 +2408,7 @@ export function ReservedBlocks({
     setEditingBlockId(undefined);
     setDraft({
       label: t("newReservedZoneLabel", { number: blocks.length + 1 }),
+      color: resolveAreaColor(),
       x: "0",
       y: "0",
       width: "1",
@@ -2391,6 +2420,7 @@ export function ReservedBlocks({
     setEditingBlockId(block.id);
     setDraft({
       label: block.label,
+      color: resolveAreaColor(block.color),
       x: String(metres(block.xMm)),
       y: String(metres(block.yMm)),
       width: String(metres(block.widthMm)),
@@ -2401,6 +2431,7 @@ export function ReservedBlocks({
   const draftBlock = {
     id: editingBlockId ?? "draft",
     label: draft.label.trim(),
+    color: draft.color,
     xMm: millimetres(draft.x),
     yMm: millimetres(draft.y),
     widthMm: millimetres(draft.width),
@@ -2485,6 +2516,8 @@ export function ReservedBlocks({
                 zones={zones}
                 reservedBlocks={otherBlocks}
                 variant="reserved"
+                selectedColor={draft.color}
+                selectedLabel={draft.label}
                 onPositionChange={({ xMm, yMm }) =>
                   setDraft((current) => ({
                     ...current,
@@ -2493,7 +2526,7 @@ export function ReservedBlocks({
                   }))
                 }
               />
-              <div className="grid content-start gap-4 sm:grid-cols-2">
+              <div className="order-first grid content-start gap-4 sm:grid-cols-2">
                 <div className="sm:col-span-2">
                   <Label htmlFor="reserved-zone-dialog-label">
                     {t("zoneLabel")}
@@ -2507,6 +2540,14 @@ export function ReservedBlocks({
                         ...current,
                         label: event.target.value,
                       }))
+                    }
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <AreaColorPicker
+                    value={draft.color}
+                    onChange={(color) =>
+                      setDraft((current) => ({ ...current, color }))
                     }
                   />
                 </div>
@@ -2575,7 +2616,12 @@ export function ReservedBlocks({
           >
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0 flex-1">
-                <h3 className="truncate font-semibold text-text">
+                <h3 className="flex items-center gap-2 font-semibold text-text">
+                  <span
+                    aria-hidden="true"
+                    className="size-5 shrink-0 rounded border border-border"
+                    style={{ backgroundColor: resolveAreaColor(block.color) }}
+                  />
                   {block.label}
                 </h3>
                 <p className="mt-1 text-xs text-muted tabular-nums">

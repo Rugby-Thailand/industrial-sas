@@ -1,3 +1,4 @@
+import { normalizeAreaColor } from "./areaColor";
 import { fail, ok, type Result } from "../result";
 
 export const STORAGE_LAYOUT_LIMITS = Object.freeze({
@@ -10,6 +11,7 @@ export const STORAGE_LAYOUT_LIMITS = Object.freeze({
 export interface StorageReservedBlockInput {
   readonly id: string;
   readonly label: string;
+  readonly color?: string;
   readonly xMm: number;
   readonly yMm: number;
   readonly widthMm: number;
@@ -55,6 +57,11 @@ export interface StorageLayoutSummary {
 }
 
 export type StorageLayoutError =
+  | {
+      readonly code: "RESERVED_BLOCK_COLOR_INVALID";
+      readonly floorNumber: number;
+      readonly blockId: string;
+    }
   | { readonly code: "FLOOR_COUNT_INVALID"; readonly floorCount: number }
   | {
       readonly code: "FLOOR_SEQUENCE_INVALID";
@@ -216,6 +223,16 @@ export function validateAndSummarizeStorageLayout(
     let floorReservedArea = 0;
     for (const current of floor.reservedBlocks) {
       if (
+        current.color !== undefined &&
+        normalizeAreaColor(current.color) === undefined
+      ) {
+        return fail({
+          code: "RESERVED_BLOCK_COLOR_INVALID",
+          floorNumber: expected,
+          blockId: current.id,
+        });
+      }
+      if (
         current.id.trim().length === 0 ||
         ids.has(current.id) ||
         !Number.isSafeInteger(current.xMm) ||
@@ -291,4 +308,61 @@ export function validateAndSummarizeStorageLayout(
       floors: Object.freeze(floors),
     }),
   );
+}
+
+/** Compare resolved floor structure while allowing only presentation color edits. */
+export function isStorageFloorColorOnlyChange(
+  before: StorageFloorInput,
+  after: StorageFloorInput,
+  beforeSummary: StorageFloorSummary,
+  afterSummary: StorageFloorSummary,
+): boolean {
+  if (
+    before.floorNumber !== after.floorNumber ||
+    before.reservedBlocks.length !== after.reservedBlocks.length
+  )
+    return false;
+  for (const field of [
+    "widthMm",
+    "depthMm",
+    "heightMm",
+    "offsetXMm",
+    "offsetYMm",
+  ] as const) {
+    if (beforeSummary[field] !== afterSummary[field]) return false;
+  }
+  const oldBlocks = new Map(
+    before.reservedBlocks.map((block) => [block.id, block]),
+  );
+  if (
+    oldBlocks.size !== before.reservedBlocks.length ||
+    new Set(after.reservedBlocks.map((block) => block.id)).size !==
+      after.reservedBlocks.length
+  )
+    return false;
+  let changed = false;
+  for (const block of after.reservedBlocks) {
+    const old = oldBlocks.get(block.id);
+    if (!old) return false;
+    for (const field of [
+      "label",
+      "xMm",
+      "yMm",
+      "widthMm",
+      "depthMm",
+    ] as const) {
+      if (old[field] !== block[field]) return false;
+    }
+    if (
+      block.color !== undefined &&
+      normalizeAreaColor(block.color) === undefined
+    )
+      return false;
+    const oldColor =
+      old.color === undefined ? undefined : normalizeAreaColor(old.color);
+    const newColor =
+      block.color === undefined ? undefined : normalizeAreaColor(block.color);
+    changed ||= oldColor !== newColor;
+  }
+  return changed;
 }
