@@ -1,41 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import {
-  ArrowLeftRight,
-  BarChart3,
-  Barcode,
-  Boxes,
-  Building2,
-  ChevronsLeft,
-  ChevronsRight,
-  ClipboardPenLine,
-  Container,
-  Database,
-  Factory,
-  FileCog,
-  FileSpreadsheet,
-  FileStack,
-  Forklift,
-  Gauge,
-  History,
-  Import,
-  Layers3,
-  LayoutDashboard,
-  ListChecks,
-  MapPin,
-  Menu,
-  PackagePlus,
-  PanelsTopLeft,
-  PlugZap,
-  Route,
-  ShieldCheck,
-  TabletSmartphone,
-  Truck,
-  Users,
-  X,
-  type LucideIcon,
-} from "lucide-react";
+import { Boxes, Building2, Menu, X, type LucideIcon } from "lucide-react";
 import { type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -118,9 +84,9 @@ function NavigationDisclosure() {
   return (
     <Button
       type="button"
-      variant="outline"
+      variant="ghost"
       size="icon"
-      className="lg:hidden"
+      className="bg-transparent hover:bg-transparent aria-expanded:bg-transparent lg:hidden"
       aria-label={openMobile ? t("closeMenu") : t("openMenu")}
       aria-expanded={openMobile}
       {...(present ? { "aria-controls": NAV_ID } : {})}
@@ -185,16 +151,13 @@ function NavigationRegion() {
           type="button"
           variant="ghost"
           size="icon"
+          className="bg-transparent hover:bg-transparent aria-expanded:bg-transparent"
           aria-label={t(collapsed ? "expandSidebar" : "collapseSidebar")}
           aria-expanded={!collapsed}
           aria-controls={NAV_ID}
           onClick={toggleSidebar}
         >
-          {collapsed ? (
-            <ChevronsRight aria-hidden="true" className="size-5" />
-          ) : (
-            <ChevronsLeft aria-hidden="true" className="size-5" />
-          )}
+          <Menu aria-hidden="true" className="size-5" />
         </Button>
       </div>
       <TooltipProvider>
@@ -205,35 +168,7 @@ function NavigationRegion() {
 }
 
 const NAVIGATION_ICONS: Readonly<Record<string, LucideIcon>> = Object.freeze({
-  [ROUTES.dashboard]: LayoutDashboard,
-  [ROUTES.items]: Barcode,
-  [ROUTES.suppliers]: Users,
-  [ROUTES.storageClasses]: Layers3,
-  [ROUTES.labelTemplates]: FileStack,
-  [ROUTES.locations]: MapPin,
   [ROUTES.storageLayouts]: Building2,
-  [ROUTES.customerOrders]: ClipboardPenLine,
-  [ROUTES.engineeringQueue]: BarChart3,
-  [ROUTES.factoryPackets]: Factory,
-  [ROUTES.productionOrders]: Gauge,
-  [ROUTES.fulfillment]: Route,
-  [ROUTES.transport]: Truck,
-  [ROUTES.transfers]: ArrowLeftRight,
-  [ROUTES.purchaseOrders]: Truck,
-  [ROUTES.inboundBoard]: PanelsTopLeft,
-  [ROUTES.purchaseImport]: Import,
-  [ROUTES.receiving]: PackagePlus,
-  [ROUTES.quality]: ShieldCheck,
-  [ROUTES.putaway]: Forklift,
-  [ROUTES.balances]: Database,
-  [ROUTES.history]: History,
-  [ROUTES.openingStock]: Container,
-  [ROUTES.countPlans]: ListChecks,
-  [ROUTES.reports]: FileSpreadsheet,
-  [ROUTES.hr]: Users,
-  [ROUTES.integrations]: PlugZap,
-  [ROUTES.handheld]: TabletSmartphone,
-  [ROUTES.devices]: FileCog,
 });
 
 function NavigationTree({

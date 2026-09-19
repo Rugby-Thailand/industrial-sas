@@ -9,6 +9,7 @@ const convexRuntimeTests = [
   "tests/integration/dashboard-preferences.integration.test.ts",
   "tests/integration/idempotency-helper.integration.test.ts",
   "tests/integration/identity-mirror-convex.integration.test.ts",
+  "tests/integration/annex-demo-seed.integration.test.ts",
   "tests/integration/tenant-actions.integration.test.ts",
   "tests/integration/tenant-context-lookups.integration.test.ts",
   "tests/integration/tenant-functions.integration.test.ts",

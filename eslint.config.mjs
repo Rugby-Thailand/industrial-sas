@@ -12,6 +12,8 @@ import tseslint from "typescript-eslint";
 export default tseslint.config(
   {
     ignores: [
+      ".cache/**",
+      ".next-build/**",
       ".next/**",
       ".next-preview/**",
       // The dedicated Playwright build directories (see playwright.config.ts).
@@ -39,6 +41,18 @@ export default tseslint.config(
       "@typescript-eslint/no-unused-vars": [
         "error",
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
+      ],
+    },
+  },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "JSXOpeningElement[name.name='select']",
+          message: "Use SelectControl instead of a native <select> element.",
+        },
       ],
     },
   },

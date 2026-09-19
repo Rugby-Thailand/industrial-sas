@@ -1,5 +1,6 @@
-import { fireEvent, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import type { ComponentProps } from "react";
+import { fireEvent, screen, within } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
 import { renderWithIntl } from "../../../tests/fixtures/intl-render";
 
@@ -15,23 +16,20 @@ describe("PageHeader", () => {
     expect(screen.queryByText("คำอธิบายหน้า")).not.toBeInTheDocument();
   });
 
-  it("reveals and hides the description through the labelled toggle", () => {
-    renderWithIntl(<PageHeader title="งานคลัง" description="คำอธิบายหน้า" />);
-
-    const toggle = screen.getByRole("button", { name: "เกี่ยวกับหน้านี้" });
-    expect(toggle).toHaveAttribute("aria-expanded", "false");
-
-    fireEvent.click(toggle);
-    expect(toggle).toHaveAttribute("aria-expanded", "true");
-    const description = screen.getByText("คำอธิบายหน้า");
-    expect(description).toHaveAttribute(
-      "id",
-      toggle.getAttribute("aria-controls"),
+  it("opens help in a labelled dialog and closes it without expanding the header", () => {
+    const { container } = renderWithIntl(
+      <PageHeader title="งานคลัง" description="คำอธิบายหน้า" />,
     );
-
-    fireEvent.click(toggle);
-    expect(toggle).toHaveAttribute("aria-expanded", "false");
-    expect(screen.queryByText("คำอธิบายหน้า")).not.toBeInTheDocument();
+    const trigger = screen.getByRole("button", { name: "เกี่ยวกับหน้านี้" });
+    expect(trigger).toHaveAttribute("aria-haspopup", "dialog");
+    fireEvent.click(trigger);
+    const dialog = screen.getByRole("dialog", { name: "งานคลัง" });
+    expect(within(dialog).getByText("คำอธิบายหน้า")).toBeVisible();
+    expect(container.querySelector("header")).not.toHaveTextContent(
+      "คำอธิบายหน้า",
+    );
+    fireEvent.click(within(dialog).getByRole("button", { name: "ปิด" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
   it("renders no toggle when there is no description", () => {
@@ -40,3 +38,9 @@ describe("PageHeader", () => {
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 });
+
+vi.mock("@/i18n/navigation", () => ({
+  Link: ({ href, ...props }: ComponentProps<"a">) => (
+    <a href={href} {...props} />
+  ),
+}));

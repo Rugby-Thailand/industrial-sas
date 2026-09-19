@@ -24,3 +24,7 @@ docs/manual-html/
 
 # Approved planning document: must stay byte-for-byte identical.
 PROJECT_PLAN.md
+
+.cache/
+
+.next-build/

@@ -1,6 +1,13 @@
 "use client";
+import { SceneBox } from "@/components/storageScene/SceneBox";
 
 import { useId, useRef } from "react";
+import type { StorageStackPlacementRow } from "@/lib/convex/storageLayoutApi";
+import {
+  storagePlacementBoxes,
+  storagePlacementCorners,
+  type StoragePlacementBox,
+} from "@/lib/storageLayouts/storagePlacementGeometry";
 
 import {
   pointsAttribute,
@@ -11,16 +18,92 @@ import {
 export type StorageViewMode = "plan" | "3d";
 
 export interface StorageVisualArea {
+  readonly heightMm?: number;
   readonly id: string;
   readonly label?: string;
   readonly xMm: number;
   readonly yMm: number;
   readonly widthMm: number;
   readonly depthMm: number;
+  readonly placements?: readonly StorageStackPlacementRow[];
 }
 
 export interface StorageVisualSelection extends StorageVisualArea {
   readonly heightMm: number;
+}
+
+/** Shared floor/zone occupancy layer; box coordinates are already floor-relative. */
+export function StoragePlacementLayer({
+  boxes,
+  mode,
+  point = (x, y) => ({ x, y }),
+  reservedLabel = "Reserved",
+  storedLabel = "Stored",
+  moveSourceLabel = "Move source",
+  moveInTransitLabel = "Last confirmed position · moving",
+  moveTargetLabel = "Move destination reserved",
+}: {
+  readonly boxes: readonly StoragePlacementBox[];
+  readonly mode: StorageViewMode;
+  readonly point?: (
+    x: number,
+    y: number,
+    z: number,
+  ) => { x: number; y: number };
+  readonly reservedLabel?: string;
+  readonly storedLabel?: string;
+  readonly moveSourceLabel?: string;
+  readonly moveInTransitLabel?: string;
+  readonly moveTargetLabel?: string;
+}) {
+  return (
+    <g data-storage-placements="true" className="pointer-events-none">
+      {[...boxes]
+        .sort((a, b) => a.xMm + a.yMm - (b.xMm + b.yMm) || a.zMm - b.zMm)
+        .map((box) => {
+          const projected = storagePlacementCorners(box).map((p) =>
+            point(p.x, p.y, mode === "3d" ? p.z : 0),
+          );
+          const reserved = box.placement.status === "RESERVED";
+          const moving = box.placement.moveState === "IN_TRANSIT";
+          const status =
+            box.placement.moveRole === "TARGET"
+              ? moveTargetLabel
+              : box.placement.moveRole === "SOURCE"
+                ? moving
+                  ? moveInTransitLabel
+                  : moveSourceLabel
+                : reserved
+                  ? reservedLabel
+                  : storedLabel;
+          const held = reserved || moving;
+          const attributes = {
+            "data-placement-id": box.placement.placementId,
+            "data-placement-x-mm": box.xMm,
+            "data-placement-y-mm": box.yMm,
+            "data-placement-z-mm": box.zMm,
+            "data-placement-status": box.placement.status ?? "STORED",
+            "data-move-role": box.placement.moveRole,
+            "data-move-state": box.placement.moveState,
+          };
+          return (
+            <g key={box.placement.placementId} {...attributes}>
+              <title>
+                {box.placement.lpn} · {box.placement.positionCode ?? ""} ·{" "}
+                {status}
+              </title>
+              <SceneBox
+                points={projected}
+                mode={mode}
+                kind="package"
+                held={held}
+                source={box.placement.moveRole === "SOURCE"}
+              />
+            </g>
+          );
+        })}
+    </g>
+  );
 }
 
 export function StorageViewModeToggle({
@@ -40,23 +123,27 @@ export function StorageViewModeToggle({
     <div
       role="group"
       aria-label={label}
-      className="inline-flex rounded-lg border border-border bg-background p-1"
+      className="inline-flex rounded-lg border border-border bg-background p-0.5"
     >
       <button
         type="button"
+        aria-label={planLabel}
+        title={planLabel}
         aria-pressed={value === "plan"}
         onClick={() => onChange("plan")}
         className="min-h-9 rounded-md px-3 text-xs font-medium text-muted transition hover:text-text focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none aria-pressed:bg-accent-surface aria-pressed:text-accent"
       >
-        {planLabel}
+        2D
       </button>
       <button
         type="button"
+        aria-label={threeDLabel}
+        title={threeDLabel}
         aria-pressed={value === "3d"}
         onClick={() => onChange("3d")}
         className="min-h-9 rounded-md px-3 text-xs font-medium text-muted transition hover:text-text focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none aria-pressed:bg-accent-surface aria-pressed:text-accent"
       >
-        {threeDLabel}
+        3D
       </button>
     </div>
   );
@@ -76,12 +163,21 @@ export function StorageZoneVisualizer({
   dragHintId,
   onPositionChange,
   className = "h-72 w-full",
+  reservedLabel,
+  storedLabel,
+  moveSourceLabel,
+  moveInTransitLabel,
+  moveTargetLabel,
+  contextBoxes = [],
+  invalid = false,
 }: {
   readonly mode: StorageViewMode;
   readonly ariaLabel: string;
   readonly floorWidthMm: number;
   readonly floorDepthMm: number;
   readonly floorHeightMm: number;
+  readonly invalid?: boolean;
+  readonly contextBoxes?: readonly StoragePlacementBox[];
   readonly selection: StorageVisualSelection;
   readonly zones: readonly StorageVisualArea[];
   readonly reservedBlocks: readonly StorageVisualArea[];
@@ -93,6 +189,11 @@ export function StorageZoneVisualizer({
     readonly yMm: number;
   }) => void;
   readonly className?: string;
+  readonly reservedLabel?: string;
+  readonly storedLabel?: string;
+  readonly moveSourceLabel?: string;
+  readonly moveInTransitLabel?: string;
+  readonly moveTargetLabel?: string;
 }) {
   const patternId = `storage-zone-${useId().replaceAll(":", "")}`;
   const svgRef = useRef<SVGSVGElement>(null);
@@ -170,9 +271,28 @@ export function StorageZoneVisualizer({
   const heightGuideTop = point(floorWidthMm, 0, floorHeightMm);
   const isometricVisualPoints = [
     ...floorShape,
+    ...selectionTop,
+    ...contextBoxes.flatMap((box) =>
+      storagePlacementCorners(box).map((p) => point(p.x, p.y, p.z)),
+    ),
+    ...zones.flatMap((zone) =>
+      storagePlacementCorners({
+        xMm: zone.xMm,
+        yMm: zone.yMm,
+        zMm: 0,
+        widthMm: zone.widthMm,
+        depthMm: zone.depthMm,
+        heightMm: zone.heightMm ?? floorHeightMm,
+      }).map((p) => point(p.x, p.y, p.z)),
+    ),
     heightGuideTop,
     { x: heightGuideBottom.x + 64, y: heightGuideBottom.y },
     { x: heightGuideTop.x + 64, y: heightGuideTop.y },
+    ...zones.flatMap((zone) =>
+      storagePlacementBoxes(zone.placements ?? [], zone).flatMap((box) =>
+        storagePlacementCorners(box).map((p) => point(p.x, p.y, p.z)),
+      ),
+    ),
   ];
   const isometricXs = isometricVisualPoints.map((visualPoint) => visualPoint.x);
   const isometricYs = isometricVisualPoints.map((visualPoint) => visualPoint.y);
@@ -229,11 +349,6 @@ export function StorageZoneVisualizer({
     svgRef.current?.releasePointerCapture(pointerId);
     dragState.current = undefined;
   };
-  const selectedClass =
-    variant === "reserved"
-      ? "fill-warning/45 stroke-warning"
-      : "fill-accent/45 stroke-accent";
-
   const interactionProps = interactive
     ? {
         role: "button" as const,
@@ -360,54 +475,55 @@ export function StorageZoneVisualizer({
             />
           ))}
           {zones.map((zone) => (
-            <polygon
+            <SceneBox
               key={zone.id}
-              points={pointsAttribute([
-                point(zone.xMm, zone.yMm),
-                point(zone.xMm + zone.widthMm, zone.yMm),
-                point(zone.xMm + zone.widthMm, zone.yMm + zone.depthMm),
-                point(zone.xMm, zone.yMm + zone.depthMm),
-              ])}
-              className="fill-success/15 stroke-success/45"
-              strokeWidth="1.25"
+              kind="location"
+              mode="3d"
+              points={storagePlacementCorners({
+                xMm: zone.xMm,
+                yMm: zone.yMm,
+                zMm: 0,
+                widthMm: zone.widthMm,
+                depthMm: zone.depthMm,
+                heightMm: zone.heightMm ?? floorHeightMm,
+              }).map((p) => point(p.x, p.y, p.z))}
             />
           ))}
           <g
             {...interactionProps}
             className={
               interactive
-                ? "cursor-grab outline-none active:cursor-grabbing focus-visible:[&>polygon]:stroke-text"
+                ? "group cursor-grab outline-none active:cursor-grabbing"
                 : undefined
             }
             style={interactive ? { touchAction: "none" } : undefined}
           >
-            <polygon
-              data-zone-face="left"
-              points={pointsAttribute([
-                selectionBottom[3]!,
-                selectionBottom[2]!,
-                selectionTop[2]!,
-                selectionTop[3]!,
-              ])}
-              className={selectedClass.replace("/45", "/25")}
-            />
-            <polygon
-              data-zone-face="right"
-              points={pointsAttribute([
-                selectionBottom[1]!,
-                selectionBottom[2]!,
-                selectionTop[2]!,
-                selectionTop[1]!,
-              ])}
-              className={selectedClass.replace("/45", "/35")}
-            />
-            <polygon
-              data-zone-face="top"
-              points={pointsAttribute(selectionTop)}
-              className={selectedClass}
-              strokeWidth="2"
+            <SceneBox
+              points={[...selectionBottom, ...selectionTop]}
+              mode="3d"
+              kind="location"
+              selected
+              held={variant === "reserved"}
+              invalid={invalid}
             />
           </g>
+          <StoragePlacementLayer
+            mode="3d"
+            {...(reservedLabel === undefined ? {} : { reservedLabel })}
+            {...(storedLabel === undefined ? {} : { storedLabel })}
+            {...(moveSourceLabel === undefined ? {} : { moveSourceLabel })}
+            {...(moveInTransitLabel === undefined
+              ? {}
+              : { moveInTransitLabel })}
+            {...(moveTargetLabel === undefined ? {} : { moveTargetLabel })}
+            boxes={[
+              ...contextBoxes,
+              ...zones.flatMap((zone) =>
+                storagePlacementBoxes(zone.placements ?? [], zone),
+              ),
+            ]}
+            point={point}
+          />
           <line
             x1={heightGuideBottom.x + 14}
             y1={heightGuideBottom.y}
@@ -451,13 +567,17 @@ export function StorageZoneVisualizer({
           ))}
           {zones.map((zone) => (
             <g key={zone.id}>
-              <rect
-                x={zone.xMm}
-                y={zone.yMm}
-                width={zone.widthMm}
-                height={zone.depthMm}
-                className="fill-success/12 stroke-success/45"
-                strokeWidth={planStrokeWidth}
+              <SceneBox
+                kind="location"
+                mode="plan"
+                points={storagePlacementCorners({
+                  xMm: zone.xMm,
+                  yMm: zone.yMm,
+                  zMm: 0,
+                  widthMm: zone.widthMm,
+                  depthMm: zone.depthMm,
+                  heightMm: 0,
+                }).map((p) => ({ x: p.x, y: p.y }))}
               />
               {zone.label === undefined ? null : (
                 <text
@@ -477,19 +597,25 @@ export function StorageZoneVisualizer({
             {...interactionProps}
             className={
               interactive
-                ? "cursor-grab outline-none active:cursor-grabbing focus-visible:[&>rect]:stroke-text"
+                ? "group cursor-grab outline-none active:cursor-grabbing"
                 : undefined
             }
             style={interactive ? { touchAction: "none" } : undefined}
           >
-            <rect
-              data-zone-face="plan"
-              x={drawnXMm}
-              y={drawnYMm}
-              width={drawnWidthMm}
-              height={drawnDepthMm}
-              className={selectedClass}
-              strokeWidth={planStrokeWidth * 2.5}
+            <SceneBox
+              kind="location"
+              mode="plan"
+              selected
+              invalid={invalid}
+              held={variant === "reserved"}
+              points={storagePlacementCorners({
+                xMm: drawnXMm,
+                yMm: drawnYMm,
+                zMm: 0,
+                widthMm: drawnWidthMm,
+                depthMm: drawnDepthMm,
+                heightMm: 0,
+              }).map((p) => ({ x: p.x, y: p.y }))}
             />
             {selection.label === undefined ? null : (
               <text
@@ -504,6 +630,22 @@ export function StorageZoneVisualizer({
               </text>
             )}
           </g>
+          <StoragePlacementLayer
+            mode="plan"
+            {...(reservedLabel === undefined ? {} : { reservedLabel })}
+            {...(storedLabel === undefined ? {} : { storedLabel })}
+            {...(moveSourceLabel === undefined ? {} : { moveSourceLabel })}
+            {...(moveInTransitLabel === undefined
+              ? {}
+              : { moveInTransitLabel })}
+            {...(moveTargetLabel === undefined ? {} : { moveTargetLabel })}
+            boxes={[
+              ...contextBoxes,
+              ...zones.flatMap((zone) =>
+                storagePlacementBoxes(zone.placements ?? [], zone),
+              ),
+            ]}
+          />
         </>
       )}
     </svg>

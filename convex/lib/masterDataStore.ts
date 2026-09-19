@@ -138,6 +138,17 @@ export function insertedFields(
   );
 }
 
+/** The audit shape of a delete: every stored field, as it stood, and nothing new. */
+export function removedFields(
+  document: Readonly<Record<string, unknown>>,
+): readonly AuditChange[] {
+  return Object.freeze(
+    Object.entries(document)
+      .filter(([field, value]) => !field.startsWith("_") && value !== undefined)
+      .map(([field, value]) => ({ field, from: describeAuditValue(value) })),
+  );
+}
+
 export function diffFields(
   before: Readonly<Record<string, unknown>>,
   after: Readonly<Record<string, unknown>>,
@@ -301,8 +312,103 @@ export async function updateMasterDataRow(
   return ok(Object.freeze({ documentId, replayed: false }));
 }
 
+export interface DeleteInput<
+  Block extends { readonly code: string },
+> extends MasterDataWriteContext {
+  readonly documentId: string;
+  readonly fingerprint: unknown;
+  /**
+   * The domain's own reasons to keep the row, checked on the fresh path only.
+   *
+   * It has to run after the replay branch, not before: a retried delete finds
+   * nothing to inspect, and a second call must answer "already gone", never
+   * "no such row".
+   */
+  readonly precondition?: (
+    before: Readonly<Record<string, unknown>>,
+  ) => Promise<Block | null>;
+}
+
+/**
+ * Hard-delete one master-data row, idempotently.
+ *
+ * A delete cannot replay the way a create or an update does: there is no
+ * surviving row to re-read, so the stored record itself is the answer. The
+ * digest is taken over a removal-flavoured identity, which keeps a replayed
+ * delete from ever being mistaken for a replayed create of the same id.
+ */
+export async function deleteMasterDataRow<
+  Block extends { readonly code: string },
+>(
+  input: DeleteInput<Block>,
+): Promise<Result<MasterDataOutcome, MasterDataError | Block>> {
+  const { tenantDb, table, operation, requestId, documentId, now } = input;
+
+  const fingerprint = await fingerprintArguments(input.fingerprint);
+  if (!fingerprint.ok) return fingerprint;
+
+  const decision = await checkIdempotency({
+    tenantDb,
+    operation,
+    requestId,
+    requestHash: fingerprint.value,
+  });
+  if (!decision.ok) return decision;
+
+  if (decision.value.kind === "REPLAY") {
+    const record = decision.value.record;
+    if (record.resultRef === undefined || record.status !== "SUCCEEDED") {
+      return fail({
+        code: "REPLAY_TARGET_MISSING",
+        requestId: record.requestId,
+      });
+    }
+    const expected = await removalDigest(table, record.resultRef);
+    if (record.resultHash !== undefined && record.resultHash !== expected) {
+      return fail({
+        code: "REPLAY_RESULT_UNVERIFIABLE",
+        requestId: record.requestId,
+      });
+    }
+    return ok(Object.freeze({ documentId: record.resultRef, replayed: true }));
+  }
+
+  const before = await tenantDb.get<OwnedRow & Record<string, unknown>>(
+    table,
+    documentId,
+  );
+  if (before === null) return fail({ code: "NOT_FOUND", table });
+
+  const blocked = await input.precondition?.(before);
+  if (blocked !== undefined && blocked !== null) return fail(blocked);
+
+  await tenantDb.delete(table, documentId);
+
+  await appendMasterDataAudit(input, {
+    entityId: documentId,
+    changes: removedFields(before),
+  });
+
+  await writeIdempotencyRecord({
+    tenantDb,
+    operation,
+    requestId,
+    requestHash: fingerprint.value,
+    resultRef: documentId,
+    resultHash: await removalDigest(table, documentId),
+    actorUserId: input.actorUserId,
+    ...(input.deviceId === undefined ? {} : { deviceId: input.deviceId }),
+    now,
+  });
+
+  return ok(Object.freeze({ documentId, replayed: false }));
+}
+
 const identityDigest = (table: string, documentId: string): Promise<string> =>
   sha256Hex(`${table}:${documentId}`);
+
+const removalDigest = (table: string, documentId: string): Promise<string> =>
+  sha256Hex(`${table}:${documentId}:deleted`);
 
 async function replayStoredMasterDataWrite(
   tenantDb: TenantDocumentAccess,

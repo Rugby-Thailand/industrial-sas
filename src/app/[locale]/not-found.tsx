@@ -14,7 +14,7 @@ export default async function LocaleNotFound() {
     >
       <PageHeader title={t("title")} description={t("body")} />
       <Link
-        href={ROUTES.dashboard}
+        href={ROUTES.storageLayouts}
         className="flex min-h-touch w-fit items-center rounded-md border border-border-strong px-4 font-medium text-text"
       >
         {t("backHome")}

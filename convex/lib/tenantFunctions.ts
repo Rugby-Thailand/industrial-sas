@@ -1,3 +1,4 @@
+import { trackFinishedGoodsWrites } from "./finishedGoodsSummary";
 import {
   actionGeneric,
   internalMutationGeneric,
@@ -435,10 +436,15 @@ async function runTenantHandler<Args extends readonly unknown[], ReturnValue>(
       throw new SafeTenantFunctionFailure(toPublicDenial(resolved.denial));
     }
 
-    const tenantDb = createTenantDocumentAccess(
+    const sourceDb = createTenantDocumentAccess(
       { orgId: resolved.context.organization._id, requestId },
       storageFactory(rawContext, requestId),
     );
+
+    const summaryWrites = audit
+      ? trackFinishedGoodsWrites(sourceDb)
+      : undefined;
+    const tenantDb = summaryWrites?.db ?? sourceDb;
 
     const allowed = await authorizeTenantRequest({
       rawContext,
@@ -481,11 +487,9 @@ async function runTenantHandler<Args extends readonly unknown[], ReturnValue>(
       permission: spec.permission,
     });
 
-    return Object.freeze({
-      ok: true as const,
-      requestId,
-      value: (await handler(narrowed, ...args)) as Awaited<ReturnValue>,
-    });
+    const value = (await handler(narrowed, ...args)) as Awaited<ReturnValue>;
+    await summaryWrites?.flush();
+    return Object.freeze({ ok: true as const, requestId, value });
   } catch (error) {
     if (error instanceof SafeTenantFunctionFailure) {
       throw new ConvexError(error.data);

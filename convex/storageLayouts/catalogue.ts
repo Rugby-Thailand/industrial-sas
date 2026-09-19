@@ -1,3 +1,9 @@
+import { summaryReadiness } from "../lib/finishedGoodsSummary";
+import {
+  paginatedScan,
+  remainingScanCapacity,
+} from "../lib/cataloguePagination";
+import { storageFootprintUsage } from "../model/storageLayout/areaUsage";
 import { v } from "convex/values";
 
 import type { Doc } from "../_generated/dataModel";
@@ -7,15 +13,111 @@ import {
 } from "../lib/tenantFunctions";
 import { storageLayoutStatus } from "../lib/validators";
 import { effectiveStorageAreaMode } from "../model/storageLayout/storagePosition";
+import { occupiedFootprintAreaSqMm } from "../model/storageLayout/occupancy";
+import { readMoveOccupancy, type MoveOccupancy } from "./moveOccupancy";
 
 type BuildingDocument = Doc<"storageBuildings">;
 type FloorDocument = Doc<"storageFloors">;
 type BlockDocument = Doc<"storageFloorReservedBlocks">;
 type ZoneDocument = Doc<"storageZones">;
 type PositionDocument = Doc<"storagePositions">;
-type PlacementDocument = Doc<"storageStackPlacements">;
-type HandlingUnitDocument = Doc<"handlingUnits">;
-type LocationDocument = Doc<"locations">;
+type PlacementDocument = Doc<"finishedGoodsPlacements">;
+
+// Presence checks intentionally use first(): every held or stored pallet blocks
+// structural changes, regardless of how many other pallets exist in the scope.
+export async function hasOccupiedStorage(
+  ctx: TenantFunctionContext,
+  scope: { readonly buildingId: string } | { readonly zoneId: string },
+): Promise<boolean> {
+  const field = "zoneId" in scope ? "zoneId" : "buildingId";
+  const id = "zoneId" in scope ? scope.zoneId : scope.buildingId;
+  for (const status of ["RESERVED", "STORED"] as const) {
+    const found = await ctx.tenantDb
+      .byIndex<PlacementDocument>(
+        "finishedGoodsPlacements",
+        `by_orgId_${field}_status`,
+        [
+          { field, value: id },
+          { field: "status", value: status },
+        ],
+      )
+      .first();
+    if (found !== null) return true;
+  }
+  return false;
+}
+
+async function readZonePlacements(
+  ctx: TenantFunctionContext,
+  zone: ZoneDocument,
+  moves: ReadonlyMap<string, MoveOccupancy>,
+) {
+  const rows = (
+    await Promise.all(
+      ["RESERVED", "STORED"].map(
+        async (status) =>
+          await ctx.tenantDb
+            .byIndex<PlacementDocument>(
+              "finishedGoodsPlacements",
+              "by_orgId_zoneId_status",
+              [
+                { field: "zoneId", value: zone._id },
+                { field: "status", value: status },
+              ],
+            )
+            .all(10_000),
+      ),
+    )
+  ).flat();
+  return await Promise.all(
+    rows.map(async (placement) => {
+      const pallet = await ctx.tenantDb.get<Doc<"finishedGoodsPallets">>(
+        "finishedGoodsPallets",
+        placement.palletId,
+      );
+      const product = pallet
+        ? await ctx.tenantDb.get<Doc<"finishedGoodsProducts">>(
+            "finishedGoodsProducts",
+            pallet.productId,
+          )
+        : null;
+      return {
+        ...(product
+          ? {
+              productName: product.name,
+              productSku: product.sku,
+              unit: product.unit,
+            }
+          : {}),
+        ...(pallet ? { quantity: pallet.quantity } : {}),
+        placementId: placement._id,
+        handlingUnitId: placement.palletId,
+        lpn: pallet?.code ?? placement.positionCode,
+        levelIndex: 1,
+        xMm: placement.xMm,
+        yMm: placement.yMm,
+        zMm: placement.zMm,
+        widthMm: placement.widthMm,
+        depthMm: placement.depthMm,
+        heightMm: placement.heightMm,
+        status:
+          placement.status === "RESERVED"
+            ? ("RESERVED" as const)
+            : ("STORED" as const),
+        orientation:
+          placement.rotation === 90
+            ? ("ROTATED" as const)
+            : ("DEFAULT" as const),
+        placedAt: placement.updatedAt,
+        ...(placement.supportPositionId
+          ? { positionId: placement.supportPositionId }
+          : {}),
+        positionCode: placement.positionCode,
+        ...moves.get(placement._id),
+      };
+    }),
+  );
+}
 
 const buildingArgs = {
   warehouseId: v.id("warehouses"),
@@ -37,20 +139,26 @@ async function resolveZone(ctx: TenantFunctionContext, zone: ZoneDocument) {
   return resolvedZone;
 }
 
-async function readFloor(ctx: TenantFunctionContext, floor: FloorDocument) {
+async function readFloor(
+  ctx: TenantFunctionContext,
+  floor: FloorDocument,
+  knownMoves?: ReadonlyMap<string, MoveOccupancy>,
+) {
+  const moves = knownMoves ?? (await readMoveOccupancy(ctx, floor.warehouseId));
   const blocks = await ctx.tenantDb
     .byIndex<BlockDocument>("storageFloorReservedBlocks", "by_orgId_floorId", [
       { field: "floorId", value: floor._id },
     ])
-    .take(20);
+    .all(20);
   const zones = await ctx.tenantDb
     .byIndex<ZoneDocument>("storageZones", "by_orgId_floorId_status_code", [
       { field: "floorId", value: floor._id },
       { field: "status", value: "ACTIVE" },
     ])
-    .take(50);
+    .all(50);
   const storageZones = await Promise.all(
     zones.map(async (zone) => {
+      const placements = await readZonePlacements(ctx, zone, moves);
       const storedPositions = await ctx.tenantDb
         .byIndex<PositionDocument>(
           "storagePositions",
@@ -60,7 +168,7 @@ async function readFloor(ctx: TenantFunctionContext, floor: FloorDocument) {
             { field: "status", value: "ACTIVE" },
           ],
         )
-        .take(100);
+        .all(100);
       const positions =
         storedPositions.length === 0 &&
         effectiveStorageAreaMode(zone.mode) === "SIMPLE"
@@ -81,41 +189,6 @@ async function readFloor(ctx: TenantFunctionContext, floor: FloorDocument) {
           : storedPositions;
       const resolvedPositions = await Promise.all(
         positions.map(async (position) => {
-          const placements = await ctx.tenantDb
-            .byIndex<PlacementDocument>(
-              "storageStackPlacements",
-              "by_orgId_locationId_status",
-              [
-                { field: "locationId", value: position.locationId },
-                { field: "status", value: "ACTIVE" },
-              ],
-            )
-            .take(50);
-          const resolved = await Promise.all(
-            placements.map(async (placement) => {
-              const unit = await ctx.tenantDb.get<HandlingUnitDocument>(
-                "handlingUnits",
-                placement.handlingUnitId,
-              );
-              if (
-                unit === null ||
-                unit.currentLocationId !== position.locationId
-              ) {
-                return null;
-              }
-              return {
-                placementId: placement._id,
-                handlingUnitId: placement.handlingUnitId,
-                lpn: unit.lpn,
-                levelIndex: placement.levelIndex,
-                widthMm: placement.widthMm,
-                depthMm: placement.depthMm,
-                heightMm: placement.heightMm,
-                orientation: placement.orientation,
-                placedAt: placement.placedAt,
-              };
-            }),
-          );
           const positionId = "_id" in position ? position._id : undefined;
           const fixture =
             "fixtureCode" in position ? position.fixtureCode : undefined;
@@ -151,9 +224,11 @@ async function readFloor(ctx: TenantFunctionContext, floor: FloorDocument) {
               ? { elevationMm: position.elevationMm }
               : {}),
             breadcrumb,
-            placements: resolved
-              .filter((placement) => placement !== null)
-              .sort((left, right) => left.levelIndex - right.levelIndex),
+            placements: placements.filter(
+              (placement) =>
+                placement.positionId === positionId ||
+                (position.isDefault && placement.positionId === undefined),
+            ),
           };
         }),
       );
@@ -164,6 +239,9 @@ async function readFloor(ctx: TenantFunctionContext, floor: FloorDocument) {
         label: zone.label,
         qrValue: zone.qrValue,
         mode: effectiveStorageAreaMode(zone.mode),
+        ...(zone.storageCondition === undefined
+          ? {}
+          : { storageCondition: zone.storageCondition }),
         ...(zone.baseElevationMm === undefined
           ? {}
           : { baseElevationMm: zone.baseElevationMm }),
@@ -173,16 +251,9 @@ async function readFloor(ctx: TenantFunctionContext, floor: FloorDocument) {
         depthMm: zone.depthMm,
         maxStackHeightMm: zone.maxStackHeightMm,
         positions: resolvedPositions,
-        placements: resolvedPositions.flatMap((position) =>
-          position.placements.map((placement) => ({
-            ...placement,
-            ...(position.positionId === undefined
-              ? {}
-              : { positionId: position.positionId }),
-            positionCode: position.code,
-            breadcrumb: position.breadcrumb,
-          })),
-        ),
+        placements,
+        palletCount: new Set(placements.map((p) => p.handlingUnitId)).size,
+        occupiedFootprintAreaSqMm: occupiedFootprintAreaSqMm(placements),
       };
     }),
   );
@@ -210,6 +281,41 @@ async function readFloor(ctx: TenantFunctionContext, floor: FloorDocument) {
   };
 }
 
+async function buildingWithOccupancy(
+  ctx: TenantFunctionContext,
+  row: BuildingDocument,
+) {
+  const placements = (
+    await Promise.all(
+      (["STORED", "RESERVED"] as const).map((status) =>
+        ctx.tenantDb
+          .byIndex<PlacementDocument>(
+            "finishedGoodsPlacements",
+            "by_orgId_buildingId_status",
+            [
+              { field: "buildingId", value: row._id },
+              { field: "status", value: status },
+            ],
+          )
+          .all(10_000),
+      ),
+    )
+  ).flat();
+  const zones = new Map<string, PlacementDocument[]>();
+  for (const placement of placements) {
+    const group = zones.get(placement.zoneId) ?? [];
+    group.push(placement);
+    zones.set(placement.zoneId, group);
+  }
+  return {
+    ...row,
+    buildingId: row._id,
+    ...storageFootprintUsage(
+      [...zones.values()].map((placements) => ({ placements })),
+    ),
+  };
+}
+
 export const listStorageBuildings = queryWithOrg({
   args: {
     warehouseId: v.id("warehouses"),
@@ -233,8 +339,84 @@ export const listStorageBuildings = queryWithOrg({
               { field: "status", value: args.status },
             ],
       )
-      .take(100);
-    return rows.map((row) => ({ ...row, buildingId: row._id }));
+      .all(100);
+    return await Promise.all(
+      rows.map((row) => buildingWithOccupancy(ctx, row)),
+    );
+  },
+});
+
+export const listStorageBuildingsPage = queryWithOrg({
+  args: {
+    warehouseId: v.id("warehouses"),
+    status: v.optional(storageLayoutStatus),
+    search: v.optional(v.string()),
+    pageSize: v.number(),
+    cursor: v.optional(v.string()),
+    scanCursor: v.optional(v.string()),
+  },
+  returns: v.any(),
+  permissionCode: "masterData.storageLayout.read",
+  target: { table: "storageBuildings" },
+  warehouseId: (args) => args.warehouseId,
+  handler: async (ctx, args) => {
+    const { cursor, scanCursor, pageSize, ...criteria } = args;
+    const needle = (args.search ?? "").trim().toLocaleLowerCase();
+    const result = await paginatedScan(ctx, {
+      generation:
+        (await summaryReadiness(ctx.tenantDb, args.warehouseId))?.generation ??
+        0,
+      scope: { entity: "buildings", ...criteria },
+      pageSize,
+      ...(cursor ? { cursor } : {}),
+      ...(scanCursor ? { scanCursor } : {}),
+      read: (rawCursor, endCursor?: string) =>
+        ctx.tenantDb
+          .byIndex<BuildingDocument>(
+            "storageBuildings",
+            args.status
+              ? "by_orgId_warehouseId_status_code"
+              : "by_orgId_warehouseId_code",
+            [
+              { field: "warehouseId", value: args.warehouseId },
+              ...(args.status ? [{ field: "status", value: args.status }] : []),
+            ],
+          )
+          .page({
+            limit: remainingScanCapacity(scanCursor, pageSize),
+            ...(rawCursor ? { cursor: rawCursor } : {}),
+            ...(endCursor ? { endCursor } : {}),
+          }),
+      get: (id) => ctx.tenantDb.get<BuildingDocument>("storageBuildings", id),
+      hydrate: async (row) => row,
+      matches: (row) =>
+        row.warehouseId === args.warehouseId &&
+        (!args.status || row.status === args.status) &&
+        (!needle ||
+          row.code.toLocaleLowerCase().includes(needle) ||
+          row.name.toLocaleLowerCase().includes(needle)),
+    });
+    return {
+      ...result,
+      page: result.page.map((row) => ({ ...row, buildingId: row._id })),
+    };
+  },
+});
+
+export const buildingOccupancy = queryWithOrg({
+  args: buildingArgs,
+  returns: v.any(),
+  permissionCode: "masterData.storageLayout.read",
+  target: { table: "storageBuildings", id: (args) => args.buildingId },
+  warehouseId: (args) => args.warehouseId,
+  handler: async (ctx, args) => {
+    const building = await ctx.tenantDb.get<BuildingDocument>(
+      "storageBuildings",
+      args.buildingId,
+    );
+    return building?.warehouseId === args.warehouseId
+      ? buildingWithOccupancy(ctx, building)
+      : null;
   },
 });
 
@@ -258,11 +440,14 @@ export const getStorageBuilding = queryWithOrg({
         "by_orgId_buildingId_floorNumber",
         [{ field: "buildingId", value: args.buildingId }],
       )
-      .take(50);
+      .all(50);
+    const moves = await readMoveOccupancy(ctx, args.warehouseId);
     return {
       found: true as const,
       building: { ...building, buildingId: building._id },
-      floors: await Promise.all(floors.map((floor) => readFloor(ctx, floor))),
+      floors: await Promise.all(
+        floors.map((floor) => readFloor(ctx, floor, moves)),
+      ),
     };
   },
 });
@@ -337,43 +522,5 @@ export const getStorageLocationMap = queryWithOrg({
       floor: await readFloor(ctx, floor),
       zone: await resolveZone(ctx, zone),
     };
-  },
-});
-
-export const listOperationalStorageZones = queryWithOrg({
-  args: { warehouseId: v.id("warehouses") },
-  returns: v.any(),
-  permissionCode: "putaway.task.read",
-  target: { table: "storageZones" },
-  warehouseId: ({ warehouseId }) => warehouseId,
-  handler: async (ctx, args) => {
-    const locations = await ctx.tenantDb
-      .byIndex<LocationDocument>(
-        "locations",
-        "by_orgId_warehouseId_status_locationType_code",
-        [
-          { field: "warehouseId", value: args.warehouseId },
-          { field: "status", value: "ACTIVE" },
-          { field: "locationType", value: "FLOOR_BLOCK" },
-        ],
-      )
-      .take(100);
-    const rows = [];
-    for (const location of locations) {
-      const zone = await ctx.tenantDb
-        .byIndex<ZoneDocument>("storageZones", "by_orgId_locationId", [
-          { field: "locationId", value: location._id },
-        ])
-        .unique();
-      if (zone === null || zone.status !== "ACTIVE") continue;
-      const building = await ctx.tenantDb.get<BuildingDocument>(
-        "storageBuildings",
-        zone.buildingId,
-      );
-      if (building?.status === "ACTIVE") {
-        rows.push(await resolveZone(ctx, zone));
-      }
-    }
-    return rows;
   },
 });

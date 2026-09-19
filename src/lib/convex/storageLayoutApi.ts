@@ -14,11 +14,23 @@ export interface StorageReservedBlockRow {
 }
 
 export interface StorageStackPlacementRow {
+  readonly productName?: string;
+  readonly productSku?: string;
+  readonly quantity?: number;
+  readonly unit?: string;
   readonly placementId: string;
   readonly handlingUnitId: string;
   readonly lpn: string;
 
   readonly levelIndex: number;
+  /** Coordinates relative to the parent storage location, not the floor. */
+  readonly xMm?: number;
+  readonly yMm?: number;
+  readonly zMm?: number;
+  readonly status?: "RESERVED" | "STORED";
+  readonly moveId?: string;
+  readonly moveState?: "RESERVED" | "IN_TRANSIT";
+  readonly moveRole?: "SOURCE" | "TARGET";
   readonly widthMm: number;
   readonly depthMm: number;
   readonly heightMm: number;
@@ -54,12 +66,15 @@ export interface StoragePositionRow {
 }
 
 export interface StorageZoneRow {
+  readonly palletCount?: number;
+  readonly occupiedFootprintAreaSqMm?: number;
   readonly zoneId: string;
   readonly locationId: string;
   readonly code: string;
   readonly label: string;
   readonly qrValue: string;
   readonly mode: StorageAreaMode;
+  readonly storageCondition?: string;
   readonly baseElevationMm?: number;
   readonly xMm: number;
   readonly yMm: number;
@@ -87,6 +102,8 @@ export interface StorageFloorRow {
 }
 
 export interface StorageBuildingRow {
+  readonly storedFootprintAreaSqMm?: number;
+  readonly heldFootprintAreaSqMm?: number;
   readonly buildingId: string;
   readonly warehouseId: string;
   readonly code: string;
@@ -121,12 +138,11 @@ export type StorageLocationMapDetail =
   | { readonly found: false };
 
 export const storageLayoutRefs = Object.freeze({
+  occupancy: clientRef(api.storageLayouts.catalogue.buildingOccupancy),
+  page: clientRef(api.storageLayouts.catalogue.listStorageBuildingsPage),
   list: clientRef(api.storageLayouts.catalogue.listStorageBuildings),
   get: clientRef(api.storageLayouts.catalogue.getStorageBuilding),
   locationMap: clientRef(api.storageLayouts.catalogue.getStorageLocationMap),
-  listOperationalZones: clientRef(
-    api.storageLayouts.catalogue.listOperationalStorageZones,
-  ),
   create: clientRef(api.storageLayouts.writes.createStorageBuilding),
   update: clientRef(api.storageLayouts.writes.updateStorageBuilding),
   changeFloorCount: clientRef(
@@ -138,7 +154,6 @@ export const storageLayoutRefs = Object.freeze({
   createZone: clientRef(api.storageLayouts.zones.createStorageZone),
   updateZone: clientRef(api.storageLayouts.zones.updateStorageZone),
   archiveZone: clientRef(api.storageLayouts.zones.archiveStorageZone),
-  placeHandlingUnit: clientRef(api.storageLayouts.zones.placeHandlingUnit),
   createPosition: clientRef(api.storageLayouts.zones.createStoragePosition),
   generateRackPositions: clientRef(
     api.storageLayouts.zones.generateRackStoragePositions,

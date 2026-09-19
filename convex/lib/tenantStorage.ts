@@ -5,6 +5,7 @@ import type {
 
 import type { DataModel } from "../schema";
 import {
+  TENANT_INDEX_MAX_BATCH_SIZE,
   TENANT_INDEX_MAX_CURSOR_LENGTH,
   TENANT_INDEX_MAX_PAGE_SIZE,
   TenantDbError,
@@ -53,10 +54,14 @@ interface ConvexIndexRangeBuilder {
 }
 
 interface ConvexBoundedQuery {
+  order: (direction: "asc" | "desc") => ConvexBoundedQuery;
   take: (count: number) => Promise<unknown>;
   paginate: (options: {
     readonly numItems: number;
     readonly cursor: string | null;
+    readonly endCursor?: string | null;
+    readonly maximumRowsRead?: number;
+    readonly maximumBytesRead?: number;
   }) => Promise<unknown>;
 }
 
@@ -112,7 +117,7 @@ function organizationIdCheck(
 function createReads(
   db: ConvexReadDatabase,
   requestId: string,
-): Pick<TenantStoragePort, "get" | "indexedPage"> {
+): Pick<TenantStoragePort, "get" | "indexedPage" | "indexedBatch"> {
   const invalidQuery = (): TenantDbError =>
     new TenantDbError("INVALID_INDEX_QUERY", requestId);
   const invalidResult = (): TenantDbError =>
@@ -208,7 +213,13 @@ function createReads(
     table: TenantTableName,
     index: string,
     equality: TenantIndexEquality,
-    page: { readonly limit: number; readonly cursor: string | null },
+    page: {
+      readonly limit: number;
+      readonly cursor: string | null;
+      readonly order?: "asc" | "desc";
+      readonly endCursor?: string | null;
+      readonly nativePage?: boolean;
+    },
   ): Promise<unknown> => {
     const name = checkedTable(table);
 
@@ -220,28 +231,39 @@ function createReads(
     if (page === null || typeof page !== "object") throw invalidQuery();
     const limit = checkedLimit(page.limit);
     const cursor = checkedCursor(page.cursor);
+    if (
+      page.order !== undefined &&
+      page.order !== "asc" &&
+      page.order !== "desc"
+    )
+      throw invalidQuery();
 
-    const bounded = (): ConvexBoundedQuery =>
-      db.query(name).withIndex(facts.name, (builder) => {
+    const bounded = (): ConvexBoundedQuery => {
+      const query = db.query(name).withIndex(facts.name, (builder) => {
         let range = builder;
         for (const term of terms) {
           range = range.eq(term.field, term.value);
         }
         return range;
       });
+      return page.order ? query.order(page.order) : query;
+    };
 
-    if (cursor === null) {
-      const probe: unknown = await bounded().take(limit + 1);
-      if (!Array.isArray(probe)) throw invalidResult();
-
-      if (probe.length <= limit) {
-        return answeredPage(probe as readonly unknown[], true, "");
-      }
+    // Presence/unique/take reads must never consume a native pagination call:
+    // page queries hydrate many such relations, while Convex permits only one
+    // paginated range in a query function. These helpers never use continuation.
+    if (!page.nativePage && !page.endCursor) {
+      const rows: unknown = await bounded().take(limit);
+      if (!Array.isArray(rows)) throw invalidResult();
+      return answeredPage(rows, true, "");
     }
 
     const answer: unknown = await bounded().paginate({
       numItems: limit,
       cursor,
+      ...(page.endCursor ? { endCursor: checkedCursor(page.endCursor) } : {}),
+      maximumRowsRead: 101,
+      maximumBytesRead: 524_288,
     });
 
     if (answer === null || typeof answer !== "object") throw invalidResult();
@@ -250,8 +272,6 @@ function createReads(
     const record = answer as Record<string, unknown>;
     const rows: unknown = record.page;
     if (!Array.isArray(rows)) throw invalidResult();
-
-    if (rows.length > limit) throw invalidResult();
 
     const isDone: unknown = record.isDone;
     if (typeof isDone !== "boolean") throw invalidResult();
@@ -263,10 +283,61 @@ function createReads(
     }
     if (!isDone && continueCursor.length === 0) throw invalidResult();
 
-    return answeredPage(rows as readonly unknown[], isDone, continueCursor);
+    const splitCursor = record.splitCursor;
+    const pageStatus = record.pageStatus;
+    if (
+      splitCursor !== undefined &&
+      splitCursor !== null &&
+      (typeof splitCursor !== "string" ||
+        splitCursor.length > TENANT_INDEX_MAX_CURSOR_LENGTH)
+    )
+      throw invalidResult();
+    if (
+      pageStatus !== undefined &&
+      pageStatus !== null &&
+      pageStatus !== "SplitRecommended" &&
+      pageStatus !== "SplitRequired"
+    )
+      throw invalidResult();
+    return Object.freeze({
+      page: Object.freeze([...rows]),
+      isDone,
+      continueCursor,
+      ...(splitCursor !== undefined ? { splitCursor } : {}),
+      ...(pageStatus !== undefined ? { pageStatus } : {}),
+    });
   };
 
-  return { get, indexedPage };
+  const indexedBatch = async (
+    table: TenantTableName,
+    index: string,
+    equality: TenantIndexEquality,
+    limit: number,
+  ): Promise<unknown> => {
+    const name = checkedTable(table);
+    const facts = describeTenantIndex(name, index);
+    if (!facts) throw invalidQuery();
+    const terms = checkedTerms(facts, equality);
+    if (
+      !Number.isSafeInteger(limit) ||
+      limit < 1 ||
+      limit > TENANT_INDEX_MAX_BATCH_SIZE
+    )
+      throw new TenantDbError("INVALID_LIMIT", requestId);
+    const answer: unknown = await db
+      .query(name)
+      .withIndex(facts.name, (builder) => {
+        let range = builder;
+        for (const term of terms) range = range.eq(term.field, term.value);
+        return range;
+      })
+      .take(limit + 1);
+    if (!Array.isArray(answer)) throw invalidResult();
+    if (answer.length > limit)
+      throw new TenantDbError("CAPACITY_DATA_LIMIT", requestId);
+    return answer;
+  };
+  return { get, indexedPage, indexedBatch };
 }
 
 function checkedDocument(

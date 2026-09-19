@@ -1,5 +1,6 @@
 import createNextIntlPlugin from "next-intl/plugin";
 import type { NextConfig } from "next";
+import path from "node:path";
 
 import { securityHeaders } from "./src/lib/securityHeaders";
 
@@ -13,6 +14,36 @@ const nextConfig: NextConfig = {
   ...(distDir === undefined || distDir === "" ? {} : { distDir }),
   typescript: {
     ignoreBuildErrors: false,
+  },
+
+  webpack(config, { dev }) {
+    if (dev) {
+      // Recording frames and review notes must not re-emit chunks during refresh.
+      // Preserve Next's existing node_modules/.git/.next exclusions.
+      const previous = config.watchOptions?.ignored;
+      const root = process.cwd().replaceAll(path.sep, "/");
+      const folders = ["artifacts", ".cache", "docs/plans"];
+      const ignored =
+        previous instanceof RegExp
+          ? new RegExp(
+              `${previous.source}|^(?:${folders
+                .map((folder) =>
+                  `${root}/${folder}`.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+                )
+                .join("|")})(?:/|$)`,
+              previous.flags,
+            )
+          : [
+              ...(Array.isArray(previous)
+                ? previous
+                : previous
+                  ? [previous]
+                  : []),
+              ...folders.map((folder) => `${root}/${folder}/**`),
+            ];
+      config.watchOptions = { ...config.watchOptions, ignored };
+    }
+    return config;
   },
 
   async headers() {

@@ -158,3 +158,5 @@ __pycache__/
 *.py[cod]
 *.local
 *.tmp
+
+.next-build/

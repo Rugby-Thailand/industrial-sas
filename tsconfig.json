@@ -52,7 +52,9 @@
     ".next-e2e/types/**/*.ts",
     ".next-e2e/dev/types/**/*.ts",
     ".next-evidence/types/**/*.ts",
-    ".next-evidence/dev/types/**/*.ts"
+    ".next-evidence/dev/types/**/*.ts",
+    ".next-build/types/**/*.ts",
+    ".next-build/dev/types/**/*.ts"
   ],
   // `.next` is deliberately absent: `exclude` filters `include`, so excluding it
   // would drop the generated route types listed above.

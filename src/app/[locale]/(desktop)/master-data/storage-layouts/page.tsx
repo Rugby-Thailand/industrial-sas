@@ -17,15 +17,14 @@ export default async function StorageLayoutsPage({
   const t = await getTranslations("StorageLayouts");
   return (
     <>
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <PageHeader title={t("title")} description={t("description")} />
+      <PageHeader title={t("title")} description={t("description")}>
         <Button asChild>
           <Link href={`${ROUTES.storageLayouts}/new`}>
             <Plus aria-hidden="true" className="size-4" />
             {t("newBuilding")}
           </Link>
         </Button>
-      </div>
+      </PageHeader>
       <StorageBuildingCatalogue />
     </>
   );

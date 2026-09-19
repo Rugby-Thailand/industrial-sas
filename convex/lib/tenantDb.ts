@@ -40,6 +40,7 @@ export const TENANT_DB_ERROR_CODES = [
   "INVALID_LIMIT",
   "INVALID_INDEX_QUERY",
   "INVALID_INDEX_RESULT",
+  "CAPACITY_DATA_LIMIT",
 ] as const;
 
 export type TenantDbErrorCode = (typeof TENANT_DB_ERROR_CODES)[number];
@@ -183,6 +184,8 @@ export interface TenantIndexEqualityTerm {
 export type TenantIndexEquality = readonly TenantIndexEqualityTerm[];
 
 export const TENANT_INDEX_MAX_PAGE_SIZE = 100;
+/** Complete transactional reads must fail, never truncate occupancy. */
+export const TENANT_INDEX_MAX_BATCH_SIZE = 10_000;
 
 export const TENANT_INDEX_MAX_CURSOR_LENGTH = 4096;
 
@@ -190,6 +193,8 @@ export interface TenantIndexPageRequest {
   readonly limit: number;
   /** An opaque cursor from a previous page. Absent means the first page. */
   readonly cursor?: string | undefined;
+  readonly order?: "asc" | "desc";
+  readonly endCursor?: string | undefined;
 }
 
 export interface TenantIndexPage<
@@ -199,6 +204,8 @@ export interface TenantIndexPage<
   readonly isDone: boolean;
 
   readonly continueCursor: string;
+  readonly splitCursor?: string | null;
+  readonly pageStatus?: "SplitRecommended" | "SplitRequired" | null;
 }
 
 export interface TenantStoragePort {
@@ -223,11 +230,24 @@ export interface TenantStoragePort {
 
   readonly delete: (table: TenantTableName, id: string) => Promise<void>;
 
+  readonly indexedBatch?: (
+    table: TenantTableName,
+    index: string,
+    equality: TenantIndexEquality,
+    limit: number,
+  ) => Promise<unknown>;
+
   readonly indexedPage: (
     table: TenantTableName,
     index: string,
     equality: TenantIndexEquality,
-    page: { readonly limit: number; readonly cursor: string | null },
+    page: {
+      readonly limit: number;
+      readonly cursor: string | null;
+      readonly order?: "asc" | "desc";
+      readonly endCursor?: string | null;
+      readonly nativePage?: boolean;
+    },
   ) => Promise<unknown>;
 }
 
@@ -240,6 +260,8 @@ export interface TenantDocumentAccessScope {
 export interface TenantIndexReader<
   Document extends TenantOwnedDocument = TenantOwnedDocument,
 > {
+  readonly all: (limit: number) => Promise<readonly Document[]>;
+
   readonly first: () => Promise<Document | null>;
 
   readonly unique: () => Promise<Document | null>;
@@ -441,12 +463,21 @@ export function createTenantDocumentAccess(
     equality: TenantIndexEquality,
     limit: number,
     cursor: string | null,
+    order?: "asc" | "desc",
+    endCursor?: string | null,
+    nativePage?: boolean,
   ): Promise<TenantIndexPage<Document>> => {
     const answer: unknown = await port.indexedPage(
       facts.table,
       facts.name,
       equality,
-      { limit, cursor },
+      {
+        limit,
+        cursor,
+        ...(order ? { order } : {}),
+        ...(endCursor ? { endCursor } : {}),
+        ...(nativePage ? { nativePage } : {}),
+      },
     );
 
     if (answer === null || typeof answer !== "object") throw invalidResult();
@@ -455,7 +486,6 @@ export function createTenantDocumentAccess(
     const record = answer as Record<string, unknown>;
     const rows: unknown = record.page;
     if (!Array.isArray(rows)) throw invalidResult();
-    if (rows.length > limit) throw invalidResult();
 
     const isDone: unknown = record.isDone;
     if (typeof isDone !== "boolean") throw invalidResult();
@@ -467,6 +497,20 @@ export function createTenantDocumentAccess(
     }
     if (!isDone && continueCursor.length === 0) throw invalidResult();
 
+    if (
+      record.splitCursor !== undefined &&
+      record.splitCursor !== null &&
+      (typeof record.splitCursor !== "string" ||
+        record.splitCursor.length > TENANT_INDEX_MAX_CURSOR_LENGTH)
+    )
+      throw invalidResult();
+    if (
+      record.pageStatus !== undefined &&
+      record.pageStatus !== null &&
+      record.pageStatus !== "SplitRecommended" &&
+      record.pageStatus !== "SplitRequired"
+    )
+      throw invalidResult();
     const documents: Document[] = rows.map((row: unknown) =>
       assertIndexedRow<Document>(row),
     );
@@ -475,6 +519,15 @@ export function createTenantDocumentAccess(
       page: Object.freeze(documents),
       isDone,
       continueCursor,
+      ...(record.splitCursor !== undefined
+        ? { splitCursor: record.splitCursor as string | null }
+        : {}),
+      ...(record.pageStatus !== undefined
+        ? {
+            pageStatus: record.pageStatus as
+              "SplitRecommended" | "SplitRequired" | null,
+          }
+        : {}),
     });
   };
 
@@ -516,10 +569,46 @@ export function createTenantDocumentAccess(
 
       const bounded = requireLimit(request.limit);
       const cursor = requireCursor(request.cursor);
-      return await readPage<Document>(facts, equality, bounded, cursor);
+      if (
+        request.order !== undefined &&
+        request.order !== "asc" &&
+        request.order !== "desc"
+      )
+        throw invalidQuery();
+      return await readPage<Document>(
+        facts,
+        equality,
+        bounded,
+        cursor,
+        request.order,
+        requireCursor(request.endCursor),
+        true,
+      );
     };
 
-    return Object.freeze({ first, unique, take, page });
+    const all = async (limit: number): Promise<readonly Document[]> => {
+      if (
+        !Number.isSafeInteger(limit) ||
+        limit < 1 ||
+        limit > TENANT_INDEX_MAX_BATCH_SIZE
+      ) {
+        throw new TenantDbError("INVALID_LIMIT", requestId);
+      }
+      if (!port.indexedBatch) throw invalidQuery();
+      const answer = await port.indexedBatch(
+        facts.table,
+        facts.name,
+        equality,
+        limit,
+      );
+      if (!Array.isArray(answer)) throw invalidResult();
+      if (answer.length > limit)
+        throw new TenantDbError("CAPACITY_DATA_LIMIT", requestId);
+      return Object.freeze(
+        answer.map((row: unknown) => assertIndexedRow<Document>(row)),
+      );
+    };
+    return Object.freeze({ first, unique, take, page, all });
   };
 
   return Object.freeze({

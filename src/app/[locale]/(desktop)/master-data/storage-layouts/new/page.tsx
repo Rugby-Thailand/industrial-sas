@@ -1,5 +1,6 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
 
+import { ROUTES } from "@/lib/navigation";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { NewStorageBuildingForm } from "@/features/storageLayouts/StorageLayoutScreens";
 
@@ -13,7 +14,11 @@ export default async function NewStorageLayoutPage({
   const t = await getTranslations("StorageLayouts");
   return (
     <>
-      <PageHeader title={t("newBuilding")} description={t("description")} />
+      <PageHeader
+        back={{ href: ROUTES.storageLayouts, label: t("back") }}
+        title={t("newBuilding")}
+        description={t("description")}
+      />
       <NewStorageBuildingForm />
     </>
   );
