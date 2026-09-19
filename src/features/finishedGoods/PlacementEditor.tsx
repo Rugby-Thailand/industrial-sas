@@ -45,6 +45,7 @@ export function sceneProps(
   detail: PalletDetail,
 ) {
   return {
+    measuredAreaPartial: destination.measuredAreaPartial ?? false,
     storageFormat: detail.pallet.storageFormat ?? detail.product?.storageFormat,
     dimensions: {
       widthMm: detail.pallet.widthMm ?? 0,
@@ -257,6 +258,7 @@ export function PlacementEditor({
   const props = sceneProps(candidate, detail);
   const unchanged =
     moving &&
+    detail.placement?.mode !== "LOCATION_ONLY" &&
     detail.placement?.zoneId === candidate.zoneId &&
     detail.placement?.supportPositionId === candidate.supportPositionId &&
     detail.placement?.supportPalletId === candidate.supportPalletId &&
@@ -338,6 +340,7 @@ export function PlacementEditor({
             {...props}
             {...(moving &&
             detail.placement &&
+            detail.placement.mode !== "LOCATION_ONLY" &&
             detail.placement.zoneId === candidate.zoneId
               ? {
                   sourceFootprint: {
@@ -384,7 +387,10 @@ export function PlacementEditor({
               {mmText(props.dimensions.heightMm)}
             </Link>
           )}
-          {moving && detail.destination && detail.placement ? (
+          {moving &&
+          detail.destination &&
+          detail.placement &&
+          detail.placement.mode !== "LOCATION_ONLY" ? (
             <section
               aria-label={tr(
                 "Current stored position",

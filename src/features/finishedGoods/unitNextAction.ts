@@ -1,10 +1,5 @@
 import type { FinishedGoodsList } from "@/lib/convex/finishedGoodsApi";
-import {
-  measurePath,
-  palletPath,
-  storagePath,
-  unitCorrectionPath,
-} from "./shared";
+import { palletPath, storagePath } from "./shared";
 
 type Unit = FinishedGoodsList["pallets"][number];
 type Action = { href: string; label: readonly [string, string] };
@@ -23,16 +18,19 @@ export function unitNextAction(unit: Unit, canManage: boolean): Action {
   switch (unit.status) {
     case "AWAITING_MEASUREMENT":
       return {
-        href: unit.preparationBatchId
-          ? unitCorrectionPath(unit.productId, unit._id)
-          : measurePath(unit._id),
-        label: ["Measure", "วัดขนาด"],
+        href: "/finished-goods/scan",
+        label: ["Scan Packages", "สแกนบรรจุภัณฑ์"],
       };
     case "AWAITING_PLACEMENT":
-      return {
-        href: storagePath(unit._id),
-        label: ["Choose storage", "เลือกจุดจัดเก็บ"],
-      };
+      return unit.sameSize === undefined
+        ? {
+            href: storagePath(unit._id),
+            label: ["Choose storage", "เลือกจุดจัดเก็บ"],
+          }
+        : {
+            href: "/finished-goods/scan",
+            label: ["Scan Packages", "สแกนบรรจุภัณฑ์"],
+          };
     case "RESERVED":
       return {
         href: palletPath(unit._id),

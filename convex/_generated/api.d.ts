@@ -12,6 +12,7 @@ import type * as finishedGoods_batchManagement from "../finishedGoods/batchManag
 import type * as finishedGoods_batches from "../finishedGoods/batches.js";
 import type * as finishedGoods_catalogue from "../finishedGoods/catalogue.js";
 import type * as finishedGoods_catalogueFilters from "../finishedGoods/catalogueFilters.js";
+import type * as finishedGoods_scanning from "../finishedGoods/scanning.js";
 import type * as finishedGoods_summaryMaintenance from "../finishedGoods/summaryMaintenance.js";
 import type * as finishedGoods_workflow from "../finishedGoods/workflow.js";
 import type * as http from "../http.js";
@@ -44,6 +45,7 @@ import type * as lib_writeEnvelope from "../lib/writeEnvelope.js";
 import type * as model_authorization_navigationPermissions from "../model/authorization/navigationPermissions.js";
 import type * as model_finishedGoods_packing from "../model/finishedGoods/packing.js";
 import type * as model_finishedGoods_placement from "../model/finishedGoods/placement.js";
+import type * as model_finishedGoods_scanning from "../model/finishedGoods/scanning.js";
 import type * as model_gs1_checkDigit from "../model/gs1/checkDigit.js";
 import type * as model_guards from "../model/guards.js";
 import type * as model_identifiers_normalization from "../model/identifiers/normalization.js";
@@ -75,6 +77,7 @@ declare const fullApi: ApiFromModules<{
   "finishedGoods/batches": typeof finishedGoods_batches;
   "finishedGoods/catalogue": typeof finishedGoods_catalogue;
   "finishedGoods/catalogueFilters": typeof finishedGoods_catalogueFilters;
+  "finishedGoods/scanning": typeof finishedGoods_scanning;
   "finishedGoods/summaryMaintenance": typeof finishedGoods_summaryMaintenance;
   "finishedGoods/workflow": typeof finishedGoods_workflow;
   http: typeof http;
@@ -107,6 +110,7 @@ declare const fullApi: ApiFromModules<{
   "model/authorization/navigationPermissions": typeof model_authorization_navigationPermissions;
   "model/finishedGoods/packing": typeof model_finishedGoods_packing;
   "model/finishedGoods/placement": typeof model_finishedGoods_placement;
+  "model/finishedGoods/scanning": typeof model_finishedGoods_scanning;
   "model/gs1/checkDigit": typeof model_gs1_checkDigit;
   "model/guards": typeof model_guards;
   "model/identifiers/normalization": typeof model_identifiers_normalization;

@@ -25,14 +25,12 @@ import {
   Field,
   Loading,
   Status,
-  measurePath,
   palletPath,
   storagePath,
   palletDisplayStatus,
   panel,
   unitNoun,
   unitCountLabel,
-  unitCorrectionPath,
   useFGText,
   useDraftKey,
   useCanManage,
@@ -199,7 +197,11 @@ export function ProductBatches({
       returning.value.unit.retiredAt === undefined &&
       !["REPLACED", "CANCELLED"].includes(returning.value.unit.status)
     )
-      router.push(storagePath(returnId));
+      router.push(
+        returning.value.unit.status === "AWAITING_MEASUREMENT"
+          ? "/finished-goods/scan"
+          : storagePath(returnId),
+      );
     setManage(undefined);
     setCorrectionError(false);
     // Keep the consumed request until the search hook observes its removal.
@@ -237,14 +239,10 @@ export function ProductBatches({
   const summary = summaryOutcome.value;
   if (!summary) return <SummaryPreparation warehouseId={warehouseId} />;
   const reviewUnit = legacyUnits.find((unit) => unit._id === reviewId);
-  const unitLink = (unit: (typeof legacyUnits)[number], editable: boolean) => {
-    if (!canManage || unit.status !== "AWAITING_MEASUREMENT")
-      return palletPath(unit._id);
-    if (!unit.preparationBatchId) return measurePath(unit._id);
-    return editable
-      ? unitCorrectionPath(product._id, unit._id)
+  const unitLink = (unit: (typeof legacyUnits)[number]) =>
+    canManage && unit.status === "AWAITING_MEASUREMENT"
+      ? "/finished-goods/scan"
       : palletPath(unit._id);
-  };
   const renderUnit = (
     unit: (typeof legacyUnits)[number],
     legacy = false,
@@ -254,7 +252,7 @@ export function ProductBatches({
       key={unit._id}
       className="flex flex-wrap items-center justify-between gap-3 py-3"
     >
-      <Link href={unitLink(unit, editable)} className="min-w-0 hover:underline">
+      <Link href={unitLink(unit)} className="min-w-0 hover:underline">
         <span className="font-medium">
           {unitNoun(unit.storageFormat ?? product.storageFormat, tr)} ·{" "}
           {unit.code}
@@ -263,7 +261,7 @@ export function ProductBatches({
           {unit.quantity} {product.unit} ·{" "}
           {unit.lengthMm && unit.widthMm && unit.heightMm
             ? `${unit.lengthMm / 1000} × ${unit.widthMm / 1000} × ${unit.heightMm / 1000} m`
-            : tr("Awaiting measurement", "รอวัดขนาด")}
+            : tr("Measurements not recorded", "ยังไม่ได้บันทึกขนาด")}
         </span>
       </Link>
       <div className="flex flex-wrap items-center gap-2">

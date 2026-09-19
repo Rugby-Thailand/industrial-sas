@@ -9,7 +9,11 @@ export function AreaOverview({
   usableAreaSqMm,
   storedFootprintAreaSqMm = 0,
   heldFootprintAreaSqMm = 0,
+  measuredAreaPartial = false,
+  unmeasuredPalletCount = 0,
 }: {
+  readonly measuredAreaPartial?: boolean;
+  readonly unmeasuredPalletCount?: number;
   readonly grossAreaSqMm: number;
   readonly usableAreaSqMm: number;
   readonly storedFootprintAreaSqMm?: number;
@@ -55,6 +59,19 @@ export function AreaOverview({
   const description = segments
     .map((s) => `${s.label} ${format.format(s.value / 1_000_000)} ${unit}`)
     .join(" · ");
+  if (measuredAreaPartial || unmeasuredPalletCount > 0)
+    return (
+      <div className="space-y-1 text-sm">
+        <p className="font-medium">
+          {th ? "ไม่ทราบพื้นที่ว่างคงเหลือ" : "Remaining floor space unknown"}
+        </p>
+        <p className="text-xs text-muted">
+          {th
+            ? "มีสินค้าที่บันทึกเฉพาะจุดจัดเก็บ พื้นที่ที่วัดไม่รวมสินค้ากลุ่มนี้"
+            : "Some units have a location only. Measured area excludes these units."}
+        </p>
+      </div>
+    );
   let offset = 0;
   return (
     <div className="flex min-w-0 items-center gap-3">

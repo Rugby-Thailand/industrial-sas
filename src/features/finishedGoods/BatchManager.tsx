@@ -289,12 +289,20 @@ function StorageView({
         : unit.status === "AWAITING_MEASUREMENT"
           ? tr("Measure unit", "วัดขนาดหน่วย")
           : tr("Find storage", "เลือกจุดจัดเก็บ");
-  const actionHref =
-    unit.moveStatus || unit.status === "STORED"
-      ? `${palletPath(unit._id)}/move`
-      : unit.status === "RESERVED" || unit.status === "AWAITING_MEASUREMENT"
-        ? palletPath(unit._id)
-        : storagePath(unit._id);
+  const locationOnly = p?.mode === "LOCATION_ONLY";
+  const scanReady =
+    !unit.moveStatus &&
+    (unit.status === "AWAITING_MEASUREMENT" ||
+      (unit.status === "AWAITING_PLACEMENT" && data.batch.simplePacking));
+  const actionHref = scanReady
+    ? "/finished-goods/scan"
+    : locationOnly
+      ? palletPath(unit._id)
+      : unit.moveStatus || unit.status === "STORED"
+        ? `${palletPath(unit._id)}/move`
+        : unit.status === "RESERVED" || unit.status === "AWAITING_MEASUREMENT"
+          ? palletPath(unit._id)
+          : storagePath(unit._id);
   return (
     <div className="grid min-w-0 gap-5 lg:grid-cols-[240px_1fr]">
       <div className="min-w-0">
@@ -335,7 +343,22 @@ function StorageView({
           />
         ) : (
           <>
-            {d && p ? (
+            {p?.mode === "LOCATION_ONLY" ? (
+              <div className="space-y-2 rounded-xl border border-border p-5">
+                <p className="font-semibold">
+                  {tr("Location", "จุดจัดเก็บ")}: {p.positionCode}
+                </p>
+                <p>
+                  {tr("Top-to-bottom position", "ลำดับจากบนลงล่าง")}:{" "}
+                  {p.sequence}
+                </p>
+                <Button asChild variant="outline">
+                  <Link href={palletPath(unit._id)}>
+                    {tr("View scanned group", "ดูกลุ่มที่สแกน")}
+                  </Link>
+                </Button>
+              </div>
+            ) : d && p ? (
               <>
                 <PalletScene
                   locale={locale}
@@ -425,7 +448,11 @@ function StorageView({
                     href={actionHref}
                     onClick={(event) => onNavigate(event, actionHref)}
                   >
-                    {action}
+                    {locationOnly
+                      ? tr("View scanned group", "ดูกลุ่มที่สแกน")
+                      : scanReady
+                        ? tr("Scan Packages", "สแกนบรรจุภัณฑ์")
+                        : action}
                   </Link>
                 </Button>
               )}
@@ -492,8 +519,19 @@ function AvailableEditor({
   const stale =
     data.batch.revision !== base.revision ||
     base.ids.some((id) => !data.units.some((u) => u._id === id && u.editable));
-  const packages = rows.map(packedUnit);
-  const invalid = validatePacking(base.total, packages, data.product.unit);
+  const packages = rows.map((row) =>
+    packedUnit(
+      data.batch.simplePacking
+        ? { ...row, fillPercent: row.fillPercent ?? "100" }
+        : row,
+    ),
+  );
+  const invalid = validatePacking(
+    base.total,
+    packages,
+    data.product.unit,
+    data.batch.simplePacking ? "SIMPLE" : "GEOMETRIC",
+  );
   const allocatedMinor = packages.reduce(
     (sum, p) => sum + (quantityToMinor(p.quantity, data.product.unit) ?? 0),
     0,
@@ -542,6 +580,7 @@ function AvailableEditor({
       batchId: data.batch._id,
       expectedRevision: base.revision,
       unitIds: base.ids,
+      ...(data.batch.simplePacking ? { simplePacking: true } : {}),
       packages,
     };
     await op.run(async () => {
@@ -661,26 +700,42 @@ function AvailableEditor({
                   value={r.quantity}
                   onChange={(value) => update(r.id, { quantity: value })}
                 />
-                <PackingDimensionFields
-                  row={r}
-                  label={(field) =>
-                    `${field === "length" ? tr("Length (m)", "ยาว (ม.)") : field === "width" ? tr("Width (m)", "กว้าง (ม.)") : tr("Height (m)", "สูง (ม.)")} · ${i + 1}`
-                  }
-                  onChange={(changes) => update(r.id, changes)}
-                />
+                {data.batch.simplePacking ? (
+                  <Field
+                    label={`${tr("Fullness (%)", "ความเต็ม (%)")} · ${i + 1}`}
+                    type="number"
+                    min={1}
+                    max={100}
+                    step="1"
+                    value={r.fillPercent ?? "100"}
+                    onChange={(fillPercent) => update(r.id, { fillPercent })}
+                  />
+                ) : (
+                  <PackingDimensionFields
+                    row={r}
+                    label={(field) =>
+                      `${field === "length" ? tr("Length (m)", "ยาว (ม.)") : field === "width" ? tr("Width (m)", "กว้าง (ม.)") : tr("Height (m)", "สูง (ม.)")} · ${i + 1}`
+                    }
+                    onChange={(changes) => update(r.id, changes)}
+                  />
+                )}
               </div>
-              <label className="mt-3 flex items-center gap-2 text-xs">
-                <input
-                  type="checkbox"
-                  checked={r.checked}
-                  onChange={(e) => update(r.id, { checked: e.target.checked })}
-                />
-                {tr(
-                  "Actual outside dimensions checked",
-                  "ตรวจสอบขนาดภายนอกจริงแล้ว",
-                )}{" "}
-                · {i + 1}
-              </label>
+              {!data.batch.simplePacking && (
+                <label className="mt-3 flex items-center gap-2 text-xs">
+                  <input
+                    type="checkbox"
+                    checked={r.checked}
+                    onChange={(e) =>
+                      update(r.id, { checked: e.target.checked })
+                    }
+                  />
+                  {tr(
+                    "Actual outside dimensions checked",
+                    "ตรวจสอบขนาดภายนอกจริงแล้ว",
+                  )}{" "}
+                  · {i + 1}
+                </label>
+              )}
             </div>
           ))}
         </div>

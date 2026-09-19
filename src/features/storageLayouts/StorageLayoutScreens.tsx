@@ -645,7 +645,21 @@ function BuildingContent({
   if (!outcome.ok) return <QueryFailure />;
   if (!outcome.value.found)
     return <Notice tone="warning" title={t("notFound")} />;
-  const { building, floors } = outcome.value;
+  const { building: savedBuilding, floors } = outcome.value;
+  const unmeasuredPalletCount = floors.reduce(
+    (sum, floor) =>
+      sum +
+      floor.storageZones.reduce(
+        (count, zone) => count + (zone.unmeasuredPalletCount ?? 0),
+        0,
+      ),
+    0,
+  );
+  const building = {
+    ...savedBuilding,
+    unmeasuredPalletCount,
+    measuredAreaPartial: unmeasuredPalletCount > 0,
+  };
   const placements = floors.flatMap((floor) =>
     floor.storageZones.flatMap((zone) => zone.placements),
   );
@@ -784,7 +798,10 @@ function BuildingSettings({
     const data = new FormData(event.currentTarget);
     const heightChanged =
       millimetres(String(data.get("height"))) !== building.defaultFloorHeightMm;
-    if (placements.length > 0 && heightChanged) {
+    if (
+      placements.length + (building.unmeasuredPalletCount ?? 0) > 0 &&
+      heightChanged
+    ) {
       setConfirmingImpact(true);
       setError(undefined);
       return;
@@ -887,13 +904,18 @@ function BuildingSettings({
         ) : null}
         <Button
           size="default"
-          disabled={pending || (confirmingImpact && placements.length > 0)}
+          disabled={
+            pending ||
+            (confirmingImpact &&
+              placements.length + (building.unmeasuredPalletCount ?? 0) > 0)
+          }
         >
           {pending
             ? t("saving")
             : confirmingImpact
               ? t("confirmChanges")
-              : floorHeightChanged && placements.length > 0
+              : floorHeightChanged &&
+                  placements.length + (building.unmeasuredPalletCount ?? 0) > 0
                 ? t("reviewImpact")
                 : t("saveBuilding")}
         </Button>
@@ -1073,7 +1095,10 @@ export function BuildingModelWorkspace({
   const [selectedFloorNumber, setSelectedFloorNumber] = useState(
     (
       floors.find((floor) =>
-        floor.storageZones.some((zone) => zone.placements.length > 0),
+        floor.storageZones.some(
+          (zone) =>
+            zone.placements.length + (zone.unmeasuredPalletCount ?? 0) > 0,
+        ),
       ) ??
       floors.find((floor) => floor.storageZones.length > 0) ??
       floors[0]
@@ -1371,10 +1396,19 @@ function FloorForm({
   const placements = detail.floors.flatMap((candidate) =>
     candidate.storageZones.flatMap((zone) => zone.placements),
   );
+  const unmeasuredCount = detail.floors.reduce(
+    (sum, item) =>
+      sum +
+      item.storageZones.reduce(
+        (count, zone) => count + (zone.unmeasuredPalletCount ?? 0),
+        0,
+      ),
+    0,
+  );
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (!editable || pending) return;
-    if (placements.length > 0) {
+    if (placements.length + unmeasuredCount > 0) {
       setConfirmingImpact(true);
       setMessage(undefined);
       return;
@@ -1489,6 +1523,11 @@ function FloorForm({
             grossAreaSqMm={grossAreaSqMm}
             usableAreaSqMm={usableAreaSqMm}
             {...storageFootprintUsage(floor.storageZones)}
+            measuredAreaPartial={floor.storageZones.some(
+              (zone) =>
+                zone.measuredAreaPartial ||
+                (zone.unmeasuredPalletCount ?? 0) > 0,
+            )}
           />
         </div>
         <ReservedBlocks
@@ -1554,7 +1593,7 @@ function FloorForm({
             !editable ||
             pending ||
             !hasUnsavedFloorChanges ||
-            (confirmingImpact && placements.length > 0)
+            (confirmingImpact && placements.length + unmeasuredCount > 0)
           }
         >
           {pending
@@ -1563,7 +1602,8 @@ function FloorForm({
               ? t("confirmChanges")
               : !hasUnsavedFloorChanges
                 ? t("floorSaved")
-                : detail.building.status === "ACTIVE" && placements.length > 0
+                : detail.building.status === "ACTIVE" &&
+                    placements.length + unmeasuredCount > 0
                   ? t("reviewImpact")
                   : t("saveAndContinue")}
         </Button>
@@ -2078,7 +2118,9 @@ function FloorVolume({
                 className="fill-text text-[9px] font-bold"
               >
                 {zone.code.split("-").at(-1)} ·{" "}
-                {uniqueStoragePallets(zone.placements).length}
+                {zone.palletCount ??
+                  uniqueStoragePallets(zone.placements).length +
+                    (zone.unmeasuredPalletCount ?? 0)}
               </text>
             </g>
           );
@@ -2321,7 +2363,9 @@ function FloorPlanDrawing({
             style={{ fontSize: labelSize * 0.78 }}
           >
             {zone.code.split("-").at(-1)} ·{" "}
-            {uniqueStoragePallets(zone.placements).length}
+            {zone.palletCount ??
+              uniqueStoragePallets(zone.placements).length +
+                (zone.unmeasuredPalletCount ?? 0)}
           </text>
         </g>
       ))}
@@ -2789,7 +2833,8 @@ export function StorageZonesPanel({
   };
   const occupiedChangeBlocked =
     editingZone !== undefined &&
-    editingZone.placements.length > 0 &&
+    editingZone.placements.length + (editingZone.unmeasuredPalletCount ?? 0) >
+      0 &&
     (zoneDraft.xMm !== editingZone.xMm ||
       zoneDraft.yMm !== editingZone.yMm ||
       zoneDraft.widthMm !== editingZone.widthMm ||
@@ -3363,16 +3408,21 @@ export function StorageZonesPanel({
                   </ul>
                 )}
               </details>
-              {zone.placements.length === 0 && (
-                <p className="mt-3 border-t border-border pt-3 text-xs text-muted">
-                  {t("noPalletsAtSpot")}
-                </p>
-              )}
+              {zone.placements.length === 0 &&
+                !(zone.unmeasuredPalletCount ?? 0) && (
+                  <p className="mt-3 border-t border-border pt-3 text-xs text-muted">
+                    {t("noPalletsAtSpot")}
+                  </p>
+                )}
+              <LocationOnlyInventory zone={zone} />
               {zone.placements.length > 0 && (
                 <div className="mt-4 border-t border-border pt-3">
                   <p className="text-xs font-semibold text-muted">
                     {t("palletsAtLocation", {
-                      count: uniqueStoragePallets(zone.placements).length,
+                      count:
+                        zone.palletCount ??
+                        uniqueStoragePallets(zone.placements).length +
+                          (zone.unmeasuredPalletCount ?? 0),
                     })}
                   </p>
                   <p className="mt-1 text-xs text-muted">
@@ -3532,7 +3582,21 @@ function ReviewContent({
   if (!outcome.ok) return <QueryFailure />;
   if (!outcome.value.found)
     return <Notice tone="warning" title={t("notFound")} />;
-  const { building, floors } = outcome.value;
+  const { building: savedBuilding, floors } = outcome.value;
+  const unmeasuredPalletCount = floors.reduce(
+    (sum, floor) =>
+      sum +
+      floor.storageZones.reduce(
+        (count, zone) => count + (zone.unmeasuredPalletCount ?? 0),
+        0,
+      ),
+    0,
+  );
+  const building = {
+    ...savedBuilding,
+    unmeasuredPalletCount,
+    measuredAreaPartial: unmeasuredPalletCount > 0,
+  };
   const storageStackCount = floors.reduce(
     (total, floor) => total + floor.storageZones.length,
     0,
@@ -3659,6 +3723,40 @@ function ReviewContent({
           </Button>
         ) : null}
       </aside>
+    </div>
+  );
+}
+
+function LocationOnlyInventory({ zone }: { zone: StorageZoneRow }) {
+  const th = useLocale() === "th";
+  if (!zone.locationOnlyPlacements?.length) return null;
+  return (
+    <div className="mt-4 space-y-2 border-t border-border pt-3">
+      <p className="text-sm font-semibold">
+        {th ? "สินค้าที่บันทึกเฉพาะจุดจัดเก็บ" : "Units with a saved location"}{" "}
+        · {zone.locationOnlyPlacements.length}
+      </p>
+      <p className="text-xs text-muted">
+        {th
+          ? "ไม่ได้วัดพิกัด พื้นที่ว่างคงเหลือไม่ทราบแน่ชัด"
+          : "Coordinates unmeasured. Remaining floor space is unknown."}
+      </p>
+      <ul className="space-y-2">
+        {zone.locationOnlyPlacements.map((unit) => (
+          <li
+            key={unit.placementId}
+            className="rounded-lg border border-border p-3 text-sm"
+          >
+            <Link
+              className="font-semibold text-accent underline"
+              href={palletPath(unit.handlingUnitId)}
+            >
+              {unit.lpn}
+            </Link>{" "}
+            · #{unit.sequence} · {unit.productName}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

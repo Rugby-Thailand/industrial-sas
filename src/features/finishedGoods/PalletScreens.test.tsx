@@ -1273,3 +1273,72 @@ it("does not offer pallet stacking for a stored box", () => {
   ).not.toBeInTheDocument();
   expect(screen.getByRole("link", { name: "Move box" })).toBeVisible();
 });
+
+it("reads saved location-only group order without inventing a geometric scene", () => {
+  currentDetail = {
+    ...reservedPalletDetail,
+    pallet: { ...reservedPalletDetail.pallet, status: "STORED" },
+    destination: null,
+    placement: {
+      _id: "scan-placement",
+      _creationTime: 1,
+      orgId: "org-a",
+      warehouseId: "warehouse-a",
+      palletId: "pallet-a",
+      buildingId: "building-a",
+      floorId: "floor-a",
+      zoneId: "zone-a",
+      locationId: "location-a",
+      mode: "LOCATION_ONLY",
+      assignmentId: "assignment-a",
+      sequence: 1,
+      status: "STORED",
+      positionCode: "LOC-1",
+      qrValue: "LOC-1",
+      createdAt: 1,
+      updatedAt: 1,
+      createdByUserId: "user-a",
+      updatedByUserId: "user-a",
+    },
+  };
+  mocks.query.mockImplementation((name) =>
+    name.endsWith(":getScanAssignment")
+      ? querySuccess({
+          location: { code: "LOC-1", name: "Packing zone" },
+          sameSize: false,
+          orderedUnits: [
+            {
+              unitId: "pallet-a",
+              code: "A",
+              productName: "Item A",
+              sequence: 1,
+              fillPercent: 75,
+            },
+            {
+              unitId: "pallet-b",
+              code: "B",
+              productName: "Item B",
+              sequence: 2,
+              fillPercent: 50,
+            },
+          ],
+        })
+      : querySuccess(currentDetail),
+  );
+  renderPallet();
+  expect(screen.getByText("LOC-1 · Packing zone")).toBeVisible();
+  const group = screen.getByRole("list");
+  expect(within(group).getAllByRole("listitem")[0]).toHaveTextContent(
+    "1 · TopAItem A75% full",
+  );
+  expect(within(group).getAllByRole("listitem")[1]).toHaveTextContent(
+    "2 · BottomBItem B50% full",
+  );
+  expect(
+    screen.queryByRole("link", { name: /Move pallet/ }),
+  ).not.toBeInTheDocument();
+  expect(screen.queryByText("Destination unavailable")).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: "3D view" }),
+  ).not.toBeInTheDocument();
+});

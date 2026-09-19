@@ -183,10 +183,17 @@ function Catalogue({
       <Heading
         title={tr("Finished goods", "สินค้าสำเร็จรูป")}
         description={tr(
-          "Prepare goods, measure storage units and choose their exact positions.",
-          "จัดเตรียมสินค้า วัดขนาดหน่วยจัดเก็บ และเลือกตำแหน่งจัดเก็บที่แน่นอน",
+          "Prepare goods, scan packages and confirm their storage location.",
+          "จัดเตรียมสินค้า สแกนบรรจุภัณฑ์ และยืนยันจุดจัดเก็บ",
         )}
       >
+        {canManage && (
+          <Button asChild variant="outline">
+            <Link href={`${FG_PATH}/scan`}>
+              {tr("Scan Packages", "สแกนพัสดุ")}
+            </Link>
+          </Button>
+        )}
         {canManage && (
           <Button asChild>
             <Link href={`${FG_PATH}/new`}>
@@ -358,8 +365,8 @@ function Catalogue({
                 )
               : canManage
                 ? tr(
-                    "Create a product, then prepare a batch to pack, measure and store.",
-                    "สร้างสินค้า แล้วจัดเตรียมชุดเพื่อแบ่งบรรจุ วัดขนาด และจัดเก็บ",
+                    "Create a product, then prepare a batch to pack, scan and store.",
+                    "สร้างสินค้า แล้วจัดเตรียมชุดเพื่อแบ่งบรรจุ สแกน และจัดเก็บ",
                   )
                 : tr(
                     "No records are available in this warehouse yet.",

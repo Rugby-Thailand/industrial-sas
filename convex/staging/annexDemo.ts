@@ -1,3 +1,4 @@
+import { isGeometricPlacement } from "../model/finishedGoods/scanning";
 import { v } from "convex/values";
 
 import type { Doc } from "../_generated/dataModel";
@@ -1408,7 +1409,7 @@ export const inspect = internalQuery({
     }
     const usage = storageFootprintUsage(
       [...byZone.values()].map((zonePlacements) => ({
-        placements: zonePlacements,
+        placements: zonePlacements.filter(isGeometricPlacement),
       })),
     );
     const occupiedAreaSqMm =

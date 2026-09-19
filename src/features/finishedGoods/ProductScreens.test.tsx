@@ -822,7 +822,7 @@ describe("finished goods catalogue", () => {
     ).toBeVisible();
   });
 
-  it("finds a pallet by its product name and sends unmeasured pallets to measurement", () => {
+  it("finds a pallet by its product name and sends unmeasured pallets to scanning", () => {
     renderCatalogue();
     fireEvent.click(screen.getByRole("button", { name: "Storage units" }));
     fireEvent.change(
@@ -833,8 +833,8 @@ describe("finished goods catalogue", () => {
     const card = name.closest("article");
     if (!card) throw new Error("Pallet card missing");
     expect(
-      within(card).getByRole("link", { name: "Measure P-001" }),
-    ).toHaveAttribute("href", "/finished-goods/pallets/pallet-a/measure");
+      within(card).getByRole("link", { name: "Scan Packages P-001" }),
+    ).toHaveAttribute("href", "/finished-goods/scan");
     expect(within(card).getByRole("link", { name: "P-001" })).toHaveAttribute(
       "href",
       "/finished-goods/pallets/pallet-a",
@@ -1218,7 +1218,15 @@ describe("preparation batches and legacy review", () => {
           blockedReason: "BATCH_NOT_EDITABLE",
         },
       ],
-      legacyUnits: [{ ...unit, status: "RESERVED" }],
+      legacyUnits: [
+        { ...unit, status: "RESERVED" },
+        {
+          ...unit,
+          _id: "moving-legacy",
+          status: "STORED",
+          moveStatus: "IN_TRANSIT",
+        },
+      ],
     });
     expect(
       screen.getByRole("button", { name: "View storage atch-one" }),
@@ -1456,11 +1464,7 @@ describe("column filter interactions", () => {
 
 describe("direct catalogue unit actions", () => {
   it.each([
-    [
-      "AWAITING_MEASUREMENT",
-      "Measure",
-      "/finished-goods/pallets/pallet-a/measure",
-    ],
+    ["AWAITING_MEASUREMENT", "Scan Packages", "/finished-goods/scan"],
     [
       "AWAITING_PLACEMENT",
       "Choose storage",
@@ -1500,7 +1504,7 @@ describe("direct catalogue unit actions", () => {
     },
   );
 
-  it("skips the intermediate measurement screen for a preparation batch", () => {
+  it("sends unmeasured preparation batches directly to scanning", () => {
     mocks.query.mockReturnValue(
       querySuccess({
         ...finishedGoodsList,
@@ -1514,15 +1518,13 @@ describe("direct catalogue unit actions", () => {
       workspace: false,
     });
     fireEvent.click(screen.getByRole("button", { name: "Storage units" }));
-    expect(screen.getByRole("link", { name: "Measure P-001" })).toHaveAttribute(
-      "href",
-      "/finished-goods/products/product-a?editUnit=pallet-a",
-    );
+    expect(
+      screen.getByRole("link", { name: "Scan Packages P-001" }),
+    ).toHaveAttribute("href", "/finished-goods/scan");
     fireEvent.click(screen.getByRole("button", { name: "Table view" }));
-    expect(screen.getByRole("link", { name: "Measure P-001" })).toHaveAttribute(
-      "href",
-      "/finished-goods/products/product-a?editUnit=pallet-a",
-    );
+    expect(
+      screen.getByRole("link", { name: "Scan Packages P-001" }),
+    ).toHaveAttribute("href", "/finished-goods/scan");
   });
 
   it("resumes moves directly but keeps read-only users on unit details", () => {

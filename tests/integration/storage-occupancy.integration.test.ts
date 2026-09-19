@@ -184,6 +184,8 @@ describe("planner protects finished goods occupancy", () => {
       await occupiedWorld("STORED");
     const moveId = await world.t.run(async (ctx) => {
       const source = (await ctx.db.get(placementId))!;
+      if (source.mode === "LOCATION_ONLY")
+        throw new Error("Expected geometric fixture");
       const { _id, _creationTime, ...document } = source;
       void _id;
       void _creationTime;

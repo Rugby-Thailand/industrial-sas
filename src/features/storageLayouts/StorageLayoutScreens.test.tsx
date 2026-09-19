@@ -1236,6 +1236,40 @@ it("allows widening an occupied building but blocks changing its floor height", 
 });
 
 describe("searchable storage spots", () => {
+  it("lists location-only units without showing an empty location or geometric footprint", () => {
+    const zone = {
+      ...occupiedTestZone(),
+      placements: [],
+      palletCount: 1,
+      unmeasuredPalletCount: 1,
+      measuredAreaPartial: true,
+      locationOnlyPlacements: [
+        {
+          mode: "LOCATION_ONLY" as const,
+          placementId: "location-placement",
+          handlingUnitId: "scan-pallet",
+          lpn: "SCAN-001",
+          assignmentId: "assignment-a",
+          sequence: 1,
+          positionCode: "LOC-1",
+          status: "STORED" as const,
+        },
+      ],
+    };
+    show([zone]);
+    expect(screen.getByRole("link", { name: "SCAN-001" })).toHaveAttribute(
+      "href",
+      "/finished-goods/pallets/scan-pallet",
+    );
+    expect(screen.getByText(/Coordinates unmeasured/)).toBeVisible();
+    expect(
+      screen.queryByText("No pallets at this spot"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: /Move pallet/ }),
+    ).not.toBeInTheDocument();
+  });
+
   function show(zones: StorageZoneRow[], locale: "en" | "th" = "en") {
     return renderWithIntl(
       <StorageZonesPanel

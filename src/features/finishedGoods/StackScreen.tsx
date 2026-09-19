@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { Layers3, RotateCw, LockKeyhole, CheckCircle2 } from "lucide-react";
 import { QueryGate } from "@/components/system/QueryGate";
+import { Notice } from "@/components/ui/Notice";
 import { Button } from "@/components/ui/button";
 import { SelectControl } from "@/components/ui/SelectControl";
 import { Link, useRouter } from "@/i18n/navigation";
@@ -146,6 +147,7 @@ function StackLoader({
   const [lowerDirty, setLowerDirty] = useState(false);
   const [upperDirty, setUpperDirty] = useState(false);
   const [rotation, setRotation] = useState<0 | 90>(0);
+  const detail = useQuery(fgRefs.getPallet, { warehouseId, palletId });
   const result = useQuery(fgRefs.stackOptions, {
     warehouseId,
     palletId,
@@ -154,6 +156,26 @@ function StackLoader({
   });
   const reserve = useMutation(fgRefs.reserve);
   const reserveMove = useMutation(fgRefs.reserveMove);
+  if (detail?.ok && detail.value?.placement?.mode === "LOCATION_ONLY")
+    return (
+      <>
+        <Heading
+          title={tr("Stacking unavailable", "ยังไม่รองรับการซ้อน")}
+          back={palletPath(palletId)}
+          backLabel={tr("Back to pallet", "กลับไปที่พาเลท")}
+        />
+        <Notice
+          title={tr(
+            "This unit has a saved location without measured coordinates.",
+            "บรรจุภัณฑ์นี้บันทึกจุดจัดเก็บโดยไม่มีพิกัดที่วัด",
+          )}
+          body={tr(
+            "The saved sequence records top-to-bottom order. It does not establish a measured supporting surface for stacking.",
+            "ลำดับที่บันทึกแสดงจากบนลงล่าง แต่ไม่ได้ระบุพื้นผิวรองรับที่วัดสำหรับการซ้อน",
+          )}
+        />
+      </>
+    );
   if (!result) return <Loading />;
   if (!result.ok || !result.value) return <Missing />;
   const {

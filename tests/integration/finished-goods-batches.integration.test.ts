@@ -636,3 +636,59 @@ describe("preparation integrity", () => {
     });
   });
 });
+
+it("commits unmeasured mixed-size packages with fullness while preserving stock totals", async () => {
+  const { world, args } = await setup();
+  const simple = {
+    ...args,
+    simplePacking: true,
+    sameSize: false,
+    packages: [
+      { quantity: 50, dimensionsChecked: false, fillPercent: 100 },
+      { quantity: 50, dimensionsChecked: false, fillPercent: 25 },
+    ],
+  };
+  expect(await call(world, batches.commitBatch, simple)).toMatchObject({
+    ok: true,
+    value: { written: true },
+  });
+  const units = await active(world);
+  expect(units.map((p) => p.quantity)).toEqual([50, 50]);
+  expect(units.map((p) => p.fillPercent)).toEqual([100, 25]);
+  expect(
+    units.every(
+      (p) =>
+        p.sameSize === false &&
+        p.lengthMm === undefined &&
+        p.status === "AWAITING_PLACEMENT",
+    ),
+  ).toBe(true);
+  const [batch] = await batchRows(world);
+  expect(batch).toMatchObject({ simplePacking: true, sameSize: false });
+});
+it("rejects incomplete measured packing and invalid simple fullness or quantity without creating stock", async () => {
+  const { world, args } = await setup();
+  const packages = [
+    { quantity: 50, dimensionsChecked: false, fillPercent: 100 },
+    { quantity: 50, dimensionsChecked: false, fillPercent: 25 },
+  ];
+  for (const variant of [
+    { ...args, packages },
+    {
+      ...args,
+      simplePacking: true,
+      packages: [{ ...packages[0], fillPercent: 101 }, packages[1]],
+    },
+    {
+      ...args,
+      simplePacking: true,
+      packages: [{ ...packages[0], quantity: 45 }, packages[1]],
+    },
+  ]) {
+    expect(await call(world, batches.commitBatch, variant)).toMatchObject({
+      ok: true,
+      value: { written: false },
+    });
+  }
+  expect(await active(world)).toHaveLength(0);
+});

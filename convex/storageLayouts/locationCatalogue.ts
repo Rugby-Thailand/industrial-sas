@@ -1,4 +1,5 @@
 import { summaryReadiness } from "../lib/finishedGoodsSummary";
+import { isGeometricPlacement } from "../model/finishedGoods/scanning";
 import { v } from "convex/values";
 import type { Doc } from "../_generated/dataModel";
 import {
@@ -112,10 +113,26 @@ async function withOccupancy(
   return {
     ...row,
     palletCount: new Set(placements.map((p) => p.palletId)).size,
-    occupiedFootprintAreaSqMm: occupiedFootprintAreaSqMm(placements),
+    unmeasuredPalletCount: placements.filter((p) => !isGeometricPlacement(p))
+      .length,
+    measuredAreaPartial: placements.some((p) => !isGeometricPlacement(p)),
+    occupiedFootprintAreaSqMm: occupiedFootprintAreaSqMm(
+      placements.filter(isGeometricPlacement),
+    ),
     placements: placements.map((p) => {
+      if (!isGeometricPlacement(p))
+        return {
+          id: p._id,
+          palletId: p.palletId,
+          code: p.positionCode,
+          status: p.status,
+          mode: "LOCATION_ONLY" as const,
+          assignmentId: p.assignmentId,
+          sequence: p.sequence,
+        };
       const move = moveByPallet.get(p.palletId);
       return {
+        mode: "GEOMETRIC" as const,
         id: p._id,
         palletId: p.palletId,
         code: p.positionCode,

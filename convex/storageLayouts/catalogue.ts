@@ -1,4 +1,5 @@
 import { summaryReadiness } from "../lib/finishedGoodsSummary";
+import { isGeometricPlacement } from "../model/finishedGoods/scanning";
 import {
   paginatedScan,
   remainingScanCapacity,
@@ -81,7 +82,22 @@ async function readZonePlacements(
             pallet.productId,
           )
         : null;
+      if (!isGeometricPlacement(placement))
+        return {
+          mode: "LOCATION_ONLY" as const,
+          placementId: placement._id,
+          handlingUnitId: placement.palletId,
+          lpn: pallet?.code ?? placement.positionCode,
+          assignmentId: placement.assignmentId,
+          sequence: placement.sequence,
+          positionCode: placement.positionCode,
+          positionId: placement.supportPositionId,
+          productName: product?.name,
+          quantity: pallet?.quantity,
+          status: placement.status,
+        };
       return {
+        mode: "GEOMETRIC" as const,
         ...(product
           ? {
               productName: product.name,
@@ -158,7 +174,11 @@ async function readFloor(
     .all(50);
   const storageZones = await Promise.all(
     zones.map(async (zone) => {
-      const placements = await readZonePlacements(ctx, zone, moves);
+      const allPlacements = await readZonePlacements(ctx, zone, moves);
+      const placements = allPlacements.filter((p) => p.mode === "GEOMETRIC");
+      const locationOnlyPlacements = allPlacements.filter(
+        (p) => p.mode === "LOCATION_ONLY",
+      );
       const storedPositions = await ctx.tenantDb
         .byIndex<PositionDocument>(
           "storagePositions",
@@ -252,7 +272,10 @@ async function readFloor(
         maxStackHeightMm: zone.maxStackHeightMm,
         positions: resolvedPositions,
         placements,
-        palletCount: new Set(placements.map((p) => p.handlingUnitId)).size,
+        locationOnlyPlacements,
+        unmeasuredPalletCount: locationOnlyPlacements.length,
+        measuredAreaPartial: locationOnlyPlacements.length > 0,
+        palletCount: new Set(allPlacements.map((p) => p.handlingUnitId)).size,
         occupiedFootprintAreaSqMm: occupiedFootprintAreaSqMm(placements),
       };
     }),
@@ -310,8 +333,13 @@ async function buildingWithOccupancy(
   return {
     ...row,
     buildingId: row._id,
+    unmeasuredPalletCount: placements.filter((p) => !isGeometricPlacement(p))
+      .length,
+    measuredAreaPartial: placements.some((p) => !isGeometricPlacement(p)),
     ...storageFootprintUsage(
-      [...zones.values()].map((placements) => ({ placements })),
+      [...zones.values()].map((placements) => ({
+        placements: placements.filter(isGeometricPlacement),
+      })),
     ),
   };
 }

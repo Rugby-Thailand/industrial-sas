@@ -4,9 +4,10 @@ export const MAX_FG_PACKAGES = 50;
 export const MAX_PACKING_QUANTITY = 1_000_000_000;
 export interface PackedUnit {
   quantity: number;
-  lengthMm: number;
-  widthMm: number;
-  heightMm: number;
+  lengthMm?: number;
+  widthMm?: number;
+  heightMm?: number;
+  fillPercent?: number;
   weightKg?: number;
   dimensionsChecked: boolean;
 }
@@ -72,6 +73,7 @@ export function validatePacking(
   total: number,
   rows: readonly PackedUnit[],
   unit: string,
+  mode: "GEOMETRIC" | "SIMPLE" = "GEOMETRIC",
 ): string | null {
   const expected = quantityToMinor(total, unit);
   if (expected === null) return "QUANTITY_INVALID";
@@ -81,7 +83,13 @@ export function validatePacking(
   for (const row of rows) {
     const quantity = quantityToMinor(row.quantity, unit);
     if (quantity === null) return "QUANTITY_INVALID";
-    if (![row.lengthMm, row.widthMm, row.heightMm].every(validDimension))
+    if (
+      mode === "GEOMETRIC"
+        ? ![row.lengthMm, row.widthMm, row.heightMm].every(validDimension)
+        : [row.lengthMm, row.widthMm, row.heightMm].some(
+            (value) => value !== undefined && !validDimension(value),
+          )
+    )
       return "DIMENSIONS_INVALID";
     if (
       row.weightKg !== undefined &&
@@ -90,7 +98,15 @@ export function validatePacking(
         row.weightKg > 1_000_000)
     )
       return "WEIGHT_INVALID";
-    if (!row.dimensionsChecked) return "DIMENSIONS_UNCHECKED";
+    if (mode === "GEOMETRIC" && !row.dimensionsChecked)
+      return "DIMENSIONS_UNCHECKED";
+    if (
+      row.fillPercent !== undefined &&
+      (!Number.isInteger(row.fillPercent) ||
+        row.fillPercent < 1 ||
+        row.fillPercent > 100)
+    )
+      return "FILL_PERCENT_INVALID";
     allocated += quantity;
   }
   return allocated === expected ? null : "QUANTITY_MISMATCH";

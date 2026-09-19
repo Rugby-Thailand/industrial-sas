@@ -57,3 +57,19 @@ it("shows zero remaining on a full building and omits the detailed subtitle", ()
     "Free 0 m² · Stored 60 m² · Reserved 4 m² · Unavailable 16 m²",
   );
 });
+
+it("does not claim free area when a location-only unit occupies the building", () => {
+  render(
+    <NextIntlClientProvider locale="en" messages={messagesFor("en")}>
+      <AreaOverview
+        grossAreaSqMm={100_000_000}
+        usableAreaSqMm={100_000_000}
+        measuredAreaPartial
+        unmeasuredPalletCount={2}
+      />
+    </NextIntlClientProvider>,
+  );
+  expect(screen.getByText("Remaining floor space unknown")).toBeVisible();
+  expect(screen.queryByText("Free 100 m²")).not.toBeInTheDocument();
+  expect(screen.queryByRole("img")).not.toBeInTheDocument();
+});

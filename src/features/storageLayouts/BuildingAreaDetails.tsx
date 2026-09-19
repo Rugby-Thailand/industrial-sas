@@ -93,9 +93,29 @@ export function BuildingUsageContent({
   const usable = Math.max(0, Math.min(gross, building.usableAreaSqMm));
   const stored = Math.min(usable, usage.storedFootprintAreaSqMm);
   const reserved = Math.min(usable - stored, usage.heldFootprintAreaSqMm);
+  const locationOnly = floors.flatMap((floor) =>
+    floor.storageZones.flatMap((zone) =>
+      (zone.locationOnlyPlacements ?? []).map((placement) => ({
+        floor,
+        zone,
+        placement,
+      })),
+    ),
+  );
+  const partial =
+    locationOnly.length > 0 ||
+    floors.some((floor) =>
+      floor.storageZones.some((zone) => zone.measuredAreaPartial),
+    );
   const segments = [
     {
-      label: th ? "ว่าง" : "Free",
+      label: partial
+        ? th
+          ? "พื้นที่ส่วนที่ยังไม่ทราบการใช้"
+          : "Unmeasured remainder"
+        : th
+          ? "ว่าง"
+          : "Free",
       value: usable - stored - reserved,
       color: sceneColors.free,
     },
@@ -129,6 +149,29 @@ export function BuildingUsageContent({
   );
   return (
     <div className="min-w-0 space-y-5">
+      {partial && (
+        <div className="space-y-2 rounded-lg border border-border p-3 text-sm">
+          <p>
+            {th
+              ? "พื้นที่ว่างคงเหลือไม่ทราบแน่ชัด มีสินค้าที่บันทึกเฉพาะจุดจัดเก็บ"
+              : "Remaining floor space is unknown. Some units have a location without measured coordinates."}
+          </p>
+          <ul>
+            {locationOnly.map(({ floor, zone, placement }) => (
+              <li key={placement.placementId}>
+                <Link
+                  className="text-accent underline"
+                  href={`/${locale}/finished-goods/pallets/${placement.handlingUnitId}`}
+                >
+                  {placement.lpn}
+                </Link>{" "}
+                · {floor.floorNumber} · {zone.label} · #{placement.sequence}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <div className="grid items-center gap-5 sm:grid-cols-[200px_1fr]">
         <svg
           viewBox="0 0 200 200"

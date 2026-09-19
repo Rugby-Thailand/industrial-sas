@@ -13,6 +13,7 @@ import type { writeSuccess } from "@tests/fixtures/finished-goods-ui";
 
 const mocks = vi.hoisted(() => ({
   canManage: true,
+  search: new URLSearchParams(),
   authLoaded: true,
   actorId: "user-a",
   push: vi.fn(),
@@ -23,6 +24,7 @@ const mocks = vi.hoisted(() => ({
       (name: string, args: unknown) => Promise<ReturnType<typeof writeSuccess>>
     >(),
 }));
+vi.mock("next/navigation", () => ({ useSearchParams: () => mocks.search }));
 vi.mock("@clerk/nextjs", async (importOriginal) => {
   const actual = await importOriginal<typeof ClerkModule>();
   return {
@@ -105,6 +107,12 @@ beforeEach(() => {
   window.history.replaceState(null, "", "/");
   vi.clearAllMocks();
   localStorage.clear();
+  mocks.search = new URLSearchParams();
+  window.history.replaceState(
+    null,
+    "",
+    "/en/finished-goods/products/product-a",
+  );
   mocks.canManage = true;
   data = {
     product: finishedGoodProduct,
@@ -240,6 +248,7 @@ it("edits only the free 60 and requires review plus measurement confirmation", a
   expect(await screen.findByText("Packing updated")).toBeVisible();
 });
 it("opens a unit correction directly and focuses its identifiable replacement row", async () => {
+  mocks.search = new URLSearchParams("editUnit=free-b");
   window.history.replaceState(
     null,
     "",

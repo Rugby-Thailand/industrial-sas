@@ -42,12 +42,15 @@ const packageFields = v.object({
   widthMm: v.optional(v.number()),
   heightMm: v.optional(v.number()),
   weightKg: v.optional(v.number()),
+  fillPercent: v.optional(v.number()),
   dimensionsChecked: v.boolean(),
 });
 const writeFields = {
   warehouseId: v.id("warehouses"),
   productId: v.id("finishedGoodsProducts"),
   requestId: v.string(),
+  simplePacking: v.optional(v.boolean()),
+  sameSize: v.optional(v.boolean()),
   batchId: v.optional(v.id("finishedGoodsBatches")),
   expectedRevision: v.optional(v.number()),
   totalQuantity: v.optional(v.number()),
@@ -190,6 +193,13 @@ function validateDraft(args: BatchInput, unit: string) {
   if ((args.lot?.length ?? 0) > 100) return "FIELD_INVALID";
   for (const row of args.packages) {
     if (
+      row.fillPercent !== undefined &&
+      (!Number.isInteger(row.fillPercent) ||
+        row.fillPercent < 1 ||
+        row.fillPercent > 100)
+    )
+      return "FILL_PERCENT_INVALID";
+    if (
       row.quantity !== undefined &&
       quantityToMinor(row.quantity, unit) === null
     )
@@ -242,6 +252,7 @@ async function save(
           args.totalQuantity,
           args.packages as PackedUnit[],
           product.unit,
+          args.simplePacking ? "SIMPLE" : "GEOMETRIC",
         );
         if (invalid) return failure(invalid);
       }
@@ -263,6 +274,8 @@ async function save(
         status: commit ? ("CREATED" as const) : ("DRAFT" as const),
         totalQuantity: args.totalQuantity,
         storageFormat: args.storageFormat,
+        simplePacking: args.simplePacking,
+        sameSize: args.sameSize,
         lot: args.lot?.trim(),
         splitMode: args.splitMode,
         capacity: args.capacity,
@@ -295,10 +308,15 @@ async function save(
             storageFormat: args.storageFormat,
             code: await nextCode(ctx, args.warehouseId, "pallet"),
             quantity: row.quantity!,
-            lengthMm: row.lengthMm!,
-            widthMm: row.widthMm!,
-            heightMm: row.heightMm!,
-            ...compact({ weightKg: row.weightKg, lot: args.lot?.trim() }),
+            ...compact({
+              lengthMm: row.lengthMm,
+              widthMm: row.widthMm,
+              heightMm: row.heightMm,
+              weightKg: row.weightKg,
+              lot: args.lot?.trim(),
+              sameSize: args.sameSize,
+              fillPercent: row.fillPercent,
+            }),
             status: "AWAITING_PLACEMENT",
             ...created(ctx),
           });

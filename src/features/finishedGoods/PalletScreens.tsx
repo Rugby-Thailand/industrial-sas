@@ -58,6 +58,7 @@ import {
   productPath,
   storagePath,
   useUnitText,
+  useFGText,
   useCanManage,
   useDraftKey,
   useOperation,
@@ -104,7 +105,11 @@ function PalletLoader({
   if (!result) return <Loading />;
   if (!result.ok || !result.value || !result.value.product) return <Missing />;
   const detail = result.value;
-  if (view === "measure" && detail.pallet.preparationBatchId)
+  if (
+    view === "measure" &&
+    detail.pallet.preparationBatchId &&
+    detail.placement?.mode !== "LOCATION_ONLY"
+  )
     return <BatchMeasurementLink detail={detail} />;
   if (
     canManage &&
@@ -892,6 +897,14 @@ function PalletDetailScreen({
       router.push(storagePath(pallet._id));
     });
   }
+  if (placement?.mode === "LOCATION_ONLY")
+    return (
+      <LocationOnlyPalletDetail
+        warehouseId={warehouseId}
+        detail={detail}
+        assignmentId={placement.assignmentId}
+      />
+    );
   const coords = placement
     ? {
         xMm: placement.xMm,
@@ -1277,13 +1290,21 @@ function PalletDetailScreen({
             </>
           ) : canManage && !reserved ? (
             <>
+              <Button asChild>
+                <Link href="/finished-goods/scan">
+                  {tr("Scan Packages", "สแกนบรรจุภัณฑ์")}
+                </Link>
+              </Button>
               <Button variant="outline" asChild>
                 <Link href={correctionPath(detail)}>
                   <Ruler className="size-4" aria-hidden="true" />
                   {tr("Measure pallet", "วัดขนาดพาเลท")}
                 </Link>
               </Button>
-              {pallet.status === "AWAITING_PLACEMENT" ? (
+              {pallet.status === "AWAITING_PLACEMENT" &&
+              pallet.lengthMm &&
+              pallet.widthMm &&
+              pallet.heightMm ? (
                 <Button asChild>
                   <Link href={storagePath(pallet._id)}>
                     {tr("Recommend storage", "แนะนำพื้นที่")}
@@ -1361,7 +1382,10 @@ export function MoveHistory({ detail }: { detail: PalletDetail }) {
                       : tr("Prepared", "เตรียมย้ายแล้ว")}{" "}
               · {new Date(move.createdAt).toLocaleString(locale)}
             </p>
-            {move.sourcePlacement && move.targetPlacement ? (
+            {move.sourcePlacement &&
+            move.sourcePlacement.mode !== "LOCATION_ONLY" &&
+            move.targetPlacement &&
+            move.targetPlacement.mode !== "LOCATION_ONLY" ? (
               <p className="mt-1 font-mono text-xs break-words text-muted">
                 {move.sourcePlacement.positionCode}: X{" "}
                 {mmText(move.sourcePlacement.xMm)} · Y{" "}
@@ -1380,5 +1404,97 @@ export function MoveHistory({ detail }: { detail: PalletDetail }) {
         ))}
       </ul>
     </section>
+  );
+}
+
+function LocationOnlyPalletDetail({
+  warehouseId,
+  detail,
+  assignmentId,
+}: {
+  warehouseId: string;
+  detail: PalletDetail;
+  assignmentId: string;
+}) {
+  const { tr } = useFGText();
+  const outcome = useQuery(fgRefs.getScanAssignment, {
+    warehouseId,
+    assignmentId,
+  });
+  const receipt = outcome?.ok ? outcome.value : null;
+  return (
+    <>
+      <Heading
+        title={tr("Stored successfully", "จัดเก็บสำเร็จ")}
+        description={tr(
+          "The location and top-to-bottom order are saved.",
+          "บันทึกจุดจัดเก็บและลำดับจากบนลงล่างแล้ว",
+        )}
+      />
+      <Summary detail={detail} />
+      <section className={`${panel} space-y-4`}>
+        <h2 className="font-semibold">
+          {tr("Saved storage location", "จุดจัดเก็บที่บันทึก")}
+        </h2>
+        <p>
+          {receipt
+            ? `${receipt.location.code} · ${receipt.location.name}`
+            : detail.placement?.positionCode}
+        </p>
+        <p className="text-sm text-muted">
+          {tr(
+            "Dimensions and exact coordinates were not recorded. Moving, stacking and measurement changes are unavailable for this assignment.",
+            "ไม่ได้บันทึกขนาดและพิกัดที่แน่นอน ยังไม่รองรับการย้าย การซ้อน และการแก้ไขขนาดสำหรับรายการนี้",
+          )}
+        </p>
+        {!outcome ? (
+          <Loading />
+        ) : !receipt ? (
+          <Notice
+            title={tr(
+              "Saved group details unavailable",
+              "ไม่พบรายละเอียดกลุ่มที่บันทึก",
+            )}
+          />
+        ) : (
+          <>
+            <h3 className="font-semibold">
+              {tr("Saved order · top to bottom", "ลำดับที่บันทึก · บนลงล่าง")}
+            </h3>
+            <p className="text-sm">
+              {receipt.sameSize
+                ? tr("Similar size", "ขนาดใกล้เคียงกัน")
+                : tr("Mixed sizes", "ขนาดต่างกัน")}
+            </p>
+            <ol className="space-y-2">
+              {receipt.orderedUnits.map((unit, index) => (
+                <li
+                  key={unit.unitId}
+                  className="flex flex-wrap items-center gap-3 rounded-lg border border-border p-3"
+                >
+                  <span className="font-semibold">
+                    {index + 1}
+                    {index === 0 ? ` · ${tr("Top", "บนสุด")}` : ""}
+                    {index === receipt.orderedUnits.length - 1
+                      ? ` · ${tr("Bottom", "ล่างสุด")}`
+                      : ""}
+                  </span>
+                  <Link
+                    href={palletPath(unit.unitId)}
+                    className="text-primary underline"
+                  >
+                    {unit.code}
+                  </Link>
+                  <span>{unit.productName}</span>
+                  <span className="ml-auto">
+                    {unit.fillPercent}% {tr("full", "เต็ม")}
+                  </span>
+                </li>
+              ))}
+            </ol>
+          </>
+        )}
+      </section>
+    </>
   );
 }

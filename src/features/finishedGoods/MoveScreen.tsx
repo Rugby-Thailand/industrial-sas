@@ -102,6 +102,7 @@ function MoveLoader({
     !canManage ||
     detail.pallet.status !== "STORED" ||
     !detail.placement ||
+    detail.placement.mode === "LOCATION_ONLY" ||
     !detail.destination
   )
     return (
@@ -115,10 +116,15 @@ function MoveLoader({
           title={
             !canManage
               ? tr("View-only access", "สิทธิ์ดูข้อมูลเท่านั้น")
-              : tr(
-                  "Only a stored pallet with a valid source can be moved.",
-                  "ย้ายได้เฉพาะพาเลทที่จัดเก็บแล้วและมีข้อมูลต้นทางครบถ้วน",
-                )
+              : detail.placement?.mode === "LOCATION_ONLY"
+                ? tr(
+                    "This unit has a saved location without measured coordinates. Moving and stacking are not available for this assignment.",
+                    "บรรจุภัณฑ์นี้บันทึกจุดจัดเก็บโดยไม่มีพิกัดที่วัด ยังไม่รองรับการย้ายและซ้อนสำหรับรายการนี้",
+                  )
+                : tr(
+                    "Only a stored pallet with a valid source can be moved.",
+                    "ย้ายได้เฉพาะพาเลทที่จัดเก็บแล้วและมีข้อมูลต้นทางครบถ้วน",
+                  )
           }
         />
 
@@ -187,7 +193,10 @@ function MoveSelection({
         )}
       />
       <Summary detail={detail} />
-      {!current && detail.destination && detail.placement ? (
+      {!current &&
+      detail.destination &&
+      detail.placement &&
+      detail.placement.mode !== "LOCATION_ONLY" ? (
         <section
           aria-label={tr("Current stored position", "ตำแหน่งจัดเก็บปัจจุบัน")}
           className={`${panel} mb-4`}
@@ -524,7 +533,9 @@ function ActiveMove({
         </div>
       </div>
       <div className="grid items-start gap-5 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
-        {move.targetDestination && move.targetPlacement ? (
+        {move.targetDestination &&
+        move.targetPlacement &&
+        move.targetPlacement.mode !== "LOCATION_ONLY" ? (
           <section className="order-2 min-w-0 md:order-1">
             <PalletScene
               {...sceneProps(move.targetDestination, detail)}
@@ -543,7 +554,9 @@ function ActiveMove({
                 : tr("Pick up this pallet", "รับพาเลทจากต้นทาง")}
             </h2>
             {inTransit ? (
-              move.targetDestination && move.targetPlacement ? (
+              move.targetDestination &&
+              move.targetPlacement &&
+              move.targetPlacement.mode !== "LOCATION_ONLY" ? (
                 <DestinationSummary
                   destination={move.targetDestination}
                   placement={move.targetPlacement}
@@ -554,7 +567,9 @@ function ActiveMove({
                   title={tr("Location unavailable", "ไม่พบข้อมูลจุดจัดเก็บ")}
                 />
               )
-            ) : move.sourceDestination && move.sourcePlacement ? (
+            ) : move.sourceDestination &&
+              move.sourcePlacement &&
+              move.sourcePlacement.mode !== "LOCATION_ONLY" ? (
               <DestinationSummary
                 destination={move.sourceDestination}
                 placement={move.sourcePlacement}
@@ -756,7 +771,9 @@ function ActiveMove({
           </DialogHeader>
           {dialog === "return" ? (
             <div className="space-y-4">
-              {move.sourceDestination && move.sourcePlacement ? (
+              {move.sourceDestination &&
+              move.sourcePlacement &&
+              move.sourcePlacement.mode !== "LOCATION_ONLY" ? (
                 <DestinationSummary
                   destination={move.sourceDestination}
                   placement={move.sourcePlacement}

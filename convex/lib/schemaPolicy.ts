@@ -36,6 +36,7 @@ export const TENANT_TABLES = [
   "finishedGoodsBatchRevisions",
   "finishedGoodsPallets",
   "finishedGoodsPlacements",
+  "finishedGoodsScanAssignments",
   "finishedGoodsCounters",
   "finishedGoodsMoves",
 ] as const;
@@ -262,24 +263,34 @@ export function describeTable(
   definition: TableDefinition,
 ): TableFacts {
   const documentValidator = definition.validator;
-  if (documentValidator.kind !== "object") {
-    throw new Error(
-      `Table "${name}" does not have an object document validator. ` +
-        "Discriminated-union tables are not part of this schema and the policy " +
-        "checks do not model them.",
-    );
-  }
-
-  const fieldNames = Object.keys(documentValidator.fields);
+  const variants =
+    documentValidator.kind === "union"
+      ? documentValidator.members
+      : [documentValidator];
+  if (variants.some((variant) => variant.kind !== "object"))
+    throw new Error(`Table "${name}" requires object variants`);
+  const fields = new Map<string, GenericValidator>();
   const optionalFieldNames: string[] = [];
   const fieldPaths: string[] = [];
-  for (const [fieldName, fieldValidator] of Object.entries(
-    documentValidator.fields,
-  )) {
-    if (fieldValidator.isOptional === "optional")
-      optionalFieldNames.push(fieldName);
-    fieldPaths.push(fieldName);
-    descend(fieldValidator, fieldName, fieldPaths);
+  for (const variant of variants) {
+    if (variant.kind !== "object") continue;
+    for (const [fieldName, fieldValidator] of Object.entries(variant.fields)) {
+      fields.set(fieldName, fieldValidator);
+      if (fieldValidator.isOptional === "optional")
+        optionalFieldNames.push(fieldName);
+      fieldPaths.push(fieldName);
+      descend(fieldValidator, fieldName, fieldPaths);
+    }
+  }
+  const fieldNames = [...fields.keys()];
+  // A required tenant discriminator must be present on every union branch.
+  for (const field of fieldNames) {
+    if (
+      variants.some(
+        (variant) => variant.kind === "object" && !(field in variant.fields),
+      )
+    )
+      optionalFieldNames.push(field);
   }
 
   return {

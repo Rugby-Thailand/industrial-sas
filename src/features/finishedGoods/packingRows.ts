@@ -11,6 +11,7 @@ export type PackingRow = {
   height: string;
   weight: string;
   checked: boolean;
+  fillPercent?: string;
 };
 export const textNumber = (value: number | undefined, divisor = 1) =>
   value === undefined ? "" : String(value / divisor);
@@ -30,6 +31,9 @@ export const rowFromPackage = (unit: PackageDraft): PackingRow => ({
   height: textNumber(unit.heightMm, 1000),
   weight: textNumber(unit.weightKg),
   checked: unit.dimensionsChecked,
+  ...(unit.fillPercent === undefined
+    ? {}
+    : { fillPercent: String(unit.fillPercent) }),
 });
 /** Remove floating-point noise, but preserve sub-mm values so validation rejects them. */
 export const millimetres = (value: string) => {
@@ -43,12 +47,12 @@ export const packageDraft = (row: PackingRow): PackageDraft => ({
   ...(row.height.trim() ? { heightMm: millimetres(row.height) } : {}),
   ...(row.weight.trim() ? { weightKg: Number(row.weight) } : {}),
   dimensionsChecked: row.checked,
+  ...(row.fillPercent === undefined
+    ? {}
+    : { fillPercent: row.fillPercent.trim() ? Number(row.fillPercent) : 0 }),
 });
 export const packedUnit = (row: PackingRow): PackedUnit => ({
   quantity: 0,
-  lengthMm: 0,
-  widthMm: 0,
-  heightMm: 0,
   ...packageDraft(row),
 });
 export function updatePackingRow<T extends PackingRow>(
@@ -71,30 +75,32 @@ export function packingIssueText(
   issue: string | null,
   tr: (en: string, th: string) => string,
 ): string {
-  return issue === "QUANTITY_MISMATCH"
-    ? tr(
-        "Allocated quantity must equal the batch total.",
-        "จำนวนที่จัดสรรต้องเท่ากับยอดรวมของชุด",
-      )
-    : issue === "QUANTITY_INVALID"
+  return issue === "FILL_PERCENT_INVALID"
+    ? tr("Choose fullness from 1% to 100%.", "เลือกความเต็มระหว่าง 1% ถึง 100%")
+    : issue === "QUANTITY_MISMATCH"
       ? tr(
-          "Enter positive quantities with the precision allowed for this unit.",
-          "กรอกจำนวนมากกว่าศูนย์และทศนิยมที่หน่วยนับรองรับ",
+          "Allocated quantity must equal the batch total.",
+          "จำนวนที่จัดสรรต้องเท่ากับยอดรวมของชุด",
         )
-      : issue === "DIMENSIONS_UNCHECKED"
+      : issue === "QUANTITY_INVALID"
         ? tr(
-            "Confirm the actual dimensions of every storage unit, including copied dimensions.",
-            "ยืนยันขนาดจริงของทุกหน่วย รวมถึงหน่วยที่คัดลอกขนาดมา",
+            "Enter positive quantities with the precision allowed for this unit.",
+            "กรอกจำนวนมากกว่าศูนย์และทศนิยมที่หน่วยนับรองรับ",
           )
-        : issue === "WEIGHT_INVALID"
+        : issue === "DIMENSIONS_UNCHECKED"
           ? tr(
-              "Weight must be positive when supplied.",
-              "น้ำหนักต้องมากกว่าศูนย์เมื่อระบุ",
+              "Confirm the actual dimensions of every storage unit, including copied dimensions.",
+              "ยืนยันขนาดจริงของทุกหน่วย รวมถึงหน่วยที่คัดลอกขนาดมา",
             )
-          : issue
+          : issue === "WEIGHT_INVALID"
             ? tr(
-                "Complete each unit’s quantity and outer dimensions (0–100 m, to the nearest millimetre).",
-                "กรอกจำนวนและขนาดภายนอกของทุกหน่วยให้ครบ (มากกว่า 0 ถึง 100 ม. ละเอียดถึงมิลลิเมตร)",
+                "Weight must be positive when supplied.",
+                "น้ำหนักต้องมากกว่าศูนย์เมื่อระบุ",
               )
-            : "";
+            : issue
+              ? tr(
+                  "Complete each unit’s quantity and outer dimensions (0–100 m, to the nearest millimetre).",
+                  "กรอกจำนวนและขนาดภายนอกของทุกหน่วยให้ครบ (มากกว่า 0 ถึง 100 ม. ละเอียดถึงมิลลิเมตร)",
+                )
+              : "";
 }

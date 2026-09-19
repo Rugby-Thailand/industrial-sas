@@ -7,13 +7,11 @@ vi.mock("@/i18n/navigation", () => ({ Link: () => null }));
 const unit = finishedGoodsList.pallets[0]!;
 
 describe("unit next action", () => {
-  it("opens legacy measurement directly and batch measurement at the exact unit", () => {
-    expect(unitNextAction(unit, true).href).toBe(
-      "/finished-goods/pallets/pallet-a/measure",
-    );
+  it("lets legacy and batch unmeasured units continue to scanning", () => {
+    expect(unitNextAction(unit, true).href).toBe("/finished-goods/scan");
     expect(
       unitNextAction({ ...unit, preparationBatchId: "batch-a" }, true).href,
-    ).toBe("/finished-goods/products/product-a?editUnit=pallet-a");
+    ).toBe("/finished-goods/scan");
   });
 
   it("takes measured units directly to storage and reservations to verification", () => {

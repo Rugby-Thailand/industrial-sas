@@ -65,7 +65,24 @@ export interface StoragePositionRow {
   readonly placements: readonly StorageStackPlacementRow[];
 }
 
+export interface LocationOnlyPlacementRow {
+  readonly mode: "LOCATION_ONLY";
+  readonly placementId: string;
+  readonly handlingUnitId: string;
+  readonly lpn: string;
+  readonly assignmentId: string;
+  readonly sequence: number;
+  readonly positionCode: string;
+  readonly positionId?: string | undefined;
+  readonly productName?: string | undefined;
+  readonly quantity?: number | undefined;
+  readonly status: "RESERVED" | "STORED" | "RELEASED";
+}
+
 export interface StorageZoneRow {
+  readonly locationOnlyPlacements?: readonly LocationOnlyPlacementRow[];
+  readonly unmeasuredPalletCount?: number;
+  readonly measuredAreaPartial?: boolean;
   readonly palletCount?: number;
   readonly occupiedFootprintAreaSqMm?: number;
   readonly zoneId: string;
@@ -102,6 +119,8 @@ export interface StorageFloorRow {
 }
 
 export interface StorageBuildingRow {
+  readonly unmeasuredPalletCount?: number;
+  readonly measuredAreaPartial?: boolean;
   readonly storedFootprintAreaSqMm?: number;
   readonly heldFootprintAreaSqMm?: number;
   readonly buildingId: string;

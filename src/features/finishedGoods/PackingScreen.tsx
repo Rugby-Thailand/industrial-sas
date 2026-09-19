@@ -36,6 +36,7 @@ import {
   FG_PATH,
   panel,
   productPath,
+  palletPath,
   storagePath,
   useCanManage,
   useDraftKey,
@@ -61,6 +62,8 @@ import { PackingDimensionFields } from "./PackingDimensionFields";
 type Format = "PALLET" | "BOX" | "OTHER";
 type Mode = "CAPACITY" | "EQUAL" | "MANUAL";
 type Batch = {
+  simplePacking?: boolean;
+  sameSize?: boolean;
   _id: string;
   revision: number;
   status: "DRAFT" | "CREATED";
@@ -73,6 +76,8 @@ type Batch = {
   packages: readonly PackageDraft[];
 };
 type Payload = {
+  simplePacking?: boolean;
+  sameSize?: boolean;
   productId: string;
   batchId?: string;
   expectedRevision?: number;
@@ -86,6 +91,9 @@ type Payload = {
   requestId: string;
 };
 type Draft = {
+  simplePacking: boolean;
+  sameSize: boolean;
+  groupFill: string;
   total: string;
   capacity: string;
   count: string;
@@ -106,6 +114,9 @@ type Draft = {
 function initialDraft(_product: Product, batch?: Batch): Draft {
   const rows = batch ? batch.packages.map(rowFromPackage) : [newRow()];
   return {
+    simplePacking: batch ? (batch.simplePacking ?? false) : true,
+    sameSize: batch?.sameSize ?? true,
+    groupFill: "100",
     total: textNumber(batch?.totalQuantity),
     capacity: textNumber(batch?.capacity),
     count: textNumber(batch?.unitCount ?? 2),
@@ -134,6 +145,10 @@ function readDraft(key: string, fallback: Draft, productId: string): Draft {
         draft.selected,
         draft.lot,
       ].every((v) => typeof v === "string") ||
+      (draft.simplePacking !== undefined &&
+        typeof draft.simplePacking !== "boolean") ||
+      (draft.sameSize !== undefined && typeof draft.sameSize !== "boolean") ||
+      (draft.groupFill !== undefined && typeof draft.groupFill !== "string") ||
       !["PALLET", "BOX", "OTHER"].includes(draft.storageFormat) ||
       !["CAPACITY", "EQUAL", "MANUAL"].includes(draft.mode) ||
       !["m", "cm"].includes(draft.displayUnit) ||
@@ -150,7 +165,9 @@ function readDraft(key: string, fallback: Draft, productId: string): Draft {
             row.height,
             row.weight,
           ].every((v) => typeof v === "string") &&
-          typeof row.checked === "boolean",
+          typeof row.checked === "boolean" &&
+          (row.fillPercent === undefined ||
+            typeof row.fillPercent === "string"),
       ) ||
       new Set(draft.rows.map((r) => r.id)).size !== draft.rows.length
     )
@@ -158,6 +175,8 @@ function readDraft(key: string, fallback: Draft, productId: string): Draft {
     if (draft.pending) {
       const payload = draft.pending.payload;
       const allowed = new Set([
+        "simplePacking",
+        "sameSize",
         "productId",
         "batchId",
         "expectedRevision",
@@ -177,6 +196,7 @@ function readDraft(key: string, fallback: Draft, productId: string): Draft {
         "heightMm",
         "weightKg",
         "dimensionsChecked",
+        "fillPercent",
       ]);
       if (
         !["save", "commit"].includes(draft.pending.kind) ||
@@ -191,6 +211,10 @@ function readDraft(key: string, fallback: Draft, productId: string): Draft {
         !["PALLET", "BOX", "OTHER"].includes(payload.storageFormat) ||
         !["CAPACITY", "EQUAL", "MANUAL"].includes(payload.splitMode) ||
         (payload.lot !== undefined && typeof payload.lot !== "string") ||
+        (payload.simplePacking !== undefined &&
+          typeof payload.simplePacking !== "boolean") ||
+        (payload.sameSize !== undefined &&
+          typeof payload.sameSize !== "boolean") ||
         [
           payload.totalQuantity,
           payload.capacity,
@@ -207,7 +231,14 @@ function readDraft(key: string, fallback: Draft, productId: string): Draft {
             p &&
             Object.keys(p).every((k) => packageKeys.has(k)) &&
             typeof p.dimensionsChecked === "boolean" &&
-            [p.quantity, p.lengthMm, p.widthMm, p.heightMm, p.weightKg].every(
+            [
+              p.quantity,
+              p.lengthMm,
+              p.widthMm,
+              p.heightMm,
+              p.weightKg,
+              p.fillPercent,
+            ].every(
               (v) =>
                 v === undefined ||
                 (typeof v === "number" && Number.isFinite(v)),
@@ -222,7 +253,12 @@ function readDraft(key: string, fallback: Draft, productId: string): Draft {
         !draft.completed.every((id) => typeof id === "string"))
     )
       return invalid();
-    return draft;
+    return {
+      ...draft,
+      simplePacking: draft.simplePacking ?? false,
+      sameSize: draft.sameSize ?? true,
+      groupFill: draft.groupFill ?? "100",
+    };
   } catch {
     return { ...fallback, recoveryBlocked: true };
   }
@@ -377,11 +413,17 @@ function PackingForm({
   const rowName = (i: number) => `${noun} ${i + 1}`;
   const selected =
     draft.rows.find((r) => r.id === draft.selected) ?? draft.rows[0];
-  const packages = draft.rows.map(packageDraft);
+  const effectiveRows = draft.rows.map((row) =>
+    draft.simplePacking
+      ? { ...row, fillPercent: row.fillPercent ?? draft.groupFill }
+      : row,
+  );
+  const packages = effectiveRows.map(packageDraft);
   const issue = validatePacking(
     Number(draft.total),
-    draft.rows.map(packedUnit),
+    effectiveRows.map(packedUnit),
     product.unit,
+    draft.simplePacking ? "SIMPLE" : "GEOMETRIC",
   );
   const preview =
     draft.mode === "CAPACITY"
@@ -482,6 +524,8 @@ function PackingForm({
       capacity = optionalNumber(draft.capacity),
       unitCount = optionalNumber(draft.count);
     return {
+      simplePacking: draft.simplePacking,
+      sameSize: draft.sameSize,
       productId: product._id,
       ...(draft.batchId
         ? { batchId: draft.batchId, expectedRevision: draft.revision! }
@@ -633,23 +677,41 @@ function PackingForm({
             {draft.total} {product.unit} · {draft.completed.length} {plural}
           </p>
           <p>
-            {tr(
-              "Choose an exact storage position for each unit.",
-              "เลือกตำแหน่งจัดเก็บที่แน่นอนของแต่ละหน่วย",
-            )}
+            {draft.simplePacking
+              ? tr(
+                  "Scan the package labels in order, then scan their location.",
+                  "สแกนป้ายบรรจุภัณฑ์ตามลำดับ แล้วสแกนจุดจัดเก็บ",
+                )
+              : tr(
+                  "Choose an exact storage position for each unit.",
+                  "เลือกตำแหน่งจัดเก็บที่แน่นอนของแต่ละหน่วย",
+                )}
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
             {draft.completed.map((id, i) => (
               <Button asChild variant="outline" key={id}>
-                <Link href={storagePath(id)}>
-                  {tr("Find storage", "เลือกที่จัดเก็บ")} · {rowName(i)}
+                <Link
+                  href={draft.simplePacking ? palletPath(id) : storagePath(id)}
+                >
+                  {draft.simplePacking
+                    ? tr("View package label", "ดูป้ายบรรจุภัณฑ์")
+                    : tr("Find storage", "เลือกที่จัดเก็บ")}{" "}
+                  · {rowName(i)}
                 </Link>
               </Button>
             ))}
           </div>
           <Button asChild variant="outline">
-            <Link href={productPath(product._id)}>
-              {tr("Product and batches", "สินค้าและชุดจัดเตรียม")}
+            <Link
+              href={
+                draft.simplePacking
+                  ? `${FG_PATH}/scan`
+                  : productPath(product._id)
+              }
+            >
+              {draft.simplePacking
+                ? tr("Scan Packages", "สแกนบรรจุภัณฑ์")
+                : tr("Product and batches", "สินค้าและชุดจัดเตรียม")}
             </Link>
           </Button>
           <Button
@@ -690,7 +752,7 @@ function PackingForm({
         title={
           batch?.status === "CREATED"
             ? tr("Edit batch packing", "แก้การแบ่งบรรจุของชุด")
-            : tr("Packing and dimensions", "แบ่งบรรจุและวัดขนาด")
+            : tr("Prepare packages", "จัดเตรียมบรรจุภัณฑ์")
         }
         description={`${product.sku} · ${product.name} · ${product.unit}`}
         back={productPath(product._id)}
@@ -896,221 +958,176 @@ function PackingForm({
               </div>
             </Notice>
           )}
-          <div className="grid min-w-0 items-start gap-5 xl:grid-cols-2">
-            <div className="min-w-0 space-y-3">
-              <div
-                className="flex flex-wrap gap-2"
-                aria-label={tr("Select storage unit", "เลือกหน่วยจัดเก็บ")}
+          <div className={`${panel} space-y-4`}>
+            <div
+              className="flex flex-wrap gap-2"
+              role="group"
+              aria-label={tr("Preparation mode", "รูปแบบการจัดเตรียม")}
+            >
+              <Button
+                type="button"
+                variant={draft.simplePacking ? "default" : "outline"}
+                aria-pressed={draft.simplePacking}
+                onClick={() => persist({ ...draft, simplePacking: true })}
               >
-                {draft.rows.map((r, i) => (
-                  <Button
-                    type="button"
-                    key={r.id}
-                    variant={selected?.id === r.id ? "default" : "outline"}
-                    aria-pressed={selected?.id === r.id}
-                    onClick={() => persist({ ...draft, selected: r.id })}
-                  >
-                    {rowName(i)}
-                  </Button>
-                ))}
-              </div>
-              <div className={panel}>
-                {selected &&
-                Number(selected.length) > 0 &&
-                Number(selected.width) > 0 &&
-                Number(selected.height) > 0 ? (
-                  <PalletScene
-                    locale={locale}
-                    storageFormat={draft.storageFormat}
-                    dimensions={{
-                      widthMm: mm(selected.width),
-                      depthMm: mm(selected.length),
-                      heightMm: mm(selected.height),
-                    }}
-                    label={rowName(draft.rows.indexOf(selected))}
-                  />
-                ) : (
-                  <div className="flex min-h-64 items-center justify-center text-center text-muted">
-                    {tr(
-                      "Preview only — enter the unit’s actual outer dimensions.",
-                      "ภาพตัวอย่าง — กรอกขนาดภายนอกจริงของหน่วยจัดเก็บ",
-                    )}
-                  </div>
+                {tr("Simple packing", "จัดเตรียมแบบง่าย")}
+              </Button>
+              <Button
+                type="button"
+                variant={!draft.simplePacking ? "default" : "outline"}
+                aria-pressed={!draft.simplePacking}
+                onClick={() => persist({ ...draft, simplePacking: false })}
+              >
+                {tr(
+                  "Exact measurements (optional)",
+                  "วัดขนาดละเอียด (ไม่บังคับ)",
                 )}
-              </div>
+              </Button>
             </div>
-            <div className="min-w-0 space-y-3">
-              {selected ? (
-                <section
-                  className={`${panel} space-y-4`}
-                  aria-label={tr(
-                    "Selected storage unit",
-                    "หน่วยจัดเก็บที่เลือก",
+            {draft.simplePacking && (
+              <>
+                <p className="font-medium">
+                  {tr(
+                    "Are all packages/pallets a similar size?",
+                    "ทุกกล่องหรือพาเลทมีขนาดใกล้เคียงกันหรือไม่?",
                   )}
+                </p>
+                <div className="flex gap-2">
+                  {[true, false].map((sameSize) => (
+                    <Button
+                      type="button"
+                      key={String(sameSize)}
+                      variant={
+                        draft.sameSize === sameSize ? "default" : "outline"
+                      }
+                      aria-pressed={draft.sameSize === sameSize}
+                      onClick={() => persist({ ...draft, sameSize })}
+                    >
+                      {sameSize ? tr("Yes", "ใช่") : tr("No", "ไม่ใช่")}
+                    </Button>
+                  ))}
+                </div>
+                <p className="font-medium">
+                  {tr("How full are they?", "บรรจุเต็มเท่าไร?")}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    ["100", tr("Full (100%)", "เต็ม (100%)")],
+                    ["75", "¾ (75%)"],
+                    ["50", tr("Half (50%)", "ครึ่ง (50%)")],
+                    ["25", "¼ (25%)"],
+                  ].map(([value, label]) => (
+                    <Button
+                      type="button"
+                      key={value}
+                      variant={
+                        draft.groupFill === value &&
+                        draft.rows.every(
+                          (r) => !r.fillPercent || r.fillPercent === value,
+                        )
+                          ? "default"
+                          : "outline"
+                      }
+                      onClick={() =>
+                        persist({
+                          ...draft,
+                          groupFill: value!,
+                          rows: draft.rows.map((r) => ({
+                            ...r,
+                            fillPercent: value!,
+                          })),
+                        })
+                      }
+                    >
+                      {label}
+                    </Button>
+                  ))}
+                </div>
+                <Field
+                  label={tr(
+                    "Custom fullness for all (%)",
+                    "กำหนดความเต็มทั้งหมด (%)",
+                  )}
+                  value={draft.groupFill}
+                  type="number"
+                  min={1}
+                  max={100}
+                  step="1"
+                  onChange={(groupFill) =>
+                    persist({
+                      ...draft,
+                      groupFill,
+                      rows: draft.rows.map((r) => ({
+                        ...r,
+                        fillPercent: groupFill,
+                      })),
+                    })
+                  }
+                />
+                <p className="text-sm text-muted">
+                  {tr(
+                    "Apply one answer to all units; adjust only exceptions below. No measurements needed.",
+                    "ใช้คำตอบเดียวกับทุกหน่วย แล้วแก้เฉพาะหน่วยที่ต่างกันด้านล่าง ไม่ต้องวัดขนาด",
+                  )}
+                </p>
+              </>
+            )}
+          </div>
+          {draft.simplePacking ? (
+            <div className="space-y-3">
+              {effectiveRows.map((row, index) => (
+                <section
+                  key={row.id}
+                  className={`${panel} space-y-3`}
+                  aria-label={rowName(index)}
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <h2 className="font-semibold">
-                      {rowName(draft.rows.indexOf(selected))}
-                    </h2>
+                  <div className="flex items-center justify-between">
+                    <h2 className="font-semibold">{rowName(index)}</h2>
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon"
-                      aria-label={tr("Remove unit", "ลบหน่วย")}
-                      onClick={() => {
-                        const rows = draft.rows.filter(
-                          (r) => r.id !== selected.id,
-                        );
+                      aria-label={`${tr("Remove", "ลบ")} ${rowName(index)}`}
+                      onClick={() =>
                         persist({
                           ...draft,
-                          rows,
-                          selected: rows[0]?.id ?? "",
-                          customized: true,
+                          rows: draft.rows.filter((r) => r.id !== row.id),
                           mode: "MANUAL",
+                          customized: true,
                           splitPending: false,
-                        });
-                      }}
+                        })
+                      }
                     >
                       <Trash2 className="size-4" />
                     </Button>
                   </div>
-                  <Field
-                    label={tr("Unit quantity", "จำนวนสินค้าในหน่วยนี้")}
-                    value={selected.quantity}
-                    onChange={(quantity) =>
-                      updateRow(selected.id, { quantity })
-                    }
-                    type="number"
-                    min={0}
-                    step={quantityPrecision(product.unit) === 0 ? "1" : "0.001"}
-                    required
-                  />
-                  <p className="text-sm text-muted">
-                    {tr(
-                      "Measure all outer dimensions including the base and packaging. These measurements are used for storage recommendations.",
-                      "วัดขนาดภายนอกทั้งหมด รวมฐานและบรรจุภัณฑ์ ขนาดนี้ใช้แนะนำตำแหน่งจัดเก็บ",
-                    )}
-                  </p>
-                  <div
-                    className="flex gap-2"
-                    aria-label={tr("Dimension units", "หน่วยขนาด")}
-                  >
-                    {(["m", "cm"] as const).map((unit) => (
-                      <Button
-                        key={unit}
-                        type="button"
-                        variant={
-                          draft.displayUnit === unit ? "default" : "outline"
-                        }
-                        aria-pressed={draft.displayUnit === unit}
-                        onClick={() => persist({ ...draft, displayUnit: unit })}
-                      >
-                        {unit === "m"
-                          ? tr("Metres", "เมตร")
-                          : tr("Centimetres", "เซนติเมตร")}
-                      </Button>
-                    ))}
-                  </div>
-                  <div className="grid gap-4 sm:grid-cols-3">
-                    <PackingDimensionFields
-                      row={selected}
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Field
+                      label={`${tr("Quantity", "จำนวน")} · ${rowName(index)}`}
+                      type="number"
+                      min={0}
+                      step={
+                        quantityPrecision(product.unit) === 0 ? "1" : "0.001"
+                      }
                       required
-                      label={dimensionLabel}
-                      displayUnit={draft.displayUnit}
-                      onChange={(changes) => updateRow(selected.id, changes)}
+                      value={row.quantity}
+                      onChange={(quantity) => updateRow(row.id, { quantity })}
                     />
-                  </div>
-                  <Field
-                    label={tr(
-                      "Weight (kg, optional)",
-                      "น้ำหนัก (กก., ไม่บังคับ)",
-                    )}
-                    value={selected.weight}
-                    onChange={(weight) => updateRow(selected.id, { weight })}
-                    type="number"
-                    min={0}
-                    step="any"
-                  />
-                  <label className="flex items-start gap-3 text-sm">
-                    <input
-                      type="checkbox"
-                      className="mt-1 size-4 shrink-0 accent-accent"
-                      checked={selected.checked}
-                      onChange={(e) =>
-                        updateRow(selected.id, { checked: e.target.checked })
+                    <Field
+                      label={`${tr("Fullness (%)", "ความเต็ม (%)")} · ${rowName(index)}`}
+                      type="number"
+                      min={1}
+                      max={100}
+                      step="1"
+                      required
+                      value={row.fillPercent ?? draft.groupFill}
+                      onChange={(fillPercent) =>
+                        updateRow(row.id, { fillPercent })
                       }
                     />
-                    {tr(
-                      "I checked this unit’s actual outer dimensions, including its base and packaging.",
-                      "ตรวจสอบขนาดภายนอกจริงของหน่วยนี้แล้ว รวมฐานและบรรจุภัณฑ์",
-                    )}
-                  </label>
-                  {draft.rows.length > 1 && (
-                    <div className="space-y-2">
-                      <p className="text-sm">
-                        {tr(
-                          "Copy dimensions to selected units",
-                          "คัดลอกขนาดไปยังหน่วยที่เลือก",
-                        )}
-                      </p>
-                      <div className="flex flex-wrap gap-3">
-                        {draft.rows.map((r, i) =>
-                          r.id === selected.id ? null : (
-                            <label
-                              key={r.id}
-                              className="flex items-center gap-2 text-sm"
-                            >
-                              <input
-                                type="checkbox"
-                                checked={copyTargets.includes(r.id)}
-                                onChange={(e) =>
-                                  setCopyTargets(
-                                    e.target.checked
-                                      ? [...copyTargets, r.id]
-                                      : copyTargets.filter((id) => id !== r.id),
-                                  )
-                                }
-                              />
-                              {rowName(i)}
-                            </label>
-                          ),
-                        )}
-                      </div>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        disabled={!copyTargets.some((id) => id !== selected.id)}
-                        onClick={() => {
-                          persist({
-                            ...draft,
-                            customized: true,
-                            rows: draft.rows.map((r) =>
-                              r.id !== selected.id && copyTargets.includes(r.id)
-                                ? {
-                                    ...r,
-                                    length: selected.length,
-                                    width: selected.width,
-                                    height: selected.height,
-                                    weight: selected.weight,
-                                    checked: false,
-                                  }
-                                : r,
-                            ),
-                          });
-                          setCopyTargets([]);
-                        }}
-                      >
-                        <Copy className="size-4" />
-                        {tr("Copy selected dimensions", "คัดลอกขนาดที่เลือก")}
-                      </Button>
-                    </div>
-                  )}
+                  </div>
                 </section>
-              ) : (
-                <Notice
-                  title={tr("No storage units yet", "ยังไม่มีหน่วยจัดเก็บ")}
-                />
-              )}
+              ))}
               <Button
                 type="button"
                 variant="outline"
@@ -1135,81 +1152,345 @@ function PackingForm({
                 {tr("Add unit", "เพิ่มหน่วย")} ({draft.rows.length}/50)
               </Button>
             </div>
-          </div>
-          <div
-            className="grid gap-3 sm:hidden"
-            aria-label={tr("Packing summary cards", "การ์ดสรุปการบรรจุ")}
-          >
-            {draft.rows.map((r, i) => (
-              <button
-                key={r.id}
-                type="button"
-                className={`${panel} space-y-2 text-left ${r.id === selected?.id ? "ring-1 ring-accent" : ""}`}
-                onClick={() => persist({ ...draft, selected: r.id })}
-              >
-                <strong>
-                  {rowName(i)} · {r.quantity || "—"} {product.unit}
-                </strong>
-                <p>
-                  {r.length || "—"} × {r.width || "—"} × {r.height || "—"}{" "}
-                  {tr("m", "ม.")}
-                </p>
-                <p className="text-sm text-muted">
-                  {r.checked
-                    ? tr("Checked", "ตรวจสอบแล้ว")
-                    : tr("Needs checking", "รอตรวจสอบ")}
-                </p>
-              </button>
-            ))}
-          </div>
-          <div className={`${panel} hidden sm:block`}>
-            <table className="w-full text-left text-sm">
-              <caption className="sr-only">
-                {tr("Packing summary", "สรุปการบรรจุ")}
-              </caption>
-              <thead>
-                <tr>
-                  {[
-                    tr("Unit", "หน่วย"),
-                    tr("Quantity", "จำนวน"),
-                    tr("Outer dimensions (m)", "ขนาดภายนอก (ม.)"),
-                    tr("Dimensions", "ขนาด"),
-                  ].map((label) => (
-                    <th
-                      key={label}
-                      className="pr-3 pb-3 font-medium text-muted"
-                    >
-                      {label}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {draft.rows.map((r, i) => (
-                  <tr key={r.id} className="border-t border-border">
-                    <td className="py-3 pr-3">
-                      <button
+          ) : (
+            <>
+              <div className="grid min-w-0 items-start gap-5 xl:grid-cols-2">
+                <div className="min-w-0 space-y-3">
+                  <div
+                    className="flex flex-wrap gap-2"
+                    aria-label={tr("Select storage unit", "เลือกหน่วยจัดเก็บ")}
+                  >
+                    {draft.rows.map((r, i) => (
+                      <Button
                         type="button"
-                        className="text-accent underline"
+                        key={r.id}
+                        variant={selected?.id === r.id ? "default" : "outline"}
+                        aria-pressed={selected?.id === r.id}
                         onClick={() => persist({ ...draft, selected: r.id })}
                       >
                         {rowName(i)}
-                      </button>
-                    </td>
-                    <td className="pr-3">{r.quantity || "—"}</td>
-                    <td className="pr-3">
-                      {r.length || "—"} × {r.width || "—"} × {r.height || "—"}
-                    </td>
-                    <td>
+                      </Button>
+                    ))}
+                  </div>
+                  <div className={panel}>
+                    {selected &&
+                    Number(selected.length) > 0 &&
+                    Number(selected.width) > 0 &&
+                    Number(selected.height) > 0 ? (
+                      <PalletScene
+                        locale={locale}
+                        storageFormat={draft.storageFormat}
+                        dimensions={{
+                          widthMm: mm(selected.width),
+                          depthMm: mm(selected.length),
+                          heightMm: mm(selected.height),
+                        }}
+                        label={rowName(draft.rows.indexOf(selected))}
+                      />
+                    ) : (
+                      <div className="flex min-h-64 items-center justify-center text-center text-muted">
+                        {tr(
+                          "Preview only — enter the unit’s actual outer dimensions.",
+                          "ภาพตัวอย่าง — กรอกขนาดภายนอกจริงของหน่วยจัดเก็บ",
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="min-w-0 space-y-3">
+                  {selected ? (
+                    <section
+                      className={`${panel} space-y-4`}
+                      aria-label={tr(
+                        "Selected storage unit",
+                        "หน่วยจัดเก็บที่เลือก",
+                      )}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <h2 className="font-semibold">
+                          {rowName(draft.rows.indexOf(selected))}
+                        </h2>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          aria-label={tr("Remove unit", "ลบหน่วย")}
+                          onClick={() => {
+                            const rows = draft.rows.filter(
+                              (r) => r.id !== selected.id,
+                            );
+                            persist({
+                              ...draft,
+                              rows,
+                              selected: rows[0]?.id ?? "",
+                              customized: true,
+                              mode: "MANUAL",
+                              splitPending: false,
+                            });
+                          }}
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
+                      </div>
+                      <Field
+                        label={tr("Unit quantity", "จำนวนสินค้าในหน่วยนี้")}
+                        value={selected.quantity}
+                        onChange={(quantity) =>
+                          updateRow(selected.id, { quantity })
+                        }
+                        type="number"
+                        min={0}
+                        step={
+                          quantityPrecision(product.unit) === 0 ? "1" : "0.001"
+                        }
+                        required
+                      />
+                      <p className="text-sm text-muted">
+                        {tr(
+                          "Measure all outer dimensions including the base and packaging. These measurements are used for storage recommendations.",
+                          "วัดขนาดภายนอกทั้งหมด รวมฐานและบรรจุภัณฑ์ ขนาดนี้ใช้แนะนำตำแหน่งจัดเก็บ",
+                        )}
+                      </p>
+                      <div
+                        className="flex gap-2"
+                        aria-label={tr("Dimension units", "หน่วยขนาด")}
+                      >
+                        {(["m", "cm"] as const).map((unit) => (
+                          <Button
+                            key={unit}
+                            type="button"
+                            variant={
+                              draft.displayUnit === unit ? "default" : "outline"
+                            }
+                            aria-pressed={draft.displayUnit === unit}
+                            onClick={() =>
+                              persist({ ...draft, displayUnit: unit })
+                            }
+                          >
+                            {unit === "m"
+                              ? tr("Metres", "เมตร")
+                              : tr("Centimetres", "เซนติเมตร")}
+                          </Button>
+                        ))}
+                      </div>
+                      <div className="grid gap-4 sm:grid-cols-3">
+                        <PackingDimensionFields
+                          row={selected}
+                          required
+                          label={dimensionLabel}
+                          displayUnit={draft.displayUnit}
+                          onChange={(changes) =>
+                            updateRow(selected.id, changes)
+                          }
+                        />
+                      </div>
+                      <Field
+                        label={tr(
+                          "Weight (kg, optional)",
+                          "น้ำหนัก (กก., ไม่บังคับ)",
+                        )}
+                        value={selected.weight}
+                        onChange={(weight) =>
+                          updateRow(selected.id, { weight })
+                        }
+                        type="number"
+                        min={0}
+                        step="any"
+                      />
+                      <label className="flex items-start gap-3 text-sm">
+                        <input
+                          type="checkbox"
+                          className="mt-1 size-4 shrink-0 accent-accent"
+                          checked={selected.checked}
+                          onChange={(e) =>
+                            updateRow(selected.id, {
+                              checked: e.target.checked,
+                            })
+                          }
+                        />
+                        {tr(
+                          "I checked this unit’s actual outer dimensions, including its base and packaging.",
+                          "ตรวจสอบขนาดภายนอกจริงของหน่วยนี้แล้ว รวมฐานและบรรจุภัณฑ์",
+                        )}
+                      </label>
+                      {draft.rows.length > 1 && (
+                        <div className="space-y-2">
+                          <p className="text-sm">
+                            {tr(
+                              "Copy dimensions to selected units",
+                              "คัดลอกขนาดไปยังหน่วยที่เลือก",
+                            )}
+                          </p>
+                          <div className="flex flex-wrap gap-3">
+                            {draft.rows.map((r, i) =>
+                              r.id === selected.id ? null : (
+                                <label
+                                  key={r.id}
+                                  className="flex items-center gap-2 text-sm"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={copyTargets.includes(r.id)}
+                                    onChange={(e) =>
+                                      setCopyTargets(
+                                        e.target.checked
+                                          ? [...copyTargets, r.id]
+                                          : copyTargets.filter(
+                                              (id) => id !== r.id,
+                                            ),
+                                      )
+                                    }
+                                  />
+                                  {rowName(i)}
+                                </label>
+                              ),
+                            )}
+                          </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            disabled={
+                              !copyTargets.some((id) => id !== selected.id)
+                            }
+                            onClick={() => {
+                              persist({
+                                ...draft,
+                                customized: true,
+                                rows: draft.rows.map((r) =>
+                                  r.id !== selected.id &&
+                                  copyTargets.includes(r.id)
+                                    ? {
+                                        ...r,
+                                        length: selected.length,
+                                        width: selected.width,
+                                        height: selected.height,
+                                        weight: selected.weight,
+                                        checked: false,
+                                      }
+                                    : r,
+                                ),
+                              });
+                              setCopyTargets([]);
+                            }}
+                          >
+                            <Copy className="size-4" />
+                            {tr(
+                              "Copy selected dimensions",
+                              "คัดลอกขนาดที่เลือก",
+                            )}
+                          </Button>
+                        </div>
+                      )}
+                    </section>
+                  ) : (
+                    <Notice
+                      title={tr("No storage units yet", "ยังไม่มีหน่วยจัดเก็บ")}
+                    />
+                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={draft.rows.length >= MAX_FG_PACKAGES}
+                    onClick={() => {
+                      const row = newRow(
+                        remaining !== null && remaining > 0
+                          ? String(Number(remaining.toFixed(3)))
+                          : "",
+                      );
+                      persist({
+                        ...draft,
+                        rows: [...draft.rows, row],
+                        selected: row.id,
+                        customized: true,
+                        mode: "MANUAL",
+                        splitPending: false,
+                      });
+                    }}
+                  >
+                    <Plus className="size-4" />
+                    {tr("Add unit", "เพิ่มหน่วย")} ({draft.rows.length}/50)
+                  </Button>
+                </div>
+              </div>
+              <div
+                className="grid gap-3 sm:hidden"
+                aria-label={tr("Packing summary cards", "การ์ดสรุปการบรรจุ")}
+              >
+                {draft.rows.map((r, i) => (
+                  <button
+                    key={r.id}
+                    type="button"
+                    className={`${panel} space-y-2 text-left ${r.id === selected?.id ? "ring-1 ring-accent" : ""}`}
+                    onClick={() => persist({ ...draft, selected: r.id })}
+                  >
+                    <strong>
+                      {rowName(i)} · {r.quantity || "—"} {product.unit}
+                    </strong>
+                    <p>
+                      {r.length || "—"} × {r.width || "—"} × {r.height || "—"}{" "}
+                      {tr("m", "ม.")}
+                    </p>
+                    <p className="text-sm text-muted">
                       {r.checked
                         ? tr("Checked", "ตรวจสอบแล้ว")
                         : tr("Needs checking", "รอตรวจสอบ")}
-                    </td>
-                  </tr>
+                    </p>
+                  </button>
                 ))}
-              </tbody>
-            </table>
-          </div>
+              </div>
+              <div className={`${panel} hidden sm:block`}>
+                <table className="w-full text-left text-sm">
+                  <caption className="sr-only">
+                    {tr("Packing summary", "สรุปการบรรจุ")}
+                  </caption>
+                  <thead>
+                    <tr>
+                      {[
+                        tr("Unit", "หน่วย"),
+                        tr("Quantity", "จำนวน"),
+                        tr("Outer dimensions (m)", "ขนาดภายนอก (ม.)"),
+                        tr("Dimensions", "ขนาด"),
+                      ].map((label) => (
+                        <th
+                          key={label}
+                          className="pr-3 pb-3 font-medium text-muted"
+                        >
+                          {label}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {draft.rows.map((r, i) => (
+                      <tr key={r.id} className="border-t border-border">
+                        <td className="py-3 pr-3">
+                          <button
+                            type="button"
+                            className="text-accent underline"
+                            onClick={() =>
+                              persist({ ...draft, selected: r.id })
+                            }
+                          >
+                            {rowName(i)}
+                          </button>
+                        </td>
+                        <td className="pr-3">{r.quantity || "—"}</td>
+                        <td className="pr-3">
+                          {r.length || "—"} × {r.width || "—"} ×{" "}
+                          {r.height || "—"}
+                        </td>
+                        <td>
+                          {r.checked
+                            ? tr("Checked", "ตรวจสอบแล้ว")
+                            : tr("Needs checking", "รอตรวจสอบ")}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
         </fieldset>
         <div
           className={`${panel} flex flex-wrap items-center justify-between gap-4`}
@@ -1285,8 +1566,8 @@ function PackingForm({
                     "แทนที่เฉพาะหน่วยที่ยังไม่จองของชุดนี้ โดยรักษายอดรวม และเก็บรายการเดิมในประวัติ",
                   )
                 : tr(
-                    "All units will be created together. Review quantities and actual outer dimensions before confirming.",
-                    "สร้างทุกหน่วยพร้อมกัน ตรวจสอบจำนวนและขนาดภายนอกจริงก่อนยืนยัน",
+                    "All units will be created together. Review the package details before confirming.",
+                    "สร้างทุกหน่วยพร้อมกัน ตรวจสอบรายละเอียดบรรจุภัณฑ์ก่อนยืนยัน",
                   )}
             </DialogDescription>
           </DialogHeader>
@@ -1305,7 +1586,9 @@ function PackingForm({
               <li key={r.id} className="rounded-lg border border-border p-3">
                 {rowName(i)} · {r.quantity} {product.unit}
                 <span className="block text-sm text-muted">
-                  {r.length} × {r.width} × {r.height} {tr("m", "ม.")}
+                  {draft.simplePacking
+                    ? `${r.fillPercent ?? draft.groupFill}% ${tr("full", "เต็ม")}`
+                    : `${r.length} × ${r.width} × ${r.height} ${tr("m", "ม.")}`}
                 </span>
               </li>
             ))}

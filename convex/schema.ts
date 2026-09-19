@@ -33,6 +33,7 @@ const batchFormat = v.union(
   v.literal("OTHER"),
 );
 const batchPackage = v.object({
+  fillPercent: v.optional(v.number()),
   quantity: v.optional(v.number()),
   lengthMm: v.optional(v.number()),
   widthMm: v.optional(v.number()),
@@ -41,6 +42,8 @@ const batchPackage = v.object({
   dimensionsChecked: v.boolean(),
 });
 const batchFields = {
+  sameSize: v.optional(v.boolean()),
+  simplePacking: v.optional(v.boolean()),
   warehouseId: v.id("warehouses"),
   productId: v.id("finishedGoodsProducts"),
   revision: v.number(),
@@ -54,6 +57,32 @@ const batchFields = {
   capacity: v.optional(v.number()),
   unitCount: v.optional(v.number()),
   packages: v.array(batchPackage),
+  createdAt: v.number(),
+  createdByUserId: v.id("users"),
+  updatedAt: v.number(),
+  updatedByUserId: v.id("users"),
+};
+
+const placementFields = {
+  warehouseId: v.id("warehouses"),
+  palletId: v.id("finishedGoodsPallets"),
+  buildingId: v.id("storageBuildings"),
+  floorId: v.id("storageFloors"),
+  zoneId: v.id("storageZones"),
+  locationId: v.id("locations"),
+  supportPositionId: v.optional(v.id("storagePositions")),
+  positionCode: v.string(),
+  qrValue: v.string(),
+  status: v.union(
+    v.literal("RESERVED"),
+    v.literal("STORED"),
+    v.literal("RELEASED"),
+  ),
+  verifiedAt: v.optional(v.number()),
+  verifiedByUserId: v.optional(v.id("users")),
+  verificationMethod: v.optional(
+    v.union(v.literal("SCAN"), v.literal("MANUAL")),
+  ),
   createdAt: v.number(),
   createdByUserId: v.id("users"),
   updatedAt: v.number(),
@@ -466,6 +495,8 @@ const schema = defineSchema({
       code: v.string(),
       quantity: v.number(),
       packingBatchId: v.optional(v.string()),
+      sameSize: v.optional(v.boolean()),
+      fillPercent: v.optional(v.number()),
       preparationBatchId: v.optional(v.id("finishedGoodsBatches")),
       batchRevision: v.optional(v.number()),
       storageFormat: v.optional(batchFormat),
@@ -501,39 +532,31 @@ const schema = defineSchema({
       byOrg("warehouseId", "productId", "updatedAt"),
     ),
   finishedGoodsPlacements: defineTable(
-    tenantFields({
-      warehouseId: v.id("warehouses"),
-      palletId: v.id("finishedGoodsPallets"),
-      buildingId: v.id("storageBuildings"),
-      floorId: v.id("storageFloors"),
-      zoneId: v.id("storageZones"),
-      locationId: v.id("locations"),
-      supportPositionId: v.optional(v.id("storagePositions")),
-      supportPalletId: v.optional(v.id("finishedGoodsPallets")),
-      positionCode: v.string(),
-      qrValue: v.string(),
-      xMm: v.number(),
-      yMm: v.number(),
-      zMm: v.number(),
-      widthMm: v.number(),
-      depthMm: v.number(),
-      heightMm: v.number(),
-      rotation: v.union(v.literal(0), v.literal(90)),
-      status: v.union(
-        v.literal("RESERVED"),
-        v.literal("STORED"),
-        v.literal("RELEASED"),
+    v.union(
+      v.object(
+        tenantFields({
+          ...placementFields,
+          mode: v.optional(v.literal("GEOMETRIC")),
+          supportPalletId: v.optional(v.id("finishedGoodsPallets")),
+          xMm: v.number(),
+          yMm: v.number(),
+          zMm: v.number(),
+          widthMm: v.number(),
+          depthMm: v.number(),
+          heightMm: v.number(),
+          rotation: v.union(v.literal(0), v.literal(90)),
+        }),
       ),
-      verifiedAt: v.optional(v.number()),
-      verifiedByUserId: v.optional(v.id("users")),
-      verificationMethod: v.optional(
-        v.union(v.literal("SCAN"), v.literal("MANUAL")),
+      v.object(
+        tenantFields({
+          ...placementFields,
+          mode: v.literal("LOCATION_ONLY"),
+          assignmentId: v.id("finishedGoodsScanAssignments"),
+          sequence: v.number(),
+          supportPalletId: v.optional(v.null()),
+        }),
       ),
-      createdAt: v.number(),
-      createdByUserId: v.id("users"),
-      updatedAt: v.number(),
-      updatedByUserId: v.id("users"),
-    }),
+    ),
   )
     .index("by_orgId_supportPalletId", byOrg("supportPalletId"))
     .index(
@@ -548,6 +571,30 @@ const schema = defineSchema({
       "by_orgId_warehouseId_positionCode",
       byOrg("warehouseId", "positionCode"),
     ),
+  finishedGoodsScanAssignments: defineTable(
+    tenantFields({
+      warehouseId: v.id("warehouses"),
+      requestId: v.string(),
+      orderedUnitIds: v.array(v.id("finishedGoodsPallets")),
+      placementIds: v.array(v.id("finishedGoodsPlacements")),
+      sameSize: v.boolean(),
+      fillPercents: v.array(v.number()),
+      zoneId: v.id("storageZones"),
+      locationId: v.id("locations"),
+      buildingId: v.id("storageBuildings"),
+      floorId: v.id("storageFloors"),
+      supportPositionId: v.optional(v.id("storagePositions")),
+      locationCode: v.string(),
+      locationName: v.string(),
+      locationVersion: v.string(),
+      verificationMethod: v.union(v.literal("SCAN"), v.literal("MANUAL")),
+      verifiedCode: v.string(),
+      createdAt: v.number(),
+      createdByUserId: v.id("users"),
+    }),
+  )
+    .index("by_orgId_warehouseId", byOrg("warehouseId"))
+    .index("by_orgId_warehouseId_requestId", byOrg("warehouseId", "requestId")),
   finishedGoodsMoves: defineTable(
     tenantFields({
       warehouseId: v.id("warehouses"),

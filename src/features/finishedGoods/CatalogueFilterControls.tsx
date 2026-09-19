@@ -76,7 +76,7 @@ export function filterLabel(key: string, tab: CatalogueTab, tr: Tr): string {
 export type FilterControlsProps = {
   tab: CatalogueTab;
   filters: CatalogueFilters;
-  units: string[];
+  units: readonly string[];
   onChange: (filters: CatalogueFilters) => void;
 };
 function Field({ label, children }: { label: string; children: ReactNode }) {

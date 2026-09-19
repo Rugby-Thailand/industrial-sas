@@ -73,11 +73,22 @@ import {
 import { chooseOption } from "@tests/fixtures/select-control";
 import { PackingScreen } from "./PackingScreen";
 const key = "fg-batch-packing:user-a:warehouse-a:new:product-a";
-const show = (batchId?: string, locale: "en" | "th" = "en") =>
-  renderWithIntl(
+const show = (batchId?: string, locale: "en" | "th" = "en", simple = false) => {
+  const view = renderWithIntl(
     <PackingScreen {...(batchId ? { batchId } : { productId: "product-a" })} />,
     { locale, workspace: false },
   );
+  if (!simple) {
+    const advanced = screen.queryByRole("button", {
+      name:
+        locale === "th"
+          ? "วัดขนาดละเอียด (ไม่บังคับ)"
+          : "Exact measurements (optional)",
+    });
+    if (advanced) fireEvent.click(advanced);
+  }
+  return view;
+};
 const input = (name: string, value: string) =>
   fireEvent.change(screen.getByRole("spinbutton", { name }), {
     target: { value },
@@ -96,6 +107,11 @@ const check = () =>
     screen.getByRole("checkbox", { name: /I checked this unit/ }),
   );
 function measure() {
+  const advanced = screen.queryByRole("button", {
+    name: "Exact measurements (optional)",
+    pressed: false,
+  });
+  if (advanced) fireEvent.click(advanced);
   input("Length (m)", "1.001");
   input("Width (m)", "1");
   input("Height (m)", "1.4");
@@ -790,4 +806,42 @@ it("clears stale measured weight and confirmation when a unit quantity changes",
   expect(
     screen.getByRole("button", { name: "Review and create" }),
   ).toBeDisabled();
+});
+
+it("creates simple packages with fullness presets without requiring measurements", async () => {
+  show(undefined, "en", true);
+  split();
+  expect(
+    screen.queryByRole("spinbutton", { name: "Length (m)" }),
+  ).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Half (50%)" }));
+  input("Fullness (%) · pallet 2", "75");
+  review();
+  confirm();
+  await waitFor(() => expect(mocks.commit).toHaveBeenCalledOnce());
+  expect(mocks.commit.mock.calls[0]?.[0]).toMatchObject({
+    simplePacking: true,
+    sameSize: true,
+    totalQuantity: 100,
+    packages: [
+      { quantity: 50, fillPercent: 50, dimensionsChecked: false },
+      { quantity: 50, fillPercent: 75, dimensionsChecked: false },
+    ],
+  });
+  expect(mocks.commit.mock.calls[0]?.[0].packages[0]).not.toHaveProperty(
+    "lengthMm",
+  );
+});
+it("blocks invalid fullness without demanding dimensions for mixed sizes", () => {
+  show(undefined, "en", true);
+  split();
+  fireEvent.click(screen.getByRole("button", { name: "No" }));
+  input("Fullness (%) · pallet 1", "101");
+  expect(
+    screen.getByRole("button", { name: "Review and create" }),
+  ).toBeDisabled();
+  input("Fullness (%) · pallet 1", "25");
+  expect(
+    screen.getByRole("button", { name: "Review and create" }),
+  ).toBeEnabled();
 });

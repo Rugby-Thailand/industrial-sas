@@ -1,3 +1,4 @@
+import { isGeometricPlacement } from "../model/finishedGoods/scanning";
 import { validatePacking } from "../model/finishedGoods/packing";
 import { v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
@@ -132,7 +133,8 @@ export async function command(
     return failure("REQUEST_IDENTITY_INVALID", "requestId");
   const hash = await fingerprintArguments(
     compact(
-      operation.startsWith("finishedGoods.move.")
+      operation.startsWith("finishedGoods.move.") ||
+        operation.startsWith("finishedGoods.scan.")
         ? { ...args, actorUserId: ctx.tenant.actor._id }
         : args,
     ),
@@ -607,7 +609,7 @@ async function locationContext(
       { field: "status", value: "STORED" },
     ],
   );
-  const occupancy = [...held, ...stored];
+  const occupancy = [...held, ...stored].filter(isGeometricPlacement);
   const base = zone.baseElevationMm ?? 0;
   const ceiling = Math.min(
     zone.maxStackHeightMm + base,
@@ -700,13 +702,15 @@ async function locationContext(
     }
   // Derive pallet tops from confirmed placement geometry. Preserve the root rack ceiling.
   const fixedSupports = [...supports];
-  for (const lower of stored) {
+  for (const lower of stored.filter(isGeometricPlacement)) {
     let root = lower;
     const seen = new Set<string>([lower.palletId]);
     while (root.supportPalletId) {
       if (seen.has(root.supportPalletId) || seen.size >= 10) break;
       seen.add(root.supportPalletId);
-      const parent = stored.find((p) => p.palletId === root.supportPalletId);
+      const parent = stored
+        .filter(isGeometricPlacement)
+        .find((p) => p.palletId === root.supportPalletId);
       if (!parent) break;
       root = parent;
     }
@@ -735,7 +739,18 @@ async function locationContext(
       },
     });
   }
-  return { zone, building, floor, positions, supports, unavailable, occupancy };
+  return {
+    zone,
+    building,
+    floor,
+    positions,
+    supports,
+    unavailable,
+    occupancy,
+    unmeasuredPalletCount: [...held, ...stored].filter(
+      (p) => !isGeometricPlacement(p),
+    ).length,
+  };
 }
 type LocationContext = NonNullable<Awaited<ReturnType<typeof locationContext>>>;
 export interface PreviewSupport {
@@ -747,6 +762,8 @@ export interface PreviewSupport {
   surface: Surface;
 }
 export interface Destination {
+  measuredAreaPartial?: boolean;
+  unmeasuredPalletCount?: number;
   previewSupports?: PreviewSupport[];
   zoneId: Id<"storageZones">;
   locationId: Id<"locations">;
@@ -852,6 +869,8 @@ function destination(
     context.unavailable,
   );
   return {
+    measuredAreaPartial: context.unmeasuredPalletCount > 0,
+    unmeasuredPalletCount: context.unmeasuredPalletCount,
     zoneId: zone._id,
     locationId: zone.locationId,
     locationName: zone.label,
@@ -895,7 +914,8 @@ function destination(
         error !== "POSITION_INVALID" &&
         error !== "UNAVAILABLE_AREA",
       height: box.heightMm <= support.surface.heightMm,
-      collision: error !== "SPACE_OCCUPIED",
+      collision:
+        context.unmeasuredPalletCount === 0 && error !== "SPACE_OCCUPIED",
       storageCondition: conditionCheck(context, product),
     },
     occupied,
@@ -929,6 +949,10 @@ async function recommendations(
     const context = await locationContext(ctx, args.warehouseId, zone._id);
     if (!context) continue;
     active++;
+    if (context.unmeasuredPalletCount > 0) {
+      reasons.add("LOCATION_GEOMETRY_UNKNOWN");
+      continue;
+    }
     if (conditionCheck(context, product) === "MISMATCH") {
       reasons.add("STORAGE_CONDITION_MISMATCH");
       continue;
@@ -1068,7 +1092,7 @@ async function detail(
   });
   const placement = await currentPlacement(ctx, pallet);
   let resolved: Destination | null = null;
-  if (placement && product) {
+  if (placement && isGeometricPlacement(placement) && product) {
     const context = await locationContext(
       ctx,
       pallet.warehouseId,
@@ -1243,6 +1267,8 @@ export const reserve = mutationWithOrg({
           args.zoneId,
         );
         if (!context) return failure("LOCATION_UNAVAILABLE");
+        if (context.unmeasuredPalletCount > 0)
+          return failure("LOCATION_GEOMETRY_UNKNOWN");
         const support = context.supports.find(
           (s) =>
             s.supportPositionId === args.supportPositionId &&
@@ -1345,12 +1371,16 @@ async function validReserved(
   pallet: Doc<"finishedGoodsPallets">,
   placement: Doc<"finishedGoodsPlacements">,
 ) {
+  if (!isGeometricPlacement(placement))
+    return { error: "LOCATION_ONLY_ACTION_UNAVAILABLE" } as const;
   const context = await locationContext(
     ctx,
     pallet.warehouseId,
     placement.zoneId,
   );
   if (!context) return { error: "LOCATION_UNAVAILABLE" } as const;
+  if (context.unmeasuredPalletCount > 0)
+    return { error: "LOCATION_GEOMETRY_UNKNOWN" } as const;
   const support = context.supports.find(
     (s) =>
       s.supportPositionId === placement.supportPositionId &&
@@ -1530,7 +1560,7 @@ async function resolvePlacement(
   pallet: Doc<"finishedGoodsPallets">,
   placement: Doc<"finishedGoodsPlacements"> | null,
 ) {
-  if (!placement) return null;
+  if (!placement || !isGeometricPlacement(placement)) return null;
   const product = await productOf(ctx, {
     warehouseId: pallet.warehouseId,
     productId: pallet.productId,
@@ -1637,6 +1667,8 @@ async function validMovePlacement(
   sourceId: Id<"finishedGoodsPlacements">,
   targetId: Id<"finishedGoodsPlacements">,
 ) {
+  if (!isGeometricPlacement(placement))
+    return { error: "LOCATION_ONLY_ACTION_UNAVAILABLE" } as const;
   const context = await locationContext(
     ctx,
     pallet.warehouseId,
@@ -1648,6 +1680,8 @@ async function validMovePlacement(
       s.supportPalletId === placement.supportPalletId,
   );
   if (!context) return { error: "LOCATION_UNAVAILABLE" } as const;
+  if (placement._id === targetId && context.unmeasuredPalletCount > 0)
+    return { error: "LOCATION_GEOMETRY_UNKNOWN" } as const;
   if (!support) return { error: "SUPPORT_REQUIRED" } as const;
   const stackError = await validateStack(
     ctx,
@@ -1748,6 +1782,8 @@ export const reserveMove = mutationWithOrg({
         if ((args.reason?.trim().length ?? 0) > 2000)
           return failure("FIELD_INVALID", "reason");
         const source = await currentPlacement(ctx, pallet);
+        if (source && !isGeometricPlacement(source))
+          return failure("LOCATION_ONLY_ACTION_UNAVAILABLE");
         if (
           !source ||
           source._id !== args.expectedSourcePlacementId ||
@@ -1779,6 +1815,8 @@ export const reserveMove = mutationWithOrg({
         );
         if (!product) return failure("NOT_FOUND");
         if (!context) return failure("LOCATION_UNAVAILABLE");
+        if (context.unmeasuredPalletCount > 0)
+          return failure("LOCATION_GEOMETRY_UNKNOWN");
         const support = context.supports.find(
           (s) =>
             s.supportPositionId === args.supportPositionId &&
@@ -2238,7 +2276,11 @@ async function validateStack(
     )
       return "STACK_SUPPORT_OCCUPIED";
     const placement = await currentPlacement(ctx, parent);
-    if (!placement || placement.status !== "STORED")
+    if (
+      !placement ||
+      !isGeometricPlacement(placement) ||
+      placement.status !== "STORED"
+    )
       return "STACK_SUPPORT_UNAVAILABLE";
     childId = parent._id;
     parentId = placement.supportPalletId;
@@ -2272,6 +2314,8 @@ export const saveStackingLimits = mutationWithOrg({
         if ((await stackChildren(ctx, pallet._id)).length)
           return failure("PALLET_SUPPORTING_STACK");
         const placement = await currentPlacement(ctx, pallet);
+        if (placement?.mode === "LOCATION_ONLY")
+          return failure("LOCATION_ONLY_ACTION_UNAVAILABLE");
         if (placement?.supportPalletId || pallet.status === "RESERVED")
           return failure("STACK_SETTINGS_LOCKED");
         if (
@@ -2309,7 +2353,7 @@ export const stackOptions = queryWithOrg({
     )
       return null;
     const placement = await currentPlacement(ctx, lower);
-    if (!placement) return null;
+    if (!placement || !isGeometricPlacement(placement)) return null;
     const context = await locationContext(
       ctx,
       args.warehouseId,
@@ -2374,7 +2418,9 @@ export const stackOptions = queryWithOrg({
         const current = await currentPlacement(ctx, upper);
         if (
           upper.status === "STORED" &&
-          current?.zoneId === candidate.zoneId &&
+          current &&
+          isGeometricPlacement(current) &&
+          current.zoneId === candidate.zoneId &&
           current.xMm === box.xMm &&
           current.yMm === box.yMm &&
           current.zMm === box.zMm &&

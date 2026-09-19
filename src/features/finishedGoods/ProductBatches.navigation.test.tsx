@@ -29,6 +29,7 @@ vi.mock("./shared", async (importOriginal) => ({
   useFGText: () => ({ tr: (en: string) => en, locale: "en" }),
   useDraftKey: () => "user-a:batches",
   useCanManage: () => mocks.canManage,
+
   useOperation: () => ({
     busy: false,
     error: "",
@@ -285,7 +286,7 @@ it.each([true, false])(
     ).toBeVisible();
   },
 );
-it("keeps the legacy awaiting unit on its standalone measurement flow", () => {
+it("sends the legacy unmeasured unit to scanning", () => {
   navigate("");
   mocks.query.mockReturnValue(
     querySuccess({
@@ -302,7 +303,7 @@ it("keeps the legacy awaiting unit on its standalone measurement flow", () => {
   render(component());
   expect(screen.getByRole("link", { name: /P-A/ })).toHaveAttribute(
     "href",
-    "/finished-goods/pallets/unit-a/measure",
+    "/finished-goods/scan",
   );
 });
 it("clears an unavailable-target message after manually choosing an editable unit", () => {

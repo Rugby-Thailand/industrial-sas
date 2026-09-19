@@ -151,6 +151,14 @@ export function DestinationPicker({
                     </span>
                   )}
                 </span>
+                {candidate.measuredAreaPartial && (
+                  <span className="mt-2 block text-xs text-warning">
+                    {tr(
+                      "Contains unmeasured units · remaining space unknown",
+                      "มีสินค้าที่ไม่ได้วัดขนาด · ไม่ทราบพื้นที่ว่างคงเหลือ",
+                    )}
+                  </span>
+                )}
                 <span className="mt-2 block text-xs text-muted">
                   {candidate.buildingCode} · {tr("Floor", "ชั้น")}{" "}
                   {candidate.floorNumber}

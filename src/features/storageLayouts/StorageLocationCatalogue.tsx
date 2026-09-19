@@ -599,6 +599,16 @@ function LocationDetails({ source }: { source: Row }) {
                   },
                 )}{" "}
                 m²
+                {row.placements.some((p) => p.mode === "LOCATION_ONLY") && (
+                  <>
+                    {" "}
+                    ·{" "}
+                    {tr(
+                      "Measured area only; unmeasured units are also stored here",
+                      "เฉพาะพื้นที่ที่วัด มีหน่วยที่ยังไม่วัดจัดเก็บอยู่ด้วย",
+                    )}
+                  </>
+                )}
               </p>
             )}
             {row.positions.map((p) => (
@@ -609,24 +619,35 @@ function LocationDetails({ source }: { source: Row }) {
                 · {statusName(p.status)}
               </p>
             ))}
-            {row.placements.map((p) => (
-              <p key={p.id}>
-                {p.code} · X {p.xMm / 1000} / Y {p.yMm / 1000} / Z{" "}
-                {p.zMm / 1000} m · {p.rotation}° ·{" "}
-                {p.moveRole === "TARGET"
-                  ? tr("Move destination reserved", "จองปลายทางการย้าย")
-                  : p.moveRole === "SOURCE"
-                    ? p.moveState === "IN_TRANSIT"
-                      ? tr(
-                          "Last confirmed position · moving",
-                          "ตำแหน่งยืนยันล่าสุด · กำลังย้าย",
-                        )
-                      : tr("Move source", "ต้นทางการย้าย")
-                    : p.status === "STORED"
-                      ? tr("Stored", "จัดเก็บแล้ว")
-                      : tr("Reserved", "จองแล้ว")}
-              </p>
-            ))}
+            {row.placements.map((p) =>
+              p.mode === "LOCATION_ONLY" ? (
+                <p key={p.id}>
+                  {p.code} ·{" "}
+                  {tr(
+                    "Location saved · coordinates unmeasured",
+                    "บันทึกจุดจัดเก็บแล้ว · ไม่ได้วัดพิกัด",
+                  )}{" "}
+                  · #{p.sequence}
+                </p>
+              ) : (
+                <p key={p.id}>
+                  {p.code} · X {p.xMm / 1000} / Y {p.yMm / 1000} / Z{" "}
+                  {p.zMm / 1000} m · {p.rotation}° ·{" "}
+                  {p.moveRole === "TARGET"
+                    ? tr("Move destination reserved", "จองปลายทางการย้าย")
+                    : p.moveRole === "SOURCE"
+                      ? p.moveState === "IN_TRANSIT"
+                        ? tr(
+                            "Last confirmed position · moving",
+                            "ตำแหน่งยืนยันล่าสุด · กำลังย้าย",
+                          )
+                        : tr("Move source", "ต้นทางการย้าย")
+                      : p.status === "STORED"
+                        ? tr("Stored", "จัดเก็บแล้ว")
+                        : tr("Reserved", "จองแล้ว")}
+                </p>
+              ),
+            )}
           </>
         )}
       </div>

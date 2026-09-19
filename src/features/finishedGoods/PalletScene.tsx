@@ -44,6 +44,7 @@ export type {
 } from "./palletGeometry";
 
 export interface PalletSceneProps {
+  readonly measuredAreaPartial?: boolean;
   readonly viewStateKey?: string | undefined;
   readonly dimensions: PalletDimensions;
   readonly area?: PalletDimensions;
@@ -150,6 +151,7 @@ const metres = (value: number) => `${Number((value / 1_000).toFixed(3))} m`;
 export function PalletScene({
   dimensions,
   area,
+  measuredAreaPartial = false,
   placement = zeroPlacement,
   occupied = [],
   sourceFootprint,
@@ -584,6 +586,13 @@ export function PalletScene({
 
   return (
     <figure className="min-w-0 overflow-hidden rounded-xl border border-border bg-background">
+      {measuredAreaPartial && (
+        <p className="border-b border-border p-3 text-sm">
+          {locale === "th"
+            ? "ภาพแสดงเฉพาะสินค้าที่วัดขนาดแล้ว มีสินค้าอื่นในจุดนี้ พื้นที่ว่างคงเหลือไม่ทราบแน่ชัด"
+            : "Preview shows measured units only. Other units occupy this location; remaining space is unknown."}
+        </p>
+      )}
       <figcaption className="border-b border-border px-2">
         <SceneToolbar
           title={label ?? t.title}
@@ -1094,7 +1103,11 @@ export function PalletScene({
                     ? t.storedPosition
                     : reserved
                       ? t.reservedPosition
-                      : t.fits
+                      : measuredAreaPartial
+                        ? locale === "th"
+                          ? "พื้นที่ว่างคงเหลือไม่ทราบแน่ชัด"
+                          : "Remaining space unknown"
+                        : t.fits
                 : `${t.width} ${metres(dimensions.widthMm)} · ${t.depth} ${metres(dimensions.depthMm)} · ${t.heightLabel} ${metres(dimensions.heightMm)}`}
           </p>
           {showMeasurements && area && (

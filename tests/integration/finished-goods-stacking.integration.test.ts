@@ -974,7 +974,9 @@ it("protects supporting batch units independently of cached status, then repacks
     const original = await ctx.db.get(
       w.sourcePlacementId as Id<"finishedGoodsPlacements">,
     );
-    const { _id, _creationTime, ...fields } = original!;
+    if (!original || original.mode === "LOCATION_ONLY")
+      throw new Error("Expected geometric fixture");
+    const { _id, _creationTime, ...fields } = original;
     void _id;
     void _creationTime;
     return ctx.db.insert("finishedGoodsPlacements", {

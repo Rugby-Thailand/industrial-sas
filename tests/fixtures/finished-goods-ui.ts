@@ -125,31 +125,32 @@ export const finishedGoodDestination: Destination = {
   occupied: [],
   unavailable: [],
 };
-export const finishedGoodPlacement: Placement = {
-  _id: "placement-a",
-  _creationTime: 1000,
-  orgId: "org-a",
-  warehouseId: "warehouse-a",
-  palletId: "pallet-a",
-  buildingId: "building-a",
-  floorId: "floor-a",
-  zoneId: "zone-a",
-  locationId: "location-a",
-  positionCode: "P01",
-  qrValue: "ISAS:FG-POSITION:1:warehouse-a:P01",
-  xMm: 100,
-  yMm: 200,
-  zMm: 0,
-  widthMm: 1000,
-  depthMm: 1200,
-  heightMm: 1400,
-  rotation: 0,
-  status: "RESERVED",
-  createdAt: 1000,
-  createdByUserId: "user-a",
-  updatedAt: 1000,
-  updatedByUserId: "user-a",
-};
+export const finishedGoodPlacement: Extract<Placement, { mode?: "GEOMETRIC" }> =
+  {
+    _id: "placement-a",
+    _creationTime: 1000,
+    orgId: "org-a",
+    warehouseId: "warehouse-a",
+    palletId: "pallet-a",
+    buildingId: "building-a",
+    floorId: "floor-a",
+    zoneId: "zone-a",
+    locationId: "location-a",
+    positionCode: "P01",
+    qrValue: "ISAS:FG-POSITION:1:warehouse-a:P01",
+    xMm: 100,
+    yMm: 200,
+    zMm: 0,
+    widthMm: 1000,
+    depthMm: 1200,
+    heightMm: 1400,
+    rotation: 0,
+    status: "RESERVED",
+    createdAt: 1000,
+    createdByUserId: "user-a",
+    updatedAt: 1000,
+    updatedByUserId: "user-a",
+  };
 export const measuredPalletDetail: PalletDetail = {
   stackChildren: [],
   supportPallet: null,
@@ -165,7 +166,9 @@ export const measuredPalletDetail: PalletDetail = {
   placement: null,
   destination: null,
 };
-export const reservedPalletDetail: PalletDetail = {
+export const reservedPalletDetail: PalletDetail & {
+  placement: typeof finishedGoodPlacement;
+} = {
   ...measuredPalletDetail,
   pallet: {
     ...measuredPalletDetail.pallet,
