@@ -1,4 +1,8 @@
 "use client";
+import {
+  resolveAreaColor,
+  areaColorText,
+} from "@/lib/storageLayouts/areaColors";
 import { SceneBox } from "@/components/storageScene/SceneBox";
 
 import { useId, useRef } from "react";
@@ -18,6 +22,7 @@ import {
 export type StorageViewMode = "plan" | "3d";
 
 export interface StorageVisualArea {
+  readonly color?: string;
   readonly heightMm?: number;
   readonly id: string;
   readonly label?: string;
@@ -30,6 +35,153 @@ export interface StorageVisualArea {
 
 export interface StorageVisualSelection extends StorageVisualArea {
   readonly heightMm: number;
+}
+
+/** Unavailable geometry keeps its color independently of selection/error outlines. */
+export function ReservedAreaShape({
+  points,
+  color,
+  label,
+  mode,
+  selected = false,
+  invalid = false,
+  fontSize = 11,
+}: {
+  readonly points: readonly { x: number; y: number }[];
+  readonly color?: string | undefined;
+  readonly label?: string | undefined;
+  readonly mode: StorageViewMode;
+  readonly selected?: boolean;
+  readonly invalid?: boolean;
+  readonly fontSize?: number;
+}) {
+  const patternId = `area-${useId().replaceAll(":", "")}`;
+  const base = resolveAreaColor(color);
+  const contrast = areaColorText(color);
+  const top =
+    points.length === 8 && mode === "3d" ? points.slice(4) : points.slice(0, 4);
+  const faces =
+    points.length === 8 && mode === "3d"
+      ? [
+          [points[1]!, points[2]!, points[6]!, points[5]!],
+          [points[2]!, points[3]!, points[7]!, points[6]!],
+          top,
+        ]
+      : [top];
+  const center = {
+    x: top.reduce((sum, p) => sum + p.x, 0) / 4,
+    y: top.reduce((sum, p) => sum + p.y, 0) / 4,
+  };
+  return (
+    <g data-area-color={base}>
+      <title>{label}</title>
+      <defs>
+        <pattern
+          id={patternId}
+          width={fontSize}
+          height={fontSize}
+          patternUnits="userSpaceOnUse"
+          patternTransform="rotate(45)"
+        >
+          <line
+            x1="0"
+            y1="0"
+            x2="0"
+            y2={fontSize}
+            stroke={contrast}
+            strokeWidth={fontSize / 5}
+            opacity="0.2"
+          />
+        </pattern>
+      </defs>
+      {faces.map((face, index) => (
+        <g key={index}>
+          <polygon
+            data-zone-face={
+              selected
+                ? mode === "plan"
+                  ? "plan"
+                  : index === faces.length - 1
+                    ? "top"
+                    : "side"
+                : undefined
+            }
+            points={pointsAttribute(face)}
+            fill={base}
+            stroke={contrast}
+            vectorEffect="non-scaling-stroke"
+          />
+          {index < faces.length - 1 && (
+            <polygon
+              points={pointsAttribute(face)}
+              fill="#000000"
+              opacity={index === 0 ? 0.15 : 0.3}
+            />
+          )}
+          <polygon points={pointsAttribute(face)} fill={`url(#${patternId})`} />
+        </g>
+      ))}
+      {(selected || invalid) &&
+        faces.map((face, index) => (
+          <polygon
+            key={index}
+            points={pointsAttribute(face)}
+            fill="none"
+            stroke={invalid ? "#ef4444" : "#77b6ff"}
+            strokeWidth="3"
+            strokeDasharray={invalid ? "5 3" : undefined}
+            vectorEffect="non-scaling-stroke"
+            className="group-focus-visible:stroke-text"
+          />
+        ))}
+      {label && (
+        <text
+          x={center.x}
+          y={center.y}
+          textAnchor="middle"
+          dominantBaseline="central"
+          fill={contrast}
+          stroke={base}
+          strokeWidth={fontSize / 3}
+          paintOrder="stroke"
+          fontSize={fontSize}
+          className="pointer-events-none"
+        >
+          {label}
+        </text>
+      )}
+    </g>
+  );
+}
+
+export function ReservedAreaLegend({
+  areas,
+}: {
+  readonly areas: readonly {
+    readonly label?: string | undefined;
+    readonly color?: string | undefined;
+  }[];
+}) {
+  if (areas.length === 0) return null;
+  return (
+    <ul className="flex flex-wrap gap-x-4 gap-y-2 px-3 py-2 text-xs text-muted">
+      {areas
+        .filter((area) => area.label)
+        .map((area, index) => (
+          <li key={index} className="inline-flex items-center gap-1.5">
+            <span
+              aria-hidden="true"
+              className="size-3 shrink-0 rounded-sm border"
+              style={{
+                backgroundColor: resolveAreaColor(area.color),
+                borderColor: areaColorText(area.color),
+              }}
+            />
+            {area.label}
+          </li>
+        ))}
+    </ul>
+  );
 }
 
 /** Shared floor/zone occupancy layer; box coordinates are already floor-relative. */
@@ -385,269 +537,312 @@ export function StorageZoneVisualizer({
     : {};
 
   return (
-    <svg
-      ref={svgRef}
-      role="img"
-      aria-label={ariaLabel}
-      data-view-mode={mode}
-      viewBox={`${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`}
-      className={className}
-      onPointerMove={(event) => {
-        const drag = dragState.current;
-        if (
-          onPositionChange === undefined ||
-          drag === undefined ||
-          drag.pointerId !== event.pointerId
-        ) {
-          return;
-        }
-        const current = clientPoint(event.clientX, event.clientY);
-        if (current === undefined) return;
-        const delta =
-          mode === "3d"
-            ? unprojectIsometricDelta(
-                { x: current.x - drag.startX, y: current.y - drag.startY },
-                scale,
-              )
-            : {
-                x: current.x - drag.startX,
-                y: current.y - drag.startY,
-              };
-        const snap = (value: number) => Math.round(value / 100) * 100;
-        onPositionChange(
-          clampPosition(snap(drag.xMm + delta.x), snap(drag.yMm + delta.y)),
-        );
-      }}
-      onPointerUp={(event) => finishDrag(event.pointerId)}
-      onPointerCancel={(event) => finishDrag(event.pointerId)}
-    >
-      <defs>
-        <pattern
-          id={patternId}
-          width={mode === "3d" ? 18 : 1_000}
-          height={mode === "3d" ? 18 : 1_000}
-          patternUnits="userSpaceOnUse"
-        >
-          <path
-            d={mode === "3d" ? "M 18 0 L 0 0 0 18" : "M 1000 0 L 0 0 0 1000"}
-            className="fill-none stroke-border/40"
-            strokeWidth={mode === "3d" ? 0.75 : planStrokeWidth / 2}
-          />
-        </pattern>
-      </defs>
-      {mode === "3d" ? (
-        <>
-          <rect
-            x={viewBox.x}
-            y={viewBox.y}
-            width={viewBox.width}
-            height={viewBox.height}
-            fill={`url(#${patternId})`}
-            opacity="0.45"
-          />
-          <polygon
-            points={pointsAttribute(floorShape)}
-            className="fill-surface/70 stroke-accent/70"
-            strokeWidth="1.5"
-          />
-          {isometricGridLines.map(([start, end], index) => (
-            <line
-              key={index}
-              x1={start.x}
-              y1={start.y}
-              x2={end.x}
-              y2={end.y}
-              className="stroke-muted/30"
-              strokeWidth="0.75"
-            />
-          ))}
-          {reservedBlocks.map((block) => (
-            <polygon
-              key={block.id}
-              points={pointsAttribute([
-                point(block.xMm, block.yMm),
-                point(block.xMm + block.widthMm, block.yMm),
-                point(block.xMm + block.widthMm, block.yMm + block.depthMm),
-                point(block.xMm, block.yMm + block.depthMm),
-              ])}
-              className="fill-warning/15 stroke-warning/45"
-              strokeWidth="1.25"
-            />
-          ))}
-          {zones.map((zone) => (
-            <SceneBox
-              key={zone.id}
-              kind="location"
-              mode="3d"
-              points={storagePlacementCorners({
-                xMm: zone.xMm,
-                yMm: zone.yMm,
-                zMm: 0,
-                widthMm: zone.widthMm,
-                depthMm: zone.depthMm,
-                heightMm: zone.heightMm ?? floorHeightMm,
-              }).map((p) => point(p.x, p.y, p.z))}
-            />
-          ))}
-          <g
-            {...interactionProps}
-            className={
-              interactive
-                ? "group cursor-grab outline-none active:cursor-grabbing"
-                : undefined
-            }
-            style={interactive ? { touchAction: "none" } : undefined}
+    <>
+      <svg
+        ref={svgRef}
+        role="img"
+        aria-label={ariaLabel}
+        data-view-mode={mode}
+        viewBox={`${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`}
+        className={className}
+        onPointerMove={(event) => {
+          const drag = dragState.current;
+          if (
+            onPositionChange === undefined ||
+            drag === undefined ||
+            drag.pointerId !== event.pointerId
+          ) {
+            return;
+          }
+          const current = clientPoint(event.clientX, event.clientY);
+          if (current === undefined) return;
+          const delta =
+            mode === "3d"
+              ? unprojectIsometricDelta(
+                  { x: current.x - drag.startX, y: current.y - drag.startY },
+                  scale,
+                )
+              : {
+                  x: current.x - drag.startX,
+                  y: current.y - drag.startY,
+                };
+          const snap = (value: number) => Math.round(value / 100) * 100;
+          onPositionChange(
+            clampPosition(snap(drag.xMm + delta.x), snap(drag.yMm + delta.y)),
+          );
+        }}
+        onPointerUp={(event) => finishDrag(event.pointerId)}
+        onPointerCancel={(event) => finishDrag(event.pointerId)}
+      >
+        <defs>
+          <pattern
+            id={patternId}
+            width={mode === "3d" ? 18 : 1_000}
+            height={mode === "3d" ? 18 : 1_000}
+            patternUnits="userSpaceOnUse"
           >
-            <SceneBox
-              points={[...selectionBottom, ...selectionTop]}
-              mode="3d"
-              kind="location"
-              selected
-              held={variant === "reserved"}
-              invalid={invalid}
+            <path
+              d={mode === "3d" ? "M 18 0 L 0 0 0 18" : "M 1000 0 L 0 0 0 1000"}
+              className="fill-none stroke-border/40"
+              strokeWidth={mode === "3d" ? 0.75 : planStrokeWidth / 2}
             />
-          </g>
-          <StoragePlacementLayer
-            mode="3d"
-            {...(reservedLabel === undefined ? {} : { reservedLabel })}
-            {...(storedLabel === undefined ? {} : { storedLabel })}
-            {...(moveSourceLabel === undefined ? {} : { moveSourceLabel })}
-            {...(moveInTransitLabel === undefined
-              ? {}
-              : { moveInTransitLabel })}
-            {...(moveTargetLabel === undefined ? {} : { moveTargetLabel })}
-            boxes={[
-              ...contextBoxes,
-              ...zones.flatMap((zone) =>
-                storagePlacementBoxes(zone.placements ?? [], zone),
-              ),
-            ]}
-            point={point}
-          />
-          <line
-            x1={heightGuideBottom.x + 14}
-            y1={heightGuideBottom.y}
-            x2={heightGuideTop.x + 14}
-            y2={heightGuideTop.y}
-            className="stroke-muted"
-            strokeDasharray="4 4"
-          />
-          <text
-            x={heightGuideTop.x + 20}
-            y={(heightGuideBottom.y + heightGuideTop.y) / 2}
-            dominantBaseline="central"
-            className="fill-muted text-[10px]"
-          >
-            H {floorHeightMm / 1_000} m
-          </text>
-        </>
-      ) : (
-        <>
-          <rect
-            width={floorWidthMm}
-            height={floorDepthMm}
-            fill={`url(#${patternId})`}
-          />
-          <rect
-            width={floorWidthMm}
-            height={floorDepthMm}
-            className="fill-accent/5 stroke-muted"
-            strokeWidth={planStrokeWidth}
-          />
-          {reservedBlocks.map((block) => (
+          </pattern>
+        </defs>
+        {mode === "3d" ? (
+          <>
             <rect
-              key={block.id}
-              x={block.xMm}
-              y={block.yMm}
-              width={block.widthMm}
-              height={block.depthMm}
-              className="fill-warning/25 stroke-warning/70"
-              strokeWidth={planStrokeWidth}
+              x={viewBox.x}
+              y={viewBox.y}
+              width={viewBox.width}
+              height={viewBox.height}
+              fill={`url(#${patternId})`}
+              opacity="0.45"
             />
-          ))}
-          {zones.map((zone) => (
-            <g key={zone.id}>
+            <polygon
+              points={pointsAttribute(floorShape)}
+              className="fill-surface/70 stroke-accent/70"
+              strokeWidth="1.5"
+            />
+            {isometricGridLines.map(([start, end], index) => (
+              <line
+                key={index}
+                x1={start.x}
+                y1={start.y}
+                x2={end.x}
+                y2={end.y}
+                className="stroke-muted/30"
+                strokeWidth="0.75"
+              />
+            ))}
+            {reservedBlocks.map((block) => (
+              <ReservedAreaShape
+                key={block.id}
+                color={block.color}
+                label={block.label}
+                mode="3d"
+                points={[
+                  point(block.xMm, block.yMm),
+                  point(block.xMm + block.widthMm, block.yMm),
+                  point(block.xMm + block.widthMm, block.yMm + block.depthMm),
+                  point(block.xMm, block.yMm + block.depthMm),
+                ]}
+              />
+            ))}
+            {zones.map((zone) => (
               <SceneBox
+                key={zone.id}
                 kind="location"
-                mode="plan"
+                mode="3d"
                 points={storagePlacementCorners({
                   xMm: zone.xMm,
                   yMm: zone.yMm,
                   zMm: 0,
                   widthMm: zone.widthMm,
                   depthMm: zone.depthMm,
+                  heightMm: zone.heightMm ?? floorHeightMm,
+                }).map((p) => point(p.x, p.y, p.z))}
+              />
+            ))}
+            <g
+              {...interactionProps}
+              className={
+                interactive
+                  ? "group cursor-grab outline-none active:cursor-grabbing"
+                  : undefined
+              }
+              style={interactive ? { touchAction: "none" } : undefined}
+            >
+              {variant === "reserved" ? (
+                <ReservedAreaShape
+                  points={[...selectionBottom, ...selectionTop]}
+                  color={selection.color}
+                  label={selection.label}
+                  mode="3d"
+                  selected
+                  invalid={invalid}
+                />
+              ) : (
+                <SceneBox
+                  points={[...selectionBottom, ...selectionTop]}
+                  mode="3d"
+                  kind="location"
+                  selected
+                  invalid={invalid}
+                />
+              )}
+            </g>
+            <StoragePlacementLayer
+              mode="3d"
+              {...(reservedLabel === undefined ? {} : { reservedLabel })}
+              {...(storedLabel === undefined ? {} : { storedLabel })}
+              {...(moveSourceLabel === undefined ? {} : { moveSourceLabel })}
+              {...(moveInTransitLabel === undefined
+                ? {}
+                : { moveInTransitLabel })}
+              {...(moveTargetLabel === undefined ? {} : { moveTargetLabel })}
+              boxes={[
+                ...contextBoxes,
+                ...zones.flatMap((zone) =>
+                  storagePlacementBoxes(zone.placements ?? [], zone),
+                ),
+              ]}
+              point={point}
+            />
+            <line
+              x1={heightGuideBottom.x + 14}
+              y1={heightGuideBottom.y}
+              x2={heightGuideTop.x + 14}
+              y2={heightGuideTop.y}
+              className="stroke-muted"
+              strokeDasharray="4 4"
+            />
+            <text
+              x={heightGuideTop.x + 20}
+              y={(heightGuideBottom.y + heightGuideTop.y) / 2}
+              dominantBaseline="central"
+              className="fill-muted text-[10px]"
+            >
+              H {floorHeightMm / 1_000} m
+            </text>
+          </>
+        ) : (
+          <>
+            <rect
+              width={floorWidthMm}
+              height={floorDepthMm}
+              fill={`url(#${patternId})`}
+            />
+            <rect
+              width={floorWidthMm}
+              height={floorDepthMm}
+              className="fill-accent/5 stroke-muted"
+              strokeWidth={planStrokeWidth}
+            />
+            {reservedBlocks.map((block) => (
+              <ReservedAreaShape
+                key={block.id}
+                color={block.color}
+                label={block.label}
+                mode="plan"
+                fontSize={Math.max(280, floorWidthMm / 42)}
+                points={storagePlacementCorners({
+                  ...block,
+                  zMm: 0,
                   heightMm: 0,
                 }).map((p) => ({ x: p.x, y: p.y }))}
               />
-              {zone.label === undefined ? null : (
-                <text
-                  x={zone.xMm + zone.widthMm / 2}
-                  y={zone.yMm + zone.depthMm / 2}
-                  textAnchor="middle"
-                  dominantBaseline="central"
-                  className="fill-muted"
-                  style={{ fontSize: Math.max(280, floorWidthMm / 42) }}
-                >
-                  {zone.label}
-                </text>
+            ))}
+            {zones.map((zone) => (
+              <g key={zone.id}>
+                <SceneBox
+                  kind="location"
+                  mode="plan"
+                  points={storagePlacementCorners({
+                    xMm: zone.xMm,
+                    yMm: zone.yMm,
+                    zMm: 0,
+                    widthMm: zone.widthMm,
+                    depthMm: zone.depthMm,
+                    heightMm: 0,
+                  }).map((p) => ({ x: p.x, y: p.y }))}
+                />
+                {zone.label === undefined ? null : (
+                  <text
+                    x={zone.xMm + zone.widthMm / 2}
+                    y={zone.yMm + zone.depthMm / 2}
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                    className="fill-muted"
+                    style={{ fontSize: Math.max(280, floorWidthMm / 42) }}
+                  >
+                    {zone.label}
+                  </text>
+                )}
+              </g>
+            ))}
+            <g
+              {...interactionProps}
+              className={
+                interactive
+                  ? "group cursor-grab outline-none active:cursor-grabbing"
+                  : undefined
+              }
+              style={interactive ? { touchAction: "none" } : undefined}
+            >
+              {variant === "reserved" ? (
+                <ReservedAreaShape
+                  color={selection.color}
+                  label={selection.label}
+                  mode="plan"
+                  selected
+                  invalid={invalid}
+                  fontSize={Math.max(280, floorWidthMm / 42)}
+                  points={storagePlacementCorners({
+                    xMm: drawnXMm,
+                    yMm: drawnYMm,
+                    widthMm: drawnWidthMm,
+                    depthMm: drawnDepthMm,
+                    zMm: 0,
+                    heightMm: 0,
+                  }).map((p) => ({ x: p.x, y: p.y }))}
+                />
+              ) : (
+                <>
+                  <SceneBox
+                    kind="location"
+                    mode="plan"
+                    selected
+                    invalid={invalid}
+                    points={storagePlacementCorners({
+                      xMm: drawnXMm,
+                      yMm: drawnYMm,
+                      zMm: 0,
+                      widthMm: drawnWidthMm,
+                      depthMm: drawnDepthMm,
+                      heightMm: 0,
+                    }).map((p) => ({ x: p.x, y: p.y }))}
+                  />
+                  {selection.label === undefined ? null : (
+                    <text
+                      x={drawnXMm + drawnWidthMm / 2}
+                      y={drawnYMm + drawnDepthMm / 2}
+                      textAnchor="middle"
+                      dominantBaseline="central"
+                      className="pointer-events-none fill-text font-bold"
+                      style={{ fontSize: Math.max(280, floorWidthMm / 42) }}
+                    >
+                      {selection.label}
+                    </text>
+                  )}
+                </>
               )}
             </g>
-          ))}
-          <g
-            {...interactionProps}
-            className={
-              interactive
-                ? "group cursor-grab outline-none active:cursor-grabbing"
-                : undefined
-            }
-            style={interactive ? { touchAction: "none" } : undefined}
-          >
-            <SceneBox
-              kind="location"
+            <StoragePlacementLayer
               mode="plan"
-              selected
-              invalid={invalid}
-              held={variant === "reserved"}
-              points={storagePlacementCorners({
-                xMm: drawnXMm,
-                yMm: drawnYMm,
-                zMm: 0,
-                widthMm: drawnWidthMm,
-                depthMm: drawnDepthMm,
-                heightMm: 0,
-              }).map((p) => ({ x: p.x, y: p.y }))}
+              {...(reservedLabel === undefined ? {} : { reservedLabel })}
+              {...(storedLabel === undefined ? {} : { storedLabel })}
+              {...(moveSourceLabel === undefined ? {} : { moveSourceLabel })}
+              {...(moveInTransitLabel === undefined
+                ? {}
+                : { moveInTransitLabel })}
+              {...(moveTargetLabel === undefined ? {} : { moveTargetLabel })}
+              boxes={[
+                ...contextBoxes,
+                ...zones.flatMap((zone) =>
+                  storagePlacementBoxes(zone.placements ?? [], zone),
+                ),
+              ]}
             />
-            {selection.label === undefined ? null : (
-              <text
-                x={drawnXMm + drawnWidthMm / 2}
-                y={drawnYMm + drawnDepthMm / 2}
-                textAnchor="middle"
-                dominantBaseline="central"
-                className="pointer-events-none fill-text font-bold"
-                style={{ fontSize: Math.max(280, floorWidthMm / 42) }}
-              >
-                {selection.label}
-              </text>
-            )}
-          </g>
-          <StoragePlacementLayer
-            mode="plan"
-            {...(reservedLabel === undefined ? {} : { reservedLabel })}
-            {...(storedLabel === undefined ? {} : { storedLabel })}
-            {...(moveSourceLabel === undefined ? {} : { moveSourceLabel })}
-            {...(moveInTransitLabel === undefined
-              ? {}
-              : { moveInTransitLabel })}
-            {...(moveTargetLabel === undefined ? {} : { moveTargetLabel })}
-            boxes={[
-              ...contextBoxes,
-              ...zones.flatMap((zone) =>
-                storagePlacementBoxes(zone.placements ?? [], zone),
-              ),
-            ]}
-          />
-        </>
-      )}
-    </svg>
+          </>
+        )}
+      </svg>
+      <ReservedAreaLegend
+        areas={
+          variant === "reserved"
+            ? [...reservedBlocks, selection]
+            : reservedBlocks
+        }
+      />
+    </>
   );
 }

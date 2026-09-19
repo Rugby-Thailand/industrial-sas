@@ -2,7 +2,7 @@
 
 Date: 2026-09-19
 
-Status: Planned; application implementation has not started.
+Status: Implemented locally on 2026-09-19; not deployed.
 
 ## Outcome
 
@@ -14,12 +14,12 @@ The first release covers unavailable areas (`storageFloorReservedBlocks`). Usabl
 
 The supplied images are visual references, not instructions embedded in the product. Their copy, sample dimensions, architectural illustrations, and differing palettes do not independently define requirements.
 
-| Reference | Adopt | Do not infer as a requirement |
-| --- | --- | --- |
-| [Add area](area-colors-references/01-add-area.png) | Labeled preset swatches, selected checkmark and outline, form beside a live preview, clear footer actions | New architectural floor-plan rendering or a new name-length limit |
-| [Custom color](area-colors-references/02-custom-color.png) | “More colors” control, visual picker, hex entry, selected-color preview, explicit Apply action | L-shaped or polygon area support |
-| [Floor overview](area-colors-references/03-floor-overview.png) | Matching color in the plan, area list, and legend; hatch texture; distinct selection and invalid-position outlines | A full floor-page redesign, reorder support, or a new area-type database |
-| [Edit area](area-colors-references/04-edit-area.png) | Preselected saved color, readable label, live preview, Save/Cancel actions | Locking names, dimensions, or positions; the existing edit capabilities remain available |
+| Reference                                                      | Adopt                                                                                                              | Do not infer as a requirement                                                            |
+| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
+| [Add area](area-colors-references/01-add-area.png)             | Labeled preset swatches, selected checkmark and outline, form beside a live preview, clear footer actions          | New architectural floor-plan rendering or a new name-length limit                        |
+| [Custom color](area-colors-references/02-custom-color.png)     | “More colors” control, visual picker, hex entry, selected-color preview, explicit Apply action                     | L-shaped or polygon area support                                                         |
+| [Floor overview](area-colors-references/03-floor-overview.png) | Matching color in the plan, area list, and legend; hatch texture; distinct selection and invalid-position outlines | A full floor-page redesign, reorder support, or a new area-type database                 |
+| [Edit area](area-colors-references/04-edit-area.png)           | Preselected saved color, readable label, live preview, Save/Cancel actions                                         | Locking names, dimensions, or positions; the existing edit capabilities remain available |
 
 The earlier warehouse color chart is the palette reference. The newer images guide interaction and layout. Where colors or names conflict, use one shared palette based on the warehouse chart rather than mixing the mockups. Swatch labels are suggested uses, not a new classification system. Exact palette hex values should be defined once during implementation; screenshot colors are visual samples, not authoritative numeric values.
 
@@ -94,14 +94,14 @@ Suggested new files: `src/lib/storageLayouts/areaColors.ts` and `src/components/
 
 ### 3. Propagate color to every display surface
 
-| Files/surface | Work |
-| --- | --- |
-| `src/features/storageLayouts/StorageLayoutScreens.tsx` | Dialog preview, floor render paths, reserved-area list, draft mappings, and legends |
-| `src/components/storageLayouts/StorageZoneDraftPreview.tsx` | Selected area and surrounding unavailable areas; preserve color through nested visualizer mappings |
-| `src/components/storageLayouts/StorageZoneVisualizer.tsx` | Extend visual-area metadata and use resolved colors in both plan and isometric rendering |
-| `src/components/storageScene/sceneColors.ts` | Shared fallback and clear separation from inventory status colors |
+| Files/surface                                                                                                          | Work                                                                                                                                         |
+| ---------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/features/storageLayouts/StorageLayoutScreens.tsx`                                                                 | Dialog preview, floor render paths, reserved-area list, draft mappings, and legends                                                          |
+| `src/components/storageLayouts/StorageZoneDraftPreview.tsx`                                                            | Selected area and surrounding unavailable areas; preserve color through nested visualizer mappings                                           |
+| `src/components/storageLayouts/StorageZoneVisualizer.tsx`                                                              | Extend visual-area metadata and use resolved colors in both plan and isometric rendering                                                     |
+| `src/components/storageScene/sceneColors.ts`                                                                           | Shared fallback and clear separation from inventory status colors                                                                            |
 | `convex/finishedGoods/workflow.ts`, `src/lib/convex/finishedGoodsApi.ts`, `src/features/finishedGoods/PalletScene.tsx` | Carry optional color, and label if needed, through unavailable-area projections and draw matching swatches/fills where those areas are shown |
-| `src/i18n/messages.ts` and actual locale resources | Add matching Thai/English labels, help text, and validation messages using the existing translation structure |
+| `src/i18n/messages.ts` and actual locale resources                                                                     | Add matching Thai/English labels, help text, and validation messages using the existing translation structure                                |
 
 Audit all consumers of reserved blocks and unavailable geometry, including read-only building/floor views. Change only views that actually display the area; geometry-only placement algorithms should remain unaffected.
 
@@ -117,16 +117,16 @@ Audit all consumers of reserved blocks and unavailable geometry, including read-
 
 ## Acceptance criteria
 
-- [ ] A user can choose a preset or valid custom color when adding or editing an unavailable area.
-- [ ] A color-only edit is recognized as a change and can be saved.
-- [ ] Saved color survives reload and subsequent edits to other floor fields.
-- [ ] Each rendered occurrence of the area uses the same resolved base color, with only intentional shading/opacity differences.
-- [ ] Dialog, list, and legend agree with the plan and isometric views.
-- [ ] Existing records without color render consistently and remain editable.
-- [ ] Invalid color input cannot be persisted through the UI or API.
-- [ ] Cancel behavior, edit permissions, geometry validation, and capacity calculations remain correct.
-- [ ] Selection/errors remain distinguishable from user-chosen colors.
-- [ ] Thai/English and keyboard interactions work on desktop and narrow screens.
+- [x] A user can choose a preset or valid custom color when adding or editing an unavailable area.
+- [x] A color-only edit is recognized as a change and can be saved.
+- [x] Saved color survives reload and subsequent edits to other floor fields.
+- [x] Each rendered occurrence of the area uses the same resolved base color, with only intentional shading/opacity differences.
+- [x] Dialog, list, and legend agree with the plan and isometric views.
+- [x] Existing records without color render consistently and remain editable.
+- [x] Invalid color input cannot be persisted through the UI or API.
+- [x] Cancel behavior, edit permissions, geometry validation, and capacity calculations remain correct.
+- [x] Selection/errors remain distinguishable from user-chosen colors.
+- [x] Thai/English and keyboard interactions work on desktop and narrow screens.
 
 ## Explicitly deferred
 
@@ -136,3 +136,11 @@ Audit all consumers of reserved blocks and unavailable geometry, including read-
 - Global recoloring of previously saved areas when preset definitions change; saved hex values remain stable.
 
 If formal area types are needed later, add a separate type identifier and define its relationship to default colors. Do not use the selected hex value as a type identifier.
+
+## Implementation verification
+
+- Added saved preset/custom colors across the editor, floor map, isometric views, unavailable-area lists/legends, and goods-placement projections.
+- Color-only edits can be saved on occupied floors. Server-side checks still reject changes to block identity, names, bounds, or effective floor geometry while occupied.
+- Full suite: 786 tests passed across 80 files. Type checking, lint, and production build passed.
+- Local browser: changed a demo walkway to `#FFB889` on an occupied floor, saved, reloaded, and confirmed the saved preset. Inspected the dark-theme dialog, custom picker, and responsive stacked layout. Light-theme styling uses the existing theme tokens; it was not manually inspected.
+- All four design images remain visual guidance. Existing geometry editing remains available; no polygon support or new area-type taxonomy was introduced.

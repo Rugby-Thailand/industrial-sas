@@ -350,7 +350,9 @@ describe("FloorPlan", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("20 × 18 × 5 m")).toBeInTheDocument();
     expect(screen.getByText("H 5 m")).toBeInTheDocument();
-    expect(screen.getByText("Lift core")).toBeInTheDocument();
+    expect(
+      screen.getByText("Lift core", { selector: "text" }),
+    ).toBeInTheDocument();
     expect(
       screen.queryByText("Position on Floor 1 footprint"),
     ).not.toBeInTheDocument();
@@ -603,6 +605,80 @@ describe("ReservedBlocks", () => {
     ).toHaveValue(2);
     expect(screen.getByRole("button", { name: "Save changes" })).toBeVisible();
   });
+});
+
+describe("Unavailable area color saving", () => {
+  it.each([false, true])(
+    "saves a color-only edit without changing geometry (occupied: %s)",
+    async (occupied) => {
+      const block = {
+        blockId: "lift",
+        label: "Lift core",
+        xMm: 22000,
+        yMm: 16000,
+        widthMm: 1000,
+        depthMm: 1000,
+      };
+      layoutAccess.query.mockReturnValue({
+        ok: true,
+        value: {
+          found: true,
+          building: { ...building, status: "ACTIVE" },
+          floors: [
+            {
+              ...floors[1],
+              reservedBlocks: [block],
+              storageZones: occupied ? [occupiedTestZone()] : [],
+            },
+          ],
+        },
+      });
+      renderWithIntl(
+        <StorageFloorEditor buildingId="building-a" floorNumber={2} />,
+        { locale: "en", workspace: false },
+      );
+      expect(
+        screen.getByRole("button", { name: "Floor changes saved" }),
+      ).toBeDisabled();
+      fireEvent.click(screen.getByRole("button", { name: "Edit Lift core" }));
+      fireEvent.click(screen.getByRole("button", { name: "Office" }));
+      fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+      expect(
+        screen.getByRole("button", { name: "Floor changes saved" }),
+      ).toBeDisabled();
+      expect(mutation).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByRole("button", { name: "Edit Lift core" }));
+      expect(screen.getByRole("button", { name: "Default" })).toHaveAttribute(
+        "aria-pressed",
+        "true",
+      );
+      fireEvent.click(screen.getByRole("button", { name: "Office" }));
+      fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+      const save = screen.getByRole("button", {
+        name: "Save and continue to storage stacks",
+      });
+      expect(save).toBeEnabled();
+      fireEvent.click(save);
+      await waitFor(() => expect(mutation).toHaveBeenCalledOnce());
+      expect(mutation).toHaveBeenCalledWith(
+        expect.objectContaining({
+          floor: expect.objectContaining({
+            reservedBlocks: [
+              {
+                id: "lift",
+                label: "Lift core",
+                color: "#145CA1",
+                xMm: 22000,
+                yMm: 16000,
+                widthMm: 1000,
+                depthMm: 1000,
+              },
+            ],
+          }),
+        }),
+      );
+    },
+  );
 });
 
 describe("StorageZonesPanel", () => {

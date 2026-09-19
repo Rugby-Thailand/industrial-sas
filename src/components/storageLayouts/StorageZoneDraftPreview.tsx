@@ -5,6 +5,8 @@ import { CheckCircle2 } from "lucide-react";
 import { SceneBox } from "@/components/storageScene/SceneBox";
 import {
   StoragePlacementLayer,
+  ReservedAreaShape,
+  ReservedAreaLegend,
   StorageViewModeToggle,
   StorageZoneVisualizer,
   type StorageViewMode,
@@ -45,6 +47,8 @@ export function StorageZoneDraftPreview({
   reservedBlocks = [],
   editingZone,
   variant = "storage",
+  selectedColor,
+  selectedLabel,
   onPositionChange,
 }: {
   readonly floorWidthMm: number;
@@ -59,6 +63,8 @@ export function StorageZoneDraftPreview({
   readonly editingZone?: StorageZoneRow;
   readonly reservedBlocks?: readonly EditableBlock[];
   readonly variant?: "storage" | "reserved";
+  readonly selectedColor?: string;
+  readonly selectedLabel?: string;
   readonly onPositionChange: (position: {
     readonly xMm: number;
     readonly yMm: number;
@@ -334,11 +340,12 @@ export function StorageZoneDraftPreview({
               point(block.xMm, block.yMm + block.depthMm),
             ];
             return (
-              <polygon
+              <ReservedAreaShape
                 key={block.id}
-                points={pointsAttribute(shape)}
-                className="fill-warning/15 stroke-warning/45"
-                strokeWidth="1.25"
+                points={shape}
+                color={block.color}
+                label={block.label}
+                mode="3d"
               />
             );
           })}
@@ -391,14 +398,25 @@ export function StorageZoneDraftPreview({
               );
             }}
           >
-            <SceneBox
-              points={[...zoneBottom, ...zoneTop]}
-              mode="3d"
-              kind="location"
-              selected
-              held={isReserved}
-              invalid={!fitsFloor}
-            />
+            {isReserved ? (
+              <ReservedAreaShape
+                points={[...zoneBottom, ...zoneTop]}
+                color={selectedColor}
+                label={selectedLabel}
+                mode="3d"
+                selected
+                invalid={!fitsFloor}
+              />
+            ) : (
+              <SceneBox
+                points={[...zoneBottom, ...zoneTop]}
+                mode="3d"
+                kind="location"
+                selected
+                held={isReserved}
+                invalid={!fitsFloor}
+              />
+            )}
           </g>
           <line
             x1={heightGuideBottom.x + 14}
@@ -447,6 +465,8 @@ export function StorageZoneDraftPreview({
           floorHeightMm={floorHeightMm}
           selection={{
             id: "draft",
+            ...(selectedLabel ? { label: selectedLabel } : {}),
+            ...(selectedColor ? { color: selectedColor } : {}),
             xMm,
             yMm,
             widthMm,
@@ -466,6 +486,7 @@ export function StorageZoneDraftPreview({
           reservedBlocks={reservedBlocks.map((block) => ({
             id: block.id,
             label: block.label,
+            ...(block.color ? { color: block.color } : {}),
             xMm: block.xMm,
             yMm: block.yMm,
             widthMm: block.widthMm,
@@ -475,6 +496,18 @@ export function StorageZoneDraftPreview({
           dragLabel={dragLabel}
           dragHintId={dragHintId}
           onPositionChange={onPositionChange}
+        />
+      )}
+      {view === "3d" && (
+        <ReservedAreaLegend
+          areas={
+            isReserved
+              ? [
+                  ...reservedBlocks,
+                  { label: selectedLabel, color: selectedColor },
+                ]
+              : reservedBlocks
+          }
         />
       )}
       <div className="grid grid-cols-3 border-t border-border text-center text-xs tabular-nums">

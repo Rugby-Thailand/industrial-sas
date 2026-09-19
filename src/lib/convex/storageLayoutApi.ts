@@ -7,6 +7,7 @@ export type StorageLayoutStatus = "DRAFT" | "ACTIVE" | "ARCHIVED";
 export interface StorageReservedBlockRow {
   readonly blockId: string;
   readonly label: string;
+  readonly color?: string;
   readonly xMm: number;
   readonly yMm: number;
   readonly widthMm: number;

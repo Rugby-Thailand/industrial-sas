@@ -51,6 +51,7 @@ import type * as model_guards from "../model/guards.js";
 import type * as model_identifiers_normalization from "../model/identifiers/normalization.js";
 import type * as model_inventory_requestIdentity from "../model/inventory/requestIdentity.js";
 import type * as model_result from "../model/result.js";
+import type * as model_storageLayout_areaColor from "../model/storageLayout/areaColor.js";
 import type * as model_storageLayout_areaUsage from "../model/storageLayout/areaUsage.js";
 import type * as model_storageLayout_occupancy from "../model/storageLayout/occupancy.js";
 import type * as model_storageLayout_storageLayout from "../model/storageLayout/storageLayout.js";
@@ -116,6 +117,7 @@ declare const fullApi: ApiFromModules<{
   "model/identifiers/normalization": typeof model_identifiers_normalization;
   "model/inventory/requestIdentity": typeof model_inventory_requestIdentity;
   "model/result": typeof model_result;
+  "model/storageLayout/areaColor": typeof model_storageLayout_areaColor;
   "model/storageLayout/areaUsage": typeof model_storageLayout_areaUsage;
   "model/storageLayout/occupancy": typeof model_storageLayout_occupancy;
   "model/storageLayout/storageLayout": typeof model_storageLayout_storageLayout;

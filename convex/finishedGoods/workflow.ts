@@ -586,6 +586,9 @@ async function locationContext(
   const unavailable = allBlocks
     .filter((block) => overlaps(zone, block))
     .map((block) => ({
+      id: block._id,
+      label: block.label,
+      ...(block.color ? { color: block.color } : {}),
       xMm: block.xMm - zone.xMm,
       yMm: block.yMm - zone.yMm,
       widthMm: block.widthMm,
@@ -814,7 +817,9 @@ export interface Destination {
     heightMm: number;
     status: "RESERVED" | "STORED";
   }>;
-  unavailable: Rectangle[];
+  unavailable: Array<
+    Rectangle & { id?: string; label?: string; color?: string }
+  >;
 }
 export type Candidate = Destination;
 function conditionCheck(

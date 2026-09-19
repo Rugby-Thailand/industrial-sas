@@ -24,13 +24,13 @@ A location containing unmeasured assignments displays unknown/partial measured u
 
 ## Baseline and scope
 
-The original checkout was preserved. Commit `19dcb5a` separately checkpointed inherited application changes during development. For integration, the feature was rebased onto main `983fb5a`; review the merged feature against that main commit. During development, missing catalogue and batch endpoints were completed to exercise the inherited UI. Integration retains main’s newer signed pagination, summary generation and test adapters, together with scanning compatibility. Overlapping changes were reconciled and obsolete development-only mocks removed.
+The original checkout was preserved. Commit `19dcb5a` separately checkpointed inherited application changes during development. For integration, the feature was rebased onto main `983fb5a`; review the scanner implementation against that main commit. The subsequent integration also preserves area-color commit `7c9f28d`; color-only floor edits remain allowed for locations holding scanned packages, while structural edits remain protected. During development, missing catalogue and batch endpoints were completed to exercise the inherited UI. Integration retains main’s newer signed pagination, summary generation and test adapters, together with scanning compatibility. Overlapping changes were reconciled and obsolete development-only mocks removed.
 
 No new application, navigation replacement, production deployment or live warehouse data change was performed. Browser checks used a separate local database and designated local test account.
 
 ## Verification
 
-- After integration with main, the full automated suite passed: **83 files, 813 tests**.
+- After integration with main and area colors, the full automated suite passed: **85 files, 832 tests**.
 - TypeScript checking and the production build passed.
 - Whole-project ESLint and changed-file formatting passed. The earlier baseline lint error in `native-select.tsx` was removed by the newer main branch during integration.
 - Browser check with the actual application and isolated backend successfully entered two package codes, reordered them, scanned a location through the manual/handheld form and confirmed assignment. Its original final assertion expected “Location confirmed” while the implemented success heading is “Packages assigned”; inspection verified the successful save, and the assertion was corrected.

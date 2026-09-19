@@ -16,6 +16,10 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { unitCopy, type StorageFormat } from "./storageUnitLabels";
+import {
+  resolveAreaColor,
+  areaColorText,
+} from "@/lib/storageLayouts/areaColors";
 import { pointsAttribute } from "@/lib/storageLayouts/isometricGeometry";
 
 import {
@@ -796,28 +800,51 @@ export function PalletScene({
               rectangle.depthMm,
             ].every(Number.isFinite),
           )
-          .map((rectangle, index) => (
-            <polygon
-              key={rectangle.id ?? index}
-              points={pointsAttribute(
-                corners(
-                  rectangle.xMm,
-                  rectangle.yMm,
-                  rectangle.widthMm,
-                  rectangle.depthMm,
-                ),
-              )}
-              fill="#a84040"
-              fillOpacity={0.4}
-              stroke="#f87171"
-              strokeDasharray="5 4"
-              vectorEffect="non-scaling-stroke"
-            >
-              <title>
-                {locale === "th" ? "พื้นที่ห้ามจัดเก็บ" : "Unavailable area"}
-              </title>
-            </polygon>
-          ))}
+          .map((rectangle, index) => {
+            const color = resolveAreaColor(rectangle.color);
+            const textColor = areaColorText(rectangle.color);
+            const name =
+              rectangle.label ||
+              (locale === "th" ? "พื้นที่ห้ามจัดเก็บ" : "Unavailable area");
+            const center = point(
+              rectangle.xMm + rectangle.widthMm / 2,
+              rectangle.yMm + rectangle.depthMm / 2,
+            );
+            return (
+              <g key={rectangle.id ?? index} data-unavailable-color={color}>
+                <title>{name}</title>
+                <polygon
+                  points={pointsAttribute(
+                    corners(
+                      rectangle.xMm,
+                      rectangle.yMm,
+                      rectangle.widthMm,
+                      rectangle.depthMm,
+                    ),
+                  )}
+                  fill={color}
+                  stroke={textColor}
+                  strokeDasharray="5 4"
+                  vectorEffect="non-scaling-stroke"
+                />
+                {annotations && (
+                  <text
+                    x={center.x}
+                    y={center.y}
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    fontSize={fontSize}
+                    fill={textColor}
+                    stroke={color}
+                    strokeWidth={fontSize * 0.25}
+                    paintOrder="stroke"
+                  >
+                    {name}
+                  </text>
+                )}
+              </g>
+            );
+          })}
         {support &&
           support.zMm > 0 &&
           paintBox(
@@ -1083,6 +1110,24 @@ export function PalletScene({
           </>
         )}
       </svg>
+      {unavailable.length > 0 && (
+        <div className="flex flex-wrap gap-4 border-t border-border px-4 py-3 text-sm">
+          {unavailable.map((rectangle, index) => (
+            <span
+              key={rectangle.id ?? index}
+              className="flex items-center gap-1.5"
+            >
+              <span
+                aria-hidden="true"
+                className="size-3 rounded-sm border border-current"
+                style={{ backgroundColor: resolveAreaColor(rectangle.color) }}
+              />
+              {rectangle.label ||
+                (locale === "th" ? "พื้นที่ห้ามจัดเก็บ" : "Unavailable area")}
+            </span>
+          ))}
+        </div>
+      )}
       {(showMeasurements || issue || canMove || validOccupied.length > 0) && (
         <div className="space-y-2 border-t border-border px-4 py-3 text-sm">
           <p

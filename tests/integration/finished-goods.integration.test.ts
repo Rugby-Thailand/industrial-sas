@@ -789,6 +789,49 @@ describe("finished goods workflow", () => {
       "MEASUREMENT_CHANGED",
     );
   });
+  it("projects unavailable area presentation without changing its bounds", async () => {
+    const world = await setup();
+    const { palletId } = await measuredPallet(world);
+    const blockId = await world.t.run((ctx) =>
+      ctx.db.insert("storageFloorReservedBlocks", {
+        orgId: world.orgA,
+        warehouseId: world.warehouseId,
+        buildingId: world.buildingId,
+        floorId: world.floorId,
+        label: "Equipment",
+        color: "#123456",
+        xMm: 2700,
+        yMm: 3700,
+        widthMm: 200,
+        depthMm: 200,
+        createdAt: 1,
+        updatedAt: 1,
+      }),
+    );
+    const recommendation = value(
+      await call(world, workflow.recommend, {
+        warehouseId: world.warehouseId,
+        palletId,
+      }),
+    );
+    expect(recommendation).toMatchObject({
+      candidates: [
+        expect.objectContaining({
+          unavailable: [
+            {
+              id: blockId,
+              label: "Equipment",
+              color: "#123456",
+              xMm: 1700,
+              yMm: 1700,
+              widthMm: 200,
+              depthMm: 200,
+            },
+          ],
+        }),
+      ],
+    });
+  });
   it("never silently drops blockers past one query page", async () => {
     const world = await setup();
     const { palletId } = await measuredPallet(world);

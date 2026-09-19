@@ -11,6 +11,7 @@ import {
   createStorageBuilding,
   saveStorageFloor,
 } from "../../convex/storageLayouts/writes";
+import type { StorageReservedBlockInput } from "../../convex/model/storageLayout/storageLayout";
 import type { DataModel } from "../../convex/schema";
 import {
   createConvexTenantWorld,
@@ -51,6 +52,227 @@ function value(outcome: Record<string, unknown>): Record<string, unknown> {
 }
 
 describe("storage building planner", () => {
+  it("normalizes colors, preserves legacy areas and geometry, and rejects invalid colors", async () => {
+    const world = await createPlannerWorld();
+    const warehouseId = world.warehouses.alphaA;
+    const created = value(
+      await call(world, createStorageBuilding, {
+        warehouseId,
+        requestId: "colors-create",
+        code: "COLORS",
+        name: "Colors",
+        widthMm: 10_000,
+        depthMm: 10_000,
+        defaultFloorHeightMm: 4_000,
+        floorCount: 1,
+      }),
+    );
+    const buildingId = created["documentId"];
+    const blocks = [
+      {
+        id: "walkway",
+        label: "Walkway",
+        color: "ffb889",
+        xMm: 0,
+        yMm: 0,
+        widthMm: 1_000,
+        depthMm: 1_000,
+      },
+      {
+        id: "legacy",
+        label: "Legacy",
+        xMm: 2_000,
+        yMm: 0,
+        widthMm: 1_000,
+        depthMm: 1_000,
+      },
+    ];
+    const save = (version: number, color: string, requestId: string) =>
+      call(world, saveStorageFloor, {
+        warehouseId,
+        buildingId,
+        requestId,
+        expectedBuildingVersion: version,
+        expectedFloorVersion: version,
+        floor: {
+          floorNumber: 1,
+          heightMm: 4_000,
+          reservedBlocks: [{ ...blocks[0], color }, blocks[1]],
+        },
+      });
+    expect(value(await save(1, "ffb889", "colors-save"))).toMatchObject({
+      written: true,
+    });
+    const detail = value(
+      await call(world, getStorageBuilding, { warehouseId, buildingId }),
+    );
+    expect(detail["floors"]).toMatchObject([
+      {
+        reservedAreaSqMm: 2_000_000,
+        reservedBlocks: [{ color: "#FFB889" }, { label: "Legacy" }],
+      },
+    ]);
+    const legacy = await world.t.run(async (ctx) =>
+      (await ctx.db.query("storageFloorReservedBlocks").collect()).find(
+        (block) => block.label === "Legacy",
+      ),
+    );
+    expect(legacy?.color).toBeUndefined();
+    for (const color of ["red", "#123", "#12345678", "url(foo)", ""]) {
+      expect(value(await save(2, color, `invalid-${color}`))).toMatchObject({
+        written: false,
+        error: { code: "RESERVED_BLOCK_COLOR_INVALID" },
+      });
+    }
+    expect(value(await save(1, "#FFFFFF", "stale-colors"))).toMatchObject({
+      written: false,
+      error: { code: "VERSION_CONFLICT" },
+    });
+    expect(value(await save(2, "#aabbcc", "colors-edit"))).toMatchObject({
+      written: true,
+    });
+    expect(value(await save(3, "#AABBCC", "colors-resave"))).toMatchObject({
+      written: true,
+    });
+    const reloaded = value(
+      await call(world, getStorageBuilding, { warehouseId, buildingId }),
+    );
+    expect(reloaded["floors"]).toMatchObject([
+      {
+        reservedAreaSqMm: 2_000_000,
+        reservedBlocks: [
+          { color: "#AABBCC", xMm: 0, yMm: 0, widthMm: 1_000, depthMm: 1_000 },
+          { label: "Legacy" },
+        ],
+      },
+    ]);
+    const stored = await world.t.run(async (ctx) =>
+      ctx.db.query("storageFloorReservedBlocks").collect(),
+    );
+    // Real occupied placement keeps structure locked, while allowing color changes.
+    value(
+      await call(world, createStorageZone, {
+        warehouseId,
+        buildingId,
+        floorNumber: 1,
+        requestId: "colors-zone",
+        label: "Stock",
+        xMm: 5_000,
+        yMm: 5_000,
+        widthMm: 2_000,
+        depthMm: 2_000,
+        maxStackHeightMm: 3_000,
+      }),
+    );
+    await world.t.run(async (ctx) => {
+      const zone = (await ctx.db.query("storageZones").collect())[0]!;
+      const audit = {
+        orgId: world.orgA,
+        warehouseId,
+        createdAt: 1,
+        updatedAt: 1,
+        createdByUserId: world.userA,
+        updatedByUserId: world.userA,
+      };
+      const productId = await ctx.db.insert("finishedGoodsProducts", {
+        ...audit,
+        sku: "COLOR",
+        name: "Stock",
+        unit: "pieces",
+        storageFormat: "PALLET",
+        storageCondition: "DRY",
+        status: "ACTIVE",
+      });
+      const palletId = await ctx.db.insert("finishedGoodsPallets", {
+        ...audit,
+        productId,
+        code: "COLOR-PALLET",
+        quantity: 1,
+        lengthMm: 1_000,
+        widthMm: 1_000,
+        heightMm: 1_000,
+        status: "STORED",
+      });
+      await ctx.db.insert("finishedGoodsPlacements", {
+        ...audit,
+        palletId,
+        buildingId: zone.buildingId,
+        floorId: zone.floorId,
+        zoneId: zone._id,
+        locationId: zone.locationId,
+        positionCode: "COLOR-POS",
+        qrValue: "COLOR-QR",
+        xMm: 0,
+        yMm: 0,
+        zMm: 0,
+        widthMm: 1_000,
+        depthMm: 1_000,
+        heightMm: 1_000,
+        rotation: 0,
+        status: "STORED",
+      });
+    });
+    const persistedBlocks = stored.map((block) => ({
+      id: block._id,
+      label: block.label,
+      ...(block.color ? { color: block.color } : {}),
+      xMm: block.xMm,
+      yMm: block.yMm,
+      widthMm: block.widthMm,
+      depthMm: block.depthMm,
+    }));
+    const occupiedSave = (
+      reservedBlocks: readonly StorageReservedBlockInput[],
+      requestId: string,
+    ) =>
+      call(world, saveStorageFloor, {
+        warehouseId,
+        buildingId,
+        requestId,
+        expectedBuildingVersion: 4,
+        expectedFloorVersion: 4,
+        floor: {
+          floorNumber: 1,
+          widthMm: 10_000,
+          depthMm: 10_000,
+          heightMm: 4_000,
+          offsetXMm: 0,
+          offsetYMm: 0,
+          reservedBlocks,
+        },
+      });
+    for (const patch of [
+      { label: "Renamed" },
+      { widthMm: 500 },
+      { id: "replacement" },
+    ]) {
+      expect(
+        value(
+          await occupiedSave(
+            persistedBlocks.map((block, index) =>
+              index === 0 ? { ...block, ...patch, color: "#FFFFFF" } : block,
+            ),
+            `occupied-${JSON.stringify(patch)}`,
+          ),
+        ),
+      ).toMatchObject({ written: false, error: { code: "LOCATION_OCCUPIED" } });
+    }
+    expect(
+      value(
+        await occupiedSave(
+          persistedBlocks.map((block, index) =>
+            index === 0 ? { ...block, color: "#FFFFFF" } : block,
+          ),
+          "occupied-color",
+        ),
+      ),
+    ).toMatchObject({ written: true });
+    expect(stored).toHaveLength(2);
+    expect(stored.find((block) => block.label === "Walkway")?.color).toBe(
+      "#AABBCC",
+    );
+  });
+
   it("creates, edits, summarizes, replays, and activates a warehouse layout", async () => {
     const world = await createPlannerWorld();
     const warehouseId = world.warehouses.alphaA;

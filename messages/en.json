@@ -445,6 +445,28 @@
     "mapUnitCount": "{count, plural, one {# unit} other {# units}}",
     "mapFootprint": "Floor footprint used or reserved: {percent}%",
     "mapAisles": "Aisles / unavailable storage area",
-    "mapDemoLink": "Try a populated floor with aisles"
+    "mapDemoLink": "Try a populated floor with aisles",
+    "areaColor": {
+      "label": "Area color",
+      "more": "More colors",
+      "customTitle": "Choose a custom color",
+      "close": "Close color picker",
+      "picker": "Visual color picker",
+      "hex": "Hex color",
+      "invalid": "Enter six hexadecimal digits, for example #FFB889.",
+      "apply": "Use this color",
+      "selected": "Selected color: {color}",
+      "legend": "Area colors",
+      "presets": {
+        "default": "Default",
+        "walkway": "Walkway",
+        "office": "Office",
+        "stairs": "Stairs",
+        "liftClearance": "Lift clearance",
+        "worktable": "Worktable",
+        "parking": "Equipment parking",
+        "door": "Warehouse door"
+      }
+    }
   }
 }

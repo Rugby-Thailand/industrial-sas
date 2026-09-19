@@ -1,3 +1,4 @@
+import { normalizeAreaColor } from "../model/storageLayout/areaColor";
 import { v } from "convex/values";
 
 import type { Doc } from "../_generated/dataModel";
@@ -12,6 +13,7 @@ import { mutationWithOrg } from "../lib/tenantFunctions";
 import { refusal, writeContextOf, written } from "../lib/writeEnvelope";
 import {
   validateAndSummarizeStorageLayout,
+  isStorageFloorColorOnlyChange,
   type StorageFloorInput,
 } from "../model/storageLayout/storageLayout";
 import { validateStorageZone } from "../model/storageLayout/storageZone";
@@ -20,6 +22,7 @@ import { hasOccupiedStorage } from "./catalogue";
 const blockValidator = v.object({
   id: v.string(),
   label: v.string(),
+  color: v.optional(v.string()),
   xMm: v.number(),
   yMm: v.number(),
   widthMm: v.number(),
@@ -94,6 +97,7 @@ async function readLayout(
         reservedBlocks: blocks.map((block) => ({
           id: block._id,
           label: block.label,
+          ...(block.color === undefined ? {} : { color: block.color }),
           xMm: block.xMm,
           yMm: block.yMm,
           widthMm: block.widthMm,
@@ -491,10 +495,6 @@ export const saveStorageFloor = mutationWithOrg({
     if (floorDocument === undefined) return failure("NOT_FOUND");
     if (floorDocument.version !== args.expectedFloorVersion)
       return failure("VERSION_CONFLICT");
-    // A lower floor's elevation and reserved-space changes can affect access to
-    // pallets on upper floors too. Require reassignment before structural edits.
-    if (await hasOccupiedStorage(ctx, { buildingId: building._id }))
-      return failure("LOCATION_OCCUPIED");
     const floors = current.floors.map((floor) =>
       floor.floorNumber === args.floor.floorNumber ? args.floor : floor,
     );
@@ -505,6 +505,29 @@ export const saveStorageFloor = mutationWithOrg({
       floors,
     });
     if (!summary.ok) return failure(summary.error.code);
+    // Occupancy protects structure; color-only edits do not affect placement.
+    const previousSummary = validateAndSummarizeStorageLayout({
+      widthMm: building.widthMm,
+      depthMm: building.depthMm,
+      defaultFloorHeightMm: building.defaultFloorHeightMm,
+      floors: current.floors,
+    });
+    const previousFloor = current.floors.find(
+      (floor) => floor.floorNumber === args.floor.floorNumber,
+    )!;
+    const colorOnly =
+      previousSummary.ok &&
+      isStorageFloorColorOnlyChange(
+        previousFloor,
+        args.floor,
+        previousSummary.value.floors[args.floor.floorNumber - 1]!,
+        summary.value.floors[args.floor.floorNumber - 1]!,
+      );
+    if (
+      !colorOnly &&
+      (await hasOccupiedStorage(ctx, { buildingId: building._id }))
+    )
+      return failure("LOCATION_OCCUPIED");
     const zones = await activeZonesForFloor(ctx, floorDocument._id);
     const zonesValid = validateFloorZones({
       building,
@@ -572,6 +595,9 @@ export const saveStorageFloor = mutationWithOrg({
           floorId: floorDocument._id,
           warehouseId: args.warehouseId,
           label: block.label,
+          ...(block.color === undefined
+            ? {}
+            : { color: normalizeAreaColor(block.color) }),
           xMm: block.xMm,
           yMm: block.yMm,
           widthMm: block.widthMm,
