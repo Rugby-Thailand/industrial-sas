@@ -2,6 +2,7 @@ import { SignIn } from "@clerk/nextjs";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 
 import { SetupChecklist } from "@/components/system/SetupChecklist";
+import { PublicInfoNav } from "@/components/system/PublicInfoNav";
 import { Notice } from "@/components/ui/Notice";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Link } from "@/i18n/navigation";
@@ -30,6 +31,7 @@ export default async function SignInScreen({
           path={`/${locale}/sign-in`}
           fallbackRedirectUrl={`/${locale}${ROUTES.storageLayouts}`}
         />
+        <PublicInfoNav />
       </main>
     );
   }
@@ -49,6 +51,7 @@ export default async function SignInScreen({
       >
         {t("backHome")}
       </Link>
+      <PublicInfoNav />
     </main>
   );
 }
