@@ -1,3 +1,4 @@
+import { sceneColors } from "@/components/storageScene/sceneColors";
 import { render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import type { StorageStackPlacementRow } from "@/lib/convex/storageLayoutApi";
@@ -94,7 +95,7 @@ describe("planner occupancy rendering", () => {
       );
       expect(source?.querySelector("[data-scene-kind]")).toHaveAttribute(
         "stroke",
-        "#b6c2d1",
+        sceneColors.source,
       );
       expect(target?.querySelector("[data-scene-kind]")).toHaveAttribute(
         "stroke-dasharray",
@@ -102,7 +103,7 @@ describe("planner occupancy rendering", () => {
       );
       expect(target?.querySelector("[data-scene-kind]")).toHaveAttribute(
         "stroke",
-        "#e5af52",
+        sceneColors.reserved,
       );
     },
   );
@@ -226,7 +227,7 @@ describe("unavailable area colors", () => {
       }
       const selected = container.querySelector('[data-area-color="#112233"]')!;
       expect(
-        selected.querySelector('polygon[stroke="#77b6ff"]'),
+        selected.querySelector(`polygon[stroke="${sceneColors.selected}"]`),
       ).not.toBeNull();
       expect(selected.querySelectorAll('polygon[fill="#112233"]')).toHaveLength(
         mode === "3d" ? 3 : 1,

@@ -1,12 +1,19 @@
 "use client";
+import { resolveWriteError } from "@/lib/resolveWriteError";
+import { drafts } from "@/lib/browser/storage";
 
 import { useMutation, useQuery } from "convex/react";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Plus, Trash2, Copy, PackageCheck } from "lucide-react";
 import { QueryGate } from "@/components/system/QueryGate";
 import { Button } from "@/components/ui/button";
 import { Notice } from "@/components/ui/Notice";
+import { CheckboxControl } from "@/components/ui/CheckboxControl";
+import { StickyActionBar } from "@/components/ui/StickyActionBar";
+import { Panel } from "@/components/ui/Panel";
 import { SelectControl } from "@/components/ui/SelectControl";
+import { FormSelect } from "@/components/ui/FormSelect";
 import {
   Dialog,
   DialogContent,
@@ -51,7 +58,6 @@ import {
   textNumber,
   millimetres as mm,
   packageDraft,
-  packingIssueText,
   packedUnit,
   updatePackingRow,
   type PackingRow as Row,
@@ -132,136 +138,138 @@ function initialDraft(_product: Product, batch?: Batch): Draft {
   };
 }
 function readDraft(key: string, fallback: Draft, productId: string): Draft {
-  try {
-    const value: unknown = JSON.parse(localStorage.getItem(key) ?? "null");
-    if (!value || typeof value !== "object") return fallback;
-    const draft = value as Draft;
-    const invalid = () => ({ ...fallback, recoveryBlocked: true });
-    if (
-      ![
-        draft.total,
-        draft.capacity,
-        draft.count,
-        draft.selected,
-        draft.lot,
-      ].every((v) => typeof v === "string") ||
-      (draft.simplePacking !== undefined &&
-        typeof draft.simplePacking !== "boolean") ||
-      (draft.sameSize !== undefined && typeof draft.sameSize !== "boolean") ||
-      (draft.groupFill !== undefined && typeof draft.groupFill !== "string") ||
-      !["PALLET", "BOX", "OTHER"].includes(draft.storageFormat) ||
-      !["CAPACITY", "EQUAL", "MANUAL"].includes(draft.mode) ||
-      !["m", "cm"].includes(draft.displayUnit) ||
-      !Array.isArray(draft.rows) ||
-      draft.rows.length > MAX_FG_PACKAGES ||
-      !draft.rows.every(
-        (row) =>
-          row &&
-          [
-            row.id,
-            row.quantity,
-            row.length,
-            row.width,
-            row.height,
-            row.weight,
-          ].every((v) => typeof v === "string") &&
-          typeof row.checked === "boolean" &&
-          (row.fillPercent === undefined ||
-            typeof row.fillPercent === "string"),
-      ) ||
-      new Set(draft.rows.map((r) => r.id)).size !== draft.rows.length
-    )
-      return invalid();
-    if (draft.pending) {
-      const payload = draft.pending.payload;
-      const allowed = new Set([
-        "simplePacking",
-        "sameSize",
-        "productId",
-        "batchId",
-        "expectedRevision",
-        "totalQuantity",
-        "storageFormat",
-        "lot",
-        "splitMode",
-        "capacity",
-        "unitCount",
-        "packages",
-        "requestId",
-      ]);
-      const packageKeys = new Set([
-        "quantity",
-        "lengthMm",
-        "widthMm",
-        "heightMm",
-        "weightKg",
-        "dimensionsChecked",
-        "fillPercent",
-      ]);
+  return drafts.read(
+    key,
+    (value) => {
+      if (!value || typeof value !== "object") return fallback;
+      const draft = value as Draft;
+      const invalid = () => ({ ...fallback, recoveryBlocked: true });
       if (
-        !["save", "commit"].includes(draft.pending.kind) ||
-        !payload ||
-        Object.keys(payload).some((k) => !allowed.has(k)) ||
-        payload.productId !== productId ||
-        payload.batchId !== draft.batchId ||
-        payload.expectedRevision !== draft.revision ||
-        (fallback.batchId && payload.batchId !== fallback.batchId) ||
-        typeof payload.requestId !== "string" ||
-        !/^[0-9a-f-]{36}$/.test(payload.requestId) ||
-        !["PALLET", "BOX", "OTHER"].includes(payload.storageFormat) ||
-        !["CAPACITY", "EQUAL", "MANUAL"].includes(payload.splitMode) ||
-        (payload.lot !== undefined && typeof payload.lot !== "string") ||
-        (payload.simplePacking !== undefined &&
-          typeof payload.simplePacking !== "boolean") ||
-        (payload.sameSize !== undefined &&
-          typeof payload.sameSize !== "boolean") ||
-        [
-          payload.totalQuantity,
-          payload.capacity,
-          payload.unitCount,
-          payload.expectedRevision,
-        ].some(
-          (v) =>
-            v !== undefined && (typeof v !== "number" || !Number.isFinite(v)),
-        ) ||
-        !Array.isArray(payload.packages) ||
-        payload.packages.length > MAX_FG_PACKAGES ||
-        !payload.packages.every(
-          (p) =>
-            p &&
-            Object.keys(p).every((k) => packageKeys.has(k)) &&
-            typeof p.dimensionsChecked === "boolean" &&
+        ![
+          draft.total,
+          draft.capacity,
+          draft.count,
+          draft.selected,
+          draft.lot,
+        ].every((v) => typeof v === "string") ||
+        (draft.simplePacking !== undefined &&
+          typeof draft.simplePacking !== "boolean") ||
+        (draft.sameSize !== undefined && typeof draft.sameSize !== "boolean") ||
+        (draft.groupFill !== undefined &&
+          typeof draft.groupFill !== "string") ||
+        !["PALLET", "BOX", "OTHER"].includes(draft.storageFormat) ||
+        !["CAPACITY", "EQUAL", "MANUAL"].includes(draft.mode) ||
+        !["m", "cm"].includes(draft.displayUnit) ||
+        !Array.isArray(draft.rows) ||
+        draft.rows.length > MAX_FG_PACKAGES ||
+        !draft.rows.every(
+          (row) =>
+            row &&
             [
-              p.quantity,
-              p.lengthMm,
-              p.widthMm,
-              p.heightMm,
-              p.weightKg,
-              p.fillPercent,
-            ].every(
-              (v) =>
-                v === undefined ||
-                (typeof v === "number" && Number.isFinite(v)),
-            ),
-        )
+              row.id,
+              row.quantity,
+              row.length,
+              row.width,
+              row.height,
+              row.weight,
+            ].every((v) => typeof v === "string") &&
+            typeof row.checked === "boolean" &&
+            (row.fillPercent === undefined ||
+              typeof row.fillPercent === "string"),
+        ) ||
+        new Set(draft.rows.map((r) => r.id)).size !== draft.rows.length
       )
         return invalid();
-    }
-    if (
-      draft.completed &&
-      (!Array.isArray(draft.completed) ||
-        !draft.completed.every((id) => typeof id === "string"))
-    )
-      return invalid();
-    return {
-      ...draft,
-      simplePacking: draft.simplePacking ?? false,
-      sameSize: draft.sameSize ?? true,
-      groupFill: draft.groupFill ?? "100",
-    };
-  } catch {
-    return { ...fallback, recoveryBlocked: true };
-  }
+      if (draft.pending) {
+        const payload = draft.pending.payload;
+        const allowed = new Set([
+          "simplePacking",
+          "sameSize",
+          "productId",
+          "batchId",
+          "expectedRevision",
+          "totalQuantity",
+          "storageFormat",
+          "lot",
+          "splitMode",
+          "capacity",
+          "unitCount",
+          "packages",
+          "requestId",
+        ]);
+        const packageKeys = new Set([
+          "quantity",
+          "lengthMm",
+          "widthMm",
+          "heightMm",
+          "weightKg",
+          "dimensionsChecked",
+          "fillPercent",
+        ]);
+        if (
+          !["save", "commit"].includes(draft.pending.kind) ||
+          !payload ||
+          Object.keys(payload).some((k) => !allowed.has(k)) ||
+          payload.productId !== productId ||
+          payload.batchId !== draft.batchId ||
+          payload.expectedRevision !== draft.revision ||
+          (fallback.batchId && payload.batchId !== fallback.batchId) ||
+          typeof payload.requestId !== "string" ||
+          !/^[0-9a-f-]{36}$/.test(payload.requestId) ||
+          !["PALLET", "BOX", "OTHER"].includes(payload.storageFormat) ||
+          !["CAPACITY", "EQUAL", "MANUAL"].includes(payload.splitMode) ||
+          (payload.lot !== undefined && typeof payload.lot !== "string") ||
+          (payload.simplePacking !== undefined &&
+            typeof payload.simplePacking !== "boolean") ||
+          (payload.sameSize !== undefined &&
+            typeof payload.sameSize !== "boolean") ||
+          [
+            payload.totalQuantity,
+            payload.capacity,
+            payload.unitCount,
+            payload.expectedRevision,
+          ].some(
+            (v) =>
+              v !== undefined && (typeof v !== "number" || !Number.isFinite(v)),
+          ) ||
+          !Array.isArray(payload.packages) ||
+          payload.packages.length > MAX_FG_PACKAGES ||
+          !payload.packages.every(
+            (p) =>
+              p &&
+              Object.keys(p).every((k) => packageKeys.has(k)) &&
+              typeof p.dimensionsChecked === "boolean" &&
+              [
+                p.quantity,
+                p.lengthMm,
+                p.widthMm,
+                p.heightMm,
+                p.weightKg,
+                p.fillPercent,
+              ].every(
+                (v) =>
+                  v === undefined ||
+                  (typeof v === "number" && Number.isFinite(v)),
+              ),
+          )
+        )
+          return invalid();
+      }
+      if (
+        draft.completed &&
+        (!Array.isArray(draft.completed) ||
+          !draft.completed.every((id) => typeof id === "string"))
+      )
+        return invalid();
+      return {
+        ...draft,
+        simplePacking: draft.simplePacking ?? false,
+        sameSize: draft.sameSize ?? true,
+        groupFill: draft.groupFill ?? "100",
+      };
+    },
+    { ...fallback, recoveryBlocked: true },
+  );
 }
 const optionalNumber = (value: string) =>
   value.trim() ? Number(value) : undefined;
@@ -367,7 +375,8 @@ function PackingForm({
   blockedReason?: string | undefined;
   draftToken?: string | undefined;
 }) {
-  const { tr, locale } = useFGText();
+  const { t, tr, locale } = useFGText();
+  const writeError = useTranslations("WriteError");
   const router = useRouter();
   const canManage = useCanManage();
   const key = `${scope}:${warehouseId}:${batch ? `batch:${batch._id}` : `new:${product._id}${draftToken ? `:${draftToken}` : ""}`}`;
@@ -400,16 +409,16 @@ function PackingForm({
   const [copyTargets, setCopyTargets] = useState<string[]>([]);
   const noun =
     draft.storageFormat === "PALLET"
-      ? tr("pallet", "พาเลท")
+      ? t("copy.pallet")
       : draft.storageFormat === "BOX"
-        ? tr("box", "กล่อง")
-        : tr("storage unit", "หน่วยจัดเก็บ");
+        ? t("copy.box")
+        : t("copy.storage-unit");
   const plural =
     draft.storageFormat === "PALLET"
-      ? tr("pallets", "พาเลท")
+      ? t("copy.pallets")
       : draft.storageFormat === "BOX"
-        ? tr("boxes", "กล่อง")
-        : tr("storage units", "หน่วยจัดเก็บ");
+        ? t("copy.boxes")
+        : t("copy.storage-units");
   const rowName = (i: number) => `${noun} ${i + 1}`;
   const selected =
     draft.rows.find((r) => r.id === draft.selected) ?? draft.rows[0];
@@ -456,16 +465,12 @@ function PackingForm({
     !draft.pending &&
     !stale;
   const dimensionLabel = (field: "length" | "width" | "height") =>
-    `${field === "length" ? tr("Length", "ความยาว") : field === "width" ? tr("Width", "ความกว้าง") : tr("Height", "ความสูง")} (${draft.displayUnit === "m" ? tr("m", "ม.") : tr("cm", "ซม.")})`;
-  const issueText = packingIssueText(issue, tr);
+    `${field === "length" ? t("copy.length") : field === "width" ? t("copy.width") : t("copy.height")} (${draft.displayUnit === "m" ? t("copy.m") : t("copy.cm")})`;
+  const issueText = resolveWriteError(issue, writeError, "packing");
   function persist(next: Draft, required = false) {
-    try {
-      localStorage.setItem(key, JSON.stringify(next));
-      setStorageWarning(false);
-    } catch {
-      setStorageWarning(true);
-      if (required) return false;
-    }
+    const persisted = drafts.write(key, next);
+    setStorageWarning(!persisted);
+    if (!persisted && required) return false;
     setDraft(next);
     setSaved(false);
     return true;
@@ -547,17 +552,14 @@ function PackingForm({
   async function send(kind: "save" | "commit") {
     if (!canManage || op.busy || (!draft.pending && !editable)) return;
     if (!draft.pending && kind === "commit" && (issue || draft.splitPending)) {
-      setLocalError(
-        issueText || tr("Apply the new split first.", "ใช้การแบ่งใหม่ก่อน"),
-      );
+      setLocalError(issueText || t("copy.apply-the-new-split-first"));
       return;
     }
     const pending = draft.pending ?? { kind, payload: payload() };
     if (!draft.pending && !persist({ ...draft, pending }, true)) {
       setLocalError(
-        tr(
-          "Enable browser storage before saving so retries cannot create duplicates.",
-          "เปิดพื้นที่บันทึกเบราว์เซอร์ก่อนบันทึก เพื่อป้องกันข้อมูลซ้ำเมื่อลองใหม่",
+        t(
+          "copy.enable-browser-storage-before-saving-so-retries-cannot-create-duplicates",
         ),
       );
       return;
@@ -585,44 +587,35 @@ function PackingForm({
     setLocalError("");
     op.clearRequests();
     if (!batch && pending.kind === "save") {
-      try {
-        localStorage.setItem(
+      if (
+        !drafts.write(
           `${scope}:${warehouseId}:batch:${result.batchId}`,
-          JSON.stringify(next),
-        );
-        localStorage.removeItem(key);
-      } catch {
+          next,
+        ) ||
+        !drafts.remove(key)
+      )
         setStorageWarning(true);
-      }
       router.replace(batchPath(result.batchId));
     }
   }
   if (!canManage)
     return (
       <>
-        <Heading title={tr("Packing and dimensions", "แบ่งบรรจุและวัดขนาด")} />
+        <Heading title={t("copy.packing-and-dimensions")} />
         <ViewOnlyNotice />
       </>
     );
   if (draft.recoveryBlocked)
     return (
       <>
-        <Heading
-          title={tr(
-            "Saved batch needs recovery",
-            "ต้องกู้คืนข้อมูลชุดที่บันทึกไว้",
-          )}
-        />
+        <Heading title={t("copy.saved-batch-needs-recovery")} />
         <Notice
           tone="warning"
-          title={tr(
-            "Check existing batches before starting again.",
-            "ตรวจสอบชุดที่มีอยู่ก่อนเริ่มใหม่ เพื่อไม่สร้างรายการซ้ำ",
-          )}
+          title={t("copy.check-existing-batches-before-starting-again")}
         />
         <Button asChild>
           <Link href={productPath(product._id)}>
-            {tr("Review product batches", "ตรวจสอบชุดของสินค้า")}
+            {t("copy.review-product-batches")}
           </Link>
         </Button>
       </>
@@ -639,18 +632,14 @@ function PackingForm({
     return (
       <>
         <Heading
-          title={tr("This batch has changed", "ชุดนี้มีการเปลี่ยนแปลงแล้ว")}
+          title={t("copy.this-batch-has-changed")}
           description={`${product.sku} · ${product.name}`}
         />
         <Notice
           tone="warning"
-          title={tr(
-            "A newer packing revision is available.",
-            "มีการแบ่งบรรจุฉบับใหม่แล้ว",
-          )}
-          body={tr(
-            "The previous result is part of history. Load the latest batch before choosing storage so replaced units are not used.",
-            "ผลเดิมอยู่ในประวัติแล้ว โหลดชุดล่าสุดก่อนเลือกที่จัดเก็บ เพื่อไม่ใช้หน่วยที่ถูกแทนที่",
+          title={t("copy.a-newer-packing-revision-is-available")}
+          body={t(
+            "copy.the-previous-result-is-part-of-history-load-the-latest-batch-before-choo",
           )}
         >
           <Button
@@ -659,7 +648,7 @@ function PackingForm({
               else if (currentBatch) router.push(batchPath(currentBatch._id));
             }}
           >
-            {tr("Load latest batch", "โหลดชุดล่าสุด")}
+            {t("copy.load-latest-batch")}
           </Button>
         </Notice>
       </>
@@ -668,40 +657,42 @@ function PackingForm({
     return (
       <>
         <Heading
-          title={tr("Storage units created", "สร้างหน่วยจัดเก็บแล้ว")}
+          title={t("copy.storage-units-created")}
           description={`${product.sku} · ${product.name}`}
         />
-        <div className={`${panel} space-y-4`}>
+        <div className={`${panel} max-w-3xl space-y-4`}>
           <PackageCheck className="size-8 text-success" />
           <p>
             {draft.total} {product.unit} · {draft.completed.length} {plural}
           </p>
           <p>
             {draft.simplePacking
-              ? tr(
-                  "Scan the package labels in order, then scan their location.",
-                  "สแกนป้ายบรรจุภัณฑ์ตามลำดับ แล้วสแกนจุดจัดเก็บ",
+              ? t(
+                  "copy.scan-the-package-labels-in-order-then-scan-their-location",
                 )
-              : tr(
-                  "Choose an exact storage position for each unit.",
-                  "เลือกตำแหน่งจัดเก็บที่แน่นอนของแต่ละหน่วย",
-                )}
+              : t("copy.choose-an-exact-storage-position-for-each-unit")}
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
             {draft.completed.map((id, i) => (
-              <Button asChild variant="outline" key={id}>
+              <Button
+                asChild
+                variant={
+                  !draft.simplePacking && i === 0 ? "default" : "outline"
+                }
+                key={id}
+              >
                 <Link
                   href={draft.simplePacking ? palletPath(id) : storagePath(id)}
                 >
                   {draft.simplePacking
-                    ? tr("View package label", "ดูป้ายบรรจุภัณฑ์")
-                    : tr("Find storage", "เลือกที่จัดเก็บ")}{" "}
+                    ? t("copy.view-package-label")
+                    : t("copy.find-storage-eaab68")}{" "}
                   · {rowName(i)}
                 </Link>
               </Button>
             ))}
           </div>
-          <Button asChild variant="outline">
+          <Button asChild variant={draft.simplePacking ? "default" : "outline"}>
             <Link
               href={
                 draft.simplePacking
@@ -710,8 +701,8 @@ function PackingForm({
               }
             >
               {draft.simplePacking
-                ? tr("Scan Packages", "สแกนบรรจุภัณฑ์")
-                : tr("Product and batches", "สินค้าและชุดจัดเตรียม")}
+                ? t("copy.scan-packages")
+                : t("copy.product-and-batches")}
             </Link>
           </Button>
           <Button
@@ -721,19 +712,20 @@ function PackingForm({
               else if (draft.batchId) router.push(batchPath(draft.batchId));
             }}
           >
-            {tr("Review or edit this batch", "ตรวจสอบหรือแก้ชุดนี้")}
+            {t("copy.review-or-edit-this-batch")}
           </Button>
           <Button
+            variant="outline"
             onClick={() => {
               const blank = initialDraft(product);
               if (!batch) persist(blank);
               else {
-                try {
-                  localStorage.setItem(
+                if (
+                  !drafts.write(
                     `${scope}:${warehouseId}:new:${product._id}`,
-                    JSON.stringify(blank),
-                  );
-                } catch {
+                    blank,
+                  )
+                ) {
                   setStorageWarning(true);
                   return;
                 }
@@ -741,7 +733,7 @@ function PackingForm({
               }
             }}
           >
-            {tr("Prepare another batch", "จัดเตรียมสินค้าอีกชุด")}
+            {t("copy.prepare-another-batch")}
           </Button>
         </div>
       </>
@@ -751,36 +743,31 @@ function PackingForm({
       <Heading
         title={
           batch?.status === "CREATED"
-            ? tr("Edit batch packing", "แก้การแบ่งบรรจุของชุด")
-            : tr("Prepare packages", "จัดเตรียมบรรจุภัณฑ์")
+            ? t("copy.edit-batch-packing")
+            : t("copy.prepare-packages")
         }
         description={`${product.sku} · ${product.name} · ${product.unit}`}
         back={productPath(product._id)}
-        backLabel={tr("Product details", "ข้อมูลสินค้า")}
+        backLabel={t("copy.product-details")}
       />
       <div className="space-y-5">
         {!review && <ErrorNotice message={localError || op.error} />}
         {product.status !== "ACTIVE" && (
           <Notice
             tone="warning"
-            title={tr(
-              "Activate this product before preparing a batch.",
-              "เปิดใช้งานสินค้าก่อนจัดเตรียมชุด",
-            )}
+            title={t("copy.activate-this-product-before-preparing-a-batch")}
           />
         )}
         {!batchEditable && (
           <Notice
             tone="warning"
-            title={tr(
-              "This batch cannot be repacked while its units are reserved, moving or stored.",
-              "ชุดนี้แบ่งใหม่ไม่ได้ขณะมีหน่วยจองพื้นที่ กำลังย้าย หรือจัดเก็บแล้ว",
+            title={t(
+              "copy.this-batch-cannot-be-repacked-while-its-units-are-reserved-moving-or-sto",
             )}
             body={
               blockedReason
-                ? tr(
-                    "Finish the move or release reservations first. Stored units require a physical repacking workflow.",
-                    "ทำงานย้ายให้เสร็จหรือยกเลิกการจองก่อน หน่วยที่จัดเก็บแล้วต้องผ่านงานแบ่งบรรจุจริง",
+                ? t(
+                    "copy.finish-the-move-or-release-reservations-first-stored-units-require-a-phy",
                   )
                 : ""
             }
@@ -789,57 +776,44 @@ function PackingForm({
         {stale && (
           <Notice
             tone="warning"
-            title={tr(
-              "This batch changed in another session.",
-              "ชุดนี้มีการแก้ไขจากอีกหน้าต่าง",
-            )}
+            title={t("copy.this-batch-changed-in-another-session")}
           >
             <Button onClick={() => persist(initialDraft(product, batch))}>
-              {tr("Load latest batch", "โหลดชุดล่าสุด")}
+              {t("copy.load-latest-batch")}
             </Button>
           </Notice>
         )}
         {storageWarning && (
           <Notice
             tone="warning"
-            title={tr(
-              "Local recovery could not be saved.",
-              "ไม่สามารถบันทึกข้อมูลกู้คืนในเบราว์เซอร์",
-            )}
+            title={t("copy.local-recovery-could-not-be-saved")}
           />
         )}
         {saved && (
           <p role="status" className="text-success">
-            {tr(
-              "Draft saved. No storage units have been created.",
-              "บันทึกฉบับร่างแล้ว ยังไม่ได้สร้างหน่วยจัดเก็บ",
-            )}
+            {t("copy.draft-saved-no-storage-units-have-been-created")}
           </p>
         )}
         {draft.pending && !review && (
           <Notice
             tone="warning"
-            title={tr(
-              "Checking the previous save",
-              "กำลังตรวจสอบการบันทึกครั้งก่อน",
-            )}
-            body={tr(
-              "Retry the same request to recover the result safely. Do not start a new batch.",
-              "ลองคำขอเดิมเพื่อตรวจสอบผลอย่างปลอดภัย อย่าเริ่มชุดใหม่",
+            title={t("copy.checking-the-previous-save")}
+            body={t(
+              "copy.retry-the-same-request-to-recover-the-result-safely-do-not-start-a-new-b",
             )}
           >
             <Button
               disabled={op.busy}
               onClick={() => void send(draft.pending!.kind)}
             >
-              {tr("Retry saved request", "ลองคำขอเดิมอีกครั้ง")}
+              {t("copy.retry-saved-request")}
             </Button>
           </Notice>
         )}
         <fieldset disabled={!editable} className="min-w-0 space-y-5">
-          <div className={`${panel} grid gap-4 sm:grid-cols-2 lg:grid-cols-3`}>
+          <Panel className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <Field
-              label={tr("Batch total quantity", "จำนวนสินค้ารวมของชุดนี้")}
+              label={t("copy.batch-total-quantity")}
               value={draft.total}
               onChange={(total) => revise({ total })}
               type="number"
@@ -848,59 +822,53 @@ function PackingForm({
               disabled={batch?.status === "CREATED"}
               required
             />
-            <div className="space-y-2 text-sm">
-              <span>{tr("Packing format", "รูปแบบบรรจุ")}</span>
-              <SelectControl
-                label={tr("Packing format", "รูปแบบบรรจุ")}
-                value={draft.storageFormat}
-                onValueChange={(storageFormat) =>
-                  persist({
-                    ...draft,
-                    storageFormat: storageFormat as Format,
-                    rows: draft.rows.map((r) => ({ ...r, checked: false })),
-                  })
-                }
-                options={[
-                  { value: "PALLET", label: tr("Pallet", "พาเลท") },
-                  { value: "BOX", label: tr("Box", "กล่อง") },
-                  {
-                    value: "OTHER",
-                    label: tr("Other storage unit", "หน่วยจัดเก็บอื่น"),
-                  },
-                ]}
-                placeholder={tr("Pallet", "พาเลท")}
-                emptyLabel={tr(
-                  "No packing formats available",
-                  "ไม่มีรูปแบบบรรจุ",
-                )}
-              />
-            </div>
+            <FormSelect
+              label={t("copy.packing-format")}
+              value={draft.storageFormat}
+              onValueChange={(storageFormat) =>
+                persist({
+                  ...draft,
+                  storageFormat: storageFormat as Format,
+                  rows: draft.rows.map((r) => ({ ...r, checked: false })),
+                })
+              }
+              options={[
+                { value: "PALLET", label: t("copy.pallet-4bb673") },
+                { value: "BOX", label: t("copy.box-529a37") },
+                {
+                  value: "OTHER",
+                  label: t("copy.other-storage-unit"),
+                },
+              ]}
+              placeholder={t("copy.pallet-4bb673")}
+              emptyLabel={t("copy.no-packing-formats-available")}
+            />
             <Field
-              label={tr("Batch lot (optional)", "ล็อตของชุด (ไม่บังคับ)")}
+              label={t("copy.batch-lot-optional")}
               value={draft.lot}
               onChange={(lot) => persist({ ...draft, lot })}
             />
             <div className="space-y-2 text-sm">
-              <span>{tr("Split method", "วิธีแบ่ง")}</span>
+              <span>{t("copy.split-method")}</span>
               <SelectControl
-                label={tr("Split method", "วิธีแบ่ง")}
+                label={t("copy.split-method")}
                 value={draft.mode}
                 onValueChange={(mode) => revise({ mode: mode as Mode })}
                 options={[
                   {
                     value: "CAPACITY",
-                    label: tr("By quantity per unit", "ตามจำนวนต่อหน่วย"),
+                    label: t("copy.by-quantity-per-unit"),
                   },
-                  { value: "EQUAL", label: tr("Split equally", "แบ่งเท่ากัน") },
-                  { value: "MANUAL", label: tr("Manual", "กำหนดเอง") },
+                  { value: "EQUAL", label: t("copy.split-equally") },
+                  { value: "MANUAL", label: t("copy.manual") },
                 ]}
-                placeholder={tr("By quantity per unit", "ตามจำนวนต่อหน่วย")}
-                emptyLabel={tr("No split methods available", "ไม่มีวิธีแบ่ง")}
+                placeholder={t("copy.by-quantity-per-unit")}
+                emptyLabel={t("copy.no-split-methods-available")}
               />
             </div>
             {draft.mode === "CAPACITY" && (
               <Field
-                label={`${tr("Quantity per", "จำนวนต่อ")}${locale === "th" ? "" : " "}${noun}`}
+                label={`${t("copy.quantity-per")}${locale === "th" ? "" : " "}${noun}`}
                 value={draft.capacity}
                 onChange={(capacity) => revise({ capacity })}
                 type="number"
@@ -910,7 +878,7 @@ function PackingForm({
             )}
             {draft.mode === "EQUAL" && (
               <Field
-                label={tr("Number of units", "จำนวนหน่วย")}
+                label={t("copy.number-of-units")}
                 value={draft.count}
                 onChange={(count) => revise({ count })}
                 type="number"
@@ -919,23 +887,21 @@ function PackingForm({
                 step="1"
               />
             )}
-          </div>
+          </Panel>
           {preview.length > 0 && (
             <p role="status" className="text-sm font-medium">
-              {tr("Packing preview", "ผลการแบ่ง")}: {draft.total || "—"}{" "}
-              {product.unit} → {preview.length} {plural} ({preview.join(" + ")})
+              {t("copy.packing-preview")}: {draft.total || "—"} {product.unit} →{" "}
+              {preview.length} {plural} ({preview.join(" + ")})
             </p>
           )}
           {draft.splitPending && (
             <Notice
               tone="warning"
-              title={tr(
-                "Review the new split before replacing your entries.",
-                "ตรวจสอบการแบ่งใหม่ก่อนแทนที่รายการที่กรอกไว้",
+              title={t(
+                "copy.review-the-new-split-before-replacing-your-entries",
               )}
-              body={tr(
-                "Applying this split clears previous measurements. Measure and confirm each new unit again.",
-                "การแบ่งนี้จะล้างขนาดเดิม กรุณาวัดและยืนยันขนาดแต่ละหน่วยใหม่",
+              body={t(
+                "copy.applying-this-split-clears-previous-measurements-measure-and-confirm-eac",
               )}
             >
               <div className="flex flex-wrap gap-2">
@@ -944,7 +910,7 @@ function PackingForm({
                   disabled={!preview.length}
                   onClick={applySplit}
                 >
-                  {tr("Apply this split", "ใช้การแบ่งนี้")}
+                  {t("copy.apply-this-split")}
                 </Button>
                 <Button
                   type="button"
@@ -953,7 +919,7 @@ function PackingForm({
                     persist({ ...draft, mode: "MANUAL", splitPending: false })
                   }
                 >
-                  {tr("Keep current entries", "เก็บรายการปัจจุบัน")}
+                  {t("copy.keep-current-entries")}
                 </Button>
               </div>
             </Notice>
@@ -962,7 +928,7 @@ function PackingForm({
             <div
               className="flex flex-wrap gap-2"
               role="group"
-              aria-label={tr("Preparation mode", "รูปแบบการจัดเตรียม")}
+              aria-label={t("copy.preparation-mode")}
             >
               <Button
                 type="button"
@@ -970,7 +936,7 @@ function PackingForm({
                 aria-pressed={draft.simplePacking}
                 onClick={() => persist({ ...draft, simplePacking: true })}
               >
-                {tr("Simple packing", "จัดเตรียมแบบง่าย")}
+                {t("copy.simple-packing")}
               </Button>
               <Button
                 type="button"
@@ -978,19 +944,13 @@ function PackingForm({
                 aria-pressed={!draft.simplePacking}
                 onClick={() => persist({ ...draft, simplePacking: false })}
               >
-                {tr(
-                  "Exact measurements (optional)",
-                  "วัดขนาดละเอียด (ไม่บังคับ)",
-                )}
+                {t("copy.exact-measurements-optional")}
               </Button>
             </div>
             {draft.simplePacking && (
               <>
                 <p className="font-medium">
-                  {tr(
-                    "Are all packages/pallets a similar size?",
-                    "ทุกกล่องหรือพาเลทมีขนาดใกล้เคียงกันหรือไม่?",
-                  )}
+                  {t("copy.are-all-packages-pallets-a-similar-size")}
                 </p>
                 <div className="flex gap-2">
                   {[true, false].map((sameSize) => (
@@ -1003,18 +963,16 @@ function PackingForm({
                       aria-pressed={draft.sameSize === sameSize}
                       onClick={() => persist({ ...draft, sameSize })}
                     >
-                      {sameSize ? tr("Yes", "ใช่") : tr("No", "ไม่ใช่")}
+                      {sameSize ? t("copy.yes") : t("copy.no")}
                     </Button>
                   ))}
                 </div>
-                <p className="font-medium">
-                  {tr("How full are they?", "บรรจุเต็มเท่าไร?")}
-                </p>
+                <p className="font-medium">{t("copy.how-full-are-they")}</p>
                 <div className="flex flex-wrap gap-2">
                   {[
-                    ["100", tr("Full (100%)", "เต็ม (100%)")],
+                    ["100", t("copy.full-100")],
                     ["75", "¾ (75%)"],
-                    ["50", tr("Half (50%)", "ครึ่ง (50%)")],
+                    ["50", t("copy.half-50")],
                     ["25", "¼ (25%)"],
                   ].map(([value, label]) => (
                     <Button
@@ -1044,10 +1002,7 @@ function PackingForm({
                   ))}
                 </div>
                 <Field
-                  label={tr(
-                    "Custom fullness for all (%)",
-                    "กำหนดความเต็มทั้งหมด (%)",
-                  )}
+                  label={t("copy.custom-fullness-for-all")}
                   value={draft.groupFill}
                   type="number"
                   min={1}
@@ -1065,9 +1020,8 @@ function PackingForm({
                   }
                 />
                 <p className="text-sm text-muted">
-                  {tr(
-                    "Apply one answer to all units; adjust only exceptions below. No measurements needed.",
-                    "ใช้คำตอบเดียวกับทุกหน่วย แล้วแก้เฉพาะหน่วยที่ต่างกันด้านล่าง ไม่ต้องวัดขนาด",
+                  {t(
+                    "copy.apply-one-answer-to-all-units-adjust-only-exceptions-below-no-measuremen",
                   )}
                 </p>
               </>
@@ -1082,12 +1036,14 @@ function PackingForm({
                   aria-label={rowName(index)}
                 >
                   <div className="flex items-center justify-between">
-                    <h2 className="font-semibold">{rowName(index)}</h2>
+                    <h2 className="text-lg leading-7 font-semibold">
+                      {rowName(index)}
+                    </h2>
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon"
-                      aria-label={`${tr("Remove", "ลบ")} ${rowName(index)}`}
+                      aria-label={`${t("copy.remove")} ${rowName(index)}`}
                       onClick={() =>
                         persist({
                           ...draft,
@@ -1103,7 +1059,7 @@ function PackingForm({
                   </div>
                   <div className="grid gap-4 sm:grid-cols-2">
                     <Field
-                      label={`${tr("Quantity", "จำนวน")} · ${rowName(index)}`}
+                      label={`${t("copy.quantity")} · ${rowName(index)}`}
                       type="number"
                       min={0}
                       step={
@@ -1114,7 +1070,7 @@ function PackingForm({
                       onChange={(quantity) => updateRow(row.id, { quantity })}
                     />
                     <Field
-                      label={`${tr("Fullness (%)", "ความเต็ม (%)")} · ${rowName(index)}`}
+                      label={`${t("copy.fullness")} · ${rowName(index)}`}
                       type="number"
                       min={1}
                       max={100}
@@ -1149,7 +1105,7 @@ function PackingForm({
                 }}
               >
                 <Plus className="size-4" />
-                {tr("Add unit", "เพิ่มหน่วย")} ({draft.rows.length}/50)
+                {t("copy.add-unit")} ({draft.rows.length}/50)
               </Button>
             </div>
           ) : (
@@ -1158,7 +1114,7 @@ function PackingForm({
                 <div className="min-w-0 space-y-3">
                   <div
                     className="flex flex-wrap gap-2"
-                    aria-label={tr("Select storage unit", "เลือกหน่วยจัดเก็บ")}
+                    aria-label={t("copy.select-storage-unit")}
                   >
                     {draft.rows.map((r, i) => (
                       <Button
@@ -1189,9 +1145,8 @@ function PackingForm({
                       />
                     ) : (
                       <div className="flex min-h-64 items-center justify-center text-center text-muted">
-                        {tr(
-                          "Preview only — enter the unit’s actual outer dimensions.",
-                          "ภาพตัวอย่าง — กรอกขนาดภายนอกจริงของหน่วยจัดเก็บ",
+                        {t(
+                          "copy.preview-only-enter-the-unit-s-actual-outer-dimensions",
                         )}
                       </div>
                     )}
@@ -1201,20 +1156,17 @@ function PackingForm({
                   {selected ? (
                     <section
                       className={`${panel} space-y-4`}
-                      aria-label={tr(
-                        "Selected storage unit",
-                        "หน่วยจัดเก็บที่เลือก",
-                      )}
+                      aria-label={t("copy.selected-storage-unit")}
                     >
                       <div className="flex items-center justify-between gap-2">
-                        <h2 className="font-semibold">
+                        <h2 className="text-lg leading-7 font-semibold">
                           {rowName(draft.rows.indexOf(selected))}
                         </h2>
                         <Button
                           type="button"
                           variant="ghost"
                           size="icon"
-                          aria-label={tr("Remove unit", "ลบหน่วย")}
+                          aria-label={t("copy.remove-unit")}
                           onClick={() => {
                             const rows = draft.rows.filter(
                               (r) => r.id !== selected.id,
@@ -1233,7 +1185,7 @@ function PackingForm({
                         </Button>
                       </div>
                       <Field
-                        label={tr("Unit quantity", "จำนวนสินค้าในหน่วยนี้")}
+                        label={t("copy.unit-quantity")}
                         value={selected.quantity}
                         onChange={(quantity) =>
                           updateRow(selected.id, { quantity })
@@ -1246,14 +1198,13 @@ function PackingForm({
                         required
                       />
                       <p className="text-sm text-muted">
-                        {tr(
-                          "Measure all outer dimensions including the base and packaging. These measurements are used for storage recommendations.",
-                          "วัดขนาดภายนอกทั้งหมด รวมฐานและบรรจุภัณฑ์ ขนาดนี้ใช้แนะนำตำแหน่งจัดเก็บ",
+                        {t(
+                          "copy.measure-all-outer-dimensions-including-the-base-and-packaging-these-meas",
                         )}
                       </p>
                       <div
                         className="flex gap-2"
-                        aria-label={tr("Dimension units", "หน่วยขนาด")}
+                        aria-label={t("copy.dimension-units")}
                       >
                         {(["m", "cm"] as const).map((unit) => (
                           <Button
@@ -1268,8 +1219,8 @@ function PackingForm({
                             }
                           >
                             {unit === "m"
-                              ? tr("Metres", "เมตร")
-                              : tr("Centimetres", "เซนติเมตร")}
+                              ? t("copy.metres")
+                              : t("copy.centimetres")}
                           </Button>
                         ))}
                       </div>
@@ -1285,10 +1236,7 @@ function PackingForm({
                         />
                       </div>
                       <Field
-                        label={tr(
-                          "Weight (kg, optional)",
-                          "น้ำหนัก (กก., ไม่บังคับ)",
-                        )}
+                        label={t("copy.weight-kg-optional")}
                         value={selected.weight}
                         onChange={(weight) =>
                           updateRow(selected.id, { weight })
@@ -1298,8 +1246,7 @@ function PackingForm({
                         step="any"
                       />
                       <label className="flex items-start gap-3 text-sm">
-                        <input
-                          type="checkbox"
+                        <CheckboxControl
                           className="mt-1 size-4 shrink-0 accent-accent"
                           checked={selected.checked}
                           onChange={(e) =>
@@ -1308,18 +1255,14 @@ function PackingForm({
                             })
                           }
                         />
-                        {tr(
-                          "I checked this unit’s actual outer dimensions, including its base and packaging.",
-                          "ตรวจสอบขนาดภายนอกจริงของหน่วยนี้แล้ว รวมฐานและบรรจุภัณฑ์",
+                        {t(
+                          "copy.i-checked-this-unit-s-actual-outer-dimensions-including-its-base-and-pac",
                         )}
                       </label>
                       {draft.rows.length > 1 && (
                         <div className="space-y-2">
                           <p className="text-sm">
-                            {tr(
-                              "Copy dimensions to selected units",
-                              "คัดลอกขนาดไปยังหน่วยที่เลือก",
-                            )}
+                            {t("copy.copy-dimensions-to-selected-units")}
                           </p>
                           <div className="flex flex-wrap gap-3">
                             {draft.rows.map((r, i) =>
@@ -1374,18 +1317,13 @@ function PackingForm({
                             }}
                           >
                             <Copy className="size-4" />
-                            {tr(
-                              "Copy selected dimensions",
-                              "คัดลอกขนาดที่เลือก",
-                            )}
+                            {t("copy.copy-selected-dimensions")}
                           </Button>
                         </div>
                       )}
                     </section>
                   ) : (
-                    <Notice
-                      title={tr("No storage units yet", "ยังไม่มีหน่วยจัดเก็บ")}
-                    />
+                    <Notice title={t("copy.no-storage-units-yet")} />
                   )}
                   <Button
                     type="button"
@@ -1408,18 +1346,19 @@ function PackingForm({
                     }}
                   >
                     <Plus className="size-4" />
-                    {tr("Add unit", "เพิ่มหน่วย")} ({draft.rows.length}/50)
+                    {t("copy.add-unit")} ({draft.rows.length}/50)
                   </Button>
                 </div>
               </div>
               <div
                 className="grid gap-3 sm:hidden"
-                aria-label={tr("Packing summary cards", "การ์ดสรุปการบรรจุ")}
+                aria-label={t("copy.packing-summary-cards")}
               >
                 {draft.rows.map((r, i) => (
-                  <button
+                  <Button
                     key={r.id}
                     type="button"
+                    variant="ghost"
                     className={`${panel} space-y-2 text-left ${r.id === selected?.id ? "ring-1 ring-accent" : ""}`}
                     onClick={() => persist({ ...draft, selected: r.id })}
                   >
@@ -1428,28 +1367,26 @@ function PackingForm({
                     </strong>
                     <p>
                       {r.length || "—"} × {r.width || "—"} × {r.height || "—"}{" "}
-                      {tr("m", "ม.")}
+                      {t("copy.m")}
                     </p>
                     <p className="text-sm text-muted">
-                      {r.checked
-                        ? tr("Checked", "ตรวจสอบแล้ว")
-                        : tr("Needs checking", "รอตรวจสอบ")}
+                      {r.checked ? t("copy.checked") : t("copy.needs-checking")}
                     </p>
-                  </button>
+                  </Button>
                 ))}
               </div>
               <div className={`${panel} hidden sm:block`}>
                 <table className="w-full text-left text-sm">
                   <caption className="sr-only">
-                    {tr("Packing summary", "สรุปการบรรจุ")}
+                    {t("copy.packing-summary")}
                   </caption>
                   <thead>
                     <tr>
                       {[
-                        tr("Unit", "หน่วย"),
-                        tr("Quantity", "จำนวน"),
-                        tr("Outer dimensions (m)", "ขนาดภายนอก (ม.)"),
-                        tr("Dimensions", "ขนาด"),
+                        t("copy.unit"),
+                        t("copy.quantity"),
+                        t("copy.outer-dimensions-m"),
+                        t("copy.dimensions"),
                       ].map((label) => (
                         <th
                           key={label}
@@ -1464,15 +1401,17 @@ function PackingForm({
                     {draft.rows.map((r, i) => (
                       <tr key={r.id} className="border-t border-border">
                         <td className="py-3 pr-3">
-                          <button
+                          <Button
                             type="button"
-                            className="text-accent underline"
+                            variant="link"
+                            size="sm"
+                            className="text-link underline"
                             onClick={() =>
                               persist({ ...draft, selected: r.id })
                             }
                           >
                             {rowName(i)}
-                          </button>
+                          </Button>
                         </td>
                         <td className="pr-3">{r.quantity || "—"}</td>
                         <td className="pr-3">
@@ -1481,8 +1420,8 @@ function PackingForm({
                         </td>
                         <td>
                           {r.checked
-                            ? tr("Checked", "ตรวจสอบแล้ว")
-                            : tr("Needs checking", "รอตรวจสอบ")}
+                            ? t("copy.checked")
+                            : t("copy.needs-checking")}
                         </td>
                       </tr>
                     ))}
@@ -1492,12 +1431,10 @@ function PackingForm({
             </>
           )}
         </fieldset>
-        <div
-          className={`${panel} flex flex-wrap items-center justify-between gap-4`}
-        >
+        <StickyActionBar className="flex flex-wrap items-center justify-between gap-4">
           <div aria-live="polite">
             <p>
-              {tr("Allocated", "จัดสรรแล้ว")}:{" "}
+              {t("copy.allocated")}:{" "}
               <strong>
                 {allocatedMinor === null ? "—" : allocatedMinor / 1000} /{" "}
                 {draft.total || "—"}
@@ -1511,8 +1448,8 @@ function PackingForm({
                   : "text-muted"
               }
             >
-              {tr("Remaining", "คงเหลือ")}:{" "}
-              {remaining === null ? "—" : remaining} {product.unit}
+              {t("copy.remaining")}: {remaining === null ? "—" : remaining}{" "}
+              {product.unit}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -1523,9 +1460,7 @@ function PackingForm({
                 disabled={!editable}
                 onClick={() => void send("save")}
               >
-                {op.busy
-                  ? tr("Saving…", "กำลังบันทึก…")
-                  : tr("Save draft", "บันทึกฉบับร่าง")}
+                {op.busy ? t("copy.saving") : t("copy.save-draft")}
               </Button>
             )}
             <Button
@@ -1534,14 +1469,14 @@ function PackingForm({
               onClick={() => setReview(true)}
             >
               {batch?.status === "CREATED"
-                ? tr("Review repacking", "ตรวจสอบการแบ่งใหม่")
-                : tr("Review and create", "ตรวจสอบและสร้าง")}
+                ? t("copy.review-repacking")
+                : t("copy.review-and-create")}
             </Button>
           </div>
           {issue && !draft.pending && (
             <p className="w-full text-sm text-muted">{issueText}</p>
           )}
-        </div>
+        </StickyActionBar>
       </div>
       <Dialog
         open={review}
@@ -1549,36 +1484,31 @@ function PackingForm({
           if (!op.busy) setReview(open);
         }}
       >
-        <DialogContent
-          closeLabel={tr("Close", "ปิด")}
-          showCloseButton={!op.busy}
-        >
+        <DialogContent closeLabel={t("copy.close")} showCloseButton={!op.busy}>
           <DialogHeader>
             <DialogTitle>
               {batch?.status === "CREATED"
-                ? tr("Review batch changes", "ตรวจสอบการแก้ชุดเดิม")
-                : tr("Review storage units", "ตรวจสอบหน่วยจัดเก็บ")}
+                ? t("copy.review-batch-changes")
+                : t("copy.review-storage-units")}
             </DialogTitle>
             <DialogDescription>
               {batch?.status === "CREATED"
-                ? tr(
-                    "This replaces only this batch’s unreserved units and preserves its total. Previous units remain in history.",
-                    "แทนที่เฉพาะหน่วยที่ยังไม่จองของชุดนี้ โดยรักษายอดรวม และเก็บรายการเดิมในประวัติ",
+                ? t(
+                    "copy.this-replaces-only-this-batch-s-unreserved-units-and-preserves-its-total",
                   )
-                : tr(
-                    "All units will be created together. Review the package details before confirming.",
-                    "สร้างทุกหน่วยพร้อมกัน ตรวจสอบรายละเอียดบรรจุภัณฑ์ก่อนยืนยัน",
+                : t(
+                    "copy.all-units-will-be-created-together-review-the-package-details-before-con",
                   )}
             </DialogDescription>
           </DialogHeader>
           <p className="font-semibold">
-            {tr("Batch total", "ยอดรวมของชุด")}: {draft.total} {product.unit} ·{" "}
+            {t("copy.batch-total-7885f8")}: {draft.total} {product.unit} ·{" "}
             {draft.rows.length} {plural}
           </p>
           {batch?.status === "CREATED" && (
             <p>
-              {tr("Before", "ก่อน")}: {batch.packages.length} {plural} →{" "}
-              {tr("After", "หลัง")}: {draft.rows.length} {plural}
+              {t("copy.before")}: {batch.packages.length} {plural} →{" "}
+              {t("copy.after")}: {draft.rows.length} {plural}
             </p>
           )}
           <ol className="space-y-2">
@@ -1587,8 +1517,8 @@ function PackingForm({
                 {rowName(i)} · {r.quantity} {product.unit}
                 <span className="block text-sm text-muted">
                   {draft.simplePacking
-                    ? `${r.fillPercent ?? draft.groupFill}% ${tr("full", "เต็ม")}`
-                    : `${r.length} × ${r.width} × ${r.height} ${tr("m", "ม.")}`}
+                    ? `${r.fillPercent ?? draft.groupFill}% ${t("copy.full")}`
+                    : `${r.length} × ${r.width} × ${r.height} ${t("copy.m")}`}
                 </span>
               </li>
             ))}
@@ -1597,13 +1527,9 @@ function PackingForm({
           {draft.pending && (
             <Notice
               tone="warning"
-              title={tr(
-                "Checking the previous save",
-                "กำลังตรวจสอบการบันทึกครั้งก่อน",
-              )}
-              body={tr(
-                "Retry the same request to recover the result safely. Do not start a new batch.",
-                "ลองคำขอเดิมเพื่อตรวจสอบผลอย่างปลอดภัย อย่าเริ่มชุดใหม่",
+              title={t("copy.checking-the-previous-save")}
+              body={t(
+                "copy.retry-the-same-request-to-recover-the-result-safely-do-not-start-a-new-b",
               )}
             />
           )}
@@ -1613,7 +1539,7 @@ function PackingForm({
               disabled={op.busy}
               onClick={() => setReview(false)}
             >
-              {tr("Back to edit", "กลับไปแก้ไข")}
+              {t("copy.back-to-edit")}
             </Button>
             <Button
               disabled={
@@ -1624,11 +1550,11 @@ function PackingForm({
               onClick={() => void send("commit")}
             >
               {op.busy
-                ? tr("Saving…", "กำลังบันทึก…")
+                ? t("copy.saving")
                 : draft.pending
-                  ? tr("Retry saved request", "ลองคำขอเดิมอีกครั้ง")
+                  ? t("copy.retry-saved-request")
                   : batch?.status === "CREATED"
-                    ? tr("Confirm repacking", "ยืนยันแบ่งบรรจุใหม่")
+                    ? t("copy.confirm-repacking-6945d2")
                     : tr(
                         `Confirm create ${draft.rows.length} ${plural}`,
                         `ยืนยันสร้าง ${draft.rows.length} ${plural}`,

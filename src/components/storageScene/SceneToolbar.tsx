@@ -19,16 +19,16 @@ export function SceneToolbar({
 }) {
   return (
     <div className="@container/scene-toolbar min-w-0">
-      <div className="flex min-h-12 flex-wrap items-center gap-x-2 gap-y-1 py-1 [&_button]:min-h-10 [&_button]:min-w-10 [&_button]:px-2 [&_button]:text-xs">
-        <div className="min-w-0 flex-1 truncate text-sm font-semibold @max-[360px]/scene-toolbar:basis-full">
+      <div className="flex min-h-12 flex-wrap items-center gap-x-2 gap-y-2 py-1 [&_button]:min-h-12 [&_button]:min-w-12 [&_button]:px-2 [&_button]:text-xs">
+        <div className="min-w-0 flex-1 text-sm font-semibold @max-[480px]/scene-toolbar:basis-full">
           {title}
         </div>
-        <div className="flex min-w-0 flex-wrap items-center gap-0.5">
+        <div className="flex min-w-0 flex-wrap items-center gap-1">
           {primary}
         </div>
         {secondary && (
           <>
-            <div className="hidden items-center gap-0.5 @min-[540px]/scene-toolbar:flex">
+            <div className="hidden flex-wrap items-center gap-1 border-l border-border pl-2 @min-[540px]/scene-toolbar:flex">
               {secondary}
             </div>
             <div className="@min-[540px]/scene-toolbar:hidden">
@@ -49,7 +49,7 @@ export function SceneToolbar({
                     align="end"
                     sideOffset={4}
                     aria-label={moreLabel}
-                    className="z-50 flex max-w-[calc(100vw-2rem)] flex-wrap gap-1 rounded-lg border border-border bg-surface p-2 shadow-lg"
+                    className="z-50 flex max-w-[calc(100vw-2rem)] flex-wrap gap-2 rounded-lg border border-border bg-surface p-2 shadow-lg [&_button]:min-h-12 [&_button]:min-w-12"
                   >
                     {secondary}
                   </Popover.Content>

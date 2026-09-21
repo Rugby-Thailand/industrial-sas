@@ -181,6 +181,7 @@ export const reservedPalletDetail: PalletDetail & {
 
 import type { WorkspaceContextValue } from "@/components/providers/WorkspaceProvider";
 export const finishedGoodsWorkspace: WorkspaceContextValue = {
+  readiness: { kind: "READY_TO_QUERY" },
   organization: { id: "org-a", name: "Warehouse team" },
   warehouses: [{ id: "warehouse-a", code: "QA", name: "QA Warehouse" }],
   selectedWarehouseId: "warehouse-a",

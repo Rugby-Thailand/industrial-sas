@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 
 import { useObservability } from "@/components/providers/ObservabilityProvider";
+import { Button } from "@/components/ui/button";
 import { applicationRenderErrorEvent } from "@/lib/observability/applicationError";
 
 export default function GlobalError({
@@ -78,25 +79,19 @@ export default function GlobalError({
             หน้าจอนี้ทำงานต่อไม่ได้ กรุณาลองใหม่ / This screen could not
             continue. Please try again.
           </p>
-          <button
+          <Button
             type="button"
             onClick={reset}
+            variant="default"
+            size="touch"
+            className="mt-5 border-0 font-bold"
             style={{
-              minWidth: "48px",
-              minHeight: "48px",
-              marginTop: "20px",
-              padding: "0 20px",
-              border: 0,
-              borderRadius: "8px",
               color: "var(--global-error-accent-text)",
               background: "var(--global-error-accent)",
-              font: "inherit",
-              fontWeight: 700,
-              cursor: "pointer",
             }}
           >
             ลองใหม่ / Try again
-          </button>
+          </Button>
         </main>
       </body>
     </html>

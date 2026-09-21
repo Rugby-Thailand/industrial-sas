@@ -12,11 +12,15 @@ import type { TenantFunctionContext } from "../lib/tenantFunctions";
 import { mutationWithOrg } from "../lib/tenantFunctions";
 import { refusal, writeContextOf, written } from "../lib/writeEnvelope";
 import {
+  STORAGE_LAYOUT_LIMITS,
   validateAndSummarizeStorageLayout,
   isStorageFloorColorOnlyChange,
   type StorageFloorInput,
 } from "../model/storageLayout/storageLayout";
-import { validateStorageZone } from "../model/storageLayout/storageZone";
+import {
+  STORAGE_ZONE_LIMITS,
+  validateStorageZone,
+} from "../model/storageLayout/storageZone";
 import { hasOccupiedStorage } from "./catalogue";
 
 const blockValidator = v.object({
@@ -72,7 +76,7 @@ async function readLayout(
         "by_orgId_buildingId_floorNumber",
         [{ field: "buildingId", value: building._id }],
       )
-      .take(50)),
+      .all(STORAGE_LAYOUT_LIMITS.maximumFloors)),
   ];
   const floors = await Promise.all(
     documents.map(async (floor) => {
@@ -82,7 +86,7 @@ async function readLayout(
           "by_orgId_floorId",
           [{ field: "floorId", value: floor._id }],
         )
-        .take(20);
+        .all(STORAGE_LAYOUT_LIMITS.maximumReservedBlocksPerFloor);
       return {
         floorNumber: floor.floorNumber,
         ...(floor.widthMm === undefined ? {} : { widthMm: floor.widthMm }),
@@ -118,7 +122,7 @@ async function activeZonesForFloor(
       { field: "floorId", value: floorId },
       { field: "status", value: "ACTIVE" },
     ])
-    .take(50);
+    .all(STORAGE_ZONE_LIMITS.maximumZonesPerFloor);
 }
 
 function validateFloorZones(input: {
@@ -555,15 +559,11 @@ export const saveStorageFloor = mutationWithOrg({
       fingerprint: args,
       uniqueness: [],
       patch: {
-        ...(args.floor.widthMm === undefined
-          ? {}
-          : { widthMm: args.floor.widthMm }),
-        ...(args.floor.depthMm === undefined
-          ? {}
-          : { depthMm: args.floor.depthMm }),
-        ...(args.floor.heightMm === undefined
-          ? {}
-          : { heightMm: args.floor.heightMm }),
+        // Missing overrides mean inherit the building defaults. Explicit
+        // undefined values remove previous optional fields in a Convex patch.
+        widthMm: args.floor.widthMm,
+        depthMm: args.floor.depthMm,
+        heightMm: args.floor.heightMm,
         ...(args.floor.offsetXMm === undefined
           ? {}
           : { offsetXMm: args.floor.offsetXMm }),
@@ -586,7 +586,7 @@ export const saveStorageFloor = mutationWithOrg({
           "by_orgId_floorId",
           [{ field: "floorId", value: floorDocument._id }],
         )
-        .take(20);
+        .all(STORAGE_LAYOUT_LIMITS.maximumReservedBlocksPerFloor);
       for (const oldBlock of oldBlocks)
         await ctx.tenantDb.delete("storageFloorReservedBlocks", oldBlock._id);
       for (const block of args.floor.reservedBlocks) {
@@ -628,7 +628,7 @@ async function changeStatus(
     requestId: string;
     expectedVersion: number;
   },
-  status: "ACTIVE" | "ARCHIVED",
+  status: "DRAFT" | "ACTIVE" | "ARCHIVED",
 ) {
   const building = await ctx.tenantDb.get<BuildingDocument>(
     "storageBuildings",
@@ -638,8 +638,10 @@ async function changeStatus(
     return failure("NOT_FOUND");
   if (building.version !== args.expectedVersion)
     return failure("VERSION_CONFLICT");
+  if (status === "DRAFT" && building.status !== "ACTIVE")
+    return failure("LAYOUT_NOT_EDITABLE");
   if (
-    status === "ARCHIVED" &&
+    status !== "ACTIVE" &&
     (await hasOccupiedStorage(ctx, { buildingId: building._id }))
   )
     return failure("LOCATION_OCCUPIED");
@@ -751,4 +753,13 @@ export const archiveStorageBuilding = mutationWithOrg({
   target: { table: "storageBuildings", id: ({ buildingId }) => buildingId },
   warehouseId: ({ warehouseId }) => warehouseId,
   handler: (ctx, args) => changeStatus(ctx, args, "ARCHIVED"),
+});
+
+export const returnStorageBuildingToDraft = mutationWithOrg({
+  args: statusArgs,
+  returns: outcome,
+  permissionCode: "masterData.storageLayout.activate",
+  target: { table: "storageBuildings", id: ({ buildingId }) => buildingId },
+  warehouseId: ({ warehouseId }) => warehouseId,
+  handler: (ctx, args) => changeStatus(ctx, args, "DRAFT"),
 });

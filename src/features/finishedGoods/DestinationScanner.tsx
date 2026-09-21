@@ -9,8 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Notice } from "@/components/ui/Notice";
 
-import { useFGText } from "./shared";
-import { unitCopy } from "./storageUnitLabels";
+import { useUnitText } from "./shared";
 
 export interface DestinationScannerProps {
   readonly onCode: (code: string, method: "SCAN" | "MANUAL") => Promise<void>;
@@ -33,9 +32,7 @@ export function DestinationScanner({
   purpose = "DESTINATION",
   storageFormat,
 }: DestinationScannerProps) {
-  const { tr: translate } = useFGText();
-  const tr = (en: string, th: string) =>
-    unitCopy(translate(en, th), storageFormat);
+  const { t } = useUnitText(storageFormat);
   const inputId = useId();
   const videoRef = useRef<HTMLVideoElement>(null);
   const controlsRef = useRef<IScannerControls | null>(null);
@@ -92,9 +89,8 @@ export function DestinationScanner({
     } catch {
       if (mounted.current && showVerificationErrors) {
         setError(
-          tr(
-            "The destination could not be verified. Check the code and connection, then retry.",
-            "ตรวจสอบปลายทางไม่ได้ กรุณาตรวจสอบรหัสและการเชื่อมต่อ แล้วลองอีกครั้ง",
+          t(
+            "copy.the-destination-could-not-be-verified-check-the-code-and-connection-then",
           ),
         );
       }
@@ -155,9 +151,8 @@ export function DestinationScanner({
             callbackControls.stop();
             stopCamera();
             setError(
-              tr(
-                "The camera could not read the code. Retry the camera or enter the destination code below.",
-                "กล้องอ่านรหัสไม่ได้ ลองเปิดกล้องอีกครั้ง หรือกรอกรหัสปลายทางด้านล่าง",
+              t(
+                "copy.the-camera-could-not-read-the-code-retry-the-camera-or-enter-the-destina",
               ),
             );
           }
@@ -178,9 +173,8 @@ export function DestinationScanner({
       if (mounted.current && session.current === currentSession) {
         stopCamera();
         setError(
-          tr(
-            "Camera unavailable. Allow camera access and retry, or enter the destination code below.",
-            "ใช้กล้องไม่ได้ กรุณาอนุญาตการเข้าถึงกล้องแล้วลองอีกครั้ง หรือกรอกรหัสปลายทางด้านล่าง",
+          t(
+            "copy.camera-unavailable-allow-camera-access-and-retry-or-enter-the-destinatio",
           ),
         );
       }
@@ -196,28 +190,25 @@ export function DestinationScanner({
       <div className="rounded-lg border border-border bg-surface p-3">
         <p className="text-xs text-muted">
           {purpose === "SUPPORT"
-            ? tr("Supporting pallet", "พาเลทรองรับ")
+            ? t("copy.supporting-pallet")
             : purpose === "PALLET"
-              ? tr("Expected pallet", "พาเลทที่ต้องการ")
+              ? t("copy.expected-pallet")
               : purpose === "SOURCE"
-                ? tr("Expected source", "ต้นทางที่ต้องการ")
-                : tr("Expected destination", "ปลายทางที่ต้องการ")}
+                ? t("copy.expected-source")
+                : t("copy.expected-destination")}
         </p>
         <p className="mt-1 font-medium break-words">{expectedLocation}</p>
         <p className="mt-2 text-xs leading-relaxed text-muted">
           {purpose === "SUPPORT"
-            ? tr(
-                "Identify the lower pallet that supports this placement. Then confirm placement on its top surface.",
-                "ตรวจสอบพาเลทด้านล่างที่รองรับตำแหน่งนี้ แล้วยืนยันการวางบนผิวด้านบน",
+            ? t(
+                "copy.identify-the-lower-pallet-that-supports-this-placement-then-confirm-plac",
               )
             : purpose === "PALLET"
-              ? tr(
-                  "Scan the pallet label or enter its pallet code before confirming pickup.",
-                  "สแกนป้ายพาเลทหรือกรอกรหัสพาเลทก่อนยืนยันรับ",
+              ? t(
+                  "copy.scan-the-pallet-label-or-enter-its-pallet-code-before-confirming-pickup",
                 )
-              : tr(
-                  "Verify the location label, then follow the exact position shown in the placement guide.",
-                  "ตรวจสอบป้ายจุดจัดเก็บ แล้ววางตามตำแหน่งที่แน่นอนในภาพแนะนำ",
+              : t(
+                  "copy.verify-the-location-label-then-follow-the-exact-position-shown-in-the-pl",
                 )}
         </p>
       </div>
@@ -226,10 +217,7 @@ export function DestinationScanner({
           ref={videoRef}
           muted
           playsInline
-          aria-label={tr(
-            "Destination camera preview",
-            "ภาพกล้องตรวจสอบปลายทาง",
-          )}
+          aria-label={t("copy.destination-camera-preview")}
           className={`aspect-video w-full rounded-lg bg-black object-cover ${camera === "OFF" ? "hidden" : ""}`}
         />
         {camera === "OFF" ? (
@@ -241,7 +229,7 @@ export function DestinationScanner({
             className="w-full"
           >
             <Camera className="size-4" aria-hidden="true" />
-            {tr("Start camera", "เปิดกล้อง")}
+            {t("copy.start-camera")}
           </Button>
         ) : (
           <Button
@@ -251,12 +239,12 @@ export function DestinationScanner({
             className="w-full"
           >
             <Square className="size-4" aria-hidden="true" />
-            {tr("Stop camera", "ปิดกล้อง")}
+            {t("copy.stop-camera")}
           </Button>
         )}
         {camera === "STARTING" ? (
           <p role="status" className="text-sm text-muted">
-            {tr("Starting camera…", "กำลังเปิดกล้อง…")}
+            {t("copy.starting-camera")}
           </p>
         ) : null}
       </div>
@@ -270,12 +258,12 @@ export function DestinationScanner({
         <div className="space-y-2">
           <Label htmlFor={inputId}>
             {purpose === "SUPPORT"
-              ? tr("Supporting pallet code", "รหัสพาเลทรองรับ")
+              ? t("copy.supporting-pallet-code")
               : purpose === "PALLET"
-                ? tr("Pallet code", "รหัสพาเลท")
+                ? t("copy.pallet-code")
                 : purpose === "SOURCE"
-                  ? tr("Source code", "รหัสต้นทาง")
-                  : tr("Destination code", "รหัสปลายทาง")}
+                  ? t("copy.source-code")
+                  : t("copy.destination-code")}
           </Label>
           <Input
             id={inputId}
@@ -296,9 +284,8 @@ export function DestinationScanner({
             id={`${inputId}-hint`}
             className="text-xs leading-relaxed text-muted"
           >
-            {tr(
-              "Paste, type, or use a handheld scanner. This is recorded as manual code verification.",
-              "วางรหัส พิมพ์ หรือใช้เครื่องสแกนแบบมือถือ ระบบจะบันทึกเป็นการตรวจสอบรหัสด้วยตนเอง",
+            {t(
+              "copy.paste-type-or-use-a-handheld-scanner-this-is-recorded-as-manual-code-ver",
             )}
           </p>
         </div>
@@ -309,8 +296,8 @@ export function DestinationScanner({
           className="w-full"
         >
           {reading || busy
-            ? tr("Verifying…", "กำลังตรวจสอบ…")
-            : tr("Verify entered code", "ตรวจสอบรหัสที่กรอก")}
+            ? t("copy.verifying")
+            : t("copy.verify-entered-code")}
         </Button>
       </form>
       {error ? <Notice tone="warning" title={error} role="alert" /> : null}
@@ -319,32 +306,28 @@ export function DestinationScanner({
           tone="success"
           title={
             purpose === "SUPPORT"
-              ? tr("Supporting pallet verified", "ตรวจสอบพาเลทรองรับแล้ว")
+              ? t("copy.supporting-pallet-verified")
               : purpose === "PALLET"
-                ? tr("Pallet identified", "ระบุพาเลทแล้ว")
+                ? t("copy.pallet-identified")
                 : purpose === "SOURCE"
-                  ? tr("Source code captured", "รับรหัสต้นทางแล้ว")
-                  : tr("Destination verified", "ตรวจสอบปลายทางแล้ว")
+                  ? t("copy.source-code-captured")
+                  : t("copy.destination-verified")
           }
           body={
             purpose === "SUPPORT"
-              ? tr(
-                  "Place the upper pallet at the shown coordinates before confirming.",
-                  "วางพาเลทด้านบนตามพิกัดที่แสดงก่อนยืนยัน",
+              ? t(
+                  "copy.place-the-upper-pallet-at-the-shown-coordinates-before-confirming",
                 )
               : purpose === "PALLET"
-                ? tr(
-                    "Confirm pickup only after physically picking up this pallet.",
-                    "ยืนยันรับหลังรับพาเลทจริงเท่านั้น",
+                ? t(
+                    "copy.confirm-pickup-only-after-physically-picking-up-this-pallet",
                   )
                 : purpose === "SOURCE"
-                  ? tr(
-                      "Confirm return only after physically returning to the exact source position. The server checks the code again when you confirm.",
-                      "ยืนยันคืนหลังคืนพาเลทตามตำแหน่งต้นทางจริง ระบบตรวจรหัสอีกครั้งเมื่อยืนยัน",
+                  ? t(
+                      "copy.confirm-return-only-after-physically-returning-to-the-exact-source-posit",
                     )
-                  : tr(
-                      "Place the pallet at the guided position before confirming storage.",
-                      "วางพาเลทตามตำแหน่งที่แนะนำก่อนยืนยันจัดเก็บ",
+                  : t(
+                      "copy.place-the-pallet-at-the-guided-position-before-confirming-storage",
                     )
           }
         />

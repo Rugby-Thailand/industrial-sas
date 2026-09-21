@@ -14,6 +14,7 @@ import {
 } from "../lib/tenantFunctions";
 import { storageLayoutStatus } from "../lib/validators";
 import { effectiveStorageAreaMode } from "../model/storageLayout/storagePosition";
+import { STORAGE_ZONE_LIMITS } from "../model/storageLayout/storageZone";
 import { occupiedFootprintAreaSqMm } from "../model/storageLayout/occupancy";
 import { readMoveOccupancy, type MoveOccupancy } from "./moveOccupancy";
 
@@ -171,7 +172,7 @@ async function readFloor(
       { field: "floorId", value: floor._id },
       { field: "status", value: "ACTIVE" },
     ])
-    .all(50);
+    .all(STORAGE_ZONE_LIMITS.maximumZonesPerFloor);
   const storageZones = await Promise.all(
     zones.map(async (zone) => {
       const allPlacements = await readZonePlacements(ctx, zone, moves);
@@ -550,6 +551,29 @@ export const getStorageLocationMap = queryWithOrg({
       building: { ...building, buildingId: building._id },
       floor: await readFloor(ctx, floor),
       zone: await resolveZone(ctx, zone),
+    };
+  },
+});
+
+/** Indexed presence checks are shared with the transactional status write. */
+export const buildingStatusControl = queryWithOrg({
+  args: buildingArgs,
+  returns: v.any(),
+  permissionCode: "masterData.storageLayout.read",
+  target: { table: "storageBuildings", id: (args) => args.buildingId },
+  warehouseId: (args) => args.warehouseId,
+  handler: async (ctx, args) => {
+    const building = await ctx.tenantDb.get<BuildingDocument>(
+      "storageBuildings",
+      args.buildingId,
+    );
+    if (!building || building.warehouseId !== args.warehouseId) return null;
+    return {
+      status: building.status,
+      version: building.version,
+      blocked:
+        building.status === "ACTIVE" &&
+        (await hasOccupiedStorage(ctx, { buildingId: building._id })),
     };
   },
 });

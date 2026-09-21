@@ -7,7 +7,7 @@ import { fgRefs } from "@/lib/convex/finishedGoodsApi";
 import { ErrorNotice, useCanManage, useFGText } from "./shared";
 
 export function SummaryPreparation({ warehouseId }: { warehouseId: string }) {
-  const { tr } = useFGText();
+  const { t } = useFGText();
   const canManage = useCanManage();
   const prepare = useMutation(fgRefs.prepareSummaries);
   const mounted = useRef(true);
@@ -38,13 +38,9 @@ export function SummaryPreparation({ warehouseId }: { warehouseId: string }) {
     <div className="rounded-xl border border-border p-5">
       <p role="status" className="text-sm text-muted">
         {busy
-          ? tr(
-              "Preparing complete warehouse totals…",
-              "กำลังเตรียมยอดรวมคลังสินค้า…",
-            )
-          : tr(
-              "Warehouse totals need to be prepared before these records can be displayed.",
-              "ต้องเตรียมยอดรวมคลังสินค้าก่อนแสดงรายการเหล่านี้",
+          ? t("copy.preparing-complete-warehouse-totals")
+          : t(
+              "copy.warehouse-totals-need-to-be-prepared-before-these-records-can-be-display",
             )}
       </p>
       {canManage && (
@@ -55,15 +51,12 @@ export function SummaryPreparation({ warehouseId }: { warehouseId: string }) {
           disabled={busy}
           onClick={() => void run()}
         >
-          {tr("Prepare warehouse totals", "เตรียมยอดรวมคลังสินค้า")}
+          {t("copy.prepare-warehouse-totals")}
         </Button>
       )}
       {error && (
         <ErrorNotice
-          message={tr(
-            "Preparation could not finish. Please try again.",
-            "เตรียมข้อมูลไม่สำเร็จ กรุณาลองอีกครั้ง",
-          )}
+          message={t("copy.preparation-could-not-finish-please-try-again")}
         />
       )}
     </div>

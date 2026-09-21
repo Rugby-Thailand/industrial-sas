@@ -54,7 +54,7 @@ export function DestinationPicker({
   context?: "storage" | "move";
   stateKey?: string | undefined;
 }) {
-  const { tr } = useFGText();
+  const { t } = useFGText();
   const [{ search }, setSearchState] = usePreviewState(stateKey, {
     search: "",
   });
@@ -63,10 +63,10 @@ export function DestinationPicker({
   const moving = context === "move";
   return (
     <section className="min-w-0 space-y-3">
-      <h2 className="text-sm font-semibold">
+      <h2 className="text-lg leading-7 font-semibold">
         {moving
-          ? tr("Available destinations", "ปลายทางที่ใช้ได้")
-          : tr("Available locations", "จุดจัดเก็บที่ใช้ได้")}
+          ? t("copy.available-destinations")
+          : t("copy.available-locations")}
         <span className="ml-2 font-normal text-muted" aria-live="polite">
           {search.trim()
             ? `${filtered.length} / ${candidates.length}`
@@ -81,13 +81,10 @@ export function DestinationPicker({
         <Input
           aria-label={
             moving
-              ? tr("Search move destinations", "ค้นหาปลายทางย้าย")
-              : tr("Search storage locations", "ค้นหาจุดจัดเก็บ")
+              ? t("copy.search-move-destinations")
+              : t("copy.search-storage-locations")
           }
-          placeholder={tr(
-            "Building, location or rack…",
-            "อาคาร จุดจัดเก็บ หรือชั้นวาง…",
-          )}
+          placeholder={t("copy.building-location-or-rack")}
           value={search}
           onChange={(event) => setSearch(event.target.value)}
           className="pr-12 pl-9"
@@ -97,8 +94,8 @@ export function DestinationPicker({
             variant="ghost"
             size="icon"
             className="absolute top-1/2 right-0 -translate-y-1/2"
-            aria-label={tr("Clear search", "ล้างคำค้น")}
-            title={tr("Clear search", "ล้างคำค้น")}
+            aria-label={t("copy.clear-search")}
+            title={t("copy.clear-search")}
             onClick={() => setSearch("")}
           >
             <X aria-hidden="true" />
@@ -109,13 +106,12 @@ export function DestinationPicker({
         <div className="space-y-2 rounded-xl border border-dashed border-border p-4 text-sm">
           <p role="status">
             {moving
-              ? tr("No matching destinations", "ไม่พบปลายทางที่ตรงกัน")
-              : tr("No matching locations", "ไม่พบจุดจัดเก็บที่ตรงกัน")}
+              ? t("copy.no-matching-destinations")
+              : t("copy.no-matching-locations")}
           </p>
           <p className="text-xs text-muted">
-            {tr(
-              "Your current preview is kept. Clear the search to see all locations.",
-              "ภาพตำแหน่งที่เลือกยังคงอยู่ ล้างคำค้นเพื่อดูจุดจัดเก็บทั้งหมด",
+            {t(
+              "copy.your-current-preview-is-kept-clear-the-search-to-see-all-locations",
             )}
           </p>
         </div>
@@ -123,9 +119,7 @@ export function DestinationPicker({
         <div
           role="region"
           aria-label={
-            moving
-              ? tr("Destination options", "ตัวเลือกปลายทาง")
-              : tr("Location options", "ตัวเลือกจุดจัดเก็บ")
+            moving ? t("copy.destination-options") : t("copy.location-options")
           }
           tabIndex={0}
           className="flex gap-2 overflow-x-auto rounded-xl pb-2 outline-none focus-visible:ring-2 focus-visible:ring-ring 2xl:max-h-[32rem] 2xl:flex-col 2xl:overflow-y-auto 2xl:pr-2"
@@ -133,34 +127,34 @@ export function DestinationPicker({
           {filtered.map((candidate) => {
             const key = destinationKey(candidate);
             return (
-              <button
+              <Button
+                variant="ghost"
                 key={key}
                 type="button"
                 aria-pressed={key === selected}
                 onClick={() => onSelect(key)}
-                className={`min-w-52 shrink-0 rounded-xl border p-3 text-left transition outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset 2xl:min-w-0 ${key === selected ? "border-accent bg-accent/10" : "border-border bg-surface hover:border-accent/60"}`}
+                className={`min-w-52 shrink-0 rounded-xl border p-3 text-left transition outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset 2xl:min-w-0 ${key === selected ? "border-link bg-selected" : "border-border bg-surface hover:border-link"}`}
               >
                 <span className="flex flex-wrap items-center gap-2">
-                  <MapPin className="size-4 text-accent" aria-hidden="true" />
+                  <MapPin className="size-4 text-link" aria-hidden="true" />
                   <span className="font-semibold">
                     {candidate.locationName}
                   </span>
                   {recommended && key === destinationKey(recommended) && (
                     <span className="rounded-full bg-success/10 px-2 py-1 text-[10px] text-success">
-                      {tr("Recommended", "แนะนำ")}
+                      {t("copy.recommended")}
                     </span>
                   )}
                 </span>
                 {candidate.measuredAreaPartial && (
                   <span className="mt-2 block text-xs text-warning">
-                    {tr(
-                      "Contains unmeasured units · remaining space unknown",
-                      "มีสินค้าที่ไม่ได้วัดขนาด · ไม่ทราบพื้นที่ว่างคงเหลือ",
+                    {t(
+                      "copy.contains-unmeasured-units-remaining-space-unknown",
                     )}
                   </span>
                 )}
                 <span className="mt-2 block text-xs text-muted">
-                  {candidate.buildingCode} · {tr("Floor", "ชั้น")}{" "}
+                  {candidate.buildingCode} · {t("copy.floor")}{" "}
                   {candidate.floorNumber}
                 </span>
                 <span className="mt-2 block text-xs text-muted">
@@ -170,11 +164,11 @@ export function DestinationPicker({
                 <span className="mt-2 block text-xs text-muted">
                   {candidate.supportLabel ??
                     candidate.supportCode ??
-                    tr("Location floor", "พื้นจุดจัดเก็บ")}
+                    t("copy.location-floor")}
                   {" · Z "}
                   {mmText(candidate.support.zMm)}
                 </span>
-              </button>
+              </Button>
             );
           })}
         </div>

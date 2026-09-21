@@ -1,11 +1,25 @@
+import type { ReactElement } from "react";
+import { renderWithIntl } from "@tests/fixtures/intl-render";
 import { useReducer } from "react";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { screen, fireEvent, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe } from "jest-axe";
 import { expect, it, vi } from "vitest";
 import { ScannedPackageList } from "./ScannedPackageList";
 import { initialScanSession, scanReducer } from "./scanSession";
-vi.mock("./shared", () => ({ useFGText: () => ({ tr: (en: string) => en }) }));
+vi.mock("@/i18n/navigation", () => ({
+  Link: ({ children, ...props }: React.ComponentProps<"a">) => (
+    <a {...props}>{children}</a>
+  ),
+  useRouter: () => ({ push: vi.fn() }),
+}));
+function renderIntl(ui: ReactElement) {
+  return renderWithIntl(ui, {
+    locale: "en",
+    workspace: false,
+    preserveProviders: true,
+  });
+}
 function Harness() {
   let initial = initialScanSession();
   for (const key of ["A", "B", "C"]) {
@@ -22,7 +36,7 @@ function Harness() {
 }
 it("has accessible controls and keyboard reorder/remove with contiguous labels", async () => {
   const user = userEvent.setup();
-  const { container } = render(<Harness />);
+  const { container } = renderIntl(<Harness />);
   expect(await axe(container)).toHaveNoViolations();
   expect(
     screen.queryByRole("button", { name: /Move .+ (up|down)/ }),
@@ -42,7 +56,7 @@ it("has accessible controls and keyboard reorder/remove with contiguous labels",
 
 it("shows a touch drop target, scrolls at the edge, drops and cancels safely", async () => {
   const scroll = vi.spyOn(window, "scrollBy").mockImplementation(() => {});
-  const { unmount } = render(<Harness />);
+  const { unmount } = renderIntl(<Harness />);
   const rows = screen.getAllByRole("listitem");
   rows.forEach((row, index) =>
     vi.spyOn(row, "getBoundingClientRect").mockReturnValue({

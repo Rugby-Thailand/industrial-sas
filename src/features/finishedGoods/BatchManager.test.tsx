@@ -1,8 +1,15 @@
+import { messagesFor } from "@/i18n/messages";
 import { batchTestResponse } from "./paginationTestAdapter";
 import { axe } from "jest-axe";
 import type * as ClerkModule from "@clerk/nextjs";
 import type * as WorkspaceModule from "@/components/providers/WorkspaceProvider";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import type { ComponentProps, ReactNode } from "react";
 import { getFunctionName } from "convex/server";
 import { NextIntlClientProvider } from "next-intl";
@@ -92,7 +99,7 @@ function component(
   unitId?: string,
 ) {
   return (
-    <NextIntlClientProvider locale={locale} messages={{}}>
+    <NextIntlClientProvider locale={locale} messages={messagesFor(locale)}>
       <BatchManager
         warehouseId="warehouse-a"
         batchId="batch-a"
@@ -190,7 +197,7 @@ it("shows the exact stored location in 2D/3D and links to its move workflow", ()
 it("selects available units and shows an honest empty position", () => {
   detail = { ...measuredPalletDetail, pallet: data.units[1]! };
   render(component());
-  fireEvent.click(screen.getByRole("button", { name: /P-002/ }));
+  fireEvent.click(screen.getByRole("button", { name: /^P-002/ }));
   expect(screen.getByText("No storage position yet")).toBeVisible();
   expect(screen.getByRole("link", { name: "Find storage" })).toHaveAttribute(
     "href",
@@ -278,7 +285,7 @@ it("opens a unit correction directly and focuses its identifiable replacement ro
     ),
   );
   render(
-    <NextIntlClientProvider locale="en" messages={{}}>
+    <NextIntlClientProvider locale="en" messages={messagesFor("en")}>
       <ProductBatches warehouseId="warehouse-a" product={finishedGoodProduct} />
     </NextIntlClientProvider>,
   );
@@ -335,7 +342,7 @@ it("names the scoped edit tab and preserves that scope when another unit is prev
     target: { value: "0.8" },
   });
   fireEvent.click(screen.getByRole("button", { name: "Storage" }));
-  fireEvent.click(screen.getByRole("button", { name: /P-002/ }));
+  fireEvent.click(screen.getByRole("button", { name: /^P-002/ }));
   fireEvent.click(screen.getByRole("button", { name: "Edit unit · P-003" }));
   expect(
     screen.getByRole("heading", { name: "Correcting unit · P-003" }),
@@ -393,7 +400,7 @@ it("does not expose a row correction when its physical hold makes it ineligible"
     }),
   );
   render(
-    <NextIntlClientProvider locale="en" messages={{}}>
+    <NextIntlClientProvider locale="en" messages={messagesFor("en")}>
       <ProductBatches warehouseId="warehouse-a" product={finishedGoodProduct} />
     </NextIntlClientProvider>,
   );
@@ -457,6 +464,34 @@ it("rejects a stale draft when an available unit becomes reserved", () => {
   ).toBeVisible();
   expect(screen.getByRole("button", { name: "Review changes" })).toBeDisabled();
 });
+it("explains a protected unit without selecting it or hiding the workflow notice", () => {
+  render(component("view", "en", "free-a"));
+  const selected = screen.getByRole("button", { name: /^P-002/ });
+  expect(selected).toHaveAttribute("aria-pressed", "true");
+  fireEvent.click(
+    screen.getByRole("button", { name: "Why packing is locked · P-001" }),
+  );
+  const explanation = screen.getByRole("dialog", {
+    name: "Why packing is locked · P-001",
+  });
+  expect(
+    within(explanation).getByText(/This unit is already stored/),
+  ).toBeVisible();
+  expect(selected).toHaveAttribute("aria-pressed", "true");
+  expect(
+    screen.queryByRole("button", { name: "Why packing is locked · P-002" }),
+  ).not.toBeInTheDocument();
+  expect(mocks.write).not.toHaveBeenCalled();
+});
+
+it("does not advertise packing locks to a view-only operator", () => {
+  mocks.canManage = false;
+  render(component());
+  expect(
+    screen.queryByRole("button", { name: /Why packing is locked/ }),
+  ).not.toBeInTheDocument();
+});
+
 it("shows a useful all-protected state", () => {
   data = { ...data, units: data.units.map((u) => ({ ...u, editable: false })) };
   render(component("edit"));
@@ -645,7 +680,7 @@ it("keeps edits on cancelled Storage navigation and discards to the exact chosen
     target: { value: "0.8" },
   });
   fireEvent.click(screen.getByRole("button", { name: "Storage" }));
-  fireEvent.click(screen.getByRole("button", { name: /P-001/ }));
+  fireEvent.click(screen.getByRole("button", { name: /^P-001/ }));
   fireEvent.click(screen.getByRole("link", { name: "Move unit" }));
   expect(mocks.push).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));

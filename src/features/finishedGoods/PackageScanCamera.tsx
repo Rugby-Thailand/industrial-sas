@@ -33,7 +33,7 @@ export function PackageScanCamera({
   onBack,
   feedback,
 }: PackageScanCameraProps) {
-  const { tr } = useFGText();
+  const { t, tr } = useFGText();
   const {
     videoRef,
     state,
@@ -46,39 +46,25 @@ export function PackageScanCamera({
   const packages = mode === "PACKAGES";
   const errorText =
     error === "PERMISSION"
-      ? tr(
-          "Camera permission denied. Allow camera access and retry, or use manual verification below.",
-          "ไม่ได้รับอนุญาตให้ใช้กล้อง กรุณาอนุญาตแล้วลองอีกครั้ง หรือกรอกรหัสด้านล่าง",
+      ? t(
+          "copy.camera-permission-denied-allow-camera-access-and-retry-or-use-manual-ver",
         )
       : error === "DECODER"
-        ? tr(
-            "The camera could not read the code. Retry or use manual verification below.",
-            "กล้องอ่านรหัสไม่ได้ ลองอีกครั้ง หรือกรอกรหัสด้านล่าง",
+        ? t(
+            "copy.the-camera-could-not-read-the-code-retry-or-use-manual-verification-belo",
           )
         : error === "TORCH"
-          ? tr(
-              "Flashlight unavailable. You can continue scanning.",
-              "ใช้ไฟฉายไม่ได้ ยังสแกนต่อได้",
-            )
-          : tr(
-              "Camera unavailable. Retry or use manual verification below.",
-              "ใช้กล้องไม่ได้ ลองอีกครั้ง หรือกรอกรหัสด้านล่าง",
-            );
+          ? t("copy.flashlight-unavailable-you-can-continue-scanning")
+          : t("copy.camera-unavailable-retry-or-use-manual-verification-below");
   return (
-    <section
-      className="space-y-3"
-      aria-label={tr("Code scanner", "เครื่องสแกนรหัส")}
-    >
+    <section className="space-y-3" aria-label={t("copy.code-scanner")}>
       <div className="relative overflow-hidden rounded-2xl border border-border bg-black text-white">
         <video
           ref={videoRef}
           muted
           playsInline
           className="h-[min(64vh,34rem)] min-h-80 w-full object-cover"
-          aria-label={tr(
-            "Package and location camera preview",
-            "ภาพกล้องสแกนบรรจุภัณฑ์และจุดจัดเก็บ",
-          )}
+          aria-label={t("copy.package-and-location-camera-preview")}
         />
         <div className="absolute inset-x-0 top-0 flex items-start gap-3 bg-gradient-to-b from-black/90 to-transparent p-4 pb-12">
           <Button
@@ -86,20 +72,18 @@ export function PackageScanCamera({
             variant="ghost"
             className="size-11 shrink-0 text-white hover:bg-white/20 hover:text-white"
             onClick={onBack}
-            aria-label={tr("Back", "ย้อนกลับ")}
+            aria-label={t("copy.back")}
           >
             <ArrowLeft aria-hidden="true" className="size-5" />
           </Button>
           <div className="min-w-0 flex-1 pt-1">
             <h1 className="text-xl font-semibold">
-              {packages
-                ? tr("Scan Packages", "สแกนบรรจุภัณฑ์")
-                : tr("Scan Location", "สแกนจุดจัดเก็บ")}
+              {packages ? t("copy.scan-packages") : t("copy.scan-location")}
             </h1>
             <p className="mt-1 text-sm text-white/85">
               {packages
-                ? tr("Scan packages in order", "สแกนบรรจุภัณฑ์ตามลำดับ")
-                : tr("Scan the warehouse location", "สแกนจุดจัดเก็บในคลัง")}
+                ? t("copy.scan-packages-in-order")
+                : t("copy.scan-the-warehouse-location")}
             </p>
           </div>
           {torchAvailable && (
@@ -107,7 +91,7 @@ export function PackageScanCamera({
               type="button"
               variant="ghost"
               className="size-11 shrink-0 text-white hover:bg-white/20 hover:text-white"
-              aria-label={tr("Flashlight", "ไฟฉาย")}
+              aria-label={t("copy.flashlight")}
               aria-pressed={torchOn}
               onClick={() => void toggleTorch()}
             >
@@ -125,7 +109,7 @@ export function PackageScanCamera({
           </p>
           {!packages && (
             <p className="mt-1 text-sm">
-              {tr("Will be assigned to this location", "จะจัดเก็บที่จุดนี้")}
+              {t("copy.will-be-assigned-to-this-location")}
             </p>
           )}
           <div
@@ -166,18 +150,12 @@ export function PackageScanCamera({
             ) : (
               <p className="text-sm">
                 {!active
-                  ? tr("Camera paused", "พักกล้องแล้ว")
+                  ? t("copy.camera-paused")
                   : state === "STARTING"
-                    ? tr("Starting camera…", "กำลังเปิดกล้อง…")
+                    ? t("copy.starting-camera")
                     : state === "ACTIVE"
-                      ? tr(
-                          "Position a barcode or QR code inside the frame",
-                          "วางบาร์โค้ดหรือคิวอาร์โค้ดในกรอบ",
-                        )
-                      : tr(
-                          "Start the camera or enter a code below",
-                          "เปิดกล้องหรือกรอกรหัสด้านล่าง",
-                        )}
+                      ? t("copy.position-a-barcode-or-qr-code-inside-the-frame")
+                      : t("copy.start-the-camera-or-enter-a-code-below")}
               </p>
             )}
           </div>
@@ -191,9 +169,7 @@ export function PackageScanCamera({
           onClick={start}
         >
           <Camera aria-hidden="true" className="size-4" />
-          {error
-            ? tr("Retry camera", "ลองเปิดกล้องอีกครั้ง")
-            : tr("Start camera", "เปิดกล้อง")}
+          {error ? t("copy.retry-camera") : t("copy.start-camera")}
         </Button>
       )}
       {error && (

@@ -3,7 +3,10 @@
 import { useState } from "react";
 import { useQuery } from "convex/react";
 import { useLocale } from "next-intl";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
+import { Notice } from "@/components/ui/Notice";
+import { Button } from "@/components/ui/button";
+import { palletPath } from "@/lib/navigation";
 import {
   Dialog,
   DialogContent,
@@ -21,6 +24,9 @@ import {
 } from "@/lib/convex/storageLayoutApi";
 import { storageFootprintUsage } from "../../../convex/model/storageLayout/areaUsage";
 import { AreaOverview } from "./AreaOverview";
+import { PlacementStatusBadge } from "@/features/storageKit/PlacementStatusBadge";
+import { placementStatusKey } from "@/lib/storageLayouts/storageKit";
+import { messagesFor } from "@/i18n/messages";
 
 export function BuildingAreaDetails({
   building,
@@ -39,13 +45,15 @@ export function BuildingAreaDetails({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <button
+        <Button
+          variant="ghost"
+          size="touch"
           type="button"
-          className="relative z-10 w-full rounded-lg text-left outline-none hover:bg-surface focus-visible:ring-2 focus-visible:ring-accent"
+          className="relative z-10 w-full rounded-lg text-left outline-none hover:bg-surface focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
           aria-label={`${th ? "ดูรายละเอียดพื้นที่" : "View space details"} · ${building.name}`}
         >
           <AreaOverview {...building} />
-        </button>
+        </Button>
       </DialogTrigger>
       <DialogContent className="max-w-4xl" closeLabel={th ? "ปิด" : "Close"}>
         <DialogHeader>
@@ -59,15 +67,22 @@ export function BuildingAreaDetails({
           </DialogDescription>
         </DialogHeader>
         {result === undefined ? (
-          <p role="status">{th ? "กำลังโหลด…" : "Loading…"}</p>
+          <Notice tone="neutral" title={th ? "กำลังโหลด…" : "Loading…"} />
         ) : !result.ok ? (
-          <p role="alert">
-            {th
-              ? "โหลดรายละเอียดไม่สำเร็จ กรุณาลองใหม่"
-              : "Unable to load details. Please try again."}
-          </p>
+          <Notice
+            tone="danger"
+            role="alert"
+            title={
+              th
+                ? "โหลดรายละเอียดไม่สำเร็จ กรุณาลองใหม่"
+                : "Unable to load details. Please try again."
+            }
+          />
         ) : !result.value.found ? (
-          <p>{th ? "ไม่พบอาคาร" : "Building not found"}</p>
+          <Notice
+            tone="warning"
+            title={th ? "ไม่พบอาคาร" : "Building not found"}
+          />
         ) : (
           <BuildingUsageContent detail={result.value} />
         )}
@@ -161,7 +176,7 @@ export function BuildingUsageContent({
               <li key={placement.placementId}>
                 <Link
                   className="text-accent underline"
-                  href={`/${locale}/finished-goods/pallets/${placement.handlingUnitId}`}
+                  href={palletPath(placement.handlingUnitId)}
                 >
                   {placement.lpn}
                 </Link>{" "}
@@ -209,21 +224,24 @@ export function BuildingUsageContent({
             })}
         </svg>
         <dl className="space-y-3 text-sm">
-          {segments.map((s) => (
+          {segments.map((segment, index) => (
             <div
-              key={s.label}
+              key={`${segment.label}-${index}`}
               className="flex flex-wrap items-center justify-between gap-2"
             >
               <dt className="flex items-center gap-2">
                 <span
                   className="size-3 rounded-sm"
-                  style={{ backgroundColor: s.color }}
+                  style={{ backgroundColor: segment.color }}
                 />
-                {s.label}
+                {segment.label}
               </dt>
               <dd className="tabular-nums">
-                {area(s.value)} ·{" "}
-                {format.format(gross > 0 ? (s.value / gross) * 100 : 0)}%
+                {area(segment.value)} ·{" "}
+                {new Intl.NumberFormat(undefined, {
+                  maximumFractionDigits: 2,
+                }).format(gross > 0 ? (segment.value / gross) * 100 : 0)}
+                %
               </dd>
             </div>
           ))}
@@ -294,7 +312,7 @@ export function BuildingUsageContent({
                   <td className="min-w-40 p-3">
                     <Link
                       className="text-accent underline"
-                      href={`/${locale}/finished-goods/pallets/${p.handlingUnitId}`}
+                      href={palletPath(p.handlingUnitId)}
                     >
                       {p.lpn}
                     </Link>
@@ -312,7 +330,7 @@ export function BuildingUsageContent({
                   <td className="min-w-40 p-3">
                     <Link
                       className="text-accent underline"
-                      href={`/${locale}/master-data/storage-layouts/${building.buildingId}/floors/${floor.floorNumber}`}
+                      href={`/master-data/storage-layouts/${building.buildingId}/floors/${floor.floorNumber}`}
                     >
                       {th ? "ชั้น" : "Floor"} {floor.floorNumber} · {zone.label}
                     </Link>
@@ -325,24 +343,14 @@ export function BuildingUsageContent({
                     </p>
                   </td>
                   <td className="min-w-36 p-3">
-                    <p className="flex items-center gap-2">
-                      <span
-                        className="size-2 shrink-0 rounded-full"
-                        style={{
-                          backgroundColor:
-                            p.status === "RESERVED"
-                              ? sceneColors.reserved
-                              : sceneColors.stored,
-                        }}
-                      />
-                      {p.status === "RESERVED"
-                        ? th
-                          ? "จองแล้ว"
-                          : "Reserved"
-                        : th
-                          ? "จัดเก็บแล้ว"
-                          : "Stored"}
-                    </p>
+                    <PlacementStatusBadge
+                      placement={p}
+                      label={
+                        messagesFor(locale).StorageLayouts[
+                          placementStatusKey(p)
+                        ]
+                      }
+                    />
                     <p className="mt-1 text-xs">
                       {zone.mode === "RACK"
                         ? th

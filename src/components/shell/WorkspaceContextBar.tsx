@@ -45,7 +45,8 @@ export function WorkspaceContextBar() {
           onValueChange={(warehouse) => workspace.selectWarehouse(warehouse)}
           placeholder={t("selectWarehouse")}
           emptyLabel={t("noWarehouses")}
-          className="h-8 min-h-8! w-full min-w-0 rounded-full border-border px-3 py-0 text-xs font-medium sm:w-56 [&_[data-slot=select-value]]:block [&_[data-slot=select-value]]:truncate"
+          size="compact"
+          className="w-full sm:w-56 [&_[data-slot=select-value]]:block [&_[data-slot=select-value]]:truncate"
           testId="warehouse-select"
           options={workspace.warehouses.map((warehouse) => ({
             value: warehouse.id,

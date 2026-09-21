@@ -14,7 +14,7 @@ export default async function SetupPage({
 
   return (
     <>
-      <PageHeader title={t("title")} description={t("intro")} />
+      <PageHeader title={t("title")} summary={t("intro")} />
       <SetupChecklist />
     </>
   );

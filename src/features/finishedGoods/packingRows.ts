@@ -70,37 +70,3 @@ export function updatePackingRow<T extends PackingRow>(
     ...("quantity" in changes ? { weight: "" } : {}),
   };
 }
-
-export function packingIssueText(
-  issue: string | null,
-  tr: (en: string, th: string) => string,
-): string {
-  return issue === "FILL_PERCENT_INVALID"
-    ? tr("Choose fullness from 1% to 100%.", "เลือกความเต็มระหว่าง 1% ถึง 100%")
-    : issue === "QUANTITY_MISMATCH"
-      ? tr(
-          "Allocated quantity must equal the batch total.",
-          "จำนวนที่จัดสรรต้องเท่ากับยอดรวมของชุด",
-        )
-      : issue === "QUANTITY_INVALID"
-        ? tr(
-            "Enter positive quantities with the precision allowed for this unit.",
-            "กรอกจำนวนมากกว่าศูนย์และทศนิยมที่หน่วยนับรองรับ",
-          )
-        : issue === "DIMENSIONS_UNCHECKED"
-          ? tr(
-              "Confirm the actual dimensions of every storage unit, including copied dimensions.",
-              "ยืนยันขนาดจริงของทุกหน่วย รวมถึงหน่วยที่คัดลอกขนาดมา",
-            )
-          : issue === "WEIGHT_INVALID"
-            ? tr(
-                "Weight must be positive when supplied.",
-                "น้ำหนักต้องมากกว่าศูนย์เมื่อระบุ",
-              )
-            : issue
-              ? tr(
-                  "Complete each unit’s quantity and outer dimensions (0–100 m, to the nearest millimetre).",
-                  "กรอกจำนวนและขนาดภายนอกของทุกหน่วยให้ครบ (มากกว่า 0 ถึง 100 ม. ละเอียดถึงมิลลิเมตร)",
-                )
-              : "";
-}

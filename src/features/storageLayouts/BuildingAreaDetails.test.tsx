@@ -2,6 +2,7 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { describe, expect, it, vi } from "vitest";
+import type { ComponentProps } from "react";
 import {
   BuildingAreaDetails,
   BuildingUsageContent,
@@ -15,6 +16,11 @@ import { chooseOption } from "@tests/fixtures/select-control";
 const query = vi.hoisted(() => vi.fn());
 vi.mock("convex/react", () => ({
   useQuery: (_ref: unknown, args: unknown) => query(args),
+}));
+vi.mock("@/i18n/navigation", () => ({
+  Link: ({ href, ...props }: ComponentProps<"a">) => (
+    <a href={href} {...props} />
+  ),
 }));
 const building: StorageBuildingRow = {
   buildingId: "b1",
@@ -130,7 +136,7 @@ describe("building space drilldown", () => {
     });
     expect(screen.getByRole("link", { name: "P-001" })).toHaveAttribute(
       "href",
-      "/en/finished-goods/pallets/pallet1",
+      "/finished-goods/pallets/pallet1",
     );
     await user.keyboard("{Escape}");
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();

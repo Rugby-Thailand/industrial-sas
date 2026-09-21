@@ -1,14 +1,11 @@
 "use client";
 
-import { useConvexAuth } from "convex/react";
 import type { ReactNode } from "react";
-
-import { useAppEnvironment } from "@/components/providers/EnvironmentProvider";
 import { useWorkspace } from "@/components/providers/WorkspaceProvider";
-import { resolveLedgerGate, type ReadScope } from "@/lib/convex/ledgerState";
-
+import type { ReadScope } from "@/lib/convex/ledgerState";
 import { LedgerPanelStatus } from "./LedgerPanelStatus";
 
+/** Readiness is resolved once by WorkspaceProvider, before mounting feature queries. */
 export function QueryGate({
   scope,
   children,
@@ -16,34 +13,13 @@ export function QueryGate({
   readonly scope: ReadScope;
   readonly children: (warehouseId: string, preview: false) => ReactNode;
 }): ReactNode {
-  const environment = useAppEnvironment();
-  const warehouseId = useWorkspace().selectedWarehouseId;
-  const gate = resolveLedgerGate(environment, warehouseId, scope);
-
-  if (gate.kind !== "READY_TO_QUERY") {
-    return <LedgerPanelStatus state={gate} />;
+  const workspace = useWorkspace();
+  if (workspace.readiness.kind !== "READY_TO_QUERY") {
+    return <LedgerPanelStatus state={workspace.readiness} />;
   }
-  return (
-    <AuthenticatedQueryGate warehouseId={gate.warehouseId}>
-      {children}
-    </AuthenticatedQueryGate>
-  );
-}
-
-function AuthenticatedQueryGate({
-  warehouseId,
-  children,
-}: {
-  readonly warehouseId: string;
-  readonly children: (warehouseId: string, preview: false) => ReactNode;
-}): ReactNode {
-  const authentication = useConvexAuth();
-
-  if (authentication.isLoading) {
-    return <LedgerPanelStatus state={{ kind: "LOADING" }} />;
+  if (scope === "ORG") return <>{children("", false)}</>;
+  if (workspace.selectedWarehouseId === undefined) {
+    return <LedgerPanelStatus state={{ kind: "WAREHOUSE_MISSING" }} />;
   }
-  if (!authentication.isAuthenticated) {
-    return <LedgerPanelStatus state={{ kind: "SIGN_IN_REQUIRED" }} />;
-  }
-  return <>{children(warehouseId, false)}</>;
+  return <>{children(workspace.selectedWarehouseId, false)}</>;
 }

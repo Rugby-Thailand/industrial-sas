@@ -1,3 +1,4 @@
+import { messagesFor } from "@/i18n/messages";
 import type * as ClerkModule from "@clerk/nextjs";
 import type * as WorkspaceModule from "@/components/providers/WorkspaceProvider";
 import {
@@ -73,12 +74,16 @@ import {
   writeFailure,
   writeSuccess as success,
 } from "@tests/fixtures/finished-goods-ui";
-import { PalletScreen } from "./PalletScreens";
+import { PalletScreen, Summary } from "./PalletScreens";
 
 let currentDetail: PalletDetail;
 const renderPallet = (view: "measure" | "storage" | "detail" = "detail") => {
   const element = () => (
-    <NextIntlClientProvider locale="en" messages={{}} timeZone="Asia/Bangkok">
+    <NextIntlClientProvider
+      locale="en"
+      messages={messagesFor("en")}
+      timeZone="Asia/Bangkok"
+    >
       <PalletScreen palletId="pallet-a" view={view} />
     </NextIntlClientProvider>
   );
@@ -171,6 +176,57 @@ describe("contextual location corrections", () => {
     expect(
       screen.getByRole("link", { name: "View storage layout" }),
     ).toBeVisible();
+  });
+});
+
+describe("pallet next-action hierarchy", () => {
+  it("offers measured storage once in the page header while keeping scanning available", () => {
+    renderPallet();
+    const header = screen.getByRole("heading", { level: 1 }).closest("header");
+    expect(header).not.toBeNull();
+    expect(
+      within(header!).getByRole("link", { name: "Recommend storage" }),
+    ).toHaveAttribute("href", "/finished-goods/pallets/pallet-a/storage");
+    expect(
+      screen.getAllByRole("link", { name: "Recommend storage" }),
+    ).toHaveLength(1);
+    expect(screen.getByRole("link", { name: "Scan Packages" })).toHaveAttribute(
+      "href",
+      "/finished-goods/scan",
+    );
+  });
+
+  it("directs an unmeasured unit to scanning without offering storage prematurely", () => {
+    currentDetail = {
+      ...measuredPalletDetail,
+      pallet: { ...finishedGoodPallet, status: "AWAITING_MEASUREMENT" },
+    };
+    renderPallet();
+    const header = screen.getByRole("heading", { level: 1 }).closest("header");
+    expect(
+      within(header!).getByRole("link", { name: "Scan Packages" }),
+    ).toHaveAttribute("href", "/finished-goods/scan");
+    expect(screen.getAllByRole("link", { name: "Scan Packages" })).toHaveLength(
+      1,
+    );
+    expect(
+      screen.queryByRole("link", { name: "Recommend storage" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps the operational status visible when secondary pallet details are collapsed", () => {
+    render(
+      <NextIntlClientProvider
+        locale="en"
+        messages={messagesFor("en")}
+        timeZone="Asia/Bangkok"
+      >
+        <Summary detail={reservedPalletDetail} compact />
+      </NextIntlClientProvider>,
+    );
+    const status = screen.getByText("Reserved · Awaiting storage");
+    expect(status).toBeVisible();
+    expect(status.closest("details")).toBeNull();
   });
 });
 

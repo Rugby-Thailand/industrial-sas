@@ -5,11 +5,16 @@ import {
 import type { GenericMutationCtx } from "convex/server";
 import { describe, expect, it } from "vitest";
 
-import { getStorageBuilding } from "../../convex/storageLayouts/catalogue";
+import {
+  buildingStatusControl,
+  getStorageBuilding,
+} from "../../convex/storageLayouts/catalogue";
 import {
   activateStorageBuilding,
+  returnStorageBuildingToDraft,
   createStorageBuilding,
   saveStorageFloor,
+  updateStorageBuilding,
 } from "../../convex/storageLayouts/writes";
 import type { StorageReservedBlockInput } from "../../convex/model/storageLayout/storageLayout";
 import type { DataModel } from "../../convex/schema";
@@ -52,6 +57,155 @@ function value(outcome: Record<string, unknown>): Record<string, unknown> {
 }
 
 describe("storage building planner", () => {
+  it("reads and validates all 500 floor zones, and refuses overflow explicitly", async () => {
+    const world = await createPlannerWorld();
+    const warehouseId = world.warehouses.alphaA;
+    const buildingId = value(
+      await call(world, createStorageBuilding, {
+        warehouseId,
+        requestId: "large-floor",
+        code: "LARGE",
+        name: "Large floor",
+        widthMm: 600_000,
+        depthMm: 10_000,
+        defaultFloorHeightMm: 4_000,
+        floorCount: 1,
+      }),
+    )["documentId"];
+    value(
+      await call(world, createStorageZone, {
+        warehouseId,
+        buildingId,
+        floorNumber: 1,
+        requestId: "large-first",
+        label: "First",
+        xMm: 0,
+        yMm: 0,
+        widthMm: 1_000,
+        depthMm: 1_000,
+        maxStackHeightMm: 3_000,
+      }),
+    );
+    await world.t.run(async (ctx) => {
+      const original = (await ctx.db.query("storageZones").collect())[0]!;
+      const originalLocation = (await ctx.db.query("locations").collect()).find(
+        (row) => row._id === original.locationId,
+      )!;
+      const { _id: zoneId, _creationTime: zoneTime, ...zone } = original;
+      const {
+        _id: locationId,
+        _creationTime: locationTime,
+        ...location
+      } = originalLocation;
+      void zoneId;
+      void zoneTime;
+      void locationId;
+      void locationTime;
+      for (let i = 1; i < 499; i++) {
+        const code = `LARGE-${String(i).padStart(4, "0")}`;
+        const clonedLocation = await ctx.db.insert("locations", {
+          ...location,
+          code,
+        });
+        await ctx.db.insert("storageZones", {
+          ...zone,
+          locationId: clonedLocation,
+          code,
+          label: code,
+          qrValue: `zone:${clonedLocation}`,
+          xMm: i * 1_000,
+        });
+      }
+    });
+    const final = value(
+      await call(world, createStorageZone, {
+        warehouseId,
+        buildingId,
+        floorNumber: 1,
+        requestId: "large-final",
+        label: "Final",
+        xMm: 499_000,
+        yMm: 0,
+        widthMm: 1_000,
+        depthMm: 1_000,
+        maxStackHeightMm: 3_000,
+      }),
+    );
+    expect(final).toMatchObject({ written: true });
+    const detail = value(
+      await call(world, getStorageBuilding, { warehouseId, buildingId }),
+    );
+    const floors = detail["floors"] as { storageZones: { label: string }[] }[];
+    expect(floors[0]!.storageZones).toHaveLength(500);
+    expect(floors[0]!.storageZones.some((zone) => zone.label === "Final")).toBe(
+      true,
+    );
+    const building = detail["building"] as { version: number };
+    expect(
+      value(
+        await call(world, createStorageZone, {
+          warehouseId,
+          buildingId,
+          floorNumber: 1,
+          requestId: "large-overflow",
+          label: "Overflow",
+          xMm: 500_000,
+          yMm: 0,
+          widthMm: 1_000,
+          depthMm: 1_000,
+          maxStackHeightMm: 3_000,
+        }),
+      ),
+    ).toMatchObject({ written: false, error: { code: "ZONE_LIMIT_EXCEEDED" } });
+    // The zone beyond the former 50-row bound must still block shrinking.
+    expect(
+      value(
+        await call(world, updateStorageBuilding, {
+          warehouseId,
+          buildingId,
+          requestId: "large-shrink",
+          expectedVersion: building.version,
+          name: "Large floor",
+          widthMm: 100_000,
+          depthMm: 10_000,
+          defaultFloorHeightMm: 4_000,
+        }),
+      ),
+    ).toMatchObject({ written: false, error: { code: "ZONE_OUT_OF_BOUNDS" } });
+    expect(
+      value(
+        await call(world, activateStorageBuilding, {
+          warehouseId,
+          buildingId,
+          requestId: "large-activate",
+          expectedVersion: building.version,
+        }),
+      ),
+    ).toMatchObject({ written: true });
+    const locations = await world.t.run((ctx) =>
+      ctx.db.query("locations").collect(),
+    );
+    expect(locations).toHaveLength(500);
+    expect(locations.every((location) => location.status === "ACTIVE")).toBe(
+      true,
+    );
+    // Malformed/imported data above the supported limit must fail, never omit rows.
+    await world.t.run(async (ctx) => {
+      const original = (await ctx.db.query("storageZones").collect())[0]!;
+      const { _id, _creationTime, ...zone } = original;
+      void _id;
+      void _creationTime;
+      await ctx.db.insert("storageZones", {
+        ...zone,
+        code: "OVER-LIMIT",
+        qrValue: "over-limit",
+      });
+    });
+    await expect(
+      call(world, getStorageBuilding, { warehouseId, buildingId }),
+    ).rejects.toThrow("CAPACITY_DATA_LIMIT");
+  });
+
   it("normalizes colors, preserves legacy areas and geometry, and rejects invalid colors", async () => {
     const world = await createPlannerWorld();
     const warehouseId = world.warehouses.alphaA;
@@ -273,6 +427,96 @@ describe("storage building planner", () => {
     );
   });
 
+  it("clears floor dimension overrides and continues inheriting future building defaults", async () => {
+    const world = await createPlannerWorld();
+    const warehouseId = world.warehouses.alphaA;
+    const created = value(
+      await call(world, createStorageBuilding, {
+        warehouseId,
+        requestId: "inherit-create",
+        code: "INHERIT",
+        name: "Inherited floor",
+        widthMm: 10_000,
+        depthMm: 10_000,
+        defaultFloorHeightMm: 4_000,
+        floorCount: 1,
+      }),
+    );
+    const buildingId = created["documentId"];
+    expect(
+      value(
+        await call(world, saveStorageFloor, {
+          warehouseId,
+          buildingId,
+          requestId: "inherit-override",
+          expectedBuildingVersion: 1,
+          expectedFloorVersion: 1,
+          floor: {
+            floorNumber: 1,
+            widthMm: 6_000,
+            depthMm: 8_000,
+            heightMm: 3_000,
+            offsetXMm: 0,
+            offsetYMm: 0,
+            reservedBlocks: [],
+          },
+        }),
+      ),
+    ).toMatchObject({ written: true });
+    expect(
+      value(
+        await call(world, saveStorageFloor, {
+          warehouseId,
+          buildingId,
+          requestId: "inherit-clear",
+          expectedBuildingVersion: 2,
+          expectedFloorVersion: 2,
+          floor: {
+            floorNumber: 1,
+            offsetXMm: 0,
+            offsetYMm: 0,
+            reservedBlocks: [],
+          },
+        }),
+      ),
+    ).toMatchObject({ written: true });
+    const cleared = await world.t.run(async (ctx) =>
+      ctx.db.query("storageFloors").first(),
+    );
+    expect(cleared).toMatchObject({ grossAreaSqMm: 100_000_000, version: 3 });
+    expect(cleared).not.toHaveProperty("widthMm");
+    expect(cleared).not.toHaveProperty("depthMm");
+    expect(cleared).not.toHaveProperty("heightMm");
+
+    expect(
+      value(
+        await call(world, updateStorageBuilding, {
+          warehouseId,
+          buildingId,
+          requestId: "inherit-new-defaults",
+          expectedVersion: 3,
+          name: "Inherited floor",
+          widthMm: 12_000,
+          depthMm: 9_000,
+          defaultFloorHeightMm: 5_000,
+        }),
+      ),
+    ).toMatchObject({ written: true });
+    const stored = await world.t.run(async (ctx) => ({
+      floor: await ctx.db.query("storageFloors").first(),
+      building: await ctx.db.query("storageBuildings").first(),
+    }));
+    expect(stored.floor).toMatchObject({
+      grossAreaSqMm: 108_000_000,
+      version: 4,
+    });
+    expect(stored.floor).not.toHaveProperty("heightMm");
+    expect(stored.building).toMatchObject({
+      totalHeightMm: 5_000,
+      grossAreaSqMm: 108_000_000,
+    });
+  });
+
   it("creates, edits, summarizes, replays, and activates a warehouse layout", async () => {
     const world = await createPlannerWorld();
     const warehouseId = world.warehouses.alphaA;
@@ -469,5 +713,147 @@ describe("storage building planner", () => {
         }[]
       )[0]?.storageZones[0]?.placements,
     ).toEqual([]);
+
+    // Empty storage definitions survive a round trip; their locations follow status.
+    expect(
+      value(
+        await call(world, returnStorageBuildingToDraft, {
+          warehouseId,
+          buildingId,
+          requestId: "return-draft",
+          expectedVersion: 3,
+        }),
+      ),
+    ).toMatchObject({ written: true });
+    expect(
+      await world.t.run((ctx) => ctx.db.get(linkedLocationId as never)),
+    ).toMatchObject({ status: "INACTIVE" });
+    expect(
+      value(
+        await call(world, activateStorageBuilding, {
+          warehouseId,
+          buildingId,
+          requestId: "reactivate",
+          expectedVersion: 4,
+        }),
+      ),
+    ).toMatchObject({ written: true });
+    expect(
+      await world.t.run((ctx) => ctx.db.get(linkedLocationId as never)),
+    ).toMatchObject({ status: "ACTIVE" });
+    expect(
+      value(
+        await call(world, returnStorageBuildingToDraft, {
+          warehouseId,
+          buildingId,
+          requestId: "stale-draft",
+          expectedVersion: 3,
+        }),
+      ),
+    ).toMatchObject({ written: false, error: { code: "VERSION_CONFLICT" } });
+
+    // A previously clear UI cannot bypass newly added stock or reservations.
+    expect(
+      value(
+        await call(world, buildingStatusControl, { warehouseId, buildingId }),
+      ),
+    ).toMatchObject({ blocked: false });
+    const placementId = await world.t.run(async (ctx) => {
+      const storageZone = (await ctx.db.query("storageZones").collect())[0]!;
+      const audit = {
+        orgId: world.orgA,
+        warehouseId,
+        createdAt: 1,
+        updatedAt: 1,
+        createdByUserId: world.userA,
+        updatedByUserId: world.userA,
+      };
+      const productId = await ctx.db.insert("finishedGoodsProducts", {
+        ...audit,
+        sku: "STATUS",
+        name: "Status test",
+        unit: "pieces",
+        storageFormat: "PALLET",
+        storageCondition: "DRY",
+        status: "ACTIVE",
+      });
+      const palletId = await ctx.db.insert("finishedGoodsPallets", {
+        ...audit,
+        productId,
+        code: "STATUS-PALLET",
+        quantity: 1,
+        lengthMm: 1000,
+        widthMm: 1000,
+        heightMm: 1000,
+        status: "STORED",
+      });
+      return ctx.db.insert("finishedGoodsPlacements", {
+        ...audit,
+        palletId,
+        buildingId: storageZone.buildingId,
+        floorId: storageZone.floorId,
+        zoneId: storageZone._id,
+        locationId: storageZone.locationId,
+        positionCode: "STATUS-POS",
+        qrValue: "STATUS-QR",
+        xMm: 0,
+        yMm: 0,
+        zMm: 0,
+        widthMm: 1000,
+        depthMm: 1000,
+        heightMm: 1000,
+        rotation: 0,
+        status: "STORED",
+      });
+    });
+    for (const status of ["STORED", "RESERVED"] as const) {
+      await world.t.run((ctx) => ctx.db.patch(placementId, { status }));
+      expect(
+        value(
+          await call(world, buildingStatusControl, { warehouseId, buildingId }),
+        ),
+      ).toMatchObject({ blocked: true });
+      expect(
+        value(
+          await call(world, returnStorageBuildingToDraft, {
+            warehouseId,
+            buildingId,
+            requestId: `blocked-${status}`,
+            expectedVersion: 5,
+          }),
+        ),
+      ).toMatchObject({ written: false, error: { code: "LOCATION_OCCUPIED" } });
+    }
+    await world.t.run((ctx) =>
+      ctx.db.patch(placementId, { status: "RELEASED" }),
+    );
+    expect(
+      value(
+        await call(world, returnStorageBuildingToDraft, {
+          warehouseId,
+          buildingId,
+          requestId: "released-draft",
+          expectedVersion: 5,
+        }),
+      ),
+    ).toMatchObject({ written: true });
+    // Authorization applies to direct requests, not just the rendered switch.
+    await world.t.run(async (ctx) => {
+      for (const grant of await ctx.db.query("rolePermissions").collect()) {
+        if (
+          grant.orgId === world.orgA &&
+          grant.permissionCode === "masterData.storageLayout.activate"
+        )
+          await ctx.db.delete(grant._id);
+      }
+    });
+    expect(
+      await call(world, returnStorageBuildingToDraft, {
+        warehouseId,
+        buildingId,
+        requestId: "unauthorized-draft",
+        expectedVersion: 6,
+      }),
+    ).toMatchObject({ ok: false });
   });
 });

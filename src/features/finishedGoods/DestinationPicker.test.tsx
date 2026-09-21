@@ -1,3 +1,4 @@
+import { messagesFor } from "@/i18n/messages";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import type { ComponentProps } from "react";
@@ -65,7 +66,7 @@ describe("shared destination search", () => {
     (context) => {
       const onSelect = vi.fn();
       render(
-        <NextIntlClientProvider locale="en" messages={{}}>
+        <NextIntlClientProvider locale="en" messages={messagesFor("en")}>
           <DestinationPicker
             context={context}
             candidates={candidates}
@@ -102,7 +103,7 @@ describe("shared destination search", () => {
 
   it("shows Thai controls and keeps an empty list recoverable", () => {
     render(
-      <NextIntlClientProvider locale="th" messages={{}}>
+      <NextIntlClientProvider locale="th" messages={messagesFor("th")}>
         <DestinationPicker candidates={[]} selected="" onSelect={vi.fn()} />
       </NextIntlClientProvider>,
     );
@@ -118,7 +119,7 @@ describe("shared destination search", () => {
   it("restores search after a correction round trip only within the caller's scope", () => {
     const open = (stateKey: string) =>
       render(
-        <NextIntlClientProvider locale="en" messages={{}}>
+        <NextIntlClientProvider locale="en" messages={messagesFor("en")}>
           <DestinationPicker
             candidates={candidates}
             selected={destinationKey(finishedGoodDestination)}

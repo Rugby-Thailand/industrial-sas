@@ -41,6 +41,7 @@ export interface SelectControlProps {
   readonly describedBy?: string;
 
   readonly label?: string;
+  readonly size?: "default" | "compact";
   readonly className?: string;
   readonly testId?: string;
 }
@@ -59,6 +60,7 @@ export function SelectControl({
   invalid = false,
   describedBy,
   label,
+  size = "default",
   className,
   testId,
 }: SelectControlProps) {
@@ -88,7 +90,10 @@ export function SelectControl({
         aria-invalid={invalid ? true : undefined}
         aria-required={required ? true : undefined}
         aria-busy={pending ? true : undefined}
-        className={cn(className)}
+        className={cn(
+          size === "compact" && "h-8 min-h-8! px-3 py-0 text-xs",
+          className,
+        )}
         {...(testId === undefined ? {} : { "data-testid": testId })}
       >
         <SelectValue placeholder={isEmpty ? emptyLabel : placeholder} />

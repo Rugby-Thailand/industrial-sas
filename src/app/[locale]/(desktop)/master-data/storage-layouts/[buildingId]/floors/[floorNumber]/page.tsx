@@ -1,33 +1,41 @@
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { hasLocale } from "next-intl";
+import { notFound, redirect } from "next/navigation";
 
-import { storageBuildingPath } from "@/lib/navigation";
-import { PageHeader } from "@/components/ui/PageHeader";
-import { StorageFloorEditor } from "@/features/storageLayouts/StorageLayoutScreens";
+import { routing } from "@/i18n/routing";
+import { storageFloorPath } from "@/lib/navigation";
 
+/** Keep bookmarked floor links working in the shared building workspace. */
 export default async function StorageFloorPage({
   params,
+  searchParams,
 }: {
   readonly params: Promise<{
     locale: string;
     buildingId: string;
     floorNumber: string;
   }>;
+  readonly searchParams: Promise<{ editZone?: string | string[] }>;
 }) {
-  const { locale, buildingId, floorNumber } = await params;
-  setRequestLocale(locale);
-  const t = await getTranslations("StorageLayouts");
+  const [{ locale, buildingId, floorNumber }, query] = await Promise.all([
+    params,
+    searchParams,
+  ]);
   const parsedFloor = Number(floorNumber);
-  return (
-    <>
-      <PageHeader
-        back={{
-          href: storageBuildingPath(buildingId),
-          label: t("editBuilding"),
-        }}
-        title={t("editFloor", { floor: parsedFloor })}
-        description={t("description")}
-      />
-      <StorageFloorEditor buildingId={buildingId} floorNumber={parsedFloor} />
-    </>
+  if (
+    !hasLocale(routing.locales, locale) ||
+    !/^\d+$/.test(floorNumber) ||
+    !Number.isSafeInteger(parsedFloor) ||
+    parsedFloor < 1
+  ) {
+    notFound();
+  }
+  const editZone = Array.isArray(query.editZone)
+    ? query.editZone[0]
+    : query.editZone;
+  const destination = `/${locale}${storageFloorPath(buildingId, parsedFloor)}`;
+  redirect(
+    editZone
+      ? `${destination}&${new URLSearchParams({ editZone }).toString()}`
+      : destination,
   );
 }

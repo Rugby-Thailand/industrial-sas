@@ -5,6 +5,10 @@ import { useState } from "react";
 import { QueryGate } from "@/components/system/QueryGate";
 import { Button } from "@/components/ui/button";
 import { Notice } from "@/components/ui/Notice";
+import { CheckboxControl } from "@/components/ui/CheckboxControl";
+import { Panel } from "@/components/ui/Panel";
+import { StickyActionBar } from "@/components/ui/StickyActionBar";
+import { PageContainer } from "@/components/ui/PageContainer";
 import {
   Dialog,
   DialogContent,
@@ -34,7 +38,6 @@ import {
   Loading,
   Missing,
   palletPath,
-  panel,
   useCanManage,
   useDraftKey,
   useUnitText,
@@ -71,7 +74,7 @@ function MoveLoader({
   const outcome = useQuery(fgRefs.getPallet, { warehouseId, palletId });
   const canManage = useCanManage();
   const [changeDestination, setChangeDestination] = useState(false);
-  const { tr } = useUnitText(
+  const { t } = useUnitText(
     outcome?.ok
       ? (outcome.value?.pallet.storageFormat ??
           outcome.value?.product?.storageFormat)
@@ -108,22 +111,20 @@ function MoveLoader({
     return (
       <>
         <Heading
-          title={tr("Move pallet", "ย้ายพาเลท")}
+          title={t("copy.move-pallet")}
           back={palletPath(palletId)}
-          backLabel={tr("Back to pallet", "กลับไปที่พาเลท")}
+          backLabel={t("copy.back-to-pallet")}
         />
         <Notice
           title={
             !canManage
-              ? tr("View-only access", "สิทธิ์ดูข้อมูลเท่านั้น")
+              ? t("copy.view-only-access")
               : detail.placement?.mode === "LOCATION_ONLY"
-                ? tr(
-                    "This unit has a saved location without measured coordinates. Moving and stacking are not available for this assignment.",
-                    "บรรจุภัณฑ์นี้บันทึกจุดจัดเก็บโดยไม่มีพิกัดที่วัด ยังไม่รองรับการย้ายและซ้อนสำหรับรายการนี้",
+                ? t(
+                    "copy.this-unit-has-a-saved-location-without-measured-coordinates-moving-and-s",
                   )
-                : tr(
-                    "Only a stored pallet with a valid source can be moved.",
-                    "ย้ายได้เฉพาะพาเลทที่จัดเก็บแล้วและมีข้อมูลต้นทางครบถ้วน",
+                : t(
+                    "copy.only-a-stored-pallet-with-a-valid-source-can-be-moved",
                   )
           }
         />
@@ -149,7 +150,7 @@ function MoveSelection({
   warehouseId: string;
   onReserved: () => void;
 }) {
-  const { tr } = useUnitText(
+  const { t, tr } = useUnitText(
     detail.pallet.storageFormat ?? detail.product?.storageFormat,
   );
   const outcome = useQuery(fgRefs.recommendMove, {
@@ -185,11 +186,10 @@ function MoveSelection({
     <>
       <Heading
         back={palletPath(detail.pallet._id)}
-        backLabel={tr("Back to pallet", "กลับไปที่พาเลท")}
-        title={tr("Move pallet", "ย้ายพาเลท")}
-        description={tr(
-          "Choose an exact destination. The source stays occupied until the move or a physical return is confirmed.",
-          "เลือกตำแหน่งปลายทางที่แน่นอน ต้นทางยังถูกกันไว้จนกว่าจะยืนยันการย้ายหรือคืนพาเลทจริง",
+        backLabel={t("copy.back-to-pallet")}
+        title={t("copy.move-pallet")}
+        description={t(
+          "copy.choose-an-exact-destination-the-source-stays-occupied-until-the-move-or-",
         )}
       />
       <Summary detail={detail} />
@@ -197,45 +197,43 @@ function MoveSelection({
       detail.destination &&
       detail.placement &&
       detail.placement.mode !== "LOCATION_ONLY" ? (
-        <section
-          aria-label={tr("Current stored position", "ตำแหน่งจัดเก็บปัจจุบัน")}
-          className={`${panel} mb-4`}
+        <Panel
+          as="section"
+          aria-label={t("copy.current-stored-position")}
+          className="mb-4"
         >
-          <h2 className="mb-2 font-semibold">{tr("From", "จาก")}</h2>
+          <h2 className="mb-2 text-lg leading-7 font-semibold">
+            {t("copy.from")}
+          </h2>
           <DestinationSummary
             destination={detail.destination}
             placement={detail.placement}
           />
-        </section>
+        </Panel>
       ) : null}
       {!outcome ? (
         <Loading />
       ) : !outcome.ok ? (
         <Notice
           tone="danger"
-          title={tr(
-            "Could not load destinations. Refresh to retry.",
-            "โหลดปลายทางไม่ได้ กรุณารีเฟรชเพื่อลองใหม่",
-          )}
+          title={t("copy.could-not-load-destinations-refresh-to-retry")}
         />
       ) : !current && candidates.length > 0 ? (
         <div className="space-y-4">
           <Notice
             tone="warning"
-            title={tr(
-              "The previous location is no longer available. Select another destination to continue.",
-              "จุดเดิมไม่พร้อมใช้งานแล้ว เลือกปลายทางใหม่เพื่อดำเนินการต่อ",
+            title={t(
+              "copy.the-previous-location-is-no-longer-available-select-another-destination-",
             )}
           />
           {picker}
         </div>
       ) : !current ? (
-        <section className={`${panel} space-y-3`}>
+        <Panel className="space-y-3">
           <Notice
-            title={tr("No suitable space found", "ไม่พบพื้นที่ที่เหมาะสม")}
-            body={tr(
-              "The pallet remains at its current position. Check available space or try again later.",
-              "พาเลทยังอยู่ที่เดิม กรุณาตรวจสอบพื้นที่ว่างหรือลองอีกครั้งภายหลัง",
+            title={t("copy.no-suitable-space-found")}
+            body={t(
+              "copy.the-pallet-remains-at-its-current-position-check-available-space-or-try-",
             )}
           />
           <ul className="list-disc space-y-2 pl-5 text-sm">
@@ -243,7 +241,7 @@ function MoveSelection({
               <li key={reason}>{recommendationReason(reason, tr)}</li>
             ))}
           </ul>
-        </section>
+        </Panel>
       ) : (
         <div className="grid items-start gap-4 2xl:grid-cols-[230px_1fr]">
           {picker}
@@ -276,8 +274,7 @@ function Acknowledgement({
 }) {
   return (
     <label className="flex min-h-11 cursor-pointer items-start gap-3 py-2 text-sm font-medium">
-      <input
-        type="checkbox"
+      <CheckboxControl
         checked={checked}
         disabled={disabled}
         onChange={(event) => onChange(event.target.checked)}
@@ -299,7 +296,7 @@ function ActiveMove({
   actorScope: string;
   onChangeDestination: () => void;
 }) {
-  const { tr, locale } = useUnitText(
+  const { t, tr, locale } = useUnitText(
     detail.pallet.storageFormat ?? detail.product?.storageFormat,
   );
   const router = useRouter();
@@ -436,9 +433,8 @@ function ActiveMove({
       code !== `ISAS:PALLET:1:${detail.pallet._id}`
     ) {
       op.setError(
-        tr(
-          "This code does not identify this pallet. Check its label and retry.",
-          "รหัสนี้ไม่ใช่พาเลทนี้ กรุณาตรวจสอบป้ายแล้วลองอีกครั้ง",
+        t(
+          "copy.this-code-does-not-identify-this-pallet-check-its-label-and-retry",
         ),
       );
       throw new Error("PALLET_MISMATCH");
@@ -447,31 +443,27 @@ function ActiveMove({
     setIdentified({ code, method });
   }
   return (
-    <div className="pb-48 md:pb-0">
+    <PageContainer actionInset="responsive">
       <Heading
         back={palletPath(detail.pallet._id)}
-        backLabel={tr("Back to pallet", "กลับไปที่พาเลท")}
+        backLabel={t("copy.back-to-pallet")}
         title={
-          inTransit
-            ? tr("Confirm pallet move", "ยืนยันย้ายพาเลท")
-            : tr("Move prepared", "เตรียมย้ายแล้ว")
+          inTransit ? t("copy.confirm-pallet-move") : t("copy.move-prepared")
         }
       />
       <ol
-        aria-label={tr("Move progress", "ขั้นตอนการย้าย")}
+        aria-label={t("copy.move-progress")}
         className="mb-5 flex flex-wrap items-center gap-3 text-sm"
       >
         {[
-          tr("Destination selected", "เลือกปลายทางแล้ว"),
-          inTransit
-            ? tr("Moving", "กำลังย้าย")
-            : tr("Awaiting pickup", "รอรับพาเลท"),
-          tr("Complete", "เสร็จ"),
+          t("copy.destination-selected"),
+          inTransit ? t("copy.moving") : t("copy.awaiting-pickup"),
+          t("copy.complete"),
         ].map((step, index) => (
           <li
             key={index}
             aria-current={index === 1 ? "step" : undefined}
-            className={index === 1 ? "font-semibold text-accent" : "text-muted"}
+            className={index === 1 ? "font-semibold text-link" : "text-muted"}
           >
             {index === 0 ? "✓" : `${index + 1}.`} {step}
           </li>
@@ -486,17 +478,16 @@ function ActiveMove({
       {!owner ? (
         <div className="mb-5">
           <Notice
-            title={tr("View-only move", "ดูการย้ายเท่านั้น")}
-            body={tr(
-              "Only the operator who prepared this move can continue it. Other operators can view progress.",
-              "เฉพาะผู้เตรียมการย้ายนี้เท่านั้นที่ดำเนินการต่อได้ ผู้ปฏิบัติงานอื่นสามารถดูความคืบหน้าได้",
+            title={t("copy.view-only-move")}
+            body={t(
+              "copy.only-the-operator-who-prepared-this-move-can-continue-it-other-operators",
             )}
           />
         </div>
       ) : null}
       <div className="mb-6 grid grid-cols-2 gap-5 text-sm">
         <div>
-          <p className="text-xs text-muted">{tr("From", "จาก")}</p>
+          <p className="text-xs text-muted">{t("copy.from")}</p>
           {move.sourceDestination?.locationCode !==
             move.targetDestination?.locationCode ||
           move.sourceDestination?.buildingCode !==
@@ -505,8 +496,8 @@ function ActiveMove({
             move.targetDestination?.floorNumber ? (
             <p className="mt-1 break-words">
               {move.sourceDestination
-                ? `${move.sourceDestination.buildingCode} · ${tr("Floor", "ชั้น")} ${move.sourceDestination.floorNumber} · ${move.sourceDestination.locationName}`
-                : tr("Location unavailable", "ไม่พบข้อมูลจุดจัดเก็บ")}
+                ? `${move.sourceDestination.buildingCode} · ${t("copy.floor")} ${move.sourceDestination.floorNumber} · ${move.sourceDestination.locationName}`
+                : t("copy.location-unavailable")}
             </p>
           ) : null}
           <p className="mt-1 font-mono text-sm">
@@ -514,7 +505,7 @@ function ActiveMove({
           </p>
         </div>
         <div>
-          <p className="text-xs text-muted">{tr("To", "ปลายทาง")}</p>
+          <p className="text-xs text-muted">{t("copy.to")}</p>
           {move.sourceDestination?.locationCode !==
             move.targetDestination?.locationCode ||
           move.sourceDestination?.buildingCode !==
@@ -523,8 +514,8 @@ function ActiveMove({
             move.targetDestination?.floorNumber ? (
             <p className="mt-1 break-words">
               {move.targetDestination
-                ? `${move.targetDestination.buildingCode} · ${tr("Floor", "ชั้น")} ${move.targetDestination.floorNumber} · ${move.targetDestination.locationName}`
-                : tr("Location unavailable", "ไม่พบข้อมูลจุดจัดเก็บ")}
+                ? `${move.targetDestination.buildingCode} · ${t("copy.floor")} ${move.targetDestination.floorNumber} · ${move.targetDestination.locationName}`
+                : t("copy.location-unavailable")}
             </p>
           ) : null}
           <p className="mt-1 font-mono text-sm">
@@ -547,11 +538,11 @@ function ActiveMove({
           </section>
         ) : null}
         {owner ? (
-          <section className={`${panel} order-1 min-w-0 space-y-4 md:order-2`}>
-            <h2 className="font-semibold">
+          <Panel as="section" className="order-1 min-w-0 space-y-4 md:order-2">
+            <h2 className="text-lg leading-7 font-semibold">
               {inTransit
-                ? tr("Place at this destination", "วางที่ปลายทางนี้")
-                : tr("Pick up this pallet", "รับพาเลทจากต้นทาง")}
+                ? t("copy.place-at-this-destination")
+                : t("copy.pick-up-this-pallet")}
             </h2>
             {inTransit ? (
               move.targetDestination &&
@@ -562,10 +553,7 @@ function ActiveMove({
                   placement={move.targetPlacement}
                 />
               ) : (
-                <Notice
-                  tone="danger"
-                  title={tr("Location unavailable", "ไม่พบข้อมูลจุดจัดเก็บ")}
-                />
+                <Notice tone="danger" title={t("copy.location-unavailable")} />
               )
             ) : move.sourceDestination &&
               move.sourcePlacement &&
@@ -575,12 +563,9 @@ function ActiveMove({
                 placement={move.sourcePlacement}
               />
             ) : (
-              <Notice
-                tone="danger"
-                title={tr("Location unavailable", "ไม่พบข้อมูลจุดจัดเก็บ")}
-              />
+              <Notice tone="danger" title={t("copy.location-unavailable")} />
             )}
-            <div className="fixed inset-x-0 bottom-0 z-30 space-y-3 border-t border-border bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-lg md:static md:border-0 md:bg-transparent md:p-0 md:shadow-none">
+            <StickyActionBar placement="responsive" className="space-y-3">
               <Acknowledgement
                 checked={physicalConfirmed}
                 onChange={setPhysicalConfirmed}
@@ -610,21 +595,15 @@ function ActiveMove({
                 onClick={() => void command(inTransit ? "complete" : "start")}
               >
                 {inTransit
-                  ? tr("Confirm move complete", "ยืนยันย้ายเสร็จ")
-                  : tr("Start move", "เริ่มย้าย")}
+                  ? t("copy.confirm-move-complete")
+                  : t("copy.start-move")}
               </Button>
               <p className="text-sm text-muted" aria-live="polite">
                 {inTransit
-                  ? tr(
-                      "Confirming releases the source space.",
-                      "ยืนยันแล้วคืนพื้นที่ต้นทาง",
-                    )
-                  : tr(
-                      "Tick after pickup. Both spaces stay reserved.",
-                      "ติ๊กเมื่อรับแล้ว ทั้งสองพื้นที่ยังกันไว้",
-                    )}
+                  ? t("copy.confirming-releases-the-source-space")
+                  : t("copy.tick-after-pickup-both-spaces-stay-reserved")}
               </p>
-            </div>
+            </StickyActionBar>
             <Button
               type="button"
               variant="outline"
@@ -639,8 +618,8 @@ function ActiveMove({
               }}
             >
               {scanMode
-                ? tr("Use checkbox instead", "ใช้ checkbox แทนการสแกน")
-                : tr("Scan QR (optional)", "สแกน QR (ไม่บังคับ)")}
+                ? t("copy.use-checkbox-instead")
+                : t("copy.scan-qr-optional")}
             </Button>
             {scanMode && (
               <div>
@@ -681,17 +660,12 @@ function ActiveMove({
                 )}
               </div>
             )}
-          </section>
+          </Panel>
         ) : null}
       </div>
       {issueSaved ? (
         <div className="mt-4">
-          <Notice
-            title={tr(
-              "Issue saved. Both spaces remain held.",
-              "บันทึกปัญหาแล้ว ทั้งสองพื้นที่ยังถูกกันไว้",
-            )}
-          />
+          <Notice title={t("copy.issue-saved-both-spaces-remain-held")} />
         </div>
       ) : null}
       <div className="mt-5 flex flex-wrap justify-end gap-3">
@@ -703,7 +677,7 @@ function ActiveMove({
                 disabled={op.busy}
                 onClick={onChangeDestination}
               >
-                {tr("Change destination", "เปลี่ยนปลายทาง")}
+                {t("copy.change-destination")}
               </Button>
             ) : null}
             <Button
@@ -717,9 +691,7 @@ function ActiveMove({
                 setDialog(inTransit ? "return" : "cancel");
               }}
             >
-              {inTransit
-                ? tr("Return to source", "คืนต้นทาง")
-                : tr("Cancel move", "ยกเลิกการย้าย")}
+              {inTransit ? t("copy.return-to-source") : t("copy.cancel-move")}
             </Button>
             <Button
               variant="outline"
@@ -729,7 +701,7 @@ function ActiveMove({
                 setDialog("issue");
               }}
             >
-              {tr("Report an issue", "รายงานปัญหา")}
+              {t("copy.report-an-issue")}
             </Button>
           </div>
         ) : null}
@@ -745,27 +717,22 @@ function ActiveMove({
           }
         }}
       >
-        <DialogContent closeLabel={tr("Close", "ปิด")}>
+        <DialogContent closeLabel={t("copy.close")}>
           <DialogHeader>
             <DialogTitle>
               {dialog === "cancel"
-                ? tr("Cancel this move?", "ยกเลิกการย้ายนี้?")
+                ? t("copy.cancel-this-move")
                 : dialog === "return"
-                  ? tr(
-                      "Confirm physical return to source",
-                      "ยืนยันคืนพาเลทต้นทางจริง",
-                    )
-                  : tr("Report an issue", "รายงานปัญหา")}
+                  ? t("copy.confirm-physical-return-to-source")
+                  : t("copy.report-an-issue")}
             </DialogTitle>
             <DialogDescription>
               {dialog === "cancel"
-                ? tr(
-                    "Only the destination reservation is released. The pallet remains stored at the source.",
-                    "คืนเฉพาะพื้นที่ปลายทางที่จอง พาเลทยังคงจัดเก็บที่ต้นทาง",
+                ? t(
+                    "copy.only-the-destination-reservation-is-released-the-pallet-remains-stored-a",
                   )
-                : tr(
-                    "Both spaces remain held until the physical move or return is confirmed.",
-                    "ทั้งสองพื้นที่ยังถูกกันไว้จนกว่าจะยืนยันการย้ายหรือคืนจริง",
+                : t(
+                    "copy.both-spaces-remain-held-until-the-physical-move-or-return-is-confirmed",
                   )}
             </DialogDescription>
           </DialogHeader>
@@ -792,11 +759,8 @@ function ActiveMove({
                 }}
               >
                 {returnScanMode
-                  ? tr("Use checkbox instead", "ใช้ checkbox แทนการสแกน")
-                  : tr(
-                      "Scan source QR (optional)",
-                      "สแกน QR ต้นทาง (ไม่บังคับ)",
-                    )}
+                  ? t("copy.use-checkbox-instead")
+                  : t("copy.scan-source-qr-optional")}
               </Button>
               {returnScanMode && (
                 <div>
@@ -839,10 +803,7 @@ function ActiveMove({
                         )
                       ) {
                         op.setError(
-                          tr(
-                            "This code does not match the source.",
-                            "รหัสไม่ตรงกับต้นทาง",
-                          ),
+                          t("copy.this-code-does-not-match-the-source"),
                         );
                         throw new Error("SOURCE_MISMATCH");
                       }
@@ -865,7 +826,7 @@ function ActiveMove({
             </div>
           ) : dialog === "issue" ? (
             <Field
-              label={tr("Describe the issue", "รายละเอียดปัญหา")}
+              label={t("copy.describe-the-issue")}
               value={issue}
               onChange={setIssue}
               disabled={op.busy}
@@ -878,7 +839,7 @@ function ActiveMove({
               disabled={op.busy}
               onClick={() => setDialog(null)}
             >
-              {tr("Close", "ปิด")}
+              {t("copy.close")}
             </Button>
             <Button
               disabled={
@@ -892,14 +853,14 @@ function ActiveMove({
               }}
             >
               {dialog === "cancel"
-                ? tr("Cancel move", "ยกเลิกการย้าย")
+                ? t("copy.cancel-move")
                 : dialog === "return"
-                  ? tr("Confirm returned", "ยืนยันคืนแล้ว")
-                  : tr("Save issue", "บันทึกปัญหา")}
+                  ? t("copy.confirm-returned")
+                  : t("copy.save-issue")}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageContainer>
   );
 }

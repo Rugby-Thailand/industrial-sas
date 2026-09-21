@@ -21,7 +21,7 @@ import {
   useFGText,
   useOperation,
   written,
-  errorText,
+  useWriteError,
   useDraftKey,
 } from "./shared";
 
@@ -49,7 +49,7 @@ function Limits({
   locked?: boolean;
   onDirty: (dirty: boolean) => void;
 }) {
-  const { tr } = useFGText();
+  const { t } = useFGText();
   const canManage = useCanManage();
   const save = useMutation(fgRefs.saveStackingLimits);
   const op = useOperation(`${warehouseId}:${pallet._id}:stacking-limits`);
@@ -94,15 +94,12 @@ function Limits({
               onDirty(true);
             }}
           />
-          {tr("May support another pallet", "อนุญาตให้วางพาเลทซ้อนด้านบน")}
+          {t("copy.may-support-another-pallet")}
         </label>
         {stackable ? (
           <div className="grid gap-3 sm:grid-cols-2">
             <Field
-              label={tr(
-                "Maximum levels, including this pallet",
-                "จำนวนชั้นสูงสุด รวมพาเลทนี้",
-              )}
+              label={t("copy.maximum-levels-including-this-pallet")}
               type="number"
               required
               min={2}
@@ -119,9 +116,7 @@ function Limits({
         ) : null}
         {!locked && canManage ? (
           <Button type="submit" variant="outline">
-            {saved
-              ? tr("Limits saved", "บันทึกข้อกำหนดแล้ว")
-              : tr("Save stacking limits", "บันทึกข้อกำหนดการซ้อน")}
+            {saved ? t("copy.limits-saved") : t("copy.save-stacking-limits")}
           </Button>
         ) : null}
       </fieldset>
@@ -136,7 +131,8 @@ function StackLoader({
   warehouseId: string;
   palletId: string;
 }) {
-  const { tr, locale } = useFGText();
+  const { t, locale } = useFGText();
+  const writeError = useWriteError();
   const router = useRouter();
   const canManage = useCanManage();
   const scope = useDraftKey("stack");
@@ -160,18 +156,16 @@ function StackLoader({
     return (
       <>
         <Heading
-          title={tr("Stacking unavailable", "ยังไม่รองรับการซ้อน")}
+          title={t("copy.stacking-unavailable")}
           back={palletPath(palletId)}
-          backLabel={tr("Back to pallet", "กลับไปที่พาเลท")}
+          backLabel={t("copy.back-to-pallet")}
         />
         <Notice
-          title={tr(
-            "This unit has a saved location without measured coordinates.",
-            "บรรจุภัณฑ์นี้บันทึกจุดจัดเก็บโดยไม่มีพิกัดที่วัด",
+          title={t(
+            "copy.this-unit-has-a-saved-location-without-measured-coordinates",
           )}
-          body={tr(
-            "The saved sequence records top-to-bottom order. It does not establish a measured supporting surface for stacking.",
-            "ลำดับที่บันทึกแสดงจากบนลงล่าง แต่ไม่ได้ระบุพื้นผิวรองรับที่วัดสำหรับการซ้อน",
+          body={t(
+            "copy.the-saved-sequence-records-top-to-bottom-order-it-does-not-establish-a-m",
           )}
         />
       </>
@@ -232,18 +226,17 @@ function StackLoader({
     <div className="space-y-5">
       <Heading
         back={palletPath(palletId)}
-        backLabel={tr("Back to pallet", "กลับไปพาเลท")}
-        title={tr("Stack on top", "ซ้อนพาเลทด้านบน")}
-        description={tr(
-          "Choose support → Preview and check → Verify physical placement",
-          "เลือกพาเลทรองรับ → ตรวจสอบภาพตัวอย่าง → ยืนยันการวางจริง",
+        backLabel={t("copy.back-to-pallet-7b1f16")}
+        title={t("copy.stack-on-top-c3ca8e")}
+        description={t(
+          "copy.choose-support-preview-and-check-verify-physical-placement",
         )}
       />
       <div className="grid items-start gap-5 xl:grid-cols-[1.35fr_1fr]">
         <section className={`${panel} space-y-4`}>
-          <h2 className="flex items-center gap-2 font-semibold">
+          <h2 className="flex items-center gap-2 text-lg leading-7 font-semibold">
             <Layers3 className="size-5" />
-            {tr("Preview and check", "ภาพตัวอย่างและการตรวจสอบ")}
+            {t("copy.preview-and-check")}
           </h2>
           {candidate && upper ? (
             <>
@@ -279,7 +272,7 @@ function StackLoader({
                 <span className="flex items-center gap-2">
                   <LockKeyhole className="size-4" />Z{" "}
                   {(candidate.zMm / 1000).toFixed(2)} m ·{" "}
-                  {tr("Automatic height", "ระดับสูงอัตโนมัติ")}
+                  {t("copy.automatic-height")}
                 </span>
                 <Button
                   variant="outline"
@@ -293,10 +286,7 @@ function StackLoader({
               <dl className="grid grid-cols-2 gap-3 text-sm">
                 <div>
                   <dt className="text-muted">
-                    {tr(
-                      "Top elevation / available ceiling",
-                      "ระดับบนสุด / เพดานที่ใช้ได้",
-                    )}
+                    {t("copy.top-elevation-available-ceiling")}
                   </dt>
                   <dd>
                     {(candidate.zMm + candidate.heightMm) / 1000} /{" "}
@@ -309,46 +299,40 @@ function StackLoader({
               {!error ? (
                 <p className="flex items-center gap-2 text-sm text-success">
                   <CheckCircle2 className="size-4" />
-                  {tr(
-                    "Footprint, height, collision and stack-level checks pass.",
-                    "ผ่านการตรวจสอบขนาด ความสูง การทับซ้อน และจำนวนชั้น",
+                  {t(
+                    "copy.footprint-height-collision-and-stack-level-checks-pass",
                   )}
                 </p>
               ) : null}
             </>
           ) : (
             <div className="flex min-h-72 items-center justify-center rounded-xl border border-dashed border-border p-6 text-center text-muted">
-              {tr(
-                "Choose an upper pallet to preview its exact position.",
-                "เลือกพาเลทด้านบนเพื่อดูตำแหน่งที่แน่นอน",
-              )}
+              {t("copy.choose-an-upper-pallet-to-preview-its-exact-position")}
             </div>
           )}
           <ErrorNotice
             message={
               error === "OUTSIDE_LOCATION"
-                ? tr(
-                    "The upper pallet extends beyond the supporting pallet.",
-                    "พาเลทด้านบนยื่นออกนอกขอบพาเลทรองรับ",
+                ? t(
+                    "copy.the-upper-pallet-extends-beyond-the-supporting-pallet",
                   )
                 : error
-                  ? errorText(error, tr)
+                  ? writeError(error)
                   : ""
             }
           />
           <p className="text-xs text-muted">
-            {tr(
-              "One pallet per level. Weight and load checks are not enabled in this version.",
-              "หนึ่งพาเลทต่อชั้น เวอร์ชันนี้ยังไม่ตรวจสอบน้ำหนักและการรับน้ำหนัก",
+            {t(
+              "copy.one-pallet-per-level-weight-and-load-checks-are-not-enabled-in-this-vers",
             )}
           </p>
         </section>
         <div className="space-y-4">
           <section className={`${panel} space-y-4`}>
-            <h2 className="font-semibold">
-              1. {tr("Support", "พาเลทรองรับ")} ·{" "}
+            <h2 className="text-lg leading-7 font-semibold">
+              1. {t("copy.support-cb893d")} ·{" "}
               <Link
-                className="text-primary underline"
+                className="text-link underline"
                 href={palletPath(lower._id)}
               >
                 {lower.code}
@@ -363,29 +347,26 @@ function StackLoader({
             />
             {children.length ? (
               <p className="text-sm text-muted">
-                {tr(
-                  "This support is occupied or reserved. Open the upper pallet to move it or cancel its reservation.",
-                  "ด้านบนถูกใช้งานหรือจองแล้ว เปิดพาเลทด้านบนเพื่อย้ายหรือยกเลิกการจอง",
+                {t(
+                  "copy.this-support-is-occupied-or-reserved-open-the-upper-pallet-to-move-it-or",
                 )}
               </p>
             ) : null}
             {children.map((p) => (
               <Link
                 key={p._id}
-                className="block text-sm text-primary underline"
+                className="block text-sm text-link underline"
                 href={palletPath(p.palletId)}
               >
-                {tr("Open upper pallet", "เปิดพาเลทด้านบน")} · {p.positionCode}
+                {t("copy.open-upper-pallet")} · {p.positionCode}
               </Link>
             ))}
           </section>
           <section className={`${panel} space-y-4`}>
             <div className="block space-y-2 text-sm">
-              <span className="font-semibold">
-                2. {tr("Upper pallet", "พาเลทด้านบน")}
-              </span>
+              <span className="font-semibold">2. {t("copy.upper-pallet")}</span>
               <SelectControl
-                label={`2. ${tr("Upper pallet", "พาเลทด้านบน")}`}
+                label={`2. ${t("copy.upper-pallet")}`}
                 disabled={lowerDirty || upperDirty || op.busy}
                 value={upperId}
                 onValueChange={(nextUpperId) => {
@@ -396,38 +377,25 @@ function StackLoader({
                 options={[
                   {
                     value: "",
-                    label: tr(
-                      "Choose a measured pallet",
-                      "เลือกพาเลทที่วัดขนาดแล้ว",
-                    ),
+                    label: t("copy.choose-a-measured-pallet"),
                   },
                   ...pallets.map((p) => ({
                     value: p._id,
                     label: `${p.code} · ${p.quantity} · ${
                       p.status === "STORED"
-                        ? tr(
-                            "Stored — move to stack",
-                            "จัดเก็บแล้ว — ย้ายไปซ้อน",
-                          )
-                        : tr("Awaiting storage", "รอจัดเก็บ")
+                        ? t("copy.stored-move-to-stack")
+                        : t("copy.awaiting-storage")
                     }`,
                   })),
                 ]}
-                placeholder={tr(
-                  "Choose a measured pallet",
-                  "เลือกพาเลทที่วัดขนาดแล้ว",
-                )}
-                emptyLabel={tr(
-                  "No measured pallets available",
-                  "ไม่มีพาเลทที่วัดขนาดแล้ว",
-                )}
+                placeholder={t("copy.choose-a-measured-pallet")}
+                emptyLabel={t("copy.no-measured-pallets-available")}
               />
             </div>
             {!pallets.length ? (
               <p className="text-sm text-muted">
-                {tr(
-                  "No measured pallets are available. Create and measure a pallet first.",
-                  "ไม่มีพาเลทที่วัดขนาดแล้ว กรุณาสร้างและวัดขนาดพาเลทก่อน",
+                {t(
+                  "copy.no-measured-pallets-are-available-create-and-measure-a-pallet-first",
                 )}
               </p>
             ) : null}
@@ -445,10 +413,7 @@ function StackLoader({
       </div>
       {lowerDirty || upperDirty ? (
         <p role="status" className="text-sm text-muted">
-          {tr(
-            "Save the edited stacking limits before reserving.",
-            "บันทึกข้อกำหนดการซ้อนที่แก้ไขก่อนจองตำแหน่ง",
-          )}
+          {t("copy.save-the-edited-stacking-limits-before-reserving")}
         </p>
       ) : null}
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -465,11 +430,8 @@ function StackLoader({
           onClick={() => void prepare()}
         >
           {upper?.status === "STORED"
-            ? tr(
-                "Reserve stack and prepare move",
-                "จองตำแหน่งซ้อนและเตรียมย้าย",
-              )
-            : tr("Reserve stack and verify", "จองตำแหน่งซ้อนและตรวจสอบ")}
+            ? t("copy.reserve-stack-and-prepare-move")
+            : t("copy.reserve-stack-and-verify")}
         </Button>
       </div>
     </div>

@@ -20,7 +20,7 @@ export default async function StorageReviewPage({
           label: t("fullLayoutEdit"),
         }}
         title={t("reviewTitle")}
-        description={t("reviewDescription")}
+        summary={t("reviewDescription")}
       />
       <StorageBuildingReview buildingId={buildingId} />
     </>

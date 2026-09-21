@@ -4,13 +4,13 @@ export type BadgeTone =
   "neutral" | "accent" | "success" | "warning" | "danger" | "pending" | "muted";
 
 const TONE_CLASSES: Readonly<Record<BadgeTone, string>> = {
-  neutral: "border-border-strong text-text",
-  accent: "border-accent text-accent",
-  success: "border-success text-success",
-  warning: "border-warning text-warning",
-  danger: "border-danger text-danger",
-  pending: "border-pending text-pending",
-  muted: "border-border-strong text-muted",
+  neutral: "border-border-strong bg-raised text-text",
+  accent: "border-link bg-selected text-link",
+  success: "border-success bg-success-surface text-success",
+  warning: "border-warning bg-warning-surface text-warning",
+  danger: "border-danger bg-danger-surface text-danger",
+  pending: "border-pending bg-pending-surface text-pending",
+  muted: "border-border-strong bg-raised text-muted",
 };
 
 const TONE_GLYPHS: Readonly<Record<BadgeTone, string>> = {
@@ -42,7 +42,7 @@ export function StatusBadge({
 }) {
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full border bg-surface px-2.5 py-1 text-xs font-semibold whitespace-nowrap ${TONE_CLASSES[tone]}`}
+      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold whitespace-nowrap ${TONE_CLASSES[tone]}`}
       {...(title === undefined ? {} : { title })}
     >
       <span aria-hidden="true" className="shrink-0">

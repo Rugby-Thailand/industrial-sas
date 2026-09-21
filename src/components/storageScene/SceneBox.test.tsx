@@ -1,5 +1,6 @@
 import { fireEvent, render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { sceneColors } from "./sceneColors";
 import { SceneBox, sceneStyle } from "./SceneBox";
 import { storagePlacementCorners } from "@/lib/storageLayouts/storagePlacementGeometry";
 import { projectIsometricPoint } from "@/lib/storageLayouts/isometricGeometry";
@@ -66,6 +67,6 @@ describe("shared storage box", () => {
     ).toBeDefined();
     expect(
       sceneStyle({ kind: "location", selected: true, invalid: true }).stroke,
-    ).toBe("#ff817d");
+    ).toBe(sceneColors.invalid);
   });
 });

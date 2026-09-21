@@ -7,11 +7,14 @@ const mock = vi.hoisted(() => ({
   manage: true,
   rows: [] as unknown[],
   ok: true,
+  userId: "user",
+  orgId: "org",
 }));
 vi.mock("@clerk/nextjs", () => ({
-  useAuth: () => ({ userId: "user", orgId: "org" }),
+  useAuth: () => ({ userId: mock.userId, orgId: mock.orgId }),
 }));
 vi.mock("convex/react", () => ({
+  useMutation: () => vi.fn(),
   useQuery: (
     ref: Parameters<typeof getFunctionName>[0],
     args: Record<string, unknown> | "skip",
@@ -52,6 +55,7 @@ vi.mock("convex/react", () => ({
 }));
 vi.mock("@/components/providers/WorkspaceProvider", () => ({
   useWorkspace: () => ({
+    permissionsReady: true,
     navigationPermissions: mock.manage
       ? ["masterData.storageLayout.manage"]
       : [],
@@ -107,12 +111,14 @@ const renderPage = () =>
     <StorageLocationCatalogue warehouseId="warehouse-a">
       {() => <p>Building cards</p>}
     </StorageLocationCatalogue>,
-    { locale: "en", workspace: false },
+    { locale: "en", workspace: false, preserveProviders: true },
   );
 beforeEach(() => {
   localStorage.clear();
   mock.manage = true;
   mock.ok = true;
+  mock.userId = "user";
+  mock.orgId = "org";
   mock.rows = [
     row,
     {
@@ -130,6 +136,20 @@ beforeEach(() => {
     },
   ];
 });
+it("does not retain one actor's view preferences after an actor switch", async () => {
+  const view = renderPage();
+  fireEvent.click(screen.getByRole("button", { name: "All locations" }));
+  expect(screen.getByRole("table", { name: "All storage locations" })).toBeVisible();
+
+  mock.userId = "another-user";
+  view.rerender(
+    <StorageLocationCatalogue warehouseId="warehouse-a">
+      {() => <p>Building cards</p>}
+    </StorageLocationCatalogue>,
+  );
+  expect(screen.queryByRole("table", { name: "All storage locations" })).toBeNull();
+  expect(screen.getByText("Building cards")).toBeVisible();
+});
 it("switches to all locations, opens coordinates and QR, and exposes exact planner links", async () => {
   const { container } = renderPage();
   fireEvent.click(screen.getByRole("button", { name: "All locations" }));
@@ -138,11 +158,11 @@ it("switches to all locations, opens coordinates and QR, and exposes exact plann
   ).toBeVisible();
   expect(screen.getByRole("link", { name: "FG-1" })).toHaveAttribute(
     "href",
-    "/master-data/storage-layouts/building-a/floors/4#storage-zone-zone-a",
+    "/master-data/storage-layouts/building-a?floor=4&editing=1#storage-zone-zone-a",
   );
   expect(screen.getByRole("link", { name: "Edit FG-1" })).toHaveAttribute(
     "href",
-    expect.stringContaining("?editZone=zone-a"),
+    expect.stringContaining("&editZone=zone-a"),
   );
   fireEvent.click(screen.getAllByText(/Sublocations \/ occupancy/)[0]!);
   await waitFor(() =>

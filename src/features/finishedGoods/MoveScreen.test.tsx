@@ -1,3 +1,4 @@
+import { messagesFor } from "@/i18n/messages";
 import type * as ClerkModule from "@clerk/nextjs";
 import type * as WorkspaceModule from "@/components/providers/WorkspaceProvider";
 import {
@@ -117,7 +118,7 @@ function renderMove(locale = "en") {
   const element = () => (
     <NextIntlClientProvider
       locale={locale}
-      messages={{}}
+      messages={messagesFor(locale)}
       timeZone="Asia/Bangkok"
     >
       <MoveScreen palletId="pallet-a" />
@@ -654,7 +655,11 @@ describe("stored pallet movement", () => {
     expect(screen.getByText("Moving", { exact: true })).toBeInTheDocument();
     view.unmount();
     render(
-      <NextIntlClientProvider locale="en" messages={{}} timeZone="Asia/Bangkok">
+      <NextIntlClientProvider
+        locale="en"
+        messages={messagesFor("en")}
+        timeZone="Asia/Bangkok"
+      >
         <PalletScreen palletId="pallet-a" />
       </NextIntlClientProvider>,
     );

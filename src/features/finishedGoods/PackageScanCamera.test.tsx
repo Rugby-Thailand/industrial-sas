@@ -1,13 +1,22 @@
-import {
-  act,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react";
+import type { ReactElement } from "react";
+import { renderWithIntl } from "@tests/fixtures/intl-render";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { IScannerControls } from "@zxing/browser";
 
+vi.mock("@/i18n/navigation", () => ({
+  Link: ({ children, ...props }: React.ComponentProps<"a">) => (
+    <a {...props}>{children}</a>
+  ),
+  useRouter: () => ({ push: vi.fn() }),
+}));
+function renderIntl(ui: ReactElement) {
+  return renderWithIntl(ui, {
+    locale: "en",
+    workspace: false,
+    preserveProviders: true,
+  });
+}
 const mocks = vi.hoisted(() => ({
   decode:
     vi.fn<
@@ -28,7 +37,6 @@ vi.mock("@zxing/browser", () => ({
     decodeFromStream = mocks.decode;
   },
 }));
-vi.mock("./shared", () => ({ useFGText: () => ({ tr: (en: string) => en }) }));
 import { PackageScanCamera } from "./PackageScanCamera";
 
 const stop = vi.fn();
@@ -66,7 +74,7 @@ const base = {
 describe("PackageScanCamera", () => {
   it("continuously delivers distinct barcode/QR text with per-code cooldown and fresh handlers", async () => {
     const onCode = vi.fn();
-    const view = render(<PackageScanCamera {...base} onCode={onCode} />);
+    const view = renderIntl(<PackageScanCamera {...base} onCode={onCode} />);
     await started();
     emit("barcode-A");
     emit("barcode-A");
@@ -90,7 +98,7 @@ describe("PackageScanCamera", () => {
 
   it("ignores old mode callbacks and cleans streams on pause/unmount", async () => {
     const onCode = vi.fn();
-    const view = render(<PackageScanCamera {...base} onCode={onCode} />);
+    const view = renderIntl(<PackageScanCamera {...base} onCode={onCode} />);
     await started();
     view.rerender(
       <PackageScanCamera {...base} mode="LOCATION" onCode={onCode} />,
@@ -122,7 +130,7 @@ describe("PackageScanCamera", () => {
           finish = resolve;
         }),
     );
-    const view = render(<PackageScanCamera {...base} onCode={vi.fn()} />);
+    const view = renderIntl(<PackageScanCamera {...base} onCode={vi.fn()} />);
     await waitFor(() => expect(mocks.getUserMedia).toHaveBeenCalled());
     view.unmount();
     await act(async () => finish(stream));
@@ -138,7 +146,7 @@ describe("PackageScanCamera", () => {
           finish = resolve;
         }),
     );
-    const view = render(<PackageScanCamera {...base} onCode={vi.fn()} />);
+    const view = renderIntl(<PackageScanCamera {...base} onCode={vi.fn()} />);
     await started();
     view.rerender(
       <PackageScanCamera {...base} mode="LOCATION" onCode={vi.fn()} />,
@@ -154,7 +162,7 @@ describe("PackageScanCamera", () => {
     mocks.getUserMedia.mockRejectedValueOnce(
       new DOMException("Denied", "NotAllowedError"),
     );
-    render(<PackageScanCamera {...base} onCode={vi.fn()} />);
+    renderIntl(<PackageScanCamera {...base} onCode={vi.fn()} />);
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Camera permission denied",
     );
@@ -166,7 +174,7 @@ describe("PackageScanCamera", () => {
   });
 
   it("ignores normal decode misses and stops on fatal decoder errors", async () => {
-    render(<PackageScanCamera {...base} onCode={vi.fn()} />);
+    renderIntl(<PackageScanCamera {...base} onCode={vi.fn()} />);
     await started();
     act(() =>
       mocks.decode.mock.calls[0]![2](
@@ -185,7 +193,7 @@ describe("PackageScanCamera", () => {
   });
   it("reports missing camera APIs and keeps retry available", async () => {
     vi.stubGlobal("navigator", {});
-    render(<PackageScanCamera {...base} onCode={vi.fn()} />);
+    renderIntl(<PackageScanCamera {...base} onCode={vi.fn()} />);
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Camera unavailable",
     );
@@ -206,7 +214,7 @@ describe("PackageScanCamera", () => {
       getVideoTracks: () => [{ getCapabilities: () => ({ torch: true }) }],
     });
     mocks.decode.mockResolvedValue({ stop, switchTorch });
-    render(<PackageScanCamera {...base} onCode={vi.fn()} />);
+    renderIntl(<PackageScanCamera {...base} onCode={vi.fn()} />);
     const torch = await screen.findByRole("button", { name: "Flashlight" });
     fireEvent.click(torch);
     await waitFor(() => expect(torch).toHaveAttribute("aria-pressed", "true"));
@@ -221,7 +229,7 @@ describe("PackageScanCamera", () => {
       .fn()
       .mockRejectedValue(new Error("Track already ended"));
     mocks.decode.mockResolvedValue({ stop: torchStop });
-    const view = render(<PackageScanCamera {...base} onCode={vi.fn()} />);
+    const view = renderIntl(<PackageScanCamera {...base} onCode={vi.fn()} />);
     await started();
     await act(async () => view.unmount());
     expect(torchStop).toHaveBeenCalled();
@@ -238,7 +246,7 @@ it.each([
   async (kind, message, color) => {
     const onBack = vi.fn();
     const onCode = vi.fn();
-    const view = render(
+    const view = renderIntl(
       <PackageScanCamera {...base} onBack={onBack} onCode={onCode} />,
     );
     await started();

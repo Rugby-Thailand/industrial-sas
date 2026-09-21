@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 
 import { useAppEnvironment } from "@/components/providers/EnvironmentProvider";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { Panel } from "@/components/ui/Panel";
 
 export function SetupChecklist() {
   const t = useTranslations("Setup");
@@ -33,10 +34,7 @@ export function SetupChecklist() {
     <section className="flex flex-col gap-4">
       <ul className="flex flex-col gap-3">
         {rows.map((row) => (
-          <li
-            key={row.key}
-            className="rounded-lg border border-border bg-surface p-4"
-          >
+          <Panel as="li" key={row.key} className="rounded-lg p-4">
             <div className="flex flex-wrap items-center gap-3">
               <StatusBadge
                 tone={row.ready ? "success" : "warning"}
@@ -48,15 +46,15 @@ export function SetupChecklist() {
                 {row.body}
               </p>
             )}
-          </li>
+          </Panel>
         ))}
       </ul>
       {hasMissingDependency ? (
         <>
           <p className="text-sm text-muted">{t("envHint")}</p>
-          <p className="rounded-lg border border-border-strong bg-surface p-4 text-sm leading-relaxed text-text">
+          <Panel className="rounded-lg border-border-strong p-4 text-sm leading-relaxed text-text">
             {t("noFakeAuth")}
-          </p>
+          </Panel>
         </>
       ) : null}
     </section>

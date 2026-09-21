@@ -1,4 +1,4 @@
-import { sceneColors } from "@/components/storageScene/sceneColors";
+import { sceneColors, sceneFaces } from "@/components/storageScene/sceneColors";
 import {
   pointsAttribute,
   type IsometricPoint2d,
@@ -25,7 +25,7 @@ export function sceneStyle({
       : selected
         ? sceneColors.selected
         : source
-          ? "#b6c2d1"
+          ? sceneColors.source
           : held
             ? sceneColors.reserved
             : kind === "location"
@@ -57,6 +57,7 @@ export function SceneBox({
 }: SceneRole & { points: readonly IsometricPoint2d[]; mode: "plan" | "3d" }) {
   if (points.length !== 8) return null;
   const style = sceneStyle(role);
+  const facesColors = sceneFaces(style.stroke);
   const faces =
     mode === "plan"
       ? [[0, 1, 2, 3]]
@@ -102,10 +103,10 @@ export function SceneBox({
           fill={
             style.solid
               ? index === faces.length - 1
-                ? "#cfaa77"
+                ? facesColors[2]
                 : index % 2
-                  ? "#957449"
-                  : "#b18d5c"
+                  ? facesColors[0]
+                  : facesColors[1]
               : "transparent"
           }
           stroke={style.solid ? style.stroke : "none"}
@@ -133,6 +134,7 @@ export function SceneBox({
 /** Legend uses the same role/status palette as the scene. */
 export function SceneLegendMark(role: SceneRole) {
   const style = sceneStyle(role);
+  const facesColors = sceneFaces(style.stroke);
   return (
     <span
       aria-hidden="true"
@@ -141,7 +143,7 @@ export function SceneLegendMark(role: SceneRole) {
         borderColor: style.stroke,
         borderStyle: style.dash ? "dashed" : "solid",
         borderWidth: role.selected ? 2 : 1,
-        backgroundColor: style.solid ? "#cfaa77" : "transparent",
+        backgroundColor: style.solid ? facesColors[2] : "transparent",
       }}
     />
   );

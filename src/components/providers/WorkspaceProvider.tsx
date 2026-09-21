@@ -11,6 +11,7 @@ import {
 } from "react";
 
 import { readCurrentWorkspaceRef } from "@/lib/convex/workspaceApi";
+import { failureCodeOf, type LedgerPanelState } from "@/lib/convex/ledgerState";
 import {
   readStoredWarehouse,
   serverWarehouseSnapshot,
@@ -24,6 +25,9 @@ import {
 } from "@/lib/workspace/workspace";
 
 export interface WorkspaceContextValue {
+  readonly readiness:
+    | Exclude<LedgerPanelState<never>, { kind: "READY" }>
+    | { readonly kind: "READY_TO_QUERY" };
   readonly organization: OrganizationSummary | undefined;
   readonly warehouses: readonly WarehouseOption[];
   readonly selectedWarehouseId: string | undefined;
@@ -40,6 +44,7 @@ export interface WorkspaceContextValue {
 const idleSelection = () => {};
 
 const EMPTY_WORKSPACE: WorkspaceContextValue = Object.freeze({
+  readiness: { kind: "BACKEND_MISSING" as const },
   organization: undefined,
   warehouses: [],
   selectedWarehouseId: undefined,
@@ -54,6 +59,25 @@ const EMPTY_WORKSPACE: WorkspaceContextValue = Object.freeze({
 });
 
 const WorkspaceContext = createContext<WorkspaceContextValue>(EMPTY_WORKSPACE);
+
+/** Provides setup state without mounting hooks requiring a Convex auth provider. */
+export function UnavailableWorkspaceProvider({
+  reason,
+  children,
+}: {
+  readonly reason: "BACKEND_MISSING" | "SIGN_IN_REQUIRED";
+  readonly children: ReactNode;
+}) {
+  const value = useMemo<WorkspaceContextValue>(
+    () => ({ ...EMPTY_WORKSPACE, readiness: { kind: reason } }),
+    [reason],
+  );
+  return (
+    <WorkspaceContext.Provider value={value}>
+      {children}
+    </WorkspaceContext.Provider>
+  );
+}
 
 export function WorkspaceProvider({
   children,
@@ -78,24 +102,49 @@ export function WorkspaceProvider({
 
   const value = useMemo<WorkspaceContextValue>(() => {
     if (isAuthenticationLoading) {
-      return { ...EMPTY_WORKSPACE, loading: true, selectWarehouse };
+      return {
+        ...EMPTY_WORKSPACE,
+        readiness: { kind: "LOADING" },
+        loading: true,
+        selectWarehouse,
+      };
     }
     if (!isAuthenticated) {
-      return { ...EMPTY_WORKSPACE, selectWarehouse };
+      return {
+        ...EMPTY_WORKSPACE,
+        readiness: { kind: "SIGN_IN_REQUIRED" },
+        selectWarehouse,
+      };
     }
     if (queryState.status === "error") {
-      return { ...EMPTY_WORKSPACE, failed: true, selectWarehouse };
+      return {
+        ...EMPTY_WORKSPACE,
+        readiness: { kind: "ERROR", code: failureCodeOf(queryState.error) },
+        failed: true,
+        selectWarehouse,
+      };
     }
     if (queryState.status === "pending") {
-      return { ...EMPTY_WORKSPACE, loading: true, selectWarehouse };
+      return {
+        ...EMPTY_WORKSPACE,
+        readiness: { kind: "LOADING" },
+        loading: true,
+        selectWarehouse,
+      };
     }
     const outcome = queryState.data;
     if (!outcome.ok) {
-      return { ...EMPTY_WORKSPACE, denied: true, selectWarehouse };
+      return {
+        ...EMPTY_WORKSPACE,
+        readiness: { kind: "DENIED", requestId: outcome.requestId },
+        denied: true,
+        selectWarehouse,
+      };
     }
 
     return {
       ...resolveWorkspace(outcome.value, stored ?? undefined),
+      readiness: { kind: "READY_TO_QUERY" },
       loading: false,
       failed: false,
       denied: false,

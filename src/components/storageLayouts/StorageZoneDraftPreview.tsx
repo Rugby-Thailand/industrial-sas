@@ -1,4 +1,5 @@
 "use client";
+import { sceneColors } from "@/components/storageScene/sceneColors";
 import { useId, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { CheckCircle2 } from "lucide-react";
@@ -303,7 +304,9 @@ export function StorageZoneDraftPreview({
             >
               <path
                 d="M 18 0 L 0 0 0 18"
-                className="fill-none stroke-border/40"
+                fill="none"
+                stroke={sceneColors.grid}
+                strokeOpacity={0.4}
                 strokeWidth="0.75"
               />
             </pattern>
@@ -318,7 +321,8 @@ export function StorageZoneDraftPreview({
           />
           <polygon
             points={pointsAttribute(floorShape)}
-            className="fill-surface/70 stroke-accent/70"
+            fill={sceneColors.floor}
+            stroke={sceneColors.boundary}
             strokeWidth="1.5"
           />
           {gridLines.map(([start, end], index) => (
@@ -328,7 +332,8 @@ export function StorageZoneDraftPreview({
               y1={start.y}
               x2={end.x}
               y2={end.y}
-              className="stroke-muted/30"
+              stroke={sceneColors.grid}
+              strokeOpacity={0.6}
               strokeWidth="0.75"
             />
           ))}
@@ -423,14 +428,15 @@ export function StorageZoneDraftPreview({
             y1={heightGuideBottom.y}
             x2={heightGuideTop.x + 14}
             y2={heightGuideTop.y}
-            className="stroke-muted"
+            stroke={sceneColors.dimension}
             strokeDasharray="4 4"
           />
           <text
             x={heightGuideTop.x + 20}
             y={(heightGuideBottom.y + heightGuideTop.y) / 2}
             dominantBaseline="central"
-            className="fill-muted text-[10px]"
+            fill={sceneColors.dimension}
+            className="text-[10px]"
           >
             H {metres(floorHeightMm)} m
           </text>

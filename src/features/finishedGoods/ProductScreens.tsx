@@ -1,18 +1,30 @@
 "use client";
+import { drafts } from "@/lib/browser/storage";
 
 import { useMutation, useQuery } from "convex/react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Box, LayoutGrid, List, PackagePlus, Plus, Search } from "lucide-react";
+import {
+  Box,
+  LayoutGrid,
+  List,
+  PackagePlus,
+  Plus,
+  ScanLine,
+} from "lucide-react";
 import { SummaryPreparation } from "./SummaryPreparation";
 import { CursorPagination } from "@/components/system/CursorPagination";
 import { useCursorPagination } from "@/hooks/useCursorPagination";
+import { useCatalogueSync } from "@/hooks/useCatalogueSync";
 import {
   useDebouncedSearch,
   useScanContinuation,
 } from "@/hooks/useScanContinuation";
 import { QueryGate } from "@/components/system/QueryGate";
+import { LedgerPanelStatus } from "@/components/system/LedgerPanelStatus";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { StatusReason } from "@/components/ui/StatusReason";
+import { CollectionToolbar } from "@/components/system/CollectionToolbar";
+import { IconButton } from "@/components/ui/IconButton";
 import { SelectControl } from "@/components/ui/SelectControl";
 import {
   Dialog,
@@ -77,9 +89,8 @@ function Catalogue({
   warehouseId: string;
   viewKey: string;
 }) {
-  const { tr, locale } = useFGText();
+  const { t, tr, locale } = useFGText();
   const canManage = useCanManage();
-  const resetAttempt = useRef<string | null>(null);
   const summaryResetAttempt = useRef<string | null>(null);
   const { state, update: updateState } = useCatalogueState(viewKey);
   const { tab, search, layout } = state;
@@ -120,31 +131,12 @@ function Catalogue({
     warehouseId,
     ...(summaryScan.cursor ? { scanCursor: summaryScan.cursor } : {}),
   });
-  useEffect(() => {
-    if (outcome?.ok && outcome.value.status === "scanning")
-      scan.advance(outcome.value.scanCursor);
-    if (
-      outcome?.ok &&
-      outcome.value.status === "reset" &&
-      resetAttempt.current !== viewKey &&
-      (paging.cursor || scan.cursor)
-    ) {
-      resetAttempt.current = viewKey;
-      scan.advance();
-      paging.reset();
-    }
-    if (outcome?.ok && outcome.value.status === "ready")
-      resetAttempt.current = null;
-    if (
-      outcome?.ok &&
-      outcome.value.status === "ready" &&
-      outcome.value.isDone &&
-      !outcome.value.products.length &&
-      !outcome.value.pallets.length &&
-      paging.canPrevious
-    )
-      paging.previous();
-  }, [outcome, scan, paging, viewKey]);
+  useCatalogueSync({
+    outcome,
+    continuation: scan,
+    paging,
+    resetKey: requestKey,
+  });
   useEffect(() => {
     if (summaryOutcome?.ok && summaryOutcome.value.status === "scanning")
       summaryScan.advance(summaryOutcome.value.scanCursor);
@@ -181,24 +173,28 @@ function Catalogue({
   return (
     <>
       <Heading
-        title={tr("Finished goods", "สินค้าสำเร็จรูป")}
-        description={tr(
-          "Prepare goods, scan packages and confirm their storage location.",
-          "จัดเตรียมสินค้า สแกนบรรจุภัณฑ์ และยืนยันจุดจัดเก็บ",
+        title={t("copy.finished-goods")}
+        description={t(
+          "copy.prepare-goods-scan-packages-and-confirm-their-storage-location",
         )}
       >
         {canManage && (
-          <Button asChild variant="outline">
+          <IconButton
+            asChild
+            variant="outline"
+            label={t("copy.scan-packages-27bf0c")}
+            tooltip={t("copy.scan-packages-27bf0c")}
+          >
             <Link href={`${FG_PATH}/scan`}>
-              {tr("Scan Packages", "สแกนพัสดุ")}
+              <ScanLine className="size-5" aria-hidden="true" />
             </Link>
-          </Button>
+          </IconButton>
         )}
         {canManage && (
           <Button asChild>
             <Link href={`${FG_PATH}/new`}>
               <Plus className="size-4" aria-hidden="true" />
-              {tr("Add finished good", "เพิ่มสินค้าสำเร็จรูป")}
+              {t("copy.add-finished-good")}
             </Link>
           </Button>
         )}
@@ -216,107 +212,101 @@ function Catalogue({
       {summaryOutcome &&
         (!summaryOutcome.ok || summaryOutcome.value.status === "reset") && (
           <ErrorNotice
-            message={tr(
-              "Warehouse totals could not be loaded. Refresh to try again.",
-              "โหลดยอดรวมคลังสินค้าไม่สำเร็จ กรุณารีเฟรชเพื่อลองอีกครั้ง",
+            message={t(
+              "copy.warehouse-totals-could-not-be-loaded-refresh-to-try-again",
             )}
           />
         )}
-      <div className="mb-5 grid grid-cols-2 overflow-hidden rounded-2xl border border-border bg-surface lg:grid-cols-4">
+      <div className="mb-6 grid grid-cols-2 overflow-hidden rounded-xl border border-border bg-surface lg:grid-cols-4">
         {[
-          [tr("Products", "สินค้า"), summary?.products ?? "…"],
-          [
-            tr("Awaiting measurement", "รอวัดขนาด"),
-            summary?.awaitingMeasurement ?? "…",
-          ],
-          [
-            tr("Awaiting storage", "รอจัดเก็บ"),
-            summary?.awaitingStorage ?? "…",
-          ],
-          [tr("Stored units", "หน่วยที่จัดเก็บแล้ว"), summary?.stored ?? "…"],
+          [t("copy.products"), summary?.products ?? "…"],
+          [t("copy.awaiting-measurement"), summary?.awaitingMeasurement ?? "…"],
+          [t("copy.awaiting-storage"), summary?.awaitingStorage ?? "…"],
+          [t("copy.stored-units"), summary?.stored ?? "…"],
         ].map(([label, count], index) => (
           <div
             key={label}
-            className={`min-w-0 border-border p-4 sm:p-5 ${index < 2 ? "border-b lg:border-b-0" : ""} ${index % 2 === 0 ? "border-r" : ""} ${index === 1 ? "lg:border-r" : ""}`}
+            className={`relative min-w-0 border-border p-4 ${index < 2 ? "border-b lg:border-b-0" : ""} ${index % 2 === 0 ? "border-r" : ""} ${index === 1 ? "lg:border-r" : ""}`}
           >
-            <p className="text-xs text-muted">{label}</p>
+            <p className={`text-xs text-muted ${index === 0 ? "pr-10" : ""}`}>
+              {label}
+            </p>
             <p className="mt-2 text-2xl font-semibold">{count}</p>
+            {index === 0 ? (
+              <div className="absolute top-1 right-1">
+                <StatusReason
+                  label={t("copy.about-warehouse-totals")}
+                  message={t(
+                    "copy.totals-cover-the-selected-warehouse-not-just-this-page-or-the-filtered-r",
+                  )}
+                />
+              </div>
+            ) : null}
           </div>
         ))}
       </div>
       {!!summary?.moving && (
         <p role="status" className="mb-4 text-sm text-warning">
-          {tr("Moving units", "หน่วยที่กำลังย้าย")}: {summary?.moving}
+          {t("copy.moving-units")}: {summary?.moving}
         </p>
       )}
       <div
-        className="mb-4 flex flex-wrap gap-2"
+        className="mb-4 flex flex-wrap items-center gap-2"
         role="group"
-        aria-label={tr("View records", "เลือกประเภทข้อมูล")}
+        aria-label={t("copy.view-records")}
       >
         {(["products", "pallets"] as const).map((value) => (
           <Button
             key={value}
-            variant={tab === value ? "default" : "outline"}
+            variant={tab === value ? "secondary" : "ghost"}
             aria-pressed={tab === value}
             onClick={() => updateState({ tab: value })}
           >
             {value === "products"
-              ? tr("Products", "รายการสินค้า")
-              : tr("Storage units", "รายการหน่วยจัดเก็บ")}
+              ? t("copy.products-f41f9c")
+              : t("copy.storage-units-965913")}
           </Button>
         ))}
-        <div
-          className="ml-auto flex gap-1"
-          role="group"
-          aria-label={tr("Display layout", "รูปแบบการแสดงผล")}
-        >
-          {(["cards", "table"] as const).map((value) => (
-            <Button
-              key={value}
-              variant={layout === value ? "secondary" : "ghost"}
-              size="icon"
-              aria-pressed={layout === value}
-              aria-label={
-                value === "cards"
-                  ? tr("Card view", "มุมมองการ์ด")
-                  : tr("Table view", "มุมมองตาราง")
-              }
-              title={
-                value === "cards"
-                  ? tr("Card view", "มุมมองการ์ด")
-                  : tr("Table view", "มุมมองตาราง")
-              }
-              onClick={() => updateState({ layout: value })}
+      </div>
+      <CollectionToolbar
+        className="mb-4"
+        searchType="text"
+        value={search}
+        onValueChange={(value) => updateState({ search: value })}
+        searchLabel={t("copy.search-finished-goods")}
+        placeholder={t("copy.search-sku-name-or-storage-unit")}
+        clearLabel={t("copy.clear-search-414314")}
+        actions={
+          <>
+            <CatalogueFiltersButton {...filterControls} />
+            <div
+              className="flex gap-1"
+              role="group"
+              aria-label={t("copy.display-layout")}
             >
-              {value === "cards" ? (
-                <LayoutGrid className="size-4" aria-hidden="true" />
-              ) : (
-                <List className="size-4" aria-hidden="true" />
-              )}
-            </Button>
-          ))}
-        </div>
-      </div>
-      <div className="mb-5 flex flex-wrap gap-3">
-        <div className="relative min-w-0 flex-1">
-          <Search
-            className="absolute top-3.5 left-3 size-4 text-muted"
-            aria-hidden="true"
-          />
-          <Input
-            aria-label={tr("Search finished goods", "ค้นหาสินค้าสำเร็จรูป")}
-            placeholder={tr(
-              "Search SKU, name or storage unit…",
-              "ค้นหารหัส ชื่อสินค้า หรือหน่วยจัดเก็บ…",
-            )}
-            value={search}
-            onChange={(e) => updateState({ search: e.target.value })}
-            className="pl-10"
-          />
-        </div>
-        <CatalogueFiltersButton {...filterControls} />
-      </div>
+              {(["cards", "table"] as const).map((value) => (
+                <IconButton
+                  key={value}
+                  variant={layout === value ? "secondary" : "ghost"}
+                  aria-pressed={layout === value}
+                  label={
+                    value === "cards"
+                      ? t("copy.card-view")
+                      : t("copy.table-view")
+                  }
+                  onClick={() => updateState({ layout: value })}
+                >
+                  {value === "cards" ? (
+                    <LayoutGrid className="size-4" aria-hidden="true" />
+                  ) : (
+                    <List className="size-4" aria-hidden="true" />
+                  )}
+                </IconButton>
+              ))}
+            </div>
+          </>
+        }
+      />
       <FilterChips
         {...filterControls}
         search={search}
@@ -325,9 +315,9 @@ function Catalogue({
       />
       {ready && (
         <p role="status" className="mb-3 text-xs text-muted">
-          {tr("Showing", "แสดง")}{" "}
+          {t("copy.showing")}{" "}
           {tab === "products" ? shownProducts.length : shownPallets.length}{" "}
-          {tr("records", "รายการ")}
+          {t("copy.records")}
         </p>
       )}
       {outcome?.ok && outcome.value.status === "not_ready" ? (
@@ -336,54 +326,41 @@ function Catalogue({
         <Loading />
       ) : outcome && (!outcome.ok || outcome.value.status === "reset") ? (
         <ErrorNotice
-          message={tr(
-            "Records could not be loaded. Please try again.",
-            "โหลดรายการไม่สำเร็จ กรุณาลองอีกครั้ง",
-          )}
+          message={t("copy.records-could-not-be-loaded-please-try-again")}
         />
       ) : (tab === "products" ? shownProducts.length : shownPallets.length) ===
         0 ? (
         <div className={`${panel} py-12 text-center`}>
           <Box className="mx-auto mb-4 size-10 text-muted" aria-hidden="true" />
-          <h2 className="text-lg font-semibold">
+          <h2 className="text-lg leading-7 font-semibold">
             {filtered
-              ? tr("No matching records", "ไม่พบรายการที่ตรงกัน")
+              ? t("copy.no-matching-records")
               : tab === "products"
                 ? canManage
-                  ? tr(
-                      "Your first finished good starts here",
-                      "เริ่มสร้างสินค้าสำเร็จรูปแรก",
-                    )
-                  : tr("No products yet", "ยังไม่มีสินค้า")
-                : tr("No storage units yet", "ยังไม่มีหน่วยจัดเก็บ")}
+                  ? t("copy.your-first-finished-good-starts-here")
+                  : t("copy.no-products-yet")
+                : t("copy.no-storage-units-yet")}
           </h2>
           <p className="mx-auto mt-2 max-w-lg text-sm text-muted">
             {filtered
-              ? tr(
-                  "Try a different search or clear the filters.",
-                  "ลองค้นหาใหม่หรือล้างตัวกรอง",
-                )
+              ? t("copy.try-a-different-search-or-clear-the-filters")
               : canManage
-                ? tr(
-                    "Create a product, then prepare a batch to pack, scan and store.",
-                    "สร้างสินค้า แล้วจัดเตรียมชุดเพื่อแบ่งบรรจุ สแกน และจัดเก็บ",
+                ? t(
+                    "copy.create-a-product-then-prepare-a-batch-to-pack-scan-and-store",
                   )
-                : tr(
-                    "No records are available in this warehouse yet.",
-                    "ยังไม่มีข้อมูลในคลังสินค้านี้",
-                  )}
+                : t("copy.no-records-are-available-in-this-warehouse-yet")}
           </p>
           {!filtered ? (
             canManage ? (
               <Button asChild className="mt-5">
                 <Link href={`${FG_PATH}/new`}>
-                  {tr("Create finished good", "สร้างสินค้าสำเร็จรูป")}
+                  {t("copy.create-finished-good")}
                 </Link>
               </Button>
             ) : null
           ) : (
             <Button variant="outline" className="mt-5" onClick={clearFilters}>
-              {tr("Clear filters", "ล้างตัวกรอง")}
+              {t("copy.clear-filters")}
             </Button>
           )}
         </div>
@@ -409,25 +386,21 @@ function Catalogue({
                   <Link
                     key={product._id}
                     href={productPath(product._id)}
-                    className={`${panel} transition hover:border-accent`}
+                    className={`${panel} transition hover:border-link`}
                   >
                     <div className="flex items-start justify-between gap-3">
-                      <Box className="size-8 text-accent" aria-hidden="true" />
+                      <Box className="size-8 text-link" aria-hidden="true" />
                       <Status value={product.status} />
                     </div>
                     <p className="mt-5 font-mono text-xs break-all text-muted">
-                      {product.sku || tr("No SKU yet", "ยังไม่มีรหัส")}
+                      {product.sku || t("copy.no-sku-yet")}
                     </p>
-                    <h2 className="mt-1 text-lg font-semibold break-words">
-                      {product.name ||
-                        tr("Untitled draft", "ฉบับร่างยังไม่มีชื่อ")}
+                    <h2 className="mt-1 text-lg leading-7 font-semibold break-words">
+                      {product.name || t("copy.untitled-draft")}
                     </h2>
                     <p className="mt-3 text-sm text-muted">
-                      {tr(
-                        "Total in storage units",
-                        "สินค้าที่บันทึกในหน่วยจัดเก็บ",
-                      )}
-                      : {summary.quantity} {product.unit}
+                      {t("copy.total-in-storage-units")}: {summary.quantity}{" "}
+                      {product.unit}
                     </p>
                     <p className="mt-2 text-xs text-muted">
                       {summaryFormatText(summary, tr)}
@@ -467,7 +440,7 @@ function Catalogue({
                       </div>
                       <Status value={palletDisplayStatus(pallet)} />
                     </div>
-                    <h2 className="mt-4 font-medium">
+                    <h2 className="mt-4 text-lg leading-7 font-semibold">
                       <Link
                         href={palletPath(pallet._id)}
                         className="hover:underline"
@@ -482,7 +455,7 @@ function Catalogue({
                     <p className="mt-2 text-xs text-muted">
                       {pallet.lengthMm && pallet.widthMm && pallet.heightMm
                         ? `${pallet.lengthMm / 1000} × ${pallet.widthMm / 1000} × ${pallet.heightMm / 1000} m`
-                        : tr("Dimensions not complete", "ยังวัดขนาดไม่ครบ")}
+                        : t("copy.dimensions-not-complete")}
                     </p>
                     <div className="mt-auto pt-4">
                       <Button asChild variant="outline" className="w-full">
@@ -543,32 +516,35 @@ function initialDraft(
   };
 }
 function readDraft(key: string, fallback: ProductDraft): ProductDraft {
-  try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return fallback;
-    const value: unknown = JSON.parse(raw);
-    if (typeof value !== "object" || value === null) return fallback;
-    const candidate = value as Record<string, unknown>;
-    if (typeof candidate.sku !== "string" || typeof candidate.name !== "string")
-      return fallback;
-    const clean = { ...fallback };
-    for (const field of [
-      "sku",
-      "name",
-      "unit",
-      "storageCondition",
-      "notes",
-      "customerReference",
-      "productReference",
-    ] as const) {
-      if (typeof candidate[field] === "string") clean[field] = candidate[field];
-    }
-    if (typeof candidate.savedProductId === "string")
-      clean.savedProductId = candidate.savedProductId;
-    return clean;
-  } catch {
-    return fallback;
-  }
+  return drafts.read(
+    key,
+    (value) => {
+      if (typeof value !== "object" || value === null) return fallback;
+      const candidate = value as Record<string, unknown>;
+      if (
+        typeof candidate.sku !== "string" ||
+        typeof candidate.name !== "string"
+      )
+        return fallback;
+      const clean = { ...fallback };
+      for (const field of [
+        "sku",
+        "name",
+        "unit",
+        "storageCondition",
+        "notes",
+        "customerReference",
+        "productReference",
+      ] as const) {
+        if (typeof candidate[field] === "string")
+          clean[field] = candidate[field];
+      }
+      if (typeof candidate.savedProductId === "string")
+        clean.savedProductId = candidate.savedProductId;
+      return clean;
+    },
+    fallback,
+  );
 }
 export function ProductScreen({
   productId,
@@ -578,7 +554,7 @@ export function ProductScreen({
   resumePalletId?: string;
 }) {
   const canManage = useCanManage();
-  const { tr } = useFGText();
+  const { t } = useFGText();
   const draftScope = useDraftKey("fg-product");
   if (!draftScope) return <Loading />;
   return (
@@ -600,9 +576,7 @@ export function ProductScreen({
           />
         ) : (
           <>
-            <Heading
-              title={tr("Create finished good", "สร้างสินค้าสำเร็จรูป")}
-            />
+            <Heading title={t("copy.create-finished-good")} />
             <ViewOnlyNotice />
           </>
         )
@@ -627,18 +601,34 @@ function ProductLoader({
     resumePalletId ? { warehouseId, palletId: resumePalletId } : "skip",
   );
   if (!result || (resumePalletId && !resume)) return <Loading />;
-  if (!result.ok || !result.value) return <Missing />;
-  if (
-    resumePalletId &&
-    (!resume?.ok ||
+  if (!result.ok) {
+    return (
+      <LedgerPanelStatus
+        state={{ kind: "DENIED", requestId: result.requestId }}
+      />
+    );
+  }
+  if (!result.value) return <Missing />;
+  if (resumePalletId) {
+    if (!resume) return <Loading />;
+    if (!resume.ok) {
+      return (
+        <LedgerPanelStatus
+          state={{ kind: "DENIED", requestId: resume.requestId }}
+        />
+      );
+    }
+    if (
       !resume.value ||
       resume.value.pallet.productId !== productId ||
       resume.value.pallet.warehouseId !== warehouseId ||
       !["AWAITING_MEASUREMENT", "AWAITING_PLACEMENT"].includes(
         resume.value.pallet.status,
-      ))
-  )
-    return <Missing />;
+      )
+    ) {
+      return <Missing />;
+    }
+  }
   return (
     <ProductForm
       key={`${draftScope}:${warehouseId}:${productId}:${resumePalletId ?? "new-pallet"}`}
@@ -660,7 +650,7 @@ function ProductForm({
   product?: Product;
   resumePalletId?: string;
 }) {
-  const { tr, locale } = useFGText();
+  const { t, locale } = useFGText();
   const canManage = useCanManage();
   const router = useRouter();
   const saveProduct = useMutation(fgRefs.saveProduct);
@@ -671,6 +661,18 @@ function ProductForm({
       ? readDraft(key, initialDraft(product, locale))
       : initialDraft(product, locale),
   );
+  const storageConditions = [
+    { value: "ANY", label: t("copy.no-special-condition") },
+    { value: "AMBIENT", label: t("copy.ambient") },
+    { value: "DRY", label: t("copy.dry-area") },
+    { value: "COOL", label: t("copy.cool-area") },
+  ];
+  // Keep imported/custom conditions available when editing other product details.
+  for (const value of [product?.storageCondition, form.storageCondition]) {
+    if (value && !storageConditions.some((option) => option.value === value)) {
+      storageConditions.push({ value, label: value });
+    }
+  }
   const [dirty, setDirty] = useState(
     () =>
       JSON.stringify(form) !== JSON.stringify(initialDraft(product, locale)),
@@ -697,11 +699,7 @@ function ProductForm({
     const next = { ...form, [field]: value };
     setForm(next);
     setDirty(true);
-    try {
-      localStorage.setItem(key, JSON.stringify(next));
-    } catch {
-      /* Server save remains available when browser storage is blocked. */
-    }
+    drafts.write(key, next);
   }
   async function save(next: boolean, packing = false) {
     await op.run(async () => {
@@ -727,17 +725,10 @@ function ProductForm({
         }),
       );
       productId.current = id;
-      try {
-        localStorage.setItem(
-          key,
-          JSON.stringify({ ...form, savedProductId: id }),
-        );
-      } catch {}
+      drafts.write(key, { ...form, savedProductId: id });
       setDirty(false);
       op.clearRequests();
-      try {
-        localStorage.removeItem(key);
-      } catch {}
+      drafts.remove(key);
       router.push(
         next && packing
           ? `${productPath(id)}/packing${product ? `?draft=${crypto.randomUUID()}` : ""}`
@@ -756,12 +747,11 @@ function ProductForm({
       <Heading
         title={
           product
-            ? tr("Finished good details", "ข้อมูลสินค้าสำเร็จรูป")
-            : tr("Create finished good", "สร้างสินค้าสำเร็จรูป")
+            ? t("copy.finished-good-details")
+            : t("copy.create-finished-good")
         }
-        description={tr(
-          "Define the product, then prepare a batch with its quantities, packaging and actual dimensions.",
-          "กำหนดข้อมูลสินค้า แล้วจัดเตรียมชุดสินค้า ระบุจำนวน แบ่งบรรจุ และวัดขนาดจริง",
+        description={t(
+          "copy.define-the-product-then-prepare-a-batch-with-its-quantities-packaging-an",
         )}
       >
         {product ? <Status value={product.status} /> : null}
@@ -773,39 +763,39 @@ function ProductForm({
           <ViewOnlyNotice />
         </div>
       )}
-      <form onSubmit={submit} className="space-y-5">
-        <fieldset disabled={op.busy} className="min-w-0 space-y-5">
+      <form onSubmit={submit} className="max-w-3xl space-y-6">
+        <fieldset disabled={op.busy} className="min-w-0 space-y-6">
           <ErrorNotice message={op.error} />
           {op.errorCode === "DUPLICATE_KEY" && op.error && duplicateProduct ? (
             <Button asChild variant="outline">
               <Link href={productPath(duplicateProduct._id)}>
-                {tr("Open existing product", "เปิดสินค้าที่มีอยู่")}
+                {t("copy.open-existing-product")}
               </Link>
             </Button>
           ) : null}
-          <div className="grid items-start gap-5 xl:grid-cols-[1.3fr_1fr]">
+          <div className="space-y-6">
             <fieldset disabled={!canManage} className="min-w-0 space-y-4">
               <section className={panel}>
-                <h2 className="mb-4 font-semibold">
-                  {tr("Product details", "ข้อมูลสินค้า")}
+                <h2 className="mb-4 text-lg leading-7 font-semibold">
+                  {t("copy.product-details")}
                 </h2>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Field
-                    label={tr("SKU", "รหัสสินค้า (SKU)")}
+                    label={t("copy.sku")}
                     value={form.sku}
                     onChange={(v) => change("sku", v)}
                     required
                     maxLength={64}
                   />
                   <Field
-                    label={tr("Product name", "ชื่อสินค้า")}
+                    label={t("copy.product-name")}
                     value={form.name}
                     onChange={(v) => change("name", v)}
                     required
                     maxLength={200}
                   />
                   <Field
-                    label={tr("Counting unit", "หน่วยนับสินค้า")}
+                    label={t("copy.counting-unit-78d38c")}
                     value={form.unit}
                     onChange={(v) => change("unit", v)}
                     required
@@ -814,27 +804,20 @@ function ProductForm({
                 </div>
               </section>
               <section className={panel}>
-                <h2 className="mb-4 font-semibold">
-                  {tr("Storage requirements", "ข้อกำหนดการจัดเก็บ")}
+                <h2 className="mb-4 text-lg leading-7 font-semibold">
+                  {t("copy.storage-requirements")}
                 </h2>
                 <SelectControl
-                  label={tr("Storage condition", "เงื่อนไขการจัดเก็บ")}
+                  label={t("copy.storage-condition")}
                   value={form.storageCondition}
                   onValueChange={(v) => change("storageCondition", v)}
-                  options={[
-                    {
-                      value: "ANY",
-                      label: tr("No special condition", "ไม่มีเงื่อนไขพิเศษ"),
-                    },
-                    { value: "DRY", label: tr("Dry area", "พื้นที่แห้ง") },
-                    { value: "COOL", label: tr("Cool area", "พื้นที่เย็น") },
-                  ]}
+                  options={storageConditions}
                   placeholder=""
                   emptyLabel=""
                 />
                 <div className="mt-4">
                   <Field
-                    label={tr("Storage notes", "หมายเหตุการจัดเก็บ")}
+                    label={t("copy.storage-notes")}
                     value={form.notes}
                     onChange={(v) => change("notes", v)}
                     maxLength={1000}
@@ -843,17 +826,17 @@ function ProductForm({
               </section>
               <details className={panel}>
                 <summary className="cursor-pointer font-medium">
-                  {tr("References (optional)", "ข้อมูลอ้างอิง (ไม่บังคับ)")}
+                  {t("copy.references-optional")}
                 </summary>
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
                   <Field
-                    label={tr("Customer reference", "อ้างอิงลูกค้า")}
+                    label={t("copy.customer-reference")}
                     value={form.customerReference}
                     onChange={(v) => change("customerReference", v)}
                     maxLength={200}
                   />
                   <Field
-                    label={tr("Product reference", "รหัสอ้างอิงสินค้า")}
+                    label={t("copy.product-reference")}
                     value={form.productReference}
                     onChange={(v) => change("productReference", v)}
                     maxLength={200}
@@ -861,41 +844,21 @@ function ProductForm({
                 </div>
               </details>
             </fieldset>
-            <aside className={`${panel} xl:sticky xl:top-4`}>
-              <h2 className="font-semibold">
-                {tr("Product information only", "ข้อมูลสินค้าเท่านั้น")}
+            <aside className="rounded-xl border border-border bg-surface p-4">
+              <h2 className="text-lg leading-7 font-semibold">
+                {t("copy.product-information-only")}
               </h2>
               <p className="mt-3 text-sm text-muted">
-                {tr(
-                  "Quantities, packaging and actual outer dimensions belong to each preparation batch in the next step. Saving this form never changes existing storage units.",
-                  "จำนวนสินค้า การแบ่งบรรจุ และขนาดภายนอกจริงอยู่ในชุดจัดเตรียมแต่ละชุดในขั้นตอนถัดไป การบันทึกหน้านี้ไม่เปลี่ยนหน่วยจัดเก็บที่มีอยู่",
+                {t(
+                  "copy.quantities-packaging-and-actual-outer-dimensions-belong-to-each-preparat",
                 )}
               </p>
-              <dl className="mt-4 space-y-3 text-sm">
-                <div>
-                  <dt className="text-muted">SKU</dt>
-                  <dd className="break-words">{form.sku || "—"}</dd>
-                </div>
-                <div>
-                  <dt className="text-muted">
-                    {tr("Product name", "ชื่อสินค้า")}
-                  </dt>
-                  <dd className="break-words">{form.name || "—"}</dd>
-                </div>
-                <div>
-                  <dt className="text-muted">
-                    {tr("Counting unit", "หน่วยนับสินค้า")}
-                  </dt>
-                  <dd>{form.unit || "—"}</dd>
-                </div>
-              </dl>
             </aside>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border bg-surface p-4">
             <p className="max-w-xl text-xs text-muted">
-              {tr(
-                "Saving product details does not add storage units. Prepare more goods to start a separate batch.",
-                "บันทึกข้อมูลสินค้าไม่เพิ่มหน่วยจัดเก็บ เลือกจัดเตรียมสินค้าเพิ่มเพื่อเริ่มชุดใหม่",
+              {t(
+                "copy.saving-product-details-does-not-add-storage-units-prepare-more-goods-to-",
               )}
             </p>
             <div className="flex w-full flex-wrap gap-2 sm:w-auto">
@@ -905,7 +868,7 @@ function ProductForm({
                 disabled={op.busy}
                 onClick={() => (dirty ? setCancel(true) : router.push(FG_PATH))}
               >
-                {tr("Cancel", "ยกเลิก")}
+                {t("copy.cancel")}
               </Button>
               {canManage && (!product || resumePalletId) && (
                 <Button
@@ -915,31 +878,37 @@ function ProductForm({
                   onClick={() => void save(false)}
                 >
                   {product?.status === "ACTIVE"
-                    ? tr("Save product details", "บันทึกข้อมูลสินค้า")
-                    : tr("Save draft", "บันทึกฉบับร่าง")}
+                    ? t("copy.save-product-details")
+                    : t("copy.save-draft")}
                 </Button>
               )}
               {canManage && product && !resumePalletId && (
                 <Button
                   type="button"
-                  variant="outline"
+                  variant={dirty ? "outline" : "default"}
                   disabled={op.busy}
                   onClick={() => void save(true, true)}
                 >
                   <PackagePlus className="size-4" aria-hidden="true" />
-                  {tr("Prepare more goods", "จัดเตรียมสินค้าเพิ่ม")}
+                  {t("copy.prepare-more-goods")}
                 </Button>
               )}
               {canManage && (
-                <Button type="submit" disabled={op.busy}>
+                <Button
+                  type="submit"
+                  variant={
+                    product && !resumePalletId && !dirty ? "outline" : "default"
+                  }
+                  disabled={op.busy}
+                >
                   <PackagePlus className="size-4" aria-hidden="true" />
                   {op.busy
-                    ? tr("Saving…", "กำลังบันทึก…")
+                    ? t("copy.saving")
                     : resumePalletId
-                      ? tr("Return to measurement", "กลับไปวัดขนาด")
+                      ? t("copy.return-to-measurement")
                       : product
-                        ? tr("Save product details", "บันทึกข้อมูลสินค้า")
-                        : tr("Next: Packing", "ถัดไป: บรรจุ")}
+                        ? t("copy.save-product-details")
+                        : t("copy.next-packing")}
                 </Button>
               )}
             </div>
@@ -947,41 +916,33 @@ function ProductForm({
         </fieldset>
       </form>
       <Dialog open={cancel} onOpenChange={setCancel}>
-        <DialogContent closeLabel={tr("Close", "ปิด")}>
+        <DialogContent closeLabel={t("copy.close")}>
           <DialogHeader>
-            <DialogTitle>
-              {tr("Discard unsaved changes?", "ละทิ้งการเปลี่ยนแปลง?")}
-            </DialogTitle>
+            <DialogTitle>{t("copy.discard-unsaved-changes")}</DialogTitle>
             <DialogDescription>
-              {tr(
-                "Your last server-saved version will remain available.",
-                "ข้อมูลล่าสุดที่บันทึกไว้ในระบบจะยังคงอยู่",
-              )}
+              {t("copy.your-last-server-saved-version-will-remain-available")}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCancel(false)}>
-              {tr("Continue editing", "แก้ไขต่อ")}
+              {t("copy.continue-editing")}
             </Button>
             <Button
               onClick={() => {
-                try {
-                  localStorage.removeItem(key);
-                } catch {}
+                drafts.remove(key);
                 setDirty(false);
                 router.push(FG_PATH);
               }}
             >
-              {tr("Discard changes", "ละทิ้งการเปลี่ยนแปลง")}
+              {t("copy.discard-changes-d093b0")}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
       {dirty ? (
         <p className="mt-3 text-xs text-muted">
-          {tr(
-            "Draft changes are kept on this device until you save or discard them.",
-            "ข้อมูลร่างจะเก็บไว้ในอุปกรณ์นี้จนกว่าจะบันทึกหรือละทิ้ง",
+          {t(
+            "copy.draft-changes-are-kept-on-this-device-until-you-save-or-discard-them",
           )}
         </p>
       ) : null}

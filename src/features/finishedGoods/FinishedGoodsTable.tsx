@@ -17,6 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { TableScroller } from "@/components/ui/TableScroller";
 import { Link } from "@/i18n/navigation";
 import type { FinishedGoodsList } from "@/lib/convex/finishedGoodsApi";
 import {
@@ -54,28 +55,20 @@ export function FinishedGoodsTable({
   filterControls?: FilterControlsProps;
   productSummaries?: Record<string, Parameters<typeof summaryFormatText>[0]>;
 }) {
-  const { tr } = useFGText();
+  const { t, tr } = useFGText();
   const isProduct = tab === "products";
   const title = isProduct
-    ? tr("Finished goods table", "ตารางสินค้าสำเร็จรูป")
-    : tr("Storage units table", "ตารางหน่วยจัดเก็บ");
+    ? t("copy.finished-goods-table")
+    : t("copy.storage-units-table");
   return (
-    <div
-      role="region"
-      aria-label={title}
-      tabIndex={0}
-      className="min-w-0 overflow-hidden rounded-xl border border-border focus-visible:outline-2 focus-visible:outline-accent"
-    >
-      <Table aria-label={title} className="min-w-[720px]">
+    <TableScroller label={title}>
+      <Table scroll={false} aria-label={title} className="min-w-[720px]">
         <TableHeader>
           <TableRow className="bg-surface">
             {columns(tab).map((column, index) => {
               const label =
                 column === "quantity" && isProduct
-                  ? tr(
-                      "Total in storage units",
-                      "สินค้าที่บันทึกในหน่วยจัดเก็บ",
-                    )
+                  ? t("copy.total-in-storage-units")
                   : filterLabel(column, tab, tr);
               const sorted =
                 filterControls &&
@@ -103,7 +96,7 @@ export function FinishedGoodsTable({
               );
             })}
             <TableHead className="pr-4 text-right">
-              <span className="sr-only">{tr("Actions", "การดำเนินการ")}</span>
+              <span className="sr-only">{t("copy.actions")}</span>
             </TableHead>
           </TableRow>
         </TableHeader>
@@ -124,11 +117,10 @@ export function FinishedGoodsTable({
                         href={productPath(product._id)}
                         className="font-medium break-words hover:underline"
                       >
-                        {product.name ||
-                          tr("Untitled draft", "ฉบับร่างยังไม่มีชื่อ")}
+                        {product.name || t("copy.untitled-draft")}
                       </Link>
                       <p className="mt-1 font-mono text-xs break-all text-muted">
-                        {product.sku || tr("No SKU yet", "ยังไม่มีรหัส")}
+                        {product.sku || t("copy.no-sku-yet")}
                       </p>
                     </TableCell>
                     <TableCell>
@@ -145,11 +137,11 @@ export function FinishedGoodsTable({
                       <Button asChild variant="ghost" size="icon">
                         <Link
                           href={productPath(product._id)}
-                          aria-label={`${canManage ? tr("Edit", "แก้ไข") : tr("View", "ดู")} ${product.sku || product.name}`}
+                          aria-label={`${canManage ? t("copy.edit") : t("copy.view")} ${product.sku || product.name}`}
                           title={
                             canManage
-                              ? tr("Edit product", "แก้ไขสินค้า")
-                              : tr("View product", "ดูสินค้า")
+                              ? t("copy.edit-product")
+                              : t("copy.view-product")
                           }
                         >
                           {canManage ? (
@@ -203,7 +195,7 @@ export function FinishedGoodsTable({
                     <TableCell>
                       {pallet.lengthMm && pallet.widthMm && pallet.heightMm
                         ? `${pallet.lengthMm / 1000} × ${pallet.widthMm / 1000} × ${pallet.heightMm / 1000}`
-                        : tr("Not measured", "ยังไม่ได้วัด")}
+                        : t("copy.not-measured")}
                     </TableCell>
                     <TableCell>{pallet.lot || "—"}</TableCell>
                     <TableCell>
@@ -224,6 +216,6 @@ export function FinishedGoodsTable({
               })}
         </TableBody>
       </Table>
-    </div>
+    </TableScroller>
   );
 }

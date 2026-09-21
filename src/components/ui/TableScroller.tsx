@@ -16,14 +16,14 @@ export function TableScroller({
 
   return (
     <div
-      className="@container/table overflow-hidden rounded-lg border border-border bg-surface"
+      className="@container/table min-w-0 overflow-hidden rounded-lg border border-border bg-surface"
       {...(testId === undefined ? {} : { "data-testid": testId })}
     >
       <div
         role="region"
         aria-label={label}
         tabIndex={0}
-        className="overflow-x-auto"
+        className="overflow-x-auto focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring"
       >
         {children}
       </div>

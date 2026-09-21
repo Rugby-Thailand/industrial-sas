@@ -27,9 +27,10 @@ function SelectTrigger({
     <SelectPrimitive.Trigger
       data-slot="select-trigger"
       className={cn(
-        "flex min-h-touch w-full items-center justify-between gap-2 rounded-md border border-input bg-surface px-3 py-2 text-left text-sm text-text transition-colors outline-none select-none",
+        "flex min-h-touch w-full min-w-0 items-center justify-between gap-2 rounded-md border border-input bg-surface px-3 py-2 text-left text-sm text-text transition-colors outline-none select-none",
         "data-placeholder:text-muted",
-        "disabled:cursor-not-allowed disabled:border-border disabled:text-disabled",
+        "focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+        "disabled:cursor-not-allowed disabled:border-border disabled:bg-disabled-surface disabled:text-disabled",
         "aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20",
         "[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
         "*:data-[slot=select-value]:flex *:data-[slot=select-value]:min-w-0 *:data-[slot=select-value]:flex-wrap *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5 *:data-[slot=select-value]:text-left",
@@ -58,7 +59,7 @@ function SelectContent({
       <SelectPrimitive.Content
         data-slot="select-content"
         className={cn(
-          "relative z-50 max-h-(--radix-select-content-available-height) min-w-36 origin-(--radix-select-content-transform-origin) overflow-x-hidden overflow-y-auto rounded-md border border-border-strong bg-surface text-text shadow-md duration-100",
+          "relative z-50 max-h-(--radix-select-content-available-height) min-w-36 origin-(--radix-select-content-transform-origin) overflow-x-hidden overflow-y-auto rounded-md border border-border bg-overlay text-text shadow-md duration-100",
           "data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
           "data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
           className,
@@ -94,9 +95,9 @@ function SelectItem({
     <SelectPrimitive.Item
       data-slot="select-item"
       className={cn(
-        "relative flex min-h-touch w-full cursor-default items-center gap-2 rounded-md py-2 pr-9 pl-3 text-sm outline-hidden select-none",
+        "relative flex min-h-touch w-full min-w-0 cursor-default items-center gap-2 rounded-md py-2 pr-9 pl-3 text-sm outline-hidden select-none",
 
-        "focus:bg-accent focus:text-accent-foreground",
+        "focus:bg-selected focus:text-selected-foreground data-[state=checked]:bg-selected data-[state=checked]:text-selected-foreground",
         "data-disabled:pointer-events-none data-disabled:text-disabled",
         "[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
         className,

@@ -9,13 +9,15 @@ import {
 } from "@/components/ui/empty";
 
 export function EmptyState({
+  icon,
   title,
   body,
   action,
   testId,
 }: {
+  readonly icon?: ReactNode;
   readonly title: string;
-  readonly body?: string;
+  readonly body?: ReactNode;
 
   readonly action?: ReactNode;
 
@@ -24,11 +26,16 @@ export function EmptyState({
   return (
     <Empty
       role="status"
-      className="border border-dashed border-border-strong bg-surface"
+      className="min-h-40 border border-dashed border-border-strong bg-surface py-8"
       {...(testId === undefined ? {} : { "data-testid": testId })}
     >
       <EmptyHeader>
-        <EmptyTitle className="text-sm font-semibold text-text">
+        {icon === undefined ? null : (
+          <div className="text-muted" aria-hidden="true">
+            {icon}
+          </div>
+        )}
+        <EmptyTitle className="text-base font-semibold text-text">
           {title}
         </EmptyTitle>
         {body === undefined ? null : (

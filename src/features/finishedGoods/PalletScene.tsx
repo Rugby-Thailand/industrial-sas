@@ -1,4 +1,5 @@
 "use client";
+import { sceneColors, sceneFaces } from "@/components/storageScene/sceneColors";
 import { SceneToolbar } from "@/components/storageScene/SceneToolbar";
 import { StorageViewModeToggle } from "@/components/storageLayouts/StorageZoneVisualizer";
 import { SceneBox, SceneLegendMark } from "@/components/storageScene/SceneBox";
@@ -522,20 +523,20 @@ export function PalletScene({
           ? t.reservedPallet
           : t.proposedPallet;
   const incomingStroke = issue
-    ? "#f87171"
+    ? sceneColors.invalid
     : reserved
-      ? "#e5af52"
+      ? sceneColors.reserved
       : showStatus
-        ? "#53c69d"
-        : "#7cb8ff";
-  const palletColors: readonly [string, string, string] = proposed
-    ? ["#197456", "#23916b", "#39b889"]
-    : ["#735331", "#926d41", "#aa824c"];
-  const cartonColors: readonly [string, string, string] = proposed
-    ? ["#197456", "#23916b", "#39b889"]
-    : reserved
-      ? ["#8e703f", "#aa874d", "#c9a768"]
-      : ["#957449", "#b18d5c", "#cfaa77"];
+        ? sceneColors.free
+        : sceneColors.selected;
+  const palletColors = sceneFaces(sceneColors.boundary);
+  const cartonColors = sceneFaces(
+    proposed
+      ? sceneColors.free
+      : reserved
+        ? sceneColors.reserved
+        : sceneColors.stored,
+  );
   const center = point(
     drawnPlacement.xMm + footprint.widthMm / 2,
     drawnPlacement.yMm + footprint.depthMm / 2,
@@ -556,7 +557,7 @@ export function PalletScene({
     start: ReturnType<typeof point>,
     end: ReturnType<typeof point>,
     key: string,
-    stroke = "#7c8995",
+    stroke: string = sceneColors.grid,
   ) => (
     <line
       key={key}
@@ -575,12 +576,12 @@ export function PalletScene({
     text: string,
   ) => (
     <g>
-      {line(start, end, text, "#aab8c5")}
+      {line(start, end, text, sceneColors.dimension)}
       <text
         x={(start.x + end.x) / 2}
         y={(start.y + end.y) / 2 + fontSize * 1.5}
         textAnchor="middle"
-        fill="#d5e1ec"
+        fill={sceneColors.dimension}
         fontSize={fontSize}
       >
         {text}
@@ -750,15 +751,15 @@ export function PalletScene({
           points={pointsAttribute(
             corners(0, 0, surface.widthMm, surface.depthMm),
           )}
-          fill="#14262a"
-          stroke="#4b7b89"
+          fill={sceneColors.floor}
+          stroke={sceneColors.boundary}
           strokeWidth={1.5}
           vectorEffect="non-scaling-stroke"
         />
         {Array.from({ length: 9 }, (_, index) => {
           const fraction = (index + 1) / 10;
           return (
-            <g key={index} opacity={0.25}>
+            <g key={index} opacity={0.6}>
               {line(
                 point(surface.widthMm * fraction, 0),
                 point(surface.widthMm * fraction, surface.depthMm),
@@ -778,13 +779,13 @@ export function PalletScene({
               cx={origin.x}
               cy={origin.y}
               r={extent * 0.009}
-              fill="#e2edf7"
+              fill={sceneColors.label}
             />
             <text
               x={origin.x}
               y={origin.y - fontSize * 0.65}
               fontSize={fontSize}
-              fill="#b8c8d5"
+              fill={sceneColors.secondaryLabel}
               textAnchor="middle"
             >
               {t.origin} · X 0 / Y 0
@@ -854,8 +855,8 @@ export function PalletScene({
             support.depthMm,
             Math.max(0, support.zMm - extent * 0.015),
             Math.min(support.zMm, extent * 0.015),
-            ["#4e5b6d", "#62758b", "#8197ac"],
-            "#a2b8cd",
+            sceneFaces(sceneColors.stored),
+            sceneColors.boundary,
           )}
         {source && (
           <g
@@ -873,7 +874,7 @@ export function PalletScene({
               source.zMm ?? 0,
               source.heightMm,
               ["transparent", "transparent", "transparent"],
-              "#b6c2d1",
+              sceneColors.source,
               true,
               true,
             )}
@@ -899,7 +900,7 @@ export function PalletScene({
                 pallet.zMm ?? 0,
                 pallet.heightMm,
                 ["transparent", "transparent", "transparent"],
-                reserved ? "#e5af52" : "#8fa5bb",
+                reserved ? sceneColors.reserved : sceneColors.stored,
                 reserved,
               )}
               {annotations && (
@@ -908,7 +909,7 @@ export function PalletScene({
                   y={position.y}
                   textAnchor="middle"
                   fontSize={fontSize}
-                  fill="#ffffff"
+                  fill={sceneColors.label}
                 >
                   {pallet.label}
                 </text>
@@ -924,7 +925,7 @@ export function PalletScene({
           aria-describedby={canMove ? hintId : undefined}
           className={
             canMove
-              ? "cursor-grab outline-none active:cursor-grabbing focus-visible:[&_polygon]:stroke-white"
+              ? "cursor-grab outline-none active:cursor-grabbing focus-visible:[&_polygon]:stroke-text focus-visible:[&_polygon]:[stroke-width:3]"
               : undefined
           }
           style={canMove ? { touchAction: "none" } : undefined}
@@ -997,7 +998,7 @@ export function PalletScene({
                     elevation + footprint.heightMm,
                   ),
                   "carton-x",
-                  "#63482e",
+                  sceneColors.boundary,
                 )}
                 {line(
                   point(
@@ -1011,7 +1012,7 @@ export function PalletScene({
                     elevation + footprint.heightMm,
                   ),
                   "carton-y",
-                  "#63482e",
+                  sceneColors.boundary,
                 )}
                 {!planView &&
                   visibleEdges.map(({ indices }, faceIndex) => {
@@ -1042,7 +1043,7 @@ export function PalletScene({
                     const b = indices[1];
                     return (
                       <g key={faceIndex}>
-                        {line(band[a]!, band[b]!, "band", "#63482e")}
+                        {line(band[a]!, band[b]!, "band", sceneColors.boundary)}
                         {line(
                           {
                             x:
@@ -1057,7 +1058,7 @@ export function PalletScene({
                             y: top[a]!.y + (top[b]!.y - top[a]!.y) * fraction,
                           },
                           "seam",
-                          "#63482e",
+                          sceneColors.boundary,
                         )}
                       </g>
                     );
@@ -1069,9 +1070,9 @@ export function PalletScene({
             y={center.y - fontSize * 1.2}
             textAnchor="middle"
             fontSize={fontSize}
-            fill="#ffffff"
-            stroke="#443721"
-            strokeWidth={fontSize * 0.06}
+            fill={sceneColors.label}
+            stroke={sceneColors.labelSurface}
+            strokeWidth={fontSize * 0.25}
             paintOrder="stroke"
           >
             {selectedLabel}

@@ -20,7 +20,7 @@ import { destinationKey } from "./DestinationPicker";
 import { usePreviewState } from "./usePreviewState";
 import {
   ErrorNotice,
-  errorText,
+  useWriteError,
   Field,
   mmText,
   palletPath,
@@ -72,7 +72,7 @@ export function DestinationSummary({
   destination: Candidate | Destination;
   placement: PalletPlacement;
 }) {
-  const { tr } = useFGText();
+  const { t } = useFGText();
   return (
     <div className="space-y-4">
       <div className="space-y-1">
@@ -80,18 +80,18 @@ export function DestinationSummary({
           {destination.locationName}
         </p>
         <p className="text-sm text-muted">
-          {destination.buildingCode} · {tr("Floor", "ชั้น")}{" "}
+          {destination.buildingCode} · {t("copy.floor")}{" "}
           {destination.floorNumber}
         </p>
         {destination.supportLabel || destination.supportCode ? (
           <p className="text-sm">
-            {tr("Support", "ฐานรองรับ")}:{" "}
+            {t("copy.support")}:{" "}
             {destination.supportLabel ?? destination.supportCode}
           </p>
         ) : null}
         <p className="font-mono text-sm break-all">
           {destination.positionCode === "Proposed"
-            ? tr("Proposed position", "ตำแหน่งที่เสนอ")
+            ? t("copy.proposed-position")
             : destination.positionCode}
         </p>
       </div>
@@ -100,10 +100,10 @@ export function DestinationSummary({
           ["X", mmText(placement.xMm)],
           ["Y", mmText(placement.yMm)],
           [
-            tr("Base elevation", "ระดับฐาน"),
+            t("copy.base-elevation"),
             mmText(placement.zMm ?? destination.support.zMm),
           ],
-          [tr("Orientation", "ทิศทาง"), `${placement.rotation}°`],
+          [t("copy.orientation"), `${placement.rotation}°`],
         ].map(([label, value]) => (
           <div key={label}>
             <dt className="text-sm text-muted">{label}</dt>
@@ -113,13 +113,10 @@ export function DestinationSummary({
       </dl>
       <details className="text-sm text-muted">
         <summary className="w-fit cursor-pointer">
-          {tr("Coordinate guide", "วิธีอ่านพิกัด")}
+          {t("copy.coordinate-guide")}
         </summary>
         <p className="mt-2">
-          {tr(
-            "X/Y start at the marked origin in the plan.",
-            "X/Y วัดจากจุดเริ่มต้นในแผนผัง",
-          )}
+          {t("copy.x-y-start-at-the-marked-origin-in-the-plan")}
         </p>
       </details>
     </div>
@@ -142,7 +139,10 @@ export function PlacementEditor({
   onReserved?: () => void;
   onActivate?: () => void;
 }) {
-  const { tr, locale } = useUnitText(
+  const { t, locale } = useUnitText(
+    detail.pallet.storageFormat ?? detail.product?.storageFormat,
+  );
+  const writeError = useWriteError(
     detail.pallet.storageFormat ?? detail.product?.storageFormat,
   );
   const router = useRouter();
@@ -182,9 +182,8 @@ export function PlacementEditor({
       !Number.isFinite(Number(value)) ||
       Number(value) < 0,
   );
-  const coordinateMessage = tr(
-    "Enter valid X and Y coordinates, zero or greater.",
-    "กรอกพิกัด X และ Y ให้ถูกต้อง ตั้งแต่ศูนย์ขึ้นไป",
+  const coordinateMessage = t(
+    "copy.enter-valid-x-and-y-coordinates-zero-or-greater",
   );
   function updatePlacement(next: PalletPlacement) {
     onActivate?.();
@@ -335,7 +334,9 @@ export function PlacementEditor({
         className="grid min-w-0 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_300px]"
       >
         <div className="min-w-0">
-          <h2 className="mb-3 font-semibold">{candidate.locationName}</h2>
+          <h2 className="mb-3 text-lg leading-7 font-semibold">
+            {candidate.locationName}
+          </h2>
           <PalletScene
             {...props}
             {...(moving &&
@@ -345,7 +346,7 @@ export function PlacementEditor({
               ? {
                   sourceFootprint: {
                     id: detail.placement._id,
-                    label: tr("Source position", "ตำแหน่งต้นทาง"),
+                    label: t("copy.source-position"),
                     xMm: detail.placement.xMm,
                     yMm: detail.placement.yMm,
                     zMm: detail.placement.zMm,
@@ -363,7 +364,7 @@ export function PlacementEditor({
             {...(coordinateInvalid
               ? { issueMessage: coordinateMessage }
               : resolved.blockedReason
-                ? { issueMessage: errorText(resolved.blockedReason, tr) }
+                ? { issueMessage: writeError(resolved.blockedReason) }
                 : {})}
             editable
             locale={locale}
@@ -371,19 +372,18 @@ export function PlacementEditor({
           />
         </div>
         <aside className={`${panel} space-y-4`}>
-          <h2 className="font-semibold">
-            {tr("Exact position", "ตำแหน่งที่แน่นอน")}
+          <h2 className="text-lg leading-7 font-semibold">
+            {t("copy.exact-position")}
           </h2>
           {!moving && detail.pallet.status === "AWAITING_PLACEMENT" && (
             <Link
               onClick={onActivate}
               href={`${correctionPath(detail)}${correctionPath(detail).includes("?") ? "&" : "?"}returnToUnit=${encodeURIComponent(detail.pallet._id)}`}
-              className="flex items-center gap-2 text-sm text-accent hover:underline"
+              className="flex items-center gap-2 text-sm text-link hover:underline"
             >
               <Pencil className="size-4" aria-hidden="true" />
-              {tr("Edit measurements", "แก้ไขขนาด")} ·{" "}
-              {mmText(props.dimensions.depthMm)} ×{" "}
-              {mmText(props.dimensions.widthMm)} ×{" "}
+              {t("copy.edit-measurements")} · {mmText(props.dimensions.depthMm)}{" "}
+              × {mmText(props.dimensions.widthMm)} ×{" "}
               {mmText(props.dimensions.heightMm)}
             </Link>
           )}
@@ -392,30 +392,25 @@ export function PlacementEditor({
           detail.placement &&
           detail.placement.mode !== "LOCATION_ONLY" ? (
             <section
-              aria-label={tr(
-                "Current stored position",
-                "ตำแหน่งจัดเก็บปัจจุบัน",
-              )}
+              aria-label={t("copy.current-stored-position")}
               className="space-y-2 border-b border-border pb-4"
             >
-              <h3 className="text-sm font-semibold">{tr("From", "จาก")}</h3>
+              <h3 className="text-sm font-semibold">{t("copy.from")}</h3>
               <DestinationSummary
                 destination={detail.destination}
                 placement={detail.placement}
               />
-              <h3 className="text-sm font-semibold">{tr("To", "ไปยัง")}</h3>
+              <h3 className="text-sm font-semibold">{t("copy.to-2d7c7a")}</h3>
             </section>
           ) : null}
           <DestinationSummary destination={candidate} placement={placement} />
           <p className="text-sm text-muted">
             {allowsPalletStacking
-              ? tr(
-                  "Drag onto a pallet to stack automatically; drag clear to return to the supporting floor or rack. Red shows why placement is not allowed.",
-                  "ลากเหนือพาเลทเพื่อซ้อนอัตโนมัติ ลากออกเพื่อลงพื้นหรือชั้นวาง สีแดงแสดงตำแหน่งที่วางไม่ได้พร้อมเหตุผล",
+              ? t(
+                  "copy.drag-onto-a-pallet-to-stack-automatically-drag-clear-to-return-to-the-su",
                 )
-              : tr(
-                  "Drag to adjust the position on the floor or rack. Red shows why placement is not allowed.",
-                  "ลากเพื่อปรับตำแหน่งบนพื้นหรือชั้นวาง สีแดงแสดงตำแหน่งที่วางไม่ได้พร้อมเหตุผล",
+              : t(
+                  "copy.drag-to-adjust-the-position-on-the-floor-or-rack-red-shows-why-placement",
                 )}
           </p>
           <div className="grid grid-cols-2 gap-3">
@@ -446,21 +441,15 @@ export function PlacementEditor({
               })
             }
           >
-            {tr("Reset to recommendation", "คืนค่าที่แนะนำ")}
+            {t("copy.reset-to-recommendation")}
           </Button>
           {!issue && (
             <>
               <div className="space-y-2 border-t border-border pt-4 text-sm">
                 {[
-                  tr(
-                    "Dimensions fit inside the support",
-                    "ขนาดวางพอดีภายในฐานรองรับ",
-                  ),
-                  tr("Enough height clearance", "ความสูงเพียงพอ"),
-                  tr(
-                    "Does not overlap recorded occupancy",
-                    "ไม่ทับตำแหน่งที่ระบบบันทึกไว้",
-                  ),
+                  t("copy.dimensions-fit-inside-the-support"),
+                  t("copy.enough-height-clearance"),
+                  t("copy.does-not-overlap-recorded-occupancy"),
                 ].map((label) => (
                   <p
                     key={label}
@@ -472,10 +461,9 @@ export function PlacementEditor({
                 ))}
                 <p className="text-sm text-muted">
                   {candidate.checks.storageCondition === "MATCH"
-                    ? tr("Storage condition matches", "เงื่อนไขจัดเก็บตรงกัน")
-                    : tr(
-                        "Storage condition is not configured for this location. Confirm suitability before reserving.",
-                        "จุดนี้ยังไม่ระบุเงื่อนไขจัดเก็บ กรุณาตรวจสอบความเหมาะสมก่อนจอง",
+                    ? t("copy.storage-condition-matches")
+                    : t(
+                        "copy.storage-condition-is-not-configured-for-this-location-confirm-suitabilit",
                       )}
                 </p>
               </div>
@@ -483,26 +471,21 @@ export function PlacementEditor({
           )}{" "}
           {moving ? (
             <Field
-              label={tr("Reason (optional)", "เหตุผล (ไม่บังคับ)")}
+              label={t("copy.reason-optional")}
               value={reason}
               onChange={setReason}
               disabled={op.busy}
             />
           ) : null}
           <Notice
-            title={tr(
-              "Reserve first, then move the pallet",
-              "จองพื้นที่ก่อนเคลื่อนย้ายพาเลท",
-            )}
+            title={t("copy.reserve-first-then-move-the-pallet")}
             body={
               moving
-                ? tr(
-                    "Both the source and destination stay held. The stored position changes only after destination verification and confirmation of physical placement.",
-                    "ทั้งต้นทางและปลายทางยังถูกกันไว้ ตำแหน่งจัดเก็บจะเปลี่ยนหลังตรวจสอบปลายทางและยืนยันวางพาเลทจริงเท่านั้น",
+                ? t(
+                    "copy.both-the-source-and-destination-stay-held-the-stored-position-changes-on",
                   )
-                : tr(
-                    "This holds the space. The pallet is marked stored only after destination verification and your physical confirmation.",
-                    "ขั้นตอนนี้จองพื้นที่ พาเลทจะเป็นสถานะจัดเก็บแล้วหลังตรวจสอบปลายทางและยืนยันการวางจริง",
+                : t(
+                    "copy.this-holds-the-space-the-pallet-is-marked-stored-only-after-destination-",
                   )
             }
           />
@@ -511,24 +494,18 @@ export function PlacementEditor({
             disabled={op.busy || !!issue || unchanged}
             onClick={() => void reserve()}
           >
-            {op.busy
-              ? tr("Reserving…", "กำลังจอง…")
-              : tr("Reserve this position", "จองตำแหน่งนี้")}
+            {op.busy ? t("copy.reserving") : t("copy.reserve-this-position")}
           </Button>
           {unchanged ? (
             <Notice
-              title={tr(
-                "Choose a different position or orientation.",
-                "เลือกตำแหน่งหรือทิศทางใหม่",
-              )}
+              title={t("copy.choose-a-different-position-or-orientation")}
             />
           ) : null}
           {issue ? (
             <Notice
               tone="danger"
-              title={tr(
-                "This position is not valid. Adjust it before continuing.",
-                "ตำแหน่งนี้ไม่ถูกต้อง กรุณาปรับก่อนดำเนินการต่อ",
+              title={t(
+                "copy.this-position-is-not-valid-adjust-it-before-continuing",
               )}
             />
           ) : null}

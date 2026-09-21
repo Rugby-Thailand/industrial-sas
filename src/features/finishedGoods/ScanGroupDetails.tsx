@@ -9,15 +9,12 @@ export function ScanGroupDetails({
   state: ScanSession;
   dispatch: (event: ScanEvent) => void;
 }) {
-  const { tr } = useFGText();
+  const { t } = useFGText();
   return (
     <section className={`${panel} space-y-5`}>
       <fieldset>
         <legend className="mb-2 font-medium">
-          {tr(
-            "Are all packages/pallets a similar size?",
-            "พัสดุ/พาเลททั้งหมดมีขนาดใกล้เคียงกันหรือไม่?",
-          )}
+          {t("copy.are-all-packages-pallets-a-similar-size-7e4d05")}
         </legend>
         <div className="flex gap-2">
           {[true, false].map((value) => (
@@ -28,22 +25,22 @@ export function ScanGroupDetails({
               aria-pressed={state.sameSize === value}
               onClick={() => dispatch({ type: "size", value: value! })}
             >
-              {value ? tr("Yes", "ใช่") : tr("No", "ไม่ใช่")}
+              {value ? t("copy.yes") : t("copy.no")}
             </Button>
           ))}
         </div>
       </fieldset>
       <fieldset>
         <legend className="mb-2 font-medium">
-          {tr("Are they all full (100%)?", "ทั้งหมดเต็ม (100%) หรือไม่?")}
+          {t("copy.are-they-all-full-100")}
         </legend>
         <div className="flex flex-wrap gap-2">
           {[
-            ["100", tr("Full (100%)", "เต็ม (100%)")],
+            ["100", t("copy.full-100")],
             ["75", "¾ (75%)"],
-            ["50", tr("Half (50%)", "ครึ่ง (50%)")],
+            ["50", t("copy.half-50")],
             ["25", "¼ (25%)"],
-            ["", tr("Custom", "กำหนดเอง")],
+            ["", t("copy.custom")],
           ].map(([value, label]) => (
             <Button
               key={label}
@@ -58,7 +55,7 @@ export function ScanGroupDetails({
         </div>
         <div className="mt-3 max-w-56">
           <Field
-            label={tr("Common fullness (%)", "เปอร์เซ็นต์ความเต็มร่วม (%)")}
+            label={t("copy.common-fullness")}
             type="number"
             min={1}
             max={100}
@@ -73,15 +70,11 @@ export function ScanGroupDetails({
           disabled={!validFill(state.fill)}
           onClick={() => dispatch({ type: "applyFill" })}
         >
-          {tr(
-            "Apply common fullness to all packages",
-            "ใช้เปอร์เซ็นต์ร่วมกับพัสดุทั้งหมด",
-          )}
+          {t("copy.apply-common-fullness-to-all-packages")}
         </Button>
         <p className="mt-2 text-sm text-muted">
-          {tr(
-            "Visual estimate only. Saved preparation values remain as exceptions. Fullness does not change product quantity.",
-            "ประเมินด้วยสายตาเท่านั้น ค่าจากการจัดเตรียมยังคงเป็นค่าเฉพาะชิ้น ความเต็มไม่เปลี่ยนจำนวนสินค้า",
+          {t(
+            "copy.visual-estimate-only-saved-preparation-values-remain-as-exceptions-fulln",
           )}
         </p>
       </fieldset>

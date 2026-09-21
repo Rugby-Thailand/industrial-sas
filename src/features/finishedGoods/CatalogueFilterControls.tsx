@@ -1,18 +1,20 @@
 "use client";
-import { useId, useState, type ReactNode } from "react";
+import {
+  cloneElement,
+  isValidElement,
+  useId,
+  useState,
+  type ReactNode,
+} from "react";
 import { Popover } from "radix-ui";
 import { ArrowDown, ArrowUp, Filter, SlidersHorizontal, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { FormField } from "@/components/ui/FormField";
 import { Input } from "@/components/ui/input";
 import { SelectControl } from "@/components/ui/SelectControl";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
+import { CheckboxControl } from "@/components/ui/CheckboxControl";
+import { Sheet, SheetTrigger } from "@/components/ui/sheet";
+import { DetailsPanel } from "@/components/ui/DetailsPanel";
 import { useFGText } from "./shared";
 import {
   clearColumn,
@@ -80,11 +82,18 @@ export type FilterControlsProps = {
   onChange: (filters: CatalogueFilters) => void;
 };
 function Field({ label, children }: { label: string; children: ReactNode }) {
+  const id = useId();
   return (
-    <label className="grid gap-1.5 text-sm font-medium">
-      <span>{label}</span>
-      {children}
-    </label>
+    <FormField id={id} label={label}>
+      {(field) =>
+        isValidElement(children)
+          ? cloneElement(
+              children as React.ReactElement<Record<string, unknown>>,
+              field,
+            )
+          : children
+      }
+    </FormField>
   );
 }
 function RangeFields({
@@ -96,7 +105,7 @@ function RangeFields({
   value: Range;
   onChange: (value: Range) => void;
 }) {
-  const { tr } = useFGText();
+  const { t } = useFGText();
   return (
     <fieldset className="space-y-2">
       <legend className="text-sm font-medium">{label}</legend>
@@ -104,12 +113,10 @@ function RangeFields({
         {(["min", "max"] as const).map((k) => (
           <Field
             key={k}
-            label={
-              k === "min" ? tr("Minimum", "ต่ำสุด") : tr("Maximum", "สูงสุด")
-            }
+            label={k === "min" ? t("copy.minimum") : t("copy.maximum")}
           >
             <Input
-              aria-label={`${label} ${k === "min" ? tr("minimum", "ต่ำสุด") : tr("maximum", "สูงสุด")}`}
+              aria-label={`${label} ${k === "min" ? t("copy.minimum-bf020a") : t("copy.maximum-3f2718")}`}
               type="number"
               min="0"
               step="any"
@@ -129,7 +136,7 @@ function FilterFields({
   units,
   onChange,
 }: FilterControlsProps & { column: FilterColumn }) {
-  const { tr } = useFGText();
+  const { t, tr } = useFGText();
   const update = (value: Partial<CatalogueFilters>) =>
     onChange({ ...f, ...value });
   const choices = (
@@ -140,11 +147,10 @@ function FilterFields({
       {options.map((value) => (
         <label
           key={value}
-          className="flex min-h-9 cursor-pointer items-center gap-2 text-sm"
+          className="flex min-h-touch cursor-pointer items-center gap-2 text-sm"
         >
-          <input
-            type="checkbox"
-            className="size-4 accent-primary"
+          <CheckboxControl
+            className="accent-primary"
             checked={f[key].includes(value)}
             onChange={(e) =>
               update({
@@ -162,7 +168,7 @@ function FilterFields({
   return (
     <div className="space-y-4">
       {column === "record" && (
-        <Field label={tr("Name or SKU", "ชื่อหรือรหัสสินค้า")}>
+        <Field label={t("copy.name-or-sku")}>
           <Input
             value={f.record}
             maxLength={200}
@@ -172,9 +178,9 @@ function FilterFields({
       )}
       {column === "quantity" && (
         <>
-          <Field label={tr("Counting unit", "หน่วยนับ")}>
+          <Field label={t("copy.counting-unit")}>
             <SelectControl
-              label={tr("Counting unit", "หน่วยนับ")}
+              label={t("copy.counting-unit")}
               value={f.unit}
               onValueChange={(unit) =>
                 update({
@@ -183,24 +189,23 @@ function FilterFields({
                 })
               }
               options={[
-                { value: "", label: tr("All units", "ทุกหน่วยนับ") },
+                { value: "", label: t("copy.all-units") },
                 ...[...new Set([...units, ...(f.unit ? [f.unit] : [])])].map(
                   (unit) => ({ value: unit, label: unit }),
                 ),
               ]}
-              placeholder={tr("All units", "ทุกหน่วยนับ")}
-              emptyLabel={tr("No units available", "ไม่มีหน่วยนับให้เลือก")}
+              placeholder={t("copy.all-units")}
+              emptyLabel={t("copy.no-units-available")}
             />
           </Field>
           <RangeFields
-            label={tr("Quantity", "จำนวน")}
+            label={t("copy.quantity")}
             value={f.quantity}
             onChange={(quantity) => update({ quantity })}
           />
           <p className="text-xs text-muted">
-            {tr(
-              "Choose a counting unit before setting a range. Sorting groups different units separately.",
-              "เลือกหน่วยนับก่อนกำหนดช่วงจำนวน การเรียงจำนวนจะแยกกลุ่มตามหน่วยนับ",
+            {t(
+              "copy.choose-a-counting-unit-before-setting-a-range-sorting-groups-different-u",
             )}
           </p>
         </>
@@ -210,9 +215,8 @@ function FilterFields({
         <>
           {choices("progress", progressOptions)}
           <p className="text-xs text-muted">
-            {tr(
-              "Matches products with at least one unit in any selected state.",
-              "แสดงสินค้าที่มีอย่างน้อยหนึ่งหน่วยตรงกับสถานะที่เลือก",
+            {t(
+              "copy.matches-products-with-at-least-one-unit-in-any-selected-state",
             )}
           </p>
         </>
@@ -223,7 +227,7 @@ function FilterFields({
           tab === "products" ? productStatuses : unitStatuses,
         )}
       {column === "lot" && (
-        <Field label={tr("Lot contains", "ล็อตมีข้อความ")}>
+        <Field label={t("copy.lot-contains")}>
           <Input
             value={f.lot}
             maxLength={200}
@@ -233,23 +237,20 @@ function FilterFields({
       )}
       {column === "dimensions" && (
         <>
-          <Field label={tr("Measurement", "การวัดขนาด")}>
+          <Field label={t("copy.measurement")}>
             <SelectControl
-              label={tr("Measurement", "การวัดขนาด")}
+              label={t("copy.measurement")}
               value={f.measurement}
               onValueChange={(measurement) => update({ measurement })}
               options={[
-                { value: "", label: tr("All", "ทั้งหมด") },
+                { value: "", label: t("copy.all") },
                 ...["measured", "unmeasured"].map((value) => ({
                   value,
                   label: filterLabel(value, tab, tr),
                 })),
               ]}
-              placeholder={tr("All", "ทั้งหมด")}
-              emptyLabel={tr(
-                "No measurements available",
-                "ไม่มีสถานะการวัดให้เลือก",
-              )}
+              placeholder={t("copy.all")}
+              emptyLabel={t("copy.no-measurements-available")}
             />
           </Field>
           {(["length", "width", "height"] as const).map((key) => (
@@ -262,29 +263,26 @@ function FilterFields({
           ))}
         </>
       )}
-      <Field label={tr("Sort by", "เรียงตาม")}>
+      <Field label={t("copy.sort-by")}>
         <SelectControl
-          label={tr("Sort by", "เรียงตาม")}
+          label={t("copy.sort-by")}
           value={sortColumn(f.sort) === column ? f.sort : ""}
           onValueChange={(sort) => update({ sort })}
           options={[
-            { value: "", label: tr("Default order", "ลำดับเริ่มต้น") },
+            { value: "", label: t("copy.default-order") },
             ...columnSorts(column, tab).flatMap((key) =>
               (["asc", "desc"] as const).map((direction) => ({
                 value: `${key}:${direction}`,
                 label: `${filterLabel(key, tab, tr)} · ${
                   direction === "asc"
-                    ? tr("Ascending", "น้อยไปมาก / ก–ฮ")
-                    : tr("Descending", "มากไปน้อย / ฮ–ก")
+                    ? t("copy.ascending")
+                    : t("copy.descending")
                 }`,
               })),
             ),
           ]}
-          placeholder={tr("Default order", "ลำดับเริ่มต้น")}
-          emptyLabel={tr(
-            "No sort options available",
-            "ไม่มีตัวเลือกการเรียงลำดับ",
-          )}
+          placeholder={t("copy.default-order")}
+          emptyLabel={t("copy.no-sort-options-available")}
         />
       </Field>
     </div>
@@ -298,7 +296,7 @@ function FilterEditor({
   onChange,
   onClose,
 }: FilterControlsProps & { column?: FilterColumn; onClose: () => void }) {
-  const { tr } = useFGText();
+  const { t, tr } = useFGText();
   const [draft, setDraft] = useState(filters);
   const invalid = !filtersValid(draft);
   return (
@@ -339,9 +337,8 @@ function FilterEditor({
       </div>
       {invalid && (
         <p role="alert" className="text-sm text-danger">
-          {tr(
-            "Use non-negative numbers, minimum ≤ maximum, and choose a counting unit for quantity ranges.",
-            "ระบุตัวเลขตั้งแต่ศูนย์ขึ้นไป โดยค่าต่ำสุดไม่เกินค่าสูงสุด และเลือกหน่วยนับสำหรับช่วงจำนวน",
+          {t(
+            "copy.use-non-negative-numbers-minimum-maximum-and-choose-a-counting-unit-for-",
           )}
         </p>
       )}
@@ -353,14 +350,14 @@ function FilterEditor({
             setDraft(column ? clearColumn(draft, column) : newFilters())
           }
         >
-          {tr("Reset", "รีเซ็ต")}
+          {t("copy.reset")}
         </Button>
         <div className="flex gap-2">
           <Button type="button" variant="outline" onClick={onClose}>
-            {tr("Cancel", "ยกเลิก")}
+            {t("copy.cancel")}
           </Button>
           <Button type="submit" disabled={invalid}>
-            {tr("Apply", "ใช้ตัวกรอง")}
+            {t("copy.apply")}
           </Button>
         </div>
       </div>
@@ -372,7 +369,7 @@ export function ColumnFilter({
   children,
   ...props
 }: FilterControlsProps & { column: FilterColumn; children: ReactNode }) {
-  const { tr } = useFGText();
+  const { t, tr } = useFGText();
   const [open, setOpen] = useState(false);
   const titleId = useId();
   const count = columnCount(props.filters, column);
@@ -382,10 +379,13 @@ export function ColumnFilter({
       <span>{children}</span>
       <Popover.Root open={open} onOpenChange={setOpen}>
         <Popover.Trigger asChild>
-          <button
-            className={`inline-flex min-h-8 min-w-8 shrink-0 items-center justify-center gap-1 rounded-md hover:bg-accent/10 focus-visible:outline-2 focus-visible:outline-ring ${count || sorted ? "text-primary" : "text-muted"}`}
-            aria-label={`${tr("Filter and sort", "กรองและเรียง")} ${filterLabel(column, props.tab, tr)}`}
-            title={`${tr("Filter and sort", "กรองและเรียง")} ${filterLabel(column, props.tab, tr)}`}
+          <Button
+            type="button"
+            variant={count || sorted ? "active" : "ghost"}
+            size="icon"
+            className="inline-flex min-h-touch min-w-touch shrink-0 items-center justify-center gap-1 rounded-md focus-visible:outline-2 focus-visible:outline-ring"
+            aria-label={`${t("copy.filter-and-sort")} ${filterLabel(column, props.tab, tr)}`}
+            title={`${t("copy.filter-and-sort")} ${filterLabel(column, props.tab, tr)}`}
           >
             <Filter className="size-3.5" aria-hidden="true" />
             {count > 0 && <span className="text-xs">{count}</span>}
@@ -395,7 +395,7 @@ export function ColumnFilter({
               ) : (
                 <ArrowUp className="size-3" aria-hidden="true" />
               ))}
-          </button>
+          </Button>
         </Popover.Trigger>
         <Popover.Portal>
           <Popover.Content
@@ -405,7 +405,10 @@ export function ColumnFilter({
             aria-labelledby={titleId}
             className="z-50 flex max-h-[min(80dvh,var(--radix-popover-content-available-height))] w-80 max-w-[calc(100vw-1.5rem)] flex-col overflow-hidden rounded-xl border border-border bg-popover p-4 text-popover-foreground shadow-xl"
           >
-            <h2 id={titleId} className="mb-4 shrink-0 font-semibold">
+            <h2
+              id={titleId}
+              className="mb-4 shrink-0 text-lg leading-7 font-semibold"
+            >
               {filterLabel(column, props.tab, tr)}
             </h2>
             <FilterEditor
@@ -420,7 +423,7 @@ export function ColumnFilter({
   );
 }
 export function CatalogueFiltersButton(props: FilterControlsProps) {
-  const { tr } = useFGText();
+  const { t } = useFGText();
   const [open, setOpen] = useState(false);
   const count = columns(props.tab).reduce(
     (n, c) => n + columnCount(props.filters, c),
@@ -429,30 +432,21 @@ export function CatalogueFiltersButton(props: FilterControlsProps) {
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button variant="outline" className={count ? "text-primary" : ""}>
+        <Button variant="outline" className={count ? "text-link" : ""}>
           <SlidersHorizontal className="size-4" aria-hidden="true" />
-          {tr("Filters", "ตัวกรอง")}
+          {t("copy.filters")}
           {count > 0 ? ` (${count})` : ""}
         </Button>
       </SheetTrigger>
-      <SheetContent
-        side="right"
-        closeLabel={tr("Close", "ปิด")}
-        className="max-w-md p-4 data-[side=right]:w-full"
+      <DetailsPanel
+        title={t("copy.filters-and-sorting")}
+        description={t(
+          "copy.different-columns-combine-select-any-matching-value-within-a-column",
+        )}
+        closeLabel={t("copy.close")}
       >
-        <SheetHeader className="p-0 pr-10">
-          <SheetTitle>
-            {tr("Filters and sorting", "ตัวกรองและการเรียง")}
-          </SheetTitle>
-          <SheetDescription>
-            {tr(
-              "Different columns combine. Select any matching value within a column.",
-              "ใช้เงื่อนไขทุกคอลัมน์ร่วมกัน โดยตรงกับตัวเลือกใดตัวเลือกหนึ่งภายในคอลัมน์",
-            )}
-          </SheetDescription>
-        </SheetHeader>
         <FilterEditor {...props} onClose={() => setOpen(false)} />
-      </SheetContent>
+      </DetailsPanel>
     </Sheet>
   );
 }
@@ -466,18 +460,21 @@ export function FilterChips({
   onClearSearch: () => void;
   onClearAll: () => void;
 }) {
-  const { tr } = useFGText();
+  const { t, tr } = useFGText();
   const f = props.filters;
   const chip = (label: string, remove: () => void) => (
-    <button
+    <Button
+      type="button"
+      variant="ghost"
+      size="touch"
       key={label}
       onClick={remove}
-      className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1.5 text-left text-xs text-text hover:bg-primary/20"
-      aria-label={`${tr("Remove filter", "ลบตัวกรอง")} ${label}`}
+      className="inline-flex min-h-touch max-w-full items-center gap-2 rounded-full border border-border-strong bg-selected px-3 py-2 text-left text-xs text-selected-foreground outline-none hover:border-link focus-visible:ring-2 focus-visible:ring-ring"
+      aria-label={`${t("copy.remove-filter")} ${label}`}
     >
       <span className="break-words">{label}</span>
       <X className="size-3 shrink-0" aria-hidden="true" />
-    </button>
+    </Button>
   );
   const rangeText = (r: Range) => `${r.min || "0"}–${r.max || "∞"}`;
   const content = (c: FilterColumn) =>
@@ -513,10 +510,10 @@ export function FilterChips({
   return (
     <div
       className="mb-4 flex flex-wrap items-center gap-2"
-      aria-label={tr("Active filters", "ตัวกรองที่ใช้")}
+      aria-label={t("copy.active-filters")}
       role="group"
     >
-      {search && chip(`${tr("Search", "ค้นหา")}: ${search}`, onClearSearch)}
+      {search && chip(`${t("copy.search")}: ${search}`, onClearSearch)}
       {columns(props.tab)
         .filter((c) => columnCount(f, c))
         .map((c) =>
@@ -526,11 +523,11 @@ export function FilterChips({
         )}
       {f.sort &&
         chip(
-          `${tr("Sort", "เรียง")}: ${filterLabel(f.sort.split(":")[0] ?? "", props.tab, tr)} ${f.sort.endsWith(":desc") ? "↓" : "↑"}`,
+          `${t("copy.sort")}: ${filterLabel(f.sort.split(":")[0] ?? "", props.tab, tr)} ${f.sort.endsWith(":desc") ? "↓" : "↑"}`,
           () => props.onChange({ ...f, sort: "" }),
         )}
       <Button variant="ghost" size="sm" onClick={onClearAll}>
-        {tr("Clear all", "ล้างทั้งหมด")}
+        {t("copy.clear-all")}
       </Button>
     </div>
   );

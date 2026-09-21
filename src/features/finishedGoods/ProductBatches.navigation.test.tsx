@@ -1,3 +1,4 @@
+import { messagesFor } from "@/i18n/messages";
 import { clearCursorPositions } from "@/hooks/useCursorPagination";
 import { productPalletSummary } from "./productPalletSummary";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
@@ -26,7 +27,6 @@ vi.mock("convex/react", () => ({
 }));
 vi.mock("./shared", async (importOriginal) => ({
   ...(await importOriginal<typeof SharedModule>()),
-  useFGText: () => ({ tr: (en: string) => en, locale: "en" }),
   useDraftKey: () => "user-a:batches",
   useCanManage: () => mocks.canManage,
 
@@ -150,7 +150,7 @@ function batchResponse(name: string, args: unknown): unknown {
 }
 function component(warehouseId = "warehouse-a", product = finishedGoodProduct) {
   return (
-    <NextIntlClientProvider locale="en" messages={{}}>
+    <NextIntlClientProvider locale="en" messages={messagesFor("en")}>
       <ProductBatches warehouseId={warehouseId} product={product} />
     </NextIntlClientProvider>
   );

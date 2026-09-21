@@ -1,11 +1,14 @@
 "use client";
+import { updateBrowserQuery } from "@/lib/browser/history";
 
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { MapPin, Pencil, Eye } from "lucide-react";
 import { SummaryPreparation } from "./SummaryPreparation";
+import { LedgerPanelStatus } from "@/components/system/LedgerPanelStatus";
 import { CursorPagination } from "@/components/system/CursorPagination";
 import { useCursorPagination } from "@/hooks/useCursorPagination";
+import { useCatalogueSync } from "@/hooks/useCatalogueSync";
 import { useScanContinuation } from "@/hooks/useScanContinuation";
 import { BatchManager } from "./BatchManager";
 import { useMutation, useQuery } from "convex/react";
@@ -46,7 +49,7 @@ export function ProductBatches({
   warehouseId: string;
   product: Product;
 }) {
-  const { tr, locale } = useFGText();
+  const { t, tr, locale } = useFGText();
   const canManage = useCanManage();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -118,30 +121,18 @@ export function ProductBatches({
       ? { warehouseId, productId: product._id, palletId: returnUnit }
       : "skip",
   );
-  useEffect(() => {
-    for (const [result, continuation, controller] of [
-      [outcome, scan, paging],
-      [legacyOutcome, legacyScan, legacyPaging],
-    ] as const) {
-      if (!result?.ok) continue;
-      if (result.value.status === "scanning")
-        continuation.advance(result.value.scanCursor);
-      if (
-        result.value.status === "reset" &&
-        (controller.cursor || continuation.cursor)
-      ) {
-        continuation.advance();
-        controller.reset();
-      }
-      if (
-        result.value.status === "ready" &&
-        result.value.isDone &&
-        !result.value.page.length &&
-        controller.canPrevious
-      )
-        controller.previous();
-    }
-  }, [outcome, legacyOutcome, scan, legacyScan, paging, legacyPaging]);
+  useCatalogueSync({
+    outcome,
+    continuation: scan,
+    paging,
+    resetKey: `${scope}:batches`,
+  });
+  useCatalogueSync({
+    outcome: legacyOutcome,
+    continuation: legacyScan,
+    paging: legacyPaging,
+    resetKey: `${scope}:legacy`,
+  });
   const cancelUnit = useMutation(fgRefs.cancelLegacyUnit);
   const op = useOperation(`legacy-unit:${warehouseId}:${product._id}`);
   const [reviewId, setReviewId] = useState<string>();
@@ -208,12 +199,7 @@ export function ProductBatches({
     // A reactive query update may otherwise reopen the editor during this gap.
     const url = new URL(window.location.href);
     if (url.searchParams.has("editUnit")) {
-      url.searchParams.delete("editUnit");
-      window.history.replaceState(
-        window.history.state,
-        "",
-        `${url.pathname}${url.search}${url.hash}`,
-      );
+      updateBrowserQuery((query) => query.delete("editUnit"));
     }
   }
   if (!outcome || !legacyOutcome || !summaryOutcome)
@@ -222,13 +208,31 @@ export function ProductBatches({
         <Loading />
       </div>
     );
+  const denied = !outcome.ok && outcome.denial?.kind === "AUTHORIZATION_DENIED";
+  const legacyDenied =
+    !legacyOutcome.ok && legacyOutcome.denial?.kind === "AUTHORIZATION_DENIED";
+  const summaryDenied =
+    !summaryOutcome.ok && summaryOutcome.denial?.kind === "AUTHORIZATION_DENIED";
+  if (denied || legacyDenied || summaryDenied)
+    return denied ? (
+      <LedgerPanelStatus
+        state={{ kind: "DENIED", requestId: outcome.requestId }}
+      />
+    ) : legacyDenied ? (
+      <LedgerPanelStatus
+        state={{ kind: "DENIED", requestId: legacyOutcome.requestId }}
+      />
+    ) : (
+      <LedgerPanelStatus
+        state={{ kind: "DENIED", requestId: summaryOutcome.requestId }}
+      />
+    );
   if (!outcome.ok || !legacyOutcome.ok || !summaryOutcome.ok)
     return (
       <div className="mt-6">
         <ErrorNotice
-          message={tr(
-            "Preparation batches could not be loaded. Refresh to try again.",
-            "โหลดชุดจัดเตรียมไม่สำเร็จ กรุณารีเฟรชเพื่อลองอีกครั้ง",
+          message={t(
+            "copy.preparation-batches-could-not-be-loaded-refresh-to-try-again",
           )}
         />
       </div>
@@ -261,7 +265,7 @@ export function ProductBatches({
           {unit.quantity} {product.unit} ·{" "}
           {unit.lengthMm && unit.widthMm && unit.heightMm
             ? `${unit.lengthMm / 1000} × ${unit.widthMm / 1000} × ${unit.heightMm / 1000} m`
-            : tr("Measurements not recorded", "ยังไม่ได้บันทึกขนาด")}
+            : t("copy.measurements-not-recorded")}
         </span>
       </Link>
       <div className="flex flex-wrap items-center gap-2">
@@ -270,8 +274,8 @@ export function ProductBatches({
           <Button
             variant="ghost"
             size="icon"
-            title={tr("Edit packing and dimensions", "แก้การบรรจุและขนาด")}
-            aria-label={`${tr("Edit packing and dimensions", "แก้การบรรจุและขนาด")} ${unit.code}`}
+            title={t("copy.edit-packing-and-dimensions")}
+            aria-label={`${t("copy.edit-packing-and-dimensions")} ${unit.code}`}
             onClick={() =>
               openManager({
                 id: unit.preparationBatchId!,
@@ -287,8 +291,8 @@ export function ProductBatches({
           <Button
             variant="ghost"
             size="icon"
-            title={tr("View storage", "ดูการจัดเก็บ")}
-            aria-label={`${tr("View storage", "ดูการจัดเก็บ")} ${unit.code}`}
+            title={t("copy.view-storage")}
+            aria-label={`${t("copy.view-storage")} ${unit.code}`}
             onClick={() =>
               openManager({
                 id: unit.preparationBatchId!,
@@ -316,7 +320,7 @@ export function ProductBatches({
                 op.setError("");
               }}
             >
-              {tr("Review cancellation", "ตรวจสอบการยกเลิก")}
+              {t("copy.review-cancellation")}
             </Button>
           )}
       </div>
@@ -324,8 +328,8 @@ export function ProductBatches({
   );
   return (
     <section
-      className="mt-6 space-y-4"
-      aria-label={tr("Preparation batches", "ชุดจัดเตรียมสินค้า")}
+      className="mt-8 max-w-7xl space-y-6"
+      aria-label={t("copy.preparation-batches")}
     >
       {searchParams?.get("returnToUnit") &&
         !manage &&
@@ -337,36 +341,33 @@ export function ProductBatches({
             role="status"
             className="rounded-lg border border-border p-3 text-sm text-muted"
           >
-            {tr(
-              "This unit was replaced. Choose an active replacement below to plan its storage. Previous reservations and coordinates are not transferred.",
-              "หน่วยเดิมถูกแทนที่แล้ว เลือกหน่วยใหม่ด้านล่างเพื่อจัดเก็บ ระบบไม่โอนการจองและพิกัดเดิมไปยังหน่วยใหม่",
+            {t(
+              "copy.this-unit-was-replaced-choose-an-active-replacement-below-to-plan-its-st",
             )}
           </p>
         )}
       {correctionError && (
         <div ref={correctionNotice} tabIndex={-1} className="outline-none">
           <ErrorNotice
-            message={tr(
-              "This unit is no longer available for editing. Choose an available unit below.",
-              "หน่วยนี้ไม่พร้อมให้แก้ไขแล้ว กรุณาเลือกหน่วยที่ยังแก้ไขได้ด้านล่าง",
+            message={t(
+              "copy.this-unit-is-no-longer-available-for-editing-choose-an-available-unit-be",
             )}
           />
         </div>
       )}
       <div>
-        <h2 className="text-xl font-semibold">
-          {tr("Preparation batches", "ชุดจัดเตรียมสินค้า")}
+        <h2 className="text-lg leading-7 font-semibold">
+          {t("copy.preparation-batches")}
         </h2>
         <p className="mt-2 text-sm text-muted">
-          {tr("Total in storage units", "สินค้าที่บันทึกในหน่วยจัดเก็บ")}:{" "}
-          {summary.quantity} {product.unit} · {summaryFormatText(summary, tr)}
+          {t("copy.total-in-storage-units")}: {summary.quantity} {product.unit}{" "}
+          · {summaryFormatText(summary, tr)}
         </p>
       </div>
       {outcome.value.status === "reset" ? (
         <ErrorNotice
-          message={tr(
-            "This page is no longer available. Return to the first page.",
-            "หน้านี้ไม่พร้อมใช้งาน กรุณากลับไปหน้าแรก",
+          message={t(
+            "copy.this-page-is-no-longer-available-return-to-the-first-page",
           )}
         />
       ) : outcome.value.status !== "ready" ? (
@@ -374,9 +375,8 @@ export function ProductBatches({
       ) : (
         !batches.length && (
           <p className={`${panel} text-sm text-muted`}>
-            {tr(
-              "No preparation batches yet. Prepare more goods to start a new batch. Draft batches do not count as created units.",
-              "ยังไม่มีชุดจัดเตรียม เลือกจัดเตรียมสินค้าเพิ่มเพื่อเริ่มชุดใหม่ ฉบับร่างไม่นับเป็นหน่วยที่สร้างแล้ว",
+            {t(
+              "copy.no-preparation-batches-yet-prepare-more-goods-to-start-a-new-batch-draft",
             )}
           </p>
         )
@@ -386,25 +386,22 @@ export function ProductBatches({
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h3 className="font-semibold">
-                {tr("Batch", "ชุดจัดเตรียม")} · {batch._id.slice(-8)}
+                {t("copy.batch")} · {batch._id.slice(-8)}
               </h3>
               <p className="mt-1 text-sm text-muted">
                 {batch.totalQuantity ?? "—"} {product.unit} ·{" "}
                 {batch.status === "DRAFT"
-                  ? tr(
-                      "Draft — no units created",
-                      "ฉบับร่าง — ยังไม่สร้างหน่วยจัดเก็บ",
-                    )
+                  ? t("copy.draft-no-units-created")
                   : unitCountLabel(batch.storageFormat, unitCount, tr)}
-                {batch.lot ? ` · ${tr("Lot", "ล็อต")} ${batch.lot}` : ""}
+                {batch.lot ? ` · ${t("copy.lot")} ${batch.lot}` : ""}
               </p>
             </div>
             <div className="flex gap-1">
               <Button
                 variant="ghost"
                 size="icon"
-                title={tr("View storage", "ดูการจัดเก็บ")}
-                aria-label={`${tr("View storage", "ดูการจัดเก็บ")} ${batch._id.slice(-8)}`}
+                title={t("copy.view-storage")}
+                aria-label={`${t("copy.view-storage")} ${batch._id.slice(-8)}`}
                 onClick={() => openManager({ id: batch._id, mode: "view" })}
               >
                 <MapPin className="size-4" />
@@ -413,8 +410,8 @@ export function ProductBatches({
                 <Button
                   variant="ghost"
                   size="icon"
-                  title={tr("Edit available units", "แก้หน่วยที่ยังไม่จัดเก็บ")}
-                  aria-label={`${tr("Edit available units", "แก้หน่วยที่ยังไม่จัดเก็บ")} ${batch._id.slice(-8)}`}
+                  title={t("copy.edit-available-units")}
+                  aria-label={`${t("copy.edit-available-units")} ${batch._id.slice(-8)}`}
                   onClick={() => openManager({ id: batch._id, mode: "edit" })}
                 >
                   <Pencil className="size-4" />
@@ -424,8 +421,8 @@ export function ProductBatches({
                 <Button asChild variant="outline">
                   <Link href={`/finished-goods/batches/${batch._id}`}>
                     {batch.status === "DRAFT"
-                      ? tr("Resume draft", "ทำฉบับร่างต่อ")
-                      : tr("Edit packing", "แก้การแบ่งบรรจุ")}
+                      ? t("copy.resume-draft")
+                      : t("copy.edit-packing")}
                   </Link>
                 </Button>
               )}
@@ -455,9 +452,8 @@ export function ProductBatches({
       />
       {legacyOutcome.value.status === "reset" ? (
         <ErrorNotice
-          message={tr(
-            "This page is no longer available. Return to the first page.",
-            "หน้านี้ไม่พร้อมใช้งาน กรุณากลับไปหน้าแรก",
+          message={t(
+            "copy.this-page-is-no-longer-available-return-to-the-first-page",
           )}
         />
       ) : (
@@ -467,15 +463,11 @@ export function ProductBatches({
         <article className={`${panel} space-y-4`}>
           <div>
             <h3 className="font-semibold">
-              {tr(
-                "Legacy units — no recorded batch",
-                "รายการเดิม — ไม่มีข้อมูลชุด",
-              )}
+              {t("copy.legacy-units-no-recorded-batch")}
             </h3>
             <p className="mt-2 text-sm text-muted">
-              {tr(
-                "These records are shown individually. Matching SKUs do not establish that units were prepared together. Review an unused duplicate before cancelling it.",
-                "แสดงรายการเดิมแยกกัน รหัสสินค้าเดียวกันไม่ได้แปลว่าจัดเตรียมพร้อมกัน ตรวจสอบรายการซ้ำที่ยังไม่ได้ใช้งานก่อนยกเลิก",
+              {t(
+                "copy.these-records-are-shown-individually-matching-skus-do-not-establish-that",
               )}
             </p>
           </div>
@@ -523,18 +515,14 @@ export function ProductBatches({
           if (!open && !op.busy) setReviewId(undefined);
         }}
       >
-        <DialogContent closeLabel={tr("Close", "ปิด")}>
+        <DialogContent closeLabel={t("copy.close")}>
           <DialogHeader>
             <DialogTitle>
-              {tr(
-                "Review cancellation of legacy unit",
-                "ตรวจสอบการยกเลิกรายการเดิม",
-              )}
+              {t("copy.review-cancellation-of-legacy-unit")}
             </DialogTitle>
             <DialogDescription>
-              {tr(
-                "Cancel only an incorrect or duplicate record. The history is retained. This does not repack or reduce the contents of other units.",
-                "ยกเลิกเฉพาะรายการผิดหรือซ้ำ โดยยังเก็บประวัติไว้ การยกเลิกนี้ไม่แบ่งบรรจุใหม่หรือเปลี่ยนจำนวนของหน่วยอื่น",
+              {t(
+                "copy.cancel-only-an-incorrect-or-duplicate-record-the-history-is-retained-thi",
               )}
             </DialogDescription>
           </DialogHeader>
@@ -543,14 +531,14 @@ export function ProductBatches({
               <p className="font-mono">{reviewUnit.code}</p>
               <dl className="grid grid-cols-2 gap-3 text-sm">
                 <div>
-                  <dt>{tr("Before", "ก่อนยกเลิก")}</dt>
+                  <dt>{t("copy.before-8f819c")}</dt>
                   <dd>
                     {summary.quantity} {product.unit} · {summary.count}{" "}
-                    {tr("storage units", "หน่วยจัดเก็บ")}
+                    {t("copy.storage-units")}
                   </dd>
                 </div>
                 <div>
-                  <dt>{tr("After", "หลังยกเลิก")}</dt>
+                  <dt>{t("copy.after-41c591")}</dt>
                   <dd>
                     {Math.round(
                       (summary.quantity - reviewUnit.quantity) * 1000,
@@ -561,7 +549,7 @@ export function ProductBatches({
                 </div>
               </dl>
               <Field
-                label={tr("Cancellation reason", "เหตุผลการยกเลิก")}
+                label={t("copy.cancellation-reason")}
                 value={reason}
                 onChange={setReason}
                 required
@@ -574,9 +562,10 @@ export function ProductBatches({
                   disabled={op.busy}
                   onClick={() => setReviewId(undefined)}
                 >
-                  {tr("Keep record", "เก็บรายการไว้")}
+                  {t("copy.keep-record")}
                 </Button>
                 <Button
+                  variant="destructive"
                   disabled={op.busy || !reason.trim()}
                   onClick={() =>
                     void op.run(async () => {
@@ -597,7 +586,7 @@ export function ProductBatches({
                     })
                   }
                 >
-                  {tr("Confirm cancellation", "ยืนยันยกเลิกรายการ")}
+                  {t("copy.confirm-cancellation")}
                 </Button>
               </DialogFooter>
             </>
@@ -617,7 +606,7 @@ function BatchHistory({
   batchId: string;
   unit: string;
 }) {
-  const { tr } = useFGText();
+  const { t, tr } = useFGText();
   const [open, setOpen] = useState(false);
   const detail = useQuery(
     fgRefs.getBatch,
@@ -629,17 +618,14 @@ function BatchHistory({
       onToggle={(event) => setOpen(event.currentTarget.open)}
     >
       <summary className="cursor-pointer text-muted">
-        {tr("Packing history", "ประวัติการแบ่งบรรจุ")}
+        {t("copy.packing-history")}
       </summary>
       {open &&
         (!detail ? (
           <Loading />
         ) : !detail.ok || !detail.value ? (
           <ErrorNotice
-            message={tr(
-              "Packing history could not be loaded.",
-              "โหลดประวัติการแบ่งบรรจุไม่สำเร็จ",
-            )}
+            message={t("copy.packing-history-could-not-be-loaded")}
           />
         ) : detail.value.history.length ? (
           <ul className="mt-3 space-y-2">
@@ -648,10 +634,10 @@ function BatchHistory({
                 key={revision._id}
                 className="rounded-lg border border-border p-3"
               >
-                {tr("Revision", "ครั้งที่")} {revision.revision} ·{" "}
+                {t("copy.revision")} {revision.revision} ·{" "}
                 {revision.totalQuantity ?? "—"} {unit} ·{" "}
                 {revision.status === "DRAFT"
-                  ? tr("Draft", "ฉบับร่าง")
+                  ? t("copy.draft")
                   : unitCountLabel(
                       revision.storageFormat,
                       revision.palletIds.length,
@@ -667,10 +653,7 @@ function BatchHistory({
           </ul>
         ) : (
           <p className="mt-3 text-muted">
-            {tr(
-              "No packing revisions yet.",
-              "ยังไม่มีประวัติแก้ไขการแบ่งบรรจุ",
-            )}
+            {t("copy.no-packing-revisions-yet")}
           </p>
         ))}
     </details>

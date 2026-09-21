@@ -1,4 +1,5 @@
 "use client";
+import { resolveWriteError } from "@/lib/resolveWriteError";
 import {
   useCallback,
   useEffect,
@@ -6,6 +7,7 @@ import {
   useState,
   type MouseEvent,
 } from "react";
+import { useTranslations } from "next-intl";
 import { useQuery, useMutation } from "convex/react";
 import {
   MapPin,
@@ -23,6 +25,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { StatusReason } from "@/components/ui/StatusReason";
 import { Link, useRouter } from "@/i18n/navigation";
 import {
   batchManagementRefs,
@@ -56,7 +59,6 @@ import {
   newPackingRow as newRow,
   rowFromPackage,
   packedUnit,
-  packingIssueText,
   updatePackingRow,
   type PackingRow,
 } from "./packingRows";
@@ -77,7 +79,7 @@ export function BatchManager({
   unitId?: string | undefined;
   onClose: () => void;
 }) {
-  const { tr } = useFGText();
+  const { t } = useFGText();
   const canManage = useCanManage();
   const router = useRouter();
   const [mode, setMode] = useState(initialMode);
@@ -129,7 +131,7 @@ export function BatchManager({
     >
       <DialogContent
         className="max-h-[92dvh] overflow-y-auto bg-surface sm:max-w-5xl"
-        closeLabel={tr("Close", "ปิด")}
+        closeLabel={t("copy.close")}
         showCloseButton={!editorState.busy}
         onEscapeKeyDown={(event) => {
           if (editorState.busy) event.preventDefault();
@@ -139,19 +141,17 @@ export function BatchManager({
         }}
       >
         <DialogHeader>
-          <DialogTitle>
-            {tr("Batch details", "รายละเอียดชุดจัดเตรียม")}
-          </DialogTitle>
+          <DialogTitle>{t("copy.batch-details")}</DialogTitle>
           <DialogDescription>
             {result?.ok && result.value
               ? `${result.value.batch.lot || batchId.slice(-8)} · ${result.value.batch.totalQuantity ?? "—"} ${result.value.product.unit}`
-              : tr("Storage and packing", "การจัดเก็บและการบรรจุ")}
+              : t("copy.storage-and-packing")}
           </DialogDescription>
         </DialogHeader>
         <div
           className="flex flex-wrap gap-2 border-b border-border pb-3"
           role="group"
-          aria-label={tr("Batch view", "มุมมองชุดจัดเตรียม")}
+          aria-label={t("copy.batch-view")}
         >
           <Button
             variant={mode === "view" ? "secondary" : "ghost"}
@@ -160,7 +160,7 @@ export function BatchManager({
             aria-pressed={mode === "view"}
           >
             <MapPin className="size-4" />
-            <span className="text-sm">{tr("Storage", "การจัดเก็บ")}</span>
+            <span className="text-sm">{t("copy.storage")}</span>
           </Button>
           {canManage && (
             <Button
@@ -175,8 +175,8 @@ export function BatchManager({
               <Pencil className="size-4" />
               <span className="text-sm">
                 {unitId !== undefined
-                  ? `${tr("Edit unit", "แก้ไขหน่วย")} · ${result?.ok ? (result.value?.units.find((unit) => unit._id === unitId)?.code ?? "—") : "—"}`
-                  : tr("Edit available units", "แก้หน่วยที่ยังไม่จัดเก็บ")}
+                  ? `${t("copy.edit-unit")} · ${result?.ok ? (result.value?.units.find((unit) => unit._id === unitId)?.code ?? "—") : "—"}`
+                  : t("copy.edit-available-units")}
               </span>
             </Button>
           )}
@@ -185,10 +185,7 @@ export function BatchManager({
           <Loading />
         ) : !result.ok || !result.value ? (
           <ErrorNotice
-            message={tr(
-              "Unable to load this batch. Close and try again.",
-              "โหลดชุดนี้ไม่สำเร็จ กรุณาปิดแล้วลองใหม่",
-            )}
+            message={t("copy.unable-to-load-this-batch-close-and-try-again")}
           />
         ) : (
           <>
@@ -217,19 +214,16 @@ export function BatchManager({
         <Dialog open={discardOpen} onOpenChange={setDiscardOpen}>
           <DialogContent showCloseButton={false} className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle>
-                {tr("Discard packing changes?", "ทิ้งการแก้ไขการบรรจุหรือไม่?")}
-              </DialogTitle>
+              <DialogTitle>{t("copy.discard-packing-changes")}</DialogTitle>
               <DialogDescription>
-                {tr(
-                  "Your corrections have not been saved. Keep editing to finish them, or discard them to leave this batch.",
-                  "การแก้ไขยังไม่ได้บันทึก แก้ไขต่อเพื่อทำให้เสร็จ หรือทิ้งการแก้ไขเพื่อออกจากชุดนี้",
+                {t(
+                  "copy.your-corrections-have-not-been-saved-keep-editing-to-finish-them-or-disc",
                 )}
               </DialogDescription>
             </DialogHeader>
             <div className="flex flex-wrap justify-end gap-2">
               <Button variant="outline" onClick={() => setDiscardOpen(false)}>
-                {tr("Keep editing", "แก้ไขต่อ")}
+                {t("copy.keep-editing")}
               </Button>
               <Button
                 variant="destructive"
@@ -238,7 +232,7 @@ export function BatchManager({
                   if (pendingHref) router.push(pendingHref);
                 }}
               >
-                {tr("Discard changes", "ทิ้งการแก้ไข")}
+                {t("copy.discard-changes")}
               </Button>
             </div>
           </DialogContent>
@@ -258,7 +252,7 @@ function StorageView({
   initialUnitId?: string | undefined;
   onNavigate: (event: MouseEvent<HTMLAnchorElement>, href: string) => void;
 }) {
-  const { tr, locale } = useFGText();
+  const { t, locale } = useFGText();
   const canManage = useCanManage();
   const [selected, setSelected] = useState(
     initialUnitId ?? data.units[0]?._id ?? "",
@@ -272,23 +266,20 @@ function StorageView({
   if (!unit)
     return (
       <p className="py-8 text-center text-muted">
-        {tr(
-          "This batch has no active units yet.",
-          "ชุดนี้ยังไม่มีหน่วยจัดเก็บที่ใช้งานอยู่",
-        )}
+        {t("copy.this-batch-has-no-active-units-yet")}
       </p>
     );
   const d = detail?.destination,
     p = detail?.placement;
   const action = unit.moveStatus
-    ? tr("Continue move", "ดำเนินการย้ายต่อ")
+    ? t("copy.continue-move")
     : unit.status === "STORED"
-      ? tr("Move unit", "ย้ายตำแหน่ง")
+      ? t("copy.move-unit")
       : unit.status === "RESERVED"
-        ? tr("Continue storage", "ดำเนินการจัดเก็บต่อ")
+        ? t("copy.continue-storage")
         : unit.status === "AWAITING_MEASUREMENT"
-          ? tr("Measure unit", "วัดขนาดหน่วย")
-          : tr("Find storage", "เลือกจุดจัดเก็บ");
+          ? t("copy.measure-unit")
+          : t("copy.find-storage");
   const locationOnly = p?.mode === "LOCATION_ONLY";
   const scanReady =
     !unit.moveStatus &&
@@ -303,31 +294,59 @@ function StorageView({
         : unit.status === "RESERVED" || unit.status === "AWAITING_MEASUREMENT"
           ? palletPath(unit._id)
           : storagePath(unit._id);
+  const lockMessages: Record<string, string> = {
+    STORED: t(
+      "copy.this-unit-is-already-stored-repacking-requires-a-physical-repacking-work",
+    ),
+    RESERVED: t(
+      "copy.packing-is-locked-while-this-unit-has-a-storage-reservation-use-storage-",
+    ),
+    MOVING: t(
+      "copy.packing-is-locked-while-this-unit-has-an-active-move-use-storage-to-cont",
+    ),
+    SUPPORTING: t(
+      "copy.this-unit-supports-a-stack-review-the-upper-units-in-storage-stored-stoc",
+    ),
+  };
   return (
     <div className="grid min-w-0 gap-5 lg:grid-cols-[240px_1fr]">
       <div className="min-w-0">
         <p className="mb-2 text-xs text-muted">
-          {tr("Units", "หน่วยจัดเก็บ")} · {data.units.length}
+          {t("copy.units")} · {data.units.length}
         </p>
         <div className="max-h-64 overflow-y-auto lg:max-h-[500px]">
           {data.units.map((u) => (
-            <button
-              key={u._id}
-              type="button"
-              aria-pressed={unit._id === u._id}
-              onClick={() => setSelected(u._id)}
-              className={`flex w-full flex-col gap-1 rounded-lg p-3 text-left text-sm ${unit._id === u._id ? "bg-primary/10 ring-1 ring-primary/40 ring-inset" : "hover:bg-raised"}`}
-            >
-              <span className="font-medium">
-                {u.code}{" "}
-                <span className="float-right text-muted">
-                  {u.quantity} {data.product.unit}
+            <div key={u._id} className="flex items-start gap-1">
+              <Button
+                variant="ghost"
+                type="button"
+                aria-pressed={unit._id === u._id}
+                onClick={() => setSelected(u._id)}
+                className={`flex min-w-0 flex-1 flex-col gap-1 rounded-lg p-3 text-left text-sm ${unit._id === u._id ? "bg-selected text-selected-foreground ring-1 ring-link ring-inset" : "hover:bg-raised"}`}
+              >
+                <span className="font-medium break-words">
+                  {u.code}{" "}
+                  <span className="text-muted">
+                    {u.quantity} {data.product.unit}
+                  </span>
                 </span>
-              </span>
-              <span className="self-start">
-                <Status value={palletDisplayStatus(u)} />
-              </span>
-            </button>
+                <span className="min-w-0 self-start [&>span]:whitespace-normal">
+                  <Status value={palletDisplayStatus(u)} />
+                </span>
+              </Button>
+              {canManage && !u.editable ? (
+                <StatusReason
+                  tone="locked"
+                  label={`${t("copy.why-packing-is-locked")} · ${u.code}`}
+                  message={
+                    lockMessages[u.lockReason ?? ""] ??
+                    t(
+                      "copy.this-unit-is-unavailable-for-repacking-review-its-current-storage-operat",
+                    )
+                  }
+                />
+              ) : null}
+            </div>
           ))}
         </div>
       </div>
@@ -336,9 +355,8 @@ function StorageView({
           <Loading />
         ) : !detail ? (
           <ErrorNotice
-            message={tr(
-              "Unable to load the unit. Select another unit or retry.",
-              "โหลดหน่วยนี้ไม่สำเร็จ กรุณาเลือกหน่วยอื่นหรือลองใหม่",
+            message={t(
+              "copy.unable-to-load-the-unit-select-another-unit-or-retry",
             )}
           />
         ) : (
@@ -346,15 +364,14 @@ function StorageView({
             {p?.mode === "LOCATION_ONLY" ? (
               <div className="space-y-2 rounded-xl border border-border p-5">
                 <p className="font-semibold">
-                  {tr("Location", "จุดจัดเก็บ")}: {p.positionCode}
+                  {t("copy.location")}: {p.positionCode}
                 </p>
                 <p>
-                  {tr("Top-to-bottom position", "ลำดับจากบนลงล่าง")}:{" "}
-                  {p.sequence}
+                  {t("copy.top-to-bottom-position")}: {p.sequence}
                 </p>
                 <Button asChild variant="outline">
                   <Link href={palletPath(unit._id)}>
-                    {tr("View scanned group", "ดูกลุ่มที่สแกน")}
+                    {t("copy.view-scanned-group")}
                   </Link>
                 </Button>
               </div>
@@ -389,7 +406,7 @@ function StorageView({
                   }))}
                 />
                 <p className="text-sm">
-                  {d.buildingCode} / {tr("Floor", "ชั้น")} {d.floorNumber} /{" "}
+                  {d.buildingCode} / {t("copy.floor")} {d.floorNumber} /{" "}
                   {d.locationName}
                   {d.supportCode ? ` / ${d.supportCode}` : ""}
                 </p>
@@ -399,9 +416,8 @@ function StorageView({
                 </p>
                 {unit.moveStatus && (
                   <p className="text-sm text-muted">
-                    {tr(
-                      "Last confirmed position. Open the move to see its reserved destination.",
-                      "ตำแหน่งที่ยืนยันล่าสุด เปิดงานย้ายเพื่อดูปลายทางที่จองไว้",
+                    {t(
+                      "copy.last-confirmed-position-open-the-move-to-see-its-reserved-destination",
                     )}
                   </p>
                 )}
@@ -409,27 +425,19 @@ function StorageView({
             ) : (
               <div className="rounded-xl border border-dashed border-border p-8 text-center">
                 <MapPin className="mx-auto mb-3 size-6 text-muted" />
-                <p>
-                  {tr(
-                    "No storage position yet",
-                    "ยังไม่ได้กำหนดตำแหน่งจัดเก็บ",
-                  )}
-                </p>
+                <p>{t("copy.no-storage-position-yet")}</p>
                 <p className="mt-2 text-sm text-muted">
                   {unit.quantity} {data.product.unit} ·{" "}
                   {unit.lengthMm
                     ? `${unit.lengthMm / 1000} × ${(unit.widthMm ?? 0) / 1000} × ${(unit.heightMm ?? 0) / 1000} m`
-                    : tr("Awaiting measurement", "รอวัดขนาด")}
+                    : t("copy.awaiting-measurement")}
                 </p>
               </div>
             )}
             {!!detail.stackChildren?.length && (
               <p className="flex gap-2 text-sm text-muted">
                 <LockKeyhole className="size-4 shrink-0" />
-                {tr(
-                  "Move the upper unit before moving this support.",
-                  "ย้ายหน่วยด้านบนก่อนย้ายพาเลทรองรับนี้",
-                )}
+                {t("copy.move-the-upper-unit-before-moving-this-support")}
               </p>
             )}
             <div className="flex flex-wrap justify-end gap-2">
@@ -438,7 +446,7 @@ function StorageView({
                   href={palletPath(unit._id)}
                   onClick={(event) => onNavigate(event, palletPath(unit._id))}
                 >
-                  {tr("Unit details", "รายละเอียดหน่วย")}
+                  {t("copy.unit-details")}
                   <ArrowUpRight className="size-4" />
                 </Link>
               </Button>
@@ -449,9 +457,9 @@ function StorageView({
                     onClick={(event) => onNavigate(event, actionHref)}
                   >
                     {locationOnly
-                      ? tr("View scanned group", "ดูกลุ่มที่สแกน")
+                      ? t("copy.view-scanned-group")
                       : scanReady
-                        ? tr("Scan Packages", "สแกนบรรจุภัณฑ์")
+                        ? t("copy.scan-packages")
                         : action}
                   </Link>
                 </Button>
@@ -476,7 +484,7 @@ function AvailableEditor({
   initialUnitId?: string | undefined;
   onStateChange: (state: EditorState) => void;
 }) {
-  const { tr } = useFGText();
+  const { t } = useFGText();
   const canManage = useCanManage();
   const initial = data.units.filter(
     (u) =>
@@ -510,6 +518,7 @@ function AvailableEditor({
   const [done, setDone] = useState(false);
   const scope = useDraftKey("batch-available");
   const op = useOperation(`${scope}:${warehouseId}:${data.batch._id}`);
+  const writeError = useTranslations("WriteError");
   const save = useMutation(batchManagementRefs.repackAvailable);
   const dirty =
     !done && (JSON.stringify(rows) !== originalRows || capacity !== "");
@@ -543,12 +552,11 @@ function AvailableEditor({
     return (
       <div className="py-10 text-center">
         <p className="font-semibold text-success">
-          {tr("Packing updated", "แก้การบรรจุแล้ว")}
+          {t("copy.packing-updated")}
         </p>
         <p className="mt-2 text-sm text-muted">
-          {tr(
-            "Stored units and the batch total are unchanged. Open Storage to view the new units.",
-            "หน่วยที่จัดเก็บและยอดรวมยังคงเดิม เปิดการจัดเก็บเพื่อดูหน่วยใหม่",
+          {t(
+            "copy.stored-units-and-the-batch-total-are-unchanged-open-storage-to-view-the-",
           )}
         </p>
       </div>
@@ -557,13 +565,11 @@ function AvailableEditor({
     return (
       <div className="py-8 text-center text-muted">
         {initialUnitId !== undefined
-          ? tr(
-              "This unit is no longer available for correction. No other units have been selected. Close and reopen its details to check its current state.",
-              "หน่วยนี้ไม่พร้อมให้แก้ไขแล้ว ระบบไม่ได้เลือกหน่วยอื่นแทน กรุณาปิดแล้วเปิดรายละเอียดอีกครั้งเพื่อตรวจสอบสถานะปัจจุบัน",
+          ? t(
+              "copy.this-unit-is-no-longer-available-for-correction-no-other-units-have-been",
             )
-          : tr(
-              "All units are stored, reserved, moving or supporting a stack. Use Storage to continue the relevant operation.",
-              "ทุกหน่วยจัดเก็บแล้ว ถูกจอง กำลังย้าย หรือรองรับกองซ้อน เปิดการจัดเก็บเพื่อดำเนินงานของหน่วยนั้น",
+          : t(
+              "copy.all-units-are-stored-reserved-moving-or-supporting-a-stack-use-storage-t",
             )}
       </div>
     );
@@ -595,40 +601,37 @@ function AvailableEditor({
     <div className="space-y-4">
       {base.unitCode && (
         <h3 className="text-sm font-semibold">
-          {tr("Correcting unit", "แก้ไขหน่วย")} · {base.unitCode}
+          {t("copy.correcting-unit")} · {base.unitCode}
         </h3>
       )}
       <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
         <span>
-          {tr("Batch total", "ทั้งชุด")}{" "}
+          {t("copy.batch-total")}{" "}
           <b>
             {data.batch.totalQuantity} {data.product.unit}
           </b>
         </span>
         <span>
-          {tr("Kept unchanged", "คงเดิม")}{" "}
+          {t("copy.kept-unchanged")}{" "}
           <b>{(data.batch.totalQuantity ?? 0) - base.total}</b>
         </span>
-        <span className="text-primary">
-          {tr("Editing", "แก้ไข")} <b>{base.total}</b>
+        <span className="text-link">
+          {t("copy.editing")} <b>{base.total}</b>
         </span>
       </div>
       <p className="text-xs text-muted">
         {initialUnitId !== undefined
-          ? tr(
-              "Only this unit will be replaced. All other units, their codes, measurements and stored positions stay unchanged.",
-              "แทนที่เฉพาะหน่วยนี้ หน่วยอื่นทั้งหมด รหัส ขนาด และตำแหน่งจัดเก็บยังคงเดิม",
+          ? t(
+              "copy.only-this-unit-will-be-replaced-all-other-units-their-codes-measurements",
             )
-          : tr(
-              "Only the available units below will be replaced. The batch total and all other physical units stay unchanged.",
-              "แทนที่เฉพาะหน่วยที่ยังไม่จัดเก็บด้านล่าง ยอดรวมและหน่วยอื่นที่มีอยู่คงเดิม",
+          : t(
+              "copy.only-the-available-units-below-will-be-replaced-the-batch-total-and-all-",
             )}
       </p>
       {stale && (
         <ErrorNotice
-          message={tr(
-            "This batch or its storage state changed. Close and reopen to load current units.",
-            "ชุดหรือสถานะจัดเก็บเปลี่ยนแล้ว กรุณาปิดแล้วเปิดใหม่เพื่อโหลดข้อมูลล่าสุด",
+          message={t(
+            "copy.this-batch-or-its-storage-state-changed-close-and-reopen-to-load-current",
           )}
         />
       )}
@@ -639,7 +642,7 @@ function AvailableEditor({
         <div className="flex items-end gap-2">
           <div className="max-w-48">
             <Field
-              label={tr("Quantity per unit", "จำนวนต่อหน่วย")}
+              label={t("copy.quantity-per-unit")}
               type="number"
               min={0.001}
               step="any"
@@ -659,7 +662,7 @@ function AvailableEditor({
               }
             }}
           >
-            {tr("Split", "แบ่งใหม่")}
+            {t("copy.split")}
           </Button>
         </div>
         <div className="max-h-[42dvh] space-y-3 overflow-y-auto pr-1">
@@ -668,21 +671,19 @@ function AvailableEditor({
               key={r.id}
               ref={r.id === initialUnitId ? selectedRow : undefined}
               tabIndex={r.id === initialUnitId ? -1 : undefined}
-              aria-label={
-                r.originalCode ?? `${tr("New unit", "หน่วยใหม่")} ${i + 1}`
-              }
-              className={`rounded-lg border p-3 outline-none ${r.id === initialUnitId ? "border-primary/60 bg-primary/5 ring-1 ring-primary/20" : "border-border"}`}
+              aria-label={r.originalCode ?? `${t("copy.new-unit")} ${i + 1}`}
+              className={`rounded-lg border p-3 outline-none ${r.id === initialUnitId ? "border-link bg-selected ring-1 ring-link" : "border-border"}`}
             >
               <div className="mb-2 flex items-center justify-between">
                 <span className="text-xs text-muted">
                   {r.originalCode
-                    ? `${r.originalCode} · ${tr("Replacement", "หน่วยทดแทน")}`
-                    : `${tr("New unit", "หน่วยใหม่")} ${i + 1}`}
+                    ? `${r.originalCode} · ${t("copy.replacement")}`
+                    : `${t("copy.new-unit")} ${i + 1}`}
                 </span>
                 <Button
                   size="icon"
                   variant="ghost"
-                  aria-label={`${tr("Remove unit", "ลบหน่วย")} ${i + 1}`}
+                  aria-label={`${t("copy.remove-unit")} ${i + 1}`}
                   onClick={() => {
                     setRows(rows.filter((x) => x.id !== r.id));
                     setReview(false);
@@ -693,7 +694,7 @@ function AvailableEditor({
               </div>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 <Field
-                  label={`${tr("Quantity", "จำนวน")} · ${i + 1}`}
+                  label={`${t("copy.quantity")} · ${i + 1}`}
                   type="number"
                   min={0.001}
                   step="0.001"
@@ -702,7 +703,7 @@ function AvailableEditor({
                 />
                 {data.batch.simplePacking ? (
                   <Field
-                    label={`${tr("Fullness (%)", "ความเต็ม (%)")} · ${i + 1}`}
+                    label={`${t("copy.fullness")} · ${i + 1}`}
                     type="number"
                     min={1}
                     max={100}
@@ -714,7 +715,7 @@ function AvailableEditor({
                   <PackingDimensionFields
                     row={r}
                     label={(field) =>
-                      `${field === "length" ? tr("Length (m)", "ยาว (ม.)") : field === "width" ? tr("Width (m)", "กว้าง (ม.)") : tr("Height (m)", "สูง (ม.)")} · ${i + 1}`
+                      `${field === "length" ? t("copy.length-m") : field === "width" ? t("copy.width-m") : t("copy.height-m")} · ${i + 1}`
                     }
                     onChange={(changes) => update(r.id, changes)}
                   />
@@ -729,11 +730,7 @@ function AvailableEditor({
                       update(r.id, { checked: e.target.checked })
                     }
                   />
-                  {tr(
-                    "Actual outside dimensions checked",
-                    "ตรวจสอบขนาดภายนอกจริงแล้ว",
-                  )}{" "}
-                  · {i + 1}
+                  {t("copy.actual-outside-dimensions-checked")} · {i + 1}
                 </label>
               )}
             </div>
@@ -748,14 +745,14 @@ function AvailableEditor({
           }}
         >
           <Plus className="size-4" />
-          {tr("Add unit", "เพิ่มหน่วย")}
+          {t("copy.add-unit")}
         </Button>
       </fieldset>
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
         <p
           className={`text-sm ${allocatedMinor === totalMinor ? "text-success" : "text-danger"}`}
         >
-          {tr("Allocated", "จัดสรรแล้ว")} {allocatedMinor / 1000} / {base.total}{" "}
+          {t("copy.allocated")} {allocatedMinor / 1000} / {base.total}{" "}
           {data.product.unit}
         </p>
         <Button
@@ -768,38 +765,37 @@ function AvailableEditor({
           }
           onClick={() => setReview(true)}
         >
-          {tr("Review changes", "ตรวจสอบการแก้ไข")}
+          {t("copy.review-changes")}
         </Button>
       </div>
       {invalid && (
-        <p className="text-xs text-muted">{packingIssueText(invalid, tr)}</p>
+        <p className="text-xs text-muted">
+          {resolveWriteError(invalid, writeError, "packing")}
+        </p>
       )}
       {review && (
         <div
           role="region"
-          aria-label={tr("Confirm repacking", "ยืนยันการแบ่งบรรจุ")}
-          className="space-y-3 rounded-xl border border-primary/30 bg-primary/5 p-4"
+          aria-label={t("copy.confirm-repacking")}
+          className="space-y-3 rounded-xl border border-border-strong bg-selected p-4"
         >
           <p>
-            {tr("Replace available units", "แทนที่หน่วยที่ยังไม่จัดเก็บ")}:{" "}
+            {t("copy.replace-available-units")}:{" "}
             <b>
               {base.ids.length} → {rows.length}
             </b>{" "}
             · {base.total} {data.product.unit}
           </p>
           <p className="text-sm text-muted">
-            {tr(
-              "Original unit codes remain in history; replacements receive new codes.",
-              "เก็บรหัสเดิมในประวัติ และสร้างรหัสใหม่ให้หน่วยทดแทน",
+            {t(
+              "copy.original-unit-codes-remain-in-history-replacements-receive-new-codes",
             )}
           </p>
           <Button
             disabled={!!invalid || stale || op.busy || !canManage}
             onClick={() => void commit()}
           >
-            {op.busy
-              ? tr("Saving…", "กำลังบันทึก…")
-              : tr("Confirm repacking", "ยืนยันการแบ่งบรรจุ")}
+            {op.busy ? t("copy.saving") : t("copy.confirm-repacking")}
           </Button>
         </div>
       )}

@@ -3,6 +3,9 @@ import { useEffect, useId, useRef, useState } from "react";
 import { useConvex, useMutation } from "convex/react";
 import { QueryGate } from "@/components/system/QueryGate";
 import { Button } from "@/components/ui/button";
+import { Panel } from "@/components/ui/Panel";
+import { StickyActionBar } from "@/components/ui/StickyActionBar";
+import { PageContainer } from "@/components/ui/PageContainer";
 import { Link, useRouter } from "@/i18n/navigation";
 import { fgRefs } from "@/lib/convex/finishedGoodsApi";
 import { PackageScanCamera } from "./PackageScanCamera";
@@ -20,7 +23,6 @@ import {
   Field,
   FG_PATH,
   Loading,
-  panel,
   palletPath,
   useCanManage,
   useDraftKey,
@@ -45,7 +47,7 @@ export function PackageScanningScreen() {
   );
 }
 function ScanWorkflow({ warehouseId }: { warehouseId: string }) {
-  const { tr } = useFGText();
+  const { t } = useFGText();
   const canManage = useCanManage();
   const locationHintId = useId();
   const router = useRouter();
@@ -83,50 +85,39 @@ function ScanWorkflow({ warehouseId }: { warehouseId: string }) {
   useUnsavedWarning(state.rows.length > 0 && state.mode !== "COMPLETED");
   const scanError = (code: string) =>
     ({
-      LOCATION_HAS_ACTIVE_RESERVATIONS: tr(
-        "This location has a reserved placement or move destination. Finish or cancel it before scanning packages here.",
-        "จุดนี้มีการจองจัดเก็บหรือปลายทางย้าย กรุณาดำเนินการให้เสร็จหรือยกเลิกก่อนสแกนพัสดุที่นี่",
+      LOCATION_HAS_ACTIVE_RESERVATIONS: t(
+        "copy.this-location-has-a-reserved-placement-or-move-destination-finish-or-can",
       ),
-      WRONG_ENTITY_TYPE: tr(
-        "This label belongs to a different kind of record. Scan a package in package mode or a location in location mode.",
-        "ป้ายนี้เป็นข้อมูลคนละประเภท กรุณาสแกนพัสดุหรือจุดจัดเก็บให้ตรงกับขั้นตอน",
+      WRONG_ENTITY_TYPE: t(
+        "copy.this-label-belongs-to-a-different-kind-of-record-scan-a-package-in-packa",
       ),
-      INVALID_IDENTITY: tr(
-        "This label is not a supported package or location identity.",
-        "ป้ายนี้ไม่ใช่รหัสพัสดุหรือจุดจัดเก็บที่รองรับ",
+      INVALID_IDENTITY: t(
+        "copy.this-label-is-not-a-supported-package-or-location-identity",
       ),
-      AMBIGUOUS_IDENTITY: tr(
-        "More than one record uses this code. Scan its unique QR label.",
-        "มีหลายรายการใช้รหัสนี้ กรุณาสแกนป้าย QR เฉพาะรายการ",
+      AMBIGUOUS_IDENTITY: t(
+        "copy.more-than-one-record-uses-this-code-scan-its-unique-qr-label",
       ),
-      LOCATION_CHANGED: tr(
-        "The location changed. Go back and scan its current label again.",
-        "จุดจัดเก็บเปลี่ยนแล้ว กรุณากลับไปสแกนป้ายปัจจุบันอีกครั้ง",
+      LOCATION_CHANGED: t(
+        "copy.the-location-changed-go-back-and-scan-its-current-label-again",
       ),
-      UNIT_CHANGED: tr(
-        "A package changed. Go back, remove it and scan it again.",
-        "พัสดุเปลี่ยนแล้ว กรุณากลับไปลบและสแกนใหม่",
+      UNIT_CHANGED: t(
+        "copy.a-package-changed-go-back-remove-it-and-scan-it-again",
       ),
-      STORAGE_CONDITION_MISMATCH: tr(
-        "This location does not meet the packages’ storage requirements. Choose another location.",
-        "จุดนี้ไม่ตรงกับเงื่อนไขจัดเก็บพัสดุ กรุณาเลือกจุดอื่น",
+      STORAGE_CONDITION_MISMATCH: t(
+        "copy.this-location-does-not-meet-the-packages-storage-requirements-choose-ano",
       ),
-      UNIT_UNAVAILABLE: tr(
-        "This package is already stored, reserved, moving or unavailable. Remove it and scan an eligible package.",
-        "พัสดุนี้ไม่พร้อมจัดเก็บ ลบแล้วสแกนพัสดุที่พร้อม",
+      UNIT_UNAVAILABLE: t(
+        "copy.this-package-is-already-stored-reserved-moving-or-unavailable-remove-it-",
       ),
-      NOT_FOUND: tr(
-        "Code not found in this warehouse. Check the label, remove this row and scan again.",
-        "ไม่พบรหัสในคลังนี้ ตรวจสอบป้าย ลบรายการ แล้วสแกนใหม่",
+      NOT_FOUND: t(
+        "copy.code-not-found-in-this-warehouse-check-the-label-remove-this-row-and-sca",
       ),
-      LOCATION_UNAVAILABLE: tr(
-        "This location is unavailable. Scan an active location.",
-        "จุดจัดเก็บนี้ไม่พร้อมใช้งาน กรุณาสแกนจุดที่เปิดใช้งาน",
+      LOCATION_UNAVAILABLE: t(
+        "copy.this-location-is-unavailable-scan-an-active-location",
       ),
     })[code] ??
-    tr(
-      "Code could not be verified. Check the label and connection, then remove and scan again.",
-      "ตรวจสอบรหัสไม่ได้ ตรวจป้ายและการเชื่อมต่อ แล้วลบและสแกนใหม่",
+    t(
+      "copy.code-could-not-be-verified-check-the-label-and-connection-then-remove-an",
     );
   async function onCode(code: string, method: "SCAN" | "MANUAL" = "SCAN") {
     code = code.trim();
@@ -137,7 +128,7 @@ function ScanWorkflow({ warehouseId }: { warehouseId: string }) {
       if (current.rows.some((row) => row.code === code)) {
         setFeedback({
           kind: "duplicate",
-          message: tr("Package already scanned", "สแกนพัสดุนี้แล้ว"),
+          message: t("copy.package-already-scanned"),
           code:
             current.rows.find((row) => row.code === code)?.unit?.code ?? code,
         });
@@ -146,10 +137,7 @@ function ScanWorkflow({ warehouseId }: { warehouseId: string }) {
       if (current.rows.length >= 50) {
         setFeedback({
           kind: "error",
-          message: tr(
-            "Maximum 50 packages per group",
-            "สูงสุด 50 พัสดุต่อกลุ่ม",
-          ),
+          message: t("copy.maximum-50-packages-per-group"),
         });
         return;
       }
@@ -176,8 +164,8 @@ function ScanWorkflow({ warehouseId }: { warehouseId: string }) {
         setFeedback({
           kind: duplicate ? "duplicate" : "success",
           message: duplicate
-            ? tr("Package already scanned", "สแกนพัสดุนี้แล้ว")
-            : tr("Package added", "เพิ่มพัสดุแล้ว"),
+            ? t("copy.package-already-scanned")
+            : t("copy.package-added"),
           code: unit.code,
         });
       } catch (error) {
@@ -251,12 +239,7 @@ function ScanWorkflow({ warehouseId }: { warehouseId: string }) {
     }
     if (
       !latest.current.rows.length ||
-      window.confirm(
-        tr(
-          "Leave and discard this unsaved scan group?",
-          "ออกและทิ้งกลุ่มสแกนที่ยังไม่บันทึกหรือไม่?",
-        ),
-      )
+      window.confirm(t("copy.leave-and-discard-this-unsaved-scan-group"))
     )
       router.push(FG_PATH);
   };
@@ -264,27 +247,25 @@ function ScanWorkflow({ warehouseId }: { warehouseId: string }) {
   if (state.mode === "COMPLETED")
     return (
       <div className="space-y-5">
-        <section className={panel}>
+        <Panel>
           <h1 className="text-2xl font-semibold">
-            {tr("Packages assigned", "จัดเก็บพัสดุแล้ว")}
+            {t("copy.packages-assigned")}
           </h1>
           <p>
-            {state.rows.length} {tr("packages at", "พัสดุที่")}{" "}
-            {state.location?.name} · {state.location?.code}
+            {state.rows.length} {t("copy.packages-at")} {state.location?.name} ·{" "}
+            {state.location?.code}
           </p>
-        </section>
+        </Panel>
         <ScannedPackageList state={state} dispatch={send} readOnly />
         {state.rows[0]?.unit && (
           <Button asChild variant="outline">
             <Link href={palletPath(state.rows[0].unit.id)}>
-              {tr("View saved assignment", "ดูรายการจัดเก็บที่บันทึก")}
+              {t("copy.view-saved-assignment")}
             </Link>
           </Button>
         )}
         <Button asChild>
-          <Link href={FG_PATH}>
-            {tr("Back to finished goods", "กลับรายการสินค้าสำเร็จรูป")}
-          </Link>
+          <Link href={FG_PATH}>{t("copy.back-to-finished-goods")}</Link>
         </Button>
       </div>
     );
@@ -292,28 +273,20 @@ function ScanWorkflow({ warehouseId }: { warehouseId: string }) {
   const detected =
     state.mode === "LOCATION_DETECTED" || state.mode === "SUBMITTING";
   const locationBlocker = !state.rows.length
-    ? tr(
-        "Scan at least one registered package to continue.",
-        "สแกนพัสดุที่ลงทะเบียนอย่างน้อยหนึ่งชิ้นเพื่อดำเนินการต่อ",
-      )
+    ? t("copy.scan-at-least-one-registered-package-to-continue")
     : state.rows.some((row) => row.status === "error")
-      ? tr(
-          "Remove the unrecognized or unavailable packages above to continue.",
-          "ลบพัสดุที่ไม่พบหรือไม่พร้อมจัดเก็บด้านบนเพื่อดำเนินการต่อ",
+      ? t(
+          "copy.remove-the-unrecognized-or-unavailable-packages-above-to-continue",
         )
       : state.rows.some((row) => row.status === "pending")
-        ? tr(
-            "Checking packages. Please wait…",
-            "กำลังตรวจสอบพัสดุ กรุณารอสักครู่…",
-          )
+        ? t("copy.checking-packages-please-wait")
         : !canScanLocation(state)
-          ? tr(
-              "Enter a fullness percentage from 1 to 100 for every package.",
-              "ระบุความเต็มของพัสดุทุกชิ้นเป็นเปอร์เซ็นต์ตั้งแต่ 1 ถึง 100",
+          ? t(
+              "copy.enter-a-fullness-percentage-from-1-to-100-for-every-package",
             )
           : null;
   return (
-    <div className="mx-auto max-w-3xl space-y-5 pb-40">
+    <PageContainer size="form" actionInset="fixed">
       <PackageScanCamera
         mode={packages ? "PACKAGES" : "LOCATION"}
         active={packages || state.mode === "LOCATION_SCANNING"}
@@ -327,8 +300,9 @@ function ScanWorkflow({ warehouseId }: { warehouseId: string }) {
       />
       <ErrorNotice message={operation.error} />
       {(packages || state.mode === "LOCATION_SCANNING") && (
-        <form
-          className={`${panel} space-y-3`}
+        <Panel
+          as="form"
+          className="space-y-3"
           onSubmit={(event) => {
             event.preventDefault();
             void onCode(manual, "MANUAL");
@@ -336,18 +310,12 @@ function ScanWorkflow({ warehouseId }: { warehouseId: string }) {
           }}
         >
           <Field
-            label={tr(
-              "Manual / handheld code verification",
-              "ตรวจสอบรหัสด้วยการกรอก / เครื่องสแกนมือถือ",
-            )}
+            label={t("copy.manual-handheld-code-verification")}
             value={manual}
             onChange={setManual}
           />
           <p className="text-xs text-muted">
-            {tr(
-              "Recorded as MANUAL verification.",
-              "บันทึกเป็นการตรวจสอบด้วยตนเอง (MANUAL)",
-            )}
+            {t("copy.recorded-as-manual-verification")}
           </p>
           <Button
             type="submit"
@@ -355,45 +323,41 @@ function ScanWorkflow({ warehouseId }: { warehouseId: string }) {
             disabled={!manual.trim()}
             className="min-h-11"
           >
-            {tr("Check code", "ตรวจสอบรหัส")}
+            {t("copy.check-code")}
           </Button>
-        </form>
+        </Panel>
       )}
       {detected && (
-        <section className={`${panel} space-y-2`}>
+        <Panel className="space-y-2">
           <h1 className="text-2xl font-semibold">
-            {tr("Location detected", "ตรวจพบจุดจัดเก็บ")}
+            {t("copy.location-detected")}
           </h1>
           <p className="text-lg font-semibold">
             {state.location?.name} · {state.location?.code}
           </p>
           <p>
             {state.rows.length}{" "}
-            {tr(
-              "packages will be assigned in this top-to-bottom order.",
-              "พัสดุจะจัดเก็บตามลำดับจากบนลงล่างนี้",
-            )}
+            {t("copy.packages-will-be-assigned-in-this-top-to-bottom-order")}
           </p>
           <p>
-            {tr("Similar size:", "ขนาดใกล้เคียง:")}{" "}
-            {state.sameSize ? tr("Yes", "ใช่") : tr("No", "ไม่ใช่")}
+            {t("copy.similar-size")}{" "}
+            {state.sameSize ? t("copy.yes") : t("copy.no")}
           </p>
           <p className="text-sm text-muted">
-            {tr(
-              "Confirm only after physically placing this group at the detected location.",
-              "ยืนยันหลังจากนำกลุ่มพัสดุไปวางที่จุดจัดเก็บนี้จริงแล้วเท่านั้น",
+            {t(
+              "copy.confirm-only-after-physically-placing-this-group-at-the-detected-locatio",
             )}
           </p>
-        </section>
+        </Panel>
       )}
       <div>
-        <h2 className="mb-3 text-lg font-semibold">
-          {tr("Top → Bottom", "บนสุด → ล่างสุด")} · {state.rows.length}/50
+        <h2 className="mb-3 text-lg leading-7 font-semibold">
+          {t("copy.top-bottom")} · {state.rows.length}/50
         </h2>
         {!state.rows.length && (
-          <p className={`${panel} text-muted`}>
-            {tr("Scan the first package to start.", "สแกนพัสดุแรกเพื่อเริ่ม")}
-          </p>
+          <Panel as="p" className="text-muted">
+            {t("copy.scan-the-first-package-to-start")}
+          </Panel>
         )}
         <ScannedPackageList
           state={state}
@@ -402,7 +366,7 @@ function ScanWorkflow({ warehouseId }: { warehouseId: string }) {
         />
       </div>
       {packages && <ScanGroupDetails state={state} dispatch={send} />}
-      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-surface p-4">
+      <StickyActionBar placement="fixed">
         <div className="mx-auto flex max-w-3xl flex-wrap gap-3">
           {packages ? (
             <Button
@@ -411,7 +375,7 @@ function ScanWorkflow({ warehouseId }: { warehouseId: string }) {
               aria-describedby={locationBlocker ? locationHintId : undefined}
               onClick={() => send({ type: "location" })}
             >
-              {tr("Scan Location", "สแกนจุดจัดเก็บ")}
+              {t("copy.scan-location")}
             </Button>
           ) : (
             <>
@@ -421,7 +385,7 @@ function ScanWorkflow({ warehouseId }: { warehouseId: string }) {
                 disabled={state.mode === "SUBMITTING" || retryLocked}
                 onClick={back}
               >
-                {tr("Back to packages", "กลับรายการพัสดุ")}
+                {t("copy.back-to-packages")}
               </Button>
               {detected && (
                 <>
@@ -431,7 +395,7 @@ function ScanWorkflow({ warehouseId }: { warehouseId: string }) {
                     disabled={state.mode === "SUBMITTING" || retryLocked}
                     onClick={() => send({ type: "rescan" })}
                   >
-                    {tr("Rescan location", "สแกนจุดใหม่")}
+                    {t("copy.rescan-location")}
                   </Button>
                   <Button
                     className="min-h-12 flex-1"
@@ -441,13 +405,10 @@ function ScanWorkflow({ warehouseId }: { warehouseId: string }) {
                     }}
                   >
                     {state.mode === "SUBMITTING"
-                      ? tr("Saving…", "กำลังบันทึก…")
+                      ? t("copy.saving")
                       : retryLocked
-                        ? tr(
-                            "Retry same assignment",
-                            "ลองบันทึกรายการเดิมอีกครั้ง",
-                          )
-                        : tr("Confirm Location", "ยืนยันจุดจัดเก็บ")}
+                        ? t("copy.retry-same-assignment")
+                        : t("copy.confirm-location")}
                   </Button>
                 </>
               )}
@@ -465,13 +426,12 @@ function ScanWorkflow({ warehouseId }: { warehouseId: string }) {
         )}
         {retryLocked && state.mode === "LOCATION_DETECTED" && (
           <p className="mx-auto mt-2 max-w-3xl text-xs text-muted">
-            {tr(
-              "The result may be uncertain. Retry keeps the same group and request to avoid duplicate storage.",
-              "ผลการบันทึกอาจยังไม่แน่นอน การลองใหม่ใช้รายการเดิมเพื่อป้องกันบันทึกซ้ำ",
+            {t(
+              "copy.the-result-may-be-uncertain-retry-keeps-the-same-group-and-request-to-av",
             )}
           </p>
         )}
-      </div>
-    </div>
+      </StickyActionBar>
+    </PageContainer>
   );
 }

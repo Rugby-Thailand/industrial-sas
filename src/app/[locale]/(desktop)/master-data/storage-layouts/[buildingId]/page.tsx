@@ -1,7 +1,7 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
 
 import { ROUTES } from "@/lib/navigation";
-import { PageHeader } from "@/components/ui/PageHeader";
+import { PageBackLink } from "@/components/ui/PageBackLink";
 import { StorageBuildingEditor } from "@/features/storageLayouts/StorageLayoutScreens";
 
 export default async function StorageBuildingPage({
@@ -14,11 +14,9 @@ export default async function StorageBuildingPage({
   const t = await getTranslations("StorageLayouts");
   return (
     <>
-      <PageHeader
-        back={{ href: ROUTES.storageLayouts, label: t("back") }}
-        title={t("editBuilding")}
-        description={t("description")}
-      />
+      <div className="mb-4">
+        <PageBackLink href={ROUTES.storageLayouts} label={t("back")} />
+      </div>
       <StorageBuildingEditor buildingId={buildingId} />
     </>
   );

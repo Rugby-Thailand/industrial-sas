@@ -158,6 +158,10 @@ export type StorageLocationMapDetail =
   | { readonly found: false };
 
 export const storageLayoutRefs = Object.freeze({
+  statusControl: clientRef(api.storageLayouts.catalogue.buildingStatusControl),
+  returnToDraft: clientRef(
+    api.storageLayouts.writes.returnStorageBuildingToDraft,
+  ),
   occupancy: clientRef(api.storageLayouts.catalogue.buildingOccupancy),
   page: clientRef(api.storageLayouts.catalogue.listStorageBuildingsPage),
   list: clientRef(api.storageLayouts.catalogue.listStorageBuildings),

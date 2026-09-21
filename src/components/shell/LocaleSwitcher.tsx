@@ -28,7 +28,8 @@ export function LocaleSwitcher() {
         pending={isPending}
         placeholder={t("label")}
         emptyLabel={t("label")}
-        className="h-8 min-h-8! w-28 rounded-full border-border px-3 py-0 text-xs whitespace-nowrap"
+        size="compact"
+        className="w-28 whitespace-nowrap"
         testId="locale-select"
         options={LOCALES.map((candidate) => ({
           value: candidate,

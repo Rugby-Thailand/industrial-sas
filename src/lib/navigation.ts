@@ -45,7 +45,8 @@ export const storageBuildingPath = (buildingId: string): string =>
 export const storageFloorPath = (
   buildingId: string,
   floorNumber: number,
-): string => `${storageBuildingPath(buildingId)}/floors/${floorNumber}`;
+): string =>
+  `${storageBuildingPath(buildingId)}?floor=${floorNumber}&editing=1`;
 
 export const storageReviewPath = (buildingId: string): string =>
   `${storageBuildingPath(buildingId)}/review`;
@@ -89,3 +90,15 @@ export function visibleDesktopNavigation(
     ),
   })).filter((section) => section.items.length > 0);
 }
+
+export const FG_PATH = ROUTES.finishedGoods;
+export const productPath = (id: string) =>
+  `${FG_PATH}/products/${encodeURIComponent(id)}`;
+export const unitCorrectionPath = (productId: string, unitId: string) =>
+  `${productPath(productId)}?editUnit=${encodeURIComponent(unitId)}`;
+export const batchPath = (id: string) =>
+  `${FG_PATH}/batches/${encodeURIComponent(id)}`;
+export const palletPath = (id: string) =>
+  `${FG_PATH}/pallets/${encodeURIComponent(id)}`;
+export const measurePath = (id: string) => `${palletPath(id)}/measure`;
+export const storagePath = (id: string) => `${palletPath(id)}/storage`;

@@ -1,3 +1,4 @@
+import { messagesFor } from "@/i18n/messages";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { describe, expect, it, vi } from "vitest";
@@ -21,7 +22,7 @@ function showColumnFilter(
 ) {
   const onChange = vi.fn();
   render(
-    <NextIntlClientProvider locale="en" messages={{}}>
+    <NextIntlClientProvider locale="en" messages={messagesFor("en")}>
       <ColumnFilter
         column={column}
         tab="products"

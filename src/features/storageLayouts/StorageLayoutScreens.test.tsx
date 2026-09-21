@@ -19,6 +19,7 @@ const layoutAccess = vi.hoisted(() => ({
   query: vi.fn<() => unknown>(),
 }));
 beforeEach(() => {
+  window.history.replaceState({}, "", "/");
   navigate.mockReset();
   layoutAccess.manage = true;
   layoutAccess.ready = true;
@@ -27,6 +28,8 @@ beforeEach(() => {
     .mockReset()
     .mockResolvedValue({ ok: true, value: { written: true } });
 });
+
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: navigate }) }));
 
 vi.mock("convex/react", () => ({
   useMutation: () => mutation,
@@ -62,6 +65,7 @@ import type {
 } from "@/lib/convex/storageLayoutApi";
 
 import {
+  NewStorageBuildingForm,
   BuildingModelWorkspace,
   BuildingSettingsDialog,
   FloorPlan,
@@ -128,7 +132,7 @@ const floors: readonly StorageFloorRow[] = [1, 2, 3, 4].map((floorNumber) => ({
 }));
 
 describe("BuildingModelWorkspace", () => {
-  it("opens persisted inventory and aisles directly, updates live data, and switches floors", () => {
+  it("opens persisted inventory and aisles directly, updates live data, and switches floors", async () => {
     const zone = occupiedTestZone();
     const savedFloors = floors.map((floor) =>
       floor.floorNumber === 2
@@ -162,7 +166,7 @@ describe("BuildingModelWorkspace", () => {
         ),
       },
     );
-    expect(screen.getByRole("button", { name: /Floor 2/ })).toHaveAttribute(
+    expect(screen.getByRole("button", { name: /^Floor 2$/ })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
@@ -175,13 +179,32 @@ describe("BuildingModelWorkspace", () => {
     fireEvent.click(
       screen.getByRole("button", { name: "Select location Occupied FG" }),
     );
+    const details = screen.getByRole("complementary", {
+      name: "Selected location",
+    });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: "Open pallet P-005" }),
+      within(details).getByRole("link", { name: "Open pallet P-005" }),
     ).toHaveAttribute("href", "/finished-goods/pallets/held-pallet");
-    fireEvent.click(screen.getByRole("button", { name: "Edit Occupied FG" }));
-    expect(navigate).toHaveBeenCalledWith(
-      "/master-data/storage-layouts/building-a/floors/2?editZone=blocked-zone",
+    fireEvent.click(
+      within(details).getByRole("button", { name: "Edit Occupied FG" }),
     );
+    expect(screen.getByRole("dialog")).toBeVisible();
+    expect(navigate).not.toHaveBeenCalled();
+    fireEvent.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "Close dialog",
+      }),
+    );
+    fireEvent.click(
+      within(
+        screen.getByRole("complementary", { name: "Selected location" }),
+      ).getByRole("button", { name: "Clear selection" }),
+    );
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
+    expect(window.location.search).not.toContain("editZone");
     expect(container.querySelector('a[href$="/demo"]')).toBeNull();
     rerender(
       <BuildingModelWorkspace
@@ -198,9 +221,19 @@ describe("BuildingModelWorkspace", () => {
     expect(
       screen.queryByRole("link", { name: "Open pallet P-005" }),
     ).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /Floor 1/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Floor 1$/ }));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /^Floor 1$/ })).toHaveAttribute(
+        "aria-pressed",
+        "true",
+      ),
+    );
     expect(screen.queryByText("Saved walkway")).not.toBeInTheDocument();
-    expect(screen.getByText("No storage locations yet")).toBeVisible();
+    expect(
+      within(
+        screen.getByRole("region", { name: "Interactive floor map" }),
+      ).getByText("No storage locations yet"),
+    ).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "Building model" }));
     expect(
       screen.queryByRole("region", { name: "Interactive floor map" }),
@@ -209,6 +242,58 @@ describe("BuildingModelWorkspace", () => {
     expect(
       screen.getByRole("region", { name: "Interactive floor map" }),
     ).toBeVisible();
+    expect(mutation).not.toHaveBeenCalled();
+  });
+  it("shares table selection with the map and renders only selected management details", () => {
+    const zone = occupiedTestZone();
+    renderWithIntl(
+      <BuildingModelWorkspace
+        building={building}
+        floors={floors.map((floor) =>
+          floor.floorNumber === 2 ? { ...floor, storageZones: [zone] } : floor,
+        )}
+      />,
+      { locale: "en", workspace: false },
+    );
+    const table = screen.getByRole("table");
+    expect(
+      screen.queryByRole("article", { name: `${zone.label} · ${zone.code}` }),
+    ).not.toBeInTheDocument();
+    fireEvent.click(
+      within(table).getByRole("button", {
+        name: `Select location ${zone.code} · ${zone.label}`,
+      }),
+    );
+    expect(
+      screen.getByRole("article", { name: `${zone.label} · ${zone.code}` }),
+    ).toBeVisible();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    const drawer = screen.getByRole("complementary", {
+      name: "Selected location",
+    });
+    fireEvent.click(
+      within(drawer).getByRole("button", { name: "Clear selection" }),
+    );
+    expect(
+      document.getElementById("storage-stacks-section"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("article", { name: `${zone.label} · ${zone.code}` }),
+    ).not.toBeInTheDocument();
+  });
+  it("opens the existing create editor from the compact location toolbar", () => {
+    renderWithIntl(
+      <BuildingModelWorkspace building={building} floors={floors} />,
+      { locale: "en", workspace: false },
+    );
+    expect(
+      document.getElementById("storage-stacks-section"),
+    ).not.toBeInTheDocument();
+    const add = screen.getByRole("button", { name: "Add storage stack" });
+    expect(add).toHaveAttribute("type", "button");
+    fireEvent.click(add);
+    expect(screen.getByRole("dialog")).toBeVisible();
+    expect(screen.getByLabelText("Zone label")).toBeVisible();
     expect(mutation).not.toHaveBeenCalled();
   });
   it("handles buildings without saved floors", () => {
@@ -221,22 +306,152 @@ describe("BuildingModelWorkspace", () => {
     ).toBeVisible();
   });
 
-  it("consolidates floor dimensions and edit links into the model rail", () => {
+  it("consolidates floor dimensions and edits the selected floor in place", () => {
     renderWithIntl(
       <BuildingModelWorkspace building={building} floors={floors} />,
       { locale: "en", workspace: false },
     );
 
-    expect(screen.getAllByRole("button", { name: /Floor \d/ })).toHaveLength(4);
+    expect(screen.getAllByRole("button", { name: /^Floor \d$/ })).toHaveLength(
+      4,
+    );
     expect(screen.getByText("24 × 18 × 4 m")).toBeInTheDocument();
     expect(screen.getByText("30 × 20 × 5 m")).toBeInTheDocument();
-    expect(screen.getAllByRole("link", { name: /Edit floor/ })).toHaveLength(4);
+    expect(
+      screen.queryByRole("link", { name: /Edit floor/ }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Edit floor 1" })).toBeVisible();
 
-    fireEvent.click(screen.getByRole("button", { name: /Floor 2/ }));
-    expect(screen.getByRole("button", { name: /Floor 2/ })).toHaveAttribute(
+    fireEvent.click(screen.getByRole("button", { name: /^Floor 2$/ }));
+    expect(screen.getByRole("button", { name: /^Floor 2$/ })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
+  });
+});
+
+describe("unified floor editing", () => {
+  function mount() {
+    window.history.replaceState(
+      {},
+      "",
+      "/master-data/storage-layouts/building-a?floor=2&editing=1",
+    );
+    return render(
+      <BuildingModelWorkspace building={building} floors={floors} />,
+      {
+        wrapper: ({ children }) => (
+          <NextIntlClientProvider
+            locale="en"
+            messages={messagesFor("en")}
+            timeZone="Asia/Bangkok"
+          >
+            {children}
+          </NextIntlClientProvider>
+        ),
+      },
+    );
+  }
+  it("protects a draft when switching floors and discards only explicitly", async () => {
+    mount();
+    expect(
+      screen.getAllByRole("region", { name: "Interactive floor map" }),
+    ).toHaveLength(1);
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Width (m)" }), {
+      target: { value: "22" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Floor 1" }));
+    expect(
+      screen.getByRole("dialog", { name: "Save changes before leaving?" }),
+    ).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+    expect(screen.getByRole("spinbutton", { name: "Width (m)" })).toHaveValue(
+      22,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Floor 1" }));
+    fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Floor 1" })).toHaveAttribute(
+        "aria-pressed",
+        "true",
+      ),
+    );
+    expect(mutation).not.toHaveBeenCalled();
+  });
+  it("retains a draft after a failed save-and-switch", async () => {
+    mutation.mockRejectedValue(new Error("offline"));
+    mount();
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Width (m)" }), {
+      target: { value: "22" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Building model" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save and continue" }));
+    await screen.findByText(
+      "Could not save. Your changes are still here. Review them and try again.",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+    expect(screen.getByRole("spinbutton", { name: "Width (m)" })).toHaveValue(
+      22,
+    );
+    expect(screen.getByRole("button", { name: "Storage map" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+  it("retains the original version and draft when a concurrent update arrives", async () => {
+    const view = mount();
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Width (m)" }), {
+      target: { value: "22" },
+    });
+    view.rerender(
+      <BuildingModelWorkspace
+        building={building}
+        floors={floors.map((floor) =>
+          floor.floorNumber === 2
+            ? { ...floor, widthMm: 23000, version: 3 }
+            : floor,
+        )}
+      />,
+    );
+    expect(screen.getByRole("spinbutton", { name: "Width (m)" })).toHaveValue(
+      22,
+    );
+    mutation.mockResolvedValue({
+      ok: true,
+      value: { written: false, error: { code: "VERSION_CONFLICT" } },
+    });
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Save and continue to storage stacks",
+      }),
+    );
+    await waitFor(() =>
+      expect(mutation).toHaveBeenCalledWith(
+        expect.objectContaining({ expectedFloorVersion: 2 }),
+      ),
+    );
+    expect(screen.getByRole("spinbutton", { name: "Width (m)" })).toHaveValue(
+      22,
+    );
+  });
+  it("keeps archived layouts read-only even with an editing URL", () => {
+    window.history.replaceState({}, "", "/?floor=2&editing=1");
+    renderWithIntl(
+      <BuildingModelWorkspace
+        building={{ ...building, status: "ARCHIVED" }}
+        floors={floors}
+      />,
+      { locale: "en", workspace: false },
+    );
+    expect(
+      screen.queryByRole("button", { name: "Close floor editing" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("spinbutton", { name: "Width (m)" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Add storage stack" }),
+    ).toBeDisabled();
   });
 });
 
@@ -1482,7 +1697,7 @@ describe("searchable storage spots", () => {
       },
     ]);
     expect(screen.getAllByRole("img")).toHaveLength(2);
-    const details = screen.getByRole("article").querySelector("details");
+    const details = screen.getByRole("article").querySelectorAll("details")[1];
     expect(details).not.toHaveAttribute("open");
     fireEvent.change(
       screen.getByRole("searchbox", { name: "Search storage spots" }),
@@ -1594,22 +1809,25 @@ describe("interactive floor map", () => {
       { locale: "en", workspace: false },
     );
     const input = screen.getByRole("searchbox", {
-      name: "Search storage spots",
+      name: "Search storage locations",
     });
     fireEvent.change(input, { target: { value: "p-005" } });
+    fireEvent.click(
+      within(screen.getByRole("table")).getByRole("button", {
+        name: /Select location/,
+      }),
+    );
     expect(
       screen.getByRole("link", { name: "Open pallet P-005" }),
     ).toBeVisible();
     expect(container.querySelectorAll("[data-zone-id]")).toHaveLength(2);
     expect(fireEvent.keyDown(input, { key: "Enter" })).toBe(false);
     fireEvent.change(input, { target: { value: "unknown" } });
-    expect(screen.getByRole("status")).toHaveTextContent(
-      "No matching locations",
+    expect(screen.getByText("No storage locations match")).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Clear search" }));
+    expect(within(screen.getByRole("table")).getAllByRole("row")).toHaveLength(
+      3,
     );
-    fireEvent.click(
-      screen.getByRole("button", { name: "Clear location search" }),
-    );
-    expect(screen.getByRole("status")).toHaveTextContent("Showing 2 of 2");
     expect(mutation).not.toHaveBeenCalled();
   });
   it("preserves exact placement coordinates under camera rotation and shows local-coordinate details", () => {
@@ -1749,14 +1967,61 @@ it("renders dense demo scenarios without inventory links or writes", async () =>
   ).toBeVisible();
   expect(container.querySelector('a[href*="/pallets/demo-"]')).toBeNull();
   fireEvent.change(
-    screen.getByRole("searchbox", { name: "Search storage spots" }),
+    screen.getByRole("searchbox", { name: "Search storage locations" }),
     { target: { value: "DEMO-P-030" } },
+  );
+  fireEvent.click(
+    within(screen.getByRole("table")).getByRole("button", {
+      name: /Select location/,
+    }),
   );
   expect(
     within(
       screen.getByRole("complementary", { name: "Selected location" }),
-    ).getAllByRole("listitem")[0],
-  ).toHaveTextContent("DEMO-P-030");
+    ).getByText("DEMO-P-030"),
+  ).toBeVisible();
 
   expect(mutation).not.toHaveBeenCalled();
+});
+
+describe("building creation execution", () => {
+  it("preserves inputs and retry identity after a thrown response, then changes identity with the payload", async () => {
+    mutation.mockRejectedValue(new Error("NETWORK_FAILURE"));
+    const view = renderWithIntl(<NewStorageBuildingForm />, {
+      locale: "en",
+      workspace: false,
+    });
+    const form = view.container.querySelector("form")!;
+    fireEvent.submit(form);
+    await waitFor(() =>
+      expect(screen.getByText(/NETWORK_FAILURE/)).toBeVisible(),
+    );
+    const first = mutation.mock.calls[0]![0];
+    fireEvent.submit(form);
+    await waitFor(() => expect(mutation).toHaveBeenCalledTimes(2));
+    expect(mutation.mock.calls[1]![0].requestId).toBe(first.requestId);
+    await waitFor(() =>
+      expect(screen.getByText(/NETWORK_FAILURE/)).toBeVisible(),
+    );
+    fireEvent.change(screen.getByRole("textbox", { name: "Building code" }), {
+      target: { value: "NEW-CODE" },
+    });
+    fireEvent.submit(form);
+    await waitFor(() => expect(mutation).toHaveBeenCalledTimes(3));
+    expect(mutation.mock.calls[2]![0].requestId).not.toBe(first.requestId);
+    expect(navigate).not.toHaveBeenCalled();
+    await waitFor(() =>
+      expect(screen.getByText(/NETWORK_FAILURE/)).toBeVisible(),
+    );
+    mutation.mockResolvedValue({
+      ok: true,
+      value: { written: true, documentId: "new-building" },
+    });
+    fireEvent.submit(form);
+    await waitFor(() =>
+      expect(navigate).toHaveBeenCalledWith(
+        "/master-data/storage-layouts/new-building",
+      ),
+    );
+  });
 });

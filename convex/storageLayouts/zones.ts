@@ -87,7 +87,7 @@ async function activePositions(
         { field: "status", value: "ACTIVE" },
       ],
     )
-    .take(STORAGE_POSITION_LIMITS.maximumPositionsPerArea);
+    .all(STORAGE_POSITION_LIMITS.maximumPositionsPerArea);
 }
 
 async function ensureDefaultPosition(
@@ -406,13 +406,13 @@ export const createStorageZone = mutationWithOrg({
         "by_orgId_floorId",
         [{ field: "floorId", value: scope.floor._id }],
       )
-      .take(20);
+      .all(20);
     const zones = await ctx.tenantDb
       .byIndex<ZoneDocument>("storageZones", "by_orgId_floorId_status_code", [
         { field: "floorId", value: scope.floor._id },
         { field: "status", value: "ACTIVE" },
       ])
-      .take(STORAGE_ZONE_LIMITS.maximumZonesPerFloor + 1);
+      .all(STORAGE_ZONE_LIMITS.maximumZonesPerFloor);
     if (zones.length >= STORAGE_ZONE_LIMITS.maximumZonesPerFloor) {
       return failure("ZONE_LIMIT_EXCEEDED");
     }
@@ -666,13 +666,13 @@ export const updateStorageZone = mutationWithOrg({
         "by_orgId_floorId",
         [{ field: "floorId", value: floor._id }],
       )
-      .take(20);
+      .all(20);
     const activeZones = await ctx.tenantDb
       .byIndex<ZoneDocument>("storageZones", "by_orgId_floorId_status_code", [
         { field: "floorId", value: floor._id },
         { field: "status", value: "ACTIVE" },
       ])
-      .take(STORAGE_ZONE_LIMITS.maximumZonesPerFloor + 1);
+      .all(STORAGE_ZONE_LIMITS.maximumZonesPerFloor);
     const zones = activeZones.filter((candidate) => candidate._id !== zone._id);
     const candidate = {
       xMm: args.xMm,

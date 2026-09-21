@@ -1,8 +1,19 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { useTranslations } from "next-intl";
 
 import { TableScroller } from "@/components/ui/TableScroller";
+import { EmptyState } from "@/components/ui/EmptyState";
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 
 export interface DataTableColumn<Row> {
@@ -24,6 +35,11 @@ export interface DataTableProps<Row> {
   readonly renderAction?: (row: Row) => ReactNode;
   readonly testId?: string;
   readonly tableClassName?: string;
+  readonly emptyState?: ReactNode;
+  readonly stickyAction?: boolean;
+  readonly sortableHeader?: (column: DataTableColumn<Row>) => ReactNode;
+  readonly sortColumn?: string;
+  readonly sortDirection?: "ascending" | "descending" | "none";
 }
 
 const alignmentClass = {
@@ -41,85 +57,110 @@ export function DataTable<Row>({
   renderAction,
   testId,
   tableClassName,
+  emptyState,
+  stickyAction = true,
+  sortableHeader,
+  sortColumn,
+  sortDirection = "none",
 }: DataTableProps<Row>) {
   const hasActions = renderAction !== undefined && actionHeader !== undefined;
+  const t = useTranslations("Panel");
 
   return (
     <TableScroller
       label={caption}
       {...(testId === undefined ? {} : { testId })}
     >
-      <table className={cn("w-full border-collapse text-sm", tableClassName)}>
-        <caption className="px-4 py-3 text-left text-sm text-muted">
-          {caption}
-        </caption>
-        <thead>
-          <tr className="border-b border-border-strong text-left">
+      <Table scroll={false} className={cn("border-collapse", tableClassName)}>
+        <TableCaption className="px-4 py-3 text-left">{caption}</TableCaption>
+        <TableHeader>
+          <TableRow className="border-b border-border-strong text-left">
             {columns.map((column) => (
-              <th
+              <TableHead
                 key={column.key}
                 scope="col"
+                aria-sort={sortColumn === column.key ? sortDirection : "none"}
                 className={cn(
                   "px-4 py-2 font-semibold",
                   alignmentClass[column.align ?? "left"],
                   "whitespace-nowrap",
                 )}
               >
-                {column.header}
-              </th>
+                {sortableHeader ? sortableHeader(column) : column.header}
+              </TableHead>
             ))}
             {hasActions ? (
-              <th
+              <TableHead
                 scope="col"
-                className="bg-surface px-4 py-2 font-semibold whitespace-nowrap @2xl/table:sticky @2xl/table:right-0 @2xl/table:shadow-[inset_1px_0_0_0_var(--color-border)]"
+                className={cn(
+                  "bg-surface px-4 py-2 font-semibold whitespace-nowrap",
+                  stickyAction &&
+                    "@2xl/table:sticky @2xl/table:right-0 @2xl/table:shadow-[inset_1px_0_0_0_var(--color-border)]",
+                )}
               >
                 {actionHeader}
-              </th>
+              </TableHead>
             ) : null}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <tr
-              key={rowKey(row)}
-              className="border-b border-border last:border-0"
-            >
-              {columns.map((column) => {
-                const className = cn(
-                  "px-4 py-3",
-                  alignmentClass[column.align ?? "left"],
-                  "align-top",
-                  column.monospace === true &&
-                    "font-mono text-xs whitespace-nowrap",
-                  column.rowHeader === true &&
-                    column.monospace !== false &&
-                    "font-mono text-xs whitespace-nowrap",
-                  column.cellClassName,
-                );
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={columns.length + (hasActions ? 1 : 0)}>
+                {emptyState ?? (
+                  <EmptyState title={t("empty")} body={t("emptyHint")} />
+                )}
+              </TableCell>
+            </TableRow>
+          ) : (
+            rows.map((row) => (
+              <TableRow
+                key={rowKey(row)}
+                className="border-b border-border last:border-0"
+              >
+                {columns.map((column) => {
+                  const className = cn(
+                    "px-4 py-3",
+                    alignmentClass[column.align ?? "left"],
+                    "align-top",
+                    column.monospace === true &&
+                      "font-mono text-xs whitespace-nowrap",
+                    column.rowHeader === true &&
+                      column.monospace !== false &&
+                      "font-mono text-xs whitespace-nowrap",
+                    column.cellClassName,
+                  );
 
-                return column.rowHeader === true ? (
-                  <th
-                    key={column.key}
-                    scope="row"
-                    className={cn(className, "font-normal")}
+                  return column.rowHeader === true ? (
+                    <TableHead
+                      key={column.key}
+                      scope="row"
+                      className={cn(className, "font-normal")}
+                    >
+                      {column.render(row)}
+                    </TableHead>
+                  ) : (
+                    <TableCell key={column.key} className={className}>
+                      {column.render(row)}
+                    </TableCell>
+                  );
+                })}
+                {hasActions ? (
+                  <TableCell
+                    className={cn(
+                      "bg-surface px-4 py-3 align-middle whitespace-nowrap",
+                      stickyAction &&
+                        "@2xl/table:sticky @2xl/table:right-0 @2xl/table:shadow-[inset_1px_0_0_0_var(--color-border)]",
+                    )}
                   >
-                    {column.render(row)}
-                  </th>
-                ) : (
-                  <td key={column.key} className={className}>
-                    {column.render(row)}
-                  </td>
-                );
-              })}
-              {hasActions ? (
-                <td className="bg-surface px-4 py-3 align-middle whitespace-nowrap @2xl/table:sticky @2xl/table:right-0 @2xl/table:shadow-[inset_1px_0_0_0_var(--color-border)]">
-                  {renderAction(row)}
-                </td>
-              ) : null}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+                    {renderAction(row)}
+                  </TableCell>
+                ) : null}
+              </TableRow>
+            ))
+          )}
+        </TableBody>
+      </Table>
     </TableScroller>
   );
 }

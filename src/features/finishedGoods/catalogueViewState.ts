@@ -1,3 +1,4 @@
+import { preferences } from "@/lib/browser/storage";
 export type CatalogueViewState = {
   tab: "products" | "pallets";
   search: string;
@@ -24,31 +25,28 @@ const unitStatuses = [
 ];
 
 export function readCatalogueView(key: string): CatalogueViewState {
-  try {
-    const value: unknown = JSON.parse(localStorage.getItem(key) ?? "null");
-    if (!value || typeof value !== "object" || Array.isArray(value))
-      return { ...defaultCatalogueView };
-    const saved = value as Record<string, unknown>;
-    const tab = saved.tab === "pallets" ? "pallets" : "products";
-    const statuses = tab === "products" ? productStatuses : unitStatuses;
-    return {
-      tab,
-      search: typeof saved.search === "string" ? saved.search : "",
-      status:
-        typeof saved.status === "string" && statuses.includes(saved.status)
-          ? saved.status
-          : "ALL",
-      layout: saved.layout === "table" ? "table" : "cards",
-    };
-  } catch {
-    return { ...defaultCatalogueView };
-  }
+  return preferences.read(
+    key,
+    (value) => {
+      if (!value || typeof value !== "object" || Array.isArray(value))
+        return { ...defaultCatalogueView };
+      const saved = value as Record<string, unknown>;
+      const tab = saved.tab === "pallets" ? "pallets" : "products";
+      const statuses = tab === "products" ? productStatuses : unitStatuses;
+      return {
+        tab,
+        search: typeof saved.search === "string" ? saved.search : "",
+        status:
+          typeof saved.status === "string" && statuses.includes(saved.status)
+            ? saved.status
+            : "ALL",
+        layout: saved.layout === "table" ? "table" : "cards",
+      };
+    },
+    { ...defaultCatalogueView },
+  );
 }
 
 export function saveCatalogueView(key: string, value: CatalogueViewState) {
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-  } catch {
-    // Browsing and filtering still work when browser storage is unavailable.
-  }
+  preferences.write(key, value);
 }

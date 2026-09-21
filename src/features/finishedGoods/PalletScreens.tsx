@@ -1,4 +1,5 @@
 "use client";
+import { drafts } from "@/lib/browser/storage";
 
 import { useMutation, useQuery } from "convex/react";
 import { useSearchParams } from "next/navigation";
@@ -14,6 +15,7 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import { QueryGate } from "@/components/system/QueryGate";
+import { LedgerPanelStatus } from "@/components/system/LedgerPanelStatus";
 import { Button } from "@/components/ui/button";
 import { Notice } from "@/components/ui/Notice";
 import {
@@ -103,7 +105,14 @@ function PalletLoader({
   const canManage = useCanManage();
   const result = useQuery(fgRefs.getPallet, { warehouseId, palletId });
   if (!result) return <Loading />;
-  if (!result.ok || !result.value || !result.value.product) return <Missing />;
+  if (!result.ok && result.denial.kind === "AUTHORIZATION_DENIED")
+    return (
+      <LedgerPanelStatus
+        state={{ kind: "DENIED", requestId: result.requestId }}
+      />
+    );
+  if (!result.ok) return <Missing />;
+  if (!result.value || !result.value.product) return <Missing />;
   const detail = result.value;
   if (
     view === "measure" &&
@@ -184,6 +193,17 @@ export function Summary({
           {tr("Lot", "ล็อต")} {pallet.lot}
         </span>
       ) : null}
+    </>
+  );
+  return (
+    <div className="mb-6 flex flex-wrap items-center gap-x-4 gap-y-3 rounded-xl border border-border bg-surface p-4 text-sm">
+      <span className="font-mono font-semibold break-all">{pallet.code}</span>
+      <span className="min-w-0 break-words">
+        {detail.product?.sku} · {detail.product?.name}
+      </span>
+      <span>
+        {pallet.quantity} {detail.product?.unit}
+      </span>
       <Status
         value={palletDisplayStatus({
           ...pallet,
@@ -192,17 +212,6 @@ export function Summary({
             : {}),
         })}
       />
-    </>
-  );
-  return (
-    <div className="mb-5 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl border border-border bg-surface px-4 py-3 text-sm">
-      <span className="font-mono font-semibold">{pallet.code}</span>
-      <span>
-        {detail.product?.sku} · {detail.product?.name}
-      </span>
-      <span>
-        {pallet.quantity} {detail.product?.unit}
-      </span>
       {compact ? (
         <details className="text-sm">
           <summary className="cursor-pointer text-muted">
@@ -263,34 +272,29 @@ function Measurement({
       weight: pallet.weightKg === undefined ? "" : String(pallet.weightKg),
       unit: "m",
     };
-    try {
-      const raw = localStorage.getItem(key);
-      if (!raw) return fallback;
-      const parsed: unknown = JSON.parse(raw);
-      if (typeof parsed !== "object" || parsed === null) return fallback;
-      const d = parsed as Record<string, unknown>;
-      if (
-        ["quantity", "lot", "length", "width", "height", "weight"].every(
-          (k) => typeof d[k] === "string",
-        ) &&
-        (d.unit === "m" || d.unit === "cm")
-      )
-        return {
-          ...(d as MeasurementDraft),
-          ...(pallet.packingBatchId || pallet.preparationBatchId
-            ? { quantity: String(pallet.quantity) }
-            : {}),
-        };
-    } catch {}
-    return fallback;
+    return drafts.read(
+      key,
+      (parsed) => {
+        if (typeof parsed !== "object" || parsed === null) return fallback;
+        const d = parsed as Record<string, unknown>;
+        if (
+          ["quantity", "lot", "length", "width", "height", "weight"].every(
+            (k) => typeof d[k] === "string",
+          ) &&
+          (d.unit === "m" || d.unit === "cm")
+        )
+          return {
+            ...(d as MeasurementDraft),
+            ...(pallet.packingBatchId || pallet.preparationBatchId
+              ? { quantity: String(pallet.quantity) }
+              : {}),
+          };
+        return fallback;
+      },
+      fallback,
+    );
   });
-  const [dirty, setDirty] = useState(() => {
-    try {
-      return localStorage.getItem(key) !== null;
-    } catch {
-      return false;
-    }
-  });
+  const [dirty, setDirty] = useState(() => drafts.has(key));
   useUnsavedWarning(dirty);
   const factor = form.unit === "m" ? 1000 : 10;
   const dimensions = {
@@ -312,9 +316,7 @@ function Measurement({
       next = { ...next, dimensionsChecked: false };
     setForm(next);
     setDirty(true);
-    try {
-      localStorage.setItem(key, JSON.stringify(next));
-    } catch {}
+    drafts.write(key, next);
   }
   function unit(next: "m" | "cm") {
     if (next === form.unit) return;
@@ -355,9 +357,7 @@ function Measurement({
       );
       setDirty(false);
       op.clearRequests();
-      try {
-        localStorage.removeItem(key);
-      } catch {}
+      drafts.remove(key);
       router.push(
         find || returnToPlacement
           ? storagePath(pallet._id)
@@ -413,7 +413,7 @@ function Measurement({
               ) : null}
             </div>
             <div className={`${panel} space-y-5`}>
-              <h2 className="font-semibold">
+              <h2 className="text-lg leading-7 font-semibold">
                 {tr("Physical pallet", "พาเลทจริง")}
               </h2>
               <div className="grid gap-4 sm:grid-cols-2">
@@ -453,7 +453,7 @@ function Measurement({
                 </div>
               </div>
               <div className="border-t border-border pt-5">
-                <h2 className="mb-3 font-semibold">
+                <h2 className="mb-3 text-lg leading-7 font-semibold">
                   {tr("External dimensions", "ขนาดภายนอก")}
                 </h2>
                 <div
@@ -593,6 +593,12 @@ function Recommendations({
       </>
     );
   if (!outcome) return <Loading />;
+  if (!outcome.ok && outcome.denial?.kind === "AUTHORIZATION_DENIED")
+    return (
+      <LedgerPanelStatus
+        state={{ kind: "DENIED", requestId: outcome.requestId }}
+      />
+    );
   if (!outcome.ok)
     return (
       <>
@@ -730,7 +736,7 @@ function Recommendations({
       ) : !current ? (
         <div className={`${panel} space-y-4 py-8`}>
           <TriangleAlert className="size-8 text-warning" aria-hidden="true" />
-          <h2 className="text-xl font-semibold">
+          <h2 className="text-lg leading-7 font-semibold">
             {tr("No suitable space found", "ไม่พบพื้นที่ที่เหมาะสม")}
           </h2>
           <p className="max-w-2xl text-sm text-muted">
@@ -905,6 +911,9 @@ function PalletDetailScreen({
         assignmentId={placement.assignmentId}
       />
     );
+  const readyForStorage =
+    pallet.status === "AWAITING_PLACEMENT" &&
+    Boolean(pallet.lengthMm && pallet.widthMm && pallet.heightMm);
   const coords = placement
     ? {
         xMm: placement.xMm,
@@ -948,7 +957,23 @@ function PalletDetailScreen({
                     "ดำเนินการวัดขนาดหรือเลือกตำแหน่งจัดเก็บต่อเมื่อพร้อม",
                   )
         }
-      />
+      >
+        {canManage && !stored && !reserved && !activeMove ? (
+          <Button asChild>
+            <Link
+              href={
+                readyForStorage
+                  ? storagePath(pallet._id)
+                  : "/finished-goods/scan"
+              }
+            >
+              {readyForStorage
+                ? tr("Recommend storage", "แนะนำพื้นที่")
+                : tr("Scan Packages", "สแกนบรรจุภัณฑ์")}
+            </Link>
+          </Button>
+        ) : null}
+      </Heading>
       <Summary detail={detail} />
       {!canManage ? (
         <div className="mb-5">
@@ -1010,7 +1035,7 @@ function PalletDetailScreen({
         <div className={`${panel} mb-5 text-sm`}>
           {tr("Supported by", "รองรับโดย")}{" "}
           <Link
-            className="text-primary underline"
+            className="text-link underline"
             href={palletPath(detail.supportPallet._id)}
           >
             {detail.supportPallet.code}
@@ -1036,7 +1061,7 @@ function PalletDetailScreen({
           </p>
           {detail.stackChildren.map((child) => (
             <Link
-              className="block text-primary underline"
+              className="block text-link underline"
               key={child._id}
               href={palletPath(child.palletId)}
             >
@@ -1049,7 +1074,7 @@ function PalletDetailScreen({
         <div className={panel}>
           {destination && coords ? (
             <>
-              <h2 className="mb-4 font-semibold">
+              <h2 className="mb-4 text-lg leading-7 font-semibold">
                 {activeMove?.status === "IN_TRANSIT"
                   ? `${tr("Last confirmed source", "ต้นทางที่ยืนยันล่าสุด")} · `
                   : ""}
@@ -1093,7 +1118,7 @@ function PalletDetailScreen({
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <h2
                   id="exact-destination-title"
-                  className="flex items-center gap-2 font-semibold"
+                  className="flex items-center gap-2 text-lg leading-7 font-semibold"
                 >
                   <MapPin className="size-4" aria-hidden="true" />
                   {tr("Exact destination", "ปลายทางที่แน่นอน")}
@@ -1102,7 +1127,7 @@ function PalletDetailScreen({
                 !activeMove &&
                 !detail.stackChildren?.length &&
                 (stored || reserved) ? (
-                  <Button variant="outline" asChild>
+                  <Button variant={stored ? "default" : "outline"} asChild>
                     <Link
                       href={
                         stored
@@ -1152,24 +1177,6 @@ function PalletDetailScreen({
               ) : null}
             </section>
           ) : null}
-          <section className={`${panel} space-y-4`}>
-            <h2 className="font-semibold">{tr("Pallet", "พาเลท")}</h2>
-            <QR value={`ISAS:PALLET:1:${pallet._id}`} label={pallet.code} />
-            <dl className="grid grid-cols-3 gap-3 text-sm">
-              {[
-                [tr("Length", "ยาว"), pallet.lengthMm],
-                [tr("Width", "กว้าง"), pallet.widthMm],
-                [tr("Height", "สูง"), pallet.heightMm],
-              ].map(([label, value]) => (
-                <div key={label}>
-                  <dt className="text-xs text-muted">{label}</dt>
-                  <dd className="mt-1 font-mono">
-                    {typeof value === "number" ? mmText(value) : "—"}
-                  </dd>
-                </div>
-              ))}
-            </dl>
-          </section>
           {reserved && canManage ? (
             <section
               className={`${panel} space-y-4`}
@@ -1178,7 +1185,7 @@ function PalletDetailScreen({
                 "ตรวจสอบปลายทางและการวาง",
               )}
             >
-              <h2 className="font-semibold">
+              <h2 className="text-lg leading-7 font-semibold">
                 {tr(
                   "Verify destination and placement",
                   "ตรวจสอบปลายทางและการวาง",
@@ -1248,6 +1255,26 @@ function PalletDetailScreen({
               </Button>
             </section>
           ) : null}
+          <section className={`${panel} space-y-4`}>
+            <h2 className="text-lg leading-7 font-semibold">
+              {tr("Pallet", "พาเลท")}
+            </h2>
+            <QR value={`ISAS:PALLET:1:${pallet._id}`} label={pallet.code} />
+            <dl className="grid grid-cols-3 gap-3 text-sm">
+              {[
+                [tr("Length", "ยาว"), pallet.lengthMm],
+                [tr("Width", "กว้าง"), pallet.widthMm],
+                [tr("Height", "สูง"), pallet.heightMm],
+              ].map(([label, value]) => (
+                <div key={label}>
+                  <dt className="text-xs text-muted">{label}</dt>
+                  <dd className="mt-1 font-mono">
+                    {typeof value === "number" ? mmText(value) : "—"}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </section>
         </div>
       </div>
       <div className="mt-5 flex flex-wrap justify-end gap-3 rounded-xl border border-border bg-surface p-4">
@@ -1256,6 +1283,7 @@ function PalletDetailScreen({
             <>
               <Button
                 variant="ghost"
+                className="text-danger"
                 disabled={op.busy}
                 onClick={() => {
                   op.setError("");
@@ -1290,27 +1318,19 @@ function PalletDetailScreen({
             </>
           ) : canManage && !reserved ? (
             <>
-              <Button asChild>
-                <Link href="/finished-goods/scan">
-                  {tr("Scan Packages", "สแกนบรรจุภัณฑ์")}
-                </Link>
-              </Button>
+              {readyForStorage ? (
+                <Button variant="outline" asChild>
+                  <Link href="/finished-goods/scan">
+                    {tr("Scan Packages", "สแกนบรรจุภัณฑ์")}
+                  </Link>
+                </Button>
+              ) : null}
               <Button variant="outline" asChild>
                 <Link href={correctionPath(detail)}>
                   <Ruler className="size-4" aria-hidden="true" />
                   {tr("Measure pallet", "วัดขนาดพาเลท")}
                 </Link>
               </Button>
-              {pallet.status === "AWAITING_PLACEMENT" &&
-              pallet.lengthMm &&
-              pallet.widthMm &&
-              pallet.heightMm ? (
-                <Button asChild>
-                  <Link href={storagePath(pallet._id)}>
-                    {tr("Recommend storage", "แนะนำพื้นที่")}
-                  </Link>
-                </Button>
-              ) : null}
             </>
           ) : null}
         </div>
@@ -1355,7 +1375,7 @@ export function MoveHistory({ detail }: { detail: PalletDetail }) {
   if (!detail.moveHistory?.length) return null;
   return (
     <section className={`${panel} mt-5 space-y-3`}>
-      <h2 className="font-semibold">
+      <h2 className="text-lg leading-7 font-semibold">
         {tr("Movement history", "ประวัติการย้าย")}
       </h2>
       <ul className="space-y-3">
@@ -1433,7 +1453,7 @@ function LocationOnlyPalletDetail({
       />
       <Summary detail={detail} />
       <section className={`${panel} space-y-4`}>
-        <h2 className="font-semibold">
+        <h2 className="text-lg leading-7 font-semibold">
           {tr("Saved storage location", "จุดจัดเก็บที่บันทึก")}
         </h2>
         <p>
@@ -1481,7 +1501,7 @@ function LocationOnlyPalletDetail({
                   </span>
                   <Link
                     href={palletPath(unit.unitId)}
-                    className="text-primary underline"
+                    className="text-link underline"
                   >
                     {unit.code}
                   </Link>

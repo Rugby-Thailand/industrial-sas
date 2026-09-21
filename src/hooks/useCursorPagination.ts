@@ -1,4 +1,5 @@
 "use client";
+import { updateHistoryMetadata } from "@/lib/browser/history";
 
 import { useEffect, useState } from "react";
 
@@ -91,13 +92,9 @@ export function useCursorPagination({
     positions.set(scope, next);
     while (positions.size > MAX_SCOPES)
       positions.delete(positions.keys().next().value!);
-    const history = {
-      ...window.history.state,
-      cataloguePagination: { scope, value: next },
-    };
-    // This updates navigation metadata only. Retain Next's current tree and
-    // omit the URL so its patched history API does not schedule a route restore.
-    window.history.replaceState(history, "");
+    updateHistoryMetadata((state) => {
+      state.cataloguePagination = { scope, value: next };
+    });
     setStored({ scope, value: next });
   }
   return {
@@ -131,8 +128,8 @@ export function clearCursorPositions() {
     typeof window !== "undefined" &&
     window.history.state?.cataloguePagination
   ) {
-    const state = { ...window.history.state };
-    delete state.cataloguePagination;
-    window.history.replaceState(state, "");
+    updateHistoryMetadata((state) => {
+      delete state.cataloguePagination;
+    });
   }
 }

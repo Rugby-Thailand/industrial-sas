@@ -36,13 +36,13 @@ export function CollapsibleSection({
   };
 
   return (
-    <div className="rounded-md border border-border">
+    <div className="rounded-lg border border-border bg-surface">
       <button
         type="button"
         aria-expanded={open}
         aria-controls={panelId}
         onClick={toggle}
-        className="flex min-h-touch w-full items-center gap-2 rounded-md px-3 text-sm font-medium text-text outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+        className="flex min-h-touch w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-base font-semibold text-text outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
         {...(testId === undefined ? {} : { "data-testid": testId })}
       >
         {Icon === undefined ? null : (
@@ -62,7 +62,7 @@ export function CollapsibleSection({
       {open ? (
         <div
           id={panelId}
-          className={`border-t border-border p-3 ${contentClassName ?? ""}`}
+          className={`border-t border-border p-4 ${contentClassName ?? ""}`}
         >
           {children}
         </div>

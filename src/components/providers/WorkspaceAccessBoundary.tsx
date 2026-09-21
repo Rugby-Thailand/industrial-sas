@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 
 import { QueryErrorBoundary } from "@/components/system/QueryErrorBoundary";
@@ -9,6 +10,8 @@ import { Notice } from "@/components/ui/Notice";
 import { PageHeader } from "@/components/ui/PageHeader";
 
 import { useWorkspace } from "./WorkspaceProvider";
+import { useObservability } from "./ObservabilityProvider";
+import { observabilityEvent } from "@/lib/observability/event";
 
 function QueryFailure() {
   const t = useTranslations("Panel");
@@ -37,11 +40,30 @@ export function WorkspaceAccessBoundary({
   readonly children: ReactNode;
 }) {
   const workspace = useWorkspace();
+  const pathname = usePathname();
+  const observability = useObservability();
+  const resetKey = `${workspace.selectedWarehouseId ?? "none"}:${pathname}`;
 
   if (workspace.failed) return <QueryFailure />;
 
   return (
-    <QueryErrorBoundary resetKey="workspace" fallback={() => <QueryFailure />}>
+    <QueryErrorBoundary
+      resetKey={resetKey}
+      onFailure={() =>
+        observability.record(
+          observabilityEvent({
+            code: "workspace.query.failed",
+            severity: "error",
+            dimensions: {
+              route: pathname.replace(/^\/+/, "").replaceAll("/", "."),
+              warehouse: workspace.selectedWarehouseId ?? "none",
+            },
+            occurredAt: Date.now(),
+          }),
+        )
+      }
+      fallback={() => <QueryFailure />}
+    >
       {children}
     </QueryErrorBoundary>
   );

@@ -1,11 +1,8 @@
 "use client";
-import {
-  useSyncExternalStore,
-  useState,
-  useEffect,
-  useRef,
-  type ReactNode,
-} from "react";
+import { preferences } from "@/lib/browser/storage";
+
+import { BuildingStatusToggle } from "./BuildingStatusToggle";
+import { useSyncExternalStore, useState, type ReactNode } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { CursorPagination } from "@/components/system/CursorPagination";
 import { useCursorPagination } from "@/hooks/useCursorPagination";
@@ -16,23 +13,19 @@ import {
 import { useQuery } from "convex/react";
 import { useLocale } from "next-intl";
 import { LayoutGrid, Table2, Pencil, QrCode, ExternalLink } from "lucide-react";
-import { QRCodeSVG } from "qrcode.react";
 import { api } from "../../../convex/_generated/api";
 import { clientRef, type RefValue } from "@/lib/convex/clientRef";
 import { useWorkspace } from "@/components/providers/WorkspaceProvider";
 import { Link } from "@/i18n/navigation";
 import { storageFloorPath } from "@/lib/navigation";
+import { scopeKey } from "@/lib/browser/scope";
+import { useCatalogueSync } from "@/hooks/useCatalogueSync";
 import { Button } from "@/components/ui/button";
+import { DataGate } from "@/components/system/DataGate";
 import { Input } from "@/components/ui/input";
 import { SelectControl } from "@/components/ui/SelectControl";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogDescription,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import type { StorageLayoutStatus } from "@/lib/convex/storageLayoutApi";
+import { QrDialog } from "@/features/storageKit/QrDialog";
 
 export const locationCatalogueRef = clientRef(
   api.storageLayouts.locationCatalogue.list,
@@ -66,18 +59,35 @@ const initial: Preferences = {
   floor: "ALL",
 };
 function readPreferences(key: string): Preferences {
-  try {
-    const p = JSON.parse(localStorage.getItem(key) ?? "null");
-    if (
-      p &&
-      ["cards", "table"].includes(p.view) &&
-      ["ALL", "DRAFT", "ACTIVE", "ARCHIVED"].includes(p.status) &&
-      [p.search, p.building, p.floor].every((v) => typeof v === "string")
-    )
-      return p;
-  } catch {}
-  return initial;
+  return preferences.read(
+    key,
+    (value) => {
+      if (!value || typeof value !== "object" || Array.isArray(value))
+        return initial;
+      const p = value as Record<string, unknown>;
+      if (
+        (p.view === "cards" || p.view === "table") &&
+        (p.status === "ALL" ||
+          p.status === "DRAFT" ||
+          p.status === "ACTIVE" ||
+          p.status === "ARCHIVED") &&
+        typeof p.search === "string" &&
+        typeof p.building === "string" &&
+        typeof p.floor === "string"
+      )
+        return {
+          view: p.view,
+          status: p.status,
+          search: p.search,
+          building: p.building,
+          floor: p.floor,
+        };
+      return initial;
+    },
+    initial,
+  );
 }
+
 export function StorageLocationCatalogue({
   warehouseId,
   children,
@@ -85,13 +95,18 @@ export function StorageLocationCatalogue({
   warehouseId: string;
   children: (filters: CatalogueFilters) => ReactNode;
 }) {
+  const { userId, orgId } = useAuth();
   const ready = useSyncExternalStore(
     () => () => {},
     () => true,
     () => false,
   );
+  const actorKey = `${orgId ?? "null"}:${userId ?? "anonymous"}`;
   return ready ? (
-    <LocationCatalogueContent key={warehouseId} warehouseId={warehouseId}>
+    <LocationCatalogueContent
+      key={`${warehouseId}:${actorKey}`}
+      warehouseId={warehouseId}
+    >
       {children}
     </LocationCatalogueContent>
   ) : null;
@@ -105,20 +120,25 @@ function LocationCatalogueContent({
 }) {
   const th = useLocale() === "th";
   const tr = (en: string, thai: string) => (th ? thai : en);
-  const { navigationPermissions } = useWorkspace();
-  const canEdit = navigationPermissions.includes(
-    "masterData.storageLayout.manage",
-  );
+  const { navigationPermissions, permissionsReady } = useWorkspace();
+  const canEdit =
+    permissionsReady &&
+    navigationPermissions.includes("masterData.storageLayout.manage");
   const { userId, orgId } = useAuth();
-  const key = `storage-location-view:${orgId}:${userId}:${warehouseId}`;
+  const persistenceOrganization = orgId ?? "null";
+  const persistenceUser = userId ?? "anonymous";
+  const key = scopeKey({
+    feature: "storage-location-view",
+    organizationId: persistenceOrganization,
+    userId: persistenceUser,
+    warehouseId,
+  });
   const [prefs, setPrefs] = useState<Preferences>(() => readPreferences(key));
   const [qr, setQr] = useState<Row | null>(null);
   function change(patch: Partial<Preferences>) {
     const next = { ...prefs, ...patch };
     setPrefs(next);
-    try {
-      localStorage.setItem(key, JSON.stringify(next));
-    } catch {}
+    preferences.write(key, next);
   }
   const settled = useDebouncedSearch(prefs.search);
   const criteria = {
@@ -129,7 +149,12 @@ function LocationCatalogueContent({
     floor: prefs.floor,
   };
   const paging = useCursorPagination({
-    scope: `locations:${orgId}:${userId}:${warehouseId}`,
+    scope: scopeKey({
+      feature: "storage-location-catalogue",
+      organizationId: persistenceOrganization,
+      userId: persistenceUser,
+      warehouseId,
+    }),
     criteria,
   });
   const scan = useScanContinuation(
@@ -169,32 +194,14 @@ function LocationCatalogueContent({
       ),
     ).values(),
   ];
-  const resetAttempt = useRef<string | null>(null);
   const resetScope = JSON.stringify(criteria);
-  useEffect(() => {
-    if (outcome?.ok && outcome.value.status === "scanning")
-      scan.advance(outcome.value.scanCursor);
-    if (outcome?.ok && outcome.value.status === "ready")
-      resetAttempt.current = null;
-    if (
-      outcome?.ok &&
-      outcome.value.status === "reset" &&
-      (paging.cursor || scan.cursor) &&
-      resetAttempt.current !== resetScope
-    ) {
-      resetAttempt.current = resetScope;
-      scan.advance();
-      paging.reset();
-    }
-    if (
-      outcome?.ok &&
-      outcome.value.status === "ready" &&
-      outcome.value.isDone &&
-      !outcome.value.page.length &&
-      paging.canPrevious
-    )
-      paging.previous();
-  }, [outcome, scan, paging, resetScope]);
+  useCatalogueSync({
+    outcome,
+    continuation: scan,
+    paging,
+    resetKey: resetScope,
+    hasRows: (value) => Boolean(value.page?.length),
+  });
   const ready = outcome?.ok && outcome.value.status === "ready";
   const rows = ready ? outcome.value.page : [];
   const shown = rows;
@@ -220,7 +227,7 @@ function LocationCatalogueContent({
   return (
     <div className="space-y-4">
       <div
-        className="flex gap-2"
+        className="inline-flex max-w-full gap-1 rounded-lg border border-border bg-surface p-1"
         role="group"
         aria-label={tr("Catalogue view", "มุมมองรายการ")}
       >
@@ -233,7 +240,7 @@ function LocationCatalogueContent({
           return (
             <Button
               key={view}
-              variant={prefs.view === view ? "default" : "outline"}
+              variant={prefs.view === view ? "secondary" : "ghost"}
               size="icon"
               title={label}
               aria-label={label}
@@ -368,7 +375,7 @@ function LocationCatalogueContent({
                 </div>
               ) : (
                 <div
-                  className="overflow-x-auto rounded-xl border border-border"
+                  className="min-w-0 overflow-x-auto rounded-lg border border-border bg-surface focus-visible:outline-ring"
                   role="region"
                   aria-label={tr("Location results", "ผลการค้นหาจุดจัดเก็บ")}
                   tabIndex={0}
@@ -377,7 +384,7 @@ function LocationCatalogueContent({
                     <caption className="sr-only">
                       {tr("All storage locations", "จุดจัดเก็บทั้งหมด")}
                     </caption>
-                    <thead className="bg-surface">
+                    <thead className="bg-raised">
                       <tr>
                         {[
                           tr("Location / code", "จุดจัดเก็บ / รหัส"),
@@ -401,11 +408,11 @@ function LocationCatalogueContent({
                         return (
                           <tr
                             key={row.zoneId}
-                            className="border-t border-border align-top"
+                            className="border-t border-border align-top hover:bg-raised/50"
                           >
                             <td className="min-w-44 p-3">
                               <Link
-                                className="font-medium text-accent"
+                                className="font-medium text-link"
                                 href={`${path}#storage-zone-${row.zoneId}`}
                               >
                                 {row.label}
@@ -422,11 +429,22 @@ function LocationCatalogueContent({
                                 {row.floorNumber}
                               </p>
                             </td>
-                            <td className="p-3 whitespace-nowrap">
+                            <td className="p-3 whitespace-nowrap tabular-nums">
                               {row.widthMm / 1000} × {row.depthMm / 1000} ×{" "}
                               {row.heightMm / 1000} m
                             </td>
-                            <td className="p-3">{statusName(row.status)}</td>
+                            <td className="p-3">
+                              {row.status === "ARCHIVED" ? (
+                                statusName(row.status)
+                              ) : (
+                                <BuildingStatusToggle
+                                  warehouseId={warehouseId}
+                                  buildingId={row.buildingId}
+                                  code={row.buildingCode}
+                                  status={row.status}
+                                />
+                              )}
+                            </td>
                             <td className="p-3">
                               <div className="flex gap-1">
                                 <Button
@@ -454,7 +472,7 @@ function LocationCatalogueContent({
                                   >
                                     <Link
                                       aria-label={`${tr("Edit", "แก้ไข")} ${row.label}`}
-                                      href={`${path}?editZone=${row.zoneId}#storage-zone-${row.zoneId}`}
+                                      href={`${path}&editZone=${encodeURIComponent(row.zoneId)}#storage-zone-${row.zoneId}`}
                                     >
                                       <Pencil className="size-4" />
                                     </Link>
@@ -495,36 +513,23 @@ function LocationCatalogueContent({
           />
         </>
       )}
-      <Dialog
-        open={qr !== null}
-        onOpenChange={(open) => {
-          if (!open) setQr(null);
-        }}
-      >
-        <DialogContent closeLabel={tr("Close", "ปิด")}>
-          <DialogHeader>
-            <DialogTitle>{qr?.label} · QR</DialogTitle>
-            <DialogDescription>
-              {tr(
-                "Scan to identify this storage location.",
-                "สแกนเพื่อระบุจุดจัดเก็บนี้",
-              )}
-            </DialogDescription>
-          </DialogHeader>
-          {qr && (
-            <>
-              <div className="mx-auto grid size-60 place-items-center rounded-lg bg-white p-4">
-                <QRCodeSVG
-                  size={208}
-                  value={qr.qrValue}
-                  aria-label={`QR ${qr.code}`}
-                />
-              </div>
-              <p className="text-center text-sm">{qr.code}</p>
-            </>
+      {qr && (
+        <QrDialog
+          open
+          onOpenChange={(open) => {
+            if (!open) setQr(null);
+          }}
+          title={`${qr.label} · QR`}
+          description={tr(
+            "Scan to identify this storage location.",
+            "สแกนเพื่อระบุจุดจัดเก็บนี้",
           )}
-        </DialogContent>
-      </Dialog>
+          value={qr.qrValue}
+          code={qr.code}
+          closeLabel={tr("Close", "ปิด")}
+          ariaLabel={`QR ${qr.code}`}
+        />
+      )}
     </div>
   );
 }
@@ -560,96 +565,94 @@ function LocationDetails({ source }: { source: Row }) {
         {detail ? row.positions.length : "—"} / {row.palletCount ?? "—"})
       </summary>
       <div className="mt-2 space-y-2 text-xs">
-        {!outcome && (
-          <p role="status">
-            {tr("Loading occupancy…", "กำลังโหลดการจัดเก็บ…")}
-          </p>
-        )}
-        {outcome && (!outcome.ok || !outcome.value) && (
-          <p role="alert">
-            {tr("Occupancy unavailable", "โหลดการจัดเก็บไม่ได้")}
-          </p>
-        )}
-        {!detail ? null : row.positions.length + row.placements.length === 0 ? (
-          <p>
-            {tr(
-              "No sublocations or occupied positions",
-              "ไม่มีตำแหน่งย่อยหรือสินค้าที่จัดเก็บ",
-            )}
-          </p>
-        ) : (
-          <>
-            <p className="text-muted">
-              {tr(
-                "Sublocation X/Y: floor origin; pallet X/Y: location origin. Z: base elevation.",
-                "X/Y ตำแหน่งย่อยอ้างอิงชั้น; X/Y พาเลทอ้างอิงจุดจัดเก็บ; Z คือระดับฐาน",
-              )}
-            </p>
-            {row.occupiedFootprintAreaSqMm !== undefined && (
-              <p className="text-muted">
-                {tr(
-                  "Occupied and reserved footprint",
-                  "พื้นที่ฐานที่ใช้และจอง",
-                )}
-                :{" "}
-                {(row.occupiedFootprintAreaSqMm / 1_000_000).toLocaleString(
-                  undefined,
-                  {
-                    maximumFractionDigits: 3,
-                  },
-                )}{" "}
-                m²
-                {row.placements.some((p) => p.mode === "LOCATION_ONLY") && (
-                  <>
-                    {" "}
-                    ·{" "}
-                    {tr(
-                      "Measured area only; unmeasured units are also stored here",
-                      "เฉพาะพื้นที่ที่วัด มีหน่วยที่ยังไม่วัดจัดเก็บอยู่ด้วย",
-                    )}
-                  </>
-                )}
-              </p>
-            )}
-            {row.positions.map((p) => (
-              <p key={p.id}>
-                {p.label} · {p.code} · X{" "}
-                {p.xMm === undefined ? "—" : p.xMm / 1000} / Y{" "}
-                {p.yMm === undefined ? "—" : p.yMm / 1000} / Z {p.zMm / 1000} m
-                · {statusName(p.status)}
-              </p>
-            ))}
-            {row.placements.map((p) =>
-              p.mode === "LOCATION_ONLY" ? (
-                <p key={p.id}>
-                  {p.code} ·{" "}
+        {open ? (
+          <DataGate outcome={outcome}>
+            {() =>
+              !detail ? null : row.positions.length + row.placements.length ===
+                0 ? (
+                <p>
                   {tr(
-                    "Location saved · coordinates unmeasured",
-                    "บันทึกจุดจัดเก็บแล้ว · ไม่ได้วัดพิกัด",
-                  )}{" "}
-                  · #{p.sequence}
+                    "No sublocations or occupied positions",
+                    "ไม่มีตำแหน่งย่อยหรือสินค้าที่จัดเก็บ",
+                  )}
                 </p>
               ) : (
-                <p key={p.id}>
-                  {p.code} · X {p.xMm / 1000} / Y {p.yMm / 1000} / Z{" "}
-                  {p.zMm / 1000} m · {p.rotation}° ·{" "}
-                  {p.moveRole === "TARGET"
-                    ? tr("Move destination reserved", "จองปลายทางการย้าย")
-                    : p.moveRole === "SOURCE"
-                      ? p.moveState === "IN_TRANSIT"
-                        ? tr(
-                            "Last confirmed position · moving",
-                            "ตำแหน่งยืนยันล่าสุด · กำลังย้าย",
-                          )
-                        : tr("Move source", "ต้นทางการย้าย")
-                      : p.status === "STORED"
-                        ? tr("Stored", "จัดเก็บแล้ว")
-                        : tr("Reserved", "จองแล้ว")}
-                </p>
-              ),
-            )}
-          </>
-        )}
+                <>
+                  <p className="text-muted">
+                    {tr(
+                      "Sublocation X/Y: floor origin; pallet X/Y: location origin. Z: base elevation.",
+                      "X/Y ตำแหน่งย่อยอ้างอิงชั้น; X/Y พาเลทอ้างอิงจุดจัดเก็บ; Z คือระดับฐาน",
+                    )}
+                  </p>
+                  {row.occupiedFootprintAreaSqMm !== undefined && (
+                    <p className="text-muted">
+                      {tr(
+                        "Occupied and reserved footprint",
+                        "พื้นที่ฐานที่ใช้และจอง",
+                      )}
+                      :{" "}
+                      {(
+                        row.occupiedFootprintAreaSqMm / 1_000_000
+                      ).toLocaleString(undefined, {
+                        maximumFractionDigits: 3,
+                      })}{" "}
+                      m²
+                      {row.placements.some(
+                        (p) => p.mode === "LOCATION_ONLY",
+                      ) && (
+                        <>
+                          {" "}
+                          ·{" "}
+                          {tr(
+                            "Measured area only; unmeasured units are also stored here",
+                            "เฉพาะพื้นที่ที่วัด มีหน่วยที่ยังไม่วัดจัดเก็บอยู่ด้วย",
+                          )}
+                        </>
+                      )}
+                    </p>
+                  )}
+                  {row.positions.map((p) => (
+                    <p key={p.id}>
+                      {p.label} · {p.code} · X{" "}
+                      {p.xMm === undefined ? "—" : p.xMm / 1000} / Y{" "}
+                      {p.yMm === undefined ? "—" : p.yMm / 1000} / Z{" "}
+                      {p.zMm / 1000} m · {statusName(p.status)}
+                    </p>
+                  ))}
+                  {row.placements.map((p) =>
+                    p.mode === "LOCATION_ONLY" ? (
+                      <p key={p.id}>
+                        {p.code} ·{" "}
+                        {tr(
+                          "Location saved · coordinates unmeasured",
+                          "บันทึกจุดจัดเก็บแล้ว · ไม่ได้วัดพิกัด",
+                        )}{" "}
+                        · #{p.sequence}
+                      </p>
+                    ) : (
+                      <p key={p.id}>
+                        {p.code} · X {p.xMm / 1000} / Y {p.yMm / 1000} / Z{" "}
+                        {p.zMm / 1000} m · {p.rotation}° ·{" "}
+                        {p.moveRole === "TARGET"
+                          ? tr("Move destination reserved", "จองปลายทางการย้าย")
+                          : p.moveRole === "SOURCE"
+                            ? p.moveState === "IN_TRANSIT"
+                              ? tr(
+                                  "Last confirmed position · moving",
+                                  "ตำแหน่งยืนยันล่าสุด · กำลังย้าย",
+                                )
+                              : tr("Move source", "ต้นทางการย้าย")
+                            : p.status === "STORED"
+                              ? tr("Stored", "จัดเก็บแล้ว")
+                              : tr("Reserved", "จองแล้ว")}
+                      </p>
+                    ),
+                  )}
+                </>
+              )
+            }
+          </DataGate>
+        ) : null}
       </div>
     </details>
   );

@@ -17,7 +17,7 @@ export default async function StorageLayoutsPage({
   const t = await getTranslations("StorageLayouts");
   return (
     <>
-      <PageHeader title={t("title")} description={t("description")}>
+      <PageHeader title={t("title")} summary={t("description")}>
         <Button asChild>
           <Link href={`${ROUTES.storageLayouts}/new`}>
             <Plus aria-hidden="true" className="size-4" />

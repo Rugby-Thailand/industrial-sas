@@ -56,5 +56,37 @@ export default tseslint.config(
       ],
     },
   },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: [
+      "src/components/ui/SelectControl.tsx",
+      "src/components/ui/select.tsx",
+    ],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: [
+                "**/ui/select",
+                "./select",
+                "../select",
+                "@radix-ui/react-select",
+              ],
+              message: "Use SelectControl for application dropdowns.",
+            },
+          ],
+          paths: [
+            {
+              name: "radix-ui",
+              importNames: ["Select"],
+              message: "Use SelectControl for application dropdowns.",
+            },
+          ],
+        },
+      ],
+    },
+  },
   prettier,
 );

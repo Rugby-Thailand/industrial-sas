@@ -1,14 +1,31 @@
+import type * as NextIntlModule from "next-intl";
 import type * as SharedModule from "./shared";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { renderWithIntl } from "@tests/fixtures/intl-render";
+import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { ReactNode, ComponentProps } from "react";
+import type { ReactNode, ComponentProps, ReactElement } from "react";
 import { beforeEach, expect, it, vi } from "vitest";
+function renderIntl(ui: ReactElement) {
+  return renderWithIntl(ui, {
+    locale: "en",
+    workspace: false,
+    preserveProviders: true,
+  });
+}
+vi.mock("./shared", async (importOriginal) => ({
+  ...(await importOriginal<typeof SharedModule>()),
+  useDraftKey: () => "actor",
+  useCanManage: () => true,
+}));
 const mocks = vi.hoisted(() => ({
   query: vi.fn(),
   write: vi.fn(),
   cameraCode: (_code: string) => {},
 }));
-vi.mock("next-intl", () => ({ useLocale: () => "en" }));
+vi.mock("next-intl", async (importOriginal) => ({
+  ...(await importOriginal<typeof NextIntlModule>()),
+  useLocale: () => "en",
+}));
 vi.mock("convex/react", () => ({
   useConvex: () => ({ query: mocks.query }),
   useMutation: () => mocks.write,
@@ -22,11 +39,6 @@ vi.mock("@/i18n/navigation", () => ({
     <a {...props}>{children}</a>
   ),
   useRouter: () => ({ push: vi.fn() }),
-}));
-vi.mock("./shared", async (importOriginal) => ({
-  ...(await importOriginal<typeof SharedModule>()),
-  useDraftKey: () => "actor",
-  useCanManage: () => true,
 }));
 vi.mock("./PackageScanCamera", () => ({
   PackageScanCamera: ({
@@ -92,7 +104,7 @@ beforeEach(() => {
 });
 it("requires location confirmation, supports rescan/back, and submits exact manual evidence", async () => {
   const user = userEvent.setup();
-  render(<PackageScanningScreen />);
+  renderIntl(<PackageScanningScreen />);
   expect(screen.getByRole("button", { name: "Scan Location" })).toBeDisabled();
   await user.click(screen.getByRole("button", { name: "Decode" }));
   await screen.findByText("Widgets");
@@ -126,7 +138,7 @@ it("retries an ambiguous network failure with the identical request and payload"
       value: { written: true, documentId: "assignment" },
     });
   const user = userEvent.setup();
-  render(<PackageScanningScreen />);
+  renderIntl(<PackageScanningScreen />);
   await user.click(screen.getByRole("button", { name: "Decode" }));
   await screen.findByText("Widgets");
   await user.click(screen.getByRole("button", { name: "Scan Location" }));
@@ -172,7 +184,7 @@ it("preserves edited fullness when aliases resolve out of order in the live work
         }),
   );
   const user = userEvent.setup();
-  render(<PackageScanningScreen />);
+  renderIntl(<PackageScanningScreen />);
   await user.click(screen.getByRole("button", { name: "Decode" }));
   expect(screen.getByText("Checking…")).toBeInTheDocument();
   await user.type(
@@ -212,7 +224,7 @@ it("preserves edited fullness when aliases resolve out of order in the live work
 
 it("ignores camera callbacks captured before a mode change", async () => {
   const user = userEvent.setup();
-  render(<PackageScanningScreen />);
+  renderIntl(<PackageScanningScreen />);
   const oldCallback = mocks.cameraCode;
   await user.click(screen.getByRole("button", { name: "Decode" }));
   await screen.findByText("Widgets");
@@ -229,7 +241,7 @@ it("explains why invalid scans block location and recovers after removal", async
     value: { ok: false, error: { code: "NOT_FOUND" } },
   });
   const user = userEvent.setup();
-  render(<PackageScanningScreen />);
+  renderIntl(<PackageScanningScreen />);
   await user.type(
     screen.getByLabelText("Manual / handheld code verification"),
     "8859748903645",

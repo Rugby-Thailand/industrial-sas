@@ -1,67 +1,76 @@
 "use client";
-
-import { isStorageFloorColorOnlyChange } from "../../../convex/model/storageLayout/storageLayout";
-import { storageFootprintUsage } from "../../../convex/model/storageLayout/areaUsage";
-import { AreaOverview } from "./AreaOverview";
-import { BuildingAreaDetails } from "./BuildingAreaDetails";
-import { AreaColorPicker } from "@/components/storageLayouts/AreaColorPicker";
-import { resolveAreaColor } from "@/lib/storageLayouts/areaColors";
+import { updateBrowserQuery } from "@/lib/browser/history";
 import {
-  ReservedAreaShape,
+  ChangeImpactSummary,
+  localEntityId,
+  metres,
+  Metric,
+  millimetres,
+  squareMetres,
+  storageErrorMessage,
+} from "./storageLayoutShared";
+import { StorageZonesPanel } from "./StorageZonesPanel";
+import type { EditableBlock } from "./types";
+import { useFloorSelection } from "./useFloorSelection";
+import { useWorkspaceQuery, workspaceStateEvent } from "./useWorkspaceQuery";
+export { StorageZoneDraftPreview } from "@/components/storageLayouts/StorageZoneDraftPreview";
+export { StorageZonesPanel } from "./StorageZonesPanel";
+
+import { useWorkspace } from "@/components/providers/WorkspaceProvider";
+import { AreaColorPicker } from "@/components/storageLayouts/AreaColorPicker";
+import { StorageZoneDraftPreview } from "@/components/storageLayouts/StorageZoneDraftPreview";
+import {
   ReservedAreaLegend,
+  ReservedAreaShape,
   StorageViewModeToggle,
 } from "@/components/storageLayouts/StorageZoneVisualizer";
-import { StorageZoneDraftPreview } from "@/components/storageLayouts/StorageZoneDraftPreview";
-export { StorageZoneDraftPreview } from "@/components/storageLayouts/StorageZoneDraftPreview";
-import { rectanglesOverlap } from "@/lib/storageLayouts/storagePlacementGeometry";
+import { useAsyncOperation } from "@/hooks/useAsyncOperation";
+import { resolveAreaColor } from "@/lib/storageLayouts/areaColors";
+import { storageFootprintUsage } from "../../../convex/model/storageLayout/areaUsage";
+import { isStorageFloorColorOnlyChange } from "../../../convex/model/storageLayout/storageLayout";
+import { AreaOverview } from "./AreaOverview";
+import { BuildingAreaDetails } from "./BuildingAreaDetails";
+import { BuildingStatusToggle } from "./BuildingStatusToggle";
+import { useWorkspaceNavigationGuard } from "./useWorkspaceNavigationGuard";
 
-import { useMutation, useQuery } from "convex/react";
-import {
-  Building2,
-  Archive,
-  ArrowRightLeft,
-  Eye,
-  X,
-  CheckCircle2,
-  Layers3,
-  PencilLine,
-  Plus,
-  QrCode,
-  Ruler,
-  Search,
-  Trash2,
-  TriangleAlert,
-  Zap,
-} from "lucide-react";
-import { useAuth } from "@clerk/nextjs";
 import { CursorPagination } from "@/components/system/CursorPagination";
+import { LedgerPanelStatus } from "@/components/system/LedgerPanelStatus";
 import { useCursorPagination } from "@/hooks/useCursorPagination";
 import {
   useDebouncedSearch,
   useScanContinuation,
 } from "@/hooks/useScanContinuation";
+import { useCatalogueSync } from "@/hooks/useCatalogueSync";
+import { useAuth } from "@clerk/nextjs";
+import { useMutation, useQuery } from "convex/react";
+import {
+  Layers3,
+  PencilLine,
+  Plus,
+  Ruler,
+  Search,
+  Trash2,
+  Zap,
+} from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { QRCodeSVG } from "qrcode.react";
 import {
   useId,
-  useEffect,
+  useImperativeHandle,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
   type FormEvent,
   type ReactNode,
+  type Ref,
 } from "react";
 
-import { StoragePlacementLayer } from "@/components/storageLayouts/StorageZoneVisualizer";
 import { FloorMap } from "@/components/storageLayouts/FloorMap";
+import { StoragePlacementLayer } from "@/components/storageLayouts/StorageZoneVisualizer";
 import { QueryGate } from "@/components/system/QueryGate";
 import { DataTable } from "@/components/table/DataTable";
-import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
-import { EmptyState } from "@/components/ui/EmptyState";
-import { Notice } from "@/components/ui/Notice";
-import { SelectControl } from "@/components/ui/SelectControl";
-import { StatusBadge, type BadgeTone } from "@/components/ui/StatusBadge";
 import { Button } from "@/components/ui/button";
+import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import {
   Dialog,
   DialogClose,
@@ -72,60 +81,45 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { FormField } from "@/components/ui/FormField";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Notice } from "@/components/ui/Notice";
+import { SelectControl } from "@/components/ui/SelectControl";
 import { Link, useRouter } from "@/i18n/navigation";
-import {
-  storageBuildingPath,
-  storageFloorPath,
-  storageReviewPath,
-  ROUTES,
-} from "@/lib/navigation";
 import {
   storageLayoutRefs,
   type StorageBuildingDetail,
   type StorageBuildingRow,
   type StorageFloorRow,
   type StorageLayoutStatus,
-  type StorageReservedBlockRow,
   type StorageStackPlacementRow,
   type StorageZoneRow,
 } from "@/lib/convex/storageLayoutApi";
+import {
+  ROUTES,
+  storageBuildingPath,
+  storageFloorPath,
+} from "@/lib/navigation";
 import {
   buildIsometricBuilding,
   pointsAttribute,
   projectIsometricPoint,
   unprojectIsometricDelta,
 } from "@/lib/storageLayouts/isometricGeometry";
+import { locationInventory } from "@/lib/storageLayouts/locationSelectors";
 
+import { useCanManage } from "@/hooks/useCanManage";
 import {
-  maximumOccupiedHeight,
-  uniqueStoragePallets,
-  occupiedStorageFootprintAreaSqMm,
   storagePlacementBoxes,
   storagePlacementCorners,
 } from "@/lib/storageLayouts/storagePlacementGeometry";
-import { palletPath, useCanManage } from "@/features/finishedGoods/shared";
 
 import {
   StorageLocationCatalogue,
   type CatalogueFilters,
 } from "./StorageLocationCatalogue";
-
-const metres = (millimetres: number) => millimetres / 1_000;
-const millimetres = (value: string) => Math.round(Number(value) * 1_000);
-const squareMetres = (area: number) => area / 1_000_000;
-const requestId = () => crypto.randomUUID();
-
-function storageErrorMessage(
-  t: ReturnType<typeof useTranslations<"StorageLayouts">>,
-  code: string,
-) {
-  if (code === "RESERVED_BLOCK_COLOR_INVALID") return t("areaColor.invalid");
-  if (code === "LOCATION_OCCUPIED") return t("occupiedChangeBlocked");
-  if (code === "VERSION_CONFLICT") return t("layoutChangedRetry");
-  return t("writeError", { code });
-}
 
 function statusLabel(
   t: ReturnType<typeof useTranslations<"StorageLayouts">>,
@@ -138,79 +132,13 @@ function statusLabel(
       : t("archived");
 }
 
-function statusTone(status: StorageLayoutStatus): BadgeTone {
-  return status === "ACTIVE"
-    ? "success"
-    : status === "DRAFT"
-      ? "pending"
-      : "muted";
-}
-
 function LoadingCard() {
-  return (
-    <div className="min-h-48 animate-pulse rounded-2xl border border-border bg-surface" />
-  );
+  return <LedgerPanelStatus state={{ kind: "LOADING" }} />;
 }
 
 function QueryFailure() {
   const t = useTranslations("StorageLayouts");
   return <Notice tone="warning" title={t("loadError")} />;
-}
-
-function ChangeImpactSummary({
-  placements,
-  currentPlan,
-  proposedPlan,
-}: {
-  readonly placements: readonly StorageStackPlacementRow[];
-  readonly currentPlan?: string;
-  readonly proposedPlan?: string;
-}) {
-  const t = useTranslations("StorageLayouts");
-  const occupiedHeightMm = maximumOccupiedHeight(placements);
-  return (
-    <section
-      role="alert"
-      className="rounded-xl border border-warning/60 bg-warning-surface p-4"
-    >
-      <div className="flex items-start gap-3">
-        <TriangleAlert className="mt-0.5 size-5 shrink-0 text-warning" />
-        <div className="min-w-0">
-          <h3 className="font-semibold text-text">{t("impactReviewTitle")}</h3>
-          <p className="mt-1 text-sm text-muted">
-            {t("impactReviewDescription")}
-          </p>
-        </div>
-      </div>
-      <dl className="mt-4 grid grid-cols-2 gap-3">
-        <Metric
-          label={t("affectedHandlingUnits")}
-          value={String(uniqueStoragePallets(placements).length)}
-        />
-        <Metric
-          label={t("occupiedHeight")}
-          value={`${metres(occupiedHeightMm)} m`}
-        />
-        {currentPlan === undefined ? null : (
-          <Metric label={t("currentPlan")} value={currentPlan} />
-        )}
-        {proposedPlan === undefined ? null : (
-          <Metric label={t("proposedPlan")} value={proposedPlan} />
-        )}
-      </dl>
-      <div className="mt-4 flex flex-wrap gap-2">
-        {uniqueStoragePallets(placements).map((placement) => (
-          <span
-            key={placement.placementId}
-            className="rounded-full border border-warning/35 bg-background px-2.5 py-1 font-mono text-xs text-text"
-          >
-            {placement.lpn}
-          </span>
-        ))}
-      </div>
-      <p className="mt-3 text-xs text-muted">{t("impactAuditHelp")}</p>
-    </section>
-  );
 }
 
 export function StorageBuildingCatalogue() {
@@ -259,36 +187,18 @@ function CatalogueContent({
         }
       : "skip",
   );
-  const resetAttempt = useRef<string | null>(null);
   const resetScope = JSON.stringify(criteria);
-  useEffect(() => {
-    if (outcome?.ok && outcome.value.status === "scanning")
-      scan.advance(outcome.value.scanCursor);
-    if (outcome?.ok && outcome.value.status === "ready")
-      resetAttempt.current = null;
-    if (
-      outcome?.ok &&
-      outcome.value.status === "reset" &&
-      (paging.cursor || scan.cursor) &&
-      resetAttempt.current !== resetScope
-    ) {
-      resetAttempt.current = resetScope;
-      scan.advance();
-      paging.reset();
-    }
-    if (
-      outcome?.ok &&
-      outcome.value.status === "ready" &&
-      outcome.value.isDone &&
-      !outcome.value.page.length &&
-      paging.canPrevious
-    )
-      paging.previous();
-  }, [outcome, scan, paging, resetScope]);
+  useCatalogueSync({
+    outcome,
+    continuation: scan,
+    paging,
+    resetKey: resetScope,
+    hasRows: (value) => Boolean(value.page?.length),
+  });
   const ready = outcome?.ok && outcome.value.status === "ready";
   const buildings = ready ? outcome.value.page : [];
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <StorageCatalogueFilters
         search={search}
         status={status}
@@ -306,22 +216,24 @@ function CatalogueContent({
           {buildings.map((building) => (
             <article
               key={building.buildingId}
-              className="group relative rounded-2xl border border-border bg-surface p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-accent hover:shadow-md"
+              className="group relative rounded-xl border border-border bg-surface p-4 transition-colors hover:border-ring"
             >
               <div className="flex items-start justify-between gap-4">
                 <CompactBuildingModel building={building} />
-                <StatusBadge
-                  tone={statusTone(building.status)}
-                  label={statusLabel(t, building.status)}
+                <BuildingStatusToggle
+                  warehouseId={warehouseId}
+                  buildingId={building.buildingId}
+                  code={building.code}
+                  status={building.status}
                 />
               </div>
               <p className="mt-5 text-xs font-semibold tracking-[0.16em] text-muted uppercase">
                 {building.code}
               </p>
-              <h2 className="mt-1 text-lg font-semibold text-text group-hover:text-accent">
+              <h2 className="mt-1 text-lg leading-7 font-semibold break-words text-text group-hover:text-link">
                 <Link
                   href={storageBuildingPath(building.buildingId)}
-                  className="after:absolute after:inset-0 after:rounded-2xl focus-visible:after:ring-2 focus-visible:after:ring-accent"
+                  className="after:absolute after:inset-0 after:rounded-xl focus-visible:after:ring-2 focus-visible:after:ring-accent"
                 >
                   {building.name}
                 </Link>
@@ -370,22 +282,16 @@ function BuildingCatalogueOccupancy({
 }: {
   building: StorageBuildingRow;
 }) {
-  const locale = useLocale();
   const outcome = useQuery(storageLayoutRefs.occupancy, {
     warehouseId: building.warehouseId,
     buildingId: building.buildingId,
   });
-  if (!outcome)
-    return (
-      <p role="status" className="text-sm text-muted">
-        {locale === "th" ? "กำลังโหลดพื้นที่ใช้งาน…" : "Loading occupancy…"}
-      </p>
-    );
+  if (!outcome) return <LedgerPanelStatus state={{ kind: "LOADING" }} />;
   if (!outcome.ok || !outcome.value)
     return (
-      <p role="alert" className="text-sm text-muted">
-        {locale === "th" ? "โหลดพื้นที่ใช้งานไม่ได้" : "Occupancy unavailable"}
-      </p>
+      <LedgerPanelStatus
+        state={{ kind: "ERROR", code: "OCCUPANCY_UNAVAILABLE" }}
+      />
     );
   return <BuildingAreaDetails building={outcome.value} />;
 }
@@ -481,21 +387,6 @@ function CompactBuildingModel({
   );
 }
 
-function Metric({
-  label,
-  value,
-}: {
-  readonly label: string;
-  readonly value: string;
-}) {
-  return (
-    <div>
-      <dt className="text-xs text-muted">{label}</dt>
-      <dd className="mt-1 font-semibold text-text">{value}</dd>
-    </div>
-  );
-}
-
 export function NewStorageBuildingForm() {
   return (
     <QueryGate scope="WAREHOUSE">
@@ -508,35 +399,40 @@ function NewBuildingContent({ warehouseId }: { readonly warehouseId: string }) {
   const t = useTranslations("StorageLayouts");
   const router = useRouter();
   const create = useMutation(storageLayoutRefs.create);
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string>();
+  const operation = useAsyncOperation({
+    scope: `new-building:${warehouseId}`,
+    describeError: (code) => code || "UNKNOWN",
+  });
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setPending(true);
-    setError(undefined);
     const data = new FormData(event.currentTarget);
-    try {
+    const payload = {
+      warehouseId,
+      code: String(data.get("code") ?? ""),
+      name: String(data.get("name") ?? ""),
+      widthMm: millimetres(String(data.get("width") ?? "")),
+      depthMm: millimetres(String(data.get("depth") ?? "")),
+      defaultFloorHeightMm: millimetres(String(data.get("height") ?? "")),
+      floorCount: Number(data.get("floors")),
+    };
+    await operation.run(async () => {
       const outcome = await create({
-        warehouseId,
-        requestId: requestId(),
-        code: String(data.get("code") ?? ""),
-        name: String(data.get("name") ?? ""),
-        widthMm: millimetres(String(data.get("width") ?? "")),
-        depthMm: millimetres(String(data.get("depth") ?? "")),
-        defaultFloorHeightMm: millimetres(String(data.get("height") ?? "")),
-        floorCount: Number(data.get("floors")),
+        ...payload,
+        requestId: operation.request(JSON.stringify(payload)),
       });
-      if (!outcome.ok) setError(outcome.denial.code);
-      else if (!outcome.value.written) setError(outcome.value.error.code);
-      else router.push(storageBuildingPath(outcome.value.documentId));
-    } finally {
-      setPending(false);
-    }
+      if (!outcome.ok) operation.setError(outcome.denial.code);
+      else if (!outcome.value.written)
+        operation.setError(outcome.value.error.code);
+      else {
+        operation.clearRequests();
+        router.push(storageBuildingPath(outcome.value.documentId));
+      }
+    });
   }
   return (
     <form
       onSubmit={submit}
-      className="grid gap-6 rounded-2xl border border-border bg-surface p-6 shadow-sm lg:grid-cols-[1fr_0.8fr]"
+      className="grid max-w-3xl gap-6 rounded-lg border border-border bg-surface p-4 sm:p-6"
     >
       <div className="grid gap-5 sm:grid-cols-2">
         <Field label={t("code")} name="code" defaultValue="BLDG-A" required />
@@ -582,26 +478,22 @@ function NewBuildingContent({ warehouseId }: { readonly warehouseId: string }) {
           max="50"
           required
         />
-        {error === undefined ? null : (
+        {!operation.error ? null : (
           <div className="sm:col-span-2">
-            <Notice tone="warning" title={storageErrorMessage(t, error)} />
+            <Notice
+              tone="warning"
+              title={storageErrorMessage(t, operation.error)}
+            />
           </div>
         )}
         <div className="flex gap-3 sm:col-span-2">
-          <Button disabled={pending}>
-            {pending ? t("creating") : t("create")}
+          <Button disabled={operation.busy}>
+            {operation.busy ? t("creating") : t("create")}
           </Button>
           <Button variant="outline" asChild>
             <Link href={ROUTES.storageLayouts}>{t("back")}</Link>
           </Button>
         </div>
-      </div>
-      <div className="hidden min-h-80 items-center justify-center rounded-xl bg-[radial-gradient(circle_at_top,_var(--color-accent)_0,_transparent_55%)] p-8 lg:flex">
-        <Building2
-          className="size-40 text-accent/60"
-          strokeWidth={1}
-          aria-hidden="true"
-        />
       </div>
     </form>
   );
@@ -610,15 +502,25 @@ function NewBuildingContent({ warehouseId }: { readonly warehouseId: string }) {
 function Field({
   label,
   name,
+  hint,
+  error,
   ...props
-}: { readonly label: string; readonly name: string } & React.ComponentProps<
-  typeof Input
->) {
+}: {
+  readonly label: string;
+  readonly name: string;
+  readonly hint?: string;
+  readonly error?: string;
+} & React.ComponentProps<typeof Input>) {
   return (
-    <div className="grid gap-2">
-      <Label htmlFor={name}>{label}</Label>
-      <Input id={name} name={name} {...props} />
-    </div>
+    <FormField
+      id={name}
+      label={label}
+      required={props.required ?? false}
+      hint={hint}
+      error={error}
+    >
+      {(field) => <Input {...field} name={name} {...props} />}
+    </FormField>
   );
 }
 
@@ -671,14 +573,20 @@ function BuildingContent({
   const placements = floors.flatMap((floor) =>
     floor.storageZones.flatMap((zone) => zone.placements),
   );
-  const quickChangeFloor =
-    floors.find((floor) => floor.storageZones.length > 0) ?? floors[0];
   return (
     <div className="space-y-6">
       <div className="min-w-0">
         <BuildingModelWorkspace
           building={building}
           floors={floors}
+          statusAction={
+            <BuildingStatusToggle
+              warehouseId={warehouseId}
+              buildingId={buildingId}
+              code={building.code}
+              status={building.status}
+            />
+          }
           settingsAction={
             building.status !== "ARCHIVED" ? (
               <BuildingSettingsDialog
@@ -690,52 +598,6 @@ function BuildingContent({
           }
         />
       </div>
-      <aside className="grid items-start gap-4 md:grid-cols-2">
-        <section className="rounded-2xl border border-border bg-surface p-5 shadow-sm">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-xs font-semibold tracking-[.15em] text-muted uppercase">
-                {building.code}
-              </p>
-              <h2 className="mt-1 text-xl font-semibold text-text">
-                {building.name}
-              </h2>
-            </div>
-            <StatusBadge
-              tone={statusTone(building.status)}
-              label={statusLabel(t, building.status)}
-            />
-          </div>
-          <dl className="mt-5 grid grid-cols-2 gap-4">
-            <Metric
-              label={t("width")}
-              value={`${metres(building.widthMm)} m`}
-            />
-            <Metric
-              label={t("depth")}
-              value={`${metres(building.depthMm)} m`}
-            />
-            <Metric
-              label={t("totalHeight")}
-              value={`${metres(building.totalHeightMm)} m`}
-            />
-          </dl>
-        </section>
-        {building.status === "ARCHIVED" ||
-        quickChangeFloor === undefined ? null : (
-          <Button className="w-full" variant="outline" asChild>
-            <Link
-              href={storageFloorPath(buildingId, quickChangeFloor.floorNumber)}
-            >
-              <Zap className="size-4" />
-              {t("quickChange")}
-            </Link>
-          </Button>
-        )}
-        <Button className="w-full" asChild>
-          <Link href={storageReviewPath(buildingId)}>{t("review")}</Link>
-        </Button>
-      </aside>
     </div>
   );
 }
@@ -796,6 +658,10 @@ function BuildingSettings({
   const t = useTranslations("StorageLayouts");
   const update = useMutation(storageLayoutRefs.update);
   const changeFloorCount = useMutation(storageLayoutRefs.changeFloorCount);
+  const operation = useAsyncOperation({
+    scope: `building-settings:${warehouseId}:${building.buildingId}`,
+    describeError: (code) => code || "NETWORK_ERROR",
+  });
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string>();
   const [confirmingImpact, setConfirmingImpact] = useState(false);
@@ -817,19 +683,28 @@ function BuildingSettings({
     setPending(true);
     setError(undefined);
     try {
-      const result = await update({
+      const payload = {
         warehouseId,
         buildingId: building.buildingId,
-        requestId: requestId(),
         expectedVersion: building.version,
         name: String(data.get("name") ?? building.name),
         widthMm: millimetres(String(data.get("width"))),
         depthMm: millimetres(String(data.get("depth"))),
         defaultFloorHeightMm: millimetres(String(data.get("height"))),
-      });
+      };
+      const result = await operation.run(() =>
+        update({
+          ...payload,
+          requestId: operation.request(JSON.stringify(payload)),
+        }),
+      );
+      if (!result) return;
       if (!result.ok) setError(result.denial.code);
       else if (!result.value.written) setError(result.value.error.code);
-      else setConfirmingImpact(false);
+      else {
+        operation.clearRequests();
+        setConfirmingImpact(false);
+      }
     } finally {
       setPending(false);
     }
@@ -841,15 +716,22 @@ function BuildingSettings({
     setError(undefined);
     const data = new FormData(event.currentTarget);
     try {
-      const result = await changeFloorCount({
+      const payload = {
         warehouseId,
         buildingId: building.buildingId,
-        requestId: requestId(),
         expectedVersion: building.version,
         floorCount: Number(data.get("floorCount")),
-      });
+      };
+      const result = await operation.run(() =>
+        changeFloorCount({
+          ...payload,
+          requestId: operation.request(JSON.stringify(payload)),
+        }),
+      );
+      if (!result) return;
       if (!result.ok) setError(result.denial.code);
       else if (!result.value.written) setError(result.value.error.code);
+      else operation.clearRequests();
     } finally {
       setPending(false);
     }
@@ -1088,46 +970,93 @@ export function IsometricBuilding({
   );
 }
 
+type FloorEditorHandle = { save: () => Promise<boolean> };
 export function BuildingModelWorkspace({
   building,
   floors,
   settingsAction,
+  statusAction,
 }: {
   readonly building: StorageBuildingRow;
   readonly floors: readonly StorageFloorRow[];
   readonly settingsAction?: ReactNode;
+  readonly statusAction?: ReactNode;
 }) {
   const t = useTranslations("StorageLayouts");
-  const router = useRouter();
-  const [view, setView] = useState<"storage" | "building">("storage");
-  const [selectedFloorNumber, setSelectedFloorNumber] = useState(
-    (
-      floors.find((floor) =>
-        floor.storageZones.some(
-          (zone) =>
-            zone.placements.length + (zone.unmeasuredPalletCount ?? 0) > 0,
-        ),
-      ) ??
-      floors.find((floor) => floor.storageZones.length > 0) ??
-      floors[0]
-    )?.floorNumber ?? 1,
-  );
-  const selectedFloor =
-    floors.find((floor) => floor.floorNumber === selectedFloorNumber) ??
+  const canManage = useCanManage();
+  const query = useWorkspaceQuery();
+  const params = new URLSearchParams(query);
+  const defaultFloor =
+    floors.find((floor) =>
+      floor.storageZones.some(
+        (zone) =>
+          zone.placements.length + (zone.unmeasuredPalletCount ?? 0) > 0,
+      ),
+    ) ??
+    floors.find((floor) => floor.storageZones.length > 0) ??
     floors[0];
+  const selectedFloor =
+    floors.find((floor) => floor.floorNumber === Number(params.get("floor"))) ??
+    defaultFloor;
+  const selectedFloorNumber = selectedFloor?.floorNumber ?? 1;
+  const view = params.get("view") === "building" ? "building" : "storage";
+  const editing =
+    canManage &&
+    building.status !== "ARCHIVED" &&
+    params.get("editing") === "1";
+  const [dirty, setDirty] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [reset, setReset] = useState(0);
+  const editorRef = useRef<FloorEditorHandle>(null);
+  const guard = useWorkspaceNavigationGuard({
+    dirty: dirty || dialogOpen,
+    pending,
+    ...(dialogOpen ? { saveBlockedReason: t("finishOpenEditor") } : {}),
+    save: async () => (await editorRef.current?.save()) ?? false,
+    discard: () => {
+      setDirty(false);
+      setReset((value) => value + 1);
+    },
+  });
+  function transition(change: {
+    floor?: number;
+    view?: string;
+    editing?: boolean;
+  }) {
+    guard.requestTransition(() => {
+      updateBrowserQuery(
+        (query) => {
+          query.set("floor", String(change.floor ?? selectedFloorNumber));
+          query.set("view", change.view ?? view);
+          if (change.editing ?? editing) query.set("editing", "1");
+          else query.delete("editing");
+          query.delete("editZone");
+        },
+        { event: workspaceStateEvent },
+      );
+    });
+  }
   return (
     <div className="min-w-0 space-y-4">
+      {guard.navigationPrompt}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="text-xs font-semibold tracking-wider text-muted">
             {building.code}
           </p>
-          <h2 className="mt-1 text-lg font-semibold text-text">
+          <h1 className="mt-1 text-xl leading-7 font-semibold text-text">
             {building.name}
-          </h2>
+          </h1>
+          <p className="mt-1 text-xs text-muted">
+            {t("dimensions")}: {metres(building.widthMm)} ×{" "}
+            {metres(building.depthMm)} m · {t("totalHeight")}:{" "}
+            {metres(building.totalHeightMm)} m
+          </p>
           <p className="mt-1 text-xs text-muted">{t("mapSavedData")}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {statusAction}
           <div
             role="group"
             aria-label={t("buildingView")}
@@ -1138,7 +1067,7 @@ export function BuildingModelWorkspace({
               size="sm"
               variant={view === "storage" ? "secondary" : "ghost"}
               aria-pressed={view === "storage"}
-              onClick={() => setView("storage")}
+              onClick={() => transition({ view: "storage" })}
             >
               {t("storageFloorView")}
             </Button>
@@ -1147,17 +1076,17 @@ export function BuildingModelWorkspace({
               size="sm"
               variant={view === "building" ? "secondary" : "ghost"}
               aria-pressed={view === "building"}
-              onClick={() => setView("building")}
+              onClick={() => transition({ view: "building", editing: false })}
             >
               {t("buildingModelView")}
             </Button>
           </div>
-          {settingsAction}
+          {!dirty && settingsAction}
         </div>
       </div>
       <div className="rounded-xl border border-border bg-surface p-4">
         <div className="flex items-center gap-2 text-sm font-semibold text-text">
-          <Layers3 className="size-4 text-accent" />
+          <Layers3 className="size-4 text-link" />
           {t("floors")}
         </div>
         <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
@@ -1168,14 +1097,19 @@ export function BuildingModelWorkspace({
                 key={floor.floorId}
                 className={`flex min-w-0 overflow-hidden rounded-xl border transition ${selected ? "border-accent bg-accent-surface" : "border-border hover:border-accent/70"}`}
               >
-                <button
+                <Button
+                  variant="ghost"
+                  size="touch"
                   type="button"
-                  onClick={() => setSelectedFloorNumber(floor.floorNumber)}
+                  onClick={() =>
+                    transition({ floor: floor.floorNumber, editing: false })
+                  }
                   aria-pressed={selected}
+                  aria-label={t("floor", { floor: floor.floorNumber })}
                   className="min-w-0 flex-1 px-3 py-2.5 text-left text-sm text-text"
                 >
                   <span className="flex items-center justify-between gap-2">
-                    <span className={selected ? "text-accent" : undefined}>
+                    <span className={selected ? "text-link" : undefined}>
                       {t("floor", { floor: floor.floorNumber })}
                     </span>
                     <span className="shrink-0 text-xs text-muted">
@@ -1187,18 +1121,7 @@ export function BuildingModelWorkspace({
                     {metres(floor.depthMm ?? building.depthMm)} ×{" "}
                     {metres(floor.heightMm ?? building.defaultFloorHeightMm)} m
                   </span>
-                </button>
-                <Link
-                  href={storageFloorPath(
-                    building.buildingId,
-                    floor.floorNumber,
-                  )}
-                  aria-label={t("editFloor", { floor: floor.floorNumber })}
-                  title={t("editFloor", { floor: floor.floorNumber })}
-                  className="grid w-11 shrink-0 place-items-center border-l border-border text-muted transition hover:bg-accent-surface hover:text-accent focus-visible:bg-accent-surface focus-visible:text-accent focus-visible:outline-none"
-                >
-                  <PencilLine className="size-4" />
-                </Link>
+                </Button>
               </div>
             );
           })}
@@ -1208,33 +1131,39 @@ export function BuildingModelWorkspace({
         <IsometricBuilding
           building={building}
           floors={floors}
-          highlightedFloorNumber={
-            selectedFloor?.floorNumber ?? selectedFloorNumber
-          }
+          highlightedFloorNumber={selectedFloorNumber}
         />
       ) : selectedFloor ? (
-        <FloorMap
-          key={selectedFloor.floorId}
-          floorNumber={selectedFloor.floorNumber}
-          widthMm={selectedFloor.widthMm ?? building.widthMm}
-          depthMm={selectedFloor.depthMm ?? building.depthMm}
-          heightMm={selectedFloor.heightMm ?? building.defaultFloorHeightMm}
-          baseWidthMm={building.widthMm}
-          baseDepthMm={building.depthMm}
-          baseLabel={t("buildingFootprint")}
-          offsetXMm={selectedFloor.offsetXMm ?? 0}
-          offsetYMm={selectedFloor.offsetYMm ?? 0}
-          zones={selectedFloor.storageZones}
-          blocks={selectedFloor.reservedBlocks}
-          onEditZone={
-            building.status !== "ARCHIVED"
-              ? (zoneId) =>
-                  router.push(
-                    `${storageFloorPath(building.buildingId, selectedFloor.floorNumber)}?editZone=${encodeURIComponent(zoneId)}`,
-                  )
-              : undefined
-          }
-        />
+        <>
+          {canManage && building.status !== "ARCHIVED" ? (
+            <div className="flex justify-end">
+              <Button
+                variant="outline"
+                onClick={() => transition({ editing: !editing })}
+                disabled={pending}
+              >
+                <PencilLine className="size-4" aria-hidden="true" />
+                {editing
+                  ? t("closeFloorEditing")
+                  : t("editFloor", { floor: selectedFloorNumber })}
+              </Button>
+            </div>
+          ) : null}
+          <FloorForm
+            key={`${selectedFloor.floorId}:${reset}`}
+            warehouseId={building.warehouseId}
+            detail={{ found: true, building, floors }}
+            floor={selectedFloor}
+            workspace={{
+              editing,
+              editorRef,
+              onDirtyChange: setDirty,
+              onPendingChange: setPending,
+              onDialogChange: setDialogOpen,
+              onCancel: () => transition({ editing: false }),
+            }}
+          />
+        </>
       ) : (
         <Notice title={t("mapNoFloors")} />
       )}
@@ -1292,23 +1221,49 @@ function FloorQuery({
   );
 }
 
-type EditableBlock = Omit<StorageReservedBlockRow, "blockId"> & {
-  readonly id: string;
-};
-
 function FloorForm({
   warehouseId,
   detail,
-  floor,
+  floor: savedFloor,
+  workspace,
 }: {
   readonly warehouseId: string;
   readonly detail: Extract<StorageBuildingDetail, { found: true }>;
   readonly floor: StorageFloorRow;
+  readonly workspace?: {
+    editing: boolean;
+    editorRef: Ref<FloorEditorHandle>;
+    onDirtyChange: (dirty: boolean) => void;
+    onPendingChange: (pending: boolean) => void;
+    onDialogChange: (open: boolean) => void;
+    onCancel: () => void;
+  };
 }) {
+  const formRef = useRef<HTMLFormElement>(null);
+  const { selectedZoneId, setSelectedZoneId } = useFloorSelection(
+    `${warehouseId}:${detail.building.buildingId}:${savedFloor.floorId}`,
+    savedFloor.storageZones,
+  );
+  const zonePanelRef = useRef<{ create: () => void }>(null);
+  const [geometryContext, setGeometryContext] = useState(detail);
+  const [areaEditorOpen, setAreaEditorOpen] = useState(false);
+  const [zoneEditorOpen, setZoneEditorOpen] = useState(false);
+  const [zonePending, setZonePending] = useState(false);
+  const dialogChange = workspace?.onDialogChange;
+  useLayoutEffect(() => {
+    dialogChange?.(areaEditorOpen || zoneEditorOpen);
+  }, [dialogChange, areaEditorOpen, zoneEditorOpen]);
+  const [baseline, setBaseline] = useState(savedFloor);
+  const [receivedVersion, setReceivedVersion] = useState(savedFloor.version);
+  const floor = { ...baseline, storageZones: savedFloor.storageZones };
   const t = useTranslations("StorageLayouts");
   const canManage = useCanManage();
   const editable = canManage && detail.building.status !== "ARCHIVED";
   const save = useMutation(storageLayoutRefs.saveFloor);
+  const operation = useAsyncOperation({
+    scope: `floor-draft:${warehouseId}:${detail.building.buildingId}:${savedFloor.floorId}`,
+    describeError: (code) => code || "NETWORK_ERROR",
+  });
   const [mapEditRequest, setMapEditRequest] = useState<{
     zoneId: string;
     nonce: number;
@@ -1322,13 +1277,15 @@ function FloorForm({
   const [height, setHeight] = useState(
     floor.heightMm === undefined ? "" : String(metres(floor.heightMm)),
   );
-  const previousFloor = detail.floors.find(
+  const previousFloor = geometryContext.floors.find(
     (candidate) => candidate.floorNumber === floor.floorNumber - 1,
   );
-  const baseWidthMm = previousFloor?.widthMm ?? detail.building.widthMm;
-  const baseDepthMm = previousFloor?.depthMm ?? detail.building.depthMm;
-  const initialWidthMm = floor.widthMm ?? detail.building.widthMm;
-  const initialDepthMm = floor.depthMm ?? detail.building.depthMm;
+  const baseWidthMm =
+    previousFloor?.widthMm ?? geometryContext.building.widthMm;
+  const baseDepthMm =
+    previousFloor?.depthMm ?? geometryContext.building.depthMm;
+  const initialWidthMm = floor.widthMm ?? geometryContext.building.widthMm;
+  const initialDepthMm = floor.depthMm ?? geometryContext.building.depthMm;
   const [placement, setPlacement] = useState({
     xMm:
       floor.offsetXMm ??
@@ -1355,11 +1312,13 @@ function FloorForm({
     text: string;
   }>();
   const actualWidth =
-    width === "" ? detail.building.widthMm : millimetres(width);
+    width === "" ? geometryContext.building.widthMm : millimetres(width);
   const actualDepth =
-    depth === "" ? detail.building.depthMm : millimetres(depth);
+    depth === "" ? geometryContext.building.depthMm : millimetres(depth);
   const actualHeight =
-    height === "" ? detail.building.defaultFloorHeightMm : millimetres(height);
+    height === ""
+      ? geometryContext.building.defaultFloorHeightMm
+      : millimetres(height);
   const actualPlacement = {
     xMm: Math.max(
       0,
@@ -1423,7 +1382,7 @@ function FloorForm({
       ...floor,
       widthMm: initialWidthMm,
       depthMm: initialDepthMm,
-      heightMm: floor.heightMm ?? detail.building.defaultFloorHeightMm,
+      heightMm: floor.heightMm ?? geometryContext.building.defaultFloorHeightMm,
       offsetXMm: initialPlacement.xMm,
       offsetYMm: initialPlacement.yMm,
     },
@@ -1448,22 +1407,87 @@ function FloorForm({
       ),
     0,
   );
-  async function submit(event: FormEvent) {
-    event.preventDefault();
-    if (!editable || pending) return;
+  const dirtyChange = workspace?.onDirtyChange;
+  const pendingChange = workspace?.onPendingChange;
+  useLayoutEffect(() => {
+    dirtyChange?.(hasUnsavedFloorChanges);
+  }, [dirtyChange, hasUnsavedFloorChanges]);
+  useLayoutEffect(() => {
+    pendingChange?.(pending || zonePending);
+  }, [pendingChange, pending, zonePending]);
+  // Reconcile external updates only when the local draft is clean.
+  if (
+    (savedFloor.version > receivedVersion ||
+      detail.building.version > geometryContext.building.version) &&
+    savedFloor.version >= baseline.version &&
+    !hasUnsavedFloorChanges
+  ) {
+    setReceivedVersion(savedFloor.version);
+    setGeometryContext(detail);
+    setBaseline(savedFloor);
+    setWidth(
+      savedFloor.widthMm === undefined
+        ? ""
+        : String(metres(savedFloor.widthMm)),
+    );
+    setDepth(
+      savedFloor.depthMm === undefined
+        ? ""
+        : String(metres(savedFloor.depthMm)),
+    );
+    setHeight(
+      savedFloor.heightMm === undefined
+        ? ""
+        : String(metres(savedFloor.heightMm)),
+    );
+    const savedPreviousFloor = detail.floors.find(
+      (item) => item.floorNumber === savedFloor.floorNumber - 1,
+    );
+    setPlacement({
+      xMm:
+        savedFloor.offsetXMm ??
+        Math.max(
+          0,
+          Math.floor(
+            ((savedPreviousFloor?.widthMm ?? detail.building.widthMm) -
+              (savedFloor.widthMm ?? detail.building.widthMm)) /
+              2,
+          ),
+        ),
+      yMm:
+        savedFloor.offsetYMm ??
+        Math.max(
+          0,
+          Math.floor(
+            ((savedPreviousFloor?.depthMm ?? detail.building.depthMm) -
+              (savedFloor.depthMm ?? detail.building.depthMm)) /
+              2,
+          ),
+        ),
+    });
+    setBlocks(
+      savedFloor.reservedBlocks.map(({ blockId, ...block }) => ({
+        ...block,
+        id: blockId,
+      })),
+    );
+  }
+  async function saveDraft(): Promise<boolean> {
+    if (!editable || pending || areaEditorOpen || zoneEditorOpen) return false;
+    if (!hasUnsavedFloorChanges) return true;
+    if (formRef.current && !formRef.current.reportValidity()) return false;
     if (placements.length + unmeasuredCount > 0 && !colorOnlyChange) {
       setConfirmingImpact(true);
       setMessage(undefined);
-      return;
+      return false;
     }
     setPending(true);
     setMessage(undefined);
     try {
-      const outcome = await save({
+      const payload = {
         warehouseId,
         buildingId: detail.building.buildingId,
-        requestId: requestId(),
-        expectedBuildingVersion: detail.building.version,
+        expectedBuildingVersion: geometryContext.building.version,
         expectedFloorVersion: floor.version,
         floor: {
           floorNumber: floor.floorNumber,
@@ -1474,7 +1498,14 @@ function FloorForm({
           offsetYMm: actualPlacement.yMm,
           reservedBlocks: blocks,
         },
-      });
+      };
+      const outcome = await operation.run(() =>
+        save({
+          ...payload,
+          requestId: operation.request(JSON.stringify(payload)),
+        }),
+      );
+      if (!outcome) return false;
       if (!outcome.ok)
         setMessage({
           tone: "warning",
@@ -1486,174 +1517,296 @@ function FloorForm({
           text: storageErrorMessage(t, outcome.value.error.code),
         });
       else {
+        operation.clearRequests();
         setConfirmingImpact(false);
+        const nextFloor = {
+          ...floor,
+          widthMm: actualWidth,
+          depthMm: actualDepth,
+          heightMm: actualHeight,
+          offsetXMm: actualPlacement.xMm,
+          offsetYMm: actualPlacement.yMm,
+          reservedBlocks: blocks.map(({ id, ...block }) => ({
+            ...block,
+            blockId: id,
+          })),
+          version: floor.version + 1,
+        };
+        const inheritedFloor: StorageFloorRow = {
+          floorId: nextFloor.floorId,
+          floorNumber: nextFloor.floorNumber,
+          grossAreaSqMm: nextFloor.grossAreaSqMm,
+          reservedAreaSqMm: nextFloor.reservedAreaSqMm,
+          usableAreaSqMm: nextFloor.usableAreaSqMm,
+          version: nextFloor.version,
+          storageZones: nextFloor.storageZones,
+          reservedBlocks: nextFloor.reservedBlocks,
+          offsetXMm: nextFloor.offsetXMm,
+          offsetYMm: nextFloor.offsetYMm,
+          ...(width === "" ? {} : { widthMm: actualWidth }),
+          ...(depth === "" ? {} : { depthMm: actualDepth }),
+          ...(height === "" ? {} : { heightMm: actualHeight }),
+        };
+        setBaseline(inheritedFloor);
+        setPlacement(actualPlacement);
+        dirtyChange?.(false);
         setMessage({ tone: "success", text: t("savedContinueToStorage") });
         requestAnimationFrame(() => {
           document
             .getElementById("storage-stacks-section")
             ?.scrollIntoView({ behavior: "smooth", block: "start" });
         });
+        return true;
       }
+      return false;
+    } catch {
+      setMessage({ tone: "warning", text: t("statusNetworkError") });
+      return false;
     } finally {
       setPending(false);
     }
   }
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    await saveDraft();
+  }
+  useImperativeHandle(workspace?.editorRef, () => ({ save: saveDraft }));
+  const showEditing = workspace === undefined || workspace.editing;
+  const locationInspector = (
+    <StorageZonesPanel
+      panelRef={zonePanelRef}
+      onSelectionClose={() => setSelectedZoneId(undefined)}
+      compact={workspace !== undefined}
+      selectedZoneId={selectedZoneId}
+      onEditorOpenChange={setZoneEditorOpen}
+      onSavingChange={setZonePending}
+      editRequest={mapEditRequest}
+      warehouseId={warehouseId}
+      buildingId={detail.building.buildingId}
+      floorNumber={floor.floorNumber}
+      floorWidthMm={actualWidth}
+      floorDepthMm={actualDepth}
+      floorHeightMm={actualHeight}
+      zones={floor.storageZones}
+      reservedBlocks={blocks}
+      layoutStatus={detail.building.status}
+      blocked={hasUnsavedFloorChanges || pending}
+    />
+  );
   return (
-    <form onSubmit={submit} className="space-y-6">
-      <div className="xl:col-span-2">
-        <FloorPlan
-          widthMm={actualWidth}
-          depthMm={actualDepth}
-          heightMm={actualHeight}
-          baseWidthMm={baseWidthMm}
-          baseDepthMm={baseDepthMm}
-          baseLabel={
-            previousFloor === undefined
-              ? t("buildingFootprint")
-              : t("floorFootprint", { floor: previousFloor.floorNumber })
-          }
-          floorNumber={floor.floorNumber}
-          offsetXMm={actualPlacement.xMm}
-          offsetYMm={actualPlacement.yMm}
-          {...(editable ? { onPlacementChange: setPlacement } : {})}
-          blocks={blocks}
-          zones={floor.storageZones}
-          onEditZone={
-            editable && !hasUnsavedFloorChanges
-              ? (zoneId) => setMapEditRequest({ zoneId, nonce: Date.now() })
-              : undefined
-          }
-        />
-      </div>
-      <div className="min-w-0 space-y-6">
-        {!canManage && <Notice tone="muted" title={t("layoutViewOnly")} />}
-
-        {/*
-         * Dimension overrides are the exception, not the everyday edit: a
-         * floor inherits the building's footprint unless somebody says
-         * otherwise. Collapsed with an "inherits" badge while untouched, so
-         * the plan and zones stay the screen's subject.
-         */}
-        <CollapsibleSection
-          label={t("dimensions")}
-          icon={Ruler}
-          {...(width === "" && depth === "" && height === ""
-            ? { badge: t("inherits") }
-            : { open: true })}
-          contentClassName="grid gap-4 sm:grid-cols-3"
-        >
-          <OverrideField
-            label={t("width")}
-            value={width}
-            onChange={setWidth}
-            disabled={!editable}
-          />
-          <OverrideField
-            label={t("depth")}
-            value={depth}
-            onChange={setDepth}
-            disabled={!editable}
-          />
-          <OverrideField
-            label={t("height")}
-            value={height}
-            onChange={setHeight}
-            disabled={!editable}
-          />
-        </CollapsibleSection>
-        <div role="status" aria-atomic="true">
-          <AreaOverview
-            grossAreaSqMm={grossAreaSqMm}
-            usableAreaSqMm={usableAreaSqMm}
-            {...storageFootprintUsage(floor.storageZones)}
-            measuredAreaPartial={floor.storageZones.some(
-              (zone) =>
-                zone.measuredAreaPartial ||
-                (zone.unmeasuredPalletCount ?? 0) > 0,
-            )}
+    <form ref={formRef} onSubmit={submit} className="space-y-6">
+      <div
+        className={
+          showEditing && workspace
+            ? "grid min-w-0 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]"
+            : "space-y-6"
+        }
+      >
+        <div className="min-w-0">
+          <FloorPlan
+            locationInspector={workspace ? locationInspector : undefined}
+            locationActions={
+              workspace ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  aria-label={t("addStorageZone")}
+                  title={t("addStorageZone")}
+                  disabled={
+                    !editable ||
+                    hasUnsavedFloorChanges ||
+                    pending ||
+                    zonePending
+                  }
+                  onClick={() => zonePanelRef.current?.create()}
+                >
+                  <Plus className="size-4" />
+                </Button>
+              ) : undefined
+            }
+            selectedZoneId={selectedZoneId}
+            onSelectionChange={(id) => {
+              setSelectedZoneId(id);
+            }}
+            widthMm={actualWidth}
+            depthMm={actualDepth}
+            heightMm={actualHeight}
+            baseWidthMm={baseWidthMm}
+            baseDepthMm={baseDepthMm}
+            baseLabel={
+              previousFloor === undefined
+                ? t("buildingFootprint")
+                : t("floorFootprint", { floor: previousFloor.floorNumber })
+            }
+            floorNumber={floor.floorNumber}
+            offsetXMm={actualPlacement.xMm}
+            offsetYMm={actualPlacement.yMm}
+            {...(editable && showEditing && !pending
+              ? { onPlacementChange: setPlacement }
+              : {})}
+            blocks={blocks}
+            zones={floor.storageZones}
+            onEditZone={
+              editable && !pending && !hasUnsavedFloorChanges
+                ? (zoneId) => {
+                    if (!workspace)
+                      setMapEditRequest({ zoneId, nonce: Date.now() });
+                    if (workspace) {
+                      updateBrowserQuery(
+                        (query) => {
+                          query.set("floor", String(floor.floorNumber));
+                          query.set("editZone", zoneId);
+                        },
+                        { event: workspaceStateEvent },
+                      );
+                    }
+                  }
+                : undefined
+            }
           />
         </div>
-        <ReservedBlocks
-          editable={editable}
-          blocks={blocks}
-          setBlocks={setBlocks}
-          floorWidthMm={actualWidth}
-          floorDepthMm={actualDepth}
-          floorHeightMm={actualHeight}
-          zones={floor.storageZones}
-        />
-        <StorageZonesPanel
-          editRequest={mapEditRequest}
-          warehouseId={warehouseId}
-          buildingId={detail.building.buildingId}
-          floorNumber={floor.floorNumber}
-          floorWidthMm={actualWidth}
-          floorDepthMm={actualDepth}
-          floorHeightMm={actualHeight}
-          zones={floor.storageZones}
-          reservedBlocks={blocks}
-          layoutStatus={detail.building.status}
-          blocked={hasUnsavedFloorChanges}
-        />
+        {showEditing ? (
+          <div className="min-w-0 space-y-6">
+            {!canManage && <Notice tone="muted" title={t("layoutViewOnly")} />}
+
+            {/*
+             * Dimension overrides are the exception, not the everyday edit: a
+             * floor inherits the building's footprint unless somebody says
+             * otherwise. Collapsed with an "inherits" badge while untouched, so
+             * the plan and zones stay the screen's subject.
+             */}
+            <CollapsibleSection
+              label={t("floorDimensions")}
+              icon={Ruler}
+              {...(width === "" && depth === "" && height === ""
+                ? { badge: t("inherits") }
+                : { open: true })}
+              contentClassName="grid gap-4 sm:grid-cols-3"
+            >
+              <OverrideField
+                label={t("width")}
+                value={width}
+                onChange={setWidth}
+                disabled={!editable || pending}
+              />
+              <OverrideField
+                label={t("depth")}
+                value={depth}
+                onChange={setDepth}
+                disabled={!editable || pending}
+              />
+              <OverrideField
+                label={t("height")}
+                value={height}
+                onChange={setHeight}
+                disabled={!editable || pending}
+              />
+            </CollapsibleSection>
+            <div role="status" aria-atomic="true">
+              <AreaOverview
+                grossAreaSqMm={grossAreaSqMm}
+                usableAreaSqMm={usableAreaSqMm}
+                {...storageFootprintUsage(floor.storageZones)}
+                measuredAreaPartial={floor.storageZones.some(
+                  (zone) =>
+                    zone.measuredAreaPartial ||
+                    (zone.unmeasuredPalletCount ?? 0) > 0,
+                )}
+              />
+            </div>
+            <ReservedBlocks
+              onEditorOpenChange={setAreaEditorOpen}
+              editable={editable && !pending}
+              blocks={blocks}
+              setBlocks={setBlocks}
+              floorWidthMm={actualWidth}
+              floorDepthMm={actualDepth}
+              floorHeightMm={actualHeight}
+              zones={floor.storageZones}
+            />
+          </div>
+        ) : null}
+      </div>
+      {!workspace || hasUnsavedFloorChanges || confirmingImpact ? (
+        <aside className="space-y-3 rounded-xl border border-border bg-surface p-4">
+          {workspace ? (
+            <p role="status" className="text-sm font-medium">
+              {t("unsavedFloorChanges")}
+            </p>
+          ) : (
+            <section className="rounded-2xl border border-border bg-surface p-5">
+              <p className="text-xs font-semibold tracking-[.15em] text-muted uppercase">
+                {detail.building.code}
+              </p>
+              <h2 className="mt-1 text-lg leading-7 font-semibold text-text">
+                {t("floor", { floor: floor.floorNumber })}
+              </h2>
+              <p className="mt-2 text-sm text-muted">
+                {metres(actualWidth)} × {metres(actualDepth)} ×{" "}
+                {metres(actualHeight)} m
+              </p>
+            </section>
+          )}
+          {confirmingImpact ? (
+            <ChangeImpactSummary
+              placements={placements}
+              currentPlan={`${metres(initialWidthMm)} × ${metres(initialDepthMm)} × ${metres(floor.heightMm ?? geometryContext.building.defaultFloorHeightMm)} m`}
+              proposedPlan={`${metres(actualWidth)} × ${metres(actualDepth)} × ${metres(actualHeight)} m`}
+            />
+          ) : null}
+          {confirmingImpact ? (
+            <Button
+              type="button"
+              className="w-full"
+              variant="outline"
+              disabled={pending}
+              onClick={() => setConfirmingImpact(false)}
+            >
+              {t("backToEdit")}
+            </Button>
+          ) : null}
+          <Button
+            className={workspace ? "" : "w-full"}
+            disabled={
+              !editable ||
+              pending ||
+              !hasUnsavedFloorChanges ||
+              (confirmingImpact &&
+                placements.length + unmeasuredCount > 0 &&
+                !colorOnlyChange)
+            }
+          >
+            {pending
+              ? t("saving")
+              : confirmingImpact && !colorOnlyChange
+                ? t("confirmChanges")
+                : !hasUnsavedFloorChanges
+                  ? t("floorSaved")
+                  : detail.building.status === "ACTIVE" &&
+                      placements.length + unmeasuredCount > 0 &&
+                      !colorOnlyChange
+                    ? t("reviewImpact")
+                    : t("saveAndContinue")}
+          </Button>
+          {workspace ? (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={pending}
+              onClick={workspace.onCancel}
+            >
+              {t("cancel")}
+            </Button>
+          ) : null}
+        </aside>
+      ) : null}
+      <div className="min-w-0 space-y-6">
+        {!workspace ? locationInspector : null}
         {message === undefined ? null : (
           <Notice tone={message.tone} title={message.text} />
         )}
       </div>
-      <aside className="space-y-3">
-        <section className="rounded-2xl border border-border bg-surface p-5">
-          <p className="text-xs font-semibold tracking-[.15em] text-muted uppercase">
-            {detail.building.code}
-          </p>
-          <h2 className="mt-1 text-xl font-semibold text-text">
-            {t("floor", { floor: floor.floorNumber })}
-          </h2>
-          <p className="mt-2 text-sm text-muted">
-            {metres(actualWidth)} × {metres(actualDepth)} ×{" "}
-            {metres(actualHeight)} m
-          </p>
-        </section>
-        {confirmingImpact ? (
-          <ChangeImpactSummary
-            placements={placements}
-            currentPlan={`${metres(initialWidthMm)} × ${metres(initialDepthMm)} × ${metres(floor.heightMm ?? detail.building.defaultFloorHeightMm)} m`}
-            proposedPlan={`${metres(actualWidth)} × ${metres(actualDepth)} × ${metres(actualHeight)} m`}
-          />
-        ) : null}
-        {confirmingImpact ? (
-          <Button
-            type="button"
-            className="w-full"
-            variant="outline"
-            disabled={pending}
-            onClick={() => setConfirmingImpact(false)}
-          >
-            {t("backToEdit")}
-          </Button>
-        ) : null}
-        <Button
-          className="w-full"
-          disabled={
-            !editable ||
-            pending ||
-            !hasUnsavedFloorChanges ||
-            (confirmingImpact &&
-              placements.length + unmeasuredCount > 0 &&
-              !colorOnlyChange)
-          }
-        >
-          {pending
-            ? t("saving")
-            : confirmingImpact && !colorOnlyChange
-              ? t("confirmChanges")
-              : !hasUnsavedFloorChanges
-                ? t("floorSaved")
-                : detail.building.status === "ACTIVE" &&
-                    placements.length + unmeasuredCount > 0 &&
-                    !colorOnlyChange
-                  ? t("reviewImpact")
-                  : t("saveAndContinue")}
-        </Button>
-      </aside>
     </form>
   );
 }
@@ -1672,25 +1825,31 @@ function OverrideField({
   const t = useTranslations("StorageLayouts");
   const inputId = useId();
   return (
-    <div className="grid gap-2">
-      <Label htmlFor={inputId}>{label}</Label>
-      <Input
-        disabled={disabled}
-        id={inputId}
-        type="number"
-        min="0.1"
-        step="0.1"
-        value={value}
-        placeholder={t("inherits")}
-        onChange={(event) => onChange(event.target.value)}
-      />
-    </div>
+    <FormField id={inputId} label={label}>
+      {(field) => (
+        <Input
+          disabled={disabled}
+          {...field}
+          type="number"
+          min="0.1"
+          step="0.1"
+          value={value}
+          placeholder={t("inherits")}
+          onChange={(event) => onChange(event.target.value)}
+        />
+      )}
+    </FormField>
   );
 }
 
 export function FloorPlan(
   props: Parameters<typeof FloorOffsetPlan>[0] & {
+    readonly locationActions?: ReactNode;
+    readonly locationInspector?: ReactNode;
     readonly onEditZone?: ((zoneId: string) => void) | undefined;
+    readonly selectedZoneId?: string | undefined;
+    readonly onSelectionChange?:
+      ((zoneId: string | undefined) => void) | undefined;
   },
 ) {
   return (
@@ -2144,10 +2303,7 @@ function FloorVolume({
                 dominantBaseline="central"
                 className="fill-text text-[9px] font-bold"
               >
-                {zone.code.split("-").at(-1)} ·{" "}
-                {zone.palletCount ??
-                  uniqueStoragePallets(zone.placements).length +
-                    (zone.unmeasuredPalletCount ?? 0)}
+                {zone.code.split("-").at(-1)} · {locationInventory(zone).units}
               </text>
             </g>
           );
@@ -2390,10 +2546,7 @@ function FloorPlanDrawing({
             className="fill-text font-bold"
             style={{ fontSize: labelSize * 0.78 }}
           >
-            {zone.code.split("-").at(-1)} ·{" "}
-            {zone.palletCount ??
-              uniqueStoragePallets(zone.placements).length +
-                (zone.unmeasuredPalletCount ?? 0)}
+            {zone.code.split("-").at(-1)} · {locationInventory(zone).units}
           </text>
         </g>
       ))}
@@ -2423,6 +2576,7 @@ export function ReservedBlocks({
   floorHeightMm,
   zones,
   editable = true,
+  onEditorOpenChange,
 }: {
   readonly blocks: readonly EditableBlock[];
   readonly setBlocks: (blocks: EditableBlock[]) => void;
@@ -2431,9 +2585,14 @@ export function ReservedBlocks({
   readonly floorHeightMm: number;
   readonly zones: readonly StorageZoneRow[];
   readonly editable?: boolean;
+  readonly onEditorOpenChange?: (open: boolean) => void;
 }) {
   const t = useTranslations("StorageLayouts");
   const [dialogOpen, setDialogOpen] = useState(false);
+  useLayoutEffect(() => {
+    onEditorOpenChange?.(dialogOpen && editable);
+    return () => onEditorOpenChange?.(false);
+  }, [dialogOpen, editable, onEditorOpenChange]);
   const [editingBlockId, setEditingBlockId] = useState<string>();
   const [draft, setDraft] = useState({
     label: "",
@@ -2503,7 +2662,7 @@ export function ReservedBlocks({
     if (!editable) return;
     const nextBlock = {
       ...draftBlock,
-      id: editingBlockId ?? requestId(),
+      id: editingBlockId ?? localEntityId(),
     };
     setBlocks(
       editingBlockId === undefined
@@ -2709,895 +2868,6 @@ export function ReservedBlocks({
   );
 }
 
-const firstFreeStoragePosition = (
-  floorWidthMm: number,
-  floorDepthMm: number,
-  widthMm: number,
-  depthMm: number,
-  areas: readonly {
-    readonly xMm: number;
-    readonly yMm: number;
-    readonly widthMm: number;
-    readonly depthMm: number;
-  }[],
-) => {
-  const stepMm = 500;
-  for (let yMm = 0; yMm + depthMm <= floorDepthMm; yMm += stepMm) {
-    for (let xMm = 0; xMm + widthMm <= floorWidthMm; xMm += stepMm) {
-      const candidate = { xMm, yMm, widthMm, depthMm };
-      if (!areas.some((area) => rectanglesOverlap(candidate, area))) {
-        return { xMm, yMm };
-      }
-    }
-  }
-  return { xMm: 0, yMm: 0 };
-};
-
-export function StorageZonesPanel({
-  editRequest,
-  warehouseId,
-  buildingId,
-  floorNumber,
-  floorWidthMm,
-  floorDepthMm,
-  floorHeightMm,
-  zones,
-  reservedBlocks = [],
-  layoutStatus = "DRAFT",
-  blocked = false,
-}: {
-  readonly editRequest?:
-    { readonly zoneId: string; readonly nonce: number } | undefined;
-  readonly warehouseId: string;
-  readonly buildingId: string;
-  readonly floorNumber: number;
-  readonly floorWidthMm: number;
-  readonly floorDepthMm: number;
-  readonly floorHeightMm: number;
-  readonly zones: readonly StorageZoneRow[];
-  readonly reservedBlocks?: readonly EditableBlock[];
-  readonly layoutStatus?: StorageLayoutStatus;
-  readonly blocked?: boolean;
-}) {
-  const t = useTranslations("StorageLayouts");
-  const [search, setSearch] = useState("");
-  const searchId = useId();
-  const visibleZones = useMemo(() => {
-    const words = search
-      .normalize("NFKC")
-      .toLocaleLowerCase()
-      .trim()
-      .split(/\s+/)
-      .filter(Boolean);
-    return zones.filter((zone) => {
-      const text = [
-        zone.label,
-        zone.code,
-        zone.qrValue,
-        ...zone.positions.flatMap((position) => [
-          position.label,
-          position.code,
-          position.qrValue,
-        ]),
-        ...zone.placements.flatMap((placement) => [
-          placement.lpn,
-          placement.positionCode ?? "",
-        ]),
-      ]
-        .join(" ")
-        .normalize("NFKC")
-        .toLocaleLowerCase();
-      return words.every((word) => text.includes(word));
-    });
-  }, [search, zones]);
-  const canManage = useCanManage();
-  const editable = canManage && layoutStatus !== "ARCHIVED";
-  const createZone = useMutation(storageLayoutRefs.createZone);
-  const updateZone = useMutation(storageLayoutRefs.updateZone);
-  const archiveZone = useMutation(storageLayoutRefs.archiveZone);
-  const [label, setLabel] = useState("");
-  const [storageCondition, setStorageCondition] = useState("ANY");
-  const [zoneX, setZoneX] = useState("0");
-  const [zoneY, setZoneY] = useState("0");
-  const [zoneWidth, setZoneWidth] = useState("2");
-  const [zoneDepth, setZoneDepth] = useState("2");
-  const [stackHeight, setStackHeight] = useState(String(metres(floorHeightMm)));
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [editingZone, setEditingZone] = useState<StorageZoneRow>();
-  const followedAnchor = useRef<string | undefined>(undefined);
-  useEffect(() => {
-    const followAnchor = () => {
-      const id = window.location.hash.slice(1);
-      if (
-        id !== "storage-stacks-section" &&
-        !zones.some((zone) => id === `storage-zone-${zone.zoneId}`)
-      )
-        return;
-      const target = document.getElementById(id);
-      const key = `${warehouseId}:${buildingId}:${floorNumber}:${id}`;
-      if (!target || followedAnchor.current === key) return;
-      followedAnchor.current = key;
-      target.focus({ preventScroll: true });
-      target.scrollIntoView?.({ block: "start" });
-    };
-    // Floor data arrives after the browser's initial fragment navigation.
-    followAnchor();
-    const onHashChange = () => {
-      followedAnchor.current = undefined;
-      if (
-        zones.some(
-          (zone) => window.location.hash === `#storage-zone-${zone.zoneId}`,
-        )
-      )
-        setSearch("");
-      followAnchor();
-    };
-    window.addEventListener("hashchange", onHashChange);
-    return () => window.removeEventListener("hashchange", onHashChange);
-  }, [warehouseId, buildingId, floorNumber, zones, visibleZones]);
-  const [confirmingImpact, setConfirmingImpact] = useState(false);
-  const [pendingAction, setPendingAction] = useState<string>();
-  const [message, setMessage] = useState<{
-    readonly tone: "success" | "warning";
-    readonly text: string;
-  }>();
-  const openedFromLink = useRef<string | number | undefined>(undefined);
-  useEffect(() => {
-    const requested =
-      editRequest?.zoneId ??
-      new URLSearchParams(window.location.search).get("editZone");
-    const requestKey = editRequest?.nonce ?? requested;
-    const zone = zones.find((item) => item.zoneId === requested);
-    if (
-      editable &&
-      zone &&
-      requestKey != null &&
-      openedFromLink.current !== requestKey
-    ) {
-      openedFromLink.current = requestKey;
-      setMessage(undefined);
-      setConfirmingImpact(false);
-      setEditingZone(zone);
-      setLabel(zone.label);
-      setStorageCondition(zone.storageCondition?.trim().toUpperCase() || "ANY");
-      setZoneX(String(metres(zone.xMm)));
-      setZoneY(String(metres(zone.yMm)));
-      setZoneWidth(String(metres(zone.widthMm)));
-      setZoneDepth(String(metres(zone.depthMm)));
-      setStackHeight(String(metres(zone.maxStackHeightMm)));
-      setCreateDialogOpen(true);
-    }
-  }, [editable, zones, editRequest]);
-  const zoneDraft = {
-    xMm: millimetres(zoneX),
-    yMm: millimetres(zoneY),
-    widthMm: millimetres(zoneWidth),
-    depthMm: millimetres(zoneDepth),
-  };
-  const normalizedCondition = (condition: string | undefined) => {
-    const normalized = condition?.trim().toUpperCase();
-    return normalized === "ANY" ? "" : (normalized ?? "");
-  };
-  const occupiedChangeBlocked =
-    editingZone !== undefined &&
-    editingZone.placements.length + (editingZone.unmeasuredPalletCount ?? 0) >
-      0 &&
-    (zoneDraft.xMm !== editingZone.xMm ||
-      zoneDraft.yMm !== editingZone.yMm ||
-      zoneDraft.widthMm !== editingZone.widthMm ||
-      zoneDraft.depthMm !== editingZone.depthMm ||
-      millimetres(stackHeight) !== editingZone.maxStackHeightMm ||
-      normalizedCondition(storageCondition) !==
-        normalizedCondition(editingZone.storageCondition));
-  const otherZones =
-    editingZone === undefined
-      ? zones
-      : zones.filter((zone) => zone.zoneId !== editingZone.zoneId);
-  const storageDraftValid =
-    zoneDraft.xMm >= 0 &&
-    zoneDraft.yMm >= 0 &&
-    zoneDraft.widthMm > 0 &&
-    zoneDraft.depthMm > 0 &&
-    millimetres(stackHeight) > 0 &&
-    zoneDraft.xMm + zoneDraft.widthMm <= floorWidthMm &&
-    zoneDraft.yMm + zoneDraft.depthMm <= floorDepthMm &&
-    millimetres(stackHeight) <= floorHeightMm &&
-    ![...reservedBlocks, ...otherZones].some((area) =>
-      rectanglesOverlap(zoneDraft, area),
-    );
-
-  const startNewStorageZone = () => {
-    if (!editable) return;
-    const position = firstFreeStoragePosition(
-      floorWidthMm,
-      floorDepthMm,
-      2_000,
-      2_000,
-      [...reservedBlocks, ...zones],
-    );
-    setEditingZone(undefined);
-    setLabel("");
-    setStorageCondition("ANY");
-    setZoneX(String(metres(position.xMm)));
-    setZoneY(String(metres(position.yMm)));
-    setZoneWidth("2");
-    setZoneDepth("2");
-    setStackHeight(String(metres(floorHeightMm)));
-    setConfirmingImpact(false);
-    setMessage(undefined);
-  };
-
-  const startEditingStorageZone = (zone: StorageZoneRow) => {
-    if (!editable) return;
-    setEditingZone(zone);
-    setLabel(zone.label);
-    setStorageCondition(zone.storageCondition?.trim().toUpperCase() || "ANY");
-    setZoneX(String(metres(zone.xMm)));
-    setZoneY(String(metres(zone.yMm)));
-    setZoneWidth(String(metres(zone.widthMm)));
-    setZoneDepth(String(metres(zone.depthMm)));
-    setStackHeight(String(metres(zone.maxStackHeightMm)));
-    setConfirmingImpact(false);
-    setMessage(undefined);
-    setCreateDialogOpen(true);
-  };
-
-  const saveStorageZone = async () => {
-    if (!editable) return;
-    if (occupiedChangeBlocked) {
-      setConfirmingImpact(true);
-      return;
-    }
-    const isEditing = editingZone !== undefined;
-    setPendingAction(isEditing ? "update" : "create");
-    setMessage(undefined);
-    try {
-      const draft = {
-        warehouseId,
-        requestId: requestId(),
-        label: label || t("newStorageZoneLabel", { number: zones.length + 1 }),
-        xMm: millimetres(zoneX),
-        yMm: millimetres(zoneY),
-        widthMm: millimetres(zoneWidth),
-        depthMm: millimetres(zoneDepth),
-        maxStackHeightMm: millimetres(stackHeight),
-        storageCondition: storageCondition === "ANY" ? "" : storageCondition,
-      };
-      const outcome = isEditing
-        ? await updateZone({
-            ...draft,
-            zoneId: editingZone.zoneId,
-            ...(confirmingImpact ? { confirmOccupiedChange: true } : {}),
-          })
-        : await createZone({ ...draft, buildingId, floorNumber });
-      if (!outcome.ok) {
-        setMessage({
-          tone: "warning",
-          text: storageErrorMessage(t, outcome.denial.code),
-        });
-      } else if (!outcome.value.written) {
-        setMessage({
-          tone: "warning",
-          text: storageErrorMessage(t, outcome.value.error.code),
-        });
-      } else {
-        setLabel("");
-        setConfirmingImpact(false);
-        setCreateDialogOpen(false);
-        setEditingZone(undefined);
-        setMessage({
-          tone: "success",
-          text: t(isEditing ? "storageZoneUpdated" : "storageZoneCreated"),
-        });
-      }
-    } finally {
-      setPendingAction(undefined);
-    }
-  };
-
-  const removeStorageZone = async (zone: StorageZoneRow) => {
-    if (!editable) return;
-    setPendingAction(zone.zoneId);
-    setMessage(undefined);
-    try {
-      const outcome = await archiveZone({
-        warehouseId,
-        zoneId: zone.zoneId,
-        requestId: requestId(),
-      });
-      if (!outcome.ok) {
-        const code = outcome.denial.code;
-        setMessage({ tone: "warning", text: storageErrorMessage(t, code) });
-      } else if (!outcome.value.written) {
-        const code = outcome.value.error.code;
-        setMessage({ tone: "warning", text: storageErrorMessage(t, code) });
-      } else {
-        setMessage({ tone: "success", text: t("storageZoneArchived") });
-      }
-    } finally {
-      setPendingAction(undefined);
-    }
-  };
-
-  return (
-    <section
-      id="storage-stacks-section"
-      tabIndex={-1}
-      aria-label={t("storageZones")}
-      className="min-w-0 scroll-mt-20 rounded-2xl border border-border bg-surface p-5 shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
-    >
-      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
-        <div className="flex min-w-0 items-start gap-3">
-          <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-success-surface text-success">
-            <QrCode className="size-5" />
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <h2 className="font-semibold text-text">{t("storageZones")}</h2>
-              <span className="rounded-md bg-background px-2 py-0.5 text-xs text-muted tabular-nums">
-                {zones.length}
-              </span>
-            </div>
-            <p className="mt-1 text-sm text-muted">{t("storageZonesHelp")}</p>
-          </div>
-        </div>
-        <Dialog
-          open={createDialogOpen && editable}
-          onOpenChange={(open) => {
-            if (open && !editable) return;
-            setCreateDialogOpen(open);
-            if (open) setMessage(undefined);
-            else {
-              setEditingZone(undefined);
-              setConfirmingImpact(false);
-            }
-          }}
-        >
-          <DialogTrigger asChild>
-            <Button
-              type="button"
-              variant="outline"
-              aria-label={t("addStorageZone")}
-              title={t("addStorageZone")}
-              className="shrink-0 px-3"
-              onClick={startNewStorageZone}
-              disabled={!editable || blocked}
-            >
-              <Plus className="size-4" />
-              <span className="hidden sm:inline">{t("addStorageZone")}</span>
-            </Button>
-          </DialogTrigger>
-          <DialogContent closeLabel={t("closeDialog")} className="max-w-5xl">
-            <DialogHeader>
-              <DialogTitle>
-                {t(
-                  editingZone === undefined
-                    ? "addStorageZoneTitle"
-                    : "editStorageZoneTitle",
-                )}
-              </DialogTitle>
-              <DialogDescription>
-                {t(
-                  editingZone === undefined
-                    ? "addStorageZoneDescription"
-                    : "editStorageZoneDescription",
-                )}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-5 md:grid-cols-[minmax(0,1.05fr)_minmax(19rem,0.95fr)]">
-              <StorageZoneDraftPreview
-                floorWidthMm={floorWidthMm}
-                floorDepthMm={floorDepthMm}
-                floorHeightMm={floorHeightMm}
-                zoneX={zoneX}
-                zoneY={zoneY}
-                zoneWidth={zoneWidth}
-                zoneDepth={zoneDepth}
-                stackHeight={stackHeight}
-                zones={otherZones}
-                {...(editingZone ? { editingZone } : {})}
-                reservedBlocks={reservedBlocks}
-                onPositionChange={({ xMm, yMm }) => {
-                  setZoneX(String(metres(xMm)));
-                  setZoneY(String(metres(yMm)));
-                }}
-              />
-              <div className="grid content-start gap-4 sm:grid-cols-2">
-                <div className="sm:col-span-2">
-                  <Label htmlFor="new-storage-zone-label">
-                    {t("zoneLabel")}
-                  </Label>
-                  <Input
-                    id="new-storage-zone-label"
-                    className="mt-2"
-                    value={label}
-                    placeholder={t("newStorageZoneLabel", {
-                      number: zones.length + 1,
-                    })}
-                    onChange={(event) => setLabel(event.target.value)}
-                  />
-                </div>
-                {[
-                  ["x", zoneX, setZoneX, 0, floorWidthMm],
-                  ["y", zoneY, setZoneY, 0, floorDepthMm],
-                  ["zoneWidth", zoneWidth, setZoneWidth, 0.1, floorWidthMm],
-                  ["zoneDepth", zoneDepth, setZoneDepth, 0.1, floorDepthMm],
-                ].map(([key, value, setValue, min, max]) => (
-                  <div key={String(key)}>
-                    <Label htmlFor={`new-storage-zone-${String(key)}`}>
-                      {t(key as "x" | "y" | "zoneWidth" | "zoneDepth")}
-                    </Label>
-                    <Input
-                      id={`new-storage-zone-${String(key)}`}
-                      className="mt-2"
-                      type="number"
-                      min={Number(min)}
-                      max={metres(Number(max))}
-                      step="0.1"
-                      value={String(value)}
-                      onChange={(event) =>
-                        (setValue as (value: string) => void)(
-                          event.target.value,
-                        )
-                      }
-                    />
-                  </div>
-                ))}
-                <div className="sm:col-span-2">
-                  <Label htmlFor="new-storage-zone-condition">
-                    {t("storageCondition")}
-                  </Label>
-                  <SelectControl
-                    id="new-storage-zone-condition"
-                    className="mt-2 w-full"
-                    value={storageCondition}
-                    onValueChange={setStorageCondition}
-                    placeholder={t("storageConditionUnknown")}
-                    emptyLabel={t("storageConditionUnknown")}
-                    options={[
-                      { value: "ANY", label: t("storageConditionUnknown") },
-                      { value: "DRY", label: t("storageConditionDry") },
-                      { value: "COOL", label: t("storageConditionCool") },
-                      ...(["ANY", "DRY", "COOL"].includes(storageCondition)
-                        ? []
-                        : [
-                            {
-                              value: storageCondition,
-                              label: storageCondition,
-                            },
-                          ]),
-                    ]}
-                  />
-                  <p className="mt-2 text-xs text-muted">
-                    {t("storageConditionHelp")}
-                  </p>
-                </div>
-                <div className="sm:col-span-2">
-                  <Label htmlFor="new-storage-zone-height">
-                    {t("maxStackHeight")}
-                  </Label>
-                  <Input
-                    id="new-storage-zone-height"
-                    className="mt-2"
-                    type="number"
-                    min="0.1"
-                    max={metres(floorHeightMm)}
-                    step="0.1"
-                    value={stackHeight}
-                    onChange={(event) => setStackHeight(event.target.value)}
-                  />
-                </div>
-              </div>
-            </div>
-            {message === undefined ? null : (
-              <Notice tone={message.tone} title={message.text} />
-            )}
-            {confirmingImpact && editingZone !== undefined ? (
-              <ChangeImpactSummary
-                placements={editingZone.placements}
-                currentPlan={`${metres(editingZone.widthMm)} × ${metres(editingZone.depthMm)} × ${metres(editingZone.maxStackHeightMm)} m`}
-                proposedPlan={`${metres(zoneDraft.widthMm)} × ${metres(zoneDraft.depthMm)} × ${metres(millimetres(stackHeight))} m`}
-              />
-            ) : null}
-            <DialogFooter>
-              {confirmingImpact ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setConfirmingImpact(false)}
-                >
-                  {t("backToEdit")}
-                </Button>
-              ) : (
-                <DialogClose asChild>
-                  <Button type="button" variant="outline">
-                    {t("cancel")}
-                  </Button>
-                </DialogClose>
-              )}
-              <Button
-                type="button"
-                onClick={() => {
-                  if (occupiedChangeBlocked) {
-                    setConfirmingImpact(true);
-                    return;
-                  }
-                  void saveStorageZone();
-                }}
-                disabled={
-                  pendingAction !== undefined ||
-                  !editable ||
-                  blocked ||
-                  !storageDraftValid ||
-                  (confirmingImpact && occupiedChangeBlocked)
-                }
-              >
-                {editingZone === undefined ? (
-                  <Plus className="size-4" />
-                ) : confirmingImpact ? (
-                  <CheckCircle2 className="size-4" />
-                ) : (
-                  <PencilLine className="size-4" />
-                )}
-                {pendingAction === "create"
-                  ? t("creating")
-                  : pendingAction === "update"
-                    ? t("updating")
-                    : confirmingImpact
-                      ? t("confirmChanges")
-                      : occupiedChangeBlocked
-                        ? t("reviewImpact")
-                        : t(
-                            editingZone === undefined
-                              ? "createStorageZone"
-                              : "saveStorageZoneChanges",
-                          )}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      {blocked ? (
-        <div className="mt-4">
-          <Notice
-            tone="accent"
-            title={t("saveReservedBeforeStorage")}
-            body={t("saveReservedBeforeStorageHelp")}
-          />
-        </div>
-      ) : layoutStatus === "ACTIVE" && editable ? (
-        <p
-          className="mt-4 flex items-start gap-2 text-xs text-muted"
-          title={t("quickChangeActiveHelp")}
-        >
-          <Zap className="size-4 shrink-0 text-success" aria-hidden="true" />
-          <span>
-            {t("quickChangeActive")}{" "}
-            <span className="sr-only">{t("quickChangeActiveHelp")}</span>
-          </span>
-        </p>
-      ) : !editable ? (
-        <div className="mt-4">
-          <Notice
-            tone="muted"
-            title={t(canManage ? "archivedLayoutReadOnly" : "layoutViewOnly")}
-          />
-        </div>
-      ) : null}
-
-      <div className="relative mt-4">
-        <Label htmlFor={searchId} className="sr-only">
-          {t("searchStorageSpots")}
-        </Label>
-        <Search
-          className="pointer-events-none absolute top-3.5 left-3 size-4 text-muted"
-          aria-hidden="true"
-        />
-        <Input
-          id={searchId}
-          type="search"
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") event.preventDefault();
-          }}
-          placeholder={t("searchStorageSpotsPlaceholder")}
-          className="pr-11 pl-9 [&::-webkit-search-cancel-button]:appearance-none"
-        />
-        {search && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="absolute top-0 right-0 size-11 p-0"
-            aria-label={t("clearSpotSearch")}
-            onClick={() => {
-              setSearch("");
-              document.getElementById(searchId)?.focus();
-            }}
-          >
-            <X className="size-4" />
-          </Button>
-        )}
-      </div>
-      <p role="status" className="mt-2 text-xs text-muted">
-        {t("spotSearchCount", {
-          count: visibleZones.length,
-          total: zones.length,
-        })}
-      </p>
-      {visibleZones.length === 0 && (
-        <div className="mt-4 rounded-xl border border-dashed border-border px-4 py-8 text-center">
-          <Search
-            className="mx-auto mb-2 size-5 text-muted"
-            aria-hidden="true"
-          />
-          <p className="font-medium">
-            {t(zones.length ? "noMatchingSpots" : "noStorageSpots")}
-          </p>
-          <p className="mt-1 text-sm text-muted">
-            {t(zones.length ? "noMatchingSpotsHelp" : "noStorageSpotsHelp")}
-          </p>
-          {search && (
-            <Button
-              type="button"
-              variant="ghost"
-              className="mt-2"
-              onClick={() => setSearch("")}
-            >
-              {t("clearSpotSearch")}
-            </Button>
-          )}
-        </div>
-      )}
-      <div className="mt-4 grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
-        {visibleZones.map((zone) => {
-          const distinctPositions = zone.positions.filter(
-            (position) => position.qrValue !== zone.qrValue,
-          );
-          return (
-            <article
-              key={zone.zoneId}
-              id={`storage-zone-${zone.zoneId}`}
-              tabIndex={-1}
-              aria-label={`${zone.label} · ${zone.code}`}
-              className="min-w-0 scroll-mt-20 rounded-xl border border-border bg-background p-4 outline-none target:border-accent target:ring-1 target:ring-accent focus-visible:ring-2 focus-visible:ring-accent"
-            >
-              <div className="flex items-start gap-3">
-                <div className="grid size-24 shrink-0 place-items-center self-start rounded-lg bg-white p-2">
-                  <QRCodeSVG
-                    value={zone.qrValue}
-                    size={80}
-                    className="block"
-                    level="M"
-                    aria-label={t("qrForZone", { code: zone.code })}
-                  />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <h3 className="font-semibold break-words text-text">
-                    {zone.label}
-                  </h3>
-                  <p className="mt-1 font-mono text-xs break-all text-muted">
-                    {zone.code}
-                  </p>
-                  <p className="mt-1 text-xs text-muted">
-                    {metres(zone.widthMm)} × {metres(zone.depthMm)} m ·{" "}
-                    {metres(zone.maxStackHeightMm)} m
-                  </p>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      disabled={pendingAction !== undefined || !editable}
-                      onClick={() => startEditingStorageZone(zone)}
-                      aria-label={t("editStorageZone", { label: zone.label })}
-                      title={t("editStorageZone", { label: zone.label })}
-                      className="size-10 bg-transparent p-0 hover:border-accent hover:bg-transparent disabled:bg-transparent"
-                    >
-                      <PencilLine className="size-3.5" />
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      disabled={pendingAction !== undefined || !editable}
-                      onClick={() => removeStorageZone(zone)}
-                      aria-label={t("archiveZone")}
-                      title={`${t("archiveZone")} · ${zone.label}`}
-                      className="size-10 p-0"
-                    >
-                      <Archive className="size-3.5" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-              <details
-                className="mt-3 border-t border-border pt-3"
-                open={
-                  search.trim() && distinctPositions.length > 0
-                    ? true
-                    : undefined
-                }
-              >
-                <summary className="cursor-pointer text-xs font-medium text-accent focus-visible:outline-2 focus-visible:outline-accent">
-                  {t("spotLabels", { count: distinctPositions.length + 1 })}
-                </summary>
-                <code className="mt-2 block text-xs break-all text-muted">
-                  {zone.qrValue}
-                </code>
-                {distinctPositions.length > 0 && (
-                  <ul className="mt-3 space-y-2">
-                    {distinctPositions.map((position) => (
-                      <li
-                        key={position.locationId}
-                        className="flex items-center gap-3 rounded-lg border border-border p-2"
-                      >
-                        <div className="grid size-16 shrink-0 place-items-center rounded bg-white p-1">
-                          <QRCodeSVG
-                            value={position.qrValue}
-                            size={56}
-                            className="block"
-                            aria-label={t("qrForZone", { code: position.code })}
-                          />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium break-words">
-                            {position.label}
-                          </p>
-                          <p className="text-xs break-all text-muted">
-                            {position.code}
-                          </p>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </details>
-              {zone.placements.length === 0 &&
-                !(zone.unmeasuredPalletCount ?? 0) && (
-                  <p className="mt-3 border-t border-border pt-3 text-xs text-muted">
-                    {t("noPalletsAtSpot")}
-                  </p>
-                )}
-              <LocationOnlyInventory zone={zone} />
-              {zone.placements.length > 0 && (
-                <div className="mt-4 border-t border-border pt-3">
-                  <p className="text-xs font-semibold text-muted">
-                    {t("palletsAtLocation", {
-                      count:
-                        zone.palletCount ??
-                        uniqueStoragePallets(zone.placements).length +
-                          (zone.unmeasuredPalletCount ?? 0),
-                    })}
-                  </p>
-                  <p className="mt-1 text-xs text-muted">
-                    {t("heldFootprintArea", {
-                      area: (
-                        occupiedStorageFootprintAreaSqMm(zone.placements) /
-                        1_000_000
-                      ).toLocaleString(undefined, { maximumFractionDigits: 3 }),
-                    })}
-                  </p>
-                  <ul className="mt-2 space-y-2">
-                    {zone.placements.map((placement) => (
-                      <li
-                        key={placement.placementId}
-                        className="rounded-lg border border-border p-2.5"
-                      >
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <Link
-                            href={palletPath(placement.handlingUnitId)}
-                            className="min-w-0 text-sm font-semibold break-all text-accent underline-offset-4 hover:underline"
-                          >
-                            {placement.lpn}
-                          </Link>
-                          <span
-                            className={
-                              placement.status === "RESERVED" ||
-                              placement.moveState === "IN_TRANSIT"
-                                ? "rounded-full border border-warning/50 px-2 py-0.5 text-xs text-warning"
-                                : "rounded-full border border-success/50 px-2 py-0.5 text-xs text-success"
-                            }
-                          >
-                            {t(
-                              placement.moveRole === "TARGET"
-                                ? "placementMoveTarget"
-                                : placement.moveRole === "SOURCE"
-                                  ? placement.moveState === "IN_TRANSIT"
-                                    ? "placementMoveInTransit"
-                                    : "placementMoveSource"
-                                  : placement.status === "RESERVED"
-                                    ? "placementReserved"
-                                    : "placementStored",
-                            )}
-                          </span>
-                        </div>
-                        <div className="mt-2 flex flex-wrap items-end justify-between gap-3">
-                          <div className="min-w-0">
-                            {placement.positionCode && (
-                              <p className="mt-1 font-mono text-xs break-all text-muted">
-                                {placement.positionCode}
-                              </p>
-                            )}
-                            {placement.xMm !== undefined &&
-                              placement.yMm !== undefined && (
-                                <p className="mt-1 text-xs text-muted tabular-nums">
-                                  X {metres(placement.xMm)} m · Y{" "}
-                                  {metres(placement.yMm)} m · Z{" "}
-                                  {metres(placement.zMm ?? 0)} m
-                                </p>
-                              )}
-                          </div>
-                          <div className="flex shrink-0 gap-2">
-                            <Button
-                              asChild
-                              variant="outline"
-                              size="sm"
-                              className="size-10 bg-transparent p-0 hover:border-accent hover:bg-transparent"
-                            >
-                              <Link
-                                href={palletPath(placement.handlingUnitId)}
-                                aria-label={t("openSpotPallet", {
-                                  lpn: placement.lpn,
-                                })}
-                                title={t("openSpotPallet", {
-                                  lpn: placement.lpn,
-                                })}
-                              >
-                                <Eye className="size-4" />
-                              </Link>
-                            </Button>
-                            {canManage &&
-                              (placement.status === "STORED" ||
-                                placement.moveState !== undefined) && (
-                                <Button
-                                  asChild
-                                  variant="outline"
-                                  size="sm"
-                                  className="size-10 bg-transparent p-0 hover:border-accent hover:bg-transparent"
-                                >
-                                  <Link
-                                    href={`${palletPath(placement.handlingUnitId)}/move`}
-                                    aria-label={t(
-                                      placement.moveState
-                                        ? "continueSpotPalletMove"
-                                        : "moveSpotPallet",
-                                      { lpn: placement.lpn },
-                                    )}
-                                    title={t(
-                                      placement.moveState
-                                        ? "continueSpotPalletMove"
-                                        : "moveSpotPallet",
-                                      { lpn: placement.lpn },
-                                    )}
-                                  >
-                                    <ArrowRightLeft className="size-4" />
-                                  </Link>
-                                </Button>
-                              )}
-                          </div>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </article>
-          );
-        })}
-      </div>
-
-      {message === undefined || createDialogOpen ? null : (
-        <div className="mt-4">
-          <Notice tone={message.tone} title={message.text} />
-        </div>
-      )}
-    </section>
-  );
-}
-
 export function StorageBuildingReview({
   buildingId,
 }: {
@@ -3621,8 +2891,18 @@ function ReviewContent({
 }) {
   const t = useTranslations("StorageLayouts");
   const router = useRouter();
+  const workspace = useWorkspace();
+  const canActivate =
+    workspace.permissionsReady &&
+    workspace.navigationPermissions.includes(
+      "masterData.storageLayout.activate",
+    );
   const outcome = useBuilding(warehouseId, buildingId);
   const activate = useMutation(storageLayoutRefs.activate);
+  const operation = useAsyncOperation({
+    scope: `building-review:${warehouseId}:${buildingId}`,
+    describeError: (code) => code || "NETWORK_ERROR",
+  });
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string>();
   if (outcome === undefined) return <LoadingCard />;
@@ -3648,21 +2928,30 @@ function ReviewContent({
     (total, floor) => total + floor.storageZones.length,
     0,
   );
-  const quickChangeFloor =
-    floors.find((floor) => floor.storageZones.length > 0) ?? floors[0];
   async function submit() {
     setPending(true);
     setError(undefined);
     try {
-      const result = await activate({
+      const payload = {
         warehouseId,
         buildingId,
-        requestId: requestId(),
         expectedVersion: building.version,
-      });
+      };
+      const result = await operation.run(() =>
+        activate({
+          ...payload,
+          requestId: operation.request(JSON.stringify(payload)),
+        }),
+      );
+      if (!result) return;
       if (!result.ok) setError(result.denial.code);
       else if (!result.value.written) setError(result.value.error.code);
-      else router.push(storageBuildingPath(buildingId));
+      else {
+        operation.clearRequests();
+        router.push(storageBuildingPath(buildingId));
+      }
+    } catch {
+      setError("NETWORK_ERROR");
     } finally {
       setPending(false);
     }
@@ -3748,18 +3037,7 @@ function ReviewContent({
         {error === undefined ? null : (
           <Notice tone="warning" title={storageErrorMessage(t, error)} />
         )}
-        {building.status === "ARCHIVED" ||
-        quickChangeFloor === undefined ? null : (
-          <Button className="w-full" variant="outline" asChild>
-            <Link
-              href={storageFloorPath(buildingId, quickChangeFloor.floorNumber)}
-            >
-              <Zap className="size-4" />
-              {t("quickChange")}
-            </Link>
-          </Button>
-        )}
-        {building.status === "DRAFT" ? (
+        {building.status === "DRAFT" && canActivate ? (
           <Button
             className="w-full"
             variant="success"
@@ -3770,40 +3048,6 @@ function ReviewContent({
           </Button>
         ) : null}
       </aside>
-    </div>
-  );
-}
-
-function LocationOnlyInventory({ zone }: { zone: StorageZoneRow }) {
-  const th = useLocale() === "th";
-  if (!zone.locationOnlyPlacements?.length) return null;
-  return (
-    <div className="mt-4 space-y-2 border-t border-border pt-3">
-      <p className="text-sm font-semibold">
-        {th ? "สินค้าที่บันทึกเฉพาะจุดจัดเก็บ" : "Units with a saved location"}{" "}
-        · {zone.locationOnlyPlacements.length}
-      </p>
-      <p className="text-xs text-muted">
-        {th
-          ? "ไม่ได้วัดพิกัด พื้นที่ว่างคงเหลือไม่ทราบแน่ชัด"
-          : "Coordinates unmeasured. Remaining floor space is unknown."}
-      </p>
-      <ul className="space-y-2">
-        {zone.locationOnlyPlacements.map((unit) => (
-          <li
-            key={unit.placementId}
-            className="rounded-lg border border-border p-3 text-sm"
-          >
-            <Link
-              className="font-semibold text-accent underline"
-              href={palletPath(unit.handlingUnitId)}
-            >
-              {unit.lpn}
-            </Link>{" "}
-            · #{unit.sequence} · {unit.productName}
-          </li>
-        ))}
-      </ul>
     </div>
   );
 }

@@ -1,4 +1,9 @@
 "use client";
+import { sceneColors } from "@/components/storageScene/sceneColors";
+import {
+  clampStoragePosition,
+  placementStatusKey,
+} from "@/lib/storageLayouts/storageKit";
 import {
   resolveAreaColor,
   areaColorText,
@@ -127,7 +132,7 @@ export function ReservedAreaShape({
             key={index}
             points={pointsAttribute(face)}
             fill="none"
-            stroke={invalid ? "#ef4444" : "#77b6ff"}
+            stroke={invalid ? sceneColors.invalid : sceneColors.selected}
             strokeWidth="3"
             strokeDasharray={invalid ? "5 3" : undefined}
             vectorEffect="non-scaling-stroke"
@@ -216,25 +221,28 @@ export function StoragePlacementLayer({
           const projected = storagePlacementCorners(box).map((p) =>
             point(p.x, p.y, mode === "3d" ? p.z : 0),
           );
-          const reserved = box.placement.status === "RESERVED";
-          const moving = box.placement.moveState === "IN_TRANSIT";
+          const statusKey = placementStatusKey(box.placement);
           const status =
-            box.placement.moveRole === "TARGET"
+            statusKey === "placementMoveTarget"
               ? moveTargetLabel
-              : box.placement.moveRole === "SOURCE"
-                ? moving
-                  ? moveInTransitLabel
-                  : moveSourceLabel
-                : reserved
-                  ? reservedLabel
-                  : storedLabel;
-          const held = reserved || moving;
+              : statusKey === "placementMoveInTransit"
+                ? moveInTransitLabel
+                : statusKey === "placementMoveSource"
+                  ? moveSourceLabel
+                  : statusKey === "placementReserved"
+                    ? reservedLabel
+                    : storedLabel;
+          const held =
+            statusKey === "placementReserved" ||
+            statusKey === "placementMoveInTransit" ||
+            statusKey === "placementMoveTarget";
           const attributes = {
             "data-placement-id": box.placement.placementId,
             "data-placement-x-mm": box.xMm,
             "data-placement-y-mm": box.yMm,
             "data-placement-z-mm": box.zMm,
             "data-placement-status": box.placement.status ?? "STORED",
+            "data-placement-status-key": statusKey,
             "data-move-role": box.placement.moveRole,
             "data-move-state": box.placement.moveState,
           };
@@ -283,7 +291,7 @@ export function StorageViewModeToggle({
         title={planLabel}
         aria-pressed={value === "plan"}
         onClick={() => onChange("plan")}
-        className="min-h-9 rounded-md px-3 text-xs font-medium text-muted transition hover:text-text focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none aria-pressed:bg-accent-surface aria-pressed:text-accent"
+        className="min-h-12 rounded-md px-3 text-xs font-medium text-muted transition-colors hover:text-text focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none aria-pressed:bg-accent-surface aria-pressed:text-link motion-reduce:transition-none"
       >
         2D
       </button>
@@ -293,7 +301,7 @@ export function StorageViewModeToggle({
         title={threeDLabel}
         aria-pressed={value === "3d"}
         onClick={() => onChange("3d")}
-        className="min-h-9 rounded-md px-3 text-xs font-medium text-muted transition hover:text-text focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none aria-pressed:bg-accent-surface aria-pressed:text-accent"
+        className="min-h-12 rounded-md px-3 text-xs font-medium text-muted transition-colors hover:text-text focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none aria-pressed:bg-accent-surface aria-pressed:text-link motion-reduce:transition-none"
       >
         3D
       </button>
@@ -475,16 +483,15 @@ export function StorageZoneVisualizer({
           width: floorWidthMm + planPadding * 2,
           height: floorDepthMm + planPadding * 2,
         };
-  const clampPosition = (nextXMm: number, nextYMm: number) => ({
-    xMm: Math.max(
-      0,
-      Math.min(nextXMm, Math.max(0, floorWidthMm - drawnWidthMm)),
-    ),
-    yMm: Math.max(
-      0,
-      Math.min(nextYMm, Math.max(0, floorDepthMm - drawnDepthMm)),
-    ),
-  });
+  const clampPosition = (nextXMm: number, nextYMm: number) =>
+    clampStoragePosition(
+      nextXMm,
+      nextYMm,
+      floorWidthMm,
+      floorDepthMm,
+      drawnWidthMm,
+      drawnDepthMm,
+    );
   const clientPoint = (clientX: number, clientY: number) => {
     const svg = svgRef.current;
     const matrix = svg?.getScreenCTM();
@@ -583,7 +590,9 @@ export function StorageZoneVisualizer({
           >
             <path
               d={mode === "3d" ? "M 18 0 L 0 0 0 18" : "M 1000 0 L 0 0 0 1000"}
-              className="fill-none stroke-border/40"
+              fill="none"
+              stroke={sceneColors.grid}
+              strokeOpacity={0.4}
               strokeWidth={mode === "3d" ? 0.75 : planStrokeWidth / 2}
             />
           </pattern>
@@ -600,7 +609,8 @@ export function StorageZoneVisualizer({
             />
             <polygon
               points={pointsAttribute(floorShape)}
-              className="fill-surface/70 stroke-accent/70"
+              fill={sceneColors.floor}
+              stroke={sceneColors.boundary}
               strokeWidth="1.5"
             />
             {isometricGridLines.map(([start, end], index) => (
@@ -610,7 +620,8 @@ export function StorageZoneVisualizer({
                 y1={start.y}
                 x2={end.x}
                 y2={end.y}
-                className="stroke-muted/30"
+                stroke={sceneColors.grid}
+                strokeOpacity={0.6}
                 strokeWidth="0.75"
               />
             ))}
@@ -693,14 +704,15 @@ export function StorageZoneVisualizer({
               y1={heightGuideBottom.y}
               x2={heightGuideTop.x + 14}
               y2={heightGuideTop.y}
-              className="stroke-muted"
+              stroke={sceneColors.dimension}
               strokeDasharray="4 4"
             />
             <text
               x={heightGuideTop.x + 20}
               y={(heightGuideBottom.y + heightGuideTop.y) / 2}
               dominantBaseline="central"
-              className="fill-muted text-[10px]"
+              fill={sceneColors.dimension}
+              className="text-[10px]"
             >
               H {floorHeightMm / 1_000} m
             </text>
@@ -710,13 +722,14 @@ export function StorageZoneVisualizer({
             <rect
               width={floorWidthMm}
               height={floorDepthMm}
-              fill={`url(#${patternId})`}
+              fill={sceneColors.floor}
+              stroke={sceneColors.boundary}
+              strokeWidth={planStrokeWidth}
             />
             <rect
               width={floorWidthMm}
               height={floorDepthMm}
-              className="fill-accent/5 stroke-muted"
-              strokeWidth={planStrokeWidth}
+              fill={`url(#${patternId})`}
             />
             {reservedBlocks.map((block) => (
               <ReservedAreaShape
@@ -752,7 +765,7 @@ export function StorageZoneVisualizer({
                     y={zone.yMm + zone.depthMm / 2}
                     textAnchor="middle"
                     dominantBaseline="central"
-                    className="fill-muted"
+                    fill={sceneColors.secondaryLabel}
                     style={{ fontSize: Math.max(280, floorWidthMm / 42) }}
                   >
                     {zone.label}

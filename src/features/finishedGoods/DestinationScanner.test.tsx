@@ -1,12 +1,21 @@
-import {
-  act,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react";
+import type { ReactElement } from "react";
+import { renderWithIntl } from "@tests/fixtures/intl-render";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("@/i18n/navigation", () => ({
+  Link: ({ children, ...props }: React.ComponentProps<"a">) => (
+    <a {...props}>{children}</a>
+  ),
+  useRouter: () => ({ push: vi.fn() }),
+}));
+function renderIntl(ui: ReactElement) {
+  return renderWithIntl(ui, {
+    locale: "en",
+    workspace: false,
+    preserveProviders: true,
+  });
+}
 const scanner = vi.hoisted(() => ({
   decode:
     vi.fn<
@@ -27,7 +36,6 @@ vi.mock("@zxing/browser", () => ({
     decodeFromVideoDevice = scanner.decode;
   },
 }));
-vi.mock("./shared", () => ({ useFGText: () => ({ tr: (en: string) => en }) }));
 
 import { DestinationScanner } from "./DestinationScanner";
 
@@ -51,7 +59,7 @@ function emitCode(code: string, stop: () => void) {
 describe("DestinationScanner", () => {
   it("does not open the camera on mount and labels manual verification honestly", async () => {
     const onCode = vi.fn().mockResolvedValue(undefined);
-    render(<DestinationScanner onCode={onCode} expectedLocation="FG-1" />);
+    renderIntl(<DestinationScanner onCode={onCode} expectedLocation="FG-1" />);
     expect(scanner.decode).not.toHaveBeenCalled();
     expect(screen.getByText("FG-1")).toBeVisible();
     expect(
@@ -76,7 +84,7 @@ describe("DestinationScanner", () => {
     const stop = vi.fn();
     scanner.decode.mockResolvedValue({ stop });
     const onCode = vi.fn().mockResolvedValue(undefined);
-    render(<DestinationScanner onCode={onCode} expectedLocation="FG-1" />);
+    renderIntl(<DestinationScanner onCode={onCode} expectedLocation="FG-1" />);
     await startCamera();
     emitCode("ISAS:LOCATION:1:abc", stop);
     emitCode("ISAS:LOCATION:1:abc", stop);
@@ -98,7 +106,7 @@ describe("DestinationScanner", () => {
       });
       return { stop };
     });
-    const { unmount } = render(
+    const { unmount } = renderIntl(
       <DestinationScanner onCode={vi.fn()} expectedLocation="FG-1" />,
     );
     await startCamera();
@@ -124,7 +132,7 @@ describe("DestinationScanner", () => {
           };
         }),
     );
-    const { unmount } = render(
+    const { unmount } = renderIntl(
       <DestinationScanner onCode={vi.fn()} expectedLocation="FG-1" />,
     );
     await startCamera();
@@ -140,7 +148,7 @@ describe("DestinationScanner", () => {
     scanner.decode.mockRejectedValue(
       new DOMException("Denied", "NotAllowedError"),
     );
-    render(<DestinationScanner onCode={vi.fn()} expectedLocation="FG-1" />);
+    renderIntl(<DestinationScanner onCode={vi.fn()} expectedLocation="FG-1" />);
     await startCamera();
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Camera unavailable",
@@ -151,7 +159,7 @@ describe("DestinationScanner", () => {
 
   it("handles browsers without a camera API", async () => {
     vi.stubGlobal("navigator", {});
-    render(<DestinationScanner onCode={vi.fn()} expectedLocation="FG-1" />);
+    renderIntl(<DestinationScanner onCode={vi.fn()} expectedLocation="FG-1" />);
     fireEvent.click(screen.getByRole("button", { name: "Start camera" }));
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Camera unavailable",
@@ -162,7 +170,7 @@ describe("DestinationScanner", () => {
   it("ignores ordinary no-code frames but reports unexpected reader errors", async () => {
     const stop = vi.fn();
     scanner.decode.mockResolvedValue({ stop });
-    render(<DestinationScanner onCode={vi.fn()} expectedLocation="FG-1" />);
+    renderIntl(<DestinationScanner onCode={vi.fn()} expectedLocation="FG-1" />);
     await startCamera();
     const call = scanner.decode.mock.calls[0];
     if (!call) throw new Error("Camera not started");
@@ -186,7 +194,7 @@ describe("DestinationScanner", () => {
       .fn()
       .mockRejectedValueOnce(new Error("Network failure"))
       .mockResolvedValue(undefined);
-    render(<DestinationScanner onCode={onCode} expectedLocation="FG-1" />);
+    renderIntl(<DestinationScanner onCode={onCode} expectedLocation="FG-1" />);
     fireEvent.change(screen.getByLabelText("Destination code"), {
       target: { value: "wrong-code" },
     });
@@ -207,7 +215,7 @@ describe("DestinationScanner", () => {
     const stop = vi.fn();
     const onCode = vi.fn();
     scanner.decode.mockResolvedValue({ stop });
-    const view = render(
+    const view = renderIntl(
       <DestinationScanner onCode={onCode} expectedLocation="FG-1" />,
     );
     await startCamera();
@@ -230,7 +238,7 @@ describe("DestinationScanner", () => {
           finish = resolve;
         }),
     );
-    render(<DestinationScanner onCode={vi.fn()} expectedLocation="FG-1" />);
+    renderIntl(<DestinationScanner onCode={vi.fn()} expectedLocation="FG-1" />);
     await startCamera();
     fireEvent.click(screen.getByRole("button", { name: "Stop camera" }));
     expect(screen.getByRole("button", { name: "Start camera" })).toBeDisabled();
@@ -249,7 +257,7 @@ describe("DestinationScanner", () => {
       return { stop };
     });
     const onCode = vi.fn().mockResolvedValue(undefined);
-    render(<DestinationScanner onCode={onCode} expectedLocation="FG-1" />);
+    renderIntl(<DestinationScanner onCode={onCode} expectedLocation="FG-1" />);
     await startCamera();
     await waitFor(() =>
       expect(onCode).toHaveBeenCalledWith("early-qr", "SCAN"),
@@ -259,7 +267,7 @@ describe("DestinationScanner", () => {
   });
   it("lets the parent display a precise verification refusal without a second generic error", async () => {
     const onCode = vi.fn().mockRejectedValue(new Error("DESTINATION_MISMATCH"));
-    render(
+    renderIntl(
       <DestinationScanner
         onCode={onCode}
         expectedLocation="FG-1"

@@ -17,7 +17,7 @@ export default async function NewStorageLayoutPage({
       <PageHeader
         back={{ href: ROUTES.storageLayouts, label: t("back") }}
         title={t("newBuilding")}
-        description={t("description")}
+        summary={t("description")}
       />
       <NewStorageBuildingForm />
     </>

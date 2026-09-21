@@ -14,7 +14,7 @@ export function ScannedPackageList({
   dispatch: (event: ScanEvent) => void;
   readOnly?: boolean;
 }) {
-  const { tr } = useFGText();
+  const { t, tr } = useFGText();
   const reorderHintId = useId();
   const list = useRef<HTMLOListElement>(null);
   const [dragging, setDragging] = useState<string | null>(null);
@@ -61,10 +61,7 @@ export function ScannedPackageList({
   return (
     <>
       <p id={reorderHintId} className="sr-only">
-        {tr(
-          "Drag to reorder, or use the up and down arrow keys.",
-          "ลากเพื่อเรียงลำดับ หรือใช้ปุ่มลูกศรขึ้นและลง",
-        )}
+        {t("copy.drag-to-reorder-or-use-the-up-and-down-arrow-keys")}
       </p>
       <p role="status" className="sr-only">
         {announcement}
@@ -72,13 +69,13 @@ export function ScannedPackageList({
       <ol
         ref={list}
         className="space-y-3"
-        aria-label={tr("Packages, top to bottom", "พัสดุ เรียงจากบนลงล่าง")}
+        aria-label={t("copy.packages-top-to-bottom")}
       >
         {state.rows.map((row, index) => (
           <li
             key={row.key}
             data-scan-row={row.key}
-            className={`rounded-xl border p-4 ${dragging === row.key ? "border-accent bg-accent/10" : "border-border bg-surface"}`}
+            className={`rounded-xl border p-4 ${dragging === row.key ? "border-link bg-selected" : "border-border bg-surface"}`}
           >
             {dragging && dropTarget === index && (
               <p className="mb-2 border-t-4 border-accent pt-2 text-sm font-semibold">
@@ -92,11 +89,9 @@ export function ScannedPackageList({
               <span className="min-w-14 text-center text-3xl font-bold tabular-nums">
                 {index + 1}
                 <span className="block text-xs font-medium">
-                  {index === 0 ? tr("Top", "บนสุด") : ""}
+                  {index === 0 ? t("copy.top") : ""}
                   {index === 0 && state.rows.length === 1 ? " / " : ""}
-                  {index === state.rows.length - 1
-                    ? tr("Bottom", "ล่างสุด")
-                    : ""}
+                  {index === state.rows.length - 1 ? t("copy.bottom") : ""}
                 </span>
               </span>
               <div className="min-w-0 flex-1">
@@ -105,20 +100,22 @@ export function ScannedPackageList({
                 </p>
                 <p className="text-sm text-muted">
                   {row.status === "pending"
-                    ? tr("Checking…", "กำลังตรวจสอบ…")
+                    ? t("copy.checking")
                     : row.status === "error"
                       ? row.error
                       : row.unit?.productName}
                 </p>
                 {row.status === "ready" && (
                   <p className="text-sm">
-                    {rowFill(state, row)}% {tr("full", "เต็ม")}
+                    {rowFill(state, row)}% {t("copy.full")}
                   </p>
                 )}
               </div>
               {!readOnly && (
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="icon"
                   className="min-h-11 min-w-11 touch-none rounded-lg border border-border text-xl"
                   aria-label={tr(
                     `Drag ${row.unit?.code ?? row.code} to reorder`,
@@ -153,7 +150,7 @@ export function ScannedPackageList({
                   }}
                 >
                   ⠿
-                </button>
+                </Button>
               )}
               {!readOnly && (
                 <Button
@@ -166,7 +163,7 @@ export function ScannedPackageList({
                   )}
                   onClick={() => {
                     dispatch({ type: "remove", key: row.key });
-                    setAnnouncement(tr("Package removed", "ลบพัสดุแล้ว"));
+                    setAnnouncement(t("copy.package-removed"));
                     requestAnimationFrame(() =>
                       list.current
                         ?.querySelector<HTMLButtonElement>("button")
@@ -180,7 +177,7 @@ export function ScannedPackageList({
             </div>
             {!readOnly && row.status === "ready" && (
               <label className="mt-3 flex items-center gap-2 text-sm">
-                {tr("Exception %", "เปอร์เซ็นต์เฉพาะชิ้น")}
+                {t("copy.exception")}
                 <Input
                   className="min-h-11 w-24"
                   type="number"

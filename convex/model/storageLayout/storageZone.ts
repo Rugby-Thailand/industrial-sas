@@ -1,7 +1,7 @@
 import { fail, ok, type Result } from "../result";
 
 export const STORAGE_ZONE_LIMITS = Object.freeze({
-  maximumZonesPerFloor: 50,
+  maximumZonesPerFloor: 500,
   maximumPlacementsPerZone: 50,
   maximumDimensionMm: 1_000_000,
 });

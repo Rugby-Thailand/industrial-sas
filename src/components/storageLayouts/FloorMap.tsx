@@ -1,42 +1,47 @@
 "use client";
+import { preferences } from "@/lib/browser/storage";
+import { SceneBox, SceneLegendMark } from "@/components/storageScene/SceneBox";
+import { sceneColors } from "@/components/storageScene/sceneColors";
 import { SceneToolbar } from "@/components/storageScene/SceneToolbar";
 import {
-  ReservedAreaShape,
+  locationInventory,
+  matchingStorageLocations as matchingFloorZones,
+} from "@/lib/storageLayouts/locationSelectors";
+import { FloorLocationTable } from "./FloorLocationTable";
+import {
   ReservedAreaLegend,
+  ReservedAreaShape,
   StorageViewModeToggle,
 } from "./StorageZoneVisualizer";
-import { SceneBox, SceneLegendMark } from "@/components/storageScene/SceneBox";
 
-import { useState, useId, type ReactNode } from "react";
-import { useTranslations } from "next-intl";
+import { Button } from "@/components/ui/button";
+import { useCanManage } from "@/hooks/useCanManage";
+import { Link } from "@/i18n/navigation";
+import type { StorageZoneRow } from "@/lib/convex/storageLayoutApi";
+import { palletPath } from "@/lib/navigation";
 import {
-  Eye,
+  occupiedStorageFootprintAreaSqMm,
+  storagePlacementBoxes,
+  storagePlacementCorners,
+} from "@/lib/storageLayouts/storagePlacementGeometry";
+import { placementStatusKey } from "@/lib/storageLayouts/storageKit";
+import { PlacementStatusBadge } from "@/features/storageKit/PlacementStatusBadge";
+import {
   ArrowRightLeft,
+  Eye,
+  Layers3,
+  Maximize,
   PencilLine,
   QrCode,
-  Search,
+  RotateCw,
+  Tags,
   X,
   ZoomIn,
   ZoomOut,
-  Maximize,
-  RotateCw,
-  Layers3,
 } from "lucide-react";
-import { QRCodeSVG } from "qrcode.react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Link } from "@/i18n/navigation";
-import { palletPath, useCanManage } from "@/features/finishedGoods/shared";
-import type {
-  StorageZoneRow,
-  StorageStackPlacementRow,
-} from "@/lib/convex/storageLayoutApi";
-import {
-  storagePlacementBoxes,
-  storagePlacementCorners,
-  uniqueStoragePallets,
-  occupiedStorageFootprintAreaSqMm,
-} from "@/lib/storageLayouts/storagePlacementGeometry";
+import { useTranslations } from "next-intl";
+import { QrCode as LocationQrCode } from "@/features/storageKit/QrCode";
+import { useId, useState, useSyncExternalStore, type ReactNode } from "react";
 
 interface Area {
   readonly color?: string;
@@ -60,44 +65,78 @@ export interface FloorMapProps {
   readonly blocks: readonly Area[];
   readonly onEditZone?: ((zoneId: string) => void) | undefined;
   readonly offsetEditor?: ReactNode;
+  readonly locationActions?: ReactNode;
+  readonly locationInspector?: ReactNode;
   readonly previewOnly?: boolean;
+  readonly selectedZoneId?: string | undefined;
+  readonly onSelectionChange?: ((id: string | undefined) => void) | undefined;
 }
 const m = (value: number) => Number((value / 1000).toFixed(3));
-const normalize = (value: string) =>
-  value.normalize("NFKC").toLocaleLowerCase();
-export function matchingFloorZones(
-  zones: readonly StorageZoneRow[],
-  search: string,
-) {
-  const words = normalize(search).trim().split(/\s+/).filter(Boolean);
-  return zones.filter((zone) => {
-    const text = normalize(
-      [
-        zone.label,
-        zone.code,
-        ...zone.positions.flatMap((p) => [p.label, p.code]),
-        ...zone.placements.flatMap((p) => [p.lpn, p.positionCode ?? ""]),
-      ].join(" "),
-    );
-    return words.every((word) => text.includes(word));
-  });
-}
+// Compatibility export for existing consumers; matching is feature-independent.
+export { matchingStorageLocations as matchingFloorZones } from "@/lib/storageLayouts/locationSelectors";
+const floorZoneUnitCount = (zone: StorageZoneRow) =>
+  locationInventory(zone).units;
+const hasUnmeasuredInventory = (zone: StorageZoneRow) =>
+  locationInventory(zone).measuredAreaPartial;
 const iconStyle =
   "size-10 bg-transparent p-0 hover:border-accent hover:bg-transparent";
 
+// Presentation-only preference shared by every floor and retained across visits.
+const labelsStorageKey = "storage-planner:floor-map:show-location-labels";
+const labelsChangedEvent = "storage-planner:floor-map-labels-changed";
+let labelsFallback = true;
+let labelsStorageUnavailable = false;
+
+function readLocationLabels() {
+  if (labelsStorageUnavailable) return labelsFallback;
+  return preferences.read(
+    labelsStorageKey,
+    (value) => (typeof value === "boolean" ? value : true),
+    labelsFallback,
+  );
+}
+function subscribeLocationLabels(onChange: () => void) {
+  const onStorage = (event: StorageEvent) => {
+    if (event.key === labelsStorageKey || event.key === null) onChange();
+  };
+  window.addEventListener("storage", onStorage);
+  window.addEventListener(labelsChangedEvent, onChange);
+  return () => {
+    window.removeEventListener("storage", onStorage);
+    window.removeEventListener(labelsChangedEvent, onChange);
+  };
+}
+function saveLocationLabels(value: boolean) {
+  labelsFallback = value;
+  labelsStorageUnavailable = !preferences.write(labelsStorageKey, value);
+  window.dispatchEvent(new Event(labelsChangedEvent));
+}
+
 export function FloorMap(props: FloorMapProps) {
   const t = useTranslations("StorageLayouts");
+  const inspectorId = useId();
   const canManage = useCanManage();
+  const showLocationLabels = useSyncExternalStore(
+    subscribeLocationLabels,
+    readLocationLabels,
+    () => true,
+  );
   const [view, setView] = useState<"3d" | "plan">("3d");
   const [search, setSearch] = useState("");
-  const [selectedId, setSelectedId] = useState<string>();
+  const [localSelectedId, setLocalSelectedId] = useState<string>();
+  const selectedId = props.onSelectionChange
+    ? props.selectedZoneId
+    : localSelectedId;
+  const setSelectedId = (id: string | undefined) => {
+    setLocalSelectedId(id);
+    props.onSelectionChange?.(id);
+  };
   const [unitId, setUnitId] = useState<string>();
   const [zoom, setZoom] = useState(1);
   const [rotation, setRotation] = useState(0);
   const [reference, setReference] = useState(false);
   const [offsetEditing, setOffsetEditing] = useState(false);
   const [qr, setQr] = useState(false);
-  const searchId = useId();
   const matches = matchingFloorZones(props.zones, search);
   const selected = props.zones.find((z) => z.zoneId === selectedId);
   const select = (id: string, palletId?: string) => {
@@ -189,6 +228,13 @@ export function FloorMap(props: FloorMapProps) {
         secondary={
           <>
             {" "}
+            {action(
+              t("mapShowLocationLabels"),
+              <Tags />,
+              () => saveLocationLabels(!showLocationLabels),
+              false,
+              showLocationLabels,
+            )}
             {action(t("mapFit"), <Maximize />, () => setZoom(1))}
             {action(
               t("mapRotate"),
@@ -206,53 +252,6 @@ export function FloorMap(props: FloorMapProps) {
           </>
         }
       />
-      <div className="relative mt-4">
-        <label htmlFor={searchId} className="sr-only">
-          {t("searchStorageSpots")}
-        </label>
-        <Search className="pointer-events-none absolute top-3.5 left-3 size-4 text-muted" />
-        <Input
-          id={searchId}
-          type="search"
-          value={search}
-          placeholder={t("searchStorageSpotsPlaceholder")}
-          className="pr-12 pl-9 [&::-webkit-search-cancel-button]:appearance-none"
-          onKeyDown={(e) => {
-            if (e.key === "Enter") e.preventDefault();
-          }}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            const found = matchingFloorZones(props.zones, e.target.value);
-            if (e.target.value.trim() && found.length === 1) {
-              const words = normalize(e.target.value).trim().split(/\s+/);
-              const units = found[0]!.placements.filter((p) =>
-                words.every((word) =>
-                  normalize(`${p.lpn} ${p.positionCode ?? ""}`).includes(word),
-                ),
-              );
-              select(
-                found[0]!.zoneId,
-                units.length === 1 ? units[0]!.placementId : undefined,
-              );
-            } else if (!found.some((zone) => zone.zoneId === selectedId)) {
-              setSelectedId(undefined);
-              setUnitId(undefined);
-            }
-          }}
-        />
-        {search && (
-          <div className="absolute top-1 right-1">
-            {action(t("clearSpotSearch"), <X />, () => setSearch(""))}
-          </div>
-        )}
-      </div>
-      <p role="status" className="mt-2 text-[13px] text-muted">
-        {t("spotSearchCount", {
-          count: matches.length,
-          total: props.zones.length,
-        })}
-        {search && matches.length === 0 ? ` · ${t("noMatchingSpots")}` : ""}
-      </p>
       <div className="mt-4 grid min-w-0 grid-cols-1 items-start gap-4 @min-[900px]:grid-cols-[minmax(0,1fr)_19rem]">
         <div className="min-w-0">
           <MapDrawing
@@ -261,6 +260,7 @@ export function FloorMap(props: FloorMapProps) {
             rotation={rotation}
             zoom={zoom}
             reference={reference}
+            showLocationLabels={showLocationLabels}
             selectedId={selected?.zoneId}
             selectedUnit={unitId}
             matchIds={matches.map((z) => z.zoneId)}
@@ -287,30 +287,13 @@ export function FloorMap(props: FloorMapProps) {
             </span>
           </div>
           <ReservedAreaLegend areas={props.blocks} />
-          <div
-            className="mt-3 flex max-h-36 flex-wrap gap-2 overflow-auto"
-            role="group"
-            aria-label={t("mapLocations")}
-          >
-            {matches.map((zone) => (
-              <Button
-                key={zone.zoneId}
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-auto min-h-10 max-w-full bg-transparent whitespace-normal aria-pressed:border-accent aria-pressed:text-accent"
-                aria-pressed={selected?.zoneId === zone.zoneId}
-                onClick={() => select(zone.zoneId)}
-              >
-                {zone.label} · {uniqueStoragePallets(zone.placements).length}
-              </Button>
-            ))}
-          </div>
           {props.zones.length === 0 && (
             <p className="mt-3 text-sm text-muted">{t("noStorageSpots")}</p>
           )}
         </div>
         <aside
+          id={inspectorId}
+          tabIndex={-1}
           aria-label={t("mapSelected")}
           className="min-w-0 py-2 @min-[900px]:pl-2"
         >
@@ -320,7 +303,7 @@ export function FloorMap(props: FloorMapProps) {
               <p className="font-medium">{t("mapChoose")}</p>
               <p className="mt-2 text-sm text-muted">{t("mapInspectHint")}</p>
             </div>
-          ) : (
+          ) : props.locationInspector ? null : (
             <>
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
@@ -344,13 +327,18 @@ export function FloorMap(props: FloorMapProps) {
                 {t("mapHeightLimit", { height: m(selected.maxStackHeightMm) })}
               </p>
               <p className="mt-2 text-[13px] text-muted">
-                {t("mapFootprint", {
-                  percent: Math.round(
-                    (100 *
-                      occupiedStorageFootprintAreaSqMm(selected.placements)) /
-                      Math.max(1, selected.widthMm * selected.depthMm),
-                  ),
-                })}
+                {t(
+                  hasUnmeasuredInventory(selected)
+                    ? "mapPartialFootprint"
+                    : "mapFootprint",
+                  {
+                    percent: Math.round(
+                      (100 *
+                        occupiedStorageFootprintAreaSqMm(selected.placements)) /
+                        Math.max(1, selected.widthMm * selected.depthMm),
+                    ),
+                  },
+                )}
               </p>
               <div className="mt-3 flex gap-2">
                 {props.onEditZone &&
@@ -370,24 +358,29 @@ export function FloorMap(props: FloorMapProps) {
               </div>
               {qr && (
                 <div className="mt-3">
-                  <div className="inline-block rounded-lg bg-white p-3">
-                    <QRCodeSVG
-                      value={selected.qrValue}
-                      size={112}
-                      aria-label={t("qrForZone", { code: selected.code })}
-                    />
-                  </div>
+                  <LocationQrCode
+                    value={selected.qrValue}
+                    size={112}
+                    padding={12}
+                    label={t("qrForZone", { code: selected.code })}
+                  />
                 </div>
               )}
               <div className="mt-4 border-t border-border pt-4">
                 <p className="text-[13px] font-semibold text-muted">
                   {t("mapUnitCount", {
-                    count: uniqueStoragePallets(selected.placements).length,
+                    count: floorZoneUnitCount(selected),
                   })}
                 </p>
-                {selected.placements.length === 0 && (
+                {floorZoneUnitCount(selected) === 0 &&
+                  !hasUnmeasuredInventory(selected) && (
+                    <p className="mt-2 text-sm text-muted">
+                      {t("noPalletsAtSpot")}
+                    </p>
+                  )}
+                {hasUnmeasuredInventory(selected) && (
                   <p className="mt-2 text-sm text-muted">
-                    {t("noPalletsAtSpot")}
+                    {t("mapUnmeasuredInventory")}
                   </p>
                 )}
                 <ul className="mt-2 max-h-96 space-y-3 overflow-auto">
@@ -415,9 +408,10 @@ export function FloorMap(props: FloorMapProps) {
                               {p.lpn}
                             </Link>
                           )}
-                          <span className="text-[13px] text-muted">
-                            {t(placementStatusKey(p))}
-                          </span>
+                          <PlacementStatusBadge
+                            placement={p}
+                            label={t(placementStatusKey(p))}
+                          />
                         </div>
                         <p className="mt-1 text-[13px] text-muted">
                           {m(p.widthMm)} × {m(p.depthMm)} × {m(p.heightMm)} m
@@ -485,7 +479,46 @@ export function FloorMap(props: FloorMapProps) {
               </div>
             </>
           )}
+          {props.locationInspector}
         </aside>
+      </div>
+      <div className="mt-4 min-w-0">
+        <FloorLocationTable
+          zones={matches}
+          search={search}
+          onSearchChange={(value) => {
+            setSearch(value);
+            const found = matchingFloorZones(props.zones, value);
+            if (!found.some((zone) => zone.zoneId === selectedId)) {
+              setSelectedId(undefined);
+              setUnitId(undefined);
+            }
+          }}
+          onClearSelection={() => {
+            setSelectedId(undefined);
+            setUnitId(undefined);
+          }}
+          actions={
+            <>
+              {selected ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    const panel = document.getElementById(inspectorId);
+                    panel?.scrollIntoView({ block: "nearest" });
+                    panel?.focus({ preventScroll: true });
+                  }}
+                >
+                  {t("mapSelected")}
+                </Button>
+              ) : null}
+              {props.locationActions}
+            </>
+          }
+          selectedId={selected?.zoneId}
+          onSelect={select}
+        />
       </div>
       {props.offsetEditor && (
         <Button
@@ -502,23 +535,12 @@ export function FloorMap(props: FloorMapProps) {
     </section>
   );
 }
-function placementStatusKey(p: StorageStackPlacementRow) {
-  return p.moveRole === "TARGET"
-    ? "placementMoveTarget"
-    : p.moveRole === "SOURCE"
-      ? p.moveState === "IN_TRANSIT"
-        ? "placementMoveInTransit"
-        : "placementMoveSource"
-      : p.status === "RESERVED"
-        ? "placementReserved"
-        : "placementStored";
-}
-
 function MapDrawing({
   view,
   rotation,
   zoom,
   reference,
+  showLocationLabels,
   selectedId,
   selectedUnit,
   matchIds,
@@ -530,6 +552,7 @@ function MapDrawing({
   rotation: number;
   zoom: number;
   reference: boolean;
+  showLocationLabels: boolean;
   selectedId: string | undefined;
   selectedUnit: string | undefined;
   matchIds: string[];
@@ -607,10 +630,10 @@ function MapDrawing({
     Math.ceil(Math.max(props.widthMm, props.depthMm) / 25000) * 1000,
   );
   const labels: { x: number; y: number }[] = [];
-  const zoneOrder = [...props.zones].sort(
+  const zoneOrder = (showLocationLabels ? [...props.zones] : []).sort(
     (a, b) => Number(b.zoneId === selectedId) - Number(a.zoneId === selectedId),
   );
-  const palletBounds = boxes.map(({ box }) => {
+  const palletBounds = (showLocationLabels ? boxes : []).map(({ box }) => {
     const points = storagePlacementCorners(box).map((p) =>
       point(p.x, p.y, view === "3d" ? p.z : 0),
     );
@@ -621,7 +644,7 @@ function MapDrawing({
       bottom: Math.max(...points.map((p) => p.y)) + 6,
     };
   });
-  const aisleBounds = props.blocks.map((block) => {
+  const aisleBounds = (showLocationLabels ? props.blocks : []).map((block) => {
     const points = rect(block.xMm, block.yMm, block.widthMm, block.depthMm);
     return {
       left: Math.min(...points.map((p) => p.x)) - 4,
@@ -635,7 +658,7 @@ function MapDrawing({
     [...palletBounds, ...aisleBounds].some(
       (p) => x < p.right && x + 220 > p.left && y < p.bottom && y + 58 > p.top,
     );
-  const callouts = zoneOrder.map((zone) => {
+  const callouts = (showLocationLabels ? zoneOrder : []).map((zone) => {
     const anchor = point(
       zone.xMm + zone.widthMm / 2,
       zone.yMm + zone.depthMm / 2,
@@ -682,7 +705,8 @@ function MapDrawing({
     const fits = !labelCollides(x, y);
     if (!fits) return null;
     labels.push({ x, y });
-    return { zone, anchor, x, y };
+    const unitCount = floorZoneUnitCount(zone);
+    return { zone, anchor, x, y, unitCount };
   });
   const selected = props.zones.find((z) => z.zoneId === selectedId);
   const center =
@@ -718,7 +742,7 @@ function MapDrawing({
               ),
             )}
             fill="none"
-            stroke="#8994a2"
+            stroke={sceneColors.source}
             strokeDasharray="8 6"
           >
             <title>{props.baseLabel}</title>
@@ -731,14 +755,14 @@ function MapDrawing({
               ...floor,
               ...[...floor].reverse().map((p) => ({ x: p.x, y: p.y + 8 })),
             ])}
-            fill="#253443"
-            stroke="#5f7284"
+            fill={sceneColors.floorSide}
+            stroke={sceneColors.boundary}
           />
         )}
         <polygon
           points={pts(floor)}
-          fill="#19272d"
-          stroke="#829aa8"
+          fill={sceneColors.floor}
+          stroke={sceneColors.boundary}
           strokeWidth="1.5"
         />
         {Array.from(
@@ -753,8 +777,8 @@ function MapDrawing({
                 y1={a.y}
                 x2={b.x}
                 y2={b.y}
-                stroke="#617482"
-                opacity=".28"
+                stroke={sceneColors.grid}
+                opacity=".6"
               />
             );
           },
@@ -771,8 +795,8 @@ function MapDrawing({
                 y1={a.y}
                 x2={b.x}
                 y2={b.y}
-                stroke="#617482"
-                opacity=".28"
+                stroke={sceneColors.grid}
+                opacity=".6"
               />
             );
           },
@@ -815,9 +839,7 @@ function MapDrawing({
               className="group cursor-pointer outline-none"
               opacity={searching && !matchIds.includes(zone.zoneId) ? 0.3 : 1}
             >
-              <title>
-                {zone.label} · {zone.code}
-              </title>
+              <title>{`${zone.label} · ${zone.code}`}</title>
               <g
                 data-zone-id={zone.zoneId}
                 data-height-envelope={view === "3d" ? "true" : undefined}
@@ -870,9 +892,7 @@ function MapDrawing({
                   searching && !matchIds.includes(zone.zoneId) ? 0.45 : 1
                 }
               >
-                <title>
-                  {p.lpn} · {p.positionCode} · {t(placementStatusKey(p))}
-                </title>
+                <title>{`${p.lpn} · ${p.positionCode} · ${t(placementStatusKey(p))}`}</title>
                 <SceneBox
                   points={projected}
                   mode={view}
@@ -885,7 +905,7 @@ function MapDrawing({
             );
           })}
         {view === "3d" && (
-          <g stroke="#a7bfd6" fill="#a7bfd6">
+          <g stroke={sceneColors.dimension} fill={sceneColors.dimension}>
             <line
               x1={guide.x + 26}
               y1={guide.y}
@@ -906,7 +926,7 @@ function MapDrawing({
           x={point(props.widthMm / 2, props.depthMm).x}
           y={point(props.widthMm / 2, props.depthMm).y + 28}
           textAnchor="middle"
-          fill="#a7bfd6"
+          fill={sceneColors.dimension}
           fontSize="14"
         >
           {m(props.widthMm)} m
@@ -915,7 +935,7 @@ function MapDrawing({
           x={point(props.widthMm, props.depthMm / 2).x + 30}
           y={point(props.widthMm, props.depthMm / 2).y + 22}
           textAnchor="middle"
-          fill="#a7bfd6"
+          fill={sceneColors.dimension}
           fontSize="14"
         >
           {m(props.depthMm)} m
@@ -923,7 +943,7 @@ function MapDrawing({
         {callouts
           .filter((c) => c !== null)
           .reverse()
-          .map(({ zone, anchor, x, y }) => (
+          .map(({ zone, anchor, x, y, unitCount }) => (
             <g
               key={zone.zoneId}
               aria-hidden="true"
@@ -936,7 +956,11 @@ function MapDrawing({
                 y1={anchor.y}
                 x2={x + 110}
                 y2={y + 58}
-                stroke={zone.zoneId === selectedId ? "#77b6ff" : "#51cda4"}
+                stroke={
+                  zone.zoneId === selectedId
+                    ? sceneColors.selected
+                    : sceneColors.free
+                }
               />
               <rect
                 x={x}
@@ -945,13 +969,17 @@ function MapDrawing({
                 width="220"
                 height="58"
                 rx="6"
-                fill="#101a23"
-                stroke={zone.zoneId === selectedId ? "#77b6ff" : "#51cda4"}
+                fill={sceneColors.labelSurface}
+                stroke={
+                  zone.zoneId === selectedId
+                    ? sceneColors.selected
+                    : sceneColors.free
+                }
               />
               <text
                 x={x + 10}
                 y={y + 24}
-                fill="#e3edf2"
+                fill={sceneColors.label}
                 fontSize="20"
                 fontWeight="600"
               >
@@ -959,12 +987,15 @@ function MapDrawing({
                   ? `${zone.label.slice(0, 19)}…`
                   : zone.label}
               </text>
-              <text x={x + 10} y={y + 46} fill="#9db0bb" fontSize="15">
+              <text
+                x={x + 10}
+                y={y + 46}
+                fill={sceneColors.secondaryLabel}
+                fontSize="15"
+              >
                 {zone.code.split("-").at(-1)} ·{" "}
-                {zone.placements.length
-                  ? t("mapUnitCount", {
-                      count: uniqueStoragePallets(zone.placements).length,
-                    })
+                {unitCount
+                  ? t("mapUnitCount", { count: unitCount })
                   : t("mapEmpty")}
               </text>
             </g>

@@ -1,3 +1,4 @@
+import { messagesFor } from "@/i18n/messages";
 import { axe } from "jest-axe";
 import type * as ClerkModule from "@clerk/nextjs";
 import type * as WorkspaceModule from "@/components/providers/WorkspaceProvider";
@@ -76,7 +77,7 @@ import { StackScreen } from "./StackScreen";
 let data: NonNullable<RefValue<typeof fgRefs.stackOptions>>;
 function mount() {
   return render(
-    <NextIntlClientProvider locale="en" messages={{}}>
+    <NextIntlClientProvider locale="en" messages={messagesFor("en")}>
       <StackScreen palletId="lower" />
     </NextIntlClientProvider>,
   );
@@ -248,7 +249,7 @@ it.each(["en", "th"])(
   "keeps stacking controls accessible in %s",
   async (locale) => {
     const { container } = render(
-      <NextIntlClientProvider locale={locale} messages={{}}>
+      <NextIntlClientProvider locale={locale} messages={messagesFor(locale)}>
         <StackScreen palletId="lower" />
       </NextIntlClientProvider>,
     );

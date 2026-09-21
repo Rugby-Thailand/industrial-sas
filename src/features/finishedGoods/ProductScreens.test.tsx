@@ -1,3 +1,4 @@
+import { messagesFor } from "@/i18n/messages";
 import type * as ScanContinuationModule from "@/hooks/useScanContinuation";
 import { clearCursorPositions } from "@/hooks/useCursorPagination";
 import {
@@ -186,7 +187,63 @@ beforeEach(() => {
   );
 });
 
+it("reveals catalogue calculation scope without hiding the warehouse totals", () => {
+  renderWithIntl(<FinishedGoodsCatalogue />, {
+    locale: "en",
+    workspace: false,
+  });
+  expect(screen.getByText("Stored units")).toBeVisible();
+  fireEvent.click(
+    screen.getByRole("button", { name: "About warehouse totals" }),
+  );
+  expect(
+    within(
+      screen.getByRole("dialog", { name: "About warehouse totals" }),
+    ).getByText(/Totals cover the selected warehouse/),
+  ).toBeVisible();
+  expect(screen.getByText("Stored units")).toBeVisible();
+  expect(mocks.save).not.toHaveBeenCalled();
+});
+
 describe("finished good creation", () => {
+  it.each([
+    ["en", "AMBIENT", "Ambient"],
+    ["th", "AMBIENT", "อุณหภูมิห้อง"],
+    ["en", "KEEP_UPRIGHT", "KEEP_UPRIGHT"],
+  ] as const)(
+    "displays and preserves %s storage condition %s",
+    async (locale, condition, label) => {
+      const fallback = mocks.query.getMockImplementation()!;
+      mocks.query.mockImplementation((name, args) =>
+        name.endsWith(":getProduct")
+          ? querySuccess({
+              ...finishedGoodProduct,
+              storageCondition: condition,
+            })
+          : fallback(name, args),
+      );
+      renderWithIntl(<ProductScreen productId="product-a" />, {
+        locale,
+        workspace: false,
+      });
+      expect(
+        screen.getByRole("combobox", {
+          name: locale === "en" ? "Storage condition" : "เงื่อนไขการจัดเก็บ",
+        }),
+      ).toHaveTextContent(label);
+      fireEvent.click(
+        screen.getByRole("button", {
+          name: locale === "en" ? "Save product details" : "บันทึกข้อมูลสินค้า",
+        }),
+      );
+      await waitFor(() =>
+        expect(mocks.save).toHaveBeenCalledWith(
+          expect.objectContaining({ storageCondition: condition }),
+        ),
+      );
+    },
+  );
+
   it("saves product edits before packing without creating a spare pallet", async () => {
     renderProduct("product-a");
     fireEvent.change(screen.getByRole("textbox", { name: "Product name" }), {
@@ -508,6 +565,32 @@ describe("resume context validation", () => {
   );
 });
 
+describe("product authorization", () => {
+  it("keeps the authorization request id visible when product access is denied", () => {
+    mocks.query.mockImplementation((name) =>
+      name.endsWith(":getProduct")
+        ? {
+            ok: false,
+            requestId: "req_product_denied",
+            denial: {
+              kind: "AUTHORIZATION_DENIED",
+              code: "FORBIDDEN",
+              requestId: "req_product_denied",
+              message: "Access denied",
+            },
+          }
+        : querySuccess(finishedGoodsList),
+    );
+
+    renderWithIntl(<ProductScreen productId="product-a" />, {
+      locale: "en",
+      workspace: false,
+    });
+
+    expect(screen.getByRole("alert")).toHaveTextContent("req_product_denied");
+  });
+});
+
 describe("read-only product access", () => {
   beforeEach(() => {
     clearCursorPositions();
@@ -646,7 +729,11 @@ describe("finished goods catalogue", () => {
 
   it("keeps catalogue context separate for each actor and warehouse", () => {
     const element = () => (
-      <NextIntlClientProvider locale="en" messages={{}} timeZone="Asia/Bangkok">
+      <NextIntlClientProvider
+        locale="en"
+        messages={messagesFor("en")}
+        timeZone="Asia/Bangkok"
+      >
         <FinishedGoodsCatalogue />
       </NextIntlClientProvider>
     );
@@ -845,7 +932,11 @@ describe("finished goods catalogue", () => {
 describe("draft privacy on shared warehouse devices", () => {
   it("remounts when the signed-in actor changes and restores only that actor's draft", () => {
     const element = () => (
-      <NextIntlClientProvider locale="en" messages={{}} timeZone="Asia/Bangkok">
+      <NextIntlClientProvider
+        locale="en"
+        messages={messagesFor("en")}
+        timeZone="Asia/Bangkok"
+      >
         <ProductScreen />
       </NextIntlClientProvider>
     );
@@ -1614,7 +1705,7 @@ describe("server catalogue pages", () => {
       querySuccess({ products: records.slice(0, 40), pallets: [] }),
     );
     view.rerender(
-      <NextIntlClientProvider locale="en" messages={{}}>
+      <NextIntlClientProvider locale="en" messages={messagesFor("en")}>
         <FinishedGoodsCatalogue />
       </NextIntlClientProvider>,
     );
@@ -1659,11 +1750,76 @@ it("continues a bounded scan without displaying an empty result", () => {
   );
   mocks.query.mockReturnValue(querySuccess(finishedGoodsList));
   view.rerender(
-    <NextIntlClientProvider locale="en" messages={{}}>
+    <NextIntlClientProvider locale="en" messages={messagesFor("en")}>
       <FinishedGoodsCatalogue />
     </NextIntlClientProvider>,
   );
   expect(screen.getByText(finishedGoodsList.products[0]!.name)).toBeVisible();
+});
+
+it("resets each scan cursor once when catalogue criteria change", async () => {
+  const phases = new Map<string, "initial" | "scanning" | "reset">();
+  const resetKeys: string[] = [];
+  mocks.query.mockImplementation((name, rawArgs) => {
+    if (!name.endsWith(":page")) return querySuccess(finishedGoodsList);
+    const args = rawArgs as { search?: string; scanCursor?: string };
+    const key = args.search ?? "";
+    const phase = phases.get(key) ?? "initial";
+    if (args.scanCursor) {
+      expect(phase).toBe("scanning");
+      phases.set(key, "reset");
+      resetKeys.push(key);
+      return querySuccess({
+        status: "reset",
+        products: [],
+        pallets: [],
+        page: [],
+        isDone: false,
+        continueCursor: "",
+        scanned: 0,
+      });
+    }
+    if (phase === "initial" || phase === "scanning") {
+      phases.set(key, "scanning");
+      return querySuccess({
+        status: "scanning",
+        products: [],
+        pallets: [],
+        page: [],
+        isDone: false,
+        continueCursor: "",
+        scanCursor: `scan-${key || "all"}`,
+        scanned: 100,
+      });
+    }
+    if (key !== "") return querySuccess(finishedGoodsList);
+    return querySuccess({
+      status: "reset",
+      products: [],
+      pallets: [],
+      page: [],
+      isDone: false,
+      continueCursor: "",
+      scanned: 0,
+    });
+  });
+
+  renderWithIntl(<FinishedGoodsCatalogue />, {
+    locale: "en",
+    workspace: false,
+  });
+  await waitFor(() => expect(resetKeys).toContain(""));
+
+  const searchBox = screen.getAllByRole("textbox")[0]!;
+  fireEvent.change(searchBox, {
+    target: { value: "Packaging" },
+  });
+  expect(searchBox).toHaveValue("Packaging");
+  await waitFor(() => expect(resetKeys).toContain("Packaging"));
+  expect(resetKeys).toEqual(["", "Packaging"]);
+  await waitFor(() =>
+    expect(screen.getByText(finishedGoodsList.products[0]!.name)).toBeVisible(),
+  );
 });
 
 it("reports an invalid first-page cursor without entering a reset loop", () => {

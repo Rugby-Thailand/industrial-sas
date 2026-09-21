@@ -23,6 +23,15 @@ export const ROUTE_NAMESPACES = {
     "Write",
     "WriteError",
   ],
+  "(desktop)/finished-goods": [
+    "App",
+    "FinishedGoods",
+    "Pagination",
+    "Panel",
+    "Table",
+    "Write",
+    "WriteError",
+  ],
   "(desktop)/setup": ["App", "Setup"],
 } as const satisfies Record<string, readonly MessageNamespace[]>;
 
