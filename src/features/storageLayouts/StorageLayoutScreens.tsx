@@ -415,313 +415,677 @@ type NewBuildingDraft = {
   readonly floors: string;
 };
 
+function WarehouseCells({
+  x,
+  y,
+  width,
+  height,
+  columns,
+  rows = 1,
+  fill,
+  prefix,
+}: {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+  readonly columns: number;
+  readonly rows?: number;
+  readonly fill: string;
+  readonly prefix?: string;
+}) {
+  const columnWidth = width / columns;
+  const rowHeight = height / rows;
+  return (
+    <g>
+      <rect
+        x={x}
+        y={y}
+        width={width}
+        height={height}
+        rx="0.6"
+        fill={fill}
+        stroke="#64748b"
+        strokeWidth="0.35"
+      />
+      {Array.from({ length: columns - 1 }, (_, index) => (
+        <path
+          key={`column-${index}`}
+          d={`M ${x + columnWidth * (index + 1)} ${y} V ${y + height}`}
+          stroke="#94a3b8"
+          strokeWidth="0.25"
+        />
+      ))}
+      {Array.from({ length: rows - 1 }, (_, index) => (
+        <path
+          key={`row-${index}`}
+          d={`M ${x} ${y + rowHeight * (index + 1)} H ${x + width}`}
+          stroke="#94a3b8"
+          strokeWidth="0.25"
+          strokeDasharray="0.7 0.7"
+        />
+      ))}
+      {!prefix ? null : (
+        <>
+          <text
+            x={x + columnWidth / 2}
+            y={y + rowHeight / 2 + 0.7}
+            textAnchor="middle"
+            fill="#334155"
+            className="text-[1.7px] font-medium"
+          >
+            {prefix}-1
+          </text>
+          <text
+            x={x + width - columnWidth / 2}
+            y={y + height - rowHeight / 2 + 0.7}
+            textAnchor="middle"
+            fill="#334155"
+            className="text-[1.7px] font-medium"
+          >
+            {prefix}-{columns * rows}
+          </text>
+        </>
+      )}
+    </g>
+  );
+}
+
+function WarehouseLegend() {
+  const items = [
+    ["#f4d4b5", "ทางเดิน"],
+    ["#d9eef7", "ชั้นวาง"],
+    ["#f5f5ef", "On floor"],
+    ["#d7edce", "รับ/เตรียมสินค้า"],
+    ["#91a9d6", "ประตู/จุดสแกน"],
+  ] as const;
+  return (
+    <g aria-hidden="true">
+      {items.map(([fill, label], index) => (
+        <g key={label} transform={`translate(${5 + index * 28} 94)`}>
+          <rect
+            width="4"
+            height="2.7"
+            rx="0.4"
+            fill={fill}
+            stroke="#64748b"
+            strokeWidth="0.25"
+          />
+          <text
+            x="5.3"
+            y="2.2"
+            fill="#475569"
+            className="text-[1.8px] font-medium"
+          >
+            {label}
+          </text>
+        </g>
+      ))}
+    </g>
+  );
+}
+
+function FirstFloorWarehousePlan() {
+  return (
+    <>
+      <text x="5" y="6" fill="#0f172a" className="text-[3px] font-bold">
+        FLOOR 1 · AFTER IMPROVEMENT · 68.95 × 56.00 M
+      </text>
+
+      <WarehouseCells
+        x={5}
+        y={9}
+        width={64}
+        height={7}
+        columns={14}
+        rows={2}
+        fill="#d9eef7"
+        prefix="SB"
+      />
+      <text
+        x="37"
+        y="13.5"
+        textAnchor="middle"
+        fill="#0f4c67"
+        className="text-[2.2px] font-bold"
+      >
+        SB · STORAGE AT THE BACK
+      </text>
+
+      <WarehouseCells
+        x={5}
+        y={19}
+        width={63}
+        height={25}
+        columns={15}
+        rows={3}
+        fill="#f5f5ef"
+        prefix="F1-L"
+      />
+      {Array.from({ length: 7 }, (_, index) => (
+        <rect
+          key={`f1-aisle-${index}`}
+          x={10 + index * 8.2}
+          y="19"
+          width="1.2"
+          height="25"
+          fill="#f4d4b5"
+        />
+      ))}
+      <text
+        x="36"
+        y="31"
+        textAnchor="middle"
+        fill="#334155"
+        className="text-[2.8px] font-bold"
+      >
+        F1 · 31 ON-FLOOR LOCKS + 2 RACKS
+      </text>
+
+      <WarehouseCells
+        x={5}
+        y={47}
+        width={78}
+        height={16}
+        columns={16}
+        rows={2}
+        fill="#f5f5ef"
+        prefix="F1-L"
+      />
+      {Array.from({ length: 8 }, (_, index) => (
+        <rect
+          key={`f1-lower-aisle-${index}`}
+          x={9 + index * 9.3}
+          y="47"
+          width="1.1"
+          height="16"
+          fill="#f4d4b5"
+        />
+      ))}
+
+      <WarehouseCells
+        x={5}
+        y={66}
+        width={96}
+        height={10}
+        columns={12}
+        rows={2}
+        fill="#f5f5ef"
+        prefix="PD-L"
+      />
+      <path d="M 5 71 H 101" stroke="#e7ad75" strokeWidth="2" />
+      <text
+        x="53"
+        y="70.2"
+        textAnchor="middle"
+        fill="#7c3f00"
+        className="text-[2.4px] font-bold"
+      >
+        PD · AREA PREPARING FOR DELIVERY · 12 LOCKS
+      </text>
+
+      <WarehouseCells
+        x={5}
+        y={79}
+        width={96}
+        height={6}
+        columns={24}
+        rows={2}
+        fill="#d9eef7"
+        prefix="FT"
+      />
+      <text
+        x="53"
+        y="83"
+        textAnchor="middle"
+        fill="#0f4c67"
+        className="text-[2.2px] font-bold"
+      >
+        FT · FOAM STORAGE
+      </text>
+
+      <rect
+        x="72"
+        y="9"
+        width="12"
+        height="13"
+        rx="0.7"
+        fill="#dce5f7"
+        stroke="#64748b"
+        strokeWidth="0.35"
+      />
+      <text
+        x="78"
+        y="15"
+        textAnchor="middle"
+        fill="#334155"
+        className="text-[2px] font-bold"
+      >
+        เตรียมจัดส่ง
+      </text>
+      <WarehouseCells
+        x={87}
+        y={9}
+        width={20}
+        height={25}
+        columns={2}
+        rows={6}
+        fill="#d7edce"
+        prefix="RCV"
+      />
+      <text
+        x="97"
+        y="21"
+        textAnchor="middle"
+        fill="#166534"
+        className="text-[2.3px] font-bold"
+      >
+        พื้นที่รับสินค้า
+      </text>
+
+      <rect
+        x="110"
+        y="9"
+        width="17"
+        height="31"
+        rx="0.8"
+        fill="#f5f5ef"
+        stroke="#64748b"
+        strokeWidth="0.35"
+      />
+      <text
+        x="118.5"
+        y="24"
+        textAnchor="middle"
+        fill="#44403c"
+        className="text-[2.4px] font-bold"
+      >
+        จัดเก็บ
+      </text>
+      <text
+        x="118.5"
+        y="27"
+        textAnchor="middle"
+        fill="#44403c"
+        className="text-[2.4px] font-bold"
+      >
+        พาเลท
+      </text>
+
+      <rect
+        x="130"
+        y="9"
+        width="7"
+        height="42"
+        rx="0.8"
+        fill="#315d9c"
+        stroke="#1e3a8a"
+        strokeWidth="0.35"
+      />
+      <text
+        x="133.5"
+        y="30"
+        textAnchor="middle"
+        fill="white"
+        className="text-[2px] font-bold"
+        transform="rotate(-90 133.5 30)"
+      >
+        ประตูคลัง
+      </text>
+
+      <rect
+        x="87"
+        y="37"
+        width="9"
+        height="11"
+        rx="0.7"
+        fill="#b7d895"
+        stroke="#4d7c0f"
+        strokeWidth="0.35"
+      />
+      <text
+        x="91.5"
+        y="43"
+        textAnchor="middle"
+        fill="#365314"
+        className="text-[2px] font-bold"
+      >
+        LIFT
+      </text>
+      <rect
+        x="98"
+        y="37"
+        width="9"
+        height="11"
+        rx="0.7"
+        fill="#d7edce"
+        stroke="#15803d"
+        strokeWidth="0.35"
+      />
+      <text
+        x="102.5"
+        y="42"
+        textAnchor="middle"
+        fill="#166534"
+        className="text-[1.8px] font-bold"
+      >
+        HAND
+      </text>
+      <text
+        x="102.5"
+        y="44.5"
+        textAnchor="middle"
+        fill="#166534"
+        className="text-[1.8px] font-bold"
+      >
+        LIFT
+      </text>
+
+      <rect
+        x="110"
+        y="43"
+        width="27"
+        height="17"
+        rx="0.8"
+        fill="#f5f5ef"
+        stroke="#64748b"
+        strokeWidth="0.35"
+      />
+      <text
+        x="123.5"
+        y="51"
+        textAnchor="middle"
+        fill="#334155"
+        className="text-[2.2px] font-bold"
+      >
+        PALLET STAGING
+      </text>
+      <text
+        x="123.5"
+        y="54"
+        textAnchor="middle"
+        fill="#64748b"
+        className="text-[1.8px]"
+      >
+        ก่อนเข้าคลัง FG
+      </text>
+
+      <rect
+        x="106"
+        y="63"
+        width="31"
+        height="12"
+        rx="0.8"
+        fill="#d7edce"
+        stroke="#15803d"
+        strokeWidth="0.35"
+      />
+      <text
+        x="121.5"
+        y="68"
+        textAnchor="middle"
+        fill="#166534"
+        className="text-[2px] font-bold"
+      >
+        พื้นที่เตรียมสินค้าขึ้นรถ
+      </text>
+      <text
+        x="121.5"
+        y="71"
+        textAnchor="middle"
+        fill="#166534"
+        className="text-[1.7px]"
+      >
+        7.26-7.84 M BAYS
+      </text>
+
+      <rect x="5" y="87" width="122" height="4" rx="0.6" fill="#918c89" />
+      <text
+        x="66"
+        y="89.8"
+        textAnchor="middle"
+        fill="white"
+        className="text-[2.2px] font-bold"
+      >
+        FORKLIFT &amp; TRANSPORT PARKING · 59.34 M
+      </text>
+      <rect x="130" y="85.5" width="7" height="5.5" rx="0.6" fill="#3c62c7" />
+      <text
+        x="133.5"
+        y="89"
+        textAnchor="middle"
+        fill="white"
+        className="text-[1.7px] font-bold"
+      >
+        SCAN
+      </text>
+      <WarehouseLegend />
+    </>
+  );
+}
+
+function SecondFloorWarehousePlan() {
+  return (
+    <>
+      <text x="5" y="6" fill="#0f172a" className="text-[3px] font-bold">
+        FLOOR 2 · AFTER IMPROVEMENT · 47.54 M
+      </text>
+
+      <WarehouseCells
+        x={11}
+        y={9}
+        width={25}
+        height={8}
+        columns={4}
+        rows={2}
+        fill="#d9eef7"
+        prefix="F2-R"
+      />
+      <text
+        x="23.5"
+        y="14"
+        textAnchor="middle"
+        fill="#0f4c67"
+        className="text-[1.9px] font-bold"
+      >
+        RACK · 2 LEVELS
+      </text>
+
+      <WarehouseCells
+        x={6}
+        y={21}
+        width={9}
+        height={35}
+        columns={2}
+        rows={4}
+        fill="#f5f5ef"
+        prefix="F2-L"
+      />
+      {Array.from({ length: 11 }, (_, index) => (
+        <g key={`f2-column-${index}`}>
+          <WarehouseCells
+            x={18 + index * 9.1}
+            y={21}
+            width={6.8}
+            height={35}
+            columns={2}
+            rows={4}
+            fill="#f5f5ef"
+            prefix={`F2-L${index + 1}`}
+          />
+          <rect
+            x={24.8 + index * 9.1}
+            y="21"
+            width="2.3"
+            height="35"
+            fill="#f4d4b5"
+          />
+        </g>
+      ))}
+      <rect
+        x="18"
+        y="21"
+        width="6.8"
+        height="8"
+        fill="#d9eef7"
+        stroke="#64748b"
+        strokeWidth="0.35"
+      />
+      <rect
+        x="27.1"
+        y="21"
+        width="6.8"
+        height="8"
+        fill="#d9eef7"
+        stroke="#64748b"
+        strokeWidth="0.35"
+      />
+      <text
+        x="70"
+        y="39"
+        textAnchor="middle"
+        fill="#334155"
+        className="text-[2.8px] font-bold"
+      >
+        F2 · 16 ON-FLOOR LOCKS + 1 RACK
+      </text>
+
+      <rect
+        x="6"
+        y="61"
+        width="7"
+        height="12"
+        rx="0.7"
+        fill="#b7d895"
+        stroke="#4d7c0f"
+        strokeWidth="0.35"
+      />
+      <text
+        x="9.5"
+        y="67"
+        textAnchor="middle"
+        fill="#365314"
+        className="text-[1.8px] font-bold"
+      >
+        LIFT
+      </text>
+      <text
+        x="9.5"
+        y="70"
+        textAnchor="middle"
+        fill="#365314"
+        className="text-[2.5px] font-bold"
+      >
+        ↕
+      </text>
+
+      <WarehouseCells
+        x={15}
+        y={61}
+        width={112}
+        height={12}
+        columns={31}
+        rows={1}
+        fill="#f5f5ef"
+        prefix="F2-L"
+      />
+      <text
+        x="71"
+        y="68"
+        textAnchor="middle"
+        fill="#334155"
+        className="text-[2.2px] font-bold"
+      >
+        ON-FLOOR STORAGE · F2-L1 TO F2-L31
+      </text>
+
+      <rect
+        x="129"
+        y="61"
+        width="7"
+        height="12"
+        rx="0.7"
+        fill="#b7d895"
+        stroke="#4d7c0f"
+        strokeWidth="0.35"
+      />
+      <text
+        x="132.5"
+        y="67"
+        textAnchor="middle"
+        fill="#365314"
+        className="text-[1.8px] font-bold"
+      >
+        LIFT
+      </text>
+      <text
+        x="132.5"
+        y="70"
+        textAnchor="middle"
+        fill="#365314"
+        className="text-[2.5px] font-bold"
+      >
+        ↕
+      </text>
+
+      <rect x="15" y="77" width="121" height="5" rx="0.6" fill="#918c89" />
+      <text
+        x="75.5"
+        y="80.3"
+        textAnchor="middle"
+        fill="white"
+        className="text-[2.2px] font-bold"
+      >
+        MAIN AISLE · 3.30 M
+      </text>
+      <rect
+        x="118"
+        y="9"
+        width="18"
+        height="8"
+        rx="0.6"
+        fill="#f4d4b5"
+        stroke="#a16207"
+        strokeWidth="0.35"
+      />
+      <text
+        x="127"
+        y="14"
+        textAnchor="middle"
+        fill="#7c3f00"
+        className="text-[2px] font-bold"
+      >
+        STAIRS
+      </text>
+
+      <text x="6" y="87" fill="#475569" className="text-[2px] font-semibold">
+        ความลึกแถว 3.16 M · ช่องทางเดิน 2.80-2.90 M · ลิฟต์ 2 ฝั่ง
+      </text>
+      <WarehouseLegend />
+    </>
+  );
+}
+
 export function TwoFloorWarehouseMockup({ floor }: { readonly floor: 1 | 2 }) {
   const t = useTranslations("StorageLayouts");
-  const hatchId = useId();
-  const rackFill = `url(#${hatchId})`;
   return (
     <svg
       role="img"
       aria-label={t("warehouseMockupFloorAria", { floor })}
-      viewBox="0 0 100 64"
+      viewBox="0 0 142 99"
       className="h-auto w-full overflow-visible"
     >
-      <defs>
-        <pattern
-          id={hatchId}
-          width="2.4"
-          height="2.4"
-          patternUnits="userSpaceOnUse"
-        >
-          <rect width="2.4" height="2.4" className="fill-sky-100" />
-          <path d="M 0 0 V 2.4" className="stroke-sky-400" strokeWidth="0.35" />
-        </pattern>
-      </defs>
       <rect
         x="1"
         y="1"
-        width="98"
-        height="62"
+        width="140"
+        height="97"
         rx="2"
-        className="fill-background stroke-border"
+        fill="#ffffff"
+        stroke="#cbd5e1"
         strokeWidth="0.7"
       />
-      {floor === 1 ? (
-        <>
-          <rect
-            x="4"
-            y="5"
-            width="52"
-            height="21"
-            rx="1"
-            fill={rackFill}
-            className="stroke-sky-500"
-            strokeWidth="0.5"
-          />
-          {Array.from({ length: 9 }, (_, index) => (
-            <path
-              key={index}
-              d={`M ${9 + index * 5.1} 6 V 25`}
-              className="stroke-slate-500"
-              strokeWidth="0.45"
-            />
-          ))}
-          <rect
-            x="4"
-            y="29"
-            width="56"
-            height="16"
-            rx="1"
-            fill={rackFill}
-            className="stroke-sky-500"
-            strokeWidth="0.5"
-          />
-          {Array.from({ length: 10 }, (_, index) => (
-            <path
-              key={index}
-              d={`M ${9 + index * 5} 30 V 44`}
-              className="stroke-slate-500"
-              strokeWidth="0.45"
-            />
-          ))}
-          <rect
-            x="4"
-            y="48"
-            width="67"
-            height="8"
-            rx="1"
-            className="fill-sky-200 stroke-sky-500"
-            strokeWidth="0.5"
-          />
-          <rect
-            x="59"
-            y="5"
-            width="15"
-            height="17"
-            rx="1"
-            className="fill-emerald-100 stroke-emerald-500"
-            strokeWidth="0.5"
-          />
-          <rect
-            x="76"
-            y="5"
-            width="13"
-            height="24"
-            rx="1"
-            className="fill-stone-100 stroke-stone-500"
-            strokeWidth="0.5"
-          />
-          <rect
-            x="91"
-            y="5"
-            width="5"
-            height="35"
-            rx="1"
-            className="fill-blue-600 stroke-blue-800"
-            strokeWidth="0.5"
-          />
-          <rect
-            x="61"
-            y="25"
-            width="12"
-            height="20"
-            rx="1"
-            className="fill-lime-100 stroke-lime-600"
-            strokeWidth="0.5"
-          />
-          <rect
-            x="75"
-            y="32"
-            width="14"
-            height="13"
-            rx="1"
-            className="fill-emerald-50 stroke-emerald-500"
-            strokeWidth="0.5"
-          />
-          <rect
-            x="4"
-            y="58"
-            width="85"
-            height="3"
-            rx="1"
-            className="fill-stone-400"
-          />
-          <rect
-            x="91"
-            y="57"
-            width="5"
-            height="4"
-            rx="0.6"
-            className="fill-blue-700"
-          />
-          <text
-            x="30"
-            y="16"
-            textAnchor="middle"
-            className="fill-slate-700 text-[3px] font-semibold"
-          >
-            RACK A–N
-          </text>
-          <text
-            x="32"
-            y="38"
-            textAnchor="middle"
-            className="fill-slate-700 text-[3px] font-semibold"
-          >
-            FLOOR STORAGE
-          </text>
-          <text
-            x="66.5"
-            y="13"
-            textAnchor="middle"
-            className="fill-emerald-800 text-[2.5px] font-semibold"
-          >
-            RECEIVING
-          </text>
-          <text
-            x="82.5"
-            y="17"
-            textAnchor="middle"
-            className="fill-stone-700 text-[2.5px] font-semibold"
-          >
-            PALLET
-          </text>
-          <text
-            x="67"
-            y="36"
-            textAnchor="middle"
-            className="fill-lime-800 text-[2.2px] font-semibold"
-          >
-            LIFT
-          </text>
-          <text
-            x="46"
-            y="60.2"
-            textAnchor="middle"
-            className="fill-white text-[2.4px] font-semibold"
-          >
-            FORKLIFT &amp; LOADING
-          </text>
-          <text
-            x="93.5"
-            y="59.8"
-            textAnchor="middle"
-            className="fill-white text-[1.8px] font-bold"
-          >
-            SCAN
-          </text>
-        </>
-      ) : (
-        <>
-          <rect
-            x="6"
-            y="7"
-            width="8"
-            height="28"
-            rx="1"
-            fill={rackFill}
-            className="stroke-sky-500"
-            strokeWidth="0.5"
-          />
-          {Array.from({ length: 9 }, (_, index) => (
-            <g key={index}>
-              <rect
-                x={16 + index * 7.7}
-                y="7"
-                width="6.5"
-                height="28"
-                rx="0.7"
-                fill={rackFill}
-                className="stroke-sky-500"
-                strokeWidth="0.45"
-              />
-              <rect
-                x={16 + index * 7.7}
-                y="17"
-                width="6.5"
-                height="2"
-                className="fill-orange-200"
-              />
-            </g>
-          ))}
-          <rect
-            x="6"
-            y="40"
-            width="78"
-            height="8"
-            rx="1"
-            fill={rackFill}
-            className="stroke-slate-500"
-            strokeWidth="0.5"
-          />
-          <rect
-            x="2.5"
-            y="39"
-            width="6"
-            height="10"
-            rx="1"
-            className="fill-lime-200 stroke-lime-700"
-            strokeWidth="0.5"
-          />
-          <rect
-            x="83"
-            y="39"
-            width="6"
-            height="10"
-            rx="1"
-            className="fill-lime-200 stroke-lime-700"
-            strokeWidth="0.5"
-          />
-          <rect
-            x="6"
-            y="52"
-            width="83"
-            height="3"
-            rx="1"
-            className="fill-stone-400"
-          />
-          <text
-            x="49"
-            y="12"
-            textAnchor="middle"
-            className="fill-slate-700 text-[3px] font-semibold"
-          >
-            RACK ROWS • FLOOR 2
-          </text>
-          <text
-            x="45"
-            y="45"
-            textAnchor="middle"
-            className="fill-slate-700 text-[2.5px] font-semibold"
-          >
-            ON-FLOOR STORAGE
-          </text>
-          <text
-            x="5.5"
-            y="45"
-            textAnchor="middle"
-            className="fill-lime-900 text-[2px] font-bold"
-          >
-            LIFT
-          </text>
-          <text
-            x="86"
-            y="45"
-            textAnchor="middle"
-            className="fill-lime-900 text-[2px] font-bold"
-          >
-            LIFT
-          </text>
-          <text
-            x="47"
-            y="54.3"
-            textAnchor="middle"
-            className="fill-white text-[2.2px] font-semibold"
-          >
-            MAIN AISLE 3.30 M
-          </text>
-        </>
-      )}
+      {floor === 1 ? <FirstFloorWarehousePlan /> : <SecondFloorWarehousePlan />}
     </svg>
   );
 }
