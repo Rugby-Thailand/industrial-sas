@@ -165,6 +165,30 @@ describe("TwoFloorWarehouseMockup", () => {
     ).toBeVisible();
   });
 
+  it("shows clearly identified orange aisles on both warehouse floors", () => {
+    const { unmount } = renderWithIntl(<TwoFloorWarehouseMockup floor={1} />, {
+      locale: "en",
+      workspace: false,
+    });
+
+    expect(screen.getByTestId("floor-1-aisles")).toHaveAttribute(
+      "aria-label",
+      "ทางเดินสีส้ม ชั้น 1",
+    );
+
+    unmount();
+    renderWithIntl(<TwoFloorWarehouseMockup floor={2} />, {
+      locale: "en",
+      workspace: false,
+    });
+
+    expect(screen.getByTestId("floor-2-aisles")).toHaveAttribute(
+      "aria-label",
+      "ทางเดินสีส้ม ชั้น 2",
+    );
+    expect(screen.getByText("ทางเดินหลัก · MAIN AISLE · 3.30 M")).toBeVisible();
+  });
+
   it("reveals a company name only when its map marker is hovered or tapped", () => {
     renderWithIntl(<TwoFloorWarehouseMockup floor={1} />, {
       locale: "en",
