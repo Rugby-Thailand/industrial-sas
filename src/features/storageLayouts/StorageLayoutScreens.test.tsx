@@ -189,6 +189,21 @@ describe("TwoFloorWarehouseMockup", () => {
     expect(screen.getByText("ทางเดินหลัก · MAIN AISLE · 3.30 M")).toBeVisible();
   });
 
+  it("keeps pallet staging clear of the warehouse door", () => {
+    renderWithIntl(<TwoFloorWarehouseMockup floor={1} />, {
+      locale: "en",
+      workspace: false,
+    });
+
+    const staging = screen.getByTestId("pallet-staging");
+    const door = screen.getByTestId("warehouse-door");
+    const stagingRight =
+      Number(staging.getAttribute("x")) + Number(staging.getAttribute("width"));
+    const doorLeft = Number(door.getAttribute("x"));
+
+    expect(stagingRight).toBeLessThan(doorLeft);
+  });
+
   it("reveals a company name only when its map marker is hovered or tapped", () => {
     renderWithIntl(<TwoFloorWarehouseMockup floor={1} />, {
       locale: "en",
