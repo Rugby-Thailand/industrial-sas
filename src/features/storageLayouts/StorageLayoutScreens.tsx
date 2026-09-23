@@ -1205,11 +1205,11 @@ function SecondFloorWarehousePlan({
         fill="#d9eef7"
       />
       <text
-        x="23.5"
-        y="14"
-        textAnchor="middle"
+        x="11"
+        y="19.5"
+        textAnchor="start"
         fill="#0f4c67"
-        className="text-[1.9px] font-bold"
+        className="text-[1.7px] font-bold"
       >
         RACK · 2 LEVELS
       </text>
