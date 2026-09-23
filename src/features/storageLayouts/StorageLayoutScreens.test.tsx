@@ -120,6 +120,23 @@ describe("NewBuildingContent", () => {
     expect(
       screen.getByRole("img", { name: "Warehouse floor 1 layout mockup" }),
     ).toBeVisible();
+    expect(
+      screen.getByRole("heading", {
+        name: "Companies and storage locations (Mockup)",
+      }),
+    ).toBeVisible();
+    expect(screen.getByText("KOHLER (THAILAND)")).toBeVisible();
+    expect(screen.getByText("F1-L19-1 — F1-L19-9")).toBeVisible();
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "View storage location for HITACHI METALS",
+      }),
+    );
+    expect(screen.getByRole("button", { name: "Floor 2" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
 
     fireEvent.click(screen.getByRole("button", { name: "Floor 2" }));
     expect(

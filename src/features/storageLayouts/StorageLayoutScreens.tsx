@@ -525,7 +525,186 @@ function WarehouseLegend() {
   );
 }
 
-function FirstFloorWarehousePlan() {
+type MockCompanyAllocation = {
+  readonly id: string;
+  readonly code: string;
+  readonly name: string;
+  readonly floor: 1 | 2;
+  readonly zone: string;
+  readonly location: string;
+  readonly pallets: number;
+  readonly color: string;
+  readonly overlay: {
+    readonly x: number;
+    readonly y: number;
+    readonly width: number;
+    readonly height: number;
+  };
+};
+
+const MOCK_COMPANY_ALLOCATIONS: readonly MockCompanyAllocation[] = [
+  {
+    id: "kohler",
+    code: "KOHLER",
+    name: "KOHLER (THAILAND)",
+    floor: 1,
+    zone: "F1 · On floor",
+    location: "F1-L19-1 — F1-L19-9",
+    pallets: 12,
+    color: "#7c3aed",
+    overlay: { x: 5, y: 19, width: 13, height: 10 },
+  },
+  {
+    id: "proterial",
+    code: "PROTERIAL",
+    name: "PROTERIAL (THAILAND)",
+    floor: 1,
+    zone: "F1 · On floor",
+    location: "F1-L20-1 — F1-L20-8",
+    pallets: 10,
+    color: "#ea580c",
+    overlay: { x: 21, y: 19, width: 14, height: 10 },
+  },
+  {
+    id: "sunarrow",
+    code: "SUNARROW",
+    name: "SUNARROW CITY",
+    floor: 1,
+    zone: "SB · Back storage",
+    location: "SB-L1-1 — SB-L1-6",
+    pallets: 8,
+    color: "#2563eb",
+    overlay: { x: 5, y: 9, width: 20, height: 7 },
+  },
+  {
+    id: "hana",
+    code: "HANA",
+    name: "HANA MICROELECTRONICS",
+    floor: 1,
+    zone: "F1 · Rack",
+    location: "F1-RA-L1.2-1 — F1-RA-L1.2-6",
+    pallets: 6,
+    color: "#db2777",
+    overlay: { x: 38, y: 19, width: 13, height: 10 },
+  },
+  {
+    id: "nidec",
+    code: "NIDEC",
+    name: "NIDEC PRECISION",
+    floor: 1,
+    zone: "PD · Delivery prep",
+    location: "PD-L1-1 — PD-L1-5",
+    pallets: 7,
+    color: "#0891b2",
+    overlay: { x: 5, y: 66, width: 28, height: 10 },
+  },
+  {
+    id: "imex",
+    code: "IMEX",
+    name: "IMEX INTERNATIONAL",
+    floor: 1,
+    zone: "SB · Rack",
+    location: "SB-RA-L1-1 — SB-RA-L1-4",
+    pallets: 5,
+    color: "#0f766e",
+    overlay: { x: 27, y: 9, width: 18, height: 7 },
+  },
+  {
+    id: "filler",
+    code: "FILLER",
+    name: "FILLER VISION",
+    floor: 1,
+    zone: "FT · Foam storage",
+    location: "FT-L1-1 — FT-L1-8",
+    pallets: 9,
+    color: "#4f46e5",
+    overlay: { x: 5, y: 79, width: 32, height: 6 },
+  },
+  {
+    id: "hitachi",
+    code: "HITACHI",
+    name: "HITACHI METALS",
+    floor: 2,
+    zone: "F2 · On floor",
+    location: "F2-L1 — F2-L5",
+    pallets: 11,
+    color: "#16a34a",
+    overlay: { x: 18, y: 21, width: 15, height: 12 },
+  },
+  {
+    id: "vallen",
+    code: "VALLEN",
+    name: "VALLEN (THAILAND)",
+    floor: 2,
+    zone: "F2 · On floor",
+    location: "F2-L6 — F2-L10",
+    pallets: 8,
+    color: "#ca8a04",
+    overlay: { x: 45, y: 21, width: 15, height: 12 },
+  },
+  {
+    id: "seksun",
+    code: "SEKSUN",
+    name: "SEKSUN TECHNOLOGY",
+    floor: 2,
+    zone: "F2 · On floor",
+    location: "F2-L11 — F2-L16",
+    pallets: 10,
+    color: "#dc2626",
+    overlay: { x: 72, y: 21, width: 15, height: 12 },
+  },
+] as const;
+
+const DEFAULT_MOCK_COMPANY_ID = "kohler";
+
+function WarehouseOccupancyOverlay({
+  floor,
+  selectedCompanyId,
+}: {
+  readonly floor: 1 | 2;
+  readonly selectedCompanyId?: string | undefined;
+}) {
+  return (
+    <g aria-hidden="true">
+      {MOCK_COMPANY_ALLOCATIONS.filter(
+        (allocation) => allocation.floor === floor,
+      ).map((allocation) => {
+        const selected = allocation.id === selectedCompanyId;
+        const { x, y, width, height } = allocation.overlay;
+        return (
+          <g key={allocation.id}>
+            <rect
+              x={x}
+              y={y}
+              width={width}
+              height={height}
+              rx="0.8"
+              fill={allocation.color}
+              fillOpacity={selected ? 0.8 : 0.28}
+              stroke={allocation.color}
+              strokeWidth={selected ? 0.9 : 0.35}
+            />
+            <text
+              x={x + width / 2}
+              y={y + height / 2 + 0.8}
+              textAnchor="middle"
+              fill={selected ? "#ffffff" : "#0f172a"}
+              className="text-[1.8px] font-bold"
+            >
+              {allocation.code}
+            </text>
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
+function FirstFloorWarehousePlan({
+  selectedCompanyId,
+}: {
+  readonly selectedCompanyId?: string | undefined;
+}) {
   return (
     <>
       <text x="5" y="6" fill="#0f172a" className="text-[3px] font-bold">
@@ -860,11 +1039,19 @@ function FirstFloorWarehousePlan() {
         SCAN
       </text>
       <WarehouseLegend />
+      <WarehouseOccupancyOverlay
+        floor={1}
+        selectedCompanyId={selectedCompanyId}
+      />
     </>
   );
 }
 
-function SecondFloorWarehousePlan() {
+function SecondFloorWarehousePlan({
+  selectedCompanyId,
+}: {
+  readonly selectedCompanyId?: string | undefined;
+}) {
   return (
     <>
       <text x="5" y="6" fill="#0f172a" className="text-[3px] font-bold">
@@ -1062,11 +1249,21 @@ function SecondFloorWarehousePlan() {
         ความลึกแถว 3.16 M · ช่องทางเดิน 2.80-2.90 M · ลิฟต์ 2 ฝั่ง
       </text>
       <WarehouseLegend />
+      <WarehouseOccupancyOverlay
+        floor={2}
+        selectedCompanyId={selectedCompanyId}
+      />
     </>
   );
 }
 
-export function TwoFloorWarehouseMockup({ floor }: { readonly floor: 1 | 2 }) {
+export function TwoFloorWarehouseMockup({
+  floor,
+  selectedCompanyId,
+}: {
+  readonly floor: 1 | 2;
+  readonly selectedCompanyId?: string | undefined;
+}) {
   const t = useTranslations("StorageLayouts");
   return (
     <svg
@@ -1085,7 +1282,11 @@ export function TwoFloorWarehouseMockup({ floor }: { readonly floor: 1 | 2 }) {
         stroke="#cbd5e1"
         strokeWidth="0.7"
       />
-      {floor === 1 ? <FirstFloorWarehousePlan /> : <SecondFloorWarehousePlan />}
+      {floor === 1 ? (
+        <FirstFloorWarehousePlan selectedCompanyId={selectedCompanyId} />
+      ) : (
+        <SecondFloorWarehousePlan selectedCompanyId={selectedCompanyId} />
+      )}
     </svg>
   );
 }
@@ -1103,6 +1304,9 @@ export function NewBuildingContent({
     describeError: (code) => code || "UNKNOWN",
   });
   const [selectedFloor, setSelectedFloor] = useState<1 | 2>(1);
+  const [selectedCompanyId, setSelectedCompanyId] = useState(
+    DEFAULT_MOCK_COMPANY_ID,
+  );
   const [draft, setDraft] = useState<NewBuildingDraft>(
     TWO_FLOOR_WAREHOUSE_PRESET,
   );
@@ -1112,6 +1316,11 @@ export function NewBuildingContent({
   function applyTwoFloorPreset() {
     setDraft(TWO_FLOOR_WAREHOUSE_PRESET);
     setSelectedFloor(1);
+    setSelectedCompanyId(DEFAULT_MOCK_COMPANY_ID);
+  }
+  function selectMockCompany(allocation: MockCompanyAllocation) {
+    setSelectedCompanyId(allocation.id);
+    setSelectedFloor(allocation.floor);
   }
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -1271,8 +1480,73 @@ export function NewBuildingContent({
           </div>
         </div>
         <div className="mt-4 rounded-xl border border-border bg-surface p-3 shadow-inner">
-          <TwoFloorWarehouseMockup floor={selectedFloor} />
+          <TwoFloorWarehouseMockup
+            floor={selectedFloor}
+            selectedCompanyId={selectedCompanyId}
+          />
         </div>
+        <section className="mt-4 rounded-xl border border-border bg-surface p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-semibold text-text">
+                {t("mockOccupancyTitle")}
+              </h3>
+              <p className="mt-1 text-xs leading-relaxed text-muted">
+                {t("mockOccupancyDescription")}
+              </p>
+            </div>
+            <span className="rounded-full border border-warning/40 bg-warning/10 px-3 py-1 text-xs font-semibold text-warning-foreground">
+              {t("mockDataBadge")}
+            </span>
+          </div>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            {MOCK_COMPANY_ALLOCATIONS.map((allocation) => {
+              const selected = allocation.id === selectedCompanyId;
+              return (
+                <button
+                  key={allocation.id}
+                  type="button"
+                  aria-pressed={selected}
+                  aria-label={t("mockSelectCompany", {
+                    company: allocation.name,
+                  })}
+                  onClick={() => selectMockCompany(allocation)}
+                  className={`rounded-lg border p-3 text-left transition ${
+                    selected
+                      ? "border-accent bg-accent/5 shadow-sm"
+                      : "border-border hover:border-accent/50 hover:bg-background"
+                  }`}
+                >
+                  <div className="flex items-start gap-2">
+                    <span
+                      aria-hidden="true"
+                      className="mt-1 size-2.5 shrink-0 rounded-full"
+                      style={{ backgroundColor: allocation.color }}
+                    />
+                    <span className="min-w-0">
+                      <span className="block truncate text-xs font-semibold text-text">
+                        {allocation.name}
+                      </span>
+                      <span className="mt-1 block text-xs text-muted">
+                        {t("floor", { floor: allocation.floor })} ·{" "}
+                        {allocation.zone}
+                      </span>
+                      <span className="mt-1 block font-mono text-[11px] font-medium text-accent">
+                        {allocation.location}
+                      </span>
+                      <span className="mt-1 block text-[11px] text-muted">
+                        {t("mockPallets", { count: allocation.pallets })}
+                      </span>
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+          <p className="mt-3 text-xs leading-relaxed text-muted">
+            {t("mockOccupancyDisclaimer")}
+          </p>
+        </section>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <div className="rounded-lg border border-border bg-surface p-3">
             <p className="text-xs font-semibold tracking-wide text-muted uppercase">
