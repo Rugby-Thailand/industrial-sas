@@ -756,12 +756,14 @@ function WarehouseOccupancyOverlay({
         (allocation) => allocation.floor === floor,
       ).map((allocation) => {
         const selected = allocation.id === selectedCompanyId;
-        const selectedTextColor =
-          allocation.customerColorName === "yellow" ||
-          allocation.customerColorName === "leafGreen"
-            ? "#0f172a"
-            : "#ffffff";
         const { x, y, width, height } = allocation.overlay;
+        const useInlineLabel = height <= 7 && width >= 10;
+        const labelFontSize = useInlineLabel
+          ? 1.35
+          : Math.min(
+              1.35,
+              Math.max(0.75, (width - 1.2) / (allocation.code.length * 0.62)),
+            );
         return (
           <g key={allocation.id}>
             <rect
@@ -771,18 +773,17 @@ function WarehouseOccupancyOverlay({
               height={height}
               rx="0.8"
               fill={allocation.customerColor}
-              fillOpacity={selected ? 0.8 : 0.28}
+              fillOpacity={selected ? 0.16 : 0.05}
               stroke={allocation.customerColor}
               strokeWidth={selected ? 0.9 : 0.35}
             />
             <text
-              x={x + width / 2}
-              y={y + height / 2 + 0.8}
-              textAnchor="middle"
-              fill={selected ? selectedTextColor : "#0f172a"}
-              textLength={Math.max(width - 1.2, 1)}
-              lengthAdjust="spacingAndGlyphs"
-              className="text-[1.8px] font-bold"
+              x={useInlineLabel ? x + 4.8 : x + 0.7}
+              y={useInlineLabel ? y + 2.2 : y + 4}
+              textAnchor="start"
+              fill="#0f172a"
+              fontSize={labelFontSize}
+              className="font-bold"
             >
               {allocation.code}
             </text>
