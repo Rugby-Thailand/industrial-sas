@@ -70,13 +70,11 @@ import {
   BuildingSettingsDialog,
   FloorPlan,
   IsometricBuilding,
-  NewBuildingContent,
   ReservedBlocks,
   StorageCatalogueFilters,
   StorageZoneDraftPreview,
   StorageZonesPanel,
   StorageFloorEditor,
-  TwoFloorWarehouseMockup,
 } from "./StorageLayoutScreens";
 
 describe("StorageCatalogueFilters", () => {
@@ -99,140 +97,6 @@ describe("StorageCatalogueFilters", () => {
     ).toHaveTextContent("All statuses");
     expect(screen.getByTestId("storage-catalogue-filters")).toHaveClass(
       "sm:grid-cols-[minmax(0,1fr)_14rem]",
-    );
-  });
-});
-
-describe("NewBuildingContent", () => {
-  it("starts from the photographed two-floor warehouse mockup", () => {
-    renderWithIntl(<NewBuildingContent warehouseId="warehouse-a" />, {
-      locale: "en",
-      workspace: false,
-    });
-
-    expect(screen.getByRole("textbox", { name: "Building code" })).toHaveValue(
-      "TG-WH-01",
-    );
-    expect(screen.getByRole("spinbutton", { name: "Width (m)" })).toHaveValue(
-      68.95,
-    );
-    expect(screen.getByRole("spinbutton", { name: "Floors" })).toHaveValue(2);
-    expect(
-      screen.getByRole("img", { name: "Warehouse floor 1 layout mockup" }),
-    ).toBeVisible();
-    expect(
-      screen.getByRole("heading", {
-        name: "Companies and storage locations (Mockup)",
-      }),
-    ).toBeVisible();
-    expect(
-      screen.getByRole("button", {
-        name: "View storage location for KOHLER (THAILAND)",
-      }),
-    ).toHaveTextContent("KOHLER (THAILAND)");
-    expect(screen.getByText("F1-L19-1 — F1-L19-9")).toBeVisible();
-    expect(screen.getByText("Circle = customer colour")).toBeVisible();
-    expect(screen.getByText("F1-RA-L1.2-1-2 — F1-RA-L1.2-3-2")).toBeVisible();
-    expect(screen.getByText("FT-L1-1 — FT-L1-6")).toBeVisible();
-    expect(screen.getByText("F2-L1-1 — F2-L1-11")).toBeVisible();
-
-    fireEvent.click(
-      screen.getByRole("button", {
-        name: "View storage location for HITACHI METALS",
-      }),
-    );
-    expect(screen.getByRole("button", { name: "Floor 2" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "Floor 2" }));
-    expect(
-      screen.getByRole("img", { name: "Warehouse floor 2 layout mockup" }),
-    ).toBeVisible();
-  });
-});
-
-describe("TwoFloorWarehouseMockup", () => {
-  it("renders an accessible floor-specific plan", () => {
-    renderWithIntl(<TwoFloorWarehouseMockup floor={2} />, {
-      locale: "en",
-      workspace: false,
-    });
-
-    expect(
-      screen.getByRole("img", { name: "Warehouse floor 2 layout mockup" }),
-    ).toBeVisible();
-  });
-
-  it("shows clearly identified orange aisles on both warehouse floors", () => {
-    const { unmount } = renderWithIntl(<TwoFloorWarehouseMockup floor={1} />, {
-      locale: "en",
-      workspace: false,
-    });
-
-    expect(screen.getByTestId("floor-1-aisles")).toHaveAttribute(
-      "aria-label",
-      "ทางเดินสีส้ม ชั้น 1",
-    );
-
-    unmount();
-    renderWithIntl(<TwoFloorWarehouseMockup floor={2} />, {
-      locale: "en",
-      workspace: false,
-    });
-
-    expect(screen.getByTestId("floor-2-aisles")).toHaveAttribute(
-      "aria-label",
-      "ทางเดินสีส้ม ชั้น 2",
-    );
-    expect(screen.getByText("ทางเดินหลัก · MAIN AISLE · 3.30 M")).toBeVisible();
-  });
-
-  it("keeps pallet staging clear of the warehouse door", () => {
-    renderWithIntl(<TwoFloorWarehouseMockup floor={1} />, {
-      locale: "en",
-      workspace: false,
-    });
-
-    const staging = screen.getByTestId("pallet-staging");
-    const door = screen.getByTestId("warehouse-door");
-    const stagingRight =
-      Number(staging.getAttribute("x")) + Number(staging.getAttribute("width"));
-    const doorLeft = Number(door.getAttribute("x"));
-
-    expect(stagingRight).toBeLessThan(doorLeft);
-  });
-
-  it("reveals a company name only when its map marker is hovered or tapped", () => {
-    renderWithIntl(<TwoFloorWarehouseMockup floor={1} />, {
-      locale: "en",
-      workspace: false,
-    });
-
-    const marker = screen.getByRole("button", { name: "KOHLER (THAILAND)" });
-    expect(
-      screen.queryByTestId("warehouse-company-tooltip"),
-    ).not.toBeInTheDocument();
-
-    fireEvent.pointerEnter(marker);
-    expect(screen.getByTestId("warehouse-company-tooltip")).toHaveTextContent(
-      "KOHLER (THAILAND)",
-    );
-
-    fireEvent.click(marker);
-    expect(screen.getByTestId("warehouse-company-tooltip")).toHaveTextContent(
-      "KOHLER (THAILAND)",
-    );
-
-    fireEvent.pointerLeave(marker);
-    expect(
-      screen.queryByTestId("warehouse-company-tooltip"),
-    ).not.toBeInTheDocument();
-
-    fireEvent.click(marker);
-    expect(screen.getByTestId("warehouse-company-tooltip")).toHaveTextContent(
-      "KOHLER (THAILAND)",
     );
   });
 });
