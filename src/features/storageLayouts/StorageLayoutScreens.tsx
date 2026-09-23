@@ -711,7 +711,7 @@ const MOCK_COMPANY_ALLOCATIONS: readonly MockCompanyAllocation[] = [
     customerColor: "#64748b",
     customerColorName: "pending",
     owner: "UNASSIGNED",
-    overlay: { x: 18, y: 21, width: 12.5, height: 17.5 },
+    overlay: { x: 18, y: 21, width: 11.75, height: 17.5 },
   },
   {
     id: "vallen",
@@ -724,7 +724,7 @@ const MOCK_COMPANY_ALLOCATIONS: readonly MockCompanyAllocation[] = [
     customerColor: "#64748b",
     customerColorName: "pending",
     owner: "UNASSIGNED",
-    overlay: { x: 80.5, y: 21, width: 12.5, height: 17.5 },
+    overlay: { x: 80.75, y: 21, width: 11.75, height: 17.5 },
   },
   {
     id: "seksun",
@@ -737,7 +737,7 @@ const MOCK_COMPANY_ALLOCATIONS: readonly MockCompanyAllocation[] = [
     customerColor: "#64748b",
     customerColorName: "pending",
     owner: "UNASSIGNED",
-    overlay: { x: 43, y: 38.5, width: 12.5, height: 17.5 },
+    overlay: { x: 43.5, y: 38.5, width: 11.75, height: 17.5 },
   },
 ] as const;
 
@@ -880,7 +880,7 @@ function FirstFloorWarehousePlan({
           x="84.4"
           y="9"
           width="1.7"
-          height="76"
+          height="54"
           rx="0.35"
           fill="#f4d4b5"
           stroke="#c26d18"
@@ -1003,10 +1003,10 @@ function FirstFloorWarehousePlan({
         fill="#d9eef7"
       />
       <rect
-        x="72"
-        y="18"
-        width="12"
-        height="8"
+        x="73"
+        y="19"
+        width="10"
+        height="7"
         rx="0.7"
         fill="#dce5f7"
         stroke="#64748b"
@@ -1014,7 +1014,7 @@ function FirstFloorWarehousePlan({
       />
       <text
         x="78"
-        y="22.5"
+        y="23"
         textAnchor="middle"
         fill="#334155"
         className="text-[2px] font-bold"
@@ -1022,10 +1022,10 @@ function FirstFloorWarehousePlan({
         เตรียมจัดส่ง
       </text>
       <WarehouseCells
-        x={87}
+        x={88}
         y={9}
-        width={20}
-        height={25}
+        width={18}
+        height={23}
         columns={2}
         rows={6}
         fill="#d7edce"
@@ -1033,7 +1033,7 @@ function FirstFloorWarehousePlan({
       />
       <text
         x="97"
-        y="21"
+        y="20.5"
         textAnchor="middle"
         fill="#166534"
         className="text-[2.3px] font-bold"
@@ -1044,16 +1044,16 @@ function FirstFloorWarehousePlan({
       <rect
         x="110"
         y="9"
-        width="17"
-        height="31"
+        width="15"
+        height="27"
         rx="0.8"
         fill="#f5f5ef"
         stroke="#64748b"
         strokeWidth="0.35"
       />
       <text
-        x="118.5"
-        y="24"
+        x="117.5"
+        y="21.5"
         textAnchor="middle"
         fill="#44403c"
         className="text-[2.4px] font-bold"
@@ -1061,8 +1061,8 @@ function FirstFloorWarehousePlan({
         จัดเก็บ
       </text>
       <text
-        x="118.5"
-        y="27"
+        x="117.5"
+        y="24.5"
         textAnchor="middle"
         fill="#44403c"
         className="text-[2.4px] font-bold"
@@ -1071,39 +1071,39 @@ function FirstFloorWarehousePlan({
       </text>
 
       <rect
-        x="130"
+        x="129"
         y="9"
-        width="7"
-        height="42"
+        width="6"
+        height="38"
         rx="0.8"
         fill="#315d9c"
         stroke="#1e3a8a"
         strokeWidth="0.35"
       />
       <text
-        x="133.5"
-        y="30"
+        x="132"
+        y="28"
         textAnchor="middle"
         fill="white"
         className="text-[2px] font-bold"
-        transform="rotate(-90 133.5 30)"
+        transform="rotate(-90 132 28)"
       >
         ประตูคลัง
       </text>
 
       <rect
-        x="87"
-        y="37"
-        width="9"
-        height="11"
+        x="88"
+        y="35"
+        width="8"
+        height="9"
         rx="0.7"
         fill="#b7d895"
         stroke="#4d7c0f"
         strokeWidth="0.35"
       />
       <text
-        x="91.5"
-        y="43"
+        x="92"
+        y="40"
         textAnchor="middle"
         fill="#365314"
         className="text-[2px] font-bold"
@@ -1112,17 +1112,17 @@ function FirstFloorWarehousePlan({
       </text>
       <rect
         x="98"
-        y="37"
-        width="9"
-        height="11"
+        y="35"
+        width="8"
+        height="9"
         rx="0.7"
         fill="#d7edce"
         stroke="#15803d"
         strokeWidth="0.35"
       />
       <text
-        x="102.5"
-        y="42"
+        x="102"
+        y="39"
         textAnchor="middle"
         fill="#166534"
         className="text-[1.8px] font-bold"
@@ -1130,8 +1130,8 @@ function FirstFloorWarehousePlan({
         HAND
       </text>
       <text
-        x="102.5"
-        y="44.5"
+        x="102"
+        y="41.5"
         textAnchor="middle"
         fill="#166534"
         className="text-[1.8px] font-bold"
@@ -1141,17 +1141,17 @@ function FirstFloorWarehousePlan({
 
       <rect
         x="110"
-        y="43"
-        width="27"
-        height="17"
+        y="40"
+        width="25"
+        height="14"
         rx="0.8"
         fill="#f5f5ef"
         stroke="#64748b"
         strokeWidth="0.35"
       />
       <text
-        x="123.5"
-        y="51"
+        x="122.5"
+        y="46.5"
         textAnchor="middle"
         fill="#334155"
         className="text-[2.2px] font-bold"
@@ -1159,8 +1159,8 @@ function FirstFloorWarehousePlan({
         PALLET STAGING
       </text>
       <text
-        x="123.5"
-        y="54"
+        x="122.5"
+        y="49.5"
         textAnchor="middle"
         fill="#64748b"
         className="text-[1.8px]"
@@ -1169,10 +1169,10 @@ function FirstFloorWarehousePlan({
       </text>
 
       <rect
-        x="106"
-        y="63"
-        width="31"
-        height="12"
+        x="108"
+        y="58"
+        width="27"
+        height="10"
         rx="0.8"
         fill="#d7edce"
         stroke="#15803d"
@@ -1180,7 +1180,7 @@ function FirstFloorWarehousePlan({
       />
       <text
         x="121.5"
-        y="68"
+        y="62"
         textAnchor="middle"
         fill="#166534"
         className="text-[2px] font-bold"
@@ -1189,7 +1189,7 @@ function FirstFloorWarehousePlan({
       </text>
       <text
         x="121.5"
-        y="71"
+        y="65"
         textAnchor="middle"
         fill="#166534"
         className="text-[1.7px]"
@@ -1256,25 +1256,34 @@ function SecondFloorWarehousePlan({
         RACK · 2 LEVELS
       </text>
 
-      <WarehouseLockGroups
-        x={18}
-        y={21}
-        width={100}
-        height={35}
-        columns={8}
-        labels={Array.from({ length: 16 }, (_, index) => `F2-L${index + 1}`)}
-        fill="#f5f5ef"
-      />
+      {[
+        { x: 18, labels: ["F2-L1", "F2-L2", "F2-L9", "F2-L10"] },
+        { x: 43.5, labels: ["F2-L3", "F2-L4", "F2-L11", "F2-L12"] },
+        { x: 69, labels: ["F2-L5", "F2-L6", "F2-L13", "F2-L14"] },
+        { x: 94.5, labels: ["F2-L7", "F2-L8", "F2-L15", "F2-L16"] },
+      ].map((group) => (
+        <WarehouseLockGroups
+          key={group.x}
+          x={group.x}
+          y={21}
+          width={23.5}
+          height={35}
+          columns={2}
+          labels={group.labels}
+          fill="#f5f5ef"
+        />
+      ))}
       <g data-testid="floor-2-aisles" aria-label="ทางเดินสีส้ม ชั้น 2">
-        {[43, 68, 93].map((x) => (
+        {[41.5, 67, 92.5].map((x) => (
           <rect
             key={x}
-            x={x - 0.65}
+            x={x}
             y="21"
-            width="1.3"
+            width="2"
             height="35"
             fill="#f4d4b5"
-            fillOpacity="0.96"
+            stroke="#c26d18"
+            strokeWidth="0.15"
           />
         ))}
       </g>
