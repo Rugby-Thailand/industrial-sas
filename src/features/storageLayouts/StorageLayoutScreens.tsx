@@ -856,6 +856,48 @@ function FirstFloorWarehousePlan({
         FLOOR 1 · AFTER IMPROVEMENT · 68.95 × 56.00 M
       </text>
 
+      <g data-testid="floor-1-aisles" aria-label="ทางเดินสีส้ม ชั้น 1">
+        <rect
+          x="5"
+          y="44.8"
+          width="78"
+          height="1.4"
+          rx="0.35"
+          fill="#f4d4b5"
+          stroke="#c26d18"
+          strokeWidth="0.2"
+        />
+        <text
+          x="81.5"
+          y="46"
+          textAnchor="end"
+          fill="#7c3f00"
+          className="text-[1.25px] font-bold"
+        >
+          AISLE · 2.80 M
+        </text>
+        <rect
+          x="84.4"
+          y="9"
+          width="1.7"
+          height="76"
+          rx="0.35"
+          fill="#f4d4b5"
+          stroke="#c26d18"
+          strokeWidth="0.2"
+        />
+        <text
+          x="85.25"
+          y="57"
+          textAnchor="middle"
+          fill="#7c3f00"
+          className="text-[1.2px] font-bold"
+          transform="rotate(-90 85.25 57)"
+        >
+          ทางเดินเชื่อม
+        </text>
+      </g>
+
       <WarehouseLockGroups
         x={5}
         y={9}
@@ -1223,6 +1265,19 @@ function SecondFloorWarehousePlan({
         labels={Array.from({ length: 16 }, (_, index) => `F2-L${index + 1}`)}
         fill="#f5f5ef"
       />
+      <g data-testid="floor-2-aisles" aria-label="ทางเดินสีส้ม ชั้น 2">
+        {[43, 68, 93].map((x) => (
+          <rect
+            key={x}
+            x={x - 0.65}
+            y="21"
+            width="1.3"
+            height="35"
+            fill="#f4d4b5"
+            fillOpacity="0.96"
+          />
+        ))}
+      </g>
       <text
         x="68"
         y="59"
@@ -1311,15 +1366,24 @@ function SecondFloorWarehousePlan({
         ↕
       </text>
 
-      <rect x="15" y="77" width="121" height="5" rx="0.6" fill="#918c89" />
+      <rect
+        x="15"
+        y="77"
+        width="121"
+        height="5"
+        rx="0.6"
+        fill="#f4d4b5"
+        stroke="#c26d18"
+        strokeWidth="0.25"
+      />
       <text
         x="75.5"
         y="80.3"
         textAnchor="middle"
-        fill="white"
+        fill="#7c3f00"
         className="text-[2.2px] font-bold"
       >
-        MAIN AISLE · 3.30 M
+        ทางเดินหลัก · MAIN AISLE · 3.30 M
       </text>
       <rect
         x="118"
@@ -1447,7 +1511,7 @@ export function NewBuildingContent({
   return (
     <form
       onSubmit={submit}
-      className="grid gap-6 rounded-2xl border border-border bg-surface p-6 shadow-sm xl:grid-cols-[minmax(0,0.82fr)_minmax(32rem,1.18fr)]"
+      className="grid gap-6 rounded-2xl border border-border bg-surface p-6 shadow-sm xl:grid-cols-[minmax(18rem,0.62fr)_minmax(0,1.38fr)]"
     >
       <div className="grid content-start gap-5 sm:grid-cols-2">
         <section className="rounded-xl border border-accent/35 bg-accent/5 p-4 sm:col-span-2">
@@ -1575,7 +1639,7 @@ export function NewBuildingContent({
             ))}
           </div>
         </div>
-        <div className="mt-4 rounded-xl border border-border bg-surface p-3 shadow-inner">
+        <div className="mt-4 rounded-xl border border-border bg-surface p-2 shadow-inner sm:p-3">
           <TwoFloorWarehouseMockup
             floor={selectedFloor}
             selectedCompanyId={selectedCompanyId}
