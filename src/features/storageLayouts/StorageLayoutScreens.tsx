@@ -1071,9 +1071,10 @@ function FirstFloorWarehousePlan({
       </text>
 
       <rect
-        x="129"
+        data-testid="warehouse-door"
+        x="136"
         y="9"
-        width="6"
+        width="4"
         height="38"
         rx="0.8"
         fill="#315d9c"
@@ -1081,12 +1082,12 @@ function FirstFloorWarehousePlan({
         strokeWidth="0.35"
       />
       <text
-        x="132"
+        x="138"
         y="28"
         textAnchor="middle"
         fill="white"
         className="text-[2px] font-bold"
-        transform="rotate(-90 132 28)"
+        transform="rotate(-90 138 28)"
       >
         ประตูคลัง
       </text>
@@ -1140,6 +1141,7 @@ function FirstFloorWarehousePlan({
       </text>
 
       <rect
+        data-testid="pallet-staging"
         x="110"
         y="40"
         width="25"
