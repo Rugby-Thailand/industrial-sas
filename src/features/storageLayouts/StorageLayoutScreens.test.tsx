@@ -127,6 +127,10 @@ describe("NewBuildingContent", () => {
     ).toBeVisible();
     expect(screen.getByText("KOHLER (THAILAND)")).toBeVisible();
     expect(screen.getByText("F1-L19-1 — F1-L19-9")).toBeVisible();
+    expect(screen.getByText("Circle = customer colour")).toBeVisible();
+    expect(screen.getByText("F1-RA-L1.2-1-2 — F1-RA-L1.2-3-2")).toBeVisible();
+    expect(screen.getByText("FT-L1-1 — FT-L1-6")).toBeVisible();
+    expect(screen.getByText("F2-L1-1 — F2-L1-11")).toBeVisible();
 
     fireEvent.click(
       screen.getByRole("button", {

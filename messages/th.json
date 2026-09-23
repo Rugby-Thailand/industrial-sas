@@ -283,6 +283,18 @@
     "mockDataBadge": "ข้อมูลจำลอง",
     "mockSelectCompany": "ดูตำแหน่งจัดเก็บของ {company}",
     "mockPallets": "{count, plural, other {# พาเลทตัวอย่าง}}",
+    "stickerLegendCustomer": "วงกลม = สีประจำลูกค้า",
+    "stickerLegendOwner": "สี่เหลี่ยม = กลุ่มผู้ดูแลสินค้า",
+    "stickerColorAndOwner": "สีลูกค้า: {color} · กลุ่ม: {owner}",
+    "stickerColorPending": "ยังไม่พบสีลูกค้าในป้ายสติ๊กเกอร์ — รอยืนยัน",
+    "stickerStarPending": "สัญลักษณ์ดาวปรากฏในตัวอย่างหน้างาน แต่ป้ายไม่ได้ระบุความหมาย จึงยังไม่นำมาใช้ตัดสินใจ",
+    "stickerColor": {
+      "yellow": "เหลือง",
+      "leafGreen": "เขียวใบตอง",
+      "blue": "น้ำเงิน",
+      "magenta": "บานเย็น",
+      "maroon": "แดงเลือดหมู"
+    },
     "mockOccupancyDisclaimer": "ตำแหน่งและจำนวนนี้สร้างขึ้นเพื่อทดลองหน้าจอเท่านั้น ยังไม่ใช่ยอดคงเหลือหรือการจัดเก็บจริง เมื่อเชื่อม Inventory ระบบจะใช้ Location ที่มีพื้นที่ว่างและเงื่อนไขสินค้าจริง",
     "saveBuilding": "บันทึกขนาดอาคาร",
     "addFloors": "เพิ่มชั้น",

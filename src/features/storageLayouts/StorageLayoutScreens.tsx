@@ -525,6 +525,69 @@ function WarehouseLegend() {
   );
 }
 
+function WarehouseLockGroups({
+  x,
+  y,
+  width,
+  height,
+  columns,
+  labels,
+  fill = "#f5f5ef",
+}: {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+  readonly columns: number;
+  readonly labels: readonly string[];
+  readonly fill?: string;
+}) {
+  const rows = Math.ceil(labels.length / columns);
+  const cellWidth = width / columns;
+  const cellHeight = height / rows;
+  return (
+    <g>
+      {labels.map((label, index) => {
+        const column = index % columns;
+        const row = Math.floor(index / columns);
+        const cellX = x + column * cellWidth;
+        const cellY = y + row * cellHeight;
+        return (
+          <g key={label}>
+            <rect
+              x={cellX}
+              y={cellY}
+              width={cellWidth}
+              height={cellHeight}
+              fill={fill}
+              stroke="#64748b"
+              strokeWidth="0.3"
+            />
+            <text
+              x={cellX + cellWidth / 2}
+              y={cellY + cellHeight / 2 + 0.65}
+              textAnchor="middle"
+              fill="#334155"
+              className="text-[1.55px] font-semibold"
+            >
+              {label}
+            </text>
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
+type StickerOwner = "TG" | "MKC" | "NWP" | "UNASSIGNED";
+
+const STICKER_OWNER_COLORS: Readonly<Record<StickerOwner, string>> = {
+  TG: "#0ea5e9",
+  MKC: "#84cc16",
+  NWP: "#f97316",
+  UNASSIGNED: "#94a3b8",
+};
+
 type MockCompanyAllocation = {
   readonly id: string;
   readonly code: string;
@@ -533,7 +596,10 @@ type MockCompanyAllocation = {
   readonly zone: string;
   readonly location: string;
   readonly pallets: number;
-  readonly color: string;
+  readonly customerColor: string;
+  readonly customerColorName:
+    "yellow" | "leafGreen" | "blue" | "magenta" | "maroon" | "pending";
+  readonly owner: StickerOwner;
   readonly overlay: {
     readonly x: number;
     readonly y: number;
@@ -550,9 +616,11 @@ const MOCK_COMPANY_ALLOCATIONS: readonly MockCompanyAllocation[] = [
     floor: 1,
     zone: "F1 · On floor",
     location: "F1-L19-1 — F1-L19-9",
-    pallets: 12,
-    color: "#7c3aed",
-    overlay: { x: 5, y: 19, width: 13, height: 10 },
+    pallets: 9,
+    customerColor: "#84cc16",
+    customerColorName: "leafGreen",
+    owner: "TG",
+    overlay: { x: 5, y: 47, width: 6, height: 16 },
   },
   {
     id: "proterial",
@@ -561,9 +629,11 @@ const MOCK_COMPANY_ALLOCATIONS: readonly MockCompanyAllocation[] = [
     floor: 1,
     zone: "F1 · On floor",
     location: "F1-L20-1 — F1-L20-8",
-    pallets: 10,
-    color: "#ea580c",
-    overlay: { x: 21, y: 19, width: 14, height: 10 },
+    pallets: 8,
+    customerColor: "#c2185b",
+    customerColorName: "magenta",
+    owner: "TG",
+    overlay: { x: 11, y: 47, width: 6, height: 16 },
   },
   {
     id: "sunarrow",
@@ -572,9 +642,11 @@ const MOCK_COMPANY_ALLOCATIONS: readonly MockCompanyAllocation[] = [
     floor: 1,
     zone: "SB · Back storage",
     location: "SB-L1-1 — SB-L1-6",
-    pallets: 8,
-    color: "#2563eb",
-    overlay: { x: 5, y: 9, width: 20, height: 7 },
+    pallets: 6,
+    customerColor: "#facc15",
+    customerColorName: "yellow",
+    owner: "MKC",
+    overlay: { x: 5, y: 9, width: 16, height: 7 },
   },
   {
     id: "hana",
@@ -582,10 +654,12 @@ const MOCK_COMPANY_ALLOCATIONS: readonly MockCompanyAllocation[] = [
     name: "HANA MICROELECTRONICS",
     floor: 1,
     zone: "F1 · Rack",
-    location: "F1-RA-L1.2-1 — F1-RA-L1.2-6",
-    pallets: 6,
-    color: "#db2777",
-    overlay: { x: 38, y: 19, width: 13, height: 10 },
+    location: "F1-RA-L1.2-1-2 — F1-RA-L1.2-3-2",
+    pallets: 3,
+    customerColor: "#0284c7",
+    customerColorName: "blue",
+    owner: "MKC",
+    overlay: { x: 70, y: 9, width: 7, height: 7 },
   },
   {
     id: "nidec",
@@ -594,9 +668,11 @@ const MOCK_COMPANY_ALLOCATIONS: readonly MockCompanyAllocation[] = [
     floor: 1,
     zone: "PD · Delivery prep",
     location: "PD-L1-1 — PD-L1-5",
-    pallets: 7,
-    color: "#0891b2",
-    overlay: { x: 5, y: 66, width: 28, height: 10 },
+    pallets: 5,
+    customerColor: "#881337",
+    customerColorName: "maroon",
+    owner: "MKC",
+    overlay: { x: 5, y: 66, width: 8, height: 10 },
   },
   {
     id: "imex",
@@ -604,10 +680,12 @@ const MOCK_COMPANY_ALLOCATIONS: readonly MockCompanyAllocation[] = [
     name: "IMEX INTERNATIONAL",
     floor: 1,
     zone: "SB · Rack",
-    location: "SB-RA-L1-1 — SB-RA-L1-4",
-    pallets: 5,
-    color: "#0f766e",
-    overlay: { x: 27, y: 9, width: 18, height: 7 },
+    location: "SB-RA-L1-1-1 — SB-RA-L1-2-2",
+    pallets: 4,
+    customerColor: "#64748b",
+    customerColorName: "pending",
+    owner: "UNASSIGNED",
+    overlay: { x: 39, y: 9, width: 15, height: 7 },
   },
   {
     id: "filler",
@@ -615,9 +693,11 @@ const MOCK_COMPANY_ALLOCATIONS: readonly MockCompanyAllocation[] = [
     name: "FILLER VISION",
     floor: 1,
     zone: "FT · Foam storage",
-    location: "FT-L1-1 — FT-L1-8",
-    pallets: 9,
-    color: "#4f46e5",
+    location: "FT-L1-1 — FT-L1-6",
+    pallets: 6,
+    customerColor: "#64748b",
+    customerColorName: "pending",
+    owner: "UNASSIGNED",
     overlay: { x: 5, y: 79, width: 32, height: 6 },
   },
   {
@@ -626,10 +706,12 @@ const MOCK_COMPANY_ALLOCATIONS: readonly MockCompanyAllocation[] = [
     name: "HITACHI METALS",
     floor: 2,
     zone: "F2 · On floor",
-    location: "F2-L1 — F2-L5",
+    location: "F2-L1-1 — F2-L1-11",
     pallets: 11,
-    color: "#16a34a",
-    overlay: { x: 18, y: 21, width: 15, height: 12 },
+    customerColor: "#64748b",
+    customerColorName: "pending",
+    owner: "UNASSIGNED",
+    overlay: { x: 18, y: 21, width: 12.5, height: 17.5 },
   },
   {
     id: "vallen",
@@ -637,10 +719,12 @@ const MOCK_COMPANY_ALLOCATIONS: readonly MockCompanyAllocation[] = [
     name: "VALLEN (THAILAND)",
     floor: 2,
     zone: "F2 · On floor",
-    location: "F2-L6 — F2-L10",
+    location: "F2-L6-1 — F2-L6-8",
     pallets: 8,
-    color: "#ca8a04",
-    overlay: { x: 45, y: 21, width: 15, height: 12 },
+    customerColor: "#64748b",
+    customerColorName: "pending",
+    owner: "UNASSIGNED",
+    overlay: { x: 80.5, y: 21, width: 12.5, height: 17.5 },
   },
   {
     id: "seksun",
@@ -648,10 +732,12 @@ const MOCK_COMPANY_ALLOCATIONS: readonly MockCompanyAllocation[] = [
     name: "SEKSUN TECHNOLOGY",
     floor: 2,
     zone: "F2 · On floor",
-    location: "F2-L11 — F2-L16",
+    location: "F2-L11-1 — F2-L11-10",
     pallets: 10,
-    color: "#dc2626",
-    overlay: { x: 72, y: 21, width: 15, height: 12 },
+    customerColor: "#64748b",
+    customerColorName: "pending",
+    owner: "UNASSIGNED",
+    overlay: { x: 43, y: 38.5, width: 12.5, height: 17.5 },
   },
 ] as const;
 
@@ -670,6 +756,11 @@ function WarehouseOccupancyOverlay({
         (allocation) => allocation.floor === floor,
       ).map((allocation) => {
         const selected = allocation.id === selectedCompanyId;
+        const selectedTextColor =
+          allocation.customerColorName === "yellow" ||
+          allocation.customerColorName === "leafGreen"
+            ? "#0f172a"
+            : "#ffffff";
         const { x, y, width, height } = allocation.overlay;
         return (
           <g key={allocation.id}>
@@ -679,20 +770,40 @@ function WarehouseOccupancyOverlay({
               width={width}
               height={height}
               rx="0.8"
-              fill={allocation.color}
+              fill={allocation.customerColor}
               fillOpacity={selected ? 0.8 : 0.28}
-              stroke={allocation.color}
+              stroke={allocation.customerColor}
               strokeWidth={selected ? 0.9 : 0.35}
             />
             <text
               x={x + width / 2}
               y={y + height / 2 + 0.8}
               textAnchor="middle"
-              fill={selected ? "#ffffff" : "#0f172a"}
+              fill={selected ? selectedTextColor : "#0f172a"}
+              textLength={Math.max(width - 1.2, 1)}
+              lengthAdjust="spacingAndGlyphs"
               className="text-[1.8px] font-bold"
             >
               {allocation.code}
             </text>
+            <circle
+              cx={x + 1.7}
+              cy={y + 1.7}
+              r="0.75"
+              fill={allocation.customerColor}
+              stroke="#ffffff"
+              strokeWidth="0.25"
+            />
+            <rect
+              x={x + 2.8}
+              y={y + 0.95}
+              width="1.5"
+              height="1.5"
+              rx="0.15"
+              fill={STICKER_OWNER_COLORS[allocation.owner]}
+              stroke="#ffffff"
+              strokeWidth="0.25"
+            />
           </g>
         );
       })}
@@ -711,46 +822,43 @@ function FirstFloorWarehousePlan({
         FLOOR 1 · AFTER IMPROVEMENT · 68.95 × 56.00 M
       </text>
 
-      <WarehouseCells
+      <WarehouseLockGroups
         x={5}
         y={9}
-        width={64}
+        width={32}
         height={7}
-        columns={14}
-        rows={2}
+        columns={2}
+        labels={["SB-L1", "SB-L2"]}
+        fill="#f5f5ef"
+      />
+      <WarehouseLockGroups
+        x={39}
+        y={9}
+        width={30}
+        height={7}
+        columns={2}
+        labels={["SB-RA", "SB-RB"]}
         fill="#d9eef7"
-        prefix="SB"
       />
       <text
         x="37"
-        y="13.5"
+        y="18.2"
         textAnchor="middle"
         fill="#0f4c67"
         className="text-[2.2px] font-bold"
       >
-        SB · STORAGE AT THE BACK
+        SB · 2 LOCKS + 2 RACKS · 99 LOCATIONS
       </text>
 
-      <WarehouseCells
+      <WarehouseLockGroups
         x={5}
         y={19}
         width={63}
         height={25}
-        columns={15}
-        rows={3}
+        columns={9}
+        labels={Array.from({ length: 18 }, (_, index) => `F1-L${index + 1}`)}
         fill="#f5f5ef"
-        prefix="F1-L"
       />
-      {Array.from({ length: 7 }, (_, index) => (
-        <rect
-          key={`f1-aisle-${index}`}
-          x={10 + index * 8.2}
-          y="19"
-          width="1.2"
-          height="25"
-          fill="#f4d4b5"
-        />
-      ))}
       <text
         x="36"
         y="31"
@@ -758,39 +866,27 @@ function FirstFloorWarehousePlan({
         fill="#334155"
         className="text-[2.8px] font-bold"
       >
-        F1 · 31 ON-FLOOR LOCKS + 2 RACKS
+        F1 · 31 LOCKS + 2 RACKS · 372 LOCATIONS
       </text>
 
-      <WarehouseCells
+      <WarehouseLockGroups
         x={5}
         y={47}
         width={78}
         height={16}
-        columns={16}
-        rows={2}
+        columns={13}
+        labels={Array.from({ length: 13 }, (_, index) => `F1-L${index + 19}`)}
         fill="#f5f5ef"
-        prefix="F1-L"
       />
-      {Array.from({ length: 8 }, (_, index) => (
-        <rect
-          key={`f1-lower-aisle-${index}`}
-          x={9 + index * 9.3}
-          y="47"
-          width="1.1"
-          height="16"
-          fill="#f4d4b5"
-        />
-      ))}
 
-      <WarehouseCells
+      <WarehouseLockGroups
         x={5}
         y={66}
         width={96}
         height={10}
         columns={12}
-        rows={2}
+        labels={Array.from({ length: 12 }, (_, index) => `PD-L${index + 1}`)}
         fill="#f5f5ef"
-        prefix="PD-L"
       />
       <path d="M 5 71 H 101" stroke="#e7ad75" strokeWidth="2" />
       <text
@@ -800,18 +896,17 @@ function FirstFloorWarehousePlan({
         fill="#7c3f00"
         className="text-[2.4px] font-bold"
       >
-        PD · AREA PREPARING FOR DELIVERY · 12 LOCKS
+        PD · 12 LOCKS · 170 LOCATIONS
       </text>
 
-      <WarehouseCells
+      <WarehouseLockGroups
         x={5}
         y={79}
         width={96}
         height={6}
-        columns={24}
-        rows={2}
+        columns={3}
+        labels={["FT-L1", "FT-L2", "FT-L3"]}
         fill="#d9eef7"
-        prefix="FT"
       />
       <text
         x="53"
@@ -820,14 +915,23 @@ function FirstFloorWarehousePlan({
         fill="#0f4c67"
         className="text-[2.2px] font-bold"
       >
-        FT · FOAM STORAGE
+        FT · 3 LOCKS · 18 LOCATIONS
       </text>
 
+      <WarehouseLockGroups
+        x={70}
+        y={9}
+        width={14}
+        height={7}
+        columns={2}
+        labels={["F1-RA", "F1-RB"]}
+        fill="#d9eef7"
+      />
       <rect
         x="72"
-        y="9"
+        y="18"
         width="12"
-        height="13"
+        height="8"
         rx="0.7"
         fill="#dce5f7"
         stroke="#64748b"
@@ -835,7 +939,7 @@ function FirstFloorWarehousePlan({
       />
       <text
         x="78"
-        y="15"
+        y="22.5"
         textAnchor="middle"
         fill="#334155"
         className="text-[2px] font-bold"
@@ -1058,15 +1162,14 @@ function SecondFloorWarehousePlan({
         FLOOR 2 · AFTER IMPROVEMENT · 47.54 M
       </text>
 
-      <WarehouseCells
+      <WarehouseLockGroups
         x={11}
         y={9}
         width={25}
         height={8}
         columns={4}
-        rows={2}
+        labels={["F2-R-L1", "F2-R-L2", "F2-R-L3", "F2-R-L4"]}
         fill="#d9eef7"
-        prefix="F2-R"
       />
       <text
         x="23.5"
@@ -1078,63 +1181,23 @@ function SecondFloorWarehousePlan({
         RACK · 2 LEVELS
       </text>
 
-      <WarehouseCells
-        x={6}
+      <WarehouseLockGroups
+        x={18}
         y={21}
-        width={9}
+        width={100}
         height={35}
-        columns={2}
-        rows={4}
+        columns={8}
+        labels={Array.from({ length: 16 }, (_, index) => `F2-L${index + 1}`)}
         fill="#f5f5ef"
-        prefix="F2-L"
-      />
-      {Array.from({ length: 11 }, (_, index) => (
-        <g key={`f2-column-${index}`}>
-          <WarehouseCells
-            x={18 + index * 9.1}
-            y={21}
-            width={6.8}
-            height={35}
-            columns={2}
-            rows={4}
-            fill="#f5f5ef"
-            prefix={`F2-L${index + 1}`}
-          />
-          <rect
-            x={24.8 + index * 9.1}
-            y="21"
-            width="2.3"
-            height="35"
-            fill="#f4d4b5"
-          />
-        </g>
-      ))}
-      <rect
-        x="18"
-        y="21"
-        width="6.8"
-        height="8"
-        fill="#d9eef7"
-        stroke="#64748b"
-        strokeWidth="0.35"
-      />
-      <rect
-        x="27.1"
-        y="21"
-        width="6.8"
-        height="8"
-        fill="#d9eef7"
-        stroke="#64748b"
-        strokeWidth="0.35"
       />
       <text
-        x="70"
-        y="39"
+        x="68"
+        y="59"
         textAnchor="middle"
         fill="#334155"
         className="text-[2.8px] font-bold"
       >
-        F2 · 16 ON-FLOOR LOCKS + 1 RACK
+        F2 · 16 LOCKS + 1 RACK · 164 LOCATIONS
       </text>
 
       <rect
@@ -1166,15 +1229,15 @@ function SecondFloorWarehousePlan({
         ↕
       </text>
 
-      <WarehouseCells
-        x={15}
-        y={61}
-        width={112}
-        height={12}
-        columns={31}
-        rows={1}
+      <rect
+        x="15"
+        y="61"
+        width="112"
+        height="12"
+        rx="0.6"
         fill="#f5f5ef"
-        prefix="F2-L"
+        stroke="#64748b"
+        strokeWidth="0.35"
       />
       <text
         x="71"
@@ -1183,7 +1246,7 @@ function SecondFloorWarehousePlan({
         fill="#334155"
         className="text-[2.2px] font-bold"
       >
-        ON-FLOOR STORAGE · F2-L1 TO F2-L31
+        LOCATION MASTER · F2-L1 TO F2-L16 · 156 ON-FLOOR POSITIONS
       </text>
 
       <rect
@@ -1499,6 +1562,33 @@ export function NewBuildingContent({
               {t("mockDataBadge")}
             </span>
           </div>
+          <div className="mt-3 grid gap-2 rounded-lg border border-border bg-background p-3 text-xs text-muted sm:grid-cols-2">
+            <div className="flex items-center gap-2">
+              <span
+                aria-hidden="true"
+                className="size-3 rounded-full bg-[#84cc16] ring-1 ring-border"
+              />
+              <span>{t("stickerLegendCustomer")}</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span
+                aria-hidden="true"
+                className="size-3 rounded-sm bg-[#0ea5e9]"
+              />
+              <span>TG</span>
+              <span
+                aria-hidden="true"
+                className="size-3 rounded-sm bg-[#84cc16]"
+              />
+              <span>MKC</span>
+              <span
+                aria-hidden="true"
+                className="size-3 rounded-sm bg-[#f97316]"
+              />
+              <span>NWP · {t("stickerLegendOwner")}</span>
+            </div>
+            <p className="sm:col-span-2">★ {t("stickerStarPending")}</p>
+          </div>
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
             {MOCK_COMPANY_ALLOCATIONS.map((allocation) => {
               const selected = allocation.id === selectedCompanyId;
@@ -1518,11 +1608,21 @@ export function NewBuildingContent({
                   }`}
                 >
                   <div className="flex items-start gap-2">
-                    <span
-                      aria-hidden="true"
-                      className="mt-1 size-2.5 shrink-0 rounded-full"
-                      style={{ backgroundColor: allocation.color }}
-                    />
+                    <span className="mt-1 flex shrink-0 items-center gap-1">
+                      <span
+                        aria-hidden="true"
+                        className="size-3 rounded-full ring-1 ring-border"
+                        style={{ backgroundColor: allocation.customerColor }}
+                      />
+                      <span
+                        aria-hidden="true"
+                        className="size-3 rounded-sm ring-1 ring-border"
+                        style={{
+                          backgroundColor:
+                            STICKER_OWNER_COLORS[allocation.owner],
+                        }}
+                      />
+                    </span>
                     <span className="min-w-0">
                       <span className="block truncate text-xs font-semibold text-text">
                         {allocation.name}
@@ -1536,6 +1636,16 @@ export function NewBuildingContent({
                       </span>
                       <span className="mt-1 block text-[11px] text-muted">
                         {t("mockPallets", { count: allocation.pallets })}
+                      </span>
+                      <span className="mt-1 block text-[11px] text-muted">
+                        {allocation.customerColorName === "pending"
+                          ? t("stickerColorPending")
+                          : t("stickerColorAndOwner", {
+                              color: t(
+                                `stickerColor.${allocation.customerColorName}`,
+                              ),
+                              owner: allocation.owner,
+                            })}
                       </span>
                     </span>
                   </div>
