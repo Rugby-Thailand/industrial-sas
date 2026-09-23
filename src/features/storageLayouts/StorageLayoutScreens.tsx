@@ -44,6 +44,7 @@ import { useCatalogueSync } from "@/hooks/useCatalogueSync";
 import { useAuth } from "@clerk/nextjs";
 import { useMutation, useQuery } from "convex/react";
 import {
+  Building2,
   Layers3,
   PencilLine,
   Plus,
@@ -87,6 +88,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Notice } from "@/components/ui/Notice";
 import { SelectControl } from "@/components/ui/SelectControl";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Link, useRouter } from "@/i18n/navigation";
 import {
   storageLayoutRefs,
@@ -395,7 +397,340 @@ export function NewStorageBuildingForm() {
   );
 }
 
-function NewBuildingContent({ warehouseId }: { readonly warehouseId: string }) {
+const TWO_FLOOR_WAREHOUSE_PRESET = {
+  code: "TG-WH-01",
+  name: "คลังสินค้า 2 ชั้น",
+  width: "68.95",
+  depth: "56",
+  height: "3.3",
+  floors: "2",
+} as const;
+
+type NewBuildingDraft = {
+  readonly code: string;
+  readonly name: string;
+  readonly width: string;
+  readonly depth: string;
+  readonly height: string;
+  readonly floors: string;
+};
+
+export function TwoFloorWarehouseMockup({ floor }: { readonly floor: 1 | 2 }) {
+  const t = useTranslations("StorageLayouts");
+  const hatchId = useId();
+  const rackFill = `url(#${hatchId})`;
+  return (
+    <svg
+      role="img"
+      aria-label={t("warehouseMockupFloorAria", { floor })}
+      viewBox="0 0 100 64"
+      className="h-auto w-full overflow-visible"
+    >
+      <defs>
+        <pattern
+          id={hatchId}
+          width="2.4"
+          height="2.4"
+          patternUnits="userSpaceOnUse"
+        >
+          <rect width="2.4" height="2.4" className="fill-sky-100" />
+          <path d="M 0 0 V 2.4" className="stroke-sky-400" strokeWidth="0.35" />
+        </pattern>
+      </defs>
+      <rect
+        x="1"
+        y="1"
+        width="98"
+        height="62"
+        rx="2"
+        className="fill-background stroke-border"
+        strokeWidth="0.7"
+      />
+      {floor === 1 ? (
+        <>
+          <rect
+            x="4"
+            y="5"
+            width="52"
+            height="21"
+            rx="1"
+            fill={rackFill}
+            className="stroke-sky-500"
+            strokeWidth="0.5"
+          />
+          {Array.from({ length: 9 }, (_, index) => (
+            <path
+              key={index}
+              d={`M ${9 + index * 5.1} 6 V 25`}
+              className="stroke-slate-500"
+              strokeWidth="0.45"
+            />
+          ))}
+          <rect
+            x="4"
+            y="29"
+            width="56"
+            height="16"
+            rx="1"
+            fill={rackFill}
+            className="stroke-sky-500"
+            strokeWidth="0.5"
+          />
+          {Array.from({ length: 10 }, (_, index) => (
+            <path
+              key={index}
+              d={`M ${9 + index * 5} 30 V 44`}
+              className="stroke-slate-500"
+              strokeWidth="0.45"
+            />
+          ))}
+          <rect
+            x="4"
+            y="48"
+            width="67"
+            height="8"
+            rx="1"
+            className="fill-sky-200 stroke-sky-500"
+            strokeWidth="0.5"
+          />
+          <rect
+            x="59"
+            y="5"
+            width="15"
+            height="17"
+            rx="1"
+            className="fill-emerald-100 stroke-emerald-500"
+            strokeWidth="0.5"
+          />
+          <rect
+            x="76"
+            y="5"
+            width="13"
+            height="24"
+            rx="1"
+            className="fill-stone-100 stroke-stone-500"
+            strokeWidth="0.5"
+          />
+          <rect
+            x="91"
+            y="5"
+            width="5"
+            height="35"
+            rx="1"
+            className="fill-blue-600 stroke-blue-800"
+            strokeWidth="0.5"
+          />
+          <rect
+            x="61"
+            y="25"
+            width="12"
+            height="20"
+            rx="1"
+            className="fill-lime-100 stroke-lime-600"
+            strokeWidth="0.5"
+          />
+          <rect
+            x="75"
+            y="32"
+            width="14"
+            height="13"
+            rx="1"
+            className="fill-emerald-50 stroke-emerald-500"
+            strokeWidth="0.5"
+          />
+          <rect
+            x="4"
+            y="58"
+            width="85"
+            height="3"
+            rx="1"
+            className="fill-stone-400"
+          />
+          <rect
+            x="91"
+            y="57"
+            width="5"
+            height="4"
+            rx="0.6"
+            className="fill-blue-700"
+          />
+          <text
+            x="30"
+            y="16"
+            textAnchor="middle"
+            className="fill-slate-700 text-[3px] font-semibold"
+          >
+            RACK A–N
+          </text>
+          <text
+            x="32"
+            y="38"
+            textAnchor="middle"
+            className="fill-slate-700 text-[3px] font-semibold"
+          >
+            FLOOR STORAGE
+          </text>
+          <text
+            x="66.5"
+            y="13"
+            textAnchor="middle"
+            className="fill-emerald-800 text-[2.5px] font-semibold"
+          >
+            RECEIVING
+          </text>
+          <text
+            x="82.5"
+            y="17"
+            textAnchor="middle"
+            className="fill-stone-700 text-[2.5px] font-semibold"
+          >
+            PALLET
+          </text>
+          <text
+            x="67"
+            y="36"
+            textAnchor="middle"
+            className="fill-lime-800 text-[2.2px] font-semibold"
+          >
+            LIFT
+          </text>
+          <text
+            x="46"
+            y="60.2"
+            textAnchor="middle"
+            className="fill-white text-[2.4px] font-semibold"
+          >
+            FORKLIFT &amp; LOADING
+          </text>
+          <text
+            x="93.5"
+            y="59.8"
+            textAnchor="middle"
+            className="fill-white text-[1.8px] font-bold"
+          >
+            SCAN
+          </text>
+        </>
+      ) : (
+        <>
+          <rect
+            x="6"
+            y="7"
+            width="8"
+            height="28"
+            rx="1"
+            fill={rackFill}
+            className="stroke-sky-500"
+            strokeWidth="0.5"
+          />
+          {Array.from({ length: 9 }, (_, index) => (
+            <g key={index}>
+              <rect
+                x={16 + index * 7.7}
+                y="7"
+                width="6.5"
+                height="28"
+                rx="0.7"
+                fill={rackFill}
+                className="stroke-sky-500"
+                strokeWidth="0.45"
+              />
+              <rect
+                x={16 + index * 7.7}
+                y="17"
+                width="6.5"
+                height="2"
+                className="fill-orange-200"
+              />
+            </g>
+          ))}
+          <rect
+            x="6"
+            y="40"
+            width="78"
+            height="8"
+            rx="1"
+            fill={rackFill}
+            className="stroke-slate-500"
+            strokeWidth="0.5"
+          />
+          <rect
+            x="2.5"
+            y="39"
+            width="6"
+            height="10"
+            rx="1"
+            className="fill-lime-200 stroke-lime-700"
+            strokeWidth="0.5"
+          />
+          <rect
+            x="83"
+            y="39"
+            width="6"
+            height="10"
+            rx="1"
+            className="fill-lime-200 stroke-lime-700"
+            strokeWidth="0.5"
+          />
+          <rect
+            x="6"
+            y="52"
+            width="83"
+            height="3"
+            rx="1"
+            className="fill-stone-400"
+          />
+          <text
+            x="49"
+            y="12"
+            textAnchor="middle"
+            className="fill-slate-700 text-[3px] font-semibold"
+          >
+            RACK ROWS • FLOOR 2
+          </text>
+          <text
+            x="45"
+            y="45"
+            textAnchor="middle"
+            className="fill-slate-700 text-[2.5px] font-semibold"
+          >
+            ON-FLOOR STORAGE
+          </text>
+          <text
+            x="5.5"
+            y="45"
+            textAnchor="middle"
+            className="fill-lime-900 text-[2px] font-bold"
+          >
+            LIFT
+          </text>
+          <text
+            x="86"
+            y="45"
+            textAnchor="middle"
+            className="fill-lime-900 text-[2px] font-bold"
+          >
+            LIFT
+          </text>
+          <text
+            x="47"
+            y="54.3"
+            textAnchor="middle"
+            className="fill-white text-[2.2px] font-semibold"
+          >
+            MAIN AISLE 3.30 M
+          </text>
+        </>
+      )}
+    </svg>
+  );
+}
+
+export function NewBuildingContent({
+  warehouseId,
+}: {
+  readonly warehouseId: string;
+}) {
   const t = useTranslations("StorageLayouts");
   const router = useRouter();
   const create = useMutation(storageLayoutRefs.create);
@@ -403,6 +738,17 @@ function NewBuildingContent({ warehouseId }: { readonly warehouseId: string }) {
     scope: `new-building:${warehouseId}`,
     describeError: (code) => code || "UNKNOWN",
   });
+  const [selectedFloor, setSelectedFloor] = useState<1 | 2>(1);
+  const [draft, setDraft] = useState<NewBuildingDraft>(
+    TWO_FLOOR_WAREHOUSE_PRESET,
+  );
+  function updateDraft(field: keyof NewBuildingDraft, value: string) {
+    setDraft((current) => ({ ...current, [field]: value }));
+  }
+  function applyTwoFloorPreset() {
+    setDraft(TWO_FLOOR_WAREHOUSE_PRESET);
+    setSelectedFloor(1);
+  }
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
@@ -432,21 +778,52 @@ function NewBuildingContent({ warehouseId }: { readonly warehouseId: string }) {
   return (
     <form
       onSubmit={submit}
-      className="grid max-w-3xl gap-6 rounded-lg border border-border bg-surface p-4 sm:p-6"
+      className="grid gap-6 rounded-2xl border border-border bg-surface p-6 shadow-sm xl:grid-cols-[minmax(0,0.82fr)_minmax(32rem,1.18fr)]"
     >
-      <div className="grid gap-5 sm:grid-cols-2">
-        <Field label={t("code")} name="code" defaultValue="BLDG-A" required />
+      <div className="grid content-start gap-5 sm:grid-cols-2">
+        <section className="rounded-xl border border-accent/35 bg-accent/5 p-4 sm:col-span-2">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-text">
+                {t("warehouseMockupTemplate")}
+              </p>
+              <p className="mt-1 text-xs leading-relaxed text-muted">
+                {t("warehouseMockupTemplateHelp")}
+              </p>
+            </div>
+            <StatusBadge tone="success" label={t("warehouseMockupSelected")} />
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="mt-3"
+            onClick={applyTwoFloorPreset}
+          >
+            <Layers3 aria-hidden="true" className="size-4" />
+            {t("useWarehouseMockup")}
+          </Button>
+        </section>
+        <Field
+          label={t("code")}
+          name="code"
+          value={draft.code}
+          onChange={(event) => updateDraft("code", event.target.value)}
+          required
+        />
         <Field
           label={t("name")}
           name="name"
-          defaultValue="Main storage"
+          value={draft.name}
+          onChange={(event) => updateDraft("name", event.target.value)}
           required
         />
         <Field
           label={t("width")}
           name="width"
           type="number"
-          defaultValue="30"
+          value={draft.width}
+          onChange={(event) => updateDraft("width", event.target.value)}
           min="0.1"
           step="0.1"
           required
@@ -455,7 +832,8 @@ function NewBuildingContent({ warehouseId }: { readonly warehouseId: string }) {
           label={t("depth")}
           name="depth"
           type="number"
-          defaultValue="20"
+          value={draft.depth}
+          onChange={(event) => updateDraft("depth", event.target.value)}
           min="0.1"
           step="0.1"
           required
@@ -464,7 +842,8 @@ function NewBuildingContent({ warehouseId }: { readonly warehouseId: string }) {
           label={t("height")}
           name="height"
           type="number"
-          defaultValue="4"
+          value={draft.height}
+          onChange={(event) => updateDraft("height", event.target.value)}
           min="0.1"
           step="0.1"
           required
@@ -473,7 +852,8 @@ function NewBuildingContent({ warehouseId }: { readonly warehouseId: string }) {
           label={t("floors")}
           name="floors"
           type="number"
-          defaultValue="4"
+          value={draft.floors}
+          onChange={(event) => updateDraft("floors", event.target.value)}
           min="1"
           max="50"
           required
@@ -495,6 +875,67 @@ function NewBuildingContent({ warehouseId }: { readonly warehouseId: string }) {
           </Button>
         </div>
       </div>
+      <section className="min-w-0 rounded-xl border border-border bg-background p-4 sm:p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <Building2 aria-hidden="true" className="size-5 text-accent" />
+              <h2 className="font-semibold text-text">
+                {t("warehouseMockupTitle")}
+              </h2>
+            </div>
+            <p className="mt-1 text-xs text-muted">
+              {t("warehouseMockupDescription")}
+            </p>
+          </div>
+          <div className="flex rounded-lg border border-border bg-surface p-1">
+            {([1, 2] as const).map((floor) => (
+              <button
+                key={floor}
+                type="button"
+                aria-pressed={selectedFloor === floor}
+                onClick={() => setSelectedFloor(floor)}
+                className={`min-h-10 rounded-md px-4 text-sm font-semibold transition ${
+                  selectedFloor === floor
+                    ? "bg-accent text-white shadow-sm"
+                    : "text-muted hover:bg-muted/10"
+                }`}
+              >
+                {t("floor", { floor })}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="mt-4 rounded-xl border border-border bg-surface p-3 shadow-inner">
+          <TwoFloorWarehouseMockup floor={selectedFloor} />
+        </div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <div className="rounded-lg border border-border bg-surface p-3">
+            <p className="text-xs font-semibold tracking-wide text-muted uppercase">
+              {t("warehouseMockupFloor1")}
+            </p>
+            <p className="mt-1 text-sm font-medium text-text">
+              {t("warehouseMockupFloor1Zones")}
+            </p>
+          </div>
+          <div className="rounded-lg border border-border bg-surface p-3">
+            <p className="text-xs font-semibold tracking-wide text-muted uppercase">
+              {t("warehouseMockupFloor2")}
+            </p>
+            <p className="mt-1 text-sm font-medium text-text">
+              {t("warehouseMockupFloor2Zones")}
+            </p>
+          </div>
+        </div>
+        <dl className="mt-4 grid grid-cols-3 gap-3 rounded-lg bg-accent/5 p-3 text-sm">
+          <Metric label={t("width")} value={`${draft.width || "—"} m`} />
+          <Metric label={t("depth")} value={`${draft.depth || "—"} m`} />
+          <Metric label={t("floors")} value={draft.floors || "—"} />
+        </dl>
+        <p className="mt-3 text-xs leading-relaxed text-muted">
+          {t("warehouseMockupNote")}
+        </p>
+      </section>
     </form>
   );
 }

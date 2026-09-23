@@ -70,11 +70,13 @@ import {
   BuildingSettingsDialog,
   FloorPlan,
   IsometricBuilding,
+  NewBuildingContent,
   ReservedBlocks,
   StorageCatalogueFilters,
   StorageZoneDraftPreview,
   StorageZonesPanel,
   StorageFloorEditor,
+  TwoFloorWarehouseMockup,
 } from "./StorageLayoutScreens";
 
 describe("StorageCatalogueFilters", () => {
@@ -98,6 +100,44 @@ describe("StorageCatalogueFilters", () => {
     expect(screen.getByTestId("storage-catalogue-filters")).toHaveClass(
       "sm:grid-cols-[minmax(0,1fr)_14rem]",
     );
+  });
+});
+
+describe("NewBuildingContent", () => {
+  it("starts from the photographed two-floor warehouse mockup", () => {
+    renderWithIntl(<NewBuildingContent warehouseId="warehouse-a" />, {
+      locale: "en",
+      workspace: false,
+    });
+
+    expect(screen.getByRole("textbox", { name: "Building code" })).toHaveValue(
+      "TG-WH-01",
+    );
+    expect(screen.getByRole("spinbutton", { name: "Width (m)" })).toHaveValue(
+      68.95,
+    );
+    expect(screen.getByRole("spinbutton", { name: "Floors" })).toHaveValue(2);
+    expect(
+      screen.getByRole("img", { name: "Warehouse floor 1 layout mockup" }),
+    ).toBeVisible();
+
+    fireEvent.click(screen.getByRole("button", { name: "Floor 2" }));
+    expect(
+      screen.getByRole("img", { name: "Warehouse floor 2 layout mockup" }),
+    ).toBeVisible();
+  });
+});
+
+describe("TwoFloorWarehouseMockup", () => {
+  it("renders an accessible floor-specific plan", () => {
+    renderWithIntl(<TwoFloorWarehouseMockup floor={2} />, {
+      locale: "en",
+      workspace: false,
+    });
+
+    expect(
+      screen.getByRole("img", { name: "Warehouse floor 2 layout mockup" }),
+    ).toBeVisible();
   });
 });
 
