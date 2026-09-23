@@ -125,7 +125,11 @@ describe("NewBuildingContent", () => {
         name: "Companies and storage locations (Mockup)",
       }),
     ).toBeVisible();
-    expect(screen.getByText("KOHLER (THAILAND)")).toBeVisible();
+    expect(
+      screen.getByRole("button", {
+        name: "View storage location for KOHLER (THAILAND)",
+      }),
+    ).toHaveTextContent("KOHLER (THAILAND)");
     expect(screen.getByText("F1-L19-1 — F1-L19-9")).toBeVisible();
     expect(screen.getByText("Circle = customer colour")).toBeVisible();
     expect(screen.getByText("F1-RA-L1.2-1-2 — F1-RA-L1.2-3-2")).toBeVisible();
@@ -159,6 +163,33 @@ describe("TwoFloorWarehouseMockup", () => {
     expect(
       screen.getByRole("img", { name: "Warehouse floor 2 layout mockup" }),
     ).toBeVisible();
+  });
+
+  it("reveals a company name only when its map marker is hovered or tapped", () => {
+    renderWithIntl(<TwoFloorWarehouseMockup floor={1} />, {
+      locale: "en",
+      workspace: false,
+    });
+
+    const marker = screen.getByRole("button", { name: "KOHLER (THAILAND)" });
+    expect(
+      screen.queryByTestId("warehouse-company-tooltip"),
+    ).not.toBeInTheDocument();
+
+    fireEvent.pointerEnter(marker);
+    expect(screen.getByTestId("warehouse-company-tooltip")).toHaveTextContent(
+      "KOHLER (THAILAND)",
+    );
+
+    fireEvent.pointerLeave(marker);
+    expect(
+      screen.queryByTestId("warehouse-company-tooltip"),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(marker);
+    expect(screen.getByTestId("warehouse-company-tooltip")).toHaveTextContent(
+      "KOHLER (THAILAND)",
+    );
   });
 });
 
