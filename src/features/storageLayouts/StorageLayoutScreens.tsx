@@ -750,22 +750,45 @@ function WarehouseOccupancyOverlay({
   readonly floor: 1 | 2;
   readonly selectedCompanyId?: string | undefined;
 }) {
+  const [activeTooltipId, setActiveTooltipId] = useState<string | null>(null);
+  const activeAllocation = MOCK_COMPANY_ALLOCATIONS.find(
+    (allocation) =>
+      allocation.floor === floor && allocation.id === activeTooltipId,
+  );
+
   return (
-    <g aria-hidden="true">
+    <g>
       {MOCK_COMPANY_ALLOCATIONS.filter(
         (allocation) => allocation.floor === floor,
       ).map((allocation) => {
         const selected = allocation.id === selectedCompanyId;
         const { x, y, width, height } = allocation.overlay;
-        const useInlineLabel = height <= 7 && width >= 10;
-        const labelFontSize = useInlineLabel
-          ? 1.35
-          : Math.min(
-              1.35,
-              Math.max(0.75, (width - 1.2) / (allocation.code.length * 0.62)),
-            );
         return (
-          <g key={allocation.id}>
+          <g
+            key={allocation.id}
+            role="button"
+            tabIndex={0}
+            aria-label={allocation.name}
+            className="cursor-pointer outline-none"
+            onPointerEnter={() => setActiveTooltipId(allocation.id)}
+            onPointerLeave={() => setActiveTooltipId(null)}
+            onFocus={() => setActiveTooltipId(allocation.id)}
+            onBlur={() => setActiveTooltipId(null)}
+            onClick={() =>
+              setActiveTooltipId((current) =>
+                current === allocation.id ? null : allocation.id,
+              )
+            }
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                setActiveTooltipId((current) =>
+                  current === allocation.id ? null : allocation.id,
+                );
+              }
+            }}
+          >
+            <title>{allocation.name}</title>
             <rect
               x={x}
               y={y}
@@ -777,16 +800,6 @@ function WarehouseOccupancyOverlay({
               stroke={allocation.customerColor}
               strokeWidth={selected ? 0.9 : 0.35}
             />
-            <text
-              x={useInlineLabel ? x + 4.8 : x + 0.7}
-              y={useInlineLabel ? y + 2.2 : y + 4}
-              textAnchor="start"
-              fill="#0f172a"
-              fontSize={labelFontSize}
-              className="font-bold"
-            >
-              {allocation.code}
-            </text>
             <circle
               cx={x + 1.7}
               cy={y + 1.7}
@@ -808,6 +821,32 @@ function WarehouseOccupancyOverlay({
           </g>
         );
       })}
+      {activeAllocation ? (
+        <g data-testid="warehouse-company-tooltip" pointerEvents="none">
+          <rect
+            x="94"
+            y="2"
+            width="43"
+            height="5"
+            rx="0.8"
+            fill="#0f172a"
+            fillOpacity="0.94"
+          />
+          <text
+            x="115.5"
+            y="5.25"
+            textAnchor="middle"
+            fill="#ffffff"
+            fontSize={Math.min(
+              1.65,
+              Math.max(1.05, 39 / (activeAllocation.name.length * 0.62)),
+            )}
+            className="font-bold"
+          >
+            {activeAllocation.name}
+          </text>
+        </g>
+      ) : null}
     </g>
   );
 }
@@ -889,13 +928,12 @@ function FirstFloorWarehousePlan({
         labels={Array.from({ length: 12 }, (_, index) => `PD-L${index + 1}`)}
         fill="#f5f5ef"
       />
-      <path d="M 5 71 H 101" stroke="#e7ad75" strokeWidth="2" />
       <text
-        x="53"
-        y="70.2"
-        textAnchor="middle"
+        x="5.5"
+        y="65.2"
+        textAnchor="start"
         fill="#7c3f00"
-        className="text-[2.4px] font-bold"
+        className="text-[1.8px] font-bold"
       >
         PD · 12 LOCKS · 170 LOCATIONS
       </text>
@@ -910,11 +948,11 @@ function FirstFloorWarehousePlan({
         fill="#d9eef7"
       />
       <text
-        x="53"
-        y="83"
-        textAnchor="middle"
+        x="5.5"
+        y="78.2"
+        textAnchor="start"
         fill="#0f4c67"
-        className="text-[2.2px] font-bold"
+        className="text-[1.8px] font-bold"
       >
         FT · 3 LOCKS · 18 LOCATIONS
       </text>
