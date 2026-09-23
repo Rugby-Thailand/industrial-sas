@@ -774,17 +774,11 @@ function WarehouseOccupancyOverlay({
             onPointerLeave={() => setActiveTooltipId(null)}
             onFocus={() => setActiveTooltipId(allocation.id)}
             onBlur={() => setActiveTooltipId(null)}
-            onClick={() =>
-              setActiveTooltipId((current) =>
-                current === allocation.id ? null : allocation.id,
-              )
-            }
+            onClick={() => setActiveTooltipId(allocation.id)}
             onKeyDown={(event) => {
               if (event.key === "Enter" || event.key === " ") {
                 event.preventDefault();
-                setActiveTooltipId((current) =>
-                  current === allocation.id ? null : allocation.id,
-                );
+                setActiveTooltipId(allocation.id);
               }
             }}
           >

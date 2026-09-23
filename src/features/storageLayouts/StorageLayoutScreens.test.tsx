@@ -181,6 +181,11 @@ describe("TwoFloorWarehouseMockup", () => {
       "KOHLER (THAILAND)",
     );
 
+    fireEvent.click(marker);
+    expect(screen.getByTestId("warehouse-company-tooltip")).toHaveTextContent(
+      "KOHLER (THAILAND)",
+    );
+
     fireEvent.pointerLeave(marker);
     expect(
       screen.queryByTestId("warehouse-company-tooltip"),
