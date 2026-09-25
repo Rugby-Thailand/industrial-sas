@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { StorageZoneRow } from "@/lib/convex/storageLayoutApi";
+import { storageRectangleContains } from "../../../convex/model/storageLayout/storageZone";
 
 // Presentation coordinates from the user's approved reference, NOT millimetres.
 // This schematic must never be used as an import/geometry or capacity source.
@@ -65,10 +66,17 @@ export function matchesFg1Reference(
 /** Approved schematic presentation; drawing coordinates never update geometry. */
 export function Fg1ReferencePreview({
   zones,
+  reservedBlocks,
   selectedZoneId,
   onSelectionChange,
 }: {
   readonly zones?: readonly StorageZoneRow[];
+  readonly reservedBlocks?: readonly {
+    readonly xMm: number;
+    readonly yMm: number;
+    readonly widthMm: number;
+    readonly depthMm: number;
+  }[];
   readonly selectedZoneId?: string | undefined;
   readonly onSelectionChange?: ((zoneId: string) => void) | undefined;
 } = {}) {
@@ -93,6 +101,15 @@ export function Fg1ReferencePreview({
       : size;
     return [[id, x, y, w, d, liveSize, z] as const];
   });
+  const l02 = zones?.find((zone) => zone.code === "FG1-L02");
+  const smallExclusionSaved =
+    l02 !== undefined &&
+    (reservedBlocks ?? []).some(
+      (block) =>
+        block.widthMm === 1_200 &&
+        block.depthMm === 650 &&
+        storageRectangleContains(l02, block),
+    );
   const floor = box(0, 0, 1000, 1000);
   return (
     <section
@@ -399,10 +416,12 @@ export function Fg1ReferencePreview({
             </text>
             <text x={1500} y={884} fontSize={17} fill={palette.muted}>
               {zones
-                ? "จุด 1.20 × 0.65 ม. เป็นข้อมูลอ้างอิง"
+                ? smallExclusionSaved
+                  ? "จุด 1.20 × 0.65 ม. กันพื้นที่ในฐานข้อมูลแล้ว"
+                  : "จุด 1.20 × 0.65 ม. เป็นข้อมูลอ้างอิง"
                 : "ตัวอย่างนี้ไม่เปลี่ยนพิกัดหรือข้อมูลในระบบ"}
             </text>
-            {zones && (
+            {zones && !smallExclusionSaved && (
               <text x={1500} y={916} fontSize={17} fill={palette.orange}>
                 ยังไม่หักพื้นที่จุดนี้ในฐานข้อมูล
               </text>

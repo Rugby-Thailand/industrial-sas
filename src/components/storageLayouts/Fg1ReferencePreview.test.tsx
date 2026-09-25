@@ -78,6 +78,32 @@ describe("FG1 locked reference preview", () => {
       screen.getByText("ยังไม่หักพื้นที่จุดนี้ในฐานข้อมูล"),
     ).toBeInTheDocument();
   });
+  it("reports the small exclusion as saved only when it is contained in L02", () => {
+    const block = {
+      xMm: 100,
+      yMm: 100,
+      widthMm: 1_200,
+      depthMm: 650,
+    };
+    const result = render(
+      <Fg1ReferencePreview zones={liveZones} reservedBlocks={[block]} />,
+    );
+    expect(
+      screen.getByText("จุด 1.20 × 0.65 ม. กันพื้นที่ในฐานข้อมูลแล้ว"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("ยังไม่หักพื้นที่จุดนี้ในฐานข้อมูล"),
+    ).not.toBeInTheDocument();
+    result.rerender(
+      <Fg1ReferencePreview
+        zones={liveZones}
+        reservedBlocks={[{ ...block, xMm: 2_900 }]}
+      />,
+    );
+    expect(
+      screen.getByText("ยังไม่หักพื้นที่จุดนี้ในฐานข้อมูล"),
+    ).toBeInTheDocument();
+  });
   it("preserves all fifteen L/R areas, both exclusions and inline names in 2D", () => {
     const view = render(<Fg1ReferencePreview />);
     expect(

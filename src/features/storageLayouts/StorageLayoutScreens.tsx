@@ -28,6 +28,7 @@ import { useAsyncOperation } from "@/hooks/useAsyncOperation";
 import { resolveAreaColor } from "@/lib/storageLayouts/areaColors";
 import { storageFootprintUsage } from "../../../convex/model/storageLayout/areaUsage";
 import { isStorageFloorColorOnlyChange } from "../../../convex/model/storageLayout/storageLayout";
+import { storageRectangleContains } from "../../../convex/model/storageLayout/storageZone";
 import { AreaOverview } from "./AreaOverview";
 import { BuildingAreaDetails } from "./BuildingAreaDetails";
 import { BuildingStatusToggle } from "./BuildingStatusToggle";
@@ -1893,6 +1894,7 @@ export function FloorPlan(
         <>
           <Fg1ReferencePreview
             zones={props.zones ?? []}
+            reservedBlocks={props.blocks}
             selectedZoneId={props.selectedZoneId}
             onSelectionChange={props.onSelectionChange}
           />
@@ -2682,13 +2684,21 @@ export function ReservedBlocks({
     depthMm: millimetres(draft.depth),
   };
   const otherBlocks = blocks.filter((block) => block.id !== editingBlockId);
-  const overlaps = [...otherBlocks, ...zones].some(
-    (area) =>
+  const overlaps =
+    otherBlocks.some((area) =>
       draftBlock.xMm < area.xMm + area.widthMm &&
       draftBlock.xMm + draftBlock.widthMm > area.xMm &&
       draftBlock.yMm < area.yMm + area.depthMm &&
       draftBlock.yMm + draftBlock.depthMm > area.yMm,
-  );
+    ) ||
+    zones.some(
+      (zone) =>
+        draftBlock.xMm < zone.xMm + zone.widthMm &&
+        draftBlock.xMm + draftBlock.widthMm > zone.xMm &&
+        draftBlock.yMm < zone.yMm + zone.depthMm &&
+        draftBlock.yMm + draftBlock.depthMm > zone.yMm &&
+        !storageRectangleContains(zone, draftBlock),
+    );
   const validDraft =
     draftBlock.label !== "" &&
     draftBlock.xMm >= 0 &&
