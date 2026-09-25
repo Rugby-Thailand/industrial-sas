@@ -26,6 +26,7 @@ import {
   storagePlacementCorners,
   rectanglesOverlap,
 } from "@/lib/storageLayouts/storagePlacementGeometry";
+import { storageRectangleContains } from "../../../convex/model/storageLayout/storageZone";
 type EditableBlock = Omit<StorageReservedBlockRow, "blockId"> & {
   readonly id: string;
 };
@@ -105,9 +106,20 @@ export function StorageZoneDraftPreview({
   const dragHint = t(
     isReserved ? "dragReservedZoneHint" : "dragStorageZoneHint",
   );
-  const overlapsContext = [...reservedBlocks, ...zones].some((area) =>
-    rectanglesOverlap({ xMm, yMm, widthMm, depthMm }, area),
-  );
+  const draft = { xMm, yMm, widthMm, depthMm };
+  const overlapsContext = isReserved
+    ? reservedBlocks.some((area) => rectanglesOverlap(draft, area)) ||
+      zones.some(
+        (area) =>
+          rectanglesOverlap(draft, area) &&
+          !storageRectangleContains(area, draft),
+      )
+    : zones.some((area) => rectanglesOverlap(draft, area)) ||
+      reservedBlocks.some(
+        (area) =>
+          rectanglesOverlap(draft, area) &&
+          !storageRectangleContains(draft, area),
+      );
   const fitsFloor =
     xMm >= 0 &&
     yMm >= 0 &&

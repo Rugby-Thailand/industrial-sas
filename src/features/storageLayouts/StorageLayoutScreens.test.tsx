@@ -1734,6 +1734,53 @@ describe("interactive floor map", () => {
     blocks: [],
     zones: [occupiedTestZone()],
   });
+  it("mounts the approved FG1 schematic, preserves the inspector, and offers the measured map", () => {
+    const select = vi.fn();
+    const zones = [
+      ...Array.from(
+        { length: 5 },
+        (_, i) => `FG1-L${String(i + 1).padStart(2, "0")}`,
+      ),
+      ...Array.from(
+        { length: 10 },
+        (_, i) => `FG1-R${String(i + 1).padStart(2, "0")}`,
+      ),
+    ].map((code) => ({
+      ...occupiedTestZone(),
+      zoneId: code,
+      code,
+      label: code,
+      placements: [],
+    }));
+    const { container } = renderWithIntl(
+      <FloorPlan
+        {...props()}
+        referenceBuildingId="n57effrz60rbq7fqx438q6r6fx8f0hed"
+        floorNumber={1}
+        zones={zones}
+        onSelectionChange={select}
+        locationInspector={<p>Live location inspector</p>}
+      />,
+      { locale: "en", workspace: false },
+    );
+    expect(container.querySelectorAll("[data-reference-zone]")).toHaveLength(
+      15,
+    );
+    expect(screen.getByText("Live location inspector")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /^FG1-L01 / }));
+    expect(select).toHaveBeenCalledWith("FG1-L01");
+    fireEvent.click(
+      screen.getByRole("button", { name: "ดูผังตามพิกัดในฐานข้อมูล" }),
+    );
+    expect(container.querySelectorAll("[data-reference-zone]")).toHaveLength(0);
+    expect(screen.getByRole("button", { name: "2D plan" })).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole("button", { name: "ผังสรุปตามแบบอ้างอิง" }),
+    );
+    expect(container.querySelectorAll("[data-reference-zone]")).toHaveLength(
+      15,
+    );
+  });
   it("fills only the selected physical package and clears it when selecting a location", () => {
     const original = occupiedTestZone();
     const zone = {

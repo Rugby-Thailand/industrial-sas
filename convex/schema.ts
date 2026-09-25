@@ -732,6 +732,8 @@ const schema = defineSchema({
       code: v.string(),
       label: v.string(),
       qrValue: v.string(),
+      /** Preserve notes already present on imported production locations. */
+      importNote: v.optional(v.string()),
       /**
        * Optional for online migration: a missing value is the original SIMPLE
        * one-area/one-position behaviour.

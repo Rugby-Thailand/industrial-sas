@@ -54,6 +54,23 @@ export function storageRectanglesOverlap(
   );
 }
 
+/** A floor reservation may carve a no-storage footprint out of one zone. */
+export function storageRectangleContains(
+  outer: StorageRectangle,
+  inner: StorageRectangle,
+): boolean {
+  return (
+    outer.xMm <= inner.xMm &&
+    outer.yMm <= inner.yMm &&
+    outer.xMm + outer.widthMm >= inner.xMm + inner.widthMm &&
+    outer.yMm + outer.depthMm >= inner.yMm + inner.depthMm &&
+    (outer.xMm !== inner.xMm ||
+      outer.yMm !== inner.yMm ||
+      outer.widthMm !== inner.widthMm ||
+      outer.depthMm !== inner.depthMm)
+  );
+}
+
 export function validateStorageZone(input: {
   readonly floorWidthMm: number;
   readonly floorDepthMm: number;
@@ -86,7 +103,11 @@ export function validateStorageZone(input: {
     return fail({ code: "ZONE_OUT_OF_BOUNDS" });
   }
   if (
-    input.reserved.some((area) => storageRectanglesOverlap(candidate, area))
+    input.reserved.some(
+      (area) =>
+        storageRectanglesOverlap(candidate, area) &&
+        !storageRectangleContains(candidate, area),
+    )
   ) {
     return fail({ code: "ZONE_OVERLAPS_RESERVED_SPACE" });
   }

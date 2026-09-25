@@ -31,6 +31,38 @@ describe("storage zones", () => {
     ).toEqual({ ok: false, error: { code: "ZONE_OVERLAPS_RESERVED_SPACE" } });
   });
 
+  it("allows a contained no-storage cutout but refuses a crossing reservation", () => {
+    const input = {
+      floorWidthMm: 12_260,
+      floorDepthMm: 31_330,
+      floorHeightMm: 3_300,
+      candidate: {
+        xMm: 0,
+        yMm: 7_820,
+        widthMm: 2_870,
+        depthMm: 5_860,
+        maxStackHeightMm: 1_500,
+      },
+      zones: [],
+    };
+    expect(
+      validateStorageZone({
+        ...input,
+        reserved: [
+          { xMm: 100, yMm: 11_570, widthMm: 1_200, depthMm: 650 },
+        ],
+      }).ok,
+    ).toBe(true);
+    expect(
+      validateStorageZone({
+        ...input,
+        reserved: [
+          { xMm: 2_000, yMm: 11_570, widthMm: 1_200, depthMm: 650 },
+        ],
+      }),
+    ).toEqual({ ok: false, error: { code: "ZONE_OVERLAPS_RESERVED_SPACE" } });
+  });
+
   it("uses the floor height and footprint as hard geometry bounds", () => {
     expect(
       validateStorageZone({

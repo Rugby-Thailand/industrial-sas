@@ -5,6 +5,7 @@ import { useWorkspaceQuery, workspaceStateEvent } from "./useWorkspaceQuery";
 import { StorageZoneDraftPreview } from "@/components/storageLayouts/StorageZoneDraftPreview";
 
 import { rectanglesOverlap } from "@/lib/storageLayouts/storagePlacementGeometry";
+import { storageRectangleContains } from "../../../convex/model/storageLayout/storageZone";
 
 import { useMutation } from "convex/react";
 import {
@@ -254,9 +255,12 @@ export function StorageZonesPanel({
     zoneDraft.xMm + zoneDraft.widthMm <= floorWidthMm &&
     zoneDraft.yMm + zoneDraft.depthMm <= floorDepthMm &&
     millimetres(stackHeight) <= floorHeightMm &&
-    ![...reservedBlocks, ...otherZones].some((area) =>
-      rectanglesOverlap(zoneDraft, area),
-    );
+    !reservedBlocks.some(
+      (area) =>
+        rectanglesOverlap(zoneDraft, area) &&
+        !storageRectangleContains(zoneDraft, area),
+    ) &&
+    !otherZones.some((area) => rectanglesOverlap(zoneDraft, area));
 
   const startNewStorageZone = () => {
     if (!editable || blocked) return;
