@@ -4,7 +4,7 @@ import { fail, ok, type Result } from "../result";
 export const STORAGE_LAYOUT_LIMITS = Object.freeze({
   minimumFloors: 1,
   maximumFloors: 50,
-  maximumReservedBlocksPerFloor: 20,
+  maximumReservedBlocksPerFloor: 100,
   maximumDimensionMm: 1_000_000,
 });
 

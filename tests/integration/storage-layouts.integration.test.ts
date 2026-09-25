@@ -206,6 +206,81 @@ describe("storage building planner", () => {
     ).rejects.toThrow("CAPACITY_DATA_LIMIT");
   });
 
+  it("reads and updates floors with more than twenty reserved blocks", async () => {
+    const world = await createPlannerWorld();
+    const warehouseId = world.warehouses.alphaA;
+    const buildingId = value(
+      await call(world, createStorageBuilding, {
+        warehouseId,
+        requestId: "many-blocks-building",
+        code: "MANY-BLOCKS",
+        name: "Many reserved blocks",
+        widthMm: 60_000,
+        depthMm: 28_000,
+        defaultFloorHeightMm: 4_000,
+        floorCount: 1,
+      }),
+    )["documentId"];
+    const reservedBlocks = Array.from({ length: 37 }, (_, index) => ({
+      id: `aisle-${index + 1}`,
+      label: `Aisle ${index + 1}`,
+      xMm: index * 1_000,
+      yMm: 0,
+      widthMm: 500,
+      depthMm: 500,
+    }));
+    const floor = { floorNumber: 1, reservedBlocks };
+
+    expect(
+      value(
+        await call(world, saveStorageFloor, {
+          warehouseId,
+          buildingId,
+          requestId: "many-blocks-save",
+          expectedBuildingVersion: 1,
+          expectedFloorVersion: 1,
+          floor,
+        }),
+      ),
+    ).toMatchObject({ written: true });
+
+    const detail = value(
+      await call(world, getStorageBuilding, { warehouseId, buildingId }),
+    );
+    const floors = detail["floors"] as { reservedBlocks: unknown[] }[];
+    expect(floors[0]?.reservedBlocks).toHaveLength(37);
+
+    expect(
+      value(
+        await call(world, createStorageZone, {
+          warehouseId,
+          buildingId,
+          floorNumber: 1,
+          requestId: "many-blocks-zone",
+          label: "Storage beside aisles",
+          xMm: 0,
+          yMm: 1_000,
+          widthMm: 1_000,
+          depthMm: 1_000,
+          maxStackHeightMm: 3_000,
+        }),
+      ),
+    ).toMatchObject({ written: true });
+
+    expect(
+      value(
+        await call(world, saveStorageFloor, {
+          warehouseId,
+          buildingId,
+          requestId: "many-blocks-resave",
+          expectedBuildingVersion: 2,
+          expectedFloorVersion: 2,
+          floor,
+        }),
+      ),
+    ).toMatchObject({ written: true });
+  });
+
   it("normalizes colors, preserves legacy areas and geometry, and rejects invalid colors", async () => {
     const world = await createPlannerWorld();
     const warehouseId = world.warehouses.alphaA;

@@ -13,6 +13,7 @@ import {
   type TenantFunctionContext,
 } from "../lib/tenantFunctions";
 import { refusal, writeContextOf } from "../lib/writeEnvelope";
+import { STORAGE_LAYOUT_LIMITS } from "../model/storageLayout/storageLayout";
 import {
   makeStorageZoneCode,
   makeStorageZoneQrValue,
@@ -406,7 +407,7 @@ export const createStorageZone = mutationWithOrg({
         "by_orgId_floorId",
         [{ field: "floorId", value: scope.floor._id }],
       )
-      .all(20);
+      .all(STORAGE_LAYOUT_LIMITS.maximumReservedBlocksPerFloor);
     const zones = await ctx.tenantDb
       .byIndex<ZoneDocument>("storageZones", "by_orgId_floorId_status_code", [
         { field: "floorId", value: scope.floor._id },
@@ -666,7 +667,7 @@ export const updateStorageZone = mutationWithOrg({
         "by_orgId_floorId",
         [{ field: "floorId", value: floor._id }],
       )
-      .all(20);
+      .all(STORAGE_LAYOUT_LIMITS.maximumReservedBlocksPerFloor);
     const activeZones = await ctx.tenantDb
       .byIndex<ZoneDocument>("storageZones", "by_orgId_floorId_status_code", [
         { field: "floorId", value: floor._id },

@@ -13,6 +13,7 @@ import {
   type TenantFunctionContext,
 } from "../lib/tenantFunctions";
 import { storageLayoutStatus } from "../lib/validators";
+import { STORAGE_LAYOUT_LIMITS } from "../model/storageLayout/storageLayout";
 import { effectiveStorageAreaMode } from "../model/storageLayout/storagePosition";
 import { STORAGE_ZONE_LIMITS } from "../model/storageLayout/storageZone";
 import { occupiedFootprintAreaSqMm } from "../model/storageLayout/occupancy";
@@ -166,7 +167,7 @@ async function readFloor(
     .byIndex<BlockDocument>("storageFloorReservedBlocks", "by_orgId_floorId", [
       { field: "floorId", value: floor._id },
     ])
-    .all(20);
+    .all(STORAGE_LAYOUT_LIMITS.maximumReservedBlocksPerFloor);
   const zones = await ctx.tenantDb
     .byIndex<ZoneDocument>("storageZones", "by_orgId_floorId_status_code", [
       { field: "floorId", value: floor._id },
