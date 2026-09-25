@@ -120,6 +120,14 @@ export interface StorageFloorRow {
 }
 
 export interface StorageBuildingRow {
+  readonly approvedSchematic?: {
+    readonly revision: string;
+    readonly sourcePages: readonly number[];
+    readonly blueBayCodes: readonly string[];
+    readonly floor1ZoneCount: number;
+    readonly floor2ZoneCount: number;
+    readonly approvedAt: number;
+  };
   readonly unmeasuredPalletCount?: number;
   readonly measuredAreaPartial?: boolean;
   readonly storedFootprintAreaSqMm?: number;

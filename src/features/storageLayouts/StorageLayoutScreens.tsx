@@ -71,6 +71,10 @@ import {
   Fg1ReferencePreview,
   matchesFg1Reference,
 } from "@/components/storageLayouts/Fg1ReferencePreview";
+import {
+  F1F2ReferencePreview,
+  matchesF1F2Reference,
+} from "@/components/storageLayouts/F1F2ReferencePreview";
 import { StoragePlacementLayer } from "@/components/storageLayouts/StorageZoneVisualizer";
 import { QueryGate } from "@/components/system/QueryGate";
 import { DataTable } from "@/components/table/DataTable";
@@ -1610,6 +1614,9 @@ function FloorForm({
         <div className="min-w-0">
           <FloorPlan
             referenceBuildingId={detail.building.buildingId}
+            referenceSchematicRevision={
+              detail.building.approvedSchematic?.revision
+            }
             locationInspector={workspace ? locationInspector : undefined}
             locationActions={
               workspace ? (
@@ -1851,6 +1858,7 @@ function OverrideField({
 export function FloorPlan(
   props: Parameters<typeof FloorOffsetPlan>[0] & {
     readonly referenceBuildingId?: string;
+    readonly referenceSchematicRevision?: string | undefined;
     readonly locationActions?: ReactNode;
     readonly locationInspector?: ReactNode;
     readonly onEditZone?: ((zoneId: string) => void) | undefined;
@@ -1860,11 +1868,17 @@ export function FloorPlan(
   },
 ) {
   const [showMeasured, setShowMeasured] = useState(false);
-  const useReference =
+  const useFg1Reference =
     matchesFg1Reference(
       props.referenceBuildingId,
       props.floorNumber,
       props.zones ?? [],
+    ) && !props.onPlacementChange;
+  const useF1F2Reference =
+    matchesF1F2Reference(
+      props.referenceBuildingId,
+      props.floorNumber,
+      props.referenceSchematicRevision,
     ) && !props.onPlacementChange;
   const measuredPlan = (
     <FloorMap
@@ -1875,7 +1889,7 @@ export function FloorPlan(
       }
     />
   );
-  if (!useReference) return measuredPlan;
+  if (!useFg1Reference && !useF1F2Reference) return measuredPlan;
   return (
     <div className="min-w-0 space-y-4">
       <div className="flex flex-wrap justify-end gap-2">
@@ -1892,12 +1906,16 @@ export function FloorPlan(
         measuredPlan
       ) : (
         <>
-          <Fg1ReferencePreview
-            zones={props.zones ?? []}
-            reservedBlocks={props.blocks}
-            selectedZoneId={props.selectedZoneId}
-            onSelectionChange={props.onSelectionChange}
-          />
+          {useF1F2Reference ? (
+            <F1F2ReferencePreview floorNumber={props.floorNumber} />
+          ) : (
+            <Fg1ReferencePreview
+              zones={props.zones ?? []}
+              reservedBlocks={props.blocks}
+              selectedZoneId={props.selectedZoneId}
+              onSelectionChange={props.onSelectionChange}
+            />
+          )}
           {props.locationInspector}
         </>
       )}
@@ -2685,11 +2703,12 @@ export function ReservedBlocks({
   };
   const otherBlocks = blocks.filter((block) => block.id !== editingBlockId);
   const overlaps =
-    otherBlocks.some((area) =>
-      draftBlock.xMm < area.xMm + area.widthMm &&
-      draftBlock.xMm + draftBlock.widthMm > area.xMm &&
-      draftBlock.yMm < area.yMm + area.depthMm &&
-      draftBlock.yMm + draftBlock.depthMm > area.yMm,
+    otherBlocks.some(
+      (area) =>
+        draftBlock.xMm < area.xMm + area.widthMm &&
+        draftBlock.xMm + draftBlock.widthMm > area.xMm &&
+        draftBlock.yMm < area.yMm + area.depthMm &&
+        draftBlock.yMm + draftBlock.depthMm > area.yMm,
     ) ||
     zones.some(
       (zone) =>

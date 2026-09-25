@@ -1,11 +1,28 @@
 import { describe, expect, it } from "vitest";
 
-import { SECURITY_POLICY, securityHeaders } from "./securityHeaders";
+import {
+  SECURITY_POLICY,
+  sameOriginReferenceFrameHeaders,
+  securityHeaders,
+} from "./securityHeaders";
 
 const asMap = (isProduction: boolean): Map<string, string> =>
   new Map(securityHeaders(isProduction).map((h) => [h.key, h.value]));
 
 describe("securityHeaders", () => {
+  it("allows only same-origin framing of sandboxed reference assets", () => {
+    const headers = new Map(
+      sameOriginReferenceFrameHeaders(true).map((header) => [
+        header.key,
+        header.value,
+      ]),
+    );
+    expect(headers.get("X-Frame-Options")).toBe("SAMEORIGIN");
+    expect(headers.get("Content-Security-Policy")).toContain(
+      "frame-ancestors 'self'",
+    );
+    expect(asMap(true).get("X-Frame-Options")).toBe("DENY");
+  });
   it("stops the page being framed, by both the modern and the legacy header", () => {
     const headers = asMap(true);
     expect(headers.get("Content-Security-Policy")).toContain(
