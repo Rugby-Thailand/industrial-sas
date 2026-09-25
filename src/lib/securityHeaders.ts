@@ -55,6 +55,28 @@ export function securityHeaders(isProduction: boolean): ResponseHeader[] {
   ];
 }
 
+/** Only the sandboxed static plan assets may be embedded by this app. */
+export function sameOriginReferenceFrameHeaders(
+  isProduction: boolean,
+): ResponseHeader[] {
+  return securityHeaders(isProduction).map((header) => {
+    if (header.key === "X-Frame-Options")
+      return { ...header, value: "SAMEORIGIN" };
+    if (
+      header.key === "Content-Security-Policy" ||
+      header.key === "Content-Security-Policy-Report-Only"
+    )
+      return {
+        ...header,
+        value: header.value.replace(
+          "frame-ancestors 'none'",
+          "frame-ancestors 'self'",
+        ),
+      };
+    return header;
+  });
+}
+
 export const SECURITY_POLICY = {
   ENFORCED_CSP,
   REPORTED_CSP,

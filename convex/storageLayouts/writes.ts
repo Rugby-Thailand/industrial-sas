@@ -368,6 +368,96 @@ export const updateStorageBuilding = mutationWithOrg({
   },
 });
 
+/** Publish the approved F1/F2 schematic without rewriting operational zones or QR codes. */
+export const approveF1F2Schematic = mutationWithOrg({
+  args: {
+    warehouseId: v.id("warehouses"),
+    buildingId: v.id("storageBuildings"),
+    requestId: v.string(),
+    expectedVersion: v.number(),
+  },
+  returns: outcome,
+  permissionCode: "masterData.storageLayout.manage",
+  target: { table: "storageBuildings", id: ({ buildingId }) => buildingId },
+  warehouseId: ({ warehouseId }) => warehouseId,
+  handler: async (ctx, args) => {
+    const building = await ctx.tenantDb.get<BuildingDocument>(
+      "storageBuildings",
+      args.buildingId,
+    );
+    if (building === null || building.warehouseId !== args.warehouseId)
+      return failure("NOT_FOUND");
+    if (building.code !== "F1-F2-SB" || building.floorCount !== 2)
+      return failure("REFERENCE_BUILDING_MISMATCH");
+    if (building.status === "ARCHIVED") return failure("LAYOUT_NOT_EDITABLE");
+    if (building.version !== args.expectedVersion)
+      return failure("VERSION_CONFLICT");
+    const floors = await ctx.tenantDb
+      .byIndex<FloorDocument>(
+        "storageFloors",
+        "by_orgId_buildingId_floorNumber",
+        [{ field: "buildingId", value: args.buildingId }],
+      )
+      .all(2);
+    if (
+      floors.length !== 2 ||
+      floors[0]?.floorNumber !== 1 ||
+      floors[1]?.floorNumber !== 2
+    )
+      return failure("REFERENCE_FLOORS_MISMATCH");
+    const zoneCounts = await Promise.all(
+      floors.map(
+        async (floor) =>
+          (
+            await ctx.tenantDb
+              .byIndex<ZoneDocument>(
+                "storageZones",
+                "by_orgId_floorId_status_code",
+                [
+                  { field: "floorId", value: floor._id },
+                  { field: "status", value: "ACTIVE" },
+                ],
+              )
+              .all(STORAGE_ZONE_LIMITS.maximumZonesPerFloor)
+          ).length,
+      ),
+    );
+    if ((zoneCounts[0] ?? 0) < 300 || (zoneCounts[1] ?? 0) < 150)
+      return failure("REFERENCE_ZONES_MISMATCH");
+    const name = normalizeDisplayName("name", "อาคาร F1 + F2");
+    if (!name.ok) return failure(name.error.code, "name");
+    const now = Date.now();
+    const updated = await updateMasterDataRow({
+      ...writeContext(
+        ctx,
+        "storageBuildings",
+        "storageLayout.approveF1F2Schematic",
+        args.requestId,
+        args.warehouseId,
+      ),
+      documentId: args.buildingId,
+      fingerprint: args,
+      uniqueness: [],
+      patch: {
+        name: name.value,
+        approvedSchematic: {
+          revision: "f1-f2-2026-09-25",
+          sourcePages: [3, 4],
+          blueBayCodes: ["F2-S01", "F2-S02", "F2-S03", "F2-S04"],
+          floor1ZoneCount: zoneCounts[0]!,
+          floor2ZoneCount: zoneCounts[1]!,
+          approvedAt: now,
+        },
+        version: building.version + 1,
+        updatedAt: now,
+        updatedByUserId: ctx.tenant.actor._id,
+      },
+    });
+    if (!updated.ok) return failure(updated.error.code);
+    return success(updated.value.documentId, updated.value.replayed);
+  },
+});
+
 export const changeStorageFloorCount = mutationWithOrg({
   args: {
     warehouseId: v.id("warehouses"),

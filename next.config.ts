@@ -2,7 +2,10 @@ import createNextIntlPlugin from "next-intl/plugin";
 import type { NextConfig } from "next";
 import path from "node:path";
 
-import { securityHeaders } from "./src/lib/securityHeaders";
+import {
+  sameOriginReferenceFrameHeaders,
+  securityHeaders,
+} from "./src/lib/securityHeaders";
 
 const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
@@ -51,6 +54,12 @@ const nextConfig: NextConfig = {
       {
         source: "/:path*",
         headers: securityHeaders(process.env.NODE_ENV === "production"),
+      },
+      {
+        source: "/f1-f2-reference/:path*",
+        headers: sameOriginReferenceFrameHeaders(
+          process.env.NODE_ENV === "production",
+        ),
       },
     ];
   },

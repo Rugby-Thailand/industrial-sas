@@ -657,6 +657,16 @@ const schema = defineSchema({
       warehouseId: v.id("warehouses"),
       code: v.string(),
       name: v.string(),
+      approvedSchematic: v.optional(
+        v.object({
+          revision: v.string(),
+          sourcePages: v.array(v.number()),
+          blueBayCodes: v.array(v.string()),
+          floor1ZoneCount: v.number(),
+          floor2ZoneCount: v.number(),
+          approvedAt: v.number(),
+        }),
+      ),
       widthMm: v.number(),
       depthMm: v.number(),
       defaultFloorHeightMm: v.number(),
