@@ -54,6 +54,17 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+
+  async redirects() {
+    return [
+      {
+        source: "/th/master-data/storage-layouts/n575kryc3hp4e788hyc7pab4",
+        destination:
+          "/th/master-data/storage-layouts/n575kryc3hp4e788hyc7pab4hh8f1vgv",
+        permanent: true,
+      },
+    ];
+  },
 };
 
 export default withNextIntl(nextConfig);
