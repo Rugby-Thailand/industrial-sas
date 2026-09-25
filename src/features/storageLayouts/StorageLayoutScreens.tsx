@@ -66,6 +66,10 @@ import {
 } from "react";
 
 import { FloorMap } from "@/components/storageLayouts/FloorMap";
+import {
+  Fg1ReferencePreview,
+  matchesFg1Reference,
+} from "@/components/storageLayouts/Fg1ReferencePreview";
 import { StoragePlacementLayer } from "@/components/storageLayouts/StorageZoneVisualizer";
 import { QueryGate } from "@/components/system/QueryGate";
 import { DataTable } from "@/components/table/DataTable";
@@ -1604,6 +1608,7 @@ function FloorForm({
       >
         <div className="min-w-0">
           <FloorPlan
+            referenceBuildingId={detail.building.buildingId}
             locationInspector={workspace ? locationInspector : undefined}
             locationActions={
               workspace ? (
@@ -1844,6 +1849,7 @@ function OverrideField({
 
 export function FloorPlan(
   props: Parameters<typeof FloorOffsetPlan>[0] & {
+    readonly referenceBuildingId?: string;
     readonly locationActions?: ReactNode;
     readonly locationInspector?: ReactNode;
     readonly onEditZone?: ((zoneId: string) => void) | undefined;
@@ -1852,7 +1858,14 @@ export function FloorPlan(
       ((zoneId: string | undefined) => void) | undefined;
   },
 ) {
-  return (
+  const [showMeasured, setShowMeasured] = useState(false);
+  const useReference =
+    matchesFg1Reference(
+      props.referenceBuildingId,
+      props.floorNumber,
+      props.zones ?? [],
+    ) && !props.onPlacementChange;
+  const measuredPlan = (
     <FloorMap
       {...props}
       zones={props.zones ?? []}
@@ -1860,6 +1873,33 @@ export function FloorPlan(
         props.onPlacementChange ? <FloorOffsetPlan {...props} /> : undefined
       }
     />
+  );
+  if (!useReference) return measuredPlan;
+  return (
+    <div className="min-w-0 space-y-4">
+      <div className="flex flex-wrap justify-end gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => setShowMeasured(!showMeasured)}
+        >
+          {showMeasured ? "ผังสรุปตามแบบอ้างอิง" : "ดูผังตามพิกัดในฐานข้อมูล"}
+        </Button>
+        {!showMeasured && props.locationActions}
+      </div>
+      {showMeasured ? (
+        measuredPlan
+      ) : (
+        <>
+          <Fg1ReferencePreview
+            zones={props.zones ?? []}
+            selectedZoneId={props.selectedZoneId}
+            onSelectionChange={props.onSelectionChange}
+          />
+          {props.locationInspector}
+        </>
+      )}
+    </div>
   );
 }
 
