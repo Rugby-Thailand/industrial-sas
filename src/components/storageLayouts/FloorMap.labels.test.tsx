@@ -4,6 +4,7 @@ import { renderWithIntl } from "@tests/fixtures/intl-render";
 import { sceneColors } from "@/components/storageScene/sceneColors";
 import { FloorMap } from "./FloorMap";
 import { floorMapDemo } from "./storageFloorDemoData";
+import { pdApprovedPlan } from "../../../convex/model/storageLayout/pdApprovedPlan";
 
 vi.mock("@/hooks/useCanManage", () => ({
   useCanManage: () => false,
@@ -20,6 +21,57 @@ function renderMap(floorNumber = 1) {
 }
 
 describe("floor location labels", () => {
+  it("renders approved PD aisles with the same scale and keeps stairs grounded in 3D", () => {
+    const plan = pdApprovedPlan(),
+      demo = floorMapDemo(false, false);
+    const zones = plan.cells.map((cell) => ({
+      ...demo.zones[0]!,
+      ...cell,
+      zoneId: cell.code,
+      label: cell.code,
+      locationId: cell.code,
+      mode: "SIMPLE" as const,
+      positions: [],
+      placements: [],
+    }));
+    const view = renderWithIntl(
+      <FloorMap
+        {...demo}
+        widthMm={plan.widthMm}
+        depthMm={plan.depthMm}
+        zones={zones}
+        blocks={plan.blocks}
+      />,
+      { locale: "en", workspace: false },
+    );
+    const polygons = view.container.querySelectorAll(
+      '[data-reserved-kind="AISLE"] > polygon',
+    );
+    const points = (e: Element) =>
+      e
+        .getAttribute("points")!
+        .split(" ")
+        .map((p) => p.split(",").map(Number));
+    const main = points(polygons[0]!),
+      branch = points(polygons[1]!);
+    expect(Math.abs(main[2]![1]! - main[1]![1]!)).toBeCloseTo(
+      Math.abs(branch[1]![0]! - branch[0]![0]!),
+      8,
+    );
+    expect(
+      view.container.querySelectorAll('[data-reserved-kind="STAIRS"] polygon'),
+    ).toHaveLength(6);
+    fireEvent.click(screen.getByRole("button", { name: "3D view" }));
+    expect(
+      view.container.querySelectorAll('[data-reserved-kind="AISLE"] > polygon'),
+    ).toHaveLength(24);
+    expect(
+      view.container.querySelectorAll('[data-reserved-kind="STAIRS"] polygon'),
+    ).toHaveLength(26);
+    expect(
+      view.container.querySelector('[data-reserved-kind="PLATFORM"]'),
+    ).toBeInTheDocument();
+  });
   it("keeps dense area names out of the overview and groups the legend", () => {
     const data = floorMapDemo(false, false);
     const blocks = Array.from({ length: 36 }, (_, index) => ({

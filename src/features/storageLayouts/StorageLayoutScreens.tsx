@@ -1307,6 +1307,10 @@ function FloorForm({
     floor.reservedBlocks.map((block) => ({
       id: block.blockId,
       label: block.label,
+      ...(block.areaKind === undefined ? {} : { areaKind: block.areaKind }),
+      ...(block.displayHeightMm === undefined
+        ? {}
+        : { displayHeightMm: block.displayHeightMm }),
       ...(block.color === undefined ? {} : { color: block.color }),
       xMm: block.xMm,
       yMm: block.yMm,
