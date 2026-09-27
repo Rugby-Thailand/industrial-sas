@@ -324,7 +324,7 @@
     "floorAisleWidth": "ทางเดิน {width} ม.",
     "floorAisleLegend": "ทางเดินกว้าง {widths} ม.",
     "floorMapAreas": "พื้นที่บนแผนผัง ({count})",
-    "floorAreaCount": "{name} · {count}",
+    "floorAreaCount": "{name} · {count, number} พื้นที่",
     "floorAllAreaNames": "ชื่อพื้นที่ทั้งหมด ({count})",
     "floorZoomForLabels": "ซูมเข้าเพื่ออ่านหมายเลขตำแหน่ง",
     "storageZonesHelp": "วางจุดจัดเก็บพร้อมรหัส QR ในพื้นที่ที่ใช้งานได้",
