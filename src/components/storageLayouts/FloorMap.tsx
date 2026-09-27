@@ -48,7 +48,6 @@ import {
   useRef,
   useState,
   useSyncExternalStore,
-  type KeyboardEvent,
   type PointerEvent,
   type ReactNode,
 } from "react";
@@ -712,15 +711,6 @@ export function FloorMap(props: FloorMapProps) {
           {props.locationInspector}
         </aside>
       </div>
-      {selected &&
-        (floorPositions(selected).length > 0 || pdGroupCode(selected.code)) && (
-          <FloorPositionDetail
-            zone={selected}
-            zones={props.zones}
-            blocks={props.blocks}
-            onSelect={select}
-          />
-        )}
       <div className="mt-4 min-w-0">
         <FloorLocationTable
           zones={matches}
@@ -983,6 +973,9 @@ function MapDrawing({
     selectedAreaIndex === undefined
       ? undefined
       : props.blocks[selectedAreaIndex];
+  const orderedZones = [...props.zones].sort(
+    (a, b) => Number(a.zoneId === selectedId) - Number(b.zoneId === selectedId),
+  );
   const target = selected ?? selectedArea;
   const frame = compactPlan
     ? { x: 0, y: 80, width: 920, height: 500 }
@@ -1202,7 +1195,7 @@ function MapDrawing({
             </g>
           );
         })}
-        {props.zones.map((zone) => {
+        {orderedZones.map((zone) => {
           const active = zone.zoneId === selectedId;
           const cellLabel = zone.label.trim() || zone.code;
           const base = rect(zone.xMm, zone.yMm, zone.widthMm, zone.depthMm);
@@ -1286,6 +1279,7 @@ function MapDrawing({
                     mode={view}
                     kind="location"
                     selected={active}
+                    selectionSurface={active}
                   />
                 )}
                 {view === "plan" && pdGroupCode(zone.code) && (
@@ -1293,9 +1287,13 @@ function MapDrawing({
                     <polygon
                       data-pd-cell-code={zone.code}
                       points={pts(base)}
-                      fill="#83a8b1"
+                      fill={
+                        active
+                          ? "color-mix(in srgb, var(--token-link) 25%, #83a8b1)"
+                          : "#83a8b1"
+                      }
                       stroke={active ? sceneColors.selected : "#48646b"}
-                      strokeWidth={active ? 3 : 0.75}
+                      strokeWidth={active ? 1.5 : 0.75}
                       vectorEffect="non-scaling-stroke"
                       className={
                         active ? undefined : "group-focus-visible:stroke-text"
@@ -1380,7 +1378,7 @@ function MapDrawing({
                       points={pts(base)}
                       fill="none"
                       stroke={active ? sceneColors.selected : "#263640"}
-                      strokeWidth={active ? 3 : 1}
+                      strokeWidth={active ? 1.5 : 1}
                       vectorEffect="non-scaling-stroke"
                     />
                     {showLocationLabels && (
@@ -1623,174 +1621,5 @@ function MapDrawing({
           ))}
       </g>
     </svg>
-  );
-}
-
-function FloorPositionDetail({
-  zone,
-  zones,
-  blocks,
-  onSelect,
-}: {
-  readonly zone: StorageZoneRow;
-  readonly zones: readonly StorageZoneRow[];
-  readonly blocks: readonly Area[];
-  readonly onSelect: (id: string) => void;
-}) {
-  const t = useTranslations("StorageLayouts");
-  const groupCode = pdGroupCode(zone.code);
-  const groupZones = groupCode
-    ? zones.filter((candidate) => pdGroupCode(candidate.code) === groupCode)
-    : [];
-  const bounds = groupCode ? groupBounds(groupZones) : zone;
-  const cells = groupCode
-    ? groupZones.map((candidate) => ({ ...candidate, id: candidate.zoneId }))
-    : floorPositions(zone).map((position) => ({
-        ...position,
-        id: undefined,
-        xMm: position.xMm!,
-        yMm: position.yMm!,
-        widthMm: position.widthMm!,
-        depthMm: position.depthMm!,
-      }));
-  const aisles = groupCode
-    ? blocks.filter(isAisleBlock).flatMap((block) => {
-        const xMm = Math.max(block.xMm, bounds.xMm);
-        const yMm = Math.max(block.yMm, bounds.yMm);
-        const right = Math.min(
-          block.xMm + block.widthMm,
-          bounds.xMm + bounds.widthMm,
-        );
-        const bottom = Math.min(
-          block.yMm + block.depthMm,
-          bounds.yMm + bounds.depthMm,
-        );
-        return right > xMm && bottom > yMm
-          ? [{ xMm, yMm, widthMm: right - xMm, depthMm: bottom - yMm }]
-          : [];
-      })
-    : positionAisles(zone);
-  const titleCode = groupCode ?? zone.code;
-  return (
-    <section
-      className="mt-5 min-w-0 rounded-xl border border-border p-3 sm:p-4"
-      aria-label={t("floorPositionDetail", { code: titleCode })}
-    >
-      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-        <h3 className="font-semibold">
-          {t("floorPositionDetail", { code: titleCode })}
-        </h3>
-        <p className="text-sm text-muted">
-          {t("floorPositionCount", { count: cells.length })}
-        </p>
-      </div>
-      <div className="overflow-x-auto">
-        <svg
-          role="group"
-          aria-label={t("floorPositionDetail", { code: titleCode })}
-          viewBox={`0 0 ${bounds.widthMm} ${bounds.depthMm}`}
-          className="w-full min-w-[640px] border border-border bg-[#ffb68e]"
-        >
-          <desc>{t("mapKeyboardHint")}</desc>
-          {cells.map((position) => {
-            const x = position.xMm - bounds.xMm;
-            const y = position.yMm - bounds.yMm;
-            return (
-              <g
-                key={position.code}
-                data-detail-position-code={position.code}
-                {...(position.id === undefined
-                  ? {}
-                  : {
-                      role: "button",
-                      tabIndex: position.id === zone.zoneId ? 0 : -1,
-                      "aria-label": t("mapSelectLocation", {
-                        name: position.code,
-                      }),
-                      "aria-pressed": position.id === zone.zoneId,
-                      onClick: () => onSelect(position.id!),
-                      onKeyDown: (event: KeyboardEvent<SVGGElement>) => {
-                        if (event.key === "Enter" || event.key === " ") {
-                          event.preventDefault();
-                          onSelect(position.id!);
-                        } else if (
-                          [
-                            "ArrowLeft",
-                            "ArrowRight",
-                            "ArrowUp",
-                            "ArrowDown",
-                          ].includes(event.key)
-                        ) {
-                          event.preventDefault();
-                          const current = groupZones.find(
-                            (candidate) => candidate.zoneId === position.id,
-                          );
-                          const next =
-                            current &&
-                            adjacentZone(groupZones, current, event.key);
-                          if (!next) return;
-                          onSelect(next.zoneId);
-                          const controls = event.currentTarget
-                            .closest("svg")
-                            ?.querySelectorAll<SVGGElement>(
-                              "[data-detail-position-code]",
-                            );
-                          [...(controls ?? [])]
-                            .find(
-                              (control) =>
-                                control.getAttribute(
-                                  "data-detail-position-code",
-                                ) === next.code,
-                            )
-                            ?.focus();
-                        }
-                      },
-                    })}
-              >
-                <rect
-                  x={x}
-                  y={y}
-                  width={position.widthMm}
-                  height={position.depthMm}
-                  fill="#83a8b1"
-                  stroke={position.id === zone.zoneId ? "#4d57c3" : "#263640"}
-                  strokeWidth="14"
-                  strokeDasharray="40 35"
-                />
-                <text
-                  x={x + position.widthMm / 2}
-                  y={y + position.depthMm / 2}
-                  dominantBaseline="middle"
-                  textAnchor="middle"
-                  fill="#172329"
-                  fontSize="140"
-                  fontWeight="700"
-                >
-                  {position.code}
-                </text>
-              </g>
-            );
-          })}
-          {aisles.map((aisle, index) => {
-            const width = Math.min(aisle.widthMm, aisle.depthMm);
-            return (
-              <g key={index} data-detail-aisle-width-mm={width}>
-                <text
-                  x={aisle.xMm - bounds.xMm + aisle.widthMm / 2}
-                  y={aisle.yMm - bounds.yMm + aisle.depthMm / 2}
-                  dominantBaseline="middle"
-                  textAnchor="middle"
-                  fill="#172329"
-                  fontSize={Math.min(180, width * 0.55)}
-                  fontWeight="700"
-                >
-                  {t("floorAisleWidth", { width: m(width) })}
-                </text>
-              </g>
-            );
-          })}
-        </svg>
-      </div>
-    </section>
   );
 }

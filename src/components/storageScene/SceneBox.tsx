@@ -7,6 +7,7 @@ import {
 export type SceneRole = {
   kind: "location" | "package";
   selected?: boolean;
+  selectionSurface?: boolean;
   held?: boolean;
   invalid?: boolean;
   source?: boolean;
@@ -58,6 +59,8 @@ export function SceneBox({
   if (points.length !== 8) return null;
   const style = sceneStyle(role);
   const facesColors = sceneFaces(style.stroke);
+  const highlighted =
+    role.kind === "location" && role.selected && role.selectionSurface;
   const faces =
     mode === "plan"
       ? [[0, 1, 2, 3]]
@@ -78,7 +81,7 @@ export function SceneBox({
       data-scene-kind={role.kind}
       data-scene-solid={style.solid}
       stroke={style.stroke}
-      strokeWidth={style.strokeWidth}
+      strokeWidth={highlighted ? 1.5 : style.strokeWidth}
       strokeDasharray={style.dash}
       className="group-focus-visible:stroke-text"
     >
@@ -101,13 +104,15 @@ export function SceneBox({
           }
           points={pointsAttribute(face.map((i) => points[i]!))}
           fill={
-            style.solid
-              ? index === faces.length - 1
-                ? facesColors[2]
-                : index % 2
-                  ? facesColors[0]
-                  : facesColors[1]
-              : "transparent"
+            highlighted
+              ? `color-mix(in srgb, ${style.stroke} ${mode === "plan" ? 25 : index === faces.length - 1 ? 28 : 16}%, transparent)`
+              : style.solid
+                ? index === faces.length - 1
+                  ? facesColors[2]
+                  : index % 2
+                    ? facesColors[0]
+                    : facesColors[1]
+                : "transparent"
           }
           stroke={style.solid ? style.stroke : "none"}
           vectorEffect="non-scaling-stroke"
