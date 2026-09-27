@@ -76,7 +76,7 @@ async function snapshot(ctx: TenantFunctionContext, args: Target) {
       )
       .all(100),
   );
-  const zones = ordered(
+  const allZones = ordered(
     await db
       .byIndex<Doc<"storageZones">>(
         "storageZones",
@@ -85,6 +85,22 @@ async function snapshot(ctx: TenantFunctionContext, args: Target) {
       )
       .all(500),
   );
+  const zones = allZones.filter((z) => z.status === "ACTIVE");
+  const legacyZones = allZones.filter((z) => z.status !== "ACTIVE");
+  const legacyCodes = new Set(
+    Array.from({ length: 12 }, (_, i) => `PD-L${i + 1}`),
+  );
+  if (
+    (legacyZones.length !== 0 && legacyZones.length !== 12) ||
+    new Set(legacyZones.map((z) => z.code)).size !== legacyZones.length ||
+    legacyZones.some(
+      (z) =>
+        !legacyCodes.has(z.code) ||
+        z.warehouseId !== warehouse._id ||
+        z.buildingId !== building._id,
+    )
+  )
+    throw new Error("PD_LEGACY_SET_MISMATCH");
   const expected = new Set(pdApprovedPlan().cells.map((c) => c.code));
   if (
     zones.length !== 198 ||
@@ -97,8 +113,19 @@ async function snapshot(ctx: TenantFunctionContext, args: Target) {
         z.buildingId !== building._id ||
         (z.mode ?? "SIMPLE") !== "SIMPLE",
     )
-  )
+  ) {
+    console.error("PD_CODE_SET_COUNTS", {
+      total: zones.length,
+      unique: new Set(zones.map((z) => z.code)).size,
+      unexpectedCodes: zones.filter((z) => !expected.has(z.code)).length,
+      inactive: zones.filter((z) => z.status !== "ACTIVE").length,
+      wrongWarehouse: zones.filter((z) => z.warehouseId !== warehouse._id)
+        .length,
+      wrongBuilding: zones.filter((z) => z.buildingId !== building._id).length,
+      nonSimple: zones.filter((z) => (z.mode ?? "SIMPLE") !== "SIMPLE").length,
+    });
     throw new Error("PD_CODE_SET_MISMATCH");
+  }
   const positions = ordered(
     (
       await Promise.all(
@@ -114,6 +141,43 @@ async function snapshot(ctx: TenantFunctionContext, args: Target) {
       )
     ).flat(),
   );
+  // User-approved inactive groups are backed up and fingerprinted, never patched.
+  const legacyPositions = ordered(
+    (
+      await Promise.all(
+        legacyZones.map((z) =>
+          db
+            .byIndex<Doc<"storagePositions">>(
+              "storagePositions",
+              "by_orgId_zoneId_status_code",
+              [{ field: "zoneId", value: z._id }],
+            )
+            .all(500),
+        ),
+      )
+    ).flat(),
+  );
+  if (
+    legacyPositions.some(
+      (p) =>
+        p.status === "ACTIVE" ||
+        p.warehouseId !== warehouse._id ||
+        p.buildingId !== building._id,
+    )
+  )
+    throw new Error("PD_LEGACY_POSITION_MISMATCH");
+  const legacyLocations = ordered(
+    await Promise.all(
+      [
+        ...new Set([
+          ...legacyZones.map((z) => z.locationId),
+          ...legacyPositions.map((p) => p.locationId),
+        ]),
+      ].map((id) => db.getX<Doc<"locations">>("locations", id)),
+    ),
+  );
+  if (legacyLocations.some((l) => l.warehouseId !== warehouse._id))
+    throw new Error("PD_LEGACY_LOCATION_MISMATCH");
   const locationIds = [
     ...new Set([
       ...zones.map((z) => z.locationId),
@@ -198,6 +262,27 @@ async function snapshot(ctx: TenantFunctionContext, args: Target) {
       ),
     ),
   );
+  const zoneIds = new Set(allZones.map((z) => z._id));
+  const positionIds = new Set(
+    [...positions, ...legacyPositions].map((p) => p._id),
+  );
+  const codes = new Set(allZones.map((z) => z.code));
+  const jobScans = ordered(
+    (
+      await db
+        .byIndex<Doc<"finishedGoodsJobScans">>(
+          "finishedGoodsJobScans",
+          "by_orgId_warehouseId_createdAt",
+          [{ field: "warehouseId", value: args.warehouseId }],
+        )
+        .all(10000)
+    ).filter(
+      (s) =>
+        (s.zoneId && zoneIds.has(s.zoneId)) ||
+        (s.supportPositionId && positionIds.has(s.supportPositionId)) ||
+        (s.locationCode && codes.has(s.locationCode)),
+    ),
+  );
   return {
     warehouse,
     building,
@@ -206,10 +291,14 @@ async function snapshot(ctx: TenantFunctionContext, args: Target) {
     zones,
     positions,
     locations,
+    legacyZones,
+    legacyPositions,
+    legacyLocations,
     placements,
     moves,
     assignments,
     pallets,
+    jobScans,
   };
 }
 type Snapshot = Awaited<ReturnType<typeof snapshot>>;
@@ -229,16 +318,34 @@ export const preflight = queryWithOrg({
   target: { table: "storageBuildings", id: (a) => a.buildingId },
   warehouseId: (a) => a.warehouseId,
   handler: async (ctx, args) => {
-    const backup = await snapshot(ctx, args);
+    let backup: Snapshot;
+    try {
+      backup = await snapshot(ctx, args);
+    } catch (error) {
+      // Fixed diagnostic codes only: never log records, credentials, or raw errors.
+      const code =
+        error instanceof Error && /^PD_[A-Z_]+$/.test(error.message)
+          ? error.message
+          : "PD_SNAPSHOT_READ_FAILED";
+      console.error(code);
+      throw error;
+    }
     const blocked =
       backup.placements.some((p) => p.status !== "RELEASED") ||
       backup.moves.some(
         (m) => m.status === "RESERVED" || m.status === "IN_TRANSIT",
       );
+    let snapshotDigest: string;
+    try {
+      snapshotDigest = await digest(backup);
+    } catch (error) {
+      console.error("PD_SNAPSHOT_DIGEST_FAILED");
+      throw error;
+    }
     return {
       revision: PD_REVISION,
       blocked,
-      digest: await digest(backup),
+      digest: snapshotDigest,
       backup,
       plan: pdApprovedPlan(),
     };

@@ -13,6 +13,7 @@ run preflight, inspect the private backup, and explicitly apply.
 - Lower spans include their right-hand 300 mm aisles: 6 × 9,420 = 56,520 mm.
 - Stair/side clear area excludes the stair projection: 20,457,000 mm².
 - Preserve all 198 zone/location/position IDs, codes, QR values, and history.
+- Preserve the user-approved 12 inactive PD-L1–PD-L12 groups and their locations/positions unchanged. Include them and associated job-scan references in the backup and transaction digest. Unexpected inactive codes or active positions inside these groups still block import.
 
 ## Execute
 
