@@ -463,7 +463,7 @@ describe("floor map interaction", () => {
       location.querySelector("[data-pd-cell-code] + text"),
     ).toHaveTextContent("Rack 23 · Cell 12");
     expect(location).not.toHaveClass("focus-visible:outline-2");
-    expect(location).toHaveClass("focus-visible:outline-none");
+    expect(location).toHaveStyle({ outline: "none" });
     expect(location.querySelector("[data-pd-cell-code]")).toHaveAttribute(
       "stroke",
       sceneColors.selected,
@@ -589,6 +589,7 @@ describe("floor map interaction", () => {
     const area = within(map).getByRole("button", {
       name: "Select area พื้นที่ห้ามใช้งาน 1",
     });
+    expect(area).toHaveStyle({ outline: "none" });
     fireEvent.click(area);
     expect(area).toHaveAttribute("aria-pressed", "true");
     expect(cell(1)).toHaveAttribute("aria-pressed", "false");

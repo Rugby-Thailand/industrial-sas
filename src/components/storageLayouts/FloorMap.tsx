@@ -1160,14 +1160,14 @@ function MapDrawing({
             <g
               key={i}
               data-unavailable-area="true"
+              style={{ outline: "none" }}
               {...(selectable
                 ? {
                     role: "button",
                     tabIndex: 0,
                     "aria-label": t("mapSelectArea", { name: b.label }),
                     "aria-pressed": active,
-                    className:
-                      "group cursor-pointer outline-none focus-visible:outline-none",
+                    className: "group cursor-pointer",
                     onClick: () => onSelectArea(i),
                     onKeyDown: (e) => {
                       if (e.key === "Enter" || e.key === " ") {
@@ -1241,6 +1241,7 @@ function MapDrawing({
               }
               aria-label={t("mapSelectLocation", { name: zone.label })}
               aria-pressed={active}
+              style={{ outline: "none" }}
               onClick={() => onSelect(zone.zoneId)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
@@ -1267,7 +1268,7 @@ function MapDrawing({
                     ?.focus();
                 }
               }}
-              className="group cursor-pointer outline-none focus-visible:outline-none"
+              className="group cursor-pointer"
               opacity={searching && !matchIds.includes(zone.zoneId) ? 0.3 : 1}
             >
               <title>
