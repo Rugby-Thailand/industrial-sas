@@ -47,6 +47,7 @@ export function ReservedAreaShape({
   points,
   color,
   label,
+  tooltip,
   mode,
   selected = false,
   invalid = false,
@@ -55,6 +56,7 @@ export function ReservedAreaShape({
   readonly points: readonly { x: number; y: number }[];
   readonly color?: string | undefined;
   readonly label?: string | undefined;
+  readonly tooltip?: string | undefined;
   readonly mode: StorageViewMode;
   readonly selected?: boolean;
   readonly invalid?: boolean;
@@ -79,7 +81,7 @@ export function ReservedAreaShape({
   };
   return (
     <g data-area-color={base}>
-      <title>{label}</title>
+      <title>{tooltip ?? label}</title>
       <defs>
         <pattern
           id={patternId}

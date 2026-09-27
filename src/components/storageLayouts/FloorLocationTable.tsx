@@ -39,6 +39,7 @@ export function FloorLocationTable({
   onSearchChange,
   actions,
   onClearSelection,
+  groupedPositions = false,
 }: {
   readonly zones: readonly StorageZoneRow[];
   readonly selectedId?: string | undefined;
@@ -47,6 +48,7 @@ export function FloorLocationTable({
   readonly onSearchChange?: (value: string) => void;
   readonly actions?: ReactNode;
   readonly onClearSelection?: () => void;
+  readonly groupedPositions?: boolean;
 }) {
   const locale = useLocale();
   const thai = locale === "th";
@@ -119,8 +121,8 @@ export function FloorLocationTable({
   const first = currentPage * pageSize;
   const visible = sorted.slice(first, first + pageSize);
   const countText = thai
-    ? `${number.format(sorted.length ? first + 1 : 0)}–${number.format(first + visible.length)} จาก ${number.format(sorted.length)} จุดจัดเก็บ`
-    : `${number.format(sorted.length ? first + 1 : 0)}–${number.format(first + visible.length)} of ${number.format(sorted.length)} locations`;
+    ? `${number.format(sorted.length ? first + 1 : 0)}–${number.format(first + visible.length)} จาก ${number.format(sorted.length)} ${groupedPositions ? "กลุ่มตำแหน่ง" : "จุดจัดเก็บ"}`
+    : `${number.format(sorted.length ? first + 1 : 0)}–${number.format(first + visible.length)} of ${number.format(sorted.length)} ${groupedPositions ? "position groups" : "locations"}`;
   function sortHeader(key: SortKey, label: string) {
     const active = sort.key === key;
     const Icon = active ? (sort.descending ? ArrowDown : ArrowUp) : ArrowUpDown;

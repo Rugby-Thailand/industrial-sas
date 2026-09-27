@@ -3,11 +3,13 @@ import { preferences } from "@/lib/browser/storage";
 import { SceneBox, SceneLegendMark } from "@/components/storageScene/SceneBox";
 import { sceneColors } from "@/components/storageScene/sceneColors";
 import { SceneToolbar } from "@/components/storageScene/SceneToolbar";
+import { resolveAreaColor } from "@/lib/storageLayouts/areaColors";
 import {
   locationInventory,
   matchingStorageLocations as matchingFloorZones,
 } from "@/lib/storageLayouts/locationSelectors";
 import { FloorLocationTable } from "./FloorLocationTable";
+import { floorPositions, positionAisles } from "./floorPositionGeometry";
 import {
   ReservedAreaLegend,
   ReservedAreaShape,
@@ -41,7 +43,13 @@ import {
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { QrCode as LocationQrCode } from "@/features/storageKit/QrCode";
-import { useId, useState, useSyncExternalStore, type ReactNode } from "react";
+import {
+  useId,
+  useState,
+  useSyncExternalStore,
+  type KeyboardEvent,
+  type ReactNode,
+} from "react";
 
 interface Area {
   readonly color?: string;
@@ -80,18 +88,82 @@ const hasUnmeasuredInventory = (zone: StorageZoneRow) =>
   locationInventory(zone).measuredAreaPartial;
 const iconStyle =
   "size-10 bg-transparent p-0 hover:border-accent hover:bg-transparent";
+const pdGroupCode = (code: string) =>
+  code.match(/^((?:PD|F1|F2|SB)-L\d+)-\d+$/)?.[1];
+const pdCells = (zones: readonly StorageZoneRow[]) =>
+  zones.filter((zone) => pdGroupCode(zone.code) !== undefined);
+const isAisleBlock = (block: Area) =>
+  /^(?:พื้นที่ทางเดิน|ทางเดิน|(?:main\s+)?aisle|walkway)/i.test(
+    block.label.trim(),
+  );
+function areaCategory(label: string) {
+  const head = label.split(/[·:]/)[0]!.trim();
+  return (
+    head
+      .replace(/\s+(?:PD|F1|F2|SB)-L[\d.]+.*$/i, "")
+      .replace(/\s+\d+(?:\.\d+)?(?:\s*(?:m|ม\.?))?.*$/i, "")
+      .trim() || head
+  );
+}
+function groupedAreas(areas: readonly Area[]) {
+  const groups = new Map<
+    string,
+    { label: string; color: string | undefined; count: number }
+  >();
+  for (const area of areas) {
+    const label = areaCategory(area.label);
+    const key = `${resolveAreaColor(area.color)}:${label}`;
+    const existing = groups.get(key);
+    if (existing) existing.count += 1;
+    else groups.set(key, { label, color: area.color, count: 1 });
+  }
+  return [...groups.values()];
+}
+function adjacentZone(
+  zones: readonly StorageZoneRow[],
+  current: StorageZoneRow,
+  key: string,
+) {
+  const horizontal = key === "ArrowLeft" || key === "ArrowRight";
+  const sign = key === "ArrowRight" || key === "ArrowDown" ? 1 : -1;
+  const centerX = current.xMm + current.widthMm / 2;
+  const centerY = current.yMm + current.depthMm / 2;
+  return zones
+    .filter((zone) => zone.zoneId !== current.zoneId)
+    .map((zone) => {
+      const dx = zone.xMm + zone.widthMm / 2 - centerX;
+      const dy = zone.yMm + zone.depthMm / 2 - centerY;
+      const along = (horizontal ? dx : dy) * sign;
+      const across = Math.abs(horizontal ? dy : dx);
+      return { zone, along, score: along + across * 4 };
+    })
+    .filter(({ along }) => along > 0)
+    .sort((a, b) => a.score - b.score)[0]?.zone;
+}
+function groupBounds(zones: readonly StorageZoneRow[]) {
+  return {
+    xMm: Math.min(...zones.map((zone) => zone.xMm)),
+    yMm: Math.min(...zones.map((zone) => zone.yMm)),
+    widthMm:
+      Math.max(...zones.map((zone) => zone.xMm + zone.widthMm)) -
+      Math.min(...zones.map((zone) => zone.xMm)),
+    depthMm:
+      Math.max(...zones.map((zone) => zone.yMm + zone.depthMm)) -
+      Math.min(...zones.map((zone) => zone.yMm)),
+  };
+}
 
 // Presentation-only preference shared by every floor and retained across visits.
 const labelsStorageKey = "storage-planner:floor-map:show-location-labels";
 const labelsChangedEvent = "storage-planner:floor-map-labels-changed";
-let labelsFallback = true;
+let labelsFallback = false;
 let labelsStorageUnavailable = false;
 
 function readLocationLabels() {
   if (labelsStorageUnavailable) return labelsFallback;
   return preferences.read(
     labelsStorageKey,
-    (value) => (typeof value === "boolean" ? value : true),
+    (value) => (typeof value === "boolean" ? value : false),
     labelsFallback,
   );
 }
@@ -119,9 +191,17 @@ export function FloorMap(props: FloorMapProps) {
   const showLocationLabels = useSyncExternalStore(
     subscribeLocationLabels,
     readLocationLabels,
-    () => true,
+    () => false,
   );
-  const [view, setView] = useState<"3d" | "plan">("3d");
+  const [view, setView] = useState<"3d" | "plan">(
+    props.zones.length > 8 ||
+      props.blocks.length > 8 ||
+      props.zones.some(
+        (zone) => floorPositions(zone).length > 0 || pdGroupCode(zone.code),
+      )
+      ? "plan"
+      : "3d",
+  );
   const [search, setSearch] = useState("");
   const [localSelectedId, setLocalSelectedId] = useState<string>();
   const selectedId = props.onSelectionChange
@@ -139,10 +219,33 @@ export function FloorMap(props: FloorMapProps) {
   const [qr, setQr] = useState(false);
   const matches = matchingFloorZones(props.zones, search);
   const selected = props.zones.find((z) => z.zoneId === selectedId);
+  const legacyPositionCount = props.zones.reduce(
+    (count, zone) => count + floorPositions(zone).length,
+    0,
+  );
+  const pdZoneCount = pdCells(props.zones).length;
+  const aisleBlocks = props.blocks.filter(isAisleBlock);
+  const legendAreas =
+    pdZoneCount > 0
+      ? props.blocks.filter((block) => !isAisleBlock(block))
+      : props.blocks;
+  const areaGroups = groupedAreas(legendAreas);
+  const positionCount = legacyPositionCount + pdZoneCount;
+  const groupCount = new Set([
+    ...props.zones
+      .filter((zone) => floorPositions(zone).length > 0)
+      .map((zone) => zone.code),
+    ...pdCells(props.zones).map((zone) => pdGroupCode(zone.code)!),
+  ]).size;
   const select = (id: string, palletId?: string) => {
     setSelectedId(id);
     setUnitId(palletId);
     setQr(false);
+    if (
+      view === "plan" &&
+      pdGroupCode(props.zones.find((zone) => zone.zoneId === id)?.code ?? "")
+    )
+      setZoom((current) => Math.max(current, 4));
   };
   const action = (
     name: string,
@@ -214,14 +317,14 @@ export function FloorMap(props: FloorMapProps) {
             {action(
               t("mapZoomOut"),
               <ZoomOut />,
-              () => setZoom(Math.max(1, zoom - 0.25)),
+              () => setZoom(Math.max(1, zoom - (zoom > 3 ? 1 : 0.25))),
               zoom <= 1,
             )}
             {action(
               t("mapZoomIn"),
               <ZoomIn />,
-              () => setZoom(Math.min(2.5, zoom + 0.25)),
-              zoom >= 2.5,
+              () => setZoom(Math.min(8, zoom + (zoom >= 3 ? 1 : 0.25))),
+              zoom >= 8,
             )}
           </>
         }
@@ -232,7 +335,7 @@ export function FloorMap(props: FloorMapProps) {
               t("mapShowLocationLabels"),
               <Tags />,
               () => saveLocationLabels(!showLocationLabels),
-              false,
+              view === "3d" && pdZoneCount > 0,
               showLocationLabels,
             )}
             {action(t("mapFit"), <Maximize />, () => setZoom(1))}
@@ -252,7 +355,7 @@ export function FloorMap(props: FloorMapProps) {
           </>
         }
       />
-      <div className="mt-4 grid min-w-0 grid-cols-1 items-start gap-4 @min-[900px]:grid-cols-[minmax(0,1fr)_19rem]">
+      <div className="mt-4 grid min-w-0 grid-cols-1 items-start gap-4 @min-[1200px]:grid-cols-[minmax(0,1fr)_19rem]">
         <div className="min-w-0">
           <MapDrawing
             {...props}
@@ -286,7 +389,61 @@ export function FloorMap(props: FloorMapProps) {
               {t("mapSelected")}
             </span>
           </div>
-          <ReservedAreaLegend areas={props.blocks} />
+          {legendAreas.length > 6 ? (
+            <details className="mt-3 rounded-lg border border-border bg-background">
+              <summary className="cursor-pointer px-3 py-2 text-sm font-medium marker:text-muted">
+                {t("floorMapAreas", { count: legendAreas.length })}
+              </summary>
+              <div className="border-t border-border px-2 py-1">
+                <ReservedAreaLegend
+                  areas={areaGroups.map((group) => ({
+                    color: group.color,
+                    label: t("floorAreaCount", {
+                      name: group.label,
+                      count: group.count,
+                    }),
+                  }))}
+                />
+                <details className="border-t border-border text-xs text-muted">
+                  <summary className="cursor-pointer px-3 py-2">
+                    {t("floorAllAreaNames", { count: legendAreas.length })}
+                  </summary>
+                  <div className="max-h-40 overflow-y-auto">
+                    <ReservedAreaLegend areas={legendAreas} />
+                  </div>
+                </details>
+              </div>
+            </details>
+          ) : (
+            <ReservedAreaLegend areas={legendAreas} />
+          )}
+          {pdZoneCount > 0 && aisleBlocks.length > 0 && (
+            <p className="mt-2 text-xs text-muted">
+              {t("floorAisleLegend", {
+                widths: [
+                  ...new Set(
+                    aisleBlocks.map((block) =>
+                      m(Math.min(block.widthMm, block.depthMm)),
+                    ),
+                  ),
+                ]
+                  .sort((a, b) => a - b)
+                  .map((width) => width.toFixed(2))
+                  .join(", "),
+              })}
+            </p>
+          )}
+          {showLocationLabels && pdZoneCount > 0 && zoom < 2 && (
+            <p className="mt-2 text-xs text-muted">{t("floorZoomForLabels")}</p>
+          )}
+          {positionCount > 0 && (
+            <p className="mt-3 text-sm font-medium" role="status">
+              {t("floorPositionSummary", {
+                positions: positionCount,
+                zones: groupCount,
+              })}
+            </p>
+          )}
           {props.zones.length === 0 && (
             <p className="mt-3 text-sm text-muted">{t("noStorageSpots")}</p>
           )}
@@ -295,7 +452,7 @@ export function FloorMap(props: FloorMapProps) {
           id={inspectorId}
           tabIndex={-1}
           aria-label={t("mapSelected")}
-          className="min-w-0 py-2 @min-[900px]:pl-2"
+          className="min-w-0 py-2 @min-[1200px]:pl-2"
         >
           {!selected ? (
             <div className="py-6">
@@ -479,12 +636,27 @@ export function FloorMap(props: FloorMapProps) {
               </div>
             </>
           )}
+          {selected?.importNote && (
+            <p className="mb-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+              {selected.importNote}
+            </p>
+          )}
           {props.locationInspector}
         </aside>
       </div>
+      {selected &&
+        (floorPositions(selected).length > 0 || pdGroupCode(selected.code)) && (
+          <FloorPositionDetail
+            zone={selected}
+            zones={props.zones}
+            blocks={props.blocks}
+            onSelect={select}
+          />
+        )}
       <div className="mt-4 min-w-0">
         <FloorLocationTable
           zones={matches}
+          groupedPositions={legacyPositionCount > 0}
           search={search}
           onSearchChange={(value) => {
             setSearch(value);
@@ -580,6 +752,23 @@ function MapDrawing({
   const boxes = props.zones.flatMap((zone) =>
     storagePlacementBoxes(zone.placements, zone).map((box) => ({ zone, box })),
   );
+  const pdGroups = [
+    ...new Set(pdCells(props.zones).map((zone) => pdGroupCode(zone.code)!)),
+  ].map((code) => ({
+    code,
+    bounds: groupBounds(
+      props.zones.filter((zone) => pdGroupCode(zone.code) === code),
+    ),
+  }));
+  const pdGroupBounds = new Map(
+    pdGroups.map(({ code, bounds }) => [code, bounds]),
+  );
+  const hasPdCells = pdGroups.length > 0;
+  const detailedPlan =
+    hasPdCells ||
+    (view === "plan" &&
+      props.zones.some((zone) => floorPositions(zone).length > 0));
+  const compactPlan = view === "plan" && detailedPlan;
   const extents = [
     ...corners(0, 0, props.widthMm, props.depthMm),
     ...corners(0, 0, props.widthMm, props.depthMm, props.heightMm),
@@ -603,8 +792,8 @@ function MapDrawing({
     minY = Math.min(...ys),
     maxY = Math.max(...ys);
   const scale = Math.min(
-    710 / Math.max(maxX - minX, 1),
-    440 / Math.max(maxY - minY, 1),
+    (compactPlan ? 800 : 710) / Math.max(maxX - minX, 1),
+    (compactPlan ? 375 : 440) / Math.max(maxY - minY, 1),
   );
   const point = (x: number, y: number, z = 0) => {
     const p = rawPoint(x, y, z);
@@ -630,7 +819,9 @@ function MapDrawing({
     Math.ceil(Math.max(props.widthMm, props.depthMm) / 25000) * 1000,
   );
   const labels: { x: number; y: number }[] = [];
-  const zoneOrder = (showLocationLabels ? [...props.zones] : []).sort(
+  const zoneOrder = (
+    detailedPlan || !showLocationLabels ? [] : [...props.zones]
+  ).sort(
     (a, b) => Number(b.zoneId === selectedId) - Number(a.zoneId === selectedId),
   );
   const palletBounds = (showLocationLabels ? boxes : []).map(({ box }) => {
@@ -658,7 +849,7 @@ function MapDrawing({
     [...palletBounds, ...aisleBounds].some(
       (p) => x < p.right && x + 220 > p.left && y < p.bottom && y + 58 > p.top,
     );
-  const callouts = (showLocationLabels ? zoneOrder : []).map((zone) => {
+  const callouts = zoneOrder.map((zone) => {
     const anchor = point(
       zone.xMm + zone.widthMm / 2,
       zone.yMm + zone.depthMm / 2,
@@ -720,13 +911,14 @@ function MapDrawing({
     <svg
       role="group"
       aria-label={t("mapTitle")}
-      viewBox="0 0 920 660"
-      className="aspect-[1.4] max-h-[40rem] w-full rounded-xl border border-border bg-background"
+      viewBox={compactPlan ? "0 80 920 500" : "0 0 920 660"}
+      className={`w-full rounded-xl border border-border bg-background ${compactPlan ? "aspect-[1.84] max-h-[40rem] min-h-[18rem]" : "aspect-[1.4] max-h-[40rem]"}`}
       onKeyDown={(e) => {
         if (e.key === "Escape") e.currentTarget.focus();
       }}
       tabIndex={-1}
     >
+      <desc>{t("mapKeyboardHint")}</desc>
       <g
         transform={`translate(${460 - center.x * zoom} ${330 - center.y * zoom}) scale(${zoom})`}
       >
@@ -802,19 +994,39 @@ function MapDrawing({
           },
         )}
         {props.blocks.map((b, i) => (
-          <g key={i} data-unavailable-area="true">
-            <ReservedAreaShape
-              color={b.color}
-              label={b.label}
-              mode={view}
-              fontSize={17}
-              points={rect(b.xMm, b.yMm, b.widthMm, b.depthMm)}
-            />
+          <g key={i} data-unavailable-area="true" aria-hidden="true">
+            {hasPdCells && view === "plan" ? (
+              <polygon
+                points={pts(rect(b.xMm, b.yMm, b.widthMm, b.depthMm))}
+                fill={b.color ?? "#ffb68e"}
+              >
+                <title>{b.label}</title>
+              </polygon>
+            ) : (
+              <ReservedAreaShape
+                color={b.color}
+                tooltip={b.label}
+                mode={view}
+                fontSize={17}
+                points={rect(b.xMm, b.yMm, b.widthMm, b.depthMm)}
+              />
+            )}
           </g>
         ))}
         {props.zones.map((zone) => {
           const active = zone.zoneId === selectedId;
+          const shortCode = zone.code.split("-").at(-1)!;
           const base = rect(zone.xMm, zone.yMm, zone.widthMm, zone.depthMm);
+          const cellWidth = Math.abs(base[1]!.x - base[0]!.x) * zoom;
+          const cellHeight = Math.abs(base[3]!.y - base[0]!.y) * zoom;
+          const group = pdGroupBounds.get(pdGroupCode(zone.code) ?? "");
+          const markerInFirstRow =
+            group &&
+            !(group.xMm <= 1500 && group.widthMm >= 6000) &&
+            zone.yMm === group.yMm;
+          const codeFits =
+            cellWidth >= shortCode.length * 8 + 10 &&
+            cellHeight >= (markerInFirstRow ? 38 : 20);
           const top = rect(
             zone.xMm,
             zone.yMm,
@@ -826,7 +1038,10 @@ function MapDrawing({
             <g
               key={zone.zoneId}
               role="button"
-              tabIndex={0}
+              data-map-zone-id={zone.zoneId}
+              tabIndex={
+                zone.zoneId === (selectedId ?? props.zones[0]?.zoneId) ? 0 : -1
+              }
               aria-label={t("mapSelectLocation", { name: zone.label })}
               aria-pressed={active}
               onClick={() => onSelect(zone.zoneId)}
@@ -834,6 +1049,25 @@ function MapDrawing({
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
                   onSelect(zone.zoneId);
+                } else if (
+                  ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(
+                    e.key,
+                  )
+                ) {
+                  e.preventDefault();
+                  const next = adjacentZone(props.zones, zone, e.key);
+                  if (!next) return;
+                  onSelect(next.zoneId);
+                  const controls = e.currentTarget
+                    .closest("svg")
+                    ?.querySelectorAll<SVGGElement>("[data-map-zone-id]");
+                  [...(controls ?? [])]
+                    .find(
+                      (control) =>
+                        control.getAttribute("data-map-zone-id") ===
+                        next.zoneId,
+                    )
+                    ?.focus();
                 }
               }}
               className="group cursor-pointer outline-none"
@@ -844,12 +1078,130 @@ function MapDrawing({
                 data-zone-id={zone.zoneId}
                 data-height-envelope={view === "3d" ? "true" : undefined}
               >
-                <SceneBox
-                  points={[...base, ...top]}
-                  mode={view}
-                  kind="location"
-                  selected={active}
-                />
+                {!(view === "plan" && pdGroupCode(zone.code)) && (
+                  <SceneBox
+                    points={[...base, ...top]}
+                    mode={view}
+                    kind="location"
+                    selected={active}
+                  />
+                )}
+                {view === "plan" && pdGroupCode(zone.code) && (
+                  <>
+                    <polygon
+                      data-pd-cell-code={zone.code}
+                      points={pts(base)}
+                      fill="#83a8b1"
+                      stroke={active ? sceneColors.selected : "#48646b"}
+                      strokeWidth={active ? 3 : 0.75}
+                      vectorEffect="non-scaling-stroke"
+                    />
+                    {(active || showLocationLabels) && codeFits && (
+                      <text
+                        x={
+                          point(
+                            zone.xMm + zone.widthMm / 2,
+                            zone.yMm + zone.depthMm / 2,
+                          ).x
+                        }
+                        y={
+                          point(
+                            zone.xMm + zone.widthMm / 2,
+                            zone.yMm + zone.depthMm / 2,
+                          ).y
+                        }
+                        textAnchor="middle"
+                        dominantBaseline="middle"
+                        fill="#172329"
+                        fontSize={13 / zoom}
+                        fontWeight="700"
+                        className="pointer-events-none"
+                      >
+                        {shortCode}
+                      </text>
+                    )}
+                  </>
+                )}
+                {view === "plan" && floorPositions(zone).length > 0 && (
+                  <>
+                    <polygon points={pts(base)} fill="#ffb68e" />
+                    {floorPositions(zone).map((position) => (
+                      <polygon
+                        key={position.code}
+                        data-position-code={position.code}
+                        points={pts(
+                          rect(
+                            position.xMm!,
+                            position.yMm!,
+                            position.widthMm!,
+                            position.depthMm!,
+                          ),
+                        )}
+                        fill="#83a8b1"
+                        stroke="#263640"
+                        strokeWidth="1"
+                        strokeDasharray="3 3"
+                        vectorEffect="non-scaling-stroke"
+                      >
+                        <title>{position.code}</title>
+                      </polygon>
+                    ))}
+                    {positionAisles(zone).map((aisle, index) => (
+                      <polygon
+                        key={`aisle-${index}`}
+                        data-aisle-width-mm={Math.min(
+                          aisle.widthMm,
+                          aisle.depthMm,
+                        )}
+                        points={pts(
+                          rect(
+                            aisle.xMm,
+                            aisle.yMm,
+                            aisle.widthMm,
+                            aisle.depthMm,
+                          ),
+                        )}
+                        fill="#ffb68e"
+                      >
+                        <title>{`${m(Math.min(aisle.widthMm, aisle.depthMm))} m aisle`}</title>
+                      </polygon>
+                    ))}
+                    <polygon
+                      points={pts(base)}
+                      fill="none"
+                      stroke={active ? sceneColors.selected : "#263640"}
+                      strokeWidth={active ? 3 : 1}
+                      vectorEffect="non-scaling-stroke"
+                    />
+                    {showLocationLabels && (
+                      <text
+                        x={
+                          point(
+                            zone.xMm + zone.widthMm / 2,
+                            zone.yMm + zone.depthMm / 2,
+                          ).x
+                        }
+                        y={
+                          point(
+                            zone.xMm + zone.widthMm / 2,
+                            zone.yMm + zone.depthMm / 2,
+                          ).y
+                        }
+                        textAnchor="middle"
+                        dominantBaseline="middle"
+                        fill="#172329"
+                        stroke="#c7dcdf"
+                        strokeWidth={3 / zoom}
+                        paintOrder="stroke"
+                        fontSize={13 / zoom}
+                        fontWeight="700"
+                        className="pointer-events-none"
+                      >
+                        {zone.code}
+                      </text>
+                    )}
+                  </>
+                )}
               </g>
             </g>
           );
@@ -878,7 +1230,13 @@ function MapDrawing({
                 data-placement-z-mm={box.zMm}
                 data-placement-status={p.status ?? "STORED"}
                 role="button"
-                tabIndex={0}
+                tabIndex={
+                  zone.zoneId === selectedId &&
+                  p.placementId ===
+                    (selectedUnit ?? zone.placements[0]?.placementId)
+                    ? 0
+                    : -1
+                }
                 aria-label={`${p.lpn} · ${t(placementStatusKey(p))}`}
                 onClick={() => onSelect(zone.zoneId, p.placementId)}
                 onKeyDown={(e) => {
@@ -901,6 +1259,59 @@ function MapDrawing({
                   held={held}
                   source={p.moveRole === "SOURCE"}
                 />
+              </g>
+            );
+          })}
+        {view === "plan" &&
+          pdGroups.map(({ code, bounds }) => {
+            const labelWidth = Math.abs(
+              point(bounds.xMm + bounds.widthMm, bounds.yMm).x -
+                point(bounds.xMm, bounds.yMm).x,
+            );
+            const hasLeftGutter = bounds.xMm <= 1500 && bounds.widthMm >= 6000;
+            const groupNumber = code.match(/-L(\d+)$/i)?.[1];
+            const abbreviated = groupNumber ? `L${groupNumber}` : code;
+            const candidates = [code, abbreviated, groupNumber].filter(
+              (label): label is string => Boolean(label),
+            );
+            const label = hasLeftGutter
+              ? code
+              : candidates.find(
+                  (candidate) => labelWidth * zoom >= candidate.length * 6 + 4,
+                );
+            if (!label) return null;
+            const chipWidth = (label.length * 6 + 4) / zoom;
+            const anchor = point(
+              hasLeftGutter ? 0 : bounds.xMm + bounds.widthMm / 2,
+              hasLeftGutter ? bounds.yMm + bounds.depthMm / 2 : bounds.yMm,
+            );
+            return (
+              <g key={code} className="pointer-events-none">
+                {!hasLeftGutter && (
+                  <rect
+                    x={anchor.x - chipWidth / 2}
+                    y={anchor.y}
+                    width={chipWidth}
+                    height={11 / zoom}
+                    rx={3 / zoom}
+                    fill="#172329"
+                  />
+                )}
+                <text
+                  data-group-code={code}
+                  x={hasLeftGutter ? anchor.x - 8 / zoom : anchor.x}
+                  y={hasLeftGutter ? anchor.y : anchor.y + 5.5 / zoom}
+                  textAnchor={hasLeftGutter ? "end" : "middle"}
+                  dominantBaseline="middle"
+                  fill={hasLeftGutter ? "#172329" : "#fff"}
+                  stroke={hasLeftGutter ? "#c7dcdf" : "none"}
+                  strokeWidth={hasLeftGutter ? 3 / zoom : undefined}
+                  paintOrder="stroke"
+                  fontSize={(hasLeftGutter ? 13 : 10) / zoom}
+                  fontWeight="700"
+                >
+                  {label}
+                </text>
               </g>
             );
           })}
@@ -1002,5 +1413,174 @@ function MapDrawing({
           ))}
       </g>
     </svg>
+  );
+}
+
+function FloorPositionDetail({
+  zone,
+  zones,
+  blocks,
+  onSelect,
+}: {
+  readonly zone: StorageZoneRow;
+  readonly zones: readonly StorageZoneRow[];
+  readonly blocks: readonly Area[];
+  readonly onSelect: (id: string) => void;
+}) {
+  const t = useTranslations("StorageLayouts");
+  const groupCode = pdGroupCode(zone.code);
+  const groupZones = groupCode
+    ? zones.filter((candidate) => pdGroupCode(candidate.code) === groupCode)
+    : [];
+  const bounds = groupCode ? groupBounds(groupZones) : zone;
+  const cells = groupCode
+    ? groupZones.map((candidate) => ({ ...candidate, id: candidate.zoneId }))
+    : floorPositions(zone).map((position) => ({
+        ...position,
+        id: undefined,
+        xMm: position.xMm!,
+        yMm: position.yMm!,
+        widthMm: position.widthMm!,
+        depthMm: position.depthMm!,
+      }));
+  const aisles = groupCode
+    ? blocks.filter(isAisleBlock).flatMap((block) => {
+        const xMm = Math.max(block.xMm, bounds.xMm);
+        const yMm = Math.max(block.yMm, bounds.yMm);
+        const right = Math.min(
+          block.xMm + block.widthMm,
+          bounds.xMm + bounds.widthMm,
+        );
+        const bottom = Math.min(
+          block.yMm + block.depthMm,
+          bounds.yMm + bounds.depthMm,
+        );
+        return right > xMm && bottom > yMm
+          ? [{ xMm, yMm, widthMm: right - xMm, depthMm: bottom - yMm }]
+          : [];
+      })
+    : positionAisles(zone);
+  const titleCode = groupCode ?? zone.code;
+  return (
+    <section
+      className="mt-5 min-w-0 rounded-xl border border-border p-3 sm:p-4"
+      aria-label={t("floorPositionDetail", { code: titleCode })}
+    >
+      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+        <h3 className="font-semibold">
+          {t("floorPositionDetail", { code: titleCode })}
+        </h3>
+        <p className="text-sm text-muted">
+          {t("floorPositionCount", { count: cells.length })}
+        </p>
+      </div>
+      <div className="overflow-x-auto">
+        <svg
+          role="group"
+          aria-label={t("floorPositionDetail", { code: titleCode })}
+          viewBox={`0 0 ${bounds.widthMm} ${bounds.depthMm}`}
+          className="w-full min-w-[640px] border border-border bg-[#ffb68e]"
+        >
+          <desc>{t("mapKeyboardHint")}</desc>
+          {cells.map((position) => {
+            const x = position.xMm - bounds.xMm;
+            const y = position.yMm - bounds.yMm;
+            return (
+              <g
+                key={position.code}
+                data-detail-position-code={position.code}
+                {...(position.id === undefined
+                  ? {}
+                  : {
+                      role: "button",
+                      tabIndex: position.id === zone.zoneId ? 0 : -1,
+                      "aria-label": t("mapSelectLocation", {
+                        name: position.code,
+                      }),
+                      "aria-pressed": position.id === zone.zoneId,
+                      onClick: () => onSelect(position.id!),
+                      onKeyDown: (event: KeyboardEvent<SVGGElement>) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          onSelect(position.id!);
+                        } else if (
+                          [
+                            "ArrowLeft",
+                            "ArrowRight",
+                            "ArrowUp",
+                            "ArrowDown",
+                          ].includes(event.key)
+                        ) {
+                          event.preventDefault();
+                          const current = groupZones.find(
+                            (candidate) => candidate.zoneId === position.id,
+                          );
+                          const next =
+                            current &&
+                            adjacentZone(groupZones, current, event.key);
+                          if (!next) return;
+                          onSelect(next.zoneId);
+                          const controls = event.currentTarget
+                            .closest("svg")
+                            ?.querySelectorAll<SVGGElement>(
+                              "[data-detail-position-code]",
+                            );
+                          [...(controls ?? [])]
+                            .find(
+                              (control) =>
+                                control.getAttribute(
+                                  "data-detail-position-code",
+                                ) === next.code,
+                            )
+                            ?.focus();
+                        }
+                      },
+                    })}
+              >
+                <rect
+                  x={x}
+                  y={y}
+                  width={position.widthMm}
+                  height={position.depthMm}
+                  fill="#83a8b1"
+                  stroke={position.id === zone.zoneId ? "#4d57c3" : "#263640"}
+                  strokeWidth="14"
+                  strokeDasharray="40 35"
+                />
+                <text
+                  x={x + position.widthMm / 2}
+                  y={y + position.depthMm / 2}
+                  dominantBaseline="middle"
+                  textAnchor="middle"
+                  fill="#172329"
+                  fontSize="140"
+                  fontWeight="700"
+                >
+                  {position.code}
+                </text>
+              </g>
+            );
+          })}
+          {aisles.map((aisle, index) => {
+            const width = Math.min(aisle.widthMm, aisle.depthMm);
+            return (
+              <g key={index} data-detail-aisle-width-mm={width}>
+                <text
+                  x={aisle.xMm - bounds.xMm + aisle.widthMm / 2}
+                  y={aisle.yMm - bounds.yMm + aisle.depthMm / 2}
+                  dominantBaseline="middle"
+                  textAnchor="middle"
+                  fill="#172329"
+                  fontSize={Math.min(180, width * 0.55)}
+                  fontWeight="700"
+                >
+                  {t("floorAisleWidth", { width: m(width) })}
+                </text>
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+    </section>
   );
 }
