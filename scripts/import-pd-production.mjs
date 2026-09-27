@@ -186,6 +186,7 @@ async function main() {
     "legacyZones",
     "legacyPositions",
     "legacyLocations",
+    "jobScans",
   ])
     assert.deepEqual(
       after.backup[table],

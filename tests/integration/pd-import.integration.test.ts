@@ -372,7 +372,9 @@ describe("PD guarded import", () => {
       const w = await setup();
       await addLegacy(w);
       await w.world.t.run(async (ctx) => {
-        const zone = (await ctx.db.query("storageZones").collect()).find((z) => z.status === "INACTIVE")!;
+        const zone = (await ctx.db.query("storageZones").collect()).find(
+          (z) => z.status === "INACTIVE",
+        )!;
         const productId = await ctx.db.insert("finishedGoodsProducts", {
           orgId: w.world.orgA,
           warehouseId: w.target.warehouseId,

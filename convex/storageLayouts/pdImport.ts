@@ -262,6 +262,27 @@ async function snapshot(ctx: TenantFunctionContext, args: Target) {
       ),
     ),
   );
+  const zoneIds = new Set(allZones.map((z) => z._id));
+  const positionIds = new Set(
+    [...positions, ...legacyPositions].map((p) => p._id),
+  );
+  const codes = new Set(allZones.map((z) => z.code));
+  const jobScans = ordered(
+    (
+      await db
+        .byIndex<Doc<"finishedGoodsJobScans">>(
+          "finishedGoodsJobScans",
+          "by_orgId_warehouseId_createdAt",
+          [{ field: "warehouseId", value: args.warehouseId }],
+        )
+        .all(10000)
+    ).filter(
+      (s) =>
+        (s.zoneId && zoneIds.has(s.zoneId)) ||
+        (s.supportPositionId && positionIds.has(s.supportPositionId)) ||
+        (s.locationCode && codes.has(s.locationCode)),
+    ),
+  );
   return {
     warehouse,
     building,
@@ -277,6 +298,7 @@ async function snapshot(ctx: TenantFunctionContext, args: Target) {
     moves,
     assignments,
     pallets,
+    jobScans,
   };
 }
 type Snapshot = Awaited<ReturnType<typeof snapshot>>;
