@@ -45,9 +45,11 @@ import { useTranslations } from "next-intl";
 import { QrCode as LocationQrCode } from "@/features/storageKit/QrCode";
 import {
   useId,
+  useRef,
   useState,
   useSyncExternalStore,
   type KeyboardEvent,
+  type PointerEvent,
   type ReactNode,
 } from "react";
 
@@ -86,6 +88,10 @@ const floorZoneUnitCount = (zone: StorageZoneRow) =>
   locationInventory(zone).units;
 const hasUnmeasuredInventory = (zone: StorageZoneRow) =>
   locationInventory(zone).measuredAreaPartial;
+// Zoom level from which every storage position shows its number.
+const labelZoom = 2;
+// Pointer travel, in screen pixels, before a press becomes a map drag.
+const dragThreshold = 4;
 const iconStyle =
   "size-10 bg-transparent p-0 hover:border-accent hover:bg-transparent";
 const pdGroupCode = (code: string) =>
@@ -193,15 +199,16 @@ export function FloorMap(props: FloorMapProps) {
     readLocationLabels,
     () => false,
   );
-  const [view, setView] = useState<"3d" | "plan">(
-    props.zones.length > 8 ||
-      props.blocks.length > 8 ||
-      props.zones.some(
-        (zone) => floorPositions(zone).length > 0 || pdGroupCode(zone.code),
-      )
+  const [preferredView, setPreferredView] = useState<"3d" | "plan">();
+  const view =
+    preferredView ??
+    (props.zones.length > 8 ||
+    props.blocks.length > 8 ||
+    props.zones.some(
+      (zone) => floorPositions(zone).length > 0 || pdGroupCode(zone.code),
+    )
       ? "plan"
-      : "3d",
-  );
+      : "3d");
   const [search, setSearch] = useState("");
   const [localSelectedId, setLocalSelectedId] = useState<string>();
   const selectedId = props.onSelectionChange
@@ -213,6 +220,9 @@ export function FloorMap(props: FloorMapProps) {
   };
   const [unitId, setUnitId] = useState<string>();
   const [zoom, setZoom] = useState(1);
+  // Map point kept at the frame centre after a drag; undefined follows the selection.
+  const [focus, setFocus] = useState<{ x: number; y: number }>();
+  const [areaIndex, setAreaIndex] = useState<number>();
   const [rotation, setRotation] = useState(0);
   const [reference, setReference] = useState(false);
   const [offsetEditing, setOffsetEditing] = useState(false);
@@ -237,16 +247,44 @@ export function FloorMap(props: FloorMapProps) {
       .map((zone) => zone.code),
     ...pdCells(props.zones).map((zone) => pdGroupCode(zone.code)!),
   ]).size;
+  const clearSelection = () => {
+    setSelectedId(undefined);
+    setUnitId(undefined);
+    setAreaIndex(undefined);
+    setQr(false);
+    setFocus(undefined);
+  };
+  const fit = () => {
+    setZoom(1);
+    setFocus(undefined);
+  };
   const select = (id: string, palletId?: string) => {
     setSelectedId(id);
     setUnitId(palletId);
+    setAreaIndex(undefined);
     setQr(false);
+    setFocus(undefined);
     if (
       view === "plan" &&
       pdGroupCode(props.zones.find((zone) => zone.zoneId === id)?.code ?? "")
     )
       setZoom((current) => Math.max(current, 4));
   };
+  const selectMapLocation = (id: string, palletId?: string) => {
+    if (id === selectedId && palletId === undefined) {
+      clearSelection();
+      fit();
+    } else {
+      select(id, palletId);
+    }
+  };
+  const selectArea = (index: number) => {
+    clearSelection();
+    if (index === areaIndex) fit();
+    else setAreaIndex(index);
+  };
+  const selectedArea =
+    areaIndex === undefined ? undefined : props.blocks[areaIndex];
   const action = (
     name: string,
     icon: ReactNode,
@@ -286,11 +324,7 @@ export function FloorMap(props: FloorMapProps) {
       aria-label={t("mapTitle")}
       className="@container min-w-0 rounded-2xl border border-border bg-surface p-4 sm:p-5"
       onKeyDown={(event) => {
-        if (event.key === "Escape") {
-          setSelectedId(undefined);
-          setUnitId(undefined);
-          setQr(false);
-        }
+        if (event.key === "Escape") clearSelection();
       }}
     >
       <SceneToolbar
@@ -309,7 +343,10 @@ export function FloorMap(props: FloorMapProps) {
           <>
             <StorageViewModeToggle
               value={view}
-              onChange={setView}
+              onChange={(next) => {
+                setPreferredView(next);
+                setFocus(undefined);
+              }}
               label={t("viewMode")}
               planLabel={t("planView")}
               threeDLabel={t("threeDView")}
@@ -317,7 +354,11 @@ export function FloorMap(props: FloorMapProps) {
             {action(
               t("mapZoomOut"),
               <ZoomOut />,
-              () => setZoom(Math.max(1, zoom - (zoom > 3 ? 1 : 0.25))),
+              () => {
+                const next = Math.max(1, zoom - (zoom > 3 ? 1 : 0.25));
+                setZoom(next);
+                if (next === 1) setFocus(undefined);
+              },
               zoom <= 1,
             )}
             {action(
@@ -338,17 +379,23 @@ export function FloorMap(props: FloorMapProps) {
               view === "3d" && pdZoneCount > 0,
               showLocationLabels,
             )}
-            {action(t("mapFit"), <Maximize />, () => setZoom(1))}
+            {action(t("mapFit"), <Maximize />, fit)}
             {action(
               t("mapRotate"),
               <RotateCw />,
-              () => setRotation((rotation + 1) % 4),
+              () => {
+                setRotation((rotation + 1) % 4);
+                setFocus(undefined);
+              },
               view === "plan",
             )}
             {action(
               props.baseLabel,
               <Layers3 />,
-              () => setReference(!reference),
+              () => {
+                setReference(!reference);
+                setFocus(undefined);
+              },
               false,
               reference,
             )}
@@ -362,13 +409,17 @@ export function FloorMap(props: FloorMapProps) {
             view={view}
             rotation={rotation}
             zoom={zoom}
+            focus={focus}
+            onFocusChange={setFocus}
+            selectedAreaIndex={areaIndex}
+            onSelectArea={selectArea}
             reference={reference}
             showLocationLabels={showLocationLabels}
             selectedId={selected?.zoneId}
             selectedUnit={unitId}
             matchIds={matches.map((z) => z.zoneId)}
             searching={!!search.trim()}
-            onSelect={select}
+            onSelect={selectMapLocation}
           />
 
           <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-sm text-muted">
@@ -433,7 +484,7 @@ export function FloorMap(props: FloorMapProps) {
               })}
             </p>
           )}
-          {showLocationLabels && pdZoneCount > 0 && zoom < 2 && (
+          {pdZoneCount > 0 && zoom < labelZoom && (
             <p className="mt-2 text-xs text-muted">{t("floorZoomForLabels")}</p>
           )}
           {positionCount > 0 && (
@@ -454,7 +505,27 @@ export function FloorMap(props: FloorMapProps) {
           aria-label={t("mapSelected")}
           className="min-w-0 py-2 @min-[1200px]:pl-2"
         >
-          {!selected ? (
+          {!selected && selectedArea ? (
+            <div data-selected-area="true">
+              <div className="flex items-start justify-between gap-2">
+                <h3 className="min-w-0 text-lg font-semibold break-words">
+                  {selectedArea.label}
+                </h3>
+                {action(t("mapClearSelection"), <X />, clearSelection)}
+              </div>
+              <p className="mt-3 flex items-center gap-2 text-sm">
+                <span
+                  aria-hidden="true"
+                  className="size-3 shrink-0 rounded-sm border border-border"
+                  style={{
+                    backgroundColor: resolveAreaColor(selectedArea.color),
+                  }}
+                />
+                {m(selectedArea.widthMm)} × {m(selectedArea.depthMm)} m
+              </p>
+              <p className="mt-2 text-sm text-muted">{t("mapAreaNoStorage")}</p>
+            </div>
+          ) : !selected ? (
             <div className="py-6">
               <QrCode className="mb-3 size-6 text-muted" />
               <p className="font-medium">{t("mapChoose")}</p>
@@ -471,10 +542,7 @@ export function FloorMap(props: FloorMapProps) {
                     {selected.code}
                   </p>
                 </div>
-                {action(t("mapClearSelection"), <X />, () => {
-                  setSelectedId(undefined);
-                  setUnitId(undefined);
-                })}
+                {action(t("mapClearSelection"), <X />, clearSelection)}
               </div>
               <p className="mt-3 text-sm">
                 {m(selected.widthMm)} × {m(selected.depthMm)} ×{" "}
@@ -661,15 +729,10 @@ export function FloorMap(props: FloorMapProps) {
           onSearchChange={(value) => {
             setSearch(value);
             const found = matchingFloorZones(props.zones, value);
-            if (!found.some((zone) => zone.zoneId === selectedId)) {
-              setSelectedId(undefined);
-              setUnitId(undefined);
-            }
+            if (!found.some((zone) => zone.zoneId === selectedId))
+              clearSelection();
           }}
-          onClearSelection={() => {
-            setSelectedId(undefined);
-            setUnitId(undefined);
-          }}
+          onClearSelection={clearSelection}
           actions={
             <>
               {selected ? (
@@ -711,6 +774,10 @@ function MapDrawing({
   view,
   rotation,
   zoom,
+  focus,
+  onFocusChange,
+  selectedAreaIndex,
+  onSelectArea,
   reference,
   showLocationLabels,
   selectedId,
@@ -723,6 +790,10 @@ function MapDrawing({
   view: "3d" | "plan";
   rotation: number;
   zoom: number;
+  focus: { x: number; y: number } | undefined;
+  onFocusChange: (focus: { x: number; y: number }) => void;
+  selectedAreaIndex: number | undefined;
+  onSelectArea: (index: number) => void;
   reference: boolean;
   showLocationLabels: boolean;
   selectedId: string | undefined;
@@ -732,6 +803,14 @@ function MapDrawing({
   onSelect: (id: string, palletId?: string) => void;
 }) {
   const t = useTranslations("StorageLayouts");
+  const drag = useRef<{
+    pointerId: number;
+    x: number;
+    y: number;
+    focus: { x: number; y: number };
+    moved: boolean;
+  }>(null);
+  const [dragging, setDragging] = useState(false);
   const rawPoint = (x: number, y: number, z = 0) => {
     const dx = x - props.widthMm / 2,
       dy = y - props.depthMm / 2;
@@ -900,21 +979,102 @@ function MapDrawing({
     return { zone, anchor, x, y, unitCount };
   });
   const selected = props.zones.find((z) => z.zoneId === selectedId);
-  const center =
-    selected && zoom > 1
-      ? point(
-          selected.xMm + selected.widthMm / 2,
-          selected.yMm + selected.depthMm / 2,
-        )
-      : { x: 460, y: 330 };
+  const selectedArea =
+    selectedAreaIndex === undefined
+      ? undefined
+      : props.blocks[selectedAreaIndex];
+  const target = selected ?? selectedArea;
+  const frame = compactPlan
+    ? { x: 0, y: 80, width: 920, height: 500 }
+    : { x: 0, y: 0, width: 920, height: 660 };
+  const pannable = zoom > 1;
+  // Keep the floor covering the frame (or fully inside it when smaller).
+  const clampAxis = (value: number, min: number, max: number, half: number) => {
+    const a = min + half / zoom,
+      b = max - half / zoom;
+    return Math.min(Math.max(value, Math.min(a, b)), Math.max(a, b));
+  };
+  const clampFocus = (p: { x: number; y: number }) => ({
+    x: clampAxis(
+      p.x,
+      460 - ((maxX - minX) / 2) * scale,
+      460 + ((maxX - minX) / 2) * scale,
+      frame.width / 2,
+    ),
+    y: clampAxis(
+      p.y,
+      320 - ((maxY - minY) / 2) * scale,
+      320 + ((maxY - minY) / 2) * scale,
+      frame.height / 2,
+    ),
+  });
+  const center = !pannable
+    ? { x: 460, y: 330 }
+    : clampFocus(
+        focus ??
+          (target
+            ? point(
+                target.xMm + target.widthMm / 2,
+                target.yMm + target.depthMm / 2,
+              )
+            : { x: 460, y: 330 }),
+      );
+  const endDrag = (e: PointerEvent<SVGSVGElement>) => {
+    if (drag.current?.pointerId !== e.pointerId) return;
+    if (!drag.current.moved) drag.current = null;
+    setDragging(false);
+  };
   return (
     <svg
       role="group"
       aria-label={t("mapTitle")}
-      viewBox={compactPlan ? "0 80 920 500" : "0 0 920 660"}
-      className={`w-full rounded-xl border border-border bg-background ${compactPlan ? "aspect-[1.84] max-h-[40rem] min-h-[18rem]" : "aspect-[1.4] max-h-[40rem]"}`}
+      viewBox={`${frame.x} ${frame.y} ${frame.width} ${frame.height}`}
+      className={`w-full rounded-xl border border-border bg-background ${compactPlan ? "aspect-[1.84] max-h-[40rem] min-h-[18rem]" : "aspect-[1.4] max-h-[40rem]"} ${pannable ? (dragging ? "cursor-grabbing select-none [&_*]:cursor-grabbing" : "cursor-grab") : ""}`}
+      style={pannable ? { touchAction: "none" } : undefined}
       onKeyDown={(e) => {
         if (e.key === "Escape") e.currentTarget.focus();
+      }}
+      onPointerDown={(e) => {
+        drag.current = null;
+        if (!pannable || e.button !== 0) return;
+        drag.current = {
+          pointerId: e.pointerId,
+          x: e.clientX,
+          y: e.clientY,
+          focus: center,
+          moved: false,
+        };
+      }}
+      onPointerMove={(e) => {
+        const current = drag.current;
+        if (!current || current.pointerId !== e.pointerId) return;
+        const dx = e.clientX - current.x,
+          dy = e.clientY - current.y;
+        if (!current.moved) {
+          if (Math.hypot(dx, dy) < dragThreshold) return;
+          current.moved = true;
+          setDragging(true);
+          e.currentTarget.setPointerCapture?.(e.pointerId);
+        }
+        // Screen pixels → viewBox units (uniform "meet" scaling) → map units.
+        const box = e.currentTarget.getBoundingClientRect();
+        const unit =
+          box.width > 0 && box.height > 0
+            ? Math.max(frame.width / box.width, frame.height / box.height)
+            : 1;
+        onFocusChange(
+          clampFocus({
+            x: current.focus.x - (dx * unit) / zoom,
+            y: current.focus.y - (dy * unit) / zoom,
+          }),
+        );
+      }}
+      onPointerUp={endDrag}
+      onPointerCancel={endDrag}
+      onClickCapture={(e) => {
+        // A drag that ends over a location must not also select it.
+        if (drag.current?.moved) e.stopPropagation();
+        drag.current = null;
       }}
       tabIndex={-1}
     >
@@ -993,26 +1153,55 @@ function MapDrawing({
             );
           },
         )}
-        {props.blocks.map((b, i) => (
-          <g key={i} data-unavailable-area="true" aria-hidden="true">
-            {hasPdCells && view === "plan" ? (
-              <polygon
-                points={pts(rect(b.xMm, b.yMm, b.widthMm, b.depthMm))}
-                fill={b.color ?? "#ffb68e"}
-              >
-                <title>{b.label}</title>
-              </polygon>
-            ) : (
-              <ReservedAreaShape
-                color={b.color}
-                tooltip={b.label}
-                mode={view}
-                fontSize={17}
-                points={rect(b.xMm, b.yMm, b.widthMm, b.depthMm)}
-              />
-            )}
-          </g>
-        ))}
+        {props.blocks.map((b, i) => {
+          const selectable = !isAisleBlock(b);
+          const active = i === selectedAreaIndex;
+          return (
+            <g
+              key={i}
+              data-unavailable-area="true"
+              {...(selectable
+                ? {
+                    role: "button",
+                    tabIndex: 0,
+                    "aria-label": t("mapSelectArea", { name: b.label }),
+                    "aria-pressed": active,
+                    className:
+                      "group cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-text",
+                    onClick: () => onSelectArea(i),
+                    onKeyDown: (e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        onSelectArea(i);
+                      }
+                    },
+                  }
+                : { "aria-hidden": true })}
+            >
+              {hasPdCells && view === "plan" ? (
+                <polygon
+                  points={pts(rect(b.xMm, b.yMm, b.widthMm, b.depthMm))}
+                  fill={b.color ?? "#ffb68e"}
+                  stroke={active ? sceneColors.selected : undefined}
+                  strokeWidth={active ? 3 : undefined}
+                  vectorEffect="non-scaling-stroke"
+                  className="group-focus-visible:stroke-text"
+                >
+                  <title>{b.label}</title>
+                </polygon>
+              ) : (
+                <ReservedAreaShape
+                  color={b.color}
+                  tooltip={b.label}
+                  mode={view}
+                  fontSize={17}
+                  selected={active}
+                  points={rect(b.xMm, b.yMm, b.widthMm, b.depthMm)}
+                />
+              )}
+            </g>
+          );
+        })}
         {props.zones.map((zone) => {
           const active = zone.zoneId === selectedId;
           const shortCode = zone.code.split("-").at(-1)!;
@@ -1070,10 +1259,14 @@ function MapDrawing({
                     ?.focus();
                 }
               }}
-              className="group cursor-pointer outline-none"
+              className="group cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-text"
               opacity={searching && !matchIds.includes(zone.zoneId) ? 0.3 : 1}
             >
-              <title>{`${zone.label} · ${zone.code}`}</title>
+              <title>
+                {zone.label === zone.code
+                  ? zone.code
+                  : `${zone.label} · ${zone.code}`}
+              </title>
               <g
                 data-zone-id={zone.zoneId}
                 data-height-envelope={view === "3d" ? "true" : undefined}
@@ -1095,31 +1288,33 @@ function MapDrawing({
                       stroke={active ? sceneColors.selected : "#48646b"}
                       strokeWidth={active ? 3 : 0.75}
                       vectorEffect="non-scaling-stroke"
+                      className="group-focus-visible:stroke-text"
                     />
-                    {(active || showLocationLabels) && codeFits && (
-                      <text
-                        x={
-                          point(
-                            zone.xMm + zone.widthMm / 2,
-                            zone.yMm + zone.depthMm / 2,
-                          ).x
-                        }
-                        y={
-                          point(
-                            zone.xMm + zone.widthMm / 2,
-                            zone.yMm + zone.depthMm / 2,
-                          ).y
-                        }
-                        textAnchor="middle"
-                        dominantBaseline="middle"
-                        fill="#172329"
-                        fontSize={13 / zoom}
-                        fontWeight="700"
-                        className="pointer-events-none"
-                      >
-                        {shortCode}
-                      </text>
-                    )}
+                    {(active || showLocationLabels || zoom >= labelZoom) &&
+                      codeFits && (
+                        <text
+                          x={
+                            point(
+                              zone.xMm + zone.widthMm / 2,
+                              zone.yMm + zone.depthMm / 2,
+                            ).x
+                          }
+                          y={
+                            point(
+                              zone.xMm + zone.widthMm / 2,
+                              zone.yMm + zone.depthMm / 2,
+                            ).y
+                          }
+                          textAnchor="middle"
+                          dominantBaseline="middle"
+                          fill="#172329"
+                          fontSize={13 / zoom}
+                          fontWeight="700"
+                          className="pointer-events-none"
+                        >
+                          {shortCode}
+                        </text>
+                      )}
                   </>
                 )}
                 {view === "plan" && floorPositions(zone).length > 0 && (
@@ -1163,7 +1358,11 @@ function MapDrawing({
                         )}
                         fill="#ffb68e"
                       >
-                        <title>{`${m(Math.min(aisle.widthMm, aisle.depthMm))} m aisle`}</title>
+                        <title>
+                          {t("floorAisleWidth", {
+                            width: m(Math.min(aisle.widthMm, aisle.depthMm)),
+                          })}
+                        </title>
                       </polygon>
                     ))}
                     <polygon

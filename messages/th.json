@@ -596,7 +596,9 @@
     "closeFloorEditing": "ปิดการแก้ไขชั้น",
     "unsavedFloorChanges": "มีการแก้ไขชั้นที่ยังไม่ได้บันทึก",
     "finishOpenEditor": "กรุณาบันทึกหรือยกเลิกในหน้าต่างแก้ไขพื้นที่หรือจุดจัดเก็บก่อนบันทึกชั้น หรือเลือกละทิ้งการเปลี่ยนแปลงทั้งหมด",
-    "floorDimensions": "ขนาดชั้น"
+    "floorDimensions": "ขนาดชั้น",
+    "mapSelectArea": "เลือกพื้นที่ {name}",
+    "mapAreaNoStorage": "พื้นที่นี้ไม่สามารถจัดเก็บพาเลทได้"
   },
   "FinishedGoods": {
     "title": "สินค้าสำเร็จรูป",
