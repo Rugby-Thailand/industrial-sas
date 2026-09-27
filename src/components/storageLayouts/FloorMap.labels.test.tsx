@@ -157,11 +157,8 @@ describe("floor location labels", () => {
       );
       expect(selectedCell).not.toBeNull();
       expect(
-        view.container.querySelectorAll("[data-detail-position-code]"),
-      ).toHaveLength(15);
-      expect(
-        view.container.querySelectorAll('[data-detail-aisle-width-mm="300"]'),
-      ).toHaveLength(2);
+        screen.queryByRole("region", { name: `Position plan · ${prefix}-L1` }),
+      ).not.toBeInTheDocument();
       fireEvent.click(
         screen.getByRole("button", { name: "Show detailed labels" }),
       );
@@ -467,6 +464,14 @@ describe("floor map interaction", () => {
     expect(location.querySelector("[data-pd-cell-code]")).toHaveAttribute(
       "stroke",
       sceneColors.selected,
+    );
+    expect(location.querySelector("[data-pd-cell-code]")).toHaveAttribute(
+      "stroke-width",
+      "1.5",
+    );
+    expect(location.querySelector("[data-pd-cell-code]")).toHaveAttribute(
+      "fill",
+      "color-mix(in srgb, var(--token-link) 25%, #83a8b1)",
     );
     expect(location.querySelector("[data-pd-cell-code]")).not.toHaveClass(
       "group-focus-visible:stroke-text",

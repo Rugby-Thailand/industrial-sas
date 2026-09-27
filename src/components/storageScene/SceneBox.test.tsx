@@ -59,6 +59,41 @@ describe("shared storage box", () => {
     );
     expect(container.querySelector('[data-scene-solid="true"]')).not.toBeNull();
   });
+  it("gives a selected floor location a subtle surface in both views", () => {
+    const { container, rerender } = render(
+      <svg>
+        <SceneBox
+          points={points}
+          mode="3d"
+          kind="location"
+          selected
+          selectionSurface
+        />
+      </svg>,
+    );
+    expect(container.querySelector('[data-zone-face="top"]')).toHaveAttribute(
+      "fill",
+      "color-mix(in srgb, var(--token-link) 28%, transparent)",
+    );
+    expect(
+      container.querySelector('[data-scene-kind="location"]'),
+    ).toHaveAttribute("stroke-width", "1.5");
+    rerender(
+      <svg>
+        <SceneBox
+          points={points}
+          mode="plan"
+          kind="location"
+          selected
+          selectionSurface
+        />
+      </svg>,
+    );
+    expect(container.querySelector('[data-zone-face="plan"]')).toHaveAttribute(
+      "fill",
+      "color-mix(in srgb, var(--token-link) 25%, transparent)",
+    );
+  });
   it("retains held status while selected, and prioritizes invalid feedback", () => {
     expect(sceneStyle({ kind: "package", held: true }).dash).toBeDefined();
     expect(sceneStyle({ kind: "location", selected: true }).solid).toBe(false);
