@@ -76,7 +76,7 @@ async function snapshot(ctx: TenantFunctionContext, args: Target) {
       )
       .all(100),
   );
-  const zones = ordered(
+  const allZones = ordered(
     await db
       .byIndex<Doc<"storageZones">>(
         "storageZones",
@@ -85,6 +85,22 @@ async function snapshot(ctx: TenantFunctionContext, args: Target) {
       )
       .all(500),
   );
+  const zones = allZones.filter((z) => z.status === "ACTIVE");
+  const legacyZones = allZones.filter((z) => z.status !== "ACTIVE");
+  const legacyCodes = new Set(
+    Array.from({ length: 12 }, (_, i) => `PD-L${i + 1}`),
+  );
+  if (
+    (legacyZones.length !== 0 && legacyZones.length !== 12) ||
+    new Set(legacyZones.map((z) => z.code)).size !== legacyZones.length ||
+    legacyZones.some(
+      (z) =>
+        !legacyCodes.has(z.code) ||
+        z.warehouseId !== warehouse._id ||
+        z.buildingId !== building._id,
+    )
+  )
+    throw new Error("PD_LEGACY_SET_MISMATCH");
   const expected = new Set(pdApprovedPlan().cells.map((c) => c.code));
   if (
     zones.length !== 198 ||
@@ -125,6 +141,43 @@ async function snapshot(ctx: TenantFunctionContext, args: Target) {
       )
     ).flat(),
   );
+  // User-approved inactive groups are backed up and fingerprinted, never patched.
+  const legacyPositions = ordered(
+    (
+      await Promise.all(
+        legacyZones.map((z) =>
+          db
+            .byIndex<Doc<"storagePositions">>(
+              "storagePositions",
+              "by_orgId_zoneId_status_code",
+              [{ field: "zoneId", value: z._id }],
+            )
+            .all(500),
+        ),
+      )
+    ).flat(),
+  );
+  if (
+    legacyPositions.some(
+      (p) =>
+        p.status === "ACTIVE" ||
+        p.warehouseId !== warehouse._id ||
+        p.buildingId !== building._id,
+    )
+  )
+    throw new Error("PD_LEGACY_POSITION_MISMATCH");
+  const legacyLocations = ordered(
+    await Promise.all(
+      [
+        ...new Set([
+          ...legacyZones.map((z) => z.locationId),
+          ...legacyPositions.map((p) => p.locationId),
+        ]),
+      ].map((id) => db.getX<Doc<"locations">>("locations", id)),
+    ),
+  );
+  if (legacyLocations.some((l) => l.warehouseId !== warehouse._id))
+    throw new Error("PD_LEGACY_LOCATION_MISMATCH");
   const locationIds = [
     ...new Set([
       ...zones.map((z) => z.locationId),
@@ -217,6 +270,9 @@ async function snapshot(ctx: TenantFunctionContext, args: Target) {
     zones,
     positions,
     locations,
+    legacyZones,
+    legacyPositions,
+    legacyLocations,
     placements,
     moves,
     assignments,

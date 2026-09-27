@@ -127,6 +127,9 @@ async function setup() {
       blocked: boolean;
       digest: string;
       backup: {
+        legacyZones: { _id: string; code: string }[];
+        legacyPositions: { _id: string }[];
+        legacyLocations: { _id: string }[];
         building: { version: number };
         zones: {
           _id: string;
@@ -151,7 +154,109 @@ async function setup() {
   return { world, target, call, read };
 }
 
+async function addLegacy(w: Awaited<ReturnType<typeof setup>>) {
+  await w.world.t.run(async (ctx) => {
+    const zone = (await ctx.db.query("storageZones").collect())[0]!;
+    const position = (await ctx.db.query("storagePositions").collect())[0]!;
+    for (let i = 1; i <= 12; i++) {
+      const code = `PD-L${i}`;
+      const locationId = await ctx.db.insert("locations", {
+        orgId: w.world.orgA,
+        warehouseId: w.target.warehouseId,
+        code,
+        locationType: "FLOOR_BLOCK",
+        status: "INACTIVE",
+      });
+      const { _id, _creationTime, ...zoneFields } = zone;
+      void _id;
+      void _creationTime;
+      const zoneId = await ctx.db.insert("storageZones", {
+        ...zoneFields,
+        code,
+        locationId,
+        status: "INACTIVE",
+        mode: "FLOOR_POSITIONS",
+      });
+      const { _id: pid, _creationTime: pt, ...positionFields } = position;
+      void pid;
+      void pt;
+      await ctx.db.insert("storagePositions", {
+        ...positionFields,
+        code,
+        locationId,
+        zoneId,
+        status: "INACTIVE",
+      });
+    }
+  });
+}
+
 describe("PD guarded import", () => {
+  it("preserves all approved inactive groups and their relationships on import and rollback", async () => {
+    const w = await setup();
+    await addLegacy(w);
+    const before = await w.read();
+    expect(before.backup.legacyZones).toHaveLength(12);
+    expect(before.backup.legacyPositions).toHaveLength(12);
+    const result = await w.call<{ afterDigest: string }>(apply, {
+      ...w.target,
+      revision: PD_REVISION,
+      expectedDigest: before.digest,
+    });
+    const after = await w.read();
+    for (const key of [
+      "legacyZones",
+      "legacyPositions",
+      "legacyLocations",
+    ] as const)
+      expect(after.backup[key]).toEqual(before.backup[key]);
+    await w.call(rollback, {
+      ...w.target,
+      expectedAfterDigest: result.afterDigest,
+      backup: before.backup,
+    });
+    expect((await w.read()).digest).toBe(before.digest);
+  });
+  it("refuses unknown inactive groups and active positions inside inactive groups", async () => {
+    const w = await setup();
+    await addLegacy(w);
+    const before = await w.read();
+    const id = before.backup.legacyZones[0]!._id;
+    await w.world.t.run((ctx) =>
+      ctx.db.patch("storageZones", id as never, { code: "PD-UNKNOWN" }),
+    );
+    await expect(w.read()).rejects.toThrow("INTERNAL_ERROR");
+    await w.world.t.run((ctx) =>
+      ctx.db.patch("storageZones", id as never, {
+        code: before.backup.legacyZones[0]!.code,
+      }),
+    );
+    await w.world.t.run((ctx) =>
+      ctx.db.patch(
+        "storagePositions",
+        before.backup.legacyPositions[0]!._id as never,
+        { status: "ACTIVE" },
+      ),
+    );
+    await expect(w.read()).rejects.toThrow("INTERNAL_ERROR");
+  });
+  it("includes legacy changes in the transaction digest", async () => {
+    const w = await setup();
+    await addLegacy(w);
+    const before = await w.read();
+    await w.world.t.run((ctx) =>
+      ctx.db.patch("storageZones", before.backup.legacyZones[0]!._id as never, {
+        label: "Changed after backup",
+      }),
+    );
+    await expect(
+      w.call(apply, {
+        ...w.target,
+        revision: PD_REVISION,
+        expectedDigest: before.digest,
+      }),
+    ).rejects.toThrow("INTERNAL_ERROR");
+  });
   it("imports once, preserves IDs/QR/status/height and safely rolls back", async () => {
     const w = await setup(),
       before = await w.read();
@@ -265,8 +370,9 @@ describe("PD guarded import", () => {
     "stops for %s stock before mutation",
     async (status) => {
       const w = await setup();
+      await addLegacy(w);
       await w.world.t.run(async (ctx) => {
-        const zone = (await ctx.db.query("storageZones").collect())[0]!;
+        const zone = (await ctx.db.query("storageZones").collect()).find((z) => z.status === "INACTIVE")!;
         const productId = await ctx.db.insert("finishedGoodsProducts", {
           orgId: w.world.orgA,
           warehouseId: w.target.warehouseId,

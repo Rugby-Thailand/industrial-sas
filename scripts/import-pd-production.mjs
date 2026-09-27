@@ -178,7 +178,15 @@ async function main() {
         "Default-position geometry differs from its zone",
       );
   }
-  for (const table of ["placements", "moves", "assignments", "pallets"])
+  for (const table of [
+    "placements",
+    "moves",
+    "assignments",
+    "pallets",
+    "legacyZones",
+    "legacyPositions",
+    "legacyLocations",
+  ])
     assert.deepEqual(
       after.backup[table],
       original.backup[table],
