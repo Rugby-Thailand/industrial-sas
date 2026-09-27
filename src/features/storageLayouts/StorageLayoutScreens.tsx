@@ -67,15 +67,6 @@ import {
 } from "react";
 
 import { FloorMap } from "@/components/storageLayouts/FloorMap";
-import {
-  Fg1ReferencePreview,
-  matchesFg1Reference,
-} from "@/components/storageLayouts/Fg1ReferencePreview";
-import { Fg1MeasuredPlan } from "@/components/storageLayouts/Fg1MeasuredPlan";
-import {
-  F1F2ReferencePreview,
-  matchesF1F2Reference,
-} from "@/components/storageLayouts/F1F2ReferencePreview";
 import { StoragePlacementLayer } from "@/components/storageLayouts/StorageZoneVisualizer";
 import { QueryGate } from "@/components/system/QueryGate";
 import { DataTable } from "@/components/table/DataTable";
@@ -1632,11 +1623,6 @@ function FloorForm({
       >
         <div className="min-w-0">
           <FloorPlan
-            fg1ImportedRevision={detail.building.fg1Import?.revision}
-            referenceBuildingId={detail.building.buildingId}
-            referenceSchematicRevision={
-              detail.building.approvedSchematic?.revision
-            }
             locationInspector={workspace ? locationInspector : undefined}
             locationActions={
               workspace ? (
@@ -1877,9 +1863,6 @@ function OverrideField({
 
 export function FloorPlan(
   props: Parameters<typeof FloorOffsetPlan>[0] & {
-    readonly referenceBuildingId?: string;
-    readonly fg1ImportedRevision?: string | undefined;
-    readonly referenceSchematicRevision?: string | undefined;
     readonly locationActions?: ReactNode;
     readonly locationInspector?: ReactNode;
     readonly onEditZone?: ((zoneId: string) => void) | undefined;
@@ -1888,27 +1871,8 @@ export function FloorPlan(
       ((zoneId: string | undefined) => void) | undefined;
   },
 ) {
-  const [showMeasured, setShowMeasured] = useState(false);
-  if (
-    props.fg1ImportedRevision &&
-    props.referenceBuildingId === "n57effrz60rbq7fqx438q6r6fx8f0hed" &&
-    !props.onPlacementChange
-  ) {
-    return <Fg1MeasuredPlan {...props} zones={props.zones ?? []} />;
-  }
-  const useFg1Reference =
-    matchesFg1Reference(
-      props.referenceBuildingId,
-      props.floorNumber,
-      props.zones ?? [],
-    ) && !props.onPlacementChange;
-  const useF1F2Reference =
-    matchesF1F2Reference(
-      props.referenceBuildingId,
-      props.floorNumber,
-      props.referenceSchematicRevision,
-    ) && !props.onPlacementChange;
-  const measuredPlan = (
+  // Every building uses the same live-coordinate renderer and toolbar.
+  return (
     <FloorMap
       {...props}
       zones={props.zones ?? []}
@@ -1916,38 +1880,6 @@ export function FloorPlan(
         props.onPlacementChange ? <FloorOffsetPlan {...props} /> : undefined
       }
     />
-  );
-  if (!useFg1Reference && !useF1F2Reference) return measuredPlan;
-  return (
-    <div className="min-w-0 space-y-4">
-      <div className="flex flex-wrap justify-end gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => setShowMeasured(!showMeasured)}
-        >
-          {showMeasured ? "ผังสรุปตามแบบอ้างอิง" : "ดูผังตามพิกัดในฐานข้อมูล"}
-        </Button>
-        {!showMeasured && props.locationActions}
-      </div>
-      {showMeasured ? (
-        measuredPlan
-      ) : (
-        <>
-          {useF1F2Reference ? (
-            <F1F2ReferencePreview floorNumber={props.floorNumber} />
-          ) : (
-            <Fg1ReferencePreview
-              zones={props.zones ?? []}
-              reservedBlocks={props.blocks}
-              selectedZoneId={props.selectedZoneId}
-              onSelectionChange={props.onSelectionChange}
-            />
-          )}
-          {props.locationInspector}
-        </>
-      )}
-    </div>
   );
 }
 
