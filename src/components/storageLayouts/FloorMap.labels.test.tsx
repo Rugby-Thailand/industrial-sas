@@ -5,6 +5,7 @@ import { sceneColors } from "@/components/storageScene/sceneColors";
 import { FloorMap } from "./FloorMap";
 import { floorMapDemo } from "./storageFloorDemoData";
 import { pdApprovedPlan } from "../../../convex/model/storageLayout/pdApprovedPlan";
+import { fg1ApprovedPlan } from "../../../convex/model/storageLayout/fg1ApprovedPlan";
 
 vi.mock("@/hooks/useCanManage", () => ({
   useCanManage: () => false,
@@ -21,6 +22,55 @@ function renderMap(floorNumber = 1) {
 }
 
 describe("floor location labels", () => {
+  it("fits the approved portrait layout in the shared viewport with names only and one toolbar", () => {
+    const plan = fg1ApprovedPlan(),
+      demo = floorMapDemo(false, false);
+    const zones = plan.cells.map((cell) => ({
+      ...demo.zones[0]!,
+      ...cell,
+      zoneId: cell.code,
+      label: cell.code,
+      positions: [],
+      placements: [],
+    }));
+    const result = renderWithIntl(
+      <FloorMap
+        {...demo}
+        widthMm={plan.widthMm}
+        depthMm={plan.depthMm}
+        zones={zones}
+        blocks={plan.blocks}
+      />,
+      { locale: "en", workspace: false },
+    );
+    const map = screen.getByRole("group", { name: "Interactive floor map" });
+    expect(map).toHaveAttribute("preserveAspectRatio", "xMidYMid meet");
+    expect(map).toHaveClass("h-[min(40rem,65svh)]");
+    expect(map.querySelectorAll("[data-floor-zone-name]")).toHaveLength(15);
+    expect(
+      [...map.querySelectorAll("[data-floor-zone-name]")]
+        .map((e) => e.textContent)
+        .sort(),
+    ).toEqual(plan.cells.map((c) => c.code).sort());
+    expect(map.querySelectorAll("[data-floor-callout]")).toHaveLength(0);
+    expect(screen.getAllByRole("button", { name: "2D plan" })).toHaveLength(1);
+    expect(screen.getAllByRole("button", { name: "3D view" })).toHaveLength(1);
+    const polygon = (code: string) =>
+      result.container
+        .querySelector(`[data-zone-id="${code}"] polygon`)!
+        .getAttribute("points")!
+        .split(" ")
+        .map((p) => p.split(",").map(Number));
+    const left = polygon("FG1-L05"),
+      right = polygon("FG1-R10");
+    expect(left[2]![1]).toBeCloseTo(right[2]![1]!, 8);
+    const sx = (left[1]![0]! - left[0]![0]!) / 2870;
+    const sy = (left[2]![1]! - left[1]![1]!) / 1450;
+    expect(sx).toBeCloseTo(sy, 8);
+    fireEvent.click(screen.getByRole("button", { name: "Zoom in" }));
+    fireEvent.click(screen.getByRole("button", { name: "Fit floor to view" }));
+    expect(screen.getByRole("button", { name: "Zoom out" })).toBeDisabled();
+  });
   it("honors an explicit 3D entry view for dense layouts", () => {
     const demo = floorMapDemo(false, false);
     renderWithIntl(

@@ -1734,7 +1734,7 @@ describe("interactive floor map", () => {
     blocks: [],
     zones: [occupiedTestZone()],
   });
-  it("mounts the approved FG1 schematic, preserves the inspector, and offers the measured map", () => {
+  it("uses the shared live renderer for FG1 with one view toggle and the real inspector", () => {
     const select = vi.fn();
     const zones = [
       ...Array.from(
@@ -1755,7 +1755,6 @@ describe("interactive floor map", () => {
     const { container } = renderWithIntl(
       <FloorPlan
         {...props()}
-        referenceBuildingId="n57effrz60rbq7fqx438q6r6fx8f0hed"
         floorNumber={1}
         zones={zones}
         onSelectionChange={select}
@@ -1763,22 +1762,22 @@ describe("interactive floor map", () => {
       />,
       { locale: "en", workspace: false },
     );
-    expect(container.querySelectorAll("[data-reference-zone]")).toHaveLength(
-      15,
-    );
-    expect(screen.getByText("Live location inspector")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /^FG1-L01 / }));
-    expect(select).toHaveBeenCalledWith("FG1-L01");
-    fireEvent.click(
-      screen.getByRole("button", { name: "ดูผังตามพิกัดในฐานข้อมูล" }),
-    );
     expect(container.querySelectorAll("[data-reference-zone]")).toHaveLength(0);
-    expect(screen.getByRole("button", { name: "2D plan" })).toBeInTheDocument();
+    expect(container.querySelectorAll("[data-map-zone-id]")).toHaveLength(15);
+    expect(screen.getAllByRole("button", { name: "2D plan" })).toHaveLength(1);
+    expect(screen.getAllByRole("button", { name: "3D view" })).toHaveLength(1);
     fireEvent.click(
-      screen.getByRole("button", { name: "ผังสรุปตามแบบอ้างอิง" }),
+      screen.getByRole("button", {
+        name: /^Select location FG1-L01$/,
+      }),
     );
-    expect(container.querySelectorAll("[data-reference-zone]")).toHaveLength(
-      15,
+    expect(select).toHaveBeenCalledWith("FG1-L01");
+    expect(screen.getByText("Live location inspector")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "3D view" }));
+    expect(screen.getAllByRole("button", { name: "3D view" })).toHaveLength(1);
+    expect(screen.getByRole("button", { name: "3D view" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
     );
   });
   it("fills only the selected physical package and clears it when selecting a location", () => {

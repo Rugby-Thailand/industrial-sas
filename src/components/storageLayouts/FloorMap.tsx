@@ -894,7 +894,11 @@ function MapDrawing({
   );
   const labels: { x: number; y: number }[] = [];
   const zoneOrder = (
-    detailedPlan || !showLocationLabels ? [] : [...props.zones]
+    detailedPlan || !showLocationLabels
+      ? []
+      : props.zones.filter(
+          (zone) => view !== "plan" || zone.placements.length > 0,
+        )
   ).sort(
     (a, b) => Number(b.zoneId === selectedId) - Number(a.zoneId === selectedId),
   );
@@ -1027,7 +1031,8 @@ function MapDrawing({
       role="group"
       aria-label={t("mapTitle")}
       viewBox={`${frame.x} ${frame.y} ${frame.width} ${frame.height}`}
-      className={`w-full rounded-xl border border-border bg-background ${compactPlan ? "aspect-[1.84] max-h-[40rem] min-h-[18rem]" : "aspect-[1.4] max-h-[40rem]"} ${pannable ? (dragging ? "cursor-grabbing select-none [&_*]:cursor-grabbing" : "cursor-grab") : ""}`}
+      preserveAspectRatio="xMidYMid meet"
+      className={`h-[min(40rem,65svh)] w-full rounded-xl border border-border bg-background ${pannable ? (dragging ? "cursor-grabbing select-none [&_*]:cursor-grabbing" : "cursor-grab") : ""}`}
       style={pannable ? { touchAction: "none" } : undefined}
       onKeyDown={(e) => {
         if (e.key === "Escape") e.currentTarget.focus();
@@ -1340,6 +1345,36 @@ function MapDrawing({
                     selectionSurface={active}
                   />
                 )}
+                {view === "plan" &&
+                  !pdGroupCode(zone.code) &&
+                  floorPositions(zone).length === 0 &&
+                  (!showLocationLabels || zone.placements.length === 0) &&
+                  (() => {
+                    const fontSize = Math.min(
+                      13,
+                      (cellWidth - 4) / Math.max(zone.code.length * 0.62, 1),
+                      cellHeight - 4,
+                    );
+                    if (fontSize < 6) return null;
+                    const center = point(
+                      zone.xMm + zone.widthMm / 2,
+                      zone.yMm + zone.depthMm / 2,
+                    );
+                    return (
+                      <text
+                        data-floor-zone-name={zone.code}
+                        x={center.x}
+                        y={center.y}
+                        textAnchor="middle"
+                        dominantBaseline="middle"
+                        fontSize={fontSize / zoom}
+                        fill={sceneColors.free}
+                        className="pointer-events-none"
+                      >
+                        {zone.code}
+                      </text>
+                    );
+                  })()}
                 {view === "plan" && pdGroupCode(zone.code) && (
                   <>
                     <polygon
