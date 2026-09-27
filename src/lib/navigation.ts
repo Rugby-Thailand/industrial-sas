@@ -17,6 +17,8 @@ export interface NavigationSection {
 export const ROUTES = Object.freeze({
   storageLayouts: "/master-data/storage-layouts",
   finishedGoods: "/finished-goods",
+  jobScan: "/finished-goods/scan",
+  jobScanRecords: "/finished-goods/scan/records",
   setup: "/setup",
   signIn: "/sign-in",
 });
@@ -28,6 +30,16 @@ export const DESKTOP_NAVIGATION: readonly NavigationSection[] = Object.freeze([
       {
         href: ROUTES.finishedGoods,
         labelKey: "finishedGoods",
+        permissionCodes: [NAVIGATION_PERMISSION.storageLayouts],
+      },
+      {
+        href: ROUTES.jobScan,
+        labelKey: "jobScan",
+        permissionCodes: [NAVIGATION_PERMISSION.storageLayouts],
+      },
+      {
+        href: ROUTES.jobScanRecords,
+        labelKey: "jobScanRecords",
         permissionCodes: [NAVIGATION_PERMISSION.storageLayouts],
       },
       {
@@ -54,6 +66,16 @@ export const storageReviewPath = (buildingId: string): string =>
 export function isActivePath(pathname: string, href: string): boolean {
   if (pathname === href) return true;
   return pathname.startsWith(`${href}/`);
+}
+
+/** The most specific navigation href containing the path, so parents stay inactive on child pages. */
+export function activeNavigationHref(
+  pathname: string,
+  hrefs: readonly string[],
+): string | undefined {
+  return hrefs
+    .filter((href) => isActivePath(pathname, href))
+    .sort((a, b) => b.length - a.length)[0];
 }
 
 export function hasNavigationPermission(

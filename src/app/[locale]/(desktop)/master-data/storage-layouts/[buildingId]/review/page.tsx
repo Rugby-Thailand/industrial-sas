@@ -1,7 +1,5 @@
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { setRequestLocale } from "next-intl/server";
 
-import { storageBuildingPath } from "@/lib/navigation";
-import { PageHeader } from "@/components/ui/PageHeader";
 import { StorageBuildingReview } from "@/features/storageLayouts/StorageLayoutScreens";
 
 export default async function StorageReviewPage({
@@ -11,18 +9,5 @@ export default async function StorageReviewPage({
 }) {
   const { locale, buildingId } = await params;
   setRequestLocale(locale);
-  const t = await getTranslations("StorageLayouts");
-  return (
-    <>
-      <PageHeader
-        back={{
-          href: storageBuildingPath(buildingId),
-          label: t("fullLayoutEdit"),
-        }}
-        title={t("reviewTitle")}
-        summary={t("reviewDescription")}
-      />
-      <StorageBuildingReview buildingId={buildingId} />
-    </>
-  );
+  return <StorageBuildingReview buildingId={buildingId} />;
 }

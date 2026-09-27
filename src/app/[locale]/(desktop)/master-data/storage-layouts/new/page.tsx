@@ -15,7 +15,7 @@ export default async function NewStorageLayoutPage({
   return (
     <>
       <PageHeader
-        back={{ href: ROUTES.storageLayouts, label: t("back") }}
+        breadcrumbs={[{ label: t("breadcrumbRoot"), href: ROUTES.storageLayouts }]}
         title={t("newBuilding")}
         summary={t("description")}
       />

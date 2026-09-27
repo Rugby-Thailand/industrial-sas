@@ -18,10 +18,12 @@ export function FloorMapDemo() {
             ? "ตัวอย่างชั้นจัดเก็บพร้อมทางเดิน"
             : "Populated floor with aisles"
         }
-        back={{
-          href: "/master-data/storage-layouts",
-          label: thai ? "อาคารและจุดจัดเก็บ" : "Buildings & spots",
-        }}
+        breadcrumbs={[
+          {
+            href: "/master-data/storage-layouts",
+            label: thai ? "อาคารและจุดจัดเก็บ" : "Buildings & spots",
+          },
+        ]}
       />
       <p className="mb-4 rounded-xl border border-accent/30 bg-accent/5 p-4 text-sm">
         {thai

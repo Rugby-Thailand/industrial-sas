@@ -37,6 +37,7 @@ export const TENANT_TABLES = [
   "finishedGoodsPallets",
   "finishedGoodsPlacements",
   "finishedGoodsScanAssignments",
+  "finishedGoodsJobScans",
   "finishedGoodsCounters",
   "finishedGoodsMoves",
 ] as const;

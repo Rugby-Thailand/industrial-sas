@@ -26,6 +26,7 @@ export const ROUTE_NAMESPACES = {
   "(desktop)/finished-goods": [
     "App",
     "FinishedGoods",
+    "JobScan",
     "Pagination",
     "Panel",
     "Table",
