@@ -45,7 +45,7 @@ describe("floor location labels", () => {
     const areas = screen.getByText("Map areas (36)").closest("details");
     expect(areas).not.toHaveAttribute("open");
     fireEvent.click(screen.getByText("Map areas (36)"));
-    expect(screen.getByText("Door · 36")).toBeVisible();
+    expect(screen.getByText("Door · 36 areas")).toBeVisible();
     fireEvent.click(screen.getByText("All area names (36)"));
     expect(view.container).toHaveTextContent("Door 36");
   });
