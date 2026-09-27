@@ -128,7 +128,22 @@ async function setup() {
       digest: string;
       backup: {
         building: { version: number };
-        zones: { _id: string; qrValue: string }[];
+        zones: {
+          _id: string;
+          code: string;
+          qrValue: string;
+          xMm: number;
+          yMm: number;
+          widthMm: number;
+          depthMm: number;
+        }[];
+        positions: {
+          zoneId: string;
+          xMm: number;
+          yMm: number;
+          widthMm: number;
+          depthMm: number;
+        }[];
         locations: { _id: string }[];
       };
       plan: { usableAreaSqMm: number };
@@ -152,6 +167,13 @@ describe("PD guarded import", () => {
       before.backup.zones.map((z) => [z._id, z.qrValue]),
     );
     expect(after.backup.locations).toEqual(before.backup.locations);
+    for (const zone of after.backup.zones) {
+      const position = after.backup.positions.find(
+        (p) => p.zoneId === zone._id,
+      )!;
+      for (const field of ["xMm", "yMm", "widthMm", "depthMm"] as const)
+        expect(position[field]).toBe(zone[field]);
+    }
     expect(after.backup.building).toMatchObject({
       widthMm: 61500,
       depthMm: 11960,

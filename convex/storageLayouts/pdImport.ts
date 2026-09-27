@@ -301,8 +301,8 @@ export const apply = mutationWithOrg({
       });
       const position = before.positions.find((p) => p.zoneId === zone._id)!;
       await db.patch("storagePositions", position._id, {
-        xMm: 0,
-        yMm: 0,
+        xMm: cell.xMm,
+        yMm: cell.yMm,
         widthMm: cell.widthMm,
         depthMm: cell.depthMm,
         updatedAt: now,

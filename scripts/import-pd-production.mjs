@@ -168,6 +168,16 @@ async function main() {
     );
   }
   assert.deepEqual(after.backup.locations, original.backup.locations);
+  for (const zone of after.backup.zones) {
+    const position = after.backup.positions.find((p) => p.zoneId === zone._id);
+    assert.ok(position);
+    for (const field of ["xMm", "yMm", "widthMm", "depthMm"])
+      assert.equal(
+        position[field],
+        zone[field],
+        "Default-position geometry differs from its zone",
+      );
+  }
   for (const table of ["placements", "moves", "assignments", "pallets"])
     assert.deepEqual(
       after.backup[table],
