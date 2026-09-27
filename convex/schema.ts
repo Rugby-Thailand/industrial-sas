@@ -608,7 +608,11 @@ const schema = defineSchema({
       quantity: v.optional(v.number()),
       factoryQuantity: v.optional(v.number()),
       customerQuantity: v.optional(v.number()),
-      source: v.union(v.literal("AI"), v.literal("BARCODE"), v.literal("MANUAL")),
+      source: v.union(
+        v.literal("AI"),
+        v.literal("BARCODE"),
+        v.literal("MANUAL"),
+      ),
       imageUrl: v.optional(v.string()),
       aiRaw: v.optional(v.string()),
       locationText: v.string(),
@@ -687,6 +691,16 @@ const schema = defineSchema({
   ).index("by_orgId_warehouseId", byOrg("warehouseId")),
   storageBuildings: defineTable(
     tenantFields({
+      fg1Import: v.optional(
+        v.object({
+          revision: v.string(),
+          beforeDigest: v.string(),
+          importedAt: v.number(),
+          coordinateBasis: v.literal("APPROVED_LAYOUT_ENVELOPE"),
+          rightAisleWidthEstimated: v.boolean(),
+          obstaclePositionEstimated: v.boolean(),
+        }),
+      ),
       pdImport: v.optional(
         v.object({
           revision: v.string(),

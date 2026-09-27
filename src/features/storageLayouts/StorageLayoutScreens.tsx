@@ -71,6 +71,7 @@ import {
   Fg1ReferencePreview,
   matchesFg1Reference,
 } from "@/components/storageLayouts/Fg1ReferencePreview";
+import { Fg1MeasuredPlan } from "@/components/storageLayouts/Fg1MeasuredPlan";
 import {
   F1F2ReferencePreview,
   matchesF1F2Reference,
@@ -1631,6 +1632,7 @@ function FloorForm({
       >
         <div className="min-w-0">
           <FloorPlan
+            fg1ImportedRevision={detail.building.fg1Import?.revision}
             referenceBuildingId={detail.building.buildingId}
             referenceSchematicRevision={
               detail.building.approvedSchematic?.revision
@@ -1876,6 +1878,7 @@ function OverrideField({
 export function FloorPlan(
   props: Parameters<typeof FloorOffsetPlan>[0] & {
     readonly referenceBuildingId?: string;
+    readonly fg1ImportedRevision?: string | undefined;
     readonly referenceSchematicRevision?: string | undefined;
     readonly locationActions?: ReactNode;
     readonly locationInspector?: ReactNode;
@@ -1886,6 +1889,13 @@ export function FloorPlan(
   },
 ) {
   const [showMeasured, setShowMeasured] = useState(false);
+  if (
+    props.fg1ImportedRevision &&
+    props.referenceBuildingId === "n57effrz60rbq7fqx438q6r6fx8f0hed" &&
+    !props.onPlacementChange
+  ) {
+    return <Fg1MeasuredPlan {...props} zones={props.zones ?? []} />;
+  }
   const useFg1Reference =
     matchesFg1Reference(
       props.referenceBuildingId,
