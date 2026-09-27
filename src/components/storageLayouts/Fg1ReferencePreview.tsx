@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { StorageZoneRow } from "@/lib/convex/storageLayoutApi";
 import { storageRectangleContains } from "../../../convex/model/storageLayout/storageZone";
+import { Fg1SourcePlan } from "./Fg1SourcePlan";
 
 // Presentation coordinates from the user's approved reference, NOT millimetres.
 // This schematic must never be used as an import/geometry or capacity source.
@@ -111,7 +112,7 @@ export function Fg1ReferencePreview({
         storageRectangleContains(l02, block),
     );
   const floor = box(0, 0, 1000, 1000);
-  return (
+  const legacyPreview = (
     <section
       aria-label="ผังสรุป FG1 ตามแบบอ้างอิง"
       style={{
@@ -596,5 +597,17 @@ export function Fg1ReferencePreview({
         ))}
       </svg>
     </section>
+  );
+  return view === "2D" ? (
+    <Fg1SourcePlan
+      areas={displayedAreas.map(([id, , , , , size]) => ({ id, size }))}
+      selected={selected}
+      onSelect={select}
+      onShow3D={() => setView("3D")}
+      live={zones !== undefined}
+      smallExclusionSaved={smallExclusionSaved}
+    />
+  ) : (
+    legacyPreview
   );
 }

@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import type { StorageZoneRow } from "@/lib/convex/storageLayoutApi";
+import { fg1SourceAreas } from "./Fg1SourcePlan";
 import {
   Fg1ReferencePreview,
   matchesFg1Reference,
@@ -135,9 +136,22 @@ describe("FG1 locked reference preview", () => {
       screen.getByRole("button", { name: "FG1-L01 2.87 × 4.82 เมตร" }),
     );
     expect(screen.getByText("เลือก: FG1-L01")).toBeInTheDocument();
+    expect(screen.getAllByText(/ไม่ใช่มาตราส่วนจริง/)).toHaveLength(1);
+  });
+  it("uses approved source placement without either invented 4.48 m void or trial building dimensions", () => {
+    const { container } = render(<Fg1ReferencePreview />);
     expect(
-      screen.getAllByText(/ไม่ใช่มาตราส่วนจริง/, { selector: "text" }),
-    ).toHaveLength(2);
+      container.querySelector('[data-fg1-source-revision="2026-09-27"]'),
+    ).not.toBeNull();
+    const l05 = fg1SourceAreas.find(([id]) => id === "L05")!;
+    const r10 = fg1SourceAreas.find(([id]) => id === "R10")!;
+    expect(l05[2] + l05[4]).toBe(r10[2] + r10[4]);
+    expect(fg1SourceAreas.find(([id]) => id === "R01")![2]).toBe(0);
+    expect(
+      container.querySelectorAll('[data-source-aisle="0.30"]'),
+    ).toHaveLength(11);
+    expect(container.textContent).not.toMatch(/4\.48|31\.33|12\.26|1\.55/);
+    expect(screen.getByText("พื้นที่รับสินค้า")).toBeInTheDocument();
   });
   it("switches to solid 3D areas without callout labels or changing the data", () => {
     const view = render(<Fg1ReferencePreview />);
