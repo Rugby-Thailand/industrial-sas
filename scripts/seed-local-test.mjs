@@ -99,6 +99,11 @@ if (paginationProfile) {
       );
   }
 }
+const jobScans = run("staging/jobScanDemo:seed", {
+  warehouseId: bootstrap.warehouseId,
+  actorUserId: bootstrap.userId,
+  confirmation: "LOCAL_JOB_SCAN_FIXTURES_V1",
+});
 let summaries = run("staging/summaryBackfill:run", {
   warehouseId: bootstrap.warehouseId,
   restart: true,
@@ -167,6 +172,7 @@ const fixture = {
     workflow,
     pallets,
     reservedPallets,
+    jobScans,
     paginationResults,
     summaryBatches,
   },

@@ -8,6 +8,12 @@ import { chooseOption } from "@tests/fixtures/select-control";
 vi.mock("@/components/ui/PageBackLink", () => ({
   PageBackLink: () => null,
 }));
+vi.mock("@/components/ui/PageBreadcrumbs", () => ({
+  PageBreadcrumbs: () => null,
+}));
+vi.mock("@/components/ui/PageBackButton", () => ({
+  PageBackButton: () => null,
+}));
 
 import { ColumnFilter } from "./CatalogueFilterControls";
 import {

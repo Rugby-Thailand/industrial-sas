@@ -1,0 +1,4 @@
+location_code,location_name,qr_value,status
+TG-A-F01-Z01,Receiving and QC,ISAS:LOCATION:1:m17bydbb4dm8ytmcvemrsf9dn98etfpy,ACTIVE
+TG-A-F01-Z02,Pallet Storage A,ISAS:LOCATION:1:m173fgs912v7wkna07n1k686k98evftx,ACTIVE
+TG-A-F01-Z03,Dispatch Staging,ISAS:LOCATION:1:m170952gxgwq4g6apz6e15pz758evh8g,ACTIVE

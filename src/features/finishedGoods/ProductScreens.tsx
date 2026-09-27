@@ -48,6 +48,7 @@ import {
   FG_PATH,
   Field,
   Heading,
+  useFGCrumb,
   Loading,
   Missing,
   Status,
@@ -555,6 +556,7 @@ export function ProductScreen({
 }) {
   const canManage = useCanManage();
   const { t } = useFGText();
+  const fgCrumb = useFGCrumb();
   const draftScope = useDraftKey("fg-product");
   if (!draftScope) return <Loading />;
   return (
@@ -576,7 +578,10 @@ export function ProductScreen({
           />
         ) : (
           <>
-            <Heading title={t("copy.create-finished-good")} />
+            <Heading
+              title={t("copy.create-finished-good")}
+              breadcrumbs={[fgCrumb]}
+            />
             <ViewOnlyNotice />
           </>
         )
@@ -650,6 +655,7 @@ function ProductForm({
   product?: Product;
   resumePalletId?: string;
 }) {
+  const fgCrumb = useFGCrumb();
   const { t, locale } = useFGText();
   const canManage = useCanManage();
   const router = useRouter();
@@ -745,6 +751,7 @@ function ProductForm({
   return (
     <>
       <Heading
+        breadcrumbs={[fgCrumb]}
         title={
           product
             ? t("copy.finished-good-details")

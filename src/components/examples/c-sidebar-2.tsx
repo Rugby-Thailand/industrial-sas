@@ -3,7 +3,15 @@
 // Adapted from @reui/c-sidebar-2: branded header, icon rail, account footer,
 // and inset content. Routes and account information come from the real app.
 import { type CSSProperties, type ReactNode } from "react";
-import { Boxes, Building2, PanelLeft, X, type LucideIcon } from "lucide-react";
+import {
+  Boxes,
+  Building2,
+  ClipboardList,
+  PanelLeft,
+  ScanQrCode,
+  X,
+  type LucideIcon,
+} from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { useWorkspace } from "@/components/providers/WorkspaceProvider";
@@ -32,7 +40,7 @@ import {
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Link, usePathname } from "@/i18n/navigation";
 import {
-  isActivePath,
+  activeNavigationHref,
   ROUTES,
   visibleDesktopNavigation,
 } from "@/lib/navigation";
@@ -40,8 +48,15 @@ import {
 const MAIN_ID = "main-content";
 const NAV_ID = "primary-navigation";
 
+/** Warehouse switching and creation belong to the top-level pages, not task or detail pages. */
+const WORKSPACE_BAR_PATHS: readonly string[] = [
+  ROUTES.finishedGoods,
+  ROUTES.storageLayouts,
+];
+
 export function Pattern({ children }: { readonly children: ReactNode }) {
   const t = useTranslations("Navigation");
+  const showWorkspaceBar = WORKSPACE_BAR_PATHS.includes(usePathname());
   return (
     <TooltipProvider>
       <SidebarProvider
@@ -59,9 +74,11 @@ export function Pattern({ children }: { readonly children: ReactNode }) {
           <header className="shrink-0 border-b border-border bg-surface px-4 py-3 lg:px-6">
             <div className="flex flex-wrap items-center gap-3">
               <NavigationDisclosure />
-              <div className="order-last w-full min-w-0 sm:order-none sm:w-auto sm:flex-1">
-                <WorkspaceContextBar />
-              </div>
+              {showWorkspaceBar ? (
+                <div className="order-last w-full min-w-0 sm:order-none sm:w-auto sm:flex-1">
+                  <WorkspaceContextBar />
+                </div>
+              ) : null}
               <div className="ml-auto">
                 <LocaleSwitcher />
               </div>
@@ -171,6 +188,8 @@ function AppSidebar() {
 }
 const NAVIGATION_ICONS: Readonly<Record<string, LucideIcon>> = Object.freeze({
   [ROUTES.storageLayouts]: Building2,
+  [ROUTES.jobScan]: ScanQrCode,
+  [ROUTES.jobScanRecords]: ClipboardList,
 });
 
 function NavigationTree({
@@ -186,6 +205,10 @@ function NavigationTree({
   const sections = workspace.permissionsReady
     ? visibleDesktopNavigation(workspace.navigationPermissions)
     : [];
+  const activeHref = activeNavigationHref(
+    pathname,
+    sections.flatMap((section) => section.items.map((item) => item.href)),
+  );
 
   return (
     <nav
@@ -213,7 +236,7 @@ function NavigationTree({
             <SidebarGroupContent>
               <SidebarMenu>
                 {section.items.map((item) => {
-                  const active = isActivePath(pathname, item.href);
+                  const active = item.href === activeHref;
                   const Icon = NAVIGATION_ICONS[item.href] ?? Boxes;
                   const label = t(item.labelKey);
                   return (

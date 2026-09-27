@@ -48,6 +48,7 @@ import {
   ErrorNotice,
   Field,
   Heading,
+  usePalletTrail,
   Loading,
   Missing,
   QR,
@@ -138,12 +139,16 @@ function PalletLoader({
   return <PalletDetailScreen warehouseId={warehouseId} detail={detail} />;
 }
 function BatchMeasurementLink({ detail }: { detail: PalletDetail }) {
+  const crumbs = usePalletTrail(detail);
   const { tr } = useUnitText(
     detail.pallet.storageFormat ?? detail.product?.storageFormat,
   );
   return (
     <>
-      <Heading title={tr("Packing and dimensions", "การบรรจุและขนาด")} />
+      <Heading
+        title={tr("Packing and dimensions", "การบรรจุและขนาด")}
+        breadcrumbs={crumbs}
+      />
       <Summary detail={detail} />
       <Notice
         title={tr(
@@ -247,6 +252,15 @@ function Measurement({
   warehouseId: string;
   detail: PalletDetail;
 }) {
+  // The product crumb resumes this pallet's edit on the product page.
+  const crumbs = usePalletTrail(detail).map((crumb, index) =>
+    index === 1 && detail.product
+      ? {
+          ...crumb,
+          href: `${productPath(detail.product._id)}?resumePalletId=${encodeURIComponent(detail.pallet._id)}`,
+        }
+      : crumb,
+  );
   const { tr, locale } = useUnitText(
     detail.pallet.storageFormat ?? detail.product?.storageFormat,
   );
@@ -373,16 +387,7 @@ function Measurement({
     <>
       <Heading
         title={tr("Measure pallet", "วัดขนาดพาเลท")}
-        back={
-          returnToPlacement
-            ? storagePath(pallet._id)
-            : `${productPath(pallet.productId)}?resumePalletId=${encodeURIComponent(pallet._id)}`
-        }
-        backLabel={
-          returnToPlacement
-            ? tr("Return to placement", "กลับไปเลือกตำแหน่ง")
-            : tr("Product details", "ข้อมูลสินค้า")
-        }
+        breadcrumbs={crumbs}
         description={tr(
           "Measure the outside of the complete storage unit, including its pallet and packaging.",
           "วัดขนาดภายนอกของหน่วยจัดเก็บทั้งหมด รวมฐานพาเลทและบรรจุภัณฑ์",
@@ -550,6 +555,7 @@ function Recommendations({
   warehouseId: string;
   detail: PalletDetail;
 }) {
+  const crumbs = usePalletTrail(detail);
   const { tr } = useUnitText(
     detail.pallet.storageFormat ?? detail.product?.storageFormat,
   );
@@ -582,6 +588,7 @@ function Recommendations({
             "Measure before choosing storage",
             "วัดขนาดก่อนเลือกจุดจัดเก็บ",
           )}
+          breadcrumbs={crumbs}
         />
         <Notice title={tr("Measurements are incomplete", "ยังวัดขนาดไม่ครบ")}>
           <Button asChild>
@@ -604,8 +611,7 @@ function Recommendations({
       <>
         <Heading
           title={tr("Recommended storage", "พื้นที่จัดเก็บที่แนะนำ")}
-          back={correctionPath(detail)}
-          backLabel={tr("Back to measurements", "กลับไปวัดขนาด")}
+          breadcrumbs={crumbs}
         />
         <Notice
           tone="danger"
@@ -653,8 +659,7 @@ function Recommendations({
     <>
       <Heading
         title={tr("Recommended storage", "พื้นที่จัดเก็บที่แนะนำ")}
-        back={correctionPath(detail)}
-        backLabel={tr("Back to measurements", "กลับไปวัดขนาด")}
+        breadcrumbs={crumbs}
         description={tr(
           "A position that fits your measured unit, based on recorded space. Previewing does not reserve space or confirm storage.",
           "ตำแหน่งที่พอดีกับขนาดหน่วยจัดเก็บตามข้อมูลพื้นที่ในระบบ การดูตัวอย่างยังไม่จองพื้นที่หรือยืนยันจัดเก็บ",
@@ -837,6 +842,7 @@ function PalletDetailScreen({
   warehouseId: string;
   detail: PalletDetail;
 }) {
+  const crumbs = usePalletTrail(detail, false);
   const { tr, locale } = useUnitText(
     detail.pallet.storageFormat ?? detail.product?.storageFormat,
   );
@@ -925,6 +931,7 @@ function PalletDetailScreen({
   return (
     <>
       <Heading
+        breadcrumbs={crumbs}
         title={
           activeMove
             ? activeMove.status === "IN_TRANSIT"
@@ -1436,6 +1443,7 @@ function LocationOnlyPalletDetail({
   detail: PalletDetail;
   assignmentId: string;
 }) {
+  const crumbs = usePalletTrail(detail, false);
   const { tr } = useFGText();
   const outcome = useQuery(fgRefs.getScanAssignment, {
     warehouseId,
@@ -1445,6 +1453,7 @@ function LocationOnlyPalletDetail({
   return (
     <>
       <Heading
+        breadcrumbs={crumbs}
         title={tr("Stored successfully", "จัดเก็บสำเร็จ")}
         description={tr(
           "The location and top-to-bottom order are saved.",

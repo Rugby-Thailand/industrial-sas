@@ -595,6 +595,39 @@ const schema = defineSchema({
   )
     .index("by_orgId_warehouseId", byOrg("warehouseId"))
     .index("by_orgId_warehouseId_requestId", byOrg("warehouseId", "requestId")),
+  /** Job tickets captured by the scan page. Location stays free text until mapped to a zone. */
+  finishedGoodsJobScans: defineTable(
+    tenantFields({
+      warehouseId: v.id("warehouses"),
+      factoryOrder: v.string(),
+      productBarcodeText: v.string(),
+      deliveryDate: v.optional(v.string()),
+      partName: v.optional(v.string()),
+      customer: v.optional(v.string()),
+      manufacturingDate: v.optional(v.string()),
+      quantity: v.optional(v.number()),
+      factoryQuantity: v.optional(v.number()),
+      customerQuantity: v.optional(v.number()),
+      source: v.union(v.literal("AI"), v.literal("BARCODE"), v.literal("MANUAL")),
+      imageUrl: v.optional(v.string()),
+      aiRaw: v.optional(v.string()),
+      locationText: v.string(),
+      mapped: v.boolean(),
+      zoneId: v.optional(v.id("storageZones")),
+      supportPositionId: v.optional(v.id("storagePositions")),
+      locationCode: v.optional(v.string()),
+      locationName: v.optional(v.string()),
+      createdAt: v.number(),
+      createdByUserId: v.id("users"),
+      updatedAt: v.number(),
+      updatedByUserId: v.id("users"),
+    }),
+  )
+    .index("by_orgId_warehouseId_createdAt", byOrg("warehouseId", "createdAt"))
+    .index(
+      "by_orgId_warehouseId_mapped_createdAt",
+      byOrg("warehouseId", "mapped", "createdAt"),
+    ),
   finishedGoodsMoves: defineTable(
     tenantFields({
       warehouseId: v.id("warehouses"),

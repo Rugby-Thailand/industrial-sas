@@ -12,6 +12,7 @@ import type * as finishedGoods_batchManagement from "../finishedGoods/batchManag
 import type * as finishedGoods_batches from "../finishedGoods/batches.js";
 import type * as finishedGoods_catalogue from "../finishedGoods/catalogue.js";
 import type * as finishedGoods_catalogueFilters from "../finishedGoods/catalogueFilters.js";
+import type * as finishedGoods_jobScans from "../finishedGoods/jobScans.js";
 import type * as finishedGoods_scanning from "../finishedGoods/scanning.js";
 import type * as finishedGoods_summaryMaintenance from "../finishedGoods/summaryMaintenance.js";
 import type * as finishedGoods_workflow from "../finishedGoods/workflow.js";
@@ -43,6 +44,7 @@ import type * as lib_tenantTable from "../lib/tenantTable.js";
 import type * as lib_validators from "../lib/validators.js";
 import type * as lib_writeEnvelope from "../lib/writeEnvelope.js";
 import type * as model_authorization_navigationPermissions from "../model/authorization/navigationPermissions.js";
+import type * as model_finishedGoods_jobScans from "../model/finishedGoods/jobScans.js";
 import type * as model_finishedGoods_packing from "../model/finishedGoods/packing.js";
 import type * as model_finishedGoods_placement from "../model/finishedGoods/placement.js";
 import type * as model_finishedGoods_scanning from "../model/finishedGoods/scanning.js";
@@ -58,6 +60,7 @@ import type * as model_storageLayout_storageLayout from "../model/storageLayout/
 import type * as model_storageLayout_storagePosition from "../model/storageLayout/storagePosition.js";
 import type * as model_storageLayout_storageZone from "../model/storageLayout/storageZone.js";
 import type * as staging_annexDemo from "../staging/annexDemo.js";
+import type * as staging_jobScanDemo from "../staging/jobScanDemo.js";
 import type * as staging_paginationDemo from "../staging/paginationDemo.js";
 import type * as staging_summaryBackfill from "../staging/summaryBackfill.js";
 import type * as storageLayouts_catalogue from "../storageLayouts/catalogue.js";
@@ -78,6 +81,7 @@ declare const fullApi: ApiFromModules<{
   "finishedGoods/batches": typeof finishedGoods_batches;
   "finishedGoods/catalogue": typeof finishedGoods_catalogue;
   "finishedGoods/catalogueFilters": typeof finishedGoods_catalogueFilters;
+  "finishedGoods/jobScans": typeof finishedGoods_jobScans;
   "finishedGoods/scanning": typeof finishedGoods_scanning;
   "finishedGoods/summaryMaintenance": typeof finishedGoods_summaryMaintenance;
   "finishedGoods/workflow": typeof finishedGoods_workflow;
@@ -109,6 +113,7 @@ declare const fullApi: ApiFromModules<{
   "lib/validators": typeof lib_validators;
   "lib/writeEnvelope": typeof lib_writeEnvelope;
   "model/authorization/navigationPermissions": typeof model_authorization_navigationPermissions;
+  "model/finishedGoods/jobScans": typeof model_finishedGoods_jobScans;
   "model/finishedGoods/packing": typeof model_finishedGoods_packing;
   "model/finishedGoods/placement": typeof model_finishedGoods_placement;
   "model/finishedGoods/scanning": typeof model_finishedGoods_scanning;
@@ -124,6 +129,7 @@ declare const fullApi: ApiFromModules<{
   "model/storageLayout/storagePosition": typeof model_storageLayout_storagePosition;
   "model/storageLayout/storageZone": typeof model_storageLayout_storageZone;
   "staging/annexDemo": typeof staging_annexDemo;
+  "staging/jobScanDemo": typeof staging_jobScanDemo;
   "staging/paginationDemo": typeof staging_paginationDemo;
   "staging/summaryBackfill": typeof staging_summaryBackfill;
   "storageLayouts/catalogue": typeof storageLayouts_catalogue;

@@ -3,7 +3,8 @@
 import type { ReactNode } from "react";
 import { Info } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { PageBackLink } from "./PageBackLink";
+import { PageBackButton } from "./PageBackButton";
+import { PageBreadcrumbs, type Crumb } from "./PageBreadcrumbs";
 import { IconButton } from "./IconButton";
 import {
   Dialog,
@@ -20,7 +21,8 @@ export function PageHeader({
   description,
   summary,
   children,
-  back,
+  breadcrumbs,
+  showBack = true,
 }: {
   readonly title: string;
   /** Longer reference help remains available without crowding the page. */
@@ -30,15 +32,23 @@ export function PageHeader({
   /** Concise supporting text for the current task. */
   readonly summary?: string;
   readonly children?: ReactNode;
-  readonly back?: { href: string; label: string };
+  /** Pages above this one; top-level (sidebar) pages pass none. */
+  readonly breadcrumbs?: readonly Crumb[];
+  /** Pages outside the app shell (sign-in) have nowhere to go back to. */
+  readonly showBack?: boolean;
 }) {
   const resolvedHelpText = helpText ?? description;
   return (
     <header className="mb-6 space-y-3">
-      {back ? <PageBackLink {...back} /> : null}
+      {breadcrumbs?.length ? (
+        <PageBreadcrumbs trail={breadcrumbs} current={title} />
+      ) : null}
       <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-4">
         <div className="min-w-0 flex-1 basis-64">
-          <div className="flex min-h-touch items-center gap-2">
+          <div className="flex min-h-touch items-center gap-1">
+            {showBack ? (
+              <PageBackButton fallbackHref={breadcrumbs?.at(-1)?.href ?? "/"} />
+            ) : null}
             <h1 className="min-w-0 text-2xl leading-8 font-semibold tracking-tight break-words text-text">
               {title}
             </h1>

@@ -35,6 +35,7 @@ import {
   ErrorNotice,
   Field,
   Heading,
+  usePalletTrail,
   Loading,
   Missing,
   palletPath,
@@ -72,6 +73,7 @@ function MoveLoader({
   actorScope: string;
 }) {
   const outcome = useQuery(fgRefs.getPallet, { warehouseId, palletId });
+  const crumbs = usePalletTrail(outcome?.ok ? outcome.value : undefined);
   const canManage = useCanManage();
   const [changeDestination, setChangeDestination] = useState(false);
   const { t } = useUnitText(
@@ -110,11 +112,7 @@ function MoveLoader({
   )
     return (
       <>
-        <Heading
-          title={t("copy.move-pallet")}
-          back={palletPath(palletId)}
-          backLabel={t("copy.back-to-pallet")}
-        />
+        <Heading title={t("copy.move-pallet")} breadcrumbs={crumbs} />
         <Notice
           title={
             !canManage
@@ -150,6 +148,7 @@ function MoveSelection({
   warehouseId: string;
   onReserved: () => void;
 }) {
+  const crumbs = usePalletTrail(detail);
   const { t, tr } = useUnitText(
     detail.pallet.storageFormat ?? detail.product?.storageFormat,
   );
@@ -185,8 +184,7 @@ function MoveSelection({
   return (
     <>
       <Heading
-        back={palletPath(detail.pallet._id)}
-        backLabel={t("copy.back-to-pallet")}
+        breadcrumbs={crumbs}
         title={t("copy.move-pallet")}
         description={t(
           "copy.choose-an-exact-destination-the-source-stays-occupied-until-the-move-or-",
@@ -296,6 +294,7 @@ function ActiveMove({
   actorScope: string;
   onChangeDestination: () => void;
 }) {
+  const crumbs = usePalletTrail(detail);
   const { t, tr, locale } = useUnitText(
     detail.pallet.storageFormat ?? detail.product?.storageFormat,
   );
@@ -445,8 +444,7 @@ function ActiveMove({
   return (
     <PageContainer actionInset="responsive">
       <Heading
-        back={palletPath(detail.pallet._id)}
-        backLabel={t("copy.back-to-pallet")}
+        breadcrumbs={crumbs}
         title={
           inTransit ? t("copy.confirm-pallet-move") : t("copy.move-prepared")
         }

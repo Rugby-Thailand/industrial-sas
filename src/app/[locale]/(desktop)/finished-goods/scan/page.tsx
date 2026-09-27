@@ -1,5 +1,5 @@
 import { setRequestLocale } from "next-intl/server";
-import { PackageScanningScreen } from "@/features/finishedGoods/PackageScanningScreen";
+import { JobScanScreen } from "@/features/finishedGoods/jobScan/JobScanScreen";
 export default async function Page({
   params,
 }: {
@@ -7,5 +7,5 @@ export default async function Page({
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
-  return <PackageScanningScreen />;
+  return <JobScanScreen />;
 }
