@@ -596,7 +596,9 @@
     "closeFloorEditing": "Close floor editing",
     "unsavedFloorChanges": "Unsaved floor changes",
     "finishOpenEditor": "Finish or cancel the open area or storage editor before saving the floor. You can also discard all unsaved changes.",
-    "floorDimensions": "Floor dimensions"
+    "floorDimensions": "Floor dimensions",
+    "mapSelectArea": "Select area {name}",
+    "mapAreaNoStorage": "No pallets can be stored in this area."
   },
   "FinishedGoods": {
     "title": "Finished goods",

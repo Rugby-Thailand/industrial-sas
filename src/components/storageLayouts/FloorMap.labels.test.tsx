@@ -426,3 +426,153 @@ describe("floor location labels", () => {
     expect(change).toHaveBeenLastCalledWith(undefined);
   });
 });
+
+describe("floor map interaction", () => {
+  it("switches a loaded dense floor to plan view while preserving a manual view choice", () => {
+    const data = floorMapDemo(false, false);
+    const zones = Array.from({ length: 10 }, (_, index) => ({
+      ...data.zones[0]!,
+      zoneId: `F1-L1-${index + 1}`,
+      locationId: `F1-L1-${index + 1}`,
+      code: `F1-L1-${index + 1}`,
+      label: `F1-L1-${index + 1}`,
+    }));
+    const view = renderWithIntl(<FloorMap {...data} zones={[]} />, {
+      locale: "en",
+      workspace: false,
+      preserveProviders: true,
+    });
+    expect(screen.getByRole("button", { name: "3D view" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    view.rerender(<FloorMap {...data} zones={zones} />);
+    expect(screen.getByRole("button", { name: "2D plan" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "3D view" }));
+    view.rerender(<FloorMap {...data} zones={zones.slice(0, 9)} />);
+    expect(screen.getByRole("button", { name: "3D view" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  function renderCells() {
+    const data = floorMapDemo(false, false);
+    const zones = Array.from({ length: 10 }, (_, index) => {
+      const code = `F1-L8-${index + 1}`;
+      return {
+        ...data.zones[0]!,
+        zoneId: code,
+        locationId: code,
+        code,
+        label: code,
+        mode: "SIMPLE" as const,
+        xMm: (index % 5) * 1884,
+        yMm: Math.floor(index / 5) * 1483,
+        widthMm: 1884,
+        depthMm: 1183,
+        positions: [],
+        placements: [],
+      };
+    });
+    renderWithIntl(
+      <FloorMap
+        {...data}
+        widthMm={9420}
+        depthMm={5000}
+        zones={zones}
+        blocks={[
+          {
+            xMm: 0,
+            yMm: 1183,
+            widthMm: 9420,
+            depthMm: 300,
+            label: "Aisle 0.30 m",
+            color: "#FFB68E",
+          },
+          {
+            xMm: 0,
+            yMm: 3500,
+            widthMm: 3000,
+            depthMm: 1500,
+            label: "พื้นที่ห้ามใช้งาน 1",
+            color: "#E0BF8C",
+          },
+        ]}
+      />,
+      { locale: "en", workspace: false },
+    );
+    const map = screen.getByRole("group", { name: "Interactive floor map" });
+    const cell = (number: number) =>
+      within(map).getByRole("button", {
+        name: `Select location F1-L8-${number}`,
+      });
+    const transform = () => map.querySelector("g")!.getAttribute("transform");
+    return { map, cell, transform };
+  }
+
+  it("zooms back out when the selected location is chosen again", () => {
+    const { cell } = renderCells();
+    const zoomOut = screen.getByRole("button", { name: "Zoom out" });
+    fireEvent.click(cell(3));
+    expect(cell(3)).toHaveAttribute("aria-pressed", "true");
+    expect(zoomOut).toBeEnabled();
+    fireEvent.click(cell(3));
+    expect(cell(3)).toHaveAttribute("aria-pressed", "false");
+    expect(zoomOut).toBeDisabled();
+  });
+
+  it("numbers every position once zoomed in", () => {
+    const { map } = renderCells();
+    const numbers = () => map.querySelectorAll("[data-map-zone-id] text");
+    expect(numbers()).toHaveLength(0);
+    const zoomIn = screen.getByRole("button", { name: "Zoom in" });
+    for (let step = 0; step < 4; step += 1) fireEvent.click(zoomIn);
+    expect(numbers()).toHaveLength(10);
+  });
+
+  it("selects restricted areas but not aisles", () => {
+    const { map, cell } = renderCells();
+    fireEvent.click(cell(1));
+    expect(
+      within(map).queryByRole("button", { name: /Select area Aisle/ }),
+    ).toBeNull();
+    const area = within(map).getByRole("button", {
+      name: "Select area พื้นที่ห้ามใช้งาน 1",
+    });
+    fireEvent.click(area);
+    expect(area).toHaveAttribute("aria-pressed", "true");
+    expect(cell(1)).toHaveAttribute("aria-pressed", "false");
+    expect(
+      screen.getByText("No pallets can be stored in this area."),
+    ).toBeVisible();
+    fireEvent.click(area);
+    expect(area).toHaveAttribute("aria-pressed", "false");
+    expect(
+      screen.queryByText("No pallets can be stored in this area."),
+    ).toBeNull();
+  });
+
+  it("drags the zoomed map without selecting the location under the pointer", () => {
+    const { map, cell, transform } = renderCells();
+    fireEvent.click(cell(3));
+    const centred = transform();
+    fireEvent.pointerDown(cell(3), {
+      pointerId: 1,
+      button: 0,
+      clientX: 100,
+      clientY: 100,
+    });
+    fireEvent.pointerMove(map, { pointerId: 1, clientX: 140, clientY: 100 });
+    fireEvent.pointerUp(map, { pointerId: 1, clientX: 140, clientY: 100 });
+    // The click that ends the drag must not toggle the selection off.
+    fireEvent.click(cell(3));
+    expect(cell(3)).toHaveAttribute("aria-pressed", "true");
+    expect(transform()).not.toBe(centred);
+    fireEvent.click(screen.getByRole("button", { name: "Fit floor to view" }));
+    expect(transform()).toBe("translate(0 0) scale(1)");
+  });
+});
