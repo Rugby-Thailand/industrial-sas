@@ -1,6 +1,7 @@
 import { fireEvent, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithIntl } from "@tests/fixtures/intl-render";
+import { sceneColors } from "@/components/storageScene/sceneColors";
 import { FloorMap } from "./FloorMap";
 import { floorMapDemo } from "./storageFloorDemoData";
 
@@ -148,7 +149,7 @@ describe("floor location labels", () => {
       );
       expect(
         [...map.querySelectorAll("text")].some(
-          (label) => label.textContent === "15",
+          (label) => label.textContent === `${prefix}-L1-15`,
         ),
       ).toBe(true);
       const selectedCell = map.querySelector(
@@ -226,7 +227,7 @@ describe("floor location labels", () => {
     );
   });
 
-  it("reserves the first row for a group marker until its number clears the chip", () => {
+  it("reserves the first row for a group marker until its label fits", () => {
     const data = floorMapDemo(false, false);
     const zone = {
       ...data.zones[0]!,
@@ -259,10 +260,11 @@ describe("floor location labels", () => {
     expect(
       map.querySelector('[data-pd-cell-code="F1-L26-1"] + text'),
     ).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Zoom in" }));
-    expect(
-      map.querySelector('[data-pd-cell-code="F1-L26-1"] + text'),
-    ).toHaveTextContent("1");
+    for (let click = 0; click < 4; click += 1)
+      fireEvent.click(screen.getByRole("button", { name: "Zoom in" }));
+    const label = map.querySelector('[data-pd-cell-code="F1-L26-1"] + text');
+    expect(label).toHaveTextContent("F1-L26-1");
+    expect(Number(label?.getAttribute("font-size")) * 3).toBeLessThan(13);
   });
 
   it("shows every floor position and the two 300 mm aisles inside PD-L1", () => {
@@ -428,6 +430,49 @@ describe("floor location labels", () => {
 });
 
 describe("floor map interaction", () => {
+  it("shows the location label without an oversized group outline when selected", () => {
+    const data = floorMapDemo(false, false);
+    const code = "F1-L23-12";
+    renderWithIntl(
+      <FloorMap
+        {...data}
+        zones={[
+          {
+            ...data.zones[0]!,
+            zoneId: code,
+            locationId: code,
+            code,
+            label: "Rack 23 · Cell 12",
+            positions: [],
+            placements: [],
+          },
+        ]}
+      />,
+      { locale: "en", workspace: false },
+    );
+    const map = screen.getByRole("group", { name: "Interactive floor map" });
+    const location = within(map).getByRole("button", {
+      name: "Select location Rack 23 · Cell 12",
+    });
+    expect(location.querySelector("[data-pd-cell-code]")).toHaveClass(
+      "group-focus-visible:stroke-text",
+    );
+    fireEvent.click(location);
+    expect(location).toHaveAttribute("aria-pressed", "true");
+    expect(
+      location.querySelector("[data-pd-cell-code] + text"),
+    ).toHaveTextContent("Rack 23 · Cell 12");
+    expect(location).not.toHaveClass("focus-visible:outline-2");
+    expect(location).toHaveClass("focus-visible:outline-none");
+    expect(location.querySelector("[data-pd-cell-code]")).toHaveAttribute(
+      "stroke",
+      sceneColors.selected,
+    );
+    expect(location.querySelector("[data-pd-cell-code]")).not.toHaveClass(
+      "group-focus-visible:stroke-text",
+    );
+  });
+
   it("switches a loaded dense floor to plan view while preserving a manual view choice", () => {
     const data = floorMapDemo(false, false);
     const zones = Array.from({ length: 10 }, (_, index) => ({
@@ -525,13 +570,14 @@ describe("floor map interaction", () => {
     expect(zoomOut).toBeDisabled();
   });
 
-  it("numbers every position once zoomed in", () => {
+  it("shows every position label once zoomed in", () => {
     const { map } = renderCells();
-    const numbers = () => map.querySelectorAll("[data-map-zone-id] text");
-    expect(numbers()).toHaveLength(0);
+    const labels = () => [...map.querySelectorAll("[data-map-zone-id] text")];
+    expect(labels()).toHaveLength(0);
     const zoomIn = screen.getByRole("button", { name: "Zoom in" });
     for (let step = 0; step < 4; step += 1) fireEvent.click(zoomIn);
-    expect(numbers()).toHaveLength(10);
+    expect(labels()).toHaveLength(10);
+    expect(labels().map((label) => label.textContent)).toContain("F1-L8-3");
   });
 
   it("selects restricted areas but not aisles", () => {
