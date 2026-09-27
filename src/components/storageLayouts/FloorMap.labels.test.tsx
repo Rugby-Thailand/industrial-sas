@@ -21,6 +21,27 @@ function renderMap(floorNumber = 1) {
 }
 
 describe("floor location labels", () => {
+  it("honors an explicit 3D entry view for dense layouts", () => {
+    const demo = floorMapDemo(false, false);
+    renderWithIntl(
+      <FloorMap
+        {...demo}
+        initialView="3d"
+        blocks={Array.from({ length: 9 }, (_, i) => ({
+          xMm: i * 400,
+          yMm: 0,
+          widthMm: 300,
+          depthMm: 300,
+          label: `Aisle ${i}`,
+        }))}
+      />,
+      { locale: "en", workspace: false },
+    );
+    expect(screen.getByRole("button", { name: "3D view" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
   it("renders approved PD aisles with the same scale and keeps stairs grounded in 3D", () => {
     const plan = pdApprovedPlan(),
       demo = floorMapDemo(false, false);
