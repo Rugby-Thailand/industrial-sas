@@ -3,13 +3,16 @@ import { clientRef, type RefValue } from "./clientRef";
 
 export const fgRefs = Object.freeze({
   prepareSummaries: clientRef(api.finishedGoods.summaryMaintenance.prepare),
-  resolvePackageCode: clientRef(api.finishedGoods.scanning.resolvePackageCode),
   resolveLocationCode: clientRef(
     api.finishedGoods.scanning.resolveLocationCode,
   ),
-  confirmScanAssignment: clientRef(
-    api.finishedGoods.scanning.confirmScanAssignment,
+  searchJobScanLocations: clientRef(api.finishedGoods.jobScans.searchLocations),
+  extractJobTicket: clientRef(api.finishedGoods.jobScans.extractJobTicket),
+  saveJobScans: clientRef(api.finishedGoods.jobScans.saveJobScans),
+  assignJobScanLocation: clientRef(
+    api.finishedGoods.jobScans.assignJobScanLocation,
   ),
+  listJobScans: clientRef(api.finishedGoods.jobScans.listJobScans),
   getScanAssignment: clientRef(api.finishedGoods.scanning.getScanAssignment),
   cataloguePage: clientRef(api.finishedGoods.catalogue.page),
   catalogueSummary: clientRef(api.finishedGoods.catalogue.summary),

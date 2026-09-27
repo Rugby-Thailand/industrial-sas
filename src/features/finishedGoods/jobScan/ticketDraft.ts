@@ -1,0 +1,122 @@
+import { classifyTicketBarcode } from "../../../../convex/model/finishedGoods/jobScans";
+
+export { classifyTicketBarcode };
+
+export const REQUIRED_FIELDS = ["factoryOrder", "productBarcodeText"] as const;
+export const DETAIL_FIELDS = [
+  "partName",
+  "customer",
+  "deliveryDate",
+  "manufacturingDate",
+  "quantity",
+  "factoryQuantity",
+  "customerQuantity",
+] as const;
+export const NUMBER_FIELDS = new Set([
+  "quantity",
+  "factoryQuantity",
+  "customerQuantity",
+]);
+export type TicketField =
+  (typeof REQUIRED_FIELDS)[number] | (typeof DETAIL_FIELDS)[number];
+
+/** Location chosen before scanning; unmapped locations keep only their text. */
+export type PickedLocation = {
+  text: string;
+  zoneId?: string;
+  supportPositionId?: string;
+  code?: string;
+  name?: string;
+};
+
+export type TicketDraft = {
+  key: string;
+  source: "AI" | "BARCODE" | "MANUAL";
+  status: "reading" | "ready";
+  values: Partial<Record<TicketField, string>>;
+  /** Fields the AI filled that nobody has edited yet. */
+  aiFields: TicketField[];
+  previewUrl?: string;
+  imageUrl?: string;
+  aiRaw?: string;
+  notice?: "aiFilled" | "aiMock" | "aiFailed" | "uploadFailed";
+};
+
+export const newTicket = (
+  source: TicketDraft["source"],
+  values: TicketDraft["values"] = {},
+): TicketDraft => ({
+  key: crypto.randomUUID(),
+  source,
+  status: "ready",
+  values,
+  aiFields: [],
+});
+
+export const isComplete = (ticket: TicketDraft) =>
+  REQUIRED_FIELDS.every((field) => ticket.values[field]?.trim());
+
+/** Adds AI output without overwriting anything the user already typed. */
+export function mergeExtracted(
+  ticket: TicketDraft,
+  fields: Partial<Record<TicketField, string | number>>,
+): TicketDraft {
+  const values = { ...ticket.values };
+  const aiFields: TicketField[] = [];
+  for (const [field, value] of Object.entries(fields) as [
+    TicketField,
+    string | number,
+  ][]) {
+    if (values[field]?.trim() || value === undefined || value === "") continue;
+    values[field] = String(value);
+    aiFields.push(field);
+  }
+  return { ...ticket, values, aiFields };
+}
+
+/** Puts a scanned code into the newest ticket still missing that field, else starts a new ticket. */
+export function applyBarcode(
+  tickets: TicketDraft[],
+  code: string,
+): { tickets: TicketDraft[]; field: TicketField } {
+  const field = classifyTicketBarcode(code);
+  let index = tickets.length - 1;
+  while (
+    index >= 0 &&
+    (tickets[index]!.status !== "ready" ||
+      tickets[index]!.values[field]?.trim())
+  )
+    index--;
+  if (index === -1)
+    return {
+      tickets: [...tickets, newTicket("BARCODE", { [field]: code })],
+      field,
+    };
+  return {
+    tickets: tickets.map((ticket, i) =>
+      i === index
+        ? { ...ticket, values: { ...ticket.values, [field]: code } }
+        : ticket,
+    ),
+    field,
+  };
+}
+
+export function toPayload(ticket: TicketDraft) {
+  const item: Record<string, string | number> = { source: ticket.source };
+  for (const field of [...REQUIRED_FIELDS, ...DETAIL_FIELDS]) {
+    const value = ticket.values[field]?.trim();
+    if (!value) continue;
+    if (NUMBER_FIELDS.has(field)) {
+      const number = Number(value.replace(/,/g, ""));
+      if (Number.isFinite(number)) item[field] = number;
+    } else item[field] = value;
+  }
+  if (ticket.imageUrl) item["imageUrl"] = ticket.imageUrl;
+  if (ticket.aiRaw) item["aiRaw"] = ticket.aiRaw;
+  return item as {
+    factoryOrder: string;
+    productBarcodeText: string;
+    source: TicketDraft["source"];
+  } & Record<string, string | number>;
+}

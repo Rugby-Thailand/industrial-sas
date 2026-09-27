@@ -3,7 +3,15 @@
 // Adapted from @reui/c-sidebar-2: branded header, icon rail, account footer,
 // and inset content. Routes and account information come from the real app.
 import { type CSSProperties, type ReactNode } from "react";
-import { Boxes, Building2, PanelLeft, X, type LucideIcon } from "lucide-react";
+import {
+  Boxes,
+  Building2,
+  ClipboardList,
+  PanelLeft,
+  ScanQrCode,
+  X,
+  type LucideIcon,
+} from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { useWorkspace } from "@/components/providers/WorkspaceProvider";
@@ -32,7 +40,7 @@ import {
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Link, usePathname } from "@/i18n/navigation";
 import {
-  isActivePath,
+  activeNavigationHref,
   ROUTES,
   visibleDesktopNavigation,
 } from "@/lib/navigation";
@@ -171,6 +179,8 @@ function AppSidebar() {
 }
 const NAVIGATION_ICONS: Readonly<Record<string, LucideIcon>> = Object.freeze({
   [ROUTES.storageLayouts]: Building2,
+  [ROUTES.jobScan]: ScanQrCode,
+  [ROUTES.jobScanRecords]: ClipboardList,
 });
 
 function NavigationTree({
@@ -186,6 +196,10 @@ function NavigationTree({
   const sections = workspace.permissionsReady
     ? visibleDesktopNavigation(workspace.navigationPermissions)
     : [];
+  const activeHref = activeNavigationHref(
+    pathname,
+    sections.flatMap((section) => section.items.map((item) => item.href)),
+  );
 
   return (
     <nav
@@ -213,7 +227,7 @@ function NavigationTree({
             <SidebarGroupContent>
               <SidebarMenu>
                 {section.items.map((item) => {
-                  const active = isActivePath(pathname, item.href);
+                  const active = item.href === activeHref;
                   const Icon = NAVIGATION_ICONS[item.href] ?? Boxes;
                   const label = t(item.labelKey);
                   return (
