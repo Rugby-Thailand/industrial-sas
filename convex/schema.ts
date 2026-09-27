@@ -654,6 +654,13 @@ const schema = defineSchema({
   ).index("by_orgId_warehouseId", byOrg("warehouseId")),
   storageBuildings: defineTable(
     tenantFields({
+      pdImport: v.optional(
+        v.object({
+          revision: v.string(),
+          beforeDigest: v.string(),
+          importedAt: v.number(),
+        }),
+      ),
       warehouseId: v.id("warehouses"),
       code: v.string(),
       name: v.string(),
@@ -718,6 +725,15 @@ const schema = defineSchema({
     ),
   storageFloorReservedBlocks: defineTable(
     tenantFields({
+      areaKind: v.optional(
+        v.union(
+          v.literal("AISLE"),
+          v.literal("PLATFORM"),
+          v.literal("STAIRS"),
+          v.literal("NO_STORAGE"),
+        ),
+      ),
+      displayHeightMm: v.optional(v.number()),
       buildingId: v.id("storageBuildings"),
       floorId: v.id("storageFloors"),
       warehouseId: v.id("warehouses"),

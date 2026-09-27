@@ -53,6 +53,8 @@ import {
 } from "react";
 
 interface Area {
+  readonly areaKind?: "AISLE" | "PLATFORM" | "STAIRS" | "NO_STORAGE";
+  readonly displayHeightMm?: number;
   readonly color?: string;
   readonly xMm: number;
   readonly yMm: number;
@@ -1171,7 +1173,60 @@ function MapDrawing({
                   }
                 : { "aria-hidden": true })}
             >
-              {hasPdCells && view === "plan" ? (
+              {b.areaKind ? (
+                <g data-reserved-kind={b.areaKind}>
+                  {/* Real floor footprint: aisles remain filled in both views. */}
+                  <polygon
+                    points={pts(rect(b.xMm, b.yMm, b.widthMm, b.depthMm))}
+                    fill={b.color}
+                    stroke={active ? sceneColors.selected : undefined}
+                    vectorEffect="non-scaling-stroke"
+                  >
+                    <title>{b.label}</title>
+                  </polygon>
+                  {(b.areaKind === "PLATFORM" || b.areaKind === "STAIRS") &&
+                    Array.from(
+                      { length: b.areaKind === "STAIRS" ? 5 : 1 },
+                      (_, stepIndex) => {
+                        const count = b.areaKind === "STAIRS" ? 5 : 1;
+                        const d = b.depthMm / count,
+                          y = b.yMm + stepIndex * d;
+                        const z =
+                          view === "3d"
+                            ? ((b.displayHeightMm ?? 0) * (count - stepIndex)) /
+                              count
+                            : 0;
+                        const top = rect(b.xMm, y, b.widthMm, d, z);
+                        const base = rect(b.xMm, y, b.widthMm, d);
+                        return (
+                          <g key={stepIndex}>
+                            {view === "3d" &&
+                              [0, 1, 2, 3].map((i) => (
+                                <polygon
+                                  key={i}
+                                  points={pts([
+                                    base[i]!,
+                                    base[(i + 1) % 4]!,
+                                    top[(i + 1) % 4]!,
+                                    top[i]!,
+                                  ])}
+                                  fill={b.color}
+                                  stroke="#5d6265"
+                                  strokeWidth={0.7}
+                                />
+                              ))}
+                            <polygon
+                              points={pts(top)}
+                              fill={b.color}
+                              stroke="#5d6265"
+                              strokeWidth={0.7}
+                            />
+                          </g>
+                        );
+                      },
+                    )}
+                </g>
+              ) : hasPdCells && view === "plan" ? (
                 <polygon
                   points={pts(rect(b.xMm, b.yMm, b.widthMm, b.depthMm))}
                   fill={b.color ?? "#ffb68e"}

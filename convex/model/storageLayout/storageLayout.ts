@@ -9,6 +9,8 @@ export const STORAGE_LAYOUT_LIMITS = Object.freeze({
 });
 
 export interface StorageReservedBlockInput {
+  readonly areaKind?: "AISLE" | "PLATFORM" | "STAIRS" | "NO_STORAGE";
+  readonly displayHeightMm?: number;
   readonly id: string;
   readonly label: string;
   readonly color?: string;
@@ -240,7 +242,11 @@ export function validateAndSummarizeStorageLayout(
         current.xMm < 0 ||
         current.yMm < 0 ||
         !validDimension(current.widthMm) ||
-        !validDimension(current.depthMm)
+        !validDimension(current.depthMm) ||
+        (current.displayHeightMm !== undefined &&
+          (!Number.isSafeInteger(current.displayHeightMm) ||
+            current.displayHeightMm < 0 ||
+            current.displayHeightMm > heightMm))
       ) {
         return fail({
           code: "RESERVED_BLOCK_INVALID",
@@ -346,6 +352,8 @@ export function isStorageFloorColorOnlyChange(
     if (!old) return false;
     for (const field of [
       "label",
+      "areaKind",
+      "displayHeightMm",
       "xMm",
       "yMm",
       "widthMm",

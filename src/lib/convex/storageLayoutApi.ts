@@ -5,6 +5,8 @@ import { clientRef } from "./clientRef";
 export type StorageLayoutStatus = "DRAFT" | "ACTIVE" | "ARCHIVED";
 
 export interface StorageReservedBlockRow {
+  readonly areaKind?: "AISLE" | "PLATFORM" | "STAIRS" | "NO_STORAGE";
+  readonly displayHeightMm?: number;
   readonly blockId: string;
   readonly label: string;
   readonly color?: string;

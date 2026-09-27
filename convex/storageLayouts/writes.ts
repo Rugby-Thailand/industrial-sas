@@ -24,6 +24,15 @@ import {
 import { hasOccupiedStorage } from "./catalogue";
 
 const blockValidator = v.object({
+  areaKind: v.optional(
+    v.union(
+      v.literal("AISLE"),
+      v.literal("PLATFORM"),
+      v.literal("STAIRS"),
+      v.literal("NO_STORAGE"),
+    ),
+  ),
+  displayHeightMm: v.optional(v.number()),
   id: v.string(),
   label: v.string(),
   color: v.optional(v.string()),
@@ -101,6 +110,10 @@ async function readLayout(
         reservedBlocks: blocks.map((block) => ({
           id: block._id,
           label: block.label,
+          ...(block.areaKind === undefined ? {} : { areaKind: block.areaKind }),
+          ...(block.displayHeightMm === undefined
+            ? {}
+            : { displayHeightMm: block.displayHeightMm }),
           ...(block.color === undefined ? {} : { color: block.color }),
           xMm: block.xMm,
           yMm: block.yMm,
@@ -685,6 +698,10 @@ export const saveStorageFloor = mutationWithOrg({
           floorId: floorDocument._id,
           warehouseId: args.warehouseId,
           label: block.label,
+          ...(block.areaKind === undefined ? {} : { areaKind: block.areaKind }),
+          ...(block.displayHeightMm === undefined
+            ? {}
+            : { displayHeightMm: block.displayHeightMm }),
           ...(block.color === undefined
             ? {}
             : { color: normalizeAreaColor(block.color) }),

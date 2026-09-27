@@ -298,6 +298,10 @@ async function readFloor(
     reservedBlocks: blocks.map((block) => ({
       blockId: block._id,
       label: block.label,
+      ...(block.areaKind === undefined ? {} : { areaKind: block.areaKind }),
+      ...(block.displayHeightMm === undefined
+        ? {}
+        : { displayHeightMm: block.displayHeightMm }),
       ...(block.color === undefined ? {} : { color: block.color }),
       xMm: block.xMm,
       yMm: block.yMm,
