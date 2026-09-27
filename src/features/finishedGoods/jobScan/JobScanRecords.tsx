@@ -86,6 +86,7 @@ function Records({ warehouseId }: { warehouseId: string }) {
               onClick={() => {
                 setFilter(value);
                 setSelected([]);
+                setPicking(false);
               }}
               className={cn(
                 "min-h-10 rounded-md text-sm font-medium",
@@ -108,7 +109,11 @@ function Records({ warehouseId }: { warehouseId: string }) {
           />
           <Input
             value={search}
-            onChange={(event) => setSearch(event.target.value)}
+            onChange={(event) => {
+              setSearch(event.target.value);
+              setSelected([]);
+              setPicking(false);
+            }}
             placeholder={t("search")}
             className="min-h-11 pl-9"
           />

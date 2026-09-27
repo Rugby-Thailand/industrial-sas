@@ -117,7 +117,7 @@ export const searchLocations = queryWithOrg({
   },
 });
 
-/** Reads a job ticket photo with OpenRouter. Without an API key it returns sample data for local work. */
+/** Reads a job ticket photo with OpenRouter. Sample extraction requires explicit local opt-in. */
 export const extractJobTicket = actionWithOrg({
   args: { warehouseId: v.id("warehouses"), imageUrl: v.string() },
   returns: v.any(),
@@ -135,6 +135,11 @@ export const extractJobTicket = actionWithOrg({
       return { ok: false as const, error: { code: "IMAGE_URL_INVALID" } };
     const apiKey = process.env.OPENROUTER_API_KEY?.trim();
     if (!apiKey) {
+      if (
+        process.env.NODE_ENV === "production" ||
+        process.env.JOB_SCAN_DEMO_AI !== "1"
+      )
+        return { ok: false as const, error: { code: "AI_UNAVAILABLE" } };
       const sample = {
         factory_order: "FO69070073",
         delivery_date: "6/7/2569",

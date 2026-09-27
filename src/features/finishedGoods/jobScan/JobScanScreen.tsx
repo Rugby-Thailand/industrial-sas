@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAction, useMutation } from "convex/react";
 import {
   Camera,
@@ -105,7 +105,21 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
     location: PickedLocation;
   }>();
   const [saving, setSaving] = useState(false);
+  const previewUrls = useRef(new Set<string>());
+  useEffect(() => {
+    const urls = previewUrls.current;
+    return () => {
+      for (const url of urls) URL.revokeObjectURL(url);
+      urls.clear();
+    };
+  }, []);
   useUnsavedWarning(tickets.length > 0);
+
+  const releasePreview = (ticket: TicketDraft) => {
+    if (!ticket.previewUrl) return;
+    URL.revokeObjectURL(ticket.previewUrl);
+    previewUrls.current.delete(ticket.previewUrl);
+  };
 
   const update = (key: string, change: (ticket: TicketDraft) => TicketDraft) =>
     setTickets((current) =>
@@ -113,10 +127,12 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
     );
 
   async function onPhoto(file: File) {
+    const previewUrl = URL.createObjectURL(file);
+    previewUrls.current.add(previewUrl);
     const ticket = {
       ...newTicket("AI"),
       status: "reading" as const,
-      previewUrl: URL.createObjectURL(file),
+      previewUrl,
     };
     setTickets((current) => [...current, ticket]);
     const image = await resizeImage(file);
@@ -179,6 +195,7 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
     );
     setSaving(false);
     if (result === null) return;
+    tickets.forEach(releasePreview);
     setSaved({ count: tickets.length, location });
     setTickets([]);
     setPanel(null);
@@ -329,11 +346,12 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
                     aiFields: row.aiFields.filter((name) => name !== field),
                   }))
                 }
-                onRemove={() =>
+                onRemove={() => {
+                  releasePreview(ticket);
                   setTickets((current) =>
                     current.filter((row) => row.key !== ticket.key),
-                  )
-                }
+                  );
+                }}
               />
             ))}
           </ol>
