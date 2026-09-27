@@ -97,8 +97,19 @@ async function snapshot(ctx: TenantFunctionContext, args: Target) {
         z.buildingId !== building._id ||
         (z.mode ?? "SIMPLE") !== "SIMPLE",
     )
-  )
+  ) {
+    console.error("PD_CODE_SET_COUNTS", {
+      total: zones.length,
+      unique: new Set(zones.map((z) => z.code)).size,
+      unexpectedCodes: zones.filter((z) => !expected.has(z.code)).length,
+      inactive: zones.filter((z) => z.status !== "ACTIVE").length,
+      wrongWarehouse: zones.filter((z) => z.warehouseId !== warehouse._id)
+        .length,
+      wrongBuilding: zones.filter((z) => z.buildingId !== building._id).length,
+      nonSimple: zones.filter((z) => (z.mode ?? "SIMPLE") !== "SIMPLE").length,
+    });
     throw new Error("PD_CODE_SET_MISMATCH");
+  }
   const positions = ordered(
     (
       await Promise.all(
@@ -229,16 +240,34 @@ export const preflight = queryWithOrg({
   target: { table: "storageBuildings", id: (a) => a.buildingId },
   warehouseId: (a) => a.warehouseId,
   handler: async (ctx, args) => {
-    const backup = await snapshot(ctx, args);
+    let backup: Snapshot;
+    try {
+      backup = await snapshot(ctx, args);
+    } catch (error) {
+      // Fixed diagnostic codes only: never log records, credentials, or raw errors.
+      const code =
+        error instanceof Error && /^PD_[A-Z_]+$/.test(error.message)
+          ? error.message
+          : "PD_SNAPSHOT_READ_FAILED";
+      console.error(code);
+      throw error;
+    }
     const blocked =
       backup.placements.some((p) => p.status !== "RELEASED") ||
       backup.moves.some(
         (m) => m.status === "RESERVED" || m.status === "IN_TRANSIT",
       );
+    let snapshotDigest: string;
+    try {
+      snapshotDigest = await digest(backup);
+    } catch (error) {
+      console.error("PD_SNAPSHOT_DIGEST_FAILED");
+      throw error;
+    }
     return {
       revision: PD_REVISION,
       blocked,
-      digest: await digest(backup),
+      digest: snapshotDigest,
       backup,
       plan: pdApprovedPlan(),
     };
