@@ -174,8 +174,8 @@ describe("BuildingModelWorkspace", () => {
       screen.getByRole("region", { name: "Interactive floor map" }),
     ).toBeVisible();
     expect(
-      screen.getByText("Saved walkway", { selector: "text" }),
-    ).toBeVisible();
+      container.querySelector("[data-unavailable-area] title"),
+    ).toHaveTextContent("Saved walkway");
     fireEvent.click(
       screen.getByRole("button", { name: "Select location Occupied FG" }),
     );
@@ -1978,6 +1978,7 @@ it("renders dense demo scenarios without inventory links or writes", async () =>
   );
   expect(container.querySelectorAll("[data-placement-id]")).toHaveLength(120);
   fireEvent.click(screen.getByRole("button", { name: "2D plan" }));
+  fireEvent.click(screen.getByRole("button", { name: "Show detailed labels" }));
   const labels = [...container.querySelectorAll("[data-floor-callout]")];
   expect(labels).toHaveLength(4);
   const aisles = [

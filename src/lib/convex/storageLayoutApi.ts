@@ -93,6 +93,7 @@ export interface StorageZoneRow {
   readonly qrValue: string;
   readonly mode: StorageAreaMode;
   readonly storageCondition?: string;
+  readonly importNote?: string;
   readonly baseElevationMm?: number;
   readonly xMm: number;
   readonly yMm: number;
