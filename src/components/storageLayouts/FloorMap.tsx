@@ -63,6 +63,7 @@ interface Area {
   readonly label: string;
 }
 export interface FloorMapProps {
+  readonly initialView?: "3d" | "plan";
   readonly widthMm: number;
   readonly depthMm: number;
   readonly heightMm: number;
@@ -200,7 +201,9 @@ export function FloorMap(props: FloorMapProps) {
     readLocationLabels,
     () => false,
   );
-  const [preferredView, setPreferredView] = useState<"3d" | "plan">();
+  const [preferredView, setPreferredView] = useState<"3d" | "plan" | undefined>(
+    props.initialView,
+  );
   const view =
     preferredView ??
     (props.zones.length > 8 ||

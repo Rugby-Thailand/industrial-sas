@@ -2,7 +2,11 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import { Fg1MeasuredPlan } from "./Fg1MeasuredPlan";
 import { fg1ApprovedPlan } from "../../../convex/model/storageLayout/fg1ApprovedPlan";
-vi.mock("./FloorMap", () => ({ FloorMap: () => <div>live 3D</div> }));
+vi.mock("./FloorMap", () => ({
+  FloorMap: ({ initialView }: { initialView?: string }) => (
+    <div>{initialView === "3d" ? "live 3D" : "live 2D"}</div>
+  ),
+}));
 describe("FG1 database plan", () => {
   it("shows only names, uses live coordinates, preserves selection and supports zoom/3D", () => {
     vi.stubGlobal(

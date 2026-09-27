@@ -191,7 +191,7 @@ export function Fg1MeasuredPlan(props: FloorMapProps) {
             {props.locationInspector}
           </>
         ) : (
-          <FloorMap {...props} />
+          <FloorMap {...props} initialView="3d" />
         )}
       </div>
     </section>
