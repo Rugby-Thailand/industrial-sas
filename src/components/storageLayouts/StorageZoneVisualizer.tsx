@@ -117,6 +117,7 @@ export function ReservedAreaShape({
             fill={base}
             stroke={contrast}
             vectorEffect="non-scaling-stroke"
+            className="group-focus-visible:stroke-text"
           />
           {index < faces.length - 1 && (
             <polygon

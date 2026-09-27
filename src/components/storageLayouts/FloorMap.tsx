@@ -88,7 +88,7 @@ const floorZoneUnitCount = (zone: StorageZoneRow) =>
   locationInventory(zone).units;
 const hasUnmeasuredInventory = (zone: StorageZoneRow) =>
   locationInventory(zone).measuredAreaPartial;
-// Zoom level from which every storage position shows its number.
+// Zoom level from which storage positions show their labels when they fit.
 const labelZoom = 2;
 // Pointer travel, in screen pixels, before a press becomes a map drag.
 const dragThreshold = 4;
@@ -1167,7 +1167,7 @@ function MapDrawing({
                     "aria-label": t("mapSelectArea", { name: b.label }),
                     "aria-pressed": active,
                     className:
-                      "group cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-text",
+                      "group cursor-pointer outline-none focus-visible:outline-none",
                     onClick: () => onSelectArea(i),
                     onKeyDown: (e) => {
                       if (e.key === "Enter" || e.key === " ") {
@@ -1204,7 +1204,7 @@ function MapDrawing({
         })}
         {props.zones.map((zone) => {
           const active = zone.zoneId === selectedId;
-          const shortCode = zone.code.split("-").at(-1)!;
+          const cellLabel = zone.label.trim() || zone.code;
           const base = rect(zone.xMm, zone.yMm, zone.widthMm, zone.depthMm);
           const cellWidth = Math.abs(base[1]!.x - base[0]!.x) * zoom;
           const cellHeight = Math.abs(base[3]!.y - base[0]!.y) * zoom;
@@ -1213,9 +1213,17 @@ function MapDrawing({
             group &&
             !(group.xMm <= 1500 && group.widthMm >= 6000) &&
             zone.yMm === group.yMm;
-          const codeFits =
-            cellWidth >= shortCode.length * 8 + 10 &&
-            cellHeight >= (markerInFirstRow ? 38 : 20);
+          const estimatedLabelWidth = [...cellLabel].reduce(
+            (width, character) =>
+              width + (character.charCodeAt(0) > 127 ? 1 : 0.62),
+            0,
+          );
+          const labelFontSizePx = Math.min(
+            13,
+            (cellWidth - 8) / Math.max(estimatedLabelWidth, 1),
+          );
+          const labelFits =
+            labelFontSizePx >= 8 && cellHeight >= (markerInFirstRow ? 38 : 20);
           const top = rect(
             zone.xMm,
             zone.yMm,
@@ -1259,7 +1267,7 @@ function MapDrawing({
                     ?.focus();
                 }
               }}
-              className="group cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-text"
+              className="group cursor-pointer outline-none focus-visible:outline-none"
               opacity={searching && !matchIds.includes(zone.zoneId) ? 0.3 : 1}
             >
               <title>
@@ -1288,10 +1296,12 @@ function MapDrawing({
                       stroke={active ? sceneColors.selected : "#48646b"}
                       strokeWidth={active ? 3 : 0.75}
                       vectorEffect="non-scaling-stroke"
-                      className="group-focus-visible:stroke-text"
+                      className={
+                        active ? undefined : "group-focus-visible:stroke-text"
+                      }
                     />
                     {(active || showLocationLabels || zoom >= labelZoom) &&
-                      codeFits && (
+                      labelFits && (
                         <text
                           x={
                             point(
@@ -1308,11 +1318,11 @@ function MapDrawing({
                           textAnchor="middle"
                           dominantBaseline="middle"
                           fill="#172329"
-                          fontSize={13 / zoom}
+                          fontSize={labelFontSizePx / zoom}
                           fontWeight="700"
                           className="pointer-events-none"
                         >
-                          {shortCode}
+                          {cellLabel}
                         </text>
                       )}
                   </>
