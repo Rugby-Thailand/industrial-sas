@@ -32,10 +32,50 @@ describe("PageHeader", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
+  it("renders the breadcrumb trail with the title as the current page", () => {
+    renderWithIntl(
+      <PageHeader
+        title="พาเลท P-000001"
+        breadcrumbs={[
+          { label: "สินค้าสำเร็จรูป", href: "/finished-goods" },
+          { label: "กล่อง A", href: "/finished-goods/products/p1" },
+        ]}
+      />,
+    );
+    const trail = screen.getByRole("navigation");
+    expect(
+      within(trail).getByRole("link", { name: "สินค้าสำเร็จรูป" }),
+    ).toHaveAttribute("href", "/finished-goods");
+    expect(
+      within(trail).getByRole("link", { name: "กล่อง A" }),
+    ).toHaveAttribute("href", "/finished-goods/products/p1");
+    expect(within(trail).getByText("พาเลท P-000001")).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+  });
+
+  it("renders no breadcrumb on top-level pages", () => {
+    renderWithIntl(<PageHeader title="งานคลัง" />);
+
+    expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
+  });
+
   it("renders no toggle when there is no description", () => {
     renderWithIntl(<PageHeader title="งานคลัง" />);
 
-    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "เกี่ยวกับหน้านี้" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("puts a back button before the title unless the page opts out", () => {
+    const { rerender } = renderWithIntl(<PageHeader title="งานคลัง" />);
+    expect(screen.getByRole("button", { name: "ย้อนกลับ" })).toBeVisible();
+    rerender(<PageHeader title="งานคลัง" showBack={false} />);
+    expect(
+      screen.queryByRole("button", { name: "ย้อนกลับ" }),
+    ).not.toBeInTheDocument();
   });
 });
 
@@ -43,4 +83,5 @@ vi.mock("@/i18n/navigation", () => ({
   Link: ({ href, ...props }: ComponentProps<"a">) => (
     <a href={href} {...props} />
   ),
+  useRouter: () => ({ back: vi.fn(), push: vi.fn() }),
 }));

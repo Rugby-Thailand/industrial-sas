@@ -411,7 +411,7 @@ describe("measurement revision", () => {
   it("preserves the pallet identity when returning to product details", () => {
     renderPallet("measure");
     expect(
-      screen.getByRole("link", { name: "Product details" }),
+      screen.getByRole("link", { name: "Packaging cartons" }),
     ).toHaveAttribute(
       "href",
       "/finished-goods/products/product-a?resumePalletId=pallet-a",
@@ -580,10 +580,10 @@ describe("exact storage recommendations", () => {
     expect(screen.getByText("Could not load recommendations")).toBeVisible();
     expect(screen.getByRole("button", { name: "Try again" })).toBeVisible();
     expect(
-      screen.getByRole("link", { name: "Back to measurements" }),
+      screen.getByRole("link", { name: currentDetail.pallet.code }),
     ).toHaveAttribute(
       "href",
-      `/finished-goods/pallets/${currentDetail.pallet._id}/measure`,
+      `/finished-goods/pallets/${currentDetail.pallet._id}`,
     );
     expect(
       screen.queryByRole("heading", { name: "No suitable space found" }),
@@ -1383,7 +1383,10 @@ it("reads saved location-only group order without inventing a geometric scene", 
   );
   renderPallet();
   expect(screen.getByText("LOC-1 · Packing zone")).toBeVisible();
-  const group = screen.getByRole("list");
+  // The breadcrumb trail is also a list; the saved group order is the other one.
+  const group = screen
+    .getAllByRole("list")
+    .find((list) => !list.closest("nav"))!;
   expect(within(group).getAllByRole("listitem")[0]).toHaveTextContent(
     "1 · TopAItem A75% full",
   );

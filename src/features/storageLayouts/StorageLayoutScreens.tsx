@@ -97,6 +97,9 @@ import { Label } from "@/components/ui/label";
 import { Notice } from "@/components/ui/Notice";
 import { SelectControl } from "@/components/ui/SelectControl";
 import { Link, useRouter } from "@/i18n/navigation";
+import { PageBackButton } from "@/components/ui/PageBackButton";
+import { PageBreadcrumbs } from "@/components/ui/PageBreadcrumbs";
+import { PageHeader } from "@/components/ui/PageHeader";
 import {
   storageLayoutRefs,
   type StorageBuildingDetail,
@@ -1051,12 +1054,23 @@ export function BuildingModelWorkspace({
       {guard.navigationPrompt}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
+          <div className="mb-2">
+            <PageBreadcrumbs
+              trail={[
+                { label: t("breadcrumbRoot"), href: ROUTES.storageLayouts },
+              ]}
+              current={building.name}
+            />
+          </div>
           <p className="text-xs font-semibold tracking-wider text-muted">
             {building.code}
           </p>
-          <h1 className="mt-1 text-xl leading-7 font-semibold text-text">
-            {building.name}
-          </h1>
+          <div className="mt-1 flex items-center gap-1">
+            <PageBackButton fallbackHref={ROUTES.storageLayouts} />
+            <h1 className="text-xl leading-7 font-semibold text-text">
+              {building.name}
+            </h1>
+          </div>
           <p className="mt-1 text-xs text-muted">
             {t("dimensions")}: {metres(building.widthMm)} ×{" "}
             {metres(building.depthMm)} m · {t("totalHeight")}:{" "}
@@ -3031,6 +3045,14 @@ function ReviewContent({
   }
   return (
     <div className="space-y-6">
+      <PageHeader
+        title={t("reviewTitle")}
+        summary={t("reviewDescription")}
+        breadcrumbs={[
+          { label: t("breadcrumbRoot"), href: ROUTES.storageLayouts },
+          { label: savedBuilding.name, href: storageBuildingPath(buildingId) },
+        ]}
+      />
       <div className="min-w-0 space-y-6">
         <IsometricBuilding building={building} floors={floors} />
         <DataTable<StorageFloorRow>

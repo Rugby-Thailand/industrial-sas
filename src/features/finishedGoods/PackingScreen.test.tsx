@@ -287,7 +287,9 @@ describe("batch packing", () => {
     expect(mocks.commit).not.toHaveBeenCalled();
     confirm();
     await waitFor(() =>
-      expect(screen.getByText("Storage units created")).toBeVisible(),
+      expect(
+        screen.getByRole("heading", { name: "Storage units created" }),
+      ).toBeVisible(),
     );
     expect(mocks.commit).toHaveBeenCalledOnce();
     expect(mocks.commit.mock.calls[0]?.[0]).toMatchObject({
@@ -403,7 +405,9 @@ describe("batch packing", () => {
     await waitFor(() => expect(mocks.commit).toHaveBeenCalledTimes(2));
     expect(mocks.commit.mock.calls[1]?.[0]).toEqual(first);
     await waitFor(() =>
-      expect(screen.getByText("Storage units created")).toBeVisible(),
+      expect(
+        screen.getByRole("heading", { name: "Storage units created" }),
+      ).toBeVisible(),
     );
   });
   it("recovers the same uncertain commit request after refresh", async () => {
@@ -429,7 +433,9 @@ describe("batch packing", () => {
     await waitFor(() => expect(mocks.commit).toHaveBeenCalledTimes(2));
     expect(mocks.commit.mock.calls[1]?.[0]).toEqual(sent);
     await waitFor(() =>
-      expect(screen.getByText("Storage units created")).toBeVisible(),
+      expect(
+        screen.getByRole("heading", { name: "Storage units created" }),
+      ).toBeVisible(),
     );
   });
   it("recovers an uncertain save draft using the same request", async () => {
@@ -528,7 +534,9 @@ describe("batch packing", () => {
   it("stops on damaged local recovery data", () => {
     localStorage.setItem(key, '{"pending":true}');
     show();
-    expect(screen.getByText("Saved batch needs recovery")).toBeVisible();
+    expect(
+      screen.getByRole("heading", { name: "Saved batch needs recovery" }),
+    ).toBeVisible();
     expect(mocks.commit).not.toHaveBeenCalled();
   });
   it("has accessible empty, measured, and review states", async () => {
@@ -564,7 +572,9 @@ describe("batch packing", () => {
     fireEvent.click(screen.getByRole("button", { name: "Review repacking" }));
     fireEvent.click(screen.getByRole("button", { name: "Confirm repacking" }));
     await waitFor(() =>
-      expect(screen.getByText("Storage units created")).toBeVisible(),
+      expect(
+        screen.getByRole("heading", { name: "Storage units created" }),
+      ).toBeVisible(),
     );
     view.unmount();
     mocks.batch = serverBatch("CREATED", 2);
@@ -590,7 +600,9 @@ describe("batch packing", () => {
     review();
     confirm();
     await waitFor(() =>
-      expect(screen.getByText("Storage units created")).toBeVisible(),
+      expect(
+        screen.getByRole("heading", { name: "Storage units created" }),
+      ).toBeVisible(),
     );
     const firstRequest = mocks.commit.mock.calls[0]?.[0].requestId;
     fireEvent.click(
@@ -624,7 +636,9 @@ describe("batch packing", () => {
       value.pending.payload[field] = "other-scope";
       localStorage.setItem(key, JSON.stringify(value));
       show();
-      expect(screen.getByText("Saved batch needs recovery")).toBeVisible();
+      expect(
+        screen.getByRole("heading", { name: "Saved batch needs recovery" }),
+      ).toBeVisible();
       expect(mocks.commit).toHaveBeenCalledTimes(1);
     },
   );
@@ -774,7 +788,9 @@ describe("batch packing", () => {
     review();
     confirm();
     await waitFor(() =>
-      expect(screen.getByText("Storage units created")).toBeVisible(),
+      expect(
+        screen.getByRole("heading", { name: "Storage units created" }),
+      ).toBeVisible(),
     );
     view.unmount();
     mocks.batch = serverBatch("CREATED", 2);

@@ -13,6 +13,7 @@ import {
   ErrorNotice,
   Field,
   Heading,
+  usePalletTrail,
   Loading,
   Missing,
   panel,
@@ -144,6 +145,7 @@ function StackLoader({
   const [upperDirty, setUpperDirty] = useState(false);
   const [rotation, setRotation] = useState<0 | 90>(0);
   const detail = useQuery(fgRefs.getPallet, { warehouseId, palletId });
+  const crumbs = usePalletTrail(detail?.ok ? detail.value : undefined);
   const result = useQuery(fgRefs.stackOptions, {
     warehouseId,
     palletId,
@@ -155,11 +157,7 @@ function StackLoader({
   if (detail?.ok && detail.value?.placement?.mode === "LOCATION_ONLY")
     return (
       <>
-        <Heading
-          title={t("copy.stacking-unavailable")}
-          back={palletPath(palletId)}
-          backLabel={t("copy.back-to-pallet")}
-        />
+        <Heading title={t("copy.stacking-unavailable")} breadcrumbs={crumbs} />
         <Notice
           title={t(
             "copy.this-unit-has-a-saved-location-without-measured-coordinates",
@@ -225,8 +223,7 @@ function StackLoader({
   return (
     <div className="space-y-5">
       <Heading
-        back={palletPath(palletId)}
-        backLabel={t("copy.back-to-pallet-7b1f16")}
+        breadcrumbs={crumbs}
         title={t("copy.stack-on-top-c3ca8e")}
         description={t(
           "copy.choose-support-preview-and-check-verify-physical-placement",

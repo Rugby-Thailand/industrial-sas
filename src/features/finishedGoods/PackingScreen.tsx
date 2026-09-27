@@ -37,6 +37,7 @@ import {
   ErrorNotice,
   Field,
   Heading,
+  useFGCrumb,
   Loading,
   Missing,
   ViewOnlyNotice,
@@ -376,6 +377,10 @@ function PackingForm({
   draftToken?: string | undefined;
 }) {
   const { t, tr, locale } = useFGText();
+  const crumbs = [
+    useFGCrumb(),
+    { label: product.name, href: productPath(product._id) },
+  ];
   const writeError = useTranslations("WriteError");
   const router = useRouter();
   const canManage = useCanManage();
@@ -601,14 +606,20 @@ function PackingForm({
   if (!canManage)
     return (
       <>
-        <Heading title={t("copy.packing-and-dimensions")} />
+        <Heading
+          title={t("copy.packing-and-dimensions")}
+          breadcrumbs={crumbs}
+        />
         <ViewOnlyNotice />
       </>
     );
   if (draft.recoveryBlocked)
     return (
       <>
-        <Heading title={t("copy.saved-batch-needs-recovery")} />
+        <Heading
+          title={t("copy.saved-batch-needs-recovery")}
+          breadcrumbs={crumbs}
+        />
         <Notice
           tone="warning"
           title={t("copy.check-existing-batches-before-starting-again")}
@@ -632,6 +643,7 @@ function PackingForm({
     return (
       <>
         <Heading
+          breadcrumbs={crumbs}
           title={t("copy.this-batch-has-changed")}
           description={`${product.sku} · ${product.name}`}
         />
@@ -657,6 +669,7 @@ function PackingForm({
     return (
       <>
         <Heading
+          breadcrumbs={crumbs}
           title={t("copy.storage-units-created")}
           description={`${product.sku} · ${product.name}`}
         />
@@ -747,8 +760,7 @@ function PackingForm({
             : t("copy.prepare-packages")
         }
         description={`${product.sku} · ${product.name} · ${product.unit}`}
-        back={productPath(product._id)}
-        backLabel={t("copy.product-details")}
+        breadcrumbs={crumbs}
       />
       <div className="space-y-5">
         {!review && <ErrorNotice message={localError || op.error} />}

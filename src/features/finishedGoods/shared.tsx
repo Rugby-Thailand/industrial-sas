@@ -1,13 +1,14 @@
 "use client";
 
 import { resolveWriteError } from "@/lib/resolveWriteError";
-import { FG_PATH } from "@/lib/navigation";
+import { FG_PATH, palletPath, productPath } from "@/lib/navigation";
 import { unitCopy } from "./storageUnitLabels";
 export { unitNoun, unitCountLabel } from "./storageUnitLabels";
 
 import { useLocale, useTranslations } from "next-intl";
 import { useId, type ReactNode } from "react";
 import { PageHeader } from "@/components/ui/PageHeader";
+import type { Crumb } from "@/components/ui/PageBreadcrumbs";
 import { PageBackLink } from "@/components/ui/PageBackLink";
 import { QrCode } from "@/features/storageKit/QrCode";
 import { Input } from "@/components/ui/input";
@@ -78,29 +79,51 @@ export function ViewOnlyNotice() {
 export function Heading({
   title,
   description,
-  back = FG_PATH,
-  backLabel,
+  breadcrumbs,
   children,
 }: {
   title: string;
   description?: string;
-  back?: string;
-  backLabel?: string;
+  /** Pages above this one, nearest last. Top-level pages pass none. */
+  breadcrumbs?: readonly Crumb[];
   children?: ReactNode;
 }) {
-  const { t } = useFGText();
   return (
     <PageHeader
       title={title}
       {...(description ? { summary: description } : {})}
-      back={{
-        href: back,
-        label: backLabel ?? t("copy.finished-goods"),
-      }}
+      {...(breadcrumbs ? { breadcrumbs } : {})}
     >
       {children}
     </PageHeader>
   );
+}
+/** Trail root shared by every finished-goods sub-page. */
+export function useFGCrumb(): Crumb {
+  const { t } = useFGText();
+  return { label: t("copy.finished-goods"), href: FG_PATH };
+}
+/** Finished goods › product › pallet; pallet pages themselves stop at the product. */
+export function usePalletTrail(
+  detail:
+    | {
+        pallet?: { _id: string; code: string } | null;
+        product?: { _id: string; name: string } | null;
+      }
+    | null
+    | undefined,
+  withPallet = true,
+): Crumb[] {
+  const root = useFGCrumb();
+  return [
+    root,
+    ...(detail?.product
+      ? [{ label: detail.product.name, href: productPath(detail.product._id) }]
+      : []),
+    ...(detail?.pallet && withPallet
+      ? [{ label: detail.pallet.code, href: palletPath(detail.pallet._id) }]
+      : []),
+  ];
 }
 /** Compatibility alias for existing feature imports. */
 export function Loading() {

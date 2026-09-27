@@ -28,7 +28,12 @@ describe("PageHeader accessibility", () => {
         />,
         { locale },
       );
-      fireEvent.click(screen.getByRole("button"));
+      fireEvent.click(
+        screen.getByRole("button", {
+          expanded: false,
+          name: /about|เกี่ยวกับ/i,
+        }),
+      );
       expect(await axe(baseElement)).toHaveNoViolations();
     },
   );
@@ -38,4 +43,5 @@ vi.mock("@/i18n/navigation", () => ({
   Link: ({ href, ...props }: ComponentProps<"a">) => (
     <a href={href} {...props} />
   ),
+  useRouter: () => ({ back: vi.fn(), push: vi.fn() }),
 }));

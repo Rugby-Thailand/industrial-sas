@@ -26,7 +26,7 @@ import {
   useOperation,
   written,
 } from "../shared";
-import { JOB_SCAN_PATH, LocationSummary } from "./JobScanScreen";
+import { LocationSummary } from "./JobScanScreen";
 import { LocationPicker } from "./LocationPicker";
 
 type Filter = "ALL" | "UNMAPPED" | "MAPPED";
@@ -72,12 +72,7 @@ function Records({ warehouseId }: { warehouseId: string }) {
 
   return (
     <PageContainer size="form" actionInset="fixed">
-      <Heading
-        title={t("records")}
-        description={t("recordsSubtitle")}
-        back={JOB_SCAN_PATH}
-        backLabel={t("title")}
-      />
+      <Heading title={t("records")} description={t("recordsSubtitle")} />
       <div className="space-y-3">
         <div
           role="group"

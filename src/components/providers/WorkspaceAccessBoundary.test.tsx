@@ -93,4 +93,5 @@ vi.mock("@/i18n/navigation", () => ({
   Link: ({ href, ...props }: ComponentProps<"a">) => (
     <a href={href} {...props} />
   ),
+  useRouter: () => ({ back: vi.fn(), push: vi.fn() }),
 }));

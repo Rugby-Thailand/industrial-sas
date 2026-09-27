@@ -21,7 +21,6 @@ import { fgRefs } from "@/lib/convex/finishedGoodsApi";
 import { useUploadThing } from "@/lib/uploadthing";
 import {
   ErrorNotice,
-  FG_PATH,
   Heading,
   Loading,
   useCanManage,
@@ -76,14 +75,16 @@ export function LocationSummary({
 }) {
   const t = useTranslations("JobScan");
   return (
-    <span className="flex min-w-0 items-center gap-2">
+    <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
       <MapPin className="size-4 shrink-0 text-muted" aria-hidden="true" />
-      <span className="truncate font-mono font-semibold">{code}</span>
-      {name && <span className="truncate text-sm text-muted">{name}</span>}
+      <span className="font-mono font-semibold break-all">{code}</span>
       <StatusBadge
         tone={mapped ? "success" : "warning"}
         label={mapped ? t("mapped") : t("unmapped")}
       />
+      {name && (
+        <span className="w-full truncate pl-6 text-sm text-muted">{name}</span>
+      )}
     </span>
   );
 }
@@ -216,12 +217,7 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
   if (!location)
     return (
       <PageContainer size="form">
-        <Heading
-          title={t("title")}
-          description={t("subtitle")}
-          back={FG_PATH}
-          backLabel={t("back")}
-        />
+        <Heading title={t("title")} description={t("subtitle")} />
         <Panel className="space-y-3">
           <div>
             <h2 className="text-lg font-semibold">{t("locationStepTitle")}</h2>
@@ -242,19 +238,22 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
 
   return (
     <PageContainer size="form" actionInset="fixed">
-      <Heading title={t("title")} back={FG_PATH} backLabel={t("back")} />
-      <div className="flex min-h-11 items-center gap-2 rounded-lg bg-raised px-3">
-        <span className="shrink-0 text-xs text-muted">{t("location")}</span>
-        <div className="min-w-0 flex-1">
-          <LocationSummary
-            code={location.code ?? location.text}
-            name={location.name}
-            mapped={Boolean(location.zoneId)}
-          />
-        </div>
+      <Heading title={t("title")} />
+      <div className="-mt-4 flex min-h-11 items-center gap-2 text-sm">
+        <MapPin className="size-4 shrink-0 text-muted" aria-hidden="true" />
+        <span className="shrink-0 font-mono font-semibold">
+          {location.code ?? location.text}
+        </span>
+        {location.name && (
+          <span className="min-w-0 truncate text-muted">{location.name}</span>
+        )}
+        <StatusBadge
+          tone={location.zoneId ? "success" : "warning"}
+          label={location.zoneId ? t("mapped") : t("unmapped")}
+        />
         <button
           type="button"
-          className="min-h-11 shrink-0 px-1 text-sm font-semibold text-link hover:underline disabled:text-disabled"
+          className="ml-auto min-h-11 shrink-0 px-1 font-semibold text-link hover:underline disabled:text-disabled"
           disabled={saving}
           onClick={() => setLocation(undefined)}
         >
@@ -263,41 +262,38 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
       </div>
 
       <section className="space-y-3">
-        <h2 className="text-lg font-semibold">
-          {t("ticketsStepTitle")} · {tickets.length}
-        </h2>
         <div className="grid grid-cols-3 gap-2">
           <Button
             variant={panel === "PHOTO" ? "default" : "outline"}
-            className="min-h-14 flex-col gap-1"
+            className="min-h-11 gap-1.5 px-2"
             aria-pressed={panel === "PHOTO"}
             onClick={() =>
               setPanel((open) => (open === "PHOTO" ? null : "PHOTO"))
             }
           >
-            <Camera className="size-5" aria-hidden="true" />
+            <Camera className="size-4" aria-hidden="true" />
             {t("photo")}
           </Button>
           <Button
             variant={panel === "BARCODE" ? "default" : "outline"}
-            className="min-h-14 flex-col gap-1"
+            className="min-h-11 gap-1.5 px-2"
             aria-pressed={panel === "BARCODE"}
             onClick={() => {
               setFeedback(undefined);
               setPanel((open) => (open === "BARCODE" ? null : "BARCODE"));
             }}
           >
-            <ScanBarcode className="size-5" aria-hidden="true" />
+            <ScanBarcode className="size-4" aria-hidden="true" />
             {t("barcode")}
           </Button>
           <Button
             variant="outline"
-            className="min-h-14 flex-col gap-1"
+            className="min-h-11 gap-1.5 px-2"
             onClick={() =>
               setTickets((current) => [...current, newTicket("MANUAL")])
             }
           >
-            <Keyboard className="size-5" aria-hidden="true" />
+            <Keyboard className="size-4" aria-hidden="true" />
             {t("manual")}
           </Button>
         </div>

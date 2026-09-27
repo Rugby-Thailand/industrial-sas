@@ -5,7 +5,9 @@
     "description": "Building and storage spot planner",
     "documentTitle": "{page} · Storage Planner",
     "aboutPage": "About this page",
-    "close": "Close"
+    "close": "Close",
+    "breadcrumb": "Breadcrumb",
+    "back": "Back"
   },
   "Locale": {
     "label": "Language",
@@ -600,7 +602,8 @@
     "finishOpenEditor": "Finish or cancel the open area or storage editor before saving the floor. You can also discard all unsaved changes.",
     "floorDimensions": "Floor dimensions",
     "mapSelectArea": "Select area {name}",
-    "mapAreaNoStorage": "No pallets can be stored in this area."
+    "mapAreaNoStorage": "No pallets can be stored in this area.",
+    "breadcrumbRoot": "Buildings & spots"
   },
   "FinishedGoods": {
     "title": "Finished goods",
@@ -1239,7 +1242,7 @@
     "title": "Scan job tickets",
     "subtitle": "Pick the location first, then scan each pallet's job ticket.",
     "records": "Scanned records",
-    "recordsSubtitle": "Every saved job ticket. Map unmapped ones to a real location.",
+    "recordsSubtitle": "Every saved job ticket. Set the real location for tickets that still need one.",
     "back": "Finished goods",
     "location": "Location",
     "locationStepTitle": "1. Where are you?",
@@ -1252,13 +1255,12 @@
     "startingCamera": "Starting camera…",
     "pointCamera": "Point the camera at a barcode or QR code.",
     "cameraError": "Camera unavailable. Allow camera access or type instead.",
-    "useUnmapped": "Save as unmapped: “{text}”",
-    "unmappedHint": "Not in the system yet? Save the text now and map it later.",
-    "notFoundUnmapped": "“{code}” is not a known location. It will be saved as unmapped.",
+    "useUnmapped": "Save now, set location later: “{text}”",
+    "unmappedHint": "Not in the system yet? Save the text now and set the real location later.",
+    "notFoundUnmapped": "“{code}” is not a known location. It will be saved as needs location.",
     "change": "Change",
-    "mapped": "Mapped",
-    "unmapped": "Unmapped",
-    "ticketsStepTitle": "2. Job tickets",
+    "mapped": "Location set",
+    "unmapped": "Needs location",
     "photo": "Photos (AI)",
     "barcode": "Scan barcode",
     "manual": "Type manually",
@@ -1294,7 +1296,7 @@
     "all": "All",
     "search": "Search Job No., barcode, part or location",
     "empty": "No records.",
-    "mapSelected": "Map {count, plural, one {# record} other {# records}} to location",
+    "mapSelected": "Set location for {count, plural, one {# record} other {# records}}",
     "selectLocation": "Choose a location",
     "cancel": "Cancel",
     "source": {

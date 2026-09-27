@@ -1,7 +1,5 @@
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { setRequestLocale } from "next-intl/server";
 
-import { ROUTES } from "@/lib/navigation";
-import { PageBackLink } from "@/components/ui/PageBackLink";
 import { StorageBuildingEditor } from "@/features/storageLayouts/StorageLayoutScreens";
 
 export default async function StorageBuildingPage({
@@ -11,13 +9,5 @@ export default async function StorageBuildingPage({
 }) {
   const { locale, buildingId } = await params;
   setRequestLocale(locale);
-  const t = await getTranslations("StorageLayouts");
-  return (
-    <>
-      <div className="mb-4">
-        <PageBackLink href={ROUTES.storageLayouts} label={t("back")} />
-      </div>
-      <StorageBuildingEditor buildingId={buildingId} />
-    </>
-  );
+  return <StorageBuildingEditor buildingId={buildingId} />;
 }

@@ -48,8 +48,15 @@ import {
 const MAIN_ID = "main-content";
 const NAV_ID = "primary-navigation";
 
+/** Warehouse switching and creation belong to the top-level pages, not task or detail pages. */
+const WORKSPACE_BAR_PATHS: readonly string[] = [
+  ROUTES.finishedGoods,
+  ROUTES.storageLayouts,
+];
+
 export function Pattern({ children }: { readonly children: ReactNode }) {
   const t = useTranslations("Navigation");
+  const showWorkspaceBar = WORKSPACE_BAR_PATHS.includes(usePathname());
   return (
     <TooltipProvider>
       <SidebarProvider
@@ -67,9 +74,11 @@ export function Pattern({ children }: { readonly children: ReactNode }) {
           <header className="shrink-0 border-b border-border bg-surface px-4 py-3 lg:px-6">
             <div className="flex flex-wrap items-center gap-3">
               <NavigationDisclosure />
-              <div className="order-last w-full min-w-0 sm:order-none sm:w-auto sm:flex-1">
-                <WorkspaceContextBar />
-              </div>
+              {showWorkspaceBar ? (
+                <div className="order-last w-full min-w-0 sm:order-none sm:w-auto sm:flex-1">
+                  <WorkspaceContextBar />
+                </div>
+              ) : null}
               <div className="ml-auto">
                 <LocaleSwitcher />
               </div>
