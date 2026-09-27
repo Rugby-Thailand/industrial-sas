@@ -123,6 +123,7 @@ export interface StorageFloorRow {
 }
 
 export interface StorageBuildingRow {
+  readonly fg1Import?: { readonly revision: string };
   readonly approvedSchematic?: {
     readonly revision: string;
     readonly sourcePages: readonly number[];
