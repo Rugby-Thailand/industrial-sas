@@ -48,6 +48,12 @@ describe("floor location labels", () => {
     expect(map).toHaveClass("h-[min(40rem,65svh)]");
     expect(map.querySelectorAll("[data-floor-zone-name]")).toHaveLength(15);
     expect(
+      map.querySelector('[data-floor-zone-code="FG1-L01"]'),
+    ).toHaveAttribute("fill", "#83a8b1");
+    expect(
+      map.querySelector('[data-reserved-kind="AISLE"] > polygon'),
+    ).toHaveAttribute("fill", "#ffb68e");
+    expect(
       [...map.querySelectorAll("[data-floor-zone-name]")]
         .map((e) => e.textContent)
         .sort(),
@@ -118,6 +124,10 @@ describe("floor location labels", () => {
     const polygons = view.container.querySelectorAll(
       '[data-reserved-kind="AISLE"] > polygon',
     );
+    expect(
+      view.container.querySelector('[data-floor-zone-code="PD-L12-13"]'),
+    ).toHaveAttribute("fill", "#83a8b1");
+    expect(polygons[0]).toHaveAttribute("fill", "#ffb68e");
     const points = (e: Element) =>
       e
         .getAttribute("points")!
