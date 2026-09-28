@@ -96,6 +96,14 @@ const labelZoom = 2;
 const dragThreshold = 4;
 const iconStyle =
   "size-10 bg-transparent p-0 hover:border-accent hover:bg-transparent";
+const planColors = {
+  storage: "#83a8b1",
+  storageBorder: "#48646b",
+  storageLabel: "#172329",
+  aisle: "#ffb68e",
+} as const;
+const visualAreaColor = (area: Area) =>
+  area.areaKind === "AISLE" ? planColors.aisle : area.color;
 const pdGroupCode = (code: string) =>
   code.match(/^((?:PD|F1|F2|SB)-L\d+)-\d+$/)?.[1];
 const pdCells = (zones: readonly StorageZoneRow[]) =>
@@ -120,10 +128,11 @@ function groupedAreas(areas: readonly Area[]) {
   >();
   for (const area of areas) {
     const label = areaCategory(area.label);
-    const key = `${resolveAreaColor(area.color)}:${label}`;
+    const color = visualAreaColor(area);
+    const key = `${resolveAreaColor(color)}:${label}`;
     const existing = groups.get(key);
     if (existing) existing.count += 1;
-    else groups.set(key, { label, color: area.color, count: 1 });
+    else groups.set(key, { label, color, count: 1 });
   }
   return [...groups.values()];
 }
@@ -428,7 +437,18 @@ export function FloorMap(props: FloorMapProps) {
 
           <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-sm text-muted">
             <span>
-              <SceneLegendMark kind="location" />
+              {view === "plan" ? (
+                <span
+                  aria-hidden="true"
+                  className="mr-1.5 inline-block size-3 rounded-sm border align-middle"
+                  style={{
+                    backgroundColor: planColors.storage,
+                    borderColor: planColors.storageBorder,
+                  }}
+                />
+              ) : (
+                <SceneLegendMark kind="location" />
+              )}
               {t("storageZones")}
             </span>
             <span>
@@ -464,13 +484,23 @@ export function FloorMap(props: FloorMapProps) {
                     {t("floorAllAreaNames", { count: legendAreas.length })}
                   </summary>
                   <div className="max-h-40 overflow-y-auto">
-                    <ReservedAreaLegend areas={legendAreas} />
+                    <ReservedAreaLegend
+                      areas={legendAreas.map((area) => ({
+                        ...area,
+                        color: visualAreaColor(area),
+                      }))}
+                    />
                   </div>
                 </details>
               </div>
             </details>
           ) : (
-            <ReservedAreaLegend areas={legendAreas} />
+            <ReservedAreaLegend
+              areas={legendAreas.map((area) => ({
+                ...area,
+                color: visualAreaColor(area),
+              }))}
+            />
           )}
           {pdZoneCount > 0 && aisleBlocks.length > 0 && (
             <p className="mt-2 text-xs text-muted">
@@ -1186,7 +1216,7 @@ function MapDrawing({
                   {/* Real floor footprint: aisles remain filled in both views. */}
                   <polygon
                     points={pts(rect(b.xMm, b.yMm, b.widthMm, b.depthMm))}
-                    fill={b.color}
+                    fill={visualAreaColor(b)}
                     stroke={active ? sceneColors.selected : undefined}
                     vectorEffect="non-scaling-stroke"
                   >
@@ -1218,14 +1248,14 @@ function MapDrawing({
                                     top[(i + 1) % 4]!,
                                     top[i]!,
                                   ])}
-                                  fill={b.color}
+                                  fill={visualAreaColor(b)}
                                   stroke="#5d6265"
                                   strokeWidth={0.7}
                                 />
                               ))}
                             <polygon
                               points={pts(top)}
-                              fill={b.color}
+                              fill={visualAreaColor(b)}
                               stroke="#5d6265"
                               strokeWidth={0.7}
                             />
@@ -1336,13 +1366,35 @@ function MapDrawing({
                 data-zone-id={zone.zoneId}
                 data-height-envelope={view === "3d" ? "true" : undefined}
               >
-                {!(view === "plan" && pdGroupCode(zone.code)) && (
+                {view === "3d" && (
                   <SceneBox
                     points={[...base, ...top]}
                     mode={view}
                     kind="location"
                     selected={active}
                     selectionSurface={active}
+                  />
+                )}
+                {view === "plan" && floorPositions(zone).length === 0 && (
+                  <polygon
+                    data-floor-zone-code={zone.code}
+                    data-pd-cell-code={
+                      pdGroupCode(zone.code) ? zone.code : undefined
+                    }
+                    points={pts(base)}
+                    fill={
+                      active
+                        ? `color-mix(in srgb, var(--token-link) 25%, ${planColors.storage})`
+                        : planColors.storage
+                    }
+                    stroke={
+                      active ? sceneColors.selected : planColors.storageBorder
+                    }
+                    strokeWidth={active ? 1.5 : 0.75}
+                    vectorEffect="non-scaling-stroke"
+                    className={
+                      active ? undefined : "group-focus-visible:stroke-text"
+                    }
                   />
                 )}
                 {view === "plan" &&
@@ -1368,7 +1420,7 @@ function MapDrawing({
                         textAnchor="middle"
                         dominantBaseline="middle"
                         fontSize={fontSize / zoom}
-                        fill={sceneColors.free}
+                        fill={planColors.storageLabel}
                         className="pointer-events-none"
                       >
                         {zone.code}
@@ -1377,21 +1429,6 @@ function MapDrawing({
                   })()}
                 {view === "plan" && pdGroupCode(zone.code) && (
                   <>
-                    <polygon
-                      data-pd-cell-code={zone.code}
-                      points={pts(base)}
-                      fill={
-                        active
-                          ? "color-mix(in srgb, var(--token-link) 25%, #83a8b1)"
-                          : "#83a8b1"
-                      }
-                      stroke={active ? sceneColors.selected : "#48646b"}
-                      strokeWidth={active ? 1.5 : 0.75}
-                      vectorEffect="non-scaling-stroke"
-                      className={
-                        active ? undefined : "group-focus-visible:stroke-text"
-                      }
-                    />
                     {(active || showLocationLabels || zoom >= labelZoom) &&
                       labelFits && (
                         <text
@@ -1409,7 +1446,7 @@ function MapDrawing({
                           }
                           textAnchor="middle"
                           dominantBaseline="middle"
-                          fill="#172329"
+                          fill={planColors.storageLabel}
                           fontSize={labelFontSizePx / zoom}
                           fontWeight="700"
                           className="pointer-events-none"
@@ -1421,7 +1458,7 @@ function MapDrawing({
                 )}
                 {view === "plan" && floorPositions(zone).length > 0 && (
                   <>
-                    <polygon points={pts(base)} fill="#ffb68e" />
+                    <polygon points={pts(base)} fill={planColors.aisle} />
                     {floorPositions(zone).map((position) => (
                       <polygon
                         key={position.code}
@@ -1434,7 +1471,7 @@ function MapDrawing({
                             position.depthMm!,
                           ),
                         )}
-                        fill="#83a8b1"
+                        fill={planColors.storage}
                         stroke="#263640"
                         strokeWidth="1"
                         strokeDasharray="3 3"
@@ -1458,7 +1495,7 @@ function MapDrawing({
                             aisle.depthMm,
                           ),
                         )}
-                        fill="#ffb68e"
+                        fill={planColors.aisle}
                       >
                         <title>
                           {t("floorAisleWidth", {
