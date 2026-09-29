@@ -1,4 +1,4 @@
-import { pageArgs as cataloguePageArgs, hydrateUnit } from "./catalogue";
+import { pageArgs as cataloguePageArgs, createUnitReader } from "./catalogue";
 import {
   paginatedScan,
   remainingScanCapacity,
@@ -547,7 +547,7 @@ export const pageLegacyUnits = queryWithOrg({
         });
         return row?.productId === args.productId ? row : null;
       },
-      hydrate: (unit) => hydrateUnit(ctx, unit),
+      hydrate: createUnitReader(ctx),
       matches: (unit) =>
         !unit.preparationBatchId && unit.retiredAt === undefined,
     });
@@ -577,7 +577,7 @@ export const resolveUnitBatch = queryWithOrg({
     return {
       batchId: batch?._id ?? null,
       editable: await editableUnits(ctx, [unit]),
-      unit: await hydrateUnit(ctx, unit),
+      unit: await createUnitReader(ctx)(unit),
     };
   },
 });

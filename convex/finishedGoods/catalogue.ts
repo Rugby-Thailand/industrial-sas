@@ -1,3 +1,4 @@
+import { createQueryDocumentReader } from "../lib/queryDocumentReader";
 import {
   signCatalogueCursor,
   verifyCatalogueCursor,
@@ -17,7 +18,11 @@ import {
   paginatedScan,
   remainingScanCapacity,
 } from "../lib/cataloguePagination";
-import { matchesRow, compareRows, type FilterRow } from "./catalogueFilters";
+import {
+  matchesRow,
+  createRowComparator,
+  type FilterRow,
+} from "./catalogueFilters";
 import { readProductSummary as readSummary } from "../lib/finishedGoodsSummary";
 import type { TenantIndexPage } from "../lib/tenantDb";
 
@@ -70,24 +75,28 @@ export async function activeMove(ctx: TenantFunctionContext, palletId: string) {
   }
   return null;
 }
-export async function hydrateUnit(
-  ctx: TenantFunctionContext,
-  unit: Doc<"finishedGoodsPallets">,
-) {
-  const product = await ctx.tenantDb.get<Doc<"finishedGoodsProducts">>(
+export function createUnitReader(ctx: TenantFunctionContext) {
+  const readProduct = createQueryDocumentReader(
+    ctx.tenantDb,
     "finishedGoodsProducts",
-    unit.productId,
   );
-  const move = await activeMove(ctx, unit._id);
-  return {
-    ...unit,
-    productName: product?.name ?? "",
-    sku: product?.sku ?? "",
-    unit: product?.unit ?? "",
-    storageFormat: unit.storageFormat ?? product?.storageFormat ?? "OTHER",
-    ...(move ? { moveStatus: move.status, activeMoveId: move._id } : {}),
+  return async (unit: Doc<"finishedGoodsPallets">) => {
+    const [product, move] = await Promise.all([
+      readProduct(unit.productId),
+      activeMove(ctx, unit._id),
+    ]);
+    return {
+      ...unit,
+      productName: product?.name ?? "",
+      sku: product?.sku ?? "",
+      unit: product?.unit ?? "",
+      storageFormat: unit.storageFormat ?? product?.storageFormat ?? "OTHER",
+      ...(move ? { moveStatus: move.status, activeMoveId: move._id } : {}),
+    };
   };
 }
+type UnitRow = Awaited<ReturnType<ReturnType<typeof createUnitReader>>>;
+
 async function hydrateProduct(
   ctx: TenantFunctionContext,
   product: Doc<"finishedGoodsProducts">,
@@ -132,7 +141,7 @@ function productFilter(
     updatedAt: product.updatedAt,
   };
 }
-function unitFilter(unit: Awaited<ReturnType<typeof hydrateUnit>>): FilterRow {
+function unitFilter(unit: UnitRow): FilterRow {
   return {
     id: unit._id,
     name: unit.productName,
@@ -350,6 +359,7 @@ export const page = queryWithOrg({
     if (search.length > 200 || JSON.stringify(filters).length > 12000)
       throw new Error("CATALOGUE_CRITERIA_INVALID");
     const sorted = Boolean(filters.sort);
+    const compare = createRowComparator(filters.sort, locale);
     const scope = {
       warehouseId,
       tab,
@@ -390,13 +400,7 @@ export const page = queryWithOrg({
               compare: (
                 a: Awaited<ReturnType<typeof hydrateProduct>>,
                 b: Awaited<ReturnType<typeof hydrateProduct>>,
-              ) =>
-                compareRows(
-                  productFilter(a),
-                  productFilter(b),
-                  filters.sort,
-                  locale,
-                ),
+              ) => compare(productFilter(a), productFilter(b)),
             }
           : {}),
       });
@@ -423,16 +427,13 @@ export const page = queryWithOrg({
         );
         return p?.warehouseId === warehouseId ? p : null;
       },
-      hydrate: (p) => hydrateUnit(ctx, p),
+      hydrate: createUnitReader(ctx),
       matches: (p) =>
         p.retiredAt === undefined && matchesRow(unitFilter(p), filters, search),
       ...(sorted
         ? {
-            compare: (
-              a: Awaited<ReturnType<typeof hydrateUnit>>,
-              b: Awaited<ReturnType<typeof hydrateUnit>>,
-            ) =>
-              compareRows(unitFilter(a), unitFilter(b), filters.sort, locale),
+            compare: (a: UnitRow, b: UnitRow) =>
+              compare(unitFilter(a), unitFilter(b)),
           }
         : {}),
     });

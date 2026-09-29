@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { createRowComparator } from "../../../convex/finishedGoods/catalogueFilters";
 import {
   finishedGoodsList,
   finishedGoodProduct,
@@ -70,6 +71,68 @@ const data = {
   ],
 };
 const rows = catalogueRows(data);
+const serverRow = { ...rows.pallets[0]!, updatedAt: 0 };
+
+describe("server catalogue sorting", () => {
+  it.each(["en", "th"])(
+    "keeps numeric text and stable ties in %s",
+    (locale) => {
+      const compare = createRowComparator("name:asc", locale);
+      const prefix = locale === "th" ? "กล่อง" : "Box";
+      const sample = [
+        { ...serverRow, id: "unit-10", name: `${prefix} 2` },
+        { ...serverRow, id: "unit-1", name: `${prefix} 10` },
+        { ...serverRow, id: "unit-2", name: `${prefix} 2` },
+      ];
+      expect(sample.sort(compare).map((row) => row.id)).toEqual([
+        "unit-2",
+        "unit-10",
+        "unit-1",
+      ]);
+    },
+  );
+  it.each(["asc", "desc"])(
+    "keeps absent dimensions last in %s order",
+    (direction) => {
+      const sample = [
+        { ...serverRow, id: "unknown", length: undefined },
+        { ...serverRow, id: "zero", length: 0 },
+        { ...serverRow, id: "measured", length: 1.2 },
+      ];
+      expect(
+        sample
+          .sort(createRowComparator(`length:${direction}`, "en"))
+          .map((row) => row.id),
+      ).toEqual(
+        direction === "asc"
+          ? ["zero", "measured", "unknown"]
+          : ["measured", "zero", "unknown"],
+      );
+    },
+  );
+  it("keeps quantity units grouped and sorts quantities within the group", () => {
+    const sample = [
+      { ...serverRow, id: "pieces", unit: "pieces", quantity: 1000 },
+      { ...serverRow, id: "kg-low", unit: "kg", quantity: 2 },
+      { ...serverRow, id: "kg-high", unit: "kg", quantity: 10 },
+    ];
+    expect(
+      sample
+        .sort(createRowComparator("quantity:desc", "en"))
+        .map((row) => row.id),
+    ).toEqual(["kg-high", "kg-low", "pieces"]);
+  });
+  it("keeps the default newest-first order with deterministic identity ties", () => {
+    const sample = [
+      { ...serverRow, id: "b", updatedAt: 2 },
+      { ...serverRow, id: "old", updatedAt: 1 },
+      { ...serverRow, id: "a", updatedAt: 2 },
+    ];
+    expect(
+      sample.sort(createRowComparator("", "en")).map((row) => row.id),
+    ).toEqual(["a", "b", "old"]);
+  });
+});
 const match = (
   f: Partial<CatalogueFilters>,
   tab: "products" | "pallets" = "products",

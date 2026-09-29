@@ -1,3 +1,4 @@
+import { createQueryDocumentReader } from "../lib/queryDocumentReader";
 import { summaryReadiness } from "../lib/finishedGoodsSummary";
 import { isGeometricPlacement } from "../model/finishedGoods/scanning";
 import {
@@ -81,36 +82,17 @@ function createPlacementReader(
   ctx: TenantFunctionContext,
   moves: ReadonlyMap<string, MoveOccupancy>,
 ) {
-  const pallets = new Map<
-    string,
-    Promise<Doc<"finishedGoodsPallets"> | null>
-  >();
-  const products = new Map<
-    string,
-    Promise<Doc<"finishedGoodsProducts"> | null>
-  >();
+  const readPallet = createQueryDocumentReader(
+    ctx.tenantDb,
+    "finishedGoodsPallets",
+  );
+  const readProduct = createQueryDocumentReader(
+    ctx.tenantDb,
+    "finishedGoodsProducts",
+  );
   return async (placement: PlacementDocument) => {
-    let pendingPallet = pallets.get(placement.palletId);
-    if (!pendingPallet) {
-      pendingPallet = ctx.tenantDb.get<Doc<"finishedGoodsPallets">>(
-        "finishedGoodsPallets",
-        placement.palletId,
-      );
-      pallets.set(placement.palletId, pendingPallet);
-    }
-    const pallet = await pendingPallet;
-    let product: Doc<"finishedGoodsProducts"> | null = null;
-    if (pallet) {
-      let pendingProduct = products.get(pallet.productId);
-      if (!pendingProduct) {
-        pendingProduct = ctx.tenantDb.get<Doc<"finishedGoodsProducts">>(
-          "finishedGoodsProducts",
-          pallet.productId,
-        );
-        products.set(pallet.productId, pendingProduct);
-      }
-      product = await pendingProduct;
-    }
+    const pallet = await readPallet(placement.palletId);
+    const product = pallet ? await readProduct(pallet.productId) : null;
     if (!isGeometricPlacement(placement))
       return {
         mode: "LOCATION_ONLY" as const,

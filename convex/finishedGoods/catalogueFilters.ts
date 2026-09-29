@@ -62,29 +62,29 @@ export function matchesRow(row: FilterRow, f: Filters, search: string) {
     inRange(row.height, f.height)
   );
 }
-export function compareRows(
-  a: FilterRow,
-  b: FilterRow,
-  sort: string,
-  locale: string,
-) {
-  if (!sort) return b.updatedAt - a.updatedAt || a.id.localeCompare(b.id);
+export function createRowComparator(sort: string, locale: string) {
+  if (!sort)
+    return (a: FilterRow, b: FilterRow) =>
+      b.updatedAt - a.updatedAt || a.id.localeCompare(b.id);
   const [field, direction] = sort.split(":");
   const collator = new Intl.Collator(locale, {
     numeric: true,
     sensitivity: "base",
   });
-  if (field === "quantity" && a.unit !== b.unit)
-    return collator.compare(a.unit, b.unit) || a.id.localeCompare(b.id);
-  const av = a[field as keyof FilterRow],
-    bv = b[field as keyof FilterRow];
-  if (av === undefined || bv === undefined)
-    return av === bv ? a.id.localeCompare(b.id) : av === undefined ? 1 : -1;
-  const comparison =
-    typeof av === "number" && typeof bv === "number"
-      ? av - bv
-      : collator.compare(String(av), String(bv));
-  return (
-    comparison * (direction === "desc" ? -1 : 1) || collator.compare(a.id, b.id)
-  );
+  return (a: FilterRow, b: FilterRow) => {
+    if (field === "quantity" && a.unit !== b.unit)
+      return collator.compare(a.unit, b.unit) || a.id.localeCompare(b.id);
+    const av = a[field as keyof FilterRow],
+      bv = b[field as keyof FilterRow];
+    if (av === undefined || bv === undefined)
+      return av === bv ? a.id.localeCompare(b.id) : av === undefined ? 1 : -1;
+    const comparison =
+      typeof av === "number" && typeof bv === "number"
+        ? av - bv
+        : collator.compare(String(av), String(bv));
+    return (
+      comparison * (direction === "desc" ? -1 : 1) ||
+      collator.compare(a.id, b.id)
+    );
+  };
 }

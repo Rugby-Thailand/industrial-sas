@@ -1,3 +1,4 @@
+import { trackDocumentReads } from "../fixtures/document-reads";
 import { trackFinishedGoodsWrites } from "../../convex/lib/finishedGoodsSummary";
 import { createTenantDocumentAccess } from "../../convex/lib/tenantDb";
 import { createMutationTenantStorage } from "../../convex/lib/tenantStorage";
@@ -83,6 +84,69 @@ async function setup() {
   return world;
 }
 describe("warehouse location catalogue", () => {
+  it("shares building and floor reads across a page, while later queries see edits", async () => {
+    const world = await setup();
+    const { buildingId, floorId } = await world.t.run(async (ctx) => {
+      const zones = await ctx.db.query("storageZones").collect();
+      const first = zones[0]!;
+      const { _id, _creationTime, ...fields } = first;
+      void _id;
+      void _creationTime;
+      for (let i = 0; i < 19; i++)
+        await ctx.db.insert("storageZones", {
+          ...fields,
+          code: `AAA-${String(i).padStart(2, "0")}`,
+          label: `Extra ${i}`,
+        });
+      return { buildingId: first.buildingId, floorId: first.floorId };
+    });
+    const readPage = (search?: string, scanCursor?: string) =>
+      world.t
+        .withIdentity({ subject: "user_fixture_a", org_id: "org_fixture_a" })
+        .run(async (ctx) => {
+          const tracked = trackDocumentReads(ctx.db);
+          const result = (await (page as unknown as Runtime)._handler(
+            { ...ctx, db: tracked.db } as GenericMutationCtx<DataModel>,
+            {
+              warehouseId: world.warehouses.alphaA,
+              pageSize: 20,
+              ...(search ? { search } : {}),
+              ...(scanCursor ? { scanCursor } : {}),
+            },
+          )) as {
+            ok: boolean;
+            value: { page: { buildingName: string }[]; scanCursor?: string };
+          };
+          expect(result.ok).toBe(true);
+          return { ...result.value, reads: tracked.reads };
+        });
+    const first = await readPage();
+    expect(first.page).toHaveLength(20);
+    expect(first.reads.filter((r) => r.table === "storageBuildings")).toEqual([
+      { table: "storageBuildings", id: buildingId },
+    ]);
+    expect(first.reads.filter((r) => r.table === "storageFloors")).toEqual([
+      { table: "storageFloors", id: floorId },
+    ]);
+    await world.t.run((ctx) =>
+      ctx.db.patch(buildingId, { name: "Renamed building" }),
+    );
+    const next = await readPage();
+    expect(
+      next.page.every((row) => row.buildingName === "Renamed building"),
+    ).toBe(true);
+    // Searching builds a heading and then hydrates the matching row. Both
+    // phases must use the same authorized snapshot reader.
+    const started = await readPage("Renamed building");
+    expect(started.scanCursor).toBeDefined();
+    const searched = await readPage("Renamed building", started.scanCursor);
+    expect(
+      searched.reads.filter((r) => r.table === "storageBuildings"),
+    ).toHaveLength(1);
+    expect(
+      searched.reads.filter((r) => r.table === "storageFloors"),
+    ).toHaveLength(1);
+  });
   it("includes every floor and archived locations without the old 50-zone truncation", async () => {
     const world = await setup();
     await world.t.run(async (ctx) => {
