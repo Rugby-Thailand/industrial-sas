@@ -26,6 +26,31 @@ a device check.
 
 ## Production
 
+### CI/CD
+
+`Planner quality` runs once per pull request update and on pushes to `main`.
+Use its manual GitHub Actions trigger to check a branch before opening a PR.
+Type checking, lint and the production dependency audit run alongside two test
+shards and the production build. Every Vitest project remains included. The
+`check` job passes only when all jobs pass; use it as the required merge check.
+Superseded PR runs are cancelled, while production-branch checks finish.
+
+The shared setup action installs the frozen lockfile and caches the pnpm store.
+The build also caches `.next/cache`, scoped by runner platform, lockfile and
+Node version, with a fresh entry per commit. Action versions are pinned by SHA
+and maintained by Dependabot.
+
+Vercel's existing Git integration deploys previews and `main` to production.
+`vercel.json` skips deployments when only `docs/`, `.github/`, `README.md` or
+`AGENTS.md` changed since that branch's last successful deployment. All other
+changes build. Missing history and same-commit redeployments also build; set
+`FORCE_VERCEL_BUILD=1` in Vercel to bypass the optimization. Keep deployable app
+assets outside those documentation directories. CI still validates every PR.
+See [Vercel's ignored build step](https://vercel.com/docs/project-configuration/vercel-json#ignorecommand)
+and [previous-deployment SHA](https://vercel.com/docs/environment-variables/system-environment-variables#vercel_git_previous_sha).
+
+### Deployment configuration
+
 Vercel project: `rugbykritsakorn-9882s-projects/industrial-sas`.
 Convex project: `trustera/industrial-sas`; production deployment:
 `greedy-cardinal-537`. At preparation time it has no deployed code or environment

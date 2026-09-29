@@ -1,12 +1,43 @@
 name: Planner quality
-on: [push, pull_request]
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
 permissions:
   contents: read
 concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
-  cancel-in-progress: ${{ github.ref_name != 'main' }}
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
-  check:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-node-pnpm
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm audit:prod
+
+  test:
+    name: Tests (${{ matrix.shard }}/2)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-node-pnpm
+      - run: pnpm test --shard=${{ matrix.shard }}/2
+
+  build:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -14,6 +45,29 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-node-pnpm
-      - run: pnpm check
+      - name: Cache Next.js build
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .next/cache
+          key: ${{ runner.os }}-${{ runner.arch }}-next-${{ hashFiles('pnpm-lock.yaml', '.nvmrc') }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-next-${{ hashFiles('pnpm-lock.yaml', '.nvmrc') }}-
       - run: pnpm build
-      - run: pnpm audit:prod
+
+  # Keep the existing check name as the single merge gate. A failed, cancelled,
+  # or skipped dependency must never produce a green aggregate check.
+  check:
+    if: ${{ always() }}
+    needs: [validate, test, build]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Require all quality jobs to pass
+        env:
+          VALIDATE_RESULT: ${{ needs.validate.result }}
+          TEST_RESULT: ${{ needs.test.result }}
+          BUILD_RESULT: ${{ needs.build.result }}
+        run: |
+          test "$VALIDATE_RESULT" = success
+          test "$TEST_RESULT" = success
+          test "$BUILD_RESULT" = success
