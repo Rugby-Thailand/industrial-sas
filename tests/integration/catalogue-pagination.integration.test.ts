@@ -1,3 +1,4 @@
+import { trackDocumentReads } from "../fixtures/document-reads";
 import { v } from "convex/values";
 import { queryWithOrg } from "../../convex/lib/tenantFunctions";
 import { paginatedScan } from "../../convex/lib/cataloguePagination";
@@ -35,7 +36,9 @@ async function call<T>(
 async function measuredPage(
   world: ConvexTenantWorld,
   args: Record<string, unknown>,
+  fn: unknown = catalogue.page,
 ) {
+  const documentReads: { table: string; id: string }[] = [];
   const reads: Array<{ table: string; method: string; limit: number }> = [];
   const wrapQuery = (query: object, table: string): object =>
     new Proxy(query, {
@@ -62,8 +65,9 @@ async function measuredPage(
     });
   const outcome = (await world.t
     .withIdentity({ subject: "user_fixture_a", org_id: "org_fixture_a" })
-    .run((ctx) => {
-      const db = new Proxy(ctx.db, {
+    .run(async (ctx) => {
+      const tracked = trackDocumentReads(ctx.db);
+      const db = new Proxy(tracked.db, {
         get(target, key, receiver) {
           const member = Reflect.get(target, key, receiver);
           if (key === "query")
@@ -72,7 +76,7 @@ async function measuredPage(
           return typeof member === "function" ? member.bind(target) : member;
         },
       });
-      return (catalogue.page as unknown as Runtime)._handler(
+      const outcome = await (fn as Runtime)._handler(
         { ...ctx, db } as GenericMutationCtx<DataModel>,
         {
           warehouseId: world.warehouses.alphaA,
@@ -84,15 +88,19 @@ async function measuredPage(
           ...args,
         },
       );
+      documentReads.push(...tracked.reads);
+      return outcome;
     })) as { ok: boolean; value: Page };
   expect(outcome.ok).toBe(true);
-  return { result: outcome.value, reads };
+  return { result: outcome.value, reads, documentReads };
 }
 type Page = {
   status: string;
   page: Array<{
     _id: string;
     name?: string;
+    productName?: string;
+    storageFormat?: string;
     code?: string;
     summary?: { quantity: number };
   }>;
@@ -166,6 +174,61 @@ async function setup(count = 105) {
   return { world, ids };
 }
 describe("bounded finished goods catalogue pages", () => {
+  it.each([
+    ["catalogue", catalogue.page],
+    ["legacy units", batches.pageLegacyUnits],
+  ])(
+    "reads a shared product once for 100 concurrent %s rows and refreshes the next request",
+    async (_label, fn) => {
+      const { world } = await setup(1);
+      const productId = await world.t.run(async (ctx) => {
+        const unit = (await ctx.db.query("finishedGoodsPallets").collect())[0]!;
+        const { _id, _creationTime, ...fields } = unit;
+        void _id;
+        void _creationTime;
+        for (let i = 1; i < 100; i++)
+          await ctx.db.insert("finishedGoodsPallets", {
+            ...fields,
+            code: `P-${i}`,
+          });
+        return unit.productId;
+      });
+      const args = { tab: "pallets", pageSize: 100, productId };
+      const first = await measuredPage(world, args, fn);
+      expect(first.result.page).toHaveLength(100);
+      expect(
+        first.documentReads.filter((r) => r.table === "finishedGoodsProducts"),
+      ).toEqual([{ table: "finishedGoodsProducts", id: productId }]);
+      expect(
+        first.result.page.every((row) => row.productName === "สินค้า 0"),
+      ).toBe(true);
+      await world.t.run((ctx) =>
+        ctx.db.patch(productId, { name: "Renamed", storageFormat: "BOX" }),
+      );
+      const next = await measuredPage(world, args, fn);
+      expect(
+        next.result.page.every(
+          (row) => row.productName === "Renamed" && row.storageFormat === "BOX",
+        ),
+      ).toBe(true);
+      expect(
+        next.documentReads.filter((r) => r.table === "finishedGoodsProducts"),
+      ).toHaveLength(1);
+      await world.t.run((ctx) => ctx.db.delete(productId));
+      const missing = await measuredPage(world, args, fn);
+      expect(missing.result.page).toHaveLength(100);
+      expect(
+        missing.result.page.every(
+          (row) => row.productName === "" && row.storageFormat === "OTHER",
+        ),
+      ).toBe(true);
+      expect(
+        missing.documentReads.filter(
+          (r) => r.table === "finishedGoodsProducts",
+        ),
+      ).toHaveLength(1);
+    },
+  );
   it("splits incomplete native ranges before displaying rows, without skipping or duplicating identities", async () => {
     const { world } = await setup(25);
     const products = await world.t.run((ctx) =>

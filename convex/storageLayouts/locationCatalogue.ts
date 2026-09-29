@@ -1,3 +1,4 @@
+import { createQueryDocumentReader } from "../lib/queryDocumentReader";
 import { summaryReadiness } from "../lib/finishedGoodsSummary";
 import { isGeometricPlacement } from "../model/finishedGoods/scanning";
 import { v } from "convex/values";
@@ -12,66 +13,70 @@ import {
   remainingScanCapacity,
 } from "../lib/cataloguePagination";
 
-async function locationRow(
+function createLocationReader(
   ctx: TenantFunctionContext,
-  zone: Doc<"storageZones">,
   includePositions = true,
 ) {
-  const [building, floor, positions] = await Promise.all([
-    ctx.tenantDb.get<Doc<"storageBuildings">>(
-      "storageBuildings",
-      zone.buildingId,
-    ),
-    ctx.tenantDb.get<Doc<"storageFloors">>("storageFloors", zone.floorId),
-    includePositions
-      ? ctx.tenantDb
-          .byIndex<Doc<"storagePositions">>(
-            "storagePositions",
-            "by_orgId_zoneId_status_code",
-            [{ field: "zoneId", value: zone._id }],
-          )
-          .all(10_000)
-      : Promise.resolve([] as Doc<"storagePositions">[]),
-  ]);
-  if (
-    !building ||
-    !floor ||
-    floor.buildingId !== building._id ||
-    building.warehouseId !== zone.warehouseId
-  )
-    throw new Error("Storage location parent is missing");
-  return {
-    _id: zone._id,
-    warehouseId: zone.warehouseId,
-    zoneId: zone._id,
-    label: zone.label,
-    code: zone.code,
-    qrValue: zone.qrValue,
-    buildingId: building._id,
-    buildingName: building.name,
-    buildingCode: building.code,
-    floorNumber: floor.floorNumber,
-    status:
-      zone.status === "INACTIVE" ? ("ARCHIVED" as const) : building.status,
-    widthMm: zone.widthMm,
-    depthMm: zone.depthMm,
-    heightMm: zone.maxStackHeightMm,
-    positions: positions
-      .filter((p) => !p.isDefault)
-      .map((p) => ({
-        id: p._id,
-        label: p.label,
-        code: p.code,
-        status: p.status,
-        xMm: p.xMm,
-        yMm: p.yMm,
-        zMm: p.elevationMm ?? zone.baseElevationMm ?? 0,
-      })),
+  const readBuilding = createQueryDocumentReader(
+    ctx.tenantDb,
+    "storageBuildings",
+  );
+  const readFloor = createQueryDocumentReader(ctx.tenantDb, "storageFloors");
+  return async (zone: Doc<"storageZones">) => {
+    const [building, floor, positions] = await Promise.all([
+      readBuilding(zone.buildingId),
+      readFloor(zone.floorId),
+      includePositions
+        ? ctx.tenantDb
+            .byIndex<Doc<"storagePositions">>(
+              "storagePositions",
+              "by_orgId_zoneId_status_code",
+              [{ field: "zoneId", value: zone._id }],
+            )
+            .all(10_000)
+        : Promise.resolve([] as Doc<"storagePositions">[]),
+    ]);
+    if (
+      !building ||
+      !floor ||
+      floor.buildingId !== building._id ||
+      building.warehouseId !== zone.warehouseId
+    )
+      throw new Error("Storage location parent is missing");
+    return {
+      _id: zone._id,
+      warehouseId: zone.warehouseId,
+      zoneId: zone._id,
+      label: zone.label,
+      code: zone.code,
+      qrValue: zone.qrValue,
+      buildingId: building._id,
+      buildingName: building.name,
+      buildingCode: building.code,
+      floorNumber: floor.floorNumber,
+      status:
+        zone.status === "INACTIVE" ? ("ARCHIVED" as const) : building.status,
+      widthMm: zone.widthMm,
+      depthMm: zone.depthMm,
+      heightMm: zone.maxStackHeightMm,
+      positions: positions
+        .filter((p) => !p.isDefault)
+        .map((p) => ({
+          id: p._id,
+          label: p.label,
+          code: p.code,
+          status: p.status,
+          xMm: p.xMm,
+          yMm: p.yMm,
+          zMm: p.elevationMm ?? zone.baseElevationMm ?? 0,
+        })),
+    };
   };
 }
+type LocationReader = ReturnType<typeof createLocationReader>;
 async function withOccupancy(
   ctx: TenantFunctionContext,
-  row: NonNullable<Awaited<ReturnType<typeof locationRow>>>,
+  row: Awaited<ReturnType<LocationReader>>,
 ) {
   const placements = (
     await Promise.all(
@@ -168,6 +173,7 @@ async function searchLocationChunk(
   ctx: TenantFunctionContext,
   warehouseId: string,
   needle: string,
+  readLocation: LocationReader,
   raw?: string,
   end?: string,
 ) {
@@ -250,7 +256,7 @@ async function searchLocationChunk(
     continueCursor: encode(after),
   });
   if (!zone || zone.warehouseId !== warehouseId) return result(false);
-  const row = await locationRow(ctx, zone, false);
+  const row = await readLocation(zone);
   const heading =
     `${row.label} ${row.code} ${row.buildingName} ${row.buildingCode} `.toLocaleLowerCase();
   if (heading.includes(needle)) return result(true);
@@ -317,6 +323,7 @@ export const page = queryWithOrg({
   handler: async (ctx, args) => {
     const { cursor, scanCursor, pageSize, ...criteria } = args;
     const needle = (args.search ?? "").trim().toLocaleLowerCase();
+    const readLocation = createLocationReader(ctx, false);
     const result = await paginatedScan(ctx, {
       generation:
         (await summaryReadiness(ctx.tenantDb, args.warehouseId))?.generation ??
@@ -331,6 +338,7 @@ export const page = queryWithOrg({
               ctx,
               args.warehouseId,
               needle,
+              readLocation,
               rawCursor,
               endCursor,
             )
@@ -349,7 +357,7 @@ export const page = queryWithOrg({
                 ...(endCursor ? { endCursor } : {}),
               }),
       get: (id) => ctx.tenantDb.get<Doc<"storageZones">>("storageZones", id),
-      hydrate: (zone) => locationRow(ctx, zone, false),
+      hydrate: readLocation,
       matches: (row) =>
         row.warehouseId === args.warehouseId &&
         (!args.status || row.status === args.status) &&
@@ -373,7 +381,7 @@ export const detail = queryWithOrg({
       args.zoneId,
     );
     return zone?.warehouseId === args.warehouseId
-      ? withOccupancy(ctx, await locationRow(ctx, zone))
+      ? withOccupancy(ctx, await createLocationReader(ctx)(zone))
       : null;
   },
 });
@@ -436,7 +444,7 @@ export const list = queryWithOrg({
         [{ field: "warehouseId", value: warehouseId }],
       )
       .all(10_000);
-    const rows = await Promise.all(zones.map((zone) => locationRow(ctx, zone)));
+    const rows = await Promise.all(zones.map(createLocationReader(ctx)));
     return await Promise.all(
       rows.filter((row) => row !== null).map((row) => withOccupancy(ctx, row)),
     );
