@@ -297,7 +297,20 @@ async function authorizeTenantRequest<Args extends readonly unknown[]>(input: {
   readonly audit: boolean;
 }): Promise<boolean> {
   const { rawContext, requestId, tenant, tenantDb, spec, args, audit } = input;
-  const now = Date.now();
+  // A document's server creation time is a trusted lower bound on now. For
+  // memberships already effective at creation, with no expiry, the verdict is
+  // time-independent. Avoid a wall-clock dependency so Convex can reuse reads.
+  // Expiring/future memberships, step-up, policies and audited writes retain
+  // the real clock. Membership/role changes still invalidate cached queries.
+  const membership = tenant.membership;
+  const now =
+    !audit &&
+    spec.policy === undefined &&
+    !spec.permission.requiresStepUp &&
+    membership.effectiveTo === undefined &&
+    membership.effectiveFrom <= membership._creationTime
+      ? membership._creationTime
+      : Date.now();
   const orgId = tenant.organization._id;
   const actorUserId = tenant.actor._id;
 
@@ -418,7 +431,8 @@ async function runTenantHandler<Args extends readonly unknown[], ReturnValue>(
   audit: boolean,
   handler: (ctx: TenantFunctionContext, ...args: Args) => ReturnValue,
 ): Promise<TenantFunctionOutcome<Awaited<ReturnValue>>> {
-  const requestId = mintRequestId();
+  // Query IDs correlate cached results; they are not audit timestamps.
+  const requestId = audit ? mintRequestId() : crypto.randomUUID();
 
   try {
     const identity = await rawContext.auth.getUserIdentity();

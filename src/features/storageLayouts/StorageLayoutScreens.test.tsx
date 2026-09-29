@@ -29,6 +29,10 @@ beforeEach(() => {
     .mockResolvedValue({ ok: true, value: { written: true } });
 });
 
+vi.mock("./useStorageBuilding", () => ({
+  useStorageBuilding: () => layoutAccess.query(),
+}));
+
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: navigate }) }));
 
 vi.mock("convex/react", () => ({

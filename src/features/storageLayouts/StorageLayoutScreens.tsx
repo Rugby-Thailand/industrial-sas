@@ -1,4 +1,5 @@
 "use client";
+import { useStorageBuilding } from "./useStorageBuilding";
 import { updateBrowserQuery } from "@/lib/browser/history";
 import {
   ChangeImpactSummary,
@@ -528,10 +529,6 @@ function Field({
   );
 }
 
-function useBuilding(warehouseId: string, buildingId: string) {
-  return useQuery(storageLayoutRefs.get, { warehouseId, buildingId });
-}
-
 export function StorageBuildingEditor({
   buildingId,
 }: {
@@ -554,7 +551,7 @@ function BuildingContent({
   readonly buildingId: string;
 }) {
   const t = useTranslations("StorageLayouts");
-  const outcome = useBuilding(warehouseId, buildingId);
+  const outcome = useStorageBuilding(warehouseId, buildingId);
   if (outcome === undefined) return <LoadingCard />;
   if (!outcome.ok) return <QueryFailure />;
   if (!outcome.value.found)
@@ -1216,7 +1213,7 @@ function FloorQuery({
   readonly floorNumber: number;
 }) {
   const t = useTranslations("StorageLayouts");
-  const outcome = useBuilding(warehouseId, buildingId);
+  const outcome = useStorageBuilding(warehouseId, buildingId);
   if (outcome === undefined) return <LoadingCard />;
   if (!outcome.ok) return <QueryFailure />;
   if (!outcome.value.found)
@@ -2926,7 +2923,7 @@ function ReviewContent({
     workspace.navigationPermissions.includes(
       "masterData.storageLayout.activate",
     );
-  const outcome = useBuilding(warehouseId, buildingId);
+  const outcome = useStorageBuilding(warehouseId, buildingId);
   const activate = useMutation(storageLayoutRefs.activate);
   const operation = useAsyncOperation({
     scope: `building-review:${warehouseId}:${buildingId}`,

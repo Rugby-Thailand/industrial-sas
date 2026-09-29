@@ -1,4 +1,15 @@
 import { describe, expect, it } from "vitest";
+import {
+  getStorageBuilding,
+  getStorageBuildingLayout,
+  getStorageBuildingInventory,
+} from "../../convex/storageLayouts/catalogue";
+import { mergeBuildingInventory } from "../../src/features/storageLayouts/buildingInventory";
+import type {
+  StorageBuildingDetail,
+  storageLayoutRefs,
+} from "../../src/lib/convex/storageLayoutApi";
+import type { RefValue } from "../../src/lib/convex/clientRef";
 import type { GenericMutationCtx } from "convex/server";
 import type { DataModel } from "../../convex/schema";
 import type { Id } from "../../convex/_generated/dataModel";
@@ -229,6 +240,25 @@ describe("ordered package scanning", () => {
         const row = await ctx.db.get(u.unitId as Id<"finishedGoodsPallets">);
         expect(row).toMatchObject({ quantity: 1, status: "STORED" });
       }
+    });
+    const building = await world.t.run(
+      async (ctx) => (await ctx.db.query("storageBuildings").collect())[0]!,
+    );
+    const args = { warehouseId: world.warehouseId, buildingId: building._id };
+    const layout = value(await call(world, getStorageBuildingLayout, args));
+    const inventory = value(
+      await call(world, getStorageBuildingInventory, args),
+    );
+    const merged = mergeBuildingInventory(
+      layout as unknown as StorageBuildingDetail,
+      inventory as unknown as RefValue<typeof storageLayoutRefs.inventory>,
+    );
+    expect(merged).toEqual(value(await call(world, getStorageBuilding, args)));
+    expect(merged.found && merged.floors[0]!.storageZones[0]).toMatchObject({
+      palletCount: 3,
+      unmeasuredPalletCount: 3,
+      measuredAreaPartial: true,
+      occupiedFootprintAreaSqMm: 0,
     });
     const catalogue = value(
       await call(world, listLocations, { warehouseId: world.warehouseId }),

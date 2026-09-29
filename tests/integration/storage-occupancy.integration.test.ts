@@ -5,6 +5,8 @@ import type { DataModel } from "../../convex/schema";
 import {
   listStorageBuildings,
   getStorageBuilding,
+  getStorageBuildingLayout,
+  getStorageBuildingInventory,
 } from "../../convex/storageLayouts/catalogue";
 import { list as listLocations } from "../../convex/storageLayouts/locationCatalogue";
 import {
@@ -29,6 +31,11 @@ import {
   seedConvexAuthorization,
   type ConvexTenantWorld,
 } from "../fixtures/convex-tenant-world";
+
+import { mergeBuildingInventory } from "../../src/features/storageLayouts/buildingInventory";
+import type { StorageBuildingDetail } from "../../src/lib/convex/storageLayoutApi";
+import type { RefValue } from "../../src/lib/convex/clientRef";
+import type { storageLayoutRefs } from "../../src/lib/convex/storageLayoutApi";
 
 interface RuntimeFunction {
   readonly _handler: (
@@ -178,7 +185,145 @@ async function occupiedWorld(status: "RESERVED" | "STORED" = "RESERVED") {
   return { world, warehouseId, building, zone, position, placementId, floor };
 }
 
+async function measuredRead(
+  world: ConvexTenantWorld,
+  fn: unknown,
+  args: unknown,
+) {
+  const tables: string[] = [];
+  let bytes = 0;
+  let documents = 0;
+  const measure = (rows: unknown[]) => {
+    documents += rows.length;
+    bytes += new TextEncoder().encode(JSON.stringify(rows)).length;
+  };
+  const wrap = (query: object): object =>
+    new Proxy(query, {
+      get(target, key, receiver) {
+        const member = Reflect.get(target, key, receiver);
+        if (typeof member !== "function") return member;
+        return (...args: unknown[]) => {
+          const result: unknown = Reflect.apply(member, target, args);
+          if (result instanceof Promise)
+            return result.then((rows) => {
+              if (Array.isArray(rows)) measure(rows);
+              else if (rows && typeof rows === "object" && "page" in rows)
+                measure(rows.page);
+              return rows;
+            });
+          return result && typeof result === "object" ? wrap(result) : result;
+        };
+      },
+    });
+  const result = await world.t
+    .withIdentity({ subject: "user_fixture_a", org_id: "org_fixture_a" })
+    .run((ctx) => {
+      const db = new Proxy(ctx.db, {
+        get(target, key, receiver) {
+          const member = Reflect.get(target, key, receiver);
+          if (key === "query")
+            return (table: string) => {
+              tables.push(table);
+              return wrap(Reflect.apply(member, target, [table]));
+            };
+          if (key === "get")
+            return async (...args: unknown[]) => {
+              // The tenant adapter uses table + id; convex-test also supports id only.
+              tables.push(String(args.length === 2 ? args[0] : "get"));
+              const row = await Reflect.apply(member, target, args);
+              if (row) measure([row]);
+              return row;
+            };
+          return typeof member === "function" ? member.bind(target) : member;
+        },
+      });
+      return (fn as RuntimeFunction)._handler({ ...ctx, db }, args);
+    });
+  return {
+    result: value(result as Record<string, unknown>),
+    tables,
+    documents,
+    bytes,
+  };
+}
+
 describe("planner protects finished goods occupancy", () => {
+  it("keeps geometry out of inventory reads and inventory out of geometry reads", async () => {
+    const { world, warehouseId, building, placementId } =
+      await occupiedWorld("STORED");
+    const args = { warehouseId, buildingId: building._id };
+    // Many zones amplify the original repeated layout I/O, like the PD floor.
+    await world.t.run(async (ctx) => {
+      const template = (await ctx.db.query("storageZones").collect())[0]!;
+      const { _id, _creationTime, ...zone } = template;
+      void _id;
+      void _creationTime;
+      for (let i = 0; i < 100; i++)
+        await ctx.db.insert("storageZones", { ...zone, code: `EMPTY-${i}` });
+    });
+    const full = await measuredRead(world, getStorageBuilding, args);
+    const layout = await measuredRead(world, getStorageBuildingLayout, args);
+    const inventory = await measuredRead(
+      world,
+      getStorageBuildingInventory,
+      args,
+    );
+    expect(layout.tables).not.toContain("finishedGoodsPlacements");
+    expect(layout.tables).not.toContain("finishedGoodsMoves");
+    expect(layout.tables).not.toContain("finishedGoodsPallets");
+    expect(inventory.tables).not.toContain("storageZones");
+    expect(inventory.tables).not.toContain("storagePositions");
+    expect(inventory.tables).not.toContain("storageFloorReservedBlocks");
+    expect(inventory.documents).toBeLessThan(full.documents / 4);
+    expect(inventory.bytes).toBeLessThan(full.bytes / 4);
+    expect(
+      mergeBuildingInventory(
+        layout.result as unknown as StorageBuildingDetail,
+        inventory.result as unknown as RefValue<
+          typeof storageLayoutRefs.inventory
+        >,
+      ),
+    ).toEqual(full.result);
+    await world.t.run((ctx) =>
+      ctx.db.patch(placementId, { status: "RELEASED" }),
+    );
+    const nextLayout = await measuredRead(
+      world,
+      getStorageBuildingLayout,
+      args,
+    );
+    const nextInventory = await measuredRead(
+      world,
+      getStorageBuildingInventory,
+      args,
+    );
+    expect(nextLayout.result).toEqual(layout.result);
+    expect(nextInventory.result).toEqual({ found: true, zones: [] });
+  });
+
+  it("authorizes both split queries by organization and warehouse", async () => {
+    const { world, warehouseId, building } = await occupiedWorld();
+    await world.t.run(async (ctx) => {
+      const membership = (await ctx.db.query("memberships").collect()).find(
+        (m) => m.orgId === world.orgA,
+      )!;
+      await ctx.db.patch(membership._id, { scopeMode: "ORG_WIDE" });
+    });
+    for (const fn of [getStorageBuildingLayout, getStorageBuildingInventory]) {
+      expect(
+        value(
+          await call(world, fn, {
+            warehouseId: world.warehouses.bravoA,
+            buildingId: building._id,
+          }),
+        ),
+      ).toEqual({ found: false });
+      await expect(
+        call(world, fn, { warehouseId, buildingId: building._id }, "b"),
+      ).rejects.toThrow();
+    }
+  });
+
   it("projects both move holds, one physical pallet and union area, marking in-transit sources honestly", async () => {
     const { world, warehouseId, building, placementId } =
       await occupiedWorld("STORED");
@@ -219,6 +364,34 @@ describe("planner protects finished goods occupancy", () => {
         buildingId: building._id,
       }),
     );
+    const layout = value(
+      await call(world, getStorageBuildingLayout, {
+        warehouseId,
+        buildingId: building._id,
+      }),
+    );
+    const measuredInventory = await measuredRead(
+      world,
+      getStorageBuildingInventory,
+      { warehouseId, buildingId: building._id },
+    );
+    const inventory = measuredInventory.result;
+    expect(
+      measuredInventory.tables.filter(
+        (table) => table === "finishedGoodsPallets",
+      ),
+    ).toHaveLength(1);
+    expect(
+      measuredInventory.tables.filter(
+        (table) => table === "finishedGoodsProducts",
+      ),
+    ).toHaveLength(1);
+    expect(
+      mergeBuildingInventory(
+        layout as unknown as StorageBuildingDetail,
+        inventory as unknown as RefValue<typeof storageLayoutRefs.inventory>,
+      ),
+    ).toEqual(detail);
     const floors = detail["floors"] as {
       storageZones: {
         placements: unknown[];
