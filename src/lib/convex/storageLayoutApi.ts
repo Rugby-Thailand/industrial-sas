@@ -178,6 +178,10 @@ export const storageLayoutRefs = Object.freeze({
   page: clientRef(api.storageLayouts.catalogue.listStorageBuildingsPage),
   list: clientRef(api.storageLayouts.catalogue.listStorageBuildings),
   get: clientRef(api.storageLayouts.catalogue.getStorageBuilding),
+  layout: clientRef(api.storageLayouts.catalogue.getStorageBuildingLayout),
+  inventory: clientRef(
+    api.storageLayouts.catalogue.getStorageBuildingInventory,
+  ),
   locationMap: clientRef(api.storageLayouts.catalogue.getStorageLocationMap),
   create: clientRef(api.storageLayouts.writes.createStorageBuilding),
   update: clientRef(api.storageLayouts.writes.updateStorageBuilding),

@@ -11,24 +11,33 @@ export interface MoveOccupancy {
 export async function readMoveOccupancy(
   ctx: TenantFunctionContext,
   warehouseId: string,
+  palletIds?: readonly string[],
 ): Promise<ReadonlyMap<string, MoveOccupancy>> {
   const groups = await Promise.all(
-    (["RESERVED", "IN_TRANSIT"] as const).map((status) =>
-      ctx.tenantDb
-        .byIndex<Doc<"finishedGoodsMoves">>(
-          "finishedGoodsMoves",
-          "by_orgId_warehouseId_status",
-          [
-            { field: "warehouseId", value: warehouseId },
-            { field: "status", value: status },
-          ],
-        )
-        .all(10_000)
-        .then((moves) => moves.map((move) => ({ move, status }))),
+    (palletIds === undefined ? [undefined] : [...new Set(palletIds)]).flatMap(
+      (palletId) =>
+        (["RESERVED", "IN_TRANSIT"] as const).map((status) =>
+          ctx.tenantDb
+            .byIndex<Doc<"finishedGoodsMoves">>(
+              "finishedGoodsMoves",
+              palletId === undefined
+                ? "by_orgId_warehouseId_status"
+                : "by_orgId_palletId_status",
+              [
+                palletId === undefined
+                  ? { field: "warehouseId", value: warehouseId }
+                  : { field: "palletId", value: palletId },
+                { field: "status", value: status },
+              ],
+            )
+            .all(10_000)
+            .then((moves) => moves.map((move) => ({ move, status }))),
+        ),
     ),
   );
   const result = new Map<string, MoveOccupancy>();
   for (const { move, status } of groups.flat()) {
+    if (move.warehouseId !== warehouseId) continue;
     result.set(move.sourcePlacementId, {
       moveId: move._id,
       moveState: status,

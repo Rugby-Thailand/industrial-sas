@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery } from "convex/react";
+import { useStorageBuilding } from "./useStorageBuilding";
 import { useLocale } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { Notice } from "@/components/ui/Notice";
@@ -18,7 +18,6 @@ import {
 import { SelectControl } from "@/components/ui/SelectControl";
 import { sceneColors } from "@/components/storageScene/sceneColors";
 import {
-  storageLayoutRefs,
   type StorageBuildingRow,
   type StorageBuildingDetail,
 } from "@/lib/convex/storageLayoutApi";
@@ -36,11 +35,10 @@ export function BuildingAreaDetails({
   const [open, setOpen] = useState(false);
   const locale = useLocale();
   const th = locale === "th";
-  const result = useQuery(
-    storageLayoutRefs.get,
-    open
-      ? { warehouseId: building.warehouseId, buildingId: building.buildingId }
-      : "skip",
+  const result = useStorageBuilding(
+    building.warehouseId,
+    building.buildingId,
+    open,
   );
   return (
     <Dialog open={open} onOpenChange={setOpen}>

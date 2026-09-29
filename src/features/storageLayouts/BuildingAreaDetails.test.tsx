@@ -14,8 +14,12 @@ import type {
 import { chooseOption } from "@tests/fixtures/select-control";
 
 const query = vi.hoisted(() => vi.fn());
-vi.mock("convex/react", () => ({
-  useQuery: (_ref: unknown, args: unknown) => query(args),
+vi.mock("./useStorageBuilding", () => ({
+  useStorageBuilding: (
+    warehouseId: string,
+    buildingId: string,
+    enabled: boolean,
+  ) => query(enabled ? { warehouseId, buildingId } : "skip"),
 }));
 vi.mock("@/i18n/navigation", () => ({
   Link: ({ href, ...props }: ComponentProps<"a">) => (

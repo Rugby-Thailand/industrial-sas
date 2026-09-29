@@ -53,7 +53,7 @@ export async function hasOccupiedStorage(
 async function readZonePlacements(
   ctx: TenantFunctionContext,
   zone: ZoneDocument,
-  moves: ReadonlyMap<string, MoveOccupancy>,
+  readPlacement: PlacementReader,
 ) {
   const rows = (
     await Promise.all(
@@ -72,69 +72,112 @@ async function readZonePlacements(
       ),
     )
   ).flat();
-  return await Promise.all(
-    rows.map(async (placement) => {
-      const pallet = await ctx.tenantDb.get<Doc<"finishedGoodsPallets">>(
+  return Promise.all(rows.map(readPlacement));
+}
+
+// These caches live only for one authorized query execution. Shared products
+// and the two holds of an active move are each fetched once, including nulls.
+function createPlacementReader(
+  ctx: TenantFunctionContext,
+  moves: ReadonlyMap<string, MoveOccupancy>,
+) {
+  const pallets = new Map<
+    string,
+    Promise<Doc<"finishedGoodsPallets"> | null>
+  >();
+  const products = new Map<
+    string,
+    Promise<Doc<"finishedGoodsProducts"> | null>
+  >();
+  return async (placement: PlacementDocument) => {
+    let pendingPallet = pallets.get(placement.palletId);
+    if (!pendingPallet) {
+      pendingPallet = ctx.tenantDb.get<Doc<"finishedGoodsPallets">>(
         "finishedGoodsPallets",
         placement.palletId,
       );
-      const product = pallet
-        ? await ctx.tenantDb.get<Doc<"finishedGoodsProducts">>(
-            "finishedGoodsProducts",
-            pallet.productId,
-          )
-        : null;
-      if (!isGeometricPlacement(placement))
-        return {
-          mode: "LOCATION_ONLY" as const,
-          placementId: placement._id,
-          handlingUnitId: placement.palletId,
-          lpn: pallet?.code ?? placement.positionCode,
-          assignmentId: placement.assignmentId,
-          sequence: placement.sequence,
-          positionCode: placement.positionCode,
-          positionId: placement.supportPositionId,
-          productName: product?.name,
-          quantity: pallet?.quantity,
-          status: placement.status,
-        };
+      pallets.set(placement.palletId, pendingPallet);
+    }
+    const pallet = await pendingPallet;
+    let product: Doc<"finishedGoodsProducts"> | null = null;
+    if (pallet) {
+      let pendingProduct = products.get(pallet.productId);
+      if (!pendingProduct) {
+        pendingProduct = ctx.tenantDb.get<Doc<"finishedGoodsProducts">>(
+          "finishedGoodsProducts",
+          pallet.productId,
+        );
+        products.set(pallet.productId, pendingProduct);
+      }
+      product = await pendingProduct;
+    }
+    if (!isGeometricPlacement(placement))
       return {
-        mode: "GEOMETRIC" as const,
-        ...(product
-          ? {
-              productName: product.name,
-              productSku: product.sku,
-              unit: product.unit,
-            }
-          : {}),
-        ...(pallet ? { quantity: pallet.quantity } : {}),
+        mode: "LOCATION_ONLY" as const,
         placementId: placement._id,
         handlingUnitId: placement.palletId,
         lpn: pallet?.code ?? placement.positionCode,
-        levelIndex: 1,
-        xMm: placement.xMm,
-        yMm: placement.yMm,
-        zMm: placement.zMm,
-        widthMm: placement.widthMm,
-        depthMm: placement.depthMm,
-        heightMm: placement.heightMm,
-        status:
-          placement.status === "RESERVED"
-            ? ("RESERVED" as const)
-            : ("STORED" as const),
-        orientation:
-          placement.rotation === 90
-            ? ("ROTATED" as const)
-            : ("DEFAULT" as const),
-        placedAt: placement.updatedAt,
-        ...(placement.supportPositionId
-          ? { positionId: placement.supportPositionId }
-          : {}),
+        assignmentId: placement.assignmentId,
+        sequence: placement.sequence,
         positionCode: placement.positionCode,
-        ...moves.get(placement._id),
+        positionId: placement.supportPositionId,
+        productName: product?.name,
+        quantity: pallet?.quantity,
+        status: placement.status,
       };
-    }),
+    return {
+      mode: "GEOMETRIC" as const,
+      ...(product
+        ? {
+            productName: product.name,
+            productSku: product.sku,
+            unit: product.unit,
+          }
+        : {}),
+      ...(pallet ? { quantity: pallet.quantity } : {}),
+      placementId: placement._id,
+      handlingUnitId: placement.palletId,
+      lpn: pallet?.code ?? placement.positionCode,
+      levelIndex: 1,
+      xMm: placement.xMm,
+      yMm: placement.yMm,
+      zMm: placement.zMm,
+      widthMm: placement.widthMm,
+      depthMm: placement.depthMm,
+      heightMm: placement.heightMm,
+      status:
+        placement.status === "RESERVED"
+          ? ("RESERVED" as const)
+          : ("STORED" as const),
+      orientation:
+        placement.rotation === 90 ? ("ROTATED" as const) : ("DEFAULT" as const),
+      placedAt: placement.updatedAt,
+      ...(placement.supportPositionId
+        ? { positionId: placement.supportPositionId }
+        : {}),
+      positionCode: placement.positionCode,
+      ...moves.get(placement._id),
+    };
+  };
+}
+
+type PlacementReader = ReturnType<typeof createPlacementReader>;
+
+function summarizePlacements(
+  allPlacements: Awaited<ReturnType<PlacementReader>>[],
+) {
+  const placements = allPlacements.filter((p) => p.mode === "GEOMETRIC");
+  const locationOnlyPlacements = allPlacements.filter(
+    (p) => p.mode === "LOCATION_ONLY",
   );
+  return {
+    placements,
+    locationOnlyPlacements,
+    unmeasuredPalletCount: locationOnlyPlacements.length,
+    measuredAreaPartial: locationOnlyPlacements.length > 0,
+    palletCount: new Set(allPlacements.map((p) => p.handlingUnitId)).size,
+    occupiedFootprintAreaSqMm: occupiedFootprintAreaSqMm(placements),
+  };
 }
 
 const buildingArgs = {
@@ -142,27 +185,19 @@ const buildingArgs = {
   buildingId: v.id("storageBuildings"),
 };
 
-async function resolveZone(ctx: TenantFunctionContext, zone: ZoneDocument) {
-  const floor = await ctx.tenantDb.get<FloorDocument>(
-    "storageFloors",
-    zone.floorId,
-  );
-  if (floor === null) throw new Error("Storage zone floor is missing");
-  const resolvedFloor = await readFloor(ctx, floor);
-  const resolvedZone = resolvedFloor.storageZones.find(
-    (candidate) => candidate.zoneId === zone._id,
-  );
-  if (resolvedZone === undefined)
-    throw new Error("Active storage zone could not be resolved");
-  return resolvedZone;
-}
-
 async function readFloor(
   ctx: TenantFunctionContext,
   floor: FloorDocument,
   knownMoves?: ReadonlyMap<string, MoveOccupancy>,
+  includeInventory = true,
+  knownReader?: PlacementReader,
 ) {
-  const moves = knownMoves ?? (await readMoveOccupancy(ctx, floor.warehouseId));
+  const moves =
+    knownMoves ??
+    (includeInventory
+      ? await readMoveOccupancy(ctx, floor.warehouseId)
+      : new Map<string, MoveOccupancy>());
+  const readPlacement = knownReader ?? createPlacementReader(ctx, moves);
   const blocks = await ctx.tenantDb
     .byIndex<BlockDocument>("storageFloorReservedBlocks", "by_orgId_floorId", [
       { field: "floorId", value: floor._id },
@@ -176,11 +211,12 @@ async function readFloor(
     .all(STORAGE_ZONE_LIMITS.maximumZonesPerFloor);
   const storageZones = await Promise.all(
     zones.map(async (zone) => {
-      const allPlacements = await readZonePlacements(ctx, zone, moves);
-      const placements = allPlacements.filter((p) => p.mode === "GEOMETRIC");
-      const locationOnlyPlacements = allPlacements.filter(
-        (p) => p.mode === "LOCATION_ONLY",
+      const inventory = summarizePlacements(
+        includeInventory
+          ? await readZonePlacements(ctx, zone, readPlacement)
+          : [],
       );
+      const { placements } = inventory;
       const storedPositions = await ctx.tenantDb
         .byIndex<PositionDocument>(
           "storagePositions",
@@ -273,12 +309,7 @@ async function readFloor(
         depthMm: zone.depthMm,
         maxStackHeightMm: zone.maxStackHeightMm,
         positions: resolvedPositions,
-        placements,
-        locationOnlyPlacements,
-        unmeasuredPalletCount: locationOnlyPlacements.length,
-        measuredAreaPartial: locationOnlyPlacements.length > 0,
-        palletCount: new Set(allPlacements.map((p) => p.handlingUnitId)).size,
-        occupiedFootprintAreaSqMm: occupiedFootprintAreaSqMm(placements),
+        ...inventory,
       };
     }),
   );
@@ -455,7 +486,51 @@ export const buildingOccupancy = queryWithOrg({
   },
 });
 
-export const getStorageBuilding = queryWithOrg({
+function storageBuildingQuery(includeInventory: boolean) {
+  return queryWithOrg({
+    args: buildingArgs,
+    returns: v.any(),
+    permissionCode: "masterData.storageLayout.read",
+    target: { table: "storageBuildings", id: ({ buildingId }) => buildingId },
+    warehouseId: ({ warehouseId }) => warehouseId,
+    handler: async (ctx, args) => {
+      const building = await ctx.tenantDb.get<BuildingDocument>(
+        "storageBuildings",
+        args.buildingId,
+      );
+      if (building === null || building.warehouseId !== args.warehouseId) {
+        return { found: false as const };
+      }
+      const floors = await ctx.tenantDb
+        .byIndex<FloorDocument>(
+          "storageFloors",
+          "by_orgId_buildingId_floorNumber",
+          [{ field: "buildingId", value: args.buildingId }],
+        )
+        .all(50);
+      const moves = includeInventory
+        ? await readMoveOccupancy(ctx, args.warehouseId)
+        : new Map<string, MoveOccupancy>();
+      const readPlacement = createPlacementReader(ctx, moves);
+      return {
+        found: true as const,
+        building: { ...building, buildingId: building._id },
+        floors: await Promise.all(
+          floors.map((floor) =>
+            readFloor(ctx, floor, moves, includeInventory, readPlacement),
+          ),
+        ),
+      };
+    },
+  });
+}
+
+/** Legacy full response retained for deployed clients during rollout. */
+export const getStorageBuilding = storageBuildingQuery(true);
+/** Geometry stays cached when pallets, products or moves change. */
+export const getStorageBuildingLayout = storageBuildingQuery(false);
+
+export const getStorageBuildingInventory = queryWithOrg({
   args: buildingArgs,
   returns: v.any(),
   permissionCode: "masterData.storageLayout.read",
@@ -466,22 +541,45 @@ export const getStorageBuilding = queryWithOrg({
       "storageBuildings",
       args.buildingId,
     );
-    if (building === null || building.warehouseId !== args.warehouseId) {
+    if (building === null || building.warehouseId !== args.warehouseId)
       return { found: false as const };
-    }
-    const floors = await ctx.tenantDb
-      .byIndex<FloorDocument>(
-        "storageFloors",
-        "by_orgId_buildingId_floorNumber",
-        [{ field: "buildingId", value: args.buildingId }],
+    const rows = (
+      await Promise.all(
+        (["RESERVED", "STORED"] as const).map((status) =>
+          ctx.tenantDb
+            .byIndex<PlacementDocument>(
+              "finishedGoodsPlacements",
+              "by_orgId_buildingId_status",
+              [
+                { field: "buildingId", value: args.buildingId },
+                { field: "status", value: status },
+              ],
+            )
+            .all(10_000),
+        ),
       )
-      .all(50);
-    const moves = await readMoveOccupancy(ctx, args.warehouseId);
+    ).flat();
+    const moves = await readMoveOccupancy(
+      ctx,
+      args.warehouseId,
+      rows.map((row) => row.palletId),
+    );
+    const readPlacement = createPlacementReader(ctx, moves);
+    const zones = new Map<string, PlacementDocument[]>();
+    for (const row of rows) {
+      const group = zones.get(row.zoneId) ?? [];
+      group.push(row);
+      zones.set(row.zoneId, group);
+    }
     return {
       found: true as const,
-      building: { ...building, buildingId: building._id },
-      floors: await Promise.all(
-        floors.map((floor) => readFloor(ctx, floor, moves)),
+      zones: await Promise.all(
+        [...zones].map(async ([zoneId, placements]) => ({
+          zoneId,
+          ...summarizePlacements(
+            await Promise.all(placements.map(readPlacement)),
+          ),
+        })),
       ),
     };
   },
@@ -551,11 +649,17 @@ export const getStorageLocationMap = queryWithOrg({
       return { found: false as const };
     }
 
+    const resolvedFloor = await readFloor(ctx, floor);
+    const resolvedZone = resolvedFloor.storageZones.find(
+      (candidate) => candidate.zoneId === zone._id,
+    );
+    if (!resolvedZone)
+      throw new Error("Active storage zone could not be resolved");
     return {
       found: true as const,
       building: { ...building, buildingId: building._id },
-      floor: await readFloor(ctx, floor),
-      zone: await resolveZone(ctx, zone),
+      floor: resolvedFloor,
+      zone: resolvedZone,
     };
   },
 });
