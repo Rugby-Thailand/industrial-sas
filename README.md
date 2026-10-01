@@ -20,6 +20,19 @@ For the seeded local browser fixture, set `ALLOW_LOCAL_TEST_SEED=true` in
 `.env.local`, then run `pnpm dev:seed`. Run `pnpm dev:login` to open the direct
 local Clerk ticket route for the test account.
 
+`ALLOW_LOCAL_TEST_SEED=true pnpm dev:seed --storage-ui` adds the local UI B
+review profile without replacing existing records. `UI-B-DEMO` has four floors,
+34 locations, 15 grouped positions, reserved areas, and 10 pallets (stored,
+reserved, and unmeasured). Floor 3 is empty; floor 4 has a smaller footprint.
+`UI-B-NO-FLOORS` and `UI-B-ARCHIVED` cover empty and read-only buildings.
+`UI-B-REFERENCE` adds a 12.26 × 29.93 m floor with 15 locations and 24 stored
+pallets for comparison with the canvas reference; its ID is
+`storageUiProfile.referenceBuildingId`.
+The profile is repeatable and requires the enabled loopback Convex backend.
+Building IDs are written to `output/local-test-data.json` under
+`storageUiProfile`. After `pnpm dev:login`, open the building from the catalogue
+or `/th/master-data/storage-layouts/<buildingId>`.
+
 Run `pnpm check`, `pnpm build`, and `pnpm audit:prod` before releasing.
 `pnpm format:check` checks formatting. Physical camera scanning still requires
 a device check.

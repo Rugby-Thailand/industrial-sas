@@ -66,6 +66,7 @@ import type * as onboarding_bootstrapOrganization from "../onboarding/bootstrapO
 import type * as staging_annexDemo from "../staging/annexDemo.js";
 import type * as staging_jobScanDemo from "../staging/jobScanDemo.js";
 import type * as staging_paginationDemo from "../staging/paginationDemo.js";
+import type * as staging_storageLayoutUiDemo from "../staging/storageLayoutUiDemo.js";
 import type * as staging_summaryBackfill from "../staging/summaryBackfill.js";
 import type * as storageLayouts_catalogue from "../storageLayouts/catalogue.js";
 import type * as storageLayouts_fg1Import from "../storageLayouts/fg1Import.js";
@@ -141,6 +142,7 @@ declare const fullApi: ApiFromModules<{
   "staging/annexDemo": typeof staging_annexDemo;
   "staging/jobScanDemo": typeof staging_jobScanDemo;
   "staging/paginationDemo": typeof staging_paginationDemo;
+  "staging/storageLayoutUiDemo": typeof staging_storageLayoutUiDemo;
   "staging/summaryBackfill": typeof staging_summaryBackfill;
   "storageLayouts/catalogue": typeof storageLayouts_catalogue;
   "storageLayouts/fg1Import": typeof storageLayouts_fg1Import;

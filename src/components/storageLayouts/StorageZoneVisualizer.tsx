@@ -52,6 +52,7 @@ export function ReservedAreaShape({
   selected = false,
   invalid = false,
   fontSize = 11,
+  appearance = "default",
 }: {
   readonly points: readonly { x: number; y: number }[];
   readonly color?: string | undefined;
@@ -61,6 +62,7 @@ export function ReservedAreaShape({
   readonly selected?: boolean;
   readonly invalid?: boolean;
   readonly fontSize?: number;
+  readonly appearance?: "default" | "canvas";
 }) {
   const patternId = `area-${useId().replaceAll(":", "")}`;
   const base = resolveAreaColor(color);
@@ -95,9 +97,9 @@ export function ReservedAreaShape({
             y1="0"
             x2="0"
             y2={fontSize}
-            stroke={contrast}
-            strokeWidth={fontSize / 5}
-            opacity="0.2"
+            stroke={appearance === "canvas" ? base : contrast}
+            strokeWidth={appearance === "canvas" ? 1 : fontSize / 5}
+            opacity={appearance === "canvas" ? 0.9 : 0.2}
           />
         </pattern>
       </defs>
@@ -114,8 +116,12 @@ export function ReservedAreaShape({
                 : undefined
             }
             points={pointsAttribute(face)}
-            fill={base}
-            stroke={contrast}
+            fill={
+              appearance === "canvas"
+                ? `color-mix(in srgb, ${base} 10%, transparent)`
+                : base
+            }
+            stroke={appearance === "canvas" ? base : contrast}
             vectorEffect="non-scaling-stroke"
             className="group-focus-visible:stroke-text"
           />

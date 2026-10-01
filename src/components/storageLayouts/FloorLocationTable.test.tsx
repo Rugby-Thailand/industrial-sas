@@ -83,6 +83,7 @@ describe("FloorLocationTable", () => {
     );
     expect(screen.getByRole("button", { name: "Add location" })).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "Next page" }));
+    fireEvent.click(screen.getByRole("button", { name: "Filter locations" }));
     fireEvent.click(screen.getByRole("button", { name: "Grid view" }));
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
     expect(screen.getAllByRole("listitem")).toHaveLength(25);
@@ -146,6 +147,7 @@ describe("FloorLocationTable", () => {
       target: { value: "Z9" },
     });
     expect(searchChange).toHaveBeenCalledWith("Z9");
+    fireEvent.click(screen.getByRole("button", { name: "Filter locations" }));
     fireEvent.click(screen.getByRole("button", { name: "Grid view" }));
     const selected = screen.getByRole("button", {
       name: "Select location Z205 · Location 56",

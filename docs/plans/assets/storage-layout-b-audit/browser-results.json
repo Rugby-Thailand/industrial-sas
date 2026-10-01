@@ -1,0 +1,179 @@
+{
+  "results": [
+    {
+      "lang": "th",
+      "dark": false,
+      "width": 360,
+      "overflow": false
+    },
+    {
+      "lang": "th",
+      "dark": false,
+      "width": 390,
+      "overflow": false
+    },
+    {
+      "lang": "th",
+      "dark": false,
+      "width": 428,
+      "overflow": false
+    },
+    {
+      "lang": "th",
+      "dark": false,
+      "width": 768,
+      "overflow": false
+    },
+    {
+      "lang": "th",
+      "dark": false,
+      "width": 1024,
+      "overflow": false
+    },
+    {
+      "lang": "th",
+      "dark": false,
+      "width": 1280,
+      "overflow": false
+    },
+    {
+      "lang": "th",
+      "dark": false,
+      "width": 1440,
+      "overflow": false
+    },
+    {
+      "lang": "th",
+      "dark": true,
+      "width": 360,
+      "overflow": false
+    },
+    {
+      "lang": "th",
+      "dark": true,
+      "width": 390,
+      "overflow": false
+    },
+    {
+      "lang": "th",
+      "dark": true,
+      "width": 428,
+      "overflow": false
+    },
+    {
+      "lang": "th",
+      "dark": true,
+      "width": 768,
+      "overflow": false
+    },
+    {
+      "lang": "th",
+      "dark": true,
+      "width": 1024,
+      "overflow": false
+    },
+    {
+      "lang": "th",
+      "dark": true,
+      "width": 1280,
+      "overflow": false
+    },
+    {
+      "lang": "th",
+      "dark": true,
+      "width": 1440,
+      "overflow": false
+    },
+    {
+      "lang": "en",
+      "dark": false,
+      "width": 360,
+      "overflow": false
+    },
+    {
+      "lang": "en",
+      "dark": false,
+      "width": 390,
+      "overflow": false
+    },
+    {
+      "lang": "en",
+      "dark": false,
+      "width": 428,
+      "overflow": false
+    },
+    {
+      "lang": "en",
+      "dark": false,
+      "width": 768,
+      "overflow": false
+    },
+    {
+      "lang": "en",
+      "dark": false,
+      "width": 1024,
+      "overflow": false
+    },
+    {
+      "lang": "en",
+      "dark": false,
+      "width": 1280,
+      "overflow": false
+    },
+    {
+      "lang": "en",
+      "dark": false,
+      "width": 1440,
+      "overflow": false
+    },
+    {
+      "lang": "en",
+      "dark": true,
+      "width": 360,
+      "overflow": false
+    },
+    {
+      "lang": "en",
+      "dark": true,
+      "width": 390,
+      "overflow": false
+    },
+    {
+      "lang": "en",
+      "dark": true,
+      "width": 428,
+      "overflow": false
+    },
+    {
+      "lang": "en",
+      "dark": true,
+      "width": 768,
+      "overflow": false
+    },
+    {
+      "lang": "en",
+      "dark": true,
+      "width": 1024,
+      "overflow": false
+    },
+    {
+      "lang": "en",
+      "dark": true,
+      "width": 1280,
+      "overflow": false
+    },
+    {
+      "lang": "en",
+      "dark": true,
+      "width": 1440,
+      "overflow": false
+    }
+  ],
+  "flows": [
+    "map-sheet-selection-focus",
+    "list-search-preservation",
+    "single-editor",
+    "breakpoint-close"
+  ],
+  "errors": []
+}

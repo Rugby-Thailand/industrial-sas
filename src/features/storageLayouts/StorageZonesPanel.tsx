@@ -2,6 +2,11 @@
 import { updateBrowserQuery } from "@/lib/browser/history";
 import { useWorkspaceQuery, workspaceStateEvent } from "./useWorkspaceQuery";
 
+import { useStorageLayoutMobile } from "@/components/storageLayouts/useStorageLayoutMobile";
+import canvasStyles from "@/components/storageLayouts/FloorMap.module.css";
+import { createPortal } from "react-dom";
+import { LocationDetailsHost } from "@/components/storageLayouts/LocationDetailsHost";
+
 import { StorageZoneDraftPreview } from "@/components/storageLayouts/StorageZoneDraftPreview";
 
 import { rectanglesOverlap } from "@/lib/storageLayouts/storagePlacementGeometry";
@@ -23,6 +28,7 @@ import {
 import { useLocale, useTranslations } from "next-intl";
 import { QrCode as LocationQrCode } from "@/features/storageKit/QrCode";
 import {
+  useContext,
   useEffect,
   useId,
   useImperativeHandle,
@@ -115,6 +121,8 @@ export function StorageZonesPanel({
   readonly onSavingChange?: (saving: boolean) => void;
 }) {
   const t = useTranslations("StorageLayouts");
+  const detailsHost = useContext(LocationDetailsHost);
+  const mobile = useStorageLayoutMobile();
   const [search, setSearch] = useState("");
   const searchId = useId();
   const visibleZones = useMemo(() => {
@@ -623,7 +631,7 @@ export function StorageZonesPanel({
     <div
       className={
         compact
-          ? "mt-4 min-w-0"
+          ? canvasStyles.details
           : "mt-4 grid grid-cols-1 items-start gap-4 lg:grid-cols-2"
       }
     >
@@ -637,75 +645,227 @@ export function StorageZonesPanel({
             id={`storage-zone-${zone.zoneId}`}
             tabIndex={-1}
             aria-label={`${zone.label} · ${zone.code}`}
-            className="min-w-0 scroll-mt-20 rounded-xl border border-border bg-background p-4 outline-none target:border-accent target:ring-1 target:ring-accent focus-visible:ring-2 focus-visible:ring-accent"
+            className={
+              compact
+                ? "min-w-0 outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                : "min-w-0 scroll-mt-20 rounded-xl border border-border bg-background p-3 outline-none target:border-accent target:ring-1 target:ring-accent focus-visible:ring-2 focus-visible:ring-accent"
+            }
           >
-            <div className="flex flex-wrap items-start gap-3">
-              <details className="shrink-0">
-                <summary className="cursor-pointer text-sm text-link">
-                  QR
-                </summary>
-                <LocationQrCode
-                  value={zone.qrValue}
-                  size={80}
-                  padding={8}
-                  level="M"
-                  label={t("qrForZone", { code: zone.code })}
-                  className="size-24 shrink-0 self-start p-2"
-                />{" "}
-              </details>
-
-              <div className="min-w-0 flex-1">
-                <h3 className="font-semibold break-words text-text">
-                  {zone.label}
-                </h3>
-                <p className="mt-1 font-mono text-xs break-all text-muted">
-                  {zone.code}
+            {compact ? (
+              <>
+                <h3 className={canvasStyles.code}>{zone.code}</h3>
+                <p className="mt-2 text-xs text-muted">
+                  {zone.label} · {t("floor", { floor: floorNumber })}
                 </p>
-                <p className="mt-1 text-xs text-muted">
-                  {metres(zone.widthMm)} × {metres(zone.depthMm)} m ·{" "}
-                  {metres(zone.maxStackHeightMm)} m
-                </p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    disabled={
-                      pendingAction !== undefined || !editable || blocked
-                    }
-                    onClick={() => startEditingStorageZone(zone)}
-                    aria-label={t("editStorageZone", { label: zone.label })}
-                    title={t("editStorageZone", { label: zone.label })}
-                    className="size-10 bg-transparent p-0 hover:border-accent hover:bg-transparent disabled:bg-transparent"
-                  >
-                    <PencilLine className="size-3.5" />
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    disabled={
-                      pendingAction !== undefined || !editable || blocked
-                    }
-                    onClick={() => removeStorageZone(zone)}
-                    aria-label={t("archiveZone")}
-                    title={`${t("archiveZone")} · ${zone.label}`}
-                    className="size-10 p-0"
-                  >
-                    <Archive className="size-3.5" />
-                  </Button>
+                <span className={canvasStyles.status}>
+                  <span aria-hidden="true">●</span>
+                  {locationInventory(zone).incomplete
+                    ? t("locationTable.unmeasured")
+                    : locationInventory(zone).stored > 0
+                      ? t("locationTable.stored")
+                      : locationInventory(zone).reserved > 0
+                        ? t("placementReserved")
+                        : t("locationTable.vacant")}
+                </span>
+                <dl className={canvasStyles.metrics}>
+                  <div>
+                    <dt>{t("canvasDimensions")}</dt>
+                    <dd>
+                      {metres(zone.widthMm)} × {metres(zone.depthMm)} m
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>{t("canvasMaxHeight")}</dt>
+                    <dd>{metres(zone.maxStackHeightMm)} m</dd>
+                  </div>
+                  <div>
+                    <dt>{t("locationArea")}</dt>
+                    <dd>
+                      {(
+                        (zone.widthMm * zone.depthMm) /
+                        1_000_000
+                      ).toLocaleString()}{" "}
+                      m²
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>{t("canvasStorageUnits")}</dt>
+                    <dd>
+                      {t("mapUnitCount", {
+                        count: locationInventory(zone).units,
+                      })}
+                    </dd>
+                  </div>
+                </dl>
+                <div className={canvasStyles.inventory}>
+                  <strong>{t("canvasInventory")}</strong>
+                  <p>
+                    {[
+                      ...new Set(
+                        [
+                          ...zone.placements,
+                          ...(zone.locationOnlyPlacements ?? []),
+                        ]
+                          .map((p) => p.productName)
+                          .filter(Boolean),
+                      ),
+                    ].join(", ") ||
+                      (locationInventory(zone).units
+                        ? t("palletsAtLocation", {
+                            count: locationInventory(zone).units,
+                          })
+                        : t("noPalletsAtSpot"))}
+                    {locationInventory(zone).units > 0 && (
+                      <>
+                        {" "}
+                        ·{" "}
+                        {t("mapUnitCount", {
+                          count: locationInventory(zone).units,
+                        })}
+                      </>
+                    )}
+                  </p>
                 </div>
-              </div>
-            </div>
+              </>
+            ) : (
+              <>
+                <div className="flex flex-wrap items-start gap-3">
+                  <details className="shrink-0">
+                    <summary className="cursor-pointer text-sm text-link">
+                      QR
+                    </summary>
+                    <LocationQrCode
+                      value={zone.qrValue}
+                      size={80}
+                      padding={8}
+                      level="M"
+                      label={t("qrForZone", { code: zone.code })}
+                      className="size-24 shrink-0 self-start p-2"
+                    />{" "}
+                  </details>
+
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-semibold break-words text-text">
+                      {zone.label}
+                    </h3>
+                    <p className="mt-1 font-mono text-xs break-all text-muted">
+                      {zone.code}
+                    </p>
+                    <p className="mt-1 text-xs text-muted">
+                      {metres(zone.widthMm)} × {metres(zone.depthMm)} m ·{" "}
+                      {metres(zone.maxStackHeightMm)} m
+                    </p>
+                    {compact && (
+                      <dl className="mt-2 grid grid-cols-2 gap-2 text-xs text-muted">
+                        <div>
+                          <dt>{t("floors")}</dt>
+                          <dd>{t("floor", { floor: floorNumber })}</dd>
+                        </div>
+                        <div>
+                          <dt>{t("locationArea")}</dt>
+                          <dd>
+                            {(
+                              (zone.widthMm * zone.depthMm) /
+                              1_000_000
+                            ).toLocaleString()}{" "}
+                            m²
+                          </dd>
+                        </div>
+                        <div>
+                          <dt>{t("locationStatus")}</dt>
+                          <dd>
+                            {locationInventory(zone).incomplete
+                              ? t("locationTable.unmeasured")
+                              : locationInventory(zone).units > 0
+                                ? t("locationTable.stored")
+                                : t("locationTable.vacant")}
+                          </dd>
+                        </div>
+                      </dl>
+                    )}
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {!compact && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          disabled={
+                            pendingAction !== undefined || !editable || blocked
+                          }
+                          onClick={() => {
+                            const edit = () => startEditingStorageZone(zone);
+                            if (detailsHost) detailsHost.runAction(edit);
+                            else edit();
+                          }}
+                          aria-label={t("editStorageZone", {
+                            label: zone.label,
+                          })}
+                          title={t("editStorageZone", { label: zone.label })}
+                          className="size-11 bg-transparent p-0 hover:border-accent hover:bg-transparent disabled:bg-transparent"
+                        >
+                          <PencilLine className="size-3.5" />
+                        </Button>
+                      )}
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        disabled={
+                          pendingAction !== undefined || !editable || blocked
+                        }
+                        onClick={() => removeStorageZone(zone)}
+                        aria-label={t("archiveZone")}
+                        title={`${t("archiveZone")} · ${zone.label}`}
+                        className="size-11 p-0"
+                      >
+                        <Archive className="size-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+            {compact && editable && (
+              <details className="mb-3 text-xs text-muted">
+                <summary className="flex min-h-11 cursor-pointer items-center py-2">
+                  {t("canvasLocationActions")}
+                </summary>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="min-h-11"
+                  disabled={pendingAction !== undefined || blocked}
+                  onClick={() => removeStorageZone(zone)}
+                >
+                  <Archive className="size-4" />
+                  {t("archiveZone")}
+                </Button>
+              </details>
+            )}
+            {zone.importNote && (
+              <p className="mt-3 rounded-md border border-border bg-raised p-3 text-xs text-muted">
+                {zone.importNote}
+              </p>
+            )}
             <details
               className="mt-3 border-t border-border pt-3"
               open={
                 search.trim() && distinctPositions.length > 0 ? true : undefined
               }
             >
-              <summary className="cursor-pointer text-xs font-medium text-link focus-visible:outline-2 focus-visible:outline-accent">
+              <summary className="flex min-h-11 cursor-pointer items-center text-xs font-medium text-link focus-visible:outline-2 focus-visible:outline-accent">
                 {t("spotLabels", { count: distinctPositions.length + 1 })}
               </summary>
+              {compact && (
+                <LocationQrCode
+                  value={zone.qrValue}
+                  size={128}
+                  padding={8}
+                  label={t("qrForZone", { code: zone.code })}
+                  className="mt-2"
+                />
+              )}
               <code className="mt-2 block text-xs break-all text-muted">
                 {zone.qrValue}
               </code>
@@ -743,8 +903,11 @@ export function StorageZonesPanel({
               )}
             <LocationOnlyInventory zone={zone} />
             {zone.placements.length > 0 && (
-              <details open className="mt-4 border-t border-border pt-3">
-                <summary className="cursor-pointer text-xs font-semibold text-muted">
+              <details
+                open={!compact || !!detailsHost?.selectedUnitId}
+                className="mt-4 border-t border-border pt-3"
+              >
+                <summary className="flex min-h-11 cursor-pointer items-center text-xs font-semibold text-muted">
                   {t("palletsAtLocation", {
                     count: locationInventory(zone).units,
                   })}
@@ -758,115 +921,149 @@ export function StorageZonesPanel({
                   })}
                 </p>
                 <ul className="mt-2 space-y-2">
-                  {zone.placements.map((placement) => (
-                    <li
-                      key={placement.placementId}
-                      className="rounded-lg border border-border p-2.5"
-                    >
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <Link
-                          href={palletPath(placement.handlingUnitId)}
-                          className="min-w-0 text-sm font-semibold break-all text-link underline-offset-4 hover:underline"
-                        >
-                          {placement.lpn}
-                        </Link>
-                        <PlacementStatusBadge
-                          placement={placement}
-                          label={t(placementStatusKey(placement))}
-                        />
-                      </div>
-                      <div className="mt-2 flex flex-wrap items-end justify-between gap-3">
-                        <div className="min-w-0">
-                          {placement.positionCode && (
-                            <p className="mt-1 font-mono text-xs break-all text-muted">
-                              {placement.positionCode}
-                            </p>
-                          )}
-                          {placement.xMm !== undefined &&
-                            placement.yMm !== undefined && (
-                              <p className="mt-1 text-xs text-muted tabular-nums">
-                                X {metres(placement.xMm)} m · Y{" "}
-                                {metres(placement.yMm)} m · Z{" "}
-                                {metres(placement.zMm ?? 0)} m
+                  {[...zone.placements]
+                    .sort(
+                      (a, b) =>
+                        Number(b.placementId === detailsHost?.selectedUnitId) -
+                        Number(a.placementId === detailsHost?.selectedUnitId),
+                    )
+                    .map((placement) => (
+                      <li
+                        key={placement.placementId}
+                        className="rounded-lg border border-border p-2.5"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <Link
+                            href={palletPath(placement.handlingUnitId)}
+                            className="min-w-0 text-sm font-semibold break-all text-link underline-offset-4 hover:underline"
+                          >
+                            {placement.lpn}
+                          </Link>
+                          <PlacementStatusBadge
+                            placement={placement}
+                            label={t(placementStatusKey(placement))}
+                          />
+                        </div>
+                        <div className="mt-2 flex flex-wrap items-end justify-between gap-3">
+                          <div className="min-w-0">
+                            {placement.positionCode && (
+                              <p className="mt-1 font-mono text-xs break-all text-muted">
+                                {placement.positionCode}
                               </p>
                             )}
-                        </div>
-                        <div className="flex shrink-0 gap-2">
-                          <Button
-                            asChild
-                            variant="outline"
-                            size="sm"
-                            className="size-10 bg-transparent p-0 hover:border-accent hover:bg-transparent"
-                          >
-                            <Link
-                              href={palletPath(placement.handlingUnitId)}
-                              aria-label={t("openSpotPallet", {
-                                lpn: placement.lpn,
-                              })}
-                              title={t("openSpotPallet", {
-                                lpn: placement.lpn,
-                              })}
+                            {placement.xMm !== undefined &&
+                              placement.yMm !== undefined && (
+                                <p className="mt-1 text-xs text-muted tabular-nums">
+                                  X {metres(placement.xMm)} m · Y{" "}
+                                  {metres(placement.yMm)} m · Z{" "}
+                                  {metres(placement.zMm ?? 0)} m
+                                </p>
+                              )}
+                          </div>
+                          <div className="flex shrink-0 gap-2">
+                            <Button
+                              asChild
+                              variant="outline"
+                              size="sm"
+                              className="size-11 bg-transparent p-0 hover:border-accent hover:bg-transparent"
                             >
-                              <Eye className="size-4" />
-                            </Link>
-                          </Button>
-                          {canManage &&
-                            (placement.status === "STORED" ||
-                              placement.moveState !== undefined) && (
-                              <Button
-                                asChild
-                                variant="outline"
-                                size="sm"
-                                className="size-10 bg-transparent p-0 hover:border-accent hover:bg-transparent"
+                              <Link
+                                href={palletPath(placement.handlingUnitId)}
+                                aria-label={t("openSpotPallet", {
+                                  lpn: placement.lpn,
+                                })}
+                                title={t("openSpotPallet", {
+                                  lpn: placement.lpn,
+                                })}
                               >
-                                <Link
-                                  href={`${palletPath(placement.handlingUnitId)}/move`}
-                                  aria-label={t(
-                                    placement.moveState
-                                      ? "continueSpotPalletMove"
-                                      : "moveSpotPallet",
-                                    { lpn: placement.lpn },
-                                  )}
-                                  title={t(
-                                    placement.moveState
-                                      ? "continueSpotPalletMove"
-                                      : "moveSpotPallet",
-                                    { lpn: placement.lpn },
-                                  )}
+                                <Eye className="size-4" />
+                              </Link>
+                            </Button>
+                            {canManage &&
+                              (placement.status === "STORED" ||
+                                placement.moveState !== undefined) && (
+                                <Button
+                                  asChild
+                                  variant="outline"
+                                  size="sm"
+                                  className="size-11 bg-transparent p-0 hover:border-accent hover:bg-transparent"
                                 >
-                                  <ArrowRightLeft className="size-4" />
-                                </Link>
-                              </Button>
-                            )}
+                                  <Link
+                                    href={`${palletPath(placement.handlingUnitId)}/move`}
+                                    aria-label={t(
+                                      placement.moveState
+                                        ? "continueSpotPalletMove"
+                                        : "moveSpotPallet",
+                                      { lpn: placement.lpn },
+                                    )}
+                                    title={t(
+                                      placement.moveState
+                                        ? "continueSpotPalletMove"
+                                        : "moveSpotPallet",
+                                      { lpn: placement.lpn },
+                                    )}
+                                  >
+                                    <ArrowRightLeft className="size-4" />
+                                  </Link>
+                                </Button>
+                              )}
+                          </div>
                         </div>
-                      </div>
-                    </li>
-                  ))}
+                      </li>
+                    ))}
                 </ul>
               </details>
+            )}
+            {compact && editable && (
+              <div className={canvasStyles.footer}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="min-h-11 w-full whitespace-normal"
+                  aria-label={t("editStorageZone", { label: zone.label })}
+                  disabled={pendingAction !== undefined || blocked}
+                  onClick={() => {
+                    const edit = () => {
+                      if (detailsHost?.editZone)
+                        detailsHost.editZone(zone.zoneId);
+                      else startEditingStorageZone(zone);
+                    };
+                    if (detailsHost) detailsHost.runAction(edit);
+                    else edit();
+                  }}
+                >
+                  <PencilLine className="size-4" />
+                  {t("canvasEditLocation")}
+                </Button>
+              </div>
             )}
           </article>
         );
       })}
     </div>
   );
-  if (compact)
-    return (
+  if (compact) {
+    const details = (
       <>
-        {editorDialog}
+        {" "}
         {visibleZones.length > 0 ? (
           <div className="min-w-0">
-            <div className="flex justify-end">
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                aria-label={t("mapClearSelection")}
-                title={t("mapClearSelection")}
-                onClick={onSelectionClose}
-              >
-                <X aria-hidden="true" />
-              </Button>
+            <div className="flex items-center justify-between gap-2">
+              <span className={canvasStyles.eyebrow}>
+                {t("canvasSelectedLocation")}
+              </span>
+              {!mobile && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  aria-label={t("mapClearSelection")}
+                  title={t("mapClearSelection")}
+                  onClick={onSelectionClose}
+                >
+                  <X aria-hidden="true" />
+                </Button>
+              )}
             </div>
             {blocked ? (
               <Notice
@@ -891,6 +1088,17 @@ export function StorageZonesPanel({
         ) : null}
       </>
     );
+    return (
+      <>
+        {editorDialog}
+        {detailsHost
+          ? detailsHost.target
+            ? createPortal(details, detailsHost.target)
+            : null
+          : details}
+      </>
+    );
+  }
 
   return (
     <section
