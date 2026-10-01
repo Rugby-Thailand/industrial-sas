@@ -1,6 +1,18 @@
 "use client";
+import styles from "./FloorMap.module.css";
+import { Popover } from "radix-ui";
+import { MoreHorizontal } from "lucide-react";
+import { LocationDetailsHost } from "./LocationDetailsHost";
+import { useStorageLayoutMobile } from "./useStorageLayoutMobile";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet";
 import { preferences } from "@/lib/browser/storage";
-import { SceneBox, SceneLegendMark } from "@/components/storageScene/SceneBox";
+import { SceneBox } from "@/components/storageScene/SceneBox";
 import { sceneColors } from "@/components/storageScene/sceneColors";
 import { SceneToolbar } from "@/components/storageScene/SceneToolbar";
 import { resolveAreaColor } from "@/lib/storageLayouts/areaColors";
@@ -44,11 +56,13 @@ import {
 import { useTranslations } from "next-intl";
 import { QrCode as LocationQrCode } from "@/features/storageKit/QrCode";
 import {
+  useCallback,
   useId,
   useRef,
   useState,
   useSyncExternalStore,
   type PointerEvent,
+  type KeyboardEvent,
   type ReactNode,
 } from "react";
 
@@ -72,6 +86,7 @@ export interface FloorMapProps {
   readonly offsetXMm: number;
   readonly offsetYMm: number;
   readonly baseLabel: string;
+  readonly buildingCode?: string;
   readonly floorNumber: number;
   readonly zones: readonly StorageZoneRow[];
   readonly blocks: readonly Area[];
@@ -79,6 +94,7 @@ export interface FloorMapProps {
   readonly offsetEditor?: ReactNode;
   readonly locationActions?: ReactNode;
   readonly locationInspector?: ReactNode;
+  readonly floorSelector?: ReactNode;
   readonly previewOnly?: boolean;
   readonly selectedZoneId?: string | undefined;
   readonly onSelectionChange?: ((id: string | undefined) => void) | undefined;
@@ -97,9 +113,9 @@ const dragThreshold = 4;
 const iconStyle =
   "size-10 bg-transparent p-0 hover:border-accent hover:bg-transparent";
 const planColors = {
-  storage: "#83a8b1",
-  storageBorder: "#48646b",
-  storageLabel: "#172329",
+  storage: "var(--plan-empty)",
+  storageBorder: "var(--plan-wall)",
+  storageLabel: "var(--plan-text)",
   aisle: "#ffb68e",
 } as const;
 const visualAreaColor = (area: Area) =>
@@ -204,24 +220,24 @@ function saveLocationLabels(value: boolean) {
 export function FloorMap(props: FloorMapProps) {
   const t = useTranslations("StorageLayouts");
   const inspectorId = useId();
+  const mobile = useStorageLayoutMobile();
+  const [mobileView, setMobileView] = useState<"map" | "list">("map");
+  const [sheetSelection, setSheetSelection] = useState<string>();
+  const [desktopTarget, setDesktopTarget] = useState<HTMLDivElement | null>(
+    null,
+  );
+  const [sheetTarget, setSheetTarget] = useState<HTMLDivElement | null>(null);
+  const opener = useRef<Element | null>(null);
+  const interaction = useRef<Element | null>(null);
+  const pendingAction = useRef<(() => void) | undefined>(undefined);
+  const fallbackFocus = useRef<HTMLButtonElement>(null);
   const canManage = useCanManage();
   const showLocationLabels = useSyncExternalStore(
     subscribeLocationLabels,
     readLocationLabels,
     () => false,
   );
-  const [preferredView, setPreferredView] = useState<"3d" | "plan" | undefined>(
-    props.initialView,
-  );
-  const view =
-    preferredView ??
-    (props.zones.length > 8 ||
-    props.blocks.length > 8 ||
-    props.zones.some(
-      (zone) => floorPositions(zone).length > 0 || pdGroupCode(zone.code),
-    )
-      ? "plan"
-      : "3d");
+  const [view, setView] = useState<"3d" | "plan">(props.initialView ?? "plan");
   const [search, setSearch] = useState("");
   const [localSelectedId, setLocalSelectedId] = useState<string>();
   const selectedId = props.onSelectionChange
@@ -236,12 +252,32 @@ export function FloorMap(props: FloorMapProps) {
   // Map point kept at the frame centre after a drag; undefined follows the selection.
   const [focus, setFocus] = useState<{ x: number; y: number }>();
   const [areaIndex, setAreaIndex] = useState<number>();
+  const [showPackages, setShowPackages] = useState(false);
   const [rotation, setRotation] = useState(0);
   const [reference, setReference] = useState(false);
   const [offsetEditing, setOffsetEditing] = useState(false);
   const [qr, setQr] = useState(false);
   const matches = matchingFloorZones(props.zones, search);
   const selected = props.zones.find((z) => z.zoneId === selectedId);
+  const sheetOpen = mobile && !!selected && sheetSelection === selected.zoneId;
+  if (
+    sheetSelection &&
+    (!mobile || !selected || sheetSelection !== selected.zoneId)
+  )
+    setSheetSelection(undefined);
+  function openDetails() {
+    opener.current = interaction.current ?? document.activeElement;
+    if (selected) setSheetSelection(selected.zoneId);
+  }
+  const runDetailAction = useCallback(
+    (action: () => void) => {
+      if (sheetOpen) {
+        pendingAction.current = action;
+        setSheetSelection(undefined);
+      } else action();
+    },
+    [sheetOpen],
+  );
   const legacyPositionCount = props.zones.reduce(
     (count, zone) => count + floorPositions(zone).length,
     0,
@@ -273,6 +309,10 @@ export function FloorMap(props: FloorMapProps) {
   };
   const select = (id: string, palletId?: string) => {
     setSelectedId(id);
+    if (mobile) {
+      opener.current = interaction.current ?? document.activeElement;
+      setSheetSelection(id);
+    }
     setUnitId(palletId);
     setAreaIndex(undefined);
     setQr(false);
@@ -284,7 +324,7 @@ export function FloorMap(props: FloorMapProps) {
       setZoom((current) => Math.max(current, 4));
   };
   const selectMapLocation = (id: string, palletId?: string) => {
-    if (id === selectedId && palletId === undefined) {
+    if (!mobile && id === selectedId && palletId === undefined) {
       clearSelection();
       fit();
     } else {
@@ -319,6 +359,236 @@ export function FloorMap(props: FloorMapProps) {
       {icon}
     </Button>
   );
+  const displayAction = (
+    name: string,
+    icon: ReactNode,
+    onClick: () => void,
+    disabled = false,
+    pressed?: boolean,
+  ) => (
+    <Button
+      type="button"
+      variant="ghost"
+      size="sm"
+      className="min-h-11 w-full justify-start"
+      aria-label={name}
+      onClick={onClick}
+      disabled={disabled}
+      {...(pressed === undefined ? {} : { "aria-pressed": pressed })}
+    >
+      {icon}
+      {name}
+    </Button>
+  );
+  const inspectorDetails = (
+    <>
+      {!selected && selectedArea ? (
+        <div data-selected-area="true">
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="min-w-0 text-lg font-semibold break-words">
+              {selectedArea.label}
+            </h3>
+            {action(t("mapClearSelection"), <X />, clearSelection)}
+          </div>
+          <p className="mt-3 flex items-center gap-2 text-sm">
+            <span
+              aria-hidden="true"
+              className="size-3 shrink-0 rounded-sm border border-border"
+              style={{ backgroundColor: resolveAreaColor(selectedArea.color) }}
+            />
+            {m(selectedArea.widthMm)} × {m(selectedArea.depthMm)} m
+          </p>
+          <p className="mt-2 text-sm text-muted">{t("mapAreaNoStorage")}</p>
+        </div>
+      ) : !selected ? (
+        <div className="py-6">
+          <QrCode className="mb-3 size-6 text-muted" />
+          <p className="font-medium">{t("mapChoose")}</p>
+          <p className="mt-2 text-sm text-muted">{t("mapInspectHint")}</p>
+        </div>
+      ) : props.locationInspector ? null : (
+        <>
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <h3 className="text-lg font-semibold break-words">
+                {selected.label}
+              </h3>
+              <p className="mt-1 font-mono text-[13px] break-all text-muted">
+                {selected.code}
+              </p>
+            </div>
+            {action(t("mapClearSelection"), <X />, () => {
+              clearSelection();
+            })}
+          </div>
+          <p className="mt-3 text-sm">
+            {m(selected.widthMm)} × {m(selected.depthMm)} ×{" "}
+            {m(selected.maxStackHeightMm)} m
+          </p>
+          <p className="mt-1 text-[13px] text-muted">
+            {t("mapHeightLimit", { height: m(selected.maxStackHeightMm) })}
+          </p>
+          <p className="mt-2 text-[13px] text-muted">
+            {t(
+              hasUnmeasuredInventory(selected)
+                ? "mapPartialFootprint"
+                : "mapFootprint",
+              {
+                percent: Math.round(
+                  (100 *
+                    occupiedStorageFootprintAreaSqMm(selected.placements)) /
+                    Math.max(1, selected.widthMm * selected.depthMm),
+                ),
+              },
+            )}
+          </p>
+          <div className="mt-3 flex gap-2">
+            {props.onEditZone && canManage && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className={iconStyle}
+                aria-label={t("editStorageZone", { label: selected.label })}
+                onClick={() =>
+                  runDetailAction(() => props.onEditZone?.(selected.zoneId))
+                }
+              >
+                <PencilLine />
+              </Button>
+            )}
+            {action(t("mapShowQR"), <QrCode />, () => setQr(!qr), false, qr)}
+          </div>
+          {qr && (
+            <div className="mt-3">
+              <LocationQrCode
+                value={selected.qrValue}
+                size={112}
+                padding={12}
+                label={t("qrForZone", { code: selected.code })}
+              />
+            </div>
+          )}
+          <div className="mt-4 border-t border-border pt-4">
+            <p className="text-[13px] font-semibold text-muted">
+              {t("mapUnitCount", {
+                count: floorZoneUnitCount(selected),
+              })}
+            </p>
+            {floorZoneUnitCount(selected) === 0 &&
+              !hasUnmeasuredInventory(selected) && (
+                <p className="mt-2 text-sm text-muted">
+                  {t("noPalletsAtSpot")}
+                </p>
+              )}
+            {hasUnmeasuredInventory(selected) && (
+              <p className="mt-2 text-sm text-muted">
+                {t("mapUnmeasuredInventory")}
+              </p>
+            )}
+            <ul className="mt-2 max-h-96 space-y-3 overflow-auto">
+              {[...selected.placements]
+                .sort(
+                  (a, b) =>
+                    Number(b.placementId === unitId) -
+                    Number(a.placementId === unitId),
+                )
+                .map((p) => (
+                  <li
+                    key={p.placementId}
+                    className={`rounded-lg border p-3 ${unitId === p.placementId ? "border-accent" : "border-border"}`}
+                  >
+                    <div className="flex flex-wrap justify-between gap-2">
+                      {props.previewOnly ? (
+                        <span className="font-mono text-sm font-semibold text-accent">
+                          {p.lpn}
+                        </span>
+                      ) : (
+                        <Link
+                          href={palletPath(p.handlingUnitId)}
+                          className="font-mono text-sm font-semibold text-accent"
+                        >
+                          {p.lpn}
+                        </Link>
+                      )}
+                      <PlacementStatusBadge
+                        placement={p}
+                        label={t(placementStatusKey(p))}
+                      />
+                    </div>
+                    <p className="mt-1 text-[13px] text-muted">
+                      {m(p.widthMm)} × {m(p.depthMm)} × {m(p.heightMm)} m
+                    </p>
+                    <p className="mt-2 font-mono text-[13px] break-all">
+                      {p.positionCode}
+                    </p>
+                    <p className="mt-1 text-[13px] text-muted">
+                      X {m(p.xMm ?? 0)} · Y {m(p.yMm ?? 0)} · Z {m(p.zMm ?? 0)}{" "}
+                      m
+                    </p>
+                    {!props.previewOnly && (
+                      <div className="mt-2 flex gap-2">
+                        <Button
+                          asChild
+                          size="sm"
+                          variant="outline"
+                          className={iconStyle}
+                        >
+                          <Link
+                            href={palletPath(p.handlingUnitId)}
+                            aria-label={t("openSpotPallet", { lpn: p.lpn })}
+                            title={t("openSpotPallet", { lpn: p.lpn })}
+                          >
+                            <Eye />
+                          </Link>
+                        </Button>
+                        {canManage &&
+                          (p.status === "STORED" || p.moveState) && (
+                            <Button
+                              asChild
+                              size="sm"
+                              variant="outline"
+                              className={iconStyle}
+                            >
+                              <Link
+                                href={`${palletPath(p.handlingUnitId)}/move`}
+                                aria-label={t(
+                                  p.moveState
+                                    ? "continueSpotPalletMove"
+                                    : "moveSpotPallet",
+                                  { lpn: p.lpn },
+                                )}
+                                title={t(
+                                  p.moveState
+                                    ? "continueSpotPalletMove"
+                                    : "moveSpotPallet",
+                                  { lpn: p.lpn },
+                                )}
+                              >
+                                <ArrowRightLeft />
+                              </Link>
+                            </Button>
+                          )}
+                      </div>
+                    )}
+                  </li>
+                ))}
+            </ul>
+            {selected.placements.length > 0 && (
+              <p className="mt-3 text-[13px] text-muted">
+                {t("mapLocalCoordinates")}
+              </p>
+            )}
+          </div>
+        </>
+      )}
+      {selected?.importNote && (
+        <p className="mb-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+          {selected.importNote}
+        </p>
+      )}
+    </>
+  );
   if (offsetEditing && props.offsetEditor)
     return (
       <section className="space-y-3">
@@ -333,466 +603,424 @@ export function FloorMap(props: FloorMapProps) {
       </section>
     );
   return (
-    <section
-      aria-label={t("mapTitle")}
-      className="@container min-w-0 rounded-2xl border border-border bg-surface p-4 sm:p-5"
-      onKeyDown={(event) => {
-        if (event.key === "Escape") clearSelection();
-      }}
+    <div
+      className={`${styles.theme} ${styles.workspace} ${props.floorSelector ? "grid min-w-0 items-start min-[851px]:grid-cols-[112px_minmax(0,1fr)] min-[1151px]:grid-cols-[128px_minmax(0,1fr)]" : "min-w-0"}`}
     >
-      <SceneToolbar
-        title={
-          <>
-            <h2 className="truncate text-sm font-semibold">
-              {t("floor", { floor: props.floorNumber })} · {t("floorSpace")}
-            </h2>
-            <p className="text-xs font-normal text-muted">
-              {m(props.widthMm)} × {m(props.depthMm)} × {m(props.heightMm)} m
-            </p>
-          </>
-        }
-        moreLabel={t("viewMode")}
-        primary={
-          <>
-            <StorageViewModeToggle
-              value={view}
-              onChange={(next) => {
-                setPreferredView(next);
-                setFocus(undefined);
-              }}
-              label={t("viewMode")}
-              planLabel={t("planView")}
-              threeDLabel={t("threeDView")}
-            />{" "}
-            {action(
-              t("mapZoomOut"),
-              <ZoomOut />,
-              () => {
-                const next = Math.max(1, zoom - (zoom > 3 ? 1 : 0.25));
-                setZoom(next);
-                if (next === 1) setFocus(undefined);
-              },
-              zoom <= 1,
-            )}
-            {action(
-              t("mapZoomIn"),
-              <ZoomIn />,
-              () => setZoom(Math.min(8, zoom + (zoom >= 3 ? 1 : 0.25))),
-              zoom >= 8,
-            )}
-          </>
-        }
-        secondary={
-          <>
-            {" "}
-            {action(
-              t("mapShowLocationLabels"),
-              <Tags />,
-              () => saveLocationLabels(!showLocationLabels),
-              view === "3d" && pdZoneCount > 0,
-              showLocationLabels,
-            )}
-            {action(t("mapFit"), <Maximize />, fit)}
-            {action(
-              t("mapRotate"),
-              <RotateCw />,
-              () => {
-                setRotation((rotation + 1) % 4);
-                setFocus(undefined);
-              },
-              view === "plan",
-            )}
-            {action(
-              props.baseLabel,
-              <Layers3 />,
-              () => {
-                setReference(!reference);
-                setFocus(undefined);
-              },
-              false,
-              reference,
-            )}
-          </>
-        }
-      />
-      <div className="mt-4 grid min-w-0 grid-cols-1 items-start gap-4 @min-[1200px]:grid-cols-[minmax(0,1fr)_19rem]">
-        <div className="min-w-0">
-          <MapDrawing
-            {...props}
-            view={view}
-            rotation={rotation}
-            zoom={zoom}
-            focus={focus}
-            onFocusChange={setFocus}
-            selectedAreaIndex={areaIndex}
-            onSelectArea={selectArea}
-            reference={reference}
-            showLocationLabels={showLocationLabels}
-            selectedId={selected?.zoneId}
-            selectedUnit={unitId}
-            matchIds={matches.map((z) => z.zoneId)}
-            searching={!!search.trim()}
-            onSelect={selectMapLocation}
-          />
-
-          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-sm text-muted">
-            <span>
-              {view === "plan" ? (
-                <span
-                  aria-hidden="true"
-                  className="mr-1.5 inline-block size-3 rounded-sm border align-middle"
-                  style={{
-                    backgroundColor: planColors.storage,
-                    borderColor: planColors.storageBorder,
-                  }}
-                />
-              ) : (
-                <SceneLegendMark kind="location" />
-              )}
-              {t("storageZones")}
-            </span>
-            <span>
-              <SceneLegendMark kind="package" />
-              {t("placementStored")}
-            </span>
-            <span>
-              <SceneLegendMark kind="package" held />
-              {t("placementReserved")}
-            </span>
-            <span>
-              <SceneLegendMark kind="location" selected />
-              {t("mapSelected")}
-            </span>
+      <div
+        role="tablist"
+        aria-label={t("storageFloorView")}
+        className="grid grid-cols-2 gap-1 rounded-lg border border-border bg-surface p-1 min-[581px]:hidden"
+        onKeyDown={(event) => {
+          if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key))
+            return;
+          event.preventDefault();
+          const next =
+            event.key === "Home"
+              ? "map"
+              : event.key === "End"
+                ? "list"
+                : mobileView === "map"
+                  ? "list"
+                  : "map";
+          setMobileView(next);
+          document.getElementById(`${inspectorId}-${next}-tab`)?.focus();
+        }}
+      >
+        {(["map", "list"] as const).map((tab) => (
+          <Button
+            key={tab}
+            ref={tab === "map" ? fallbackFocus : undefined}
+            type="button"
+            role="tab"
+            tabIndex={mobileView === tab ? 0 : -1}
+            aria-selected={mobileView === tab}
+            aria-controls={`${inspectorId}-${tab}`}
+            id={`${inspectorId}-${tab}-tab`}
+            variant={mobileView === tab ? "secondary" : "ghost"}
+            className="min-h-11"
+            onClick={() => setMobileView(tab)}
+          >
+            {tab === "map"
+              ? t("mobileMap")
+              : t("mobileList", { count: props.zones.length })}
+          </Button>
+        ))}
+      </div>
+      {props.floorSelector}
+      <section
+        aria-label={t("mapTitle")}
+        className="@container min-w-0"
+        onClickCapture={(event) => {
+          interaction.current =
+            event.target instanceof Element
+              ? event.target.closest('[role="button"],button,tr')
+              : null;
+        }}
+        onKeyDownCapture={() => {
+          interaction.current = document.activeElement;
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Escape" && !sheetOpen) {
+            clearSelection();
+          }
+        }}
+      >
+        <div
+          id={`${inspectorId}-map`}
+          role={mobile ? "tabpanel" : undefined}
+          aria-labelledby={mobile ? `${inspectorId}-map-tab` : undefined}
+          hidden={mobile && mobileView !== "map"}
+        >
+          <div className={styles.toolbar}>
+            <SceneToolbar
+              title={
+                <>
+                  <h2 className="truncate text-sm font-semibold">
+                    {t("floor", { floor: props.floorNumber })} ·{" "}
+                    {t("floorSpace")}
+                  </h2>
+                  <p className="text-xs font-normal text-muted">
+                    {m(props.widthMm)} × {m(props.depthMm)} ×{" "}
+                    {m(props.heightMm)} m
+                  </p>
+                </>
+              }
+              moreLabel={t("viewMode")}
+              primary={
+                <>
+                  <StorageViewModeToggle
+                    value={view}
+                    onChange={(next) => {
+                      setView(next);
+                      setFocus(undefined);
+                    }}
+                    label={t("viewMode")}
+                    planLabel={t("planView")}
+                    threeDLabel={t("threeDView")}
+                  />{" "}
+                  {action(
+                    t("mapZoomOut"),
+                    <ZoomOut />,
+                    () => {
+                      const next = Math.max(1, zoom - (zoom > 3 ? 1 : 0.25));
+                      setZoom(next);
+                      if (next === 1) setFocus(undefined);
+                    },
+                    zoom <= 1,
+                  )}
+                  {action(
+                    t("mapZoomIn"),
+                    <ZoomIn />,
+                    () => setZoom(Math.min(8, zoom + (zoom >= 3 ? 1 : 0.25))),
+                    zoom >= 8,
+                  )}
+                  {action(t("mapFit"), <Maximize />, fit)}
+                  <Popover.Root>
+                    <Popover.Trigger asChild>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        aria-label={t("mapDisplayOptions")}
+                        title={t("mapDisplayOptions")}
+                      >
+                        <MoreHorizontal />
+                      </Button>
+                    </Popover.Trigger>
+                    <Popover.Portal>
+                      <Popover.Content
+                        align="end"
+                        sideOffset={8}
+                        className={`${styles.theme} z-50 flex w-64 max-w-[calc(100vw-2rem)] flex-col gap-1 rounded-lg border border-border bg-surface p-2 shadow-lg`}
+                      >
+                        {" "}
+                        {displayAction(
+                          t("mapShowLocationLabels"),
+                          <Tags />,
+                          () => saveLocationLabels(!showLocationLabels),
+                          view === "3d" && pdZoneCount > 0,
+                          showLocationLabels,
+                        )}
+                        {displayAction(
+                          t("mapShowPackages"),
+                          <QrCode />,
+                          () => setShowPackages(!showPackages),
+                          view === "3d",
+                          showPackages,
+                        )}
+                        {displayAction(
+                          t("mapRotate"),
+                          <RotateCw />,
+                          () => {
+                            setRotation((rotation + 1) % 4);
+                            setFocus(undefined);
+                          },
+                          view === "plan",
+                        )}
+                        {displayAction(
+                          props.baseLabel,
+                          <Layers3 />,
+                          () => {
+                            setReference(!reference);
+                            setFocus(undefined);
+                          },
+                          false,
+                          reference,
+                        )}
+                      </Popover.Content>
+                    </Popover.Portal>
+                  </Popover.Root>
+                </>
+              }
+              secondary={undefined}
+            />
           </div>
-          {legendAreas.length > 6 ? (
-            <details className="mt-3 rounded-lg border border-border bg-background">
-              <summary className="cursor-pointer px-3 py-2 text-sm font-medium marker:text-muted">
-                {t("floorMapAreas", { count: legendAreas.length })}
-              </summary>
-              <div className="border-t border-border px-2 py-1">
-                <ReservedAreaLegend
-                  areas={areaGroups.map((group) => ({
-                    color: group.color,
-                    label: t("floorAreaCount", {
-                      name: group.label,
-                      count: group.count,
-                    }),
-                  }))}
-                />
-                <details className="border-t border-border text-xs text-muted">
-                  <summary className="cursor-pointer px-3 py-2">
-                    {t("floorAllAreaNames", { count: legendAreas.length })}
+          <div
+            className={`${styles.canvas} grid min-w-0 grid-cols-1 items-start gap-4 min-[851px]:grid-cols-[minmax(0,1fr)_235px] min-[1151px]:grid-cols-[minmax(0,1fr)_260px]`}
+          >
+            <div className={styles.drawing}>
+              <div className={styles.stamp}>
+                {props.buildingCode && `${props.buildingCode} / `}
+                {t("canvasFloor", {
+                  floor: String(props.floorNumber).padStart(2, "0"),
+                })}
+                <p>
+                  {t(view === "plan" ? "planView" : "threeDView")} ·{" "}
+                  {Math.round(zoom * 100)}%
+                </p>
+              </div>
+              <MapDrawing
+                {...props}
+                view={view}
+                rotation={rotation}
+                zoom={zoom}
+                focus={focus}
+                onFocusChange={setFocus}
+                selectedAreaIndex={areaIndex}
+                onSelectArea={selectArea}
+                reference={reference}
+                showLocationLabels={showLocationLabels}
+                showPackages={showPackages}
+                selectedId={selected?.zoneId}
+                selectedUnit={unitId}
+                matchIds={matches.map((z) => z.zoneId)}
+                searching={!!search.trim()}
+                onSelect={selectMapLocation}
+              />
+
+              <div className={styles.legend}>
+                <span>
+                  <i className={styles.swatch} />
+                  {t("mapEmpty")}
+                </span>
+                <span>
+                  <i className={`${styles.swatch} ${styles.occupied}`} />
+                  {t("locationTable.stored")}
+                </span>
+                <span>
+                  <i className={`${styles.swatch} ${styles.reserved}`} />
+                  {t("placementReserved")}
+                </span>
+              </div>
+              {legendAreas.length > 6 ? (
+                <details className="mt-3 rounded-lg border border-border bg-background">
+                  <summary className="cursor-pointer px-3 py-2 text-sm font-medium marker:text-muted">
+                    {t("floorMapAreas", { count: legendAreas.length })}
                   </summary>
-                  <div className="max-h-40 overflow-y-auto">
+                  <div className="border-t border-border px-2 py-1">
                     <ReservedAreaLegend
-                      areas={legendAreas.map((area) => ({
-                        ...area,
-                        color: visualAreaColor(area),
+                      areas={areaGroups.map((group) => ({
+                        color: group.color,
+                        label: t("floorAreaCount", {
+                          name: group.label,
+                          count: group.count,
+                        }),
                       }))}
                     />
+                    <details className="border-t border-border text-xs text-muted">
+                      <summary className="cursor-pointer px-3 py-2">
+                        {t("floorAllAreaNames", { count: legendAreas.length })}
+                      </summary>
+                      <div className="max-h-40 overflow-y-auto">
+                        <ReservedAreaLegend areas={legendAreas} />
+                      </div>
+                    </details>
                   </div>
                 </details>
-              </div>
-            </details>
-          ) : (
-            <ReservedAreaLegend
-              areas={legendAreas.map((area) => ({
-                ...area,
-                color: visualAreaColor(area),
-              }))}
-            />
-          )}
-          {pdZoneCount > 0 && aisleBlocks.length > 0 && (
-            <p className="mt-2 text-xs text-muted">
-              {t("floorAisleLegend", {
-                widths: [
-                  ...new Set(
-                    aisleBlocks.map((block) =>
-                      m(Math.min(block.widthMm, block.depthMm)),
-                    ),
-                  ),
-                ]
-                  .sort((a, b) => a - b)
-                  .map((width) => width.toFixed(2))
-                  .join(", "),
-              })}
-            </p>
-          )}
-          {pdZoneCount > 0 && zoom < labelZoom && (
-            <p className="mt-2 text-xs text-muted">{t("floorZoomForLabels")}</p>
-          )}
-          {positionCount > 0 && (
-            <p className="mt-3 text-sm font-medium" role="status">
-              {t("floorPositionSummary", {
-                positions: positionCount,
-                zones: groupCount,
-              })}
-            </p>
-          )}
-          {props.zones.length === 0 && (
-            <p className="mt-3 text-sm text-muted">{t("noStorageSpots")}</p>
-          )}
-        </div>
-        <aside
-          id={inspectorId}
-          tabIndex={-1}
-          aria-label={t("mapSelected")}
-          className="min-w-0 py-2 @min-[1200px]:pl-2"
-        >
-          {!selected && selectedArea ? (
-            <div data-selected-area="true">
-              <div className="flex items-start justify-between gap-2">
-                <h3 className="min-w-0 text-lg font-semibold break-words">
-                  {selectedArea.label}
-                </h3>
-                {action(t("mapClearSelection"), <X />, clearSelection)}
-              </div>
-              <p className="mt-3 flex items-center gap-2 text-sm">
-                <span
-                  aria-hidden="true"
-                  className="size-3 shrink-0 rounded-sm border border-border"
-                  style={{
-                    backgroundColor: resolveAreaColor(selectedArea.color),
-                  }}
-                />
-                {m(selectedArea.widthMm)} × {m(selectedArea.depthMm)} m
-              </p>
-              <p className="mt-2 text-sm text-muted">{t("mapAreaNoStorage")}</p>
-            </div>
-          ) : !selected ? (
-            <div className="py-6">
-              <QrCode className="mb-3 size-6 text-muted" />
-              <p className="font-medium">{t("mapChoose")}</p>
-              <p className="mt-2 text-sm text-muted">{t("mapInspectHint")}</p>
-            </div>
-          ) : props.locationInspector ? null : (
-            <>
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <h3 className="text-lg font-semibold break-words">
-                    {selected.label}
-                  </h3>
-                  <p className="mt-1 font-mono text-[13px] break-all text-muted">
-                    {selected.code}
-                  </p>
-                </div>
-                {action(t("mapClearSelection"), <X />, clearSelection)}
-              </div>
-              <p className="mt-3 text-sm">
-                {m(selected.widthMm)} × {m(selected.depthMm)} ×{" "}
-                {m(selected.maxStackHeightMm)} m
-              </p>
-              <p className="mt-1 text-[13px] text-muted">
-                {t("mapHeightLimit", { height: m(selected.maxStackHeightMm) })}
-              </p>
-              <p className="mt-2 text-[13px] text-muted">
-                {t(
-                  hasUnmeasuredInventory(selected)
-                    ? "mapPartialFootprint"
-                    : "mapFootprint",
-                  {
-                    percent: Math.round(
-                      (100 *
-                        occupiedStorageFootprintAreaSqMm(selected.placements)) /
-                        Math.max(1, selected.widthMm * selected.depthMm),
-                    ),
-                  },
-                )}
-              </p>
-              <div className="mt-3 flex gap-2">
-                {props.onEditZone &&
-                  canManage &&
-                  action(
-                    t("editStorageZone", { label: selected.label }),
-                    <PencilLine />,
-                    () => props.onEditZone?.(selected.zoneId),
-                  )}
-                {action(
-                  t("mapShowQR"),
-                  <QrCode />,
-                  () => setQr(!qr),
-                  false,
-                  qr,
-                )}
-              </div>
-              {qr && (
-                <div className="mt-3">
-                  <LocationQrCode
-                    value={selected.qrValue}
-                    size={112}
-                    padding={12}
-                    label={t("qrForZone", { code: selected.code })}
-                  />
-                </div>
+              ) : (
+                <ReservedAreaLegend areas={legendAreas} />
               )}
-              <div className="mt-4 border-t border-border pt-4">
-                <p className="text-[13px] font-semibold text-muted">
-                  {t("mapUnitCount", {
-                    count: floorZoneUnitCount(selected),
+              {pdZoneCount > 0 && aisleBlocks.length > 0 && (
+                <p className="mt-2 text-xs text-muted">
+                  {t("floorAisleLegend", {
+                    widths: [
+                      ...new Set(
+                        aisleBlocks.map((block) =>
+                          m(Math.min(block.widthMm, block.depthMm)),
+                        ),
+                      ),
+                    ]
+                      .sort((a, b) => a - b)
+                      .map((width) => width.toFixed(2))
+                      .join(", "),
                   })}
                 </p>
-                {floorZoneUnitCount(selected) === 0 &&
-                  !hasUnmeasuredInventory(selected) && (
-                    <p className="mt-2 text-sm text-muted">
-                      {t("noPalletsAtSpot")}
-                    </p>
-                  )}
-                {hasUnmeasuredInventory(selected) && (
-                  <p className="mt-2 text-sm text-muted">
-                    {t("mapUnmeasuredInventory")}
-                  </p>
-                )}
-                <ul className="mt-2 max-h-96 space-y-3 overflow-auto">
-                  {[...selected.placements]
-                    .sort(
-                      (a, b) =>
-                        Number(b.placementId === unitId) -
-                        Number(a.placementId === unitId),
-                    )
-                    .map((p) => (
-                      <li
-                        key={p.placementId}
-                        className={`rounded-lg border p-3 ${unitId === p.placementId ? "border-accent" : "border-border"}`}
-                      >
-                        <div className="flex flex-wrap justify-between gap-2">
-                          {props.previewOnly ? (
-                            <span className="font-mono text-sm font-semibold text-accent">
-                              {p.lpn}
-                            </span>
-                          ) : (
-                            <Link
-                              href={palletPath(p.handlingUnitId)}
-                              className="font-mono text-sm font-semibold text-accent"
-                            >
-                              {p.lpn}
-                            </Link>
-                          )}
-                          <PlacementStatusBadge
-                            placement={p}
-                            label={t(placementStatusKey(p))}
-                          />
-                        </div>
-                        <p className="mt-1 text-[13px] text-muted">
-                          {m(p.widthMm)} × {m(p.depthMm)} × {m(p.heightMm)} m
-                        </p>
-                        <p className="mt-2 font-mono text-[13px] break-all">
-                          {p.positionCode}
-                        </p>
-                        <p className="mt-1 text-[13px] text-muted">
-                          X {m(p.xMm ?? 0)} · Y {m(p.yMm ?? 0)} · Z{" "}
-                          {m(p.zMm ?? 0)} m
-                        </p>
-                        {!props.previewOnly && (
-                          <div className="mt-2 flex gap-2">
-                            <Button
-                              asChild
-                              size="sm"
-                              variant="outline"
-                              className={iconStyle}
-                            >
-                              <Link
-                                href={palletPath(p.handlingUnitId)}
-                                aria-label={t("openSpotPallet", { lpn: p.lpn })}
-                                title={t("openSpotPallet", { lpn: p.lpn })}
-                              >
-                                <Eye />
-                              </Link>
-                            </Button>
-                            {canManage &&
-                              (p.status === "STORED" || p.moveState) && (
-                                <Button
-                                  asChild
-                                  size="sm"
-                                  variant="outline"
-                                  className={iconStyle}
-                                >
-                                  <Link
-                                    href={`${palletPath(p.handlingUnitId)}/move`}
-                                    aria-label={t(
-                                      p.moveState
-                                        ? "continueSpotPalletMove"
-                                        : "moveSpotPallet",
-                                      { lpn: p.lpn },
-                                    )}
-                                    title={t(
-                                      p.moveState
-                                        ? "continueSpotPalletMove"
-                                        : "moveSpotPallet",
-                                      { lpn: p.lpn },
-                                    )}
-                                  >
-                                    <ArrowRightLeft />
-                                  </Link>
-                                </Button>
-                              )}
-                          </div>
-                        )}
-                      </li>
-                    ))}
-                </ul>
-                {selected.placements.length > 0 && (
-                  <p className="mt-3 text-[13px] text-muted">
-                    {t("mapLocalCoordinates")}
-                  </p>
-                )}
+              )}
+              {showLocationLabels && pdZoneCount > 0 && zoom < 2 && (
+                <p className="mt-2 text-xs text-muted">
+                  {t("floorZoomForLabels")}
+                </p>
+              )}
+              {positionCount > 0 && (
+                <p className="mt-3 text-sm font-medium" role="status">
+                  {t("floorPositionSummary", {
+                    positions: positionCount,
+                    zones: groupCount,
+                  })}
+                </p>
+              )}
+              {props.zones.length === 0 && (
+                <p className="mt-3 text-sm text-muted">{t("noStorageSpots")}</p>
+              )}
+            </div>
+            <aside
+              id={inspectorId}
+              tabIndex={-1}
+              aria-label={t("mapSelected")}
+              className={`${styles.inspector} hidden max-h-[75dvh] min-w-0 overflow-y-auto overscroll-contain min-[581px]:block`}
+            >
+              {(!props.locationInspector || !selected) && inspectorDetails}
+              <div ref={setDesktopTarget} />
+            </aside>
+          </div>
+          {selected && floorPositions(selected).length > 0 && (
+            <FloorPositionDetail
+              zone={selected}
+              zones={props.zones}
+              blocks={props.blocks}
+              onSelect={select}
+            />
+          )}
+          {selected && (
+            <div className="mt-3 flex min-w-0 items-center justify-between gap-2 rounded-lg border border-border bg-background p-3 min-[581px]:hidden">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold break-words">
+                  {selected.code}
+                </p>
+                <p className="text-xs break-words text-muted">
+                  {selected.label} ·{" "}
+                  {t("mapUnitCount", { count: floorZoneUnitCount(selected) })}
+                </p>
               </div>
-            </>
+              <Button
+                type="button"
+                variant="outline"
+                className="min-h-11 shrink-0"
+                onClick={openDetails}
+              >
+                {t("locationDetails")}
+              </Button>
+            </div>
           )}
-          {selected?.importNote && (
-            <p className="mb-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
-              {selected.importNote}
-            </p>
-          )}
-          {props.locationInspector}
-        </aside>
-      </div>
-      <div className="mt-4 min-w-0">
-        <FloorLocationTable
-          zones={matches}
-          groupedPositions={legacyPositionCount > 0}
-          search={search}
-          onSearchChange={(value) => {
-            setSearch(value);
-            const found = matchingFloorZones(props.zones, value);
-            if (!found.some((zone) => zone.zoneId === selectedId))
-              clearSelection();
-          }}
-          onClearSelection={clearSelection}
-          actions={
-            <>
-              {selected ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    const panel = document.getElementById(inspectorId);
-                    panel?.scrollIntoView({ block: "nearest" });
-                    panel?.focus({ preventScroll: true });
-                  }}
-                >
-                  {t("mapSelected")}
-                </Button>
-              ) : null}
-              {props.locationActions}
-            </>
-          }
-          selectedId={selected?.zoneId}
-          onSelect={select}
-        />
-      </div>
-      {props.offsetEditor && (
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="mt-4 text-muted"
-          onClick={() => setOffsetEditing(true)}
+        </div>
+        <div
+          className="min-w-0 border-t border-border p-3 min-[581px]:p-4"
+          id={`${inspectorId}-list`}
+          role={mobile ? "tabpanel" : undefined}
+          aria-labelledby={mobile ? `${inspectorId}-list-tab` : undefined}
+          hidden={mobile && mobileView !== "list"}
         >
-          <PencilLine className="size-4" />
-          {t("mapEditFloorOffset")}
-        </Button>
-      )}
-    </section>
+          <FloorLocationTable
+            zones={matches}
+            groupedPositions={legacyPositionCount > 0}
+            search={search}
+            onSearchChange={(value) => {
+              setSearch(value);
+              const found = matchingFloorZones(props.zones, value);
+              if (!found.some((zone) => zone.zoneId === selectedId)) {
+                setSelectedId(undefined);
+                setUnitId(undefined);
+              }
+            }}
+            onClearSelection={() => {
+              clearSelection();
+            }}
+            actions={props.locationActions}
+            selectedId={selected?.zoneId}
+            onSelect={select}
+          />
+        </div>
+        {props.offsetEditor && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="mt-4 text-muted"
+            onClick={() => setOffsetEditing(true)}
+          >
+            <PencilLine className="size-4" />
+            {t("mapEditFloorOffset")}
+          </Button>
+        )}
+        <Sheet
+          open={sheetOpen}
+          onOpenChange={(open) => {
+            if (!open) setSheetSelection(undefined);
+          }}
+        >
+          <SheetContent
+            side="bottom"
+            closeLabel={t("closeDialog")}
+            className={`${styles.theme} max-h-[85dvh] gap-0 rounded-t-2xl pb-[env(safe-area-inset-bottom)]`}
+            onCloseAutoFocus={(event) => {
+              event.preventDefault();
+              const action = pendingAction.current;
+              pendingAction.current = undefined;
+              if (action) requestAnimationFrame(action);
+              else {
+                const target = opener.current;
+                if (
+                  target?.isConnected &&
+                  !target.closest("[hidden]") &&
+                  "focus" in target &&
+                  typeof target.focus === "function"
+                )
+                  target.focus({ preventScroll: true });
+                else {
+                  const floorButton = document.querySelector<HTMLButtonElement>(
+                    'nav [aria-pressed="true"]',
+                  );
+                  (mobile ? fallbackFocus.current : floorButton)?.focus({
+                    preventScroll: true,
+                  });
+                }
+              }
+            }}
+          >
+            <SheetHeader className="shrink-0 pr-14">
+              <SheetTitle>{t("locationDetails")}</SheetTitle>
+              <SheetDescription className="break-words">
+                {selected?.code} · {t("floor", { floor: props.floorNumber })}
+              </SheetDescription>
+            </SheetHeader>
+            <div className="min-h-0 overflow-y-auto overscroll-contain px-4 pb-4">
+              {!props.locationInspector && inspectorDetails}
+              <div ref={setSheetTarget} />
+            </div>
+          </SheetContent>
+        </Sheet>
+        <LocationDetailsHost.Provider
+          value={{
+            target: mobile ? (sheetOpen ? sheetTarget : null) : desktopTarget,
+            runAction: runDetailAction,
+            editZone: props.onEditZone,
+            selectedUnitId: unitId,
+          }}
+        >
+          {props.locationInspector}
+        </LocationDetailsHost.Provider>
+      </section>
+    </div>
   );
 }
 function MapDrawing({
@@ -805,6 +1033,7 @@ function MapDrawing({
   onSelectArea,
   reference,
   showLocationLabels,
+  showPackages,
   selectedId,
   selectedUnit,
   matchIds,
@@ -821,6 +1050,7 @@ function MapDrawing({
   onSelectArea: (index: number) => void;
   reference: boolean;
   showLocationLabels: boolean;
+  showPackages: boolean;
   selectedId: string | undefined;
   selectedUnit: string | undefined;
   matchIds: string[];
@@ -1007,6 +1237,9 @@ function MapDrawing({
     const unitCount = floorZoneUnitCount(zone);
     return { zone, anchor, x, y, unitCount };
   });
+  const scaleBarMm = 5000 / 2 ** Math.ceil(Math.log2(zoom));
+  const scaleBarRight = 460 + ((maxX - minX) * scale) / 2 + 35;
+  const scaleBarY = 320 + ((maxY - minY) * scale) / 2 + 38;
   const selected = props.zones.find((z) => z.zoneId === selectedId);
   const selectedArea =
     selectedAreaIndex === undefined
@@ -1062,7 +1295,7 @@ function MapDrawing({
       aria-label={t("mapTitle")}
       viewBox={`${frame.x} ${frame.y} ${frame.width} ${frame.height}`}
       preserveAspectRatio="xMidYMid meet"
-      className={`h-[min(40rem,65svh)] w-full rounded-xl border border-border bg-background ${pannable ? (dragging ? "cursor-grabbing select-none [&_*]:cursor-grabbing" : "cursor-grab") : ""}`}
+      className={`${styles.svg} ${pannable ? (dragging ? "cursor-grabbing select-none [&_*]:cursor-grabbing" : "cursor-grab") : ""}`}
       style={pannable ? { touchAction: "none" } : undefined}
       onKeyDown={(e) => {
         if (e.key === "Escape") e.currentTarget.focus();
@@ -1148,44 +1381,46 @@ function MapDrawing({
           points={pts(floor)}
           fill={sceneColors.floor}
           stroke={sceneColors.boundary}
-          strokeWidth="1.5"
+          strokeWidth={view === "plan" ? 3 : 1.5}
         />
-        {Array.from(
-          { length: Math.max(0, Math.ceil(props.widthMm / step) - 1) },
-          (_, i) => {
-            const a = point((i + 1) * step, 0),
-              b = point((i + 1) * step, props.depthMm);
-            return (
-              <line
-                key={`x${i}`}
-                x1={a.x}
-                y1={a.y}
-                x2={b.x}
-                y2={b.y}
-                stroke={sceneColors.grid}
-                opacity=".6"
-              />
-            );
-          },
-        )}
-        {Array.from(
-          { length: Math.max(0, Math.ceil(props.depthMm / step) - 1) },
-          (_, i) => {
-            const a = point(0, (i + 1) * step),
-              b = point(props.widthMm, (i + 1) * step);
-            return (
-              <line
-                key={`y${i}`}
-                x1={a.x}
-                y1={a.y}
-                x2={b.x}
-                y2={b.y}
-                stroke={sceneColors.grid}
-                opacity=".6"
-              />
-            );
-          },
-        )}
+        {view === "3d" &&
+          Array.from(
+            { length: Math.max(0, Math.ceil(props.widthMm / step) - 1) },
+            (_, i) => {
+              const a = point((i + 1) * step, 0),
+                b = point((i + 1) * step, props.depthMm);
+              return (
+                <line
+                  key={`x${i}`}
+                  x1={a.x}
+                  y1={a.y}
+                  x2={b.x}
+                  y2={b.y}
+                  stroke={sceneColors.grid}
+                  opacity=".6"
+                />
+              );
+            },
+          )}
+        {view === "3d" &&
+          Array.from(
+            { length: Math.max(0, Math.ceil(props.depthMm / step) - 1) },
+            (_, i) => {
+              const a = point(0, (i + 1) * step),
+                b = point(props.widthMm, (i + 1) * step);
+              return (
+                <line
+                  key={`y${i}`}
+                  x1={a.x}
+                  y1={a.y}
+                  x2={b.x}
+                  y2={b.y}
+                  stroke={sceneColors.grid}
+                  opacity=".6"
+                />
+              );
+            },
+          )}
         {props.blocks.map((b, i) => {
           const selectable = !isAisleBlock(b);
           const active = i === selectedAreaIndex;
@@ -1277,6 +1512,7 @@ function MapDrawing({
                 </polygon>
               ) : (
                 <ReservedAreaShape
+                  appearance="canvas"
                   color={b.color}
                   tooltip={b.label}
                   mode={view}
@@ -1291,6 +1527,7 @@ function MapDrawing({
         {orderedZones.map((zone) => {
           const active = zone.zoneId === selectedId;
           const cellLabel = zone.label.trim() || zone.code;
+          const shortCode = zone.code.split("-").at(-1)!;
           const base = rect(zone.xMm, zone.yMm, zone.widthMm, zone.depthMm);
           const cellWidth = Math.abs(base[1]!.x - base[0]!.x) * zoom;
           const cellHeight = Math.abs(base[3]!.y - base[0]!.y) * zoom;
@@ -1375,60 +1612,123 @@ function MapDrawing({
                     selectionSurface={active}
                   />
                 )}
-                {view === "plan" && floorPositions(zone).length === 0 && (
-                  <polygon
-                    data-floor-zone-code={zone.code}
-                    data-pd-cell-code={
-                      pdGroupCode(zone.code) ? zone.code : undefined
-                    }
-                    points={pts(base)}
-                    fill={
-                      active
-                        ? `color-mix(in srgb, var(--token-link) 25%, ${planColors.storage})`
-                        : planColors.storage
-                    }
-                    stroke={
-                      active ? sceneColors.selected : planColors.storageBorder
-                    }
-                    strokeWidth={active ? 1.5 : 0.75}
-                    vectorEffect="non-scaling-stroke"
-                    className={
-                      active ? undefined : "group-focus-visible:stroke-text"
-                    }
-                  />
-                )}
                 {view === "plan" &&
                   !pdGroupCode(zone.code) &&
-                  floorPositions(zone).length === 0 &&
-                  (!showLocationLabels || zone.placements.length === 0) &&
-                  (() => {
-                    const fontSize = Math.min(
-                      13,
-                      (cellWidth - 4) / Math.max(zone.code.length * 0.62, 1),
-                      cellHeight - 4,
-                    );
-                    if (fontSize < 6) return null;
-                    const center = point(
-                      zone.xMm + zone.widthMm / 2,
-                      zone.yMm + zone.depthMm / 2,
-                    );
-                    return (
-                      <text
-                        data-floor-zone-name={zone.code}
-                        x={center.x}
-                        y={center.y}
-                        textAnchor="middle"
-                        dominantBaseline="middle"
-                        fontSize={fontSize / zoom}
-                        fill={planColors.storageLabel}
-                        className="pointer-events-none"
-                      >
-                        {zone.code}
-                      </text>
-                    );
-                  })()}
+                  floorPositions(zone).length === 0 && (
+                    <>
+                      <rect
+                        x={base[0]!.x}
+                        y={base[0]!.y}
+                        width={base[1]!.x - base[0]!.x}
+                        height={base[3]!.y - base[0]!.y}
+                        rx={Math.min(4, (base[1]!.x - base[0]!.x) / 10)}
+                        fill={
+                          active
+                            ? "var(--plan-selected)"
+                            : floorZoneUnitCount(zone) > 0
+                              ? "var(--plan-occupied)"
+                              : "var(--plan-empty)"
+                        }
+                        stroke={
+                          active
+                            ? "var(--plan-selected-border)"
+                            : floorZoneUnitCount(zone) > 0
+                              ? "var(--plan-occupied-border)"
+                              : "var(--plan-wall)"
+                        }
+                        strokeWidth={active ? 3 : 1.5}
+                        vectorEffect="non-scaling-stroke"
+                        data-zone-face="plan"
+                        data-floor-zone-code={zone.code}
+                        className={
+                          active ? undefined : "group-focus-visible:stroke-text"
+                        }
+                      />
+                      {cellWidth > 24 && cellHeight > 15 && (
+                        <text
+                          data-floor-zone-name={zone.code}
+                          x={(base[0]!.x + base[1]!.x) / 2}
+                          y={
+                            (base[0]!.y + base[3]!.y) / 2 -
+                            (cellHeight > 36 ? 6 : 0)
+                          }
+                          textAnchor="middle"
+                          dominantBaseline="middle"
+                          fill={
+                            active
+                              ? "var(--plan-selected-text)"
+                              : "var(--plan-text)"
+                          }
+                          fontSize={Math.min(
+                            13,
+                            (base[1]!.x - base[0]!.x - 8) /
+                              (shortCode.length * 0.6),
+                          )}
+                          fontWeight="600"
+                          className="pointer-events-none font-mono"
+                        >
+                          {shortCode}
+                          {cellHeight > 36 && (
+                            <tspan
+                              x={(base[0]!.x + base[1]!.x) / 2}
+                              dy="18"
+                              fontSize={Math.min(
+                                10,
+                                (base[1]!.x - base[0]!.x - 6) /
+                                  (Math.max(
+                                    1,
+                                    (floorZoneUnitCount(zone)
+                                      ? t("mapUnitCount", {
+                                          count: floorZoneUnitCount(zone),
+                                        })
+                                      : t("mapEmpty")
+                                    ).length,
+                                  ) *
+                                    0.6),
+                              )}
+                              fill={
+                                active
+                                  ? "var(--plan-selected-text)"
+                                  : "var(--plan-muted)"
+                              }
+                            >
+                              {floorZoneUnitCount(zone)
+                                ? t("mapUnitCount", {
+                                    count: floorZoneUnitCount(zone),
+                                  })
+                                : t("mapEmpty")}
+                            </tspan>
+                          )}
+                        </text>
+                      )}
+                    </>
+                  )}
                 {view === "plan" && pdGroupCode(zone.code) && (
                   <>
+                    <polygon
+                      data-floor-zone-code={zone.code}
+                      data-pd-cell-code={zone.code}
+                      points={pts(base)}
+                      fill={
+                        active
+                          ? "var(--plan-selected)"
+                          : floorZoneUnitCount(zone) > 0
+                            ? "var(--plan-occupied)"
+                            : "var(--plan-empty)"
+                      }
+                      stroke={
+                        active
+                          ? "var(--plan-selected-border)"
+                          : floorZoneUnitCount(zone) > 0
+                            ? "var(--plan-occupied-border)"
+                            : "var(--plan-wall)"
+                      }
+                      strokeWidth={active ? 1.5 : 0.75}
+                      vectorEffect="non-scaling-stroke"
+                      className={
+                        active ? undefined : "group-focus-visible:stroke-text"
+                      }
+                    />
                     {(active || showLocationLabels || zoom >= labelZoom) &&
                       labelFits && (
                         <text
@@ -1446,7 +1746,11 @@ function MapDrawing({
                           }
                           textAnchor="middle"
                           dominantBaseline="middle"
-                          fill={planColors.storageLabel}
+                          fill={
+                            active
+                              ? "var(--plan-selected-text)"
+                              : planColors.storageLabel
+                          }
                           fontSize={labelFontSizePx / zoom}
                           fontWeight="700"
                           className="pointer-events-none"
@@ -1544,7 +1848,7 @@ function MapDrawing({
             </g>
           );
         })}
-        {[...boxes]
+        {[...(view === "3d" || showPackages ? boxes : [])]
           .sort(
             (a, b) =>
               Number(a.box.placement.placementId === selectedUnit) -
@@ -1671,24 +1975,59 @@ function MapDrawing({
             </text>
           </g>
         )}
-        <text
-          x={point(props.widthMm / 2, props.depthMm).x}
-          y={point(props.widthMm / 2, props.depthMm).y + 28}
-          textAnchor="middle"
-          fill={sceneColors.dimension}
-          fontSize="14"
-        >
-          {m(props.widthMm)} m
-        </text>
-        <text
-          x={point(props.widthMm, props.depthMm / 2).x + 30}
-          y={point(props.widthMm, props.depthMm / 2).y + 22}
-          textAnchor="middle"
-          fill={sceneColors.dimension}
-          fontSize="14"
-        >
-          {m(props.depthMm)} m
-        </text>
+        {view === "plan" ? (
+          <g
+            fill={sceneColors.dimension}
+            stroke={sceneColors.dimension}
+            className="font-mono"
+            aria-hidden="true"
+          >
+            <path
+              d={`M${floor[0]!.x} ${floor[0]!.y - 14}H${floor[1]!.x} M${floor[0]!.x} ${floor[0]!.y - 18}v8 M${floor[1]!.x} ${floor[1]!.y - 18}v8`}
+              fill="none"
+            />
+            <text
+              x={(floor[0]!.x + floor[1]!.x) / 2}
+              y={floor[0]!.y - 24}
+              textAnchor="middle"
+              fontSize="12"
+              stroke="none"
+            >
+              {m(props.widthMm)} m
+            </text>
+            <text
+              x={floor[0]!.x - 18}
+              y={(floor[0]!.y + floor[3]!.y) / 2}
+              transform={`rotate(-90 ${floor[0]!.x - 18} ${(floor[0]!.y + floor[3]!.y) / 2})`}
+              textAnchor="middle"
+              fontSize="12"
+              stroke="none"
+            >
+              {m(props.depthMm)} m
+            </text>
+          </g>
+        ) : (
+          <>
+            <text
+              x={point(props.widthMm / 2, props.depthMm).x}
+              y={point(props.widthMm / 2, props.depthMm).y + 28}
+              textAnchor="middle"
+              fill={sceneColors.dimension}
+              fontSize="14"
+            >
+              {m(props.widthMm)} m
+            </text>
+            <text
+              x={point(props.widthMm, props.depthMm / 2).x + 30}
+              y={point(props.widthMm, props.depthMm / 2).y + 22}
+              textAnchor="middle"
+              fill={sceneColors.dimension}
+              fontSize="14"
+            >
+              {m(props.depthMm)} m
+            </text>
+          </>
+        )}
         {callouts
           .filter((c) => c !== null)
           .reverse()
@@ -1750,6 +2089,197 @@ function MapDrawing({
             </g>
           ))}
       </g>
+      {view === "plan" && (
+        <g
+          aria-hidden="true"
+          stroke="var(--plan-muted)"
+          fill="var(--plan-muted)"
+          className="font-mono"
+        >
+          <path
+            d={`M${scaleBarRight - scaleBarMm * scale * zoom} ${scaleBarY - 4}v4H${scaleBarRight}v-4`}
+            fill="none"
+          />
+          <text
+            x={scaleBarRight - (scaleBarMm * scale * zoom) / 2}
+            y={scaleBarY - 7}
+            textAnchor="middle"
+            fontSize="10"
+            stroke="none"
+          >
+            {m(scaleBarMm)} m
+          </text>
+        </g>
+      )}
     </svg>
+  );
+}
+
+function FloorPositionDetail({
+  zone,
+  zones,
+  blocks,
+  onSelect,
+}: {
+  readonly zone: StorageZoneRow;
+  readonly zones: readonly StorageZoneRow[];
+  readonly blocks: readonly Area[];
+  readonly onSelect: (id: string) => void;
+}) {
+  const t = useTranslations("StorageLayouts");
+  const groupCode = pdGroupCode(zone.code);
+  const groupZones = groupCode
+    ? zones.filter((candidate) => pdGroupCode(candidate.code) === groupCode)
+    : [];
+  const bounds = groupCode ? groupBounds(groupZones) : zone;
+  const cells = groupCode
+    ? groupZones.map((candidate) => ({ ...candidate, id: candidate.zoneId }))
+    : floorPositions(zone).map((position) => ({
+        ...position,
+        id: undefined,
+        xMm: position.xMm!,
+        yMm: position.yMm!,
+        widthMm: position.widthMm!,
+        depthMm: position.depthMm!,
+      }));
+  const aisles = groupCode
+    ? blocks.filter(isAisleBlock).flatMap((block) => {
+        const xMm = Math.max(block.xMm, bounds.xMm);
+        const yMm = Math.max(block.yMm, bounds.yMm);
+        const right = Math.min(
+          block.xMm + block.widthMm,
+          bounds.xMm + bounds.widthMm,
+        );
+        const bottom = Math.min(
+          block.yMm + block.depthMm,
+          bounds.yMm + bounds.depthMm,
+        );
+        return right > xMm && bottom > yMm
+          ? [{ xMm, yMm, widthMm: right - xMm, depthMm: bottom - yMm }]
+          : [];
+      })
+    : positionAisles(zone);
+  const titleCode = groupCode ?? zone.code;
+  return (
+    <section
+      className="mt-5 min-w-0 rounded-xl border border-border p-3 sm:p-4"
+      aria-label={t("floorPositionDetail", { code: titleCode })}
+    >
+      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+        <h3 className="font-semibold">
+          {t("floorPositionDetail", { code: titleCode })}
+        </h3>
+        <p className="text-sm text-muted">
+          {t("floorPositionCount", { count: cells.length })}
+        </p>
+      </div>
+      <div className="overflow-x-auto">
+        <svg
+          role="group"
+          aria-label={t("floorPositionDetail", { code: titleCode })}
+          viewBox={`0 0 ${bounds.widthMm} ${bounds.depthMm}`}
+          className="w-full min-w-[640px] border border-border bg-[#ffb68e]"
+        >
+          <desc>{t("mapKeyboardHint")}</desc>
+          {cells.map((position) => {
+            const x = position.xMm - bounds.xMm;
+            const y = position.yMm - bounds.yMm;
+            return (
+              <g
+                key={position.code}
+                data-detail-position-code={position.code}
+                {...(position.id === undefined
+                  ? {}
+                  : {
+                      role: "button",
+                      tabIndex: position.id === zone.zoneId ? 0 : -1,
+                      "aria-label": t("mapSelectLocation", {
+                        name: position.code,
+                      }),
+                      "aria-pressed": position.id === zone.zoneId,
+                      onClick: () => onSelect(position.id!),
+                      onKeyDown: (event: KeyboardEvent<SVGGElement>) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          onSelect(position.id!);
+                        } else if (
+                          [
+                            "ArrowLeft",
+                            "ArrowRight",
+                            "ArrowUp",
+                            "ArrowDown",
+                          ].includes(event.key)
+                        ) {
+                          event.preventDefault();
+                          const current = groupZones.find(
+                            (candidate) => candidate.zoneId === position.id,
+                          );
+                          const next =
+                            current &&
+                            adjacentZone(groupZones, current, event.key);
+                          if (!next) return;
+                          onSelect(next.zoneId);
+                          const controls = event.currentTarget
+                            .closest("svg")
+                            ?.querySelectorAll<SVGGElement>(
+                              "[data-detail-position-code]",
+                            );
+                          [...(controls ?? [])]
+                            .find(
+                              (control) =>
+                                control.getAttribute(
+                                  "data-detail-position-code",
+                                ) === next.code,
+                            )
+                            ?.focus();
+                        }
+                      },
+                    })}
+              >
+                <rect
+                  x={x}
+                  y={y}
+                  width={position.widthMm}
+                  height={position.depthMm}
+                  fill="#83a8b1"
+                  stroke={position.id === zone.zoneId ? "#4d57c3" : "#263640"}
+                  strokeWidth="14"
+                  strokeDasharray="40 35"
+                />
+                <text
+                  x={x + position.widthMm / 2}
+                  y={y + position.depthMm / 2}
+                  dominantBaseline="middle"
+                  textAnchor="middle"
+                  fill="#172329"
+                  fontSize="140"
+                  fontWeight="700"
+                >
+                  {position.code}
+                </text>
+              </g>
+            );
+          })}
+          {aisles.map((aisle, index) => {
+            const width = Math.min(aisle.widthMm, aisle.depthMm);
+            return (
+              <g key={index} data-detail-aisle-width-mm={width}>
+                <text
+                  x={aisle.xMm - bounds.xMm + aisle.widthMm / 2}
+                  y={aisle.yMm - bounds.yMm + aisle.depthMm / 2}
+                  dominantBaseline="middle"
+                  textAnchor="middle"
+                  fill="#172329"
+                  fontSize={Math.min(180, width * 0.55)}
+                  fontWeight="700"
+                >
+                  {t("floorAisleWidth", { width: m(width) })}
+                </text>
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+    </section>
   );
 }

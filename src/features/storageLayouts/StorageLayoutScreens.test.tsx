@@ -319,8 +319,16 @@ describe("BuildingModelWorkspace", () => {
     expect(screen.getAllByRole("button", { name: /^Floor \d$/ })).toHaveLength(
       4,
     );
-    expect(screen.getByText("24 × 18 × 4 m")).toBeInTheDocument();
-    expect(screen.getByText("30 × 20 × 5 m")).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("button", { name: /^Floor 2$/ })).getByText(
+        /: 4 m$/,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("button", { name: /^Floor 3$/ })).getByText(
+        /: 5 m$/,
+      ),
+    ).toBeInTheDocument();
     expect(
       screen.queryByRole("link", { name: /Edit floor/ }),
     ).not.toBeInTheDocument();
@@ -454,8 +462,8 @@ describe("unified floor editing", () => {
       screen.queryByRole("spinbutton", { name: "Width (m)" }),
     ).not.toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Add storage stack" }),
-    ).toBeDisabled();
+      screen.queryByRole("button", { name: "Add storage stack" }),
+    ).not.toBeInTheDocument();
   });
 });
 
@@ -1565,9 +1573,15 @@ describe("searchable storage spots", () => {
     ).not.toBeInTheDocument();
   });
 
-  function show(zones: StorageZoneRow[], locale: "en" | "th" = "en") {
+  function show(
+    zones: StorageZoneRow[],
+    locale: "en" | "th" = "en",
+    compact = false,
+  ) {
     return renderWithIntl(
       <StorageZonesPanel
+        compact={compact}
+        selectedZoneId={zones[0]?.zoneId}
         warehouseId="warehouse-a"
         buildingId="building-a"
         floorNumber={1}
@@ -1671,6 +1685,14 @@ describe("searchable storage spots", () => {
     expect(
       screen.getByRole("button", { name: "Add storage stack" }),
     ).toBeEnabled();
+  });
+  it("keeps the zone QR scannable in compact details without child positions", () => {
+    const zone = { ...occupiedTestZone(), positions: [] };
+    show([zone], "en", true);
+    fireEvent.click(screen.getByText("QR and position labels (1)"));
+    expect(
+      screen.getByRole("img", { name: `QR for ${zone.code}` }),
+    ).toBeVisible();
   });
   it("removes duplicate default QR labels but retains and searches distinct positions", () => {
     const zone = occupiedTestZone();
@@ -1803,6 +1825,7 @@ describe("interactive floor map", () => {
       <FloorPlan {...props()} zones={[zone]} />,
       { locale: "en", workspace: false },
     );
+    fireEvent.click(screen.getByRole("button", { name: "3D view" }));
     expect(container.querySelector('[data-scene-solid="true"]')).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "P-005 · Reserved" }));
     expect(
@@ -1824,6 +1847,7 @@ describe("interactive floor map", () => {
       <FloorPlan {...props()} onEditZone={edit} onPlacementChange={move} />,
       { locale: "en", workspace: false },
     );
+    fireEvent.click(screen.getByRole("button", { name: "3D view" }));
     expect(container.querySelector("[data-reference-floor]")).toBeNull();
     expect(container.querySelectorAll("[data-height-envelope]")).toHaveLength(
       1,
@@ -1901,11 +1925,16 @@ describe("interactive floor map", () => {
       />,
       { locale: "en", workspace: false },
     );
+    fireEvent.click(screen.getByRole("button", { name: "3D view" }));
     const box = () => container.querySelector('[data-placement-id="held"]');
     expect(box()).toHaveAttribute("data-placement-x-mm", "700");
     expect(box()).toHaveAttribute("data-placement-z-mm", "1400");
     const before = box()?.querySelector("polygon")?.getAttribute("points");
+    fireEvent.click(screen.getByRole("button", { name: "Display options" }));
     fireEvent.click(screen.getByRole("button", { name: "Rotate view" }));
+    fireEvent.keyDown(screen.getByRole("button", { name: "Rotate view" }), {
+      key: "Escape",
+    });
     expect(box()).toHaveAttribute("data-placement-x-mm", "700");
     expect(box()?.querySelector("polygon")?.getAttribute("points")).not.toBe(
       before,
@@ -1972,6 +2001,7 @@ it("renders dense demo scenarios without inventory links or writes", async () =>
     locale: "en",
     workspace: false,
   });
+  fireEvent.click(screen.getByRole("button", { name: "3D view" }));
   expect(container.querySelectorAll("[data-placement-id]")).toHaveLength(62);
   expect(container.querySelectorAll("[data-unavailable-area]")).toHaveLength(3);
   fireEvent.click(
@@ -1981,6 +2011,7 @@ it("renders dense demo scenarios without inventory links or writes", async () =>
   );
   expect(container.querySelectorAll("[data-placement-id]")).toHaveLength(120);
   fireEvent.click(screen.getByRole("button", { name: "2D plan" }));
+  fireEvent.click(screen.getByRole("button", { name: "Display options" }));
   fireEvent.click(screen.getByRole("button", { name: "Show detailed labels" }));
   const labels = [...container.querySelectorAll("[data-floor-callout]")];
   expect(labels).toHaveLength(4);
@@ -2074,5 +2105,201 @@ describe("building creation execution", () => {
         "/master-data/storage-layouts/new-building",
       ),
     );
+  });
+});
+
+describe("mobile storage workspace", () => {
+  let mobile = true;
+  const listeners = new Set<EventListenerOrEventListenerObject>();
+  beforeEach(() => {
+    mobile = true;
+    listeners.clear();
+    const original = window.matchMedia;
+    vi.spyOn(window, "matchMedia").mockImplementation((query) => ({
+      ...original(query),
+      matches: query === "(max-width: 580px)" && mobile,
+      addEventListener: (
+        _type: string,
+        listener: EventListenerOrEventListenerObject | null,
+      ) => {
+        if (typeof listener === "function") listeners.add(listener);
+      },
+      removeEventListener: (
+        _type: string,
+        listener: EventListenerOrEventListenerObject | null,
+      ) => {
+        if (typeof listener === "function") listeners.delete(listener);
+      },
+    }));
+  });
+  afterEach(() => vi.restoreAllMocks());
+  function mount(zone = occupiedTestZone()) {
+    const savedFloors = floors.map((floor) =>
+      floor.floorNumber === 2 ? { ...floor, storageZones: [zone] } : floor,
+    );
+    return renderWithIntl(
+      <BuildingModelWorkspace building={building} floors={savedFloors} />,
+      {
+        locale: "en",
+        workspace: false,
+        preserveProviders: true,
+      },
+    );
+  }
+  function selectMap() {
+    const button = within(
+      screen.getByRole("group", { name: "Interactive floor map" }),
+    ).getByRole("button", { name: "Select location Occupied FG" });
+    button.focus();
+    fireEvent.click(button);
+    return button;
+  }
+  it("opens details only on interaction and keeps map selection, zoom and focus after Escape", async () => {
+    mount();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Zoom in" }));
+    const map = screen.getByRole("group", { name: "Interactive floor map" });
+    const opener = selectMap();
+    const transform = map.querySelector("g")?.getAttribute("transform");
+    expect(
+      screen.getByRole("dialog", { name: "Location details" }),
+    ).toBeVisible();
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
+    expect(opener).toHaveAttribute("aria-pressed", "true");
+    await waitFor(() => expect(opener).toHaveFocus());
+    expect(map.querySelector("g")?.getAttribute("transform")).toBe(transform);
+    expect(mutation).not.toHaveBeenCalled();
+  });
+  it("shares list selection and retains search through map/list switches", async () => {
+    mount();
+    fireEvent.click(screen.getByRole("tab", { name: "List (1)" }));
+    fireEvent.change(screen.getByRole("searchbox"), {
+      target: { value: "Occupied" },
+    });
+    const row = screen.getByRole("button", {
+      name: /Select location .*Occupied FG/,
+    });
+    row.focus();
+    fireEvent.click(row);
+    expect(
+      screen.getByRole("dialog", { name: "Location details" }),
+    ).toBeVisible();
+    fireEvent.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "Close dialog",
+      }),
+    );
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
+    expect(row).toHaveAttribute("aria-pressed", "true");
+    await waitFor(() => expect(row).toHaveFocus());
+    fireEvent.click(screen.getByRole("tab", { name: "Map" }));
+    expect(
+      within(
+        screen.getByRole("group", { name: "Interactive floor map" }),
+      ).getByRole("button", { name: "Select location Occupied FG" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(screen.getByRole("tab", { name: "List (1)" }));
+    expect(screen.getByRole("searchbox")).toHaveValue("Occupied");
+  });
+  it("closes the sheet before opening the single existing editor and retains selection on cancel", async () => {
+    mount();
+    selectMap();
+    fireEvent.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "Edit Occupied FG",
+      }),
+    );
+    await screen.findByRole("dialog", { name: "Edit storage stack" });
+    expect(screen.getAllByRole("dialog")).toHaveLength(1);
+    expect(document.querySelector('[data-slot="sheet-overlay"]')).toBeNull();
+    expect(screen.getByRole("textbox", { name: "Zone label" })).toHaveValue(
+      "Occupied FG",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
+    expect(
+      within(
+        screen.getByRole("group", { name: "Interactive floor map" }),
+      ).getByRole("button", { name: "Select location Occupied FG" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    const { isWorkspaceHistoryGuardActive } =
+      await import("./useWorkspaceNavigationGuard");
+    await waitFor(() => expect(isWorkspaceHistoryGuardActive()).toBe(false));
+    expect(new URLSearchParams(window.location.search).has("editZone")).toBe(
+      false,
+    );
+    expect(mutation).not.toHaveBeenCalled();
+  });
+  it("restores URL selection as summary and resets its scope when changing floors", async () => {
+    const zone = occupiedTestZone();
+    window.history.replaceState(
+      {},
+      "",
+      `/?floor=2#storage-zone-${zone.zoneId}`,
+    );
+    mount(zone);
+    await waitFor(() =>
+      expect(
+        within(
+          screen.getByRole("group", { name: "Interactive floor map" }),
+        ).getByRole("button", { name: "Select location Occupied FG" }),
+      ).toHaveAttribute("aria-pressed", "true"),
+    );
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    selectMap();
+    // The floor selector is outside the trapped sheet; change through URL as a live navigation would.
+    window.history.replaceState({}, "", "/?floor=1");
+    // Use the actual query event exported by the workspace controller.
+    const { workspaceStateEvent } = await import("./useWorkspaceQuery");
+    fireEvent(window, new Event(workspaceStateEvent));
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
+    expect(screen.getByRole("button", { name: "Floor 1" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+  it("dismisses removed locations on refresh and releases the sheet on desktop resize", async () => {
+    const view = mount();
+    selectMap();
+    const { act } = await import("@testing-library/react");
+    act(() => {
+      mobile = false;
+      listeners.forEach((listener) =>
+        typeof listener === "function"
+          ? listener(new Event("change"))
+          : listener.handleEvent(new Event("change")),
+      );
+    });
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
+    expect(document.body.style.pointerEvents).not.toBe("none");
+    expect(screen.getByRole("article", { name: /Occupied FG/ })).toBeVisible();
+    act(() => {
+      mobile = true;
+      listeners.forEach((listener) =>
+        typeof listener === "function"
+          ? listener(new Event("change"))
+          : listener.handleEvent(new Event("change")),
+      );
+    });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    selectMap();
+    view.rerender(
+      <BuildingModelWorkspace building={building} floors={floors} />,
+    );
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
+    expect(document.body.style.pointerEvents).not.toBe("none");
   });
 });

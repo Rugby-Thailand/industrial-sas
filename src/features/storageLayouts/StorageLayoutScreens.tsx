@@ -46,8 +46,10 @@ import { useCatalogueSync } from "@/hooks/useCatalogueSync";
 import { useAuth } from "@clerk/nextjs";
 import { useMutation, useQuery } from "convex/react";
 import {
-  Layers3,
+  Building2,
+  Map as MapIcon,
   PencilLine,
+  Settings2,
   Plus,
   Ruler,
   Search,
@@ -624,7 +626,7 @@ export function BuildingSettingsDialog({
           title={t("openSettings")}
           className="bg-surface/90 shadow-sm backdrop-blur-sm"
         >
-          <Plus className="size-5" />
+          <Settings2 className="size-5" />
         </Button>
       </DialogTrigger>
       <DialogContent
@@ -1056,7 +1058,7 @@ export function BuildingModelWorkspace({
           </p>
           <div className="mt-1 flex items-center gap-1">
             <PageBackButton fallbackHref={ROUTES.storageLayouts} />
-            <h1 className="text-xl leading-7 font-semibold text-text">
+            <h1 className="min-w-0 text-xl leading-7 font-semibold break-words text-text">
               {building.name}
             </h1>
           </div>
@@ -1078,65 +1080,40 @@ export function BuildingModelWorkspace({
               type="button"
               size="sm"
               variant={view === "storage" ? "secondary" : "ghost"}
+              aria-label={t("storageFloorView")}
+              title={t("storageFloorView")}
+              className="min-h-11 min-w-11"
               aria-pressed={view === "storage"}
               onClick={() => transition({ view: "storage" })}
             >
-              {t("storageFloorView")}
+              <MapIcon
+                aria-hidden="true"
+                className="size-4 min-[581px]:hidden"
+              />
+              <span className="hidden min-[581px]:inline">
+                {t("storageFloorView")}
+              </span>
             </Button>
             <Button
               type="button"
               size="sm"
               variant={view === "building" ? "secondary" : "ghost"}
+              aria-label={t("buildingModelView")}
+              title={t("buildingModelView")}
+              className="min-h-11 min-w-11"
               aria-pressed={view === "building"}
               onClick={() => transition({ view: "building", editing: false })}
             >
-              {t("buildingModelView")}
+              <Building2
+                aria-hidden="true"
+                className="size-4 min-[581px]:hidden"
+              />
+              <span className="hidden min-[581px]:inline">
+                {t("buildingModelView")}
+              </span>
             </Button>
           </div>
           {!dirty && settingsAction}
-        </div>
-      </div>
-      <div className="rounded-xl border border-border bg-surface p-4">
-        <div className="flex items-center gap-2 text-sm font-semibold text-text">
-          <Layers3 className="size-4 text-link" />
-          {t("floors")}
-        </div>
-        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
-          {[...floors].reverse().map((floor) => {
-            const selected = selectedFloorNumber === floor.floorNumber;
-            return (
-              <div
-                key={floor.floorId}
-                className={`flex min-w-0 overflow-hidden rounded-xl border transition ${selected ? "border-accent bg-accent-surface" : "border-border hover:border-accent/70"}`}
-              >
-                <Button
-                  variant="ghost"
-                  size="touch"
-                  type="button"
-                  onClick={() =>
-                    transition({ floor: floor.floorNumber, editing: false })
-                  }
-                  aria-pressed={selected}
-                  aria-label={t("floor", { floor: floor.floorNumber })}
-                  className="min-w-0 flex-1 px-3 py-2.5 text-left text-sm text-text"
-                >
-                  <span className="flex items-center justify-between gap-2">
-                    <span className={selected ? "text-link" : undefined}>
-                      {t("floor", { floor: floor.floorNumber })}
-                    </span>
-                    <span className="shrink-0 text-xs text-muted">
-                      {squareMetres(floor.usableAreaSqMm).toLocaleString()} m²
-                    </span>
-                  </span>
-                  <span className="mt-1 block truncate text-xs text-muted">
-                    {metres(floor.widthMm ?? building.widthMm)} ×{" "}
-                    {metres(floor.depthMm ?? building.depthMm)} ×{" "}
-                    {metres(floor.heightMm ?? building.defaultFloorHeightMm)} m
-                  </span>
-                </Button>
-              </div>
-            );
-          })}
         </div>
       </div>
       {view === "building" ? (
@@ -1147,25 +1124,38 @@ export function BuildingModelWorkspace({
         />
       ) : selectedFloor ? (
         <>
-          {canManage && building.status !== "ARCHIVED" ? (
-            <div className="flex justify-end">
-              <Button
-                variant="outline"
-                onClick={() => transition({ editing: !editing })}
-                disabled={pending}
-              >
-                <PencilLine className="size-4" aria-hidden="true" />
-                {editing
-                  ? t("closeFloorEditing")
-                  : t("editFloor", { floor: selectedFloorNumber })}
-              </Button>
-            </div>
-          ) : null}
           <FloorForm
             key={`${selectedFloor.floorId}:${reset}`}
             warehouseId={building.warehouseId}
             detail={{ found: true, building, floors }}
             floor={selectedFloor}
+            floorSelector={
+              <WorkspaceFloorSelector
+                building={building}
+                floors={floors}
+                selectedFloorNumber={selectedFloorNumber}
+                onSelect={(floor) => transition({ floor, editing: false })}
+                editAction={
+                  canManage && building.status !== "ARCHIVED" ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={pending}
+                      className="min-h-11 shrink-0 px-2 text-xs min-[851px]:w-full min-[851px]:whitespace-normal"
+                      onClick={() => transition({ editing: !editing })}
+                    >
+                      <PencilLine
+                        className="size-4 shrink-0"
+                        aria-hidden="true"
+                      />
+                      {editing
+                        ? t("closeFloorEditing")
+                        : t("editFloor", { floor: selectedFloorNumber })}
+                    </Button>
+                  ) : null
+                }
+              />
+            }
             workspace={{
               editing,
               editorRef,
@@ -1180,6 +1170,119 @@ export function BuildingModelWorkspace({
         <Notice title={t("mapNoFloors")} />
       )}
     </div>
+  );
+}
+
+function WorkspaceFloorSelector({
+  building,
+  floors,
+  selectedFloorNumber,
+  onSelect,
+  editAction,
+}: {
+  readonly building: StorageBuildingRow;
+  readonly floors: readonly StorageFloorRow[];
+  readonly selectedFloorNumber: number;
+  readonly onSelect: (floor: number) => void;
+  readonly editAction: ReactNode;
+}) {
+  const t = useTranslations("StorageLayouts");
+  const rail = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const reveal = () => {
+      const container = rail.current;
+      const selected = container?.querySelector<HTMLElement>(
+        '[aria-pressed="true"]',
+      );
+      if (!container || !selected) return;
+      const bounds = selected.getBoundingClientRect();
+      const viewport = container.getBoundingClientRect();
+      if (bounds.left < viewport.left)
+        container.scrollLeft -= viewport.left - bounds.left;
+      if (bounds.right > viewport.right)
+        container.scrollLeft += bounds.right - viewport.right;
+      if (bounds.top < viewport.top)
+        container.scrollTop -= viewport.top - bounds.top;
+      if (bounds.bottom > viewport.bottom)
+        container.scrollTop += bounds.bottom - viewport.bottom;
+    };
+    reveal();
+    window.addEventListener("resize", reveal);
+    return () => window.removeEventListener("resize", reveal);
+  }, [selectedFloorNumber, floors]);
+  return (
+    <nav
+      aria-label={t("floorSelector")}
+      className="flex min-w-0 items-center gap-2 rounded-xl border border-border bg-surface p-2 min-[851px]:sticky min-[851px]:top-4 min-[851px]:flex-col min-[851px]:items-stretch"
+    >
+      <p className="hidden text-xs font-semibold text-muted min-[851px]:block">
+        {t("floors")}
+      </p>
+      <div
+        ref={rail}
+        className="flex min-w-0 flex-1 gap-2 overflow-x-auto min-[851px]:max-h-[65dvh] min-[851px]:flex-col min-[851px]:overflow-x-hidden min-[851px]:overflow-y-auto"
+      >
+        {[...floors].reverse().map((floor) => (
+          <button
+            key={floor.floorId}
+            type="button"
+            aria-pressed={selectedFloorNumber === floor.floorNumber}
+            aria-label={t("floor", { floor: floor.floorNumber })}
+            onClick={() => onSelect(floor.floorNumber)}
+            className="min-h-11 shrink-0 rounded-lg border border-border px-2 py-2 text-left text-xs hover:bg-raised aria-pressed:border-accent aria-pressed:bg-accent-surface min-[851px]:w-full"
+          >
+            <span className="block font-semibold">
+              {t("floor", { floor: floor.floorNumber })}
+            </span>
+            <span className="mt-1 hidden text-muted min-[581px]:block">
+              {squareMetres(floor.usableAreaSqMm).toLocaleString()} m²
+            </span>
+            <svg
+              aria-hidden="true"
+              viewBox={`0 0 ${floor.widthMm ?? building.widthMm} ${floor.depthMm ?? building.depthMm}`}
+              className="my-2 hidden h-[45px] w-full min-[851px]:block"
+            >
+              <rect
+                width="100%"
+                height="100%"
+                fill="var(--plan-floor, var(--color-raised))"
+                stroke="var(--plan-wall, var(--color-accent))"
+                strokeWidth={Math.min(building.widthMm, building.depthMm) / 60}
+              />
+              {floor.reservedBlocks.map((block, index) => (
+                <rect
+                  key={index}
+                  x={block.xMm}
+                  y={block.yMm}
+                  width={block.widthMm}
+                  height={block.depthMm}
+                  fill={resolveAreaColor(block.color)}
+                />
+              ))}
+              {floor.storageZones.map((zone) => (
+                <rect
+                  key={zone.zoneId}
+                  x={zone.xMm}
+                  y={zone.yMm}
+                  width={zone.widthMm}
+                  height={zone.depthMm}
+                  fill="var(--plan-occupied-border, var(--color-accent))"
+                  opacity="0.65"
+                />
+              ))}
+            </svg>
+            <span className="hidden text-muted min-[851px]:block">
+              {t("floorLocationCount", { count: floor.storageZones.length })}
+            </span>
+            <span className="mt-1 hidden text-muted min-[851px]:block">
+              {t("height")}:{" "}
+              {metres(floor.heightMm ?? building.defaultFloorHeightMm)} m
+            </span>
+          </button>
+        ))}
+      </div>
+      {editAction}
+    </nav>
   );
 }
 
@@ -1238,7 +1341,9 @@ function FloorForm({
   detail,
   floor: savedFloor,
   workspace,
+  floorSelector,
 }: {
+  readonly floorSelector?: ReactNode;
   readonly warehouseId: string;
   readonly detail: Extract<StorageBuildingDetail, { found: true }>;
   readonly floor: StorageFloorRow;
@@ -1620,9 +1725,11 @@ function FloorForm({
       >
         <div className="min-w-0">
           <FloorPlan
+            buildingCode={detail.building.code}
+            floorSelector={floorSelector}
             locationInspector={workspace ? locationInspector : undefined}
             locationActions={
-              workspace ? (
+              workspace && editable ? (
                 <Button
                   type="button"
                   variant="outline"
@@ -1860,6 +1967,8 @@ function OverrideField({
 
 export function FloorPlan(
   props: Parameters<typeof FloorOffsetPlan>[0] & {
+    readonly floorSelector?: ReactNode;
+    readonly buildingCode?: string;
     readonly locationActions?: ReactNode;
     readonly locationInspector?: ReactNode;
     readonly onEditZone?: ((zoneId: string) => void) | undefined;

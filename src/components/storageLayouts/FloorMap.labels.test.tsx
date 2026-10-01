@@ -1,8 +1,8 @@
 import { fireEvent, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithIntl } from "@tests/fixtures/intl-render";
-import { sceneColors } from "@/components/storageScene/sceneColors";
 import { FloorMap } from "./FloorMap";
+import styles from "./FloorMap.module.css";
 import { floorMapDemo } from "./storageFloorDemoData";
 import { pdApprovedPlan } from "../../../convex/model/storageLayout/pdApprovedPlan";
 import { fg1ApprovedPlan } from "../../../convex/model/storageLayout/fg1ApprovedPlan";
@@ -14,6 +14,12 @@ vi.mock("@/i18n/navigation", () => ({ Link: "a" }));
 
 beforeEach(() => localStorage.clear());
 
+function detailedLabelsButton() {
+  if (!screen.queryByRole("button", { name: "Show detailed labels" }))
+    fireEvent.click(screen.getByRole("button", { name: "Display options" }));
+  return screen.getByRole("button", { name: "Show detailed labels" });
+}
+
 function renderMap(floorNumber = 1) {
   return renderWithIntl(
     <FloorMap {...floorMapDemo(false, false)} floorNumber={floorNumber} />,
@@ -22,6 +28,40 @@ function renderMap(floorNumber = 1) {
 }
 
 describe("floor location labels", () => {
+  it("keeps secondary controls in one disclosure and can reveal physical pallet footprints", () => {
+    localStorage.setItem(
+      "storage-planner:floor-map:show-location-labels",
+      "false",
+    );
+    const view = renderMap();
+    expect(screen.getByRole("button", { name: "2D plan" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(
+      screen.queryByRole("button", { name: "Show detailed labels" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Rotate view" }),
+    ).not.toBeInTheDocument();
+    expect(view.container.querySelectorAll("[data-placement-id]")).toHaveLength(
+      0,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Display options" }));
+    const footprints = screen.getByRole("button", {
+      name: "Show pallet footprints",
+    });
+    fireEvent.click(footprints);
+    expect(footprints).toHaveAttribute("aria-pressed", "true");
+    expect(
+      view.container.querySelectorAll("[data-placement-id]").length,
+    ).toBeGreaterThan(0);
+    fireEvent.keyDown(footprints, { key: "Escape" });
+    expect(
+      screen.queryByRole("button", { name: "Show pallet footprints" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("fits the approved portrait layout in the shared viewport with names only and one toolbar", () => {
     const plan = fg1ApprovedPlan(),
       demo = floorMapDemo(false, false);
@@ -45,30 +85,38 @@ describe("floor location labels", () => {
     );
     const map = screen.getByRole("group", { name: "Interactive floor map" });
     expect(map).toHaveAttribute("preserveAspectRatio", "xMidYMid meet");
-    expect(map).toHaveClass("h-[min(40rem,65svh)]");
+    expect(map).toHaveClass(styles.svg!);
     expect(map.querySelectorAll("[data-floor-zone-name]")).toHaveLength(15);
     expect(
       map.querySelector('[data-floor-zone-code="FG1-L01"]'),
-    ).toHaveAttribute("fill", "#83a8b1");
+    ).toHaveAttribute("fill", "var(--plan-empty)");
     expect(
       map.querySelector('[data-reserved-kind="AISLE"] > polygon'),
     ).toHaveAttribute("fill", "#ffb68e");
     expect(
       [...map.querySelectorAll("[data-floor-zone-name]")]
-        .map((e) => e.textContent)
+        .map((e) => e.firstChild?.textContent)
         .sort(),
-    ).toEqual(plan.cells.map((c) => c.code).sort());
+    ).toEqual(plan.cells.map((c) => c.code.split("-").at(-1)).sort());
     expect(map.querySelectorAll("[data-floor-callout]")).toHaveLength(0);
     expect(screen.getAllByRole("button", { name: "2D plan" })).toHaveLength(1);
     expect(screen.getAllByRole("button", { name: "3D view" })).toHaveLength(1);
-    const polygon = (code: string) =>
-      result.container
-        .querySelector(`[data-zone-id="${code}"] polygon`)!
-        .getAttribute("points")!
-        .split(" ")
-        .map((p) => p.split(",").map(Number));
-    const left = polygon("FG1-L05"),
-      right = polygon("FG1-R10");
+    const bounds = (code: string) => {
+      const face = result.container.querySelector(
+        `[data-zone-id="${code}"] [data-zone-face="plan"]`,
+      )!;
+      const x = Number(face.getAttribute("x"));
+      const y = Number(face.getAttribute("y"));
+      const width = Number(face.getAttribute("width"));
+      const height = Number(face.getAttribute("height"));
+      return [
+        [x, y],
+        [x + width, y],
+        [x + width, y + height],
+      ];
+    };
+    const left = bounds("FG1-L05"),
+      right = bounds("FG1-R10");
     expect(left[2]![1]).toBeCloseTo(right[2]![1]!, 8);
     const sx = (left[1]![0]! - left[0]![0]!) / 2870;
     const sy = (left[2]![1]! - left[1]![1]!) / 1450;
@@ -126,7 +174,7 @@ describe("floor location labels", () => {
     );
     expect(
       view.container.querySelector('[data-floor-zone-code="PD-L12-13"]'),
-    ).toHaveAttribute("fill", "#83a8b1");
+    ).toHaveAttribute("fill", "var(--plan-empty)");
     expect(polygons[0]).toHaveAttribute("fill", "#ffb68e");
     const points = (e: Element) =>
       e
@@ -256,9 +304,7 @@ describe("floor location labels", () => {
       expect(view.container).toHaveTextContent(
         "15 storage positions in 1 group",
       );
-      fireEvent.click(
-        screen.getByRole("button", { name: "Show detailed labels" }),
-      );
+      fireEvent.click(detailedLabelsButton());
       expect(
         [...map.querySelectorAll("text")].some(
           (label) => label.textContent === `${prefix}-L1`,
@@ -292,9 +338,7 @@ describe("floor location labels", () => {
       expect(
         screen.queryByRole("region", { name: `Position plan · ${prefix}-L1` }),
       ).not.toBeInTheDocument();
-      fireEvent.click(
-        screen.getByRole("button", { name: "Show detailed labels" }),
-      );
+      fireEvent.click(detailedLabelsButton());
     },
   );
 
@@ -343,9 +387,7 @@ describe("floor location labels", () => {
         ?.split(",")[1],
     );
     expect(Number(groupMarker?.getAttribute("y"))).toBeGreaterThan(cellTop);
-    fireEvent.click(
-      screen.getByRole("button", { name: "Show detailed labels" }),
-    );
+    fireEvent.click(detailedLabelsButton());
     expect(map.querySelector('[data-group-code="F1-L26"]')).toHaveTextContent(
       "26",
     );
@@ -382,9 +424,7 @@ describe("floor location labels", () => {
       { locale: "en", workspace: false },
     );
     const map = screen.getByRole("group", { name: "Interactive floor map" });
-    fireEvent.click(
-      screen.getByRole("button", { name: "Show detailed labels" }),
-    );
+    fireEvent.click(detailedLabelsButton());
     for (let click = 0; click < 4; click += 1)
       fireEvent.click(screen.getByRole("button", { name: "Zoom in" }));
     expect(
@@ -448,7 +488,7 @@ describe("floor location labels", () => {
   it("starts with detailed labels hidden and remembers an enabled preference across floors", () => {
     const first = renderMap();
     expect(first.container.querySelector("[data-floor-callout]")).toBeNull();
-    const toggle = screen.getByRole("button", { name: "Show detailed labels" });
+    const toggle = detailedLabelsButton();
     expect(toggle).toHaveAttribute("aria-pressed", "false");
     fireEvent.click(toggle);
     expect(toggle).toHaveAttribute("aria-pressed", "true");
@@ -468,15 +508,11 @@ describe("floor location labels", () => {
     first.unmount();
 
     const second = renderMap(2);
-    expect(
-      screen.getByRole("button", { name: "Show detailed labels" }),
-    ).toHaveAttribute("aria-pressed", "true");
+    expect(detailedLabelsButton()).toHaveAttribute("aria-pressed", "true");
     expect(
       second.container.querySelector("[data-floor-callout]"),
     ).not.toBeNull();
-    fireEvent.click(
-      screen.getByRole("button", { name: "Show detailed labels" }),
-    );
+    fireEvent.click(detailedLabelsButton());
     expect(second.container.querySelector("[data-floor-callout]")).toBeNull();
   });
 
@@ -508,12 +544,12 @@ describe("floor location labels", () => {
       within(inspector).getByText(/Total occupied space is unknown/),
     ).toBeInTheDocument();
     expect(view.container.querySelector("[data-floor-callout]")).toBeNull();
-    fireEvent.click(
-      screen.getByRole("button", { name: "Show detailed labels" }),
+    fireEvent.click(detailedLabelsButton());
+    const location = view.container.querySelector(
+      `[data-map-zone-id="${zone.zoneId}"]`,
     );
-    expect(
-      view.container.querySelector("[data-floor-callout]")?.parentElement,
-    ).toHaveTextContent("2 units");
+    expect(location).toHaveTextContent("2 units");
+    expect(location?.querySelector("tspan")).not.toHaveTextContent("Empty");
   });
 
   it("searches from the location toolbar without opening details while typing", () => {
@@ -596,7 +632,7 @@ describe("floor map interaction", () => {
     expect(location).toHaveStyle({ outline: "none" });
     expect(location.querySelector("[data-pd-cell-code]")).toHaveAttribute(
       "stroke",
-      sceneColors.selected,
+      "var(--plan-selected-border)",
     );
     expect(location.querySelector("[data-pd-cell-code]")).toHaveAttribute(
       "stroke-width",
@@ -604,14 +640,14 @@ describe("floor map interaction", () => {
     );
     expect(location.querySelector("[data-pd-cell-code]")).toHaveAttribute(
       "fill",
-      "color-mix(in srgb, var(--token-link) 25%, #83a8b1)",
+      "var(--plan-selected)",
     );
     expect(location.querySelector("[data-pd-cell-code]")).not.toHaveClass(
       "group-focus-visible:stroke-text",
     );
   });
 
-  it("switches a loaded dense floor to plan view while preserving a manual view choice", () => {
+  it("starts in plan view while preserving a manual view choice as dense floor data loads", () => {
     const data = floorMapDemo(false, false);
     const zones = Array.from({ length: 10 }, (_, index) => ({
       ...data.zones[0]!,
@@ -625,7 +661,7 @@ describe("floor map interaction", () => {
       workspace: false,
       preserveProviders: true,
     });
-    expect(screen.getByRole("button", { name: "3D view" })).toHaveAttribute(
+    expect(screen.getByRole("button", { name: "2D plan" })).toHaveAttribute(
       "aria-pressed",
       "true",
     );

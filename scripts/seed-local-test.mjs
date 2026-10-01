@@ -28,6 +28,7 @@ if (process.env.ALLOW_LOCAL_TEST_SEED !== "true") {
 }
 
 const paginationProfile = process.argv.includes("--pagination");
+const storageUiProfile = process.argv.includes("--storage-ui");
 const confirmation = "SEED_DEMO_ANNEX_REALISTIC_2026_09";
 const clerkUserId =
   process.env.LOCAL_TEST_CLERK_USER_ID ?? "user_3JXrAsAOLBWzV5TTHPQjOX5WaQd";
@@ -99,6 +100,13 @@ if (paginationProfile) {
       );
   }
 }
+const storageUi = storageUiProfile
+  ? run("staging/storageLayoutUiDemo:seed", {
+      warehouseId: bootstrap.warehouseId,
+      actorUserId: bootstrap.userId,
+      confirmation: "LOCAL_STORAGE_LAYOUT_UI_B_V1",
+    })
+  : null;
 const jobScans = run("staging/jobScanDemo:seed", {
   warehouseId: bootstrap.warehouseId,
   actorUserId: bootstrap.userId,
@@ -156,6 +164,7 @@ const fixture = {
       "DEMO-R26-PLACE-01",
     ],
   },
+  storageUiProfile: storageUi,
   paginationProfile: paginationProfile
     ? {
         products: 121,

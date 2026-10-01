@@ -9,6 +9,7 @@ import {
   List,
   X,
 } from "lucide-react";
+import { useStorageLayoutMobile } from "./useStorageLayoutMobile";
 import { useLocale } from "next-intl";
 import { useId, useMemo, useState, useEffect, type ReactNode } from "react";
 
@@ -51,6 +52,7 @@ export function FloorLocationTable({
   readonly groupedPositions?: boolean;
 }) {
   const locale = useLocale();
+  const mobile = useStorageLayoutMobile();
   const thai = locale === "th";
   const filtersId = useId();
   const [localSearch, setLocalSearch] = useState("");
@@ -174,8 +176,20 @@ export function FloorLocationTable({
             >
               <SlidersHorizontal aria-hidden="true" />
             </IconButton>
+            {actions}
+          </>
+        }
+      />
+      {filtersOpen || filters.length ? (
+        <div
+          id={filtersId}
+          role="group"
+          aria-label={labels.filters}
+          className="flex flex-wrap gap-2"
+        >
+          {filtersOpen && (
             <div
-              className="flex gap-1"
+              className="hidden gap-1 min-[581px]:flex"
               role="group"
               aria-label={thai ? "รูปแบบรายการ" : "Location view"}
             >
@@ -198,17 +212,7 @@ export function FloorLocationTable({
                 <LayoutGrid aria-hidden="true" />
               </IconButton>
             </div>
-            {actions}
-          </>
-        }
-      />
-      {filtersOpen || filters.length ? (
-        <div
-          id={filtersId}
-          role="group"
-          aria-label={labels.filters}
-          className="flex flex-wrap gap-2"
-        >
+          )}
           {(
             [
               ["empty", labels.vacant],
@@ -253,7 +257,94 @@ export function FloorLocationTable({
           ) : null}
         </div>
       ) : null}
-      {layout === "grid" ? (
+      {mobile ? (
+        <>
+          <div className="flex items-center gap-2">
+            <label className="flex items-center gap-2 text-sm text-muted">
+              {labels.sort}
+              <SelectControl
+                label={labels.sort}
+                value={sort.key}
+                options={[
+                  { value: "code", label: labels.code },
+                  { value: "label", label: labels.label },
+                  { value: "units", label: labels.units },
+                ]}
+                placeholder={labels.sort}
+                emptyLabel={labels.sort}
+                onValueChange={(key) => {
+                  if (key === "code" || key === "label" || key === "units")
+                    setSort({ key, descending: sort.descending });
+                }}
+              />
+            </label>
+            <IconButton
+              type="button"
+              variant="ghost"
+              label={labels.direction}
+              onClick={() => setSort({ ...sort, descending: !sort.descending })}
+            >
+              {sort.descending ? (
+                <ArrowDown aria-hidden="true" />
+              ) : (
+                <ArrowUp aria-hidden="true" />
+              )}
+            </IconButton>
+          </div>
+          <div
+            role="list"
+            aria-label={labels.title}
+            className="divide-y divide-border overflow-hidden rounded-lg border border-border"
+          >
+            {visible.map(({ zone, counts }) => (
+              <div role="listitem" key={zone.zoneId}>
+                <button
+                  type="button"
+                  aria-pressed={selectedId === zone.zoneId}
+                  aria-label={`${thai ? "เลือกจุดจัดเก็บ" : "Select location"} ${zone.code} · ${zone.label}`}
+                  onClick={() => onSelect(zone.zoneId)}
+                  className="grid min-h-16 w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 bg-surface p-3 text-left hover:bg-raised aria-pressed:bg-selected"
+                >
+                  <span className="min-w-0">
+                    <span className="block text-sm font-semibold break-words">
+                      {zone.code}
+                    </span>
+                    <span className="block text-xs break-words text-muted">
+                      {zone.label}
+                    </span>
+                    <span className="mt-1 block text-xs text-muted">
+                      {number.format(zone.widthMm / 1000)} ×{" "}
+                      {number.format(zone.depthMm / 1000)} ×{" "}
+                      {number.format(zone.maxStackHeightMm / 1000)} m
+                    </span>
+                  </span>
+                  <span className="text-right text-xs">
+                    <span className="block rounded-md bg-raised px-2 py-1">
+                      {counts.incomplete
+                        ? labels.unmeasured
+                        : counts.units
+                          ? labels.stored
+                          : labels.vacant}
+                    </span>
+                    <span className="mt-1 block text-muted">
+                      {counts.totalIncomplete ? "≥ " : ""}
+                      {number.format(counts.units)} {labels.units}
+                    </span>
+                    {counts.reserved > 0 && (
+                      <span className="mt-1 block text-muted">
+                        {labels.reserved}: {number.format(counts.reserved)}
+                      </span>
+                    )}
+                  </span>
+                </button>
+              </div>
+            ))}
+            {!visible.length && (
+              <p className="p-6 text-center text-muted">{labels.empty}</p>
+            )}
+          </div>
+        </>
+      ) : layout === "grid" ? (
         <>
           <div className="flex items-center gap-2">
             <label className="flex items-center gap-2 text-sm text-muted">
