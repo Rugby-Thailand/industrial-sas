@@ -38,6 +38,7 @@
   --token-border: var(--plan-border);
   --token-border-strong: var(--plan-wall);
   --token-surface: var(--plan-panel);
+  --token-overlay: var(--plan-panel);
   --token-canvas: var(--plan-panel);
   --token-raised: var(--plan-panel-raised);
   --ring: var(--plan-link);
@@ -45,6 +46,8 @@
   --accent-foreground: var(--plan-link);
   --background: var(--plan-panel);
   --card: var(--plan-panel);
+  --popover: var(--plan-panel);
+  --popover-foreground: var(--plan-text);
   --foreground: var(--plan-text);
   --muted-foreground: var(--plan-muted);
   color: var(--plan-text);

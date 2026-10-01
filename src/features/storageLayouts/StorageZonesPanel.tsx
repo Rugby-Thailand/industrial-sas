@@ -2,6 +2,7 @@
 import { updateBrowserQuery } from "@/lib/browser/history";
 import { useWorkspaceQuery, workspaceStateEvent } from "./useWorkspaceQuery";
 
+import { useStorageLayoutMobile } from "@/components/storageLayouts/useStorageLayoutMobile";
 import canvasStyles from "@/components/storageLayouts/FloorMap.module.css";
 import { createPortal } from "react-dom";
 import { LocationDetailsHost } from "@/components/storageLayouts/LocationDetailsHost";
@@ -121,6 +122,7 @@ export function StorageZonesPanel({
 }) {
   const t = useTranslations("StorageLayouts");
   const detailsHost = useContext(LocationDetailsHost);
+  const mobile = useStorageLayoutMobile();
   const [search, setSearch] = useState("");
   const searchId = useId();
   const visibleZones = useMemo(() => {
@@ -1050,16 +1052,18 @@ export function StorageZonesPanel({
               <span className={canvasStyles.eyebrow}>
                 {t("canvasSelectedLocation")}
               </span>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                aria-label={t("mapClearSelection")}
-                title={t("mapClearSelection")}
-                onClick={onSelectionClose}
-              >
-                <X aria-hidden="true" />
-              </Button>
+              {!mobile && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  aria-label={t("mapClearSelection")}
+                  title={t("mapClearSelection")}
+                  onClick={onSelectionClose}
+                >
+                  <X aria-hidden="true" />
+                </Button>
+              )}
             </div>
             {blocked ? (
               <Notice

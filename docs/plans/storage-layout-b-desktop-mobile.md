@@ -223,3 +223,10 @@ Prototype เป็นหลักฐาน design ที่แก้ได้�
 - ข้อความรองบน occupied: **6.72:1 light / 5.83:1 dark**, selected text **12.52:1**, empty boundary เทียบกับ floor **3.86:1 / 6.18:1**. คง labels/counts, selection stroke และ reserved hatch เพื่อสื่อสถานะร่วมกับสี. สี reserved/imported ที่ผู้ใช้บันทึกยังคงเดิม; aisle text ใช้สีข้อความ semantic เพื่ออ่านชัด.
 - ตรวจ computed SVG styles จากแอปจริงทั้ง light/dark ยืนยัน fill/stroke/text ตรง palette, selection และ inspector ยังตรงกัน และไม่มี horizontal overflow ที่ viewport 1169 × 731 CSS px. ภาพจริง: [Dark](../../output/storage-layout-b-ui/contrast-desktop-dark.png), [Light](../../output/storage-layout-b-ui/contrast-desktop-light.png).
 - Typecheck, lint, production build, relevant **79 tests** และ a11y **20 tests** ผ่าน. ผล contrast นี้ครอบคลุมคู่สี semantic ที่รายงาน ไม่ใช่การรับรอง WCAG ทั้งแอป. Mobile/tablet browser matrix ที่ค้างก่อนหน้ายังต้องตรวจตาม release checklist.
+
+### Audit ก่อน merge — 2026-10-01
+
+- แยกงาน Layout B ไปยัง worktree บน `main` ล่าสุด โดยเก็บงาน import/warehouse เดิมใน working tree ไว้. รักษา renderer geometry และ imported-area/keyboard interactions จาก `main`.
+- แก้ QR หลักใน compact details, touch target, mobile fit, ปุ่มปิด sheet ที่ซ้ำ และสี overlay.
+- Browser matrix ที่ค้างก่อนหน้านี้ตรวจครบแล้วใน Chromium: 360, 390, 428, 768, 1024, 1280, 1440px × Thai/English × light/dark ไม่มี horizontal overflow. Flow map/list/sheet/editor และ focus ผ่าน. Actual keyboard/camera บนอุปกรณ์จริงยังต้อง device check.
+- Full suite 123 files / 1049 tests และ final relevant UI 81 tests ผ่าน. Typecheck/lint/build/audit ผ่าน; Next.js patch เป็น16.3.6. ดู [audit และภาพจริง](storage-layout-b-audit.md).

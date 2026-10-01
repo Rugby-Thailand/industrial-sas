@@ -660,7 +660,17 @@ export function FloorMap(props: FloorMapProps) {
           interaction.current = document.activeElement;
         }}
         onKeyDown={(event) => {
-          if (event.key === "Escape" && !sheetOpen) {
+          // Dialog keyboard events can bubble through React portals after Radix
+          // closes the dialog. Only a canvas Escape should clear selection.
+          const fromDialog =
+            event.target instanceof Element &&
+            event.target.closest('[role="dialog"]') !== null;
+          if (
+            event.key === "Escape" &&
+            !sheetOpen &&
+            !fromDialog &&
+            !event.defaultPrevented
+          ) {
             clearSelection();
           }
         }}
@@ -1066,6 +1076,9 @@ function MapDrawing({
     moved: boolean;
   }>(null);
   const [dragging, setDragging] = useState(false);
+  const mobile = useStorageLayoutMobile();
+  const frameWidth = mobile ? 400 : 920;
+  const frameCenterX = frameWidth / 2;
   const rawPoint = (x: number, y: number, z = 0) => {
     const dx = x - props.widthMm / 2,
       dy = y - props.depthMm / 2;
@@ -1126,13 +1139,15 @@ function MapDrawing({
     minY = Math.min(...ys),
     maxY = Math.max(...ys);
   const scale = Math.min(
-    (compactPlan ? 800 : 710) / Math.max(maxX - minX, 1),
-    (compactPlan ? 375 : 440) / Math.max(maxY - minY, 1),
+    (mobile ? frameWidth - 80 : compactPlan ? 800 : 710) /
+      Math.max(maxX - minX, 1),
+    (mobile ? (compactPlan ? 400 : 540) : compactPlan ? 375 : 440) /
+      Math.max(maxY - minY, 1),
   );
   const point = (x: number, y: number, z = 0) => {
     const p = rawPoint(x, y, z);
     return {
-      x: 460 + (p.x - (minX + maxX) / 2) * scale,
+      x: frameCenterX + (p.x - (minX + maxX) / 2) * scale,
       y: 320 + (p.y - (minY + maxY) / 2) * scale,
     };
   };
@@ -1238,7 +1253,7 @@ function MapDrawing({
     return { zone, anchor, x, y, unitCount };
   });
   const scaleBarMm = 5000 / 2 ** Math.ceil(Math.log2(zoom));
-  const scaleBarRight = 460 + ((maxX - minX) * scale) / 2 + 35;
+  const scaleBarRight = frameCenterX + ((maxX - minX) * scale) / 2 + 35;
   const scaleBarY = 320 + ((maxY - minY) * scale) / 2 + 38;
   const selected = props.zones.find((z) => z.zoneId === selectedId);
   const selectedArea =
@@ -1250,8 +1265,8 @@ function MapDrawing({
   );
   const target = selected ?? selectedArea;
   const frame = compactPlan
-    ? { x: 0, y: 80, width: 920, height: 500 }
-    : { x: 0, y: 0, width: 920, height: 660 };
+    ? { x: 0, y: 80, width: frameWidth, height: 500 }
+    : { x: 0, y: 0, width: frameWidth, height: 660 };
   const pannable = zoom > 1;
   // Keep the floor covering the frame (or fully inside it when smaller).
   const clampAxis = (value: number, min: number, max: number, half: number) => {
@@ -1262,8 +1277,8 @@ function MapDrawing({
   const clampFocus = (p: { x: number; y: number }) => ({
     x: clampAxis(
       p.x,
-      460 - ((maxX - minX) / 2) * scale,
-      460 + ((maxX - minX) / 2) * scale,
+      frameCenterX - ((maxX - minX) / 2) * scale,
+      frameCenterX + ((maxX - minX) / 2) * scale,
       frame.width / 2,
     ),
     y: clampAxis(
@@ -1274,7 +1289,7 @@ function MapDrawing({
     ),
   });
   const center = !pannable
-    ? { x: 460, y: 330 }
+    ? { x: frameCenterX, y: 330 }
     : clampFocus(
         focus ??
           (target
@@ -1282,7 +1297,7 @@ function MapDrawing({
                 target.xMm + target.widthMm / 2,
                 target.yMm + target.depthMm / 2,
               )
-            : { x: 460, y: 330 }),
+            : { x: frameCenterX, y: 330 }),
       );
   const endDrag = (e: PointerEvent<SVGSVGElement>) => {
     if (drag.current?.pointerId !== e.pointerId) return;
@@ -1346,7 +1361,7 @@ function MapDrawing({
     >
       <desc>{t("mapKeyboardHint")}</desc>
       <g
-        transform={`translate(${460 - center.x * zoom} ${330 - center.y * zoom}) scale(${zoom})`}
+        transform={`translate(${frameCenterX - center.x * zoom} ${330 - center.y * zoom}) scale(${zoom})`}
       >
         {reference && (
           <polygon

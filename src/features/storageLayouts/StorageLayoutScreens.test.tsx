@@ -1686,13 +1686,15 @@ describe("searchable storage spots", () => {
       screen.getByRole("button", { name: "Add storage stack" }),
     ).toBeEnabled();
   });
-  it("keeps the zone QR scannable in compact details without child positions", () => {
+  it("keeps the zone QR scannable in compact details without child positions", async () => {
     const zone = { ...occupiedTestZone(), positions: [] };
     show([zone], "en", true);
     fireEvent.click(screen.getByText("QR and position labels (1)"));
-    expect(
-      screen.getByRole("img", { name: `QR for ${zone.code}` }),
-    ).toBeVisible();
+    await waitFor(() =>
+      expect(
+        screen.getByRole("img", { name: `QR code for zone ${zone.code}` }),
+      ).toBeVisible(),
+    );
   });
   it("removes duplicate default QR labels but retains and searches distinct positions", () => {
     const zone = occupiedTestZone();
