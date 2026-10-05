@@ -10,7 +10,9 @@ import { appendDomainAudit } from "../lib/masterDataStore";
 import {
   fg1ApprovedPlan,
   fg1PreviousPlan,
+  fg1RearPlan,
   FG1_PREVIOUS_REVISION,
+  FG1_REAR_REVISION,
   FG1_REVISION,
 } from "../model/storageLayout/fg1ApprovedPlan";
 
@@ -387,7 +389,7 @@ export const apply = mutationWithOrg({
         beforeDigest: args.expectedDigest,
         importedAt: now,
         coordinateBasis: "APPROVED_LAYOUT_ENVELOPE",
-        rightAisleWidthEstimated: true,
+        rightAisleWidthEstimated: false,
         obstaclePositionEstimated: true,
       },
     });
@@ -498,7 +500,7 @@ const blockShape = (block: {
 export const correctRearAisle = mutationWithOrg({
   args: {
     ...targetArgs,
-    revision: v.literal(FG1_REVISION),
+    revision: v.literal(FG1_REAR_REVISION),
     expectedDigest: v.string(),
   },
   returns: v.any(),
@@ -520,7 +522,7 @@ export const correctRearAisle = mutationWithOrg({
       throw new Error("FG1_VERSION_CONFLICT");
 
     const previous = fg1PreviousPlan();
-    const plan = fg1ApprovedPlan();
+    const plan = fg1RearPlan();
     if (
       before.building.widthMm !== previous.widthMm ||
       before.building.depthMm !== previous.depthMm ||
@@ -605,7 +607,7 @@ export const correctRearAisle = mutationWithOrg({
       ...fields,
       version: before.building.version + 1,
       fg1Import: {
-        revision: FG1_REVISION,
+        revision: FG1_REAR_REVISION,
         beforeDigest: args.expectedDigest,
         importedAt: now,
         coordinateBasis: "APPROVED_LAYOUT_ENVELOPE",
@@ -648,6 +650,210 @@ export const correctRearAisle = mutationWithOrg({
           {
             field: "fg1Import.revision",
             from: FG1_PREVIOUS_REVISION,
+            to: FG1_REAR_REVISION,
+          },
+          {
+            field: "snapshotDigest",
+            from: args.expectedDigest,
+            to: afterDigest,
+          },
+        ],
+      },
+    );
+    return {
+      revision: FG1_REAR_REVISION,
+      beforeDigest: args.expectedDigest,
+      afterDigest,
+      counts: { updated, inserted, blocks: after.blocks.length },
+    };
+  },
+});
+
+/** Expands only FG1-R04–R08 to the approved 7.84 m wall edge. */
+export const expandRearCells = mutationWithOrg({
+  args: {
+    ...targetArgs,
+    revision: v.literal(FG1_REVISION),
+    expectedDigest: v.string(),
+  },
+  returns: v.any(),
+  permissionCode: "masterData.storageLayout.manage",
+  target: { table: "storageBuildings", id: (a) => a.buildingId },
+  warehouseId: (a) => a.warehouseId,
+  handler: async (ctx, args) => {
+    const before = await snapshot(ctx, args);
+    if (before.building.fg1Import?.revision !== FG1_REAR_REVISION)
+      throw new Error("FG1_EXPANSION_REVISION_MISMATCH");
+    if (
+      before.placements.length ||
+      before.moves.length ||
+      before.assignments.length ||
+      before.jobScans.length
+    )
+      throw new Error("FG1_EXPANSION_OCCUPIED_OR_ACTIVE");
+    if ((await digest(before)) !== args.expectedDigest)
+      throw new Error("FG1_VERSION_CONFLICT");
+
+    const previous = fg1RearPlan();
+    const plan = fg1ApprovedPlan();
+    if (
+      before.building.widthMm !== previous.widthMm ||
+      before.building.depthMm !== previous.depthMm ||
+      before.building.grossAreaSqMm !== previous.grossAreaSqMm ||
+      before.building.reservedAreaSqMm !== previous.reservedAreaSqMm ||
+      before.building.usableAreaSqMm !== previous.usableAreaSqMm ||
+      before.floors.length !== 1 ||
+      before.floors[0]!.reservedAreaSqMm !== previous.reservedAreaSqMm ||
+      before.floors[0]!.usableAreaSqMm !== previous.usableAreaSqMm ||
+      before.blocks.length !== previous.blocks.length ||
+      previous.blocks.some(
+        (expected) =>
+          before.blocks.filter(
+            (actual) => blockShape(actual) === blockShape(expected),
+          ).length !== 1,
+      ) ||
+      previous.cells.some((expected) => {
+        const zone = before.zones.find((z) => z.code === expected.code);
+        const position = before.positions.find((p) => p.zoneId === zone?._id);
+        return (
+          !zone ||
+          !position ||
+          [zone, position].some(
+            (row) =>
+              row.xMm !== expected.xMm ||
+              row.yMm !== expected.yMm ||
+              row.widthMm !== expected.widthMm ||
+              row.depthMm !== expected.depthMm,
+          )
+        );
+      })
+    )
+      throw new Error("FG1_EXPANSION_SOURCE_MISMATCH");
+    const now = Date.now();
+    const userId = ctx.tenant.actor._id;
+    const db = ctx.tenantDb;
+    let changedCells = 0;
+    for (const cell of plan.cells) {
+      const zone = before.zones.find((row) => row.code === cell.code)!;
+      const position = before.positions.find((row) => row.zoneId === zone._id)!;
+      if (zone.widthMm === cell.widthMm) continue;
+      if (!/^FG1-R0[4-8]$/.test(cell.code) || cell.widthMm !== 7840)
+        throw new Error("FG1_EXPANSION_UNEXPECTED_CELL");
+      await db.patch("storageZones", zone._id, {
+        widthMm: cell.widthMm,
+        updatedAt: now,
+        updatedByUserId: userId,
+      });
+      await db.patch("storagePositions", position._id, {
+        widthMm: cell.widthMm,
+        updatedAt: now,
+        updatedByUserId: userId,
+      });
+      changedCells++;
+    }
+    if (changedCells !== 5)
+      throw new Error("FG1_EXPANSION_CELL_COUNT_MISMATCH");
+
+    const keepLabels = new Set(plan.blocks.map((block) => block.label));
+    let widenedAisles = 0;
+    let removedRearBlocks = 0;
+    for (const old of before.blocks) {
+      const replacement = plan.blocks.find(
+        (block) => block.label === old.label,
+      );
+      if (!replacement) {
+        if (
+          !old.label.startsWith("ขอบหลัง ") &&
+          !old.label.startsWith("ขอบหลังระหว่าง ")
+        )
+          throw new Error("FG1_EXPANSION_UNEXPECTED_BLOCK");
+        await db.delete("storageFloorReservedBlocks", old._id);
+        removedRearBlocks++;
+      } else if (blockShape(old) !== blockShape(replacement)) {
+        if (!replacement.label.startsWith("ทางเดิน FG1-R"))
+          throw new Error("FG1_EXPANSION_UNEXPECTED_AISLE");
+        await db.patch("storageFloorReservedBlocks", old._id, {
+          ...replacement,
+          updatedAt: now,
+        });
+        widenedAisles++;
+      }
+    }
+    if (
+      keepLabels.size !== plan.blocks.length ||
+      removedRearBlocks !== 9 ||
+      widenedAisles !== 5
+    )
+      throw new Error("FG1_EXPANSION_BLOCK_COUNT_MISMATCH");
+
+    const fields = {
+      reservedAreaSqMm: plan.reservedAreaSqMm,
+      usableAreaSqMm: plan.usableAreaSqMm,
+      updatedAt: now,
+      updatedByUserId: userId,
+    };
+    await db.patch("storageBuildings", before.building._id, {
+      ...fields,
+      version: before.building.version + 1,
+      fg1Import: {
+        revision: FG1_REVISION,
+        beforeDigest: args.expectedDigest,
+        importedAt: now,
+        coordinateBasis: "APPROVED_LAYOUT_ENVELOPE",
+        rightAisleWidthEstimated: false,
+        obstaclePositionEstimated:
+          before.building.fg1Import.obstaclePositionEstimated,
+      },
+    });
+    await db.patch("storageFloors", before.floors[0]!._id, {
+      ...fields,
+      version: before.floors[0]!.version + 1,
+    });
+    const after = await snapshot(ctx, args);
+    if (
+      after.blocks.length !== plan.blocks.length ||
+      plan.blocks.some(
+        (expected) =>
+          after.blocks.filter(
+            (actual) => blockShape(actual) === blockShape(expected),
+          ).length !== 1,
+      ) ||
+      plan.cells.some((expected) => {
+        const zone = after.zones.find((z) => z.code === expected.code);
+        const position = after.positions.find((p) => p.zoneId === zone?._id);
+        return (
+          !zone ||
+          !position ||
+          [zone, position].some(
+            (row) =>
+              row.xMm !== expected.xMm ||
+              row.yMm !== expected.yMm ||
+              row.widthMm !== expected.widthMm ||
+              row.depthMm !== expected.depthMm,
+          )
+        );
+      })
+    )
+      throw new Error("FG1_EXPANSION_RESULT_MISMATCH");
+    const afterDigest = await digest(after);
+    await appendDomainAudit(
+      {
+        tenantDb: db,
+        table: "storageBuildings",
+        operation: "storageLayout.fg1ExpandRearCells",
+        requestId: ctx.requestId,
+        permissionCode: "masterData.storageLayout.manage",
+        actorUserId: userId,
+        warehouseId: args.warehouseId,
+        now,
+      },
+      {
+        entityTable: "storageBuildings",
+        entityId: args.buildingId,
+        changes: [
+          {
+            field: "fg1Import.revision",
+            from: FG1_REAR_REVISION,
             to: FG1_REVISION,
           },
           {
@@ -662,7 +868,12 @@ export const correctRearAisle = mutationWithOrg({
       revision: FG1_REVISION,
       beforeDigest: args.expectedDigest,
       afterDigest,
-      counts: { updated, inserted, blocks: after.blocks.length },
+      counts: {
+        changedCells,
+        widenedAisles,
+        removedRearBlocks,
+        blocks: after.blocks.length,
+      },
     };
   },
 });
@@ -711,7 +922,21 @@ export const rollback = mutationWithOrg({
     await restore("storageFloors", backup.floors);
     await restore("storageZones", backup.zones);
     await restore("storagePositions", backup.positions);
-    await restore("storageFloorReservedBlocks", backup.blocks);
+    const currentBlockIds = new Set(current.blocks.map((block) => block._id));
+    let recreatedBlocks = 0;
+    for (const row of backup.blocks) {
+      const { _id, _creationTime, orgId, ...fields } = row;
+      void _creationTime;
+      void orgId;
+      if (currentBlockIds.has(_id)) {
+        await ctx.tenantDb.replace("storageFloorReservedBlocks", _id, fields);
+      } else {
+        // Deleted reserved strips cannot be restored with their former Convex ID.
+        // Recreate only after the authenticated snapshot and no-activity checks.
+        await ctx.tenantDb.insert("storageFloorReservedBlocks", fields);
+        recreatedBlocks++;
+      }
+    }
     const oldBlockIds = new Set(backup.blocks.map((b) => b._id));
     for (const block of current.blocks)
       if (!oldBlockIds.has(block._id))
@@ -738,6 +963,10 @@ export const rollback = mutationWithOrg({
         ],
       },
     );
-    return { restored: true, digest: await digest(await snapshot(ctx, args)) };
+    return {
+      restored: true,
+      recreatedBlocks,
+      digest: await digest(await snapshot(ctx, args)),
+    };
   },
 });

@@ -4,13 +4,16 @@ import type { DataModel } from "../../convex/schema";
 import {
   apply,
   correctRearAisle,
+  expandRearCells,
   preflight,
   rollback,
 } from "../../convex/storageLayouts/fg1Import";
 import {
   fg1ApprovedPlan,
   fg1PreviousPlan,
+  fg1RearPlan,
   FG1_PREVIOUS_REVISION,
+  FG1_REAR_REVISION,
   FG1_REVISION,
 } from "../../convex/model/storageLayout/fg1ApprovedPlan";
 import {
@@ -176,32 +179,49 @@ async function setupPreviousFg1() {
     expectedDigest: initial.digest,
   });
   const oldPlan = fg1PreviousPlan();
-  const newPlan = fg1ApprovedPlan();
+  const newPlan = fg1RearPlan();
   await w.world.t.run(async (ctx) => {
     const building = await ctx.db.get("storageBuildings", w.target.buildingId);
     if (!building?.fg1Import) throw new Error("Missing FG1 import");
     await ctx.db.patch("storageBuildings", building._id, {
+      reservedAreaSqMm: oldPlan.reservedAreaSqMm,
+      usableAreaSqMm: oldPlan.usableAreaSqMm,
       fg1Import: {
         ...building.fg1Import,
         revision: FG1_PREVIOUS_REVISION,
         rightAisleWidthEstimated: true,
       },
     });
-    const current = await ctx.db.query("storageFloorReservedBlocks").collect();
-    for (const block of current) {
-      if (block.label.startsWith("ขอบหลังระหว่าง ")) {
-        await ctx.db.delete("storageFloorReservedBlocks", block._id);
-        continue;
-      }
-      const rearCode = block.label.match(/^ขอบหลัง (FG1-R\d+) ·/)?.[1];
-      const old = oldPlan.blocks.find(
-        (candidate) =>
-          candidate.label ===
-          (rearCode ? `ทางเดินริมขวา ${rearCode} · ขนาดประมาณ` : block.label),
-      );
-      if (!old) throw new Error(`Missing old block ${block.label}`);
-      await ctx.db.patch("storageFloorReservedBlocks", block._id, old);
+    const floor = (await ctx.db.query("storageFloors").collect())[0]!;
+    await ctx.db.patch("storageFloors", floor._id, {
+      reservedAreaSqMm: oldPlan.reservedAreaSqMm,
+      usableAreaSqMm: oldPlan.usableAreaSqMm,
+    });
+    for (const cell of oldPlan.cells) {
+      const zone = (await ctx.db.query("storageZones").collect()).find(
+        (z) => z.code === cell.code,
+      )!;
+      const position = (await ctx.db.query("storagePositions").collect()).find(
+        (p) => p.zoneId === zone._id,
+      )!;
+      await ctx.db.patch("storageZones", zone._id, { widthMm: cell.widthMm });
+      await ctx.db.patch("storagePositions", position._id, {
+        widthMm: cell.widthMm,
+      });
     }
+    const current = await ctx.db.query("storageFloorReservedBlocks").collect();
+    for (const block of current)
+      await ctx.db.delete("storageFloorReservedBlocks", block._id);
+    for (const block of oldPlan.blocks)
+      await ctx.db.insert("storageFloorReservedBlocks", {
+        ...block,
+        orgId: w.world.orgA,
+        warehouseId: w.target.warehouseId,
+        buildingId: w.target.buildingId,
+        floorId: floor._id,
+        createdAt: 1,
+        updatedAt: 1,
+      });
   });
   const before = await w.read();
   expect(before.backup.blocks).toHaveLength(oldPlan.blocks.length);
@@ -215,6 +235,16 @@ async function setupPreviousFg1() {
   ).toHaveLength(0);
   expect(newPlan.reservedAreaSqMm).toBe(oldPlan.reservedAreaSqMm);
   return { ...w, before };
+}
+
+async function setupRearReservedFg1() {
+  const w = await setupPreviousFg1();
+  await w.call(correctRearAisle, {
+    ...w.target,
+    revision: FG1_REAR_REVISION,
+    expectedDigest: w.before.digest,
+  });
+  return { ...w, before: await w.read() };
 }
 
 describe("FG1 guarded import", () => {
@@ -453,7 +483,7 @@ describe("FG1 rear aisle correction", () => {
       counts: { updated: number; inserted: number; blocks: number };
     }>(correctRearAisle, {
       ...w.target,
-      revision: FG1_REVISION,
+      revision: FG1_REAR_REVISION,
       expectedDigest: w.before.digest,
     });
     expect(result.counts).toEqual({ updated: 9, inserted: 4, blocks: 23 });
@@ -461,8 +491,8 @@ describe("FG1 rear aisle correction", () => {
     expect(after.digest).toBe(result.afterDigest);
     expect(after.backup.building).toMatchObject({
       version: w.before.backup.building.version + 1,
-      reservedAreaSqMm: fg1ApprovedPlan().reservedAreaSqMm,
-      usableAreaSqMm: fg1ApprovedPlan().usableAreaSqMm,
+      reservedAreaSqMm: fg1RearPlan().reservedAreaSqMm,
+      usableAreaSqMm: fg1RearPlan().usableAreaSqMm,
     });
     expect(after.backup.zones).toEqual(w.before.backup.zones);
     expect(after.backup.positions).toEqual(w.before.backup.positions);
@@ -489,7 +519,7 @@ describe("FG1 rear aisle correction", () => {
     await expect(
       w.call(correctRearAisle, {
         ...w.target,
-        revision: FG1_REVISION,
+        revision: FG1_REAR_REVISION,
         expectedDigest: w.before.digest,
       }),
     ).rejects.toThrow("INTERNAL_ERROR");
@@ -507,7 +537,7 @@ describe("FG1 rear aisle correction", () => {
     await expect(
       w.call(correctRearAisle, {
         ...w.target,
-        revision: FG1_REVISION,
+        revision: FG1_REAR_REVISION,
         expectedDigest: "stale",
       }),
     ).rejects.toThrow("INTERNAL_ERROR");
@@ -517,7 +547,7 @@ describe("FG1 rear aisle correction", () => {
         correctRearAisle,
         {
           ...w.target,
-          revision: FG1_REVISION,
+          revision: FG1_REAR_REVISION,
           expectedDigest: w.before.digest,
         },
         { subject: "user_fixture_a", org_id: "org_fixture_b" },
@@ -579,6 +609,166 @@ describe("FG1 rear aisle correction", () => {
     expect(stocked.blocked).toBe(true);
     await expect(
       w.call(correctRearAisle, {
+        ...w.target,
+        revision: FG1_REAR_REVISION,
+        expectedDigest: stocked.digest,
+      }),
+    ).rejects.toThrow("INTERNAL_ERROR");
+    expect((await w.read()).digest).toBe(stocked.digest);
+  });
+});
+
+describe("FG1 R04–R08 expansion", () => {
+  it("widens five cells to the wall, removes nine rear strips, keeps IDs and QR, and rolls back", async () => {
+    const w = await setupRearReservedFg1();
+    const result = await w.call<{
+      afterDigest: string;
+      counts: {
+        changedCells: number;
+        widenedAisles: number;
+        removedRearBlocks: number;
+        blocks: number;
+      };
+    }>(expandRearCells, {
+      ...w.target,
+      revision: FG1_REVISION,
+      expectedDigest: w.before.digest,
+    });
+    expect(result.counts).toEqual({
+      changedCells: 5,
+      widenedAisles: 5,
+      removedRearBlocks: 9,
+      blocks: 14,
+    });
+    const after = await w.read();
+    expect(after.digest).toBe(result.afterDigest);
+    expect(after.backup.building).toMatchObject({
+      version: w.before.backup.building.version + 1,
+      reservedAreaSqMm: fg1ApprovedPlan().reservedAreaSqMm,
+      usableAreaSqMm: fg1ApprovedPlan().usableAreaSqMm,
+    });
+    expect(after.backup.zones.map((z) => [z._id, z.code, z.qrValue])).toEqual(
+      w.before.backup.zones.map((z) => [z._id, z.code, z.qrValue]),
+    );
+    expect(after.backup.locations).toEqual(w.before.backup.locations);
+    for (const zone of after.backup.zones) {
+      expect(zone.widthMm).toBe(
+        /^FG1-R0[4-8]$/.test(zone.code)
+          ? 7840
+          : w.before.backup.zones.find((z) => z.code === zone.code)!.widthMm,
+      );
+      const position = after.backup.positions.find(
+        (p) => p.zoneId === zone._id,
+      )!;
+      expect(position.widthMm).toBe(zone.widthMm);
+    }
+    expect(after.backup.blocks.some((b) => b.label.startsWith("ขอบหลัง"))).toBe(
+      false,
+    );
+    const rollbackResult = await w.call<{
+      restored: boolean;
+      recreatedBlocks: number;
+    }>(rollback, {
+      ...w.target,
+      expectedAfterDigest: result.afterDigest,
+      backup: w.before.backup,
+    });
+    expect(rollbackResult).toMatchObject({
+      restored: true,
+      recreatedBlocks: 9,
+    });
+    const restored = await w.read();
+    expect(restored.backup.zones).toEqual(w.before.backup.zones);
+    expect(
+      restored.backup.blocks
+        .map((b) => [b.label, b.xMm, b.yMm, b.widthMm, b.depthMm])
+        .sort(),
+    ).toEqual(
+      w.before.backup.blocks
+        .map((b) => [b.label, b.xMm, b.yMm, b.widthMm, b.depthMm])
+        .sort(),
+    );
+  });
+
+  it("rejects stale digest, foreign tenant and live stock without partial writes", async () => {
+    const w = await setupRearReservedFg1();
+    await expect(
+      w.call(expandRearCells, {
+        ...w.target,
+        revision: FG1_REVISION,
+        expectedDigest: "stale",
+      }),
+    ).rejects.toThrow("INTERNAL_ERROR");
+    await expect(
+      w.call(
+        expandRearCells,
+        {
+          ...w.target,
+          revision: FG1_REVISION,
+          expectedDigest: w.before.digest,
+        },
+        { subject: "user_fixture_a", org_id: "org_fixture_b" },
+      ),
+    ).rejects.toThrow();
+    expect((await w.read()).digest).toBe(w.before.digest);
+    await w.world.t.run(async (ctx) => {
+      const zone = (await ctx.db.query("storageZones").collect()).find(
+        (z) => z.code === "FG1-R05",
+      )!;
+      const productId = await ctx.db.insert("finishedGoodsProducts", {
+        orgId: w.world.orgA,
+        warehouseId: w.target.warehouseId,
+        sku: "FG1-EXPAND-GUARD",
+        name: "Guard",
+        unit: "piece",
+        storageFormat: "PALLET",
+        storageCondition: "dry",
+        status: "ACTIVE",
+        createdAt: 1,
+        updatedAt: 1,
+        createdByUserId: w.world.userA,
+        updatedByUserId: w.world.userA,
+      });
+      const palletId = await ctx.db.insert("finishedGoodsPallets", {
+        orgId: w.world.orgA,
+        warehouseId: w.target.warehouseId,
+        productId,
+        code: "FG1-EXPAND-GUARD",
+        quantity: 1,
+        status: "STORED",
+        createdAt: 1,
+        updatedAt: 1,
+        createdByUserId: w.world.userA,
+        updatedByUserId: w.world.userA,
+      });
+      await ctx.db.insert("finishedGoodsPlacements", {
+        orgId: w.world.orgA,
+        warehouseId: w.target.warehouseId,
+        buildingId: w.target.buildingId,
+        floorId: zone.floorId,
+        zoneId: zone._id,
+        locationId: zone.locationId,
+        positionCode: zone.code,
+        qrValue: zone.qrValue,
+        palletId,
+        status: "STORED",
+        xMm: 0,
+        yMm: 0,
+        zMm: 0,
+        widthMm: 10,
+        depthMm: 10,
+        heightMm: 10,
+        rotation: 0,
+        createdAt: 1,
+        updatedAt: 1,
+        createdByUserId: w.world.userA,
+        updatedByUserId: w.world.userA,
+      });
+    });
+    const stocked = await w.read();
+    expect(stocked.blocked).toBe(true);
+    await expect(
+      w.call(expandRearCells, {
         ...w.target,
         revision: FG1_REVISION,
         expectedDigest: stocked.digest,

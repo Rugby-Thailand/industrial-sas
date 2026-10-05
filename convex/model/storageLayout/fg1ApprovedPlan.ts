@@ -1,10 +1,12 @@
 /** User-approved layout envelope; not a surveyed outer building boundary. */
 export const FG1_PREVIOUS_REVISION = "FG1-2026-09-28-bottom-aligned-r1";
-export const FG1_REVISION = "FG1-2026-10-05-no-rear-aisle-r2";
-export const fg1PreviousPlan = () => buildFg1Plan(true);
-export const fg1ApprovedPlan = () => buildFg1Plan(false);
+export const FG1_REAR_REVISION = "FG1-2026-10-05-no-rear-aisle-r2";
+export const FG1_REVISION = "FG1-2026-10-05-r04-r08-7_84-r3";
+export const fg1PreviousPlan = () => buildFg1Plan("original");
+export const fg1RearPlan = () => buildFg1Plan("rear-reserved");
+export const fg1ApprovedPlan = () => buildFg1Plan("expanded");
 
-function buildFg1Plan(previousRearAisle: boolean) {
+function buildFg1Plan(variant: "original" | "rear-reserved" | "expanded") {
   const cells: {
     code: string;
     xMm: number;
@@ -66,7 +68,7 @@ function buildFg1Plan(previousRearAisle: boolean) {
         code: `FG1-R${String(i + 1).padStart(2, "0")}`,
         xMm: 4420,
         yMm: y,
-        widthMm: i < 3 ? 7260 : i < 8 ? 7350 : 7840,
+        widthMm: i < 3 ? 7260 : i < 8 && variant !== "expanded" ? 7350 : 7840,
         depthMm: d,
       });
       y += d + (i < 9 ? 300 : 0);
@@ -93,12 +95,12 @@ function buildFg1Plan(previousRearAisle: boolean) {
         4420,
         z.yMm + z.depthMm,
         Math.max(z.widthMm, right[i + 1]!.widthMm) +
-          (previousRearAisle && i >= 3 && i < 7 ? 300 : 0),
+          (variant === "original" && i >= 3 && i < 7 ? 300 : 0),
         300,
         "#eda576",
       ),
     );
-  if (previousRearAisle) {
+  if (variant === "original") {
     right
       .slice(3, 8)
       .forEach((z) =>
@@ -112,7 +114,7 @@ function buildFg1Plan(previousRearAisle: boolean) {
           "#eda576",
         ),
       );
-  } else {
+  } else if (variant === "rear-reserved") {
     // The rear strip behind R04–R08 is confirmed not to be a passage.
     // Keep its former footprint unavailable until the outer edge is measured.
     right.slice(3, 8).forEach((z, i) => {
@@ -172,7 +174,12 @@ function buildFg1Plan(previousRearAisle: boolean) {
     0,
   );
   return {
-    revision: previousRearAisle ? FG1_PREVIOUS_REVISION : FG1_REVISION,
+    revision:
+      variant === "original"
+        ? FG1_PREVIOUS_REVISION
+        : variant === "rear-reserved"
+          ? FG1_REAR_REVISION
+          : FG1_REVISION,
     widthMm: 12260,
     depthMm: 29930,
     cells,
