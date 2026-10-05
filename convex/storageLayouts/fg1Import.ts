@@ -9,6 +9,8 @@ import { fingerprintArguments } from "../lib/idempotency";
 import { appendDomainAudit } from "../lib/masterDataStore";
 import {
   fg1ApprovedPlan,
+  fg1PreviousPlan,
+  FG1_PREVIOUS_REVISION,
   FG1_REVISION,
 } from "../model/storageLayout/fg1ApprovedPlan";
 
@@ -467,6 +469,200 @@ export const apply = mutationWithOrg({
         positions: after.positions.length,
         locations: after.locations.length,
       },
+    };
+  },
+});
+
+const blockShape = (block: {
+  label: string;
+  areaKind?: string;
+  color?: string;
+  displayHeightMm?: number;
+  xMm: number;
+  yMm: number;
+  widthMm: number;
+  depthMm: number;
+}) =>
+  JSON.stringify([
+    block.label,
+    block.areaKind,
+    block.color,
+    block.displayHeightMm,
+    block.xMm,
+    block.yMm,
+    block.widthMm,
+    block.depthMm,
+  ]);
+
+/** Converts only the confirmed FG1 rear aisle to a non-walkable edge. */
+export const correctRearAisle = mutationWithOrg({
+  args: {
+    ...targetArgs,
+    revision: v.literal(FG1_REVISION),
+    expectedDigest: v.string(),
+  },
+  returns: v.any(),
+  permissionCode: "masterData.storageLayout.manage",
+  target: { table: "storageBuildings", id: (a) => a.buildingId },
+  warehouseId: (a) => a.warehouseId,
+  handler: async (ctx, args) => {
+    const before = await snapshot(ctx, args);
+    if (before.building.fg1Import?.revision !== FG1_PREVIOUS_REVISION)
+      throw new Error("FG1_REAR_AISLE_REVISION_MISMATCH");
+    if (
+      before.placements.length ||
+      before.moves.length ||
+      before.assignments.length ||
+      before.jobScans.length
+    )
+      throw new Error("FG1_REAR_AISLE_OCCUPIED_OR_ACTIVE");
+    if ((await digest(before)) !== args.expectedDigest)
+      throw new Error("FG1_VERSION_CONFLICT");
+
+    const previous = fg1PreviousPlan();
+    const plan = fg1ApprovedPlan();
+    if (
+      before.building.widthMm !== previous.widthMm ||
+      before.building.depthMm !== previous.depthMm ||
+      before.building.reservedAreaSqMm !== previous.reservedAreaSqMm ||
+      before.building.usableAreaSqMm !== previous.usableAreaSqMm ||
+      before.floors[0]!.reservedAreaSqMm !== previous.reservedAreaSqMm ||
+      before.floors[0]!.usableAreaSqMm !== previous.usableAreaSqMm ||
+      before.blocks.length !== previous.blocks.length ||
+      previous.blocks.some(
+        (expected) =>
+          before.blocks.filter(
+            (actual) => blockShape(actual) === blockShape(expected),
+          ).length !== 1,
+      ) ||
+      previous.cells.some((expected) => {
+        const zone = before.zones.find((z) => z.code === expected.code);
+        const position = before.positions.find((p) => p.zoneId === zone?._id);
+        return (
+          !zone ||
+          !position ||
+          [zone, position].some(
+            (row) =>
+              row.xMm !== expected.xMm ||
+              row.yMm !== expected.yMm ||
+              row.widthMm !== expected.widthMm ||
+              row.depthMm !== expected.depthMm,
+          )
+        );
+      })
+    )
+      throw new Error("FG1_REAR_AISLE_SOURCE_MISMATCH");
+    if (plan.reservedAreaSqMm !== previous.reservedAreaSqMm)
+      throw new Error("FG1_REAR_AISLE_AREA_MISMATCH");
+
+    const now = Date.now();
+    const db = ctx.tenantDb;
+    const seen = new Set<string>();
+    let inserted = 0;
+    let updated = 0;
+    for (const block of plan.blocks) {
+      const oldLabel = block.label.match(/^ขอบหลัง (FG1-R\d+) ·/)?.[1];
+      const previousBlock = before.blocks.find(
+        (row) =>
+          row.label ===
+          (oldLabel ? `ทางเดินริมขวา ${oldLabel} · ขนาดประมาณ` : block.label),
+      );
+      if (previousBlock) {
+        if (seen.has(previousBlock._id))
+          throw new Error("FG1_REAR_AISLE_DUPLICATE_BLOCK");
+        seen.add(previousBlock._id);
+        if (blockShape(previousBlock) !== blockShape(block)) {
+          await db.patch("storageFloorReservedBlocks", previousBlock._id, {
+            ...block,
+            updatedAt: now,
+          });
+          updated++;
+        }
+      } else if (block.label.startsWith("ขอบหลังระหว่าง ")) {
+        await db.insert("storageFloorReservedBlocks", {
+          ...block,
+          buildingId: before.building._id,
+          floorId: before.floors[0]!._id,
+          warehouseId: before.warehouse._id,
+          createdAt: now,
+          updatedAt: now,
+        });
+        inserted++;
+      } else {
+        throw new Error("FG1_REAR_AISLE_BLOCK_MISSING");
+      }
+    }
+    if (seen.size !== before.blocks.length || updated !== 9 || inserted !== 4)
+      throw new Error("FG1_REAR_AISLE_BLOCK_COUNT_MISMATCH");
+
+    const fields = {
+      reservedAreaSqMm: plan.reservedAreaSqMm,
+      usableAreaSqMm: plan.usableAreaSqMm,
+      updatedAt: now,
+      updatedByUserId: ctx.tenant.actor._id,
+    };
+    await db.patch("storageBuildings", before.building._id, {
+      ...fields,
+      version: before.building.version + 1,
+      fg1Import: {
+        revision: FG1_REVISION,
+        beforeDigest: args.expectedDigest,
+        importedAt: now,
+        coordinateBasis: "APPROVED_LAYOUT_ENVELOPE",
+        rightAisleWidthEstimated: false,
+        obstaclePositionEstimated:
+          before.building.fg1Import.obstaclePositionEstimated,
+      },
+    });
+    await db.patch("storageFloors", before.floors[0]!._id, {
+      ...fields,
+      version: before.floors[0]!.version + 1,
+    });
+    const after = await snapshot(ctx, args);
+    if (
+      after.blocks.length !== plan.blocks.length ||
+      plan.blocks.some(
+        (expected) =>
+          after.blocks.filter(
+            (actual) => blockShape(actual) === blockShape(expected),
+          ).length !== 1,
+      )
+    )
+      throw new Error("FG1_REAR_AISLE_RESULT_MISMATCH");
+    const afterDigest = await digest(after);
+    await appendDomainAudit(
+      {
+        tenantDb: db,
+        table: "storageBuildings",
+        operation: "storageLayout.fg1RearAisleCorrection",
+        requestId: ctx.requestId,
+        permissionCode: "masterData.storageLayout.manage",
+        actorUserId: ctx.tenant.actor._id,
+        warehouseId: args.warehouseId,
+        now,
+      },
+      {
+        entityTable: "storageBuildings",
+        entityId: args.buildingId,
+        changes: [
+          {
+            field: "fg1Import.revision",
+            from: FG1_PREVIOUS_REVISION,
+            to: FG1_REVISION,
+          },
+          {
+            field: "snapshotDigest",
+            from: args.expectedDigest,
+            to: afterDigest,
+          },
+        ],
+      },
+    );
+    return {
+      revision: FG1_REVISION,
+      beforeDigest: args.expectedDigest,
+      afterDigest,
+      counts: { updated, inserted, blocks: after.blocks.length },
     };
   },
 });

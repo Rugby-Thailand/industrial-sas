@@ -17,16 +17,31 @@ describe("approved FG1 geometry", () => {
     expect(p.widthMm).toBe(12260);
     expect(p.depthMm).toBe(29930);
   });
-  it("has only five side aisles, no R09/R10 side or bottom strip, and disjoint walkways", () => {
+  it("has no rear aisle behind R04–R08 and preserves its footprint as non-storage", () => {
     const p = fg1ApprovedPlan(),
-      side = p.blocks.filter((b) => b.label.startsWith("ทางเดินริมขวา"));
-    expect(side).toHaveLength(5);
-    expect(side.map((b) => b.label)).not.toEqual(
-      expect.arrayContaining([
-        expect.stringContaining("R09"),
-        expect.stringContaining("R10"),
-      ]),
+      rear = p.blocks.filter((b) => b.label.startsWith("ขอบหลัง"));
+    expect(p.blocks.some((b) => b.label.startsWith("ทางเดินริมขวา"))).toBe(
+      false,
     );
+    expect(rear).toHaveLength(9);
+    expect(rear.every((b) => b.areaKind === "NO_STORAGE")).toBe(true);
+    expect(rear.every((b) => b.xMm === 11770 && b.widthMm === 300)).toBe(true);
+    expect(rear.reduce((area, b) => area + b.widthMm * b.depthMm, 0)).toBe(
+      4_350_000,
+    );
+    expect(
+      p.blocks.filter(
+        (b) =>
+          b.areaKind === "AISLE" &&
+          b.label.startsWith("ทางเดิน FG1-R0") &&
+          /R0[4-7]–FG1-R0[5-8]/.test(b.label),
+      ),
+    ).toHaveLength(4);
+    expect(
+      p.blocks
+        .filter((b) => /ทางเดิน FG1-R0[4-7]–FG1-R0[5-8]/.test(b.label))
+        .every((b) => b.xMm + b.widthMm === 11770),
+    ).toBe(true);
     const overlap = (
       a: (typeof p.cells)[number],
       b: (typeof p.blocks)[number],
@@ -39,6 +54,7 @@ describe("approved FG1 geometry", () => {
       for (const b of p.blocks.filter((b) => !b.label.startsWith("จุดสงวน")))
         expect(overlap(c, b)).toBe(false);
     expect(occupiedFootprintAreaSqMm(p.blocks)).toBe(p.reservedAreaSqMm);
+    expect(p.reservedAreaSqMm).toBe(77_920_500);
     expect(p.grossAreaSqMm - p.reservedAreaSqMm).toBe(p.usableAreaSqMm);
     expect(
       p.blocks.every(
