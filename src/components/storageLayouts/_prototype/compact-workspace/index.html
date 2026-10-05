@@ -1,0 +1,88 @@
+<!doctype html>
+<!-- THROWAWAY: three compact Storage Planner designs, ?variant=A|B|C. Demo inventory, read-only geometry. -->
+<html lang="th" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Storage Planner · Compact redesign</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <aside class="app-rail" aria-label="เมนูหลัก">
+      <span class="brand" data-icon="building"></span>
+      <span data-icon="boxes"></span><span data-icon="scan"></span>
+      <span class="rail-active" data-icon="building"></span>
+      <span class="avatar">TP</span>
+    </aside>
+    <header class="app-header">
+      <span class="app-header-title" data-icon="panel"></span
+      ><span>Storage Planner</span>
+      <span class="preview-tag">ตัวอย่างดีไซน์</span>
+      <button
+        class="icon-button"
+        id="theme"
+        aria-label="สลับธีม"
+        title="สลับธีม"
+        data-icon="sun"
+      ></button>
+    </header>
+    <main>
+      <header class="page-header">
+        <div class="page-name">
+          <span class="breadcrumbs">อาคารและจุดจัดเก็บ <span> / </span></span>
+          <h1>อาคาร PD</h1>
+          <span class="building-code">PD-SB</span>
+        </div>
+        <div class="page-actions">
+          <span class="building-meta">61.5 × 11.96 ม. · 2 ชั้น</span
+          ><button
+            class="icon-button"
+            data-action="building"
+            aria-label="โมเดลอาคาร"
+            title="โมเดลอาคาร"
+            data-icon="building"
+          ></button
+          ><button
+            class="icon-button"
+            data-action="settings"
+            aria-label="ตั้งค่าอาคาร"
+            title="ตั้งค่าอาคาร"
+            data-icon="sliders"
+          ></button>
+        </div>
+      </header>
+      <section
+        id="workspace"
+        class="workspace"
+        aria-label="พื้นที่จัดการจุดจัดเก็บ"
+      ></section>
+    </main>
+    <dialog id="options-dialog" aria-labelledby="options-title">
+      <div id="options-content"></div>
+    </dialog>
+    <div class="prototype-switcher" aria-label="เปรียบเทียบดีไซน์">
+      <div class="switcher-main">
+        <button
+          class="icon-button"
+          data-cycle="-1"
+          aria-label="ดีไซน์ก่อนหน้า"
+          data-icon="left"
+        ></button
+        ><select id="variant-select" aria-label="เลือกดีไซน์">
+          <option value="A">A · Compact workspace</option>
+          <option value="B">B · Map + finder</option>
+          <option value="C">C · Location browser</option></select
+        ><button
+          class="icon-button"
+          data-cycle="1"
+          aria-label="ดีไซน์ถัดไป"
+          data-icon="right"
+        ></button
+        ><button id="scenario" class="scenario-button">ลองค้นหา 1 จุด</button>
+      </div>
+      <output id="prototype-state" aria-live="polite"></output>
+    </div>
+    <div id="notice" role="status" hidden></div>
+    <script type="module" src="app.js"></script>
+  </body>
+</html>
