@@ -45,7 +45,7 @@ commit reduction is additionally verified by deterministic camera tests.
 
 ## Verification
 
-- Full Vitest suite: 1,061 tests passed; focused storage workspace suite: 188.
+- Full Vitest suite: 1,063 tests passed; focused storage workspace suite: 188.
 - TypeScript, ESLint, formatting and `next build --webpack` passed.
 - Real component browser checks: sticky header, page navigation, selected row
   to Map, hide/reopen Details, status/search/empty results, themes, 2D/3D,
