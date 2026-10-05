@@ -1,6 +1,10 @@
 /** User-approved layout envelope; not a surveyed outer building boundary. */
-export const FG1_REVISION = "FG1-2026-09-28-bottom-aligned-r1";
-export function fg1ApprovedPlan() {
+export const FG1_PREVIOUS_REVISION = "FG1-2026-09-28-bottom-aligned-r1";
+export const FG1_REVISION = "FG1-2026-10-05-no-rear-aisle-r2";
+export const fg1PreviousPlan = () => buildFg1Plan(true);
+export const fg1ApprovedPlan = () => buildFg1Plan(false);
+
+function buildFg1Plan(previousRearAisle: boolean) {
   const cells: {
     code: string;
     xMm: number;
@@ -89,24 +93,50 @@ export function fg1ApprovedPlan() {
         4420,
         z.yMm + z.depthMm,
         Math.max(z.widthMm, right[i + 1]!.widthMm) +
-          (i >= 3 && i < 7 ? 300 : 0),
+          (previousRearAisle && i >= 3 && i < 7 ? 300 : 0),
         300,
         "#eda576",
       ),
     );
-  right
-    .slice(3, 8)
-    .forEach((z) =>
+  if (previousRearAisle) {
+    right
+      .slice(3, 8)
+      .forEach((z) =>
+        block(
+          `ทางเดินริมขวา ${z.code} · ขนาดประมาณ`,
+          "AISLE",
+          z.xMm + z.widthMm,
+          z.yMm,
+          300,
+          z.depthMm,
+          "#eda576",
+        ),
+      );
+  } else {
+    // The rear strip behind R04–R08 is confirmed not to be a passage.
+    // Keep its former footprint unavailable until the outer edge is measured.
+    right.slice(3, 8).forEach((z, i) => {
       block(
-        `ทางเดินริมขวา ${z.code} · ขนาดประมาณ`,
-        "AISLE",
+        `ขอบหลัง ${z.code} · ไม่มีทางเดินและห้ามจัดเก็บ`,
+        "NO_STORAGE",
         z.xMm + z.widthMm,
         z.yMm,
         300,
         z.depthMm,
-        "#eda576",
-      ),
-    );
+        "#8b9292",
+      );
+      if (i < 4)
+        block(
+          `ขอบหลังระหว่าง ${z.code}–${right[i + 4]!.code} · ห้ามจัดเก็บ`,
+          "NO_STORAGE",
+          z.xMm + z.widthMm,
+          z.yMm + z.depthMm,
+          300,
+          300,
+          "#8b9292",
+        );
+    });
+  }
   block(
     "ห้ามจัดเก็บระหว่าง L01–L02",
     "NO_STORAGE",
@@ -142,7 +172,7 @@ export function fg1ApprovedPlan() {
     0,
   );
   return {
-    revision: FG1_REVISION,
+    revision: previousRearAisle ? FG1_PREVIOUS_REVISION : FG1_REVISION,
     widthMm: 12260,
     depthMm: 29930,
     cells,

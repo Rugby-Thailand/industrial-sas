@@ -3,11 +3,14 @@ import type { GenericMutationCtx } from "convex/server";
 import type { DataModel } from "../../convex/schema";
 import {
   apply,
+  correctRearAisle,
   preflight,
   rollback,
 } from "../../convex/storageLayouts/fg1Import";
 import {
   fg1ApprovedPlan,
+  fg1PreviousPlan,
+  FG1_PREVIOUS_REVISION,
   FG1_REVISION,
 } from "../../convex/model/storageLayout/fg1ApprovedPlan";
 import {
@@ -131,6 +134,16 @@ async function setup() {
         legacyPositions: { _id: string }[];
         legacyLocations: { _id: string }[];
         building: { version: number };
+        blocks: {
+          _id: string;
+          label: string;
+          areaKind?: string;
+          color?: string;
+          xMm: number;
+          yMm: number;
+          widthMm: number;
+          depthMm: number;
+        }[];
         zones: {
           _id: string;
           code: string;
@@ -152,6 +165,56 @@ async function setup() {
       plan: { usableAreaSqMm: number };
     }>(preflight, target);
   return { world, target, call, read };
+}
+
+async function setupPreviousFg1() {
+  const w = await setup();
+  const initial = await w.read();
+  await w.call(apply, {
+    ...w.target,
+    revision: FG1_REVISION,
+    expectedDigest: initial.digest,
+  });
+  const oldPlan = fg1PreviousPlan();
+  const newPlan = fg1ApprovedPlan();
+  await w.world.t.run(async (ctx) => {
+    const building = await ctx.db.get("storageBuildings", w.target.buildingId);
+    if (!building?.fg1Import) throw new Error("Missing FG1 import");
+    await ctx.db.patch("storageBuildings", building._id, {
+      fg1Import: {
+        ...building.fg1Import,
+        revision: FG1_PREVIOUS_REVISION,
+        rightAisleWidthEstimated: true,
+      },
+    });
+    const current = await ctx.db.query("storageFloorReservedBlocks").collect();
+    for (const block of current) {
+      if (block.label.startsWith("ขอบหลังระหว่าง ")) {
+        await ctx.db.delete("storageFloorReservedBlocks", block._id);
+        continue;
+      }
+      const rearCode = block.label.match(/^ขอบหลัง (FG1-R\d+) ·/)?.[1];
+      const old = oldPlan.blocks.find(
+        (candidate) =>
+          candidate.label ===
+          (rearCode ? `ทางเดินริมขวา ${rearCode} · ขนาดประมาณ` : block.label),
+      );
+      if (!old) throw new Error(`Missing old block ${block.label}`);
+      await ctx.db.patch("storageFloorReservedBlocks", block._id, old);
+    }
+  });
+  const before = await w.read();
+  expect(before.backup.blocks).toHaveLength(oldPlan.blocks.length);
+  expect(
+    before.backup.blocks.filter((block) =>
+      block.label.startsWith("ทางเดินริมขวา"),
+    ),
+  ).toHaveLength(5);
+  expect(
+    before.backup.blocks.filter((block) => block.label.startsWith("ขอบหลัง")),
+  ).toHaveLength(0);
+  expect(newPlan.reservedAreaSqMm).toBe(oldPlan.reservedAreaSqMm);
+  return { ...w, before };
 }
 
 describe("FG1 guarded import", () => {
@@ -379,5 +442,148 @@ describe("FG1 guarded import", () => {
       }),
     ).rejects.toThrow("INTERNAL_ERROR");
     expect((await w.read()).digest).toBe(before.digest);
+  });
+});
+
+describe("FG1 rear aisle correction", () => {
+  it("reclassifies the full rear band, preserves existing IDs and area, and rolls back", async () => {
+    const w = await setupPreviousFg1();
+    const result = await w.call<{
+      afterDigest: string;
+      counts: { updated: number; inserted: number; blocks: number };
+    }>(correctRearAisle, {
+      ...w.target,
+      revision: FG1_REVISION,
+      expectedDigest: w.before.digest,
+    });
+    expect(result.counts).toEqual({ updated: 9, inserted: 4, blocks: 23 });
+    const after = await w.read();
+    expect(after.digest).toBe(result.afterDigest);
+    expect(after.backup.building).toMatchObject({
+      version: w.before.backup.building.version + 1,
+      reservedAreaSqMm: fg1ApprovedPlan().reservedAreaSqMm,
+      usableAreaSqMm: fg1ApprovedPlan().usableAreaSqMm,
+    });
+    expect(after.backup.zones).toEqual(w.before.backup.zones);
+    expect(after.backup.positions).toEqual(w.before.backup.positions);
+    expect(after.backup.locations).toEqual(w.before.backup.locations);
+    expect(after.backup.blocks).toHaveLength(23);
+    expect(
+      after.backup.blocks.filter((block) =>
+        block.label.startsWith("ทางเดินริมขวา"),
+      ),
+    ).toHaveLength(0);
+    expect(
+      after.backup.blocks.filter((block) => block.label.startsWith("ขอบหลัง")),
+    ).toHaveLength(9);
+    expect(
+      after.backup.blocks.filter(
+        (block) =>
+          block.label.startsWith("ขอบหลัง") && block.areaKind === "NO_STORAGE",
+      ),
+    ).toHaveLength(9);
+    for (const old of w.before.backup.blocks)
+      expect(after.backup.blocks.some((block) => block._id === old._id)).toBe(
+        true,
+      );
+    await expect(
+      w.call(correctRearAisle, {
+        ...w.target,
+        revision: FG1_REVISION,
+        expectedDigest: w.before.digest,
+      }),
+    ).rejects.toThrow("INTERNAL_ERROR");
+    expect((await w.read()).digest).toBe(after.digest);
+    await w.call(rollback, {
+      ...w.target,
+      expectedAfterDigest: result.afterDigest,
+      backup: w.before.backup,
+    });
+    expect((await w.read()).digest).toBe(w.before.digest);
+  });
+
+  it("refuses a changed version, live stock, and a foreign tenant without partial writes", async () => {
+    const w = await setupPreviousFg1();
+    await expect(
+      w.call(correctRearAisle, {
+        ...w.target,
+        revision: FG1_REVISION,
+        expectedDigest: "stale",
+      }),
+    ).rejects.toThrow("INTERNAL_ERROR");
+    expect((await w.read()).digest).toBe(w.before.digest);
+    await expect(
+      w.call(
+        correctRearAisle,
+        {
+          ...w.target,
+          revision: FG1_REVISION,
+          expectedDigest: w.before.digest,
+        },
+        { subject: "user_fixture_a", org_id: "org_fixture_b" },
+      ),
+    ).rejects.toThrow();
+    await w.world.t.run(async (ctx) => {
+      const zone = (await ctx.db.query("storageZones").collect())[0]!;
+      const productId = await ctx.db.insert("finishedGoodsProducts", {
+        orgId: w.world.orgA,
+        warehouseId: w.target.warehouseId,
+        sku: "FG1-CORRECTION-GUARD",
+        name: "Guard product",
+        unit: "piece",
+        storageFormat: "PALLET",
+        storageCondition: "dry",
+        status: "ACTIVE",
+        createdAt: 1,
+        updatedAt: 1,
+        createdByUserId: w.world.userA,
+        updatedByUserId: w.world.userA,
+      });
+      const palletId = await ctx.db.insert("finishedGoodsPallets", {
+        orgId: w.world.orgA,
+        warehouseId: w.target.warehouseId,
+        productId,
+        code: "FG1-CORRECTION-GUARD",
+        quantity: 1,
+        status: "STORED",
+        createdAt: 1,
+        updatedAt: 1,
+        createdByUserId: w.world.userA,
+        updatedByUserId: w.world.userA,
+      });
+      await ctx.db.insert("finishedGoodsPlacements", {
+        orgId: w.world.orgA,
+        warehouseId: w.target.warehouseId,
+        buildingId: w.target.buildingId,
+        floorId: zone.floorId,
+        zoneId: zone._id,
+        locationId: zone.locationId,
+        positionCode: zone.code,
+        qrValue: zone.qrValue,
+        palletId,
+        status: "STORED",
+        xMm: 0,
+        yMm: 0,
+        zMm: 0,
+        widthMm: 10,
+        depthMm: 10,
+        heightMm: 10,
+        rotation: 0,
+        createdAt: 1,
+        updatedAt: 1,
+        createdByUserId: w.world.userA,
+        updatedByUserId: w.world.userA,
+      });
+    });
+    const stocked = await w.read();
+    expect(stocked.blocked).toBe(true);
+    await expect(
+      w.call(correctRearAisle, {
+        ...w.target,
+        revision: FG1_REVISION,
+        expectedDigest: stocked.digest,
+      }),
+    ).rejects.toThrow("INTERNAL_ERROR");
+    expect((await w.read()).digest).toBe(stocked.digest);
   });
 });
