@@ -11,7 +11,14 @@ import {
 } from "lucide-react";
 import { useStorageLayoutMobile } from "./useStorageLayoutMobile";
 import { useLocale } from "next-intl";
-import { useId, useMemo, useState, useEffect, type ReactNode } from "react";
+import {
+  memo,
+  useId,
+  useMemo,
+  useState,
+  useEffect,
+  type ReactNode,
+} from "react";
 
 import { PaginationFooter } from "@/components/system/PaginationFooter";
 import { CollectionToolbar } from "@/components/system/CollectionToolbar";
@@ -32,7 +39,7 @@ import { messagesFor } from "@/i18n/messages";
 
 type SortKey = "code" | "label" | "units";
 
-export function FloorLocationTable({
+function LocationTable({
   zones,
   selectedId,
   onSelect,
@@ -41,6 +48,7 @@ export function FloorLocationTable({
   actions,
   onClearSelection,
   groupedPositions = false,
+  workspace = false,
 }: {
   readonly zones: readonly StorageZoneRow[];
   readonly selectedId?: string | undefined;
@@ -50,6 +58,7 @@ export function FloorLocationTable({
   readonly actions?: ReactNode;
   readonly onClearSelection?: () => void;
   readonly groupedPositions?: boolean;
+  readonly workspace?: boolean;
 }) {
   const locale = useLocale();
   const mobile = useStorageLayoutMobile();
@@ -66,7 +75,10 @@ export function FloorLocationTable({
     key: "code",
     descending: false,
   });
-  const number = new Intl.NumberFormat(locale, { maximumFractionDigits: 3 });
+  const number = useMemo(
+    () => new Intl.NumberFormat(locale, { maximumFractionDigits: 3 }),
+    [locale],
+  );
   const labels = {
     ...messagesFor(locale).StorageLayouts.locationTable,
   };
@@ -151,36 +163,44 @@ export function FloorLocationTable({
     );
   }
   return (
-    <div className="min-w-0 space-y-3">
+    <div
+      className={
+        workspace
+          ? "flex h-full min-h-0 min-w-0 flex-col gap-3"
+          : "min-w-0 space-y-3"
+      }
+    >
       <p role="status" className="sr-only">
         {countText}
       </p>
-      <CollectionToolbar
-        value={query}
-        searchLabel={labels.search}
-        clearLabel={thai ? "ล้างการค้นหา" : "Clear search"}
-        onValueChange={(value) => {
-          setLocalSearch(value);
-          onSearchChange?.(value);
-          setPage(0);
-        }}
-        actions={
-          <>
-            <IconButton
-              type="button"
-              variant={filters.length ? "secondary" : "outline"}
-              label={labels.filters}
-              aria-expanded={filtersOpen}
-              aria-controls={filtersId}
-              onClick={() => setFiltersOpen(!filtersOpen)}
-            >
-              <SlidersHorizontal aria-hidden="true" />
-            </IconButton>
-            {actions}
-          </>
-        }
-      />
-      {filtersOpen || filters.length ? (
+      {!workspace && (
+        <CollectionToolbar
+          value={query}
+          searchLabel={labels.search}
+          clearLabel={thai ? "ล้างการค้นหา" : "Clear search"}
+          onValueChange={(value) => {
+            setLocalSearch(value);
+            onSearchChange?.(value);
+            setPage(0);
+          }}
+          actions={
+            <>
+              <IconButton
+                type="button"
+                variant={filters.length ? "secondary" : "outline"}
+                label={labels.filters}
+                aria-expanded={filtersOpen}
+                aria-controls={filtersId}
+                onClick={() => setFiltersOpen(!filtersOpen)}
+              >
+                <SlidersHorizontal aria-hidden="true" />
+              </IconButton>
+              {actions}
+            </>
+          }
+        />
+      )}
+      {!workspace && (filtersOpen || filters.length) ? (
         <div
           id={filtersId}
           role="group"
@@ -257,265 +277,284 @@ export function FloorLocationTable({
           ) : null}
         </div>
       ) : null}
-      {mobile ? (
-        <>
-          <div className="flex items-center gap-2">
-            <label className="flex items-center gap-2 text-sm text-muted">
-              {labels.sort}
-              <SelectControl
-                label={labels.sort}
-                value={sort.key}
-                options={[
-                  { value: "code", label: labels.code },
-                  { value: "label", label: labels.label },
-                  { value: "units", label: labels.units },
-                ]}
-                placeholder={labels.sort}
-                emptyLabel={labels.sort}
-                onValueChange={(key) => {
-                  if (key === "code" || key === "label" || key === "units")
-                    setSort({ key, descending: sort.descending });
-                }}
-              />
-            </label>
-            <IconButton
-              type="button"
-              variant="ghost"
-              label={labels.direction}
-              onClick={() => setSort({ ...sort, descending: !sort.descending })}
+      <div
+        className={
+          workspace
+            ? "min-h-0 flex-1 overflow-auto overscroll-contain"
+            : undefined
+        }
+      >
+        {mobile ? (
+          <>
+            <div className="flex items-center gap-2">
+              <label className="flex items-center gap-2 text-sm text-muted">
+                {labels.sort}
+                <SelectControl
+                  label={labels.sort}
+                  value={sort.key}
+                  options={[
+                    { value: "code", label: labels.code },
+                    { value: "label", label: labels.label },
+                    { value: "units", label: labels.units },
+                  ]}
+                  placeholder={labels.sort}
+                  emptyLabel={labels.sort}
+                  onValueChange={(key) => {
+                    if (key === "code" || key === "label" || key === "units")
+                      setSort({ key, descending: sort.descending });
+                  }}
+                />
+              </label>
+              <IconButton
+                type="button"
+                variant="ghost"
+                label={labels.direction}
+                onClick={() =>
+                  setSort({ ...sort, descending: !sort.descending })
+                }
+              >
+                {sort.descending ? (
+                  <ArrowDown aria-hidden="true" />
+                ) : (
+                  <ArrowUp aria-hidden="true" />
+                )}
+              </IconButton>
+            </div>
+            <div
+              role="list"
+              aria-label={labels.title}
+              className="divide-y divide-border overflow-hidden rounded-lg border border-border"
             >
-              {sort.descending ? (
-                <ArrowDown aria-hidden="true" />
-              ) : (
-                <ArrowUp aria-hidden="true" />
+              {visible.map(({ zone, counts }) => (
+                <div role="listitem" key={zone.zoneId}>
+                  <button
+                    type="button"
+                    aria-pressed={selectedId === zone.zoneId}
+                    aria-label={`${thai ? "เลือกจุดจัดเก็บ" : "Select location"} ${zone.code} · ${zone.label}`}
+                    onClick={() => onSelect(zone.zoneId)}
+                    className="grid min-h-16 w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 bg-surface p-3 text-left hover:bg-raised aria-pressed:bg-selected"
+                  >
+                    <span className="min-w-0">
+                      <span className="block text-sm font-semibold break-words">
+                        {zone.code}
+                      </span>
+                      <span className="block text-xs break-words text-muted">
+                        {zone.label}
+                      </span>
+                      <span className="mt-1 block text-xs text-muted">
+                        {number.format(zone.widthMm / 1000)} ×{" "}
+                        {number.format(zone.depthMm / 1000)} ×{" "}
+                        {number.format(zone.maxStackHeightMm / 1000)} m
+                      </span>
+                    </span>
+                    <span className="text-right text-xs">
+                      <span className="block rounded-md bg-raised px-2 py-1">
+                        {counts.incomplete
+                          ? labels.unmeasured
+                          : counts.units
+                            ? labels.stored
+                            : labels.vacant}
+                      </span>
+                      <span className="mt-1 block text-muted">
+                        {counts.totalIncomplete ? "≥ " : ""}
+                        {number.format(counts.units)} {labels.units}
+                      </span>
+                      {counts.reserved > 0 && (
+                        <span className="mt-1 block text-muted">
+                          {labels.reserved}: {number.format(counts.reserved)}
+                        </span>
+                      )}
+                    </span>
+                  </button>
+                </div>
+              ))}
+              {!visible.length && (
+                <p className="p-6 text-center text-muted">{labels.empty}</p>
               )}
-            </IconButton>
-          </div>
-          <div
-            role="list"
-            aria-label={labels.title}
-            className="divide-y divide-border overflow-hidden rounded-lg border border-border"
-          >
-            {visible.map(({ zone, counts }) => (
-              <div role="listitem" key={zone.zoneId}>
-                <button
-                  type="button"
-                  aria-pressed={selectedId === zone.zoneId}
-                  aria-label={`${thai ? "เลือกจุดจัดเก็บ" : "Select location"} ${zone.code} · ${zone.label}`}
-                  onClick={() => onSelect(zone.zoneId)}
-                  className="grid min-h-16 w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 bg-surface p-3 text-left hover:bg-raised aria-pressed:bg-selected"
-                >
-                  <span className="min-w-0">
-                    <span className="block text-sm font-semibold break-words">
+            </div>
+          </>
+        ) : layout === "grid" ? (
+          <>
+            <div className="flex items-center gap-2">
+              <label className="flex items-center gap-2 text-sm text-muted">
+                {labels.sort}
+                <SelectControl
+                  label={labels.sort}
+                  value={sort.key}
+                  options={[
+                    { value: "code", label: labels.code },
+                    { value: "label", label: labels.label },
+                    { value: "units", label: labels.units },
+                  ]}
+                  placeholder={labels.sort}
+                  emptyLabel={labels.sort}
+                  onValueChange={(key) => {
+                    if (key === "code" || key === "label" || key === "units")
+                      setSort({ key, descending: sort.descending });
+                  }}
+                />
+              </label>
+              <IconButton
+                type="button"
+                variant="ghost"
+                label={labels.direction}
+                onClick={() =>
+                  setSort({ ...sort, descending: !sort.descending })
+                }
+              >
+                {sort.descending ? (
+                  <ArrowDown aria-hidden="true" />
+                ) : (
+                  <ArrowUp aria-hidden="true" />
+                )}
+              </IconButton>
+            </div>
+            <div
+              role="list"
+              aria-label={labels.title}
+              className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3"
+            >
+              {visible.map(({ zone, counts }) => (
+                <div role="listitem" key={zone.zoneId}>
+                  <button
+                    type="button"
+                    aria-pressed={selectedId === zone.zoneId}
+                    aria-label={`${thai ? "เลือกจุดจัดเก็บ" : "Select location"} ${zone.code} · ${zone.label}`}
+                    onClick={() => onSelect(zone.zoneId)}
+                    className="h-full w-full space-y-3 rounded-lg border border-border bg-surface p-4 text-left hover:bg-raised aria-pressed:border-ring aria-pressed:bg-selected"
+                  >
+                    <div className="text-xs break-words text-muted">
                       {zone.code}
-                    </span>
-                    <span className="block text-xs break-words text-muted">
-                      {zone.label}
-                    </span>
-                    <span className="mt-1 block text-xs text-muted">
+                    </div>
+                    <div className="font-medium break-words">{zone.label}</div>
+                    <div className="text-sm text-muted">
                       {number.format(zone.widthMm / 1000)} ×{" "}
                       {number.format(zone.depthMm / 1000)} ×{" "}
                       {number.format(zone.maxStackHeightMm / 1000)} m
-                    </span>
-                  </span>
-                  <span className="text-right text-xs">
-                    <span className="block rounded-md bg-raised px-2 py-1">
-                      {counts.incomplete
-                        ? labels.unmeasured
-                        : counts.units
-                          ? labels.stored
-                          : labels.vacant}
-                    </span>
-                    <span className="mt-1 block text-muted">
-                      {counts.totalIncomplete ? "≥ " : ""}
-                      {number.format(counts.units)} {labels.units}
-                    </span>
-                    {counts.reserved > 0 && (
-                      <span className="mt-1 block text-muted">
-                        {labels.reserved}: {number.format(counts.reserved)}
-                      </span>
-                    )}
-                  </span>
-                </button>
-              </div>
-            ))}
-            {!visible.length && (
-              <p className="p-6 text-center text-muted">{labels.empty}</p>
-            )}
-          </div>
-        </>
-      ) : layout === "grid" ? (
-        <>
-          <div className="flex items-center gap-2">
-            <label className="flex items-center gap-2 text-sm text-muted">
-              {labels.sort}
-              <SelectControl
-                label={labels.sort}
-                value={sort.key}
-                options={[
-                  { value: "code", label: labels.code },
-                  { value: "label", label: labels.label },
-                  { value: "units", label: labels.units },
-                ]}
-                placeholder={labels.sort}
-                emptyLabel={labels.sort}
-                onValueChange={(key) => {
-                  if (key === "code" || key === "label" || key === "units")
-                    setSort({ key, descending: sort.descending });
-                }}
-              />
-            </label>
-            <IconButton
-              type="button"
-              variant="ghost"
-              label={labels.direction}
-              onClick={() => setSort({ ...sort, descending: !sort.descending })}
-            >
-              {sort.descending ? (
-                <ArrowDown aria-hidden="true" />
-              ) : (
-                <ArrowUp aria-hidden="true" />
-              )}
-            </IconButton>
-          </div>
-          <div
-            role="list"
-            aria-label={labels.title}
-            className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3"
-          >
-            {visible.map(({ zone, counts }) => (
-              <div role="listitem" key={zone.zoneId}>
-                <button
-                  type="button"
-                  aria-pressed={selectedId === zone.zoneId}
-                  aria-label={`${thai ? "เลือกจุดจัดเก็บ" : "Select location"} ${zone.code} · ${zone.label}`}
-                  onClick={() => onSelect(zone.zoneId)}
-                  className="h-full w-full space-y-3 rounded-lg border border-border bg-surface p-4 text-left hover:bg-raised aria-pressed:border-ring aria-pressed:bg-selected"
-                >
-                  <div className="text-xs break-words text-muted">
-                    {zone.code}
-                  </div>
-                  <div className="font-medium break-words">{zone.label}</div>
-                  <div className="text-sm text-muted">
-                    {number.format(zone.widthMm / 1000)} ×{" "}
-                    {number.format(zone.depthMm / 1000)} ×{" "}
-                    {number.format(zone.maxStackHeightMm / 1000)} m
-                  </div>
-                  <dl className="grid grid-cols-2 gap-2 text-sm">
-                    {(
-                      [
-                        [labels.units, counts.units, counts.totalIncomplete],
-                        [labels.stored, counts.stored, counts.incomplete],
-                        [labels.reserved, counts.reserved, counts.incomplete],
-                        [labels.unmeasured, counts.unmeasured, false],
-                      ] as const
-                    ).map(([label, count, incomplete]) => (
-                      <div key={label}>
-                        <dt className="text-xs text-muted">{label}</dt>
-                        <dd className="tabular-nums">
-                          {incomplete ? "≥ " : ""}
-                          {number.format(count)}
-                        </dd>
-                      </div>
-                    ))}
-                  </dl>
-                </button>
-              </div>
-            ))}
-          </div>
-          {!visible.length ? (
-            <p className="py-8 text-center text-muted">{labels.empty}</p>
-          ) : null}
-        </>
-      ) : (
-        <div
-          role="region"
-          aria-label={labels.title}
-          tabIndex={0}
-          className="min-w-0 overflow-x-auto rounded-lg border border-border focus-visible:outline-offset-[-3px]"
-        >
-          <table className="w-full min-w-[52rem] border-collapse bg-surface text-sm">
-            <caption className="sr-only">{labels.title}</caption>
-            <thead className="border-b border-border bg-raised text-text">
-              <tr>
-                {sortHeader("code", labels.code)}
-                {sortHeader("label", labels.label)}
-                <th
-                  scope="col"
-                  className="px-3 text-left text-xs font-semibold"
-                >
-                  {labels.dimensions}
-                </th>
-                {sortHeader("units", labels.units)}
-                {[labels.stored, labels.reserved, labels.unmeasured].map(
-                  (label) => (
-                    <th
-                      scope="col"
-                      key={label}
-                      className="px-3 text-right text-xs font-semibold"
-                    >
-                      {label}
-                    </th>
-                  ),
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {visible.map(({ zone, counts }) => (
-                <tr
-                  key={zone.zoneId}
-                  data-state={
-                    selectedId === zone.zoneId ? "selected" : undefined
-                  }
-                  className="cursor-pointer border-b border-border last:border-b-0 hover:bg-raised data-[state=selected]:bg-selected"
-                  onClick={() => onSelect(zone.zoneId)}
-                >
-                  <td className="max-w-48 px-3 py-2 align-top">
-                    <button
-                      type="button"
-                      aria-pressed={selectedId === zone.zoneId}
-                      aria-label={`${thai ? "เลือกจุดจัดเก็บ" : "Select location"} ${zone.code} · ${zone.label}`}
-                      className="min-h-touch text-left font-medium break-words text-link"
-                    >
-                      {zone.code}
-                    </button>
-                  </td>
-                  <td className="max-w-80 min-w-48 px-3 py-4 align-top break-words whitespace-normal">
-                    {zone.label}
-                  </td>
-                  <td className="px-3 py-4 align-top whitespace-nowrap text-muted tabular-nums">
-                    {number.format(zone.widthMm / 1000)} ×{" "}
-                    {number.format(zone.depthMm / 1000)} ×{" "}
-                    {number.format(zone.maxStackHeightMm / 1000)}
-                  </td>
-                  <td className="px-3 py-4 text-right align-top tabular-nums">
-                    {counts.totalIncomplete ? "≥ " : ""}
-                    {number.format(counts.units)}
-                  </td>
-                  <td className="px-3 py-4 text-right align-top tabular-nums">
-                    {counts.incomplete ? "≥ " : ""}
-                    {number.format(counts.stored)}
-                  </td>
-                  <td className="px-3 py-4 text-right align-top tabular-nums">
-                    {counts.incomplete ? "≥ " : ""}
-                    {number.format(counts.reserved)}
-                  </td>
-                  <td className="px-3 py-4 text-right align-top tabular-nums">
-                    {number.format(counts.unmeasured)}
-                  </td>
-                </tr>
+                    </div>
+                    <dl className="grid grid-cols-2 gap-2 text-sm">
+                      {(
+                        [
+                          [labels.units, counts.units, counts.totalIncomplete],
+                          [labels.stored, counts.stored, counts.incomplete],
+                          [labels.reserved, counts.reserved, counts.incomplete],
+                          [labels.unmeasured, counts.unmeasured, false],
+                        ] as const
+                      ).map(([label, count, incomplete]) => (
+                        <div key={label}>
+                          <dt className="text-xs text-muted">{label}</dt>
+                          <dd className="tabular-nums">
+                            {incomplete ? "≥ " : ""}
+                            {number.format(count)}
+                          </dd>
+                        </div>
+                      ))}
+                    </dl>
+                  </button>
+                </div>
               ))}
-              {!visible.length ? (
+            </div>
+            {!visible.length ? (
+              <p className="py-8 text-center text-muted">{labels.empty}</p>
+            ) : null}
+          </>
+        ) : (
+          <div
+            role="region"
+            aria-label={labels.title}
+            tabIndex={0}
+            className={
+              workspace
+                ? "min-w-0 rounded-lg border border-border focus-visible:outline-offset-[-3px]"
+                : "min-w-0 overflow-x-auto rounded-lg border border-border focus-visible:outline-offset-[-3px]"
+            }
+          >
+            <table className="w-full min-w-[52rem] border-collapse bg-surface text-sm">
+              <caption className="sr-only">{labels.title}</caption>
+              <thead className="sticky top-0 z-10 border-b border-border bg-raised text-text">
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-muted">
-                    {labels.empty}
-                  </td>
+                  {sortHeader("code", labels.code)}
+                  {sortHeader("label", labels.label)}
+                  <th
+                    scope="col"
+                    className="px-3 text-left text-xs font-semibold"
+                  >
+                    {labels.dimensions}
+                  </th>
+                  {sortHeader("units", labels.units)}
+                  {[labels.stored, labels.reserved, labels.unmeasured].map(
+                    (label) => (
+                      <th
+                        scope="col"
+                        key={label}
+                        className="px-3 text-right text-xs font-semibold"
+                      >
+                        {label}
+                      </th>
+                    ),
+                  )}
                 </tr>
-              ) : null}
-            </tbody>
-          </table>
-        </div>
-      )}
+              </thead>
+              <tbody>
+                {visible.map(({ zone, counts }) => (
+                  <tr
+                    key={zone.zoneId}
+                    data-state={
+                      selectedId === zone.zoneId ? "selected" : undefined
+                    }
+                    className="cursor-pointer border-b border-border last:border-b-0 hover:bg-raised data-[state=selected]:bg-selected"
+                    onClick={() => onSelect(zone.zoneId)}
+                  >
+                    <td className="max-w-48 px-3 py-0 align-middle">
+                      <button
+                        type="button"
+                        aria-pressed={selectedId === zone.zoneId}
+                        aria-label={`${thai ? "เลือกจุดจัดเก็บ" : "Select location"} ${zone.code} · ${zone.label}`}
+                        className="min-h-touch text-left font-medium break-words text-link"
+                      >
+                        {zone.code}
+                      </button>
+                    </td>
+                    <td className="max-w-80 min-w-48 px-3 py-2 align-middle break-words whitespace-normal">
+                      {zone.label}
+                    </td>
+                    <td className="px-3 py-2 align-middle whitespace-nowrap text-muted tabular-nums">
+                      {number.format(zone.widthMm / 1000)} ×{" "}
+                      {number.format(zone.depthMm / 1000)} ×{" "}
+                      {number.format(zone.maxStackHeightMm / 1000)}
+                    </td>
+                    <td className="px-3 py-2 text-right align-middle tabular-nums">
+                      {counts.totalIncomplete ? "≥ " : ""}
+                      {number.format(counts.units)}
+                    </td>
+                    <td className="px-3 py-2 text-right align-middle tabular-nums">
+                      {counts.incomplete ? "≥ " : ""}
+                      {number.format(counts.stored)}
+                    </td>
+                    <td className="px-3 py-2 text-right align-middle tabular-nums">
+                      {counts.incomplete ? "≥ " : ""}
+                      {number.format(counts.reserved)}
+                    </td>
+                    <td className="px-3 py-2 text-right align-middle tabular-nums">
+                      {number.format(counts.unmeasured)}
+                    </td>
+                  </tr>
+                ))}
+                {!visible.length ? (
+                  <tr>
+                    <td
+                      colSpan={7}
+                      className="px-4 py-8 text-center text-muted"
+                    >
+                      {labels.empty}
+                    </td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
       {visible.some(({ counts }) => counts.incomplete) ? (
         <p className="text-xs text-muted">{labels.incomplete}</p>
       ) : null}
@@ -548,3 +587,5 @@ export function FloorLocationTable({
     </div>
   );
 }
+
+export const FloorLocationTable = memo(LocationTable);

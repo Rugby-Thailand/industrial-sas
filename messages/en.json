@@ -620,7 +620,14 @@
     "floorDimensions": "Floor dimensions",
     "mapSelectArea": "Select area {name}",
     "mapAreaNoStorage": "No pallets can be stored in this area.",
-    "breadcrumbRoot": "Buildings & spots"
+    "breadcrumbRoot": "Buildings & spots",
+    "workspace": {
+      "map": "Map view",
+      "list": "Table view",
+      "split": "Split view",
+      "hideDetails": "Hide details",
+      "clearSearch": "Clear search"
+    }
   },
   "FinishedGoods": {
     "title": "Finished goods",

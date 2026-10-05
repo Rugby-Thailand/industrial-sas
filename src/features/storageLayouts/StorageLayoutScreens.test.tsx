@@ -259,6 +259,7 @@ describe("BuildingModelWorkspace", () => {
       />,
       { locale: "en", workspace: false },
     );
+    fireEvent.click(screen.getByRole("button", { name: "Table view" }));
     const table = screen.getByRole("table");
     expect(
       screen.queryByRole("article", { name: `${zone.label} · ${zone.code}` }),
@@ -332,6 +333,7 @@ describe("BuildingModelWorkspace", () => {
     expect(
       screen.queryByRole("link", { name: /Edit floor/ }),
     ).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText("Floor 1", { selector: "summary" }));
     expect(screen.getByRole("button", { name: "Edit floor 1" })).toBeVisible();
 
     fireEvent.click(screen.getByRole("button", { name: /^Floor 2$/ }));
@@ -1870,7 +1872,9 @@ describe("interactive floor map", () => {
       screen.getByRole("group", { name: "Interactive floor map" }),
       { key: "Escape" },
     );
-    expect(screen.getByText("Select a location")).toBeVisible();
+    expect(
+      screen.queryByRole("complementary", { name: "Selected location" }),
+    ).not.toBeInTheDocument();
   });
   it("searches units while retaining context, handles no matches, and never submits the form", () => {
     const other = {
@@ -1888,6 +1892,7 @@ describe("interactive floor map", () => {
       name: "Search storage locations",
     });
     fireEvent.change(input, { target: { value: "p-005" } });
+    fireEvent.click(screen.getByRole("button", { name: "Split view" }));
     fireEvent.click(
       within(screen.getByRole("table")).getByRole("button", {
         name: /Select location/,
@@ -2049,6 +2054,7 @@ it("renders dense demo scenarios without inventory links or writes", async () =>
   expect(
     screen.getByText("Floor footprint used or reserved: 100%"),
   ).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Table view" }));
   expect(container.querySelector('a[href*="/pallets/demo-"]')).toBeNull();
   fireEvent.change(
     screen.getByRole("searchbox", { name: "Search storage locations" }),
@@ -2119,7 +2125,13 @@ describe("mobile storage workspace", () => {
     const original = window.matchMedia;
     vi.spyOn(window, "matchMedia").mockImplementation((query) => ({
       ...original(query),
-      matches: query === "(max-width: 580px)" && mobile,
+      matches:
+        [
+          "(max-width: 580px)",
+          "(max-width: 850px)",
+          "(max-width: 1099px)",
+          "(max-width: 1399px)",
+        ].includes(query) && mobile,
       addEventListener: (
         _type: string,
         listener: EventListenerOrEventListenerObject | null,
@@ -2177,7 +2189,7 @@ describe("mobile storage workspace", () => {
   });
   it("shares list selection and retains search through map/list switches", async () => {
     mount();
-    fireEvent.click(screen.getByRole("tab", { name: "List (1)" }));
+    fireEvent.click(screen.getByRole("button", { name: "Table view" }));
     fireEvent.change(screen.getByRole("searchbox"), {
       target: { value: "Occupied" },
     });
@@ -2199,13 +2211,13 @@ describe("mobile storage workspace", () => {
     );
     expect(row).toHaveAttribute("aria-pressed", "true");
     await waitFor(() => expect(row).toHaveFocus());
-    fireEvent.click(screen.getByRole("tab", { name: "Map" }));
+    fireEvent.click(screen.getByRole("button", { name: "Map view" }));
     expect(
       within(
         screen.getByRole("group", { name: "Interactive floor map" }),
       ).getByRole("button", { name: "Select location Occupied FG" }),
     ).toHaveAttribute("aria-pressed", "true");
-    fireEvent.click(screen.getByRole("tab", { name: "List (1)" }));
+    fireEvent.click(screen.getByRole("button", { name: "Table view" }));
     expect(screen.getByRole("searchbox")).toHaveValue("Occupied");
   });
   it("closes the sheet before opening the single existing editor and retains selection on cancel", async () => {
