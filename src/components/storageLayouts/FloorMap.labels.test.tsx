@@ -12,7 +12,10 @@ vi.mock("@/hooks/useCanManage", () => ({
 }));
 vi.mock("@/i18n/navigation", () => ({ Link: "a" }));
 
-beforeEach(() => localStorage.clear());
+beforeEach(() => {
+  localStorage.clear();
+  window.history.replaceState(null, "", "/");
+});
 
 function detailedLabelsButton() {
   if (!screen.queryByRole("button", { name: "Show detailed labels" }))
@@ -211,7 +214,7 @@ describe("floor location labels", () => {
       label: `Door ${index + 1}`,
       color: "#8ebbb2",
     }));
-    const view = renderWithIntl(<FloorMap {...data} blocks={blocks} />, {
+    renderWithIntl(<FloorMap {...data} blocks={blocks} />, {
       locale: "en",
       workspace: false,
     });
@@ -224,12 +227,17 @@ describe("floor location labels", () => {
     expect(map.querySelectorAll("[data-unavailable-area] text")).toHaveLength(
       0,
     );
+    fireEvent.click(screen.getByRole("button", { name: "Display options" }));
     const areas = screen.getByText("Map areas (36)").closest("details");
     expect(areas).not.toHaveAttribute("open");
     fireEvent.click(screen.getByText("Map areas (36)"));
     expect(screen.getByText("Door · 36 areas")).toBeVisible();
     fireEvent.click(screen.getByText("All area names (36)"));
-    expect(view.container).toHaveTextContent("Door 36");
+    expect(
+      screen
+        .getAllByText("Door 36")
+        .some((element) => element.closest("details")),
+    ).toBe(true);
   });
 
   it.each(["PD", "F1", "F2", "SB"])(
@@ -287,7 +295,7 @@ describe("floor location labels", () => {
         "aria-pressed",
         "true",
       );
-      expect(map).toHaveAttribute("viewBox", "0 80 920 500");
+      expect(map).toHaveAttribute("viewBox", "0 0 920 500");
       expect(map.querySelectorAll("[data-pd-cell-code]")).toHaveLength(15);
       expect(
         map.querySelectorAll('[data-map-zone-id][tabindex="0"]'),
@@ -562,6 +570,7 @@ describe("floor location labels", () => {
       target: { value: "FG-A" },
     });
     expect(change.mock.calls.every(([id]) => id === undefined)).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "Table view" }));
     const table = screen.getByRole("table");
     expect(within(table).getAllByRole("row")).toHaveLength(2);
     fireEvent.click(

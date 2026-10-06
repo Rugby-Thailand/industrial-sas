@@ -26,7 +26,8 @@
     "test:a11y": "vitest run --project a11y",
     "check": "pnpm typecheck && pnpm lint && pnpm test",
     "audit:prod": "pnpm audit --prod --audit-level high",
-    "dev:seed": "node scripts/seed-local-test.mjs"
+    "dev:seed": "node scripts/seed-local-test.mjs",
+    "preview:storage-workspace": "vite --config scripts/storage-workspace-preview/vite.config.mjs"
   },
   "dependencies": {
     "@clerk/backend": "3.16.4",

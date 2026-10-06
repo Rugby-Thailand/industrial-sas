@@ -1,0 +1,124 @@
+.toolbar {
+  display: grid;
+  grid-template-columns: auto minmax(120px, 1fr) auto auto auto;
+  align-items: center;
+  gap: 8px;
+  container-type: inline-size;
+}
+.context {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.floor {
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.count {
+  color: var(--plan-muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  min-width: 0;
+  padding: 0 10px;
+  border: 1px solid var(--plan-border);
+  border-radius: 6px;
+}
+.search:focus-within {
+  outline: 2px solid var(--plan-link);
+  outline-offset: 1px;
+}
+.search input {
+  min-width: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 12px;
+}
+.search input::placeholder {
+  color: var(--plan-muted);
+}
+.icon {
+  position: relative;
+  min-height: 36px;
+  min-width: 36px;
+  height: 36px;
+  width: 36px;
+  padding: 0;
+}
+.search .icon {
+  margin-right: -8px;
+}
+.views {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+  border-radius: 6px;
+  background: var(--plan-panel-raised);
+}
+.filterDot {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  height: 5px;
+  width: 5px;
+  background: var(--plan-link);
+  border-radius: 50%;
+}
+@media (max-width: 850px) {
+  .toolbar {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 4px;
+  }
+  .context {
+    grid-column: 1;
+    grid-row: 1;
+    gap: 6px;
+  }
+  .count {
+    font-size: 10px;
+  }
+  .views {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .more {
+    grid-column: 3;
+    grid-row: 1;
+  }
+  .search {
+    grid-column: 1 / 3;
+    grid-row: 2;
+    height: 44px;
+  }
+  .filter {
+    grid-column: 3;
+    grid-row: 2;
+  }
+  .icon {
+    min-height: 44px;
+    min-width: 44px;
+    height: 44px;
+    width: 44px;
+  }
+}
+@media (min-width: 851px) and (max-width: 1150px) {
+  .count {
+    display: none;
+  }
+}
+@media (max-width: 359px) {
+  .count {
+    display: none;
+  }
+}

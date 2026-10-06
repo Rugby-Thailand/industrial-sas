@@ -620,7 +620,16 @@
     "floorDimensions": "ขนาดชั้น",
     "mapSelectArea": "เลือกพื้นที่ {name}",
     "mapAreaNoStorage": "พื้นที่นี้ไม่สามารถจัดเก็บพาเลทได้",
-    "breadcrumbRoot": "อาคารและจุดจัดเก็บ"
+    "breadcrumbRoot": "อาคารและจุดจัดเก็บ",
+    "workspace": {
+      "map": "มุมมองแผนผัง",
+      "list": "มุมมองตาราง",
+      "split": "แสดงคู่",
+      "hideDetails": "ซ่อนรายละเอียด",
+      "clearSearch": "ล้างการค้นหา",
+      "moreActions": "การทำงานเพิ่มเติม",
+      "showOnMap": "ดูบนแผนผัง"
+    }
   },
   "FinishedGoods": {
     "title": "สินค้าสำเร็จรูป",

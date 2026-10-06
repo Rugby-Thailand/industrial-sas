@@ -81,6 +81,12 @@ import {
   StorageFloorEditor,
 } from "./StorageLayoutScreens";
 
+function floorButton(floor: number) {
+  const name = `Floor ${floor}`;
+  if (!screen.queryByRole("button", { name }))
+    fireEvent.click(screen.getByRole("button", { name: "Building floors" }));
+  return screen.getByRole("button", { name });
+}
 describe("StorageCatalogueFilters", () => {
   it("keeps search and status in distinct responsive columns", () => {
     renderWithIntl(
@@ -170,10 +176,8 @@ describe("BuildingModelWorkspace", () => {
         ),
       },
     );
-    expect(screen.getByRole("button", { name: /^Floor 2$/ })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
+    expect(floorButton(2)).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(screen.getByRole("button", { name: "Building floors" }));
     expect(
       screen.getByRole("region", { name: "Interactive floor map" }),
     ).toBeVisible();
@@ -225,12 +229,9 @@ describe("BuildingModelWorkspace", () => {
     expect(
       screen.queryByRole("link", { name: "Open pallet P-005" }),
     ).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /^Floor 1$/ }));
+    fireEvent.click(floorButton(1));
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: /^Floor 1$/ })).toHaveAttribute(
-        "aria-pressed",
-        "true",
-      ),
+      expect(floorButton(1)).toHaveAttribute("aria-pressed", "true"),
     );
     expect(screen.queryByText("Saved walkway")).not.toBeInTheDocument();
     expect(
@@ -259,6 +260,7 @@ describe("BuildingModelWorkspace", () => {
       />,
       { locale: "en", workspace: false },
     );
+    fireEvent.click(screen.getByRole("button", { name: "Table view" }));
     const table = screen.getByRole("table");
     expect(
       screen.queryByRole("article", { name: `${zone.label} · ${zone.code}` }),
@@ -272,9 +274,9 @@ describe("BuildingModelWorkspace", () => {
       screen.getByRole("article", { name: `${zone.label} · ${zone.code}` }),
     ).toBeVisible();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    const drawer = screen.getByRole("complementary", {
-      name: "Selected location",
-    });
+    const drawer = document.querySelector<HTMLElement>(
+      "[data-inline-location-details]",
+    )!;
     fireEvent.click(
       within(drawer).getByRole("button", { name: "Clear selection" }),
     );
@@ -293,6 +295,7 @@ describe("BuildingModelWorkspace", () => {
     expect(
       document.getElementById("storage-stacks-section"),
     ).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "More actions" }));
     const add = screen.getByRole("button", { name: "Add storage stack" });
     expect(add).toHaveAttribute("type", "button");
     fireEvent.click(add);
@@ -316,29 +319,19 @@ describe("BuildingModelWorkspace", () => {
       { locale: "en", workspace: false },
     );
 
+    floorButton(1);
     expect(screen.getAllByRole("button", { name: /^Floor \d$/ })).toHaveLength(
       4,
     );
-    expect(
-      within(screen.getByRole("button", { name: /^Floor 2$/ })).getByText(
-        /: 4 m$/,
-      ),
-    ).toBeInTheDocument();
-    expect(
-      within(screen.getByRole("button", { name: /^Floor 3$/ })).getByText(
-        /: 5 m$/,
-      ),
-    ).toBeInTheDocument();
+    expect(within(floorButton(2)).getByText("0 locations")).toBeInTheDocument();
+    expect(within(floorButton(3)).getByText("0 locations")).toBeInTheDocument();
     expect(
       screen.queryByRole("link", { name: /Edit floor/ }),
     ).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Edit floor 1" })).toBeVisible();
 
-    fireEvent.click(screen.getByRole("button", { name: /^Floor 2$/ }));
-    expect(screen.getByRole("button", { name: /^Floor 2$/ })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
+    fireEvent.click(floorButton(2));
+    expect(floorButton(2)).toHaveAttribute("aria-pressed", "true");
   });
 });
 
@@ -372,7 +365,7 @@ describe("unified floor editing", () => {
     fireEvent.change(screen.getByRole("spinbutton", { name: "Width (m)" }), {
       target: { value: "22" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Floor 1" }));
+    fireEvent.click(floorButton(1));
     expect(
       screen.getByRole("dialog", { name: "Save changes before leaving?" }),
     ).toBeVisible();
@@ -380,13 +373,10 @@ describe("unified floor editing", () => {
     expect(screen.getByRole("spinbutton", { name: "Width (m)" })).toHaveValue(
       22,
     );
-    fireEvent.click(screen.getByRole("button", { name: "Floor 1" }));
+    fireEvent.click(floorButton(1));
     fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Floor 1" })).toHaveAttribute(
-        "aria-pressed",
-        "true",
-      ),
+      expect(floorButton(1)).toHaveAttribute("aria-pressed", "true"),
     );
     expect(mutation).not.toHaveBeenCalled();
   });
@@ -1870,7 +1860,9 @@ describe("interactive floor map", () => {
       screen.getByRole("group", { name: "Interactive floor map" }),
       { key: "Escape" },
     );
-    expect(screen.getByText("Select a location")).toBeVisible();
+    expect(
+      screen.queryByRole("complementary", { name: "Selected location" }),
+    ).not.toBeInTheDocument();
   });
   it("searches units while retaining context, handles no matches, and never submits the form", () => {
     const other = {
@@ -1888,6 +1880,7 @@ describe("interactive floor map", () => {
       name: "Search storage locations",
     });
     fireEvent.change(input, { target: { value: "p-005" } });
+    fireEvent.click(screen.getByRole("button", { name: "Split view" }));
     fireEvent.click(
       within(screen.getByRole("table")).getByRole("button", {
         name: /Select location/,
@@ -2049,19 +2042,22 @@ it("renders dense demo scenarios without inventory links or writes", async () =>
   expect(
     screen.getByText("Floor footprint used or reserved: 100%"),
   ).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Table view" }));
   expect(container.querySelector('a[href*="/pallets/demo-"]')).toBeNull();
   fireEvent.change(
     screen.getByRole("searchbox", { name: "Search storage locations" }),
     { target: { value: "DEMO-P-030" } },
   );
-  fireEvent.click(
-    within(screen.getByRole("table")).getByRole("button", {
-      name: /Select location/,
-    }),
-  );
+  const row = within(screen.getByRole("table")).getByRole("button", {
+    name: /Select location/,
+  });
+  expect(row).toHaveAttribute("aria-pressed", "true");
+  fireEvent.click(row);
+  expect(container.querySelector("[data-inline-location-details]")).toBeNull();
+  fireEvent.click(row);
   expect(
     within(
-      screen.getByRole("complementary", { name: "Selected location" }),
+      container.querySelector<HTMLElement>("[data-inline-location-details]")!,
     ).getByText("DEMO-P-030"),
   ).toBeVisible();
 
@@ -2119,7 +2115,13 @@ describe("mobile storage workspace", () => {
     const original = window.matchMedia;
     vi.spyOn(window, "matchMedia").mockImplementation((query) => ({
       ...original(query),
-      matches: query === "(max-width: 580px)" && mobile,
+      matches:
+        [
+          "(max-width: 580px)",
+          "(max-width: 850px)",
+          "(max-width: 1099px)",
+          "(max-width: 1399px)",
+        ].includes(query) && mobile,
       addEventListener: (
         _type: string,
         listener: EventListenerOrEventListenerObject | null,
@@ -2177,7 +2179,7 @@ describe("mobile storage workspace", () => {
   });
   it("shares list selection and retains search through map/list switches", async () => {
     mount();
-    fireEvent.click(screen.getByRole("tab", { name: "List (1)" }));
+    fireEvent.click(screen.getByRole("button", { name: "Table view" }));
     fireEvent.change(screen.getByRole("searchbox"), {
       target: { value: "Occupied" },
     });
@@ -2186,26 +2188,30 @@ describe("mobile storage workspace", () => {
     });
     row.focus();
     fireEvent.click(row);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(
-      screen.getByRole("dialog", { name: "Location details" }),
-    ).toBeVisible();
-    fireEvent.click(
-      within(screen.getByRole("dialog")).getByRole("button", {
-        name: "Close dialog",
-      }),
-    );
+      document.querySelector("[data-inline-location-details]"),
+    ).not.toBeNull();
+    expect(row).toHaveAttribute("aria-pressed", "true");
+    await waitFor(() => expect(row).toHaveFocus());
+    fireEvent.click(screen.getByRole("button", { name: "Edit Occupied FG" }));
+    await screen.findByRole("dialog", { name: "Edit storage stack" });
+    expect(screen.getAllByRole("dialog")).toHaveLength(1);
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     await waitFor(() =>
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
     );
+    const { isWorkspaceHistoryGuardActive } =
+      await import("./useWorkspaceNavigationGuard");
+    await waitFor(() => expect(isWorkspaceHistoryGuardActive()).toBe(false));
     expect(row).toHaveAttribute("aria-pressed", "true");
-    await waitFor(() => expect(row).toHaveFocus());
-    fireEvent.click(screen.getByRole("tab", { name: "Map" }));
+    fireEvent.click(screen.getByRole("button", { name: "Show on map" }));
     expect(
       within(
         screen.getByRole("group", { name: "Interactive floor map" }),
       ).getByRole("button", { name: "Select location Occupied FG" }),
     ).toHaveAttribute("aria-pressed", "true");
-    fireEvent.click(screen.getByRole("tab", { name: "List (1)" }));
+    fireEvent.click(screen.getByRole("button", { name: "Table view" }));
     expect(screen.getByRole("searchbox")).toHaveValue("Occupied");
   });
   it("closes the sheet before opening the single existing editor and retains selection on cancel", async () => {
@@ -2264,10 +2270,7 @@ describe("mobile storage workspace", () => {
     await waitFor(() =>
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
     );
-    expect(screen.getByRole("button", { name: "Floor 1" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
+    expect(floorButton(1)).toHaveAttribute("aria-pressed", "true");
   });
   it("dismisses removed locations on refresh and releases the sheet on desktop resize", async () => {
     const view = mount();
