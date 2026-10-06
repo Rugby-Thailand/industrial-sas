@@ -84,9 +84,7 @@ import {
 function floorButton(floor: number) {
   const name = `Floor ${floor}`;
   if (!screen.queryByRole("button", { name }))
-    fireEvent.click(
-      screen.getByRole("button", { name: "Building floors", exact: true }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "Building floors" }));
   return screen.getByRole("button", { name });
 }
 describe("StorageCatalogueFilters", () => {
@@ -275,7 +273,9 @@ describe("BuildingModelWorkspace", () => {
       screen.getByRole("article", { name: `${zone.label} · ${zone.code}` }),
     ).toBeVisible();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    const drawer = document.querySelector("[data-inline-location-details]")!;
+    const drawer = document.querySelector<HTMLElement>(
+      "[data-inline-location-details]",
+    )!;
     fireEvent.click(
       within(drawer).getByRole("button", { name: "Clear selection" }),
     );

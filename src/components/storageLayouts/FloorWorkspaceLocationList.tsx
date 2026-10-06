@@ -300,7 +300,7 @@ export function FloorWorkspaceLocationList({
                 );
                 if (size !== undefined) pagination.onSize(size);
               }}
-              className={styles.pageSize}
+              className={styles.pageSize ?? ""}
             />
             <span>
               {thai ? "หน้า" : "Page"} {number.format(pagination.page + 1)} /{" "}
