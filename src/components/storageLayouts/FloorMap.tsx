@@ -155,6 +155,7 @@ export function FloorMap(props: FloorMapProps) {
   const [desktopTarget, setDesktopTarget] = useState<HTMLDivElement | null>(
     null,
   );
+  const [inlineTarget, setInlineTarget] = useState<HTMLDivElement | null>(null);
   const [sheetTarget, setSheetTarget] = useState<HTMLDivElement | null>(null);
   const opener = useRef<Element | null>(null);
   const interaction = useRef<Element | null>(null);
@@ -209,7 +210,10 @@ export function FloorMap(props: FloorMapProps) {
   const detailKey =
     selected?.zoneId ?? (selectedArea ? `area:${areaIndex}` : undefined);
   const sheetOpen =
-    compactInspector && !!detailKey && sheetSelection === detailKey;
+    workspaceView !== "list" &&
+    compactInspector &&
+    !!detailKey &&
+    sheetSelection === detailKey;
   if (sheetSelection && (!compactInspector || sheetSelection !== detailKey))
     setSheetSelection(undefined);
   function openDetails() {
@@ -277,7 +281,7 @@ export function FloorMap(props: FloorMapProps) {
     (id: string, palletId?: string) => {
       setSelectedId(id);
       setInspectorVisible(true);
-      if (compactInspector) {
+      if (compactInspector && workspaceView !== "list") {
         opener.current = interaction.current ?? document.activeElement;
         setSheetSelection(id);
       }
@@ -291,7 +295,7 @@ export function FloorMap(props: FloorMapProps) {
       )
         setZoom((current) => Math.max(current, 4));
     },
-    [setSelectedId, compactInspector, props.zones, view],
+    [setSelectedId, compactInspector, props.zones, view, workspaceView],
   );
   const selectMapLocation = useCallback(
     (id: string, palletId?: string) => {
@@ -571,17 +575,34 @@ export function FloorMap(props: FloorMapProps) {
     </>
   );
   const floorControls = props.floorSelector ? (
-    <details
-      className={styles.floorSlot}
-      open={floorsOpen}
-      onToggle={(event) => setFloorsOpen(event.currentTarget.open)}
-    >
-      <summary className={styles.floorChip}>
-        <ChevronDown aria-hidden="true" className="size-4" />
-        {t("floor", { floor: props.floorNumber })}
-      </summary>
-      {props.floorSelector}
-    </details>
+    <Popover.Root open={floorsOpen} onOpenChange={setFloorsOpen}>
+      <Popover.Trigger asChild>
+        <button
+          type="button"
+          className={styles.floorChip}
+          aria-label={t("floorSelector")}
+        >
+          {t("floor", { floor: props.floorNumber })}
+          <ChevronDown aria-hidden="true" className="size-3.5" />
+        </button>
+      </Popover.Trigger>
+      <Popover.Portal>
+        <Popover.Content
+          align="start"
+          sideOffset={8}
+          className={`${styles.theme} ${styles.floorPopover}`}
+          onClick={(event) => {
+            if (
+              event.target instanceof Element &&
+              event.target.closest("button")
+            )
+              setFloorsOpen(false);
+          }}
+        >
+          {props.floorSelector}
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
   ) : null;
   if (offsetEditing && props.offsetEditor)
     return (
@@ -629,6 +650,8 @@ export function FloorMap(props: FloorMapProps) {
           onView={setWorkspaceView}
           canSplit={canSplit}
           count={matches.length}
+          floorNumber={props.floorNumber}
+          floorControl={workspaceView === "list" ? floorControls : undefined}
           actions={props.locationActions}
         />
       </div>
@@ -637,7 +660,10 @@ export function FloorMap(props: FloorMapProps) {
         className={`${styles.workArea} @container min-w-0`}
         data-view={workspaceView}
         data-inspector={
-          !!(selected || selectedArea) && inspectorVisible && !compactInspector
+          workspaceView !== "list" &&
+          !!(selected || selectedArea) &&
+          inspectorVisible &&
+          !compactInspector
         }
         onClickCapture={(event) => {
           interaction.current =
@@ -664,7 +690,6 @@ export function FloorMap(props: FloorMapProps) {
           }
         }}
       >
-        {workspaceView === "list" && floorControls}
         <div className={styles.panels}>
           <div
             id={`${inspectorId}-map`}
@@ -826,7 +851,9 @@ export function FloorMap(props: FloorMapProps) {
               />
             </div>
             <div className={styles.canvas}>
-              {workspaceView !== "list" && floorControls}
+              {workspaceView !== "list" && floorControls && (
+                <div className={styles.floorSlot}>{floorControls}</div>
+              )}
               <div className={styles.drawing}>
                 <div className={styles.stamp}>
                   {props.buildingCode && `${props.buildingCode} / `}
@@ -926,11 +953,24 @@ export function FloorMap(props: FloorMapProps) {
               onClearSelection={clearSelection}
               actions={props.locationActions}
               selectedId={selected?.zoneId}
-              onSelect={select}
+              onSelect={(id) =>
+                selectedId === id ? clearSelection() : select(id)
+              }
+              details={
+                workspaceView !== "map" &&
+                selected && (
+                  <div className={styles.inlineDetails}>
+                    {!props.locationInspector && inspectorDetails}
+                    <div ref={setInlineTarget} />
+                  </div>
+                )
+              }
+              onShowMap={() => setWorkspaceView("map")}
             />
           </div>
         </div>
-        {(selected || selectedArea) &&
+        {workspaceView !== "list" &&
+          (selected || selectedArea) &&
           inspectorVisible &&
           !compactInspector && (
             <aside
@@ -955,7 +995,8 @@ export function FloorMap(props: FloorMapProps) {
               <div ref={setDesktopTarget} />
             </aside>
           )}
-        {(selected || selectedArea) &&
+        {workspaceView !== "list" &&
+          (selected || selectedArea) &&
           ((!inspectorVisible && !compactInspector) ||
             (compactInspector && !sheetOpen)) && (
             <Button
@@ -1036,11 +1077,14 @@ export function FloorMap(props: FloorMapProps) {
         </Sheet>
         <LocationDetailsHost.Provider
           value={{
-            target: compactInspector
-              ? sheetOpen
-                ? sheetTarget
-                : null
-              : desktopTarget,
+            target:
+              workspaceView === "list"
+                ? inlineTarget
+                : compactInspector
+                  ? sheetOpen
+                    ? sheetTarget
+                    : null
+                  : desktopTarget,
             runAction: runDetailAction,
             editZone: props.onEditZone,
             selectedUnitId: unitId,

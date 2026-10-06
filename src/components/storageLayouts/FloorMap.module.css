@@ -266,7 +266,7 @@
 
 /* One bounded workspace; floor controls and camera belong to the canvas. */
 .workspaceToolbar {
-  padding: 12px 16px;
+  padding: 8px 12px;
   border-bottom: 1px solid var(--plan-border);
 }
 .workArea {
@@ -326,11 +326,10 @@
 .listPanel {
   min-width: 0;
   min-height: 0;
-  padding: 70px 16px 12px;
+  padding: 0;
   background: var(--plan-panel);
 }
 .workArea[data-view="split"] .listPanel {
-  padding-top: 12px;
   border-left: 1px solid var(--plan-border);
 }
 .inspector {
@@ -349,44 +348,40 @@
   top: 12px;
   left: 12px;
   z-index: 20;
-  width: 142px;
-  max-height: calc(100% - 24px);
-  overflow: auto;
-  overscroll-behavior: contain;
-  border-radius: 10px;
-  background: var(--plan-panel);
-  box-shadow: 0 6px 20px #0001;
 }
 .floorChip {
   display: flex;
   align-items: center;
   gap: 8px;
-  min-height: 44px;
-  cursor: pointer;
-  padding: 8px 12px;
+  height: 36px;
+  padding: 0 10px;
   border: 1px solid var(--plan-border);
-  border-radius: 10px;
+  border-radius: 6px;
+  background: var(--plan-panel);
   font-size: 12px;
   font-weight: 600;
-  list-style: none;
-}
-.floorChip::-webkit-details-marker {
-  display: none;
+  white-space: nowrap;
 }
 .floorChip:focus-visible {
   outline: 2px solid var(--plan-link);
-  outline-offset: -3px;
+  outline-offset: 1px;
 }
-.floorSlot[open] .floorChip {
-  border-radius: 10px 10px 0 0;
+.floorPopover {
+  z-index: 50;
+  width: 240px;
+  padding: 8px;
+  border: 1px solid var(--plan-border);
+  border-radius: 8px;
+  background: var(--plan-panel);
+  box-shadow: 0 8px 24px #0003;
 }
-.floorSlot nav {
-  border-radius: 0 0 10px 10px;
-  border-top: 0;
+.inlineDetails {
+  padding: 12px;
+  border-top: 1px solid var(--plan-border);
+  background: var(--plan-panel-raised);
 }
-.workArea[data-view="list"] .floorSlot {
-  top: 12px;
-  max-height: calc(100% - 24px);
+.workArea[data-view="list"] {
+  height: auto;
 }
 .reopenDetails {
   position: absolute;
@@ -394,27 +389,18 @@
   top: 80px;
   z-index: 20;
 }
-@media (min-width: 851px) {
-  .workArea:has(.floorSlot[open]):not([data-view="list"]) .canvas {
-    padding-left: 170px;
-  }
-}
 @media (max-width: 850px) {
   .workspaceToolbar {
-    padding: 8px;
+    padding: 4px 8px;
   }
-  .floorSlot {
-    top: 12px;
-    width: 120px;
-  }
-  .floorSlot[open] {
-    width: min(280px, calc(100% - 24px));
-  }
-  .listPanel {
-    padding: 68px 10px 10px;
+  .floorChip {
+    height: 44px;
   }
   .workArea {
     height: clamp(480px, 70dvh, 720px);
+  }
+  .workArea[data-view="list"] {
+    height: auto;
   }
   .canvas {
     padding: 60px 12px 12px;
@@ -426,9 +412,9 @@
 .workArea[data-view="split"] .listPanel table {
   min-width: 0;
 }
-.workArea[data-view="split"]
-  .listPanel
-  :is(th, td):is(:nth-child(2), :nth-child(3), :nth-child(7)) {
+.workArea[data-view="split"] .listPanel [data-column="label"],
+.workArea[data-view="split"] .listPanel [data-column="dimensions"],
+.workArea[data-view="split"] .listPanel [data-column="unmeasured"] {
   display: none;
 }
 

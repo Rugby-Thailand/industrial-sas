@@ -626,7 +626,9 @@
       "list": "Table view",
       "split": "Split view",
       "hideDetails": "Hide details",
-      "clearSearch": "Clear search"
+      "clearSearch": "Clear search",
+      "moreActions": "More actions",
+      "showOnMap": "Show on map"
     }
   },
   "FinishedGoods": {

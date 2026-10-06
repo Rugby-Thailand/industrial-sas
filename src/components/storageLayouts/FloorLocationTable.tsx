@@ -37,7 +37,11 @@ import {
 import type { StorageZoneRow } from "@/lib/convex/storageLayoutApi";
 import { messagesFor } from "@/i18n/messages";
 
-type SortKey = "code" | "label" | "units";
+import {
+  FloorWorkspaceLocationList,
+  type LocationSort,
+} from "./FloorWorkspaceLocationList";
+type SortKey = LocationSort["key"];
 
 function LocationTable({
   zones,
@@ -49,6 +53,8 @@ function LocationTable({
   onClearSelection,
   groupedPositions = false,
   workspace = false,
+  details,
+  onShowMap,
 }: {
   readonly zones: readonly StorageZoneRow[];
   readonly selectedId?: string | undefined;
@@ -59,6 +65,8 @@ function LocationTable({
   readonly onClearSelection?: () => void;
   readonly groupedPositions?: boolean;
   readonly workspace?: boolean;
+  readonly details?: ReactNode;
+  readonly onShowMap?: () => void;
 }) {
   const locale = useLocale();
   const mobile = useStorageLayoutMobile();
@@ -71,7 +79,7 @@ function LocationTable({
   const [filters, setFilters] = useState<string[]>([]);
   const [pageSize, setPageSize] = useState(25);
   const [pagination, setPagination] = useState({ page: 0, revealKey: "" });
-  const [sort, setSort] = useState<{ key: SortKey; descending: boolean }>({
+  const [sort, setSort] = useState<LocationSort>({
     key: "code",
     descending: false,
   });
@@ -162,18 +170,47 @@ function LocationTable({
       </th>
     );
   }
+  if (workspace)
+    return (
+      <FloorWorkspaceLocationList
+        rows={visible}
+        showLabel={sorted.some(({ zone }) => zone.code !== zone.label)}
+        selection={{
+          ...(selectedId === undefined ? {} : { id: selectedId }),
+          onSelect,
+          details,
+          ...(onShowMap ? { onShowMap } : {}),
+        }}
+        pagination={{
+          page: currentPage,
+          pages,
+          size: pageSize,
+          countText,
+          onPage: setPage,
+          onSize: (size) => {
+            setPageSize(size);
+            setPage(0);
+          },
+        }}
+        sorting={{
+          ...sort,
+          onChange: (next) => {
+            setSort(next);
+            setPage(0);
+          },
+        }}
+        labels={labels}
+        number={number}
+        mobile={mobile}
+        thai={thai}
+      />
+    );
   return (
-    <div
-      className={
-        workspace
-          ? "flex h-full min-h-0 min-w-0 flex-col gap-3"
-          : "min-w-0 space-y-3"
-      }
-    >
+    <div className="min-w-0 space-y-3">
       <p role="status" className="sr-only">
         {countText}
       </p>
-      {!workspace && (
+      {
         <CollectionToolbar
           value={query}
           searchLabel={labels.search}
@@ -199,8 +236,8 @@ function LocationTable({
             </>
           }
         />
-      )}
-      {!workspace && (filtersOpen || filters.length) ? (
+      }
+      {filtersOpen || filters.length ? (
         <div
           id={filtersId}
           role="group"
@@ -277,13 +314,7 @@ function LocationTable({
           ) : null}
         </div>
       ) : null}
-      <div
-        className={
-          workspace
-            ? "min-h-0 flex-1 overflow-auto overscroll-contain"
-            : undefined
-        }
-      >
+      <div>
         {mobile ? (
           <>
             <div className="flex items-center gap-2">
@@ -463,11 +494,7 @@ function LocationTable({
             role="region"
             aria-label={labels.title}
             tabIndex={0}
-            className={
-              workspace
-                ? "min-w-0 rounded-lg border border-border focus-visible:outline-offset-[-3px]"
-                : "min-w-0 overflow-x-auto rounded-lg border border-border focus-visible:outline-offset-[-3px]"
-            }
+            className="min-w-0 overflow-x-auto rounded-lg border border-border focus-visible:outline-offset-[-3px]"
           >
             <table className="w-full min-w-[52rem] border-collapse bg-surface text-sm">
               <caption className="sr-only">{labels.title}</caption>

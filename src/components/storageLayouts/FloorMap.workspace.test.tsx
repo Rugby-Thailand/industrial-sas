@@ -51,14 +51,15 @@ describe("canvas first workspace", () => {
     const selected = view.container
       .querySelector('tr[data-state="selected"] button')
       ?.getAttribute("aria-label");
-    fireEvent.click(screen.getByRole("button", { name: "Hide details" }));
     expect(
-      view.container.querySelector('tr[data-state="selected"]'),
+      view.container.querySelector("[data-inline-location-details]"),
     ).not.toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Map view" }));
+    expect(screen.queryByRole("complementary")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Show on map" }));
     expect(
       view.container.querySelector('[data-map-zone-id][aria-pressed="true"]'),
     ).not.toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Hide details" }));
     expect(screen.queryByRole("complementary")).not.toBeInTheDocument();
     expect(screen.getByText(/125%/)).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "Table view" }));

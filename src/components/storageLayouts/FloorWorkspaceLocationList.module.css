@@ -1,0 +1,197 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  max-height: min(68dvh, 780px);
+  font-size: 12px;
+}
+.scroll {
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.listHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 36px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--plan-border);
+  color: var(--plan-muted);
+  font-size: 11px;
+}
+.sort {
+  min-height: 36px;
+  height: 36px;
+  font-size: 11px;
+}
+.row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 54px;
+  padding: 8px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--plan-border);
+}
+.row:hover,
+.table tbody tr:hover {
+  background: var(--plan-panel-raised);
+}
+.row[aria-pressed="true"],
+.table tr[data-state="selected"] {
+  background: var(--color-selected);
+}
+.row:focus-visible,
+.table button:focus-visible {
+  outline: 2px solid var(--plan-link);
+  outline-offset: -3px;
+}
+.identity {
+  min-width: 0;
+}
+.identity strong {
+  display: block;
+  font-size: 13px;
+  line-height: 18px;
+  overflow-wrap: anywhere;
+}
+.identity > span {
+  display: block;
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--plan-muted);
+  overflow-wrap: anywhere;
+}
+.status {
+  text-align: right;
+  font-size: 11px;
+  line-height: 16px;
+}
+.units {
+  display: block;
+  color: var(--plan-muted);
+  font-size: 11px;
+}
+.table {
+  width: 100%;
+  min-width: 640px;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.table thead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--plan-panel-raised);
+}
+.table :is(th, td) {
+  padding: 0 12px;
+  height: 44px;
+  border-bottom: 1px solid var(--plan-border);
+  text-align: left;
+}
+.table th {
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.table th button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 44px;
+}
+.table td button {
+  min-height: 44px;
+  text-align: left;
+  color: var(--plan-link);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.table tbody tr {
+  cursor: pointer;
+}
+.table [data-column="label"] {
+  max-width: 220px;
+  overflow-wrap: anywhere;
+}
+.table [data-column="dimensions"] {
+  white-space: nowrap;
+  color: var(--plan-muted);
+}
+.table
+  :is(
+    [data-column="units"],
+    [data-column="stored"],
+    [data-column="reserved"],
+    [data-column="unmeasured"]
+  ) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.table td[colspan] {
+  padding: 0;
+}
+.details {
+  background: var(--plan-panel-raised);
+}
+.details > button {
+  margin: 0 8px;
+}
+.pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 12px;
+  padding: 4px 12px;
+  min-height: 36px;
+  font-size: 11px;
+  color: var(--plan-muted);
+}
+.paging {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.pageSize {
+  height: 32px;
+  width: 64px;
+  min-height: 32px;
+  padding: 0 4px;
+  border: 1px solid var(--plan-border);
+  border-radius: 6px;
+  background: var(--plan-panel);
+  color: inherit;
+}
+.pageButton {
+  height: 32px;
+  width: 32px;
+  min-height: 32px;
+  min-width: 32px;
+}
+.empty {
+  padding: 24px 12px !important;
+  text-align: center !important;
+  color: var(--plan-muted);
+}
+.note {
+  padding: 8px 12px;
+  color: var(--plan-muted);
+  font-size: 11px;
+}
+@media (max-width: 850px) {
+  .pageButton {
+    height: 44px;
+    width: 44px;
+    min-height: 44px;
+    min-width: 44px;
+  }
+  .pageSize {
+    height: 44px;
+  }
+}

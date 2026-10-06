@@ -81,6 +81,14 @@ import {
   StorageFloorEditor,
 } from "./StorageLayoutScreens";
 
+function floorButton(floor: number) {
+  const name = `Floor ${floor}`;
+  if (!screen.queryByRole("button", { name }))
+    fireEvent.click(
+      screen.getByRole("button", { name: "Building floors", exact: true }),
+    );
+  return screen.getByRole("button", { name });
+}
 describe("StorageCatalogueFilters", () => {
   it("keeps search and status in distinct responsive columns", () => {
     renderWithIntl(
@@ -170,10 +178,7 @@ describe("BuildingModelWorkspace", () => {
         ),
       },
     );
-    expect(screen.getByRole("button", { name: /^Floor 2$/ })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
+    expect(floorButton(2)).toHaveAttribute("aria-pressed", "true");
     expect(
       screen.getByRole("region", { name: "Interactive floor map" }),
     ).toBeVisible();
@@ -225,12 +230,9 @@ describe("BuildingModelWorkspace", () => {
     expect(
       screen.queryByRole("link", { name: "Open pallet P-005" }),
     ).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /^Floor 1$/ }));
+    fireEvent.click(floorButton(1));
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: /^Floor 1$/ })).toHaveAttribute(
-        "aria-pressed",
-        "true",
-      ),
+      expect(floorButton(1)).toHaveAttribute("aria-pressed", "true"),
     );
     expect(screen.queryByText("Saved walkway")).not.toBeInTheDocument();
     expect(
@@ -273,9 +275,7 @@ describe("BuildingModelWorkspace", () => {
       screen.getByRole("article", { name: `${zone.label} · ${zone.code}` }),
     ).toBeVisible();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    const drawer = screen.getByRole("complementary", {
-      name: "Selected location",
-    });
+    const drawer = document.querySelector("[data-inline-location-details]")!;
     fireEvent.click(
       within(drawer).getByRole("button", { name: "Clear selection" }),
     );
@@ -294,6 +294,7 @@ describe("BuildingModelWorkspace", () => {
     expect(
       document.getElementById("storage-stacks-section"),
     ).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "More actions" }));
     const add = screen.getByRole("button", { name: "Add storage stack" });
     expect(add).toHaveAttribute("type", "button");
     fireEvent.click(add);
@@ -317,30 +318,19 @@ describe("BuildingModelWorkspace", () => {
       { locale: "en", workspace: false },
     );
 
+    floorButton(1);
     expect(screen.getAllByRole("button", { name: /^Floor \d$/ })).toHaveLength(
       4,
     );
-    expect(
-      within(screen.getByRole("button", { name: /^Floor 2$/ })).getByText(
-        /: 4 m$/,
-      ),
-    ).toBeInTheDocument();
-    expect(
-      within(screen.getByRole("button", { name: /^Floor 3$/ })).getByText(
-        /: 5 m$/,
-      ),
-    ).toBeInTheDocument();
+    expect(within(floorButton(2)).getByText("0 locations")).toBeInTheDocument();
+    expect(within(floorButton(3)).getByText("0 locations")).toBeInTheDocument();
     expect(
       screen.queryByRole("link", { name: /Edit floor/ }),
     ).not.toBeInTheDocument();
-    fireEvent.click(screen.getByText("Floor 1", { selector: "summary" }));
     expect(screen.getByRole("button", { name: "Edit floor 1" })).toBeVisible();
 
-    fireEvent.click(screen.getByRole("button", { name: /^Floor 2$/ }));
-    expect(screen.getByRole("button", { name: /^Floor 2$/ })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
+    fireEvent.click(floorButton(2));
+    expect(floorButton(2)).toHaveAttribute("aria-pressed", "true");
   });
 });
 
@@ -374,7 +364,7 @@ describe("unified floor editing", () => {
     fireEvent.change(screen.getByRole("spinbutton", { name: "Width (m)" }), {
       target: { value: "22" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Floor 1" }));
+    fireEvent.click(floorButton(1));
     expect(
       screen.getByRole("dialog", { name: "Save changes before leaving?" }),
     ).toBeVisible();
@@ -382,13 +372,10 @@ describe("unified floor editing", () => {
     expect(screen.getByRole("spinbutton", { name: "Width (m)" })).toHaveValue(
       22,
     );
-    fireEvent.click(screen.getByRole("button", { name: "Floor 1" }));
+    fireEvent.click(floorButton(1));
     fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Floor 1" })).toHaveAttribute(
-        "aria-pressed",
-        "true",
-      ),
+      expect(floorButton(1)).toHaveAttribute("aria-pressed", "true"),
     );
     expect(mutation).not.toHaveBeenCalled();
   });
@@ -2198,20 +2185,21 @@ describe("mobile storage workspace", () => {
     });
     row.focus();
     fireEvent.click(row);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(
-      screen.getByRole("dialog", { name: "Location details" }),
-    ).toBeVisible();
-    fireEvent.click(
-      within(screen.getByRole("dialog")).getByRole("button", {
-        name: "Close dialog",
-      }),
-    );
+      document.querySelector("[data-inline-location-details]"),
+    ).not.toBeNull();
+    expect(row).toHaveAttribute("aria-pressed", "true");
+    await waitFor(() => expect(row).toHaveFocus());
+    fireEvent.click(screen.getByRole("button", { name: "Edit Occupied FG" }));
+    await screen.findByRole("dialog", { name: "Edit storage stack" });
+    expect(screen.getAllByRole("dialog")).toHaveLength(1);
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     await waitFor(() =>
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
     );
     expect(row).toHaveAttribute("aria-pressed", "true");
-    await waitFor(() => expect(row).toHaveFocus());
-    fireEvent.click(screen.getByRole("button", { name: "Map view" }));
+    fireEvent.click(screen.getByRole("button", { name: "Show on map" }));
     expect(
       within(
         screen.getByRole("group", { name: "Interactive floor map" }),
@@ -2276,10 +2264,7 @@ describe("mobile storage workspace", () => {
     await waitFor(() =>
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
     );
-    expect(screen.getByRole("button", { name: "Floor 1" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
+    expect(floorButton(1)).toHaveAttribute("aria-pressed", "true");
   });
   it("dismisses removed locations on refresh and releases the sheet on desktop resize", async () => {
     const view = mount();

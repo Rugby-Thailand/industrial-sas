@@ -7,7 +7,7 @@ import { EnvironmentProvider } from "@/components/providers/EnvironmentProvider"
 import { floorMapDemo } from "@/components/storageLayouts/storageFloorDemoData";
 import type { StorageFloorRow } from "@/lib/convex/storageLayoutApi";
 import { pdApprovedPlan } from "../../convex/model/storageLayout/pdApprovedPlan";
-import messages from "../../messages/en.json";
+import { messagesFor } from "@/i18n/messages";
 import "../../src/app/globals.css";
 declare global {
   interface Window {
@@ -16,6 +16,10 @@ declare global {
 }
 window.__storageWorkspaceProfile = [];
 function App() {
+  const locale =
+    new URLSearchParams(window.location.search).get("locale") === "th"
+      ? "th"
+      : "en";
   const [floorNumber, setFloor] = useState(2);
   const [dark, setDark] = useState(true);
   const { building, floors, layouts } = useMemo(() => {
@@ -97,13 +101,13 @@ function App() {
   }, []);
   return (
     <NextIntlClientProvider
-      locale="en"
-      messages={messages}
+      locale={locale}
+      messages={messagesFor(locale)}
       timeZone="Asia/Bangkok"
     >
       <EnvironmentProvider>
         <main className="mx-auto max-w-[1920px] p-3 sm:p-6">
-          <header className="mb-5 flex items-center justify-between gap-3">
+          <header className="mb-3 flex items-center justify-between gap-3">
             <div>
               <p
                 style={{ color: dark ? "#cbd5e1" : "#475569" }}
@@ -111,14 +115,14 @@ function App() {
               >
                 Buildings & spots / DEMO-PD
               </p>
-              <h1 className="mt-2 text-xl font-semibold sm:text-2xl">
-                Storage Planner · Canvas first
+              <h1 className="mt-1 text-xl font-semibold sm:text-2xl">
+                Storage Planner
               </h1>
               <p
                 style={{ color: dark ? "#cbd5e1" : "#475569" }}
                 className="mt-1 text-xs"
               >
-                Real app components · Demo inventory · No backend writes
+                Demo data · PD / Floor 2
               </p>
             </div>
             <button

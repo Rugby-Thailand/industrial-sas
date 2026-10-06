@@ -1,18 +1,25 @@
-# Storage Planner: canvas first workspace
+# Storage Planner: compact workspace A
 
-Implements the approved first UI option. Map is the default. Icon controls choose
-Map, Table or Split on a wide workspace; narrow workspaces expose Map/Table.
-The `panel` query parameter is separate from the existing building `view`,
-`floor` and edit-state parameters. Split temporarily falls back to Map when
-space is insufficient, preserving the requested URL for a wider screen.
+Implements the user-approved [compact design A](../plans/storage-compact-workspace.md).
+Map remains the default. Icon controls choose Map, Table or Split on wide
+workspaces; narrow workspaces expose Map/Table. The `panel` query parameter is
+separate from the existing building `view`, `floor` and edit-state parameters.
+Split temporarily falls back to Map when space is insufficient, preserving the
+requested URL for a wider screen.
 
-Floor navigation sits inside the canvas as a collapsible floating control and
-remains available in Table view. Details appear only after selection. Hiding
-Details retains selection. Narrow workspaces use the existing modal sheet and
-editor/focus-return flow. Table pagination and sorting remain mounted across
-panel changes. The table body scrolls separately, with a sticky header; Split
-shows the code and principal inventory counts. Full Table retains all fields.
-Search and status filters apply to both panels.
+The toolbar uses one desktop row and two mobile rows. Floor navigation is a
+small floating control inside the canvas and moves into the toolbar in Table.
+Floor options show compact metadata rather than thumbnail cards. Search has
+one clear action; secondary creation tools remain under More actions. Mobile
+sorting uses a small menu and desktop sorting stays in column headers.
+
+Table follows its data height, capped for long results, with pagination directly
+after the scroll body. Mobile rows show code, distinct name, dimensions, status
+and units in about 54px. Desktop retains inventory counts and hides a name column
+only when every filtered name equals its code. Selected rows expand real
+inventory/editor details inline. Map/Split retain the inspector or narrow sheet.
+Table pagination/sorting stay mounted across view changes; search and status
+filters apply to both panels. Existing floor/editor guards remain authoritative.
 
 ## Refactor and performance
 
@@ -21,7 +28,8 @@ Search and status filters apply to both panels.
   geometry and interaction inputs, rather than workspace/editor slots.
 - Cache pallet geometry, imported group bounds and floor summaries. Build
   imported groups in one pass. Memoize the scene and table with stable selection
-  callbacks; Table view does not mount the SVG scene.
+  callbacks; Table view does not mount the SVG scene. Compact row presentation
+  reuses the same search/sort/pagination model instead of duplicating it.
 - Pointer moves update the camera transform through requestAnimationFrame.
   React receives the final camera once on release/cancellation. Pending frames
   are flushed on release, canceled on unmount, and a drag does not select the
@@ -45,17 +53,14 @@ commit reduction is additionally verified by deterministic camera tests.
 
 ## Verification
 
-- Full Vitest suite: 1,063 tests passed; focused storage workspace suite: 188.
-- TypeScript, ESLint, formatting and `next build --webpack` passed.
-- Real component browser checks: sticky header, page navigation, selected row
-  to Map, hide/reopen Details, status/search/empty results, themes, 2D/3D,
-  mobile sheet/Escape and changing floors.
-- Responsive checks: 320, 768, 880, 1024, 1440 and 1920 CSS pixels. No page
-  horizontal overflow; 880 px additionally verifies the container-width
-  inspector threshold. Axe checks run on Table/selected Details.
+Real-component checks cover compact single/empty/many results, sticky headers,
+page navigation, selected row to Map, hide/reopen Details, filters/search,
+themes, 2D/3D, inline mobile details and floor changes. Integration regressions
+exercise the existing editor from inline details, retained selection after
+cancel, unsaved floor transitions and navigation guards.
 
 Run the component preview and recordings using
 [scripts/storage-workspace-preview/README.md](../../scripts/storage-workspace-preview/README.md).
 It renders production components with isolated demo inventory. Authenticated
 routes, live backend data, write permissions and production hardware latency
-were not exercised. No backend schema or mutation behavior changed.
+are separate integration checks. No backend schema or mutation behavior changed.

@@ -5,10 +5,8 @@ import type {
   StorageBuildingRow,
   StorageFloorRow,
 } from "@/lib/convex/storageLayoutApi";
-import { resolveAreaColor } from "@/lib/storageLayouts/areaColors";
-import { metres, squareMetres } from "./storageLayoutShared";
+import { squareMetres } from "./storageLayoutShared";
 function FloorSelector({
-  building,
   floors,
   selectedFloorNumber,
   onSelect,
@@ -47,14 +45,14 @@ function FloorSelector({
   return (
     <nav
       aria-label={t("floorSelector")}
-      className="flex min-w-0 flex-col gap-2 rounded-xl border border-border bg-surface p-2"
+      className="flex min-w-0 flex-col gap-1"
     >
-      <p className="hidden text-xs font-semibold text-muted min-[851px]:block">
+      <p className="px-2 py-1 text-xs font-semibold text-muted">
         {t("floors")}
       </p>
       <div
         ref={rail}
-        className="flex min-w-0 flex-1 gap-2 overflow-x-auto min-[851px]:max-h-[42dvh] min-[851px]:flex-col min-[851px]:overflow-x-hidden min-[851px]:overflow-y-auto"
+        className="flex max-h-[42dvh] min-w-0 flex-col gap-1 overflow-y-auto"
       >
         {[...floors].reverse().map((floor) => (
           <button
@@ -63,54 +61,16 @@ function FloorSelector({
             aria-pressed={selectedFloorNumber === floor.floorNumber}
             aria-label={t("floor", { floor: floor.floorNumber })}
             onClick={() => onSelect(floor.floorNumber)}
-            className="min-h-11 shrink-0 rounded-lg border border-border px-2 py-2 text-left text-xs hover:bg-raised aria-pressed:border-accent aria-pressed:bg-accent-surface min-[851px]:w-full"
+            className="grid min-h-11 w-full grid-cols-[1fr_auto] items-center gap-x-3 rounded-md px-2 py-2 text-left text-xs hover:bg-raised aria-pressed:bg-selected aria-pressed:text-link"
           >
             <span className="block font-semibold">
               {t("floor", { floor: floor.floorNumber })}
             </span>
-            <span className="mt-1 hidden text-muted min-[581px]:block">
+            <span className="text-xs text-muted">
               {squareMetres(floor.usableAreaSqMm).toLocaleString()} m²
             </span>
-            <svg
-              aria-hidden="true"
-              viewBox={`0 0 ${floor.widthMm ?? building.widthMm} ${floor.depthMm ?? building.depthMm}`}
-              className="my-2 hidden h-[45px] w-full min-[851px]:block"
-            >
-              <rect
-                width="100%"
-                height="100%"
-                fill="var(--plan-floor, var(--color-raised))"
-                stroke="var(--plan-wall, var(--color-accent))"
-                strokeWidth={Math.min(building.widthMm, building.depthMm) / 60}
-              />
-              {floor.reservedBlocks.map((block, index) => (
-                <rect
-                  key={index}
-                  x={block.xMm}
-                  y={block.yMm}
-                  width={block.widthMm}
-                  height={block.depthMm}
-                  fill={resolveAreaColor(block.color)}
-                />
-              ))}
-              {floor.storageZones.map((zone) => (
-                <rect
-                  key={zone.zoneId}
-                  x={zone.xMm}
-                  y={zone.yMm}
-                  width={zone.widthMm}
-                  height={zone.depthMm}
-                  fill="var(--plan-occupied-border, var(--color-accent))"
-                  opacity="0.65"
-                />
-              ))}
-            </svg>
-            <span className="hidden text-muted min-[851px]:block">
+            <span className="mt-1 block text-xs text-muted">
               {t("floorLocationCount", { count: floor.storageZones.length })}
-            </span>
-            <span className="mt-1 hidden text-muted min-[851px]:block">
-              {t("height")}:{" "}
-              {metres(floor.heightMm ?? building.defaultFloorHeightMm)} m
             </span>
           </button>
         ))}

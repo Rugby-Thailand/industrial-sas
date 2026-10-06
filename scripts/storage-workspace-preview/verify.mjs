@@ -31,16 +31,20 @@ async function main() {
     await expect(page.locator("[data-map-zone-id]")).toHaveCount(198);
     await expect(page.getByRole("table")).toHaveCount(0);
     await page.screenshot({ path: path.join(output, "desktop-map.png") });
-    await page.locator("summary").filter({ hasText: "Floor 2" }).click();
+    await page
+      .getByRole("button", { name: "Building floors", exact: true })
+      .click();
     await pause(page);
     await expect(
       page.getByRole("navigation", { name: "Building floors" }),
     ).toBeVisible();
     await page.screenshot({ path: path.join(output, "desktop-floors.png") });
-    await page.locator("summary").filter({ hasText: "Floor 2" }).click();
+    await page
+      .getByRole("button", { name: "Building floors", exact: true })
+      .click();
     await page.getByRole("button", { name: "Table view", exact: true }).click();
     await pause(page);
-    const scroll = page.getByRole("table").locator("..").locator("..");
+    const scroll = page.locator("[data-location-scroll]");
     await scroll.evaluate((el) => (el.scrollTop = 500));
     await pause(page);
     const bodyBox = await scroll.boundingBox(),
@@ -83,10 +87,10 @@ async function main() {
     await page.getByRole("button", { name: "Stored", exact: true }).click();
     await page.keyboard.press("Escape");
     await pause(page);
-    await expect(page.locator("tbody tr")).toHaveCount(1);
+    await expect(page.locator("tbody tr[data-location-row]")).toHaveCount(1);
     await page.getByRole("searchbox").fill("DEMO-P-7");
     await pause(page);
-    await expect(page.locator("tbody tr")).toHaveCount(1);
+    await expect(page.locator("tbody tr[data-location-row]")).toHaveCount(1);
     await page.screenshot({
       path: path.join(output, "desktop-split-filter.png"),
     });
@@ -127,6 +131,19 @@ async function main() {
     await pause(page);
     await page.getByRole("searchbox").fill("PD-L1-8");
     await pause(page);
+    const single = await page
+      .locator("[data-workspace-toolbar]")
+      .locator("..")
+      .locator("..")
+      .boundingBox();
+    expect(single.height).toBeLessThan(260);
+    await expect(
+      page.getByRole("button", { name: "Clear search", exact: true }),
+    ).toHaveCount(1);
+    await expect(page.getByRole("button", { name: "Next page" })).toHaveCount(
+      0,
+    );
+    await page.screenshot({ path: path.join(output, "mobile-single.png") });
     await page
       .getByRole("button", {
         name: "Select location PD-L1-8 · PD-L1-8",
@@ -134,14 +151,12 @@ async function main() {
       })
       .click();
     await pause(page);
-    await expect(
-      page.getByRole("dialog", { name: "Location details" }),
-    ).toBeVisible();
-    await page.screenshot({ path: path.join(output, "mobile-details.png") });
-    await page.keyboard.press("Escape");
-    await pause(page);
+    await expect(page.locator("[data-inline-location-details]")).toBeVisible();
     await expect(page.getByRole("dialog")).toHaveCount(0);
-    await page.getByRole("button", { name: "Map view", exact: true }).click();
+    await page.screenshot({ path: path.join(output, "mobile-details.png") });
+    await page
+      .getByRole("button", { name: "Show on map", exact: true })
+      .click();
     await pause(page);
     await expect(page.locator('[data-map-zone-id="PD-L1-8"]')).toHaveAttribute(
       "aria-pressed",
@@ -150,7 +165,9 @@ async function main() {
     await page
       .getByRole("button", { name: "Clear search", exact: true })
       .click();
-    await page.locator("summary").filter({ hasText: "Floor 2" }).click();
+    await page
+      .getByRole("button", { name: "Building floors", exact: true })
+      .click();
     await pause(page);
     await page.getByRole("button", { name: "Floor 1", exact: true }).click();
     await pause(page);

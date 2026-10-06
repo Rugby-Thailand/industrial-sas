@@ -1042,11 +1042,11 @@ export function BuildingModelWorkspace({
     });
   }
   return (
-    <div className="min-w-0 space-y-4">
+    <div className="min-w-0 space-y-3">
       {guard.navigationPrompt}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
-          <div className="mb-2">
+          <div className="mb-1 hidden min-[851px]:block">
             <PageBreadcrumbs
               trail={[
                 { label: t("breadcrumbRoot"), href: ROUTES.storageLayouts },
@@ -1054,28 +1054,25 @@ export function BuildingModelWorkspace({
               current={building.name}
             />
           </div>
-          <p className="text-xs font-semibold tracking-wider text-muted">
-            {building.code}
-          </p>
-          <div className="mt-1 flex items-center gap-1">
+          <div className="flex items-center gap-2">
             <PageBackButton fallbackHref={ROUTES.storageLayouts} />
             <h1 className="min-w-0 text-xl leading-7 font-semibold break-words text-text">
               {building.name}
             </h1>
+            <span className="shrink-0 text-xs text-muted">{building.code}</span>
           </div>
           <p className="mt-1 text-xs text-muted">
             {t("dimensions")}: {metres(building.widthMm)} ×{" "}
             {metres(building.depthMm)} m · {t("totalHeight")}:{" "}
             {metres(building.totalHeightMm)} m
           </p>
-          <p className="mt-1 text-xs text-muted">{t("mapSavedData")}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {statusAction}
           <div
             role="group"
             aria-label={t("buildingView")}
-            className="flex rounded-lg border border-border p-1"
+            className="flex gap-1 rounded-lg bg-raised"
           >
             <Button
               type="button"
@@ -1087,13 +1084,7 @@ export function BuildingModelWorkspace({
               aria-pressed={view === "storage"}
               onClick={() => transition({ view: "storage" })}
             >
-              <MapIcon
-                aria-hidden="true"
-                className="size-4 min-[581px]:hidden"
-              />
-              <span className="hidden min-[581px]:inline">
-                {t("storageFloorView")}
-              </span>
+              <MapIcon aria-hidden="true" className="size-4" />
             </Button>
             <Button
               type="button"
@@ -1105,13 +1096,7 @@ export function BuildingModelWorkspace({
               aria-pressed={view === "building"}
               onClick={() => transition({ view: "building", editing: false })}
             >
-              <Building2
-                aria-hidden="true"
-                className="size-4 min-[581px]:hidden"
-              />
-              <span className="hidden min-[581px]:inline">
-                {t("buildingModelView")}
-              </span>
+              <Building2 aria-hidden="true" className="size-4" />
             </Button>
           </div>
           {!dirty && settingsAction}

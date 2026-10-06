@@ -626,7 +626,9 @@
       "list": "มุมมองตาราง",
       "split": "แสดงคู่",
       "hideDetails": "ซ่อนรายละเอียด",
-      "clearSearch": "ล้างการค้นหา"
+      "clearSearch": "ล้างการค้นหา",
+      "moreActions": "การทำงานเพิ่มเติม",
+      "showOnMap": "ดูบนแผนผัง"
     }
   },
   "FinishedGoods": {
