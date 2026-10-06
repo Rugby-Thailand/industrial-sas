@@ -67,6 +67,37 @@ describe("canvas first workspace", () => {
       view.container.querySelector('tr[data-state="selected"] button'),
     ).toHaveAttribute("aria-label", selected);
   });
+  it("changes views and reopens details without submitting an editor form", () => {
+    const submit = vi.fn();
+    renderWithIntl(
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          submit();
+        }}
+      >
+        <FloorMap {...floorMapDemo(false, false)} />
+      </form>,
+      { locale: "en", workspace: false },
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Table view" }));
+    fireEvent.click(
+      within(screen.getByRole("table")).getAllByRole("button", {
+        name: /Select location/,
+      })[0]!,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Show on map" }));
+    expect(screen.getByRole("button", { name: "Map view" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Hide details" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: / · Location details$/ }),
+    );
+    expect(screen.getByRole("complementary")).toBeVisible();
+    expect(submit).not.toHaveBeenCalled();
+  });
   it("shares status filters and search across map and table without opening an inspector", () => {
     const view = show();
     fireEvent.click(screen.getByRole("button", { name: "Filter locations" }));

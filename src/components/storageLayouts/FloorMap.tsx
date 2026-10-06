@@ -182,7 +182,7 @@ export function FloorMap(props: FloorMapProps) {
   );
   const [unitId, setUnitId] = useState<string>();
   const [zoom, setZoom] = useState(1);
-  // Map point kept at the frame centre after a drag; undefined follows the selection.
+  // Projected scene point kept at the camera centre; independent of viewport fitting.
   const [focus, setFocus] = useState<{ x: number; y: number }>();
   const [areaIndex, setAreaIndex] = useState<number>();
   const [showPackages, setShowPackages] = useState(false);
@@ -957,7 +957,7 @@ export function FloorMap(props: FloorMapProps) {
                 selectedId === id ? clearSelection() : select(id)
               }
               details={
-                workspaceView !== "map" &&
+                workspaceView === "list" &&
                 selected && (
                   <div className={styles.inlineDetails}>
                     {!props.locationInspector && inspectorDetails}
@@ -1000,6 +1000,7 @@ export function FloorMap(props: FloorMapProps) {
           ((!inspectorVisible && !compactInspector) ||
             (compactInspector && !sheetOpen)) && (
             <Button
+              type="button"
               className={styles.reopenDetails}
               variant="outline"
               onClick={() => {

@@ -94,6 +94,7 @@ export function FloorWorkspaceLocationList({
       <div className={styles.details} data-inline-location-details>
         {selection.onShowMap && (
           <Button
+            type="button"
             size="sm"
             variant="ghost"
             className="min-h-11"
@@ -119,6 +120,7 @@ export function FloorWorkspaceLocationList({
           <Popover.Root>
             <Popover.Trigger asChild>
               <Button
+                type="button"
                 size="sm"
                 variant="ghost"
                 className={styles.sort}
@@ -141,6 +143,7 @@ export function FloorWorkspaceLocationList({
                 >
                   {(["code", "label", "units"] as const).map((key) => (
                     <Button
+                      type="button"
                       key={key}
                       variant="ghost"
                       aria-pressed={sorting.key === key}
@@ -171,7 +174,9 @@ export function FloorWorkspaceLocationList({
                   type="button"
                   data-location-row
                   aria-pressed={selection.id === zone.zoneId}
-                  aria-expanded={selection.id === zone.zoneId}
+                  aria-expanded={
+                    selection.id === zone.zoneId && !!selection.details
+                  }
                   aria-label={`${thai ? "เลือกจุดจัดเก็บ" : "Select location"} ${zone.code} · ${zone.label}`}
                   onClick={() => selection.onSelect(zone.zoneId)}
                   className={styles.row}
@@ -197,7 +202,7 @@ export function FloorWorkspaceLocationList({
                     </span>
                   </span>
                 </button>
-                {selection.id === zone.zoneId && details()}
+                {selection.id === zone.zoneId && selection.details && details()}
               </div>
             ))}
             {!rows.length && <p className={styles.empty}>{labels.empty}</p>}
@@ -234,7 +239,9 @@ export function FloorWorkspaceLocationList({
                       <button
                         type="button"
                         aria-pressed={selection.id === zone.zoneId}
-                        aria-expanded={selection.id === zone.zoneId}
+                        aria-expanded={
+                          selection.id === zone.zoneId && !!selection.details
+                        }
                         aria-label={`${thai ? "เลือกจุดจัดเก็บ" : "Select location"} ${zone.code} · ${zone.label}`}
                       >
                         {zone.code}
@@ -257,7 +264,7 @@ export function FloorWorkspaceLocationList({
                     </td>
                     <td data-column="unmeasured">{value(counts.unmeasured)}</td>
                   </tr>
-                  {selection.id === zone.zoneId && (
+                  {selection.id === zone.zoneId && selection.details && (
                     <tr>
                       <td colSpan={showLabel ? 7 : 6}>{details()}</td>
                     </tr>

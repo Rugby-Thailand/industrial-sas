@@ -177,6 +177,7 @@ describe("BuildingModelWorkspace", () => {
       },
     );
     expect(floorButton(2)).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(screen.getByRole("button", { name: "Building floors" }));
     expect(
       screen.getByRole("region", { name: "Interactive floor map" }),
     ).toBeVisible();
@@ -2047,14 +2048,16 @@ it("renders dense demo scenarios without inventory links or writes", async () =>
     screen.getByRole("searchbox", { name: "Search storage locations" }),
     { target: { value: "DEMO-P-030" } },
   );
-  fireEvent.click(
-    within(screen.getByRole("table")).getByRole("button", {
-      name: /Select location/,
-    }),
-  );
+  const row = within(screen.getByRole("table")).getByRole("button", {
+    name: /Select location/,
+  });
+  expect(row).toHaveAttribute("aria-pressed", "true");
+  fireEvent.click(row);
+  expect(container.querySelector("[data-inline-location-details]")).toBeNull();
+  fireEvent.click(row);
   expect(
     within(
-      screen.getByRole("complementary", { name: "Selected location" }),
+      container.querySelector<HTMLElement>("[data-inline-location-details]")!,
     ).getByText("DEMO-P-030"),
   ).toBeVisible();
 
@@ -2198,6 +2201,9 @@ describe("mobile storage workspace", () => {
     await waitFor(() =>
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
     );
+    const { isWorkspaceHistoryGuardActive } =
+      await import("./useWorkspaceNavigationGuard");
+    await waitFor(() => expect(isWorkspaceHistoryGuardActive()).toBe(false));
     expect(row).toHaveAttribute("aria-pressed", "true");
     fireEvent.click(screen.getByRole("button", { name: "Show on map" }));
     expect(

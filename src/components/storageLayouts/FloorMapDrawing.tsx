@@ -169,13 +169,14 @@ function SceneDrawing({
           : Math.min(120, frameHeight / 4)),
     ) / Math.max(maxY - minY, 1),
   );
-  const point = (x: number, y: number, z = 0) => {
-    const p = rawPoint(x, y, z);
-    return {
-      x: frameCenterX + (p.x - (minX + maxX) / 2) * scale,
-      y: frameCenterY + (p.y - (minY + maxY) / 2) * scale,
-    };
-  };
+  // Persist the camera before fitting it to a viewport, so resizing panels
+  // does not change the physical point at the centre of the scene.
+  const sceneCenter = { x: (minX + maxX) / 2, y: (minY + maxY) / 2 };
+  const framePoint = (p: { x: number; y: number }) => ({
+    x: frameCenterX + (p.x - sceneCenter.x) * scale,
+    y: frameCenterY + (p.y - sceneCenter.y) * scale,
+  });
+  const point = (x: number, y: number, z = 0) => framePoint(rawPoint(x, y, z));
   const rect = (x: number, y: number, w: number, d: number, z = 0) =>
     [
       [x, y],
@@ -314,7 +315,7 @@ function SceneDrawing({
   const center = !pannable
     ? { x: frameCenterX, y: frameCenterY }
     : clampFocus(
-        focus ??
+        (focus ? framePoint(focus) : undefined) ??
           (target
             ? point(
                 target.xMm + target.widthMm / 2,
@@ -330,7 +331,11 @@ function SceneDrawing({
     frame,
     clamp: clampFocus,
     transform,
-    onCommit: onFocusChange,
+    onCommit: (p) =>
+      onFocusChange({
+        x: sceneCenter.x + (p.x - frameCenterX) / scale,
+        y: sceneCenter.y + (p.y - frameCenterY) / scale,
+      }),
   });
   return (
     <svg
