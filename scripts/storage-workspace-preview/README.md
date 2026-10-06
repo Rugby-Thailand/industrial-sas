@@ -19,3 +19,15 @@ is available as `window.__storageWorkspaceProfile` in this harness only.
 This verifies real UI components with isolated fixtures. Authenticated routes,
 live data, permission-dependent mutations and production performance need a
 separate integration check.
+
+The approved compact A regression checks are also repeatable:
+
+- `node scripts/storage-workspace-preview/responsive.mjs` checks 16 combinations
+  of 320/390/768/1440px, Thai/English and light/dark, including single-result
+  height, pagination, inline details, floor changes, overflow and axe.
+- `node scripts/storage-workspace-preview/camera.mjs` checks the physical camera
+  center across Map/Split/Table, and verifies one React update for a 50-move drag.
+
+`?locale=th` switches component translations. Browser artifacts use isolated
+fixtures; the unit/integration suites separately exercise the editor controllers
+and navigation guards with mocked backend calls.
