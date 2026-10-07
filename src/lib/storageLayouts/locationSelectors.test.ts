@@ -37,6 +37,54 @@ describe("shared location selectors", () => {
     expect(matchingStorageLocations([zone], "store missing")).toEqual([]);
     expect(matchingStorageLocations([zone], "demo:location")).toEqual([zone]);
   });
+  it("returns every location in order as a new array for blank or Unicode-whitespace search", () => {
+    const zones = floorMapDemo(false, false).zones;
+    for (const search of ["", " \t\n", "\u3000\u00a0\u2003"]) {
+      const result = matchingStorageLocations(zones, search);
+      expect(result).not.toBe(zones);
+      expect(result).toHaveLength(zones.length);
+      result.forEach((zone, i) => expect(zone).toBe(zones[i]));
+    }
+  });
+  it("does not read position or placement text for blank search", () => {
+    const unread = () => {
+      throw new Error("blank search read searchable details");
+    };
+    const zone: StorageZoneRow = Object.defineProperties(
+      { ...base },
+      {
+        positions: { get: unread },
+        placements: { get: unread },
+        locationOnlyPlacements: { get: unread },
+      },
+    );
+    expect(matchingStorageLocations([zone], " ")).toEqual([zone]);
+  });
+  it("requires every word across position and measured placement fields", () => {
+    const [first, second] = floorMapDemo(false, false).zones;
+    const zone: StorageZoneRow = {
+      ...first!,
+      positions: [
+        {
+          locationId: first!.locationId,
+          code: "R-07",
+          label: "Rack Bay",
+          qrValue: "QR:SLOT-7",
+          kind: "RACK_SLOT",
+          isDefault: false,
+          breadcrumb: "",
+          placements: [],
+        },
+      ],
+    };
+    const zones = [zone, second!];
+    expect(
+      matchingStorageLocations(zones, "RACK r-07 qr:slot-7 demo-p-001"),
+    ).toEqual([zone]);
+    expect(matchingStorageLocations(zones, "demo-z01-02")).toEqual([zone]);
+    expect(matchingStorageLocations(zones, "demo-p-031")).toEqual([second]);
+    expect(matchingStorageLocations(zones, "rack demo-p-031")).toEqual([]);
+  });
   it("deduplicates a unit shared by measured and location-only placements and excludes released rows", () => {
     const unit = base.placements[0]!;
     const zone = {

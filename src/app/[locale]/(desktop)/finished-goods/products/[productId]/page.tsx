@@ -1,5 +1,5 @@
 import { setRequestLocale } from "next-intl/server";
-import { ProductScreen } from "@/features/finishedGoods/ProductScreens";
+import { ProductScreen } from "@/features/finishedGoods/ProductScreen";
 
 export default async function Page({
   params,

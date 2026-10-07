@@ -10,6 +10,8 @@ export function matchingStorageLocations(
   search: string,
 ) {
   const words = normalize(search).trim().split(/\s+/).filter(Boolean);
+  // Blank search matches every location; skip building searchable text.
+  if (words.length === 0) return zones.slice();
   return zones.filter((zone) => {
     const text = normalize(
       [
