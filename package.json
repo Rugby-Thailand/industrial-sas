@@ -22,7 +22,7 @@
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:unit": "vitest run --project unit",
+    "test:unit": "vitest run --project unit --project unit-node",
     "test:a11y": "vitest run --project a11y",
     "check": "pnpm typecheck && pnpm lint && pnpm test",
     "audit:prod": "pnpm audit --prod --audit-level high",
