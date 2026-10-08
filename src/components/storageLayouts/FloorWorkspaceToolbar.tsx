@@ -28,6 +28,8 @@ export function FloorWorkspaceToolbar({
   actions,
   floorControl,
   floorNumber,
+  dimensions,
+  cameraControls,
 }: {
   search: string;
   onSearch: (value: string) => void;
@@ -40,6 +42,8 @@ export function FloorWorkspaceToolbar({
   actions?: ReactNode;
   floorControl?: ReactNode;
   floorNumber: number;
+  dimensions?: string;
+  cameraControls?: ReactNode;
 }) {
   const t = useTranslations("StorageLayouts");
   const [moreOpen, setMoreOpen] = useState(false);
@@ -57,6 +61,7 @@ export function FloorWorkspaceToolbar({
         <span role="status" className={styles.count}>
           {t("floorLocationCount", { count })}
         </span>
+        {dimensions && <span className={styles.dimensions}>{dimensions}</span>}
       </div>
       <div className={styles.search}>
         <Search aria-hidden="true" className="size-4 shrink-0 text-muted" />
@@ -182,6 +187,11 @@ export function FloorWorkspaceToolbar({
           );
         })}
       </div>
+      {cameraControls && (
+        <div className={styles.camera} data-floor-camera-controls>
+          {cameraControls}
+        </div>
+      )}
       {actions && (
         <div className={styles.more}>
           <Popover.Root open={moreOpen} onOpenChange={setMoreOpen}>

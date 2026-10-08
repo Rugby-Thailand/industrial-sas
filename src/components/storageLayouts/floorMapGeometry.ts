@@ -12,6 +12,33 @@ export interface Area {
   readonly label: string;
 }
 export const m = (value: number) => Number((value / 1000).toFixed(3));
+/** Union of the floor and the optional building footprint in floor coordinates. */
+export function floorPlanBounds(
+  floor: {
+    widthMm: number;
+    depthMm: number;
+    baseWidthMm: number;
+    baseDepthMm: number;
+    offsetXMm: number;
+    offsetYMm: number;
+  },
+  reference: boolean,
+) {
+  const xMm = reference ? Math.min(0, -floor.offsetXMm) : 0;
+  const yMm = reference ? Math.min(0, -floor.offsetYMm) : 0;
+  return {
+    xMm,
+    yMm,
+    widthMm:
+      (reference
+        ? Math.max(floor.widthMm, floor.baseWidthMm - floor.offsetXMm)
+        : floor.widthMm) - xMm,
+    depthMm:
+      (reference
+        ? Math.max(floor.depthMm, floor.baseDepthMm - floor.offsetYMm)
+        : floor.depthMm) - yMm,
+  };
+}
 export const floorZoneUnitCount = (zone: StorageZoneRow) =>
   locationInventory(zone).units;
 export const hasUnmeasuredInventory = (zone: StorageZoneRow) =>

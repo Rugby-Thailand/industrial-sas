@@ -1,7 +1,10 @@
 import { Profiler, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { NextIntlClientProvider } from "next-intl";
-import { FloorMap } from "@/components/storageLayouts/FloorMap";
+import {
+  FloorMap,
+  type FloorMapProps,
+} from "@/components/storageLayouts/FloorMap";
 import { WorkspaceFloorSelector } from "@/features/storageLayouts/WorkspaceFloorSelector";
 import { EnvironmentProvider } from "@/components/providers/EnvironmentProvider";
 import { floorMapDemo } from "@/components/storageLayouts/storageFloorDemoData";
@@ -15,6 +18,7 @@ declare global {
   }
 }
 window.__storageWorkspaceProfile = [];
+declare const __STORAGE_REFERENCE_LAYOUTS__: FloorMapProps[] | null;
 function App() {
   const locale =
     new URLSearchParams(window.location.search).get("locale") === "th"
@@ -64,7 +68,17 @@ function App() {
       })),
       blocks: plan.blocks,
     };
-    const layouts = [demo, pd];
+    const fixture = new URLSearchParams(window.location.search).get("fixture");
+    const reference = fixture === "f1-f2" || fixture === "portrait";
+    const sourceLayouts: FloorMapProps[] =
+      reference && __STORAGE_REFERENCE_LAYOUTS__
+        ? __STORAGE_REFERENCE_LAYOUTS__
+        : [demo, pd];
+    // Stress Fit with a tall footprint while retaining the same scene contents.
+    const layouts =
+      fixture === "portrait"
+        ? sourceLayouts.map((layout) => ({ ...layout, depthMm: 120000 }))
+        : sourceLayouts;
     const floors: StorageFloorRow[] = layouts.map((layout, index) => ({
       floorId: `demo-floor-${index + 1}`,
       floorNumber: index + 1,
@@ -84,8 +98,11 @@ function App() {
     const building = {
       buildingId: "demo",
       warehouseId: "demo",
-      code: "DEMO-PD",
-      name: "Storage Planner demo",
+      code: layouts[1]!.buildingCode ?? "DEMO-PD",
+      name:
+        reference && __STORAGE_REFERENCE_LAYOUTS__
+          ? "อาคาร F1 + F2"
+          : "Storage Planner demo",
       widthMm: pd.widthMm,
       depthMm: pd.depthMm,
       defaultFloorHeightMm: pd.heightMm,
@@ -113,16 +130,18 @@ function App() {
                 style={{ color: dark ? "#cbd5e1" : "#475569" }}
                 className="text-xs"
               >
-                Buildings & spots / DEMO-PD
+                Buildings & spots / {building.code}
               </p>
               <h1 className="mt-1 text-xl font-semibold sm:text-2xl">
-                Storage Planner
+                {building.name}
               </h1>
               <p
                 style={{ color: dark ? "#cbd5e1" : "#475569" }}
                 className="mt-1 text-xs"
               >
-                Demo data · PD / Floor 2
+                {__STORAGE_REFERENCE_LAYOUTS__ && building.code === "F1-F2-SB"
+                  ? "Isolated preview · F1/F2 geometry · no inventory"
+                  : "Demo data · PD / Floor 2"}
               </p>
             </div>
             <button
