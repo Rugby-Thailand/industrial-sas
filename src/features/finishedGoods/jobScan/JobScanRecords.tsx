@@ -27,6 +27,7 @@ import {
   written,
 } from "../shared";
 import { LocationSummary } from "./JobScanScreen";
+import { JobScanPhotoPreview } from "./JobScanPhotoPreview";
 import { LocationPicker } from "./LocationPicker";
 
 type Filter = "ALL" | "UNMAPPED" | "MAPPED";
@@ -218,20 +219,10 @@ function Records({ warehouseId }: { warehouseId: string }) {
                 </p>
               </div>
               {record.imageUrl && (
-                <a
-                  href={record.imageUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  aria-label={t("openPhoto")}
-                  className="shrink-0"
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element -- remote upload thumbnail */}
-                  <img
-                    src={record.imageUrl}
-                    alt=""
-                    className="h-20 w-14 rounded-md border border-border object-cover"
-                  />
-                </a>
+                <JobScanPhotoPreview
+                  src={record.imageUrl}
+                  thumbnailClassName="h-20 w-14 rounded-md border border-border object-cover"
+                />
               )}
             </li>
           ))}
