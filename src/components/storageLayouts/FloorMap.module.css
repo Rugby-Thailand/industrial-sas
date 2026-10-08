@@ -74,55 +74,63 @@
   --plan-accent-hover: #bef264;
   --plan-success-contrast: #042f2e;
 }
-.toolbar {
-  padding: 8px 16px;
-  background: var(--plan-panel);
-  border-bottom: 1px solid var(--plan-border);
-}
 .canvas {
   background-color: var(--plan-background);
   background-image: radial-gradient(var(--plan-dot) 1px, transparent 1px);
   background-size: 20px 20px;
-  padding: 18px;
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  padding: 0;
 }
 .drawing {
   position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
   min-width: 0;
 }
 .stamp {
+  grid-column: 2;
+  grid-row: 1 / 3;
   color: var(--plan-muted);
-  font-size: 11px;
-  letter-spacing: 0.12em;
+  font-size: 12px;
+  line-height: 16px;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   font-weight: 600;
-  padding: 2px 0 10px;
+  text-align: right;
+  padding: 2px 4px;
+  border-radius: 4px;
+  background: var(--plan-background);
+  max-width: 320px;
 }
 .stamp p {
+  white-space: nowrap;
   letter-spacing: 0;
   margin-top: 4px;
   font-weight: 400;
 }
 .svg {
   width: 100%;
-  height: 540px;
-  max-height: 70dvh;
-  min-height: 320px;
+  flex: 1;
+  height: 100%;
+  min-height: 0;
   overflow: hidden;
 }
-.inspector {
-  background: var(--plan-panel);
-  border: 1px solid var(--plan-border);
-  border-radius: 14px;
-  padding: 18px;
-  box-shadow: 0 18px 45px #0002;
-}
 .legend {
+  grid-column: 1;
+  grid-row: 1;
   display: flex;
   flex-wrap: wrap;
   gap: 8px 14px;
   color: var(--plan-muted);
-  font-size: 11px;
-  padding-top: 12px;
+  font-size: 12px;
+  line-height: 16px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  background: var(--plan-background);
 }
 .legend span {
   display: flex;
@@ -213,23 +221,7 @@
   position: sticky;
   bottom: -18px;
 }
-@media (max-width: 850px) {
-  .svg {
-    height: 480px;
-  }
-}
 @media (max-width: 580px) {
-  .canvas {
-    padding: 16px 12px;
-  }
-  .svg {
-    height: 440px;
-    max-height: 60dvh;
-    min-height: 300px;
-  }
-  .toolbar {
-    padding: 4px 10px;
-  }
   .metrics {
     gap: 18px;
   }
@@ -241,23 +233,13 @@
 }
 
 .workspace {
+  container-type: inline-size;
+  container-name: floor-workspace;
   border: 1px solid var(--plan-border);
   border-radius: 12px;
   overflow: hidden;
   background: var(--plan-panel);
 }
-.toolbar button {
-  border-color: transparent;
-  background: transparent;
-}
-.toolbar button[aria-pressed="true"] {
-  background: var(--plan-panel-raised);
-  color: var(--plan-link);
-}
-.toolbar button:hover {
-  border-color: var(--plan-border);
-}
-
 .svg g[role="button"]:focus-visible rect {
   stroke: var(--plan-selected-border);
   stroke-width: 3;
@@ -270,6 +252,7 @@
   border-bottom: 1px solid var(--plan-border);
 }
 .workArea {
+  --plan-min-height: 260px;
   position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -289,6 +272,7 @@
   grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
 }
 .mapPanel {
+  container-type: inline-size;
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -298,30 +282,40 @@
 .listPanel[hidden] {
   display: none;
 }
-.canvas {
-  position: relative;
-  flex: 1;
-  min-height: 0;
-  padding: 16px;
+.workArea[data-view="map"][data-camera="plan"] {
+  height: auto;
 }
-.drawing {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  min-height: 0;
+.workArea[data-view="map"][data-camera="plan"] .canvas {
+  flex: none;
+  height: clamp(
+    var(--plan-min-height),
+    calc(100cqw / var(--floor-aspect) + 96px),
+    clamp(460px, 68dvh, 780px)
+  );
 }
-.svg {
-  flex: 1;
-  height: 100%;
-  max-height: none;
-  min-height: 0;
+.canvasFooter {
+  position: absolute;
+  right: 12px;
+  bottom: 8px;
+  left: 12px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 4px 12px;
+  pointer-events: none;
 }
-.stamp {
-  flex-shrink: 0;
+.mapKey {
+  display: contents;
 }
-.legend {
-  flex-shrink: 0;
-  padding-top: 8px;
+.positionSummary {
+  grid-column: 1;
+  grid-row: 2;
+  color: var(--plan-muted);
+  font-size: 12px;
+  line-height: 16px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--plan-background);
 }
 .listPanel {
   min-width: 0;
@@ -342,12 +336,6 @@
   border-radius: 0;
   box-shadow: none;
   padding: 16px;
-}
-.floorSlot {
-  position: absolute;
-  top: 12px;
-  left: 12px;
-  z-index: 20;
 }
 .floorChip {
   display: flex;
@@ -402,9 +390,6 @@
   .workArea[data-view="list"] {
     height: auto;
   }
-  .canvas {
-    padding: 60px 12px 12px;
-  }
   .reopenDetails {
     top: 88px;
   }
@@ -418,6 +403,28 @@
   display: none;
 }
 
-.workArea:has(.floorSlot) .stamp {
-  text-align: right;
+@container floor-workspace (max-width: 850px) {
+  .workArea {
+    --plan-min-height: 192px;
+  }
+  .canvasFooter {
+    right: 8px;
+    left: 8px;
+    column-gap: 8px;
+  }
+}
+@container floor-workspace (max-width: 580px) {
+  .legend {
+    grid-column: 1 / -1;
+    gap: 4px 12px;
+  }
+  .stamp {
+    grid-row: 2;
+  }
+  .floorStamp {
+    display: none;
+  }
+  .stamp p {
+    margin-top: 0;
+  }
 }
