@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { cn } from "@/lib/utils";
+import { JobScanPhotoPreview } from "./JobScanPhotoPreview";
 import {
   DETAIL_FIELDS,
   NUMBER_FIELDS,
@@ -109,20 +110,10 @@ export function TicketCard({
       )}
       <div className="flex gap-3">
         {image && (
-          <a
-            href={image}
-            target="_blank"
-            rel="noreferrer"
-            className="shrink-0"
-            aria-label={t("openPhoto")}
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element -- local blob or remote upload preview */}
-            <img
-              src={image}
-              alt=""
-              className="h-28 w-20 rounded-md border border-border object-cover"
-            />
-          </a>
+          <JobScanPhotoPreview
+            src={image}
+            thumbnailClassName="h-28 w-20 rounded-md border border-border object-cover"
+          />
         )}
         <div className="grid min-w-0 flex-1 gap-2 sm:grid-cols-2">
           {REQUIRED_FIELDS.map((field) => (

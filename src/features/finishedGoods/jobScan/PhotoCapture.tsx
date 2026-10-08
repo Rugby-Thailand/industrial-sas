@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { useFileUpload } from "@/hooks/use-file-upload";
 import { cn } from "@/lib/utils";
+import { JobScanPhotoPreview } from "./JobScanPhotoPreview";
 
 const MAX_PHOTOS = 20;
 
@@ -166,12 +167,17 @@ export function PhotoCapture({
         <ul className="grid grid-cols-4 gap-2 sm:grid-cols-6">
           {photos.map((photo, index) => (
             <li key={photo.id} className="relative">
-              {/* eslint-disable-next-line @next/next/no-img-element -- local blob preview */}
-              <img
-                src={photo.preview}
-                alt=""
-                className="aspect-[3/4] w-full rounded-md border border-border object-cover"
-              />
+              {photo.preview ? (
+                <JobScanPhotoPreview
+                  src={photo.preview}
+                  thumbnailClassName="aspect-[3/4] w-full rounded-md border border-border object-cover"
+                  triggerClassName="w-full"
+                />
+              ) : (
+                <div className="flex aspect-[3/4] items-center justify-center rounded-md border border-border">
+                  <ImagePlus className="size-5 text-muted" aria-hidden="true" />
+                </div>
+              )}
               <span className="absolute bottom-1 left-1 rounded bg-black/60 px-1 text-xs text-white">
                 {index + 1}
               </span>
