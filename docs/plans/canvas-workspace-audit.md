@@ -50,9 +50,12 @@ notifications produce no profiler commits after React's initial state bailout.
 A 157-location empty F1/F2 development fixture initially measured 15 zoom updates
 with a 28.1ms median React render and one update for a 50-move drag. Subsequent
 preview profiling had large session-to-session variance and automation timing
-failures; those samples do not establish a speedup or a production latency result.
-No quantitative performance improvement is claimed. The deliberate optimization
-is eliminating redundant resize state updates while preserving the pan path.
+failures. A controlled local Chromium run measured medians of 23.3ms before and
+25.3ms after, with later warmed renders around 5ms in both versions. Both recorded
+15 updates for 15 zoom actions and exactly one update for 50 pointer moves.
+These development samples do not establish a speedup or production latency.
+The deliberate optimization is eliminating redundant resize state updates while
+preserving the pan path.
 
 ## Validation
 
@@ -63,5 +66,12 @@ is eliminating redundant resize state updates while preserving the pan path.
 - New regressions cover labels on/off, portrait footer containment, inferred and
   committed camera centers across viewport changes, observer cleanup, identical
   versus proportional resizes, and reference bounds with both offset signs.
-- Native collaborative-browser verification uses the real production components
-  and isolated geometry. It does not exercise authenticated backend mutations.
+- Browser checks passed 32 canvas combinations: F1/F2 and portrait footprints,
+  320/390/768/1440px, Thai/English, and light/dark. Every floor was contained;
+  the minimum footer gap was 8px, with no metadata overlap, horizontal overflow
+  or settled-state accessibility violations.
+- The existing responsive script passed 16 table/workflow combinations, including
+  paging, compact single-result height, selection, details and floor changes.
+- Verification used the real production components and isolated geometry, first
+  through the native collaborative browser, then local Chromium after the native
+  host disconnected. It does not exercise authenticated backend mutations.
