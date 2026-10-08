@@ -32,7 +32,6 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 import { preferences } from "@/lib/browser/storage";
-import { SceneToolbar } from "@/components/storageScene/SceneToolbar";
 import { resolveAreaColor } from "@/lib/storageLayouts/areaColors";
 import {
   locationInventory,
@@ -77,6 +76,7 @@ import {
   useSyncExternalStore,
   type KeyboardEvent,
   type ReactNode,
+  type CSSProperties,
 } from "react";
 
 export interface FloorMapProps {
@@ -604,6 +604,153 @@ export function FloorMap(props: FloorMapProps) {
       </Popover.Portal>
     </Popover.Root>
   ) : null;
+  const cameraControls = (
+    <>
+      <StorageViewModeToggle
+        value={view}
+        onChange={(next) => {
+          setView(next);
+          setFocus(undefined);
+        }}
+        label={t("viewMode")}
+        planLabel={t("planView")}
+        threeDLabel={t("threeDView")}
+      />{" "}
+      {action(
+        t("mapZoomOut"),
+        <ZoomOut />,
+        () => {
+          const next = Math.max(1, zoom - (zoom > 3 ? 1 : 0.25));
+          setZoom(next);
+          if (next === 1) setFocus(undefined);
+        },
+        zoom <= 1,
+      )}
+      {action(
+        t("mapZoomIn"),
+        <ZoomIn />,
+        () => setZoom(Math.min(8, zoom + (zoom >= 3 ? 1 : 0.25))),
+        zoom >= 8,
+      )}
+      {action(t("mapFit"), <Maximize />, fit)}
+      <Popover.Root>
+        <Popover.Trigger asChild>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            aria-label={t("mapDisplayOptions")}
+            title={t("mapDisplayOptions")}
+          >
+            <MoreHorizontal />
+          </Button>
+        </Popover.Trigger>
+        <Popover.Portal>
+          <Popover.Content
+            align="end"
+            sideOffset={8}
+            className={`${styles.theme} z-50 flex w-64 max-w-[calc(100vw-2rem)] flex-col gap-1 rounded-lg border border-border bg-surface p-2 shadow-lg`}
+          >
+            {" "}
+            {displayAction(
+              t("mapShowLocationLabels"),
+              <Tags />,
+              () => saveLocationLabels(!showLocationLabels),
+              view === "3d" && pdZoneCount > 0,
+              showLocationLabels,
+            )}
+            {displayAction(
+              t("mapShowPackages"),
+              <QrCode />,
+              () => setShowPackages(!showPackages),
+              view === "3d",
+              showPackages,
+            )}
+            {displayAction(
+              t("mapRotate"),
+              <RotateCw />,
+              () => {
+                setRotation((rotation + 1) % 4);
+                setFocus(undefined);
+              },
+              view === "plan",
+            )}
+            {displayAction(
+              props.baseLabel,
+              <Layers3 />,
+              () => {
+                setReference(!reference);
+                setFocus(undefined);
+              },
+              false,
+              reference,
+            )}
+            {showLocationLabels && pdZoneCount > 0 && zoom < 2 && (
+              <p className="px-3 py-2 text-xs text-muted">
+                {t("floorZoomForLabels")}
+              </p>
+            )}
+            {legendAreas.length > 6 ? (
+              <details className="mt-3 rounded-lg border border-border bg-background">
+                <summary className="cursor-pointer px-3 py-2 text-sm font-medium marker:text-muted">
+                  {t("floorMapAreas", {
+                    count: legendAreas.length,
+                  })}
+                </summary>
+                <div className="border-t border-border px-2 py-1">
+                  <ReservedAreaLegend
+                    areas={areaGroups.map((group) => ({
+                      color: group.color,
+                      label: t("floorAreaCount", {
+                        name: group.label,
+                        count: group.count,
+                      }),
+                    }))}
+                  />
+                  <details className="border-t border-border text-xs text-muted">
+                    <summary className="cursor-pointer px-3 py-2">
+                      {t("floorAllAreaNames", {
+                        count: legendAreas.length,
+                      })}
+                    </summary>
+                    <div className="max-h-40 overflow-y-auto">
+                      <ReservedAreaLegend areas={legendAreas} />
+                    </div>
+                  </details>
+                </div>
+              </details>
+            ) : (
+              <ReservedAreaLegend areas={legendAreas} />
+            )}
+            {pdZoneCount > 0 && aisleBlocks.length > 0 && (
+              <p className="mt-2 text-xs text-muted">
+                {t("floorAisleLegend", {
+                  widths: [
+                    ...new Set(
+                      aisleBlocks.map((block) =>
+                        m(Math.min(block.widthMm, block.depthMm)),
+                      ),
+                    ),
+                  ]
+                    .sort((a, b) => a - b)
+                    .map((width) => width.toFixed(2))
+                    .join(", "),
+                })}
+              </p>
+            )}
+          </Popover.Content>
+        </Popover.Portal>
+      </Popover.Root>
+    </>
+  );
+  const planWidth = reference
+    ? Math.max(props.widthMm, props.baseWidthMm - props.offsetXMm) +
+      props.offsetXMm
+    : props.widthMm;
+  const planDepth = reference
+    ? Math.max(props.depthMm, props.baseDepthMm - props.offsetYMm) +
+      props.offsetYMm
+    : props.depthMm;
   if (offsetEditing && props.offsetEditor)
     return (
       <section className="space-y-3">
@@ -651,7 +798,9 @@ export function FloorMap(props: FloorMapProps) {
           canSplit={canSplit}
           count={matches.length}
           floorNumber={props.floorNumber}
-          floorControl={workspaceView === "list" ? floorControls : undefined}
+          floorControl={floorControls}
+          dimensions={`${m(props.widthMm)} × ${m(props.depthMm)} × ${m(props.heightMm)} m`}
+          cameraControls={workspaceView !== "list" ? cameraControls : undefined}
           actions={props.locationActions}
         />
       </div>
@@ -659,6 +808,12 @@ export function FloorMap(props: FloorMapProps) {
         aria-label={t("mapTitle")}
         className={`${styles.workArea} @container min-w-0`}
         data-view={workspaceView}
+        data-camera={view}
+        style={
+          {
+            "--floor-aspect": Math.max(planWidth, 1) / Math.max(planDepth, 1),
+          } as CSSProperties
+        }
         data-inspector={
           workspaceView !== "list" &&
           !!(selected || selectedArea) &&
@@ -698,173 +853,8 @@ export function FloorMap(props: FloorMapProps) {
             aria-label={t("workspace.map")}
             hidden={workspaceView === "list"}
           >
-            <div className={styles.toolbar}>
-              <SceneToolbar
-                title={
-                  <>
-                    <h2 className="truncate text-sm font-semibold">
-                      {t("floor", { floor: props.floorNumber })} ·{" "}
-                      {t("floorSpace")}
-                    </h2>
-                    <p className="text-xs font-normal text-muted">
-                      {m(props.widthMm)} × {m(props.depthMm)} ×{" "}
-                      {m(props.heightMm)} m
-                    </p>
-                  </>
-                }
-                moreLabel={t("viewMode")}
-                primary={
-                  <>
-                    <StorageViewModeToggle
-                      value={view}
-                      onChange={(next) => {
-                        setView(next);
-                        setFocus(undefined);
-                      }}
-                      label={t("viewMode")}
-                      planLabel={t("planView")}
-                      threeDLabel={t("threeDView")}
-                    />{" "}
-                    {action(
-                      t("mapZoomOut"),
-                      <ZoomOut />,
-                      () => {
-                        const next = Math.max(1, zoom - (zoom > 3 ? 1 : 0.25));
-                        setZoom(next);
-                        if (next === 1) setFocus(undefined);
-                      },
-                      zoom <= 1,
-                    )}
-                    {action(
-                      t("mapZoomIn"),
-                      <ZoomIn />,
-                      () => setZoom(Math.min(8, zoom + (zoom >= 3 ? 1 : 0.25))),
-                      zoom >= 8,
-                    )}
-                    {action(t("mapFit"), <Maximize />, fit)}
-                    <Popover.Root>
-                      <Popover.Trigger asChild>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          aria-label={t("mapDisplayOptions")}
-                          title={t("mapDisplayOptions")}
-                        >
-                          <MoreHorizontal />
-                        </Button>
-                      </Popover.Trigger>
-                      <Popover.Portal>
-                        <Popover.Content
-                          align="end"
-                          sideOffset={8}
-                          className={`${styles.theme} z-50 flex w-64 max-w-[calc(100vw-2rem)] flex-col gap-1 rounded-lg border border-border bg-surface p-2 shadow-lg`}
-                        >
-                          {" "}
-                          {displayAction(
-                            t("mapShowLocationLabels"),
-                            <Tags />,
-                            () => saveLocationLabels(!showLocationLabels),
-                            view === "3d" && pdZoneCount > 0,
-                            showLocationLabels,
-                          )}
-                          {displayAction(
-                            t("mapShowPackages"),
-                            <QrCode />,
-                            () => setShowPackages(!showPackages),
-                            view === "3d",
-                            showPackages,
-                          )}
-                          {displayAction(
-                            t("mapRotate"),
-                            <RotateCw />,
-                            () => {
-                              setRotation((rotation + 1) % 4);
-                              setFocus(undefined);
-                            },
-                            view === "plan",
-                          )}
-                          {displayAction(
-                            props.baseLabel,
-                            <Layers3 />,
-                            () => {
-                              setReference(!reference);
-                              setFocus(undefined);
-                            },
-                            false,
-                            reference,
-                          )}
-                          {legendAreas.length > 6 ? (
-                            <details className="mt-3 rounded-lg border border-border bg-background">
-                              <summary className="cursor-pointer px-3 py-2 text-sm font-medium marker:text-muted">
-                                {t("floorMapAreas", {
-                                  count: legendAreas.length,
-                                })}
-                              </summary>
-                              <div className="border-t border-border px-2 py-1">
-                                <ReservedAreaLegend
-                                  areas={areaGroups.map((group) => ({
-                                    color: group.color,
-                                    label: t("floorAreaCount", {
-                                      name: group.label,
-                                      count: group.count,
-                                    }),
-                                  }))}
-                                />
-                                <details className="border-t border-border text-xs text-muted">
-                                  <summary className="cursor-pointer px-3 py-2">
-                                    {t("floorAllAreaNames", {
-                                      count: legendAreas.length,
-                                    })}
-                                  </summary>
-                                  <div className="max-h-40 overflow-y-auto">
-                                    <ReservedAreaLegend areas={legendAreas} />
-                                  </div>
-                                </details>
-                              </div>
-                            </details>
-                          ) : (
-                            <ReservedAreaLegend areas={legendAreas} />
-                          )}
-                          {pdZoneCount > 0 && aisleBlocks.length > 0 && (
-                            <p className="mt-2 text-xs text-muted">
-                              {t("floorAisleLegend", {
-                                widths: [
-                                  ...new Set(
-                                    aisleBlocks.map((block) =>
-                                      m(Math.min(block.widthMm, block.depthMm)),
-                                    ),
-                                  ),
-                                ]
-                                  .sort((a, b) => a - b)
-                                  .map((width) => width.toFixed(2))
-                                  .join(", "),
-                              })}
-                            </p>
-                          )}
-                        </Popover.Content>
-                      </Popover.Portal>
-                    </Popover.Root>
-                  </>
-                }
-                secondary={undefined}
-              />
-            </div>
             <div className={styles.canvas}>
-              {workspaceView !== "list" && floorControls && (
-                <div className={styles.floorSlot}>{floorControls}</div>
-              )}
               <div className={styles.drawing}>
-                <div className={styles.stamp}>
-                  {props.buildingCode && `${props.buildingCode} / `}
-                  {t("canvasFloor", {
-                    floor: String(props.floorNumber).padStart(2, "0"),
-                  })}
-                  <p>
-                    {t(view === "plan" ? "planView" : "threeDView")} ·{" "}
-                    {Math.round(zoom * 100)}%
-                  </p>
-                </div>
                 {workspaceView !== "list" && (
                   <FloorMapDrawing
                     widthMm={props.widthMm}
@@ -895,38 +885,49 @@ export function FloorMap(props: FloorMapProps) {
                   />
                 )}
 
-                <div className={styles.legend}>
-                  <span>
-                    <i className={styles.swatch} />
-                    {t("mapEmpty")}
-                  </span>
-                  <span>
-                    <i className={`${styles.swatch} ${styles.occupied}`} />
-                    {t("locationTable.stored")}
-                  </span>
-                  <span>
-                    <i className={`${styles.swatch} ${styles.reserved}`} />
-                    {t("placementReserved")}
-                  </span>
+                <div className={styles.canvasFooter}>
+                  <div className={styles.mapKey}>
+                    <div className={styles.legend}>
+                      <span>
+                        <i className={styles.swatch} />
+                        {t("mapEmpty")}
+                      </span>
+                      <span>
+                        <i className={`${styles.swatch} ${styles.occupied}`} />
+                        {t("locationTable.stored")}
+                      </span>
+                      <span>
+                        <i className={`${styles.swatch} ${styles.reserved}`} />
+                        {t("placementReserved")}
+                      </span>
+                    </div>
+                    {positionCount > 0 && (
+                      <p className={styles.positionSummary} role="status">
+                        {t("floorPositionSummary", {
+                          positions: positionCount,
+                          zones: groupCount,
+                        })}
+                      </p>
+                    )}
+                    {props.zones.length === 0 && (
+                      <p className="mt-3 text-sm text-muted">
+                        {t("noStorageSpots")}
+                      </p>
+                    )}
+                  </div>
+                  <div className={styles.stamp}>
+                    <span className={styles.floorStamp}>
+                      {props.buildingCode && `${props.buildingCode} / `}
+                      {t("canvasFloor", {
+                        floor: String(props.floorNumber).padStart(2, "0"),
+                      })}
+                    </span>
+                    <p>
+                      {t(view === "plan" ? "planView" : "threeDView")} ·{" "}
+                      {Math.round(zoom * 100)}%
+                    </p>
+                  </div>
                 </div>
-                {showLocationLabels && pdZoneCount > 0 && zoom < 2 && (
-                  <p className="mt-2 text-xs text-muted">
-                    {t("floorZoomForLabels")}
-                  </p>
-                )}
-                {positionCount > 0 && (
-                  <p className="mt-3 text-sm font-medium" role="status">
-                    {t("floorPositionSummary", {
-                      positions: positionCount,
-                      zones: groupCount,
-                    })}
-                  </p>
-                )}
-                {props.zones.length === 0 && (
-                  <p className="mt-3 text-sm text-muted">
-                    {t("noStorageSpots")}
-                  </p>
-                )}
               </div>
             </div>
             {selected && floorPositions(selected).length > 0 && (

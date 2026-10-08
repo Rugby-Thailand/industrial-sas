@@ -75,7 +75,7 @@ function SceneDrawing({
   onSelect: (id: string, palletId?: string) => void;
 }) {
   const t = useTranslations("StorageLayouts");
-  const { svg: viewportSvg, aspect } = useFloorMapViewport();
+  const { svg: viewportSvg, aspect, size } = useFloorMapViewport();
   const mobile = useStorageLayoutMobile();
   const frameWidth = mobile ? 400 : 920;
   const frameCenterX = frameWidth / 2;
@@ -151,24 +151,28 @@ function SceneDrawing({
     maxX = Math.max(...xs),
     minY = Math.min(...ys),
     maxY = Math.max(...ys);
-  const frameHeight = aspect
-    ? Math.max(180, frameWidth * aspect)
-    : compactPlan
-      ? 500
-      : 660;
+  const frameHeight = aspect ? frameWidth * aspect : compactPlan ? 500 : 660;
   const frameCenterY = frameHeight / 2;
   const labelSpace = showLocationLabels && !hasPdCells;
-  const scale = Math.min(
-    (frameWidth - (mobile ? 80 : labelSpace ? 210 : 120)) /
-      Math.max(maxX - minX, 1),
-    Math.max(
-      60,
-      frameHeight -
-        (labelSpace
-          ? Math.min(220, frameHeight / 3)
-          : Math.min(120, frameHeight / 4)),
-    ) / Math.max(maxY - minY, 1),
-  );
+  // Keep the fit margin in screen pixels when panels change the SVG width.
+  const screenUnit = frameWidth / (size?.width ?? frameWidth);
+  const scale =
+    view === "plan" && !labelSpace
+      ? Math.min(
+          Math.max(1, frameWidth - 64 * screenUnit) / Math.max(maxX - minX, 1),
+          Math.max(1, frameHeight - 96 * screenUnit) / Math.max(maxY - minY, 1),
+        )
+      : Math.min(
+          (frameWidth - (mobile ? 80 : labelSpace ? 210 : 120)) /
+            Math.max(maxX - minX, 1),
+          Math.max(
+            60,
+            frameHeight -
+              (labelSpace
+                ? Math.min(220, frameHeight / 3)
+                : Math.min(120, frameHeight / 4)),
+          ) / Math.max(maxY - minY, 1),
+        );
   // Persist the camera before fitting it to a viewport, so resizing panels
   // does not change the physical point at the centre of the scene.
   const sceneCenter = { x: (minX + maxX) / 2, y: (minY + maxY) / 2 };
@@ -279,8 +283,9 @@ function SceneDrawing({
     return { zone, anchor, x, y, unitCount };
   });
   const scaleBarMm = 5000 / 2 ** Math.ceil(Math.log2(zoom));
-  const scaleBarRight = frameCenterX + ((maxX - minX) * scale) / 2 + 35;
-  const scaleBarY = frameCenterY + ((maxY - minY) * scale) / 2 + 38;
+  const scaleBarRight = frameWidth - 24 * screenUnit;
+  const scaleBarY = 28 * screenUnit;
+  const scaleBarWidth = Math.max(scaleBarMm * scale * zoom, 40 * screenUnit);
   const selected = props.zones.find((z) => z.zoneId === selectedId);
   const selectedArea =
     selectedAreaIndex === undefined
@@ -989,24 +994,24 @@ function SceneDrawing({
             aria-hidden="true"
           >
             <path
-              d={`M${floor[0]!.x} ${floor[0]!.y - 14}H${floor[1]!.x} M${floor[0]!.x} ${floor[0]!.y - 18}v8 M${floor[1]!.x} ${floor[1]!.y - 18}v8`}
+              d={`M${floor[0]!.x} ${floor[0]!.y - 14 * screenUnit}H${floor[1]!.x} M${floor[0]!.x} ${floor[0]!.y - 18 * screenUnit}v${8 * screenUnit} M${floor[1]!.x} ${floor[1]!.y - 18 * screenUnit}v${8 * screenUnit}`}
               fill="none"
             />
             <text
               x={(floor[0]!.x + floor[1]!.x) / 2}
-              y={floor[0]!.y - 24}
+              y={floor[0]!.y - 24 * screenUnit}
               textAnchor="middle"
-              fontSize="12"
+              fontSize={12 * screenUnit}
               stroke="none"
             >
               {m(props.widthMm)} m
             </text>
             <text
-              x={floor[0]!.x - 18}
+              x={floor[0]!.x - 18 * screenUnit}
               y={(floor[0]!.y + floor[3]!.y) / 2}
-              transform={`rotate(-90 ${floor[0]!.x - 18} ${(floor[0]!.y + floor[3]!.y) / 2})`}
+              transform={`rotate(-90 ${floor[0]!.x - 18 * screenUnit} ${(floor[0]!.y + floor[3]!.y) / 2})`}
               textAnchor="middle"
-              fontSize="12"
+              fontSize={12 * screenUnit}
               stroke="none"
             >
               {m(props.depthMm)} m
@@ -1100,17 +1105,26 @@ function SceneDrawing({
           aria-hidden="true"
           stroke="var(--plan-muted)"
           fill="var(--plan-muted)"
-          className="font-mono"
+          className="pointer-events-none font-mono"
         >
+          <rect
+            x={scaleBarRight - scaleBarWidth - 8 * screenUnit}
+            y={4 * screenUnit}
+            width={scaleBarWidth + 16 * screenUnit}
+            height={32 * screenUnit}
+            rx={4 * screenUnit}
+            fill="var(--plan-background)"
+            stroke="none"
+          />
           <path
-            d={`M${scaleBarRight - scaleBarMm * scale * zoom} ${scaleBarY - 4}v4H${scaleBarRight}v-4`}
+            d={`M${scaleBarRight - scaleBarMm * scale * zoom} ${scaleBarY - 4 * screenUnit}v${4 * screenUnit}H${scaleBarRight}v${-4 * screenUnit}`}
             fill="none"
           />
           <text
             x={scaleBarRight - (scaleBarMm * scale * zoom) / 2}
-            y={scaleBarY - 7}
+            y={scaleBarY - 7 * screenUnit}
             textAnchor="middle"
-            fontSize="10"
+            fontSize={10 * screenUnit}
             stroke="none"
           >
             {m(scaleBarMm)} m
