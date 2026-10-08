@@ -37,7 +37,11 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
-function scene(zoom: number, focus?: { x: number; y: number }) {
+function scene(
+  zoom: number,
+  focus?: { x: number; y: number },
+  showLocationLabels = false,
+) {
   const view = renderWithIntl(
     <FloorMapDrawing
       {...floorMapDemo(false, false)}
@@ -53,7 +57,7 @@ function scene(zoom: number, focus?: { x: number; y: number }) {
       selectedAreaIndex={undefined}
       onSelectArea={vi.fn()}
       reference={false}
-      showLocationLabels={false}
+      showLocationLabels={showLocationLabels}
       showPackages={false}
       selectedId={undefined}
       selectedUnit={undefined}
@@ -88,50 +92,56 @@ function scene(zoom: number, focus?: { x: number; y: number }) {
 }
 
 describe("floor viewport fitting", () => {
-  it("reserves the measured wrapping footer below a portrait floor", () => {
-    const view = scene(1);
-    for (const footerHeight of [44, 68, 100]) {
-      view.resize(294, 476, footerHeight);
-      const [, , width, height] = view.svg
-        .getAttribute("viewBox")!
-        .split(" ")
-        .map(Number);
-      const unit = width! / 294;
-      const ys = view.floor().map((point) => point[1]!);
-      expect(Math.min(...ys)).toBeGreaterThanOrEqual(32 * unit - 0.001);
-      expect(Math.max(...ys)).toBeLessThanOrEqual(
-        height! - (footerHeight + 16) * unit + 0.001,
-      );
-    }
-  });
+  it.each([false, true])(
+    "reserves the measured wrapping footer below a portrait floor (labels=%s)",
+    (labels) => {
+      const view = scene(1, undefined, labels);
+      for (const footerHeight of [44, 68, 100]) {
+        view.resize(294, 476, footerHeight);
+        const [, , width, height] = view.svg
+          .getAttribute("viewBox")!
+          .split(" ")
+          .map(Number);
+        const unit = width! / 294;
+        const ys = view.floor().map((point) => point[1]!);
+        expect(Math.min(...ys)).toBeGreaterThanOrEqual(32 * unit - 0.001);
+        expect(Math.max(...ys)).toBeLessThanOrEqual(
+          height! - (footerHeight + 16) * unit + 0.001,
+        );
+      }
+    },
+  );
 
-  it("keeps a committed physical center across narrower and taller viewports at low zoom", () => {
-    const view = scene(1.25, { x: 4800, y: 10000 });
-    for (const [width, height, footerHeight] of [
-      [1390, 397, 44],
-      [750, 612, 44],
-      [294, 476, 68],
-      [1390, 397, 44],
-    ]) {
-      view.resize(width!, height!, footerHeight!);
-      const [, , frameWidth, frameHeight] = view.svg
-        .getAttribute("viewBox")!
-        .split(" ")
-        .map(Number);
-      const [tx, ty, zoom] = view.svg
-        .querySelector(":scope > g")!
-        .getAttribute("transform")!
-        .match(/-?[\d.]+/g)!
-        .map(Number);
-      const centerX = (frameWidth! / 2 - tx!) / zoom!;
-      const centerY = (frameHeight! / 2 - ty!) / zoom!;
-      const floor = view.floor();
-      expect(
-        (centerX - floor[0]![0]!) / (floor[1]![0]! - floor[0]![0]!),
-      ).toBeCloseTo(0.58, 8);
-      expect(
-        (centerY - floor[0]![1]!) / (floor[3]![1]! - floor[0]![1]!),
-      ).toBeCloseTo(0.5 + 10000 / 120000, 8);
-    }
-  });
+  it.each([undefined, { x: 4800, y: 10000 }])(
+    "keeps the physical center across narrower and taller viewports at low zoom (focus=%s)",
+    (focus) => {
+      const view = scene(1.25, focus);
+      for (const [width, height, footerHeight] of [
+        [1390, 397, 44],
+        [750, 612, 44],
+        [294, 476, 68],
+        [1390, 397, 44],
+      ]) {
+        view.resize(width!, height!, footerHeight!);
+        const [, , frameWidth, frameHeight] = view.svg
+          .getAttribute("viewBox")!
+          .split(" ")
+          .map(Number);
+        const [tx, ty, zoom] = view.svg
+          .querySelector(":scope > g")!
+          .getAttribute("transform")!
+          .match(/-?[\d.]+/g)!
+          .map(Number);
+        const centerX = (frameWidth! / 2 - tx!) / zoom!;
+        const centerY = (frameHeight! / 2 - ty!) / zoom!;
+        const floor = view.floor();
+        expect(
+          (centerX - floor[0]![0]!) / (floor[1]![0]! - floor[0]![0]!),
+        ).toBeCloseTo(0.5 + (focus?.x ?? 0) / 60000, 8);
+        expect(
+          (centerY - floor[0]![1]!) / (floor[3]![1]! - floor[0]![1]!),
+        ).toBeCloseTo(0.5 + (focus?.y ?? 0) / 120000, 8);
+      }
+    },
+  );
 });

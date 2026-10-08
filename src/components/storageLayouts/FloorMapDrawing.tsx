@@ -171,29 +171,27 @@ function SceneDrawing({
   const labelSpace = showLocationLabels && !hasPdCells;
   // Keep the fit margin in screen pixels when panels change the SVG width.
   const screenUnit = frameWidth / (size?.width ?? frameWidth);
-  const fitTop = 32;
-  const fitBottom = Math.max(64, footerHeight + 16);
   const tightPlan = view === "plan" && !labelSpace;
-  const fitCenterY = tightPlan
-    ? frameCenterY + ((fitTop - fitBottom) * screenUnit) / 2
-    : frameCenterY;
-  const scale = tightPlan
-    ? Math.min(
-        Math.max(1, frameWidth - 64 * screenUnit) / Math.max(maxX - minX, 1),
-        Math.max(1, frameHeight - (fitTop + fitBottom) * screenUnit) /
-          Math.max(maxY - minY, 1),
-      )
-    : Math.min(
-        (frameWidth - (mobile ? 80 : labelSpace ? 210 : 120)) /
-          Math.max(maxX - minX, 1),
-        Math.max(
-          60,
-          frameHeight -
-            (labelSpace
-              ? Math.min(220, frameHeight / 3)
-              : Math.min(120, frameHeight / 4)),
-        ) / Math.max(maxY - minY, 1),
-      );
+  const labelMargin = labelSpace
+    ? Math.min(220, frameHeight / 3)
+    : Math.min(120, frameHeight / 4);
+  const fitTop = tightPlan ? 32 : labelMargin / (2 * screenUnit);
+  const fitBottom = Math.max(tightPlan ? 64 : fitTop, footerHeight + 16);
+  const fitCenterY = frameCenterY + ((fitTop - fitBottom) * screenUnit) / 2;
+  const horizontalMargin = tightPlan
+    ? 64 * screenUnit
+    : mobile
+      ? 80
+      : labelSpace
+        ? 210
+        : 120;
+  const scale = Math.min(
+    Math.max(1, frameWidth - horizontalMargin) / Math.max(maxX - minX, 1),
+    Math.max(
+      tightPlan ? 1 : 60,
+      frameHeight - (fitTop + fitBottom) * screenUnit,
+    ) / Math.max(maxY - minY, 1),
+  );
   // Persist the camera before fitting it to a viewport, so resizing panels
   // does not change the physical point at the centre of the scene.
   const sceneCenter = { x: (minX + maxX) / 2, y: (minY + maxY) / 2 };
@@ -342,14 +340,12 @@ function SceneDrawing({
     ? { x: frameCenterX, y: frameCenterY }
     : focus
       ? framePoint(focus)
-      : clampFocus(
-          target
-            ? point(
-                target.xMm + target.widthMm / 2,
-                target.yMm + target.depthMm / 2,
-              )
-            : { x: frameCenterX, y: frameCenterY },
-        );
+      : target
+        ? point(
+            target.xMm + target.widthMm / 2,
+            target.yMm + target.depthMm / 2,
+          )
+        : framePoint(sceneCenter);
   const transform = (point: { x: number; y: number }) =>
     `translate(${frameCenterX - point.x * zoom} ${frameCenterY - point.y * zoom}) scale(${zoom})`;
   const { group: panGroup, handlers: panHandlers } = useFloorMapPan({
