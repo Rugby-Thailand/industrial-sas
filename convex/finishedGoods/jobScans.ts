@@ -43,6 +43,24 @@ const mappedLocation = v.object({
   supportPositionId: v.optional(v.id("storagePositions")),
 });
 
+/** Validate the entire selection before either bulk operation writes anything. */
+async function validateJobScanSelection(
+  ctx: TenantFunctionContext,
+  warehouseId: Id<"warehouses">,
+  ids: readonly Id<"finishedGoodsJobScans">[],
+) {
+  if (!ids.length || ids.length > LIST_LIMIT)
+    return failure("SCAN_GROUP_SIZE_INVALID");
+  for (const id of new Set(ids)) {
+    const scan = await ctx.tenantDb.get<Doc<"finishedGoodsJobScans">>(
+      TABLE,
+      id,
+    );
+    if (!scan || scan.warehouseId !== warehouseId) return failure("NOT_FOUND");
+  }
+  return null;
+}
+
 /** Zone (or one of its positions) in this warehouse, or null when unusable. */
 async function mapLocation(
   ctx: TenantFunctionContext,
@@ -278,19 +296,15 @@ export const assignJobScanLocation = mutationWithOrg({
   warehouseId: (args) => args.warehouseId,
   handler: async (ctx, args) =>
     command(ctx, args, "finishedGoods.jobScan.assign", TABLE, async () => {
-      if (!args.ids.length || args.ids.length > LIST_LIMIT)
-        return failure("SCAN_GROUP_SIZE_INVALID");
+      const invalidSelection = await validateJobScanSelection(
+        ctx,
+        args.warehouseId,
+        args.ids,
+      );
+      if (invalidSelection) return invalidSelection;
       const mapped = await mapLocation(ctx, args.warehouseId, args.location);
       if (!mapped) return failure("LOCATION_UNAVAILABLE");
-      for (const id of args.ids) {
-        const scan = await ctx.tenantDb.get<Doc<"finishedGoodsJobScans">>(
-          TABLE,
-          id,
-        );
-        if (!scan || scan.warehouseId !== args.warehouseId)
-          return failure("NOT_FOUND");
-      }
-      for (const id of args.ids)
+      for (const id of new Set(args.ids))
         await ctx.tenantDb.patch(TABLE, id, {
           mapped: true,
           supportPositionId: undefined,
@@ -298,6 +312,30 @@ export const assignJobScanLocation = mutationWithOrg({
           ...stamp(ctx),
         });
       return { documentId: args.ids[0]! };
+    }),
+});
+
+export const deleteJobScans = mutationWithOrg({
+  args: {
+    warehouseId: v.id("warehouses"),
+    requestId: v.string(),
+    ids: v.array(v.id("finishedGoodsJobScans")),
+  },
+  returns: v.any(),
+  permissionCode: MANAGE,
+  target: { table: TABLE },
+  warehouseId: (args) => args.warehouseId,
+  handler: async (ctx, args) =>
+    command(ctx, args, "finishedGoods.jobScan.delete", TABLE, async () => {
+      const invalidSelection = await validateJobScanSelection(
+        ctx,
+        args.warehouseId,
+        args.ids,
+      );
+      if (invalidSelection) return invalidSelection;
+      const ids = [...new Set(args.ids)];
+      for (const id of ids) await ctx.tenantDb.delete(TABLE, id);
+      return { documentId: ids[0]! };
     }),
 });
 

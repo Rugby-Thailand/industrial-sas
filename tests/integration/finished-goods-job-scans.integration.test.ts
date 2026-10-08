@@ -229,6 +229,164 @@ describe("finished goods job scans", () => {
     expect(found).toMatchObject({ total: 1, pages: 1, page: 1 });
   });
 
+  it("deletes mapped and unmapped records, audits the command, and replays retries", async () => {
+    const world = await setup();
+    for (const mapped of [false, true]) {
+      id(
+        await call(world, jobScans.saveJobScans, {
+          warehouseId: world.warehouseId,
+          requestId: `save-delete-${mapped}`,
+          locationText: "Dock",
+          ...(mapped ? { location: { zoneId: world.zoneId } } : {}),
+          items: [ticket, ticket],
+        }),
+      );
+    }
+    const [unmapped] = await list(world, "UNMAPPED");
+    const [mapped] = await list(world, "MAPPED");
+    const args = {
+      warehouseId: world.warehouseId,
+      requestId: "delete-selection",
+      ids: [unmapped!.id, mapped!.id, mapped!.id],
+    };
+    expect(id(await call(world, jobScans.deleteJobScans, args))).toBe(
+      unmapped!.id,
+    );
+    expect(await list(world, "UNMAPPED")).toHaveLength(1);
+    expect(await list(world, "MAPPED")).toHaveLength(1);
+    expect(
+      value(await call(world, jobScans.deleteJobScans, args)),
+    ).toMatchObject({
+      written: true,
+      replayed: true,
+    });
+    const audit = await world.t.run(async (ctx) =>
+      (await ctx.db.query("auditEvents").collect()).filter(
+        (event) => event.action === "finishedGoods.jobScan.delete",
+      ),
+    );
+    expect(audit).toHaveLength(1);
+    expect(audit[0]).toMatchObject({
+      outcome: "ALLOWED",
+      entityId: unmapped!.id,
+      warehouseId: world.warehouseId,
+      actorUserId: world.userA,
+    });
+  });
+
+  it("rejects a mixed selection from another warehouse or tenant before deleting anything", async () => {
+    const world = await setup();
+    const scanId = id(
+      await call(world, jobScans.saveJobScans, {
+        warehouseId: world.warehouseId,
+        requestId: "save-protected",
+        locationText: "Dock",
+        items: [ticket],
+      }),
+    );
+    for (const warehouseId of [
+      world.warehouses.bravoA,
+      world.warehouses.alphaB,
+    ]) {
+      const foreignId = await world.t.run(async (ctx) =>
+        ctx.db.insert("finishedGoodsJobScans", {
+          ...ticket,
+          orgId:
+            warehouseId === world.warehouses.alphaB ? world.orgB : world.orgA,
+          warehouseId,
+          locationText: "Other warehouse",
+          mapped: false,
+          createdAt: Date.now(),
+          createdByUserId: world.userA,
+          updatedAt: Date.now(),
+          updatedByUserId: world.userA,
+        }),
+      );
+      error(
+        await call(world, jobScans.deleteJobScans, {
+          warehouseId: world.warehouseId,
+          requestId: `delete-foreign-${warehouseId}`,
+          ids: [scanId, foreignId],
+        }),
+        "NOT_FOUND",
+      );
+      expect(await list(world, "ALL")).toHaveLength(1);
+      expect(await world.t.run((ctx) => ctx.db.get(foreignId))).not.toBeNull();
+    }
+  });
+
+  it("rejects missing records and invalid selection sizes", async () => {
+    const world = await setup();
+    const scanId = id(
+      await call(world, jobScans.saveJobScans, {
+        warehouseId: world.warehouseId,
+        requestId: "save-missing",
+        locationText: "Dock",
+        items: [ticket, ticket],
+      }),
+    );
+    const otherId = (await list(world, "ALL")).find(
+      (scan) => scan.id !== scanId,
+    )!.id;
+    id(
+      await call(world, jobScans.deleteJobScans, {
+        warehouseId: world.warehouseId,
+        requestId: "delete-once",
+        ids: [scanId],
+      }),
+    );
+    for (const [requestId, ids, code] of [
+      ["delete-empty", [], "SCAN_GROUP_SIZE_INVALID"],
+      [
+        "delete-too-many",
+        Array.from({ length: 301 }, () => otherId),
+        "SCAN_GROUP_SIZE_INVALID",
+      ],
+      ["delete-missing", [otherId, scanId], "NOT_FOUND"],
+    ] as const) {
+      error(
+        await call(world, jobScans.deleteJobScans, {
+          warehouseId: world.warehouseId,
+          requestId,
+          ids,
+        }),
+        code,
+      );
+    }
+    expect(await list(world, "ALL")).toHaveLength(1);
+  });
+
+  it("denies deletion without manage permission or authentication", async () => {
+    const world = await setup("SUPERVISOR");
+    const scanId = await world.t.run(async (ctx) =>
+      ctx.db.insert("finishedGoodsJobScans", {
+        ...ticket,
+        orgId: world.orgA,
+        warehouseId: world.warehouseId,
+        locationText: "Dock",
+        mapped: false,
+        createdAt: Date.now(),
+        createdByUserId: world.userA,
+        updatedAt: Date.now(),
+        updatedByUserId: world.userA,
+      }),
+    );
+    const args = {
+      warehouseId: world.warehouseId,
+      requestId: "delete-denied",
+      ids: [scanId],
+    };
+    expect(await call(world, jobScans.deleteJobScans, args)).toMatchObject({
+      ok: false,
+    });
+    await expect(
+      call(world, jobScans.deleteJobScans, args, false),
+    ).rejects.toMatchObject({
+      data: { code: "ANONYMOUS" },
+    });
+    expect(await list(world, "ALL")).toHaveLength(1);
+  });
+
   it("pages through records newest first, with and without search", async () => {
     const world = await setup();
     id(

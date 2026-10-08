@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useConvex, useQuery } from "convex/react";
 import { MapPin, ScanQrCode, Search } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -28,6 +28,13 @@ export function LocationPicker({
   const [camera, setCamera] = useState(false);
   const [notice, setNotice] = useState<string>();
   const [page, setPage] = useState(1);
+  const lookupVersion = useRef(0);
+  useEffect(
+    () => () => {
+      lookupVersion.current += 1;
+    },
+    [],
+  );
   const settledText = useDebouncedSearch(text);
   const outcome = useQuery(fgRefs.searchJobScanLocations, {
     warehouseId,
@@ -39,11 +46,14 @@ export function LocationPicker({
   const trimmed = text.trim();
 
   async function onScan(code: string) {
+    const version = ++lookupVersion.current;
     setCamera(false);
     const result = await convex.query(fgRefs.resolveLocationCode, {
       warehouseId,
       code,
     });
+    // A cancelled picker or a newer scan must not apply a late lookup result.
+    if (version !== lookupVersion.current) return;
     const location =
       result.ok && result.value.ok ? result.value.location : undefined;
     if (location) {
