@@ -866,6 +866,9 @@ export function FloorMap(props: FloorMapProps) {
                 workspaceView === "list" &&
                 selected && (
                   <div className={styles.inlineDetails}>
+                    <h2 className="mb-2 text-xs font-semibold text-muted">
+                      {t("locationDetails")}
+                    </h2>
                     {!props.locationInspector && inspectorDetails}
                     <div ref={setInlineTarget} />
                   </div>
