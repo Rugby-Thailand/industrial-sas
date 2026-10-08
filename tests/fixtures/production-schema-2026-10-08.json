@@ -1,0 +1,500 @@
+{
+  "finishedGoodsJobScans": {
+    "correctedAt": {
+      "fieldType": {
+        "type": "number"
+      },
+      "optional": true
+    },
+    "correctedByUserId": {
+      "fieldType": {
+        "type": "id",
+        "tableName": "users"
+      },
+      "optional": true
+    },
+    "version": {
+      "fieldType": {
+        "type": "number"
+      },
+      "optional": true
+    },
+    "voidReason": {
+      "fieldType": {
+        "type": "string"
+      },
+      "optional": true
+    },
+    "voided": {
+      "fieldType": {
+        "type": "literal",
+        "value": true
+      },
+      "optional": true
+    },
+    "voidedAt": {
+      "fieldType": {
+        "type": "number"
+      },
+      "optional": true
+    },
+    "voidedByUserId": {
+      "fieldType": {
+        "type": "id",
+        "tableName": "users"
+      },
+      "optional": true
+    }
+  },
+  "finishedGoodsMoves": {
+    "kind": {
+      "fieldType": {
+        "type": "literal",
+        "value": "LOCATION_ONLY_RECOVERY"
+      },
+      "optional": true
+    },
+    "legacySource": {
+      "fieldType": {
+        "type": "object",
+        "value": {
+          "assignmentId": {
+            "fieldType": {
+              "type": "id",
+              "tableName": "finishedGoodsScanAssignments"
+            },
+            "optional": false
+          },
+          "groupSize": {
+            "fieldType": {
+              "type": "number"
+            },
+            "optional": false
+          },
+          "sequence": {
+            "fieldType": {
+              "type": "number"
+            },
+            "optional": false
+          }
+        }
+      },
+      "optional": true
+    },
+    "recovery": {
+      "fieldType": {
+        "type": "object",
+        "value": {
+          "actorUserId": {
+            "fieldType": {
+              "type": "id",
+              "tableName": "users"
+            },
+            "optional": false
+          },
+          "at": {
+            "fieldType": {
+              "type": "number"
+            },
+            "optional": false
+          },
+          "kind": {
+            "fieldType": {
+              "type": "union",
+              "value": [
+                {
+                  "type": "literal",
+                  "value": "CANCEL_RESERVATION"
+                },
+                {
+                  "type": "literal",
+                  "value": "RETURN_TO_SOURCE"
+                }
+              ]
+            },
+            "optional": false
+          },
+          "previousStatus": {
+            "fieldType": {
+              "type": "union",
+              "value": [
+                {
+                  "type": "literal",
+                  "value": "RESERVED"
+                },
+                {
+                  "type": "literal",
+                  "value": "IN_TRANSIT"
+                }
+              ]
+            },
+            "optional": false
+          },
+          "previousVersion": {
+            "fieldType": {
+              "type": "number"
+            },
+            "optional": false
+          },
+          "reason": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": false
+          },
+          "sourceVerificationMethod": {
+            "fieldType": {
+              "type": "union",
+              "value": [
+                {
+                  "type": "literal",
+                  "value": "SCAN"
+                },
+                {
+                  "type": "literal",
+                  "value": "MANUAL"
+                }
+              ]
+            },
+            "optional": true
+          }
+        }
+      },
+      "optional": true
+    },
+    "recoveryMeasurement": {
+      "fieldType": {
+        "type": "object",
+        "value": {
+          "heightMm": {
+            "fieldType": {
+              "type": "number"
+            },
+            "optional": false
+          },
+          "lengthMm": {
+            "fieldType": {
+              "type": "number"
+            },
+            "optional": false
+          },
+          "measuredAt": {
+            "fieldType": {
+              "type": "number"
+            },
+            "optional": false
+          },
+          "measuredByUserId": {
+            "fieldType": {
+              "type": "id",
+              "tableName": "users"
+            },
+            "optional": false
+          },
+          "weightKg": {
+            "fieldType": {
+              "type": "number"
+            },
+            "optional": true
+          },
+          "widthMm": {
+            "fieldType": {
+              "type": "number"
+            },
+            "optional": false
+          }
+        }
+      },
+      "optional": true
+    },
+    "verifiedLayoutVersion": {
+      "fieldType": {
+        "type": "string"
+      },
+      "optional": true
+    },
+    "version": {
+      "fieldType": {
+        "type": "number"
+      },
+      "optional": true
+    }
+  },
+  "finishedGoodsPallets": {
+    "legacyRecovery": {
+      "fieldType": {
+        "type": "object",
+        "value": {
+          "assignmentId": {
+            "fieldType": {
+              "type": "id",
+              "tableName": "finishedGoodsScanAssignments"
+            },
+            "optional": false
+          },
+          "completedAt": {
+            "fieldType": {
+              "type": "number"
+            },
+            "optional": false
+          },
+          "completedByUserId": {
+            "fieldType": {
+              "type": "id",
+              "tableName": "users"
+            },
+            "optional": false
+          },
+          "heightMm": {
+            "fieldType": {
+              "type": "number"
+            },
+            "optional": false
+          },
+          "lengthMm": {
+            "fieldType": {
+              "type": "number"
+            },
+            "optional": false
+          },
+          "measuredAt": {
+            "fieldType": {
+              "type": "number"
+            },
+            "optional": false
+          },
+          "measuredByUserId": {
+            "fieldType": {
+              "type": "id",
+              "tableName": "users"
+            },
+            "optional": false
+          },
+          "moveId": {
+            "fieldType": {
+              "type": "id",
+              "tableName": "finishedGoodsMoves"
+            },
+            "optional": false
+          },
+          "previous": {
+            "fieldType": {
+              "type": "object",
+              "value": {
+                "heightMm": {
+                  "fieldType": {
+                    "type": "number"
+                  },
+                  "optional": true
+                },
+                "lengthMm": {
+                  "fieldType": {
+                    "type": "number"
+                  },
+                  "optional": true
+                },
+                "weightKg": {
+                  "fieldType": {
+                    "type": "number"
+                  },
+                  "optional": true
+                },
+                "widthMm": {
+                  "fieldType": {
+                    "type": "number"
+                  },
+                  "optional": true
+                }
+              }
+            },
+            "optional": false
+          },
+          "sequence": {
+            "fieldType": {
+              "type": "number"
+            },
+            "optional": false
+          },
+          "sourcePlacementId": {
+            "fieldType": {
+              "type": "id",
+              "tableName": "finishedGoodsPlacements"
+            },
+            "optional": false
+          },
+          "weightKg": {
+            "fieldType": {
+              "type": "number"
+            },
+            "optional": true
+          },
+          "widthMm": {
+            "fieldType": {
+              "type": "number"
+            },
+            "optional": false
+          }
+        }
+      },
+      "optional": true
+    }
+  },
+  "finishedGoodsProducts": {
+    "archivedAt": {
+      "fieldType": {
+        "type": "number"
+      },
+      "optional": true
+    },
+    "archivedByUserId": {
+      "fieldType": {
+        "type": "id",
+        "tableName": "users"
+      },
+      "optional": true
+    },
+    "status": {
+      "fieldType": {
+        "type": "union",
+        "value": [
+          {
+            "type": "literal",
+            "value": "DRAFT"
+          },
+          {
+            "type": "literal",
+            "value": "ACTIVE"
+          },
+          {
+            "type": "literal",
+            "value": "ARCHIVED"
+          }
+        ]
+      },
+      "optional": false
+    }
+  },
+  "memberships": {
+    "accessRevision": {
+      "fieldType": {
+        "type": "number"
+      },
+      "optional": true
+    }
+  },
+  "storageBuildings": {
+    "envelopeHeightMm": {
+      "fieldType": {
+        "type": "number"
+      },
+      "optional": true
+    },
+    "kind": {
+      "fieldType": {
+        "type": "union",
+        "value": [
+          {
+            "type": "literal",
+            "value": "BUILDING"
+          },
+          {
+            "type": "literal",
+            "value": "AREA"
+          }
+        ]
+      },
+      "optional": true
+    },
+    "layoutNote": {
+      "fieldType": {
+        "type": "string"
+      },
+      "optional": true
+    },
+    "relatedBuildingIds": {
+      "fieldType": {
+        "type": "array",
+        "value": {
+          "type": "id",
+          "tableName": "storageBuildings"
+        }
+      },
+      "optional": true
+    }
+  },
+  "storageFloors": {
+    "baseElevationMm": {
+      "fieldType": {
+        "type": "number"
+      },
+      "optional": true
+    },
+    "maxHandlingUnitHeightMm": {
+      "fieldType": {
+        "type": "number"
+      },
+      "optional": true
+    },
+    "mezzanineClearanceMm": {
+      "fieldType": {
+        "type": "number"
+      },
+      "optional": true
+    }
+  },
+  "storagePositions": {
+    "heightSource": {
+      "fieldType": {
+        "type": "union",
+        "value": [
+          {
+            "type": "literal",
+            "value": "MEASURED"
+          },
+          {
+            "type": "literal",
+            "value": "ASSUMED"
+          },
+          {
+            "type": "literal",
+            "value": "UNKNOWN"
+          }
+        ]
+      },
+      "optional": true
+    },
+    "usableHeightMm": {
+      "fieldType": {
+        "type": "number"
+      },
+      "optional": true
+    },
+    "version": {
+      "fieldType": {
+        "type": "number"
+      },
+      "optional": true
+    }
+  },
+  "warehouses": {
+    "updatedAt": {
+      "fieldType": {
+        "type": "number"
+      },
+      "optional": true
+    },
+    "updatedByUserId": {
+      "fieldType": {
+        "type": "id",
+        "tableName": "users"
+      },
+      "optional": true
+    },
+    "version": {
+      "fieldType": {
+        "type": "number"
+      },
+      "optional": true
+    }
+  }
+}

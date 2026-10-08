@@ -201,6 +201,10 @@ const schema = defineSchema({
     .index("by_scope_code", ["scope", "code"]),
   warehouses: defineTable(
     tenantFields({
+      // Retain optional metadata already stored by production deployments.
+      version: v.optional(v.number()),
+      updatedAt: v.optional(v.number()),
+      updatedByUserId: v.optional(v.id("users")),
       code: v.string(),
       name: v.string(),
       status: warehouseStatus,
@@ -210,6 +214,7 @@ const schema = defineSchema({
     .index("by_orgId_status_code", byOrg("status", "code")),
   memberships: defineTable(
     tenantFields({
+      accessRevision: v.optional(v.number()),
       userId: v.id("users"),
 
       clerkMembershipId: v.string(),
@@ -465,6 +470,8 @@ const schema = defineSchema({
     ),
   finishedGoodsProducts: defineTable(
     tenantFields({
+      archivedAt: v.optional(v.number()),
+      archivedByUserId: v.optional(v.id("users")),
       warehouseId: v.id("warehouses"),
       sku: v.string(),
       name: v.string(),
@@ -479,7 +486,11 @@ const schema = defineSchema({
       notes: v.optional(v.string()),
       customerReference: v.optional(v.string()),
       productReference: v.optional(v.string()),
-      status: v.union(v.literal("DRAFT"), v.literal("ACTIVE")),
+      status: v.union(
+        v.literal("DRAFT"),
+        v.literal("ACTIVE"),
+        v.literal("ARCHIVED"),
+      ),
       createdAt: v.number(),
       createdByUserId: v.id("users"),
       updatedAt: v.number(),
@@ -490,6 +501,28 @@ const schema = defineSchema({
     .index("by_orgId_warehouseId_updatedAt", byOrg("warehouseId", "updatedAt")),
   finishedGoodsPallets: defineTable(
     tenantFields({
+      legacyRecovery: v.optional(
+        v.object({
+          assignmentId: v.id("finishedGoodsScanAssignments"),
+          completedAt: v.number(),
+          completedByUserId: v.id("users"),
+          heightMm: v.number(),
+          lengthMm: v.number(),
+          measuredAt: v.number(),
+          measuredByUserId: v.id("users"),
+          moveId: v.id("finishedGoodsMoves"),
+          previous: v.object({
+            heightMm: v.optional(v.number()),
+            lengthMm: v.optional(v.number()),
+            weightKg: v.optional(v.number()),
+            widthMm: v.optional(v.number()),
+          }),
+          sequence: v.number(),
+          sourcePlacementId: v.id("finishedGoodsPlacements"),
+          weightKg: v.optional(v.number()),
+          widthMm: v.number(),
+        }),
+      ),
       warehouseId: v.id("warehouses"),
       productId: v.id("finishedGoodsProducts"),
       code: v.string(),
@@ -598,6 +631,13 @@ const schema = defineSchema({
   /** Job tickets captured by the scan page. Location stays free text until mapped to a zone. */
   finishedGoodsJobScans: defineTable(
     tenantFields({
+      version: v.optional(v.number()),
+      correctedAt: v.optional(v.number()),
+      correctedByUserId: v.optional(v.id("users")),
+      voided: v.optional(v.literal(true)),
+      voidReason: v.optional(v.string()),
+      voidedAt: v.optional(v.number()),
+      voidedByUserId: v.optional(v.id("users")),
       warehouseId: v.id("warehouses"),
       factoryOrder: v.string(),
       productBarcodeText: v.string(),
@@ -634,6 +674,45 @@ const schema = defineSchema({
     ),
   finishedGoodsMoves: defineTable(
     tenantFields({
+      version: v.optional(v.number()),
+      kind: v.optional(v.literal("LOCATION_ONLY_RECOVERY")),
+      verifiedLayoutVersion: v.optional(v.string()),
+      legacySource: v.optional(
+        v.object({
+          assignmentId: v.id("finishedGoodsScanAssignments"),
+          groupSize: v.number(),
+          sequence: v.number(),
+        }),
+      ),
+      recovery: v.optional(
+        v.object({
+          actorUserId: v.id("users"),
+          at: v.number(),
+          kind: v.union(
+            v.literal("CANCEL_RESERVATION"),
+            v.literal("RETURN_TO_SOURCE"),
+          ),
+          previousStatus: v.union(
+            v.literal("RESERVED"),
+            v.literal("IN_TRANSIT"),
+          ),
+          previousVersion: v.number(),
+          reason: v.string(),
+          sourceVerificationMethod: v.optional(
+            v.union(v.literal("SCAN"), v.literal("MANUAL")),
+          ),
+        }),
+      ),
+      recoveryMeasurement: v.optional(
+        v.object({
+          heightMm: v.number(),
+          lengthMm: v.number(),
+          measuredAt: v.number(),
+          measuredByUserId: v.id("users"),
+          weightKg: v.optional(v.number()),
+          widthMm: v.number(),
+        }),
+      ),
       warehouseId: v.id("warehouses"),
       palletId: v.id("finishedGoodsPallets"),
       sourcePlacementId: v.id("finishedGoodsPlacements"),
@@ -691,6 +770,10 @@ const schema = defineSchema({
   ).index("by_orgId_warehouseId", byOrg("warehouseId")),
   storageBuildings: defineTable(
     tenantFields({
+      envelopeHeightMm: v.optional(v.number()),
+      kind: v.optional(v.union(v.literal("BUILDING"), v.literal("AREA"))),
+      layoutNote: v.optional(v.string()),
+      relatedBuildingIds: v.optional(v.array(v.id("storageBuildings"))),
       fg1Import: v.optional(
         v.object({
           revision: v.string(),
@@ -746,6 +829,9 @@ const schema = defineSchema({
     ),
   storageFloors: defineTable(
     tenantFields({
+      baseElevationMm: v.optional(v.number()),
+      maxHandlingUnitHeightMm: v.optional(v.number()),
+      mezzanineClearanceMm: v.optional(v.number()),
       buildingId: v.id("storageBuildings"),
       warehouseId: v.id("warehouses"),
       floorNumber: v.number(),
@@ -839,6 +925,15 @@ const schema = defineSchema({
     .index("by_orgId_warehouseId_code", byOrg("warehouseId", "code")),
   storagePositions: defineTable(
     tenantFields({
+      version: v.optional(v.number()),
+      usableHeightMm: v.optional(v.number()),
+      heightSource: v.optional(
+        v.union(
+          v.literal("MEASURED"),
+          v.literal("ASSUMED"),
+          v.literal("UNKNOWN"),
+        ),
+      ),
       buildingId: v.id("storageBuildings"),
       floorId: v.id("storageFloors"),
       zoneId: v.id("storageZones"),
