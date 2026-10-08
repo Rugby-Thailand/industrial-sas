@@ -3,6 +3,7 @@ import { FloorMapDrawing } from "./FloorMapDrawing";
 import {
   type Area,
   floorZoneUnitCount,
+  floorPlanBounds,
   hasUnmeasuredInventory,
   adjacentZone,
   groupBounds,
@@ -18,10 +19,8 @@ import {
 } from "./FloorWorkspaceToolbar";
 import { useFloorWorkspaceView } from "./useFloorWorkspaceView";
 import { IconButton } from "@/components/ui/IconButton";
-import { ChevronDown } from "lucide-react";
 import styles from "./FloorMap.module.css";
 import { Popover } from "radix-ui";
-import { MoreHorizontal } from "lucide-react";
 import { LocationDetailsHost } from "./LocationDetailsHost";
 import { useStorageLayoutMobile } from "./useStorageLayoutMobile";
 import {
@@ -39,10 +38,9 @@ import {
 } from "@/lib/storageLayouts/locationSelectors";
 import { FloorLocationTable } from "./FloorLocationTable";
 import { floorPositions, positionAisles } from "./floorPositionGeometry";
-import {
-  ReservedAreaLegend,
-  StorageViewModeToggle,
-} from "./StorageZoneVisualizer";
+import { ReservedAreaLegend } from "./StorageZoneVisualizer";
+import { FloorMapCameraControls } from "./FloorMapCameraControls";
+import { useFloorMapCamera } from "./useFloorMapCamera";
 
 import { Button } from "@/components/ui/button";
 import { useCanManage } from "@/hooks/useCanManage";
@@ -54,16 +52,11 @@ import { placementStatusKey } from "@/lib/storageLayouts/storageKit";
 import { PlacementStatusBadge } from "@/features/storageKit/PlacementStatusBadge";
 import {
   ArrowRightLeft,
+  ChevronDown,
   Eye,
-  Layers3,
-  Maximize,
   PencilLine,
   QrCode,
-  RotateCw,
-  Tags,
   X,
-  ZoomIn,
-  ZoomOut,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { QrCode as LocationQrCode } from "@/features/storageKit/QrCode";
@@ -166,7 +159,18 @@ export function FloorMap(props: FloorMapProps) {
     readLocationLabels,
     () => false,
   );
-  const [view, setView] = useState<"3d" | "plan">(props.initialView ?? "plan");
+  const camera = useFloorMapCamera(props.initialView);
+  const {
+    view,
+    zoom,
+    focus,
+    rotation,
+    reference,
+    showPackages,
+    setFocus,
+    setZoom,
+    fit,
+  } = camera;
   const [search, setSearch] = useState("");
   const [localSelectedId, setLocalSelectedId] = useState<string>();
   const selectedId = props.onSelectionChange
@@ -181,13 +185,7 @@ export function FloorMap(props: FloorMapProps) {
     [onSelectionChange],
   );
   const [unitId, setUnitId] = useState<string>();
-  const [zoom, setZoom] = useState(1);
-  // Projected scene point kept at the camera centre; independent of viewport fitting.
-  const [focus, setFocus] = useState<{ x: number; y: number }>();
   const [areaIndex, setAreaIndex] = useState<number>();
-  const [showPackages, setShowPackages] = useState(false);
-  const [rotation, setRotation] = useState(0);
-  const [reference, setReference] = useState(false);
   const [offsetEditing, setOffsetEditing] = useState(false);
   const [qr, setQr] = useState(false);
   const matches = useMemo(
@@ -272,11 +270,7 @@ export function FloorMap(props: FloorMapProps) {
     setAreaIndex(undefined);
     setQr(false);
     setFocus(undefined);
-  }, [setSelectedId]);
-  const fit = useCallback(() => {
-    setZoom(1);
-    setFocus(undefined);
-  }, []);
+  }, [setSelectedId, setFocus]);
   const select = useCallback(
     (id: string, palletId?: string) => {
       setSelectedId(id);
@@ -295,7 +289,15 @@ export function FloorMap(props: FloorMapProps) {
       )
         setZoom((current) => Math.max(current, 4));
     },
-    [setSelectedId, compactInspector, props.zones, view, workspaceView],
+    [
+      setSelectedId,
+      compactInspector,
+      props.zones,
+      view,
+      workspaceView,
+      setFocus,
+      setZoom,
+    ],
   );
   const selectMapLocation = useCallback(
     (id: string, palletId?: string) => {
@@ -342,27 +344,6 @@ export function FloorMap(props: FloorMapProps) {
       {...(pressed === undefined ? {} : { "aria-pressed": pressed })}
     >
       {icon}
-    </Button>
-  );
-  const displayAction = (
-    name: string,
-    icon: ReactNode,
-    onClick: () => void,
-    disabled = false,
-    pressed?: boolean,
-  ) => (
-    <Button
-      type="button"
-      variant="ghost"
-      size="sm"
-      className="min-h-11 w-full justify-start"
-      aria-label={name}
-      onClick={onClick}
-      disabled={disabled}
-      {...(pressed === undefined ? {} : { "aria-pressed": pressed })}
-    >
-      {icon}
-      {name}
     </Button>
   );
   const inspectorDetails = (
@@ -605,152 +586,119 @@ export function FloorMap(props: FloorMapProps) {
     </Popover.Root>
   ) : null;
   const cameraControls = (
-    <>
-      <StorageViewModeToggle
-        value={view}
-        onChange={(next) => {
-          setView(next);
-          setFocus(undefined);
-        }}
-        label={t("viewMode")}
-        planLabel={t("planView")}
-        threeDLabel={t("threeDView")}
-      />{" "}
-      {action(
-        t("mapZoomOut"),
-        <ZoomOut />,
-        () => {
-          const next = Math.max(1, zoom - (zoom > 3 ? 1 : 0.25));
-          setZoom(next);
-          if (next === 1) setFocus(undefined);
-        },
-        zoom <= 1,
-      )}
-      {action(
-        t("mapZoomIn"),
-        <ZoomIn />,
-        () => setZoom(Math.min(8, zoom + (zoom >= 3 ? 1 : 0.25))),
-        zoom >= 8,
-      )}
-      {action(t("mapFit"), <Maximize />, fit)}
-      <Popover.Root>
-        <Popover.Trigger asChild>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            aria-label={t("mapDisplayOptions")}
-            title={t("mapDisplayOptions")}
-          >
-            <MoreHorizontal />
-          </Button>
-        </Popover.Trigger>
-        <Popover.Portal>
-          <Popover.Content
-            align="end"
-            sideOffset={8}
-            className={`${styles.theme} z-50 flex w-64 max-w-[calc(100vw-2rem)] flex-col gap-1 rounded-lg border border-border bg-surface p-2 shadow-lg`}
-          >
-            {" "}
-            {displayAction(
-              t("mapShowLocationLabels"),
-              <Tags />,
-              () => saveLocationLabels(!showLocationLabels),
-              view === "3d" && pdZoneCount > 0,
-              showLocationLabels,
-            )}
-            {displayAction(
-              t("mapShowPackages"),
-              <QrCode />,
-              () => setShowPackages(!showPackages),
-              view === "3d",
-              showPackages,
-            )}
-            {displayAction(
-              t("mapRotate"),
-              <RotateCw />,
-              () => {
-                setRotation((rotation + 1) % 4);
-                setFocus(undefined);
-              },
-              view === "plan",
-            )}
-            {displayAction(
-              props.baseLabel,
-              <Layers3 />,
-              () => {
-                setReference(!reference);
-                setFocus(undefined);
-              },
-              false,
-              reference,
-            )}
-            {showLocationLabels && pdZoneCount > 0 && zoom < 2 && (
-              <p className="px-3 py-2 text-xs text-muted">
-                {t("floorZoomForLabels")}
-              </p>
-            )}
-            {legendAreas.length > 6 ? (
-              <details className="mt-3 rounded-lg border border-border bg-background">
-                <summary className="cursor-pointer px-3 py-2 text-sm font-medium marker:text-muted">
-                  {t("floorMapAreas", {
-                    count: legendAreas.length,
-                  })}
-                </summary>
-                <div className="border-t border-border px-2 py-1">
-                  <ReservedAreaLegend
-                    areas={areaGroups.map((group) => ({
-                      color: group.color,
-                      label: t("floorAreaCount", {
-                        name: group.label,
-                        count: group.count,
-                      }),
-                    }))}
-                  />
-                  <details className="border-t border-border text-xs text-muted">
-                    <summary className="cursor-pointer px-3 py-2">
-                      {t("floorAllAreaNames", {
-                        count: legendAreas.length,
-                      })}
-                    </summary>
-                    <div className="max-h-40 overflow-y-auto">
-                      <ReservedAreaLegend areas={legendAreas} />
-                    </div>
-                  </details>
-                </div>
-              </details>
-            ) : (
-              <ReservedAreaLegend areas={legendAreas} />
-            )}
-            {pdZoneCount > 0 && aisleBlocks.length > 0 && (
-              <p className="mt-2 text-xs text-muted">
-                {t("floorAisleLegend", {
-                  widths: [
-                    ...new Set(
-                      aisleBlocks.map((block) =>
-                        m(Math.min(block.widthMm, block.depthMm)),
-                      ),
-                    ),
-                  ]
-                    .sort((a, b) => a - b)
-                    .map((width) => width.toFixed(2))
-                    .join(", "),
+    <FloorMapCameraControls
+      camera={camera}
+      hasPdCells={pdZoneCount > 0}
+      baseLabel={props.baseLabel}
+      showLocationLabels={showLocationLabels}
+      onLocationLabelsChange={saveLocationLabels}
+    >
+      {legendAreas.length > 6 ? (
+        <details className="mt-3 rounded-lg border border-border bg-background">
+          <summary className="cursor-pointer px-3 py-2 text-sm font-medium marker:text-muted">
+            {t("floorMapAreas", {
+              count: legendAreas.length,
+            })}
+          </summary>
+          <div className="border-t border-border px-2 py-1">
+            <ReservedAreaLegend
+              areas={areaGroups.map((group) => ({
+                color: group.color,
+                label: t("floorAreaCount", {
+                  name: group.label,
+                  count: group.count,
+                }),
+              }))}
+            />
+            <details className="border-t border-border text-xs text-muted">
+              <summary className="cursor-pointer px-3 py-2">
+                {t("floorAllAreaNames", {
+                  count: legendAreas.length,
                 })}
-              </p>
-            )}
-          </Popover.Content>
-        </Popover.Portal>
-      </Popover.Root>
-    </>
+              </summary>
+              <div className="max-h-40 overflow-y-auto">
+                <ReservedAreaLegend areas={legendAreas} />
+              </div>
+            </details>
+          </div>
+        </details>
+      ) : (
+        <ReservedAreaLegend areas={legendAreas} />
+      )}
+      {pdZoneCount > 0 && aisleBlocks.length > 0 && (
+        <p className="mt-2 text-xs text-muted">
+          {t("floorAisleLegend", {
+            widths: [
+              ...new Set(
+                aisleBlocks.map((block) =>
+                  m(Math.min(block.widthMm, block.depthMm)),
+                ),
+              ),
+            ]
+              .sort((a, b) => a - b)
+              .map((width) => width.toFixed(2))
+              .join(", "),
+          })}
+        </p>
+      )}
+    </FloorMapCameraControls>
   );
-  const planWidth = reference
-    ? Math.max(props.widthMm, props.baseWidthMm - props.offsetXMm) +
-      props.offsetXMm
-    : props.widthMm;
-  const planDepth = reference
-    ? Math.max(props.depthMm, props.baseDepthMm - props.offsetYMm) +
-      props.offsetYMm
-    : props.depthMm;
+  const canvasFooter = useMemo(
+    () => (
+      <>
+        <div className={styles.mapKey}>
+          <div className={styles.legend}>
+            <span>
+              <i className={styles.swatch} />
+              {t("mapEmpty")}
+            </span>
+            <span>
+              <i className={`${styles.swatch} ${styles.occupied}`} />
+              {t("locationTable.stored")}
+            </span>
+            <span>
+              <i className={`${styles.swatch} ${styles.reserved}`} />
+              {t("placementReserved")}
+            </span>
+          </div>
+          {positionCount > 0 && (
+            <p className={styles.positionSummary} role="status">
+              {t("floorPositionSummary", {
+                positions: positionCount,
+                zones: groupCount,
+              })}
+            </p>
+          )}
+          {props.zones.length === 0 && (
+            <p className="mt-3 text-sm text-muted">{t("noStorageSpots")}</p>
+          )}
+        </div>
+        <div className={styles.stamp}>
+          <span className={styles.floorStamp}>
+            {props.buildingCode && `${props.buildingCode} / `}
+            {t("canvasFloor", {
+              floor: String(props.floorNumber).padStart(2, "0"),
+            })}
+          </span>
+          <p>
+            {t(view === "plan" ? "planView" : "threeDView")} ·{" "}
+            {Math.round(zoom * 100)}%
+          </p>
+        </div>
+      </>
+    ),
+    [
+      t,
+      positionCount,
+      groupCount,
+      props.zones.length,
+      props.buildingCode,
+      props.floorNumber,
+      view,
+      zoom,
+    ],
+  );
+  const planBounds = floorPlanBounds(props, reference);
   if (offsetEditing && props.offsetEditor)
     return (
       <section className="space-y-3">
@@ -811,7 +759,8 @@ export function FloorMap(props: FloorMapProps) {
         data-camera={view}
         style={
           {
-            "--floor-aspect": Math.max(planWidth, 1) / Math.max(planDepth, 1),
+            "--floor-aspect":
+              Math.max(planBounds.widthMm, 1) / Math.max(planBounds.depthMm, 1),
           } as CSSProperties
         }
         data-inspector={
@@ -854,81 +803,37 @@ export function FloorMap(props: FloorMapProps) {
             hidden={workspaceView === "list"}
           >
             <div className={styles.canvas}>
-              <div className={styles.drawing}>
-                {workspaceView !== "list" && (
-                  <FloorMapDrawing
-                    widthMm={props.widthMm}
-                    depthMm={props.depthMm}
-                    heightMm={props.heightMm}
-                    baseWidthMm={props.baseWidthMm}
-                    baseDepthMm={props.baseDepthMm}
-                    offsetXMm={props.offsetXMm}
-                    offsetYMm={props.offsetYMm}
-                    baseLabel={props.baseLabel}
-                    zones={props.zones}
-                    blocks={props.blocks}
-                    view={view}
-                    rotation={rotation}
-                    zoom={zoom}
-                    focus={focus}
-                    onFocusChange={setFocus}
-                    selectedAreaIndex={areaIndex}
-                    onSelectArea={selectArea}
-                    reference={reference}
-                    showLocationLabels={showLocationLabels}
-                    showPackages={showPackages}
-                    selectedId={selected?.zoneId}
-                    selectedUnit={unitId}
-                    matchIds={matchIds}
-                    searching={!!search.trim() || filters.length > 0}
-                    onSelect={selectMapLocation}
-                  />
-                )}
-
-                <div className={styles.canvasFooter}>
-                  <div className={styles.mapKey}>
-                    <div className={styles.legend}>
-                      <span>
-                        <i className={styles.swatch} />
-                        {t("mapEmpty")}
-                      </span>
-                      <span>
-                        <i className={`${styles.swatch} ${styles.occupied}`} />
-                        {t("locationTable.stored")}
-                      </span>
-                      <span>
-                        <i className={`${styles.swatch} ${styles.reserved}`} />
-                        {t("placementReserved")}
-                      </span>
-                    </div>
-                    {positionCount > 0 && (
-                      <p className={styles.positionSummary} role="status">
-                        {t("floorPositionSummary", {
-                          positions: positionCount,
-                          zones: groupCount,
-                        })}
-                      </p>
-                    )}
-                    {props.zones.length === 0 && (
-                      <p className="mt-3 text-sm text-muted">
-                        {t("noStorageSpots")}
-                      </p>
-                    )}
-                  </div>
-                  <div className={styles.stamp}>
-                    <span className={styles.floorStamp}>
-                      {props.buildingCode && `${props.buildingCode} / `}
-                      {t("canvasFloor", {
-                        floor: String(props.floorNumber).padStart(2, "0"),
-                      })}
-                    </span>
-                    <p>
-                      {t(view === "plan" ? "planView" : "threeDView")} ·{" "}
-                      {Math.round(zoom * 100)}%
-                    </p>
-                  </div>
-                </div>
-              </div>
+              {workspaceView !== "list" && (
+                <FloorMapDrawing
+                  widthMm={props.widthMm}
+                  depthMm={props.depthMm}
+                  heightMm={props.heightMm}
+                  baseWidthMm={props.baseWidthMm}
+                  baseDepthMm={props.baseDepthMm}
+                  offsetXMm={props.offsetXMm}
+                  offsetYMm={props.offsetYMm}
+                  baseLabel={props.baseLabel}
+                  zones={props.zones}
+                  blocks={props.blocks}
+                  view={view}
+                  rotation={rotation}
+                  zoom={zoom}
+                  focus={focus}
+                  onFocusChange={setFocus}
+                  selectedAreaIndex={areaIndex}
+                  onSelectArea={selectArea}
+                  reference={reference}
+                  showLocationLabels={showLocationLabels}
+                  showPackages={showPackages}
+                  selectedId={selected?.zoneId}
+                  selectedUnit={unitId}
+                  matchIds={matchIds}
+                  searching={!!search.trim() || filters.length > 0}
+                  onSelect={selectMapLocation}
+                >
+                  {canvasFooter}
+                </FloorMapDrawing>
+              )}
             </div>
             {selected && floorPositions(selected).length > 0 && (
               <FloorPositionDetail

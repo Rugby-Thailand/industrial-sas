@@ -40,6 +40,10 @@ The 2026-10-08 screenshots use the local F1/F2 readback geometry, with the floor
 boundary and floor height matched to the supplied screenshot (60 × 13 × 3.2 m).
 This does not modify the saved building or inventory.
 
+`?fixture=portrait` keeps those scene contents inside a 120 m deep preview floor
+to check fitted-floor containment when a narrow footer wraps. It uses the usual
+demo layouts if the optional F1/F2 geometry file is absent.
+
 Canvas space checks in this thread use the T3 collaborative preview and its native
 PNG/MP4 capture. They cover viewport containment, responsive camera targets,
 theme contrast, mobile details and the physical camera center across panels.

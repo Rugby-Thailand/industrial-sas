@@ -68,12 +68,17 @@ function App() {
       })),
       blocks: plan.blocks,
     };
-    const reference =
-      new URLSearchParams(window.location.search).get("fixture") === "f1-f2";
-    const layouts: FloorMapProps[] =
+    const fixture = new URLSearchParams(window.location.search).get("fixture");
+    const reference = fixture === "f1-f2" || fixture === "portrait";
+    const sourceLayouts: FloorMapProps[] =
       reference && __STORAGE_REFERENCE_LAYOUTS__
         ? __STORAGE_REFERENCE_LAYOUTS__
         : [demo, pd];
+    // Stress Fit with a tall footprint while retaining the same scene contents.
+    const layouts =
+      fixture === "portrait"
+        ? sourceLayouts.map((layout) => ({ ...layout, depthMm: 120000 }))
+        : sourceLayouts;
     const floors: StorageFloorRow[] = layouts.map((layout, index) => ({
       floorId: `demo-floor-${index + 1}`,
       floorNumber: index + 1,
