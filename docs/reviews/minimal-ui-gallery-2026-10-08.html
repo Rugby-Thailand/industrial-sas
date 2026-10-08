@@ -1,0 +1,2436 @@
+<!doctype html>
+<html lang="en">
+  <meta charset="utf-8" /><meta
+    name="viewport"
+    content="width=device-width,initial-scale=1"
+  /><title>Minimal UI — real desktop/mobile walkthrough</title
+  ><style>
+    body {
+      margin: 0;
+      background: #f6f7f9;
+      color: #17212f;
+      font: 15px/1.5 system-ui;
+    }
+    header,
+    main {
+      max-width: 1400px;
+      margin: auto;
+      padding: 24px;
+    }
+    header {
+      position: sticky;
+      top: 0;
+      background: #fff;
+      border-bottom: 1px solid #808080;
+      z-index: 1;
+    }
+    h1 {
+      font-size: 24px;
+      margin: 0;
+    }
+    input,
+    select {
+      padding: 10px;
+      border: 1px solid #808080;
+      border-radius: 6px;
+      font: inherit;
+      margin: 8px 8px 0 0;
+    }
+    article {
+      background: #fff;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 16px;
+      margin: 16px 0;
+    }
+    h3 {
+      margin: 0;
+      font-size: 16px;
+    }
+    figure {
+      margin: 0;
+      min-width: 0;
+    }
+    figcaption {
+      color: #475569;
+      padding: 8px 0;
+    }
+    .pair {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(220px, 27%);
+      gap: 20px;
+    }
+    img {
+      display: block;
+      width: 100%;
+      height: auto;
+      border: 1px solid #cbd5e1;
+      box-sizing: border-box;
+    }
+    body[data-mode="desktop"] .mobile,
+    body[data-mode="mobile"] .desktop {
+      display: none;
+    }
+    body[data-mode]:not([data-mode="both"]) .pair {
+      grid-template-columns: 1fr;
+    }
+    body[data-mode="mobile"] figure {
+      max-width: 390px;
+    }
+    a {
+      color: #1d4ed8;
+    }
+    @media (max-width: 650px) {
+      .pair {
+        grid-template-columns: 1fr;
+      }
+      header,
+      main {
+        padding: 16px;
+      }
+    }
+  </style>
+  <header>
+    <h1>Real UI walkthrough</h1>
+    <p>78 actions and states · desktop + mobile · local QA data</p>
+    <label
+      >Search actions
+      <input
+        id="search"
+        type="search"
+        placeholder="packing, move, validation…" /></label
+    ><label
+      >View
+      <select id="mode">
+        <option value="both">Desktop and mobile</option>
+        <option value="desktop">Desktop</option>
+        <option value="mobile">Mobile</option>
+      </select></label
+    ><span id="count"></span>
+  </header>
+  <main>
+    <section>
+      <h2>Catalogue and products</h2>
+      <article
+        data-search="01-catalogue catalogue: desktop table, mobile list, compact totals and collapsed navigation. catalogue and products"
+      >
+        <h3>01-catalogue</h3>
+        <p>
+          Catalogue: desktop table, mobile list, compact totals and collapsed
+          navigation.
+        </p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/01-catalogue-desktop.jpg"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/01-catalogue-desktop.jpg"
+                alt="Desktop: Catalogue: desktop table, mobile list, compact totals and collapsed navigation."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/01-catalogue-mobile.jpg"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/01-catalogue-mobile.jpg"
+                alt="Mobile: Catalogue: desktop table, mobile list, compact totals and collapsed navigation."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="02-filters open filters: select draft, with sorting and counting-unit controls available. catalogue and products"
+      >
+        <h3>02-filters</h3>
+        <p>
+          Open filters: select Draft, with sorting and counting-unit controls
+          available.
+        </p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/02-filters-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/02-filters-desktop.png"
+                alt="Desktop: Open filters: select Draft, with sorting and counting-unit controls available."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/02-filters-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/02-filters-mobile.png"
+                alt="Mobile: Open filters: select Draft, with sorting and counting-unit controls available."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="03-filter-applied apply filters: the selected status stays visible in removable chips and the result set updates. catalogue and products"
+      >
+        <h3>03-filter-applied</h3>
+        <p>
+          Apply filters: the selected status stays visible in removable chips
+          and the result set updates.
+        </p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/03-filter-applied-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/03-filter-applied-desktop.png"
+                alt="Desktop: Apply filters: the selected status stays visible in removable chips and the result set updates."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/03-filter-applied-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/03-filter-applied-mobile.png"
+                alt="Mobile: Apply filters: the selected status stays visible in removable chips and the result set updates."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="04-product-new create product: required fields and a primary preparation action, optional references closed. catalogue and products"
+      >
+        <h3>04-product-new</h3>
+        <p>
+          Create product: required fields and a primary preparation action,
+          optional references closed.
+        </p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/04-product-new-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/04-product-new-desktop.png"
+                alt="Desktop: Create product: required fields and a primary preparation action, optional references closed."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/04-product-new-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/04-product-new-mobile.png"
+                alt="Mobile: Create product: required fields and a primary preparation action, optional references closed."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="05-product-validation attempt next with empty required details: validation stays in context. catalogue and products"
+      >
+        <h3>05-product-validation</h3>
+        <p>
+          Attempt Next with empty required details: validation stays in context.
+        </p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/05-product-validation-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/05-product-validation-desktop.png"
+                alt="Desktop: Attempt Next with empty required details: validation stays in context."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/05-product-validation-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/05-product-validation-mobile.png"
+                alt="Mobile: Attempt Next with empty required details: validation stays in context."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="06-product-entered enter the local qa product details before moving to packing. catalogue and products"
+      >
+        <h3>06-product-entered</h3>
+        <p>Enter the local QA product details before moving to packing.</p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/06-product-entered-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/06-product-entered-desktop.png"
+                alt="Desktop: Enter the local QA product details before moving to packing."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/06-product-entered-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/06-product-entered-mobile.png"
+                alt="Mobile: Enter the local QA product details before moving to packing."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="69-draft-discard-prompt canceling an edited product asks whether to continue editing or discard the draft. catalogue and products"
+      >
+        <h3>69-draft-discard-prompt</h3>
+        <p>
+          Canceling an edited product asks whether to continue editing or
+          discard the draft.
+        </p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/69-draft-discard-prompt-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/69-draft-discard-prompt-desktop.png"
+                alt="Desktop: Canceling an edited product asks whether to continue editing or discard the draft."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/69-draft-discard-prompt-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/69-draft-discard-prompt-mobile.png"
+                alt="Mobile: Canceling an edited product asks whether to continue editing or discard the draft."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="70-draft-continued continue editing preserves the entered qa product values. catalogue and products"
+      >
+        <h3>70-draft-continued</h3>
+        <p>Continue editing preserves the entered QA product values.</p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/70-draft-continued-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/70-draft-continued-desktop.png"
+                alt="Desktop: Continue editing preserves the entered QA product values."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/70-draft-continued-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/70-draft-continued-mobile.png"
+                alt="Mobile: Continue editing preserves the entered QA product values."
+            /></a>
+          </figure>
+        </div>
+      </article>
+    </section>
+    <section>
+      <h2>Packing</h2>
+      <article
+        data-search="07-packing-new saved product leads to a separate packing batch; quantities and unit counts remain explicit. packing"
+      >
+        <h3>07-packing-new</h3>
+        <p>
+          Saved product leads to a separate packing batch; quantities and unit
+          counts remain explicit.
+        </p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/07-packing-new-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/07-packing-new-desktop.png"
+                alt="Desktop: Saved product leads to a separate packing batch; quantities and unit counts remain explicit."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/07-packing-new-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/07-packing-new-mobile.png"
+                alt="Mobile: Saved product leads to a separate packing batch; quantities and unit counts remain explicit."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="08-packing-split split 24 pcs into two units; the preview and remaining quantity expose incomplete dimensions. packing"
+      >
+        <h3>08-packing-split</h3>
+        <p>
+          Split 24 PCS into two units; the preview and remaining quantity expose
+          incomplete dimensions.
+        </p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/08-packing-split-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/08-packing-split-desktop.png"
+                alt="Desktop: Split 24 PCS into two units; the preview and remaining quantity expose incomplete dimensions."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/08-packing-split-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/08-packing-split-mobile.png"
+                alt="Mobile: Split 24 PCS into two units; the preview and remaining quantity expose incomplete dimensions."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="09-packing-dimensions copy entered dimensions to unit 2: copied measurements still need a separate physical check. packing"
+      >
+        <h3>09-packing-dimensions</h3>
+        <p>
+          Copy entered dimensions to unit 2: copied measurements still need a
+          separate physical check.
+        </p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/09-packing-dimensions-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/09-packing-dimensions-desktop.png"
+                alt="Desktop: Copy entered dimensions to unit 2: copied measurements still need a separate physical check."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/09-packing-dimensions-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/09-packing-dimensions-mobile.png"
+                alt="Mobile: Copy entered dimensions to unit 2: copied measurements still need a separate physical check."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="10-packing-draft-saved save a complete preparation draft: quantities and checked measurements survive saving. packing"
+      >
+        <h3>10-packing-draft-saved</h3>
+        <p>
+          Save a complete preparation draft: quantities and checked measurements
+          survive saving.
+        </p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/10-packing-draft-saved-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/10-packing-draft-saved-desktop.png"
+                alt="Desktop: Save a complete preparation draft: quantities and checked measurements survive saving."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/10-packing-draft-saved-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/10-packing-draft-saved-mobile.png"
+                alt="Mobile: Save a complete preparation draft: quantities and checked measurements survive saving."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="11-packing-review review the batch total and both units’ dimensions in the confirmation dialog. packing"
+      >
+        <h3>11-packing-review</h3>
+        <p>
+          Review the batch total and both units’ dimensions in the confirmation
+          dialog.
+        </p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/11-packing-review-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/11-packing-review-desktop.png"
+                alt="Desktop: Review the batch total and both units’ dimensions in the confirmation dialog."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/11-packing-review-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/11-packing-review-mobile.png"
+                alt="Mobile: Review the batch total and both units’ dimensions in the confirmation dialog."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="12-units-created confirm creation: the two qa units exist, with measured sizes and links to storage. packing"
+      >
+        <h3>12-units-created</h3>
+        <p>
+          Confirm creation: the two QA units exist, with measured sizes and
+          links to storage.
+        </p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/12-units-created-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/12-units-created-desktop.png"
+                alt="Desktop: Confirm creation: the two QA units exist, with measured sizes and links to storage."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/12-units-created-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/12-units-created-mobile.png"
+                alt="Mobile: Confirm creation: the two QA units exist, with measured sizes and links to storage."
+            /></a>
+          </figure>
+        </div>
+      </article>
+    </section>
+    <section>
+      <h2>Buildings and maps</h2>
+      <article
+        data-search="13-building-new new building: concise floor setup and required dimensions, with technical help on demand. buildings and maps"
+      >
+        <h3>13-building-new</h3>
+        <p>
+          New building: concise floor setup and required dimensions, with
+          technical help on demand.
+        </p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/13-building-new-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/13-building-new-desktop.png"
+                alt="Desktop: New building: concise floor setup and required dimensions, with technical help on demand."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/13-building-new-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/13-building-new-mobile.png"
+                alt="Mobile: New building: concise floor setup and required dimensions, with technical help on demand."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="14-building-entered enter a dedicated qa building with a 10 × 10 m floor and explicit 5 m height. buildings and maps"
+      >
+        <h3>14-building-entered</h3>
+        <p>
+          Enter a dedicated QA building with a 10 × 10 m floor and explicit 5 m
+          height.
+        </p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/14-building-entered-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/14-building-entered-desktop.png"
+                alt="Desktop: Enter a dedicated QA building with a 10 × 10 m floor and explicit 5 m height."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/14-building-entered-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/14-building-entered-mobile.png"
+                alt="Mobile: Enter a dedicated QA building with a 10 × 10 m floor and explicit 5 m height."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="15-building-created create the qa building as a draft; activation requires a reviewable layout. buildings and maps"
+      >
+        <h3>15-building-created</h3>
+        <p>
+          Create the QA building as a draft; activation requires a reviewable
+          layout.
+        </p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/15-building-created-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/15-building-created-desktop.png"
+                alt="Desktop: Create the QA building as a draft; activation requires a reviewable layout."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/15-building-created-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/15-building-created-mobile.png"
+                alt="Mobile: Create the QA building as a draft; activation requires a reviewable layout."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="16-zone-editor add a second location: the accessible preview supports keyboard positioning. buildings and maps"
+      >
+        <h3>16-zone-editor</h3>
+        <p>
+          Add a second location: the accessible preview supports keyboard
+          positioning.
+        </p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/16-zone-editor-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/16-zone-editor-desktop.png"
+                alt="Desktop: Add a second location: the accessible preview supports keyboard positioning."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/16-zone-editor-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/16-zone-editor-mobile.png"
+                alt="Mobile: Add a second location: the accessible preview supports keyboard positioning."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="17-zone-entered enter qa storage b at x 6 m / y 1 m; its 3 × 3 m outline fits beside the existing location. buildings and maps"
+      >
+        <h3>17-zone-entered</h3>
+        <p>
+          Enter QA storage B at X 6 m / Y 1 m; its 3 × 3 m outline fits beside
+          the existing location.
+        </p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/17-zone-entered-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/17-zone-entered-desktop.png"
+                alt="Desktop: Enter QA storage B at X 6 m / Y 1 m; its 3 × 3 m outline fits beside the existing location."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/17-zone-entered-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/17-zone-entered-mobile.png"
+                alt="Mobile: Enter QA storage B at X 6 m / Y 1 m; its 3 × 3 m outline fits beside the existing location."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="18-zone-created save the second location: the authoritative floor map updates to two storage locations. buildings and maps"
+      >
+        <h3>18-zone-created</h3>
+        <p>
+          Save the second location: the authoritative floor map updates to two
+          storage locations.
+        </p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/18-zone-created-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/18-zone-created-desktop.png"
+                alt="Desktop: Save the second location: the authoritative floor map updates to two storage locations."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/18-zone-created-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/18-zone-created-mobile.png"
+                alt="Mobile: Save the second location: the authoritative floor map updates to two storage locations."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="19-building-active activate the complete qa layout; the saved status is active. buildings and maps"
+      >
+        <h3>19-building-active</h3>
+        <p>Activate the complete QA layout; the saved status is Active.</p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/19-building-active-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/19-building-active-desktop.png"
+                alt="Desktop: Activate the complete QA layout; the saved status is Active."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/19-building-active-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/19-building-active-mobile.png"
+                alt="Mobile: Activate the complete QA layout; the saved status is Active."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="20-map-selected select and open location details: the desktop inspector and mobile sheet show the same saved location. buildings and maps"
+      >
+        <h3>20-map-selected</h3>
+        <p>
+          Select and open location details: the desktop inspector and mobile
+          sheet show the same saved location.
+        </p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/20-map-selected-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/20-map-selected-desktop.png"
+                alt="Desktop: Select and open location details: the desktop inspector and mobile sheet show the same saved location."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/20-map-selected-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/20-map-selected-mobile.png"
+                alt="Mobile: Select and open location details: the desktop inspector and mobile sheet show the same saved location."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="77-map-3d switch to 3d while retaining the stored units and their saved locations. buildings and maps"
+      >
+        <h3>77-map-3d</h3>
+        <p>
+          Switch to 3D while retaining the stored units and their saved
+          locations.
+        </p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/77-map-3d-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/77-map-3d-desktop.png"
+                alt="Desktop: Switch to 3D while retaining the stored units and their saved locations."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/77-map-3d-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/77-map-3d-mobile.png"
+                alt="Mobile: Switch to 3D while retaining the stored units and their saved locations."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="78-map-zoom zoom the map while keeping floor context and camera controls available. buildings and maps"
+      >
+        <h3>78-map-zoom</h3>
+        <p>
+          Zoom the map while keeping floor context and camera controls
+          available.
+        </p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/78-map-zoom-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/78-map-zoom-desktop.png"
+                alt="Desktop: Zoom the map while keeping floor context and camera controls available."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/78-map-zoom-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/78-map-zoom-mobile.png"
+                alt="Mobile: Zoom the map while keeping floor context and camera controls available."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="79-map-fit fit resets the camera to the floor proportions. buildings and maps"
+      >
+        <h3>79-map-fit</h3>
+        <p>Fit resets the camera to the floor proportions.</p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/79-map-fit-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/79-map-fit-desktop.png"
+                alt="Desktop: Fit resets the camera to the floor proportions."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/79-map-fit-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/79-map-fit-mobile.png"
+                alt="Mobile: Fit resets the camera to the floor proportions."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="80-map-table table details preserve the selected location and use a complete heading hierarchy. buildings and maps"
+      >
+        <h3>80-map-table</h3>
+        <p>
+          Table details preserve the selected location and use a complete
+          heading hierarchy.
+        </p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/80-map-table-desktop.jpg"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/80-map-table-desktop.jpg"
+                alt="Desktop: Table details preserve the selected location and use a complete heading hierarchy."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/80-map-table-mobile.jpg"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/80-map-table-mobile.jpg"
+                alt="Mobile: Table details preserve the selected location and use a complete heading hierarchy."
+            /></a>
+          </figure>
+        </div>
+      </article>
+    </section>
+    <section>
+      <h2>Storage and move</h2>
+      <article
+        data-search="21-storage-recommendations find storage for qa unit 1: destination eligibility and next actions are explicit. storage and move"
+      >
+        <h3>21-storage-recommendations</h3>
+        <p>
+          Find storage for QA unit 1: destination eligibility and next actions
+          are explicit.
+        </p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/21-storage-recommendations-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/21-storage-recommendations-desktop.png"
+                alt="Desktop: Find storage for QA unit 1: destination eligibility and next actions are explicit."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/21-storage-recommendations-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/21-storage-recommendations-mobile.png"
+                alt="Mobile: Find storage for QA unit 1: destination eligibility and next actions are explicit."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="22-destination-selected choose the qa location: preview shows the target code, exact coordinates and suitability warnings. storage and move"
+      >
+        <h3>22-destination-selected</h3>
+        <p>
+          Choose the QA location: preview shows the target code, exact
+          coordinates and suitability warnings.
+        </p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/22-destination-selected-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/22-destination-selected-desktop.png"
+                alt="Desktop: Choose the QA location: preview shows the target code, exact coordinates and suitability warnings."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/22-destination-selected-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/22-destination-selected-mobile.png"
+                alt="Mobile: Choose the QA location: preview shows the target code, exact coordinates and suitability warnings."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="23-destination-reserved reserve the position: the unit is reserved, and storage confirmation remains blocked until verification. storage and move"
+      >
+        <h3>23-destination-reserved</h3>
+        <p>
+          Reserve the position: the unit is Reserved, and storage confirmation
+          remains blocked until verification.
+        </p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/23-destination-reserved-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/23-destination-reserved-desktop.png"
+                alt="Desktop: Reserve the position: the unit is Reserved, and storage confirmation remains blocked until verification."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/23-destination-reserved-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/23-destination-reserved-mobile.png"
+                alt="Mobile: Reserve the position: the unit is Reserved, and storage confirmation remains blocked until verification."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="24-wrong-destination submit a wrong destination code: the inline error keeps storage confirmation blocked. storage and move"
+      >
+        <h3>24-wrong-destination</h3>
+        <p>
+          Submit a wrong destination code: the inline error keeps storage
+          confirmation blocked.
+        </p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/24-wrong-destination-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/24-wrong-destination-desktop.png"
+                alt="Desktop: Submit a wrong destination code: the inline error keeps storage confirmation blocked."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/24-wrong-destination-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/24-wrong-destination-mobile.png"
+                alt="Mobile: Submit a wrong destination code: the inline error keeps storage confirmation blocked."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="26-stored confirm simulated physical storage for the qa unit: the saved state is stored. storage and move"
+      >
+        <h3>26-stored</h3>
+        <p>
+          Confirm simulated physical storage for the QA unit: the saved state is
+          Stored.
+        </p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/26-stored-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/26-stored-desktop.png"
+                alt="Desktop: Confirm simulated physical storage for the QA unit: the saved state is Stored."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/26-stored-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/26-stored-mobile.png"
+                alt="Mobile: Confirm simulated physical storage for the QA unit: the saved state is Stored."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="27-move-select move starts with the stored source and a separate target selection. storage and move"
+      >
+        <h3>27-move-select</h3>
+        <p>
+          Move starts with the stored source and a separate target selection.
+        </p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/27-move-select-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/27-move-select-desktop.png"
+                alt="Desktop: Move starts with the stored source and a separate target selection."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/27-move-select-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/27-move-select-mobile.png"
+                alt="Mobile: Move starts with the stored source and a separate target selection."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="28-move-target choose qa storage b; the exact target and occupied source remain visible. storage and move"
+      >
+        <h3>28-move-target</h3>
+        <p>
+          Choose QA storage B; the exact target and occupied source remain
+          visible.
+        </p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/28-move-target-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/28-move-target-desktop.png"
+                alt="Desktop: Choose QA storage B; the exact target and occupied source remain visible."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/28-move-target-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/28-move-target-mobile.png"
+                alt="Mobile: Choose QA storage B; the exact target and occupied source remain visible."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="29-move-reserved prepare the move; both positions remain held until pickup and placement are confirmed. storage and move"
+      >
+        <h3>29-move-reserved</h3>
+        <p>
+          Prepare the move; both positions remain held until pickup and
+          placement are confirmed.
+        </p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/29-move-reserved-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/29-move-reserved-desktop.png"
+                alt="Desktop: Prepare the move; both positions remain held until pickup and placement are confirmed."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/29-move-reserved-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/29-move-reserved-mobile.png"
+                alt="Mobile: Prepare the move; both positions remain held until pickup and placement are confirmed."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="30-move-source-verified the source code identifies the pallet; physical pickup remains a separate confirmation. storage and move"
+      >
+        <h3>30-move-source-verified</h3>
+        <p>
+          The source code identifies the pallet; physical pickup remains a
+          separate confirmation.
+        </p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/30-move-source-verified-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/30-move-source-verified-desktop.png"
+                alt="Desktop: The source code identifies the pallet; physical pickup remains a separate confirmation."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/30-move-source-verified-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/30-move-source-verified-mobile.png"
+                alt="Mobile: The source code identifies the pallet; physical pickup remains a separate confirmation."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="31-move-in-transit after pickup the unit is moving; destination confirmation will release the source. storage and move"
+      >
+        <h3>31-move-in-transit</h3>
+        <p>
+          After pickup the unit is Moving; destination confirmation will release
+          the source.
+        </p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/31-move-in-transit-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/31-move-in-transit-desktop.png"
+                alt="Desktop: After pickup the unit is Moving; destination confirmation will release the source."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/31-move-in-transit-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/31-move-in-transit-mobile.png"
+                alt="Mobile: After pickup the unit is Moving; destination confirmation will release the source."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="32-move-destination-verified verify the destination label before confirming physical placement. storage and move"
+      >
+        <h3>32-move-destination-verified</h3>
+        <p>
+          Verify the destination label before confirming physical placement.
+        </p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/32-move-destination-verified-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/32-move-destination-verified-desktop.png"
+                alt="Desktop: Verify the destination label before confirming physical placement."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/32-move-destination-verified-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/32-move-destination-verified-mobile.png"
+                alt="Mobile: Verify the destination label before confirming physical placement."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="33-move-complete confirm the move: the unit is stored in qa storage b and its source is released. storage and move"
+      >
+        <h3>33-move-complete</h3>
+        <p>
+          Confirm the move: the unit is Stored in QA storage B and its source is
+          released.
+        </p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/33-move-complete-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/33-move-complete-desktop.png"
+                alt="Desktop: Confirm the move: the unit is Stored in QA storage B and its source is released."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/33-move-complete-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/33-move-complete-mobile.png"
+                alt="Mobile: Confirm the move: the unit is Stored in QA storage B and its source is released."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="34-measurement-guidance a unit created from packing directs measurement changes to its preparation batch. storage and move"
+      >
+        <h3>34-measurement-guidance</h3>
+        <p>
+          A unit created from packing directs measurement changes to its
+          preparation batch.
+        </p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/34-measurement-guidance-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/34-measurement-guidance-desktop.png"
+                alt="Desktop: A unit created from packing directs measurement changes to its preparation batch."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/34-measurement-guidance-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/34-measurement-guidance-mobile.png"
+                alt="Mobile: A unit created from packing directs measurement changes to its preparation batch."
+            /></a>
+          </figure>
+        </div>
+      </article>
+    </section>
+    <section>
+      <h2>Stacking</h2>
+      <article
+        data-search="25-destination-verified verified support and upper-unit identity still require a separate physical placement check. stacking"
+      >
+        <h3>25-destination-verified</h3>
+        <p>
+          Verified support and upper-unit identity still require a separate
+          physical placement check.
+        </p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/25-destination-verified-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/25-destination-verified-desktop.png"
+                alt="Desktop: Verified support and upper-unit identity still require a separate physical placement check."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/25-destination-verified-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/25-destination-verified-mobile.png"
+                alt="Mobile: Verified support and upper-unit identity still require a separate physical placement check."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="35-stack-start stacking begins from the stored supporting pallet; load checks are explicitly not enabled. stacking"
+      >
+        <h3>35-stack-start</h3>
+        <p>
+          Stacking begins from the stored supporting pallet; load checks are
+          explicitly not enabled.
+        </p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/35-stack-start-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/35-stack-start-desktop.png"
+                alt="Desktop: Stacking begins from the stored supporting pallet; load checks are explicitly not enabled."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/35-stack-start-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/35-stack-start-mobile.png"
+                alt="Mobile: Stacking begins from the stored supporting pallet; load checks are explicitly not enabled."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="36-stack-selected select the upper qa unit and review fit, clearance and missing support approval. stacking"
+      >
+        <h3>36-stack-selected</h3>
+        <p>
+          Select the upper QA unit and review fit, clearance and missing support
+          approval.
+        </p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/36-stack-selected-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/36-stack-selected-desktop.png"
+                alt="Desktop: Select the upper QA unit and review fit, clearance and missing support approval."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/36-stack-selected-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/36-stack-selected-mobile.png"
+                alt="Mobile: Select the upper QA unit and review fit, clearance and missing support approval."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="37-stack-limit-edited editing the support limit keeps reservation blocked until the limit is saved. stacking"
+      >
+        <h3>37-stack-limit-edited</h3>
+        <p>
+          Editing the support limit keeps reservation blocked until the limit is
+          saved.
+        </p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/37-stack-limit-edited-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/37-stack-limit-edited-desktop.png"
+                alt="Desktop: Editing the support limit keeps reservation blocked until the limit is saved."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/37-stack-limit-edited-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/37-stack-limit-edited-mobile.png"
+                alt="Mobile: Editing the support limit keeps reservation blocked until the limit is saved."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="38-stack-support-saved save the two-level support limit before reserving the upper unit. stacking"
+      >
+        <h3>38-stack-support-saved</h3>
+        <p>Save the two-level support limit before reserving the upper unit.</p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/38-stack-support-saved-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/38-stack-support-saved-desktop.png"
+                alt="Desktop: Save the two-level support limit before reserving the upper unit."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/38-stack-support-saved-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/38-stack-support-saved-mobile.png"
+                alt="Mobile: Save the two-level support limit before reserving the upper unit."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="39-stack-reserved reserve the upper unit at z 1 m; supporting and upper pallet identities must be checked. stacking"
+      >
+        <h3>39-stack-reserved</h3>
+        <p>
+          Reserve the upper unit at Z 1 m; supporting and upper pallet
+          identities must be checked.
+        </p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/39-stack-reserved-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/39-stack-reserved-desktop.png"
+                alt="Desktop: Reserve the upper unit at Z 1 m; supporting and upper pallet identities must be checked."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/39-stack-reserved-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/39-stack-reserved-mobile.png"
+                alt="Mobile: Reserve the upper unit at Z 1 m; supporting and upper pallet identities must be checked."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="40-stack-physical-checked confirm physical placement after both pallet identities match. stacking"
+      >
+        <h3>40-stack-physical-checked</h3>
+        <p>Confirm physical placement after both pallet identities match.</p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/40-stack-physical-checked-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/40-stack-physical-checked-desktop.png"
+                alt="Desktop: Confirm physical placement after both pallet identities match."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/40-stack-physical-checked-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/40-stack-physical-checked-mobile.png"
+                alt="Mobile: Confirm physical placement after both pallet identities match."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="41-stack-stored the upper unit is stored and remains linked to its supporting pallet. stacking"
+      >
+        <h3>41-stack-stored</h3>
+        <p>
+          The upper unit is Stored and remains linked to its supporting pallet.
+        </p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/41-stack-stored-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/41-stack-stored-desktop.png"
+                alt="Desktop: The upper unit is Stored and remains linked to its supporting pallet."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/41-stack-stored-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/41-stack-stored-mobile.png"
+                alt="Mobile: The upper unit is Stored and remains linked to its supporting pallet."
+            /></a>
+          </figure>
+        </div>
+      </article>
+    </section>
+    <section>
+      <h2>Scan tickets and records</h2>
+      <article
+        data-search="42-scan-start job scanning begins with an explicit location choice. scan tickets and records"
+      >
+        <h3>42-scan-start</h3>
+        <p>Job scanning begins with an explicit location choice.</p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/42-scan-start-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/42-scan-start-desktop.png"
+                alt="Desktop: Job scanning begins with an explicit location choice."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/42-scan-start-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/42-scan-start-mobile.png"
+                alt="Mobile: Job scanning begins with an explicit location choice."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="43-scan-location the selected location wraps on mobile and keeps change available; recording is separate from inventory storage. scan tickets and records"
+      >
+        <h3>43-scan-location</h3>
+        <p>
+          The selected location wraps on mobile and keeps Change available;
+          recording is separate from inventory storage.
+        </p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/43-scan-location-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/43-scan-location-desktop.png"
+                alt="Desktop: The selected location wraps on mobile and keeps Change available; recording is separate from inventory storage."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/43-scan-location-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/43-scan-location-mobile.png"
+                alt="Mobile: The selected location wraps on mobile and keeps Change available; recording is separate from inventory storage."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="44-scan-invalid-quantity malformed quantity 1,2 stays editable and blocks saving with an explanation. scan tickets and records"
+      >
+        <h3>44-scan-invalid-quantity</h3>
+        <p>
+          Malformed quantity 1,2 stays editable and blocks saving with an
+          explanation.
+        </p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/44-scan-invalid-quantity-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/44-scan-invalid-quantity-desktop.png"
+                alt="Desktop: Malformed quantity 1,2 stays editable and blocks saving with an explanation."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/44-scan-invalid-quantity-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/44-scan-invalid-quantity-mobile.png"
+                alt="Mobile: Malformed quantity 1,2 stays editable and blocks saving with an explanation."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="45-scan-manual-entered correct the manual ticket quantity to 12 before saving. scan tickets and records"
+      >
+        <h3>45-scan-manual-entered</h3>
+        <p>Correct the manual ticket quantity to 12 before saving.</p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/45-scan-manual-entered-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/45-scan-manual-entered-desktop.png"
+                alt="Desktop: Correct the manual ticket quantity to 12 before saving."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/45-scan-manual-entered-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/45-scan-manual-entered-mobile.png"
+                alt="Mobile: Correct the manual ticket quantity to 12 before saving."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="46-scan-duplicate-blocked repeated job number and barcode require review of separate physical units. scan tickets and records"
+      >
+        <h3>46-scan-duplicate-blocked</h3>
+        <p>
+          Repeated job number and barcode require review of separate physical
+          units.
+        </p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/46-scan-duplicate-blocked-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/46-scan-duplicate-blocked-desktop.png"
+                alt="Desktop: Repeated job number and barcode require review of separate physical units."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/46-scan-duplicate-blocked-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/46-scan-duplicate-blocked-mobile.png"
+                alt="Mobile: Repeated job number and barcode require review of separate physical units."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="47-scan-duplicate-reviewed explicit duplicate review enables saving the two qa tickets. scan tickets and records"
+      >
+        <h3>47-scan-duplicate-reviewed</h3>
+        <p>Explicit duplicate review enables saving the two QA tickets.</p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/47-scan-duplicate-reviewed-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/47-scan-duplicate-reviewed-desktop.png"
+                alt="Desktop: Explicit duplicate review enables saving the two QA tickets."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/47-scan-duplicate-reviewed-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/47-scan-duplicate-reviewed-mobile.png"
+                alt="Mobile: Explicit duplicate review enables saving the two QA tickets."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="48-scan-saved saving confirms two ticket records without claiming their pallets are stored. scan tickets and records"
+      >
+        <h3>48-scan-saved</h3>
+        <p>
+          Saving confirms two ticket records without claiming their pallets are
+          Stored.
+        </p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/48-scan-saved-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/48-scan-saved-desktop.png"
+                alt="Desktop: Saving confirms two ticket records without claiming their pallets are Stored."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/48-scan-saved-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/48-scan-saved-mobile.png"
+                alt="Mobile: Saving confirms two ticket records without claiming their pallets are Stored."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="49-records-search filter records with locations and search the two saved qa tickets. scan tickets and records"
+      >
+        <h3>49-records-search</h3>
+        <p>
+          Filter records with locations and search the two saved QA tickets.
+        </p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/49-records-search-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/49-records-search-desktop.png"
+                alt="Desktop: Filter records with locations and search the two saved QA tickets."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/49-records-search-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/49-records-search-mobile.png"
+                alt="Mobile: Filter records with locations and search the two saved QA tickets."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="50-records-selected select two qa records; assignment remains separate from inventory storage. scan tickets and records"
+      >
+        <h3>50-records-selected</h3>
+        <p>
+          Select two QA records; assignment remains separate from inventory
+          storage.
+        </p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/50-records-selected-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/50-records-selected-desktop.png"
+                alt="Desktop: Select two QA records; assignment remains separate from inventory storage."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/50-records-selected-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/50-records-selected-mobile.png"
+                alt="Mobile: Select two QA records; assignment remains separate from inventory storage."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="51-records-assignment-choice choose qa storage a for the selected records before assignment. scan tickets and records"
+      >
+        <h3>51-records-assignment-choice</h3>
+        <p>Choose QA storage A for the selected records before assignment.</p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/51-records-assignment-choice-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/51-records-assignment-choice-desktop.png"
+                alt="Desktop: Choose QA storage A for the selected records before assignment."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/51-records-assignment-choice-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/51-records-assignment-choice-mobile.png"
+                alt="Mobile: Choose QA storage A for the selected records before assignment."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="52-records-assigned both ticket records show qa storage a; the stored pallets remain in qa storage b. scan tickets and records"
+      >
+        <h3>52-records-assigned</h3>
+        <p>
+          Both ticket records show QA storage A; the stored pallets remain in QA
+          storage B.
+        </p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/52-records-assigned-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/52-records-assigned-desktop.png"
+                alt="Desktop: Both ticket records show QA storage A; the stored pallets remain in QA storage B."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/52-records-assigned-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/52-records-assigned-mobile.png"
+                alt="Mobile: Both ticket records show QA storage A; the stored pallets remain in QA storage B."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="72-record-actions open a qa record’s actions menu; change location remains separate from deletion. scan tickets and records"
+      >
+        <h3>72-record-actions</h3>
+        <p>
+          Open a QA record’s actions menu; Change location remains separate from
+          deletion.
+        </p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/72-record-actions-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/72-record-actions-desktop.png"
+                alt="Desktop: Open a QA record’s actions menu; Change location remains separate from deletion."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/72-record-actions-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/72-record-actions-mobile.png"
+                alt="Mobile: Open a QA record’s actions menu; Change location remains separate from deletion."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="73-record-delete-prompt deleting one qa record requires confirmation; cancel preserves it. scan tickets and records"
+      >
+        <h3>73-record-delete-prompt</h3>
+        <p>
+          Deleting one QA record requires confirmation; Cancel preserves it.
+        </p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/73-record-delete-prompt-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/73-record-delete-prompt-desktop.png"
+                alt="Desktop: Deleting one QA record requires confirmation; Cancel preserves it."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/73-record-delete-prompt-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/73-record-delete-prompt-mobile.png"
+                alt="Mobile: Deleting one QA record requires confirmation; Cancel preserves it."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="74-record-delete-cancelled cancel deletion: both qa tickets remain visible. scan tickets and records"
+      >
+        <h3>74-record-delete-cancelled</h3>
+        <p>Cancel deletion: both QA tickets remain visible.</p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/74-record-delete-cancelled-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/74-record-delete-cancelled-desktop.png"
+                alt="Desktop: Cancel deletion: both QA tickets remain visible."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/74-record-delete-cancelled-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/74-record-delete-cancelled-mobile.png"
+                alt="Mobile: Cancel deletion: both QA tickets remain visible."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="75-record-bulk-delete-prompt bulk deletion shows the selected count and still requires confirmation. scan tickets and records"
+      >
+        <h3>75-record-bulk-delete-prompt</h3>
+        <p>
+          Bulk deletion shows the selected count and still requires
+          confirmation.
+        </p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/75-record-bulk-delete-prompt-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/75-record-bulk-delete-prompt-desktop.png"
+                alt="Desktop: Bulk deletion shows the selected count and still requires confirmation."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/75-record-bulk-delete-prompt-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/75-record-bulk-delete-prompt-mobile.png"
+                alt="Mobile: Bulk deletion shows the selected count and still requires confirmation."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="76-record-delete-complete confirm deletion of only the two walkthrough qa tickets; the filtered result is empty. scan tickets and records"
+      >
+        <h3>76-record-delete-complete</h3>
+        <p>
+          Confirm deletion of only the two walkthrough QA tickets; the filtered
+          result is empty.
+        </p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/76-record-delete-complete-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/76-record-delete-complete-desktop.png"
+                alt="Desktop: Confirm deletion of only the two walkthrough QA tickets; the filtered result is empty."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/76-record-delete-complete-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/76-record-delete-complete-mobile.png"
+                alt="Mobile: Confirm deletion of only the two walkthrough QA tickets; the filtered result is empty."
+            /></a>
+          </figure>
+        </div>
+      </article>
+    </section>
+    <section>
+      <h2>Navigation, access and public pages</h2>
+      <article
+        data-search="60-setup configured dependencies produce a matching setup configured heading. navigation, access and public pages"
+      >
+        <h3>60-setup</h3>
+        <p>
+          Configured dependencies produce a matching Setup configured heading.
+        </p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/60-setup-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/60-setup-desktop.png"
+                alt="Desktop: Configured dependencies produce a matching Setup configured heading."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/60-setup-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/60-setup-mobile.png"
+                alt="Mobile: Configured dependencies produce a matching Setup configured heading."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="61-about public about content remains readable outside the planner shell. navigation, access and public pages"
+      >
+        <h3>61-about</h3>
+        <p>Public About content remains readable outside the planner shell.</p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/61-about-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/61-about-desktop.png"
+                alt="Desktop: Public About content remains readable outside the planner shell."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/61-about-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/61-about-mobile.png"
+                alt="Mobile: Public About content remains readable outside the planner shell."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="62-privacy public privacy content retains its information in the compact layout. navigation, access and public pages"
+      >
+        <h3>62-privacy</h3>
+        <p>
+          Public privacy content retains its information in the compact layout.
+        </p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/62-privacy-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/62-privacy-desktop.png"
+                alt="Desktop: Public privacy content retains its information in the compact layout."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/62-privacy-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/62-privacy-mobile.png"
+                alt="Mobile: Public privacy content retains its information in the compact layout."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="63-terms public terms retain their information outside the planner shell. navigation, access and public pages"
+      >
+        <h3>63-terms</h3>
+        <p>Public terms retain their information outside the planner shell.</p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/63-terms-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/63-terms-desktop.png"
+                alt="Desktop: Public terms retain their information outside the planner shell."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/63-terms-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/63-terms-mobile.png"
+                alt="Mobile: Public terms retain their information outside the planner shell."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="64-navigation-expanded expand the desktop sidebar and open the mobile navigation drawer. navigation, access and public pages"
+      >
+        <h3>64-navigation-expanded</h3>
+        <p>Expand the desktop sidebar and open the mobile navigation drawer.</p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/64-navigation-expanded-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/64-navigation-expanded-desktop.png"
+                alt="Desktop: Expand the desktop sidebar and open the mobile navigation drawer."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/64-navigation-expanded-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/64-navigation-expanded-mobile.png"
+                alt="Mobile: Expand the desktop sidebar and open the mobile navigation drawer."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="65-navigation-followed choosing scanned records closes the mobile drawer and opens the destination. navigation, access and public pages"
+      >
+        <h3>65-navigation-followed</h3>
+        <p>
+          Choosing Scanned records closes the mobile drawer and opens the
+          destination.
+        </p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/65-navigation-followed-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/65-navigation-followed-desktop.png"
+                alt="Desktop: Choosing Scanned records closes the mobile drawer and opens the destination."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/65-navigation-followed-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/65-navigation-followed-mobile.png"
+                alt="Mobile: Choosing Scanned records closes the mobile drawer and opens the destination."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="66-sign-in signed-out access opens the real clerk form with the requested return route and query. navigation, access and public pages"
+      >
+        <h3>66-sign-in</h3>
+        <p>
+          Signed-out access opens the real Clerk form with the requested return
+          route and query.
+        </p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/66-sign-in-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/66-sign-in-desktop.png"
+                alt="Desktop: Signed-out access opens the real Clerk form with the requested return route and query."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/66-sign-in-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/66-sign-in-mobile.png"
+                alt="Mobile: Signed-out access opens the real Clerk form with the requested return route and query."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="67-sign-in-validation an invalid email remains on the real sign-in form for correction. navigation, access and public pages"
+      >
+        <h3>67-sign-in-validation</h3>
+        <p>An invalid email remains on the real sign-in form for correction.</p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/67-sign-in-validation-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/67-sign-in-validation-desktop.png"
+                alt="Desktop: An invalid email remains on the real sign-in form for correction."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/67-sign-in-validation-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/67-sign-in-validation-mobile.png"
+                alt="Mobile: An invalid email remains on the real sign-in form for correction."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="68-sign-in-return real clerk ticket sign-in returns to the planner route and preserves tab=pallets. navigation, access and public pages"
+      >
+        <h3>68-sign-in-return</h3>
+        <p>
+          Real Clerk ticket sign-in returns to the planner route and preserves
+          tab=pallets.
+        </p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/68-sign-in-return-desktop.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/68-sign-in-return-desktop.png"
+                alt="Desktop: Real Clerk ticket sign-in returns to the planner route and preserves tab=pallets."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/68-sign-in-return-mobile.png"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/68-sign-in-return-mobile.png"
+                alt="Mobile: Real Clerk ticket sign-in returns to the planner route and preserves tab=pallets."
+            /></a>
+          </figure>
+        </div>
+      </article>
+    </section>
+    <section>
+      <h2>Thai and dark mode</h2>
+      <article
+        data-search="81-thai-catalogue thai catalogue labels and identifiers fit desktop and mobile layouts. thai and dark mode"
+      >
+        <h3>81-thai-catalogue</h3>
+        <p>
+          Thai catalogue labels and identifiers fit desktop and mobile layouts.
+        </p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/81-thai-catalogue-desktop.jpg"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/81-thai-catalogue-desktop.jpg"
+                alt="Desktop: Thai catalogue labels and identifiers fit desktop and mobile layouts."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/81-thai-catalogue-mobile.jpg"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/81-thai-catalogue-mobile.jpg"
+                alt="Mobile: Thai catalogue labels and identifiers fit desktop and mobile layouts."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="82-dark-catalogue existing dark mode remains readable in desktop and mobile layouts. thai and dark mode"
+      >
+        <h3>82-dark-catalogue</h3>
+        <p>
+          Existing dark mode remains readable in desktop and mobile layouts.
+        </p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop · 1440 × 1000</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/82-dark-catalogue-desktop.jpg"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/82-dark-catalogue-desktop.jpg"
+                alt="Desktop: Existing dark mode remains readable in desktop and mobile layouts."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile · 390 × 844</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/82-dark-catalogue-mobile.jpg"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/82-dark-catalogue-mobile.jpg"
+                alt="Mobile: Existing dark mode remains readable in desktop and mobile layouts."
+            /></a>
+          </figure>
+        </div>
+      </article>
+    </section>
+    <section>
+      <h2>Follow-up ordinary floor-storage verification</h2>
+      <article
+        data-search="83-floor-destination-selected follow-up qa pallet p-000005: choose an ordinary floor position in qa storage a."
+      >
+        <h3>83-floor-destination-selected</h3>
+        <p>
+          Follow-up QA pallet P-000005: choose an ordinary floor position in QA
+          storage A.
+        </p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/83-floor-destination-selected-desktop.jpg"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/83-floor-destination-selected-desktop.jpg"
+                alt="Desktop: Follow-up QA pallet P-000005: choose an ordinary floor position in QA storage A."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/83-floor-destination-selected-mobile.jpg"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/83-floor-destination-selected-mobile.jpg"
+                alt="Mobile: Follow-up QA pallet P-000005: choose an ordinary floor position in QA storage A."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="84-floor-reserved reserve p-000005 separately; it remains reserved and awaits storage confirmation."
+      >
+        <h3>84-floor-reserved</h3>
+        <p>
+          Reserve P-000005 separately; it remains Reserved and awaits storage
+          confirmation.
+        </p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/84-floor-reserved-desktop.jpg"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/84-floor-reserved-desktop.jpg"
+                alt="Desktop: Reserve P-000005 separately; it remains Reserved and awaits storage confirmation."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/84-floor-reserved-mobile.jpg"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/84-floor-reserved-mobile.jpg"
+                alt="Mobile: Reserve P-000005 separately; it remains Reserved and awaits storage confirmation."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="85-floor-destination-verified verify the correct destination for p-000005. destination verified and confirm stored are visible; verification does not confirm placement."
+      >
+        <h3>85-floor-destination-verified</h3>
+        <p>
+          Verify the correct destination for P-000005. Destination verified and
+          Confirm stored are visible; verification does not confirm placement.
+        </p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/85-floor-destination-verified-desktop.jpg"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/85-floor-destination-verified-desktop.jpg"
+                alt="Desktop: Verify the correct destination for P-000005. Destination verified and Confirm stored are visible; verification does not confirm placement."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile</figcaption>
+            <a
+              href="assets/minimal-ui-2026-10-08/85-floor-destination-verified-mobile.jpg"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/85-floor-destination-verified-mobile.jpg"
+                alt="Mobile: Verify the correct destination for P-000005. Destination verified and Confirm stored are visible; verification does not confirm placement."
+            /></a>
+          </figure>
+        </div>
+      </article>
+      <article
+        data-search="86-floor-stored confirm simulated physical placement separately: p-000005 is stored successfully."
+      >
+        <h3>86-floor-stored</h3>
+        <p>
+          Confirm simulated physical placement separately: P-000005 is Stored
+          successfully.
+        </p>
+        <div class="pair">
+          <figure class="desktop">
+            <figcaption>Desktop</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/86-floor-stored-desktop.jpg"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/86-floor-stored-desktop.jpg"
+                alt="Desktop: Confirm simulated physical placement separately: P-000005 is Stored successfully."
+            /></a>
+          </figure>
+          <figure class="mobile">
+            <figcaption>Mobile</figcaption>
+            <a href="assets/minimal-ui-2026-10-08/86-floor-stored-mobile.jpg"
+              ><img
+                loading="lazy"
+                src="assets/minimal-ui-2026-10-08/86-floor-stored-mobile.jpg"
+                alt="Mobile: Confirm simulated physical placement separately: P-000005 is Stored successfully."
+            /></a>
+          </figure>
+        </div>
+      </article>
+    </section>
+  </main>
+  <script>
+    const search = document.getElementById("search"),
+      mode = document.getElementById("mode");
+    function filter() {
+      let count = 0;
+      for (const a of document.querySelectorAll("article")) {
+        a.hidden = !a.dataset.search.includes(search.value.toLowerCase());
+        if (!a.hidden) count++;
+      }
+      for (const s of document.querySelectorAll("section"))
+        s.hidden = !s.querySelector("article:not([hidden])");
+      document.getElementById("count").textContent =
+        count + (count === 1 ? " state" : " states");
+      document.body.dataset.mode = mode.value;
+    }
+    search.addEventListener("input", filter);
+    mode.addEventListener("change", filter);
+    filter();
+  </script>
+</html>

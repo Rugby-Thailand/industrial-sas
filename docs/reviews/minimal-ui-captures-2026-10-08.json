@@ -1,0 +1,704 @@
+[
+  {
+    "name": "01-catalogue",
+    "caption": "Catalogue: desktop table, mobile list, compact totals and collapsed navigation.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/01-catalogue-desktop.jpg",
+      "mobile": "assets/minimal-ui-2026-10-08/01-catalogue-mobile.jpg"
+    },
+    "browser": "Chrome"
+  },
+  {
+    "name": "02-filters",
+    "caption": "Open filters: select Draft, with sorting and counting-unit controls available.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/02-filters-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/02-filters-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "03-filter-applied",
+    "caption": "Apply filters: the selected status stays visible in removable chips and the result set updates.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/03-filter-applied-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/03-filter-applied-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "04-product-new",
+    "caption": "Create product: required fields and a primary preparation action, optional references closed.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/04-product-new-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/04-product-new-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "05-product-validation",
+    "caption": "Attempt Next with empty required details: validation stays in context.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/05-product-validation-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/05-product-validation-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "06-product-entered",
+    "caption": "Enter the local QA product details before moving to packing.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/06-product-entered-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/06-product-entered-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "07-packing-new",
+    "caption": "Saved product leads to a separate packing batch; quantities and unit counts remain explicit.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/07-packing-new-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/07-packing-new-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "08-packing-split",
+    "caption": "Split 24 PCS into two units; the preview and remaining quantity expose incomplete dimensions.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/08-packing-split-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/08-packing-split-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "09-packing-dimensions",
+    "caption": "Copy entered dimensions to unit 2: copied measurements still need a separate physical check.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/09-packing-dimensions-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/09-packing-dimensions-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "10-packing-draft-saved",
+    "caption": "Save a complete preparation draft: quantities and checked measurements survive saving.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/10-packing-draft-saved-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/10-packing-draft-saved-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "11-packing-review",
+    "caption": "Review the batch total and both units’ dimensions in the confirmation dialog.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/11-packing-review-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/11-packing-review-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "12-units-created",
+    "caption": "Confirm creation: the two QA units exist, with measured sizes and links to storage.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/12-units-created-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/12-units-created-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "13-building-new",
+    "caption": "New building: concise floor setup and required dimensions, with technical help on demand.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/13-building-new-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/13-building-new-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "14-building-entered",
+    "caption": "Enter a dedicated QA building with a 10 × 10 m floor and explicit 5 m height.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/14-building-entered-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/14-building-entered-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "15-building-created",
+    "caption": "Create the QA building as a draft; activation requires a reviewable layout.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/15-building-created-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/15-building-created-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "16-zone-editor",
+    "caption": "Add a second location: the accessible preview supports keyboard positioning.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/16-zone-editor-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/16-zone-editor-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "17-zone-entered",
+    "caption": "Enter QA storage B at X 6 m / Y 1 m; its 3 × 3 m outline fits beside the existing location.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/17-zone-entered-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/17-zone-entered-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "18-zone-created",
+    "caption": "Save the second location: the authoritative floor map updates to two storage locations.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/18-zone-created-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/18-zone-created-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "19-building-active",
+    "caption": "Activate the complete QA layout; the saved status is Active.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/19-building-active-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/19-building-active-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "20-map-selected",
+    "caption": "Select and open location details: the desktop inspector and mobile sheet show the same saved location.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/20-map-selected-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/20-map-selected-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "21-storage-recommendations",
+    "caption": "Find storage for QA unit 1: destination eligibility and next actions are explicit.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/21-storage-recommendations-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/21-storage-recommendations-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "22-destination-selected",
+    "caption": "Choose the QA location: preview shows the target code, exact coordinates and suitability warnings.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/22-destination-selected-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/22-destination-selected-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "23-destination-reserved",
+    "caption": "Reserve the position: the unit is Reserved, and storage confirmation remains blocked until verification.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/23-destination-reserved-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/23-destination-reserved-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "24-wrong-destination",
+    "caption": "Submit a wrong destination code: the inline error keeps storage confirmation blocked.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/24-wrong-destination-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/24-wrong-destination-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "25-destination-verified",
+    "caption": "Verified support and upper-unit identity still require a separate physical placement check.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/25-destination-verified-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/25-destination-verified-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "26-stored",
+    "caption": "Confirm simulated physical storage for the QA unit: the saved state is Stored.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/26-stored-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/26-stored-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "27-move-select",
+    "caption": "Move starts with the stored source and a separate target selection.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/27-move-select-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/27-move-select-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "28-move-target",
+    "caption": "Choose QA storage B; the exact target and occupied source remain visible.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/28-move-target-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/28-move-target-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "29-move-reserved",
+    "caption": "Prepare the move; both positions remain held until pickup and placement are confirmed.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/29-move-reserved-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/29-move-reserved-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "30-move-source-verified",
+    "caption": "The source code identifies the pallet; physical pickup remains a separate confirmation.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/30-move-source-verified-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/30-move-source-verified-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "31-move-in-transit",
+    "caption": "After pickup the unit is Moving; destination confirmation will release the source.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/31-move-in-transit-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/31-move-in-transit-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "32-move-destination-verified",
+    "caption": "Verify the destination label before confirming physical placement.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/32-move-destination-verified-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/32-move-destination-verified-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "33-move-complete",
+    "caption": "Confirm the move: the unit is Stored in QA storage B and its source is released.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/33-move-complete-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/33-move-complete-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "34-measurement-guidance",
+    "caption": "A unit created from packing directs measurement changes to its preparation batch.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/34-measurement-guidance-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/34-measurement-guidance-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "35-stack-start",
+    "caption": "Stacking begins from the stored supporting pallet; load checks are explicitly not enabled.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/35-stack-start-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/35-stack-start-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "36-stack-selected",
+    "caption": "Select the upper QA unit and review fit, clearance and missing support approval.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/36-stack-selected-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/36-stack-selected-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "37-stack-limit-edited",
+    "caption": "Editing the support limit keeps reservation blocked until the limit is saved.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/37-stack-limit-edited-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/37-stack-limit-edited-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "38-stack-support-saved",
+    "caption": "Save the two-level support limit before reserving the upper unit.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/38-stack-support-saved-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/38-stack-support-saved-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "39-stack-reserved",
+    "caption": "Reserve the upper unit at Z 1 m; supporting and upper pallet identities must be checked.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/39-stack-reserved-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/39-stack-reserved-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "40-stack-physical-checked",
+    "caption": "Confirm physical placement after both pallet identities match.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/40-stack-physical-checked-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/40-stack-physical-checked-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "41-stack-stored",
+    "caption": "The upper unit is Stored and remains linked to its supporting pallet.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/41-stack-stored-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/41-stack-stored-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "42-scan-start",
+    "caption": "Job scanning begins with an explicit location choice.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/42-scan-start-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/42-scan-start-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "43-scan-location",
+    "caption": "The selected location wraps on mobile and keeps Change available; recording is separate from inventory storage.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/43-scan-location-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/43-scan-location-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "44-scan-invalid-quantity",
+    "caption": "Malformed quantity 1,2 stays editable and blocks saving with an explanation.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/44-scan-invalid-quantity-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/44-scan-invalid-quantity-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "45-scan-manual-entered",
+    "caption": "Correct the manual ticket quantity to 12 before saving.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/45-scan-manual-entered-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/45-scan-manual-entered-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "46-scan-duplicate-blocked",
+    "caption": "Repeated job number and barcode require review of separate physical units.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/46-scan-duplicate-blocked-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/46-scan-duplicate-blocked-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "47-scan-duplicate-reviewed",
+    "caption": "Explicit duplicate review enables saving the two QA tickets.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/47-scan-duplicate-reviewed-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/47-scan-duplicate-reviewed-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "48-scan-saved",
+    "caption": "Saving confirms two ticket records without claiming their pallets are Stored.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/48-scan-saved-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/48-scan-saved-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "49-records-search",
+    "caption": "Filter records with locations and search the two saved QA tickets.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/49-records-search-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/49-records-search-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "50-records-selected",
+    "caption": "Select two QA records; assignment remains separate from inventory storage.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/50-records-selected-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/50-records-selected-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "51-records-assignment-choice",
+    "caption": "Choose QA storage A for the selected records before assignment.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/51-records-assignment-choice-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/51-records-assignment-choice-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "52-records-assigned",
+    "caption": "Both ticket records show QA storage A; the stored pallets remain in QA storage B.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/52-records-assigned-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/52-records-assigned-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "60-setup",
+    "caption": "Configured dependencies produce a matching Setup configured heading.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/60-setup-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/60-setup-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "61-about",
+    "caption": "Public About content remains readable outside the planner shell.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/61-about-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/61-about-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "62-privacy",
+    "caption": "Public privacy content retains its information in the compact layout.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/62-privacy-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/62-privacy-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "63-terms",
+    "caption": "Public terms retain their information outside the planner shell.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/63-terms-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/63-terms-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "64-navigation-expanded",
+    "caption": "Expand the desktop sidebar and open the mobile navigation drawer.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/64-navigation-expanded-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/64-navigation-expanded-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "65-navigation-followed",
+    "caption": "Choosing Scanned records closes the mobile drawer and opens the destination.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/65-navigation-followed-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/65-navigation-followed-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "66-sign-in",
+    "caption": "Signed-out access opens the real Clerk form with the requested return route and query.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/66-sign-in-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/66-sign-in-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "67-sign-in-validation",
+    "caption": "An invalid email remains on the real sign-in form for correction.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/67-sign-in-validation-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/67-sign-in-validation-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "68-sign-in-return",
+    "caption": "Real Clerk ticket sign-in returns to the planner route and preserves tab=pallets.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/68-sign-in-return-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/68-sign-in-return-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "69-draft-discard-prompt",
+    "caption": "Canceling an edited product asks whether to continue editing or discard the draft.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/69-draft-discard-prompt-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/69-draft-discard-prompt-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "70-draft-continued",
+    "caption": "Continue editing preserves the entered QA product values.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/70-draft-continued-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/70-draft-continued-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "72-record-actions",
+    "caption": "Open a QA record’s actions menu; Change location remains separate from deletion.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/72-record-actions-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/72-record-actions-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "73-record-delete-prompt",
+    "caption": "Deleting one QA record requires confirmation; Cancel preserves it.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/73-record-delete-prompt-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/73-record-delete-prompt-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "74-record-delete-cancelled",
+    "caption": "Cancel deletion: both QA tickets remain visible.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/74-record-delete-cancelled-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/74-record-delete-cancelled-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "75-record-bulk-delete-prompt",
+    "caption": "Bulk deletion shows the selected count and still requires confirmation.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/75-record-bulk-delete-prompt-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/75-record-bulk-delete-prompt-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "76-record-delete-complete",
+    "caption": "Confirm deletion of only the two walkthrough QA tickets; the filtered result is empty.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/76-record-delete-complete-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/76-record-delete-complete-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "77-map-3d",
+    "caption": "Switch to 3D while retaining the stored units and their saved locations.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/77-map-3d-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/77-map-3d-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "78-map-zoom",
+    "caption": "Zoom the map while keeping floor context and camera controls available.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/78-map-zoom-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/78-map-zoom-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "79-map-fit",
+    "caption": "Fit resets the camera to the floor proportions.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/79-map-fit-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/79-map-fit-mobile.png"
+    },
+    "browser": "T3 preview"
+  },
+  {
+    "name": "80-map-table",
+    "caption": "Table details preserve the selected location and use a complete heading hierarchy.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/80-map-table-desktop.jpg",
+      "mobile": "assets/minimal-ui-2026-10-08/80-map-table-mobile.jpg"
+    },
+    "browser": "Chrome"
+  },
+  {
+    "name": "81-thai-catalogue",
+    "caption": "Thai catalogue labels and identifiers fit desktop and mobile layouts.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/81-thai-catalogue-desktop.jpg",
+      "mobile": "assets/minimal-ui-2026-10-08/81-thai-catalogue-mobile.jpg"
+    },
+    "browser": "Chrome"
+  },
+  {
+    "name": "82-dark-catalogue",
+    "caption": "Existing dark mode remains readable in desktop and mobile layouts.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/82-dark-catalogue-desktop.jpg",
+      "mobile": "assets/minimal-ui-2026-10-08/82-dark-catalogue-mobile.jpg"
+    },
+    "browser": "Chrome"
+  },
+  {
+    "name": "83-floor-destination-selected",
+    "caption": "Follow-up QA pallet P-000005: choose an ordinary floor position in QA storage A.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/83-floor-destination-selected-desktop.jpg",
+      "mobile": "assets/minimal-ui-2026-10-08/83-floor-destination-selected-mobile.jpg"
+    },
+    "browser": "Chrome"
+  },
+  {
+    "name": "84-floor-reserved",
+    "caption": "Reserve P-000005 separately; it remains Reserved and awaits storage confirmation.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/84-floor-reserved-desktop.jpg",
+      "mobile": "assets/minimal-ui-2026-10-08/84-floor-reserved-mobile.jpg"
+    },
+    "browser": "Chrome"
+  },
+  {
+    "name": "85-floor-destination-verified",
+    "caption": "Verify the correct destination for P-000005. Destination verified and Confirm stored are visible; verification does not confirm placement.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/85-floor-destination-verified-desktop.jpg",
+      "mobile": "assets/minimal-ui-2026-10-08/85-floor-destination-verified-mobile.jpg"
+    },
+    "browser": "Chrome"
+  },
+  {
+    "name": "86-floor-stored",
+    "caption": "Confirm simulated physical placement separately: P-000005 is Stored successfully.",
+    "images": {
+      "desktop": "assets/minimal-ui-2026-10-08/86-floor-stored-desktop.jpg",
+      "mobile": "assets/minimal-ui-2026-10-08/86-floor-stored-mobile.jpg"
+    },
+    "browser": "Chrome"
+  }
+]
