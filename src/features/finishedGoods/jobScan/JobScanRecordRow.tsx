@@ -34,7 +34,7 @@ export function JobScanRecordRow({
   const format = useFormatter();
   const changingLocation = useRef(false);
   return (
-    <li className="grid grid-cols-[1.5rem_2.75rem_minmax(0,1fr)_auto] items-start gap-x-2 gap-y-2 py-3 sm:grid-cols-[1.5rem_3.5rem_minmax(0,1fr)_auto] sm:gap-x-3 lg:grid-cols-[1.5rem_3.5rem_minmax(0,1fr)_17rem_auto]">
+    <li className="grid grid-cols-[1.5rem_2.75rem_minmax(0,1fr)_auto] items-start gap-x-3 gap-y-2 py-3 sm:grid-cols-[1.5rem_3.5rem_minmax(0,1fr)_auto] sm:gap-x-3 lg:grid-cols-[1.5rem_3.5rem_minmax(0,1fr)_17rem_auto]">
       {canManage && (
         <label className="col-start-1 row-start-1 -mx-3 flex min-h-touch min-w-touch cursor-pointer items-start justify-center pt-2">
           <CheckboxControl
