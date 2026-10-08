@@ -37,10 +37,29 @@ export default async function SignInScreen({
           {...(returnTo ? { forceRedirectUrl: returnTo } : {})}
           appearance={{
             elements: {
-              cardBox: "w-full shadow-none",
-              card: "border border-border rounded-lg shadow-none",
+              rootBox: { width: "100%" },
+              cardBox: { width: "100%", boxShadow: "none" },
+              card: {
+                border: "1px solid var(--token-border)",
+                borderRadius: "8px",
+                boxShadow: "none",
+              },
               headerTitle: "text-text",
-              formButtonPrimary: "bg-primary min-h-11",
+              formFieldInput: {
+                minHeight: "44px",
+                fontSize: "16px",
+                borderColor: "var(--token-border-strong)",
+              },
+              socialButtonsBlockButton: { minHeight: "44px" },
+              formFieldInputShowPasswordButton: {
+                minHeight: "44px",
+                minWidth: "44px",
+              },
+              formButtonPrimary: {
+                minHeight: "44px",
+                backgroundColor: "var(--token-accent)",
+                color: "var(--token-accent-contrast)",
+              },
             },
           }}
         />

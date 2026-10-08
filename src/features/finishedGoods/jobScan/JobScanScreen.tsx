@@ -311,9 +311,9 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
   return (
     <PageContainer size="form" actionInset="responsive">
       <Heading title={t("title")} description={t("locationNotStock")} />
-      <div className="-mt-4 flex min-h-11 items-center gap-2 text-sm">
+      <div className="-mt-4 flex min-h-11 flex-wrap items-center gap-2 text-sm">
         <MapPin className="size-4 shrink-0 text-muted" aria-hidden="true" />
-        <span className="shrink-0 font-mono font-semibold">
+        <span className="max-w-full font-mono font-semibold break-all">
           {location.code ?? location.text}
         </span>
         {location.name && (
