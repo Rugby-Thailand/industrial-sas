@@ -62,12 +62,19 @@ export const isComplete = (ticket: TicketDraft) =>
   REQUIRED_FIELDS.every((field) => ticket.values[field]?.trim());
 
 /** Do not silently drop a mistyped optional quantity during serialization. */
+function parseTicketQuantity(value: string): number | undefined {
+  // A comma groups three digits; it is never a decimal separator or empty zero.
+  if (!/^(?:(?:\d+|\d{1,3}(?:,\d{3})+)(?:\.\d*)?|\.\d+)$/.test(value))
+    return undefined;
+  const number = Number(value.replace(/,/g, ""));
+  return Number.isFinite(number) ? number : undefined;
+}
+
 export function hasInvalidQuantity(ticket: TicketDraft) {
   return [...NUMBER_FIELDS].some((field) => {
     const value = ticket.values[field as TicketField]?.trim();
     if (!value) return false;
-    const quantity = Number(value.replace(/,/g, ""));
-    return !Number.isFinite(quantity) || quantity < 0;
+    return parseTicketQuantity(value) === undefined;
   });
 }
 
@@ -136,8 +143,8 @@ export function toPayload(ticket: TicketDraft) {
     const value = ticket.values[field]?.trim();
     if (!value) continue;
     if (NUMBER_FIELDS.has(field)) {
-      const number = Number(value.replace(/,/g, ""));
-      if (Number.isFinite(number)) item[field] = number;
+      const number = parseTicketQuantity(value);
+      if (number !== undefined) item[field] = number;
     } else item[field] = value;
   }
   if (ticket.imageUrl) item["imageUrl"] = ticket.imageUrl;

@@ -24,7 +24,7 @@ it("finds all repeated complete identities after trimming, while retaining disti
     b.key,
   ]);
 });
-it.each(["garbage", "-1", "Infinity", "1.2.3"])(
+it.each(["garbage", "-1", "Infinity", "1.2.3", ",", ",,,", "1,2", "12,34"])(
   "rejects invalid quantity %s rather than silently omitting it",
   (value) => {
     expect(hasInvalidQuantity(newTicket("MANUAL", { quantity: value }))).toBe(
@@ -32,7 +32,7 @@ it.each(["garbage", "-1", "Infinity", "1.2.3"])(
     );
   },
 );
-it.each(["", "0", "1,200.5"])(
+it.each(["", "0", "1,200.5", ".5", "1."])(
   "accepts optional or valid quantity %s",
   (value) => {
     expect(

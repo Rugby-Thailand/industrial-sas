@@ -1,11 +1,21 @@
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { ComponentProps, ReactNode } from "react";
 import { renderWithIntl } from "@tests/fixtures/intl-render";
 import { writeSuccess } from "@tests/fixtures/finished-goods-ui";
 import { JobScanScreen } from "./JobScanScreen";
 
-const mocks = vi.hoisted(() => ({ save: vi.fn(), resize: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  save: vi.fn(),
+  resize: vi.fn(),
+  decode: undefined as ((code: string) => void) | undefined,
+}));
+vi.mock("./BarcodeCameraBox", () => ({
+  BarcodeCameraBox: ({ onCode }: { onCode: (code: string) => void }) => {
+    mocks.decode = onCode;
+    return <div>QA barcode scanner active</div>;
+  },
+}));
 vi.mock("@/i18n/navigation", () => ({
   Link: ({ children, ...props }: ComponentProps<"a">) => (
     <a {...props}>{children}</a>
@@ -132,7 +142,20 @@ it("locks editing and prevents a second write while a save is pending", async ()
   );
   start();
   addTicket();
+  fireEvent.click(screen.getByRole("button", { name: "Scan barcode" }));
+  expect(screen.getByText("QA barcode scanner active")).toBeVisible();
+  const lateDecode = mocks.decode!;
   fireEvent.click(screen.getByRole("button", { name: /Save 1/ }));
+  expect(
+    screen.queryByText("QA barcode scanner active"),
+  ).not.toBeInTheDocument();
+  act(() => lateDecode("DEMO-SECOND-BOX"));
+  expect(
+    screen.getAllByRole("textbox", { name: /Product barcode/ }),
+  ).toHaveLength(1);
+  expect(screen.getByRole("textbox", { name: /Product barcode/ })).toHaveValue(
+    "DEMO-BOX",
+  );
   expect(screen.getByRole("textbox", { name: /Job No\./ })).toBeDisabled();
   expect(screen.getByRole("button", { name: "Type manually" })).toBeDisabled();
   fireEvent.click(screen.getByRole("button", { name: /Saving/ }));

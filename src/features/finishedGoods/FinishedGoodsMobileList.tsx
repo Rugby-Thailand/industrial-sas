@@ -14,6 +14,7 @@ import {
   palletPath,
   productPath,
   Status,
+  unitNoun,
   useFGText,
 } from "./shared";
 import { unitNextAction } from "./unitNextAction";
@@ -96,6 +97,8 @@ export function FinishedGoodsMobileList({
             const name =
               product?.name ??
               ("productName" in pallet ? String(pallet.productName) : "—");
+            const sku =
+              product?.sku ?? ("sku" in pallet ? String(pallet.sku) : "");
             const action = unitNextAction(pallet, canManage);
             return (
               <li key={pallet._id} className={row}>
@@ -108,7 +111,15 @@ export function FinishedGoodsMobileList({
                   </Link>
                   <Status value={palletDisplayStatus(pallet)} />
                 </div>
+                <p className="text-xs text-muted">
+                  {unitNoun(pallet.storageFormat ?? product?.storageFormat, tr)}
+                </p>
                 <p className="break-words">{name}</p>
+                {sku && (
+                  <p className="font-mono text-xs break-all text-muted">
+                    {sku}
+                  </p>
+                )}
                 <p className="text-sm">
                   {pallet.quantity} {unit}
                   {pallet.lot ? ` · ${pallet.lot}` : ""}

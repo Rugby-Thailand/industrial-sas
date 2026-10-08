@@ -108,6 +108,8 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
     location: PickedLocation;
   }>();
   const saving = operation.busy;
+  // Stop late camera/file callbacks synchronously, before React commits busy UI.
+  const acquisitionBlocked = useRef(false);
   const [reviewedDuplicates, setReviewedDuplicates] = useState("");
   const duplicateKeys = duplicateTicketKeys(tickets);
   const duplicateFingerprint = JSON.stringify(
@@ -138,6 +140,7 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
     );
 
   async function onPhoto(file: File) {
+    if (acquisitionBlocked.current) return;
     const previewUrl = URL.createObjectURL(file);
     previewUrls.current.add(previewUrl);
     const ticket = {
@@ -185,6 +188,7 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
   }
 
   function onBarcode(code: string) {
+    if (acquisitionBlocked.current) return;
     setTickets((current) => applyBarcode(current, code).tickets);
     setFeedback(
       t("barcodeAdded", { field: t(classifyTicketBarcode(code)), code }),
@@ -194,7 +198,7 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
   async function submit() {
     if (
       !location ||
-      saving ||
+      acquisitionBlocked.current ||
       !tickets.length ||
       tickets.some(
         (ticket) =>
@@ -220,6 +224,7 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
         : {}),
       items: tickets.map(toPayload),
     };
+    acquisitionBlocked.current = true;
     const result = await operation.run(async () =>
       written(
         await save({
@@ -228,7 +233,10 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
         }),
       ),
     );
-    if (result === null) return;
+    if (result === null) {
+      acquisitionBlocked.current = false;
+      return;
+    }
     operation.clearRequests();
     tickets.forEach(releasePreview);
     setSaved({ count: tickets.length, location });
@@ -256,7 +264,13 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
           </p>
           <p className="text-sm text-muted">{t("locationNotStock")}</p>
           <div className="flex flex-wrap justify-center gap-3 pt-2">
-            <Button className="min-h-12" onClick={() => setSaved(undefined)}>
+            <Button
+              className="min-h-12"
+              onClick={() => {
+                acquisitionBlocked.current = false;
+                setSaved(undefined);
+              }}
+            >
               {t("scanMore")}
             </Button>
             <Button asChild variant="outline" className="min-h-12">
@@ -369,7 +383,7 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
             }}
           />
         )}
-        {panel === "BARCODE" && (
+        {panel === "BARCODE" && !saving && (
           <BarcodeCameraBox
             mode="PACKAGES"
             onCode={onBarcode}
