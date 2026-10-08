@@ -103,7 +103,8 @@
     "identityBody": "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY is unset, so there is no verified token and every tenant-bound function denies the request.",
     "identityReady": "Identity provider configured",
     "envHint": "Copy .env.example to .env.local and fill in the values you need.",
-    "noFakeAuth": "This repository has no sign-in bypass. Tenant data always requires a real token the server has verified."
+    "noFakeAuth": "This repository has no sign-in bypass. Tenant data always requires a real token the server has verified.",
+    "technicalDetails": "Technical setup details"
   },
   "SignIn": {
     "title": "Sign in",
@@ -1337,6 +1338,11 @@
     "takePhoto": "Take photo",
     "choosePhotos": "Choose photos",
     "photoHint": "Take photos here or pick several at once (up to {max}). Each photo becomes one ticket.",
-    "sendToAi": "Read {count, plural, one {# photo} other {# photos}} with AI"
+    "sendToAi": "Read {count, plural, one {# photo} other {# photos}} with AI",
+    "duplicateTickets": "Repeated job number and product barcode. Review before saving.",
+    "duplicateReview": "I checked these repeated tickets: each entry represents a separate physical unit.",
+    "invalidQuantity": "Enter a valid quantity of zero or more.",
+    "photoProcessingFailed": "The photo could not be read. Enter the ticket manually.",
+    "locationNotStock": "Saving a ticket or setting its location does not confirm pallet storage."
   }
 }

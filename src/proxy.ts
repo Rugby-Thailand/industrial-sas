@@ -1,13 +1,10 @@
 import { clerkMiddleware } from "@clerk/nextjs/server";
 import createMiddleware from "next-intl/middleware";
-import {
-  NextResponse,
-  type NextFetchEvent,
-  type NextRequest,
-} from "next/server";
+import { NextResponse, type NextFetchEvent, NextRequest } from "next/server";
 
 import { routing } from "./i18n/routing";
 import { resolveClerkPublishableKey } from "./lib/clerkConfiguration";
+import { RETURN_PATH_HEADER } from "./lib/auth/returnPath";
 
 const localeMiddleware = createMiddleware(routing);
 const clerkConfigured =
@@ -29,7 +26,15 @@ function routeRequest(request: NextRequest) {
   ) {
     return NextResponse.next();
   }
-  return localeMiddleware(request);
+  const requestHeaders = new Headers(request.headers);
+  // Overwrite incoming values: the destination comes from this request's URL.
+  requestHeaders.set(
+    RETURN_PATH_HEADER,
+    `${request.nextUrl.pathname}${request.nextUrl.search}`,
+  );
+  return localeMiddleware(
+    new NextRequest(request, { headers: requestHeaders }),
+  );
 }
 
 export default function proxy(request: NextRequest, event: NextFetchEvent) {

@@ -13,5 +13,14 @@ export function AccountButton() {
 
   if (!environment.identityConfigured || !publishableKey) return null;
 
-  return <UserButton appearance={{ elements: { avatarBox: "size-9" } }} />;
+  return (
+    <UserButton
+      appearance={{
+        elements: {
+          avatarBox: "size-9",
+          userButtonTrigger: "min-h-11 min-w-11 justify-center",
+        },
+      }}
+    />
+  );
 }

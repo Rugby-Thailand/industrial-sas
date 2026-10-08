@@ -72,8 +72,12 @@ function Records({ warehouseId }: { warehouseId: string }) {
     );
 
   return (
-    <PageContainer size="form" actionInset="fixed">
-      <Heading title={t("records")} description={t("recordsSubtitle")} />
+    <PageContainer size="wide" actionInset="responsive">
+      <Heading
+        title={t("records")}
+        helpText={t("recordsSubtitle")}
+        description={t("locationNotStock")}
+      />
       <div className="space-y-3">
         <div
           role="group"
@@ -83,6 +87,7 @@ function Records({ warehouseId }: { warehouseId: string }) {
             <button
               key={value}
               type="button"
+              disabled={operation.busy}
               aria-pressed={filter === value}
               onClick={() => {
                 setFilter(value);
@@ -90,8 +95,8 @@ function Records({ warehouseId }: { warehouseId: string }) {
                 setPicking(false);
               }}
               className={cn(
-                "min-h-10 rounded-md text-sm font-medium",
-                filter === value ? "bg-surface shadow-sm" : "text-muted",
+                "min-h-11 rounded-md text-sm font-medium",
+                filter === value ? "bg-selected text-link" : "text-muted",
               )}
             >
               {value === "ALL"
@@ -110,6 +115,7 @@ function Records({ warehouseId }: { warehouseId: string }) {
           />
           <Input
             value={search}
+            disabled={operation.busy}
             onChange={(event) => {
               setSearch(event.target.value);
               setSelected([]);
@@ -124,35 +130,41 @@ function Records({ warehouseId }: { warehouseId: string }) {
       {picking && (
         <Panel className="space-y-3">
           <h2 className="text-lg font-semibold">{t("selectLocation")}</h2>
-          <LocationPicker
-            warehouseId={warehouseId}
-            allowUnmapped={false}
-            onPick={async (location) => {
-              if (!location.zoneId) return;
-              const result = await operation.run(async () =>
-                written(
-                  await assign({
-                    warehouseId,
-                    requestId: crypto.randomUUID(),
-                    ids: selected,
-                    location: {
-                      zoneId: location.zoneId!,
-                      ...(location.supportPositionId
-                        ? { supportPositionId: location.supportPositionId }
-                        : {}),
-                    },
-                  }),
-                ),
-              );
-              if (result === null) return;
-              setSelected([]);
-              setPicking(false);
-            }}
-          />
+          <fieldset disabled={operation.busy}>
+            <LocationPicker
+              warehouseId={warehouseId}
+              allowUnmapped={false}
+              onPick={async (location) => {
+                if (!location.zoneId) return;
+                const result = await operation.run(async () =>
+                  written(
+                    await assign({
+                      warehouseId,
+                      requestId: operation.request(
+                        JSON.stringify({ selected, location }),
+                      ),
+                      ids: selected,
+                      location: {
+                        zoneId: location.zoneId!,
+                        ...(location.supportPositionId
+                          ? { supportPositionId: location.supportPositionId }
+                          : {}),
+                      },
+                    }),
+                  ),
+                );
+                if (result === null) return;
+                operation.clearRequests();
+                setSelected([]);
+                setPicking(false);
+              }}
+            />
+          </fieldset>
           <Button
             variant="outline"
             className="w-full"
             onClick={() => setPicking(false)}
+            disabled={operation.busy}
           >
             {t("cancel")}
           </Button>
@@ -177,6 +189,7 @@ function Records({ warehouseId }: { warehouseId: string }) {
                   className="mt-1 size-5"
                   aria-label={`${t("select")} ${record.factoryOrder}`}
                   checked={selected.includes(record.id)}
+                  disabled={operation.busy}
                   onChange={() => toggle(record.id)}
                 />
               )}
@@ -241,7 +254,7 @@ function Records({ warehouseId }: { warehouseId: string }) {
           }}
           canPrevious={paging.canPrevious}
           canNext={Boolean(result && !result.isDone)}
-          loading={outcome === undefined}
+          loading={outcome === undefined || operation.busy}
           locale={locale}
         />
       )}
@@ -249,7 +262,7 @@ function Records({ warehouseId }: { warehouseId: string }) {
       <ErrorNotice message={operation.error} />
 
       {canManage && selected.length > 0 && !picking && (
-        <StickyActionBar placement="fixed">
+        <StickyActionBar placement="responsive">
           <div className="mx-auto max-w-3xl">
             <Button
               className="min-h-12 w-full"

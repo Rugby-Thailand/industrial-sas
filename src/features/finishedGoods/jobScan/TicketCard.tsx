@@ -14,6 +14,7 @@ import {
   DETAIL_FIELDS,
   NUMBER_FIELDS,
   REQUIRED_FIELDS,
+  hasInvalidQuantity,
   type TicketDraft,
   type TicketField,
 } from "./ticketDraft";
@@ -64,11 +65,13 @@ export function TicketCard({
   index,
   onChange,
   onRemove,
+  duplicate = false,
 }: {
   ticket: TicketDraft;
   index: number;
   onChange: (field: TicketField, value: string) => void;
   onRemove: () => void;
+  duplicate?: boolean;
 }) {
   const t = useTranslations("JobScan");
   const filled = DETAIL_FIELDS.filter((field) =>
@@ -76,7 +79,7 @@ export function TicketCard({
   ).length;
   const image = ticket.imageUrl ?? ticket.previewUrl;
   return (
-    <li className="space-y-3 rounded-xl border border-border bg-surface p-3">
+    <li className="space-y-3 border-b border-border py-3">
       <div className="flex items-center gap-2">
         <span className="text-sm font-semibold text-muted">#{index + 1}</span>
         <StatusBadge tone="muted" label={t(`source.${ticket.source}`)} />
@@ -89,13 +92,21 @@ export function TicketCard({
         <Button
           type="button"
           variant="ghost"
-          className="ml-auto size-10"
+          className="ml-auto"
           aria-label={`${t("remove")} #${index + 1}`}
           onClick={onRemove}
         >
           <Trash2 className="size-4" aria-hidden="true" />
         </Button>
       </div>
+      {duplicate && (
+        <p className="text-sm text-warning">{t("duplicateTickets")}</p>
+      )}
+      {hasInvalidQuantity(ticket) && (
+        <p role="alert" className="text-sm text-danger">
+          {t("invalidQuantity")}
+        </p>
+      )}
       {ticket.notice && (
         <p
           className={cn(

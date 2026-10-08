@@ -39,7 +39,12 @@ export type TicketDraft = {
   previewUrl?: string;
   imageUrl?: string;
   aiRaw?: string;
-  notice?: "aiFilled" | "aiMock" | "aiFailed" | "uploadFailed";
+  notice?:
+    | "aiFilled"
+    | "aiMock"
+    | "aiFailed"
+    | "uploadFailed"
+    | "photoProcessingFailed";
 };
 
 export const newTicket = (
@@ -55,6 +60,29 @@ export const newTicket = (
 
 export const isComplete = (ticket: TicketDraft) =>
   REQUIRED_FIELDS.every((field) => ticket.values[field]?.trim());
+
+/** Do not silently drop a mistyped optional quantity during serialization. */
+export function hasInvalidQuantity(ticket: TicketDraft) {
+  return [...NUMBER_FIELDS].some((field) => {
+    const value = ticket.values[field as TicketField]?.trim();
+    if (!value) return false;
+    const quantity = Number(value.replace(/,/g, ""));
+    return !Number.isFinite(quantity) || quantity < 0;
+  });
+}
+
+/** Repeated identities can be separate pallets; require an explicit review. */
+export function duplicateTicketKeys(tickets: readonly TicketDraft[]): string[] {
+  const groups = new Map<string, string[]>();
+  for (const ticket of tickets) {
+    if (!isComplete(ticket)) continue;
+    const identity = JSON.stringify(
+      REQUIRED_FIELDS.map((field) => ticket.values[field]!.trim()),
+    );
+    groups.set(identity, [...(groups.get(identity) ?? []), ticket.key]);
+  }
+  return [...groups.values()].filter((group) => group.length > 1).flat();
+}
 
 /** Adds AI output without overwriting anything the user already typed. */
 export function mergeExtracted(

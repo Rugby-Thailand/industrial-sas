@@ -1122,7 +1122,7 @@ function PackingForm({
             </div>
           ) : (
             <>
-              <div className="grid min-w-0 items-start gap-5 xl:grid-cols-2">
+              <div className="grid min-w-0 items-start gap-4 xl:grid-cols-2">
                 <div className="min-w-0 space-y-3">
                   <div
                     className="flex flex-wrap gap-2"
@@ -1156,7 +1156,7 @@ function PackingForm({
                         label={rowName(draft.rows.indexOf(selected))}
                       />
                     ) : (
-                      <div className="flex min-h-64 items-center justify-center text-center text-muted">
+                      <div className="flex min-h-24 items-center justify-center text-center text-muted md:min-h-64">
                         {t(
                           "copy.preview-only-enter-the-unit-s-actual-outer-dimensions",
                         )}

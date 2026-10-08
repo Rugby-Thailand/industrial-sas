@@ -52,7 +52,7 @@ export const newFilters = (): CatalogueFilters => ({
 });
 export const newCatalogueState = (): CatalogueState => ({
   tab: "products",
-  layout: "cards",
+  layout: "table",
   search: "",
   products: newFilters(),
   pallets: newFilters(),
@@ -198,7 +198,7 @@ export function readCatalogueState(search: string): CatalogueState {
     const v = s as Record<string, unknown>;
     return {
       tab: v.tab === "pallets" ? "pallets" : "products",
-      layout: v.layout === "table" ? "table" : "cards",
+      layout: v.layout === "cards" ? "cards" : "table",
       search: text(v.search),
       products: readFilters(v.products, "products"),
       pallets: readFilters(v.pallets, "pallets"),

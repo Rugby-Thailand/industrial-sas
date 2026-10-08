@@ -91,7 +91,8 @@ export function SelectControl({
         aria-required={required ? true : undefined}
         aria-busy={pending ? true : undefined}
         className={cn(
-          size === "compact" && "h-8 min-h-8! px-3 py-0 text-xs",
+          size === "compact" &&
+            "h-11 min-h-11! px-3 py-0 text-sm md:h-8 md:min-h-8! md:text-xs",
           className,
         )}
         {...(testId === undefined ? {} : { "data-testid": testId })}

@@ -134,14 +134,14 @@
   --token-primary-border: var(--primary);
   --token-success-contrast: #ffffff;
 
-  --token-accent-hover: #1024c4;
-  --token-success: #0f6b3f;
-  --token-warning: #8a5300;
-  --token-danger: #b3261e;
+  --token-accent-hover: #1e40af;
+  --token-success: #166534;
+  --token-warning: #92400e;
+  --token-danger: #b91c1c;
 
   --token-danger-contrast: #ffffff;
   --token-pending: #5a3fb8;
-  --token-qc-hold: #8a5300;
+  --token-qc-hold: #92400e;
   --token-disabled: var(--muted-foreground);
   --token-disabled-surface: var(--muted);
 
@@ -170,36 +170,36 @@
   --warning-foreground: var(--color-yellow-900);
   --invert: var(--color-zinc-900);
   --invert-foreground: var(--color-zinc-50);
-  --background: oklch(0.985 0 0);
-  --foreground: oklch(0.205 0 0);
+  --background: #ffffff;
+  --foreground: #17212f;
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.205 0 0);
+  --card-foreground: #17212f;
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.205 0 0);
-  --primary: oklch(0.4901 0.2875 264.3293);
-  --primary-foreground: oklch(0.985 0 0);
+  --popover-foreground: #17212f;
+  --primary: #1d4ed8;
+  --primary-foreground: #ffffff;
   --secondary: oklch(0.9401 0 0);
   --secondary-foreground: oklch(0.25 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.44 0 0);
-  --accent: oklch(0.92 0.04 272);
-  --accent-foreground: oklch(0.21 0.06 268);
+  --muted: #f6f7f9;
+  --muted-foreground: #475569;
+  --accent: #eff6ff;
+  --accent-foreground: #1d4ed8;
   --destructive: oklch(0.63 0.19 23.03);
   --border: oklch(0.92 0 0);
   --input: oklch(0.94 0 0);
-  --ring: oklch(0.46 0.22 266);
+  --ring: #1d4ed8;
   --chart-1: oklch(0.92 0.04 272);
   --chart-2: oklch(0.75 0.13 269);
   --chart-3: oklch(0.46 0.22 266);
   --chart-4: oklch(0.42 0.15 266);
   --chart-5: oklch(0.21 0.06 268);
   --radius: 0.5rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.205 0 0);
+  --sidebar: #f6f7f9;
+  --sidebar-foreground: #17212f;
   --sidebar-primary: oklch(0.46 0.22 266);
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.92 0.04 272);
-  --sidebar-accent-foreground: oklch(0.21 0.06 268);
+  --sidebar-accent: #eff6ff;
+  --sidebar-accent-foreground: #1d4ed8;
   --sidebar-border: oklch(0.92 0 0);
   --sidebar-ring: oklch(0.46 0.22 266);
   --font-sans: var(--font-geist), "Noto Sans Thai", sans-serif;
@@ -387,6 +387,8 @@ body {
 
 @layer base {
   body {
+    font-size: 0.875rem;
+    line-height: 1.5;
     letter-spacing: var(--tracking-normal);
   }
 }

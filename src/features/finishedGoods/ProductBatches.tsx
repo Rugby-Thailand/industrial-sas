@@ -212,7 +212,8 @@ export function ProductBatches({
   const legacyDenied =
     !legacyOutcome.ok && legacyOutcome.denial?.kind === "AUTHORIZATION_DENIED";
   const summaryDenied =
-    !summaryOutcome.ok && summaryOutcome.denial?.kind === "AUTHORIZATION_DENIED";
+    !summaryOutcome.ok &&
+    summaryOutcome.denial?.kind === "AUTHORIZATION_DENIED";
   if (denied || legacyDenied || summaryDenied)
     return denied ? (
       <LedgerPanelStatus
@@ -436,6 +437,10 @@ export function ProductBatches({
         </article>
       ))}
       <CursorPagination
+        label={tr(
+          "Preparation batches pagination",
+          "แบ่งหน้าชุดจัดเตรียมสินค้า",
+        )}
         page={paging.page}
         pageSize={paging.pageSize}
         onPageSizeChange={paging.setPageSize}
@@ -480,6 +485,7 @@ export function ProductBatches({
         legacyPaging.page > 1 ||
         legacyOutcome.value.status === "reset") && (
         <CursorPagination
+          label={tr("Legacy units pagination", "แบ่งหน้ารายการเดิม")}
           page={legacyPaging.page}
           pageSize={legacyPaging.pageSize}
           onPageSizeChange={legacyPaging.setPageSize}

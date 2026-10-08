@@ -9,7 +9,7 @@ export function PublicInfoNav({
     <nav
       aria-label="Application information"
       lang="en"
-      className="text-text-muted flex flex-wrap items-center gap-x-5 gap-y-1 text-sm"
+      className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-muted"
     >
       <Link
         href="/about"

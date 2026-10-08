@@ -7,6 +7,8 @@ import {
 } from "./CatalogueFilterControls";
 import { columns, sortColumn } from "./catalogueFilters";
 import { unitNextAction } from "./unitNextAction";
+import { FinishedGoodsMobileList } from "./FinishedGoodsMobileList";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { ArrowUpRight, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -56,10 +58,25 @@ export function FinishedGoodsTable({
   productSummaries?: Record<string, Parameters<typeof summaryFormatText>[0]>;
 }) {
   const { t, tr } = useFGText();
+  const mobile = useIsMobile();
   const isProduct = tab === "products";
   const title = isProduct
     ? t("copy.finished-goods-table")
     : t("copy.storage-units-table");
+  if (mobile)
+    return (
+      <FinishedGoodsMobileList
+        {...{
+          tab,
+          products,
+          pallets,
+          allProducts,
+          allPallets,
+          canManage,
+        }}
+        {...(productSummaries ? { productSummaries } : {})}
+      />
+    );
   return (
     <TableScroller label={title}>
       <Table scroll={false} aria-label={title} className="min-w-[720px]">
@@ -112,7 +129,7 @@ export function FinishedGoodsTable({
                   );
                 return (
                   <TableRow key={product._id}>
-                    <TableCell className="max-w-80 py-4 pl-4 whitespace-normal">
+                    <TableCell className="max-w-80 py-2 pl-4 whitespace-normal">
                       <Link
                         href={productPath(product._id)}
                         className="font-medium break-words hover:underline"
@@ -172,7 +189,7 @@ export function FinishedGoodsTable({
                 const action = unitNextAction(pallet, canManage);
                 return (
                   <TableRow key={pallet._id}>
-                    <TableCell className="max-w-80 py-4 pl-4 whitespace-normal">
+                    <TableCell className="max-w-80 py-2 pl-4 whitespace-normal">
                       <Link
                         href={palletPath(pallet._id)}
                         className="font-mono font-medium hover:underline"
@@ -194,7 +211,7 @@ export function FinishedGoodsTable({
                     </TableCell>
                     <TableCell>
                       {pallet.lengthMm && pallet.widthMm && pallet.heightMm
-                        ? `${pallet.lengthMm / 1000} × ${pallet.widthMm / 1000} × ${pallet.heightMm / 1000}`
+                        ? `${pallet.lengthMm / 1000} × ${pallet.widthMm / 1000} × ${pallet.heightMm / 1000} m`
                         : t("copy.not-measured")}
                     </TableCell>
                     <TableCell>{pallet.lot || "—"}</TableCell>

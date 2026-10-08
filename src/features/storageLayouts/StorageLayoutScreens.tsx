@@ -220,14 +220,26 @@ function CatalogueContent({
       ) : buildings.length === 0 ? (
         <EmptyState title={t("noMatches")} body={t("noMatchesBody")} />
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="divide-y divide-border border-y border-border">
           {buildings.map((building) => (
             <article
               key={building.buildingId}
-              className="group relative rounded-xl border border-border bg-surface p-4 transition-colors hover:border-ring"
+              className="grid min-w-0 gap-3 py-3 lg:grid-cols-[minmax(12rem,1fr)_minmax(12rem,1fr)_minmax(14rem,1fr)] lg:items-center"
             >
-              <div className="flex items-start justify-between gap-4">
-                <CompactBuildingModel building={building} />
+              <div className="flex min-w-0 items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <Link
+                    href={storageBuildingPath(building.buildingId)}
+                    className="flex min-h-11 flex-col justify-center rounded-md hover:text-link focus-visible:outline-2 focus-visible:outline-link"
+                  >
+                    <span className="font-mono text-xs break-all text-muted">
+                      {building.code}
+                    </span>
+                    <h2 className="text-base leading-6 font-semibold break-words">
+                      {building.name}
+                    </h2>
+                  </Link>
+                </div>
                 <BuildingStatusToggle
                   warehouseId={warehouseId}
                   buildingId={building.buildingId}
@@ -235,18 +247,7 @@ function CatalogueContent({
                   status={building.status}
                 />
               </div>
-              <p className="mt-5 text-xs font-semibold tracking-[0.16em] text-muted uppercase">
-                {building.code}
-              </p>
-              <h2 className="mt-1 text-lg leading-7 font-semibold break-words text-text group-hover:text-link">
-                <Link
-                  href={storageBuildingPath(building.buildingId)}
-                  className="after:absolute after:inset-0 after:rounded-xl focus-visible:after:ring-2 focus-visible:after:ring-accent"
-                >
-                  {building.name}
-                </Link>
-              </h2>
-              <dl className="mt-5 grid grid-cols-2 gap-3 border-t border-border pt-4 text-sm">
+              <dl className="grid grid-cols-2 gap-3 text-sm">
                 <Metric
                   label={t("floors")}
                   value={String(building.floorCount)}
@@ -256,9 +257,7 @@ function CatalogueContent({
                   value={`${metres(building.widthMm)} × ${metres(building.depthMm)} m`}
                 />
               </dl>
-              <div className="mt-4">
-                <BuildingCatalogueOccupancy building={building} />
-              </div>
+              <BuildingCatalogueOccupancy building={building} />
             </article>
           ))}
         </div>
@@ -351,50 +350,6 @@ export function StorageCatalogueFilters({
   );
 }
 
-function CompactBuildingModel({
-  building,
-}: {
-  readonly building: StorageBuildingRow;
-}) {
-  const geometry = buildIsometricBuilding(
-    Array.from({ length: building.floorCount }, (_, index) => ({
-      floorNumber: index + 1,
-      widthMm: building.widthMm,
-      depthMm: building.depthMm,
-      heightMm: building.defaultFloorHeightMm,
-    })),
-    { scale: 0.006, gap: 4 },
-  );
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox={`${geometry.viewBox.x} ${geometry.viewBox.y} ${geometry.viewBox.width} ${geometry.viewBox.height}`}
-      className="h-24 w-32 shrink-0 overflow-visible"
-    >
-      {[...geometry.slabs].reverse().map((slab, index) => (
-        <g key={slab.floorNumber}>
-          <polygon
-            points={pointsAttribute(slab.left)}
-            className="fill-accent/15 stroke-accent/45"
-          />
-          <polygon
-            points={pointsAttribute(slab.right)}
-            className="fill-accent/25 stroke-accent/55"
-          />
-          <polygon
-            points={pointsAttribute(slab.top)}
-            className={
-              index === 0
-                ? "fill-accent/35 stroke-accent"
-                : "fill-surface/80 stroke-accent/60"
-            }
-          />
-        </g>
-      ))}
-    </svg>
-  );
-}
-
 export function NewStorageBuildingForm() {
   return (
     <QueryGate scope="WAREHOUSE">
@@ -440,7 +395,7 @@ function NewBuildingContent({ warehouseId }: { readonly warehouseId: string }) {
   return (
     <form
       onSubmit={submit}
-      className="grid max-w-3xl gap-6 rounded-lg border border-border bg-surface p-4 sm:p-6"
+      className="grid max-w-3xl gap-4 rounded-lg border border-border bg-surface p-4 sm:p-6"
     >
       <div className="grid gap-5 sm:grid-cols-2">
         <Field label={t("code")} name="code" defaultValue="BLDG-A" required />
@@ -578,7 +533,7 @@ function BuildingContent({
     floor.storageZones.flatMap((zone) => zone.placements),
   );
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="min-w-0">
         <BuildingModelWorkspace
           building={building}
@@ -874,7 +829,7 @@ export function IsometricBuilding({
   );
   const topSlab = geometry.slabs.at(-1);
   return (
-    <figure className="relative overflow-hidden rounded-2xl border border-border bg-[linear-gradient(145deg,var(--color-surface),var(--color-background))] p-5 shadow-sm">
+    <figure className="relative overflow-hidden rounded-lg border border-border bg-surface p-4">
       <figcaption className="absolute top-5 left-5 z-10 text-sm font-semibold text-muted">
         {t("modelLabel")}
       </figcaption>
@@ -885,7 +840,7 @@ export function IsometricBuilding({
         role="img"
         aria-label={t("modelLabel")}
         viewBox={`${geometry.viewBox.x} ${geometry.viewBox.y} ${geometry.viewBox.width} ${geometry.viewBox.height}`}
-        className="h-[26rem] w-full"
+        className="h-[22rem] w-full sm:h-[26rem]"
       >
         <defs>
           <pattern
@@ -1588,12 +1543,12 @@ function FloorForm({
     />
   );
   return (
-    <form ref={formRef} onSubmit={submit} className="space-y-6">
+    <form ref={formRef} onSubmit={submit} className="space-y-4">
       <div
         className={
           showEditing && workspace
             ? "grid min-w-0 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]"
-            : "space-y-6"
+            : "space-y-4"
         }
       >
         <div className="min-w-0">
@@ -1663,7 +1618,7 @@ function FloorForm({
           />
         </div>
         {showEditing ? (
-          <div className="min-w-0 space-y-6">
+          <div className="min-w-0 space-y-4">
             {!canManage && <Notice tone="muted" title={t("layoutViewOnly")} />}
 
             {/*
@@ -1797,7 +1752,7 @@ function FloorForm({
           ) : null}
         </aside>
       ) : null}
-      <div className="min-w-0 space-y-6">
+      <div className="min-w-0 space-y-4">
         {!workspace ? locationInspector : null}
         {message === undefined ? null : (
           <Notice tone={message.tone} title={message.text} />
@@ -1894,7 +1849,7 @@ function FloorOffsetPlan({
   const t = useTranslations("StorageLayouts");
   const [view, setView] = useState<"3d" | "plan">("3d");
   return (
-    <figure className="rounded-2xl border border-border bg-surface p-5 shadow-sm">
+    <figure className="rounded-lg border border-border bg-surface p-4">
       <figcaption className="mb-4 flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="text-sm font-semibold text-text">{t("floorSpace")}</p>
@@ -2683,7 +2638,7 @@ export function ReservedBlocks({
     setEditingBlockId(undefined);
   };
   return (
-    <section className="min-w-0 rounded-2xl border border-border bg-surface p-5 shadow-sm">
+    <section className="min-w-0 rounded-lg border border-border bg-surface p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="font-semibold text-text">{t("reservedZones")}</h2>
         <Dialog open={dialogOpen && editable} onOpenChange={openDialog}>
@@ -2965,7 +2920,7 @@ function ReviewContent({
     }
   }
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageHeader
         title={t("reviewTitle")}
         summary={t("reviewDescription")}
@@ -2974,7 +2929,7 @@ function ReviewContent({
           { label: savedBuilding.name, href: storageBuildingPath(buildingId) },
         ]}
       />
-      <div className="min-w-0 space-y-6">
+      <div className="min-w-0 space-y-4">
         <IsometricBuilding building={building} floors={floors} />
         <DataTable<StorageFloorRow>
           caption={t("reviewTitle")}

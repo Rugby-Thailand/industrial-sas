@@ -24,6 +24,7 @@ import { useCatalogueState } from "./useCatalogueState";
 import { FinishedGoodsTable } from "./FinishedGoodsTable";
 import { unitNextAction } from "./unitNextAction";
 import { summaryFormatText, summaryStatusText } from "./productPalletSummary";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   ErrorNotice,
   FG_PATH,
@@ -68,6 +69,7 @@ function Catalogue({
   const summaryResetAttempt = useRef<string | null>(null);
   const { state, update: updateState } = useCatalogueState(viewKey);
   const { tab, search, layout } = state;
+  const mobile = useIsMobile();
   const filters = state[tab];
   const clearFilters = () => updateState({ search: "", [tab]: newFilters() });
   const settledSearch = useDebouncedSearch(search);
@@ -148,7 +150,7 @@ function Catalogue({
     <>
       <Heading
         title={t("copy.finished-goods")}
-        description={t(
+        helpText={t(
           "copy.prepare-goods-scan-packages-and-confirm-their-storage-location",
         )}
       >
@@ -191,7 +193,7 @@ function Catalogue({
             )}
           />
         )}
-      <div className="mb-6 grid grid-cols-2 overflow-hidden rounded-xl border border-border bg-surface lg:grid-cols-4">
+      <div className="mb-4 grid grid-cols-2 gap-x-4 gap-y-2 border-b border-border pb-3 lg:grid-cols-4">
         {[
           [t("copy.products"), summary?.products ?? "…"],
           [t("copy.awaiting-measurement"), summary?.awaitingMeasurement ?? "…"],
@@ -200,14 +202,16 @@ function Catalogue({
         ].map(([label, count], index) => (
           <div
             key={label}
-            className={`relative min-w-0 border-border p-4 ${index < 2 ? "border-b lg:border-b-0" : ""} ${index % 2 === 0 ? "border-r" : ""} ${index === 1 ? "lg:border-r" : ""}`}
+            className={`relative flex min-h-11 min-w-0 items-center gap-x-2 border-border lg:border-r ${index === 0 ? "pr-10" : ""}`}
           >
-            <p className={`text-xs text-muted ${index === 0 ? "pr-10" : ""}`}>
+            <p className="order-2 min-w-0 text-xs leading-4 text-muted">
               {label}
             </p>
-            <p className="mt-2 text-2xl font-semibold">{count}</p>
+            <p className="shrink-0 text-lg font-semibold tabular-nums">
+              {count}
+            </p>
             {index === 0 ? (
-              <div className="absolute top-1 right-1">
+              <div className="absolute top-0 right-0">
                 <StatusReason
                   label={t("copy.about-warehouse-totals")}
                   message={t(
@@ -254,7 +258,7 @@ function Catalogue({
           <>
             <CatalogueFiltersButton {...filterControls} />
             <div
-              className="flex gap-1"
+              className="hidden gap-1 lg:flex"
               role="group"
               aria-label={t("copy.display-layout")}
             >
@@ -304,7 +308,7 @@ function Catalogue({
         />
       ) : (tab === "products" ? shownProducts.length : shownPallets.length) ===
         0 ? (
-        <div className={`${panel} py-12 text-center`}>
+        <div className={`${panel} py-6 text-center`}>
           <Box className="mx-auto mb-4 size-10 text-muted" aria-hidden="true" />
           <h2 className="text-lg leading-7 font-semibold">
             {filtered
@@ -338,7 +342,7 @@ function Catalogue({
             </Button>
           )}
         </div>
-      ) : layout === "table" ? (
+      ) : mobile || layout === "table" ? (
         <FinishedGoodsTable
           tab={tab}
           products={shownProducts}
@@ -352,7 +356,7 @@ function Catalogue({
           filterControls={filterControls}
         />
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {tab === "products"
             ? shownProducts.map((product) => {
                 const summary = product.summary;
@@ -363,10 +367,10 @@ function Catalogue({
                     className={`${panel} transition hover:border-link`}
                   >
                     <div className="flex items-start justify-between gap-3">
-                      <Box className="size-8 text-link" aria-hidden="true" />
+                      <Box className="size-5 text-link" aria-hidden="true" />
                       <Status value={product.status} />
                     </div>
-                    <p className="mt-5 font-mono text-xs break-all text-muted">
+                    <p className="mt-2 font-mono text-xs break-all text-muted">
                       {product.sku || t("copy.no-sku-yet")}
                     </p>
                     <h2 className="mt-1 text-lg leading-7 font-semibold break-words">

@@ -26,12 +26,12 @@ const buttonVariants = cva(
         link: "text-link underline-offset-4 hover:underline",
       },
       size: {
-        touch: "min-h-touch min-w-touch gap-2 px-4",
+        touch: "min-h-touch min-w-touch gap-2 px-4 md:min-h-9 md:py-1.5",
         default: "h-8 gap-1.5 px-2.5",
         sm: "h-7 gap-1 px-2.5 text-[0.8rem] [&_svg:not([class*='size-'])]:size-3.5",
         lg: "h-9 gap-1.5 px-2.5",
-        icon: "min-h-touch min-w-touch",
-        "icon-sm": "size-7",
+        icon: "min-h-touch min-w-touch md:min-h-9 md:min-w-9",
+        "icon-sm": "size-11 md:size-7",
       },
     },
     defaultVariants: {

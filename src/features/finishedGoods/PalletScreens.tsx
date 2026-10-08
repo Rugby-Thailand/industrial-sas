@@ -201,7 +201,7 @@ export function Summary({
     </>
   );
   return (
-    <div className="mb-6 flex flex-wrap items-center gap-x-4 gap-y-3 rounded-xl border border-border bg-surface p-4 text-sm">
+    <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 border-y border-border py-3 text-sm">
       <span className="font-mono font-semibold break-all">{pallet.code}</span>
       <span className="min-w-0 break-words">
         {detail.product?.sku} · {detail.product?.name}
@@ -219,7 +219,7 @@ export function Summary({
       />
       {compact ? (
         <details className="text-sm">
-          <summary className="cursor-pointer text-muted">
+          <summary className="flex min-h-11 cursor-pointer items-center text-muted">
             {tr("Details", "รายละเอียด")}
           </summary>
           <div className="mt-2 flex flex-wrap items-center gap-3">
@@ -398,7 +398,7 @@ function Measurement({
       <form onSubmit={submit} className="space-y-5">
         <fieldset disabled={op.busy} className="min-w-0 space-y-5">
           <ErrorNotice message={op.error} />
-          <div className="grid items-start gap-5 xl:grid-cols-[1.3fr_1fr]">
+          <div className="grid items-start gap-4 xl:grid-cols-[1.3fr_1fr]">
             <div className={panel}>
               <PalletScene
                 storageFormat={
@@ -524,7 +524,7 @@ function Measurement({
               )}
             </label>
           )}
-          <div className="flex flex-wrap justify-end gap-3 rounded-xl border border-border bg-surface p-4">
+          <div className="flex flex-wrap justify-end gap-3 rounded-lg border border-border bg-surface p-3">
             <div className="flex flex-wrap gap-2">
               <Button
                 type="button"
@@ -1077,7 +1077,7 @@ function PalletDetailScreen({
           ))}
         </div>
       ) : null}
-      <div className="grid items-start gap-5 xl:grid-cols-[1.3fr_1fr]">
+      <div className="grid items-start gap-4 xl:grid-cols-[1.3fr_1fr]">
         <div className={panel}>
           {destination && coords ? (
             <>
@@ -1262,29 +1262,31 @@ function PalletDetailScreen({
               </Button>
             </section>
           ) : null}
-          <section className={`${panel} space-y-4`}>
-            <h2 className="text-lg leading-7 font-semibold">
-              {tr("Pallet", "พาเลท")}
-            </h2>
-            <QR value={`ISAS:PALLET:1:${pallet._id}`} label={pallet.code} />
-            <dl className="grid grid-cols-3 gap-3 text-sm">
-              {[
-                [tr("Length", "ยาว"), pallet.lengthMm],
-                [tr("Width", "กว้าง"), pallet.widthMm],
-                [tr("Height", "สูง"), pallet.heightMm],
-              ].map(([label, value]) => (
-                <div key={label}>
-                  <dt className="text-xs text-muted">{label}</dt>
-                  <dd className="mt-1 font-mono">
-                    {typeof value === "number" ? mmText(value) : "—"}
-                  </dd>
-                </div>
-              ))}
-            </dl>
-          </section>
+          <details className="border-t border-border pt-2">
+            <summary className="flex min-h-11 cursor-pointer items-center font-semibold">
+              {tr("Pallet QR and dimensions", "QR และขนาดพาเลท")}
+            </summary>
+            <div className="space-y-3 pb-3">
+              <QR value={`ISAS:PALLET:1:${pallet._id}`} label={pallet.code} />
+              <dl className="grid grid-cols-3 gap-3 text-sm">
+                {[
+                  [tr("Length", "ยาว"), pallet.lengthMm],
+                  [tr("Width", "กว้าง"), pallet.widthMm],
+                  [tr("Height", "สูง"), pallet.heightMm],
+                ].map(([label, value]) => (
+                  <div key={label}>
+                    <dt className="text-xs text-muted">{label}</dt>
+                    <dd className="mt-1 font-mono">
+                      {typeof value === "number" ? mmText(value) : "—"}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          </details>
         </div>
       </div>
-      <div className="mt-5 flex flex-wrap justify-end gap-3 rounded-xl border border-border bg-surface p-4">
+      <div className="mt-5 flex flex-wrap justify-end gap-3 rounded-lg border border-border bg-surface p-3">
         <div className="flex flex-wrap gap-2">
           {reserved && canManage ? (
             <>

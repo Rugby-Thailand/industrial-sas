@@ -285,7 +285,7 @@ export function StorageZoneDraftPreview({
       {view === "3d" ? (
         <svg
           ref={svgRef}
-          role="img"
+          role="group"
           aria-label={previewLabel}
           viewBox={`${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`}
           className="h-72 w-full"

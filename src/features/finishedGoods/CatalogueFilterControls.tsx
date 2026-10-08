@@ -526,7 +526,12 @@ export function FilterChips({
           `${t("copy.sort")}: ${filterLabel(f.sort.split(":")[0] ?? "", props.tab, tr)} ${f.sort.endsWith(":desc") ? "↓" : "↑"}`,
           () => props.onChange({ ...f, sort: "" }),
         )}
-      <Button variant="ghost" size="sm" onClick={onClearAll}>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="min-h-11 lg:min-h-7"
+        onClick={onClearAll}
+      >
         {t("copy.clear-all")}
       </Button>
     </div>

@@ -14,6 +14,7 @@ import { QueryGate } from "@/components/system/QueryGate";
 import { Button } from "@/components/ui/button";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { Panel } from "@/components/ui/Panel";
+import { CheckboxControl } from "@/components/ui/CheckboxControl";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { StickyActionBar } from "@/components/ui/StickyActionBar";
 import { Link } from "@/i18n/navigation";
@@ -39,6 +40,8 @@ import {
   applyBarcode,
   classifyTicketBarcode,
   isComplete,
+  hasInvalidQuantity,
+  duplicateTicketKeys,
   mergeExtracted,
   newTicket,
   toPayload,
@@ -104,7 +107,15 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
     count: number;
     location: PickedLocation;
   }>();
-  const [saving, setSaving] = useState(false);
+  const saving = operation.busy;
+  const [reviewedDuplicates, setReviewedDuplicates] = useState("");
+  const duplicateKeys = duplicateTicketKeys(tickets);
+  const duplicateFingerprint = JSON.stringify(
+    tickets
+      .filter((ticket) => duplicateKeys.includes(ticket.key))
+      .map((ticket) => [ticket.key, ticket.values]),
+  );
+  const duplicatesReviewed = reviewedDuplicates === duplicateFingerprint;
   const previewUrls = useRef(new Set<string>());
   useEffect(() => {
     const urls = previewUrls.current;
@@ -135,7 +146,17 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
       previewUrl,
     };
     setTickets((current) => [...current, ticket]);
-    const image = await resizeImage(file);
+    let image: File;
+    try {
+      image = await resizeImage(file);
+    } catch {
+      update(ticket.key, (row) => ({
+        ...row,
+        status: "ready",
+        notice: "photoProcessingFailed",
+      }));
+      return;
+    }
     // The AI reads the photo directly, so a failed upload only loses the stored copy.
     const [uploaded, outcome] = await Promise.all([
       startUpload([image]).catch((error: unknown) => {
@@ -171,30 +192,44 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
   }
 
   async function submit() {
-    if (!location) return;
-    setSaving(true);
+    if (
+      !location ||
+      saving ||
+      !tickets.length ||
+      tickets.some(
+        (ticket) =>
+          ticket.status === "reading" ||
+          !isComplete(ticket) ||
+          hasInvalidQuantity(ticket),
+      ) ||
+      (duplicateKeys.length > 0 && !duplicatesReviewed)
+    )
+      return;
+    const payload = {
+      warehouseId,
+      locationText: location.text,
+      ...(location.zoneId
+        ? {
+            location: {
+              zoneId: location.zoneId,
+              ...(location.supportPositionId
+                ? { supportPositionId: location.supportPositionId }
+                : {}),
+            },
+          }
+        : {}),
+      items: tickets.map(toPayload),
+    };
     const result = await operation.run(async () =>
       written(
         await save({
-          warehouseId,
-          requestId: crypto.randomUUID(),
-          locationText: location.text,
-          ...(location.zoneId
-            ? {
-                location: {
-                  zoneId: location.zoneId,
-                  ...(location.supportPositionId
-                    ? { supportPositionId: location.supportPositionId }
-                    : {}),
-                },
-              }
-            : {}),
-          items: tickets.map(toPayload),
+          ...payload,
+          requestId: operation.request(JSON.stringify(payload)),
         }),
       ),
     );
-    setSaving(false);
     if (result === null) return;
+    operation.clearRequests();
     tickets.forEach(releasePreview);
     setSaved({ count: tickets.length, location });
     setTickets([]);
@@ -219,6 +254,7 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
               location: saved.location.code ?? saved.location.text,
             })}
           </p>
+          <p className="text-sm text-muted">{t("locationNotStock")}</p>
           <div className="flex flex-wrap justify-center gap-3 pt-2">
             <Button className="min-h-12" onClick={() => setSaved(undefined)}>
               {t("scanMore")}
@@ -247,15 +283,20 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
 
   const reading = tickets.some((ticket) => ticket.status === "reading");
   const incomplete = tickets.some((ticket) => !isComplete(ticket));
+  const invalidQuantity = tickets.some(hasInvalidQuantity);
   const blocker = reading
     ? t("waitReading")
     : incomplete
       ? t("saveBlocked")
-      : null;
+      : invalidQuantity
+        ? t("invalidQuantity")
+        : duplicateKeys.length > 0 && !duplicatesReviewed
+          ? t("duplicateTickets")
+          : null;
 
   return (
-    <PageContainer size="form" actionInset="fixed">
-      <Heading title={t("title")} />
+    <PageContainer size="form" actionInset="responsive">
+      <Heading title={t("title")} description={t("locationNotStock")} />
       <div className="-mt-4 flex min-h-11 items-center gap-2 text-sm">
         <MapPin className="size-4 shrink-0 text-muted" aria-hidden="true" />
         <span className="shrink-0 font-mono font-semibold">
@@ -278,7 +319,11 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
         </button>
       </div>
 
-      <section className="space-y-3">
+      <fieldset
+        disabled={saving}
+        aria-busy={saving}
+        className="min-w-0 space-y-3"
+      >
         <div className="grid grid-cols-3 gap-2">
           <Button
             variant={panel === "PHOTO" ? "default" : "outline"}
@@ -338,6 +383,7 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
               <TicketCard
                 key={ticket.key}
                 ticket={ticket}
+                duplicate={duplicateKeys.includes(ticket.key)}
                 index={index}
                 onChange={(field, value) =>
                   update(ticket.key, (row) => ({
@@ -360,10 +406,24 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
             {t("noTickets")}
           </Panel>
         )}
-      </section>
+        {duplicateKeys.length > 0 && (
+          <label className="flex min-h-11 items-start gap-3 rounded-md border border-warning p-3 text-sm">
+            <CheckboxControl
+              className="mt-1 shrink-0"
+              checked={duplicatesReviewed}
+              onChange={(event) =>
+                setReviewedDuplicates(
+                  event.target.checked ? duplicateFingerprint : "",
+                )
+              }
+            />
+            <span>{t("duplicateReview")}</span>
+          </label>
+        )}
+      </fieldset>
       <ErrorNotice message={operation.error} />
 
-      <StickyActionBar placement="fixed">
+      <StickyActionBar placement="responsive">
         <div className="mx-auto max-w-3xl">
           <Button
             className="min-h-12 w-full"
