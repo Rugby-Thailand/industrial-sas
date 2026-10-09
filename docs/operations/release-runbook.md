@@ -198,13 +198,22 @@ primary` / `other`) and user, plus Convex fixtures through the internal
 (`greedy-cardinal-537`) and any deployment other than the marked staging one.
 Teardown cleans Convex in bounded batches (at most 200 documents per call)
 before deleting the Clerk identities. It keeps signed mirror watermarks so that
-real deletion events still apply. Teardown then waits for all four exact-owned
-terminal deletion mirrors and repeats backend cleanup before removing the
-private ownership ledger. Partial failures retain that ledger for exact-ID
-recovery. `staleRuns` checks the age of one supplied owned run (at least an
-hour); it does not sweep shared tenants. There are no shared persistent CI
-actors and no production seeds. Live staging delivery/readback/cleanup proof
-remains pending.
+real deletion events still apply. After verifying the recorded membership ID,
+organization, user, and parent ownership, teardown explicitly deletes that
+membership before either parent. Normal cleanup waits for the genuine
+membership deletion and exact-owned terminal parent mirrors, then repeats
+backend cleanup before removing the private ownership ledger.
+
+For a previously deleted parent cascade that omitted `membership.deleted`,
+cleanup can settle the unchanged historical membership only when its own
+source clock is verified and both exact-owned organization and user have
+verified terminal source clocks at least as recent. This recovery does not
+change membership status or any source clock. Missing or legacy clocks stay
+pending; ambiguous current memberships and foreign associations are refused.
+Partial failures retain the ledger for exact-ID recovery. `staleRuns` checks
+the age of one supplied owned run (at least an hour); it does not sweep shared
+tenants. There are no shared persistent CI actors and no production seeds.
+Live staging delivery/readback/cleanup proof remains pending.
 
 ## Bounded timeouts and orphaned builds
 

@@ -16,6 +16,7 @@ import {
 } from "../e2e/support/protected-origin";
 import {
   clientScriptUrls,
+  clientIdentityConfiguration,
   isOwnedIdentityHost,
   releaseSmokeInputs,
 } from "../e2e/support/release-env";
@@ -200,6 +201,54 @@ describe("protected stage origin", () => {
 });
 
 describe("release smoke inputs and assets", () => {
+  const identityTarget = {
+    clerkKeyClass: "test" as const,
+    clerkFrontendHost: "stage.clerk.fixture.invalid",
+  };
+  const identityKey = (
+    keyClass = "test",
+    host = identityTarget.clerkFrontendHost,
+  ) => `pk_${keyClass}_${Buffer.from(`${host}$`).toString("base64")}`;
+
+  it.each([true, false])(
+    "accepts the reviewed identity key independent of Base64 padding (%s)",
+    (padded) => {
+      const key = identityKey();
+      expect(key.endsWith("=")).toBe(true);
+      expect(
+        clientIdentityConfiguration(
+          `<script>const identity=${JSON.stringify(padded ? key : key.replace(/=+$/, ""))}</script>`,
+          identityTarget,
+        ),
+      ).toEqual({ hasExpectedIdentityKey: true, hasForeignIdentityKey: false });
+    },
+  );
+
+  it.each([
+    identityKey("live"),
+    identityKey("test", "other.clerk.fixture.invalid"),
+  ])(
+    "rejects a foreign identity class or host alongside the reviewed key",
+    (foreign) => {
+      expect(
+        clientIdentityConfiguration(
+          `${identityKey()} ${foreign}`,
+          identityTarget,
+        ),
+      ).toEqual({ hasExpectedIdentityKey: true, hasForeignIdentityKey: true });
+    },
+  );
+
+  it.each(["<html>No identity key</html>", "pk_test_not-a-valid-key"])(
+    "does not accept absent or malformed identity configuration",
+    (bundle) => {
+      expect(clientIdentityConfiguration(bundle, identityTarget)).toEqual({
+        hasExpectedIdentityKey: false,
+        hasForeignIdentityKey: false,
+      });
+    },
+  );
+
   it("requires the reviewed candidate origin and cannot be opened by an environment allowlist", () => {
     vi.stubEnv("SMOKE_TARGET", "production");
     vi.stubEnv("SMOKE_PHASE", "candidate");

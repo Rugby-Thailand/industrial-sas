@@ -1,5 +1,7 @@
 import { readFileSync } from "node:fs";
 
+import { decodePublishableKey } from "../../../scripts/release/lib/credential-shapes.mjs";
+
 /**
  * Inputs for the release smoke suites, read lazily so `playwright --list`
  * (test discovery) works without any environment. Missing required inputs
@@ -92,4 +94,22 @@ export function clientScriptUrls(html: string, baseUrl: string): string[] {
   if (urls.size === 0 || urls.size > 60)
     throw new Error("SMOKE_CLIENT_CHUNK_INVENTORY_INVALID");
   return [...urls];
+}
+
+/** Decode semantic identity configuration; Clerk may omit Base64 padding. */
+export function clientIdentityConfiguration(
+  bundle: string,
+  target: Pick<Target, "clerkKeyClass" | "clerkFrontendHost">,
+) {
+  const keys = (bundle.match(/\bpk_(?:test|live)_[A-Za-z0-9+/=_-]+/g) ?? [])
+    .map(decodePublishableKey)
+    .filter((key) => key !== null);
+  const matches = (key: (typeof keys)[number]) =>
+    key.keyClass === target.clerkKeyClass &&
+    key.frontendHost === target.clerkFrontendHost;
+  // Expose only verdicts so assertion errors cannot copy a chunk/key value.
+  return {
+    hasExpectedIdentityKey: keys.some(matches),
+    hasForeignIdentityKey: keys.some((key) => !matches(key)),
+  };
 }

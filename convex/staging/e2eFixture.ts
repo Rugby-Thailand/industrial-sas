@@ -568,6 +568,8 @@ export const cleanupPartial = internalMutation({
       throw new E2eFixtureRefusal("Partial cleanup identity IDs are invalid.");
     }
     let mirrorsPending = 0;
+    let primaryTerminalTimestamp: number | undefined;
+    let userTerminalTimestamp: number | undefined;
     const resolveOrg = async (
       id: string | undefined,
       kind: "primary" | "other",
@@ -597,6 +599,8 @@ export const cleanupPartial = internalMutation({
         !verifiedMirror(rows[0]!)
       )
         mirrorsPending += 1;
+      else if (kind === "primary")
+        primaryTerminalTimestamp = rows[0]!.clerkLastEventTimestamp!;
       return rows[0]?._id;
     };
     const primary = await resolveOrg(args.clerkOrganizationId, "primary");
@@ -626,6 +630,7 @@ export const cleanupPartial = internalMutation({
         !verifiedMirror(rows[0]!)
       )
         mirrorsPending += 1;
+      else userTerminalTimestamp = rows[0]!.clerkLastEventTimestamp!;
     }
     if (args.clerkMembershipId !== undefined) {
       if (
@@ -647,12 +652,6 @@ export const cleanupPartial = internalMutation({
           .take(2);
         if (rows.length > 1)
           throw new E2eFixtureRefusal("Partial membership is ambiguous.");
-        if (
-          rows.length === 0 ||
-          rows[0]!.status !== "REVOKED" ||
-          !verifiedMirror(rows[0]!)
-        )
-          mirrorsPending += 1;
         for (const row of rows) {
           const user = await ctx.db.get("users", row.userId);
           if (
@@ -666,6 +665,47 @@ export const cleanupPartial = internalMutation({
             );
           }
         }
+        const member = rows[0];
+        if (member !== undefined) {
+          const current = (
+            await Promise.all(
+              (["ACTIVE", "SUSPENDED"] as const).map((status) =>
+                ctx.db
+                  .query("memberships")
+                  .withIndex("by_orgId_status_userId", (q) =>
+                    q
+                      .eq("orgId", primary)
+                      .eq("status", status)
+                      .eq("userId", member.userId),
+                  )
+                  .take(2),
+              ),
+            )
+          )
+            .flat()
+            .filter(
+              (row) =>
+                row.effectiveFrom <= Date.now() &&
+                (row.effectiveTo === undefined || row.effectiveTo > Date.now()),
+            );
+          if (current.length > 1)
+            throw new E2eFixtureRefusal(
+              "Partial membership current rows are ambiguous.",
+            );
+        }
+        // Clerk parent deletion can omit membership.deleted. A retained exact
+        // historical member is settled only by its own verified source clock
+        // plus BOTH later signed terminal parents. Never synthesize a member
+        // revocation or change a watermark; missing/legacy clocks stay pending.
+        const verified = member !== undefined && verifiedMirror(member);
+        const directlyRevoked = verified && member.status === "REVOKED";
+        const terminalParents =
+          verified &&
+          primaryTerminalTimestamp !== undefined &&
+          userTerminalTimestamp !== undefined &&
+          primaryTerminalTimestamp >= member.clerkLastEventTimestamp! &&
+          userTerminalTimestamp >= member.clerkLastEventTimestamp!;
+        if (!directlyRevoked && !terminalParents) mirrorsPending += 1;
       } else mirrorsPending += 1;
     }
     const result = await cleanupOwned(ctx, args, {

@@ -8,7 +8,7 @@ import {
   convexRun,
   isNotFound,
   managerEmail,
-  organizationSlug,
+  organizationName,
   ownershipArgs,
   readFixtureState,
   stagingClerk,
@@ -63,9 +63,15 @@ async function reconcileCreation(
     state.clerkUserId = candidate.id;
   } else {
     const kind = state.pendingCreation;
-    const candidate = await clerk.organizations.getOrganization({
-      slug: organizationSlug(state.runId, kind),
+    // The instance disables slugs. Clerk's query is a partial name match, so
+    // bound it to two results and require one exact-name, metadata-owned row.
+    const listed = await clerk.organizations.getOrganizationList({
+      query: organizationName(state.runId, kind),
+      limit: 2,
     });
+    if (listed.totalCount !== 1 || listed.data.length !== 1)
+      throw new Error("STAGING_CREATION_OUTCOME_UNRECONCILED");
+    const candidate = listed.data[0]!;
     const owned = {
       ...state,
       ...(kind === "primary"
@@ -78,6 +84,45 @@ async function reconcileCreation(
   }
   delete state.pendingCreation;
   writeFixtureState(state, path);
+}
+
+/** Exact recorded association only; no inferred/current replacement member. */
+async function recordedMembership(
+  clerk: StagingClerkPort,
+  state: StagingFixtureState,
+) {
+  if (
+    state.clerkMembershipId === undefined ||
+    state.deleted?.primary ||
+    state.deleted?.user
+  )
+    return false;
+  if (
+    state.clerkOrganizationId === undefined ||
+    state.clerkUserId === undefined
+  )
+    throw new Error("STAGING_MEMBERSHIP_OWNERSHIP_REFUSED");
+  try {
+    const listed = await clerk.organizations.getOrganizationMembershipList({
+      organizationId: state.clerkOrganizationId,
+      userId: [state.clerkUserId],
+      limit: 2,
+    });
+    if (listed.totalCount === 0 && listed.data.length === 0) return false;
+    const member = listed.data[0];
+    if (
+      listed.totalCount !== 1 ||
+      listed.data.length !== 1 ||
+      member?.id !== state.clerkMembershipId ||
+      member.organization.id !== state.clerkOrganizationId ||
+      member.publicUserData?.userId !== state.clerkUserId
+    )
+      throw new Error("STAGING_MEMBERSHIP_OWNERSHIP_REFUSED");
+    return true;
+  } catch (error) {
+    if (isNotFound(error)) return false;
+    throw error;
+  }
 }
 
 /** Backend first; metadata/readback verified before each exact Clerk deletion. */
@@ -124,6 +169,7 @@ export async function cleanupStagingFixture(
         if (!isNotFound(error)) throw error;
       }
     }
+    await recordedMembership(deps.clerk, state);
     const deadline = now() + 120_000;
     let backendDone = false;
     for (let batch = 0; batch < 100 && now() <= deadline; batch += 1) {
@@ -139,6 +185,19 @@ export async function cleanupStagingFixture(
       }
     }
     if (!backendDone) throw new Error("STAGING_BACKEND_CLEANUP_INCOMPLETE");
+
+    // Explicitly remove the verified recorded membership before parents so
+    // Clerk emits its genuine membership.deleted event. Read the exact pair
+    // again because this endpoint selects by org/user, not membership ID.
+    if (await recordedMembership(deps.clerk, state)) {
+      const removed =
+        await deps.clerk.organizations.deleteOrganizationMembership({
+          organizationId: state.clerkOrganizationId!,
+          userId: state.clerkUserId!,
+        });
+      if (removed.id !== state.clerkMembershipId)
+        throw new Error("STAGING_MEMBERSHIP_DELETE_OUTCOME_UNCERTAIN");
+    }
 
     for (const kind of ["primary", "other"] as const) {
       const id =

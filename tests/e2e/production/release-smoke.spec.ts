@@ -6,6 +6,7 @@ import {
   isOwnedIdentityHost,
   releaseSmokeInputs,
   clientScriptUrls,
+  clientIdentityConfiguration,
 } from "../support/release-env";
 
 /**
@@ -17,9 +18,6 @@ import {
  * webhook POST that the handler rejects before verification succeeds. No
  * seed, mutation or business record is touched.
  */
-
-const pk = (host: string, keyClass: string) =>
-  `pk_${keyClass}_${Buffer.from(`${host}$`).toString("base64")}`;
 
 async function clientBundle(request: APIRequestContext, path: string) {
   const { baseUrl } = inputs();
@@ -82,18 +80,29 @@ test.describe("@prod-safe release smoke", () => {
   }) => {
     const { target } = inputs();
     const bundle = await clientBundle(request, "/th/sign-in");
-    expect(bundle).toContain(
-      pk(target.clerkFrontendHost, target.clerkKeyClass),
-    );
-    const otherClass = target.clerkKeyClass === "live" ? "test" : "live";
-    expect(bundle).not.toMatch(
-      new RegExp(`pk_${otherClass}_[A-Za-z0-9+/=]{8,}`),
-    );
-    expect(bundle).toContain(`https://${target.convexDeployment}.convex.cloud`);
-    expect(bundle).not.toMatch(/(127\.0\.0\.1|localhost):3210/);
+    const identity = clientIdentityConfiguration(bundle, target);
+    expect(
+      identity.hasExpectedIdentityKey,
+      "SMOKE_EXPECTED_IDENTITY_CONFIG",
+    ).toBe(true);
+    expect(
+      identity.hasForeignIdentityKey,
+      "SMOKE_FOREIGN_IDENTITY_CONFIG",
+    ).toBe(false);
+    expect(
+      bundle.includes(`https://${target.convexDeployment}.convex.cloud`),
+      "SMOKE_EXPECTED_BACKEND_CONFIG",
+    ).toBe(true);
+    expect(
+      /(127\.0\.0\.1|localhost):3210/.test(bundle),
+      "SMOKE_LOCAL_BACKEND_CONFIG",
+    ).toBe(false);
     // The unconfigured fallback copy must not be what users see.
     const html = await (await request.get("/en/sign-in")).text();
-    expect(html).not.toContain("Sign-in unavailable");
+    expect(
+      html.includes("Sign-in unavailable"),
+      "SMOKE_UNCONFIGURED_IDENTITY_COPY",
+    ).toBe(false);
   });
 
   test("the Convex webhook route is deployed and has its signing secret", async ({
@@ -121,14 +130,16 @@ test.describe("@prod-safe release smoke", () => {
     const owned = isOwnedIdentityHost(baseUrl, target.appUrl);
     expect(owned, "reviewed owned identity origin").toBe(true);
 
-    const errors: string[] = [];
-    page.on("pageerror", (error) => errors.push(error.message));
+    let pageErrors = 0;
+    page.on("pageerror", () => {
+      pageErrors += 1;
+    });
     await page.goto("/th/sign-in");
     await expect(
       page.locator(".cl-rootBox, .cl-signIn-root").first(),
     ).toBeVisible();
     await expect(page.getByText("ยังเข้าสู่ระบบไม่ได้")).toHaveCount(0);
-    expect(errors).toEqual([]);
+    expect(pageErrors, "SMOKE_SIGN_IN_PAGE_ERRORS").toBe(0);
   });
 
   test("an optional synthetic identity can read its workspace", async ({

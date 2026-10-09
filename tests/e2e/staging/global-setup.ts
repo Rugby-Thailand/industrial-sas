@@ -12,7 +12,6 @@ import {
   convexRun,
   managerEmail,
   organizationName,
-  organizationSlug,
   ownershipArgs,
   ownershipMetadata,
   readReadyFixtureState,
@@ -89,7 +88,6 @@ export async function provisionStagingFixture(
       writeFixtureState(state, path);
       const organization = await deps.clerk.organizations.createOrganization({
         name: organizationName(id, kind),
-        slug: organizationSlug(id, kind),
         ...(kind === "primary" ? { createdBy: state.clerkUserId } : {}),
         privateMetadata: ownershipMetadata(id, kind),
       });
@@ -185,6 +183,7 @@ export default async function globalSetup(): Promise<void> {
     run: convexRun,
     testingSetup: () =>
       clerkSetup({
+        dotenv: false,
         publishableKey: stagingPublishableKey(),
         secretKey: process.env.CLERK_SECRET_KEY!,
       }),

@@ -361,6 +361,7 @@ function provider(path: string) {
   const log: string[] = [];
   const users = new Map<string, OwnedUser>();
   const organizations = new Map<string, OwnedOrganization>();
+  let membershipPresent = true;
   const clerk: StagingClerkPort = {
     instance: {
       get: async () => {
@@ -409,6 +410,7 @@ function provider(path: string) {
       createOrganization: async (args) => {
         const state = readFixtureState(path);
         expect(state.clerkUserId).toBeDefined();
+        expect(args).not.toHaveProperty("slug");
         const kind = args.privateMetadata?.ciE2eKind;
         expect(["primary", "other"]).toContain(kind);
         expect(state.pendingCreation).toBe(kind);
@@ -424,12 +426,21 @@ function provider(path: string) {
         return org;
       },
       getOrganization: async (args) => {
-        const org =
-          "organizationId" in args
-            ? organizations.get(args.organizationId)
-            : [...organizations.values()].find((row) => row.slug === args.slug);
+        const org = organizations.get(args.organizationId);
         if (!org) throw { status: 404 };
         return org;
+      },
+      getOrganizationList: async ({ query, limit }) => {
+        expect(limit).toBe(2);
+        const state = readFixtureState(path);
+        expect([
+          organizationName(state.runId, "primary"),
+          organizationName(state.runId, "other"),
+        ]).toContain(query);
+        const data = [...organizations.values()].filter((row) =>
+          row.name.includes(query),
+        );
+        return { data: data.slice(0, limit), totalCount: data.length };
       },
       deleteOrganization: async (id) => {
         log.push(`delete-${id}`);
@@ -438,6 +449,7 @@ function provider(path: string) {
       getOrganizationMembershipList: async ({ organizationId, userId }) => {
         const state = readFixtureState(path);
         expect(state.otherClerkOrganizationId).toBeDefined();
+        if (!membershipPresent) return { data: [], totalCount: 0 };
         return {
           data: [
             {
@@ -448,6 +460,14 @@ function provider(path: string) {
           ],
           totalCount: 1,
         };
+      },
+      deleteOrganizationMembership: async ({ organizationId, userId }) => {
+        const state = readFixtureState(path);
+        expect(organizationId).toBe(state.clerkOrganizationId);
+        expect(userId).toBe(state.clerkUserId);
+        log.push("delete-member");
+        membershipPresent = false;
+        return { id: state.clerkMembershipId! };
       },
     },
   };
@@ -490,6 +510,10 @@ describe("per-run provisioning and owned-resource recovery controller", () => {
       model.log.indexOf("delete-org_synthetic_primary"),
     );
     expect(backend).toBeLessThan(model.log.indexOf("delete-user"));
+    expect(backend).toBeLessThan(model.log.indexOf("delete-member"));
+    expect(model.log.indexOf("delete-member")).toBeLessThan(
+      model.log.indexOf("delete-org_synthetic_primary"),
+    );
     expect(model.users.size).toBe(0);
     expect(model.organizations.size).toBe(0);
     expect(existsSync(path)).toBe(false);
@@ -512,6 +536,44 @@ describe("per-run provisioning and owned-resource recovery controller", () => {
     expect(model.organizations.size).toBe(0);
     expect(existsSync(path)).toBe(false);
   });
+  it.each(["id", "organization", "user", "ambiguous"] as const)(
+    "refuses recorded membership %s mismatch before backend or Clerk deletion",
+    async (gap) => {
+      const path = statePath();
+      const model = provider(path);
+      const state = await provisionStagingFixture({
+        ...model,
+        statePath: path,
+        runId: "offline-run-01",
+      });
+      model.clerk.organizations.getOrganizationMembershipList = async () => {
+        const member = {
+          id: gap === "id" ? "orgmem_unowned" : state.clerkMembershipId,
+          organization: {
+            id:
+              gap === "organization"
+                ? "org_unowned"
+                : state.clerkOrganizationId,
+          },
+          publicUserData: {
+            userId: gap === "user" ? "user_unowned" : state.clerkUserId,
+          },
+        };
+        return {
+          data: gap === "ambiguous" ? [member, member] : [member],
+          totalCount: gap === "ambiguous" ? 2 : 1,
+        };
+      };
+      await expect(
+        cleanupStagingFixture({ ...model, statePath: path }),
+      ).rejects.toThrow(/OWNERSHIP_RECORD_RETAINED/);
+      expect(model.log.some((entry) => entry.startsWith("delete-"))).toBe(
+        false,
+      );
+      expect(model.log).not.toContain("staging/e2eFixture:cleanupPartial");
+      expect(existsSync(path)).toBe(true);
+    },
+  );
   it("preserves the ledger and performs no deletion if ownership metadata changes", async () => {
     const path = statePath();
     const model = provider(path);
@@ -567,6 +629,68 @@ describe("per-run provisioning and owned-resource recovery controller", () => {
     expect(model.users.size).toBe(0);
     expect(existsSync(path)).toBe(false);
   });
+
+  it("recovers a lost organization response using bounded exact-name and metadata ownership without slugs", async () => {
+    const path = statePath();
+    const model = provider(path);
+    const create = model.clerk.organizations.createOrganization;
+    const list = vi.fn(model.clerk.organizations.getOrganizationList);
+    model.clerk.organizations.getOrganizationList = list;
+    model.clerk.organizations.createOrganization = async (args) => {
+      await create(args);
+      throw new Error("lost organization response");
+    };
+    await expect(
+      provisionStagingFixture({
+        ...model,
+        statePath: path,
+        runId: "offline-run-01",
+      }),
+    ).rejects.toThrow(/^STAGING_SETUP_FAILED$/);
+    expect(list).toHaveBeenCalledExactlyOnceWith({
+      query: organizationName("offline-run-01", "primary"),
+      limit: 2,
+    });
+    expect(model.log).toContain("delete-org_synthetic_primary");
+    expect(model.users.size).toBe(0);
+    expect(model.organizations.size).toBe(0);
+    expect(existsSync(path)).toBe(false);
+  });
+
+  it.each(["metadata", "partial-name", "ambiguous"] as const)(
+    "retains an uncertain organization ledger and deletes nothing on %s mismatch",
+    async (mismatch) => {
+      const path = statePath();
+      const model = provider(path);
+      const create = model.clerk.organizations.createOrganization;
+      model.clerk.organizations.createOrganization = async (args) => {
+        const org = await create(args);
+        if (mismatch === "metadata")
+          org.privateMetadata = ownershipMetadata("unowned-run-01", "primary");
+        if (mismatch === "partial-name") org.name += " other";
+        if (mismatch === "ambiguous")
+          model.organizations.set("org_unowned_collision", {
+            ...org,
+            id: "org_unowned_collision",
+            privateMetadata: ownershipMetadata("unowned-run-01", "primary"),
+          });
+        throw new Error("lost organization response");
+      };
+      await expect(
+        provisionStagingFixture({
+          ...model,
+          statePath: path,
+          runId: "offline-run-01",
+        }),
+      ).rejects.toThrow(/^STAGING_SETUP_FAILED_OWNERSHIP_RECORD_RETAINED$/);
+      expect(model.log.some((entry) => entry.startsWith("delete-"))).toBe(
+        false,
+      );
+      expect(model.log).not.toContain("staging/e2eFixture:cleanupPartial");
+      expect(readFixtureState(path).pendingCreation).toBe("primary");
+      expect(model.users.size).toBe(1);
+    },
+  );
   it("rejects public ownership files and never silently reuses an existing ledger", async () => {
     const path = statePath();
     const model = provider(path);

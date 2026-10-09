@@ -163,6 +163,39 @@ async function status(world: Awaited<ReturnType<typeof syntheticWorld>>) {
     world.args,
   );
 }
+async function deleteOwnedParents(
+  world: Awaited<ReturnType<typeof syntheticWorld>>,
+) {
+  const clock = Date.now();
+  const events: IdentityWebhookEvent[] = [
+    {
+      type: "organization.delete",
+      eventId: "msg_parent_primary_delete",
+      eventAt: clock,
+      eventTimestamp: clock,
+      data: { clerkOrganizationId: world.args.clerkOrganizationId },
+    },
+    {
+      type: "organization.delete",
+      eventId: "msg_parent_other_delete",
+      eventAt: clock,
+      eventTimestamp: clock,
+      data: { clerkOrganizationId: world.args.otherClerkOrganizationId },
+    },
+    {
+      type: "user.delete",
+      eventId: "msg_parent_user_delete",
+      eventAt: clock,
+      eventTimestamp: clock,
+      data: { clerkUserId: world.args.clerkUserId },
+    },
+  ];
+  for (const event of events)
+    await world.t.mutation(
+      internal.lib.identityMirrorConvex.applyClerkIdentityEvent,
+      { event },
+    );
+}
 async function denied(operation: Promise<unknown>, code: string) {
   const error = await operation.then(
     () => undefined,
@@ -524,7 +557,9 @@ describe("bounded truthful cleanup", () => {
         },
       },
     ];
-    for (const [index, event] of events.entries()) {
+    // Normal teardown explicitly deletes membership before either parent.
+    const directOrder = [events[3]!, ...events.slice(0, 3)];
+    for (const [index, event] of directOrder.entries()) {
       await world.t.mutation(
         internal.lib.identityMirrorConvex.applyClerkIdentityEvent,
         { event },
@@ -561,6 +596,110 @@ describe("bounded truthful cleanup", () => {
       })),
     ).toEqual(mirrors);
   });
+  it("settles a retained historical member only with both later signed terminal parents without changing it", async () => {
+    const world = await syntheticWorld();
+    stub(STAGING);
+    await prepare(world);
+    const member = await world.t.run(async (ctx) =>
+      ctx.db.get("memberships", world.ids.membership),
+    );
+    await deleteOwnedParents(world);
+    const output = await world.t.mutation(
+      internal.staging.e2eFixture.cleanupPartial,
+      world.args,
+    );
+    expect(output.done).toBe(true);
+    expect(output.mirrorsPending).toBe(0);
+    expect(
+      await world.t.run(async (ctx) =>
+        ctx.db.get("memberships", world.ids.membership),
+      ),
+    ).toEqual(member);
+    expect(member?.status).toBe("ACTIVE");
+    await denied(
+      world.t
+        .withIdentity(world.manager)
+        .query(api.workspace.current.readCurrent, {}),
+      "USER_INACTIVE",
+    );
+  });
+  it.each([
+    "organization-clock",
+    "user-clock",
+    "membership-clock",
+    "missing-member",
+    "later-member-clock",
+  ] as const)(
+    "does not settle parent-cascade recovery with %s missing or unproven",
+    async (gap) => {
+      const world = await syntheticWorld();
+      stub(STAGING);
+      await deleteOwnedParents(world);
+      await world.t.run(async (ctx) => {
+        if (gap === "organization-clock")
+          await ctx.db.patch("organizations", world.ids.orgA, {
+            clerkLastEventTimestamp: undefined,
+          });
+        if (gap === "user-clock")
+          await ctx.db.patch("users", world.ids.user, {
+            clerkLastEventTimestamp: undefined,
+          });
+        if (gap === "membership-clock")
+          await ctx.db.patch("memberships", world.ids.membership, {
+            clerkLastEventTimestamp: undefined,
+          });
+        if (gap === "missing-member")
+          await ctx.db.delete("memberships", world.ids.membership);
+        if (gap === "later-member-clock")
+          await ctx.db.patch("memberships", world.ids.membership, {
+            clerkLastEventTimestamp: Date.now() + 60_000,
+          });
+      });
+      const output = await world.t.mutation(
+        internal.staging.e2eFixture.cleanupPartial,
+        world.args,
+      );
+      expect(output.mirrorsPending).toBeGreaterThan(0);
+    },
+  );
+  it.each([
+    "duplicate-id",
+    "duplicate-current",
+    "foreign-association",
+  ] as const)(
+    "refuses parent-cascade recovery before deletion on %s",
+    async (gap) => {
+      const world = await syntheticWorld();
+      const other = await syntheticWorld("run-000002", world);
+      stub(STAGING);
+      await deleteOwnedParents(world);
+      await world.t.run(async (ctx) => {
+        const member = await ctx.db.get("memberships", world.ids.membership);
+        if (member === null) throw new Error("Missing synthetic member.");
+        if (gap === "foreign-association")
+          await ctx.db.patch("memberships", member._id, {
+            userId: other.ids.user,
+          });
+        else {
+          const { _id: _id, _creationTime: _creationTime, ...data } = member;
+          await ctx.db.insert("memberships", {
+            ...data,
+            ...(gap === "duplicate-current"
+              ? { clerkMembershipId: "orgmem_other_current" }
+              : {}),
+          });
+        }
+      });
+      const before = await rowCounts(world);
+      await expect(
+        world.t.mutation(
+          internal.staging.e2eFixture.cleanupPartial,
+          world.args,
+        ),
+      ).rejects.toThrow(/ambiguous|not owned/);
+      expect(await rowCounts(world)).toEqual(before);
+    },
+  );
   it("compensates a partial mirror without granting access or changing identity clocks", async () => {
     const world = await syntheticWorld();
     stub(STAGING);

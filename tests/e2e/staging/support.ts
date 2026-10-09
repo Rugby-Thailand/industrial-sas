@@ -79,10 +79,6 @@ export function managerEmail(runId: string) {
   if (!RUN_ID.test(runId)) throw new Error("STAGING_RUN_ID_INVALID");
   return `ci-e2e-${runId}+clerk_test@example.com`;
 }
-export function organizationSlug(runId: string, kind: "primary" | "other") {
-  if (!RUN_ID.test(runId)) throw new Error("STAGING_RUN_ID_INVALID");
-  return `ci-e2e-${runId}-${kind}`;
-}
 export function assertStagingInputs(env: Environment = process.env): void {
   const problems: string[] = [];
   try {
@@ -425,10 +421,18 @@ export interface StagingClerkPort {
     createOrganization: (
       args: Parameters<ClerkClient["organizations"]["createOrganization"]>[0],
     ) => Promise<OwnedOrganization>;
-    getOrganization: (
-      args: { organizationId: string } | { slug: string },
-    ) => Promise<OwnedOrganization>;
+    getOrganization: (args: {
+      organizationId: string;
+    }) => Promise<OwnedOrganization>;
+    getOrganizationList: (args: {
+      query: string;
+      limit: number;
+    }) => Promise<{ data: OwnedOrganization[]; totalCount: number }>;
     deleteOrganization: (id: string) => Promise<unknown>;
+    deleteOrganizationMembership: (args: {
+      organizationId: string;
+      userId: string;
+    }) => Promise<{ id: string }>;
     getOrganizationMembershipList: (args: {
       organizationId: string;
       userId: string[];
@@ -483,7 +487,6 @@ export function assertOwnedOrganization(
         ? state.clerkOrganizationId
         : state.otherClerkOrganizationId) ||
     org.name !== organizationName(state.runId, kind) ||
-    org.slug !== organizationSlug(state.runId, kind) ||
     !ownsMetadata(org.privateMetadata, state.runId, kind)
   )
     throw new Error("STAGING_ORGANIZATION_OWNERSHIP_REFUSED");

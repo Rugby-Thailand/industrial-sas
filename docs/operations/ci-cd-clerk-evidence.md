@@ -1,8 +1,8 @@
 # Clerk CI staging setup — 2026-10-09
 
-This evidence records setup of development resources only. No production Clerk
-settings, production Convex deployment, existing user/organization records, or
-application code were changed.
+This evidence records setup and rehearsal of development resources only. No
+production Clerk settings, production Convex deployment or existing
+user/organization records were changed.
 
 ## Verified development instance
 
@@ -11,7 +11,10 @@ application code were changed.
 - Backend `instance.get()` verified `environmentType: development`.
 - Credentials were asserted to be Clerk `sk_test_`/`pk_test_` credentials with the
   expected frontend host before API use. Their values are not recorded here.
-- Organizations are enabled. The creator role is `org:admin`, with five members
+- Organizations are enabled; organization slugs are disabled. CI creates
+  organizations without a slug and verifies exact names, IDs and ownership
+  metadata. Ambiguous or partial-name recovery results are refused.
+- The creator role is `org:admin`, with five members
   permitted per organization in the current development configuration.
 - The existing `convex` JWT template has `aud: convex` and an `org_id` claim.
   No JWT template or instance settings were changed.
@@ -22,8 +25,9 @@ application code were changed.
 - New endpoint: `ep_3KSqwUfTVQF6k0r25iyMFigATRg`.
 - Endpoint UID: `industrial-sas-ci-staging-clerk`.
 - Destination: `https://befitting-stoat-208.convex.site/webhooks/clerk`.
-- The endpoint is **disabled** until the first reviewed staging backend deployment
-  installs the webhook handler. No webhook examples or messages were sent.
+- The endpoint was enabled only after the reviewed staging app/backend revision
+  `1b0e68d1bdd4f2f867fbe3401e7d6cee600452a3` deployed successfully. No
+  production or pre-existing endpoint was modified.
 - Subscribed event types: `organization.created`, `organization.updated`,
   `organization.deleted`, `organizationMembership.created`,
   `organizationMembership.updated`, `organizationMembership.deleted`,
@@ -42,23 +46,20 @@ tracked files.
 
 ## Readiness and remaining verification
 
-The issuer and webhook credential are configured. The new endpoint is prepared,
-but webhook delivery and authenticated browser smoke are **not yet verified**:
-the staging backend has no application deployment in this setup step.
+The issuer, signing credential and dedicated enabled webhook are configured; the
+reviewed staging application/backend is deployed at the stable staging alias.
+A live rehearsal caught the existing disabled-slug setting. The fixture was
+adapted to that setting with 38 focused checks passing, including bounded
+ownership reconciliation. Failed provisioning attempts cleaned up their owned
+synthetic users. The complete authenticated browser rehearsal is recorded
+separately in the platform evidence after execution.
 
-Before enabling this endpoint, deploy the reviewed application to staging and
-verify its HTTP handler and issuer configuration. Enable only this endpoint and
-exercise it using namespaced synthetic CI identities. Verify delivery, signature
-validation, identity mirroring, organization membership, and a `convex` JWT
-before declaring authenticated staging smoke ready. The selected development
-instance is shared with local development: enabling this endpoint subscribes to
-its matching development events, not only the CI identity namespace.
-
-At this setup checkpoint, emerging checked-in E2E specifications exercised
-signed-out routes and no authenticated smoke identity contract was present.
-No users, organizations, invitations, or sign-in tokens were created by this
-setup step. Dedicated synthetic identities should be created only for the
-settled smoke fixture contract; real account inventories are unnecessary.
+The selected development instance is shared with local development: the endpoint
+subscribes to matching development events, including events outside the CI
+identity namespace. Cleanup may delete only the exact per-run owned resources;
+it does not delete or reset unrelated users or organizations. CI testing setup
+uses explicit keys and `dotenv:false` so ambient environment files cannot alter
+the trusted inputs.
 
 Keep local seed/login loopback restrictions intact. Development keys and this
 webhook secret must never be assigned to Production. Clerk instance credentials
