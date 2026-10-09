@@ -681,13 +681,7 @@ export const cleanupPartial = internalMutation({
                   .take(2),
               ),
             )
-          )
-            .flat()
-            .filter(
-              (row) =>
-                row.effectiveFrom <= Date.now() &&
-                (row.effectiveTo === undefined || row.effectiveTo > Date.now()),
-            );
+          ).flat();
           if (current.length > 1)
             throw new E2eFixtureRefusal(
               "Partial membership current rows are ambiguous.",

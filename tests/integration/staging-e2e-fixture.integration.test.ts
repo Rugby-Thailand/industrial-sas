@@ -665,6 +665,7 @@ describe("bounded truthful cleanup", () => {
   it.each([
     "duplicate-id",
     "duplicate-current",
+    "duplicate-expired-current-status",
     "foreign-association",
   ] as const)(
     "refuses parent-cascade recovery before deletion on %s",
@@ -684,8 +685,11 @@ describe("bounded truthful cleanup", () => {
           const { _id: _id, _creationTime: _creationTime, ...data } = member;
           await ctx.db.insert("memberships", {
             ...data,
-            ...(gap === "duplicate-current"
+            ...(gap !== "duplicate-id"
               ? { clerkMembershipId: "orgmem_other_current" }
+              : {}),
+            ...(gap === "duplicate-expired-current-status"
+              ? { effectiveTo: Date.now() - 1 }
               : {}),
           });
         }
