@@ -2,7 +2,7 @@
 
 78 actions and states, each captured at desktop **1440 × 1000** and mobile **390 × 844** CSS viewports: **156 screenshots**. These are screenshots of the running application.
 
-Use the [interactive gallery](minimal-ui-gallery-2026-10-08.html) locally to search and compare; expand the actions below in GitHub. [Implementation and UX expectations](../plans/minimal-ui-2026-10-08.md) · [Audit and validation](minimal-ui-audit-2026-10-08.md).
+Use the [interactive gallery](minimal-ui-gallery-2026-10-08.html) to search and compare. Its screenshots are embedded, so the HTML works offline without a separate assets folder. Expand the actions below in GitHub. [Implementation and UX expectations](../plans/minimal-ui-2026-10-08.md) · [Audit and validation](minimal-ui-audit-2026-10-08.md).
 
 Writes used local `QA-` records. Physical movement was simulated through explicit confirmations. The first packing batch supplied the units for storage/move/stack; the refreshed packing walkthrough created a second QA batch. The two walkthrough scan tickets were deleted after their assignment/deletion checks. No production deployment was used.
 
