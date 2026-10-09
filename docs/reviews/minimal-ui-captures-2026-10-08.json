@@ -100,12 +100,13 @@
   },
   {
     "name": "12-units-created",
-    "caption": "Confirm creation: the two QA units exist, with measured sizes and links to storage.",
+    "caption": "Storage units created: compact totals, underlined unit links and secondary actions.",
     "images": {
-      "desktop": "assets/minimal-ui-2026-10-08/12-units-created-desktop.png",
-      "mobile": "assets/minimal-ui-2026-10-08/12-units-created-mobile.png"
+      "desktop": "assets/minimal-ui-2026-10-09/12-units-created-desktop.jpg",
+      "mobile": "assets/minimal-ui-2026-10-09/12-units-created-mobile.jpg"
     },
-    "browser": "T3 preview"
+    "browser": "Chrome",
+    "capturedAt": "2026-10-09"
   },
   {
     "name": "13-building-new",

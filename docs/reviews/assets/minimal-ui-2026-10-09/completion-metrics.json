@@ -1,0 +1,130 @@
+{
+  "desktop": {
+    "actions": [
+      {
+        "background": "rgba(0, 0, 0, 0)",
+        "border": "rgba(0, 0, 0, 0)",
+        "color": "rgb(169, 186, 255)",
+        "decoration": "underline",
+        "height": 28,
+        "href": "/en/finished-goods/pallets/k176qf1jy491a3jp6khcs8y2rd8fy54h/storage",
+        "text": "Find storage · pallet 1",
+        "width": 163.34375
+      },
+      {
+        "background": "rgba(0, 0, 0, 0)",
+        "border": "rgba(0, 0, 0, 0)",
+        "color": "rgb(169, 186, 255)",
+        "decoration": "underline",
+        "height": 28,
+        "href": "/en/finished-goods/pallets/k172xmyp520t4kxvqf2hgsxy618fykkq/storage",
+        "text": "Find storage · pallet 2",
+        "width": 166.34375
+      },
+      {
+        "background": "rgba(0, 0, 0, 0)",
+        "border": "rgba(0, 0, 0, 0)",
+        "color": "rgb(169, 186, 255)",
+        "decoration": "underline",
+        "height": 28,
+        "href": "/en/finished-goods/products/k9775wy0yrr9201gebex9dskwn8fwd67",
+        "text": "Product and batches",
+        "width": 140.6875
+      },
+      {
+        "background": "rgba(0, 0, 0, 0)",
+        "border": "rgba(0, 0, 0, 0)",
+        "color": "rgb(169, 186, 255)",
+        "decoration": "underline",
+        "height": 28,
+        "href": null,
+        "text": "Review or edit this batch",
+        "width": 167.5234375
+      },
+      {
+        "background": "rgba(0, 0, 0, 0)",
+        "border": "rgba(0, 0, 0, 0)",
+        "color": "rgb(169, 186, 255)",
+        "decoration": "underline",
+        "height": 28,
+        "href": null,
+        "text": "Prepare another batch",
+        "width": 169.9140625
+      }
+    ],
+    "canvas": "lab(0 0 0)",
+    "completionHeight": 125,
+    "completionWidth": 672,
+    "documentOverflow": 0,
+    "hintColor": "lab(67.52 -0.0000298023 0)",
+    "mainOverflow": 0
+  },
+  "mobile": {
+    "actions": [
+      {
+        "height": 44,
+        "text": "Find storage · pallet 1",
+        "width": 163.34375
+      },
+      {
+        "height": 44,
+        "text": "Find storage · pallet 2",
+        "width": 166.34375
+      },
+      {
+        "height": 44,
+        "text": "Product and batches",
+        "width": 140.6875
+      },
+      {
+        "height": 44,
+        "text": "Review or edit this batch",
+        "width": 167.5234375
+      },
+      {
+        "height": 44,
+        "text": "Prepare another batch",
+        "width": 169.9140625
+      }
+    ],
+    "completionHeight": 245,
+    "documentOverflow": 0,
+    "mainOverflow": 0
+  },
+  "narrowEnglish": {
+    "actions": [
+      {
+        "height": 44,
+        "text": "Find storage · pallet 1",
+        "width": 163.34375
+      },
+      {
+        "height": 44,
+        "text": "Find storage · pallet 2",
+        "width": 166.34375
+      },
+      {
+        "height": 44,
+        "text": "Product and batches",
+        "width": 140.6875
+      },
+      {
+        "height": 44,
+        "text": "Review or edit this batch",
+        "width": 167.5234375
+      },
+      {
+        "height": 44,
+        "text": "Prepare another batch",
+        "width": 169.9140625
+      }
+    ],
+    "documentOverflow": 0,
+    "mainOverflow": 0
+  },
+  "lightColors": {
+    "canvas": "rgb(255, 255, 255)",
+    "hint": "rgb(71, 85, 105)",
+    "link": "rgb(29, 78, 216)"
+  }
+}

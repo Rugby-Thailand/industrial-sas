@@ -5,7 +5,7 @@ import { drafts } from "@/lib/browser/storage";
 import { useMutation, useQuery } from "convex/react";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Plus, Trash2, Copy, PackageCheck } from "lucide-react";
+import { Plus, Trash2, Copy, PackageCheck, ArrowRight } from "lucide-react";
 import { QueryGate } from "@/components/system/QueryGate";
 import { Button } from "@/components/ui/button";
 import { Notice } from "@/components/ui/Notice";
@@ -673,81 +673,108 @@ function PackingForm({
           title={t("copy.storage-units-created")}
           description={`${product.sku} · ${product.name}`}
         />
-        <div className={`${panel} max-w-3xl space-y-4`}>
-          <PackageCheck className="size-8 text-success" />
-          <p>
-            {draft.total} {product.unit} · {draft.completed.length} {plural}
-          </p>
-          <p>
+        <div className="max-w-2xl space-y-2">
+          <div className="flex items-center gap-2 text-sm font-medium">
+            <PackageCheck
+              className="size-5 shrink-0 text-success"
+              aria-hidden
+            />
+            <p>
+              {draft.total} {product.unit} · {draft.completed.length} {plural}
+            </p>
+          </div>
+          <p className="text-sm text-muted">
             {draft.simplePacking
               ? t(
                   "copy.scan-the-package-labels-in-order-then-scan-their-location",
                 )
               : t("copy.choose-an-exact-storage-position-for-each-unit")}
           </p>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <ul className="grid gap-x-6 sm:grid-cols-2">
             {draft.completed.map((id, i) => (
-              <Button
-                asChild
-                variant={
-                  !draft.simplePacking && i === 0 ? "default" : "outline"
-                }
-                key={id}
-              >
-                <Link
-                  href={draft.simplePacking ? palletPath(id) : storagePath(id)}
+              <li key={id}>
+                <Button
+                  asChild
+                  variant="link"
+                  size="sm"
+                  className="justify-start gap-1.5 px-0 text-sm whitespace-normal underline"
                 >
-                  {draft.simplePacking
-                    ? t("copy.view-package-label")
-                    : t("copy.find-storage-eaab68")}{" "}
-                  · {rowName(i)}
-                </Link>
-              </Button>
+                  <Link
+                    href={
+                      draft.simplePacking ? palletPath(id) : storagePath(id)
+                    }
+                  >
+                    <span>
+                      {draft.simplePacking
+                        ? t("copy.view-package-label")
+                        : t("copy.find-storage-eaab68")}{" "}
+                      · {rowName(i)}
+                    </span>
+                    <ArrowRight className="size-3.5" aria-hidden />
+                  </Link>
+                </Button>
+              </li>
             ))}
-          </div>
-          <Button asChild variant={draft.simplePacking ? "default" : "outline"}>
-            <Link
-              href={
+          </ul>
+          <div className="flex flex-wrap items-center gap-x-4 border-t border-border pt-1">
+            <Button
+              asChild
+              variant={draft.simplePacking ? "default" : "link"}
+              size="sm"
+              className={
                 draft.simplePacking
-                  ? `${FG_PATH}/scan`
-                  : productPath(product._id)
+                  ? undefined
+                  : "justify-start px-0 text-sm whitespace-normal underline"
               }
             >
-              {draft.simplePacking
-                ? t("copy.scan-packages")
-                : t("copy.product-and-batches")}
-            </Link>
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => {
-              if (batch) persist(initialDraft(product, batch));
-              else if (draft.batchId) router.push(batchPath(draft.batchId));
-            }}
-          >
-            {t("copy.review-or-edit-this-batch")}
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => {
-              const blank = initialDraft(product);
-              if (!batch) persist(blank);
-              else {
-                if (
-                  !drafts.write(
-                    `${scope}:${warehouseId}:new:${product._id}`,
-                    blank,
-                  )
-                ) {
-                  setStorageWarning(true);
-                  return;
+              <Link
+                href={
+                  draft.simplePacking
+                    ? `${FG_PATH}/scan`
+                    : productPath(product._id)
                 }
-                router.push(`${productPath(product._id)}/packing`);
-              }
-            }}
-          >
-            {t("copy.prepare-another-batch")}
-          </Button>
+              >
+                {draft.simplePacking
+                  ? t("copy.scan-packages")
+                  : t("copy.product-and-batches")}
+              </Link>
+            </Button>
+            <Button
+              variant="link"
+              size="sm"
+              className="justify-start px-0 text-sm whitespace-normal underline"
+              onClick={() => {
+                if (batch) persist(initialDraft(product, batch));
+                else if (draft.batchId) router.push(batchPath(draft.batchId));
+              }}
+            >
+              {t("copy.review-or-edit-this-batch")}
+            </Button>
+            <Button
+              variant="link"
+              size="sm"
+              className="justify-start px-0 text-sm whitespace-normal underline"
+              onClick={() => {
+                const blank = initialDraft(product);
+                if (!batch) persist(blank);
+                else {
+                  if (
+                    !drafts.write(
+                      `${scope}:${warehouseId}:new:${product._id}`,
+                      blank,
+                    )
+                  ) {
+                    setStorageWarning(true);
+                    return;
+                  }
+                  router.push(`${productPath(product._id)}/packing`);
+                }
+              }}
+            >
+              <Plus className="size-3.5" aria-hidden />
+              {t("copy.prepare-another-batch")}
+            </Button>
+          </div>
         </div>
       </>
     );
