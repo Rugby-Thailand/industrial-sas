@@ -51,11 +51,20 @@ async function signIn(page: Page) {
 }
 
 async function convexAs(page: Page): Promise<Execute> {
+  // Every navigation creates a new Clerk client. Route/server assertions can
+  // pass before its active session has hydrated in the browser.
+  await clerk.loaded({ page });
+  await expect
+    .poll(() => page.evaluate(() => Boolean(window.Clerk.session)), {
+      timeout: 20_000,
+      message: "STAGING_ACTIVE_CLERK_SESSION_UNCONFIRMED",
+    })
+    .toBe(true);
   const token = await page.evaluate(
     async () =>
       (await window.Clerk.session?.getToken({ template: "convex" })) ?? null,
   );
-  expect(token, "Clerk issued a Convex token").toBeTruthy();
+  expect(Boolean(token), "STAGING_CONVEX_TOKEN_UNAVAILABLE").toBe(true);
   const client = new ConvexHttpClient(convexCloudUrl(), { logger: false });
   client.setAuth(token!);
   return async (kind, name, args) =>
@@ -101,9 +110,9 @@ test("creates a building through the UI and reads it back", async ({
   const state = await signIn(page);
   const code = `E2E-${state.runId.toUpperCase()}-UI`.slice(0, 64);
   await page.goto("/th/master-data/storage-layouts/new");
-  await page.getByLabel(th.code, { exact: true }).fill(code);
+  await page.getByRole("textbox", { name: th.code, exact: true }).fill(code);
   await page
-    .getByLabel(th.name, { exact: true })
+    .getByRole("textbox", { name: th.name, exact: true })
     .fill(`CI E2E UI ${state.runId}`);
   await page.getByRole("button", { name: th.create }).click();
   await expect(page).toHaveURL(

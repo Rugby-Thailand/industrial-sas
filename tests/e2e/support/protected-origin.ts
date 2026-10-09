@@ -109,10 +109,28 @@ export async function installProtectedOrigin(
     for (const page of pages) {
       const session = await context.newCDPSession(page);
       sessions.push(session);
+      const canceled = new Set<string>();
+      const loadingFailed = (event: {
+        requestId: string;
+        canceled?: boolean;
+      }) => {
+        if (event.canceled !== true) return;
+        canceled.add(event.requestId);
+        // A per-page smoke session is short, but keep the event history bounded.
+        if (canceled.size > 2_048)
+          canceled.delete(canceled.values().next().value!);
+      };
+      session.on("Network.loadingFailed", loadingFailed);
+      removeListeners.push(() =>
+        session.off("Network.loadingFailed", loadingFailed),
+      );
+      await session.send("Network.enable");
       const handleRequest = async (event: {
         requestId: string;
+        networkId?: string;
         request: { url: string; headers: Record<string, string> };
       }) => {
+        let continuing = false;
         try {
           const headers = withoutProtectionHeaders(event.request.headers);
           if (
@@ -120,6 +138,7 @@ export async function installProtectedOrigin(
             new URL(event.request.url).origin === protection.origin
           )
             headers[OIDC_HEADER] = protection.readToken();
+          continuing = true;
           await session.send("Fetch.continueRequest", {
             requestId: event.requestId,
             headers: Object.entries(headers).map(([name, value]) => ({
@@ -127,10 +146,24 @@ export async function installProtectedOrigin(
               value: String(value),
             })),
           });
-        } catch {
+        } catch (error) {
+          // Chromium removes a paused interception when navigation/AbortController
+          // cancels its matching network request. Permit only that proved case,
+          // never token/header failures, unknown protocol errors or closed sessions.
+          if (
+            continuing &&
+            event.networkId !== undefined &&
+            canceled.has(event.networkId) &&
+            error instanceof Error &&
+            /^(?:cdpSession\.send: )?Protocol error \(Fetch\.continueRequest\): Invalid InterceptionId\.$/.test(
+              error.message,
+            )
+          ) {
+            canceled.delete(event.networkId);
+            return;
+          }
           // Never log protocol errors: request details can contain credentials.
-          // A closed page is normal teardown; an active request fails closed.
-          if (!page.isClosed()) failed = true;
+          failed = true;
           await session
             .send("Fetch.failRequest", {
               requestId: event.requestId,
@@ -165,6 +198,7 @@ export async function installProtectedOrigin(
       await Promise.all(
         sessions.map(async (session) => {
           await session.send("Fetch.disable").catch(() => {});
+          await session.send("Network.disable").catch(() => {});
           await session.detach().catch(() => {});
         }),
       );

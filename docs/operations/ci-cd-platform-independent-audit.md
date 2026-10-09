@@ -116,3 +116,7 @@ Production Vercel environment metadata contains the sensitive variable name `UPL
 5. Demonstrate staging deployment and smoke tests, including Vercel protection handling; then complete Git deployment cutover and first advanced CodeQL run. Verify release ordering, exact required status, and failure behavior before enabling production delivery. Observe disposable-target expiry cleanup; this audit verified the setting while the target was still present.
 
 This audit establishes current metadata and concrete readiness gaps. It does not certify backup completeness, restored data integrity, production release execution, or application compatibility with the implementation branch.
+
+## Subsequent coordinator acceptance
+
+The coordinator subsequently verified staging deployment, enabled signed Clerk delivery, protected-origin access, authenticated writes/readback and exact owned cleanup: the normal staging suite passed all 12 required checks, with zero failures/retries and one declared optional production-identity skip. UploadThing sign-in also succeeded, but production app association and external-file recovery remain unverified. See the timestamped [platform evidence](ci-cd-platform-evidence.md#completed-live-staging-acceptance) for these later results. GitHub execution, production cutover and the remaining recovery/operational criteria above are separate proofs.

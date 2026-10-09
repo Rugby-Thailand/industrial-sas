@@ -62,6 +62,148 @@ async function origins() {
 }
 
 test.describe("protection routing", () => {
+  for (const mode of ["abort", "navigation", "unknown-session"] as const) {
+    test(`permits only confirmed Chromium request cancellation (${mode})`, async ({
+      context,
+      page,
+    }) => {
+      const local = await origins();
+      const createSession = context.newCDPSession.bind(context);
+      let invalidInterceptions = 0;
+      let pausedCancellation = 0;
+      context.newCDPSession = async (target) => {
+        const session = await createSession(target);
+        const send = session.send.bind(session);
+        session.on(
+          "Fetch.requestPaused",
+          (event: { request: { url: string } }) => {
+            if (event.request.url.endsWith("/cancel")) pausedCancellation += 1;
+          },
+        );
+        session.send = async (method, params) => {
+          if (method === "Fetch.continueRequest") {
+            // Protocol latency makes the real abort race deterministic. The
+            // browser, network cancellation and rejection remain unmocked.
+            await new Promise((resolve) => setTimeout(resolve, 250));
+            try {
+              return await send(method, params);
+            } catch (error) {
+              if (
+                error instanceof Error &&
+                error.message.endsWith("Invalid InterceptionId.")
+              )
+                invalidInterceptions += 1;
+              if (mode === "unknown-session")
+                throw new Error(
+                  "cdpSession.send: Target page, context or browser has been closed",
+                );
+              throw error;
+            }
+          }
+          return send(method, params);
+        };
+        return session;
+      };
+      const protection = await installProtectedOrigin(context, {
+        origin: local.protectedOrigin,
+        readToken: () => "synthetic-owned-local-token",
+      });
+      try {
+        await page.goto(`${local.protectedOrigin}/start`);
+        if (mode === "navigation") {
+          // A second navigation cancels the first document while interception
+          // is paused, before either new document has committed.
+          const firstNavigation = page
+            .goto(`${local.protectedOrigin}/cancel`)
+            .catch(() => undefined);
+          await expect
+            .poll(() => pausedCancellation, { timeout: 2_000 })
+            .toBeGreaterThan(0);
+          await page.goto(`${local.other}/after-cancel`);
+          await firstNavigation;
+        } else {
+          await page.evaluate(() => {
+            const controller = new AbortController();
+            void fetch("/cancel", { signal: controller.signal }).catch(
+              () => {},
+            );
+            setTimeout(() => controller.abort(), 10);
+          });
+          await expect
+            .poll(() => pausedCancellation, { timeout: 2_000 })
+            .toBeGreaterThan(0);
+        }
+        await expect
+          .poll(() => invalidInterceptions, { timeout: 2_000 })
+          .toBeGreaterThan(0);
+        if (mode === "unknown-session")
+          expect(() => protection.assertHealthy()).toThrow(
+            "SMOKE_PROTECTION_REQUEST_FAILED",
+          );
+        else protection.assertHealthy();
+        expect(local.received.some(({ path }) => path === "/cancel")).toBe(
+          false,
+        );
+        expect(
+          local.received
+            .filter(({ origin }) => origin === "protected")
+            .every(({ token }) => token === "synthetic-owned-local-token"),
+        ).toBe(true);
+        expect(
+          local.received
+            .filter(({ origin }) => origin === "other")
+            .every(({ token }) => token === undefined),
+        ).toBe(true);
+      } finally {
+        context.newCDPSession = createSession;
+        await protection.dispose();
+        await local.close();
+      }
+    });
+  }
+
+  for (const mode of ["unconfirmed-interception", "unknown-session"] as const) {
+    test(`rejects unproved protocol failures (${mode})`, async ({
+      context,
+      page,
+    }) => {
+      const local = await origins();
+      const createSession = context.newCDPSession.bind(context);
+      context.newCDPSession = async (target) => {
+        const session = await createSession(target);
+        const send = session.send.bind(session);
+        session.send = async (method, params) => {
+          if (method === "Fetch.continueRequest") {
+            throw new Error(
+              mode === "unconfirmed-interception"
+                ? "cdpSession.send: Protocol error (Fetch.continueRequest): Invalid InterceptionId."
+                : "cdpSession.send: Target page, context or browser has been closed",
+            );
+          }
+          return send(method, params);
+        };
+        return session;
+      };
+      const protection = await installProtectedOrigin(context, {
+        origin: local.protectedOrigin,
+        readToken: () => "synthetic-owned-local-token",
+      });
+      try {
+        await expect(
+          page.goto(`${local.protectedOrigin}/direct`),
+        ).rejects.toThrow();
+        expect(() => protection.assertHealthy()).toThrow(
+          "SMOKE_PROTECTION_REQUEST_FAILED",
+        );
+        expect(local.received).toEqual([]);
+      } finally {
+        context.newCDPSession = createSession;
+        await protection.dispose();
+        await local.close();
+      }
+    });
+  }
+
   test("browser keeps refreshed OIDC on the protected origin across redirects", async ({
     context,
     page,
