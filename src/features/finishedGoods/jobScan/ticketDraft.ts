@@ -39,7 +39,12 @@ export type TicketDraft = {
   previewUrl?: string;
   imageUrl?: string;
   aiRaw?: string;
-  notice?: "aiFilled" | "aiMock" | "aiFailed" | "uploadFailed";
+  notice?:
+    | "aiFilled"
+    | "aiMock"
+    | "aiFailed"
+    | "uploadFailed"
+    | "photoProcessingFailed";
 };
 
 export const newTicket = (
@@ -55,6 +60,36 @@ export const newTicket = (
 
 export const isComplete = (ticket: TicketDraft) =>
   REQUIRED_FIELDS.every((field) => ticket.values[field]?.trim());
+
+/** Do not silently drop a mistyped optional quantity during serialization. */
+function parseTicketQuantity(value: string): number | undefined {
+  // A comma groups three digits; it is never a decimal separator or empty zero.
+  if (!/^(?:(?:\d+|\d{1,3}(?:,\d{3})+)(?:\.\d*)?|\.\d+)$/.test(value))
+    return undefined;
+  const number = Number(value.replace(/,/g, ""));
+  return Number.isFinite(number) ? number : undefined;
+}
+
+export function hasInvalidQuantity(ticket: TicketDraft) {
+  return [...NUMBER_FIELDS].some((field) => {
+    const value = ticket.values[field as TicketField]?.trim();
+    if (!value) return false;
+    return parseTicketQuantity(value) === undefined;
+  });
+}
+
+/** Repeated identities can be separate pallets; require an explicit review. */
+export function duplicateTicketKeys(tickets: readonly TicketDraft[]): string[] {
+  const groups = new Map<string, string[]>();
+  for (const ticket of tickets) {
+    if (!isComplete(ticket)) continue;
+    const identity = JSON.stringify(
+      REQUIRED_FIELDS.map((field) => ticket.values[field]!.trim()),
+    );
+    groups.set(identity, [...(groups.get(identity) ?? []), ticket.key]);
+  }
+  return [...groups.values()].filter((group) => group.length > 1).flat();
+}
 
 /** Adds AI output without overwriting anything the user already typed. */
 export function mergeExtracted(
@@ -108,8 +143,8 @@ export function toPayload(ticket: TicketDraft) {
     const value = ticket.values[field]?.trim();
     if (!value) continue;
     if (NUMBER_FIELDS.has(field)) {
-      const number = Number(value.replace(/,/g, ""));
-      if (Number.isFinite(number)) item[field] = number;
+      const number = parseTicketQuantity(value);
+      if (number !== undefined) item[field] = number;
     } else item[field] = value;
   }
   if (ticket.imageUrl) item["imageUrl"] = ticket.imageUrl;

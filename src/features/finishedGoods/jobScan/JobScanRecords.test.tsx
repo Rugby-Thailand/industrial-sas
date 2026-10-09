@@ -119,6 +119,33 @@ beforeEach(() => {
 });
 
 describe("scanned record deletion", () => {
+  it("retains assignment targets and reuses the request after a lost response", async () => {
+    const user = userEvent.setup();
+    mocks.assign.mockRejectedValueOnce(new Error("NETWORK_ERROR"));
+    renderWithIntl(<JobScanRecordsScreen />, {
+      locale: "en",
+      workspace: false,
+    });
+    await user.click(screen.getByRole("checkbox", { name: "Select FO001" }));
+    await user.click(
+      screen.getByRole("button", { name: "Set location for 1 record" }),
+    );
+    const location = screen.getByRole("button", { name: /ZONE-A/ });
+    await user.click(location);
+    await waitFor(() => expect(location).toBeEnabled());
+    expect(
+      screen.getByRole("checkbox", { name: "Select FO001" }),
+    ).toBeChecked();
+    await user.click(location);
+    await waitFor(() => expect(mocks.assign).toHaveBeenCalledTimes(2));
+    expect(mocks.assign.mock.calls[0]).toEqual(mocks.assign.mock.calls[1]);
+    await waitFor(() =>
+      expect(
+        screen.getByRole("checkbox", { name: "Select FO001" }),
+      ).not.toBeChecked(),
+    );
+  });
+
   it("selects and deselects every record on the current page", async () => {
     const user = userEvent.setup();
     const { container } = renderWithIntl(<JobScanRecordsScreen />, {

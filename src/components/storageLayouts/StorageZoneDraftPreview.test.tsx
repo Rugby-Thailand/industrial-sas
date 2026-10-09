@@ -1,10 +1,36 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { axe } from "jest-axe";
 import { StorageZoneDraftPreview } from "./StorageZoneDraftPreview";
 
 vi.mock("next-intl", () => ({ useTranslations: () => (key: string) => key }));
 
 describe("reserved draft color preview", () => {
+  it("exposes the draggable control inside an accessible group and supports keyboard movement", async () => {
+    const onPositionChange = vi.fn();
+    const { container } = render(
+      <StorageZoneDraftPreview
+        floorWidthMm={10000}
+        floorDepthMm={10000}
+        floorHeightMm={3000}
+        zoneX="2"
+        zoneY="2"
+        zoneWidth="2"
+        zoneDepth="2"
+        stackHeight="3"
+        zones={[]}
+        onPositionChange={onPositionChange}
+      />,
+    );
+    expect(
+      screen.getByRole("group", { name: "storageZonePreview" }),
+    ).toBeInTheDocument();
+    fireEvent.keyDown(screen.getByRole("button", { name: "dragStorageZone" }), {
+      key: "ArrowRight",
+    });
+    expect(onPositionChange).toHaveBeenCalledWith({ xMm: 2100, yMm: 2000 });
+    expect(await axe(container)).toHaveNoViolations();
+  });
   it("carries draft and surrounding area colors when switching views", () => {
     const { container } = render(
       <StorageZoneDraftPreview

@@ -1,25 +1,25 @@
-/* The planning canvas has its own semantic palette; inventory screens retain theirs. */
+/* Map states use the same blue selection and readable neutral surfaces as the app. */
 .theme {
-  --plan-background: #f1f5f9;
+  --plan-background: #f6f7f9;
   --plan-dot: #cbd5e1;
-  --plan-floor: #e2e8f0;
+  --plan-floor: #edf1f5;
   --plan-wall: #64748b;
   --plan-grid: #cbd5e1;
   --plan-empty: #f8fafc;
-  --plan-occupied: #ccfbf1;
-  --plan-occupied-border: #0f766e;
-  --plan-selected: #d9f99d;
-  --plan-selected-border: #4d7c0f;
-  --plan-selected-text: #1a2e05;
-  --plan-text: #0f172a;
+  --plan-occupied: #e3f3ea;
+  --plan-occupied-border: #166534;
+  --plan-selected: #eff6ff;
+  --plan-selected-border: #1d4ed8;
+  --plan-selected-text: #17212f;
+  --plan-text: #17212f;
   --plan-muted: #475569;
   --plan-panel: #ffffff;
   --plan-panel-raised: #f1f5f9;
   --plan-border: #cbd5e1;
-  --plan-link: #3f6212;
-  --plan-accent: #3f6212;
+  --plan-link: #1d4ed8;
+  --plan-accent: #1d4ed8;
   --plan-accent-contrast: #ffffff;
-  --plan-accent-hover: #365314;
+  --plan-accent-hover: #1e40af;
   --plan-success-contrast: #ffffff;
   --scene-floor: var(--plan-floor);
   --scene-boundary: var(--plan-wall);
@@ -61,17 +61,17 @@
   --plan-empty: #243243;
   --plan-occupied: #164e46;
   --plan-occupied-border: #5eead4;
-  --plan-selected: #d9f99d;
-  --plan-selected-border: #ecfccb;
+  --plan-selected: #eff6ff;
+  --plan-selected-border: #a9baff;
   --plan-text: #f1f5f9;
   --plan-muted: #c0ccda;
   --plan-panel: #18212c;
   --plan-panel-raised: #263442;
   --plan-border: #3e4e61;
-  --plan-link: #bef264;
-  --plan-accent: #d9f99d;
-  --plan-accent-contrast: #1a2e05;
-  --plan-accent-hover: #bef264;
+  --plan-link: #a9baff;
+  --plan-accent: #1d4ed8;
+  --plan-accent-contrast: #ffffff;
+  --plan-accent-hover: #1e40af;
   --plan-success-contrast: #042f2e;
 }
 .canvas {
@@ -162,7 +162,7 @@
 }
 .eyebrow {
   color: var(--plan-muted);
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.16em;
   font-weight: 600;
   text-transform: uppercase;
@@ -193,7 +193,7 @@
 }
 .metrics dt {
   color: var(--plan-muted);
-  font-size: 10px;
+  font-size: 12px;
   margin-bottom: 6px;
 }
 .metrics dd {

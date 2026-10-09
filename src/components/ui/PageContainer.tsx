@@ -22,7 +22,7 @@ export function PageContainer({
       {...props}
       data-action-scope={actionInset ? "" : undefined}
       className={cn(
-        "min-w-0 space-y-6",
+        "min-w-0 space-y-4",
         WIDTHS[size],
         actionInset && "pb-[var(--sticky-action-height,10rem)]",
         actionInset === "responsive" && "md:pb-0",

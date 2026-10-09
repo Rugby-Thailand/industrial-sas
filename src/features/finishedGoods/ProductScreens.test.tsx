@@ -602,7 +602,7 @@ describe("read-only product access", () => {
       workspace: false,
     });
     expect(
-      screen.getByRole("heading", { name: "Packaging cartons" }),
+      screen.getByRole("link", { name: "Packaging cartons" }),
     ).toBeVisible();
     expect(
       screen.queryByRole("link", { name: "Add finished good" }),
@@ -782,7 +782,7 @@ describe("finished goods catalogue", () => {
       "aria-pressed",
       "true",
     );
-    expect(screen.getByRole("button", { name: "Card view" })).toHaveAttribute(
+    expect(screen.getByRole("button", { name: "Table view" })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
@@ -861,7 +861,7 @@ describe("finished goods catalogue", () => {
       ).toBeVisible();
       fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
       expect(
-        screen.getByRole("heading", { name: "Packaging cartons" }),
+        screen.getByRole("link", { name: "Packaging cartons" }),
       ).toBeVisible();
     } finally {
       read.mockRestore();
@@ -897,7 +897,7 @@ describe("finished goods catalogue", () => {
     ).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
     expect(
-      screen.getByRole("heading", { name: "Packaging cartons" }),
+      screen.getByRole("link", { name: "Packaging cartons" }),
     ).toBeVisible();
     chooseStatus("Draft");
     expect(
@@ -905,7 +905,7 @@ describe("finished goods catalogue", () => {
     ).toBeVisible();
     chooseStatus("Ready");
     expect(
-      screen.getByRole("heading", { name: "Packaging cartons" }),
+      screen.getByRole("link", { name: "Packaging cartons" }),
     ).toBeVisible();
   });
 
@@ -916,6 +916,7 @@ describe("finished goods catalogue", () => {
       screen.getByRole("textbox", { name: "Search finished goods" }),
       { target: { value: "Packaging cartons" } },
     );
+    fireEvent.click(screen.getByRole("button", { name: "Card view" }));
     const name = screen.getByRole("heading", { name: "Packaging cartons" });
     const card = name.closest("article");
     if (!card) throw new Error("Pallet card missing");
@@ -1145,6 +1146,7 @@ describe("product quantity and recorded pallet count", () => {
       locale: "en",
       workspace: false,
     });
+    fireEvent.click(screen.getByRole("button", { name: "Card view" }));
     expect(
       screen.getByText("Total in storage units: 400 pieces"),
     ).toBeVisible();
@@ -1180,6 +1182,7 @@ describe("product quantity and recorded pallet count", () => {
       locale: "en",
       workspace: false,
     });
+    fireEvent.click(screen.getByRole("button", { name: "Card view" }));
     expect(
       screen.getByText("Total in storage units: 100 pieces"),
     ).toBeVisible();
@@ -1431,7 +1434,7 @@ describe("column filter interactions", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: "Apply" }));
     expect(
-      screen.getByRole("heading", { name: "Packaging cartons" }),
+      screen.getByRole("link", { name: "Packaging cartons" }),
     ).toBeVisible();
     expect(
       screen.getByRole("button", {
@@ -1539,7 +1542,7 @@ describe("column filter interactions", () => {
       );
       window.dispatchEvent(new PopStateEvent("popstate"));
     });
-    expect(screen.getByRole("button", { name: "Card view" })).toHaveAttribute(
+    expect(screen.getByRole("button", { name: "Table view" })).toHaveAttribute(
       "aria-pressed",
       "true",
     );

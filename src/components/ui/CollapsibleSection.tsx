@@ -42,7 +42,7 @@ export function CollapsibleSection({
         aria-expanded={open}
         aria-controls={panelId}
         onClick={toggle}
-        className="flex min-h-touch w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-base font-semibold text-text outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+        className="flex min-h-touch w-full items-center gap-3 rounded-lg px-4 py-2 text-left text-sm font-semibold text-text outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
         {...(testId === undefined ? {} : { "data-testid": testId })}
       >
         {Icon === undefined ? null : (

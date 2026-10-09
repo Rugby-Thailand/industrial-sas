@@ -666,7 +666,7 @@ describe("StorageZoneDraftPreview", () => {
       { locale: "en", workspace: false },
     );
     const initialTop = screen
-      .getByRole("img", { name: "Live 3D position" })
+      .getByRole("group", { name: "Live 3D position" })
       .querySelector('[data-zone-face="top"]')
       ?.getAttribute("points");
 
@@ -710,7 +710,7 @@ describe("StorageZoneDraftPreview", () => {
       { locale: "en", workspace: false },
     );
     const movedTop = screen
-      .getByRole("img", { name: "Live 3D position" })
+      .getByRole("group", { name: "Live 3D position" })
       .querySelector('[data-zone-face="top"]')
       ?.getAttribute("points");
 
@@ -776,7 +776,7 @@ describe("ReservedBlocks", () => {
       screen.getByRole("dialog", { name: "Add unavailable area" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("img", { name: "Live 3D reserved area" }),
+      screen.getByRole("group", { name: "Live 3D reserved area" }),
     ).toBeInTheDocument();
     fireEvent.keyDown(
       screen.getByRole("button", { name: "Drag reserved zone" }),

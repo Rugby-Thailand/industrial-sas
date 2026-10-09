@@ -178,9 +178,13 @@ function Records({ warehouseId }: { warehouseId: string }) {
   }
 
   return (
-    <PageContainer size="wide" className="max-w-5xl" actionInset="fixed">
-      <Heading title={t("records")} description={t("recordsSubtitle")} />
-      <div className="space-y-4">
+    <PageContainer size="wide" actionInset="responsive">
+      <Heading
+        title={t("records")}
+        helpText={t("recordsSubtitle")}
+        description={t("locationNotStock")}
+      />
+      <div className="space-y-3">
         <div
           role="group"
           className="grid grid-cols-3 border-b border-border sm:flex"
@@ -196,7 +200,7 @@ function Records({ warehouseId }: { warehouseId: string }) {
                 clearSelection();
               }}
               className={cn(
-                "-mb-px min-h-12 border-b-2 px-2 text-sm font-medium transition-colors hover:text-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:min-w-44 sm:px-6",
+                "-mb-px min-h-11 border-b-2 px-2 text-sm font-medium transition-colors hover:text-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:min-w-44 sm:px-6 md:min-h-9",
                 filter === value
                   ? "border-link text-text"
                   : "border-transparent text-muted",
@@ -224,7 +228,7 @@ function Records({ warehouseId }: { warehouseId: string }) {
               clearSelection();
             }}
             placeholder={t("search")}
-            className="h-14 rounded-xl border-border bg-raised pl-12"
+            className="pl-12"
           />
         </label>
       </div>
@@ -281,7 +285,7 @@ function Records({ warehouseId }: { warehouseId: string }) {
       )}
       <div>
         {canManage && records && records.length > 0 && (
-          <div className="flex min-h-20 items-center justify-between gap-3 border-b border-border py-4">
+          <div className="flex min-h-12 items-center justify-between gap-3 border-b border-border py-2">
             <label className="flex min-h-touch min-w-0 cursor-pointer items-center gap-4 text-sm sm:text-base">
               <CheckboxControl
                 className="size-6 shrink-0 accent-primary"
@@ -403,13 +407,10 @@ function Records({ warehouseId }: { warehouseId: string }) {
       </Dialog>
 
       {canManage && selected.length > 0 && !picking && (
-        <StickyActionBar
-          placement="fixed"
-          className="lg:left-(--sidebar-width) lg:group-has-[[data-collapsible=icon]]/sidebar-wrapper:left-(--sidebar-width-icon)"
-        >
-          <div className="mx-auto max-w-5xl">
+        <StickyActionBar placement="responsive">
+          <div className="mx-auto max-w-3xl">
             <Button
-              className="min-h-14 w-full whitespace-normal"
+              className="w-full whitespace-normal"
               disabled={operation.busy}
               onClick={() => openLocationPicker(selected)}
             >

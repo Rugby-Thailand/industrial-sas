@@ -292,6 +292,6 @@ describe("catalogue column filtering", () => {
 it("writes compact URLs and removes default filter state", () => {
   expect(serializeCatalogueState(newCatalogueState())).toBe("");
   expect(
-    serializeCatalogueState({ ...newCatalogueState(), layout: "table" }),
-  ).toBe('{"layout":"table"}');
+    serializeCatalogueState({ ...newCatalogueState(), layout: "cards" }),
+  ).toBe('{"layout":"cards"}');
 });

@@ -5,7 +5,7 @@ import { drafts } from "@/lib/browser/storage";
 import { useMutation, useQuery } from "convex/react";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Plus, Trash2, Copy, PackageCheck } from "lucide-react";
+import { Plus, Trash2, Copy } from "lucide-react";
 import { QueryGate } from "@/components/system/QueryGate";
 import { Button } from "@/components/ui/button";
 import { Notice } from "@/components/ui/Notice";
@@ -65,6 +65,7 @@ import {
   type PackageDraft,
 } from "./packingRows";
 import { PackingDimensionFields } from "./PackingDimensionFields";
+import { PackingCompletion } from "./PackingCompletion";
 
 type Format = "PALLET" | "BOX" | "OTHER";
 type Mode = "CAPACITY" | "EQUAL" | "MANUAL";
@@ -673,82 +674,36 @@ function PackingForm({
           title={t("copy.storage-units-created")}
           description={`${product.sku} · ${product.name}`}
         />
-        <div className={`${panel} max-w-3xl space-y-4`}>
-          <PackageCheck className="size-8 text-success" />
-          <p>
-            {draft.total} {product.unit} · {draft.completed.length} {plural}
-          </p>
-          <p>
-            {draft.simplePacking
-              ? t(
-                  "copy.scan-the-package-labels-in-order-then-scan-their-location",
+        <PackingCompletion
+          summary={`${draft.total} ${product.unit} · ${draft.completed.length} ${plural}`}
+          simplePacking={draft.simplePacking}
+          units={draft.completed.map((id, i) => ({
+            id,
+            href: draft.simplePacking ? palletPath(id) : storagePath(id),
+            label: `${draft.simplePacking ? t("copy.view-package-label") : t("copy.find-storage-eaab68")} · ${rowName(i)}`,
+          }))}
+          productHref={productPath(product._id)}
+          onReviewBatch={() => {
+            if (batch) persist(initialDraft(product, batch));
+            else if (draft.batchId) router.push(batchPath(draft.batchId));
+          }}
+          onPrepareAnother={() => {
+            const blank = initialDraft(product);
+            if (!batch) persist(blank);
+            else {
+              if (
+                !drafts.write(
+                  `${scope}:${warehouseId}:new:${product._id}`,
+                  blank,
                 )
-              : t("copy.choose-an-exact-storage-position-for-each-unit")}
-          </p>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {draft.completed.map((id, i) => (
-              <Button
-                asChild
-                variant={
-                  !draft.simplePacking && i === 0 ? "default" : "outline"
-                }
-                key={id}
-              >
-                <Link
-                  href={draft.simplePacking ? palletPath(id) : storagePath(id)}
-                >
-                  {draft.simplePacking
-                    ? t("copy.view-package-label")
-                    : t("copy.find-storage-eaab68")}{" "}
-                  · {rowName(i)}
-                </Link>
-              </Button>
-            ))}
-          </div>
-          <Button asChild variant={draft.simplePacking ? "default" : "outline"}>
-            <Link
-              href={
-                draft.simplePacking
-                  ? `${FG_PATH}/scan`
-                  : productPath(product._id)
+              ) {
+                setStorageWarning(true);
+                return;
               }
-            >
-              {draft.simplePacking
-                ? t("copy.scan-packages")
-                : t("copy.product-and-batches")}
-            </Link>
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => {
-              if (batch) persist(initialDraft(product, batch));
-              else if (draft.batchId) router.push(batchPath(draft.batchId));
-            }}
-          >
-            {t("copy.review-or-edit-this-batch")}
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => {
-              const blank = initialDraft(product);
-              if (!batch) persist(blank);
-              else {
-                if (
-                  !drafts.write(
-                    `${scope}:${warehouseId}:new:${product._id}`,
-                    blank,
-                  )
-                ) {
-                  setStorageWarning(true);
-                  return;
-                }
-                router.push(`${productPath(product._id)}/packing`);
-              }
-            }}
-          >
-            {t("copy.prepare-another-batch")}
-          </Button>
-        </div>
+              router.push(`${productPath(product._id)}/packing`);
+            }
+          }}
+        />
       </>
     );
   return (
@@ -1122,7 +1077,7 @@ function PackingForm({
             </div>
           ) : (
             <>
-              <div className="grid min-w-0 items-start gap-5 xl:grid-cols-2">
+              <div className="grid min-w-0 items-start gap-4 xl:grid-cols-2">
                 <div className="min-w-0 space-y-3">
                   <div
                     className="flex flex-wrap gap-2"
@@ -1156,7 +1111,7 @@ function PackingForm({
                         label={rowName(draft.rows.indexOf(selected))}
                       />
                     ) : (
-                      <div className="flex min-h-64 items-center justify-center text-center text-muted">
+                      <div className="flex min-h-24 items-center justify-center text-center text-muted md:min-h-64">
                         {t(
                           "copy.preview-only-enter-the-unit-s-actual-outer-dimensions",
                         )}

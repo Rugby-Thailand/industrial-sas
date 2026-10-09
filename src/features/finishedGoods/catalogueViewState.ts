@@ -10,7 +10,7 @@ export const defaultCatalogueView: CatalogueViewState = {
   tab: "products",
   search: "",
   status: "ALL",
-  layout: "cards",
+  layout: "table",
 };
 
 const productStatuses = ["ALL", "DRAFT", "ACTIVE"];
@@ -40,7 +40,7 @@ export function readCatalogueView(key: string): CatalogueViewState {
           typeof saved.status === "string" && statuses.includes(saved.status)
             ? saved.status
             : "ALL",
-        layout: saved.layout === "table" ? "table" : "cards",
+        layout: saved.layout === "cards" ? "cards" : "table",
       };
     },
     { ...defaultCatalogueView },

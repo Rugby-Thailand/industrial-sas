@@ -39,17 +39,17 @@ export function PageHeader({
 }) {
   const resolvedHelpText = helpText ?? description;
   return (
-    <header className="mb-6 space-y-3">
+    <header className="mb-4 space-y-2">
       {breadcrumbs?.length ? (
         <PageBreadcrumbs trail={breadcrumbs} current={title} />
       ) : null}
-      <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-4">
+      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
         <div className="min-w-0 flex-1 basis-64">
           <div className="flex min-h-touch items-center gap-1">
             {showBack ? (
               <PageBackButton fallbackHref={breadcrumbs?.at(-1)?.href ?? "/"} />
             ) : null}
-            <h1 className="min-w-0 text-2xl leading-8 font-semibold tracking-tight break-words text-text">
+            <h1 className="min-w-0 text-[22px] leading-8 font-semibold tracking-tight break-words text-text sm:text-2xl">
               {title}
             </h1>
             {resolvedHelpText === undefined ? null : (

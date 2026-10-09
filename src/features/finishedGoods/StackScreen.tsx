@@ -229,7 +229,7 @@ function StackLoader({
           "copy.choose-support-preview-and-check-verify-physical-placement",
         )}
       />
-      <div className="grid items-start gap-5 xl:grid-cols-[1.35fr_1fr]">
+      <div className="grid items-start gap-4 xl:grid-cols-[1.35fr_1fr]">
         <section className={`${panel} space-y-4`}>
           <h2 className="flex items-center gap-2 text-lg leading-7 font-semibold">
             <Layers3 className="size-5" />

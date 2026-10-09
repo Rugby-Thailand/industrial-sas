@@ -18,6 +18,7 @@ export function CursorPagination({
   locale,
   onFirst,
   historyTruncated = false,
+  label,
 }: {
   page: number;
   pageSize: PageSize;
@@ -30,11 +31,12 @@ export function CursorPagination({
   locale: string;
   onFirst?: () => void;
   historyTruncated?: boolean;
+  label?: string;
 }) {
   const th = locale === "th";
   return (
     <PaginationFooter
-      label={th ? "การแบ่งหน้า" : "Pagination"}
+      label={label ?? (th ? "การแบ่งหน้า" : "Pagination")}
       separated
       pageSizeControl={
         <PageSizeSelect

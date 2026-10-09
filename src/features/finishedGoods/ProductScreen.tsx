@@ -30,7 +30,6 @@ import {
   Status,
   Steps,
   measurePath,
-  panel,
   productPath,
   useFGText,
   useDraftKey,
@@ -307,7 +306,7 @@ function ProductForm({
             ? t("copy.finished-good-details")
             : t("copy.create-finished-good")
         }
-        description={t(
+        helpText={t(
           "copy.define-the-product-then-prepare-a-batch-with-its-quantities-packaging-an",
         )}
       >
@@ -320,8 +319,8 @@ function ProductForm({
           <ViewOnlyNotice />
         </div>
       )}
-      <form onSubmit={submit} className="max-w-3xl space-y-6">
-        <fieldset disabled={op.busy} className="min-w-0 space-y-6">
+      <form onSubmit={submit} className="max-w-3xl space-y-4">
+        <fieldset disabled={op.busy} className="min-w-0 space-y-4">
           <ErrorNotice message={op.error} />
           {op.errorCode === "DUPLICATE_KEY" && op.error && duplicateProduct ? (
             <Button asChild variant="outline">
@@ -332,8 +331,8 @@ function ProductForm({
           ) : null}
           <div className="space-y-6">
             <fieldset disabled={!canManage} className="min-w-0 space-y-4">
-              <section className={panel}>
-                <h2 className="mb-4 text-lg leading-7 font-semibold">
+              <section className="border-b border-border pb-4">
+                <h2 className="mb-4 text-base leading-6 font-semibold">
                   {t("copy.product-details")}
                 </h2>
                 <div className="grid gap-4 sm:grid-cols-2">
@@ -360,8 +359,8 @@ function ProductForm({
                   />
                 </div>
               </section>
-              <section className={panel}>
-                <h2 className="mb-4 text-lg leading-7 font-semibold">
+              <section className="border-b border-border pb-4">
+                <h2 className="mb-4 text-base leading-6 font-semibold">
                   {t("copy.storage-requirements")}
                 </h2>
                 <SelectControl
@@ -381,8 +380,8 @@ function ProductForm({
                   />
                 </div>
               </section>
-              <details className={panel}>
-                <summary className="cursor-pointer font-medium">
+              <details className="border-b border-border pb-3">
+                <summary className="flex min-h-11 cursor-pointer items-center font-medium">
                   {t("copy.references-optional")}
                 </summary>
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -401,8 +400,8 @@ function ProductForm({
                 </div>
               </details>
             </fieldset>
-            <aside className="rounded-xl border border-border bg-surface p-4">
-              <h2 className="text-lg leading-7 font-semibold">
+            <aside className="border-t border-border py-3">
+              <h2 className="text-base leading-6 font-semibold">
                 {t("copy.product-information-only")}
               </h2>
               <p className="mt-3 text-sm text-muted">
@@ -412,7 +411,7 @@ function ProductForm({
               </p>
             </aside>
           </div>
-          <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border bg-surface p-4">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-t border-border py-3">
             <p className="max-w-xl text-xs text-muted">
               {t(
                 "copy.saving-product-details-does-not-add-storage-units-prepare-more-goods-to-",

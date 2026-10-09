@@ -30,7 +30,7 @@ export {
   measurePath,
   storagePath,
 } from "@/lib/navigation";
-export const panel = "rounded-xl border border-border bg-surface p-4";
+export const panel = "rounded-lg border border-border bg-surface p-4";
 export { Panel };
 export const STATUS_TONES: Readonly<Record<string, BadgeTone>> = {
   DRAFT: "pending",
@@ -79,11 +79,13 @@ export function ViewOnlyNotice() {
 export function Heading({
   title,
   description,
+  helpText,
   breadcrumbs,
   children,
 }: {
   title: string;
   description?: string;
+  helpText?: string;
   /** Pages above this one, nearest last. Top-level pages pass none. */
   breadcrumbs?: readonly Crumb[];
   children?: ReactNode;
@@ -92,6 +94,7 @@ export function Heading({
     <PageHeader
       title={title}
       {...(description ? { summary: description } : {})}
+      {...(helpText ? { helpText } : {})}
       {...(breadcrumbs ? { breadcrumbs } : {})}
     >
       {children}

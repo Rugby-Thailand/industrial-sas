@@ -13,7 +13,7 @@ export function Panel({
   return (
     <Element
       className={cn(
-        "rounded-xl border border-border bg-surface p-4",
+        "rounded-lg border border-border bg-surface p-4",
         className,
       )}
       {...props}

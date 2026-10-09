@@ -3,7 +3,8 @@ import { useLayoutEffect, useRef, type HTMLAttributes } from "react";
 import { cn } from "@/lib/utils";
 
 const POSITIONS = {
-  sticky: "sticky bottom-0 z-20 -mx-4 mt-6 bg-surface/95 backdrop-blur",
+  sticky:
+    "sticky bottom-0 z-20 -mx-3 mt-6 bg-surface/95 backdrop-blur md:-mx-4",
   fixed: "fixed inset-x-0 bottom-0 z-20 m-0 bg-surface shadow-lg",
   responsive:
     "fixed inset-x-0 bottom-0 z-30 m-0 bg-surface shadow-lg md:static md:bottom-auto md:border-0 md:bg-transparent md:p-0 md:shadow-none",

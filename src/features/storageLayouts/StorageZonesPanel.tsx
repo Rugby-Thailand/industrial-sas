@@ -1105,7 +1105,7 @@ export function StorageZonesPanel({
       id="storage-stacks-section"
       tabIndex={-1}
       aria-label={t("storageZones")}
-      className="min-w-0 scroll-mt-20 rounded-2xl border border-border bg-surface p-5 shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
+      className="min-w-0 scroll-mt-20 rounded-lg border border-border bg-surface p-4 outline-none focus-visible:ring-2 focus-visible:ring-accent"
     >
       <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
         <div className="flex min-w-0 items-start gap-3">

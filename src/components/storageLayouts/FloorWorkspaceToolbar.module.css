@@ -54,7 +54,7 @@
   height: 36px;
   min-width: 0;
   padding: 0 10px;
-  border: 1px solid var(--plan-border);
+  border: 1px solid var(--plan-wall);
   border-radius: 6px;
 }
 .search:focus-within {

@@ -34,7 +34,6 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarProvider,
-  SidebarRail,
   useSidebar,
 } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -60,8 +59,14 @@ export function Pattern({ children }: { readonly children: ReactNode }) {
   return (
     <TooltipProvider>
       <SidebarProvider
+        defaultOpen={false}
         className="relative h-dvh min-h-0 w-full overflow-hidden bg-canvas text-text"
-        style={{ "--sidebar-width-icon": "4rem" } as CSSProperties}
+        style={
+          {
+            "--sidebar-width-icon": "4rem",
+            "--sidebar-width": "13rem",
+          } as CSSProperties
+        }
       >
         <a
           href={`#${MAIN_ID}`}
@@ -71,14 +76,16 @@ export function Pattern({ children }: { readonly children: ReactNode }) {
         </a>
         <AppSidebar />
         <SidebarInset className="min-w-0 overflow-hidden">
-          <header className="shrink-0 border-b border-border bg-surface px-4 py-3 lg:px-6">
-            <div className="flex flex-wrap items-center gap-3">
+          <header className="shrink-0 border-b border-border bg-surface px-3 py-2 lg:px-6">
+            <div className="flex items-center gap-2 sm:gap-3">
               <NavigationDisclosure />
               {showWorkspaceBar ? (
-                <div className="order-last w-full min-w-0 sm:order-none sm:w-auto sm:flex-1">
+                <div className="min-w-0 flex-1">
                   <WorkspaceContextBar />
                 </div>
-              ) : null}
+              ) : (
+                <TaskWorkspaceContext />
+              )}
               <div className="ml-auto">
                 <LocaleSwitcher />
               </div>
@@ -88,7 +95,7 @@ export function Pattern({ children }: { readonly children: ReactNode }) {
           <main
             id={MAIN_ID}
             tabIndex={-1}
-            className="min-w-0 flex-1 overflow-auto p-4 lg:p-6"
+            className="min-w-0 flex-1 overflow-auto p-3 sm:p-4 lg:px-6 lg:py-4"
           >
             {children}
           </main>
@@ -140,13 +147,16 @@ function AppSidebar() {
   return (
     <Sidebar
       collapsible="icon"
+      {...(!isMobile
+        ? { role: "complementary", "aria-label": t("primary") }
+        : {})}
       className="absolute h-full border-border"
       mobileTitle={t("primary")}
       mobileCloseLabel={t("closeMenu")}
     >
       <SidebarHeader className="border-b border-border">
         <div className="flex items-center">
-          <div className="flex min-h-14 min-w-0 flex-1 items-center gap-3 px-2">
+          <div className="flex min-h-11 min-w-0 flex-1 items-center gap-3 px-2">
             <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
               <Building2 className="size-4" aria-hidden="true" />
             </span>
@@ -179,10 +189,6 @@ function AppSidebar() {
           </span>
         </div>
       </SidebarFooter>
-      <SidebarRail
-        aria-label={t(collapsed ? "expandSidebar" : "collapseSidebar")}
-        title={t(collapsed ? "expandSidebar" : "collapseSidebar")}
-      />
     </Sidebar>
   );
 }
@@ -223,7 +229,7 @@ function NavigationTree({
           </p>
         ) : null}
         {sections.map((section) => (
-          <SidebarGroup key={section.labelKey} className={"px-2 py-3"}>
+          <SidebarGroup key={section.labelKey} className={"px-2 py-2"}>
             <SidebarGroupLabel
               className={
                 collapsed
@@ -278,4 +284,19 @@ function NavigationTree({
       </SidebarContent>
     </nav>
   );
+}
+
+function TaskWorkspaceContext() {
+  const workspace = useWorkspace();
+  const selected = workspace.warehouses.find(
+    (warehouse) => warehouse.id === workspace.selectedWarehouseId,
+  );
+  return selected ? (
+    <span
+      className="min-w-0 flex-1 truncate text-sm font-medium"
+      title={`${selected.code} · ${selected.name}`}
+    >
+      {selected.code} · {selected.name}
+    </span>
+  ) : null;
 }

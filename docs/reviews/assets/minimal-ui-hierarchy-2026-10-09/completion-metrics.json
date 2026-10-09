@@ -1,0 +1,122 @@
+[
+  {
+    "actions": [
+      {
+        "color": "rgb(29, 78, 216)",
+        "height": 34,
+        "label": "Find storage · pallet 1",
+        "width": 173.21875
+      },
+      {
+        "color": "rgb(29, 78, 216)",
+        "height": 28,
+        "label": "Find storage · pallet 2",
+        "width": 150.9765625
+      },
+      {
+        "color": "rgb(71, 85, 105)",
+        "height": 28,
+        "label": "Product and batches",
+        "width": 125.8984375
+      },
+      {
+        "color": "rgb(71, 85, 105)",
+        "height": 28,
+        "label": "Review or edit this batch",
+        "width": 149.8203125
+      },
+      {
+        "color": "rgb(71, 85, 105)",
+        "height": 28,
+        "label": "Prepare another batch",
+        "width": 153.8359375
+      }
+    ],
+    "documentOverflow": 0,
+    "mainOverflow": 0,
+    "primaryPaintBackground": "rgb(29, 78, 216)",
+    "primaryPaintHeight": 32,
+    "sectionHeight": 131,
+    "width": 1440
+  },
+  {
+    "actions": [
+      {
+        "color": "rgb(29, 78, 216)",
+        "height": 44,
+        "label": "Find storage · pallet 1",
+        "width": 173.21875
+      },
+      {
+        "color": "rgb(29, 78, 216)",
+        "height": 44,
+        "label": "Find storage · pallet 2",
+        "width": 150.9765625
+      },
+      {
+        "color": "rgb(71, 85, 105)",
+        "height": 44,
+        "label": "Product and batches",
+        "width": 125.8984375
+      },
+      {
+        "color": "rgb(71, 85, 105)",
+        "height": 44,
+        "label": "Review or edit this batch",
+        "width": 149.8203125
+      },
+      {
+        "color": "rgb(71, 85, 105)",
+        "height": 44,
+        "label": "Prepare another batch",
+        "width": 153.8359375
+      }
+    ],
+    "documentOverflow": 0,
+    "mainOverflow": 0,
+    "primaryPaintBackground": "rgb(29, 78, 216)",
+    "primaryPaintHeight": 32,
+    "sectionHeight": 245,
+    "width": 390
+  },
+  {
+    "actions": [
+      {
+        "color": "rgb(29, 78, 216)",
+        "height": 44,
+        "label": "Find storage · pallet 1",
+        "width": 173.21875
+      },
+      {
+        "color": "rgb(29, 78, 216)",
+        "height": 44,
+        "label": "Find storage · pallet 2",
+        "width": 150.9765625
+      },
+      {
+        "color": "rgb(71, 85, 105)",
+        "height": 44,
+        "label": "Product and batches",
+        "width": 125.8984375
+      },
+      {
+        "color": "rgb(71, 85, 105)",
+        "height": 44,
+        "label": "Review or edit this batch",
+        "width": 149.8203125
+      },
+      {
+        "color": "rgb(71, 85, 105)",
+        "height": 44,
+        "label": "Prepare another batch",
+        "width": 153.8359375
+      }
+    ],
+    "documentOverflow": 0,
+    "mainOverflow": 0,
+    "primaryPaintBackground": "rgb(29, 78, 216)",
+    "primaryPaintHeight": 32,
+    "sectionHeight": 265,
+    "width": 320
+  }
+]

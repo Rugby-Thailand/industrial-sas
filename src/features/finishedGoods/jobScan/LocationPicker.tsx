@@ -96,7 +96,7 @@ export function LocationPicker({
         </label>
         <button
           type="button"
-          className={`absolute top-1/2 right-1 flex size-10 -translate-y-1/2 items-center justify-center rounded-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none ${camera ? "text-link" : "text-muted hover:text-text"}`}
+          className={`absolute top-1/2 right-1 flex size-11 -translate-y-1/2 items-center justify-center rounded-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none ${camera ? "text-link" : "text-muted hover:text-text"}`}
           aria-label={camera ? t("stopCamera") : t("scanLocationQr")}
           title={t("scanLocationQr")}
           aria-pressed={camera}
