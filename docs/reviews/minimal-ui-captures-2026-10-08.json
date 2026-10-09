@@ -100,10 +100,10 @@
   },
   {
     "name": "12-units-created",
-    "caption": "Storage units created: compact totals, underlined unit links and secondary actions.",
+    "caption": "Storage units created: compact primary action, underlined unit destinations and neutral utility actions.",
     "images": {
-      "desktop": "assets/minimal-ui-2026-10-09/12-units-created-desktop.jpg",
-      "mobile": "assets/minimal-ui-2026-10-09/12-units-created-mobile.jpg"
+      "desktop": "assets/minimal-ui-hierarchy-2026-10-09/12-units-created-desktop.jpg",
+      "mobile": "assets/minimal-ui-hierarchy-2026-10-09/12-units-created-mobile.jpg"
     },
     "browser": "Chrome",
     "capturedAt": "2026-10-09"

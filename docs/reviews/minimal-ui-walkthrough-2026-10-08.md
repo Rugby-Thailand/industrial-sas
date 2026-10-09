@@ -8,7 +8,7 @@ Writes used local `QA-` records. Physical movement was simulated through explici
 
 Most screenshots were captured through T3 preview during the test/fix loop. The final catalogue, map table, Thai and dark-mode pairs use Chrome, as requested after preview failures. Screenshots record each workflow state at the time of its action; later saves naturally change totals and statuses. Earlier dev captures may include Next’s development indicator.
 
-State 12 was refreshed on 2026-10-09 after compacting the completion actions. See the [completion follow-up](minimal-ui-completion-2026-10-09.md) for before/after images and both-size checks of every action.
+State 12 was refreshed on 2026-10-09 with the approved compact action hierarchy. See the [hierarchy refactor and audit](minimal-ui-hierarchy-2026-10-09.md) for 17 real desktop/mobile pairs, mobile target measurements and both-size checks of every completion action. The [earlier completion follow-up](minimal-ui-completion-2026-10-09.md) retains before/after history.
 
 Camera hardware and an actual phone software keyboard were not exercised; the mobile evidence uses a browser viewport.
 
@@ -134,11 +134,11 @@ Camera hardware and an actual phone software keyboard were not exercised; the mo
 </details>
 
 <details>
-<summary>12-units-created: Storage units created: compact totals, underlined unit links and secondary actions.</summary>
+<summary>12-units-created: Storage units created: compact primary action, underlined unit destinations and neutral utility actions.</summary>
 
-| Desktop                                                                                  | Mobile                                                                                 |
-| ---------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| ![Desktop — 12-units-created](assets/minimal-ui-2026-10-09/12-units-created-desktop.jpg) | ![Mobile — 12-units-created](assets/minimal-ui-2026-10-09/12-units-created-mobile.jpg) |
+| Desktop                                                                                            | Mobile                                                                                           |
+| -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| ![Desktop — 12-units-created](assets/minimal-ui-hierarchy-2026-10-09/12-units-created-desktop.jpg) | ![Mobile — 12-units-created](assets/minimal-ui-hierarchy-2026-10-09/12-units-created-mobile.jpg) |
 
 </details>
 
