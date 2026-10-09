@@ -89,6 +89,11 @@ export function classifyTicketBarcode(
     : "productBarcodeText";
 }
 
+export const JOB_TICKET_CODE_LIMITS = {
+  factoryOrder: 100,
+  productBarcodeText: 200,
+} as const;
+
 export function jobTicketError(fields: {
   factoryOrder: string;
   productBarcodeText: string;
@@ -96,8 +101,8 @@ export function jobTicketError(fields: {
   if (!fields.factoryOrder.trim()) return "FACTORY_ORDER_REQUIRED";
   if (!fields.productBarcodeText.trim()) return "PRODUCT_BARCODE_REQUIRED";
   if (
-    fields.factoryOrder.length > 100 ||
-    fields.productBarcodeText.length > 200
+    fields.factoryOrder.length > JOB_TICKET_CODE_LIMITS.factoryOrder ||
+    fields.productBarcodeText.length > JOB_TICKET_CODE_LIMITS.productBarcodeText
   )
     return "FIELD_TOO_LONG";
   return null;

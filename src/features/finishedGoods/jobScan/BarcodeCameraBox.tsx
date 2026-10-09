@@ -11,15 +11,24 @@ export function BarcodeCameraBox({
   onCode,
   onClose,
   feedback,
+  videoLabel,
 }: {
   mode: "PACKAGES" | "LOCATION";
   onCode: (code: string) => void;
   onClose: () => void;
   feedback?: string | undefined;
+  videoLabel?: string;
 }) {
   const t = useTranslations("JobScan");
-  const { videoRef, state, error, torchAvailable, torchOn, toggleTorch } =
-    useBarcodeCamera({ mode, active: true, onCode });
+  const {
+    videoRef,
+    state,
+    error,
+    torchAvailable,
+    torchOn,
+    toggleTorch,
+    start,
+  } = useBarcodeCamera({ mode, active: true, onCode });
   return (
     <div className="space-y-2">
       <div className="relative overflow-hidden rounded-xl bg-black">
@@ -27,6 +36,7 @@ export function BarcodeCameraBox({
           ref={videoRef}
           muted
           playsInline
+          aria-label={videoLabel ?? t("cameraPreview")}
           className="aspect-[4/3] max-h-80 w-full object-cover"
         />
         <div
@@ -39,7 +49,7 @@ export function BarcodeCameraBox({
             variant="ghost"
             className="absolute top-2 right-2 size-11 text-white hover:bg-white/20"
             aria-pressed={torchOn}
-            aria-label="Flashlight"
+            aria-label={t("flashlight")}
             onClick={() => void toggleTorch()}
           >
             <Flashlight className="size-5" aria-hidden="true" />
@@ -48,10 +58,28 @@ export function BarcodeCameraBox({
       </div>
       <p role="status" aria-live="polite" className="min-h-5 text-sm">
         {error
-          ? t("cameraError")
+          ? t(
+              error === "PERMISSION"
+                ? "cameraPermission"
+                : error === "DECODER"
+                  ? "cameraDecoderError"
+                  : error === "TORCH"
+                    ? "flashlightError"
+                    : "cameraError",
+            )
           : (feedback ??
             (state === "ACTIVE" ? t("pointCamera") : t("startingCamera")))}
       </p>
+      {error && error !== "TORCH" && (
+        <Button
+          type="button"
+          variant="outline"
+          className="min-h-11 w-full"
+          onClick={start}
+        >
+          {t("retryCamera")}
+        </Button>
+      )}
       <Button
         type="button"
         variant="outline"

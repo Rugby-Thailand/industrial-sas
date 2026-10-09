@@ -1,8 +1,27 @@
-import { classifyTicketBarcode } from "../../../../convex/model/finishedGoods/jobScans";
+import {
+  classifyTicketBarcode,
+  JOB_TICKET_CODE_LIMITS,
+} from "../../../../convex/model/finishedGoods/jobScans";
 
-export { classifyTicketBarcode };
+export { classifyTicketBarcode, JOB_TICKET_CODE_LIMITS as TICKET_CODE_LIMITS };
 
 export const REQUIRED_FIELDS = ["factoryOrder", "productBarcodeText"] as const;
+export type TicketCodeField = (typeof REQUIRED_FIELDS)[number];
+
+/** Field scanning must not redirect a wrong label to another field or accept a storage QR. */
+export function ticketBarcodeError(field: TicketCodeField, code: string) {
+  const value = code.trim();
+  if (
+    !value ||
+    /^ISAS:/i.test(value) ||
+    [...value].some((character) => character.charCodeAt(0) < 32)
+  )
+    return "invalidTicketBarcode" as const;
+  if (value.length > JOB_TICKET_CODE_LIMITS[field])
+    return "scanCodeTooLong" as const;
+  if (classifyTicketBarcode(value) !== field) return "wrongScanField" as const;
+  return undefined;
+}
 export const DETAIL_FIELDS = [
   "partName",
   "customer",

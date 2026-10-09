@@ -1359,6 +1359,26 @@
     "duplicateReview": "I checked these repeated tickets: each entry represents a separate physical unit.",
     "invalidQuantity": "Enter a valid quantity of zero or more.",
     "photoProcessingFailed": "The photo could not be read. Enter the ticket manually.",
-    "locationNotStock": "Saving a ticket or setting its location does not confirm pallet storage."
+    "locationNotStock": "Saving a ticket or setting its location does not confirm pallet storage.",
+    "scanField": "Scan {field}",
+    "scanTicketField": "Ticket #{index} · {field}. The result fills only this field.",
+    "replaceScanHint": "Confirm the scanned value before replacing the existing value.",
+    "currentValue": "Current value",
+    "scannedValue": "Scanned value",
+    "replaceValue": "Replace value",
+    "scanAgain": "Scan again",
+    "invalidTicketBarcode": "Scan a job ticket barcode. This label cannot be used here.",
+    "scanCodeTooLong": "This code is too long for the selected field.",
+    "wrongScanField": "This barcode belongs to a different field. Scan the label for this field.",
+    "cameraPreview": "Barcode and QR camera preview",
+    "flashlight": "Flashlight",
+    "flashlightError": "Flashlight unavailable. You can continue scanning.",
+    "retryCamera": "Retry camera",
+    "cameraPermission": "Camera access was denied. Allow access and retry, or close and type the code.",
+    "cameraDecoderError": "The camera could not read the code. Retry, or close and type the code.",
+    "locationLookupFailed": "Could not check the location. Retry scanning or search by code.",
+    "locationScanNotFound": "This label is not a known location in this warehouse. Scan again or search by code.",
+    "checkingLocation": "Checking location…",
+    "locationLookupDenied": "Cannot access locations in this warehouse. Check your access or choose another warehouse."
   }
 }
