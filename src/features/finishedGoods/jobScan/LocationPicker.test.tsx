@@ -18,7 +18,7 @@ vi.mock("convex/react", () => ({
       total: 1,
     }),
 }));
-vi.mock("./BarcodeCameraBox", () => ({
+vi.mock("../BarcodeCameraBox", () => ({
   BarcodeCameraBox: ({
     onCode,
     onClose,

@@ -3,11 +3,11 @@
 import { useId } from "react";
 import { Loader2, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { Button } from "@/components/ui/button";
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
+import { FormField } from "@/components/ui/FormField";
+import { IconButton } from "@/components/ui/IconButton";
 import { Input } from "@/components/ui/input";
 import { ScanCodeInput } from "@/components/ui/ScanCodeInput";
-import { Label } from "@/components/ui/label";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { cn } from "@/lib/utils";
 import { JobScanPhotoPreview } from "./JobScanPhotoPreview";
@@ -43,7 +43,6 @@ function TicketInput({
   const required = (REQUIRED_FIELDS as readonly string[]).includes(field);
   const codeField = required ? (field as TicketCodeField) : undefined;
   const inputProps = {
-    id,
     value,
     onChange: (event: React.ChangeEvent<HTMLInputElement>) =>
       onChange(field, event.target.value),
@@ -59,22 +58,27 @@ function TicketInput({
     ),
   };
   return (
-    <div className="min-w-0 space-y-1">
-      <Label htmlFor={id} className="text-xs text-muted">
-        {t(field)}
-        {required && <span className="text-danger"> *</span>}
-      </Label>
-      {codeField ? (
-        <ScanCodeInput
-          {...inputProps}
-          scanDialog
-          scanLabel={t("scanField", { field: t(field) })}
-          onScan={() => onScan(codeField)}
-        />
-      ) : (
-        <Input {...inputProps} />
-      )}
-    </div>
+    <FormField
+      id={id}
+      label={t(field)}
+      required={required}
+      className="gap-1"
+      labelClassName="text-xs text-muted"
+    >
+      {(control) =>
+        codeField ? (
+          <ScanCodeInput
+            {...control}
+            {...inputProps}
+            scanDialog
+            scanLabel={t("scanField", { field: t(field) })}
+            onScan={() => onScan(codeField)}
+          />
+        ) : (
+          <Input {...control} {...inputProps} />
+        )
+      }
+    </FormField>
   );
 }
 
@@ -111,16 +115,15 @@ export function TicketCard({
             {t("reading")}
           </span>
         )}
-        <Button
-          type="button"
+        <IconButton
           variant="ghost"
           className="ml-auto"
-          aria-label={`${t("remove")} #${index + 1}`}
+          label={`${t("remove")} #${index + 1}`}
           onClick={onRemove}
           disabled={disabled}
         >
           <Trash2 className="size-4" aria-hidden="true" />
-        </Button>
+        </IconButton>
       </div>
       {duplicate && (
         <p className="text-sm text-warning">{t("duplicateTickets")}</p>

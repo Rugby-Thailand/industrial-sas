@@ -31,7 +31,7 @@ import {
   ViewOnlyNotice,
   written,
 } from "../shared";
-import { BarcodeCameraBox } from "./BarcodeCameraBox";
+import { BarcodeCameraBox } from "../BarcodeCameraBox";
 import { LocationPicker } from "./LocationPicker";
 import { PhotoCapture } from "./PhotoCapture";
 import { TicketCard } from "./TicketCard";

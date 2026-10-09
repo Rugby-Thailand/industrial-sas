@@ -11,7 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { BarcodeCameraBox } from "./BarcodeCameraBox";
+import { BarcodeCameraBox } from "../BarcodeCameraBox";
 import { ticketBarcodeError, type TicketCodeField } from "./ticketDraft";
 
 /** One field, one ticket, one result. Existing values require an explicit replacement. */

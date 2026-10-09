@@ -151,10 +151,10 @@ describe("DestinationScanner", () => {
     renderIntl(<DestinationScanner onCode={vi.fn()} expectedLocation="FG-1" />);
     await startCamera();
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Camera unavailable",
+      "Camera access was denied",
     );
     expect(screen.getByLabelText("Destination code")).toBeEnabled();
-    expect(screen.getByRole("button", { name: "Start camera" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Retry camera" })).toBeEnabled();
   });
 
   it("handles browsers without a camera API", async () => {
@@ -355,4 +355,60 @@ it("resets verification input and rejects old frames when the expected identity 
   expect(screen.getByLabelText("Destination code")).toHaveValue("");
   expect(onCode).not.toHaveBeenCalled();
   expect(scanner.decode).toHaveBeenCalledTimes(1);
+});
+
+it("stops the shared camera during manual verification and ignores repeated submits and late frames", async () => {
+  let finish!: () => void;
+  const onCode = vi.fn(
+    () =>
+      new Promise<void>((resolve) => {
+        expect(stop).toHaveBeenCalled();
+        finish = resolve;
+      }),
+  );
+  const stop = vi.fn();
+  scanner.decode.mockResolvedValue({ stop });
+  renderIntl(<DestinationScanner onCode={onCode} expectedLocation="FG-1" />);
+  await startCamera();
+  const late = scanner.decode.mock.calls[0]![2];
+  fireEvent.change(screen.getByLabelText("Destination code"), {
+    target: { value: "TYPED-CODE" },
+  });
+  const form = screen.getByLabelText("Destination code").closest("form")!;
+  act(() => {
+    fireEvent.submit(form);
+    fireEvent.submit(form);
+  });
+  expect(onCode.mock.calls).toEqual([["TYPED-CODE", "MANUAL"]]);
+  expect(stop).toHaveBeenCalled();
+  expect(screen.getByLabelText("Destination code")).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Start camera" })).toBeDisabled();
+  act(() => late({ getText: () => "LATE" }, undefined, { stop }));
+  expect(onCode).toHaveBeenCalledTimes(1);
+  await act(async () => finish());
+  expect(screen.getByLabelText("Destination code")).toHaveValue("TYPED-CODE");
+  expect(screen.getByRole("button", { name: "Start camera" })).toBeEnabled();
+});
+
+it("retries denied camera access through the adjacent scan action", async () => {
+  const media = vi.mocked(navigator.mediaDevices.getUserMedia);
+  media.mockRejectedValueOnce(new DOMException("Denied", "NotAllowedError"));
+  const stop = vi.fn();
+  scanner.decode.mockResolvedValue({ stop });
+  const onCode = vi.fn().mockResolvedValue(undefined);
+  renderIntl(<DestinationScanner onCode={onCode} expectedLocation="FG-1" />);
+  const scan = screen.getByRole("button", { name: "Scan Destination code" });
+  fireEvent.click(scan);
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "Camera access was denied",
+  );
+  expect(scan).toHaveAttribute("aria-pressed", "false");
+  fireEvent.click(scan);
+  await waitFor(() => expect(scanner.decode).toHaveBeenCalledOnce());
+  expect(media).toHaveBeenCalledTimes(2);
+  emitCode("RETRIED-CODE", stop);
+  await waitFor(() =>
+    expect(onCode).toHaveBeenCalledWith("RETRIED-CODE", "SCAN"),
+  );
+  expect(screen.queryByRole("alert")).not.toBeInTheDocument();
 });

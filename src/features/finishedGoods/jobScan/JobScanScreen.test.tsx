@@ -12,7 +12,7 @@ const mocks = vi.hoisted(() => ({
   resize: vi.fn(),
   decode: undefined as ((code: string) => void) | undefined,
 }));
-vi.mock("./BarcodeCameraBox", () => ({
+vi.mock("../BarcodeCameraBox", () => ({
   BarcodeCameraBox: ({
     onCode,
     onClose,

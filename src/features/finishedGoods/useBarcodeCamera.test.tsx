@@ -1,6 +1,14 @@
-import { act, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { useBarcodeCamera } from "./useBarcodeCamera";
+import { BarcodeCameraBox } from "./BarcodeCameraBox";
+import { renderWithIntl } from "@tests/fixtures/intl-render";
 
 type Controls = { stop(): void; switchTorch?: (on: boolean) => Promise<void> };
 type DecodeCallback = (
@@ -68,6 +76,27 @@ function emit(code: string, index = 0) {
   const callback = mocks.decode.mock.calls[index]![2];
   callback({ getText: () => code }, undefined, { stop: mocks.stop });
 }
+it("keeps the shared intake camera open for distinct codes and releases it on close", async () => {
+  const onCode = vi.fn(),
+    onClose = vi.fn();
+  renderWithIntl(
+    <BarcodeCameraBox mode="PACKAGES" onCode={onCode} onClose={onClose} />,
+    { locale: "en" },
+  );
+  await waitFor(() => expect(mocks.decode).toHaveBeenCalledTimes(1));
+  act(() => {
+    emit("PRODUCT-A");
+    emit("PRODUCT-B");
+  });
+  expect(onCode.mock.calls).toEqual([["PRODUCT-A"], ["PRODUCT-B"]]);
+  expect(mocks.media).toHaveBeenCalledTimes(1);
+  expect(mocks.trackStop).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "Stop camera" }));
+  expect(onClose).toHaveBeenCalledOnce();
+  expect(mocks.trackStop).toHaveBeenCalled();
+  act(() => emit("LATE"));
+  expect(onCode).toHaveBeenCalledTimes(2);
+});
 it("reads distinct codes continuously with one acquisition, preserves leading zeroes and suppresses repeats", async () => {
   const onCode = vi.fn();
   render(<Camera onCode={onCode} />);

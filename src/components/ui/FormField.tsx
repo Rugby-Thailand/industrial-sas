@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 
 /** Shared field presentation; callers retain input type, value, and validation. */
 export function FormField({
@@ -9,6 +10,8 @@ export function FormField({
   hint,
   error,
   srOnlyLabel = false,
+  className,
+  labelClassName,
   children,
 }: {
   readonly id: string;
@@ -17,6 +20,8 @@ export function FormField({
   readonly hint?: ReactNode;
   readonly error?: ReactNode;
   readonly srOnlyLabel?: boolean;
+  readonly className?: string;
+  readonly labelClassName?: string;
   readonly children: (props: {
     id: string;
     name?: string;
@@ -30,8 +35,11 @@ export function FormField({
       .filter(Boolean)
       .join(" ") || undefined;
   return (
-    <div className="grid min-w-0 gap-2">
-      <Label htmlFor={id} className={srOnlyLabel ? "sr-only" : undefined}>
+    <div className={cn("grid min-w-0 gap-2", className)}>
+      <Label
+        htmlFor={id}
+        className={cn(srOnlyLabel && "sr-only", labelClassName)}
+      >
         {label}
         {required ? (
           <span className="text-danger" aria-hidden="true">

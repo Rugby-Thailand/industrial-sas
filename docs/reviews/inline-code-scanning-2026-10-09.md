@@ -33,6 +33,22 @@ Branch: `codex/inline-code-scanning`. This implements the approved field-scan pl
 | Mobile acquisition toolbar labels clipped at 320 px, including Thai scan and English scan/manual actions. | Stack icons above labels on mobile; all 12 language/theme/viewport combinations have zero toolbar text overflow.                                                                                                                        |
 | Destination camera lifecycle duplicated the barcode engine.                                               | Reused `useBarcodeCamera`, with synchronous single-shot stop, generation guards, rear-camera preference, multi-format decoding and owned-track cleanup. Tests retain previous camera behavior and cover all four verification purposes. |
 
+## Shared components and hooks
+
+- `BarcodeCameraBox` is shared by ticket intake, field scanning, location selection
+  and all four verification purposes. It owns preview, start/stop/retry, flashlight,
+  permission feedback and synchronous shutdown. Verification stops after one code;
+  intake keeps reading distinct codes. It moved to the finished-goods feature root.
+- Ticket fields, location search and verification use the existing `FormField`
+  presentation. Required-field semantics, labels and hints stay associated with
+  their inputs; compact ticket labels retain their styling.
+- Ticket removal and flashlight actions reuse `IconButton`; camera failures reuse
+  `Notice`. Verification reuses `useAsyncOperation` for its in-flight lock, busy
+  state and error handling instead of maintaining another implementation.
+- Compared with the previously reviewed commit `19307d4`, this refactor removes
+  **23 net production lines**, including unused duplicate camera translations.
+  It introduces no additional component and preserves ticket replacement rules.
+
 ## Standards review
 
 Read repository AGENTS.md and installed Next.js 16.3.8 client-component guides.
@@ -51,7 +67,10 @@ keyboard entry, localized names and camera retry have regression coverage.
 
 ## Validation
 
-- Full Vitest suite: 139 files, 1,172 tests passed.
+- Full Vitest suite after the reuse refactor: 139 files, 1,175 tests passed.
+- Focused refactor checks: 67 tests across seven files passed, including continuous
+  acquisition, synchronous shutdown before manual verification, duplicate submits,
+  permission retry through the field action and the shared async-operation hook.
 - Final affected-flow checks include the ticket workflow, location picker,
   DestinationScanner, shared camera hook and ticket field validation.
 - ESLint, TypeScript, production build and production dependency audit checked
@@ -69,6 +88,12 @@ keyboard entry, localized names and camera retry have regression coverage.
   320/390/1440 px have zero page or acquisition-toolbar text overflow. Scan touch
   targets are 48 px on mobile and 44 px on desktop. Thai confirmation widths were
   288/358 px at 320/390 px, with zero page overflow.
+- Refactor browser checks repeated real QR and Code 128 decoding, exact ticket
+  targeting, replacement confirmation and focus restoration at 320 px in Thai/light,
+  plus pallet verification and permission denial in English/dark. Each accepted scan
+  released its stream; both screens had zero page overflow. A further viewport sweep
+  was interrupted by native automation errors, so the 12-case matrix above describes
+  the initial implementation rather than a complete repeat on this refactor.
 
 ## Limits
 

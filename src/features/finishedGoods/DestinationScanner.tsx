@@ -1,14 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useId, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Camera, Square } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { FormField } from "@/components/ui/FormField";
 import { ScanCodeInput } from "@/components/ui/ScanCodeInput";
-import { useBarcodeCamera } from "./useBarcodeCamera";
-import { Label } from "@/components/ui/label";
 import { Notice } from "@/components/ui/Notice";
+import { BarcodeCameraBox } from "./BarcodeCameraBox";
+import { useAsyncOperation } from "@/hooks/useAsyncOperation";
 
 import { useUnitText } from "./shared";
 
@@ -46,64 +46,25 @@ function DestinationScanSession({
   const { t } = useUnitText(storageFormat);
   const inputId = useId();
   const scanText = useTranslations("JobScan");
-  const mounted = useRef(true);
-  const inFlight = useRef(false);
-  const [camera, setCamera] = useState(false);
   const [code, setCode] = useState("");
-  const [error, setError] = useState("");
-  const [reading, setReading] = useState(false);
-  const disabled = busy || reading || verified;
-  if ((busy || verified) && camera) setCamera(false);
-  const {
-    videoRef,
-    state,
-    error: cameraError,
-    stop,
-    start,
-  } = useBarcodeCamera({
-    active: camera && !disabled,
-    mode:
-      purpose === "PALLET" || purpose === "SUPPORT" ? "PACKAGES" : "LOCATION",
-    onCode: (value) => {
-      if (camera) void submit(value, "SCAN");
-    },
-  });
-  const stopCamera = useCallback(() => {
-    stop();
-    setCamera(false);
-  }, [stop]);
-  useEffect(() => {
-    mounted.current = true;
-    return () => {
-      mounted.current = false;
-    };
-  }, []);
+  const verification = useAsyncOperation(() =>
+    showVerificationErrors
+      ? t(
+          "copy.the-destination-could-not-be-verified-check-the-code-and-connection-then",
+        )
+      : "",
+  );
+  const disabled = busy || verification.busy || verified;
 
-  async function submit(value: string, method: "SCAN" | "MANUAL") {
+  function submit(value: string, method: "SCAN" | "MANUAL") {
     const trimmed = value.trim();
-    if (!mounted.current || !trimmed || disabled || inFlight.current) return;
-    inFlight.current = true;
-    if (method === "SCAN") setCode(trimmed);
-    stopCamera();
-    setReading(true);
-    setError("");
-    try {
+    if (!trimmed || disabled) return;
+    void verification.run(async () => {
+      if (method === "SCAN") setCode(trimmed);
       await onCode(trimmed, method);
-    } catch {
-      if (mounted.current && showVerificationErrors) {
-        setError(
-          t(
-            "copy.the-destination-could-not-be-verified-check-the-code-and-connection-then",
-          ),
-        );
-      }
-    } finally {
-      inFlight.current = false;
-      if (mounted.current) setReading(false);
-    }
+    });
   }
 
-  const startupPending = !camera && state === "STARTING";
   const codeLabel =
     purpose === "SUPPORT"
       ? t("copy.supporting-pallet-code")
@@ -112,12 +73,6 @@ function DestinationScanSession({
         : purpose === "SOURCE"
           ? t("copy.source-code")
           : t("copy.destination-code");
-  function startCamera() {
-    if (disabled || startupPending || inFlight.current) return;
-    setError("");
-    if (camera) start();
-    else setCamera(true);
-  }
   return (
     <div className="space-y-4">
       <div className="rounded-lg border border-border bg-surface p-3">
@@ -145,109 +100,73 @@ function DestinationScanSession({
                 )}
         </p>
       </div>
-      <div className="space-y-2">
-        <video
-          ref={videoRef}
-          muted
-          playsInline
-          aria-label={t("copy.destination-camera-preview")}
-          className={`aspect-video w-full rounded-lg bg-black object-cover ${!camera ? "hidden" : ""}`}
-        />
-        {!camera || cameraError ? (
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => void startCamera()}
-            disabled={disabled || startupPending}
-            className="w-full"
-          >
-            <Camera className="size-4" aria-hidden="true" />
-            {t("copy.start-camera")}
-          </Button>
-        ) : (
-          <Button
-            type="button"
-            variant="outline"
-            onClick={stopCamera}
-            className="w-full"
-          >
-            <Square className="size-4" aria-hidden="true" />
-            {t("copy.stop-camera")}
-          </Button>
-        )}
-        {camera && state === "STARTING" ? (
-          <p role="status" className="text-sm text-muted">
-            {t("copy.starting-camera")}
-          </p>
-        ) : null}
-      </div>
-      <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          void submit(code, "MANUAL");
-        }}
-        className="space-y-3"
+      <BarcodeCameraBox
+        mode={
+          purpose === "PALLET" || purpose === "SUPPORT"
+            ? "PACKAGES"
+            : "LOCATION"
+        }
+        startOnMount={false}
+        stopAfterScan
+        disabled={disabled}
+        onCode={(value) => submit(value, "SCAN")}
+        videoLabel={scanText("scanField", { field: codeLabel })}
       >
-        <div className="space-y-2">
-          <Label htmlFor={inputId}>{codeLabel}</Label>
-          <ScanCodeInput
-            scanLabel={scanText("scanField", { field: codeLabel })}
-            onScan={() => {
-              if (camera && !cameraError) stopCamera();
-              else startCamera();
+        {({ stopCamera, ...scan }) => (
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              stopCamera();
+              submit(code, "MANUAL");
             }}
-            scanning={camera && !cameraError}
-            scanDisabled={startupPending}
-            id={inputId}
-            value={code}
-            onChange={(event) => setCode(event.target.value)}
-            disabled={disabled}
-            autoComplete="off"
-            spellCheck={false}
-            maxLength={500}
-            placeholder={
-              purpose === "PALLET" || purpose === "SUPPORT"
-                ? "ISAS:PALLET:1:…"
-                : "ISAS:LOCATION:1:…"
-            }
-            aria-describedby={`${inputId}-hint`}
-          />
-          <p
-            id={`${inputId}-hint`}
-            className="text-xs leading-relaxed text-muted"
+            className="space-y-3"
           >
-            {t(
-              "copy.paste-type-or-use-a-handheld-scanner-this-is-recorded-as-manual-code-ver",
-            )}
-          </p>
-        </div>
-        <Button
-          type="submit"
-          variant="outline"
-          disabled={disabled || !code.trim()}
-          className="w-full"
-        >
-          {reading || busy
-            ? t("copy.verifying")
-            : t("copy.verify-entered-code")}
-        </Button>
-      </form>
-      {cameraError ? (
-        <Notice
-          tone="warning"
-          role="alert"
-          title={
-            cameraError === "DECODER"
-              ? t(
-                  "copy.the-camera-could-not-read-the-code-retry-the-camera-or-enter-the-destina",
-                )
-              : t(
-                  "copy.camera-unavailable-allow-camera-access-and-retry-or-enter-the-destinatio",
-                )
-          }
-        />
+            <FormField
+              id={inputId}
+              label={codeLabel}
+              hint={t(
+                "copy.paste-type-or-use-a-handheld-scanner-this-is-recorded-as-manual-code-ver",
+              )}
+            >
+              {(control) => (
+                <ScanCodeInput
+                  {...control}
+                  {...scan}
+                  scanLabel={scanText("scanField", { field: codeLabel })}
+                  onScan={() => {
+                    verification.setError("");
+                    scan.onScan();
+                  }}
+                  value={code}
+                  onChange={(event) => setCode(event.target.value)}
+                  disabled={disabled}
+                  autoComplete="off"
+                  spellCheck={false}
+                  maxLength={500}
+                  placeholder={
+                    purpose === "PALLET" || purpose === "SUPPORT"
+                      ? "ISAS:PALLET:1:…"
+                      : "ISAS:LOCATION:1:…"
+                  }
+                />
+              )}
+            </FormField>
+            <Button
+              type="submit"
+              variant="outline"
+              disabled={disabled || !code.trim()}
+              className="w-full"
+            >
+              {verification.busy || busy
+                ? t("copy.verifying")
+                : t("copy.verify-entered-code")}
+            </Button>
+          </form>
+        )}
+      </BarcodeCameraBox>
+      {verification.error ? (
+        <Notice tone="warning" title={verification.error} role="alert" />
       ) : null}
-      {error ? <Notice tone="warning" title={error} role="alert" /> : null}
       {verified ? (
         <Notice
           tone="success"

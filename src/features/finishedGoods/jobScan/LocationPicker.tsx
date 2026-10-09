@@ -4,11 +4,12 @@ import { useEffect, useId, useRef, useState } from "react";
 import { useConvex, useQuery } from "convex/react";
 import { MapPin, Search } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { FormField } from "@/components/ui/FormField";
 import { ScanCodeInput } from "@/components/ui/ScanCodeInput";
 import { PaginationFooter } from "@/components/system/PaginationFooter";
 import { useDebouncedSearch } from "@/hooks/useScanContinuation";
 import { fgRefs } from "@/lib/convex/finishedGoodsApi";
-import { BarcodeCameraBox } from "./BarcodeCameraBox";
+import { BarcodeCameraBox } from "../BarcodeCameraBox";
 import type { PickedLocation } from "./ticketDraft";
 
 /** Search or scan a known location; optionally accept free text as an unmapped location. */
@@ -112,39 +113,40 @@ export function LocationPicker({
 
   return (
     <div className="space-y-3">
-      <div className="relative">
-        <label htmlFor={inputId} className="sr-only">
-          {t("searchLocation")}
-        </label>
-        <Search
-          aria-hidden="true"
-          className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted"
-        />
-        <ScanCodeInput
-          id={inputId}
-          scanLabel={camera ? t("stopCamera") : t("scanLocationQr")}
-          scanning={camera}
-          onScan={() => {
-            cancelScan();
-            setNotice(undefined);
-            if (!camera) {
-              cameraOpen.current = true;
-              setCamera(true);
-            }
-          }}
-          value={text}
-          onChange={(event) => {
-            cancelScan();
-            setText(event.target.value);
-            setPage(1);
-            setNotice(undefined);
-          }}
-          placeholder={t("searchPlaceholder")}
-          className="min-h-12 pl-9"
-          autoComplete="off"
-          maxLength={200}
-        />
-      </div>
+      <FormField id={inputId} label={t("searchLocation")} srOnlyLabel>
+        {(control) => (
+          <div className="relative">
+            <Search
+              aria-hidden="true"
+              className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted"
+            />
+            <ScanCodeInput
+              {...control}
+              scanLabel={camera ? t("stopCamera") : t("scanLocationQr")}
+              scanning={camera}
+              onScan={() => {
+                cancelScan();
+                setNotice(undefined);
+                if (!camera) {
+                  cameraOpen.current = true;
+                  setCamera(true);
+                }
+              }}
+              value={text}
+              onChange={(event) => {
+                cancelScan();
+                setText(event.target.value);
+                setPage(1);
+                setNotice(undefined);
+              }}
+              placeholder={t("searchPlaceholder")}
+              className="min-h-12 pl-9"
+              autoComplete="off"
+              maxLength={200}
+            />
+          </div>
+        )}
+      </FormField>
       {camera && (
         <BarcodeCameraBox
           mode="LOCATION"
