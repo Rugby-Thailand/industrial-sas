@@ -539,13 +539,20 @@ describe("batch packing", () => {
     ).toBeVisible();
     expect(mocks.commit).not.toHaveBeenCalled();
   });
-  it("has accessible empty, measured, and review states", async () => {
+  it("has accessible empty, measured, review and completed states", async () => {
     const { container } = show();
     expect(await axe(container)).toHaveNoViolations();
     prepare();
     expect(await axe(container)).toHaveNoViolations();
     review();
     expect(await axe(document.body)).toHaveNoViolations();
+    confirm();
+    await waitFor(() =>
+      expect(
+        screen.getByRole("heading", { name: "Storage units created" }),
+      ).toBeVisible(),
+    );
+    expect(await axe(container)).toHaveNoViolations();
   });
   it("renders Thai labels for the batch and unit flow", () => {
     show(undefined, "th");
@@ -847,6 +854,19 @@ it("creates simple packages with fullness presets without requiring measurements
   expect(mocks.commit.mock.calls[0]?.[0].packages[0]).not.toHaveProperty(
     "lengthMm",
   );
+  await waitFor(() =>
+    expect(
+      screen.getByRole("heading", { name: "Storage units created" }),
+    ).toBeVisible(),
+  );
+  expect(
+    screen.getByRole("link", { name: "View package label · pallet 1" }),
+  ).toHaveAttribute("href", "/finished-goods/pallets/unit-a");
+  expect(screen.getByRole("link", { name: "Scan Packages" })).toHaveAttribute(
+    "href",
+    "/finished-goods/scan",
+  );
+  expect(screen.queryByRole("link", { name: /Find storage/ })).toBeNull();
 });
 it("blocks invalid fullness without demanding dimensions for mixed sizes", () => {
   show(undefined, "en", true);
