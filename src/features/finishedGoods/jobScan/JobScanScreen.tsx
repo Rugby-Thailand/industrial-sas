@@ -61,6 +61,8 @@ type FieldScanTarget = {
 
 export const JOB_SCAN_PATH = "/finished-goods/scan";
 export const JOB_SCAN_RECORDS_PATH = "/finished-goods/scan/records";
+const acquisitionButtonClass =
+  "min-h-14 flex-col gap-1 px-1 text-xs sm:min-h-11 sm:flex-row sm:gap-1.5 sm:px-2 sm:text-sm";
 
 export function JobScanScreen() {
   const scope = useDraftKey("fg-job-scan");
@@ -414,7 +416,7 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
         <div className="grid grid-cols-3 gap-2">
           <Button
             variant={panel === "PHOTO" ? "default" : "outline"}
-            className="min-h-11 gap-1.5 px-2"
+            className={acquisitionButtonClass}
             aria-pressed={panel === "PHOTO"}
             onClick={() => changePanel(panel === "PHOTO" ? null : "PHOTO")}
           >
@@ -423,7 +425,7 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
           </Button>
           <Button
             variant={panel === "BARCODE" ? "default" : "outline"}
-            className="min-h-11 gap-1.5 px-2"
+            className={acquisitionButtonClass}
             aria-pressed={panel === "BARCODE"}
             onClick={() => {
               changePanel(panel === "BARCODE" ? null : "BARCODE");
@@ -434,7 +436,7 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
           </Button>
           <Button
             variant="outline"
-            className="min-h-11 gap-1.5 px-2"
+            className={acquisitionButtonClass}
             onClick={() =>
               setTickets((current) => [...current, newTicket("MANUAL")])
             }

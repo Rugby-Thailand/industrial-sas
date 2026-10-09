@@ -22,15 +22,16 @@ Branch: `codex/inline-code-scanning`. This implements the approved field-scan pl
 
 ## Confirmed problems fixed
 
-| Finding                                                                                      | Fix and verification                                                                                                                                                                                                                    |
-| -------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Global ticket scanning chooses a different incomplete ticket rather than the selected field. | A field scan captures ticket key, field and original value; it cannot create another ticket or redirect its result. Tested with two tickets, replacements and removal.                                                                  |
-| The Job input allowed 200 characters while the server accepts 100.                           | Shared model limits now drive server validation, input lengths and scan validation; oversized scans are rejected without truncation.                                                                                                    |
-| A storage/pallet QR could be classified as a product barcode.                                | Both ticket scan entry points reject reserved storage identities and invalid payloads. Job/product labels must match the selected field.                                                                                                |
-| Multiple frames could launch multiple location lookups before the UI closed.                 | A synchronous acquisition latch accepts one lookup per session.                                                                                                                                                                         |
-| Late location lookups could overwrite typing or an explicit selection.                       | Typing, selection, rescan, close and unmount invalidate the previous lookup.                                                                                                                                                            |
-| Lookup rejection was unhandled, and query denial could become unknown-location text.         | Failures have localized feedback and retry. Denied, ambiguous, wrong-kind and invalid identities cannot become an unmapped fallback. Only unresolved plain location codes can be offered as unmapped text.                              |
-| Destination camera lifecycle duplicated the barcode engine.                                  | Reused `useBarcodeCamera`, with synchronous single-shot stop, generation guards, rear-camera preference, multi-format decoding and owned-track cleanup. Tests retain previous camera behavior and cover all four verification purposes. |
+| Finding                                                                                                   | Fix and verification                                                                                                                                                                                                                    |
+| --------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Global ticket scanning chooses a different incomplete ticket rather than the selected field.              | A field scan captures ticket key, field and original value; it cannot create another ticket or redirect its result. Tested with two tickets, replacements and removal.                                                                  |
+| The Job input allowed 200 characters while the server accepts 100.                                        | Shared model limits now drive server validation, input lengths and scan validation; oversized scans are rejected without truncation.                                                                                                    |
+| A storage/pallet QR could be classified as a product barcode.                                             | Both ticket scan entry points reject reserved storage identities and invalid payloads. Job/product labels must match the selected field.                                                                                                |
+| Multiple frames could launch multiple location lookups before the UI closed.                              | A synchronous acquisition latch accepts one lookup per session.                                                                                                                                                                         |
+| Late location lookups could overwrite typing or an explicit selection.                                    | Typing, selection, rescan, close and unmount invalidate the previous lookup.                                                                                                                                                            |
+| Lookup rejection was unhandled, and query denial could become unknown-location text.                      | Failures have localized feedback and retry. Denied, ambiguous, wrong-kind and invalid identities cannot become an unmapped fallback. Only unresolved plain location codes can be offered as unmapped text.                              |
+| Mobile acquisition toolbar labels clipped at 320 px, including Thai scan and English scan/manual actions. | Stack icons above labels on mobile; all 12 language/theme/viewport combinations have zero toolbar text overflow.                                                                                                                        |
+| Destination camera lifecycle duplicated the barcode engine.                                               | Reused `useBarcodeCamera`, with synchronous single-shot stop, generation guards, rear-camera preference, multi-format decoding and owned-track cleanup. Tests retain previous camera behavior and cover all four verification purposes. |
 
 ## Standards review
 
@@ -64,8 +65,10 @@ keyboard entry, localized names and camera retry have regression coverage.
   zero after success and while showing the replacement confirmation.
 - Pallet QR `DEMO-P0001` reached the existing verifier as `SCAN`, populated the
   code input and released its track. Simulated permission denial retained typing.
-- Thai mobile ticket/confirmation DOM measurements at 320 and 390 px: zero page
-  overflow. Confirmation widths were 288/358 px; scan touch targets were 48 px.
+- Final ticket DOM measurements: 12 combinations of Thai/English, light/dark and
+  320/390/1440 px have zero page or acquisition-toolbar text overflow. Scan touch
+  targets are 48 px on mobile and 44 px on desktop. Thai confirmation widths were
+  288/358 px at 320/390 px, with zero page overflow.
 
 ## Limits
 
