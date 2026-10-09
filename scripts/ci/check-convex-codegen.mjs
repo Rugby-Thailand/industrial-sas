@@ -11,12 +11,15 @@ import { spawn, spawnSync } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
 import {
   chmodSync,
+  closeSync,
+  constants,
+  fstatSync,
   mkdirSync,
   mkdtempSync,
+  openSync,
   readdirSync,
   readFileSync,
   rmSync,
-  statSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -31,11 +34,24 @@ function snapshot() {
   const files = new Map();
   for (const name of readdirSync(GENERATED, { recursive: true })) {
     const path = join(GENERATED, String(name));
-    if (statSync(path).isDirectory()) continue;
-    files.set(
+    // Inspect and hash the same opened inode. Do not follow a replaced leaf
+    // symlink or block on a FIFO in a concurrently changed generated tree.
+    const descriptor = openSync(
       path,
-      createHash("sha256").update(readFileSync(path)).digest("hex"),
+      constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK,
     );
+    try {
+      const metadata = fstatSync(descriptor);
+      if (metadata.isDirectory()) continue;
+      if (!metadata.isFile())
+        throw new Error("CODEGEN_NON_REGULAR_GENERATED_FILE");
+      files.set(
+        path,
+        createHash("sha256").update(readFileSync(descriptor)).digest("hex"),
+      );
+    } finally {
+      closeSync(descriptor);
+    }
   }
   return files;
 }

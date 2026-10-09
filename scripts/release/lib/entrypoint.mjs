@@ -10,8 +10,23 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+// This release controller is authorized for this repository's main branch only.
+// Reviewed configuration may select deployment IDs, but cannot redirect the
+// credential-bearing GitHub lookup to another repository or reference.
+export const RELEASE_REPOSITORY = "Rugby-Thailand/industrial-sas";
+export const GITHUB_MAIN_REF_URL =
+  "https://api.github.com/repos/Rugby-Thailand/industrial-sas/git/ref/heads/main";
+
+export function validateReleaseSource(targets) {
+  return (
+    targets?.repository === RELEASE_REPOSITORY &&
+    targets?.releaseBranch === "main"
+  );
+}
+
 export function validateReleaseRuntime(env, targetName, repository) {
   return (
+    repository === RELEASE_REPOSITORY &&
     env.GITHUB_ACTIONS === "true" &&
     env.GITHUB_SERVER_URL === "https://github.com" &&
     env.GITHUB_REPOSITORY === repository &&

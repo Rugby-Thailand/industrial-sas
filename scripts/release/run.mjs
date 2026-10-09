@@ -21,9 +21,11 @@ import { join } from "node:path";
 import { loadTargets } from "./lib/env-contract.mjs";
 import {
   assertReleaseCheckout,
+  GITHUB_MAIN_REF_URL,
   requestStagingOidc,
   smokeEnvironment,
   validateReleaseRuntime,
+  validateReleaseSource,
   validateOidcLifetime,
   withStagingOidcFile,
 } from "./lib/entrypoint.mjs";
@@ -43,6 +45,10 @@ const targetName = process.argv
   .find((value) => value.startsWith("--target="))
   ?.slice("--target=".length);
 const targets = loadTargets();
+if (!validateReleaseSource(targets)) {
+  console.error("Release source must be the reviewed repository main branch.");
+  process.exit(1);
+}
 if (!Object.hasOwn(targets.targets, targetName ?? "")) {
   console.error("Usage: run.mjs --target=staging|production");
   process.exit(2);
@@ -88,18 +94,15 @@ const api = createVercelApi({
 });
 
 async function currentMainSha() {
-  const response = await fetch(
-    `https://api.github.com/repos/${targets.repository}/git/ref/heads/${targets.releaseBranch}`,
-    {
-      headers: {
-        accept: "application/vnd.github+json",
-        authorization: `Bearer ${env.GITHUB_TOKEN}`,
-        "x-github-api-version": "2022-11-28",
-      },
-      signal: AbortSignal.timeout(15_000),
-      redirect: "error",
+  const response = await fetch(GITHUB_MAIN_REF_URL, {
+    headers: {
+      accept: "application/vnd.github+json",
+      authorization: `Bearer ${env.GITHUB_TOKEN}`,
+      "x-github-api-version": "2022-11-28",
     },
-  );
+    signal: AbortSignal.timeout(15_000),
+    redirect: "error",
+  });
   if (!response.ok)
     throw new Error(`GitHub ref lookup failed (${response.status})`);
   const body = await response.json();

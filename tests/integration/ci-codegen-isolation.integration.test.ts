@@ -1,4 +1,4 @@
-import { spawnSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import {
   cpSync,
   existsSync,
@@ -312,6 +312,70 @@ describe("credential-free Convex codegen isolation", () => {
     );
     expect(probe.run().status).toBe(1);
     expect(probe.calls()).toEqual([]);
+    expect(readdirSync(join(probe.root, "temp"))).toEqual([]);
+  });
+
+  it("rejects readable generated symlinks before any tool or state creation", () => {
+    const probe = fixture();
+    const outside = join(probe.root, "outside-contract.js");
+    writeFileSync(outside, "outside private sentinel");
+    symlinkSync(outside, join(probe.root, "convex/_generated/linked.js"));
+    const result = probe.run();
+    expect(result.status).toBe(1);
+    expect(result.stderr).not.toContain("outside private sentinel");
+    expect(probe.calls()).toEqual([]);
+    expect(readdirSync(join(probe.root, "temp"))).toEqual([]);
+  });
+
+  it("rejects a generated FIFO without blocking or starting a tool", () => {
+    const probe = fixture();
+    execFileSync("mkfifo", [join(probe.root, "convex/_generated/pipe.js")]);
+    const result = probe.run();
+    expect(result.error).toBeUndefined();
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("CODEGEN_NON_REGULAR_GENERATED_FILE");
+    expect(probe.calls()).toEqual([]);
+    expect(readdirSync(join(probe.root, "temp"))).toEqual([]);
+  });
+
+  it("hashes the opened inode when the generated pathname is replaced after inspection", () => {
+    const probe = fixture();
+    writeFileSync(
+      join(probe.root, "fixture-runner.mjs"),
+      `
+import fs from 'node:fs';
+import { syncBuiltinESMExports } from 'node:module';
+import { join } from 'node:path';
+const generated = 'convex/_generated/api.d.ts';
+const originalInode = fs.statSync(generated).ino;
+let replaced = false;
+for (const method of ['statSync', 'fstatSync']) {
+  const inspect = fs[method];
+  fs[method] = (...args) => {
+    const metadata = inspect(...args);
+    if (!replaced && metadata.ino === originalInode) {
+      replaced = true;
+      fs.renameSync(generated, 'original-contract.d.ts');
+      fs.writeFileSync(generated, 'concurrently replaced contract');
+      fs.writeFileSync('race-triggered', 'true');
+    }
+    return metadata;
+  };
+}
+syncBuiltinESMExports();
+const { runCodegenCheck } = await import('./scripts/ci/check-convex-codegen.mjs');
+process.exitCode = await runCodegenCheck({ download: async (home) => {
+  const binary = join(home, 'convex-local-backend');
+  fs.cpSync('bin/fake-backend', binary);
+  return binary;
+} });
+`,
+    );
+    const result = probe.run();
+    expect(existsSync(join(probe.root, "race-triggered"))).toBe(true);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("convex/_generated/api.d.ts");
+    expect(probe.calls()).toHaveLength(2);
     expect(readdirSync(join(probe.root, "temp"))).toEqual([]);
   });
 });

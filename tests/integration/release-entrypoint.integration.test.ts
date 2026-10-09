@@ -3,9 +3,11 @@ import { existsSync, readFileSync, statSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  GITHUB_MAIN_REF_URL,
   requestStagingOidc,
   smokeEnvironment,
   validateReleaseRuntime,
+  validateReleaseSource,
   validateOidcLifetime,
   withStagingOidcFile,
 } from "../../scripts/release/lib/entrypoint.mjs";
@@ -24,6 +26,40 @@ const trusted = {
 };
 
 describe("trusted release process boundary", () => {
+  it("binds the credential-bearing ref lookup to the reviewed repository main branch", () => {
+    expect(validateReleaseSource({ repository, releaseBranch: "main" })).toBe(
+      true,
+    );
+    expect(GITHUB_MAIN_REF_URL).toBe(
+      "https://api.github.com/repos/Rugby-Thailand/industrial-sas/git/ref/heads/main",
+    );
+    for (const source of [
+      null,
+      {},
+      { repository: "fork/industrial-sas", releaseBranch: "main" },
+      { repository: `${repository}?secret=sentinel`, releaseBranch: "main" },
+      { repository: `${repository}/../other`, releaseBranch: "main" },
+      { repository, releaseBranch: "feature" },
+      { repository, releaseBranch: "main?secret=sentinel" },
+      { repository, releaseBranch: "../main" },
+      { repository, releaseBranch: ["main"] },
+    ]) {
+      expect(validateReleaseSource(source)).toBe(false);
+    }
+    const fork = "fork/industrial-sas";
+    expect(
+      validateReleaseRuntime(
+        {
+          ...trusted,
+          GITHUB_REPOSITORY: fork,
+          GITHUB_WORKFLOW_REF: `${fork}/.github/workflows/quality.yml@refs/heads/main`,
+        },
+        "production",
+        fork,
+      ),
+    ).toBe(false);
+  });
+
   it("requires enough OIDC lifetime and removes its private file after browser execution", async () => {
     const token = `header.${Buffer.from(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 300 })).toString("base64url")}.signature`;
     expect(() => validateOidcLifetime("invalid")).toThrow("malformed");

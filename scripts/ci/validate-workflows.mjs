@@ -125,56 +125,58 @@ if (args.has("--verify-pins")) {
   }
 }
 
-async function actionlintBinary() {
+async function actionlintBinary(executionRoot) {
   const asset = actionlintAsset(process.platform, process.arch);
-  const cacheDir = join(
+  // Only the archive is cached. Its bytes are untrusted until reverified;
+  // an independently mutable executable in a shared cache is never run.
+  const cachedArchive = join(
     tmpdir(),
-    `actionlint-${ACTIONLINT.version}-${asset.sha256.slice(0, 16)}`,
+    `actionlint-${ACTIONLINT.version}-${asset.sha256}.tar.gz`,
   );
-  const binary = join(cacheDir, "actionlint");
-  const archive = join(cacheDir, asset.name);
-  const digest = (path) =>
-    createHash("sha256").update(readFileSync(path)).digest("hex");
-  // Re-verify a cached archive on every run before trusting its binary.
-  if (
-    existsSync(binary) &&
-    existsSync(archive) &&
-    digest(archive) === asset.sha256
-  )
-    return binary;
-  const staging = mkdtempSync(join(tmpdir(), "actionlint-download-"));
+  let bytes;
   try {
+    bytes = readFileSync(cachedArchive);
+  } catch {
+    // An absent or unreadable cache never grants executable authority.
+  }
+  const digest = (content) =>
+    createHash("sha256").update(content).digest("hex");
+  let downloadedFresh = false;
+  if (!bytes || digest(bytes) !== asset.sha256) {
     const response = await fetch(asset.url, {
       redirect: "follow",
       signal: AbortSignal.timeout(60_000),
     });
     if (!response.ok)
       throw new Error(`actionlint download failed (${response.status})`);
-    const bytes = Buffer.from(await response.arrayBuffer());
-    const actual = createHash("sha256").update(bytes).digest("hex");
-    if (actual !== asset.sha256)
+    bytes = Buffer.from(await response.arrayBuffer());
+    if (digest(bytes) !== asset.sha256)
       throw new Error(`actionlint checksum mismatch for ${asset.name}`);
-    const downloaded = join(staging, asset.name);
-    writeFileSync(downloaded, bytes);
-    execFileSync("tar", ["-xzf", downloaded, "-C", staging, "actionlint"], {
-      stdio: ["ignore", "ignore", "inherit"],
-    });
-    chmodSync(join(staging, "actionlint"), 0o755);
-    rmSync(cacheDir, { recursive: true, force: true });
-    mkdirSync(cacheDir, { recursive: true });
-    renameSync(join(staging, "actionlint"), binary);
-    renameSync(downloaded, archive);
-    return binary;
-  } finally {
-    rmSync(staging, { recursive: true, force: true });
+    downloadedFresh = true;
   }
+  // The caller owns this private directory until execution completes, and
+  // removes it on success or failure. Read and verify once, then extract that
+  // exact in-memory archive rather than reopening a mutable cache pathname.
+  const staging = mkdtempSync(join(executionRoot, "actionlint-binary-"));
+  const downloaded = join(staging, asset.name);
+  writeFileSync(downloaded, bytes, { mode: 0o600, flag: "wx" });
+  execFileSync("tar", ["-xzf", downloaded, "-C", staging, "actionlint"], {
+    stdio: ["ignore", "ignore", "inherit"],
+    timeout: 30_000,
+  });
+  const binary = join(staging, "actionlint");
+  chmodSync(binary, 0o700);
+  // Atomic replacement also replaces a cache leaf symlink instead of writing
+  // through it. The cache never receives an executable.
+  if (downloadedFresh) renameSync(downloaded, cachedArchive);
+  return binary;
 }
 
 let actionlintFailed = false;
 if (!args.has("--skip-actionlint")) {
   const copy = mkdtempSync(join(tmpdir(), "actionlint-workflows-"));
   try {
-    const binary = await actionlintBinary();
+    const binary = await actionlintBinary(copy);
     // actionlint resolves local composite actions relative to a git project.
     execFileSync("git", ["init", "-q", copy], { stdio: "ignore" });
     for (const [name, text] of Object.entries(workflows)) {
