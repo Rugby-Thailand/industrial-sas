@@ -1,0 +1,13 @@
+# Standalone, separately locked release-tool install (run pnpm with this directory as its working directory).
+# Exact overrides patch DoS advisories in the CLI's transitive parsers within
+# the same major version; remaining reviewed items are listed with owner and
+# expiry in docs/operations/dependency-exceptions.md.
+overrides:
+  "tar@<7.5.21": 7.5.22
+  "smol-toml@<1.7.1": 1.9.1
+  "@vercel/node>undici": 6.29.0
+  "vercel>undici": 6.29.0
+  "js-yaml@>=4.0.0 <4.3.2": 4.3.2
+  "minimatch@>=10.0.0 <10.2.3": 10.2.6
+  "path-to-regexp@>=8.0.0 <8.4.0": 8.4.2
+  "@fastify/busboy@>=1.0.0 <3.2.1": 3.2.2

@@ -46,9 +46,9 @@ describe("classifyTicketBarcode", () => {
 
 describe("jobTicketError", () => {
   it("requires both identities", () => {
-    expect(
-      jobTicketError({ factoryOrder: "", productBarcodeText: "X" }),
-    ).toBe("FACTORY_ORDER_REQUIRED");
+    expect(jobTicketError({ factoryOrder: "", productBarcodeText: "X" })).toBe(
+      "FACTORY_ORDER_REQUIRED",
+    );
     expect(
       jobTicketError({ factoryOrder: "FO1", productBarcodeText: " " }),
     ).toBe("PRODUCT_BARCODE_REQUIRED");

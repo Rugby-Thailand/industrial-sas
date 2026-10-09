@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   SECURITY_POLICY,
+  releaseProvenanceHeaders,
   sameOriginReferenceFrameHeaders,
   securityHeaders,
 } from "./securityHeaders";
@@ -112,5 +113,17 @@ describe("securityHeaders", () => {
   it("emits no duplicate header keys", () => {
     const keys = securityHeaders(true).map((h) => h.key);
     expect(keys).toHaveLength(new Set(keys).size);
+  });
+});
+
+describe("releaseProvenanceHeaders", () => {
+  it("publishes only a full commit SHA set by the gated release build", () => {
+    const sha = "0123456789abcdef0123456789abcdef01234567";
+    expect(releaseProvenanceHeaders(sha)).toEqual([
+      { key: "X-Release-Sha", value: sha },
+    ]);
+    for (const value of [undefined, "", "main", sha.slice(1), `${sha}\n`]) {
+      expect(releaseProvenanceHeaders(value)).toEqual([]);
+    }
   });
 });

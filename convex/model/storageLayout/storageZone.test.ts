@@ -48,17 +48,13 @@ describe("storage zones", () => {
     expect(
       validateStorageZone({
         ...input,
-        reserved: [
-          { xMm: 100, yMm: 11_570, widthMm: 1_200, depthMm: 650 },
-        ],
+        reserved: [{ xMm: 100, yMm: 11_570, widthMm: 1_200, depthMm: 650 }],
       }).ok,
     ).toBe(true);
     expect(
       validateStorageZone({
         ...input,
-        reserved: [
-          { xMm: 2_000, yMm: 11_570, widthMm: 1_200, depthMm: 650 },
-        ],
+        reserved: [{ xMm: 2_000, yMm: 11_570, widthMm: 1_200, depthMm: 650 }],
       }),
     ).toEqual({ ok: false, error: { code: "ZONE_OVERLAPS_RESERVED_SPACE" } });
   });

@@ -1,10 +1,11 @@
-// Run with Node 24 and --env-file pointing to the private production credential.
+// Run with Node 24 and --env-file pointing to the private CONVEX_ADMIN_KEY file.
 // Default mode is read-only; mutation calls are never retried automatically.
+// Every mode reads the reviewed r1 backup. Local controls:
+// scripts/lib/productionOperator.mjs.
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { readFile, stat, writeFile } from "node:fs/promises";
+import { writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { parseArgs } from "node:util";
 import { ConvexHttpClient } from "convex/browser";
 import { makeFunctionReference } from "convex/server";
 import {
@@ -13,35 +14,32 @@ import {
   FG1_PREVIOUS_REVISION,
   FG1_REVISION,
 } from "../convex/model/storageLayout/fg1ApprovedPlan.ts";
+import {
+  PRODUCTION_OPERATOR_TARGET,
+  prepareOperatorRun,
+} from "./lib/productionOperator.mjs";
 
-const { values } = parseArgs({
-  options: {
-    mode: { type: "string", default: "preflight" },
-    directory: { type: "string" },
-    backup: { type: "string" },
-  },
-  strict: true,
-});
+let run;
+try {
+  run = prepareOperatorRun({ backupModes: ["preflight", "apply", "verify"] });
+} catch (error) {
+  console.error(
+    error instanceof assert.AssertionError
+      ? `Refused: ${error.message.split("\n")[0]}`
+      : "Refused: operator controls could not be verified.",
+  );
+  process.exit(1);
+}
+const values = { mode: run.mode };
 const target = {
   warehouseId: "p17ckfaqgw6dprz8d3tfv1tkhd8ez4e6",
   buildingId: "n57effrz60rbq7fqx438q6r6fx8f0hed",
 };
-const url = "https://greedy-cardinal-537.convex.cloud";
-assert.equal(process.env.CONVEX_URL, url, "Wrong deployment");
-assert.ok(process.env.CONVEX_DEPLOY_KEY, "Missing admin key");
-assert.ok(["preflight", "apply", "verify"].includes(values.mode));
-assert.ok(
-  values.directory,
-  "--directory must name an existing private directory",
-);
-const directory = resolve(values.directory);
-assert.equal(
-  (await stat(directory)).mode & 0o777,
-  0o700,
-  "Artifact directory must be 0700",
-);
+const url = PRODUCTION_OPERATOR_TARGET.deploymentUrl;
+assert.equal(run.url, url, "Wrong deployment");
+const directory = run.directory;
 const client = new ConvexHttpClient(url, { logger: false });
-client.setAdminAuth(process.env.CONVEX_DEPLOY_KEY, {
+client.setAdminAuth(run.adminKey, {
   subject: "user_3Je6gsq8cJfoVOXcjjHGs8qvDGs",
   issuer: "https://clerk.thaipropertyai.com",
   org_id: "org_3Je6JpUXsjAZcHyLD5lodjFdLmQ",
@@ -200,14 +198,8 @@ async function verify(original, after) {
   );
 }
 async function main() {
-  assert.ok(values.backup, "--backup is required");
-  const backupPath = resolve(values.backup);
-  assert.equal(
-    (await stat(backupPath)).mode & 0o777,
-    0o600,
-    "Backup must be 0600",
-  );
-  const original = JSON.parse(await readFile(backupPath, "utf8"));
+  // Private 0600 file whose SHA-256 matched --backup-sha256 before any request.
+  const original = run.backup.data;
   if (values.mode === "preflight") {
     const current = await preflight();
     assertBefore(current, original);

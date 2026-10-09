@@ -1,0 +1,38 @@
+name: Production backup
+on:
+  schedule:
+    - cron: "25 19 * * *"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  backup:
+    if: ${{ github.repository == 'Rugby-Thailand/industrial-sas' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    environment: production-release
+    concurrency:
+      group: industrial-sas-production-release
+      cancel-in-progress: false
+      queue: max
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: ./.github/actions/setup-node-pnpm
+        with:
+          cache: "false"
+      - name: Create and verify a fresh native snapshot
+        env:
+          RELEASE_ENVIRONMENT: production
+          CONVEX_BACKUP_ADMIN_KEY: ${{ secrets.CONVEX_BACKUP_ADMIN_KEY }}
+        run: node scripts/release/backup.mjs --purpose=daily
+      - name: Retain public backup metadata
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: production-backup-${{ github.run_id }}-${{ github.run_attempt }}
+          path: release-output/backup-metadata.json
+          retention-days: 7
+          if-no-files-found: error

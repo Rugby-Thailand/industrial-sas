@@ -1,3 +1,12 @@
+import { redactDimensions, type DimensionValue } from "./dimensions";
+
+export {
+  MAX_DIMENSION_LENGTH,
+  OBSERVABILITY_DIMENSION_KEYS,
+  redactDimensions,
+} from "./dimensions";
+export type { DimensionValue } from "./dimensions";
+
 export const OBSERVABILITY_SEVERITIES = [
   "debug",
   "info",
@@ -6,8 +15,6 @@ export const OBSERVABILITY_SEVERITIES = [
 ] as const;
 
 export type ObservabilitySeverity = (typeof OBSERVABILITY_SEVERITIES)[number];
-
-export type DimensionValue = string | number | boolean;
 
 export interface ObservabilityEvent {
   readonly code: string;
@@ -19,39 +26,43 @@ export interface ObservabilityEvent {
   readonly occurredAt: number;
 }
 
-export const MAX_DIMENSION_LENGTH = 64;
+/** Code used when a caller passes an unreviewed event name. */
+export const REJECTED_EVENT_CODE = "observability.code.rejected";
 
-const KEY_PATTERN = /^[a-z][a-zA-Z0-9]*$/;
+/** Current application emitters only; add a code after reviewing its payload. */
+export const OBSERVABILITY_EVENT_CODES = Object.freeze([
+  "application.render.failed",
+  "web.vital",
+  "workspace.query.failed",
+  REJECTED_EVENT_CODE,
+] as const);
 
-const SAFE_STRING = /^[A-Za-z][A-Za-z0-9._-]*$/;
+export const MAX_REQUEST_ID_LENGTH = 64;
 
-const isSafeString = (value: string): boolean =>
-  value.length > 0 &&
-  value.length <= MAX_DIMENSION_LENGTH &&
-  SAFE_STRING.test(value);
+// Server/client UUIDs only (`mintRequestId`, `crypto.randomUUID`). Named
+// fixture IDs and user-supplied slugs cannot be distinguished from content.
+const REQUEST_ID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
-export function redactDimensions(
-  dimensions: Readonly<Record<string, unknown>>,
-): Readonly<Record<string, DimensionValue>> {
-  const safe: Record<string, DimensionValue> = {};
+const safeCode = (code: unknown): string =>
+  typeof code === "string" &&
+  (OBSERVABILITY_EVENT_CODES as readonly string[]).includes(code)
+    ? code
+    : REJECTED_EVENT_CODE;
 
-  for (const [key, value] of Object.entries(dimensions)) {
-    if (!KEY_PATTERN.test(key)) continue;
+const safeSeverity = (severity: unknown): ObservabilitySeverity =>
+  (OBSERVABILITY_SEVERITIES as readonly unknown[]).includes(severity)
+    ? (severity as ObservabilitySeverity)
+    : "error";
 
-    if (typeof value === "boolean") {
-      safe[key] = value;
-      continue;
-    }
-    if (typeof value === "number") {
-      if (Number.isFinite(value)) safe[key] = value;
-      continue;
-    }
-    if (typeof value === "string" && isSafeString(value)) {
-      safe[key] = value;
-    }
-  }
-
-  return Object.freeze(safe);
+/** Bounded opaque request ID, or undefined when absent or unsafe. */
+export function normalizeRequestId(value: unknown): string | undefined {
+  return typeof value === "string" &&
+    value.length > 0 &&
+    value.length <= MAX_REQUEST_ID_LENGTH &&
+    REQUEST_ID.test(value)
+    ? value
+    : undefined;
 }
 
 export function observabilityEvent(input: {
@@ -61,13 +72,28 @@ export function observabilityEvent(input: {
   readonly dimensions?: Readonly<Record<string, unknown>>;
   readonly occurredAt: number;
 }): ObservabilityEvent {
+  const requestId = normalizeRequestId(input.requestId);
   return Object.freeze({
-    code: input.code,
-    severity: input.severity,
-    ...(input.requestId === undefined || input.requestId.length === 0
-      ? {}
-      : { requestId: input.requestId }),
+    code: safeCode(input.code),
+    severity: safeSeverity(input.severity),
+    ...(requestId === undefined ? {} : { requestId }),
     dimensions: redactDimensions(input.dimensions ?? {}),
-    occurredAt: input.occurredAt,
+    occurredAt: Number.isFinite(input.occurredAt) ? input.occurredAt : 0,
+  });
+}
+
+/**
+ * Re-apply the policy to an event built elsewhere (for example a literal typed
+ * as {@link ObservabilityEvent}). Sinks call this before writing anything.
+ */
+export function sanitizeObservabilityEvent(
+  event: ObservabilityEvent,
+): ObservabilityEvent {
+  return observabilityEvent({
+    code: event?.code,
+    severity: event?.severity,
+    ...(event?.requestId === undefined ? {} : { requestId: event.requestId }),
+    dimensions: event?.dimensions ?? {},
+    occurredAt: event?.occurredAt,
   });
 }

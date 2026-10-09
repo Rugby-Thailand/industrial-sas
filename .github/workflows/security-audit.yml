@@ -1,0 +1,54 @@
+name: Security audit
+# Scheduled advisory scan between commits (S12). PRs are covered by
+# dependency review and the audits inside `Planner quality`.
+#
+# - runtime: production dependencies, high/critical. Mandatory, no exceptions.
+# - gated: all app and release-tool dependencies, high/critical. Mandatory;
+#   only exact-chain, expiring entries in scripts/ci/dependency-exceptions.json
+#   are accepted, so an expired exception or newly disclosed advisory fails.
+# - full: every severity. Informative while the dev/tool baseline is
+#   established; findings become warnings, audit outages still fail.
+on:
+  schedule:
+    - cron: "5 2 * * *"
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: security-audit-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  runtime:
+    name: Runtime and high-severity audit (mandatory)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: setup
+        uses: ./.github/actions/setup-node-pnpm
+      - name: Runtime dependencies
+        run: pnpm audit:prod
+      - name: Application dependencies (exact-chain exceptions)
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        run: node scripts/ci/audit-dependencies.mjs --scope=app
+      - name: Release tools (exact-chain exceptions)
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        run: node scripts/ci/audit-dependencies.mjs --scope=release
+
+  full:
+    name: Full audit (informative)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: setup
+        uses: ./.github/actions/setup-node-pnpm
+      - name: Application (all severities)
+        run: node scripts/ci/audit-summary.mjs --dir=.
+      - name: Release tools (all severities)
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        run: node scripts/ci/audit-summary.mjs --dir=tools/release

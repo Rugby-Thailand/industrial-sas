@@ -1,0 +1,49 @@
+name: Workspace matrix
+# Scheduled full storage-workspace matrix (T5/T14): widths 320/768/1024/1440
+# × Thai/English × light/dark against the deterministic Vite harness. No
+# backend, no authentication, no secrets; fixtures are synthetic. It never
+# deploys anything and is not part of the merge gate (PRs run a subset).
+on:
+  schedule:
+    - cron: "40 20 * * 1"
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: workspace-matrix-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  matrix:
+    name: Full workspace matrix
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-node-pnpm
+      - name: Install Playwright Chromium
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Full matrix
+        env:
+          WORKSPACE_FULL_MATRIX: "1"
+        run: pnpm test:e2e:workspace
+      - name: Upload JUnit
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: workspace-matrix-junit-${{ github.run_attempt }}
+          path: test-results/workspace-junit.xml
+          retention-days: 14
+          if-no-files-found: warn
+      # Failure-only synthetic diagnostics from the fixture harness.
+      - name: Upload diagnostics
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: workspace-matrix-diagnostics-${{ github.run_attempt }}
+          path: |
+            test-results/workspace/
+            playwright-report/workspace/
+          retention-days: 7
+          if-no-files-found: ignore

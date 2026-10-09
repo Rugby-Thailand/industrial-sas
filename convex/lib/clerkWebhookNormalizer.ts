@@ -9,9 +9,15 @@ import {
 
 export interface ClerkWebhookDelivery {
   readonly eventId: string;
-
-  readonly eventAt: number;
 }
+
+// The installed Clerk SDK omits timestamp from WebhookEvent's type even though
+// it is part of Clerk's signed event envelope. Validate it as unknown at runtime.
+type VerifiedClerkEvent = Pick<WebhookEvent, "type" | "data"> & {
+  readonly timestamp?: unknown;
+};
+
+const MAX_CLOCK_SKEW_MS = 5 * 60 * 1_000;
 
 export class InvalidClerkWebhookPayloadError extends Error {
   constructor() {
@@ -65,21 +71,42 @@ function preferredLocale(value: unknown): "th" | "en" | undefined {
   return primary === "th" || primary === "en" ? primary : undefined;
 }
 
+function sourceClock(value: unknown): number {
+  if (
+    typeof value !== "number" ||
+    !Number.isSafeInteger(value) ||
+    value < 0 ||
+    value > Date.now() + MAX_CLOCK_SKEW_MS
+  ) {
+    throw new InvalidClerkWebhookPayloadError();
+  }
+  return value;
+}
+
+function envelope(event: VerifiedClerkEvent, delivery: ClerkWebhookDelivery) {
+  const eventTimestamp = sourceClock(event.timestamp);
+  const data = record(event.data);
+  // Deletion payloads can still carry the object's old updated_at; the deletion
+  // itself is ordered by its event timestamp. Missing object clocks fall back
+  // to that same signed timestamp. Never fall back to a delivery header.
+  const eventAt =
+    event.type.endsWith(".deleted") || data.updated_at === undefined
+      ? eventTimestamp
+      : sourceClock(data.updated_at);
+  if (eventAt > eventTimestamp) throw new InvalidClerkWebhookPayloadError();
+  return { eventId: delivery.eventId, eventAt, eventTimestamp } as const;
+}
+
 export function normalizeVerifiedClerkEvent(
-  event: Pick<WebhookEvent, "type" | "data">,
+  event: VerifiedClerkEvent,
   delivery: ClerkWebhookDelivery,
 ): IdentityWebhookEvent | null {
-  const envelope = {
-    eventId: delivery.eventId,
-    eventAt: delivery.eventAt,
-  } as const;
-
   switch (event.type) {
     case "organization.created":
     case "organization.updated": {
       const data = record(event.data);
       return {
-        ...envelope,
+        ...envelope(event, delivery),
         type: "organization.upsert",
         data: {
           clerkOrganizationId: requiredString(
@@ -93,7 +120,7 @@ export function normalizeVerifiedClerkEvent(
     case "organization.deleted": {
       const data = record(event.data);
       return {
-        ...envelope,
+        ...envelope(event, delivery),
         type: "organization.delete",
         data: {
           clerkOrganizationId: requiredString(
@@ -112,7 +139,7 @@ export function normalizeVerifiedClerkEvent(
       );
       const locale = preferredLocale(data.locale);
       return {
-        ...envelope,
+        ...envelope(event, delivery),
         type: "user.upsert",
         data: {
           clerkUserId,
@@ -128,7 +155,7 @@ export function normalizeVerifiedClerkEvent(
     case "user.deleted": {
       const data = record(event.data);
       return {
-        ...envelope,
+        ...envelope(event, delivery),
         type: "user.delete",
         data: {
           clerkUserId: requiredString(data.id, MAX_IDENTITY_REFERENCE_LENGTH),
@@ -146,7 +173,7 @@ export function normalizeVerifiedClerkEvent(
         MAX_IDENTITY_REFERENCE_LENGTH,
       );
       return {
-        ...envelope,
+        ...envelope(event, delivery),
         type:
           event.type === "organizationMembership.deleted"
             ? "membership.delete"

@@ -1,7 +1,26 @@
+# Exact transitive security overrides (D-29: no floating ranges). Review and
+# remove an override when the parent dependency ships the fixed version.
 overrides:
   effect: 3.22.1
   next>postcss: 8.5.25
-  postcss>nanoid: ^3.3.18
-  next>sharp: ^0.35.5
+  postcss>nanoid: 3.3.18
+  next>sharp: 0.35.5
   proxy-addr: 2.0.8
   source-map-js: 1.2.2
+  "js-yaml@>=4.0.0 <4.3.2": 4.3.2
+  "brace-expansion@>=1.0.0 <1.1.20": 1.1.20
+  "brace-expansion@>=5.0.0 <5.0.11": 5.0.11
+  "jsdom>undici": 8.10.2
+  "@modelcontextprotocol/sdk@<1.31.0": 1.31.0
+
+# Dependency lifecycle scripts stay blocked (pnpm 10 default). Each package
+# below was reviewed: the app installs, type-checks, tests and builds without
+# its script (native helpers fall back to bundled/WASM builds). A new package
+# with a build script fails installation until it is added to one list here.
+ignoredBuiltDependencies:
+  - "@parcel/watcher"
+  - "@swc/core"
+  - esbuild
+  - msgpackr-extract
+  - unrs-resolver
+strictDepBuilds: true

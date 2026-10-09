@@ -17,6 +17,8 @@ export const MAX_IDENTITY_DISPLAY_NAME_LENGTH = 256;
 type EventEnvelope<Type extends IdentityEventType, Data> = {
   readonly eventId: string;
   readonly eventAt: number;
+  /** Signed Clerk event time, used to break equal object-clock ties. */
+  readonly eventTimestamp?: number;
   readonly type: Type;
   readonly data: Data;
 };
@@ -55,6 +57,7 @@ type MembershipEvent =
 export interface IdentityWatermark {
   readonly clerkLastEventId?: string;
   readonly clerkLastEventAt?: number;
+  readonly clerkLastEventTimestamp?: number;
 }
 
 export interface MirroredOrganization extends IdentityWatermark {
@@ -204,9 +207,22 @@ function validateMembership(data: Record<string, unknown>) {
 
 function validateEvent(value: unknown): asserts value is IdentityWebhookEvent {
   if (!isPlainRecord(value)) throw new InvalidIdentityEventError();
-  exactKeys(value, ["eventId", "eventAt", "type", "data"]);
+  exactKeys(value, [
+    "eventId",
+    "eventAt",
+    "type",
+    "data",
+    ...(value.eventTimestamp === undefined ? [] : ["eventTimestamp"]),
+  ]);
   boundedString(value.eventId, MAX_IDENTITY_REFERENCE_LENGTH);
   if (!Number.isSafeInteger(value.eventAt) || (value.eventAt as number) < 0) {
+    throw new InvalidIdentityEventError();
+  }
+  if (
+    value.eventTimestamp !== undefined &&
+    (!Number.isSafeInteger(value.eventTimestamp) ||
+      (value.eventTimestamp as number) < (value.eventAt as number))
+  ) {
     throw new InvalidIdentityEventError();
   }
   if (!IDENTITY_EVENT_TYPES.includes(value.type as IdentityEventType)) {
@@ -236,15 +252,22 @@ function validateEvent(value: unknown): asserts value is IdentityWebhookEvent {
 
 function outcomeFor(
   existing: IdentityWatermark | null,
-  eventId: string,
-  eventAt: number,
+  event: IdentityWebhookEvent,
 ): IdentityEventOutcome {
-  if (existing?.clerkLastEventId === eventId) return "REPLAY";
-  if (
-    existing?.clerkLastEventAt !== undefined &&
-    eventAt <= existing.clerkLastEventAt
-  ) {
-    return "STALE";
+  if (existing?.clerkLastEventId === event.eventId) return "REPLAY";
+  const previousAt = existing?.clerkLastEventAt;
+  if (previousAt !== undefined) {
+    if (event.eventAt < previousAt) return "STALE";
+    if (event.eventAt === previousAt) {
+      // Legacy records used delivery time. Never lower or reinterpret that
+      // floor, and never resolve its ties using the new source event clock.
+      if (
+        existing?.clerkLastEventTimestamp === undefined ||
+        event.eventTimestamp === undefined ||
+        event.eventTimestamp <= existing.clerkLastEventTimestamp
+      )
+        return "STALE";
+    }
   }
   return "APPLIED";
 }
@@ -253,7 +276,29 @@ function watermark(event: IdentityWebhookEvent) {
   return {
     clerkLastEventId: event.eventId,
     clerkLastEventAt: event.eventAt,
+    ...(event.eventTimestamp === undefined
+      ? {}
+      : { clerkLastEventTimestamp: event.eventTimestamp }),
   } as const;
+}
+
+function deletionWatermark(
+  existing: IdentityWatermark | null,
+  event: IdentityWebhookEvent,
+) {
+  // A terminal delete must revoke access even below a legacy delivery floor.
+  // Keep that floor (and any source tie-break) while recording the deletion ID;
+  // never reset history merely to make incomparable clocks look comparable.
+  if (outcomeFor(existing, event) !== "STALE") return watermark(event);
+  return {
+    clerkLastEventId: event.eventId,
+    ...(existing?.clerkLastEventAt === undefined
+      ? {}
+      : { clerkLastEventAt: existing.clerkLastEventAt }),
+    ...(existing?.clerkLastEventTimestamp === undefined
+      ? {}
+      : { clerkLastEventTimestamp: existing.clerkLastEventTimestamp }),
+  };
 }
 
 async function provisionEmbeddedIdentity(
@@ -263,31 +308,26 @@ async function provisionEmbeddedIdentity(
   const organization = await port.findOrganization(
     event.data.clerkOrganizationId,
   );
-  if (outcomeFor(organization, event.eventId, event.eventAt) === "APPLIED") {
+  // An embedded organization/user is not the membership object whose clock we
+  // just validated. Only provision absent parents; their own lifecycle events
+  // update existing metadata, status and watermarks.
+  if (organization === null) {
     await port.putOrganization({
       clerkOrganizationId: event.data.clerkOrganizationId,
       name: event.data.name,
-      status:
-        event.type === "membership.upsert"
-          ? (organization?.status ?? "ACTIVE")
-          : (organization?.status ?? "CLOSED"),
-      ...watermark(event),
+      status: event.type === "membership.upsert" ? "ACTIVE" : "CLOSED",
     });
   }
 
   const user = await port.findUser(event.data.clerkUserId);
-  if (outcomeFor(user, event.eventId, event.eventAt) === "APPLIED") {
+  if (user === null) {
     await port.putUser({
       clerkUserId: event.data.clerkUserId,
       displayName: event.data.displayName,
-      status:
-        event.type === "membership.upsert"
-          ? "ACTIVE"
-          : (user?.status ?? "DEACTIVATED"),
+      status: event.type === "membership.upsert" ? "ACTIVE" : "DEACTIVATED",
       ...(event.data.preferredLocale === undefined
         ? {}
         : { preferredLocale: event.data.preferredLocale }),
-      ...watermark(event),
     });
   }
 }
@@ -305,7 +345,13 @@ export async function applyIdentityWebhookEvent(
     const existing = await port.findOrganization(
       event.data.clerkOrganizationId,
     );
-    const outcome = outcomeFor(existing, event.eventId, event.eventAt);
+    const ordered = outcomeFor(existing, event);
+    const outcome =
+      ordered === "STALE" &&
+      event.type === "organization.delete" &&
+      existing?.status !== "CLOSED"
+        ? "APPLIED"
+        : ordered;
     if (outcome === "APPLIED") {
       await port.putOrganization({
         clerkOrganizationId: event.data.clerkOrganizationId,
@@ -317,7 +363,9 @@ export async function applyIdentityWebhookEvent(
           event.type === "organization.delete"
             ? "CLOSED"
             : (existing?.status ?? "ACTIVE"),
-        ...watermark(event),
+        ...(event.type === "organization.delete"
+          ? deletionWatermark(existing, event)
+          : watermark(event)),
       });
     }
     return {
@@ -329,7 +377,13 @@ export async function applyIdentityWebhookEvent(
 
   if (event.type === "user.upsert" || event.type === "user.delete") {
     const existing = await port.findUser(event.data.clerkUserId);
-    const outcome = outcomeFor(existing, event.eventId, event.eventAt);
+    const ordered = outcomeFor(existing, event);
+    const outcome =
+      ordered === "STALE" &&
+      event.type === "user.delete" &&
+      existing?.status !== "DEACTIVATED"
+        ? "APPLIED"
+        : ordered;
     if (outcome === "APPLIED") {
       await port.putUser({
         clerkUserId: event.data.clerkUserId,
@@ -337,14 +391,21 @@ export async function applyIdentityWebhookEvent(
           event.type === "user.upsert"
             ? event.data.displayName
             : (existing?.displayName ?? "Deleted user"),
-        status: event.type === "user.delete" ? "DEACTIVATED" : "ACTIVE",
+        // A Clerk deletion tombstones this external ID. A new account has a
+        // different ID; an old upsert must never grant it access again.
+        status:
+          event.type === "user.delete" || existing?.status === "DEACTIVATED"
+            ? "DEACTIVATED"
+            : "ACTIVE",
         ...(event.type === "user.upsert" &&
         event.data.preferredLocale !== undefined
           ? { preferredLocale: event.data.preferredLocale }
           : existing?.preferredLocale === undefined
             ? {}
             : { preferredLocale: existing.preferredLocale }),
-        ...watermark(event),
+        ...(event.type === "user.delete"
+          ? deletionWatermark(existing, event)
+          : watermark(event)),
       });
     }
     return { outcome, entityKind: "USER", externalId: event.data.clerkUserId };
@@ -355,19 +416,30 @@ export async function applyIdentityWebhookEvent(
     clerkOrganizationId: event.data.clerkOrganizationId,
     clerkMembershipId: event.data.clerkMembershipId,
   });
-  const outcome = outcomeFor(existing, event.eventId, event.eventAt);
+  const ordered = outcomeFor(existing, event);
+  const outcome =
+    ordered === "STALE" &&
+    event.type === "membership.delete" &&
+    existing?.status !== "REVOKED"
+      ? "APPLIED"
+      : ordered;
   if (outcome === "APPLIED") {
     await port.putMembership({
       clerkOrganizationId: event.data.clerkOrganizationId,
       clerkUserId: event.data.clerkUserId,
       clerkMembershipId: event.data.clerkMembershipId,
-      status: event.type === "membership.delete" ? "REVOKED" : "ACTIVE",
+      status:
+        event.type === "membership.delete" || existing?.status === "REVOKED"
+          ? "REVOKED"
+          : "ACTIVE",
       scopeMode: existing?.scopeMode ?? "WAREHOUSE_SCOPED",
       effectiveFrom: existing?.effectiveFrom ?? event.eventAt,
       ...(existing?.effectiveTo === undefined
         ? {}
         : { effectiveTo: existing.effectiveTo }),
-      ...watermark(event),
+      ...(event.type === "membership.delete"
+        ? deletionWatermark(existing, event)
+        : watermark(event)),
     });
   }
   return {

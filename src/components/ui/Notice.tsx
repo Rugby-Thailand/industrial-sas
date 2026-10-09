@@ -46,7 +46,11 @@ export function Notice({
     <div
       role={role}
       {...(testId === undefined ? {} : { "data-testid": testId })}
-      className={cn("rounded-lg border border-l-4 bg-surface p-4", TONE_CLASSES[tone], className)}
+      className={cn(
+        "rounded-lg border border-l-4 bg-surface p-4",
+        TONE_CLASSES[tone],
+        className,
+      )}
     >
       <p className={`text-sm font-semibold ${TONE_TITLE_CLASSES[tone]}`}>
         {title}

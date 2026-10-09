@@ -233,7 +233,6 @@ Replace the wrapping location-button group with a semantic table. Consolidate th
 
 Success means one compact location browser, selectable map geometry with labels on or off, no lost actions, and usable interaction at realistic warehouse scale.
 
-
 ### Implementation notes and verification
 
 - The location-code button selects a row; QR, inventory, position, edit, and archive actions remain in the selected-location details. This avoids repeating action buttons across every row.
@@ -247,7 +246,6 @@ Success means one compact location browser, selectable map geometry with labels 
 Replace the separate table controls and lower storage-location section with one location browser below the floor map. Put the shared search, inventory filters, table/grid switch, and an icon-only Add location action in its toolbar. Keep page size bottom-left and navigation bottom-right; hide the redundant visible range line while retaining screen-reader feedback. Grid and table share ordering, pagination, filtering, and location selection. Empty filters must not classify incomplete inventory as empty.
 
 Move selected-location management into a side panel, retaining QR codes, positions, inventory, editing, archive, and existing permission/unsaved-change safeguards. Keep creation available from the toolbar even without a selected location. Test both presentation modes, filtering and clearing, selected details and creation, compact layouts, locales, and themes.
-
 
 Status: implemented. The toolbar now owns shared search, inventory filter chips, table/grid presentation, and the Add icon. The page-size selector is bottom-left and page navigation bottom-right. Selected management details open in an accessible side sheet; the compact workspace no longer renders a duplicate lower storage section. Searching does not open the sheet while typing. Closing the sheet returns focus to its opener, and editing reuses the existing dialog and safeguards.
 

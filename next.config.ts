@@ -3,6 +3,7 @@ import type { NextConfig } from "next";
 import path from "node:path";
 
 import {
+  releaseProvenanceHeaders,
   sameOriginReferenceFrameHeaders,
   securityHeaders,
 } from "./src/lib/securityHeaders";
@@ -53,7 +54,10 @@ const nextConfig: NextConfig = {
     return [
       {
         source: "/:path*",
-        headers: securityHeaders(process.env.NODE_ENV === "production"),
+        headers: [
+          ...securityHeaders(process.env.NODE_ENV === "production"),
+          ...releaseProvenanceHeaders(process.env.RELEASE_SHA),
+        ],
       },
       {
         source: "/f1-f2-reference/:path*",

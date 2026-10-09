@@ -38,11 +38,13 @@ function delivery(request: Request) {
   ) {
     throw new Error("Invalid delivery metadata.");
   }
-  const eventAt = Number(timestamp) * 1_000;
-  if (!Number.isSafeInteger(eventAt)) {
+  const attemptedAt = Number(timestamp) * 1_000;
+  if (!Number.isSafeInteger(attemptedAt)) {
     throw new Error("Invalid delivery metadata.");
   }
-  return { eventId, eventAt } as const;
+  // Svix's clock authenticates this delivery attempt, not the Clerk change.
+  // Retries have a fresh attempt time; it must never order mirror writes.
+  return { eventId } as const;
 }
 
 const response = (status: number, body: string | null = null) =>
@@ -59,6 +61,10 @@ export function createClerkWebhookHandler(
       return response(503, "Webhook unavailable.");
     }
 
+    // @clerk/backend 3.16.4 verifies the raw body but drops the signed top-level
+    // timestamp from its returned object. Retain the same body without parsing
+    // it until verification succeeds, then recover only the ordering clock.
+    const signedRequest = request.clone();
     let verified: WebhookEvent;
     try {
       verified = await (dependencies.verify ?? verifyWebhook)(request, {
@@ -70,7 +76,13 @@ export function createClerkWebhookHandler(
 
     let normalized: IdentityWebhookEvent | null;
     try {
-      normalized = normalizeVerifiedClerkEvent(verified, delivery(request));
+      const signedPayload = JSON.parse(await signedRequest.text()) as {
+        readonly timestamp?: unknown;
+      };
+      normalized = normalizeVerifiedClerkEvent(
+        { ...verified, timestamp: signedPayload.timestamp },
+        delivery(request),
+      );
     } catch {
       return response(400, "Invalid webhook.");
     }

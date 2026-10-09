@@ -161,8 +161,10 @@ const schema = defineSchema({
     status: organizationStatus,
 
     clerkLastEventId: v.optional(v.string()),
-    /** Millisecond watermark; equal or older deliveries cannot regress state. */
+    /** Object clock, or a retained conservative legacy delivery-clock floor. */
     clerkLastEventAt: v.optional(v.number()),
+    /** Signed Clerk event clock; absent on legacy delivery-clock records. */
+    clerkLastEventTimestamp: v.optional(v.number()),
 
     settings: organizationSettings,
   })
@@ -177,8 +179,10 @@ const schema = defineSchema({
     status: userStatus,
 
     clerkLastEventId: v.optional(v.string()),
-    /** Millisecond watermark; equal or older deliveries cannot regress state. */
+    /** Object clock, or a retained conservative legacy delivery-clock floor. */
     clerkLastEventAt: v.optional(v.number()),
+    /** Signed Clerk event clock; absent on legacy delivery-clock records. */
+    clerkLastEventTimestamp: v.optional(v.number()),
 
     preferredLocale: v.optional(locale),
   })
@@ -221,8 +225,10 @@ const schema = defineSchema({
       status: membershipStatus,
 
       clerkLastEventId: v.optional(v.string()),
-      /** Millisecond watermark; equal or older deliveries cannot regress state. */
+      /** Object clock, or a retained conservative legacy delivery-clock floor. */
       clerkLastEventAt: v.optional(v.number()),
+      /** Signed Clerk event clock; absent on legacy delivery-clock records. */
+      clerkLastEventTimestamp: v.optional(v.number()),
       scopeMode: membershipScopeMode,
 
       effectiveFrom: v.number(),

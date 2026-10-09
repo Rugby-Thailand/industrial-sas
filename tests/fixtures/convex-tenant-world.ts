@@ -171,9 +171,21 @@ export interface ConvexAuthorizationWorld {
   readonly roleKeyB: string;
 }
 
+export interface ConvexAuthorizationOptions {
+  readonly roleA?: string;
+  readonly roleB?: string;
+  /** Additional test-only roles created in both tenants after the seed. */
+  readonly extraRoles?: readonly {
+    readonly key: string;
+    readonly permissionCodes: readonly string[];
+  }[];
+  /** Additional test-only grants added to seeded roles in both tenants. */
+  readonly extraGrants?: Readonly<Record<string, readonly string[]>>;
+}
+
 export async function seedConvexAuthorization(
   world: ConvexTenantWorld,
-  options: { readonly roleA?: string; readonly roleB?: string } = {},
+  options: ConvexAuthorizationOptions = {},
 ): Promise<ConvexAuthorizationWorld> {
   const roleKeyA = options.roleA ?? "SUPERVISOR";
   const roleKeyB = options.roleB ?? "ORG_ADMIN";
@@ -196,6 +208,35 @@ export async function seedConvexAuthorization(
           .unique();
         if (row === null) throw new Error(`missing seeded role ${role.key}`);
         entries[role.key] = row._id;
+      }
+      for (const extra of options.extraRoles ?? []) {
+        const roleId = await ctx.db.insert("roles", {
+          orgId,
+          key: extra.key,
+          name: `Fixture ${extra.key}`,
+          description: "Test-only role.",
+          status: "ACTIVE",
+          seeded: false,
+        });
+        for (const permissionCode of extra.permissionCodes) {
+          await ctx.db.insert("rolePermissions", {
+            orgId,
+            roleId,
+            permissionCode,
+          });
+        }
+        entries[extra.key] = roleId;
+      }
+      for (const [key, codes] of Object.entries(options.extraGrants ?? {})) {
+        const roleId = entries[key];
+        if (roleId === undefined) throw new Error(`missing role ${key}`);
+        for (const permissionCode of codes) {
+          await ctx.db.insert("rolePermissions", {
+            orgId,
+            roleId,
+            permissionCode,
+          });
+        }
       }
       return entries;
     };

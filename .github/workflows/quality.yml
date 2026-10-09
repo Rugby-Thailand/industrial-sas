@@ -1,4 +1,9 @@
 name: Planner quality
+# One workflow owns the merge gate and the automatic release. PRs (including
+# forks and Dependabot) run only the secret-free quality jobs and the stable
+# `check`. A push to main — or a workflow_dispatch from main, which reruns full
+# CI rather than bypassing it — then deploys that exact commit to staging and,
+# only after staging passes, to production. There is no manual approval step.
 on:
   push:
     branches: [main]
@@ -6,26 +11,75 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+# PRs: one group per PR, superseded runs cancelled. Every other run gets its own
+# group (run_id), so rapid merges never replace a pending main check. Release
+# serialization lives on the staging/release jobs below, not here.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  group: ${{ github.event_name == 'pull_request' && format('planner-quality-pr-{0}', github.event.pull_request.number) || format('planner-quality-run-{0}', github.run_id) }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
   validate:
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: ./.github/actions/setup-node-pnpm
-      - run: pnpm typecheck
-      - run: pnpm lint
-      - run: pnpm audit:prod
+      - id: setup
+        uses: ./.github/actions/setup-node-pnpm
+      # Later steps run even if an earlier check failed, so one run reports
+      # every independent defect; any failed step still fails the job.
+      - name: Workflow lint and action pins
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        run: node scripts/ci/validate-workflows.mjs --verify-pins
+      - name: Formatting
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        run: pnpm format:check
+      - name: Typecheck (cold next typegen + tsc)
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        run: pnpm typecheck
+      - name: Lint
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        run: pnpm lint
+      - name: Runtime dependency audit
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        run: pnpm audit:prod
+      # High/critical across all app and release-tool dependencies; only the
+      # exact-chain, expiring entries in scripts/ci/dependency-exceptions.json
+      # are accepted. Registry errors fail.
+      - name: Application dependency audit (exact-chain exceptions)
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        run: node scripts/ci/audit-dependencies.mjs --scope=app
+      - name: Release-tool dependency audit (exact-chain exceptions)
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        run: node scripts/ci/audit-dependencies.mjs --scope=release
+      - name: Test discovery
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        run: pnpm ci:test-discovery
+      - name: Clean tree after generators
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        run: pnpm ci:clean-tree
+
+  codegen:
+    name: Convex codegen freshness
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: setup
+        uses: ./.github/actions/setup-node-pnpm
+      # Credential-free anonymous local backend; refuses any CONVEX_* variable.
+      - run: pnpm ci:codegen
+      - name: Clean tree after codegen
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        run: pnpm ci:clean-tree
 
   test:
     name: Tests (${{ matrix.shard }}/2)
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -35,7 +89,79 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-node-pnpm
-      - run: pnpm test --shard=${{ matrix.shard }}/2
+      # Blob reports carry results and V8 coverage; `test-report` merges both
+      # shards into one JUnit file and one combined coverage summary.
+      - name: Vitest shard
+        run: >-
+          pnpm exec vitest run
+          --shard=${{ matrix.shard }}/2
+          --coverage
+          --reporter=default
+          --reporter=github-actions
+          --reporter=blob
+          --outputFile.blob=test-results/vitest-blob/blob-${{ matrix.shard }}-2.json
+      - name: Upload shard report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: vitest-blob-${{ matrix.shard }}
+          # Re-running a failed shard replaces its report; untouched successful
+          # shards from this same run/SHA remain available to the merge job.
+          overwrite: true
+          path: test-results/vitest-blob/blob-${{ matrix.shard }}-2.json
+          retention-days: 3
+          if-no-files-found: error
+
+  test-report:
+    name: Test report
+    needs: [test]
+    # Also runs after a failed shard so the merged diagnostics survive; it
+    # fails whenever a shard report is missing or any test failed.
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: setup
+        uses: ./.github/actions/setup-node-pnpm
+      - name: Download shard reports
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: vitest-blob-*
+          path: test-results/vitest-blob
+          merge-multiple: true
+      - name: Merge reports and coverage
+        id: merge
+        run: >-
+          pnpm exec vitest run
+          --merge-reports=test-results/vitest-blob
+          --coverage
+          --reporter=default
+          --reporter=junit
+          --outputFile.junit=test-results/vitest-junit.xml
+      - name: Verify merged report
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        env:
+          SHARD_RESULT: ${{ needs.test.result }}
+        run: >-
+          node scripts/ci/test-report.mjs
+          --blobs=test-results/vitest-blob
+          --shards=2
+          --junit=test-results/vitest-junit.xml
+          --coverage=coverage/coverage-summary.json
+      - name: Upload merged report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: vitest-report-${{ github.run_attempt }}
+          path: |
+            test-results/vitest-junit.xml
+            coverage/coverage-summary.json
+            coverage/lcov.info
+          retention-days: 7
+          if-no-files-found: warn
 
   build:
     runs-on: ubuntu-24.04
@@ -44,7 +170,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: ./.github/actions/setup-node-pnpm
+      - id: setup
+        uses: ./.github/actions/setup-node-pnpm
       - name: Cache Next.js build
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -52,22 +179,217 @@ jobs:
           key: ${{ runner.os }}-${{ runner.arch }}-next-${{ hashFiles('pnpm-lock.yaml', '.nvmrc') }}-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-${{ runner.arch }}-next-${{ hashFiles('pnpm-lock.yaml', '.nvmrc') }}-
+      # No service credentials: this is the unconfigured production-mode build.
       - run: pnpm build
+      - name: Clean tree after build
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        run: pnpm ci:clean-tree
 
-  # Keep the existing check name as the single merge gate. A failed, cancelled,
-  # or skipped dependency must never produce a green aggregate check.
+  browser:
+    name: Browser smoke
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-node-pnpm
+      # Restore only: the `build` job owns saving this cache.
+      - name: Restore Next.js build cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .next/cache
+          key: ${{ runner.os }}-${{ runner.arch }}-next-${{ hashFiles('pnpm-lock.yaml', '.nvmrc') }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-next-${{ hashFiles('pnpm-lock.yaml', '.nvmrc') }}-
+      - name: Production-mode build (credential-free)
+        run: pnpm build
+      # Exactly the browser revision bundled with the locked @playwright/test.
+      - name: Install Playwright Chromium
+        id: browsers
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Anonymous smoke (desktop and mobile)
+        if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
+        env:
+          PLAYWRIGHT_REQUIRE_BUILD: "1"
+        run: pnpm test:e2e
+      - name: Storage workspace (PR subset)
+        if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
+        run: pnpm test:e2e:workspace
+      - name: Upload browser JUnit
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: browser-junit-${{ github.run_attempt }}
+          path: |
+            test-results/smoke-junit.xml
+            test-results/workspace-junit.xml
+          retention-days: 7
+          if-no-files-found: warn
+      # Failure-only, credential-free synthetic diagnostics (traces/screenshots).
+      - name: Upload browser diagnostics
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: browser-diagnostics-${{ github.run_attempt }}
+          path: |
+            test-results/smoke/
+            test-results/workspace/
+            playwright-report/smoke/
+            playwright-report/workspace/
+          retention-days: 5
+          if-no-files-found: ignore
+
+  dependency-review:
+    name: Dependency review
+    # PR-only by design; `check` accepts its skip only on push/dispatch.
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: high
+          fail-on-scopes: runtime, development, unknown
+          # Narrow, expiring exception only (no patched release exists). Must
+          # match an unexpired entry in scripts/ci/dependency-exceptions.json;
+          # validate-workflows.mjs enforces this, so expiry breaks the PR gate.
+          allow-ghsas: GHSA-vfj7-8cjw-p6xm
+          comment-summary-in-pr: never
+
+  # Stable merge gate and the only status the ruleset requires. Failed,
+  # cancelled, missing or unexpectedly skipped jobs never produce a green check.
   check:
     if: ${{ always() }}
-    needs: [validate, test, build]
+    needs:
+      [validate, codegen, test, test-report, build, browser, dependency-review]
     runs-on: ubuntu-24.04
-    timeout-minutes: 2
+    timeout-minutes: 3
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: scripts/ci
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
       - name: Require all quality jobs to pass
         env:
-          VALIDATE_RESULT: ${{ needs.validate.result }}
-          TEST_RESULT: ${{ needs.test.result }}
-          BUILD_RESULT: ${{ needs.build.result }}
-        run: |
-          test "$VALIDATE_RESULT" = success
-          test "$TEST_RESULT" = success
-          test "$BUILD_RESULT" = success
+          NEEDS_JSON: ${{ toJSON(needs) }}
+          EVENT_NAME: ${{ github.event_name }}
+          REQUIRED_JOBS: validate,codegen,test,test-report,build,browser,dependency-review
+          PULL_REQUEST_ONLY: dependency-review
+        run: node scripts/ci/aggregate.mjs
+
+  # Trusted stable staging for this exact commit. Fork/PR code never reaches
+  # it: the job runs only for main push/dispatch after `check` succeeded.
+  staging:
+    name: Staging release
+    needs: [check]
+    if: ${{ needs.check.result == 'success' && github.repository == 'Rugby-Thailand/industrial-sas' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    environment:
+      name: staging
+      url: https://industrial-sas-staging.vercel.app
+    concurrency:
+      group: industrial-sas-staging-release
+      cancel-in-progress: false
+      queue: max
+    permissions:
+      contents: read
+      # Vercel Trusted Sources: the controller requests the configured
+      # audience and hands browsers only a refreshed private token file.
+      id-token: write
+    outputs:
+      outcome: ${{ steps.release.outputs.outcome }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: ./.github/actions/setup-node-pnpm
+        with:
+          cache: "false"
+      # Standalone locked workspace: no --ignore-workspace, which would drop
+      # its security overrides.
+      - name: Install release tools
+        run: pnpm -C tools/release install --frozen-lockfile
+      - name: Install Playwright Chromium
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Deploy and verify staging
+        id: release
+        env:
+          RELEASE_ENVIRONMENT: staging
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          # Read-only; the controller's stale-main check.
+          GITHUB_TOKEN: ${{ github.token }}
+          RELEASE_ACKNOWLEDGED_DEPLOYMENTS: ${{ vars.RELEASE_ACKNOWLEDGED_DEPLOYMENTS }}
+        run: node scripts/release/run.mjs --target=staging
+      - name: Upload staging manifest
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: staging-release-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            release-output/manifest.json
+            release-output/smoke-staging.json
+          retention-days: 30
+          if-no-files-found: warn
+
+  # Automatic production release of the same commit. One job holds the shared
+  # production lock (also used by the daily backup workflow) across backup,
+  # remote build, candidate smoke, promotion and live checks.
+  release:
+    name: Production release
+    needs: [check, staging]
+    if: ${{ needs.check.result == 'success' && needs.staging.result == 'success' && needs.staging.outputs.outcome == 'STAGING_PASSED' && github.repository == 'Rugby-Thailand/industrial-sas' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    environment:
+      name: production-release
+      url: https://app.thaipropertyai.com
+    concurrency:
+      group: industrial-sas-production-release
+      cancel-in-progress: false
+      queue: max
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: ./.github/actions/setup-node-pnpm
+        with:
+          cache: "false"
+      - name: Install release tools
+        run: pnpm -C tools/release install --frozen-lockfile
+      - name: Install Playwright Chromium
+        run: pnpm exec playwright install --with-deps chromium
+      # Production Convex/Clerk deploy credentials stay in Vercel. The
+      # controller takes the mandatory backup before any deployment.
+      - name: Release production
+        id: release
+        env:
+          RELEASE_ENVIRONMENT: production
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          CONVEX_BACKUP_ADMIN_KEY: ${{ secrets.CONVEX_BACKUP_ADMIN_KEY }}
+          GITHUB_TOKEN: ${{ github.token }}
+          RELEASE_ACKNOWLEDGED_DEPLOYMENTS: ${{ vars.RELEASE_ACKNOWLEDGED_DEPLOYMENTS }}
+        run: node scripts/release/run.mjs --target=production
+      - name: Upload release manifest
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: production-release-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            release-output/manifest.json
+            release-output/backup-metadata.json
+            release-output/smoke-candidate.json
+            release-output/smoke-live.json
+          retention-days: 30
+          if-no-files-found: warn

@@ -1,4 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "ignoreCommand": "node scripts/vercel-ignore-build.mjs"
+  "buildCommand": "node scripts/release/assert-deploy-env.mjs --phase=pre && pnpm exec convex deploy --cmd-url-env-var-name NEXT_PUBLIC_CONVEX_URL --cmd 'node scripts/release/assert-deploy-env.mjs --phase=build && pnpm build'",
+  "git": {
+    "deploymentEnabled": false
+  }
 }

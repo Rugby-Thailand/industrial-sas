@@ -1,0 +1,90 @@
+# Critical-path ownership. The main ruleset requires an approving review from a
+# code owner for these paths. Every handle below was confirmed by the repository
+# admin as an eligible reviewer with write access (2026-10-09). Listing several
+# owners avoids a self-review deadlock: an author's own approval never counts,
+# so another listed owner must approve.
+#
+# Keep this list to release, security and data-integrity paths. Ordinary UI and
+# feature work needs the normal single approval only.
+
+# Workflows, composite actions, Dependabot and this file.
+/.github/                                   @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
+
+# Dependency manifests, lockfiles, package-manager and toolchain policy.
+/package.json                               @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
+/pnpm-lock.yaml                             @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
+/pnpm-workspace.yaml                        @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
+/.npmrc                                     @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
+/.nvmrc                                     @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
+/tools/release/                             @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
+
+# Deployment configuration, release and operator scripts.
+/vercel.json                                @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
+/.vercelignore                              @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
+/next.config.ts                             @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
+/scripts/                                   @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
+/playwright*.config.ts                      @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
+/.env.example                               @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
+/.gitignore                                 @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
+
+# Backend schema, generated contracts, staging fixtures and HTTP surface.
+/convex/schema.ts                           @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
+/convex/_generated/                         @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
+/convex/http.ts                             @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
+/convex/auth.config.ts                      @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
+/convex/staging/                            @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
+/convex/onboarding/                         @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
+
+# Identity, webhook, authorization and tenant isolation.
+/convex/lib/authorization*.ts               @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
+/convex/lib/permissions.ts                  @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
+/convex/lib/clerkWebhook*.ts                @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
+/convex/lib/identity*.ts                    @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
+/convex/lib/tenant*.ts                      @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
+/convex/lib/schemaPolicy.ts                 @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
+/convex/lib/navigationGrants.ts             @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
+/src/proxy.ts                               @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
+/src/lib/securityHeaders.ts                 @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
+/src/lib/auth/                              @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
+/src/lib/clerkConfiguration.ts              @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
+/src/lib/observability/                     @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
+
+# Guards that protect the paths above: removing or weakening them is reviewed.
+/vitest.config.mts                          @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
+/tests/integration/clerk-webhook*.ts        @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
+/tests/integration/identity*.ts             @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
+/tests/integration/tenant-*.ts              @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
+/tests/integration/authorization-*.ts       @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
+/tests/integration/permissions.integration.test.ts @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
+/tests/integration/public-function-contract.integration.test.ts @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
+/tests/integration/public-api-*.ts          @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
+/tests/integration/registered-boundaries.integration.test.ts @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
+/tests/integration/schema-contracts.integration.test.ts @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
+/tests/integration/production-schema-compatibility.integration.test.ts @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
+/tests/integration/generated-artifacts.integration.test.ts @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
+/tests/integration/workspace-current.integration.test.ts @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
+# CI gate, release, backup, privacy, dependency-exception and fixture guards.
+/tests/integration/ci-*.ts                  @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
+/tests/integration/release-*.ts             @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
+/tests/integration/convex-backup-*.ts       @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
+/tests/integration/browser-release-safety.integration.test.ts @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
+/tests/integration/dependency-exceptions.integration.test.ts @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
+/tests/integration/staging-*.ts             @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
+/tests/integration/production-operator.integration.test.ts @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
+/tests/integration/vercel-ignore-build.integration.test.ts @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
+/tests/integration/vercel-*.ts               @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
+/tests/properties/                          @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
+# Critical snapshots and shared security fixtures.
+/tests/fixtures/public-function-contract.json @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
+/tests/fixtures/production-schema-*.json    @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
+/tests/fixtures/public-contract.ts          @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
+/tests/fixtures/public-api-examples.ts      @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
+/tests/fixtures/convex-tenant-world.ts      @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
+/tests/fixtures/tenant-*.ts                 @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
+/tests/fixtures/identity-mirror-port.ts     @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
+/tests/fixtures/policy-fixture-permissions.ts @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
+/tests/isolation/                           @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
+/tests/e2e/                                 @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
+
+# Operations and recovery runbooks.
+/docs/operations/                           @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator

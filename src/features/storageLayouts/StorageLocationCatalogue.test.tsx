@@ -139,7 +139,9 @@ beforeEach(() => {
 it("does not retain one actor's view preferences after an actor switch", async () => {
   const view = renderPage();
   fireEvent.click(screen.getByRole("button", { name: "All locations" }));
-  expect(screen.getByRole("table", { name: "All storage locations" })).toBeVisible();
+  expect(
+    screen.getByRole("table", { name: "All storage locations" }),
+  ).toBeVisible();
 
   mock.userId = "another-user";
   view.rerender(
@@ -147,7 +149,9 @@ it("does not retain one actor's view preferences after an actor switch", async (
       {() => <p>Building cards</p>}
     </StorageLocationCatalogue>,
   );
-  expect(screen.queryByRole("table", { name: "All storage locations" })).toBeNull();
+  expect(
+    screen.queryByRole("table", { name: "All storage locations" }),
+  ).toBeNull();
   expect(screen.getByText("Building cards")).toBeVisible();
 });
 it("switches to all locations, opens coordinates and QR, and exposes exact planner links", async () => {

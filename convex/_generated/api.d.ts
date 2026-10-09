@@ -64,6 +64,7 @@ import type * as model_storageLayout_storagePosition from "../model/storageLayou
 import type * as model_storageLayout_storageZone from "../model/storageLayout/storageZone.js";
 import type * as onboarding_bootstrapOrganization from "../onboarding/bootstrapOrganization.js";
 import type * as staging_annexDemo from "../staging/annexDemo.js";
+import type * as staging_e2eFixture from "../staging/e2eFixture.js";
 import type * as staging_jobScanDemo from "../staging/jobScanDemo.js";
 import type * as staging_paginationDemo from "../staging/paginationDemo.js";
 import type * as staging_storageLayoutUiDemo from "../staging/storageLayoutUiDemo.js";
@@ -140,6 +141,7 @@ declare const fullApi: ApiFromModules<{
   "model/storageLayout/storageZone": typeof model_storageLayout_storageZone;
   "onboarding/bootstrapOrganization": typeof onboarding_bootstrapOrganization;
   "staging/annexDemo": typeof staging_annexDemo;
+  "staging/e2eFixture": typeof staging_e2eFixture;
   "staging/jobScanDemo": typeof staging_jobScanDemo;
   "staging/paginationDemo": typeof staging_paginationDemo;
   "staging/storageLayoutUiDemo": typeof staging_storageLayoutUiDemo;

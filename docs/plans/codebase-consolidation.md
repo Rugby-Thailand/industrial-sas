@@ -38,7 +38,6 @@ F. Complete remaining UI and translation migrations alongside the owning workflo
 
 Map, list and inspector agree on selection, matching locations and totals. No draft or selection leaks across warehouses/buildings/floors/users. Reload, invalid saved state, unavailable storage, back/forward and concurrent server updates remain correct. Failed saves preserve drafts and retry identity. Permission checks are not weakened. All migrated workflows pass relevant interaction tests plus typecheck/lint and the full suite; verify both locales/themes, mobile, keyboard and focus in the running app. Track removed duplicate implementations and consumers migrated; do not promise a line-count or runtime improvement without measuring it.
 
-
 ## Implemented modules and boundaries
 
 - `hooks/useCanManage`, `useDraftKey`, `useUnsavedWarning`, `useAsyncOperation`, `useRequestIdentity`: shared access, identity, dirty-page and execution mechanics. Finished-goods translations remain in `operationErrors`; the old shared exports remain as compatibility adapters for existing feature consumers.

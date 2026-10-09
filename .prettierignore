@@ -27,4 +27,15 @@ PROJECT_PLAN.md
 
 .cache/
 
+# Reference pages served byte-for-byte in an iframe (F1F2ReferencePreview);
+# reformatting HTML can change rendered whitespace.
+public/f1-f2-reference/
+# Rendered review gallery captured as evidence; keep it as generated.
+docs/reviews/minimal-ui-gallery-2026-10-08.html
+
+# Generated contract snapshot (written by the public-function contract test).
+tests/fixtures/public-function-contract.json
+playwright/.auth/
+release-output/
+
 .next-build/

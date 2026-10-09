@@ -36,13 +36,13 @@ dist/
 # command generated it: `next dev` writes `import "./.next/dev/types/routes.d.ts"`
 # and `next build` writes `import "./.next/types/routes.d.ts"`. Tracking it meant
 # whichever variant was committed churned the working tree the moment anyone ran
-# the other command — and the `build` CI job, which runs `next build` and then
-# asserts the tree is clean, could not pass at all while the committed copy was
-# the `dev` one.
+# the other command — and the CI clean-tree assertion that runs after
+# `next typegen`/`next build` (`scripts/ci/assert-clean-tree.mjs`) could not pass
+# while the committed copy was the `dev` one.
 #
 # It is safe to ignore because nothing depends on it: `tsconfig.json` already
 # includes `.next/types/**` and `.next/dev/types/**` directly, and `pnpm
-# typecheck` passes on a cold tree with no `.next` and no `next-env.d.ts` at all.
+# typecheck` runs `next typegen` first, so a cold checkout regenerates it.
 # `tests/integration/generated-artifacts.integration.test.ts` holds that line.
 /next-env.d.ts
 
@@ -70,6 +70,14 @@ dist/
 !.env.*.example
 
 # ---------------------------------------------------------------------------
+# Private operator artifacts. Production import/repair scripts write business
+# and identity data here; it must never reach the public repository. Keep the
+# directory outside version control (or on a private external volume).
+# ---------------------------------------------------------------------------
+/data/import-staging/
+/data/private/
+
+# ---------------------------------------------------------------------------
 # Secrets and credentials
 # ---------------------------------------------------------------------------
 *.pem
@@ -92,6 +100,11 @@ test-results/
 playwright-report/
 blob-report/
 playwright/.cache/
+# Playwright authentication state (Clerk session cookies) — never commit/upload.
+playwright/.auth/
+.auth/
+# Release manifests written by scripts/release/*.mjs during a run.
+release-output/
 .vitest/
 junit.xml
 lighthouse-report.*
