@@ -88,7 +88,7 @@ vi.mock("convex/react", () => ({
 vi.mock("@/hooks/useCanManage", () => ({
   useCanManage: () => mocks.canManage,
 }));
-vi.mock("./BarcodeCameraBox", () => ({
+vi.mock("../BarcodeCameraBox", () => ({
   BarcodeCameraBox: ({ onCode }: { onCode: (code: string) => void }) => (
     <button onClick={() => onCode("ZONE-A")}>Scan test location</button>
   ),

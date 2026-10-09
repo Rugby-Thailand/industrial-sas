@@ -20,7 +20,7 @@ const scanner = vi.hoisted(() => ({
   decode:
     vi.fn<
       (
-        device: string | undefined,
+        stream: MediaStream,
         video: HTMLVideoElement,
         callback: (
           result: { getText(): string } | undefined,
@@ -32,8 +32,8 @@ const scanner = vi.hoisted(() => ({
 }));
 
 vi.mock("@zxing/browser", () => ({
-  BrowserQRCodeReader: class {
-    decodeFromVideoDevice = scanner.decode;
+  BrowserMultiFormatReader: class {
+    decodeFromStream = scanner.decode;
   },
 }));
 
@@ -41,7 +41,11 @@ import { DestinationScanner } from "./DestinationScanner";
 
 beforeEach(() => {
   scanner.decode.mockReset();
-  vi.stubGlobal("navigator", { mediaDevices: { getUserMedia: vi.fn() } });
+  const track = { stop: vi.fn(), getCapabilities: () => ({}) };
+  const stream = { getTracks: () => [track], getVideoTracks: () => [track] };
+  vi.stubGlobal("navigator", {
+    mediaDevices: { getUserMedia: vi.fn().mockResolvedValue(stream) },
+  });
 });
 afterEach(() => vi.unstubAllGlobals());
 
@@ -98,14 +102,11 @@ describe("DestinationScanner", () => {
   it("stops the scanner and media tracks when unmounted", async () => {
     const stop = vi.fn();
     const trackStop = vi.fn();
-    scanner.decode.mockImplementation(async (_device, video) => {
-      Object.defineProperty(video, "srcObject", {
-        configurable: true,
-        writable: true,
-        value: { getTracks: () => [{ stop: trackStop }] },
-      });
-      return { stop };
-    });
+    vi.mocked(navigator.mediaDevices.getUserMedia).mockResolvedValue({
+      getTracks: () => [{ stop: trackStop }],
+      getVideoTracks: () => [],
+    } as unknown as MediaStream);
+    scanner.decode.mockResolvedValue({ stop });
     const { unmount } = renderIntl(
       <DestinationScanner onCode={vi.fn()} expectedLocation="FG-1" />,
     );
@@ -119,15 +120,14 @@ describe("DestinationScanner", () => {
     const stop = vi.fn();
     const trackStop = vi.fn();
     let finish: ((value: { stop(): void }) => void) | undefined;
+    vi.mocked(navigator.mediaDevices.getUserMedia).mockResolvedValue({
+      getTracks: () => [{ stop: trackStop }],
+      getVideoTracks: () => [],
+    } as unknown as MediaStream);
     scanner.decode.mockImplementation(
-      (_device, video) =>
+      () =>
         new Promise((resolve) => {
           finish = (value) => {
-            Object.defineProperty(video, "srcObject", {
-              configurable: true,
-              writable: true,
-              value: { getTracks: () => [{ stop: trackStop }] },
-            });
             resolve(value);
           };
         }),
@@ -151,10 +151,10 @@ describe("DestinationScanner", () => {
     renderIntl(<DestinationScanner onCode={vi.fn()} expectedLocation="FG-1" />);
     await startCamera();
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Camera unavailable",
+      "Camera access was denied",
     );
     expect(screen.getByLabelText("Destination code")).toBeEnabled();
-    expect(screen.getByRole("button", { name: "Start camera" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Retry camera" })).toBeEnabled();
   });
 
   it("handles browsers without a camera API", async () => {
@@ -289,4 +289,126 @@ describe("DestinationScanner", () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Destination code")).toHaveValue("wrong");
   });
+});
+
+it.each([
+  ["DESTINATION", "Destination code"],
+  ["PALLET", "Pallet code"],
+  ["SOURCE", "Source code"],
+  ["SUPPORT", "Supporting pallet code"],
+] as const)(
+  "opens the adjacent scan icon for %s and reports camera evidence",
+  async (purpose, label) => {
+    scanner.decode.mockResolvedValue({ stop: vi.fn() });
+    const onCode = vi.fn().mockResolvedValue(undefined);
+    renderIntl(
+      <DestinationScanner
+        purpose={purpose}
+        onCode={onCode}
+        expectedLocation="DEMO"
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: `Scan ${label}` }));
+    await waitFor(() => expect(scanner.decode).toHaveBeenCalledTimes(1));
+    emitCode("DEMO-CODE", vi.fn());
+    await waitFor(() =>
+      expect(onCode).toHaveBeenCalledWith("DEMO-CODE", "SCAN"),
+    );
+    expect(onCode).toHaveBeenCalledTimes(1);
+    expect(screen.getByLabelText(label)).toHaveValue("DEMO-CODE");
+  },
+);
+
+it("ends a busy camera and ignores a late frame without restarting it when unlocked", async () => {
+  const onCode = vi.fn();
+  scanner.decode.mockResolvedValue({ stop: vi.fn() });
+  const view = renderIntl(
+    <DestinationScanner onCode={onCode} expectedLocation="FG-1" />,
+  );
+  await startCamera();
+  const old = scanner.decode.mock.calls[0]![2];
+  view.rerender(
+    <DestinationScanner onCode={onCode} expectedLocation="FG-1" busy />,
+  );
+  act(() => old({ getText: () => "LATE" }, undefined, { stop: vi.fn() }));
+  view.rerender(<DestinationScanner onCode={onCode} expectedLocation="FG-1" />);
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Start camera" })).toBeEnabled(),
+  );
+  expect(scanner.decode).toHaveBeenCalledTimes(1);
+  expect(onCode).not.toHaveBeenCalled();
+});
+
+it("resets verification input and rejects old frames when the expected identity changes", async () => {
+  const onCode = vi.fn();
+  scanner.decode.mockResolvedValue({ stop: vi.fn() });
+  const view = renderIntl(
+    <DestinationScanner onCode={onCode} expectedLocation="FG-1" />,
+  );
+  fireEvent.change(screen.getByLabelText("Destination code"), {
+    target: { value: "OLD-DRAFT" },
+  });
+  await startCamera();
+  const old = scanner.decode.mock.calls[0]![2];
+  view.rerender(<DestinationScanner onCode={onCode} expectedLocation="FG-2" />);
+  act(() => old({ getText: () => "OLD-LABEL" }, undefined, { stop: vi.fn() }));
+  expect(screen.getByLabelText("Destination code")).toHaveValue("");
+  expect(onCode).not.toHaveBeenCalled();
+  expect(scanner.decode).toHaveBeenCalledTimes(1);
+});
+
+it("stops the shared camera during manual verification and ignores repeated submits and late frames", async () => {
+  let finish!: () => void;
+  const onCode = vi.fn(
+    () =>
+      new Promise<void>((resolve) => {
+        expect(stop).toHaveBeenCalled();
+        finish = resolve;
+      }),
+  );
+  const stop = vi.fn();
+  scanner.decode.mockResolvedValue({ stop });
+  renderIntl(<DestinationScanner onCode={onCode} expectedLocation="FG-1" />);
+  await startCamera();
+  const late = scanner.decode.mock.calls[0]![2];
+  fireEvent.change(screen.getByLabelText("Destination code"), {
+    target: { value: "TYPED-CODE" },
+  });
+  const form = screen.getByLabelText("Destination code").closest("form")!;
+  act(() => {
+    fireEvent.submit(form);
+    fireEvent.submit(form);
+  });
+  expect(onCode.mock.calls).toEqual([["TYPED-CODE", "MANUAL"]]);
+  expect(stop).toHaveBeenCalled();
+  expect(screen.getByLabelText("Destination code")).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Start camera" })).toBeDisabled();
+  act(() => late({ getText: () => "LATE" }, undefined, { stop }));
+  expect(onCode).toHaveBeenCalledTimes(1);
+  await act(async () => finish());
+  expect(screen.getByLabelText("Destination code")).toHaveValue("TYPED-CODE");
+  expect(screen.getByRole("button", { name: "Start camera" })).toBeEnabled();
+});
+
+it("retries denied camera access through the adjacent scan action", async () => {
+  const media = vi.mocked(navigator.mediaDevices.getUserMedia);
+  media.mockRejectedValueOnce(new DOMException("Denied", "NotAllowedError"));
+  const stop = vi.fn();
+  scanner.decode.mockResolvedValue({ stop });
+  const onCode = vi.fn().mockResolvedValue(undefined);
+  renderIntl(<DestinationScanner onCode={onCode} expectedLocation="FG-1" />);
+  const scan = screen.getByRole("button", { name: "Scan Destination code" });
+  fireEvent.click(scan);
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "Camera access was denied",
+  );
+  expect(scan).toHaveAttribute("aria-pressed", "false");
+  fireEvent.click(scan);
+  await waitFor(() => expect(scanner.decode).toHaveBeenCalledOnce());
+  expect(media).toHaveBeenCalledTimes(2);
+  emitCode("RETRIED-CODE", stop);
+  await waitFor(() =>
+    expect(onCode).toHaveBeenCalledWith("RETRIED-CODE", "SCAN"),
+  );
+  expect(screen.queryByRole("alert")).not.toBeInTheDocument();
 });

@@ -44,6 +44,7 @@ export function useBarcodeCamera({
   const [attempt, setAttempt] = useState(0);
   const controlsRef = useRef<IScannerControls | null>(null);
   const generation = useRef(0);
+  const releaseRef = useRef<(() => void) | null>(null);
   // Serialize startup: an old decoder must settle before another attaches to the video.
   const startup = useRef<Promise<void>>(Promise.resolve());
   const deliver = useEffectEvent((code: string) => onCode(code));
@@ -61,6 +62,7 @@ export function useBarcodeCamera({
       if (video && video.srcObject === stream) video.srcObject = null;
       if (controlsRef.current === controls) controlsRef.current = null;
     };
+    releaseRef.current = release;
     const run = async () => {
       if (!current()) return;
       setError(null);
@@ -178,6 +180,12 @@ export function useBarcodeCamera({
     }
   }, [torchOn]);
 
+  // Single-shot consumers invalidate callbacks before their first accepted result renders.
+  const stop = useCallback(() => {
+    generation.current += 1;
+    releaseRef.current?.();
+  }, []);
+
   return {
     videoRef,
     state,
@@ -185,6 +193,7 @@ export function useBarcodeCamera({
     torchAvailable,
     torchOn,
     toggleTorch,
+    stop,
     start: () => setAttempt((value) => value + 1),
   };
 }

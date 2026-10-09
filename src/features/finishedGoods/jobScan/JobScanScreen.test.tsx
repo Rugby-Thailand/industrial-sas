@@ -1,3 +1,5 @@
+import userEvent from "@testing-library/user-event";
+import { axe } from "jest-axe";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { ComponentProps, ReactNode } from "react";
@@ -10,10 +12,20 @@ const mocks = vi.hoisted(() => ({
   resize: vi.fn(),
   decode: undefined as ((code: string) => void) | undefined,
 }));
-vi.mock("./BarcodeCameraBox", () => ({
-  BarcodeCameraBox: ({ onCode }: { onCode: (code: string) => void }) => {
+vi.mock("../BarcodeCameraBox", () => ({
+  BarcodeCameraBox: ({
+    onCode,
+    onClose,
+  }: {
+    onCode: (code: string) => void;
+    onClose: () => void;
+  }) => {
     mocks.decode = onCode;
-    return <div>QA barcode scanner active</div>;
+    return (
+      <div>
+        QA barcode scanner active<button onClick={onClose}>Stop camera</button>
+      </div>
+    );
   },
 }));
 vi.mock("@/i18n/navigation", () => ({
@@ -164,4 +176,125 @@ it("locks editing and prevents a second write while a save is pending", async ()
   await waitFor(() =>
     expect(screen.getByRole("button", { name: "Scan more" })).toBeVisible(),
   );
+});
+
+it("scans into the selected ticket field without choosing a different incomplete ticket", () => {
+  start();
+  fireEvent.click(screen.getByRole("button", { name: "Type manually" }));
+  fireEvent.click(screen.getByRole("button", { name: "Type manually" }));
+  fireEvent.click(screen.getAllByRole("button", { name: "Scan Job No." })[0]!);
+  expect(screen.getByRole("dialog")).toHaveTextContent("Ticket #1");
+  act(() => mocks.decode!("DEMO-BOX"));
+  expect(screen.getByRole("alert")).toHaveTextContent("different field");
+  expect(screen.getByRole("dialog")).toBeVisible();
+  act(() => mocks.decode!(" FO69070073 "));
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  const jobs = screen.getAllByRole("textbox", { name: /Job No\./ });
+  expect(jobs[0]).toHaveValue("FO69070073");
+  expect(jobs[1]).toHaveValue("");
+  expect(
+    screen.getAllByRole("textbox", { name: /Product barcode/ })[0],
+  ).toHaveValue("");
+  expect(mocks.save).not.toHaveBeenCalled();
+});
+
+it("requires replacement confirmation, keeps the original on cancel, and applies once", () => {
+  start();
+  addTicket();
+  addTicket(1);
+  fireEvent.click(
+    screen.getAllByRole("button", { name: "Scan Product barcode" })[1]!,
+  );
+  const decode = mocks.decode!;
+  act(() => {
+    decode("NEW-BOX");
+    decode("WRONG-SECOND-FRAME");
+  });
+  expect(screen.getByRole("dialog")).toHaveTextContent("DEMO-BOX");
+  expect(screen.getByRole("dialog")).toHaveTextContent("NEW-BOX");
+  expect(screen.queryByText("WRONG-SECOND-FRAME")).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  expect(
+    screen.getAllByRole("textbox", { name: /Product barcode/ })[1],
+  ).toHaveValue("DEMO-BOX");
+  fireEvent.click(
+    screen.getAllByRole("button", { name: "Scan Product barcode" })[1]!,
+  );
+  act(() => mocks.decode!("NEW-BOX"));
+  fireEvent.click(screen.getByRole("button", { name: "Replace value" }));
+  const products = screen.getAllByRole("textbox", { name: /Product barcode/ });
+  expect(products[0]).toHaveValue("DEMO-BOX");
+  expect(products[1]).toHaveValue("NEW-BOX");
+  act(() => decode("LATE-CODE"));
+  expect(products[1]).toHaveValue("NEW-BOX");
+  expect(mocks.save).not.toHaveBeenCalled();
+});
+
+it("ignores a closed global scanner while a field scanner is open", () => {
+  start();
+  addTicket();
+  fireEvent.click(screen.getByRole("button", { name: "Scan barcode" }));
+  const oldGlobalDecode = mocks.decode!;
+  fireEvent.click(screen.getByRole("button", { name: "Scan Product barcode" }));
+  act(() => oldGlobalDecode("LATE-GLOBAL-BOX"));
+  expect(screen.getByRole("dialog")).not.toHaveTextContent("LATE-GLOBAL-BOX");
+  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  expect(
+    screen.getAllByRole("textbox", { name: /Product barcode/ }),
+  ).toHaveLength(1);
+  expect(screen.getByRole("textbox", { name: /Product barcode/ })).toHaveValue(
+    "DEMO-BOX",
+  );
+});
+
+it("ignores a field result after its ticket is removed", () => {
+  start();
+  addTicket();
+  fireEvent.click(screen.getByRole("button", { name: "Scan Job No." }));
+  const late = mocks.decode!;
+  fireEvent.click(
+    screen.getByRole("button", { name: "Remove #1", hidden: true }),
+  );
+  act(() => late("FO69079999"));
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("textbox", { name: /Job No\./ }),
+  ).not.toBeInTheDocument();
+  expect(mocks.save).not.toHaveBeenCalled();
+});
+
+it("matches code length limits and rejects storage QR payloads without changing drafts", () => {
+  start();
+  addTicket();
+  expect(screen.getByRole("textbox", { name: /Job No\./ })).toHaveAttribute(
+    "maxlength",
+    "100",
+  );
+  expect(
+    screen.getByRole("textbox", { name: /Product barcode/ }),
+  ).toHaveAttribute("maxlength", "200");
+  fireEvent.click(screen.getByRole("button", { name: "Scan Product barcode" }));
+  act(() => mocks.decode!("ISAS:LOCATION:1:zone-a"));
+  expect(screen.getByRole("alert")).toHaveTextContent("cannot be used here");
+  act(() => mocks.decode!("A".repeat(201)));
+  expect(screen.getByRole("alert")).toHaveTextContent("too long");
+  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  expect(screen.getByRole("textbox", { name: /Product barcode/ })).toHaveValue(
+    "DEMO-BOX",
+  );
+});
+
+it("keeps focus on the scan action after Escape and exposes accessible field and dialog names", async () => {
+  const user = userEvent.setup();
+  start();
+  addTicket();
+  const button = screen.getByRole("button", { name: "Scan Job No." });
+  await user.click(button);
+  expect(screen.getByRole("dialog", { name: "Scan Job No." })).toBeVisible();
+  expect(await axe(screen.getByRole("dialog"))).toHaveNoViolations();
+  await user.keyboard("{Escape}");
+  await waitFor(() =>
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+  );
+  expect(button).toHaveFocus();
 });

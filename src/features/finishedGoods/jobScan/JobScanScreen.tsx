@@ -31,10 +31,11 @@ import {
   ViewOnlyNotice,
   written,
 } from "../shared";
-import { BarcodeCameraBox } from "./BarcodeCameraBox";
+import { BarcodeCameraBox } from "../BarcodeCameraBox";
 import { LocationPicker } from "./LocationPicker";
 import { PhotoCapture } from "./PhotoCapture";
 import { TicketCard } from "./TicketCard";
+import { TicketFieldScanner } from "./TicketFieldScanner";
 import { resizeImage, toDataUrl } from "./resizeImage";
 import {
   applyBarcode,
@@ -47,10 +48,21 @@ import {
   toPayload,
   type PickedLocation,
   type TicketDraft,
+  type TicketCodeField,
+  ticketBarcodeError,
 } from "./ticketDraft";
+
+type FieldScanTarget = {
+  key: string;
+  field: TicketCodeField;
+  value: string;
+  index: number;
+};
 
 export const JOB_SCAN_PATH = "/finished-goods/scan";
 export const JOB_SCAN_RECORDS_PATH = "/finished-goods/scan/records";
+const acquisitionButtonClass =
+  "min-h-14 flex-col gap-1 px-1 text-xs sm:min-h-11 sm:flex-row sm:gap-1.5 sm:px-2 sm:text-sm";
 
 export function JobScanScreen() {
   const scope = useDraftKey("fg-job-scan");
@@ -102,6 +114,9 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
   const [location, setLocation] = useState<PickedLocation>();
   const [tickets, setTickets] = useState<TicketDraft[]>([]);
   const [panel, setPanel] = useState<"PHOTO" | "BARCODE" | null>(null);
+  const panelRef = useRef<typeof panel>(null);
+  const [fieldScan, setFieldScan] = useState<FieldScanTarget | null>(null);
+  const fieldScanRef = useRef<FieldScanTarget | null>(null);
   const [feedback, setFeedback] = useState<string>();
   const [saved, setSaved] = useState<{
     count: number;
@@ -138,6 +153,57 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
     setTickets((current) =>
       current.map((ticket) => (ticket.key === key ? change(ticket) : ticket)),
     );
+
+  function closeFieldScan() {
+    fieldScanRef.current = null;
+    setFieldScan(null);
+  }
+  function changePanel(next: typeof panel) {
+    closeFieldScan();
+    setFeedback(undefined);
+    panelRef.current = next;
+    setPanel(next);
+  }
+  function openFieldScan(
+    ticket: TicketDraft,
+    field: TicketCodeField,
+    index: number,
+  ) {
+    if (acquisitionBlocked.current || !canManage || ticket.status !== "ready")
+      return;
+    changePanel(null);
+    const target = {
+      key: ticket.key,
+      field,
+      value: ticket.values[field] ?? "",
+      index,
+    };
+    fieldScanRef.current = target;
+    setFieldScan(target);
+  }
+  function applyFieldScan(target: FieldScanTarget, code: string) {
+    if (
+      acquisitionBlocked.current ||
+      !canManage ||
+      fieldScanRef.current !== target
+    )
+      return;
+    closeFieldScan();
+    update(target.key, (row) => {
+      // A changed or removed target must never fall back to another ticket.
+      if (
+        row.status !== "ready" ||
+        (row.values[target.field] ?? "") !== target.value
+      )
+        return row;
+      return {
+        ...row,
+        values: { ...row.values, [target.field]: code },
+        aiFields: row.aiFields.filter((field) => field !== target.field),
+      };
+    });
+    setFeedback(t("barcodeAdded", { field: t(target.field), code }));
+  }
 
   async function onPhoto(file: File) {
     if (acquisitionBlocked.current) return;
@@ -188,11 +254,16 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
   }
 
   function onBarcode(code: string) {
-    if (acquisitionBlocked.current) return;
-    setTickets((current) => applyBarcode(current, code).tickets);
-    setFeedback(
-      t("barcodeAdded", { field: t(classifyTicketBarcode(code)), code }),
-    );
+    if (acquisitionBlocked.current || panelRef.current !== "BARCODE") return;
+    const value = code.trim();
+    const field = classifyTicketBarcode(value);
+    const problem = ticketBarcodeError(field, value);
+    if (problem) {
+      setFeedback(t(problem));
+      return;
+    }
+    setTickets((current) => applyBarcode(current, value).tickets);
+    setFeedback(t("barcodeAdded", { field: t(field), code: value }));
   }
 
   async function submit() {
@@ -225,6 +296,7 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
       items: tickets.map(toPayload),
     };
     acquisitionBlocked.current = true;
+    changePanel(null);
     const result = await operation.run(async () =>
       written(
         await save({
@@ -241,7 +313,7 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
     tickets.forEach(releasePreview);
     setSaved({ count: tickets.length, location });
     setTickets([]);
-    setPanel(null);
+    changePanel(null);
   }
 
   if (!canManage) return <ViewOnlyNotice />;
@@ -327,7 +399,10 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
           type="button"
           className="ml-auto min-h-11 shrink-0 px-1 font-semibold text-link hover:underline disabled:text-disabled"
           disabled={saving}
-          onClick={() => setLocation(undefined)}
+          onClick={() => {
+            changePanel(null);
+            setLocation(undefined);
+          }}
         >
           {t("change")}
         </button>
@@ -341,22 +416,19 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
         <div className="grid grid-cols-3 gap-2">
           <Button
             variant={panel === "PHOTO" ? "default" : "outline"}
-            className="min-h-11 gap-1.5 px-2"
+            className={acquisitionButtonClass}
             aria-pressed={panel === "PHOTO"}
-            onClick={() =>
-              setPanel((open) => (open === "PHOTO" ? null : "PHOTO"))
-            }
+            onClick={() => changePanel(panel === "PHOTO" ? null : "PHOTO")}
           >
             <Camera className="size-4" aria-hidden="true" />
             {t("photo")}
           </Button>
           <Button
             variant={panel === "BARCODE" ? "default" : "outline"}
-            className="min-h-11 gap-1.5 px-2"
+            className={acquisitionButtonClass}
             aria-pressed={panel === "BARCODE"}
             onClick={() => {
-              setFeedback(undefined);
-              setPanel((open) => (open === "BARCODE" ? null : "BARCODE"));
+              changePanel(panel === "BARCODE" ? null : "BARCODE");
             }}
           >
             <ScanBarcode className="size-4" aria-hidden="true" />
@@ -364,7 +436,7 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
           </Button>
           <Button
             variant="outline"
-            className="min-h-11 gap-1.5 px-2"
+            className={acquisitionButtonClass}
             onClick={() =>
               setTickets((current) => [...current, newTicket("MANUAL")])
             }
@@ -375,9 +447,9 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
         </div>
         {panel === "PHOTO" && (
           <PhotoCapture
-            onClose={() => setPanel(null)}
+            onClose={() => changePanel(null)}
             onSubmit={(files) => {
-              setPanel(null);
+              changePanel(null);
               // Every photo becomes its own ticket; the AI reads them all at once.
               files.forEach((file) => void onPhoto(file));
             }}
@@ -387,9 +459,14 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
           <BarcodeCameraBox
             mode="PACKAGES"
             onCode={onBarcode}
-            onClose={() => setPanel(null)}
+            onClose={() => changePanel(null)}
             feedback={feedback}
           />
+        )}
+        {feedback && panel !== "BARCODE" && !fieldScan && (
+          <p role="status" className="text-sm text-success">
+            {feedback}
+          </p>
         )}
         {tickets.length ? (
           <ol className="space-y-3">
@@ -399,6 +476,8 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
                 ticket={ticket}
                 duplicate={duplicateKeys.includes(ticket.key)}
                 index={index}
+                disabled={saving}
+                onScan={(field) => openFieldScan(ticket, field, index)}
                 onChange={(field, value) =>
                   update(ticket.key, (row) => ({
                     ...row,
@@ -407,6 +486,8 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
                   }))
                 }
                 onRemove={() => {
+                  if (fieldScanRef.current?.key === ticket.key)
+                    closeFieldScan();
                   releasePreview(ticket);
                   setTickets((current) =>
                     current.filter((row) => row.key !== ticket.key),
@@ -420,6 +501,21 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
             {t("noTickets")}
           </Panel>
         )}
+        {fieldScan &&
+          !saving &&
+          tickets.some(
+            (ticket) =>
+              ticket.key === fieldScan.key && ticket.status === "ready",
+          ) && (
+            <TicketFieldScanner
+              key={`${fieldScan.key}:${fieldScan.field}`}
+              field={fieldScan.field}
+              index={fieldScan.index}
+              value={fieldScan.value}
+              onApply={(code) => applyFieldScan(fieldScan, code)}
+              onClose={closeFieldScan}
+            />
+          )}
         {duplicateKeys.length > 0 && (
           <label className="flex min-h-11 items-start gap-3 rounded-md border border-warning p-3 text-sm">
             <CheckboxControl

@@ -1,9 +1,10 @@
-import { expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
   duplicateTicketKeys,
   hasInvalidQuantity,
   newTicket,
   toPayload,
+  ticketBarcodeError,
 } from "./ticketDraft";
 
 it("finds all repeated complete identities after trimming, while retaining distinct tickets", () => {
@@ -54,5 +55,39 @@ it("keeps entered quantities and exact identifiers in the save payload", () => {
     factoryOrder: "FO0123",
     productBarcodeText: "DEMO-01",
     quantity: 1200.5,
+  });
+});
+
+describe("field barcode validation", () => {
+  it("accepts trimmed Job and product labels only in the selected field", () => {
+    expect(ticketBarcodeError("factoryOrder", " FO69070073 ")).toBeUndefined();
+    expect(
+      ticketBarcodeError("productBarcodeText", "0000012345"),
+    ).toBeUndefined();
+    expect(ticketBarcodeError("factoryOrder", "PRODUCT-BOX")).toBe(
+      "wrongScanField",
+    );
+    expect(ticketBarcodeError("productBarcodeText", "FO69070073")).toBe(
+      "wrongScanField",
+    );
+  });
+  it("rejects blank, multiline, storage identities and oversized values without truncating", () => {
+    for (const code of [
+      "",
+      "  ",
+      "ISAS:PALLET:1:abc",
+      "ISAS:LOCATION:1:abc",
+      "A\nB",
+    ]) {
+      expect(ticketBarcodeError("productBarcodeText", code)).toBe(
+        "invalidTicketBarcode",
+      );
+    }
+    expect(ticketBarcodeError("factoryOrder", "FO" + "1".repeat(99))).toBe(
+      "scanCodeTooLong",
+    );
+    expect(ticketBarcodeError("productBarcodeText", "A".repeat(201))).toBe(
+      "scanCodeTooLong",
+    );
   });
 });

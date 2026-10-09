@@ -1,14 +1,15 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useConvex, useQuery } from "convex/react";
-import { MapPin, ScanQrCode, Search } from "lucide-react";
+import { MapPin, Search } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { Input } from "@/components/ui/input";
+import { FormField } from "@/components/ui/FormField";
+import { ScanCodeInput } from "@/components/ui/ScanCodeInput";
 import { PaginationFooter } from "@/components/system/PaginationFooter";
 import { useDebouncedSearch } from "@/hooks/useScanContinuation";
 import { fgRefs } from "@/lib/convex/finishedGoodsApi";
-import { BarcodeCameraBox } from "./BarcodeCameraBox";
+import { BarcodeCameraBox } from "../BarcodeCameraBox";
 import type { PickedLocation } from "./ticketDraft";
 
 /** Search or scan a known location; optionally accept free text as an unmapped location. */
@@ -24,16 +25,19 @@ export function LocationPicker({
   const t = useTranslations("JobScan");
   const tp = useTranslations("Pagination");
   const convex = useConvex();
+  const inputId = useId();
   const [text, setText] = useState("");
   const [camera, setCamera] = useState(false);
   const [notice, setNotice] = useState<string>();
   const [page, setPage] = useState(1);
   const lookupVersion = useRef(0);
+  const cameraOpen = useRef(false);
+  const [checking, setChecking] = useState(false);
   useEffect(
     () => () => {
       lookupVersion.current += 1;
     },
-    [],
+    [warehouseId, allowUnmapped],
   );
   const settledText = useDebouncedSearch(text);
   const outcome = useQuery(fgRefs.searchJobScanLocations, {
@@ -45,75 +49,115 @@ export function LocationPicker({
   const zones = result?.items ?? [];
   const trimmed = text.trim();
 
-  async function onScan(code: string) {
-    const version = ++lookupVersion.current;
+  function cancelScan() {
+    lookupVersion.current += 1;
+    cameraOpen.current = false;
     setCamera(false);
-    const result = await convex.query(fgRefs.resolveLocationCode, {
-      warehouseId,
-      code,
-    });
-    // A cancelled picker or a newer scan must not apply a late lookup result.
-    if (version !== lookupVersion.current) return;
-    const location =
-      result.ok && result.value.ok ? result.value.location : undefined;
-    if (location) {
-      onPick({
-        text: location.code,
-        zoneId: location.zoneId,
-        ...(location.supportPositionId
-          ? { supportPositionId: location.supportPositionId }
-          : {}),
-        code: location.code,
-        name: location.name,
+    setChecking(false);
+  }
+  function choose(location: PickedLocation) {
+    cancelScan();
+    onPick(location);
+  }
+  async function onScan(code: string, scannerVersion: number) {
+    if (!cameraOpen.current || scannerVersion !== lookupVersion.current) return;
+    const version = ++lookupVersion.current;
+    cameraOpen.current = false;
+    setCamera(false);
+    setChecking(true);
+    setNotice(undefined);
+    try {
+      const result = await convex.query(fgRefs.resolveLocationCode, {
+        warehouseId,
+        code,
       });
-    } else if (allowUnmapped) {
-      setText(code);
-      setNotice(t("notFoundUnmapped", { code }));
+      // A cancelled picker or a newer scan must not apply a late lookup result.
+      if (version !== lookupVersion.current) return;
+      if (!result.ok) {
+        setNotice(t("locationLookupDenied"));
+        return;
+      }
+      const location = result.value.ok ? result.value.location : undefined;
+      if (location) {
+        choose({
+          text: location.code,
+          zoneId: location.zoneId,
+          ...(location.supportPositionId
+            ? { supportPositionId: location.supportPositionId }
+            : {}),
+          code: location.code,
+          name: location.name,
+        });
+      } else if (
+        allowUnmapped &&
+        !result.value.ok &&
+        result.value.error.code === "LOCATION_UNAVAILABLE" &&
+        !/^ISAS:/i.test(code) &&
+        code.length <= 200
+      ) {
+        setText(code);
+        setPage(1);
+        setNotice(t("notFoundUnmapped", { code }));
+      } else {
+        setNotice(t("locationScanNotFound"));
+      }
+    } catch {
+      if (version === lookupVersion.current)
+        setNotice(t("locationLookupFailed"));
+    } finally {
+      if (version === lookupVersion.current) setChecking(false);
     }
   }
 
+  const scannerVersion = lookupVersion.current;
+
   return (
     <div className="space-y-3">
-      <div className="relative">
-        <label className="block">
-          <span className="sr-only">{t("searchLocation")}</span>
-          <Search
-            aria-hidden="true"
-            className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted"
-          />
-          <Input
-            value={text}
-            onChange={(event) => {
-              setText(event.target.value);
-              setPage(1);
-              setNotice(undefined);
-            }}
-            placeholder={t("searchPlaceholder")}
-            className="min-h-12 pr-12 pl-9"
-            autoComplete="off"
-            maxLength={200}
-          />
-        </label>
-        <button
-          type="button"
-          className={`absolute top-1/2 right-1 flex size-11 -translate-y-1/2 items-center justify-center rounded-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none ${camera ? "text-link" : "text-muted hover:text-text"}`}
-          aria-label={camera ? t("stopCamera") : t("scanLocationQr")}
-          title={t("scanLocationQr")}
-          aria-pressed={camera}
-          onClick={() => {
-            setNotice(undefined);
-            setCamera((open) => !open);
-          }}
-        >
-          <ScanQrCode className="size-5" aria-hidden="true" />
-        </button>
-      </div>
+      <FormField id={inputId} label={t("searchLocation")} srOnlyLabel>
+        {(control) => (
+          <div className="relative">
+            <Search
+              aria-hidden="true"
+              className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted"
+            />
+            <ScanCodeInput
+              {...control}
+              scanLabel={camera ? t("stopCamera") : t("scanLocationQr")}
+              scanning={camera}
+              onScan={() => {
+                cancelScan();
+                setNotice(undefined);
+                if (!camera) {
+                  cameraOpen.current = true;
+                  setCamera(true);
+                }
+              }}
+              value={text}
+              onChange={(event) => {
+                cancelScan();
+                setText(event.target.value);
+                setPage(1);
+                setNotice(undefined);
+              }}
+              placeholder={t("searchPlaceholder")}
+              className="min-h-12 pl-9"
+              autoComplete="off"
+              maxLength={200}
+            />
+          </div>
+        )}
+      </FormField>
       {camera && (
         <BarcodeCameraBox
           mode="LOCATION"
-          onCode={(code) => void onScan(code)}
-          onClose={() => setCamera(false)}
+          onCode={(code) => void onScan(code, scannerVersion)}
+          onClose={cancelScan}
         />
+      )}
+      {checking && (
+        <p role="status" className="text-sm text-muted">
+          {t("checkingLocation")}
+        </p>
       )}
       {notice && (
         <p role="status" className="text-sm text-warning">
@@ -127,7 +171,7 @@ export function LocationPicker({
               type="button"
               className="flex min-h-12 w-full items-center gap-3 px-3 py-2 text-left hover:bg-raised focus-visible:bg-raised focus-visible:outline-none"
               onClick={() =>
-                onPick({
+                choose({
                   text: zone.code,
                   zoneId: zone.zoneId,
                   code: zone.code,
@@ -158,7 +202,7 @@ export function LocationPicker({
             <button
               type="button"
               className="flex min-h-12 w-full flex-col items-start px-3 py-2 text-left hover:bg-raised focus-visible:bg-raised focus-visible:outline-none"
-              onClick={() => onPick({ text: trimmed })}
+              onClick={() => choose({ text: trimmed })}
             >
               <span className="font-semibold text-warning">
                 {t("useUnmapped", { text: trimmed })}
