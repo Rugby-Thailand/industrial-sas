@@ -1273,7 +1273,9 @@
           }
           clearPhoto();
           objectUrl = URL.createObjectURL(file);
-          $("photo").src = objectUrl;
+          // Bind only an encoded browser-owned blob URL to the photo source.
+          if (!objectUrl.startsWith("blob:")) throw Error("Invalid photo URL");
+          $("photo").src = encodeURI(objectUrl);
           imageName = file.name;
           state = "ready";
           render();
