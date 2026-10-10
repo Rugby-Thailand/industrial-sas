@@ -1,4 +1,7 @@
-import { paginatedScan } from "../lib/cataloguePagination";
+import {
+  paginatedScan,
+  remainingScanCapacity,
+} from "../lib/cataloguePagination";
 import { v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import {
@@ -95,9 +98,7 @@ export function jobLocationReader(
     // Same lifecycle and parent validation as physical scanning. Named registrations never enter that resolver.
     const context = await targetContext(ctx, warehouseId, zone, position);
     if (!context) return null;
-    const building = await buildingOf(zone.buildingId);
-    const floor = await floorOf(zone.floorId);
-    if (!building || !floor) return null;
+    const { building, floor } = context;
     return {
       ...context.resolved,
       buildingName: building.name,
@@ -426,7 +427,7 @@ export const page = queryWithOrg({
             ],
           )
           .page({
-            limit: 20,
+            limit: Math.min(20, remainingScanCapacity(scanCursor, pageSize)),
             ...(rawCursor ? { cursor: rawCursor } : {}),
             ...(endCursor ? { endCursor } : {}),
           }),
@@ -468,6 +469,9 @@ export const searchPage = queryWithOrg({
     const { cursor, scanCursor, pageSize, ...criteria } = args;
     const reader = jobLocationReader(ctx, args.warehouseId);
     const needle = args.text.trim().toUpperCase();
+    const exact = needle
+      ? await lookupJobLocation(ctx, args.warehouseId, args.text)
+      : null;
     const result = await paginatedScan(ctx, {
       scope: { entity: "job-scan-locations", ...criteria },
       pageSize,
@@ -484,7 +488,7 @@ export const searchPage = queryWithOrg({
             ],
           )
           .page({
-            limit: 20,
+            limit: Math.min(20, remainingScanCapacity(scanCursor, pageSize)),
             ...(rawCursor ? { cursor: rawCursor } : {}),
             ...(endCursor ? { endCursor } : {}),
           }),
@@ -496,13 +500,12 @@ export const searchPage = queryWithOrg({
       matches: (row) =>
         !!row.location &&
         (!needle ||
+          (exact?.ok &&
+            row.location.locationId === exact.location.locationId) ||
           [row.location.code, row.location.name].some((text) =>
             text.toUpperCase().includes(needle),
           )),
     });
-    const exact = needle
-      ? await lookupJobLocation(ctx, args.warehouseId, args.text)
-      : null;
     return {
       ...result,
       items: result.page.flatMap((row) => (row.location ? [row.location] : [])),

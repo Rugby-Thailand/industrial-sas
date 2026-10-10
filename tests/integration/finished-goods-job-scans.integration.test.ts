@@ -5,6 +5,7 @@ import type { DataModel } from "../../convex/schema";
 import * as locations from "../../convex/finishedGoods/jobScanLocations";
 import * as scanning from "../../convex/finishedGoods/scanning";
 import * as jobScans from "../../convex/finishedGoods/jobScans";
+import { createStorageZone } from "../../convex/storageLayouts/zones";
 import {
   createConvexTenantWorld,
   seedConvexAuthorization,
@@ -441,6 +442,102 @@ describe("register a location during job scanning", () => {
     buildingId: world.buildingId,
     ...overrides,
   });
+
+  it("skips a registered code when allocating the next floor-plan zone", async () => {
+    const world = await setup();
+    id(
+      await call(
+        world,
+        locations.create,
+        registration(world, { code: "BLDG-A-F01-Z02" }),
+      ),
+    );
+    const zoneId = id(
+      await call(world, createStorageZone, {
+        warehouseId: world.warehouseId,
+        buildingId: world.buildingId,
+        floorNumber: 1,
+        requestId: "next-zone",
+        label: "Next floor block",
+        xMm: 5000,
+        yMm: 5000,
+        widthMm: 2000,
+        depthMm: 2000,
+        maxStackHeightMm: 3000,
+      }),
+    );
+    expect(
+      await world.t.run((ctx) => ctx.db.get(zoneId as Id<"storageZones">)),
+    ).toMatchObject({ code: "BLDG-A-F01-Z03" });
+  });
+
+  it("finds canonical QR identities entered as search text without duplicate destinations", async () => {
+    const world = await setup();
+    const namedId = id(
+      await call(world, locations.create, registration(world)),
+    );
+    for (const locationId of [world.locationId, namedId]) {
+      const page = value(
+        await call(world, locations.searchPage, {
+          warehouseId: world.warehouseId,
+          text: `ISAS:LOCATION:1:${locationId}`,
+          pageSize: 20,
+        }),
+      );
+      expect(page["items"]).toEqual([expect.objectContaining({ locationId })]);
+      expect(page["canCreate"]).toBe(false);
+    }
+  });
+
+  it.each([20, 50])(
+    "keeps catalogue and picker pages within %i rows across scan continuations",
+    async (pageSize) => {
+      const world = await setup();
+      const namedId = id(
+        await call(world, locations.create, registration(world)),
+      );
+      await world.t.run(async (ctx) => {
+        const seed = (await ctx.db.get(namedId as Id<"locations">))!;
+        const { _id, _creationTime, ...document } = seed;
+        void _id;
+        void _creationTime;
+        for (let i = 0; i < 64; i++)
+          await ctx.db.insert("locations", {
+            ...document,
+            code: `TEST-${String(i).padStart(3, "0")}`,
+          });
+      });
+      for (const endpoint of [locations.page, locations.searchPage]) {
+        let cursor: string | undefined;
+        let scanCursor: string | undefined;
+        const ids = new Set<string>();
+        for (let calls = 0; calls < 50; calls++) {
+          const page = value(
+            await call(world, endpoint, {
+              warehouseId: world.warehouseId,
+              ...(endpoint === locations.searchPage ? { text: "" } : {}),
+              pageSize,
+              cursor,
+              scanCursor,
+            }),
+          );
+          const rows = (
+            endpoint === locations.searchPage ? page["items"] : page["page"]
+          ) as { locationId?: string; location?: { locationId: string } }[];
+          expect(rows.length).toBeLessThanOrEqual(pageSize);
+          for (const row of rows)
+            ids.add(row.locationId ?? row.location!.locationId);
+          if (page["isDone"]) break;
+          if (page["scanCursor"]) scanCursor = page["scanCursor"] as string;
+          else {
+            cursor = page["continueCursor"] as string;
+            scanCursor = undefined;
+          }
+        }
+        expect(ids.size).toBe(endpoint === locations.searchPage ? 66 : 65);
+      }
+    },
+  );
 
   it("creates one canonical registration, replays it and saves ticket types with derived parents", async () => {
     const world = await setup();

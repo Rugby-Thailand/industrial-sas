@@ -2,7 +2,11 @@
 version: 1
 slug: "finishedgoods-jobscan-locationpicker-tsx-e7127eef"
 primary_target: "src/features/finishedGoods/jobScan/LocationPicker.tsx"
-related_targets: ["src/features/finishedGoods/jobScan/JobScanScreen.tsx","src/features/storageLayouts/StorageLocationCatalogue.tsx"]
+related_targets:
+  [
+    "src/features/finishedGoods/jobScan/JobScanScreen.tsx",
+    "src/features/storageLayouts/StorageLocationCatalogue.tsx",
+  ]
 ---
 
 # Add a location during job scanning

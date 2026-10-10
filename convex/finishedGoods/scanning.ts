@@ -194,7 +194,7 @@ export async function targetContext(
       position?.updatedAt ?? null,
     ]),
   };
-  return { resolved, zone, target };
+  return { resolved, zone, target, building, floor };
 }
 export async function resolveTarget(
   ctx: TenantFunctionContext,

@@ -452,6 +452,12 @@ export const createStorageZone = mutationWithOrg({
           { field: "warehouseId", value: args.warehouseId },
           { field: "code", value: code },
         ])
+        .first()) !== null ||
+      (await ctx.tenantDb
+        .byIndex<Doc<"locations">>("locations", "by_orgId_warehouseId_code", [
+          { field: "warehouseId", value: args.warehouseId },
+          { field: "code", value: code },
+        ])
         .first()) !== null
     ) {
       ordinal += 1;

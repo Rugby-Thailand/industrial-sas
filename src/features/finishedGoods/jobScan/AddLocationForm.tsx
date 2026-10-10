@@ -34,9 +34,18 @@ export function AddLocationForm({
   const [name, setName] = useState("");
   const [buildingId, setBuildingId] = useState("");
   const [floorId, setFloorId] = useState("");
+  const [errorField, setErrorField] = useState<string>();
+  function clearError() {
+    operation.setError("");
+    setErrorField(undefined);
+  }
+  const fieldError = (field: string) =>
+    errorField === field ? operation.error : undefined;
   const existing = useQuery(
     fgRefs.resolveJobScanLocation,
-    operation.errorCode === "DUPLICATE_KEY" ? { warehouseId, code } : "skip",
+    operation.error && operation.errorCode === "DUPLICATE_KEY"
+      ? { warehouseId, code }
+      : "skip",
   );
   const alive = useRef(true);
   useEffect(() => {
@@ -59,20 +68,25 @@ export function AddLocationForm({
       ...(floorId ? { floorId } : {}),
     };
     await operation.run(async () => {
-      written(
-        await create({
-          ...payload,
-          requestId: operation.request(JSON.stringify(payload)),
-        }),
-      );
-      const result = await convex.query(fgRefs.resolveJobScanLocation, {
+      setErrorField(undefined);
+      const result = await create({
+        ...payload,
+        requestId: operation.request(JSON.stringify(payload)),
+      });
+      if (alive.current && result.ok && !result.value.written)
+        setErrorField(result.value.error.field);
+      written(result);
+      const resolved = await convex.query(fgRefs.resolveJobScanLocation, {
         warehouseId,
         code,
       });
-      if (!result.ok || !result.value.ok)
+      if (!resolved.ok || !resolved.value.ok)
         throw new Error("LOCATION_UNAVAILABLE");
       if (alive.current)
-        onPick({ ...result.value.location, text: result.value.location.code });
+        onPick({
+          ...resolved.value.location,
+          text: resolved.value.location.code,
+        });
     });
   }
   return (
@@ -89,14 +103,22 @@ export function AddLocationForm({
       </div>
       <fieldset
         disabled={operation.busy}
-        className="grid min-w-0 gap-3 sm:grid-cols-2"
+        className="grid min-w-0 items-start gap-3 sm:grid-cols-2"
       >
-        <FormField id={`${id}-code`} label={t("locationCode")} required>
+        <FormField
+          id={`${id}-code`}
+          label={t("locationCode")}
+          required
+          error={fieldError("code")}
+        >
           {(control) => (
             <Input
               {...control}
               value={code}
-              onChange={(event) => setCode(event.target.value)}
+              onChange={(event) => {
+                setCode(event.target.value);
+                clearError();
+              }}
               maxLength={200}
               required
               autoComplete="off"
@@ -108,21 +130,32 @@ export function AddLocationForm({
           id={`${id}-name`}
           label={t("locationDisplayName")}
           hint={t("nameDefaultsToCode")}
+          error={fieldError("name")}
         >
           {(control) => (
             <Input
               {...control}
               value={name}
-              onChange={(event) => setName(event.target.value)}
+              onChange={(event) => {
+                setName(event.target.value);
+                clearError();
+              }}
               maxLength={200}
               autoComplete="off"
             />
           )}
         </FormField>
-        <FormField id={`${id}-building`} label={t("building")} required>
+        <FormField
+          id={`${id}-building`}
+          label={t("building")}
+          required
+          error={fieldError("buildingId")}
+        >
           {(control) => (
             <SelectControl
               {...control}
+              invalid={control["aria-invalid"] === true}
+              describedBy={control["aria-describedby"] ?? ""}
               value={buildingId}
               options={(buildings ?? []).map((building) => ({
                 value: building.id,
@@ -131,6 +164,7 @@ export function AddLocationForm({
               onValueChange={(value) => {
                 setBuildingId(value);
                 setFloorId("");
+                clearError();
               }}
               required
               pending={outcome === undefined}
@@ -139,10 +173,16 @@ export function AddLocationForm({
             />
           )}
         </FormField>
-        <FormField id={`${id}-floor`} label={t("floorOptional")}>
+        <FormField
+          id={`${id}-floor`}
+          label={t("floorOptional")}
+          error={fieldError("floorId")}
+        >
           {(control) => (
             <SelectControl
               {...control}
+              invalid={control["aria-invalid"] === true}
+              describedBy={control["aria-describedby"] ?? ""}
               value={floorId}
               options={[
                 { value: "", label: t("noFloor") },
@@ -151,7 +191,10 @@ export function AddLocationForm({
                   label: t("floorNumber", { number: floor.number }),
                 })),
               ]}
-              onValueChange={setFloorId}
+              onValueChange={(value) => {
+                setFloorId(value);
+                clearError();
+              }}
               disabled={!buildingId}
               placeholder={t("noFloor")}
               emptyLabel={t("noFloor")}
@@ -177,7 +220,7 @@ export function AddLocationForm({
           </Link>
         </p>
       )}
-      {operation.error && (
+      {operation.error && !errorField && (
         <p role="alert" className="text-sm text-danger">
           {operation.error}
         </p>

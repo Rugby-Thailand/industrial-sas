@@ -171,3 +171,24 @@ it("keeps the draft available while offering building setup in another tab", () 
     "DOCK-NEW",
   );
 });
+
+it.each([
+  ["FIELD_INVALID", "code", "textbox", "Location code"],
+  ["DUPLICATE_KEY", "code", "textbox", "Location code"],
+  ["REFERENCE_NOT_FOUND", "buildingId", "combobox", "Building"],
+  ["REFERENCE_NOT_FOUND", "floorId", "combobox", "Floor (optional)"],
+])("attaches %s on %s to its field", async (code, field, role, label) => {
+  mocks.create.mockResolvedValue(writeFailure(code, field));
+  const { onPick } = renderForm();
+  await select("Building", "A · Building A");
+  fireEvent.click(
+    screen.getByRole("button", { name: "Create and use location" }),
+  );
+  await screen.findByRole("alert");
+  const control = screen.getByRole(role, { name: label });
+  expect(control).toHaveAttribute("aria-invalid", "true");
+  expect(control).toHaveAccessibleDescription(
+    screen.getByRole("alert").textContent ?? "",
+  );
+  expect(onPick).not.toHaveBeenCalled();
+});
