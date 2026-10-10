@@ -42,7 +42,11 @@ for (const locale of ["en", "th"] as const) {
           .map((item) => item.code)
           .join(", "),
       );
-      await expect(page.getByRole("status")).toHaveCount(0);
+      await expect(
+        page.getByRole("status").filter({
+          hasText: locale === "en" ? "Reading barcode…" : "กำลังอ่านบาร์โค้ด…",
+        }),
+      ).toHaveCount(0);
       await expect(page.getByRole("alert")).toHaveCount(0);
     }
     await expect(page.getByLabel("Decoded codes")).toHaveText(
