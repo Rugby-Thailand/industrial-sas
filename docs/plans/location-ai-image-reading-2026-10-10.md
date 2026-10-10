@@ -32,6 +32,8 @@ Add **Read location with AI** to the location scanner on `/en/finished-goods/sca
 
 This adds AI reading of visible label text to the existing barcode decoder. A photo such as `F1-L4-2` can therefore provide a location candidate even when glare, damage, angle, or camera permission prevents barcode scanning. AI text reading must be identified separately from a decoded barcode, and every AI result requires user confirmation.
 
+A standalone [interactive HTML preview](../previews/location-ai-image-reading/README.md) accompanies the implementation. It labels its AI/barcode/warehouse results as samples, keeps images local, and demonstrates automatic one-photo reading and review without credentials.
+
 ## Existing functions to inspect and reuse
 
 The current pallet-information reference in this repository is the job-ticket photo reader. Its functions provide reusable acquisition and provider behavior, while its ticket schema and prompt are specific to factory orders and products.
