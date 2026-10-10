@@ -1,5 +1,6 @@
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
+import { getFunctionName } from "convex/server";
 import { renderWithIntl } from "@tests/fixtures/intl-render";
 import { querySuccess } from "@tests/fixtures/finished-goods-ui";
 import { LocationPicker } from "./LocationPicker";
@@ -10,12 +11,15 @@ vi.mock("@/i18n/navigation", () => ({
 const mocks = vi.hoisted(() => ({
   query: vi.fn(),
   canCreate: false,
+  exact: vi.fn(),
   decode: undefined as ((code: string) => void) | undefined,
 }));
 vi.mock("convex/react", () => ({
   useConvex: () => ({ query: mocks.query }),
-  useQuery: () =>
-    querySuccess({
+  useQuery: (ref: Parameters<typeof getFunctionName>[0], args: unknown) => {
+    if (args === "skip") return undefined;
+    if (getFunctionName(ref).endsWith(":resolve")) return mocks.exact(args);
+    return querySuccess({
       items: [{ zoneId: "zone-b", code: "ZONE-B", name: "Zone B" }],
       page: 1,
       pages: 1,
@@ -23,7 +27,8 @@ vi.mock("convex/react", () => ({
       status: "ready",
       isDone: true,
       canCreate: mocks.canCreate,
-    }),
+    });
+  },
 }));
 vi.mock("../BarcodeCameraBox", () => ({
   BarcodeCameraBox: ({
@@ -40,6 +45,7 @@ vi.mock("../BarcodeCameraBox", () => ({
 beforeEach(() => {
   mocks.query.mockReset();
   mocks.canCreate = false;
+  mocks.exact.mockReset();
 });
 function start(allowUnmapped = true) {
   const onPick = vi.fn();
@@ -159,6 +165,87 @@ it("offers missing labels for inline registration or saving for later", async ()
   );
   expect(onPick).toHaveBeenCalledWith({ text: "DOCK-NEW" });
 });
+it("shows Add location as soon as a scan confirms a missing code, before search settles", async () => {
+  vi.useFakeTimers();
+  try {
+    mocks.query.mockResolvedValue(
+      querySuccess({ ok: false, error: { code: "LOCATION_NOT_FOUND" } }),
+    );
+    start();
+    await act(async () => mocks.decode!("FO69100125"));
+    expect(screen.getByRole("button", { name: "Add location" })).toBeVisible();
+    expect(
+      screen.getAllByText("“FO69100125” is not registered yet."),
+    ).toHaveLength(1);
+    fireEvent.change(screen.getByRole("textbox", { name: "Search location" }), {
+      target: { value: "OTHER-CODE" },
+    });
+    expect(
+      screen.queryByRole("button", { name: "Add location" }),
+    ).not.toBeInTheDocument();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+it("shows Add location for typed text after exact lookup without waiting for catalogue search", async () => {
+  vi.useFakeTimers();
+  try {
+    mocks.exact.mockReturnValue(
+      querySuccess({ ok: false, error: { code: "LOCATION_NOT_FOUND" } }),
+    );
+    start();
+    fireEvent.change(screen.getByRole("textbox", { name: "Search location" }), {
+      target: { value: "FO69100125" },
+    });
+    expect(
+      screen.queryByRole("button", { name: "Add location" }),
+    ).not.toBeInTheDocument();
+    await act(async () => vi.advanceTimersByTime(250));
+    expect(mocks.exact).toHaveBeenCalledWith({
+      warehouseId: "warehouse-a",
+      code: "FO69100125",
+    });
+    expect(screen.getByRole("button", { name: "Add location" })).toBeVisible();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+it.each([
+  "LOCATION_UNAVAILABLE",
+  "WRONG_ENTITY_TYPE",
+  "AMBIGUOUS_IDENTITY",
+  "INVALID_IDENTITY",
+  "DENIED",
+])(
+  "does not offer registration when typed exact lookup returns %s",
+  async (code) => {
+    vi.useFakeTimers();
+    try {
+      mocks.canCreate = true;
+      mocks.exact.mockReturnValue(
+        code === "DENIED"
+          ? { ok: false, denial: { kind: "AUTHORIZATION_DENIED" } }
+          : querySuccess({ ok: false, error: { code } }),
+      );
+      start();
+      fireEvent.change(
+        screen.getByRole("textbox", { name: "Search location" }),
+        {
+          target: { value: "LABEL" },
+        },
+      );
+      await act(async () => vi.advanceTimersByTime(250));
+      expect(
+        screen.queryByRole("button", { name: "Add location" }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: /Save now, set location later/ }),
+      ).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  },
+);
 it("discards lookup and decoder callbacks after unmount", async () => {
   let finish!: (value: ReturnType<typeof location>) => void;
   mocks.query.mockReturnValue(
