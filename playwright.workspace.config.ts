@@ -13,10 +13,18 @@ import { runPolicy } from "./tests/e2e/support/policy";
  */
 const port = Number(process.env.WORKSPACE_PORT ?? 3190);
 const baseURL = `http://127.0.0.1:${port}`;
+const barcodePort = Number(process.env.BARCODE_PORT ?? 3199);
 const policy = runPolicy({ sensitive: false, outputName: "workspace" });
 const fullMatrix = process.env.WORKSPACE_FULL_MATRIX === "1";
 if (!Number.isInteger(port) || port < 1 || port > 65535)
   throw new Error("WORKSPACE_PORT must be a valid port");
+if (
+  !Number.isInteger(barcodePort) ||
+  barcodePort < 1 ||
+  barcodePort > 65535 ||
+  barcodePort === port
+)
+  throw new Error("BARCODE_PORT must be a different valid port");
 
 export default defineConfig({
   ...policy,
@@ -49,11 +57,19 @@ export default defineConfig({
           use: { ...devices["Pixel 7"] },
         },
       ],
-  webServer: {
-    // Override the Vite config's default port together with readiness/baseURL.
-    command: `pnpm exec vite --config scripts/storage-workspace-preview/vite.config.mjs --host 127.0.0.1 --port ${port} --strictPort`,
-    url: baseURL,
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
-  },
+  webServer: [
+    {
+      // Override the Vite config's default port together with readiness/baseURL.
+      command: `pnpm exec vite --config scripts/storage-workspace-preview/vite.config.mjs --host 127.0.0.1 --port ${port} --strictPort`,
+      url: baseURL,
+      reuseExistingServer: !process.env.CI,
+      timeout: 120_000,
+    },
+    {
+      command: `pnpm exec vite --config scripts/barcode-scanning-preview/vite.config.mjs --host 127.0.0.1 --port ${barcodePort} --strictPort`,
+      url: `http://127.0.0.1:${barcodePort}`,
+      reuseExistingServer: !process.env.CI,
+      timeout: 120_000,
+    },
+  ],
 });

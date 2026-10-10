@@ -8,6 +8,7 @@ import {
   useState,
 } from "react";
 import type { IScannerControls } from "@zxing/browser";
+import { decodeBarcodeCanvas } from "./barcodeDecoder";
 
 export type BarcodeCameraState =
   "OFF" | "STARTING" | "ACTIVE" | "UNAVAILABLE" | "ERROR";
@@ -54,9 +55,11 @@ export function useBarcodeCamera({
     let disposed = false;
     let stream: MediaStream | undefined;
     let controls: IScannerControls | undefined;
+    const fallbackAbort = new AbortController();
     const video = videoRef.current;
     const current = () => !disposed && token === generation.current;
     const release = () => {
+      fallbackAbort.abort();
       stopDecoder(controls);
       stream?.getTracks().forEach((track) => track.stop());
       if (video && video.srcObject === stream) video.srcObject = null;
@@ -83,13 +86,64 @@ export function useBarcodeCamera({
         if (!current()) return;
         stream = await navigator.mediaDevices.getUserMedia({
           audio: false,
-          video: { facingMode: { ideal: "environment" } },
+          video: {
+            facingMode: { ideal: "environment" },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+          },
         });
         if (!current()) {
           release();
           return;
         }
         const seen = new Map<string, number>();
+        let fallbackPending = false;
+        let fallbackAt = 0;
+        function accept(raw: string) {
+          if (!current()) return;
+          const code = raw.trim();
+          const now = Date.now();
+          if (!code || now - (seen.get(code) ?? -Infinity) < 1000) return;
+          for (const [oldCode, time] of seen)
+            if (now - time >= 1000) seen.delete(oldCode);
+          seen.set(code, now);
+          deliver(code);
+        }
+        async function fallback() {
+          if (
+            !video?.videoWidth ||
+            !current() ||
+            fallbackPending ||
+            Date.now() < fallbackAt
+          )
+            return;
+          fallbackPending = true;
+          fallbackAt = Date.now() + 1500;
+          const frame = document.createElement("canvas");
+          const scale = Math.min(
+            1,
+            2400 / Math.max(video.videoWidth, video.videoHeight),
+          );
+          frame.width = Math.round(video.videoWidth * scale);
+          frame.height = Math.round(video.videoHeight * scale);
+          try {
+            const context = frame.getContext("2d");
+            if (!context) return;
+            context.drawImage(video, 0, 0, frame.width, frame.height);
+            const codes = await decodeBarcodeCanvas(frame, {
+              signal: fallbackAbort.signal,
+              budgetMs: 1200,
+            });
+            // A location or field scan must never guess between distinct codes.
+            if (codes.length === 1) accept(codes[0]!);
+          } catch {
+            // The ordinary stream decoder remains active; image selection is available.
+          } finally {
+            frame.width = 0;
+            frame.height = 0;
+            fallbackPending = false;
+          }
+        }
         const reader = new BrowserMultiFormatReader(undefined, {
           delayBetweenScanSuccess: 100,
           delayBetweenScanAttempts: 100,
@@ -103,13 +157,7 @@ export function useBarcodeCamera({
               return;
             }
             if (result) {
-              const code = result.getText().trim();
-              const now = Date.now();
-              if (!code || now - (seen.get(code) ?? -Infinity) < 1000) return;
-              for (const [oldCode, time] of seen)
-                if (now - time >= 1000) seen.delete(oldCode);
-              seen.set(code, now);
-              deliver(code);
+              accept(result.getText());
             } else if (
               decodeError &&
               ![
@@ -129,6 +177,8 @@ export function useBarcodeCamera({
               setError("DECODER");
               setTorchAvailable(false);
               setTorchOn(false);
+            } else {
+              void fallback();
             }
           },
         );

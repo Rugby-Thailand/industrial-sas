@@ -357,7 +357,9 @@ describe("scanned record deletion", () => {
     await user.click(
       screen.getByRole("button", { name: "Set location for 1 record" }),
     );
-    await user.click(screen.getByRole("button", { name: "Scan location QR" }));
+    await user.click(
+      screen.getByRole("button", { name: "Scan location barcode or QR" }),
+    );
     await user.click(
       screen.getByRole("button", { name: "Scan test location" }),
     );

@@ -13,15 +13,26 @@ import { BarcodeCameraBox } from "../BarcodeCameraBox";
 import type { PickedLocation } from "./ticketDraft";
 
 /** Search or scan a known location; optionally accept free text as an unmapped location. */
-export function LocationPicker({
-  warehouseId,
-  onPick,
-  allowUnmapped = true,
-}: {
+interface LocationPickerProps {
   warehouseId: string;
   onPick: (location: PickedLocation) => void;
   allowUnmapped?: boolean;
-}) {
+}
+
+export function LocationPicker(props: LocationPickerProps) {
+  return (
+    <LocationPickerSession
+      key={`${props.warehouseId}:${props.allowUnmapped ?? true}`}
+      {...props}
+    />
+  );
+}
+
+function LocationPickerSession({
+  warehouseId,
+  onPick,
+  allowUnmapped = true,
+}: LocationPickerProps) {
   const t = useTranslations("JobScan");
   const tp = useTranslations("Pagination");
   const convex = useConvex();
@@ -150,6 +161,7 @@ export function LocationPicker({
       {camera && (
         <BarcodeCameraBox
           mode="LOCATION"
+          startOnMount={false}
           onCode={(code) => void onScan(code, scannerVersion)}
           onClose={cancelScan}
         />
