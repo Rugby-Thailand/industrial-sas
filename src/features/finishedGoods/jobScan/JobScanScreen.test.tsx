@@ -324,6 +324,21 @@ it("applies an image JOB/product pair together and saves the decoded identities"
     },
   ]);
 });
+it("requires duplicate review before saving repeated photographed physical units", async () => {
+  start();
+  fireEvent.click(screen.getByRole("button", { name: "Scan barcode" }));
+  act(() => mocks.imageCodes!(["FO12345678", "DEMO-PRODUCT"]));
+  act(() => mocks.imageCodes!(["FO12345678", "DEMO-PRODUCT"]));
+  expect(screen.getAllByRole("textbox", { name: /Job No\./ })).toHaveLength(2);
+  const save = screen.getByRole("button", { name: /Save 2/ });
+  expect(save).toBeDisabled();
+  expect(mocks.save).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("checkbox"));
+  expect(save).toBeEnabled();
+  fireEvent.click(save);
+  await waitFor(() => expect(mocks.save).toHaveBeenCalledOnce());
+  expect(mocks.save.mock.calls[0]![0].items).toHaveLength(2);
+});
 it("manual edits close image intake and reject its late results", () => {
   start();
   addTicket();

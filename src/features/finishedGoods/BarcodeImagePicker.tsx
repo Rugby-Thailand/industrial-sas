@@ -6,6 +6,7 @@ import { ImagePlus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Notice } from "@/components/ui/Notice";
+import { classifyTicketBarcode } from "./jobScan/ticketDraft";
 import {
   readBarcodeImage,
   ImageScanError,
@@ -104,7 +105,9 @@ export function BarcodeImagePicker({
   const isPair =
     target === "TICKET" &&
     result?.codes.length === 2 &&
-    result.codes.filter((code) => /^FO\d{4,}$/i.test(code)).length === 1;
+    result.codes.filter(
+      (code) => classifyTicketBarcode(code) === "factoryOrder",
+    ).length === 1;
   return (
     <div className="space-y-3">
       <input

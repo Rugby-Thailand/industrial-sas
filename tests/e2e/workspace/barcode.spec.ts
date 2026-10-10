@@ -117,6 +117,53 @@ test("camera denial still allows local location QR and paired ticket intake thro
   expect(writes).toEqual([]);
 });
 
+test("repeated image pairs retain two physical units and require duplicate review", async ({
+  page,
+}) => {
+  await page
+    .getByRole("button", { name: "Scan location barcode or QR" })
+    .click();
+  await choose(page, ["F2-L28-18"], true);
+  await accept(page);
+  await page.getByRole("button", { name: "Scan barcode", exact: true }).click();
+  for (let unit = 0; unit < 2; unit++) {
+    await choose(page, ["FO12345678", "DEMO-PRODUCT"]);
+    await accept(page);
+  }
+  await expect(page.getByRole("textbox", { name: /Job No\./ })).toHaveCount(2);
+  const save = page.getByRole("button", {
+    name: "Save 2 tickets",
+    exact: true,
+  });
+  await expect(save).toBeDisabled();
+  await page.getByRole("checkbox").check();
+  await expect(save).toBeEnabled();
+  await save.click();
+  await expect(
+    page.getByRole("heading", { name: "Saved 2 tickets" }),
+  ).toBeVisible();
+  const calls = await page.evaluate(() => window.barcodePreview.calls);
+  expect(calls.filter((call) => call.kind === "save")).toEqual([
+    {
+      kind: "save",
+      args: expect.objectContaining({
+        items: [
+          {
+            source: "BARCODE",
+            factoryOrder: "FO12345678",
+            productBarcodeText: "DEMO-PRODUCT",
+          },
+          {
+            source: "BARCODE",
+            factoryOrder: "FO12345678",
+            productBarcodeText: "DEMO-PRODUCT",
+          },
+        ],
+      }),
+    },
+  ]);
+});
+
 test("pending image cancellation releases its worker and cannot resolve a location", async ({
   page,
 }) => {

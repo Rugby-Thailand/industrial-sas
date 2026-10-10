@@ -4,9 +4,10 @@ import {
   type ReadResult,
 } from "zxing-wasm/reader";
 import type { BarcodeImageTarget, BarcodeImageResult } from "./barcodeImage";
+import { classifyTicketBarcode } from "./jobScan/ticketDraft";
 
 type Region = readonly [number, number, number, number];
-const isJob = (code: string) => /^FO\d{4,}$/i.test(code);
+const isJob = (code: string) => classifyTicketBarcode(code) === "factoryOrder";
 const angles = [0, -2, 2, -4, 4, -6, 6, -8, 8, -10, 10];
 
 function cropCanvas(

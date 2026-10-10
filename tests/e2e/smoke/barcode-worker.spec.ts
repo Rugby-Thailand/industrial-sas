@@ -22,15 +22,15 @@ test("production barcode WASM is public and the compiled worker decodes pixels",
     name,
     source: readFileSync(`.next/static/chunks/${name}`, "utf8"),
   }));
-  const module = sources.find(
+  const workerModule = sources.find(
     ({ source }) =>
       source.includes("OffscreenCanvas") && source.includes('error:"PIXELS"'),
   );
-  expect(module, "built barcode worker module").toBeDefined();
+  expect(workerModule, "built barcode worker module").toBeDefined();
   const runtime = sources.find(
     ({ source }) =>
       source.includes("otherChunks:") &&
-      source.includes(`static/chunks/${module!.name}`),
+      source.includes(`static/chunks/${workerModule!.name}`),
   );
   const bootstrap = sources.find(({ source }) =>
     source.includes("Missing worker bootstrap config"),
@@ -79,7 +79,7 @@ test("production barcode WASM is public and the compiled worker decodes pixels",
         "base64",
       ),
       bootstrap: bootstrap!.name,
-      chunks: [module!.name, runtime!.name].map(
+      chunks: [workerModule!.name, runtime!.name].map(
         (name) => `/_next/static/chunks/${name}`,
       ),
     },

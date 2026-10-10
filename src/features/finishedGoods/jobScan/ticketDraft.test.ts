@@ -34,6 +34,17 @@ it("fills compatible missing identities without overwriting optional fields", ()
   });
 });
 
+it("keeps repeated photographed pairs as separate physical units requiring duplicate review", () => {
+  const pair = ["FO22222222", "NEW-SKU"];
+  const first = applyImageBarcodes([], pair);
+  const next = applyImageBarcodes(first, pair);
+  expect(next).toHaveLength(2);
+  expect(next[0]).toEqual(first[0]);
+  expect(next[1]!.key).not.toBe(next[0]!.key);
+  expect(next[1]!.values).toEqual(next[0]!.values);
+  expect(duplicateTicketKeys(next)).toEqual(next.map((row) => row.key));
+});
+
 it("finds all repeated complete identities after trimming, while retaining distinct tickets", () => {
   const a = newTicket("MANUAL", {
     factoryOrder: "FO1234",

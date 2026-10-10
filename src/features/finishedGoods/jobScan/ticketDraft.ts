@@ -175,6 +175,7 @@ export function applyImageBarcodes(
     index >= 0 &&
     !(
       tickets[index]!.status === "ready" &&
+      !isComplete(tickets[index]!) &&
       REQUIRED_FIELDS.every(
         (field) =>
           !tickets[index]!.values[field]?.trim() ||

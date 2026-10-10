@@ -11,3 +11,5 @@ Optional private corpus: start the harness with `BARCODE_PRIVATE_MANIFEST=/absol
 Image scans always require acceptance before applying results; geometrically corrected reads add a stronger review warning. Several identities require a selection, except a single JOB/product pair which is applied together. Camera denial, cancellation, manual editing, modal close, source switches, and warehouse changes must not allow stale results to populate fields.
 
 This is real-component browser verification with synthetic backend responses. Authenticated backend behavior has separate tests. Physical phone camera hardware and mobile-browser performance need a device run.
+
+Run `pnpm test:e2e:workspace` for desktop/mobile acquisition, cancellation, replacement, repeated-unit review, save payloads, responsive layout, and accessibility regressions. After `pnpm build`, `pnpm test:e2e` also checks the actual compiled Next.js worker and the public WASM route. CI uses only synthetic inputs.
