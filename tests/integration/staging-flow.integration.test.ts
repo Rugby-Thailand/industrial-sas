@@ -491,6 +491,26 @@ function provider(path: string) {
 }
 
 describe("per-run provisioning and owned-resource recovery controller", () => {
+  it("identifies an instance authorization failure without exposing its provider response", async () => {
+    const path = statePath();
+    const model = provider(path);
+    model.clerk.instance.get = async () => {
+      throw { status: 401, message: "secret-provider-response" };
+    };
+    await expect(
+      provisionStagingFixture({
+        ...model,
+        statePath: path,
+        runId: "offline-run-01",
+      }),
+    ).rejects.toThrow(
+      "STAGING_SETUP_FAILED: STAGING_SETUP_CLERK_INSTANCE_FAILED, STAGING_PROVIDER_HTTP_401",
+    );
+    expect(existsSync(path)).toBe(false);
+    expect(model.users.size).toBe(0);
+    expect(model.organizations.size).toBe(0);
+  });
+
   it("verifies exact instance before creating, persists each ID privately, and cleans backend before Clerk resources", async () => {
     const path = statePath();
     const model = provider(path);
@@ -533,7 +553,9 @@ describe("per-run provisioning and owned-resource recovery controller", () => {
         runId: "offline-run-01",
         onProgress: (phase) => phases.push(phase),
       }),
-    ).rejects.toThrow(/^STAGING_SETUP_FAILED$/);
+    ).rejects.toThrow(
+      "STAGING_SETUP_FAILED: STAGING_SETUP_CLERK_INSTANCE_FAILED, STAGING_CLERK_INSTANCE_REFUSED",
+    );
     expect(phases).toEqual(["verify-instance"]);
     expect(model.users.size).toBe(0);
     expect(model.organizations.size).toBe(0);
@@ -628,7 +650,7 @@ describe("per-run provisioning and owned-resource recovery controller", () => {
         statePath: path,
         runId: "offline-run-01",
       }),
-    ).rejects.toThrow(/^STAGING_SETUP_FAILED$/);
+    ).rejects.toThrow("STAGING_SETUP_FAILED: STAGING_SETUP_USER_CREATE_FAILED");
     expect(model.users.size).toBe(0);
     expect(existsSync(path)).toBe(false);
   });
@@ -649,7 +671,9 @@ describe("per-run provisioning and owned-resource recovery controller", () => {
         statePath: path,
         runId: "offline-run-01",
       }),
-    ).rejects.toThrow(/^STAGING_SETUP_FAILED$/);
+    ).rejects.toThrow(
+      "STAGING_SETUP_FAILED: STAGING_SETUP_PRIMARY_ORGANIZATION_CREATE_FAILED",
+    );
     expect(list).toHaveBeenCalledExactlyOnceWith({
       query: organizationName("offline-run-01", "primary"),
       limit: 2,
@@ -685,7 +709,9 @@ describe("per-run provisioning and owned-resource recovery controller", () => {
           statePath: path,
           runId: "offline-run-01",
         }),
-      ).rejects.toThrow(/^STAGING_SETUP_FAILED_OWNERSHIP_RECORD_RETAINED$/);
+      ).rejects.toThrow(
+        "STAGING_SETUP_FAILED_OWNERSHIP_RECORD_RETAINED: STAGING_SETUP_PRIMARY_ORGANIZATION_CREATE_FAILED",
+      );
       expect(model.log.some((entry) => entry.startsWith("delete-"))).toBe(
         false,
       );

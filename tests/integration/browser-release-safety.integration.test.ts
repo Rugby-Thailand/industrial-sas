@@ -8,6 +8,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { summarizePlaywrightReport } from "../../scripts/release/lib/smoke-report.mjs";
 import {
+  smokeFailureDiagnostics,
+  stagingSetupFailure,
+} from "../../scripts/release/lib/smoke-diagnostics.mjs";
+import {
   OIDC_HEADER,
   protectedRequest,
   readStagingToken,
@@ -313,6 +317,89 @@ function testCase(
 }
 
 describe("sensitive reporting", () => {
+  it("accepts only exact fixed failure codes, including staged setup and allowlisted HTTP statuses", () => {
+    expect(
+      smokeFailureDiagnostics(
+        stagingSetupFailure("USER_CREATE", {
+          status: 422,
+          errors: [
+            {
+              code: "form_param_format_invalid",
+              message: SENTINEL,
+              longMessage: SENTINEL,
+              meta: { paramName: SENTINEL },
+            },
+            { code: SENTINEL },
+          ],
+        }),
+      ),
+    ).toEqual([
+      "STAGING_SETUP_USER_CREATE_FAILED",
+      "STAGING_PROVIDER_HTTP_422",
+      "STAGING_CLERK_FORM_PARAM_FORMAT_INVALID",
+    ]);
+    expect(
+      smokeFailureDiagnostics(
+        "Error: STAGING_INPUTS_INVALID: CLERK_SECRET_KEY",
+      ),
+    ).toEqual(["STAGING_INPUT_CLERK_SECRET_KEY_INVALID"]);
+    expect(
+      smokeFailureDiagnostics(
+        stagingSetupFailure(
+          "USER_CREATE",
+          { status: 422, message: SENTINEL },
+          true,
+        ),
+      ),
+    ).toEqual([
+      "STAGING_SETUP_USER_CREATE_FAILED",
+      "STAGING_PROVIDER_HTTP_422",
+      "STAGING_SETUP_FAILED_OWNERSHIP_RECORD_RETAINED",
+    ]);
+    for (const message of [
+      `STAGING_SETUP_FAILED: ${SENTINEL}`,
+      `STAGING_SETUP_FAILED: STAGING_SETUP_USER_CREATE_FAILED, ${SENTINEL}`,
+      `STAGING_INPUTS_INVALID: CLERK_SECRET_KEY, ${SENTINEL}`,
+      `STAGING_CLERK_INSTANCE_REFUSED ${SENTINEL}`,
+    ])
+      expect(smokeFailureDiagnostics(message)).toEqual([]);
+    expect(
+      stagingSetupFailure(SENTINEL, { status: 123, message: SENTINEL }),
+    ).toBe("STAGING_SETUP_FAILED");
+    expect(
+      summarizePlaywrightReport({
+        diagnostics: [SENTINEL, "STAGING_SETUP_USER_CREATE_FAILED"],
+      }).diagnostics,
+    ).toEqual(["STAGING_SETUP_USER_CREATE_FAILED"]);
+  });
+
+  it("reports fixed input diagnostics without copying arbitrary error details", () => {
+    const outputFile = join(temp(), "safe.json");
+    const reporter = new SensitiveReporter({ outputFile });
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    reporter.onError({
+      message: "STAGING_INPUTS_INVALID: CLERK_SECRET_KEY, CONVEX_DEPLOY_KEY",
+      stack: SENTINEL,
+    });
+    reporter.onError({ message: `STAGING_INPUTS_INVALID: ${SENTINEL}` });
+    reporter.onEnd({ status: "failed", startTime: new Date(), duration: 1 });
+    const json = readFileSync(outputFile, "utf8");
+    expect(json).not.toContain(SENTINEL);
+    expect(JSON.parse(json).diagnostics).toEqual([
+      "STAGING_INPUT_CLERK_SECRET_KEY_INVALID",
+      "STAGING_INPUT_CONVEX_DEPLOY_KEY_INVALID",
+    ]);
+    expect(summarizePlaywrightReport(JSON.parse(json))).toMatchObject({
+      ok: false,
+      diagnostics: JSON.parse(json).diagnostics,
+    });
+    expect(log).not.toHaveBeenCalled();
+    expect(error).toHaveBeenCalledWith(
+      "[smoke] STAGING_INPUT_CLERK_SECRET_KEY_INVALID, STAGING_INPUT_CONVEX_DEPLOY_KEY_INVALID",
+    );
+  });
+
   it("retains controller statuses while excluding raw credentials, errors, streams and attachments", () => {
     const root = temp();
     const outputFile = join(root, "safe.json");
