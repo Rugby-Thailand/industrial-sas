@@ -25,7 +25,7 @@ const operation = "finishedGoods.jobScan.location.create";
 const argsWarehouse = { warehouseId: v.id("warehouses") };
 
 /** Human labels may contain spaces; reserved identities and control characters may not be registered. */
-export function normalizeJobLocationCode(raw: string): string | null {
+function normalizeJobLocationCode(raw: string): string | null {
   const code = raw.trim().normalize("NFC").toUpperCase();
   return !code ||
     code.length > 200 ||
@@ -48,6 +48,19 @@ export type JobScanLocation = {
   name: string;
   layoutPending: boolean;
 };
+
+type LayoutContext = NonNullable<Awaited<ReturnType<typeof targetContext>>>;
+
+/** Project an already validated physical destination without reading its parents again. */
+function locationFromLayout(context: LayoutContext): JobScanLocation {
+  return {
+    ...context.resolved,
+    buildingName: context.building.name,
+    buildingCode: context.building.code,
+    floorNumber: context.floor.floorNumber,
+    layoutPending: false,
+  };
+}
 
 /** Cache parent reads only within this authorized query/mutation snapshot. */
 export function jobLocationReader(
@@ -97,15 +110,7 @@ export function jobLocationReader(
   ): Promise<JobScanLocation | null> {
     // Same lifecycle and parent validation as physical scanning. Named registrations never enter that resolver.
     const context = await targetContext(ctx, warehouseId, zone, position);
-    if (!context) return null;
-    const { building, floor } = context;
-    return {
-      ...context.resolved,
-      buildingName: building.name,
-      buildingCode: building.code,
-      floorNumber: floor.floorNumber,
-      layoutPending: false,
-    };
+    return context ? locationFromLayout(context) : null;
   }
   async function byId(input: {
     locationId?: string;
@@ -152,10 +157,10 @@ export function jobLocationReader(
     if (!zone || (input.supportPositionId && !position)) return null;
     return layout(zone, position ?? undefined);
   }
-  return { named, layout, byId };
+  return { named, byId };
 }
 
-export async function lookupJobLocation(
+async function lookupJobLocation(
   ctx: TenantFunctionContext,
   warehouseId: Id<"warehouses">,
   raw: string,
@@ -241,13 +246,70 @@ export async function lookupJobLocation(
   if ("error" in resolved) return fail(resolved.error);
   if (ledger && ledger._id !== resolved.resolved.locationId)
     return fail("AMBIGUOUS_IDENTITY");
-  const found = await reader.layout(
-    resolved.zone,
-    "zoneId" in resolved.target ? resolved.target : undefined,
-  );
-  return found
-    ? { ok: true as const, location: found }
-    : fail("LOCATION_UNAVAILABLE");
+  return { ok: true as const, location: locationFromLayout(resolved) };
+}
+
+type LocationPageRequest = {
+  warehouseId: Id<"warehouses">;
+  pageSize: number;
+  cursor?: string | undefined;
+  scanCursor?: string | undefined;
+};
+
+/** Keep bounded reads, continuation limits and destination hydration consistent in both location lists. */
+function locationPage<T extends LocationPageRequest>(
+  ctx: TenantFunctionContext,
+  args: T,
+  options: {
+    namedOnly: boolean;
+    matches: (location: JobScanLocation) => boolean;
+  },
+) {
+  const { cursor, scanCursor, pageSize, ...criteria } = args;
+  const reader = jobLocationReader(ctx, args.warehouseId);
+  const query = options.namedOnly
+    ? ctx.tenantDb.byIndex<Doc<"locations">>(
+        "locations",
+        "by_orgId_warehouseId_status_locationType_code",
+        [
+          { field: "warehouseId", value: args.warehouseId },
+          { field: "status", value: "ACTIVE" },
+          { field: "locationType", value: "NAMED_STORAGE" },
+        ],
+      )
+    : ctx.tenantDb.byIndex<Doc<"locations">>(
+        "locations",
+        "by_orgId_warehouseId_status_code",
+        [
+          { field: "warehouseId", value: args.warehouseId },
+          { field: "status", value: "ACTIVE" },
+        ],
+      );
+  return paginatedScan(ctx, {
+    scope: {
+      entity: options.namedOnly
+        ? "named-storage-locations"
+        : "job-scan-locations",
+      ...criteria,
+    },
+    pageSize,
+    cursor,
+    scanCursor,
+    read: (rawCursor, endCursor) =>
+      query.page({
+        limit: Math.min(20, remainingScanCapacity(scanCursor, pageSize)),
+        ...(rawCursor ? { cursor: rawCursor } : {}),
+        ...(endCursor ? { endCursor } : {}),
+      }),
+    get: (id) => ctx.tenantDb.get<Doc<"locations">>("locations", id),
+    hydrate: async (row) => ({
+      _id: row._id,
+      location: options.namedOnly
+        ? await reader.named(row)
+        : await reader.byId({ locationId: row._id }),
+    }),
+    matches: (row) => row.location !== null && options.matches(row.location),
+  });
 }
 
 export const resolve = queryWithOrg({
@@ -407,47 +469,20 @@ export const page = queryWithOrg({
   target: { table: "locations" },
   warehouseId: (args) => args.warehouseId,
   handler: async (ctx, args) => {
-    const { cursor, scanCursor, pageSize, ...criteria } = args;
-    const reader = jobLocationReader(ctx, args.warehouseId);
     const needle = args.search?.trim().toUpperCase();
-    return paginatedScan(ctx, {
-      scope: { entity: "named-storage-locations", ...criteria },
-      pageSize,
-      cursor,
-      scanCursor,
-      read: (rawCursor, endCursor) =>
-        ctx.tenantDb
-          .byIndex<Doc<"locations">>(
-            "locations",
-            "by_orgId_warehouseId_status_locationType_code",
-            [
-              { field: "warehouseId", value: args.warehouseId },
-              { field: "status", value: "ACTIVE" },
-              { field: "locationType", value: "NAMED_STORAGE" },
-            ],
-          )
-          .page({
-            limit: Math.min(20, remainingScanCapacity(scanCursor, pageSize)),
-            ...(rawCursor ? { cursor: rawCursor } : {}),
-            ...(endCursor ? { endCursor } : {}),
-          }),
-      get: (id) => ctx.tenantDb.get<Doc<"locations">>("locations", id),
-      hydrate: async (row) => ({
-        _id: row._id,
-        location: await reader.named(row),
-      }),
-      matches: (row) =>
-        !!row.location &&
+    return locationPage(ctx, args, {
+      namedOnly: true,
+      matches: (location) =>
         (!args.status || args.status === "ACTIVE") &&
-        (!args.buildingId || row.location.buildingId === args.buildingId) &&
+        (!args.buildingId || location.buildingId === args.buildingId) &&
         (args.floorNumber === undefined ||
-          row.location.floorNumber === args.floorNumber) &&
+          location.floorNumber === args.floorNumber) &&
         (!needle ||
           [
-            row.location.code,
-            row.location.name,
-            row.location.buildingName,
-            row.location.buildingCode,
+            location.code,
+            location.name,
+            location.buildingName,
+            location.buildingCode,
           ].some((text) => text.toUpperCase().includes(needle))),
     });
   },
@@ -466,45 +501,18 @@ export const searchPage = queryWithOrg({
   target: { table: "locations" },
   warehouseId: (args) => args.warehouseId,
   handler: async (ctx, args) => {
-    const { cursor, scanCursor, pageSize, ...criteria } = args;
-    const reader = jobLocationReader(ctx, args.warehouseId);
     const needle = args.text.trim().toUpperCase();
     const exact = needle
       ? await lookupJobLocation(ctx, args.warehouseId, args.text)
       : null;
-    const result = await paginatedScan(ctx, {
-      scope: { entity: "job-scan-locations", ...criteria },
-      pageSize,
-      cursor,
-      scanCursor,
-      read: (rawCursor, endCursor) =>
-        ctx.tenantDb
-          .byIndex<Doc<"locations">>(
-            "locations",
-            "by_orgId_warehouseId_status_code",
-            [
-              { field: "warehouseId", value: args.warehouseId },
-              { field: "status", value: "ACTIVE" },
-            ],
-          )
-          .page({
-            limit: Math.min(20, remainingScanCapacity(scanCursor, pageSize)),
-            ...(rawCursor ? { cursor: rawCursor } : {}),
-            ...(endCursor ? { endCursor } : {}),
-          }),
-      get: (id) => ctx.tenantDb.get<Doc<"locations">>("locations", id),
-      hydrate: async (row) => ({
-        _id: row._id,
-        location: await reader.byId({ locationId: row._id }),
-      }),
-      matches: (row) =>
-        !!row.location &&
-        (!needle ||
-          (exact?.ok &&
-            row.location.locationId === exact.location.locationId) ||
-          [row.location.code, row.location.name].some((text) =>
-            text.toUpperCase().includes(needle),
-          )),
+    const result = await locationPage(ctx, args, {
+      namedOnly: false,
+      matches: (location) =>
+        !needle ||
+        (exact?.ok && location.locationId === exact.location.locationId) ||
+        [location.code, location.name].some((text) =>
+          text.toUpperCase().includes(needle),
+        ),
     });
     return {
       ...result,
