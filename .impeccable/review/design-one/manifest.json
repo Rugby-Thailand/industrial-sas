@@ -1,0 +1,155 @@
+{
+  "sourceCommit": "bd4c8a011b0fdd676c042db8461501308c4a9ac5",
+  "route": "http://localhost:3140/th/ai-usage",
+  "fixtures": "Designated local test account, real tracked provider operations. FX source is a local QA estimate. No new provider request during UI verification.",
+  "captures": [
+    {
+      "name": "desktop",
+      "path": "/Users/macbook/.t3/userdata/browser-artifacts/browser-screenshot-localhost-mv2mudmu-b34017d8.png",
+      "width": 1280,
+      "height": 800,
+      "metrics": {
+        "toolIcon": {
+          "_tag": "website",
+          "pageUrl": "http://localhost:3140/th/ai-usage"
+        },
+        "value": {
+          "pageOverflow": false,
+          "paneOverflow": false,
+          "scrollTop": 0,
+          "theme": "__variable_8eaea4 __variable_8c25df light"
+        }
+      },
+      "errors": [],
+      "committedPath": ".impeccable/review/design-one/desktop.png"
+    },
+    {
+      "name": "desktop-lower",
+      "path": "/Users/macbook/.t3/userdata/browser-artifacts/browser-screenshot-localhost-mv2mudwl-21ff4854.png",
+      "width": 1280,
+      "height": 800,
+      "metrics": {
+        "toolIcon": {
+          "_tag": "website",
+          "pageUrl": "http://localhost:3140/th/ai-usage"
+        },
+        "value": {
+          "pageOverflow": false,
+          "paneOverflow": false,
+          "scrollTop": 700.5,
+          "theme": "__variable_8eaea4 __variable_8c25df light"
+        }
+      },
+      "errors": [],
+      "committedPath": ".impeccable/review/design-one/desktop-lower.png"
+    },
+    {
+      "name": "mobile",
+      "path": "/Users/macbook/.t3/userdata/browser-artifacts/browser-screenshot-localhost-mv2muf7k-0d0f2366.png",
+      "width": 390,
+      "height": 844,
+      "metrics": {
+        "toolIcon": {
+          "_tag": "website",
+          "pageUrl": "http://localhost:3140/th/ai-usage"
+        },
+        "value": {
+          "pageOverflow": false,
+          "paneOverflow": false,
+          "scrollTop": 0,
+          "theme": "__variable_8eaea4 __variable_8c25df light"
+        }
+      },
+      "errors": [],
+      "committedPath": ".impeccable/review/design-one/mobile.png"
+    },
+    {
+      "name": "mobile-cards",
+      "path": "/Users/macbook/.t3/userdata/browser-artifacts/browser-screenshot-localhost-mv2n2so8-1b23e01f.png",
+      "width": 390,
+      "height": 844,
+      "metrics": {
+        "toolIcon": {
+          "_tag": "website",
+          "pageUrl": "http://localhost:3140/th/ai-usage"
+        },
+        "value": {
+          "pageOverflow": false,
+          "paneOverflow": false,
+          "scrollTop": 680,
+          "theme": "__variable_8eaea4 __variable_8c25df light"
+        }
+      },
+      "errors": [],
+      "committedPath": ".impeccable/review/design-one/mobile-cards.png"
+    },
+    {
+      "name": "mobile-lower",
+      "path": "/Users/macbook/.t3/userdata/browser-artifacts/browser-screenshot-localhost-mv2muio1-544f09be.png",
+      "width": 390,
+      "height": 844,
+      "metrics": {
+        "toolIcon": {
+          "_tag": "website",
+          "pageUrl": "http://localhost:3140/th/ai-usage"
+        },
+        "value": {
+          "pageOverflow": false,
+          "paneOverflow": false,
+          "scrollTop": 1821.5,
+          "theme": "__variable_8eaea4 __variable_8c25df light"
+        }
+      },
+      "errors": [],
+      "committedPath": ".impeccable/review/design-one/mobile-lower.png"
+    },
+    {
+      "name": "tablet",
+      "path": "/Users/macbook/.t3/userdata/browser-artifacts/browser-screenshot-localhost-mv2mujwz-1e46ef07.png",
+      "width": 768,
+      "height": 1024,
+      "metrics": {
+        "toolIcon": {
+          "_tag": "website",
+          "pageUrl": "http://localhost:3140/th/ai-usage"
+        },
+        "value": {
+          "pageOverflow": false,
+          "paneOverflow": false,
+          "scrollTop": 0,
+          "theme": "__variable_8eaea4 __variable_8c25df light"
+        }
+      },
+      "errors": [],
+      "committedPath": ".impeccable/review/design-one/tablet.png"
+    },
+    {
+      "name": "filters",
+      "path": "/Users/macbook/.t3/userdata/browser-artifacts/browser-screenshot-localhost-mv2mzpsx-a47b9145.png",
+      "width": 390,
+      "height": 844,
+      "committedPath": ".impeccable/review/design-one/filters.png"
+    },
+    {
+      "name": "filtered",
+      "path": "/Users/macbook/.t3/userdata/browser-artifacts/browser-screenshot-localhost-mv2myycz-3cbb07c0.png",
+      "width": 390,
+      "height": 844,
+      "committedPath": ".impeccable/review/design-one/filtered.png"
+    },
+    {
+      "name": "english-dark",
+      "path": "/Users/macbook/.t3/userdata/browser-artifacts/browser-screenshot-localhost-mv2n2p27-c7f25dd8.png",
+      "width": 1280,
+      "height": 800,
+      "committedPath": ".impeccable/review/design-one/english-dark.png"
+    },
+    {
+      "name": "user-643",
+      "path": "/Users/macbook/.t3/userdata/browser-artifacts/browser-screenshot-localhost-mv2n0peq-072a7e0c.png",
+      "width": 643,
+      "height": 898,
+      "committedPath": ".impeccable/review/design-one/user-643.png"
+    }
+  ]
+}
