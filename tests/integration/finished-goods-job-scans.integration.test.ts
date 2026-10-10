@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { GenericMutationCtx } from "convex/server";
+import type { Id } from "../../convex/_generated/dataModel";
 import type { DataModel } from "../../convex/schema";
+import * as locations from "../../convex/finishedGoods/jobScanLocations";
+import * as scanning from "../../convex/finishedGoods/scanning";
 import * as jobScans from "../../convex/finishedGoods/jobScans";
 import {
   createConvexTenantWorld,
@@ -424,5 +427,351 @@ describe("finished goods job scans", () => {
     });
     expect(rest).toMatchObject({ isDone: true });
     expect(rest.items).toHaveLength(2);
+  });
+});
+
+describe("register a location during job scanning", () => {
+  const registration = (
+    world: Awaited<ReturnType<typeof setup>>,
+    overrides: Record<string, unknown> = {},
+  ) => ({
+    warehouseId: world.warehouseId,
+    requestId: "register-dock",
+    code: "  dock-new  ",
+    buildingId: world.buildingId,
+    ...overrides,
+  });
+
+  it("creates one canonical registration, replays it and saves ticket types with derived parents", async () => {
+    const world = await setup();
+    const args = registration(world, { floorId: world.floorId });
+    const locationId = id(await call(world, locations.create, args));
+    expect(id(await call(world, locations.create, args))).toBe(locationId);
+    error(
+      await call(world, locations.create, { ...args, code: "OTHER" }),
+      "REQUEST_ARGUMENT_CONFLICT",
+    );
+    const resolved = value(
+      await call(world, locations.resolve, {
+        warehouseId: world.warehouseId,
+        code: "dock-new",
+      }),
+    );
+    expect(resolved).toMatchObject({
+      ok: true,
+      location: {
+        locationId,
+        code: "DOCK-NEW",
+        name: "DOCK-NEW",
+        buildingId: world.buildingId,
+        buildingName: "Building A",
+        floorId: world.floorId,
+        floorNumber: 1,
+        layoutPending: true,
+      },
+    });
+    const recordsId = id(
+      await call(world, jobScans.saveJobScans, {
+        warehouseId: world.warehouseId,
+        requestId: "named-save",
+        locationText: "dock-new",
+        location: { locationId },
+        items: ["PALLET", "BOX", "OTHER"].map((storageFormat) => ({
+          ...ticket,
+          storageFormat,
+        })),
+      }),
+    );
+    const saved = await world.t.run((ctx) =>
+      ctx.db.query("finishedGoodsJobScans").collect(),
+    );
+    expect(saved).toHaveLength(3);
+    expect(saved.map((row) => row.storageFormat)).toEqual([
+      "PALLET",
+      "BOX",
+      "OTHER",
+    ]);
+    expect(saved.find((row) => row._id === recordsId)).toMatchObject({
+      locationId,
+      buildingId: world.buildingId,
+      floorId: world.floorId,
+      mapped: true,
+    });
+    const catalogue = value(
+      await call(world, locations.page, {
+        warehouseId: world.warehouseId,
+        pageSize: 20,
+      }),
+    );
+    expect(catalogue).toMatchObject({
+      status: "ready",
+      page: [{ location: { code: "DOCK-NEW", layoutPending: true } }],
+    });
+    expect(JSON.stringify(catalogue)).not.toMatch(/widthMm|depthMm|occupied/);
+    const canonical = await world.t.run((ctx) =>
+      ctx.db
+        .query("locations")
+        .filter((q) => q.eq(q.field("code"), "DOCK-NEW"))
+        .collect(),
+    );
+    expect(canonical).toHaveLength(1);
+    expect(
+      await world.t.run((ctx) =>
+        ctx.db.query("finishedGoodsPallets").collect(),
+      ),
+    ).toHaveLength(0);
+    expect(
+      await world.t.run((ctx) =>
+        ctx.db.query("finishedGoodsPlacements").collect(),
+      ),
+    ).toHaveLength(0);
+    expect(
+      value(
+        await call(world, scanning.resolveLocationCode, {
+          warehouseId: world.warehouseId,
+          code: "DOCK-NEW",
+        }),
+      ),
+    ).toMatchObject({ ok: false, error: { code: "LOCATION_UNAVAILABLE" } });
+  });
+
+  it("rejects conflicts across active, inactive and operational locations and legacy positions", async () => {
+    const world = await setup();
+    error(
+      await call(
+        world,
+        locations.create,
+        registration(world, { code: "BLDG-A-F01-Z01" }),
+      ),
+      "DUPLICATE_KEY",
+    );
+    await world.t.run(async (ctx) => {
+      await ctx.db.patch(world.locationId, { status: "INACTIVE" });
+      await ctx.db.patch(world.zoneId, { status: "INACTIVE" });
+      await ctx.db.insert("locations", {
+        orgId: world.orgA,
+        warehouseId: world.warehouseId,
+        code: "DOCK-EXISTING",
+        locationType: "DOCK",
+        status: "ACTIVE",
+      });
+      await ctx.db.insert("storagePositions", {
+        orgId: world.orgA,
+        warehouseId: world.warehouseId,
+        buildingId: world.buildingId,
+        floorId: world.floorId,
+        zoneId: world.zoneId,
+        locationId: world.locationId,
+        code: "LEGACY-POS",
+        label: "Legacy position",
+        qrValue: "legacy",
+        kind: "FLOOR",
+        isDefault: false,
+        status: "INACTIVE",
+        createdAt: Date.now(),
+        createdByUserId: world.userA,
+        updatedAt: Date.now(),
+        updatedByUserId: world.userA,
+      });
+    });
+    for (const code of ["BLDG-A-F01-Z01", "DOCK-EXISTING", "LEGACY-POS"]) {
+      error(
+        await call(
+          world,
+          locations.create,
+          registration(world, { code, requestId: code }),
+        ),
+        "DUPLICATE_KEY",
+      );
+      expect(
+        value(
+          await call(world, locations.resolve, {
+            warehouseId: world.warehouseId,
+            code,
+          }),
+        ),
+      ).toMatchObject({ ok: false, error: { code: "LOCATION_UNAVAILABLE" } });
+    }
+  });
+
+  it("registers without a floor and clears legacy destination fields on reassignment", async () => {
+    const world = await setup();
+    const locationId = id(
+      await call(world, locations.create, registration(world)),
+    );
+    const scanId = id(
+      await call(world, jobScans.saveJobScans, {
+        warehouseId: world.warehouseId,
+        requestId: "mapped-save",
+        locationText: "Old",
+        location: { zoneId: world.zoneId },
+        items: [ticket],
+      }),
+    );
+    id(
+      await call(world, jobScans.assignJobScanLocation, {
+        warehouseId: world.warehouseId,
+        requestId: "assign-named",
+        ids: [scanId],
+        location: { locationId },
+      }),
+    );
+    let record = await world.t.run((ctx) =>
+      ctx.db.get(
+        "finishedGoodsJobScans",
+        scanId as Id<"finishedGoodsJobScans">,
+      ),
+    );
+    expect(record).toMatchObject({
+      locationId,
+      buildingId: world.buildingId,
+      mapped: true,
+    });
+    expect(record).not.toHaveProperty("zoneId");
+    expect(record).not.toHaveProperty("floorId");
+    id(
+      await call(world, jobScans.assignJobScanLocation, {
+        warehouseId: world.warehouseId,
+        requestId: "assign-layout",
+        ids: [scanId],
+        location: { locationId: world.locationId },
+      }),
+    );
+    record = await world.t.run((ctx) =>
+      ctx.db.get(
+        "finishedGoodsJobScans",
+        scanId as Id<"finishedGoodsJobScans">,
+      ),
+    );
+    expect(record).toMatchObject({
+      locationId: world.locationId,
+      zoneId: world.zoneId,
+      floorId: world.floorId,
+    });
+  });
+
+  it("revalidates archived parents and rejects foreign warehouse/building/floor references before writes", async () => {
+    const world = await setup();
+    await expect(
+      call(
+        world,
+        locations.create,
+        registration(world, { warehouseId: world.warehouses.bravoA }),
+      ),
+    ).rejects.toMatchObject({ data: { code: "WAREHOUSE_OUT_OF_SCOPE" } });
+    const locationId = id(
+      await call(world, locations.create, registration(world)),
+    );
+    const foreignBuilding = await world.t.run(async (ctx) => {
+      const building = (await ctx.db.get(world.buildingId))!;
+      const { _id, _creationTime, ...fields } = building;
+      void _id;
+      void _creationTime;
+      return ctx.db.insert("storageBuildings", {
+        ...fields,
+        orgId: world.orgB,
+        warehouseId: world.warehouses.alphaB,
+      });
+    });
+    error(
+      await call(
+        world,
+        locations.create,
+        registration(world, {
+          code: "FOREIGN",
+          buildingId: foreignBuilding,
+          requestId: "foreign",
+        }),
+      ),
+      "REFERENCE_NOT_FOUND",
+    );
+    const mismatchedFloor = await world.t.run(async (ctx) => {
+      const floor = (await ctx.db.get(world.floorId))!;
+      const { _id, _creationTime, ...fields } = floor;
+      void _id;
+      void _creationTime;
+      return ctx.db.insert("storageFloors", {
+        ...fields,
+        warehouseId: world.warehouses.bravoA,
+      });
+    });
+    error(
+      await call(
+        world,
+        locations.create,
+        registration(world, {
+          code: "WRONG-FLOOR",
+          floorId: mismatchedFloor,
+          requestId: "wrong-floor",
+        }),
+      ),
+      "REFERENCE_NOT_FOUND",
+    );
+    await world.t.run((ctx) =>
+      ctx.db.patch(world.buildingId, { status: "ARCHIVED" }),
+    );
+    error(
+      await call(world, jobScans.saveJobScans, {
+        warehouseId: world.warehouseId,
+        requestId: "archived-save",
+        locationText: "DOCK-NEW",
+        location: { locationId },
+        items: [ticket],
+      }),
+      "LOCATION_UNAVAILABLE",
+    );
+    error(
+      await call(world, jobScans.saveJobScans, {
+        warehouseId: world.warehouseId,
+        requestId: "archived-legacy-save",
+        locationText: "Old",
+        location: { zoneId: world.zoneId },
+        items: [ticket],
+      }),
+      "LOCATION_UNAVAILABLE",
+    );
+    error(
+      await call(
+        world,
+        locations.create,
+        registration(world, { code: "ARCHIVED", requestId: "archived-create" }),
+      ),
+      "REFERENCE_NOT_FOUND",
+    );
+    expect(await list(world, "ALL")).toHaveLength(0);
+  });
+
+  it.each([
+    "ISAS:PALLET:1:anything",
+    "ISAS:LOCATION:1:missing",
+    "bad\u0000code",
+    "x".repeat(201),
+  ])("never registers reserved or invalid code %s", async (code) => {
+    const world = await setup();
+    error(
+      await call(world, locations.create, registration(world, { code })),
+      "FIELD_INVALID",
+    );
+    const result = value(
+      await call(world, locations.searchPage, {
+        warehouseId: world.warehouseId,
+        text: code,
+        pageSize: 20,
+      }),
+    );
+    expect(result["canCreate"]).toBe(false);
+  });
+
+  it("rejects unauthenticated creation and missing manage permission", async () => {
+    const world = await setup("SUPERVISOR");
+    expect(
+      await call(world, locations.create, registration(world)),
+    ).toMatchObject({ ok: false });
+    await expect(
+      call(world, locations.create, registration(world), false),
+    ).rejects.toMatchObject({ data: { code: "ANONYMOUS" } });
+    expect(
+      await world.t.run((ctx) => ctx.db.query("locations").collect()),
+    ).toHaveLength(1);
   });
 });

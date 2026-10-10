@@ -107,6 +107,19 @@ export function JobScanRecordRow({
             {record.locationName ?? record.locationText}
           </p>
         )}
+        {record.buildingName && (
+          <p className="text-sm text-muted">
+            {record.buildingName}
+            {record.floorNumber === undefined
+              ? ""
+              : ` · ${t("floorNumber", { number: record.floorNumber })}`}
+          </p>
+        )}
+        {record.storageFormat && (
+          <p className="text-sm text-muted">
+            {t(`format.${record.storageFormat}`)}
+          </p>
+        )}
         <p className="text-xs text-muted sm:text-sm">
           {format.dateTime(record.createdAt, {
             dateStyle: "medium",

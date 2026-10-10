@@ -4,8 +4,12 @@ import { renderWithIntl } from "@tests/fixtures/intl-render";
 import { querySuccess } from "@tests/fixtures/finished-goods-ui";
 import { LocationPicker } from "./LocationPicker";
 
+vi.mock("@/i18n/navigation", () => ({
+  Link: (props: React.ComponentProps<"a">) => <a {...props} />,
+}));
 const mocks = vi.hoisted(() => ({
   query: vi.fn(),
+  canCreate: false,
   decode: undefined as ((code: string) => void) | undefined,
 }));
 vi.mock("convex/react", () => ({
@@ -16,6 +20,9 @@ vi.mock("convex/react", () => ({
       page: 1,
       pages: 1,
       total: 1,
+      status: "ready",
+      isDone: true,
+      canCreate: mocks.canCreate,
     }),
 }));
 vi.mock("../BarcodeCameraBox", () => ({
@@ -32,6 +39,7 @@ vi.mock("../BarcodeCameraBox", () => ({
 }));
 beforeEach(() => {
   mocks.query.mockReset();
+  mocks.canCreate = false;
 });
 function start(allowUnmapped = true) {
   const onPick = vi.fn();
@@ -133,9 +141,10 @@ it("reports rejected identities when a real mapped location is required", async 
   );
   expect(onPick).not.toHaveBeenCalled();
 });
-it("offers unknown labels as unmapped text only when allowed", async () => {
+it("offers missing labels for inline registration or saving for later", async () => {
+  mocks.canCreate = true;
   mocks.query.mockResolvedValue(
-    querySuccess({ ok: false, error: { code: "LOCATION_UNAVAILABLE" } }),
+    querySuccess({ ok: false, error: { code: "LOCATION_NOT_FOUND" } }),
   );
   const { onPick } = start();
   act(() => mocks.decode!("DOCK-NEW"));
@@ -146,7 +155,7 @@ it("offers unknown labels as unmapped text only when allowed", async () => {
   );
   expect(onPick).not.toHaveBeenCalled();
   fireEvent.click(
-    screen.getByRole("button", { name: /Save now, set location later/ }),
+    await screen.findByRole("button", { name: /Save now, set location later/ }),
   );
   expect(onPick).toHaveBeenCalledWith({ text: "DOCK-NEW" });
 });

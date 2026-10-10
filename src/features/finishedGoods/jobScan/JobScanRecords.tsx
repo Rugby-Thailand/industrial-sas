@@ -35,6 +35,7 @@ import {
   written,
 } from "../shared";
 import { JobScanRecordRow } from "./JobScanRecordRow";
+import { pickedLocationPayload } from "./ticketDraft";
 import { LocationPicker } from "./LocationPicker";
 
 type Filter = "ALL" | "UNMAPPED" | "MAPPED";
@@ -247,17 +248,9 @@ function Records({ warehouseId }: { warehouseId: string }) {
                 warehouseId={warehouseId}
                 allowUnmapped={false}
                 onPick={async (location) => {
-                  if (!canManage || !location.zoneId || operation.busy) return;
-                  const zoneId = location.zoneId;
-                  const target = {
-                    ids: picking.ids,
-                    location: {
-                      zoneId,
-                      ...(location.supportPositionId
-                        ? { supportPositionId: location.supportPositionId }
-                        : {}),
-                    },
-                  };
+                  const mapped = pickedLocationPayload(location);
+                  if (!canManage || !mapped || operation.busy) return;
+                  const target = { ids: picking.ids, location: mapped };
                   const result = await operation.run(async () =>
                     written(
                       await assign({

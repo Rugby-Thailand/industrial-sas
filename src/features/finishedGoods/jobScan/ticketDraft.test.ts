@@ -52,6 +52,7 @@ it("keeps entered quantities and exact identifiers in the save payload", () => {
     ),
   ).toEqual({
     source: "MANUAL",
+    storageFormat: "PALLET",
     factoryOrder: "FO0123",
     productBarcodeText: "DEMO-01",
     quantity: 1200.5,

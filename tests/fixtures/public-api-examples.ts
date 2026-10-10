@@ -200,6 +200,10 @@ export const PUBLIC_API_EXAMPLES: readonly PublicApiExample[] = [
     warehouseId: w.warehouses.alphaA,
     sku: "PUBLIC-1",
   })),
+  example("finishedGoods/jobScanLocations:resolve", "query", (w) => ({
+    warehouseId: w.warehouses.alphaA,
+    code: "PUBLIC-UNKNOWN-LOCATION",
+  })),
   example("finishedGoods/jobScans:listJobScans", "query", (w) => ({
     warehouseId: w.warehouses.alphaA,
     filter: "ALL",
