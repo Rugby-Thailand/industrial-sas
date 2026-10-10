@@ -46,6 +46,7 @@ function LocationPickerSession({
   const [camera, setCamera] = useState(false);
   const [notice, setNotice] = useState<string>();
   const [adding, setAdding] = useState(false);
+  const [confirmedMissing, setConfirmedMissing] = useState<string>();
 
   const lookupVersion = useRef(0);
   const cameraOpen = useRef(false);
@@ -80,6 +81,23 @@ function LocationPickerSession({
   const result = outcome?.ok ? outcome.value : undefined;
   const zones = result?.items ?? [];
   const trimmed = text.trim();
+  // Exact lookup is bounded by code indexes; catalogue search may need many
+  // continuation requests. Reuse a scan's answer instead of waiting for search.
+  const exact = useQuery(
+    fgRefs.resolveJobScanLocation,
+    trimmed && text === settledText && confirmedMissing !== trimmed
+      ? { warehouseId, code: trimmed }
+      : "skip",
+  );
+  const canCreate =
+    !checking &&
+    !camera &&
+    Boolean(trimmed) &&
+    (confirmedMissing === trimmed ||
+      (text === settledText &&
+        exact?.ok &&
+        !exact.value.ok &&
+        exact.value.error?.code === "LOCATION_NOT_FOUND"));
 
   function cancelScan() {
     lookupVersion.current += 1;
@@ -97,6 +115,7 @@ function LocationPickerSession({
     cameraOpen.current = false;
     setCamera(false);
     setChecking(true);
+    setConfirmedMissing(undefined);
     setNotice(undefined);
     try {
       const result = await convex.query(fgRefs.resolveJobScanLocation, {
@@ -119,8 +138,7 @@ function LocationPickerSession({
         code.length <= 200
       ) {
         setText(code);
-
-        setNotice(t("locationMissing", { code }));
+        setConfirmedMissing(code.trim());
       } else {
         setNotice(t("locationScanNotFound"));
       }
@@ -149,6 +167,7 @@ function LocationPickerSession({
               scanning={camera}
               onScan={() => {
                 cancelScan();
+                setConfirmedMissing(undefined);
                 setAdding(false);
                 setNotice(undefined);
                 if (!camera) {
@@ -159,6 +178,7 @@ function LocationPickerSession({
               value={text}
               onChange={(event) => {
                 cancelScan();
+                setConfirmedMissing(undefined);
                 setAdding(false);
                 setText(event.target.value);
 
@@ -202,9 +222,9 @@ function LocationPickerSession({
           }}
         />
       )}
-      {!adding && result?.canCreate && text === settledText && trimmed && (
+      {!adding && canCreate && (
         <div className="space-y-2">
-          <p className="text-sm text-muted">
+          <p role="status" className="text-sm text-muted">
             {t("locationMissing", { code: trimmed })}
           </p>
           <Button
@@ -257,28 +277,23 @@ function LocationPickerSession({
               {t("noLocationMatch")}
             </li>
           )}
-          {allowUnmapped &&
-            trimmed &&
-            text === settledText &&
-            result?.canCreate && (
-              <li>
-                <button
-                  type="button"
-                  className="flex min-h-12 w-full flex-col items-start px-3 py-2 text-left hover:bg-raised focus-visible:bg-raised focus-visible:outline-none"
-                  onClick={() => choose({ text: trimmed })}
-                >
-                  <span className="font-semibold text-warning">
-                    {t("useUnmapped", { text: trimmed })}
-                  </span>
-                  <span className="text-xs text-muted">
-                    {t("unmappedHint")}
-                  </span>
-                </button>
-              </li>
-            )}
+          {allowUnmapped && canCreate && (
+            <li>
+              <button
+                type="button"
+                className="flex min-h-12 w-full flex-col items-start px-3 py-2 text-left hover:bg-raised focus-visible:bg-raised focus-visible:outline-none"
+                onClick={() => choose({ text: trimmed })}
+              >
+                <span className="font-semibold text-warning">
+                  {t("useUnmapped", { text: trimmed })}
+                </span>
+                <span className="text-xs text-muted">{t("unmappedHint")}</span>
+              </button>
+            </li>
+          )}
         </ul>
       )}
-      {!adding && result?.status === "scanning" && (
+      {!adding && !canCreate && result?.status === "scanning" && (
         <p role="status" className="text-sm text-muted">
           {t("checkingLocation")}
         </p>
