@@ -5,6 +5,7 @@ import { Crop, ImagePlus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Notice } from "@/components/ui/Notice";
+import { BarcodeCropControls } from "./BarcodeCropControls";
 import type { useBarcodeImage } from "./useBarcodeImage";
 
 export function BarcodeImageControls({
@@ -98,46 +99,11 @@ export function BarcodeImageControls({
             </div>
           )}
           {image.cropping && (
-            <fieldset
+            <BarcodeCropControls
+              crop={image.crop}
+              onChange={image.setCrop}
               disabled={disabled || image.busy}
-              className="grid grid-cols-2 gap-3"
-            >
-              <legend className="col-span-2 mb-2 text-sm">
-                {t("barcodeCropHint")}
-              </legend>
-              {(["x", "y", "width", "height"] as const).map((field) => (
-                <label key={field} className="min-w-0 text-sm">
-                  {t(`barcodeCrop.${field}`)}{" "}
-                  {Math.round(image.crop[field] * 100)}%
-                  <input
-                    type="range"
-                    min={field === "x" || field === "y" ? 0 : 5}
-                    max={
-                      field === "x" || field === "y"
-                        ? 95
-                        : field === "width"
-                          ? Math.round((1 - image.crop.x) * 100)
-                          : Math.round((1 - image.crop.y) * 100)
-                    }
-                    value={Math.round(image.crop[field] * 100)}
-                    className="block min-h-11 w-full md:min-h-11"
-                    onChange={(event) => {
-                      const value = Number(event.target.value) / 100;
-                      image.setCrop({
-                        ...image.crop,
-                        [field]: value,
-                        ...(field === "x"
-                          ? { width: Math.min(image.crop.width, 1 - value) }
-                          : {}),
-                        ...(field === "y"
-                          ? { height: Math.min(image.crop.height, 1 - value) }
-                          : {}),
-                      });
-                    }}
-                  />
-                </label>
-              ))}
-            </fieldset>
+            />
           )}
         </div>
       )}

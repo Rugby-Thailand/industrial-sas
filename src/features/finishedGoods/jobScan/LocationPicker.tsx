@@ -2,9 +2,10 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { useConvex, useQuery } from "convex/react";
-import { MapPin, Plus, Search } from "lucide-react";
+import { MapPin, Plus, Search, Sparkles } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { FormField } from "@/components/ui/FormField";
+import { IconButton } from "@/components/ui/IconButton";
 import { ScanCodeInput } from "@/components/ui/ScanCodeInput";
 import { CursorPagination } from "@/components/system/CursorPagination";
 import { useCursorPagination } from "@/hooks/useCursorPagination";
@@ -13,21 +14,28 @@ import { useCatalogueSync } from "@/hooks/useCatalogueSync";
 import { useDebouncedSearch } from "@/hooks/useScanContinuation";
 import { fgRefs } from "@/lib/convex/finishedGoodsApi";
 import { BarcodeCameraBox } from "../BarcodeCameraBox";
+import type { BarcodeCrop } from "../barcodeDecoder";
 import { Button } from "@/components/ui/button";
 import { AddLocationForm } from "./AddLocationForm";
 import type { PickedLocation } from "./ticketDraft";
+import {
+  LocationImageReader,
+  locationPhoto,
+  type LocationPhoto,
+} from "./LocationImageReader";
 
 /** Search or scan a known location; optionally accept free text as an unmapped location. */
 interface LocationPickerProps {
   warehouseId: string;
   onPick: (location: PickedLocation) => void;
   allowUnmapped?: boolean;
+  canReadImage?: boolean;
 }
 
 export function LocationPicker(props: LocationPickerProps) {
   return (
     <LocationPickerSession
-      key={`${props.warehouseId}:${props.allowUnmapped ?? true}`}
+      key={`${props.warehouseId}:${props.allowUnmapped ?? true}:${props.canReadImage ?? false}`}
       {...props}
     />
   );
@@ -37,6 +45,7 @@ function LocationPickerSession({
   warehouseId,
   onPick,
   allowUnmapped = true,
+  canReadImage = false,
 }: LocationPickerProps) {
   const t = useTranslations("JobScan");
   const locale = useLocale();
@@ -51,6 +60,7 @@ function LocationPickerSession({
   const lookupVersion = useRef(0);
   const cameraOpen = useRef(false);
   const [checking, setChecking] = useState(false);
+  const [ai, setAi] = useState<{ photo?: LocationPhoto }>();
   useEffect(
     () => () => {
       lookupVersion.current += 1;
@@ -104,6 +114,7 @@ function LocationPickerSession({
     cameraOpen.current = false;
     setCamera(false);
     setChecking(false);
+    setAi(undefined);
   }
   function choose(location: PickedLocation) {
     cancelScan();
@@ -163,14 +174,37 @@ function LocationPickerSession({
             />
             <ScanCodeInput
               {...control}
-              scanLabel={camera ? t("stopCamera") : t("scanLocationQr")}
-              scanning={camera}
+              scanLabel={camera && !ai ? t("stopCamera") : t("scanLocationQr")}
+              scanning={camera && !ai}
+              trailingAction={
+                canReadImage ? (
+                  <IconButton
+                    label={t("openLocationAiCamera")}
+                    variant="ghost"
+                    className="size-11 shrink-0"
+                    aria-pressed={Boolean(ai)}
+                    onClick={() => {
+                      const opening = !ai;
+                      cancelScan();
+                      setAdding(false);
+                      setNotice(undefined);
+                      if (opening) {
+                        cameraOpen.current = true;
+                        setCamera(true);
+                        setAi({});
+                      }
+                    }}
+                  >
+                    <Sparkles aria-hidden="true" className="size-5" />
+                  </IconButton>
+                ) : undefined
+              }
               onScan={() => {
                 cancelScan();
                 setConfirmedMissing(undefined);
                 setAdding(false);
                 setNotice(undefined);
-                if (!camera) {
+                if (!camera || ai) {
                   cameraOpen.current = true;
                   setCamera(true);
                 }
@@ -192,14 +226,42 @@ function LocationPickerSession({
           </div>
         )}
       </FormField>
-      {camera && (
-        <BarcodeCameraBox
-          mode="LOCATION"
-          startOnMount={false}
-          onCode={(code) => void onScan(code, scannerVersion)}
-          onClose={cancelScan}
-        />
-      )}
+      {camera &&
+        (ai ? (
+          <LocationImageReader
+            {...(ai.photo ? { initialPhoto: ai.photo } : {})}
+            extract={async (imageDataUrl) => {
+              const result = await convex.action(fgRefs.extractLocationLabel, {
+                warehouseId,
+                imageDataUrl,
+              });
+              return result.ok
+                ? result.value
+                : { ok: false, error: { code: "AI_DENIED" } };
+            }}
+            onConfirm={(code) => void onScan(code, scannerVersion)}
+            onClose={() => {
+              lookupVersion.current++;
+              setAi(undefined);
+            }}
+          />
+        ) : (
+          <BarcodeCameraBox
+            mode="LOCATION"
+            startOnMount
+            onCode={(code) => void onScan(code, scannerVersion)}
+            onClose={cancelScan}
+            {...(canReadImage
+              ? {
+                  onReadWithAi: (file?: File, crop?: BarcodeCrop) => {
+                    if (!cameraOpen.current) return;
+                    lookupVersion.current++;
+                    setAi(file ? { photo: locationPhoto(file, crop) } : {});
+                  },
+                }
+              : {})}
+          />
+        ))}
       {checking && (
         <p role="status" className="text-sm text-muted">
           {t("checkingLocation")}

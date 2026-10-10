@@ -247,6 +247,7 @@ function Records({ warehouseId }: { warehouseId: string }) {
               <LocationPicker
                 warehouseId={warehouseId}
                 allowUnmapped={false}
+                canReadImage={canManage}
                 onPick={async (location) => {
                   const mapped = pickedLocationPayload(location);
                   if (!canManage || !mapped || operation.busy) return;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState, type ReactNode, type SyntheticEvent } from "react";
 import { Flashlight } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { Notice } from "@/components/ui/Notice";
 import { useBarcodeCamera } from "./useBarcodeCamera";
 import { useBarcodeImage } from "./useBarcodeImage";
 import { BarcodeImageControls } from "./BarcodeImageControls";
+import type { BarcodeCrop } from "./barcodeDecoder";
 
 /** Shared acquisition and controls for continuous intake and single-code verification. */
 export function BarcodeCameraBox({
@@ -20,6 +21,7 @@ export function BarcodeCameraBox({
   startOnMount = true,
   disabled = false,
   stopAfterScan = false,
+  onReadWithAi,
   children,
 }: {
   mode: "PACKAGES" | "LOCATION";
@@ -30,6 +32,7 @@ export function BarcodeCameraBox({
   startOnMount?: boolean;
   disabled?: boolean;
   stopAfterScan?: boolean;
+  onReadWithAi?: (file?: File, crop?: BarcodeCrop) => void;
   children?: (scan: {
     onScan: () => void;
     scanning: boolean;
@@ -39,6 +42,7 @@ export function BarcodeCameraBox({
 }) {
   const t = useTranslations("JobScan");
   const [camera, setCamera] = useState(startOnMount);
+  const [videoAspect, setVideoAspect] = useState(16 / 9);
   const image = useBarcodeImage(receive, disabled);
   if (disabled && camera) setCamera(false);
   const {
@@ -75,23 +79,33 @@ export function BarcodeCameraBox({
     if (camera) start();
     else setCamera(true);
   }
+  function measureVideo(event: SyntheticEvent<HTMLVideoElement>) {
+    const { videoWidth, videoHeight } = event.currentTarget;
+    if (videoWidth > 0 && videoHeight > 0)
+      setVideoAspect(videoWidth / videoHeight);
+  }
   return (
     <div className="space-y-2">
       <div
-        hidden={!camera}
-        className="relative overflow-hidden rounded-xl bg-black"
+        hidden={!camera || (state !== "ACTIVE" && state !== "STARTING")}
+        className="relative mx-auto w-full overflow-hidden rounded-xl bg-black"
+        style={{ aspectRatio: videoAspect, maxWidth: 320 * videoAspect }}
       >
         <video
           ref={videoRef}
           muted
           playsInline
           aria-label={videoLabel ?? t("cameraPreview")}
-          className="aspect-[4/3] max-h-80 w-full object-contain"
+          onLoadedMetadata={measureVideo}
+          onResize={measureVideo}
+          className="block h-full w-full object-contain"
         />
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-x-[10%] top-[37.5%] h-1/4 rounded-xl border-2 border-white/80"
-        />
+        {state === "ACTIVE" && (
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-x-[10%] top-[37.5%] h-1/4 rounded-xl border-2 border-white/80"
+          />
+        )}
         {torchAvailable && (
           <IconButton
             variant="ghost"
@@ -153,6 +167,24 @@ export function BarcodeCameraBox({
           image.select(file);
         }}
       />
+      {onReadWithAi && (
+        <Button
+          type="button"
+          variant="outline"
+          className="min-h-11 w-full md:min-h-11"
+          disabled={disabled}
+          onClick={() => {
+            const file = image.file;
+            const crop = image.cropping ? image.crop : undefined;
+            stop();
+            image.cancel();
+            setCamera(false);
+            onReadWithAi(file, crop);
+          }}
+        >
+          {t("readLocationAi")}
+        </Button>
+      )}
       {children?.({
         onScan: () => (camera && !retry ? close() : open()),
         scanning: camera && !retry,
