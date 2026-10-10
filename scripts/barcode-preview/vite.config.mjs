@@ -64,6 +64,18 @@ export default defineConfig({
       },
     },
   ],
+  optimizeDeps: {
+    include: [
+      "react",
+      "react-dom/client",
+      "next-intl",
+      "convex/server",
+      "zxing-wasm/reader",
+      "zxing-wasm/writer",
+      "@zxing/library",
+      "@zxing/browser",
+    ],
+  },
   resolve: {
     dedupe: ["react", "react-dom", "next-intl"],
     alias: [

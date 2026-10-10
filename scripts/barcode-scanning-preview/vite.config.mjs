@@ -42,6 +42,8 @@ export default defineConfig({
       "react-dom/client",
       "next-intl",
       "zxing-wasm/reader",
+      "@zxing/library",
+      "@zxing/browser",
       "convex/server",
     ],
   },

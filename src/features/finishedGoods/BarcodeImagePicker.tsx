@@ -5,6 +5,7 @@ import Image from "next/image";
 import { Crop, ImagePlus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Notice } from "@/components/ui/Notice";
 import { classifyTicketBarcode } from "./jobScan/ticketDraft";
 import { BarcodeCropControls } from "./BarcodeCropControls";
@@ -41,6 +42,7 @@ export function BarcodeImagePicker({
   const preview = useRef<string | undefined>(undefined);
   const selected = useRef<File | undefined>(undefined);
   const [cropping, setCropping] = useState(false);
+  const [fullPreview, setFullPreview] = useState(false);
   const [crop, setCrop] = useState<BarcodeCrop>({
     x: 0.1,
     y: 0.25,
@@ -57,6 +59,7 @@ export function BarcodeImagePicker({
     if (preview.current) URL.revokeObjectURL(preview.current);
     preview.current = undefined;
     setImage(undefined);
+    setFullPreview(false);
     selected.current = undefined;
   }
   useEffect(
@@ -160,10 +163,9 @@ export function BarcodeImagePicker({
       {image && (
         <div className="space-y-3">
           <div className="relative w-fit">
-            <a
-              href={image}
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              type="button"
+              onClick={() => setFullPreview(true)}
               className="block w-fit"
               aria-label={t("barcodeImageView")}
             >
@@ -179,7 +181,7 @@ export function BarcodeImagePicker({
                     : "max-h-40 w-auto max-w-full rounded object-contain"
                 }
               />
-            </a>
+            </button>
             {cropping && (
               <div
                 aria-hidden="true"
@@ -193,6 +195,23 @@ export function BarcodeImagePicker({
               />
             )}
           </div>
+          <Dialog open={fullPreview} onOpenChange={setFullPreview}>
+            <DialogContent
+              size="wide"
+              closeLabel={t("cancel")}
+              aria-describedby={undefined}
+            >
+              <DialogTitle>{t("barcodeImageView")}</DialogTitle>
+              <Image
+                src={image}
+                alt={t("barcodeImagePreview")}
+                width={800}
+                height={1000}
+                unoptimized
+                className="h-auto max-h-[75dvh] w-full object-contain"
+              />
+            </DialogContent>
+          </Dialog>
           {!reading && (
             <div className="flex flex-wrap gap-2">
               <Button

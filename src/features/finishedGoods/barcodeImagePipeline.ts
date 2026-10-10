@@ -11,6 +11,7 @@ import { createBarcodeReader, decodeBarcodeCanvas } from "./barcodeDecoder";
 type Region = readonly [number, number, number, number];
 const isJob = (code: string) => classifyTicketBarcode(code) === "factoryOrder";
 const angles = [0, -2, 2, -4, 4, -6, 6, -8, 8, -10, 10];
+const earlyCurveAngles = [0, 2, -2, 4];
 
 function cropCanvas(
   image: ImageBitmap,
@@ -278,6 +279,28 @@ export async function decodeBarcodeBitmap(
       );
       if (found) return completeTicket(found);
       if (exhausted) break;
+      if (
+        band === 6 &&
+        angle === 0 &&
+        (target === "TICKET" || target === "productBarcodeText")
+      ) {
+        // A small curved-bar probe is cheaper than rotating the large band through every angle first.
+        for (const curveAngle of earlyCurveAngles) {
+          found = await attempt(
+            [
+              Math.floor(w * 0.2),
+              Math.floor(h * 0.56),
+              Math.ceil(w * 0.6),
+              Math.ceil(h * 0.12),
+            ],
+            curveAngle,
+            0.2,
+          );
+          if (found) return completeTicket(found);
+          if (exhausted) break;
+        }
+      }
+      if (exhausted) break;
     }
     if (exhausted) break;
     if (
@@ -286,6 +309,7 @@ export async function decodeBarcodeBitmap(
     ) {
       for (const curve of [0.2, 0.1, -0.2, -0.1]) {
         for (const angle of [0, 2, -2, 4, -4, 6, -6, 8, -8, 10, -10]) {
+          if (curve === 0.2 && earlyCurveAngles.includes(angle)) continue;
           found = await attempt(
             [
               Math.floor(w * 0.2),

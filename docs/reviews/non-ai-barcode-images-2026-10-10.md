@@ -18,16 +18,18 @@ Image selection alone never invokes AI or uploads the image.
 
 - Supplied private product photos: **20/20 exact JOB/product matches**, with no
   extra codes, over two final rounds. Ten files contain seven unique photos.
-  Final desktop timings were 695–4,956 ms in round one and 131–4,487 ms in round
+  Final desktop timings were 132–6,255 ms in round one and 131–613 ms in round
   two; earlier warm runs were faster. These are not mobile latency guarantees.
 - Both curved-image files required corrected-read review in both rounds, using
-  16 search attempts; other photos used 1–7 attempts. Expected identities are
+  six search attempts after moving the small curved-bar probe earlier; other
+  photos used 1–11 attempts. Expected identities are
   supplied only to the regression runner. Private photos and expected customer
   identities are excluded from the PR.
 - Eleven synthetic actual-worker cases cover Code128, QR, Code39 product codes,
   JOB/product pairing, rotation, multiple codes, crop isolation, printed-text-only
   negatives, and a JOB-only negative for product intake.
-- Workspace browser suite: **42 passed, two existing mobile skips**. Coverage
+- Workspace browser suite: **42 passed, two existing mobile skips**, including
+  a fresh CI-mode run with empty dependency caches. Coverage
   includes the six existing warehouse photo fixtures in Thai/English on
   desktop/mobile, distinct linear/QR choices, camera denial, crop/retry,
   cancellation, replacement/Escape, duplicate physical units, save payloads,
@@ -36,8 +38,8 @@ Image selection alone never invokes AI or uploads the image.
 - Production build and smoke suite: **88 passed**. The actual compiled Next.js
   worker decodes a product, glare location, noisy location, and empty crop on
   desktop/mobile. The public WASM request succeeds without a locale redirect.
-- Formatting, TypeScript, ESLint, and **202 unit/accessibility test files with
-  2,329 tests** passed. Test discovery, credential-free local Convex codegen,
+- Formatting, TypeScript, ESLint, and **203 unit/accessibility test files with
+  2,333 tests** passed. Test discovery, credential-free local Convex codegen,
   and production dependency audit passed. Clean-tree verification follows the
   merge commit.
 
@@ -57,6 +59,18 @@ existing image scale. It corrects a disagreeing noisy singleton Code128 read;
 multiple valid WASM identities and all QR candidates survive for explicit choice.
 Regressions cover engine-set disagreement, invalid-result exclusion, and cleanup.
 Exception handling uses the library's stable `getKind()` in minified builds.
+
+GitHub CodeQL findings prompted two additional fixes: full-label review now uses
+an image-only dialog instead of navigating to uploaded file contents; the worker
+checks message origins and permits only the app's pinned WASM URL. Unit boundary
+regressions and desktop/mobile full-review accessibility flows pass. A concurrent CPU-heavy run exhausted the 15-second search deadline on one curved
+label. Moving the small curved-bar probe ahead of large-band rotations reduced
+its search from 16 attempts to six; repeated exact-match rounds passed afterward.
+Busy devices can still reach the bounded timeout and use crop/retry.
+
+Explicit
+verification-harness dependency preoptimization prevents cold-start page reloads
+from interrupting the synthetic worker loop.
 
 ## Limits and reproduction
 

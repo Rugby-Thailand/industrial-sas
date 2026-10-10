@@ -78,6 +78,18 @@ test("camera denial still allows local location QR and paired ticket intake thro
   await accept(page);
   await page.getByRole("button", { name: "Scan barcode", exact: true }).click();
   await choose(page, ["FO12345678", "DEMO-PRODUCT"]);
+  await page.getByRole("button", { name: "View full label image" }).click();
+  const review = page.getByRole("dialog", { name: "View full label image" });
+  await expect(review).toBeVisible();
+  await expect(
+    review.getByRole("img", { name: "Selected barcode label" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "View full label image" }),
+  ).toHaveCount(0);
+  await expectNoAxeViolations(page);
+  await review.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(review).toHaveCount(0);
   await accept(page);
   await expect(page.getByRole("textbox", { name: /Job No\./ })).toHaveValue(
     "FO12345678",

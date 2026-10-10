@@ -2,17 +2,25 @@ import { decodeBarcodeBitmap } from "./barcodeImagePipeline";
 import type { BarcodeImageTarget, BarcodeImageError } from "./barcodeImage";
 import type { BarcodeCrop } from "./barcodeDecoder";
 
-self.onmessage = async ({
-  data,
-}: MessageEvent<{
-  file: File;
-  target: BarcodeImageTarget;
-  wasmUrl: string;
-  crop?: BarcodeCrop;
-}>) => {
+self.onmessage = async (
+  event: MessageEvent<{
+    file: File;
+    target: BarcodeImageTarget;
+    wasmUrl: string;
+    crop?: BarcodeCrop;
+  }>,
+) => {
+  if (event.origin !== "" && event.origin !== self.location.origin) return;
+  const { data } = event;
   let image: ImageBitmap | undefined;
   let cropped: ImageBitmap | undefined;
   try {
+    const wasmUrl = new URL("/barcode/zxing_reader.wasm", self.location.origin)
+      .href;
+    if (data.wasmUrl !== wasmUrl) {
+      self.postMessage({ error: "DECODER" satisfies BarcodeImageError });
+      return;
+    }
     if (
       typeof OffscreenCanvas === "undefined" ||
       typeof createImageBitmap === "undefined"
@@ -61,11 +69,7 @@ self.onmessage = async ({
       );
     }
     self.postMessage({
-      result: await decodeBarcodeBitmap(
-        cropped ?? image,
-        data.target,
-        data.wasmUrl,
-      ),
+      result: await decodeBarcodeBitmap(cropped ?? image, data.target, wasmUrl),
     });
   } catch {
     self.postMessage({ error: "DECODER" satisfies BarcodeImageError });

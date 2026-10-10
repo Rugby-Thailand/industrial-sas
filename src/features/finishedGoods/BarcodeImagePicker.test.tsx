@@ -273,3 +273,27 @@ it("disabling acquisition aborts pending work and prevents a late result", async
   expect(onCode).not.toHaveBeenCalled();
   expect(screen.queryByText("DEMO-PRODUCT")).not.toBeInTheDocument();
 });
+
+it("reviews the full label as an image without navigating to file contents", async () => {
+  const onCode = vi.fn();
+  renderWithIntl(<BarcodeCameraBox mode="PACKAGES" onCode={onCode} />, {
+    locale: "en",
+  });
+  choose();
+  await screen.findByRole("button", { name: "Use scanned code(s)" });
+  fireEvent.click(
+    screen.getByRole("button", { name: "View full label image" }),
+  );
+  expect(
+    screen.getByRole("dialog", { name: "View full label image" }),
+  ).toBeVisible();
+  expect(
+    screen.queryByRole("link", { name: "View full label image" }),
+  ).not.toBeInTheDocument();
+  expect(onCode).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  expect(
+    screen.getByRole("button", { name: "Use scanned code(s)" }),
+  ).toBeVisible();
+});
