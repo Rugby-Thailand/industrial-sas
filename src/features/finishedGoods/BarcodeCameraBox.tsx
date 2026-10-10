@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/IconButton";
 import { Notice } from "@/components/ui/Notice";
 import { useBarcodeCamera } from "./useBarcodeCamera";
+import { useBarcodeImage } from "./useBarcodeImage";
+import { BarcodeImageControls } from "./BarcodeImageControls";
 
 /** Shared acquisition and controls for continuous intake and single-code verification. */
 export function BarcodeCameraBox({
@@ -37,6 +39,7 @@ export function BarcodeCameraBox({
 }) {
   const t = useTranslations("JobScan");
   const [camera, setCamera] = useState(startOnMount);
+  const image = useBarcodeImage(receive, disabled);
   if (disabled && camera) setCamera(false);
   const {
     videoRef,
@@ -50,21 +53,25 @@ export function BarcodeCameraBox({
   } = useBarcodeCamera({
     mode,
     active: camera && !disabled,
-    onCode: (code) => {
-      if (stopAfterScan) close();
-      onCode(code);
-    },
+    onCode: receive,
   });
+  function receive(code: string) {
+    if (disabled) return;
+    if (stopAfterScan) close();
+    onCode(code);
+  }
   const retry = error && error !== "TORCH";
   const startupPending = !camera && state === "STARTING";
   const scanDisabled = disabled || startupPending;
   function close() {
+    image.cancel();
     stop();
     setCamera(false);
     onClose?.();
   }
   function open() {
     if (scanDisabled) return;
+    image.cancel();
     if (camera) start();
     else setCamera(true);
   }
@@ -79,11 +86,11 @@ export function BarcodeCameraBox({
           muted
           playsInline
           aria-label={videoLabel ?? t("cameraPreview")}
-          className="aspect-[4/3] max-h-80 w-full object-cover"
+          className="aspect-[4/3] max-h-80 w-full object-contain"
         />
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-x-[15%] top-[25%] h-1/2 rounded-xl border-2 border-white/80"
+          className="pointer-events-none absolute inset-x-[10%] top-[37.5%] h-1/4 rounded-xl border-2 border-white/80"
         />
         {torchAvailable && (
           <IconButton
@@ -97,7 +104,7 @@ export function BarcodeCameraBox({
           </IconButton>
         )}
       </div>
-      {error ? (
+      {camera && error ? (
         <Notice
           tone="warning"
           role="alert"
@@ -117,11 +124,11 @@ export function BarcodeCameraBox({
             (state === "ACTIVE" ? t("pointCamera") : t("startingCamera"))}
         </p>
       ) : null}
-      {retry && (
+      {camera && retry && (
         <Button
           type="button"
           variant="outline"
-          className="min-h-11 w-full"
+          className="min-h-11 w-full md:min-h-11"
           onClick={open}
           disabled={scanDisabled}
         >
@@ -131,12 +138,21 @@ export function BarcodeCameraBox({
       <Button
         type="button"
         variant="outline"
-        className="min-h-11 w-full"
+        className="min-h-11 w-full md:min-h-11"
         onClick={camera ? close : open}
         disabled={scanDisabled}
       >
         {t(camera ? "stopCamera" : "startCamera")}
       </Button>
+      <BarcodeImageControls
+        image={image}
+        disabled={disabled}
+        onSelect={(file) => {
+          stop();
+          setCamera(false);
+          image.select(file);
+        }}
+      />
       {children?.({
         onScan: () => (camera && !retry ? close() : open()),
         scanning: camera && !retry,
