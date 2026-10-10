@@ -8,7 +8,7 @@ web
 
 ## Users
 
-Warehouse workers scan Thai factory job tickets and record storage information. Organization administrators review AI usage and cost across warehouses and users. HR users use AI Search for navigation.
+Warehouse workers scan Thai factory job tickets and location labels and record storage information. Organization administrators review AI usage and cost across warehouses and users. HR users use AI Search for navigation.
 
 ## Product Purpose
 
@@ -16,11 +16,11 @@ The authenticated storage planner and HR attendance application records operatio
 
 ## Capabilities and Constraints
 
-Use Next.js, Convex, Clerk, Thai and English, and the incumbent application components. Usage belongs to the organization and authorized actor. Track provider calls independently of ticket saving. Distinguish unknown costs from zero. Report actual USD and estimated THB separately. The user chose this month as the default reporting period.
+Use Next.js, Convex, Clerk, Thai and English, and the incumbent application components. Usage belongs to the organization and authorized actor. Track provider calls independently of ticket saving. Report job-ticket scans, location-label scans, and AI Search separately. Distinguish unknown costs from zero. Report actual USD and estimated THB separately. The user chose this month as the default reporting period.
 
 ## Operating Context
 
-Scan job tickets from phone photos and review reports on desktop or mobile. Reports are accessible to authorized organization administrators.
+Scan job tickets and location labels from phone photos and review reports on desktop or mobile. Reports are accessible to authorized organization administrators.
 
 ## Evidence on Hand
 

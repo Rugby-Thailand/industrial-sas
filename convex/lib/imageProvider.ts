@@ -1,9 +1,10 @@
 import {
-  normalizeUsage,
+  UNKNOWN_USAGE,
   type Feature,
   type UsageFinish,
 } from "../model/aiUsage/usage";
-import type { AiUsagePort } from "./aiUsage";
+import { ACCOUNTING_WRITE_BUDGET_MS, type AiUsagePort } from "./aiUsage";
+import { responseUsage } from "./providerUsage";
 
 /**
  * Explicit bounds for the image provider call (BD-07). Every attempt,
@@ -13,7 +14,9 @@ import type { AiUsagePort } from "./aiUsage";
  * extraction writes nothing, so a repeat cannot duplicate data, but it can
  * double provider cost. Timeouts, network errors, 4xx/429, and oversized or
  * malformed successful answers are never retried; a 5xx answer's body never
- * affects its retry. `maxRetries: 0` is a valid policy.
+ * affects its retry. `maxRetries: 0` is a valid policy. These are provider
+ * bounds; a tracked call's accounting writes have their own finite window
+ * (see {@link requestImageProvider}).
  */
 export interface ImageProviderPolicy {
   readonly attemptTimeoutMs: number;
@@ -149,13 +152,23 @@ function usageBody(text: string | typeof ABORTED | typeof TOO_LARGE): unknown {
 }
 
 /**
+ * The default bound on each accounting wait of a tracked call. It exceeds
+ * the port's own {@link ACCOUNTING_WRITE_BUDGET_MS}, so the real port
+ * settles (and logs an unconfirmed finalization) first; this is the
+ * backstop for a port that never settles.
+ */
+export const ACCOUNTING_WINDOW_MS = ACCOUNTING_WRITE_BUDGET_MS + 1_000;
+
+/**
  * Usage recording for one tracked operation. The feature is explicit: the
  * helper serves several paid image features and must not assume one.
  */
 export interface ImageProviderTracking {
-  readonly port: AiUsagePort;
+  readonly port: Pick<AiUsagePort, "begin" | "finish" | "abandon">;
   readonly feature: Feature;
   readonly model: string;
+  /** Bound on each finish/abandon wait; defaults to {@link ACCOUNTING_WINDOW_MS}. */
+  readonly accountingWindowMs?: number;
 }
 
 /**
@@ -169,6 +182,17 @@ export interface ImageProviderTracking {
  * and a begin that settles too late is abandoned. Each sent attempt is
  * finalized once, with its own usage; a 5xx error body is read (bounded) only
  * for usage and never decides whether the retry happens.
+ *
+ * Two separate bounds apply. `policy.totalDeadlineMs` is the provider
+ * deadline: it bounds begins, requests and response bodies, and no request
+ * starts after it. Accounting (each finish or abandon) is awaited, never
+ * fire-and-forget, but every such wait ends within the accounting window,
+ * written or not, and the whole call returns by `totalDeadlineMs +
+ * accountingWindowMs`. Nothing in the accounting window sends, retries or
+ * replays inference, and an accounting timeout never changes the provider
+ * outcome: a successful answer is still returned. A finalization the port
+ * could not confirm is logged by the port with its whitelisted response
+ * metadata; its pending row otherwise expires to `INTERRUPTED`.
  */
 export async function requestImageProvider(
   send: (signal: AbortSignal) => Promise<Response>,
@@ -185,7 +209,8 @@ export async function requestImageProvider(
   const started = now();
   const elapsed = () => Math.max(0, now() - started);
   const remaining = () => policy.totalDeadlineMs - elapsed();
-  // The independent total timer is the hard bound. Wall-clock readings are
+  // The independent total timer is the hard bound on inference: begins,
+  // requests and bodies. Accounting has its own window below. Wall-clock readings are
   // used only for diagnostics and conservative retry budgeting; clock rollback
   // must never extend the operation. Compose signals without assuming the
   // runtime implements AbortSignal.any.
@@ -195,6 +220,42 @@ export async function requestImageProvider(
     () => totalController.abort(),
     policy.totalDeadlineMs,
   );
+  const window = tracking?.accountingWindowMs;
+  const accountingWindowMs =
+    typeof window === "number" && Number.isFinite(window) && window >= 0
+      ? window
+      : ACCOUNTING_WINDOW_MS;
+  // The hard end of the whole call, accounting included.
+  const hardController = new AbortController();
+  const hardTimer = tracking
+    ? setTimeout(
+        () => hardController.abort(),
+        policy.totalDeadlineMs + accountingWindowMs,
+      )
+    : undefined;
+  /** Await one accounting write for at most the accounting window. */
+  const account = async (write: () => Promise<void>): Promise<void> => {
+    const controller = new AbortController();
+    const stop = () => controller.abort();
+    const timer = setTimeout(stop, accountingWindowMs);
+    hardController.signal.addEventListener("abort", stop, { once: true });
+    if (hardController.signal.aborted) stop();
+    try {
+      let pending: Promise<void>;
+      try {
+        pending = write();
+      } catch {
+        return;
+      }
+      await untilAborted(
+        pending.catch(() => undefined),
+        controller.signal,
+      );
+    } finally {
+      clearTimeout(timer);
+      hardController.signal.removeEventListener("abort", stop);
+    }
+  };
   /** Requests actually sent. */
   let attempts = 0;
   /** The 5xx status of the previous attempt while a retry is pending. */
@@ -228,7 +289,7 @@ export async function requestImageProvider(
         // Unsettled at the deadline: nothing was sent and nothing is awaited.
         if (begun === ABORTED) return giveUp();
         if (!startable()) {
-          await tracking.port.abandon(attemptNo);
+          await account(() => tracking.port.abandon(attemptNo));
           return giveUp();
         }
       }
@@ -236,7 +297,7 @@ export async function requestImageProvider(
       attempts = attemptNo;
       const budget = Math.min(policy.attemptTimeoutMs, remaining());
       let usageResult: UsageFinish = {
-        ...normalizeUsage(null),
+        ...UNKNOWN_USAGE,
         status: "NETWORK_ERROR",
       };
       const controller = new AbortController();
@@ -276,7 +337,7 @@ export async function requestImageProvider(
           // stalled or broken bodies record unknown cost, and never suppress
           // a retry that the status and remaining budget allow.
           usageResult = {
-            ...normalizeUsage(usageBody(text)),
+            ...responseUsage(usageBody(text)),
             httpStatus: response.status,
             status: "PROVIDER_ERROR",
           };
@@ -307,7 +368,7 @@ export async function requestImageProvider(
           return fail("too_large");
         }
         usageResult = {
-          ...normalizeUsage(usageBody(text)),
+          ...responseUsage(usageBody(text)),
           httpStatus: response.status,
           status: "UNREADABLE",
         };
@@ -320,11 +381,14 @@ export async function requestImageProvider(
         clearTimeout(timer);
         total.removeEventListener("abort", abortAttempt);
         // Exactly one finalization per sent attempt; it retries only the
-        // database write and never this request.
-        if (tracking) await tracking.port.finish(attemptNo, usageResult);
+        // database write and never this request, within the accounting
+        // window.
+        if (tracking)
+          await account(() => tracking.port.finish(attemptNo, usageResult));
       }
     }
   } finally {
     clearTimeout(totalTimer);
+    clearTimeout(hardTimer);
   }
 }

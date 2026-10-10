@@ -1,5 +1,5 @@
 import {
-  normalizeUsage,
+  UNKNOWN_USAGE,
   type AiUsageRecorder,
   type UsageFinish,
 } from "../aiUsage/usage";
@@ -145,7 +145,7 @@ export async function requestSearchIntent(input: {
 }): Promise<Result<ModelIntent, ProviderFailure>> {
   await input.usage?.begin("AI_SEARCH", input.model, 1);
   let usageResult: UsageFinish = {
-    ...normalizeUsage(null),
+    ...UNKNOWN_USAGE,
     status: "NETWORK_ERROR",
   };
   const controller = new AbortController();
@@ -176,7 +176,8 @@ export async function requestSearchIntent(input: {
       return fail(response.ok ? "AI_UNREADABLE" : "AI_UNAVAILABLE");
     }
     usageResult = {
-      ...normalizeUsage(body),
+      // The recorder's adapter decodes the provider's decimal cost.
+      ...(input.usage?.responseUsage(body) ?? UNKNOWN_USAGE),
       httpStatus: response.status,
       status: response.ok ? "UNREADABLE" : "PROVIDER_ERROR",
     };

@@ -2,7 +2,13 @@
 
 import { useConvex, useMutation, useQuery } from "convex/react";
 import { useLocale, useTranslations } from "next-intl";
-import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from "react";
 import { Download } from "lucide-react";
 import { api } from "../../../convex/_generated/api";
 import { dayNumber } from "../../../convex/model/hr/calendar";
@@ -16,13 +22,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FormField } from "@/components/ui/FormField";
 import { SelectControl } from "@/components/ui/SelectControl";
-import { usageCsv } from "./csv";
 import { estimateThb } from "./estimate";
 import { RecentActivity } from "./RecentActivity";
+import {
+  attemptsRef,
+  exportUsage,
+  operationsRef,
+  usageExportScope,
+} from "./usageExport";
 
 const summaryRef = clientRef(api.aiUsage.reports.summary),
-  operationsRef = clientRef(api.aiUsage.reports.operations),
-  attemptsRef = clientRef(api.aiUsage.reports.attempts),
   configureRef = clientRef(api.aiUsage.reports.configure);
 type Report = Exclude<RefValue<typeof summaryRef>, { error: string }>;
 type Settings = Report["settings"];
@@ -86,6 +95,13 @@ function UsageReport({ canConfigure }: { canConfigure: boolean }) {
     [environment, setEnvironment] = useState("");
   const [exporting, setExporting] = useState(false),
     [exportError, setExportError] = useState(false);
+  const exportLife = useRef({ generation: 0 });
+  useEffect(() => {
+    const life = exportLife.current;
+    return () => {
+      life.generation++;
+    };
+  }, []);
   const filter = {
     ...(feature ? { feature: feature as Feature } : {}),
     ...(actorUserId ? { actorUserId } : {}),
@@ -144,140 +160,40 @@ function UsageReport({ canConfigure }: { canConfigure: boolean }) {
   }
   async function exportCsv() {
     if (!data) return;
+    // One lifecycle per export: a newer export or the report's unmount (an
+    // organization switch or sign-out unmounts it) invalidates this one.
+    const life = exportLife.current,
+      generation = ++life.generation,
+      isCurrent = () => life.generation === generation;
+    const scope = usageExportScope(data, filter);
     setExporting(true);
     setExportError(false);
+    const result = await exportUsage(
+      {
+        operations: (query) => convex.query(operationsRef, query),
+        attempts: (query) => convex.query(attemptsRef, query),
+      },
+      scope,
+      isCurrent,
+    );
+    // Checked synchronously before any state change, Blob or download.
+    if (!isCurrent()) return;
+    setExporting(false);
+    if (result.kind !== "READY") {
+      setExportError(result.kind === "FAILED");
+      return;
+    }
     try {
-      const rows: unknown[][] = [],
-        settings = data.settings;
-      let count = 0;
-      for (const utcDay of data.range.utcDays) {
-        let cursor: string | undefined;
-        for (;;) {
-          const page = await convex.query(operationsRef, {
-            utcDay,
-            from: data.range.from,
-            to: data.range.to,
-            ...filter,
-            ...(cursor ? { cursor } : {}),
-          });
-          if (!page.ok) throw new Error("EXPORT_DENIED");
-          for (const op of page.value.page) {
-            if (++count > 3000) throw new Error("EXPORT_LIMIT");
-            const attempts = await convex.query(attemptsRef, {
-              operationId: op.operationId,
-            });
-            if (!attempts.ok) throw new Error("EXPORT_DENIED");
-            for (const a of attempts.value) {
-              const baht =
-                settings && a.costUsdNano !== undefined
-                  ? estimateThb(
-                      a.costUsdNano,
-                      settings.usdThbRate,
-                      settings.feePercent,
-                    )
-                  : null;
-              rows.push([
-                op.operationId,
-                op.feature,
-                op.environment,
-                op.actorUserId,
-                data.users.find((u) => u.id === op.actorUserId)?.name,
-                op.warehouseId,
-                op.requestedModel,
-                new Date(op.startedAt).toISOString(),
-                data.range.timezone,
-                op.status,
-                op.attemptCount,
-                op.jobScanId,
-                a.attemptNo,
-                new Date(a.startedAt).toISOString(),
-                a.status,
-                a.httpStatus,
-                a.provider,
-                a.billingAccountRef,
-                a.providerGenerationId,
-                a.actualModel,
-                a.isByok,
-                a.inputUnitCount,
-                a.outputUnitCount,
-                a.reasoningUnitCount,
-                a.cachedInputUnitCount,
-                a.cacheWriteUnitCount,
-                a.totalUnitCount,
-                a.costUsd,
-                a.costUsdNano,
-                a.billingStatus,
-                a.usageSource,
-                a.durationMs,
-                settings?.version,
-                settings?.usdThbRate,
-                settings?.feePercent,
-                settings?.source,
-                settings?.effectiveAt,
-                baht?.inference,
-                baht?.fundingFee,
-                baht?.withFundingFee,
-              ]);
-            }
-          }
-          if (page.value.isDone) break;
-          cursor = page.value.continueCursor;
-        }
-      }
-      const headers = [
-        "operation_id",
-        "feature",
-        "environment",
-        "actor_id",
-        "actor_name",
-        "warehouse_id",
-        "requested_model",
-        "operation_started_at",
-        "timezone",
-        "operation_status",
-        "attempt_count",
-        "job_scan_id",
-        "attempt_no",
-        "attempt_started_at",
-        "status",
-        "http_status",
-        "provider",
-        "billing_account_ref",
-        "generation_id",
-        "actual_model",
-        "is_byok",
-        "input_units",
-        "output_units",
-        "reasoning_units_subset",
-        "cached_input_units_subset",
-        "cache_write_units",
-        "total_units",
-        "reported_cost_usd",
-        "cost_usd_nano",
-        "billing_status",
-        "usage_source",
-        "duration_ms",
-        "fx_version",
-        "usd_thb_rate",
-        "funding_fee_percent",
-        "rate_source",
-        "rate_effective_at",
-        "estimated_thb",
-        "estimated_funding_fee_thb",
-        "estimated_total_thb",
-      ];
       const url = URL.createObjectURL(
-        new Blob([usageCsv(headers, rows)], { type: "text/csv;charset=utf-8" }),
+        new Blob([result.csv], { type: "text/csv;charset=utf-8" }),
       );
       const link = document.createElement("a");
       link.href = url;
-      link.download = `ai-usage-${data.range.from}-${data.range.to}.csv`;
+      link.download = result.fileName;
       link.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch {
       setExportError(true);
-    } finally {
-      setExporting(false);
     }
   }
   const selector = (

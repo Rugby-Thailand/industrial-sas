@@ -51,7 +51,7 @@ Budget enforcement, การเปลี่ยน model, การลดขน�
 
 ชื่อ unit count เป็นจำนวน token เชิงตัวเลข และ UI ใช้คำว่า token ตามปกติ วิธีนี้รักษานโยบายห้าม field เก็บ authentication token โดยไม่ต้องลดความเข้มของ `schemaPolicy`
 
-เก็บยอด USD ด้วยความละเอียด 9 ตำแหน่งสำหรับการรวมยอด (`1 USD = 1,000,000,000 nano USD`) โดยเก็บ `costUsd` ที่ provider รายงานควบคู่กัน ตรวจค่าที่เป็น finite, nonnegative และขอบเขต safe integer ปัดครั้งเดียวตอน normalize ไม่ปัดต่อรูปเป็นสตางค์ เพราะค่าแต่ละรูปเล็กกว่า 1 สตางค์ได้
+เก็บยอด USD ด้วยความละเอียด 9 ตำแหน่งสำหรับการรวมยอด (`1 USD = 1,000,000,000 nano USD`) โดยเก็บ `costUsd` ที่ provider รายงานควบคู่กัน ตรวจค่าที่เป็น finite, nonnegative และขอบเขต safe integer ปัดครั้งเดียวที่ provider adapter ไม่ปัดใน domain หรือต่อรูปเป็นสตางค์ เพราะค่าแต่ละรูปเล็กกว่า 1 สตางค์ได้
 
 จำนวน token เป็นจำนวนเต็มไม่ติดลบ ข้อมูลบาง field อาจไม่ถูกส่งกลับ ต้องแยก missing จากศูนย์ ไม่บังคับให้ `input + output` เท่ากับ `total` ด้วยการแก้ค่าที่ provider รายงาน เก็บค่าที่ตรวจรูปแบบแล้วตามต้นทาง ส่วน reasoning เป็นรายละเอียดของ output และ cached/cache-write เป็นรายละเอียดของ input **ไม่บวกซ้ำเข้า total**
 
@@ -130,13 +130,13 @@ Default fee estimate ของ Standard plan เป็น 5.5% และแก�
 
 ## ลำดับ implementation
 
-| ขั้น | งานและไฟล์หลัก                                                                                                                                              | เกณฑ์จบ                                                                                    |
-| ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| 1    | Decoder/monetary arithmetic ใต้ `convex/model/aiUsage/`, events/operations schema, classification/uniqueness, internal lifecycle, port ใน `tenantFunctions` | บันทึก tenant-scoped attempt ได้ ไม่ซ้ำ แยก zero/missing และไม่เปิดช่องให้ client ส่ง cost |
-| 2    | ต่อ `extractJobTicket`, retry/failure recovery, operation link ใน `ticketDraft`, `JobScanScreen`, `saveJobScans`                                            | ค่า AI ถูกเก็บแม้ไม่ save, upload fail หรือผลอ่านไม่ผ่าน และ retry มีสอง attempts          |
-| 3    | ต่อ `requestSearchIntent` และ `hr/navigationIntent`, daily summaries, timezone queries, permissions/provisioning                                            | รูปและ AI Search แยกยอดกัน local/staging ไม่ปน production summary ตรง ledger               |
-| 4    | หน้า `/ai-usage`, navigation, i18n, versioned FX/fee settings, CSV และ bounded reconciliation/rebuild                                                       | ผู้ดูแลเห็นยอดและ unknown coverage กรอง/ส่งออกได้ ผู้ไม่มีสิทธิ์ดูไม่ได้                   |
-| 5    | ตรวจ acceptance cases, schema compatibility, typecheck/lint/build และ browser ก่อน rollout                                                                  | มีหลักฐาน end-to-end และวันที่เริ่มเก็บจริงชัดเจน                                          |
+| ขั้น | งานและไฟล์หลัก                                                                                                                                                         | เกณฑ์จบ                                                                                    |
+| ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| 1    | Provider decoder ที่ `convex/lib/providerUsage.ts`, integer monetary model ใต้ `convex/model/aiUsage/`, schema, classification/uniqueness, internal lifecycle และ port | บันทึก tenant-scoped attempt ได้ ไม่ซ้ำ แยก zero/missing และไม่เปิดช่องให้ client ส่ง cost |
+| 2    | ต่อ `extractJobTicket`, retry/failure recovery, operation link ใน `ticketDraft`, `JobScanScreen`, `saveJobScans`                                                       | ค่า AI ถูกเก็บแม้ไม่ save, upload fail หรือผลอ่านไม่ผ่าน และ retry มีสอง attempts          |
+| 3    | ต่อ `requestSearchIntent` และ `hr/navigationIntent`, daily summaries, timezone queries, permissions/provisioning                                                       | รูปและ AI Search แยกยอดกัน local/staging ไม่ปน production summary ตรง ledger               |
+| 4    | หน้า `/ai-usage`, navigation, i18n, versioned FX/fee settings, CSV และ bounded reconciliation/rebuild                                                                  | ผู้ดูแลเห็นยอดและ unknown coverage กรอง/ส่งออกได้ ผู้ไม่มีสิทธิ์ดูไม่ได้                   |
+| 5    | ตรวจ acceptance cases, schema compatibility, typecheck/lint/build และ browser ก่อน rollout                                                                             | มีหลักฐาน end-to-end และวันที่เริ่มเก็บจริงชัดเจน                                          |
 
 Regenerate Convex types ด้วย tooling ของ repo และอ่าน Next.js guides ที่เกี่ยวข้องก่อน implementation หน้าใหม่ รักษาไฟล์งานอื่นที่กำลังแก้ไว้
 

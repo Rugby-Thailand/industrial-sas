@@ -7,7 +7,8 @@ import { internal } from "../_generated/api";
 import type { Doc } from "../_generated/dataModel";
 import { v } from "convex/values";
 import { projectOperation } from "../model/aiUsage/metrics";
-import { MAX_ATTEMPTS, normalizeUsage } from "../model/aiUsage/usage";
+import { MAX_ATTEMPTS, UNKNOWN_USAGE } from "../model/aiUsage/usage";
+import { providerCostToNano } from "../lib/providerUsage";
 import { lookupGeneration } from "./generation";
 import {
   applySummaryDelta,
@@ -98,7 +99,7 @@ export const begin = internalMutation({
       startedAt,
       durationMs: 0,
       status: "PENDING",
-      ...normalizeUsage(null),
+      ...UNKNOWN_USAGE,
     });
     if (before) await refreshOperation(ctx, before);
     else {
@@ -150,9 +151,8 @@ export const finish = internalMutation({
       (r.billingStatus === "REPORTED") !==
         (r.costUsd !== undefined && r.costUsdNano !== undefined) ||
       (r.costUsd !== undefined &&
-        (!Number.isFinite(r.costUsd) ||
-          r.costUsd < 0 ||
-          r.costUsdNano !== Math.round(r.costUsd * 1e9)))
+        (providerCostToNano(r.costUsd) === undefined ||
+          r.costUsdNano !== providerCostToNano(r.costUsd)))
     )
       throw new Error("AI_USAGE_INVALID");
     for (const n of [

@@ -5,8 +5,17 @@ import {
   seedConvexAuthorization,
   type ConvexTenantWorld,
 } from "../fixtures/convex-tenant-world";
-import { normalizeUsage } from "../../convex/model/aiUsage/usage";
+import {
+  decodeProviderUsage,
+  responseUsage,
+} from "../../convex/lib/providerUsage";
 import { requestJobTicketProvider } from "../../convex/finishedGoods/jobScans";
+
+const generation = (body: unknown) => {
+  const decoded = decodeProviderUsage(body, "GENERATION_LOOKUP");
+  if (!decoded.ok) throw new Error(decoded.error.code);
+  return decoded.value;
+};
 
 const modules = {
   "../convex/lib/tenantFunctions.ts": () =>
@@ -172,10 +181,7 @@ describe("AI usage ledger through authorized actions", () => {
       "REPORTED",
     ]);
     const result = {
-      ...normalizeUsage(
-        { data: { id: "gen-fixture", total_cost: 0.000123 } },
-        "GENERATION_LOOKUP",
-      ),
+      ...generation({ data: { id: "gen-fixture", total_cost: 0.000123 } }),
       status: "SUCCEEDED" as const,
     };
     const finish = {
@@ -389,7 +395,7 @@ describe("AI usage ledger through authorized actions", () => {
         operationId,
         attemptNo: 1,
         result: {
-          ...normalizeUsage({
+          ...responseUsage({
             id: `gen-boundary-${i}`,
             usage: { cost: (i + 1) / 10000 },
           }),
@@ -546,7 +552,7 @@ describe("AI usage ledger through authorized actions", () => {
       operationId: scope.operationId,
       attemptNo: 1,
       result: {
-        ...normalizeUsage({
+        ...responseUsage({
           id: "gen-before-midnight",
           usage: { cost: 0.0001 },
         }),
@@ -563,7 +569,7 @@ describe("AI usage ledger through authorized actions", () => {
       operationId: scope.operationId,
       attemptNo: 2,
       result: {
-        ...normalizeUsage({
+        ...responseUsage({
           id: "gen-after-midnight",
           usage: { cost: 0.0002 },
         }),

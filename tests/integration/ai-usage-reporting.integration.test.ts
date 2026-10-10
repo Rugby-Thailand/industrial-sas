@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { api, internal } from "../../convex/_generated/api";
-import { normalizeUsage } from "../../convex/model/aiUsage/usage";
+import { responseUsage } from "../../convex/lib/providerUsage";
 import {
   createConvexTenantWorld,
   seedConvexAuthorization,
@@ -292,7 +292,7 @@ describe("recent operation history", () => {
       operationId: "op-detail",
       attemptNo: 1,
       result: {
-        ...normalizeUsage(null),
+        ...responseUsage(null),
         status: "PROVIDER_ERROR",
         httpStatus: 503,
       },
@@ -306,7 +306,7 @@ describe("recent operation history", () => {
       operationId: "op-detail",
       attemptNo: 2,
       result: {
-        ...normalizeUsage({
+        ...responseUsage({
           id: "gen-detail",
           model: "openai/gpt-6-luna-2026",
           usage: { cost: 0.0002 },

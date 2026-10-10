@@ -1,6 +1,6 @@
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { getFunctionName } from "convex/server";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { renderWithIntl } from "@tests/fixtures/intl-render";
 
@@ -324,6 +324,150 @@ describe("RecentActivity", () => {
       await screen.findByText("ไม่มีการเรียก AI ตามช่วงเวลาและตัวกรองนี้"),
     ).toBeInTheDocument();
   });
+});
+
+describe("AiUsageScreen CSV export lifecycle", () => {
+  const exportOp = (id: string) => ({
+    operationId: id,
+    feature: "JOB_TICKET_SCAN",
+    environment: "local",
+    actorUserId: "user-a",
+    requestedModel: "openai/gpt-6-luna",
+    startedAt: Date.parse("2026-10-15T05:00:00Z"),
+    status: "SUCCEEDED",
+    attemptCount: 1,
+  });
+  const exportAttempt = {
+    attemptNo: 1,
+    startedAt: Date.parse("2026-10-15T05:00:00Z"),
+    status: "SUCCEEDED",
+    provider: "OPENROUTER",
+    billingAccountRef: "default",
+    billingStatus: "REPORTED",
+    usageSource: "RESPONSE",
+    costUsdNano: 1_000_000_000,
+    durationMs: 1,
+  };
+  const opsPage = (rows: unknown[], cursor: string | null = null) => ({
+    ok: true,
+    value: {
+      page: rows,
+      isDone: cursor === null,
+      continueCursor: cursor ?? "",
+    },
+  });
+  const objectUrls = {
+    create: URL.createObjectURL,
+    revoke: URL.revokeObjectURL,
+  };
+  let blobs: Blob[];
+  let clicks: string[];
+  beforeEach(() => {
+    blobs = [];
+    clicks = [];
+    state.summary = {
+      ok: true,
+      requestId: "q",
+      value: {
+        ...report,
+        settings: {
+          version: 3,
+          usdThbRate: 10,
+          feePercent: 0,
+          source: "A-rate",
+          effectiveAt: 0,
+        },
+        users: [{ id: "user-a", name: "Name A" }],
+      },
+    };
+    // jsdom has no object URLs; record the Blob instead.
+    URL.createObjectURL = vi.fn((blob: Blob) => {
+      blobs.push(blob);
+      return "blob:usage";
+    });
+    URL.revokeObjectURL = vi.fn();
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (
+      this: HTMLAnchorElement,
+    ) {
+      clicks.push(this.download);
+    });
+  });
+  afterEach(() => {
+    URL.createObjectURL = objectUrls.create;
+    URL.revokeObjectURL = objectUrls.revoke;
+    vi.restoreAllMocks();
+  });
+  /** Route the stable client's queries by function name. */
+  const route = (handlers: Record<string, (args: unknown) => unknown>) =>
+    state.query.mockImplementation(
+      (reference: Parameters<typeof getFunctionName>[0], args: unknown) =>
+        (handlers[getFunctionName(reference)] ?? (async () => page([])))(args),
+    );
+  const exportCalls = () =>
+    state.query.mock.calls
+      .map(([reference]) =>
+        getFunctionName(reference as Parameters<typeof getFunctionName>[0]),
+      )
+      .filter((name) => name !== "aiUsage/reports:recent");
+
+  it("downloads one CSV for the organization and settings it started with", async () => {
+    route({
+      "aiUsage/reports:operations": async () => opsPage([exportOp("op-a")]),
+      "aiUsage/reports:attempts": async () => ({
+        ok: true,
+        value: [exportAttempt],
+      }),
+    });
+    renderWithIntl(<AiUsageScreen />, { locale: "en" });
+    fireEvent.click(await screen.findByRole("button", { name: "Export CSV" }));
+    await waitFor(() =>
+      expect(clicks).toEqual(["ai-usage-2026-10-01-2026-10-15.csv"]),
+    );
+    const csv = await blobs[0]!.text();
+    expect(csv).toContain('"op-a"');
+    expect(csv).toContain('"Name A"');
+    expect(csv).toContain('"A-rate"');
+    expect(csv).toContain('"Asia/Bangkok"');
+    expect(screen.getByRole("button", { name: "Export CSV" })).toBeEnabled();
+  });
+
+  it.each([
+    ["an operation page", "aiUsage/reports:operations"],
+    ["an operation's attempts", "aiUsage/reports:attempts"],
+  ])(
+    "stops when an organization switch unmounts the report during %s",
+    async (_label, paused) => {
+      const reply = deferred<unknown>();
+      route({
+        "aiUsage/reports:operations": async () =>
+          opsPage([exportOp("op-a")], "cursor-1"),
+        "aiUsage/reports:attempts": async () => ({
+          ok: true,
+          value: [exportAttempt],
+        }),
+        [paused]: () => reply.promise,
+      });
+      const view = renderWithIntl(<AiUsageScreen />, { locale: "en" });
+      fireEvent.click(
+        await screen.findByRole("button", { name: "Export CSV" }),
+      );
+      await waitFor(() => expect(exportCalls()).toContain(paused));
+      const before = exportCalls().length;
+      // The real Convex/Clerk switch clears auth and unmounts UsageReport.
+      view.unmount();
+      await act(async () =>
+        reply.resolve(
+          paused === "aiUsage/reports:operations"
+            ? opsPage([exportOp("op-b")])
+            : { ok: true, value: [exportAttempt] },
+        ),
+      );
+      await act(async () => new Promise((done) => setTimeout(done, 0)));
+      expect(exportCalls()).toHaveLength(before);
+      expect(blobs).toHaveLength(0);
+      expect(clicks).toHaveLength(0);
+    },
+  );
 });
 
 // Keep the reference used by the mock in sync with the registered name.

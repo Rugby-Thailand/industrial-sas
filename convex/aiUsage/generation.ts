@@ -1,4 +1,5 @@
-import { normalizeUsage, type ProviderUsage } from "../model/aiUsage/usage";
+import { decodeProviderUsage } from "../lib/providerUsage";
+import type { ProviderUsage } from "../model/aiUsage/usage";
 
 export const GENERATION_LOOKUP_TIMEOUT_MS = 10_000;
 
@@ -30,10 +31,14 @@ export async function lookupGeneration(
     );
     if (!response.ok)
       return { kind: "UNAVAILABLE", httpStatus: response.status };
-    const usage = normalizeUsage(await response.json(), "GENERATION_LOOKUP");
-    return usage.billingStatus === "REPORTED" &&
-      usage.providerGenerationId === providerGenerationId
-      ? { kind: "REPORTED", usage }
+    const decoded = decodeProviderUsage(
+      await response.json(),
+      "GENERATION_LOOKUP",
+    );
+    return decoded.ok &&
+      decoded.value.billingStatus === "REPORTED" &&
+      decoded.value.providerGenerationId === providerGenerationId
+      ? { kind: "REPORTED", usage: decoded.value }
       : { kind: "UNAVAILABLE" };
   } catch {
     return { kind: "UNAVAILABLE" };

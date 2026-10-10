@@ -3,8 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { internal } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import { requestImageProvider } from "../../convex/lib/imageProvider";
-import { createAiUsagePort } from "../../convex/lib/aiUsage";
-import { normalizeUsage } from "../../convex/model/aiUsage/usage";
+import {
+  ACCOUNTING_WRITE_BUDGET_MS,
+  createAiUsagePort,
+} from "../../convex/lib/aiUsage";
+import { responseUsage } from "../../convex/lib/providerUsage";
 import {
   createConvexTenantWorld,
   seedConvexAuthorization,
@@ -104,6 +107,7 @@ describe("failed finalization log", () => {
       operationId: "op-lost",
       attemptNo: 1,
       feature: "JOB_TICKET_SCAN",
+      writeOutcome: "REJECTED",
       status: "SUCCEEDED",
       httpStatus: 200,
       billingStatus: "REPORTED",
@@ -117,6 +121,128 @@ describe("failed finalization log", () => {
     });
     expect(line).not.toContain(SECRET);
     expect(line).not.toContain("customer");
+  });
+});
+
+describe("finite accounting writes", () => {
+  const scope = {
+    orgId: "org-fixture" as Id<"organizations">,
+    actorUserId: "user-fixture" as Id<"users">,
+    operationId: "op-slow",
+  };
+  const paidAnswer = () =>
+    new Response(
+      JSON.stringify({
+        id: "gen-slow",
+        model: "openai/gpt-6-luna",
+        usage: { cost: 0.000591675, prompt_tokens: 3886 },
+        choices: [{ message: { content: `{"customer":"${SECRET}"}` } }],
+      }),
+    );
+  const names = (runMutation: ReturnType<typeof vi.fn>) =>
+    runMutation.mock.calls.map(([ref]) => getFunctionName(ref as never));
+
+  it("ends a finish whose database write never settles at the budget and logs it as unconfirmed", async () => {
+    vi.useFakeTimers();
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    const runMutation = vi.fn((reference: unknown) =>
+      getFunctionName(reference as never) === "aiUsage/internal:finish"
+        ? new Promise<null>(() => undefined)
+        : Promise.resolve(null),
+    );
+    const port = createAiUsagePort({ runMutation } as never, scope);
+    const send = vi.fn(async () => paidAnswer());
+    let settledAt: number | undefined;
+    const started = Date.now();
+    const pending = requestImageProvider(send, {
+      tracking: {
+        port,
+        feature: "JOB_TICKET_SCAN",
+        model: "openai/gpt-6-luna",
+      },
+    }).then((outcome) => {
+      settledAt = Date.now() - started;
+      return outcome;
+    });
+    await vi.advanceTimersByTimeAsync(ACCOUNTING_WRITE_BUDGET_MS - 1);
+    expect(settledAt).toBeUndefined();
+    await vi.advanceTimersByTimeAsync(1);
+    // The paid answer is still returned when its accounting times out.
+    expect(await pending).toMatchObject({ ok: true, attempts: 1 });
+    expect(settledAt).toBe(ACCOUNTING_WRITE_BUDGET_MS);
+    expect(send).toHaveBeenCalledOnce();
+    expect(names(runMutation)).toEqual([
+      "aiUsage/internal:begin",
+      "aiUsage/internal:finish",
+    ]);
+    expect(errors).toHaveBeenCalledOnce();
+    const line = String(errors.mock.calls[0]![0]);
+    expect(JSON.parse(line)).toMatchObject({
+      event: "aiUsage.finalizeFailed",
+      operationId: "op-slow",
+      writeOutcome: "UNCONFIRMED",
+      status: "SUCCEEDED",
+      providerGenerationId: "gen-slow",
+      costUsdNano: 591_675,
+    });
+    expect(line).not.toContain(SECRET);
+    expect(line).not.toContain("customer");
+    // Nothing further happens later: no billable call, no extra write.
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(send).toHaveBeenCalledOnce();
+    expect(runMutation).toHaveBeenCalledTimes(2);
+  });
+
+  it("bounds slow failing retries by the same budget, retrying only the database write", async () => {
+    vi.useFakeTimers();
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    const runMutation = vi.fn((reference: unknown) =>
+      getFunctionName(reference as never) === "aiUsage/internal:finish"
+        ? new Promise<null>((_resolve, reject) =>
+            setTimeout(() => reject(new Error("slow failure")), 2_000),
+          )
+        : Promise.resolve(null),
+    );
+    const port = createAiUsagePort({ runMutation } as never, scope);
+    let settled = false;
+    const pending = port
+      .finish(1, { ...responseUsage(null), status: "TIMEOUT" })
+      .then(() => {
+        settled = true;
+      });
+    // Writes fail at 2,000 and 4,100 ms; the third is cut off at the budget.
+    await vi.advanceTimersByTimeAsync(ACCOUNTING_WRITE_BUDGET_MS - 1);
+    expect(settled).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    await pending;
+    expect(names(runMutation)).toEqual([
+      "aiUsage/internal:finish",
+      "aiUsage/internal:finish",
+      "aiUsage/internal:finish",
+    ]);
+    expect(JSON.parse(String(errors.mock.calls[0]![0]))).toMatchObject({
+      writeOutcome: "UNCONFIRMED",
+      status: "TIMEOUT",
+      billingStatus: "UNKNOWN",
+    });
+  });
+
+  it("ends an abandon whose write never settles at the budget without sending anything", async () => {
+    vi.useFakeTimers();
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    const runMutation = vi.fn(() => new Promise<null>(() => undefined));
+    const port = createAiUsagePort({ runMutation } as never, scope, 50);
+    let settled = false;
+    const pending = port.abandon(1).then(() => {
+      settled = true;
+    });
+    await vi.advanceTimersByTimeAsync(49);
+    expect(settled).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    await pending;
+    expect(names(runMutation)).toEqual(["aiUsage/internal:abandon"]);
+    expect(errors).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
   });
 });
 
@@ -281,7 +407,7 @@ describe("abandoning an attempt that never sent a request", () => {
       operationId: "op-retry",
       attemptNo: 1,
       result: {
-        ...normalizeUsage({ id: "gen-retry-1", usage: { cost: 0.0001 } }),
+        ...responseUsage({ id: "gen-retry-1", usage: { cost: 0.0001 } }),
         status: "PROVIDER_ERROR",
         httpStatus: 503,
       },

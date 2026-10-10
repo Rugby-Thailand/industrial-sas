@@ -13,7 +13,7 @@ Mode: Operate. A scoped extension of the incumbent application. The user request
 
 THESIS: Show actual AI calls and their confirmed costs without adding steps to scanning.
 OWN-WORLD: Preserve the app shell, sans-serif typography, black/white surfaces, subtle borders, existing controls, panels and blue actions. Existing source is the visual authority; no identity or token changes.
-STORY: Choose a period, read two feature totals, inspect user/warehouse/model contributions, and export detailed attempts. USD is authoritative; THB and 5.5% funding fee are estimates using administrator-set FX.
+STORY: Choose a period, compare job-ticket photos, location-label photos and AI Search, inspect user/warehouse/model contributions and recent operation outcomes, and export detailed attempts. USD is authoritative; THB and 5.5% funding fee are estimates using administrator-set FX.
 FIRST VIEWPORT: This month's date range, feature totals, counts and averages. Mobile folds advanced filters and presents readable paired cost rows; desktop shows a comparison table.
 FORM: Code-led, specified feature extension. No approved comp or concept tournament.
 FINISH: Valid desktop/mobile evidence, independent finish review and incumbent-system documentation.
@@ -21,7 +21,7 @@ FINISH: Valid desktop/mobile evidence, independent finish review and incumbent-s
 ## Quality bar
 
 - Preserve incumbent appearance and all surrounding workflows.
-- Real provider usage appears before Save; retry counts cannot inflate photo counts.
+- Real provider usage appears before Save; retry counts cannot inflate photo counts. Location-label photos keep their own classification.
 - Month boundaries use organization timezone. Unknown cost is distinct from zero.
 - USD and estimated THB are clear; no assumed FX rate.
 - Filters, settings, CSV and permission-denied states work; narrow mobile pages have no horizontal overflow.

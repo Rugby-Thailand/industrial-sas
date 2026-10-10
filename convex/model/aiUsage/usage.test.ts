@@ -9,7 +9,7 @@ import {
   reportRange,
   summaryKey,
 } from "./metrics";
-import { normalizeUsage } from "./usage";
+import { readProviderUsage, UNKNOWN_USAGE } from "./usage";
 
 const operation = {
   attemptCount: 2,
@@ -28,61 +28,93 @@ const attempt = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
-describe("provider accounting", () => {
-  it("keeps tiny costs, explicit zero, and subset unit counts without inventing a price", () => {
-    const usage = normalizeUsage({
-      id: "gen-fixture",
-      model: "openai/gpt-6-luna",
-      usage: {
-        prompt_tokens: 3886,
-        completion_tokens: 206,
-        total_tokens: 4092,
-        cost: 0.000588675,
-        is_byok: false,
-        prompt_tokens_details: {
-          cached_tokens: 3883,
-          cache_write_tokens: 3883,
-        },
-        completion_tokens_details: { reasoning_tokens: 105 },
-      },
+describe("validated provider usage record", () => {
+  const reported = {
+    providerGenerationId: "gen-a",
+    actualModel: "openai/gpt-6-luna",
+    unitKind: "MODEL_TOKEN",
+    currency: "USD",
+    inputUnitCount: 3886,
+    costUsd: 0.000588675,
+    costUsdNano: 588_675,
+    billingStatus: "REPORTED",
+    usageSource: "RESPONSE",
+  };
+
+  it("returns a frozen copy without touching its input", () => {
+    const input = { ...reported, totalUnitCount: undefined };
+    const result = readProviderUsage(input);
+    expect(result).toEqual({
+      ok: true,
+      value: { ...reported },
     });
-    expect(usage).toMatchObject({
-      costUsdNano: 588675,
-      totalUnitCount: 4092,
-      reasoningUnitCount: 105,
-      cachedInputUnitCount: 3883,
-      billingStatus: "REPORTED",
+    expect(Object.isFrozen(result)).toBe(true);
+    if (!result.ok) return;
+    expect(Object.isFrozen(result.value)).toBe(true);
+    expect(result.value).not.toBe(input);
+    expect("totalUnitCount" in input).toBe(true);
+    expect("totalUnitCount" in result.value).toBe(false);
+    // Explicit zero is a reported free call; no cost at all is UNKNOWN.
+    expect(
+      readProviderUsage({ ...reported, costUsd: 0, costUsdNano: 0 }).ok,
+    ).toBe(true);
+    expect(readProviderUsage(UNKNOWN_USAGE)).toEqual({
+      ok: true,
+      value: UNKNOWN_USAGE,
     });
-    expect(Object.isFrozen(usage)).toBe(true);
-    expect(normalizeUsage({ usage: { cost: 0 } })).toMatchObject({
-      costUsdNano: 0,
-      billingStatus: "REPORTED",
-    });
-    for (const cost of [undefined, null, -1, NaN, Infinity, "0.02", 1e300])
-      expect(normalizeUsage({ usage: { cost } })).toMatchObject({
-        billingStatus: "UNKNOWN",
-      });
-    for (const body of [null, 7, "text", [], { usage: [] }])
-      expect(normalizeUsage(body).billingStatus).toBe("UNKNOWN");
+    expect(Object.isFrozen(UNKNOWN_USAGE)).toBe(true);
   });
 
-  it("reads generation metadata cost", () => {
-    expect(
-      normalizeUsage(
-        {
-          data: {
-            id: "gen-a",
-            total_cost: 0.000603675,
-            native_tokens_prompt: 3886,
-          },
-        },
-        "GENERATION_LOOKUP",
-      ),
-    ).toMatchObject({
-      costUsdNano: 603675,
-      inputUnitCount: 3886,
-      usageSource: "GENERATION_LOOKUP",
+  it.each([
+    ["a fractional nano amount", { costUsdNano: 0.5 }, "costUsdNano"],
+    ["a negative nano amount", { costUsdNano: -1 }, "costUsdNano"],
+    ["an unsafe nano amount", { costUsdNano: 2 ** 53 }, "costUsdNano"],
+    ["a string nano amount", { costUsdNano: "588675" }, "costUsdNano"],
+    ["a non-finite decimal", { costUsd: Infinity }, "costUsd"],
+    ["a cost without nano", { costUsdNano: undefined }, "costUsdNano"],
+    [
+      "nano without a cost",
+      { costUsd: undefined, billingStatus: "UNKNOWN" },
+      "costUsdNano",
+    ],
+    ["a cost marked unknown", { billingStatus: "UNKNOWN" }, "billingStatus"],
+    [
+      "reported without a cost",
+      { costUsd: undefined, costUsdNano: undefined },
+      "billingStatus",
+    ],
+    ["a forged source", { usageSource: "BOGUS" }, "usageSource"],
+    ["another currency", { currency: "THB" }, "currency"],
+    ["another unit", { unitKind: "IMAGE" }, "unitKind"],
+    ["a negative count", { inputUnitCount: -1 }, "inputUnitCount"],
+    [
+      "free text as an ID",
+      { providerGenerationId: "a b" },
+      "providerGenerationId",
+    ],
+    ["a non-boolean BYOK flag", { isByok: "no" }, "isByok"],
+    ["a field outside the whitelist", { content: "secret" }, "content"],
+  ])("refuses %s as a named field", (_label, change, field) => {
+    expect(readProviderUsage({ ...reported, ...change })).toEqual({
+      ok: false,
+      error: { code: "AI_USAGE_VALUE_INVALID", field },
     });
+  });
+
+  it.each([null, 7, "usage", [], undefined])(
+    "refuses a non-record %j",
+    (value) => {
+      expect(readProviderUsage(value)).toMatchObject({
+        ok: false,
+        error: { field: "usage" },
+      });
+    },
+  );
+
+  it("exposes no floating conversion from the domain", async () => {
+    const domain = await import("./usage");
+    expect(Object.keys(domain)).not.toContain("costToNano");
+    expect(Object.keys(domain)).not.toContain("normalizeUsage");
   });
 });
 
