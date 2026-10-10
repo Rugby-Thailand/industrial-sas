@@ -2,6 +2,11 @@ import { existsSync } from "node:fs";
 
 import { clerkSetup } from "@clerk/testing/playwright";
 
+import {
+  reportStagingSetupPhase,
+  type StagingSetupPhase,
+} from "../support/staging-setup-phase";
+
 import { cleanupStagingFixture } from "./global-teardown";
 import {
   FIXTURE_STATE,
@@ -33,6 +38,7 @@ export interface SetupDependencies {
   now?: () => number;
   sleep?: (milliseconds: number) => Promise<void>;
   testingSetup?: () => Promise<void>;
+  onProgress?: (phase: StagingSetupPhase) => void;
 }
 function definitelyRejected(error: unknown) {
   return (
@@ -66,11 +72,14 @@ export async function provisionStagingFixture(
       new Promise((resolve) => setTimeout(resolve, milliseconds)));
   try {
     // Fixed instance ID and class are checked before any create/testing token.
+    deps.onProgress?.("verify-instance");
     await verifyStagingInstance(deps.clerk);
+    deps.onProgress?.("testing-token");
     await deps.testingSetup?.();
     writeFixtureState(state, path);
     state.pendingCreation = "user";
     writeFixtureState(state, path);
+    deps.onProgress?.("create-user");
     const user = await deps.clerk.users.createUser({
       externalId: `ci-e2e:${STAGING.repository}:${id}:actor`,
       emailAddress: [state.managerEmail],
@@ -86,6 +95,11 @@ export async function provisionStagingFixture(
     for (const kind of ["primary", "other"] as const) {
       state.pendingCreation = kind;
       writeFixtureState(state, path);
+      deps.onProgress?.(
+        kind === "primary"
+          ? "create-primary-organization"
+          : "create-other-organization",
+      );
       const organization = await deps.clerk.organizations.createOrganization({
         name: organizationName(id, kind),
         ...(kind === "primary" ? { createdBy: state.clerkUserId } : {}),
@@ -97,6 +111,7 @@ export async function provisionStagingFixture(
       writeFixtureState(state, path);
       assertOwnedOrganization(organization, state, kind);
     }
+    deps.onProgress?.("verify-membership");
     const memberships =
       await deps.clerk.organizations.getOrganizationMembershipList({
         organizationId: state.clerkOrganizationId!,
@@ -117,6 +132,7 @@ export async function provisionStagingFixture(
 
     // No internal identity upserts: the genuine Clerk endpoint must deliver all
     // named user/org/member events and signed source watermarks to staging.
+    deps.onProgress?.("identity-webhooks");
     const deadline = now() + 120_000;
     for (let attempt = 0; ; attempt += 1) {
       const status = deps.run(
@@ -139,6 +155,7 @@ export async function provisionStagingFixture(
         throw new Error("STAGING_REAL_IDENTITY_WEBHOOKS_UNCONFIRMED");
       await sleep(2_000);
     }
+    deps.onProgress?.("prepare-backend");
     const prepared = deps.run(
       "staging/e2eFixture:prepare",
       ownershipArgs(state),
@@ -158,7 +175,9 @@ export async function provisionStagingFixture(
     state.forbiddenWarehouseId = prepared.forbiddenWarehouseId;
     state.otherTenantWarehouseId = prepared.otherTenantWarehouseId;
     writeFixtureState(state, path);
-    return readReadyFixtureState(path);
+    const ready = readReadyFixtureState(path);
+    deps.onProgress?.("ready");
+    return ready;
   } catch (error) {
     if (existsSync(path)) {
       if (state.pendingCreation !== undefined && definitelyRejected(error)) {
@@ -176,11 +195,13 @@ export async function provisionStagingFixture(
 }
 
 export default async function globalSetup(): Promise<void> {
+  reportStagingSetupPhase("validate-inputs");
   assertStagingInputs();
   process.env.CLERK_PUBLISHABLE_KEY = stagingPublishableKey();
   await provisionStagingFixture({
     clerk: stagingClerk(),
     run: convexRun,
+    onProgress: reportStagingSetupPhase,
     testingSetup: () =>
       clerkSetup({
         dotenv: false,
