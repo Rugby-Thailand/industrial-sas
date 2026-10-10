@@ -12,7 +12,11 @@ export async function register() {
 export const onRequestError: Instrumentation.onRequestError = async (
   ...args
 ) => {
-  if (process.env.SENTRY_ENABLED === "1" && process.env.SENTRY_DSN) {
+  if (
+    process.env.SENTRY_ENABLED === "1" &&
+    process.env.SENTRY_DSN &&
+    process.env.NEXT_RUNTIME === "nodejs"
+  ) {
     try {
       const sentry = await import("./lib/observability/sentryServer");
       await sentry.captureRequestError(...args);
