@@ -20,10 +20,10 @@ const domUnitTests = [
 
 export default defineConfig({
   test: {
-    // Informational combined coverage (T12). Shards write blob reports that
-    // the CI `test-report` job merges, so the numbers describe the whole
-    // suite, never one shard. No thresholds yet: floors follow a measured
-    // baseline for the critical paths listed here.
+    // Informational combined coverage runs across the full suite in the
+    // scheduled/manual Workspace matrix workflow. PR and push checks run
+    // every test in shards with native JUnit reports, without instrumentation.
+    // No thresholds yet: floors follow a measured critical-path baseline.
     coverage: {
       provider: "v8",
       reportsDirectory: "coverage",

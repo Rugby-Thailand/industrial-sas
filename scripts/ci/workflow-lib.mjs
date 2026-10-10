@@ -506,21 +506,24 @@ function generalProblems(name, workflow) {
   return problems;
 }
 
+// Exact trusted release conditions (whitespace-normalized). `!cancelled()`
+// is required: on main the PR-only dependency review is skipped, and without
+// an explicit status function GitHub's implicit success() over the ancestor
+// chain would skip both jobs even after `check` succeeded. The explicit
+// result predicates then refuse any failed, skipped or cancelled upstream.
+const TRUSTED_MAIN =
+  "github.repository == 'Rugby-Thailand/industrial-sas' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')";
+export const RELEASE_CONDITIONS = Object.freeze({
+  staging: `\${{ !cancelled() && needs.check.result == 'success' && ${TRUSTED_MAIN} }}`,
+  release: `\${{ !cancelled() && needs.check.result == 'success' && needs.staging.result == 'success' && needs.staging.outputs.outcome == 'STAGING_PASSED' && ${TRUSTED_MAIN} }}`,
+});
+const normalizeSpace = (value) => String(value ?? "").replace(/\s+/g, " ");
+
 function releaseJobProblems(id, job, spec) {
   const problems = [];
   const at = `quality.yml:${id}`;
-  const condition = String(job?.if ?? "");
-  for (const required of [
-    "needs.check.result == 'success'",
-    "github.ref == 'refs/heads/main'",
-    "github.event_name == 'push'",
-    "github.event_name == 'workflow_dispatch'",
-    "github.repository == 'Rugby-Thailand/industrial-sas'",
-  ])
-    if (!condition.includes(required))
-      problems.push(`${at}: if must require ${required}`);
-  if (/always\(\)|failure\(\)|cancelled\(\)|pull_request/.test(condition))
-    problems.push(`${at}: if must not run after failures or on PRs`);
+  if (normalizeSpace(job?.if).trim() !== RELEASE_CONDITIONS[id])
+    problems.push(`${at}: if must be exactly ${RELEASE_CONDITIONS[id]}`);
   if (!asList(job?.needs).includes("check"))
     problems.push(`${at}: must need check`);
   const environment =
@@ -618,6 +621,251 @@ export const VALIDATE_COMMANDS = Object.freeze([
   "pnpm ci:clean-tree",
 ]);
 
+// Parsed-YAML equality that ignores mapping key order.
+const canonical = (value) =>
+  Array.isArray(value)
+    ? value.map(canonical)
+    : value && typeof value === "object"
+      ? Object.fromEntries(
+          Object.keys(value)
+            .sort()
+            .map((key) => [key, canonical(value[key])]),
+        )
+      : value;
+const same = (a, b) =>
+  JSON.stringify(canonical(a)) === JSON.stringify(canonical(b));
+const isUpload = (step) => usesOf(step) === "actions/upload-artifact";
+const isBuild = (step) =>
+  /\b(?:next|pnpm(?: run)?) build\b/.test(String(step?.run ?? ""));
+
+// Vitest shards (T11): every project in contiguous native shards. Each shard
+// is gated by its own exit status and uploads only its own native JUnit file.
+export const TEST_SHARDS = 3;
+const SHARD_JUNIT = `test-results/vitest-junit/shard-\${{ matrix.shard }}-${TEST_SHARDS}.xml`;
+export const VITEST_SHARD_COMMAND = [
+  "pnpm exec vitest run",
+  `--shard=\${{ matrix.shard }}/${TEST_SHARDS}`,
+  "--reporter=default",
+  "--reporter=github-actions",
+  "--reporter=junit",
+  `--outputFile.junit=${SHARD_JUNIT}`,
+].join(" ");
+const SHARD_UPLOAD = Object.freeze({
+  name: "vitest-junit-${{ matrix.shard }}",
+  overwrite: "true",
+  path: SHARD_JUNIT,
+  "retention-days": "7",
+  "if-no-files-found": "error",
+});
+
+function testShardProblems(job) {
+  const problems = [];
+  const at = "quality.yml:test";
+  const strategy = job?.strategy ?? {};
+  const shards = Array.from({ length: TEST_SHARDS }, (_, index) =>
+    String(index + 1),
+  );
+  if (
+    strategy["fail-fast"] !== "false" ||
+    !same(strategy.matrix, { shard: shards })
+  )
+    problems.push(
+      `${at}: matrix must be exactly shard [${shards.join(", ")}] with fail-fast false`,
+    );
+  const runs = stepsOf(job).filter((step) => step.run !== undefined);
+  if (
+    runs.length !== 1 ||
+    runs[0].run !== VITEST_SHARD_COMMAND ||
+    runs[0].if !== undefined ||
+    runs[0].env !== undefined
+  )
+    problems.push(`${at}: the only run step must be ${VITEST_SHARD_COMMAND}`);
+  const uploads = stepsOf(job).filter(isUpload);
+  if (
+    uploads.length !== 1 ||
+    uploads[0].if !== "${{ !cancelled() }}" ||
+    !same(uploads[0].with, SHARD_UPLOAD)
+  )
+    problems.push(
+      `${at}: upload only this shard's JUnit unless cancelled, with ${JSON.stringify(SHARD_UPLOAD)}`,
+    );
+  return problems;
+}
+
+// Browser suites (T4/T5): one matrix leg per suite, both required through
+// the job result. The smoke leg owns the workflow's only production build:
+// credential-free, Next.js cache restored and saved, clean tree afterwards.
+// The workspace leg runs the Vite harness without a build.
+const SMOKE_LEG = "${{ matrix.suite == 'smoke' }}";
+const legAfter = (suite, step) =>
+  `\${{ !cancelled() && matrix.suite == '${suite}' && steps.${step}.outcome == 'success' }}`;
+const NEXT_CACHE_KEY =
+  "${{ runner.os }}-${{ runner.arch }}-next-${{ hashFiles('pnpm-lock.yaml', '.nvmrc') }}-";
+const runOf = (step) => String(step?.run ?? "");
+const BROWSER_STEPS = Object.freeze([
+  [
+    "setup",
+    (step) => usesOf(step) === "./.github/actions/setup-node-pnpm",
+    { id: "setup", with: undefined },
+  ],
+  [
+    "Next.js cache",
+    (step) => /^actions\/cache(?:\/|$)/.test(usesOf(step)),
+    {
+      uses: "actions/cache",
+      if: SMOKE_LEG,
+      with: {
+        path: ".next/cache",
+        key: `${NEXT_CACHE_KEY}\${{ github.sha }}`,
+        "restore-keys": `${NEXT_CACHE_KEY}\n`,
+      },
+    },
+  ],
+  [
+    "production build",
+    isBuild,
+    { run: "pnpm build", if: SMOKE_LEG, env: undefined },
+  ],
+  [
+    "clean tree",
+    (step) => runOf(step).includes("ci:clean-tree"),
+    {
+      run: "pnpm ci:clean-tree",
+      if: "${{ !cancelled() && matrix.suite == 'smoke' && steps.setup.outcome == 'success' }}",
+    },
+  ],
+  [
+    "Chromium install",
+    (step) => runOf(step).includes("playwright install"),
+    {
+      id: "browsers",
+      run: "pnpm exec playwright install --with-deps chromium",
+      if: undefined,
+    },
+  ],
+  [
+    "smoke suite",
+    (step) => /\btest:e2e(?![:\w])/.test(runOf(step)),
+    {
+      run: "pnpm test:e2e",
+      if: legAfter("smoke", "browsers"),
+      env: { PLAYWRIGHT_REQUIRE_BUILD: "1" },
+    },
+  ],
+  [
+    "workspace suite",
+    (step) => runOf(step).includes("test:e2e:workspace"),
+    {
+      run: "pnpm test:e2e:workspace",
+      if: legAfter("workspace", "browsers"),
+      env: undefined,
+    },
+  ],
+  [
+    "JUnit upload",
+    (step) => isUpload(step) && step.if !== "${{ failure() }}",
+    {
+      if: "${{ !cancelled() }}",
+      with: {
+        name: "browser-junit-${{ matrix.suite }}-${{ github.run_attempt }}",
+        path: "test-results/${{ matrix.suite }}-junit.xml",
+        "retention-days": "7",
+        "if-no-files-found": "error",
+      },
+    },
+  ],
+  [
+    "diagnostics upload",
+    (step) => isUpload(step) && step.if === "${{ failure() }}",
+    {
+      with: {
+        name: "browser-diagnostics-${{ matrix.suite }}-${{ github.run_attempt }}",
+        path: "test-results/${{ matrix.suite }}/\nplaywright-report/${{ matrix.suite }}/\n",
+        "retention-days": "5",
+        "if-no-files-found": "ignore",
+      },
+    },
+  ],
+]);
+
+function browserProblems(jobs) {
+  const problems = [];
+  const at = "quality.yml:browser";
+  const strategy = jobs.browser?.strategy ?? {};
+  if (
+    strategy["fail-fast"] !== "false" ||
+    !same(strategy.matrix, { suite: ["smoke", "workspace"] })
+  )
+    problems.push(
+      `${at}: matrix must be exactly suite [smoke, workspace] with fail-fast false`,
+    );
+  const steps = stepsOf(jobs.browser);
+  let previous = -1;
+  for (const [label, matches, want] of BROWSER_STEPS) {
+    const found = steps.filter((step) => step && matches(step));
+    if (found.length !== 1) {
+      problems.push(`${at}: needs exactly one ${label} step`);
+      continue;
+    }
+    const step = found[0];
+    if (
+      Object.entries(want).some(([key, expected]) =>
+        key === "uses" ? usesOf(step) !== expected : !same(step[key], expected),
+      )
+    )
+      problems.push(`${at}: ${label} step must match ${JSON.stringify(want)}`);
+    const index = steps.indexOf(step);
+    if (index < previous) problems.push(`${at}: ${label} step is out of order`);
+    previous = Math.max(previous, index);
+  }
+  steps.forEach((step, index) => {
+    if (
+      usesOf(step) !== "actions/checkout" &&
+      !BROWSER_STEPS.some(([, matches]) => step && matches(step))
+    )
+      problems.push(`${at}: unexpected step ${index + 1}`);
+  });
+  return problems;
+}
+
+// Informational full-suite coverage (T12): one unsharded run of every Vitest
+// project in the scheduled workflow; only it gets the instrumentation budget.
+export const COVERAGE_COMMAND = [
+  "pnpm exec vitest run",
+  "--coverage",
+  "--coverage.reportOnFailure",
+  "--testTimeout=15000",
+  "--reporter=default",
+  "--reporter=github-actions",
+  "--reporter=junit",
+  "--outputFile.junit=test-results/vitest-junit.xml",
+].join(" ");
+const COVERAGE_UPLOAD = Object.freeze({
+  name: "vitest-coverage-${{ github.run_attempt }}",
+  path: "test-results/vitest-junit.xml\ncoverage/coverage-summary.json\ncoverage/lcov.info\n",
+  "retention-days": "7",
+  "if-no-files-found": "error",
+});
+
+function coverageProblems(job) {
+  const runs = stepsOf(job).filter((step) => step.run !== undefined);
+  const uploads = stepsOf(job).filter(isUpload);
+  return job &&
+    job.needs === undefined &&
+    job.if === undefined &&
+    runs.length === 1 &&
+    runs[0].run === COVERAGE_COMMAND &&
+    runs[0].if === undefined &&
+    runs[0].env === undefined &&
+    uploads.length === 1 &&
+    uploads[0].if === "${{ !cancelled() }}" &&
+    same(uploads[0].with, COVERAGE_UPLOAD)
+    ? []
+    : [
+        `workspace-matrix.yml:coverage: run only ${COVERAGE_COMMAND} in parallel and upload ${JSON.stringify(COVERAGE_UPLOAD)} unless cancelled`,
+      ];
+}
+
 function qualityProblems(workflow, { allowedGhsas }) {
   const problems = [];
   const jobs = workflow.jobs ?? {};
@@ -700,31 +948,12 @@ function qualityProblems(workflow, { allowedGhsas }) {
     if (!validateRuns.includes(command))
       problems.push(`quality.yml:validate: must run ${command}`);
 
-  const blobs = stepsOf(jobs.test).filter(
-    (step) => usesOf(step) === "actions/upload-artifact",
-  );
-  if (
-    blobs.length !== 1 ||
-    blobs[0].with?.name !== "vitest-blob-${{ matrix.shard }}" ||
-    blobs[0].with?.overwrite !== "true"
-  )
-    problems.push(
-      "quality.yml:test: shard reports need one stable per-shard artifact name and overwrite true for failed-job reruns",
-    );
-  const blobDownload = stepsOf(jobs["test-report"]).filter(
-    (step) => usesOf(step) === "actions/download-artifact",
-  );
-  if (
-    blobDownload.length !== 1 ||
-    blobDownload[0].with?.pattern !== "vitest-blob-*" ||
-    blobDownload[0].with?.["merge-multiple"] !== "true" ||
-    ["github-token", "repository", "run-id"].some(
-      (key) => blobDownload[0].with?.[key] !== undefined,
-    )
-  )
-    problems.push(
-      "quality.yml:test-report: merge all per-shard artifacts from this same workflow run only",
-    );
+  problems.push(...testShardProblems(jobs.test), ...browserProblems(jobs));
+  for (const id of gated)
+    if (id !== "browser" && stepsOf(jobs[id]).some(isBuild))
+      problems.push(
+        `quality.yml:${id}: the smoke browser leg owns the only production build`,
+      );
 
   const review = stepsOf(jobs["dependency-review"]).find(
     (step) => usesOf(step) === "actions/dependency-review-action",
@@ -756,13 +985,6 @@ function qualityProblems(workflow, { allowedGhsas }) {
   if (release) {
     if (!asList(release.needs).includes("staging"))
       problems.push("quality.yml:release: must need staging");
-    const condition = String(release.if ?? "");
-    for (const required of [
-      "needs.staging.result == 'success'",
-      "needs.staging.outputs.outcome == 'STAGING_PASSED'",
-    ])
-      if (!condition.includes(required))
-        problems.push(`quality.yml:release: if must require ${required}`);
     if (/CONVEX_DEPLOY_KEY|CLERK_SECRET_KEY/.test(JSON.stringify(release)))
       problems.push(
         "quality.yml:release: production deploy credentials stay in Vercel",
@@ -809,6 +1031,7 @@ function auxiliaryProblems(name, workflow) {
       problems.push(
         "workspace-matrix.yml: must run with WORKSPACE_FULL_MATRIX=1",
       );
+    problems.push(...coverageProblems(workflow.jobs?.coverage));
   }
   if (name === "security-audit.yml") {
     const runs = jobs.flatMap(stepsOf).map((step) => String(step.run ?? ""));

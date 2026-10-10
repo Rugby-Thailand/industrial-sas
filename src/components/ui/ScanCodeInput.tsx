@@ -1,9 +1,9 @@
 "use client";
 
 import type { ComponentProps } from "react";
-import { ScanBarcode } from "lucide-react";
 import { IconButton } from "./IconButton";
 import { Input } from "./input";
+import { ScanIcon } from "./ScanIcon";
 import { cn } from "@/lib/utils";
 
 /** A code stays editable by keyboard; its adjacent action opens the owning scanner. */
@@ -32,17 +32,20 @@ export function ScanCodeInput({
         readOnly={readOnly}
         className={cn("min-h-12 pr-14 md:min-h-12", className)}
       />
-      <IconButton
-        label={scanLabel}
-        variant="default"
-        className="absolute top-1/2 right-0.5 size-11 shrink-0 -translate-y-1/2"
-        disabled={disabled || readOnly || scanDisabled}
-        aria-pressed={scanDialog ? undefined : scanning}
-        aria-haspopup={scanDialog ? "dialog" : undefined}
-        onClick={onScan}
-      >
-        <ScanBarcode className="size-5" aria-hidden="true" />
-      </IconButton>
+      {/* Keep centering separate from the button's press translation. */}
+      <div className="absolute inset-y-0 right-0.5 flex items-center">
+        <IconButton
+          label={scanLabel}
+          variant="ghost"
+          className="size-11 shrink-0"
+          disabled={disabled || readOnly || scanDisabled}
+          aria-pressed={scanDialog ? undefined : scanning}
+          aria-haspopup={scanDialog ? "dialog" : undefined}
+          onClick={onScan}
+        >
+          <ScanIcon className="size-5" aria-hidden="true" />
+        </IconButton>
+      </div>
     </div>
   );
 }

@@ -1,8 +1,10 @@
 name: Workspace matrix
 # Scheduled full storage-workspace matrix (T5/T14): widths 320/768/1024/1440
-# × Thai/English × light/dark against the deterministic Vite harness. No
+# × Thai/English × light/dark against the deterministic Vite harness, plus
+# informational full-suite Vitest coverage (T12) in a parallel job. No
 # backend, no authentication, no secrets; fixtures are synthetic. It never
-# deploys anything and is not part of the merge gate (PRs run a subset).
+# deploys anything and is not part of the merge gate (PRs run a subset and
+# collect no coverage).
 on:
   schedule:
     - cron: "40 20 * * 1"
@@ -47,3 +49,39 @@ jobs:
             playwright-report/workspace/
           retention-days: 7
           if-no-files-found: ignore
+
+  # Combined coverage of every Vitest project in one unsharded run, so the
+  # numbers describe the whole suite. Informational: no thresholds. V8
+  # instrumentation puts the heaviest emulated-backend import test (seven full
+  # snapshots, ~1,470 full-table scans) at 4.4–5.0 s against Vitest's 5 s
+  # default, so only this coverage run gets a 15 s budget.
+  coverage:
+    name: Full-suite coverage
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-node-pnpm
+      - name: Vitest with coverage
+        run: >-
+          pnpm exec vitest run
+          --coverage
+          --coverage.reportOnFailure
+          --testTimeout=15000
+          --reporter=default
+          --reporter=github-actions
+          --reporter=junit
+          --outputFile.junit=test-results/vitest-junit.xml
+      - name: Upload coverage and JUnit
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: vitest-coverage-${{ github.run_attempt }}
+          path: |
+            test-results/vitest-junit.xml
+            coverage/coverage-summary.json
+            coverage/lcov.info
+          retention-days: 7
+          if-no-files-found: error
