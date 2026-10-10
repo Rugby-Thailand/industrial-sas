@@ -1,4 +1,5 @@
 "use client";
+import { useForm, useStore } from "@tanstack/react-form";
 import { drafts } from "@/lib/browser/storage";
 
 import { useMutation, useQuery } from "convex/react";
@@ -19,6 +20,7 @@ import {
 import { Link, useRouter } from "@/i18n/navigation";
 import { fgRefs, type Product } from "@/lib/convex/finishedGoodsApi";
 import { ProductBatches } from "./ProductBatches";
+import { optimisticProductDetails } from "./optimisticProductDetails";
 import {
   ErrorNotice,
   FG_PATH,
@@ -208,14 +210,40 @@ function ProductForm({
   const { t, locale } = useFGText();
   const canManage = useCanManage();
   const router = useRouter();
-  const saveProduct = useMutation(fgRefs.saveProduct);
+  const saveProduct = useMutation(fgRefs.saveProduct).withOptimisticUpdate(
+    optimisticProductDetails,
+  );
   const key = `${draftScope}:${warehouseId}:${product?._id ?? "new"}`;
   const op = useOperation(key);
-  const [form, setForm] = useState(() =>
+  const [defaultValues] = useState(() =>
     canManage
       ? readDraft(key, initialDraft(product, locale))
       : initialDraft(product, locale),
   );
+  const [confirmedValues, setConfirmedValues] = useState(() =>
+    initialDraft(product, locale),
+  );
+  const productForm = useForm({
+    defaultValues,
+    onSubmitMeta: { next: false, packing: false },
+    listeners: {
+      onChange: ({ formApi }) => {
+        if (canManage) drafts.write(key, formApi.state.values);
+      },
+    },
+    onSubmit: async ({ value, meta }) => {
+      await saveValues(value, meta.next, meta.packing);
+    },
+  });
+  const form = useStore(productForm.store, (state) => state.values);
+  const dirty = useStore(
+    productForm.store,
+    (state) =>
+      state.isDirty ||
+      JSON.stringify(state.values) !== JSON.stringify(confirmedValues),
+  );
+  const busy =
+    useStore(productForm.store, (state) => state.isSubmitting) || op.busy;
   const storageConditions = [
     { value: "ANY", label: t("copy.no-special-condition") },
     { value: "AMBIENT", label: t("copy.ambient") },
@@ -228,10 +256,6 @@ function ProductForm({
       storageConditions.push({ value, label: value });
     }
   }
-  const [dirty, setDirty] = useState(
-    () =>
-      JSON.stringify(form) !== JSON.stringify(initialDraft(product, locale)),
-  );
   const [cancel, setCancel] = useState(false);
   const duplicateCatalogue = useQuery(
     fgRefs.productBySku,
@@ -244,19 +268,12 @@ function ProductForm({
       ? duplicateCatalogue.value
       : undefined;
   const productId = useRef(product?._id ?? form.savedProductId);
-  useUnsavedWarning(dirty);
-  function change<K extends keyof ProductDraft>(
-    field: K,
-    value: ProductDraft[K],
+  useUnsavedWarning(dirty || busy);
+  async function saveValues(
+    form: ProductDraft,
+    next: boolean,
+    packing: boolean,
   ) {
-    if (!canManage) return;
-    op.setError("");
-    const next = { ...form, [field]: value };
-    setForm(next);
-    setDirty(true);
-    drafts.write(key, next);
-  }
-  async function save(next: boolean, packing = false) {
     await op.run(async () => {
       if (!canManage) throw new Error("ACCESS_DENIED");
       if (next && (!form.sku.trim() || !form.name.trim() || !form.unit.trim()))
@@ -281,7 +298,8 @@ function ProductForm({
       );
       productId.current = id;
       drafts.write(key, { ...form, savedProductId: id });
-      setDirty(false);
+      setConfirmedValues(form);
+      productForm.reset(form);
       op.clearRequests();
       drafts.remove(key);
       router.push(
@@ -292,6 +310,9 @@ function ProductForm({
             : FG_PATH,
       );
     });
+  }
+  function save(next: boolean, packing = false) {
+    return productForm.handleSubmit({ next, packing });
   }
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -320,7 +341,7 @@ function ProductForm({
         </div>
       )}
       <form onSubmit={submit} className="max-w-3xl space-y-4">
-        <fieldset disabled={op.busy} className="min-w-0 space-y-4">
+        <fieldset disabled={busy} className="min-w-0 space-y-4">
           <ErrorNotice message={op.error} />
           {op.errorCode === "DUPLICATE_KEY" && op.error && duplicateProduct ? (
             <Button asChild variant="outline">
@@ -336,48 +357,83 @@ function ProductForm({
                   {t("copy.product-details")}
                 </h2>
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <Field
-                    label={t("copy.sku")}
-                    value={form.sku}
-                    onChange={(v) => change("sku", v)}
-                    required
-                    maxLength={64}
-                  />
-                  <Field
-                    label={t("copy.product-name")}
-                    value={form.name}
-                    onChange={(v) => change("name", v)}
-                    required
-                    maxLength={200}
-                  />
-                  <Field
-                    label={t("copy.counting-unit-78d38c")}
-                    value={form.unit}
-                    onChange={(v) => change("unit", v)}
-                    required
-                    maxLength={32}
-                  />
+                  <productForm.Field name="sku">
+                    {(field) => (
+                      <Field
+                        label={t("copy.sku")}
+                        value={field.state.value}
+                        onChange={(v) => {
+                          op.setError("");
+                          field.handleChange(v);
+                        }}
+                        required
+                        maxLength={64}
+                      />
+                    )}
+                  </productForm.Field>
+                  <productForm.Field name="name">
+                    {(field) => (
+                      <Field
+                        label={t("copy.product-name")}
+                        value={field.state.value}
+                        onChange={(v) => {
+                          op.setError("");
+                          field.handleChange(v);
+                        }}
+                        required
+                        maxLength={200}
+                      />
+                    )}
+                  </productForm.Field>
+                  <productForm.Field name="unit">
+                    {(field) => (
+                      <Field
+                        label={t("copy.counting-unit-78d38c")}
+                        value={field.state.value}
+                        onChange={(v) => {
+                          op.setError("");
+                          field.handleChange(v);
+                        }}
+                        required
+                        maxLength={32}
+                      />
+                    )}
+                  </productForm.Field>
                 </div>
               </section>
               <section className="border-b border-border pb-4">
                 <h2 className="mb-4 text-base leading-6 font-semibold">
                   {t("copy.storage-requirements")}
                 </h2>
-                <SelectControl
-                  label={t("copy.storage-condition")}
-                  value={form.storageCondition}
-                  onValueChange={(v) => change("storageCondition", v)}
-                  options={storageConditions}
-                  placeholder=""
-                  emptyLabel=""
-                />
+                <productForm.Field name="storageCondition">
+                  {(field) => (
+                    <SelectControl
+                      label={t("copy.storage-condition")}
+                      value={field.state.value}
+                      onValueChange={(v) => {
+                        op.setError("");
+                        field.handleChange(v);
+                      }}
+                      options={storageConditions}
+                      placeholder=""
+                      emptyLabel=""
+                    />
+                  )}
+                </productForm.Field>
                 <div className="mt-4">
-                  <Field
-                    label={t("copy.storage-notes")}
-                    value={form.notes}
-                    onChange={(v) => change("notes", v)}
-                    maxLength={1000}
-                  />
+                  <productForm.Field name="notes">
+                    {(field) => (
+                      <Field
+                        label={t("copy.storage-notes")}
+                        value={field.state.value}
+                        onChange={(v) => {
+                          op.setError("");
+                          field.handleChange(v);
+                        }}
+                        maxLength={1000}
+                      />
+                    )}
+                  </productForm.Field>
                 </div>
               </section>
               <details className="border-b border-border pb-3">
@@ -385,18 +441,32 @@ function ProductForm({
                   {t("copy.references-optional")}
                 </summary>
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                  <Field
-                    label={t("copy.customer-reference")}
-                    value={form.customerReference}
-                    onChange={(v) => change("customerReference", v)}
-                    maxLength={200}
-                  />
-                  <Field
-                    label={t("copy.product-reference")}
-                    value={form.productReference}
-                    onChange={(v) => change("productReference", v)}
-                    maxLength={200}
-                  />
+                  <productForm.Field name="customerReference">
+                    {(field) => (
+                      <Field
+                        label={t("copy.customer-reference")}
+                        value={field.state.value}
+                        onChange={(v) => {
+                          op.setError("");
+                          field.handleChange(v);
+                        }}
+                        maxLength={200}
+                      />
+                    )}
+                  </productForm.Field>
+                  <productForm.Field name="productReference">
+                    {(field) => (
+                      <Field
+                        label={t("copy.product-reference")}
+                        value={field.state.value}
+                        onChange={(v) => {
+                          op.setError("");
+                          field.handleChange(v);
+                        }}
+                        maxLength={200}
+                      />
+                    )}
+                  </productForm.Field>
                 </div>
               </details>
             </fieldset>
@@ -421,7 +491,7 @@ function ProductForm({
               <Button
                 type="button"
                 variant="ghost"
-                disabled={op.busy}
+                disabled={busy}
                 onClick={() => (dirty ? setCancel(true) : router.push(FG_PATH))}
               >
                 {t("copy.cancel")}
@@ -430,7 +500,7 @@ function ProductForm({
                 <Button
                   type="button"
                   variant="outline"
-                  disabled={op.busy}
+                  disabled={busy}
                   onClick={() => void save(false)}
                 >
                   {product?.status === "ACTIVE"
@@ -442,7 +512,7 @@ function ProductForm({
                 <Button
                   type="button"
                   variant={dirty ? "outline" : "default"}
-                  disabled={op.busy}
+                  disabled={busy}
                   onClick={() => void save(true, true)}
                 >
                   <PackagePlus className="size-4" aria-hidden="true" />
@@ -455,10 +525,10 @@ function ProductForm({
                   variant={
                     product && !resumePalletId && !dirty ? "outline" : "default"
                   }
-                  disabled={op.busy}
+                  disabled={busy}
                 >
                   <PackagePlus className="size-4" aria-hidden="true" />
-                  {op.busy
+                  {busy
                     ? t("copy.saving")
                     : resumePalletId
                       ? t("copy.return-to-measurement")
@@ -486,7 +556,8 @@ function ProductForm({
             <Button
               onClick={() => {
                 drafts.remove(key);
-                setDirty(false);
+                setConfirmedValues(productForm.state.values);
+                productForm.reset(productForm.state.values);
                 router.push(FG_PATH);
               }}
             >

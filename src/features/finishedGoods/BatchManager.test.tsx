@@ -294,7 +294,7 @@ it("opens a unit correction directly and focuses its identifiable replacement ro
   ).not.toBeInTheDocument();
 
   expect(screen.queryByText("P-002 · Replacement")).not.toBeInTheDocument();
-  expect(screen.getByText("P-003 · Replacement")).toBeVisible();
+  expect(await screen.findByText("P-003 · Replacement")).toBeVisible();
   await waitFor(() =>
     expect(screen.getByLabelText("P-003", { selector: "div" })).toHaveFocus(),
   );

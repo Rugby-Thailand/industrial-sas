@@ -170,13 +170,15 @@ beforeEach(() => {
   navigate("?editUnit=unit-a");
   mocks.query.mockReturnValue(batches());
 });
-it("waits for authoritative batches before opening the exact unit", () => {
+it("waits for authoritative batches before opening the exact unit", async () => {
   mocks.query.mockReturnValue(undefined);
   const view = render(component());
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   mocks.query.mockReturnValue(batches());
   view.rerender(component());
-  expect(screen.getByText("warehouse-a/batch-a/unit-a/edit")).toBeVisible();
+  expect(
+    await screen.findByText("warehouse-a/batch-a/unit-a/edit"),
+  ).toBeVisible();
   expect(mocks.query).toHaveBeenCalledWith(
     expect.stringContaining("resolveUnitBatch"),
     {
