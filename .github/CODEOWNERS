@@ -1,11 +1,8 @@
-# Critical-path ownership. The main ruleset requires an approving review from a
-# code owner for these paths. Every handle below was confirmed by the repository
-# admin as an eligible reviewer with write access (2026-10-09). Listing several
-# owners avoids a self-review deadlock: an author's own approval never counts,
-# so another listed owner must approve.
-#
-# Keep this list to release, security and data-integrity paths. Ordinary UI and
-# feature work needs the normal single approval only.
+# Critical-path ownership for optional review routing and incident triage.
+# Main requires passing automated CI and security checks; human approvals,
+# code-owner approval and approval from someone other than the last pusher
+# are optional. A maintainer may merge their own green PR.
+# Handles below were confirmed as eligible maintainers on 2026-10-09.
 
 # Workflows, composite actions, Dependabot and this file.
 /.github/                                   @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
@@ -49,7 +46,7 @@
 /src/lib/clerkConfiguration.ts              @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
 /src/lib/observability/                     @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
 
-# Guards that protect the paths above: removing or weakening them is reviewed.
+# Ownership for the guards that protect the paths above.
 /vitest.config.mts                          @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
 /tests/integration/clerk-webhook*.ts        @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator
 /tests/integration/identity*.ts             @Narungsih @Ruckth @VarongWiriyawit @giftchennissa-creator

@@ -1,7 +1,9 @@
 # Release and recovery runbook
 
 Production releases automatically after CI passes on the exact `main` commit.
-There is no manual release approval. People review pull requests before merge.
+There is no manual release approval. A maintainer may merge their own PR once
+the required automated checks pass; human and code-owner reviews are optional.
+Main still requires PRs, up-to-date CI/security checks and resolved conversations.
 After merge, the gates below decide whether a release goes ahead.
 This runbook covers what the pipeline does, which configuration it needs,
 and what an operator does when a gate fails. Platform facts are in

@@ -27,7 +27,7 @@ Both Vercel projects use Node 24.x. Staging is configured with Next.js, frozen p
 
 ## GitHub enforcement applied
 
-- Active [main ruleset](https://github.com/Rugby-Thailand/industrial-sas/rules/24799747), no bypass actors: deletion/non-fast-forward restrictions; one PR approval; stale-review dismissal; code-owner review; latest-push approval; resolved conversations; strict required `check`, `Analyze (javascript-typescript)` and `Analyze (actions)` from GitHub Actions (integration 15368), plus native `CodeQL` from GitHub Advanced Security (integration 57789).
+- Active [main ruleset](https://github.com/Rugby-Thailand/industrial-sas/rules/24799747), no bypass actors: deletion/non-fast-forward restrictions; pull requests with zero mandatory approvals; optional code-owner/last-push review; resolved conversations; strict required `check`, `Analyze (javascript-typescript)` and `Analyze (actions)` from GitHub Actions (integration 15368), plus native `CodeQL` from GitHub Advanced Security (integration 57789).
 - Secret scanning, push protection, vulnerability alerts, and automated security fixes enabled. Initial open secret-alert inventory was empty.
 - Actions SHA pinning enforced. Selected actions allow GitHub-owned actions plus `pnpm/action-setup@*` and `github/codeql-action/*@*`. Additional third-party actions require a reviewed allowlist update.
 - `production-release` and `staging` have a main-only branch policy, zero reviewers, and no wait timer. The user's release policy is automatic after CI passes.
@@ -129,3 +129,22 @@ Complete SARIF codeflows for [alert 3](https://github.com/Rugby-Thailand/industr
 [Alert 5](https://github.com/Rugby-Thailand/industrial-sas/security/code-scanning/5) is intentional scoped OIDC IPC. The credentialed request is restricted to the GitHub Actions HTTPS provider and refuses redirects; response token lifetime is checked, and a fixed token filename is atomically replaced inside private `0700` temporary storage with file mode `0600`. Refresh is bounded, workers receive only the path, upload/reporting excludes the file and `finally` removes the directory. No response-derived destination or executable is used. Independent review and the coordinator dismissed this contextual finding as a **false positive**, retaining evidence in the native alert. No query exclusion, inline suppression or broad dismissal policy was added.
 
 Dependency review's genuine `path-to-regexp@6.1.0` finding was fixed with an exact same-major `6.3.0` override and regenerated standalone lock. Both installed Vercel builders resolve the patched version; normal routing and bounded adverse-input checks passed. The pinned pnpm audit's alias-collision limitation and retained dependency-review requirement are documented in the [independent audit follow-up](ci-cd-platform-independent-audit.md#pr-security-scan-follow-up-2026-10-10). The final GitHub scan must confirm the source fixes and patched dependency review; earlier green jobs alone do not satisfy the required latest-head checks.
+
+## Owner-directed merge policy correction — 2026-10-10
+
+The owner requested a merge policy without a second-person approval wait.
+Ruleset `24799747` now requires zero approving reviews, with mandatory
+code-owner review, last-push approval, stale-approval dismissal and extra
+unattributed-change approvals disabled. `CODEOWNERS` remains for optional
+review routing and incident ownership. A maintainer may merge their own green
+PR. The PR requirement, strict current CI checks, both CodeQL analysis checks,
+native CodeQL alert result, resolved conversations, deletion/non-fast-forward
+protection and empty bypass list are retained. This supersedes the initial
+independent-review recommendation and the earlier approval settings recorded
+in the audit history. Production release remains automatic after main CI and
+staging pass.
+
+The speed improvement is removal of an indefinite human approval wait. It does
+not assert that CI execution became faster: the last observed green PR quality
+run took about two minutes, with jobs running in parallel. All automated test
+and security gates remain required.

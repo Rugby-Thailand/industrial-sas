@@ -61,6 +61,14 @@ checks instead of native previews. The disabled Git trigger takes effect only
 when this configuration reaches `main` as part of the coordinated cutover in the
 [release runbook](docs/operations/release-runbook.md).
 
+### Merging changes
+
+A maintainer can merge their own pull request after the required `check`, both
+CodeQL analyses and native `CodeQL` result pass. Human reviews are optional;
+`CODEOWNERS` routes review requests and identifies maintainers. Main still
+requires pull requests, current automated checks and resolved conversations,
+and blocks force pushes and deletion. There is no second-person approval wait.
+
 ### Automatic production release
 
 Production releases automatically, with no manual approval, after `Planner
