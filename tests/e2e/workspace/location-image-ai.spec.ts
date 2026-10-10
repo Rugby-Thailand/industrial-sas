@@ -138,6 +138,29 @@ test("AI opens a live camera, captures once, stops its stream and automatically 
     exact: true,
   });
   await expect(shutter).toBeEnabled();
+  const video = page.locator("video");
+  for (const [width, height] of [
+    [480, 640],
+    [640, 480],
+  ]) {
+    await expect
+      .poll(() =>
+        video.evaluate((node) =>
+          node instanceof HTMLVideoElement
+            ? [node.videoWidth, node.videoHeight]
+            : null,
+        ),
+      )
+      .toEqual([width, height]);
+    await expect
+      .poll(async () => {
+        const frame = await video.boundingBox();
+        return frame!.width / frame!.height;
+      })
+      .toBeCloseTo(width! / height!, 2);
+    if (width === 480)
+      await page.evaluate(() => window.resizeBarcodeFixtureCamera(640, 480));
+  }
   expect(await page.evaluate(() => window.locationAiRequests)).toEqual([]);
   await shutter.click();
   await expect(

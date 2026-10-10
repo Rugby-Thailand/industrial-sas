@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
   type Ref,
+  type SyntheticEvent,
 } from "react";
 import { Camera } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -33,6 +34,7 @@ export function LocationPhotoCamera({
   const delivering = useRef(false);
   const [attempt, setAttempt] = useState(0);
   const [state, setState] = useState<"starting" | "on" | "error">("starting");
+  const [videoAspect, setVideoAspect] = useState(16 / 9);
 
   const stop = useCallback(() => {
     generation.current++;
@@ -122,18 +124,27 @@ export function LocationPhotoCamera({
     }
   }
 
+  function measureVideo(event: SyntheticEvent<HTMLVideoElement>) {
+    const { videoWidth, videoHeight } = event.currentTarget;
+    if (videoWidth > 0 && videoHeight > 0)
+      setVideoAspect(videoWidth / videoHeight);
+  }
+
   return (
     <div className="space-y-3">
       <div
         hidden={state === "error"}
-        className="overflow-hidden rounded-lg bg-black"
+        className="relative mx-auto w-full overflow-hidden rounded-lg bg-black"
+        style={{ aspectRatio: videoAspect, maxWidth: 320 * videoAspect }}
       >
         <video
           ref={video}
           muted
           playsInline
           aria-label={t("cameraPreview")}
-          className="aspect-[4/3] max-h-80 w-full object-contain"
+          onLoadedMetadata={measureVideo}
+          onResize={measureVideo}
+          className="block h-full w-full object-contain"
         />
       </div>
       {state === "error" ? (
