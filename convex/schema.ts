@@ -89,7 +89,248 @@ const placementFields = {
   updatedByUserId: v.id("users"),
 };
 
+const hrSchedule = v.object({
+  workDays: v.array(v.number()),
+  startTime: v.string(),
+  endTime: v.string(),
+  endsNextDay: v.boolean(),
+  breakMinutes: v.number(),
+});
+/** The plan used for one business date, captured so later edits cannot rewrite it. */
+const hrPlan = v.object({
+  kind: v.union(v.literal("SCHEDULED"), v.literal("NONWORKING")),
+  startAt: v.optional(v.number()),
+  endAt: v.optional(v.number()),
+  startTime: v.optional(v.string()),
+  endTime: v.optional(v.string()),
+  endsNextDay: v.optional(v.boolean()),
+  breakMinutes: v.number(),
+  reason: v.optional(
+    v.union(
+      v.literal("HOLIDAY"),
+      v.literal("UNSCHEDULED"),
+      v.literal("NO_SCHEDULE"),
+    ),
+  ),
+  holidayName: v.optional(v.string()),
+});
+const hrDisposition = v.union(
+  v.literal("WORKED"),
+  v.literal("ABSENT"),
+  v.literal("LEAVE"),
+  v.literal("NONWORKING"),
+);
+
 const schema = defineSchema({
+  hrEmployees: defineTable(
+    tenantFields({
+      warehouseId: v.id("warehouses"),
+      code: v.string(),
+      displayName: v.string(),
+      userId: v.optional(v.id("users")),
+      supervisorUserId: v.optional(v.id("users")),
+      employmentStartDate: v.string(),
+      employmentEndDate: v.optional(v.string()),
+      status: v.union(v.literal("ACTIVE"), v.literal("INACTIVE")),
+      schedule: v.optional(hrSchedule),
+      version: v.number(),
+      createdAt: v.number(),
+      createdByUserId: v.id("users"),
+      updatedAt: v.number(),
+      updatedByUserId: v.id("users"),
+    }),
+  )
+    .index("by_orgId_code", byOrg("code"))
+    .index("by_orgId_userId", byOrg("userId"))
+    .index("by_orgId_warehouseId_code", byOrg("warehouseId", "code"))
+    .index("by_orgId_supervisorUserId", byOrg("supervisorUserId")),
+  hrHolidays: defineTable(
+    tenantFields({
+      warehouseId: v.id("warehouses"),
+      date: v.string(),
+      name: v.string(),
+      createdAt: v.number(),
+      createdByUserId: v.id("users"),
+    }),
+  ).index("by_orgId_warehouseId_date", byOrg("warehouseId", "date")),
+  hrAttendanceDays: defineTable(
+    tenantFields({
+      employeeId: v.id("hrEmployees"),
+      warehouseId: v.id("warehouses"),
+      businessDate: v.string(),
+      plan: hrPlan,
+      clockInAt: v.optional(v.number()),
+      clockOutAt: v.optional(v.number()),
+      /** Clocked in, not clocked out and not yet resolved by a decision. */
+      open: v.boolean(),
+      revision: v.number(),
+      pendingCorrectionId: v.optional(v.id("hrCorrectionRequests")),
+      /** Earlier certifications replaced by a later decision; never pruned. */
+      certificationHistory: v.optional(
+        v.array(
+          v.object({
+            disposition: hrDisposition,
+            startAt: v.optional(v.number()),
+            endAt: v.optional(v.number()),
+            reason: v.string(),
+            decidedByUserId: v.id("users"),
+            decidedAt: v.number(),
+          }),
+        ),
+      ),
+      certification: v.optional(
+        v.object({
+          disposition: hrDisposition,
+          startAt: v.optional(v.number()),
+          endAt: v.optional(v.number()),
+          revision: v.number(),
+          reason: v.string(),
+          decidedByUserId: v.id("users"),
+          decidedAt: v.number(),
+          correctionId: v.optional(v.id("hrCorrectionRequests")),
+        }),
+      ),
+      createdAt: v.number(),
+      updatedAt: v.number(),
+    }),
+  )
+    .index(
+      "by_orgId_employeeId_businessDate",
+      byOrg("employeeId", "businessDate"),
+    )
+    .index(
+      "by_orgId_warehouseId_businessDate",
+      byOrg("warehouseId", "businessDate"),
+    )
+    .index("by_orgId_employeeId_open", byOrg("employeeId", "open")),
+  /** Original clock events; never edited or deleted. */
+  hrAttendanceEvents: defineTable(
+    tenantFields({
+      dayId: v.id("hrAttendanceDays"),
+      employeeId: v.id("hrEmployees"),
+      warehouseId: v.id("warehouses"),
+      businessDate: v.string(),
+      kind: v.union(v.literal("CLOCK_IN"), v.literal("CLOCK_OUT")),
+      occurredAt: v.number(),
+      actorUserId: v.id("users"),
+      requestId: v.string(),
+      source: v.literal("ONLINE_SELF"),
+    }),
+  ).index("by_orgId_dayId", byOrg("dayId")),
+  hrCorrectionRequests: defineTable(
+    tenantFields({
+      dayId: v.id("hrAttendanceDays"),
+      employeeId: v.id("hrEmployees"),
+      warehouseId: v.id("warehouses"),
+      businessDate: v.string(),
+      status: v.union(
+        v.literal("PENDING"),
+        v.literal("CERTIFIED"),
+        v.literal("RETURNED"),
+      ),
+      proposedStartAt: v.number(),
+      proposedEndAt: v.number(),
+      reason: v.string(),
+      baseRevision: v.number(),
+      version: v.number(),
+      submittedByUserId: v.id("users"),
+      submittedAt: v.number(),
+      decidedByUserId: v.optional(v.id("users")),
+      decidedAt: v.optional(v.number()),
+      decisionReason: v.optional(v.string()),
+      history: v.array(
+        v.object({
+          action: v.union(
+            v.literal("SUBMITTED"),
+            v.literal("CERTIFIED"),
+            v.literal("RETURNED"),
+          ),
+          actorUserId: v.id("users"),
+          at: v.number(),
+          reason: v.optional(v.string()),
+          proposedStartAt: v.optional(v.number()),
+          proposedEndAt: v.optional(v.number()),
+        }),
+      ),
+    }),
+  )
+    .index("by_orgId_dayId", byOrg("dayId"))
+    .index("by_orgId_dayId_submittedAt", byOrg("dayId", "submittedAt"))
+    .index(
+      "by_orgId_employeeId_businessDate",
+      byOrg("employeeId", "businessDate"),
+    ),
+  /** One period identity per site range; versions record each close. */
+  hrPeriods: defineTable(
+    tenantFields({
+      warehouseId: v.id("warehouses"),
+      startDate: v.string(),
+      endDate: v.string(),
+      status: v.union(v.literal("DRAFT"), v.literal("CLOSED")),
+      /** The version number the current draft will close as. */
+      draftVersion: v.number(),
+      latestClosedVersion: v.number(),
+      revisionReason: v.optional(v.string()),
+      createdAt: v.number(),
+      createdByUserId: v.id("users"),
+      updatedAt: v.number(),
+      updatedByUserId: v.id("users"),
+    }),
+  ).index("by_orgId_warehouseId_startDate", byOrg("warehouseId", "startDate")),
+  /**
+   * Persisted per-actor counters for rate-limited actions (AI Search). One
+   * row per (actor, key); the window resets in place, so it never grows.
+   */
+  actionQuotas: defineTable(
+    tenantFields({
+      actorUserId: v.id("users"),
+      key: v.string(),
+      windowStart: v.number(),
+      count: v.number(),
+    }),
+  ).index("by_orgId_actorUserId_key", byOrg("actorUserId", "key")),
+  hrPeriodVersions: defineTable(
+    tenantFields({
+      periodId: v.id("hrPeriods"),
+      warehouseId: v.id("warehouses"),
+      version: v.number(),
+      startDate: v.string(),
+      endDate: v.string(),
+      timezone: v.string(),
+      siteCode: v.string(),
+      siteName: v.string(),
+      revisionReason: v.optional(v.string()),
+      fingerprint: v.string(),
+      totals: v.object({
+        employees: v.number(),
+        days: v.number(),
+        workedMinutes: v.number(),
+        outsideShiftMinutes: v.number(),
+        absentDays: v.number(),
+        leaveDays: v.number(),
+        nonworkingDays: v.number(),
+      }),
+      closedByUserId: v.id("users"),
+      closedAt: v.number(),
+    }),
+  ).index("by_orgId_periodId_version", byOrg("periodId", "version")),
+  /** Frozen output of one closed version. */
+  hrPeriodRows: defineTable(
+    tenantFields({
+      versionId: v.id("hrPeriodVersions"),
+      employeeId: v.id("hrEmployees"),
+      employeeCode: v.string(),
+      employeeName: v.string(),
+      businessDate: v.string(),
+      plan: hrPlan,
+      actualStartAt: v.optional(v.number()),
+      actualEndAt: v.optional(v.number()),
+      workedMinutes: v.number(),
+      outsideShiftMinutes: v.number(),
+      disposition: hrDisposition,
+      correctionReason: v.optional(v.string()),
+    }),
+  ).index("by_orgId_versionId", byOrg("versionId")),
   finishedGoodsUnitContributions: defineTable(
     tenantFields({
       warehouseId: v.id("warehouses"),

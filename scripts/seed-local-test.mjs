@@ -29,6 +29,7 @@ if (process.env.ALLOW_LOCAL_TEST_SEED !== "true") {
 
 const paginationProfile = process.argv.includes("--pagination");
 const storageUiProfile = process.argv.includes("--storage-ui");
+const hrProfile = process.argv.includes("--hr");
 const confirmation = "SEED_DEMO_ANNEX_REALISTIC_2026_09";
 const clerkUserId =
   process.env.LOCAL_TEST_CLERK_USER_ID ?? "user_3JXrAsAOLBWzV5TTHPQjOX5WaQd";
@@ -112,6 +113,13 @@ const jobScans = run("staging/jobScanDemo:seed", {
   actorUserId: bootstrap.userId,
   confirmation: "LOCAL_JOB_SCAN_FIXTURES_V1",
 });
+const hr = hrProfile
+  ? run("staging/hrDemo:seed", {
+      warehouseId: bootstrap.warehouseId,
+      actorUserId: bootstrap.userId,
+      confirmation: "LOCAL_HR_FIXTURES_V1",
+    })
+  : null;
 let summaries = run("staging/summaryBackfill:run", {
   warehouseId: bootstrap.warehouseId,
   restart: true,
@@ -165,6 +173,7 @@ const fixture = {
     ],
   },
   storageUiProfile: storageUi,
+  hrProfile: hr,
   paginationProfile: paginationProfile
     ? {
         products: 121,

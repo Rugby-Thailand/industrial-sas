@@ -42,8 +42,18 @@ import {
   type PublicAuthorizationDenial,
   type TenantFunctionKind,
 } from "./authorization";
+import {
+  assertActionRateLimit,
+  consumeActionQuota,
+  type ActionQuotaVerdict,
+  type ActionRateLimit,
+} from "./actionQuota";
 import { createConvexAuthorizationLookups } from "./authorizationLookupsConvex";
 import type { PermissionDefinition } from "./permissions";
+import {
+  createMemberDirectory,
+  type MemberDirectoryPort,
+} from "./memberDirectory";
 import {
   createPrivateFileStorage,
   type PrivateFileStoragePort,
@@ -88,6 +98,8 @@ export interface TenantFunctionContext {
   readonly tenant: ActiveTenantContext;
   readonly tenantDb: TenantDocumentAccess;
   readonly privateFiles: PrivateFileStoragePort;
+  /** Members of the active organization only; see `memberDirectory.ts`. */
+  readonly members: MemberDirectoryPort;
 
   readonly permission: PermissionDefinition;
 }
@@ -97,6 +109,12 @@ export interface TenantActionFunctionContext {
   readonly identity: UserIdentity;
   readonly tenant: ActiveTenantContext;
   readonly permission: PermissionDefinition;
+  /**
+   * Present when the action declares `rateLimit`: the persisted per-actor
+   * quota consumed by the authorization preflight. The handler must refuse
+   * the work when `allowed` is false.
+   */
+  readonly quota?: ActionQuotaVerdict;
 }
 
 export interface TenantPolicyContext {
@@ -170,6 +188,8 @@ type TenantActionDefinition<
   >,
   "handler" | "policy"
 > & {
+  /** A persisted per-actor quota, consumed only after authorization passes. */
+  readonly rateLimit?: ActionRateLimit;
   readonly handler: (
     ctx: TenantActionFunctionContext,
     ...args: OneOrZeroArgs
@@ -498,6 +518,10 @@ async function runTenantHandler<Args extends readonly unknown[], ReturnValue>(
               };
         },
       ),
+      members: createMemberDirectory(
+        rawContext.db,
+        resolved.context.organization._id,
+      ),
       permission: spec.permission,
     });
 
@@ -524,6 +548,9 @@ export const actionAuthorizationPreflight = internalMutationGeneric({
     warehouseId: v.optional(v.id("warehouses")),
     installationId: v.optional(v.string()),
     entitlementKey: v.optional(v.string()),
+    rateLimit: v.optional(
+      v.object({ key: v.string(), limit: v.number(), windowMs: v.number() }),
+    ),
   },
   handler: async (ctx, args) => {
     const { requestId } = args;
@@ -574,9 +601,20 @@ export const actionAuthorizationPreflight = internalMutationGeneric({
         audit: true,
       });
 
-      return allowed
-        ? { ok: true as const, context: resolved.context }
-        : { ok: false as const };
+      if (!allowed) return { ok: false as const };
+      if (args.rateLimit === undefined)
+        return { ok: true as const, context: resolved.context };
+      assertActionRateLimit(args.rateLimit);
+      return {
+        ok: true as const,
+        context: resolved.context,
+        quota: await consumeActionQuota(
+          tenantDb,
+          resolved.context.actor._id,
+          args.rateLimit,
+          Date.now(),
+        ),
+      };
     } catch (error) {
       if (error instanceof ConvexError) throw error;
       if (error instanceof TenantDbError) {
@@ -588,7 +626,11 @@ export const actionAuthorizationPreflight = internalMutationGeneric({
 });
 
 type PreflightVerdict =
-  | { readonly ok: true; readonly context: ActiveTenantContext }
+  | {
+      readonly ok: true;
+      readonly context: ActiveTenantContext;
+      readonly quota?: ActionQuotaVerdict;
+    }
   | { readonly ok: false };
 
 const actionAuthorizationPreflightReference = makeFunctionReference<
@@ -601,6 +643,7 @@ const actionAuthorizationPreflightReference = makeFunctionReference<
     readonly warehouseId?: WarehouseId;
     readonly installationId?: string;
     readonly entitlementKey?: string;
+    readonly rateLimit?: ActionRateLimit;
   },
   PreflightVerdict
 >("lib/tenantFunctions:actionAuthorizationPreflight");
@@ -610,6 +653,7 @@ async function runTenantAction<Args extends readonly unknown[], ReturnValue>(
   args: Args,
   warehouseId: ((args: Args[0]) => WarehouseId | undefined) | undefined,
   spec: AuthorizationSpec<Args>,
+  rateLimit: ActionRateLimit | undefined,
   handler: (ctx: TenantActionFunctionContext, ...args: Args) => ReturnValue,
 ): Promise<TenantFunctionOutcome<Awaited<ReturnValue>>> {
   const requestId = mintRequestId();
@@ -637,6 +681,7 @@ async function runTenantAction<Args extends readonly unknown[], ReturnValue>(
         ...(spec.entitlementKey === undefined
           ? {}
           : { entitlementKey: spec.entitlementKey }),
+        ...(rateLimit === undefined ? {} : { rateLimit }),
       },
     );
   } catch (error) {
@@ -663,6 +708,7 @@ async function runTenantAction<Args extends readonly unknown[], ReturnValue>(
     identity,
     tenant: verdict.context,
     permission: spec.permission,
+    ...(verdict.quota === undefined ? {} : { quota: verdict.quota }),
   });
 
   try {
@@ -845,6 +891,8 @@ export function actionWithOrg<
   TenantFunctionOutcome<RegisteredReturn<ReturnsValidator, ReturnValue>>
 > {
   const spec = authorizationSpecOf<OneOrZeroArgs>("action", definition);
+  if (definition.rateLimit !== undefined)
+    assertActionRateLimit(definition.rateLimit);
 
   return actionGeneric<
     ArgsValidator,
@@ -860,6 +908,7 @@ export function actionWithOrg<
         args,
         definition.warehouseId,
         spec,
+        definition.rateLimit,
         definition.handler,
       ) as unknown as ReturnValue,
   }) as unknown as RegisteredAction<
