@@ -136,7 +136,13 @@ test("camera preview and scan guide follow the actual feed through orientation a
     [1280, 720],
   ]) {
     await expect
-      .poll(() => video.evaluate((node) => [node.videoWidth, node.videoHeight]))
+      .poll(() =>
+        video.evaluate((node) =>
+          node instanceof HTMLVideoElement
+            ? [node.videoWidth, node.videoHeight]
+            : null,
+        ),
+      )
       .toEqual([width, height]);
     await expect
       .poll(async () => {
