@@ -124,3 +124,67 @@ test("the real camera decoder reads a skewed label and stops its owned track", a
     ),
   ).toEqual(["ended"]);
 });
+
+test("camera preview and scan guide follow the actual feed through orientation and viewport changes", async ({
+  page,
+}) => {
+  await page.goto(`${url}/?camera=landscape`);
+  const video = page.locator("video");
+  for (const [width, height] of [
+    [640, 480],
+    [480, 640],
+    [1280, 720],
+  ]) {
+    await expect
+      .poll(() => video.evaluate((node) => [node.videoWidth, node.videoHeight]))
+      .toEqual([width, height]);
+    await expect
+      .poll(async () => {
+        const frame = await video.boundingBox();
+        return frame!.width / frame!.height;
+      })
+      .toBeCloseTo(width! / height!, 2);
+    const frame = await video.boundingBox();
+    expect(frame).not.toBeNull();
+    expect(frame!.width / frame!.height).toBeCloseTo(width! / height!, 2);
+    expect(frame!.height).toBeLessThanOrEqual(320.5);
+    const guide = await video
+      .locator("..")
+      .locator('div[aria-hidden="true"]')
+      .boundingBox();
+    expect(guide!.x).toBeGreaterThan(frame!.x);
+    expect(guide!.y).toBeGreaterThan(frame!.y);
+    expect(guide!.x + guide!.width).toBeLessThan(frame!.x + frame!.width);
+    expect(guide!.y + guide!.height).toBeLessThan(frame!.y + frame!.height);
+    if (width === 640)
+      await page.evaluate(() => window.resizeBarcodeFixtureCamera(480, 640));
+    else if (width === 480)
+      await page.evaluate(() => window.resizeBarcodeFixtureCamera(1280, 720));
+  }
+  await page.setViewportSize({ width: 320, height: 900 });
+  const compact = await video.boundingBox();
+  expect(compact!.width / compact!.height).toBeCloseTo(16 / 9, 2);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth - innerWidth,
+    ),
+  ).toBe(0);
+  expect(await page.evaluate(() => window.barcodeFixtureConstraints)).toEqual([
+    {
+      audio: false,
+      video: {
+        facingMode: { ideal: "environment" },
+        width: { ideal: 1920 },
+        height: { ideal: 1080 },
+      },
+    },
+  ]);
+  await page.getByRole("button", { name: "Stop camera", exact: true }).click();
+  expect(
+    await page.evaluate(() =>
+      window.barcodeFixtureStreams.flatMap((stream) =>
+        stream.getTracks().map((track) => track.readyState),
+      ),
+    ),
+  ).toEqual(["ended"]);
+});

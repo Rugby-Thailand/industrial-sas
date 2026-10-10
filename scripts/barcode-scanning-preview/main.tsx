@@ -26,6 +26,8 @@ declare global {
   interface Window {
     runBarcodePhotoRegression: () => Promise<unknown>;
     barcodeFixtureStreams: MediaStream[];
+    barcodeFixtureConstraints: MediaStreamConstraints[];
+    resizeBarcodeFixtureCamera: (width: number, height: number) => void;
     selectGeneratedBarcodePhoto: (kind: "qr" | "multiple") => Promise<void>;
     locationAiResponse: LocationImageResult;
     locationAiDelay: number;
@@ -39,6 +41,7 @@ declare global {
   }
 }
 window.barcodeFixtureStreams = [];
+window.barcodeFixtureConstraints = [];
 // The provider port is deliberately synthetic; acquisition, preprocessing,
 // candidate review and source switching use the real production components.
 window.locationAiResponse = {
@@ -89,24 +92,51 @@ window.selectGeneratedBarcodePhoto = async (kind) => {
 };
 
 async function installFixtureCamera() {
-  const fixture = fixtures.find(
-    (item) =>
-      item.path.slice(1) === new URLSearchParams(location.search).get("camera"),
-  );
-  if (!fixture) return;
-  const image = new Image();
-  image.src = fixture.path;
-  await image.decode();
+  const camera = new URLSearchParams(location.search).get("camera");
+  const fixture = fixtures.find((item) => item.path.slice(1) === camera);
+  const sizes: Record<string, [number, number]> = {
+    portrait: [480, 640],
+    landscape: [640, 480],
+    wide: [1280, 720],
+  };
+  const size = camera ? sizes[camera] : undefined;
+  if (!fixture && !size) return;
+  const image = fixture ? new Image() : undefined;
+  if (image && fixture) {
+    image.src = fixture.path;
+    await image.decode();
+  }
   Object.defineProperty(navigator.mediaDevices, "getUserMedia", {
     configurable: true,
-    value: async () => {
+    value: async (constraints: MediaStreamConstraints) => {
+      window.barcodeFixtureConstraints.push(constraints);
       const canvas = document.createElement("canvas");
-      canvas.width = image.naturalWidth;
-      canvas.height = image.naturalHeight;
+      canvas.width = image?.naturalWidth ?? size![0];
+      canvas.height = image?.naturalHeight ?? size![1];
       const context = canvas.getContext("2d")!;
-      context.drawImage(image, 0, 0);
+      const draw = () => {
+        if (image) context.drawImage(image, 0, 0);
+        else {
+          context.fillStyle = "#164e63";
+          context.fillRect(0, 0, canvas.width, canvas.height);
+          context.fillStyle = "#a5f3fc";
+          context.fillRect(0, 0, 30, canvas.height);
+          context.fillRect(canvas.width - 30, 0, 30, canvas.height);
+          context.fillRect(0, 0, canvas.width, 30);
+          context.fillRect(0, canvas.height - 30, canvas.width, 30);
+          context.fillStyle = "white";
+          context.font = "28px sans-serif";
+          context.fillText("Camera preview", 45, 75);
+        }
+      };
+      window.resizeBarcodeFixtureCamera = (width, height) => {
+        canvas.width = width;
+        canvas.height = height;
+        draw();
+      };
+      draw();
       const stream = canvas.captureStream(8);
-      const timer = setInterval(() => context.drawImage(image, 0, 0), 125);
+      const timer = setInterval(draw, 125);
       for (const track of stream.getTracks()) {
         const stop = track.stop.bind(track);
         track.stop = () => {

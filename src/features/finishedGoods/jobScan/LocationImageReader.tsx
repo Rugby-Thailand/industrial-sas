@@ -41,8 +41,8 @@ export function LocationImageReader({
   const id = useId();
   const picker = useRef<HTMLInputElement>(null);
   const capture = useRef<HTMLInputElement>(null);
-  const preview = useRef<HTMLImageElement>(null);
   const [photo, setPhoto] = useState(initialPhoto);
+  const [previewUrl, setPreviewUrl] = useState<string>();
   const [busy, setBusy] = useState(false);
   const [candidates, setCandidates] = useState<
     readonly LocationLabelCandidate[]
@@ -62,7 +62,8 @@ export function LocationImageReader({
   }, []);
   useEffect(() => {
     const url = photo ? URL.createObjectURL(photo.file) : undefined;
-    if (url && preview.current) preview.current.src = url;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- the browser-owned URL must follow the effect's allocation/cleanup lifetime
+    setPreviewUrl(url);
     return () => {
       cancelPending();
       if (url) URL.revokeObjectURL(url);
@@ -195,7 +196,7 @@ export function LocationImageReader({
           <div className="relative overflow-hidden rounded-lg bg-black">
             {/* eslint-disable-next-line @next/next/no-img-element -- local photo preview and normalized crop share the same geometry */}
             <img
-              ref={preview}
+              src={previewUrl}
               alt={t("locationAiPhoto")}
               className="block h-auto w-full"
             />
