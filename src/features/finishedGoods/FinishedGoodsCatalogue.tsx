@@ -2,7 +2,7 @@
 
 import { useQuery } from "convex/react";
 import { useEffect, useRef } from "react";
-import { Box, LayoutGrid, List, Plus, ScanLine } from "lucide-react";
+import { Box, LayoutGrid, List, Plus } from "lucide-react";
 import { SummaryPreparation } from "./SummaryPreparation";
 import { CursorPagination } from "@/components/system/CursorPagination";
 import { useCursorPagination } from "@/hooks/useCursorPagination";
@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { StatusReason } from "@/components/ui/StatusReason";
 import { CollectionToolbar } from "@/components/system/CollectionToolbar";
 import { IconButton } from "@/components/ui/IconButton";
+import { ScanIcon } from "@/components/ui/ScanIcon";
 import { Link } from "@/i18n/navigation";
 import { fgRefs } from "@/lib/convex/finishedGoodsApi";
 import { CatalogueFiltersButton, FilterChips } from "./CatalogueFilterControls";
@@ -162,7 +163,7 @@ function Catalogue({
             tooltip={t("copy.scan-packages-27bf0c")}
           >
             <Link href={`${FG_PATH}/scan`}>
-              <ScanLine className="size-5" aria-hidden="true" />
+              <ScanIcon className="size-5" aria-hidden="true" />
             </Link>
           </IconButton>
         )}

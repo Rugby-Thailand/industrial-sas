@@ -2,13 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useAction, useMutation } from "convex/react";
-import {
-  Camera,
-  CheckCircle2,
-  Keyboard,
-  MapPin,
-  ScanBarcode,
-} from "lucide-react";
+import { Camera, CheckCircle2, Keyboard, MapPin } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { QueryGate } from "@/components/system/QueryGate";
 import { Button } from "@/components/ui/button";
@@ -17,6 +11,7 @@ import { Panel } from "@/components/ui/Panel";
 import { CheckboxControl } from "@/components/ui/CheckboxControl";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { StickyActionBar } from "@/components/ui/StickyActionBar";
+import { ScanIcon } from "@/components/ui/ScanIcon";
 import { Link } from "@/i18n/navigation";
 import { fgRefs } from "@/lib/convex/finishedGoodsApi";
 import { useUploadThing } from "@/lib/uploadthing";
@@ -431,7 +426,7 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
               changePanel(panel === "BARCODE" ? null : "BARCODE");
             }}
           >
-            <ScanBarcode className="size-4" aria-hidden="true" />
+            <ScanIcon className="size-4" aria-hidden="true" />
             {t("barcode")}
           </Button>
           <Button
