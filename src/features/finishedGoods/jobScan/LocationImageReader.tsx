@@ -62,8 +62,10 @@ export function LocationImageReader({
   }, []);
   useEffect(() => {
     const url = photo ? URL.createObjectURL(photo.file) : undefined;
+    // Only bind the browser-generated blob scheme, with URI-encoded characters.
+    const source = url?.startsWith("blob:") ? encodeURI(url) : undefined;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- the browser-owned URL must follow the effect's allocation/cleanup lifetime
-    setPreviewUrl(url);
+    setPreviewUrl(source);
     return () => {
       cancelPending();
       if (url) URL.revokeObjectURL(url);
