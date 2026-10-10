@@ -126,7 +126,7 @@ Timeout, network failure, response เสีย หรือไม่มี usag
 
 Default fee estimate ของ Standard plan เป็น 5.5% และแก้ได้ตามบัญชี เพราะ [OpenRouter](https://openrouter.ai/business) คิดค่าธรรมเนียมตอนซื้อเครดิต ไม่ได้เพิ่มในค่า inference ต่อ request ที่ใช้ใน `usage.cost` หน้าและ CSV ต้องแยกยอดจริง USD ออกจากยอดบาท/fee ที่ประมาณ การเทียบใบเสร็จเติมเงินจริงต้องใช้ยอดและ fee จากใบเสร็จ อาจต่างจากการเฉลี่ย 5.5% ต่อรูป
 
-รวมยอดด้วยความละเอียดสูงก่อนปัดตอนแสดงผล: ต่อรูป 4–6 ตำแหน่งบาท และยอดรวม 2 ตำแหน่ง CSV export แนบ FX rate, settings version และ fee estimate ไม่รวม unknown cost เป็น zero
+รวมยอดด้วยความละเอียดสูงก่อนปัดตอนแสดงผล: หน้ารายงาน Design 1 ที่ผู้ใช้เลือกวันที่ 2026-10-10 แสดงบาท 4 ตำแหน่งทั้งยอดรวมและค่าเฉลี่ย เพื่อให้อ่านต้นทุนที่ต่ำกว่าหนึ่งสตางค์ได้ โดยแทนข้อเสนอเดิมที่ปัดยอดรวมเหลือ 2 ตำแหน่ง CSV export แนบ FX rate, settings version และ fee estimate ไม่รวม unknown cost เป็น zero
 
 ## ลำดับ implementation
 
