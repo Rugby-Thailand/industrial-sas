@@ -9,6 +9,7 @@ export const SHELL_NAMESPACES = [
   "Locale",
   "Navigation",
   "Panel",
+  "Search",
   "Workspace",
 ] as const satisfies readonly MessageNamespace[];
 
@@ -34,7 +35,9 @@ export const ROUTE_NAMESPACES = {
     "Write",
     "WriteError",
   ],
+  "(desktop)/ai-usage": ["App", "AiUsage", "Panel", "Table"],
   "(desktop)/setup": ["App", "Setup"],
+  "(desktop)/hr": ["App", "Hr", "Navigation", "Panel", "Table"],
 } as const satisfies Record<string, readonly MessageNamespace[]>;
 
 export type RouteMessageScope = keyof typeof ROUTE_NAMESPACES;

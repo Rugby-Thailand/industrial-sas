@@ -188,6 +188,20 @@ function example<K extends Kind>(
 // compares this inventory with runtime registered exports, so new modules
 // cannot silently be omitted. This is representative coverage, not all 87 APIs.
 export const PUBLIC_API_EXAMPLES: readonly PublicApiExample[] = [
+  example("aiUsage/reports:summary", "query", () => ({})),
+  example("hr/access:current", "query", () => ({})),
+  example("hr/navigationIntent:interpret", "action", () => ({
+    query: "",
+    context: { page: null, employee: false, date: false, period: false },
+  })),
+  example("hr/periods:list", "query", () => ({})),
+  example("hr/review:queue", "query", () => ({
+    from: "2026-10-01",
+    to: "2026-10-01",
+  })),
+  example("hr/search:adminEmployees", "query", () => ({ text: "fixture" })),
+  example("hr/self:profile", "query", () => ({})),
+  example("hr/setup:listEmployees", "query", () => ({})),
   example("finishedGoods/batches:getBatch", "query", (w) => ({
     warehouseId: w.warehouses.alphaA,
     batchId: w.batchId,
