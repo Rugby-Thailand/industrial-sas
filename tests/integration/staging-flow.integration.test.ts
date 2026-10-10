@@ -503,6 +503,11 @@ describe("per-run provisioning and owned-resource recovery controller", () => {
       }
       return create(args);
     };
+    const createOrganization = model.clerk.organizations.createOrganization;
+    model.clerk.organizations.createOrganization = async (args) => {
+      if (/\d{10,}/.test(args.name)) throw { status: 422 };
+      return createOrganization(args);
+    };
     const state = await provisionStagingFixture({
       ...model,
       statePath: path,
