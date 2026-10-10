@@ -152,8 +152,6 @@ describe("aggregate quality gate", () => {
     "validate",
     "codegen",
     "test",
-    "test-report",
-    "build",
     "browser",
     "dependency-review",
   ];
@@ -161,8 +159,6 @@ describe("aggregate quality gate", () => {
     validate: "success",
     codegen: "success",
     test: "success",
-    "test-report": "success",
-    build: "success",
     browser: "success",
     "dependency-review": "success",
     ...overrides,

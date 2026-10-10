@@ -89,83 +89,39 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-node-pnpm
-      # Blob reports carry results and V8 coverage; `test-report` merges both
-      # shards into one JUnit file and one combined coverage summary.
+      # Every Vitest project, split by native sharding. Each shard's own exit
+      # status gates `check`; its native JUnit file is the report. Combined
+      # coverage runs in the scheduled/manual `Workspace matrix` workflow.
       - name: Vitest shard
         run: >-
           pnpm exec vitest run
           --shard=${{ matrix.shard }}/3
-          --coverage
           --reporter=default
           --reporter=github-actions
-          --reporter=blob
-          --outputFile.blob=test-results/vitest-blob/blob-${{ matrix.shard }}-3.json
-      - name: Upload shard report
+          --reporter=junit
+          --outputFile.junit=test-results/vitest-junit/shard-${{ matrix.shard }}-3.xml
+      - name: Upload shard JUnit
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: vitest-blob-${{ matrix.shard }}
-          # Re-running a failed shard replaces its report; untouched successful
-          # shards from this same run/SHA remain available to the merge job.
+          name: vitest-junit-${{ matrix.shard }}
+          # Re-running a failed shard replaces only its own report.
           overwrite: true
-          path: test-results/vitest-blob/blob-${{ matrix.shard }}-3.json
-          retention-days: 3
+          path: test-results/vitest-junit/shard-${{ matrix.shard }}-3.xml
+          retention-days: 7
           if-no-files-found: error
 
-  test-report:
-    name: Test report
-    needs: [test]
-    # Also runs after a failed shard so the merged diagnostics survive; it
-    # fails whenever a shard report is missing or any test failed.
-    if: ${{ !cancelled() }}
+  # One leg per suite; `needs.browser.result` is success only if both pass.
+  # Smoke owns the only production build in this workflow. The Vite
+  # workspace harness needs no Next.js build.
+  browser:
+    name: Browser (${{ matrix.suite }})
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - id: setup
-        uses: ./.github/actions/setup-node-pnpm
-      - name: Download shard reports
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          pattern: vitest-blob-*
-          path: test-results/vitest-blob
-          merge-multiple: true
-      - name: Merge reports and coverage
-        id: merge
-        run: >-
-          pnpm exec vitest run
-          --merge-reports=test-results/vitest-blob
-          --coverage
-          --reporter=default
-          --reporter=junit
-          --outputFile.junit=test-results/vitest-junit.xml
-      - name: Verify merged report
-        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
-        env:
-          SHARD_RESULT: ${{ needs.test.result }}
-        run: >-
-          node scripts/ci/test-report.mjs
-          --blobs=test-results/vitest-blob
-          --shards=3
-          --junit=test-results/vitest-junit.xml
-          --coverage=coverage/coverage-summary.json
-      - name: Upload merged report
-        if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: vitest-report-${{ github.run_attempt }}
-          path: |
-            test-results/vitest-junit.xml
-            coverage/coverage-summary.json
-            coverage/lcov.info
-          retention-days: 7
-          if-no-files-found: warn
-
-  build:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [smoke, workspace]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -173,6 +129,7 @@ jobs:
       - id: setup
         uses: ./.github/actions/setup-node-pnpm
       - name: Cache Next.js build
+        if: ${{ matrix.suite == 'smoke' }}
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .next/cache
@@ -180,63 +137,41 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-${{ runner.arch }}-next-${{ hashFiles('pnpm-lock.yaml', '.nvmrc') }}-
       # No service credentials: this is the unconfigured production-mode build.
-      - run: pnpm build
-      - name: Clean tree after build
-        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
-        run: pnpm ci:clean-tree
-
-  browser:
-    name: Browser smoke
-    runs-on: ubuntu-24.04
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: ./.github/actions/setup-node-pnpm
-      # Restore only: the `build` job owns saving this cache.
-      - name: Restore Next.js build cache
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: .next/cache
-          key: ${{ runner.os }}-${{ runner.arch }}-next-${{ hashFiles('pnpm-lock.yaml', '.nvmrc') }}-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-next-${{ hashFiles('pnpm-lock.yaml', '.nvmrc') }}-
       - name: Production-mode build (credential-free)
+        if: ${{ matrix.suite == 'smoke' }}
         run: pnpm build
+      - name: Clean tree after build
+        if: ${{ !cancelled() && matrix.suite == 'smoke' && steps.setup.outcome == 'success' }}
+        run: pnpm ci:clean-tree
       # Exactly the browser revision bundled with the locked @playwright/test.
       - name: Install Playwright Chromium
         id: browsers
         run: pnpm exec playwright install --with-deps chromium
       - name: Anonymous smoke (desktop and mobile)
-        if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
+        if: ${{ !cancelled() && matrix.suite == 'smoke' && steps.browsers.outcome == 'success' }}
         env:
           PLAYWRIGHT_REQUIRE_BUILD: "1"
         run: pnpm test:e2e
       - name: Storage workspace (PR subset)
-        if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
+        if: ${{ !cancelled() && matrix.suite == 'workspace' && steps.browsers.outcome == 'success' }}
         run: pnpm test:e2e:workspace
       - name: Upload browser JUnit
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: browser-junit-${{ github.run_attempt }}
-          path: |
-            test-results/smoke-junit.xml
-            test-results/workspace-junit.xml
+          name: browser-junit-${{ matrix.suite }}-${{ github.run_attempt }}
+          path: test-results/${{ matrix.suite }}-junit.xml
           retention-days: 7
-          if-no-files-found: warn
+          if-no-files-found: error
       # Failure-only, credential-free synthetic diagnostics (traces/screenshots).
       - name: Upload browser diagnostics
         if: ${{ failure() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: browser-diagnostics-${{ github.run_attempt }}
+          name: browser-diagnostics-${{ matrix.suite }}-${{ github.run_attempt }}
           path: |
-            test-results/smoke/
-            test-results/workspace/
-            playwright-report/smoke/
-            playwright-report/workspace/
+            test-results/${{ matrix.suite }}/
+            playwright-report/${{ matrix.suite }}/
           retention-days: 5
           if-no-files-found: ignore
 
@@ -257,12 +192,11 @@ jobs:
           allow-ghsas: GHSA-vfj7-8cjw-p6xm
           comment-summary-in-pr: never
 
-  # Stable merge gate and the only status the ruleset requires. Failed,
+  # Stable quality merge gate; CodeQL has separate required checks. Failed,
   # cancelled, missing or unexpectedly skipped jobs never produce a green check.
   check:
     if: ${{ always() }}
-    needs:
-      [validate, codegen, test, test-report, build, browser, dependency-review]
+    needs: [validate, codegen, test, browser, dependency-review]
     runs-on: ubuntu-24.04
     timeout-minutes: 3
     steps:
@@ -278,7 +212,7 @@ jobs:
         env:
           NEEDS_JSON: ${{ toJSON(needs) }}
           EVENT_NAME: ${{ github.event_name }}
-          REQUIRED_JOBS: validate,codegen,test,test-report,build,browser,dependency-review
+          REQUIRED_JOBS: validate,codegen,test,browser,dependency-review
           PULL_REQUEST_ONLY: dependency-review
         run: node scripts/ci/aggregate.mjs
 
@@ -287,7 +221,7 @@ jobs:
   staging:
     name: Staging release
     needs: [check]
-    if: ${{ needs.check.result == 'success' && github.repository == 'Rugby-Thailand/industrial-sas' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') }}
+    if: ${{ !cancelled() && needs.check.result == 'success' && github.repository == 'Rugby-Thailand/industrial-sas' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     environment:
@@ -346,7 +280,7 @@ jobs:
   release:
     name: Production release
     needs: [check, staging]
-    if: ${{ needs.check.result == 'success' && needs.staging.result == 'success' && needs.staging.outputs.outcome == 'STAGING_PASSED' && github.repository == 'Rugby-Thailand/industrial-sas' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') }}
+    if: ${{ !cancelled() && needs.check.result == 'success' && needs.staging.result == 'success' && needs.staging.outputs.outcome == 'STAGING_PASSED' && github.repository == 'Rugby-Thailand/industrial-sas' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     environment:

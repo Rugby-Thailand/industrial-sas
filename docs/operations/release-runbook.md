@@ -50,6 +50,14 @@ RPO/RTO and durable telemetry/alert delivery remain unresolved below.
 
 ## Release path
 
+PR and push checks run every Vitest project across three shards and upload
+native JUnit reports. Browser smoke and the workspace subset run in parallel;
+smoke also verifies the production build and owns its `.next/cache` cache.
+This avoids a second build and a separate report-merging job. Informational
+full-suite coverage runs weekly or by dispatching `Workspace matrix`, alongside
+the existing full browser matrix. Coverage instrumentation gets a 15-second
+test timeout there; ordinary quality tests retain their default timeout.
+
 `.github/workflows/quality.yml` runs one pipeline on `push` to `main` and on a
 `workflow_dispatch` of `main`:
 
@@ -73,6 +81,12 @@ RPO/RTO and durable telemetry/alert delivery remain unresolved below.
      deployment ID, and run read-only candidate smoke;
    - promote the same deployment ID and run read-only live smoke on
      `https://app.thaipropertyai.com`.
+
+The staging and production job conditions include `!cancelled()` as well as
+explicit successful prerequisite results. GitHub otherwise adds an implicit
+`success()` condition that can suppress releases after the PR-only dependency
+review job is deliberately skipped on `main`. Production remains automatic
+after successful quality and staging checks, with no manual release approval.
 
 The daily `Production backup` workflow uses the same lock group. A backup and
 a release therefore never overlap. Queued runs wait (`queue: max`) and are not

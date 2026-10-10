@@ -54,6 +54,29 @@ function problemsWith(
   });
 }
 
+/** Extract an actual named step so omission/duplication tests need no YAML copy. */
+function namedStep(file: keyof typeof owned, name: string) {
+  const text = owned[file];
+  const heading = `      - name: ${name}\n`;
+  const start = text.indexOf(heading);
+  expect(start, `step missing: ${name}`).toBeGreaterThanOrEqual(0);
+  const bodyStart = start + heading.length;
+  const boundary = text.slice(bodyStart).search(/\n(?= {0,7}\S)/);
+  return text.slice(start, boundary < 0 ? text.length : bodyStart + boundary);
+}
+
+function expectJobFailure(
+  file: keyof typeof owned,
+  job: string,
+  edits: ReadonlyArray<readonly [string, string]>,
+) {
+  expect(
+    problemsWith(file, edits).filter((problem) =>
+      problem.startsWith(`${file}:${job}:`),
+    ),
+  ).not.toEqual([]);
+}
+
 describe("YAML subset reader", () => {
   it("reads block maps, sequences, flow lists, quoting and block scalars", () => {
     expect(
@@ -146,55 +169,143 @@ describe("owned workflows", () => {
 });
 
 describe("workflow policy rejects regressions", () => {
-  it("replaces rerun shard reports while retaining untouched same-run shards", () => {
-    expect(
-      problemsWith("quality.yml", [["          overwrite: true\n", ""]]),
-    ).toContain(
-      "quality.yml:test: shard reports need one stable per-shard artifact name and overwrite true for failed-job reruns",
-    );
-    expect(
-      problemsWith("quality.yml", [
-        [
-          "name: vitest-blob-${{ matrix.shard }}",
-          "name: vitest-blob-${{ matrix.shard }}-${{ github.run_attempt }}",
-        ],
-      ]),
-    ).toContain(
-      "quality.yml:test: shard reports need one stable per-shard artifact name and overwrite true for failed-job reruns",
-    );
-    for (const line of [
-      "          run-id: 123\n",
-      "          repository: external/repository\n",
-      "          github-token: token\n",
-    ])
-      expect(
-        problemsWith("quality.yml", [
-          [
-            "          pattern: vitest-blob-*\n",
-            `          pattern: vitest-blob-*\n${line}`,
-          ],
-        ]),
-      ).toContain(
-        "quality.yml:test-report: merge all per-shard artifacts from this same workflow run only",
-      );
-    expect(
-      problemsWith("quality.yml", [
-        [
-          "          pattern: vitest-blob-*\n",
-          "          pattern: vitest-blob-*-${{ github.run_attempt }}\n",
-        ],
-      ]),
-    ).toContain(
-      "quality.yml:test-report: merge all per-shard artifacts from this same workflow run only",
-    );
+  it.each([
+    ["missing shard", "shard: [1, 2, 3]", "shard: [1, 2]"],
+    ["duplicate shard", "shard: [1, 2, 3]", "shard: [1, 2, 2]"],
+    [
+      "fail-fast cancellation",
+      "      fail-fast: false\n",
+      "      fail-fast: true\n",
+    ],
+    [
+      "mismatched total",
+      "--shard=${{ matrix.shard }}/3",
+      "--shard=${{ matrix.shard }}/2",
+    ],
+    [
+      "filtered projects",
+      "pnpm exec vitest run\n",
+      "pnpm exec vitest run --project unit\n",
+    ],
+    ["missing JUnit reporter", "          --reporter=junit\n", ""],
+    [
+      "missing-report warning",
+      "          if-no-files-found: error\n",
+      "          if-no-files-found: warn\n",
+    ],
+    [
+      "report upload skipped after failure",
+      "        if: ${{ !cancelled() }}\n",
+      "        if: ${{ success() }}\n",
+    ],
+    ["rerun artifact collision", "          overwrite: true\n", ""],
+    [
+      "unstable shard artifact",
+      "name: vitest-junit-${{ matrix.shard }}",
+      "name: vitest-junit-${{ matrix.shard }}-${{ github.run_attempt }}",
+    ],
+    [
+      "wrong report path",
+      "path: test-results/vitest-junit/shard-${{ matrix.shard }}-3.xml",
+      "path: test-results/vitest-junit/shard-${{ matrix.shard }}-2.xml",
+    ],
+  ])("rejects %s in native test shards", (_reason, from, to) => {
+    expectJobFailure("quality.yml", "test", [[from, to]]);
+  });
+
+  it("requires exactly one test run and one shard report upload", () => {
+    for (const name of ["Vitest shard", "Upload shard JUnit"]) {
+      const step = namedStep("quality.yml", name);
+      for (const replacement of ["", `${step}\n${step}`])
+        expectJobFailure("quality.yml", "test", [[step, replacement]]);
+    }
+  });
+
+  it.each([
+    ["omitted browser suite", "suite: [smoke, workspace]", "suite: [smoke]"],
+    [
+      "duplicate browser suite",
+      "suite: [smoke, workspace]",
+      "suite: [smoke, smoke]",
+    ],
+    [
+      "wrong report path",
+      "path: test-results/${{ matrix.suite }}-junit.xml",
+      "path: test-results/smoke-junit.xml",
+    ],
+    [
+      "unrequired production build",
+      'PLAYWRIGHT_REQUIRE_BUILD: "1"',
+      'PLAYWRIGHT_REQUIRE_BUILD: "0"',
+    ],
+  ])("rejects %s in the browser matrix", (_reason, from, to) => {
+    expectJobFailure("quality.yml", "browser", [[from, to]]);
+  });
+
+  it("requires one build, clean-tree check and each browser suite", () => {
+    for (const name of [
+      "Production-mode build (credential-free)",
+      "Clean tree after build",
+      "Install Playwright Chromium",
+      "Anonymous smoke (desktop and mobile)",
+      "Storage workspace (PR subset)",
+      "Upload browser JUnit",
+    ]) {
+      const step = namedStep("quality.yml", name);
+      for (const replacement of ["", `${step}\n${step}`])
+        expectJobFailure("quality.yml", "browser", [[step, replacement]]);
+    }
+  });
+
+  it("rejects skipped builds and browser suites or missing-report warnings", () => {
+    for (const name of [
+      "Production-mode build (credential-free)",
+      "Anonymous smoke (desktop and mobile)",
+      "Storage workspace (PR subset)",
+    ]) {
+      const step = namedStep("quality.yml", name);
+      const skipped = step.replace(/if: \$\{\{[^\n]+\}\}/, "if: ${{ false }}");
+      expectJobFailure("quality.yml", "browser", [[step, skipped]]);
+    }
+    const upload = namedStep("quality.yml", "Upload browser JUnit");
+    expectJobFailure("quality.yml", "browser", [
+      [
+        upload,
+        upload.replace("if-no-files-found: error", "if-no-files-found: warn"),
+      ],
+    ]);
+  });
+
+  it("keeps informational coverage complete and separate from PR checks", () => {
+    for (const [from, to] of [
+      ["pnpm exec vitest run\n", "pnpm exec vitest run --project unit\n"],
+      ["pnpm exec vitest run\n", "pnpm exec vitest run --shard=1/3\n"],
+      ["          --coverage\n", ""],
+      [
+        "          if-no-files-found: error\n",
+        "          if-no-files-found: warn\n",
+      ],
+      [
+        "    name: Full-suite coverage\n",
+        "    name: Full-suite coverage\n    needs: [matrix]\n",
+      ],
+    ] as const)
+      expectJobFailure("workspace-matrix.yml", "coverage", [[from, to]]);
+    for (const name of ["Vitest with coverage", "Upload coverage and JUnit"]) {
+      const step = namedStep("workspace-matrix.yml", name);
+      expectJobFailure("workspace-matrix.yml", "coverage", [[step, ""]]);
+    }
+    expect(owned["quality.yml"]).not.toContain("--coverage");
+    expect(owned["quality.yml"]).not.toContain("  test-report:");
+    expect(owned["quality.yml"]).not.toContain("  build:");
   });
 
   it("keeps the stable check complete and event-aware", () => {
     expect(
       problemsWith("quality.yml", [
         [
-          "[validate, codegen, test, test-report, build, browser, dependency-review]",
-          "[validate, codegen, test, test-report, build, browser]",
+          "[validate, codegen, test, browser, dependency-review]",
+          "[validate, codegen, test, browser]",
         ],
       ]),
     ).toEqual(
@@ -211,8 +322,8 @@ describe("workflow policy rejects regressions", () => {
     expect(
       problemsWith("quality.yml", [
         [
-          "    name: Browser smoke\n",
-          "    name: Browser smoke\n    if: ${{ github.event_name == 'push' }}\n",
+          "    name: Browser (${{ matrix.suite }})\n",
+          "    name: Browser (${{ matrix.suite }})\n    if: ${{ github.event_name == 'push' }}\n",
         ],
       ]),
     ).toContain("quality.yml:browser: mandatory job has a skipping if");
@@ -229,27 +340,89 @@ describe("workflow policy rejects regressions", () => {
   });
 
   it("gates production on successful check and staging for main only", () => {
+    // On main, the PR-only dependency review is intentionally skipped. With
+    // no status function GitHub adds an implicit success() over the whole
+    // ancestor chain, so a green `check` would still skip both releases.
+    // `!cancelled()` is the only accepted status function; the trusted
+    // predicates then decide, and nothing may widen them.
+    const guard = "if: ${{ !cancelled() && needs.check.result == 'success' && ";
+    const stagingIf =
+      "${{ !cancelled() && needs.check.result == 'success' && github.repository == 'Rugby-Thailand/industrial-sas' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') }}";
+    const releaseIf =
+      "${{ !cancelled() && needs.check.result == 'success' && needs.staging.result == 'success' && needs.staging.outputs.outcome == 'STAGING_PASSED' && github.repository == 'Rugby-Thailand/industrial-sas' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') }}";
+    const stagingProblem = `quality.yml:staging: if must be exactly ${stagingIf}`;
+    const releaseProblem = `quality.yml:release: if must be exactly ${releaseIf}`;
+    const forJob = (problems: string[], job: string) =>
+      problems.filter((problem) => problem.startsWith(`quality.yml:${job}:`));
+
+    expect(owned["quality.yml"]).toContain(`    if: ${stagingIf}\n`);
+    expect(owned["quality.yml"]).toContain(`    if: ${releaseIf}\n`);
+    // Whitespace-only reformatting keeps the trusted expression.
+    expect(
+      forJob(
+        problemsWith("quality.yml", [
+          [
+            guard,
+            "if: ${{  !cancelled()  &&  needs.check.result == 'success' && ",
+          ],
+        ]),
+        "staging",
+      ),
+    ).toEqual([]);
+
+    // Missing guard: the skipped-ancestor bug this test exists for.
     expect(
       problemsWith("quality.yml", [
-        [" && needs.staging.outputs.outcome == 'STAGING_PASSED'", ""],
+        [guard, "if: ${{ needs.check.result == 'success' && "],
       ]),
-    ).toContain(
-      "quality.yml:release: if must require needs.staging.outputs.outcome == 'STAGING_PASSED'",
-    );
+    ).toContain(stagingProblem);
+    for (const status of ["always()", "success()", "failure()", "cancelled()"])
+      expect(
+        problemsWith("quality.yml", [
+          [guard, `if: \${{ ${status} && needs.check.result == 'success' && `],
+        ]),
+      ).toContain(stagingProblem);
+    for (const predicate of [
+      " && github.repository == 'Rugby-Thailand/industrial-sas'",
+      " && github.ref == 'refs/heads/main'",
+      " || github.event_name == 'workflow_dispatch'",
+    ])
+      expect(problemsWith("quality.yml", [[predicate, ""]])).toContain(
+        stagingProblem,
+      );
+    expect(
+      problemsWith("quality.yml", [
+        [
+          "'workflow_dispatch') }}\n    runs-on: ubuntu-24.04\n    timeout-minutes: 60",
+          "'workflow_dispatch') || true }}\n    runs-on: ubuntu-24.04\n    timeout-minutes: 60",
+        ],
+      ]),
+    ).toContain(stagingProblem);
+
+    for (const [from, to] of [
+      [" && needs.staging.outputs.outcome == 'STAGING_PASSED'", ""],
+      [" && needs.staging.result == 'success'", ""],
+      [
+        "if: ${{ !cancelled() && needs.check.result == 'success' && needs.staging",
+        "if: ${{ always() && needs.check.result == 'success' && needs.staging",
+      ],
+      [
+        "if: ${{ !cancelled() && needs.check.result == 'success' && needs.staging",
+        "if: ${{ needs.check.result == 'success' && needs.staging",
+      ],
+      [
+        "'workflow_dispatch') }}\n    runs-on: ubuntu-24.04\n    timeout-minutes: 90",
+        "'workflow_dispatch') || true }}\n    runs-on: ubuntu-24.04\n    timeout-minutes: 90",
+      ],
+    ] as const)
+      expect(problemsWith("quality.yml", [[from, to]])).toContain(
+        releaseProblem,
+      );
     expect(
       problemsWith("quality.yml", [
         ["    needs: [check, staging]\n", "    needs: [check]\n"],
       ]),
     ).toContain("quality.yml:release: must need staging");
-    const alwaysStaging = problemsWith("quality.yml", [
-      [
-        "if: ${{ needs.check.result == 'success' && github.repository",
-        "if: ${{ always() && needs.check.result == 'success' && github.repository",
-      ],
-    ]);
-    expect(alwaysStaging).toContain(
-      "quality.yml:staging: if must not run after failures or on PRs",
-    );
   });
 
   it("scopes release credentials to the runner step", () => {
@@ -269,14 +442,14 @@ describe("workflow policy rejects regressions", () => {
     expect(
       problemsWith("quality.yml", [
         [
-          "      - run: pnpm build\n",
-          "      - run: pnpm build\n        env:\n          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}\n",
+          "        run: pnpm build\n",
+          "        run: pnpm build\n        env:\n          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}\n",
         ],
       ]),
     ).toEqual(
       expect.arrayContaining([
-        "quality.yml:build: secret VERCEL_TOKEN is not allowlisted",
-        "quality.yml:build: quality jobs must stay secret-free",
+        "quality.yml:browser: secret VERCEL_TOKEN is not allowlisted",
+        "quality.yml:browser: quality jobs must stay secret-free",
       ]),
     );
     expect(
@@ -346,9 +519,9 @@ describe("workflow policy rejects regressions", () => {
       "quality.yml:release: uploads only release-output/backup-metadata.json, release-output/manifest.json, release-output/smoke-candidate.json, release-output/smoke-live.json",
     );
     expect(
-      problemsWith("quality.yml", [["          retention-days: 3\n", ""]]),
+      problemsWith("quality.yml", [["          retention-days: 7\n", ""]]),
     ).toContain(
-      "quality.yml:test: upload vitest-blob-${{ matrix.shard }} needs retention-days 1–30",
+      "quality.yml:test: upload vitest-junit-${{ matrix.shard }} needs retention-days 1–30",
     );
   });
 
