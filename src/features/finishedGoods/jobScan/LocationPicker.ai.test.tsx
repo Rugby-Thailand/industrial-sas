@@ -4,6 +4,11 @@ import { renderWithIntl } from "@tests/fixtures/intl-render";
 import { querySuccess } from "@tests/fixtures/finished-goods-ui";
 import { LocationPicker } from "./LocationPicker";
 import type * as BarcodeDecoder from "../barcodeDecoder";
+import { getFunctionName } from "convex/server";
+
+vi.mock("@/i18n/navigation", () => ({
+  Link: (props: React.ComponentProps<"a">) => <a {...props} />,
+}));
 
 const mocks = vi.hoisted(() => ({
   action: vi.fn(),
@@ -32,7 +37,14 @@ vi.mock("../useBarcodeCamera", () => ({
 }));
 vi.mock("convex/react", () => ({
   useConvex: () => ({ query: mocks.query, action: mocks.action }),
-  useQuery: () => querySuccess({ items: [], page: 1, pages: 1, total: 0 }),
+  useQuery: () =>
+    querySuccess({
+      items: [],
+      status: "ready",
+      isDone: true,
+      continueCursor: "",
+      canCreate: true,
+    }),
 }));
 
 const extracted = (codes = ["F1-L3-11"]) =>
@@ -114,6 +126,9 @@ it("reviews AI text before lookup, allows correction, and preserves the canonica
     warehouseId: "warehouse-a",
     code: "F1-L3-12",
   });
+  expect(getFunctionName(mocks.query.mock.calls[0]![0])).toBe(
+    "finishedGoods/jobScanLocations:resolve",
+  );
   expect(onPick).toHaveBeenCalledWith({
     text: "F1-L3-12",
     code: "F1-L3-12",
@@ -134,6 +149,27 @@ it("requires an explicit choice between distinct AI codes", async () => {
   expect(
     screen.getByRole("textbox", { name: "Review location code" }),
   ).toHaveValue("F1-L4-2");
+});
+
+it("preserves a registered building location when the confirmed AI code resolves", async () => {
+  const location = {
+    code: "F1-L3-11",
+    name: "Location 11",
+    locationId: "registered-11",
+    buildingId: "building-a",
+    buildingName: "Building A",
+    floorId: "floor-3",
+    floorNumber: 3,
+  };
+  mocks.query.mockResolvedValue(querySuccess({ ok: true, location }));
+  const { onPick } = setup();
+  startReading();
+  await screen.findByRole("textbox", { name: "Review location code" });
+  expect(onPick).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "Use this code" }));
+  await waitFor(() =>
+    expect(onPick).toHaveBeenCalledWith({ ...location, text: location.code }),
+  );
 });
 
 it.each(["typing", "warehouse", "replacement", "cancel", "back", "unmount"])(
@@ -252,15 +288,16 @@ it.each(["denied", "unreadable", "empty", "unavailable"])(
   },
 );
 
-it("retains explicit unmapped entry only after a confirmed unavailable code", async () => {
+it("offers existing registration and explicit unmapped entry after confirming a missing code", async () => {
   mocks.query.mockResolvedValue(
-    querySuccess({ ok: false, error: { code: "LOCATION_UNAVAILABLE" } }),
+    querySuccess({ ok: false, error: { code: "LOCATION_NOT_FOUND" } }),
   );
   const { onPick } = setup();
   startReading();
   await screen.findByRole("textbox", { name: "Review location code" });
   fireEvent.click(screen.getByRole("button", { name: "Use this code" }));
   await screen.findByRole("button", { name: /Save now, set location later/ });
+  expect(screen.getByRole("button", { name: "Add location" })).toBeVisible();
   expect(onPick).not.toHaveBeenCalled();
 });
 

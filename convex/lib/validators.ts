@@ -180,6 +180,7 @@ export const itemTrackingMode = literalUnion("NONE", "LOT", "LOT_SERIAL");
 export type ItemTrackingMode = Infer<typeof itemTrackingMode>;
 
 export const locationType = literalUnion(
+  "NAMED_STORAGE",
   "DOCK",
   "STAGING",
   "RACK_BIN",

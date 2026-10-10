@@ -41,6 +41,7 @@ import {
   mergeExtracted,
   newTicket,
   toPayload,
+  pickedLocationPayload,
   type PickedLocation,
   type TicketDraft,
   type TicketCodeField,
@@ -275,19 +276,11 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
       (duplicateKeys.length > 0 && !duplicatesReviewed)
     )
       return;
+    const mappedLocation = pickedLocationPayload(location);
     const payload = {
       warehouseId,
       locationText: location.text,
-      ...(location.zoneId
-        ? {
-            location: {
-              zoneId: location.zoneId,
-              ...(location.supportPositionId
-                ? { supportPositionId: location.supportPositionId }
-                : {}),
-            },
-          }
-        : {}),
+      ...(mappedLocation ? { location: mappedLocation } : {}),
       items: tickets.map(toPayload),
     };
     acquisitionBlocked.current = true;
@@ -329,6 +322,14 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
               location: saved.location.code ?? saved.location.text,
             })}
           </p>
+          {saved.location.buildingName && (
+            <p className="text-sm text-muted">
+              {saved.location.buildingName}
+              {saved.location.floorNumber === undefined
+                ? ""
+                : ` · ${t("floorNumber", { number: saved.location.floorNumber })}`}
+            </p>
+          )}
           <p className="text-sm text-muted">{t("locationNotStock")}</p>
           <div className="flex flex-wrap justify-center gap-3 pt-2">
             <Button
@@ -390,9 +391,19 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
         {location.name && (
           <span className="min-w-0 truncate text-muted">{location.name}</span>
         )}
+        {location.buildingName && (
+          <span className="w-full text-sm text-muted">
+            {location.buildingName}
+            {location.floorNumber === undefined
+              ? ""
+              : ` · ${t("floorNumber", { number: location.floorNumber })}`}
+          </span>
+        )}
         <StatusBadge
-          tone={location.zoneId ? "success" : "warning"}
-          label={location.zoneId ? t("mapped") : t("unmapped")}
+          tone={location.locationId || location.zoneId ? "success" : "warning"}
+          label={
+            location.locationId || location.zoneId ? t("mapped") : t("unmapped")
+          }
         />
         <button
           type="button"
@@ -483,6 +494,15 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
                     values: { ...row.values, [field]: value },
                     aiFields: row.aiFields.filter((name) => name !== field),
                   }))
+                }
+                onFormatChange={(storageFormat) =>
+                  setTickets((previous) =>
+                    previous.map((item) =>
+                      item.key === ticket.key
+                        ? { ...item, storageFormat }
+                        : item,
+                    ),
+                  )
                 }
                 onRemove={() => {
                   if (fieldScanRef.current?.key === ticket.key)

@@ -16,6 +16,8 @@ The full Vitest suite passed 2,253 tests across 196 files. Formatting, typecheck
 
 The complete workspace browser suite passed 24 tests in 19.1 seconds; its two desktop-only map tests were intentionally skipped in the mobile project.
 
+Integration with the subsequently merged building-location workflow uses `finishedGoods/jobScanLocations:resolve`. Confirmed AI codes preserve either an exact legacy position or the registered location's building/floor identity. Missing codes retain the current explicit registration/save-for-later choices; extraction itself never creates a location. The merged suite passed 2,281 tests with only the newly combined public inventory count failing; that fixed count and an additional registered-location AI test passed in the focused rerun (124 tests), giving 2,283 passing tests across 197 files.
+
 The steps below describe the implemented feature and its verification contract. Actual phone-camera hardware and the production AI-to-location flow still require release verification.
 
 Add **Read location with AI** to the location scanner on `/en/finished-goods/scan`, in the camera/image area identified by the annotation. Workers can choose a photo or take one, read its printed warehouse location code, review the result, and validate it against the selected warehouse. Use the existing **Photos (AI)** job-ticket flow as the implementation reference.

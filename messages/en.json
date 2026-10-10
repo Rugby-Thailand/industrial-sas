@@ -1406,6 +1406,36 @@
     "backToLocationScanner": "Back to location scanner",
     "locationAiDenied": "You cannot use AI reading in this warehouse. Choose another warehouse or enter the code.",
     "locationAiUnreadable": "AI could not read a complete location code. Crop the label, choose a clearer photo, or enter the code.",
-    "locationAiUnavailable": "AI reading is unavailable. Try again or enter the location code."
+    "locationAiUnavailable": "AI reading is unavailable. Try again or enter the location code.",
+    "addLocation": "Add location",
+    "addLocationHint": "Register this location in a building, then continue scanning tickets. You can add its floor-plan layout later.",
+    "locationCode": "Location code",
+    "locationDisplayName": "Display name (optional)",
+    "nameDefaultsToCode": "Uses the location code if left blank.",
+    "building": "Building",
+    "floorOptional": "Floor (optional)",
+    "chooseBuilding": "Choose a building",
+    "noActiveBuildings": "No active buildings in this warehouse.",
+    "setupBuilding": "Set up a building (opens a new tab)",
+    "noFloor": "Set floor later",
+    "floorNumber": "Floor {number}",
+    "creatingLocation": "Creating location…",
+    "createAndUseLocation": "Create and use location",
+    "locationMissing": "“{code}” is not registered yet.",
+    "storageFormat": "Unit type",
+    "format": {
+      "PALLET": "Pallet",
+      "BOX": "Package / box",
+      "OTHER": "Other"
+    },
+    "formatUnspecified": "Unspecified",
+    "registeredLocations": "Registered locations",
+    "registeredLocationsHint": "Locations recorded during scanning. Their floor-plan layout can be added later.",
+    "layoutPending": "Location recorded · Layout pending",
+    "dimensionsNotRecorded": "Dimensions and map position not recorded.",
+    "noRegisteredLocations": "No registered locations match these filters.",
+    "existingLocationConflict": "This code has already been registered. Use its existing building assignment.",
+    "useExistingLocation": "Use existing location",
+    "registeredLocationPagination": "Registered location pagination"
   }
 }

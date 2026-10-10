@@ -34,8 +34,7 @@ function assertRunId(runId: string) {
   if (!RUN_ID.test(runId)) throw new E2eFixtureRefusal("Invalid run ID.");
 }
 export function organizationName(runId: string, kind: "primary" | "other") {
-  assertRunId(runId);
-  return `${E2E_ORGANIZATION_PREFIX}${runId} ${kind}`;
+  return `${userFirstName(runId)} ${kind}`;
 }
 export function userFirstName(runId: string) {
   assertRunId(runId);

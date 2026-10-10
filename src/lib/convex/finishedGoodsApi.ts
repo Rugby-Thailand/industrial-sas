@@ -6,7 +6,12 @@ export const fgRefs = Object.freeze({
   resolveLocationCode: clientRef(
     api.finishedGoods.scanning.resolveLocationCode,
   ),
-  searchJobScanLocations: clientRef(api.finishedGoods.jobScans.searchLocations),
+  resolveJobScanLocation: clientRef(api.finishedGoods.jobScanLocations.resolve),
+  createJobScanLocation: clientRef(api.finishedGoods.jobScanLocations.create),
+  jobScanLocationOptions: clientRef(api.finishedGoods.jobScanLocations.options),
+  searchJobScanLocations: clientRef(
+    api.finishedGoods.jobScanLocations.searchPage,
+  ),
   extractJobTicket: clientRef(api.finishedGoods.jobScans.extractJobTicket),
   extractLocationLabel: clientRef(
     api.finishedGoods.locationImage.extractLocationLabel,

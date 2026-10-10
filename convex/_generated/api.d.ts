@@ -12,6 +12,7 @@ import type * as finishedGoods_batchManagement from "../finishedGoods/batchManag
 import type * as finishedGoods_batches from "../finishedGoods/batches.js";
 import type * as finishedGoods_catalogue from "../finishedGoods/catalogue.js";
 import type * as finishedGoods_catalogueFilters from "../finishedGoods/catalogueFilters.js";
+import type * as finishedGoods_jobScanLocations from "../finishedGoods/jobScanLocations.js";
 import type * as finishedGoods_jobScans from "../finishedGoods/jobScans.js";
 import type * as finishedGoods_locationImage from "../finishedGoods/locationImage.js";
 import type * as finishedGoods_scanning from "../finishedGoods/scanning.js";
@@ -92,6 +93,7 @@ declare const fullApi: ApiFromModules<{
   "finishedGoods/batches": typeof finishedGoods_batches;
   "finishedGoods/catalogue": typeof finishedGoods_catalogue;
   "finishedGoods/catalogueFilters": typeof finishedGoods_catalogueFilters;
+  "finishedGoods/jobScanLocations": typeof finishedGoods_jobScanLocations;
   "finishedGoods/jobScans": typeof finishedGoods_jobScans;
   "finishedGoods/locationImage": typeof finishedGoods_locationImage;
   "finishedGoods/scanning": typeof finishedGoods_scanning;

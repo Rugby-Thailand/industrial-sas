@@ -1,6 +1,7 @@
 "use client";
 import { preferences } from "@/lib/browser/storage";
 
+import { NamedLocationCatalogue } from "./NamedLocationCatalogue";
 import { BuildingStatusToggle } from "./BuildingStatusToggle";
 import { useSyncExternalStore, useState, type ReactNode } from "react";
 import { useAuth } from "@clerk/nextjs";
@@ -512,6 +513,15 @@ function LocationCatalogueContent({
             locale={th ? "th" : "en"}
           />
         </>
+      )}
+      {!(outcome && !outcome.ok) && (
+        <NamedLocationCatalogue
+          warehouseId={warehouseId}
+          search={settled}
+          status={prefs.status}
+          building={prefs.view === "table" ? prefs.building : "ALL"}
+          floor={prefs.view === "table" ? prefs.floor : "ALL"}
+        />
       )}
       {qr && (
         <QrDialog
