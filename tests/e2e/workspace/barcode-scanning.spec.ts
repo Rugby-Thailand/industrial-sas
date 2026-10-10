@@ -6,6 +6,9 @@ const fixtures = [
   { name: "location-1.webp", code: "F2-L28-1" },
   { name: "location-18.webp", code: "F2-L28-18" },
   { name: "location-18.png", code: "F2-L28-18" },
+  { name: "location-4-2.png", code: "F1-L4-2" },
+  { name: "location-3-11.png", code: "F1-L3-11" },
+  { name: "location-22-2.webp", code: "F1-L22-2" },
 ];
 
 for (const locale of ["en", "th"] as const) {
@@ -47,7 +50,7 @@ for (const locale of ["en", "th"] as const) {
       await expect(page.getByRole("alert")).toHaveCount(0);
     }
     await expect(page.getByLabel("Decoded codes")).toHaveText(
-      "F2-L28-1, F2-L28-18, F2-L28-18",
+      fixtures.map((fixture) => fixture.code).join(", "),
     );
     expect(
       await page.evaluate(

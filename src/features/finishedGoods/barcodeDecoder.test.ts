@@ -46,6 +46,27 @@ it("validates image types and bounds before decoding", () => {
   expect(barcodeImageProblem(large)).toBe("imageSize");
 });
 
+it("finds sideways bars with orientation-specific margins rather than treating them as vertical bars", () => {
+  const width = 320,
+    height = 480;
+  const data = new Uint8ClampedArray(width * height * 4).fill(255);
+  for (let y = 250; y < 420; y++) {
+    for (let x = 170; x < 230; x++) {
+      if (Math.floor((y - 250) / 2) % 2) continue;
+      const offset = (y * width + x) * 4;
+      data[offset] = data[offset + 1] = data[offset + 2] = 0;
+    }
+  }
+  expect(linearBarcodeRegions(data, width, height)).toEqual([]);
+  const regions = linearBarcodeRegions(data, width, height, "horizontal");
+  expect(regions).toHaveLength(1);
+  const region = regions[0]!;
+  expect(region.x * width).toBeLessThan(170);
+  expect((region.x + region.width) * width).toBeGreaterThan(230);
+  expect(region.y * height).toBeLessThan(250);
+  expect((region.y + region.height) * height).toBeGreaterThan(420);
+});
+
 it("rejects a cancelled decode before loading a reader or accessing the canvas", async () => {
   const controller = new AbortController();
   controller.abort();

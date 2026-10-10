@@ -9,6 +9,7 @@ import { Notice } from "@/components/ui/Notice";
 import { useBarcodeCamera } from "./useBarcodeCamera";
 import { useBarcodeImage } from "./useBarcodeImage";
 import { BarcodeImageControls } from "./BarcodeImageControls";
+import type { BarcodeCrop } from "./barcodeDecoder";
 
 /** Shared acquisition and controls for continuous intake and single-code verification. */
 export function BarcodeCameraBox({
@@ -20,6 +21,7 @@ export function BarcodeCameraBox({
   startOnMount = true,
   disabled = false,
   stopAfterScan = false,
+  onReadWithAi,
   children,
 }: {
   mode: "PACKAGES" | "LOCATION";
@@ -30,6 +32,7 @@ export function BarcodeCameraBox({
   startOnMount?: boolean;
   disabled?: boolean;
   stopAfterScan?: boolean;
+  onReadWithAi?: (file?: File, crop?: BarcodeCrop) => void;
   children?: (scan: {
     onScan: () => void;
     scanning: boolean;
@@ -78,7 +81,7 @@ export function BarcodeCameraBox({
   return (
     <div className="space-y-2">
       <div
-        hidden={!camera}
+        hidden={!camera || (state !== "ACTIVE" && state !== "STARTING")}
         className="relative overflow-hidden rounded-xl bg-black"
       >
         <video
@@ -153,6 +156,24 @@ export function BarcodeCameraBox({
           image.select(file);
         }}
       />
+      {onReadWithAi && (
+        <Button
+          type="button"
+          variant="outline"
+          className="min-h-11 w-full md:min-h-11"
+          disabled={disabled}
+          onClick={() => {
+            const file = image.file;
+            const crop = image.cropping ? image.crop : undefined;
+            stop();
+            image.cancel();
+            setCamera(false);
+            onReadWithAi(file, crop);
+          }}
+        >
+          {t("readLocationAi")}
+        </Button>
+      )}
       {children?.({
         onScan: () => (camera && !retry ? close() : open()),
         scanning: camera && !retry,

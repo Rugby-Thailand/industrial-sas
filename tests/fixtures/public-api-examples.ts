@@ -209,6 +209,14 @@ export const PUBLIC_API_EXAMPLES: readonly PublicApiExample[] = [
     warehouseId: w.warehouses.alphaA,
     imageUrl: "https://example.test/synthetic-ticket.png",
   })),
+  example(
+    "finishedGoods/locationImage:extractLocationLabel",
+    "action",
+    (w) => ({
+      warehouseId: w.warehouses.alphaA,
+      imageDataUrl: "data:image/jpeg;base64,YWJj",
+    }),
+  ),
   example("finishedGoods/scanning:resolvePackageCode", "query", (w) => ({
     warehouseId: w.warehouses.alphaA,
     code: `ISAS:PALLET:1:${w.palletId}`,

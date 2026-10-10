@@ -1391,6 +1391,21 @@
     "imageSize": "Choose a non-empty image up to 25 MB and 40 megapixels.",
     "imageUnreadable": "This image could not be opened. Choose another image or type the code.",
     "imageNoBarcode": "No barcode found. Crop around the label, choose a clearer image, or type the code.",
-    "chooseBarcodeValue": "Several codes were found. Choose the code for this field."
+    "chooseBarcodeValue": "Several codes were found. Choose the code for this field.",
+    "readLocationAi": "Read location with AI",
+    "locationAiTitle": "Read a location label",
+    "locationAiHint": "Choose or take a photo. AI reads the printed location code; review it before using it. The selected photo is sent to AI when you tap Read location with AI.",
+    "chooseLocationImage": "Choose location image",
+    "takeLocationPhoto": "Take location photo",
+    "locationAiPhoto": "Location label photo",
+    "locationAiReading": "Reading location…",
+    "locationAiReview": "Read by AI — review before using",
+    "locationAiMultiple": "Several location codes are visible. Choose one or enter the correct code.",
+    "locationAiCode": "Review location code",
+    "useLocationAiCode": "Use this code",
+    "backToLocationScanner": "Back to location scanner",
+    "locationAiDenied": "You cannot use AI reading in this warehouse. Choose another warehouse or enter the code.",
+    "locationAiUnreadable": "AI could not read a complete location code. Crop the label, choose a clearer photo, or enter the code.",
+    "locationAiUnavailable": "AI reading is unavailable. Try again or enter the location code."
   }
 }

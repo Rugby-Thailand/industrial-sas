@@ -143,6 +143,7 @@ export function useBarcodeImage(
     read(selected);
   }
   return {
+    file,
     preview,
     busy,
     codes,

@@ -357,7 +357,11 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
             <h2 className="text-lg font-semibold">{t("locationStepTitle")}</h2>
             <p className="text-sm text-muted">{t("locationStepHint")}</p>
           </div>
-          <LocationPicker warehouseId={warehouseId} onPick={setLocation} />
+          <LocationPicker
+            warehouseId={warehouseId}
+            onPick={setLocation}
+            canReadImage={canManage}
+          />
         </Panel>
       </PageContainer>
     );
