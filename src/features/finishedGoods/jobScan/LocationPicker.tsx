@@ -22,6 +22,25 @@ export function LocationPicker({
   onPick: (location: PickedLocation) => void;
   allowUnmapped?: boolean;
 }) {
+  return (
+    <LocationPickSession
+      key={`${warehouseId}:${allowUnmapped}`}
+      warehouseId={warehouseId}
+      onPick={onPick}
+      allowUnmapped={allowUnmapped}
+    />
+  );
+}
+
+function LocationPickSession({
+  warehouseId,
+  onPick,
+  allowUnmapped = true,
+}: {
+  warehouseId: string;
+  onPick: (location: PickedLocation) => void;
+  allowUnmapped?: boolean;
+}) {
   const t = useTranslations("JobScan");
   const tp = useTranslations("Pagination");
   const convex = useConvex();
@@ -31,7 +50,7 @@ export function LocationPicker({
   const [notice, setNotice] = useState<string>();
   const [page, setPage] = useState(1);
   const lookupVersion = useRef(0);
-  const cameraOpen = useRef(false);
+  const acquisitionOpen = useRef(false);
   const [checking, setChecking] = useState(false);
   useEffect(
     () => () => {
@@ -51,7 +70,7 @@ export function LocationPicker({
 
   function cancelScan() {
     lookupVersion.current += 1;
-    cameraOpen.current = false;
+    acquisitionOpen.current = false;
     setCamera(false);
     setChecking(false);
   }
@@ -60,9 +79,10 @@ export function LocationPicker({
     onPick(location);
   }
   async function onScan(code: string, scannerVersion: number) {
-    if (!cameraOpen.current || scannerVersion !== lookupVersion.current) return;
+    if (!acquisitionOpen.current || scannerVersion !== lookupVersion.current)
+      return;
     const version = ++lookupVersion.current;
-    cameraOpen.current = false;
+    acquisitionOpen.current = false;
     setCamera(false);
     setChecking(true);
     setNotice(undefined);
@@ -128,7 +148,7 @@ export function LocationPicker({
                 cancelScan();
                 setNotice(undefined);
                 if (!camera) {
-                  cameraOpen.current = true;
+                  acquisitionOpen.current = true;
                   setCamera(true);
                 }
               }}

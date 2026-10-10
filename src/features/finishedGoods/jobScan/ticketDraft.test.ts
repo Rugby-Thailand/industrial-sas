@@ -5,7 +5,34 @@ import {
   newTicket,
   toPayload,
   ticketBarcodeError,
+  applyImageBarcodes,
 } from "./ticketDraft";
+
+it("keeps a photographed JOB/product pair together instead of filling identities in different tickets", () => {
+  const rows = [
+    newTicket("MANUAL", { factoryOrder: "FO11111111" }),
+    newTicket("MANUAL", { productBarcodeText: "OLD-SKU" }),
+  ];
+  const next = applyImageBarcodes(rows, ["FO22222222", "NEW-SKU"]);
+  expect(next.slice(0, 2)).toEqual(rows);
+  expect(next[2]!.values).toMatchObject({
+    factoryOrder: "FO22222222",
+    productBarcodeText: "NEW-SKU",
+  });
+});
+it("fills compatible missing identities without overwriting optional fields", () => {
+  const row = newTicket("MANUAL", {
+    factoryOrder: "FO22222222",
+    quantity: "150",
+  });
+  const next = applyImageBarcodes([row], ["FO22222222", "NEW-SKU"]);
+  expect(next).toHaveLength(1);
+  expect(next[0]!.values).toMatchObject({
+    factoryOrder: "FO22222222",
+    productBarcodeText: "NEW-SKU",
+    quantity: "150",
+  });
+});
 
 it("finds all repeated complete identities after trimming, while retaining distinct tickets", () => {
   const a = newTicket("MANUAL", {

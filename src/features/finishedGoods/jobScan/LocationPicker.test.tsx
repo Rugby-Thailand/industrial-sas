@@ -43,7 +43,9 @@ function start(allowUnmapped = true) {
     />,
     { locale: "en", preserveProviders: true },
   );
-  fireEvent.click(screen.getByRole("button", { name: "Scan location QR" }));
+  fireEvent.click(
+    screen.getByRole("button", { name: "Scan location barcode or QR" }),
+  );
   return { onPick, ...view };
 }
 function location(code = "ZONE-A") {
@@ -114,7 +116,7 @@ it("reports network failures and retains typing and scan retry", async () => {
     screen.getByRole("textbox", { name: "Search location" }),
   ).toBeEnabled();
   expect(
-    screen.getByRole("button", { name: "Scan location QR" }),
+    screen.getByRole("button", { name: "Scan location barcode or QR" }),
   ).toBeEnabled();
   expect(onPick).not.toHaveBeenCalled();
 });

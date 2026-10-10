@@ -83,7 +83,11 @@ export function useBarcodeCamera({
         if (!current()) return;
         stream = await navigator.mediaDevices.getUserMedia({
           audio: false,
-          video: { facingMode: { ideal: "environment" } },
+          video: {
+            facingMode: { ideal: "environment" },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+          },
         });
         if (!current()) {
           release();

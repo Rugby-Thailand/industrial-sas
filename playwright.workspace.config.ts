@@ -49,11 +49,21 @@ export default defineConfig({
           use: { ...devices["Pixel 7"] },
         },
       ],
-  webServer: {
-    // Override the Vite config's default port together with readiness/baseURL.
-    command: `pnpm exec vite --config scripts/storage-workspace-preview/vite.config.mjs --host 127.0.0.1 --port ${port} --strictPort`,
-    url: baseURL,
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
-  },
+  webServer: [
+    {
+      // Override the Vite config's default port together with readiness/baseURL.
+      command: `pnpm exec vite --config scripts/storage-workspace-preview/vite.config.mjs --host 127.0.0.1 --port ${port} --strictPort`,
+      url: baseURL,
+      reuseExistingServer: !process.env.CI,
+      timeout: 120_000,
+    },
+    {
+      command:
+        "pnpm exec vite --config scripts/barcode-preview/vite.config.mjs",
+      url: "http://127.0.0.1:3219",
+      reuseExistingServer: !process.env.CI,
+      timeout: 120_000,
+      env: { BARCODE_PRIVATE_MANIFEST: "" },
+    },
+  ],
 });

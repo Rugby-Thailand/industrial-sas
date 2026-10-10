@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/IconButton";
 import { Notice } from "@/components/ui/Notice";
 import { useBarcodeCamera } from "./useBarcodeCamera";
+import { BarcodeImagePicker } from "./BarcodeImagePicker";
+import type { BarcodeImageTarget } from "./barcodeImage";
 
 /** Shared acquisition and controls for continuous intake and single-code verification. */
 export function BarcodeCameraBox({
@@ -18,6 +20,8 @@ export function BarcodeCameraBox({
   startOnMount = true,
   disabled = false,
   stopAfterScan = false,
+  imageTarget = mode === "LOCATION" ? "LOCATION" : "ANY",
+  onImageCodes,
   children,
 }: {
   mode: "PACKAGES" | "LOCATION";
@@ -28,6 +32,8 @@ export function BarcodeCameraBox({
   startOnMount?: boolean;
   disabled?: boolean;
   stopAfterScan?: boolean;
+  imageTarget?: BarcodeImageTarget;
+  onImageCodes?: (codes: string[]) => void;
   children?: (scan: {
     onScan: () => void;
     scanning: boolean;
@@ -37,6 +43,7 @@ export function BarcodeCameraBox({
 }) {
   const t = useTranslations("JobScan");
   const [camera, setCamera] = useState(startOnMount);
+  const [imageSession, setImageSession] = useState(0);
   if (disabled && camera) setCamera(false);
   const {
     videoRef,
@@ -61,15 +68,34 @@ export function BarcodeCameraBox({
   function close() {
     stop();
     setCamera(false);
+    setImageSession((session) => session + 1);
     onClose?.();
   }
   function open() {
     if (scanDisabled) return;
+    setImageSession((session) => session + 1);
     if (camera) start();
     else setCamera(true);
   }
   return (
     <div className="space-y-2">
+      <BarcodeImagePicker
+        key={`${imageSession}:${imageTarget}:${disabled}`}
+        target={imageTarget}
+        disabled={disabled}
+        onSelect={() => {
+          // Switching sources releases the stream without cancelling its owning workflow.
+          stop();
+          setCamera(false);
+        }}
+        onCodes={(codes) => {
+          if (disabled) return;
+          stop();
+          setCamera(false);
+          if (onImageCodes) onImageCodes(codes);
+          else for (const code of codes) onCode(code);
+        }}
+      />
       <div
         hidden={!camera}
         className="relative overflow-hidden rounded-xl bg-black"
