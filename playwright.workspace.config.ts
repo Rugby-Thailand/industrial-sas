@@ -66,6 +66,14 @@ export default defineConfig({
       timeout: 120_000,
     },
     {
+      command:
+        "pnpm exec vite --config scripts/barcode-preview/vite.config.mjs",
+      url: "http://127.0.0.1:3219",
+      reuseExistingServer: !process.env.CI,
+      timeout: 120_000,
+      env: { BARCODE_PRIVATE_MANIFEST: "" },
+    },
+    {
       command: `pnpm exec vite --config scripts/barcode-scanning-preview/vite.config.mjs --host 127.0.0.1 --port ${barcodePort} --strictPort`,
       url: `http://127.0.0.1:${barcodePort}`,
       reuseExistingServer: !process.env.CI,

@@ -4,6 +4,8 @@ Shared, checked-in test data for the suites in `tests/`.
 
 Current checked-in fixtures:
 
+- `barcode/demo-product.png`: synthetic Code128 pixels for the compiled Next.js
+  worker smoke test; no customer identity or photograph
 - Synthetic two-tenant identity, membership, and warehouse data for tenant-context
   integration and isolation tests
 - `tenant-storage-port.ts`: an in-memory `TenantStoragePort` that enforces nothing

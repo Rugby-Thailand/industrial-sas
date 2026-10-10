@@ -1,6 +1,6 @@
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
-import type * as BarcodeDecoder from "../barcodeDecoder";
+import type * as BarcodeImage from "../barcodeImage";
 import type { ComponentProps } from "react";
 import { getFunctionName } from "convex/server";
 import { renderWithIntl } from "@tests/fixtures/intl-render";
@@ -15,9 +15,15 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/i18n/navigation", () => ({
   Link: (props: ComponentProps<"a">) => <a {...props} />,
 }));
-vi.mock("../barcodeDecoder", async (original) => ({
-  ...(await original<typeof BarcodeDecoder>()),
-  decodeBarcodeImage: mocks.decode,
+vi.mock("../barcodeImage", async (original) => ({
+  ...(await original<typeof BarcodeImage>()),
+  readBarcodeImage: () =>
+    mocks.decode().then((codes) => ({
+      codes,
+      reviewRequired: false,
+      attempts: 1,
+      elapsedMs: 1,
+    })),
 }));
 vi.mock("../useBarcodeCamera", () => ({
   useBarcodeCamera: () => ({
@@ -84,6 +90,9 @@ function setup() {
 it("resolves an image code in the current warehouse and preserves the exact position", async () => {
   const { onPick } = setup();
   upload();
+  fireEvent.click(
+    await screen.findByRole("button", { name: "Use scanned code(s)" }),
+  );
   await waitFor(() => expect(onPick).toHaveBeenCalledOnce());
   expect(mocks.query).toHaveBeenCalledWith(expect.anything(), {
     warehouseId: "warehouse-a",
@@ -108,6 +117,9 @@ it("offers inline registration for a confirmed missing image location", async ()
   );
   const { onPick } = setup();
   upload();
+  fireEvent.click(
+    await screen.findByRole("button", { name: "Use scanned code(s)" }),
+  );
   await screen.findByRole("button", { name: "Add location" });
   expect(screen.getByRole("textbox", { name: "Search location" })).toHaveValue(
     "F2-L28-1",
@@ -146,6 +158,9 @@ it("does not turn denied image lookups into an unmapped location", async () => {
   });
   const { onPick } = setup();
   upload();
+  fireEvent.click(
+    await screen.findByRole("button", { name: "Use scanned code(s)" }),
+  );
   await screen.findByText(/Cannot access locations/);
   expect(onPick).not.toHaveBeenCalled();
   expect(

@@ -7,8 +7,8 @@ import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/IconButton";
 import { Notice } from "@/components/ui/Notice";
 import { useBarcodeCamera } from "./useBarcodeCamera";
-import { useBarcodeImage } from "./useBarcodeImage";
-import { BarcodeImageControls } from "./BarcodeImageControls";
+import { BarcodeImagePicker } from "./BarcodeImagePicker";
+import type { BarcodeImageTarget } from "./barcodeImage";
 import type { BarcodeCrop } from "./barcodeDecoder";
 
 /** Shared acquisition and controls for continuous intake and single-code verification. */
@@ -21,6 +21,8 @@ export function BarcodeCameraBox({
   startOnMount = true,
   disabled = false,
   stopAfterScan = false,
+  imageTarget = mode === "LOCATION" ? "LOCATION" : "ANY",
+  onImageCodes,
   onReadWithAi,
   children,
 }: {
@@ -32,6 +34,8 @@ export function BarcodeCameraBox({
   startOnMount?: boolean;
   disabled?: boolean;
   stopAfterScan?: boolean;
+  imageTarget?: BarcodeImageTarget;
+  onImageCodes?: (codes: string[]) => void;
   onReadWithAi?: (file?: File, crop?: BarcodeCrop) => void;
   children?: (scan: {
     onScan: () => void;
@@ -42,8 +46,8 @@ export function BarcodeCameraBox({
 }) {
   const t = useTranslations("JobScan");
   const [camera, setCamera] = useState(startOnMount);
+  const [imageSession, setImageSession] = useState(0);
   const [videoAspect, setVideoAspect] = useState(16 / 9);
-  const image = useBarcodeImage(receive, disabled);
   if (disabled && camera) setCamera(false);
   const {
     videoRef,
@@ -68,14 +72,14 @@ export function BarcodeCameraBox({
   const startupPending = !camera && state === "STARTING";
   const scanDisabled = disabled || startupPending;
   function close() {
-    image.cancel();
     stop();
     setCamera(false);
+    setImageSession((session) => session + 1);
     onClose?.();
   }
   function open() {
     if (scanDisabled) return;
-    image.cancel();
+    setImageSession((session) => session + 1);
     if (camera) start();
     else setCamera(true);
   }
@@ -86,6 +90,34 @@ export function BarcodeCameraBox({
   }
   return (
     <div className="space-y-2">
+      <BarcodeImagePicker
+        key={`${imageSession}:${imageTarget}:${disabled}`}
+        target={imageTarget}
+        onReadWithAi={
+          onReadWithAi
+            ? (file, crop) => {
+                stop();
+                setCamera(false);
+                setImageSession((session) => session + 1);
+                onReadWithAi(file, crop);
+              }
+            : undefined
+        }
+        disabled={disabled}
+        onSelect={() => {
+          // Switching sources releases the stream without cancelling its owning workflow.
+          stop();
+          setCamera(false);
+        }}
+        onCodes={(codes) => {
+          if (disabled) return;
+          stop();
+          setCamera(false);
+          if (stopAfterScan) close();
+          if (onImageCodes) onImageCodes(codes);
+          else for (const code of codes) onCode(code);
+        }}
+      />
       <div
         hidden={!camera || (state !== "ACTIVE" && state !== "STARTING")}
         className="relative mx-auto w-full overflow-hidden rounded-xl bg-black"
@@ -158,33 +190,6 @@ export function BarcodeCameraBox({
       >
         {t(camera ? "stopCamera" : "startCamera")}
       </Button>
-      <BarcodeImageControls
-        image={image}
-        disabled={disabled}
-        onSelect={(file) => {
-          stop();
-          setCamera(false);
-          image.select(file);
-        }}
-      />
-      {onReadWithAi && (
-        <Button
-          type="button"
-          variant="outline"
-          className="min-h-11 w-full md:min-h-11"
-          disabled={disabled}
-          onClick={() => {
-            const file = image.file;
-            const crop = image.cropping ? image.crop : undefined;
-            stop();
-            image.cancel();
-            setCamera(false);
-            onReadWithAi(file, crop);
-          }}
-        >
-          {t("readLocationAi")}
-        </Button>
-      )}
       {children?.({
         onScan: () => (camera && !retry ? close() : open()),
         scanning: camera && !retry,

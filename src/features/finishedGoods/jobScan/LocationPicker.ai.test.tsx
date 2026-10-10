@@ -3,7 +3,7 @@ import { beforeEach, expect, it, vi } from "vitest";
 import { renderWithIntl } from "@tests/fixtures/intl-render";
 import { querySuccess } from "@tests/fixtures/finished-goods-ui";
 import { LocationPicker } from "./LocationPicker";
-import type * as BarcodeDecoder from "../barcodeDecoder";
+import type * as BarcodeImage from "../barcodeImage";
 import { getFunctionName } from "convex/server";
 
 vi.mock("@/i18n/navigation", () => ({
@@ -19,9 +19,15 @@ const mocks = vi.hoisted(() => ({
 vi.mock("./prepareLocationImage", () => ({
   prepareLocationImage: mocks.prepare,
 }));
-vi.mock("../barcodeDecoder", async (original) => ({
-  ...(await original<typeof BarcodeDecoder>()),
-  decodeBarcodeImage: mocks.decode,
+vi.mock("../barcodeImage", async (original) => ({
+  ...(await original<typeof BarcodeImage>()),
+  readBarcodeImage: () =>
+    mocks.decode().then((codes: string[]) => ({
+      codes,
+      reviewRequired: false,
+      attempts: 1,
+      elapsedMs: 1,
+    })),
 }));
 vi.mock("../useBarcodeCamera", () => ({
   useBarcodeCamera: () => ({

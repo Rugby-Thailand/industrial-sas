@@ -104,6 +104,7 @@ export function TicketFieldScanner({
         ) : (
           <BarcodeCameraBox
             mode="PACKAGES"
+            imageTarget={field}
             onCode={read}
             onClose={close}
             videoLabel={t("scanField", { field: t(field) })}

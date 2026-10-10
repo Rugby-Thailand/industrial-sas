@@ -138,7 +138,10 @@ function DestinationScanSession({
                     scan.onScan();
                   }}
                   value={code}
-                  onChange={(event) => setCode(event.target.value)}
+                  onChange={(event) => {
+                    stopCamera();
+                    setCode(event.target.value);
+                  }}
                   disabled={disabled}
                   autoComplete="off"
                   spellCheck={false}

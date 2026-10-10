@@ -1,3 +1,4 @@
+import { linearBarcodeRegions } from "./barcodeRegions";
 import type { DecodeHintType as BarcodeHint } from "@zxing/library";
 
 export interface BarcodeCrop {
@@ -17,7 +18,7 @@ export function barcodeImageProblem(file: File): BarcodeImageError | undefined {
   if (!file.size || file.size > MAX_BARCODE_IMAGE_BYTES) return "imageSize";
 }
 
-async function createBarcodeReader(primary = false) {
+export async function createBarcodeReader(primary = false) {
   const {
     MultiFormatReader,
     BinaryBitmap,
@@ -36,8 +37,9 @@ async function createBarcodeReader(primary = false) {
     ]);
   const reader = new MultiFormatReader();
   reader.setHints(hints);
-  return (canvas: HTMLCanvasElement) => {
-    const context = canvas.getContext("2d", { willReadFrequently: true });
+  return (canvas: HTMLCanvasElement | OffscreenCanvas) => {
+    const context = canvas.getContext("2d", { willReadFrequently: true }) as
+      CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
     if (!context) throw new Error("imageUnreadable");
     const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
     const luminance = new Uint8ClampedArray(canvas.width * canvas.height);
@@ -58,106 +60,7 @@ async function createBarcodeReader(primary = false) {
   };
 }
 
-/** Dense edges across the bars identify regions independently of a fixture or label. */
-export function linearBarcodeRegions(
-  data: Uint8ClampedArray,
-  width: number,
-  height: number,
-  direction: "vertical" | "horizontal" = "vertical",
-): BarcodeCrop[] {
-  const horizontal = direction === "horizontal";
-  const cellWidth = horizontal ? 12 : 24,
-    cellHeight = horizontal ? 24 : 12;
-  const columns = Math.ceil(width / cellWidth),
-    rows = Math.ceil(height / cellHeight);
-  const cells = new Uint8Array(columns * rows);
-  for (let cy = 0; cy < rows; cy++) {
-    for (let cx = 0; cx < columns; cx++) {
-      let edges = 0,
-        samples = 0;
-      for (
-        let y = cy * cellHeight + (horizontal ? 1 : 0);
-        y < Math.min(height, (cy + 1) * cellHeight);
-        y += horizontal ? 1 : 2
-      ) {
-        for (
-          let x = cx * cellWidth + (horizontal ? 0 : 1);
-          x < Math.min(width, (cx + 1) * cellWidth);
-          x += horizontal ? 2 : 1
-        ) {
-          const offset = (y * width + x) * 4;
-          const previous = offset - (horizontal ? width * 4 : 4);
-          const difference =
-            Math.abs(
-              data[offset]! +
-                data[offset + 1]! +
-                data[offset + 2]! -
-                (data[previous]! + data[previous + 1]! + data[previous + 2]!),
-            ) / 3;
-          if (difference > 32) edges++;
-          samples++;
-        }
-      }
-      if (samples && edges / samples >= 0.2) cells[cy * columns + cx] = 1;
-    }
-  }
-  const found: (BarcodeCrop & { score: number })[] = [];
-  for (let start = 0; start < cells.length; start++) {
-    if (!cells[start]) continue;
-    const stack = [start];
-    cells[start] = 0;
-    let minX = columns,
-      maxX = 0,
-      minY = rows,
-      maxY = 0,
-      count = 0;
-    while (stack.length) {
-      const index = stack.pop()!;
-      const x = index % columns,
-        y = Math.floor(index / columns);
-      minX = Math.min(minX, x);
-      maxX = Math.max(maxX, x);
-      minY = Math.min(minY, y);
-      maxY = Math.max(maxY, y);
-      count++;
-      // Bridge a short reflection gap, including slightly tilted bars.
-      const bridgeX = horizontal ? 1 : 2;
-      const bridgeY = horizontal ? 2 : 1;
-      for (let dy = -bridgeY; dy <= bridgeY; dy++) {
-        for (let dx = -bridgeX; dx <= bridgeX; dx++) {
-          const nx = x + dx,
-            ny = y + dy;
-          if (nx < 0 || nx >= columns || ny < 0 || ny >= rows) continue;
-          const next = ny * columns + nx;
-          if (cells[next]) {
-            cells[next] = 0;
-            stack.push(next);
-          }
-        }
-      }
-    }
-    const bw = (maxX - minX + 1) * cellWidth,
-      bh = (maxY - minY + 1) * cellHeight;
-    const along = horizontal ? bh : bw;
-    const across = horizontal ? bw : bh;
-    if (count < 6 || along < 96 || along < across * 1.5) continue;
-    const left = Math.max(0, minX * cellWidth - cellWidth);
-    const top = Math.max(0, minY * cellHeight - cellHeight);
-    const right = Math.min(width, (maxX + 1) * cellWidth + cellWidth);
-    const bottom = Math.min(height, (maxY + 1) * cellHeight + cellHeight);
-    found.push({
-      x: left / width,
-      y: top / height,
-      width: (right - left) / width,
-      height: (bottom - top) / height,
-      score: count,
-    });
-  }
-  return found
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 8)
-    .map(({ score: _score, ...crop }) => crop);
-}
+export { linearBarcodeRegions } from "./barcodeRegions";
 
 function canvasFor(
   source: CanvasImageSource,
@@ -169,14 +72,15 @@ function canvasFor(
   const sw = Math.max(1, Math.round(width * crop.width)),
     sh = Math.max(1, Math.round(height * crop.height));
   const radians = (angle * Math.PI) / 180;
-  const canvas = document.createElement("canvas");
+  const canvas = newCanvas();
   canvas.width = Math.ceil(
     sw * Math.abs(Math.cos(radians)) + sh * Math.abs(Math.sin(radians)),
   );
   canvas.height = Math.ceil(
     sw * Math.abs(Math.sin(radians)) + sh * Math.abs(Math.cos(radians)),
   );
-  const context = canvas.getContext("2d", { willReadFrequently: true });
+  const context = canvas.getContext("2d", { willReadFrequently: true }) as
+    CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
   if (!context) throw new Error("imageUnreadable");
   context.fillStyle = "white";
   context.fillRect(0, 0, canvas.width, canvas.height);
@@ -196,13 +100,19 @@ function canvasFor(
   return canvas;
 }
 
+function newCanvas(): HTMLCanvasElement | OffscreenCanvas {
+  return typeof document === "undefined"
+    ? new OffscreenCanvas(1, 1)
+    : document.createElement("canvas");
+}
+
 const fullImage: BarcodeCrop = { x: 0, y: 0, width: 1, height: 1 };
 const skewAngles = [0, -2, 2, -4, 4, -6, 6];
 const pause = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 
 /** Finite, cancellable photo decoding; callers choose between distinct decoded values. */
 export async function decodeBarcodeCanvas(
-  source: HTMLCanvasElement,
+  source: HTMLCanvasElement | OffscreenCanvas,
   {
     signal,
     crop,
@@ -218,11 +128,12 @@ export async function decodeBarcodeCanvas(
   let fallback: Awaited<ReturnType<typeof createBarcodeReader>> | undefined;
   const started = performance.now();
   const codes = new Set<string>();
-  const detect = document.createElement("canvas");
+  const detect = newCanvas();
   const scale = Math.min(1, 2400 / source.width, 2400 / source.height);
   detect.width = Math.max(1, Math.round(source.width * scale));
   detect.height = Math.max(1, Math.round(source.height * scale));
-  const context = detect.getContext("2d", { willReadFrequently: true });
+  const context = detect.getContext("2d", { willReadFrequently: true }) as
+    CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
   if (!context) throw new Error("imageUnreadable");
   context.drawImage(source, 0, 0, detect.width, detect.height);
   const pixels = context.getImageData(0, 0, detect.width, detect.height).data;

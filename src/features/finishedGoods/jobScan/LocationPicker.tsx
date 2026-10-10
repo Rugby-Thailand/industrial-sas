@@ -58,7 +58,7 @@ function LocationPickerSession({
   const [confirmedMissing, setConfirmedMissing] = useState<string>();
 
   const lookupVersion = useRef(0);
-  const cameraOpen = useRef(false);
+  const acquisitionOpen = useRef(false);
   const [checking, setChecking] = useState(false);
   const [ai, setAi] = useState<{ photo?: LocationPhoto }>();
   useEffect(
@@ -111,7 +111,7 @@ function LocationPickerSession({
 
   function cancelScan() {
     lookupVersion.current += 1;
-    cameraOpen.current = false;
+    acquisitionOpen.current = false;
     setCamera(false);
     setChecking(false);
     setAi(undefined);
@@ -121,9 +121,10 @@ function LocationPickerSession({
     onPick(location);
   }
   async function onScan(code: string, scannerVersion: number) {
-    if (!cameraOpen.current || scannerVersion !== lookupVersion.current) return;
+    if (!acquisitionOpen.current || scannerVersion !== lookupVersion.current)
+      return;
     const version = ++lookupVersion.current;
-    cameraOpen.current = false;
+    acquisitionOpen.current = false;
     setCamera(false);
     setChecking(true);
     setConfirmedMissing(undefined);
@@ -189,7 +190,7 @@ function LocationPickerSession({
                       setAdding(false);
                       setNotice(undefined);
                       if (opening) {
-                        cameraOpen.current = true;
+                        acquisitionOpen.current = true;
                         setCamera(true);
                         setAi({});
                       }
@@ -205,7 +206,7 @@ function LocationPickerSession({
                 setAdding(false);
                 setNotice(undefined);
                 if (!camera || ai) {
-                  cameraOpen.current = true;
+                  acquisitionOpen.current = true;
                   setCamera(true);
                 }
               }}
@@ -254,7 +255,7 @@ function LocationPickerSession({
             {...(canReadImage
               ? {
                   onReadWithAi: (file?: File, crop?: BarcodeCrop) => {
-                    if (!cameraOpen.current) return;
+                    if (!acquisitionOpen.current) return;
                     lookupVersion.current++;
                     setAi(file ? { photo: locationPhoto(file, crop) } : {});
                   },

@@ -34,6 +34,7 @@ import { TicketFieldScanner } from "./TicketFieldScanner";
 import { resizeImage, toDataUrl } from "./resizeImage";
 import {
   applyBarcode,
+  applyImageBarcodes,
   classifyTicketBarcode,
   isComplete,
   hasInvalidQuantity,
@@ -262,6 +263,21 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
     setFeedback(t("barcodeAdded", { field: t(field), code: value }));
   }
 
+  function onImageCodes(codes: string[]) {
+    if (acquisitionBlocked.current || panelRef.current !== "BARCODE") return;
+    const values = codes.map((code) => code.trim());
+    for (const code of values) {
+      const field = classifyTicketBarcode(code);
+      const problem = ticketBarcodeError(field, code);
+      if (problem) {
+        setFeedback(t(problem));
+        return;
+      }
+    }
+    setTickets((current) => applyImageBarcodes(current, values));
+    setFeedback(t("barcodeImageRead"));
+  }
+
   async function submit() {
     if (
       !location ||
@@ -468,6 +484,8 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
         {panel === "BARCODE" && !saving && (
           <BarcodeCameraBox
             mode="PACKAGES"
+            imageTarget="TICKET"
+            onImageCodes={onImageCodes}
             onCode={onBarcode}
             onClose={() => changePanel(null)}
             feedback={feedback}
@@ -488,13 +506,14 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
                 index={index}
                 disabled={saving}
                 onScan={(field) => openFieldScan(ticket, field, index)}
-                onChange={(field, value) =>
+                onChange={(field, value) => {
+                  if (panelRef.current === "BARCODE") changePanel(null);
                   update(ticket.key, (row) => ({
                     ...row,
                     values: { ...row.values, [field]: value },
                     aiFields: row.aiFields.filter((name) => name !== field),
-                  }))
-                }
+                  }));
+                }}
                 onFormatChange={(storageFormat) =>
                   setTickets((previous) =>
                     previous.map((item) =>
@@ -505,6 +524,7 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
                   )
                 }
                 onRemove={() => {
+                  if (panelRef.current === "BARCODE") changePanel(null);
                   if (fieldScanRef.current?.key === ticket.key)
                     closeFieldScan();
                   releasePreview(ticket);

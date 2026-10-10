@@ -164,6 +164,42 @@ export function applyBarcode(
   };
 }
 
+/** A single photographed ticket keeps its identities together and never overwrites a different label. */
+export function applyImageBarcodes(
+  tickets: TicketDraft[],
+  codes: string[],
+): TicketDraft[] {
+  if (codes.length !== 2)
+    return codes.reduce(
+      (rows, code) => applyBarcode(rows, code).tickets,
+      tickets,
+    );
+  const fields = Object.fromEntries(
+    codes.map((code) => [classifyTicketBarcode(code), code]),
+  );
+  if (!fields.factoryOrder || !fields.productBarcodeText) return tickets;
+  let index = tickets.length - 1;
+  while (
+    index >= 0 &&
+    !(
+      tickets[index]!.status === "ready" &&
+      !isComplete(tickets[index]!) &&
+      REQUIRED_FIELDS.every(
+        (field) =>
+          !tickets[index]!.values[field]?.trim() ||
+          tickets[index]!.values[field]?.trim() === fields[field],
+      )
+    )
+  )
+    index--;
+  if (index < 0) return [...tickets, newTicket("BARCODE", fields)];
+  return tickets.map((ticket, i) =>
+    i === index
+      ? { ...ticket, values: { ...ticket.values, ...fields } }
+      : ticket,
+  );
+}
+
 export function toPayload(ticket: TicketDraft) {
   const item: Record<string, string | number> = { source: ticket.source };
   for (const field of [...REQUIRED_FIELDS, ...DETAIL_FIELDS]) {

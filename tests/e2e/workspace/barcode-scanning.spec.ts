@@ -31,7 +31,7 @@ for (const locale of ["en", "th"] as const) {
       .click();
     await expect(page.getByRole("alert")).toHaveCount(1);
     const picker = page.getByRole("button", {
-      name: locale === "en" ? "Choose image" : "เลือกรูปภาพ",
+      name: locale === "en" ? "Choose image" : "เลือกภาพ",
       exact: true,
     });
     await expect(picker).toBeEnabled();
@@ -39,6 +39,12 @@ for (const locale of ["en", "th"] as const) {
       await page
         .locator("input[type=file]")
         .setInputFiles(resolve("tests/fixtures/barcode-photos", fixture.name));
+      await page
+        .getByRole("button", {
+          name: locale === "en" ? "Use scanned code(s)" : "ใช้รหัสที่อ่านได้",
+          exact: true,
+        })
+        .click();
       await expect(page.getByLabel("Decoded codes")).toHaveText(
         fixtures
           .slice(0, fixtures.indexOf(fixture) + 1)
@@ -87,6 +93,9 @@ test("QR images still decode through the shared file picker", async ({
     page.getByRole("button", { name: "Choose image" }),
   ).toBeEnabled();
   await page.evaluate(() => window.selectGeneratedBarcodePhoto("qr"));
+  await page
+    .getByRole("button", { name: "Use scanned code(s)", exact: true })
+    .click();
   await expect(page.getByLabel("Decoded codes")).toHaveText("F1-L3");
   await expect(page.getByRole("alert")).toHaveCount(0);
 });
@@ -109,6 +118,25 @@ test("two distinct barcodes require a choice before applying a value", async ({
   await page.getByRole("button", { name: "F2-L28-18", exact: true }).click();
   await expect(page.getByLabel("Decoded codes")).toHaveText("F2-L28-18");
   await expectNoAxeViolations(page, "main");
+});
+
+test("two distinct QR locations retain the explicit choice", async ({
+  page,
+}) => {
+  await page.goto(url);
+  await expect(
+    page.getByRole("button", { name: "Choose image" }),
+  ).toBeEnabled();
+  await page.evaluate(() => window.selectGeneratedBarcodePhoto("multiple-qr"));
+  await expect(
+    page.getByRole("button", { name: "F1-L3", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "F2-L4", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByLabel("Decoded codes")).toBeEmpty();
+  await page.getByRole("button", { name: "F2-L4", exact: true }).click();
+  await expect(page.getByLabel("Decoded codes")).toHaveText("F2-L4");
 });
 
 test("the real camera decoder reads a skewed label and stops its owned track", async ({

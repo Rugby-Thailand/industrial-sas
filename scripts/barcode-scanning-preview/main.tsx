@@ -31,7 +31,9 @@ declare global {
     barcodeFixtureStreams: MediaStream[];
     barcodeFixtureConstraints: MediaStreamConstraints[];
     resizeBarcodeFixtureCamera: (width: number, height: number) => void;
-    selectGeneratedBarcodePhoto: (kind: "qr" | "multiple") => Promise<void>;
+    selectGeneratedBarcodePhoto: (
+      kind: "qr" | "multiple" | "multiple-qr",
+    ) => Promise<void>;
     locationAiResponse: LocationImageResult;
     locationAiDelay: number;
     locationAiCompleted: number;
@@ -59,23 +61,28 @@ window.locationAiRequests = [];
 // the real file-input path, rather than replacing the production decoder.
 window.selectGeneratedBarcodePhoto = async (kind) => {
   const canvas = document.createElement("canvas");
-  canvas.width = kind === "qr" ? 320 : 3172;
-  canvas.height = kind === "qr" ? 320 : 2048;
+  canvas.width = kind === "qr" ? 320 : kind === "multiple-qr" ? 680 : 3172;
+  canvas.height = kind === "qr" || kind === "multiple-qr" ? 320 : 2048;
   const context = canvas.getContext("2d")!;
   context.fillStyle = "white";
   context.fillRect(0, 0, canvas.width, canvas.height);
-  if (kind === "qr") {
-    const matrix = new QRCodeWriter().encode(
-      "F1-L3",
-      BarcodeFormat.QR_CODE,
-      320,
-      320,
-      new Map(),
-    );
-    context.fillStyle = "black";
-    for (let y = 0; y < matrix.getHeight(); y++)
-      for (let x = 0; x < matrix.getWidth(); x++)
-        if (matrix.get(x, y)) context.fillRect(x, y, 1, 1);
+  if (kind === "qr" || kind === "multiple-qr") {
+    for (const [index, code] of (kind === "qr"
+      ? ["F1-L3"]
+      : ["F1-L3", "F2-L4"]
+    ).entries()) {
+      const matrix = new QRCodeWriter().encode(
+        code,
+        BarcodeFormat.QR_CODE,
+        320,
+        320,
+        new Map(),
+      );
+      context.fillStyle = "black";
+      for (let y = 0; y < matrix.getHeight(); y++)
+        for (let x = 0; x < matrix.getWidth(); x++)
+          if (matrix.get(x, y)) context.fillRect(x + index * 360, y, 1, 1);
+    }
   } else {
     for (const [index, fixture] of fixtures.slice(0, 2).entries()) {
       const image = new Image();

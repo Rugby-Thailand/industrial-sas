@@ -2,15 +2,21 @@ import { beforeEach, expect, it, vi } from "vitest";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { renderWithIntl } from "@tests/fixtures/intl-render";
 import { BarcodeCameraBox } from "./BarcodeCameraBox";
-import type * as BarcodeDecoder from "./barcodeDecoder";
+import type * as BarcodeImage from "./barcodeImage";
 
 const mocks = vi.hoisted(() => ({
-  decode: vi.fn<() => Promise<string[]>>(),
+  decode: vi.fn<(...args: unknown[]) => Promise<string[]>>(),
   stop: vi.fn(),
 }));
-vi.mock("./barcodeDecoder", async (original) => ({
-  ...(await original<typeof BarcodeDecoder>()),
-  decodeBarcodeImage: mocks.decode,
+vi.mock("./barcodeImage", async (original) => ({
+  ...(await original<typeof BarcodeImage>()),
+  readBarcodeImage: (...args: unknown[]) =>
+    mocks.decode(...args).then((codes) => ({
+      codes,
+      reviewRequired: false,
+      attempts: 1,
+      elapsedMs: 1,
+    })),
 }));
 
 vi.mock("./useBarcodeCamera", () => ({
@@ -65,6 +71,9 @@ it("offers image selection when the camera is unavailable", () => {
 it("pauses the camera without closing the location session and applies the image result", async () => {
   const { onCode, onClose } = setup();
   select();
+  fireEvent.click(
+    await screen.findByRole("button", { name: "Use scanned code(s)" }),
+  );
   await waitFor(() => expect(onCode).toHaveBeenCalledWith("F2-L28-1"));
   expect(onCode).toHaveBeenCalledOnce();
   expect(mocks.stop).toHaveBeenCalled();
@@ -97,6 +106,9 @@ it("discards the earlier image when another file is selected", async () => {
   select();
   await waitFor(() => expect(mocks.decode).toHaveBeenCalledOnce());
   select("another.png", "image/png");
+  fireEvent.click(
+    await screen.findByRole("button", { name: "Use scanned code(s)" }),
+  );
   await waitFor(() => expect(onCode).toHaveBeenCalledWith("F2-L28-1"));
   await act(async () => finish(["OLD"]));
   expect(onCode).toHaveBeenCalledOnce();
@@ -134,7 +146,7 @@ it("requires a choice when a photo contains distinct codes", async () => {
   mocks.decode.mockResolvedValue(["F2-L28-1", "F2-L28-18"]);
   const { onCode } = setup();
   select();
-  await screen.findByText(/Several codes were found/);
+  await screen.findByText(/Several codes found/);
   expect(onCode).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole("button", { name: "F2-L28-18" }));
   expect(onCode).toHaveBeenCalledWith("F2-L28-18");
@@ -143,20 +155,26 @@ it("requires a choice when a photo contains distinct codes", async () => {
 it("reports invalid files and unreadable barcodes without applying a value", async () => {
   const { onCode } = setup();
   select("image.gif", "image/gif");
-  expect(screen.getByRole("alert")).toHaveTextContent("JPEG, PNG, or WebP");
+  expect(screen.getByRole("alert")).toHaveTextContent("JPEG, PNG or WebP");
   expect(mocks.decode).not.toHaveBeenCalled();
   mocks.decode.mockResolvedValue([]);
   select();
-  await screen.findByText(/No barcode found/);
+  await screen.findByText(/Could not read a barcode/);
   expect(onCode).not.toHaveBeenCalled();
 });
 
 it("allows selecting the same file again and preserves single-result shutdown", async () => {
   const { onCode, onClose } = setup({ stopAfterScan: true });
   select();
+  fireEvent.click(
+    await screen.findByRole("button", { name: "Use scanned code(s)" }),
+  );
   await waitFor(() => expect(onCode).toHaveBeenCalledOnce());
   expect(onClose).toHaveBeenCalledOnce();
   select();
+  fireEvent.click(
+    await screen.findByRole("button", { name: "Use scanned code(s)" }),
+  );
   await waitFor(() => expect(onCode).toHaveBeenCalledTimes(2));
   expect(onClose).toHaveBeenCalledTimes(2);
 });
