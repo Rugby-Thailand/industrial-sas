@@ -8,6 +8,8 @@ import schema from "../../convex/schema";
 
 const CONVEX_MODULE_ROOT: Record<string, () => Promise<unknown>> = {
   "../convex/_generated/server.js": () => Promise.resolve({}),
+  "../convex/aiUsage/internal.ts": () =>
+    import("../../convex/aiUsage/internal"),
 };
 
 export type ConvexTestModuleMap = Record<string, () => Promise<unknown>>;

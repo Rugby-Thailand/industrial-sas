@@ -35,6 +35,8 @@ export const PERMISSION_CATALOGUE = Object.freeze([
   permission("masterData.storageLayout.read", "WAREHOUSE"),
   permission("masterData.storageLayout.manage", "WAREHOUSE"),
   permission("masterData.storageLayout.activate", "WAREHOUSE"),
+  permission("aiUsage.read", "ORG"),
+  permission("aiUsage.configure", "ORG"),
   ...HR_PERMISSION_CODES.map((code) => permission(code, "ORG")),
 ]);
 export const PERMISSIONS_BY_CODE: ReadonlyMap<string, PermissionDefinition> =
@@ -66,6 +68,8 @@ export const DEFAULT_ROLES: readonly DefaultRoleDefinition[] = Object.freeze([
     permissionCodes: [
       ...PLANNER_PERMISSION_CODES,
       ...HR_ADMIN_PERMISSION_CODES,
+      "aiUsage.read",
+      "aiUsage.configure",
     ],
   },
   {

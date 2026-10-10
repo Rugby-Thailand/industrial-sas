@@ -86,7 +86,7 @@ describe("representative registered coverage of every shipping public module", (
       ...new Set(PUBLIC_API_EXAMPLES.map(({ name }) => name.split(":")[0])),
     ].sort();
     expect(coveredModules).toEqual(publicModules);
-    expect(coveredModules).toHaveLength(16);
+    expect(coveredModules).toHaveLength(24);
     expect(new Set(PUBLIC_API_EXAMPLES.map(({ kind }) => kind))).toEqual(
       new Set(["query", "mutation", "action"]),
     );
@@ -107,9 +107,9 @@ describe("representative registered coverage of every shipping public module", (
       "storageLayouts/fg1Import:preflight",
       "storageLayouts/pdImport:preflight",
     ]);
-    // The inventory covers 17 representative functions, not every public export
+    // The inventory covers 25 representative functions, not every public export
     // or every successful payload hidden behind nested v.any() validators.
-    expect(PUBLIC_API_EXAMPLES).toHaveLength(17);
+    expect(PUBLIC_API_EXAMPLES).toHaveLength(25);
     expect(publicEntries.length).toBeGreaterThan(PUBLIC_API_EXAMPLES.length);
   });
 
@@ -149,7 +149,11 @@ describe("representative registered coverage of every shipping public module", (
         ).rejects.toThrow(/Validator error|extra field/i);
         expect(transport).not.toHaveBeenCalled();
       });
-      if (example.name !== "workspace/current:readCurrent") {
+      if (
+        !example.name.startsWith("hr/") &&
+        !example.name.startsWith("aiUsage/") &&
+        example.name !== "workspace/current:readCurrent"
+      ) {
         it("denies another tenant's warehouse without leaking its owner", async () => {
           const world = await createPublicApiWorld(MODULES);
           await contextDenied(
@@ -176,6 +180,23 @@ describe("representative previous-client success payloads through registered API
   it("keeps batch, product, pallet and storage detail fields used by existing clients", async () => {
     const world = await createPublicApiWorld(MODULES);
     const expected: Readonly<Record<string, object>> = {
+      "aiUsage/reports:summary": {
+        complete: true,
+        byFeature: {
+          JOB_TICKET_SCAN: { operationCount: 0 },
+          AI_SEARCH: { operationCount: 0 },
+        },
+      },
+      "hr/access:current": {
+        organizationId: world.orgA,
+        permissions: expect.any(Array),
+        timezoneSupported: true,
+      },
+      "hr/periods:list": { items: [], complete: true },
+      "hr/review:queue": { ok: true, complete: true, items: [] },
+      "hr/search:adminEmployees": { items: [], complete: true },
+      "hr/self:profile": { linked: false },
+      "hr/setup:listEmployees": { items: [], complete: true },
       "finishedGoods/batches:getBatch": {
         batch: { _id: world.batchId, status: "DRAFT", revision: 1 },
         product: { _id: world.productId, sku: "PUBLIC-1" },

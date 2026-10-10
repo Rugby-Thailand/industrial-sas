@@ -19,11 +19,23 @@ const SHIPPING_CATALOGUE = [
   ["masterData.storageLayout.read", "WAREHOUSE"],
   ["masterData.storageLayout.manage", "WAREHOUSE"],
   ["masterData.storageLayout.activate", "WAREHOUSE"],
+  ["aiUsage.read", "ORG"],
+  ["aiUsage.configure", "ORG"],
+  ["hr.self.access", "ORG"],
+  ["hr.team.review", "ORG"],
+  ["hr.admin.manage", "ORG"],
+  ["hr.period.close", "ORG"],
+  ["hr.period.export", "ORG"],
 ] as const;
+const PLANNER = SHIPPING_CATALOGUE.slice(0, 4).map(([code]) => code);
+const HR = SHIPPING_CATALOGUE.slice(6).map(([code]) => code);
 
 const SHIPPING_ROLES: Record<string, readonly string[]> = {
-  ORG_ADMIN: SHIPPING_CATALOGUE.map(([code]) => code),
-  WAREHOUSE_MANAGER: SHIPPING_CATALOGUE.map(([code]) => code),
+  ORG_ADMIN: [...PLANNER, ...HR, "aiUsage.read", "aiUsage.configure"],
+  WAREHOUSE_MANAGER: PLANNER,
+  HR_EMPLOYEE: ["hr.self.access"],
+  HR_SUPERVISOR: ["hr.self.access", "hr.team.review"],
+  HR_ADMIN: HR,
   SUPERVISOR: ["masterData.warehouse.read", "masterData.storageLayout.read"],
 };
 

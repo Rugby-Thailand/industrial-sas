@@ -4,6 +4,7 @@
 // and inset content. Routes and account information come from the real app.
 import { type CSSProperties, type ReactNode } from "react";
 import {
+  ChartNoAxesCombined,
   Boxes,
   Building2,
   CalendarCheck,
@@ -222,6 +223,7 @@ function AppSidebar() {
   );
 }
 const NAVIGATION_ICONS: Readonly<Record<string, LucideIcon>> = Object.freeze({
+  [ROUTES.aiUsage]: ChartNoAxesCombined,
   [ROUTES.storageLayouts]: Building2,
   [ROUTES.jobScan]: ScanIcon,
   [ROUTES.jobScanRecords]: ClipboardList,

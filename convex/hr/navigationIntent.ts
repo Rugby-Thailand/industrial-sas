@@ -74,7 +74,8 @@ export const interpret = actionWithOrg({
       model,
       query: args.query,
       context,
-    });
+      usage: ctx.aiUsage,
+    }).catch(() => ({ ok: false as const, error: "AI_UNAVAILABLE" as const }));
     if (!answer.ok) {
       // Status only: the query and provider text are never logged.
       console.warn("AI search unavailable", answer.error);

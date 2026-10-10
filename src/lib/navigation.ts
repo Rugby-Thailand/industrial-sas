@@ -33,6 +33,7 @@ export interface NavigationSection {
 }
 
 export const ROUTES = Object.freeze({
+  aiUsage: "/ai-usage",
   storageLayouts: "/master-data/storage-layouts",
   finishedGoods: "/finished-goods",
   jobScan: "/finished-goods/scan",
@@ -64,6 +65,7 @@ export const PLANNER_PATHS: readonly string[] = Object.freeze([
  */
 
 export type StaticDestinationKey =
+  | "admin.aiUsage"
   | PageKey
   | `hr.settings.${SettingsSection}`
   | "hr.task.clock"
@@ -76,7 +78,7 @@ export interface StaticDestination {
   readonly key: StaticDestinationKey;
   /** PAGE: menu-level page; SECTION: part of a page; TASK: a job to do there. */
   readonly kind: "PAGE" | "SECTION" | "TASK";
-  readonly module: "planner" | "hr";
+  readonly module: "planner" | "hr" | "admin";
   readonly href: string;
   readonly labelKey: string;
   /** Breadcrumb parent; the module section label precedes it. */
@@ -497,6 +499,16 @@ export const STATIC_DESTINATIONS: readonly StaticDestination[] = Object.freeze([
     ],
     permissionCodes: [HR_CODES.admin],
   },
+  {
+    key: "admin.aiUsage",
+    kind: "PAGE",
+    module: "admin",
+    href: ROUTES.aiUsage,
+    labelKey: "aiUsage",
+    aliases: ["AI usage", "AI cost", "ค่า AI", "ต้นทุน AI", "การใช้งาน AI"],
+    permissionCodes: [NAVIGATION_PERMISSION.aiUsage],
+    menu: true,
+  },
 ] satisfies readonly StaticDestination[]);
 
 const DESTINATION_BY_KEY: ReadonlyMap<StaticDestinationKey, StaticDestination> =
@@ -520,8 +532,13 @@ export function destinationTrail(key: StaticDestinationKey): readonly string[] {
         : DESTINATION_BY_KEY.get(entry.parent)
   )
     trail.unshift(entry.labelKey);
-  const section =
-    staticDestination(key).module === "hr" ? "sectionHr" : "sectionPlanner";
+  const section = (
+    {
+      hr: "sectionHr",
+      planner: "sectionPlanner",
+      admin: "sectionAdmin",
+    } as const
+  )[staticDestination(key).module];
   return [section, ...trail];
 }
 
@@ -540,6 +557,7 @@ const menuItems = (module: StaticDestination["module"]): NavigationItem[] =>
 export const DESKTOP_NAVIGATION: readonly NavigationSection[] = Object.freeze([
   { labelKey: "sectionPlanner", items: menuItems("planner") },
   { labelKey: "sectionHr", items: menuItems("hr") },
+  { labelKey: "sectionAdmin", items: menuItems("admin") },
 ]);
 
 /* Typed record destinations ---------------------------------------------- */

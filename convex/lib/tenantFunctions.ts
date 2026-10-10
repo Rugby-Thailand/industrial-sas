@@ -1,3 +1,4 @@
+import { createAiUsagePort, type AiUsagePort } from "./aiUsage";
 import { trackFinishedGoodsWrites } from "./finishedGoodsSummary";
 import {
   actionGeneric,
@@ -105,6 +106,7 @@ export interface TenantFunctionContext {
 }
 
 export interface TenantActionFunctionContext {
+  readonly aiUsage: AiUsagePort;
   readonly requestId: string;
   readonly identity: UserIdentity;
   readonly tenant: ActiveTenantContext;
@@ -707,6 +709,14 @@ async function runTenantAction<Args extends readonly unknown[], ReturnValue>(
     requestId,
     identity,
     tenant: verdict.context,
+    aiUsage: createAiUsagePort(rawContext, {
+      orgId: verdict.context.organization._id,
+      actorUserId: verdict.context.actor._id,
+      operationId: requestId,
+      ...(verdict.context.warehouse
+        ? { warehouseId: verdict.context.warehouse._id }
+        : {}),
+    }),
     permission: spec.permission,
     ...(verdict.quota === undefined ? {} : { quota: verdict.quota }),
   });

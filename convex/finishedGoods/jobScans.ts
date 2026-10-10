@@ -1,3 +1,4 @@
+import type { ImageProviderOutcome as JobTicketProviderOutcome } from "../lib/imageProvider";
 import { requestImageProvider as requestJobTicketProvider } from "../lib/imageProvider";
 export {
   IMAGE_PROVIDER_POLICY as JOB_TICKET_PROVIDER_POLICY,
@@ -55,6 +56,7 @@ const ticketItem = v.object({
   source: v.union(v.literal("AI"), v.literal("BARCODE"), v.literal("MANUAL")),
   imageUrl: optionalText,
   aiRaw: optionalText,
+  aiUsageOperationId: optionalText,
 });
 const mappedLocation = v.union(
   v.object({ locationId: v.id("locations") }),
@@ -152,7 +154,7 @@ export const extractJobTicket = actionWithOrg({
   permissionCode: MANAGE,
   target: { table: TABLE },
   warehouseId: (args) => args.warehouseId,
-  handler: async (_ctx, args) => {
+  handler: async (ctx, args) => {
     // An uploaded https URL, or the photo itself as a JPEG data URL (≈1 MB after client resize).
     if (
       !/^(https:\/\/|data:image\/(jpeg|png|webp);base64,)/i.test(
@@ -186,6 +188,7 @@ export const extractJobTicket = actionWithOrg({
         raw: JSON.stringify(sample),
       };
     }
+    const model = process.env.OPENROUTER_MODEL?.trim() || DEFAULT_MODEL;
     const send = (signal: AbortSignal) =>
       fetch("https://openrouter.ai/api/v1/chat/completions", {
         method: "POST",
@@ -195,7 +198,7 @@ export const extractJobTicket = actionWithOrg({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: process.env.OPENROUTER_MODEL?.trim() || DEFAULT_MODEL,
+          model,
           temperature: 0,
           messages: [
             { role: "system", content: JOB_TICKET_PROMPT },
@@ -217,7 +220,25 @@ export const extractJobTicket = actionWithOrg({
           },
         }),
       });
-    const outcome = await requestJobTicketProvider(send);
+    let outcome: JobTicketProviderOutcome;
+    try {
+      outcome = await requestJobTicketProvider(send, {
+        usage: ctx.aiUsage,
+        model,
+        validateContent: (content) => {
+          try {
+            parseJobTicket(
+              JSON.parse(content.replace(/^```(?:json)?|```$/gm, "")),
+            );
+            return true;
+          } catch {
+            return false;
+          }
+        },
+      });
+    } catch {
+      return { ok: false as const, error: { code: "AI_UNAVAILABLE" } };
+    }
     if (!outcome.ok) {
       // Static fields only: never the provider body, ticket image, extracted
       // customer/code text, model output or credentials.
@@ -239,6 +260,7 @@ export const extractJobTicket = actionWithOrg({
       return {
         ok: true as const,
         mock: false,
+        aiUsageOperationId: ctx.requestId,
         fields: parseJobTicket(json),
         raw: JSON.stringify(json),
       };
@@ -275,6 +297,28 @@ export const saveJobScans = mutationWithOrg({
         const error = jobTicketError(item);
         if (error) return failure(error);
       }
+      const linked = new Set<string>();
+      for (const item of args.items) {
+        if (!item.aiUsageOperationId) continue;
+        const op = await ctx.tenantDb
+          .byIndex<Doc<"aiUsageOperations">>(
+            "aiUsageOperations",
+            "by_orgId_operationId",
+            [{ field: "operationId", value: item.aiUsageOperationId }],
+          )
+          .unique();
+        if (
+          item.source !== "AI" ||
+          !op ||
+          op.feature !== "JOB_TICKET_SCAN" ||
+          op.actorUserId !== ctx.tenant.actor._id ||
+          op.warehouseId !== args.warehouseId ||
+          op.jobScanId ||
+          linked.has(op.operationId)
+        )
+          return failure("AI_USAGE_LINK_INVALID");
+        linked.add(op.operationId);
+      }
       const mapped = args.location
         ? await mapLocation(ctx, args.warehouseId, args.location)
         : null;
@@ -297,6 +341,18 @@ export const saveJobScans = mutationWithOrg({
           ...(mapped ?? {}),
           ...created(ctx),
         });
+        if (item.aiUsageOperationId) {
+          const op = await ctx.tenantDb
+            .byIndex<Doc<"aiUsageOperations">>(
+              "aiUsageOperations",
+              "by_orgId_operationId",
+              [{ field: "operationId", value: item.aiUsageOperationId }],
+            )
+            .unique();
+          await ctx.tenantDb.patch("aiUsageOperations", op!._id, {
+            jobScanId: id,
+          });
+        }
         firstId ||= id;
       }
       return { documentId: firstId };

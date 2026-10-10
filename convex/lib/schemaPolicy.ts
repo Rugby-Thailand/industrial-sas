@@ -49,6 +49,10 @@ export const TENANT_TABLES = [
   "hrPeriodVersions",
   "hrPeriodRows",
   "actionQuotas",
+  "aiUsageEvents",
+  "aiUsageOperations",
+  "aiUsageDailySummaries",
+  "aiCostSettings",
 ] as const;
 
 export type GlobalTableName = (typeof GLOBAL_TABLES)[number];
@@ -128,6 +132,27 @@ export function uniquenessIndexName(key: readonly string[]): string {
 }
 
 export const UNIQUENESS_CONTRACTS: readonly UniquenessContract[] = [
+  {
+    table: "aiUsageEvents",
+    key: ["orgId", "operationId", "attemptNo"],
+    condition: ALWAYS,
+  },
+  {
+    table: "aiUsageEvents",
+    key: ["orgId", "providerGenerationId"],
+    condition: whenPresent("providerGenerationId"),
+  },
+  {
+    table: "aiUsageOperations",
+    key: ["orgId", "operationId"],
+    condition: ALWAYS,
+  },
+  {
+    table: "aiUsageDailySummaries",
+    key: ["orgId", "summaryKey"],
+    condition: ALWAYS,
+  },
+  { table: "aiCostSettings", key: ["orgId", "version"], condition: ALWAYS },
   {
     table: "finishedGoodsPallets",
     key: ["orgId", "warehouseId", "code"],

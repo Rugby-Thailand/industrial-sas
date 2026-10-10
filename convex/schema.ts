@@ -1,3 +1,4 @@
+import { aiUsageTables } from "./aiUsage/schema";
 import { defineSchema, defineTable } from "convex/server";
 import type { DataModelFromSchemaDefinition } from "convex/server";
 import { v } from "convex/values";
@@ -122,6 +123,7 @@ const hrDisposition = v.union(
 );
 
 const schema = defineSchema({
+  ...aiUsageTables,
   hrEmployees: defineTable(
     tenantFields({
       warehouseId: v.id("warehouses"),
@@ -910,6 +912,7 @@ const schema = defineSchema({
       ),
       imageUrl: v.optional(v.string()),
       aiRaw: v.optional(v.string()),
+      aiUsageOperationId: v.optional(v.string()),
       locationText: v.string(),
       locationId: v.optional(v.id("locations")),
       buildingId: v.optional(v.id("storageBuildings")),

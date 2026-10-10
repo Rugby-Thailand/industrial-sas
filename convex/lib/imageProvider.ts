@@ -1,3 +1,6 @@
+import { normalizeUsage, type UsageFinish } from "../model/aiUsage/usage";
+import type { AiUsagePort } from "./aiUsage";
+
 /**
  * Explicit bounds for the image provider call (BD-07). Every attempt,
  * including reading its response body, ends at `attemptTimeoutMs`; all
@@ -140,6 +143,9 @@ export async function requestImageProvider(
   options: {
     readonly policy?: ImageProviderPolicy;
     readonly now?: () => number;
+    readonly usage?: AiUsagePort;
+    readonly model?: string;
+    readonly validateContent?: (content: string) => boolean;
   } = {},
 ): Promise<ImageProviderOutcome> {
   const policy = options.policy ?? IMAGE_PROVIDER_POLICY;
@@ -174,6 +180,15 @@ export async function requestImageProvider(
       );
       if (budget <= 0 || totalController.signal.aborted) return fail("timeout");
       attempts += 1;
+      await options.usage?.begin(
+        "JOB_TICKET_SCAN",
+        options.model ?? "openai/gpt-6-luna",
+        attempts,
+      );
+      let usageResult: UsageFinish = {
+        ...normalizeUsage(null),
+        status: "NETWORK_ERROR",
+      };
       const controller = new AbortController();
       const abortAttempt = () => controller.abort();
       totalController.signal.addEventListener("abort", abortAttempt, {
@@ -190,18 +205,11 @@ export async function requestImageProvider(
         } catch {
           return fail("network");
         }
-        if (response === ABORTED) return fail("timeout");
-        if (!response.ok) {
-          discardBody(response);
-          const retry =
-            !totalController.signal.aborted &&
-            response.status >= 500 &&
-            response.status <= 599 &&
-            attempts <= policy.maxRetries &&
-            policy.totalDeadlineMs - elapsed() >= policy.minRetryBudgetMs;
-          if (retry) continue;
-          return fail("status", response.status);
+        if (response === ABORTED) {
+          usageResult.status = "TIMEOUT";
+          return fail("timeout");
         }
+        usageResult.httpStatus = response.status;
         let text: string | typeof ABORTED | typeof TOO_LARGE;
         try {
           text = await readBoundedBody(
@@ -212,14 +220,46 @@ export async function requestImageProvider(
         } catch {
           return fail("network");
         }
-        if (text === ABORTED) return fail("timeout");
-        if (text === TOO_LARGE) return fail("too_large");
+        if (text === ABORTED) {
+          usageResult.status = "TIMEOUT";
+          return fail("timeout");
+        }
+        if (text === TOO_LARGE) {
+          usageResult.status = response.ok ? "UNREADABLE" : "PROVIDER_ERROR";
+          return fail("too_large");
+        }
+        let body: unknown;
+        try {
+          body = JSON.parse(text);
+        } catch {
+          body = null;
+        }
+        usageResult = {
+          ...normalizeUsage(body),
+          httpStatus: response.status,
+          status: response.ok ? "UNREADABLE" : "PROVIDER_ERROR",
+        };
+        if (!response.ok) {
+          const retry =
+            !totalController.signal.aborted &&
+            response.status >= 500 &&
+            response.status <= 599 &&
+            attempts <= policy.maxRetries &&
+            policy.totalDeadlineMs - elapsed() >= policy.minRetryBudgetMs;
+          if (retry) continue;
+          return fail("status", response.status);
+        }
         const content = envelopeContent(text);
         if (content === null) return fail("malformed");
+        usageResult.status =
+          !options.validateContent || options.validateContent(content)
+            ? "SUCCEEDED"
+            : "UNREADABLE";
         return { ok: true, content, attempts, elapsedMs: elapsed() };
       } finally {
         clearTimeout(timer);
         totalController.signal.removeEventListener("abort", abortAttempt);
+        await options.usage?.finish(attempts, usageResult);
       }
     }
   } finally {

@@ -1,3 +1,5 @@
+import { normalizeUsage, type UsageFinish } from "../aiUsage/usage";
+import type { AiUsagePort } from "../../lib/aiUsage";
 /**
  * The one OpenRouter chat request behind AI Search, shared by the Convex
  * action and the opt-in live evaluation so both send exactly the same thing.
@@ -136,7 +138,13 @@ export async function requestSearchIntent(input: {
   readonly context: IntentContextFlags;
   readonly fetcher?: typeof fetch;
   readonly timeoutMs?: number;
+  readonly usage?: AiUsagePort;
 }): Promise<Result<ModelIntent, ProviderFailure>> {
+  await input.usage?.begin("AI_SEARCH", input.model, 1);
+  let usageResult: UsageFinish = {
+    ...normalizeUsage(null),
+    status: "NETWORK_ERROR",
+  };
   const controller = new AbortController();
   const timer = setTimeout(
     () => controller.abort(),
@@ -152,16 +160,30 @@ export async function requestSearchIntent(input: {
       body: JSON.stringify(searchIntentRequestBody(input)),
       signal: controller.signal,
     });
-    if (!response.ok) return fail("AI_UNAVAILABLE");
+    usageResult.httpStatus = response.status;
     const text = await response.text();
     let body: unknown;
     try {
       body = JSON.parse(text);
     } catch {
-      return fail("AI_UNREADABLE");
+      usageResult.status = response.ok ? "UNREADABLE" : "PROVIDER_ERROR";
+      return fail(response.ok ? "AI_UNREADABLE" : "AI_UNAVAILABLE");
     }
-    return readSearchIntentResponse(body);
+    usageResult = {
+      ...normalizeUsage(body),
+      httpStatus: response.status,
+      status: response.ok ? "UNREADABLE" : "PROVIDER_ERROR",
+    };
+    if (!response.ok) return fail("AI_UNAVAILABLE");
+    const answer = readSearchIntentResponse(body);
+    usageResult.status = answer.ok ? "SUCCEEDED" : "UNREADABLE";
+    return answer;
   } catch (error) {
+    usageResult.status =
+      controller.signal.aborted ||
+      (error instanceof Error && error.name === "AbortError")
+        ? "TIMEOUT"
+        : "NETWORK_ERROR";
     return fail(
       controller.signal.aborted ||
         (error instanceof Error && error.name === "AbortError")
@@ -170,5 +192,6 @@ export async function requestSearchIntent(input: {
     );
   } finally {
     clearTimeout(timer);
+    await input.usage?.finish(1, usageResult);
   }
 }

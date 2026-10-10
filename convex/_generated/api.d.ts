@@ -8,6 +8,10 @@
  * @module
  */
 
+import type * as aiUsage_internal from "../aiUsage/internal.js";
+import type * as aiUsage_provision from "../aiUsage/provision.js";
+import type * as aiUsage_rebuild from "../aiUsage/rebuild.js";
+import type * as aiUsage_reports from "../aiUsage/reports.js";
 import type * as finishedGoods_batchManagement from "../finishedGoods/batchManagement.js";
 import type * as finishedGoods_batches from "../finishedGoods/batches.js";
 import type * as finishedGoods_catalogue from "../finishedGoods/catalogue.js";
@@ -30,6 +34,7 @@ import type * as hr_setup from "../hr/setup.js";
 import type * as hr_shared from "../hr/shared.js";
 import type * as http from "../http.js";
 import type * as lib_actionQuota from "../lib/actionQuota.js";
+import type * as lib_aiUsage from "../lib/aiUsage.js";
 import type * as lib_authorization from "../lib/authorization.js";
 import type * as lib_authorizationLookupsConvex from "../lib/authorizationLookupsConvex.js";
 import type * as lib_authorizationSeedConvex from "../lib/authorizationSeedConvex.js";
@@ -59,6 +64,7 @@ import type * as lib_tenantStorage from "../lib/tenantStorage.js";
 import type * as lib_tenantTable from "../lib/tenantTable.js";
 import type * as lib_validators from "../lib/validators.js";
 import type * as lib_writeEnvelope from "../lib/writeEnvelope.js";
+import type * as model_aiUsage_usage from "../model/aiUsage/usage.js";
 import type * as model_authorization_navigationPermissions from "../model/authorization/navigationPermissions.js";
 import type * as model_finishedGoods_jobScans from "../model/finishedGoods/jobScans.js";
 import type * as model_finishedGoods_locationImage from "../model/finishedGoods/locationImage.js";
@@ -113,6 +119,10 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  "aiUsage/internal": typeof aiUsage_internal;
+  "aiUsage/provision": typeof aiUsage_provision;
+  "aiUsage/rebuild": typeof aiUsage_rebuild;
+  "aiUsage/reports": typeof aiUsage_reports;
   "finishedGoods/batchManagement": typeof finishedGoods_batchManagement;
   "finishedGoods/batches": typeof finishedGoods_batches;
   "finishedGoods/catalogue": typeof finishedGoods_catalogue;
@@ -135,6 +145,7 @@ declare const fullApi: ApiFromModules<{
   "hr/shared": typeof hr_shared;
   http: typeof http;
   "lib/actionQuota": typeof lib_actionQuota;
+  "lib/aiUsage": typeof lib_aiUsage;
   "lib/authorization": typeof lib_authorization;
   "lib/authorizationLookupsConvex": typeof lib_authorizationLookupsConvex;
   "lib/authorizationSeedConvex": typeof lib_authorizationSeedConvex;
@@ -164,6 +175,7 @@ declare const fullApi: ApiFromModules<{
   "lib/tenantTable": typeof lib_tenantTable;
   "lib/validators": typeof lib_validators;
   "lib/writeEnvelope": typeof lib_writeEnvelope;
+  "model/aiUsage/usage": typeof model_aiUsage_usage;
   "model/authorization/navigationPermissions": typeof model_authorization_navigationPermissions;
   "model/finishedGoods/jobScans": typeof model_finishedGoods_jobScans;
   "model/finishedGoods/locationImage": typeof model_finishedGoods_locationImage;
