@@ -7,6 +7,9 @@ const root = dirname(fileURLToPath(import.meta.url));
 const repository = resolve(root, "../..");
 export default defineConfig({
   root,
+  // Both workspace harnesses run together in CI; their dependency graphs must
+  // not overwrite each other's optimized-dependency metadata.
+  cacheDir: resolve(repository, "node_modules/.vite-barcode-scanning"),
   publicDir: resolve(repository, "tests/fixtures/barcode-photos"),
   plugins: [react()],
   resolve: { alias: { "@": resolve(repository, "src") } },
