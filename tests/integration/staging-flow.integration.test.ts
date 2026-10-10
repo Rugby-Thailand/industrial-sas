@@ -521,6 +521,7 @@ describe("per-run provisioning and owned-resource recovery controller", () => {
   it("refuses a different development instance before any writes", async () => {
     const path = statePath();
     const model = provider(path);
+    const phases: string[] = [];
     model.clerk.instance.get = async () => ({
       id: "ins_wrong_development",
       environmentType: "development",
@@ -530,8 +531,10 @@ describe("per-run provisioning and owned-resource recovery controller", () => {
         ...model,
         statePath: path,
         runId: "offline-run-01",
+        onProgress: (phase) => phases.push(phase),
       }),
     ).rejects.toThrow(/^STAGING_SETUP_FAILED$/);
+    expect(phases).toEqual(["verify-instance"]);
     expect(model.users.size).toBe(0);
     expect(model.organizations.size).toBe(0);
     expect(existsSync(path)).toBe(false);

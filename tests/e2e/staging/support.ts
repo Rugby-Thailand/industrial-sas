@@ -79,7 +79,10 @@ export function managerEmail(runId: string) {
   if (!RUN_ID.test(runId)) throw new Error("STAGING_RUN_ID_INVALID");
   return `ci-e2e-${runId}+clerk_test@example.com`;
 }
-export function assertStagingInputs(env: Environment = process.env): void {
+export function assertStagingInputs(
+  env: Environment = process.env,
+  onProblem?: (name: string) => void,
+): void {
   const problems: string[] = [];
   try {
     const base = new URL(env.SMOKE_BASE_URL ?? "");
@@ -146,8 +149,11 @@ export function assertStagingInputs(env: Environment = process.env): void {
   ) {
     problems.push("STAGING_E2E_LOCAL_REHEARSAL");
   }
-  if (problems.length > 0)
+  if (problems.length > 0) {
+    // Every entry is a fixed input name, never an environment value.
+    for (const problem of problems) onProblem?.(problem);
     throw new Error(`STAGING_INPUTS_INVALID: ${problems.join(", ")}`);
+  }
 }
 export function runId(env: Environment = process.env): string {
   const suffix = randomUUID().replaceAll("-", "").slice(0, 8);
