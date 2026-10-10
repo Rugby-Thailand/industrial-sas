@@ -2,14 +2,19 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { useConvex, useQuery } from "convex/react";
-import { MapPin, Search } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { MapPin, Plus, Search } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 import { FormField } from "@/components/ui/FormField";
 import { ScanCodeInput } from "@/components/ui/ScanCodeInput";
-import { PaginationFooter } from "@/components/system/PaginationFooter";
+import { CursorPagination } from "@/components/system/CursorPagination";
+import { useCursorPagination } from "@/hooks/useCursorPagination";
+import { useScanContinuation } from "@/hooks/useScanContinuation";
+import { useCatalogueSync } from "@/hooks/useCatalogueSync";
 import { useDebouncedSearch } from "@/hooks/useScanContinuation";
 import { fgRefs } from "@/lib/convex/finishedGoodsApi";
 import { BarcodeCameraBox } from "../BarcodeCameraBox";
+import { Button } from "@/components/ui/button";
+import { AddLocationForm } from "./AddLocationForm";
 import type { PickedLocation } from "./ticketDraft";
 
 /** Search or scan a known location; optionally accept free text as an unmapped location. */
@@ -34,13 +39,14 @@ function LocationPickerSession({
   allowUnmapped = true,
 }: LocationPickerProps) {
   const t = useTranslations("JobScan");
-  const tp = useTranslations("Pagination");
+  const locale = useLocale();
   const convex = useConvex();
   const inputId = useId();
   const [text, setText] = useState("");
   const [camera, setCamera] = useState(false);
   const [notice, setNotice] = useState<string>();
-  const [page, setPage] = useState(1);
+  const [adding, setAdding] = useState(false);
+
   const lookupVersion = useRef(0);
   const cameraOpen = useRef(false);
   const [checking, setChecking] = useState(false);
@@ -51,10 +57,25 @@ function LocationPickerSession({
     [warehouseId, allowUnmapped],
   );
   const settledText = useDebouncedSearch(text);
+  const criteria = { warehouseId, text: settledText };
+  const paging = useCursorPagination({
+    scope: `job-location-picker:${warehouseId}`,
+    criteria,
+  });
+  const scan = useScanContinuation(
+    JSON.stringify([criteria, paging.cursor, paging.pageSize]),
+  );
   const outcome = useQuery(fgRefs.searchJobScanLocations, {
-    warehouseId,
-    text: settledText,
-    page,
+    ...criteria,
+    pageSize: paging.pageSize,
+    ...(paging.cursor ? { cursor: paging.cursor } : {}),
+    ...(scan.cursor ? { scanCursor: scan.cursor } : {}),
+  });
+  useCatalogueSync({
+    outcome,
+    continuation: scan,
+    paging,
+    resetKey: JSON.stringify(criteria),
   });
   const result = outcome?.ok ? outcome.value : undefined;
   const zones = result?.items ?? [];
@@ -78,7 +99,7 @@ function LocationPickerSession({
     setChecking(true);
     setNotice(undefined);
     try {
-      const result = await convex.query(fgRefs.resolveLocationCode, {
+      const result = await convex.query(fgRefs.resolveJobScanLocation, {
         warehouseId,
         code,
       });
@@ -90,25 +111,16 @@ function LocationPickerSession({
       }
       const location = result.value.ok ? result.value.location : undefined;
       if (location) {
-        choose({
-          text: location.code,
-          zoneId: location.zoneId,
-          ...(location.supportPositionId
-            ? { supportPositionId: location.supportPositionId }
-            : {}),
-          code: location.code,
-          name: location.name,
-        });
+        choose({ ...location, text: location.code });
       } else if (
-        allowUnmapped &&
         !result.value.ok &&
-        result.value.error.code === "LOCATION_UNAVAILABLE" &&
+        result.value.error.code === "LOCATION_NOT_FOUND" &&
         !/^ISAS:/i.test(code) &&
         code.length <= 200
       ) {
         setText(code);
-        setPage(1);
-        setNotice(t("notFoundUnmapped", { code }));
+
+        setNotice(t("locationMissing", { code }));
       } else {
         setNotice(t("locationScanNotFound"));
       }
@@ -137,6 +149,7 @@ function LocationPickerSession({
               scanning={camera}
               onScan={() => {
                 cancelScan();
+                setAdding(false);
                 setNotice(undefined);
                 if (!camera) {
                   cameraOpen.current = true;
@@ -146,8 +159,9 @@ function LocationPickerSession({
               value={text}
               onChange={(event) => {
                 cancelScan();
+                setAdding(false);
                 setText(event.target.value);
-                setPage(1);
+
                 setNotice(undefined);
               }}
               placeholder={t("searchPlaceholder")}
@@ -176,71 +190,118 @@ function LocationPickerSession({
           {notice}
         </p>
       )}
-      <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border">
-        {zones.map((zone) => (
-          <li key={zone.zoneId}>
-            <button
-              type="button"
-              className="flex min-h-12 w-full items-center gap-3 px-3 py-2 text-left hover:bg-raised focus-visible:bg-raised focus-visible:outline-none"
-              onClick={() =>
-                choose({
-                  text: zone.code,
-                  zoneId: zone.zoneId,
-                  code: zone.code,
-                  name: zone.name,
-                })
-              }
-            >
-              <MapPin
-                className="size-4 shrink-0 text-muted"
-                aria-hidden="true"
-              />
-              <span className="min-w-0 shrink-0 font-mono font-semibold break-all sm:break-normal">
-                {zone.code}
-              </span>
-              <span className="min-w-0 truncate text-sm text-muted">
-                {zone.name}
-              </span>
-            </button>
-          </li>
-        ))}
-        {outcome && !zones.length && (
-          <li className="px-3 py-3 text-sm text-muted">
-            {t("noLocationMatch")}
-          </li>
-        )}
-        {allowUnmapped && trimmed && (
-          <li>
-            <button
-              type="button"
-              className="flex min-h-12 w-full flex-col items-start px-3 py-2 text-left hover:bg-raised focus-visible:bg-raised focus-visible:outline-none"
-              onClick={() => choose({ text: trimmed })}
-            >
-              <span className="font-semibold text-warning">
-                {t("useUnmapped", { text: trimmed })}
-              </span>
-              <span className="text-xs text-muted">{t("unmappedHint")}</span>
-            </button>
-          </li>
-        )}
-      </ul>
-      {result && result.pages > 1 && (
-        <PaginationFooter
-          label={tp("pagination")}
-          pageSizeControl={
-            <span className="text-sm text-muted">
-              {t("locationCount", { count: result.total })}
-            </span>
-          }
-          status={t("pageOf", { page: result.page, pages: result.pages })}
-          previousLabel={tp("previousPage")}
-          nextLabel={tp("nextPage")}
-          canPrevious={result.page > 1}
-          canNext={result.page < result.pages}
-          onPrevious={() => setPage(result.page - 1)}
-          onNext={() => setPage(result.page + 1)}
+      {adding && (
+        <AddLocationForm
+          key={warehouseId}
+          warehouseId={warehouseId}
+          initialCode={trimmed}
+          onPick={choose}
+          onCancel={() => {
+            setAdding(false);
+            document.getElementById(inputId)?.focus();
+          }}
         />
       )}
+      {!adding && result?.canCreate && text === settledText && trimmed && (
+        <div className="space-y-2">
+          <p className="text-sm text-muted">
+            {t("locationMissing", { code: trimmed })}
+          </p>
+          <Button
+            type="button"
+            onClick={() => {
+              cancelScan();
+              setAdding(true);
+              setNotice(undefined);
+            }}
+          >
+            <Plus aria-hidden="true" className="size-4" />
+            {t("addLocation")}
+          </Button>
+        </div>
+      )}
+      {!adding && (
+        <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border">
+          {zones.map((zone) => (
+            <li key={zone.locationId ?? zone.zoneId}>
+              <button
+                type="button"
+                className="flex min-h-12 w-full items-center gap-3 px-3 py-2 text-left hover:bg-raised focus-visible:bg-raised focus-visible:outline-none"
+                onClick={() => choose({ ...zone, text: zone.code })}
+              >
+                <MapPin
+                  className="size-4 shrink-0 text-muted"
+                  aria-hidden="true"
+                />
+                <span className="min-w-0 shrink-0 font-mono font-semibold break-all sm:break-normal">
+                  {zone.code}
+                </span>
+                <span className="min-w-0 truncate text-sm text-muted">
+                  {zone.buildingName
+                    ? [
+                        zone.buildingName,
+                        zone.floorNumber === undefined
+                          ? undefined
+                          : t("floorNumber", { number: zone.floorNumber }),
+                        zone.name,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")
+                    : zone.name}
+                </span>
+              </button>
+            </li>
+          ))}
+          {outcome && !zones.length && (
+            <li className="px-3 py-3 text-sm text-muted">
+              {t("noLocationMatch")}
+            </li>
+          )}
+          {allowUnmapped &&
+            trimmed &&
+            text === settledText &&
+            result?.canCreate && (
+              <li>
+                <button
+                  type="button"
+                  className="flex min-h-12 w-full flex-col items-start px-3 py-2 text-left hover:bg-raised focus-visible:bg-raised focus-visible:outline-none"
+                  onClick={() => choose({ text: trimmed })}
+                >
+                  <span className="font-semibold text-warning">
+                    {t("useUnmapped", { text: trimmed })}
+                  </span>
+                  <span className="text-xs text-muted">
+                    {t("unmappedHint")}
+                  </span>
+                </button>
+              </li>
+            )}
+        </ul>
+      )}
+      {!adding && result?.status === "scanning" && (
+        <p role="status" className="text-sm text-muted">
+          {t("checkingLocation")}
+        </p>
+      )}
+      {!adding && outcome && !outcome.ok && (
+        <p role="alert" className="text-sm text-danger">
+          {t("locationLookupDenied")}
+        </p>
+      )}
+      {!adding &&
+        result?.status === "ready" &&
+        (paging.canPrevious || !result.isDone) && (
+          <CursorPagination
+            locale={locale}
+            page={paging.page}
+            pageSize={paging.pageSize}
+            onPageSizeChange={paging.setPageSize}
+            onPrevious={paging.previous}
+            onNext={() => paging.next(result.continueCursor)}
+            canPrevious={paging.canPrevious}
+            canNext={!result.isDone}
+          />
+        )}
     </div>
   );
 }

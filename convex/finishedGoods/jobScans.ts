@@ -14,6 +14,13 @@ import {
   parseJobTicket,
 } from "../model/finishedGoods/jobScans";
 
+import { jobLocationReader } from "./jobScanLocations";
+const batchFormat = v.union(
+  v.literal("PALLET"),
+  v.literal("BOX"),
+  v.literal("OTHER"),
+);
+
 const READ = "masterData.storageLayout.read";
 const MANAGE = "masterData.storageLayout.manage";
 const TABLE = "finishedGoodsJobScans";
@@ -34,14 +41,18 @@ const ticketItem = v.object({
   quantity: optionalNumber,
   factoryQuantity: optionalNumber,
   customerQuantity: optionalNumber,
+  storageFormat: v.optional(batchFormat),
   source: v.union(v.literal("AI"), v.literal("BARCODE"), v.literal("MANUAL")),
   imageUrl: optionalText,
   aiRaw: optionalText,
 });
-const mappedLocation = v.object({
-  zoneId: v.id("storageZones"),
-  supportPositionId: v.optional(v.id("storagePositions")),
-});
+const mappedLocation = v.union(
+  v.object({ locationId: v.id("locations") }),
+  v.object({
+    zoneId: v.id("storageZones"),
+    supportPositionId: v.optional(v.id("storagePositions")),
+  }),
+);
 
 /** Validate the entire selection before either bulk operation writes anything. */
 async function validateJobScanSelection(
@@ -61,35 +72,24 @@ async function validateJobScanSelection(
   return null;
 }
 
-/** Zone (or one of its positions) in this warehouse, or null when unusable. */
+/** Resolve and derive all parents on the server; client snapshots are never trusted. */
 async function mapLocation(
   ctx: TenantFunctionContext,
   warehouseId: Id<"warehouses">,
-  location: { zoneId: string; supportPositionId?: string | undefined },
+  input: { locationId?: string; zoneId?: string; supportPositionId?: string },
 ) {
-  const zone = await ctx.tenantDb.get<Doc<"storageZones">>(
-    "storageZones",
-    location.zoneId,
-  );
-  if (!zone || zone.warehouseId !== warehouseId || zone.status !== "ACTIVE")
-    return null;
-  if (!location.supportPositionId)
-    return {
-      zoneId: zone._id,
-      locationCode: zone.code,
-      locationName: zone.label,
-    };
-  const position = await ctx.tenantDb.get<Doc<"storagePositions">>(
-    "storagePositions",
-    location.supportPositionId,
-  );
-  if (!position || position.zoneId !== zone._id || position.status !== "ACTIVE")
-    return null;
+  const location = await jobLocationReader(ctx, warehouseId).byId(input);
+  if (!location) return null;
   return {
-    zoneId: zone._id,
-    supportPositionId: position._id,
-    locationCode: position.code,
-    locationName: position.label,
+    locationId: location.locationId,
+    buildingId: location.buildingId,
+    ...(location.floorId ? { floorId: location.floorId } : {}),
+    ...(location.zoneId ? { zoneId: location.zoneId } : {}),
+    ...(location.supportPositionId
+      ? { supportPositionId: location.supportPositionId }
+      : {}),
+    locationCode: location.code,
+    locationName: location.name,
   };
 }
 
@@ -547,7 +547,9 @@ export const assignJobScanLocation = mutationWithOrg({
       for (const id of new Set(args.ids))
         await ctx.tenantDb.patch(TABLE, id, {
           mapped: true,
+          zoneId: undefined,
           supportPositionId: undefined,
+          floorId: undefined,
           ...mapped,
           ...stamp(ctx),
         });
@@ -646,25 +648,53 @@ export const listJobScans = queryWithOrg({
       isDone = page.isDone;
       continueCursor = page.continueCursor;
     }
-    const items = records.map((scan) => ({
-      id: scan._id,
-      factoryOrder: scan.factoryOrder,
-      productBarcodeText: scan.productBarcodeText,
-      partName: scan.partName,
-      customer: scan.customer,
-      deliveryDate: scan.deliveryDate,
-      manufacturingDate: scan.manufacturingDate,
-      quantity: scan.quantity,
-      factoryQuantity: scan.factoryQuantity,
-      customerQuantity: scan.customerQuantity,
-      source: scan.source,
-      imageUrl: scan.imageUrl,
-      locationText: scan.locationText,
-      mapped: scan.mapped,
-      locationCode: scan.locationCode,
-      locationName: scan.locationName,
-      createdAt: scan.createdAt,
-    }));
+    const items = await Promise.all(
+      records.map(async (scan) => {
+        const zone =
+          !scan.buildingId && scan.zoneId
+            ? await ctx.tenantDb.get<Doc<"storageZones">>(
+                "storageZones",
+                scan.zoneId,
+              )
+            : null;
+        const buildingId = scan.buildingId ?? zone?.buildingId;
+        const floorId = scan.floorId ?? zone?.floorId;
+        const building = buildingId
+          ? await ctx.tenantDb.get<Doc<"storageBuildings">>(
+              "storageBuildings",
+              buildingId,
+            )
+          : null;
+        const floor = floorId
+          ? await ctx.tenantDb.get<Doc<"storageFloors">>(
+              "storageFloors",
+              floorId,
+            )
+          : null;
+        return {
+          id: scan._id,
+          factoryOrder: scan.factoryOrder,
+          productBarcodeText: scan.productBarcodeText,
+          partName: scan.partName,
+          customer: scan.customer,
+          deliveryDate: scan.deliveryDate,
+          manufacturingDate: scan.manufacturingDate,
+          quantity: scan.quantity,
+          factoryQuantity: scan.factoryQuantity,
+          customerQuantity: scan.customerQuantity,
+          source: scan.source,
+          imageUrl: scan.imageUrl,
+          locationText: scan.locationText,
+          mapped: scan.mapped,
+          storageFormat: scan.storageFormat,
+          buildingName: building?.name,
+          floorNumber: floor?.floorNumber,
+          locationCode: scan.locationCode,
+          locationName: scan.locationName,
+          createdAt: scan.createdAt,
+        };
+      }),
+    );
     return { items, continueCursor, isDone };
   },
 });

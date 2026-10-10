@@ -1391,6 +1391,36 @@
     "imageSize": "Choose a non-empty image up to 25 MB and 40 megapixels.",
     "imageUnreadable": "This image could not be opened. Choose another image or type the code.",
     "imageNoBarcode": "No barcode found. Crop around the label, choose a clearer image, or type the code.",
-    "chooseBarcodeValue": "Several codes were found. Choose the code for this field."
+    "chooseBarcodeValue": "Several codes were found. Choose the code for this field.",
+    "addLocation": "Add location",
+    "addLocationHint": "Register this location in a building, then continue scanning tickets. You can add its floor-plan layout later.",
+    "locationCode": "Location code",
+    "locationDisplayName": "Display name (optional)",
+    "nameDefaultsToCode": "Uses the location code if left blank.",
+    "building": "Building",
+    "floorOptional": "Floor (optional)",
+    "chooseBuilding": "Choose a building",
+    "noActiveBuildings": "No active buildings in this warehouse.",
+    "setupBuilding": "Set up a building (opens a new tab)",
+    "noFloor": "Set floor later",
+    "floorNumber": "Floor {number}",
+    "creatingLocation": "Creating location…",
+    "createAndUseLocation": "Create and use location",
+    "locationMissing": "“{code}” is not registered yet.",
+    "storageFormat": "Unit type",
+    "format": {
+      "PALLET": "Pallet",
+      "BOX": "Package / box",
+      "OTHER": "Other"
+    },
+    "formatUnspecified": "Unspecified",
+    "registeredLocations": "Registered locations",
+    "registeredLocationsHint": "Locations recorded during scanning. Their floor-plan layout can be added later.",
+    "layoutPending": "Location recorded · Layout pending",
+    "dimensionsNotRecorded": "Dimensions and map position not recorded.",
+    "noRegisteredLocations": "No registered locations match these filters.",
+    "existingLocationConflict": "This code has already been registered. Use its existing building assignment.",
+    "useExistingLocation": "Use existing location",
+    "registeredLocationPagination": "Registered location pagination"
   }
 }

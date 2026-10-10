@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { ALL_CATALOGUES, messagesFor } from "./messages";
 import { DEFAULT_LOCALE, LOCALES } from "./routing";
+import { pickMessages, ROUTE_NAMESPACES } from "./clientMessages";
 
 type Json = Record<string, unknown>;
 
@@ -37,6 +38,17 @@ const FLATTENED = new Map(
 );
 
 describe("message catalogues", () => {
+  it("supplies registration copy to the master-data route provider in each locale", () => {
+    for (const locale of LOCALES) {
+      const scoped = pickMessages(
+        ALL_CATALOGUES[locale],
+        ROUTE_NAMESPACES["(desktop)/master-data"],
+      );
+      expect(scoped.JobScan.registeredLocations).toBe(
+        ALL_CATALOGUES[locale].JobScan.registeredLocations,
+      );
+    }
+  });
   it("declares a catalogue for every routed locale", () => {
     for (const locale of LOCALES) {
       expect(FLATTENED.get(locale)?.size ?? 0).toBeGreaterThan(0);

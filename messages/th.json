@@ -1391,6 +1391,36 @@
     "imageSize": "กรุณาเลือกรูปภาพที่ไม่ว่าง ขนาดไม่เกิน 25 MB และ 40 ล้านพิกเซล",
     "imageUnreadable": "เปิดรูปภาพนี้ไม่ได้ กรุณาเลือกรูปภาพอื่นหรือพิมพ์รหัส",
     "imageNoBarcode": "ไม่พบบาร์โค้ด กรุณาครอบเฉพาะป้าย เลือกรูปที่ชัดกว่า หรือพิมพ์รหัส",
-    "chooseBarcodeValue": "พบหลายรหัส กรุณาเลือกรหัสสำหรับช่องนี้"
+    "chooseBarcodeValue": "พบหลายรหัส กรุณาเลือกรหัสสำหรับช่องนี้",
+    "addLocation": "เพิ่มจุดจัดเก็บ",
+    "addLocationHint": "ลงทะเบียนจุดจัดเก็บในอาคาร แล้วสแกนใบงานต่อได้ทันที โดยเพิ่มตำแหน่งบนผังภายหลังได้",
+    "locationCode": "รหัสจุดจัดเก็บ",
+    "locationDisplayName": "ชื่อแสดงผล (ไม่บังคับ)",
+    "nameDefaultsToCode": "หากเว้นว่างจะใช้รหัสจุดจัดเก็บ",
+    "building": "อาคาร",
+    "floorOptional": "ชั้น (ไม่บังคับ)",
+    "chooseBuilding": "เลือกอาคาร",
+    "noActiveBuildings": "ยังไม่มีอาคารที่ใช้งานอยู่ในคลังนี้",
+    "setupBuilding": "ตั้งค่าอาคาร (เปิดแท็บใหม่)",
+    "noFloor": "ระบุชั้นภายหลัง",
+    "floorNumber": "ชั้น {number}",
+    "creatingLocation": "กำลังสร้างจุดจัดเก็บ…",
+    "createAndUseLocation": "สร้างและใช้จุดจัดเก็บนี้",
+    "locationMissing": "ยังไม่ได้ลงทะเบียน “{code}”",
+    "storageFormat": "ประเภทหน่วยจัดเก็บ",
+    "format": {
+      "PALLET": "พาเลท",
+      "BOX": "แพ็กเกจ / กล่อง",
+      "OTHER": "อื่น ๆ"
+    },
+    "formatUnspecified": "ยังไม่ระบุ",
+    "registeredLocations": "จุดจัดเก็บที่ลงทะเบียน",
+    "registeredLocationsHint": "จุดจัดเก็บที่บันทึกระหว่างสแกน สามารถเพิ่มตำแหน่งบนผังภายหลังได้",
+    "layoutPending": "บันทึกจุดจัดเก็บแล้ว · รอเพิ่มบนผัง",
+    "dimensionsNotRecorded": "ยังไม่ได้ระบุขนาดและตำแหน่งบนผัง",
+    "noRegisteredLocations": "ไม่มีจุดจัดเก็บที่ลงทะเบียนตรงกับตัวกรอง",
+    "existingLocationConflict": "รหัสนี้มีการลงทะเบียนแล้ว ใช้จุดจัดเก็บที่กำหนดอาคารไว้เดิมได้",
+    "useExistingLocation": "ใช้จุดจัดเก็บที่มีอยู่",
+    "registeredLocationPagination": "การแบ่งหน้าจุดจัดเก็บที่ลงทะเบียน"
   }
 }
