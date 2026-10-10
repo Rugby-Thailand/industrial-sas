@@ -8,7 +8,6 @@ import {
   Building2,
   ClipboardList,
   PanelLeft,
-  ScanQrCode,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -20,6 +19,7 @@ import { LocaleSwitcher } from "@/components/shell/LocaleSwitcher";
 import { NavigationPendingIndicator } from "@/components/shell/NavigationPendingIndicator";
 import { WorkspaceContextBar } from "@/components/shell/WorkspaceContextBar";
 import { Button } from "@/components/ui/button";
+import { ScanIcon } from "@/components/ui/ScanIcon";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import {
   Sidebar,
@@ -194,7 +194,7 @@ function AppSidebar() {
 }
 const NAVIGATION_ICONS: Readonly<Record<string, LucideIcon>> = Object.freeze({
   [ROUTES.storageLayouts]: Building2,
-  [ROUTES.jobScan]: ScanQrCode,
+  [ROUTES.jobScan]: ScanIcon,
   [ROUTES.jobScanRecords]: ClipboardList,
 });
 
