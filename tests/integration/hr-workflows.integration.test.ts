@@ -382,6 +382,114 @@ describe("employee setup (HR-010, HR-011)", () => {
       options.items.map((item: { displayName: string }) => item.displayName),
     ).toContain("hr_supervisor");
   });
+
+  it("keeps another site's employee link out of a site-scoped administrator's member options (HR-001)", async () => {
+    const { world, employeeId } = await hrWorld();
+    const SITE_B_WORKER = "user_hr_site_b_worker";
+    const SITE_A_ADMIN = "user_hr_site_a_admin";
+    const siteBWorkerId = await addActor(world, SITE_B_WORKER, "HR_EMPLOYEE", [
+      world.warehouses.bravoA,
+    ]);
+    await addActor(world, SITE_A_ADMIN, "HR_ADMIN", [world.warehouses.alphaA]);
+    const siteBEmployee = written(
+      await call(
+        world,
+        setup.saveEmployee,
+        {
+          requestId: rid("site-b-employee"),
+          warehouseId: world.warehouses.bravoA,
+          code: "EMP-SITEB-901",
+          displayName: "Site B worker",
+          userId: siteBWorkerId,
+          employmentStartDate: "2026-01-01",
+          status: "ACTIVE",
+          schedule: DAY_SHIFT,
+        },
+        HR_ADMIN,
+      ),
+    );
+    type Option = {
+      userId: string;
+      displayName: string;
+      linked: boolean;
+      linkedEmployeeId?: string;
+      linkedEmployeeCode?: string;
+    };
+    const optionsFor = async (subject: string) => {
+      const outcome = value(
+        await call(world, setup.memberOptions, {}, subject),
+      );
+      expect(outcome.ok).toBe(true);
+      return {
+        raw: JSON.stringify(outcome),
+        byUser: new Map(
+          (outcome.items as Option[]).map((item) => [item.userId, item]),
+        ),
+      };
+    };
+
+    const scoped = await optionsFor(SITE_A_ADMIN);
+    // The account name stays available, marked linked, with no employee
+    // ID, code or site from outside the administrator's scope.
+    const outside = scoped.byUser.get(siteBWorkerId)!;
+    expect(outside).toEqual({
+      userId: siteBWorkerId,
+      displayName: "hr_site_b_worker",
+      linked: true,
+    });
+    expect(scoped.raw).not.toContain(siteBEmployee.documentId as string);
+    expect(scoped.raw).not.toContain("EMP-SITEB-901");
+    expect(scoped.raw).not.toContain(world.warehouses.bravoA);
+    // In-scope links keep their metadata; unlinked accounts are free.
+    expect(scoped.byUser.get(world.userA)).toMatchObject({
+      linked: true,
+      linkedEmployeeId: employeeId,
+      linkedEmployeeCode: "EMP-001",
+    });
+    expect(
+      [...scoped.byUser.values()].find(
+        (item) => item.displayName === "hr_supervisor",
+      ),
+    ).toMatchObject({ linked: false });
+    expect(
+      [...scoped.byUser.values()].find(
+        (item) => item.displayName === "hr_supervisor",
+      ),
+    ).not.toHaveProperty("linkedEmployeeId");
+
+    // The all-site administrator still sees both links.
+    const all = await optionsFor(HR_ADMIN);
+    expect(all.byUser.get(siteBWorkerId)).toMatchObject({
+      linked: true,
+      linkedEmployeeId: siteBEmployee.documentId,
+      linkedEmployeeCode: "EMP-SITEB-901",
+    });
+    expect(all.byUser.get(world.userA)).toMatchObject({
+      linkedEmployeeId: employeeId,
+    });
+
+    // The server stays authoritative: the scoped administrator cannot link
+    // the account to a second employee, and nothing is written.
+    const before = (await rows(world, "hrEmployees")).length;
+    refused(
+      await call(
+        world,
+        setup.saveEmployee,
+        {
+          requestId: rid("relink"),
+          warehouseId: world.warehouses.alphaA,
+          code: "EMP-SITEA-902",
+          displayName: "Second link",
+          userId: siteBWorkerId,
+          employmentStartDate: "2026-01-01",
+          status: "ACTIVE",
+        },
+        SITE_A_ADMIN,
+      ),
+      "MEMBER_ALREADY_LINKED",
+    );
+    expect(await rows(world, "hrEmployees")).toHaveLength(before);
+  });
 });
 
 describe("attendance (HR-020 – HR-025)", () => {
@@ -542,6 +650,158 @@ describe("attendance (HR-020 – HR-025)", () => {
       workedMinutes: 450,
       outsideShiftMinutes: 0,
     });
+  });
+
+  /** HR edits the linked employee's record through the real save command. */
+  async function editEmployment(
+    world: ConvexTenantWorld,
+    ids: { employeeId: string; supervisorId: string },
+    employment: { start: string; end?: string },
+    schedule: typeof DAY_SHIFT = DAY_SHIFT,
+  ) {
+    const current = value(
+      await call(
+        world,
+        setup.employee,
+        { employeeId: ids.employeeId },
+        HR_ADMIN,
+      ),
+    ).employee as { version: number };
+    written(
+      await call(
+        world,
+        setup.saveEmployee,
+        {
+          requestId: rid("employment"),
+          employeeId: ids.employeeId,
+          expectedVersion: current.version,
+          warehouseId: world.warehouses.alphaA,
+          code: "EMP-001",
+          displayName: "Somchai",
+          userId: world.userA,
+          supervisorUserId: ids.supervisorId,
+          employmentStartDate: employment.start,
+          ...(employment.end === undefined
+            ? {}
+            : { employmentEndDate: employment.end }),
+          status: "ACTIVE",
+          schedule,
+        },
+        HR_ADMIN,
+      ),
+    );
+  }
+
+  it("refuses a clock-out once HR moves the open day outside employment, without writing (HR-021)", async () => {
+    const { world, employeeId, supervisorId } = await hrWorld();
+    const ids = { employeeId, supervisorId };
+    setNow("2026-10-08", "08:30");
+    written(await call(world, self.clockIn, { requestId: rid("open-in") }));
+
+    // HR ends employment the day before the still-open business date.
+    await editEmployment(world, ids, {
+      start: "2026-01-01",
+      end: "2026-10-07",
+    });
+    setNow("2026-10-08", "17:40");
+    expect(value(await call(world, self.today, {}))).toMatchObject({
+      state: "OUTSIDE_EMPLOYMENT",
+      businessDate: "2026-10-08",
+      clockInAt: at("2026-10-08", "08:30"),
+      nextAction: "NONE",
+    });
+    const events = (await rows(world, "hrAttendanceEvents")).length;
+    const clockOutKeys = async () =>
+      (await rows(world, "idempotencyRecords")).filter(
+        (row) => row.operation === "hr.attendance.clockOut",
+      );
+    const requestId = rid("outside-out");
+    refused(
+      await call(world, self.clockOut, { requestId }),
+      "HR_OUTSIDE_EMPLOYMENT",
+    );
+    // A retry of the same command is refused again, not replayed as written.
+    refused(
+      await call(world, self.clockOut, { requestId }),
+      "HR_OUTSIDE_EMPLOYMENT",
+    );
+    refused(
+      await call(world, self.clockIn, { requestId: rid("outside-in") }),
+      "HR_OUTSIDE_EMPLOYMENT",
+    );
+
+    // Moving the start after the open date is outside employment too.
+    await editEmployment(world, ids, { start: "2026-10-09" });
+    refused(
+      await call(world, self.clockOut, { requestId }),
+      "HR_OUTSIDE_EMPLOYMENT",
+    );
+    expect(await rows(world, "hrAttendanceEvents")).toHaveLength(events);
+    expect(await clockOutKeys()).toEqual([]);
+    const [day] = await rows(world, "hrAttendanceDays");
+    expect(day).toMatchObject({ businessDate: "2026-10-08", open: true });
+    expect(day!.clockOutAt).toBeUndefined();
+
+    // Restored employment: the same command now runs once and then replays.
+    await editEmployment(world, ids, { start: "2026-01-01" });
+    const out = written(await call(world, self.clockOut, { requestId }));
+    expect(out).toMatchObject({
+      replayed: false,
+      businessDate: "2026-10-08",
+      kind: "CLOCK_OUT",
+    });
+    expect(
+      written(await call(world, self.clockOut, { requestId })),
+    ).toMatchObject({ replayed: true, documentId: out.documentId });
+    expect(await rows(world, "hrAttendanceEvents")).toHaveLength(events + 1);
+  });
+
+  it("still clocks out a final-day overnight shift after midnight (HR-021, A5)", async () => {
+    const { world, employeeId, supervisorId } = await hrWorld();
+    const night = {
+      workDays: [1, 2, 3, 4, 5, 6, 7],
+      startTime: "22:00",
+      endTime: "06:00",
+      endsNextDay: true,
+      breakMinutes: 30,
+    };
+    await editEmployment(
+      world,
+      { employeeId, supervisorId },
+      { start: "2026-01-01" },
+      night,
+    );
+    setNow("2026-10-08", "22:00");
+    written(await call(world, self.clockIn, { requestId: rid("last-in") }));
+    // HR records the open shift's date as the last day of employment.
+    await editEmployment(
+      world,
+      { employeeId, supervisorId },
+      { start: "2026-01-01", end: "2026-10-08" },
+      night,
+    );
+    setNow("2026-10-09", "06:00");
+    expect(value(await call(world, self.today, {}))).toMatchObject({
+      state: "CLOCKED_IN",
+      businessDate: "2026-10-08",
+      nextAction: "CLOCK_OUT",
+    });
+    const out = written(
+      await call(world, self.clockOut, { requestId: rid("last-out") }),
+    );
+    expect(out).toMatchObject({
+      businessDate: "2026-10-08",
+      occurredAt: at("2026-10-09", "06:00"),
+    });
+    // The calendar date after the last day is outside employment.
+    expect(value(await call(world, self.today, {}))).toMatchObject({
+      state: "OUTSIDE_EMPLOYMENT",
+      nextAction: "NONE",
+    });
+    refused(
+      await call(world, self.clockIn, { requestId: rid("after-last") }),
+      "HR_OUTSIDE_EMPLOYMENT",
+    );
   });
 });
 

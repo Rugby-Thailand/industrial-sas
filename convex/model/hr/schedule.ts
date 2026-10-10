@@ -25,6 +25,7 @@ export const MAX_PLAUSIBLE_MINUTES = 16 * 60;
 /** An open day becomes an exception this long after its planned end. */
 export const OPEN_DAY_GRACE_MINUTES = 4 * 60;
 
+/** A schedule as callers supply it and as it is stored. */
 export interface Schedule {
   /** ISO weekdays, 1 = Monday … 7 = Sunday. */
   readonly workDays: number[];
@@ -34,13 +35,23 @@ export interface Schedule {
   readonly breakMinutes: number;
 }
 
+/**
+ * A schedule `validateSchedule` accepted: a frozen record whose weekday array
+ * is a frozen, sorted copy, so no caller can push an invalid day into it.
+ */
+export interface ValidatedSchedule extends Omit<Schedule, "workDays"> {
+  readonly workDays: readonly number[];
+}
+
 export type ScheduleError =
   | { readonly code: "SCHEDULE_DAYS_INVALID" }
   | { readonly code: "SCHEDULE_TIME_INVALID"; readonly field: string }
   | { readonly code: "SCHEDULE_DURATION_INVALID" }
   | { readonly code: "SCHEDULE_BREAK_INVALID" };
 
-export function shiftMinutes(schedule: Schedule): number | null {
+export function shiftMinutes(
+  schedule: Schedule | ValidatedSchedule,
+): number | null {
   const start = parseLocalTime(schedule.startTime);
   const end = parseLocalTime(schedule.endTime);
   if (start === null || end === null) return null;
@@ -51,8 +62,8 @@ export function shiftMinutes(schedule: Schedule): number | null {
 export const normalizeWeekday = (day: number): number => (day === 0 ? 7 : day);
 
 export function validateSchedule(
-  schedule: Schedule,
-): Result<Schedule, ScheduleError> {
+  schedule: Schedule | ValidatedSchedule,
+): Result<ValidatedSchedule, ScheduleError> {
   const days = Array.isArray(schedule.workDays)
     ? schedule.workDays.map(normalizeWeekday)
     : schedule.workDays;
@@ -76,9 +87,11 @@ export function validateSchedule(
     schedule.breakMinutes >= duration
   )
     return fail({ code: "SCHEDULE_BREAK_INVALID" });
+  // Both the record and its weekday array are frozen: `Object.freeze` is
+  // shallow, and a mutable copy would let a caller invalidate the result.
   return ok(
     Object.freeze({
-      workDays: [...days].sort((a, b) => a - b),
+      workDays: Object.freeze([...days].sort((a, b) => a - b)),
       startTime: schedule.startTime,
       endTime: schedule.endTime,
       endsNextDay: schedule.endsNextDay,
@@ -119,7 +132,7 @@ export const isEmployedOn = (employment: Employment, date: IsoDate): boolean =>
 
 export function planFor(input: {
   readonly date: IsoDate;
-  readonly schedule: Schedule | undefined;
+  readonly schedule: Schedule | ValidatedSchedule | undefined;
   readonly holidayName: string | undefined;
   readonly offsetMinutes: number;
 }): DayPlan {

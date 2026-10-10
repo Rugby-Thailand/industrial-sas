@@ -3,7 +3,8 @@
  * into an allowlisted intent, then deterministic grounding.
  *
  * The action never reads HR records and sends none to the provider: only the
- * query and page flags (see `convex/model/search/provider.ts`). The client
+ * query and page flags (see `convex/model/search/provider.ts`; transport in
+ * `convex/lib/searchProvider.ts`). The client
  * resolves the grounded intent through the ordinary protected HR queries,
  * which apply the same site, reporting-line and self-review rules as the
  * pages. Search must keep working without this action, so every failure is
@@ -12,6 +13,7 @@
 import { v } from "convex/values";
 
 import { HR_PERMISSION } from "../lib/permissions";
+import { requestSearchIntent } from "../lib/searchProvider";
 import { actionWithOrg } from "../lib/tenantFunctions";
 import { timezoneOffsetMinutes, toLocal } from "../model/hr/calendar";
 import {
@@ -19,7 +21,6 @@ import {
   parseContextFlags,
   validQuery,
 } from "../model/search/intent";
-import { requestSearchIntent } from "../model/search/provider";
 
 /** Per actor; persisted in `actionQuotas` by the authorization preflight. */
 export const AI_SEARCH_RATE_LIMIT = Object.freeze({

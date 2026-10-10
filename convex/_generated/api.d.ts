@@ -59,6 +59,7 @@ import type * as lib_privateFileStorage from "../lib/privateFileStorage.js";
 import type * as lib_providerUsage from "../lib/providerUsage.js";
 import type * as lib_queryDocumentReader from "../lib/queryDocumentReader.js";
 import type * as lib_schemaPolicy from "../lib/schemaPolicy.js";
+import type * as lib_searchProvider from "../lib/searchProvider.js";
 import type * as lib_signedCatalogueCursor from "../lib/signedCatalogueCursor.js";
 import type * as lib_tenantContext from "../lib/tenantContext.js";
 import type * as lib_tenantContextLookups from "../lib/tenantContextLookups.js";
@@ -176,6 +177,7 @@ declare const fullApi: ApiFromModules<{
   "lib/providerUsage": typeof lib_providerUsage;
   "lib/queryDocumentReader": typeof lib_queryDocumentReader;
   "lib/schemaPolicy": typeof lib_schemaPolicy;
+  "lib/searchProvider": typeof lib_searchProvider;
   "lib/signedCatalogueCursor": typeof lib_signedCatalogueCursor;
   "lib/tenantContext": typeof lib_tenantContext;
   "lib/tenantContextLookups": typeof lib_tenantContextLookups;

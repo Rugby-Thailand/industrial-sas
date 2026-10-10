@@ -71,8 +71,18 @@ type SelfState =
       readonly day: AttendanceDay | null;
     }
   | {
-      readonly kind:
-        "OUTSIDE_EMPLOYMENT" | "CLOCKED_OUT" | "NONWORKING" | "NOT_CLOCKED_IN";
+      readonly kind: "OUTSIDE_EMPLOYMENT";
+      readonly date: IsoDate;
+      readonly plan: DayPlan;
+      readonly day: AttendanceDay | null;
+      /**
+       * True when `day` is a still-open clock-in whose business date HR has
+       * since moved outside employment: it may not be clocked out.
+       */
+      readonly openClockIn: boolean;
+    }
+  | {
+      readonly kind: "CLOCKED_OUT" | "NONWORKING" | "NOT_CLOCKED_IN";
       readonly date: IsoDate;
       readonly plan: DayPlan;
       readonly day: AttendanceDay | null;
@@ -91,7 +101,17 @@ async function selfState(
       day.clockInAt !== undefined &&
       clock.now < openDayDeadline(plan, day.clockInAt)
     )
-      return { kind: "CLOCKED_IN", day, plan };
+      // Employment is checked against the OPEN day's business date, not
+      // today's: a final-day overnight shift still clocks out after midnight.
+      return isEmployedOn(employmentOf(employee), day.businessDate)
+        ? { kind: "CLOCKED_IN", day, plan }
+        : {
+            kind: "OUTSIDE_EMPLOYMENT",
+            date: day.businessDate,
+            plan,
+            day,
+            openClockIn: true,
+          };
   }
   // An expired open day blocks clocking until a decision resolves it, even
   // while its correction is pending: no fabricated end, no second open pair.
@@ -123,7 +143,7 @@ async function selfState(
   if (unresolved !== undefined)
     return { kind: "UNRESOLVED_OPEN", openDay: unresolved, date, plan, day };
   if (!isEmployedOn(employmentOf(employee), date))
-    return { kind: "OUTSIDE_EMPLOYMENT", date, plan, day };
+    return { kind: "OUTSIDE_EMPLOYMENT", date, plan, day, openClockIn: false };
   if (day?.clockInAt !== undefined)
     return { kind: "CLOCKED_OUT", date, plan, day };
   return {
@@ -367,6 +387,8 @@ export const clockOut = mutationWithOrg({
             "businessDate",
             state.openDay.businessDate,
           );
+        if (state.kind === "OUTSIDE_EMPLOYMENT" && state.openClockIn)
+          return fail("HR_OUTSIDE_EMPLOYMENT");
         if (state.kind !== "CLOCKED_IN") return fail("HR_NOT_CLOCKED_IN");
         if (
           await closedPeriodCovering(

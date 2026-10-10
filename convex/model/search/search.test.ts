@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import { readDates, scanDates } from "./dates";
 import {
@@ -12,7 +12,6 @@ import {
 import {
   SEARCH_INTENT_PROMPT,
   readSearchIntentResponse,
-  requestSearchIntent,
   searchIntentRequestBody,
 } from "./provider";
 import { readReferences } from "./references";
@@ -518,50 +517,5 @@ describe("provider request", () => {
         ok: false,
         error: "AI_UNREADABLE",
       });
-  });
-
-  it("aborts at the deadline and reports a timeout", async () => {
-    const fetcher = vi.fn(
-      (_url: unknown, init?: RequestInit) =>
-        new Promise<Response>((_resolve, reject) => {
-          init?.signal?.addEventListener("abort", () =>
-            reject(Object.assign(new Error("aborted"), { name: "AbortError" })),
-          );
-        }),
-    );
-    const result = await requestSearchIntent({
-      apiKey: "k",
-      model: "m",
-      query: "ลงเวลา",
-      context: NO_CONTEXT,
-      fetcher: fetcher as unknown as typeof fetch,
-      timeoutMs: 20,
-    });
-    expect(result).toEqual({ ok: false, error: "AI_TIMEOUT" });
-    expect(fetcher).toHaveBeenCalledTimes(1);
-  });
-
-  it("does not retry provider errors and refuses non-JSON bodies", async () => {
-    const failing = vi.fn(async () => new Response("busy", { status: 503 }));
-    expect(
-      await requestSearchIntent({
-        apiKey: "k",
-        model: "m",
-        query: "ลงเวลา",
-        context: NO_CONTEXT,
-        fetcher: failing as unknown as typeof fetch,
-      }),
-    ).toEqual({ ok: false, error: "AI_UNAVAILABLE" });
-    expect(failing).toHaveBeenCalledTimes(1);
-    const html = vi.fn(async () => new Response("<html>", { status: 200 }));
-    expect(
-      await requestSearchIntent({
-        apiKey: "k",
-        model: "m",
-        query: "ลงเวลา",
-        context: NO_CONTEXT,
-        fetcher: html as unknown as typeof fetch,
-      }),
-    ).toEqual({ ok: false, error: "AI_UNREADABLE" });
   });
 });

@@ -1777,6 +1777,7 @@
       "noAccount": "ไม่มีบัญชี",
       "noMembers": "ไม่มีสมาชิกให้เลือก",
       "memberLinked": "{name} (เชื่อมกับ {code})",
+      "memberLinkedElsewhere": "{name} (เชื่อมกับพนักงานแล้ว)",
       "unlinked": "ไม่มีบัญชี",
       "unknownMember": "สมาชิกที่ไม่อยู่แล้ว",
       "memberInactive": "บัญชีไม่ได้ใช้งาน",
