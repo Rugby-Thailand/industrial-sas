@@ -196,7 +196,9 @@ export async function provisionStagingFixture(
 
 export default async function globalSetup(): Promise<void> {
   reportStagingSetupPhase("validate-inputs");
-  assertStagingInputs();
+  assertStagingInputs(process.env, (name) => {
+    process.stdout.write(`[staging-input] ${name}\n`);
+  });
   process.env.CLERK_PUBLISHABLE_KEY = stagingPublishableKey();
   await provisionStagingFixture({
     clerk: stagingClerk(),
