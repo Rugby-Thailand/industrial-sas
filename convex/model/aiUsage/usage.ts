@@ -136,19 +136,45 @@ const USAGE_KEYS: ReadonlySet<string> = new Set([
 ]);
 
 /**
+ * Read each whitelisted field once, as an own enumerable data property, into
+ * a fresh record. An inherited, non-enumerable or accessor whitelisted field
+ * is named as invalid rather than silently dropped or re-read, so the record
+ * validated is exactly the record returned.
+ */
+function snapshotUsage(
+  value: object,
+): Result<Record<string, unknown>, UsageValueError> {
+  const snapshot: Record<string, unknown> = {};
+  for (const key of USAGE_KEYS) {
+    const own = Object.getOwnPropertyDescriptor(value, key);
+    if (own === undefined) {
+      if (key in value) return invalid(key);
+      continue;
+    }
+    if (!own.enumerable || !("value" in own)) return invalid(key);
+    if (own.value !== undefined) snapshot[key] = own.value;
+  }
+  return ok(snapshot);
+}
+
+/**
  * Validate one whitelisted usage record and return a frozen copy, or name
  * the first field that is wrong. Integer nano-USD is the authoritative
  * amount; `costUsd` is the provider's decimal exactly as reported, kept for
  * audit and never used in arithmetic here. A record with a cost is
  * `REPORTED`; one without is `UNKNOWN`, never zero. Unknown keys are
- * refused, so nothing outside the whitelist can ride along.
+ * refused, so nothing outside the whitelist can ride along; the frozen copy
+ * holds only the own enumerable field values that were validated.
  */
 export function readProviderUsage(
-  value: unknown,
+  input: unknown,
 ): Result<ProviderUsage, UsageValueError> {
-  if (!isRecord(value) || Array.isArray(value)) return invalid("usage");
-  for (const key of Object.keys(value))
+  if (!isRecord(input) || Array.isArray(input)) return invalid("usage");
+  for (const key of Object.keys(input))
     if (!USAGE_KEYS.has(key)) return invalid(key);
+  const read = snapshotUsage(input);
+  if (!read.ok) return read;
+  const value = read.value;
   if (value.unitKind !== "MODEL_TOKEN") return invalid("unitKind");
   if (value.currency !== "USD") return invalid("currency");
   if (!isUsageSource(value.usageSource)) return invalid("usageSource");
@@ -174,11 +200,5 @@ export function readProviderUsage(
   const reported = value.costUsdNano !== undefined;
   if (value.billingStatus !== (reported ? "REPORTED" : "UNKNOWN"))
     return invalid("billingStatus");
-  return ok(
-    Object.freeze(
-      Object.fromEntries(
-        Object.entries(value).filter(([, field]) => field !== undefined),
-      ),
-    ) as unknown as ProviderUsage,
-  );
+  return ok(Object.freeze(value) as unknown as ProviderUsage);
 }

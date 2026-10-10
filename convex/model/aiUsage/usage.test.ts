@@ -111,6 +111,65 @@ describe("validated provider usage record", () => {
     },
   );
 
+  const hidden = (base: object, key: string, value: unknown) =>
+    Object.defineProperty({ ...base }, key, { value, enumerable: false });
+  const without = (key: string) =>
+    Object.fromEntries(Object.entries(reported).filter(([k]) => k !== key));
+  const inherited = (key: string) =>
+    Object.assign(
+      Object.create({ [key]: reported[key as keyof typeof reported] }),
+      without(key),
+    );
+
+  it.each([
+    ["an all-inherited record", Object.create(UNKNOWN_USAGE), "unitKind"],
+    ["an inherited required field", inherited("usageSource"), "usageSource"],
+    [
+      "a non-enumerable required field",
+      hidden(without("billingStatus"), "billingStatus", "REPORTED"),
+      "billingStatus",
+    ],
+    ["an inherited cost", inherited("costUsdNano"), "costUsdNano"],
+    [
+      "a non-enumerable cost",
+      hidden(without("costUsd"), "costUsd", reported.costUsd),
+      "costUsd",
+    ],
+    ["an inherited count", inherited("inputUnitCount"), "inputUnitCount"],
+    [
+      "a non-enumerable optional label",
+      hidden(without("actualModel"), "actualModel", reported.actualModel),
+      "actualModel",
+    ],
+  ])("refuses %s instead of returning a partial record", (_l, value, field) => {
+    expect(readProviderUsage(value)).toEqual({
+      ok: false,
+      error: { code: "AI_USAGE_VALUE_INVALID", field },
+    });
+  });
+
+  it("refuses an accessor field without reading it", () => {
+    let reads = 0;
+    const value = Object.defineProperty(without("costUsdNano"), "costUsdNano", {
+      enumerable: true,
+      get: () => (reads++ === 0 ? reported.costUsdNano : undefined),
+    });
+    expect(readProviderUsage(value)).toEqual({
+      ok: false,
+      error: { code: "AI_USAGE_VALUE_INVALID", field: "costUsdNano" },
+    });
+    expect(reads).toBe(0);
+  });
+
+  it("returns every validated field of an own null-prototype record", () => {
+    const value = Object.assign(Object.create(null), reported);
+    const result = readProviderUsage(value);
+    expect(result).toEqual({ ok: true, value: reported });
+    expect(result.ok && Object.isFrozen(result.value)).toBe(true);
+    expect(result.ok && result.value).not.toBe(value);
+    expect(Object.isFrozen(value)).toBe(false);
+  });
+
   it("exposes no floating conversion from the domain", async () => {
     const domain = await import("./usage");
     expect(Object.keys(domain)).not.toContain("costToNano");
