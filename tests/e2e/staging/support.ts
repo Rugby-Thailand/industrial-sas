@@ -23,6 +23,7 @@ import {
   E2E_FIXTURE_CONFIRMATION,
   organizationName,
   userDisplayName,
+  userFirstName,
 } from "../../../convex/staging/e2eFixture";
 import {
   classifyConvexDeployKey,
@@ -37,7 +38,7 @@ export const STAGING = {
   clerkInstanceId: "ins_3Hx3Wa0m4xgQsBZ7Kyod5wNP1AC",
   confirmation: E2E_FIXTURE_CONFIRMATION,
 } as const;
-export { organizationName, userDisplayName };
+export { organizationName, userDisplayName, userFirstName };
 export const FIXTURE_STATE = "playwright/.auth/staging-fixture.json";
 const RUN_ID = /^[a-z0-9][a-z0-9-]{5,39}$/;
 type Environment = Readonly<Record<string, string | undefined>>;
@@ -473,7 +474,7 @@ export async function verifyStagingInstance(clerk: StagingClerkPort) {
 export function assertOwnedUser(user: OwnedUser, state: StagingFixtureState) {
   if (
     user.id !== state.clerkUserId ||
-    user.firstName !== `CI E2E ${state.runId}` ||
+    user.firstName !== userFirstName(state.runId) ||
     user.lastName !== "actor" ||
     user.externalId !== `ci-e2e:${STAGING.repository}:${state.runId}:actor` ||
     user.emailAddresses.length !== 1 ||

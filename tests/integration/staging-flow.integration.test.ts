@@ -19,6 +19,7 @@ import {
   E2E_FIXTURE_CONFIRMATION,
   organizationName,
   userDisplayName,
+  userFirstName,
 } from "../../convex/staging/e2eFixture";
 import {
   expectDenied,
@@ -491,6 +492,33 @@ function provider(path: string) {
 }
 
 describe("per-run provisioning and owned-resource recovery controller", () => {
+  it("keeps numeric GitHub run IDs out of Clerk names while preserving exact ownership", async () => {
+    const path = statePath();
+    const model = provider(path);
+    const create = model.clerk.users.createUser;
+    model.clerk.users.createUser = async (args) => {
+      // Clerk rejects some long numeric runs as phone numbers in first_name.
+      if (/\d{10,}/.test(args.firstName ?? "")) {
+        throw { status: 422 };
+      }
+      return create(args);
+    };
+    const state = await provisionStagingFixture({
+      ...model,
+      statePath: path,
+      runId: "gh-38036644786-1-0123abcd",
+    });
+    const user = model.users.get(state.clerkUserId)!;
+    expect(`${user.firstName} ${user.lastName}`).toBe(
+      userDisplayName(state.runId),
+    );
+    expect(user.privateMetadata.ciE2eRun).toBe(state.runId);
+    expect(userFirstName("offline-1")).not.toBe(userFirstName("offline-b"));
+    await cleanupStagingFixture({ ...model, statePath: path });
+    expect(model.users.size).toBe(0);
+    expect(existsSync(path)).toBe(false);
+  });
+
   it("verifies exact instance before creating, persists each ID privately, and cleans backend before Clerk resources", async () => {
     const path = statePath();
     const model = provider(path);

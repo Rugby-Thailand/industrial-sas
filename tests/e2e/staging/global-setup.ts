@@ -23,6 +23,7 @@ import {
   runId,
   stagingClerk,
   stagingPublishableKey,
+  userFirstName,
   verifyStagingInstance,
   writeFixtureState,
   type ReadyFixtureState,
@@ -83,7 +84,7 @@ export async function provisionStagingFixture(
     const user = await deps.clerk.users.createUser({
       externalId: `ci-e2e:${STAGING.repository}:${id}:actor`,
       emailAddress: [state.managerEmail],
-      firstName: `CI E2E ${id}`,
+      firstName: userFirstName(id),
       lastName: "actor",
       skipPasswordRequirement: true,
       privateMetadata: ownershipMetadata(id, "user"),
