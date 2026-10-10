@@ -32,7 +32,6 @@ for (const locale of ["en", "th"] as const) {
       .setInputFiles(
         resolve("tests/fixtures/barcode-photos/location-3-11.png"),
       );
-    await page.getByRole("button", { name: read, exact: true }).click();
     const code = page.getByRole("textbox", {
       name: locale === "en" ? "Review location code" : "ตรวจสอบรหัสตำแหน่ง",
     });
@@ -75,12 +74,13 @@ test("AI multiple candidates require a choice and a fresh photo discards a late 
       ],
     };
   });
-  await page.getByRole("button", { name: "Read location with AI" }).click();
+  await page
+    .getByRole("button", { name: "Read location with AI", exact: true })
+    .click();
   const picker = page.getByLabel("Choose location image", { exact: true });
   await picker.setInputFiles(
     resolve("tests/fixtures/barcode-photos/location-3-11.png"),
   );
-  await page.getByRole("button", { name: "Read location with AI" }).click();
   await expect(
     page.getByRole("button", { name: "F1-L4-2", exact: true }),
   ).toBeVisible();
@@ -94,10 +94,18 @@ test("AI multiple candidates require a choice and a fresh photo discards a late 
   await page.evaluate(() => {
     window.locationAiDelay = 1200;
   });
-  await page.getByRole("button", { name: "Read location with AI" }).click();
+  await picker.setInputFiles(
+    resolve("tests/fixtures/barcode-photos/location-3-11.png"),
+  );
   await expect
     .poll(() => page.evaluate(() => window.locationAiRequests.length))
     .toBe(2);
+  await page.evaluate(() => {
+    window.locationAiResponse = {
+      ok: true,
+      candidates: [{ code: "F1-L22-2", labelText: null }],
+    };
+  });
   await picker.setInputFiles(
     resolve("tests/fixtures/barcode-photos/location-22-2.webp"),
   );
@@ -107,13 +115,50 @@ test("AI multiple candidates require a choice and a fresh photo discards a late 
   // Wait for the recorded synthetic response to settle, then assert no stale review.
   await expect
     .poll(() => page.evaluate(() => window.locationAiCompleted))
-    .toBe(2);
+    .toBe(3);
   await expect(
     page.getByRole("textbox", { name: "Review location code" }),
-  ).toHaveCount(0);
+  ).toHaveValue("F1-L22-2");
   await page.getByRole("button", { name: "Back to location scanner" }).click();
   await expect(page.getByLabel("Decoded codes")).toBeEmpty();
   await expect(
     page.getByRole("button", { name: "Choose image", exact: true }),
   ).toBeVisible();
+});
+
+test("AI opens a live camera, captures once, stops its stream and automatically extracts one image", async ({
+  page,
+}) => {
+  await page.goto(`${url}/?camera=portrait`);
+  await page
+    .getByRole("button", { name: "Read location with AI", exact: true })
+    .click();
+  const shutter = page.getByRole("button", {
+    name: "Take location photo",
+    exact: true,
+  });
+  await expect(shutter).toBeEnabled();
+  expect(await page.evaluate(() => window.locationAiRequests)).toEqual([]);
+  await shutter.click();
+  await expect(
+    page.getByRole("img", { name: "Location label photo" }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(() =>
+      window.barcodeFixtureStreams.flatMap((stream) =>
+        stream.getTracks().map((track) => track.readyState),
+      ),
+    ),
+  ).toEqual(["ended", "ended"]);
+  await expect(
+    page.getByRole("button", { name: "Read location with AI", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("textbox", { name: "Review location code" }),
+  ).toHaveValue("F1-L3-11");
+  await expect(page.getByLabel("Decoded codes")).toBeEmpty();
+  await page
+    .getByRole("button", { name: "Use this code", exact: true })
+    .click();
+  await expect(page.getByLabel("Decoded codes")).toHaveText("F1-L3-11");
 });

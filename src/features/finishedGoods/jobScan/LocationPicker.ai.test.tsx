@@ -102,7 +102,6 @@ function read() {
 function startReading() {
   read();
   select();
-  read();
 }
 
 it("reviews AI text before lookup, allows correction, and preserves the canonical exact position", async () => {
@@ -114,6 +113,9 @@ it("reviews AI text before lookup, allows correction, and preserves the canonica
   expect(input).toHaveValue("F1-L3-11");
   expect(mocks.query).not.toHaveBeenCalled();
   expect(onPick).not.toHaveBeenCalled();
+  expect(
+    screen.queryByRole("button", { name: "Read location with AI" }),
+  ).not.toBeInTheDocument();
   expect(mocks.action).toHaveBeenCalledWith(expect.anything(), {
     warehouseId: "warehouse-a",
     imageDataUrl: "data:image/jpeg;base64,YWJj",
@@ -176,7 +178,7 @@ it.each(["typing", "warehouse", "replacement", "cancel", "back", "unmount"])(
   "discards a late AI response after %s",
   async (change) => {
     let finish!: (value: ReturnType<typeof extracted>) => void;
-    mocks.action.mockReturnValue(
+    mocks.action.mockReturnValue(new Promise(() => {})).mockReturnValueOnce(
       new Promise((resolve) => {
         finish = resolve;
       }),
@@ -251,7 +253,6 @@ it("reuses the selected barcode photo and invalidates its pending decode when sw
   await act(async () => finish(["OLD-CODE"]));
   expect(onPick).not.toHaveBeenCalled();
   expect(mocks.query).not.toHaveBeenCalled();
-  read();
   await screen.findByRole("textbox", { name: "Review location code" });
   expect(mocks.prepare).toHaveBeenCalledWith(
     expect.any(File),
@@ -283,7 +284,7 @@ it.each(["denied", "unreadable", "empty", "unavailable"])(
       screen.queryByRole("button", { name: "Use this code" }),
     ).not.toBeInTheDocument();
     mocks.action.mockResolvedValue(extracted());
-    read();
+    fireEvent.click(screen.getByRole("button", { name: "Retry reading" }));
     await screen.findByRole("textbox", { name: "Review location code" });
   },
 );
@@ -306,4 +307,30 @@ it("does not offer AI without the management affordance", () => {
   expect(
     screen.queryByRole("button", { name: "Read location with AI" }),
   ).not.toBeInTheDocument();
+});
+
+it("offers separate barcode and AI icons and switches camera modes without submitting an AI request", async () => {
+  setup();
+  const ai = screen.getByRole("button", {
+    name: "Read location with AI camera",
+  });
+  fireEvent.click(ai);
+  expect(ai).toHaveAttribute("aria-pressed", "true");
+  expect(
+    screen.getByRole("button", { name: "Scan location barcode or QR" }),
+  ).toHaveAttribute("aria-pressed", "false");
+  expect(
+    screen.getByRole("region", { name: "Read a location label" }),
+  ).toBeInTheDocument();
+  expect(mocks.action).not.toHaveBeenCalled();
+  fireEvent.click(
+    screen.getByRole("button", { name: "Scan location barcode or QR" }),
+  );
+  expect(ai).toHaveAttribute("aria-pressed", "false");
+  expect(
+    screen.queryByRole("region", { name: "Read a location label" }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.getByLabelText("Stop camera", { selector: "button" }),
+  ).toHaveAttribute("aria-pressed", "true");
 });

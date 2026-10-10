@@ -2,9 +2,10 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { useConvex, useQuery } from "convex/react";
-import { MapPin, Plus, Search } from "lucide-react";
+import { MapPin, Plus, Search, Sparkles } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { FormField } from "@/components/ui/FormField";
+import { IconButton } from "@/components/ui/IconButton";
 import { ScanCodeInput } from "@/components/ui/ScanCodeInput";
 import { CursorPagination } from "@/components/system/CursorPagination";
 import { useCursorPagination } from "@/hooks/useCursorPagination";
@@ -155,13 +156,36 @@ function LocationPickerSession({
             />
             <ScanCodeInput
               {...control}
-              scanLabel={camera ? t("stopCamera") : t("scanLocationQr")}
-              scanning={camera}
+              scanLabel={camera && !ai ? t("stopCamera") : t("scanLocationQr")}
+              scanning={camera && !ai}
+              trailingAction={
+                canReadImage ? (
+                  <IconButton
+                    label={t("openLocationAiCamera")}
+                    variant="ghost"
+                    className="size-11 shrink-0"
+                    aria-pressed={Boolean(ai)}
+                    onClick={() => {
+                      const opening = !ai;
+                      cancelScan();
+                      setAdding(false);
+                      setNotice(undefined);
+                      if (opening) {
+                        cameraOpen.current = true;
+                        setCamera(true);
+                        setAi({});
+                      }
+                    }}
+                  >
+                    <Sparkles aria-hidden="true" className="size-5" />
+                  </IconButton>
+                ) : undefined
+              }
               onScan={() => {
                 cancelScan();
                 setAdding(false);
                 setNotice(undefined);
-                if (!camera) {
+                if (!camera || ai) {
                   cameraOpen.current = true;
                   setCamera(true);
                 }
@@ -204,7 +228,7 @@ function LocationPickerSession({
         ) : (
           <BarcodeCameraBox
             mode="LOCATION"
-            startOnMount={false}
+            startOnMount
             onCode={(code) => void onScan(code, scannerVersion)}
             onClose={cancelScan}
             {...(canReadImage

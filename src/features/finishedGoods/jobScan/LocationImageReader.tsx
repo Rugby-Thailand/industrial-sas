@@ -1,16 +1,26 @@
 "use client";
 
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useEffectEvent,
+  useId,
+  useRef,
+  useState,
+} from "react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Notice } from "@/components/ui/Notice";
-import { BarcodeCropControls } from "../BarcodeCropControls";
 import { barcodeImageProblem, type BarcodeCrop } from "../barcodeDecoder";
 import type {
   LocationImageResult,
   LocationLabelCandidate,
 } from "../../../../convex/model/finishedGoods/locationImage";
+import {
+  LocationPhotoCamera,
+  type LocationPhotoCameraHandle,
+} from "./LocationPhotoCamera";
 import { prepareLocationImage } from "./prepareLocationImage";
 
 export interface LocationPhoto {
@@ -41,7 +51,9 @@ export function LocationImageReader({
   const id = useId();
   const picker = useRef<HTMLInputElement>(null);
   const capture = useRef<HTMLInputElement>(null);
+  const photoCamera = useRef<LocationPhotoCameraHandle>(null);
   const [photo, setPhoto] = useState(initialPhoto);
+  const [cameraOpen, setCameraOpen] = useState(!initialPhoto);
   const [previewUrl, setPreviewUrl] = useState<string>();
   const [busy, setBusy] = useState(false);
   const [candidates, setCandidates] = useState<
@@ -49,10 +61,7 @@ export function LocationImageReader({
   >([]);
   const [code, setCode] = useState("");
   const [error, setError] = useState<string>();
-  const [cropping, setCropping] = useState(Boolean(initialPhoto?.crop));
-  const [crop, setCrop] = useState<BarcodeCrop>(
-    initialPhoto?.crop ?? { x: 0, y: 0, width: 1, height: 1 },
-  );
+  const [attempt, setAttempt] = useState(0);
   const version = useRef(0);
   const pending = useRef(false);
   const abort = useRef<AbortController | null>(null);
@@ -60,17 +69,6 @@ export function LocationImageReader({
     version.current++;
     abort.current?.abort();
   }, []);
-  useEffect(() => {
-    const url = photo ? URL.createObjectURL(photo.file) : undefined;
-    // Only bind the browser-generated blob scheme, with URI-encoded characters.
-    const source = url?.startsWith("blob:") ? encodeURI(url) : undefined;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- the browser-owned URL must follow the effect's allocation/cleanup lifetime
-    setPreviewUrl(source);
-    return () => {
-      cancelPending();
-      if (url) URL.revokeObjectURL(url);
-    };
-  }, [photo, cancelPending]);
 
   function invalidate() {
     cancelPending();
@@ -82,6 +80,7 @@ export function LocationImageReader({
   }
   function select(file: File) {
     invalidate();
+    setCameraOpen(false);
     const problem = barcodeImageProblem(file);
     if (problem) {
       setPhoto(undefined);
@@ -89,10 +88,8 @@ export function LocationImageReader({
       return;
     }
     setPhoto(locationPhoto(file));
-    setCrop({ x: 0, y: 0, width: 1, height: 1 });
-    setCropping(false);
   }
-  async function read() {
+  const read = useEffectEvent(async () => {
     if (!photo || pending.current) return;
     pending.current = true;
     const token = ++version.current;
@@ -107,7 +104,7 @@ export function LocationImageReader({
     try {
       const data = await prepareLocationImage(photo.file, {
         signal: controller.signal,
-        ...(cropping ? { crop } : {}),
+        ...(photo.crop ? { crop: photo.crop } : {}),
       });
       if (!current()) return;
       const result = await extract(data);
@@ -143,7 +140,21 @@ export function LocationImageReader({
         setBusy(false);
       }
     }
-  }
+  });
+
+  useEffect(() => {
+    const url = photo ? URL.createObjectURL(photo.file) : undefined;
+    // Only bind the browser-generated blob scheme, with URI-encoded characters.
+    const source = url?.startsWith("blob:") ? encodeURI(url) : undefined;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- browser resource allocation and automatic extraction follow the selected photo lifetime
+    setPreviewUrl(source);
+    pending.current = false;
+    if (photo) void read();
+    return () => {
+      cancelPending();
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [photo, attempt, cancelPending]);
 
   return (
     <section
@@ -152,6 +163,7 @@ export function LocationImageReader({
     >
       <h3 className="font-semibold">{t("locationAiTitle")}</h3>
       <p className="text-sm text-muted">{t("locationAiHint")}</p>
+      {cameraOpen && <LocationPhotoCamera ref={photoCamera} onPhoto={select} />}
       <input
         ref={picker}
         hidden
@@ -185,12 +197,29 @@ export function LocationImageReader({
         >
           {t("chooseLocationImage")}
         </Button>
+        {!cameraOpen && (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              invalidate();
+              setPhoto(undefined);
+              setCameraOpen(true);
+            }}
+          >
+            {t("locationAiOpenCamera")}
+          </Button>
+        )}
         <Button
           type="button"
           variant="outline"
-          onClick={() => capture.current?.click()}
+          onClick={() => {
+            photoCamera.current?.stop();
+            setCameraOpen(false);
+            capture.current?.click();
+          }}
         >
-          {t("takeLocationPhoto")}
+          {t("locationAiDeviceCamera")}
         </Button>
       </div>
       {photo && (
@@ -202,40 +231,19 @@ export function LocationImageReader({
               alt={t("locationAiPhoto")}
               className="block h-auto w-full"
             />
-            {cropping && (
+            {photo.crop && (
               <div
                 aria-hidden="true"
                 className="pointer-events-none absolute border-2 border-white bg-white/10"
                 style={{
-                  left: `${crop.x * 100}%`,
-                  top: `${crop.y * 100}%`,
-                  width: `${crop.width * 100}%`,
-                  height: `${crop.height * 100}%`,
+                  left: `${photo.crop.x * 100}%`,
+                  top: `${photo.crop.y * 100}%`,
+                  width: `${photo.crop.width * 100}%`,
+                  height: `${photo.crop.height * 100}%`,
                 }}
               />
             )}
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            disabled={busy}
-            onClick={() => {
-              invalidate();
-              setCropping(!cropping);
-            }}
-          >
-            {t("cropBarcodeImage")}
-          </Button>
-          {cropping && (
-            <BarcodeCropControls
-              crop={crop}
-              disabled={busy}
-              onChange={(area) => {
-                invalidate();
-                setCrop(area);
-              }}
-            />
-          )}
         </>
       )}
       {busy ? (
@@ -247,16 +255,16 @@ export function LocationImageReader({
             {t("cancel")}
           </Button>
         </div>
-      ) : (
+      ) : photo && candidates.length === 0 ? (
         <Button
           type="button"
+          variant="outline"
           className="min-h-12 w-full"
-          disabled={!photo}
-          onClick={() => void read()}
+          onClick={() => setAttempt((value) => value + 1)}
         >
-          {t("readLocationAi")}
+          {t("locationAiRetry")}
         </Button>
-      )}
+      ) : null}
       {error && <Notice role="alert" tone="warning" title={t(error)} />}
       {candidates.length > 0 && (
         <div className="space-y-3">

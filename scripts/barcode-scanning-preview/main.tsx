@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { createRoot } from "react-dom/client";
-import { NextIntlClientProvider } from "next-intl";
+import { NextIntlClientProvider, useTranslations } from "next-intl";
+import { IconButton } from "@/components/ui/IconButton";
+import { ScanCodeInput } from "@/components/ui/ScanCodeInput";
+import { Sparkles } from "lucide-react";
 import { BarcodeFormat, QRCodeWriter } from "@zxing/library";
 import { decodeBarcodeImage } from "@/features/finishedGoods/barcodeDecoder";
 import { BarcodeCameraBox } from "@/features/finishedGoods/BarcodeCameraBox";
@@ -170,6 +173,37 @@ window.runBarcodePhotoRegression = async () => {
   return results;
 };
 
+function LocationControls({
+  ai,
+  onAi,
+  onScan,
+}: {
+  ai: boolean;
+  onAi: () => void;
+  onScan: () => void;
+}) {
+  const t = useTranslations("JobScan");
+  return (
+    <ScanCodeInput
+      aria-label={t("searchLocation")}
+      placeholder={t("searchPlaceholder")}
+      scanLabel={t("scanLocationQr")}
+      onScan={onScan}
+      trailingAction={
+        <IconButton
+          label={t("openLocationAiCamera")}
+          variant="ghost"
+          className="size-11 shrink-0"
+          aria-pressed={ai}
+          onClick={onAi}
+        >
+          <Sparkles aria-hidden="true" className="size-5" />
+        </IconButton>
+      }
+    />
+  );
+}
+
 function App() {
   const locale =
     new URLSearchParams(location.search).get("locale") === "th" ? "th" : "en";
@@ -182,7 +216,17 @@ function App() {
       timeZone="Asia/Bangkok"
     >
       <main className="mx-auto max-w-xl space-y-4 p-4">
-        <h1 className="text-xl font-semibold">Barcode scanning</h1>
+        <h1 className="text-xl font-semibold">Location scanning</h1>
+        <p className="text-sm text-muted">
+          {locale === "th"
+            ? "ตัวอย่างการใช้งาน · ผล AI จำลอง"
+            : "Interactive preview · Sample AI results"}
+        </p>
+        <LocationControls
+          ai={Boolean(ai)}
+          onAi={() => setAi(ai ? undefined : {})}
+          onScan={() => setAi(undefined)}
+        />
         {ai ? (
           <LocationImageReader
             {...(ai.photo ? { initialPhoto: ai.photo } : {})}
