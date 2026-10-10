@@ -1,6 +1,6 @@
 # Location barcode and image scanning fix plan
 
-Date: 2026-10-10. Status: implemented; PR checks pending.
+Date: 2026-10-10. Status: implemented and locally verified.
 
 Make the location scanner at `/en/finished-goods/scan` accept a photo from the device and reliably read the attached warehouse labels. Add image selection independently of camera permission, improve barcode acquisition, and send every decoded value through the existing warehouse location resolver.
 
@@ -9,8 +9,8 @@ Make the location scanner at `/en/finished-goods/scan` accept a photo from the d
 - The shared scanner now accepts JPEG, PNG, and WebP files locally, with cancellable reading, preview, retry, adjustable crop, and explicit choice between distinct decoded values. Choosing an image stops camera acquisition without closing the location session. Warehouse changes, manual edits, disabled state, and unmount discard late results.
 - The production decoder reads all three original full-photo fixtures automatically with exact payloads: `F2-L28-1`, `F2-L28-18`, and `F2-L28-18`. Generic edge regions and bounded angle attempts use no fixture coordinates. The core ZXing luminance path retains `TRY_HARDER` while avoiding the browser adapter's broken optional rotation path.
 - Native browser checks passed for an existing QR payload (`F1-L3`), a composite of both original WebP photos that requires a choice before applying either code, Thai layout at 320 px with no horizontal overflow, and the real camera pipeline fed the upside-down photo as video frames. The owned video track ended after success.
-- The full Vitest suite passed **2,187 tests across 193 files**. TypeScript, ESLint, and the production build passed. Browser regressions are included in the existing desktop/mobile workspace CI suite and cover camera denial, both languages, all three original files, QR, ambiguity, camera cleanup, and accessibility.
-- A read-only call to the deployed authenticated resolver returned `LOCATION_UNAVAILABLE` for **both physical codes in the selected TG-OPT warehouse**. Decoding therefore succeeds independently of whether those locations are available in the selected warehouse. Existing explicit unknown-location behavior is retained; no master records or inferred aliases were created. Verify the physical labels' intended warehouse and active layout before treating either as a mapped location.
+- After integrating the latest main, the full Vitest suite passed **2,205 tests across 193 files**. TypeScript, ESLint, and the production build passed. Browser regressions are included in the existing desktop/mobile workspace CI suite and cover camera denial, both languages, all three original files, QR, ambiguity, camera cleanup, and accessibility.
+- A read-only call to the deployed authenticated resolver returned `LOCATION_UNAVAILABLE` for **both physical codes in TG-OPT and TG-DEMO, the two accessible warehouses**. Decoding therefore succeeds independently of whether those locations are available in the selected warehouse. Existing explicit unknown-location behavior is retained; no master records or inferred aliases were created. Verify the physical labels' intended warehouse and active layout before treating either as a mapped location.
 - Actual phone camera focus, glare, and iOS/Android hardware behavior remain unverified. The camera browser check uses real decoder code and a synthetic media stream, and location integration tests use controlled resolver responses.
 
 ## Findings

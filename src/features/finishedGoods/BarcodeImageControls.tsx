@@ -26,8 +26,7 @@ export function BarcodeImageControls({
         id={id}
         type="file"
         accept="image/jpeg,image/png,image/webp"
-        className="sr-only"
-        tabIndex={-1}
+        hidden
         aria-label={t("chooseBarcodeImage")}
         disabled={disabled}
         onChange={(event) => {
