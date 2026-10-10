@@ -1,4 +1,35 @@
 {
+  "aiUsage/internal:abandon": {
+    "kind": "mutation",
+    "visibility": "internal",
+    "args": {
+      "type": "object",
+      "value": {
+        "orgId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "organizations"
+          },
+          "optional": false
+        },
+        "operationId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "attemptNo": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": false
+        }
+      }
+    },
+    "returns": {
+      "type": "any"
+    }
+  },
   "aiUsage/internal:begin": {
     "kind": "mutation",
     "visibility": "internal",
@@ -39,6 +70,10 @@
               {
                 "type": "literal",
                 "value": "JOB_TICKET_SCAN"
+              },
+              {
+                "type": "literal",
+                "value": "LOCATION_LABEL_SCAN"
               },
               {
                 "type": "literal",
@@ -372,6 +407,295 @@
       "type": "any"
     }
   },
+  "aiUsage/recovery:attempt": {
+    "kind": "action",
+    "visibility": "internal",
+    "args": {
+      "type": "object",
+      "value": {
+        "orgId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "organizations"
+          },
+          "optional": false
+        },
+        "operationId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "attemptNo": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": false
+        },
+        "providerGenerationId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "status": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "PENDING"
+              },
+              {
+                "type": "literal",
+                "value": "SUCCEEDED"
+              },
+              {
+                "type": "literal",
+                "value": "UNREADABLE"
+              },
+              {
+                "type": "literal",
+                "value": "PROVIDER_ERROR"
+              },
+              {
+                "type": "literal",
+                "value": "TIMEOUT"
+              },
+              {
+                "type": "literal",
+                "value": "NETWORK_ERROR"
+              },
+              {
+                "type": "literal",
+                "value": "INTERRUPTED"
+              }
+            ]
+          },
+          "optional": true
+        },
+        "apply": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": true
+        }
+      }
+    },
+    "returns": {
+      "type": "any"
+    }
+  },
+  "aiUsage/recovery:record": {
+    "kind": "mutation",
+    "visibility": "internal",
+    "args": {
+      "type": "object",
+      "value": {
+        "orgId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "organizations"
+          },
+          "optional": false
+        },
+        "operationId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "attemptNo": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": false
+        },
+        "providerGenerationId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "status": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "PENDING"
+              },
+              {
+                "type": "literal",
+                "value": "SUCCEEDED"
+              },
+              {
+                "type": "literal",
+                "value": "UNREADABLE"
+              },
+              {
+                "type": "literal",
+                "value": "PROVIDER_ERROR"
+              },
+              {
+                "type": "literal",
+                "value": "TIMEOUT"
+              },
+              {
+                "type": "literal",
+                "value": "NETWORK_ERROR"
+              },
+              {
+                "type": "literal",
+                "value": "INTERRUPTED"
+              }
+            ]
+          },
+          "optional": true
+        },
+        "usage": {
+          "fieldType": {
+            "type": "object",
+            "value": {
+              "providerGenerationId": {
+                "fieldType": {
+                  "type": "string"
+                },
+                "optional": true
+              },
+              "actualModel": {
+                "fieldType": {
+                  "type": "string"
+                },
+                "optional": true
+              },
+              "isByok": {
+                "fieldType": {
+                  "type": "boolean"
+                },
+                "optional": true
+              },
+              "unitKind": {
+                "fieldType": {
+                  "type": "literal",
+                  "value": "MODEL_TOKEN"
+                },
+                "optional": false
+              },
+              "inputUnitCount": {
+                "fieldType": {
+                  "type": "number"
+                },
+                "optional": true
+              },
+              "outputUnitCount": {
+                "fieldType": {
+                  "type": "number"
+                },
+                "optional": true
+              },
+              "totalUnitCount": {
+                "fieldType": {
+                  "type": "number"
+                },
+                "optional": true
+              },
+              "reasoningUnitCount": {
+                "fieldType": {
+                  "type": "number"
+                },
+                "optional": true
+              },
+              "cachedInputUnitCount": {
+                "fieldType": {
+                  "type": "number"
+                },
+                "optional": true
+              },
+              "cacheWriteUnitCount": {
+                "fieldType": {
+                  "type": "number"
+                },
+                "optional": true
+              },
+              "currency": {
+                "fieldType": {
+                  "type": "literal",
+                  "value": "USD"
+                },
+                "optional": false
+              },
+              "costUsd": {
+                "fieldType": {
+                  "type": "number"
+                },
+                "optional": true
+              },
+              "costUsdNano": {
+                "fieldType": {
+                  "type": "number"
+                },
+                "optional": true
+              },
+              "billingStatus": {
+                "fieldType": {
+                  "type": "union",
+                  "value": [
+                    {
+                      "type": "literal",
+                      "value": "REPORTED"
+                    },
+                    {
+                      "type": "literal",
+                      "value": "UNKNOWN"
+                    }
+                  ]
+                },
+                "optional": false
+              },
+              "usageSource": {
+                "fieldType": {
+                  "type": "union",
+                  "value": [
+                    {
+                      "type": "literal",
+                      "value": "RESPONSE"
+                    },
+                    {
+                      "type": "literal",
+                      "value": "GENERATION_LOOKUP"
+                    }
+                  ]
+                },
+                "optional": false
+              }
+            }
+          },
+          "optional": false
+        },
+        "apply": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": false
+        }
+      }
+    },
+    "returns": {
+      "type": "any"
+    }
+  },
+  "aiUsage/reports:access": {
+    "kind": "query",
+    "visibility": "public",
+    "args": {
+      "type": "object",
+      "value": {}
+    },
+    "returns": {
+      "type": "any"
+    }
+  },
   "aiUsage/reports:attempts": {
     "kind": "query",
     "visibility": "public",
@@ -460,6 +784,10 @@
               },
               {
                 "type": "literal",
+                "value": "LOCATION_LABEL_SCAN"
+              },
+              {
+                "type": "literal",
                 "value": "AI_SEARCH"
               }
             ]
@@ -487,6 +815,104 @@
           "optional": true
         },
         "environment": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        }
+      }
+    },
+    "returns": {
+      "type": "any"
+    }
+  },
+  "aiUsage/reports:recent": {
+    "kind": "query",
+    "visibility": "public",
+    "args": {
+      "type": "object",
+      "value": {
+        "refreshKey": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": true
+        },
+        "period": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "month"
+              },
+              {
+                "type": "literal",
+                "value": "today"
+              }
+            ]
+          },
+          "optional": true
+        },
+        "from": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "to": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "feature": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "JOB_TICKET_SCAN"
+              },
+              {
+                "type": "literal",
+                "value": "LOCATION_LABEL_SCAN"
+              },
+              {
+                "type": "literal",
+                "value": "AI_SEARCH"
+              }
+            ]
+          },
+          "optional": true
+        },
+        "actorUserId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "users"
+          },
+          "optional": true
+        },
+        "warehouseId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "warehouses"
+          },
+          "optional": true
+        },
+        "requestedModel": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "environment": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "cursor": {
           "fieldType": {
             "type": "string"
           },
@@ -545,6 +971,10 @@
               {
                 "type": "literal",
                 "value": "JOB_TICKET_SCAN"
+              },
+              {
+                "type": "literal",
+                "value": "LOCATION_LABEL_SCAN"
               },
               {
                 "type": "literal",

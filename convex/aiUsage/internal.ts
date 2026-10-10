@@ -5,72 +5,17 @@ import {
 } from "../_generated/server";
 import { internal } from "../_generated/api";
 import type { Doc } from "../_generated/dataModel";
-import type { MutationCtx } from "../_generated/server";
 import { v } from "convex/values";
+import { projectOperation } from "../model/aiUsage/metrics";
+import { MAX_ATTEMPTS, normalizeUsage } from "../model/aiUsage/usage";
+import { lookupGeneration } from "./generation";
 import {
-  addMetrics,
-  contribution,
-  emptyMetrics,
-  feature,
-  finishFields,
-  normalizeUsage,
-  type Metrics,
-} from "../model/aiUsage/usage";
-
-async function updateSummary(
-  ctx: MutationCtx,
-  before: Doc<"aiUsageOperations"> | null,
-  after: Doc<"aiUsageOperations">,
-) {
-  const {
-    orgId,
-    utcDay,
-    feature,
-    environment,
-    actorUserId,
-    warehouseId,
-    requestedModel,
-  } = after;
-  const summaryKey = JSON.stringify([
-    utcDay,
-    feature,
-    environment,
-    actorUserId,
-    warehouseId ?? "",
-    requestedModel,
-  ]);
-  const existing = await ctx.db
-    .query("aiUsageDailySummaries")
-    .withIndex("by_orgId_summaryKey", (q) =>
-      q.eq("orgId", orgId).eq("summaryKey", summaryKey),
-    )
-    .unique();
-  const metrics = emptyMetrics();
-  if (existing)
-    for (const key of Object.keys(metrics) as (keyof Metrics)[])
-      metrics[key] = existing[key];
-  // Apply the net delta before validating: a reconciliation can subtract an unknown count.
-  const old = before ? contribution(before) : emptyMetrics(),
-    next = contribution(after);
-  const delta = emptyMetrics();
-  for (const key of Object.keys(delta) as (keyof Metrics)[])
-    delta[key] = next[key] - old[key];
-  addMetrics(metrics, delta);
-  if (existing)
-    await ctx.db.patch("aiUsageDailySummaries", existing._id, metrics);
-  else
-    await ctx.db.insert("aiUsageDailySummaries", {
-      orgId,
-      utcDay,
-      feature,
-      environment,
-      actorUserId,
-      ...(warehouseId ? { warehouseId } : {}),
-      requestedModel,
-      summaryKey,
-      ...metrics,
-    });
-}
+  applySummaryDelta,
+  operationAttempts,
+  refreshOperation,
+  unwrap,
+} from "./projection";
+import { feature, finishFields } from "./validators";
 
 export const begin = internalMutation({
   args: {
@@ -86,7 +31,7 @@ export const begin = internalMutation({
     if (
       !Number.isSafeInteger(args.attemptNo) ||
       args.attemptNo < 1 ||
-      args.attemptNo > 2 ||
+      args.attemptNo > MAX_ATTEMPTS ||
       args.operationId.length > 160 ||
       !/^[\w./:-]{1,160}$/.test(args.requestedModel)
     )
@@ -155,20 +100,17 @@ export const begin = internalMutation({
       status: "PENDING",
       ...normalizeUsage(null),
     });
-    let opId = before?._id;
-    const fields = {
-      ...dimensions,
-      startedAt: before?.startedAt ?? startedAt,
-      durationMs: 0,
-      status: "PENDING" as const,
-      attemptCount: args.attemptNo,
-      knownCostUsdNano: before?.knownCostUsdNano ?? 0,
-      unknownAttemptCount: (before?.unknownAttemptCount ?? 0) + 1,
-    };
-    if (opId) await ctx.db.patch("aiUsageOperations", opId, fields);
-    else opId = await ctx.db.insert("aiUsageOperations", fields);
-    const after = (await ctx.db.get("aiUsageOperations", opId))!;
-    await updateSummary(ctx, before, after);
+    if (before) await refreshOperation(ctx, before);
+    else {
+      const projection = unwrap(
+        projectOperation(
+          await operationAttempts(ctx, args.orgId, args.operationId),
+        ),
+      );
+      const fields = { ...dimensions, ...projection };
+      await ctx.db.insert("aiUsageOperations", fields);
+      await applySummaryDelta(ctx, null, fields);
+    }
     await ctx.scheduler.runAfter(
       15 * 60_000,
       internal.aiUsage.internal.expire,
@@ -258,29 +200,7 @@ export const finish = internalMutation({
       )
       .unique();
     if (!before) throw new Error("AI_USAGE_INVALID");
-    const events = await ctx.db
-      .query("aiUsageEvents")
-      .withIndex("by_orgId_operationId_attemptNo", (q) =>
-        q.eq("orgId", args.orgId).eq("operationId", args.operationId),
-      )
-      .take(3);
-    const last = events[events.length - 1]!;
-    const fields = {
-      knownCostUsdNano: events.reduce(
-        (sum, e) => sum + (e.costUsdNano ?? 0),
-        0,
-      ),
-      unknownAttemptCount: events.filter((e) => e.billingStatus === "UNKNOWN")
-        .length,
-      status: last.status,
-      durationMs: Math.max(
-        0,
-        (last.finishedAt ?? Date.now()) - before.startedAt,
-      ),
-    };
-    const after = { ...before, ...fields };
-    await ctx.db.patch("aiUsageOperations", before._id, fields);
-    await updateSummary(ctx, before, after);
+    await refreshOperation(ctx, before);
     if (!reconcile && r.billingStatus === "UNKNOWN" && r.providerGenerationId)
       await ctx.scheduler.runAfter(
         60_000,
@@ -312,20 +232,45 @@ export const expire = internalMutation({
       status: "INTERRUPTED",
       errorCode: "INTERRUPTED",
       finishedAt,
-      durationMs: finishedAt - e.startedAt,
+      durationMs: Math.max(0, finishedAt - e.startedAt),
     });
-    if (before.attemptCount === e.attemptNo) {
-      const after = {
-        ...before,
-        status: "INTERRUPTED" as const,
-        durationMs: finishedAt - before.startedAt,
-      };
-      await ctx.db.patch("aiUsageOperations", before._id, {
-        status: after.status,
-        durationMs: after.durationMs,
-      });
-      await updateSummary(ctx, before, after);
-    }
+    await refreshOperation(ctx, before);
+  },
+});
+
+/**
+ * Close an attempt that began but never sent a provider request (the total
+ * deadline passed during the durable begin). No request means no provider
+ * attempt: the pending row is removed and the projection re-derived. Only the
+ * newest, still-pending attempt of an unlinked operation can be abandoned;
+ * repeating the call is a no-op.
+ */
+export const abandon = internalMutation({
+  args: {
+    orgId: v.id("organizations"),
+    operationId: v.string(),
+    attemptNo: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const attempts = await operationAttempts(ctx, args.orgId, args.operationId);
+    const event = attempts.find((e) => e.attemptNo === args.attemptNo);
+    if (!event) return null;
+    if (
+      event.status !== "PENDING" ||
+      attempts[attempts.length - 1]!._id !== event._id
+    )
+      throw new Error("AI_USAGE_INVALID");
+    const before = await ctx.db
+      .query("aiUsageOperations")
+      .withIndex("by_orgId_operationId", (q) =>
+        q.eq("orgId", args.orgId).eq("operationId", args.operationId),
+      )
+      .unique();
+    if (!before || (attempts.length === 1 && before.jobScanId))
+      throw new Error("AI_USAGE_INVALID");
+    await ctx.db.delete("aiUsageEvents", event._id);
+    await refreshOperation(ctx, before);
+    return null;
   },
 });
 
@@ -344,40 +289,16 @@ export const reconcile = internalAction({
       args.retry > 2
     )
       return;
-    const key = process.env.OPENROUTER_API_KEY?.trim();
-    if (!key) return;
-    const controller = new AbortController(),
-      timer = setTimeout(() => controller.abort(), 10_000);
-    try {
-      const response = await fetch(
-        `https://openrouter.ai/api/v1/generation?id=${encodeURIComponent(e.providerGenerationId)}`,
-        {
-          headers: { Authorization: `Bearer ${key}` },
-          signal: controller.signal,
-        },
-      );
-      if (response.ok) {
-        const usage = normalizeUsage(
-          await response.json(),
-          "GENERATION_LOOKUP",
-        );
-        if (
-          usage.billingStatus === "REPORTED" &&
-          usage.providerGenerationId === e.providerGenerationId
-        ) {
-          await ctx.runMutation(internal.aiUsage.internal.finish, {
-            orgId: e.orgId,
-            operationId: e.operationId,
-            attemptNo: e.attemptNo,
-            result: { ...usage, status: e.status },
-          });
-          return;
-        }
-      }
-    } catch {
-      /* Coverage remains UNKNOWN, with no sensitive response logging. */
-    } finally {
-      clearTimeout(timer);
+    const usage = await lookupGeneration(e.providerGenerationId);
+    if (usage.kind === "UNCONFIGURED") return;
+    if (usage.kind === "REPORTED") {
+      await ctx.runMutation(internal.aiUsage.internal.finish, {
+        orgId: e.orgId,
+        operationId: e.operationId,
+        attemptNo: e.attemptNo,
+        result: { ...usage.usage, status: e.status },
+      });
+      return;
     }
     if (args.retry < 2)
       await ctx.scheduler.runAfter(

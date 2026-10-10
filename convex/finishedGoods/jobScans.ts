@@ -223,8 +223,7 @@ export const extractJobTicket = actionWithOrg({
     let outcome: JobTicketProviderOutcome;
     try {
       outcome = await requestJobTicketProvider(send, {
-        usage: ctx.aiUsage,
-        model,
+        tracking: { port: ctx.aiUsage, feature: "JOB_TICKET_SCAN", model },
         validateContent: (content) => {
           try {
             parseJobTicket(

@@ -3,6 +3,10 @@
 import type { ReactNode } from "react";
 import { ThemeProvider } from "next-themes";
 
+import {
+  AiUsageAccessProvider,
+  UnavailableAiUsageAccessProvider,
+} from "./AiUsageAccessProvider";
 import { ConvexClientProvider } from "./ConvexClientProvider";
 import { EnvironmentProvider, useAppEnvironment } from "./EnvironmentProvider";
 import { IdentityProvider } from "./IdentityProvider";
@@ -24,7 +28,9 @@ export function EnvironmentAwareWorkspaceProvider({
   const environment = useAppEnvironment();
   return environment.backendConfigured && environment.identityConfigured ? (
     <WorkspaceProvider>
-      <HrAccessProvider>{children}</HrAccessProvider>
+      <HrAccessProvider>
+        <AiUsageAccessProvider>{children}</AiUsageAccessProvider>
+      </HrAccessProvider>
     </WorkspaceProvider>
   ) : (
     <UnavailableWorkspaceProvider
@@ -32,7 +38,11 @@ export function EnvironmentAwareWorkspaceProvider({
         environment.backendConfigured ? "SIGN_IN_REQUIRED" : "BACKEND_MISSING"
       }
     >
-      <UnavailableHrAccessProvider>{children}</UnavailableHrAccessProvider>
+      <UnavailableHrAccessProvider>
+        <UnavailableAiUsageAccessProvider>
+          {children}
+        </UnavailableAiUsageAccessProvider>
+      </UnavailableHrAccessProvider>
     </UnavailableWorkspaceProvider>
   );
 }

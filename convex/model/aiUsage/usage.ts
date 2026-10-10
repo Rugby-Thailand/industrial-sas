@@ -1,80 +1,84 @@
-import { v } from "convex/values";
-import {
-  dayNumber,
-  MS_PER_DAY,
-  timezoneOffsetMinutes,
-  toLocal,
-} from "../hr/calendar";
+/**
+ * AI usage accounting values: the provider usage decoder and the vocabulary
+ * shared by the ledger, projections and reports.
+ *
+ * Status: implemented for OpenRouter chat responses (`RESPONSE`) and
+ * generation metadata (`GENERATION_LOOKUP`). Pure TypeScript: the Convex
+ * validators for these shapes live in `convex/aiUsage/validators.ts`.
+ * Cost is integer nano-USD (1 USD = 1e9); the provider's decimal cost is kept
+ * alongside it and rounded exactly once, here. Missing cost is `UNKNOWN`,
+ * never zero. Not supported: currencies other than USD, and any unit other
+ * than model tokens.
+ */
+import { isRecord } from "../guards";
 
-export const feature = v.union(
-  v.literal("JOB_TICKET_SCAN"),
-  v.literal("AI_SEARCH"),
-);
-export const status = v.union(
-  v.literal("PENDING"),
-  v.literal("SUCCEEDED"),
-  v.literal("UNREADABLE"),
-  v.literal("PROVIDER_ERROR"),
-  v.literal("TIMEOUT"),
-  v.literal("NETWORK_ERROR"),
-  v.literal("INTERRUPTED"),
-);
-export type Feature = "JOB_TICKET_SCAN" | "AI_SEARCH";
-export type UsageStatus =
-  | "PENDING"
-  | "SUCCEEDED"
-  | "UNREADABLE"
-  | "PROVIDER_ERROR"
-  | "TIMEOUT"
-  | "NETWORK_ERROR"
-  | "INTERRUPTED";
-export const usageFields = {
-  providerGenerationId: v.optional(v.string()),
-  actualModel: v.optional(v.string()),
-  isByok: v.optional(v.boolean()),
-  unitKind: v.literal("MODEL_TOKEN"),
-  inputUnitCount: v.optional(v.number()),
-  outputUnitCount: v.optional(v.number()),
-  totalUnitCount: v.optional(v.number()),
-  reasoningUnitCount: v.optional(v.number()),
-  cachedInputUnitCount: v.optional(v.number()),
-  cacheWriteUnitCount: v.optional(v.number()),
-  currency: v.literal("USD"),
-  costUsd: v.optional(v.number()),
-  costUsdNano: v.optional(v.number()),
-  billingStatus: v.union(v.literal("REPORTED"), v.literal("UNKNOWN")),
-  usageSource: v.union(v.literal("RESPONSE"), v.literal("GENERATION_LOOKUP")),
-};
-export const finishFields = {
-  ...usageFields,
-  status,
-  httpStatus: v.optional(v.number()),
-};
+export const FEATURES = Object.freeze([
+  "JOB_TICKET_SCAN",
+  "LOCATION_LABEL_SCAN",
+  "AI_SEARCH",
+] as const);
+export type Feature = (typeof FEATURES)[number];
+export const isFeature = (value: unknown): value is Feature =>
+  (FEATURES as readonly unknown[]).includes(value);
+
+export const USAGE_STATUSES = Object.freeze([
+  "PENDING",
+  "SUCCEEDED",
+  "UNREADABLE",
+  "PROVIDER_ERROR",
+  "TIMEOUT",
+  "NETWORK_ERROR",
+  "INTERRUPTED",
+] as const);
+export type UsageStatus = (typeof USAGE_STATUSES)[number];
+export const isUsageStatus = (value: unknown): value is UsageStatus =>
+  (USAGE_STATUSES as readonly unknown[]).includes(value);
+
+export type BillingStatus = "REPORTED" | "UNKNOWN";
+export type UsageSource = "RESPONSE" | "GENERATION_LOOKUP";
+
+/** The most provider attempts one operation may have (one 5xx retry). */
+export const MAX_ATTEMPTS = 2;
+
+export const NANO_PER_USD = 1_000_000_000;
+
 export interface ProviderUsage {
-  providerGenerationId?: string;
-  actualModel?: string;
-  isByok?: boolean;
-  unitKind: "MODEL_TOKEN";
-  inputUnitCount?: number;
-  outputUnitCount?: number;
-  totalUnitCount?: number;
-  reasoningUnitCount?: number;
-  cachedInputUnitCount?: number;
-  cacheWriteUnitCount?: number;
-  currency: "USD";
-  costUsd?: number;
-  costUsdNano?: number;
-  billingStatus: "REPORTED" | "UNKNOWN";
-  usageSource: "RESPONSE" | "GENERATION_LOOKUP";
+  readonly providerGenerationId?: string;
+  readonly actualModel?: string;
+  readonly isByok?: boolean;
+  readonly unitKind: "MODEL_TOKEN";
+  readonly inputUnitCount?: number;
+  readonly outputUnitCount?: number;
+  readonly totalUnitCount?: number;
+  readonly reasoningUnitCount?: number;
+  readonly cachedInputUnitCount?: number;
+  readonly cacheWriteUnitCount?: number;
+  readonly currency: "USD";
+  readonly costUsd?: number;
+  readonly costUsdNano?: number;
+  readonly billingStatus: BillingStatus;
+  readonly usageSource: UsageSource;
 }
+
 export type UsageFinish = ProviderUsage & {
-  status: UsageStatus;
-  httpStatus?: number;
+  readonly status: UsageStatus;
+  readonly httpStatus?: number;
 };
+
+/**
+ * Where a provider caller records usage. The Convex adapter
+ * (`convex/lib/aiUsage.ts`) binds it to the authorized tenant scope; the
+ * caller names only the feature and model.
+ */
+export interface AiUsageRecorder {
+  begin(feature: Feature, model: string, attemptNo: number): Promise<void>;
+  finish(attemptNo: number, result: UsageFinish): Promise<void>;
+  /** Close a begun attempt that never sent a request. Best effort. */
+  abandon(attemptNo: number): Promise<void>;
+}
+
 const record = (value: unknown): Record<string, unknown> =>
-  value && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : {};
+  isRecord(value) && !Array.isArray(value) ? value : {};
 const count = (value: unknown): number | undefined =>
   typeof value === "number" && Number.isSafeInteger(value) && value >= 0
     ? value
@@ -84,154 +88,60 @@ const text = (value: unknown): string | undefined =>
     ? value
     : undefined;
 
-/** Provider cost is authoritative. Reasoning/cache counts are subsets, never added to totals. */
+/** Exact nano-USD for a provider cost, or undefined when it is not a valid price. */
+export function costToNano(cost: unknown): number | undefined {
+  if (typeof cost !== "number" || !Number.isFinite(cost) || cost < 0)
+    return undefined;
+  const nano = Math.round(cost * NANO_PER_USD);
+  return Number.isSafeInteger(nano) ? nano : undefined;
+}
+
+/**
+ * Whitelisted usage of one provider body; never throws. Provider cost is
+ * authoritative. Reasoning/cache counts are subsets, never added to totals.
+ * The result is a new frozen record; the body is not retained.
+ */
 export function normalizeUsage(
   body: unknown,
-  source: ProviderUsage["usageSource"] = "RESPONSE",
+  source: UsageSource = "RESPONSE",
 ): ProviderUsage {
+  const lookup = source === "GENERATION_LOOKUP";
   const root = record(body),
-    usage = source === "RESPONSE" ? record(root.usage) : record(root.data);
+    usage = lookup ? record(root.data) : record(root.usage);
   const inputDetails = record(usage.prompt_tokens_details),
     outputDetails = record(usage.completion_tokens_details);
-  const rawCost = source === "RESPONSE" ? usage.cost : usage.total_cost;
-  const cost =
-    typeof rawCost === "number" &&
-    Number.isFinite(rawCost) &&
-    rawCost >= 0 &&
-    Number.isSafeInteger(Math.round(rawCost * 1e9))
-      ? rawCost
-      : undefined;
-  const values = {
-    providerGenerationId: text(source === "RESPONSE" ? root.id : usage.id),
-    actualModel: text(source === "RESPONSE" ? root.model : usage.model),
+  const rawCost = lookup ? usage.total_cost : usage.cost;
+  const costUsdNano = costToNano(rawCost);
+  const values: Record<string, unknown> = {
+    providerGenerationId: text(lookup ? usage.id : root.id),
+    actualModel: text(lookup ? usage.model : root.model),
     isByok: typeof usage.is_byok === "boolean" ? usage.is_byok : undefined,
     inputUnitCount: count(
-      source === "RESPONSE" ? usage.prompt_tokens : usage.native_tokens_prompt,
+      lookup ? usage.native_tokens_prompt : usage.prompt_tokens,
     ),
     outputUnitCount: count(
-      source === "RESPONSE"
-        ? usage.completion_tokens
-        : usage.native_tokens_completion,
+      lookup ? usage.native_tokens_completion : usage.completion_tokens,
     ),
     totalUnitCount: count(usage.total_tokens),
     reasoningUnitCount: count(
-      source === "RESPONSE"
-        ? outputDetails.reasoning_tokens
-        : usage.native_tokens_reasoning,
+      lookup ? usage.native_tokens_reasoning : outputDetails.reasoning_tokens,
     ),
     cachedInputUnitCount: count(
-      source === "RESPONSE"
-        ? inputDetails.cached_tokens
-        : usage.native_tokens_cached,
+      lookup ? usage.native_tokens_cached : inputDetails.cached_tokens,
     ),
     cacheWriteUnitCount: count(inputDetails.cache_write_tokens),
-    costUsd: cost,
-    costUsdNano: cost === undefined ? undefined : Math.round(cost * 1e9),
+    costUsd: costUsdNano === undefined ? undefined : rawCost,
+    costUsdNano,
   };
-  return {
-    ...Object.fromEntries(
-      Object.entries(values).filter(([, value]) => value !== undefined),
-    ),
-    unitKind: "MODEL_TOKEN",
-    currency: "USD",
-    billingStatus: cost === undefined ? "UNKNOWN" : "REPORTED",
-    usageSource: source,
-  };
-}
-
-export const metricFields = {
-  operationCount: v.number(),
-  attemptCount: v.number(),
-  successCount: v.number(),
-  pendingCount: v.number(),
-  knownCostUsdNano: v.number(),
-  unknownAttemptCount: v.number(),
-  incompleteOperationCount: v.number(),
-  completeOperationCount: v.number(),
-  completeCostUsdNano: v.number(),
-  totalDurationMs: v.number(),
-  finishedOperationCount: v.number(),
-};
-export type Metrics = Record<keyof typeof metricFields, number>;
-export const emptyMetrics = (): Metrics => ({
-  operationCount: 0,
-  attemptCount: 0,
-  successCount: 0,
-  pendingCount: 0,
-  knownCostUsdNano: 0,
-  unknownAttemptCount: 0,
-  incompleteOperationCount: 0,
-  completeOperationCount: 0,
-  completeCostUsdNano: 0,
-  totalDurationMs: 0,
-  finishedOperationCount: 0,
-});
-export function contribution(op: {
-  attemptCount: number;
-  knownCostUsdNano: number;
-  unknownAttemptCount: number;
-  status: UsageStatus;
-  durationMs: number;
-}): Metrics {
-  const pending = op.status === "PENDING",
-    complete = !pending && op.unknownAttemptCount === 0;
-  return {
-    operationCount: 1,
-    attemptCount: op.attemptCount,
-    successCount: Number(op.status === "SUCCEEDED"),
-    pendingCount: Number(pending),
-    knownCostUsdNano: op.knownCostUsdNano,
-    unknownAttemptCount: op.unknownAttemptCount,
-    incompleteOperationCount: Number(!complete),
-    completeOperationCount: Number(complete),
-    completeCostUsdNano: complete ? op.knownCostUsdNano : 0,
-    totalDurationMs: pending ? 0 : op.durationMs,
-    finishedOperationCount: Number(!pending),
-  };
-}
-export function addMetrics(
-  target: Metrics,
-  value: Metrics,
-  multiplier = 1,
-): Metrics {
-  for (const key of Object.keys(metricFields) as (keyof Metrics)[]) {
-    target[key] += value[key] * multiplier;
-    if (!Number.isSafeInteger(target[key]) || target[key] < 0)
-      throw new Error("AI_USAGE_AGGREGATE_INVALID");
-  }
-  return target;
-}
-
-export function reportRange(
-  timezone: string,
-  now: number,
-  input: { period?: "month" | "today"; from?: string; to?: string },
-) {
-  const offset = timezoneOffsetMinutes(timezone);
-  if (!offset.ok) throw new Error("TIMEZONE_UNSUPPORTED");
-  const today = toLocal(now, offset.value).date;
-  const from =
-      input.from ??
-      (input.period === "today" ? today : `${today.slice(0, 7)}-01`),
-    to = input.to ?? today;
-  const first = dayNumber(from),
-    last = dayNumber(to);
-  if (first === null || last === null || last < first || last - first > 92)
-    throw new Error("DATE_RANGE_INVALID");
-  const start = first * MS_PER_DAY - offset.value * 60_000,
-    end = (last + 1) * MS_PER_DAY - offset.value * 60_000;
-  const utcDays = Array.from(
-    { length: Math.ceil(end / MS_PER_DAY) - Math.floor(start / MS_PER_DAY) },
-    (_, i) => Math.floor(start / MS_PER_DAY) + i,
+  const present = Object.fromEntries(
+    Object.entries(values).filter(([, value]) => value !== undefined),
   );
-  return { from, to, start, end, utcDays, timezone };
-}
-
-export function estimatedThb(nano: number, fx: number, feePercent: number) {
-  const inference = (nano / 1e9) * fx;
-  return {
-    inference,
-    fundingFee: (inference * feePercent) / 100,
-    withFundingFee: inference * (1 + feePercent / 100),
-  };
+  return Object.freeze({
+    ...present,
+    unitKind: "MODEL_TOKEN" as const,
+    currency: "USD" as const,
+    billingStatus:
+      costUsdNano === undefined ? ("UNKNOWN" as const) : ("REPORTED" as const),
+    usageSource: source,
+  });
 }

@@ -8,10 +8,14 @@
  * @module
  */
 
+import type * as aiUsage_generation from "../aiUsage/generation.js";
 import type * as aiUsage_internal from "../aiUsage/internal.js";
+import type * as aiUsage_projection from "../aiUsage/projection.js";
 import type * as aiUsage_provision from "../aiUsage/provision.js";
 import type * as aiUsage_rebuild from "../aiUsage/rebuild.js";
+import type * as aiUsage_recovery from "../aiUsage/recovery.js";
 import type * as aiUsage_reports from "../aiUsage/reports.js";
+import type * as aiUsage_validators from "../aiUsage/validators.js";
 import type * as finishedGoods_batchManagement from "../finishedGoods/batchManagement.js";
 import type * as finishedGoods_batches from "../finishedGoods/batches.js";
 import type * as finishedGoods_catalogue from "../finishedGoods/catalogue.js";
@@ -64,6 +68,7 @@ import type * as lib_tenantStorage from "../lib/tenantStorage.js";
 import type * as lib_tenantTable from "../lib/tenantTable.js";
 import type * as lib_validators from "../lib/validators.js";
 import type * as lib_writeEnvelope from "../lib/writeEnvelope.js";
+import type * as model_aiUsage_metrics from "../model/aiUsage/metrics.js";
 import type * as model_aiUsage_usage from "../model/aiUsage/usage.js";
 import type * as model_authorization_navigationPermissions from "../model/authorization/navigationPermissions.js";
 import type * as model_finishedGoods_jobScans from "../model/finishedGoods/jobScans.js";
@@ -119,10 +124,14 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  "aiUsage/generation": typeof aiUsage_generation;
   "aiUsage/internal": typeof aiUsage_internal;
+  "aiUsage/projection": typeof aiUsage_projection;
   "aiUsage/provision": typeof aiUsage_provision;
   "aiUsage/rebuild": typeof aiUsage_rebuild;
+  "aiUsage/recovery": typeof aiUsage_recovery;
   "aiUsage/reports": typeof aiUsage_reports;
+  "aiUsage/validators": typeof aiUsage_validators;
   "finishedGoods/batchManagement": typeof finishedGoods_batchManagement;
   "finishedGoods/batches": typeof finishedGoods_batches;
   "finishedGoods/catalogue": typeof finishedGoods_catalogue;
@@ -175,6 +184,7 @@ declare const fullApi: ApiFromModules<{
   "lib/tenantTable": typeof lib_tenantTable;
   "lib/validators": typeof lib_validators;
   "lib/writeEnvelope": typeof lib_writeEnvelope;
+  "model/aiUsage/metrics": typeof model_aiUsage_metrics;
   "model/aiUsage/usage": typeof model_aiUsage_usage;
   "model/authorization/navigationPermissions": typeof model_authorization_navigationPermissions;
   "model/finishedGoods/jobScans": typeof model_finishedGoods_jobScans;

@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
+import { useAiUsageAccess } from "@/components/providers/AiUsageAccessProvider";
 import { DraftGuardProvider } from "@/components/providers/DraftGuardProvider";
 import { useHrAccess } from "@/components/providers/HrAccessProvider";
 import { useWorkspace } from "@/components/providers/WorkspaceProvider";
@@ -28,7 +29,10 @@ import { AccountButton } from "@/components/shell/AccountButton";
 import { HrLandingRedirect } from "@/components/shell/HrLandingRedirect";
 import { LocaleSwitcher } from "@/components/shell/LocaleSwitcher";
 import { NavigationPendingIndicator } from "@/components/shell/NavigationPendingIndicator";
-import { GlobalSearchProvider } from "@/components/shell/search/GlobalSearchProvider";
+import {
+  GlobalSearchProvider,
+  useGrantedPermissions,
+} from "@/components/shell/search/GlobalSearchProvider";
 import {
   MobileSearchButton,
   SidebarSearchTriggers,
@@ -171,6 +175,7 @@ function AppSidebar() {
   const app = useTranslations("App");
   const workspace = useWorkspace();
   const hr = useHrAccess();
+  const usage = useAiUsageAccess();
   const { state, isMobile, setOpenMobile } = useSidebar();
   const collapsed = !isMobile && state === "collapsed";
   return (
@@ -215,7 +220,10 @@ function AppSidebar() {
               collapsed ? "sr-only" : "min-w-0 truncate text-sm font-medium"
             }
           >
-            {workspace.organization?.name ?? hr.organizationName ?? app("name")}
+            {workspace.organization?.name ??
+              hr.organizationName ??
+              usage.organizationName ??
+              app("name")}
           </span>
         </div>
       </SidebarFooter>
@@ -247,17 +255,17 @@ function NavigationTree({
   const pathname = usePathname();
   const workspace = useWorkspace();
   const hr = useHrAccess();
-  // Storage and HR grants settle independently. A storage denial is a settled
-  // answer (an HR-only member), not a reason to keep the menu loading.
+  const usage = useAiUsageAccess();
+  // Storage, HR and AI usage grants settle independently. A storage denial is
+  // a settled answer (an HR-only or usage-only member), not a reason to keep
+  // the menu loading.
   const workspaceSettled =
     workspace.permissionsReady || workspace.denied || workspace.failed;
   const hrSettled = hr.status !== "LOADING";
-  const sections = visibleDesktopNavigation([
-    ...(workspace.permissionsReady ? workspace.navigationPermissions : []),
-    ...(hr.status === "READY" ? hr.permissions : []),
-  ]);
+  const usageSettled = usage.status !== "LOADING";
+  const sections = visibleDesktopNavigation(useGrantedPermissions());
   const navigationLoading =
-    !(workspaceSettled && hrSettled) && sections.length === 0;
+    !(workspaceSettled && hrSettled && usageSettled) && sections.length === 0;
   const activeHref = activeNavigationHref(
     pathname,
     sections.flatMap((section) => section.items.map((item) => item.href)),

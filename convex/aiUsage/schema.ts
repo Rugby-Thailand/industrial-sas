@@ -1,12 +1,7 @@
 import { defineTable } from "convex/server";
 import { v } from "convex/values";
 import { byOrg, tenantFields } from "../lib/tenantTable";
-import {
-  feature,
-  status,
-  usageFields,
-  metricFields,
-} from "../model/aiUsage/usage";
+import { feature, status, usageFields, metricFields } from "./validators";
 
 const dimensions = {
   feature,

@@ -1,7 +1,15 @@
 import { v } from "convex/values";
 import { internalMutation } from "../_generated/server";
 import type { Doc } from "../_generated/dataModel";
-import { addMetrics, contribution, emptyMetrics } from "../model/aiUsage/usage";
+import {
+  addMetrics,
+  contribution,
+  EMPTY_METRICS,
+  projectOperation,
+  summaryKey,
+} from "../model/aiUsage/metrics";
+import { MAX_ATTEMPTS } from "../model/aiUsage/usage";
+import { unwrap } from "./projection";
 
 const MAX_OPERATIONS = 1000;
 type Summary = Omit<Doc<"aiUsageDailySummaries">, "_id" | "_creationTime">;
@@ -75,13 +83,10 @@ export const day = internalMutation({
         .withIndex("by_orgId_operationId_attemptNo", (q) =>
           q.eq("orgId", args.orgId).eq("operationId", first.operationId),
         )
-        .take(3);
+        .take(MAX_ATTEMPTS + 1);
       if (
-        events.length < 1 ||
-        events.length > 2 ||
         events.some(
-          (event, index) =>
-            event.attemptNo !== index + 1 ||
+          (event) =>
             event.actorUserId !== first.actorUserId ||
             event.warehouseId !== first.warehouseId ||
             event.feature !== first.feature ||
@@ -90,7 +95,8 @@ export const day = internalMutation({
         )
       )
         throw new Error("AI_USAGE_LEDGER_INVALID");
-      const last = events[events.length - 1]!;
+      // The live lifecycle derives projections through the same function.
+      const projection = unwrap(projectOperation(events));
       const fields = {
         orgId: args.orgId,
         operationId: first.operationId,
@@ -100,22 +106,7 @@ export const day = internalMutation({
         environment: first.environment,
         requestedModel: first.requestedModel,
         utcDay,
-        startedAt: first.startedAt,
-        durationMs:
-          last.status === "PENDING"
-            ? 0
-            : Math.max(
-                0,
-                (last.finishedAt ?? last.startedAt) - first.startedAt,
-              ),
-        status: last.status,
-        attemptCount: events.length,
-        knownCostUsdNano: events.reduce(
-          (sum, e) => sum + (e.costUsdNano ?? 0),
-          0,
-        ),
-        unknownAttemptCount: events.filter((e) => e.billingStatus === "UNKNOWN")
-          .length,
+        ...projection,
       };
       const before = storedOps.get(first.operationId);
       if (
@@ -127,30 +118,22 @@ export const day = internalMutation({
       )
         operationDriftCount += 1;
       projected.push({ before, fields });
-      const summaryKey = JSON.stringify([
+      const key = unwrap(summaryKey(fields));
+      const summary: Summary = summaries.get(key) ?? {
+        orgId: args.orgId,
         utcDay,
-        fields.feature,
-        fields.environment,
-        fields.actorUserId,
-        fields.warehouseId ?? "",
-        fields.requestedModel,
-      ]);
-      let summary = summaries.get(summaryKey);
-      if (!summary) {
-        summary = {
-          orgId: args.orgId,
-          utcDay,
-          feature: fields.feature,
-          environment: fields.environment,
-          actorUserId: fields.actorUserId,
-          ...(fields.warehouseId ? { warehouseId: fields.warehouseId } : {}),
-          requestedModel: fields.requestedModel,
-          summaryKey,
-          ...emptyMetrics(),
-        };
-        summaries.set(summaryKey, summary);
-      }
-      addMetrics(summary, contribution(fields));
+        feature: fields.feature,
+        environment: fields.environment,
+        actorUserId: fields.actorUserId,
+        ...(fields.warehouseId ? { warehouseId: fields.warehouseId } : {}),
+        requestedModel: fields.requestedModel,
+        summaryKey: key,
+        ...EMPTY_METRICS,
+      };
+      const metrics = unwrap(
+        addMetrics(summary, unwrap(contribution(projection))),
+      );
+      summaries.set(key, { ...summary, ...metrics });
     }
     const storedByKey = new Map(storedSummaries.map((s) => [s.summaryKey, s]));
     let summaryDriftCount = storedSummaries.filter(

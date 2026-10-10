@@ -1,5 +1,8 @@
-import { normalizeUsage, type UsageFinish } from "../aiUsage/usage";
-import type { AiUsagePort } from "../../lib/aiUsage";
+import {
+  normalizeUsage,
+  type AiUsageRecorder,
+  type UsageFinish,
+} from "../aiUsage/usage";
 /**
  * The one OpenRouter chat request behind AI Search, shared by the Convex
  * action and the opt-in live evaluation so both send exactly the same thing.
@@ -138,7 +141,7 @@ export async function requestSearchIntent(input: {
   readonly context: IntentContextFlags;
   readonly fetcher?: typeof fetch;
   readonly timeoutMs?: number;
-  readonly usage?: AiUsagePort;
+  readonly usage?: AiUsageRecorder;
 }): Promise<Result<ModelIntent, ProviderFailure>> {
   await input.usage?.begin("AI_SEARCH", input.model, 1);
   let usageResult: UsageFinish = {
@@ -160,13 +163,16 @@ export async function requestSearchIntent(input: {
       body: JSON.stringify(searchIntentRequestBody(input)),
       signal: controller.signal,
     });
-    usageResult.httpStatus = response.status;
+    usageResult = { ...usageResult, httpStatus: response.status };
     const text = await response.text();
     let body: unknown;
     try {
       body = JSON.parse(text);
     } catch {
-      usageResult.status = response.ok ? "UNREADABLE" : "PROVIDER_ERROR";
+      usageResult = {
+        ...usageResult,
+        status: response.ok ? "UNREADABLE" : "PROVIDER_ERROR",
+      };
       return fail(response.ok ? "AI_UNREADABLE" : "AI_UNAVAILABLE");
     }
     usageResult = {
@@ -176,20 +182,20 @@ export async function requestSearchIntent(input: {
     };
     if (!response.ok) return fail("AI_UNAVAILABLE");
     const answer = readSearchIntentResponse(body);
-    usageResult.status = answer.ok ? "SUCCEEDED" : "UNREADABLE";
+    usageResult = {
+      ...usageResult,
+      status: answer.ok ? "SUCCEEDED" : "UNREADABLE",
+    };
     return answer;
   } catch (error) {
-    usageResult.status =
+    const timedOut =
       controller.signal.aborted ||
-      (error instanceof Error && error.name === "AbortError")
-        ? "TIMEOUT"
-        : "NETWORK_ERROR";
-    return fail(
-      controller.signal.aborted ||
-        (error instanceof Error && error.name === "AbortError")
-        ? "AI_TIMEOUT"
-        : "AI_UNAVAILABLE",
-    );
+      (error instanceof Error && error.name === "AbortError");
+    usageResult = {
+      ...usageResult,
+      status: timedOut ? "TIMEOUT" : "NETWORK_ERROR",
+    };
+    return fail(timedOut ? "AI_TIMEOUT" : "AI_UNAVAILABLE");
   } finally {
     clearTimeout(timer);
     await input.usage?.finish(1, usageResult);

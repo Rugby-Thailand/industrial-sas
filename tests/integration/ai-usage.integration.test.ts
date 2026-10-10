@@ -141,6 +141,20 @@ describe("AI usage ledger through authorized actions", () => {
       attemptCount: 2,
       completeCostUsdNano: 300000,
     });
+    // Live finalization and the rebuild share one projection: no drift.
+    expect(
+      await world.t.mutation(internal.aiUsage.rebuild.day, {
+        orgId: world.orgA,
+        utcDate: new Date(l.operations[0]!.startedAt)
+          .toISOString()
+          .slice(0, 10),
+      }),
+    ).toMatchObject({
+      operationCount: 1,
+      operationDriftCount: 0,
+      summaryDriftCount: 0,
+      applied: false,
+    });
   });
   it("distinguishes missing price from free, finalizes idempotently and reconciles only metadata", async () => {
     vi.stubGlobal(
@@ -291,9 +305,14 @@ describe("AI usage ledger through authorized actions", () => {
   it("tracks timeout as unknown and awaits finalization without a second request", async () => {
     const begin = vi.fn().mockResolvedValue(undefined),
       finish = vi.fn().mockResolvedValue(undefined),
+      abandon = vi.fn().mockResolvedValue(undefined),
       send = vi.fn((_signal: AbortSignal) => new Promise<Response>(() => {}));
     const promise = requestJobTicketProvider(send, {
-      usage: { begin, finish },
+      tracking: {
+        port: { begin, finish, abandon },
+        feature: "JOB_TICKET_SCAN",
+        model: "openai/gpt-6-luna",
+      },
       policy: {
         attemptTimeoutMs: 10,
         totalDeadlineMs: 20,

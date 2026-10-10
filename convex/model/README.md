@@ -35,6 +35,8 @@ That is not stylistic. Three things depend on it:
 | `identifiers/scanResolution.ts` | The GS1 → LPN → GTIN → SKU precedence ladder with explicit rejection              |
 | `time/businessDate.ts`          | Business date in a fixed-offset organization zone; Buddhist Era for display       |
 | `rotation/stockRotation.ts`     | FIFO/FEFO total order with stable tie-breakers and per-candidate explanation      |
+| `aiUsage/usage.ts`              | AI usage vocabulary and the whitelisted provider usage decoder (nano-USD)         |
+| `aiUsage/metrics.ts`            | AI usage operation projection, summary contribution and key, report range         |
 
 ## The boundary a cast cannot walk through
 

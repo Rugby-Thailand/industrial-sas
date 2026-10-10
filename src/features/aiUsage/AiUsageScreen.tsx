@@ -2,15 +2,12 @@
 
 import { useConvex, useMutation, useQuery } from "convex/react";
 import { useLocale, useTranslations } from "next-intl";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { Download } from "lucide-react";
 import { api } from "../../../convex/_generated/api";
 import { dayNumber } from "../../../convex/model/hr/calendar";
-import {
-  estimatedThb,
-  type Feature,
-} from "../../../convex/model/aiUsage/usage";
-import { useWorkspace } from "@/components/providers/WorkspaceProvider";
+import { FEATURES, type Feature } from "../../../convex/model/aiUsage/usage";
+import { useAiUsageAccess } from "@/components/providers/AiUsageAccessProvider";
 import { clientRef, type RefValue } from "@/lib/convex/clientRef";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Panel } from "@/components/ui/Panel";
@@ -20,6 +17,8 @@ import { Input } from "@/components/ui/input";
 import { FormField } from "@/components/ui/FormField";
 import { SelectControl } from "@/components/ui/SelectControl";
 import { usageCsv } from "./csv";
+import { estimateThb } from "./estimate";
+import { RecentActivity } from "./RecentActivity";
 
 const summaryRef = clientRef(api.aiUsage.reports.summary),
   operationsRef = clientRef(api.aiUsage.reports.operations),
@@ -28,20 +27,27 @@ const summaryRef = clientRef(api.aiUsage.reports.summary),
 type Report = Exclude<RefValue<typeof summaryRef>, { error: string }>;
 type Settings = Report["settings"];
 
+/** Translation key of each feature's label. */
+export const FEATURE_LABEL_KEYS: Readonly<Record<Feature, string>> =
+  Object.freeze({
+    JOB_TICKET_SCAN: "image",
+    LOCATION_LABEL_SCAN: "locationScan",
+    AI_SEARCH: "search",
+  });
+
 export function AiUsageScreen() {
   const t = useTranslations("AiUsage"),
-    workspace = useWorkspace();
+    access = useAiUsageAccess();
+  // Organization-scoped access, independent of warehouse permissions.
   return (
     <>
       <PageHeader title={t("title")} summary={t("summary")} showBack={false} />
-      {workspace.loading ? (
+      {access.status === "LOADING" ? (
         <p role="status">{t("loading")}</p>
-      ) : workspace.permissionsReady &&
-        workspace.navigationPermissions.includes("aiUsage.read") ? (
+      ) : access.status === "READY" &&
+        access.permissions.includes("aiUsage.read") ? (
         <UsageReport
-          canConfigure={workspace.navigationPermissions.includes(
-            "aiUsage.configure",
-          )}
+          canConfigure={access.permissions.includes("aiUsage.configure")}
         />
       ) : (
         <Notice title={t("denied")} />
@@ -106,18 +112,23 @@ function UsageReport({ canConfigure }: { canConfigure: boolean }) {
     }).format(value);
   const usd = (nano: number) =>
     `US$${new Intl.NumberFormat(locale, { minimumFractionDigits: 6, maximumFractionDigits: 9 }).format(nano / 1e9)}`;
-  const money = (nano: number) => (
-    <>
-      <span>{usd(nano)}</span>
-      {data?.settings ? (
-        <span className="block text-xs text-muted">
-          ≈ ฿{num(estimatedThb(nano, data.settings.usdThbRate, 0).inference, 4)}
-        </span>
-      ) : null}
-    </>
-  );
-  const label = (kind: Feature) =>
-    t(kind === "JOB_TICKET_SCAN" ? "image" : "search");
+  const money = (nano: number): ReactNode => {
+    const baht = data?.settings
+      ? estimateThb(nano, data.settings.usdThbRate, 0)
+      : null;
+    return (
+      <>
+        <span>{usd(nano)}</span>
+        {baht ? (
+          <span className="block text-xs text-muted">
+            ≈ ฿{num(baht.inference, 4)}
+          </span>
+        ) : null}
+      </>
+    );
+  };
+  const label = (kind: Feature) => t(FEATURE_LABEL_KEYS[kind]);
+  const shownFeatures = FEATURES.filter((kind) => !feature || feature === kind);
   function applyDates(event: FormEvent) {
     event.preventDefault();
     const from = draftFrom || data?.range.from || "",
@@ -159,7 +170,7 @@ function UsageReport({ canConfigure }: { canConfigure: boolean }) {
             for (const a of attempts.value) {
               const baht =
                 settings && a.costUsdNano !== undefined
-                  ? estimatedThb(
+                  ? estimateThb(
                       a.costUsdNano,
                       settings.usdThbRate,
                       settings.feePercent,
@@ -358,8 +369,7 @@ function UsageReport({ canConfigure }: { canConfigure: boolean }) {
           )}
           {selector("usage-feature", t("feature"), feature, setFeature, [
             all,
-            { value: "JOB_TICKET_SCAN", label: t("image") },
-            { value: "AI_SEARCH", label: t("search") },
+            ...FEATURES.map((kind) => ({ value: kind, label: label(kind) })),
           ])}
           <div className="hidden sm:contents">{advancedFilters("desktop")}</div>
         </div>
@@ -451,124 +461,111 @@ function UsageReport({ canConfigure }: { canConfigure: boolean }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {(["JOB_TICKET_SCAN", "AI_SEARCH"] as const)
-                    .filter((kind) => !feature || feature === kind)
-                    .map((kind) => {
-                      const m = data.byFeature[kind];
-                      return (
-                        <tr
-                          key={kind}
-                          className="border-b border-border last:border-b-0"
-                        >
-                          <th
-                            scope="row"
-                            className="p-4 text-left font-semibold"
+                  {shownFeatures.map((kind) => {
+                    const m = data.byFeature[kind];
+                    return (
+                      <tr
+                        key={kind}
+                        className="border-b border-border last:border-b-0"
+                      >
+                        <th scope="row" className="p-4 text-left font-semibold">
+                          {label(kind)}
+                        </th>
+                        <td className="p-4">{num(m.operationCount)}</td>
+                        <td className="p-4">
+                          {num(m.attemptCount)}
+                          <span className="block text-xs text-muted">
+                            {t("retries")}{" "}
+                            {num(m.attemptCount - m.operationCount)}
+                          </span>
+                        </td>
+                        <td className="p-4">{money(m.knownCostUsdNano)}</td>
+                        <td className="p-4">
+                          {m.completeOperationCount
+                            ? money(
+                                m.completeCostUsdNano /
+                                  m.completeOperationCount,
+                              )
+                            : "—"}
+                          <span className="block text-xs text-muted">
+                            {num(m.completeOperationCount)} {t("known")}
+                          </span>
+                        </td>
+                        <td className="p-4">
+                          <span
+                            className={
+                              m.unknownAttemptCount
+                                ? "text-warning"
+                                : "text-muted"
+                            }
                           >
-                            {label(kind)}
-                          </th>
-                          <td className="p-4">{num(m.operationCount)}</td>
-                          <td className="p-4">
-                            {num(m.attemptCount)}
-                            <span className="block text-xs text-muted">
-                              {t("retries")}{" "}
-                              {num(m.attemptCount - m.operationCount)}
-                            </span>
-                          </td>
-                          <td className="p-4">{money(m.knownCostUsdNano)}</td>
-                          <td className="p-4">
-                            {m.completeOperationCount
-                              ? money(
-                                  m.completeCostUsdNano /
-                                    m.completeOperationCount,
-                                )
-                              : "—"}
-                            <span className="block text-xs text-muted">
-                              {num(m.completeOperationCount)} {t("known")}
-                            </span>
-                          </td>
-                          <td className="p-4">
-                            <span
-                              className={
-                                m.unknownAttemptCount
-                                  ? "text-warning"
-                                  : "text-muted"
-                              }
-                            >
-                              {t("unknown", { count: m.unknownAttemptCount })}
-                            </span>
-                            <span className="block text-xs text-muted">
-                              {t("pending", { count: m.pendingCount })}
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    })}
+                            {t("unknown", { count: m.unknownAttemptCount })}
+                          </span>
+                          <span className="block text-xs text-muted">
+                            {t("pending", { count: m.pendingCount })}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
             <div className="divide-y divide-border md:hidden">
-              {(["JOB_TICKET_SCAN", "AI_SEARCH"] as const)
-                .filter((kind) => !feature || feature === kind)
-                .map((kind) => {
-                  const m = data.byFeature[kind];
-                  return (
-                    <section
-                      key={kind}
-                      className="space-y-3 p-4"
-                      aria-label={label(kind)}
-                    >
-                      <div className="flex flex-wrap items-baseline justify-between gap-2">
-                        <h2 className="font-semibold">{label(kind)}</h2>
-                        <p className="text-sm tabular-nums">
-                          {num(m.operationCount)} {t("operations")}
-                        </p>
+              {shownFeatures.map((kind) => {
+                const m = data.byFeature[kind];
+                return (
+                  <section
+                    key={kind}
+                    className="space-y-3 p-4"
+                    aria-label={label(kind)}
+                  >
+                    <div className="flex flex-wrap items-baseline justify-between gap-2">
+                      <h2 className="font-semibold">{label(kind)}</h2>
+                      <p className="text-sm tabular-nums">
+                        {num(m.operationCount)} {t("operations")}
+                      </p>
+                    </div>
+                    <dl className="grid grid-cols-2 gap-3 text-sm tabular-nums">
+                      <div>
+                        <dt className="mb-1 text-xs text-muted">{t("cost")}</dt>
+                        <dd>{money(m.knownCostUsdNano)}</dd>
                       </div>
-                      <dl className="grid grid-cols-2 gap-3 text-sm tabular-nums">
-                        <div>
-                          <dt className="mb-1 text-xs text-muted">
-                            {t("cost")}
-                          </dt>
-                          <dd>{money(m.knownCostUsdNano)}</dd>
-                        </div>
-                        <div>
-                          <dt className="mb-1 text-xs text-muted">
-                            {t("average")}
-                          </dt>
-                          <dd>
-                            {m.completeOperationCount
-                              ? money(
-                                  m.completeCostUsdNano /
-                                    m.completeOperationCount,
-                                )
-                              : "—"}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt className="text-xs text-muted">
-                            {t("attempts")}
-                          </dt>
-                          <dd>
-                            {num(m.attemptCount)} · {t("retries")}{" "}
-                            {num(m.attemptCount - m.operationCount)}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt className="text-xs text-muted">
-                            {t("coverage")}
-                          </dt>
-                          <dd>
-                            {t("unknown", { count: m.unknownAttemptCount })}
-                          </dd>
-                        </div>
-                      </dl>
-                      {m.pendingCount ? (
-                        <p className="text-xs text-warning">
-                          {t("pending", { count: m.pendingCount })}
-                        </p>
-                      ) : null}
-                    </section>
-                  );
-                })}
+                      <div>
+                        <dt className="mb-1 text-xs text-muted">
+                          {t("average")}
+                        </dt>
+                        <dd>
+                          {m.completeOperationCount
+                            ? money(
+                                m.completeCostUsdNano /
+                                  m.completeOperationCount,
+                              )
+                            : "—"}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs text-muted">{t("attempts")}</dt>
+                        <dd>
+                          {num(m.attemptCount)} · {t("retries")}{" "}
+                          {num(m.attemptCount - m.operationCount)}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs text-muted">{t("coverage")}</dt>
+                        <dd>
+                          {t("unknown", { count: m.unknownAttemptCount })}
+                        </dd>
+                      </div>
+                    </dl>
+                    {m.pendingCount ? (
+                      <p className="text-xs text-warning">
+                        {t("pending", { count: m.pendingCount })}
+                      </p>
+                    ) : null}
+                  </section>
+                );
+              })}
             </div>
             <p className="border-t border-border p-4 text-xs leading-relaxed text-muted">
               {t("completeAverage")}
@@ -584,28 +581,27 @@ function UsageReport({ canConfigure }: { canConfigure: boolean }) {
           </p>
           {data.settings ? (
             <dl className="flex flex-wrap gap-x-8 gap-y-3 text-sm">
-              {(["JOB_TICKET_SCAN", "AI_SEARCH"] as const)
-                .filter((kind) => !feature || kind === feature)
-                .map((kind) => {
-                  const value = estimatedThb(
-                    data.byFeature[kind].knownCostUsdNano,
-                    data.settings!.usdThbRate,
-                    data.settings!.feePercent,
-                  );
-                  return (
-                    <div key={kind}>
-                      <dt className="text-muted">
-                        {label(kind)} · {t("withFee")}
-                      </dt>
-                      <dd className="mt-1 font-medium tabular-nums">
-                        ฿{num(value.withFundingFee, 4)}{" "}
-                        <span className="text-xs font-normal text-muted">
-                          ({t("fee")} ฿{num(value.fundingFee, 4)})
-                        </span>
-                      </dd>
-                    </div>
-                  );
-                })}
+              {shownFeatures.map((kind) => {
+                const value = estimateThb(
+                  data.byFeature[kind].knownCostUsdNano,
+                  data.settings!.usdThbRate,
+                  data.settings!.feePercent,
+                );
+                if (!value) return null;
+                return (
+                  <div key={kind}>
+                    <dt className="text-muted">
+                      {label(kind)} · {t("withFee")}
+                    </dt>
+                    <dd className="mt-1 font-medium tabular-nums">
+                      ฿{num(value.withFundingFee, 4)}{" "}
+                      <span className="text-xs font-normal text-muted">
+                        ({t("fee")} ฿{num(value.fundingFee, 4)})
+                      </span>
+                    </dd>
+                  </div>
+                );
+              })}
             </dl>
           ) : null}
           <section aria-labelledby="usage-breakdown">
@@ -677,6 +673,13 @@ function UsageReport({ canConfigure }: { canConfigure: boolean }) {
               {t("details")}
             </p>
           </section>
+          <RecentActivity
+            args={args}
+            signature={JSON.stringify(data.byFeature)}
+            timezone={data.range.timezone}
+            featureLabel={label}
+            money={money}
+          />
           {data.trackingStartedAt ? (
             <p className="text-xs text-muted">
               {t("started", {

@@ -268,6 +268,317 @@ describe("job-ticket provider deadline and retry policy", () => {
   });
 });
 
+type Finish = Parameters<
+  NonNullable<
+    Parameters<typeof requestJobTicketProvider>[1]
+  >["tracking"] extends infer T
+    ? T extends { port: { finish: infer F } }
+      ? F
+      : never
+    : never
+>;
+
+/** A recording usage port; `begin` resolves after `beginDelayMs` (or never). */
+function trackingPort(beginDelayMs: number | "never" | readonly number[] = 0) {
+  const events: string[] = [];
+  const finishes: { attemptNo: number; result: Finish[1] }[] = [];
+  let call = 0;
+  const port = {
+    begin: vi.fn((_feature: string, _model: string, attemptNo: number) => {
+      const delay = Array.isArray(beginDelayMs)
+        ? (beginDelayMs[call] ?? 0)
+        : beginDelayMs;
+      call += 1;
+      events.push(`begin:${attemptNo}`);
+      if (delay === "never") return new Promise<void>(() => undefined);
+      return new Promise<void>((resolve) =>
+        setTimeout(() => {
+          events.push(`begun:${attemptNo}`);
+          resolve();
+        }, delay as number),
+      );
+    }),
+    finish: vi.fn(async (attemptNo: number, result: Finish[1]) => {
+      events.push(`finish:${attemptNo}`);
+      finishes.push({ attemptNo, result });
+    }),
+    abandon: vi.fn(async (attemptNo: number) => {
+      events.push(`abandon:${attemptNo}`);
+    }),
+  };
+  return {
+    events,
+    finishes,
+    port,
+    tracking: {
+      port,
+      feature: "JOB_TICKET_SCAN" as const,
+      model: "openai/gpt-6-luna",
+    },
+  };
+}
+
+const usageEnvelope = (cost: number, id: string) =>
+  JSON.stringify({
+    id,
+    usage: { cost, prompt_tokens: 10, completion_tokens: 2 },
+    choices: [{ message: { content: '{"factory_order":"FO-1"}' } }],
+  });
+
+describe("tracked provider attempts respect the total deadline", () => {
+  it.each([
+    ["a delayed begin", 70],
+    ["a begin that never settles", "never" as const],
+  ])(
+    "sends nothing after the deadline for %s and settles at the deadline",
+    async (_label, delay) => {
+      vi.useFakeTimers();
+      try {
+        const usage = trackingPort(delay);
+        const send = vi.fn(async (signal: AbortSignal) => {
+          usage.events.push(`send:aborted=${signal.aborted}`);
+          return ok(usageEnvelope(0.0001, "gen-late"));
+        });
+        let settled = false;
+        const pending = requestJobTicketProvider(send, {
+          policy: { ...FAST, attemptTimeoutMs: 100, totalDeadlineMs: 20 },
+          tracking: usage.tracking,
+        }).then((outcome) => {
+          settled = true;
+          return outcome;
+        });
+        await vi.advanceTimersByTimeAsync(19);
+        expect(settled).toBe(false);
+        await vi.advanceTimersByTimeAsync(1);
+        expect(settled).toBe(true);
+        expect(await pending).toMatchObject({
+          ok: false,
+          reason: "timeout",
+          attempts: 0,
+        });
+        // Let a late begin commit: still no request and no finalization.
+        await vi.advanceTimersByTimeAsync(200);
+        expect(send).not.toHaveBeenCalled();
+        expect(usage.port.finish).not.toHaveBeenCalled();
+        expect(usage.port.abandon).not.toHaveBeenCalled();
+        expect(vi.getTimerCount()).toBe(0);
+      } finally {
+        vi.useRealTimers();
+      }
+    },
+  );
+
+  it("abandons a retry whose begin leaves less than the retry budget, without sending it", async () => {
+    vi.useFakeTimers();
+    try {
+      const usage = trackingPort([0, 30]);
+      const send = vi.fn(async () => status(503));
+      const pending = requestJobTicketProvider(send, {
+        policy: { ...FAST, totalDeadlineMs: 50, minRetryBudgetMs: 25 },
+        tracking: usage.tracking,
+      });
+      await vi.advanceTimersByTimeAsync(60);
+      expect(await pending).toMatchObject({
+        ok: false,
+        reason: "status",
+        status: 503,
+        attempts: 1,
+      });
+      expect(send).toHaveBeenCalledTimes(1);
+      expect(usage.events).toEqual([
+        "begin:1",
+        "begun:1",
+        "finish:1",
+        "begin:2",
+        "begun:2",
+        "abandon:2",
+      ]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("begins durably before each request and finalizes each sent attempt once, even when finalization outlives the deadline", async () => {
+    vi.useFakeTimers();
+    try {
+      const usage = trackingPort();
+      usage.port.finish.mockImplementation(
+        (attemptNo: number, result: Finish[1]) =>
+          new Promise<void>((resolve) =>
+            setTimeout(() => {
+              usage.events.push(`finish:${attemptNo}`);
+              usage.finishes.push({ attemptNo, result });
+              resolve();
+            }, 500),
+          ),
+      );
+      const send = vi.fn(async () => {
+        usage.events.push("send");
+        return ok(usageEnvelope(0.0002, "gen-ok"));
+      });
+      const pending = requestJobTicketProvider(send, {
+        policy: FAST,
+        tracking: usage.tracking,
+      });
+      await vi.advanceTimersByTimeAsync(600);
+      expect(await pending).toMatchObject({ ok: true, attempts: 1 });
+      expect(usage.events).toEqual(["begin:1", "begun:1", "send", "finish:1"]);
+      expect(send).toHaveBeenCalledTimes(1);
+      expect(usage.finishes[0]!.result).toMatchObject({
+        status: "SUCCEEDED",
+        billingStatus: "REPORTED",
+        costUsdNano: 200_000,
+        providerGenerationId: "gen-ok",
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe("5xx retry is independent of the error body", () => {
+  it.each([
+    [
+      "an oversized declared body",
+      () =>
+        new Response("x".repeat(2048), {
+          status: 503,
+          headers: { "content-length": "2048" },
+        }),
+    ],
+    [
+      "an oversized streamed body",
+      () =>
+        new Response(
+          new ReadableStream<Uint8Array>({
+            start(controller) {
+              controller.enqueue(new TextEncoder().encode("y".repeat(2048)));
+              controller.close();
+            },
+          }),
+          { status: 502 },
+        ),
+    ],
+    ["a malformed body", () => new Response("<html>gateway", { status: 500 })],
+    ["an empty body", () => new Response(null, { status: 503 })],
+  ])(
+    "retries after %s and accounts both attempts",
+    async (_label, firstAnswer) => {
+      const usage = trackingPort();
+      const send = vi
+        .fn<(signal: AbortSignal) => Promise<Response>>()
+        .mockResolvedValueOnce(firstAnswer())
+        .mockResolvedValueOnce(ok(usageEnvelope(0.0003, "gen-second")));
+      const outcome = await requestJobTicketProvider(send, {
+        policy: FAST,
+        tracking: usage.tracking,
+      });
+      expect(outcome).toMatchObject({ ok: true, attempts: 2 });
+      expect(send).toHaveBeenCalledTimes(2);
+      expect(usage.finishes.map(({ attemptNo }) => attemptNo)).toEqual([1, 2]);
+      expect(usage.finishes[0]!.result).toMatchObject({
+        status: "PROVIDER_ERROR",
+        billingStatus: "UNKNOWN",
+      });
+      expect(usage.finishes[0]!.result.httpStatus).toBeGreaterThanOrEqual(500);
+      expect(usage.finishes[1]!.result).toMatchObject({
+        status: "SUCCEEDED",
+        costUsdNano: 300_000,
+      });
+    },
+  );
+
+  it("records usage that a 5xx body reports, then retries", async () => {
+    const usage = trackingPort();
+    const send = vi
+      .fn<(signal: AbortSignal) => Promise<Response>>()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({ id: "gen-error", usage: { cost: 0.0001 } }),
+          { status: 503 },
+        ),
+      )
+      .mockResolvedValueOnce(ok(usageEnvelope(0.0002, "gen-retry")));
+    await expect(
+      requestJobTicketProvider(send, {
+        policy: FAST,
+        tracking: usage.tracking,
+      }),
+    ).resolves.toMatchObject({ ok: true, attempts: 2 });
+    expect(usage.finishes[0]!.result).toMatchObject({
+      status: "PROVIDER_ERROR",
+      httpStatus: 503,
+      billingStatus: "REPORTED",
+      costUsdNano: 100_000,
+      providerGenerationId: "gen-error",
+    });
+  });
+
+  it("retries after a 5xx body that stalls until the attempt timeout", async () => {
+    const stalled = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode('{"error":'));
+      },
+    });
+    const send = vi
+      .fn<(signal: AbortSignal) => Promise<Response>>()
+      .mockResolvedValueOnce(new Response(stalled, { status: 503 }))
+      .mockResolvedValueOnce(ok(envelope('{"factory_order":"FO-2"}')));
+    await expect(
+      requestJobTicketProvider(send, {
+        policy: { ...FAST, attemptTimeoutMs: 20, totalDeadlineMs: 200 },
+      }),
+    ).resolves.toMatchObject({ ok: true, attempts: 2 });
+  });
+
+  it.each([400, 429])(
+    "still never retries HTTP %i, even with an oversized body",
+    async (code) => {
+      const usage = trackingPort();
+      const send = vi.fn(
+        async () =>
+          new Response("z".repeat(2048), {
+            status: code,
+            headers: { "content-length": "2048" },
+          }),
+      );
+      await expect(
+        requestJobTicketProvider(send, {
+          policy: FAST,
+          tracking: usage.tracking,
+        }),
+      ).resolves.toMatchObject({ reason: "status", status: code, attempts: 1 });
+      expect(send).toHaveBeenCalledTimes(1);
+      expect(usage.finishes).toHaveLength(1);
+    },
+  );
+
+  it("does not retry a successful answer that is invalid, and bills it as unreadable", async () => {
+    const usage = trackingPort();
+    const send = vi.fn(async () =>
+      ok(
+        JSON.stringify({
+          id: "gen-bad",
+          usage: { cost: 0.0004 },
+          choices: [{ message: { content: "not a ticket" } }],
+        }),
+      ),
+    );
+    await expect(
+      requestJobTicketProvider(send, {
+        policy: FAST,
+        tracking: usage.tracking,
+        validateContent: () => false,
+      }),
+    ).resolves.toMatchObject({ ok: true, attempts: 1 });
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(usage.finishes[0]!.result).toMatchObject({
+      status: "UNREADABLE",
+      costUsdNano: 400_000,
+    });
+  });
+});
+
 // Registered action: the real `extractJobTicket` through convex-test, with only
 // the global fetch transport mocked.
 const MODULES = Object.fromEntries(
