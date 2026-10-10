@@ -1,6 +1,8 @@
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import type * as BarcodeDecoder from "../barcodeDecoder";
+import type { ComponentProps } from "react";
+import { getFunctionName } from "convex/server";
 import { renderWithIntl } from "@tests/fixtures/intl-render";
 import { querySuccess } from "@tests/fixtures/finished-goods-ui";
 import { LocationPicker } from "./LocationPicker";
@@ -8,6 +10,10 @@ import { LocationPicker } from "./LocationPicker";
 const mocks = vi.hoisted(() => ({
   decode: vi.fn<() => Promise<string[]>>(),
   query: vi.fn(),
+  missing: false,
+}));
+vi.mock("@/i18n/navigation", () => ({
+  Link: (props: ComponentProps<"a">) => <a {...props} />,
 }));
 vi.mock("../barcodeDecoder", async (original) => ({
   ...(await original<typeof BarcodeDecoder>()),
@@ -27,11 +33,18 @@ vi.mock("../useBarcodeCamera", () => ({
 }));
 vi.mock("convex/react", () => ({
   useConvex: () => ({ query: mocks.query }),
-  useQuery: () => querySuccess({ items: [], page: 1, pages: 1, total: 0 }),
+  useQuery: (_ref: unknown, args: { text?: string }) =>
+    querySuccess({
+      items: [],
+      isDone: true,
+      continueCursor: "",
+      canCreate: mocks.missing && args.text === "F2-L28-1",
+    }),
 }));
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.missing = false;
   mocks.decode.mockReset().mockResolvedValue(["F2-L28-1"]);
   mocks.query.mockReset().mockResolvedValue(
     querySuccess({
@@ -76,6 +89,9 @@ it("resolves an image code in the current warehouse and preserves the exact posi
     warehouseId: "warehouse-a",
     code: "F2-L28-1",
   });
+  expect(getFunctionName(mocks.query.mock.calls[0]![0])).toBe(
+    "finishedGoods/jobScanLocations:resolve",
+  );
   expect(onPick).toHaveBeenCalledWith({
     text: "F2-L28-1",
     code: "F2-L28-1",
@@ -83,6 +99,20 @@ it("resolves an image code in the current warehouse and preserves the exact posi
     zoneId: "zone-a",
     supportPositionId: "position-a",
   });
+});
+
+it("offers inline registration for a confirmed missing image location", async () => {
+  mocks.missing = true;
+  mocks.query.mockResolvedValue(
+    querySuccess({ ok: false, error: { code: "LOCATION_NOT_FOUND" } }),
+  );
+  const { onPick } = setup();
+  upload();
+  await screen.findByRole("button", { name: "Add location" });
+  expect(screen.getByRole("textbox", { name: "Search location" })).toHaveValue(
+    "F2-L28-1",
+  );
+  expect(onPick).not.toHaveBeenCalled();
 });
 
 it.each(["typing", "warehouse change"])(

@@ -1,6 +1,6 @@
 # Add missing locations during job scanning
 
-Date: 2026-10-10. Status: proposed implementation.
+Date: 2026-10-10. Status: implemented.
 
 At `/finished-goods/scan`, workers should be able to scan or enter a location that has not been registered, add it to a building, and continue saving pallet or package information. Create a reusable database location with a building reference, so the next worker can find or scan the same label. Keep measurements optional for this registration flow.
 
@@ -76,3 +76,11 @@ Run focused picker, screen, records, and draft tests; registration and job-scan 
 ## Implementation
 
 Approved inline preview A, implemented on `codex/add-location-during-scan`. The job-specific registration service lives in `convex/finishedGoods/jobScanLocations.ts`; physical storage resolution remains restricted to existing layout destinations. The picker uses the new bounded canonical search endpoint while the legacy `jobScans.searchLocations` endpoint remains compatible for older clients. Named registrations have their own paginated section in both catalogue views. No measurements or inventory units are created by recording a job ticket.
+
+## Verification
+
+After integrating the current main's scanner fixes, all 2,234 tests pass. Lint, TypeScript, formatting, the production build, and pinned Convex code generation pass. Regression coverage includes concurrent registration/retry, tenant and parent isolation, canonical QR and image lookup, stale responses, reassignment, field errors, generated zone-code collisions, and bounded pagination.
+
+The browser workflow on an isolated local backend created `F1-L3-NEW` in `DEMO-ANNEX`, saved a package ticket, verified its receipt and record, found the layout-pending catalogue entry, and reused the saved location. Synthetic `LOCAL-DEMO` data was inspected in English and Thai, light and dark themes, and 1440/735/390/320-pixel widths. Cancellation retained the searched code and restored focus.
+
+Independent code review findings were resolved. The visual finish review returned `ship`. The documenter verified that this extension inherits the existing Geist/Thai typography, semantic tokens, shared controls, responsive form patterns, and status treatments; no global visual-system change was required. Review captures and detector output are local development artifacts under `.impeccable/review/`.
