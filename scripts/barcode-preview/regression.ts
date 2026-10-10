@@ -38,8 +38,8 @@ window.runPrivateBarcodeCorpus = async (rounds = 1) => {
           new AbortController().signal,
         );
         const pass =
-          result.codes.includes(expectedProduct) &&
-          result.codes.includes(expectedJob) &&
+          JSON.stringify([...result.codes].sort()) ===
+            JSON.stringify([expectedProduct, expectedJob].sort()) &&
           (!["2.jpg", "9.jpg"].includes(name!) || result.reviewRequired);
         state.rows.push({ name: `${round + 1}/${name}`, pass, ...result });
       }

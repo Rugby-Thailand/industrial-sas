@@ -1,0 +1,1616 @@
+<!doctype html>
+<html lang="th" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Location photo reader · Interactive preview</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --canvas: #fff;
+        --surface: #f6f7f9;
+        --text: #17212f;
+        --muted: #475569;
+        --border: #d9dee5;
+        --accent: #1d4ed8;
+        --link: #1d4ed8;
+        --hover: #1e40af;
+        --selected: #eff6ff;
+        --warning: #92400e;
+        --success: #166534;
+        --danger: #b91c1c;
+      }
+      [data-theme="dark"] {
+        color-scheme: dark;
+        --canvas: #090909;
+        --surface: #141414;
+        --text: #f5f5f5;
+        --muted: #b0b0b0;
+        --border: #383838;
+        --accent: #365cef;
+        --link: #91b4ff;
+        --hover: #2649d0;
+        --selected: #162349;
+        --warning: #fbbf24;
+        --success: #86efac;
+        --danger: #fca5a5;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--canvas);
+        color: var(--text);
+        font:
+          15px/1.5 system-ui,
+          "Noto Sans Thai",
+          sans-serif;
+      }
+      ::selection {
+        background: var(--selected);
+        color: var(--text);
+      }
+      button,
+      input,
+      select {
+        font: inherit;
+      }
+      button,
+      select {
+        cursor: pointer;
+      }
+      button,
+      input,
+      select {
+        min-height: 44px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--canvas);
+        color: var(--text);
+        padding: 9px 13px;
+      }
+      button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        font-weight: 600;
+      }
+      button:hover {
+        background: var(--surface);
+      }
+      button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .primary {
+        background: var(--accent);
+        border-color: var(--link);
+        color: #fff;
+      }
+      .primary:hover {
+        background: var(--hover);
+      }
+      :focus-visible {
+        outline: 3px solid var(--accent);
+        outline-offset: 3px;
+      }
+      input {
+        width: 100%;
+        caret-color: var(--link);
+      }
+      select {
+        max-width: 100%;
+      }
+      svg {
+        width: 20px;
+        height: 20px;
+        flex: none;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.8;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      [hidden] {
+        display: none !important;
+      }
+      header {
+        border-bottom: 1px solid var(--border);
+        padding: 12px 24px;
+        display: flex;
+        gap: 16px;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .brand {
+        font-weight: 650;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+      }
+      .brand svg {
+        color: var(--link);
+      }
+      .header-controls {
+        display: flex;
+        gap: 8px;
+      }
+      main {
+        max-width: 1000px;
+        margin: 36px auto 60px;
+        padding: 0 24px;
+      }
+      h1 {
+        font-size: 26px;
+        line-height: 1.25;
+        margin: 0 0 8px;
+        letter-spacing: -0.025em;
+      }
+      h2 {
+        font-size: 18px;
+        margin: 0 0 6px;
+      }
+      p {
+        margin: 0 0 12px;
+      }
+      .muted {
+        color: var(--muted);
+      }
+      .demo-note {
+        background: var(--surface);
+        padding: 12px 16px;
+        border-radius: 8px;
+        margin: 24px 0;
+        font-size: 14px;
+      }
+      .controls {
+        display: flex;
+        gap: 12px;
+        align-items: end;
+        flex-wrap: wrap;
+        margin-bottom: 20px;
+      }
+      .controls label {
+        display: grid;
+        gap: 5px;
+        flex: 1;
+        min-width: 200px;
+        font-size: 14px;
+        font-weight: 600;
+      }
+      .controls select {
+        width: 100%;
+      }
+      .flow {
+        display: flex;
+        gap: 18px;
+        color: var(--muted);
+        font-size: 13px;
+        padding: 0 0 15px;
+        margin: 0;
+        list-style: none;
+      }
+      .flow li[aria-current="step"] {
+        color: var(--link);
+        font-weight: 650;
+      }
+      .workspace {
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        overflow: hidden;
+      }
+      .location-input {
+        display: flex;
+        gap: 0;
+        margin-top: 14px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      .location-input input {
+        border: 0;
+        border-radius: 0;
+        min-width: 0;
+        background: transparent;
+      }
+      .location-input button {
+        border: 0;
+        border-radius: 0;
+        width: 48px;
+        min-width: 48px;
+        height: 48px;
+        background: transparent;
+      }
+      .location-input button[aria-pressed="true"] {
+        background: var(--selected);
+        color: var(--link);
+      }
+      .acquisition {
+        border-top: 1px solid var(--border);
+      }
+      .sample-locations {
+        padding: 0 20px 16px;
+        display: grid;
+      }
+      .sample-locations button {
+        border-radius: 0;
+        border-width: 0 0 1px;
+        justify-content: start;
+        gap: 14px;
+        min-height: 52px;
+        font-weight: 400;
+        text-align: left;
+      }
+      .sample-locations strong {
+        font-family: ui-monospace, monospace;
+        font-size: 14px;
+      }
+      .panel-head {
+        padding: 18px 20px;
+        border-bottom: 1px solid var(--border);
+      }
+      .panel-head p {
+        margin: 0;
+        font-size: 14px;
+      }
+      .acquisition {
+        padding: 20px;
+      }
+      .source-buttons {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .source-buttons > button {
+        flex: 1;
+        min-width: 145px;
+      }
+      .empty {
+        margin-top: 18px;
+        min-height: 210px;
+        background: var(--surface);
+        border-radius: 8px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 24px;
+        gap: 8px;
+      }
+      .empty svg {
+        width: 32px;
+        height: 32px;
+        color: var(--muted);
+      }
+      .empty p {
+        max-width: 45ch;
+        margin: 0;
+      }
+      .text-button {
+        background: transparent;
+        border: 0;
+        color: var(--link);
+        text-decoration: underline;
+        text-underline-offset: 4px;
+      }
+      .image-workspace {
+        display: grid;
+        grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+        gap: 24px;
+        margin-top: 20px;
+      }
+      .photo {
+        margin: 0;
+      }
+      .photo-frame {
+        position: relative;
+        background: #15191e;
+        min-height: 240px;
+        border-radius: 8px;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .photo-frame img {
+        display: block;
+        max-width: 100%;
+        width: 100%;
+        max-height: 360px;
+        object-fit: contain;
+      }
+      .photo-frame video {
+        display: block;
+        width: 100%;
+        max-height: 360px;
+        object-fit: contain;
+      }
+      .crop-outline {
+        position: absolute;
+        inset: 10%;
+        border: 2px solid white;
+        pointer-events: none;
+        box-shadow: 0 0 0 1000px #0005;
+      }
+      .photo figcaption {
+        margin-top: 8px;
+        font-size: 13px;
+        color: var(--muted);
+        overflow-wrap: anywhere;
+      }
+      .photo-actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 12px;
+        flex-wrap: wrap;
+      }
+      .photo-actions button {
+        flex: 1;
+      }
+      .crop-controls {
+        margin-top: 12px;
+        display: grid;
+        gap: 6px;
+      }
+      .crop-controls input {
+        padding: 0;
+        accent-color: var(--link);
+      }
+      .review {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+      }
+      .review p {
+        font-size: 14px;
+      }
+      .review label {
+        font-size: 14px;
+        font-weight: 600;
+        display: block;
+        margin-bottom: 6px;
+      }
+      .code {
+        font:
+          600 22px/1.4 ui-monospace,
+          monospace;
+        letter-spacing: 0.02em;
+      }
+      .review .primary {
+        width: 100%;
+        margin-top: 14px;
+      }
+      .badge {
+        color: var(--link);
+        font-size: 13px;
+        font-weight: 600;
+        margin-bottom: 10px;
+      }
+      .choices {
+        display: grid;
+        gap: 8px;
+        margin-bottom: 15px;
+      }
+      .choices button {
+        justify-content: start;
+        font-family: ui-monospace, monospace;
+      }
+      .choices button[aria-pressed="true"] {
+        border-color: var(--link);
+        background: var(--selected);
+        color: var(--link);
+      }
+      .notice {
+        color: var(--warning);
+        font-size: 14px;
+        margin-top: 14px;
+      }
+      .notice:empty {
+        display: none;
+      }
+      .manual {
+        border-top: 1px solid var(--border);
+        padding: 16px 20px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .manual .muted {
+        font-size: 14px;
+        flex: 1;
+      }
+      .manual-entry {
+        display: flex;
+        gap: 10px;
+        width: 100%;
+        align-items: end;
+      }
+      .manual-entry label {
+        flex: 1;
+        min-width: 0;
+        font-size: 14px;
+      }
+      .manual-entry input {
+        margin-top: 6px;
+      }
+      .result {
+        padding: 20px;
+        background: var(--surface);
+        border-top: 1px solid var(--border);
+      }
+      .result h2 {
+        color: var(--success);
+      }
+      .result .code {
+        margin: 8px 0;
+      }
+      .result p:last-child {
+        margin-bottom: 0;
+      }
+      .footnote {
+        font-size: 13px;
+        margin-top: 18px;
+        color: var(--muted);
+      }
+      .busy {
+        color: var(--link);
+      }
+      .spinner {
+        width: 20px;
+        height: 20px;
+        border: 2px solid var(--border);
+        border-top-color: var(--link);
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        display: inline-block;
+        margin-right: 8px;
+        vertical-align: middle;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .spinner {
+          animation: none;
+        }
+      }
+      @media (max-width: 640px) {
+        header {
+          padding: 10px 16px;
+          gap: 8px;
+        }
+        .brand {
+          font-size: 13px;
+        }
+        .brand svg {
+          display: none;
+        }
+        .header-controls {
+          gap: 5px;
+        }
+        .header-controls button,
+        .header-controls select {
+          padding: 8px;
+        }
+        main {
+          padding: 0 16px;
+          margin-top: 24px;
+        }
+        h1 {
+          font-size: 24px;
+        }
+        .demo-note {
+          margin: 18px 0;
+        }
+        .image-workspace {
+          grid-template-columns: 1fr;
+          gap: 20px;
+        }
+        .photo-frame {
+          min-height: 180px;
+        }
+        .photo-frame img {
+          max-height: 260px;
+        }
+        .acquisition,
+        .panel-head,
+        .manual,
+        .result {
+          padding: 16px;
+        }
+        .flow {
+          gap: 12px;
+          font-size: 12px;
+        }
+        .manual-entry {
+          flex-wrap: wrap;
+        }
+        .manual-entry label {
+          flex-basis: 100%;
+        }
+        .manual-entry button {
+          width: 100%;
+        }
+        .controls label {
+          min-width: 100%;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <svg hidden aria-hidden="true">
+      <defs>
+        <symbol id="icon-ai" viewBox="0 0 24 24">
+          <path
+            d="m12 3 2.4 6.6L21 12l-6.6 2.4L12 21l-2.4-6.6L3 12l6.6-2.4L12 3Z"
+          />
+          <path d="M20 2v4m-2-2h4M4 18v4m-2-2h4" />
+        </symbol>
+        <symbol id="icon-scan" viewBox="0 0 24 24">
+          <path
+            d="M7 3H5a2 2 0 0 0-2 2v2m14-4h2a2 2 0 0 1 2 2v2M3 17v2a2 2 0 0 0 2 2h2m14-4v2a2 2 0 0 1-2 2h-2M7 7v10m4-10v10m3-10v10m3-10v10"
+          />
+        </symbol>
+        <symbol id="icon-pin" viewBox="0 0 24 24">
+          <path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0Z" />
+          <circle cx="12" cy="10" r="2.5" />
+        </symbol>
+        <symbol id="icon-image" viewBox="0 0 24 24">
+          <rect x="3" y="3" width="18" height="18" rx="3" />
+          <circle cx="8" cy="8" r="1.5" />
+          <path d="m3 17 5-5 4 4 4-6 5 7" />
+        </symbol>
+        <symbol id="icon-camera" viewBox="0 0 24 24">
+          <path
+            d="M4 6h4l2-3h4l2 3h4a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Z"
+          />
+          <circle cx="12" cy="13" r="4" />
+        </symbol>
+        <symbol id="icon-crop" viewBox="0 0 24 24">
+          <path d="M6 3v15h15M3 6h15v15" />
+        </symbol>
+      </defs>
+    </svg>
+    <header>
+      <div class="brand">
+        <svg aria-hidden="true"><use href="#icon-pin" /></svg
+        ><span data-t="brand">Finished goods · Location</span>
+      </div>
+      <div class="header-controls">
+        <select id="language" aria-label="Language">
+          <option value="en">English</option>
+          <option value="th">ไทย</option></select
+        ><button id="theme" data-t="theme">Dark mode</button>
+      </div>
+    </header>
+    <main>
+      <h1 data-t="title">Read a location from a photo</h1>
+      <p class="muted" data-t="intro">
+        Choose or take a label photo, review the code, then use the location.
+      </p>
+      <div class="demo-note">
+        <strong data-t="preview">Interactive preview.</strong>
+        <span data-t="demo"
+          >AI results, barcode decoding and warehouse checks are samples. Your
+          photo stays in this browser; nothing is sent or saved.</span
+        >
+      </div>
+      <div class="controls">
+        <label
+          ><span data-t="warehouse">Warehouse</span
+          ><select id="warehouse">
+            <option value="main" data-t="main">Main warehouse · Sample</option>
+            <option value="annex" data-t="annex">
+              Annex warehouse · Sample
+            </option>
+          </select></label
+        ><label
+          ><span data-t="scenario">Sample AI response</span
+          ><select id="scenario">
+            <option value="single" data-t="single">One location code</option>
+            <option value="multiple" data-t="multiple">
+              Multiple location codes
+            </option>
+            <option value="unreadable" data-t="unreadable">
+              Unreadable label
+            </option>
+            <option value="error" data-t="providerError">
+              AI service error
+            </option>
+            <option value="unavailable" data-t="unavailable">
+              Location not in warehouse
+            </option>
+          </select></label
+        >
+      </div>
+      <section class="workspace" aria-labelledby="panel-title">
+        <div class="panel-head">
+          <h2 id="panel-title" data-t="panel">Location label</h2>
+          <p class="muted" data-t="panelHint">
+            Keep the complete printed code visible, including the final position
+            number.
+          </p>
+          <div class="location-input">
+            <input
+              id="location-search"
+              aria-label="Search location code"
+              maxlength="200"
+              placeholder="e.g. F2-L28-18"
+            /><button
+              id="scan-toggle"
+              type="button"
+              aria-label="Scan location barcode or QR"
+              title="Barcode / QR"
+              aria-pressed="false"
+              aria-expanded="false"
+              aria-controls="acquisition"
+            >
+              <svg aria-hidden="true"><use href="#icon-scan" /></svg></button
+            ><button
+              id="ai-toggle"
+              type="button"
+              aria-label="Read location with AI"
+              title="AI · อ่านตำแหน่งจากรูป"
+              aria-pressed="false"
+              aria-expanded="false"
+              aria-controls="acquisition"
+            >
+              <svg aria-hidden="true"><use href="#icon-ai" /></svg>
+            </button>
+          </div>
+        </div>
+        <div id="acquisition" class="acquisition" hidden>
+          <ol class="flow" aria-label="Progress">
+            <li id="step-photo" aria-current="step" data-t="stepPhoto">
+              1. Photo
+            </li>
+            <li id="step-review" data-t="stepReview">2. Review code</li>
+            <li id="step-location" data-t="stepLocation">3. Use location</li>
+          </ol>
+          <p class="muted" data-t="labelHint">
+            Choose or take a label photo. Keep every part of the printed code
+            visible.
+          </p>
+          <div class="source-buttons">
+            <button id="upload">
+              <svg aria-hidden="true"><use href="#icon-image" /></svg
+              ><span data-t="upload">Choose image</span></button
+            ><button id="camera">
+              <svg aria-hidden="true"><use href="#icon-camera" /></svg
+              ><span data-t="camera">Take photo</span>
+            </button>
+          </div>
+          <input
+            type="file"
+            id="file"
+            accept="image/jpeg,image/png,image/webp"
+            hidden
+            aria-label="Choose location image"
+          /><input
+            type="file"
+            id="native-camera"
+            accept="image/jpeg,image/png,image/webp"
+            capture="environment"
+            hidden
+            aria-label="Take location photo"
+          />
+          <div id="empty" class="empty">
+            <svg aria-hidden="true"><use href="#icon-image" /></svg>
+            <p data-t="empty">Add a photo of a warehouse location label.</p>
+            <p class="muted" data-t="formats">
+              JPEG, PNG or WebP · Up to 25 MiB
+            </p>
+            <button id="sample" class="text-button" data-t="sample">
+              Try the sample label
+            </button>
+          </div>
+          <div id="image-workspace" class="image-workspace" hidden>
+            <figure class="photo">
+              <div class="photo-frame">
+                <img
+                  id="photo"
+                  src="assets/sample-location.webp"
+                  alt="Selected warehouse location label"
+                  hidden
+                /><video
+                  id="video"
+                  autoplay
+                  playsinline
+                  muted
+                  hidden
+                  aria-label="Live camera preview"
+                ></video>
+                <div
+                  id="camera-opening"
+                  style="position: absolute; color: white; padding: 20px"
+                  hidden
+                >
+                  <span class="spinner" aria-hidden="true"></span
+                  ><span data-t="openingCamera">Opening camera…</span>
+                </div>
+                <div id="crop-outline" class="crop-outline" hidden></div>
+              </div>
+              <figcaption id="photo-name"></figcaption>
+              <div class="photo-actions">
+                <button id="replace" data-t="replace">Replace image</button
+                ><button id="crop">
+                  <svg aria-hidden="true"><use href="#icon-crop" /></svg
+                  ><span data-t="crop">Crop label</span></button
+                ><button id="capture" class="primary" data-t="capture" hidden>
+                  Capture photo
+                </button>
+              </div>
+              <label id="crop-controls" class="crop-controls" hidden
+                ><span data-t="cropHint">Trim equally from each edge</span
+                ><input
+                  id="crop-inset"
+                  type="range"
+                  min="0"
+                  max="35"
+                  value="10"
+              /></label>
+            </figure>
+            <div class="review">
+              <div id="camera-guide" hidden>
+                <h2 id="camera-guide-title"></h2>
+                <p id="camera-guide-hint" class="muted"></p>
+              </div>
+              <div id="ready">
+                <h2 data-t="ready">Ready to read</h2>
+                <p class="muted" data-t="readyHint">
+                  AI reads the printed text. You review the result before a
+                  location is selected.
+                </p>
+                <button id="read" class="primary" data-t="read">
+                  Read location with AI
+                </button>
+              </div>
+              <div id="reading" hidden>
+                <h2 class="busy">
+                  <span class="spinner" aria-hidden="true"></span
+                  ><span data-t="reading">Reading location…</span>
+                </h2>
+                <p class="muted" data-t="readingHint">
+                  Simulating the selected sample response.
+                </p>
+              </div>
+              <div id="review" hidden>
+                <h2 data-t="reviewTitle">Check the printed code</h2>
+                <div class="badge" data-t="aiBadge">
+                  Read by AI · Sample result
+                </div>
+                <p class="muted" id="review-hint"></p>
+                <div id="choices" class="choices"></div>
+                <label for="code" data-t="codeLabel">Location code</label
+                ><input
+                  id="code"
+                  class="code"
+                  maxlength="200"
+                  autocomplete="off"
+                  spellcheck="false"
+                /><button id="confirm" class="primary" data-t="confirm">
+                  Use this code
+                </button>
+              </div>
+              <div id="failed" hidden>
+                <h2 id="failure-title"></h2>
+                <p id="failure-hint" class="muted"></p>
+                <button id="retry" class="primary" data-t="retry">
+                  Try AI reading again
+                </button>
+              </div>
+              <button id="cancel" class="text-button" data-t="cancel">
+                Cancel
+              </button>
+            </div>
+          </div>
+          <p id="notice" class="notice" role="status" aria-live="polite"></p>
+          <span
+            id="announcement"
+            role="status"
+            aria-live="polite"
+            style="
+              position: absolute;
+              clip-path: inset(50%);
+              width: 1px;
+              height: 1px;
+              overflow: hidden;
+            "
+          ></span>
+        </div>
+        <div id="sample-locations" class="sample-locations">
+          <button data-location="F2-L28-18">
+            <svg aria-hidden="true"><use href="#icon-pin" /></svg
+            ><strong>F2-L28-18</strong
+            ><span class="muted" data-t="samplePosition18"
+              >Lane 28 · Position 18 · Sample</span
+            ></button
+          ><button data-location="F2-L28-1">
+            <svg aria-hidden="true"><use href="#icon-pin" /></svg
+            ><strong>F2-L28-1</strong
+            ><span class="muted" data-t="samplePosition1"
+              >Lane 28 · Position 1 · Sample</span
+            >
+          </button>
+        </div>
+        <div class="manual">
+          <span class="muted" data-t="manualHint"
+            >You can also enter the printed code yourself.</span
+          ><button id="manual-toggle" class="text-button" data-t="manual">
+            Type a location code
+          </button>
+          <div id="manual-entry" class="manual-entry" hidden>
+            <label
+              ><span data-t="codeLabel">Location code</span
+              ><input
+                id="manual-code"
+                maxlength="200"
+                autocomplete="off"
+                placeholder="e.g. F2-L28-18" /></label
+            ><button id="manual-confirm" data-t="check">Check location</button>
+          </div>
+        </div>
+        <div id="result" class="result" hidden role="status">
+          <h2 data-t="selected">Location selected in draft</h2>
+          <p id="result-code" class="code"></p>
+          <p id="result-detail"></p>
+          <p class="muted" data-t="draftHint">
+            Sample warehouse match. This preview does not save a job record.
+          </p>
+          <button id="reset" class="text-button" data-t="reset">
+            Choose another location
+          </button>
+        </div>
+      </section>
+      <p class="footnote" data-t="footer">
+        Try multiple codes, unreadable text or an AI error with the sample
+        response control above. Uploaded photos also use this selected sample
+        response.
+      </p>
+    </main>
+    <script>
+      const translations = {
+        en: {
+          brand: "Finished goods · Location",
+          openingCamera: "Opening camera…",
+          liveBarcodeTitle: "Scanning barcode / QR",
+          liveBarcodeHint:
+            "Preview: detection of sample barcode F2-L28-18 is simulated automatically. The production scanner uses the real decoder.",
+          liveAiTitle: "Take a location-label photo",
+          liveAiHint:
+            "Keep the complete code in view and tap Capture photo. Or choose an existing image above. One photo starts AI reading automatically.",
+          readBarcode: "Read barcode / QR",
+          barcodeTitle: "Read barcode or QR",
+          barcodeHint:
+            "This preview simulates a barcode decode. It uses a sample code and does not call AI.",
+          readingBarcode: "Reading barcode…",
+          barcodeLabelHint:
+            "Choose a barcode/QR photo or use the camera. This is the existing barcode entry point.",
+          labelHint:
+            "Choose or take a label photo. Keep every part of the printed code visible.",
+          samplePosition18: "Lane 28 · Position 18 · Sample",
+          samplePosition1: "Lane 28 · Position 1 · Sample",
+          title: "Scan job ticket",
+          intro: "Choose the location first, then scan the job ticket.",
+          preview: "Interactive preview.",
+          demo: "AI results, barcode decoding and warehouse checks are samples. Your photo stays in this browser; nothing is sent or saved.",
+          theme: "Dark mode",
+          light: "Light mode",
+          warehouse: "Warehouse",
+          main: "Main warehouse · Sample",
+          annex: "Annex warehouse · Sample",
+          scenario: "Sample AI response",
+          single: "One location code",
+          multiple: "Multiple location codes",
+          unreadable: "Unreadable label",
+          providerError: "AI service error",
+          unavailable: "Location not in warehouse",
+          stepPhoto: "1. Photo",
+          stepReview: "2. Review code",
+          stepLocation: "3. Use location",
+          panel: "1. Where is it?",
+          panelHint: "Scan a location code or search by code or name.",
+          upload: "Choose image",
+          camera: "Take photo",
+          empty: "Add a photo of a warehouse location label.",
+          formats: "JPEG, PNG or WebP · Up to 25 MiB",
+          sample: "Try the sample label",
+          replace: "Replace image",
+          crop: "Crop label",
+          capture: "Capture photo",
+          cropHint: "Trim equally from each edge",
+          ready: "Ready to read",
+          readyHint:
+            "AI reads the printed text. You review the result before a location is selected.",
+          read: "Read location with AI",
+          reading: "Reading location…",
+          readingHint: "Simulating the selected sample response.",
+          aiBadge: "Read by AI · Sample result",
+          reviewTitle: "Check the printed code",
+          codeLabel: "Location code",
+          confirm: "Use this code",
+          retry: "Try AI reading again",
+          cancel: "Cancel",
+          manualHint: "You can also enter the printed code yourself.",
+          manual: "Type a location code",
+          check: "Check location",
+          selected: "Location selected in draft",
+          draftHint:
+            "Sample warehouse match. This preview does not save a job record.",
+          reset: "Choose another location",
+          footer:
+            "Try multiple codes, unreadable text or an AI error with the sample response control above. Uploaded photos also use this selected sample response.",
+          reviewHint:
+            "Compare every part of this sample code with your photo. Correct it if needed.",
+          multipleHint:
+            "Select one of the sample candidates, then check it against the photo.",
+          noRead: "No readable location code",
+          noReadHint:
+            "Crop the label, take a clearer photo, or type the code. Missing digits should never be guessed.",
+          errorTitle: "AI reading failed",
+          errorHint:
+            "This is a simulated service error. Try again, or enter the code yourself.",
+          cameraDenied:
+            "Camera could not start. Choose an image, use your phone camera, or retry Take photo.",
+          phone: "Use phone camera",
+          invalid: "Choose a JPEG, PNG or WebP image no larger than 25 MiB.",
+          badImage: "This image could not be opened. Choose another photo.",
+          tooLarge:
+            "This image is too large to preview safely. Choose a smaller image.",
+          notFound:
+            "No sample match in this warehouse. Correct the code or choose the main warehouse. No location has been selected.",
+          required: "Enter the complete location code first.",
+          resolving: "Checking sample warehouse…",
+          sampleName: "Sample label · F2-L28-18",
+          captured: "Captured location photo",
+          sampleMatch: "Main warehouse · Floor 2 · Lane 28 · Position ",
+          cancelled: "Reading cancelled. You can try again.",
+          cameraHint:
+            "Keep the whole label in view, then capture a single photo.",
+        },
+        th: {
+          brand: "สินค้าสำเร็จรูป · ตำแหน่ง",
+          openingCamera: "กำลังเปิดกล้อง…",
+          liveBarcodeTitle: "กำลังสแกนบาร์โค้ด / QR",
+          liveBarcodeHint:
+            "ตัวอย่างนี้จำลองการตรวจพบรหัส F2-L28-18 อัตโนมัติ ระบบจริงใช้ตัวอ่านบาร์โค้ด",
+          liveAiTitle: "ถ่ายรูปป้ายตำแหน่ง",
+          liveAiHint:
+            "ให้เห็นรหัสครบแล้วกดถ่ายรูปนี้ หรือเลือกรูปที่มีอยู่จากปุ่มด้านบน AI จะอ่านอัตโนมัติหลังถ่ายหรือเลือกรูปหนึ่งรูป",
+          readBarcode: "อ่านบาร์โค้ด / QR",
+          barcodeTitle: "อ่านบาร์โค้ดหรือ QR",
+          barcodeHint:
+            "ตัวอย่างนี้จำลองการอ่านบาร์โค้ด ใช้รหัสตัวอย่างและไม่เรียก AI",
+          readingBarcode: "กำลังอ่านบาร์โค้ด…",
+          barcodeLabelHint:
+            "เลือกรูปบาร์โค้ด/QR หรือใช้กล้อง ทางเข้านี้สำหรับอ่านบาร์โค้ดเดิม",
+          labelHint:
+            "เลือกรูปหรือถ่ายป้าย ให้เห็นรหัสครบทุกส่วน รวมถึงหมายเลขท้ายรหัส",
+          samplePosition18: "แถว 28 · ตำแหน่ง 18 · ตัวอย่าง",
+          samplePosition1: "แถว 28 · ตำแหน่ง 1 · ตัวอย่าง",
+          title: "สแกนใบ Job",
+          intro: "เลือกตำแหน่งก่อน แล้วสแกนใบ Job ของแต่ละพาเลท",
+          preview: "ตัวอย่างแบบโต้ตอบ",
+          demo: "ผล AI การอ่านบาร์โค้ด และการตรวจสอบคลังเป็นข้อมูลตัวอย่าง รูปอยู่ในเบราว์เซอร์นี้ ไม่มีการส่งหรือบันทึก",
+          theme: "โหมดมืด",
+          light: "โหมดสว่าง",
+          warehouse: "คลังสินค้า",
+          main: "คลังหลัก · ตัวอย่าง",
+          annex: "คลังสำรอง · ตัวอย่าง",
+          scenario: "ผล AI ตัวอย่าง",
+          single: "พบรหัสเดียว",
+          multiple: "พบหลายรหัส",
+          unreadable: "อ่านป้ายไม่ได้",
+          providerError: "บริการ AI ขัดข้อง",
+          unavailable: "ไม่พบตำแหน่งในคลัง",
+          stepPhoto: "1. รูปถ่าย",
+          stepReview: "2. ตรวจรหัส",
+          stepLocation: "3. ใช้ตำแหน่ง",
+          panel: "1. อยู่ตำแหน่งไหน?",
+          panelHint: "สแกนรหัสตำแหน่ง หรือค้นหาด้วยรหัสหรือชื่อ",
+          upload: "เลือกรูป",
+          camera: "ถ่ายรูป",
+          empty: "เพิ่มรูปป้ายตำแหน่งในคลังสินค้า",
+          formats: "JPEG, PNG หรือ WebP · ไม่เกิน 25 MiB",
+          sample: "ลองใช้รูปตัวอย่าง",
+          replace: "เปลี่ยนรูป",
+          crop: "ครอบป้าย",
+          capture: "ถ่ายรูปนี้",
+          cropHint: "ตัดขอบทุกด้านเท่ากัน",
+          ready: "พร้อมอ่านตำแหน่ง",
+          readyHint: "AI อ่านข้อความบนป้าย คุณตรวจสอบก่อนเลือกตำแหน่ง",
+          read: "อ่านตำแหน่งจากรูปด้วย AI",
+          reading: "กำลังอ่านตำแหน่ง…",
+          readingHint: "กำลังจำลองผลตัวอย่างที่เลือก",
+          aiBadge: "อ่านโดย AI · ผลตัวอย่าง",
+          reviewTitle: "ตรวจสอบรหัสที่ AI อ่านได้",
+          codeLabel: "รหัสตำแหน่ง",
+          confirm: "ใช้รหัสนี้",
+          retry: "ลองอ่านด้วย AI อีกครั้ง",
+          cancel: "ยกเลิก",
+          manualHint: "คุณสามารถพิมพ์รหัสบนป้ายเองได้",
+          manual: "พิมพ์รหัสตำแหน่ง",
+          check: "ตรวจสอบตำแหน่ง",
+          selected: "เลือกตำแหน่งในแบบร่างแล้ว",
+          draftHint: "ผลการจับคู่คลังตัวอย่าง หน้านี้ไม่บันทึกใบงาน",
+          reset: "เลือกตำแหน่งใหม่",
+          footer:
+            "ลองผลหลายรหัส อ่านไม่ได้ หรือ AI ขัดข้องจากตัวเลือกด้านบน รูปที่อัปโหลดจะใช้ผลตัวอย่างที่เลือกเช่นกัน",
+          reviewHint: "เทียบรหัสตัวอย่างทุกส่วนกับรูป และแก้ไขหากจำเป็น",
+          multipleHint: "เลือกรหัสตัวอย่างหนึ่งรายการ แล้วตรวจสอบกับรูป",
+          noRead: "ไม่พบรหัสที่อ่านได้",
+          noReadHint:
+            "ครอบป้าย ถ่ายรูปให้ชัดขึ้น หรือพิมพ์รหัส ห้ามเดาตัวเลขที่มองไม่เห็น",
+          errorTitle: "อ่านด้วย AI ไม่สำเร็จ",
+          errorHint: "นี่คือการจำลองบริการขัดข้อง ลองอีกครั้งหรือพิมพ์รหัสเอง",
+          cameraDenied:
+            "เปิดกล้องไม่ได้ เลือกรูป ใช้กล้องโทรศัพท์ หรือลองถ่ายรูปอีกครั้ง",
+          phone: "ใช้กล้องโทรศัพท์",
+          invalid: "เลือกรูป JPEG, PNG หรือ WebP ขนาดไม่เกิน 25 MiB",
+          badImage: "เปิดรูปไม่ได้ โปรดเลือกรูปใหม่",
+          tooLarge: "รูปใหญ่เกินกว่าจะเปิดได้อย่างปลอดภัย โปรดเลือกรูปเล็กลง",
+          notFound:
+            "ไม่พบรหัสในคลังตัวอย่าง แก้ไขรหัสหรือเลือกคลังหลัก ยังไม่ได้เลือกตำแหน่ง",
+          required: "กรอกรหัสตำแหน่งให้ครบก่อน",
+          resolving: "กำลังตรวจสอบคลังตัวอย่าง…",
+          sampleName: "ป้ายตัวอย่าง · F2-L28-18",
+          captured: "รูปตำแหน่งที่ถ่าย",
+          sampleMatch: "คลังหลัก · ชั้น 2 · แถว 28 · ตำแหน่ง ",
+          cancelled: "ยกเลิกการอ่านแล้ว คุณลองใหม่ได้",
+          cameraHint: "ให้เห็นป้ายครบ แล้วถ่ายรูปหนึ่งรูป",
+        },
+      };
+      const $ = (id) => document.getElementById(id);
+      let lang = "th",
+        scannerOpen = false,
+        sourceMode = "ai",
+        state = "empty",
+        version = 0,
+        stream = null,
+        barcodeTimer = null,
+        objectUrl = null,
+        imageName = "",
+        samplePhoto = false,
+        candidates = [],
+        cropOn = false;
+      const t = (key) => translations[lang][key] || translations.en[key] || key;
+      function notify(key) {
+        $("notice").textContent = key ? t(key) : "";
+      }
+      function stopCamera() {
+        if (barcodeTimer !== null) clearTimeout(barcodeTimer);
+        barcodeTimer = null;
+        if (stream) stream.getTracks().forEach((track) => track.stop());
+        stream = null;
+        $("video").srcObject = null;
+      }
+      function invalidate() {
+        version++;
+        $("result").hidden = true;
+        $("manual-confirm").disabled = false;
+      }
+      function render() {
+        $("acquisition").hidden = !scannerOpen;
+        ["scan-toggle", "ai-toggle"].forEach((id) => {
+          const active =
+            scannerOpen &&
+            sourceMode === (id === "scan-toggle" ? "barcode" : "ai");
+          $(id).setAttribute("aria-pressed", String(active));
+          $(id).setAttribute("aria-expanded", String(active));
+        });
+        $("scenario").disabled = scannerOpen && sourceMode === "barcode";
+        $("sample-locations").hidden = scannerOpen || !$("result").hidden;
+        const search = $("location-search").value.trim().toLowerCase();
+        document
+          .querySelectorAll("[data-location]")
+          .forEach(
+            (button) =>
+              (button.hidden =
+                !button.dataset.location.toLowerCase().includes(search) ||
+                $("warehouse").value !== "main"),
+          );
+        document.documentElement.lang = lang;
+        document
+          .querySelectorAll("[data-t]")
+          .forEach((el) => (el.textContent = t(el.dataset.t)));
+        if (sourceMode === "barcode") {
+          $("read").textContent = t("readBarcode");
+          $("ready").querySelector("h2").textContent = t("barcodeTitle");
+          $("ready").querySelector("p").textContent = t("barcodeHint");
+          $("reading").querySelector("h2 span:last-child").textContent =
+            t("readingBarcode");
+          document.querySelector('[data-t="labelHint"]').textContent =
+            t("barcodeLabelHint");
+        }
+        if (state === "failed") {
+          const providerError = $("scenario").value === "error";
+          $("failure-title").textContent = t(
+            providerError ? "errorTitle" : "noRead",
+          );
+          $("failure-hint").textContent = t(
+            providerError ? "errorHint" : "noReadHint",
+          );
+        }
+        if (!$("result").hidden)
+          $("result-detail").textContent =
+            t("sampleMatch") + $("result-code").textContent.split("-").at(-1);
+        $("theme").textContent = t(
+          document.documentElement.dataset.theme === "dark" ? "light" : "theme",
+        );
+        $("empty").hidden = state !== "empty";
+        $("image-workspace").hidden = state === "empty";
+        $("photo").hidden = state === "camera";
+        $("video").hidden = state !== "camera";
+        $("capture").hidden = state !== "camera" || sourceMode !== "ai";
+        $("capture").disabled = !stream || !$("video").videoWidth;
+        $("camera-opening").hidden = state !== "camera" || !!stream;
+        $("camera-guide").hidden = state !== "camera";
+        $("camera-guide-title").textContent = t(
+          sourceMode === "barcode" ? "liveBarcodeTitle" : "liveAiTitle",
+        );
+        $("camera-guide-hint").textContent = t(
+          sourceMode === "barcode" ? "liveBarcodeHint" : "liveAiHint",
+        );
+        $("camera").hidden = state === "camera";
+        $("crop").hidden = state === "camera";
+        $("replace").hidden = state === "camera";
+        $("crop-outline").hidden = !cropOn || state === "camera";
+        $("crop-controls").hidden = !cropOn || state === "camera";
+        ["ready", "reading", "review", "failed"].forEach(
+          (id) => ($(id).hidden = state !== id),
+        );
+        $("cancel").hidden = state === "empty";
+        $("code").disabled = state === "resolving";
+        $("read").disabled = state !== "ready";
+        $("read").hidden = sourceMode === "ai";
+        $("crop").hidden = sourceMode === "ai" || state === "camera";
+        $("review").hidden = !(state === "review" || state === "resolving");
+        $("confirm").textContent = t(
+          state === "resolving" ? "resolving" : "confirm",
+        );
+        $("confirm").disabled =
+          state === "resolving" || !$("code").value.trim();
+        $("photo-name").textContent =
+          state === "camera"
+            ? t(sourceMode === "barcode" ? "liveBarcodeTitle" : "cameraHint")
+            : samplePhoto
+              ? t("sampleName")
+              : imageName;
+        $("review-hint").textContent = t(
+          candidates.length > 1 ? "multipleHint" : "reviewHint",
+        );
+        $("choices").replaceChildren();
+        if (candidates.length > 1)
+          candidates.forEach((code) => {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.textContent = code;
+            button.setAttribute(
+              "aria-pressed",
+              String($("code").value === code),
+            );
+            button.onclick = () => {
+              $("code").value = code;
+              render();
+              $("code").focus();
+            };
+            $("choices").append(button);
+          });
+        ["photo", "review", "location"].forEach((key) =>
+          $("step-" + key).removeAttribute("aria-current"),
+        );
+        $(
+          "step-" +
+            (!$("result").hidden
+              ? "location"
+              : ["review", "resolving", "failed"].includes(state)
+                ? "review"
+                : "photo"),
+        ).setAttribute("aria-current", "step");
+        $("announcement").textContent =
+          state === "reading"
+            ? t("reading")
+            : state === "review"
+              ? t("reviewTitle")
+              : state === "resolving"
+                ? t("resolving")
+                : "";
+      }
+      function clearPhoto() {
+        stopCamera();
+        if (objectUrl) URL.revokeObjectURL(objectUrl);
+        objectUrl = null;
+        $("photo").removeAttribute("src");
+        cropOn = false;
+        imageName = "";
+        samplePhoto = false;
+        candidates = [];
+        $("code").value = "";
+      }
+      function reset() {
+        scannerOpen = false;
+        invalidate();
+        clearPhoto();
+        state = "empty";
+        notify();
+        $("manual-entry").hidden = true;
+        render();
+      }
+      async function selectFile(file) {
+        invalidate();
+        stopCamera();
+        notify();
+        if (
+          !["image/jpeg", "image/png", "image/webp"].includes(file.type) ||
+          file.size > 25 * 1024 * 1024
+        ) {
+          state = $("photo").getAttribute("src") ? "ready" : "empty";
+          notify("invalid");
+          render();
+          return;
+        }
+        const token = version;
+        try {
+          const bitmap = await createImageBitmap(file);
+          const tooLarge =
+            bitmap.width * bitmap.height > 40_000_000 ||
+            bitmap.width > 16000 ||
+            bitmap.height > 16000;
+          bitmap.close();
+          if (token !== version) return;
+          if (tooLarge) {
+            state = $("photo").getAttribute("src") ? "ready" : "empty";
+            notify("tooLarge");
+            render();
+            return;
+          }
+          clearPhoto();
+          objectUrl = URL.createObjectURL(file);
+          // Bind only an encoded browser-owned blob URL to the photo source.
+          if (!objectUrl.startsWith("blob:")) throw Error("Invalid photo URL");
+          $("photo").src = encodeURI(objectUrl);
+          imageName = file.name;
+          state = "ready";
+          render();
+          if (sourceMode === "ai") void beginRead();
+        } catch {
+          if (token !== version) return;
+          state = $("photo").getAttribute("src") ? "ready" : "empty";
+          notify("badImage");
+          render();
+        }
+      }
+      function openMode(mode) {
+        if (scannerOpen && sourceMode === mode) {
+          reset();
+          return;
+        }
+        invalidate();
+        stopCamera();
+        sourceMode = mode;
+        scannerOpen = true;
+        candidates = [];
+        $("code").value = "";
+        state = imageName ? "ready" : "empty";
+        notify();
+        render();
+        $("camera").click();
+      }
+      $("scan-toggle").onclick = () => openMode("barcode");
+      $("ai-toggle").onclick = () => openMode("ai");
+      $("location-search").oninput = () => {
+        invalidate();
+        stopCamera();
+        scannerOpen = false;
+        state = $("photo").getAttribute("src") ? "ready" : "empty";
+        notify();
+        render();
+      };
+      document
+        .querySelectorAll("[data-location]")
+        .forEach(
+          (button) =>
+            (button.onclick = () => resolveCode(button.dataset.location, true)),
+        );
+      $("upload").onclick = () => $("file").click();
+      $("replace").onclick = () => $("file").click();
+      ["file", "native-camera"].forEach(
+        (id) =>
+          ($(id).onchange = (event) => {
+            const file = event.target.files[0];
+            event.target.value = "";
+            if (file) selectFile(file);
+          }),
+      );
+      $("sample").onclick = () => {
+        invalidate();
+        clearPhoto();
+        $("photo").src = "assets/sample-location.webp";
+        imageName = t("sampleName");
+        samplePhoto = true;
+        state = "ready";
+        notify();
+        render();
+        if (sourceMode === "ai") void beginRead();
+      };
+      $("camera").onclick = async () => {
+        invalidate();
+        clearPhoto();
+        state = "camera";
+        notify();
+        render();
+        const token = version;
+        try {
+          if (!navigator.mediaDevices?.getUserMedia) throw Error();
+          const acquired = await navigator.mediaDevices.getUserMedia({
+            video: {
+              facingMode: { ideal: "environment" },
+              width: { ideal: 1600 },
+            },
+            audio: false,
+          });
+          if (token !== version) {
+            acquired.getTracks().forEach((track) => track.stop());
+            return;
+          }
+          stream = acquired;
+          $("video").srcObject = stream;
+          state = "camera";
+          render();
+          if (sourceMode === "barcode") {
+            barcodeTimer = setTimeout(() => {
+              if (
+                token !== version ||
+                sourceMode !== "barcode" ||
+                !scannerOpen ||
+                state !== "camera"
+              )
+                return;
+              state = "empty";
+              void resolveCode("F2-L28-18", true);
+            }, 1800);
+          }
+        } catch {
+          if (token !== version) return;
+          notify("cameraDenied");
+          state = "empty";
+          render();
+          const button = document.createElement("button");
+          button.type = "button";
+          button.textContent = t("phone");
+          button.onclick = () => $("native-camera").click();
+          $("notice").append(document.createTextNode(" "), button);
+        }
+      };
+      $("video").onloadedmetadata = render;
+      $("capture").onclick = () => {
+        const video = $("video");
+        if (!video.videoWidth) return;
+        const canvas = document.createElement("canvas");
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        canvas.getContext("2d").drawImage(video, 0, 0);
+        try {
+          const audio = new AudioContext();
+          void audio
+            .resume()
+            .then(() => {
+              const oscillator = audio.createOscillator(),
+                gain = audio.createGain();
+              oscillator.type = "square";
+              oscillator.frequency.setValueAtTime(1200, audio.currentTime);
+              oscillator.frequency.exponentialRampToValueAtTime(
+                180,
+                audio.currentTime + 0.07,
+              );
+              gain.gain.setValueAtTime(0.035, audio.currentTime);
+              gain.gain.exponentialRampToValueAtTime(
+                0.001,
+                audio.currentTime + 0.08,
+              );
+              oscillator.connect(gain);
+              gain.connect(audio.destination);
+              oscillator.onended = () => {
+                void audio.close().catch(() => {});
+              };
+              oscillator.start();
+              oscillator.stop(audio.currentTime + 0.08);
+            })
+            .catch(() => {
+              void audio.close().catch(() => {});
+            });
+        } catch {}
+        const token = ++version;
+        stopCamera();
+        canvas.toBlob(
+          (blob) => {
+            canvas.width = canvas.height = 0;
+            if (token !== version || !blob) return;
+            selectFile(
+              new File([blob], t("captured") + ".jpg", { type: "image/jpeg" }),
+            );
+          },
+          "image/jpeg",
+          0.9,
+        );
+      };
+      $("crop").onclick = () => {
+        invalidate();
+        cropOn = !cropOn;
+        candidates = [];
+        $("code").value = "";
+        state = "ready";
+        notify();
+        render();
+      };
+      $("crop-inset").oninput = (event) => {
+        invalidate();
+        state = "ready";
+        $("crop-outline").style.inset = event.target.value + "%";
+        notify();
+        render();
+      };
+      async function beginRead() {
+        if (state !== "ready") return;
+        invalidate();
+        const token = version,
+          scenario = sourceMode === "barcode" ? "single" : $("scenario").value;
+        state = "reading";
+        stopCamera();
+        notify();
+        render();
+        await new Promise((resolve) => setTimeout(resolve, 1200));
+        if (token !== version) return;
+        if (sourceMode === "barcode") {
+          state = "ready";
+          await resolveCode("F2-L28-18", true);
+          return;
+        }
+        if (scenario === "error" || scenario === "unreadable") {
+          state = "failed";
+          $("failure-title").textContent = t(
+            scenario === "error" ? "errorTitle" : "noRead",
+          );
+          $("failure-hint").textContent = t(
+            scenario === "error" ? "errorHint" : "noReadHint",
+          );
+        } else {
+          candidates =
+            scenario === "multiple"
+              ? ["F2-L28-18", "F2-L28-1"]
+              : scenario === "unavailable"
+                ? ["F9-L99-99"]
+                : ["F2-L28-18"];
+          $("code").value = candidates.length === 1 ? candidates[0] : "";
+          state = "review";
+        }
+        render();
+        if (state === "review") $("code").focus();
+      }
+      $("read").onclick = beginRead;
+      $("retry").onclick = () => {
+        state = "ready";
+        render();
+        $("read").click();
+      };
+      $("cancel").onclick = () => {
+        const wasReading = state === "reading" || state === "resolving";
+        invalidate();
+        if (state === "camera") {
+          reset();
+          return;
+        }
+        state = "ready";
+        candidates = [];
+        $("code").value = "";
+        notify(wasReading ? "cancelled" : null);
+        render();
+      };
+      $("code").oninput = () => {
+        invalidate();
+        state = "review";
+        notify();
+        render();
+      };
+      async function resolveCode(code, manual = false) {
+        invalidate();
+        code = code.trim();
+        if (!code) {
+          notify("required");
+          render();
+          return;
+        }
+        const token = version,
+          warehouse = $("warehouse").value;
+        stopCamera();
+        if (manual && state === "camera") {
+          state = "empty";
+          render();
+        }
+        if (!manual) state = "resolving";
+        $("manual-confirm").disabled = true;
+        notify("resolving");
+        render();
+        await new Promise((resolve) => setTimeout(resolve, 700));
+        if (token !== version) return;
+        $("manual-confirm").disabled = false;
+        if (!manual) state = "review";
+        if (warehouse !== "main" || !["F2-L28-18", "F2-L28-1"].includes(code)) {
+          notify("notFound");
+          render();
+          return;
+        }
+        $("result-code").textContent = code;
+        $("result-detail").textContent =
+          t("sampleMatch") + code.split("-").at(-1);
+        $("result").hidden = false;
+        if (sourceMode === "barcode") {
+          scannerOpen = false;
+          $("location-search").value = code;
+        }
+        notify();
+        render();
+        $("result").scrollIntoView({ block: "nearest", behavior: "smooth" });
+      }
+      $("confirm").onclick = () => {
+        if (state === "review") resolveCode($("code").value);
+      };
+      $("manual-toggle").onclick = () => {
+        invalidate();
+        stopCamera();
+        if (state === "camera") state = "empty";
+        else if (state !== "empty") state = "ready";
+        $("manual-confirm").disabled = false;
+        $("manual-entry").hidden = !$("manual-entry").hidden;
+        notify();
+        render();
+        if (!$("manual-entry").hidden) $("manual-code").focus();
+      };
+      $("manual-code").oninput = () => {
+        invalidate();
+        $("manual-confirm").disabled = false;
+        notify();
+        if (state === "reading" || state === "resolving") state = "ready";
+        render();
+      };
+      $("manual-confirm").onclick = () =>
+        resolveCode($("manual-code").value, true);
+      $("reset").onclick = reset;
+      ["warehouse", "scenario"].forEach(
+        (id) =>
+          ($(id).onchange = () => {
+            invalidate();
+            $("manual-confirm").disabled = false;
+            if (!["empty", "camera"].includes(state)) state = "ready";
+            candidates = [];
+            $("code").value = "";
+            notify();
+            render();
+          }),
+      );
+      $("language").onchange = (event) => {
+        lang = event.target.value;
+        render();
+        notify();
+      };
+      $("theme").onclick = () => {
+        document.documentElement.dataset.theme =
+          document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+        render();
+      };
+      window.addEventListener("pagehide", () => {
+        invalidate();
+        clearPhoto();
+      });
+      $("language").value = lang;
+      render();
+    </script>
+  </body>
+</html>

@@ -3,6 +3,7 @@
 // finishes or reports recovery under that lock, rather than stranding its backend.
 import { cutoverState } from "./vercel-config.mjs";
 import { deploymentFacts, isDeploymentId } from "./vercel-api.mjs";
+import { filterSmokeDiagnostics } from "./smoke-diagnostics.mjs";
 
 export const OUTCOMES = Object.freeze({
   RELEASED: { ok: true, mutation: "frontend" },
@@ -481,6 +482,7 @@ async function smoke(deps, state, record, phase, baseUrl) {
   });
   const safe = {
     passed: count(result?.passed) ?? 0,
+    diagnostics: filterSmokeDiagnostics(result?.diagnostics),
     failed: count(result?.failed) ?? 0,
     skipped: count(result?.skipped ?? 0) ?? 0,
     skippedRequired: count(result?.skippedRequired ?? 0) ?? 0,

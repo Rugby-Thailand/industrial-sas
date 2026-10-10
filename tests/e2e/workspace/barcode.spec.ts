@@ -47,7 +47,7 @@ test("real image worker decodes barcode pixels, QR, rotation and negatives", asy
   const rows = await page.evaluate(() =>
     window.runSyntheticBarcodeRegression(),
   );
-  expect(rows).toHaveLength(8);
+  expect(rows).toHaveLength(11);
   for (const row of rows) expect(row).toMatchObject({ pass: true });
   expect(
     requests.filter((request) => request.endsWith("zxing_reader.wasm")).length,
@@ -95,7 +95,7 @@ test("camera denial still allows local location QR and paired ticket intake thro
   const calls = await page.evaluate(() => window.barcodePreview.calls);
   expect(calls).toEqual([
     {
-      kind: "finishedGoods/scanning:resolveLocationCode",
+      kind: "finishedGoods/jobScanLocations:resolve",
       args: { warehouseId: "demo-warehouse", code: "F2-L28-18" },
     },
     {
@@ -107,6 +107,7 @@ test("camera denial still allows local location QR and paired ticket intake thro
         items: [
           {
             source: "BARCODE",
+            storageFormat: "PALLET",
             factoryOrder: "FO12345678",
             productBarcodeText: "DEMO-PRODUCT",
           },
@@ -150,11 +151,13 @@ test("repeated image pairs retain two physical units and require duplicate revie
         items: [
           {
             source: "BARCODE",
+            storageFormat: "PALLET",
             factoryOrder: "FO12345678",
             productBarcodeText: "DEMO-PRODUCT",
           },
           {
             source: "BARCODE",
+            storageFormat: "PALLET",
             factoryOrder: "FO12345678",
             productBarcodeText: "DEMO-PRODUCT",
           },

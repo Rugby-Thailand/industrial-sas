@@ -21,6 +21,7 @@ const aliases = [
 ];
 export default defineConfig({
   root: here,
+  cacheDir: resolve(root, "node_modules/.vite-barcode-preview"),
   publicDir: resolve(root, "public"),
   plugins: [
     react(),
@@ -64,6 +65,7 @@ export default defineConfig({
     },
   ],
   resolve: {
+    dedupe: ["react", "react-dom", "next-intl"],
     alias: [
       ...aliases.map((find) => ({
         find,

@@ -5,6 +5,7 @@ import { renderWithIntl } from "@tests/fixtures/intl-render";
 import { LocationPicker } from "./jobScan/LocationPicker";
 import { querySuccess } from "@tests/fixtures/finished-goods-ui";
 const mocks = vi.hoisted(() => ({ read: vi.fn(), query: vi.fn() }));
+vi.mock("@/i18n/navigation", () => ({ Link: "a" }));
 vi.mock("./barcodeImage", async (original) => ({
   ...(await original<typeof BarcodeImageModule>()),
   readBarcodeImage: mocks.read,

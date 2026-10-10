@@ -49,14 +49,34 @@ export function useMutation() {
     };
   };
 }
-export function useQuery(_reference: unknown, args: { text?: string }) {
+export function useQuery(
+  reference: Parameters<typeof getFunctionName>[0],
+  args: { text?: string; code?: string } | "skip",
+) {
+  if (args === "skip") return undefined;
+  if (getFunctionName(reference).includes("resolveJobScanLocation"))
+    return {
+      ok: true,
+      value: { ok: false, error: { code: "LOCATION_NOT_FOUND" } },
+    };
   const items = [
     { zoneId: "demo-zone", code: "F2-L28-18", name: "Demo slot" },
   ].filter(
     (row) =>
       !args.text || row.code.toLowerCase().includes(args.text.toLowerCase()),
   );
-  return { ok: true, value: { items, page: 1, pages: 1, total: items.length } };
+  return {
+    ok: true,
+    value: {
+      items,
+      status: "ready",
+      isDone: true,
+      continueCursor: "",
+      page: 1,
+      pages: 1,
+      total: items.length,
+    },
+  };
 }
 export function useConvex() {
   return {

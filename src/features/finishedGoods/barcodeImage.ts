@@ -1,3 +1,5 @@
+import type { BarcodeCrop } from "./barcodeDecoder";
+
 export type BarcodeImageTarget =
   "LOCATION" | "ANY" | "TICKET" | "factoryOrder" | "productBarcodeText";
 export type BarcodeImageResult = {
@@ -26,6 +28,7 @@ export function readBarcodeImage(
   file: File,
   target: BarcodeImageTarget,
   signal: AbortSignal,
+  crop?: BarcodeCrop,
 ): Promise<BarcodeImageResult> {
   validateBarcodeFile(file);
   if (signal.aborted)
@@ -79,6 +82,7 @@ export function readBarcodeImage(
       worker.postMessage({
         file,
         target,
+        crop,
         wasmUrl: new URL("/barcode/zxing_reader.wasm", location.origin).href,
       });
     } catch {

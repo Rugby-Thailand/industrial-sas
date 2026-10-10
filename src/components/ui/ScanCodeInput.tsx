@@ -1,6 +1,6 @@
 "use client";
 
-import type { ComponentProps } from "react";
+import type { ComponentProps, ReactNode } from "react";
 import { IconButton } from "./IconButton";
 import { Input } from "./input";
 import { ScanIcon } from "./ScanIcon";
@@ -13,6 +13,7 @@ export function ScanCodeInput({
   scanning = false,
   scanDisabled = false,
   scanDialog = false,
+  trailingAction,
   className,
   disabled,
   readOnly,
@@ -23,6 +24,7 @@ export function ScanCodeInput({
   scanning?: boolean;
   scanDisabled?: boolean;
   scanDialog?: boolean;
+  trailingAction?: ReactNode;
 }) {
   return (
     <div className="relative min-w-0">
@@ -30,7 +32,11 @@ export function ScanCodeInput({
         {...props}
         disabled={disabled}
         readOnly={readOnly}
-        className={cn("min-h-12 pr-14 md:min-h-12", className)}
+        className={cn(
+          "min-h-12 pr-14 md:min-h-12",
+          trailingAction && "pr-26",
+          className,
+        )}
       />
       {/* Keep centering separate from the button's press translation. */}
       <div className="absolute inset-y-0 right-0.5 flex items-center">
@@ -45,6 +51,7 @@ export function ScanCodeInput({
         >
           <ScanIcon className="size-5" aria-hidden="true" />
         </IconButton>
+        {trailingAction}
       </div>
     </div>
   );

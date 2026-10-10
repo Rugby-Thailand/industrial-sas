@@ -2,11 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { ImagePlus } from "lucide-react";
+import { Crop, ImagePlus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Notice } from "@/components/ui/Notice";
 import { classifyTicketBarcode } from "./jobScan/ticketDraft";
+import { BarcodeCropControls } from "./BarcodeCropControls";
+import type { BarcodeCrop } from "./barcodeDecoder";
 import {
   readBarcodeImage,
   ImageScanError,
@@ -20,11 +22,13 @@ export function BarcodeImagePicker({
   disabled,
   onSelect,
   onCodes,
+  onReadWithAi,
 }: {
   target: BarcodeImageTarget;
   disabled: boolean;
   onSelect: () => void;
   onCodes: (codes: string[]) => void;
+  onReadWithAi?: ((file?: File, crop?: BarcodeCrop) => void) | undefined;
 }) {
   const t = useTranslations("JobScan");
   const input = useRef<HTMLInputElement>(null),
@@ -35,6 +39,14 @@ export function BarcodeImagePicker({
     [result, setResult] = useState<BarcodeImageResult>(),
     [error, setError] = useState<string>();
   const preview = useRef<string | undefined>(undefined);
+  const selected = useRef<File | undefined>(undefined);
+  const [cropping, setCropping] = useState(false);
+  const [crop, setCrop] = useState<BarcodeCrop>({
+    x: 0.1,
+    y: 0.25,
+    width: 0.8,
+    height: 0.5,
+  });
   function clear() {
     version.current++;
     pending.current?.abort();
@@ -45,6 +57,7 @@ export function BarcodeImagePicker({
     if (preview.current) URL.revokeObjectURL(preview.current);
     preview.current = undefined;
     setImage(undefined);
+    selected.current = undefined;
   }
   useEffect(
     () => () => {
@@ -57,8 +70,12 @@ export function BarcodeImagePicker({
   useEffect(() => {
     if (disabled) pending.current?.abort();
   }, [disabled]);
-  async function select(file: File) {
+  async function select(file: File, selectedCrop?: BarcodeCrop) {
     clear();
+    if (!selectedCrop) {
+      setCropping(false);
+      setCrop({ x: 0.1, y: 0.25, width: 0.8, height: 0.5 });
+    }
     onSelect();
     const current = version.current;
     try {
@@ -74,13 +91,19 @@ export function BarcodeImagePicker({
       return;
     }
     const url = URL.createObjectURL(file);
+    selected.current = file;
     preview.current = url;
     setImage(url);
     setReading(true);
     const controller = new AbortController();
     pending.current = controller;
     try {
-      const found = await readBarcodeImage(file, target, controller.signal);
+      const found = await readBarcodeImage(
+        file,
+        target,
+        controller.signal,
+        selectedCrop,
+      );
       if (current !== version.current || controller.signal.aborted) return;
       if (found.codes.length) setResult(found);
       else setError(t("barcodeImageNotFound"));
@@ -135,22 +158,79 @@ export function BarcodeImagePicker({
       </Button>
       <p className="text-xs text-muted">{t("barcodeImagePrivacy")}</p>
       {image && (
-        <a
-          href={image}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="block w-fit"
-          aria-label={t("barcodeImageView")}
-        >
-          <Image
-            src={image}
-            alt={t("barcodeImagePreview")}
-            width={120}
-            height={160}
-            unoptimized
-            className="max-h-40 w-auto rounded object-contain"
-          />
-        </a>
+        <div className="space-y-3">
+          <div className="relative w-fit">
+            <a
+              href={image}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block w-fit"
+              aria-label={t("barcodeImageView")}
+            >
+              <Image
+                src={image}
+                alt={t("barcodeImagePreview")}
+                width={120}
+                height={160}
+                unoptimized
+                className={
+                  cropping
+                    ? "max-h-96 w-auto max-w-full rounded object-contain"
+                    : "max-h-40 w-auto max-w-full rounded object-contain"
+                }
+              />
+            </a>
+            {cropping && (
+              <div
+                aria-hidden="true"
+                className="border-focus pointer-events-none absolute border-2 bg-white/10"
+                style={{
+                  left: `${crop.x * 100}%`,
+                  top: `${crop.y * 100}%`,
+                  width: `${crop.width * 100}%`,
+                  height: `${crop.height * 100}%`,
+                }}
+              />
+            )}
+          </div>
+          {!reading && (
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={disabled}
+                onClick={() => {
+                  setCropping(!cropping);
+                  setResult(undefined);
+                }}
+              >
+                <Crop aria-hidden="true" className="size-4" />
+                {t("cropBarcodeImage")}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={disabled}
+                onClick={() => {
+                  if (selected.current)
+                    void select(selected.current, cropping ? crop : undefined);
+                }}
+              >
+                {t("readBarcodeImage")}
+              </Button>
+            </div>
+          )}
+          {cropping && (
+            <BarcodeCropControls
+              crop={crop}
+              disabled={disabled || reading}
+              onChange={(value) => {
+                setCrop(value);
+                setResult(undefined);
+              }}
+            />
+          )}
+        </div>
       )}
       {reading && (
         <div className="space-y-2">
@@ -235,6 +315,22 @@ export function BarcodeImagePicker({
             {t("scanAgain")}
           </Button>
         </div>
+      )}
+      {onReadWithAi && (
+        <Button
+          type="button"
+          variant="outline"
+          className="min-h-12 w-full"
+          disabled={disabled}
+          onClick={() => {
+            const file = selected.current,
+              selectedCrop = cropping ? crop : undefined;
+            clear();
+            onReadWithAi(file, selectedCrop);
+          }}
+        >
+          {t("readLocationAi")}
+        </Button>
       )}
     </div>
   );

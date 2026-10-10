@@ -1,3 +1,13 @@
+import { requestImageProvider as requestJobTicketProvider } from "../lib/imageProvider";
+export {
+  IMAGE_PROVIDER_POLICY as JOB_TICKET_PROVIDER_POLICY,
+  requestImageProvider as requestJobTicketProvider,
+} from "../lib/imageProvider";
+export type {
+  ImageProviderPolicy as JobTicketProviderPolicy,
+  ImageProviderFailure as JobTicketProviderFailure,
+  ImageProviderOutcome as JobTicketProviderOutcome,
+} from "../lib/imageProvider";
 import { v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import {
@@ -13,6 +23,13 @@ import {
   jobTicketError,
   parseJobTicket,
 } from "../model/finishedGoods/jobScans";
+
+import { jobLocationReader } from "./jobScanLocations";
+const batchFormat = v.union(
+  v.literal("PALLET"),
+  v.literal("BOX"),
+  v.literal("OTHER"),
+);
 
 const READ = "masterData.storageLayout.read";
 const MANAGE = "masterData.storageLayout.manage";
@@ -34,14 +51,18 @@ const ticketItem = v.object({
   quantity: optionalNumber,
   factoryQuantity: optionalNumber,
   customerQuantity: optionalNumber,
+  storageFormat: v.optional(batchFormat),
   source: v.union(v.literal("AI"), v.literal("BARCODE"), v.literal("MANUAL")),
   imageUrl: optionalText,
   aiRaw: optionalText,
 });
-const mappedLocation = v.object({
-  zoneId: v.id("storageZones"),
-  supportPositionId: v.optional(v.id("storagePositions")),
-});
+const mappedLocation = v.union(
+  v.object({ locationId: v.id("locations") }),
+  v.object({
+    zoneId: v.id("storageZones"),
+    supportPositionId: v.optional(v.id("storagePositions")),
+  }),
+);
 
 /** Validate the entire selection before either bulk operation writes anything. */
 async function validateJobScanSelection(
@@ -61,35 +82,24 @@ async function validateJobScanSelection(
   return null;
 }
 
-/** Zone (or one of its positions) in this warehouse, or null when unusable. */
+/** Resolve and derive all parents on the server; client snapshots are never trusted. */
 async function mapLocation(
   ctx: TenantFunctionContext,
   warehouseId: Id<"warehouses">,
-  location: { zoneId: string; supportPositionId?: string | undefined },
+  input: { locationId?: string; zoneId?: string; supportPositionId?: string },
 ) {
-  const zone = await ctx.tenantDb.get<Doc<"storageZones">>(
-    "storageZones",
-    location.zoneId,
-  );
-  if (!zone || zone.warehouseId !== warehouseId || zone.status !== "ACTIVE")
-    return null;
-  if (!location.supportPositionId)
-    return {
-      zoneId: zone._id,
-      locationCode: zone.code,
-      locationName: zone.label,
-    };
-  const position = await ctx.tenantDb.get<Doc<"storagePositions">>(
-    "storagePositions",
-    location.supportPositionId,
-  );
-  if (!position || position.zoneId !== zone._id || position.status !== "ACTIVE")
-    return null;
+  const location = await jobLocationReader(ctx, warehouseId).byId(input);
+  if (!location) return null;
   return {
-    zoneId: zone._id,
-    supportPositionId: position._id,
-    locationCode: position.code,
-    locationName: position.label,
+    locationId: location.locationId,
+    buildingId: location.buildingId,
+    ...(location.floorId ? { floorId: location.floorId } : {}),
+    ...(location.zoneId ? { zoneId: location.zoneId } : {}),
+    ...(location.supportPositionId
+      ? { supportPositionId: location.supportPositionId }
+      : {}),
+    locationCode: location.code,
+    locationName: location.name,
   };
 }
 
@@ -134,236 +144,6 @@ export const searchLocations = queryWithOrg({
     };
   },
 });
-
-/**
- * Explicit bounds for the job-ticket provider call (BD-07). Every attempt,
- * including reading its response body, ends at `attemptTimeoutMs`; all
- * attempts together end at `totalDeadlineMs`. The only retry is one immediate
- * repeat after an HTTP 5xx answer, and only while a useful budget remains: the
- * extraction writes nothing, so a repeat cannot duplicate data, but it can
- * double provider cost. Timeouts, network errors, 4xx/429, oversized and
- * malformed answers are never retried. `maxRetries: 0` is a valid policy.
- */
-export interface JobTicketProviderPolicy {
-  readonly attemptTimeoutMs: number;
-  readonly totalDeadlineMs: number;
-  readonly maxRetries: number;
-  readonly minRetryBudgetMs: number;
-  readonly maxResponseBytes: number;
-}
-
-export const JOB_TICKET_PROVIDER_POLICY: JobTicketProviderPolicy =
-  Object.freeze({
-    attemptTimeoutMs: 40_000,
-    totalDeadlineMs: 55_000,
-    maxRetries: 1,
-    minRetryBudgetMs: 10_000,
-    maxResponseBytes: 256 * 1024,
-  });
-
-export type JobTicketProviderFailure =
-  "timeout" | "network" | "status" | "too_large" | "malformed";
-
-export type JobTicketProviderOutcome =
-  | {
-      readonly ok: true;
-      readonly content: string;
-      readonly attempts: number;
-      readonly elapsedMs: number;
-    }
-  | {
-      readonly ok: false;
-      readonly reason: JobTicketProviderFailure;
-      readonly status?: number;
-      readonly attempts: number;
-      readonly elapsedMs: number;
-    };
-
-const ABORTED = Symbol("aborted");
-const TOO_LARGE = Symbol("too-large");
-
-/** Settle with ABORTED as soon as `signal` aborts, even if `work` ignores it. */
-function untilAborted<T>(
-  work: Promise<T>,
-  signal: AbortSignal,
-): Promise<T | typeof ABORTED> {
-  if (signal.aborted) {
-    work.catch(() => undefined);
-    return Promise.resolve(ABORTED);
-  }
-  return new Promise((resolve, reject) => {
-    const onAbort = () => resolve(ABORTED);
-    signal.addEventListener("abort", onAbort, { once: true });
-    work.then(
-      (value) => {
-        signal.removeEventListener("abort", onAbort);
-        resolve(value);
-      },
-      (error: unknown) => {
-        signal.removeEventListener("abort", onAbort);
-        if (signal.aborted) resolve(ABORTED);
-        else reject(error);
-      },
-    );
-  });
-}
-
-function discardBody(response: Response) {
-  try {
-    void response.body?.cancel().catch(() => undefined);
-  } catch {
-    // Already consumed or locked; nothing else to release.
-  }
-}
-
-/** Read at most `maxBytes` of the body before the attempt deadline. */
-async function readBoundedBody(
-  response: Response,
-  maxBytes: number,
-  signal: AbortSignal,
-): Promise<string | typeof ABORTED | typeof TOO_LARGE> {
-  const declared = Number(response.headers.get("content-length") ?? NaN);
-  if (Number.isFinite(declared) && declared > maxBytes) {
-    discardBody(response);
-    return TOO_LARGE;
-  }
-  if (!response.body) return "";
-  const reader = response.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-  for (;;) {
-    const next = await untilAborted(reader.read(), signal);
-    if (next === ABORTED) {
-      void reader.cancel().catch(() => undefined);
-      return ABORTED;
-    }
-    if (next.done) break;
-    total += next.value.byteLength;
-    if (total > maxBytes) {
-      void reader.cancel().catch(() => undefined);
-      return TOO_LARGE;
-    }
-    chunks.push(next.value);
-  }
-  const bytes = new Uint8Array(total);
-  let offset = 0;
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  return new TextDecoder().decode(bytes);
-}
-
-/** First choice's message content, "" when absent, or null if not JSON. */
-function envelopeContent(text: string): string | null {
-  let body: unknown;
-  try {
-    body = JSON.parse(text);
-  } catch {
-    return null;
-  }
-  if (body === null || typeof body !== "object") return null;
-  const content = (body as { choices?: { message?: { content?: unknown } }[] })
-    .choices?.[0]?.message?.content;
-  return typeof content === "string" ? content : "";
-}
-
-/**
- * Call the provider through `send` within {@link JobTicketProviderPolicy}.
- * Returns the model's message content or a static failure reason; it never
- * returns or throws the provider's response body.
- */
-export async function requestJobTicketProvider(
-  send: (signal: AbortSignal) => Promise<Response>,
-  options: {
-    readonly policy?: JobTicketProviderPolicy;
-    readonly now?: () => number;
-  } = {},
-): Promise<JobTicketProviderOutcome> {
-  const policy = options.policy ?? JOB_TICKET_PROVIDER_POLICY;
-  const now = options.now ?? Date.now;
-  const started = now();
-  const elapsed = () => Math.max(0, now() - started);
-  // The independent total timer is the hard bound. Wall-clock readings are
-  // used only for diagnostics and conservative retry budgeting; clock rollback
-  // must never extend the operation. Compose signals without assuming the
-  // runtime implements AbortSignal.any.
-  const totalController = new AbortController();
-  const totalTimer = setTimeout(
-    () => totalController.abort(),
-    policy.totalDeadlineMs,
-  );
-  let attempts = 0;
-  const fail = (
-    reason: JobTicketProviderFailure,
-    status?: number,
-  ): JobTicketProviderOutcome => ({
-    ok: false,
-    reason,
-    ...(status === undefined ? {} : { status }),
-    attempts,
-    elapsedMs: elapsed(),
-  });
-  try {
-    for (;;) {
-      const budget = Math.min(
-        policy.attemptTimeoutMs,
-        policy.totalDeadlineMs - elapsed(),
-      );
-      if (budget <= 0 || totalController.signal.aborted) return fail("timeout");
-      attempts += 1;
-      const controller = new AbortController();
-      const abortAttempt = () => controller.abort();
-      totalController.signal.addEventListener("abort", abortAttempt, {
-        once: true,
-      });
-      const timer = setTimeout(() => controller.abort(), budget);
-      try {
-        let response: Response | typeof ABORTED;
-        try {
-          response = await untilAborted(
-            send(controller.signal),
-            controller.signal,
-          );
-        } catch {
-          return fail("network");
-        }
-        if (response === ABORTED) return fail("timeout");
-        if (!response.ok) {
-          discardBody(response);
-          const retry =
-            !totalController.signal.aborted &&
-            response.status >= 500 &&
-            response.status <= 599 &&
-            attempts <= policy.maxRetries &&
-            policy.totalDeadlineMs - elapsed() >= policy.minRetryBudgetMs;
-          if (retry) continue;
-          return fail("status", response.status);
-        }
-        let text: string | typeof ABORTED | typeof TOO_LARGE;
-        try {
-          text = await readBoundedBody(
-            response,
-            policy.maxResponseBytes,
-            controller.signal,
-          );
-        } catch {
-          return fail("network");
-        }
-        if (text === ABORTED) return fail("timeout");
-        if (text === TOO_LARGE) return fail("too_large");
-        const content = envelopeContent(text);
-        if (content === null) return fail("malformed");
-        return { ok: true, content, attempts, elapsedMs: elapsed() };
-      } finally {
-        clearTimeout(timer);
-        totalController.signal.removeEventListener("abort", abortAttempt);
-      }
-    }
-  } finally {
-    clearTimeout(totalTimer);
-  }
-}
 
 /** Reads a job ticket photo with OpenRouter. Sample extraction requires explicit local opt-in. */
 export const extractJobTicket = actionWithOrg({
@@ -547,7 +327,9 @@ export const assignJobScanLocation = mutationWithOrg({
       for (const id of new Set(args.ids))
         await ctx.tenantDb.patch(TABLE, id, {
           mapped: true,
+          zoneId: undefined,
           supportPositionId: undefined,
+          floorId: undefined,
           ...mapped,
           ...stamp(ctx),
         });
@@ -646,25 +428,53 @@ export const listJobScans = queryWithOrg({
       isDone = page.isDone;
       continueCursor = page.continueCursor;
     }
-    const items = records.map((scan) => ({
-      id: scan._id,
-      factoryOrder: scan.factoryOrder,
-      productBarcodeText: scan.productBarcodeText,
-      partName: scan.partName,
-      customer: scan.customer,
-      deliveryDate: scan.deliveryDate,
-      manufacturingDate: scan.manufacturingDate,
-      quantity: scan.quantity,
-      factoryQuantity: scan.factoryQuantity,
-      customerQuantity: scan.customerQuantity,
-      source: scan.source,
-      imageUrl: scan.imageUrl,
-      locationText: scan.locationText,
-      mapped: scan.mapped,
-      locationCode: scan.locationCode,
-      locationName: scan.locationName,
-      createdAt: scan.createdAt,
-    }));
+    const items = await Promise.all(
+      records.map(async (scan) => {
+        const zone =
+          !scan.buildingId && scan.zoneId
+            ? await ctx.tenantDb.get<Doc<"storageZones">>(
+                "storageZones",
+                scan.zoneId,
+              )
+            : null;
+        const buildingId = scan.buildingId ?? zone?.buildingId;
+        const floorId = scan.floorId ?? zone?.floorId;
+        const building = buildingId
+          ? await ctx.tenantDb.get<Doc<"storageBuildings">>(
+              "storageBuildings",
+              buildingId,
+            )
+          : null;
+        const floor = floorId
+          ? await ctx.tenantDb.get<Doc<"storageFloors">>(
+              "storageFloors",
+              floorId,
+            )
+          : null;
+        return {
+          id: scan._id,
+          factoryOrder: scan.factoryOrder,
+          productBarcodeText: scan.productBarcodeText,
+          partName: scan.partName,
+          customer: scan.customer,
+          deliveryDate: scan.deliveryDate,
+          manufacturingDate: scan.manufacturingDate,
+          quantity: scan.quantity,
+          factoryQuantity: scan.factoryQuantity,
+          customerQuantity: scan.customerQuantity,
+          source: scan.source,
+          imageUrl: scan.imageUrl,
+          locationText: scan.locationText,
+          mapped: scan.mapped,
+          storageFormat: scan.storageFormat,
+          buildingName: building?.name,
+          floorNumber: floor?.floorNumber,
+          locationCode: scan.locationCode,
+          locationName: scan.locationName,
+          createdAt: scan.createdAt,
+        };
+      }),
+    );
     return { items, continueCursor, isDone };
   },
 });

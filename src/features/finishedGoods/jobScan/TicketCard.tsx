@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import { FormField } from "@/components/ui/FormField";
 import { IconButton } from "@/components/ui/IconButton";
+import { SelectControl } from "@/components/ui/SelectControl";
 import { Input } from "@/components/ui/input";
 import { ScanCodeInput } from "@/components/ui/ScanCodeInput";
 import { StatusBadge } from "@/components/ui/StatusBadge";
@@ -87,6 +88,7 @@ export function TicketCard({
   index,
   onChange,
   onRemove,
+  onFormatChange,
   onScan,
   disabled = false,
   duplicate = false,
@@ -95,6 +97,7 @@ export function TicketCard({
   index: number;
   onChange: (field: TicketField, value: string) => void;
   onRemove: () => void;
+  onFormatChange?: (format: NonNullable<TicketDraft["storageFormat"]>) => void;
   onScan: (field: TicketCodeField) => void;
   disabled?: boolean;
   duplicate?: boolean;
@@ -166,6 +169,20 @@ export function TicketCard({
           ))}
         </div>
       </div>
+      <SelectControl
+        label={t("storageFormat")}
+        value={ticket.storageFormat ?? ""}
+        options={(["PALLET", "BOX", "OTHER"] as const).map((value) => ({
+          value,
+          label: t(`format.${value}`),
+        }))}
+        onValueChange={(value) =>
+          onFormatChange?.(value as NonNullable<TicketDraft["storageFormat"]>)
+        }
+        disabled={disabled || ticket.status === "reading"}
+        placeholder={t("formatUnspecified")}
+        emptyLabel={t("formatUnspecified")}
+      />
       <CollapsibleSection
         label={t("moreDetails")}
         badge={t("filledCount", { count: filled })}

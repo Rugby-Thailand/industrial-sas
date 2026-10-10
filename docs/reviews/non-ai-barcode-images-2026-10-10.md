@@ -2,70 +2,79 @@
 
 Production scope: shared camera/image acquisition, warehouse location resolution,
 JOB ticket intake, individual JOB/product field scanning, and destination scanning.
-The implementation runs a pinned local ZXing reader in an owned cancellable worker.
-It does not infer barcode identities from printed text or upload selected images.
-Existing backend lookup, permissions, field replacement, duplicate-unit review,
-and save validation remain authoritative.
+Selected images decode locally in an owned cancellable worker with a pinned
+first-party ZXing WASM reader. Barcode identities come from barcode pixels.
+Backend permissions, identity resolution, replacement confirmation, duplicate-unit
+review, and save validation remain authoritative.
 
-The implementation plan is [saved here](../plans/non-ai-barcode-images.md).
-Worktree: `industrial-sas-barcode`; branch: `fix/non-ai-barcode-images`;
-comparison base: `b232565f322c7f1fd7279b2184435949eea4436d`.
+The [saved plan](../plans/non-ai-barcode-images.md) preceded implementation.
+Worktree: `industrial-sas-barcode`; branch: `fix/non-ai-barcode-images`.
+Initial base: `b232565`; integration base: main `41c73ff`.
+The merge preserves exact location lookup, location registration, storage format,
+camera framing, manual crop/retry, and the separately invoked AI location workflow.
+Image selection alone never invokes AI or uploads the image.
 
 ## Photo and browser evidence
 
-- Supplied private photos: 20/20 exact JOB/product matches over two final rounds.
-  There are ten files, including three repeated pairs, hence seven unique photos.
-  Final elapsed times were 117–1,023 ms in round one and 117–778 ms in round two
-  on this desktop browser. Earlier cold runs were slower; this is not a mobile
-  performance guarantee.
-- Both curved-image files required explicit corrected-read review in both rounds.
-  The search used 16 attempts for those photos; other photos used 1–7 attempts.
-  Expected identities are supplied only to the regression runner, not the decoder.
-- Synthetic actual-worker cases cover Code128, QR, JOB, product, rotation, multiple
-  identities, printed-text-only negatives, and a JOB-only negative for product
-  intake. Checked-in fixtures contain synthetic identities only.
-- Real-component browser suite: 18 passed, two existing desktop-only cases skipped
-  on mobile. Twelve passing cases exercise barcode behavior across desktop/mobile,
-  including denied camera access, image acquisition, lookup, paired intake, repeated
-  units, save payloads, cancellation, replacement/Escape, 320 px layout, Thai/English,
-  dark/light themes, and WCAG A/AA checks.
-- Production smoke suite: 82 passed, including desktop/mobile execution of the
-  actual compiled Next.js worker and a direct unredirected WASM request. This caught
-  and fixed a locale-proxy redirect that the Vite component harness could not detect.
-- Formatting, TypeScript, and ESLint passed; 193 unit/accessibility test files
-  passed with 2,217 tests. Production build, test discovery, and the production
-  dependency audit passed. Clean-tree verification runs after committing the
-  reviewed changes.
+- Supplied private product photos: **20/20 exact JOB/product matches**, with no
+  extra codes, over two final rounds. Ten files contain seven unique photos.
+  Final desktop timings were 695–4,956 ms in round one and 131–4,487 ms in round
+  two; earlier warm runs were faster. These are not mobile latency guarantees.
+- Both curved-image files required corrected-read review in both rounds, using
+  16 search attempts; other photos used 1–7 attempts. Expected identities are
+  supplied only to the regression runner. Private photos and expected customer
+  identities are excluded from the PR.
+- Eleven synthetic actual-worker cases cover Code128, QR, Code39 product codes,
+  JOB/product pairing, rotation, multiple codes, crop isolation, printed-text-only
+  negatives, and a JOB-only negative for product intake.
+- Workspace browser suite: **42 passed, two existing mobile skips**. Coverage
+  includes the six existing warehouse photo fixtures in Thai/English on
+  desktop/mobile, distinct linear/QR choices, camera denial, crop/retry,
+  cancellation, replacement/Escape, duplicate physical units, save payloads,
+  320 px layout, both languages/themes, and WCAG A/AA checks. Existing explicit
+  AI camera/review behavior remains covered.
+- Production build and smoke suite: **88 passed**. The actual compiled Next.js
+  worker decodes a product, glare location, noisy location, and empty crop on
+  desktop/mobile. The public WASM request succeeds without a locale redirect.
+- Formatting, TypeScript, ESLint, and **202 unit/accessibility test files with
+  2,329 tests** passed. Test discovery, credential-free local Convex codegen,
+  and production dependency audit passed. Clean-tree verification follows the
+  merge commit.
 
-## Standards
+## Audit findings resolved
 
-Final independent standards re-audit: zero documented violations and zero
-remaining heuristic findings. Client boundaries, fixture privacy, worker cleanup,
-bitmap disposal, object URL revocation, and stale-result guards passed review.
-The initial possible duplicated-classification smell was resolved by sharing the
-existing pure `classifyTicketBarcode` helper.
+Independent Standards and Spec re-audits report zero remaining meaningful
+findings. Worker cancellation, bitmap disposal, object URL revocation, and stale
+source/session guards passed review. Barcode classification shares the canonical
+`classifyTicketBarcode` helper.
 
-## Spec
+A repeated complete JOB/product pair creates another physical-unit row and
+requires duplicate review before saving. Compatible incomplete rows remain
+fillable. Domain, component, and browser regressions verify both saved units.
 
-Final independent requirements re-audit: zero remaining findings. The initial P2
-finding was fixed: accepting another photo of a complete matching JOB/product pair
-now creates another physical-unit row. Compatible incomplete rows can still be
-filled. Domain, component, and browser regressions require duplicate review before
-the two-unit save and verify both saved items.
-
-Standards: 0 remaining findings. Spec: 0 remaining findings.
+The established location geometry reader runs inside the owned worker at its
+existing image scale. It corrects a disagreeing noisy singleton Code128 read;
+multiple valid WASM identities and all QR candidates survive for explicit choice.
+Regressions cover engine-set disagreement, invalid-result exclusion, and cleanup.
+Exception handling uses the library's stable `getKind()` in minified builds.
 
 ## Limits and reproduction
 
 The [HTML component harness](../../scripts/barcode-preview/README.md) renders the
-production UI with synthetic backend responses. It verifies request envelopes and
-absence of image uploads/AI calls, but does not claim a live authenticated inventory
-write. Physical iOS/Android camera hardware and mobile-browser performance have not
-been tested. Unsupported formats and browser APIs surface actionable errors.
-Selected files are limited to 25 MiB and 16 megapixels; processing has bounded
-attempts, an internal deadline, and an outer worker termination deadline.
+production UI with synthetic backend responses. It verifies lookup/save envelopes
+and absence of automatic image uploads/AI calls, but does not perform a live
+authenticated inventory write. Physical iOS/Android camera hardware and mobile
+performance have not been tested.
 
-Run `pnpm check`, `pnpm build`, `pnpm test:e2e`, and `pnpm test:e2e:workspace`.
+Verified paired-label support is Code128 JOB/product labels. Standalone QR and
+Code39 product codes are covered. Mixed-format pairs may need manual cropping or
+separate field scans. Unsupported browser APIs surface actionable errors.
+Files are limited to 25 MiB and 16 megapixels. Processing is bounded by image
+search/decode deadlines and an outer worker termination deadline.
+
+Run `pnpm check`, `pnpm build`, `pnpm test:e2e`, `pnpm test:e2e:workspace`,
+`pnpm ci:codegen`, `pnpm ci:test-discovery`, and `pnpm audit:prod`.
 The harness README documents private-corpus reproduction without committing
-customer photographs or identities. See the pinned WASM and licenses under
+customer product photos. Existing warehouse fixtures are retained from main;
+new product fixtures use synthetic identities. Pinned WASM licenses are under
 `public/barcode/`.

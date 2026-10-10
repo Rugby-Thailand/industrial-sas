@@ -42,6 +42,12 @@ export type TicketField =
 /** Location chosen before scanning; unmapped locations keep only their text. */
 export type PickedLocation = {
   text: string;
+  locationId?: string;
+  buildingId?: string;
+  buildingName?: string;
+  floorId?: string;
+  floorNumber?: number;
+  layoutPending?: boolean;
   zoneId?: string;
   supportPositionId?: string;
   code?: string;
@@ -50,6 +56,7 @@ export type PickedLocation = {
 
 export type TicketDraft = {
   key: string;
+  storageFormat?: "PALLET" | "BOX" | "OTHER";
   source: "AI" | "BARCODE" | "MANUAL";
   status: "reading" | "ready";
   values: Partial<Record<TicketField, string>>;
@@ -73,6 +80,7 @@ export const newTicket = (
   key: crypto.randomUUID(),
   source,
   status: "ready",
+  storageFormat: "PALLET",
   values,
   aiFields: [],
 });
@@ -202,6 +210,7 @@ export function toPayload(ticket: TicketDraft) {
       if (number !== undefined) item[field] = number;
     } else item[field] = value;
   }
+  if (ticket.storageFormat) item["storageFormat"] = ticket.storageFormat;
   if (ticket.imageUrl) item["imageUrl"] = ticket.imageUrl;
   if (ticket.aiRaw) item["aiRaw"] = ticket.aiRaw;
   return item as {
@@ -209,4 +218,17 @@ export function toPayload(ticket: TicketDraft) {
     productBarcodeText: string;
     source: TicketDraft["source"];
   } & Record<string, string | number>;
+}
+
+export function pickedLocationPayload(location: PickedLocation) {
+  return location.locationId
+    ? { locationId: location.locationId }
+    : location.zoneId
+      ? {
+          zoneId: location.zoneId,
+          ...(location.supportPositionId
+            ? { supportPositionId: location.supportPositionId }
+            : {}),
+        }
+      : undefined;
 }

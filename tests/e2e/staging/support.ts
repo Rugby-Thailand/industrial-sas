@@ -23,6 +23,7 @@ import {
   E2E_FIXTURE_CONFIRMATION,
   organizationName,
   userDisplayName,
+  userFirstName,
 } from "../../../convex/staging/e2eFixture";
 import {
   classifyConvexDeployKey,
@@ -37,7 +38,7 @@ export const STAGING = {
   clerkInstanceId: "ins_3Hx3Wa0m4xgQsBZ7Kyod5wNP1AC",
   confirmation: E2E_FIXTURE_CONFIRMATION,
 } as const;
-export { organizationName, userDisplayName };
+export { organizationName, userDisplayName, userFirstName };
 export const FIXTURE_STATE = "playwright/.auth/staging-fixture.json";
 const RUN_ID = /^[a-z0-9][a-z0-9-]{5,39}$/;
 type Environment = Readonly<Record<string, string | undefined>>;
@@ -79,7 +80,10 @@ export function managerEmail(runId: string) {
   if (!RUN_ID.test(runId)) throw new Error("STAGING_RUN_ID_INVALID");
   return `ci-e2e-${runId}+clerk_test@example.com`;
 }
-export function assertStagingInputs(env: Environment = process.env): void {
+export function assertStagingInputs(
+  env: Environment = process.env,
+  onProblem?: (name: string) => void,
+): void {
   const problems: string[] = [];
   try {
     const base = new URL(env.SMOKE_BASE_URL ?? "");
@@ -146,8 +150,11 @@ export function assertStagingInputs(env: Environment = process.env): void {
   ) {
     problems.push("STAGING_E2E_LOCAL_REHEARSAL");
   }
-  if (problems.length > 0)
+  if (problems.length > 0) {
+    // Every entry is a fixed input name, never an environment value.
+    for (const problem of problems) onProblem?.(problem);
     throw new Error(`STAGING_INPUTS_INVALID: ${problems.join(", ")}`);
+  }
 }
 export function runId(env: Environment = process.env): string {
   const suffix = randomUUID().replaceAll("-", "").slice(0, 8);
@@ -467,7 +474,7 @@ export async function verifyStagingInstance(clerk: StagingClerkPort) {
 export function assertOwnedUser(user: OwnedUser, state: StagingFixtureState) {
   if (
     user.id !== state.clerkUserId ||
-    user.firstName !== `CI E2E ${state.runId}` ||
+    user.firstName !== userFirstName(state.runId) ||
     user.lastName !== "actor" ||
     user.externalId !== `ci-e2e:${STAGING.repository}:${state.runId}:actor` ||
     user.emailAddresses.length !== 1 ||

@@ -17,6 +17,7 @@ export const ROUTE_NAMESPACES = {
   "(desktop)/master-data": [
     "App",
     "StorageLayouts",
+    "JobScan",
     "Pagination",
     "Panel",
     "Table",

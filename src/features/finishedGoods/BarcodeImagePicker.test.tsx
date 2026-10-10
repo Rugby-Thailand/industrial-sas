@@ -148,6 +148,48 @@ it("unmount aborts pending work and releases preview URLs", () => {
   expect(signal.aborted).toBe(true);
   expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:label");
 });
+it("manual crop retries the selected file and still requires acceptance", async () => {
+  const onCode = vi.fn();
+  renderWithIntl(<BarcodeCameraBox mode="LOCATION" onCode={onCode} />, {
+    locale: "en",
+  });
+  choose();
+  await screen.findByRole("button", { name: "Use scanned code(s)" });
+  fireEvent.click(screen.getByRole("button", { name: "Crop barcode" }));
+  expect(
+    screen.queryByRole("button", { name: "Use scanned code(s)" }),
+  ).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Read image" }));
+  await screen.findByRole("button", { name: "Use scanned code(s)" });
+  expect(mocks.read.mock.calls[1]![3]).toEqual({
+    x: 0.1,
+    y: 0.25,
+    width: 0.8,
+    height: 0.5,
+  });
+  expect(onCode).not.toHaveBeenCalled();
+});
+
+it("only transfers a selected image to AI after the explicit AI action", async () => {
+  const handoff = vi.fn();
+  renderWithIntl(
+    <BarcodeCameraBox
+      mode="LOCATION"
+      onCode={vi.fn()}
+      onReadWithAi={handoff}
+    />,
+    { locale: "en" },
+  );
+  choose();
+  await screen.findByRole("button", { name: "Use scanned code(s)" });
+  expect(handoff).not.toHaveBeenCalled();
+  fireEvent.click(
+    screen.getByRole("button", { name: "Read location with AI" }),
+  );
+  expect(handoff).toHaveBeenCalledWith(expect.any(File), undefined);
+  expect(URL.revokeObjectURL).toHaveBeenCalled();
+});
+
 it("reports unsupported files without starting the decoder", () => {
   renderWithIntl(<BarcodeCameraBox mode="PACKAGES" onCode={vi.fn()} />, {
     locale: "en",

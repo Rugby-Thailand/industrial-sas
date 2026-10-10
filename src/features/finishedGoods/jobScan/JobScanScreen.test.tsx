@@ -321,6 +321,7 @@ it("applies an image JOB/product pair together and saves the decoded identities"
       factoryOrder: "FO12345678",
       productBarcodeText: "DEMO-PRODUCT",
       source: "BARCODE",
+      storageFormat: "PALLET",
     },
   ]);
 });

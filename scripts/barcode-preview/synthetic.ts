@@ -6,6 +6,7 @@ export async function barcodeFixture(
   codes = ["DEMO-PRODUCT"],
   qr = false,
   angle = 0,
+  format: "Code128" | "Code39" = "Code128",
 ): Promise<File> {
   await prepareZXingModule({
     overrides: { locateFile: () => "/fixture-writer.wasm" },
@@ -25,7 +26,7 @@ export async function barcodeFixture(
   ctx.fillText("Synthetic warehouse label", 100, 130);
   for (const [i, code] of codes.entries()) {
     const encoded = await writeBarcode(code, {
-      format: qr ? "QRCode" : "Code128",
+      format: qr ? "QRCode" : format,
       scale: 3,
     });
     if (encoded.error || !encoded.image)
@@ -47,6 +48,7 @@ type Case = {
   file: File;
   target: BarcodeImageTarget;
   expected: string[];
+  crop?: { x: number; y: number; width: number; height: number };
 };
 declare global {
   interface Window {
@@ -68,6 +70,25 @@ window.runSyntheticBarcodeRegression = async () => {
     });
   try {
     const cases: Case[] = [
+      {
+        name: "QR product",
+        file: await barcodeFixture(["DEMO-PRODUCT"], true),
+        target: "productBarcodeText",
+        expected: ["DEMO-PRODUCT"],
+      },
+      {
+        name: "Code39 product",
+        file: await barcodeFixture(["DEMO-PRODUCT"], false, 0, "Code39"),
+        target: "productBarcodeText",
+        expected: ["DEMO-PRODUCT"],
+      },
+      {
+        name: "manual crop isolates selected identity",
+        file: await barcodeFixture(["ZONE-A", "ZONE-B"]),
+        target: "LOCATION",
+        crop: { x: 0, y: 0.5, width: 1, height: 0.2 },
+        expected: ["ZONE-B"],
+      },
       {
         name: "product",
         file: await barcodeFixture(),
@@ -122,6 +143,7 @@ window.runSyntheticBarcodeRegression = async () => {
         test.file,
         test.target,
         new AbortController().signal,
+        test.crop,
       );
       state.rows.push({
         name: test.name,
