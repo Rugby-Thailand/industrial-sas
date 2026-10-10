@@ -133,3 +133,9 @@ Two additional spec findings remain open at this pinned baseline:
 - **HR-021, employment changes during open attendance:** `convex/hr/self.ts:88–94` returns an open `CLOCKED_IN` state before the employment-date check. `clockOut:358–386` verifies active status but does not check employment for that open business date. After an authorized employee edit excludes the open date, a new clock-out can still persist outside employment. Check the open shift's business date, preserving a valid overnight clock-out whose last employment date was the prior calendar day, and cover both cases.
 
 The inherited HR implementation belongs to the full main-target PR. The final head SHA, repair status, and fresh required-check results must be recorded after Kiro's design implementation and fixes settle. Detailed pinned evidence is in `output/design-one-main-spec.md`.
+
+## Final main-target repair status — 2026-10-11
+
+The final code revision `213a45dca82fed84d5ea05926a3c796f0c6c1ffd` supersedes the earlier baseline finding status, while preserving the historical results above. Kiro repaired the cross-site member-selector disclosure and employment-bound checkout bypass, moved Search transport/accounting out of the pure model, and froze validated schedule weekdays. Independent Standards and Spec review closed all hard/blocking findings; only the nonblocking calendar-helper contract advisory remains.
+
+Fresh clean-checkout verification passed `pnpm check` (242 files, 2,919 tests), the production build, credential-free Convex codegen, test discovery, and the clean-tree check. The selected AI usage Design 1 also passed real desktop/mobile/tablet and language/theme inspection. See [the final main-target review](ai-usage-design-one-main-2026-10-11.md) for pins, regression evidence, screenshots, scope, and limitations. This does not claim a new live model evaluation or a production deployment.

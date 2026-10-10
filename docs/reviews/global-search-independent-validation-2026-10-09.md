@@ -55,3 +55,9 @@ The local anonymous Convex backend uses `OPENROUTER_SEARCH_MODEL=openai/gpt-6-lu
 Root added `output/**` to ESLint's generated-artifact ignores after default lint inspected copied baseline files. Application source and tests remain linted. Changed-file formatting is checked separately; the repository-wide format check still has pre-existing unrelated findings (staging data/older tests), which were preserved.
 
 The final inventory also found 78 new files from concurrent unrelated work (skills, design-sheet and CI review documents). They were left untouched and excluded from this task's formatting set. `output/global-search/task-owned-changes.json` records the 27 modified and 30 new files belonging to search/validation; its final Prettier check passed.
+
+## Final main-target repair status — 2026-10-11
+
+The final code revision `213a45dca82fed84d5ea05926a3c796f0c6c1ffd` supersedes the earlier baseline finding status, while preserving the historical results above. Kiro repaired the cross-site member-selector disclosure and employment-bound checkout bypass, moved Search transport/accounting out of the pure model, and froze validated schedule weekdays. Independent Standards and Spec review closed all hard/blocking findings; only the nonblocking calendar-helper contract advisory remains.
+
+Fresh clean-checkout verification passed `pnpm check` (242 files, 2,919 tests), the production build, credential-free Convex codegen, test discovery, and the clean-tree check. The selected AI usage Design 1 also passed real desktop/mobile/tablet and language/theme inspection. See [the final main-target review](ai-usage-design-one-main-2026-10-11.md) for pins, regression evidence, screenshots, scope, and limitations. This does not claim a new live model evaluation or a production deployment.
