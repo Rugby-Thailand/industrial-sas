@@ -20,11 +20,15 @@ run preflight, inspect the private backup, and explicitly apply.
 Use Node 24. Keep the credential file at 0600, untracked and gitignored; never
 print it. Create a private 0700 artifact directory outside the repository.
 The script refuses existing artifact names and never retries a mutation.
+The environment file must define only the reviewed production URL and its
+`CONVEX_ADMIN_KEY` credential context; `CONVEX_DEPLOY_KEY` and other deployment
+selectors must be absent. Follow the [operator guards](operations/release-runbook.md#operator-data-repairs)
+and avoid running an import while a production release holds the shared lock.
 
 ```sh
 node --env-file=/absolute/private/env.convex-admin scripts/import-pd-production.mjs --mode preflight --directory /absolute/private/run-directory
-node --env-file=/absolute/private/env.convex-admin scripts/import-pd-production.mjs --mode apply --directory /absolute/private/run-directory --backup /absolute/private/run-directory/preflight.json
-node --env-file=/absolute/private/env.convex-admin scripts/import-pd-production.mjs --mode verify --directory /absolute/private/run-directory --backup /absolute/private/run-directory/preflight.json
+node --env-file=/absolute/private/env.convex-admin scripts/import-pd-production.mjs --mode apply --directory /absolute/private/run-directory --backup /absolute/private/run-directory/preflight.json --backup-sha256 <sha256-printed-by-preflight> --confirm-deployment greedy-cardinal-537
+node --env-file=/absolute/private/env.convex-admin scripts/import-pd-production.mjs --mode verify --directory /absolute/private/run-directory --backup /absolute/private/run-directory/preflight.json --backup-sha256 <sha256-printed-by-preflight>
 ```
 
 Preflight includes the full affected records, stock/history relationships,

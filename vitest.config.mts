@@ -20,6 +20,25 @@ const domUnitTests = [
 
 export default defineConfig({
   test: {
+    // Informational combined coverage (T12). Shards write blob reports that
+    // the CI `test-report` job merges, so the numbers describe the whole
+    // suite, never one shard. No thresholds yet: floors follow a measured
+    // baseline for the critical paths listed here.
+    coverage: {
+      provider: "v8",
+      reportsDirectory: "coverage",
+      reporter: ["text-summary", "json-summary", "lcov"],
+      // Listed explicitly so untested critical modules appear at 0% instead
+      // of disappearing from the report.
+      include: [
+        "convex/**/*.ts",
+        "src/lib/**/*.ts",
+        "src/proxy.ts",
+        "scripts/ci/**/*.mjs",
+        "scripts/release/**/*.mjs",
+      ],
+      exclude: ["convex/_generated/**", "**/*.test.ts", "**/*.d.ts"],
+    },
     projects: [
       {
         plugins: [react()],

@@ -27,41 +27,40 @@ const membershipIdentity = {
   ...userIdentity,
   clerkMembershipId: v.string(),
 };
+const eventClock = {
+  eventId: v.string(),
+  eventAt: v.number(),
+  eventTimestamp: v.optional(v.number()),
+};
 
 export const identityWebhookEventValidator = v.union(
   v.object({
-    eventId: v.string(),
-    eventAt: v.number(),
+    ...eventClock,
     type: v.literal("organization.upsert"),
     data: v.object(organizationIdentity),
   }),
   v.object({
-    eventId: v.string(),
-    eventAt: v.number(),
+    ...eventClock,
     type: v.literal("organization.delete"),
     data: v.object({ clerkOrganizationId: v.string() }),
   }),
   v.object({
-    eventId: v.string(),
-    eventAt: v.number(),
+    ...eventClock,
     type: v.literal("user.upsert"),
     data: v.object(userIdentity),
   }),
   v.object({
-    eventId: v.string(),
-    eventAt: v.number(),
+    ...eventClock,
     type: v.literal("user.delete"),
     data: v.object({ clerkUserId: v.string() }),
   }),
   v.object({
-    eventId: v.string(),
-    eventAt: v.number(),
+    ...eventClock,
     type: v.literal("membership.upsert"),
     data: v.object(membershipIdentity),
   }),
   v.object({
-    eventId: v.string(),
-    eventAt: v.number(),
+    ...eventClock,
     type: v.literal("membership.delete"),
     data: v.object(membershipIdentity),
   }),
@@ -100,6 +99,9 @@ function createConvexIdentityMirrorPort(
             ...(found.clerkLastEventAt === undefined
               ? {}
               : { clerkLastEventAt: found.clerkLastEventAt }),
+            ...(found.clerkLastEventTimestamp === undefined
+              ? {}
+              : { clerkLastEventTimestamp: found.clerkLastEventTimestamp }),
           };
     },
     putOrganization: async (value) => {
@@ -113,6 +115,9 @@ function createConvexIdentityMirrorPort(
         ...(value.clerkLastEventAt === undefined
           ? {}
           : { clerkLastEventAt: value.clerkLastEventAt }),
+        ...(value.clerkLastEventTimestamp === undefined
+          ? {}
+          : { clerkLastEventTimestamp: value.clerkLastEventTimestamp }),
       };
       if (found === null) {
         const orgId = await ctx.db.insert("organizations", {
@@ -142,6 +147,9 @@ function createConvexIdentityMirrorPort(
             ...(found.clerkLastEventAt === undefined
               ? {}
               : { clerkLastEventAt: found.clerkLastEventAt }),
+            ...(found.clerkLastEventTimestamp === undefined
+              ? {}
+              : { clerkLastEventTimestamp: found.clerkLastEventTimestamp }),
           };
     },
     putUser: async (value) => {
@@ -158,6 +166,9 @@ function createConvexIdentityMirrorPort(
         ...(value.clerkLastEventAt === undefined
           ? {}
           : { clerkLastEventAt: value.clerkLastEventAt }),
+        ...(value.clerkLastEventTimestamp === undefined
+          ? {}
+          : { clerkLastEventTimestamp: value.clerkLastEventTimestamp }),
       };
       if (found === null) {
         await ctx.db.insert("users", {
@@ -199,6 +210,9 @@ function createConvexIdentityMirrorPort(
         ...(found.clerkLastEventAt === undefined
           ? {}
           : { clerkLastEventAt: found.clerkLastEventAt }),
+        ...(found.clerkLastEventTimestamp === undefined
+          ? {}
+          : { clerkLastEventTimestamp: found.clerkLastEventTimestamp }),
       };
     },
     putMembership: async (value) => {
@@ -229,6 +243,9 @@ function createConvexIdentityMirrorPort(
         ...(value.clerkLastEventAt === undefined
           ? {}
           : { clerkLastEventAt: value.clerkLastEventAt }),
+        ...(value.clerkLastEventTimestamp === undefined
+          ? {}
+          : { clerkLastEventTimestamp: value.clerkLastEventTimestamp }),
       };
       if (found === null) {
         await ctx.db.insert("memberships", {

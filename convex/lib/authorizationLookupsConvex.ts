@@ -12,7 +12,7 @@ import {
   type RolePermissionDocument,
   type SessionsAuditDocument,
 } from "./authorization";
-import type { MembershipDocument } from "./tenantContext";
+import { createConvexTenantContextLookups } from "./tenantContextLookups";
 import { TenantDbError } from "./tenantDb";
 
 const EXACT_TAKE = 2;
@@ -45,22 +45,13 @@ export function createConvexAuthorizationLookups(
     return limit;
   };
 
-  const findMembership: AuthorizationFactLookups["findMembership"] = async ({
-    orgId,
-    userId,
-  }): Promise<MembershipDocument | null> => {
-    const rows = await db
-      .query("memberships")
-      .withIndex("by_orgId_userId", (q) =>
-        q.eq("orgId", orgId).eq("userId", userId),
-      )
-      .take(EXACT_TAKE);
-    const membership = atMostOne(rows);
-    if (membership === null) return null;
-    return membership.orgId === orgId && membership.userId === userId
-      ? membership
-      : null;
-  };
+  // Context and authorization must select the same current membership after a
+  // re-add. Historical revoked rows cannot invalidate a fresh scoped grant.
+  const findMembership: AuthorizationFactLookups["findMembership"] =
+    createConvexTenantContextLookups(
+      ctx,
+      requestId,
+    ).findMembershipByOrganizationAndUser;
 
   const listMembershipRoles: AuthorizationFactLookups["listMembershipRoles"] =
     async ({

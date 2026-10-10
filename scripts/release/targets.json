@@ -1,0 +1,32 @@
+{
+  "$comment": "Reviewed release targets (public identifiers only, no credentials). Source: docs/operations/ci-cd-platform-evidence.md. Changing a target is a CODEOWNERS-reviewed release change.",
+  "repository": "Rugby-Thailand/industrial-sas",
+  "releaseBranch": "main",
+  "targets": {
+    "production": {
+      "githubEnvironment": "production-release",
+      "vercelTeamId": "team_HIg4nXozZ4oXYYhIMETF8E6r",
+      "vercelProjectId": "prj_XQbt4f38BNrAvf593UstPk76rRik",
+      "vercelProjectName": "industrial-sas",
+      "appUrl": "https://app.thaipropertyai.com",
+      "skipDomain": true,
+      "convexDeployment": "greedy-cardinal-537",
+      "convexDeployKeyClass": "prod",
+      "clerkKeyClass": "live",
+      "clerkFrontendHost": "clerk.thaipropertyai.com",
+      "candidateUrl": "https://ci-candidate.thaipropertyai.com"
+    },
+    "staging": {
+      "githubEnvironment": "staging",
+      "vercelTeamId": "team_HIg4nXozZ4oXYYhIMETF8E6r",
+      "vercelProjectId": "prj_qrzHbzKt7oIKziO8wzI8GP00KAUA",
+      "vercelProjectName": "industrial-sas-staging",
+      "appUrl": "https://industrial-sas-staging.vercel.app",
+      "skipDomain": false,
+      "convexDeployment": "befitting-stoat-208",
+      "convexDeployKeyClass": "dev",
+      "clerkKeyClass": "test",
+      "clerkFrontendHost": "creative-doberman-56.clerk.accounts.dev"
+    }
+  }
+}

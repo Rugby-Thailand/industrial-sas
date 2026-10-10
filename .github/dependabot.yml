@@ -1,9 +1,15 @@
-# Keeps the pinned action SHAs from going stale. Dependabot opens a PR that
-# rewrites both the SHA and the trailing version comment, which is exactly the
-# update policy documented in README.md, minus the manual lookup.
+# Dependency update policy.
 #
-# Scoped to github-actions only: npm dependencies are pinned deliberately
-# (decision D-29) and are reviewed by hand, not by a bot.
+# GitHub Actions: weekly version updates keep the full-SHA pins current.
+# Dependabot rewrites both the SHA and the trailing version comment.
+#
+# npm (decision D-29): routine versions are pinned and reviewed by hand, so
+# `open-pull-requests-limit: 0` disables version-update PRs. Security updates
+# are still raised for vulnerable dependencies once "Dependabot security
+# updates" is enabled in repository settings; they arrive as normal PRs that
+# need code-owner review and keep exact pins (`versioning-strategy: increase`
+# never widens a range because every specifier is exact).
+# https://docs.github.com/en/code-security/how-tos/secure-your-supply-chain/secure-your-dependencies/configure-security-updates
 version: 2
 updates:
   - package-ecosystem: github-actions
@@ -17,3 +23,17 @@ updates:
     labels:
       - ci
     open-pull-requests-limit: 5
+
+  - package-ecosystem: npm
+    directories:
+      - "/"
+      - "/tools/release"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0
+    versioning-strategy: increase
+    commit-message:
+      prefix: "deps(security)"
+    labels:
+      - dependencies
+      - security

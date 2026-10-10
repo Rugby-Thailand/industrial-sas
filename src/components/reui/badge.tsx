@@ -1,7 +1,7 @@
-import { cva, type VariantProps } from "class-variance-authority"
-import { Slot } from "radix-ui"
+import { cva, type VariantProps } from "class-variance-authority";
+import { Slot } from "radix-ui";
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils";
 
 const badgeVariants = cva(
   [
@@ -59,8 +59,7 @@ const badgeVariants = cva(
       },
       /** `default`: active style radius. `full`: pill radius. */
       radius: {
-        default:
-          "rounded-sm",
+        default: "rounded-sm",
         full: "rounded-full",
       },
     },
@@ -69,12 +68,12 @@ const badgeVariants = cva(
       size: "default",
       radius: "default",
     },
-  }
-)
+  },
+);
 
 interface BadgeProps
   extends React.ComponentProps<"span">, VariantProps<typeof badgeVariants> {
-  asChild?: boolean
+  asChild?: boolean;
 }
 
 function Badge({
@@ -85,7 +84,7 @@ function Badge({
   asChild = false,
   ...props
 }: BadgeProps) {
-  const Comp = asChild ? Slot.Root : "span"
+  const Comp = asChild ? Slot.Root : "span";
 
   return (
     <Comp
@@ -93,7 +92,7 @@ function Badge({
       className={cn(badgeVariants({ variant, size, radius, className }))}
       {...props}
     />
-  )
+  );
 }
 
-export { Badge, badgeVariants, type BadgeProps }
+export { Badge, badgeVariants, type BadgeProps };

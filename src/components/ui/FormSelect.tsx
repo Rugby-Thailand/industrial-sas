@@ -17,7 +17,13 @@ export function FormSelect({
   const generatedId = useId();
   const id = props.id ?? generatedId;
   return (
-    <FormField id={id} label={label} required={required} hint={hint} error={error}>
+    <FormField
+      id={id}
+      label={label}
+      required={required}
+      hint={hint}
+      error={error}
+    >
       {(field) => (
         <SelectControl
           {...props}

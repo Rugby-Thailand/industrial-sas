@@ -1,0 +1,150 @@
+# Verified CI/CD platform resources
+
+Verified through authenticated GitHub, Vercel CLI/API/dashboard, and Convex CLI access on 2026-10-09. This file records public resource metadata only. The connected Vercel MCP account returned no teams; the saved native CLI and collaborative dashboard are authenticated to the correct team.
+
+| Resource           | Production                                                         | Isolated CI staging                                                             |
+| ------------------ | ------------------------------------------------------------------ | ------------------------------------------------------------------------------- |
+| Vercel team        | `rugbykritsakorn-9882s-projects` (`team_HIg4nXozZ4oXYYhIMETF8E6r`) | Same team, separate project                                                     |
+| Vercel project     | `industrial-sas` (`prj_XQbt4f38BNrAvf593UstPk76rRik`)              | `industrial-sas-staging` (`prj_qrzHbzKt7oIKziO8wzI8GP00KAUA`)                   |
+| Frontend           | <https://app.thaipropertyai.com>                                   | <https://industrial-sas-staging.vercel.app> (READY; authenticated smoke passed) |
+| Convex reference   | `trustera:industrial-sas:prod`                                     | `trustera:industrial-sas:preview/ci-staging`                                    |
+| Convex cloud       | <https://greedy-cardinal-537.convex.cloud>                         | <https://befitting-stoat-208.convex.cloud>                                      |
+| Convex site        | <https://greedy-cardinal-537.convex.site>                          | <https://befitting-stoat-208.convex.site>                                       |
+| Clerk issuer       | <https://clerk.thaipropertyai.com> (live public key verified)      | <https://creative-doberman-56.clerk.accounts.dev> (test instance verified)      |
+| GitHub environment | `production-release`                                               | `staging`                                                                       |
+
+The older `artful-wolf-267` preview is deliberately not used: ownership and isolation were uncertain. Staging Convex and Vercel resources were newly created without changing the production backend, existing live aliases, or original local environment selection.
+
+## Credentials and environment isolation
+
+Both GitHub environments have `VERCEL_TOKEN` configured directly as encrypted secrets. Tokens were newly created with Vercel's project restriction and 90-day expiration (2027-01-07 UTC); each was tested against its intended project, while access to the other project returned HTTP 404. The temporary one-hour bootstrap token was revoked and its private copy removed. Rotate the CI tokens before expiry; no token values belong in this repository or reports.
+
+GitHub staging also has `CONVEX_DEPLOY_KEY` and `CLERK_SECRET_KEY`. Vercel staging Production and Preview targets have the dedicated Convex deploy key, the existing Clerk development secret key, matching public keys/URLs/issuer, and `RELEASE_ENVIRONMENT=staging`. Production credentials remain in the existing Vercel production project. Its Production target now has the public `RELEASE_ENVIRONMENT=production` label, verified by authenticated readback. Both projects have `autoExposeSystemEnvs=true` and Node `24.x`, providing the build identifiers checked by the environment validator. Staging frontend builds use the staging project's Production target, so `VERCEL_ENV=production` alone must never select live Clerk/Convex resources. Validate the declared project and deployment identity instead.
+
+Convex CLI 1.46 creates a deployment-scoped key for this preview with a `dev:befitting-stoat-208` prefix. This is a concrete deployment key, not the project-wide `preview:team:project` key: use normal `convex deploy` and validate the expected deployment name; do not add `--preview-create` or recreate the database.
+
+Both Vercel projects use Node 24.x. Staging is configured with Next.js, frozen pnpm installation, and the coupled Convex/frontend build command. The release PR must reconcile that command with its environment validator before backend mutation. Staging project build-command readback matches the audited provenance/environment gate, and its ignored-build-step command is unset. Actual pinned Vercel CLI 63.1.0 builds used the frozen release workspace and completed the coupled frontend/backend build with both validation phases. The backend `E2E_FIXTURE_TARGET=befitting-stoat-208` marker was configured and read back successfully. The reviewed application/backend is deployed on staging and the namespaced fixture lifecycle passed. See [Clerk evidence](./ci-cd-clerk-evidence.md) for the dedicated webhook, enabled after the reviewed handler was deployed.
+
+## GitHub enforcement applied
+
+- Active [main ruleset](https://github.com/Rugby-Thailand/industrial-sas/rules/24799747), no bypass actors: deletion/non-fast-forward restrictions; pull requests with zero mandatory approvals; optional code-owner/last-push review; resolved conversations; strict required `check`, `Analyze (javascript-typescript)` and `Analyze (actions)` from GitHub Actions (integration 15368), plus native `CodeQL` from GitHub Advanced Security (integration 57789).
+- Secret scanning, push protection, vulnerability alerts, and automated security fixes enabled. Initial open secret-alert inventory was empty.
+- Actions SHA pinning enforced. Selected actions allow GitHub-owned actions plus `pnpm/action-setup@*` and `github/codeql-action/*@*`. Additional third-party actions require a reviewed allowlist update.
+- `production-release` and `staging` have a main-only branch policy, zero reviewers, and no wait timer. The user's release policy is automatic after CI passes.
+
+## Validation and cutover still to perform
+
+The reserved production candidate host is <https://ci-candidate.thaipropertyai.com>. It was added to the existing production Vercel project, verified with correctly configured DNS, and recorded as `PRODUCTION_CANDIDATE_URL` in GitHub. Existing `app.thaipropertyai.com` and `industrial-sas.vercel.app` assignments were verified unchanged. This host shares the production Clerk root domain; that provides a suitable candidate hostname for verifying future artifacts. The release controller must explicitly bind this candidate alias to the staged production deployment ID before checking it, then promote that same ID.
+
+Read-only browser verification on the currently serving production artifact returned HTTP 200 on the candidate host. Clerk loaded from `clerk.thaipropertyai.com`, the existing browser session was authenticated with an active organization, and navigation reached `/th/master-data/storage-layouts` with no alert elements. No session credentials or user/organization details were extracted, and no business writes were performed. This confirms the reserved host works with current production authentication; it does not verify the future PR artifact or provide a CI service identity. The isolated staging alias now serves the reviewed application and passed the live checks recorded below.
+
+Kiro implementation and independent Codex fixes are complete. Local focused tests, typecheck, lint, formatting, production build, generated-code freshness, workflow validation and credential-free browser suites have passed; the final full shards passed all 2163 tests across 189 files with zero retries, failures or skips, and the exact two-shard JUnit/coverage merge passed (82.14% configured-path line coverage). Live staging rehearsal passed all 12 required checks, with zero failures/retries, one declared optional production-identity skip, and complete owned-fixture cleanup. GitHub execution of the new workflows, GitHub-issued staging OIDC, authentication of a new production candidate artifact and the coordinated production cutover require subsequent execution. Resource configuration alone does not establish those proofs. This task prepares a PR; merging it and deploying changed production application/backend code are separate actions.
+
+## Production backup gap independently verified
+
+Authenticated metadata checks on 2026-10-09 found no periodic backup configuration and zero stored cloud snapshots for `greedy-cardinal-537`. Current team entitlement has `periodicBackupsEnabled=false` and `maxCloudBackups=2`; no purchase or upgrade has been authorized. This was the initial observation; the snapshot, disposable data restore, and native export protocol were subsequently verified below. The repository now wires the verified native protocol into the automatic pre-release gate and protected daily refresh; their first GitHub execution follows merge. Periodic cloud scheduling remains unavailable under this entitlement. Personal Convex login credentials must not be copied into GitHub. See the independent platform audit for exact API evidence and least-privilege feasibility.
+
+## Scoped automated recovery credential
+
+`CONVEX_BACKUP_ADMIN_KEY` is configured directly in GitHub environment `production-release`. It is newly created for `greedy-cardinal-537` with exactly `deployment:backups:create` and `deployment:backups:view`, expiring 2027-01-07 UTC. It has no deploy, data-read, import, delete, or backup-download permission. An authenticated `_system/cli/exports:getLatest` query succeeded with this key and returned no previous native snapshot. No existing production deploy secret or personal account token was transferred to GitHub.
+
+This enables automatic metadata-only native snapshot creation/polling before backend mutation, plus a protected daily refresh. The controller must validate production URL/name, include Convex file storage, require a new completed snapshot, and verify returned expiry exceeds the release/recovery window; logs and artifacts contain only sanitized metadata. Native snapshots have source-default fourteen-day expiry, checked through actual `expiration_ts`, and are distinct from seven-day dashboard cloud snapshots. Exact protocol is documented in the independent platform audit.
+
+The coordinator created and verified one completed production cloud snapshot with `includeStorage=true` (ID `1708272`), requested 2026-10-09 16:27:24 UTC and expiring 2026-10-16 16:27:24 UTC. The saved account was used only for this one-time recovery rehearsal; no application/backend code or business data was changed by this request. No snapshot deletion, production restore, paid plan upgrade, or public data archive was performed.
+
+## Completed disposable cloud restore rehearsal
+
+Snapshot `1708272` was restored server-side into a newly created, non-default preview `trustera:industrial-sas:preview/ci-restore-20261009`, deployment `precise-rabbit-956` (ID `6049010`). Source/target project, deployment type, reference, non-default status, exact backup source, storage inclusion, and future expiration were checked before restoration. This is neither production (`5519796`) nor staging (`6047777`). The target expires automatically one hour after creation; no code, environment variables, Clerk webhook destination, or scheduled integrations were copied.
+
+The disposable target credential has only `deployment:backups:import` and `deployment:backups:view`, expires in one hour, and was retained only in a private temporary file. The server-side import reached `completed`, reporting **3296 documents**. Measured request-to-verification wall time was **94.9 seconds**, including the explicit confirmation step. Only aggregate import metadata was inspected; no production records, identities, files, or ZIP contents were downloaded or printed. Production data was not restored or edited.
+
+This proves the current snapshot can be imported to a disposable target and supplies a measured data-restore rehearsal. It does not establish full application recovery, semantic business validation, UploadThing byte coverage, or a future migration's compatibility. Native export recovery and long-term/private external-file archival remain distinct procedures.
+
+## Native snapshot protocol verified live
+
+The backup-only credential successfully created a native production snapshot including Convex storage, then polled `_system/cli/exports:getLatest` to `completed`. Returned metadata had `requestor= snapshotExport`, `format={format:zip, include_storage:true}`, and nanosecond `start_ts`, `complete_ts`, and `expiration_ts`; completion, new-request freshness, and at least a 24-hour remaining recovery window were verified. No archive was downloaded. An explicit download attempt with that same credential was refused (HTTP 403), proving it lacks backup-download permission. The key also lacks import/deploy/data-read/delete permissions by its explicit creation policy.
+
+The independently implemented `scripts/release/lib/convex-backup.mjs` gate was also executed live with the backup-only credential: it returned `BACKUP_COMPLETED`, exact production selection, `includeStorage=true`, fresh start/completion, 275089 bytes, and verified future expiry. Verification took approximately 3.5 seconds at 17:26 UTC. No archive was downloaded, and no raw provider response was published. Its 55 focused regressions passed before this live run.
+
+The verified live result is the protocol for the new controller's automatic pre-release and daily metadata-only backup gate. Source-default fourteen-day retention is still checked through returned expiry, rather than treated as a fixed hosted guarantee. Snapshot contents remain inside authenticated Convex storage; CI publishes only metadata.
+
+## Protected staging access configured
+
+Staging retains Vercel Authentication (`all_except_custom_domains`). Its Trusted Sources configuration now accepts GitHub Actions OIDC from `https://token.actions.githubusercontent.com` with all of these exact claims: audience `https://github.com/Rugby-Thailand`, repository `Rugby-Thailand/industrial-sas`, repository ID `1320219321`, repository owner ID `307631341`, ref `refs/heads/main`, environment `staging`, and workflow ref `Rugby-Thailand/industrial-sas/.github/workflows/quality.yml@refs/heads/main`. The destination is only the staging project's `production` Vercel target. The trusted workflow filename now matches the quality workflow release jobs; exact claim readback passed. A token must be obtained in the environment-scoped job with `id-token: write` and sent as `x-vercel-trusted-oidc-idp-token` only to the exact protected staging origin; never attach it to Clerk, Convex, or arbitrary redirects.
+
+For local verification, only staging's self-project rule adds `development` to `production` access. The existing production-to-production, preview-to-preview, development-to-preview, and development-to-development mappings were preserved. A project-restricted credential successfully minted a short-lived development OIDC token for `prj_qrzHbzKt7oIKziO8wzI8GP00KAUA`; its value stays in a private temporary file and is absent from GitHub and this document. No permanent automation bypass secret or public protection exception was created. Configuration readback and protected access to the real staging application passed with the local project-scoped OIDC token. GitHub-issued OIDC still requires the first main workflow run after merge. Production project trust and protection were not changed.
+
+See [Vercel Trusted Sources](https://vercel.com/docs/deployment-protection/methods-to-bypass-deployment-protection/trusted-sources) and [project update API](https://vercel.com/docs/rest-api/projects/update-an-existing-project). The guided form's workflow field serialized a `workflow` claim; it was tightened to an explicit `workflow_ref` so access is bound to a file and branch instead of depending on a display name.
+
+## External-file provider inventory
+
+Authenticated UploadThing sign-in succeeded with the saved GitHub session. The `industrial` team has app `jfnry4acl6`, named `industrial`, showing 0 bytes in its dashboard. An existing local provider credential belongs to a different app, `8fnloww31u`; the supported metadata API reported five files and 1,859,070 app bytes, with default ACL `public-read`. The local app is not independently established as the production app. No file names, file keys, URLs, contents, or signed access links were inspected or downloaded, and neither app was changed.
+
+The production Vercel project has a `sensitive` `UPLOADTHING_TOKEN` scoped to Production and a separate sensitive Preview entry. Its production value is not readable through the authenticated environment API; the attempted private inspection could not decode an available provider token and published no value. Do not substitute the local app or the empty industrial app, overwrite production provider credentials, or claim Convex snapshots cover either provider's files. Production association, external-file backup retention/restoration, and alert delivery remain explicit operational proof gaps. [UploadThing metadata API](https://docs.uploadthing.com/api-reference/ut-api) documents aggregate usage; [Convex backups](https://docs.convex.dev/database/backup-restore) cover Convex storage only.
+
+## Backend issuer readback
+
+Private, deployment-explicit `convex env get CLERK_JWT_ISSUER_DOMAIN` checks returned the reviewed issuer for both `trustera:industrial-sas:prod` and `trustera:industrial-sas:preview/ci-staging`. Only match booleans and command exit codes were published. This confirms the current backend JWT issuer configuration; it does not establish webhook delivery, authenticated application access, fixture cleanup, or the future build validator's issuer enforcement.
+
+## Frozen-main public API comparison
+
+The public-contract inventory was independently regenerated against a detached checkout of frozen main `cc42063335f1355b053a4544c5ed658dd0b6d1f2`: all nine contract tests passed. All 87 registered public argument/return validator contracts match exactly. New staging handlers are internal-only. This inventory proves validator compatibility; it does not strengthen existing broad `v.any()` payload schemas or imply successful invocation coverage for every public function.
+
+## Credential-free generated-code verification
+
+The final freshness helper uses the fixed Convex local-backend release `precompiled-2026-10-06-a3538c6`, with official platform-specific SHA-256 digests checked before extraction. It creates a fresh local instance/admin key, binds loopback only, disables the beacon, verifies instance identity and stops its owned backend before deleting private state. All ambient `CONVEX_*` variables and existing runtime environment/state are refused before setup. The private loopback selector is synthesized by the helper; it cannot select a cloud deployment. A real fresh run exited zero and matched committed generated output; 26 isolation/lifecycle/checksum regressions passed. This avoids CLI 1.46 anonymous initialization fetching an unpinned latest binary and leaving an unmanaged daemon.
+
+## Credentialed browser privacy verification
+
+The sensitive Chromium suites intercept each request and redirect hop through CDP, applying refreshed OIDC only to the exact reviewed staging origin. API requests follow redirects one hop at a time under the same origin policy. Real two-origin browser/API regressions passed. The custom reporter emits only fixed check labels/counts and static failure codes; an actual failing child suite confirmed no sentinel, raw errors, call logs, attachments, screenshots, traces, video or error-context artifacts were retained or printed. The anonymous production-mode suite passed all 70 checks with zero retries. All 16 workspace width/locale/theme combinations passed, and the default harness passed three consecutive zero-retry runs. These local checks are separate from the live staging evidence below. The final interception fix passed 10 real Chromium regressions and 25 browser privacy checks with zero retries. Only an exact invalid-interception protocol error with a matching cancelled network request is accepted; unknown errors and unconfirmed cancellation remain fatal.
+
+## Completed live staging acceptance
+
+At 2026-10-09 19:30 UTC, the normal `playwright.staging.config.ts` suite exited zero against READY deployment `dpl_FSdQxTkq4icpFYr3Pva3hYASPBec`, application/backend source `4ad357eed1904899d7c3c2794a675ad4168617e7`. The stable alias, project/team, deployment target, source SHA and response provenance were checked. Subsequent branch changes contain only the tested browser harness corrections and this evidence; application/backend code is the deployed source. The first main release will build and check its own exact merged SHA.
+
+**12 required checks passed, zero failures and zero retries.** One optional read-only production-identity check was explicitly skipped because that CI identity is not configured. Passed checks cover response provenance/security headers, signed-out routes, correct staging key/backend selection, invalid webhook signature refusal, sign-in widget, authenticated organization/warehouse context, UI building creation and reload, layout editing, pallet placement/movement with UI readback, forbidden warehouse and tenant access, invalid JWT refusal and sign-out/private-route protection.
+
+The dedicated Clerk endpoint was enabled and verified. Actual Clerk-created identities and memberships reached the staging backend through signed webhooks; JWT authentication and namespaced application writes succeeded. Cleanup removed exactly owned Clerk resources, confirmed signed terminal state and bounded application cleanup, and removed the private fixture ledger. `cleanupComplete=true` was independently required by the local wrapper. No fixture identities remain from the accepted run. Local project OIDC proof is separate from the pending GitHub-issued main-job proof.
+
+The final protected-origin helper passed 10 real Chromium cancellation/origin/redirect checks and 25 privacy regressions. Reports contain static labels/counts only; no credentialed trace, video, screenshot, DOM/error context or raw provider response is published.
+
+A read-only production inventory at 18:49:55 UTC found 64 deployments, zero in-flight builds, zero newer unreconciled deployments and zero deploy hooks. Serving production deployment `dpl_FNzgxuVBUS7cVZ75DkL86wxjQPZD` and existing live aliases remained unchanged. This verifies pre-PR readiness; the controller repeats the guards before a future release.
+
+## First GitHub execution and required scanning
+
+PR [#47](https://github.com/Rugby-Thailand/industrial-sas/pull/47) first executed the workflows on source `5168809e820b079baef66de648881828002bf244`. [Planner quality run 37980750289](https://github.com/Rugby-Thailand/industrial-sas/actions/runs/37980750289) passed validation (workflow/pins, format, cold types, lint, three audits, discovery and clean tree), both test shards, merged report, credential-free codegen, production-mode build and anonymous/workspace browser jobs. Dependency review found a vulnerable `path-to-regexp@6.1.0` in the standalone release lock; consequently `check` failed and merging remained blocked. PR release jobs were intentionally skipped by their main-only event/ref policy.
+
+[CodeQL run 37980750307](https://github.com/Rugby-Thailand/industrial-sas/actions/runs/37980750307) successfully analyzed JavaScript/TypeScript and Actions. The native scan check failed on one high filesystem-race finding and four medium dataflow findings, triggering fixes and contextual review. These are first-run observations, not a claim that the final PR head is green.
+
+After observing both successful analysis jobs and the native check, main ruleset `24799747` was strengthened to require all four observed contexts: `check`, both `Analyze (...)` jobs and native `CodeQL`, bound to their actual app integrations. Authenticated readback confirmed strict up-to-date enforcement and every existing review/deletion/non-fast-forward/no-bypass guard remained intact. Native alert status is required alongside successful upload jobs; successful analysis alone does not authorize merge. This follows [GitHub's required status-check controls](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/available-rules-for-rulesets#require-status-checks-to-pass-before-merging).
+
+## CodeQL finding review and CI fixes
+
+The first scan's high [alert 1](https://github.com/Rugby-Thailand/industrial-sas/security/code-scanning/1) identified a genuine generated-file check/read race. Snapshotting now opens with `O_NOFOLLOW | O_NONBLOCK`, checks the opened descriptor with `fstat`, hashes that same descriptor and closes it in `finally`. Symlinks and FIFOs are refused, and deterministic pathname replacement is tested. The workflow helper also no longer executes an independently mutable extracted cache binary: only archive bytes are cached, SHA256 is reverified, those exact bytes are extracted into owned private execution temp, and the caller removes it after execution. Cached binary tampering, archive tampering and cache-leaf symlink replacement have regressions. The codegen/cache/workflow focused run passed **58 checks**, with types, lint, formatting and real actionlint also passing.
+
+[Alert 2](https://github.com/Rugby-Thailand/industrial-sas/security/code-scanning/2) traced public reviewed repository/ref configuration into the GitHub ref lookup. Release source is now explicitly restricted to the canonical repository and `main`; the credential-bearing request uses a fixed reviewed GitHub API URL. Adverse source/runtime tests reject foreign repositories, injected configuration and non-main refs before operations. The combined entrypoint/orchestration/backup/CLI-parser run passed **145 checks** with types/lint/format and frozen release installation.
+
+Complete SARIF codeflows for [alert 3](https://github.com/Rugby-Thailand/industrial-sas/security/code-scanning/3) and [alert 4](https://github.com/Rugby-Thailand/industrial-sas/security/code-scanning/4) taint only downloaded response **contents**, not destination paths. Both writes use fixed names in private owned temporary directories, after comparing response bytes with the hard-coded SHA256 of an exact official platform/release asset; mismatches throw before extraction/execution. Only the named executable is extracted. The actionlint cache fix above closes its separate executable-integrity gap. These intended verified tool-download flows were reviewed by independent Codex and the coordinator and dismissed as **false positives**, with evidence retained in each native alert.
+
+[Alert 5](https://github.com/Rugby-Thailand/industrial-sas/security/code-scanning/5) is intentional scoped OIDC IPC. The credentialed request is restricted to the GitHub Actions HTTPS provider and refuses redirects; response token lifetime is checked, and a fixed token filename is atomically replaced inside private `0700` temporary storage with file mode `0600`. Refresh is bounded, workers receive only the path, upload/reporting excludes the file and `finally` removes the directory. No response-derived destination or executable is used. Independent review and the coordinator dismissed this contextual finding as a **false positive**, retaining evidence in the native alert. No query exclusion, inline suppression or broad dismissal policy was added.
+
+Dependency review's genuine `path-to-regexp@6.1.0` finding was fixed with an exact same-major `6.3.0` override and regenerated standalone lock. Both installed Vercel builders resolve the patched version; normal routing and bounded adverse-input checks passed. The pinned pnpm audit's alias-collision limitation and retained dependency-review requirement are documented in the [independent audit follow-up](ci-cd-platform-independent-audit.md#pr-security-scan-follow-up-2026-10-10). The final GitHub scan must confirm the source fixes and patched dependency review; earlier green jobs alone do not satisfy the required latest-head checks.
+
+## Owner-directed merge policy correction — 2026-10-10
+
+The owner requested a merge policy without a second-person approval wait.
+Ruleset `24799747` now requires zero approving reviews, with mandatory
+code-owner review, last-push approval, stale-approval dismissal and extra
+unattributed-change approvals disabled. `CODEOWNERS` remains for optional
+review routing and incident ownership. A maintainer may merge their own green
+PR. The PR requirement, strict current CI checks, both CodeQL analysis checks,
+native CodeQL alert result, resolved conversations, deletion/non-fast-forward
+protection and empty bypass list are retained. This supersedes the initial
+independent-review recommendation and the earlier approval settings recorded
+in the audit history. Production release remains automatic after main CI and
+staging pass.
+
+The speed improvement is removal of an indefinite human approval wait. It does
+not assert that CI execution became faster: the last observed green PR quality
+run took about two minutes, with jobs running in parallel. All automated test
+and security gates remain required.

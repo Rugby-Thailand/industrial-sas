@@ -77,6 +77,18 @@ export function sameOriginReferenceFrameHeaders(
   });
 }
 
+/**
+ * Public build provenance for release smoke checks. The gated release build
+ * sets RELEASE_SHA (a public commit SHA); any other value emits nothing.
+ */
+export function releaseProvenanceHeaders(
+  releaseSha: string | undefined,
+): ResponseHeader[] {
+  return /^[0-9a-f]{40}$/.test(releaseSha ?? "")
+    ? [{ key: "X-Release-Sha", value: releaseSha as string }]
+    : [];
+}
+
 export const SECURITY_POLICY = {
   ENFORCED_CSP,
   REPORTED_CSP,

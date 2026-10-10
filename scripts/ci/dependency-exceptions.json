@@ -1,0 +1,21 @@
+{
+  "exceptions": [
+    {
+      "ghsa": "GHSA-vfj7-8cjw-p6xm",
+      "package": "braces",
+      "version": "3.0.3",
+      "severity": "high",
+      "expiresAt": "2026-11-09T00:00:00Z",
+      "owner": "Repository maintainers listed in CODEOWNERS",
+      "reason": "No upstream fix is available. Trusted development/release CLI glob parsing only; the production application dependency audit is clean. Remove this exception when patched and reassess bundled CLI code independently.",
+      "paths": {
+        "app": [
+          ".>eslint-config-next>@next/eslint-plugin-next>fast-glob>micromatch>braces"
+        ],
+        "release": [
+          ".>vercel>@vercel/backends>ts-morph>@ts-morph/common>fast-glob>micromatch>braces"
+        ]
+      }
+    }
+  ]
+}

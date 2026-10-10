@@ -1,0 +1,59 @@
+# Source uploads use .vercelignore, not .gitignore. Never upload local secrets,
+# authenticated browser state, reports, backups, or operator artifacts.
+.env
+.env.*
+*.env
+.envrc
+.auth/
+playwright/.auth/
+playwright/.cache/
+.convex/
+.aws/
+.ssh/
+*.pem
+*.key
+*.p12
+*.pfx
+*.keystore
+*.jks
+secrets.json
+credentials.json
+service-account*.json
+.sentryclirc
+
+test-results/
+playwright-report/
+blob-report/
+coverage/
+.nyc_output/
+.vitest/
+*.lcov
+junit.xml
+lighthouse-report.*
+release-output/
+/data/
+/artifacts/
+/output/
+/tmp/
+/temp/
+/logs/
+/pids/
+*.log
+*.pid
+*.pid.lock
+*.seed
+*.local
+*.tmp
+
+# Remote builds install dependencies and regenerate local build output. Keep
+# src, public, convex (including generated contracts), release build helpers,
+# package/lock/toolchain files, and vercel.json in the uploaded source.
+node_modules/
+.pnpm-store/
+.next*/
+.turbo/
+.swc/
+.cache/
+*.tsbuildinfo
+.vercel/
+.git/

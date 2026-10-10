@@ -4,8 +4,8 @@
 
 สินค้า `TG-DEMO-BOX-01 — Demo Paper Carton` มี 4 pallet ที่ยังไม่ได้วางใน location รวม 108 cartons
 
-| Pallet | Lot | จำนวน | สถานะ | จุดทดสอบที่แนะนำ |
-| --- | --- | ---: | --- | --- |
+| Pallet   | Lot            |      จำนวน | สถานะ              | จุดทดสอบที่แนะนำ                |
+| -------- | -------------- | ---------: | ------------------ | ------------------------------- |
 | P-000001 | TG-DEMO-LOT-01 | 48 cartons | Awaiting placement | TG-A-F01-Z01 — Receiving and QC |
 | P-000002 | TG-DEMO-LOT-02 | 20 cartons | Awaiting placement | TG-A-F01-Z02 — Pallet Storage A |
 | P-000003 | TG-DEMO-LOT-02 | 20 cartons | Awaiting placement | TG-A-F01-Z02 — Pallet Storage A |

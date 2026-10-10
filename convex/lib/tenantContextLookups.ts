@@ -65,17 +65,42 @@ export function createConvexTenantContextLookups(
 
   const findMembershipByOrganizationAndUser: TenantContextLookups["findMembershipByOrganizationAndUser"] =
     async ({ orgId, userId }): Promise<MembershipDocument | null> => {
-      const rows = await db
-        .query("memberships")
-        // `["orgId", "userId"]`: the tenant first, then the actor. Reversing the
-        // two would not compile — Convex checks the equality order against the
-        // declared index — which is the property `INV-0002-02` wants held by the
-        // type system rather than by review.
-        .withIndex("by_orgId_userId", (q) =>
-          q.eq("orgId", orgId).eq("userId", userId),
-        )
-        .take(EXACT_TAKE);
-      const membership = atMostOne(rows);
+      // A re-add has a new Clerk membership ID. Retain revoked tombstones, but
+      // resolve only one current membership. Exact indexed status buckets keep
+      // the read bounded even after many historical revocations.
+      const readBucket = async (status: MembershipDocument["status"]) => {
+        const rows = await db
+          .query("memberships")
+          .withIndex("by_orgId_status_userId", (q) =>
+            q.eq("orgId", orgId).eq("status", status).eq("userId", userId),
+          )
+          .take(EXACT_TAKE);
+        if (!Array.isArray(rows)) throw invalidResult();
+        if (
+          rows.some(
+            (row) =>
+              row === null ||
+              typeof row !== "object" ||
+              row.orgId !== orgId ||
+              row.userId !== userId ||
+              row.status !== status,
+          )
+        ) {
+          throw invalidResult();
+        }
+        return rows;
+      };
+      const buckets = await Promise.all([
+        readBucket("ACTIVE"),
+        readBucket("SUSPENDED"),
+      ]);
+      const current = buckets.flat();
+      // Preserve the public inactive denial for a revoked-only membership.
+      // Historical rows must never rescue ambiguous current memberships or
+      // mask the sole active re-add. The fallback is an exact, bounded read.
+      const membership = atMostOne(
+        current.length === 0 ? await readBucket("REVOKED") : current,
+      );
       if (membership === null) return null;
       return membership.orgId === orgId && membership.userId === userId
         ? membership

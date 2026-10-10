@@ -4,7 +4,10 @@ import { expect, it, vi } from "vitest";
 import { useCatalogueSync, type CatalogueOutcome } from "./useCatalogueSync";
 
 function setup() {
-  const continuation = { cursor: undefined as string | undefined, advance: vi.fn() };
+  const continuation = {
+    cursor: undefined as string | undefined,
+    advance: vi.fn(),
+  };
   const paging = {
     cursor: "page-2",
     canPrevious: true,
@@ -28,7 +31,10 @@ it("continues scans and recovers an empty last page only once per criteria", () 
     {
       initialProps: {
         key: "criteria-a",
-        outcome: { ok: true as const, value: { status: "scanning" as const, scanCursor: "scan-2" } },
+        outcome: {
+          ok: true as const,
+          value: { status: "scanning" as const, scanCursor: "scan-2" },
+        },
       },
     },
   );

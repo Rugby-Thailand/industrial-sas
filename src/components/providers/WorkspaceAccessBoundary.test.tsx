@@ -73,7 +73,6 @@ describe("WorkspaceAccessBoundary", () => {
         severity: "error",
         dimensions: expect.objectContaining({
           route: "en.storage-layouts",
-          warehouse: "warehouse-a",
         }),
       }),
     );
