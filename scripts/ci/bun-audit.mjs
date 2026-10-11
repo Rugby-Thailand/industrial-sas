@@ -50,6 +50,32 @@ export function rawAuditProblems({
   timedOut,
   outputExceeded,
   spawnError,
+  cleanupError,
+  stdout,
+  stderr,
+}) {
+  const problems = childProblems({
+    status,
+    signal,
+    timedOut,
+    outputExceeded,
+    spawnError,
+    stdout,
+    stderr,
+  });
+  // A child whose owned temporary HOME could not be removed is never
+  // certified as a clean run, whatever its report says.
+  return cleanupError
+    ? [`bun audit isolated HOME cleanup failed: ${cleanupError}`, ...problems]
+    : problems;
+}
+
+function childProblems({
+  status,
+  signal,
+  timedOut,
+  outputExceeded,
+  spawnError,
   stdout,
   stderr,
 }) {
@@ -236,26 +262,59 @@ export function decide(
 }
 
 export function runBunAudit(bun, directory, production) {
+  // Host error text can name the temporary path; report only a plain errno code.
+  const hostFailure = (error) =>
+    typeof error?.code === "string" && /^E[A-Z0-9]+$/.test(error.code)
+      ? error.code
+      : "unknown host error";
   return new Promise((done) => {
+    // A creation failure owns nothing; the executor throw rejects (fail closed).
     const auditHome = mkdtempSync(join(tmpdir(), "t03-bun-audit-home-"));
+    // Every settlement below removes the owned HOME exactly once and reports,
+    // rather than throws, a removal failure so the result is always refused.
+    const removeHome = () => {
+      try {
+        rmSync(auditHome, { recursive: true, force: true });
+        return null;
+      } catch (error) {
+        return hostFailure(error);
+      }
+    };
     const args = [
       "--no-env-file",
       "audit",
       "--json",
       ...(production ? ["--prod"] : []),
     ];
-    const child = spawn(bun, args, {
-      cwd: directory,
-      // Isolated global config and no inherited credentials. Project registry
-      // configuration is separately rejected by coverageProblems.
-      env: {
-        HOME: auditHome,
-        XDG_CONFIG_HOME: auditHome,
-        PATH: process.env.PATH ?? "",
-        NO_COLOR: "1",
-      },
-      stdio: ["ignore", "pipe", "pipe"],
-    });
+    let child;
+    try {
+      child = spawn(bun, args, {
+        cwd: directory,
+        // Isolated global config and no inherited credentials. Project registry
+        // configuration is separately rejected by coverageProblems.
+        env: {
+          HOME: auditHome,
+          XDG_CONFIG_HOME: auditHome,
+          PATH: process.env.PATH ?? "",
+          NO_COLOR: "1",
+        },
+        stdio: ["ignore", "pipe", "pipe"],
+      });
+    } catch (error) {
+      // Synchronous host refusal (for example EAGAIN): no child exists, so
+      // nothing else will settle this promise or remove the HOME.
+      done({
+        status: null,
+        signal: null,
+        timedOut: false,
+        outputExceeded: false,
+        spawnError: `synchronous spawn failure (${hostFailure(error)})`,
+        cleanupError: removeHome(),
+        stdout: "",
+        stderr: "",
+      });
+      return;
+    }
     // Raw byte chunks per stream, decoded once at close so a UTF-8 sequence
     // split across chunks survives; the running count bounds raw bytes.
     const output = {
@@ -285,13 +344,14 @@ export function runBunAudit(bun, directory, production) {
     child.on("error", (error) => (spawnError = error.message));
     child.on("close", (status, signal) => {
       clearTimeout(timer);
-      rmSync(auditHome, { recursive: true, force: true });
+      const cleanupError = removeHome();
       done({
         status,
         signal,
         timedOut,
         outputExceeded,
         spawnError,
+        cleanupError,
         stdout: Buffer.concat(output.stdout.chunks).toString("utf8"),
         stderr: Buffer.concat(output.stderr.chunks).toString("utf8"),
       });

@@ -4,10 +4,12 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  realpathSync,
   rmSync,
   symlinkSync,
   writeFileSync,
 } from "node:fs";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -126,16 +128,21 @@ function reviewFor(
   const inventory = inventoryScripts(dir, scope);
   return { [scope]: entries, prepare: { [scope]: prepareDigest(inventory) } };
 }
-const blocked = (spec: Spec, extra: Record<string, unknown> = {}) => ({
-  name: spec.name,
-  version: spec.version,
-  event: Object.keys(spec.scripts ?? {})[0],
-  sha256: sha256(Object.values(spec.scripts ?? {})[0]),
-  body: Object.values(spec.scripts ?? {})[0],
-  paths: [pathOf(spec.entry, spec.name)],
-  decision: "blocked",
-  ...extra,
-});
+const blocked = (spec: Spec, extra: Record<string, unknown> = {}) => {
+  const [script] = Object.entries(spec.scripts ?? {});
+  if (!script) throw new Error(`${spec.name} review fixture needs a script`);
+  const [event, body] = script;
+  return {
+    name: spec.name,
+    version: spec.version,
+    event,
+    sha256: sha256(body),
+    body,
+    paths: [pathOf(spec.entry, spec.name)],
+    decision: "blocked",
+    ...extra,
+  };
+};
 const check = (
   scope: Scope,
   dir: string,
@@ -448,6 +455,47 @@ describe.each(["app", "release"] as const)(
       mkdirSync(join(empty, "node_modules", ".bun"), { recursive: true });
       expect(() => inventoryScripts(empty, scope)).toThrow(
         /no package manifests/,
+      );
+    });
+
+    it("refuses a nested unreviewed script that Node would bind instead of the reviewed sibling", () => {
+      const dir = project([
+        ESBUILD,
+        {
+          entry: "host@1.0.0",
+          name: "host",
+          version: "1.0.0",
+          dependencies: { esbuild: "0.27.0" },
+        },
+      ]);
+      const host = join(dir, "node_modules/.bun/host@1.0.0/node_modules/host");
+      symlinkSync(
+        join("..", "..", "esbuild@0.27.0", "node_modules", "esbuild"),
+        join(host, "..", "esbuild"),
+      );
+      const review = reviewFor(scope, dir, [blocked(ESBUILD)]);
+      expect(check(scope, dir, review, [])).toEqual([]);
+      const nested = join(host, "node_modules", "esbuild");
+      mkdirSync(nested, { recursive: true });
+      writeFileSync(
+        join(nested, "package.json"),
+        JSON.stringify({
+          name: "esbuild",
+          version: "9.0.0",
+          scripts: { postinstall: "INERT_UNREVIEWED_MARKER_NEVER_EXECUTE" },
+        }),
+      );
+      // Resolution only: the nested copy is nearer than the reviewed sibling.
+      expect(
+        createRequire(join(host, "package.json")).resolve(
+          "esbuild/package.json",
+        ),
+      ).toBe(realpathSync(join(nested, "package.json")));
+      expect(() => inventoryScripts(dir, scope)).toThrow(
+        /host\/node_modules: unsupported nested node_modules/,
+      );
+      expect(() => check(scope, dir, review, [])).toThrow(
+        /unsupported nested node_modules/,
       );
     });
   },

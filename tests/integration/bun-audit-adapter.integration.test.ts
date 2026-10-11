@@ -1,7 +1,9 @@
 // T03: opt-in Bun audit adapter. pnpm's audit gates stay authoritative; these
 // cases prove the candidate fails closed and reuses the unchanged policies.
 import { spawnSync } from "node:child_process";
+import type * as NodeChildProcess from "node:child_process";
 import { createHash } from "node:crypto";
+import { EventEmitter } from "node:events";
 import {
   chmodSync,
   existsSync,
@@ -10,10 +12,11 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs";
+import type * as NodeFs from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 
 import { auditProblems } from "../../scripts/ci/audit-dependencies.mjs";
 import {
@@ -159,7 +162,8 @@ type Child = {
   spawnError: string | null;
   stdout: string;
   stderr: string;
-  outputExceeded?: boolean;
+  outputExceeded: boolean;
+  cleanupError: string | null;
 };
 const child = (raw: unknown, overrides: Partial<Child> = {}): Child => ({
   status: raw && typeof raw === "object" && Object.keys(raw).length ? 1 : 0,
@@ -168,6 +172,8 @@ const child = (raw: unknown, overrides: Partial<Child> = {}): Child => ({
   spawnError: null,
   stdout: typeof raw === "string" ? raw : JSON.stringify(raw),
   stderr: "",
+  outputExceeded: false,
+  cleanupError: null,
   ...overrides,
 });
 const advisory = (changes: Record<string, unknown> = {}) => ({
@@ -228,7 +234,8 @@ describe.each(["app", "release"] as const)(
             .length,
         ).toBeGreaterThan(0);
         const unresolved = graphOf(scope);
-        unresolved.problems.push("unresolved dependency binding");
+        const unresolvedProblems: string[] = unresolved.problems;
+        unresolvedProblems.push("unresolved dependency binding");
         expect(
           run(mode, scope, { raw: {}, graph: unresolved }).problems.length,
         ).toBeGreaterThan(0);
@@ -398,7 +405,9 @@ describe.each(["app", "release"] as const)(
 
     it("fails closed for skipped or private-registry packages even on a clean report", () => {
       const lock = scopeLock(scope);
-      lock.packages.braces[1] = "https://registry.example.test/";
+      const braces = lock.packages.braces;
+      if (!braces) throw new Error("scope fixture lacks braces");
+      braces[1] = "https://registry.example.test/";
       expect(coverageProblems(bunGraph(lock, { scope }))).toEqual([
         "braces@3.0.3: non-default registry https://registry.example.test/; not audited",
       ]);
@@ -548,7 +557,9 @@ describe("matched real registry reports (frozen 2026-10-11 captures)", () => {
       const pnpmBraces = Object.values(pnpmReport.advisories).find(
         (row) => (row as { module_name: string }).module_name === "braces",
       ) as { findings: { paths: string[] }[] };
-      expect(pnpmBraces.findings[0].paths).toEqual(exception.paths[scope]);
+      const [pnpmFinding] = pnpmBraces.findings;
+      if (!pnpmFinding) throw new Error("pnpm report lacks a braces finding");
+      expect(pnpmFinding.paths).toEqual(exception.paths[scope]);
       // That one path is exactly pnpm 10.33.2's audit-tree walk.
       expect(pnpmAuditTreePaths(lock).get("braces@3.0.3")).toEqual(
         exception.paths[scope],
@@ -569,9 +580,11 @@ describe("matched real registry reports (frozen 2026-10-11 captures)", () => {
         (row) => (row as { module_name: string }).module_name === "braces",
       ) as { findings: { version: string; paths: string[] }[] };
       expect(braces.findings).toHaveLength(1);
-      expect(braces.findings[0].version).toBe("3.0.3");
-      expect(braces.findings[0].paths.length).toBeGreaterThan(1);
-      expect(braces.findings[0].paths).toEqual(
+      const [finding] = braces.findings;
+      if (!finding) throw new Error("Bun report lacks a braces finding");
+      expect(finding.version).toBe("3.0.3");
+      expect(finding.paths.length).toBeGreaterThan(1);
+      expect(finding.paths).toEqual(
         expect.arrayContaining(exception.paths[scope]),
       );
       // All-severity counts match pnpm's report for the same advisories.
@@ -621,7 +634,7 @@ describe("bun-audit.mjs CLI (replay only; no network)", () => {
   const cli = (args: string[]) =>
     spawnSync(process.execPath, ["scripts/ci/bun-audit.mjs", ...args], {
       encoding: "utf8",
-      env: { PATH: process.env.PATH ?? "" },
+      env: { NODE_ENV: "test", PATH: process.env.PATH ?? "" },
     });
 
   it("passes a clean replay, fails a mixed one and rejects bad usage", () => {
@@ -661,6 +674,38 @@ describe("bun-audit.mjs CLI (replay only; no network)", () => {
       cli([...base, "--mode=runtime", "--ignore=GHSA-vfj7-8cjw-p6xm"]).status,
     ).toBe(2);
   });
+
+  it.each([
+    ["repeated", '"dependencies":{"next":"0.0.0"}'],
+    ["escaped", '"depend\\u0065ncies":{"next":"0.0.0"}'],
+    ["nested", '"overrides":{"braces":"3.0.3","braces":"0.0.0"}'],
+  ])(
+    "fails closed on a %s duplicate candidate manifest key a clean replay would hide",
+    (_label, decoy) => {
+      const workspace = scopeLock("app", { extra: true }).workspaces[""];
+      const project = mkdtempSync(join(dir, "duplicate-"));
+      writeFileSync(join(project, "clean.json"), "{}");
+      writeFileSync(
+        join(project, "bun.lock"),
+        JSON.stringify(scopeLock("app", { extra: true })),
+      );
+      // A top-level decoy precedes the real key, so last-key-wins parsing passes.
+      writeFileSync(
+        join(project, "package.json"),
+        `{${decoy},${JSON.stringify(workspace).slice(1)}`,
+      );
+      const result = cli([
+        "--scope=app",
+        `--bun-dir=${project}`,
+        "--mode=runtime",
+        `--replay=${join(project, "clean.json")}:0`,
+      ]);
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain(
+        "Bun audit candidate failed closed: Duplicate JSON object key",
+      );
+    },
+  );
 });
 
 describe("unambiguous JSON security evidence", () => {
@@ -795,5 +840,124 @@ describe("owned Bun audit child (inert fake executable; no registry calls)", () 
     const result = await runBunAudit(join(dir, "absent"), dir, false);
     expect(result.spawnError).toBeTruthy();
     expect(rawAuditProblems(result)[0]).toContain("could not start");
+  });
+});
+
+describe("owned audit HOME under host IO failures (inert mocked IO; no child)", () => {
+  // Host failures are injected into fresh module instances: nothing is
+  // spawned, no directory is created and no signal reaches any process.
+  afterEach(() => {
+    vi.doUnmock("node:child_process");
+    vi.doUnmock("node:fs");
+    vi.resetModules();
+  });
+  type FakeChild = EventEmitter & {
+    stdout: EventEmitter;
+    stderr: EventEmitter;
+    kill: () => boolean;
+  };
+  const hostError = (message: string, code?: string) =>
+    Object.assign(new Error(message), code ? { code } : {});
+  async function inertAudit({
+    createThrows = null as Error | null,
+    spawnThrows = null as Error | null,
+    removeThrows = null as Error | null,
+  } = {}) {
+    const made: string[] = [];
+    const removed: unknown[][] = [];
+    const children: FakeChild[] = [];
+    vi.resetModules();
+    vi.doMock("node:fs", async (importOriginal) => ({
+      ...(await importOriginal<typeof NodeFs>()),
+      mkdtempSync: (prefix: string) => {
+        if (createThrows) throw createThrows;
+        made.push(`${prefix}inert`);
+        return `${prefix}inert`;
+      },
+      rmSync: (...args: unknown[]) => {
+        removed.push(args);
+        if (removeThrows) throw removeThrows;
+      },
+    }));
+    vi.doMock("node:child_process", async (importOriginal) => ({
+      ...(await importOriginal<typeof NodeChildProcess>()),
+      spawn: () => {
+        if (spawnThrows) throw spawnThrows;
+        const fake: FakeChild = Object.assign(new EventEmitter(), {
+          stdout: new EventEmitter(),
+          stderr: new EventEmitter(),
+          kill: () => true,
+        });
+        children.push(fake);
+        return fake;
+      },
+    }));
+    const audit = await import("../../scripts/ci/bun-audit.mjs");
+    return { audit, made, removed, children };
+  }
+
+  it("removes the created HOME and settles refused when spawn throws synchronously", async () => {
+    const io = await inertAudit({
+      spawnThrows: hostError("spawn EAGAIN /inert/private/path", "EAGAIN"),
+    });
+    const result = await io.audit.runBunAudit("/inert/bun", "/inert", false);
+    expect(io.made).toHaveLength(1);
+    expect(io.removed).toEqual([
+      [io.made[0], { recursive: true, force: true }],
+    ]);
+    expect(result).toMatchObject({
+      spawnError: "synchronous spawn failure (EAGAIN)",
+      cleanupError: null,
+      stdout: "",
+    });
+    expect(io.audit.rawAuditProblems(result)).toEqual([
+      "bun audit could not start: synchronous spawn failure (EAGAIN)",
+    ]);
+  });
+
+  it("settles a clean exit as refused, without the host path, when HOME removal throws", async () => {
+    const io = await inertAudit({
+      removeThrows: hostError("EACCES: /inert/private/path", "EACCES"),
+    });
+    const pending = io.audit.runBunAudit("/inert/bun", "/inert", false);
+    const [fake] = io.children;
+    if (!fake) throw new Error("spawn mock was not called");
+    // A clean registry report and exit 0: only the cleanup failure remains.
+    fake.stdout.emit("data", Buffer.from("{}"));
+    fake.emit("close", 0, null);
+    const result = await pending;
+    expect(io.removed).toHaveLength(1);
+    expect(result).toMatchObject({ status: 0, stdout: "{}" });
+    expect(result.cleanupError).toBe("EACCES");
+    const problems = io.audit.rawAuditProblems(result);
+    expect(problems).toEqual([
+      "bun audit isolated HOME cleanup failed: EACCES",
+    ]);
+    expect(problems.join()).not.toContain("/inert/private");
+  });
+
+  it("reports both failures when spawn and HOME removal throw, with no code leak", async () => {
+    const io = await inertAudit({
+      spawnThrows: hostError("spawn failed at /inert/private/path"),
+      removeThrows: hostError("cannot remove /inert/private/path"),
+    });
+    const result = await io.audit.runBunAudit("/inert/bun", "/inert", true);
+    expect(io.removed).toHaveLength(1);
+    expect(io.audit.rawAuditProblems(result)).toEqual([
+      "bun audit isolated HOME cleanup failed: unknown host error",
+      "bun audit could not start: synchronous spawn failure (unknown host error)",
+    ]);
+  });
+
+  it("owns nothing and rejects when HOME creation itself fails", async () => {
+    const io = await inertAudit({
+      createThrows: hostError("ENOSPC", "ENOSPC"),
+    });
+    await expect(
+      io.audit.runBunAudit("/inert/bun", "/inert", false),
+    ).rejects.toThrow("ENOSPC");
+    expect(io.made).toHaveLength(0);
+    expect(io.children).toHaveLength(0);
+    expect(io.removed).toHaveLength(0);
   });
 });

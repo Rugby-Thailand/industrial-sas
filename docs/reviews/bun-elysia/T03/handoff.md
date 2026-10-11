@@ -1,6 +1,6 @@
 # T03 implementation handoff — Bun dependency security, resolved graph and lifecycle parity
 
-Status: **CODEX_FIXING_INITIAL_AUDIT_FINDINGS.** The two independent initial audits requested changes on `4474baae87147ef9cd0ffe5bc0c36c5aae622669`. Original results below are historical implementation evidence; final candidate checks and approval remain pending.
+Status: **KIRO_CORRECTED_FINAL_AUDIT_FINDINGS (uncommitted; not approved).** Both independent final audits requested changes on `f92f437ac281519fff93d527ccb1241b5e3cd2dd`. The scoped corrections are recorded in [`final-audit-corrections.md`](final-audit-corrections.md): the installed store now refuses nested package-local `node_modules`, both manifest loaders reject duplicate keys, audit HOME cleanup is attempted on setup and close paths, with removal failures settled as refusals, and the 26 recorded test type errors are fixed. New independent non-author audits and exact-version full gates are pending. Earlier results below, including the initial-audit fixes, are historical evidence.
 Base `d07f6282bfee73ac8c264f6cab4737487dc52a8e` on
 `codex/bun-security-t03-20261011`. Implementation agent: Kiro, claude-opus-5.5,
 high effort, no delegation. Segment 1 ended 2026-10-11T08:53:25.369190Z
@@ -231,6 +231,11 @@ run esbuild's and msgpackr-extract's install scripts, which pnpm blocks today.
    behavior, not current advisory state. Real audits use `Date.now()`.
 9. **Not integrated**: no CI, workflow, package script or default changed.
    The adapter's live mode runs `bun` from PATH unless `--bun` is given.
+10. **Nested package layouts are refused, not modelled** (final-audit
+    correction). The real pnpm app store fails closed on
+    `resolve@2.0.0-next.7`'s published `test/**/node_modules` fixtures. The
+    release pnpm store passes (268 entries, 1 root; darwin-arm64). See
+    [`final-audit-corrections.md`](final-audit-corrections.md).
 
 ## Current-main reconciliation risk
 

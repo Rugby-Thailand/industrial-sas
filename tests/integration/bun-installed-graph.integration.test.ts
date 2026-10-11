@@ -2,11 +2,13 @@ import { createHash } from "node:crypto";
 import {
   mkdirSync,
   mkdtempSync,
+  realpathSync,
   rmSync,
   symlinkSync,
   unlinkSync,
   writeFileSync,
 } from "node:fs";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
@@ -28,12 +30,16 @@ type Package = {
 const base = mkdtempSync(join(tmpdir(), "t03-installed-corrections-"));
 afterAll(() => rmSync(base, { recursive: true, force: true }));
 const integrity = `sha512-${createHash("sha512").update("fixture").digest("base64")}`;
-function fixture(specs: Package[], rootIds = specs.map((spec) => spec.id)) {
+function fixture(
+  specs: Package[],
+  rootIds = specs.map((spec) => spec.id),
+  store = ".bun",
+) {
   const dir = mkdtempSync(join(base, "p-"));
   const own = (id: string) => {
     const spec = specs.find((row) => row.id === id);
     if (!spec) throw new Error(`Unknown fixture ${id}`);
-    return join(dir, "node_modules/.bun", id, "node_modules", spec.name);
+    return join(dir, "node_modules", store, id, "node_modules", spec.name);
   };
   for (const spec of specs) {
     mkdirSync(own(spec.id), { recursive: true });
@@ -52,7 +58,8 @@ function fixture(specs: Package[], rootIds = specs.map((spec) => spec.id)) {
     for (const [alias, id] of Object.entries(spec.links ?? {})) {
       const link = join(
         dir,
-        "node_modules/.bun",
+        "node_modules",
+        store,
         spec.id,
         "node_modules",
         alias,
@@ -328,5 +335,200 @@ describe("complete installed resolution evidence", () => {
     expect(() =>
       installedGraph(unaccounted.dir, "bun", unaccounted.options),
     ).toThrow(/unaccounted/);
+  });
+});
+
+describe("nearer node_modules inside materialized packages", () => {
+  // Inert manifests only; `resolve` locates files and never loads them.
+  const hostWithLeaf = (store = ".bun") => {
+    const f = fixture(
+      [host("host@1.0.0", "leaf@1.0.0"), leaf("1.0.0")],
+      ["host@1.0.0"],
+      store,
+    );
+    return { ...f, hostDir: f.own("host@1.0.0") };
+  };
+  const nestedLeaf = (parent: string, version = "9.0.0") => {
+    mkdirSync(parent, { recursive: true });
+    writeFileSync(
+      join(parent, "package.json"),
+      JSON.stringify({
+        name: "leaf",
+        version,
+        scripts: { postinstall: "INERT_UNREVIEWED_MARKER_NEVER_EXECUTE" },
+      }),
+    );
+  };
+
+  it("refuses a nested copy that Node would resolve before the inventoried sibling", () => {
+    const f = hostWithLeaf();
+    const nested = join(f.hostDir, "node_modules/leaf");
+    nestedLeaf(nested);
+    const nearest = createRequire(join(f.hostDir, "package.json")).resolve(
+      "leaf/package.json",
+    );
+    expect(nearest).toBe(realpathSync(join(nested, "package.json")));
+    expect(() => installedGraph(f.dir, "bun", f.options)).toThrow(
+      /host\/node_modules: unsupported nested node_modules/,
+    );
+  });
+
+  it.each([
+    [
+      "a link to a store package",
+      (f: ReturnType<typeof hostWithLeaf>) => {
+        mkdirSync(join(f.hostDir, "node_modules"));
+        symlinkSync(f.own("leaf@1.0.0"), join(f.hostDir, "node_modules/leaf"));
+      },
+      /unsupported nested node_modules/,
+    ],
+    [
+      "a dangling link",
+      (f: ReturnType<typeof hostWithLeaf>) => {
+        mkdirSync(join(f.hostDir, "node_modules"));
+        symlinkSync(
+          join(f.dir, "absent"),
+          join(f.hostDir, "node_modules/leaf"),
+        );
+      },
+      /unsupported nested node_modules/,
+    ],
+    [
+      "a scoped package",
+      (f: ReturnType<typeof hostWithLeaf>) =>
+        nestedLeaf(join(f.hostDir, "node_modules/@scope/leaf")),
+      /unsupported nested node_modules/,
+    ],
+    [
+      "a deeper package subdirectory",
+      (f: ReturnType<typeof hostWithLeaf>) =>
+        nestedLeaf(join(f.hostDir, "lib/node_modules/leaf")),
+      /lib\/node_modules: unsupported nested node_modules/,
+    ],
+    [
+      "another casing (case-insensitive volumes resolve it)",
+      (f: ReturnType<typeof hostWithLeaf>) =>
+        nestedLeaf(join(f.hostDir, "NODE_MODULES/leaf")),
+      /NODE_MODULES: unsupported nested node_modules/,
+    ],
+    [
+      "another casing deeper in the package",
+      (f: ReturnType<typeof hostWithLeaf>) =>
+        nestedLeaf(join(f.hostDir, "lib/Node_Modules/leaf")),
+      /Node_Modules: unsupported nested node_modules/,
+    ],
+    [
+      "a regular file",
+      (f: ReturnType<typeof hostWithLeaf>) =>
+        writeFileSync(join(f.hostDir, "node_modules"), ""),
+      /unsupported nested node_modules/,
+    ],
+    [
+      "a link to an outside directory",
+      (f: ReturnType<typeof hostWithLeaf>) => {
+        nestedLeaf(join(f.dir, "outside/leaf"));
+        symlinkSync(join(f.dir, "outside"), join(f.hostDir, "node_modules"));
+      },
+      /unsupported nested node_modules/,
+    ],
+    [
+      "an empty directory",
+      (f: ReturnType<typeof hostWithLeaf>) =>
+        mkdirSync(join(f.hostDir, "node_modules")),
+      /unsupported nested node_modules/,
+    ],
+    [
+      "a package beside the supported .bin",
+      (f: ReturnType<typeof hostWithLeaf>) => {
+        mkdirSync(join(f.hostDir, "node_modules/.bin"), { recursive: true });
+        nestedLeaf(join(f.hostDir, "node_modules/leaf"));
+      },
+      /unsupported nested node_modules/,
+    ],
+    [
+      "a linked .bin directory",
+      (f: ReturnType<typeof hostWithLeaf>) => {
+        mkdirSync(join(f.dir, "bins"));
+        mkdirSync(join(f.hostDir, "node_modules"));
+        symlinkSync(join(f.dir, "bins"), join(f.hostDir, "node_modules/.bin"));
+      },
+      /expected materialized directory/,
+    ],
+    [
+      "a link elsewhere inside the package (real-path resolution escapes)",
+      (f: ReturnType<typeof hostWithLeaf>) => {
+        nestedLeaf(join(f.dir, "outside/node_modules/leaf"));
+        symlinkSync(join(f.dir, "outside"), join(f.hostDir, "lib"));
+      },
+      /host\/lib: link inside materialized package/,
+    ],
+    [
+      "a scoped container alias named node_modules",
+      (f: ReturnType<typeof hostWithLeaf>) => {
+        const scope = join(
+          f.dir,
+          "node_modules/.bun/host@1.0.0/node_modules/@scope",
+        );
+        mkdirSync(scope);
+        symlinkSync(f.own("leaf@1.0.0"), join(scope, "node_modules"));
+      },
+      /@scope: invalid alias node_modules/,
+    ],
+  ])("refuses nested node_modules as %s", (_label, mutate, message) => {
+    const f = hostWithLeaf();
+    mutate(f);
+    expect(() => installedGraph(f.dir, "bun", f.options)).toThrow(message);
+  });
+
+  it("accepts a package-local .bin of shims and owned links, but not escaping links", () => {
+    const f = hostWithLeaf();
+    const bin = join(f.hostDir, "node_modules/.bin");
+    mkdirSync(bin, { recursive: true });
+    writeFileSync(join(bin, "shim"), "#!/bin/sh\n# inert shim\n");
+    writeFileSync(join(f.own("leaf@1.0.0"), "cli.js"), "// never executed\n");
+    symlinkSync(join(f.own("leaf@1.0.0"), "cli.js"), join(bin, "leaf"));
+    expect(
+      installedGraph(f.dir, "bun", f.options).resolution.edges.get(
+        "host@1.0.0",
+      ),
+    ).toEqual([{ alias: "leaf", kind: "dependencies", target: "leaf@1.0.0" }]);
+    writeFileSync(join(f.dir, "outside.js"), "// never executed\n");
+    symlinkSync(join(f.dir, "outside.js"), join(bin, "escaped"));
+    expect(() => installedGraph(f.dir, "bun", f.options)).toThrow(
+      /bin link escapes package ownership/,
+    );
+  });
+
+  it("recognizes only pnpm's bounded regular root metadata files", () => {
+    const pnpm = hostWithLeaf(".pnpm");
+    for (const name of [".modules.yaml", ".pnpm-workspace-state-v1.json"])
+      writeFileSync(join(pnpm.dir, "node_modules", name), "{}\n");
+    expect(
+      installedGraph(pnpm.dir, "pnpm", pnpm.options).resolution.nodes.size,
+    ).toBe(2);
+    const bun = hostWithLeaf();
+    writeFileSync(join(bun.dir, "node_modules/.modules.yaml"), "{}\n");
+    expect(() => installedGraph(bun.dir, "bun", bun.options)).toThrow(
+      /unknown root entry \.modules\.yaml/,
+    );
+    const linked = hostWithLeaf(".pnpm");
+    writeFileSync(join(linked.dir, "metadata.yaml"), "{}\n");
+    symlinkSync(
+      join(linked.dir, "metadata.yaml"),
+      join(linked.dir, "node_modules/.modules.yaml"),
+    );
+    expect(() => installedGraph(linked.dir, "pnpm", linked.options)).toThrow(
+      /metadata must be a bounded regular file/,
+    );
+    const directory = hostWithLeaf(".pnpm");
+    mkdirSync(join(directory.dir, "node_modules/.modules.yaml"));
+    expect(() =>
+      installedGraph(directory.dir, "pnpm", directory.options),
+    ).toThrow(/metadata must be a bounded regular file/);
+    const cache = hostWithLeaf(".pnpm");
+    mkdirSync(join(cache.dir, "node_modules/.vite"));
+    expect(() => installedGraph(cache.dir, "pnpm", cache.options)).toThrow(
+      /unknown root entry \.vite/,
+    );
   });
 });

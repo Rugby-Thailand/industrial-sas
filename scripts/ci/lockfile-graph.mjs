@@ -1105,6 +1105,22 @@ export const SCOPE_DIRECTORIES = Object.freeze({
   release: "tools/release",
 });
 
+/**
+ * A scope manifest is trust evidence (`trustedDependencies`, pins,
+ * overrides): parse it with the bounded decoded unique-key reader so a
+ * duplicate key can never silently replace an earlier decision.
+ */
+function readScopeManifest(path) {
+  const manifest = parseUniqueJson(readFileSync(path, "utf8"));
+  if (
+    manifest === null ||
+    typeof manifest !== "object" ||
+    Array.isArray(manifest)
+  )
+    throw new Error(`${path}: package manifest must be a JSON object`);
+  return manifest;
+}
+
 /** Loads the authoritative pnpm graph and manifest for a scope. */
 export function loadPnpmScope(scope, repositoryRoot = root) {
   const directory = join(repositoryRoot, SCOPE_DIRECTORIES[scope]);
@@ -1114,9 +1130,7 @@ export function loadPnpmScope(scope, repositoryRoot = root) {
   const workspace = parseRestrictedYaml(
     readFileSync(join(directory, "pnpm-workspace.yaml"), "utf8"),
   );
-  const manifest = JSON.parse(
-    readFileSync(join(directory, "package.json"), "utf8"),
-  );
+  const manifest = readScopeManifest(join(directory, "package.json"));
   return {
     directory,
     lock,
@@ -1131,9 +1145,7 @@ export function loadBunScope(scope, bunDirectory) {
   const lockPath = join(bunDirectory, "bun.lock");
   if (!existsSync(lockPath)) throw new Error(`${lockPath} does not exist`);
   const lock = parseBunLockText(readFileSync(lockPath, "utf8"));
-  const manifest = JSON.parse(
-    readFileSync(join(bunDirectory, "package.json"), "utf8"),
-  );
+  const manifest = readScopeManifest(join(bunDirectory, "package.json"));
   return { lock, manifest, graph: bunGraph(lock, { scope }) };
 }
 

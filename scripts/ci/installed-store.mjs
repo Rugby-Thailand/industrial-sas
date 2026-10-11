@@ -28,9 +28,20 @@ const ROOT_KINDS = [
 ];
 const plain = (value) =>
   value !== null && typeof value === "object" && !Array.isArray(value);
+// A `node_modules` segment (any casing: macOS volumes are case-insensitive)
+// is a resolution root, never a package name or scoped alias.
+const NODE_MODULES = /^node_modules$/i;
 const packageName = (value) =>
   typeof value === "string" &&
-  /^(?:@[a-z0-9_.-]+\/)?[a-z0-9_.-]+$/i.test(value);
+  /^(?:@[a-z0-9_.-]+\/)?[a-z0-9_.-]+$/i.test(value) &&
+  !value.split("/").some((segment) => NODE_MODULES.test(segment));
+// pnpm writes these regular files beside its store; they are not packages.
+const ROOT_METADATA = {
+  bun: [],
+  pnpm: [".modules.yaml", ".pnpm-workspace-state-v1.json"],
+};
+const METADATA_BYTES = 16 * 1024 * 1024;
+const PACKAGE_TREE_ENTRIES = 2_000_000;
 
 function directory(path) {
   if (!existsSync(path)) throw new Error(`${path} does not exist`);
@@ -73,11 +84,11 @@ function manifest(path) {
   return value;
 }
 
-function packagePaths(modules, ignoredEntry = null) {
+function packagePaths(modules, ignored = []) {
   directory(modules);
   const paths = [];
   for (const name of readdirSync(modules).sort()) {
-    if (name === ".bin" || name === ignoredEntry) continue;
+    if (name === ".bin" || ignored.includes(name)) continue;
     if (name.startsWith("."))
       throw new Error(`${modules}: unknown entry ${name}`);
     const full = join(modules, name);
@@ -96,6 +107,55 @@ function packagePaths(modules, ignoredEntry = null) {
     }
   }
   return paths;
+}
+
+/**
+ * Node resolves a bare specifier from the `node_modules` nearest to the
+ * requiring file's real path. Inside a materialized package, that is any
+ * nested `node_modules` at any depth, or whatever a link inside it reaches.
+ * Such trees are not modelled: every entry is visited and anything except
+ * regular files, directories and one manager-written `<package>/node_modules`
+ * holding only `.bin` (validated later like every other `.bin`) fails closed
+ * before ownership is accepted. Returns that `.bin` parent or null.
+ */
+function packageTree(path, budget) {
+  let localBin = null;
+  const pending = [path];
+  while (pending.length) {
+    const current = pending.pop();
+    for (const entry of readdirSync(current, { withFileTypes: true })) {
+      if (--budget.remaining < 0)
+        throw new Error(`${path}: package tree exceeds the supported bound`);
+      const full = join(current, entry.name);
+      if (NODE_MODULES.test(entry.name)) {
+        const names =
+          current === path &&
+          entry.name === "node_modules" &&
+          entry.isDirectory()
+            ? readdirSync(full)
+            : null;
+        if (names?.length !== 1 || names[0] !== ".bin")
+          throw new Error(
+            `${full}: unsupported nested node_modules inside materialized package`,
+          );
+        directory(join(full, ".bin"));
+        localBin = full;
+      } else if (entry.isSymbolicLink())
+        throw new Error(`${full}: link inside materialized package`);
+      else if (entry.isDirectory()) pending.push(full);
+      else if (!entry.isFile())
+        throw new Error(
+          `${full}: unsupported entry inside materialized package`,
+        );
+    }
+  }
+  return localBin;
+}
+
+function regularMetadata(path) {
+  const stat = lstatSync(path);
+  if (!stat.isFile() || stat.isSymbolicLink() || stat.size > METADATA_BYTES)
+    throw new Error(`${path}: metadata must be a bounded regular file`);
 }
 
 function target(path, owners, store) {
@@ -182,6 +242,7 @@ export function readInstalledStore(projectDirectory, manager, options = {}) {
   directory(store);
   const owners = new Map();
   const entries = [];
+  const budget = { remaining: PACKAGE_TREE_ENTRIES };
   for (const entry of readdirSync(store).sort()) {
     if (entry === "node_modules") continue;
     if (manager === "pnpm" && entry === "lock.yaml") {
@@ -204,6 +265,8 @@ export function readInstalledStore(projectDirectory, manager, options = {}) {
       throw new Error(`${entry}: expected exactly one materialized package`);
     const [alias, path] = own[0];
     directory(path);
+    // Reject nearer resolution roots before this package's manifest counts.
+    const localBin = packageTree(path, budget);
     const file = join(path, "package.json");
     if (lstatSync(file).isSymbolicLink() || !lstatSync(file).isFile())
       throw new Error(`${file}: package manifest must be materialized`);
@@ -227,6 +290,7 @@ export function readInstalledStore(projectDirectory, manager, options = {}) {
       directory: path,
       packages,
       modules: nested,
+      localBin,
     };
     owners.set(realpathSync(path), row);
     entries.push(row);
@@ -274,6 +338,7 @@ export function readInstalledStore(projectDirectory, manager, options = {}) {
           throw new Error(`${row.id}: unaccounted dependency alias ${alias}`);
       }
     bins(row.modules, store, owners);
+    if (row.localBin) bins(row.localBin, store, owners);
   }
   const shared = join(store, "node_modules");
   const sharedOwners = new Map();
@@ -283,12 +348,14 @@ export function readInstalledStore(projectDirectory, manager, options = {}) {
     bins(shared, store, owners);
   }
   const roots = [];
+  const metadata = ROOT_METADATA[manager];
   for (const name of readdirSync(modules).sort()) {
     if (name === storeName || name === ".bin") continue;
-    if (name.startsWith("."))
+    if (metadata.includes(name)) regularMetadata(join(modules, name));
+    else if (name.startsWith("."))
       throw new Error(`${modules}: unknown root entry ${name}`);
   }
-  const rootPaths = packagePaths(modules, storeName);
+  const rootPaths = packagePaths(modules, [storeName, ...metadata]);
   for (const [alias, path] of rootPaths)
     roots.push({ alias, owner: target(path, owners, store) });
   bins(modules, store, owners);

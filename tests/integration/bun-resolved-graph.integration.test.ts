@@ -1,8 +1,10 @@
 // T03: resolved dependency graph (pnpm-lock.yaml v9 and candidate bun.lock v3).
+import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -23,6 +25,7 @@ import {
   compareGraphs,
   declaredRangeProblems,
   graphProblems,
+  loadBunScope,
   loadPnpmScope,
   overrideProblems,
   parseBunLockText,
@@ -47,6 +50,12 @@ const integrity = (seed: string) =>
   `sha512-${createHash("sha512").update(seed).digest("base64")}`;
 
 type Meta = Record<string, unknown>;
+/** A normalized root or edge binding; other recorded fields are retained. */
+type Binding = {
+  alias: string;
+  target: string | null;
+  [field: string]: unknown;
+};
 /** bun.lock v3 object; `entries` maps key → [id, meta]. */
 const bunLock = (
   entries: Record<string, [string, Meta?, string?]>,
@@ -64,6 +73,12 @@ const bunLock = (
   ),
 });
 const graph = (lock: unknown) => bunGraph(lock, { scope: "app" });
+/** Mutable package tuple of a bun.lock fixture (untrusted input data). */
+const tuple = (lock: { packages: Record<string, unknown[]> }, key: string) => {
+  const row = lock.packages[key];
+  if (!row) throw new Error(`bun.lock fixture lacks ${key}`);
+  return row;
+};
 const paths = (g: ReturnType<typeof graph>, name: string) =>
   allSimplePaths(g, (node: { name: string }) => node.name === name);
 
@@ -238,7 +253,7 @@ describe("aliases and peer-qualified snapshots", () => {
       expect.objectContaining({ alias: "leaf-alias", target: "leaf-alias" }),
       expect.objectContaining({ alias: "leaf", target: "parent/leaf" }),
     ]);
-    lock.packages["leaf-alias"][0] = "impostor@2.0.0";
+    tuple(lock, "leaf-alias")[0] = "impostor@2.0.0";
     expect(graphProblems(graph(lock))).toEqual(
       expect.arrayContaining([
         expect.stringContaining("expected package leaf"),
@@ -447,7 +462,7 @@ describe("platform-constrained optional/native packages", () => {
 
   it("flags rewritten os/cpu metadata (Bun writes `none` for unknown values)", () => {
     const rewritten = structuredClone(lock);
-    rewritten.packages["bin-linux-x64"][2] = { os: "linux", cpu: "none" };
+    tuple(rewritten, "bin-linux-x64")[2] = { os: "linux", cpu: "none" };
     expect(
       compareGraphs(g, graph(rewritten)).differences.platformMismatches,
     ).toEqual(["bin-linux-x64@1.0.0"]);
@@ -516,8 +531,8 @@ describe("security overrides against actual resolved parent edges", () => {
 
   it("rejects a parent edge that missed its override and a range-qualified mismatch", () => {
     const drift = structuredClone(lock);
-    drift.packages["next/sharp"][0] = "sharp@0.34.5";
-    drift.packages["brace-expansion"][0] = "brace-expansion@1.1.19";
+    tuple(drift, "next/sharp")[0] = "sharp@0.34.5";
+    tuple(drift, "brace-expansion")[0] = "brace-expansion@1.1.19";
     const result = overrideProblems(graph(drift), policy);
     expect(result.problems).toEqual([
       "next>sharp: next@16.3.8>sharp@0.34.5 resolved 0.34.5, override requires 0.35.5",
@@ -668,6 +683,82 @@ describe("pnpm/bun scope parity report", () => {
       /bun.lock does not exist/,
     );
   });
+
+  // Top-level decoys precede the real key, so last-key-wins parsing would
+  // accept them; the nested duplicate sits in an otherwise unique field.
+  const duplicateManifests = [
+    ["repeated", '{"trustedDependencies":["esbuild"],"trustedDependencies":[]'],
+    [
+      "escaped",
+      '{"trustedDependencies":["esbuild"],"trusted\\u0044ependencies":[]',
+    ],
+    ["nested", '{"engines":{"node":">=24","node":">=0"}'],
+  ] as const;
+  /** A repository root with this scope's pnpm files and the given manifest. */
+  const pnpmRepo = (manifestText: string) => {
+    const repo = mkdtempSync(join(root, "repo-"));
+    for (const file of ["pnpm-lock.yaml", "pnpm-workspace.yaml"])
+      writeFileSync(join(repo, file), readFileSync(join(root, file)));
+    writeFileSync(join(repo, "package.json"), manifestText);
+    return repo;
+  };
+  const withDecoy = (prefix: string) =>
+    `${prefix},${JSON.stringify({ ...manifest, overrides, trustedDependencies: [] }).slice(1)}`;
+
+  it.each(duplicateManifests)(
+    "refuses a %s duplicate manifest key in both scope loaders",
+    (_label, prefix) => {
+      const bun = candidate("2.0.0");
+      writeFileSync(join(bun, "package.json"), withDecoy(prefix));
+      expect(() => loadBunScope("app", bun)).toThrow(
+        "Duplicate JSON object key",
+      );
+      expect(() =>
+        scopeReport("app", bun, { repositoryRoot: root, packageName: "b" }),
+      ).toThrow("Duplicate JSON object key");
+      expect(() => loadPnpmScope("app", pnpmRepo(withDecoy(prefix)))).toThrow(
+        "Duplicate JSON object key",
+      );
+    },
+  );
+
+  it("keeps both loaders' unique-key manifests and refuses non-object roots", () => {
+    expect(loadPnpmScope("app", root).manifest).toEqual(manifest);
+    expect(loadBunScope("app", candidate("2.0.0")).manifest).toEqual({
+      ...manifest,
+      overrides,
+      trustedDependencies: [],
+    });
+    for (const text of ["[]", "null", '"fixture"']) {
+      const bun = candidate("2.0.0");
+      writeFileSync(join(bun, "package.json"), text);
+      expect(() => loadBunScope("app", bun)).toThrow(/must be a JSON object/);
+      expect(() => loadPnpmScope("app", pnpmRepo(text))).toThrow(
+        /must be a JSON object/,
+      );
+    }
+  });
+
+  it.each(duplicateManifests)(
+    "lockfile-graph CLI fails closed on a %s duplicate candidate manifest key",
+    (_label, prefix) => {
+      const bun = candidate("2.0.0");
+      writeFileSync(join(bun, "package.json"), withDecoy(prefix));
+      const result = spawnSync(
+        process.execPath,
+        ["scripts/ci/lockfile-graph.mjs", "--scope=app", `--bun-dir=${bun}`],
+        {
+          encoding: "utf8",
+          env: { NODE_ENV: "test", PATH: process.env.PATH ?? "" },
+        },
+      );
+      expect(result.status).toBe(1);
+      expect(result.stdout).toBe("");
+      expect(result.stderr).toContain(
+        "Graph check failed closed: Duplicate JSON object key",
+      );
+    },
+  );
 });
 
 describe("installed isolated layout", () => {
@@ -905,14 +996,20 @@ describe("contextual resolution and version-bound audit paths", () => {
   it("rejects peer-binding swaps even when package and edge unions match", () => {
     const before = paired();
     const after = structuredClone(before);
-    [after.packages["hostA/peer"], after.packages["hostB/peer"]] = [
-      after.packages["hostB/peer"],
-      after.packages["hostA/peer"],
-    ];
+    const peerA = after.packages["hostA/peer"];
+    const peerB = after.packages["hostB/peer"];
+    if (!peerA || !peerB) throw new Error("paired fixture lacks peer tuples");
+    after.packages["hostA/peer"] = peerB;
+    after.packages["hostB/peer"] = peerA;
     const result = compareGraphs(graph(before), graph(after));
     expect(result.differences.packagesOnlyInCandidate).toEqual([]);
     expect(result.differences.edgesOnlyInCandidate).toEqual([]);
-    expect(result.differences.contextualRootsOnlyInCandidate.length).toBe(2);
+    // compareGraphs merges the contextual comparison into `differences`.
+    const differences: Record<string, unknown> = result.differences;
+    const contextualRoots = differences.contextualRootsOnlyInCandidate;
+    if (!Array.isArray(contextualRoots))
+      throw new Error("compareGraphs omitted contextual root differences");
+    expect(contextualRoots.length).toBe(2);
     expect(result.problems.length).toBeGreaterThan(0);
     expect(
       compareResolutionContexts(graph(before), graph(after), {
@@ -923,6 +1020,8 @@ describe("contextual resolution and version-bound audit paths", () => {
 
   it("ignores opaque manager IDs while preserving contextual edges", () => {
     const before = graph(paired());
+    const edgeLists: Map<string, Binding[]> = before.edges;
+    const rootBindings: Binding[] = before.roots;
     const renames = new Map(
       [...before.nodes.keys()].map((id) => [id, `store(${id})`]),
     );
@@ -935,12 +1034,12 @@ describe("contextual resolution and version-bound audit paths", () => {
         ]),
       ),
       edges: new Map(
-        [...before.edges].map(([id, edges]) => [
+        [...edgeLists].map(([id, edges]) => [
           renames.get(id),
           edges.map((edge) => ({ ...edge, target: renames.get(edge.target) })),
         ]),
       ),
-      roots: before.roots.map((root) => ({
+      roots: rootBindings.map((root) => ({
         ...root,
         target: renames.get(root.target),
       })),
@@ -997,7 +1096,8 @@ describe("contextual resolution and version-bound audit paths", () => {
       ),
     );
     // Deliberately identical printed path; version and production must remain bound.
-    g.roots.forEach((root) => {
+    const roots: Binding[] = g.roots;
+    roots.forEach((root) => {
       root.alias = "parent";
     });
     expect(paths(g, "victim")).toEqual([
@@ -1104,7 +1204,8 @@ describe("declared override selection and strict lock schemas", () => {
   it("rejects malformed metadata/dependency maps and duplicate decoded JSON keys", () => {
     const good = bunLock({ a: ["a@1.0.0"] }, { dependencies: { a: "1.0.0" } });
     const malformed = structuredClone(good);
-    malformed.packages.a[2] = [];
+    // Deliberately malformed: an array where the metadata object belongs.
+    tuple(malformed, "a")[2] = [];
     expect(graphProblems(graph(malformed)).length).toBeGreaterThan(0);
     for (const metadata of [
       { dependencies: [] },
@@ -1113,7 +1214,7 @@ describe("declared override selection and strict lock schemas", () => {
       { libc: {} },
     ]) {
       const bad = structuredClone(good);
-      bad.packages.a[2] = metadata;
+      tuple(bad, "a")[2] = metadata;
       expect(() => graph(bad)).toThrow();
     }
     expect(() => graph({ ...good, workspaces: [] })).toThrow();
