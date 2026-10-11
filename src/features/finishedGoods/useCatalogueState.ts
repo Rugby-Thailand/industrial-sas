@@ -5,6 +5,7 @@ import {
   updateBrowserQuery,
 } from "@/lib/browser/history";
 import { useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useQueryHistoryWriter } from "@/hooks/useQueryHistoryWriter";
 import {
   readCatalogueState,
   serializeCatalogueState,
@@ -59,17 +60,34 @@ export function useCatalogueState(viewKey: string) {
   };
   const search = useSyncExternalStore(subscribe, getSnapshot, () => "");
   const state = useMemo(() => readCatalogueState(search), [search]);
+  const write = useQueryHistoryWriter();
   function update(change: Partial<CatalogueState>) {
-    const next = { ...readCatalogueState(getSnapshot()), ...change };
+    const current = readCatalogueState(getSnapshot());
+    const next = { ...current, ...change };
     const encoded = serializeCatalogueState(next);
+    if (encoded === serializeCatalogueState(current)) return;
+    if (window.history.state?.[scopeField] !== viewKey) {
+      const baseline = serializeCatalogueState(current);
+      updateBrowserQuery(
+        (query) => {
+          if (baseline) query.set("fg", baseline);
+          else query.delete("fg");
+        },
+        { metadata: { [scopeField]: viewKey }, event },
+      );
+    }
     fallback.current = queryFor(encoded);
     preferences.write(viewKey, encoded ? JSON.parse(encoded) : {});
-    updateBrowserQuery(
+    write(
       (query) => {
         if (encoded) query.set("fg", encoded);
         else query.delete("fg");
       },
-      { metadata: { [scopeField]: viewKey }, event },
+      {
+        metadata: { [scopeField]: viewKey },
+        event,
+        typing: Object.keys(change).length === 1 && change.search !== undefined,
+      },
     );
   }
   return { state, update };

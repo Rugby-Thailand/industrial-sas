@@ -23,6 +23,11 @@ import { useTranslations } from "next-intl";
 
 import { useAiUsageAccess } from "@/components/providers/AiUsageAccessProvider";
 import { DraftGuardProvider } from "@/components/providers/DraftGuardProvider";
+import {
+  NavigationContent,
+  NavigationProgressProvider,
+} from "@/components/system/NavigationProgress";
+import { SidebarNavigationLink } from "@/components/shell/SidebarNavigationLink";
 import { useHrAccess } from "@/components/providers/HrAccessProvider";
 import { useWorkspace } from "@/components/providers/WorkspaceProvider";
 import { AccountButton } from "@/components/shell/AccountButton";
@@ -57,7 +62,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { Link, usePathname } from "@/i18n/navigation";
+import { usePathname } from "@/i18n/navigation";
 import {
   activeNavigationHref,
   ROUTES,
@@ -78,55 +83,57 @@ export function Pattern({ children }: { readonly children: ReactNode }) {
   const showWorkspaceBar = WORKSPACE_BAR_PATHS.includes(usePathname());
   return (
     <TooltipProvider>
-      <DraftGuardProvider>
-        <GlobalSearchProvider>
-          <SidebarProvider
-            defaultOpen={false}
-            className="relative h-dvh min-h-0 w-full overflow-hidden bg-canvas text-text"
-            style={
-              {
-                "--sidebar-width-icon": "4rem",
-                "--sidebar-width": "13rem",
-              } as CSSProperties
-            }
-          >
-            <a
-              href={`#${MAIN_ID}`}
-              className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:m-2 focus:rounded-md focus:bg-primary focus:px-4 focus:py-3 focus:text-primary-foreground"
+      <NavigationProgressProvider>
+        <DraftGuardProvider>
+          <GlobalSearchProvider>
+            <SidebarProvider
+              defaultOpen={false}
+              className="relative h-dvh min-h-0 w-full overflow-hidden bg-canvas text-text"
+              style={
+                {
+                  "--sidebar-width-icon": "4rem",
+                  "--sidebar-width": "13rem",
+                } as CSSProperties
+              }
             >
-              {t("skipToContent")}
-            </a>
-            <HrLandingRedirect />
-            <AppSidebar />
-            <SidebarInset className="min-w-0 overflow-hidden">
-              <header className="shrink-0 border-b border-border bg-surface px-3 py-2 lg:px-6">
-                <div className="flex items-center gap-2 sm:gap-3">
-                  <NavigationDisclosure />
-                  <HeaderSearch />
-                  {showWorkspaceBar ? (
-                    <div className="min-w-0 flex-1">
-                      <WorkspaceContextBar />
-                    </div>
-                  ) : (
-                    <TaskWorkspaceContext />
-                  )}
-                  <div className="ml-auto">
-                    <LocaleSwitcher />
-                  </div>
-                  <ThemeToggle />
-                </div>
-              </header>
-              <main
-                id={MAIN_ID}
-                tabIndex={-1}
-                className="min-w-0 flex-1 overflow-auto p-3 sm:p-4 lg:px-6 lg:py-4"
+              <a
+                href={`#${MAIN_ID}`}
+                className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:m-2 focus:rounded-md focus:bg-primary focus:px-4 focus:py-3 focus:text-primary-foreground"
               >
-                {children}
-              </main>
-            </SidebarInset>
-          </SidebarProvider>
-        </GlobalSearchProvider>
-      </DraftGuardProvider>
+                {t("skipToContent")}
+              </a>
+              <HrLandingRedirect />
+              <AppSidebar />
+              <SidebarInset className="min-w-0 overflow-hidden">
+                <header className="shrink-0 border-b border-border bg-surface px-3 py-2 lg:px-6">
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <NavigationDisclosure />
+                    <HeaderSearch />
+                    {showWorkspaceBar ? (
+                      <div className="min-w-0 flex-1">
+                        <WorkspaceContextBar />
+                      </div>
+                    ) : (
+                      <TaskWorkspaceContext />
+                    )}
+                    <div className="ml-auto">
+                      <LocaleSwitcher />
+                    </div>
+                    <ThemeToggle />
+                  </div>
+                </header>
+                <main
+                  id={MAIN_ID}
+                  tabIndex={-1}
+                  className="min-w-0 flex-1 overflow-auto p-3 sm:p-4 lg:px-6 lg:py-4"
+                >
+                  <NavigationContent>{children}</NavigationContent>
+                </main>
+              </SidebarInset>
+            </SidebarProvider>
+          </GlobalSearchProvider>
+        </DraftGuardProvider>
+      </NavigationProgressProvider>
     </TooltipProvider>
   );
 }
@@ -314,7 +321,7 @@ function NavigationTree({
                             : "text-sidebar-foreground"
                         }`}
                       >
-                        <Link
+                        <SidebarNavigationLink
                           href={item.href}
                           className="relative"
                           aria-current={active ? "page" : undefined}
@@ -327,7 +334,7 @@ function NavigationTree({
                             {label}
                           </span>
                           <NavigationPendingIndicator />
-                        </Link>
+                        </SidebarNavigationLink>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   );

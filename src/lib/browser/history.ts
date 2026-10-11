@@ -1,3 +1,5 @@
+import { APP_HISTORY_KEY, appHistoryIndex } from "./appHistory";
+
 /** Change only owned query parameters, preserving the hash and other features' state. */
 export function updateBrowserQuery(
   change: (query: URLSearchParams) => void,
@@ -10,6 +12,9 @@ export function updateBrowserQuery(
   const url = new URL(window.location.href);
   change(url.searchParams);
   const state = { ...window.history.state, ...options.metadata };
+  const index = appHistoryIndex();
+  if (options.mode === "push" && index !== undefined)
+    state[APP_HISTORY_KEY] = index + 1;
   // Let Next's patched API synchronize URL changes rather than treating them as internal.
   delete state.__NA;
   delete state._N;
@@ -19,6 +24,7 @@ export function updateBrowserQuery(
     `${url.pathname}${url.search}${url.hash}`,
   );
   if (options.event) window.dispatchEvent(new Event(options.event));
+  window.dispatchEvent(new Event("app-query-state"));
 }
 
 /** Metadata-only writes must retain Next's router markers and omit a URL. */
