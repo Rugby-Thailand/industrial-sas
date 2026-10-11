@@ -104,8 +104,11 @@ not merge/deploy. After HR merges later, retarget the upper PR to main and run
 fresh checks before merging. Preserve combined PR #62 and explicitly identify
 the replacement stack to prevent duplicate integration.
 
-Status: implementation, audit, repair and verification completed; ready to open
-the upper PR against [HR PR #67](https://github.com/Rugby-Thailand/industrial-sas/pull/67).
+Status: implementation, audit, repair and verification completed.
+[AI usage PR #68](https://github.com/Rugby-Thailand/industrial-sas/pull/68) is open
+and linked in T3, based on
+[HR PR #67](https://github.com/Rugby-Thailand/industrial-sas/pull/67).
+Required GitHub checks are monitored on the final documentation head.
 
 ## Delivery evidence — 11 October 2026
 
