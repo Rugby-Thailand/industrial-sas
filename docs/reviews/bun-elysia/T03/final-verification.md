@@ -1,6 +1,113 @@
 # T03 source verification and pre-PR evidence
 
-## Current status — integrated `e717abec`, pending fresh verification
+## Current status — PR #75 protected CodeQL failed, correction pending
+
+[PR #75](https://github.com/Rugby-Thailand/industrial-sas/pull/75) head
+`778d249e45358dd6e2c96dede583cc1eaab61686` passed both final non-author audits
+(`CLEAR_EXACT_FINAL_SOURCE_AND_DOCUMENTATION`, `CLEAR_EXACT_FINAL_SPEC`) and all
+15 local gates with exit 0, finishing at 2026-10-11T13:16:10.060107Z: 3,301
+tests in 260 files, 346 release-contract tests in 14 files, 92 anonymous
+browser tests and 1,400 tracked hashes unchanged
+(`T03/final-gates-778d249e/results.json`). Protected CodeQL check run
+114479367959 then failed with alert 15: `js/polynomial-redos`, security
+severity high, at `tests/fixtures/bun-lifecycle/marker-probe.mjs` line 81.
+Alert, check and annotation receipts are in external `T03/codeql15-correction/`.
+The alert is not dismissed, and no workflow, protection, default, lock or
+exception changed.
+
+**Cause.** The inert probe's loopback registry decoded every request target and
+routed tarballs with `/^\/([^/]+)\/-\/[^/]+-\d[^/]*\.tgz$/`. The overlapping
+`[^/]+-\d` and `[^/]*` make a non-matching target such as `/./-/.-0` followed by
+repeated `.-0` quadratic. The same handler also served any version or file name
+under a known directory, served `/__proto__`, `/constructor` and similar
+inherited names (plain-object lookup), accepted percent-encoded aliases, and
+threw `URIError` on malformed encodings.
+
+**Correction (exact Kiro Opus 5.5 high, uncommitted).** The exported
+`createRegistryHandler(packages, port)` builds a `Map` of exactly four raw
+request targets: `/esbuild`, `/t03-untrusted-marker` and each one's
+`/<name>/-/<name>-0.0.0-t03.1.tgz`. It does no decoding or pattern matching;
+every other target returns 404. A missing or only-inherited synthetic package
+throws. Canonical manifest and tarball bodies are byte-identical to the old
+handler's, so the canonical tarball URL (which Bun's default trust depends on)
+is unchanged. The CLI now runs `main()` only as the entry point, so tests
+import the handler without building tarballs, starting a server or spawning
+Bun. Usage, exit 2 and temporary-directory cleanup are unchanged. At the
+implementation stage the Bun trust probe was not rerun, and its frozen
+observations were the only runtime evidence (preserved as history; see the
+subsequent proof below). Source hashes are now
+`0fb1eb11ed3185851aea3b3c9eb848a64b29bce5207cb0e0ce8d0dbbdb389e9f` (probe; was
+`a6e3a366…` in the historical `source-manifest.json`, which stays unchanged)
+and `a0e0b933b44ebd9aee1193cb6ac36ab3e612da10074b365fe62b824867c3e814`
+(lifecycle integration test).
+
+**Scoped red/green** (raw files in external
+`T03/codeql15-correction/kiro-red-green/`):
+
+| Check                                                                                                                                                    | Exit | Result                                                                                                                                                                                                               |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Old `startRegistry` source from `778d249e` in a VM with a stub `createServer` (2 s VM timeout per call, 90 s child SIGKILL deadline), 27 crafted targets | 1    | 13 deviations: wrong version/file name served, four prototype names served, two malformed encodings threw, two encoded aliases served, adversarial 4,000/8,000 repetitions took 70/271 ms, 50,000 hit the VM timeout |
+| Same probe on the corrected handler                                                                                                                      | 0    | 0 deviations; adversarial 50,000 repetitions 0.06 ms; four canonical bodies byte-identical to the old handler                                                                                                        |
+| New `inert marker probe loopback registry routing` block with the old routing logic substituted into the exported handler                                | 1    | 13 failed, 41 passed (54); the adversarial case took 42 s. Probe restored and hash rechecked                                                                                                                         |
+| `vitest run --project integration tests/integration/bun-lifecycle-policy.integration.test.ts`                                                            | 0    | 54 passed (28 existing, 26 new)                                                                                                                                                                                      |
+| CLI with no arguments, extra arguments and a relative path                                                                                               | 2    | Usage message; no stdout and no new temporary directory                                                                                                                                                              |
+| Corrected `startRegistry` source in a VM with a stub `createServer` (60 s deadline)                                                                      | 0    | Binds port 0 on `127.0.0.1`, attaches one request handler using the listening port; canonical tarball URL unchanged; adversarial target 404                                                                          |
+| Scoped `prettier --check` (five changed files) and `eslint --max-warnings=0` (two source files)                                                          | 0    | Clean                                                                                                                                                                                                                |
+
+The new tests cover both canonical manifests and tarballs, unknown packages,
+wrong name, version and directory, prototype names, malformed and encoded
+targets, dot segments, query strings, trailing slash, absolute-form, empty and
+root targets, the alert's adversarial target and incomplete package input. No
+real dependency script, install, network, browser, provider, full build or full
+test suite ran.
+
+**Subsequent fresh pinned-Bun proof (root, after implementation).** Root then
+ran the current probe once with the pinned checker binary: Bun
+`1.4.3+c6da4a4d3`, binary SHA-256
+`28c7dd0a06916aba284d570ef44a2d70e9c538eaf2ba58dfe0910525563b3f79`, probe
+SHA-256 `0fb1eb11ed3185851aea3b3c9eb848a64b29bce5207cb0e0ce8d0dbbdb389e9f`,
+native Darwin arm64; its preflight scope records loopback-only synthetic
+tarballs and an isolated temporary HOME and cache. The parent exited 0 with
+empty stderr, no timeout and all 1,400
+frozen inputs unchanged before and after. All eight synthetic cases match the
+committed `marker-probe-darwin-arm64.stdout` in case ID, trusted dependencies,
+dotenv and ignore-scripts flags, install arguments, markers, listed untrusted
+packages and runtime dotenv value; all 24 child receipts (install, untrusted
+listing and runtime dotenv per case) exited 0 with no signal, timeout or spawn
+error. Install-log and listing text were not compared. The independent
+specification reviewer verified these receipts by hash and field comparison
+without executing lifecycle scripts. Receipts, under
+`/Users/macbook/Development/industrial-sas-delivery-preserved-20261011/T03/codeql15-correction/`:
+`current-bun-marker-proof/{preflight,session,exit,comparison}.json`,
+`stdout.json` (SHA-256 `68d9d6e2…89e01a`), `stderr.txt` and `run.py`; reviewer
+`initial-audits/spec-current-bun-evidence.results.json`. Unchanged probe
+semantics are therefore shown only for these eight synthetic cases on native
+Darwin arm64 with that binary. Linux, the full dependency graph, native
+installs, runtime adoption and browser or application performance remain
+unproved; no timing sample was taken.
+
+**Initial correction audits and refactor step.** Both independent non-author
+initial audits reviewed the frozen five-path working source at `778d249e`
+(input map SHA-256 `75c8918c…111fab`): Standards clear with no findings
+(`initial-audits/standards.md`); Specification source clear, with one P3
+documentation correction (`initial-audits/spec.md`). The original regression
+red/green above remains historical. The separate scoped Kiro Opus 5.5 high
+refactor step found no justified code refactor, left the handler, fixture and
+tests byte-unchanged so the fresh proof's probe hash still applies, and made
+this P3 correction in the three delivery documents
+(`post-audit-refactor/refactor-rationale.md`).
+
+**Not claimed.** The `778d249e` audits and gates, the initial audits and the
+refactor step do not approve a committed head, and protected CodeQL is not
+cleared until new protected CI passes on that head. Pending: root's freeze and
+commit, fresh final non-author audits and all 15 gates on that exact committed
+head, new protected CI on [PR #75](https://github.com/Rugby-Thailand/industrial-sas/pull/75),
+normal merge and automatic staging/production release. There is no T03 merge,
+release, Bun adoption or performance claim. Rollback: revert through a new
+protected-workflow pull request and normal merge, so `Planner quality` gates
+the automatic release; never by direct push or manual deploy.
+
+## Historical status — integrated `e717abec`, pending fresh verification
 
 Current integration input `e717abecd5aefa2ddbf41eaf148218eb789b3288` merges
 released `main` `49529b9e1f70bdea48844bc130727d46ffa0fa30` (PR #74, run

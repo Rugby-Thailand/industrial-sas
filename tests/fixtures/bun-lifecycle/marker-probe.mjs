@@ -22,12 +22,14 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  realpathSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const DEFAULT_TRUSTED_NAME = "esbuild";
 const PLAIN_NAME = "t03-untrusted-marker";
@@ -72,46 +74,68 @@ function buildTarball(work, name) {
   };
 }
 
-function startRegistry(packages) {
-  const server = createServer((request, response) => {
-    const url = decodeURIComponent(request.url ?? "");
-    // npm's canonical layout `/<name>/-/<name>-<version>.tgz`. Bun grants its
-    // default trust only when the locked tarball URL is canonical for the
-    // configured registry (lockfile.rs `has_trusted_dependency`).
-    const tarballMatch = /^\/([^/]+)\/-\/[^/]+-\d[^/]*\.tgz$/.exec(url);
-    if (tarballMatch && packages[tarballMatch[1]]) {
-      response.writeHead(200, { "content-type": "application/octet-stream" });
-      response.end(packages[tarballMatch[1]].bytes);
-      return;
-    }
-    const name = url.replace(/^\//, "");
+/**
+ * Request handler serving exactly four paths: each synthetic package's
+ * manifest at `/<name>` and its tarball at npm's canonical layout
+ * `/<name>/-/<name>-<version>.tgz`. Bun grants its default trust only when
+ * the locked tarball URL is canonical for the configured registry
+ * (lockfile.rs `has_trusted_dependency`). The raw request target is looked up
+ * verbatim in a Map (no decoding, no pattern matching, no plain-object keys),
+ * so unknown, prototype-named, percent-encoded, malformed or otherwise
+ * noncanonical requests get 404. Exported only so tests can exercise it
+ * without a socket or an install.
+ */
+export function createRegistryHandler(packages, port) {
+  const routes = new Map();
+  for (const name of [DEFAULT_TRUSTED_NAME, PLAIN_NAME]) {
+    if (!Object.hasOwn(packages, name))
+      throw new Error(`missing synthetic package: ${name}`);
     const entry = packages[name];
-    if (!entry) {
-      response.writeHead(404, { "content-type": "application/json" });
-      response.end(JSON.stringify({ error: "not_found" }));
-      return;
-    }
-    const { port } = server.address();
-    response.writeHead(200, { "content-type": "application/json" });
-    response.end(
-      JSON.stringify({
+    const tarballPath = `/${name}/-/${name}-${VERSION}.tgz`;
+    routes.set(`/${name}`, {
+      type: "application/json",
+      body: JSON.stringify({
         name,
         "dist-tags": { latest: VERSION },
         versions: {
           [VERSION]: {
             ...entry.manifest,
             dist: {
-              tarball: `http://127.0.0.1:${port}/${name}/-/${name}-${VERSION}.tgz`,
+              tarball: `http://127.0.0.1:${port}${tarballPath}`,
               integrity: entry.integrity,
               shasum: entry.shasum,
             },
           },
         },
       }),
-    );
-  });
+    });
+    routes.set(tarballPath, {
+      type: "application/octet-stream",
+      body: entry.bytes,
+    });
+  }
+  return (request, response) => {
+    const route = routes.get(request.url);
+    if (!route) {
+      response.writeHead(404, { "content-type": "application/json" });
+      response.end(JSON.stringify({ error: "not_found" }));
+      return;
+    }
+    response.writeHead(200, { "content-type": route.type });
+    response.end(route.body);
+  };
+}
+
+function startRegistry(packages) {
+  const server = createServer();
   return new Promise((resolve) =>
-    server.listen(0, "127.0.0.1", () => resolve(server)),
+    server.listen(0, "127.0.0.1", () => {
+      server.on(
+        "request",
+        createRegistryHandler(packages, server.address().port),
+      );
+      resolve(server);
+    }),
   );
 }
 
@@ -316,4 +340,11 @@ async function main() {
   }
 }
 
-await main();
+// Run only as the CLI entry point, so importing createRegistryHandler in a
+// test never builds tarballs, starts a registry or spawns Bun.
+if (
+  process.argv[1] !== undefined &&
+  existsSync(process.argv[1]) &&
+  realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)
+)
+  await main();

@@ -21,6 +21,7 @@ import {
   prepareDigest,
 } from "../../scripts/ci/lifecycle-policy.mjs";
 import { parseRestrictedYaml } from "../../scripts/ci/lockfile-graph.mjs";
+import { createRegistryHandler } from "../fixtures/bun-lifecycle/marker-probe.mjs";
 
 type Scope = "app" | "release";
 const sha256 = (text: string) =>
@@ -579,5 +580,118 @@ describe("inert marker probe observations (Bun 1.4.3, darwin-arm64 only)", () =>
       "explicit-default-name-no-env-file-install-flag",
     ])
       expect(byId[id].markers.esbuild).toBe("postinstall:from-dotenv");
+  });
+});
+
+describe("inert marker probe loopback registry routing", () => {
+  // Exercises the probe's real request handler with synthetic in-memory
+  // packages and stub request/response objects: no socket, no tarball, no
+  // Bun, no install, and importing the probe must not run its CLI.
+  const VERSION = "0.0.0-t03.1";
+  const PORT = 4873;
+  const NAMES = ["esbuild", "t03-untrusted-marker"] as const;
+  const synthetic = (name: string) => ({
+    bytes: Buffer.from(`synthetic-tarball:${name}`),
+    integrity: `sha512-synthetic-${name}`,
+    shasum: `synthetic-${name}`,
+    manifest: { name, version: VERSION, scripts: { postinstall: "inert" } },
+  });
+  const packages = Object.fromEntries(
+    NAMES.map((name) => [name, synthetic(name)]),
+  );
+  const handler = createRegistryHandler(packages, PORT);
+  const request = (url: string) => {
+    const writes: { status: number; type: string }[] = [];
+    const bodies: unknown[] = [];
+    handler(
+      { method: "GET", url },
+      {
+        writeHead: (status: number, headers: Record<string, string>) =>
+          writes.push({ status, type: headers["content-type"] ?? "" }),
+        end: (body: unknown) => bodies.push(body),
+      },
+    );
+    expect(writes).toHaveLength(1);
+    expect(bodies).toHaveLength(1);
+    return { ...writes[0]!, body: bodies[0] };
+  };
+  const tarballPath = (name: string) => `/${name}/-/${name}-${VERSION}.tgz`;
+
+  it.each(NAMES)(
+    "serves %s's manifest with its canonical loopback tarball URL",
+    (name) => {
+      const response = request(`/${name}`);
+      expect(response).toMatchObject({ status: 200, type: "application/json" });
+      expect(JSON.parse(String(response.body))).toEqual({
+        name,
+        "dist-tags": { latest: VERSION },
+        versions: {
+          [VERSION]: {
+            name,
+            version: VERSION,
+            scripts: { postinstall: "inert" },
+            dist: {
+              tarball: `http://127.0.0.1:${PORT}${tarballPath(name)}`,
+              integrity: `sha512-synthetic-${name}`,
+              shasum: `synthetic-${name}`,
+            },
+          },
+        },
+      });
+    },
+  );
+
+  it.each(NAMES)("serves %s's tarball only at the canonical path", (name) => {
+    expect(request(tarballPath(name))).toEqual({
+      status: 200,
+      type: "application/octet-stream",
+      body: packages[name]!.bytes,
+    });
+  });
+
+  it.each([
+    ["unknown manifest", "/left-pad"],
+    ["unknown tarball", "/left-pad/-/left-pad-1.0.0.tgz"],
+    ["wrong version", "/esbuild/-/esbuild-9.9.9.tgz"],
+    ["wrong version prefix", `/esbuild/-/esbuild-${VERSION}0.tgz`],
+    ["wrong file name", `/esbuild/-/t03-untrusted-marker-${VERSION}.tgz`],
+    ["wrong directory name", `/t03-untrusted-marker/-/esbuild-${VERSION}.tgz`],
+    ["prototype manifest", "/__proto__"],
+    ["constructor manifest", "/constructor"],
+    ["prototype tarball", `/__proto__/-/__proto__-${VERSION}.tgz`],
+    ["toString tarball", `/toString/-/toString-${VERSION}.tgz`],
+    ["malformed percent encoding", "/%E0%A4%A"],
+    ["trailing lone percent", `${tarballPath("esbuild")}%`],
+    ["percent-encoded name", "/%65sbuild"],
+    ["percent-encoded slashes", `/esbuild%2F-%2Fesbuild-${VERSION}.tgz`],
+    ["dot segment", `/esbuild/-/../-/esbuild-${VERSION}.tgz`],
+    ["query string", "/esbuild?write=true"],
+    ["trailing slash", "/esbuild/"],
+    ["absolute-form target", `http://127.0.0.1:${PORT}/esbuild`],
+    ["empty target", ""],
+    ["root", "/"],
+  ])("fails closed with 404 on %s", (_label, url) => {
+    expect(request(url)).toEqual({
+      status: 404,
+      type: "application/json",
+      body: JSON.stringify({ error: "not_found" }),
+    });
+  });
+
+  it("answers CodeQL alert 15's adversarial target in linear time", () => {
+    // The removed tarball pattern took >2 s on 50k repetitions of '.-0'.
+    const url = `/./-/.-0${".-0".repeat(100_000)}!`;
+    const started = performance.now();
+    expect(request(url).status).toBe(404);
+    expect(performance.now() - started).toBeLessThan(250);
+  });
+
+  it("refuses to build routes when a synthetic package is missing or inherited", () => {
+    expect(() =>
+      createRegistryHandler({ esbuild: synthetic("esbuild") }, PORT),
+    ).toThrow("missing synthetic package: t03-untrusted-marker");
+    expect(() => createRegistryHandler(Object.create(packages), PORT)).toThrow(
+      "missing synthetic package: esbuild",
+    );
   });
 });
