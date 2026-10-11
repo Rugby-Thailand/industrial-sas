@@ -510,12 +510,13 @@ function generalProblems(name, workflow) {
 // is required: on main the PR-only dependency review is skipped, and without
 // an explicit status function GitHub's implicit success() over the ancestor
 // chain would skip both jobs even after `check` succeeded. The explicit
-// result predicates then refuse any failed, skipped or cancelled upstream.
+// result predicates refuse failed/cancelled prerequisites. Staging may be
+// skipped only when check captured an explicitly disabled staging policy.
 const TRUSTED_MAIN =
   "github.repository == 'Rugby-Thailand/industrial-sas' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')";
 export const RELEASE_CONDITIONS = Object.freeze({
-  staging: `\${{ !cancelled() && needs.check.result == 'success' && ${TRUSTED_MAIN} }}`,
-  release: `\${{ !cancelled() && needs.check.result == 'success' && needs.staging.result == 'success' && needs.staging.outputs.outcome == 'STAGING_PASSED' && ${TRUSTED_MAIN} }}`,
+  staging: `\${{ !cancelled() && needs.check.result == 'success' && needs.check.outputs.staging_enabled == 'true' && ${TRUSTED_MAIN} }}`,
+  release: `\${{ !cancelled() && needs.check.result == 'success' && ((needs.check.outputs.staging_enabled == 'false' && needs.staging.result == 'skipped') || (needs.check.outputs.staging_enabled == 'true' && needs.staging.result == 'success' && needs.staging.outputs.outcome == 'STAGING_PASSED')) && ${TRUSTED_MAIN} }}`,
 });
 const normalizeSpace = (value) => String(value ?? "").replace(/\s+/g, " ");
 
@@ -695,8 +696,8 @@ function testShardProblems(job) {
   return problems;
 }
 
-// Browser suites (T4/T5): one matrix leg per suite, both required through
-// the job result. The smoke leg owns the workflow's only production build:
+// Browser suites (T4/T5): smoke plus two complete workspace shards, all required
+// through the job result. Smoke owns the workflow's only production build:
 // credential-free, Next.js cache restored and saved, clean tree afterwards.
 // The workspace leg runs the Vite harness without a build.
 const SMOKE_LEG = "${{ matrix.suite == 'smoke' }}";
@@ -759,9 +760,9 @@ const BROWSER_STEPS = Object.freeze([
     "workspace suite",
     (step) => runOf(step).includes("test:e2e:workspace"),
     {
-      run: "pnpm test:e2e:workspace",
-      if: legAfter("workspace", "browsers"),
-      env: undefined,
+      run: "pnpm test:e2e:workspace --shard=${{ matrix.shard }}/2",
+      if: "${{ !cancelled() && matrix.suite != 'smoke' && steps.browsers.outcome == 'success' }}",
+      env: { WORKSPACE_REPORT_NAME: "${{ matrix.suite }}" },
     },
   ],
   [
@@ -797,10 +798,16 @@ function browserProblems(jobs) {
   const strategy = jobs.browser?.strategy ?? {};
   if (
     strategy["fail-fast"] !== "false" ||
-    !same(strategy.matrix, { suite: ["smoke", "workspace"] })
+    !same(strategy.matrix, {
+      include: [
+        { suite: "smoke", shard: "0" },
+        { suite: "workspace-1", shard: "1" },
+        { suite: "workspace-2", shard: "2" },
+      ],
+    })
   )
     problems.push(
-      `${at}: matrix must be exactly suite [smoke, workspace] with fail-fast false`,
+      `${at}: matrix must be exactly smoke (0), workspace-1 (1), workspace-2 (2) with fail-fast false`,
     );
   const steps = stepsOf(jobs.browser);
   let previous = -1;
@@ -920,6 +927,25 @@ function qualityProblems(workflow, { allowedGhsas }) {
       problems.push("quality.yml:check: aggregate.mjs needs EVENT_NAME");
     if (!sameSet(required, needs))
       problems.push("quality.yml:check: REQUIRED_JOBS must equal needs");
+    const policySteps = stepsOf(check).filter((candidate) =>
+      runOf(candidate).includes("scripts/ci/release-policy.mjs"),
+    );
+    const policy = policySteps[0];
+    if (
+      policySteps.length !== 1 ||
+      policy.id !== "release-policy" ||
+      policy.run !== "node scripts/ci/release-policy.mjs" ||
+      policy.if !== undefined ||
+      !same(policy.env, { STAGING_ENABLED: "${{ vars.STAGING_ENABLED }}" }) ||
+      !step ||
+      stepsOf(check).indexOf(policy) <= stepsOf(check).indexOf(step) ||
+      !same(check.outputs, {
+        staging_enabled: "${{ steps.release-policy.outputs.staging_enabled }}",
+      })
+    )
+      problems.push(
+        "quality.yml:check: must capture STAGING_ENABLED once after aggregate success and export staging_enabled",
+      );
     for (const id of prOnly)
       if (jobs[id]?.if !== "${{ github.event_name == 'pull_request' }}")
         problems.push(

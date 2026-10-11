@@ -51,8 +51,11 @@ RPO/RTO and durable telemetry/alert delivery remain unresolved below.
 ## Release path
 
 PR and push checks run every Vitest project across three shards and upload
-native JUnit reports. Browser smoke and the workspace subset run in parallel;
-smoke also verifies the production build and owns its `.next/cache` cache.
+native JUnit reports. Browser smoke and two native Playwright shards of the
+complete workspace subset run in parallel; smoke also verifies the production
+build and owns its `.next/cache` cache. The browser jobs report separately as
+`smoke`, `workspace-1`, and `workspace-2`, each with its own JUnit and diagnostic
+paths. Every leg is required, with two browser workers per runner and zero retries.
 This avoids a second build and a separate report-merging job. Informational
 full-suite coverage runs weekly or by dispatching `Workspace matrix`, alongside
 the existing full browser matrix. Coverage instrumentation gets a 15-second
@@ -62,10 +65,13 @@ test timeout there; ordinary quality tests retain their default timeout.
 `workflow_dispatch` of `main`:
 
 1. `check` aggregates every mandatory quality job. A failed, cancelled or
-   unexpectedly skipped job fails it.
+   unexpectedly skipped job fails it. After success, it captures the repository
+   variable `STAGING_ENABLED` once and exports `staging_enabled`. Only the exact
+   string `false` disables staging; unset, invalid, or other values enable it.
 2. `staging` (environment `staging`, lock `industrial-sas-staging-release`)
    deploys the same SHA to `industrial-sas-staging` / `befitting-stoat-208`.
-   It then runs the authenticated staging browser suite.
+   It then runs the authenticated staging browser suite. When the captured
+   setting is `false`, this entire job is intentionally skipped.
 3. `release` (environment `production-release`, lock
    `industrial-sas-production-release`) runs `scripts/release/run.mjs
 --target=production`:
@@ -83,10 +89,36 @@ test timeout there; ordinary quality tests retain their default timeout.
      `https://app.thaipropertyai.com`.
 
 The staging and production job conditions include `!cancelled()` as well as
-explicit successful prerequisite results. GitHub otherwise adds an implicit
-`success()` condition that can suppress releases after the PR-only dependency
-review job is deliberately skipped on `main`. Production remains automatic
-after successful quality and staging checks, with no manual release approval.
+explicit prerequisite results. GitHub otherwise adds an implicit `success()`
+condition that can suppress releases after an intentionally skipped ancestor.
+Production requires successful quality checks and one of exactly two paths:
+
+- captured `staging_enabled=false` and staging result `skipped`;
+- captured `staging_enabled=true`, staging result `success`, and controller
+  outcome `STAGING_PASSED`.
+
+Missing policy output, failed or cancelled CI, and failed/cancelled staging
+never authorize a production release. There is no manual release approval.
+
+During pre-user development, set the repository variable to `false`:
+
+```sh
+gh variable set STAGING_ENABLED --repo Rugby-Thailand/industrial-sas --body false
+```
+
+Restore the staging gate before onboarding real users, or for changes that need
+authenticated staging verification:
+
+```sh
+gh variable set STAGING_ENABLED --repo Rugby-Thailand/industrial-sas --body true
+```
+
+Deleting the variable also restores staging. A setting change affects runs
+that have not yet captured the policy; downstream jobs use the captured value.
+Staging infrastructure, secrets, fixtures, and tests remain available. Disabling
+it removes the authenticated write, real webhook, JWT, and tenant checks from
+automatic release verification. Read-only production smoke is narrower, and
+the production candidate still uses the production Convex backend.
 
 The daily `Production backup` workflow uses the same lock group. A backup and
 a release therefore never overlap. Queued runs wait (`queue: max`) and are not
@@ -162,6 +194,8 @@ this table in a reviewed PR.
   `CLERK_SECRET_KEY` (test instance).
 - Repository variable `RELEASE_ACKNOWLEDGED_DEPLOYMENTS`: comma-separated
   Vercel deployment IDs that an operator has reconciled (see below).
+- Repository variable `STAGING_ENABLED`: exact `false` skips staging during
+  pre-user development; every other value (including unset) requires staging.
 
 ### External file store
 
@@ -193,8 +227,8 @@ coordinated change:
 3. Merge. Verify that Vercel created **no** native Git deployment for the
    merge SHA. A native build there would run `convex deploy` with the
    production key, outside the lock.
-4. The `staging` and then `release` jobs run for that SHA. Treat the first
-   release as the cutover verification and watch it.
+4. `release` runs for that SHA, preceded by `staging` when its captured policy
+   is enabled. Treat the first release as the cutover verification and watch it.
 
 Status: the configuration and controller check are implemented. Steps 1–4 have
 not been executed; this task only prepares the PR.

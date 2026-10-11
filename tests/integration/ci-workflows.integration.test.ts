@@ -222,11 +222,25 @@ describe("workflow policy rejects regressions", () => {
   });
 
   it.each([
-    ["omitted browser suite", "suite: [smoke, workspace]", "suite: [smoke]"],
     [
-      "duplicate browser suite",
-      "suite: [smoke, workspace]",
-      "suite: [smoke, smoke]",
+      "omitted browser shard",
+      "          - suite: workspace-2\n            shard: 2\n",
+      "",
+    ],
+    [
+      "duplicate browser shard",
+      "          - suite: workspace-2\n            shard: 2\n",
+      "          - suite: workspace-1\n            shard: 1\n",
+    ],
+    [
+      "wrong shard total",
+      "--shard=${{ matrix.shard }}/2",
+      "--shard=${{ matrix.shard }}/3",
+    ],
+    [
+      "shared shard report",
+      "WORKSPACE_REPORT_NAME: ${{ matrix.suite }}",
+      "WORKSPACE_REPORT_NAME: workspace",
     ],
     [
       "wrong report path",
@@ -339,7 +353,46 @@ describe("workflow policy rejects regressions", () => {
     );
   });
 
-  it("gates production on successful check and staging for main only", () => {
+  it("captures the staging flag only after successful CI", () => {
+    const policy = namedStep("quality.yml", "Capture staging policy");
+    const aggregate = namedStep(
+      "quality.yml",
+      "Require all quality jobs to pass",
+    );
+    for (const edits of [
+      [[policy, ""]],
+      [[policy, `${policy}\n${policy}`]],
+      [[policy, policy.replace("id: release-policy", "id: other")]],
+      [
+        [
+          policy,
+          policy.replace(
+            "STAGING_ENABLED: ${{ vars.STAGING_ENABLED }}",
+            "STAGING_ENABLED: false",
+          ),
+        ],
+      ],
+      [
+        [
+          policy,
+          policy.replace(
+            "id: release-policy",
+            "id: release-policy\n        if: ${{ always() }}",
+          ),
+        ],
+      ],
+      [[`${aggregate}\n${policy}`, `${policy}\n${aggregate}`]],
+      [
+        [
+          "staging_enabled: ${{ steps.release-policy.outputs.staging_enabled }}",
+          "staging_enabled: false",
+        ],
+      ],
+    ] as const)
+      expectJobFailure("quality.yml", "check", edits);
+  });
+
+  it("gates production on successful CI and captured staging policy for main only", () => {
     // On main, the PR-only dependency review is intentionally skipped. With
     // no status function GitHub adds an implicit success() over the whole
     // ancestor chain, so a green `check` would still skip both releases.
@@ -347,9 +400,9 @@ describe("workflow policy rejects regressions", () => {
     // predicates then decide, and nothing may widen them.
     const guard = "if: ${{ !cancelled() && needs.check.result == 'success' && ";
     const stagingIf =
-      "${{ !cancelled() && needs.check.result == 'success' && github.repository == 'Rugby-Thailand/industrial-sas' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') }}";
+      "${{ !cancelled() && needs.check.result == 'success' && needs.check.outputs.staging_enabled == 'true' && github.repository == 'Rugby-Thailand/industrial-sas' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') }}";
     const releaseIf =
-      "${{ !cancelled() && needs.check.result == 'success' && needs.staging.result == 'success' && needs.staging.outputs.outcome == 'STAGING_PASSED' && github.repository == 'Rugby-Thailand/industrial-sas' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') }}";
+      "${{ !cancelled() && needs.check.result == 'success' && ((needs.check.outputs.staging_enabled == 'false' && needs.staging.result == 'skipped') || (needs.check.outputs.staging_enabled == 'true' && needs.staging.result == 'success' && needs.staging.outputs.outcome == 'STAGING_PASSED')) && github.repository == 'Rugby-Thailand/industrial-sas' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') }}";
     const stagingProblem = `quality.yml:staging: if must be exactly ${stagingIf}`;
     const releaseProblem = `quality.yml:release: if must be exactly ${releaseIf}`;
     const forJob = (problems: string[], job: string) =>
@@ -403,13 +456,12 @@ describe("workflow policy rejects regressions", () => {
       [" && needs.staging.outputs.outcome == 'STAGING_PASSED'", ""],
       [" && needs.staging.result == 'success'", ""],
       [
-        "if: ${{ !cancelled() && needs.check.result == 'success' && needs.staging",
-        "if: ${{ always() && needs.check.result == 'success' && needs.staging",
+        "needs.staging.result == 'skipped'",
+        "needs.staging.result != 'failure'",
       ],
-      [
-        "if: ${{ !cancelled() && needs.check.result == 'success' && needs.staging",
-        "if: ${{ needs.check.result == 'success' && needs.staging",
-      ],
+      ["needs.check.outputs.staging_enabled == 'false' && ", ""],
+      [releaseIf, releaseIf.replace("!cancelled()", "always()")],
+      [releaseIf, releaseIf.replace("!cancelled() && ", "")],
       [
         "'workflow_dispatch') }}\n    runs-on: ubuntu-24.04\n    timeout-minutes: 90",
         "'workflow_dispatch') || true }}\n    runs-on: ubuntu-24.04\n    timeout-minutes: 90",

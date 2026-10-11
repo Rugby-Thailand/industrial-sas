@@ -2,8 +2,9 @@ name: Planner quality
 # One workflow owns the merge gate and the automatic release. PRs (including
 # forks and Dependabot) run only the secret-free quality jobs and the stable
 # `check`. A push to main — or a workflow_dispatch from main, which reruns full
-# CI rather than bypassing it — then deploys that exact commit to staging and,
-# only after staging passes, to production. There is no manual approval step.
+# CI rather than bypassing it — then releases that exact commit. The repository
+# variable STAGING_ENABLED=false skips staging during pre-user development;
+# every other value keeps staging required. There is no manual approval step.
 on:
   push:
     branches: [main]
@@ -118,7 +119,7 @@ jobs:
           retention-days: 7
           if-no-files-found: error
 
-  # One leg per suite; `needs.browser.result` is success only if both pass.
+  # Smoke plus two workspace shards; the matrix result requires every leg.
   # Smoke owns the only production build in this workflow. The Vite
   # workspace harness needs no Next.js build.
   browser:
@@ -128,7 +129,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: [smoke, workspace]
+        include:
+          - suite: smoke
+            shard: 0
+          - suite: workspace-1
+            shard: 1
+          - suite: workspace-2
+            shard: 2
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -160,8 +167,10 @@ jobs:
           PLAYWRIGHT_REQUIRE_BUILD: "1"
         run: pnpm test:e2e
       - name: Storage workspace (PR subset)
-        if: ${{ !cancelled() && matrix.suite == 'workspace' && steps.browsers.outcome == 'success' }}
-        run: pnpm test:e2e:workspace
+        if: ${{ !cancelled() && matrix.suite != 'smoke' && steps.browsers.outcome == 'success' }}
+        env:
+          WORKSPACE_REPORT_NAME: ${{ matrix.suite }}
+        run: pnpm test:e2e:workspace --shard=${{ matrix.shard }}/2
       - name: Upload browser JUnit
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -206,6 +215,8 @@ jobs:
     needs: [validate, codegen, test, browser, dependency-review]
     runs-on: ubuntu-24.04
     timeout-minutes: 3
+    outputs:
+      staging_enabled: ${{ steps.release-policy.outputs.staging_enabled }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -222,13 +233,19 @@ jobs:
           REQUIRED_JOBS: validate,codegen,test,browser,dependency-review
           PULL_REQUEST_ONLY: dependency-review
         run: node scripts/ci/aggregate.mjs
+      - name: Capture staging policy
+        id: release-policy
+        env:
+          STAGING_ENABLED: ${{ vars.STAGING_ENABLED }}
+        run: node scripts/ci/release-policy.mjs
 
   # Trusted stable staging for this exact commit. Fork/PR code never reaches
-  # it: the job runs only for main push/dispatch after `check` succeeded.
+  # it: the job runs only for main push/dispatch after `check` succeeded and
+  # only when staging is enabled by the policy captured in that check.
   staging:
     name: Staging release
     needs: [check]
-    if: ${{ !cancelled() && needs.check.result == 'success' && github.repository == 'Rugby-Thailand/industrial-sas' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') }}
+    if: ${{ !cancelled() && needs.check.result == 'success' && needs.check.outputs.staging_enabled == 'true' && github.repository == 'Rugby-Thailand/industrial-sas' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     environment:
@@ -281,13 +298,15 @@ jobs:
           retention-days: 30
           if-no-files-found: warn
 
-  # Automatic production release of the same commit. One job holds the shared
-  # production lock (also used by the daily backup workflow) across backup,
+  # Automatic production release of the same commit. An intentionally skipped
+  # staging job is accepted only when the captured policy disabled it.
+  # One job holds the shared production lock (also used by the daily backup
+  # workflow) across backup,
   # remote build, candidate smoke, promotion and live checks.
   release:
     name: Production release
     needs: [check, staging]
-    if: ${{ !cancelled() && needs.check.result == 'success' && needs.staging.result == 'success' && needs.staging.outputs.outcome == 'STAGING_PASSED' && github.repository == 'Rugby-Thailand/industrial-sas' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') }}
+    if: ${{ !cancelled() && needs.check.result == 'success' && ((needs.check.outputs.staging_enabled == 'false' && needs.staging.result == 'skipped') || (needs.check.outputs.staging_enabled == 'true' && needs.staging.result == 'success' && needs.staging.outputs.outcome == 'STAGING_PASSED')) && github.repository == 'Rugby-Thailand/industrial-sas' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     environment:
