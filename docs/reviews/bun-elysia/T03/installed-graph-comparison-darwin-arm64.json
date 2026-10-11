@@ -1,0 +1,51 @@
+{
+  "$comment": "Installed isolated-layout comparison (scripts/ci/installed-graph.mjs): pnpm 10.33.2 --frozen-lockfile --ignore-scripts install in this worktree vs Bun 1.4.3 --frozen-lockfile isolated probe install of the migrated candidate lock. macOS 26.5.2 arm64 only.",
+  "app": {
+    "counts": {
+      "pnpm": {
+        "keys": 880,
+        "edges": 2205,
+        "roots": 59
+      },
+      "bun": {
+        "keys": 880,
+        "edges": 2208,
+        "roots": 59
+      }
+    },
+    "differences": {
+      "packagesOnlyInBaseline": [],
+      "packagesOnlyInCandidate": [],
+      "edgesOnlyInBaseline": [],
+      "edgesOnlyInCandidate": [
+        "debug@3.2.7 -> supports-color@7.2.0",
+        "debug@4.4.3 -> supports-color@7.2.0",
+        "debug@4.4.3 -> supports-color@8.1.1"
+      ],
+      "rootsOnlyInBaseline": [],
+      "rootsOnlyInCandidate": []
+    }
+  },
+  "release": {
+    "counts": {
+      "pnpm": {
+        "keys": 268,
+        "edges": 394,
+        "roots": 1
+      },
+      "bun": {
+        "keys": 268,
+        "edges": 394,
+        "roots": 1
+      }
+    },
+    "differences": {
+      "packagesOnlyInBaseline": [],
+      "packagesOnlyInCandidate": [],
+      "edgesOnlyInBaseline": [],
+      "edgesOnlyInCandidate": [],
+      "rootsOnlyInBaseline": [],
+      "rootsOnlyInCandidate": []
+    }
+  }
+}

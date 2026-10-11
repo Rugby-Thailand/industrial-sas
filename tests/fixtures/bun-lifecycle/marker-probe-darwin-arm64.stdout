@@ -1,0 +1,325 @@
+{
+  "bun": "1.4.3+c6da4a4d3",
+  "platform": "darwin-arm64",
+  "version": "0.0.0-t03.1",
+  "results": [
+    {
+      "id": "omitted",
+      "trustedDependencies": "(omitted)",
+      "disableDotenv": true,
+      "ignoreScripts": false,
+      "installArgs": [
+        "install",
+        "--no-progress"
+      ],
+      "install": {
+        "exit": 0,
+        "signal": null,
+        "timedOut": false,
+        "spawnError": null,
+        "stderr": "[0.04ms] \".env\"\nResolving dependencies\nResolved, downloaded and extracted [8]\nSaved lockfile"
+      },
+      "markers": {
+        "esbuild": "postinstall:from-dotenv",
+        "t03-untrusted-marker": null
+      },
+      "untrustedListed": [
+        "t03-untrusted-marker"
+      ],
+      "untrusted": {
+        "exit": 0,
+        "signal": null,
+        "timedOut": false,
+        "spawnError": null,
+        "stdout": "./node_modules/t03-untrusted-marker @0.0.0-t03.1\n » [postinstall]: echo \"postinstall:${T03_DOTENV_MARKER:-unset}\" > t03-marker\n\nThese dependencies had their lifecycle scripts blocked during install.\n\nIf you trust them and wish to run their scripts, use `bun pm trust`."
+      },
+      "runtimeDotenv": {
+        "exit": 0,
+        "signal": null,
+        "timedOut": false,
+        "spawnError": null,
+        "value": "unset"
+      }
+    },
+    {
+      "id": "explicit-empty",
+      "trustedDependencies": [],
+      "disableDotenv": true,
+      "ignoreScripts": false,
+      "installArgs": [
+        "install",
+        "--no-progress"
+      ],
+      "install": {
+        "exit": 0,
+        "signal": null,
+        "timedOut": false,
+        "spawnError": null,
+        "stderr": "[0.03ms] \".env\"\nResolving dependencies\nResolved, downloaded and extracted [8]\nSaved lockfile"
+      },
+      "markers": {
+        "esbuild": null,
+        "t03-untrusted-marker": null
+      },
+      "untrustedListed": [
+        "t03-untrusted-marker"
+      ],
+      "untrusted": {
+        "exit": 0,
+        "signal": null,
+        "timedOut": false,
+        "spawnError": null,
+        "stdout": "./node_modules/t03-untrusted-marker @0.0.0-t03.1\n » [postinstall]: echo \"postinstall:${T03_DOTENV_MARKER:-unset}\" > t03-marker\n\nThese dependencies had their lifecycle scripts blocked during install.\n\nIf you trust them and wish to run their scripts, use `bun pm trust`."
+      },
+      "runtimeDotenv": {
+        "exit": 0,
+        "signal": null,
+        "timedOut": false,
+        "spawnError": null,
+        "value": "unset"
+      }
+    },
+    {
+      "id": "explicit-default-name",
+      "trustedDependencies": [
+        "esbuild"
+      ],
+      "disableDotenv": true,
+      "ignoreScripts": false,
+      "installArgs": [
+        "install",
+        "--no-progress"
+      ],
+      "install": {
+        "exit": 0,
+        "signal": null,
+        "timedOut": false,
+        "spawnError": null,
+        "stderr": "[0.04ms] \".env\"\nResolving dependencies\nResolved, downloaded and extracted [8]\nSaved lockfile"
+      },
+      "markers": {
+        "esbuild": "postinstall:from-dotenv",
+        "t03-untrusted-marker": null
+      },
+      "untrustedListed": [
+        "t03-untrusted-marker"
+      ],
+      "untrusted": {
+        "exit": 0,
+        "signal": null,
+        "timedOut": false,
+        "spawnError": null,
+        "stdout": "./node_modules/t03-untrusted-marker @0.0.0-t03.1\n » [postinstall]: echo \"postinstall:${T03_DOTENV_MARKER:-unset}\" > t03-marker\n\nThese dependencies had their lifecycle scripts blocked during install.\n\nIf you trust them and wish to run their scripts, use `bun pm trust`."
+      },
+      "runtimeDotenv": {
+        "exit": 0,
+        "signal": null,
+        "timedOut": false,
+        "spawnError": null,
+        "value": "unset"
+      }
+    },
+    {
+      "id": "explicit-plain-name",
+      "trustedDependencies": [
+        "t03-untrusted-marker"
+      ],
+      "disableDotenv": true,
+      "ignoreScripts": false,
+      "installArgs": [
+        "install",
+        "--no-progress"
+      ],
+      "install": {
+        "exit": 0,
+        "signal": null,
+        "timedOut": false,
+        "spawnError": null,
+        "stderr": "[0.03ms] \".env\"\nResolving dependencies\nResolved, downloaded and extracted [8]\nSaved lockfile"
+      },
+      "markers": {
+        "esbuild": null,
+        "t03-untrusted-marker": "postinstall:from-dotenv"
+      },
+      "untrustedListed": [
+        "esbuild"
+      ],
+      "untrusted": {
+        "exit": 0,
+        "signal": null,
+        "timedOut": false,
+        "spawnError": null,
+        "stdout": "./node_modules/esbuild @0.0.0-t03.1\n » [postinstall]: echo \"postinstall:${T03_DOTENV_MARKER:-unset}\" > t03-marker\n\nThese dependencies had their lifecycle scripts blocked during install.\n\nIf you trust them and wish to run their scripts, use `bun pm trust`."
+      },
+      "runtimeDotenv": {
+        "exit": 0,
+        "signal": null,
+        "timedOut": false,
+        "spawnError": null,
+        "value": "unset"
+      }
+    },
+    {
+      "id": "explicit-default-name-dotenv-enabled",
+      "trustedDependencies": [
+        "esbuild"
+      ],
+      "disableDotenv": false,
+      "ignoreScripts": false,
+      "installArgs": [
+        "install",
+        "--no-progress"
+      ],
+      "install": {
+        "exit": 0,
+        "signal": null,
+        "timedOut": false,
+        "spawnError": null,
+        "stderr": "[0.03ms] \".env\"\nResolving dependencies\nResolved, downloaded and extracted [8]\nSaved lockfile"
+      },
+      "markers": {
+        "esbuild": "postinstall:from-dotenv",
+        "t03-untrusted-marker": null
+      },
+      "untrustedListed": [
+        "t03-untrusted-marker"
+      ],
+      "untrusted": {
+        "exit": 0,
+        "signal": null,
+        "timedOut": false,
+        "spawnError": null,
+        "stdout": "./node_modules/t03-untrusted-marker @0.0.0-t03.1\n » [postinstall]: echo \"postinstall:${T03_DOTENV_MARKER:-unset}\" > t03-marker\n\nThese dependencies had their lifecycle scripts blocked during install.\n\nIf you trust them and wish to run their scripts, use `bun pm trust`."
+      },
+      "runtimeDotenv": {
+        "exit": 0,
+        "signal": null,
+        "timedOut": false,
+        "spawnError": null,
+        "value": "from-dotenv"
+      }
+    },
+    {
+      "id": "explicit-default-name-ignore-scripts",
+      "trustedDependencies": [
+        "esbuild"
+      ],
+      "disableDotenv": true,
+      "ignoreScripts": true,
+      "installArgs": [
+        "install",
+        "--no-progress"
+      ],
+      "install": {
+        "exit": 0,
+        "signal": null,
+        "timedOut": false,
+        "spawnError": null,
+        "stderr": "[0.03ms] \".env\"\nResolving dependencies\nResolved, downloaded and extracted [8]\nSaved lockfile"
+      },
+      "markers": {
+        "esbuild": null,
+        "t03-untrusted-marker": null
+      },
+      "untrustedListed": [
+        "t03-untrusted-marker"
+      ],
+      "untrusted": {
+        "exit": 0,
+        "signal": null,
+        "timedOut": false,
+        "spawnError": null,
+        "stdout": "./node_modules/t03-untrusted-marker @0.0.0-t03.1\n » [postinstall]: echo \"postinstall:${T03_DOTENV_MARKER:-unset}\" > t03-marker\n\nThese dependencies had their lifecycle scripts blocked during install.\n\nIf you trust them and wish to run their scripts, use `bun pm trust`."
+      },
+      "runtimeDotenv": {
+        "exit": 0,
+        "signal": null,
+        "timedOut": false,
+        "spawnError": null,
+        "value": "unset"
+      }
+    },
+    {
+      "id": "explicit-default-name-no-env-file-global-flag",
+      "trustedDependencies": [
+        "esbuild"
+      ],
+      "disableDotenv": true,
+      "ignoreScripts": false,
+      "installArgs": [
+        "--no-env-file",
+        "install",
+        "--no-progress"
+      ],
+      "install": {
+        "exit": 0,
+        "signal": null,
+        "timedOut": false,
+        "spawnError": null,
+        "stderr": "[0.03ms] \".env\"\nResolving dependencies\nResolved, downloaded and extracted [8]\nSaved lockfile"
+      },
+      "markers": {
+        "esbuild": "postinstall:from-dotenv",
+        "t03-untrusted-marker": null
+      },
+      "untrustedListed": [
+        "t03-untrusted-marker"
+      ],
+      "untrusted": {
+        "exit": 0,
+        "signal": null,
+        "timedOut": false,
+        "spawnError": null,
+        "stdout": "./node_modules/t03-untrusted-marker @0.0.0-t03.1\n » [postinstall]: echo \"postinstall:${T03_DOTENV_MARKER:-unset}\" > t03-marker\n\nThese dependencies had their lifecycle scripts blocked during install.\n\nIf you trust them and wish to run their scripts, use `bun pm trust`."
+      },
+      "runtimeDotenv": {
+        "exit": 0,
+        "signal": null,
+        "timedOut": false,
+        "spawnError": null,
+        "value": "unset"
+      }
+    },
+    {
+      "id": "explicit-default-name-no-env-file-install-flag",
+      "trustedDependencies": [
+        "esbuild"
+      ],
+      "disableDotenv": true,
+      "ignoreScripts": false,
+      "installArgs": [
+        "install",
+        "--no-env-file",
+        "--no-progress"
+      ],
+      "install": {
+        "exit": 0,
+        "signal": null,
+        "timedOut": false,
+        "spawnError": null,
+        "stderr": "[0.03ms] \".env\"\nResolving dependencies\nResolved, downloaded and extracted [8]\nSaved lockfile"
+      },
+      "markers": {
+        "esbuild": "postinstall:from-dotenv",
+        "t03-untrusted-marker": null
+      },
+      "untrustedListed": [
+        "t03-untrusted-marker"
+      ],
+      "untrusted": {
+        "exit": 0,
+        "signal": null,
+        "timedOut": false,
+        "spawnError": null,
+        "stdout": "./node_modules/t03-untrusted-marker @0.0.0-t03.1\n » [postinstall]: echo \"postinstall:${T03_DOTENV_MARKER:-unset}\" > t03-marker\n\nThese dependencies had their lifecycle scripts blocked during install.\n\nIf you trust them and wish to run their scripts, use `bun pm trust`."
+      },
+      "runtimeDotenv": {
+        "exit": 0,
+        "signal": null,
+        "timedOut": false,
+        "spawnError": null,
+        "value": "unset"
+      }
+    }
+  ]
+}

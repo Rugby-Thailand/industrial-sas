@@ -1,0 +1,217 @@
+{
+  "actions": [],
+  "advisories": {
+    "1240091": {
+      "findings": [
+        {
+          "version": "3.1.7",
+          "paths": [
+            ".>shadcn>@dotenvx/dotenvx>conf>ajv>fast-uri"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://github.com/fastify/fast-uri/security/advisories/GHSA-hrr3-gc8f-f4qj\n- https://nvd.nist.gov/vuln/detail/CVE-2026-86472\n- https://github.com/fastify/fast-uri/commit/5dabb86732aa2a7655e258719970e61e12b6b4d1\n- https://cna.openjsf.org/security-advisories.html\n- https://github.com/fastify/fast-uri/releases/tag/v2.4.7\n- https://github.com/fastify/fast-uri/releases/tag/v3.1.8\n- https://github.com/fastify/fast-uri/releases/tag/v4.1.5\n- https://github.com/advisories/GHSA-hrr3-gc8f-f4qj",
+      "created": "2026-09-29T23:54:25.000Z",
+      "id": 1240091,
+      "npm_advisory_id": null,
+      "overview": "### Impact\n\n`fast-uri` folds the host to lowercase before it percent-decodes the host, so a percent-encoded uppercase unreserved octet such as `%41` decodes to a literal `A` that is never folded. For a scheme-relative reference (`//host`) there is no scheme, so the host canonicalization that repairs this on a scheme-bearing URL does not run. As a result `parse`, `normalize`, and `equal` disagree on the same host: `parse(\"//%41.com\").host` returns `\"A.com\"` while `parse(\"//a.com\").host` and `parse(\"//A.com\").host` return `\"a.com\"`, and `equal(\"//%41.com\", \"//a.com\")` is `false` even though `equal(\"//A.com\", \"//a.com\")` is `true`. An application that makes a case-sensitive host decision on `fast-uri` output for a scheme-relative reference, for example a host allowlist or denylist that compares `parse(url).host` or uses `fast-uri.equal`, can be steered past the check with a percent-encoded uppercase octet. Because a hostname is case-insensitive in DNS and HTTP routing, the evading spelling reaches the same host the check meant to gate, so the effect is check evasion rather than reaching a different registrable host.\n\n### Patches\n\nUpgrade to `fast-uri` 4.1.5, 3.1.8, or 2.4.7.\n\n### Workarounds\n\nCompare hosts case-insensitively (lowercase the parsed host before any allowlist or denylist decision), or avoid making case-sensitive host decisions on scheme-relative input until upgrading.",
+      "reported_by": null,
+      "title": "fast-uri vulnerable to inconsistent host case normalization via percent-encoded octets",
+      "metadata": null,
+      "cves": [
+        "CVE-2026-86472"
+      ],
+      "access": "public",
+      "severity": "moderate",
+      "module_name": "fast-uri",
+      "vulnerable_versions": ">=3.0.0 <3.1.8",
+      "github_advisory_id": "GHSA-hrr3-gc8f-f4qj",
+      "recommendation": "Upgrade to version 3.1.8 or later",
+      "patched_versions": ">=3.1.8",
+      "updated": "2026-09-29T23:54:26.000Z",
+      "cvss": {
+        "score": 4.8,
+        "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:L/A:N"
+      },
+      "cwe": [
+        "CWE-178"
+      ],
+      "url": "https://github.com/advisories/GHSA-hrr3-gc8f-f4qj"
+    },
+    "1240097": {
+      "findings": [
+        {
+          "version": "10.7.0",
+          "paths": [
+            ".>shadcn>@modelcontextprotocol/sdk>express-rate-limit>ip-address"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://github.com/beaugunderson/ip-address/security/advisories/GHSA-j6r3-76f7-8jcv\n- https://nvd.nist.gov/vuln/detail/CVE-2026-101912\n- https://github.com/beaugunderson/ip-address/commit/1343629d57fea413644a5c9d41ff1e59619f3f28\n- https://github.com/beaugunderson/ip-address/releases/tag/v10.7.1\n- https://github.com/advisories/GHSA-j6r3-76f7-8jcv",
+      "created": "2026-09-29T23:46:52.000Z",
+      "id": 1240097,
+      "npm_advisory_id": null,
+      "overview": "### Summary\n\n`isInSubnet()` and `isHostInSubnet()` accept an address of either family and compare masked binary strings without checking that both operands are the same family. `Address4` pads to 32 bits and `Address6` to 128, so whenever the leading bits agree the strings are equal: `new Address6('a00::1').isInSubnet(new Address4('10.0.0.0/8'))` is `true`, and `new Address4('32.0.0.1').isInSubnet(new Address6('2000::/3'))` is `true`. No IPv4 address is inside an IPv6 network, so both answers are untrue.\n\nAn application that parses untrusted input as whichever family accepts it and then tests the result against a fixed-family allowlist can admit an address outside the list.\n\n### Details\n\nBoth methods are in `src/common.ts`:\n\n```ts\nexport function isInSubnet(this: Address4 | Address6, address: Address4 | Address6) {\n  if (this.subnetMask < address.subnetMask) {\n    return false;\n  }\n\n  return isHostInSubnet.call(this, address);\n}\n\nexport function isHostInSubnet(this: Address4 | Address6, address: Address4 | Address6) {\n  return this.mask(address.subnetMask) === address.mask();\n}\n```\n\n`mask(n)` returns the first `n` bits of the address as a string of `0` and `1`, taken from a representation padded to the family's width. `new Address6('a00::1').mask(8)` is `'00001010'`, and so is `new Address4('10.0.0.0/8').mask()`, so string equality reports containment. The signature admits either family on either side, so TypeScript raises nothing, and the `v4` property on `Address6` marks IPv4 notation (`::ffff:10.0.0.1`) rather than family, so it does not discriminate either.\n\nWhich cross-family pairs coincide depends on the network's prefix length. `mask(n)` on an `Address4` returns at most 32 bits, so an IPv6 network longer than `/32` never matches an IPv4 address, and an IPv6 network of `/32` or shorter matches exactly the IPv4 addresses whose leading bits equal its prefix. An IPv4 network is at most 32 bits and matches every IPv6 address whose leading bits equal its prefix.\n\n### Affected versions\n\n`<= 10.7.0`. The comparison has had this shape since the methods were written, so every release is affected.\n\n### Impact\n\n| Expression | Result | Reason |\n|---|---|---|\n| `new Address6('a00::1').isInSubnet(new Address4('10.0.0.0/8'))` | `true` | both mask to `00001010` |\n| `new Address4('10.0.0.1').isInSubnet(new Address6('a00::/8'))` | `true` | the same bits, reversed |\n| `new Address4('32.0.0.1').isInSubnet(new Address6('2000::/3'))` | `true` | both begin `001` |\n| `new Address4('32.1.13.184').isInSubnet(new Address6('2001:db8::/32'))` | `true` | the `/32` spells an IPv4 address |\n| `new Address6('cb00:7100::1').isInSubnet(new Address4('203.0.113.0/24'))` | `true` | the `/24` spells an IPv6 prefix |\n| `new Address4('10.0.0.1').isInSubnet(new Address6('::ffff:10.0.0.0/104'))` | `false` | `/104` is longer than 32 bits |\n| `new Address4('8.8.8.8').isInSubnet(new Address4('10.0.0.0/8'))` | `false` | same-family control |\n\nIn the allowlist direction the check admits an address outside the list; in the denylist direction it blocks an address outside the list. What the coincidence can admit is narrow. An IPv6 allowlist of `/32` or shorter admits the IPv4 addresses its prefix spells: `2001:db8::/32` admits exactly `32.1.13.184`, and `2000::/3` admits `32.0.0.0/3`. Those are public IPv4 addresses; the private, loopback, and link-local ranges begin with bit patterns no allocated IPv6 prefix shares. An IPv4 allowlist admits the IPv6 addresses its prefix spells, and those all sit in blocks IANA has not allocated. So a request admitted through this defect reaches an address outside the intended list, not an internal host, and the severity reflects that.\n\n### Proof of concept\n\n`npm i ip-address@10.7.0`, then:\n\n```js\nconst { Address4, Address6 } = require('ip-address');\n\n// An allowlist of the application's own IPv6 range, tested against whichever\n// family the input parses as.\nconst allowed = new Address6('2001:db8::/32');\n\nfunction parse(host) {\n  return Address4.isValid(host) ? new Address4(host) : new Address6(host);\n}\n\nfor (const h of ['2001:db8::1', '2001:db9::1', '32.1.13.184', '32.1.13.185']) {\n  console.log(parse(h).isInSubnet(allowed) ? 'ALLOW' : 'BLOCK', h);\n}\n```\n\nOn affected versions:\n\n```\nALLOW 2001:db8::1\nBLOCK 2001:db9::1\nALLOW 32.1.13.184\nBLOCK 32.1.13.185\n```\n\nThe IPv6 rows are right. The IPv4 address whose 32 bits equal the allowlist's prefix is admitted; the one next to it is not.\n\n### Remediation\n\nUpgrade to the patched release. In the fix, `isHostInSubnet()` returns `false` when the two addresses are of different families, and `isInSubnet()` inherits the answer. The methods keep accepting either family so existing call sites compile. A caller that means to compare across families converts first, with `Address6.fromAddress4()`, `to4()`, or `toAddress4Nat64()`: `new Address6('::ffff:10.0.0.1').to4().isInSubnet(new Address4('10.0.0.0/8'))` is `true`, as before.\n\nIf you cannot upgrade immediately, compare the classes before you compare the addresses:\n\n```js\nconst contained = host.constructor === network.constructor && host.isInSubnet(network);\n```\n\n### A note on SSRF defense\n\nThese methods are address classifiers, not a complete SSRF defense. Regardless of this fix, a robust SSRF guard must resolve the hostname and validate the *resolved* IP against the socket it connects to, and account for DNS rebinding and redirects. Treat these checks as one layer, not the only one.",
+      "reported_by": null,
+      "title": "ip-address: isInSubnet() and isHostInSubnet() compare addresses of different families as if they shared an address space, allowing an allowlist check to admit an address outside its range",
+      "metadata": null,
+      "cves": [
+        "CVE-2026-101912"
+      ],
+      "access": "public",
+      "severity": "moderate",
+      "module_name": "ip-address",
+      "vulnerable_versions": "<=10.7.0",
+      "github_advisory_id": "GHSA-j6r3-76f7-8jcv",
+      "recommendation": "Upgrade to version 10.7.1 or later",
+      "patched_versions": ">=10.7.1",
+      "updated": "2026-09-29T23:46:54.000Z",
+      "cvss": {
+        "score": 0,
+        "vectorString": null
+      },
+      "cwe": [
+        "CWE-697",
+        "CWE-843"
+      ],
+      "url": "https://github.com/advisories/GHSA-j6r3-76f7-8jcv"
+    },
+    "1240098": {
+      "findings": [
+        {
+          "version": "10.7.0",
+          "paths": [
+            ".>shadcn>@modelcontextprotocol/sdk>express-rate-limit>ip-address"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://github.com/beaugunderson/ip-address/security/advisories/GHSA-h3mg-xc3c-68pw\n- https://nvd.nist.gov/vuln/detail/CVE-2026-101911\n- https://github.com/beaugunderson/ip-address/commit/469ead1231b4cc059f2150c626e1e0c2895c0134\n- https://github.com/beaugunderson/ip-address/commit/8b34a21e0839b37c094066816fb2c2c48a2adcf5\n- https://github.com/beaugunderson/ip-address/releases/tag/v10.7.1\n- https://github.com/advisories/GHSA-h3mg-xc3c-68pw",
+      "created": "2026-09-29T23:46:39.000Z",
+      "id": 1240098,
+      "npm_advisory_id": null,
+      "overview": "### Summary\n\n`new Address6()` and `Address6.isValid()` place no bound on the length of the string they parse. When the string contains a character that cannot appear in an IPv6 address, the parser builds a diagnostic that wraps every such character in a 34-byte `<span class=\"parse-error\">`, so the work and the memory scale with the input rather than with an address. A 1 MiB string of `!` costs about 110 MB and 70 ms of synchronous work, 8 MiB costs about 800 MB and half a second, 16 MiB throws a `RangeError` in place of the documented `AddressError`, and 32 MiB aborts the Node process. `isValid()` builds the diagnostic and discards it, so a caller that only asks whether a string is valid pays the full price.\n\nAn application that validates an attacker-supplied string with these methods can be stalled or crashed by a single oversized request. This is a crash on input that should have been rejected cleanly, which SECURITY.md lists as in scope.\n\n### Details\n\n`parse()` in `src/ipv6.ts` checks for characters outside `[0-9a-f:/%]` and, on finding any, throws an `AddressError` whose `parseMessage` is the whole input with each offending character wrapped:\n\n```ts\nconst badCharacters = address.match(constants6.RE_BAD_CHARACTERS);\n\nif (badCharacters) {\n  throw new AddressError(\n    `Bad character${badCharacters.length > 1 ? 's' : ''} detected in address: ${badCharacters.join('')}`,\n    address.replace(constants6.RE_BAD_CHARACTERS, '<span class=\"parse-error\">$1</span>'),\n  );\n}\n```\n\n`RE_BAD_CHARACTERS` is `/([^0-9a-f:/%])/gi`. For an input made entirely of punctuation the `match` allocates one string per character, the `join` copies them all into the message, and the `replace` produces a string 34 times the input. Nothing before this point looks at the length: the constructor strips a CIDR suffix and a zone identifier and hands the rest to `parse()`. The `RE_BAD_ADDRESS` branch below it builds its diagnostic the same way at about a third of the ratio, for input in the hex-and-colon alphabet such as `fffff:` repeated.\n\n`parse()` is reached only through the constructor, so every entry point that constructs an `Address6` from a string it has not already bounded is affected: `new Address6()`, `isValid()`, both arguments of `fromAddressAndMask()` and `fromAddressAndWildcardMask()`, `fromWildcard()`, and the prefix argument of `fromAddress4Nat64()` and `toAddress4Nat64()`. `fromURL()` admits only hex, colons, and dots in a host, so it reaches the `RE_BAD_ADDRESS` branch and not the other. `fromArpa()` caps its input at 32 nibbles before constructing anything, and `fromBigInt()`, `fromByteArray()`, and `fromAddress4()` build the string themselves, so those are unaffected.\n\nThe `replace` is where size becomes fatal. V8 caps a string at 2^29 - 24 characters, so past 16 MiB of input the `replace` throws `RangeError: Invalid string length` rather than the `AddressError` callers catch; `isValid()` swallows it, but a constructor call guarded by `instanceof AddressError` does not. Past 32 MiB the replacement builder's internal array exceeds its maximum size and V8 aborts the process with `Fatal JavaScript invalid size error`, which no `try`/`catch` intercepts.\n\n### Affected versions\n\n`<= 10.7.0`. The diagnostic has had this shape since the parser was written, so every release is affected.\n\n### Impact\n\n`Address6.isValid()` on N bytes of `!`, measured on node 24.19.0:\n\n| Input | Wall time | Transient heap | Outcome |\n|---|---|---|---|\n| 16 KiB | 1 ms | 1 MB | `false` |\n| 1 MiB | 73 ms | 112 MB | `false` |\n| 8 MiB | 464 ms | 784 MB | `false` |\n| 16 MiB | | | `RangeError: Invalid string length` from the constructor; `isValid()` returns `false` |\n| 32 MiB | | | the process aborts |\n\nThe parse is synchronous, so the event loop is blocked for the whole of the wall time and nothing else on that process is served. The heap is transient and is reclaimed after the call returns, so memory does not accumulate across requests; the abort at 32 MiB is a single request. `Address4` has no diagnostic of this shape and parses the same 8 MiB in a few milliseconds.\n\n### Reachability\n\nReaching the sizes above requires that the application hand the parser a string it has not already bounded. A host taken from a URL or an HTTP header is bounded by the server's header limit (Node's default is 16 KB), and at that size the cost is a millisecond. The megabyte sizes need a request body the application accepts at that scale and passes through unchecked. Common body parsers default to between 100 KB and 1 MB, which caps the effect at a stall of under 100 ms per request, and the abort needs 32 MiB in a single field, which no default admits. The severity is scored for the stall, not the abort: an application that accepts 32 MiB bodies into an address parser is the exception, and the reader running one should treat this as a crash.\n\n### Proof of concept\n\n`npm i ip-address@10.7.0`, then:\n\n```js\nconst { Address6 } = require('ip-address');\n\nfor (const mib of [1, 8]) {\n  const input = '!'.repeat(mib * 1024 * 1024);\n  const before = process.memoryUsage().heapUsed;\n  const start = process.hrtime.bigint();\n\n  Address6.isValid(input);\n\n  const ms = Number(process.hrtime.bigint() - start) / 1e6;\n  const mb = (process.memoryUsage().heapUsed - before) / 1048576;\n\n  console.log(`${mib} MiB: ${ms.toFixed(0)} ms, ${mb.toFixed(0)} MB`);\n}\n\ntry {\n  new Address6('!'.repeat(16 * 1024 * 1024));\n} catch (e) {\n  console.log(`16 MiB: ${e.name}: ${e.message}`);\n}\n\nnew Address6('!'.repeat(32 * 1024 * 1024));\n```\n\nOn affected versions (node 24.19.0):\n\n```\n1 MiB: 73 ms, 112 MB\n8 MiB: 464 ms, 784 MB\n16 MiB: RangeError: Invalid string length\n\n\n#\n# Fatal error in , line 0\n# Fatal JavaScript invalid size error 142606336\n#\n```\n\nThe last line is V8 terminating the process; the script does not reach its end.\n\n### Remediation\n\nUpgrade to the patched release. In the fix, the constructor rejects an address longer than the family allows before `parse()` runs: 45 characters for IPv6 once the CIDR suffix and zone identifier are stripped (six four-digit groups, six colons, and a dotted quad, the same line CPython's `ipaddress` module draws), and 15 characters for IPv4. The rejection is an `AddressError` with no `parseMessage`, so `isValid()` returns `false` for the cost of a length comparison and the 32 MiB input above is rejected in the same time as a 46-character one. A zone identifier is not counted, since it never reaches the diagnostic.\n\nThis rejects nothing a previous release accepted: every string longer than the limit already failed to parse.\n\nIf you cannot upgrade immediately, reject a candidate longer than an address with a zone identifier can be before you parse it:\n\n```js\nif (host.length > 64) throw new Error('not an IP address');\n```",
+      "reported_by": null,
+      "title": "ip-address: Address6 builds a parse diagnostic proportional to the input with no length bound, allowing a single long string to stall or crash the process",
+      "metadata": null,
+      "cves": [
+        "CVE-2026-101911"
+      ],
+      "access": "public",
+      "severity": "moderate",
+      "module_name": "ip-address",
+      "vulnerable_versions": "<=10.7.0",
+      "github_advisory_id": "GHSA-h3mg-xc3c-68pw",
+      "recommendation": "Upgrade to version 10.7.1 or later",
+      "patched_versions": ">=10.7.1",
+      "updated": "2026-09-29T23:46:40.000Z",
+      "cvss": {
+        "score": 0,
+        "vectorString": null
+      },
+      "cwe": [
+        "CWE-400",
+        "CWE-770"
+      ],
+      "url": "https://github.com/advisories/GHSA-h3mg-xc3c-68pw"
+    },
+    "1240100": {
+      "findings": [
+        {
+          "version": "1.1.20",
+          "paths": [
+            ".>eslint>minimatch>brace-expansion"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://github.com/juliangruber/brace-expansion/security/advisories/GHSA-q2hr-2g5m-vwhr\n- https://nvd.nist.gov/vuln/detail/CVE-2026-102277\n- https://github.com/juliangruber/brace-expansion/commit/33a5ef17b8d800bbfa8c52b14c39043b6aac1a96\n- https://github.com/juliangruber/brace-expansion/commit/bdff773f98e5988616b7039cc9b508df5d640b22\n- https://github.com/juliangruber/brace-expansion/commit/c55e67d8d8b1c56a2474afff15c2891166b2d364\n- https://github.com/juliangruber/brace-expansion/commit/ffdfa3e3806bed17c0874b8f1439b084de354a7e\n- https://github.com/advisories/GHSA-q2hr-2g5m-vwhr",
+      "created": "2026-09-29T23:45:39.000Z",
+      "id": 1240100,
+      "npm_advisory_id": null,
+      "overview": "### Summary\n\nExpanding `{a},b}`-shaped input takes time quadratic in the number of literal `}` characters, blocking the event loop.\n\nBash preserves a quirk where a brace group followed by a comma set still expands (`{a},b}`). The parser implements this by rewriting the string and restarting the scan. Each pass absorbs exactly one `}` and re-scans from the beginning, so `n` trailing braces cost `n` full passes.\n\n### Reproduction\n\n```js\nconst build = n => '{a}' + '}'.repeat(n) + ',z}'\n\nfor (const n of [8000, 16000, 32000, 64000, 128000]) {\n  const t = Date.now()\n  expand(build(n))\n  console.log(n, Date.now() - t + 'ms')\n}\n```\n\n| n | input | time | results |\n|---|---|---|---|\n| 8,000 | 8 KB | 110 ms | 2 |\n| 16,000 | 16 KB | 446 ms | 2 |\n| 32,000 | 32 KB | 1.7 s | 2 |\n| 64,000 | 64 KB | 6.9 s | 2 |\n| 128,000 | 128 KB | **27.7 s** | 2 |\n\n`ms/n^2` is flat at ~1.7 and each doubling of `n` costs exactly 4.0x - quadratic. 128 KB of input blocks the event loop for nearly half a minute to produce two results.\n\n### Mechanism\n\nInstrumenting the rewrite branch confirms it runs exactly `n + 1` times, once per literal `}`, each re-scanning the whole string.\n\nThere is a second multiplier. The rewrite replaces the group's closing `}` with the internal `escClose` sentinel, which is `'\\0CLOSE' + Math.random() + '\\0'` - about 25 characters. The working string therefore *grows* by ~25 characters on every pass:\n\n| n | input length | final string length |\n|---|---|---|\n| 1,000 | 1,006 | 26,006 |\n| 8,000 | 8,006 | 208,006 |\n\nSo the input is inflated roughly 26x, and that factor multiplies both the quadratic constant and peak memory. This makes it partly a memory-pressure issue as well as a CPU one.\n\n### Why `max` and `maxLength` do not help\n\nThe cost is in parsing, before the result set exists. The payload yields 2 results regardless of size, so neither bound is ever reached.\n\n### Impact\n\nAn application passing an untrusted pattern to `expand()`, directly or through `minimatch` / `glob`, can have its event loop blocked for tens of seconds by a payload well under minimatch's 65,536-character cap. For a single-threaded Node server that is a full stall, not just a slow request.\n\nDegraded availability rather than a crash - the process recovers once the expansion completes.\n\n### Affected versions\n\nVerified affected on 1.1.18, 2.1.4, 3.0.6 and 5.0.9, all within a few percent of each other (~460-490 ms at n=16,000).\n\n### Patch\n\nThe rewrite loop gets an iteration bound. Past the cap the remaining string is treated as non-expanding and returned literally, consistent with the existing `max` / `maxLength` caps, which truncate rather than throw.\n\nNote this bounds the number of passes, not the cost of each: worst-case work remains proportional to `cap x input length`. The cap is set low enough that the residual is bounded in practice, and far above what any realistic `{a},b}` input needs.\n\n### Severity note\n\nScored 5.3 Medium (`A:L`) for consistency with GHSA-3jxr-9vmj-r5cp, the other algorithmic-complexity advisory on this package (CWE-407), which uses the same vector. The stack-exhaustion advisories on this package score `A:H` because they crash the process outright; this one stalls it.",
+      "reported_by": null,
+      "title": "brace-expansion: Quadratic-time expansion of the `{a},b}` rewrite causes CPU denial of service",
+      "metadata": null,
+      "cves": [
+        "CVE-2026-102277"
+      ],
+      "access": "public",
+      "severity": "moderate",
+      "module_name": "brace-expansion",
+      "vulnerable_versions": "<1.1.21",
+      "github_advisory_id": "GHSA-q2hr-2g5m-vwhr",
+      "recommendation": "Upgrade to version 1.1.21 or later",
+      "patched_versions": ">=1.1.21",
+      "updated": "2026-09-29T23:45:39.000Z",
+      "cvss": {
+        "score": 5.3,
+        "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L"
+      },
+      "cwe": [
+        "CWE-400",
+        "CWE-407"
+      ],
+      "url": "https://github.com/advisories/GHSA-q2hr-2g5m-vwhr"
+    },
+    "1240992": {
+      "findings": [
+        {
+          "version": "3.0.3",
+          "paths": [
+            ".>eslint-config-next>@next/eslint-plugin-next>fast-glob>micromatch>braces"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://nvd.nist.gov/vuln/detail/CVE-2026-93687\n- https://github.com/micromatch/braces/issues/70\n- https://github.com/micromatch/braces/blob/3.0.3/lib/compile.js#L49-L53\n- https://github.com/micromatch/braces/blob/3.0.3/lib/expand.js#L102-L105\n- https://github.com/micromatch/braces/blob/3.0.3/lib/parse.js#L38-L40\n- https://www.vulncheck.com/advisories/braces-through-3.0.3-stack-overflow-via-deeply-nested-patterns\n- https://github.com/advisories/GHSA-vfj7-8cjw-p6xm",
+      "created": "2026-09-18T18:31:41.000Z",
+      "id": 1240992,
+      "npm_advisory_id": null,
+      "overview": "braces through 3.0.3 contains a stack overflow vulnerability in the recursive AST walkers that lack depth guards. Attackers can supply deeply nested brace patterns under the character limit to exhaust the call stack and terminate the Node.js process with an uncaught RangeError.",
+      "reported_by": null,
+      "title": "braces vulnerable to stack-exhaustion denial of service through deeply nested patterns",
+      "metadata": null,
+      "cves": [
+        "CVE-2026-93687"
+      ],
+      "access": "public",
+      "severity": "high",
+      "module_name": "braces",
+      "vulnerable_versions": "<=3.0.3",
+      "github_advisory_id": "GHSA-vfj7-8cjw-p6xm",
+      "recommendation": "None",
+      "patched_versions": "<0.0.0",
+      "updated": "2026-10-02T22:36:34.000Z",
+      "cvss": {
+        "score": 7.5,
+        "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+      },
+      "cwe": [
+        "CWE-674"
+      ],
+      "url": "https://github.com/advisories/GHSA-vfj7-8cjw-p6xm"
+    }
+  },
+  "muted": [],
+  "metadata": {
+    "vulnerabilities": {
+      "info": 0,
+      "low": 0,
+      "moderate": 4,
+      "high": 1,
+      "critical": 0
+    },
+    "dependencies": 1076,
+    "devDependencies": 0,
+    "optionalDependencies": 0,
+    "totalDependencies": 1076
+  }
+}

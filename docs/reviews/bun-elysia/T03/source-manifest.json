@@ -1,0 +1,414 @@
+{
+  "$comment": "T03 implementation source manifest. External evidence paths are relative to industrial-sas-delivery-preserved-20261011/T03/implementation/. Generated after the final targeted test run. source-manifest.json itself is excluded (self-hash).",
+  "base": {
+    "sha": "d07f6282bfee73ac8c264f6cab4737487dc52a8e",
+    "tree": "035f98f180764672944fd3382c1feedde9b8d93c",
+    "branch": "codex/bun-security-t03-20261011"
+  },
+  "trackedFilesChanged": [],
+  "baselineFilesUnchanged": [
+    {
+      "path": "package.json",
+      "sha256": "8ba123411abbe8659ace182ff853870aff3954607bcfe3313fabeb9b322ee0f5",
+      "unchanged": true
+    },
+    {
+      "path": "pnpm-lock.yaml",
+      "sha256": "997e89ed29ba914da4fa62044fe3658912d6599b9a85541906411066c0ceafc8",
+      "unchanged": true
+    },
+    {
+      "path": "pnpm-workspace.yaml",
+      "sha256": "d419e8a15c6aefe71fcfc0e4110701179b6f6948ff9d158bc3796b43c0fe5007",
+      "unchanged": true
+    },
+    {
+      "path": ".npmrc",
+      "sha256": "46552cf4e4f553e55e868ecaa238d29cb5544e975c9f6730f0ca0cf4c5ee3a5e",
+      "unchanged": true
+    },
+    {
+      "path": ".bun-version",
+      "sha256": "bd31e8d9cf8d14a1e9e3fdf3b9f6a524819aed0d1b14627523c6765767c7d8f1",
+      "unchanged": true
+    },
+    {
+      "path": "tools/release/package.json",
+      "sha256": "1041ced170901690f7215faa8551b85215507ab8c2e2b729b477d59bafbf14ee",
+      "unchanged": true
+    },
+    {
+      "path": "tools/release/pnpm-lock.yaml",
+      "sha256": "54a2e94e66ae249c6618ae7571b3edc799f0a9f9438c5e038de5d653ee3ee701",
+      "unchanged": true
+    },
+    {
+      "path": "tools/release/pnpm-workspace.yaml",
+      "sha256": "83bf0e287eb50222e82d35b3f8c6ebec7ad6f84e417f2be24df0af570be73b38",
+      "unchanged": true
+    },
+    {
+      "path": "tools/release/.npmrc",
+      "sha256": "46552cf4e4f553e55e868ecaa238d29cb5544e975c9f6730f0ca0cf4c5ee3a5e",
+      "unchanged": true
+    },
+    {
+      "path": "scripts/ci/audit-dependencies.mjs",
+      "sha256": "dda41f58874755abda54e427e2917df122e15ccb57b83649ceded06dc4f2b142",
+      "unchanged": true
+    },
+    {
+      "path": "scripts/ci/audit-summary.mjs",
+      "sha256": "eb31d7e6dd3c721552beedbc4cbcf31bd299819cf9c6a04240c1f7feba6396c8",
+      "unchanged": true
+    },
+    {
+      "path": "scripts/ci/report-lib.mjs",
+      "sha256": "058d8ac04c9d13721743e2fa6008b9ad7a057e5a535227e141429609f9087034",
+      "unchanged": true
+    },
+    {
+      "path": "scripts/ci/dependency-exceptions.json",
+      "sha256": "ebb0e27a0c524cd35dcc47266c72aaa24dea5b688442f37a352f965f78504dd2",
+      "unchanged": true
+    },
+    {
+      "path": "scripts/ci/workflow-lib.mjs",
+      "sha256": "e74858f2e46313e20ad09b3a5f4a450f85fafd197382aa70d90b229f6064b13e",
+      "unchanged": true
+    },
+    {
+      "path": "scripts/ci/install-bun-checker.mjs",
+      "sha256": "e835fe161384de64bab92b328ca7db5526c09645a5384554724e4db3810517e8",
+      "unchanged": true
+    },
+    {
+      "path": ".github/actions/setup-node-pnpm/action.yml",
+      "sha256": "0cd2803711d7ff60f36d3d02f2efa6429c7c58c9f75df1c36b721c9e7363b5b3",
+      "unchanged": true
+    },
+    {
+      "path": ".github/workflows/quality.yml",
+      "sha256": "a747195e2fec1c127207fac2d1d72ee998568d23f49b4620f021870cee33efac",
+      "unchanged": true
+    },
+    {
+      "path": ".github/workflows/security-audit.yml",
+      "sha256": "c8b4d27478eed4e61f89441c38c568915d97abffcd13f1ca38f8a028a8df9040",
+      "unchanged": true
+    },
+    {
+      "path": "scripts/release/run.mjs",
+      "sha256": "d322b203cc9aaf1d111c8be1560f0acbebfac66fcb92b67465aa9a8d5b68f07a",
+      "unchanged": true
+    },
+    {
+      "path": "scripts/release/lib/vercel-config.mjs",
+      "sha256": "64ebba1841bf3b7463b4014099fd4b30807ff88023e8c5e88bd437845e5100fa",
+      "unchanged": true
+    },
+    {
+      "path": "vercel.json",
+      "sha256": "ae938d581048fe43e10c1413468053a839fe10647b9715eb7498b505b949f5fe",
+      "unchanged": true
+    },
+    {
+      "path": "vitest.config.mts",
+      "sha256": "4eca59b6d4df04c332fa5e5298b222d46a7cdaaf9da8c293f54aaa55196d0dd7",
+      "unchanged": true
+    },
+    {
+      "path": "tests/integration/dependency-exceptions.integration.test.ts",
+      "sha256": "a1a9a5b5152ed2674eee12f49c86a5c503c624b62e6d4e459bcf5741703ffcc4",
+      "unchanged": true
+    }
+  ],
+  "newFiles": [
+    {
+      "path": "docs/reviews/bun-elysia/T03/acceptance.md",
+      "sha256": "601ef70ac6486a87b7c02047fcb20e800306a8ffa2481253d6b61d5d003fab75"
+    },
+    {
+      "path": "docs/reviews/bun-elysia/T03/braces-path-reconciliation.json",
+      "sha256": "bc7e003ca16dc2367122a00e5623ccc00f00b21f794985213ff0b5de02531963"
+    },
+    {
+      "path": "docs/reviews/bun-elysia/T03/handoff.md",
+      "sha256": "316881130f56f750f6e0e124cc414b6f9991afa1cd9dd61fffe1fd6def4c92e0"
+    },
+    {
+      "path": "docs/reviews/bun-elysia/T03/installed-graph-comparison-darwin-arm64.json",
+      "sha256": "7c881c9ff6dc1d3c979c87a309f37f0ab93f68626f3940a19ad05a85c7c4d05f"
+    },
+    {
+      "path": "scripts/ci/bun-audit.mjs",
+      "sha256": "37110cf3cd729a3053066c70dc92b8afa6c5cc53bacbb1898c0e11662299f98d"
+    },
+    {
+      "path": "scripts/ci/installed-graph.mjs",
+      "sha256": "88e9ffc103f2e40eb7a2e59cdfaca58608b61437df85e44ccf58227900e4760e"
+    },
+    {
+      "path": "scripts/ci/lifecycle-policy.mjs",
+      "sha256": "c9843613b7a05b8e3367eca7a2f83216296a1b2ca85139afea93f0120ea4c108"
+    },
+    {
+      "path": "scripts/ci/lockfile-graph.mjs",
+      "sha256": "aa8fbd2c2409bb30b8d86c11a3be2b5ffd7647278363836aa7838d4ba448c60f"
+    },
+    {
+      "path": "scripts/ci/semver-range.mjs",
+      "sha256": "67506780318def50c87a94dedda67604d3996a741f4de50ad9c9bf62205bef7d"
+    },
+    {
+      "path": "tests/fixtures/bun-audit/bun-app-full.exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "tests/fixtures/bun-audit/bun-app-full.stdout",
+      "sha256": "cb1e721b504ec1dd8760373b4515574ea0ed3d479d933822de1c717772de0ba7"
+    },
+    {
+      "path": "tests/fixtures/bun-audit/bun-app-prod.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "tests/fixtures/bun-audit/bun-app-prod.stdout",
+      "sha256": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356"
+    },
+    {
+      "path": "tests/fixtures/bun-audit/bun-release-full.exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "tests/fixtures/bun-audit/bun-release-full.stdout",
+      "sha256": "b9f43d9dc4fd92034557aaad2a786c0f0741bd91c26d04b3f6a7b70a2d777f45"
+    },
+    {
+      "path": "tests/fixtures/bun-audit/bun-release-prod.exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "tests/fixtures/bun-audit/bun-release-prod.stdout",
+      "sha256": "b9f43d9dc4fd92034557aaad2a786c0f0741bd91c26d04b3f6a7b70a2d777f45"
+    },
+    {
+      "path": "tests/fixtures/bun-audit/pnpm-app-full.stdout",
+      "sha256": "ab1b8de5e15ec3212e3894ecd3f2f39e0630041a0935d7673b48646a05ae5dc8"
+    },
+    {
+      "path": "tests/fixtures/bun-audit/pnpm-release-full.stdout",
+      "sha256": "11e00080b74c3ca644e7cc89578c06631986039876e30ac215e75c2e13bf824c"
+    },
+    {
+      "path": "tests/fixtures/bun-lifecycle/marker-probe-darwin-arm64.stdout",
+      "sha256": "16c7b2013981093f683a16c3cdfb8d07cd035080a68741e49063e06f35db8044"
+    },
+    {
+      "path": "tests/fixtures/bun-lifecycle/marker-probe.mjs",
+      "sha256": "a6e3a366b565f16ff5427c342bd1a76fcb057b6565bed2dbd4a0364ba2cb4ad7"
+    },
+    {
+      "path": "tests/fixtures/bun-lifecycle/reviewed-scripts.json",
+      "sha256": "d6a65e02dfe4fe6debd5d78cca814cd44c33feb450ec332a5bb245ee5967e085"
+    },
+    {
+      "path": "tests/integration/bun-audit-adapter.integration.test.ts",
+      "sha256": "6ab49fbc200aa88789e8b6f0d15fb03167d20d8163f8383c8895757d2be96c22"
+    },
+    {
+      "path": "tests/integration/bun-lifecycle-policy.integration.test.ts",
+      "sha256": "fc38c96834348d8ea5c0987d5fc2714a48ff767848a3f8097468635fec34dcad"
+    },
+    {
+      "path": "tests/integration/bun-resolved-graph.integration.test.ts",
+      "sha256": "d921f6af4aa7239c932d59c012137812778a52533bf440f8e380363ab856a1c7"
+    }
+  ],
+  "rawFixtureCopies": {
+    "$comment": "Byte-identical copies (renamed *.stdout.json -> *.stdout so prettier --check leaves the raw bytes alone). original = external evidence file.",
+    "rows": [
+      {
+        "fixture": "tests/fixtures/bun-audit/bun-app-full.stdout",
+        "original": "raw-audit/bun-app-full.stdout.json",
+        "sha256": "cb1e721b504ec1dd8760373b4515574ea0ed3d479d933822de1c717772de0ba7",
+        "originalSha256": "cb1e721b504ec1dd8760373b4515574ea0ed3d479d933822de1c717772de0ba7",
+        "identical": true
+      },
+      {
+        "fixture": "tests/fixtures/bun-audit/bun-app-full.exit",
+        "original": "raw-audit/bun-app-full.exit",
+        "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+        "originalSha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+        "identical": true
+      },
+      {
+        "fixture": "tests/fixtures/bun-audit/bun-app-prod.stdout",
+        "original": "raw-audit/bun-app-prod.stdout.json",
+        "sha256": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356",
+        "originalSha256": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356",
+        "identical": true
+      },
+      {
+        "fixture": "tests/fixtures/bun-audit/bun-app-prod.exit",
+        "original": "raw-audit/bun-app-prod.exit",
+        "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+        "originalSha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+        "identical": true
+      },
+      {
+        "fixture": "tests/fixtures/bun-audit/bun-release-full.stdout",
+        "original": "raw-audit/bun-release-full.stdout.json",
+        "sha256": "b9f43d9dc4fd92034557aaad2a786c0f0741bd91c26d04b3f6a7b70a2d777f45",
+        "originalSha256": "b9f43d9dc4fd92034557aaad2a786c0f0741bd91c26d04b3f6a7b70a2d777f45",
+        "identical": true
+      },
+      {
+        "fixture": "tests/fixtures/bun-audit/bun-release-full.exit",
+        "original": "raw-audit/bun-release-full.exit",
+        "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+        "originalSha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+        "identical": true
+      },
+      {
+        "fixture": "tests/fixtures/bun-audit/bun-release-prod.stdout",
+        "original": "raw-audit/bun-release-prod.stdout.json",
+        "sha256": "b9f43d9dc4fd92034557aaad2a786c0f0741bd91c26d04b3f6a7b70a2d777f45",
+        "originalSha256": "b9f43d9dc4fd92034557aaad2a786c0f0741bd91c26d04b3f6a7b70a2d777f45",
+        "identical": true
+      },
+      {
+        "fixture": "tests/fixtures/bun-audit/bun-release-prod.exit",
+        "original": "raw-audit/bun-release-prod.exit",
+        "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+        "originalSha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+        "identical": true
+      },
+      {
+        "fixture": "tests/fixtures/bun-audit/pnpm-app-full.stdout",
+        "original": "raw-audit/pnpm-app-full.stdout.json",
+        "sha256": "ab1b8de5e15ec3212e3894ecd3f2f39e0630041a0935d7673b48646a05ae5dc8",
+        "originalSha256": "ab1b8de5e15ec3212e3894ecd3f2f39e0630041a0935d7673b48646a05ae5dc8",
+        "identical": true
+      },
+      {
+        "fixture": "tests/fixtures/bun-audit/pnpm-release-full.stdout",
+        "original": "raw-audit/pnpm-release-full.stdout.json",
+        "sha256": "11e00080b74c3ca644e7cc89578c06631986039876e30ac215e75c2e13bf824c",
+        "originalSha256": "11e00080b74c3ca644e7cc89578c06631986039876e30ac215e75c2e13bf824c",
+        "identical": true
+      },
+      {
+        "fixture": "tests/fixtures/bun-lifecycle/marker-probe-darwin-arm64.stdout",
+        "original": "marker-probe-darwin-arm64.json",
+        "sha256": "16c7b2013981093f683a16c3cdfb8d07cd035080a68741e49063e06f35db8044",
+        "originalSha256": "16c7b2013981093f683a16c3cdfb8d07cd035080a68741e49063e06f35db8044",
+        "identical": true
+      }
+    ]
+  },
+  "bun": {
+    "version": "1.4.3",
+    "revision": "1.4.3+c6da4a4d3",
+    "typescript": "7.0.2",
+    "path": ".cache/bun-checker/bun-v1.4.3-bun-darwin-aarch64/bun (worktree-relative, ignored)",
+    "binarySha256": "28c7dd0a06916aba284d570ef44a2d70e9c538eaf2ba58dfe0910525563b3f79",
+    "archive": ".cache/bun-checker/bun-darwin-aarch64-v1.4.3.zip (worktree-relative, ignored)",
+    "archiveSha256": "80afd4c069b46a6fa8f3ec520bebc750a7843e4a8d5b9583d29ad436c00a3403",
+    "pinnedArchiveSha256": "80afd4c069b46a6fa8f3ec520bebc750a7843e4a8d5b9583d29ad436c00a3403",
+    "os": "macOS 26.5.2 (25F84) arm64",
+    "installer": "scripts/ci/install-bun-checker.mjs (sha256 e835fe16…)"
+  },
+  "candidateLocks": [
+    {
+      "file": "candidate-locks/app/bun.lock",
+      "sha256": "5aa32bbdd680dd68840930a79e0df086ae6fe74f57ad8570b0f93ad60786c357"
+    },
+    {
+      "file": "candidate-locks/app/package.json",
+      "sha256": "40288136381adaad858d6b5ecfff514e620ed75dac99f2c012d6acf00d45d3c7"
+    },
+    {
+      "file": "candidate-locks/app/bunfig.toml",
+      "sha256": "8e392e34566bdde7b5da1868b1645dd887138c405f803ebec037512752ccb1df"
+    },
+    {
+      "file": "candidate-locks/release/bun.lock",
+      "sha256": "abb6293e740e653aa0d02ee419a28c34ed50558e5ab9a94763525c8fde77cc09"
+    },
+    {
+      "file": "candidate-locks/release/package.json",
+      "sha256": "784d6aab8019cb67f4979ae739f0f09c38c31562120c4ec011cb175b0ba0c3da"
+    },
+    {
+      "file": "candidate-locks/release/bunfig.toml",
+      "sha256": "ba6bbd2e072a5f693a5b41cebe95b3105f1fd884fb0cf0f6c7c2b0658472cb38"
+    }
+  ],
+  "externalEvidence": [
+    {
+      "file": "baseline-hashes.sha256",
+      "sha256": "e132f585852c219270fc3f3b4e78cd330c4e8cfb51caf389eb3df9c9316723a7"
+    },
+    {
+      "file": "bun-default-trusted.txt",
+      "sha256": "a60aee16c475a681fcf064976009399bb48c4fdd5802a3303ab1ade424c9ece9"
+    },
+    {
+      "file": "bun-v1.4.3-src-install-lockfile.rs",
+      "sha256": "3e6d9ccc878f0d4d8970d7d16a2c46ef90a20a90c39c5382fc38980bb5db4ee6"
+    },
+    {
+      "file": "installed-graph-comparison-darwin-arm64.json",
+      "sha256": "e8dae8f0dc692ef65d3551f0c9202d2588f0c14f1c0b0fb6e4b5ac70350e1b57"
+    },
+    {
+      "file": "marker-probe-darwin-arm64.json",
+      "sha256": "16c7b2013981093f683a16c3cdfb8d07cd035080a68741e49063e06f35db8044"
+    },
+    {
+      "file": "marker-probe-coordinator-stall.json",
+      "sha256": "38ba1debcac10ae02bd3f80d4cf31252e7747a3bddead487ff140002a8033f33"
+    },
+    {
+      "file": "lifecycle/inventory-app-darwin-arm64.json",
+      "sha256": "fc78452f50c4a60695a817d019ae8352503acb6274ddd6b5c622439265ca319d"
+    },
+    {
+      "file": "lifecycle/inventory-release-darwin-arm64.json",
+      "sha256": "e2f24dbcb73d9a664b8cf1e077cdda977f980a688a62188a6905df42ea18441c"
+    },
+    {
+      "file": "lifecycle/reviewed-scripts.v1.json",
+      "sha256": "918c5030326c31a7e182385520f1aee79d7a8a76d5431e331056f730c84f4dce"
+    },
+    {
+      "file": "logs/adjacent-contract-vitest.log",
+      "sha256": "6a44128252554e040aeee50781165105483ceee0231b15997bfa4150c2f8e94d"
+    },
+    {
+      "file": "logs/semver-cross-check.txt",
+      "sha256": "9a61340cf11c636c9a6b535a5e942e4edbd61a5e45703cd863c4112fc764e53a"
+    },
+    {
+      "file": "final-receipts/commands.txt",
+      "sha256": "6f0c668cbd96487a1dde1747b00dfecf7873edded5666e354aa0ff948581967f"
+    },
+    {
+      "file": "raw-audit/captured-at.txt",
+      "sha256": "b1776c150eddb9adeee689a7813c3e2dd8b13e0444c07d74347d07f139be2a20"
+    },
+    {
+      "file": "raw-audit/pnpm-app-prod.stdout.json",
+      "sha256": "ebc8b6578bd74b67cbdc6f1b8b8fbe24e0e5a28e62f86bad9581772cd4900615"
+    },
+    {
+      "file": "raw-audit/pnpm-release-prod.stdout.json",
+      "sha256": "11e00080b74c3ca644e7cc89578c06631986039876e30ac215e75c2e13bf824c"
+    },
+    {
+      "file": "logs/targeted-vitest-final.log",
+      "sha256": "95592e9c57b0fa33552effc7463cfbedcee8cbb377cdbc93f9d29d057f40ce6f"
+    }
+  ]
+}
