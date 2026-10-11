@@ -92,18 +92,36 @@ async function readBounded(
   } catch {
     throw new SourceError(signal.aborted ? "TIMEOUT" : "UPSTREAM");
   }
-  if (!response.ok) throw new SourceError("UPSTREAM");
   const declared = Number(response.headers.get("content-length"));
-  if (Number.isFinite(declared) && declared > MAX_SOURCE_BYTES)
-    throw new SourceError("INVALID");
-  let text: string;
-  try {
-    text = await response.text();
-  } catch {
-    throw new SourceError(signal.aborted ? "TIMEOUT" : "UPSTREAM");
+  if (
+    !response.ok ||
+    (Number.isFinite(declared) && declared > MAX_SOURCE_BYTES)
+  ) {
+    void response.body?.cancel().catch(() => undefined);
+    throw new SourceError(response.ok ? "INVALID" : "UPSTREAM");
   }
-  if (text.length > MAX_SOURCE_BYTES) throw new SourceError("INVALID");
-  return text;
+  if (!response.body) return "";
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let bytes = 0,
+    text = "";
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) return text + decoder.decode();
+      bytes += value.byteLength;
+      if (bytes > MAX_SOURCE_BYTES) {
+        void reader.cancel().catch(() => undefined);
+        throw new SourceError("INVALID");
+      }
+      text += decoder.decode(value, { stream: true });
+    }
+  } catch (error) {
+    if (error instanceof SourceError) throw error;
+    throw new SourceError(signal.aborted ? "TIMEOUT" : "UPSTREAM");
+  } finally {
+    reader.releaseLock();
+  }
 }
 
 /**

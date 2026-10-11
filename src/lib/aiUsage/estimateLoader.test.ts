@@ -11,6 +11,7 @@ import {
   ESTIMATE_STALE_AFTER_MS,
   FUNDING_SOURCE_URL,
   FX_SOURCE_URL,
+  MAX_SOURCE_BYTES,
 } from "./estimateSources";
 
 const START = Date.parse("2026-10-11T07:00:00Z");
@@ -175,6 +176,65 @@ describe("createEstimateLoader", () => {
       expect(callsTo(FX_SOURCE_URL)).toBe(2);
     },
   );
+
+  it.each([undefined, "1"])(
+    "bounds streamed bytes even with Content-Length %s",
+    async (declared) => {
+      const encoder = new TextEncoder();
+      const chunks = [
+        encoder.encode(FAQ_BODY),
+        encoder.encode("ก".repeat(Math.floor(MAX_SOURCE_BYTES / 3))),
+        encoder.encode("never read"),
+      ];
+      let pulled = 0;
+      const cancel = vi.fn();
+      const body = new ReadableStream<Uint8Array>(
+        {
+          pull(controller) {
+            const chunk = chunks[pulled++];
+            if (chunk) controller.enqueue(chunk);
+            else controller.close();
+          },
+          cancel,
+        },
+        { highWaterMark: 0 },
+      );
+      const { load, memory } = world((url) =>
+        url === FUNDING_SOURCE_URL
+          ? new Response(body, {
+              headers: declared ? { "content-length": declared } : {},
+            })
+          : healthy(url),
+      );
+      const snapshot = await load();
+      expect(snapshot.funding.status).toBe("UNAVAILABLE");
+      expect(snapshot.fx.status).toBe("READY");
+      expect(cancel).toHaveBeenCalledOnce();
+      expect(pulled).toBe(2);
+      expect([...memory.store.keys()]).toEqual([
+        `${ESTIMATE_CACHE_TAG}/fx-usd-thb/v1`,
+      ]);
+    },
+  );
+
+  it("cancels a declared oversized body without reading it", async () => {
+    const pull = vi.fn();
+    const cancel = vi.fn();
+    const body = new ReadableStream<Uint8Array>(
+      { pull, cancel },
+      { highWaterMark: 0 },
+    );
+    const { load } = world((url) =>
+      url === FX_SOURCE_URL
+        ? new Response(body, {
+            headers: { "content-length": String(MAX_SOURCE_BYTES + 1) },
+          })
+        : healthy(url),
+    );
+    expect((await load()).fx.status).toBe("UNAVAILABLE");
+    expect(pull).not.toHaveBeenCalled();
+    expect(cancel).toHaveBeenCalledOnce();
+  });
 
   it("gives up on a source that exceeds its deadline", async () => {
     const { load } = world(

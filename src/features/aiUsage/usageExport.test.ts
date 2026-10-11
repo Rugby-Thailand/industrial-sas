@@ -211,6 +211,48 @@ describe("usage CSV export", () => {
     expect(none("cost_usd_nano")).toBe("1000000000");
   });
 
+  it.each([false, true])(
+    "preserves the snapshot when no attempts exist (operations: %s)",
+    async (hasOperation) => {
+      const estimate = estimateOf(33.5, null);
+      const scope = usageExportScope(reportOf("A", [20362]), {}, estimate);
+      estimate.fx.value.rate = 99;
+      const { source } = scripted(
+        [async () => pageOf(hasOperation ? [op("a1", "A")] : [])],
+        hasOperation ? [async () => ({ ok: true, value: [] })] : [],
+      );
+      const result = await exportUsage(source, scope, () => true);
+      if (result.kind !== "READY") throw new Error(result.kind);
+      const lines = result.csv.replace(/^\ufeff/, "").split("\r\n");
+      expect(lines).toHaveLength(2);
+      const headers = lines[0]!
+        .split(",")
+        .map((cell) => JSON.parse(cell) as string);
+      const values = lines[1]!
+        .split(",")
+        .map((cell) => JSON.parse(cell) as string);
+      expect(values).toHaveLength(headers.length);
+      const value = (key: string) => values[headers.indexOf(key)];
+      expect(value("record_type")).toBe("ESTIMATE_SNAPSHOT");
+      expect(value("timezone")).toBe("Asia/Bangkok");
+      expect(value("estimate_cache_version")).toBe("1");
+      expect(value("estimate_loaded_at")).toBe("2026-10-11T07:00:00.000Z");
+      expect(value("usd_thb_rate")).toBe("33.5");
+      expect(value("usd_thb_status")).toBe("READY");
+      expect(value("funding_fee_status")).toBe("UNAVAILABLE");
+      for (const key of [
+        "operation_id",
+        "attempt_count",
+        "cost_usd_nano",
+        "estimated_thb",
+        "estimated_total_thb",
+        "funding_fee_percent_estimate",
+      ]) {
+        expect(value(key)).toBe("");
+      }
+    },
+  );
+
   it.each([
     ["between pages of one day", [20362], "cursor-1"],
     ["between days", [20362, 20363], null],

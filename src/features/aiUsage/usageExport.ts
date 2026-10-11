@@ -176,6 +176,7 @@ export const USAGE_CSV_HEADERS = Object.freeze([
   "estimated_thb",
   "estimated_funding_fee_thb",
   "estimated_total_thb",
+  "record_type",
 ] as const);
 
 /**
@@ -258,6 +259,7 @@ export async function exportUsage(
               baht?.inference,
               baht?.fundingFee,
               baht?.withFundingFee,
+              "ATTEMPT",
             ]);
           }
         }
@@ -270,6 +272,20 @@ export async function exportUsage(
     return isCurrent() ? failed("ERROR") : CANCELLED;
   }
   if (!isCurrent()) return CANCELLED;
+  // Empty periods still carry the frozen sources without inventing a call.
+  if (rows.length === 0) {
+    const estimateStart = USAGE_CSV_HEADERS.indexOf("estimate_cache_version");
+    rows.push(
+      USAGE_CSV_HEADERS.map((header, index) => {
+        if (header === "record_type") return "ESTIMATE_SNAPSHOT";
+        if (header === "timezone") return scope.timezone;
+        const column = index - estimateStart;
+        return column >= 0 && column < estimate.length
+          ? estimate[column]
+          : undefined;
+      }),
+    );
+  }
   return Object.freeze({
     kind: "READY",
     csv: usageCsv(USAGE_CSV_HEADERS, rows),

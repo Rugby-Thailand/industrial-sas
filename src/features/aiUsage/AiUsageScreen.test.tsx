@@ -169,6 +169,13 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
+async function openEstimate() {
+  const section = within(screen.getByTestId("usage-estimate"));
+  fireEvent.click(section.getByText("Baht estimate"));
+  await section.findByRole("link", { name: /Frankfurter/ });
+  return section;
+}
+
 beforeEach(() => {
   state.access = { status: "READY", permissions: ["aiUsage.read"] };
   state.summary = { ok: true, requestId: "q", value: report };
@@ -194,22 +201,41 @@ describe("AiUsageScreen access", () => {
       .getByTestId("usage-estimate")
       .querySelector("details")!;
     const toggle = details.querySelector("summary")!;
-    const sourceLink = within(details).getByRole("link", {
-      name: /Frankfurter/,
-      hidden: true,
-    });
     expect(details).not.toHaveAttribute("open");
-    expect(sourceLink).not.toBeVisible();
+    expect(
+      within(details).queryByRole("link", { name: /Frankfurter/ }),
+    ).toBeNull();
     fireEvent.click(toggle);
+    const sourceLink = await within(details).findByRole("link", {
+      name: /Frankfurter/,
+    });
     expect(details).toHaveAttribute("open");
     expect(sourceLink).toBeVisible();
     fireEvent.click(toggle);
+    await waitFor(() => expect(sourceLink).not.toBeInTheDocument());
     expect(details).not.toHaveAttribute("open");
-    expect(sourceLink).not.toBeVisible();
     expect(screen.queryByText("Baht estimate settings")).toBeNull();
     expect(screen.queryByRole("spinbutton")).toBeNull();
     expect(screen.queryByRole("button", { name: /Save/ })).toBeNull();
     await waitFor(() => expect(state.query).toHaveBeenCalled());
+  });
+
+  it("loads expanded details from the latest snapshot and skips closed content", async () => {
+    const pending = deferred<UsageEstimate>();
+    const view = renderWithIntl(<AiUsageScreen estimate={pending.promise} />, {
+      locale: "en",
+      preserveProviders: true,
+    });
+    await screen.findByText("Baht estimate");
+    const section = await openEstimate();
+    expect(section.getAllByText("Loading today's rate…")).toHaveLength(3);
+    await act(async () => pending.resolve(estimateOf(33.5, 5.5)));
+    expect(await section.findByText("33.5000")).toBeVisible();
+    fireEvent.click(section.getByText("Baht estimate"));
+    await waitFor(() => expect(section.queryByText("33.5000")).toBeNull());
+    view.rerender(<AiUsageScreen estimate={estimateOf(40, 5)} />);
+    await openEstimate();
+    expect(await section.findByText("40.0000")).toBeVisible();
   });
 
   it.each([
@@ -293,7 +319,7 @@ describe("AiUsageScreen statement and feature strip", () => {
     expect(
       within(entry("AI_SEARCH")).getByText("No usage in this period."),
     ).toBeInTheDocument();
-    const settings = within(screen.getByTestId("usage-estimate"));
+    const settings = await openEstimate();
     expect(settings.getByText("40.0000")).toBeInTheDocument();
     expect(settings.getByText("5.0%")).toBeInTheDocument();
     expect(
@@ -321,10 +347,9 @@ describe("AiUsageScreen statement and feature strip", () => {
     expect(total.getByText("Not estimated")).toBeVisible();
     expect(total.getByText("US$1.00012")).toBeInTheDocument();
     expect(document.body.textContent).not.toContain("฿");
+    const sources = await openEstimate();
     expect(
-      within(screen.getByTestId("usage-estimate")).getAllByText(
-        "Unavailable · not used in estimates",
-      ),
+      sources.getAllByText("Unavailable · not used in estimates"),
     ).toHaveLength(2);
     view.unmount();
     // A rate without a published fee estimates inference only.
@@ -353,8 +378,14 @@ describe("AiUsageScreen statement and feature strip", () => {
       />,
       { locale: "en" },
     );
+    expect(
+      await within(statement()).findByText("Rate or fee is out of date"),
+    ).toBeVisible();
+    expect(
+      screen.getByTestId("usage-estimate").querySelector("details"),
+    ).not.toHaveAttribute("open");
+    await openEstimate();
     expect(await screen.findByText(/^Stale · checked/)).toBeInTheDocument();
-    fireEvent.click(screen.getByText("Baht estimate"));
     expect(screen.getByText(/Reference rate for 2026-10-08/)).toBeVisible();
   });
 

@@ -2218,6 +2218,7 @@
     "coverageHelp": "Whether every provider call in this period has a confirmed cost. Calls without a confirmed cost are left out of the totals, never counted as zero.",
     "estimatedTotal": "Estimated total",
     "estimateNoFee": "Funding fee policy unavailable",
+    "estimateStale": "Rate or fee is out of date",
     "estimateLoading": "Loading today's rate…",
     "noRate": "THB rate unavailable",
     "featureStrip": "Usage by feature",

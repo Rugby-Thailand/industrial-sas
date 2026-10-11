@@ -248,6 +248,11 @@ export function UsageStatement({
             </p>
           </>
         )}
+        {estimate &&
+        (estimate.fx.status === "STALE" ||
+          estimate.funding.status === "STALE") ? (
+          <p className={`${SUB} text-warning`}>{t("estimateStale")}</p>
+        ) : null}
       </StatementColumn>
       <StatementColumn
         icon={ShieldCheck}

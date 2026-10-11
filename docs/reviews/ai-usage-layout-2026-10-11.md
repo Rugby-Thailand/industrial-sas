@@ -85,3 +85,19 @@ T3 browser checks confirmed the default closed state, click expansion and Enter 
 - [Phone, Thai/light expanded](assets/ai-usage-layout-20261011/estimate-expanded-mobile-thai-light.png)
 
 Validation: all 29 report tests passed, including default collapse, expansion and collapse; targeted ESLint, formatting, pinned Bun typecheck and `git diff --check` passed. Impeccable detector returned no findings.
+
+## Optimization and merge audit
+
+The native disclosure mounts its details only while open. Closed estimate DOM elements fell from 36 to 5, with no source links or date formatting mounted. A private details module owns the source presentation and uses one shared row renderer for FX and funding. Report numbers and detail timestamps now use next-intl's existing locale-aware formatter cache rather than constructing Intl formatters for each value.
+
+A local same-hook benchmark of 2,000 number/USD values created 2,000 formatters before and five after; one measured run was 30.67 ms versus 2.78 ms. These are local formatting measurements, not production load-time or Core Web Vitals claims. Regression coverage asserts at most five constructors, exact nano USD/sub-satang precision, and updated/unavailable estimates.
+
+Independent standards and spec audits covered the full PR against `d07f6282`, including these follow-ups:
+
+- **Standards:** no hard documented violations. Fixed the upstream body limit to count streamed bytes and cancel before decoding oversized content; tests cover absent/incorrect Content-Length, multibyte bodies, cancellation and source independence. Temporary measurement code was replaced with an assertion.
+- **Spec:** fixed the hidden stale warning by keeping a short warning beside the visible estimated total. Empty CSV exports now retain the frozen source snapshot in a metadata-only `ESTIMATE_SNAPSHOT` row. A final `record_type` column distinguishes it from `ATTEMPT` rows while retaining all earlier column positions.
+- **Localization:** fixed the prior English-only Thai source label caught by the full catalogue test.
+
+Both reviewers confirmed the fixes with no remaining findings. T3 verified default collapse, expanded source status, Enter collapse/unmount and Thai/light phone expansion without page overflow. [Visible stale warning](assets/ai-usage-layout-20261011/audit-stale-desktop-dark.png) and [Thai phone details](assets/ai-usage-layout-20261011/audit-expanded-mobile-thai-light.png) remain sample-data fixture evidence.
+
+Final local validation: `pnpm check` passed (formatting, pinned Bun typecheck, zero-warning lint, 255 files / 3,063 tests), `git diff --check` passed, and the changed-UI detector returned no findings.

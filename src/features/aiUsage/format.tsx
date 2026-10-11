@@ -1,6 +1,6 @@
 "use client";
 
-import { useLocale } from "next-intl";
+import { useFormatter } from "next-intl";
 
 import type { UsageEstimate } from "@/lib/aiUsage/estimateSources";
 import { automaticEstimate } from "./report";
@@ -11,14 +11,14 @@ import { automaticEstimate } from "./report";
  * use four decimals so sub-satang costs stay visible.
  */
 export function useUsageFormat(estimate: UsageEstimate | null) {
-  const locale = useLocale();
+  const formatter = useFormatter();
   const num = (value: number, digits = 0) =>
-    new Intl.NumberFormat(locale, {
+    formatter.number(value, {
       maximumFractionDigits: digits,
       minimumFractionDigits: digits,
-    }).format(value);
+    });
   const usd = (nano: number) =>
-    `US$${new Intl.NumberFormat(locale, { minimumFractionDigits: 2, maximumFractionDigits: 9 }).format(nano / 1e9)}`;
+    `US$${formatter.number(nano / 1e9, { minimumFractionDigits: 2, maximumFractionDigits: 9 })}`;
   const baht = (value: number) => `฿${num(value, 4)}`;
   /** The inference-only baht estimate of a confirmed amount, if a rate exists. */
   const thb = (nano: number): string | null => {
