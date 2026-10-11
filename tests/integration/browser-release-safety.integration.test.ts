@@ -8,6 +8,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { summarizePlaywrightReport } from "../../scripts/release/lib/smoke-report.mjs";
 import {
+  filterSmokeDiagnostics,
   smokeFailureDiagnostics,
   stagingSetupFailure,
 } from "../../scripts/release/lib/smoke-diagnostics.mjs";
@@ -317,6 +318,22 @@ function testCase(
 }
 
 describe("sensitive reporting", () => {
+  it("retains exact authentication diagnostics without accepting provider detail", () => {
+    for (const code of [
+      "SENSITIVE_SMOKE_PAGE_ERRORS",
+      "SENSITIVE_SMOKE_UNCAUGHT_ERRORS",
+      "SENSITIVE_SMOKE_NETWORK_ERRORS",
+      "SENSITIVE_SMOKE_CONSOLE_ERRORS",
+      "SMOKE_PROTECTION_REQUEST_FAILED",
+      "STAGING_SIGN_IN_TICKET_FAILED",
+      "STAGING_AUTH_CONTEXT_RESULT_UNCONFIRMED",
+      "STAGING_SIGNOUT_NAVIGATION_FAILED",
+    ]) {
+      expect(smokeFailureDiagnostics(`Error: ${code}`)).toEqual([code]);
+      expect(smokeFailureDiagnostics(`${code}: ${SENTINEL}`)).toEqual([]);
+      expect(filterSmokeDiagnostics([code, SENTINEL])).toEqual([code]);
+    }
+  });
   it("accepts only exact fixed failure codes, including staged setup and allowlisted HTTP statuses", () => {
     expect(
       smokeFailureDiagnostics(

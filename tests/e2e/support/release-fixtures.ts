@@ -30,17 +30,32 @@ export const test = base.extend({
       : undefined;
     // Keep counts only: provider/page error strings may contain credentials.
     let pageErrors = 0;
+    let uncaughtErrors = 0;
+    let networkErrors = 0;
     const uncaught = () => {
       pageErrors += 1;
+      uncaughtErrors += 1;
     };
-    const consoleError = (message: { type(): string }) => {
-      if (message.type() === "error") pageErrors += 1;
+    const consoleError = (message: { type(): string; text(): string }) => {
+      if (message.type() === "error") {
+        pageErrors += 1;
+        // Classify in memory only. Never retain the provider's message/URL.
+        if (message.text().startsWith("Failed to load resource"))
+          networkErrors += 1;
+      }
     };
     page.on("pageerror", uncaught);
     page.on("console", consoleError);
     try {
       await runFixture(page);
-      if (pageErrors) throw new Error("SENSITIVE_SMOKE_PAGE_ERRORS");
+      if (pageErrors)
+        throw new Error(
+          uncaughtErrors
+            ? "SENSITIVE_SMOKE_UNCAUGHT_ERRORS"
+            : networkErrors
+              ? "SENSITIVE_SMOKE_NETWORK_ERRORS"
+              : "SENSITIVE_SMOKE_CONSOLE_ERRORS",
+        );
       protection?.assertHealthy();
     } finally {
       page.off("pageerror", uncaught);

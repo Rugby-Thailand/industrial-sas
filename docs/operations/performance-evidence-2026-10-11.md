@@ -179,3 +179,22 @@ this client/Next integration. See the [activation runbook](release-runbook.md).
 PR URL and normal release outcome are persisted in the scheduled job's final
 report. T3 `link_pull_request`/`list_thread_pull_requests` tools were unavailable
 in this separate CLI run; registration could not be performed.
+
+## Release diagnosis
+
+PR #63 merged after all four protected checks passed on
+`ded8c0980bb862bdd31fd16d6063b22b23888d3a`; the resulting main commit is
+`cc64e0e24e5d9e4867cbfd9924fe6dedf32a1807`. Main quality and CodeQL also passed.
+Staging attempt 1 failed sign-out recovery; attempt 2 failed initial
+sign-in/context. Production was correctly skipped in both attempts. The same
+Clerk sign-out/private-navigation sequence passed three times against frozen
+main and three times against the final authenticated local production build,
+with no browser errors. This does not explain the remote failures.
+
+The follow-up preserves every assertion, error gate and zero-retry policy,
+while retaining fixed diagnostic codes for authentication steps, uncaught
+errors, console/network errors and protection failures. Raw errors, URLs,
+credentials and record values remain excluded. Its privacy regression passed
+28 integration checks. These diagnostics support further investigation; no
+application defect is claimed fixed by adding them. The scheduled job report
+records the final staging/production outcome and telemetry activation proof.
