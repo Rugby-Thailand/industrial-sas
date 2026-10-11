@@ -1,0 +1,5 @@
+
+> storage-planner@0.0.0 audit:prod <repo>
+> pnpm audit --prod --audit-level high
+
+No known vulnerabilities found

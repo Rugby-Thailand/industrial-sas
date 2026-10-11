@@ -42,6 +42,12 @@ export type TicketField =
 /** Location chosen before scanning; unmapped locations keep only their text. */
 export type PickedLocation = {
   text: string;
+  locationId?: string;
+  buildingId?: string;
+  buildingName?: string;
+  floorId?: string;
+  floorNumber?: number;
+  layoutPending?: boolean;
   zoneId?: string;
   supportPositionId?: string;
   code?: string;
@@ -50,6 +56,7 @@ export type PickedLocation = {
 
 export type TicketDraft = {
   key: string;
+  storageFormat?: "PALLET" | "BOX" | "OTHER";
   source: "AI" | "BARCODE" | "MANUAL";
   status: "reading" | "ready";
   values: Partial<Record<TicketField, string>>;
@@ -57,6 +64,7 @@ export type TicketDraft = {
   aiFields: TicketField[];
   previewUrl?: string;
   imageUrl?: string;
+  aiUsageOperationId?: string;
   aiRaw?: string;
   notice?:
     | "aiFilled"
@@ -73,6 +81,7 @@ export const newTicket = (
   key: crypto.randomUUID(),
   source,
   status: "ready",
+  storageFormat: "PALLET",
   values,
   aiFields: [],
 });
@@ -156,6 +165,42 @@ export function applyBarcode(
   };
 }
 
+/** A single photographed ticket keeps its identities together and never overwrites a different label. */
+export function applyImageBarcodes(
+  tickets: TicketDraft[],
+  codes: string[],
+): TicketDraft[] {
+  if (codes.length !== 2)
+    return codes.reduce(
+      (rows, code) => applyBarcode(rows, code).tickets,
+      tickets,
+    );
+  const fields = Object.fromEntries(
+    codes.map((code) => [classifyTicketBarcode(code), code]),
+  );
+  if (!fields.factoryOrder || !fields.productBarcodeText) return tickets;
+  let index = tickets.length - 1;
+  while (
+    index >= 0 &&
+    !(
+      tickets[index]!.status === "ready" &&
+      !isComplete(tickets[index]!) &&
+      REQUIRED_FIELDS.every(
+        (field) =>
+          !tickets[index]!.values[field]?.trim() ||
+          tickets[index]!.values[field]?.trim() === fields[field],
+      )
+    )
+  )
+    index--;
+  if (index < 0) return [...tickets, newTicket("BARCODE", fields)];
+  return tickets.map((ticket, i) =>
+    i === index
+      ? { ...ticket, values: { ...ticket.values, ...fields } }
+      : ticket,
+  );
+}
+
 export function toPayload(ticket: TicketDraft) {
   const item: Record<string, string | number> = { source: ticket.source };
   for (const field of [...REQUIRED_FIELDS, ...DETAIL_FIELDS]) {
@@ -166,11 +211,27 @@ export function toPayload(ticket: TicketDraft) {
       if (number !== undefined) item[field] = number;
     } else item[field] = value;
   }
+  if (ticket.storageFormat) item["storageFormat"] = ticket.storageFormat;
   if (ticket.imageUrl) item["imageUrl"] = ticket.imageUrl;
+  if (ticket.aiUsageOperationId)
+    item["aiUsageOperationId"] = ticket.aiUsageOperationId;
   if (ticket.aiRaw) item["aiRaw"] = ticket.aiRaw;
   return item as {
     factoryOrder: string;
     productBarcodeText: string;
     source: TicketDraft["source"];
   } & Record<string, string | number>;
+}
+
+export function pickedLocationPayload(location: PickedLocation) {
+  return location.locationId
+    ? { locationId: location.locationId }
+    : location.zoneId
+      ? {
+          zoneId: location.zoneId,
+          ...(location.supportPositionId
+            ? { supportPositionId: location.supportPositionId }
+            : {}),
+        }
+      : undefined;
 }

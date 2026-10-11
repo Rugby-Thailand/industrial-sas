@@ -65,12 +65,14 @@ vi.mock("convex/react", () => ({
     ref: Parameters<typeof getFunctionName>[0],
     args: { filter: string; cursor: string | null },
   ) => {
-    if (getFunctionName(ref).endsWith(":searchLocations"))
+    if (getFunctionName(ref).endsWith(":searchPage"))
       return querySuccess({
         items: [{ zoneId: "zone-a", code: "ZONE-A", name: "Warehouse A" }],
         page: 1,
         pages: 1,
         total: 1,
+        status: "ready",
+        isDone: true,
       });
     if (mocks.denied) return { ok: false, requestId: "denied-query" };
     const items = mocks.records.filter(
@@ -357,7 +359,9 @@ describe("scanned record deletion", () => {
     await user.click(
       screen.getByRole("button", { name: "Set location for 1 record" }),
     );
-    await user.click(screen.getByRole("button", { name: "Scan location QR" }));
+    await user.click(
+      screen.getByRole("button", { name: "Scan location barcode or QR" }),
+    );
     await user.click(
       screen.getByRole("button", { name: "Scan test location" }),
     );

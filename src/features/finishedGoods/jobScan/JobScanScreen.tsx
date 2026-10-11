@@ -2,13 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useAction, useMutation } from "convex/react";
-import {
-  Camera,
-  CheckCircle2,
-  Keyboard,
-  MapPin,
-  ScanBarcode,
-} from "lucide-react";
+import { Camera, CheckCircle2, Keyboard, MapPin } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { QueryGate } from "@/components/system/QueryGate";
 import { Button } from "@/components/ui/button";
@@ -17,6 +11,7 @@ import { Panel } from "@/components/ui/Panel";
 import { CheckboxControl } from "@/components/ui/CheckboxControl";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { StickyActionBar } from "@/components/ui/StickyActionBar";
+import { ScanIcon } from "@/components/ui/ScanIcon";
 import { Link } from "@/i18n/navigation";
 import { fgRefs } from "@/lib/convex/finishedGoodsApi";
 import { useUploadThing } from "@/lib/uploadthing";
@@ -39,6 +34,7 @@ import { TicketFieldScanner } from "./TicketFieldScanner";
 import { resizeImage, toDataUrl } from "./resizeImage";
 import {
   applyBarcode,
+  applyImageBarcodes,
   classifyTicketBarcode,
   isComplete,
   hasInvalidQuantity,
@@ -46,6 +42,7 @@ import {
   mergeExtracted,
   newTicket,
   toPayload,
+  pickedLocationPayload,
   type PickedLocation,
   type TicketDraft,
   type TicketCodeField,
@@ -242,7 +239,9 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
       ...(result?.ok ? mergeExtracted(row, result.fields) : row),
       status: "ready",
       ...(imageUrl ? { imageUrl } : {}),
-      ...(result?.ok ? { aiRaw: result.raw } : {}),
+      ...(result?.ok
+        ? { aiRaw: result.raw, aiUsageOperationId: result.aiUsageOperationId }
+        : {}),
       notice: !result?.ok
         ? "aiFailed"
         : !imageUrl
@@ -266,6 +265,21 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
     setFeedback(t("barcodeAdded", { field: t(field), code: value }));
   }
 
+  function onImageCodes(codes: string[]) {
+    if (acquisitionBlocked.current || panelRef.current !== "BARCODE") return;
+    const values = codes.map((code) => code.trim());
+    for (const code of values) {
+      const field = classifyTicketBarcode(code);
+      const problem = ticketBarcodeError(field, code);
+      if (problem) {
+        setFeedback(t(problem));
+        return;
+      }
+    }
+    setTickets((current) => applyImageBarcodes(current, values));
+    setFeedback(t("barcodeImageRead"));
+  }
+
   async function submit() {
     if (
       !location ||
@@ -280,19 +294,11 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
       (duplicateKeys.length > 0 && !duplicatesReviewed)
     )
       return;
+    const mappedLocation = pickedLocationPayload(location);
     const payload = {
       warehouseId,
       locationText: location.text,
-      ...(location.zoneId
-        ? {
-            location: {
-              zoneId: location.zoneId,
-              ...(location.supportPositionId
-                ? { supportPositionId: location.supportPositionId }
-                : {}),
-            },
-          }
-        : {}),
+      ...(mappedLocation ? { location: mappedLocation } : {}),
       items: tickets.map(toPayload),
     };
     acquisitionBlocked.current = true;
@@ -334,6 +340,14 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
               location: saved.location.code ?? saved.location.text,
             })}
           </p>
+          {saved.location.buildingName && (
+            <p className="text-sm text-muted">
+              {saved.location.buildingName}
+              {saved.location.floorNumber === undefined
+                ? ""
+                : ` · ${t("floorNumber", { number: saved.location.floorNumber })}`}
+            </p>
+          )}
           <p className="text-sm text-muted">{t("locationNotStock")}</p>
           <div className="flex flex-wrap justify-center gap-3 pt-2">
             <Button
@@ -362,7 +376,11 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
             <h2 className="text-lg font-semibold">{t("locationStepTitle")}</h2>
             <p className="text-sm text-muted">{t("locationStepHint")}</p>
           </div>
-          <LocationPicker warehouseId={warehouseId} onPick={setLocation} />
+          <LocationPicker
+            warehouseId={warehouseId}
+            onPick={setLocation}
+            canReadImage={canManage}
+          />
         </Panel>
       </PageContainer>
     );
@@ -391,9 +409,19 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
         {location.name && (
           <span className="min-w-0 truncate text-muted">{location.name}</span>
         )}
+        {location.buildingName && (
+          <span className="w-full text-sm text-muted">
+            {location.buildingName}
+            {location.floorNumber === undefined
+              ? ""
+              : ` · ${t("floorNumber", { number: location.floorNumber })}`}
+          </span>
+        )}
         <StatusBadge
-          tone={location.zoneId ? "success" : "warning"}
-          label={location.zoneId ? t("mapped") : t("unmapped")}
+          tone={location.locationId || location.zoneId ? "success" : "warning"}
+          label={
+            location.locationId || location.zoneId ? t("mapped") : t("unmapped")
+          }
         />
         <button
           type="button"
@@ -431,7 +459,7 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
               changePanel(panel === "BARCODE" ? null : "BARCODE");
             }}
           >
-            <ScanBarcode className="size-4" aria-hidden="true" />
+            <ScanIcon className="size-4" aria-hidden="true" />
             {t("barcode")}
           </Button>
           <Button
@@ -458,6 +486,8 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
         {panel === "BARCODE" && !saving && (
           <BarcodeCameraBox
             mode="PACKAGES"
+            imageTarget="TICKET"
+            onImageCodes={onImageCodes}
             onCode={onBarcode}
             onClose={() => changePanel(null)}
             feedback={feedback}
@@ -478,14 +508,25 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
                 index={index}
                 disabled={saving}
                 onScan={(field) => openFieldScan(ticket, field, index)}
-                onChange={(field, value) =>
+                onChange={(field, value) => {
+                  if (panelRef.current === "BARCODE") changePanel(null);
                   update(ticket.key, (row) => ({
                     ...row,
                     values: { ...row.values, [field]: value },
                     aiFields: row.aiFields.filter((name) => name !== field),
-                  }))
+                  }));
+                }}
+                onFormatChange={(storageFormat) =>
+                  setTickets((previous) =>
+                    previous.map((item) =>
+                      item.key === ticket.key
+                        ? { ...item, storageFormat }
+                        : item,
+                    ),
+                  )
                 }
                 onRemove={() => {
+                  if (panelRef.current === "BARCODE") changePanel(null);
                   if (fieldScanRef.current?.key === ticket.key)
                     closeFieldScan();
                   releasePreview(ticket);

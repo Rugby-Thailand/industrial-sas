@@ -1,0 +1,116 @@
+{
+  "date": "2026-10-11",
+  "platform": "Darwin",
+  "architecture": "arm64",
+  "versions": {
+    "node": "24.19.0",
+    "pnpm": "10.33.2",
+    "projectTypescript": "6.0.3",
+    "bun": "1.4.3",
+    "bunEmbeddedTypescript": "7.0.2",
+    "comparisonTypescript": "7.0.2"
+  },
+  "commands": {
+    "tsc6-full": "node node_modules/typescript/bin/tsc --noEmit --incremental false --pretty false",
+    "bun-check": "<temporary Bun 1.4.3 executable> --check --no-pretty",
+    "tsc7-full": "node <temporary TypeScript 7.0.2>/bin/tsc --noEmit --incremental false --pretty false",
+    "tsc6-incremental": "node node_modules/typescript/bin/tsc --noEmit --tsBuildInfoFile <temporary file> --pretty false"
+  },
+  "method": "Exploratory local sequential process wall-clock samples against unchanged dependencies and existing generated route types; filesystem caches warm, background workstation activity uncontrolled. Installation excluded. next typegen, build, CI, peak memory, server and browser latency not measured. No per-file checker scope equivalence established.",
+  "diagnosticTextIdenticalAfterRemovingBunSummary": true,
+  "samples": [
+    {
+      "name": "tsc6-full",
+      "iteration": 1,
+      "seconds": 15.393,
+      "exit": 0
+    },
+    {
+      "name": "bun-check",
+      "iteration": 1,
+      "seconds": 0.895,
+      "exit": 1
+    },
+    {
+      "name": "bun-check",
+      "iteration": 2,
+      "seconds": 0.738,
+      "exit": 1
+    },
+    {
+      "name": "tsc6-full",
+      "iteration": 2,
+      "seconds": 12.85,
+      "exit": 0
+    },
+    {
+      "name": "tsc6-full",
+      "iteration": 3,
+      "seconds": 13.403,
+      "exit": 0
+    },
+    {
+      "name": "bun-check",
+      "iteration": 3,
+      "seconds": 1.709,
+      "exit": 1
+    },
+    {
+      "name": "tsc7-full",
+      "iteration": 1,
+      "seconds": 2.432,
+      "exit": 1,
+      "errors": [
+        "src/features/finishedGoods/catalogueFilters.test.ts(73,28): error TS2345: Argument of type '{ products: { readonly _creationTime: number; readonly _id: string; readonly archivedAt?",
+        "src/features/finishedGoods/unitNextAction.test.ts(34,24): error TS2379: Argument of type '{ _creationTime: number; _id: string; activeMoveId: string; productName: string; sku: stri",
+        "src/features/finishedGoods/unitNextAction.test.ts(57,24): error TS2379: Argument of type '{ _creationTime: number; _id: string; activeMoveId: string; productName: string; sku: stri"
+      ]
+    },
+    {
+      "name": "tsc7-full",
+      "iteration": 2,
+      "seconds": 1.761,
+      "exit": 1,
+      "errors": [
+        "src/features/finishedGoods/catalogueFilters.test.ts(73,28): error TS2345: Argument of type '{ products: { readonly _creationTime: number; readonly _id: string; readonly archivedAt?",
+        "src/features/finishedGoods/unitNextAction.test.ts(34,24): error TS2379: Argument of type '{ _creationTime: number; _id: string; activeMoveId: string; productName: string; sku: stri",
+        "src/features/finishedGoods/unitNextAction.test.ts(57,24): error TS2379: Argument of type '{ _creationTime: number; _id: string; activeMoveId: string; productName: string; sku: stri"
+      ]
+    },
+    {
+      "name": "tsc7-full",
+      "iteration": 3,
+      "seconds": 1.857,
+      "exit": 1,
+      "errors": [
+        "src/features/finishedGoods/catalogueFilters.test.ts(73,28): error TS2345: Argument of type '{ products: { readonly _creationTime: number; readonly _id: string; readonly archivedAt?",
+        "src/features/finishedGoods/unitNextAction.test.ts(34,24): error TS2379: Argument of type '{ _creationTime: number; _id: string; activeMoveId: string; productName: string; sku: stri",
+        "src/features/finishedGoods/unitNextAction.test.ts(57,24): error TS2379: Argument of type '{ _creationTime: number; _id: string; activeMoveId: string; productName: string; sku: stri"
+      ]
+    },
+    {
+      "name": "tsc6-incremental-prime",
+      "iteration": 0,
+      "seconds": 14.76,
+      "exit": 0
+    },
+    {
+      "name": "tsc6-incremental-warm",
+      "iteration": 1,
+      "seconds": 2.789,
+      "exit": 0
+    },
+    {
+      "name": "tsc6-incremental-warm",
+      "iteration": 2,
+      "seconds": 2.467,
+      "exit": 0
+    },
+    {
+      "name": "tsc6-incremental-warm",
+      "iteration": 3,
+      "seconds": 2.648,
+      "exit": 0
+    }
+  ]
+}

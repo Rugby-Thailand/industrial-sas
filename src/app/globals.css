@@ -392,3 +392,9 @@ body {
     letter-spacing: var(--tracking-normal);
   }
 }
+
+/* A deep-link target opened from search or AI navigation, briefly outlined. */
+[data-deep-link-target] {
+  outline: 3px solid var(--color-ring);
+  outline-offset: 4px;
+}

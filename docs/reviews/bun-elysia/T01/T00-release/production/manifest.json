@@ -1,0 +1,159 @@
+{
+  "schema": 1,
+  "outcome": "RELEASED",
+  "ok": true,
+  "mutation": "frontend",
+  "reason": "Promoted and verified.",
+  "target": "production",
+  "repository": "Rugby-Thailand/industrial-sas",
+  "sha": "77ae110b7f346af747ed4094dba8854801133d08",
+  "runId": "38112960884",
+  "runUrl": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38112960884",
+  "vercel": {
+    "teamId": "team_HIg4nXozZ4oXYYhIMETF8E6r",
+    "projectId": "prj_XQbt4f38BNrAvf593UstPk76rRik",
+    "previousDeploymentId": "dpl_7GhdiRFYqFqRQfHBFxSNuq9hWdGC",
+    "deploymentId": "dpl_5Xe5SC7WNPwb1MLYTd1id6csZv46",
+    "deploymentUrl": "industrial-cwmv3uykn-rugbykritsakorn-9882s-projects.vercel.app",
+    "candidateUrl": "https://ci-candidate.thaipropertyai.com"
+  },
+  "convexDeployment": "greedy-cardinal-537",
+  "backup": {
+    "ok": true,
+    "metadata": {
+      "schema": 1,
+      "deploymentName": "greedy-cardinal-537",
+      "requestor": "snapshotExport",
+      "state": "completed",
+      "includeStorage": true,
+      "requestedAtMs": 1791694710650,
+      "verifiedAtMs": 1791694713265,
+      "startTs": "1791694710711894204",
+      "completeTs": "1791694711758899516",
+      "expirationTs": "1792903744211317757",
+      "sizeBytes": "285914"
+    }
+  },
+  "smoke": {
+    "smoke-candidate": {
+      "passed": 6,
+      "failed": 0,
+      "skipped": 1,
+      "notConfigured": ["optional check not configured"],
+      "diagnostics": []
+    },
+    "smoke-live": {
+      "passed": 6,
+      "failed": 0,
+      "skipped": 1,
+      "notConfigured": ["optional check not configured"],
+      "diagnostics": []
+    }
+  },
+  "recovery": null,
+  "events": [
+    {
+      "at": "2026-10-11T04:58:30.361Z",
+      "step": "preflight",
+      "mutation": "none",
+      "previousDeploymentId": "dpl_7GhdiRFYqFqRQfHBFxSNuq9hWdGC"
+    },
+    {
+      "at": "2026-10-11T04:58:30.500Z",
+      "step": "backup-start",
+      "mutation": "none"
+    },
+    {
+      "at": "2026-10-11T04:58:33.265Z",
+      "step": "backup-completed",
+      "mutation": "none",
+      "deploymentName": "greedy-cardinal-537",
+      "completeTs": "1791694711758899516",
+      "expirationTs": "1792903744211317757"
+    },
+    {
+      "at": "2026-10-11T04:58:33.458Z",
+      "step": "deploy-start",
+      "mutation": "backend-possible"
+    },
+    {
+      "at": "2026-10-11T04:58:36.016Z",
+      "step": "deploy-created",
+      "mutation": "backend-possible",
+      "deploymentId": "dpl_5Xe5SC7WNPwb1MLYTd1id6csZv46",
+      "url": "industrial-cwmv3uykn-rugbykritsakorn-9882s-projects.vercel.app"
+    },
+    {
+      "at": "2026-10-11T04:59:17.058Z",
+      "step": "deploy-ready",
+      "mutation": "backend",
+      "deploymentId": "dpl_5Xe5SC7WNPwb1MLYTd1id6csZv46"
+    },
+    {
+      "at": "2026-10-11T04:59:17.059Z",
+      "step": "verified",
+      "mutation": "backend",
+      "deploymentId": "dpl_5Xe5SC7WNPwb1MLYTd1id6csZv46"
+    },
+    {
+      "at": "2026-10-11T04:59:17.631Z",
+      "step": "candidate-bound",
+      "mutation": "backend",
+      "deploymentId": "dpl_5Xe5SC7WNPwb1MLYTd1id6csZv46",
+      "baseUrl": "https://ci-candidate.thaipropertyai.com"
+    },
+    {
+      "at": "2026-10-11T04:59:17.632Z",
+      "step": "smoke-candidate-start",
+      "mutation": "backend",
+      "baseUrl": "https://ci-candidate.thaipropertyai.com"
+    },
+    {
+      "at": "2026-10-11T04:59:24.409Z",
+      "step": "smoke-candidate",
+      "mutation": "backend",
+      "passed": 6,
+      "diagnostics": [],
+      "failed": 0,
+      "skipped": 1,
+      "skippedRequired": 0,
+      "notConfigured": ["optional check not configured"]
+    },
+    {
+      "at": "2026-10-11T04:59:24.629Z",
+      "step": "promote-request",
+      "mutation": "frontend-possible",
+      "deploymentId": "dpl_5Xe5SC7WNPwb1MLYTd1id6csZv46"
+    },
+    {
+      "at": "2026-10-11T04:59:25.022Z",
+      "step": "serving",
+      "mutation": "frontend",
+      "deploymentId": "dpl_5Xe5SC7WNPwb1MLYTd1id6csZv46"
+    },
+    {
+      "at": "2026-10-11T04:59:25.023Z",
+      "step": "smoke-live-start",
+      "mutation": "frontend",
+      "baseUrl": "https://app.thaipropertyai.com"
+    },
+    {
+      "at": "2026-10-11T04:59:31.741Z",
+      "step": "smoke-live",
+      "mutation": "frontend",
+      "passed": 6,
+      "diagnostics": [],
+      "failed": 0,
+      "skipped": 1,
+      "skippedRequired": 0,
+      "notConfigured": ["optional check not configured"]
+    },
+    {
+      "at": "2026-10-11T04:59:31.754Z",
+      "step": "outcome",
+      "mutation": "frontend",
+      "code": "RELEASED",
+      "reason": "Promoted and verified."
+    }
+  ]
+}

@@ -60,6 +60,7 @@ const data = {
       quantity: 5,
       status: "STORED" as const,
       moveStatus: "IN_TRANSIT" as const,
+      activeMoveId: "move-third",
       lot: "LIQ",
     },
     {

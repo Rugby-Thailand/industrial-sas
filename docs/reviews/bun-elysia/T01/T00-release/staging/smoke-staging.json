@@ -1,0 +1,141 @@
+{
+  "suites": [
+    {
+      "title": "sensitive-smoke",
+      "specs": [
+        {
+          "title": "check-1",
+          "tests": [
+            {
+              "status": "expected",
+              "expectedStatus": "passed",
+              "annotations": []
+            }
+          ]
+        },
+        {
+          "title": "check-2",
+          "tests": [
+            {
+              "status": "expected",
+              "expectedStatus": "passed",
+              "annotations": []
+            }
+          ]
+        },
+        {
+          "title": "check-3",
+          "tests": [
+            {
+              "status": "expected",
+              "expectedStatus": "passed",
+              "annotations": []
+            }
+          ]
+        },
+        {
+          "title": "check-4",
+          "tests": [
+            {
+              "status": "expected",
+              "expectedStatus": "passed",
+              "annotations": []
+            }
+          ]
+        },
+        {
+          "title": "check-5",
+          "tests": [
+            {
+              "status": "expected",
+              "expectedStatus": "passed",
+              "annotations": []
+            }
+          ]
+        },
+        {
+          "title": "check-6",
+          "tests": [
+            {
+              "status": "expected",
+              "expectedStatus": "passed",
+              "annotations": []
+            }
+          ]
+        },
+        {
+          "title": "check-7",
+          "tests": [
+            {
+              "status": "skipped",
+              "expectedStatus": "skipped",
+              "annotations": [{ "type": "not-configured" }]
+            }
+          ]
+        },
+        {
+          "title": "check-8",
+          "tests": [
+            {
+              "status": "expected",
+              "expectedStatus": "passed",
+              "annotations": []
+            }
+          ]
+        },
+        {
+          "title": "check-9",
+          "tests": [
+            {
+              "status": "expected",
+              "expectedStatus": "passed",
+              "annotations": []
+            }
+          ]
+        },
+        {
+          "title": "check-10",
+          "tests": [
+            {
+              "status": "expected",
+              "expectedStatus": "passed",
+              "annotations": []
+            }
+          ]
+        },
+        {
+          "title": "check-11",
+          "tests": [
+            {
+              "status": "expected",
+              "expectedStatus": "passed",
+              "annotations": []
+            }
+          ]
+        },
+        {
+          "title": "check-12",
+          "tests": [
+            {
+              "status": "expected",
+              "expectedStatus": "passed",
+              "annotations": []
+            }
+          ]
+        },
+        {
+          "title": "check-13",
+          "tests": [
+            {
+              "status": "expected",
+              "expectedStatus": "passed",
+              "annotations": []
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "diagnostics": [],
+  "errors": []
+}

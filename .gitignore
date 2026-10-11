@@ -108,6 +108,8 @@ release-output/
 .vitest/
 junit.xml
 lighthouse-report.*
+# Local visual-review captures and detector output.
+.impeccable/review/
 
 # ---------------------------------------------------------------------------
 # Logs and process artifacts

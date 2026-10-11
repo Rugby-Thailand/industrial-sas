@@ -1,0 +1,14 @@
+
+> storage-planner@0.0.0 build <repo>
+> next build
+
+▲ Next.js 16.3.8 (Turbopack)
+✓ Running next.config.ts took 208ms
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 871ms
+  Running TypeScript ...
+src/__t01_build_gate_guard.ts(1,14): error TS2322: Type 'string' is not assignable to type 'number'.
+Failed to type check.
+
+ ELIFECYCLE  Command failed with exit code 1.

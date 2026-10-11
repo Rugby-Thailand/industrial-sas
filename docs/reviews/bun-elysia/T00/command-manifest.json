@@ -1,0 +1,723 @@
+{
+  "baseSha": "ca8c296b2364fcbca33df81a5b18f9e1a213ac16",
+  "packageScripts": {
+    "root": {
+      "packageManager": "pnpm@10.33.2",
+      "engines": {
+        "node": "24.x",
+        "pnpm": "10.x"
+      },
+      "scripts": {
+        "dev": "node scripts/dev.mjs",
+        "dev:login": "node scripts/dev-login.mjs",
+        "dev:web": "next dev --webpack --port 3100",
+        "dev:backend": "convex dev",
+        "codegen": "convex codegen --typecheck disable",
+        "build": "next build",
+        "start": "next start --port 3100",
+        "lint": "eslint . --max-warnings=0",
+        "format": "prettier --write .",
+        "format:check": "prettier --check .",
+        "typecheck": "next typegen && tsc --noEmit",
+        "test": "vitest run",
+        "test:unit": "vitest run --project unit --project unit-node",
+        "test:a11y": "vitest run --project a11y",
+        "test:coverage": "vitest run --coverage",
+        "test:e2e": "playwright test --config playwright.config.ts",
+        "test:e2e:workspace": "playwright test --config playwright.workspace.config.ts",
+        "test:e2e:staging": "playwright test --config playwright.staging.config.ts",
+        "test:e2e:production": "playwright test --config playwright.production.config.ts",
+        "check": "pnpm format:check && pnpm typecheck && pnpm lint && pnpm test",
+        "audit:prod": "pnpm audit --prod --audit-level high",
+        "audit:full": "pnpm audit --audit-level high",
+        "ci:codegen": "node scripts/ci/check-convex-codegen.mjs",
+        "ci:clean-tree": "node scripts/ci/assert-clean-tree.mjs",
+        "ci:test-discovery": "node scripts/ci/check-test-discovery.mjs",
+        "dev:seed": "node scripts/seed-local-test.mjs",
+        "preview:storage-workspace": "vite --config scripts/storage-workspace-preview/vite.config.mjs"
+      }
+    },
+    "tools/release": {
+      "packageManager": "pnpm@10.33.2",
+      "engines": {
+        "node": "24.x"
+      },
+      "scripts": {},
+      "dependencies": {
+        "vercel": "63.1.0"
+      }
+    }
+  },
+  "scriptCollisionsWithBunBuiltins": {
+    "check": "bare `bun check` selects this script; use `bun --check` for the checker",
+    "build": "`bun build` is Bun's bundler; use `bun run build`",
+    "test": "`bun test` is Bun's runner; use `bun run test`"
+  },
+  "nodeShebangScripts": [
+    "scripts/ci/aggregate.mjs",
+    "scripts/ci/assert-clean-tree.mjs",
+    "scripts/ci/audit-dependencies.mjs",
+    "scripts/ci/audit-summary.mjs",
+    "scripts/ci/check-convex-codegen.mjs",
+    "scripts/ci/check-test-discovery.mjs",
+    "scripts/ci/test-report.mjs",
+    "scripts/ci/validate-workflows.mjs",
+    "scripts/dev.mjs",
+    "scripts/release/assert-deploy-env.mjs",
+    "scripts/release/backup.mjs",
+    "scripts/release/run.mjs",
+    "scripts/seed-local-test.mjs"
+  ],
+  "childProcessPaths": [
+    {
+      "caller": "scripts/dev.mjs",
+      "children": [
+        "node_modules/.bin/convex dev",
+        "node_modules/.bin/next dev --webpack (port 3100)"
+      ],
+      "via": "spawn via childLifecycle registry",
+      "runtimeNote": "executable shims with Node shebangs; signals/cleanup in scripts/lib/childLifecycle.mjs",
+      "task": "T07"
+    },
+    {
+      "caller": "scripts/dev-login.mjs",
+      "children": ["open <local URL>"],
+      "via": "execFile",
+      "runtimeNote": "macOS open; no JS child",
+      "task": "T06"
+    },
+    {
+      "caller": "scripts/seed-local-test.mjs",
+      "children": ["pnpm exec convex run <fn> <json>"],
+      "via": "execFileSync",
+      "runtimeNote": "hard-coded pnpm",
+      "task": "T06"
+    },
+    {
+      "caller": "scripts/ci/check-test-discovery.mjs",
+      "children": [
+        "git ls-files -z",
+        "pnpm exec vitest list --filesOnly --json",
+        "pnpm exec playwright test --config <4 configs> --list --reporter=json"
+      ],
+      "via": "execFileSync",
+      "runtimeNote": "hard-coded pnpm",
+      "task": "T06/T08/T10"
+    },
+    {
+      "caller": "scripts/ci/audit-dependencies.mjs",
+      "children": [
+        "pnpm audit --json --audit-level high (cwd . or tools/release)"
+      ],
+      "via": "spawnSync, 60 s timeout",
+      "runtimeNote": "parses pnpm advisory format; exact paths/expiry in dependency-exceptions",
+      "task": "T03"
+    },
+    {
+      "caller": "scripts/ci/audit-summary.mjs",
+      "children": ["pnpm audit --json (--dir)"],
+      "via": "spawnSync",
+      "runtimeNote": "pnpm report format via report-lib.mjs",
+      "task": "T03"
+    },
+    {
+      "caller": "scripts/ci/check-convex-codegen.mjs",
+      "children": [
+        "unzip pinned convex-local-backend",
+        "convex-local-backend keygen admin-key",
+        "convex-local-backend (loopback server)",
+        "pnpm exec node --env-file=<temp> node_modules/convex/bin/main.js <args>"
+      ],
+      "via": "spawn/spawnSync with timeouts",
+      "runtimeNote": "explicit Node + --env-file; credential-free loopback backend",
+      "task": "T06"
+    },
+    {
+      "caller": "scripts/ci/validate-workflows.mjs",
+      "children": [
+        "git ls-remote https://github.com/<action>.git (--verify-pins)",
+        "tar -xzf actionlint",
+        "git init (temp copy)",
+        "actionlint"
+      ],
+      "via": "execFileSync/spawnSync",
+      "runtimeNote": "network for pin verification and actionlint download",
+      "task": "T04/T05"
+    },
+    {
+      "caller": "scripts/ci/assert-clean-tree.mjs",
+      "children": ["git status --porcelain=v1 --untracked-files=all -z"],
+      "via": "execFileSync",
+      "runtimeNote": "git only",
+      "task": "-"
+    },
+    {
+      "caller": "scripts/vercel-ignore-build.mjs",
+      "children": ["git diff --name-only ..."],
+      "via": "execFileSync",
+      "runtimeNote": "git only; native Git builds disabled",
+      "task": "-"
+    },
+    {
+      "caller": "scripts/release/lib/entrypoint.mjs",
+      "children": ["git rev-parse HEAD", "git status/diff"],
+      "via": "execFileSync",
+      "runtimeNote": "git only",
+      "task": "T05"
+    },
+    {
+      "caller": "scripts/release/run.mjs",
+      "children": [
+        "tools/release/node_modules/.bin/vercel <deploy args>",
+        "pnpm exec playwright test --config playwright.{staging,production}.config.ts"
+      ],
+      "via": "spawnSync/spawn",
+      "runtimeNote": "writes gatedVercelConfig() to vercel.json before deploy; Vercel shim is a /bin/sh wrapper launching Node",
+      "task": "T05"
+    },
+    {
+      "caller": "vercel.json buildCommand (GATED_BUILD_COMMAND)",
+      "children": [
+        "node scripts/release/assert-deploy-env.mjs --phase=pre",
+        "pnpm exec convex deploy --cmd 'node scripts/release/assert-deploy-env.mjs --phase=build && pnpm build'"
+      ],
+      "via": "remote Vercel build",
+      "runtimeNote": "generated by scripts/release/lib/vercel-config.mjs and checked by cutoverState()",
+      "task": "T05"
+    },
+    {
+      "caller": "scripts/{correct-fg1-rear-aisle,expand-fg1-r04-r08,import-fg1,import-pd}-production.mjs",
+      "children": [
+        "(no child) reads its single node --env-file from process.execArgv"
+      ],
+      "via": "scripts/lib/productionOperator.mjs",
+      "runtimeNote": "Node exception candidate until Bun --env-file/execArgv parity is shown",
+      "task": "T06 exception review"
+    },
+    {
+      "caller": "scripts/performance/{measure,measure-fixtures,verify-local}.mjs, scripts/storage-workspace-preview/*.mjs",
+      "children": ["@playwright/test chromium.launch()"],
+      "via": "library",
+      "runtimeNote": "browser automation; local only",
+      "task": "T06/T17"
+    },
+    {
+      "caller": "tests/e2e/smoke/sensitive-reporting.spec.ts",
+      "children": ["pnpm exec playwright test --config <generated>"],
+      "via": "spawnSync",
+      "runtimeNote": "hard-coded pnpm inside a test",
+      "task": "T06/T10"
+    },
+    {
+      "caller": "tests/e2e/staging/support.ts",
+      "children": ["pnpm exec convex run --env-file <temp> ..."],
+      "via": "spawnSync",
+      "runtimeNote": "hard-coded pnpm in staging fixtures",
+      "task": "T05/T06"
+    },
+    {
+      "caller": "tests/integration/{ci-actionlint-cache,ci-codegen-isolation,ci-test-discovery,ci-workflows,production-operator,release-env-contract,vercel-ignore-build}.integration.test.ts",
+      "children": [
+        "process.execPath <script>",
+        "fake '#!${process.execPath}' pnpm/backend/actionlint shims on PATH"
+      ],
+      "via": "spawnSync",
+      "runtimeNote": "tests assume the test runtime binary can execute the scripts; changes meaning under Bun",
+      "task": "T06/T10"
+    },
+    {
+      "caller": "scripts/generate-job-scan-test-assets.py",
+      "children": [
+        "node --input-type=module -e <Playwright ticket renderer>",
+        "pnpm exec convex data storageZones --limit 500 --format jsonLines"
+      ],
+      "via": "Python subprocess.run",
+      "runtimeNote": "Python fixture-generation tool launches Node/Playwright and pnpm/Convex. Inventory only; no fixtures generated or backend rows read during T00. Preserve explicit local/synthetic fixture guards when changing its launchers.",
+      "task": "T06/T19"
+    }
+  ],
+  "gatedBuildCommand": "node scripts/release/assert-deploy-env.mjs --phase=pre && pnpm exec convex deploy --cmd-url-env-var-name NEXT_PUBLIC_CONVEX_URL --cmd 'node scripts/release/assert-deploy-env.mjs --phase=build && pnpm build'",
+  "workflows": {
+    "codeql.yml": {
+      "name": "CodeQL",
+      "on": ["push", "pull_request", "schedule", "workflow_dispatch"],
+      "concurrency": "${{ github.event_name == 'pull_request' && format('codeql-pr-{0}', github.event.pull_request.number) || format('codeql-run-{0}', github.run_id) }}",
+      "jobs": {
+        "analyze": {
+          "name": "Analyze (${{ matrix.language }})",
+          "needs": [],
+          "timeoutMinutes": 30,
+          "permissions": {
+            "contents": "read",
+            "security-events": "write"
+          },
+          "steps": [
+            {
+              "uses": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
+            },
+            {
+              "uses": "github/codeql-action/init@24c54180a607b1449ed407dd24f251e4e9147c8d"
+            },
+            {
+              "uses": "github/codeql-action/analyze@24c54180a607b1449ed407dd24f251e4e9147c8d"
+            }
+          ],
+          "secretNames": [],
+          "variableNames": [],
+          "matrix": {
+            "language": ["javascript-typescript", "actions"]
+          }
+        }
+      }
+    },
+    "production-backup.yml": {
+      "name": "Production backup",
+      "on": ["schedule", "workflow_dispatch"],
+      "jobs": {
+        "backup": {
+          "name": "backup",
+          "needs": [],
+          "if": "${{ github.repository == 'Rugby-Thailand/industrial-sas' && github.ref == 'refs/heads/main' }}",
+          "environment": "production-release",
+          "concurrency": "industrial-sas-production-release",
+          "timeoutMinutes": 25,
+          "steps": [
+            {
+              "uses": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
+            },
+            {
+              "uses": "./.github/actions/setup-node-pnpm"
+            },
+            {
+              "name": "Create and verify a fresh native snapshot",
+              "run": "node scripts/release/backup.mjs --purpose=daily"
+            },
+            {
+              "name": "Retain public backup metadata",
+              "uses": "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9"
+            }
+          ],
+          "secretNames": ["CONVEX_BACKUP_ADMIN_KEY"],
+          "variableNames": []
+        }
+      }
+    },
+    "quality.yml": {
+      "name": "Planner quality",
+      "on": ["push", "pull_request", "workflow_dispatch"],
+      "concurrency": "${{ github.event_name == 'pull_request' && format('planner-quality-pr-{0}', github.event.pull_request.number) || format('planner-quality-run-{0}', github.run_id) }}",
+      "jobs": {
+        "validate": {
+          "name": "validate",
+          "needs": [],
+          "timeoutMinutes": 15,
+          "steps": [
+            {
+              "uses": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
+            },
+            {
+              "uses": "./.github/actions/setup-node-pnpm"
+            },
+            {
+              "name": "Workflow lint and action pins",
+              "run": "node scripts/ci/validate-workflows.mjs --verify-pins"
+            },
+            {
+              "name": "Formatting",
+              "run": "pnpm format:check"
+            },
+            {
+              "name": "Typecheck (cold next typegen + tsc)",
+              "run": "pnpm typecheck"
+            },
+            {
+              "name": "Lint",
+              "run": "pnpm lint"
+            },
+            {
+              "name": "Runtime dependency audit",
+              "run": "pnpm audit:prod"
+            },
+            {
+              "name": "Application dependency audit (exact-chain exceptions)",
+              "run": "node scripts/ci/audit-dependencies.mjs --scope=app"
+            },
+            {
+              "name": "Release-tool dependency audit (exact-chain exceptions)",
+              "run": "node scripts/ci/audit-dependencies.mjs --scope=release"
+            },
+            {
+              "name": "Test discovery",
+              "run": "pnpm ci:test-discovery"
+            },
+            {
+              "name": "Clean tree after generators",
+              "run": "pnpm ci:clean-tree"
+            }
+          ],
+          "secretNames": [],
+          "variableNames": []
+        },
+        "codegen": {
+          "name": "Convex codegen freshness",
+          "needs": [],
+          "timeoutMinutes": 15,
+          "steps": [
+            {
+              "uses": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
+            },
+            {
+              "uses": "./.github/actions/setup-node-pnpm"
+            },
+            {
+              "run": "pnpm ci:codegen"
+            },
+            {
+              "name": "Clean tree after codegen",
+              "run": "pnpm ci:clean-tree"
+            }
+          ],
+          "secretNames": [],
+          "variableNames": []
+        },
+        "test": {
+          "name": "Tests (${{ matrix.shard }}/3)",
+          "needs": [],
+          "timeoutMinutes": 15,
+          "steps": [
+            {
+              "uses": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
+            },
+            {
+              "uses": "./.github/actions/setup-node-pnpm"
+            },
+            {
+              "name": "Vitest shard",
+              "run": "pnpm exec vitest run --shard=${{ matrix.shard }}/3 --reporter=default --reporter=github-actions --reporter=junit --outputFile.junit=test-results/vitest-junit/shard-${{ matrix.shard }}-3.xml"
+            },
+            {
+              "name": "Upload shard JUnit",
+              "uses": "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9"
+            }
+          ],
+          "secretNames": [],
+          "variableNames": [],
+          "matrix": {
+            "shard": [1, 2, 3]
+          }
+        },
+        "browser": {
+          "name": "Browser (${{ matrix.suite }})",
+          "needs": [],
+          "timeoutMinutes": 30,
+          "steps": [
+            {
+              "uses": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
+            },
+            {
+              "uses": "./.github/actions/setup-node-pnpm"
+            },
+            {
+              "name": "Cache Next.js build",
+              "uses": "actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9"
+            },
+            {
+              "name": "Production-mode build (credential-free)",
+              "run": "pnpm build"
+            },
+            {
+              "name": "Clean tree after build",
+              "run": "pnpm ci:clean-tree"
+            },
+            {
+              "name": "Install Playwright Chromium",
+              "run": "pnpm exec playwright install --with-deps chromium"
+            },
+            {
+              "name": "Anonymous smoke (desktop and mobile)",
+              "run": "pnpm test:e2e"
+            },
+            {
+              "name": "Storage workspace (PR subset)",
+              "run": "pnpm test:e2e:workspace"
+            },
+            {
+              "name": "Upload browser JUnit",
+              "uses": "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9"
+            },
+            {
+              "name": "Upload browser diagnostics",
+              "uses": "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9"
+            }
+          ],
+          "secretNames": [],
+          "variableNames": [],
+          "matrix": {
+            "suite": ["smoke", "workspace"]
+          }
+        },
+        "dependency-review": {
+          "name": "Dependency review",
+          "needs": [],
+          "if": "${{ github.event_name == 'pull_request' }}",
+          "timeoutMinutes": 5,
+          "steps": [
+            {
+              "uses": "actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294"
+            }
+          ],
+          "secretNames": [],
+          "variableNames": []
+        },
+        "check": {
+          "name": "check",
+          "needs": [
+            "validate",
+            "codegen",
+            "test",
+            "browser",
+            "dependency-review"
+          ],
+          "if": "${{ always() }}",
+          "timeoutMinutes": 3,
+          "steps": [
+            {
+              "uses": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
+            },
+            {
+              "uses": "actions/setup-node@820762786026740c76f36085b0efc47a31fe5020"
+            },
+            {
+              "name": "Require all quality jobs to pass",
+              "run": "node scripts/ci/aggregate.mjs"
+            }
+          ],
+          "secretNames": [],
+          "variableNames": []
+        },
+        "staging": {
+          "name": "Staging release",
+          "needs": ["check"],
+          "if": "${{ !cancelled() && needs.check.result == 'success' && github.repository == 'Rugby-Thailand/industrial-sas' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') }}",
+          "environment": "staging",
+          "concurrency": "industrial-sas-staging-release",
+          "timeoutMinutes": 60,
+          "permissions": {
+            "contents": "read",
+            "id-token": "write"
+          },
+          "steps": [
+            {
+              "uses": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
+            },
+            {
+              "uses": "./.github/actions/setup-node-pnpm"
+            },
+            {
+              "name": "Install release tools",
+              "run": "pnpm -C tools/release install --frozen-lockfile"
+            },
+            {
+              "name": "Install Playwright Chromium",
+              "run": "pnpm exec playwright install --with-deps chromium"
+            },
+            {
+              "name": "Deploy and verify staging",
+              "run": "node scripts/release/run.mjs --target=staging"
+            },
+            {
+              "name": "Upload staging manifest",
+              "uses": "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9"
+            }
+          ],
+          "secretNames": [
+            "VERCEL_TOKEN",
+            "CONVEX_DEPLOY_KEY",
+            "CLERK_SECRET_KEY"
+          ],
+          "variableNames": ["RELEASE_ACKNOWLEDGED_DEPLOYMENTS"]
+        },
+        "release": {
+          "name": "Production release",
+          "needs": ["check", "staging"],
+          "if": "${{ !cancelled() && needs.check.result == 'success' && needs.staging.result == 'success' && needs.staging.outputs.outcome == 'STAGING_PASSED' && github.repository == 'Rugby-Thailand/industrial-sas' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') }}",
+          "environment": "production-release",
+          "concurrency": "industrial-sas-production-release",
+          "timeoutMinutes": 90,
+          "permissions": {
+            "contents": "read"
+          },
+          "steps": [
+            {
+              "uses": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
+            },
+            {
+              "uses": "./.github/actions/setup-node-pnpm"
+            },
+            {
+              "name": "Install release tools",
+              "run": "pnpm -C tools/release install --frozen-lockfile"
+            },
+            {
+              "name": "Install Playwright Chromium",
+              "run": "pnpm exec playwright install --with-deps chromium"
+            },
+            {
+              "name": "Release production",
+              "run": "node scripts/release/run.mjs --target=production"
+            },
+            {
+              "name": "Upload release manifest",
+              "uses": "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9"
+            }
+          ],
+          "secretNames": ["VERCEL_TOKEN", "CONVEX_BACKUP_ADMIN_KEY"],
+          "variableNames": ["RELEASE_ACKNOWLEDGED_DEPLOYMENTS"]
+        }
+      }
+    },
+    "security-audit.yml": {
+      "name": "Security audit",
+      "on": ["schedule", "workflow_dispatch"],
+      "concurrency": "security-audit-${{ github.ref }}",
+      "jobs": {
+        "runtime": {
+          "name": "Runtime and high-severity audit (mandatory)",
+          "needs": [],
+          "timeoutMinutes": 10,
+          "steps": [
+            {
+              "uses": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
+            },
+            {
+              "uses": "./.github/actions/setup-node-pnpm"
+            },
+            {
+              "name": "Runtime dependencies",
+              "run": "pnpm audit:prod"
+            },
+            {
+              "name": "Application dependencies (exact-chain exceptions)",
+              "run": "node scripts/ci/audit-dependencies.mjs --scope=app"
+            },
+            {
+              "name": "Release tools (exact-chain exceptions)",
+              "run": "node scripts/ci/audit-dependencies.mjs --scope=release"
+            }
+          ],
+          "secretNames": [],
+          "variableNames": []
+        },
+        "full": {
+          "name": "Full audit (informative)",
+          "needs": [],
+          "timeoutMinutes": 10,
+          "steps": [
+            {
+              "uses": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
+            },
+            {
+              "uses": "./.github/actions/setup-node-pnpm"
+            },
+            {
+              "name": "Application (all severities)",
+              "run": "node scripts/ci/audit-summary.mjs --dir=."
+            },
+            {
+              "name": "Release tools (all severities)",
+              "run": "node scripts/ci/audit-summary.mjs --dir=tools/release"
+            }
+          ],
+          "secretNames": [],
+          "variableNames": []
+        }
+      }
+    },
+    "workspace-matrix.yml": {
+      "name": "Workspace matrix",
+      "on": ["schedule", "workflow_dispatch"],
+      "concurrency": "workspace-matrix-${{ github.ref }}",
+      "jobs": {
+        "matrix": {
+          "name": "Full workspace matrix",
+          "needs": [],
+          "timeoutMinutes": 30,
+          "steps": [
+            {
+              "uses": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
+            },
+            {
+              "uses": "./.github/actions/setup-node-pnpm"
+            },
+            {
+              "name": "Install Playwright Chromium",
+              "run": "pnpm exec playwright install --with-deps chromium"
+            },
+            {
+              "name": "Full matrix",
+              "run": "pnpm test:e2e:workspace"
+            },
+            {
+              "name": "Upload JUnit",
+              "uses": "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9"
+            },
+            {
+              "name": "Upload diagnostics",
+              "uses": "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9"
+            }
+          ],
+          "secretNames": [],
+          "variableNames": []
+        },
+        "coverage": {
+          "name": "Full-suite coverage",
+          "needs": [],
+          "timeoutMinutes": 30,
+          "steps": [
+            {
+              "uses": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
+            },
+            {
+              "uses": "./.github/actions/setup-node-pnpm"
+            },
+            {
+              "name": "Vitest with coverage",
+              "run": "pnpm exec vitest run --coverage --coverage.reportOnFailure --testTimeout=15000 --reporter=default --reporter=github-actions --reporter=junit --outputFile.junit=test-results/vitest-junit.xml"
+            },
+            {
+              "name": "Upload coverage and JUnit",
+              "uses": "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9"
+            }
+          ],
+          "secretNames": [],
+          "variableNames": []
+        }
+      }
+    },
+    "actions/setup-node-pnpm": {
+      "steps": [
+        {
+          "name": "Validate inputs",
+          "run": "case \"$CACHE_INPUT\" in true | false) ;; *) echo \"::error::setup-node-pnpm input cache must be true or false\"; exit 1 ;; esac"
+        },
+        {
+          "name": "Install pnpm",
+          "uses": "pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413"
+        },
+        {
+          "name": "Install Node.js",
+          "uses": "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
+          "with": {
+            "node-version-file": ".nvmrc",
+            "cache": "${{ inputs.cache == 'true' && 'pnpm' || '' }}",
+            "package-manager-cache": "${{ inputs.cache == 'true' }}"
+          }
+        },
+        {
+          "name": "Install dependencies",
+          "run": "pnpm install --frozen-lockfile"
+        }
+      ]
+    }
+  }
+}

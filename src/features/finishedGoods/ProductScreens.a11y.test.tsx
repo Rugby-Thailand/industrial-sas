@@ -17,7 +17,10 @@ vi.mock("@/components/providers/WorkspaceProvider", async (importOriginal) => {
   return { ...actual, useWorkspace: () => finishedGoodsWorkspace };
 });
 vi.mock("convex/react", () => ({
-  useMutation: () => async () => savedProductOutcome,
+  useMutation: () =>
+    Object.assign(async () => savedProductOutcome, {
+      withOptimisticUpdate: () => async () => savedProductOutcome,
+    }),
   useQuery: (ref: Parameters<typeof getFunctionName>[0], args: unknown) =>
     catalogueTestResponse(
       getFunctionName(ref),

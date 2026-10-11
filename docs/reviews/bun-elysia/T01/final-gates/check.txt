@@ -1,0 +1,34 @@
+
+> storage-planner@0.0.0 check <repo>
+> pnpm format:check && pnpm typecheck && pnpm lint && pnpm test
+
+
+> storage-planner@0.0.0 format:check <repo>
+> prettier --check .
+
+Checking formatting...
+All matched files use Prettier code style!
+
+> storage-planner@0.0.0 typecheck <repo>
+> node scripts/ci/install-bun-checker.mjs --verify && next typegen && bun --check --no-pretty
+
+Bun checker 1.4.3 (TypeScript 7.0.2)
+Generating route types...
+✓ Types generated successfully
+✓ No type errors in 763 files [870.76ms]
+
+> storage-planner@0.0.0 lint <repo>
+> eslint . --max-warnings=0
+
+
+> storage-planner@0.0.0 test <repo>
+> vitest run
+
+
+ RUN  v4.1.10 <repo>
+
+
+ Test Files  249 passed (249)
+      Tests  2980 passed (2980)
+   Start at  13:01:27
+   Duration  35.53s (transform 13.68s, setup 24.69s, import 51.81s, tests 143.80s, environment 58.88s)

@@ -1,0 +1,5 @@
+
+> storage-planner@0.0.0 ci:test-discovery <repo>
+> node scripts/ci/check-test-discovery.mjs
+
+Test discovery OK: 249 Vitest files, 11 Playwright spec files.

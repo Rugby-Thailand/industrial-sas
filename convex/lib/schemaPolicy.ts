@@ -40,6 +40,19 @@ export const TENANT_TABLES = [
   "finishedGoodsJobScans",
   "finishedGoodsCounters",
   "finishedGoodsMoves",
+  "hrEmployees",
+  "hrHolidays",
+  "hrAttendanceDays",
+  "hrAttendanceEvents",
+  "hrCorrectionRequests",
+  "hrPeriods",
+  "hrPeriodVersions",
+  "hrPeriodRows",
+  "actionQuotas",
+  "aiUsageEvents",
+  "aiUsageOperations",
+  "aiUsageDailySummaries",
+  "aiCostSettings",
 ] as const;
 
 export type GlobalTableName = (typeof GLOBAL_TABLES)[number];
@@ -120,6 +133,27 @@ export function uniquenessIndexName(key: readonly string[]): string {
 
 export const UNIQUENESS_CONTRACTS: readonly UniquenessContract[] = [
   {
+    table: "aiUsageEvents",
+    key: ["orgId", "operationId", "attemptNo"],
+    condition: ALWAYS,
+  },
+  {
+    table: "aiUsageEvents",
+    key: ["orgId", "providerGenerationId"],
+    condition: whenPresent("providerGenerationId"),
+  },
+  {
+    table: "aiUsageOperations",
+    key: ["orgId", "operationId"],
+    condition: ALWAYS,
+  },
+  {
+    table: "aiUsageDailySummaries",
+    key: ["orgId", "summaryKey"],
+    condition: ALWAYS,
+  },
+  { table: "aiCostSettings", key: ["orgId", "version"], condition: ALWAYS },
+  {
     table: "finishedGoodsPallets",
     key: ["orgId", "warehouseId", "code"],
     condition: ALWAYS,
@@ -192,6 +226,27 @@ export const UNIQUENESS_CONTRACTS: readonly UniquenessContract[] = [
     key: ["orgId", "warehouseId", "code"],
     condition: ALWAYS,
   },
+  { table: "hrEmployees", key: ["orgId", "code"], condition: ALWAYS },
+  {
+    table: "hrEmployees",
+    key: ["orgId", "userId"],
+    condition: whenPresent("userId"),
+  },
+  {
+    table: "hrHolidays",
+    key: ["orgId", "warehouseId", "date"],
+    condition: ALWAYS,
+  },
+  {
+    table: "hrAttendanceDays",
+    key: ["orgId", "employeeId", "businessDate"],
+    condition: ALWAYS,
+  },
+  {
+    table: "hrPeriodVersions",
+    key: ["orgId", "periodId", "version"],
+    condition: ALWAYS,
+  },
 ] as const;
 
 /* Bounded lookup contracts (indexed, deliberately not unique)                 */
@@ -204,6 +259,13 @@ export type LookupContract = {
 export const BOUNDED_LOOKUP_CONTRACTS: readonly LookupContract[] = [
   { table: "supportGrants", key: ["orgId", "ticketRef"] },
   { table: "storagePositions", key: ["orgId", "zoneId", "status"] },
+  { table: "hrEmployees", key: ["orgId", "warehouseId"] },
+  { table: "hrEmployees", key: ["orgId", "supervisorUserId"] },
+  { table: "hrAttendanceDays", key: ["orgId", "warehouseId", "businessDate"] },
+  { table: "hrAttendanceEvents", key: ["orgId", "dayId"] },
+  { table: "hrCorrectionRequests", key: ["orgId", "dayId"] },
+  { table: "hrPeriods", key: ["orgId", "warehouseId"] },
+  { table: "hrPeriodRows", key: ["orgId", "versionId"] },
 ] as const;
 
 export type ThirdNormalFormContract = {

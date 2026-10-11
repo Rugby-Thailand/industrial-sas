@@ -1,0 +1,17 @@
+[
+  {
+    "checker": "typescript6",
+    "seconds": 18.491,
+    "exit": 0
+  },
+  {
+    "checker": "typescript7",
+    "seconds": 3.53,
+    "exit": 1
+  },
+  {
+    "checker": "bun",
+    "seconds": 1.043,
+    "exit": 1
+  }
+]

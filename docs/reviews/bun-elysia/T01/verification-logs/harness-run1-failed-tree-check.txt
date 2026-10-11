@@ -1,0 +1,236 @@
+Both checkers select the same 775 project inputs; scope OK.
+Both checkers reject deliberate errors in src, tests, convex and generated route types.
+checker-ts6-full 1: 14.354s
+checker-ts6-cached 1: 2.855s
+checker-ts6-edited 1: 5.892s
+checker-bun 1: 0.816s
+checker-bun-edited 1: 0.917s
+next-typegen 1: 1.016s
+command-ts6-full 1: 15.434s
+command-ts6-cached 1: 4.546s
+command-bun 1: 1.985s
+command-bun 2: 1.929s
+command-ts6-cached 2: 3.908s
+command-ts6-full 2: 15.565s
+next-typegen 2: 1.246s
+checker-bun-edited 2: 0.914s
+checker-bun 2: 0.852s
+checker-ts6-edited 2: 5.883s
+checker-ts6-cached 2: 2.871s
+checker-ts6-full 2: 14.524s
+checker-ts6-full 3: 14.470s
+checker-ts6-cached 3: 2.927s
+checker-ts6-edited 3: 5.900s
+checker-bun 3: 0.855s
+checker-bun-edited 3: 0.822s
+next-typegen 3: 1.012s
+command-ts6-full 3: 15.470s
+command-ts6-cached 3: 4.202s
+command-bun 3: 1.986s
+command-bun 4: 1.928s
+command-ts6-cached 4: 3.840s
+command-ts6-full 4: 15.585s
+next-typegen 4: 1.226s
+checker-bun-edited 4: 1.001s
+checker-bun 4: 0.848s
+checker-ts6-edited 4: 5.940s
+checker-ts6-cached 4: 2.886s
+checker-ts6-full 4: 14.609s
+checker-ts6-full 5: 14.528s
+checker-ts6-cached 5: 2.872s
+checker-ts6-edited 5: 5.919s
+checker-bun 5: 0.860s
+checker-bun-edited 5: 0.876s
+next-typegen 5: 1.025s
+command-ts6-full 5: 15.477s
+command-ts6-cached 5: 4.407s
+command-bun 5: 1.997s
+command-bun 6: 1.936s
+command-ts6-cached 6: 3.862s
+command-ts6-full 6: 15.567s
+next-typegen 6: 1.234s
+checker-bun-edited 6: 0.912s
+checker-bun 6: 0.870s
+checker-ts6-edited 6: 5.912s
+checker-ts6-cached 6: 2.924s
+checker-ts6-full 6: 14.470s
+checker-ts6-full 7: 14.571s
+checker-ts6-cached 7: 2.876s
+checker-ts6-edited 7: 5.864s
+checker-bun 7: 0.862s
+checker-bun-edited 7: 0.825s
+next-typegen 7: 1.011s
+command-ts6-full 7: 15.561s
+command-ts6-cached 7: 4.593s
+command-bun 7: 2.027s
+command-bun 8: 1.944s
+command-ts6-cached 8: 3.815s
+command-ts6-full 8: 15.481s
+next-typegen 8: 1.213s
+checker-bun-edited 8: 0.938s
+checker-bun 8: 0.890s
+checker-ts6-edited 8: 5.855s
+checker-ts6-cached 8: 2.881s
+checker-ts6-full 8: 14.522s
+checker-ts6-full 9: 15.109s
+checker-ts6-cached 9: 3.363s
+checker-ts6-edited 9: 5.944s
+checker-bun 9: 0.876s
+checker-bun-edited 9: 0.838s
+next-typegen 9: 1.324s
+command-ts6-full 9: 15.998s
+command-ts6-cached 9: 4.626s
+command-bun 9: 2.071s
+command-bun 10: 1.975s
+command-ts6-cached 10: 3.909s
+command-ts6-full 10: 15.837s
+next-typegen 10: 1.234s
+checker-bun-edited 10: 0.977s
+checker-bun 10: 0.832s
+checker-ts6-edited 10: 5.994s
+checker-ts6-cached 10: 2.935s
+checker-ts6-full 10: 14.669s
+{
+  "summary": {
+    "checker-ts6-full": {
+      "samples": 10,
+      "medianSeconds": 14.526089687500004,
+      "minSeconds": 14.354165708,
+      "maxSeconds": 15.109182874999998
+    },
+    "checker-ts6-cached": {
+      "samples": 10,
+      "medianSeconds": 2.88379085450001,
+      "minSeconds": 2.8551203749999985,
+      "maxSeconds": 3.362684667000023
+    },
+    "checker-ts6-edited": {
+      "samples": 10,
+      "medianSeconds": 5.906238562500016,
+      "minSeconds": 5.855342207999958,
+      "maxSeconds": 5.994140125000034
+    },
+    "checker-bun": {
+      "samples": 10,
+      "medianSeconds": 0.8574325830000016,
+      "minSeconds": 0.8162752909999981,
+      "maxSeconds": 0.8904466670000111
+    },
+    "checker-bun-edited": {
+      "samples": 10,
+      "medianSeconds": 0.9127563749999972,
+      "minSeconds": 0.8216761249999981,
+      "maxSeconds": 1.0013031669999763
+    },
+    "next-typegen": {
+      "samples": 10,
+      "medianSeconds": 1.2196488755000172,
+      "minSeconds": 1.0113497920000227,
+      "maxSeconds": 1.323808250000002
+    },
+    "command-ts6-full": {
+      "samples": 10,
+      "medianSeconds": 15.562981624999985,
+      "minSeconds": 15.434084375000007,
+      "maxSeconds": 15.998009666000026
+    },
+    "command-ts6-cached": {
+      "samples": 10,
+      "medianSeconds": 4.055651166999989,
+      "minSeconds": 3.814843041999964,
+      "maxSeconds": 4.626164709000033
+    },
+    "command-bun": {
+      "samples": 10,
+      "medianSeconds": 1.9800018125000132,
+      "minSeconds": 1.9284963339999959,
+      "maxSeconds": 2.070670207999996
+    }
+  },
+  "medianRatios": {
+    "checkerFullTs6OverBun": 16.94137822086938,
+    "checkerCachedTs6OverBun": 3.363285827569262,
+    "checkerEditedTs6OverBunEdited": 6.470772184417814,
+    "commandFullTs6OverBun": 7.860084534644779,
+    "commandCachedTs6OverBun": 2.048306795173685
+  }
+}
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
++ actual - expected
+
+  ' M .github/workflows/quality.yml\n' +
++   ' M README.md\n' +
++   ' M docs/plans/bun-elysia-delivery-plan-2026-10-11.md\n' +
++   ' M docs/plans/performance-next-steps-2026-10-11.md\n' +
+    ' M package.json\n' +
+    ' M scripts/ci/workflow-lib.mjs\n' +
+    ' M src/features/finishedGoods/catalogueFilters.test.ts\n' +
+    ' M src/features/finishedGoods/unitNextAction.test.ts\n' +
+    ' M tests/integration/ci-workflows.integration.test.ts\n' +
+
+    at main (file://<repo>/scripts/benchmark-typecheck.mjs:719:10)
+    at file://<repo>/scripts/benchmark-typecheck.mjs:726:9 {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: ' M .github/workflows/quality.yml\n' +
+    ' M README.md\n' +
+    ' M docs/plans/bun-elysia-delivery-plan-2026-10-11.md\n' +
+    ' M docs/plans/performance-next-steps-2026-10-11.md\n' +
+    ' M package.json\n' +
+    ' M scripts/ci/workflow-lib.mjs\n' +
+    ' M src/features/finishedGoods/catalogueFilters.test.ts\n' +
+    ' M src/features/finishedGoods/unitNextAction.test.ts\n' +
+    ' M tests/integration/ci-workflows.integration.test.ts\n' +
+    '?? .bun-version\n' +
+    '?? docs/reviews/bun-elysia/T01/T00-release/codeql-run.json\n' +
+    '?? docs/reviews/bun-elysia/T01/T00-release/merged-scope.json\n' +
+    '?? docs/reviews/bun-elysia/T01/T00-release/pr.json\n' +
+    '?? docs/reviews/bun-elysia/T01/T00-release/production/backup-metadata.json\n' +
+    '?? docs/reviews/bun-elysia/T01/T00-release/production/manifest.json\n' +
+    '?? docs/reviews/bun-elysia/T01/T00-release/production/smoke-candidate.json\n' +
+    '?? docs/reviews/bun-elysia/T01/T00-release/production/smoke-live.json\n' +
+    '?? docs/reviews/bun-elysia/T01/T00-release/quality-run.json\n' +
+    '?? docs/reviews/bun-elysia/T01/T00-release/review-threads.json\n' +
+    '?? docs/reviews/bun-elysia/T01/T00-release/staging/manifest.json\n' +
+    '?? docs/reviews/bun-elysia/T01/T00-release/staging/smoke-staging.json\n' +
+    '?? docs/reviews/bun-elysia/T01/bun-release-artifact-metadata.json\n' +
+    '?? docs/reviews/bun-elysia/T01/implementation-prompt.txt\n' +
+    '?? docs/reviews/bun-elysia/T01/models-before-implementation.json\n' +
+    '?? docs/reviews/bun-elysia/T01/reconciliation.json\n' +
+    '?? scripts/benchmark-typecheck.mjs\n' +
+    '?? scripts/ci/install-bun-checker.mjs\n' +
+    '?? tests/integration/bun-checker.integration.test.ts',
+  expected: ' M .github/workflows/quality.yml\n' +
+    ' M package.json\n' +
+    ' M scripts/ci/workflow-lib.mjs\n' +
+    ' M src/features/finishedGoods/catalogueFilters.test.ts\n' +
+    ' M src/features/finishedGoods/unitNextAction.test.ts\n' +
+    ' M tests/integration/ci-workflows.integration.test.ts\n' +
+    '?? .bun-version\n' +
+    '?? docs/reviews/bun-elysia/T01/T00-release/codeql-run.json\n' +
+    '?? docs/reviews/bun-elysia/T01/T00-release/merged-scope.json\n' +
+    '?? docs/reviews/bun-elysia/T01/T00-release/pr.json\n' +
+    '?? docs/reviews/bun-elysia/T01/T00-release/production/backup-metadata.json\n' +
+    '?? docs/reviews/bun-elysia/T01/T00-release/production/manifest.json\n' +
+    '?? docs/reviews/bun-elysia/T01/T00-release/production/smoke-candidate.json\n' +
+    '?? docs/reviews/bun-elysia/T01/T00-release/production/smoke-live.json\n' +
+    '?? docs/reviews/bun-elysia/T01/T00-release/quality-run.json\n' +
+    '?? docs/reviews/bun-elysia/T01/T00-release/review-threads.json\n' +
+    '?? docs/reviews/bun-elysia/T01/T00-release/staging/manifest.json\n' +
+    '?? docs/reviews/bun-elysia/T01/T00-release/staging/smoke-staging.json\n' +
+    '?? docs/reviews/bun-elysia/T01/bun-release-artifact-metadata.json\n' +
+    '?? docs/reviews/bun-elysia/T01/implementation-prompt.txt\n' +
+    '?? docs/reviews/bun-elysia/T01/models-before-implementation.json\n' +
+    '?? docs/reviews/bun-elysia/T01/reconciliation.json\n' +
+    '?? scripts/benchmark-typecheck.mjs\n' +
+    '?? scripts/ci/install-bun-checker.mjs\n' +
+    '?? tests/integration/bun-checker.integration.test.ts',
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.19.0

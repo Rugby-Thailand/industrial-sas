@@ -1,0 +1,26 @@
+{
+  "assets": [
+    {
+      "browser_download_url": "https://github.com/oven-sh/bun/releases/download/bun-v1.4.3/bun-darwin-aarch64.zip",
+      "digest": "sha256:80afd4c069b46a6fa8f3ec520bebc750a7843e4a8d5b9583d29ad436c00a3403",
+      "name": "bun-darwin-aarch64.zip"
+    },
+    {
+      "browser_download_url": "https://github.com/oven-sh/bun/releases/download/bun-v1.4.3/bun-linux-x64.zip",
+      "digest": "sha256:3e730528d89775f03f87f05c06787c4df4099d0a37f3f252e7b829cb23816e18",
+      "name": "bun-linux-x64.zip"
+    },
+    {
+      "browser_download_url": "https://github.com/oven-sh/bun/releases/download/bun-v1.4.3/SHASUMS256.txt",
+      "digest": "sha256:861ce0f19aa4f8a94bef81045c7fcad38dbb2343f2c6e2d6bdc8561be5dba637",
+      "name": "SHASUMS256.txt"
+    },
+    {
+      "browser_download_url": "https://github.com/oven-sh/bun/releases/download/bun-v1.4.3/SHASUMS256.txt.asc",
+      "digest": "sha256:ae8a20ffe0fc4c7fbac60d472f9f7f6770f9933d992f19841af3eea648b719a2",
+      "name": "SHASUMS256.txt.asc"
+    }
+  ],
+  "html_url": "https://github.com/oven-sh/bun/releases/tag/bun-v1.4.3",
+  "tag_name": "bun-v1.4.3"
+}

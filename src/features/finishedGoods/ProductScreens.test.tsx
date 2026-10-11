@@ -70,7 +70,9 @@ vi.mock("@/hooks/useScanContinuation", async (importOriginal) => ({
 }));
 vi.mock("convex/react", () => ({
   useMutation: (ref: Parameters<typeof getFunctionName>[0]) =>
-    getFunctionName(ref).endsWith(":saveProduct") ? mocks.save : mocks.pallet,
+    getFunctionName(ref).endsWith(":saveProduct")
+      ? Object.assign(mocks.save, { withOptimisticUpdate: () => mocks.save })
+      : mocks.pallet,
   useQuery: (ref: Parameters<typeof getFunctionName>[0], args: unknown) =>
     catalogueTestResponse(
       getFunctionName(ref),
@@ -1478,14 +1480,14 @@ describe("column filter interactions", () => {
       "",
       "/finished-goods",
     );
-    const replace = vi.spyOn(window.history, "replaceState");
+    const push = vi.spyOn(window.history, "pushState");
     catalogue();
-    fireEvent.click(screen.getByRole("button", { name: "Table view" }));
-    const data = replace.mock.calls.at(-1)?.[0];
+    fireEvent.click(screen.getByRole("button", { name: "Card view" }));
+    const data = push.mock.calls.at(-1)?.[0];
     expect(data).toMatchObject({ retained: true });
     expect(data.__NA).toBeUndefined();
     expect(data._N).toBeUndefined();
-    replace.mockRestore();
+    push.mockRestore();
   });
   it("applies storage-unit dimensions and sorting after changing tabs", () => {
     catalogue();

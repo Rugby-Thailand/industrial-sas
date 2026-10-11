@@ -752,6 +752,35 @@ describe("gated production release", () => {
 });
 
 describe("gated staging deployment", () => {
+  it("reports a failed staging setup without implying the production app changed", async () => {
+    const { result, input, calls } = await run({
+      targetName: "staging",
+      smoke: {
+        ok: false,
+        passed: 0,
+        failed: 1,
+        diagnostics: [
+          "STAGING_SETUP_CLERK_INSTANCE_FAILED",
+          "untrusted-provider-response",
+        ],
+      },
+    });
+    const manifest = buildManifest(result, input);
+    expect(manifest.recovery).toContain("staging frontend is serving");
+    expect(manifest.recovery).toContain("Production release has not started");
+    expect(manifest.smoke["smoke-staging"]?.diagnostics).toEqual([
+      "STAGING_SETUP_CLERK_INSTANCE_FAILED",
+    ]);
+    expect(summaryMarkdown(manifest)).toContain(
+      "STAGING_SETUP_CLERK_INSTANCE_FAILED",
+    );
+    expect(JSON.stringify(manifest) + summaryMarkdown(manifest)).not.toContain(
+      "untrusted-provider-response",
+    );
+    expect(calls).not.toContain("backup");
+    expect(calls.some((call) => call.startsWith("promote:"))).toBe(false);
+  });
+
   it("deploys with the stable alias, waits until it serves, then runs the staging suite", async () => {
     const { result, calls } = await run({ targetName: "staging" });
     expect(result).toMatchObject({ code: "STAGING_PASSED", ok: true });

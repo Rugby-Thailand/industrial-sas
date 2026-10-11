@@ -1,3 +1,5 @@
+import { filterSmokeDiagnostics } from "./smoke-diagnostics.mjs";
+
 // Turns a Playwright JSON report into the smoke result the release state
 // machine consumes. Tests annotated `not-configured` (optional production
 // identity checks) are listed separately and never counted as passed; any
@@ -48,6 +50,7 @@ export function summarizePlaywrightReport(report) {
     skipped,
     skippedRequired,
     notConfigured,
+    diagnostics: filterSmokeDiagnostics(report?.diagnostics),
     summary: `${passed} passed, ${failed + errors} failed, ${skipped} skipped`,
   };
 }

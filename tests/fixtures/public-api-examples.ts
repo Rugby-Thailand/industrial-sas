@@ -186,8 +186,22 @@ function example<K extends Kind>(
 
 // Each shipping public module has an explicit example. The coverage suite
 // compares this inventory with runtime registered exports, so new modules
-// cannot silently be omitted. This is representative coverage, not all 87 APIs.
+// cannot silently be omitted. This is representative coverage, not every API.
 export const PUBLIC_API_EXAMPLES: readonly PublicApiExample[] = [
+  example("aiUsage/reports:summary", "query", () => ({})),
+  example("hr/access:current", "query", () => ({})),
+  example("hr/navigationIntent:interpret", "action", () => ({
+    query: "",
+    context: { page: null, employee: false, date: false, period: false },
+  })),
+  example("hr/periods:list", "query", () => ({})),
+  example("hr/review:queue", "query", () => ({
+    from: "2026-10-01",
+    to: "2026-10-01",
+  })),
+  example("hr/search:adminEmployees", "query", () => ({ text: "fixture" })),
+  example("hr/self:profile", "query", () => ({})),
+  example("hr/setup:listEmployees", "query", () => ({})),
   example("finishedGoods/batches:getBatch", "query", (w) => ({
     warehouseId: w.warehouses.alphaA,
     batchId: w.batchId,
@@ -200,6 +214,10 @@ export const PUBLIC_API_EXAMPLES: readonly PublicApiExample[] = [
     warehouseId: w.warehouses.alphaA,
     sku: "PUBLIC-1",
   })),
+  example("finishedGoods/jobScanLocations:resolve", "query", (w) => ({
+    warehouseId: w.warehouses.alphaA,
+    code: "PUBLIC-UNKNOWN-LOCATION",
+  })),
   example("finishedGoods/jobScans:listJobScans", "query", (w) => ({
     warehouseId: w.warehouses.alphaA,
     filter: "ALL",
@@ -209,6 +227,14 @@ export const PUBLIC_API_EXAMPLES: readonly PublicApiExample[] = [
     warehouseId: w.warehouses.alphaA,
     imageUrl: "https://example.test/synthetic-ticket.png",
   })),
+  example(
+    "finishedGoods/locationImage:extractLocationLabel",
+    "action",
+    (w) => ({
+      warehouseId: w.warehouses.alphaA,
+      imageDataUrl: "data:image/jpeg;base64,YWJj",
+    }),
+  ),
   example("finishedGoods/scanning:resolvePackageCode", "query", (w) => ({
     warehouseId: w.warehouses.alphaA,
     code: `ISAS:PALLET:1:${w.palletId}`,

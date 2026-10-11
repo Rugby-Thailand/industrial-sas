@@ -34,12 +34,19 @@ function assertRunId(runId: string) {
   if (!RUN_ID.test(runId)) throw new E2eFixtureRefusal("Invalid run ID.");
 }
 export function organizationName(runId: string, kind: "primary" | "other") {
+  return `${userFirstName(runId)} ${kind}`;
+}
+export function userFirstName(runId: string) {
   assertRunId(runId);
-  return `${E2E_ORGANIZATION_PREFIX}${runId} ${kind}`;
+  // Clerk rejects phone-like digit sequences in personal names. RUN_ID is
+  // lowercase, so uppercase A–J encodes 0–9 without name collisions.
+  const nameId = runId.replace(/[0-9]/g, (digit) =>
+    String.fromCharCode(65 + Number(digit)),
+  );
+  return `${E2E_ORGANIZATION_PREFIX}${nameId}`;
 }
 export function userDisplayName(runId: string) {
-  assertRunId(runId);
-  return `${E2E_ORGANIZATION_PREFIX}${runId} actor`;
+  return `${userFirstName(runId)} actor`;
 }
 export function runWarehouseCode(runId: string): string {
   assertRunId(runId);

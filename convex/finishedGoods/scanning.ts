@@ -129,7 +129,7 @@ export const resolvePackageCode = queryWithOrg({
   },
 });
 
-async function targetContext(
+export async function targetContext(
   ctx: TenantFunctionContext,
   warehouseId: Id<"warehouses">,
   zone: Doc<"storageZones">,
@@ -194,9 +194,9 @@ async function targetContext(
       position?.updatedAt ?? null,
     ]),
   };
-  return { resolved, zone, target };
+  return { resolved, zone, target, building, floor };
 }
-async function resolveTarget(
+export async function resolveTarget(
   ctx: TenantFunctionContext,
   warehouseId: Id<"warehouses">,
   raw: string,

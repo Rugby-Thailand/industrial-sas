@@ -1,0 +1,78 @@
+{
+  "recordedAt": "2026-10-11T06:06:10.027Z",
+  "commit": "f7d197dc886c3e79f79bb656b91613ded761cace",
+  "originMain": "77ae110b7f346af747ed4094dba8854801133d08",
+  "workingTreeAtStart": [],
+  "versions": {
+    "node": "v24.19.0",
+    "pnpm": "10.33.2",
+    "typescript6": "Version 6.0.3",
+    "next": "16.3.8",
+    "bun": "1.4.3",
+    "bunRevision": "1.4.3+c6da4a4d3",
+    "bunEmbeddedTypescript": "7.0.2"
+  },
+  "pins": {
+    "bunVersionFile": "1.4.3",
+    "installer": {
+      "version": "1.4.3",
+      "typescript": "7.0.2",
+      "sha256": {
+        "linux-x64": "3e730528d89775f03f87f05c06787c4df4099d0a37f3f252e7b829cb23816e18",
+        "darwin-arm64": "80afd4c069b46a6fa8f3ec520bebc750a7843e4a8d5b9583d29ad436c00a3403"
+      }
+    },
+    "asset": {
+      "name": "bun-darwin-aarch64",
+      "sha256": "80afd4c069b46a6fa8f3ec520bebc750a7843e4a8d5b9583d29ad436c00a3403",
+      "url": "https://github.com/oven-sh/bun/releases/download/bun-v1.4.3/bun-darwin-aarch64.zip",
+      "cachedArchiveSha256": "80afd4c069b46a6fa8f3ec520bebc750a7843e4a8d5b9583d29ad436c00a3403"
+    },
+    "bunBinary": {
+      "path": "<repo>/.cache/bun-checker/bun-v1.4.3-bun-darwin-aarch64/bun",
+      "sha256": "28c7dd0a06916aba284d570ef44a2d70e9c538eaf2ba58dfe0910525563b3f79"
+    },
+    "scripts": {
+      "typecheck": "node scripts/ci/install-bun-checker.mjs --verify && next typegen && bun --check --no-pretty",
+      "typecheck:ts6": "next typegen && tsc --noEmit",
+      "check": "pnpm format:check && pnpm typecheck && pnpm lint && pnpm test",
+      "build": "next build"
+    }
+  },
+  "host": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "osRelease": "25.5.0",
+    "cpuModel": "Apple M1 Max",
+    "logicalCpus": 10,
+    "totalMemoryGiB": 32,
+    "loadAverageAtStart": [4.64599609375, 4.33349609375, 3.72900390625]
+  },
+  "conditions": {
+    "NODE_ENV": null,
+    "CI": null,
+    "NO_COLOR": true,
+    "envFilesPresent": [],
+    "nextBuildCachePresent": false,
+    "routeTypes": "pnpm exec next typegen before manifests, error and timing runs (production build phase config load)",
+    "typescript6Caches": {
+      "full": "--incremental false: no build info read or written",
+      "cached": "primed --tsBuildInfoFile under .cache/typecheck-benchmark-t01; no source change between samples",
+      "edited": "separate primed build info; src/features/finishedGoods/unitNextAction.ts gains a new unique export before each sample and is restored after it",
+      "commandCached": "pnpm typecheck:ts6 with the project's default tsconfig.tsbuildinfo, primed before timing"
+    },
+    "bun": "bun --check never reads or writes build info: every run checks the whole project",
+    "filesystem": "warm; dependencies installed by pnpm install --frozen-lockfile before the run",
+    "concurrency": "one process at a time; no other build, test or benchmark started by this task during the run; other workstation activity uncontrolled (1-minute load average recorded per sample)"
+  },
+  "provenance": {
+    "replaces": "untracked pilot scripts/benchmark-typecheck.mjs from the checker worktree",
+    "pilotScriptSha256": "0c988ea34574ee66339c5cffe4fc839aa2590b89c384428b112d80114d1f28eb",
+    "pilotCopy": {
+      "file": "pilot-benchmark-typecheck.mjs.txt",
+      "sha256": "0c988ea34574ee66339c5cffe4fc839aa2590b89c384428b112d80114d1f28eb"
+    },
+    "harnessSha256": "415fd6f36cef2c9a9c6c7e060abf6ceb45202afc51692258c12089497bafcbd3",
+    "historicalEvidence": "docs/reviews/assets/bun-typecheck-pilot-2026-10-11 (unchanged)"
+  }
+}

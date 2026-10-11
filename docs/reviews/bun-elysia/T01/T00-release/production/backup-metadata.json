@@ -1,0 +1,18 @@
+{
+  "ok": true,
+  "code": "BACKUP_COMPLETED",
+  "reason": "A new production snapshot including Convex storage completed with a verified recovery window.",
+  "metadata": {
+    "schema": 1,
+    "deploymentName": "greedy-cardinal-537",
+    "requestor": "snapshotExport",
+    "state": "completed",
+    "includeStorage": true,
+    "requestedAtMs": 1791694710650,
+    "verifiedAtMs": 1791694713265,
+    "startTs": "1791694710711894204",
+    "completeTs": "1791694711758899516",
+    "expirationTs": "1792903744211317757",
+    "sizeBytes": "285914"
+  }
+}

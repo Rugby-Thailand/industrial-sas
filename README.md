@@ -37,6 +37,17 @@ Run `pnpm check`, `pnpm build`, and `pnpm audit:prod` before releasing.
 `pnpm format:check` checks formatting. Physical camera scanning still requires
 a device check.
 
+`pnpm typecheck` generates Next route types and then runs Bun's standalone
+TypeScript checker (`bun --check`, TypeScript 7.0.2 semantics). It needs the
+exact Bun in `.bun-version` (1.4.3) first on `PATH`; install it with
+`node scripts/ci/install-bun-checker.mjs`, which checksum-verifies the official
+release archive into the ignored `.cache/bun-checker/` and prints the `PATH`
+entry. CI runs the same installer. Never use bare `bun check` here: it runs the
+aggregate `check` script. `pnpm typecheck:ts6` is the TypeScript 6.0.3
+comparison and fallback. TypeScript 6 remains installed for the editor,
+typescript-eslint and the type check inside `pnpm build`.
+`node scripts/benchmark-typecheck.mjs` compares the two checkers serially.
+
 ## Production
 
 ### CI/CD
@@ -44,7 +55,9 @@ a device check.
 `Planner quality` runs once per pull request update and on pushes to `main`.
 Use its manual GitHub Actions trigger to check a branch before opening a PR.
 Type checking, lint and the production dependency audit run alongside two test
-shards and the production build. Every Vitest project remains included. The
+shards and the production build. The validate job installs the pinned Bun
+checker from its checksum-verified release archive (no third-party action) and
+runs `pnpm typecheck` with it. Every Vitest project remains included. The
 `check` job passes only when all jobs pass; use it as the required merge check.
 Superseded PR runs are cancelled, while production-branch checks finish.
 
@@ -129,10 +142,13 @@ private `--env-file`, refuse if the deploy-key slot is present, default to
 read-only preflight, and never retry a mutation. See the runbook's operator
 section before running one.
 
-Telemetry has no durable destination yet: `NEXT_PUBLIC_OBSERVABILITY_SINK`
-accepts `none` or `console` (the user's browser console), and events carry
-only allowlisted dimensions. Central error delivery and alerting are not
-configured; the runbook records the setup decision and owner.
+Telemetry is opt-in. `NEXT_PUBLIC_OBSERVABILITY_SINK` accepts `none`, `console`
+or the gated `sentry` sink. Speed Insights uses the same route allowlist and a
+same-origin relay that removes DOM attribution, identifiers and URL queries.
+Sentry account credentials and alerting remain unconfigured; its local transport
+test does not prove production delivery. See the [release runbook](docs/operations/release-runbook.md)
+for activation and privacy controls, and the [performance harness](scripts/performance/README.md)
+for reproducible lab comparisons.
 
 ### Local pagination fixtures and summary migration
 

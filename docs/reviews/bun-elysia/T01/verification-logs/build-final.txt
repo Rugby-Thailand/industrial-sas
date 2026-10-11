@@ -1,0 +1,75 @@
+
+> storage-planner@0.0.0 build <repo>
+> next build
+
+▲ Next.js 16.3.8 (Turbopack)
+✓ Running next.config.ts took 203ms
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 875ms
+  Running TypeScript ...
+  Finished TypeScript in 3.0s ...
+  Collecting page data using 9 workers ...
+  Generating static pages using 9 workers (0/48) ...
+  Generating static pages using 9 workers (12/48)
+  Generating static pages using 9 workers (24/48)
+  Generating static pages using 9 workers (36/48)
+✓ Generating static pages using 9 workers (48/48) in 439ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ○ /_not-found
+├   /[locale]
+│ ├ ● /th
+│ └ ● /en
+├ ƒ /[locale]/[...rest]
+├   /[locale]/about
+│ ├ ● /th/about
+│ └ ● /en/about
+├ ƒ /[locale]/ai-usage
+├ ƒ /[locale]/finished-goods
+├ ƒ /[locale]/finished-goods/batches/[batchId]
+├ ƒ /[locale]/finished-goods/new
+├ ƒ /[locale]/finished-goods/pallets/[palletId]
+├ ƒ /[locale]/finished-goods/pallets/[palletId]/measure
+├ ƒ /[locale]/finished-goods/pallets/[palletId]/move
+├ ƒ /[locale]/finished-goods/pallets/[palletId]/stack
+├ ƒ /[locale]/finished-goods/pallets/[palletId]/storage
+├ ƒ /[locale]/finished-goods/products/[productId]
+├ ƒ /[locale]/finished-goods/products/[productId]/packing
+├ ƒ /[locale]/finished-goods/scan
+├ ƒ /[locale]/finished-goods/scan/records
+├ ƒ /[locale]/hr
+├ ƒ /[locale]/hr/employees
+├ ƒ /[locale]/hr/periods
+├ ƒ /[locale]/hr/periods/[periodId]
+├ ƒ /[locale]/hr/profile
+├ ƒ /[locale]/hr/review
+├ ƒ /[locale]/hr/settings
+├ ƒ /[locale]/hr/time
+├ ƒ /[locale]/hr/time/[date]
+├ ƒ /[locale]/hr/today
+├ ƒ /[locale]/master-data/storage-layouts
+├ ƒ /[locale]/master-data/storage-layouts/[buildingId]
+├ ƒ /[locale]/master-data/storage-layouts/[buildingId]/floors/[floorNumber]
+├ ƒ /[locale]/master-data/storage-layouts/[buildingId]/review
+├ ƒ /[locale]/master-data/storage-layouts/demo
+├ ƒ /[locale]/master-data/storage-layouts/new
+├   /[locale]/privacy
+│ ├ ● /th/privacy
+│ └ ● /en/privacy
+├ ƒ /[locale]/setup
+├ ƒ /[locale]/sign-in
+├ ƒ /[locale]/sign-in/[...sign-in]
+├   /[locale]/terms
+│ ├ ● /th/terms
+│ └ ● /en/terms
+├ ƒ /api/observability/speed-insights
+└ ƒ /api/uploadthing
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+●  (SSG)      prerendered as static HTML (uses generateStaticParams)
+ƒ  (Dynamic)  server-rendered on demand
