@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AI usage — visual fixture</title>
+    <!-- The app self-hosts Geist via next/font; the fixture loads the same
+         family from Google Fonts (font files only, no page data sent). -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&family=Geist+Mono:wght@100..900&display=swap"
+    />
+    <style>
+      :root {
+        --font-geist: "Geist";
+        --font-geist-mono: "Geist Mono";
+      }
+    </style>
+    <script>
+      // Next.js inlines NEXT_PUBLIC_* at build time; the fixture has none.
+      window.process = { env: { NODE_ENV: "development" } };
+    </script>
+  </head>
+  <body class="bg-canvas text-text antialiased">
+    <div id="root"></div>
+    <script type="module" src="/main.tsx"></script>
+  </body>
+</html>

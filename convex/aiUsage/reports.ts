@@ -210,12 +210,6 @@ export const summary = queryWithOrg({
     }
     // A malformed stored aggregate is refused, never shown as a smaller total.
     if (invalid) return { error: "AI_USAGE_AGGREGATE_INVALID" as const };
-    const settings =
-      (
-        await ctx.tenantDb
-          .byIndex<Doc<"aiCostSettings">>("aiCostSettings", "by_orgId_version")
-          .take(1, "desc")
-      )[0] ?? null;
     const first = (
       await ctx.tenantDb
         .byIndex<Doc<"aiUsageOperations">>(
@@ -232,7 +226,6 @@ export const summary = queryWithOrg({
       models: Array.from(models),
       environments: Array.from(environments),
       breakdown: Array.from(breakdown.values()),
-      settings,
       trackingStartedAt: first?.startedAt ?? null,
       users: labels.users,
       warehouses: labels.warehouses,
@@ -445,34 +438,17 @@ export const attempts = queryWithOrg({
       )
       .all(MAX_ATTEMPTS),
 });
+/**
+ * Retired. Baht estimates now use the automatic daily USD/THB rate and
+ * OpenRouter's published card funding policy, loaded by the web server. The
+ * mutation stays registered so a tab still running the previous frontend
+ * gets an explicit refusal instead of a missing function; it writes nothing.
+ * Saved `aiCostSettings` rows are history only and are never read as
+ * automatic data.
+ */
 export const configure = mutationWithOrg({
   args: { usdThbRate: v.number(), feePercent: v.number(), source: v.string() },
   permissionCode: CONFIGURE,
   target: { table: "aiCostSettings" },
-  handler: async (ctx, args) => {
-    if (
-      !Number.isFinite(args.usdThbRate) ||
-      args.usdThbRate <= 0 ||
-      args.usdThbRate > 1000 ||
-      !Number.isFinite(args.feePercent) ||
-      args.feePercent < 0 ||
-      args.feePercent > 100 ||
-      !args.source.trim() ||
-      args.source.length > 160
-    )
-      return { ok: false as const, code: "SETTINGS_INVALID" };
-    const last = (
-      await ctx.tenantDb
-        .byIndex<Doc<"aiCostSettings">>("aiCostSettings", "by_orgId_version")
-        .take(1, "desc")
-    )[0];
-    await ctx.tenantDb.insert("aiCostSettings", {
-      ...args,
-      source: args.source.trim(),
-      version: (last?.version ?? 0) + 1,
-      effectiveAt: Date.now(),
-      createdByUserId: ctx.tenant.actor._id,
-    });
-    return { ok: true as const };
-  },
+  handler: async () => ({ ok: false as const, code: "SETTINGS_RETIRED" }),
 });

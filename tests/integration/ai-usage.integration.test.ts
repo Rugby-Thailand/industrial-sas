@@ -476,26 +476,37 @@ describe("AI usage ledger through authorized actions", () => {
     expect(codes).not.toContain("aiUsage.read");
   });
 
-  it("keeps FX versions immutable and flags an over-capacity report as incomplete", async () => {
-    await auth().mutation(api.aiUsage.reports.configure, {
-      usdThbRate: 33.53,
-      feePercent: 5.5,
-      source: "First rate",
+  it("refuses retired manual FX settings and flags an over-capacity report as incomplete", async () => {
+    // A previous frontend may still call the retired mutation: it is refused
+    // explicitly and writes nothing; saved settings never reach the report.
+    await world.t.run(async (ctx) => {
+      await ctx.db.insert("aiCostSettings", {
+        orgId: world.orgA,
+        version: 1,
+        effectiveAt: 0,
+        usdThbRate: 33.53,
+        feePercent: 5.5,
+        source: "Legacy manual rate",
+        createdByUserId: world.userA,
+      });
     });
-    await auth().mutation(api.aiUsage.reports.configure, {
-      usdThbRate: 34,
-      feePercent: 0,
-      source: "Second rate",
+    expect(
+      await auth().mutation(api.aiUsage.reports.configure, {
+        usdThbRate: 34,
+        feePercent: 0,
+        source: "Second rate",
+      }),
+    ).toMatchObject({
+      ok: true,
+      value: { ok: false, code: "SETTINGS_RETIRED" },
     });
     const versions = await world.t.run((ctx) =>
       ctx.db.query("aiCostSettings").collect(),
     );
-    expect(
-      versions.map((s) => [s.version, s.usdThbRate, s.feePercent]),
-    ).toEqual([
-      [1, 33.53, 5.5],
-      [2, 34, 0],
-    ]);
+    expect(versions.map((s) => s.source)).toEqual(["Legacy manual rate"]);
+    const legacy = await auth().query(api.aiUsage.reports.summary, {});
+    expect(legacy.ok && legacy.value).not.toHaveProperty("settings");
+    expect(JSON.stringify(legacy)).not.toContain("Legacy manual rate");
     const startedAt = Date.parse("2026-10-01T00:00:00Z"),
       utcDay = Math.floor(startedAt / 86400000);
     await world.t.run(async (ctx) => {
