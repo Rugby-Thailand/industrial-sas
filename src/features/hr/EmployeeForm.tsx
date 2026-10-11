@@ -199,19 +199,30 @@ export function EmployeeForm({
     void send();
   };
 
-  const memberOptions = memberList.map((member) => ({
-    value: member.userId,
-    label:
-      member.linkedEmployeeCode && member.linkedEmployeeId !== employee?.id
-        ? t("memberLinked", {
-            name: member.displayName,
-            code: member.linkedEmployeeCode,
-          })
-        : member.displayName,
-    disabled:
-      member.linkedEmployeeId !== undefined &&
-      member.linkedEmployeeId !== employee?.id,
-  }));
+  // An account is selectable when it is unlinked or linked to this employee.
+  // A link outside the administrator's site scope arrives only as
+  // `linked: true`, without an employee ID or code, and stays unavailable
+  // under a generic label. The server still enforces one employee per account.
+  const memberOptions = memberList.map((member) => {
+    const own =
+      employee !== undefined &&
+      (member.linkedEmployeeId === employee.id ||
+        member.userId === employee.linkedUserId);
+    const taken =
+      !own && (member.linked === true || member.linkedEmployeeId !== undefined);
+    return {
+      value: member.userId,
+      label: !taken
+        ? member.displayName
+        : member.linkedEmployeeCode
+          ? t("memberLinked", {
+              name: member.displayName,
+              code: member.linkedEmployeeCode,
+            })
+          : t("memberLinkedElsewhere", { name: member.displayName }),
+      disabled: taken,
+    };
+  });
   const supervisorOptions = memberList
     .filter((member) => member.userId !== draft.userId)
     .map((member) => ({ value: member.userId, label: member.displayName }));

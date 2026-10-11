@@ -1,6 +1,9 @@
 /**
- * The one OpenRouter chat request behind AI Search, shared by the Convex
+ * The one OpenRouter chat request behind AI Search, as pure values: the
+ * request body and the validated reading of the answer, shared by the Convex
  * action and the opt-in live evaluation so both send exactly the same thing.
+ * The transport (fetch and deadline) is the adapter in
+ * `convex/lib/searchProvider.ts`.
  *
  * The developer prompt is constant. The user's text and the page flags go
  * only into the user message, JSON-encoded as data, so instructions inside a
@@ -14,10 +17,6 @@ import {
   type IntentContextFlags,
   type ModelIntent,
 } from "./intent";
-
-export const OPENROUTER_CHAT_URL =
-  "https://openrouter.ai/api/v1/chat/completions";
-export const SEARCH_TIMEOUT_MS = 12_000;
 
 const PAGE_HELP: Readonly<Record<(typeof PAGE_KEYS)[number], string>> = {
   "planner.finishedGoods": "finished-goods products, batches and pallets",
@@ -123,52 +122,5 @@ export function readSearchIntentResponse(
     );
   } catch {
     return fail("AI_UNREADABLE");
-  }
-}
-
-export type ProviderFailure = "AI_UNAVAILABLE" | "AI_TIMEOUT" | "AI_UNREADABLE";
-
-/** Exactly one request with a hard deadline; no retry and no logging of text. */
-export async function requestSearchIntent(input: {
-  readonly apiKey: string;
-  readonly model: string;
-  readonly query: string;
-  readonly context: IntentContextFlags;
-  readonly fetcher?: typeof fetch;
-  readonly timeoutMs?: number;
-}): Promise<Result<ModelIntent, ProviderFailure>> {
-  const controller = new AbortController();
-  const timer = setTimeout(
-    () => controller.abort(),
-    input.timeoutMs ?? SEARCH_TIMEOUT_MS,
-  );
-  try {
-    const response = await (input.fetcher ?? fetch)(OPENROUTER_CHAT_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${input.apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(searchIntentRequestBody(input)),
-      signal: controller.signal,
-    });
-    if (!response.ok) return fail("AI_UNAVAILABLE");
-    const text = await response.text();
-    let body: unknown;
-    try {
-      body = JSON.parse(text);
-    } catch {
-      return fail("AI_UNREADABLE");
-    }
-    return readSearchIntentResponse(body);
-  } catch (error) {
-    return fail(
-      controller.signal.aborted ||
-        (error instanceof Error && error.name === "AbortError")
-        ? "AI_TIMEOUT"
-        : "AI_UNAVAILABLE",
-    );
-  } finally {
-    clearTimeout(timer);
   }
 }

@@ -1775,6 +1775,7 @@
       "noAccount": "No account",
       "noMembers": "No members available",
       "memberLinked": "{name} (linked to {code})",
+      "memberLinkedElsewhere": "{name} (already linked to an employee)",
       "unlinked": "No account",
       "unknownMember": "Former member",
       "memberInactive": "Account inactive",

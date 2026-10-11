@@ -197,6 +197,7 @@ export const memberOptions = queryWithOrg({
   handler: async (ctx) => {
     const members = await ctx.members.listActive(MAX_MEMBERS);
     if (members === null) return { ok: false as const, code: "LIMIT_EXCEEDED" };
+    const scope = await siteScope(ctx);
     const items = [];
     for (const member of members) {
       const linked = await ctx.tenantDb
@@ -204,11 +205,18 @@ export const memberOptions = queryWithOrg({
           { field: "userId", value: member.userId },
         ])
         .unique();
+      // Account names stay selectable (account and supervisor pickers). A
+      // link outside the administrator's site scope is reported only as
+      // `linked: true`: no employee ID, code or site leaves the scope.
+      // `saveEmployee` still enforces one employee per account.
+      const visible = linked !== null && inScope(scope, linked.warehouseId);
       items.push({
         userId: member.userId,
         displayName: member.displayName,
-        linkedEmployeeId: linked?._id,
-        linkedEmployeeCode: linked?.code,
+        linked: linked !== null,
+        ...(visible
+          ? { linkedEmployeeId: linked._id, linkedEmployeeCode: linked.code }
+          : {}),
       });
     }
     items.sort((a, b) => a.displayName.localeCompare(b.displayName));

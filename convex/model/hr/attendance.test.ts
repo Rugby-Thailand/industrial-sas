@@ -57,6 +57,42 @@ describe("schedule validation", () => {
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.code).toBe(code);
   });
+
+  it("returns a deeply frozen, sorted copy that later mutation cannot invalidate", () => {
+    const input = { ...DAY, workDays: [5, 0, 1] };
+    const result = validateSchedule(input);
+    if (!result.ok) throw new Error("expected a valid schedule");
+    const schedule = result.value;
+    // Sunday spelled as JavaScript's 0 is normalized; the copy is sorted.
+    expect(schedule.workDays).toEqual([1, 5, 7]);
+    expect(Object.isFrozen(schedule)).toBe(true);
+    expect(Object.isFrozen(schedule.workDays)).toBe(true);
+    // The validated array is a copy: the caller's input stays its own.
+    input.workDays.push(3);
+    expect(schedule.workDays).toEqual([1, 5, 7]);
+
+    // A forged weekday cannot be pushed into, or written over, the result.
+    const days = schedule.workDays as number[];
+    expect(() => days.push(9)).toThrow(TypeError);
+    expect(() => {
+      days[0] = 3;
+    }).toThrow(TypeError);
+    expect(() => days.sort((a, b) => b - a)).toThrow(TypeError);
+    expect(schedule.workDays).toEqual([1, 5, 7]);
+    // So the plan it produces still follows the validated weekdays.
+    const planOf = (date: string) =>
+      planFor({
+        date,
+        schedule,
+        holidayName: undefined,
+        offsetMinutes: OFFSET,
+      });
+    expect(planOf("2026-10-07")).toMatchObject({
+      kind: "NONWORKING",
+      reason: "UNSCHEDULED",
+    });
+    expect(planOf("2026-10-11")).toMatchObject({ kind: "SCHEDULED" });
+  });
 });
 
 describe("planned days", () => {
