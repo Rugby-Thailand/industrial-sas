@@ -1,0 +1,235 @@
+{
+  "$comment": "T03 braces@3.0.3 path reconciliation. Derived by scripts/ci/lockfile-graph.mjs from the authoritative pnpm locks at d07f628 and the probe-migrated candidate bun.lock (Bun 1.4.3). pnpmAuditTree reproduces the single path pnpm 10.33.2 sends to the registry (lockfileToAuditTree walks each snapshot once). Exception paths are copied unchanged from scripts/ci/dependency-exceptions.json; nothing is broadened.",
+  "advisory": "GHSA-vfj7-8cjw-p6xm",
+  "version": "3.0.3",
+  "app": {
+    "exceptionPaths": [
+      ".>eslint-config-next>@next/eslint-plugin-next>fast-glob>micromatch>braces"
+    ],
+    "pnpmReportedPaths": [
+      ".>eslint-config-next>@next/eslint-plugin-next>fast-glob>micromatch>braces"
+    ],
+    "pnpmLockAllSimplePathCount": 3,
+    "bunLockAllSimplePathCount": 3,
+    "identicalPathSets": true,
+    "productionPathCount": 0,
+    "unallowedPaths": [
+      ".>shadcn>fast-glob>micromatch>braces",
+      ".>shadcn>ts-morph>@ts-morph/common>fast-glob>micromatch>braces"
+    ],
+    "allSimplePaths": [
+      {
+        "path": ".>eslint-config-next>@next/eslint-plugin-next>fast-glob>micromatch>braces",
+        "production": false
+      },
+      {
+        "path": ".>shadcn>fast-glob>micromatch>braces",
+        "production": false
+      },
+      {
+        "path": ".>shadcn>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+        "production": false
+      }
+    ]
+  },
+  "release": {
+    "exceptionPaths": [
+      ".>vercel>@vercel/backends>ts-morph>@ts-morph/common>fast-glob>micromatch>braces"
+    ],
+    "pnpmReportedPaths": [
+      ".>vercel>@vercel/backends>ts-morph>@ts-morph/common>fast-glob>micromatch>braces"
+    ],
+    "pnpmLockAllSimplePathCount": 37,
+    "bunLockAllSimplePathCount": 37,
+    "identicalPathSets": true,
+    "productionPathCount": 37,
+    "unallowedPaths": [
+      ".>vercel>@vercel/backends>@vercel/static-config>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+      ".>vercel>@vercel/elysia>@vercel/node>@vercel/static-config>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+      ".>vercel>@vercel/elysia>@vercel/node>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+      ".>vercel>@vercel/elysia>@vercel/static-config>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+      ".>vercel>@vercel/express>@vercel/cervel>@vercel/backends>@vercel/static-config>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+      ".>vercel>@vercel/express>@vercel/cervel>@vercel/backends>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+      ".>vercel>@vercel/express>@vercel/node>@vercel/static-config>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+      ".>vercel>@vercel/express>@vercel/node>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+      ".>vercel>@vercel/express>@vercel/static-config>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+      ".>vercel>@vercel/express>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+      ".>vercel>@vercel/fastify>@vercel/node>@vercel/static-config>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+      ".>vercel>@vercel/fastify>@vercel/node>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+      ".>vercel>@vercel/fastify>@vercel/static-config>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+      ".>vercel>@vercel/h3>@vercel/node>@vercel/static-config>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+      ".>vercel>@vercel/h3>@vercel/node>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+      ".>vercel>@vercel/h3>@vercel/static-config>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+      ".>vercel>@vercel/hono>@vercel/node>@vercel/static-config>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+      ".>vercel>@vercel/hono>@vercel/node>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+      ".>vercel>@vercel/hono>@vercel/static-config>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+      ".>vercel>@vercel/hono>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+      ".>vercel>@vercel/hydrogen>@vercel/static-config>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+      ".>vercel>@vercel/hydrogen>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+      ".>vercel>@vercel/koa>@vercel/node>@vercel/static-config>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+      ".>vercel>@vercel/koa>@vercel/node>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+      ".>vercel>@vercel/koa>@vercel/static-config>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+      ".>vercel>@vercel/nestjs>@vercel/node>@vercel/static-config>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+      ".>vercel>@vercel/nestjs>@vercel/node>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+      ".>vercel>@vercel/nestjs>@vercel/static-config>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+      ".>vercel>@vercel/node>@vercel/static-config>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+      ".>vercel>@vercel/node>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+      ".>vercel>@vercel/redwood>@vercel/static-config>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+      ".>vercel>@vercel/redwood>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+      ".>vercel>@vercel/remix-builder>@vercel/static-config>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+      ".>vercel>@vercel/remix-builder>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+      ".>vercel>@vercel/static-build>@vercel/static-config>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+      ".>vercel>@vercel/static-build>ts-morph>@ts-morph/common>fast-glob>micromatch>braces"
+    ],
+    "allSimplePaths": [
+      {
+        "path": ".>vercel>@vercel/backends>@vercel/static-config>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+        "production": true
+      },
+      {
+        "path": ".>vercel>@vercel/backends>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+        "production": true
+      },
+      {
+        "path": ".>vercel>@vercel/elysia>@vercel/node>@vercel/static-config>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+        "production": true
+      },
+      {
+        "path": ".>vercel>@vercel/elysia>@vercel/node>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+        "production": true
+      },
+      {
+        "path": ".>vercel>@vercel/elysia>@vercel/static-config>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+        "production": true
+      },
+      {
+        "path": ".>vercel>@vercel/express>@vercel/cervel>@vercel/backends>@vercel/static-config>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+        "production": true
+      },
+      {
+        "path": ".>vercel>@vercel/express>@vercel/cervel>@vercel/backends>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+        "production": true
+      },
+      {
+        "path": ".>vercel>@vercel/express>@vercel/node>@vercel/static-config>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+        "production": true
+      },
+      {
+        "path": ".>vercel>@vercel/express>@vercel/node>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+        "production": true
+      },
+      {
+        "path": ".>vercel>@vercel/express>@vercel/static-config>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+        "production": true
+      },
+      {
+        "path": ".>vercel>@vercel/express>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+        "production": true
+      },
+      {
+        "path": ".>vercel>@vercel/fastify>@vercel/node>@vercel/static-config>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+        "production": true
+      },
+      {
+        "path": ".>vercel>@vercel/fastify>@vercel/node>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+        "production": true
+      },
+      {
+        "path": ".>vercel>@vercel/fastify>@vercel/static-config>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+        "production": true
+      },
+      {
+        "path": ".>vercel>@vercel/h3>@vercel/node>@vercel/static-config>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+        "production": true
+      },
+      {
+        "path": ".>vercel>@vercel/h3>@vercel/node>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+        "production": true
+      },
+      {
+        "path": ".>vercel>@vercel/h3>@vercel/static-config>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+        "production": true
+      },
+      {
+        "path": ".>vercel>@vercel/hono>@vercel/node>@vercel/static-config>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+        "production": true
+      },
+      {
+        "path": ".>vercel>@vercel/hono>@vercel/node>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+        "production": true
+      },
+      {
+        "path": ".>vercel>@vercel/hono>@vercel/static-config>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+        "production": true
+      },
+      {
+        "path": ".>vercel>@vercel/hono>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+        "production": true
+      },
+      {
+        "path": ".>vercel>@vercel/hydrogen>@vercel/static-config>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+        "production": true
+      },
+      {
+        "path": ".>vercel>@vercel/hydrogen>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+        "production": true
+      },
+      {
+        "path": ".>vercel>@vercel/koa>@vercel/node>@vercel/static-config>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+        "production": true
+      },
+      {
+        "path": ".>vercel>@vercel/koa>@vercel/node>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+        "production": true
+      },
+      {
+        "path": ".>vercel>@vercel/koa>@vercel/static-config>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+        "production": true
+      },
+      {
+        "path": ".>vercel>@vercel/nestjs>@vercel/node>@vercel/static-config>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+        "production": true
+      },
+      {
+        "path": ".>vercel>@vercel/nestjs>@vercel/node>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+        "production": true
+      },
+      {
+        "path": ".>vercel>@vercel/nestjs>@vercel/static-config>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+        "production": true
+      },
+      {
+        "path": ".>vercel>@vercel/node>@vercel/static-config>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+        "production": true
+      },
+      {
+        "path": ".>vercel>@vercel/node>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+        "production": true
+      },
+      {
+        "path": ".>vercel>@vercel/redwood>@vercel/static-config>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+        "production": true
+      },
+      {
+        "path": ".>vercel>@vercel/redwood>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+        "production": true
+      },
+      {
+        "path": ".>vercel>@vercel/remix-builder>@vercel/static-config>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+        "production": true
+      },
+      {
+        "path": ".>vercel>@vercel/remix-builder>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+        "production": true
+      },
+      {
+        "path": ".>vercel>@vercel/static-build>@vercel/static-config>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+        "production": true
+      },
+      {
+        "path": ".>vercel>@vercel/static-build>ts-morph>@ts-morph/common>fast-glob>micromatch>braces",
+        "production": true
+      }
+    ]
+  }
+}

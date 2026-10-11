@@ -1,0 +1,83 @@
+{
+  "$comment": "T03 candidate lifecycle review (opt-in; pnpm strictDepBuilds stays enforced). Derived from clean Bun 1.4.3 isolated installs on darwin-arm64 only; Linux inventory unverified. app entries mirror pnpm-workspace.yaml ignoredBuiltDependencies. release has no pnpm review list: pnpm 10 blocks dependency builds by default, so esbuild is recorded as blocked to preserve current behavior pending maintainer review. Each install-time entry records its installed path(s); trusted decisions are enforced per path. prepare digests cover dependency prepare scripts, which registry installs do not run, so a change still needs review.",
+  "prepare": {
+    "app": {
+      "count": 55,
+      "sha256": "04755c951d60c49c045245b7a101c25cce6809e7fcce99c79c33508abf82a001"
+    },
+    "release": {
+      "count": 27,
+      "sha256": "8afff8cc6687f1120208fe7bc545057e07fb109e9654c39434ef898ea8f9a5ce"
+    }
+  },
+  "app": [
+    {
+      "name": "@parcel/watcher",
+      "version": "2.6.0",
+      "event": "install",
+      "sha256": "85d2f36f8ff4057c0891ad9196c74b56b8b6dcfbcfa480a3b0c7469b7e426b0f",
+      "body": "node scripts/build-from-source.js",
+      "paths": [
+        "node_modules/.bun/@parcel+watcher@2.6.0/node_modules/@parcel/watcher/package.json"
+      ],
+      "decision": "blocked"
+    },
+    {
+      "name": "@swc/core",
+      "version": "1.15.47",
+      "event": "postinstall",
+      "sha256": "8863e845ae71970403793549480c0a621aef8b6fc353dd93b046f9cc43542795",
+      "body": "node postinstall.js",
+      "paths": [
+        "node_modules/.bun/@swc+core@1.15.47+dcea513fa271d095/node_modules/@swc/core/package.json"
+      ],
+      "decision": "blocked"
+    },
+    {
+      "name": "esbuild",
+      "version": "0.27.0",
+      "event": "postinstall",
+      "sha256": "912d4d8f507b7b392ae422a459f98da94669a742e4cc43cfe061e630ee2846fe",
+      "body": "node install.js",
+      "paths": [
+        "node_modules/.bun/esbuild@0.27.0/node_modules/esbuild/package.json"
+      ],
+      "decision": "blocked"
+    },
+    {
+      "name": "msgpackr-extract",
+      "version": "3.0.4",
+      "event": "install",
+      "sha256": "724f19be1ed612a6991ca763c3e8e701ac62427f4460fb1370aa4babd5e1fbb3",
+      "body": "node-gyp-build-optional-packages",
+      "paths": [
+        "node_modules/.bun/msgpackr-extract@3.0.4/node_modules/msgpackr-extract/package.json"
+      ],
+      "decision": "blocked"
+    },
+    {
+      "name": "unrs-resolver",
+      "version": "1.12.2",
+      "event": "postinstall",
+      "sha256": "8863e845ae71970403793549480c0a621aef8b6fc353dd93b046f9cc43542795",
+      "body": "node postinstall.js",
+      "paths": [
+        "node_modules/.bun/unrs-resolver@1.12.2/node_modules/unrs-resolver/package.json"
+      ],
+      "decision": "blocked"
+    }
+  ],
+  "release": [
+    {
+      "name": "esbuild",
+      "version": "0.27.0",
+      "event": "postinstall",
+      "sha256": "912d4d8f507b7b392ae422a459f98da94669a742e4cc43cfe061e630ee2846fe",
+      "body": "node install.js",
+      "paths": [
+        "node_modules/.bun/esbuild@0.27.0/node_modules/esbuild/package.json"
+      ],
+      "decision": "blocked"
+    }
+  ]
+}
