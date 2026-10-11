@@ -1,0 +1,16 @@
+{
+  "baseSha": "77ae110b7f346af747ed4094dba8854801133d08",
+  "originalHeadPreserved": "8b0ef5385528fce32219e3ac1bd3a678d24abf95",
+  "originalPatchSha256": "a032b81f34df890f3c3f5a471b14e3e7119f77af01416bd936853dd3b8051b47",
+  "reconciledPatchSha256": "51922f92b716fba2e6dba332d33988cd0482bfad74507fb2b506eb62a4f84c4c",
+  "intendedAddedRemovedLinesEqual": true,
+  "bundleLocation": "industrial-sas-delivery-preserved-20261011/T01 (outside worktree)",
+  "untrackedFilesPreserved": 12,
+  "trackedScope": [
+    "package.json",
+    "src/features/finishedGoods/catalogueFilters.test.ts",
+    "src/features/finishedGoods/unitNextAction.test.ts"
+  ],
+  "scratchApplyCheck": "passed on exact base before reconciliation",
+  "oldBranchPreserved": true
+}

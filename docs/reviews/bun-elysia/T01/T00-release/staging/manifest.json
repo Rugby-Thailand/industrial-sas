@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "outcome": "STAGING_PASSED",
+  "ok": true,
+  "mutation": "frontend",
+  "reason": "Staging deployment verified.",
+  "target": "staging",
+  "repository": "Rugby-Thailand/industrial-sas",
+  "sha": "77ae110b7f346af747ed4094dba8854801133d08",
+  "runId": "38112960884",
+  "runUrl": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38112960884",
+  "vercel": {
+    "teamId": "team_HIg4nXozZ4oXYYhIMETF8E6r",
+    "projectId": "prj_qrzHbzKt7oIKziO8wzI8GP00KAUA",
+    "previousDeploymentId": "dpl_9vJ6wga9o4sZwwdM7WDEExrTfX7E",
+    "deploymentId": "dpl_HRcniqmNU4LdgfdsS61zG3HZ2Bej",
+    "deploymentUrl": "industrial-sas-staging-ipic5n137-rugbykritsakorn-9882s-projects.vercel.app",
+    "candidateUrl": null
+  },
+  "convexDeployment": "befitting-stoat-208",
+  "backup": null,
+  "smoke": {
+    "smoke-staging": {
+      "passed": 12,
+      "failed": 0,
+      "skipped": 1,
+      "notConfigured": ["optional check not configured"],
+      "diagnostics": []
+    }
+  },
+  "recovery": null,
+  "events": [
+    {
+      "at": "2026-10-11T04:55:59.649Z",
+      "step": "preflight",
+      "mutation": "none",
+      "previousDeploymentId": "dpl_9vJ6wga9o4sZwwdM7WDEExrTfX7E"
+    },
+    {
+      "at": "2026-10-11T04:55:59.916Z",
+      "step": "deploy-start",
+      "mutation": "frontend-possible"
+    },
+    {
+      "at": "2026-10-11T04:56:03.766Z",
+      "step": "deploy-created",
+      "mutation": "frontend-possible",
+      "deploymentId": "dpl_HRcniqmNU4LdgfdsS61zG3HZ2Bej",
+      "url": "industrial-sas-staging-ipic5n137-rugbykritsakorn-9882s-projects.vercel.app"
+    },
+    {
+      "at": "2026-10-11T04:56:44.708Z",
+      "step": "deploy-ready",
+      "mutation": "frontend-possible",
+      "deploymentId": "dpl_HRcniqmNU4LdgfdsS61zG3HZ2Bej"
+    },
+    {
+      "at": "2026-10-11T04:56:44.708Z",
+      "step": "verified",
+      "mutation": "frontend-possible",
+      "deploymentId": "dpl_HRcniqmNU4LdgfdsS61zG3HZ2Bej"
+    },
+    {
+      "at": "2026-10-11T04:56:44.811Z",
+      "step": "serving",
+      "mutation": "frontend",
+      "deploymentId": "dpl_HRcniqmNU4LdgfdsS61zG3HZ2Bej"
+    },
+    {
+      "at": "2026-10-11T04:56:44.811Z",
+      "step": "smoke-staging-start",
+      "mutation": "frontend",
+      "baseUrl": "https://industrial-sas-staging.vercel.app"
+    },
+    {
+      "at": "2026-10-11T04:57:29.379Z",
+      "step": "smoke-staging",
+      "mutation": "frontend",
+      "passed": 12,
+      "diagnostics": [],
+      "failed": 0,
+      "skipped": 1,
+      "skippedRequired": 0,
+      "notConfigured": ["optional check not configured"]
+    },
+    {
+      "at": "2026-10-11T04:57:29.380Z",
+      "step": "outcome",
+      "mutation": "frontend",
+      "code": "STAGING_PASSED",
+      "reason": "Staging deployment verified."
+    }
+  ]
+}

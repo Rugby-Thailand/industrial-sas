@@ -1,0 +1,2 @@
+Bun 1.4.3 (TypeScript 7.0.2) installed: bun-darwin-aarch64.zip sha256 80afd4c069b46a6fa8f3ec520bebc750a7843e4a8d5b9583d29ad436c00a3403, bun sha256 28c7dd0a06916aba284d570ef44a2d70e9c538eaf2ba58dfe0910525563b3f79
+Put it first on PATH: export PATH="<repo>/.cache/bun-checker/bun-v1.4.3-bun-darwin-aarch64:$PATH"

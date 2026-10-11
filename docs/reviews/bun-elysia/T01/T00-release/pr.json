@@ -1,0 +1,149 @@
+{
+  "headRefOid": "72310ec07a7070b60ca85771922699cd975dcdaa",
+  "mergeCommit": { "oid": "77ae110b7f346af747ed4094dba8854801133d08" },
+  "mergedAt": "2026-10-11T04:52:28Z",
+  "state": "MERGED",
+  "statusCheckRollup": [
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-11T04:51:28Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38112797641/job/114391704604",
+      "name": "Analyze (javascript-typescript)",
+      "startedAt": "2026-10-11T04:49:44Z",
+      "status": "COMPLETED",
+      "workflowName": "CodeQL"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-11T04:51:37Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38112797661/job/114391732815",
+      "name": "validate",
+      "startedAt": "2026-10-11T04:49:56Z",
+      "status": "COMPLETED",
+      "workflowName": "Planner quality"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-11T04:50:41Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38112797641/job/114391704502",
+      "name": "Analyze (actions)",
+      "startedAt": "2026-10-11T04:49:44Z",
+      "status": "COMPLETED",
+      "workflowName": "CodeQL"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-11T04:50:22Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38112797661/job/114391732828",
+      "name": "Convex codegen freshness",
+      "startedAt": "2026-10-11T04:49:56Z",
+      "status": "COMPLETED",
+      "workflowName": "Planner quality"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-11T04:51:15Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38112797661/job/114391732861",
+      "name": "Tests (1/3)",
+      "startedAt": "2026-10-11T04:49:56Z",
+      "status": "COMPLETED",
+      "workflowName": "Planner quality"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-11T04:51:25Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38112797661/job/114391732834",
+      "name": "Tests (2/3)",
+      "startedAt": "2026-10-11T04:49:56Z",
+      "status": "COMPLETED",
+      "workflowName": "Planner quality"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-11T04:50:43Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38112797661/job/114391732836",
+      "name": "Tests (3/3)",
+      "startedAt": "2026-10-11T04:49:55Z",
+      "status": "COMPLETED",
+      "workflowName": "Planner quality"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-11T04:51:33Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38112797661/job/114391732878",
+      "name": "Browser (smoke)",
+      "startedAt": "2026-10-11T04:49:56Z",
+      "status": "COMPLETED",
+      "workflowName": "Planner quality"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-11T04:52:11Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38112797661/job/114391732674",
+      "name": "Browser (workspace)",
+      "startedAt": "2026-10-11T04:49:55Z",
+      "status": "COMPLETED",
+      "workflowName": "Planner quality"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-11T04:50:01Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38112797661/job/114391732785",
+      "name": "Dependency review",
+      "startedAt": "2026-10-11T04:49:56Z",
+      "status": "COMPLETED",
+      "workflowName": "Planner quality"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-11T04:52:19Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38112797661/job/114392096620",
+      "name": "check",
+      "startedAt": "2026-10-11T04:52:14Z",
+      "status": "COMPLETED",
+      "workflowName": "Planner quality"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-11T04:52:19Z",
+      "conclusion": "SKIPPED",
+      "detailsUrl": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38112797661/job/114392119070",
+      "name": "Staging release",
+      "startedAt": "2026-10-11T04:52:20Z",
+      "status": "COMPLETED",
+      "workflowName": "Planner quality"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-11T04:52:19Z",
+      "conclusion": "SKIPPED",
+      "detailsUrl": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38112797661/job/114392119415",
+      "name": "Production release",
+      "startedAt": "2026-10-11T04:52:20Z",
+      "status": "COMPLETED",
+      "workflowName": "Planner quality"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-11T04:50:34Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/Rugby-Thailand/industrial-sas/runs/114391834556",
+      "name": "CodeQL",
+      "startedAt": "2026-10-11T04:50:31Z",
+      "status": "COMPLETED",
+      "workflowName": ""
+    }
+  ],
+  "url": "https://github.com/Rugby-Thailand/industrial-sas/pull/70"
+}

@@ -1,0 +1,22 @@
+
+> storage-planner@0.0.0 check <repo>
+> pnpm format:check && pnpm typecheck && pnpm lint && pnpm test
+
+
+> storage-planner@0.0.0 format:check <repo>
+> prettier --check .
+
+Checking formatting...
+[warn] docs/reviews/bun-elysia/T01/bun-release-artifact-metadata.json
+[warn] docs/reviews/bun-elysia/T01/T00-release/codeql-run.json
+[warn] docs/reviews/bun-elysia/T01/T00-release/pr.json
+[warn] docs/reviews/bun-elysia/T01/T00-release/production/manifest.json
+[warn] docs/reviews/bun-elysia/T01/T00-release/production/smoke-candidate.json
+[warn] docs/reviews/bun-elysia/T01/T00-release/production/smoke-live.json
+[warn] docs/reviews/bun-elysia/T01/T00-release/quality-run.json
+[warn] docs/reviews/bun-elysia/T01/T00-release/review-threads.json
+[warn] docs/reviews/bun-elysia/T01/T00-release/staging/manifest.json
+[warn] docs/reviews/bun-elysia/T01/T00-release/staging/smoke-staging.json
+[warn] Code style issues found in 10 files. Run Prettier with --write to fix.
+ ELIFECYCLE  Command failed with exit code 1.
+ ELIFECYCLE  Command failed with exit code 1.

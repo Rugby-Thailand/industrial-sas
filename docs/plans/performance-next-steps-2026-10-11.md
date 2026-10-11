@@ -362,7 +362,7 @@ Update at every state transition. States follow the Phase 1 delivery plan
 | 1A–1B. Compiler / TanStack decisions | PLANNED | —                                                                                                                                      |
 | 2–6. Candidates and observation      | PLANNED | —                                                                                                                                      |
 
-No Phase 2 PR exists. Phase 1 T00 documentation [PR #70](https://github.com/Rugby-Thailand/industrial-sas/pull/70) is registered with T3 Code and awaiting protected checks; it delivers no Bun/Elysia runtime. Phase 2 remains waiting for the full Phase 1 release gate.
+No Phase 2 PR exists. Phase 1 T00 documentation [PR #70](https://github.com/Rugby-Thailand/industrial-sas/pull/70) is DONE: merged as `77ae110` and released to production through the automatic pipeline. It delivers no Bun/Elysia runtime. Phase 1 T01 (pinned Bun standalone type checker) has passed final local audits/checks on base `77ae110`; independent exact-commit comparison, Linux CI and delivery remain pending. Phase 2 remains waiting for the full Phase 1 release gate.
 
 ## Execution workflow for Phase 2
 

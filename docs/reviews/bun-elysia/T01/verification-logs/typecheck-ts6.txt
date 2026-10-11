@@ -1,0 +1,6 @@
+
+> storage-planner@0.0.0 typecheck:ts6 <repo>
+> next typegen && tsc --noEmit
+
+Generating route types...
+✓ Types generated successfully
