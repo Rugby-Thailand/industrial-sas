@@ -1,13 +1,28 @@
 import { v } from "convex/values";
 import { actionWithOrg } from "../lib/tenantFunctions";
-import { requestImageProvider } from "../lib/imageProvider";
+import {
+  requestImageProvider,
+  type ImageProviderOutcome,
+} from "../lib/imageProvider";
 import {
   LOCATION_LABEL_PROMPT,
   LOCATION_LABEL_SCHEMA,
   parseLocationLabel,
   validLocationImage,
   type LocationImageResult,
+  type LocationLabelCandidate,
 } from "../model/finishedGoods/locationImage";
+
+const DEFAULT_MODEL = "openai/gpt-6-luna";
+
+/** The validated candidates of model content, or null when unreadable. */
+function readCandidates(content: string): LocationLabelCandidate[] | null {
+  try {
+    return parseLocationLabel(JSON.parse(content));
+  } catch {
+    return null;
+  }
+}
 
 /** Read-only extraction, authorized before sending a photo to the paid provider. */
 export const extractLocationLabel = actionWithOrg({
@@ -16,12 +31,13 @@ export const extractLocationLabel = actionWithOrg({
   permissionCode: "masterData.storageLayout.manage",
   target: { table: "storageZones" },
   warehouseId: (args) => args.warehouseId,
-  handler: async (_ctx, args): Promise<LocationImageResult> => {
+  handler: async (ctx, args): Promise<LocationImageResult> => {
     if (!validLocationImage(args.imageDataUrl))
       return { ok: false, error: { code: "IMAGE_URL_INVALID" } };
     const key = process.env.OPENROUTER_API_KEY?.trim();
     if (!key) return { ok: false, error: { code: "AI_UNAVAILABLE" } };
-    const outcome = await requestImageProvider((signal) =>
+    const model = process.env.OPENROUTER_MODEL?.trim() || DEFAULT_MODEL;
+    const send = (signal: AbortSignal) =>
       fetch("https://openrouter.ai/api/v1/chat/completions", {
         method: "POST",
         signal,
@@ -30,7 +46,7 @@ export const extractLocationLabel = actionWithOrg({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: process.env.OPENROUTER_MODEL?.trim() || "openai/gpt-6-luna",
+          model,
           temperature: 0,
           messages: [
             { role: "system", content: LOCATION_LABEL_PROMPT },
@@ -54,8 +70,19 @@ export const extractLocationLabel = actionWithOrg({
             },
           },
         }),
-      }),
-    );
+      });
+    let outcome: ImageProviderOutcome;
+    try {
+      // Its own feature in the shared ledger: billed whether or not the
+      // labels are readable, and never linkable to a saved job ticket.
+      outcome = await requestImageProvider(send, {
+        tracking: { port: ctx.aiUsage, feature: "LOCATION_LABEL_SCAN", model },
+        validateContent: (content) => readCandidates(content) !== null,
+      });
+    } catch {
+      // The durable usage record could not begin: no photo was sent.
+      return { ok: false, error: { code: "AI_UNAVAILABLE" } };
+    }
     if (!outcome.ok) {
       console.warn(
         JSON.stringify({
@@ -67,12 +94,8 @@ export const extractLocationLabel = actionWithOrg({
       );
       return { ok: false, error: { code: "AI_UNAVAILABLE" } };
     }
-    try {
-      return {
-        ok: true,
-        candidates: parseLocationLabel(JSON.parse(outcome.content)),
-      };
-    } catch {
+    const candidates = readCandidates(outcome.content);
+    if (candidates === null) {
       console.warn(
         JSON.stringify({
           event: "locationImage.provider.unreadable",
@@ -82,5 +105,6 @@ export const extractLocationLabel = actionWithOrg({
       );
       return { ok: false, error: { code: "AI_UNREADABLE" } };
     }
+    return { ok: true, candidates };
   },
 });

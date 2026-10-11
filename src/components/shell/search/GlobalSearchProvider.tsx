@@ -11,6 +11,7 @@ import {
   type ReactNode,
 } from "react";
 
+import { useAiUsageAccess } from "@/components/providers/AiUsageAccessProvider";
 import { useHrAccess } from "@/components/providers/HrAccessProvider";
 import { useWorkspace } from "@/components/providers/WorkspaceProvider";
 import { useRouter } from "@/i18n/navigation";
@@ -36,17 +37,25 @@ interface SearchControls {
 
 const SearchControlsContext = createContext<SearchControls | null>(null);
 
-/** Everything the member may open: storage navigation plus HR grants. */
+/** Everything the member may open: storage navigation, HR and AI usage grants. */
 export function useGrantedPermissions(): readonly string[] {
   const workspace = useWorkspace();
   const hr = useHrAccess();
+  const usage = useAiUsageAccess();
   const storage = workspace.permissionsReady
     ? workspace.navigationPermissions
     : null;
   const hrGrants = hr.status === "READY" ? hr.permissions : null;
+  const usageGrants = usage.status === "READY" ? usage.permissions : null;
   return useMemo(
-    () => [...(storage ?? []), ...(hrGrants ?? [])],
-    [storage, hrGrants],
+    () => [
+      ...new Set([
+        ...(storage ?? []),
+        ...(hrGrants ?? []),
+        ...(usageGrants ?? []),
+      ]),
+    ],
+    [storage, hrGrants, usageGrants],
   );
 }
 

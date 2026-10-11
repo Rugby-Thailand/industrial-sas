@@ -2,7 +2,7 @@
  * The one OpenRouter chat request behind AI Search, as pure values: the
  * request body and the validated reading of the answer used by the Convex
  * action and covered by provider-contract tests.
- * The transport (fetch and deadline) is the adapter in
+ * The transport (fetch, deadline and usage accounting) is the adapter in
  * `convex/lib/searchProvider.ts`.
  *
  * The developer prompt is constant. The user's text and the page flags go

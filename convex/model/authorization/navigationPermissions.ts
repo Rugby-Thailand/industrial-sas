@@ -1,4 +1,6 @@
 export const NAVIGATION_PERMISSION = Object.freeze({
+  aiUsage: "aiUsage.read",
+  aiUsageConfigure: "aiUsage.configure",
   storageLayouts: "masterData.storageLayout.read",
   storageLayoutActivate: "masterData.storageLayout.activate",
   storageLayoutManage: "masterData.storageLayout.manage",

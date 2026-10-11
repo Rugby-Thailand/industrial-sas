@@ -188,6 +188,7 @@ function example<K extends Kind>(
 // compares this inventory with runtime registered exports, so new modules
 // cannot silently be omitted. This is representative coverage, not every API.
 export const PUBLIC_API_EXAMPLES: readonly PublicApiExample[] = [
+  example("aiUsage/reports:summary", "query", () => ({})),
   example("hr/access:current", "query", () => ({})),
   example("hr/navigationIntent:interpret", "action", () => ({
     query: "",

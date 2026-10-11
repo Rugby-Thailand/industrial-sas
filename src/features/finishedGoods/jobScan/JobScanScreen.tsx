@@ -239,7 +239,9 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
       ...(result?.ok ? mergeExtracted(row, result.fields) : row),
       status: "ready",
       ...(imageUrl ? { imageUrl } : {}),
-      ...(result?.ok ? { aiRaw: result.raw } : {}),
+      ...(result?.ok
+        ? { aiRaw: result.raw, aiUsageOperationId: result.aiUsageOperationId }
+        : {}),
       notice: !result?.ok
         ? "aiFailed"
         : !imageUrl

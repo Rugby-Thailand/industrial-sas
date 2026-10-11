@@ -124,7 +124,13 @@ export async function provisionHrForOrganization(
     .take(200);
   const codes = new Set(grants.map((grant) => grant.permissionCode));
   const target = [...PLANNER_PERMISSION_CODES, ...HR_ADMIN_PERMISSION_CODES];
-  if (target.every((code) => codes.has(code)) && codes.size === target.length)
+  if (
+    target.every((code) => codes.has(code)) &&
+    (codes.size === target.length ||
+      (codes.size === target.length + 2 &&
+        codes.has("aiUsage.read") &&
+        codes.has("aiUsage.configure")))
+  )
     return { ...seeded, orgAdmin: "CURRENT", hrPermissionsAdded: 0 };
   const legacyDefault =
     role.seeded &&

@@ -64,6 +64,7 @@ export type TicketDraft = {
   aiFields: TicketField[];
   previewUrl?: string;
   imageUrl?: string;
+  aiUsageOperationId?: string;
   aiRaw?: string;
   notice?:
     | "aiFilled"
@@ -212,6 +213,8 @@ export function toPayload(ticket: TicketDraft) {
   }
   if (ticket.storageFormat) item["storageFormat"] = ticket.storageFormat;
   if (ticket.imageUrl) item["imageUrl"] = ticket.imageUrl;
+  if (ticket.aiUsageOperationId)
+    item["aiUsageOperationId"] = ticket.aiUsageOperationId;
   if (ticket.aiRaw) item["aiRaw"] = ticket.aiRaw;
   return item as {
     factoryOrder: string;
