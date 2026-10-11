@@ -37,7 +37,8 @@
     "ci:clean-tree": "node scripts/ci/assert-clean-tree.mjs",
     "ci:test-discovery": "node scripts/ci/check-test-discovery.mjs",
     "dev:seed": "node scripts/seed-local-test.mjs",
-    "preview:storage-workspace": "vite --config scripts/storage-workspace-preview/vite.config.mjs"
+    "preview:storage-workspace": "vite --config scripts/storage-workspace-preview/vite.config.mjs",
+    "preview:ai-usage": "vite --config scripts/ai-usage-preview/vite.config.mjs"
   },
   "dependencies": {
     "@clerk/backend": "3.16.4",

@@ -19,6 +19,7 @@ const state = vi.hoisted(() => ({
   summary: undefined as unknown,
   summaryArgs: [] as unknown[],
   query: vi.fn(),
+  refresh: vi.fn(),
   client: null as unknown,
 }));
 // The real client is stable across renders.
@@ -37,6 +38,9 @@ vi.mock("convex/react", async () => {
     useConvex: () => state.client,
   };
 });
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ refresh: state.refresh }),
+}));
 vi.mock("@/components/providers/AiUsageAccessProvider", () => ({
   useAiUsageAccess: () => state.access,
 }));
@@ -56,8 +60,41 @@ vi.mock("@/components/providers/WorkspaceProvider", () => ({
   }),
 }));
 
-import { AiUsageScreen } from "./AiUsageScreen";
+import { AiUsageScreen as Screen } from "./AiUsageScreen";
 import { RecentActivity } from "./RecentActivity";
+import type { UsageEstimate } from "@/lib/aiUsage/estimateSources";
+
+const LOADED = Date.parse("2026-10-11T07:00:00Z");
+const estimateOf = (
+  rate: number | null,
+  percent: number | null,
+): UsageEstimate => ({
+  version: 1,
+  loadedAt: LOADED,
+  fx:
+    rate === null
+      ? { status: "UNAVAILABLE" }
+      : {
+          status: "READY",
+          value: { rate, date: "2026-10-11", fetchedAt: LOADED },
+        },
+  funding:
+    percent === null
+      ? { status: "UNAVAILABLE" }
+      : {
+          status: "READY",
+          value: { percent, minimumUsd: 0.8, fetchedAt: LOADED },
+        },
+});
+const NO_ESTIMATE = estimateOf(null, null);
+/** The report with an already-resolved server snapshot. */
+function AiUsageScreen({
+  estimate = NO_ESTIMATE,
+}: {
+  readonly estimate?: UsageEstimate | Promise<UsageEstimate>;
+}) {
+  return <Screen estimate={Promise.resolve(estimate)} />;
+}
 
 const metrics = (overrides: Record<string, number> = {}) => ({
   operationCount: 0,
@@ -97,7 +134,6 @@ const report = {
   models: [],
   environments: [],
   breakdown: [],
-  settings: null,
   trackingStartedAt: null,
   users: [],
   warehouses: [],
@@ -141,27 +177,23 @@ beforeEach(() => {
 });
 
 describe("AiUsageScreen access", () => {
-  it("opens the report for a usage-only reader without the settings form", async () => {
-    renderWithIntl(<AiUsageScreen />, { locale: "en" });
+  it("opens the report for a usage-only reader with the automatic estimate and no settings form", async () => {
+    renderWithIntl(<AiUsageScreen estimate={estimateOf(33.5, 5.5)} />, {
+      locale: "en",
+    });
     expect(
-      await screen.findAllByText("Location label photos"),
-    ).not.toHaveLength(0);
-    expect(screen.getAllByText("Job ticket photos")).not.toHaveLength(0);
-    expect(screen.getAllByText("AI Search")).not.toHaveLength(0);
+      await screen.findByRole("button", { name: /Location label photos/ }),
+    ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: "Recent activity" }),
     ).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "Automatic baht estimate" }),
+    ).toBeInTheDocument();
     expect(screen.queryByText("Baht estimate settings")).toBeNull();
+    expect(screen.queryByRole("spinbutton")).toBeNull();
+    expect(screen.queryByRole("button", { name: /Save/ })).toBeNull();
     await waitFor(() => expect(state.query).toHaveBeenCalled());
-  });
-
-  it("shows the settings form only with the configure permission", () => {
-    state.access = {
-      status: "READY",
-      permissions: ["aiUsage.read", "aiUsage.configure"],
-    };
-    renderWithIntl(<AiUsageScreen />, { locale: "en" });
-    expect(screen.getByText("Baht estimate settings")).toBeInTheDocument();
   });
 
   it.each([
@@ -183,7 +215,7 @@ describe("AiUsageScreen access", () => {
   );
 });
 
-describe("AiUsageScreen statement and feature cards", () => {
+describe("AiUsageScreen statement and feature strip", () => {
   const withReport = (value: Record<string, unknown>) => {
     state.summary = {
       ok: true,
@@ -192,18 +224,16 @@ describe("AiUsageScreen statement and feature cards", () => {
     };
   };
   const statement = () => screen.getByRole("region", { name: "Period total" });
-  const card = (name: string) => screen.getByRole("region", { name });
-  const settings = {
-    version: 2,
-    usdThbRate: 40,
-    feePercent: 5,
-    source: "QA rate",
-    effectiveAt: 0,
-  };
+  const entry = (kind: string) => screen.getByTestId(`usage-feature-${kind}`);
+  const breakdown = () =>
+    within(
+      screen.getByRole("region", {
+        name: "Usage breakdown (scrollable table)",
+      }),
+    );
 
-  it("totals confirmed USD and estimates baht only from the saved rate and fee", () => {
+  it("totals confirmed USD and estimates baht only from the automatic rate and published fee", async () => {
     withReport({
-      settings,
       byFeature: {
         JOB_TICKET_SCAN: metrics({
           operationCount: 2,
@@ -222,57 +252,97 @@ describe("AiUsageScreen statement and feature cards", () => {
         AI_SEARCH: metrics(),
       },
     });
-    renderWithIntl(<AiUsageScreen />, { locale: "en" });
+    renderWithIntl(<AiUsageScreen estimate={estimateOf(40, 5)} />, {
+      locale: "en",
+    });
     const total = within(statement());
-    expect(total.getByText("US$1.500000")).toBeInTheDocument();
+    expect(total.getByText("US$1.50")).toBeInTheDocument();
     expect(total.getByText("All features, users and warehouses")).toBeVisible();
-    // 1.5 USD × 40 = ฿60 inference; a 5% fee adds ฿3.
-    expect(total.getByText("≈ ฿63.0000")).toBeInTheDocument();
+    // 1.5 USD × 40 = ฿60 inference; a 5% funding fee estimate adds ฿3.
+    expect(await total.findByText("≈ ฿63.0000")).toBeInTheDocument();
+    expect(total.getByText("≈ ฿60.0000")).toBeInTheDocument();
     expect(
-      total.getByText("Inference ฿60.0000 + funding fee 5.00% ฿3.0000"),
+      total.getByText(
+        "Inference ฿60.0000 + funding fee estimate 5.00% ฿3.0000",
+      ),
     ).toBeInTheDocument();
-    expect(
-      total.getByText("Rate 40.0000 THB per USD · QA rate"),
-    ).toBeInTheDocument();
-    const photos = within(card("Job ticket photos"));
+    const photos = within(entry("JOB_TICKET_SCAN"));
     // Retries add provider calls, never photos.
     expect(photos.getByText("2")).toBeInTheDocument();
-    expect(photos.getByText("3 calls · 1 retry")).toBeInTheDocument();
-    expect(photos.getByText("US$1.000000")).toBeInTheDocument();
+    expect(photos.getByText(/3 calls · 1 retry · US\$1\.00/)).toBeVisible();
     // The average uses only fully priced operations: 0.4 USD, not 1.0 / 2.
-    expect(photos.getByText("US$0.400000")).toBeInTheDocument();
     expect(
-      photos.getByText("Average per photo · 1 fully priced"),
+      photos.getByText(/Average per photo US\$0\.40 · 1 fully priced/),
+    ).toBeVisible();
+    expect(
+      within(entry("AI_SEARCH")).getByText("No usage in this period."),
     ).toBeInTheDocument();
+    const settings = within(screen.getByTestId("usage-estimate"));
+    expect(settings.getByText("40.0000")).toBeInTheDocument();
+    expect(settings.getByText("5.0%")).toBeInTheDocument();
+    expect(settings.getByText(/minimum US\$0\.80 each/)).toBeInTheDocument();
     expect(
-      within(card("AI Search")).getByText("No usage in this period."),
+      settings.getByText(/Reference rate for 2026-10-11/),
     ).toBeInTheDocument();
   });
 
-  it.each([
-    [false, "No USD to THB rate has been set, so baht is not estimated."],
-    [true, "No USD to THB rate has been set. Add one in Baht estimate"],
-  ])(
-    "computes no baht without saved settings (configure %s)",
-    (configure, text) => {
-      state.access = {
-        status: "READY",
-        permissions: configure
-          ? ["aiUsage.read", "aiUsage.configure"]
-          : ["aiUsage.read"],
-      };
-      renderWithIntl(<AiUsageScreen />, { locale: "en" });
-      expect(within(statement()).getByText("Not estimated")).toBeVisible();
-      expect(
-        within(statement()).getByText(new RegExp(`^${text}`)),
-      ).toBeInTheDocument();
-      expect(document.body.textContent).not.toContain("฿");
-    },
-  );
-
-  it("keeps unknown cost distinct from a confirmed zero", () => {
+  it("shows unavailable sources honestly and never substitutes a rate or zero fee", async () => {
     withReport({
-      settings,
+      byFeature: {
+        ...report.byFeature,
+        JOB_TICKET_SCAN: metrics({
+          operationCount: 1,
+          attemptCount: 1,
+          knownCostUsdNano: 1_000_000_000,
+        }),
+      },
+    });
+    const view = renderWithIntl(<AiUsageScreen />, { locale: "en" });
+    const total = within(statement());
+    expect(await total.findByText("THB rate unavailable")).toBeVisible();
+    expect(total.getByText("Not estimated")).toBeVisible();
+    expect(total.getByText("US$1.00012")).toBeInTheDocument();
+    expect(document.body.textContent).not.toContain("฿");
+    expect(
+      within(screen.getByTestId("usage-estimate")).getAllByText(
+        "Unavailable right now; baht is not estimated from it",
+      ),
+    ).toHaveLength(2);
+    view.unmount();
+    // A rate without a published fee estimates inference only.
+    renderWithIntl(<AiUsageScreen estimate={estimateOf(30, null)} />, {
+      locale: "en",
+    });
+    const partial = within(statement());
+    // The baht equivalent stays; no total is claimed without the fee policy.
+    expect(await partial.findAllByText("≈ ฿30.0036")).toHaveLength(1);
+    expect(partial.getByText("Not estimated")).toBeVisible();
+    expect(partial.getByText("Funding fee policy unavailable")).toBeVisible();
+    expect(partial.queryByText(/funding fee estimate 0/)).toBeNull();
+  });
+
+  it("labels a source stale when its refresh window passed", async () => {
+    const old = LOADED - 3 * 86_400_000;
+    renderWithIntl(
+      <AiUsageScreen
+        estimate={{
+          ...estimateOf(33.5, 5.5),
+          fx: {
+            status: "STALE",
+            value: { rate: 33.5, date: "2026-10-08", fetchedAt: old },
+          },
+        }}
+      />,
+      { locale: "en" },
+    );
+    expect(
+      await screen.findByText(/^Not refreshed · last checked/),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Reference rate for 2026-10-08/)).toBeVisible();
+  });
+
+  it("keeps unknown cost distinct from a confirmed zero", async () => {
+    withReport({
       byFeature: {
         JOB_TICKET_SCAN: metrics({
           operationCount: 1,
@@ -288,37 +358,34 @@ describe("AiUsageScreen statement and feature cards", () => {
         }),
       },
     });
-    renderWithIntl(<AiUsageScreen />, { locale: "en" });
-    const photos = within(card("Job ticket photos"));
+    renderWithIntl(<AiUsageScreen estimate={estimateOf(40, 5)} />, {
+      locale: "en",
+    });
+    const photos = within(entry("JOB_TICKET_SCAN"));
     expect(photos.getByText("Not yet confirmed")).toBeInTheDocument();
-    expect(photos.queryByText("US$0.000000")).toBeNull();
+    expect(photos.queryByText(/US\$0\.00/)).toBeNull();
     expect(
       photos.getByText("2 calls without confirmed cost"),
     ).toBeInTheDocument();
     expect(photos.getByText("1 operation pending")).toBeInTheDocument();
     expect(photos.getByText(/no fully priced operations yet/)).toBeVisible();
-    const search = within(card("AI Search"));
-    expect(search.getAllByText("US$0.000000")).not.toHaveLength(0);
-    expect(search.getByText("All costs confirmed")).toBeInTheDocument();
     expect(
-      within(card("Location label photos")).getByText(
-        "No usage in this period.",
-      ),
-    ).toBeInTheDocument();
+      within(entry("AI_SEARCH")).getByText(/1 call · 0 retries · US\$0\.00/),
+    ).toBeVisible();
     // The total is a lower bound and says so.
     const total = within(statement());
-    expect(total.getByText("US$0.000000")).toBeInTheDocument();
+    expect(total.getByText("US$0.00")).toBeInTheDocument();
     expect(
       total.getByText("2 calls without confirmed cost"),
     ).toBeInTheDocument();
     expect(total.getByText("1 operation pending")).toBeInTheDocument();
+    expect(await total.findAllByText("≈ ฿0.0000")).toHaveLength(2);
   });
 
-  it.each([null, settings])(
-    "shows an unknown-only breakdown without a numeric cost or baht estimate (settings %s)",
-    (savedSettings) => {
+  it.each([[null], [estimateOf(40, 5)]])(
+    "shows an unknown-only breakdown without a numeric cost or baht estimate (%#)",
+    async (estimate) => {
       withReport({
-        settings: savedSettings,
         breakdown: [
           {
             feature: "JOB_TICKET_SCAN",
@@ -334,30 +401,27 @@ describe("AiUsageScreen statement and feature cards", () => {
           },
         ],
       });
-      renderWithIntl(<AiUsageScreen />, { locale: "en" });
-      const breakdown = within(
-        screen.getByRole("region", {
-          name: "Usage by user, warehouse and model",
-        }),
-      );
-      expect(breakdown.getByText("Not yet confirmed")).toBeInTheDocument();
+      renderWithIntl(<AiUsageScreen estimate={estimate ?? NO_ESTIMATE} />, {
+        locale: "en",
+      });
+      await screen.findByTestId("usage-estimate");
+      expect(breakdown().getByText("Not yet confirmed")).toBeInTheDocument();
       expect(
-        breakdown.getByText("1 call without confirmed cost"),
+        breakdown().getByText("1 call without confirmed cost"),
       ).toBeInTheDocument();
-      expect(breakdown.queryByText(/^US\$/)).toBeNull();
-      expect(breakdown.queryByText(/฿/)).toBeNull();
+      expect(breakdown().queryByText(/^US\$/)).toBeNull();
+      expect(breakdown().queryByText(/฿/)).toBeNull();
     },
   );
 
   it.each([
-    [1, 0, 0, "US$0.000000", "≈ ฿0.0000"],
-    [2, 1, 0, "US$0.000000", "≈ ฿0.0000"],
-    [2, 1, 200_000, "US$0.000200", "≈ ฿0.0080"],
+    [1, 0, 0, "US$0.00", "≈ ฿0.0000"],
+    [2, 1, 0, "US$0.00", "≈ ฿0.0000"],
+    [2, 1, 200_000, "US$0.0002", "≈ ฿0.0080"],
   ])(
     "keeps reported zero and confirmed partial cost in the breakdown (%s calls, %s unknown)",
-    (attemptCount, unknownAttemptCount, knownCostUsdNano, usd, baht) => {
+    async (attemptCount, unknownAttemptCount, knownCostUsdNano, usd, baht) => {
       withReport({
-        settings,
         breakdown: [
           {
             feature: "JOB_TICKET_SCAN",
@@ -373,53 +437,64 @@ describe("AiUsageScreen statement and feature cards", () => {
           },
         ],
       });
-      renderWithIntl(<AiUsageScreen />, { locale: "en" });
-      const breakdown = within(
-        screen.getByRole("region", {
-          name: "Usage by user, warehouse and model",
-        }),
-      );
-      expect(breakdown.getByText(usd)).toBeInTheDocument();
-      expect(breakdown.getByText(baht)).toBeInTheDocument();
-      expect(breakdown.queryByText("Not yet confirmed")).toBeNull();
-      const unknown = breakdown.queryByText("1 call without confirmed cost");
+      renderWithIntl(<AiUsageScreen estimate={estimateOf(40, 5)} />, {
+        locale: "en",
+      });
+      expect(await breakdown().findByText(baht)).toBeInTheDocument();
+      expect(breakdown().getByText(usd)).toBeInTheDocument();
+      expect(breakdown().queryByText("Not yet confirmed")).toBeNull();
+      const unknown = breakdown().queryByText("1 call without confirmed cost");
       if (unknownAttemptCount) expect(unknown).toBeInTheDocument();
       else expect(unknown).toBeNull();
     },
   );
 
-  it("filters by feature and totals only the features shown", async () => {
-    withReport({ settings });
+  it("keeps column headers and an empty message in empty tables", async () => {
     renderWithIntl(<AiUsageScreen />, { locale: "en" });
-    expect(within(statement()).getByText("US$0.000120")).toBeInTheDocument();
+    for (const name of ["User", "Warehouse", "Model", "Calls", "Cost (US$)"])
+      expect(
+        breakdown().getByRole("columnheader", { name }),
+      ).toBeInTheDocument();
+    expect(breakdown().getByText("No usage in this period.")).toBeVisible();
+    const recent = within(
+      screen.getByRole("region", {
+        name: "Recent activity (scrollable table)",
+      }),
+    );
+    expect(recent.getByRole("columnheader", { name: /Time/ })).toBeVisible();
+    expect(recent.getByRole("columnheader", { name: "Action" })).toBeVisible();
+    expect(
+      await recent.findByText("No activity in this period."),
+    ).toBeVisible();
+  });
+
+  it("filters by feature from the strip and the filter sheet", async () => {
+    renderWithIntl(<AiUsageScreen />, { locale: "en" });
+    expect(within(statement()).getByText("US$0.00012")).toBeInTheDocument();
+    fireEvent.click(entry("AI_SEARCH"));
+    expect(state.summaryArgs.at(-1)).toMatchObject({ feature: "AI_SEARCH" });
+    expect(entry("AI_SEARCH")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.queryByTestId("usage-feature-JOB_TICKET_SCAN")).toBeNull();
+    expect(within(statement()).getByText("US$0.00")).toBeInTheDocument();
+    expect(
+      within(statement()).getByText("Filtered total · 1 filter"),
+    ).toBeVisible();
+    // Pressing the selected entry shows every feature again.
+    fireEvent.click(entry("AI_SEARCH"));
+    expect(state.summaryArgs.at(-1)).not.toHaveProperty("feature");
     fireEvent.click(screen.getByRole("button", { name: "Filters" }));
-    chooseOption("Feature", "AI Search");
+    chooseOption("Feature", "Location label photos");
     fireEvent.click(
       await screen.findByRole("button", { name: "Show results" }),
     );
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    expect(state.summaryArgs.at(-1)).toMatchObject({
-      period: "month",
-      feature: "AI_SEARCH",
-    });
     expect(screen.getByRole("button", { name: "Filters (1)" })).toBeVisible();
-    expect(screen.getByText("Filtered by AI Search")).toBeVisible();
-    // Only the AI Search card remains, and the total follows it.
-    expect(
-      screen.queryByRole("region", { name: "Job ticket photos" }),
-    ).toBeNull();
-    expect(
-      screen.queryByRole("region", { name: "Location label photos" }),
-    ).toBeNull();
-    const total = within(statement());
-    expect(total.getByText("US$0.000000")).toBeInTheDocument();
-    expect(total.getByText("Filtered total · 1 filter")).toBeVisible();
+    expect(screen.getByText("Filtered by Location label photos")).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
-    expect(card("Job ticket photos")).toBeInTheDocument();
-    expect(state.summaryArgs.at(-1)).not.toHaveProperty("feature");
+    expect(entry("JOB_TICKET_SCAN")).toBeInTheDocument();
   });
 
-  it("keeps the incomplete-summary warning and tracking start visible", () => {
+  it("keeps the incomplete-summary warning, tracking start, range and timezone visible", () => {
     withReport({
       complete: false,
       trackingStartedAt: Date.parse("2026-10-02T03:00:00Z"),
@@ -427,9 +502,9 @@ describe("AiUsageScreen statement and feature cards", () => {
     renderWithIntl(<AiUsageScreen />, { locale: "en" });
     expect(screen.getByText(/These totals are incomplete/)).toBeInTheDocument();
     expect(screen.getByText(/^Tracking began Oct 2, 2026/)).toBeInTheDocument();
-    expect(
-      screen.getByText("2026-10-01 – 2026-10-15 · Asia/Bangkok"),
-    ).toBeVisible();
+    expect(screen.getByTestId("usage-range")).toHaveTextContent(
+      "2026-10-01 – 2026-10-15·Asia/Bangkok",
+    );
   });
 
   it.each([
@@ -458,7 +533,8 @@ const props = {
   signature: "s1",
   timezone: "Asia/Bangkok",
   featureLabel: (feature: string) => `label:${feature}`,
-  money: (nano: number) => <span>{`usd:${nano}`}</span>,
+  usd: (nano: number) => `usd:${nano}`,
+  thb: (nano: number) => `thb:${nano}`,
 };
 
 describe("RecentActivity", () => {
@@ -492,8 +568,17 @@ describe("RecentActivity", () => {
     );
     expect(screen.getAllByText("Unreadable result")).not.toHaveLength(0);
     expect(screen.getAllByText("2 calls")).not.toHaveLength(0);
-    expect(screen.getAllByText(/openai\/gpt-6-luna-2026/)).not.toHaveLength(0);
     expect(screen.getAllByText("usd:200000")).not.toHaveLength(0);
+    expect(screen.getAllByText("thb:200000")).not.toHaveLength(0);
+    // Attempt details expand per row.
+    expect(screen.queryByText(/openai\/gpt-6-luna-2026/)).toBeNull();
+    const [first] = screen.getAllByRole("button", {
+      name: /Show call details/,
+    });
+    fireEvent.click(first!);
+    expect(first).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByText("openai/gpt-6-luna-2026")).toBeVisible();
+    expect(screen.getByText("Retries", { exact: false })).toBeVisible();
     expect(
       screen.getAllByText("1 call without confirmed cost"),
     ).not.toHaveLength(0);
@@ -517,8 +602,8 @@ describe("RecentActivity", () => {
       period: "month",
       cursor: "cursor-1",
     });
-    // Once in the desktop table and once in the phone card: no duplicate row.
-    expect(screen.getAllByText(/^Actor a/)).toHaveLength(2);
+    // One table on every width: no duplicate row.
+    expect(screen.getAllByText(/^Actor a/)).toHaveLength(1);
     expect(screen.queryByRole("button", { name: "Show more" })).toBeNull();
   });
 
@@ -603,12 +688,28 @@ describe("RecentActivity", () => {
     });
     fireEvent.click(await screen.findByRole("button", { name: "ลองอีกครั้ง" }));
     expect(
-      await screen.findByText("ไม่มีการเรียก AI ตามช่วงเวลาและตัวกรองนี้"),
+      await screen.findByText("ไม่มีกิจกรรมในช่วงนี้"),
     ).toBeInTheDocument();
   });
 });
 
 describe("AiUsageScreen CSV export lifecycle", () => {
+  it("waits for the estimate snapshot before allowing export", async () => {
+    let resolve!: (value: UsageEstimate) => void;
+    const pending = new Promise<UsageEstimate>((done) => {
+      resolve = done;
+    });
+    renderWithIntl(<AiUsageScreen estimate={pending} />, { locale: "en" });
+    expect(screen.getByRole("button", { name: "Export CSV" })).toBeDisabled();
+    expect(
+      within(screen.getByRole("region", { name: "Period total" })).getByText(
+        "Loading today's rate…",
+      ),
+    ).toBeVisible();
+    await act(async () => resolve(estimateOf(33.5, 5.5)));
+    expect(screen.getByRole("button", { name: "Export CSV" })).toBeEnabled();
+  });
+
   const exportOp = (id: string) => ({
     operationId: id,
     feature: "JOB_TICKET_SCAN",
@@ -652,13 +753,6 @@ describe("AiUsageScreen CSV export lifecycle", () => {
       requestId: "q",
       value: {
         ...report,
-        settings: {
-          version: 3,
-          usdThbRate: 10,
-          feePercent: 0,
-          source: "A-rate",
-          effectiveAt: 0,
-        },
         users: [{ id: "user-a", name: "Name A" }],
       },
     };
@@ -692,7 +786,7 @@ describe("AiUsageScreen CSV export lifecycle", () => {
       )
       .filter((name) => name !== "aiUsage/reports:recent");
 
-  it("downloads one CSV for the organization and settings it started with", async () => {
+  it("downloads one CSV for the organization and estimate snapshot it started with", async () => {
     route({
       "aiUsage/reports:operations": async () => opsPage([exportOp("op-a")]),
       "aiUsage/reports:attempts": async () => ({
@@ -700,15 +794,21 @@ describe("AiUsageScreen CSV export lifecycle", () => {
         value: [exportAttempt],
       }),
     });
-    renderWithIntl(<AiUsageScreen />, { locale: "en" });
-    fireEvent.click(await screen.findByRole("button", { name: "Export CSV" }));
+    renderWithIntl(<AiUsageScreen estimate={estimateOf(10, 5.5)} />, {
+      locale: "en",
+    });
+    const button = await screen.findByRole("button", { name: "Export CSV" });
+    await waitFor(() => expect(button).toBeEnabled());
+    fireEvent.click(button);
     await waitFor(() =>
       expect(clicks).toEqual(["ai-usage-2026-10-01-2026-10-15.csv"]),
     );
     const csv = await blobs[0]!.text();
     expect(csv).toContain('"op-a"');
     expect(csv).toContain('"Name A"');
-    expect(csv).toContain('"A-rate"');
+    expect(csv).toContain('"https://api.frankfurter.dev/v2/rate/usd/thb"');
+    expect(csv).toContain('"2026-10-11"');
+    expect(csv).toContain('"5.5"');
     expect(csv).toContain('"Asia/Bangkok"');
     expect(screen.getByRole("button", { name: "Export CSV" })).toBeEnabled();
   });
@@ -730,9 +830,9 @@ describe("AiUsageScreen CSV export lifecycle", () => {
         [paused]: () => reply.promise,
       });
       const view = renderWithIntl(<AiUsageScreen />, { locale: "en" });
-      fireEvent.click(
-        await screen.findByRole("button", { name: "Export CSV" }),
-      );
+      const button = await screen.findByRole("button", { name: "Export CSV" });
+      await waitFor(() => expect(button).toBeEnabled());
+      fireEvent.click(button);
       await waitFor(() => expect(exportCalls()).toContain(paused));
       const before = exportCalls().length;
       // The real Convex/Clerk switch clears auth and unmounts UsageReport.

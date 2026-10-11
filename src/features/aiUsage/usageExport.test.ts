@@ -15,18 +15,23 @@ function deferred<T>() {
   return { promise, resolve, reject };
 }
 
-const settingsOf = (org: string, rate: number) => ({
-  _id: `settings-${org}`,
-  _creationTime: 0,
-  orgId: `org-${org}`,
-  createdByUserId: `user-${org}`,
-  version: 1,
-  usdThbRate: rate,
-  feePercent: 0,
-  source: `${org}-rate`,
-  effectiveAt: 0,
+const NOW = Date.parse("2026-10-11T07:00:00Z");
+const estimateOf = (rate: number, percent: number | null = 0) => ({
+  version: 1 as const,
+  loadedAt: NOW,
+  fx: {
+    status: "READY" as const,
+    value: { rate, date: "2026-10-11", fetchedAt: NOW },
+  },
+  funding:
+    percent === null
+      ? { status: "UNAVAILABLE" as const }
+      : {
+          status: "READY" as const,
+          value: { percent, minimumUsd: 0.8, fetchedAt: NOW },
+        },
 });
-const reportOf = (org: string, rate: number, utcDays: number[]) => ({
+const reportOf = (org: string, utcDays: number[]) => ({
   range: {
     from: "2026-10-01",
     to: "2026-10-02",
@@ -35,7 +40,6 @@ const reportOf = (org: string, rate: number, utcDays: number[]) => ({
     utcDays,
     timezone: "Asia/Bangkok",
   },
-  settings: settingsOf(org, rate),
   users: [{ id: `user-${org}`, name: `Name ${org}` }],
 });
 const op = (id: string, org: string) => ({
@@ -89,16 +93,20 @@ function scripted(operations: Reply[], attempts: Reply[]) {
 
 describe("usage CSV export", () => {
   it("builds one single-scope CSV across pages and days with the frozen settings", async () => {
-    const report = reportOf("A", 10, [20362, 20363]);
+    const report = reportOf("A", [20362, 20363]);
     const filter = { feature: "JOB_TICKET_SCAN" as const };
-    const scope = usageExportScope(report, filter);
+    const estimate = estimateOf(10);
+    const scope = usageExportScope(report, filter, estimate);
     // A later render cannot change the running export.
     report.users[0]!.name = "Renamed";
-    report.settings.usdThbRate = 99;
+    estimate.fx.value.rate = 99;
     filter.feature = "AI_SEARCH" as never;
     expect(Object.isFrozen(scope)).toBe(true);
     expect(Object.isFrozen(scope.filter)).toBe(true);
-    expect(Object.isFrozen(scope.settings)).toBe(true);
+    expect(Object.isFrozen(scope.estimate)).toBe(true);
+    expect(
+      scope.estimate?.fx.status !== "UNAVAILABLE" && scope.estimate?.fx.value,
+    ).toMatchObject({ rate: 10 });
     expect(Object.isFrozen(scope.users[0])).toBe(true);
     const { source, calls } = scripted(
       [
@@ -126,7 +134,8 @@ describe("usage CSV export", () => {
     ] as const) {
       expect(line).toContain(`"${id}"`);
       expect(line).toContain('"Name A"');
-      expect(line).toContain('"A-rate"');
+      expect(line).toContain('"https://api.frankfurter.dev/v2/rate/usd/thb"');
+      expect(line).toContain('"2026-10-11"');
       expect(line).toContain(`"${thb}"`);
       expect(line).not.toContain("Renamed");
     }
@@ -155,6 +164,53 @@ describe("usage CSV export", () => {
     ]);
   });
 
+  it("records the snapshot's sources, dates and statuses, never a zero fee", async () => {
+    const header = (csv: string) =>
+      csv
+        .replace(/^\ufeff/, "")
+        .split("\r\n")[0]!
+        .split(",");
+    const row = async (estimate: ReturnType<typeof estimateOf> | null) => {
+      const { source } = scripted(
+        [async () => pageOf([op("a1", "A")])],
+        [async () => ({ ok: true, value: [attemptOf(1_000_000_000)] })],
+      );
+      const result = await exportUsage(
+        source,
+        usageExportScope(reportOf("A", [20362]), {}, estimate),
+        () => true,
+      );
+      if (result.kind !== "READY") throw new Error(result.kind);
+      const names = header(result.csv);
+      const values = result.csv.split("\r\n")[1]!.split(",");
+      return (name: string) =>
+        JSON.parse(values[names.indexOf(`"${name}"`)]!) as string;
+    };
+    const ready = await row(estimateOf(33.5, 5.5));
+    expect(ready("usd_thb_rate")).toBe("33.5");
+    expect(ready("usd_thb_status")).toBe("READY");
+    expect(ready("usd_thb_rate_date")).toBe("2026-10-11");
+    expect(ready("funding_fee_percent_estimate")).toBe("5.5");
+    expect(ready("funding_fee_minimum_usd")).toBe("0.8");
+    expect(ready("funding_fee_source")).toBe(
+      "https://openrouter.ai/docs/faq.md",
+    );
+    expect(ready("estimate_loaded_at")).toBe("2026-10-11T07:00:00.000Z");
+    expect(Number(ready("estimated_thb"))).toBeCloseTo(33.5, 9);
+    expect(Number(ready("estimated_total_thb"))).toBeCloseTo(35.3425, 9);
+    const noFee = await row(estimateOf(33.5, null));
+    expect(noFee("funding_fee_status")).toBe("UNAVAILABLE");
+    expect(noFee("funding_fee_percent_estimate")).toBe("");
+    expect(noFee("estimated_funding_fee_thb")).toBe("");
+    expect(noFee("estimated_total_thb")).toBe("");
+    expect(Number(noFee("estimated_thb"))).toBeCloseTo(33.5, 9);
+    const none = await row(null);
+    expect(none("usd_thb_status")).toBe("UNAVAILABLE");
+    expect(none("usd_thb_rate")).toBe("");
+    expect(none("estimated_thb")).toBe("");
+    expect(none("cost_usd_nano")).toBe("1000000000");
+  });
+
   it.each([
     ["between pages of one day", [20362], "cursor-1"],
     ["between days", [20362, 20363], null],
@@ -176,7 +232,7 @@ describe("usage CSV export", () => {
       );
       const running = exportUsage(
         source,
-        usageExportScope(reportOf("A", 10, [...utcDays]), {}),
+        usageExportScope(reportOf("A", [...utcDays]), {}, estimateOf(10)),
         () => current,
       );
       await vi.waitFor(() => expect(calls).toHaveLength(2));
@@ -196,7 +252,7 @@ describe("usage CSV export", () => {
     );
     const running = exportUsage(
       source,
-      usageExportScope(reportOf("A", 10, [20362]), {}),
+      usageExportScope(reportOf("A", [20362]), {}, estimateOf(10)),
       () => current,
     );
     current = false;
@@ -220,7 +276,7 @@ describe("usage CSV export", () => {
     );
     const result = await exportUsage(
       source,
-      usageExportScope(reportOf("A", 10, [20362]), {}),
+      usageExportScope(reportOf("A", [20362]), {}, estimateOf(10)),
       () => current,
     );
     expect(result).toEqual({ kind: "CANCELLED" });
@@ -232,7 +288,7 @@ describe("usage CSV export", () => {
     const late = deferred<unknown>();
     const cancelled = exportUsage(
       scripted([() => late.promise], []).source,
-      usageExportScope(reportOf("A", 10, [20362]), {}),
+      usageExportScope(reportOf("A", [20362]), {}, estimateOf(10)),
       () => current,
     );
     current = false;
@@ -241,14 +297,14 @@ describe("usage CSV export", () => {
     expect(
       await exportUsage(
         scripted([async () => Promise.reject(new Error("offline"))], []).source,
-        usageExportScope(reportOf("A", 10, [20362]), {}),
+        usageExportScope(reportOf("A", [20362]), {}, estimateOf(10)),
         () => true,
       ),
     ).toEqual({ kind: "FAILED", reason: "ERROR" });
     expect(
       await exportUsage(
         scripted([async () => ({ ok: false })], []).source,
-        usageExportScope(reportOf("A", 10, [20362]), {}),
+        usageExportScope(reportOf("A", [20362]), {}, estimateOf(10)),
         () => true,
       ),
     ).toEqual({ kind: "FAILED", reason: "DENIED" });
@@ -259,7 +315,7 @@ describe("usage CSV export", () => {
     expect(
       await exportUsage(
         source,
-        usageExportScope(reportOf("A", 10, [20362]), {}),
+        usageExportScope(reportOf("A", [20362]), {}, estimateOf(10)),
         () => false,
       ),
     ).toEqual({ kind: "CANCELLED" });

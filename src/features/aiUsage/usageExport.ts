@@ -2,6 +2,13 @@ import type { FunctionArgs, FunctionReturnType } from "convex/server";
 
 import { api } from "../../../convex/_generated/api";
 import { clientRef, type RefValue } from "@/lib/convex/clientRef";
+import {
+  estimateInputs,
+  FUNDING_SOURCE_URL,
+  FX_SOURCE_URL,
+  type SourceState,
+  type UsageEstimate,
+} from "@/lib/aiUsage/estimateSources";
 import { usageCsv } from "./csv";
 import { estimateThb } from "./estimate";
 
@@ -29,8 +36,9 @@ export interface UsageExportSource {
 
 /**
  * Everything one export answers, copied and frozen when it starts: the
- * range, filters, FX settings and actor names. Later renders (a new period,
- * filter or report) cannot change a running export.
+ * range, filters, the automatic estimate snapshot shown on the page and
+ * actor names. Later renders (a new period, filter, report or estimate
+ * status) cannot change a running export.
  */
 export interface UsageExportScope {
   readonly utcDays: readonly number[];
@@ -38,7 +46,8 @@ export interface UsageExportScope {
   readonly to: string;
   readonly timezone: string;
   readonly filter: Readonly<Filter>;
-  readonly settings: Report["settings"];
+  /** The estimate visible when the export started; null if none loaded. */
+  readonly estimate: UsageEstimate | null;
   readonly users: readonly { readonly id: string; readonly name: string }[];
 }
 
@@ -48,8 +57,9 @@ export type UsageExportResult =
   | { readonly kind: "FAILED"; readonly reason: "DENIED" | "LIMIT" | "ERROR" };
 
 export function usageExportScope(
-  report: Pick<Report, "range" | "settings" | "users">,
+  report: Pick<Report, "range" | "users">,
   filter: Filter,
+  estimate: UsageEstimate | null,
 ): UsageExportScope {
   return Object.freeze({
     utcDays: Object.freeze([...report.range.utcDays]),
@@ -57,13 +67,61 @@ export function usageExportScope(
     to: report.range.to,
     timezone: report.range.timezone,
     filter: Object.freeze({ ...filter }),
-    settings: report.settings ? Object.freeze({ ...report.settings }) : null,
+    estimate: estimate ? freezeEstimate(estimate) : null,
     users: Object.freeze(
       report.users.map((user) =>
         Object.freeze({ id: user.id, name: user.name }),
       ),
     ),
   });
+}
+
+const freezeSource = <T extends object>(
+  state: SourceState<T>,
+): SourceState<T> =>
+  state.status === "UNAVAILABLE"
+    ? Object.freeze({ status: "UNAVAILABLE" as const })
+    : Object.freeze({
+        status: state.status,
+        value: Object.freeze({ ...state.value }),
+      });
+
+/** A deep frozen copy, so no later state can alter the exported snapshot. */
+const freezeEstimate = (estimate: UsageEstimate): UsageEstimate =>
+  Object.freeze({
+    version: estimate.version,
+    loadedAt: estimate.loadedAt,
+    fx: freezeSource(estimate.fx),
+    funding: freezeSource(estimate.funding),
+  });
+
+const iso = (time: number | undefined) =>
+  time === undefined ? undefined : new Date(time).toISOString();
+
+/** The estimate columns, identical on every row of one export. */
+function estimateColumns(estimate: UsageEstimate | null): unknown[] {
+  const fx =
+    estimate && estimate.fx.status !== "UNAVAILABLE"
+      ? estimate.fx.value
+      : undefined;
+  const funding =
+    estimate && estimate.funding.status !== "UNAVAILABLE"
+      ? estimate.funding.value
+      : undefined;
+  return [
+    estimate?.version,
+    iso(estimate?.loadedAt),
+    fx?.rate,
+    fx?.date,
+    iso(fx?.fetchedAt),
+    estimate?.fx.status ?? "UNAVAILABLE",
+    FX_SOURCE_URL,
+    funding?.percent,
+    funding?.minimumUsd,
+    iso(funding?.fetchedAt),
+    estimate?.funding.status ?? "UNAVAILABLE",
+    FUNDING_SOURCE_URL,
+  ];
 }
 
 const CANCELLED: UsageExportResult = Object.freeze({ kind: "CANCELLED" });
@@ -103,11 +161,18 @@ export const USAGE_CSV_HEADERS = Object.freeze([
   "billing_status",
   "usage_source",
   "duration_ms",
-  "fx_version",
+  "estimate_cache_version",
+  "estimate_loaded_at",
   "usd_thb_rate",
-  "funding_fee_percent",
-  "rate_source",
-  "rate_effective_at",
+  "usd_thb_rate_date",
+  "usd_thb_fetched_at",
+  "usd_thb_status",
+  "usd_thb_source",
+  "funding_fee_percent_estimate",
+  "funding_fee_minimum_usd",
+  "funding_fee_fetched_at",
+  "funding_fee_status",
+  "funding_fee_source",
   "estimated_thb",
   "estimated_funding_fee_thb",
   "estimated_total_thb",
@@ -126,7 +191,8 @@ export async function exportUsage(
   isCurrent: () => boolean,
 ): Promise<UsageExportResult> {
   const rows: unknown[][] = [],
-    settings = scope.settings;
+    { rate, feePercent } = estimateInputs(scope.estimate),
+    estimate = estimateColumns(scope.estimate);
   let count = 0;
   try {
     for (const utcDay of scope.utcDays) {
@@ -152,12 +218,8 @@ export async function exportUsage(
           if (!attempts.ok) return failed("DENIED");
           for (const a of attempts.value) {
             const baht =
-              settings && a.costUsdNano !== undefined
-                ? estimateThb(
-                    a.costUsdNano,
-                    settings.usdThbRate,
-                    settings.feePercent,
-                  )
+              rate !== null && a.costUsdNano !== undefined
+                ? estimateThb(a.costUsdNano, rate, feePercent)
                 : null;
             rows.push([
               op.operationId,
@@ -192,11 +254,7 @@ export async function exportUsage(
               a.billingStatus,
               a.usageSource,
               a.durationMs,
-              settings?.version,
-              settings?.usdThbRate,
-              settings?.feePercent,
-              settings?.source,
-              settings?.effectiveAt,
+              ...estimate,
               baht?.inference,
               baht?.fundingFee,
               baht?.withFundingFee,

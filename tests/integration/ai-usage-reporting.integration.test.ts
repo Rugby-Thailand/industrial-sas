@@ -188,9 +188,13 @@ describe("organization-scoped AI usage access", () => {
     expect(await admin.query(api.aiUsage.reports.access, {})).toMatchObject({
       value: { permissions: ["aiUsage.read", "aiUsage.configure"] },
     });
+    // Manual settings are retired: authorized callers get an explicit refusal.
     expect(
       await admin.mutation(api.aiUsage.reports.configure, settings),
-    ).toMatchObject({ ok: true, value: { ok: true } });
+    ).toMatchObject({
+      ok: true,
+      value: { ok: false, code: "SETTINGS_RETIRED" },
+    });
     const configureOnly = (
       await worldWith("USAGE_CONFIGURE_ONLY")
     ).t.withIdentity(identity);

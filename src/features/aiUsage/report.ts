@@ -1,11 +1,14 @@
 import { api } from "../../../convex/_generated/api";
 import type { Feature } from "../../../convex/model/aiUsage/usage";
 import { clientRef, type RefValue } from "@/lib/convex/clientRef";
+import {
+  estimateInputs,
+  type UsageEstimate,
+} from "@/lib/aiUsage/estimateSources";
 import { estimateThb, type ThbEstimate } from "./estimate";
 
 export const summaryRef = clientRef(api.aiUsage.reports.summary);
 export type Report = Exclude<RefValue<typeof summaryRef>, { error: string }>;
-export type Settings = Report["settings"];
 export type Metrics = Report["byFeature"][Feature];
 
 /** The report's filter controls; an empty string means "all". */
@@ -76,12 +79,14 @@ export function costState(
 }
 
 /**
- * The estimate from the administrator's saved settings only. Null without
- * settings, or when the saved values cannot produce a finite estimate: no
- * rate or fee is ever assumed here.
+ * The baht estimate from the automatic snapshot only. Null without a usable
+ * rate; the funding fee is null without a published percentage. No rate or
+ * fee is ever assumed here.
  */
-export const configuredEstimate = (
+export const automaticEstimate = (
   nano: number,
-  settings: Settings,
-): ThbEstimate | null =>
-  settings ? estimateThb(nano, settings.usdThbRate, settings.feePercent) : null;
+  estimate: UsageEstimate | null,
+): ThbEstimate | null => {
+  const { rate, feePercent } = estimateInputs(estimate);
+  return rate === null ? null : estimateThb(nano, rate, feePercent);
+};

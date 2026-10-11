@@ -3,14 +3,15 @@
 import { useConvex } from "convex/react";
 import type { FunctionArgs } from "convex/server";
 import { useLocale, useTranslations } from "next-intl";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { ArrowDown, ChevronDown } from "lucide-react";
+import { Fragment, useEffect, useRef, useState } from "react";
 
 import { api } from "../../../convex/_generated/api";
 import type { Feature } from "../../../convex/model/aiUsage/usage";
 import { Button } from "@/components/ui/button";
 import { Notice } from "@/components/ui/Notice";
-import { Panel } from "@/components/ui/Panel";
 import { clientRef, type RefValue } from "@/lib/convex/clientRef";
+import { CELL, NUMERIC, UsageTable } from "./UsageTable";
 
 export const recentRef = clientRef(api.aiUsage.reports.recent);
 type RecentPage = Exclude<RefValue<typeof recentRef>, { error: string }>;
@@ -56,13 +57,16 @@ export function RecentActivity({
   signature,
   timezone,
   featureLabel,
-  money,
+  usd,
+  thb,
 }: {
   readonly args: RecentArgs;
   readonly signature: string;
   readonly timezone: string;
   readonly featureLabel: (feature: Feature) => string;
-  readonly money: (nano: number) => ReactNode;
+  readonly usd: (nano: number) => string;
+  /** The inference-only baht estimate, or null without a rate. */
+  readonly thb: (nano: number) => string | null;
 }) {
   const t = useTranslations("AiUsage"),
     locale = useLocale(),
@@ -146,213 +150,211 @@ export function RecentActivity({
     timeZone: timezone,
   });
   const num = (value: number) => new Intl.NumberFormat(locale).format(value);
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
+  const toggle = (id: string) =>
+    setExpanded((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   const status = (item: RecentItem) => (
     <span className={`font-medium ${STATUS_TONE[item.status]}`}>
       {t(`statusLabel.${item.status}`)}
     </span>
   );
-  const calls = (item: RecentItem) => (
-    <>
-      {t("callCount", { count: item.attemptCount })}
-      {item.attemptCount > 1 ? (
-        <span className="block text-xs text-muted">
-          {t("retries")} {num(item.attemptCount - 1)}
-        </span>
-      ) : null}
-    </>
-  );
-  const model = (item: RecentItem) => {
-    const other = item.actualModels.filter((m) => m !== item.requestedModel);
-    return (
-      <>
-        <span className="break-words">{item.requestedModel}</span>
-        {other.length ? (
-          <span className="block text-xs break-words text-muted">
-            {t("actualModel")}: {other.join(", ")}
-          </span>
-        ) : null}
-      </>
-    );
-  };
-  const cost = (item: RecentItem) => (
-    <>
-      {item.unknownAttemptCount < item.attemptCount ? (
-        money(item.knownCostUsdNano)
-      ) : (
-        <span className="text-muted">—</span>
-      )}
-      {item.unknownAttemptCount ? (
-        <span className="block text-xs text-warning">
-          {item.status === "PENDING"
-            ? t("statusLabel.PENDING")
-            : t("unknown", { count: item.unknownAttemptCount })}
-        </span>
-      ) : null}
-    </>
-  );
+  const confirmed = (item: RecentItem) =>
+    item.unknownAttemptCount < item.attemptCount;
   const actor = (item: RecentItem) => item.actorName ?? t("unknownUser");
   const warehouse = (item: RecentItem) =>
     item.warehouseId === null
       ? t("noWarehouse")
       : (item.warehouseName ?? t("unknownWarehouse"));
+  const columns = [
+    {
+      key: "time",
+      label: (
+        <span className="inline-flex items-center gap-1">
+          {t("time")}
+          <ArrowDown aria-hidden="true" className="size-3.5" />
+          <span className="sr-only">{t("newestFirst")}</span>
+        </span>
+      ),
+    },
+    { key: "user", label: t("colUser") },
+    { key: "warehouse", label: t("warehouse") },
+    { key: "action", label: t("colAction") },
+    { key: "model", label: t("colModel") },
+    { key: "usd", label: t("colCostUsd"), numeric: true },
+    { key: "thb", label: t("colCostThb"), numeric: true },
+  ];
+  const loading = shown === null;
+  const empty =
+    shown && shown.items.length === 0 && !shown.error
+      ? shown.cursor
+        ? t("recentNoneYet")
+        : t("recentEmpty")
+      : undefined;
 
   return (
-    <section aria-labelledby="usage-recent" aria-busy={shown === null}>
-      <h2 id="usage-recent" className="mb-1 text-lg font-semibold">
-        {t("recent")}
-      </h2>
-      <p className="mb-3 text-xs leading-relaxed text-muted">
-        {t("recentHint", { timezone })}
-      </p>
-      {shown === null ? (
-        <p role="status" className="text-sm text-muted">
-          {t("recentLoading")}
-        </p>
-      ) : (
-        <div className="space-y-3">
-          {shown.signature !== signature ? (
-            <Notice tone="accent" title={t("recentStale")}>
-              <Button
-                variant="outline"
-                className="mt-3"
-                onClick={() => setReload((value) => value + 1)}
+    <section
+      aria-labelledby="usage-recent"
+      aria-busy={loading}
+      className="space-y-2"
+    >
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <h2 id="usage-recent" className="text-lg font-semibold sm:text-xl">
+          {t("recent")}
+        </h2>
+        <p className="sr-only">{t("recentHint", { timezone })}</p>
+      </div>
+      {shown && shown.signature !== signature ? (
+        <Notice tone="accent" title={t("recentStale")}>
+          <Button
+            variant="outline"
+            className="mt-3"
+            onClick={() => setReload((value) => value + 1)}
+          >
+            {t("recentRefresh")}
+          </Button>
+        </Notice>
+      ) : null}
+      <UsageTable
+        label={t("recent")}
+        columns={columns}
+        minWidth="min-w-[840px]"
+        {...(loading ? { status: t("recentLoading") } : {})}
+        {...(empty === undefined ? {} : { empty })}
+      >
+        {shown?.items.map((item) => {
+          const open = expanded.has(item.operationId);
+          const detailsId = `usage-attempts-${item.operationId}`;
+          const other = item.actualModels.filter(
+            (m) => m !== item.requestedModel,
+          );
+          return (
+            <Fragment key={item.operationId}>
+              <tr
+                className={`align-top ${open ? "" : "border-b border-border"}`}
               >
-                {t("recentRefresh")}
-              </Button>
-            </Notice>
-          ) : null}
-          {shown.items.length === 0 && !shown.error ? (
-            <Panel>
-              <p className="max-w-prose text-sm leading-relaxed text-muted">
-                {shown.cursor ? t("recentNoneYet") : t("recentEmpty")}
-              </p>
-            </Panel>
-          ) : null}
-          {shown.items.length ? (
-            <Panel className="overflow-hidden p-0">
-              <div className="hidden overflow-x-auto md:block">
-                <table className="w-full min-w-[860px] text-sm tabular-nums">
-                  <caption className="sr-only">{t("recent")}</caption>
-                  <thead className="bg-surface-subtle border-b border-border text-left text-muted">
-                    <tr>
-                      {(
-                        [
-                          "time",
-                          "feature",
-                          "user",
-                          "warehouse",
-                          "model",
-                          "result",
-                          "attempts",
-                          "cost",
-                        ] as const
-                      ).map((column) => (
-                        <th
-                          key={column}
-                          scope="col"
-                          className="p-3 font-medium"
-                        >
-                          {t(column)}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {shown.items.map((item) => (
-                      <tr
-                        key={item.operationId}
-                        className="border-b border-border align-top last:border-b-0"
-                      >
-                        <th
-                          scope="row"
-                          className="p-3 text-left font-medium whitespace-nowrap"
-                        >
-                          <time
-                            dateTime={new Date(item.startedAt).toISOString()}
-                          >
-                            {when.format(item.startedAt)}
-                          </time>
-                        </th>
-                        <td className="p-3">{featureLabel(item.feature)}</td>
-                        <td className="p-3 break-words">{actor(item)}</td>
-                        <td className="p-3 break-words">{warehouse(item)}</td>
-                        <td className="max-w-48 p-3">{model(item)}</td>
-                        <td className="p-3">{status(item)}</td>
-                        <td className="p-3">{calls(item)}</td>
-                        <td className="p-3">{cost(item)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <ul className="divide-y divide-border md:hidden">
-                {shown.items.map((item) => (
-                  <li key={item.operationId} className="min-w-0 space-y-2 p-4">
-                    <div className="flex flex-wrap items-baseline justify-between gap-2">
-                      <p className="font-semibold">
-                        {featureLabel(item.feature)}
-                      </p>
-                      <time
-                        className="text-xs text-muted"
-                        dateTime={new Date(item.startedAt).toISOString()}
-                      >
-                        {when.format(item.startedAt)}
-                      </time>
-                    </div>
-                    <p className="text-xs break-words text-muted">
-                      {actor(item)} · {warehouse(item)}
-                    </p>
-                    <dl className="grid grid-cols-2 gap-3 text-sm tabular-nums">
+                <th
+                  scope="row"
+                  className={`${CELL} text-left font-medium whitespace-nowrap`}
+                >
+                  <button
+                    type="button"
+                    aria-expanded={open}
+                    aria-controls={detailsId}
+                    onClick={() => toggle(item.operationId)}
+                    className="-m-1 inline-flex items-center gap-1.5 rounded p-1 text-left hover:text-link focus-visible:outline-2 focus-visible:outline-ring"
+                  >
+                    <ChevronDown
+                      aria-hidden="true"
+                      className={`size-4 shrink-0 text-muted transition-transform ${open ? "rotate-180" : ""}`}
+                    />
+                    <time dateTime={new Date(item.startedAt).toISOString()}>
+                      {when.format(item.startedAt)}
+                    </time>
+                    <span className="sr-only">
+                      {t(open ? "attemptsHide" : "attemptsShow")}
+                    </span>
+                  </button>
+                </th>
+                <td className={`${CELL} break-words`}>{actor(item)}</td>
+                <td className={`${CELL} break-words`}>{warehouse(item)}</td>
+                <td className={CELL}>
+                  <span className="block">{featureLabel(item.feature)}</span>
+                  <span className="block text-xs">{status(item)}</span>
+                  {item.attemptCount > 1 ? (
+                    <span className="block text-xs text-muted">
+                      {t("callCount", { count: item.attemptCount })}
+                    </span>
+                  ) : null}
+                </td>
+                <td className={`${CELL} max-w-48 break-words`}>
+                  {item.requestedModel}
+                </td>
+                <td className={`${CELL} ${NUMERIC} wrap-anywhere`}>
+                  {confirmed(item) ? (
+                    usd(item.knownCostUsdNano)
+                  ) : (
+                    <span className="text-muted">—</span>
+                  )}
+                  {item.unknownAttemptCount ? (
+                    <span className="block text-xs text-warning">
+                      {item.status === "PENDING"
+                        ? t("statusLabel.PENDING")
+                        : t("unknown", { count: item.unknownAttemptCount })}
+                    </span>
+                  ) : null}
+                </td>
+                <td className={`${CELL} ${NUMERIC} text-muted`}>
+                  {confirmed(item) ? (thb(item.knownCostUsdNano) ?? "—") : "—"}
+                </td>
+              </tr>
+              {open ? (
+                <tr id={detailsId} className="border-b border-border">
+                  <td colSpan={columns.length} className="px-2 pb-3 sm:px-4">
+                    <dl className="grid gap-x-6 gap-y-2 rounded-md bg-raised px-4 py-3 text-xs sm:grid-cols-4">
                       <div className="min-w-0">
-                        <dt className="mb-1 text-xs text-muted">
-                          {t("result")}
-                        </dt>
-                        <dd>{status(item)}</dd>
+                        <dt className="text-muted">{t("attempts")}</dt>
+                        <dd className="tabular-nums">
+                          {t("callCount", { count: item.attemptCount })}
+                          {item.attemptCount > 1
+                            ? ` · ${t("retries")} ${num(item.attemptCount - 1)}`
+                            : null}
+                        </dd>
                       </div>
                       <div className="min-w-0">
-                        <dt className="mb-1 text-xs text-muted">{t("cost")}</dt>
-                        <dd>{cost(item)}</dd>
+                        <dt className="text-muted">{t("actualModel")}</dt>
+                        <dd className="break-words">
+                          {(other.length ? other : item.actualModels).join(
+                            ", ",
+                          ) || "—"}
+                        </dd>
                       </div>
                       <div className="min-w-0">
-                        <dt className="mb-1 text-xs text-muted">
-                          {t("attempts")}
-                        </dt>
-                        <dd>{calls(item)}</dd>
+                        <dt className="text-muted">{t("duration")}</dt>
+                        <dd className="tabular-nums">
+                          {t("seconds", {
+                            seconds: num(item.durationMs / 1000),
+                          })}
+                        </dd>
                       </div>
                       <div className="min-w-0">
-                        <dt className="mb-1 text-xs text-muted">
-                          {t("model")}
-                        </dt>
-                        <dd className="text-xs">{model(item)}</dd>
+                        <dt className="text-muted">{t("operationId")}</dt>
+                        <dd className="font-mono break-all">
+                          {item.operationId}
+                        </dd>
                       </div>
                     </dl>
-                  </li>
-                ))}
-              </ul>
-            </Panel>
-          ) : null}
-          {shown.error ? (
-            <Notice tone="danger" role="alert" title={t("recentError")}>
-              <Button
-                variant="outline"
-                className="mt-3"
-                onClick={() => setReload((value) => value + 1)}
-              >
-                {t("recentRetry")}
-              </Button>
-            </Notice>
-          ) : null}
-          {shown.cursor && !shown.error ? (
-            <Button
-              variant="outline"
-              onClick={() => void loadMore()}
-              disabled={loadingMore !== null}
-            >
-              {t(loadingMore !== null ? "recentLoadingMore" : "recentMore")}
-            </Button>
-          ) : null}
-        </div>
-      )}
+                  </td>
+                </tr>
+              ) : null}
+            </Fragment>
+          );
+        })}
+      </UsageTable>
+      {shown?.error ? (
+        <Notice tone="danger" role="alert" title={t("recentError")}>
+          <Button
+            variant="outline"
+            className="mt-3"
+            onClick={() => setReload((value) => value + 1)}
+          >
+            {t("recentRetry")}
+          </Button>
+        </Notice>
+      ) : null}
+      {shown?.cursor && !shown.error ? (
+        <Button
+          variant="outline"
+          onClick={() => void loadMore()}
+          disabled={loadingMore !== null}
+        >
+          {t(loadingMore !== null ? "recentLoadingMore" : "recentMore")}
+        </Button>
+      ) : null}
     </section>
   );
 }

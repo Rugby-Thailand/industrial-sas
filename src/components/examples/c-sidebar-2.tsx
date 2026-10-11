@@ -80,7 +80,9 @@ const WORKSPACE_BAR_PATHS: readonly string[] = [
 
 export function Pattern({ children }: { readonly children: ReactNode }) {
   const t = useTranslations("Navigation");
-  const showWorkspaceBar = WORKSPACE_BAR_PATHS.includes(usePathname());
+  const pathname = usePathname();
+  const showWorkspaceBar = WORKSPACE_BAR_PATHS.includes(pathname);
+  const usageReport = pathname === ROUTES.aiUsage;
   return (
     <TooltipProvider>
       <NavigationProgressProvider>
@@ -103,29 +105,30 @@ export function Pattern({ children }: { readonly children: ReactNode }) {
                 {t("skipToContent")}
               </a>
               <HrLandingRedirect />
-              <AppSidebar />
+              <AppSidebar
+                switchableWarehouse={showWorkspaceBar}
+                hideRail={usageReport}
+              />
               <SidebarInset className="min-w-0 overflow-hidden">
                 <header className="shrink-0 border-b border-border bg-surface px-3 py-2 lg:px-6">
-                  <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="flex items-center gap-1 sm:gap-2">
                     <NavigationDisclosure />
-                    <HeaderSearch />
-                    {showWorkspaceBar ? (
-                      <div className="min-w-0 flex-1">
-                        <WorkspaceContextBar />
-                      </div>
-                    ) : (
-                      <TaskWorkspaceContext />
-                    )}
-                    <div className="ml-auto">
+                    <HeaderBrand />
+                    <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
+                      {!usageReport ? <HeaderSearch /> : null}
                       <LocaleSwitcher />
+                      <ThemeToggle />
                     </div>
-                    <ThemeToggle />
                   </div>
                 </header>
                 <main
                   id={MAIN_ID}
                   tabIndex={-1}
-                  className="min-w-0 flex-1 overflow-auto p-3 sm:p-4 lg:px-6 lg:py-4"
+                  className={
+                    usageReport
+                      ? "min-w-0 flex-1 overflow-auto bg-surface px-3.5 py-5 sm:px-6 sm:py-6 lg:px-9 lg:py-7"
+                      : "min-w-0 flex-1 overflow-auto p-3 sm:p-4 lg:px-6 lg:py-4"
+                  }
                 >
                   <NavigationContent>{children}</NavigationContent>
                 </main>
@@ -177,17 +180,52 @@ function NavigationDisclosure() {
   );
 }
 
-function AppSidebar() {
+/**
+ * The organization this session works in, as the header's brand. Warehouse
+ * context lives in the sidebar, so a phone header never carries it.
+ */
+function HeaderBrand() {
+  const app = useTranslations("App");
+  const workspace = useWorkspace();
+  const hr = useHrAccess();
+  const usage = useAiUsageAccess();
+  const name =
+    workspace.organization?.name ??
+    hr.organizationName ??
+    usage.organizationName ??
+    app("name");
+  return (
+    <p
+      className="min-w-0 flex-1 truncate px-1 text-sm font-semibold text-text sm:text-base"
+      title={name}
+      data-testid="header-brand"
+    >
+      {name}
+    </p>
+  );
+}
+
+function AppSidebar({
+  switchableWarehouse,
+  hideRail,
+}: {
+  readonly switchableWarehouse: boolean;
+  readonly hideRail: boolean;
+}) {
   const t = useTranslations("Navigation");
   const app = useTranslations("App");
   const workspace = useWorkspace();
   const hr = useHrAccess();
   const usage = useAiUsageAccess();
   const { state, isMobile, setOpenMobile } = useSidebar();
-  const collapsed = !isMobile && state === "collapsed";
+  const collapsed = !hideRail && !isMobile && state === "collapsed";
   return (
     <Sidebar
-      collapsible="icon"
+      collapsible={hideRail ? "offcanvas" : "icon"}
+      inert={hideRail && !isMobile && state === "collapsed"}
+      aria-hidden={
+        hideRail && !isMobile && state === "collapsed" ? true : undefined
+      }
       {...(!isMobile
         ? { role: "complementary", "aria-label": t("primary") }
         : {})}
@@ -211,6 +249,10 @@ function AppSidebar() {
           </div>
           {isMobile ? <NavigationDisclosure /> : null}
         </div>
+        <WorkspaceContextBar
+          switchable={switchableWarehouse}
+          collapsed={collapsed}
+        />
         <SidebarSearchTriggers collapsed={collapsed} />
       </SidebarHeader>
       <NavigationTree
@@ -346,19 +388,4 @@ function NavigationTree({
       </SidebarContent>
     </nav>
   );
-}
-
-function TaskWorkspaceContext() {
-  const workspace = useWorkspace();
-  const selected = workspace.warehouses.find(
-    (warehouse) => warehouse.id === workspace.selectedWarehouseId,
-  );
-  return selected ? (
-    <span
-      className="min-w-0 flex-1 truncate text-sm font-medium"
-      title={`${selected.code} · ${selected.name}`}
-    >
-      {selected.code} · {selected.name}
-    </span>
-  ) : null;
 }

@@ -252,6 +252,11 @@ body {
   font-feature-settings: "tnum";
 }
 
+/* Report tables scroll inside their section; keep the bar quiet and themed. */
+.usage-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--token-border-strong) transparent;
+}
 .navigation-pending-indicator {
   opacity: 0;
   transition: opacity 150ms ease 100ms;
