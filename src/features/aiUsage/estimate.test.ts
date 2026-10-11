@@ -18,10 +18,19 @@ describe("presentation baht estimate", () => {
     ["1", 33.53, 5.5],
     [1, 0, 5.5],
     [1, Infinity, 5.5],
-    [1, 33.53, -1],
-    [1, 33.53, 101],
-    [1, 33.53, undefined],
+    [1, null, 5.5],
   ])("is unavailable for %s × %s at %s%%", (nano, rate, fee) => {
     expect(estimateThb(nano, rate, fee)).toBeNull();
   });
+
+  it.each([[null], [undefined], [-1], [101], [Number.NaN]])(
+    "never substitutes a zero fee for an unavailable percentage (%s)",
+    (fee) => {
+      expect(estimateThb(1_000_000_000, 33.5, fee)).toEqual({
+        inference: 33.5,
+        fundingFee: null,
+        withFundingFee: null,
+      });
+    },
+  );
 });

@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { useState, type FormEvent } from "react";
-import { Download, SlidersHorizontal } from "lucide-react";
+import { CalendarDays, Download, Funnel } from "lucide-react";
 
 import { dayNumber } from "../../../convex/model/hr/calendar";
 import { FEATURES, type Feature } from "../../../convex/model/aiUsage/usage";
@@ -27,13 +27,16 @@ export interface DateRange {
 type Options = Pick<Report, "users" | "warehouses" | "models" | "environments">;
 
 /**
- * Period, report filters and CSV export. Filters live in a Sheet on every
- * width; they apply as they change, so the report behind updates live.
+ * Period, report filters, the answered range and CSV export, in one row.
+ * Phones keep the period, filter and export on the first line and move the
+ * range below. Filters live in a Sheet on every width; they apply as they
+ * change, so the report behind updates live.
  */
 export function UsageToolbar({
   period,
   onPeriod,
   range,
+  timezone,
   onDates,
   filters,
   onFilters,
@@ -47,6 +50,8 @@ export function UsageToolbar({
   readonly onPeriod: (period: Period) => void;
   /** The range the report currently answers, used as the date defaults. */
   readonly range: DateRange | null;
+  /** The organization timezone the range is in, once the report answers. */
+  readonly timezone: string | null;
   readonly onDates: (dates: DateRange) => void;
   readonly filters: UsageFilters;
   readonly onFilters: (filters: UsageFilters) => void;
@@ -107,38 +112,57 @@ export function UsageToolbar({
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-end gap-3">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-2 sm:gap-x-3">
         <FormField
           id="usage-period"
           label={t("period")}
           srOnlyLabel
-          className="w-full sm:w-56"
+          className="w-40 min-w-0 shrink sm:w-44"
         >
           {(props) => (
-            <SelectControl
-              id={props.id}
-              value={period}
-              label={t("period")}
-              onValueChange={(value) => {
-                onPeriod(value as Period);
-                setDateError(false);
-              }}
-              options={[
-                { value: "month", label: t("month") },
-                { value: "today", label: t("today") },
-                { value: "custom", label: t("custom") },
-              ]}
-              placeholder={t("month")}
-              emptyLabel={t("month")}
-            />
+            <span className="relative block">
+              <CalendarDays
+                aria-hidden="true"
+                className="pointer-events-none absolute top-1/2 left-3 z-10 size-4 -translate-y-1/2 text-muted"
+              />
+              <SelectControl
+                id={props.id}
+                value={period}
+                label={t("period")}
+                className="w-full pl-9 whitespace-nowrap"
+                onValueChange={(value) => {
+                  onPeriod(value as Period);
+                  setDateError(false);
+                }}
+                options={[
+                  { value: "month", label: t("month") },
+                  { value: "today", label: t("today") },
+                  { value: "custom", label: t("custom") },
+                ]}
+                placeholder={t("month")}
+                emptyLabel={t("month")}
+              />
+            </span>
           )}
         </FormField>
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetTrigger asChild>
-            <Button variant="outline" className={count ? "text-link" : ""}>
-              <SlidersHorizontal className="size-4" aria-hidden="true" />
-              {t("filters")}
-              {count ? ` (${count})` : ""}
+            <Button
+              variant="outline"
+              size="icon"
+              aria-label={count ? `${t("filters")} (${count})` : t("filters")}
+              title={t("filters")}
+              className={`relative ${count ? "border-link text-link" : ""}`}
+            >
+              <Funnel aria-hidden="true" className="size-4" />
+              {count ? (
+                <span
+                  aria-hidden="true"
+                  className="absolute -top-1.5 -right-1.5 flex min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[0.6875rem] leading-5 font-semibold text-primary-foreground tabular-nums"
+                >
+                  {count}
+                </span>
+              ) : null}
             </Button>
           </SheetTrigger>
           <DetailsPanel
@@ -186,14 +210,36 @@ export function UsageToolbar({
             </div>
           </DetailsPanel>
         </Sheet>
+        {range ? (
+          <p
+            className="order-last flex w-full flex-wrap items-center gap-x-2 text-sm text-muted tabular-nums sm:order-none sm:ml-auto sm:w-auto sm:justify-end"
+            data-testid="usage-range"
+          >
+            <span>
+              {range.from} – {range.to}
+            </span>
+            {timezone ? (
+              <>
+                <span aria-hidden="true">·</span>
+                <span>{timezone}</span>
+              </>
+            ) : null}
+          </p>
+        ) : null}
         <Button
           variant="outline"
-          className="sm:ml-auto"
+          className="ml-auto sm:ml-0"
+          aria-label={t(exporting ? "exporting" : "export")}
           onClick={onExport}
           disabled={!canExport || exporting}
         >
           <Download aria-hidden="true" className="size-4" />
-          {t(exporting ? "exporting" : "export")}
+          <span className="sm:hidden">
+            {t(exporting ? "exporting" : "exportShort")}
+          </span>
+          <span className="hidden sm:inline">
+            {t(exporting ? "exporting" : "export")}
+          </span>
         </Button>
       </div>
       {period === "custom" ? (

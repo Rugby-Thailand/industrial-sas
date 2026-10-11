@@ -2,13 +2,18 @@
 
 import { useConvex, useQuery } from "convex/react";
 import { useLocale, useTranslations } from "next-intl";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { FEATURES, type Feature } from "../../../convex/model/aiUsage/usage";
 import { useAiUsageAccess } from "@/components/providers/AiUsageAccessProvider";
-import { PageHeader } from "@/components/ui/PageHeader";
 import { Notice } from "@/components/ui/Notice";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  unavailableEstimate,
+  withCurrentStatus,
+  type UsageEstimate,
+} from "@/lib/aiUsage/estimateSources";
+import { AutomaticEstimate } from "./AutomaticEstimate";
 import { useUsageFormat } from "./format";
 import { RecentActivity } from "./RecentActivity";
 import {
@@ -17,9 +22,9 @@ import {
   summaryRef,
   type UsageFilters,
 } from "./report";
-import { SettingsForm } from "./SettingsForm";
+import { useEstimateRefresh } from "./useEstimateRefresh";
 import { UsageBreakdown } from "./UsageBreakdown";
-import { FeatureCards, UsageStatement } from "./UsageOverview";
+import { FeatureStrip, UsageStatement } from "./UsageOverview";
 import { UsageToolbar, type DateRange, type Period } from "./UsageToolbar";
 import {
   attemptsRef,
@@ -36,20 +41,35 @@ export const FEATURE_LABEL_KEYS: Readonly<Record<Feature, string>> =
     AI_SEARCH: "search",
   });
 
-export function AiUsageScreen() {
+/**
+ * The AI usage report. `estimate` is the server-loaded automatic estimate
+ * snapshot (public FX rate and funding policy, cached for one day); it never
+ * rejects and carries no tenant data or credentials.
+ */
+export function AiUsageScreen({
+  estimate,
+}: {
+  readonly estimate: Promise<UsageEstimate>;
+}) {
   const t = useTranslations("AiUsage"),
     access = useAiUsageAccess();
   // Organization-scoped access, independent of warehouse permissions.
   return (
     <>
-      <PageHeader title={t("title")} summary={t("summary")} showBack={false} />
+      <header className="mb-5 space-y-1.5 sm:mb-6">
+        <h1 className="text-3xl leading-tight font-semibold tracking-tight text-text sm:text-4xl">
+          {t("title")}
+        </h1>
+        <p className="text-base leading-relaxed text-muted">
+          <span className="sm:hidden">{t("summaryShort")}</span>
+          <span className="hidden sm:inline">{t("summary")}</span>
+        </p>
+      </header>
       {access.status === "LOADING" ? (
         <p role="status">{t("loading")}</p>
       ) : access.status === "READY" &&
         access.permissions.includes("aiUsage.read") ? (
-        <UsageReport
-          canConfigure={access.permissions.includes("aiUsage.configure")}
-        />
+        <UsageReport estimate={estimate} />
       ) : (
         <Notice title={t("denied")} />
       )}
@@ -57,7 +77,32 @@ export function AiUsageScreen() {
   );
 }
 
-function UsageReport({ canConfigure }: { canConfigure: boolean }) {
+/** The resolved snapshot; undefined while it loads. */
+function useEstimate(source: Promise<UsageEstimate>) {
+  const [loaded, setLoaded] = useState<{
+    source: Promise<UsageEstimate>;
+    value: UsageEstimate;
+  } | null>(null);
+  useEffect(() => {
+    let current = true;
+    source.then(
+      (value) => current && setLoaded({ source, value }),
+      () =>
+        current &&
+        setLoaded({ source, value: unavailableEstimate(Date.now()) }),
+    );
+    return () => {
+      current = false;
+    };
+  }, [source]);
+  return loaded?.source === source ? loaded.value : undefined;
+}
+
+function UsageReport({
+  estimate: source,
+}: {
+  estimate: Promise<UsageEstimate>;
+}) {
   const t = useTranslations("AiUsage"),
     locale = useLocale(),
     convex = useConvex();
@@ -112,17 +157,26 @@ function UsageReport({ canConfigure }: { canConfigure: boolean }) {
   // its name while the next answer loads.
   const [options, setOptions] = useState<typeof data>(null);
   if (data && data !== options) setOptions(data);
-  const format = useUsageFormat(data?.settings ?? null);
+  const loadedEstimate = useEstimate(source);
+  useEstimateRefresh(loadedEstimate);
+  // A page left open past a source's refresh window shows it as stale; the
+  // CSV freezes exactly this snapshot.
+  const estimate = useMemo(
+    () =>
+      loadedEstimate && withCurrentStatus(loadedEstimate, refreshKey * 1800000),
+    [loadedEstimate, refreshKey],
+  );
+  const format = useUsageFormat(estimate ?? null);
   const label = (kind: Feature) => t(FEATURE_LABEL_KEYS[kind]);
   const shownFeatures = FEATURES.filter((kind) => !feature || feature === kind);
   async function exportCsv() {
-    if (!data) return;
+    if (!data || !estimate) return;
     // One lifecycle per export: a newer export or the report's unmount (an
     // organization switch or sign-out unmounts it) invalidates this one.
     const life = exportLife.current,
       generation = ++life.generation,
       isCurrent = () => life.generation === generation;
-    const scope = usageExportScope(data, filter);
+    const scope = usageExportScope(data, filter, estimate);
     setExporting(true);
     setExportError(false);
     const result = await exportUsage(
@@ -154,17 +208,18 @@ function UsageReport({ canConfigure }: { canConfigure: boolean }) {
     }
   }
   return (
-    <div className="min-w-0 space-y-6">
+    <div className="min-w-0 space-y-8">
       <UsageToolbar
         period={period}
         onPeriod={setPeriod}
         range={data?.range ?? null}
+        timezone={data?.range.timezone ?? null}
         onDates={setDates}
         filters={filters}
         onFilters={setFilters}
         options={data ?? options}
         featureLabel={label}
-        canExport={data !== null}
+        canExport={data !== null && estimate !== undefined}
         exporting={exporting}
         onExport={() => void exportCsv()}
       />
@@ -173,10 +228,10 @@ function UsageReport({ canConfigure }: { canConfigure: boolean }) {
           <p role="status" className="sr-only">
             {t("loading")}
           </p>
-          <Skeleton className="h-32 w-full rounded-lg" />
-          <div className="grid gap-4 lg:grid-cols-3">
+          <Skeleton className="h-24 w-full rounded-lg" />
+          <div className="grid gap-4 sm:grid-cols-3">
             {FEATURES.map((kind) => (
-              <Skeleton key={kind} className="h-56 w-full rounded-lg" />
+              <Skeleton key={kind} className="h-16 w-full rounded-lg" />
             ))}
           </div>
         </div>
@@ -186,58 +241,60 @@ function UsageReport({ canConfigure }: { canConfigure: boolean }) {
         <Notice tone="danger" role="alert" title={t("queryError")} />
       ) : (
         <>
-          <div className="space-y-1 text-sm text-muted">
-            <p>
-              {data.range.from} – {data.range.to} · {data.range.timezone}
+          {data.trackingStartedAt ? (
+            <p className="-mt-3 text-xs text-muted">
+              {t("started", {
+                date: new Intl.DateTimeFormat(locale, {
+                  dateStyle: "medium",
+                  timeZone: data.range.timezone,
+                }).format(data.trackingStartedAt),
+              })}
             </p>
-            {data.trackingStartedAt ? (
-              <p className="text-xs">
-                {t("started", {
-                  date: new Intl.DateTimeFormat(locale, {
-                    dateStyle: "medium",
-                    timeZone: data.range.timezone,
-                  }).format(data.trackingStartedAt),
-                })}
-              </p>
-            ) : null}
-          </div>
+          ) : null}
           {exportError ? (
             <Notice tone="danger" role="alert" title={t("exportError")} />
           ) : null}
           {!data.complete ? (
             <Notice tone="warning" title={t("partial")} />
           ) : null}
-          <UsageStatement
-            report={data}
-            features={shownFeatures}
-            filterCount={activeFilterCount(filters)}
-            canConfigure={canConfigure}
-            format={format}
-          />
-          <FeatureCards
-            report={data}
-            features={shownFeatures}
-            featureLabel={label}
-            format={format}
-          />
-          <p className="max-w-prose text-xs leading-relaxed text-muted">
-            {t("completeAverage")}{" "}
-            {data.settings
-              ? t("estimate", {
-                  rate: format.num(data.settings.usdThbRate, 4),
-                  fee: format.num(data.settings.feePercent, 2),
-                })
-              : null}
-          </p>
+          <div>
+            <UsageStatement
+              report={data}
+              features={shownFeatures}
+              filterCount={activeFilterCount(filters)}
+              estimate={estimate}
+              format={format}
+            />
+            <FeatureStrip
+              report={data}
+              features={shownFeatures}
+              selected={feature}
+              onSelect={(next) => setFilters({ ...filters, feature: next })}
+              featureLabel={label}
+              format={format}
+            />
+            {shownFeatures.some(
+              (kind) => data.byFeature[kind].operationCount > 0,
+            ) ? (
+              <p className="mt-2 max-w-prose text-xs leading-relaxed text-muted">
+                {t("completeAverage")}
+              </p>
+            ) : null}
+          </div>
           <UsageBreakdown report={data} featureLabel={label} format={format} />
           <RecentActivity
             args={args}
             signature={JSON.stringify(data.byFeature)}
             timezone={data.range.timezone}
             featureLabel={label}
-            money={format.money}
+            usd={format.usd}
+            thb={format.thb}
           />
-          {canConfigure ? <SettingsForm settings={data.settings} /> : null}
+          <AutomaticEstimate
+            estimate={estimate}
+            format={format}
+            timezone={data.range.timezone}
+          />
         </>
       )}
     </div>

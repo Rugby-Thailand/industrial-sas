@@ -1,34 +1,31 @@
 "use client";
 
-import { useLocale } from "next-intl";
-import type { ReactNode } from "react";
+import { useFormatter } from "next-intl";
 
-import { configuredEstimate, type Settings } from "./report";
+import type { UsageEstimate } from "@/lib/aiUsage/estimateSources";
+import { automaticEstimate } from "./report";
 
-/** Locale-aware number, USD and baht presentation for the usage report. */
-export function useUsageFormat(settings: Settings) {
-  const locale = useLocale();
+/**
+ * Locale-aware number, USD and baht presentation for the usage report. USD
+ * keeps nano precision (up to nine decimals, at least two); baht estimates
+ * use four decimals so sub-satang costs stay visible.
+ */
+export function useUsageFormat(estimate: UsageEstimate | null) {
+  const formatter = useFormatter();
   const num = (value: number, digits = 0) =>
-    new Intl.NumberFormat(locale, {
+    formatter.number(value, {
       maximumFractionDigits: digits,
       minimumFractionDigits: digits,
-    }).format(value);
+    });
   const usd = (nano: number) =>
-    `US$${new Intl.NumberFormat(locale, { minimumFractionDigits: 6, maximumFractionDigits: 9 }).format(nano / 1e9)}`;
+    `US$${formatter.number(nano / 1e9, { minimumFractionDigits: 2, maximumFractionDigits: 9 })}`;
   const baht = (value: number) => `฿${num(value, 4)}`;
-  /** Confirmed USD with the inference-only baht estimate, when configured. */
-  const money = (nano: number): ReactNode => {
-    const estimate = configuredEstimate(nano, settings);
-    return (
-      <>
-        <span>{usd(nano)}</span>
-        {estimate ? (
-          <span className="block text-xs text-muted">
-            ≈ {baht(estimate.inference)}
-          </span>
-        ) : null}
-      </>
-    );
+  /** The inference-only baht estimate of a confirmed amount, if a rate exists. */
+  const thb = (nano: number): string | null => {
+    const value = automaticEstimate(nano, estimate);
+    return value ? `≈ ${baht(value.inference)}` : null;
   };
-  return { num, usd, baht, money };
+  return { num, usd, baht, thb };
 }
+
+export type UsageFormat = ReturnType<typeof useUsageFormat>;
