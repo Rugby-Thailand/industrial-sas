@@ -153,9 +153,12 @@ describe("day evaluation", () => {
   it.each([NaN, Infinity, -Infinity])(
     "keeps invalid event and certification instants %s out of ready totals",
     (invalid) => {
+      const scheduled = plan("2026-10-08", DAY);
+      if (scheduled.kind !== "SCHEDULED")
+        throw new Error("expected a scheduled test day");
       const input = {
         ...base,
-        plan: plan("2026-10-08", DAY),
+        plan: scheduled,
         now: at("2026-10-09", "09:00"),
       };
       for (const values of [
