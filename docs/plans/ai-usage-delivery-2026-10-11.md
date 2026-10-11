@@ -104,4 +104,53 @@ not merge/deploy. After HR merges later, retarget the upper PR to main and run
 fresh checks before merging. Preserve combined PR #62 and explicitly identify
 the replacement stack to prevent duplicate integration.
 
-Status: worktree created; awaiting finalized HR base and four-role verification.
+Status: implementation, audit, repair and verification completed; ready to open
+the upper PR against [HR PR #67](https://github.com/Rugby-Thailand/industrial-sas/pull/67).
+
+## Delivery evidence — 11 October 2026
+
+Four roles completed: Kiro `claude-opus-5.5` at high effort implemented the
+integration; independent Codex audited code; another Codex audited the
+specification and fixed confirmed defects; the Codex coordinator independently
+ran automated checks and actual browser workflows. Final runtime candidate:
+`22d61ad09360407ce6c1eb212cef7f12421c5e01`. Later commits contain documentation
+only, including the finalized HR plan.
+
+- Format/typecheck/lint and **245 Vitest files / 2,958 tests** pass. Production
+  build, pinned Convex codegen freshness, workflow/actionlint, dependency gates
+  and test discovery pass. Browser smoke: **92 passed**. Authenticated workspace
+  suite: **42 passed / 2 expected skips**, zero retries.
+- Fixed unknown-only breakdown rows displaying zero instead of unconfirmed
+  cost. Regression controls preserve provider-reported zero and mixed subtotals.
+  Fixed overflowing report days bypassing the read budget by stopping at the
+  first capacity refusal and retaining the incomplete warning. Documentation
+  distinguishes accepted rows from the single overflow probe.
+- Local computer-use exercised two real AI Search calls and one real synthetic
+  job-ticket image extraction. The final image ran on the repaired runtime,
+  filled the actual draft fields, and retained its charge after failed photo
+  upload and explicit draft removal. No saved ticket was required.
+- CSV and report match three provider-reported charges totaling USD
+  **0.00062115**. Read-only provider generation lookups independently match
+  all three generation IDs, costs and native input/output unit counts. The
+  requested model alias resolves to the dated provider model; both are recorded
+  in local comparison evidence. These are development requests, not invoice
+  reconciliation or promised future pricing.
+- A separately labelled local, no-provider NETWORK_ERROR fixture verifies
+  unknown cost remains unconfirmed in cards, breakdown, activity and CSV. Its
+  cost and baht estimate cells are empty. Retry, interruption/recovery, rebuild,
+  tenant/role authorization and high-volume bounds use automated fixtures.
+- Actual filters/export, FX **35 THB/USD**, funding fee **3%**, setting save and
+  refresh were exercised. Final Thai layout at **390 px** has no horizontal
+  overflow. CSV evidence captures the UI-created download Blob; native download
+  placement was not observed. Native DOM file/input/select events were used
+  where the collaborative browser lacks a chooser or loses select focus.
+- The code audit reports no confirmed blocker. Unbounded full-body reads in
+  Search/generation metadata remain a nonblocking hardening advisory. The
+  underlying HR calendar interface advisory is documented in its own task.
+
+Fresh role reports, logs, CSV, metadata comparison and screenshots are in
+ignored `output/delivery-20261011/`. Required GitHub checks are monitored after
+opening the PR. Merge HR first, retarget the upper PR to main, and rerun checks
+before merging. This delivery creates PRs; it does not merge, deploy or schedule
+an unattended run. Combined source PR #62 is preserved and must not be merged
+alongside the replacement stack.
