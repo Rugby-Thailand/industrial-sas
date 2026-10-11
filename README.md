@@ -129,10 +129,13 @@ private `--env-file`, refuse if the deploy-key slot is present, default to
 read-only preflight, and never retry a mutation. See the runbook's operator
 section before running one.
 
-Telemetry has no durable destination yet: `NEXT_PUBLIC_OBSERVABILITY_SINK`
-accepts `none` or `console` (the user's browser console), and events carry
-only allowlisted dimensions. Central error delivery and alerting are not
-configured; the runbook records the setup decision and owner.
+Telemetry is opt-in. `NEXT_PUBLIC_OBSERVABILITY_SINK` accepts `none`, `console`
+or the gated `sentry` sink. Speed Insights uses the same route allowlist and a
+same-origin relay that removes DOM attribution, identifiers and URL queries.
+Sentry account credentials and alerting remain unconfigured; its local transport
+test does not prove production delivery. See the [release runbook](docs/operations/release-runbook.md)
+for activation and privacy controls, and the [performance harness](scripts/performance/README.md)
+for reproducible lab comparisons.
 
 ### Local pagination fixtures and summary migration
 
