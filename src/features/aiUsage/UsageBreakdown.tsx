@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import type { Feature } from "../../../convex/model/aiUsage/usage";
 import { Panel } from "@/components/ui/Panel";
 import type { useUsageFormat } from "./format";
-import type { Report } from "./report";
+import { costState, type Report } from "./report";
 
 /** Contribution of each user, warehouse, model and environment. */
 export function UsageBreakdown({
@@ -69,7 +69,11 @@ export function UsageBreakdown({
                 </div>
               </dl>
               <div className="text-sm wrap-anywhere tabular-nums">
-                {money(row.metrics.knownCostUsdNano)}
+                {costState(row.metrics) === "UNCONFIRMED" ? (
+                  <span className="text-warning">{t("costUnconfirmed")}</span>
+                ) : (
+                  money(row.metrics.knownCostUsdNano)
+                )}
                 {row.metrics.unknownAttemptCount ? (
                   <p className="mt-1 text-xs text-warning">
                     {t("unknown", { count: row.metrics.unknownAttemptCount })}

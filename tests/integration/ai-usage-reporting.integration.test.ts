@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { api, internal } from "../../convex/_generated/api";
+import { summary } from "../../convex/aiUsage/reports";
 import { responseUsage } from "../../convex/lib/providerUsage";
+import { EMPTY_METRICS } from "../../convex/model/aiUsage/metrics";
+import type { MutationCtx } from "../../convex/_generated/server";
+import type { DataModel } from "../../convex/_generated/dataModel";
 import {
   createConvexTenantWorld,
   seedConvexAuthorization,
@@ -74,6 +78,74 @@ afterEach(() => {
 });
 
 describe("organization-scoped AI usage access", () => {
+  it("stops an incomplete summary before overflowing days can bypass the overall read bound", async () => {
+    const world = await worldWith("ORG_ADMIN");
+    const firstDay = Date.parse("2026-09-01T00:00:00Z") / DAY;
+    await world.t.run(async (ctx) => {
+      for (let day = 0; day < 4; day++)
+        for (let i = 0; i < 1001; i++)
+          await ctx.db.insert("aiUsageDailySummaries", {
+            orgId: world.orgA,
+            actorUserId: world.userA,
+            feature: "AI_SEARCH",
+            environment: "fixture",
+            requestedModel: `fixture-${i}`,
+            utcDay: firstDay + day,
+            summaryKey: `${day}-${i}`,
+            ...EMPTY_METRICS,
+          });
+    });
+    let rowsRead = 0;
+    const reads: number[] = [];
+    const report = await world.t.withIdentity(identity).run(async (ctx) => {
+      // Forward real indexed reads; count the probe rows too, including reads
+      // discarded by the tenant adapter's capacity refusal.
+      const db = new Proxy(ctx.db, {
+        get(target, key) {
+          if (key !== "query") return Reflect.get(target, key);
+          return (table: keyof DataModel) => {
+            const query = target.query(table);
+            return new Proxy(query, {
+              get(reader, method) {
+                if (method !== "withIndex") return Reflect.get(reader, method);
+                return (...args: Parameters<typeof reader.withIndex>) => {
+                  const indexed = reader.withIndex(...args);
+                  return new Proxy(indexed, {
+                    get(index, operation) {
+                      if (operation !== "take")
+                        return Reflect.get(index, operation);
+                      return async (limit: number) => {
+                        const rows = await index.take(limit);
+                        if (table === "aiUsageDailySummaries") {
+                          rowsRead += rows.length;
+                          reads.push(rows.length);
+                        }
+                        return rows;
+                      };
+                    },
+                  });
+                };
+              },
+            });
+          };
+        },
+      });
+      const registered = summary as unknown as {
+        _handler: (
+          context: MutationCtx,
+          args: { from: string; to: string },
+        ) => Promise<{ ok: boolean; value: { complete: boolean } }>;
+      };
+      return registered._handler(
+        { ...ctx, db },
+        { from: "2026-09-01", to: "2026-09-05" },
+      );
+    });
+    expect(report).toMatchObject({ ok: true, value: { complete: false } });
+    expect(rowsRead).toBeLessThanOrEqual(3000);
+    expect(reads).toEqual([1001]);
+  });
+
   it("lets a usage-only reader discover and read the report without warehouse or HR access", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(NOW);

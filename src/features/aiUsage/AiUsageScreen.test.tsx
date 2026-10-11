@@ -314,6 +314,80 @@ describe("AiUsageScreen statement and feature cards", () => {
     expect(total.getByText("1 operation pending")).toBeInTheDocument();
   });
 
+  it.each([null, settings])(
+    "shows an unknown-only breakdown without a numeric cost or baht estimate (settings %s)",
+    (savedSettings) => {
+      withReport({
+        settings: savedSettings,
+        breakdown: [
+          {
+            feature: "JOB_TICKET_SCAN",
+            actorUserId: "user-a",
+            requestedModel: "fixture-model",
+            environment: "local",
+            metrics: metrics({
+              operationCount: 1,
+              attemptCount: 1,
+              unknownAttemptCount: 1,
+              incompleteOperationCount: 1,
+            }),
+          },
+        ],
+      });
+      renderWithIntl(<AiUsageScreen />, { locale: "en" });
+      const breakdown = within(
+        screen.getByRole("region", {
+          name: "Usage by user, warehouse and model",
+        }),
+      );
+      expect(breakdown.getByText("Not yet confirmed")).toBeInTheDocument();
+      expect(
+        breakdown.getByText("1 call without confirmed cost"),
+      ).toBeInTheDocument();
+      expect(breakdown.queryByText(/^US\$/)).toBeNull();
+      expect(breakdown.queryByText(/฿/)).toBeNull();
+    },
+  );
+
+  it.each([
+    [1, 0, 0, "US$0.000000", "≈ ฿0.0000"],
+    [2, 1, 0, "US$0.000000", "≈ ฿0.0000"],
+    [2, 1, 200_000, "US$0.000200", "≈ ฿0.0080"],
+  ])(
+    "keeps reported zero and confirmed partial cost in the breakdown (%s calls, %s unknown)",
+    (attemptCount, unknownAttemptCount, knownCostUsdNano, usd, baht) => {
+      withReport({
+        settings,
+        breakdown: [
+          {
+            feature: "JOB_TICKET_SCAN",
+            actorUserId: "user-a",
+            requestedModel: "fixture-model",
+            environment: "local",
+            metrics: metrics({
+              operationCount: 1,
+              attemptCount,
+              unknownAttemptCount,
+              knownCostUsdNano,
+            }),
+          },
+        ],
+      });
+      renderWithIntl(<AiUsageScreen />, { locale: "en" });
+      const breakdown = within(
+        screen.getByRole("region", {
+          name: "Usage by user, warehouse and model",
+        }),
+      );
+      expect(breakdown.getByText(usd)).toBeInTheDocument();
+      expect(breakdown.getByText(baht)).toBeInTheDocument();
+      expect(breakdown.queryByText("Not yet confirmed")).toBeNull();
+      const unknown = breakdown.queryByText("1 call without confirmed cost");
+      if (unknownAttemptCount) expect(unknown).toBeInTheDocument();
+      else expect(unknown).toBeNull();
+    },
+  );
+
   it("filters by feature and totals only the features shown", async () => {
     withReport({ settings });
     renderWithIntl(<AiUsageScreen />, { locale: "en" });

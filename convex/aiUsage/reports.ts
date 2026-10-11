@@ -203,6 +203,9 @@ export const summary = queryWithOrg({
         )
           throw error;
         complete = false;
+        // The refused indexed read already consumed its limit plus a probe.
+        // Stop here: rejected rows must not bypass the overall read budget.
+        break;
       }
     }
     // A malformed stored aggregate is refused, never shown as a smaller total.
