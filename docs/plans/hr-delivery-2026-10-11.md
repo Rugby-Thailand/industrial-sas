@@ -101,7 +101,11 @@ HR head before the upper AI task merges it, and verify the upper PR diff does
 not reintroduce HR as independent changes. Existing combined PR #62 remains
 untouched and must not be merged as an additional copy of this work.
 
-Status: worktree created; implementation/audit/fix/test pending.
+Status: implementation, audit, fixes and verification completed.
+[PR #67](https://github.com/Rugby-Thailand/industrial-sas/pull/67) is open
+against `main` and linked in T3. All required GitHub CI checks passed at
+`2c1a302eec383df59c340d6b689b898ea5939ee1`. Merge and deployment remain outside
+this delivery task.
 
 ## Delivery evidence — 11 October 2026
 
@@ -115,7 +119,8 @@ Runtime candidate: `e761b4181257a821ef1e197a7ff8bbd4d3814f4d`.
   discovery pass. Anonymous desktop/mobile smoke: 92 tests pass.
 - Authenticated local computer-use: clock-in/out and refresh, invalid correction
   refusal/draft guard/submission, supervisor overnight certification/history,
-  close version2 and actual 21-row CSV with 4,672 worked minutes, Thai period at 390px,
+  period closure at version 2 and an actual 21-row CSV with 4,672 worked minutes,
+  the Thai period view at 390 px,
   and mobile employee create/edit/refresh all observed.
 - Live test identity is an organization admin in an isolated synthetic local
   organization. Backend/model/UI tests cover restricted/foreign-tenant roles;
@@ -126,5 +131,8 @@ Runtime candidate: `e761b4181257a821ef1e197a7ff8bbd4d3814f4d`.
   broader 69-caller Result migration is outside the confirmed defect repair.
 
 Detailed role reports/logs/screenshots are in ignored
-`output/delivery-20261011/`. Workspace browser suite: 42 passed / 2 expected skips, zero retries.
-GitHub checks are monitored after PR creation. PR targets main; this plan does not claim merge or deployment.
+`output/delivery-20261011/`. The workspace browser suite completed with
+42 passed and 2 expected workspace skips, with zero retries.
+[PR #67](https://github.com/Rugby-Thailand/industrial-sas/pull/67) targets `main`;
+all required GitHub CI checks passed at `2c1a302eec383df59c340d6b689b898ea5939ee1`.
+This records the verified delivery and does not claim merge or deployment.
