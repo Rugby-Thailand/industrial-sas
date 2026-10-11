@@ -36,12 +36,8 @@ jobs:
       - name: Formatting
         if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
         run: pnpm format:check
-      # Exact Bun from .bun-version: official release archive, SHA-256 pinned
-      # in the installer and verified before extraction (no third-party action).
-      - name: Install pinned Bun checker
-        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
-        run: node scripts/ci/install-bun-checker.mjs
-      # `bun --check`, never bare `bun check`, which would run the aggregate
+      # The pinned Bun comes from the shared setup action (after the frozen
+      # install). `bun --check`, never bare `bun check`, which would run the aggregate
       # `check` script. The production build keeps the TypeScript 6 gate.
       - name: Typecheck (cold next typegen + Bun checker)
         if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
@@ -147,10 +143,11 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .next/cache
-          key: ${{ runner.os }}-${{ runner.arch }}-next-${{ hashFiles('pnpm-lock.yaml', '.nvmrc') }}-${{ github.sha }}
+          key: ${{ runner.os }}-${{ runner.arch }}-next-bun-${{ hashFiles('pnpm-lock.yaml', '.nvmrc', '.bun-version') }}-${{ github.sha }}
           restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-next-${{ hashFiles('pnpm-lock.yaml', '.nvmrc') }}-
-      # No service credentials: this is the unconfigured production-mode build.
+            ${{ runner.os }}-${{ runner.arch }}-next-bun-${{ hashFiles('pnpm-lock.yaml', '.nvmrc', '.bun-version') }}-
+      # No service credentials: this is the unconfigured production-mode build,
+      # run under the pinned Bun from the shared setup action.
       - name: Production-mode build (credential-free)
         if: ${{ matrix.suite == 'smoke' }}
         run: pnpm build

@@ -99,7 +99,21 @@ describe("pinned Bun checker", () => {
     expect(scripts.check).toBe(
       "pnpm format:check && pnpm typecheck && pnpm lint && pnpm test",
     );
-    expect(scripts.build).toBe("next build");
+    // Next runs under Bun with Bun's dotenv preload off (also for workers
+    // Next re-spawns, via BUN_OPTIONS); framework flags are unchanged and
+    // each default has an explicit Node fallback.
+    const bunNext =
+      "BUN_OPTIONS=--no-env-file bun run --bun --no-env-file next";
+    expect(scripts.build).toBe(`${bunNext} build`);
+    expect(scripts.start).toBe(`${bunNext} start --port 3100`);
+    expect(scripts["dev:web"]).toBe(`${bunNext} dev --webpack --port 3100`);
+    expect(scripts["build:node"]).toBe("next build");
+    expect(scripts["start:node"]).toBe("next start --port 3100");
+    expect(scripts["dev:web:node"]).toBe("next dev --webpack --port 3100");
+    // Tests stay on Node runners; Convex keeps its Node CLI.
+    expect(scripts.test).toBe("vitest run");
+    expect(scripts["test:e2e"]).toMatch(/^playwright test /);
+    expect(scripts["dev:backend"]).toBe("convex dev");
     // TypeScript 6 stays for compiler API consumers and the build gate.
     expect(manifest.devDependencies.typescript).toBe("6.0.3");
     expect(read("next.config.ts")).toMatch(/ignoreBuildErrors: false/);

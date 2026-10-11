@@ -211,7 +211,8 @@ have changed or disappeared.
 ## Native Git cutover
 
 `vercel.json` now commits `git.deploymentEnabled=false`, the gated build
-command and no `ignoreCommand`. The production controller refuses to run
+command, `bunVersion: "1.4.x"` ([Bun runtime](bun-runtime.md)) and no
+`ignoreCommand`. The production controller refuses to run
 until the committed file has exactly this shape. The production project is
 still linked to Git with deployments enabled. The disabled trigger takes
 effect when this configuration reaches `main`. Perform the cutover as one

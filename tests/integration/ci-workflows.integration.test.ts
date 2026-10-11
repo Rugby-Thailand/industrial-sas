@@ -689,37 +689,69 @@ describe("workflow policy rejects regressions", () => {
     ).toContain("quality.yml: required browser runs keep zero retries");
   });
 
-  it("installs the pinned Bun checker before the default typecheck", () => {
-    const install = namedStep("quality.yml", "Install pinned Bun checker");
+  it("installs the pinned Bun once in the shared setup action", () => {
+    const action = actions["actions/setup-node-pnpm/action.yml"];
+    const install = "      run: node scripts/ci/install-bun-checker.mjs";
+    const frozen = "      run: pnpm install --frozen-lockfile";
+    expect(action).toContain(install);
+    const withAction = (text: string) =>
+      workflowPolicyProblems({
+        workflows: owned,
+        actions: { "actions/setup-node-pnpm/action.yml": text },
+        exceptions,
+        now: NOW,
+      });
+    const rule =
+      "actions/setup-node-pnpm/action.yml: must run node scripts/ci/install-bun-checker.mjs once, after pnpm install --frozen-lockfile";
+    expect(withAction(action)).toEqual([]);
+    expect(
+      withAction(action.replace(install, "      run: echo skip")),
+    ).toContain(rule);
+    // Before the frozen install: swap the two commands.
+    expect(
+      withAction(
+        action
+          .replace(frozen, "      run: __FROZEN__")
+          .replace(install, frozen)
+          .replace("      run: __FROZEN__", install),
+      ),
+    ).toContain(rule);
+    expect(
+      withAction(
+        action.replace(
+          install,
+          `${install}\n    - name: Again\n      shell: bash\n${install}`,
+        ),
+      ),
+    ).toContain(rule);
+  });
+
+  it("keeps the validate job on the shared Bun without a second install", () => {
     const typecheck = namedStep(
       "quality.yml",
       "Typecheck (cold next typegen + Bun checker)",
     );
-    expect(problemsWith("quality.yml", [[`${install}\n`, ""]])).toContain(
-      "quality.yml:validate: must run node scripts/ci/install-bun-checker.mjs",
-    );
-    expect(
-      problemsWith("quality.yml", [
-        [`${install}\n`, ""],
-        [`${typecheck}\n`, `${typecheck}\n${install}\n`],
-      ]),
-    ).toContain(
-      "quality.yml:validate: node scripts/ci/install-bun-checker.mjs must run before pnpm typecheck",
-    );
-    const withoutTypecheck = problemsWith("quality.yml", [
-      [`${typecheck}\n`, ""],
-    ]);
-    expect(withoutTypecheck).toContain(
-      "quality.yml:validate: must run pnpm typecheck",
-    );
-    expect(withoutTypecheck).not.toContain(
-      "quality.yml:validate: node scripts/ci/install-bun-checker.mjs must run before pnpm typecheck",
+    expect(owned["quality.yml"]).not.toContain(
+      "run: node scripts/ci/install-bun-checker.mjs",
     );
     expect(
       problemsWith("quality.yml", [
         [
-          "        run: node scripts/ci/install-bun-checker.mjs\n",
-          "        uses: oven-sh/setup-bun@0000000000000000000000000000000000000000 # v2.0.0\n",
+          `${typecheck}\n`,
+          `      - name: Install pinned Bun checker\n        run: node scripts/ci/install-bun-checker.mjs\n${typecheck}\n`,
+        ],
+      ]),
+    ).toContain(
+      "quality.yml:validate: node scripts/ci/install-bun-checker.mjs runs in the shared setup action, not again here",
+    );
+    expect(problemsWith("quality.yml", [[`${typecheck}\n`, ""]])).toContain(
+      "quality.yml:validate: must run pnpm typecheck",
+    );
+    expect(
+      problemsWith("quality.yml", [
+        [
+          `${typecheck}\n`,
+          `${typecheck}\n      - uses: oven-sh/setup-bun@0000000000000000000000000000000000000000 # v2.0.0\n`,
         ],
       ]),
     ).toEqual(

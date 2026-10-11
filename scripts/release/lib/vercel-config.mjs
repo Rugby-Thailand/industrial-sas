@@ -11,10 +11,16 @@ export const GATED_BUILD_COMMAND = [
     " --cmd 'node scripts/release/assert-deploy-env.mjs --phase=build && pnpm build'",
 ].join(" && ");
 
+// Hosted Vercel Functions run on Bun (docs/operations/bun-runtime.md). Vercel
+// accepts only "1.4.x" or "1.x" and manages the patch; 1.4.x matches the
+// pinned local and CI Bun (.bun-version).
+export const HOSTED_BUN_VERSION = "1.4.x";
+
 export function gatedVercelConfig() {
   return {
     $schema: "https://openapi.vercel.sh/vercel.json",
     buildCommand: GATED_BUILD_COMMAND,
+    bunVersion: HOSTED_BUN_VERSION,
     git: { deploymentEnabled: false },
   };
 }
@@ -22,7 +28,8 @@ export function gatedVercelConfig() {
 /**
  * Cutover readiness of a committed vercel.json. Before cutover the Git
  * integration still builds `main` with the dashboard command, so a gated
- * release would race it; the release refuses until both are true.
+ * release would race it; the release refuses until every check is true,
+ * including the committed hosted Bun runtime.
  */
 export function cutoverState(committed) {
   const config = committed ?? {};
@@ -30,10 +37,17 @@ export function cutoverState(committed) {
   const buildCommandGated = config.buildCommand === GATED_BUILD_COMMAND;
   // No ignored-build-step shortcut may skip a gated production build.
   const noIgnoreCommand = config.ignoreCommand === undefined;
+  // A missing or different runtime would silently release on Node instead.
+  const bunRuntime = config.bunVersion === HOSTED_BUN_VERSION;
   return {
-    ready: gitProductionDisabled && buildCommandGated && noIgnoreCommand,
+    ready:
+      gitProductionDisabled &&
+      buildCommandGated &&
+      noIgnoreCommand &&
+      bunRuntime,
     gitProductionDisabled,
     buildCommandGated,
     noIgnoreCommand,
+    bunRuntime,
   };
 }
