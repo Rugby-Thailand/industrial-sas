@@ -6,13 +6,16 @@ import { renderWithIntl } from "@tests/fixtures/intl-render";
 
 const writes = vi.hoisted(() => ({ save: vi.fn() }));
 vi.mock("convex/react", () => ({
-  useQuery: (ref: Parameters<typeof getFunctionName>[0]) => ({
-    ok: true,
-    requestId: "query",
-    value: getFunctionName(ref).endsWith(":accessMembers")
-      ? { ok: true, provisioned: true, items: [] }
-      : { ok: true, items: [], complete: true },
-  }),
+  useQuery: (ref: Parameters<typeof getFunctionName>[0]) =>
+    getFunctionName(ref) === "hr/policies:current"
+      ? undefined
+      : {
+          ok: true,
+          requestId: "query",
+          value: getFunctionName(ref).endsWith(":accessMembers")
+            ? { ok: true, provisioned: true, items: [] }
+            : { ok: true, items: [], complete: true },
+        },
   useMutation: (ref: Parameters<typeof getFunctionName>[0]) =>
     getFunctionName(ref).endsWith(":saveHoliday") ? writes.save : vi.fn(),
 }));

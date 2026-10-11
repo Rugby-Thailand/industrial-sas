@@ -35,10 +35,14 @@ export function FormField({
       .filter(Boolean)
       .join(" ") || undefined;
   return (
-    <div className={cn("grid min-w-0 gap-2", className)}>
+    <div className={cn("grid min-w-0 content-start", className)}>
       <Label
         htmlFor={id}
-        className={cn(srOnlyLabel && "sr-only", labelClassName)}
+        className={cn(
+          "mb-label text-xs leading-[1.125rem] font-medium text-text",
+          srOnlyLabel && "sr-only",
+          labelClassName,
+        )}
       >
         {label}
         {required ? (
@@ -55,14 +59,17 @@ export function FormField({
         "aria-invalid": error ? true : undefined,
       })}
       {hint ? (
-        <p id={`${id}-hint`} className="text-xs leading-relaxed text-muted">
+        <p
+          id={`${id}-hint`}
+          className="mt-field text-xs leading-relaxed text-muted"
+        >
           {hint}
         </p>
       ) : null}
       {error ? (
         <p
           id={`${id}-error`}
-          className="text-xs leading-relaxed text-danger"
+          className="mt-field text-xs leading-relaxed text-danger"
           role="alert"
         >
           {error}

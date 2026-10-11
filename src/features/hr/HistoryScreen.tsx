@@ -1,10 +1,12 @@
 "use client";
 
+import { CheckCircle2, CircleAlert, Clock, CalendarDays } from "lucide-react";
 import { useQuery } from "convex/react";
 import { useLocale, useTranslations } from "next-intl";
 import { useId, useState } from "react";
 
 import { useHrAccess } from "@/components/providers/HrAccessProvider";
+import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { FormField } from "@/components/ui/FormField";
 import { Input } from "@/components/ui/input";
@@ -21,7 +23,7 @@ import { TableScroller } from "@/components/ui/TableScroller";
 import { Link } from "@/i18n/navigation";
 import type { RefValue } from "@/lib/convex/clientRef";
 import { hrRefs } from "@/lib/convex/hrApi";
-import { HR_CODES, hrDayPath } from "@/lib/navigation";
+import { HR_CODES, ROUTES, hrDayPath } from "@/lib/navigation";
 
 import { addDays, formatBusinessDate } from "./format";
 import {
@@ -34,13 +36,19 @@ import {
   PlanText,
   TimeText,
 } from "./HrShared";
+import { HrActionCard } from "./HrActionCard";
+import { monthRange } from "./selfService";
 import { HrToolbar } from "./HrUi";
 
 export function HrHistoryScreen() {
   const t = useTranslations("Hr.history");
   return (
     <>
-      <PageHeader title={t("title")} summary={t("summary")} showBack={false} />
+      <PageHeader title={t("title")} summary={t("summary")} showBack={false}>
+        <Button asChild variant="outline">
+          <Link href={ROUTES.hrFrozenPeriods}>{t("closedPeriods")}</Link>
+        </Button>
+      </PageHeader>
       <HrGate code={HR_CODES.self}>
         <HistoryContent />
       </HrGate>
@@ -97,17 +105,44 @@ export function DateRangeFields({
 }
 
 function HistoryContent() {
+  const t = useTranslations("Hr.historySummary");
+  const id = useId();
   const access = useHrAccess();
   const today = access.today ?? "";
-  const [range, setRange] = useState({ from: addDays(today, -13), to: today });
+  const [range, setRange] = useState(
+    monthRange(today.slice(0, 7), today) ?? {
+      from: addDays(today, -13),
+      to: today,
+    },
+  );
+  const selected = monthRange(range.from.slice(0, 7), today);
+  const month =
+    selected?.from === range.from && selected.to === range.to
+      ? range.from.slice(0, 7)
+      : "";
   const outcome = useQuery(hrRefs.history, range);
   return (
     <div className="space-y-4">
       <HrToolbar>
+        <FormField id={id} label={t("month")}>
+          {(field) => (
+            <Input
+              {...field}
+              type="month"
+              max={today.slice(0, 7)}
+              value={month}
+              onChange={(event) => {
+                const next = monthRange(event.target.value, today);
+                if (next && next.from <= next.to) setRange(next);
+              }}
+              className="sm:w-44"
+            />
+          )}
+        </FormField>
         <DateRangeFields {...range} max={today} onChange={setRange} />
       </HrToolbar>
       <HrQueryState outcome={outcome}>
-        {() => (outcome?.ok ? <HistoryTable result={outcome.value} /> : null)}
+        {() => (outcome?.ok ? <HistorySummary result={outcome.value} /> : null)}
       </HrQueryState>
     </div>
   );
@@ -117,6 +152,86 @@ type HistoryRow = Extract<
   RefValue<typeof hrRefs.history>,
   { ok: true }
 >["rows"][number];
+
+function HistorySummary({
+  result,
+}: {
+  readonly result: RefValue<typeof hrRefs.history>;
+}) {
+  const t = useTranslations("Hr.historySummary");
+  const [filter, setFilter] = useState("ALL");
+  if (!result.ok) return <HrInlineError code={result.code} />;
+  const rows = result.rows.filter(
+    (row) => filter === "ALL" || row.status === filter,
+  );
+  const metrics = [
+    { key: "ALL", icon: CalendarDays, count: result.rows.length },
+    {
+      key: "READY",
+      icon: CheckCircle2,
+      count: result.rows.filter((row) => row.status === "READY").length,
+    },
+    {
+      key: "EXCEPTION",
+      icon: CircleAlert,
+      count: result.rows.filter((row) => row.status === "EXCEPTION").length,
+    },
+    {
+      key: "IN_PROGRESS",
+      icon: Clock,
+      count: result.rows.filter((row) => row.status === "IN_PROGRESS").length,
+    },
+  ];
+  return (
+    <div className="space-y-section">
+      <section aria-label={t("title")} className="space-y-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {metrics.map((metric) => (
+            <HrActionCard
+              key={metric.key}
+              icon={metric.icon}
+              label={t(`metric.${metric.key}`)}
+              value={metric.count}
+              selected={filter === metric.key}
+              onClick={() => setFilter(metric.key)}
+            />
+          ))}
+        </div>
+        <p className="text-sm text-muted">
+          {t("worked")}:{" "}
+          <span className="font-semibold text-text tabular-nums">
+            <Duration
+              minutes={result.rows.reduce(
+                (total, row) => total + row.workedMinutes,
+                0,
+              )}
+            />
+          </span>{" "}
+          · {t("truthHint")}
+        </p>
+      </section>
+      <p role="status" className="text-xs text-muted">
+        {t("showing", { count: rows.length, total: result.rows.length })}
+      </p>
+      {rows.length === 0 && filter !== "ALL" ? (
+        <EmptyState
+          title={t("empty")}
+          action={
+            <button
+              type="button"
+              onClick={() => setFilter("ALL")}
+              className="min-h-touch text-sm font-medium text-link focus-ring"
+            >
+              {t("clear")}
+            </button>
+          }
+        />
+      ) : (
+        <HistoryTable result={result} rows={rows} />
+      )}
+    </div>
+  );
+}
 
 /** A start–end pair; a single dash when neither side was recorded. */
 function Interval({
@@ -149,13 +264,15 @@ const changed = (row: HistoryRow) =>
 
 function HistoryTable({
   result,
+  rows,
 }: {
   readonly result: RefValue<typeof hrRefs.history>;
+  readonly rows: readonly HistoryRow[];
 }) {
   const t = useTranslations("Hr.history");
   const locale = useLocale();
   if (!result.ok) return <HrInlineError code={result.code} />;
-  if (result.rows.length === 0)
+  if (rows.length === 0)
     return <EmptyState title={t("empty")} body={t("emptyHint")} />;
   const timezone = result.timezone;
   const dateLink = (row: HistoryRow) => (
@@ -186,7 +303,7 @@ function HistoryTable({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {result.rows.map((row) => (
+              {rows.map((row) => (
                 <TableRow
                   key={row.businessDate}
                   className={
@@ -236,7 +353,7 @@ function HistoryTable({
         </TableScroller>
       </div>
       <ul className="space-y-2 md:hidden" aria-label={t("tableLabel")}>
-        {result.rows.map((row) => (
+        {rows.map((row) => (
           <li
             key={row.businessDate}
             className="rounded-xl border border-border bg-surface px-4 py-2"

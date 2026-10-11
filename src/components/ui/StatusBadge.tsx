@@ -6,10 +6,10 @@ export type BadgeTone =
 const TONE_CLASSES: Readonly<Record<BadgeTone, string>> = {
   neutral: "border-border-strong bg-raised text-text",
   accent: "border-link bg-selected text-link",
-  success: "border-success bg-success-surface text-success",
-  warning: "border-warning bg-warning-surface text-warning",
-  danger: "border-danger bg-danger-surface text-danger",
-  pending: "border-pending bg-pending-surface text-pending",
+  success: "border-badge-success bg-badge-success-surface text-badge-success",
+  warning: "border-badge-warning bg-badge-warning-surface text-badge-warning",
+  danger: "border-badge-danger bg-badge-danger-surface text-badge-danger",
+  pending: "border-badge-pending bg-badge-pending-surface text-badge-pending",
   muted: "border-border-strong bg-raised text-muted",
 };
 

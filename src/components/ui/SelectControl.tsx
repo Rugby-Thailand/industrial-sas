@@ -1,6 +1,6 @@
 "use client";
 
-import { useId } from "react";
+import { useId, type ReactNode } from "react";
 
 import {
   Select,
@@ -41,6 +41,8 @@ export interface SelectControlProps {
   readonly describedBy?: string;
 
   readonly label?: string;
+  /** Decorative glyph displayed within the field, before its selected value. */
+  readonly leadingIcon?: ReactNode;
   readonly size?: "default" | "compact";
   readonly className?: string;
   readonly testId?: string;
@@ -60,6 +62,7 @@ export function SelectControl({
   invalid = false,
   describedBy,
   label,
+  leadingIcon,
   size = "default",
   className,
   testId,
@@ -92,12 +95,23 @@ export function SelectControl({
         aria-busy={pending ? true : undefined}
         className={cn(
           size === "compact" &&
-            "h-11 min-h-11! px-3 py-0 text-sm md:h-8 md:min-h-8! md:text-xs",
+            "min-h-touch px-3 py-2 text-sm dense:min-h-control dense:py-1.5",
           className,
         )}
         {...(testId === undefined ? {} : { "data-testid": testId })}
       >
-        <SelectValue placeholder={isEmpty ? emptyLabel : placeholder} />
+        {leadingIcon === undefined ? null : (
+          <span
+            aria-hidden="true"
+            className="flex shrink-0 items-center text-muted"
+          >
+            {leadingIcon}
+          </span>
+        )}
+        <SelectValue
+          className={leadingIcon === undefined ? undefined : "flex-1"}
+          placeholder={isEmpty ? emptyLabel : placeholder}
+        />
       </SelectTrigger>
       <SelectContent>
         {isEmpty ? (

@@ -1,0 +1,8 @@
+{
+  "id": "page-05",
+  "kind": "ui-mockup",
+  "file": "docs/designs/hr-employee-self-service-2026-10-11/images/pages/05-holidays.png",
+  "prompt": "Use case: ui-mockup. Design a complete high fidelity Storage Planner annual holidays page, desktop and mobile together in a landscape comparison, no browser/device frame. Reference 1 supplies friendly component anatomy; reference 2 supplies actual app shell and system colors. Thai title วันหยุดประจำปี, selected year 2569, visible assigned site คลังตัวอย่าง. Reuse the reference holiday page's easy-to-scan month-grouped list, but system royal blue #1d4ed8, white, quiet neutral grey, dark slate text and matching line icons. Month groups ตุลาคม, พฤศจิกายน, ธันวาคม. Each holiday row has a rounded neutral date/weekday badge, a clear holiday name, optional next-holiday word ถัดไป and calm spacing. Use explicitly synthetic company entries: 23 ต.ค. วันหยุดบริษัท, 16 พ.ย. วันหยุดเพิ่มเติม, 31 ธ.ค. วันหยุดสิ้นปี. Top controls previous/next year and a clear ดาวน์โหลด CSV action; next holiday is subtly highlighted, not a hero. Show an adjacent small empty-year state ยังไม่มีวันหยุดในปีนี้ with a readable instruction ติดต่อ HR. Mobile footer action stays reachable without hiding rows. Include a brief note รายการตามสถานที่ทำงานของคุณ and small ข้อมูลตัวอย่าง label. Read-only employee UI has no edit/delete controls. Fully readable rows, consistent component, no pastel rainbow, cyan brand, hrzoft logo, invented legal claims or unnecessary graphs.",
+  "source": "/Users/macbook/.codex/generated_images/01a129f7-1b22-7ce2-a191-da3eaffd5a15/exec-380af880-a1da-42cf-b01d-1063d6253ae6.png",
+  "view": "annual holidays/year/download/empty"
+}

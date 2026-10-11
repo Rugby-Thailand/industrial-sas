@@ -54,6 +54,15 @@ export const STATIC_ROUTE_SEGMENTS: ReadonlySet<string> = new Set([
   "floors",
   "review",
   "demo",
+  "holidays",
+  "requests",
+  "customize",
+  "leave",
+  "announcements",
+  "notifications",
+  "payslips",
+  "manage",
+  "import",
 ]);
 
 type DimensionRule = (value: unknown) => DimensionValue | undefined;

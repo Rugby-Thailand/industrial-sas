@@ -62,13 +62,17 @@ function utcDate(date: string): Date | null {
 export function formatBusinessDate(
   date: string,
   locale: string,
-  options: { readonly weekday?: boolean; readonly short?: boolean } = {},
+  options: {
+    readonly weekday?: boolean;
+    readonly short?: boolean;
+    readonly monthOnly?: boolean;
+  } = {},
 ): string {
   const value = utcDate(date);
   if (value === null) return date;
   return new Intl.DateTimeFormat(intlLocale(locale), {
     ...(options.weekday ? { weekday: options.short ? "short" : "long" } : {}),
-    day: "numeric",
+    ...(options.monthOnly ? {} : { day: "numeric" as const }),
     month: options.short ? "short" : "long",
     year: "numeric",
     timeZone: "UTC",

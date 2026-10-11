@@ -190,3 +190,207 @@ export function useHrWrite<Value = Record<string, unknown>>(intent: string) {
     locked: state.kind === "PENDING" || state.kind === "UNCERTAIN",
   };
 }
+
+/**
+ * The only write payload persisted by this module. Clock mutations currently
+ * accept {requestId, expectedBusinessDate}; employeeId + scope are replay guards, never
+ * substitute for server authorization. Do not widen this to form evidence,
+ * salary values, documents or generic mutation callbacks.
+ */
+export interface HrClockCommand {
+  readonly kind: "CLOCK_IN" | "CLOCK_OUT";
+  readonly employeeId: string;
+  readonly expectedBusinessDate: string;
+  readonly requestId: string;
+}
+interface StoredClockCommand extends HrClockCommand {
+  readonly schema: 1;
+  readonly scope: string;
+}
+const CLOCK_STORAGE_KEY = "hr-clock-command:v1";
+const CLOCK_STORAGE_UNAVAILABLE = Symbol("clock-storage-unavailable");
+// One tab-local fallback, containing only the same clock descriptor. This
+// preserves exact retries even if session storage is blocked by the browser.
+let clockFallback: StoredClockCommand | null = null;
+
+function decodeClockCommand(value: unknown): StoredClockCommand | null {
+  if (typeof value !== "object" || value === null) return null;
+  const row = value as Record<string, unknown>;
+  if (
+    Object.keys(row).sort().join(",") !==
+      "employeeId,expectedBusinessDate,kind,requestId,schema,scope" ||
+    row.schema !== 1 ||
+    typeof row.scope !== "string" ||
+    !row.scope ||
+    row.scope.length > 512 ||
+    typeof row.employeeId !== "string" ||
+    !row.employeeId ||
+    row.employeeId.length > 128 ||
+    typeof row.expectedBusinessDate !== "string" ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(row.expectedBusinessDate) ||
+    (row.kind !== "CLOCK_IN" && row.kind !== "CLOCK_OUT") ||
+    typeof row.requestId !== "string" ||
+    !ID_PATTERN.test(row.requestId)
+  )
+    return null;
+  return {
+    schema: 1,
+    scope: row.scope,
+    employeeId: row.employeeId,
+    expectedBusinessDate: row.expectedBusinessDate,
+    kind: row.kind,
+    requestId: row.requestId,
+  };
+}
+function readClockCommand(): StoredClockCommand | null {
+  const record = sessionPreferences.read<
+    StoredClockCommand | null | typeof CLOCK_STORAGE_UNAVAILABLE
+  >(CLOCK_STORAGE_KEY, decodeClockCommand, CLOCK_STORAGE_UNAVAILABLE);
+  // A readable empty/invalid record wins over memory (e.g. storage was cleared).
+  return record === CLOCK_STORAGE_UNAVAILABLE ? clockFallback : record;
+}
+function clearClockCommand(scope: string) {
+  const stored = readClockCommand();
+  if (stored?.scope === scope || clockFallback?.scope === scope)
+    sessionPreferences.remove(CLOCK_STORAGE_KEY);
+  if (clockFallback?.scope === scope) clockFallback = null;
+}
+/** Run above the page gate, so logout also clears recovery after child unmount. */
+export function clearHrClockRecoveryExcept(identity?: string) {
+  const stored = readClockCommand();
+  const keep = (scope: string) =>
+    identity !== undefined && scope.startsWith(`${identity}|clock:`);
+  if (stored && !keep(stored.scope)) clearClockCommand(stored.scope);
+  if (clockFallback && !keep(clockFallback.scope))
+    clearClockCommand(clockFallback.scope);
+}
+
+/**
+ * Durable, strictly clock-only intent. Pending/reload recovery is uncertain,
+ * never a fabricated receipt. Changing the organization/actor/employee clears
+ * the old descriptor. Definite answers remove it; lost responses retain the
+ * original kind + args + requestId across navigation/remount.
+ */
+export function useHrClockWrite<Value = Record<string, unknown>>(
+  employeeId: string,
+  businessDate: string,
+  send: (command: HrClockCommand) => Promise<unknown>,
+) {
+  const identity = useHrAccess().identityKey ?? "anonymous";
+  const scope = `${identity}|clock:${employeeId}`;
+  const [entry, setEntry] = useState<{
+    readonly scope: string;
+    readonly command: StoredClockCommand | null;
+    readonly state: HrWriteState<Value>;
+  }>(() => {
+    const stored = readClockCommand();
+    const command =
+      stored?.scope === scope && stored.employeeId === employeeId
+        ? stored
+        : null;
+    return {
+      scope,
+      command,
+      state: command ? { kind: "UNCERTAIN" } : { kind: "IDLE" },
+    };
+  });
+  const current =
+    entry.scope === scope
+      ? entry
+      : {
+          scope,
+          command: null,
+          state: { kind: "IDLE" } as HrWriteState<Value>,
+        };
+  const inFlight = useRef(false);
+  const mounted = useRef(false);
+  const currentScope = useRef(scope);
+  const commandRef = useRef<StoredClockCommand | null>(current.command);
+  const sendRef = useRef(send);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+  useEffect(() => {
+    currentScope.current = scope;
+    commandRef.current = entry.scope === scope ? entry.command : null;
+    sendRef.current = send;
+    const stored = readClockCommand();
+    if (
+      clockFallback &&
+      (clockFallback.scope !== scope || clockFallback.employeeId !== employeeId)
+    )
+      clearClockCommand(clockFallback.scope);
+    if (
+      stored &&
+      (stored.scope !== scope || stored.employeeId !== employeeId)
+    ) {
+      clearClockCommand(stored.scope);
+    }
+  }, [employeeId, entry.command, entry.scope, scope, send]);
+  const run = useCallback(
+    async (kind?: HrClockCommand["kind"]): Promise<HrWriteState<Value>> => {
+      if (inFlight.current) return { kind: "PENDING" };
+      const retained =
+        commandRef.current?.scope === scope ? commandRef.current : null;
+      if (
+        !retained &&
+        (!kind || !employeeId || !/^\d{4}-\d{2}-\d{2}$/.test(businessDate))
+      )
+        return { kind: "IDLE" };
+      const command: StoredClockCommand = retained ?? {
+        schema: 1,
+        scope,
+        employeeId,
+        expectedBusinessDate: businessDate,
+        kind: kind!,
+        requestId: crypto.randomUUID(),
+      };
+      commandRef.current = command;
+      clockFallback = command;
+      sessionPreferences.write(CLOCK_STORAGE_KEY, command);
+      inFlight.current = true;
+      setEntry({ scope, command, state: { kind: "PENDING" } });
+      let next: HrWriteState<Value>;
+      try {
+        // Project the strict API args: no storage metadata goes to the server.
+        next = classifyOutcome<Value>(
+          await sendRef.current({
+            kind: command.kind,
+            employeeId: command.employeeId,
+            expectedBusinessDate: command.expectedBusinessDate,
+            requestId: command.requestId,
+          }),
+        );
+      } catch (error) {
+        const code = errorCode(error);
+        next =
+          code === null ? { kind: "UNCERTAIN" } : { kind: "REFUSED", code };
+      }
+      inFlight.current = false;
+      if (next.kind !== "UNCERTAIN") {
+        clearClockCommand(scope);
+        if (commandRef.current?.scope === scope) commandRef.current = null;
+      }
+      if (!mounted.current || currentScope.current !== scope)
+        return { kind: "IDLE" };
+      setEntry({
+        scope,
+        command: next.kind === "UNCERTAIN" ? command : null,
+        state: next,
+      });
+      return next;
+    },
+    [businessDate, employeeId, scope],
+  );
+  const retry = useCallback(() => run(), [run]);
+  return {
+    state: current.state,
+    command: current.command,
+    submit: run,
+    retry,
+    pending: current.state.kind === "PENDING",
+  };
+}

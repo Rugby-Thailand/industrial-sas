@@ -84,6 +84,8 @@ export interface PeriodRow {
   readonly employeeName: string;
   readonly businessDate: IsoDate;
   readonly plan: DayPlan;
+  readonly originalStartAt?: number;
+  readonly originalEndAt?: number;
   readonly actualStartAt?: number;
   readonly actualEndAt?: number;
   readonly workedMinutes: number;
@@ -158,6 +160,12 @@ export function buildPeriodRows(input: {
           employeeName: employee.name,
           businessDate: date,
           plan,
+          ...(day?.clockInAt === undefined
+            ? {}
+            : { originalStartAt: day.clockInAt }),
+          ...(day?.clockOutAt === undefined
+            ? {}
+            : { originalEndAt: day.clockOutAt }),
           ...(evaluation.effectiveStartAt === undefined
             ? {}
             : { actualStartAt: evaluation.effectiveStartAt }),
@@ -258,6 +266,8 @@ export function periodFingerprintText(rows: readonly PeriodRow[]): string {
       row.plan.kind === "SCHEDULED" ? row.plan.startAt : row.plan.reason,
       row.plan.kind === "SCHEDULED" ? row.plan.endAt : null,
       row.plan.breakMinutes,
+      row.originalStartAt ?? null,
+      row.originalEndAt ?? null,
       row.actualStartAt ?? null,
       row.actualEndAt ?? null,
       row.workedMinutes,

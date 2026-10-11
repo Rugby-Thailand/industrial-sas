@@ -1,0 +1,227 @@
+/*
+ * Layout previews for #workflow-panel only. Loaded after ../tokens.css and
+ * ../styles.css; field sizes, type, palette, statuses and focus come from the
+ * baseline. Base rules below are the stacked (phone) state; side-by-side
+ * layouts apply only above 800px and when the panel itself is wide enough.
+ */
+
+/* Preview chooser beside the workspace heading. */
+.variant-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.variant-bar-label {
+  margin-right: 4px;
+  color: var(--token-muted);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+}
+.variant-choice[aria-pressed="true"] {
+  border-color: var(--token-link);
+  color: var(--token-link);
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
+}
+.variant-description {
+  color: var(--token-muted);
+  font-size: 14px;
+  line-height: 20px;
+  margin: -4px 0 16px;
+}
+.variant-baseline {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--sheet-control-size);
+  margin-left: 8px;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+#workflow-panel[data-variant] {
+  container: workflow-panel / inline-size;
+}
+#workflow-panel[data-variant] .vx-stack {
+  display: grid;
+  gap: 24px;
+}
+
+/* Section labels: 12/16 operating text at medium weight. */
+#workflow-panel[data-variant] .vx-label {
+  margin: 0;
+  color: var(--token-text);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  letter-spacing: 0;
+}
+#workflow-panel[data-variant] .ticket-heading.vx-label {
+  display: block;
+}
+#workflow-panel[data-variant] .ticket-heading.vx-label strong {
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+/* The label names the location band, so the pin icon is redundant. */
+#workflow-panel[data-variant] .location-strip > svg {
+  display: none;
+}
+
+/* Context groups use an 8px rhythm; baseline row margins are dropped. */
+#workflow-panel[data-variant] :is(.vr-group, .ml-content) {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+#workflow-panel[data-variant]
+  :is(.vr-group, .ml-content)
+  > :is(
+    .location-strip,
+    .ticket-toolbar,
+    .review-advisory,
+    .stat-strip,
+    .catalogue-search,
+    .time-grid,
+    .shift-strip,
+    .hr-policy,
+    .floor-legend,
+    .inline-feedback,
+    p
+  ) {
+  margin-block: 0;
+}
+#workflow-panel[data-variant] :is(.vr-group, .ml-content) > p:not([class]) {
+  color: var(--token-muted);
+  font-size: 12px;
+  line-height: 18px;
+}
+#workflow-panel[data-variant] .ml-content > .hr-action-row {
+  margin-top: 8px;
+}
+
+/* Side Rail, stacked: rail content first, then the work. */
+#workflow-panel[data-variant="side-rail"] .vr-layout,
+#workflow-panel[data-variant="side-rail"] .vr-rail {
+  display: grid;
+  gap: 24px;
+}
+#workflow-panel[data-variant="side-rail"] :is(.vr-rail, .vr-main) {
+  min-width: 0;
+}
+/* Margin Labels, stacked: each label sits 8px above its band. */
+#workflow-panel[data-variant="margin-labels"] .ml-band {
+  display: grid;
+  gap: 8px;
+}
+
+/* Phone: Save fills the content width. */
+@media (max-width: 800px) {
+  #workflow-panel[data-variant] .save-row {
+    flex-wrap: wrap;
+  }
+  #workflow-panel[data-variant] .save-row .btn {
+    width: 100%;
+  }
+}
+
+@media (min-width: 801px) {
+  /* Side Rail: 200px unboxed context rail, 24px gap, work column after. */
+  @container workflow-panel (min-width: 640px) {
+    #workflow-panel[data-variant="side-rail"] .vr-layout {
+      grid-template-columns: 200px minmax(0, 1fr);
+      column-gap: 24px;
+      align-items: start;
+    }
+    /* Floor: inspector shown left while the map stays first in DOM order. */
+    #workflow-panel[data-variant="side-rail"] .vr-map-first > .vr-rail {
+      grid-column: 1;
+      grid-row: 1;
+    }
+    #workflow-panel[data-variant="side-rail"] .vr-map-first > .vr-main {
+      grid-column: 2;
+      grid-row: 1;
+    }
+    #workflow-panel[data-variant="side-rail"] .vr-rail .location-strip {
+      gap: 8px;
+    }
+    #workflow-panel[data-variant="side-rail"] .vr-rail .location-name {
+      flex-basis: 100%;
+    }
+    #workflow-panel[data-variant="side-rail"] .vr-rail .ticket-toolbar {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    #workflow-panel[data-variant="side-rail"] .vr-rail .ticket-toolbar .btn {
+      justify-content: flex-start;
+    }
+    #workflow-panel[data-variant="side-rail"] .vr-rail .stat-strip {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 8px;
+    }
+    #workflow-panel[data-variant="side-rail"] .vr-rail .stat-strip > div {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    #workflow-panel[data-variant="side-rail"] .vr-rail .stat-strip dd {
+      margin: 0;
+      font-size: 18px;
+      line-height: 28px;
+    }
+    #workflow-panel[data-variant="side-rail"] .vr-rail #catalogue-filter {
+      width: 100%;
+    }
+    #workflow-panel[data-variant="side-rail"] .vr-rail .shift-strip {
+      flex-direction: column;
+      gap: 8px;
+    }
+    #workflow-panel[data-variant="side-rail"] .vr-rail .shift-strip strong {
+      display: block;
+    }
+  }
+
+  /* Margin Labels: 112px label margin beside form and context bands. */
+  @container workflow-panel (min-width: 520px) {
+    #workflow-panel[data-variant="margin-labels"] .ml-band {
+      grid-template-columns: 112px minmax(0, 1fr);
+      gap: 0 16px;
+      align-items: start;
+    }
+    /* Align each label with the first line of its band's content. */
+    #workflow-panel[data-variant="margin-labels"] .ml-align-text > .vx-label {
+      padding-top: 1px;
+    }
+    #workflow-panel[data-variant="margin-labels"] .ml-align-badge > .vx-label {
+      padding-top: 5px;
+    }
+    #workflow-panel[data-variant="margin-labels"]
+      .ml-align-control
+      > .vx-label {
+      padding-top: calc((var(--sheet-control-size) - 16px) / 2);
+    }
+    #workflow-panel[data-variant="margin-labels"] .ml-align-rule > .vx-label {
+      padding-top: 14px;
+    }
+    /* Save keeps the full-width rule; its content follows the label margin. */
+    #workflow-panel[data-variant="margin-labels"] #ticket-form > .save-row {
+      padding-left: 128px;
+    }
+    #workflow-panel[data-variant="margin-labels"]
+      #ticket-form
+      > .inline-feedback {
+      margin-left: 128px;
+    }
+  }
+}
+
+@media print {
+  .variant-bar {
+    display: none;
+  }
+}

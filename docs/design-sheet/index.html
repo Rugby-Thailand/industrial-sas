@@ -1,0 +1,560 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta
+      name="description"
+      content="A quieter design proposal for Storage Planner: foundations, working specimens, and workflow rules."
+    />
+    <title>Storage Planner · Design sheet</title>
+    <link rel="stylesheet" href="tokens.css" />
+    <link rel="stylesheet" href="styles.css?v=20261011-audit" />
+    <script src="sheet.js?v=20261011-audit" defer></script>
+    <link rel="stylesheet" href="review.css?v=20261011-audit" />
+    <script src="review.js?v=20261011-audit" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main" data-i18n="skip">Skip to design sheet</a>
+    <header class="sheet-header">
+      <a
+        class="wordmark"
+        href="#main"
+        aria-label="Storage Planner design sheet"
+      >
+        <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
+          <rect width="32" height="32" rx="7" fill="currentColor" />
+          <g
+            fill="none"
+            stroke="var(--primary-foreground)"
+            stroke-width="1.4"
+            stroke-linejoin="round"
+          >
+            <path
+              d="M9 23V13h8v10M17 23V9h6v14M7 23h18M12 16h2m-2 3h2m6-6h1m-1 4h1m-1 3h1"
+            />
+          </g>
+        </svg>
+        <span
+          >Storage Planner<span class="wordmark-sub" data-i18n="designSheet"
+            >Design sheet</span
+          ></span
+        >
+      </a>
+      <nav class="sheet-nav" aria-label="Design sheet sections">
+        <a href="#foundations" data-i18n="foundations">Foundations</a>
+        <a href="#workspace" data-i18n="workspace">Workspace</a>
+        <a href="#states" data-i18n="states">States</a>
+      </nav>
+      <div class="sheet-controls">
+        <button
+          id="language-toggle"
+          class="btn quiet compact"
+          type="button"
+          aria-label="Switch to Thai"
+        >
+          <span id="language-label">ไทย</span>
+        </button>
+        <button
+          id="theme-toggle"
+          class="btn quiet icon-btn"
+          type="button"
+          aria-label="Switch to dark mode"
+          aria-pressed="false"
+        ></button>
+        <button
+          id="print-sheet"
+          class="btn compact outline"
+          type="button"
+          data-i18n="print"
+        >
+          Print sheet
+        </button>
+      </div>
+    </header>
+    <main id="main">
+      <section class="intro" aria-labelledby="sheet-title">
+        <div>
+          <h1 id="sheet-title" data-i18n="title">
+            Clear work.<br />Quiet surfaces.
+          </h1>
+          <p class="intro-copy" data-i18n="intro">
+            A calmer interface for warehouse work and people operations. Keep
+            the familiar blue. Let the task lead.
+          </p>
+        </div>
+        <div class="proposal-note">
+          <span class="proposal-label" data-i18n="proposal"
+            >Design proposal</span
+          >
+          <p data-i18n="proposalNote">
+            Based on the current system. Examples use synthetic data; no
+            application workflows have been changed.
+          </p>
+          <time datetime="2026-10-09">9 October 2026</time>
+        </div>
+      </section>
+
+      <section
+        id="workspace"
+        class="workspace-section"
+        aria-labelledby="workspace-title"
+      >
+        <div class="section-heading">
+          <h2 id="workspace-title" data-i18n="inPractice">
+            The system, in practice
+          </h2>
+          <span class="small muted" data-i18n="interactive"
+            >Interactive specimens</span
+          >
+        </div>
+        <div class="workspace-grid">
+          <aside class="direction-notes">
+            <h3 data-i18n="direction">Less framing.<br />More focus.</h3>
+            <p data-i18n="directionCopy">
+              A heading, a useful summary, and one clear next action. Sections
+              share a surface instead of becoming cards inside cards.
+            </p>
+            <dl class="principles">
+              <div>
+                <dt data-i18n="principleOne">Space groups information</dt>
+                <dd data-i18n="principleOneCopy">
+                  8px between fields. 16px within a task. 24px between task
+                  groups.
+                </dd>
+              </div>
+              <div>
+                <dt data-i18n="principleTwo">Color carries meaning</dt>
+                <dd data-i18n="principleTwoCopy">
+                  Blue for action. Status colors for exceptions and outcomes.
+                </dd>
+              </div>
+              <div>
+                <dt data-i18n="principleThree">Keep the work in view</dt>
+                <dd data-i18n="principleThreeCopy">
+                  Controls stay legible. Details unfold only when needed.
+                </dd>
+              </div>
+            </dl>
+          </aside>
+          <div class="specimen-frame">
+            <div class="specimen-chrome">
+              <span class="warehouse-label"
+                ><span id="warehouse-icon"></span
+                ><span class="mono">DEMO-WH</span></span
+              ><span class="small muted" data-i18n="sampleWorkspace"
+                >Sample workspace</span
+              >
+            </div>
+            <div
+              class="specimen-tabs"
+              role="tablist"
+              aria-label="Workflow specimens"
+            >
+              <button
+                class="specimen-tab"
+                id="tab-scan"
+                type="button"
+                role="tab"
+                aria-selected="true"
+                aria-controls="workflow-panel"
+                tabindex="0"
+                data-screen="scan"
+                data-i18n="scanTab"
+              >
+                Job scan
+              </button>
+              <button
+                class="specimen-tab"
+                id="tab-catalogue"
+                type="button"
+                role="tab"
+                aria-selected="false"
+                aria-controls="workflow-panel"
+                tabindex="-1"
+                data-screen="catalogue"
+                data-i18n="catalogueTab"
+              >
+                Catalogue
+              </button>
+              <button
+                class="specimen-tab"
+                id="tab-floor"
+                type="button"
+                role="tab"
+                aria-selected="false"
+                aria-controls="workflow-panel"
+                tabindex="-1"
+                data-screen="floor"
+                data-i18n="floorTab"
+              >
+                Floor plan
+              </button>
+              <button
+                class="specimen-tab"
+                id="tab-hr"
+                type="button"
+                role="tab"
+                aria-selected="false"
+                aria-controls="workflow-panel"
+                tabindex="-1"
+                data-screen="hr"
+                data-i18n="hrTab"
+              >
+                My day
+              </button>
+            </div>
+            <div
+              id="workflow-panel"
+              class="workflow-panel"
+              role="tabpanel"
+              aria-labelledby="tab-scan"
+              tabindex="0"
+            ></div>
+            <div class="specimen-caption">
+              <span id="caption-icon"></span>
+              <p id="workflow-caption"></p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section
+        id="foundations"
+        class="foundations-section"
+        aria-labelledby="foundations-title"
+      >
+        <div class="section-heading">
+          <h2 id="foundations-title" data-i18n="foundations">Foundations</h2>
+          <p class="small muted" data-i18n="sourceTokens">
+            2026-10-09 palette snapshot · application primary #1d4ed8.
+          </p>
+        </div>
+        <div class="foundation-grid">
+          <div class="palette-block">
+            <h3 data-i18n="color">Color</h3>
+            <p class="section-copy" data-i18n="colorCopy">
+              Neutral surfaces do most of the work. The primary blue remains
+              familiar and deliberate.
+            </p>
+            <div class="color-strip">
+              <div class="primary-swatch">
+                <span data-i18n="primary">Primary action</span
+                ><code id="primary-value"></code>
+              </div>
+              <div class="neutral-swatch canvas-swatch">
+                <span data-i18n="canvas">Canvas</span>
+              </div>
+              <div class="neutral-swatch surface-swatch">
+                <span data-i18n="surface">Surface</span>
+              </div>
+              <div class="neutral-swatch text-swatch">
+                <span data-i18n="text">Text</span>
+              </div>
+            </div>
+            <dl class="token-list">
+              <div>
+                <dt>--token-canvas</dt>
+                <dd id="canvas-value"></dd>
+              </div>
+              <div>
+                <dt>--token-surface</dt>
+                <dd id="surface-value"></dd>
+              </div>
+              <div>
+                <dt>--token-border-strong</dt>
+                <dd id="border-value"></dd>
+              </div>
+              <div>
+                <dt>--token-muted</dt>
+                <dd id="muted-value"></dd>
+              </div>
+            </dl>
+            <div class="status-row" id="semantic-statuses"></div>
+            <p class="small muted" data-i18n="colorRule">
+              Status = color + icon + text. Physical area colors retain their
+              own meaning.
+            </p>
+          </div>
+          <div class="typography-block">
+            <h3 data-i18n="typography">Typography</h3>
+            <p class="section-copy">Geist · Noto Sans Thai · Geist Mono</p>
+            <div class="type-specimen">
+              <div class="type-page" data-i18n="typePage">Finished goods</div>
+              <code>24 / 32 · 600</code>
+            </div>
+            <div class="type-specimen">
+              <div class="type-section" data-i18n="typeSection">
+                Storage location
+              </div>
+              <code>18 / 28 · 600</code>
+            </div>
+            <div class="type-specimen">
+              <div class="type-body" data-i18n="typeBody">
+                Confirm the location before saving.
+              </div>
+              <code>14 / 20 · 400</code>
+            </div>
+            <div class="type-specimen">
+              <div class="type-meta" data-i18n="typeMeta">
+                Last updated 09:41
+              </div>
+              <code>12 / 16 · 400</code>
+            </div>
+            <div class="type-specimen">
+              <div class="mono">FO26090042 · 1.20 × 0.80 m</div>
+              <code>14 / 20 · mono</code>
+            </div>
+            <p class="small muted" data-i18n="typeRule">
+              Fixed type sizes. Natural Thai wrapping. Monospace for codes,
+              times, and measurements.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section class="controls-section" aria-labelledby="controls-title">
+        <div class="section-heading">
+          <h2 id="controls-title" data-i18n="controls">
+            Controls that stay clear
+          </h2>
+          <p class="small muted" data-i18n="touchRule">
+            36px with a fine pointer from 768px · otherwise 48px
+          </p>
+        </div>
+        <div class="controls-grid">
+          <div>
+            <h3 data-i18n="actionHierarchy">Action hierarchy</h3>
+            <div class="button-specimens">
+              <button
+                type="button"
+                class="btn primary"
+                id="demo-primary"
+                data-i18n="saveChanges"
+              >
+                Save changes</button
+              ><button
+                type="button"
+                class="btn outline"
+                id="demo-secondary"
+                data-i18n="cancel"
+              >
+                Cancel</button
+              ><button
+                type="button"
+                class="btn quiet"
+                id="demo-details"
+                data-i18n="viewDetails"
+              >
+                View details
+              </button>
+            </div>
+            <p class="small muted" data-i18n="actionRule">
+              One primary action per task. Secondary actions stay neutral.
+            </p>
+            <div class="button-specimens">
+              <button
+                type="button"
+                class="btn primary"
+                disabled
+                data-i18n="saveChanges"
+              >
+                Save changes</button
+              ><span
+                class="btn primary sample-loading"
+                aria-label="Saving example"
+                ><svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 3a9 9 0 1 1-9 9" /></svg
+                ><span data-i18n="saving">Saving…</span></span
+              ><button
+                type="button"
+                class="btn destructive"
+                id="demo-remove"
+                data-i18n="remove"
+              >
+                Remove
+              </button>
+            </div>
+            <p class="small muted" data-i18n="disabledRule">
+              Disabled, saving, and destructive states remain distinct.
+            </p>
+          </div>
+          <div>
+            <h3 data-i18n="fieldHierarchy">Field hierarchy</h3>
+            <div class="field-grid">
+              <div class="field">
+                <label for="demo-location" data-i18n="locationCode"
+                  >Location code</label
+                ><input
+                  id="demo-location"
+                  value="FG1-L01"
+                  spellcheck="false"
+                  autocomplete="off"
+                />
+                <p class="field-hint" data-i18n="inputHint">
+                  A neutral field with a visible edge.
+                </p>
+              </div>
+              <div class="field">
+                <label for="demo-required" data-i18n="jobNumber">Job No.</label
+                ><input
+                  id="demo-required"
+                  value=""
+                  aria-invalid="true"
+                  aria-describedby="required-error"
+                  required
+                />
+                <p
+                  class="field-error"
+                  id="required-error"
+                  data-i18n="requiredError"
+                >
+                  Enter a Job No. before saving.
+                </p>
+              </div>
+            </div>
+            <p class="small muted" data-i18n="fieldRule">
+              Errors explain recovery. AI origin is a small label beside the
+              field, never a page of amber fills.
+            </p>
+          </div>
+        </div>
+        <p
+          id="control-feedback"
+          class="control-feedback"
+          role="status"
+          aria-live="polite"
+        ></p>
+      </section>
+
+      <section
+        id="states"
+        class="states-section"
+        aria-labelledby="states-title"
+      >
+        <div class="section-heading">
+          <h2 id="states-title" data-i18n="statesTitle">
+            Useful in every state
+          </h2>
+          <p class="small muted" data-i18n="statesSubtitle">
+            Keep uncertainty visible. Keep the next step available.
+          </p>
+        </div>
+        <div class="state-specimens">
+          <div class="state-example">
+            <h3 data-i18n="emptyState">Empty</h3>
+            <div class="empty-example">
+              <span id="empty-icon"></span
+              ><strong data-i18n="noTickets">No tickets yet</strong>
+              <p data-i18n="emptyCopy">
+                Take a photo of a job ticket or scan its barcode.
+              </p>
+              <button
+                type="button"
+                class="btn outline"
+                id="demo-add"
+                data-i18n="addPhoto"
+              >
+                Photos (AI)
+              </button>
+            </div>
+          </div>
+          <div class="state-example">
+            <h3 data-i18n="loadingState">Loading</h3>
+            <div
+              class="skeleton-example"
+              role="img"
+              aria-label="Loading specimen"
+            >
+              <div></div>
+              <div></div>
+              <div></div>
+            </div>
+            <p class="small muted" data-i18n="loadingCopy">
+              Preserve the layout while records load. Unavailable totals never
+              become zero.
+            </p>
+          </div>
+          <div class="state-example">
+            <h3 data-i18n="failureState">Finished goods · save error</h3>
+            <div class="error-example">
+              <span id="error-icon"></span
+              ><strong data-i18n="notSaved">Could not save</strong>
+              <p data-i18n="failureCopy">
+                Check your input and connection, then retry. Your draft is kept.
+              </p>
+              <button
+                type="button"
+                class="btn outline"
+                id="demo-retry"
+                data-i18n="retry"
+              >
+                Try again
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="layout-section" aria-labelledby="layout-title">
+        <div class="section-heading">
+          <h2 id="layout-title" data-i18n="layoutTitle">
+            One rhythm, every screen
+          </h2>
+        </div>
+        <div class="layout-grid">
+          <div>
+            <h3 data-i18n="spacing">Spacing</h3>
+            <div class="spacing-scale">
+              <div><span style="width: 4px"></span><code>4</code></div>
+              <div><span style="width: 8px"></span><code>8</code></div>
+              <div><span style="width: 16px"></span><code>16</code></div>
+              <div><span style="width: 24px"></span><code>24</code></div>
+              <div><span style="width: 32px"></span><code>32</code></div>
+            </div>
+            <p class="small muted" data-i18n="spacingCopy">
+              4px base. 8px field gaps. 16px task sections. 24px task groups.
+              40px document chapters.
+            </p>
+          </div>
+          <div>
+            <h3 data-i18n="responsive">Responsive behavior</h3>
+            <dl class="responsive-rules">
+              <div>
+                <dt data-i18n="mobile">Phone</dt>
+                <dd data-i18n="mobileCopy">
+                  Stack fields. Collapse navigation. Keep actions inside the
+                  content width.
+                </dd>
+              </div>
+              <div>
+                <dt data-i18n="desktop">Desktop</dt>
+                <dd data-i18n="desktopCopy">
+                  Use available space for lists and maps. Cap forms at 48rem and
+                  details at 80rem.
+                </dd>
+              </div>
+              <div>
+                <dt data-i18n="accessibility">Access</dt>
+                <dd data-i18n="accessCopy">
+                  Keyboard focus, reduced motion, readable status labels, and
+                  long Thai names are part of the design.
+                </dd>
+              </div>
+            </dl>
+          </div>
+        </div>
+      </section>
+      <footer class="sheet-footer">
+        <p data-i18n="footer">
+          Built from the real Storage Planner system with Impeccable. A proposal
+          for review.
+        </p>
+        <a href="README.md" data-i18n="sourceNotes"
+          >Source notes & implementation guidance</a
+        >
+      </footer>
+    </main>
+  </body>
+</html>

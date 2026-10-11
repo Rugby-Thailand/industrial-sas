@@ -19,11 +19,15 @@ export interface HrAccessValue {
   readonly timezone?: string;
   readonly timezoneSupported: boolean;
   readonly today?: string;
-  readonly employee?: { readonly code: string; readonly displayName: string };
+  readonly employee?: {
+    readonly id: string;
+    readonly code: string;
+    readonly displayName: string;
+  };
   readonly sites: readonly HrSite[];
   /** False when the member's site scope exceeds the pilot listing bound. */
   readonly sitesComplete?: boolean;
-  /** Organization and actor, so cached write intents never cross accounts. */
+  /** Organization, actor and linked employee isolate cached write intents. */
   readonly identityKey?: string;
 }
 
@@ -67,7 +71,7 @@ export function HrAccessProvider({
       ...(access.employee === undefined ? {} : { employee: access.employee }),
       sites: access.sites,
       sitesComplete: access.sitesComplete,
-      identityKey: `${access.organizationId}:${access.actorUserId}`,
+      identityKey: `${access.organizationId}:${access.actorUserId}:${access.employee?.id ?? "not-linked"}`,
     };
   }, [isAuthenticated, isLoading, outcome]);
   return (

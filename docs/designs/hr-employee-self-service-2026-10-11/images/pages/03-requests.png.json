@@ -1,0 +1,8 @@
+{
+  "id": "page-03",
+  "kind": "ui-mockup",
+  "file": "docs/designs/hr-employee-self-service-2026-10-11/images/pages/03-requests.png",
+  "prompt": "Use case: ui-mockup. A complete high-fidelity Storage Planner My requests journey, landscape board with a desktop list/detail workspace and a narrow mobile creation screen. Reference 1 is the SAME shared Action Card row grammar, reference 2 supplies our app shell and royal blue/white/neutral-grey system. Friendly rounded grouping, warm spacious Thai labels and strong readable hierarchy. Title คำขอของฉัน. Filters ทั้งหมด, รอตรวจสอบ, ส่งกลับ, รับรองแล้ว; a date filter and primary สร้างคำขอ. Use three synthetic requests: แก้ไขเวลา 6 ต.ค. 2569 pending, ลาพักร้อน 19–20 ต.ค. 2569 pending, ลากิจ 28 ก.ย. 2569 returned with reason โปรดระบุช่วงเวลา. One row is selected and reveals original/proposed time comparison, reason and truthful status history, with แก้ไขและส่งใหม่ only on the returned item. The mobile Create request screen offers implemented correction and leave types as large labelled Action Cards; additional OT and shift options are shown only in a distinct future-design note, not enabled actions. Use system purple pending, green certified, neutral return, and textual status/icons. Calm neutral backgrounds, line icons and 48px targets. No hrzoft logo, cyan palette, rainbow tiles, device frame, misleading success or buttons nested inside clickable rows. Preserve action semantics and ensure the list/detail relationship is obvious.",
+  "source": "/Users/macbook/.codex/generated_images/01a129f7-1b22-7ce2-a191-da3eaffd5a15/exec-fd000e4f-db20-4530-9bd0-5ae1d08c3e78.png",
+  "view": "requests list/detail/create"
+}

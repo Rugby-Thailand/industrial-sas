@@ -28,6 +28,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { TableScroller } from "@/components/ui/TableScroller";
+import { cn } from "@/lib/utils";
 import { Link } from "@/i18n/navigation";
 import type { FinishedGoodsList } from "@/lib/convex/finishedGoodsApi";
 import {
@@ -294,13 +295,12 @@ function DesktopCatalogueTable({
             {table.getFlatHeaders().map((header, index) => (
               <TableHead
                 key={header.id}
-                className={
-                  header.id === "actions"
-                    ? "pr-4 text-right"
-                    : index === 0
-                      ? "pl-4"
-                      : ""
-                }
+                className={cn(
+                  header.id === "actions" && "pr-4 text-right",
+                  header.id === "quantity" &&
+                    "text-right [&_button]:justify-end",
+                  index === 0 && "pl-4",
+                )}
                 aria-sort={
                   header.column.getIsSorted() === "desc"
                     ? "descending"
@@ -328,13 +328,11 @@ function DesktopCatalogueTable({
               {row.getVisibleCells().map((cell, index) => (
                 <TableCell
                   key={cell.id}
-                  className={
-                    cell.column.id === "actions"
-                      ? "pr-4 text-right"
-                      : index === 0
-                        ? "max-w-80 py-2 pl-4 whitespace-normal"
-                        : ""
-                  }
+                  className={cn(
+                    cell.column.id === "actions" && "pr-4 text-right",
+                    cell.column.id === "quantity" && "text-right tabular-nums",
+                    index === 0 && "max-w-80 py-2 pl-4 whitespace-normal",
+                  )}
                 >
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}
                 </TableCell>

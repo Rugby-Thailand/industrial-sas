@@ -40,6 +40,30 @@ function Harness({
 }
 
 describe("SelectControl", () => {
+  it("keeps a leading icon inside the field without changing its accessible name or selected value", () => {
+    renderWithIntl(
+      <Harness
+        initial="prv_wh_bangpoo"
+        leadingIcon={
+          <svg data-testid="warehouse-glyph">
+            <title>Warehouse icon</title>
+          </svg>
+        }
+      />,
+    );
+
+    const trigger = selectTrigger("คลังสินค้า");
+    const icon = screen.getByTestId("warehouse-glyph");
+    expect(trigger).toContainElement(icon);
+    expect(icon.parentElement).toHaveAttribute("aria-hidden", "true");
+    expect(trigger).toHaveAccessibleName("คลังสินค้า");
+    expect(trigger).toHaveTextContent("BKK-01 · คลังบางปู");
+
+    chooseOption("คลังสินค้า", "LPN-01 · คลังลำพูน");
+    expect(trigger).toHaveTextContent("LPN-01 · คลังลำพูน");
+    expect(trigger).toContainElement(icon);
+  });
+
   it("is a combobox with the label its form gave it", () => {
     renderWithIntl(<Harness />);
     expect(selectTrigger("คลังสินค้า")).toHaveAttribute("role", "combobox");

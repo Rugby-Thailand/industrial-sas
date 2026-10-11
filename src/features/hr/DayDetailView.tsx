@@ -10,6 +10,7 @@ import type { hrRefs } from "@/lib/convex/hrApi";
 import { formatBusinessDate, formatDateTime } from "./format";
 import {
   CorrectionBadge,
+  HrCorrectionTimeline,
   DayStatusBadge,
   Duration,
   Facts,
@@ -298,7 +299,6 @@ export function DayEvents({ detail, timezone }: DayPart) {
 
 export function DayRequests({ detail, timezone }: DayPart) {
   const t = useTranslations("Hr.day");
-  const locale = useLocale();
   return (
     <>
       <SectionTitle>
@@ -339,26 +339,10 @@ export function DayRequests({ detail, timezone }: DayPart) {
               {correction.status === "PENDING" && correction.stale ? (
                 <p className="font-semibold text-warning">{t("stale")}</p>
               ) : null}
-              <ol className="space-y-1 border-l-2 border-border pl-3">
-                {correction.history.map((entry, index) => (
-                  <li key={`${entry.at}-${index}`} className="text-muted">
-                    <span className="tabular-nums">
-                      {formatDateTime(entry.at, locale, timezone)}
-                    </span>
-                    {" · "}
-                    <span className="text-text">
-                      {t(`history.${entry.action}`, {
-                        name: entry.actorName ?? t("unknownActor"),
-                      })}
-                    </span>
-                    {entry.reason ? (
-                      <span className="block break-words">
-                        “{entry.reason}”
-                      </span>
-                    ) : null}
-                  </li>
-                ))}
-              </ol>
+              <HrCorrectionTimeline
+                entries={correction.history}
+                timezone={timezone}
+              />
             </li>
           ))}
         </ul>

@@ -33,6 +33,7 @@ import {
 } from "@/lib/navigation";
 
 import { formatBusinessDate } from "./format";
+import { HrPolicySettings } from "./HrPolicySettings";
 import {
   Facts,
   HrGate,
@@ -78,6 +79,7 @@ function SettingsSections() {
     <div className="grid items-start gap-6 xl:grid-cols-2">
       <HolidaysPanel />
       <AccessPanel />
+      <HrPolicySettings />
       <PolicyPanel open={policyOpen} onToggle={setPolicyOpen} />
     </div>
   );

@@ -67,14 +67,10 @@ export function WorkspaceContextBar({
   return (
     <section
       aria-labelledby={`${warehouseId}-heading`}
-      className="mt-2 rounded-md border border-sidebar-border px-3 py-2"
+      className="mt-2 min-w-0"
       data-testid="sidebar-warehouse"
     >
-      <h2
-        id={`${warehouseId}-heading`}
-        className="flex items-center gap-1.5 text-xs font-medium text-sidebar-foreground/70"
-      >
-        <WarehouseIcon aria-hidden="true" className="size-3.5 shrink-0" />
+      <h2 id={`${warehouseId}-heading`} className="sr-only">
         {t("warehouse")}
       </h2>
       {!available ? (
@@ -98,8 +94,9 @@ export function WorkspaceContextBar({
             onValueChange={(warehouse) => workspace.selectWarehouse(warehouse)}
             placeholder={t("selectWarehouse")}
             emptyLabel={t("noWarehouses")}
+            leadingIcon={<WarehouseIcon className="size-4" />}
             size="compact"
-            className="mt-1 w-full [&_[data-slot=select-value]]:block [&_[data-slot=select-value]]:truncate"
+            className="w-full [&_[data-slot=select-value]]:block [&_[data-slot=select-value]]:truncate"
             testId="warehouse-select"
             options={workspace.warehouses.map((warehouse) => ({
               value: warehouse.id,
@@ -109,14 +106,20 @@ export function WorkspaceContextBar({
         </>
       ) : selected ? (
         <p
-          className="mt-1 min-w-0 text-sm"
+          className="flex min-w-0 items-center gap-2 px-3 py-2 text-sm"
           title={`${selected.code} · ${selected.name}`}
         >
-          <span className="block truncate font-semibold text-text">
-            {selected.code}
-          </span>
-          <span className="block truncate text-xs text-muted">
-            {selected.name}
+          <WarehouseIcon
+            aria-hidden="true"
+            className="size-4 shrink-0 text-muted"
+          />
+          <span className="min-w-0">
+            <span className="block truncate font-semibold text-text">
+              {selected.code}
+            </span>
+            <span className="block truncate text-xs text-muted">
+              {selected.name}
+            </span>
           </span>
         </p>
       ) : null}

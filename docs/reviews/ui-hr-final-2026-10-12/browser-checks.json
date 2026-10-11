@@ -1,0 +1,100 @@
+{
+  "source": "actual Next app and copied loopback Convex fixture; real Clerk development authentication; T3 fallback after explicit host unavailable",
+  "limitations": [
+    "Policy capabilities remain off in this copied fixture. Payroll fresh-auth provider capability setup is independently tested by signed-claim backend integration tests; no production setup claimed.",
+    "No camera/device scanner or mobile browser-engine test claimed."
+  ],
+  "results": [
+    {
+      "name": "mobile-home-en-light",
+      "url": "http://localhost:3101/en/hr/today",
+      "width": 390,
+      "theme": "__variable_8eaea4 __variable_8c25df light",
+      "overflow": false,
+      "untranslated": false,
+      "axe": []
+    },
+    {
+      "name": "mobile-search-controls",
+      "controls": [
+        {
+          "id": "sidebar-search",
+          "found": true,
+          "height": 48,
+          "border": "1px",
+          "iconInside": true
+        },
+        {
+          "id": "sidebar-ai-search",
+          "found": true,
+          "height": 48,
+          "border": "1px",
+          "iconInside": true
+        }
+      ]
+    },
+    {
+      "name": "desktop-policy-en-light",
+      "url": "http://localhost:3101/en/hr/settings",
+      "width": 1440,
+      "theme": "__variable_8eaea4 __variable_8c25df light",
+      "overflow": false,
+      "untranslated": false,
+      "axe": []
+    },
+    {
+      "name": "mobile-history-th-dark",
+      "url": "http://localhost:3101/th/hr/time",
+      "width": 390,
+      "theme": "__variable_8eaea4 __variable_8c25df dark",
+      "overflow": false,
+      "untranslated": false,
+      "axe": []
+    },
+    {
+      "name": "mobile-frozen-en-light",
+      "url": "http://localhost:3101/en/hr/time/periods/k17h0ygdpfmcqr8660wvc2q1yh8fy67z",
+      "width": 390,
+      "theme": "__variable_8eaea4 __variable_8c25df light",
+      "overflow": false,
+      "untranslated": false,
+      "axe": []
+    },
+    {
+      "name": "desktop-announcements-en-dark",
+      "url": "http://localhost:3101/en/hr/announcements/manage",
+      "width": 1440,
+      "theme": "__variable_8eaea4 __variable_8c25df dark",
+      "overflow": false,
+      "untranslated": false,
+      "axe": []
+    },
+    {
+      "name": "mobile-leave-th-light",
+      "url": "http://localhost:3101/th/hr/leave",
+      "width": 390,
+      "theme": "__variable_8eaea4 __variable_8c25df light",
+      "overflow": false,
+      "untranslated": false,
+      "axe": []
+    },
+    {
+      "name": "desktop-payslip-en-light",
+      "url": "http://localhost:3101/en/hr/payslips",
+      "width": 1440,
+      "theme": "__variable_8eaea4 __variable_8c25df light",
+      "overflow": false,
+      "untranslated": false,
+      "axe": []
+    },
+    {
+      "name": "desktop-import-th-dark",
+      "url": "http://localhost:3101/th/hr/payslips/import",
+      "width": 1440,
+      "theme": "__variable_8eaea4 __variable_8c25df dark",
+      "overflow": false,
+      "untranslated": false,
+      "axe": []
+    }
+  ]
+}

@@ -76,7 +76,7 @@ export function FinishedGoodsMobileList({
                   />
                 </Link>
                 <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-                  <span>
+                  <span className="ml-auto text-right tabular-nums">
                     {summary.quantity} {product.unit}
                   </span>
                   <Status value={product.status} />
@@ -120,7 +120,7 @@ export function FinishedGoodsMobileList({
                     {sku}
                   </p>
                 )}
-                <p className="text-sm">
+                <p className="text-right text-sm tabular-nums">
                   {pallet.quantity} {unit}
                   {pallet.lot ? ` · ${pallet.lot}` : ""}
                 </p>

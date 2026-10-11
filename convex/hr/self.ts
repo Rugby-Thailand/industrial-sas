@@ -16,12 +16,13 @@ import { resolveProposedInterval } from "../model/hr/attendance";
 import {
   addDays,
   compareDates,
+  datesInRange,
   inclusiveDayCount,
   isIsoDate,
   type IsoDate,
 } from "../model/hr/calendar";
 import { normalizeReason } from "../model/hr/employee";
-import { buildPeriodRows } from "../model/hr/period";
+import { buildPeriodRows, periodTotals } from "../model/hr/period";
 import {
   isEmployedOn,
   openDayDeadline,
@@ -29,7 +30,7 @@ import {
   resolveClockInDate,
   type DayPlan,
 } from "../model/hr/schedule";
-import { buildDayDetail, dayCorrections } from "./dayDetail";
+import { buildDayDetail, correctionView, dayCorrections } from "./dayDetail";
 import {
   closedPeriodCovering,
   dayOf,
@@ -56,6 +57,9 @@ const SELF = HR_PERMISSION.selfAccess;
 export const MAX_HISTORY_DAYS = 31;
 /** Resubmissions stop here; every earlier entry is kept, never truncated. */
 export const MAX_CORRECTION_HISTORY = 200;
+export const MIN_HOLIDAY_YEAR = 1900;
+export const MAX_HOLIDAY_YEAR = 2200;
+export const MAX_REQUEST_PAGE_SIZE = 50;
 
 type SelfState =
   | {
@@ -251,13 +255,194 @@ async function recentCorrections(
   return items;
 }
 
+/**
+ * The linked employee's complete selected-year site calendar. Exact date
+ * lookups bound this read to 366 dates, independently of older site calendars
+ * and the administrator list's newest-row limit. No site ID is accepted.
+ */
+export const holidays = queryWithOrg({
+  args: { year: v.number() },
+  returns: v.any(),
+  permissionCode: SELF,
+  target: { table: "hrHolidays" },
+  handler: async (ctx, args) => {
+    if (
+      !Number.isInteger(args.year) ||
+      args.year < MIN_HOLIDAY_YEAR ||
+      args.year > MAX_HOLIDAY_YEAR
+    )
+      return { ok: false as const, code: "YEAR_INVALID" };
+    const clock = orgClock(ctx);
+    if (clock === null)
+      return { ok: false as const, code: "TIMEZONE_UNSUPPORTED" };
+    const employee = await linkedEmployee(ctx);
+    if (employee === null) return { ok: false as const, code: "HR_NOT_LINKED" };
+    const dates = datesInRange(`${args.year}-01-01`, `${args.year}-12-31`);
+    const rows = await Promise.all(
+      dates.map((date) =>
+        ctx.tenantDb
+          .byIndex<Doc<"hrHolidays">>(
+            "hrHolidays",
+            "by_orgId_warehouseId_date",
+            [
+              { field: "warehouseId", value: employee.warehouseId },
+              { field: "date", value: date },
+            ],
+          )
+          .unique(),
+      ),
+    );
+    const holidays = rows.flatMap((row) =>
+      row === null ? [] : [{ id: row._id, date: row.date, name: row.name }],
+    );
+    return {
+      ok: true as const,
+      year: args.year,
+      today: clock.today,
+      timezone: clock.timezone,
+      employee: await employeeSummary(ctx, employee),
+      complete: true as const,
+      holidays,
+      nextHoliday:
+        holidays.find(
+          (holiday) => compareDates(holiday.date, clock.today) >= 0,
+        ) ?? null,
+    };
+  },
+});
+
+/** Complete personal correction history, accessed one bounded page at a time. */
+export const requests = queryWithOrg({
+  args: {
+    cursor: v.optional(v.string()),
+    from: v.optional(v.string()),
+    to: v.optional(v.string()),
+    text: v.optional(v.string()),
+    limit: v.optional(v.number()),
+    status: v.optional(
+      v.union(
+        v.literal("PENDING"),
+        v.literal("CERTIFIED"),
+        v.literal("RETURNED"),
+      ),
+    ),
+  },
+  returns: v.any(),
+  permissionCode: SELF,
+  target: { table: "hrCorrectionRequests" },
+  handler: async (ctx, args) => {
+    const limit = args.limit ?? 20;
+    if (!Number.isInteger(limit) || limit < 1 || limit > MAX_REQUEST_PAGE_SIZE)
+      return { ok: false as const, code: "PAGE_SIZE_INVALID" };
+    const clock = orgClock(ctx);
+    if (clock === null)
+      return { ok: false as const, code: "TIMEZONE_UNSUPPORTED" };
+    const employee = await linkedEmployee(ctx);
+    if (employee === null) return { ok: false as const, code: "HR_NOT_LINKED" };
+    const text = args.text?.trim().toLocaleLowerCase() ?? "";
+    if (text.length > 100)
+      return { ok: false as const, code: "REQUEST_FILTER_INVALID" };
+    if (
+      (args.from !== undefined && !isIsoDate(args.from)) ||
+      (args.to !== undefined && !isIsoDate(args.to)) ||
+      (args.from !== undefined && args.to !== undefined && args.from > args.to)
+    )
+      return { ok: false as const, code: "DATE_RANGE_INVALID" };
+    const index = ctx.tenantDb.byIndex<Doc<"hrCorrectionRequests">>(
+      "hrCorrectionRequests",
+      args.status === undefined
+        ? "by_orgId_employeeId_businessDate"
+        : "by_orgId_employeeId_status_businessDate",
+      [
+        { field: "employeeId", value: employee._id },
+        ...(args.status === undefined
+          ? []
+          : [{ field: "status", value: args.status }]),
+      ],
+    );
+    // Filters apply across retained history, with one indexed pagination call
+    // per query. Empty filtered pages keep continuation for further scanning.
+    const page = await index.page({
+      limit,
+      cursor: args.cursor,
+      order: "desc",
+    });
+    const matches = (request: Doc<"hrCorrectionRequests">) =>
+      (args.from === undefined || request.businessDate >= args.from) &&
+      (args.to === undefined || request.businessDate <= args.to) &&
+      (text === "" ||
+        `${request.businessDate} ${request.reason} ${request.decisionReason ?? ""}`
+          .toLocaleLowerCase()
+          .includes(text));
+    const items = page.page.filter(matches);
+    return {
+      ok: true as const,
+      today: clock.today,
+      timezone: clock.timezone,
+      // The index orders dates, then creation time; resubmissions retain their
+      // identity and business date rather than pretending to be new records.
+      items: items.map((request) => ({
+        id: request._id,
+        businessDate: request.businessDate,
+        status: request.status,
+        reason: request.reason,
+        version: request.version,
+        proposedStartAt: request.proposedStartAt,
+        proposedEndAt: request.proposedEndAt,
+        submittedAt: request.submittedAt,
+        decidedAt: request.decidedAt,
+        decisionReason: request.decisionReason,
+      })),
+      isDone: page.isDone,
+      continueCursor: page.continueCursor,
+    };
+  },
+});
+
+/** An exact owned request, including every retained resubmission/decision. */
+export const requestDetail = queryWithOrg({
+  args: { correctionId: v.id("hrCorrectionRequests") },
+  returns: v.any(),
+  permissionCode: SELF,
+  target: { table: "hrCorrectionRequests" },
+  handler: async (ctx, args) => {
+    const clock = orgClock(ctx);
+    if (clock === null)
+      return { ok: false as const, code: "TIMEZONE_UNSUPPORTED" };
+    const employee = await linkedEmployee(ctx);
+    if (employee === null) return { ok: false as const, code: "HR_NOT_LINKED" };
+    const request = await ctx.tenantDb.get<Doc<"hrCorrectionRequests">>(
+      "hrCorrectionRequests",
+      args.correctionId,
+    );
+    if (request === null || request.employeeId !== employee._id)
+      return { ok: false as const, code: "NOT_FOUND" };
+    const day = await ctx.tenantDb.get<AttendanceDay>(
+      "hrAttendanceDays",
+      request.dayId,
+    );
+    if (day === null || day.employeeId !== employee._id)
+      return { ok: false as const, code: "NOT_FOUND" };
+    return {
+      ok: true as const,
+      today: clock.today,
+      timezone: clock.timezone,
+      businessDate: request.businessDate,
+      detail: await correctionView(ctx, request, day.revision, new Map()),
+    };
+  },
+});
+
 const clockReplay = (ctx: TenantFunctionContext) => async (eventId: string) => {
   const event = await ctx.tenantDb.get<Doc<"hrAttendanceEvents">>(
     "hrAttendanceEvents",
     eventId,
   );
-  // Only the actor who recorded the event gets its saved answer back.
-  return event === null || event.actorUserId !== ctx.tenant.actor._id
+  // A relinked account cannot recover a previous employee's saved receipt.
+  const employee = await linkedEmployee(ctx);
+  return event === null ||
+    event.actorUserId !== ctx.tenant.actor._id ||
+    employee?._id !== event.employeeId
     ? null
     : {
         occurredAt: event.occurredAt,
@@ -314,7 +499,7 @@ async function activeLinkedEmployee(ctx: TenantFunctionContext) {
 }
 
 export const clockIn = mutationWithOrg({
-  args: { requestId: v.string() },
+  args: { requestId: v.string(), expectedBusinessDate: v.optional(v.string()) },
   returns: v.any(),
   permissionCode: SELF,
   target: { table: "hrAttendanceEvents" },
@@ -322,7 +507,10 @@ export const clockIn = mutationWithOrg({
     hrCommand(ctx, {
       operation: "hr.attendance.clockIn",
       requestId: args.requestId,
-      payload: {},
+      payload:
+        args.expectedBusinessDate === undefined
+          ? {}
+          : { expectedBusinessDate: args.expectedBusinessDate },
       table: "hrAttendanceEvents",
       replay: clockReplay(ctx),
       run: async () => {
@@ -331,6 +519,12 @@ export const clockIn = mutationWithOrg({
         const employee = await activeLinkedEmployee(ctx);
         if ("written" in employee) return employee;
         const state = await selfState(ctx, employee, clock);
+        if (
+          args.expectedBusinessDate !== undefined &&
+          args.expectedBusinessDate !==
+            (state.kind === "CLOCKED_IN" ? state.day.businessDate : state.date)
+        )
+          return fail("HR_CLOCK_DAY_CHANGED");
         switch (state.kind) {
           case "CLOCKED_IN":
             return fail("HR_ALREADY_CLOCKED_IN");
@@ -351,6 +545,8 @@ export const clockIn = mutationWithOrg({
         if (await closedPeriodCovering(ctx, employee.warehouseId, state.date))
           return fail("HR_PERIOD_CLOSED");
         const day = await ensureDay(ctx, employee, state.date, clock.offset);
+        if (day.approvedLeaveRequestId !== undefined)
+          return fail("HR_DAY_ON_APPROVED_LEAVE");
         return await recordClock(
           ctx,
           employee,
@@ -364,7 +560,7 @@ export const clockIn = mutationWithOrg({
 });
 
 export const clockOut = mutationWithOrg({
-  args: { requestId: v.string() },
+  args: { requestId: v.string(), expectedBusinessDate: v.optional(v.string()) },
   returns: v.any(),
   permissionCode: SELF,
   target: { table: "hrAttendanceEvents" },
@@ -372,7 +568,10 @@ export const clockOut = mutationWithOrg({
     hrCommand(ctx, {
       operation: "hr.attendance.clockOut",
       requestId: args.requestId,
-      payload: {},
+      payload:
+        args.expectedBusinessDate === undefined
+          ? {}
+          : { expectedBusinessDate: args.expectedBusinessDate },
       table: "hrAttendanceEvents",
       replay: clockReplay(ctx),
       run: async () => {
@@ -390,6 +589,13 @@ export const clockOut = mutationWithOrg({
         if (state.kind === "OUTSIDE_EMPLOYMENT" && state.openClockIn)
           return fail("HR_OUTSIDE_EMPLOYMENT");
         if (state.kind !== "CLOCKED_IN") return fail("HR_NOT_CLOCKED_IN");
+        if (
+          args.expectedBusinessDate !== undefined &&
+          args.expectedBusinessDate !== state.day.businessDate
+        )
+          return fail("HR_CLOCK_DAY_CHANGED");
+        if (state.day.approvedLeaveRequestId !== undefined)
+          return fail("HR_DAY_ON_APPROVED_LEAVE");
         if (
           await closedPeriodCovering(
             ctx,
@@ -479,6 +685,7 @@ export const history = queryWithOrg({
       ok: true as const,
       today: clock.today,
       timezone: clock.timezone,
+      summary: periodTotals(rows),
       rows: [...rows].reverse().map((row) => ({
         businessDate: row.businessDate,
         plan: planView(row.plan),
@@ -588,6 +795,8 @@ export const submitCorrection = mutationWithOrg({
           return fail("HR_PERIOD_CLOSED");
 
         const existing = await dayOf(ctx, employee._id, date);
+        if (existing?.approvedLeaveRequestId !== undefined)
+          return fail("HR_DAY_ON_APPROVED_LEAVE");
         if (existing?.pendingCorrectionId !== undefined)
           return fail("CORRECTION_ALREADY_PENDING");
         const plan = existing

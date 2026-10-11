@@ -1,0 +1,18 @@
+{
+  "baselineFiles": 628,
+  "applicationChanges": [],
+  "designImageCount": 14,
+  "pngSidecarsPresent": true,
+  "userApprovedDesigns": [],
+  "referenceCount": 10,
+  "referenceChecksPassed": true,
+  "missingDesignLinks": [],
+  "finalCaptureCount": 29,
+  "invalidCaptures": [],
+  "artifactHashDrift": [],
+  "reviewAndDocumentationPresent": true,
+  "latestRevision": "drag-only-customization",
+  "currentEvidence": "shortcut-drag/artifact-hashes.json",
+  "currentCaptureCount": 4,
+  "priorFinalCaptureCount": 29
+}

@@ -1,0 +1,28 @@
+{
+  "revision": "drag-only-customization",
+  "scope": "User requested removal of reorder arrow buttons; shortcut customization and its image board updated. Earlier whole-preview captures/reviews remain historical.",
+  "files": {
+    "preview/index.html": "e1255417773da3862864adf08db8de852bbd0f3440dc4fc3f774cb66f1e870ab",
+    "preview/styles.css": "aa693273990e7e785913dbf08739d1c4a83ad06e91487bbadee22d819de5e61f",
+    "preview/app.js": "c3e5196252725fdfc125634f9150b9bb045edfd5cc968c34ac0de76537acb642",
+    "plan.md": "145c8fd3232b86d9458d612c159ec704651cd56aba0dcfcbf72716e8611f1bbe",
+    "images/components/04-customization-states.png": "7f67d911f2eb181f18181482682e535af4936a905491a8cd08134d2bd06f9add",
+    "manifest.json": "3aa137fcdf2b7bd8d1c26b82eaba78804e11146b687bb2d76a91a54b2c69b602"
+  },
+  "screenshots": [
+    "customize-dark-desktop.png",
+    "customize-dark-mobile.png",
+    "customize-light-desktop.png",
+    "customize-light-mobile.png"
+  ],
+  "viewportSizes": {
+    "desktop": [
+      1440,
+      960
+    ],
+    "mobile": [
+      390,
+      844
+    ]
+  }
+}

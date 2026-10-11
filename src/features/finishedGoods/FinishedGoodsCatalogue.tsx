@@ -377,7 +377,7 @@ function Catalogue({
                     <h2 className="mt-1 text-lg leading-7 font-semibold break-words">
                       {product.name || t("copy.untitled-draft")}
                     </h2>
-                    <p className="mt-3 text-sm text-muted">
+                    <p className="mt-3 text-right text-sm text-muted tabular-nums">
                       {t("copy.total-in-storage-units")}: {summary.quantity}{" "}
                       {product.unit}
                     </p>
@@ -427,7 +427,7 @@ function Catalogue({
                         {product?.name ?? "—"}
                       </Link>
                     </h2>
-                    <p className="mt-2 text-sm text-muted">
+                    <p className="mt-2 text-right text-sm text-muted tabular-nums">
                       {pallet.quantity} {product?.unit ?? ""}
                       {pallet.lot ? ` · ${pallet.lot}` : ""}
                     </p>

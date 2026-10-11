@@ -1,0 +1,37 @@
+{
+  "checks": [
+    {
+      "name": "Six drag handles replace all arrow controls",
+      "passed": true
+    },
+    {
+      "name": "Desktop drag updates draft and live preview; save persists reload",
+      "passed": true
+    },
+    {
+      "name": "Cancel discards drag order and visibility together",
+      "passed": true
+    },
+    {
+      "name": "Keyboard works through the same handle; Escape restores; Space commits",
+      "passed": true
+    },
+    {
+      "name": "Pointer Escape and cancellation restore order without saving",
+      "passed": true
+    },
+    {
+      "name": "Drag returns to original order clears unsaved state",
+      "passed": true
+    },
+    {
+      "name": "Desktop/mobile/light/dark captures have full labels and no overflow",
+      "passed": true
+    },
+    {
+      "name": "Real emulated touch drag reorders and releases capture",
+      "passed": true
+    }
+  ],
+  "errors": []
+}
