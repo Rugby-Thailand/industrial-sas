@@ -1,6 +1,8 @@
 # T03 implementation handoff — Bun dependency security, resolved graph and lifecycle parity
 
-Status: **SOURCE_VERIFIED; FINAL_DOCUMENTATION_HEAD_PENDING.** Both independent final audits requested changes on `f92f437ac281519fff93d527ccb1241b5e3cd2dd`. The scoped corrections were committed as `66d143d6a00f971805e1bba303014d828e9ab7e6` and are recorded in [`final-audit-corrections.md`](final-audit-corrections.md): the installed store now refuses nested package-local `node_modules`, both manifest loaders reject duplicate keys, audit HOME cleanup is attempted on setup and close paths, with removal failures settled as refusals, and the 26 recorded test type errors are fixed. Both non-author audits and 15 coordinator gates passed on that source commit; the final documentation head must be reviewed and gated before a PR. See [final verification](final-verification.md). Earlier results below, including the initial-audit fixes, are historical evidence.
+Status: **FINAL_VERIFY — integrated re-verification pending.** Concurrent `main` `a9fd6a01859fc4109e540686c17fb1efe45d5b11` (PR #73) was merged cleanly as `a6be57e5a112a1948f5ba3ff4adcb6bf3bc9bba4`. No T03 module, test, fixture, lock, exception, workflow or release input changed. No additional code refactor is justified; see [integration refactor decision](integration-refactor.md). The next exact documentation head needs both non-author audits and all required gates before a PR. Any PR or merge waits for the companion's recorded `main` release disposition.
+
+History: both independent final audits requested changes on `f92f437ac281519fff93d527ccb1241b5e3cd2dd`. The scoped corrections were committed as `66d143d6a00f971805e1bba303014d828e9ab7e6` and are recorded in [`final-audit-corrections.md`](final-audit-corrections.md). The installed store now refuses nested package-local `node_modules`, both manifest loaders reject duplicate keys, audit HOME cleanup is attempted on setup and close paths (removal failures settle as refusals), and the 26 recorded test type errors are fixed. Both non-author audits and 15 coordinator gates passed on that source commit. Its documentation head `399173c374ea339f44d774fa30f3de72e62a4e48` then also passed both audits and 15 gates. Both results are **historical** and do not approve `a6be57e5` or a later head. See [final verification](final-verification.md). Earlier results below, including the initial-audit fixes, are historical evidence.
 Base `d07f6282bfee73ac8c264f6cab4737487dc52a8e` on
 `codex/bun-security-t03-20261011`. Implementation agent: Kiro, claude-opus-5.5,
 high effort, no delegation. Segment 1 ended 2026-10-11T08:53:25.369190Z
@@ -244,6 +246,11 @@ Graph counts are for `d07f628` (app 1076 nodes/59 roots, release 365/1). T02
 coordinator must rerun the migration, frozen install, raw audits, the three
 CLIs and the review-file derivation on the final integrated head. The prepare
 digest and install entries will fail closed if anything changed.
+
+Integration with `a9fd6a0` (`a6be57e5`) left both locks, all workspaces and
+every T03 module, test and fixture byte-identical. Root `package.json` gained
+only the `preview:ai-usage` script, which T03 graph and lifecycle checks do not
+read. The T02 lock change and the full rerun above are still pending.
 
 ## Rollback
 

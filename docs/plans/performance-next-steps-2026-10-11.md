@@ -8,8 +8,9 @@ Date: 2026-10-11, Asia/Bangkok. Released reference at planning time:
 > [Bun and Elysia delivery plan](bun-elysia-delivery-plan-2026-10-11.md);
 > this document is Phase 2 and starts after Phase 1 closes. Before any Phase 2
 > experiment, freeze a **new** reference: a merged and released `main` SHA
-> that contains the delivered Bun/Elysia changes and the integrated HR/Search
-> work (PR #67, `1deda8f`). Re-run step 0 on that SHA. Evidence from detached
+> that contains the delivered Bun/Elysia changes, the integrated HR/Search
+> work (PR #67, `1deda8f`) and the concurrent `main` changes merged by then
+> (for example PR #73, `a9fd6a0`). Re-run step 0 on that exact SHA. Evidence from detached
 > `9ac5da0` remains historical and does not approve newer combined code. The
 > only clause superseded here is the earlier Elysia deferral (see
 > “Technology decisions”); every other rule in this plan stands.
@@ -353,18 +354,20 @@ No new application PR has been created.
 Update at every state transition. States follow the Phase 1 delivery plan
 (PLANNED → … → DONE, plus EXCEPTION/CONFIGURATION_PENDING).
 
-| Item                                 | State   | Reference / evidence                                                                                                                   |
-| ------------------------------------ | ------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| Phase 2 start gate                   | BLOCKED | Waits for Phase 1 closure (T20) and a new merged/released reference containing Bun/Elysia and HR/Search                                |
-| HR/Search integration                | MERGED  | PR #67 `1deda8f`; production `RELEASED` via `ca8c296` and `9675ae7` (T00 [baseline](../reviews/bun-elysia/T00/baseline-manifest.json)) |
-| Historical `9ac5da0` evidence        | HISTORY | [Independent report](../reviews/independent-report.md); does not approve newer code                                                    |
-| 0. Trustworthy comparison            | PLANNED | Re-run on the new frozen reference                                                                                                     |
-| 1A–1B. Compiler / TanStack decisions | PLANNED | —                                                                                                                                      |
-| 2–6. Candidates and observation      | PLANNED | —                                                                                                                                      |
+| Item                                 | State   | Reference / evidence                                                                                                                                                                                                                      |
+| ------------------------------------ | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Phase 2 start gate                   | BLOCKED | Waits for Phase 1 closure (T20) and a new merged/released reference containing Bun/Elysia, HR/Search and concurrent `main` changes. Latest `main` `a9fd6a0` has no verified release (production `LIVE_FAILED`, recovery `STAGING_FAILED`) |
+| HR/Search integration                | MERGED  | PR #67 `1deda8f`; production `RELEASED` via `ca8c296` and `9675ae7` (T00 [baseline](../reviews/bun-elysia/T00/baseline-manifest.json))                                                                                                    |
+| Historical `9ac5da0` evidence        | HISTORY | [Independent report](../reviews/independent-report.md); does not approve newer code                                                                                                                                                       |
+| 0. Trustworthy comparison            | PLANNED | Re-run on the new frozen reference                                                                                                                                                                                                        |
+| 1A–1B. Compiler / TanStack decisions | PLANNED | —                                                                                                                                                                                                                                         |
+| 2–6. Candidates and observation      | PLANNED | —                                                                                                                                                                                                                                         |
 
 No Phase 2 PR exists. Phase 1 T00 [PR #70](https://github.com/Rugby-Thailand/industrial-sas/pull/70) and T01 [PR #71](https://github.com/Rugby-Thailand/industrial-sas/pull/71) are DONE; T01 merge `4c3db2ec0be049bfe65640c3697cc16bdae69d25` passed exact-merge checks and automatic staging/production verification. Its final audited head was `530105cd15406eda87794e413b79bcf0791847a4`, with 90 independently reproduced serial tooling observations. Earlier `f7d197d` values are historical. No application speed claim follows.
 
-Phase 1 T02 candidate `93ce153f012fcbdb910ecda223df590f6918aa78` is in final local verification on released base `d07f628`; final audits and repository checks passed, while independent live/reload and bounded AI acceptance remain pending. Phase 1 T03 initial implementation `07cf888b651e5b67009bfe0ea6cc2a8460b63d63` has targeted 133 + 54 passing tests, but both initial independent audits requested changes on `4474baae87147ef9cd0ffe5bc0c36c5aae622669`; scoped corrections, exact-model Kiro refactor and final independent audits/gates remain pending. [Handoff](../reviews/bun-elysia/T03/handoff.md) is unapproved. No T02/T03 PR, merge, release or application performance benefit is claimed. Phase 2 continues to wait for T20 and a fresh baseline on the exact merged/released combined version.
+Current Phase 1 status (2026-10-11, `a6be57e5` integration). T02 candidate `93ce153f012fcbdb910ecda223df590f6918aa78` remains in final local verification on released base `d07f628`. Its final audits and repository checks passed, while independent live/reload and bounded AI acceptance remain pending. The companion owns its harness correction and root awaits a reviewed handoff. T03 is integrated with `main` `a9fd6a0` as `a6be57e5a112a1948f5ba3ff4adcb6bf3bc9bba4`, and no additional refactor is justified ([decision](../reviews/bun-elysia/T03/integration-refactor.md)). Its `399173c3` audits and gates are historical; the next exact documentation head needs fresh audits and gates. No T02/T03 PR, merge, release or application performance benefit is claimed. Phase 2 continues to wait for T20 and a fresh baseline on the exact merged/released combined version.
+
+Historical (superseded): the T03 initial implementation `07cf888b651e5b67009bfe0ea6cc2a8460b63d63` had targeted 133 + 54 passing tests, and both initial independent audits requested changes on `4474baae87147ef9cd0ffe5bc0c36c5aae622669`. The checkpoints below record the later corrections, refactor and audits.
 
 ## Execution workflow for Phase 2
 
@@ -411,3 +414,23 @@ T03 final-audit correction checkpoint — 2026-10-11: both non-author final audi
 The user explicitly selected standalone Playwright for required browser measurements. Preparation confirms the installed 1.62.1 client and expected Chromium revision 1234 / 151.0.7922.34 bundle; actual launch and cache-bypass protocol verification are unrun. Fresh serial comparisons must follow the released T03 / integrated T02 source freeze, use durable pre-batch baselines and distinct output labels, and never pool native T3 observations. Historical independent Next was stopped at 10:25:17.032601Z with source/head/configuration guards unchanged; the runner refused child exit 143 (`UNEXPECTED_CHILD_EXIT`, reported runner exit 1). The installed Next signal handler explains 143, but the failed receipt stays failed until a narrowly reviewed future runner correction. Phase 2 still waits for T20 and the exact merged/released combined baseline.
 
 T03 verified-source checkpoint: `66d143d6a00f971805e1bba303014d828e9ab7e6` passed independent standards (77 probes) and specification (81 probes) audits, each actual exit 0 with all 1,354 tracked hashes unchanged. All 15 coordinator gates completed with exit 0 at 2026-10-11T10:38:41.876711Z: 3,173 tests, both checkers, optimized production build, all dependency audits, workflow pins, fresh codegen, discovery, 286 release-contract tests, 92 anonymous browser tests and clean tree. The first codegen attempt refused an empty Convex override; the corrected external environment removed all `CONVEX_` names and the complete gate sequence passed. Failed receipts remain preserved. [Portable verification](../reviews/bun-elysia/T03/final-verification.md) includes the raw archive and entry digests. A documentation-only successor now requires exact-head reviewer confirmation and required gates before a PR. No PR, merge, release, application gain or authoritative Bun-install switch is claimed. T02 still requires fresh integrated standalone Playwright comparisons after T03 release; Phase 2 still waits for T20 and its exact merged/released baseline.
+
+Integration, release and ownership checkpoint — 2026-10-11 (`a6be57e5`). This applies to Phase 2 as follows:
+
+- **No released baseline exists yet.** Latest `main` `a9fd6a01859fc4109e540686c17fb1efe45d5b11` has no verified release.
+  - Production run 38132379389 is `LIVE_FAILED` and unresolved.
+  - Recovery run 38134389751: quality passed, but staging ended `STAGING_FAILED` (11 passed, 1 failed, 1 optional skipped, diagnostic `SENSITIVE_SMOKE_NETWORK_ERRORS`), and production was `SKIPPED`.
+  - `STAGING_ENABLED` remains `true`.
+- **Release ownership.** The companion alone owns the diagnostic PR and recovery. Root holds `main` merges until that disposition is recorded and makes no competing release mutation.
+- **T03.** Integrated as `a6be57e5a112a1948f5ba3ff4adcb6bf3bc9bba4` with no T03 input changed and no additional refactor justified. Its earlier `399173c3` approvals are historical.
+- **T02 harness.** The companion owns the correction; root awaits the reviewed handoff. Before any sample, the harness must prove:
+  - unique `wx` run/window/phase evidence, published in preflight;
+  - a fresh quota guard before every batch;
+  - actual CDP cache bypass;
+  - owned shutdown, accepting exit 143 only under its narrowly reviewed conditions.
+
+  These remain UNRUN.
+
+- **Freeze.** Documentation and packaging finish before the freeze. Later receipts are saved externally first, and documents are not edited during comparisons.
+- **Phase 2 baseline.** The exact merged and released `main` containing delivered Bun/Elysia, HR/Search and the concurrent `main` changes. `9ac5da0` stays historical.
+- **Not run in this update.** No samples, live, authenticated or provider actions ran, and no benefit or release claim is made.
