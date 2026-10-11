@@ -1,3 +1,7 @@
+> Historical implementation report from combined source `4ddbf08`.
+> Its test counts, timestamps and deployment claims describe that earlier
+> snapshot. Final delivery evidence is recorded separately in the task plan.
+
 # HR Phase 1 — implementation review
 
 Implements `docs/specs/hr-phase-1-requirements.md` (v1.0, 2026-10-09). Phase 2/3 roadmap items are not built.
