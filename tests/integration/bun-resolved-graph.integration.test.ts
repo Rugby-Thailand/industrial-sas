@@ -16,6 +16,7 @@ import {
   compareInstalled,
   installedGraph,
 } from "../../scripts/ci/installed-graph.mjs";
+import { compareResolutionContexts } from "../../scripts/ci/resolution-context.mjs";
 import {
   allSimplePaths,
   bunGraph,
@@ -37,6 +38,8 @@ import {
 import {
   compareVersions,
   parseVersion,
+  rangesOverlap,
+  isExactVersion,
   satisfies,
 } from "../../scripts/ci/semver-range.mjs";
 
@@ -212,7 +215,7 @@ describe("aliases and peer-qualified snapshots", () => {
       ]),
     );
     expect(paths(g, "leaf").map((p: { path: string }) => p.path)).toEqual([
-      ".>parent>leaf",
+      ".>parent>leaf-alias",
     ]);
   });
 
@@ -251,9 +254,9 @@ describe("aliases and peer-qualified snapshots", () => {
     const missing = graph(
       bunLock({ ui: ["ui@1.0.0", meta] }, { dependencies: { ui: "1.0.0" } }),
     );
-    expect(graphProblems(missing)).toEqual([
-      "ui -> react: unresolved peerDependencies edge",
-    ]);
+    expect(graphProblems(missing)).toEqual(
+      expect.arrayContaining(["ui -> react: unresolved peerDependencies edge"]),
+    );
     const present = graph(
       bunLock(
         { ui: ["ui@1.0.0", meta], react: ["react@19.2.8"] },
@@ -518,7 +521,7 @@ describe("security overrides against actual resolved parent edges", () => {
     const result = overrideProblems(graph(drift), policy);
     expect(result.problems).toEqual([
       "next>sharp: next@16.3.8>sharp@0.34.5 resolved 0.34.5, override requires 0.35.5",
-      "brace-expansion@>=1.0.0 <1.1.20: lint@1.0.0>brace-expansion@1.1.19 is still inside the overridden range",
+      "brace-expansion@>=1.0.0 <1.1.20: lint@1.0.0>brace-expansion@1.1.19 resolved 1.1.19, override requires 1.1.20",
     ]);
   });
 
@@ -623,12 +626,14 @@ describe("pnpm/bun scope parity report", () => {
     return dir;
   };
 
-  it("passes for an equivalent migrated graph", () => {
+  it("records missing pnpm declared provenance despite equivalent resolution", () => {
     const report = scopeReport("app", candidate("2.0.0"), {
       repositoryRoot: root,
       packageName: "b",
     });
-    expect(report.problems).toEqual([]);
+    expect(report.problems).toEqual([
+      "pnpm override: c@<2.0.0: a@1.0.0>c@2.0.0: original declared range unavailable; selector applicability unproven",
+    ]);
     expect(
       report.paths.bunAllSimple.map((p: { path: string }) => p.path),
     ).toEqual([".>a>b", ".>t>b"]);
@@ -641,7 +646,7 @@ describe("pnpm/bun scope parity report", () => {
     });
     expect(report.problems).toEqual(
       expect.arrayContaining([
-        "bun override: c@<2.0.0: a@1.0.0>c@1.9.0 is still inside the overridden range",
+        "bun override: c@<2.0.0: a@1.0.0>c@1.9.0 resolved 1.9.0, override requires 2.0.0",
         expect.stringMatching(
           /^graph parity: packagesOnlyInBaseline: 1 \(c@2\.0\.0\)/,
         ),
@@ -686,7 +691,16 @@ describe("installed isolated layout", () => {
     mkdirSync(join(modules, name), { recursive: true });
     writeFileSync(
       join(modules, name, "package.json"),
-      JSON.stringify({ name, version }),
+      JSON.stringify({
+        name,
+        version,
+        dependencies: Object.fromEntries(
+          Object.entries(links).map(([alias, target]) => [
+            alias,
+            target.split("@").at(-1),
+          ]),
+        ),
+      }),
     );
     for (const [alias, target] of Object.entries(links))
       symlinkSync(
@@ -695,7 +709,7 @@ describe("installed isolated layout", () => {
       );
   };
 
-  it("reads real link targets, merges peer variants and finds extra edges", () => {
+  it("reads real link targets and preserves contexts while finding extra edges", () => {
     pkg("a", "debug@4.4.3", "debug", "4.4.3", { ms: "ms@2.1.3" });
     pkg("a", "ms@2.1.3", "ms", "2.1.3");
     pkg("b", "debug@4.4.3+peer", "debug", "4.4.3", {
@@ -714,8 +728,42 @@ describe("installed isolated layout", () => {
         ),
         join(dir, store, "node_modules", "debug"),
       );
-    const a = installedGraph(join(dir, "a"), "bun");
-    const b = installedGraph(join(dir, "b"), "bun");
+    const expected = (extra: boolean) =>
+      graph(
+        bunLock(
+          {
+            debug: [
+              "debug@4.4.3",
+              {
+                dependencies: {
+                  ms: "2.1.3",
+                  ...(extra ? { "supports-color": "8.1.1" } : {}),
+                },
+              },
+            ],
+            ms: ["ms@2.1.3"],
+            ...(extra
+              ? { "supports-color": ["supports-color@8.1.1"] as [string] }
+              : {}),
+          },
+          { dependencies: { debug: "4.4.3" } },
+        ),
+      );
+    for (const store of ["a", "b"])
+      writeFileSync(
+        join(dir, store, "package.json"),
+        JSON.stringify({
+          name: "fixture",
+          version: "1.0.0",
+          dependencies: { debug: "4.4.3" },
+        }),
+      );
+    const a = installedGraph(join(dir, "a"), "bun", {
+      expectedGraph: expected(false),
+    });
+    const b = installedGraph(join(dir, "b"), "bun", {
+      expectedGraph: expected(true),
+    });
     expect([...a.edges]).toEqual(["debug@4.4.3 -> ms@2.1.3"]);
     expect(compareInstalled(a, b)).toMatchObject({
       packagesOnlyInCandidate: ["supports-color@8.1.1"],
@@ -738,18 +786,30 @@ describe("installed isolated layout", () => {
 
 describe("current repository graphs (authoritative pnpm locks)", () => {
   it.each(["app", "release"] as const)(
-    "%s: complete, pinned and every override active on real edges",
+    "%s: complete and pinned, but selector provenance remains unproven",
     (scope) => {
       const { graph: g, manifest, workspace, lock } = loadPnpmScope(scope);
       expect(graphProblems(g)).toEqual([]);
       expect(rootPinProblems(g, manifest)).toEqual([]);
       expect(lock.overrides).toEqual(workspace.overrides);
       const result = overrideProblems(g, workspace.overrides);
-      expect(result.problems).toEqual([]);
-      // @fastify/busboy is no longer in the release graph; recorded, not removed.
-      expect(result.inactive).toEqual(
-        scope === "release" ? ["@fastify/busboy@>=1.0.0 <3.2.1"] : [],
-      );
+      expect(result.problems.length).toBeGreaterThan(0);
+      expect(
+        result.problems.every((problem: string) =>
+          problem.includes(
+            "original declared range unavailable; selector applicability unproven",
+          ),
+        ),
+      ).toBe(true);
+      // The lock's resolved references must never stand in for declared requests.
+      expect(
+        [...g.edges.values()]
+          .flat()
+          .filter(
+            (edge: { declaredSource: string }) =>
+              edge.declaredSource === "unavailable",
+          ).length,
+      ).toBeGreaterThan(0);
     },
   );
 
@@ -799,5 +859,327 @@ describe("semver ranges used by advisories and override selectors", () => {
     for (const range of ["latest", "github:a/b", ">=1.0.0 <", "1.2.3.4"])
       expect(() => satisfies("1.0.0", range)).toThrow();
     expect(() => parseVersion("1.0")).toThrow();
+  });
+});
+
+describe("contextual resolution and version-bound audit paths", () => {
+  it("allows shared equivalent lock contexts only in explicit semantic coverage mode", () => {
+    const expected = {
+      nodes: new Map([
+        ["a", { key: "pkg@1.0.0" }],
+        ["b", { key: "pkg@1.0.0" }],
+      ]),
+      edges: new Map(),
+      roots: [
+        { alias: "first", kind: "dependencies", target: "a" },
+        { alias: "second", kind: "dependencies", target: "b" },
+      ],
+    };
+    const actual = {
+      nodes: new Map([["shared", { key: "pkg@1.0.0" }]]),
+      edges: new Map(),
+      roots: expected.roots.map((root) => ({ ...root, target: "shared" })),
+    };
+    expect(
+      compareResolutionContexts(expected, actual).problems.length,
+    ).toBeGreaterThan(0);
+    const coverage = compareResolutionContexts(expected, actual, {
+      allowEquivalentSharing: true,
+    });
+    expect(coverage.problems).toEqual([]);
+    expect(coverage.differences.contextMultiplicityMismatches).toHaveLength(1);
+  });
+  const paired = () =>
+    bunLock(
+      {
+        hostA: ["parent@1.0.0", { peerDependencies: { peer: "*" } }],
+        hostB: ["parent@1.0.0", { peerDependencies: { peer: "*" } }],
+        "hostA/peer": ["peer@1.0.0"],
+        "hostB/peer": ["peer@2.0.0"],
+      },
+      {
+        dependencies: { hostA: "npm:parent@1.0.0", hostB: "npm:parent@1.0.0" },
+      },
+    );
+
+  it("rejects peer-binding swaps even when package and edge unions match", () => {
+    const before = paired();
+    const after = structuredClone(before);
+    [after.packages["hostA/peer"], after.packages["hostB/peer"]] = [
+      after.packages["hostB/peer"],
+      after.packages["hostA/peer"],
+    ];
+    const result = compareGraphs(graph(before), graph(after));
+    expect(result.differences.packagesOnlyInCandidate).toEqual([]);
+    expect(result.differences.edgesOnlyInCandidate).toEqual([]);
+    expect(result.differences.contextualRootsOnlyInCandidate.length).toBe(2);
+    expect(result.problems.length).toBeGreaterThan(0);
+    expect(
+      compareResolutionContexts(graph(before), graph(after), {
+        allowEquivalentSharing: true,
+      }).problems.length,
+    ).toBeGreaterThan(0);
+  });
+
+  it("ignores opaque manager IDs while preserving contextual edges", () => {
+    const before = graph(paired());
+    const renames = new Map(
+      [...before.nodes.keys()].map((id) => [id, `store(${id})`]),
+    );
+    const after = {
+      ...before,
+      nodes: new Map(
+        [...before.nodes].map(([id, node]) => [
+          renames.get(id),
+          { ...node, id: renames.get(id) },
+        ]),
+      ),
+      edges: new Map(
+        [...before.edges].map(([id, edges]) => [
+          renames.get(id),
+          edges.map((edge) => ({ ...edge, target: renames.get(edge.target) })),
+        ]),
+      ),
+      roots: before.roots.map((root) => ({
+        ...root,
+        target: renames.get(root.target),
+      })),
+    };
+    expect(compareGraphs(before, after).problems).toEqual([]);
+  });
+
+  it("rejects renamed dependency aliases and changed dependency kinds", () => {
+    const before = graph(
+      bunLock(
+        { a: ["a@1.0.0", { dependencies: { b: "1.0.0" } }], b: ["b@1.0.0"] },
+        { dependencies: { a: "1.0.0" } },
+      ),
+    );
+    for (const change of [
+      { alias: "other" },
+      { kind: "optionalDependencies" },
+    ]) {
+      const after = structuredClone(before);
+      Object.assign(after.edges.get("a")![0], change);
+      expect(compareGraphs(before, after).problems.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("converges on cyclic resolutions without erasing root/context differences", () => {
+    const before = graph(
+      bunLock(
+        {
+          a: ["a@1.0.0", { dependencies: { b: "1.0.0" } }],
+          b: ["b@1.0.0", { dependencies: { a: "1.0.0" } }],
+        },
+        { dependencies: { a: "1.0.0" } },
+      ),
+    );
+    expect(compareGraphs(before, structuredClone(before)).problems).toEqual([]);
+    const after = structuredClone(before);
+    after.edges.get("b")![0].alias = "renamed";
+    expect(compareGraphs(before, after).problems.length).toBeGreaterThan(0);
+  });
+
+  it("keeps vulnerable development version separate from safe production version", () => {
+    const g = graph(
+      bunLock(
+        {
+          dev: ["parent@1.0.0", { dependencies: { victim: "1.0.0" } }],
+          prod: ["parent@2.0.0", { dependencies: { victim: "2.0.0" } }],
+          "dev/victim": ["victim@1.0.0"],
+          "prod/victim": ["victim@2.0.0"],
+        },
+        {
+          dependencies: { prod: "npm:parent@2.0.0" },
+          devDependencies: { dev: "npm:parent@1.0.0" },
+        },
+      ),
+    );
+    // Deliberately identical printed path; version and production must remain bound.
+    g.roots.forEach((root) => {
+      root.alias = "parent";
+    });
+    expect(paths(g, "victim")).toEqual([
+      { path: ".>parent>victim", production: false, versions: ["1.0.0"] },
+      { path: ".>parent>victim", production: true, versions: ["2.0.0"] },
+    ]);
+  });
+
+  it("rejects libc loss, including libc differences confined to one context", () => {
+    const before = graph(paired());
+    before.nodes.get("hostA")!.libc = ["glibc"];
+    const after = structuredClone(before);
+    after.nodes.get("hostA")!.libc = [];
+    expect(compareGraphs(before, after).problems.length).toBeGreaterThan(0);
+  });
+});
+
+describe("declared override selection and strict lock schemas", () => {
+  const tree = (version: string, declared: string) =>
+    graph(
+      bunLock(
+        {
+          parent: ["parent@4.0.0", { dependencies: { child: declared } }],
+          child: [`child@${version}`],
+        },
+        { dependencies: { parent: "4.0.0" } },
+      ),
+    );
+
+  it("allows a correctly pinned target inside the declared selector", () => {
+    expect(
+      overrideProblems(tree("1.9.9", "^1.0.0"), { "child@^1.0.0": "1.9.9" })
+        .problems,
+    ).toEqual([]);
+  });
+
+  it("does not use an inapplicable parent override to explain a mismatched request", () => {
+    const g = tree("3.2.1", "^1.0.0");
+    const rules = { "parent@^1.0.0>child@^1.0.0": "3.2.1" };
+    expect(overrideProblems(g, rules).inactive).toEqual(Object.keys(rules));
+    expect(declaredRangeProblems(g, rules).problems).toEqual([
+      "parent@4.0.0 -> child@3.2.1: outside declared ^1.0.0",
+    ]);
+  });
+
+  it("uses declared overlap when the resolved target lies outside the selector", () => {
+    const g = tree("9.0.0", "^1.0.0");
+    expect(overrideProblems(g, { "child@<2.0.0": "2.0.0" }).problems).toEqual([
+      "child@<2.0.0: parent@4.0.0>child@9.0.0 resolved 9.0.0, override requires 2.0.0",
+    ]);
+  });
+
+  it("selects parent-range before parent before top-level regardless of object order", () => {
+    const entries: [string, string][] = [
+      ["child", "1.0.0"],
+      ["parent>child", "2.0.0"],
+      ["parent@^4>child", "3.0.0"],
+    ];
+    for (const order of [entries, [...entries].reverse()]) {
+      const result = overrideProblems(
+        tree("3.0.0", "^1.0.0"),
+        Object.fromEntries(order),
+      );
+      expect(result.problems).toEqual([]);
+      expect(result.applied["parent@^4>child"]).toBe(1);
+      expect(
+        declaredRangeProblems(
+          tree("3.0.0", "^1.0.0"),
+          Object.fromEntries(order),
+        ).problems,
+      ).toEqual([]);
+    }
+  });
+
+  it("uses child-range specificity and pinned Bun lexical tie-breaks", () => {
+    const result = overrideProblems(tree("2.0.0", "^1.0.0"), {
+      "parent>child": "3.0.0",
+      "parent>child@^1": "2.0.0",
+      "parent>child@~1": "4.0.0",
+    });
+    expect(result.problems).toEqual([]);
+    expect(result.applied["parent>child@^1"]).toBe(1);
+  });
+
+  it("fails missing child request provenance and never substitutes a resolution", () => {
+    const g = tree("1.9.9", "^1.0.0");
+    const edge = g.edges.get("parent")![0];
+    edge.declared = null;
+    edge.declaredSource = "unavailable";
+    expect(overrideProblems(g, { "child@^1": "1.9.9" }).problems).toEqual([
+      "child@^1: parent@4.0.0>child@1.9.9: original declared range unavailable; selector applicability unproven",
+    ]);
+  });
+
+  it("does not let missing lower-priority provenance invalidate a known parent winner", () => {
+    const g = tree("1.9.9", "^1.0.0");
+    g.edges.get("parent")![0].declaredSource = "unavailable";
+    expect(
+      overrideProblems(g, { "child@^1": "3.0.0", "parent>child": "1.9.9" })
+        .problems,
+    ).toEqual([]);
+  });
+
+  it("rejects malformed metadata/dependency maps and duplicate decoded JSON keys", () => {
+    const good = bunLock({ a: ["a@1.0.0"] }, { dependencies: { a: "1.0.0" } });
+    const malformed = structuredClone(good);
+    malformed.packages.a[2] = [];
+    expect(graphProblems(graph(malformed)).length).toBeGreaterThan(0);
+    for (const metadata of [
+      { dependencies: [] },
+      { optionalPeers: {} },
+      { cpu: [false] },
+      { libc: {} },
+    ]) {
+      const bad = structuredClone(good);
+      bad.packages.a[2] = metadata;
+      expect(() => graph(bad)).toThrow();
+    }
+    expect(() => graph({ ...good, workspaces: [] })).toThrow();
+    expect(() => graph({ ...good, workspaces: {} })).toThrow();
+    expect(() => graph({ ...good, packages: [] })).toThrow();
+    expect(() =>
+      parseBunLockText('{"packages": {}, "packa\\u0067es": {}}'),
+    ).toThrow(/duplicate/i);
+  });
+
+  it("preserves Bun's real scalar native metadata", () => {
+    const g = graph(
+      bunLock(
+        { a: ["a@1.0.0", { os: "darwin", cpu: "arm64" }] },
+        { dependencies: { a: "1.0.0" } },
+      ),
+    );
+    expect(graphProblems(g)).toEqual([]);
+    expect(g.nodes.get("a")!.os).toEqual(["darwin"]);
+  });
+});
+
+describe("safe numeric SemVer and declared range overlap", () => {
+  it("rejects unsafe exact and partial components and unsafe generated bounds", () => {
+    for (const version of [
+      "9007199254740992.0.0",
+      "1.9007199254740992.0",
+      "1.0.9007199254740992",
+    ]) {
+      expect(() => parseVersion(version)).toThrow(/Unsafe/);
+      expect(isExactVersion(version)).toBe(false);
+    }
+    for (const range of [
+      "9007199254740992",
+      "1.9007199254740992.x",
+      "1.x.9007199254740992",
+      "^9007199254740991.0.0",
+      "1.2.3-01",
+      "1.x.2",
+    ])
+      expect(() => satisfies("1.0.0", range)).toThrow();
+  });
+
+  it("orders arbitrarily long numeric prerelease identifiers without rounding", () => {
+    expect(
+      compareVersions("1.0.0-9007199254740992", "1.0.0-9007199254740993"),
+    ).toBeLessThan(0);
+    expect(
+      compareVersions(
+        "1.0.0-9999999999999999999999",
+        "1.0.0-10000000000000000000000",
+      ),
+    ).toBeLessThan(0);
+  });
+
+  it.each([
+    ["^7.3.0", "<7.5.2", true],
+    ["^7.5.2", "<7.5.2", false],
+    ["^1.0.0", "1.9.9", true],
+    ["^1.0.0", ">=2", false],
+    ["<1 || >=3", "2.x", false],
+    [">=1 <=2", "2.0.0", true],
+    [">=1 <2", "2.0.0", false],
+    [">2 <1", "*", false],
+  ] as const)("overlap %s with %s is %s", (left, right, expected) => {
+    expect(rangesOverlap(left, right)).toBe(expected);
+    expect(rangesOverlap(right, left)).toBe(expected);
   });
 });

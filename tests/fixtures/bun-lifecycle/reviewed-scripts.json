@@ -1,13 +1,13 @@
 {
-  "$comment": "T03 candidate lifecycle review (opt-in; pnpm strictDepBuilds stays enforced). Derived from clean Bun 1.4.3 isolated installs on darwin-arm64 only; Linux inventory unverified. app entries mirror pnpm-workspace.yaml ignoredBuiltDependencies. release has no pnpm review list: pnpm 10 blocks dependency builds by default, so esbuild is recorded as blocked to preserve current behavior pending maintainer review. Each install-time entry records its installed path(s); trusted decisions are enforced per path. prepare digests cover dependency prepare scripts, which registry installs do not run, so a change still needs review.",
+  "$comment": "T03 candidate lifecycle review (opt-in; pnpm strictDepBuilds stays enforced). Derived from clean Bun 1.4.3 isolated installs on darwin-arm64 only; Linux inventory unverified. app entries mirror pnpm-workspace.yaml ignoredBuiltDependencies. release has no pnpm review list: pnpm 10 blocks dependency builds by default, so esbuild is recorded as blocked to preserve current behavior pending maintainer review. Each install-time entry records its installed path(s); both blocked and trusted decisions are enforced per path. prepare digests cover dependency prepare scripts, which registry installs do not run, so a change still needs review. Complete prepare digests bind scope, package, version, event, physical path, body, hash and multiplicity to the preserved historical darwin-arm64 inventories. They are not proof of current graph completeness: the corrected app graph gate refuses its debug/supports-color mismatch; release graph coverage permits only proven bisimilar lock-context sharing.",
   "prepare": {
     "app": {
       "count": 55,
-      "sha256": "04755c951d60c49c045245b7a101c25cce6809e7fcce99c79c33508abf82a001"
+      "sha256": "f1c4d292d5b3cd8905b7f573c4ebd9f9abdfb92b3810b009891953c6ce8816f0"
     },
     "release": {
       "count": 27,
-      "sha256": "8afff8cc6687f1120208fe7bc545057e07fb109e9654c39434ef898ea8f9a5ce"
+      "sha256": "9e47d4fa7d7577e8b04abb60701e2bac29e4f38d71a73d620b854577dcacf6af"
     }
   },
   "app": [

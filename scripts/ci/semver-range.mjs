@@ -11,22 +11,43 @@ const VERSION =
 export function parseVersion(text) {
   const match = VERSION.exec(String(text).trim());
   if (!match) throw new Error(`Invalid version: ${text}`);
-  return {
+  const parsed = {
     major: Number(match[1]),
     minor: Number(match[2]),
     patch: Number(match[3]),
     prerelease: match[4] ? match[4].split(".") : [],
   };
+  assertSafeComponents(parsed);
+  return parsed;
 }
 
 export function isExactVersion(text) {
-  return typeof text === "string" && VERSION.test(text.trim());
+  if (typeof text !== "string") return false;
+  try {
+    parseVersion(text);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function assertSafeComponents(version) {
+  for (const key of ["major", "minor", "patch"])
+    if (!Number.isSafeInteger(version[key]) || version[key] < 0)
+      throw new Error(`Unsafe version component: ${key}`);
 }
 
 function compareIdentifiers(a, b) {
   const numericA = /^\d+$/.test(a);
   const numericB = /^\d+$/.test(b);
-  if (numericA && numericB) return Number(a) - Number(b);
+  if (numericA && numericB)
+    return a.length !== b.length
+      ? a.length - b.length
+      : a < b
+        ? -1
+        : a > b
+          ? 1
+          : 0;
   if (numericA) return -1;
   if (numericB) return 1;
   return a < b ? -1 : a > b ? 1 : 0;
@@ -36,6 +57,8 @@ function compareIdentifiers(a, b) {
 export function compareVersions(left, right) {
   const a = typeof left === "string" ? parseVersion(left) : left;
   const b = typeof right === "string" ? parseVersion(right) : right;
+  assertSafeComponents(a);
+  assertSafeComponents(b);
   for (const key of ["major", "minor", "patch"])
     if (a[key] !== b[key]) return a[key] - b[key];
   if (!a.prerelease.length || !b.prerelease.length)
@@ -55,27 +78,35 @@ const PARTIAL =
 function parsePartial(text) {
   const match = PARTIAL.exec(text);
   if (!match) throw new Error(`Unsupported range component: ${text}`);
-  const part = (value) =>
-    value === undefined || /^[xX*]$/.test(value) ? null : Number(value);
+  const part = (value) => {
+    if (value === undefined || /^[xX*]$/.test(value)) return null;
+    const number = Number(value);
+    if (!Number.isSafeInteger(number))
+      throw new Error(`Unsafe range component: ${value}`);
+    return number;
+  };
   const major = part(match[1]);
-  const minor = major === null ? null : part(match[2]);
-  const patch = minor === null ? null : part(match[3]);
+  const minor = part(match[2]);
+  const patch = part(match[3]);
+  if ((major === null && minor !== null) || (minor === null && patch !== null))
+    throw new Error(`Unsupported range component: ${text}`);
   if (match[4] && patch === null)
     throw new Error(`Unsupported range component: ${text}`);
-  return {
+  const parsed = {
     major,
     minor,
     patch,
     prerelease: match[4] ? match[4].split(".") : [],
   };
+  if (match[4]) parseVersion(`${major}.${minor}.${patch}-${match[4]}`);
+  return parsed;
 }
 
-const exact = (major, minor, patch, prerelease = []) => ({
-  major,
-  minor,
-  patch,
-  prerelease,
-});
+const exact = (major, minor, patch, prerelease = []) => {
+  const version = { major, minor, patch, prerelease };
+  assertSafeComponents(version);
+  return version;
+};
 const lowest = (p) =>
   exact(p.major ?? 0, p.minor ?? 0, p.patch ?? 0, p.prerelease);
 const comparator = (operator, version) => ({ operator, version });
@@ -189,4 +220,38 @@ export function satisfies(version, range) {
         bound.patch === parsed.patch,
     );
   });
+}
+
+/** Whether two declared comparator ranges overlap (Bun override selection). */
+export function rangesOverlap(left, right) {
+  const nonempty = (set) => {
+    let lower = null;
+    let upper = null;
+    const update = (bound, candidate, direction) => {
+      if (!bound) return candidate;
+      const order =
+        compareVersions(candidate.version, bound.version) * direction;
+      if (order > 0) return candidate;
+      if (order === 0 && !candidate.inclusive) return candidate;
+      return bound;
+    };
+    for (const { operator, version } of set) {
+      if (["=", ">", ">="].includes(operator))
+        lower = update(lower, { version, inclusive: operator !== ">" }, 1);
+      if (["=", "<", "<="].includes(operator))
+        upper = update(upper, { version, inclusive: operator !== "<" }, -1);
+    }
+    // SemVer versions cannot precede 0.0.0-0.
+    lower = update(
+      lower,
+      { version: exact(0, 0, 0, ["0"]), inclusive: true },
+      1,
+    );
+    if (!upper) return true;
+    const order = compareVersions(lower.version, upper.version);
+    return order < 0 || (order === 0 && lower.inclusive && upper.inclusive);
+  };
+  return parseRange(left).some((a) =>
+    parseRange(right).some((b) => nonempty([...a, ...b])),
+  );
 }

@@ -13,7 +13,14 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { isExactVersion, parseRange, satisfies } from "./semver-range.mjs";
+import {
+  isExactVersion,
+  parseRange,
+  rangesOverlap,
+  satisfies,
+} from "./semver-range.mjs";
+import { parseUniqueJson } from "./json-input.mjs";
+import { compareResolutionContexts } from "./resolution-context.mjs";
 
 /** Path enumeration cap; exceeding it fails closed instead of truncating. */
 export const MAX_PATHS = 50_000;
@@ -297,11 +304,21 @@ export function pnpmGraph(lock, { scope } = {}) {
             alias,
             kind,
             target: null,
-            declared: String(reference),
+            declared: null,
+            declaredSource: "unavailable",
           });
           continue;
         }
-        edges.push({ alias, kind, target, declared: String(reference) });
+        const peerRange =
+          packages[graph.nodes.get(id).key]?.peerDependencies?.[alias];
+        edges.push({
+          alias,
+          kind: typeof peerRange === "string" ? "peerDependencies" : kind,
+          target,
+          declared: typeof peerRange === "string" ? peerRange : null,
+          declaredSource:
+            typeof peerRange === "string" ? "declared" : "unavailable",
+        });
       }
     }
     graph.edges.set(id, edges);
@@ -359,7 +376,7 @@ export function parseBunLockText(text) {
     }
     out += char;
   }
-  return JSON.parse(out);
+  return parseUniqueJson(out);
 }
 
 /** Package-name segments of a bun.lock key (`a/@s/b/c` → a, @s/b, c). */
@@ -379,6 +396,12 @@ export function bunKeySegments(key) {
 
 /** Normalizes bun.lock `overrides` into pnpm-style `parent>child` keys. */
 export function normalizeBunOverrides(overrides = {}) {
+  if (
+    overrides === null ||
+    typeof overrides !== "object" ||
+    Array.isArray(overrides)
+  )
+    throw new Error("bun.lock overrides: expected an object");
   const flat = dictionary();
   for (const [key, entry] of Object.entries(overrides)) {
     if (typeof entry === "string") {
@@ -404,12 +427,27 @@ export function bunGraph(lock, { scope } = {}) {
     throw new Error(
       `Unsupported bun.lock lockfileVersion ${lock?.lockfileVersion}`,
     );
-  const workspaces = lock.workspaces ?? {};
-  if (Object.keys(workspaces).join() !== "")
+  const object = (value) =>
+    value !== null && typeof value === "object" && !Array.isArray(value);
+  const record = (value, label) => {
+    if (!object(value)) throw new Error(`${label}: expected an object`);
+    return value;
+  };
+  const dependencyMap = (value, label) => {
+    if (value === undefined) return {};
+    record(value, label);
+    for (const [alias, declared] of Object.entries(value))
+      if (!alias || typeof declared !== "string" || !declared.trim())
+        throw new Error(`${label}: invalid dependency entry`);
+    return value;
+  };
+  const workspaces = record(lock.workspaces, "bun.lock workspaces");
+  if (Object.keys(workspaces).length !== 1 || !Object.hasOwn(workspaces, ""))
     throw new Error("Expected exactly one bun.lock workspace (the root)");
+  const root = record(workspaces[""], "bun.lock root workspace");
   const graph = graphShell("bun-lock-v3", scope);
   graph.overrides = normalizeBunOverrides(lock.overrides);
-  const packages = lock.packages ?? {};
+  const packages = record(lock.packages, "bun.lock packages");
   const metas = new Map();
   for (const [key, tuple] of Object.entries(packages)) {
     const match =
@@ -421,13 +459,28 @@ export function bunGraph(lock, { scope } = {}) {
       tuple.length !== 4 ||
       typeof tuple[1] !== "string" ||
       !tuple[2] ||
-      typeof tuple[2] !== "object" ||
+      !object(tuple[2]) ||
       !isExactVersion(match[2])
     ) {
       graph.problems.push(`${key}: unsupported bun.lock package entry`);
       continue;
     }
     const meta = tuple[2];
+    for (const kind of EDGE_KINDS) dependencyMap(meta[kind], `${key}.${kind}`);
+    for (const field of ["os", "cpu", "libc"])
+      if (
+        meta[field] !== undefined &&
+        !(typeof meta[field] === "string" && meta[field]) &&
+        (!Array.isArray(meta[field]) ||
+          meta[field].some((value) => typeof value !== "string" || !value))
+      )
+        throw new Error(`${key}.${field}: expected a string or string array`);
+    if (
+      meta.optionalPeers !== undefined &&
+      (!Array.isArray(meta.optionalPeers) ||
+        meta.optionalPeers.some((value) => typeof value !== "string" || !value))
+    )
+      throw new Error(`${key}.optionalPeers: expected a string array`);
     metas.set(key, meta);
     if (tuple[1] !== "")
       graph.notes.push(`${key}: non-default registry ${tuple[1]}`);
@@ -471,7 +524,7 @@ export function bunGraph(lock, { scope } = {}) {
       graph.problems.push(
         `${label}: resolves to ${node.key}, expected package ${expected}`,
       );
-    return { alias, kind, target, declared };
+    return { alias, kind, target, declared, declaredSource: "declared" };
   };
   for (const [key, meta] of metas) {
     const optionalPeers = new Set(meta.optionalPeers ?? []);
@@ -489,14 +542,15 @@ export function bunGraph(lock, { scope } = {}) {
       }
     graph.edges.set(key, edges);
   }
-  const root = workspaces[""];
   for (const kind of [
     "dependencies",
     "devDependencies",
     "optionalDependencies",
     "peerDependencies",
   ]) {
-    for (const [alias, specifier] of Object.entries(root[kind] ?? {})) {
+    for (const [alias, specifier] of Object.entries(
+      dependencyMap(root[kind], `root.${kind}`),
+    )) {
       const edge = resolveEdge("", alias, kind, String(specifier), new Set());
       graph.roots.push({
         alias,
@@ -549,6 +603,15 @@ export function reachability(graph) {
  */
 export function graphProblems(graph) {
   const problems = [...graph.problems];
+  for (const root of graph.roots)
+    if (!graph.nodes.has(root.target))
+      problems.push(`${root.alias}: unresolved root target`);
+  for (const [from, edges] of graph.edges) {
+    if (!graph.nodes.has(from)) problems.push(`${from}: unknown parent`);
+    for (const edge of edges)
+      if (!graph.nodes.has(edge.target))
+        problems.push(`${from} -> ${edge.alias}: unresolved target`);
+  }
   const integrity = new Map();
   for (const node of graph.nodes.values()) {
     if (!INTEGRITY.test(node.integrity ?? ""))
@@ -592,20 +655,21 @@ export function allSimplePaths(graph, isTarget, { maxPaths = MAX_PATHS } = {}) {
   const found = new Map();
   const targetSet = new Set(targets);
   const stack = new Set();
-  const visit = (id, names, production) => {
+  const visit = (id, names, production, alias) => {
     if (stack.has(id) || !canReach.has(id)) return;
     const node = graph.nodes.get(id);
-    const trail = [...names, node.name];
+    const trail = [...names, alias];
     if (targetSet.has(id)) {
       const path = trail.join(">");
-      const entry = found.get(path) ?? {
+      const identity = JSON.stringify([path, node.version]);
+      const entry = found.get(identity) ?? {
         path,
         production: false,
         versions: new Set(),
       };
       entry.production ||= production;
       entry.versions.add(node.version);
-      found.set(path, entry);
+      found.set(identity, entry);
       if (found.size > maxPaths)
         throw new Error(
           `More than ${maxPaths} dependency paths; refusing to truncate`,
@@ -613,15 +677,22 @@ export function allSimplePaths(graph, isTarget, { maxPaths = MAX_PATHS } = {}) {
     }
     stack.add(id);
     for (const edge of graph.edges.get(id) ?? [])
-      if (edge.target !== null) visit(edge.target, trail, production);
+      if (edge.target !== null)
+        visit(edge.target, trail, production, edge.alias);
     stack.delete(id);
   };
   for (const root of graph.roots)
     if (root.target !== null)
-      visit(root.target, ["."], PROD_ROOT_KINDS.has(root.kind));
+      visit(root.target, ["."], PROD_ROOT_KINDS.has(root.kind), root.alias);
   return [...found.values()]
     .map((entry) => ({ ...entry, versions: [...entry.versions].sort() }))
-    .sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
+    .sort((a, b) =>
+      a.path < b.path
+        ? -1
+        : a.path > b.path
+          ? 1
+          : a.versions[0].localeCompare(b.versions[0]),
+    );
 }
 
 /**
@@ -718,102 +789,149 @@ function* allEdges(graph) {
       kind: root.kind,
       target: root.target,
       declared: root.specifier,
+      declaredSource: "declared",
     };
   for (const [from, edges] of graph.edges)
     for (const edge of edges) yield { from, ...edge };
 }
 
-/**
- * Checks each exact override against actual resolved parent edges:
- * unscoped/parent rules must resolve to the override version; a
- * version-scoped rule must leave no resolved version inside its selector.
- */
-export function overrideProblems(graph, overrides) {
+// Bun 1.4.3 OverrideMap: parent selector checks the owner's resolved version;
+// child selector intersects the ORIGINAL request range. Precedence tiers are
+// ranged parent > parent > top-level, then target range, then lexical ranges.
+function overrideRules(overrides) {
   const problems = [];
-  const applied = dictionary();
+  const rules = [];
   for (const [key, target] of Object.entries(overrides ?? {})) {
-    let rule;
     try {
-      rule = parseOverrideKey(key);
+      const rule = parseOverrideKey(key);
+      if (!isExactVersion(target))
+        throw new Error(
+          `${key}: override value ${target} is not an exact version`,
+        );
+      rules.push({
+        ...rule,
+        target,
+        tier:
+          (rule.parentRange ? 4 : rule.parent ? 2 : 0) +
+          (rule.childRange ? 1 : 0),
+      });
     } catch (error) {
       problems.push(error.message);
-      continue;
-    }
-    if (!isExactVersion(target)) {
-      problems.push(`${key}: override value ${target} is not an exact version`);
-      continue;
-    }
-    applied[key] = 0;
-    for (const edge of allEdges(graph)) {
-      if (edge.target === null) continue;
-      const node = graph.nodes.get(edge.target);
-      if (node.name !== rule.child) continue;
-      const parent = edge.from === null ? null : graph.nodes.get(edge.from);
-      if (rule.parent !== null) {
-        if (!parent || parent.name !== rule.parent) continue;
-        if (rule.parentRange && !satisfies(parent.version, rule.parentRange))
-          continue;
-      }
-      const label = `${parent?.key ?? "."}>${node.key}`;
-      if (rule.childRange !== null) {
-        if (satisfies(node.version, rule.childRange))
-          problems.push(
-            `${key}: ${label} is still inside the overridden range`,
-          );
-        else if (node.version === target) applied[key] += 1;
-      } else if (node.version !== target)
-        problems.push(
-          `${key}: ${label} resolved ${node.version}, override requires ${target}`,
-        );
-      else applied[key] += 1;
     }
   }
-  const inactive = Object.entries(applied)
-    .filter(([, count]) => count === 0)
-    .map(([key]) => key);
-  return { problems, applied, inactive };
+  return { rules, problems };
 }
 
-/**
- * Declared-range check for locks that record declared ranges (bun.lock):
- * each resolved version must satisfy its declared range unless an
- * override applies. Peer mismatches are warnings (strict peers are off).
- */
+function declaredRequest(edge) {
+  if (edge.declaredSource !== "declared" || typeof edge.declared !== "string")
+    return null;
+  return edge.declared.replace(/^npm:(@?[^@]+)@/, "");
+}
+
+function selectedOverride(graph, edge, rules, problems) {
+  const node = graph.nodes.get(edge.target);
+  const parent = edge.from === null ? null : graph.nodes.get(edge.from);
+  const candidates = [];
+  const unknown = [];
+  for (const rule of rules) {
+    if (rule.child !== node.name) continue;
+    if (
+      rule.parent &&
+      (!parent ||
+        parent.name !== rule.parent ||
+        (rule.parentRange && !satisfies(parent.version, rule.parentRange)))
+    )
+      continue;
+    if (rule.childRange) {
+      const declared = declaredRequest(edge);
+      if (declared === null) {
+        unknown.push(rule);
+        continue;
+      }
+      // Named tags, URLs and other non-range requests never match selectors.
+      try {
+        parseRange(declared);
+      } catch {
+        continue;
+      }
+      if (!rangesOverlap(declared, rule.childRange)) continue;
+    }
+    candidates.push(rule);
+  }
+  const lexical = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
+  candidates.sort(
+    (a, b) =>
+      b.tier - a.tier ||
+      lexical(a.parentRange ?? "", b.parentRange ?? "") ||
+      lexical(a.childRange ?? "", b.childRange ?? ""),
+  );
+  const selected = candidates[0] ?? null;
+  const uncertain = unknown.filter(
+    (rule) => !selected || rule.tier >= selected.tier,
+  );
+  for (const rule of uncertain)
+    problems.push(
+      `${rule.key}: ${parent?.key ?? "."}>${node.key}: original declared range unavailable; selector applicability unproven`,
+    );
+  return uncertain.length ? null : selected;
+}
+
+/** Validate each winning override's exact target; missing provenance fails. */
+export function overrideProblems(graph, overrides) {
+  const { rules, problems } = overrideRules(overrides);
+  const applied = dictionary();
+  for (const rule of rules) applied[rule.key] = 0;
+  for (const edge of allEdges(graph)) {
+    if (edge.target === null) continue;
+    const rule = selectedOverride(graph, edge, rules, problems);
+    if (!rule) continue;
+    const node = graph.nodes.get(edge.target);
+    const parent = edge.from === null ? null : graph.nodes.get(edge.from);
+    if (node.version !== rule.target)
+      problems.push(
+        `${rule.key}: ${parent?.key ?? "."}>${node.key} resolved ${node.version}, override requires ${rule.target}`,
+      );
+    else applied[rule.key] += 1;
+  }
+  return {
+    problems,
+    applied,
+    inactive: Object.entries(applied)
+      .filter(([, count]) => count === 0)
+      .map(([key]) => key),
+  };
+}
+
+/** Check declared requests using the SAME winning override, never a surrogate. */
 export function declaredRangeProblems(graph, overrides = {}) {
-  const rules = Object.entries(overrides).map(([key, target]) => ({
-    ...parseOverrideKey(key),
-    target,
-  }));
-  const problems = [];
+  const { rules, problems } = overrideRules(overrides);
   const warnings = [];
   for (const edge of allEdges(graph)) {
-    if (edge.target === null || edge.declared === null) continue;
+    if (edge.target === null) continue;
     const node = graph.nodes.get(edge.target);
-    const declared = String(edge.declared).replace(/^npm:(@?[^@]+)@/, "");
+    const declared = declaredRequest(edge);
+    if (declared === null) {
+      problems.push(
+        `${edge.from ?? "."} -> ${edge.alias}: original declared range unavailable`,
+      );
+      continue;
+    }
     let ok;
     try {
-      ok = satisfies(
-        node.version,
-        declared.includes("(")
-          ? declared.slice(0, declared.indexOf("("))
-          : declared,
-      );
+      ok = satisfies(node.version, declared);
     } catch {
       problems.push(
         `${edge.from ?? "."} -> ${edge.alias}: unsupported declared spec ${edge.declared}`,
       );
       continue;
     }
-    if (ok) continue;
+    const rule = selectedOverride(graph, edge, rules, problems);
+    if (rule && node.version === rule.target) continue;
+    if (ok && !rule) continue;
     const parent = edge.from === null ? null : graph.nodes.get(edge.from);
-    const explained = rules.some(
-      (rule) =>
-        rule.child === node.name &&
-        rule.target === node.version &&
-        (rule.parent === null || rule.parent === parent?.name),
-    );
-    if (explained) continue;
-    const message = `${parent?.key ?? "."} -> ${node.key}: outside declared ${edge.declared}`;
+    const message = rule
+      ? `${parent?.key ?? "."} -> ${node.key}: winning override ${rule.key} requires ${rule.target}`
+      : `${parent?.key ?? "."} -> ${node.key}: outside declared ${edge.declared}`;
     if (edge.kind === "peerDependencies") warnings.push(message);
     else problems.push(message);
   }
@@ -829,14 +947,24 @@ export function rootPinProblems(graph, manifest) {
       const root = graph.roots.find(
         (entry) => entry.alias === name && entry.kind === kind,
       );
-      if (!isExactVersion(specifier))
+      const alias =
+        typeof specifier === "string"
+          ? /^npm:(@[^@]+\/[^@]+|[^@/]+)@(.+)$/.exec(specifier)
+          : null;
+      const version = alias?.[2] ?? specifier;
+      const expectedName = alias?.[1] ?? name;
+      if (!isExactVersion(version))
         problems.push(`${kind}.${name}: ${specifier} is not an exact pin`);
       if (!root || root.target === null) {
         problems.push(`${kind}.${name}: not resolved in ${graph.format}`);
         continue;
       }
       const node = graph.nodes.get(root.target);
-      if (root.specifier !== specifier || node.version !== specifier)
+      if (
+        root.specifier !== specifier ||
+        node.version !== version ||
+        node.name !== expectedName
+      )
         problems.push(
           `${kind}.${name}: manifest ${specifier}, lock ${root.specifier} → ${node.version}`,
         );
@@ -932,13 +1060,22 @@ export function compareGraphs(baseline, candidate) {
   }
   const problems = [];
   for (const [name, list] of Object.entries(differences))
-    if (list.length && name !== "libcDroppedInCandidate")
+    if (list.length)
       problems.push(
         `${name}: ${list.length} (${list.slice(0, 5).join("; ")}${list.length > 5 ? "; …" : ""})`,
       );
+  let contextual;
+  try {
+    contextual = compareResolutionContexts(baseline, candidate);
+    problems.push(...contextual.problems);
+    Object.assign(differences, contextual.differences);
+  } catch (error) {
+    problems.push(`contextual resolution: ${error.message}`);
+  }
   return {
     problems,
     differences,
+    contextual: contextual?.counts ?? null,
     counts: {
       baseline: {
         packages: keysA.size,

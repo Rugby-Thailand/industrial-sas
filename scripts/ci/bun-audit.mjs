@@ -15,12 +15,19 @@
 //   summary     auditSummary (all severities, informative)
 // Anything unexpected fails closed.
 import { spawn } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { auditProblems } from "./audit-dependencies.mjs";
-import { allSimplePaths, loadBunScope } from "./lockfile-graph.mjs";
+import {
+  allSimplePaths,
+  graphProblems,
+  loadBunScope,
+  rootPinProblems,
+} from "./lockfile-graph.mjs";
+import { parseUniqueJson } from "./json-input.mjs";
 import { auditSummary } from "./report-lib.mjs";
 import { satisfies } from "./semver-range.mjs";
 
@@ -34,17 +41,25 @@ export const SEVERITIES = Object.freeze([
 const GHSA_URL =
   /^https:\/\/github\.com\/advisories\/(GHSA-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4})$/;
 export const AUDIT_TIMEOUT_MS = 120_000;
+export const AUDIT_OUTPUT_LIMIT = 8 * 1024 * 1024;
 
 /** Fail-closed interpretation of one `bun audit --json` child result. */
 export function rawAuditProblems({
   status,
   signal,
   timedOut,
+  outputExceeded,
   spawnError,
   stdout,
   stderr,
 }) {
   if (spawnError) return [`bun audit could not start: ${spawnError}`];
+  if (
+    outputExceeded ||
+    Buffer.byteLength(stdout ?? "") > AUDIT_OUTPUT_LIMIT ||
+    Buffer.byteLength(stderr ?? "") > AUDIT_OUTPUT_LIMIT
+  )
+    return ["bun audit output exceeded the supported bound"];
   if (timedOut) return ["bun audit timed out"];
   if (signal) return [`bun audit terminated by ${signal}`];
   if (![0, 1].includes(status)) return [`bun audit exited ${status}`];
@@ -54,7 +69,7 @@ export function rawAuditProblems({
     return ["bun audit printed no report"];
   let report;
   try {
-    report = JSON.parse(stdout);
+    report = parseUniqueJson(stdout);
   } catch {
     return ["bun audit output is not JSON"];
   }
@@ -63,6 +78,8 @@ export function rawAuditProblems({
   if ("error" in report || "message" in report)
     return ["bun audit report is a registry error"];
   const problems = [];
+  const ids = new Set();
+  const urls = new Set();
   for (const [name, advisories] of Object.entries(report)) {
     if (!Array.isArray(advisories) || !advisories.length) {
       problems.push(`${name}: advisory list is empty or malformed`);
@@ -73,6 +90,7 @@ export function rawAuditProblems({
         !advisory ||
         typeof advisory !== "object" ||
         !Number.isSafeInteger(advisory.id) ||
+        advisory.id <= 0 ||
         !GHSA_URL.test(advisory.url ?? "") ||
         typeof advisory.title !== "string" ||
         typeof advisory.vulnerable_versions !== "string" ||
@@ -81,6 +99,12 @@ export function rawAuditProblems({
         problems.push(`${name}: malformed advisory`);
       else if (!SEVERITIES.includes(advisory.severity))
         problems.push(`${name}: unknown severity ${String(advisory.severity)}`);
+      else {
+        if (ids.has(advisory.id) || urls.has(advisory.url))
+          problems.push(`${name}: duplicate advisory identity`);
+        ids.add(advisory.id);
+        urls.add(advisory.url);
+      }
     }
   }
   const empty = Object.keys(report).length === 0;
@@ -107,11 +131,9 @@ export function coverageProblems(graph, { npmrc = "", bunfig = "" } = {}) {
   for (const line of npmrc.split("\n"))
     if (/^\s*(@[^:]+:)?registry\s*=/.test(line))
       problems.push(".npmrc: registry override; audit coverage unproven");
-  if (
-    /^\s*registry\s*=|\[install\.scopes\]|^\s*\[install\.registry\]/m.test(
-      bunfig,
-    )
-  )
+  // Reject quoted and inline TOML forms too. A conservative rejection is
+  // preferable to declaring coverage for a configuration we cannot prove.
+  if (/\b(?:registry|scopes)\b/.test(bunfig))
     problems.push(
       "bunfig.toml: registry/scope override; audit coverage unproven",
     );
@@ -181,11 +203,22 @@ export function decide(
   mode,
   { child, graph, coverage, exceptions, scope, now = Date.now() },
 ) {
-  const problems = [...coverage, ...rawAuditProblems(child)];
+  if (!["exceptions", "runtime", "summary"].includes(mode))
+    return { problems: ["Unknown Bun audit decision mode"] };
+  let problems;
+  try {
+    problems = [
+      ...graphProblems(graph),
+      ...coverage,
+      ...rawAuditProblems(child),
+    ];
+  } catch {
+    return { problems: ["Bun audit graph evidence is malformed"] };
+  }
   if (problems.length) return { problems };
   let report;
   try {
-    report = normalizeBunAudit(JSON.parse(child.stdout), graph, {
+    report = normalizeBunAudit(parseUniqueJson(child.stdout), graph, {
       production: mode === "runtime",
     });
   } catch (error) {
@@ -202,25 +235,49 @@ export function decide(
   return { problems: auditProblems(report, policy, scope, now), report };
 }
 
-function runBunAudit(bun, directory, production) {
+export function runBunAudit(bun, directory, production) {
   return new Promise((done) => {
-    const args = ["audit", "--json", ...(production ? ["--prod"] : [])];
+    const auditHome = mkdtempSync(join(tmpdir(), "t03-bun-audit-home-"));
+    const args = [
+      "--no-env-file",
+      "audit",
+      "--json",
+      ...(production ? ["--prod"] : []),
+    ];
     const child = spawn(bun, args, {
       cwd: directory,
-      // Minimal environment: no inherited tokens or dotenv-derived values.
+      // Isolated global config and no inherited credentials. Project registry
+      // configuration is separately rejected by coverageProblems.
       env: {
-        HOME: process.env.HOME ?? "",
+        HOME: auditHome,
+        XDG_CONFIG_HOME: auditHome,
         PATH: process.env.PATH ?? "",
         NO_COLOR: "1",
       },
       stdio: ["ignore", "pipe", "pipe"],
     });
-    let stdout = "";
-    let stderr = "";
+    // Raw byte chunks per stream, decoded once at close so a UTF-8 sequence
+    // split across chunks survives; the running count bounds raw bytes.
+    const output = {
+      stdout: { chunks: [], bytes: 0 },
+      stderr: { chunks: [], bytes: 0 },
+    };
     let timedOut = false;
     let spawnError = null;
-    child.stdout.on("data", (chunk) => (stdout += chunk));
-    child.stderr.on("data", (chunk) => (stderr += chunk));
+    let outputExceeded = false;
+    const append = (stream, chunk) => {
+      if (outputExceeded) return;
+      const buffered = output[stream];
+      if (buffered.bytes + chunk.length > AUDIT_OUTPUT_LIMIT) {
+        outputExceeded = true;
+        child.kill("SIGKILL");
+        return;
+      }
+      buffered.chunks.push(chunk);
+      buffered.bytes += chunk.length;
+    };
+    child.stdout.on("data", (chunk) => append("stdout", chunk));
+    child.stderr.on("data", (chunk) => append("stderr", chunk));
     const timer = setTimeout(() => {
       timedOut = true;
       child.kill("SIGKILL");
@@ -228,7 +285,16 @@ function runBunAudit(bun, directory, production) {
     child.on("error", (error) => (spawnError = error.message));
     child.on("close", (status, signal) => {
       clearTimeout(timer);
-      done({ status, signal, timedOut, spawnError, stdout, stderr });
+      rmSync(auditHome, { recursive: true, force: true });
+      done({
+        status,
+        signal,
+        timedOut,
+        outputExceeded,
+        spawnError,
+        stdout: Buffer.concat(output.stdout.chunks).toString("utf8"),
+        stderr: Buffer.concat(output.stderr.chunks).toString("utf8"),
+      });
     });
   });
 }
@@ -259,7 +325,13 @@ if (
   }
   try {
     const directory = resolve(args["bun-dir"]);
-    const { graph } = loadBunScope(args.scope, directory);
+    const { graph, manifest } = loadBunScope(args.scope, directory);
+    const structuralProblems = [
+      ...graphProblems(graph),
+      ...rootPinProblems(graph, manifest),
+    ];
+    if (structuralProblems.length)
+      throw new Error(structuralProblems.join("; "));
     const read = (file) =>
       existsSync(join(directory, file))
         ? readFileSync(join(directory, file), "utf8")
@@ -285,7 +357,7 @@ if (
         directory,
         args.mode === "runtime",
       );
-    const exceptions = JSON.parse(
+    const exceptions = parseUniqueJson(
       readFileSync(join(root, "scripts/ci/dependency-exceptions.json"), "utf8"),
     ).exceptions;
     const result = decide(args.mode, {

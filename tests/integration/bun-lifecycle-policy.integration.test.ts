@@ -14,7 +14,7 @@ import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
 import {
-  inventoryScripts,
+  inventoryScripts as readInventoryScripts,
   lifecycleProblems,
   prepareDigest,
 } from "../../scripts/ci/lifecycle-policy.mjs";
@@ -32,7 +32,14 @@ type Spec = {
   version: string;
   scripts?: Record<string, string>;
   bindingGyp?: boolean;
+  dependencies?: Record<string, string>;
 };
+const expectedGraphs = new Map<string, unknown>();
+const inventoryScripts = (dir: string, scope: Scope) =>
+  readInventoryScripts(dir, scope, {
+    expectedGraph: expectedGraphs.get(dir),
+    platform: { os: "darwin", cpu: "arm64" },
+  });
 /** A synthetic isolated store: node_modules/.bun/<entry>/node_modules/<name>. */
 function project(specs: Spec[]) {
   const dir = mkdtempSync(join(base, "p-"));
@@ -51,11 +58,48 @@ function project(specs: Spec[]) {
         name: spec.name,
         version: spec.version,
         scripts: spec.scripts,
+        dependencies: spec.dependencies,
       }),
     );
     if (spec.bindingGyp)
       writeFileSync(join(modules, spec.name, "binding.gyp"), "{}");
   }
+  const nodes = new Map(
+    specs.map((spec) => [
+      spec.entry,
+      {
+        id: spec.entry,
+        key: `${spec.name}@${spec.version}`,
+        name: spec.name,
+        version: spec.version,
+        integrity: `sha512-${createHash("sha512").update(spec.name).digest("base64")}`,
+        os: [],
+        cpu: [],
+        libc: [],
+      },
+    ]),
+  );
+  const roots = specs.map((spec, index) => ({
+    alias: `fixture-${index}`,
+    kind: "dependencies",
+    target: spec.entry,
+  }));
+  for (const [index, spec] of specs.entries())
+    symlinkSync(
+      join(".bun", spec.entry, "node_modules", spec.name),
+      join(dir, "node_modules", `fixture-${index}`),
+    );
+  const edges = new Map(
+    specs.map((spec) => [
+      spec.entry,
+      Object.keys(spec.dependencies ?? {}).map((alias) => {
+        const target = specs.find((candidate) => candidate.name === alias);
+        if (!target) throw new Error(`Missing fixture dependency ${alias}`);
+        return { alias, kind: "dependencies", target: target.entry };
+      }),
+    ]),
+  );
+  expectedGraphs.set(dir, { nodes, edges, roots, problems: [] });
   return dir;
 }
 const pathOf = (entry: string, name: string) =>
@@ -87,6 +131,7 @@ const blocked = (spec: Spec, extra: Record<string, unknown> = {}) => ({
   version: spec.version,
   event: Object.keys(spec.scripts ?? {})[0],
   sha256: sha256(Object.values(spec.scripts ?? {})[0]),
+  body: Object.values(spec.scripts ?? {})[0],
   paths: [pathOf(spec.entry, spec.name)],
   decision: "blocked",
   ...extra,
@@ -288,10 +333,101 @@ describe.each(["app", "release"] as const)(
       );
     });
 
-    it("skips linked siblings and fails closed on missing or empty stores", () => {
+    it("requires review for an identical prepare body at a new path", () => {
+      const dir = project([ACORN]);
+      const review = reviewFor(scope, dir, []);
+      const added = project([ACORN, { ...ACORN, entry: "acorn@8.18.0+peer" }]);
+      expect(check(scope, added, review)).toEqual([
+        expect.stringContaining("prepare-script inventory changed"),
+      ]);
+    });
+
+    it("binds prepare identities to scope, path, body and observation multiplicity", () => {
+      const original = inventoryScripts(project([ACORN]), scope);
+      const row = original.prepare[0];
+      if (!row) throw new Error("Missing prepare fixture");
+      const digest = prepareDigest(original);
+      for (const patch of [
+        { scope: other },
+        { path: pathOf("acorn@8.18.0+peer", "acorn") },
+        { body: "different" },
+      ])
+        expect(
+          prepareDigest({ ...original, prepare: [{ ...row, ...patch }] })
+            .sha256,
+        ).not.toBe(digest.sha256);
+      expect(prepareDigest({ ...original, prepare: [row, row] }).count).toBe(2);
+      expect(
+        lifecycleProblems({
+          inventory: { ...original, prepare: [{ ...row, scope: other }] },
+          scope,
+          trustedDependencies: [],
+          review: reviewFor(scope, project([ACORN]), []),
+        }),
+      ).toEqual(["Invalid lifecycle row scope/path/body/hash"]);
+    });
+
+    it("binds blocked reviews to exact paths and body as well as hash", () => {
+      const dir = project([ESBUILD]);
+      const review = reviewFor(scope, dir, [blocked(ESBUILD)]);
+      const added = project([
+        ESBUILD,
+        { ...ESBUILD, entry: "esbuild@0.27.0+peer" },
+      ]);
+      expect(check(scope, added, review)).toEqual(
+        expect.arrayContaining([expect.stringContaining("installed path")]),
+      );
+      expect(
+        check(
+          scope,
+          dir,
+          reviewFor(scope, dir, [blocked(ESBUILD, { body: "different" })]),
+        ),
+      ).toEqual(expect.arrayContaining([expect.stringContaining("body")]));
+    });
+
+    it("refuses missing store entries and dangling or escaped package links", () => {
+      const dir = project([ESBUILD]);
+      mkdirSync(join(dir, "node_modules/.bun/missing@1.0.0"));
+      expect(() => inventoryScripts(dir, scope)).toThrow(
+        /missing|node_modules/,
+      );
+      const broken = project([ESBUILD]);
+      symlinkSync(
+        join(base, "absent"),
+        join(broken, "node_modules/.bun/esbuild@0.27.0/node_modules/hidden"),
+      );
+      expect(() => inventoryScripts(broken, scope)).toThrow(/link|ENOENT/);
+      const external = project([
+        {
+          entry: "external@1.0.0",
+          name: "external",
+          version: "1.0.0",
+          scripts: { install: "inert" },
+        },
+      ]);
+      const escaped = project([ESBUILD]);
+      symlinkSync(
+        join(
+          external,
+          "node_modules/.bun/external@1.0.0/node_modules/external",
+        ),
+        join(escaped, "node_modules/.bun/esbuild@0.27.0/node_modules/external"),
+      );
+      expect(() => inventoryScripts(escaped, scope)).toThrow(
+        /outside|escape|contained/,
+      );
+    });
+
+    it("inventories owned manifests once, validates linked siblings, and refuses missing or empty stores", () => {
       const dir = project([
         ESBUILD,
-        { entry: "host@1.0.0", name: "host", version: "1.0.0" },
+        {
+          entry: "host@1.0.0",
+          name: "host",
+          version: "1.0.0",
+          dependencies: { esbuild: "0.27.0" },
+        },
       ]);
       symlinkSync(
         join("..", "..", "esbuild@0.27.0", "node_modules", "esbuild"),

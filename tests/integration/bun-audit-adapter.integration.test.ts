@@ -2,7 +2,14 @@
 // cases prove the candidate fails closed and reuses the unchanged policies.
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -14,6 +21,8 @@ import {
   decide,
   normalizeBunAudit,
   rawAuditProblems,
+  runBunAudit,
+  AUDIT_OUTPUT_LIMIT,
 } from "../../scripts/ci/bun-audit.mjs";
 import {
   bunGraph,
@@ -22,6 +31,7 @@ import {
   pnpmAuditTreePaths,
 } from "../../scripts/ci/lockfile-graph.mjs";
 import { auditSummary } from "../../scripts/ci/report-lib.mjs";
+import { parseUniqueJson } from "../../scripts/ci/json-input.mjs";
 
 type Scope = "app" | "release";
 type Pkg = {
@@ -149,6 +159,7 @@ type Child = {
   spawnError: string | null;
   stdout: string;
   stderr: string;
+  outputExceeded?: boolean;
 };
 const child = (raw: unknown, overrides: Partial<Child> = {}): Child => ({
   status: raw && typeof raw === "object" && Object.keys(raw).length ? 1 : 0,
@@ -205,6 +216,24 @@ describe.each(["app", "release"] as const)(
         info: 0,
       });
     });
+
+    it.each(["exceptions", "runtime", "summary"] as const)(
+      "%s rejects invalid graph evidence even with a clean registry report",
+      (mode) => {
+        const invalidIntegrity = graphOf(scope);
+        for (const node of invalidIntegrity.nodes.values())
+          node.integrity = "invalid";
+        expect(
+          run(mode, scope, { raw: {}, graph: invalidIntegrity }).problems
+            .length,
+        ).toBeGreaterThan(0);
+        const unresolved = graphOf(scope);
+        unresolved.problems.push("unresolved dependency binding");
+        expect(
+          run(mode, scope, { raw: {}, graph: unresolved }).problems.length,
+        ).toBeGreaterThan(0);
+      },
+    );
 
     it("accepts the exact allowed advisory, version, severity and every path before expiry", () => {
       const result = run("exceptions", scope);
@@ -348,6 +377,10 @@ describe.each(["app", "release"] as const)(
         // Deadline fired but the child exited 0 before the kill landed.
         [{ timedOut: true, status: 0, signal: null }, "bun audit timed out"],
         [
+          { outputExceeded: true, status: 0 },
+          "bun audit output exceeded the supported bound",
+        ],
+        [
           { status: null, signal: "SIGTERM" },
           "bun audit terminated by SIGTERM",
         ],
@@ -379,6 +412,11 @@ describe.each(["app", "release"] as const)(
           bunfig: '[install.scopes]\ncorp = "https://r.example.test/"\n',
         }),
       ).not.toEqual([]);
+      for (const bunfig of [
+        '[install]\n"registry" = "https://r.example.test/"',
+        'install = { scopes = { corp = "https://r.example.test/" } }',
+      ])
+        expect(coverageProblems(graphOf(scope), { bunfig })).not.toEqual([]);
       expect(
         coverageProblems(graphOf(scope), { npmrc: "save-exact=true\n" }),
       ).toEqual([]);
@@ -593,7 +631,7 @@ describe("bun-audit.mjs CLI (replay only; no network)", () => {
     );
     writeFileSync(
       join(dir, "package.json"),
-      JSON.stringify({ name: "fixture" }),
+      JSON.stringify(scopeLock("app", { extra: true }).workspaces[""]),
     );
     writeFileSync(join(dir, "clean.json"), "{}");
     writeFileSync(
@@ -622,5 +660,140 @@ describe("bun-audit.mjs CLI (replay only; no network)", () => {
     expect(
       cli([...base, "--mode=runtime", "--ignore=GHSA-vfj7-8cjw-p6xm"]).status,
     ).toBe(2);
+  });
+});
+
+describe("unambiguous JSON security evidence", () => {
+  it.each([
+    '{"packages":{},"packages":{}}',
+    '{"a":1,"\\u0061":2}',
+    '{"outer":[{"same":1,"same":2}]}',
+  ])("rejects duplicate decoded keys: %s", (text) => {
+    expect(() => parseUniqueJson(text)).toThrow("Duplicate JSON object key");
+    expect(rawAuditProblems(child(text, { status: 0 })).length).toBeGreaterThan(
+      0,
+    );
+  });
+
+  it("retains valid nested values and keys that differ between objects", () => {
+    const text =
+      '{"a":{"x":1},"b":[{"x":2},"escaped\\\"key",null,true,-2.5e2]}';
+    expect(parseUniqueJson(text)).toEqual(JSON.parse(text));
+  });
+
+  it("rejects malformed, oversized and deeply nested input", () => {
+    expect(() => parseUniqueJson('{"a":}')).toThrow();
+    expect(() =>
+      parseUniqueJson('"' + "a".repeat(16 * 1024 * 1024) + '"'),
+    ).toThrow("bound");
+    expect(() =>
+      parseUniqueJson("[".repeat(130) + "0" + "]".repeat(130)),
+    ).toThrow("depth");
+  });
+
+  it("rejects duplicate advisory identities rather than overwriting findings", () => {
+    expect(
+      rawAuditProblems(
+        child({ braces: [advisory(), advisory({ severity: "low" })] }),
+      ),
+    ).not.toEqual([]);
+  });
+
+  it("rejects duplicate valid report keys instead of accepting the last clean value", () => {
+    const text =
+      '{"braces":' +
+      JSON.stringify([advisory()]) +
+      ',"braces":' +
+      JSON.stringify([advisory({ severity: "low" })]) +
+      "}";
+    expect(rawAuditProblems(child(text, { status: 1 }))).toEqual([
+      "bun audit output is not JSON",
+    ]);
+  });
+});
+
+describe("owned Bun audit child (inert fake executable; no registry calls)", () => {
+  const dir = mkdtempSync(join(tmpdir(), "t03-bun-audit-child-"));
+  afterAll(() => rmSync(dir, { recursive: true, force: true }));
+  const executable = (name: string, body: string) => {
+    const path = join(dir, name);
+    writeFileSync(path, `#!${process.execPath}\n${body}\n`);
+    chmodSync(path, 0o700);
+    return path;
+  };
+
+  it("isolates global config, disables dotenv and removes the owned home after exit", async () => {
+    const path = executable(
+      "isolated",
+      'process.stdout.write("{}"); process.stderr.write(JSON.stringify({args:process.argv.slice(2),home:process.env.HOME,xdg:process.env.XDG_CONFIG_HOME,keys:Object.keys(process.env)}));',
+    );
+    const result = await runBunAudit(path, dir, true);
+    expect(result.status).toBe(0);
+    const metadata = JSON.parse(result.stderr);
+    expect(metadata.args).toEqual([
+      "--no-env-file",
+      "audit",
+      "--json",
+      "--prod",
+    ]);
+    expect(metadata.home).toBe(metadata.xdg);
+    expect(metadata.home).not.toBe(process.env.HOME);
+    expect(existsSync(metadata.home)).toBe(false);
+    // Darwin's process launcher may inject this OS text-encoding variable.
+    expect(
+      metadata.keys
+        .filter((key: string) => key !== "__CF_USER_TEXT_ENCODING")
+        .sort(),
+    ).toEqual(["HOME", "NO_COLOR", "PATH", "XDG_CONFIG_HOME"].sort());
+    expect(rawAuditProblems(result)).toEqual([]);
+  });
+
+  it.each(["stdout", "stderr"] as const)(
+    "rejects excessive %s even if the child intends to exit zero",
+    async (stream) => {
+      const path = executable(
+        `overflow-${stream}`,
+        `process.${stream}.write(" ".repeat(${AUDIT_OUTPUT_LIMIT + 1}),()=>process.exit(0));`,
+      );
+      const result = await runBunAudit(path, dir, false);
+      expect(result.outputExceeded).toBe(true);
+      expect(Buffer.byteLength(result[stream])).toBeLessThanOrEqual(
+        AUDIT_OUTPUT_LIMIT,
+      );
+      expect(rawAuditProblems(result)).toEqual([
+        "bun audit output exceeded the supported bound",
+      ]);
+    },
+  );
+
+  it.each(["stdout", "stderr"] as const)(
+    "decodes a UTF-8 character split across %s chunks without replacement",
+    async (stream) => {
+      // `é` is 0xC3 0xA9; the delay delivers its two bytes in separate chunks.
+      const path = executable(
+        `split-${stream}`,
+        `process.${stream}.write(Buffer.from([0x7b,0x22,0xc3]));setTimeout(()=>process.${stream}.write(Buffer.from([0xa9,0x22,0x3a,0x31,0x7d])),100);`,
+      );
+      const result = await runBunAudit(path, dir, false);
+      expect(result.outputExceeded).toBe(false);
+      expect(result[stream]).toBe('{"é":1}');
+    },
+  );
+
+  it("bounds raw bytes exactly: multibyte output at the limit is retained", async () => {
+    const path = executable(
+      "at-limit",
+      `process.stdout.write("é".repeat(${AUDIT_OUTPUT_LIMIT / 2}),()=>process.exit(0));`,
+    );
+    const result = await runBunAudit(path, dir, false);
+    expect(result.outputExceeded).toBe(false);
+    expect(result.status).toBe(0);
+    expect(result.stdout).toBe("é".repeat(AUDIT_OUTPUT_LIMIT / 2));
+  });
+
+  it("fails closed and cleans up when the executable cannot start", async () => {
+    const result = await runBunAudit(join(dir, "absent"), dir, false);
+    expect(result.spawnError).toBeTruthy();
+    expect(rawAuditProblems(result)[0]).toContain("could not start");
   });
 });
