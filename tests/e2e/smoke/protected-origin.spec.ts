@@ -1,6 +1,6 @@
 import { createServer, type RequestListener, type Server } from "node:http";
 
-import { expect, test } from "@playwright/test";
+import { type CDPSession, expect, test } from "@playwright/test";
 
 import {
   installProtectedOrigin,
@@ -62,7 +62,12 @@ async function origins() {
 }
 
 test.describe("protection routing", () => {
-  for (const mode of ["abort", "navigation", "unknown-session"] as const) {
+  for (const mode of [
+    "abort",
+    "navigation",
+    "no-network-event",
+    "unknown-session",
+  ] as const) {
     test(`permits only confirmed Chromium request cancellation (${mode})`, async ({
       context,
       page,
@@ -71,8 +76,10 @@ test.describe("protection routing", () => {
       const createSession = context.newCDPSession.bind(context);
       let invalidInterceptions = 0;
       let pausedCancellation = 0;
+      let interceptionSession: CDPSession | undefined;
       context.newCDPSession = async (target) => {
         const session = await createSession(target);
+        interceptionSession = session;
         const send = session.send.bind(session);
         session.on(
           "Fetch.requestPaused",
@@ -110,6 +117,12 @@ test.describe("protection routing", () => {
       });
       try {
         await page.goto(`${local.protectedOrigin}/start`);
+        if (mode === "no-network-event") {
+          // Fetch.networkId is optional. Keep the real Fetch pause/abort/errors,
+          // but remove Network's evidence to reproduce the missing-ID case seen
+          // during authenticated Next navigation. No protocol errors are mocked.
+          await interceptionSession!.send("Network.disable");
+        }
         if (mode === "navigation") {
           // A second navigation cancels the first document while interception
           // is paused, before either new document has committed.
@@ -162,22 +175,28 @@ test.describe("protection routing", () => {
     });
   }
 
-  for (const mode of ["unconfirmed-interception", "unknown-session"] as const) {
+  for (const mode of [
+    "unconfirmed-interception",
+    "unconfirmed-no-network-event",
+    "unknown-session",
+  ] as const) {
     test(`rejects unproved protocol failures (${mode})`, async ({
       context,
       page,
     }) => {
       const local = await origins();
       const createSession = context.newCDPSession.bind(context);
+      let interceptionSession: CDPSession | undefined;
       context.newCDPSession = async (target) => {
         const session = await createSession(target);
+        interceptionSession = session;
         const send = session.send.bind(session);
         session.send = async (method, params) => {
           if (method === "Fetch.continueRequest") {
             throw new Error(
-              mode === "unconfirmed-interception"
-                ? "cdpSession.send: Protocol error (Fetch.continueRequest): Invalid InterceptionId."
-                : "cdpSession.send: Target page, context or browser has been closed",
+              mode === "unknown-session"
+                ? "cdpSession.send: Target page, context or browser has been closed"
+                : "cdpSession.send: Protocol error (Fetch.continueRequest): Invalid InterceptionId.",
             );
           }
           return send(method, params);
@@ -189,6 +208,8 @@ test.describe("protection routing", () => {
         readToken: () => "synthetic-owned-local-token",
       });
       try {
+        if (mode === "unconfirmed-no-network-event")
+          await interceptionSession!.send("Network.disable");
         await expect(
           page.goto(`${local.protectedOrigin}/direct`),
         ).rejects.toThrow();

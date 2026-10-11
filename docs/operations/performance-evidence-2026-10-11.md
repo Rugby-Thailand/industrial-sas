@@ -187,9 +187,10 @@ PR #63 merged after all four protected checks passed on
 `cc64e0e24e5d9e4867cbfd9924fe6dedf32a1807`. Main quality and CodeQL also passed.
 Staging attempt 1 failed sign-out recovery; attempt 2 failed initial
 sign-in/context. Production was correctly skipped in both attempts. The same
-Clerk sign-out/private-navigation sequence passed three times against frozen
-main and three times against the final authenticated local production build,
-with no browser errors. This does not explain the remote failures.
+Clerk sign-out/private-navigation sequence, without the CDP protection guard,
+passed three times against frozen main and three times against the final
+authenticated local production build, with no browser errors. That initial
+probe did not exercise the failing protection seam.
 
 The follow-up preserves every assertion, error gate and zero-retry policy,
 while retaining fixed diagnostic codes for authentication steps, uncaught
@@ -198,3 +199,28 @@ credentials and record values remain excluded. Its privacy regression passed
 28 integration checks. These diagnostics support further investigation; no
 application defect is claimed fixed by adding them. The scheduled job report
 records the final staging/production outcome and telemetry activation proof.
+
+PR #64 merged as `f5318a81e43a449a7db02f262badd43533aad33d` after the full
+local gate (2,353 unit/integration tests and 88 anonymous browser checks) and
+all required quality/CodeQL checks passed on its exact head. Its subsequent
+staging run reported `SMOKE_PROTECTION_REQUEST_FAILED`, with browser/auth
+assertions passing; production remained on the previous release.
+
+The actual CDP guard then reproduced the failure on frozen main: three direct
+ticket sign-in runs failed its health check while sign-out, access restrictions
+and browser error gates passed. This falsified a competing Clerk test-route
+hypothesis. Chromium had already removed intercepted background requests,
+often before supplying the optional `Fetch.networkId`. The guard therefore
+could not match a Network cancellation event. A second `Fetch.failRequest`
+on the same browser-issued interception confirmed that it no longer existed.
+
+The protection fix still tries to block any failed continuation and records a
+failure while verification is pending. Only exact `Invalid InterceptionId`
+responses from **both** continuation and blocking commands clear that case.
+A successful block, missing token, unknown error, lost session or unexpected
+page still fails closed. Header stripping, origin checks and redirect coverage
+remain unchanged. A real Chromium abort regression with Network events disabled
+failed before this change and passed after it. The desktop/mobile protection
+matrix also rejects an unconfirmed error with Network events unavailable,
+alongside the unchanged session, token and credential-leak assertions.
+No auth assertion, retry policy or release lock was weakened.
