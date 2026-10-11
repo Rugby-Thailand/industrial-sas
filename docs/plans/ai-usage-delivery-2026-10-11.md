@@ -4,7 +4,8 @@
 
 Worktree: `/Users/macbook/Development/industrial-sas-ai-usage-delivery-20261011`.
 Branch: `codex/ai-usage-delivery-20261011`.
-PR base: `codex/hr-module-delivery-20261011` (stacked upper PR).
+PR base: `main`, after HR PR #67 merged. Originally stacked above
+`codex/hr-module-delivery-20261011`.
 Source: `4ddbf080c6967f114fb21b5181674f14dcd5371a`.
 Integrated main: `9ac5da0e5ffc681e19a7dc5ad83da5d26bb61320`.
 Specification: `docs/plans/ai-usage-tracking-2026-10-10.md`.
@@ -106,9 +107,11 @@ the replacement stack to prevent duplicate integration.
 
 Status: implementation, audit, repair and verification completed.
 [AI usage PR #68](https://github.com/Rugby-Thailand/industrial-sas/pull/68) is open
-and linked in T3, based on
-[HR PR #67](https://github.com/Rugby-Thailand/industrial-sas/pull/67).
-Required GitHub checks are monitored on the final documentation head.
+and linked in T3, retargeted to main after
+[HR PR #67](https://github.com/Rugby-Thailand/industrial-sas/pull/67) merged as
+`1deda8f1ed3624df674ce3e35b9f5615e5cf58b5`. Main's merge commit is integrated
+without runtime changes; fresh quality and CodeQL checks are required before
+the user-authorized merge. User also authorized closing superseded PR #62.
 
 ## Delivery evidence — 11 October 2026
 
