@@ -1,7 +1,7 @@
 /**
  * The one OpenRouter chat request behind AI Search, as pure values: the
- * request body and the validated reading of the answer, shared by the Convex
- * action and the opt-in live evaluation so both send exactly the same thing.
+ * request body and the validated reading of the answer used by the Convex
+ * action and covered by provider-contract tests.
  * The transport (fetch and deadline) is the adapter in
  * `convex/lib/searchProvider.ts`.
  *

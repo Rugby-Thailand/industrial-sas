@@ -206,6 +206,71 @@ beforeEach(() => {
 });
 afterEach(() => vi.useRealTimers());
 
+describe("certification revision consistency (HR-034)", () => {
+  it("keeps an earlier certification as history without labelling a new ordinary pair certified", async () => {
+    const { world, employeeId } = await hrWorld();
+    setNow("2026-10-08", "10:00");
+    const correction = written(
+      await call(world, self.submitCorrection, {
+        requestId: rid("early-correction"),
+        businessDate: "2026-10-08",
+        start: { minute: 510, nextDay: false },
+        end: { minute: 570, nextDay: false },
+        reason: "The earlier paper register pair was missing",
+      }),
+    );
+    written(
+      await call(
+        world,
+        review.decideCorrection,
+        {
+          requestId: rid("early-certification"),
+          correctionId: correction.documentId,
+          expectedVersion: 1,
+          decision: "CERTIFY",
+        },
+        HR_ADMIN,
+      ),
+    );
+    const queue = () =>
+      call(
+        world,
+        review.queue,
+        { from: "2026-10-08", to: "2026-10-08" },
+        HR_ADMIN,
+      );
+    expect(value(await queue()).items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ employeeId, certified: true, revision: 1 }),
+      ]),
+    );
+    setNow("2026-10-08", "11:00");
+    written(await call(world, self.clockIn, { requestId: rid("later-in") }));
+    setNow("2026-10-08", "12:00");
+    written(await call(world, self.clockOut, { requestId: rid("later-out") }));
+    expect(value(await queue()).items).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ employeeId })]),
+    );
+    const detail = value(
+      await call(
+        world,
+        review.dayDetail,
+        { employeeId, businessDate: "2026-10-08" },
+        HR_ADMIN,
+      ),
+    ).detail;
+    expect(detail).toMatchObject({
+      revision: 3,
+      status: "READY",
+      certification: { current: false },
+      originalStartAt: at("2026-10-08", "11:00"),
+      originalEndAt: at("2026-10-08", "12:00"),
+      effectiveStartAt: at("2026-10-08", "11:00"),
+      effectiveEndAt: at("2026-10-08", "12:00"),
+    });
+  });
+});
+
 describe("HR roles and the shell boundary (HR-002, A15)", () => {
   it("lets an HR-only employee reach HR without storage access, and keeps warehouse managers out of HR", async () => {
     const { world } = await hrWorld();

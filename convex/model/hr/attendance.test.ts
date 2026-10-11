@@ -150,6 +150,38 @@ describe("planned days", () => {
 describe("day evaluation", () => {
   const base = { revision: 1, pendingCorrection: false };
 
+  it.each([NaN, Infinity, -Infinity])(
+    "keeps invalid event and certification instants %s out of ready totals",
+    (invalid) => {
+      const input = {
+        ...base,
+        plan: plan("2026-10-08", DAY),
+        now: at("2026-10-09", "09:00"),
+      };
+      for (const values of [
+        { clockInAt: invalid, clockOutAt: invalid },
+        {
+          certification: {
+            disposition: "WORKED" as const,
+            revision: 1,
+            startAt: invalid,
+            endAt: invalid,
+          },
+        },
+        { now: invalid },
+        { plan: { ...input.plan, breakMinutes: invalid } },
+      ]) {
+        expect(evaluateDay({ ...input, ...values })).toMatchObject({
+          status: "EXCEPTION",
+          issue: "IMPLAUSIBLE",
+          certified: false,
+          workedMinutes: 0,
+          outsideShiftMinutes: 0,
+        });
+      }
+    },
+  );
+
   it("reports a complete ordinary day as ready with break-deducted minutes", () => {
     const result = evaluateDay({
       ...base,
@@ -289,6 +321,27 @@ describe("day evaluation", () => {
 
 describe("proposed corrections", () => {
   const now = at("2026-10-09", "09:00");
+
+  it.each([
+    { originalStartAt: NaN, originalEndAt: NaN },
+    { originalStartAt: Infinity, originalEndAt: Infinity },
+    { originalStartAt: -Infinity, originalEndAt: -Infinity },
+    { now: NaN },
+    { offsetMinutes: NaN },
+    { offsetMinutes: Infinity },
+    { businessDate: "2026-02-30" },
+  ])("refuses invalid correction inputs %j without throwing", (invalid) => {
+    expect(
+      resolveProposedInterval({
+        businessDate: "2026-10-08",
+        offsetMinutes: OFFSET,
+        now,
+        originalStartAt: at("2026-10-08", "08:30"),
+        originalEndAt: at("2026-10-08", "17:30"),
+        ...invalid,
+      }),
+    ).toMatchObject({ ok: false });
+  });
 
   it("fills a missing end from the original start (A8)", () => {
     const result = resolveProposedInterval({
