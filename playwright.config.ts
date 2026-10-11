@@ -10,6 +10,8 @@ import { runPolicy } from "./tests/e2e/support/policy";
  * deliberately unconfigured, so it needs no secrets and is safe for forks.
  * It proves routing, locale redirects, public/not-found pages, headers,
  * hydration without page errors, and axe on desktop and mobile Chromium.
+ * Next serves under the pinned Bun runtime (docs/operations/bun-runtime.md);
+ * the Playwright runner itself stays on Node.
  * Authentication is proved separately by the trusted staging suite.
  */
 const port = Number(process.env.PLAYWRIGHT_PORT ?? 3200);
@@ -39,12 +41,15 @@ export default defineConfig({
     { name: "mobile-chromium", use: { ...devices["Pixel 7"] } },
   ],
   webServer: {
-    command: `pnpm exec next start --hostname 127.0.0.1 --port ${port}`,
+    // Same Bun invocation as `pnpm start`; `bun` (.bun-version) must be on
+    // PATH. BUN_OPTIONS repeats --no-env-file for workers Next re-spawns.
+    command: `bun run --bun --no-env-file next start --hostname 127.0.0.1 --port ${port}`,
     url: `${baseURL}/th/sign-in`,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
     // Explicitly empty: the smoke suite must never inherit service credentials.
     env: {
+      BUN_OPTIONS: "--no-env-file",
       NEXT_PUBLIC_CONVEX_URL: "",
       NEXT_PUBLIC_CONVEX_SITE_URL: "",
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "",

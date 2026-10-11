@@ -48,16 +48,27 @@ comparison and fallback. TypeScript 6 remains installed for the editor,
 typescript-eslint and the type check inside `pnpm build`.
 `node scripts/benchmark-typecheck.mjs` compares the two checkers serially.
 
+Next.js runs on that pinned Bun: `pnpm dev` (the Next half; Convex stays on
+Node), `pnpm dev:web`, `pnpm build` and `pnpm start` use
+`bun run --bun --no-env-file next …` so Bun does not preload `.env` files
+before Next selects them. `pnpm dev:web:node`, `pnpm build:node` and
+`pnpm start:node` are the Node fallbacks. Installation, Vitest, the Playwright
+runner, Convex and the release tooling stay on Node and pnpm. Hosted Vercel
+Functions use `bunVersion: "1.4.x"`, and `GET /api/runtime` reports the serving
+runtime. See [Bun runtime](docs/operations/bun-runtime.md) for exceptions,
+setup, rollback and deferred work.
+
 ## Production
 
 ### CI/CD
 
 `Planner quality` runs once per pull request update and on pushes to `main`.
 Use its manual GitHub Actions trigger to check a branch before opening a PR.
-Type checking, lint and the production dependency audit run alongside two test
-shards and the production build. The validate job installs the pinned Bun
-checker from its checksum-verified release archive (no third-party action) and
-runs `pnpm typecheck` with it. Every Vitest project remains included. The
+Type checking, lint and the production dependency audit run alongside three test
+shards and the production build. The shared setup action installs the pinned
+Bun from its checksum-verified release archive (no third-party action) right
+after the frozen install, so `pnpm typecheck`, the Bun-run production build and
+the Bun-served browser smoke all use it. Every Vitest project remains included. The
 `check` job passes only when all jobs pass; use it as the required merge check.
 Superseded PR runs are cancelled, while production-branch checks finish.
 
@@ -67,7 +78,8 @@ Node version, with a fresh entry per commit. Action versions are pinned by SHA
 and maintained by Dependabot.
 
 Native Vercel Git builds are disabled for both previews and `main`
-(`vercel.json`: `git.deploymentEnabled=false`, no ignored-build-step shortcut).
+(`vercel.json`: `git.deploymentEnabled=false`, no ignored-build-step shortcut,
+`bunVersion: "1.4.x"`; the release refuses a missing or different value).
 A secret-bearing build couples a Convex backend push to the frontend build, so
 it must wait for trusted CI. Pull requests run credential-free local browser
 checks instead of native previews. The disabled Git trigger takes effect only

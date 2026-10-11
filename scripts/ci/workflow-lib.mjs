@@ -610,12 +610,14 @@ function releaseJobProblems(id, job, spec) {
 }
 
 // Mandatory validate-job commands (CI-03/06/07/09/10/11, T11, S12). The
-// pinned Bun checker must be installed before `pnpm typecheck` uses it (T01).
+// pinned Bun is installed once by the shared setup action, after the frozen
+// install, for `pnpm typecheck` and the Bun-run Next scripts (bun-runtime.md).
 export const BUN_CHECKER_INSTALL = "node scripts/ci/install-bun-checker.mjs";
+export const SETUP_ACTION = "actions/setup-node-pnpm/action.yml";
+const FROZEN_INSTALL = "pnpm install --frozen-lockfile";
 export const VALIDATE_COMMANDS = Object.freeze([
   "node scripts/ci/validate-workflows.mjs --verify-pins",
   "pnpm format:check",
-  BUN_CHECKER_INSTALL,
   "pnpm typecheck",
   "pnpm lint",
   "pnpm audit:prod",
@@ -704,7 +706,7 @@ const SMOKE_LEG = "${{ matrix.suite == 'smoke' }}";
 const legAfter = (suite, step) =>
   `\${{ !cancelled() && matrix.suite == '${suite}' && steps.${step}.outcome == 'success' }}`;
 const NEXT_CACHE_KEY =
-  "${{ runner.os }}-${{ runner.arch }}-next-${{ hashFiles('pnpm-lock.yaml', '.nvmrc') }}-";
+  "${{ runner.os }}-${{ runner.arch }}-next-bun-${{ hashFiles('pnpm-lock.yaml', '.nvmrc', '.bun-version') }}-";
 const runOf = (step) => String(step?.run ?? "");
 const BROWSER_STEPS = Object.freeze([
   [
@@ -976,12 +978,9 @@ function qualityProblems(workflow, { allowedGhsas }) {
   for (const command of VALIDATE_COMMANDS)
     if (!validateRuns.includes(command))
       problems.push(`quality.yml:validate: must run ${command}`);
-  // A missing command is reported above; order is checked only when both run.
-  const installAt = validateRuns.indexOf(BUN_CHECKER_INSTALL);
-  const typecheckAt = validateRuns.indexOf("pnpm typecheck");
-  if (installAt >= 0 && typecheckAt >= 0 && installAt > typecheckAt)
+  if (validateRuns.includes(BUN_CHECKER_INSTALL))
     problems.push(
-      `quality.yml:validate: ${BUN_CHECKER_INSTALL} must run before pnpm typecheck`,
+      `quality.yml:validate: ${BUN_CHECKER_INSTALL} runs in the shared setup action, not again here`,
     );
 
   problems.push(...testShardProblems(jobs.test), ...browserProblems(jobs));
@@ -1082,6 +1081,23 @@ function auxiliaryProblems(name, workflow) {
   return problems;
 }
 
+// Every job that installs dependencies also gets the pinned Bun, exactly once
+// and only after the frozen install, so build/browser jobs can run Next on it.
+function setupActionProblems(parsed) {
+  const runs = asList(parsed[SETUP_ACTION]?.runs?.steps).map((step) =>
+    String(step?.run ?? "").trim(),
+  );
+  const installs = runs.filter((run) => run === BUN_CHECKER_INSTALL).length;
+  const frozenAt = runs.indexOf(FROZEN_INSTALL);
+  return installs === 1 &&
+    frozenAt >= 0 &&
+    runs.indexOf(BUN_CHECKER_INSTALL) > frozenAt
+    ? []
+    : [
+        `${SETUP_ACTION}: must run ${BUN_CHECKER_INSTALL} once, after ${FROZEN_INSTALL}`,
+      ];
+}
+
 /**
  * Policy problems for `{ "<file>.yml": text }` workflows plus composite action
  * texts. `exceptions` is scripts/ci/dependency-exceptions.json; `now` in ms.
@@ -1115,6 +1131,7 @@ export function workflowPolicyProblems({
     if (parsed[name] && secretNames(parsed[name]).length > 0)
       problems.push(`${name}: composite actions must not read secrets`);
   }
+  if (SETUP_ACTION in actions) problems.push(...setupActionProblems(parsed));
   if (parsed["quality.yml"])
     problems.push(
       ...qualityProblems(parsed["quality.yml"], {

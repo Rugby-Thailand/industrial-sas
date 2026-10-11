@@ -30,12 +30,12 @@ function stopAll(signal) {
   return cleanup;
 }
 
-function start(name, command, args) {
+function start(name, command, args, env = process.env) {
   console.log(`[dev] Starting ${name}…`);
   const child = children.track(
     spawn(command, args, {
       cwd: root,
-      env: process.env,
+      env,
       stdio: "inherit",
     }),
   );
@@ -61,13 +61,27 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
 
 console.log("[dev] Convex and Next.js share this terminal. Ctrl+C stops both.");
 
+// Convex stays on its Node CLI. Next runs under Bun (docs/operations/
+// bun-runtime.md): its JS entry directly, so this child is the Next process
+// itself and stopAll() signals it as before. --no-env-file stops Bun preloading
+// .env files before Next selects its own; BUN_OPTIONS carries the flag to the
+// dev server Next forks with its own execArgv. `pnpm dev:web:node` is the
+// Node fallback.
 const backend = start("Convex backend", bin("convex"), ["dev"]);
-const web = start("Next.js web", bin("next"), [
-  "dev",
-  "--webpack",
-  "--port",
-  process.env.PORT ?? "3100",
-]);
+const web = start(
+  "Next.js web (Bun)",
+  "bun",
+  [
+    "--bun",
+    "--no-env-file",
+    join(root, "node_modules", "next", "dist", "bin", "next"),
+    "dev",
+    "--webpack",
+    "--port",
+    process.env.PORT ?? "3100",
+  ],
+  { ...process.env, BUN_OPTIONS: "--no-env-file" },
+);
 const firstExit = await Promise.race([backend.finished, web.finished]);
 
 await stopAll();
@@ -75,6 +89,10 @@ await stopAll();
 if (!interrupted) {
   if (firstExit.error !== null) {
     console.error(`[dev] ${firstExit.name} failed to start:`, firstExit.error);
+    if (firstExit.error.code === "ENOENT" && firstExit.name.includes("Bun"))
+      console.error(
+        "[dev] Put the pinned Bun on PATH (node scripts/ci/install-bun-checker.mjs).",
+      );
   } else {
     const reason =
       firstExit.signal === null

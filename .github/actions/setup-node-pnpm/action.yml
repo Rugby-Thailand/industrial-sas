@@ -1,8 +1,9 @@
 name: Setup Node and pnpm
 description: >-
-  Install pnpm, Node.js, and this workspace's dependencies from the committed
-  lockfile. Single place where the toolchain versions and the dependency cache
-  are configured, so every job installs identically.
+  Install pnpm, Node.js, this workspace's dependencies from the committed
+  lockfile, and the pinned Bun runtime. Single place where the toolchain
+  versions and the dependency cache are configured, so every job installs
+  identically.
 
 inputs:
   cache:
@@ -46,3 +47,11 @@ runs:
     - name: Install dependencies
       shell: bash
       run: pnpm install --frozen-lockfile
+
+    # Exact Bun from .bun-version for `pnpm typecheck` and for the Next
+    # dev/build/start scripts that run under Bun. Official release archive,
+    # SHA-256 pinned in the installer and verified before extraction (no
+    # third-party action); it appends the binary directory to GITHUB_PATH.
+    - name: Install pinned Bun
+      shell: bash
+      run: node scripts/ci/install-bun-checker.mjs

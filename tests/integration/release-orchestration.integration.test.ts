@@ -559,6 +559,10 @@ describe("gated production release", () => {
       { ...gatedVercelConfig(), git: { deploymentEnabled: { main: true } } },
       { ...gatedVercelConfig(), buildCommand: "pnpm build" },
       { ...gatedVercelConfig(), ignoreCommand: "exit 0" },
+      // The hosted Bun runtime choice cannot be dropped or downgraded.
+      { ...gatedVercelConfig(), bunVersion: undefined },
+      { ...gatedVercelConfig(), bunVersion: "1.x" },
+      { ...gatedVercelConfig(), bunVersion: "1.4.3" },
     ]) {
       const { result, calls } = await run({ committedVercelConfig: committed });
       expect(result.code).toBe("NOT_READY");
@@ -834,7 +838,13 @@ describe("release configuration", () => {
   it("uses the committed gated configuration with all native Git builds retired", async () => {
     const { readFileSync } = await import("node:fs");
     const committed = JSON.parse(readFileSync("vercel.json", "utf8"));
-    expect(cutoverState(committed)).toMatchObject({ ready: true });
+    expect(cutoverState(committed)).toMatchObject({
+      ready: true,
+      bunRuntime: true,
+    });
+    // The release writes exactly the committed configuration.
+    expect(committed).toEqual(gatedVercelConfig());
+    expect(committed.bunVersion).toBe("1.4.x");
   });
 
   it("passes provenance and never assigns domains on production deploys", () => {
