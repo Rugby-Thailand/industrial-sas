@@ -1,16 +1,16 @@
 import { sanitizeObservabilityEvent, type ObservabilityEvent } from "./event";
+import { sentryObservabilityEvent } from "./sentryPolicy";
 
 export interface ObservabilityPort {
   /** Report one event. Must not throw, must not block, must not retry forever. */
   readonly record: (event: ObservabilityEvent) => void;
 }
 
-// Durable telemetry is deliberately absent (BD-12). `console` writes to the
-// browser console of the person using the app; it is a development aid, not
-// a central destination, and nothing here proves delivery anywhere. A future
-// destination is added as a new sink only after its owner, data-processor
-// review and delivery check exist (docs/operations/release-runbook.md).
-export const OBSERVABILITY_SINKS = ["none", "console"] as const;
+// Destinations remain opt-in. Console is a development aid; Sentry activation
+// also requires its reviewed account/configuration and a delivery check.
+// Neither a configured sink nor a successful local test proves remote delivery
+// (docs/operations/release-runbook.md).
+export const OBSERVABILITY_SINKS = ["none", "console", "sentry"] as const;
 export type ObservabilitySink = (typeof OBSERVABILITY_SINKS)[number];
 
 export const isObservabilitySink = (
@@ -43,6 +43,24 @@ export function createConsoleObservabilityPort(
 export function resolveObservabilityPort(
   sink: string | undefined,
 ): ObservabilityPort {
+  if (
+    sink === "sentry" &&
+    process.env.NEXT_PUBLIC_SENTRY_ENABLED === "1" &&
+    process.env.NEXT_PUBLIC_SENTRY_DSN
+  )
+    return {
+      record: (event) => {
+        try {
+          if (event.code === "web.vital") return;
+          const safe = sentryObservabilityEvent(event);
+          void import("./sentryClient")
+            .then((module) => module.recordSentryEvent(safe))
+            .catch(() => {});
+        } catch {
+          // Telemetry failure must not change an application operation.
+        }
+      },
+    };
   return sink === "console"
     ? createConsoleObservabilityPort()
     : nullObservabilityPort;

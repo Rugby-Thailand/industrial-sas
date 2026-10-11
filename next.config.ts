@@ -1,6 +1,7 @@
 import createNextIntlPlugin from "next-intl/plugin";
 import type { NextConfig } from "next";
 import path from "node:path";
+import { withSentryConfig } from "@sentry/nextjs/config";
 
 import {
   releaseProvenanceHeaders,
@@ -14,6 +15,7 @@ const distDir = process.env.NEXT_DIST_DIR;
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  reactCompiler: true,
   poweredByHeader: false,
   ...(distDir === undefined || distDir === "" ? {} : { distDir }),
   typescript: {
@@ -80,4 +82,24 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default withNextIntl(nextConfig);
+const localizedConfig = withNextIntl(nextConfig);
+export default process.env.SENTRY_ENABLED === "1" &&
+process.env.SENTRY_AUTH_TOKEN &&
+process.env.SENTRY_ORG &&
+process.env.SENTRY_PROJECT
+  ? withSentryConfig(localizedConfig, {
+      org: process.env.SENTRY_ORG,
+      project: process.env.SENTRY_PROJECT,
+      authToken: process.env.SENTRY_AUTH_TOKEN,
+      buildTimeInstrumentation: false,
+      sourcemaps: { deleteSourcemapsAfterUpload: true },
+      ...(process.env.RELEASE_SHA
+        ? { release: { name: process.env.RELEASE_SHA } }
+        : {}),
+      webpack: {
+        autoInstrumentServerFunctions: false,
+        autoInstrumentMiddleware: false,
+        autoInstrumentAppDirectory: false,
+      },
+    })
+  : localizedConfig;

@@ -10,7 +10,7 @@ import {
   X,
 } from "lucide-react";
 import { useStorageLayoutMobile } from "./useStorageLayoutMobile";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import {
   memo,
   useId,
@@ -35,7 +35,6 @@ import {
   matchingStorageLocations,
 } from "@/lib/storageLayouts/locationSelectors";
 import type { StorageZoneRow } from "@/lib/convex/storageLayoutApi";
-import { messagesFor } from "@/i18n/messages";
 
 import {
   FloorWorkspaceLocationList,
@@ -87,8 +86,29 @@ function LocationTable({
     () => new Intl.NumberFormat(locale, { maximumFractionDigits: 3 }),
     [locale],
   );
+  const tableText = useTranslations("StorageLayouts.locationTable");
   const labels = {
-    ...messagesFor(locale).StorageLayouts.locationTable,
+    search: tableText("search"),
+    filters: tableText("filters"),
+    table: tableText("table"),
+    grid: tableText("grid"),
+    vacant: tableText("vacant"),
+    stored: tableText("stored"),
+    reserved: tableText("reserved"),
+    unmeasured: tableText("unmeasured"),
+    clear: tableText("clear"),
+    sort: tableText("sort"),
+    code: tableText("code"),
+    label: tableText("label"),
+    units: tableText("units"),
+    direction: tableText("direction"),
+    title: tableText("title"),
+    empty: tableText("empty"),
+    dimensions: tableText("dimensions"),
+    incomplete: tableText("incomplete"),
+    size: tableText("size"),
+    previous: tableText("previous"),
+    next: tableText("next"),
   };
   const sorted = useMemo(() => {
     const collator = new Intl.Collator(locale, {
