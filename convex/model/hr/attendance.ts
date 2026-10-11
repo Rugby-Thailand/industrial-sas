@@ -8,7 +8,7 @@
  * attendance figures, not pay, overtime entitlement or lateness judgements.
  */
 import { fail, ok, type Result } from "../result";
-import { MS_PER_MINUTE, fromLocal, type IsoDate } from "./calendar";
+import { MS_PER_MINUTE, fromLocal, isIsoDate, type IsoDate } from "./calendar";
 import {
   MAX_PLAUSIBLE_MINUTES,
   openDayDeadline,
@@ -96,7 +96,10 @@ export function outsideShiftMinutes(
 }
 
 const isPlausible = (startAt: number, endAt: number) =>
-  endAt > startAt && endAt - startAt <= MAX_PLAUSIBLE_MINUTES * MS_PER_MINUTE;
+  Number.isSafeInteger(startAt) &&
+  Number.isSafeInteger(endAt) &&
+  endAt > startAt &&
+  endAt - startAt <= MAX_PLAUSIBLE_MINUTES * MS_PER_MINUTE;
 
 export const certificationIsCurrent = (
   certification: Certification | undefined,
@@ -126,6 +129,46 @@ function worked(
 export function evaluateDay(input: DayInput): DayEvaluation {
   const { plan, now, clockInAt, clockOutAt } = input;
   const zero = { workedMinutes: 0, outsideShiftMinutes: 0 };
+  const validInstant = (value: number | undefined) =>
+    value === undefined || (Number.isSafeInteger(value) && value <= now);
+  // Convex numeric fields can contain non-finite values. Never let a corrupt
+  // event, captured plan or certification make a closeable day or NaN totals.
+  const numericInputsValid =
+    Number.isSafeInteger(now) &&
+    Number.isSafeInteger(input.revision) &&
+    input.revision >= 0 &&
+    validInstant(clockInAt) &&
+    validInstant(clockOutAt) &&
+    Number.isSafeInteger(plan.breakMinutes) &&
+    plan.breakMinutes >= 0 &&
+    (plan.kind === "SCHEDULED"
+      ? isPlausible(plan.startAt, plan.endAt) &&
+        plan.breakMinutes * MS_PER_MINUTE < plan.endAt - plan.startAt
+      : plan.kind === "NONWORKING" && plan.breakMinutes === 0);
+  const recordedCertification = input.certification;
+  const certificationValid =
+    recordedCertification === undefined ||
+    (Number.isSafeInteger(recordedCertification.revision) &&
+      recordedCertification.revision >= 0 &&
+      (recordedCertification.revision !== input.revision ||
+        (DISPOSITIONS.includes(recordedCertification.disposition) &&
+          validInstant(recordedCertification.startAt) &&
+          validInstant(recordedCertification.endAt) &&
+          (recordedCertification.disposition !== "WORKED" ||
+            (recordedCertification.startAt !== undefined &&
+              recordedCertification.endAt !== undefined &&
+              isPlausible(
+                recordedCertification.startAt,
+                recordedCertification.endAt,
+              ))))));
+  if (!numericInputsValid || !certificationValid)
+    return Object.freeze({
+      status: "EXCEPTION",
+      issue: "IMPLAUSIBLE",
+      disposition: null,
+      certified: false,
+      ...zero,
+    });
   const certification = certificationIsCurrent(
     input.certification,
     input.revision,
@@ -252,11 +295,22 @@ export function resolveProposedInterval(input: {
   { readonly startAt: number; readonly endAt: number },
   IntervalError
 > {
+  // Validate before calendar arithmetic: a date/offset can be forged despite
+  // its TypeScript annotation, and comparisons with NaN are always false.
+  if (
+    !isIsoDate(input.businessDate) ||
+    !Number.isSafeInteger(input.offsetMinutes) ||
+    Math.abs(input.offsetMinutes) > 14 * 60 ||
+    !Number.isSafeInteger(input.now)
+  )
+    return fail({ code: "CORRECTION_TIME_INVALID" });
   const instant = (
     side: LocalTimeInput | undefined,
   ): number | undefined | null => {
     if (side === undefined) return undefined;
     if (
+      side === null ||
+      typeof side !== "object" ||
       !Number.isInteger(side.minute) ||
       side.minute < 0 ||
       side.minute >= 1440 ||
@@ -277,6 +331,8 @@ export function resolveProposedInterval(input: {
   const endAt = end ?? input.originalEndAt;
   if (startAt === undefined || endAt === undefined)
     return fail({ code: "CORRECTION_INCOMPLETE" });
+  if (!Number.isSafeInteger(startAt) || !Number.isSafeInteger(endAt))
+    return fail({ code: "CORRECTION_TIME_INVALID" });
   if (endAt <= startAt) return fail({ code: "CORRECTION_ORDER_INVALID" });
   if (endAt - startAt > MAX_PLAUSIBLE_MINUTES * MS_PER_MINUTE)
     return fail({ code: "CORRECTION_TOO_LONG" });

@@ -17,6 +17,7 @@ import {
   type TenantFunctionContext,
 } from "../lib/tenantFunctions";
 import {
+  certificationIsCurrent,
   evaluateDay,
   resolveProposedInterval,
   type Disposition,
@@ -160,7 +161,9 @@ export const queue = queryWithOrg({
       for (const row of rows) {
         const day = days.get(`${row.employeeId}:${row.businessDate}`);
         const certified =
-          day?.certification !== undefined && row.status === "READY";
+          day !== undefined &&
+          certificationIsCurrent(day.certification, day.revision) &&
+          row.status === "READY";
         if (row.status !== "EXCEPTION" && !certified) continue;
         items.push({
           employeeId: row.employeeId,

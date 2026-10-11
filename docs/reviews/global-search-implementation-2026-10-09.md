@@ -1,3 +1,9 @@
+> Historical source reference restored for the HR/Search split on 2026-10-11.
+> Implementation status, SHAs, commands, test counts, model evaluations and browser
+> captures below describe the original combined source and earlier local work.
+> They are not fresh acceptance evidence for this delivery branch.
+> Current verification is recorded in `output/delivery-20261011/`.
+
 # Global search and AI navigation — implementation review (audit-fix round)
 
 Root's completed live-model and native-browser checks are recorded separately in [independent validation](global-search-independent-validation-2026-10-09.md). The test counts and limitations below distinguish the Kiro audit round from the final polish round.

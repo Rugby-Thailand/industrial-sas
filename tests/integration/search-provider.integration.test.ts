@@ -80,6 +80,11 @@ afterEach(() => {
 describe("AI Search transport adapter", () => {
   it("lives outside the pure model directory, which keeps only values", () => {
     expect(searchProvider.requestSearchIntent).toBeTypeOf("function");
+    expect(Object.keys(searchProvider).sort()).toEqual([
+      "OPENROUTER_CHAT_URL",
+      "SEARCH_TIMEOUT_MS",
+      "requestSearchIntent",
+    ]);
     expect(SEARCH_TIMEOUT_MS).toBe(12_000);
     expect(OPENROUTER_CHAT_URL).toBe(
       "https://openrouter.ai/api/v1/chat/completions",
@@ -103,6 +108,10 @@ describe("AI Search transport adapter", () => {
       RequestInit,
     ];
     expect(url).toBe(OPENROUTER_CHAT_URL);
+    expect(init.method).toBe("POST");
+    expect(new Headers(init.headers).get("Authorization")).toBe(
+      `Bearer ${KEY_SENTINEL}`,
+    );
     expect(JSON.parse(init.body as string)).toEqual(
       pureProvider.searchIntentRequestBody({
         model: "test/search-model",
@@ -163,6 +172,47 @@ describe("AI Search transport adapter", () => {
     );
   });
 
+  it("aborts at the 12-second deadline without a usage recorder", async () => {
+    vi.useFakeTimers();
+    const fetcher = vi.fn(
+      (_url: unknown, init?: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () =>
+            reject(Object.assign(new Error("aborted"), { name: "AbortError" })),
+          );
+        }),
+    );
+    let settled = false;
+    const pending = request(fetcher).then((result) => {
+      settled = true;
+      return result;
+    });
+
+    await vi.advanceTimersByTimeAsync(SEARCH_TIMEOUT_MS - 1);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(settled).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+
+    expect(await pending).toEqual({ ok: false, error: "AI_TIMEOUT" });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
+  it("honours a shorter injected deadline", async () => {
+    const fetcher = vi.fn(
+      (_url: unknown, init?: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () =>
+            reject(Object.assign(new Error("aborted"), { name: "AbortError" })),
+          );
+        }),
+    );
+    expect(await request(fetcher, { timeoutMs: 20 })).toEqual({
+      ok: false,
+      error: "AI_TIMEOUT",
+    });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
   it("does not retry provider errors and refuses non-JSON bodies", async () => {
     const failing = vi.fn(async () => new Response("busy", { status: 503 }));
     const busy = recorder();
@@ -183,12 +233,11 @@ describe("AI Search transport adapter", () => {
 
   it("reports an unreadable answer and a network error with their original codes", async () => {
     const unreadable = recorder();
+    const unreadableFetcher = vi.fn(async () => completion("not json"));
     expect(
-      await request(
-        vi.fn(async () => completion("not json")),
-        { usage: unreadable.usage },
-      ),
+      await request(unreadableFetcher, { usage: unreadable.usage }),
     ).toEqual({ ok: false, error: "AI_UNREADABLE" });
+    expect(unreadableFetcher).toHaveBeenCalledTimes(1);
     expect(unreadable.finish).toHaveBeenCalledWith(
       1,
       expect.objectContaining({ status: "UNREADABLE" }),

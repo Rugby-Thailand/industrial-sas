@@ -1,3 +1,8 @@
+> Historical review for the combined source. The linked `.impeccable/review/`
+> captures were local visual-review artifacts and are not tracked on this
+> delivery branch; they are preserved in ignored local QA output. Current
+> verification is recorded in `output/delivery-20261011/`.
+
 # AI usage Design 1 and main-target review
 
 Date: 2026-10-11 (Asia/Bangkok).
