@@ -6,6 +6,10 @@ import { ThemeProvider } from "next-themes";
 import { ConvexClientProvider } from "./ConvexClientProvider";
 import { EnvironmentProvider, useAppEnvironment } from "./EnvironmentProvider";
 import { IdentityProvider } from "./IdentityProvider";
+import {
+  HrAccessProvider,
+  UnavailableHrAccessProvider,
+} from "./HrAccessProvider";
 import { ObservabilityProvider } from "./ObservabilityProvider";
 import {
   UnavailableWorkspaceProvider,
@@ -19,14 +23,16 @@ export function EnvironmentAwareWorkspaceProvider({
 }) {
   const environment = useAppEnvironment();
   return environment.backendConfigured && environment.identityConfigured ? (
-    <WorkspaceProvider>{children}</WorkspaceProvider>
+    <WorkspaceProvider>
+      <HrAccessProvider>{children}</HrAccessProvider>
+    </WorkspaceProvider>
   ) : (
     <UnavailableWorkspaceProvider
       reason={
         environment.backendConfigured ? "SIGN_IN_REQUIRED" : "BACKEND_MISSING"
       }
     >
-      {children}
+      <UnavailableHrAccessProvider>{children}</UnavailableHrAccessProvider>
     </UnavailableWorkspaceProvider>
   );
 }

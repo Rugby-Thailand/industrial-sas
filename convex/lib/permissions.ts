@@ -1,4 +1,11 @@
+import {
+  HR_PERMISSION,
+  HR_PERMISSION_CODES,
+  type HrPermissionCode,
+} from "../model/authorization/navigationPermissions";
 import type { DenialReason, MembershipScopeMode } from "./validators";
+
+export { HR_PERMISSION, HR_PERMISSION_CODES, type HrPermissionCode };
 
 export interface PermissionDefinition {
   readonly code: string;
@@ -28,6 +35,7 @@ export const PERMISSION_CATALOGUE = Object.freeze([
   permission("masterData.storageLayout.read", "WAREHOUSE"),
   permission("masterData.storageLayout.manage", "WAREHOUSE"),
   permission("masterData.storageLayout.activate", "WAREHOUSE"),
+  ...HR_PERMISSION_CODES.map((code) => permission(code, "ORG")),
 ]);
 export const PERMISSIONS_BY_CODE: ReadonlyMap<string, PermissionDefinition> =
   new Map(PERMISSION_CATALOGUE.map((entry) => [entry.code, entry]));
@@ -37,19 +45,52 @@ export interface DefaultRoleDefinition {
   readonly description: string;
   readonly permissionCodes: readonly string[];
 }
-const plannerPermissions = PERMISSION_CATALOGUE.map(({ code }) => code);
+/**
+ * The planner grants, listed explicitly. Deriving them from the whole
+ * catalogue would hand every future permission (including private HR data)
+ * to warehouse managers.
+ */
+export const PLANNER_PERMISSION_CODES: readonly string[] = Object.freeze([
+  "masterData.warehouse.read",
+  "masterData.storageLayout.read",
+  "masterData.storageLayout.manage",
+  "masterData.storageLayout.activate",
+]);
+export const HR_ADMIN_PERMISSION_CODES: readonly HrPermissionCode[] =
+  HR_PERMISSION_CODES;
 export const DEFAULT_ROLES: readonly DefaultRoleDefinition[] = Object.freeze([
   {
     key: "ORG_ADMIN",
     name: "Organization administrator",
-    description: "Manages building and storage plans.",
-    permissionCodes: plannerPermissions,
+    description: "Manages building and storage plans and HR attendance.",
+    permissionCodes: [
+      ...PLANNER_PERMISSION_CODES,
+      ...HR_ADMIN_PERMISSION_CODES,
+    ],
   },
   {
     key: "WAREHOUSE_MANAGER",
     name: "Warehouse manager",
     description: "Manages plans in assigned warehouses.",
-    permissionCodes: plannerPermissions,
+    permissionCodes: PLANNER_PERMISSION_CODES,
+  },
+  {
+    key: "HR_EMPLOYEE",
+    name: "HR employee",
+    description: "Records and reviews their own attendance.",
+    permissionCodes: [HR_PERMISSION.selfAccess],
+  },
+  {
+    key: "HR_SUPERVISOR",
+    name: "HR supervisor",
+    description: "Reviews attendance of assigned direct reports.",
+    permissionCodes: [HR_PERMISSION.selfAccess, HR_PERMISSION.teamReview],
+  },
+  {
+    key: "HR_ADMIN",
+    name: "HR administrator",
+    description: "Maintains HR setup and closes attendance periods.",
+    permissionCodes: HR_ADMIN_PERMISSION_CODES,
   },
   {
     key: "SUPERVISOR",
