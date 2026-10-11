@@ -105,17 +105,17 @@ Status: worktree created; implementation/audit/fix/test pending.
 
 ## Delivery evidence — 11 October 2026
 
-Four roles completed: Kiro Opus5.5 integration, independent Codex code audit,
+Four roles completed: Kiro Opus 5.5 integration, independent Codex code audit,
 Codex specification audit/fixes, and Codex automated/live browser verification.
 Runtime candidate: `e761b4181257a821ef1e197a7ff8bbd4d3814f4d`.
 
-- Full format/typecheck/lint and234Vitestfiles/2749tests pass.
+- Full format/typecheck/lint and 234 Vitest files / 2,749 tests pass.
 - Production build and fresh pinned Convex codegen pass.
 - Workflow pins/actionlint, runtime/app/release dependency gates and test
-  discovery pass. Anonymous desktop/mobile smoke:92tests pass.
+  discovery pass. Anonymous desktop/mobile smoke: 92 tests pass.
 - Authenticated local computer-use: clock-in/out and refresh, invalid correction
   refusal/draft guard/submission, supervisor overnight certification/history,
-  close version2 and actual21-row CSV with4672workedminutes, Thai390pxperiod,
+  close version2 and actual 21-row CSV with 4,672 worked minutes, Thai period at 390px,
   and mobile employee create/edit/refresh all observed.
 - Live test identity is an organization admin in an isolated synthetic local
   organization. Backend/model/UI tests cover restricted/foreign-tenant roles;
@@ -123,8 +123,8 @@ Runtime candidate: `e761b4181257a821ef1e197a7ff8bbd4d3814f4d`.
 - Fixed stale certification queue, non-finite correction/evaluation values,
   test fixture narrowing, and HR observability static-route integration.
 - Raw calendar helper interface remains a nonblocking model-contract advisory;
-  broader69caller Result migration is outside the confirmed defect repair.
+  broader 69-caller Result migration is outside the confirmed defect repair.
 
 Detailed role reports/logs/screenshots are in ignored
-`output/delivery-20261011/`. CI and workspace browser gate results are recorded
-when completed. PR targets main; this plan does not claim merge or deployment.
+`output/delivery-20261011/`. Workspace browser suite: 42 passed / 2 expected skips, zero retries.
+GitHub checks are monitored after PR creation. PR targets main; this plan does not claim merge or deployment.
