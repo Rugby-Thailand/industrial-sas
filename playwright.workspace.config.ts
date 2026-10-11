@@ -14,7 +14,12 @@ import { runPolicy } from "./tests/e2e/support/policy";
 const port = Number(process.env.WORKSPACE_PORT ?? 3190);
 const baseURL = `http://127.0.0.1:${port}`;
 const barcodePort = Number(process.env.BARCODE_PORT ?? 3199);
-const policy = runPolicy({ sensitive: false, outputName: "workspace" });
+const reportName = process.env.WORKSPACE_REPORT_NAME ?? "workspace";
+if (!/^workspace(?:-[12])?$/.test(reportName))
+  throw new Error(
+    "WORKSPACE_REPORT_NAME must be workspace, workspace-1 or workspace-2",
+  );
+const policy = runPolicy({ sensitive: false, outputName: reportName });
 const fullMatrix = process.env.WORKSPACE_FULL_MATRIX === "1";
 if (!Number.isInteger(port) || port < 1 || port > 65535)
   throw new Error("WORKSPACE_PORT must be a valid port");
