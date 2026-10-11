@@ -7,6 +7,7 @@
   "packageManager": "pnpm@10.33.2",
   "engines": {
     "node": "24.x",
+    "bun": "1.4.x",
     "pnpm": "10.x"
   },
   "scripts": {

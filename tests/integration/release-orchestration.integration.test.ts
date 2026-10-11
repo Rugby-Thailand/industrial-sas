@@ -838,6 +838,7 @@ describe("release configuration", () => {
   it("uses the committed gated configuration with all native Git builds retired", async () => {
     const { readFileSync } = await import("node:fs");
     const committed = JSON.parse(readFileSync("vercel.json", "utf8"));
+    const manifest = JSON.parse(readFileSync("package.json", "utf8"));
     expect(cutoverState(committed)).toMatchObject({
       ready: true,
       bunRuntime: true,
@@ -845,6 +846,9 @@ describe("release configuration", () => {
     // The release writes exactly the committed configuration.
     expect(committed).toEqual(gatedVercelConfig());
     expect(committed.bunVersion).toBe("1.4.x");
+    // With only engines.node, Vercel selects Node despite bunVersion. Both
+    // engines plus bunVersion explicitly select Bun and retain Node tooling.
+    expect(manifest.engines.bun).toBe(committed.bunVersion);
   });
 
   it("passes provenance and never assigns domains on production deploys", () => {
