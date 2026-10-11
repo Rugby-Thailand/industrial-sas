@@ -1,0 +1,1894 @@
+{
+  "baseSha": "ca8c296b2364fcbca33df81a5b18f9e1a213ac16",
+  "generatedFrom": [
+    "vitest list --filesOnly --json",
+    "vitest list --json",
+    "playwright test --config <config> --list --reporter=json",
+    "git ls-files",
+    ".github/CODEOWNERS"
+  ],
+  "note": "collectedCases are cases collected by `vitest list` (includes each/table expansions); they are not executed results. Playwright listedTests count each test once per project.",
+  "totals": {
+    "trackedTestFiles": 256,
+    "vitestFiles": 245,
+    "vitestCollectedCases": 2958,
+    "playwrightSpecFiles": 11,
+    "unownedTrackedTestFiles": [],
+    "vitestFilesCollectedTwice": [],
+    "playwrightSpecsInMoreThanOneConfig": [
+      "tests/e2e/production/release-smoke.spec.ts"
+    ],
+    "testFilesWithoutCodeowner": 189
+  },
+  "vitestProjects": {
+    "unit": {
+      "environment": "jsdom + vitest.setup.ts + React plugin",
+      "include": "src/**/*.test.tsx + 3 listed DOM .test.ts files, excluding *.a11y.test.*",
+      "files": 98,
+      "collectedCases": 869
+    },
+    "unit-node": {
+      "environment": "node",
+      "include": "src/**/*.test.ts + convex/model/**/*.test.ts, excluding a11y and DOM-listed files",
+      "files": 57,
+      "collectedCases": 610
+    },
+    "a11y": {
+      "environment": "jsdom + vitest.setup.ts + React plugin",
+      "include": "src/**/*.a11y.test.{ts,tsx}",
+      "files": 5,
+      "collectedCases": 20
+    },
+    "property": {
+      "environment": "node",
+      "include": "tests/properties/**/*.test.ts",
+      "files": 2,
+      "collectedCases": 4
+    },
+    "convex-runtime": {
+      "environment": "edge-runtime",
+      "include": "tests/integration/annex-demo-seed.integration.test.ts only",
+      "files": 1,
+      "collectedCases": 3
+    },
+    "integration": {
+      "environment": "node",
+      "include": "tests/integration/**/*.test.ts except convex-runtime file",
+      "files": 74,
+      "collectedCases": 1223
+    },
+    "isolation": {
+      "environment": "node",
+      "include": "tests/isolation/**/*.test.ts",
+      "files": 8,
+      "collectedCases": 229
+    }
+  },
+  "playwrightConfigs": {
+    "playwright.config.ts": {
+      "projects": ["desktop-chromium", "mobile-chromium"],
+      "specFiles": 5,
+      "listedTests": 92
+    },
+    "playwright.workspace.config.ts": {
+      "projects": ["workspace-desktop", "workspace-mobile"],
+      "specFiles": 4,
+      "listedTests": 44
+    },
+    "playwright.staging.config.ts": {
+      "projects": ["staging-chromium"],
+      "specFiles": 2,
+      "listedTests": 13
+    },
+    "playwright.production.config.ts": {
+      "projects": ["production-chromium"],
+      "specFiles": 1,
+      "listedTests": 7
+    }
+  },
+  "vitestApiUsage": {
+    "vi.hoisted": 52,
+    "vi.mock(": 195,
+    "vi.stubEnv": 46,
+    "vi.stubGlobal": 36,
+    "vi.mocked": 8,
+    "vi.useFakeTimers": 30,
+    "import.meta.glob": 9
+  },
+  "importMetaGlobFiles": [
+    "tests/integration/clerk-webhook-ordering.integration.test.ts",
+    "tests/integration/job-scan-provider.integration.test.ts",
+    "tests/integration/location-image.integration.test.ts",
+    "tests/integration/public-api-registered-coverage.integration.test.ts",
+    "tests/integration/public-function-contract.integration.test.ts",
+    "tests/integration/registered-boundaries.integration.test.ts",
+    "tests/integration/staging-e2e-fixture.integration.test.ts",
+    "tests/integration/staging-flow.integration.test.ts"
+  ],
+  "files": [
+    {
+      "file": "convex/model/aiUsage/usage.test.ts",
+      "runner": "vitest",
+      "project": "unit-node",
+      "collectedCases": 62,
+      "codeowners": null
+    },
+    {
+      "file": "convex/model/finishedGoods/jobScans.test.ts",
+      "runner": "vitest",
+      "project": "unit-node",
+      "collectedCases": 4,
+      "codeowners": null
+    },
+    {
+      "file": "convex/model/finishedGoods/locationImage.test.ts",
+      "runner": "vitest",
+      "project": "unit-node",
+      "collectedCases": 14,
+      "codeowners": null
+    },
+    {
+      "file": "convex/model/finishedGoods/packing.test.ts",
+      "runner": "vitest",
+      "project": "unit-node",
+      "collectedCases": 4,
+      "codeowners": null
+    },
+    {
+      "file": "convex/model/finishedGoods/placement.test.ts",
+      "runner": "vitest",
+      "project": "unit-node",
+      "collectedCases": 7,
+      "codeowners": null
+    },
+    {
+      "file": "convex/model/gs1/checkDigit.test.ts",
+      "runner": "vitest",
+      "project": "unit-node",
+      "collectedCases": 9,
+      "codeowners": null
+    },
+    {
+      "file": "convex/model/guards.test.ts",
+      "runner": "vitest",
+      "project": "unit-node",
+      "collectedCases": 7,
+      "codeowners": null
+    },
+    {
+      "file": "convex/model/hr/attendance.test.ts",
+      "runner": "vitest",
+      "project": "unit-node",
+      "collectedCases": 37,
+      "codeowners": null
+    },
+    {
+      "file": "convex/model/hr/calendar.test.ts",
+      "runner": "vitest",
+      "project": "unit-node",
+      "collectedCases": 6,
+      "codeowners": null
+    },
+    {
+      "file": "convex/model/hr/independent-regressions.test.ts",
+      "runner": "vitest",
+      "project": "unit-node",
+      "collectedCases": 3,
+      "codeowners": null
+    },
+    {
+      "file": "convex/model/hr/period.test.ts",
+      "runner": "vitest",
+      "project": "unit-node",
+      "collectedCases": 7,
+      "codeowners": null
+    },
+    {
+      "file": "convex/model/identifiers/normalization.test.ts",
+      "runner": "vitest",
+      "project": "unit-node",
+      "collectedCases": 19,
+      "codeowners": null
+    },
+    {
+      "file": "convex/model/result.test.ts",
+      "runner": "vitest",
+      "project": "unit-node",
+      "collectedCases": 3,
+      "codeowners": null
+    },
+    {
+      "file": "convex/model/search/search.test.ts",
+      "runner": "vitest",
+      "project": "unit-node",
+      "collectedCases": 24,
+      "codeowners": null
+    },
+    {
+      "file": "convex/model/storageLayout/annexDemoPlan.test.ts",
+      "runner": "vitest",
+      "project": "unit-node",
+      "collectedCases": 1,
+      "codeowners": null
+    },
+    {
+      "file": "convex/model/storageLayout/areaUsage.test.ts",
+      "runner": "vitest",
+      "project": "unit-node",
+      "collectedCases": 3,
+      "codeowners": null
+    },
+    {
+      "file": "convex/model/storageLayout/fg1ApprovedPlan.test.ts",
+      "runner": "vitest",
+      "project": "unit-node",
+      "collectedCases": 2,
+      "codeowners": null
+    },
+    {
+      "file": "convex/model/storageLayout/occupancy.test.ts",
+      "runner": "vitest",
+      "project": "unit-node",
+      "collectedCases": 3,
+      "codeowners": null
+    },
+    {
+      "file": "convex/model/storageLayout/pdApprovedPlan.test.ts",
+      "runner": "vitest",
+      "project": "unit-node",
+      "collectedCases": 2,
+      "codeowners": null
+    },
+    {
+      "file": "convex/model/storageLayout/storageLayout.test.ts",
+      "runner": "vitest",
+      "project": "unit-node",
+      "collectedCases": 6,
+      "codeowners": null
+    },
+    {
+      "file": "convex/model/storageLayout/storagePosition.test.ts",
+      "runner": "vitest",
+      "project": "unit-node",
+      "collectedCases": 4,
+      "codeowners": null
+    },
+    {
+      "file": "convex/model/storageLayout/storageZone.test.ts",
+      "runner": "vitest",
+      "project": "unit-node",
+      "collectedCases": 5,
+      "codeowners": null
+    },
+    {
+      "file": "src/app/[locale]/(desktop)/master-data/storage-layouts/[buildingId]/floors/[floorNumber]/page.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 11,
+      "codeowners": null
+    },
+    {
+      "file": "src/app/[locale]/(desktop)/setup/page.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 4,
+      "codeowners": null
+    },
+    {
+      "file": "src/app/[locale]/error.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 1,
+      "codeowners": null
+    },
+    {
+      "file": "src/components/providers/AppProviders.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 3,
+      "codeowners": null
+    },
+    {
+      "file": "src/components/providers/DraftGuardProvider.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 6,
+      "codeowners": null
+    },
+    {
+      "file": "src/components/providers/WorkspaceAccessBoundary.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 2,
+      "codeowners": null
+    },
+    {
+      "file": "src/components/providers/WorkspaceProvider.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 9,
+      "codeowners": null
+    },
+    {
+      "file": "src/components/shell/HrLandingRedirect.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 6,
+      "codeowners": null
+    },
+    {
+      "file": "src/components/shell/LocaleSwitcher.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 4,
+      "codeowners": null
+    },
+    {
+      "file": "src/components/shell/NavigationPendingIndicator.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 2,
+      "codeowners": null
+    },
+    {
+      "file": "src/components/shell/search/GlobalSearch.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 27,
+      "codeowners": null
+    },
+    {
+      "file": "src/components/shell/search/SearchDialogFocus.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 3,
+      "codeowners": null
+    },
+    {
+      "file": "src/components/storageLayouts/AreaColorPicker.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 11,
+      "codeowners": null
+    },
+    {
+      "file": "src/components/storageLayouts/F1F2ReferencePreview.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 2,
+      "codeowners": null
+    },
+    {
+      "file": "src/components/storageLayouts/Fg1ReferencePreview.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 7,
+      "codeowners": null
+    },
+    {
+      "file": "src/components/storageLayouts/FloorLocationTable.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 12,
+      "codeowners": null
+    },
+    {
+      "file": "src/components/storageLayouts/FloorMap.labels.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 22,
+      "codeowners": null
+    },
+    {
+      "file": "src/components/storageLayouts/FloorMap.workspace.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 4,
+      "codeowners": null
+    },
+    {
+      "file": "src/components/storageLayouts/FloorMapDrawing.viewport.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 4,
+      "codeowners": null
+    },
+    {
+      "file": "src/components/storageLayouts/StorageZoneDraftPreview.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 2,
+      "codeowners": null
+    },
+    {
+      "file": "src/components/storageLayouts/StorageZoneVisualizer.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 7,
+      "codeowners": null
+    },
+    {
+      "file": "src/components/storageLayouts/floorMapGeometry.test.ts",
+      "runner": "vitest",
+      "project": "unit-node",
+      "collectedCases": 3,
+      "codeowners": null
+    },
+    {
+      "file": "src/components/storageLayouts/storageFloorDemoData.test.ts",
+      "runner": "vitest",
+      "project": "unit-node",
+      "collectedCases": 3,
+      "codeowners": null
+    },
+    {
+      "file": "src/components/storageLayouts/useFloorMapPan.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 4,
+      "codeowners": null
+    },
+    {
+      "file": "src/components/storageLayouts/useFloorMapViewport.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 1,
+      "codeowners": null
+    },
+    {
+      "file": "src/components/storageLayouts/useFloorWorkspaceView.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 3,
+      "codeowners": null
+    },
+    {
+      "file": "src/components/storageScene/SceneBox.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 4,
+      "codeowners": null
+    },
+    {
+      "file": "src/components/system/CollectionToolbar.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 2,
+      "codeowners": null
+    },
+    {
+      "file": "src/components/system/DataGate.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 2,
+      "codeowners": null
+    },
+    {
+      "file": "src/components/system/LedgerPanelStatus.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 6,
+      "codeowners": null
+    },
+    {
+      "file": "src/components/system/PaginationFooter.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 1,
+      "codeowners": null
+    },
+    {
+      "file": "src/components/system/QueryGate.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 6,
+      "codeowners": null
+    },
+    {
+      "file": "src/components/system/RouteLoading.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 1,
+      "codeowners": null
+    },
+    {
+      "file": "src/components/system/SetupChecklist.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 6,
+      "codeowners": null
+    },
+    {
+      "file": "src/components/system/WebVitals.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 2,
+      "codeowners": null
+    },
+    {
+      "file": "src/components/table/DataTable.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 2,
+      "codeowners": null
+    },
+    {
+      "file": "src/components/ui/FormField.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 1,
+      "codeowners": null
+    },
+    {
+      "file": "src/components/ui/FormSelect.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 1,
+      "codeowners": null
+    },
+    {
+      "file": "src/components/ui/PageHeader.a11y.test.tsx",
+      "runner": "vitest",
+      "project": "a11y",
+      "collectedCases": 4,
+      "codeowners": null
+    },
+    {
+      "file": "src/components/ui/PageHeader.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 6,
+      "codeowners": null
+    },
+    {
+      "file": "src/components/ui/SelectControl.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 11,
+      "codeowners": null
+    },
+    {
+      "file": "src/components/ui/StatusBadge.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 3,
+      "codeowners": null
+    },
+    {
+      "file": "src/components/ui/StatusReason.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 2,
+      "codeowners": null
+    },
+    {
+      "file": "src/components/ui/StickyActionBar.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 1,
+      "codeowners": null
+    },
+    {
+      "file": "src/components/ui/animated-toggle.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 2,
+      "codeowners": null
+    },
+    {
+      "file": "src/components/ui/button.test.ts",
+      "runner": "vitest",
+      "project": "unit-node",
+      "collectedCases": 6,
+      "codeowners": null
+    },
+    {
+      "file": "src/components/ui/dialog.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 1,
+      "codeowners": null
+    },
+    {
+      "file": "src/components/ui/theme-contrast.test.ts",
+      "runner": "vitest",
+      "project": "unit-node",
+      "collectedCases": 8,
+      "codeowners": null
+    },
+    {
+      "file": "src/features/aiUsage/AiUsageScreen.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 28,
+      "codeowners": null
+    },
+    {
+      "file": "src/features/aiUsage/csv.test.ts",
+      "runner": "vitest",
+      "project": "unit-node",
+      "collectedCases": 1,
+      "codeowners": null
+    },
+    {
+      "file": "src/features/aiUsage/estimate.test.ts",
+      "runner": "vitest",
+      "project": "unit-node",
+      "collectedCases": 9,
+      "codeowners": null
+    },
+    {
+      "file": "src/features/aiUsage/usageExport.test.ts",
+      "runner": "vitest",
+      "project": "unit-node",
+      "collectedCases": 7,
+      "codeowners": null
+    },
+    {
+      "file": "src/features/finishedGoods/BarcodeCameraBox.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 10,
+      "codeowners": null
+    },
+    {
+      "file": "src/features/finishedGoods/BarcodeImagePicker.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 15,
+      "codeowners": null
+    },
+    {
+      "file": "src/features/finishedGoods/BarcodeLocationImage.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 3,
+      "codeowners": null
+    },
+    {
+      "file": "src/features/finishedGoods/BatchManager.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 36,
+      "codeowners": null
+    },
+    {
+      "file": "src/features/finishedGoods/CatalogueFilterControls.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 3,
+      "codeowners": null
+    },
+    {
+      "file": "src/features/finishedGoods/DestinationPicker.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 14,
+      "codeowners": null
+    },
+    {
+      "file": "src/features/finishedGoods/DestinationScanner.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 20,
+      "codeowners": null
+    },
+    {
+      "file": "src/features/finishedGoods/FinishedGoodsMobileList.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 1,
+      "codeowners": null
+    },
+    {
+      "file": "src/features/finishedGoods/FinishedGoodsTable.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 2,
+      "codeowners": null
+    },
+    {
+      "file": "src/features/finishedGoods/MoveScreen.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 24,
+      "codeowners": null
+    },
+    {
+      "file": "src/features/finishedGoods/PackingScreen.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 41,
+      "codeowners": null
+    },
+    {
+      "file": "src/features/finishedGoods/PalletScene.a11y.test.tsx",
+      "runner": "vitest",
+      "project": "a11y",
+      "collectedCases": 3,
+      "codeowners": null
+    },
+    {
+      "file": "src/features/finishedGoods/PalletScene.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 15,
+      "codeowners": null
+    },
+    {
+      "file": "src/features/finishedGoods/PalletScreens.a11y.test.tsx",
+      "runner": "vitest",
+      "project": "a11y",
+      "collectedCases": 4,
+      "codeowners": null
+    },
+    {
+      "file": "src/features/finishedGoods/PalletScreens.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 59,
+      "codeowners": null
+    },
+    {
+      "file": "src/features/finishedGoods/ProductBatches.navigation.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 23,
+      "codeowners": null
+    },
+    {
+      "file": "src/features/finishedGoods/ProductScreens.a11y.test.tsx",
+      "runner": "vitest",
+      "project": "a11y",
+      "collectedCases": 8,
+      "codeowners": null
+    },
+    {
+      "file": "src/features/finishedGoods/ProductScreens.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 73,
+      "codeowners": null
+    },
+    {
+      "file": "src/features/finishedGoods/StackScreen.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 11,
+      "codeowners": null
+    },
+    {
+      "file": "src/features/finishedGoods/barcodeDecoder.test.ts",
+      "runner": "vitest",
+      "project": "unit-node",
+      "collectedCases": 4,
+      "codeowners": null
+    },
+    {
+      "file": "src/features/finishedGoods/barcodeImage.test.ts",
+      "runner": "vitest",
+      "project": "unit-node",
+      "collectedCases": 8,
+      "codeowners": null
+    },
+    {
+      "file": "src/features/finishedGoods/barcodeImage.worker.test.ts",
+      "runner": "vitest",
+      "project": "unit-node",
+      "collectedCases": 3,
+      "codeowners": null
+    },
+    {
+      "file": "src/features/finishedGoods/barcodeImagePipeline.test.ts",
+      "runner": "vitest",
+      "project": "unit-node",
+      "collectedCases": 3,
+      "codeowners": null
+    },
+    {
+      "file": "src/features/finishedGoods/catalogueFilters.test.ts",
+      "runner": "vitest",
+      "project": "unit-node",
+      "collectedCases": 19,
+      "codeowners": null
+    },
+    {
+      "file": "src/features/finishedGoods/jobScan/AddLocationForm.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 8,
+      "codeowners": null
+    },
+    {
+      "file": "src/features/finishedGoods/jobScan/JobScanPhotoPreview.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 2,
+      "codeowners": null
+    },
+    {
+      "file": "src/features/finishedGoods/jobScan/JobScanRecords.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 13,
+      "codeowners": null
+    },
+    {
+      "file": "src/features/finishedGoods/jobScan/JobScanScreen.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 13,
+      "codeowners": null
+    },
+    {
+      "file": "src/features/finishedGoods/jobScan/LocationPhotoCamera.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 4,
+      "codeowners": null
+    },
+    {
+      "file": "src/features/finishedGoods/jobScan/LocationPicker.ai.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 18,
+      "codeowners": null
+    },
+    {
+      "file": "src/features/finishedGoods/jobScan/LocationPicker.image.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 5,
+      "codeowners": null
+    },
+    {
+      "file": "src/features/finishedGoods/jobScan/LocationPicker.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 18,
+      "codeowners": null
+    },
+    {
+      "file": "src/features/finishedGoods/jobScan/ticketDraft.test.ts",
+      "runner": "vitest",
+      "project": "unit-node",
+      "collectedCases": 20,
+      "codeowners": null
+    },
+    {
+      "file": "src/features/finishedGoods/optimisticProductDetails.test.ts",
+      "runner": "vitest",
+      "project": "unit-node",
+      "collectedCases": 10,
+      "codeowners": null
+    },
+    {
+      "file": "src/features/finishedGoods/palletGeometry.test.ts",
+      "runner": "vitest",
+      "project": "unit-node",
+      "collectedCases": 24,
+      "codeowners": null
+    },
+    {
+      "file": "src/features/finishedGoods/productPalletSummary.test.ts",
+      "runner": "vitest",
+      "project": "unit-node",
+      "collectedCases": 2,
+      "codeowners": null
+    },
+    {
+      "file": "src/features/finishedGoods/unitNextAction.test.ts",
+      "runner": "vitest",
+      "project": "unit-node",
+      "collectedCases": 6,
+      "codeowners": null
+    },
+    {
+      "file": "src/features/finishedGoods/useBarcodeCamera.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 8,
+      "codeowners": null
+    },
+    {
+      "file": "src/features/finishedGoods/usePreviewState.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 2,
+      "codeowners": null
+    },
+    {
+      "file": "src/features/hr/CorrectionForm.independent.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 1,
+      "codeowners": null
+    },
+    {
+      "file": "src/features/hr/EmployeeForm.memberScope.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 2,
+      "codeowners": null
+    },
+    {
+      "file": "src/features/hr/HolidayDraftGuard.independent.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 1,
+      "codeowners": null
+    },
+    {
+      "file": "src/features/hr/HrReviewCompletion.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 10,
+      "codeowners": null
+    },
+    {
+      "file": "src/features/hr/HrScreens.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 12,
+      "codeowners": null
+    },
+    {
+      "file": "src/features/hr/HrSimplification.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 12,
+      "codeowners": null
+    },
+    {
+      "file": "src/features/hr/PeriodCreateGuard.independent.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 2,
+      "codeowners": null
+    },
+    {
+      "file": "src/features/hr/PeriodsScreen.guard.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 3,
+      "codeowners": null
+    },
+    {
+      "file": "src/features/hr/SettingsHoliday.guard.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 2,
+      "codeowners": null
+    },
+    {
+      "file": "src/features/hr/TodayPendingGuard.independent.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 1,
+      "codeowners": null
+    },
+    {
+      "file": "src/features/hr/TodayScreen.independent.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 3,
+      "codeowners": null
+    },
+    {
+      "file": "src/features/hr/useHrWrite.independent.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 2,
+      "codeowners": null
+    },
+    {
+      "file": "src/features/storageLayouts/AreaOverview.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 11,
+      "codeowners": null
+    },
+    {
+      "file": "src/features/storageLayouts/BuildingAreaDetails.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 4,
+      "codeowners": null
+    },
+    {
+      "file": "src/features/storageLayouts/BuildingStatusToggle.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 10,
+      "codeowners": null
+    },
+    {
+      "file": "src/features/storageLayouts/StorageLayoutScreens.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 59,
+      "codeowners": null
+    },
+    {
+      "file": "src/features/storageLayouts/StorageLocationCatalogue.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 7,
+      "codeowners": null
+    },
+    {
+      "file": "src/features/storageLayouts/StoragePositions.a11y.test.tsx",
+      "runner": "vitest",
+      "project": "a11y",
+      "collectedCases": 1,
+      "codeowners": null
+    },
+    {
+      "file": "src/features/storageLayouts/useFloorSelection.test.ts",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 2,
+      "codeowners": null
+    },
+    {
+      "file": "src/features/storageLayouts/useStorageBuilding.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 3,
+      "codeowners": null
+    },
+    {
+      "file": "src/features/storageLayouts/useWorkspaceNavigationGuard.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 17,
+      "codeowners": null
+    },
+    {
+      "file": "src/hooks/useAsyncOperation.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 4,
+      "codeowners": null
+    },
+    {
+      "file": "src/hooks/useCatalogueSync.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 1,
+      "codeowners": null
+    },
+    {
+      "file": "src/hooks/useCursorPagination.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 6,
+      "codeowners": null
+    },
+    {
+      "file": "src/hooks/useRequestIdentity.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 1,
+      "codeowners": null
+    },
+    {
+      "file": "src/hooks/useScanContinuation.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 1,
+      "codeowners": null
+    },
+    {
+      "file": "src/i18n/intlRender.test.tsx",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 1,
+      "codeowners": null
+    },
+    {
+      "file": "src/i18n/messages.test.ts",
+      "runner": "vitest",
+      "project": "unit-node",
+      "collectedCases": 9,
+      "codeowners": null
+    },
+    {
+      "file": "src/lib/auth/appAccess.test.ts",
+      "runner": "vitest",
+      "project": "unit-node",
+      "collectedCases": 4,
+      "codeowners": "/src/lib/auth/"
+    },
+    {
+      "file": "src/lib/auth/returnPath.test.ts",
+      "runner": "vitest",
+      "project": "unit-node",
+      "collectedCases": 11,
+      "codeowners": "/src/lib/auth/"
+    },
+    {
+      "file": "src/lib/browser/history.test.ts",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 2,
+      "codeowners": null
+    },
+    {
+      "file": "src/lib/browser/scope.test.ts",
+      "runner": "vitest",
+      "project": "unit-node",
+      "collectedCases": 3,
+      "codeowners": null
+    },
+    {
+      "file": "src/lib/browser/storage.test.ts",
+      "runner": "vitest",
+      "project": "unit",
+      "collectedCases": 3,
+      "codeowners": null
+    },
+    {
+      "file": "src/lib/convex/ledgerState.test.ts",
+      "runner": "vitest",
+      "project": "unit-node",
+      "collectedCases": 20,
+      "codeowners": null
+    },
+    {
+      "file": "src/lib/environment.test.ts",
+      "runner": "vitest",
+      "project": "unit-node",
+      "collectedCases": 5,
+      "codeowners": null
+    },
+    {
+      "file": "src/lib/navigation.test.ts",
+      "runner": "vitest",
+      "project": "unit-node",
+      "collectedCases": 3,
+      "codeowners": null
+    },
+    {
+      "file": "src/lib/observability/event.test.ts",
+      "runner": "vitest",
+      "project": "unit-node",
+      "collectedCases": 9,
+      "codeowners": "/src/lib/observability/"
+    },
+    {
+      "file": "src/lib/observability/telemetryPrivacy.test.ts",
+      "runner": "vitest",
+      "project": "unit-node",
+      "collectedCases": 7,
+      "codeowners": "/src/lib/observability/"
+    },
+    {
+      "file": "src/lib/resolveWriteError.test.ts",
+      "runner": "vitest",
+      "project": "unit-node",
+      "collectedCases": 3,
+      "codeowners": null
+    },
+    {
+      "file": "src/lib/search/registry.test.ts",
+      "runner": "vitest",
+      "project": "unit-node",
+      "collectedCases": 14,
+      "codeowners": null
+    },
+    {
+      "file": "src/lib/search/resolveIntent.test.ts",
+      "runner": "vitest",
+      "project": "unit-node",
+      "collectedCases": 112,
+      "codeowners": null
+    },
+    {
+      "file": "src/lib/securityHeaders.test.ts",
+      "runner": "vitest",
+      "project": "unit-node",
+      "collectedCases": 14,
+      "codeowners": null
+    },
+    {
+      "file": "src/lib/storageLayouts/isometricGeometry.test.ts",
+      "runner": "vitest",
+      "project": "unit-node",
+      "collectedCases": 5,
+      "codeowners": null
+    },
+    {
+      "file": "src/lib/storageLayouts/locationSelectors.test.ts",
+      "runner": "vitest",
+      "project": "unit-node",
+      "collectedCases": 6,
+      "codeowners": null
+    },
+    {
+      "file": "src/lib/storageLayouts/storageKit.test.ts",
+      "runner": "vitest",
+      "project": "unit-node",
+      "collectedCases": 5,
+      "codeowners": null
+    },
+    {
+      "file": "src/lib/storageLayouts/storagePlacementGeometry.test.ts",
+      "runner": "vitest",
+      "project": "unit-node",
+      "collectedCases": 5,
+      "codeowners": null
+    },
+    {
+      "file": "src/lib/workspace/workspace.test.ts",
+      "runner": "vitest",
+      "project": "unit-node",
+      "collectedCases": 7,
+      "codeowners": null
+    },
+    {
+      "file": "tests/e2e/production/release-smoke.spec.ts",
+      "runner": "playwright",
+      "configs": [
+        "playwright.production.config.ts",
+        "playwright.staging.config.ts"
+      ],
+      "codeowners": "/tests/e2e/"
+    },
+    {
+      "file": "tests/e2e/smoke/barcode-worker.spec.ts",
+      "runner": "playwright",
+      "configs": ["playwright.config.ts"],
+      "codeowners": "/tests/e2e/"
+    },
+    {
+      "file": "tests/e2e/smoke/headers.spec.ts",
+      "runner": "playwright",
+      "configs": ["playwright.config.ts"],
+      "codeowners": "/tests/e2e/"
+    },
+    {
+      "file": "tests/e2e/smoke/protected-origin.spec.ts",
+      "runner": "playwright",
+      "configs": ["playwright.config.ts"],
+      "codeowners": "/tests/e2e/"
+    },
+    {
+      "file": "tests/e2e/smoke/routing.spec.ts",
+      "runner": "playwright",
+      "configs": ["playwright.config.ts"],
+      "codeowners": "/tests/e2e/"
+    },
+    {
+      "file": "tests/e2e/smoke/sensitive-reporting.spec.ts",
+      "runner": "playwright",
+      "configs": ["playwright.config.ts"],
+      "codeowners": "/tests/e2e/"
+    },
+    {
+      "file": "tests/e2e/staging/authenticated.spec.ts",
+      "runner": "playwright",
+      "configs": ["playwright.staging.config.ts"],
+      "codeowners": "/tests/e2e/"
+    },
+    {
+      "file": "tests/e2e/workspace/barcode-scanning.spec.ts",
+      "runner": "playwright",
+      "configs": ["playwright.workspace.config.ts"],
+      "codeowners": "/tests/e2e/"
+    },
+    {
+      "file": "tests/e2e/workspace/barcode.spec.ts",
+      "runner": "playwright",
+      "configs": ["playwright.workspace.config.ts"],
+      "codeowners": "/tests/e2e/"
+    },
+    {
+      "file": "tests/e2e/workspace/location-image-ai.spec.ts",
+      "runner": "playwright",
+      "configs": ["playwright.workspace.config.ts"],
+      "codeowners": "/tests/e2e/"
+    },
+    {
+      "file": "tests/e2e/workspace/workspace.spec.ts",
+      "runner": "playwright",
+      "configs": ["playwright.workspace.config.ts"],
+      "codeowners": "/tests/e2e/"
+    },
+    {
+      "file": "tests/integration/ai-usage-location.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 6,
+      "codeowners": null
+    },
+    {
+      "file": "tests/integration/ai-usage-provider-usage.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 26,
+      "codeowners": null
+    },
+    {
+      "file": "tests/integration/ai-usage-recovery.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 8,
+      "codeowners": null
+    },
+    {
+      "file": "tests/integration/ai-usage-reporting.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 10,
+      "codeowners": null
+    },
+    {
+      "file": "tests/integration/ai-usage.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 14,
+      "codeowners": null
+    },
+    {
+      "file": "tests/integration/annex-demo-seed.integration.test.ts",
+      "runner": "vitest",
+      "project": "convex-runtime",
+      "collectedCases": 3,
+      "codeowners": null
+    },
+    {
+      "file": "tests/integration/authorization-enforcement.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 31,
+      "codeowners": "/tests/integration/authorization-*.ts"
+    },
+    {
+      "file": "tests/integration/authorization-lookups-convex.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 7,
+      "codeowners": "/tests/integration/authorization-*.ts"
+    },
+    {
+      "file": "tests/integration/authorization-seed-convex.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 4,
+      "codeowners": "/tests/integration/authorization-*.ts"
+    },
+    {
+      "file": "tests/integration/browser-release-safety.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 28,
+      "codeowners": "/tests/integration/browser-release-safety.integration.test.ts"
+    },
+    {
+      "file": "tests/integration/catalogue-pagination.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 21,
+      "codeowners": null
+    },
+    {
+      "file": "tests/integration/ci-actionlint-cache.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 3,
+      "codeowners": "/tests/integration/ci-*.ts"
+    },
+    {
+      "file": "tests/integration/ci-codegen-isolation.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 29,
+      "codeowners": "/tests/integration/ci-*.ts"
+    },
+    {
+      "file": "tests/integration/ci-guards.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 11,
+      "codeowners": "/tests/integration/ci-*.ts"
+    },
+    {
+      "file": "tests/integration/ci-test-discovery.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 17,
+      "codeowners": "/tests/integration/ci-*.ts"
+    },
+    {
+      "file": "tests/integration/ci-workflows.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 44,
+      "codeowners": "/tests/integration/ci-*.ts"
+    },
+    {
+      "file": "tests/integration/clerk-webhook-handler.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 6,
+      "codeowners": "/tests/integration/clerk-webhook*.ts"
+    },
+    {
+      "file": "tests/integration/clerk-webhook-normalizer.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 4,
+      "codeowners": "/tests/integration/clerk-webhook*.ts"
+    },
+    {
+      "file": "tests/integration/clerk-webhook-ordering.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 11,
+      "codeowners": "/tests/integration/clerk-webhook*.ts"
+    },
+    {
+      "file": "tests/integration/clerk-webhook-wiring.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 1,
+      "codeowners": "/tests/integration/clerk-webhook*.ts"
+    },
+    {
+      "file": "tests/integration/convex-backup-gate.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 55,
+      "codeowners": "/tests/integration/convex-backup-*.ts"
+    },
+    {
+      "file": "tests/integration/dependency-exceptions.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 4,
+      "codeowners": "/tests/integration/dependency-exceptions.integration.test.ts"
+    },
+    {
+      "file": "tests/integration/fg1-import.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 13,
+      "codeowners": null
+    },
+    {
+      "file": "tests/integration/finished-goods-batch-management.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 18,
+      "codeowners": null
+    },
+    {
+      "file": "tests/integration/finished-goods-batches.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 13,
+      "codeowners": null
+    },
+    {
+      "file": "tests/integration/finished-goods-job-scans.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 21,
+      "codeowners": null
+    },
+    {
+      "file": "tests/integration/finished-goods-measurement-clearing.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 2,
+      "codeowners": null
+    },
+    {
+      "file": "tests/integration/finished-goods-moves.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 17,
+      "codeowners": null
+    },
+    {
+      "file": "tests/integration/finished-goods-packing.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 5,
+      "codeowners": null
+    },
+    {
+      "file": "tests/integration/finished-goods-scanning.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 9,
+      "codeowners": null
+    },
+    {
+      "file": "tests/integration/finished-goods-stacking.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 19,
+      "codeowners": null
+    },
+    {
+      "file": "tests/integration/finished-goods-summary.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 1,
+      "codeowners": null
+    },
+    {
+      "file": "tests/integration/finished-goods.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 19,
+      "codeowners": null
+    },
+    {
+      "file": "tests/integration/generated-artifacts.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 3,
+      "codeowners": "/tests/integration/generated-artifacts.integration.test.ts"
+    },
+    {
+      "file": "tests/integration/global-search.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 19,
+      "codeowners": null
+    },
+    {
+      "file": "tests/integration/hr-demo-seed.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 2,
+      "codeowners": null
+    },
+    {
+      "file": "tests/integration/hr-independent-regressions.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 12,
+      "codeowners": null
+    },
+    {
+      "file": "tests/integration/hr-review-completion.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 6,
+      "codeowners": null
+    },
+    {
+      "file": "tests/integration/hr-workflows.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 15,
+      "codeowners": null
+    },
+    {
+      "file": "tests/integration/identity-mirror-convex.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 3,
+      "codeowners": "/tests/integration/identity*.ts"
+    },
+    {
+      "file": "tests/integration/identity-webhook.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 10,
+      "codeowners": "/tests/integration/identity*.ts"
+    },
+    {
+      "file": "tests/integration/job-scan-provider.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 38,
+      "codeowners": null
+    },
+    {
+      "file": "tests/integration/location-image.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 6,
+      "codeowners": null
+    },
+    {
+      "file": "tests/integration/organization-bootstrap.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 1,
+      "codeowners": null
+    },
+    {
+      "file": "tests/integration/pagination-seed.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 1,
+      "codeowners": null
+    },
+    {
+      "file": "tests/integration/pd-import.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 12,
+      "codeowners": null
+    },
+    {
+      "file": "tests/integration/permissions.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 6,
+      "codeowners": "/tests/integration/permissions.integration.test.ts"
+    },
+    {
+      "file": "tests/integration/production-operator.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 25,
+      "codeowners": "/tests/integration/production-operator.integration.test.ts"
+    },
+    {
+      "file": "tests/integration/production-schema-compatibility.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 9,
+      "codeowners": "/tests/integration/production-schema-compatibility.integration.test.ts"
+    },
+    {
+      "file": "tests/integration/public-api-registered-coverage.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 139,
+      "codeowners": "/tests/integration/public-api-*.ts"
+    },
+    {
+      "file": "tests/integration/public-function-contract.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 9,
+      "codeowners": "/tests/integration/public-function-contract.integration.test.ts"
+    },
+    {
+      "file": "tests/integration/query-cache.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 2,
+      "codeowners": null
+    },
+    {
+      "file": "tests/integration/registered-boundaries.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 6,
+      "codeowners": "/tests/integration/registered-boundaries.integration.test.ts"
+    },
+    {
+      "file": "tests/integration/release-api.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 29,
+      "codeowners": "/tests/integration/release-*.ts"
+    },
+    {
+      "file": "tests/integration/release-entrypoint.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 8,
+      "codeowners": "/tests/integration/release-*.ts"
+    },
+    {
+      "file": "tests/integration/release-env-contract.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 12,
+      "codeowners": "/tests/integration/release-*.ts"
+    },
+    {
+      "file": "tests/integration/release-orchestration.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 45,
+      "codeowners": "/tests/integration/release-*.ts"
+    },
+    {
+      "file": "tests/integration/schema-contracts.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 39,
+      "codeowners": "/tests/integration/schema-contracts.integration.test.ts"
+    },
+    {
+      "file": "tests/integration/search-provider.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 8,
+      "codeowners": null
+    },
+    {
+      "file": "tests/integration/staging-e2e-fixture.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 34,
+      "codeowners": "/tests/integration/staging-*.ts"
+    },
+    {
+      "file": "tests/integration/staging-flow.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 20,
+      "codeowners": "/tests/integration/staging-*.ts"
+    },
+    {
+      "file": "tests/integration/storage-layouts.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 5,
+      "codeowners": null
+    },
+    {
+      "file": "tests/integration/storage-location-catalogue.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 6,
+      "codeowners": null
+    },
+    {
+      "file": "tests/integration/storage-occupancy.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 14,
+      "codeowners": null
+    },
+    {
+      "file": "tests/integration/tenant-actions.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 6,
+      "codeowners": "/tests/integration/tenant-*.ts"
+    },
+    {
+      "file": "tests/integration/tenant-context-lookups.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 12,
+      "codeowners": "/tests/integration/tenant-*.ts"
+    },
+    {
+      "file": "tests/integration/tenant-context-resolution.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 51,
+      "codeowners": "/tests/integration/tenant-*.ts"
+    },
+    {
+      "file": "tests/integration/tenant-functions.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 8,
+      "codeowners": "/tests/integration/tenant-*.ts"
+    },
+    {
+      "file": "tests/integration/tenant-index-policy.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 18,
+      "codeowners": "/tests/integration/tenant-*.ts"
+    },
+    {
+      "file": "tests/integration/tenant-storage.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 34,
+      "codeowners": "/tests/integration/tenant-*.ts"
+    },
+    {
+      "file": "tests/integration/tenant-table-helpers.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 15,
+      "codeowners": "/tests/integration/tenant-*.ts"
+    },
+    {
+      "file": "tests/integration/vercel-cli-output.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 38,
+      "codeowners": "/tests/integration/vercel-*.ts"
+    },
+    {
+      "file": "tests/integration/vercel-ignore-build.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 17,
+      "codeowners": "/tests/integration/vercel-*.ts"
+    },
+    {
+      "file": "tests/integration/vercel-source-upload.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 1,
+      "codeowners": "/tests/integration/vercel-*.ts"
+    },
+    {
+      "file": "tests/integration/workspace-current.integration.test.ts",
+      "runner": "vitest",
+      "project": "integration",
+      "collectedCases": 2,
+      "codeowners": "/tests/integration/workspace-current.integration.test.ts"
+    },
+    {
+      "file": "tests/isolation/authorization-enforcement.isolation.test.ts",
+      "runner": "vitest",
+      "project": "isolation",
+      "collectedCases": 20,
+      "codeowners": "/tests/isolation/"
+    },
+    {
+      "file": "tests/isolation/clerk-webhook-route.isolation.test.ts",
+      "runner": "vitest",
+      "project": "isolation",
+      "collectedCases": 1,
+      "codeowners": "/tests/isolation/"
+    },
+    {
+      "file": "tests/isolation/schema-policy-guards.isolation.test.ts",
+      "runner": "vitest",
+      "project": "isolation",
+      "collectedCases": 49,
+      "codeowners": "/tests/isolation/"
+    },
+    {
+      "file": "tests/isolation/storage-positions.isolation.test.ts",
+      "runner": "vitest",
+      "project": "isolation",
+      "collectedCases": 2,
+      "codeowners": "/tests/isolation/"
+    },
+    {
+      "file": "tests/isolation/tenant-context-isolation.isolation.test.ts",
+      "runner": "vitest",
+      "project": "isolation",
+      "collectedCases": 13,
+      "codeowners": "/tests/isolation/"
+    },
+    {
+      "file": "tests/isolation/tenant-document-access.isolation.test.ts",
+      "runner": "vitest",
+      "project": "isolation",
+      "collectedCases": 31,
+      "codeowners": "/tests/isolation/"
+    },
+    {
+      "file": "tests/isolation/tenant-schema-boundary.isolation.test.ts",
+      "runner": "vitest",
+      "project": "isolation",
+      "collectedCases": 100,
+      "codeowners": "/tests/isolation/"
+    },
+    {
+      "file": "tests/isolation/tenant-storage.isolation.test.ts",
+      "runner": "vitest",
+      "project": "isolation",
+      "collectedCases": 13,
+      "codeowners": "/tests/isolation/"
+    },
+    {
+      "file": "tests/properties/identity-webhook.property.test.ts",
+      "runner": "vitest",
+      "project": "property",
+      "collectedCases": 1,
+      "codeowners": "/tests/properties/"
+    },
+    {
+      "file": "tests/properties/permissions.property.test.ts",
+      "runner": "vitest",
+      "project": "property",
+      "collectedCases": 3,
+      "codeowners": "/tests/properties/"
+    }
+  ]
+}
