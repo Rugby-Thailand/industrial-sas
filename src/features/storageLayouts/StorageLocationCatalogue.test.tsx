@@ -1,5 +1,11 @@
 import { getFunctionName } from "convex/server";
-import { fireEvent, screen, within, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  screen,
+  within,
+  waitFor,
+} from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { axe } from "jest-axe";
@@ -115,6 +121,7 @@ const renderPage = () =>
   );
 beforeEach(() => {
   localStorage.clear();
+  window.history.replaceState({}, "", "/en/master-data/storage-layouts");
   mock.manage = true;
   mock.ok = true;
   mock.userId = "user";
@@ -135,6 +142,39 @@ beforeEach(() => {
       placements: [],
     },
   ];
+});
+it("records view changes and restores the previous view with browser Back", async () => {
+  window.history.replaceState(
+    { retained: true },
+    "",
+    "/en/master-data/storage-layouts?other=keep#records",
+  );
+  renderPage();
+  const before = window.location.href;
+  const length = window.history.length;
+  fireEvent.click(screen.getByRole("button", { name: "All locations" }));
+  expect(window.history.length).toBe(length + 1);
+  expect(window.location.href).not.toBe(before);
+  expect(new URLSearchParams(window.location.search).get("other")).toBe("keep");
+  expect(window.location.hash).toBe("#records");
+  await act(async () => {
+    window.history.back();
+    await new Promise<void>((resolve) =>
+      window.addEventListener("popstate", () => resolve(), { once: true }),
+    );
+  });
+  expect(screen.getByText("Building cards")).toBeVisible();
+  expect(window.history.state).toMatchObject({ retained: true });
+  await act(async () => {
+    const traversed = new Promise<void>((resolve) =>
+      window.addEventListener("popstate", () => resolve(), { once: true }),
+    );
+    window.history.forward();
+    await traversed;
+  });
+  expect(
+    screen.getByRole("table", { name: "All storage locations" }),
+  ).toBeVisible();
 });
 it("does not retain one actor's view preferences after an actor switch", async () => {
   const view = renderPage();

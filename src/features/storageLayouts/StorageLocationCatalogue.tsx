@@ -1,5 +1,8 @@
 "use client";
-import { preferences } from "@/lib/browser/storage";
+import {
+  useLocationCatalogueState,
+  type LocationCatalogueState,
+} from "./useLocationCatalogueState";
 
 import { NamedLocationCatalogue } from "./NamedLocationCatalogue";
 import { BuildingStatusToggle } from "./BuildingStatusToggle";
@@ -45,50 +48,6 @@ export type CatalogueFilters = {
   onSearchChange: (value: string) => void;
   onStatusChange: (value: StorageLayoutStatus | "ALL") => void;
 };
-type Preferences = {
-  view: "cards" | "table";
-  search: string;
-  status: StorageLayoutStatus | "ALL";
-  building: string;
-  floor: string;
-};
-const initial: Preferences = {
-  view: "cards",
-  search: "",
-  status: "ALL",
-  building: "ALL",
-  floor: "ALL",
-};
-function readPreferences(key: string): Preferences {
-  return preferences.read(
-    key,
-    (value) => {
-      if (!value || typeof value !== "object" || Array.isArray(value))
-        return initial;
-      const p = value as Record<string, unknown>;
-      if (
-        (p.view === "cards" || p.view === "table") &&
-        (p.status === "ALL" ||
-          p.status === "DRAFT" ||
-          p.status === "ACTIVE" ||
-          p.status === "ARCHIVED") &&
-        typeof p.search === "string" &&
-        typeof p.building === "string" &&
-        typeof p.floor === "string"
-      )
-        return {
-          view: p.view,
-          status: p.status,
-          search: p.search,
-          building: p.building,
-          floor: p.floor,
-        };
-      return initial;
-    },
-    initial,
-  );
-}
-
 export function StorageLocationCatalogue({
   warehouseId,
   children,
@@ -134,13 +93,8 @@ function LocationCatalogueContent({
     userId: persistenceUser,
     warehouseId,
   });
-  const [prefs, setPrefs] = useState<Preferences>(() => readPreferences(key));
+  const { state: prefs, update: change } = useLocationCatalogueState(key);
   const [qr, setQr] = useState<Row | null>(null);
-  function change(patch: Partial<Preferences>) {
-    const next = { ...prefs, ...patch };
-    setPrefs(next);
-    preferences.write(key, next);
-  }
   const settled = useDebouncedSearch(prefs.search);
   const criteria = {
     warehouseId,
@@ -279,7 +233,7 @@ function LocationCatalogueContent({
               label={tr("Status", "สถานะ")}
               value={prefs.status}
               onValueChange={(status) =>
-                change({ status: status as Preferences["status"] })
+                change({ status: status as LocationCatalogueState["status"] })
               }
               options={[
                 { value: "ALL", label: tr("All statuses", "ทุกสถานะ") },
