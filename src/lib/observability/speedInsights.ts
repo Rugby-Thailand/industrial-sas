@@ -60,6 +60,9 @@ export function speedInsightsPayload(input: unknown, origin: string) {
   });
   return metrics.length
     ? {
+        // Required by the collector. Unknown preserves the wire contract
+        // without forwarding client network information as a new dimension.
+        speed: "",
         metrics,
         scriptVersion: "0.1.3",
         sdkName: "@vercel/speed-insights",

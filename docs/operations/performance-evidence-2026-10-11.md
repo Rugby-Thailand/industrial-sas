@@ -224,3 +224,23 @@ failed before this change and passed after it. The desktop/mobile protection
 matrix also rejects an unconfirmed error with Network events unavailable,
 alongside the unchanged session, token and credential-leak assertions.
 No auth assertion, retry policy or release lock was weakened.
+
+Main `d9e65a144e639a0657132896ecade7e233e29a38` subsequently passed all 12
+required authenticated staging checks (zero failures/protection diagnostics;
+one existing optional identity case unconfigured). Normal production backup,
+build and all six candidate checks passed. Immediately after promotion, the
+first live HTTP-status/release-SHA case failed; the other five passed. The same
+unchanged read-only live suite then passed all six required checks. A short
+promotion transition is likely, but the sanitized report does not distinguish
+the failed status from a SHA mismatch. Re-running only the failed production
+job through the existing lock/backup workflow passed the normal release.
+
+The actual Chrome public-page Speed Insights script loaded, but its natural
+relay request returned 502. Empty/no-metric collector probes proved that the
+upstream rejects bodies missing the required `speed` string. The privacy
+projection now supplies an empty unknown value, as the hosted script does when
+network information is unavailable; no client-supplied network dimension is
+forwarded. Both the privacy assertion and a relay test modeling this upstream
+rejection failed before the fix. No valid synthetic metric was submitted to
+production. Actual ingestion must still be verified after its normal release;
+the final job report records that outcome.
