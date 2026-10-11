@@ -98,9 +98,97 @@ const SAFE_CODES = new Set([
   ...FIXED_CODES,
 ]);
 
+// Network diagnostic metadata for SENSITIVE_SMOKE_NETWORK_ERRORS. Each code
+// names only an observed origin class, outcome and resource class from these
+// fixed lists. They are categories seen during a failing test, not proof of
+// which request caused the failure.
+const NETWORK_ERRORS = "SENSITIVE_SMOKE_NETWORK_ERRORS";
+const NETWORK_PREFIX = "SENSITIVE_SMOKE_NETWORK_";
+const NETWORK_ORIGINS = ["APP", "CLERK", "CONVEX", "OTHER"];
+const NETWORK_OUTCOMES = [
+  ...HTTP_STATUSES.map((status) => `HTTP_${status}`),
+  "HTTP_4XX",
+  "HTTP_5XX",
+  ...["CANCELLED", "DNS", "CONNECTION", "TLS", "TIMEOUT", "OTHER"].map(
+    (failure) => `FAILED_${failure}`,
+  ),
+];
+const NETWORK_RESOURCES = [
+  "DOCUMENT",
+  "STYLESHEET",
+  "IMAGE",
+  "MEDIA",
+  "FONT",
+  "SCRIPT",
+  "XHR",
+  "FETCH",
+  "EVENTSOURCE",
+  "WEBSOCKET",
+  "MANIFEST",
+  "OTHER",
+];
+const NETWORK_CODES = new Set(
+  NETWORK_ORIGINS.flatMap((origin) =>
+    NETWORK_OUTCOMES.flatMap((outcome) =>
+      NETWORK_RESOURCES.map(
+        (resource) => `${NETWORK_PREFIX}${origin}_${outcome}_${resource}`,
+      ),
+    ),
+  ),
+);
+/** Upper bound on network codes attached to one failure message. */
+export const MAX_NETWORK_DIAGNOSTICS = 8;
+// Network codes are reportable, but are accepted from an error message only
+// inside the exact network compound below, never bare or in other prefixes.
+const REPORTABLE_CODES = new Set([...SAFE_CODES, ...NETWORK_CODES]);
+
+/**
+ * Exact HTTP outcome token for an error status: a reviewed status, else a
+ * bounded 4XX/5XX bucket. Non-error or malformed statuses yield undefined.
+ * @param {unknown} status
+ */
+export function networkHttpOutcome(status) {
+  if (!Number.isInteger(status) || status < 400 || status > 599)
+    return undefined;
+  return HTTP_STATUSES.includes(status)
+    ? `HTTP_${status}`
+    : status < 500
+      ? "HTTP_4XX"
+      : "HTTP_5XX";
+}
+
+/**
+ * The exact network code for fixed tokens, or undefined for anything else.
+ * @param {unknown} origin
+ * @param {unknown} outcome
+ * @param {unknown} resource
+ */
+export function networkDiagnosticCode(origin, outcome, resource) {
+  const code = `${NETWORK_PREFIX}${origin}_${outcome}_${resource}`;
+  return NETWORK_ORIGINS.includes(origin) &&
+    NETWORK_OUTCOMES.includes(outcome) &&
+    NETWORK_RESOURCES.includes(resource) &&
+    NETWORK_CODES.has(code)
+    ? code
+    : undefined;
+}
+
+/**
+ * The fixture's network failure message: the bare fixed code without
+ * metadata, else `SENSITIVE_SMOKE_NETWORK_ERRORS: CODE, CODE` with at most
+ * MAX_NETWORK_DIAGNOSTICS unique exact codes. Unknown entries are dropped.
+ * @param {Iterable<unknown>} codes
+ */
+export function networkErrorsMessage(codes) {
+  const safe = [...new Set(codes)]
+    .filter((code) => NETWORK_CODES.has(code))
+    .slice(0, MAX_NETWORK_DIAGNOSTICS);
+  return safe.length ? `${NETWORK_ERRORS}: ${safe.join(", ")}` : NETWORK_ERRORS;
+}
+
 export function filterSmokeDiagnostics(codes) {
   return Array.isArray(codes)
-    ? [...new Set(codes.filter((code) => SAFE_CODES.has(code)))]
+    ? [...new Set(codes.filter((code) => REPORTABLE_CODES.has(code)))]
     : [];
 }
 
@@ -128,6 +216,16 @@ export function smokeFailureDiagnostics(message) {
   // Playwright serializes native Error messages with their fixed name prefix.
   if (message.startsWith("Error: ")) message = message.slice(7);
   if (SAFE_CODES.has(message)) return [message];
+  // All or nothing: one unknown, duplicate or extra entry rejects the message.
+  const networkPrefix = `${NETWORK_ERRORS}: `;
+  if (message.startsWith(networkPrefix)) {
+    const codes = message.slice(networkPrefix.length).split(", ");
+    return codes.length <= MAX_NETWORK_DIAGNOSTICS &&
+      new Set(codes).size === codes.length &&
+      codes.every((code) => NETWORK_CODES.has(code))
+      ? [NETWORK_ERRORS, ...codes]
+      : [];
+  }
   const inputPrefix = "STAGING_INPUTS_INVALID: ";
   if (message.startsWith(inputPrefix)) {
     const fields = message.slice(inputPrefix.length).split(", ");

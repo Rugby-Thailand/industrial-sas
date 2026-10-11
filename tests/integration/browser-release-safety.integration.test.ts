@@ -6,9 +6,15 @@ import type { APIRequestContext, APIResponse } from "@playwright/test";
 import type { TestCase, TestResult } from "@playwright/test/reporter";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import {
+  buildManifest,
+  summaryMarkdown,
+} from "../../scripts/release/lib/manifest.mjs";
 import { summarizePlaywrightReport } from "../../scripts/release/lib/smoke-report.mjs";
 import {
   filterSmokeDiagnostics,
+  MAX_NETWORK_DIAGNOSTICS,
+  networkErrorsMessage,
   smokeFailureDiagnostics,
   stagingSetupFailure,
 } from "../../scripts/release/lib/smoke-diagnostics.mjs";
@@ -453,6 +459,172 @@ describe("sensitive reporting", () => {
     expect(
       runPolicy({ sensitive: true, outputName: "stage" }).preserveOutput,
     ).toBe("never");
+  });
+
+  describe("network diagnostic metadata", () => {
+    const NETWORK = "SENSITIVE_SMOKE_NETWORK_ERRORS";
+    const CLERK = "SENSITIVE_SMOKE_NETWORK_CLERK_HTTP_403_FETCH";
+    const CONVEX = "SENSITIVE_SMOKE_NETWORK_CONVEX_FAILED_TIMEOUT_WEBSOCKET";
+    const APP = "SENSITIVE_SMOKE_NETWORK_APP_HTTP_5XX_DOCUMENT";
+    const leak = `https://creative-doberman-56.clerk.accounts.dev/v1/client/${SENTINEL}?_clerk_session=${SENTINEL}`;
+    const nine = [400, 401, 403, 404, 422, 429, 500, 502, 503].map(
+      (status) => `SENSITIVE_SMOKE_NETWORK_APP_HTTP_${status}_FETCH`,
+    );
+
+    it("accepts only the exact network compound of fixed codes", () => {
+      expect(
+        smokeFailureDiagnostics(`Error: ${NETWORK}: ${CLERK}, ${CONVEX}`),
+      ).toEqual([NETWORK, CLERK, CONVEX]);
+      const eight = nine.slice(0, MAX_NETWORK_DIAGNOSTICS);
+      expect(
+        smokeFailureDiagnostics(`${NETWORK}: ${eight.join(", ")}`),
+      ).toEqual([NETWORK, ...eight]);
+      expect(networkErrorsMessage([])).toBe(NETWORK);
+      expect(networkErrorsMessage([SENTINEL, `${CLERK}_${SENTINEL}`])).toBe(
+        NETWORK,
+      );
+      expect(networkErrorsMessage([CLERK, SENTINEL, CLERK, APP])).toBe(
+        `${NETWORK}: ${CLERK}, ${APP}`,
+      );
+      expect(networkErrorsMessage(nine)).toBe(
+        `${NETWORK}: ${eight.join(", ")}`,
+      );
+    });
+
+    it.each([
+      ["a sentinel entry", `${NETWORK}: ${CLERK}, ${SENTINEL}`],
+      ["an unknown suffix", `${NETWORK}: ${CLERK}_${SENTINEL}`],
+      ["an appended letter", `${NETWORK}: ${CLERK}X`],
+      ["a URL path and query", `${NETWORK}: ${CLERK} ${leak}`],
+      ["a provider error line", `${NETWORK}: ${CLERK}\n${SENTINEL}`],
+      ["an unspaced separator", `${NETWORK}: ${CLERK},${CONVEX}`],
+      ["a duplicate", `${NETWORK}: ${CLERK}, ${CLERK}`],
+      ["a trailing separator", `${NETWORK}: ${CLERK}, `],
+      ["an empty list", `${NETWORK}: `],
+      ["a missing space", `${NETWORK}:${CLERK}`],
+      [
+        "an unreviewed status",
+        `${NETWORK}: SENSITIVE_SMOKE_NETWORK_CLERK_HTTP_418_FETCH`,
+      ],
+      [
+        "an unknown origin class",
+        `${NETWORK}: SENSITIVE_SMOKE_NETWORK_VERCEL_HTTP_403_FETCH`,
+      ],
+      ["a nested prefix", `${NETWORK}: ${NETWORK}`],
+      ["more than the bound", `${NETWORK}: ${nine.join(", ")}`],
+      ["a leading sentinel", `${SENTINEL} ${NETWORK}: ${CLERK}`],
+      ["a bare metadata code", CLERK],
+      ["a console prefix", `SENSITIVE_SMOKE_CONSOLE_ERRORS: ${CLERK}`],
+      ["an uncaught prefix", `SENSITIVE_SMOKE_UNCAUGHT_ERRORS: ${CLERK}`],
+      ["a setup prefix", `STAGING_SETUP_FAILED: ${CLERK}`],
+    ])("refuses a network message with %s entirely", (_label, message) => {
+      expect(smokeFailureDiagnostics(message)).toEqual([]);
+      expect(smokeFailureDiagnostics(`Error: ${message}`)).toEqual([]);
+    });
+
+    it("filters reported codes to the exact network vocabulary", () => {
+      expect(
+        filterSmokeDiagnostics([
+          NETWORK,
+          CLERK,
+          `${CLERK}_${SENTINEL}`,
+          `${CLERK} ${leak}`,
+          SENTINEL,
+          CLERK,
+          CONVEX,
+        ]),
+      ).toEqual([NETWORK, CLERK, CONVEX]);
+    });
+
+    it("keeps exact codes through JSON, JUnit, stdout and the release summary", () => {
+      const root = temp();
+      const outputFile = join(root, "safe.json");
+      const junitFile = join(root, "safe.xml");
+      const reporter = new SensitiveReporter({ outputFile, junitFile });
+      const log = vi.spyOn(console, "log").mockImplementation(() => {});
+      const error = vi.spyOn(console, "error").mockImplementation(() => {});
+      reporter.onStdOut(leak);
+      reporter.onStdErr(`Failed to load resource: 403 () ${leak}`);
+      reporter.onTestEnd(testCase("network", "unexpected"), {
+        errors: [
+          {
+            message: `Error: ${NETWORK}: ${CLERK}, ${CONVEX}`,
+            stack: `Error: ${NETWORK}\n    at ${leak}`,
+            value: leak,
+          },
+          // Injected or provider-bearing messages contribute nothing at all.
+          { message: `Error: ${NETWORK}: ${APP}, ${SENTINEL}` },
+          { message: `Error: ${NETWORK}: ${APP} ${leak}` },
+          { message: `Error: ${APP}` },
+        ],
+        attachments: [{ body: Buffer.from(leak) }],
+      } as unknown as TestResult);
+      reporter.onEnd({ status: "failed", startTime: new Date(), duration: 1 });
+
+      const json = readFileSync(outputFile, "utf8");
+      const xml = readFileSync(junitFile, "utf8");
+      const printed = JSON.stringify([log.mock.calls, error.mock.calls]);
+      for (const surface of [json, xml, printed]) {
+        expect(surface.includes(SENTINEL)).toBe(false);
+        expect(surface.includes("clerk.accounts.dev")).toBe(false);
+        expect(surface.includes(APP)).toBe(false);
+      }
+      expect(JSON.parse(json).diagnostics).toEqual([NETWORK, CLERK, CONVEX]);
+      expect(xml.includes(CLERK)).toBe(false);
+      expect(log).not.toHaveBeenCalled();
+      expect(error.mock.calls).toEqual([
+        [`[smoke] ${NETWORK}, ${CLERK}, ${CONVEX}`],
+      ]);
+
+      const summary = summarizePlaywrightReport(JSON.parse(json));
+      expect(summary).toMatchObject({
+        ok: false,
+        diagnostics: [NETWORK, CLERK, CONVEX],
+      });
+      const manifest = buildManifest(
+        {
+          code: "STAGING_SMOKE_FAILED",
+          ok: false,
+          mutation: "none",
+          reason: "Staging smoke failed.",
+          events: [],
+          state: {
+            previousDeploymentId: null,
+            deploymentId: null,
+            deploymentUrl: null,
+            checks: {
+              "smoke-staging": {
+                ...summary,
+                diagnostics: [...summary.diagnostics, `${CLERK} ${leak}`],
+              },
+            },
+          },
+        },
+        {
+          targetName: "staging",
+          repository: "owner/repository",
+          sha: "a".repeat(40),
+          runId: "1",
+          runUrl: "https://github.invalid/run/1",
+          target: {
+            vercelTeamId: "team_fixture",
+            vercelProjectId: "prj_fixture",
+            convexDeployment: "fixture-deployment-1",
+          },
+        },
+      );
+      expect(manifest.smoke["smoke-staging"]?.diagnostics).toEqual([
+        NETWORK,
+        CLERK,
+        CONVEX,
+      ]);
+      const markdown = summaryMarkdown(manifest);
+      expect(markdown).toContain(
+        `**Diagnostics:** \`${NETWORK}\`, \`${CLERK}\`, \`${CONVEX}\``,
+      );
+      expect(markdown.includes(SENTINEL)).toBe(false);
+      expect(JSON.stringify(manifest).includes(SENTINEL)).toBe(false);
+    });
   });
 
   it("refuses injected sensitive-suite reporters before running tests", () => {
