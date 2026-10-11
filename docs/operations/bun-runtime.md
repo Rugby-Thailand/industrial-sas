@@ -6,6 +6,11 @@ tests, Convex and the release tooling stay on Node and pnpm. Bun is pinned to
 `.bun-version` (1.4.3) locally and in CI; Vercel manages the hosted `1.4.x`
 patch.
 
+`package.json` declares both `engines.node: "24.x"` for retained tooling and
+`engines.bun: "1.4.x"`. Together with `vercel.json`'s `bunVersion`, this selects
+Bun on Vercel. Declaring only the Node engine overrides `bunVersion` and selects
+Node functions; it also leaves the older build-image Bun on PATH.
+
 ## What runs on Bun
 
 | Surface                       | Command or configuration                                                               |
