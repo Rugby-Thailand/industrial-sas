@@ -14,11 +14,12 @@ const mocks = vi.hoisted(() => ({
   query: vi.fn(),
   clockIn: vi.fn(),
   clockOut: vi.fn(),
-  identity: "org-a:actor-a:employee-a",
+  identity: "org-a:actor-a:employee-a" as string | undefined,
+  accessStatus: "READY" as "READY" | "LOADING" | "UNAVAILABLE" | "NONE",
 }));
 vi.mock("@/components/providers/HrAccessProvider", () => ({
   useHrAccess: () => ({
-    status: "READY",
+    status: mocks.accessStatus,
     identityKey: mocks.identity,
     permissions: ["hr.self.access"],
     sites: [],
@@ -43,7 +44,8 @@ vi.mock("@/i18n/navigation", () => ({
   ),
 }));
 vi.mock("./HrShared", () => ({
-  HrGate: ({ children }: { children: ReactNode }) => children,
+  HrGate: ({ children }: { children: ReactNode }) =>
+    mocks.accessStatus === "READY" ? children : null,
   HrQueryState: ({ children }: { children: () => ReactNode }) => children(),
   CorrectionBadge: () => null,
   Facts: () => null,
@@ -92,6 +94,7 @@ const base = {
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.identity = "org-a:actor-a:employee-a";
+  mocks.accessStatus = "READY";
   sessionStorage.clear();
 });
 afterEach(() => {
@@ -403,17 +406,11 @@ it("retries exactly from tab memory when storage is unavailable, including a rem
   expect(mocks.clockOut).not.toHaveBeenCalled();
 });
 it("rejects a stored descriptor containing unrelated private fields", () => {
+  // Deliberately invalid, wholly synthetic JSON: no employee query values or
+  // mutable access mocks are written into this private-field rejection fixture.
   sessionStorage.setItem(
     "hr-clock-command:v1",
-    JSON.stringify({
-      schema: 1,
-      scope: `${mocks.identity}|clock:employee-a`,
-      employeeId: "employee-a",
-      kind: "CLOCK_IN",
-      requestId: "request-123",
-      expectedBusinessDate: base.businessDate,
-      salary: 1000,
-    }),
+    '{"schema":1,"scope":"org-a:actor-a:employee-a|clock:employee-a","employeeId":"employee-a","kind":"CLOCK_IN","requestId":"request-123","expectedBusinessDate":"2026-10-09","salary":1000}',
   );
   mocks.query.mockReturnValue({
     ok: true,
@@ -429,5 +426,142 @@ it("rejects a stored descriptor containing unrelated private fields", () => {
     screen.queryByRole("button", { name: "Retry original clock" }),
   ).not.toBeInTheDocument();
   expect(screen.getByTestId("hr-clock-action")).toHaveTextContent("clockOut");
+  expect(mocks.clockIn).not.toHaveBeenCalled();
+});
+
+const recoveredIdentity = "org-a:actor-a:employee-a";
+const recoveredArgs = {
+  requestId: "clock-request-loading-001",
+  expectedBusinessDate: "2026-10-09",
+};
+function storedLoadingClock() {
+  const record = {
+    schema: 1,
+    scope: `${recoveredIdentity}|clock:employee-a`,
+    employeeId: "employee-a",
+    kind: "CLOCK_IN",
+    ...recoveredArgs,
+  };
+  sessionStorage.setItem("hr-clock-command:v1", JSON.stringify(record));
+  return record;
+}
+function loadingAccess() {
+  mocks.accessStatus = "LOADING";
+  mocks.identity = undefined;
+}
+function readyClockOut(employee = "employee-a") {
+  mocks.accessStatus = "READY";
+  mocks.identity = `org-a:actor-a:${employee}`;
+  mocks.query.mockReturnValue({
+    ok: true,
+    value: {
+      ...base,
+      employee: { ...base.employee, id: employee },
+      businessDate: "2026-10-10",
+      state: "CLOCKED_IN",
+      nextAction: "CLOCK_OUT",
+      clockInAt: base.now,
+    },
+  });
+}
+function savedRecoveredClock() {
+  return {
+    ok: true,
+    value: {
+      written: true,
+      occurredAt: base.now,
+      businessDate: base.businessDate,
+      kind: "CLOCK_IN",
+    },
+  };
+}
+it("preserves an uncertain clock during initial access loading and restores its exact action/date/id once ready", async () => {
+  const record = storedLoadingClock();
+  loadingAccess();
+  const view = render(<HrTodayScreen />);
+  expect(screen.queryByTestId("hr-clock-action")).not.toBeInTheDocument();
+  expect(JSON.parse(sessionStorage.getItem("hr-clock-command:v1")!)).toEqual(
+    record,
+  );
+  readyClockOut();
+  mocks.clockIn.mockResolvedValueOnce(savedRecoveredClock());
+  view.rerender(<HrTodayScreen />);
+  expect(screen.getByTestId("hr-clock-action")).toHaveTextContent("clockIn");
+  expect(screen.queryByTestId("hr-clock-saved")).not.toBeInTheDocument();
+  fireEvent.click(
+    await screen.findByRole("button", { name: "Retry original clock" }),
+  );
+  await screen.findByTestId("hr-clock-saved");
+  expect(mocks.clockIn).toHaveBeenCalledWith(recoveredArgs);
+  expect(mocks.clockOut).not.toHaveBeenCalled();
+  expect(sessionStorage.getItem("hr-clock-command:v1")).toBeNull();
+});
+it("retains an uncertain exact clock through a READY to LOADING access refresh and restores it after child remount", async () => {
+  mocks.clockIn
+    .mockRejectedValueOnce(new Error("Lost reply"))
+    .mockResolvedValueOnce(savedRecoveredClock());
+  mocks.query.mockReturnValue({
+    ok: true,
+    value: { ...base, state: "NOT_CLOCKED_IN", nextAction: "CLOCK_IN" },
+  });
+  const view = render(<HrTodayScreen />);
+  fireEvent.click(screen.getByTestId("hr-clock-action"));
+  await screen.findByRole("button", { name: "Retry original clock" });
+  const original = mocks.clockIn.mock.calls[0]?.[0];
+  const persisted = sessionStorage.getItem("hr-clock-command:v1");
+  loadingAccess();
+  view.rerender(<HrTodayScreen />);
+  expect(screen.queryByTestId("hr-clock-action")).not.toBeInTheDocument();
+  expect(sessionStorage.getItem("hr-clock-command:v1")).toBe(persisted);
+  readyClockOut();
+  view.rerender(<HrTodayScreen />);
+  expect(screen.getByTestId("hr-clock-action")).toHaveTextContent("clockIn");
+  fireEvent.click(
+    await screen.findByRole("button", { name: "Retry original clock" }),
+  );
+  await screen.findByTestId("hr-clock-saved");
+  expect(mocks.clockIn.mock.calls[1]?.[0]).toEqual(original);
+  expect(mocks.clockOut).not.toHaveBeenCalled();
+});
+it.each(["UNAVAILABLE", "NONE"] as const)(
+  "clears uncertain recovery after loading resolves to %s and cannot resume it when the same actor regains access",
+  (status) => {
+    const record = storedLoadingClock();
+    loadingAccess();
+    const view = render(<HrTodayScreen />);
+    expect(JSON.parse(sessionStorage.getItem("hr-clock-command:v1")!)).toEqual(
+      record,
+    );
+    mocks.accessStatus = status;
+    view.rerender(<HrTodayScreen />);
+    expect(sessionStorage.getItem("hr-clock-command:v1")).toBeNull();
+    readyClockOut();
+    view.rerender(<HrTodayScreen />);
+    expect(
+      screen.queryByRole("button", { name: "Retry original clock" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByTestId("hr-clock-action")).toHaveTextContent("clockOut");
+    expect(mocks.clockIn).not.toHaveBeenCalled();
+  },
+);
+it("clears an old employee clock only after loading resolves to a different linked employee", () => {
+  const record = storedLoadingClock();
+  loadingAccess();
+  const view = render(<HrTodayScreen />);
+  expect(JSON.parse(sessionStorage.getItem("hr-clock-command:v1")!)).toEqual(
+    record,
+  );
+  readyClockOut("employee-b");
+  view.rerender(<HrTodayScreen />);
+  expect(sessionStorage.getItem("hr-clock-command:v1")).toBeNull();
+  expect(
+    screen.queryByRole("button", { name: "Retry original clock" }),
+  ).not.toBeInTheDocument();
+  expect(screen.getByTestId("hr-clock-action")).toHaveTextContent("clockOut");
+  readyClockOut();
+  view.rerender(<HrTodayScreen />);
+  expect(
+    screen.queryByRole("button", { name: "Retry original clock" }),
+  ).not.toBeInTheDocument();
   expect(mocks.clockIn).not.toHaveBeenCalled();
 });

@@ -48,8 +48,11 @@ export function HrTodayScreen() {
   const identity =
     access.status === "READY" ? (access.identityKey ?? "anonymous") : undefined;
   useEffect(() => {
+    // Loading is not logout: keep recovery until access resolves, including
+    // the first authenticated page load and temporary access refreshes.
+    if (access.status === "LOADING") return;
     clearHrClockRecoveryExcept(identity);
-  }, [identity]);
+  }, [access.status, identity]);
   return (
     <>
       <PageHeader title={t("title")} summary={t("summary")} showBack={false} />

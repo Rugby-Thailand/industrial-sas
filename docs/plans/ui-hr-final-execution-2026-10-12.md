@@ -100,3 +100,13 @@ Leads ต้องแตกงานที่อิสระให้ Agent ย�
 Payslip เริ่มจากยืนยันตัวตนใหม่ภายใน 5 นาที และสิทธิ์ดาวน์โหลดไม่เกิน 60 วินาที HR ปรับเวลาที่ระบบรองรับได้ (การยืนยัน 2–15 นาที, ดาวน์โหลด 1–60 วินาที) ช่วงเวลานี้เป็นค่าแนะนำด้านความเป็นส่วนตัว ไม่ใช่ระยะเวลาที่กฎหมายไทยกำหนด หากผู้ให้บริการไม่ส่งหลักฐานยืนยันตัวตนที่เซิร์ฟเวอร์ตรวจได้ ฟีเจอร์ยังไม่เปิดใช้
 
 นโยบาย hash เริ่มด้วย SHA-256 และตรวจ hash ต้นฉบับก่อนเผยแพร่และดาวน์โหลด ตัวอย่าง: HR นำเข้าไฟล์ `EMP001.pdf` ระบบบันทึกลายนิ้วมือของไฟล์ ถ้าไฟล์เปลี่ยนแม้เพียงหนึ่ง byte ลายนิ้วมือเปลี่ยนและระบบหยุดส่งไฟล์ HR ตั้งได้ว่าจะบังคับแนบ hash ตอนนำเข้าหรือไม่ แต่การตรวจความตรงกันของไฟล์ที่จัดเก็บยังทำเสมอ Hash ยืนยันว่าไฟล์ไม่เปลี่ยน ไม่ได้ยืนยันว่าเงินเดือนคำนวณถูกต้อง HR ยังต้องยืนยันแหล่ง payroll และการจับคู่พนักงาน
+
+## Release follow-up: access loading and clock recovery
+
+PR [#78](https://github.com/Rugby-Thailand/industrial-sas/pull/78) ผ่าน required checks และ merge เข้า main ที่ `71d11ff1` แล้ว ระหว่างตรวจ release พบว่า cleanup คำสั่งลงเวลาถูกเรียกระหว่าง HR access ยังเป็น LOADING ทำให้ descriptor ที่ต้องกู้หลังรีเฟรชถูกล้างก่อนตรวจบัญชีเสร็จ จึงยกเลิก release run `38163291717` ก่อนขั้น Production release และแก้ใน branch `codex/hr-clock-loading-recovery-20261012` โดยใช้ PR/CI ปกติ
+
+การแก้ต้องเก็บ descriptor ระหว่าง LOADING, กู้ UNCERTAIN เมื่อ READY ของพนักงานเดิม และล้างเมื่อ logout/สิทธิ์ถูกปฏิเสธ/READY ของพนักงานอื่น ทดสอบผ่าน outer Today page และ gate จริงที่ unmount เนื้อหาระหว่างโหลด; การรอ LOADING ไม่ใช่หลักฐานว่าลงเวลาแล้ว และยังไม่แสดง receipt โดยคาดเดา
+
+Follow-up ผ่าน review อิสระ, formatting, typecheck, lint, test discovery, isolated codegen และ production build; full suite ผ่าน **281 files / 3,628 tests** รวม 5 access-transition regressions ที่เพิ่ม ไม่มีการเพิ่ม timeout เพื่อทำให้ผลผ่าน Production release ของ run ที่ยกเลิกยังไม่ได้ทำขั้นตอนใด ต้องผ่าน exact-head CI และ merge ตัวแก้ไขก่อนติดตาม release รอบใหม่
+
+เพิ่มเติม: actual authenticated Settings matrix ผ่าน **21 checks** ครอบคลุมไทย/อังกฤษ light/dark ที่ 390/768/1024/1280px, actual browser zoom 200% ที่ 1440px (browser zoom=2, CSS viewport=720px) และ simulated coarse pointer ที่ 1024px (48px controls/16px text) ไม่มี overflow/untranslated keys/scoped axe violations ดู `browser-matrix-checks.json` แยกจาก synthetic compiled CSS evidence ชุดเดิม
