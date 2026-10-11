@@ -1,0 +1,43 @@
+{
+  "typescript6": {
+    "command": [
+      "/opt/homebrew/Cellar/node@24/24.19.0/bin/node",
+      "<checker-worktree>/node_modules/typescript/bin/tsc",
+      "--noEmit",
+      "--incremental",
+      "false",
+      "--pretty",
+      "false"
+    ],
+    "seconds": 12.945405042000003,
+    "exit": 2,
+    "stdout": ".next/types/__typecheck_pilot_guard.ts(1,14): error TS2322: Type 'string' is not assignable to type 'number'.\nconvex/__typecheck_pilot_guard.ts(1,14): error TS2322: Type 'string' is not assignable to type 'number'.\nsrc/__typecheck_pilot_guard.ts(1,14): error TS2322: Type 'string' is not assignable to type 'number'.\ntests/__typecheck_pilot_guard.ts(1,14): error TS2322: Type 'string' is not assignable to type 'number'.\n",
+    "stderr": ""
+  },
+  "typescript7": {
+    "command": [
+      "/opt/homebrew/Cellar/node@24/24.19.0/bin/node",
+      "<checker-worktree>/.cache/checker-tools/node_modules/typescript7/bin/tsc",
+      "--noEmit",
+      "--incremental",
+      "false",
+      "--pretty",
+      "false"
+    ],
+    "seconds": 2.017583999999999,
+    "exit": 1,
+    "stdout": ".next/types/__typecheck_pilot_guard.ts(1,14): error TS2322: Type 'string' is not assignable to type 'number'.\nconvex/__typecheck_pilot_guard.ts(1,14): error TS2322: Type 'string' is not assignable to type 'number'.\nsrc/__typecheck_pilot_guard.ts(1,14): error TS2322: Type 'string' is not assignable to type 'number'.\ntests/__typecheck_pilot_guard.ts(1,14): error TS2322: Type 'string' is not assignable to type 'number'.\n",
+    "stderr": ""
+  },
+  "bun": {
+    "command": [
+      "<checker-worktree>/.cache/checker-tools/node_modules/@oven/bun-darwin-aarch64/bin/bun",
+      "--check",
+      "--no-pretty"
+    ],
+    "seconds": 0.7770134580000012,
+    "exit": 1,
+    "stdout": ".next/types/__typecheck_pilot_guard.ts(1,14): error TS2322: Type 'string' is not assignable to type 'number'.\nconvex/__typecheck_pilot_guard.ts(1,14): error TS2322: Type 'string' is not assignable to type 'number'.\nsrc/__typecheck_pilot_guard.ts(1,14): error TS2322: Type 'string' is not assignable to type 'number'.\ntests/__typecheck_pilot_guard.ts(1,14): error TS2322: Type 'string' is not assignable to type 'number'.\n",
+    "stderr": "Found 4 errors in 4 files, checked 721 files [742.87ms]\n\n  1  .next/types/__typecheck_pilot_guard.ts:1\n  1  convex/__typecheck_pilot_guard.ts:1\n  1  src/__typecheck_pilot_guard.ts:1\n  1  tests/__typecheck_pilot_guard.ts:1\n"
+  }
+}
