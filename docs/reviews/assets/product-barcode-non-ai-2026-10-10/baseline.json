@@ -1,0 +1,323 @@
+{
+  "stage": "baseline",
+  "createdAt": "2026-10-10T08:17:11.916Z",
+  "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) T3Code(Alpha)/0.0.45 Chrome/152.0.7977.130 Electron/44.4.2 Safari/537.36",
+  "decoder": "@zxing/browser 0.2.1 (installed UMD)",
+  "results": [
+    {
+      "name": "1.jpg",
+      "sha256": "e15f55c5843a53d8a4af300e90653dcc27ad45117e35cf9e18a3d5371f79de20",
+      "width": 2160,
+      "height": 2880,
+      "attempts": [
+        {
+          "label": "default-full",
+          "region": [0, 0, 2160, 2880],
+          "angle": 0,
+          "text": "FO69100125",
+          "format": 4,
+          "ms": 970
+        },
+        {
+          "label": "harder-full",
+          "region": [0, 0, 2160, 2880],
+          "angle": 0,
+          "text": "FO69100125",
+          "format": 4,
+          "ms": 2642.400000035763
+        },
+        {
+          "label": "code128-full",
+          "region": [0, 0, 2160, 2880],
+          "angle": 0,
+          "text": "FO69100125",
+          "format": 4,
+          "ms": 586.6000000238419
+        }
+      ],
+      "totalMs": 4266.599999964237
+    },
+    {
+      "name": "2.jpg",
+      "sha256": "823e64dfd43314148c1323cfe633ceb248ec0ae1eaec6cbf8ba7acf347c6387f",
+      "width": 2160,
+      "height": 2880,
+      "attempts": [
+        {
+          "label": "default-full",
+          "region": [0, 0, 2160, 2880],
+          "angle": 0,
+          "text": "FO69090109",
+          "format": 11,
+          "ms": 148
+        },
+        {
+          "label": "harder-full",
+          "region": [0, 0, 2160, 2880],
+          "angle": 0,
+          "text": "FO69090109",
+          "format": 11,
+          "ms": 75.10000002384186
+        },
+        {
+          "label": "code128-full",
+          "region": [0, 0, 2160, 2880],
+          "angle": 0,
+          "error": "NotFoundException",
+          "ms": 61.89999997615814
+        }
+      ],
+      "totalMs": 321.7000000476837
+    },
+    {
+      "name": "3.jpg",
+      "sha256": "9a22ebfebb7cd6f545910818722d85f7f89e39cc17a6e239eee0e55b23256a04",
+      "width": 2160,
+      "height": 2880,
+      "attempts": [
+        {
+          "label": "default-full",
+          "region": [0, 0, 2160, 2880],
+          "angle": 0,
+          "error": "NotFoundException",
+          "ms": 1166.6000000238419
+        },
+        {
+          "label": "harder-full",
+          "region": [0, 0, 2160, 2880],
+          "angle": 0,
+          "error": "NotFoundException",
+          "ms": 2624
+        },
+        {
+          "label": "code128-full",
+          "region": [0, 0, 2160, 2880],
+          "angle": 0,
+          "error": "NotFoundException",
+          "ms": 315.69999998807907
+        }
+      ],
+      "totalMs": 4182.399999976158
+    },
+    {
+      "name": "4.jpg",
+      "sha256": "19ef6c97ed5bc5c061e9729b4041e7f84f63736e5a635667357f923f1237b308",
+      "width": 2160,
+      "height": 2880,
+      "attempts": [
+        {
+          "label": "default-full",
+          "region": [0, 0, 2160, 2880],
+          "angle": 0,
+          "error": "NotFoundException",
+          "ms": 1205.8999999761581
+        },
+        {
+          "label": "harder-full",
+          "region": [0, 0, 2160, 2880],
+          "angle": 0,
+          "error": "NotFoundException",
+          "ms": 9567.5
+        },
+        {
+          "label": "code128-full",
+          "region": [0, 0, 2160, 2880],
+          "angle": 0,
+          "error": "NotFoundException",
+          "ms": 424.10000002384186
+        }
+      ],
+      "totalMs": 11294.799999952316
+    },
+    {
+      "name": "5.jpg",
+      "sha256": "01137d52642a270925b2822d630f638090d2ae5756fae941dd2ea77398210cff",
+      "width": 2160,
+      "height": 2880,
+      "attempts": [
+        {
+          "label": "default-full",
+          "region": [0, 0, 2160, 2880],
+          "angle": 0,
+          "error": "NotFoundException",
+          "ms": 147.39999997615814
+        },
+        {
+          "label": "harder-full",
+          "region": [0, 0, 2160, 2880],
+          "angle": 0,
+          "text": "FO69080353",
+          "format": 4,
+          "ms": 235.5
+        },
+        {
+          "label": "code128-full",
+          "region": [0, 0, 2160, 2880],
+          "angle": 0,
+          "text": "FO69080353",
+          "format": 4,
+          "ms": 39.69999998807907
+        }
+      ],
+      "totalMs": 439.7999999523163
+    },
+    {
+      "name": "6.jpg",
+      "sha256": "e6676d4df1883d270a8bd15e80fef34ac4440c3c221212f9e3ea176aec775680",
+      "width": 2160,
+      "height": 2880,
+      "attempts": [
+        {
+          "label": "default-full",
+          "region": [0, 0, 2160, 2880],
+          "angle": 0,
+          "text": "FO69090586",
+          "format": 11,
+          "ms": 6066.199999988079
+        },
+        {
+          "label": "harder-full",
+          "region": [0, 0, 2160, 2880],
+          "angle": 0,
+          "text": "FO69090586",
+          "format": 11,
+          "ms": 291.39999997615814
+        },
+        {
+          "label": "code128-full",
+          "region": [0, 0, 2160, 2880],
+          "angle": 0,
+          "text": "FO69090586",
+          "format": 4,
+          "ms": 39.59999996423721
+        }
+      ],
+      "totalMs": 6731.799999952316
+    },
+    {
+      "name": "7.jpg",
+      "sha256": "1c57f655a8f7d12c51d50020aa44a1f4b792ec90dd6747f1ff351c77e2b49778",
+      "width": 2160,
+      "height": 2880,
+      "attempts": [
+        {
+          "label": "default-full",
+          "region": [0, 0, 2160, 2880],
+          "angle": 0,
+          "error": "NotFoundException",
+          "ms": 120.89999997615814
+        },
+        {
+          "label": "harder-full",
+          "region": [0, 0, 2160, 2880],
+          "angle": 0,
+          "error": "NotFoundException",
+          "ms": 344.19999998807907
+        },
+        {
+          "label": "code128-full",
+          "region": [0, 0, 2160, 2880],
+          "angle": 0,
+          "error": "NotFoundException",
+          "ms": 48.80000001192093
+        }
+      ],
+      "totalMs": 532.8000000119209
+    },
+    {
+      "name": "8.jpg",
+      "sha256": "e15f55c5843a53d8a4af300e90653dcc27ad45117e35cf9e18a3d5371f79de20",
+      "width": 2160,
+      "height": 2880,
+      "attempts": [
+        {
+          "label": "default-full",
+          "region": [0, 0, 2160, 2880],
+          "angle": 0,
+          "text": "FO69100125",
+          "format": 4,
+          "ms": 74.89999997615814
+        },
+        {
+          "label": "harder-full",
+          "region": [0, 0, 2160, 2880],
+          "angle": 0,
+          "text": "FO69100125",
+          "format": 4,
+          "ms": 197
+        },
+        {
+          "label": "code128-full",
+          "region": [0, 0, 2160, 2880],
+          "angle": 0,
+          "text": "FO69100125",
+          "format": 4,
+          "ms": 35.10000002384186
+        }
+      ],
+      "totalMs": 321.5
+    },
+    {
+      "name": "9.jpg",
+      "sha256": "823e64dfd43314148c1323cfe633ceb248ec0ae1eaec6cbf8ba7acf347c6387f",
+      "width": 2160,
+      "height": 2880,
+      "attempts": [
+        {
+          "label": "default-full",
+          "region": [0, 0, 2160, 2880],
+          "angle": 0,
+          "text": "FO69090109",
+          "format": 11,
+          "ms": 92.80000001192093
+        },
+        {
+          "label": "harder-full",
+          "region": [0, 0, 2160, 2880],
+          "angle": 0,
+          "text": "FO69090109",
+          "format": 11,
+          "ms": 53.09999996423721
+        },
+        {
+          "label": "code128-full",
+          "region": [0, 0, 2160, 2880],
+          "angle": 0,
+          "error": "NotFoundException",
+          "ms": 47.80000001192093
+        }
+      ],
+      "totalMs": 207.69999998807907
+    },
+    {
+      "name": "10.jpg",
+      "sha256": "9a22ebfebb7cd6f545910818722d85f7f89e39cc17a6e239eee0e55b23256a04",
+      "width": 2160,
+      "height": 2880,
+      "attempts": [
+        {
+          "label": "default-full",
+          "region": [0, 0, 2160, 2880],
+          "angle": 0,
+          "error": "NotFoundException",
+          "ms": 119.09999996423721
+        },
+        {
+          "label": "harder-full",
+          "region": [0, 0, 2160, 2880],
+          "angle": 0,
+          "error": "NotFoundException",
+          "ms": 312.80000001192093
+        },
+        {
+          "label": "code128-full",
+          "region": [0, 0, 2160, 2880],
+          "angle": 0,
+          "error": "NotFoundException",
+          "ms": 46.10000002384186
+        }
+      ],
+      "totalMs": 490
+    }
+  ]
+}

@@ -726,10 +726,5 @@
       "name": "th variant switch retains original copy and draft",
       "pass": true
     }
-  ],
-  "evidenceScope": {
-    "baseline": "8b0ef538",
-    "historical": true,
-    "excludes": "2026-10-11 adoption revision"
-  }
+  ]
 }

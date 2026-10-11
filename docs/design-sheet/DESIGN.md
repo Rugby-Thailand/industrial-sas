@@ -192,9 +192,9 @@ components:
 
 This document describes the completed [standalone design sheet](index.html), a quieter composition proposal selected by the user. The familiar blue, neutral surfaces, bilingual type and visible controls support warehouse tasks and people operations. Headings, spacing and a small number of dividers provide hierarchy; related work shares a surface.
 
-**Scope and authority:** the frontmatter is normative only for this sheet. It records the palette extracted at the start of the 2026-10-09 session, as preserved in [tokens.css](tokens.css), and the typography, shapes and component values implemented in [styles.css](styles.css) and root-only [review.css](review.css). The `badge-*` colors are explicitly proposed foreground additions from the final stylesheet, requested for stronger status contrast; they are not part of the original token extraction. The proposed layout rules below are reviewable recommendations, not shipped application rules. This file does not create or replace project-wide design authority. [README.md](README.md) maps every specimen to its application sources.
+**Scope and authority:** the frontmatter is normative only for this sheet. It records the palette extracted at the start of the 2026-10-09 session, as preserved in [tokens.css](tokens.css), and the typography, shapes and component values implemented in [styles.css](styles.css). The `badge-*` colors are explicitly proposed foreground additions from the final stylesheet, requested for stronger status contrast; they are not part of the original token extraction. The proposed layout rules below are reviewable recommendations, not shipped application rules. This file does not create or replace project-wide design authority. [README.md](README.md) maps every specimen to its application sources.
 
-**Dated palette snapshot and current application:** at documentation time, `src/app/globals.css` has a different light-theme blue, canvas, text, raised surface, muted text and several semantic/hover values. For example, its blue is `#1d4ed8`, canvas is `#ffffff`, text is `#17212f`, raised surface is `#f6f7f9`, and muted text is `#475569`. Those current working-tree values are not the sheet's session snapshot. The sheet remains a composition proposal; it does not authorize a palette migration or revert other work. The current application stylesheet owns current application tokens.
+**Current extracted tokens and working-tree drift:** at documentation time, `src/app/globals.css` has a different light-theme blue, canvas, text, raised surface, muted text and several semantic/hover values. For example, its blue is `#1d4ed8`, canvas is `#ffffff`, text is `#17212f`, raised surface is `#f6f7f9`, and muted text is `#475569`. Those current working-tree values are not the sheet's session snapshot. The sheet remains a composition proposal; it does not authorize a palette migration or revert other work. The current application stylesheet owns current application tokens.
 
 **Key Characteristics:**
 
@@ -258,7 +258,7 @@ At 1100px and below, page padding and workspace gaps tighten. At 800px and below
 
 **The Task Surface Rule.** Within this proposal, group with spacing and selective dividers before adding another container. Keep a surface when it defines a workspace or map boundary.
 
-**Responsive control density:** fields, buttons, tabs and disclosure summaries use 36px targets only at widths of at least 768px with a fine primary pointer. All other contexts use 48px targets and 16px / 24px input text. The root-only [review.css](review.css) follows the application query; the 800px and 520px layout breakpoints remain independent. Frontmatter control heights describe the dense state, not the default touch state.
+**Proposed responsive control density:** desktop fields, buttons, tabs, documentation links and disclosure summaries use a 36px minimum target. At widths of 800px and below, controls use a 48px minimum target. This directly requested density change supersedes the sheet's initial uniform 48px recommendation and does not change production component variants.
 
 ## Elevation & Depth
 
@@ -276,7 +276,7 @@ Visible input and outline-button edges are one pixel. The active workflow tab us
 
 ### Buttons
 
-Clear and familiar. Buttons use the control radius, 6px / 12px desktop padding (10px / 16px in touch density), a 36px desktop minimum height and width, increasing to 48px unless the ≥768px fine-pointer query matches, and medium-density 14px text. The blue primary action leads; outlined and quiet actions stay neutral. Destructive actions use the danger surface and a danger edge. Disabled controls use raised neutral, muted text and the weaker divider edge.
+Clear and familiar. Buttons use the control radius, 6px / 12px desktop padding (10px / 16px at touch widths), a 36px desktop minimum height and width, increasing to 48px at touch widths (800px and below), and medium-density 14px text. The blue primary action leads; outlined and quiet actions stay neutral. Destructive actions use the danger surface and a danger edge. Disabled controls use raised neutral, muted text and the weaker divider edge.
 
 Hover changes the fill. A press moves an enabled button down by one pixel. Color transitions run for 160ms; reduced motion removes transitions. Keyboard focus remains visible. Loading and disabled specimens are visually distinct.
 
@@ -292,7 +292,7 @@ A shared task surface. The workspace specimen has one surrounding frame with the
 
 ### Inputs / Fields
 
-Neutral and legible. Fields have a task-surface fill, strong neutral edge, control radius, 6px / 10px desktop padding and a 36px desktop minimum height, increasing to 48px unless the ≥768px fine-pointer query matches. Touch-density inputs use 10px vertical padding and 16px / 24px text. At the user's request, labels sit very close to their inputs (2px). This is a proposed field detail, not a replacement for the general 4px spacing rhythm. Hint and recovery text sit below. Focus changes the edge and shows the sheet's outline. Invalid fields receive a danger edge and explanatory recovery copy.
+Neutral and legible. Fields have a task-surface fill, strong neutral edge, control radius, 6px / 10px desktop padding and a 36px desktop minimum height, increasing to 48px at touch widths (800px and below). Touch-width inputs use 10px vertical padding and 16px / 24px text. At the user's request, labels sit very close to their inputs (2px). This is a proposed field detail, not a replacement for the general 4px spacing rhythm. Hint and recovery text sit below. Focus changes the edge and shows the sheet's outline. Invalid fields receive a danger edge and explanatory recovery copy.
 
 Job scan keeps its location first, two required identities and seven optional fields. AI origin is a small warning-colored label immediately beside the relevant field name, with a 6px inline gap and a review advisory. Editing that field clears its origin label in the interactive sheet. The entire field is not tinted to express origin.
 
@@ -310,7 +310,7 @@ Actual clock-in and clock-out values sit in two divided columns, with monospace 
 
 ### States and floor inspection
 
-Empty and failed-save examples pair a clear description with a neutral recovery action. Finished-goods errors, refused HR writes and uncertain HR writes have separate examples; only uncertainty offers an exact safe retry. View-only hides write controls. The Review state selector belongs to documentation and is not application navigation. Loading/unavailable totals never become zero. The floor schematic has three keyboard-selectable locations; its inspector follows the selected fixture, and unknown contents are unavailable. Actual narrow floor details open in a sheet. This is not a production geometry or 3D renderer.
+Empty and failed-save examples pair a clear description with a neutral recovery action. Failure copy preserves the user's edits; loading preserves space rather than displaying invented zero totals. The floor specimen uses one schematic map next to a location inspector and keeps selection distinct from physical-area color. It is not a production geometry or 3D renderer.
 
 ## Do's and Don'ts
 
@@ -329,13 +329,3 @@ Empty and failed-save examples pair a clear description with a neutral recovery 
 - **Don't** add repeated nested cards or boxed totals to the quieter specimens merely to group related content.
 - **Don't** replace neutral fields with broad AI-origin color fills in this proposal.
 - **Don't** confuse synthetic local specimen actions with backend writes, scanning, authorization or persisted attendance receipts.
-
-## Adoption revision · 2026-10-11
-
-An independent Kiro audit checked the original sheet and implementation plan against source at `733c6aca`. The approved no-inner-rail composition remains intact. [review.js](review.js) corrects specimen semantics and adds local review states without editing application code. Comparison layouts now use frozen assets; earlier screenshots/checks describe `8b0ef538`, not this revision.
-
-Scan keeps the single-ticket source/removal row, per-field scanning actions, Unit type, Change and stock note. Save is disabled for reading, incomplete identities or invalid quantities; seven optional values report the actual filled count. Product records show Ready/Draft, while storage-unit records carry workflow statuses. Warehouse totals are deliberately independent of the three synthetic rows and filters. Attendance uses factual Clocked in/out states, Buddhist-era Thai dates, missing-time hints, a confirmed receipt and correction links. Uncertain, refused, denied, pending and unlinked examples preserve the distinction in the source.
-
-The [revised adoption plan](implementation-plan.md) chooses stronger badge ink and restrained invalid edges as shared implementation work; catalogue quantities are a separate slice. The application palette remains authoritative. Floor and HR are verification/handoff steps; the separate HR self-service plan owns attendance screen edits. Root `PRODUCT.md` and project-wide design authority were not changed.
-
-Fresh visual layout/axe checks need a connected collaborative preview automation host. DOM evidence for this revision is separate from the historical screenshots.

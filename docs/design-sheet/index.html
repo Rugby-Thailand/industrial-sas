@@ -10,10 +10,8 @@
     />
     <title>Storage Planner · Design sheet</title>
     <link rel="stylesheet" href="tokens.css" />
-    <link rel="stylesheet" href="styles.css?v=20261011-audit" />
-    <script src="sheet.js?v=20261011-audit" defer></script>
-    <link rel="stylesheet" href="review.css?v=20261011-audit" />
-    <script src="review.js?v=20261011-audit" defer></script>
+    <link rel="stylesheet" href="styles.css?v=20261010-copy-2" />
+    <script src="sheet.js?v=20261010-copy" defer></script>
   </head>
   <body>
     <a class="skip-link" href="#main" data-i18n="skip">Skip to design sheet</a>
@@ -120,8 +118,7 @@
               <div>
                 <dt data-i18n="principleOne">Space groups information</dt>
                 <dd data-i18n="principleOneCopy">
-                  8px between fields. 16px within a task. 24px between task
-                  groups.
+                  16px within a section. 24–32px between tasks.
                 </dd>
               </div>
               <div>
@@ -228,7 +225,7 @@
         <div class="section-heading">
           <h2 id="foundations-title" data-i18n="foundations">Foundations</h2>
           <p class="small muted" data-i18n="sourceTokens">
-            2026-10-09 palette snapshot · application primary #1d4ed8.
+            Existing palette. A quieter application.
           </p>
         </div>
         <div class="foundation-grid">
@@ -320,7 +317,7 @@
             Controls that stay clear
           </h2>
           <p class="small muted" data-i18n="touchRule">
-            36px with a fine pointer from 768px · otherwise 48px
+            48px touch targets · visible keyboard focus
           </p>
         </div>
         <div class="controls-grid">
@@ -397,7 +394,8 @@
                 </p>
               </div>
               <div class="field">
-                <label for="demo-required" data-i18n="jobNumber">Job No.</label
+                <label for="demo-required" data-i18n="jobNumber"
+                  >Job number</label
                 ><input
                   id="demo-required"
                   value=""
@@ -410,7 +408,7 @@
                   id="required-error"
                   data-i18n="requiredError"
                 >
-                  Enter a Job No. before saving.
+                  Enter a job number before saving.
                 </p>
               </div>
             </div>
@@ -448,7 +446,7 @@
               <span id="empty-icon"></span
               ><strong data-i18n="noTickets">No tickets yet</strong>
               <p data-i18n="emptyCopy">
-                Take a photo of a job ticket or scan its barcode.
+                Choose a location, then add a photo or scan a barcode.
               </p>
               <button
                 type="button"
@@ -456,7 +454,7 @@
                 id="demo-add"
                 data-i18n="addPhoto"
               >
-                Photos (AI)
+                Add photo
               </button>
             </div>
           </div>
@@ -477,12 +475,12 @@
             </p>
           </div>
           <div class="state-example">
-            <h3 data-i18n="failureState">Finished goods · save error</h3>
+            <h3 data-i18n="failureState">Save failed</h3>
             <div class="error-example">
               <span id="error-icon"></span
-              ><strong data-i18n="notSaved">Could not save</strong>
+              ><strong data-i18n="notSaved">Changes weren’t saved</strong>
               <p data-i18n="failureCopy">
-                Check your input and connection, then retry. Your draft is kept.
+                Your edits are still here. Check your connection and try again.
               </p>
               <button
                 type="button"
@@ -514,8 +512,8 @@
               <div><span style="width: 32px"></span><code>32</code></div>
             </div>
             <p class="small muted" data-i18n="spacingCopy">
-              4px base. 8px field gaps. 16px task sections. 24px task groups.
-              40px document chapters.
+              4px base. 8px related controls. 16px content padding. 24px
+              sections. 32px major groups.
             </p>
           </div>
           <div>

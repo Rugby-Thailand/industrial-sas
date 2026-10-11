@@ -1,0 +1,325 @@
+[
+  {
+    "number": 1,
+    "id": "today",
+    "title": "ลงเวลาวันนี้",
+    "audience": "พนักงาน",
+    "route": "/th/hr/today",
+    "screenshot": null,
+    "steps": [
+      "กด “ลงเวลาเข้างาน” เมื่อเริ่มงาน หรือ “ลงเวลาออกงาน” เมื่อเลิกงาน",
+      "อ่านผลบันทึก แล้วกด “ดูรายละเอียดวันนี้” เมื่อต้องตรวจเวลาของวันนั้น"
+    ],
+    "verification": {
+      "status": "DRAFT_COPY_AWAIT_FINAL_LABELS"
+    },
+    "expected": "เวลาเข้า/ออกและข้อความบันทึกสำเร็จแสดงหลังระบบรับข้อมูล"
+  },
+  {
+    "number": 2,
+    "id": "history",
+    "title": "ดูเวลาและคำขอ",
+    "audience": "พนักงาน",
+    "route": "/th/hr/time",
+    "screenshot": null,
+    "steps": [
+      "เลือกวันที่ “ตั้งแต่” และ “ถึง”",
+      "กดวันที่ที่ต้องการดูรายละเอียด"
+    ],
+    "verification": {
+      "status": "DRAFT_COPY_AWAIT_FINAL_LABELS"
+    },
+    "expected": "เห็นเวลาเดิม เวลาใช้จริง และสถานะคำขอของวันที่เลือก"
+  },
+  {
+    "number": 3,
+    "id": "correction",
+    "title": "ขอแก้เวลา",
+    "audience": "พนักงาน",
+    "route": "/th/hr/time/2026-10-06?focus=correction",
+    "screenshot": null,
+    "steps": [
+      "กรอกเวลาเข้าที่ถูกต้องและเวลาออกที่ถูกต้อง เลือกวันถัดไปเมื่อเลิกงานข้ามคืน",
+      "ระบุเหตุผลที่ต้องแก้เวลา",
+      "กด “ส่งคำขอ” แล้วอ่านผลบันทึก"
+    ],
+    "verification": {
+      "status": "DRAFT_COPY_AWAIT_FINAL_LABELS"
+    },
+    "expected": "แสดงว่าส่งคำขอแล้วและรอหัวหน้าตรวจ"
+  },
+  {
+    "number": 4,
+    "id": "profile",
+    "title": "ตรวจโปรไฟล์และกะงาน",
+    "audience": "พนักงาน",
+    "route": "/th/hr/profile",
+    "screenshot": null,
+    "steps": [
+      "กด “โปรไฟล์” ในเมนูบุคลากร",
+      "ตรวจชื่อ สถานที่ หัวหน้างาน และกะของคุณ"
+    ],
+    "verification": {
+      "status": "DRAFT_COPY_AWAIT_FINAL_LABELS"
+    },
+    "expected": "เห็นวันทำงานและช่วงเวลาตามกะ"
+  },
+  {
+    "number": 5,
+    "id": "review-queue",
+    "title": "เลือกงานที่ต้องตรวจ",
+    "audience": "หัวหน้างาน / HR",
+    "route": "/th/hr/review",
+    "screenshot": null,
+    "steps": [
+      "เลือกช่วงวันที่ แล้วเปิดแท็บ “ต้องตรวจ”",
+      "กดรายการพนักงานและวันที่ที่ต้องการตรวจ"
+    ],
+    "verification": {
+      "status": "DRAFT_COPY_AWAIT_FINAL_LABELS"
+    },
+    "expected": "รายละเอียดของรายการที่เลือกเปิดข้างคิว"
+  },
+  {
+    "number": 6,
+    "id": "review-decision",
+    "title": "รับรองคำขอแก้เวลา",
+    "audience": "หัวหน้างาน / HR",
+    "route": "/th/hr/review",
+    "screenshot": null,
+    "steps": [
+      "เทียบรายการเดิมกับเวลาที่ขอแก้ และอ่านเหตุผลของพนักงาน",
+      "กด “รับรองเวลา” เมื่อข้อมูลถูกต้อง"
+    ],
+    "verification": {
+      "status": "DRAFT_COPY_AWAIT_FINAL_LABELS"
+    },
+    "expected": "คำขอเปลี่ยนเป็นรับรองแล้วและคิวอัปเดต"
+  },
+  {
+    "id": "review-return",
+    "title": "ส่งกลับให้พนักงานแก้ไข",
+    "audience": "หัวหน้างาน / HR",
+    "route": "/th/hr/review",
+    "screenshot": null,
+    "steps": [
+      "หลังเลือก “ส่งกลับให้แก้ไข” ให้พิมพ์เหตุผลที่ส่งกลับ",
+      "กด “ยืนยันส่งกลับ”"
+    ],
+    "expected": "คำขอเปลี่ยนเป็นส่งกลับแล้ว พนักงานอ่านเหตุผลและส่งใหม่ได้",
+    "verification": {
+      "status": "DRAFT_COPY_AWAIT_FINAL_LABELS"
+    },
+    "number": 7
+  },
+  {
+    "number": 8,
+    "id": "exception",
+    "title": "ตรวจวันที่เวลาไม่ครบ",
+    "audience": "หัวหน้างาน / HR",
+    "route": "/th/hr/review",
+    "screenshot": null,
+    "steps": [
+      "เลือก “ผลของวัน” ถ้าเลือกทำงาน ให้ระบุเวลาเข้าและเวลาออก",
+      "ใส่เหตุผลของการรับรองวันนี้",
+      "กด “บันทึกผลของวัน”"
+    ],
+    "verification": {
+      "status": "DRAFT_COPY_AWAIT_FINAL_LABELS"
+    },
+    "expected": "รายการเปลี่ยนเป็นรับรองแล้ว"
+  },
+  {
+    "number": 9,
+    "id": "employees",
+    "title": "เปิดรายการและเพิ่มพนักงาน",
+    "audience": "HR",
+    "route": "/th/hr/employees",
+    "screenshot": null,
+    "steps": [
+      "กด “เพิ่มพนักงาน” เพื่อสร้างประวัติใหม่",
+      "เมื่อต้องแก้ข้อมูล กด “แก้ไข” ที่แถวของพนักงานคนนั้น"
+    ],
+    "verification": {
+      "status": "DRAFT_COPY_AWAIT_FINAL_LABELS"
+    },
+    "expected": "เปิดแบบฟอร์มสำหรับประวัติใหม่หรือพนักงานที่เลือก"
+  },
+  {
+    "number": 10,
+    "id": "employee-edit",
+    "title": "แก้ข้อมูลพนักงาน",
+    "audience": "HR",
+    "route": "/th/hr/employees",
+    "screenshot": null,
+    "steps": [
+      "กรอกรหัส ชื่อ สถานที่ บัญชี และช่วงการจ้างงาน",
+      "เลื่อนลงแล้วกด “บันทึกพนักงาน”"
+    ],
+    "verification": {
+      "status": "DRAFT_COPY_AWAIT_FINAL_LABELS"
+    },
+    "expected": "กลับรายการพร้อมข้อมูลที่บันทึก"
+  },
+  {
+    "number": 11,
+    "id": "schedule",
+    "title": "ตั้งกะและวันทำงาน",
+    "audience": "HR",
+    "route": "/th/hr/employees",
+    "screenshot": null,
+    "steps": [
+      "ติ๊ก “กำหนดกะประจำ”",
+      "เลือกวันทำงาน เวลาเริ่มกะ เวลาจบกะ และเวลาพัก กะข้ามคืนให้ติ๊กวันถัดไป",
+      "กด “บันทึกพนักงาน”"
+    ],
+    "verification": {
+      "status": "DRAFT_COPY_AWAIT_FINAL_LABELS"
+    },
+    "expected": "รายการพนักงานแสดงกะที่บันทึกไว้"
+  },
+  {
+    "number": 12,
+    "id": "period-create",
+    "title": "สร้างงวดเวลา",
+    "audience": "HR",
+    "route": "/th/hr/periods",
+    "screenshot": null,
+    "steps": [
+      "กด “สร้างงวด”",
+      "เลือกสถานที่และช่วงวันที่ แล้วกดสร้าง"
+    ],
+    "verification": {
+      "status": "DRAFT_COPY_AWAIT_FINAL_LABELS"
+    },
+    "expected": "เปิดงวดร่างของช่วงที่เลือก"
+  },
+  {
+    "number": 13,
+    "id": "period-close",
+    "title": "ตรวจและปิดงวด",
+    "audience": "HR",
+    "route": "/th/hr/periods",
+    "screenshot": null,
+    "steps": [
+      "ตรวจยอดและรายการค้าง ถ้ามี ให้กดตรวจรายการแล้วรับรองให้ครบ",
+      "เมื่อพร้อม กด “ปิดงวด” แล้วกดยืนยันฉบับที่แสดง"
+    ],
+    "verification": {
+      "status": "DRAFT_COPY_AWAIT_FINAL_LABELS"
+    },
+    "expected": "งวดเปลี่ยนเป็นปิดแล้วและดาวน์โหลดได้"
+  },
+  {
+    "number": 14,
+    "id": "period-export",
+    "title": "เลือกฉบับและดาวน์โหลด",
+    "audience": "HR",
+    "route": "/th/hr/periods",
+    "screenshot": null,
+    "steps": [
+      "เปิดรายการฉบับแล้วเลือกฉบับที่ต้องการ",
+      "กด “ดาวน์โหลด CSV ฉบับ …”"
+    ],
+    "verification": {
+      "status": "DRAFT_COPY_AWAIT_FINAL_LABELS"
+    },
+    "expected": "ไฟล์ดาวน์โหลดตรงกับเลขฉบับที่แสดง"
+  },
+  {
+    "number": 15,
+    "id": "period-revise",
+    "title": "เปิดแก้งวดที่ปิดแล้ว",
+    "audience": "HR",
+    "route": "/th/hr/periods",
+    "screenshot": null,
+    "steps": [
+      "กดเปิดแก้งวดในฉบับล่าสุดที่ปิดแล้ว",
+      "ระบุเหตุผล แล้วกดเปิดร่างฉบับใหม่"
+    ],
+    "verification": {
+      "status": "DRAFT_COPY_AWAIT_FINAL_LABELS"
+    },
+    "expected": "เกิดงวดร่างใหม่ ฉบับที่ปิดแล้วเดิมยังเปิดดูได้"
+  },
+  {
+    "number": 16,
+    "id": "holidays",
+    "title": "เพิ่มและลบวันหยุด",
+    "audience": "ผู้ดูแล HR",
+    "route": "/th/hr/settings?section=holidays",
+    "screenshot": null,
+    "steps": [
+      "เลือกสถานที่ กรอกวันที่และชื่อวันหยุด แล้วกดเพิ่ม",
+      "เมื่อต้องยกเลิก กดปุ่มถังขยะของรายการนั้น"
+    ],
+    "verification": {
+      "status": "DRAFT_COPY_AWAIT_FINAL_LABELS"
+    },
+    "expected": "รายการวันหยุดเพิ่มหรือลบตามที่เลือก"
+  },
+  {
+    "number": 17,
+    "id": "access",
+    "title": "ตรวจสิทธิ์ใช้งาน HR",
+    "audience": "ผู้ดูแล HR",
+    "route": "/th/hr/settings?section=access",
+    "screenshot": null,
+    "steps": [
+      "เปิดส่วนสิทธิ์ HR แล้วหาชื่อผู้ใช้",
+      "ติ๊กพนักงานหรือหัวหน้างานเพื่อให้สิทธิ์ เอาติ๊กออกเพื่อยกเลิก"
+    ],
+    "verification": {
+      "status": "DRAFT_COPY_AWAIT_FINAL_LABELS"
+    },
+    "expected": "สิทธิ์บันทึกทันทีและมีผลกับเมนู/งานที่เปิดได้"
+  },
+  {
+    "number": 18,
+    "id": "policy",
+    "title": "อ่านนโยบายและรูปแบบไฟล์",
+    "audience": "ผู้ดูแล HR",
+    "route": "/th/hr/settings?section=policy",
+    "screenshot": null,
+    "steps": [
+      "เปิดส่วนข้อมูลการใช้งาน",
+      "กดดูรายละเอียดเพิ่มเติมเมื่อต้องตรวจรูปแบบไฟล์หรือข้อจำกัด"
+    ],
+    "verification": {
+      "status": "DRAFT_COPY_AWAIT_FINAL_LABELS"
+    },
+    "expected": "อ่านข้อมูลที่จำเป็นได้โดยไม่ต้องแก้ค่า"
+  },
+  {
+    "number": 19,
+    "id": "search",
+    "title": "ค้นหน้าและหน้าย่อย",
+    "audience": "ทุกคน",
+    "route": "/th/hr/review",
+    "screenshot": null,
+    "steps": [
+      "กดค้นหา หรือใช้ ⌘K / Ctrl+K",
+      "พิมพ์งาน เช่น “วันหยุด” แล้วกดผลลัพธ์ที่ต้องการ"
+    ],
+    "verification": {
+      "status": "DRAFT_COPY_AWAIT_FINAL_LABELS"
+    },
+    "expected": "เปิดไปส่วนวันหยุดของตั้งค่า HR โดยตรง"
+  },
+  {
+    "number": 20,
+    "id": "ai-search",
+    "title": "ให้ AI พาไปจุดที่ต้องแก้",
+    "audience": "ทุกคน",
+    "route": "/th/hr/review",
+    "screenshot": null,
+    "steps": [
+      "พิมพ์สิ่งที่ต้องการทำ เช่น “แก้กะ วิภา”",
+      "กด “ค้นหาด้วย AI” แล้วเลือกคนหรือวันที่ถ้าระบบถาม"
+    ],
+    "verification": {
+      "status": "DRAFT_COPY_AWAIT_FINAL_LABELS"
+    },
+    "expected": "เปิดหน้าหรือแบบฟอร์มที่ตรงกับงาน จากนั้นคุณเป็นคนกดบันทึก"
+  }
+]

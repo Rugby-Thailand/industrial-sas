@@ -1,0 +1,92 @@
+[
+  {
+    "name": "1.jpg",
+    "sourcePath": "/Users/macbook/.t3/userdata/attachments/21cd5f92-14f9-4ad0-b4fb-440329d65283-743e2799-b22e-42c7-b8f9-08ae48b6f855.jpg",
+    "sha256": "e15f55c5843a53d8a4af300e90653dcc27ad45117e35cf9e18a3d5371f79de20",
+    "bytes": 1881287,
+    "expectedProduct": "PTP-PK663079-BOX-F",
+    "expectedJob": "FO69100125",
+    "expectedBasis": "Printed label, manually transcribed for comparison only; never supplied to decoder"
+  },
+  {
+    "name": "2.jpg",
+    "sourcePath": "/Users/macbook/.t3/userdata/attachments/21cd5f92-14f9-4ad0-b4fb-440329d65283-850edd69-465f-4954-be6e-576997eed6c3.jpg",
+    "sha256": "823e64dfd43314148c1323cfe633ceb248ec0ae1eaec6cbf8ba7acf347c6387f",
+    "bytes": 1556790,
+    "expectedProduct": "SSD-OB3P422T-BOX-F",
+    "expectedJob": "FO69090109",
+    "expectedBasis": "Printed label, manually transcribed for comparison only; never supplied to decoder"
+  },
+  {
+    "name": "3.jpg",
+    "sourcePath": "/Users/macbook/.t3/userdata/attachments/21cd5f92-14f9-4ad0-b4fb-440329d65283-c3080e53-5428-4d3a-a246-d13de6259fda.jpg",
+    "sha256": "9a22ebfebb7cd6f545910818722d85f7f89e39cc17a6e239eee0e55b23256a04",
+    "bytes": 1674750,
+    "expectedProduct": "TDK-MPD-0131070-TRW-F",
+    "expectedJob": "FO69070018",
+    "expectedBasis": "Printed label, manually transcribed for comparison only; never supplied to decoder"
+  },
+  {
+    "name": "4.jpg",
+    "sourcePath": "/Users/macbook/.t3/userdata/attachments/21cd5f92-14f9-4ad0-b4fb-440329d65283-ee83ffcb-d2bd-45f1-805a-19319b461255.jpg",
+    "sha256": "19ef6c97ed5bc5c061e9729b4041e7f84f63736e5a635667357f923f1237b308",
+    "bytes": 2730644,
+    "expectedProduct": "VLT-NEOPACK11-BOX-S",
+    "expectedJob": "FO69100104",
+    "expectedBasis": "Printed label, manually transcribed for comparison only; never supplied to decoder"
+  },
+  {
+    "name": "5.jpg",
+    "sourcePath": "/Users/macbook/.t3/userdata/attachments/21cd5f92-14f9-4ad0-b4fb-440329d65283-8a788992-62d9-4738-8d9e-d7e0470362d7.jpg",
+    "sha256": "01137d52642a270925b2822d630f638090d2ae5756fae941dd2ea77398210cff",
+    "bytes": 1880956,
+    "expectedProduct": "SBW-003700-CAR-BOX-F",
+    "expectedJob": "FO69080353",
+    "expectedBasis": "Printed label, manually transcribed for comparison only; never supplied to decoder"
+  },
+  {
+    "name": "6.jpg",
+    "sourcePath": "/Users/macbook/.t3/userdata/attachments/21cd5f92-14f9-4ad0-b4fb-440329d65283-d7f1aeb4-28f0-4ab1-bee1-8193a23fcf45.jpg",
+    "sha256": "e6676d4df1883d270a8bd15e80fef34ac4440c3c221212f9e3ea176aec775680",
+    "bytes": 1792667,
+    "expectedProduct": "ITTC-CB521019-BOX-F",
+    "expectedJob": "FO69090586",
+    "expectedBasis": "Printed label, manually transcribed for comparison only; never supplied to decoder"
+  },
+  {
+    "name": "7.jpg",
+    "sourcePath": "/Users/macbook/.t3/userdata/attachments/21cd5f92-14f9-4ad0-b4fb-440329d65283-85ac6b8b-c380-46e5-905a-e799d65b7909.jpg",
+    "sha256": "1c57f655a8f7d12c51d50020aa44a1f4b792ec90dd6747f1ff351c77e2b49778",
+    "bytes": 1832491,
+    "expectedProduct": "MPCT-ZPBOXR3642R2-BOX-F",
+    "expectedJob": "FO69020555",
+    "expectedBasis": "Printed label, manually transcribed for comparison only; never supplied to decoder"
+  },
+  {
+    "name": "8.jpg",
+    "sourcePath": "/Users/macbook/.t3/userdata/attachments/21cd5f92-14f9-4ad0-b4fb-440329d65283-28bd8826-90b6-4c5b-a63e-6ba8cb8b89b8.jpg",
+    "sha256": "e15f55c5843a53d8a4af300e90653dcc27ad45117e35cf9e18a3d5371f79de20",
+    "bytes": 1881287,
+    "expectedProduct": "PTP-PK663079-BOX-F",
+    "expectedJob": "FO69100125",
+    "expectedBasis": "Printed label, manually transcribed for comparison only; never supplied to decoder"
+  },
+  {
+    "name": "9.jpg",
+    "sourcePath": "/Users/macbook/.t3/userdata/attachments/21cd5f92-14f9-4ad0-b4fb-440329d65283-7a1aa15f-f472-4046-901b-449a02ebb40a.jpg",
+    "sha256": "823e64dfd43314148c1323cfe633ceb248ec0ae1eaec6cbf8ba7acf347c6387f",
+    "bytes": 1556790,
+    "expectedProduct": "SSD-OB3P422T-BOX-F",
+    "expectedJob": "FO69090109",
+    "expectedBasis": "Printed label, manually transcribed for comparison only; never supplied to decoder"
+  },
+  {
+    "name": "10.jpg",
+    "sourcePath": "/Users/macbook/.t3/userdata/attachments/21cd5f92-14f9-4ad0-b4fb-440329d65283-5d92b837-1400-4532-af05-8068a351c171.jpg",
+    "sha256": "9a22ebfebb7cd6f545910818722d85f7f89e39cc17a6e239eee0e55b23256a04",
+    "bytes": 1674750,
+    "expectedProduct": "TDK-MPD-0131070-TRW-F",
+    "expectedJob": "FO69070018",
+    "expectedBasis": "Printed label, manually transcribed for comparison only; never supplied to decoder"
+  }
+]

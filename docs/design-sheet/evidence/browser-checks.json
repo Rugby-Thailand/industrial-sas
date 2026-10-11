@@ -654,10 +654,5 @@
     "All 64 combinations rerun after density and contrast edits with optional scan details expanded.",
     "CSS transitions settled before axe; automated checks do not establish full accessibility conformance.",
     "Impeccable detector run once; retained incumbent font warnings. Final review applies direct user annotations."
-  ],
-  "evidenceScope": {
-    "baseline": "8b0ef538",
-    "historical": true,
-    "excludes": "2026-10-11 adoption revision"
-  }
+  ]
 }

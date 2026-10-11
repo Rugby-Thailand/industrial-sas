@@ -1,0 +1,563 @@
+{
+  "stage": "wasm-full",
+  "createdAt": "2026-10-10T08:18:32.457Z",
+  "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) T3Code(Alpha)/0.0.45 Chrome/152.0.7977.130 Electron/44.4.2 Safari/537.36",
+  "decoder": "zxing-wasm 3.1.5",
+  "initMs": 12.900000035762787,
+  "results": [
+    {
+      "name": "1.jpg",
+      "sha256": "e15f55c5843a53d8a4af300e90653dcc27ad45117e35cf9e18a3d5371f79de20",
+      "width": 2160,
+      "height": 2880,
+      "attempts": [
+        {
+          "label": "wasm-full",
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 83.69999998807907,
+          "results": [
+            {
+              "text": "FO69100125",
+              "format": "Code128",
+              "position": {
+                "topLeft": {
+                  "x": 752,
+                  "y": 845
+                },
+                "topRight": {
+                  "x": 1404,
+                  "y": 845
+                },
+                "bottomRight": {
+                  "x": 1399,
+                  "y": 909
+                },
+                "bottomLeft": {
+                  "x": 754,
+                  "y": 909
+                }
+              },
+              "isValid": true
+            }
+          ]
+        }
+      ],
+      "codes": ["FO69100125"],
+      "totalMs": 134.80000001192093
+    },
+    {
+      "name": "2.jpg",
+      "sha256": "823e64dfd43314148c1323cfe633ceb248ec0ae1eaec6cbf8ba7acf347c6387f",
+      "width": 2160,
+      "height": 2880,
+      "attempts": [
+        {
+          "label": "wasm-full",
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 63,
+          "results": [
+            {
+              "text": "FO69090109",
+              "format": "Code128",
+              "position": {
+                "topLeft": {
+                  "x": 670,
+                  "y": 705
+                },
+                "topRight": {
+                  "x": 1268,
+                  "y": 705
+                },
+                "bottomRight": {
+                  "x": 1267,
+                  "y": 761
+                },
+                "bottomLeft": {
+                  "x": 676,
+                  "y": 761
+                }
+              },
+              "isValid": true
+            }
+          ]
+        }
+      ],
+      "codes": ["FO69090109"],
+      "totalMs": 102.10000002384186
+    },
+    {
+      "name": "3.jpg",
+      "sha256": "9a22ebfebb7cd6f545910818722d85f7f89e39cc17a6e239eee0e55b23256a04",
+      "width": 2160,
+      "height": 2880,
+      "attempts": [
+        {
+          "label": "wasm-full",
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 60.700000047683716,
+          "results": [
+            {
+              "text": "FO69070018",
+              "format": "QRCode",
+              "position": {
+                "topLeft": {
+                  "x": 395,
+                  "y": 632
+                },
+                "topRight": {
+                  "x": 570,
+                  "y": 626
+                },
+                "bottomRight": {
+                  "x": 567,
+                  "y": 770
+                },
+                "bottomLeft": {
+                  "x": 392,
+                  "y": 776
+                }
+              },
+              "isValid": true
+            },
+            {
+              "text": "FO69070018",
+              "format": "Code128",
+              "position": {
+                "topLeft": {
+                  "x": 731,
+                  "y": 730
+                },
+                "topRight": {
+                  "x": 1233,
+                  "y": 730
+                },
+                "bottomRight": {
+                  "x": 1234,
+                  "y": 756
+                },
+                "bottomLeft": {
+                  "x": 730,
+                  "y": 756
+                }
+              },
+              "isValid": true
+            },
+            {
+              "text": "TDK-MPD-0131070-TRW-F",
+              "format": "Code128",
+              "position": {
+                "topLeft": {
+                  "x": 770,
+                  "y": 1744
+                },
+                "topRight": {
+                  "x": 1664,
+                  "y": 1744
+                },
+                "bottomRight": {
+                  "x": 1664,
+                  "y": 1750
+                },
+                "bottomLeft": {
+                  "x": 770,
+                  "y": 1750
+                }
+              },
+              "isValid": true
+            }
+          ]
+        }
+      ],
+      "codes": ["FO69070018", "FO69070018", "TDK-MPD-0131070-TRW-F"],
+      "totalMs": 100.30000001192093
+    },
+    {
+      "name": "4.jpg",
+      "sha256": "19ef6c97ed5bc5c061e9729b4041e7f84f63736e5a635667357f923f1237b308",
+      "width": 2160,
+      "height": 2880,
+      "attempts": [
+        {
+          "label": "wasm-full",
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 65.39999997615814,
+          "results": [
+            {
+              "text": "FO69100104",
+              "format": "QRCode",
+              "position": {
+                "topLeft": {
+                  "x": 506,
+                  "y": 904
+                },
+                "topRight": {
+                  "x": 674,
+                  "y": 902
+                },
+                "bottomRight": {
+                  "x": 685,
+                  "y": 1046
+                },
+                "bottomLeft": {
+                  "x": 516,
+                  "y": 1048
+                }
+              },
+              "isValid": true
+            },
+            {
+              "text": "FO69100104",
+              "format": "Code128",
+              "position": {
+                "topLeft": {
+                  "x": 831,
+                  "y": 1038
+                },
+                "topRight": {
+                  "x": 1283,
+                  "y": 1038
+                },
+                "bottomRight": {
+                  "x": 1283,
+                  "y": 1039
+                },
+                "bottomLeft": {
+                  "x": 831,
+                  "y": 1039
+                }
+              },
+              "isValid": true
+            }
+          ]
+        }
+      ],
+      "codes": ["FO69100104", "FO69100104"],
+      "totalMs": 118.39999997615814
+    },
+    {
+      "name": "5.jpg",
+      "sha256": "01137d52642a270925b2822d630f638090d2ae5756fae941dd2ea77398210cff",
+      "width": 2160,
+      "height": 2880,
+      "attempts": [
+        {
+          "label": "wasm-full",
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 69.5,
+          "results": []
+        }
+      ],
+      "codes": [],
+      "totalMs": 119
+    },
+    {
+      "name": "6.jpg",
+      "sha256": "e6676d4df1883d270a8bd15e80fef34ac4440c3c221212f9e3ea176aec775680",
+      "width": 2160,
+      "height": 2880,
+      "attempts": [
+        {
+          "label": "wasm-full",
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 67.39999997615814,
+          "results": [
+            {
+              "text": "FO69090586",
+              "format": "QRCode",
+              "position": {
+                "topLeft": {
+                  "x": 117,
+                  "y": 466
+                },
+                "topRight": {
+                  "x": 356,
+                  "y": 472
+                },
+                "bottomRight": {
+                  "x": 350,
+                  "y": 702
+                },
+                "bottomLeft": {
+                  "x": 111,
+                  "y": 693
+                }
+              },
+              "isValid": true
+            },
+            {
+              "text": "FO69090586",
+              "format": "Code128",
+              "position": {
+                "topLeft": {
+                  "x": 568,
+                  "y": 690
+                },
+                "topRight": {
+                  "x": 1329,
+                  "y": 690
+                },
+                "bottomRight": {
+                  "x": 1326,
+                  "y": 746
+                },
+                "bottomLeft": {
+                  "x": 569,
+                  "y": 746
+                }
+              },
+              "isValid": true
+            }
+          ]
+        }
+      ],
+      "codes": ["FO69090586", "FO69090586"],
+      "totalMs": 107.19999998807907
+    },
+    {
+      "name": "7.jpg",
+      "sha256": "1c57f655a8f7d12c51d50020aa44a1f4b792ec90dd6747f1ff351c77e2b49778",
+      "width": 2160,
+      "height": 2880,
+      "attempts": [
+        {
+          "label": "wasm-full",
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 61.69999998807907,
+          "results": [
+            {
+              "text": "FO69020555",
+              "format": "Code128",
+              "position": {
+                "topLeft": {
+                  "x": 666,
+                  "y": 744
+                },
+                "topRight": {
+                  "x": 1275,
+                  "y": 744
+                },
+                "bottomRight": {
+                  "x": 1275,
+                  "y": 747
+                },
+                "bottomLeft": {
+                  "x": 666,
+                  "y": 747
+                }
+              },
+              "isValid": true
+            }
+          ]
+        }
+      ],
+      "codes": ["FO69020555"],
+      "totalMs": 109
+    },
+    {
+      "name": "8.jpg",
+      "sha256": "e15f55c5843a53d8a4af300e90653dcc27ad45117e35cf9e18a3d5371f79de20",
+      "width": 2160,
+      "height": 2880,
+      "attempts": [
+        {
+          "label": "wasm-full",
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 60.19999998807907,
+          "results": [
+            {
+              "text": "FO69100125",
+              "format": "Code128",
+              "position": {
+                "topLeft": {
+                  "x": 752,
+                  "y": 845
+                },
+                "topRight": {
+                  "x": 1404,
+                  "y": 845
+                },
+                "bottomRight": {
+                  "x": 1399,
+                  "y": 909
+                },
+                "bottomLeft": {
+                  "x": 754,
+                  "y": 909
+                }
+              },
+              "isValid": true
+            }
+          ]
+        }
+      ],
+      "codes": ["FO69100125"],
+      "totalMs": 105
+    },
+    {
+      "name": "9.jpg",
+      "sha256": "823e64dfd43314148c1323cfe633ceb248ec0ae1eaec6cbf8ba7acf347c6387f",
+      "width": 2160,
+      "height": 2880,
+      "attempts": [
+        {
+          "label": "wasm-full",
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 56.90000003576279,
+          "results": [
+            {
+              "text": "FO69090109",
+              "format": "Code128",
+              "position": {
+                "topLeft": {
+                  "x": 670,
+                  "y": 705
+                },
+                "topRight": {
+                  "x": 1268,
+                  "y": 705
+                },
+                "bottomRight": {
+                  "x": 1267,
+                  "y": 761
+                },
+                "bottomLeft": {
+                  "x": 676,
+                  "y": 761
+                }
+              },
+              "isValid": true
+            }
+          ]
+        }
+      ],
+      "codes": ["FO69090109"],
+      "totalMs": 96.19999998807907
+    },
+    {
+      "name": "10.jpg",
+      "sha256": "9a22ebfebb7cd6f545910818722d85f7f89e39cc17a6e239eee0e55b23256a04",
+      "width": 2160,
+      "height": 2880,
+      "attempts": [
+        {
+          "label": "wasm-full",
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 55.80000001192093,
+          "results": [
+            {
+              "text": "FO69070018",
+              "format": "QRCode",
+              "position": {
+                "topLeft": {
+                  "x": 395,
+                  "y": 632
+                },
+                "topRight": {
+                  "x": 570,
+                  "y": 626
+                },
+                "bottomRight": {
+                  "x": 567,
+                  "y": 770
+                },
+                "bottomLeft": {
+                  "x": 392,
+                  "y": 776
+                }
+              },
+              "isValid": true
+            },
+            {
+              "text": "FO69070018",
+              "format": "Code128",
+              "position": {
+                "topLeft": {
+                  "x": 731,
+                  "y": 730
+                },
+                "topRight": {
+                  "x": 1233,
+                  "y": 730
+                },
+                "bottomRight": {
+                  "x": 1234,
+                  "y": 756
+                },
+                "bottomLeft": {
+                  "x": 730,
+                  "y": 756
+                }
+              },
+              "isValid": true
+            },
+            {
+              "text": "TDK-MPD-0131070-TRW-F",
+              "format": "Code128",
+              "position": {
+                "topLeft": {
+                  "x": 770,
+                  "y": 1744
+                },
+                "topRight": {
+                  "x": 1664,
+                  "y": 1744
+                },
+                "bottomRight": {
+                  "x": 1664,
+                  "y": 1750
+                },
+                "bottomLeft": {
+                  "x": 770,
+                  "y": 1750
+                }
+              },
+              "isValid": true
+            }
+          ]
+        }
+      ],
+      "codes": ["FO69070018", "FO69070018", "TDK-MPD-0131070-TRW-F"],
+      "totalMs": 99
+    }
+  ]
+}

@@ -1,0 +1,1884 @@
+[
+  {
+    "number": 1,
+    "id": "today",
+    "title": "ลงเวลาวันนี้",
+    "audience": "พนักงาน",
+    "route": "/th/hr/today",
+    "screenshot": {
+      "source": "assets/source/01-today.png",
+      "sha256": "3c70195b411da2a327c3d39406e3ac4f88fee7ab23b61fe8bc3c8d99b03b822f",
+      "pixels": [
+        1280,
+        800
+      ],
+      "viewport": [
+        1280,
+        800
+      ],
+      "capturedAt": "2026-10-09T18:59:20.304Z",
+      "captureHref": "http://localhost:3100/th/hr/today",
+      "sourceArtifact": "/Users/macbook/.t3/userdata/browser-artifacts/browser-screenshot-localhost-mv1bxch9-cdc18db9.png",
+      "scroll": [
+        0,
+        0
+      ],
+      "annotated": "assets/annotated/01-today.png"
+    },
+    "steps": [
+      "เริ่มงาน กด “ลงเวลาเข้างาน” แล้วอ่านผลบันทึก",
+      "เมื่อเลิกงาน กดปุ่มที่เปลี่ยนเป็น “ลงเวลาออกงาน”",
+      "กด “ดูรายละเอียดวันนี้” เมื่อต้องตรวจเวลาเข้าออก"
+    ],
+    "verification": {
+      "status": "AUTHOR_VERIFIED",
+      "labels": "Exact displayed labels and observed targets checked against saved DOM.",
+      "visual": {
+        "status": "PASS",
+        "reviewer": "hr_usage_manual",
+        "render": "tmp/pdfs/hr-user-guide-th/rendered/page-01.png",
+        "renderSha256": "a595531d7d2e06b50ae407d6bd6b2190bdb04224ed774603bbd404dd7170255e",
+        "method": "Each final PDF page rendered with Poppler and individually opened via view_image; Thai text, full source aspect, target numbers, no cropped manual text or overlaps checked.",
+        "notes": "ClockIn56px target1 and real Details target3 fully visible; ClockOut is explicitly conditional. Nonworking note and both authorized reviewers readable."
+      },
+      "action": {
+        "level": "LIVE_PERSISTED",
+        "evidence": "live-workflows.json:realClockPre,realClockIn,realClockOut,realClockHistory,realClockDayDetail",
+        "result": "QA recorded one new Oct10 clock pair and verified reload; historical records preserved."
+      }
+    },
+    "expected": "เวลาที่บันทึกจริงแสดงในวันนี้และประวัติ",
+    "entry": "เมนู วันนี้",
+    "note": "ภาพตัวอย่างเป็นวันไม่ทำงาน การลงเวลาในวันนี้จึงต้องให้หัวหน้าหรือฝ่ายบุคคลตรวจ",
+    "highlights": [
+      {
+        "ariaLabel": null,
+        "box": [
+          257,
+          388,
+          224,
+          56
+        ],
+        "disabled": false,
+        "domText": "ลงเวลาเข้างาน",
+        "label": "ลงเวลาเข้างาน",
+        "number": 1,
+        "selector": "[data-testid='hr-clock-action']"
+      },
+      {
+        "ariaLabel": null,
+        "box": [
+          257,
+          563,
+          99.828125,
+          48
+        ],
+        "disabled": false,
+        "domText": "ดูรายละเอียดวันนี้",
+        "label": "ดูรายละเอียดวันนี้",
+        "number": 3,
+        "selector": "main a[href='/th/hr/time/2026-10-10']"
+      }
+    ],
+    "sourceSnapshots": [
+      {
+        "file": "src/features/hr/TodayScreen.tsx",
+        "sha256": "b6a4322b978123be49e26fc2b10468341c3153df835d1322760734eba5de3be4"
+      },
+      {
+        "file": "src/features/hr/HrScreens.test.tsx",
+        "sha256": "499b87a47e1eb74ba06ee6baa6993240e67dec02362707b18a28caeddd055cb3"
+      },
+      {
+        "file": "convex/hr/self.ts",
+        "sha256": "e3fee3cdd83ce2c15c2be60a8cfd0d46d82d260f3dba4b2523e0cab113721068"
+      }
+    ]
+  },
+  {
+    "number": 2,
+    "id": "history",
+    "title": "ดูเวลาและคำขอ",
+    "audience": "พนักงาน",
+    "route": "/th/hr/time",
+    "screenshot": {
+      "source": "assets/source/02-history.png",
+      "sha256": "1eac5d472f30640cce8db06dc6a7d54d80895cd65ad315c250ef99653b812e3b",
+      "pixels": [
+        1280,
+        800
+      ],
+      "viewport": [
+        1280,
+        800
+      ],
+      "capturedAt": "2026-10-09T19:13:03.728Z",
+      "captureHref": "http://localhost:3100/th/hr/time",
+      "sourceArtifact": "/Users/macbook/.t3/userdata/browser-artifacts/browser-screenshot-localhost-mv1cezu0-1624ed44.png",
+      "scroll": [
+        0,
+        0
+      ],
+      "annotated": "assets/annotated/02-history.png"
+    },
+    "steps": [
+      "เลือกวันที่ “ตั้งแต่” และ “ถึง”",
+      "กดวันที่ที่ต้องการดูรายละเอียด"
+    ],
+    "verification": {
+      "status": "AUTHOR_VERIFIED",
+      "labels": "Exact displayed labels and observed targets checked against saved DOM.",
+      "visual": {
+        "status": "PASS",
+        "reviewer": "hr_usage_manual",
+        "render": "tmp/pdfs/hr-user-guide-th/rendered/page-02.png",
+        "renderSha256": "780063f588b0aedfde9e726f246e1134d107a6a6fa6b43af8e950158c9085724",
+        "method": "Each final PDF page rendered with Poppler and individually opened via view_image; Thai text, full source aspect, target numbers, no cropped manual text or overlaps checked.",
+        "notes": "Date pair and Oct6 link fully visible; actual Oct10 clock row appears. Table continues naturally below viewport."
+      },
+      "action": {
+        "level": "LIVE_NAVIGATION",
+        "evidence": "Capture DOM plus live-workflows.json:realClockHistory,realClockDayDetail",
+        "result": "Range and day-link destination inspected in actual UI."
+      }
+    },
+    "expected": "เปิดเวลาเดิม เวลาใช้จริง และคำขอของวันนั้น",
+    "entry": "เมนู เวลาและคำขอ",
+    "highlights": [
+      {
+        "ariaLabel": null,
+        "box": [
+          245,
+          182,
+          364,
+          78
+        ],
+        "disabled": false,
+        "domText": "ช่วงวันที่\nตั้งแต่\nถึง\n\nไม่เกิน 31 วัน",
+        "label": "ตั้งแต่ / ถึง",
+        "number": 1,
+        "selector": "main fieldset",
+        "value": null
+      },
+      {
+        "ariaLabel": null,
+        "box": [
+          249,
+          642.5,
+          115.2265625,
+          48
+        ],
+        "disabled": false,
+        "domText": "อังคาร 6 ต.ค. 2569",
+        "label": "อังคาร 6 ต.ค. 2569",
+        "number": 2,
+        "selector": "main a[href='/th/hr/time/2026-10-06']",
+        "value": null
+      }
+    ],
+    "sourceSnapshots": [
+      {
+        "file": "src/features/hr/HistoryScreen.tsx",
+        "sha256": "ace523f0f88c714bbca8aae8ccd526423167d14fd8bae2192f8e1a37de3e5aef"
+      },
+      {
+        "file": "src/features/hr/DayScreen.tsx",
+        "sha256": "3050edfbaba55bc33a18edda0aec85b2dacbfb423b8bdda52d434747f02f57f0"
+      }
+    ]
+  },
+  {
+    "number": 3,
+    "id": "correction",
+    "title": "ขอแก้เวลา",
+    "audience": "พนักงาน",
+    "route": "/th/hr/time/2026-10-06?focus=correction",
+    "screenshot": {
+      "source": "assets/source/03-correction.png",
+      "sha256": "09d298deaacd96429c93731f3b5175b6c8a768e6013a8d48379444358c185c19",
+      "pixels": [
+        1280,
+        800
+      ],
+      "viewport": [
+        1280,
+        800
+      ],
+      "capturedAt": "2026-10-09T19:15:39.342Z",
+      "captureHref": "http://localhost:3100/th/hr/time/2026-10-06?focus=correction",
+      "sourceArtifact": "/Users/macbook/.t3/userdata/browser-artifacts/browser-screenshot-localhost-mv1cibwp-06eb2f2e.png",
+      "scroll": [
+        0,
+        0
+      ],
+      "annotated": "assets/annotated/03-correction.png"
+    },
+    "steps": [
+      "กรอกเวลาเข้าหรือเวลาออกที่ต้องแก้ กะข้ามคืนให้เลือกวันถัดไปตามจริง",
+      "ระบุเหตุผลที่ต้องแก้เวลา",
+      "กด “ส่งคำขอ” แล้วอ่านผลบันทึก"
+    ],
+    "verification": {
+      "status": "AUTHOR_VERIFIED",
+      "labels": "Exact displayed labels and observed targets checked against saved DOM.",
+      "visual": {
+        "status": "PASS",
+        "reviewer": "hr_usage_manual",
+        "render": "tmp/pdfs/hr-user-guide-th/rendered/page-03.png",
+        "renderSha256": "fcea27e05e972b7a161e9f2add45b944a5735715f7a6b6afcf0c3c7f1abf9cd6",
+        "method": "Each final PDF page rendered with Poppler and individually opened via view_image; Thai text, full source aspect, target numbers, no cropped manual text or overlaps checked.",
+        "notes": "ActualOct6 correction route, correct times/next-day/reason/Send labels; native natural scroll shows all three targets."
+      },
+      "action": {
+        "level": "LIVE_FORM_AND_INTEGRATION",
+        "evidence": "CorrectionForm.independent.test.tsx; HrScreens.test.tsx",
+        "result": "Actual time/reason/submit controls and request form inspected; no old pending record submitted."
+      }
+    },
+    "expected": "แสดงว่าส่งคำขอแล้วและรอหัวหน้าตรวจ",
+    "entry": "เวลาและคำขอ > เลือกวันที่ > เลื่อนมาที่ ขอแก้เวลา",
+    "note": "ถ้าถูกส่งกลับ ให้เปิดวันเดิม อ่านเหตุผล แก้ข้อมูล แล้วส่งใหม่",
+    "highlights": [
+      {
+        "ariaLabel": null,
+        "box": [
+          249,
+          293,
+          990,
+          141.5
+        ],
+        "disabled": false,
+        "domText": "เวลาเข้าที่ถูกต้อง\n\nเว้นว่างหากเวลาเข้าเดิมถูกต้อง\n\nเป็นเวลาของวันถัดไป\nเวลาออกที่ถูกต้อง\n\nสำหรับกะข้ามคืน ให้เลือก ‘วันถัดไป’\n\nเป็นเวลาของวันถัดไป",
+        "label": "เวลาเข้าที่ถูกต้อง / เวลาออกที่ถูกต้อง",
+        "number": 1,
+        "selector": "form[aria-labelledby='hr-correction-title'] .grid",
+        "value": null
+      },
+      {
+        "ariaLabel": null,
+        "box": [
+          249,
+          472.5,
+          990,
+          96
+        ],
+        "disabled": false,
+        "domText": "",
+        "label": "เหตุผล",
+        "number": 2,
+        "selector": "form[aria-labelledby='hr-correction-title'] textarea",
+        "value": ""
+      },
+      {
+        "ariaLabel": null,
+        "box": [
+          249,
+          612,
+          81.34375,
+          36
+        ],
+        "disabled": false,
+        "domText": "ส่งคำขอ",
+        "label": "ส่งคำขอ",
+        "number": 3,
+        "selector": "[data-testid='hr-correction-submit']",
+        "value": ""
+      }
+    ],
+    "sourceSnapshots": [
+      {
+        "file": "src/features/hr/CorrectionForm.tsx",
+        "sha256": "daa278255009ac5ee9f1ccddcdc4d33aa474b54a2ffef0378e4e20a7c1642854"
+      },
+      {
+        "file": "src/features/hr/CorrectionForm.independent.test.tsx",
+        "sha256": "3847432bc0ecb3387e3ac672d3ea466802502ec95ad5304863e0a6fdf962d11e"
+      },
+      {
+        "file": "convex/hr/self.ts",
+        "sha256": "e3fee3cdd83ce2c15c2be60a8cfd0d46d82d260f3dba4b2523e0cab113721068"
+      }
+    ]
+  },
+  {
+    "number": 4,
+    "id": "profile",
+    "title": "ตรวจโปรไฟล์และกะงาน",
+    "audience": "พนักงาน",
+    "route": "/th/hr/profile",
+    "screenshot": {
+      "source": "assets/source/04-profile.png",
+      "sha256": "63a18422348c7734d91c8f191a77a7b65f17d2d45dbaaa55d46c5aa7c2109e38",
+      "pixels": [
+        1280,
+        800
+      ],
+      "viewport": [
+        1280,
+        800
+      ],
+      "capturedAt": "2026-10-09T19:15:47.334Z",
+      "captureHref": "http://localhost:3100/th/hr/profile",
+      "sourceArtifact": "/Users/macbook/.t3/userdata/browser-artifacts/browser-screenshot-localhost-mv1cii2p-e5e677b0.png",
+      "scroll": [
+        0,
+        0
+      ],
+      "annotated": "assets/annotated/04-profile.png"
+    },
+    "steps": [
+      "กด “โปรไฟล์”",
+      "ตรวจชื่อ สถานที่ หัวหน้า และวันทำงานของคุณ"
+    ],
+    "verification": {
+      "status": "AUTHOR_VERIFIED",
+      "labels": "Exact displayed labels and observed targets checked against saved DOM.",
+      "visual": {
+        "status": "PASS",
+        "reviewer": "hr_usage_manual",
+        "render": "tmp/pdfs/hr-user-guide-th/rendered/page-04.png",
+        "renderSha256": "d2482057c08481856edc798c8f6aeca1b58ea7d8b6d18b1d6bbfad4f12aa49e9",
+        "method": "Each final PDF page rendered with Poppler and individually opened via view_image; Thai text, full source aspect, target numbers, no cropped manual text or overlaps checked.",
+        "notes": "Full profile and weekly schedule visible; sidebarProfile outline matches entry."
+      },
+      "action": {
+        "level": "LIVE_READ",
+        "evidence": "Capture DOM",
+        "result": "Linked user profile, supervisor, site and schedule read in actual UI."
+      }
+    },
+    "expected": "เห็นกะและเวลาพักที่ฝ่ายบุคคลกำหนด",
+    "entry": "เมนู โปรไฟล์",
+    "note": "หากข้อมูลไม่ถูกต้อง ให้ฝ่ายบุคคลแก้ประวัติพนักงาน",
+    "highlights": [
+      {
+        "ariaLabel": null,
+        "box": [
+          8,
+          479,
+          191,
+          48
+        ],
+        "disabled": false,
+        "domText": "โปรไฟล์",
+        "label": "โปรไฟล์",
+        "number": 1,
+        "selector": "a[href='/th/hr/profile']",
+        "value": null
+      }
+    ],
+    "sourceSnapshots": [
+      {
+        "file": "src/features/hr/ProfileScreen.tsx",
+        "sha256": "b3033c55186ab48823340d9136adc7ea70e0761c5267a702e90f37de2689745a"
+      }
+    ]
+  },
+  {
+    "number": 5,
+    "id": "review-queue",
+    "title": "เลือกงานที่ต้องตรวจ",
+    "audience": "หัวหน้างาน / HR",
+    "route": "/th/hr/review",
+    "screenshot": {
+      "source": "assets/source/05-review-queue.png",
+      "sha256": "bbc0cdc94fd9edf2ba64cd9ff8796f2acd790ac60ec7e7b0fae1bccacb06e192",
+      "pixels": [
+        1280,
+        800
+      ],
+      "viewport": [
+        1280,
+        800
+      ],
+      "capturedAt": "2026-10-09T18:58:59.293Z",
+      "captureHref": "http://localhost:3100/th/hr/review",
+      "sourceArtifact": "/Users/macbook/.t3/userdata/browser-artifacts/browser-screenshot-localhost-mv1bww9l-ef614a06.png",
+      "scroll": [
+        0,
+        0
+      ],
+      "annotated": "assets/annotated/05-review-queue.png"
+    },
+    "steps": [
+      "เลือกช่วงวันที่ที่ต้องตรวจ",
+      "กด “ต้องตรวจ”",
+      "เลือกรายการพนักงานและวันที่จากคิว"
+    ],
+    "verification": {
+      "status": "AUTHOR_VERIFIED",
+      "labels": "Exact displayed labels and observed targets checked against saved DOM.",
+      "visual": {
+        "status": "PASS",
+        "reviewer": "hr_usage_manual",
+        "render": "tmp/pdfs/hr-user-guide-th/rendered/page-05.png",
+        "renderSha256": "22b7d03402d50014c074fd7ee8b98b6c6359f494e9d38e29b8af842112153dee",
+        "method": "Each final PDF page rendered with Poppler and individually opened via view_image; Thai text, full source aspect, target numbers, no cropped manual text or overlaps checked.",
+        "notes": "Oct6 real pending tab2records and selected row target3 visible; no invented inline search."
+      },
+      "action": {
+        "level": "LIVE_NAVIGATION",
+        "evidence": "Capture DOM",
+        "result": "Date range, pending tab and actual selected pending record inspected."
+      }
+    },
+    "expected": "เปิดรายละเอียดของรายการที่เลือกข้างคิว",
+    "entry": "เมนู ตรวจคำขอ",
+    "highlights": [
+      {
+        "ariaLabel": null,
+        "box": [
+          245,
+          182,
+          364,
+          78
+        ],
+        "disabled": false,
+        "domText": "ช่วงวันที่\nตั้งแต่\nถึง\n\nไม่เกิน 31 วัน",
+        "label": "ตั้งแต่ / ถึง",
+        "number": 1,
+        "selector": "main fieldset"
+      },
+      {
+        "ariaLabel": null,
+        "box": [
+          988.6875,
+          219,
+          119.1171875,
+          36
+        ],
+        "disabled": false,
+        "domText": "ต้องตรวจ\n2",
+        "label": "ต้องตรวจ",
+        "number": 2,
+        "selector": "main button"
+      },
+      {
+        "ariaLabel": null,
+        "box": [
+          232,
+          444,
+          348,
+          119
+        ],
+        "disabled": false,
+        "domText": "พ\nพนักงานตัวอย่างวิดีโอ\nEMP-VIDEO-004 · LOCAL-DEMO\nอังคาร 6 ต.ค. 2569\n▲\nรอรับรองคำขอ",
+        "label": "พนักงานตัวอย่างวิดีโอ · รอรับรองคำขอ",
+        "number": 3,
+        "selector": "main ul li:nth-of-type(2) button"
+      }
+    ],
+    "sourceSnapshots": [
+      {
+        "file": "src/features/hr/ReviewScreen.tsx",
+        "sha256": "b284af09da3de65da983a837a13624e4bf7d1bb08b79d1fad265407e722b708e"
+      }
+    ]
+  },
+  {
+    "number": 6,
+    "id": "review-decision",
+    "title": "รับรองคำขอแก้เวลา",
+    "audience": "หัวหน้างาน / HR",
+    "route": "/th/hr/review?employee=jn7gk30yfc2tqfbpjq7n95sqs18fz4mc&date=2026-10-06",
+    "screenshot": {
+      "source": "assets/source/06-review-decision.png",
+      "sha256": "a6613ec22a2be9c2d587bd00293a4a85acf7cd1a177191ede1e81873c85fcf0b",
+      "pixels": [
+        1280,
+        800
+      ],
+      "viewport": [
+        1280,
+        800
+      ],
+      "capturedAt": "2026-10-09T19:00:16.310Z",
+      "captureHref": "http://localhost:3100/th/hr/review?employee=jn7gk30yfc2tqfbpjq7n95sqs18fz4mc&date=2026-10-06",
+      "sourceArtifact": "/Users/macbook/.t3/userdata/browser-artifacts/browser-screenshot-localhost-mv1byjoy-87177977.png",
+      "scroll": [
+        0,
+        0
+      ],
+      "annotated": "assets/annotated/06-review-decision.png"
+    },
+    "steps": [
+      "เทียบรายการเดิมกับเวลาที่ขอแก้ และอ่านเหตุผลของพนักงาน",
+      "กด “รับรองเวลา” เมื่อข้อมูลถูกต้อง"
+    ],
+    "verification": {
+      "status": "AUTHOR_VERIFIED",
+      "labels": "Exact displayed labels and observed targets checked against saved DOM.",
+      "visual": {
+        "status": "PASS",
+        "reviewer": "hr_usage_manual",
+        "render": "tmp/pdfs/hr-user-guide-th/rendered/page-06.png",
+        "renderSha256": "90a27c37a07f57d3ebbeeffb60f48cdee0f3aa50bd099f67be137f087135c874",
+        "method": "Each final PDF page rendered with Poppler and individually opened via view_image; Thai text, full source aspect, target numbers, no cropped manual text or overlaps checked.",
+        "notes": "One original/requested comparison, reason and exactCertify button visible; no old pending mutation."
+      },
+      "action": {
+        "level": "LIVE_FORM_AND_INTEGRATION",
+        "evidence": "HrScreens.test.tsx; HrSimplification.test.tsx",
+        "result": "Real existing pending comparison and Certify button inspected; existing request preserved; mutation behavior covered in tests."
+      }
+    },
+    "expected": "คำขอเปลี่ยนเป็นรับรองแล้วและคิวอัปเดต",
+    "entry": "ตรวจคำขอ > เลือกรายการที่รอรับรองคำขอ",
+    "highlights": [
+      {
+        "ariaLabel": null,
+        "box": [
+          617,
+          698,
+          122.078125,
+          36
+        ],
+        "disabled": false,
+        "domText": "รับรองเวลา",
+        "label": "รับรองเวลา",
+        "number": 2,
+        "selector": "[data-testid='hr-certify']"
+      }
+    ],
+    "sourceSnapshots": [
+      {
+        "file": "src/features/hr/ReviewDetail.tsx",
+        "sha256": "7a4bf213761b3630942ecb8825b9e13239df986f611108e539da2bd0e9b842c6"
+      },
+      {
+        "file": "src/features/hr/HrScreens.test.tsx",
+        "sha256": "499b87a47e1eb74ba06ee6baa6993240e67dec02362707b18a28caeddd055cb3"
+      },
+      {
+        "file": "convex/hr/review.ts",
+        "sha256": "2388cafc866fbf5e9fbc57b5a1cc4ff62904967d8ea8b1726cfb39cb39da8f51"
+      }
+    ]
+  },
+  {
+    "id": "review-return",
+    "title": "ส่งกลับให้พนักงานแก้ไข",
+    "audience": "หัวหน้างาน / HR",
+    "route": "/th/hr/review?employee=jn7gk30yfc2tqfbpjq7n95sqs18fz4mc&date=2026-10-06",
+    "screenshot": {
+      "source": "assets/source/07-review-return.png",
+      "sha256": "2416b6ed6da55aae17ff0ae139fbe4847eed98a1181093342fcb03a561bad914",
+      "pixels": [
+        1280,
+        800
+      ],
+      "viewport": [
+        1280,
+        800
+      ],
+      "capturedAt": "2026-10-09T19:00:40.309Z",
+      "captureHref": "http://localhost:3100/th/hr/review?employee=jn7gk30yfc2tqfbpjq7n95sqs18fz4mc&date=2026-10-06",
+      "sourceArtifact": "/Users/macbook/.t3/userdata/browser-artifacts/browser-screenshot-localhost-mv1bz27i-3f0c5147.png",
+      "scroll": [
+        0,
+        0
+      ],
+      "annotated": "assets/annotated/07-review-return.png"
+    },
+    "steps": [
+      "พิมพ์ “เหตุผลที่ส่งกลับ” ให้พนักงานเข้าใจว่าต้องแก้อะไร",
+      "กด “ยืนยันส่งกลับ”"
+    ],
+    "expected": "พนักงานเห็นคำขอที่ถูกส่งกลับพร้อมเหตุผล",
+    "verification": {
+      "status": "AUTHOR_VERIFIED",
+      "labels": "Exact displayed labels and observed targets checked against saved DOM.",
+      "visual": {
+        "status": "PASS",
+        "reviewer": "hr_usage_manual",
+        "render": "tmp/pdfs/hr-user-guide-th/rendered/page-07.png",
+        "renderSha256": "a5cabd25390417d85f0f7ba97769e6dcb8604f4efdcffac8625e46a66d4f783d",
+        "method": "Each final PDF page rendered with Poppler and individually opened via view_image; Thai text, full source aspect, target numbers, no cropped manual text or overlaps checked.",
+        "notes": "Actual revealed reason and ConfirmReturn visible after natural scrolling; Cancel note clear."
+      },
+      "action": {
+        "level": "LIVE_VALIDATION_AND_INTEGRATION",
+        "evidence": "HrScreens.test.tsx:requires a reason to return; HrSimplification.test.tsx",
+        "result": "Empty return reveals reason and confirm; canceled without writing existing request. Reasoned mutation covered in tests."
+      }
+    },
+    "number": 7,
+    "entry": "ตรวจคำขอ > เลือกรายการ > ส่งกลับให้แก้ไข",
+    "note": "ภาพแสดงช่องเหตุผลหลังเลือกส่งกลับแล้ว กด “ยกเลิก” เพื่อกลับไปตัดสินคำขอ",
+    "highlights": [
+      {
+        "ariaLabel": null,
+        "box": [
+          617,
+          526.5,
+          618,
+          96
+        ],
+        "disabled": false,
+        "domText": "",
+        "label": "เหตุผลที่ส่งกลับ",
+        "number": 1,
+        "selector": "main textarea"
+      },
+      {
+        "ariaLabel": null,
+        "box": [
+          617,
+          666,
+          133.15625,
+          36
+        ],
+        "disabled": false,
+        "domText": "ยืนยันส่งกลับ",
+        "label": "ยืนยันส่งกลับ",
+        "number": 2,
+        "selector": "[data-testid='hr-return-confirm']"
+      }
+    ],
+    "sourceSnapshots": [
+      {
+        "file": "src/features/hr/ReviewDetail.tsx",
+        "sha256": "7a4bf213761b3630942ecb8825b9e13239df986f611108e539da2bd0e9b842c6"
+      },
+      {
+        "file": "src/features/hr/HrScreens.test.tsx",
+        "sha256": "499b87a47e1eb74ba06ee6baa6993240e67dec02362707b18a28caeddd055cb3"
+      }
+    ]
+  },
+  {
+    "number": 8,
+    "id": "exception",
+    "title": "ตรวจวันที่เวลาไม่ครบ",
+    "audience": "หัวหน้างาน / HR",
+    "route": "/th/hr/review?employee=jn7n9avjr9smnd84td6rh9vkhs8fyb0q&date=2026-02-02&focus=decision",
+    "screenshot": {
+      "source": "assets/source/08-exception.png",
+      "sha256": "dd4fb4a17843a29df45cc2be0b57c2f77c426a51e02de776badcb0feebd33eaa",
+      "pixels": [
+        1280,
+        800
+      ],
+      "viewport": [
+        1280,
+        800
+      ],
+      "capturedAt": "2026-10-09T19:02:55.874Z",
+      "captureHref": "http://localhost:3100/th/hr/review?employee=jn7n9avjr9smnd84td6rh9vkhs8fyb0q&date=2026-02-02&focus=decision",
+      "sourceArtifact": "/Users/macbook/.t3/userdata/browser-artifacts/browser-screenshot-localhost-mv1c1yt8-7b496578.png",
+      "scroll": [
+        0,
+        0
+      ],
+      "annotated": "assets/annotated/08-exception.png"
+    },
+    "steps": [
+      "เลือก “ผลของวัน” ถ้าเลือกทำงาน ให้ระบุเวลาเข้าและเวลาออก",
+      "ใส่เหตุผลของการรับรองวันนี้",
+      "กด “บันทึกผลของวัน”"
+    ],
+    "verification": {
+      "status": "AUTHOR_VERIFIED",
+      "labels": "Exact displayed labels and observed targets checked against saved DOM.",
+      "visual": {
+        "status": "PASS",
+        "reviewer": "hr_usage_manual",
+        "render": "tmp/pdfs/hr-user-guide-th/rendered/page-08.png",
+        "renderSha256": "d922bba6d1e84b0b53c9b8aad035674bba1257c274c7e8d214bd01e226971ff6",
+        "method": "Each final PDF page rendered with Poppler and individually opened via view_image; Thai text, full source aspect, target numbers, no cropped manual text or overlaps checked.",
+        "notes": "Actual worked option, time fields, reason and SaveDay visible; leave limitation concise."
+      },
+      "action": {
+        "level": "LIVE_PERSISTED",
+        "evidence": "live-workflows.json:fixtureWorkedSaved",
+        "result": "QA saved isolated Feb2 worked result08:30–17:30,8h and verified reload."
+      }
+    },
+    "expected": "รายการเปลี่ยนเป็นรับรองแล้ว",
+    "entry": "ตรวจคำขอ > เลือกวันที่เวลาไม่ครบ > เลื่อนมาที่ ระบุผลของวันนี้",
+    "note": "ตัวเลือกลาใช้บันทึกผลรายวันจากภายนอก ยังไม่ใช่การยื่นคำขอลาหรือยอดวันลา",
+    "highlights": [
+      {
+        "ariaLabel": null,
+        "box": [
+          617,
+          286.5,
+          384,
+          48
+        ],
+        "disabled": false,
+        "domText": "ทำงาน",
+        "label": "ผลของวัน: ทำงาน",
+        "number": 1,
+        "selector": "main button[role='combobox']"
+      },
+      {
+        "ariaLabel": null,
+        "box": [
+          617,
+          526.5,
+          618,
+          96
+        ],
+        "disabled": false,
+        "domText": "",
+        "label": "เหตุผล",
+        "number": 2,
+        "selector": "main textarea"
+      },
+      {
+        "ariaLabel": null,
+        "box": [
+          617,
+          666,
+          124.109375,
+          36
+        ],
+        "disabled": false,
+        "domText": "บันทึกผลของวัน",
+        "label": "บันทึกผลของวัน",
+        "number": 3,
+        "selector": "[data-testid='hr-dispose-submit']"
+      }
+    ],
+    "sourceSnapshots": [
+      {
+        "file": "src/features/hr/ReviewDetail.tsx",
+        "sha256": "7a4bf213761b3630942ecb8825b9e13239df986f611108e539da2bd0e9b842c6"
+      },
+      {
+        "file": "convex/hr/review.ts",
+        "sha256": "2388cafc866fbf5e9fbc57b5a1cc4ff62904967d8ea8b1726cfb39cb39da8f51"
+      }
+    ]
+  },
+  {
+    "number": 9,
+    "id": "employees",
+    "title": "เปิดรายการและเพิ่มพนักงาน",
+    "audience": "HR",
+    "route": "/th/hr/employees",
+    "screenshot": {
+      "source": "assets/source/09-employees.png",
+      "sha256": "35fb86b34f6faef9da8bad1aec7e224263d39ef78bef2ff8a78c5f3ae4456b11",
+      "pixels": [
+        1280,
+        800
+      ],
+      "viewport": [
+        1280,
+        800
+      ],
+      "capturedAt": "2026-10-09T19:28:18.348Z",
+      "captureHref": "http://localhost:3100/th/hr/employees",
+      "sourceArtifact": "/Users/macbook/.t3/userdata/browser-artifacts/browser-screenshot-localhost-mv1cylk7-52022184.png",
+      "scroll": [
+        0,
+        0
+      ],
+      "annotated": "assets/annotated/09-employees.png"
+    },
+    "steps": [
+      "กด “เพิ่มพนักงาน” เพื่อสร้างประวัติใหม่",
+      "เมื่อต้องแก้ข้อมูล กด “แก้ไข” ที่แถวของพนักงานคนนั้น"
+    ],
+    "verification": {
+      "status": "AUTHOR_VERIFIED",
+      "labels": "Exact displayed labels and observed targets checked against saved DOM.",
+      "visual": {
+        "status": "PASS",
+        "reviewer": "hr_usage_manual",
+        "render": "tmp/pdfs/hr-user-guide-th/rendered/page-09.png",
+        "renderSha256": "5e687ada59e92eaba5ea3b123705fd886ea318e13e6aa949aa8cb443397e4c2e",
+        "method": "Each final PDF page rendered with Poppler and individually opened via view_image; Thai text, full source aspect, target numbers, no cropped manual text or overlaps checked.",
+        "notes": "Final6employee table and Add/Edit targets visible, allHRmenu names shown; no inline employeeSearch claim."
+      },
+      "action": {
+        "level": "LIVE_PERSISTED",
+        "evidence": "live-workflows.json:fixtureEmployeeSaved,fixtureEmployeeReloaded,urlNewNextEdit,urlNewCancel",
+        "result": "QA created new bounded employee and reopened Edit/Cancel via live controls."
+      }
+    },
+    "expected": "เปิดแบบฟอร์มสำหรับประวัติใหม่หรือพนักงานที่เลือก",
+    "entry": "เมนู พนักงาน",
+    "highlights": [
+      {
+        "ariaLabel": null,
+        "box": [
+          1126.4375,
+          81,
+          129.5625,
+          36
+        ],
+        "disabled": false,
+        "domText": "เพิ่มพนักงาน",
+        "label": "เพิ่มพนักงาน",
+        "number": 1,
+        "selector": "[data-testid='hr-employee-add']",
+        "value": ""
+      },
+      {
+        "ariaLabel": "แก้ไข พนักงานทดสอบคู่มือ HR (QA)",
+        "box": [
+          1158.5546875,
+          530.5,
+          88.4453125,
+          36
+        ],
+        "disabled": false,
+        "domText": "แก้ไข",
+        "label": "แก้ไข พนักงานทดสอบคู่มือ HR (QA)",
+        "number": 2,
+        "selector": "main table button[aria-label='แก้ไข พนักงานทดสอบคู่มือ HR (QA)']",
+        "value": ""
+      }
+    ],
+    "sourceSnapshots": [
+      {
+        "file": "src/features/hr/EmployeesScreen.tsx",
+        "sha256": "667c635a98d4307d8f04659a93f6c2ab50f085ef2f2988e23e556e3a535d6654"
+      }
+    ]
+  },
+  {
+    "number": 10,
+    "id": "employee-edit",
+    "title": "แก้ข้อมูลพนักงาน",
+    "audience": "HR",
+    "route": "/th/hr/employees?employee=jn7n9avjr9smnd84td6rh9vkhs8fyb0q&mode=edit",
+    "screenshot": {
+      "source": "assets/source/10-employee-edit.png",
+      "sha256": "50efc3e13c833a27f59fa11087f517cfebf5c84a97dbfc914ddf8a4987ec644f",
+      "pixels": [
+        1280,
+        800
+      ],
+      "viewport": [
+        1280,
+        800
+      ],
+      "capturedAt": "2026-10-09T19:04:59.542Z",
+      "captureHref": "http://localhost:3100/th/hr/employees?employee=jn7n9avjr9smnd84td6rh9vkhs8fyb0q&mode=edit",
+      "sourceArtifact": "/Users/macbook/.t3/userdata/browser-artifacts/browser-screenshot-localhost-mv1c4m8j-9c18dda7.png",
+      "scroll": [
+        0,
+        0
+      ],
+      "annotated": "assets/annotated/10-employee-edit.png"
+    },
+    "steps": [
+      "กรอกรหัส ชื่อ สถานที่ บัญชี และช่วงการจ้างงานที่ด้านบนของแบบฟอร์ม",
+      "เลื่อนลง แล้วกด “บันทึกพนักงาน”"
+    ],
+    "verification": {
+      "status": "AUTHOR_VERIFIED",
+      "labels": "Exact displayed labels and observed targets checked against saved DOM.",
+      "visual": {
+        "status": "PASS",
+        "reviewer": "hr_usage_manual",
+        "render": "tmp/pdfs/hr-user-guide-th/rendered/page-10.png",
+        "renderSha256": "c8ae2588f77569af84953022b97e5ace1904bf700fc3b4fd1153c6b63686a2cf",
+        "method": "Each final PDF page rendered with Poppler and individually opened via view_image; Thai text, full source aspect, target numbers, no cropped manual text or overlaps checked.",
+        "notes": "Save visible at bottom after natural scroll; entry and step explicitly identify upper fields outside captured viewport."
+      },
+      "action": {
+        "level": "LIVE_PERSISTED",
+        "evidence": "live-workflows.json:fixtureEmployeeSaved,fixtureEmployeeReloaded",
+        "result": "QA save and reopen verified persisted new employee fields; screenshot shows real Save after natural scrolling."
+      }
+    },
+    "expected": "กลับไปรายการพร้อมข้อมูลที่บันทึก",
+    "entry": "พนักงาน > แก้ไข · ภาพหลังเลื่อนลงท้ายแบบฟอร์ม",
+    "note": "เลือกบัญชีผู้ใช้เมื่อพนักงานต้องลงเวลาด้วยตนเอง",
+    "highlights": [
+      {
+        "ariaLabel": null,
+        "box": [
+          249,
+          740,
+          117.9296875,
+          36
+        ],
+        "disabled": false,
+        "domText": "บันทึกพนักงาน",
+        "label": "บันทึกพนักงาน",
+        "number": 2,
+        "selector": "[data-testid='hr-employee-save']"
+      }
+    ],
+    "sourceSnapshots": [
+      {
+        "file": "src/features/hr/EmployeeForm.tsx",
+        "sha256": "4414b0a8ae06573014c107a0acb6762038b2e3f9f1e64b17d3c2c3d1853d7bc6"
+      },
+      {
+        "file": "convex/hr/setup.ts",
+        "sha256": "a85756e27771698a2d9391104a13e8f437ba6d0efbadb9e5af8eb53d4f419496"
+      }
+    ]
+  },
+  {
+    "number": 11,
+    "id": "schedule",
+    "title": "ตั้งกะและวันทำงาน",
+    "audience": "HR",
+    "route": "/th/hr/employees?employee=jn7n9avjr9smnd84td6rh9vkhs8fyb0q&mode=edit",
+    "screenshot": {
+      "source": "assets/source/11-schedule.png",
+      "sha256": "50efc3e13c833a27f59fa11087f517cfebf5c84a97dbfc914ddf8a4987ec644f",
+      "pixels": [
+        1280,
+        800
+      ],
+      "viewport": [
+        1280,
+        800
+      ],
+      "capturedAt": "2026-10-09T19:05:38.327Z",
+      "captureHref": "http://localhost:3100/th/hr/employees?employee=jn7n9avjr9smnd84td6rh9vkhs8fyb0q&mode=edit",
+      "sourceArtifact": "/Users/macbook/.t3/userdata/browser-artifacts/browser-screenshot-localhost-mv1c5g5v-451f54ff.png",
+      "scroll": [
+        0,
+        0
+      ],
+      "annotated": "assets/annotated/11-schedule.png"
+    },
+    "steps": [
+      "ติ๊ก “กำหนดกะประจำ”",
+      "เลือกวันทำงาน เวลาเริ่มกะ เวลาจบกะ และเวลาพัก กะข้ามคืนให้ติ๊กวันถัดไป",
+      "กด “บันทึกพนักงาน”"
+    ],
+    "verification": {
+      "status": "AUTHOR_VERIFIED",
+      "labels": "Exact displayed labels and observed targets checked against saved DOM.",
+      "visual": {
+        "status": "PASS",
+        "reviewer": "hr_usage_manual",
+        "render": "tmp/pdfs/hr-user-guide-th/rendered/page-11.png",
+        "renderSha256": "5211cdd60ec71918144340915a65492cbe34e2c547a04c7671b7fa649c26fbe0",
+        "method": "Each final PDF page rendered with Poppler and individually opened via view_image; Thai text, full source aspect, target numbers, no cropped manual text or overlaps checked.",
+        "notes": "Realcheckbox, fullschedule section, overnight option and Save visible; outline avoids covering labels."
+      },
+      "action": {
+        "level": "LIVE_PERSISTED",
+        "evidence": "live-workflows.json:fixtureEmployeeReloaded",
+        "result": "QA persisted one-day Monday08:30–17:30break60 schedule and reopened it."
+      }
+    },
+    "expected": "รายการพนักงานแสดงกะที่บันทึกไว้",
+    "entry": "พนักงาน > แก้ไข > เลื่อนมาที่ ตารางงาน",
+    "highlights": [
+      {
+        "ariaLabel": null,
+        "box": [
+          266,
+          433.5,
+          16,
+          16
+        ],
+        "disabled": false,
+        "domText": "",
+        "label": "กำหนดกะประจำ",
+        "number": 1,
+        "selector": "#hr-focus-schedule input[type='checkbox']"
+      },
+      {
+        "ariaLabel": null,
+        "box": [
+          249,
+          365.5,
+          990,
+          374.5
+        ],
+        "disabled": false,
+        "domText": "ตารางงาน\nกำหนดกะประจำ\nวันทำงาน\nจันทร์\nอังคาร\nพุธ\nพฤหัส\nศุกร์\nเสาร์\nอาทิตย์\nเวลาเริ่มกะ\n*\nเวลาจบกะ\n*\nเวลาพักไม่รับค่าจ้าง (นาที)\n\nต้องน้อยกว่าความยาวกะ\n\nกะจบในวันถัดไป (ข้ามคืน)",
+        "label": "วันทำงาน / เวลาเริ่มกะ / เวลาจบกะ / เวลาพัก",
+        "number": 2,
+        "selector": "#hr-focus-schedule"
+      },
+      {
+        "ariaLabel": null,
+        "box": [
+          249,
+          740,
+          117.9296875,
+          36
+        ],
+        "disabled": false,
+        "domText": "บันทึกพนักงาน",
+        "label": "บันทึกพนักงาน",
+        "number": 3,
+        "selector": "[data-testid='hr-employee-save']"
+      }
+    ],
+    "sourceSnapshots": [
+      {
+        "file": "src/features/hr/EmployeeForm.tsx",
+        "sha256": "4414b0a8ae06573014c107a0acb6762038b2e3f9f1e64b17d3c2c3d1853d7bc6"
+      },
+      {
+        "file": "convex/hr/setup.ts",
+        "sha256": "a85756e27771698a2d9391104a13e8f437ba6d0efbadb9e5af8eb53d4f419496"
+      }
+    ]
+  },
+  {
+    "number": 12,
+    "id": "period-create",
+    "title": "สร้างงวดเวลา",
+    "audience": "HR",
+    "route": "/th/hr/periods",
+    "screenshot": {
+      "source": "assets/source/12-period-create.png",
+      "sha256": "48ecf63939df50d84a44363c416f18bf471ca3f1fc42066421e291e53c43b395",
+      "pixels": [
+        1280,
+        800
+      ],
+      "viewport": [
+        1280,
+        800
+      ],
+      "capturedAt": "2026-10-09T19:12:17.329Z",
+      "captureHref": "http://localhost:3100/th/hr/periods",
+      "sourceArtifact": "/Users/macbook/.t3/userdata/browser-artifacts/browser-screenshot-localhost-mv1ce019-fdf9af26.png",
+      "scroll": [
+        0,
+        0
+      ],
+      "annotated": "assets/annotated/12-period-create.png"
+    },
+    "steps": [
+      "เลือก “สถานที่ทำงาน”",
+      "เลือกช่วงวันที่ไม่เกิน 31 วัน และไม่ทับกับงวดที่มีอยู่",
+      "กด “สร้างฉบับร่าง”"
+    ],
+    "verification": {
+      "status": "AUTHOR_VERIFIED",
+      "labels": "Exact displayed labels and observed targets checked against saved DOM.",
+      "visual": {
+        "status": "PASS",
+        "reviewer": "hr_usage_manual",
+        "render": "tmp/pdfs/hr-user-guide-th/rendered/page-12.png",
+        "renderSha256": "d3ca158d129eca844c4d80c6beb6a8bde6539cbfdb18ddcd23696b6ffc77ffe3",
+        "method": "Each final PDF page rendered with Poppler and individually opened via view_image; Thai text, full source aspect, target numbers, no cropped manual text or overlaps checked.",
+        "notes": "Real validOct1–8 date inputs, site and CreateDraft visible; no zero-size targetbox."
+      },
+      "action": {
+        "level": "LIVE_PERSISTED",
+        "evidence": "live-workflows.json:fixturePeriodDraft,fixturePeriodPostCreateNavigation",
+        "result": "QA created isolated Feb2 draft and verified opening detail; screenshot valid dates selected without submitting."
+      }
+    },
+    "expected": "เปิดงวดร่างของสถานที่และช่วงที่เลือก",
+    "entry": "งวดเวลา > สร้างงวด",
+    "highlights": [
+      {
+        "ariaLabel": null,
+        "box": [
+          249,
+          284,
+          384,
+          48
+        ],
+        "disabled": false,
+        "domText": "LOCAL-DEMO · คลังทดสอบ Local Demo",
+        "label": "สถานที่ทำงาน",
+        "number": 1,
+        "selector": "main button[role='combobox']",
+        "value": ""
+      },
+      {
+        "ariaLabel": null,
+        "box": [
+          249,
+          348,
+          990,
+          78
+        ],
+        "disabled": false,
+        "domText": "ช่วงวันที่\nตั้งแต่\nถึง\n\nไม่เกิน 31 วัน",
+        "label": "ตั้งแต่ / ถึง",
+        "number": 2,
+        "selector": "main form fieldset fieldset",
+        "value": null
+      },
+      {
+        "ariaLabel": null,
+        "box": [
+          249,
+          426,
+          110.0390625,
+          36
+        ],
+        "disabled": false,
+        "domText": "สร้างฉบับร่าง",
+        "label": "สร้างฉบับร่าง",
+        "number": 3,
+        "selector": "[data-testid='hr-period-create']",
+        "value": ""
+      }
+    ],
+    "sourceSnapshots": [
+      {
+        "file": "src/features/hr/PeriodsScreen.tsx",
+        "sha256": "d70004df05320014ca3ea1b3323beadab045764d2442d558b44847aaa04c40e3"
+      },
+      {
+        "file": "src/features/hr/PeriodCreateGuard.independent.test.tsx",
+        "sha256": "2d5cd9cdf2b46ca26b70fc8f7a0f7a4522e6a2dc73fe751965ad8467429c748a"
+      }
+    ]
+  },
+  {
+    "number": 13,
+    "id": "period-close",
+    "title": "ตรวจและปิดงวด",
+    "audience": "HR",
+    "route": "/th/hr/periods/k57kca6p047xva7y81756chw1h8fypfc",
+    "screenshot": {
+      "source": "assets/source/13-period-close.png",
+      "sha256": "04b826ed7a9850eb43b54f2bb2f4be4ae58a0508299d116567ac3a8c886d7475",
+      "pixels": [
+        1280,
+        800
+      ],
+      "viewport": [
+        1280,
+        800
+      ],
+      "capturedAt": "2026-10-09T19:12:53.321Z",
+      "captureHref": "http://localhost:3100/th/hr/periods/k57kca6p047xva7y81756chw1h8fypfc",
+      "sourceArtifact": "/Users/macbook/.t3/userdata/browser-artifacts/browser-screenshot-localhost-mv1cert0-464eaedd.png",
+      "scroll": [
+        0,
+        0
+      ],
+      "annotated": "assets/annotated/13-period-close.png"
+    },
+    "steps": [
+      "ตรวจยอดและให้ “ต้องตรวจ” เป็นศูนย์ก่อนเลือกปิดงวด",
+      "กด “ยืนยันปิดฉบับ 1” เลขบนปุ่มเปลี่ยนตามฉบับที่เปิดอยู่"
+    ],
+    "verification": {
+      "status": "AUTHOR_VERIFIED",
+      "labels": "Exact displayed labels and observed targets checked against saved DOM.",
+      "visual": {
+        "status": "PASS",
+        "reviewer": "hr_usage_manual",
+        "render": "tmp/pdfs/hr-user-guide-th/rendered/page-13.png",
+        "renderSha256": "acbd026ff4f884e7831c8babf4cebb29d37c0d6be5363a73bd2a97c3e6388cfb",
+        "method": "Each final PDF page rendered with Poppler and individually opened via view_image; Thai text, full source aspect, target numbers, no cropped manual text or overlaps checked.",
+        "notes": "Realready isolatedv1 with pending0 and one version-namedConfirm visible; entry identifies confirmation state."
+      },
+      "action": {
+        "level": "LIVE_PERSISTED",
+        "evidence": "live-workflows.json:fixturePeriodClosedV1,fixturePeriodClosedV2",
+        "result": "QA closed ready isolated v1 and v2 with one version-named confirmation."
+      }
+    },
+    "expected": "งวดเปลี่ยนเป็นปิดแล้วและดาวน์โหลด CSV ได้",
+    "entry": "งวดเวลา > เปิดงวดร่าง > ปิดงวด · ภาพแสดงขั้นยืนยัน",
+    "highlights": [
+      {
+        "ariaLabel": null,
+        "box": [
+          253,
+          384,
+          146.46875,
+          36
+        ],
+        "disabled": false,
+        "domText": "ยืนยันปิดฉบับ 1",
+        "label": "ยืนยันปิดฉบับ 1",
+        "number": 2,
+        "selector": "[data-testid='hr-period-close-confirm']",
+        "value": ""
+      }
+    ],
+    "sourceSnapshots": [
+      {
+        "file": "src/features/hr/PeriodDetailScreen.tsx",
+        "sha256": "e7438a5781c5d03abd17ada86dfcef8d813f404c98fd62a778eaed27f552d77d"
+      },
+      {
+        "file": "src/features/hr/HrSimplification.test.tsx",
+        "sha256": "17bc47691abfad23f3a02aaf8710e5a7917b4da500c84560ab0ca782cdb0b7de"
+      }
+    ]
+  },
+  {
+    "number": 14,
+    "id": "period-export",
+    "title": "เลือกฉบับและดาวน์โหลด",
+    "audience": "HR",
+    "route": "/th/hr/periods/k57kca6p047xva7y81756chw1h8fypfc?version=1",
+    "screenshot": {
+      "source": "assets/source/14-period-export.png",
+      "sha256": "b1c5851713487d06560ef6c4a71e794f153cf0b1361817e179da40f749059515",
+      "pixels": [
+        1280,
+        800
+      ],
+      "viewport": [
+        1280,
+        800
+      ],
+      "capturedAt": "2026-10-09T19:24:34.883Z",
+      "captureHref": "http://localhost:3100/th/hr/periods/k57kca6p047xva7y81756chw1h8fypfc?version=1",
+      "sourceArtifact": "/Users/macbook/.t3/userdata/browser-artifacts/browser-screenshot-localhost-mv1ctt4u-397f1884.png",
+      "scroll": [
+        0,
+        0
+      ],
+      "annotated": "assets/annotated/14-period-export.png"
+    },
+    "steps": [
+      "เลือกเลขฉบับในช่อง “ฉบับที่แสดง”",
+      "กดปุ่มดาวน์โหลด CSV ให้เลขฉบับตรงกับที่เลือก (ในภาพคือฉบับ 1)"
+    ],
+    "verification": {
+      "status": "AUTHOR_VERIFIED",
+      "labels": "Exact displayed labels and observed targets checked against saved DOM.",
+      "visual": {
+        "status": "PASS",
+        "reviewer": "hr_usage_manual",
+        "render": "tmp/pdfs/hr-user-guide-th/rendered/page-14.png",
+        "renderSha256": "d8657f404fd9b05ca432874f1f0b4221d2f5b444b6750f7465f2a0d4fe65279d",
+        "method": "Each final PDF page rendered with Poppler and individually opened via view_image; Thai text, full source aspect, target numbers, no cropped manual text or overlaps checked.",
+        "notes": "Actualhistoricalv1 afterv2, picker and version-specificCSV visible; selectedversion matchesbutton. Updated final version-number example caption individually inspected again; no overlap or clipped Thai text."
+      },
+      "action": {
+        "level": "LIVE_DOWNLOAD",
+        "evidence": "exports/verification.json; live-workflows.json:fixtureCsvV1AfterV2",
+        "result": "QA verified UTF-8 BOM545byteCSV and v1 byte-identical after v2; screenshot shows historical v1 selected."
+      }
+    },
+    "expected": "ได้ไฟล์ CSV ของฉบับที่แสดง",
+    "entry": "งวดเวลา > เปิดงวดที่ปิดแล้ว > ฉบับของงวดนี้",
+    "highlights": [
+      {
+        "ariaLabel": null,
+        "box": [
+          253,
+          547,
+          320,
+          48
+        ],
+        "disabled": false,
+        "domText": "ฉบับ 1 ปิดเมื่อ 10 ต.ค. 2569 02:16",
+        "label": "ฉบับที่แสดง",
+        "number": 1,
+        "selector": "main button[role='combobox']",
+        "value": ""
+      },
+      {
+        "ariaLabel": null,
+        "box": [
+          253,
+          416,
+          194.0546875,
+          36
+        ],
+        "disabled": false,
+        "domText": "ดาวน์โหลด CSV ฉบับ 1",
+        "label": "ดาวน์โหลด CSV ฉบับ 1",
+        "number": 2,
+        "selector": "[data-testid='hr-period-export']",
+        "value": ""
+      }
+    ],
+    "sourceSnapshots": [
+      {
+        "file": "src/features/hr/PeriodDetailScreen.tsx",
+        "sha256": "e7438a5781c5d03abd17ada86dfcef8d813f404c98fd62a778eaed27f552d77d"
+      },
+      {
+        "file": "convex/model/hr/csv.ts",
+        "sha256": "1426fc4fb9f73c916c0ccd6a19deaf256774879f41945602cfe2518f7fc78be4"
+      }
+    ]
+  },
+  {
+    "number": 15,
+    "id": "period-revise",
+    "title": "เปิดแก้งวดที่ปิดแล้ว",
+    "audience": "HR",
+    "route": "/th/hr/periods/k57kca6p047xva7y81756chw1h8fypfc",
+    "screenshot": {
+      "source": "assets/source/15-period-revise.png",
+      "sha256": "74c0c3a3f80c6156ba9b6d1e25b3c096ede69a7ee8b3cbb66c75774fd5ed1e68",
+      "pixels": [
+        1280,
+        800
+      ],
+      "viewport": [
+        1280,
+        800
+      ],
+      "capturedAt": "2026-10-09T19:17:32.330Z",
+      "captureHref": "http://localhost:3100/th/hr/periods/k57kca6p047xva7y81756chw1h8fypfc",
+      "sourceArtifact": "/Users/macbook/.t3/userdata/browser-artifacts/browser-screenshot-localhost-mv1ckr39-8e40d3a2.png",
+      "scroll": [
+        0,
+        0
+      ],
+      "annotated": "assets/annotated/15-period-revise.png"
+    },
+    "steps": [
+      "ระบุ “เหตุผลที่แก้ไข”",
+      "กดปุ่มเปิดร่างฉบับถัดไป (ในภาพคือฉบับ 2)"
+    ],
+    "verification": {
+      "status": "AUTHOR_VERIFIED",
+      "labels": "Exact displayed labels and observed targets checked against saved DOM.",
+      "visual": {
+        "status": "PASS",
+        "reviewer": "hr_usage_manual",
+        "render": "tmp/pdfs/hr-user-guide-th/rendered/page-15.png",
+        "renderSha256": "f88604247f4660c3159381d5f8c6f0d0bb6031936aa57e4885cd2d9f32a3328e",
+        "method": "Each final PDF page rendered with Poppler and individually opened via view_image; Thai text, full source aspect, target numbers, no cropped manual text or overlaps checked.",
+        "notes": "Closedv1 real revision reason and OpenDraftv2 visible; previoussnapshot preservation note readable. Updated final version-number example caption individually inspected again; no overlap or clipped Thai text."
+      },
+      "action": {
+        "level": "LIVE_PERSISTED",
+        "evidence": "live-workflows.json:fixturePeriodDraftV2,fixturePeriodClosedV2",
+        "result": "QA opened reasoned v2; prior closed v1 remained available and unchanged."
+      }
+    },
+    "expected": "เกิดงวดร่างใหม่ ฉบับเดิมที่ปิดแล้วยังเปิดดูและส่งออกได้",
+    "entry": "งวดเวลา > เปิดฉบับล่าสุดที่ปิดแล้ว > เปิดฉบับแก้ไข",
+    "highlights": [
+      {
+        "ariaLabel": null,
+        "box": [
+          253,
+          515,
+          982,
+          96
+        ],
+        "disabled": false,
+        "domText": "",
+        "label": "เหตุผลที่แก้ไข",
+        "number": 1,
+        "selector": "main textarea",
+        "value": ""
+      },
+      {
+        "ariaLabel": null,
+        "box": [
+          253,
+          650.5,
+          115.890625,
+          36
+        ],
+        "disabled": false,
+        "domText": "เปิดร่างฉบับ 2",
+        "label": "เปิดร่างฉบับ 2",
+        "number": 2,
+        "selector": "[data-testid='hr-period-revise-confirm']",
+        "value": ""
+      }
+    ],
+    "sourceSnapshots": [
+      {
+        "file": "src/features/hr/PeriodDetailScreen.tsx",
+        "sha256": "e7438a5781c5d03abd17ada86dfcef8d813f404c98fd62a778eaed27f552d77d"
+      },
+      {
+        "file": "convex/hr/periods.ts",
+        "sha256": "7117aa0daaececdb3fd6e5eb927171afbe5260ea92604121607e6846b68a6745"
+      }
+    ]
+  },
+  {
+    "number": 16,
+    "id": "holidays",
+    "title": "เพิ่มและลบวันหยุด",
+    "audience": "ผู้ดูแล HR",
+    "route": "/th/hr/settings?section=holidays",
+    "screenshot": {
+      "source": "assets/source/16-holidays.png",
+      "sha256": "faa038dc6effa205e58f6f6cfe817eaefa72bcb76b2d4531bbbc82831bea5073",
+      "pixels": [
+        1280,
+        800
+      ],
+      "viewport": [
+        1280,
+        800
+      ],
+      "capturedAt": "2026-10-09T19:08:37.903Z",
+      "captureHref": "http://localhost:3100/th/hr/settings?section=holidays",
+      "sourceArtifact": "/Users/macbook/.t3/userdata/browser-artifacts/browser-screenshot-localhost-mv1c9aq2-55a36ed5.png",
+      "scroll": [
+        0,
+        0
+      ],
+      "annotated": "assets/annotated/16-holidays.png"
+    },
+    "steps": [
+      "เลือกสถานที่ กรอกวันที่และชื่อหรือเหตุผลของวันหยุด",
+      "กด “บันทึกวันหยุด”",
+      "เมื่อต้องลบ กดปุ่มถังขยะของรายการนั้น"
+    ],
+    "verification": {
+      "status": "AUTHOR_VERIFIED",
+      "labels": "Exact displayed labels and observed targets checked against saved DOM.",
+      "visual": {
+        "status": "PASS",
+        "reviewer": "hr_usage_manual",
+        "render": "tmp/pdfs/hr-user-guide-th/rendered/page-16.png",
+        "renderSha256": "4c4bf9495115a50db3f5fbe0daa464084a036f1e4034fedd6fda27f6776e3eab",
+        "method": "Each final PDF page rendered with Poppler and individually opened via view_image; Thai text, full source aspect, target numbers, no cropped manual text or overlaps checked.",
+        "notes": "Actualsite/date/name/Save and individualtrashbutton visible; existing record preserved."
+      },
+      "action": {
+        "level": "LIVE_SAVE_SOURCE_DELETE",
+        "evidence": "live-workflows.json:holidayFirstSaved,holidaySecondDraftGuard; SettingsScreen.tsx:HolidayRow",
+        "result": "QA saved new isolated Feb3 holiday and checked second-draft guard. Existing delete control read; delete source binding checked, no deletion claimed."
+      }
+    },
+    "expected": "รายการวันหยุดเพิ่มหรือลบตามที่เลือก",
+    "entry": "ตั้งค่า HR > วันหยุดของสถานที่",
+    "highlights": [
+      {
+        "ariaLabel": null,
+        "box": [
+          249,
+          285,
+          384,
+          48
+        ],
+        "disabled": false,
+        "domText": "LOCAL-DEMO · คลังทดสอบ Local Demo",
+        "label": "สถานที่ทำงาน",
+        "number": 1,
+        "selector": "#hr-settings-holidays button[role='combobox']"
+      },
+      {
+        "ariaLabel": null,
+        "box": [
+          603.921875,
+          373,
+          111.078125,
+          36
+        ],
+        "disabled": false,
+        "domText": "บันทึกวันหยุด",
+        "label": "บันทึกวันหยุด",
+        "number": 2,
+        "selector": "[data-testid='hr-holiday-add']"
+      },
+      {
+        "ariaLabel": "ลบวันหยุด วันหยุดสถานที่ (Site holiday)",
+        "box": [
+          666,
+          432,
+          36,
+          36
+        ],
+        "disabled": false,
+        "domText": "",
+        "label": "ลบวันหยุด วันหยุดสถานที่ (Site holiday)",
+        "number": 3,
+        "selector": "#hr-settings-holidays button[aria-label='ลบวันหยุด วันหยุดสถานที่ (Site holiday)']"
+      }
+    ],
+    "sourceSnapshots": [
+      {
+        "file": "src/features/hr/SettingsScreen.tsx",
+        "sha256": "5049a78a22f7576e8ce4e5a8137cd51af779daaaf9e48b7ebb95f5042019295d"
+      },
+      {
+        "file": "convex/hr/setup.ts",
+        "sha256": "a85756e27771698a2d9391104a13e8f437ba6d0efbadb9e5af8eb53d4f419496"
+      },
+      {
+        "file": "src/features/hr/HolidayDraftGuard.independent.test.tsx",
+        "sha256": "8730ae636f72c3be9c7ce067ffa54c2dc59c60d855f9183831e1fdb26b350050"
+      }
+    ]
+  },
+  {
+    "number": 17,
+    "id": "access",
+    "title": "ตรวจสิทธิ์ใช้งาน HR",
+    "audience": "ผู้ดูแล HR",
+    "route": "/th/hr/settings?section=holidays",
+    "screenshot": {
+      "source": "assets/source/17-access.png",
+      "sha256": "faa038dc6effa205e58f6f6cfe817eaefa72bcb76b2d4531bbbc82831bea5073",
+      "pixels": [
+        1280,
+        800
+      ],
+      "viewport": [
+        1280,
+        800
+      ],
+      "capturedAt": "2026-10-09T19:08:40.910Z",
+      "captureHref": "http://localhost:3100/th/hr/settings?section=holidays",
+      "sourceArtifact": "/Users/macbook/.t3/userdata/browser-artifacts/browser-screenshot-localhost-mv1c9d1l-90aa61de.png",
+      "scroll": [
+        0,
+        0
+      ],
+      "annotated": "assets/annotated/17-access.png"
+    },
+    "steps": [
+      "หาชื่อสมาชิกที่ต้องการตั้งสิทธิ์",
+      "ติ๊ก “พนักงาน (ลงเวลาเอง)” เพื่อให้ลงเวลาเองได้",
+      "ติ๊ก “หัวหน้า (ตรวจทีม)” เพื่อให้ตรวจทีมได้ เอาติ๊กออกเมื่อต้องยกเลิกสิทธิ์"
+    ],
+    "verification": {
+      "status": "AUTHOR_VERIFIED",
+      "labels": "Exact displayed labels and observed targets checked against saved DOM.",
+      "visual": {
+        "status": "PASS",
+        "reviewer": "hr_usage_manual",
+        "render": "tmp/pdfs/hr-user-guide-th/rendered/page-17.png",
+        "renderSha256": "72e8ba1592aabdaeb28cdf034f3c294be887d7a0ffc330be36635d3dcad640c7",
+        "method": "Each final PDF page rendered with Poppler and individually opened via view_image; Thai text, full source aspect, target numbers, no cropped manual text or overlaps checked.",
+        "notes": "Realrole checkboxlabels and checkedstates visible; active linkedemployee prerequisite included and readable."
+      },
+      "action": {
+        "level": "LIVE_READ_SOURCE_BINDING",
+        "evidence": "src/features/hr/SettingsScreen.tsx:checkbox onChange and setMemberAccess; convex/hr/setup.ts; convex/hr/access.ts",
+        "result": "Displayed labels/checked states and checkbox mutation binding checked; no live role change performed."
+      }
+    },
+    "expected": "สิทธิ์บันทึกทันที เลือกเฉพาะบทบาทที่ต้องใช้",
+    "entry": "ตั้งค่า HR > สิทธิ์ใช้งานฝ่ายบุคคล",
+    "highlights": [
+      {
+        "ariaLabel": "พนักงาน (ลงเวลาเอง) ของ Local Tester",
+        "box": [
+          786,
+          313,
+          16,
+          16
+        ],
+        "disabled": false,
+        "domText": "",
+        "label": "พนักงาน (ลงเวลาเอง)",
+        "number": 2,
+        "selector": "input[aria-label='พนักงาน (ลงเวลาเอง) ของ Local Tester']"
+      },
+      {
+        "ariaLabel": "หัวหน้า (ตรวจทีม) ของ Local Tester",
+        "box": [
+          946.8984375,
+          313,
+          16,
+          16
+        ],
+        "disabled": false,
+        "domText": "",
+        "label": "หัวหน้า (ตรวจทีม)",
+        "number": 3,
+        "selector": "input[aria-label='หัวหน้า (ตรวจทีม) ของ Local Tester']"
+      }
+    ],
+    "sourceSnapshots": [
+      {
+        "file": "src/features/hr/SettingsScreen.tsx",
+        "sha256": "5049a78a22f7576e8ce4e5a8137cd51af779daaaf9e48b7ebb95f5042019295d"
+      },
+      {
+        "file": "convex/hr/setup.ts",
+        "sha256": "a85756e27771698a2d9391104a13e8f437ba6d0efbadb9e5af8eb53d4f419496"
+      },
+      {
+        "file": "convex/hr/access.ts",
+        "sha256": "3ec26ebe67c2a19bdbeba0321296f9b27fdde91207c65a3f2f1187e78ae8663e"
+      }
+    ],
+    "note": "การลงเวลาเองต้องมีประวัติพนักงานที่ใช้งานและเชื่อมบัญชีนี้ด้วย"
+  },
+  {
+    "number": 18,
+    "id": "policy",
+    "title": "อ่านนโยบายและรูปแบบไฟล์",
+    "audience": "ผู้ดูแล HR",
+    "route": "/th/hr/settings?section=policy",
+    "screenshot": {
+      "source": "assets/source/18-policy.png",
+      "sha256": "eb483e174218c82cbd12f9adf0de97c49426b306dad7cfd89e41afd42786bdc9",
+      "pixels": [
+        1280,
+        800
+      ],
+      "viewport": [
+        1280,
+        800
+      ],
+      "capturedAt": "2026-10-09T19:15:54.913Z",
+      "captureHref": "http://localhost:3100/th/hr/settings?section=policy",
+      "sourceArtifact": "/Users/macbook/.t3/userdata/browser-artifacts/browser-screenshot-localhost-mv1cinx7-f0600800.png",
+      "scroll": [
+        0,
+        0
+      ],
+      "annotated": "assets/annotated/18-policy.png"
+    },
+    "steps": [
+      "กด “นโยบายนำร่องและรูปแบบไฟล์ส่งออก” เพื่อเปิดรายละเอียด"
+    ],
+    "verification": {
+      "status": "AUTHOR_VERIFIED",
+      "labels": "Exact displayed labels and observed targets checked against saved DOM.",
+      "visual": {
+        "status": "PASS",
+        "reviewer": "hr_usage_manual",
+        "render": "tmp/pdfs/hr-user-guide-th/rendered/page-18.png",
+        "renderSha256": "973f5c5d9fbd78c12d3ab9d21bf5264059d58aa7df9792d1f552bda8019847ea",
+        "method": "Each final PDF page rendered with Poppler and individually opened via view_image; Thai text, full source aspect, target numbers, no cropped manual text or overlaps checked.",
+        "notes": "Actualdisclosure and entirepolicycontent visible in naturallyscrolled fullviewport, no settingsedit claim."
+      },
+      "action": {
+        "level": "LIVE_READ",
+        "evidence": "Capture DOM; HrSimplification.test.tsx",
+        "result": "Disclosure opened, full policy content visible, no editable configuration."
+      }
+    },
+    "expected": "อ่านวิธีลงเวลา ขีดจำกัด และข้อมูล CSV ได้",
+    "entry": "ตั้งค่า HR > นโยบายนำร่องและรูปแบบไฟล์ส่งออก",
+    "note": "ส่วนนี้เป็นข้อมูลให้อ่าน ไม่มีช่องแก้ค่า",
+    "highlights": [
+      {
+        "ariaLabel": null,
+        "box": [
+          249,
+          503,
+          990,
+          48
+        ],
+        "disabled": false,
+        "domText": "นโยบายนำร่องและรูปแบบไฟล์ส่งออก",
+        "label": "นโยบายนำร่องและรูปแบบไฟล์ส่งออก",
+        "number": 1,
+        "selector": "[data-testid='hr-settings-policy-toggle']",
+        "value": ""
+      }
+    ],
+    "sourceSnapshots": [
+      {
+        "file": "src/features/hr/SettingsScreen.tsx",
+        "sha256": "5049a78a22f7576e8ce4e5a8137cd51af779daaaf9e48b7ebb95f5042019295d"
+      },
+      {
+        "file": "src/features/hr/HrSimplification.test.tsx",
+        "sha256": "17bc47691abfad23f3a02aaf8710e5a7917b4da500c84560ab0ca782cdb0b7de"
+      }
+    ]
+  },
+  {
+    "number": 19,
+    "id": "search",
+    "title": "ค้นหน้าและหน้าย่อย",
+    "audience": "ทุกคน",
+    "route": "/th/hr/review",
+    "screenshot": {
+      "source": "assets/source/19-search.png",
+      "sha256": "b31f02ca7f5450f8f0b5a9532ef1b8723b8bb9794bbaf1834092e1b8733f35db",
+      "pixels": [
+        1280,
+        800
+      ],
+      "viewport": [
+        1280,
+        800
+      ],
+      "capturedAt": "2026-10-09T19:09:42.383Z",
+      "captureHref": "http://localhost:3100/th/hr/review",
+      "sourceArtifact": "/Users/macbook/.t3/userdata/browser-artifacts/browser-screenshot-localhost-mv1caoh6-51fcb6d6.png",
+      "scroll": [
+        0,
+        0
+      ],
+      "annotated": "assets/annotated/19-search.png"
+    },
+    "steps": [
+      "พิมพ์งานที่ต้องการ เช่น “วันหยุด”",
+      "กดผลลัพธ์ “บุคลากร › ตั้งค่า HR › วันหยุด”"
+    ],
+    "verification": {
+      "status": "AUTHOR_VERIFIED",
+      "labels": "Exact displayed labels and observed targets checked against saved DOM.",
+      "visual": {
+        "status": "PASS",
+        "reviewer": "hr_usage_manual",
+        "render": "tmp/pdfs/hr-user-guide-th/rendered/page-19.png",
+        "renderSha256": "eb05a4060f0197d3cda316926569b5b20e79eec1e1e95c73a20bece948a34ddf",
+        "method": "Each final PDF page rendered with Poppler and individually opened via view_image; Thai text, full source aspect, target numbers, no cropped manual text or overlaps checked.",
+        "notes": "Realordinaryquery and subpagebreadcrumbresult visible; readableCommand+K instead of unsupportedglyph."
+      },
+      "action": {
+        "level": "LIVE_NAVIGATION",
+        "evidence": "Actual captured result click -> /th/hr/settings?section=holidays, focus hr-settings-holidays",
+        "result": "Real ordinary search query and subpage handoff verified."
+      }
+    },
+    "expected": "เปิดส่วนวันหยุดของตั้งค่า HR โดยตรง",
+    "entry": "ปุ่ม ค้นหา… หรือ Command+K / Ctrl+K",
+    "highlights": [
+      {
+        "ariaLabel": "ค้นหา",
+        "box": [
+          321,
+          137,
+          530.734375,
+          48
+        ],
+        "disabled": false,
+        "domText": "",
+        "label": "พิมพ์งานที่ต้องการ: วันหยุด",
+        "number": 1,
+        "selector": "[data-testid='global-search-input']",
+        "value": "วันหยุด"
+      },
+      {
+        "ariaLabel": null,
+        "box": [
+          321,
+          281,
+          638,
+          73
+        ],
+        "disabled": false,
+        "domText": "บุคลากร › ตั้งค่า HR › วันหยุด\nวันหยุด\nเปิดส่วนนี้",
+        "label": "บุคลากร › ตั้งค่า HR › วันหยุด",
+        "number": 2,
+        "selector": "[role='option']",
+        "value": null
+      }
+    ],
+    "sourceSnapshots": [
+      {
+        "file": "src/components/shell/search/SearchDialog.tsx",
+        "sha256": "854a2a5b453cab4278dbea3e8c059803e3df01b54b5f7696c189928917730871"
+      },
+      {
+        "file": "src/components/shell/search/GlobalSearch.test.tsx",
+        "sha256": "14b387acd7408f675050849ae65a4512d17ed9143d0f95dec2ef338c86de15e4"
+      }
+    ]
+  },
+  {
+    "number": 20,
+    "id": "ai-search",
+    "title": "ให้ AI พาไปจุดที่ต้องแก้",
+    "audience": "ทุกคน",
+    "route": "/th/hr/settings?section=holidays",
+    "screenshot": {
+      "source": "assets/source/20-ai-search.png",
+      "sha256": "bc526295f6f7974d0821886c943faa96e84abd0b2614be222318af358d734344",
+      "pixels": [
+        1280,
+        800
+      ],
+      "viewport": [
+        1280,
+        800
+      ],
+      "capturedAt": "2026-10-09T19:10:27.927Z",
+      "captureHref": "http://localhost:3100/th/hr/settings?section=holidays",
+      "sourceArtifact": "/Users/macbook/.t3/userdata/browser-artifacts/browser-screenshot-localhost-mv1cbnm9-578036d6.png",
+      "scroll": [
+        0,
+        0
+      ],
+      "annotated": "assets/annotated/20-ai-search.png"
+    },
+    "steps": [
+      "พิมพ์สิ่งที่ต้องการทำ เช่น “แก้กะ วิภา”",
+      "กด “ถาม AI”",
+      "เลือกคนหรือวันที่ให้ตรงกับงาน เช่น วิภาในภาพ"
+    ],
+    "verification": {
+      "status": "AUTHOR_VERIFIED",
+      "labels": "Exact displayed labels and observed targets checked against saved DOM.",
+      "visual": {
+        "status": "PASS",
+        "reviewer": "hr_usage_manual",
+        "render": "tmp/pdfs/hr-user-guide-th/rendered/page-20.png",
+        "renderSha256": "16cab6d14f5305173f0321b3ed2e510ea957313b7801dfafae09988c24e0b97e",
+        "method": "Each final PDF page rendered with Poppler and individually opened via view_image; Thai text, full source aspect, target numbers, no cropped manual text or overlaps checked.",
+        "notes": "RealAIquery, exactAskAIbutton and actualpersonchoice visible; caption accurately says user saves changes."
+      },
+      "action": {
+        "level": "LIVE_PROVIDER_AND_NAVIGATION",
+        "evidence": "live-workflows.json:scheduleDirectFixed,scheduleReloadFixed,scheduleAiFixed",
+        "result": "Real provider-backed Thai query and person choice opened exact EMP-DEMO-002 editor; QA final direct load, reload and actualAIchoice focus hr-focus-schedule, scroll547.5,target0–374.5 fully visible."
+      }
+    },
+    "expected": "เปิดแบบฟอร์มตารางงานของคนที่เลือก คุณเป็นคนกดบันทึกเมื่อแก้เสร็จ",
+    "entry": "ปุ่ม ค้นหาด้วย AI",
+    "highlights": [
+      {
+        "ariaLabel": "ค้นหา",
+        "box": [
+          321,
+          137,
+          530.734375,
+          48
+        ],
+        "disabled": false,
+        "domText": "",
+        "label": "แก้กะ วิภา",
+        "number": 1,
+        "selector": "[data-testid='global-search-input']",
+        "value": "แก้กะ วิภา"
+      },
+      {
+        "ariaLabel": null,
+        "box": [
+          859.734375,
+          143,
+          99.265625,
+          36
+        ],
+        "disabled": false,
+        "domText": "ถาม AI",
+        "label": "ถาม AI",
+        "number": 2,
+        "selector": "[data-testid='global-search-ai']",
+        "value": ""
+      },
+      {
+        "ariaLabel": null,
+        "box": [
+          321,
+          339,
+          638,
+          91
+        ],
+        "disabled": false,
+        "domText": "บุคลากร › พนักงาน\nวิภา ไม่มีบัญชี (No account)\nEMP-DEMO-002 · LOCAL-DEMO\nเปิดฟอร์มแก้ตารางงาน",
+        "label": "วิภา ไม่มีบัญชี (No account) · เปิดฟอร์มแก้ตารางงาน",
+        "number": 3,
+        "selector": "[role='option']",
+        "value": null
+      }
+    ],
+    "sourceSnapshots": [
+      {
+        "file": "src/components/shell/search/SearchDialog.tsx",
+        "sha256": "854a2a5b453cab4278dbea3e8c059803e3df01b54b5f7696c189928917730871"
+      },
+      {
+        "file": "src/components/shell/search/useAiSearch.ts",
+        "sha256": "8ecc5d2db7fd0b0e0ed89935ec7c2bf39ace36b6fef6dde0122515321347e1f4"
+      },
+      {
+        "file": "convex/hr/navigationIntent.ts",
+        "sha256": "70cad298d7bc124f65f647db460f22caab1dc8b1b9e5a705a1c87182d51d16c7"
+      },
+      {
+        "file": "src/lib/deepLink.ts",
+        "sha256": "97b26c9010fa0ef6e6c1efb3d61b8854540e338aba93050a67ab5c55847414a1"
+      }
+    ]
+  }
+]

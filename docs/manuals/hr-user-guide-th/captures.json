@@ -1,0 +1,1028 @@
+[
+  {
+    "id": "history",
+    "capturedAt": "2026-10-09T19:13:03.728Z",
+    "sourcePath": "/Users/macbook/.t3/userdata/browser-artifacts/browser-screenshot-localhost-mv1cezu0-1624ed44.png",
+    "evidence": {
+      "href": "http://localhost:3100/th/hr/time",
+      "scroll": [
+        0,
+        0
+      ],
+      "sidebarWidth": 207,
+      "targets": [
+        {
+          "ariaLabel": null,
+          "box": [
+            245,
+            182,
+            364,
+            78
+          ],
+          "disabled": false,
+          "domText": "ช่วงวันที่\nตั้งแต่\nถึง\n\nไม่เกิน 31 วัน",
+          "label": "ตั้งแต่ / ถึง",
+          "number": 1,
+          "selector": "main fieldset",
+          "value": null
+        },
+        {
+          "ariaLabel": null,
+          "box": [
+            249,
+            642.5,
+            115.2265625,
+            48
+          ],
+          "disabled": false,
+          "domText": "อังคาร 6 ต.ค. 2569",
+          "label": "อังคาร 6 ต.ค. 2569",
+          "number": 2,
+          "selector": "main a[href='/th/hr/time/2026-10-06']",
+          "value": null
+        }
+      ],
+      "text": "ข้ามไปยังเนื้อหาหลัก\nStorage Planner\nค้นหา…\n⌘K\nค้นหาด้วย AI\nวางแผนพื้นที่จัดเก็บ\nสินค้าสำเร็จรูป\nสแกนใบ Job\nรายการที่สแกนแล้ว\nอาคารและจุดจัดเก็บ\nบุคลากร\nวันนี้\nเวลาและคำขอ\nโปรไฟล์\nตรวจคำขอ\nพนักงาน\nงวดเวลา\nตั้งค่า HR\nIndustrial SAS Local Demo\nLOCAL-DEMO · คลังทดสอบ Local Demo\nภาษา\n🇹🇭 ไทย\nเวลาและคำขอ\n\nประวัติการลงเวลา เวลาที่รับรองแล้ว และสถานะคำขอของคุณ\n\nช่วงวันที่\nตั้งแต่\nถึง\n\nไม่เกิน 31 วัน\n\nวันที่\tตามแผน\tลงเวลาจริง\tเวลาที่ใช้\tเวลาทำงาน\tสถานะ\tคำขอ\nเสาร์ 10 ต.ค. 2569\tไม่มีกะ (วันหยุดประจำสัปดาห์)\t02:02 – 02:02\t02:02 – 02:02\t0 ชม. 0 น.\t\n▲\nทำงานนอกตาราง\n\t—\nศุกร์ 9 ต.ค. 2569\t08:30–17:30 น. · พัก 60 นาที\t10:22 – 10:22\t10:22 – 10:22\t0 ชม. 0 น.\t\n●\nทำงาน\n\t—\nพฤหัส 8 ต.ค. 2569\t08:30–17:30 น. · พัก 60 นาที\t08:23 – 17:40\t08:23 – 17:40\t8 ชม. 17 น.\t\n●\nทำงาน\n\t—\nพุธ 7 ต.ค. 2569\t08:30–17:30 น. · พัก 60 นาที\t08:29 – —\t08:29 – 17:30\t8 ชม. 1 น.\t\n●\nทำงาน\n\t\n●\nรับรองแล้ว\n\nอังคาร 6 ต.ค. 2569\t08:30–17:30 น. · พัก 60 นาที\t—\t—\t0 ชม. 0 น.\t\n▲\nไม่มีการลงเวลา\n\t—\nจันทร์ 5 ต.ค. 2569\t08:30–17:30 น. · พัก 60 นาที\t—\t—\t0 ชม. 0 น.\t\n▲\nไม่มีการลงเวลา\n\t—\nอาทิตย์ 4 ต.ค. 2569\tไม่มีกะ (วันหยุดประจำสัปดาห์)\t—\t—\t0 ชม. 0 น.\t\n●\nวันไม่ทำงาน\n\t—\nเสาร์ 3 ต.ค. 2569\tไม่มีกะ (วันหยุดประจำสัปดาห์)\t—\t—\t0 ชม. 0 น.\t\n●\nวันไม่ทำงาน\n\t—\nศุกร์ 2 ต.ค. 2569\tวันหยุด: วันหยุดสถานที่ (Site holiday)\t—\t—\t0 ชม. 0 น.\t\n●\nวันไม่ทำงาน\n\t—\nพฤหัส 1 ต.ค. 2569\t08:30–17:30 น. · พัก 60 นาที\t—\t—\t0 ชม. 0 น.\t\n▲\nไม่มีการลงเวลา\n\t—\nพุธ 30 ก.ย. 2569\t08:30–17:30 น. · พัก 60 นาที\t—\t—\t0 ชม. 0 น.\t\n▲\nไม่มีการลงเวลา\n\t—\nอังคาร 29 ก.ย. 2569\t08:30–17:30 น. · พัก 60 นาที\t—\t—\t0 ชม. 0 น.\t\n▲\nไม่มีการลงเวลา\n\t—\nจันทร์ 28 ก.ย. 2569\t08:30–17:30 น. · พัก 60 นาที\t—\t—\t0 ชม. 0 น.\t\n▲\nไม่มีการลงเวลา\n\t—\nอาทิตย์ 27 ก.ย. 2569\tไม่มีกะ (วันหยุดประจำสัปดาห์)\t—\t—\t0 ชม. 0 น.\t\n●\nวันไม่ทำงาน\n\t—",
+      "title": "Storage Planner",
+      "viewport": [
+        1280,
+        800
+      ]
+    }
+  },
+  {
+    "id": "profile",
+    "capturedAt": "2026-10-09T19:15:47.334Z",
+    "sourcePath": "/Users/macbook/.t3/userdata/browser-artifacts/browser-screenshot-localhost-mv1cii2p-e5e677b0.png",
+    "evidence": {
+      "href": "http://localhost:3100/th/hr/profile",
+      "scroll": [
+        0,
+        0
+      ],
+      "sidebarWidth": 207,
+      "targets": [
+        {
+          "ariaLabel": null,
+          "box": [
+            8,
+            479,
+            191,
+            48
+          ],
+          "disabled": false,
+          "domText": "โปรไฟล์",
+          "label": "โปรไฟล์",
+          "number": 1,
+          "selector": "a[href='/th/hr/profile']",
+          "value": null
+        }
+      ],
+      "text": "ข้ามไปยังเนื้อหาหลัก\nStorage Planner\nค้นหา…\n⌘K\nค้นหาด้วย AI\nวางแผนพื้นที่จัดเก็บ\nสินค้าสำเร็จรูป\nสแกนใบ Job\nรายการที่สแกนแล้ว\nอาคารและจุดจัดเก็บ\nบุคลากร\nวันนี้\nเวลาและคำขอ\nโปรไฟล์\nตรวจคำขอ\nพนักงาน\nงวดเวลา\nตั้งค่า HR\nIndustrial SAS Local Demo\nLOCAL-DEMO · คลังทดสอบ Local Demo\nภาษา\n🇹🇭 ไทย\nโปรไฟล์\n\nข้อมูลพนักงานและตารางงานของคุณ\n\nสใ\nสมชาย ใจดี (Test account)\n\nEMP-DEMO-001 · คลังทดสอบ Local Demo\n\n●\nใช้งาน\nรหัสพนักงาน\nEMP-DEMO-001\nสถานที่ทำงาน\nLOCAL-DEMO · คลังทดสอบ Local Demo\nหัวหน้า\nหัวหน้าทดสอบ (Supervisor)\nช่วงการจ้างงาน\nตั้งแต่ 10 สิงหาคม 2569\nเขตเวลา\nAsia/Bangkok\nตารางงาน\nวันทำงาน\nจันทร์\nอังคาร\nพุธ\nพฤหัส\nศุกร์\nเสาร์\n(วันหยุด)\nอาทิตย์\n(วันหยุด)\nกะ\n08:30–17:30 น. · พัก 60 นาที\n\nข้อมูลนี้แก้ไขโดยฝ่ายบุคคล",
+      "title": "Storage Planner",
+      "viewport": [
+        1280,
+        800
+      ]
+    }
+  },
+  {
+    "id": "correction",
+    "capturedAt": "2026-10-09T19:15:39.342Z",
+    "sourcePath": "/Users/macbook/.t3/userdata/browser-artifacts/browser-screenshot-localhost-mv1cibwp-06eb2f2e.png",
+    "evidence": {
+      "href": "http://localhost:3100/th/hr/time/2026-10-06?focus=correction",
+      "scroll": [
+        0,
+        0
+      ],
+      "sidebarWidth": 207,
+      "targets": [
+        {
+          "ariaLabel": null,
+          "box": [
+            249,
+            293,
+            990,
+            141.5
+          ],
+          "disabled": false,
+          "domText": "เวลาเข้าที่ถูกต้อง\n\nเว้นว่างหากเวลาเข้าเดิมถูกต้อง\n\nเป็นเวลาของวันถัดไป\nเวลาออกที่ถูกต้อง\n\nสำหรับกะข้ามคืน ให้เลือก ‘วันถัดไป’\n\nเป็นเวลาของวันถัดไป",
+          "label": "เวลาเข้าที่ถูกต้อง / เวลาออกที่ถูกต้อง",
+          "number": 1,
+          "selector": "form[aria-labelledby='hr-correction-title'] .grid",
+          "value": null
+        },
+        {
+          "ariaLabel": null,
+          "box": [
+            249,
+            472.5,
+            990,
+            96
+          ],
+          "disabled": false,
+          "domText": "",
+          "label": "เหตุผล",
+          "number": 2,
+          "selector": "form[aria-labelledby='hr-correction-title'] textarea",
+          "value": ""
+        },
+        {
+          "ariaLabel": null,
+          "box": [
+            249,
+            612,
+            81.34375,
+            36
+          ],
+          "disabled": false,
+          "domText": "ส่งคำขอ",
+          "label": "ส่งคำขอ",
+          "number": 3,
+          "selector": "[data-testid='hr-correction-submit']",
+          "value": ""
+        }
+      ],
+      "text": "ข้ามไปยังเนื้อหาหลัก\nStorage Planner\nค้นหา…\n⌘K\nค้นหาด้วย AI\nวางแผนพื้นที่จัดเก็บ\nสินค้าสำเร็จรูป\nสแกนใบ Job\nรายการที่สแกนแล้ว\nอาคารและจุดจัดเก็บ\nบุคลากร\nวันนี้\nเวลาและคำขอ\nโปรไฟล์\nตรวจคำขอ\nพนักงาน\nงวดเวลา\nตั้งค่า HR\nIndustrial SAS Local Demo\nLOCAL-DEMO · คลังทดสอบ Local Demo\nภาษา\n🇹🇭 ไทย\nเวลาและคำขอ\nวันอังคารที่ 6 ตุลาคม 2569\nวันอังคารที่ 6 ตุลาคม 2569\n\nรายการเดิม เวลาที่รับรอง และประวัติคำขอ\n\nวันอังคารที่ 6 ตุลาคม 2569\n▲\nไม่มีการลงเวลา\nรายการเดิม (จากการลงเวลา)\nกะตามแผน\n08:30–17:30 น. · พัก 60 นาที\nเวลาเข้า\nไม่มีรายการ\nเวลาออก\nไม่มีรายการ\nเวลาที่ใช้คำนวณ\nเวลาเข้า\nไม่มีรายการ\nเวลาออก\nไม่มีรายการ\nเวลาทำงาน (หักพัก)\n0 ชม. 0 น.\nเวลานอกกะ\n0 ชม. 0 น.\n\nเวลานอกกะแสดงเพื่อทราบเท่านั้น ไม่ใช่การอนุมัติโอทีหรือค่าจ้าง\n\nขอแก้เวลา\n\nระบุเวลาที่ถูกต้องและเหตุผล รายการเดิมจะยังเก็บไว้ หัวหน้าจะตรวจและรับรอง\n\nเวลาเข้าที่ถูกต้อง\n\nเว้นว่างหากเวลาเข้าเดิมถูกต้อง\n\nเป็นเวลาของวันถัดไป\nเวลาออกที่ถูกต้อง\n\nสำหรับกะข้ามคืน ให้เลือก ‘วันถัดไป’\n\nเป็นเวลาของวันถัดไป\nเหตุผล\n*\n\n0/500 ตัวอักษร\n\nส่งคำขอ\nการลงเวลาเดิม\n\nไม่มีการลงเวลา\n\nคำขอแก้เวลา\n\nไม่มีคำขอแก้เวลา",
+      "title": "Storage Planner",
+      "viewport": [
+        1280,
+        800
+      ]
+    }
+  },
+  {
+    "id": "review-queue",
+    "capturedAt": "2026-10-09T18:58:59.293Z",
+    "sourcePath": "/Users/macbook/.t3/userdata/browser-artifacts/browser-screenshot-localhost-mv1bww9l-ef614a06.png",
+    "evidence": {
+      "href": "http://localhost:3100/th/hr/review",
+      "scroll": [
+        0,
+        0
+      ],
+      "targets": [
+        {
+          "ariaLabel": null,
+          "box": [
+            245,
+            182,
+            364,
+            78
+          ],
+          "disabled": false,
+          "domText": "ช่วงวันที่\nตั้งแต่\nถึง\n\nไม่เกิน 31 วัน",
+          "label": "ตั้งแต่ / ถึง",
+          "number": 1,
+          "selector": "main fieldset"
+        },
+        {
+          "ariaLabel": null,
+          "box": [
+            988.6875,
+            219,
+            119.1171875,
+            36
+          ],
+          "disabled": false,
+          "domText": "ต้องตรวจ\n2",
+          "label": "ต้องตรวจ",
+          "number": 2,
+          "selector": "main button"
+        },
+        {
+          "ariaLabel": null,
+          "box": [
+            232,
+            444,
+            348,
+            119
+          ],
+          "disabled": false,
+          "domText": "พ\nพนักงานตัวอย่างวิดีโอ\nEMP-VIDEO-004 · LOCAL-DEMO\nอังคาร 6 ต.ค. 2569\n▲\nรอรับรองคำขอ",
+          "label": "พนักงานตัวอย่างวิดีโอ · รอรับรองคำขอ",
+          "number": 3,
+          "selector": "main ul li:nth-of-type(2) button"
+        }
+      ],
+      "text": "ข้ามไปยังเนื้อหาหลัก\nStorage Planner\nค้นหา…\n⌘K\nค้นหาด้วย AI\nวางแผนพื้นที่จัดเก็บ\nสินค้าสำเร็จรูป\nสแกนใบ Job\nรายการที่สแกนแล้ว\nอาคารและจุดจัดเก็บ\nบุคลากร\nวันนี้\nเวลาและคำขอ\nโปรไฟล์\nตรวจคำขอ\nพนักงาน\nงวดเวลา\nตั้งค่า HR\nIndustrial SAS Local Demo\nLOCAL-DEMO · คลังทดสอบ Local Demo\nภาษา\n🇹🇭 ไทย\nตรวจและรับรองเวลา\n\nคำขอแก้เวลาและวันที่ต้องตรวจของทีมคุณ\n\nช่วงวันที่\nตั้งแต่\nถึง\n\nไม่เกิน 31 วัน\n\nต้องตรวจ\n2\nรับรองแล้ว\n0\n\nต้องตรวจ 2 รายการ\n\nวไ\nวิภา ไม่มีบัญชี (No account)\nEMP-DEMO-002 · LOCAL-DEMO\nอังคาร 6 ต.ค. 2569\n▲\nไม่มีการลงเวลา\nพ\nพนักงานตัวอย่างวิดีโอ\nEMP-VIDEO-004 · LOCAL-DEMO\nอังคาร 6 ต.ค. 2569\n▲\nรอรับรองคำขอ\n\nเลือกรายการ\n\nเลือกพนักงานและวันที่จากรายการเพื่อดูรายละเอียด",
+      "title": "Storage Planner",
+      "viewport": [
+        1280,
+        800
+      ]
+    }
+  },
+  {
+    "id": "today",
+    "capturedAt": "2026-10-09T18:59:20.304Z",
+    "sourcePath": "/Users/macbook/.t3/userdata/browser-artifacts/browser-screenshot-localhost-mv1bxch9-cdc18db9.png",
+    "evidence": {
+      "href": "http://localhost:3100/th/hr/today",
+      "scroll": [
+        0,
+        0
+      ],
+      "targets": [
+        {
+          "ariaLabel": null,
+          "box": [
+            257,
+            388,
+            224,
+            56
+          ],
+          "disabled": false,
+          "domText": "ลงเวลาเข้างาน",
+          "label": "ลงเวลาเข้างาน",
+          "number": 1,
+          "selector": "[data-testid='hr-clock-action']"
+        },
+        {
+          "ariaLabel": null,
+          "box": [
+            257,
+            563,
+            99.828125,
+            48
+          ],
+          "disabled": false,
+          "domText": "ดูรายละเอียดวันนี้",
+          "label": "ดูรายละเอียดวันนี้",
+          "number": 3,
+          "selector": "main a[href='/th/hr/time/2026-10-10']"
+        }
+      ],
+      "text": "ข้ามไปยังเนื้อหาหลัก\nStorage Planner\nค้นหา…\n⌘K\nค้นหาด้วย AI\nวางแผนพื้นที่จัดเก็บ\nสินค้าสำเร็จรูป\nสแกนใบ Job\nรายการที่สแกนแล้ว\nอาคารและจุดจัดเก็บ\nบุคลากร\nวันนี้\nเวลาและคำขอ\nโปรไฟล์\nตรวจคำขอ\nพนักงาน\nงวดเวลา\nตั้งค่า HR\nIndustrial SAS Local Demo\nLOCAL-DEMO · คลังทดสอบ Local Demo\nภาษา\n🇹🇭 ไทย\nวันนี้ของฉัน\n\nลงเวลาเข้าออกงานและดูเวลาตามแผน\n\nสใ\nวันเสาร์ที่ 10 ตุลาคม 2569\n\nสมชาย ใจดี (Test account) · EMP-DEMO-001\n\nวันไม่ทำงาน\n\nเวลาเข้า\n\n--:--\n\nยังไม่มีการบันทึก\n\nเวลาออก\n\n--:--\n\nยังไม่มีการบันทึก\n\nลงเวลาเข้างาน\n\nวันนี้ไม่มีกะ หากลงเวลา ระบบจะส่งให้หัวหน้าตรวจเป็นการทำงานนอกตาราง\n\nกะตามแผน\nไม่มีกะ (วันหยุดประจำสัปดาห์)\nสถานที่ทำงาน\nคลังทดสอบ Local Demo\nดูรายละเอียดวันนี้\nคำขอแก้เวลาของฉัน\nดูทั้งหมด\nพุธ 7 ต.ค. 2569\n●\nรับรองแล้ว",
+      "title": "Storage Planner",
+      "viewport": [
+        1280,
+        800
+      ]
+    }
+  },
+  {
+    "id": "review-decision",
+    "capturedAt": "2026-10-09T19:00:16.310Z",
+    "sourcePath": "/Users/macbook/.t3/userdata/browser-artifacts/browser-screenshot-localhost-mv1byjoy-87177977.png",
+    "evidence": {
+      "href": "http://localhost:3100/th/hr/review?employee=jn7gk30yfc2tqfbpjq7n95sqs18fz4mc&date=2026-10-06",
+      "scroll": [
+        0,
+        0
+      ],
+      "targets": [
+        {
+          "ariaLabel": null,
+          "box": [
+            617,
+            698,
+            122.078125,
+            36
+          ],
+          "disabled": false,
+          "domText": "รับรองเวลา",
+          "label": "รับรองเวลา",
+          "number": 2,
+          "selector": "[data-testid='hr-certify']"
+        }
+      ],
+      "text": "ข้ามไปยังเนื้อหาหลัก\nStorage Planner\nค้นหา…\n⌘K\nค้นหาด้วย AI\nวางแผนพื้นที่จัดเก็บ\nสินค้าสำเร็จรูป\nสแกนใบ Job\nรายการที่สแกนแล้ว\nอาคารและจุดจัดเก็บ\nบุคลากร\nวันนี้\nเวลาและคำขอ\nโปรไฟล์\nตรวจคำขอ\nพนักงาน\nงวดเวลา\nตั้งค่า HR\nIndustrial SAS Local Demo\nLOCAL-DEMO · คลังทดสอบ Local Demo\nภาษา\n🇹🇭 ไทย\nตรวจและรับรองเวลา\n\nคำขอแก้เวลาและวันที่ต้องตรวจของทีมคุณ\n\nช่วงวันที่\nตั้งแต่\nถึง\n\nไม่เกิน 31 วัน\n\nต้องตรวจ\n2\nรับรองแล้ว\n0\n\nต้องตรวจ 2 รายการ\n\nวไ\nวิภา ไม่มีบัญชี (No account)\nEMP-DEMO-002 · LOCAL-DEMO\nอังคาร 6 ต.ค. 2569\n▲\nไม่มีการลงเวลา\nพ\nพนักงานตัวอย่างวิดีโอ\nEMP-VIDEO-004 · LOCAL-DEMO\nอังคาร 6 ต.ค. 2569\n▲\nรอรับรองคำขอ\nวันอังคารที่ 6 ตุลาคม 2569\nพนักงานตัวอย่างวิดีโอ · EMP-VIDEO-004\n▲\nรอรับรองคำขอ\n\nพนักงานนี้ไม่มีบัญชีผู้ใช้\n\nฝ่ายบุคคลหรือหัวหน้าต้องระบุการทำงานของวันนี้เอง\n\nตัดสินคำขอ\nกะตามแผน: 08:30–17:30 น. · พัก 60 นาที\n\tรายการเดิม\t\nเวลาที่ขอแก้\nเวลาเข้า\tไม่มีรายการ\t08:30\n(เปลี่ยน)\n\nเวลาออก\tไม่มีรายการ\t17:30\n(เปลี่ยน)\n\nเหตุผลของพนักงาน\n\nตัวอย่างวิดีโอ: ลืมลงเวลา ตรวจสอบใบลงเวลาแล้ว\n\nรับรองเวลา\nส่งกลับให้แก้ไข\nเพิ่มความเห็น\nรายละเอียดและประวัติ",
+      "title": "Storage Planner",
+      "viewport": [
+        1280,
+        800
+      ]
+    }
+  },
+  {
+    "id": "review-return",
+    "capturedAt": "2026-10-09T19:00:40.309Z",
+    "sourcePath": "/Users/macbook/.t3/userdata/browser-artifacts/browser-screenshot-localhost-mv1bz27i-3f0c5147.png",
+    "evidence": {
+      "href": "http://localhost:3100/th/hr/review?employee=jn7gk30yfc2tqfbpjq7n95sqs18fz4mc&date=2026-10-06",
+      "scroll": [
+        0,
+        0
+      ],
+      "targets": [
+        {
+          "ariaLabel": null,
+          "box": [
+            617,
+            526.5,
+            618,
+            96
+          ],
+          "disabled": false,
+          "domText": "",
+          "label": "เหตุผลที่ส่งกลับ",
+          "number": 1,
+          "selector": "main textarea"
+        },
+        {
+          "ariaLabel": null,
+          "box": [
+            617,
+            666,
+            133.15625,
+            36
+          ],
+          "disabled": false,
+          "domText": "ยืนยันส่งกลับ",
+          "label": "ยืนยันส่งกลับ",
+          "number": 2,
+          "selector": "[data-testid='hr-return-confirm']"
+        }
+      ],
+      "text": "ข้ามไปยังเนื้อหาหลัก\nStorage Planner\nค้นหา…\n⌘K\nค้นหาด้วย AI\nวางแผนพื้นที่จัดเก็บ\nสินค้าสำเร็จรูป\nสแกนใบ Job\nรายการที่สแกนแล้ว\nอาคารและจุดจัดเก็บ\nบุคลากร\nวันนี้\nเวลาและคำขอ\nโปรไฟล์\nตรวจคำขอ\nพนักงาน\nงวดเวลา\nตั้งค่า HR\nIndustrial SAS Local Demo\nLOCAL-DEMO · คลังทดสอบ Local Demo\nภาษา\n🇹🇭 ไทย\nตรวจและรับรองเวลา\n\nคำขอแก้เวลาและวันที่ต้องตรวจของทีมคุณ\n\nช่วงวันที่\nตั้งแต่\nถึง\n\nไม่เกิน 31 วัน\n\nต้องตรวจ\n2\nรับรองแล้ว\n0\n\nต้องตรวจ 2 รายการ\n\nวไ\nวิภา ไม่มีบัญชี (No account)\nEMP-DEMO-002 · LOCAL-DEMO\nอังคาร 6 ต.ค. 2569\n▲\nไม่มีการลงเวลา\nพ\nพนักงานตัวอย่างวิดีโอ\nEMP-VIDEO-004 · LOCAL-DEMO\nอังคาร 6 ต.ค. 2569\n▲\nรอรับรองคำขอ\nวันอังคารที่ 6 ตุลาคม 2569\nพนักงานตัวอย่างวิดีโอ · EMP-VIDEO-004\n▲\nรอรับรองคำขอ\n\nพนักงานนี้ไม่มีบัญชีผู้ใช้\n\nฝ่ายบุคคลหรือหัวหน้าต้องระบุการทำงานของวันนี้เอง\n\nตัดสินคำขอ\nกะตามแผน: 08:30–17:30 น. · พัก 60 นาที\n\tรายการเดิม\t\nเวลาที่ขอแก้\nเวลาเข้า\tไม่มีรายการ\t08:30\n(เปลี่ยน)\n\nเวลาออก\tไม่มีรายการ\t17:30\n(เปลี่ยน)\n\nเหตุผลของพนักงาน\n\nตัวอย่างวิดีโอ: ลืมลงเวลา ตรวจสอบใบลงเวลาแล้ว\n\nเหตุผลที่ส่งกลับ\n*\n\n0/500 ตัวอักษร\n\nยืนยันส่งกลับ\nยกเลิก\nรายละเอียดและประวัติ",
+      "title": "Storage Planner",
+      "viewport": [
+        1280,
+        800
+      ]
+    }
+  },
+  {
+    "id": "employees",
+    "capturedAt": "2026-10-09T19:28:18.348Z",
+    "sourcePath": "/Users/macbook/.t3/userdata/browser-artifacts/browser-screenshot-localhost-mv1cylk7-52022184.png",
+    "evidence": {
+      "href": "http://localhost:3100/th/hr/employees",
+      "scroll": [
+        0,
+        0
+      ],
+      "sidebarWidth": 207,
+      "targets": [
+        {
+          "ariaLabel": null,
+          "box": [
+            1126.4375,
+            81,
+            129.5625,
+            36
+          ],
+          "disabled": false,
+          "domText": "เพิ่มพนักงาน",
+          "label": "เพิ่มพนักงาน",
+          "number": 1,
+          "selector": "[data-testid='hr-employee-add']",
+          "value": ""
+        },
+        {
+          "ariaLabel": "แก้ไข พนักงานทดสอบคู่มือ HR (QA)",
+          "box": [
+            1158.5546875,
+            530.5,
+            88.4453125,
+            36
+          ],
+          "disabled": false,
+          "domText": "แก้ไข",
+          "label": "แก้ไข พนักงานทดสอบคู่มือ HR (QA)",
+          "number": 2,
+          "selector": "main table button[aria-label='แก้ไข พนักงานทดสอบคู่มือ HR (QA)']",
+          "value": ""
+        }
+      ],
+      "text": "ข้ามไปยังเนื้อหาหลัก\nStorage Planner\nค้นหา…\n⌘K\nค้นหาด้วย AI\nวางแผนพื้นที่จัดเก็บ\nสินค้าสำเร็จรูป\nสแกนใบ Job\nรายการที่สแกนแล้ว\nอาคารและจุดจัดเก็บ\nบุคลากร\nวันนี้\nเวลาและคำขอ\nโปรไฟล์\nตรวจคำขอ\nพนักงาน\nงวดเวลา\nตั้งค่า HR\nIndustrial SAS Local Demo\nLOCAL-DEMO · คลังทดสอบ Local Demo\nภาษา\n🇹🇭 ไทย\nพนักงาน\n\nทะเบียนพนักงาน บัญชีที่เชื่อม หัวหน้า และตารางงาน\n\nเพิ่มพนักงาน\n\nพนักงาน 6 คน\n\nพนักงาน\tบัญชีผู้ใช้ที่เชื่อม\tหัวหน้า\tตารางงาน\tสถานะ\t\nคำสั่ง\n\n\nสใ\nสมชาย ใจดี (Test account)\nEMP-DEMO-001 · LOCAL-DEMO\n\tLocal Tester\tหัวหน้าทดสอบ (Supervisor)\t\nจ–ศ\n08:30–17:30 น. · พัก 60 นาที\n\t\n●\nใช้งาน\n\t\nแก้ไข\n\nวไ\nวิภา ไม่มีบัญชี (No account)\nEMP-DEMO-002 · LOCAL-DEMO\n\t\n○\nไม่มีบัญชี\n\tLocal Tester\t\nจ–ศ\n08:30–17:30 น. · พัก 60 นาที\n\t\n●\nใช้งาน\n\t\nแก้ไข\n\nธก\nธนา กะดึก (Night shift)\nEMP-DEMO-003 · LOCAL-DEMO\n\tพนักงานกะดึก (Night staff)\tLocal Tester\t\nทุกวัน\n22:00–06:00 (วันถัดไป) · พัก 30 นาที\n\t\n●\nใช้งาน\n\t\nแก้ไข\n\nพ\nพนักงานตัวอย่างวิดีโอ\nEMP-VIDEO-004 · LOCAL-DEMO\n\t\n○\nไม่มีบัญชี\n\tหัวหน้าทดสอบ (Supervisor)\t\nจ–ศ\n08:30–17:30 น. · พัก 60 นาที\n\t\n○\nไม่ใช้งาน\n\t\nแก้ไข\n\nพH\nพนักงานทดสอบคู่มือ HR (QA)\nHR-QA-20261010 · LOCAL-DEMO\n\t\n○\nไม่มีบัญชี\n\tLocal Tester\t\nจ\n08:30–17:30 น. · พัก 60 นาที\n\t\n○\nไม่ใช้งาน\n\t\nแก้ไข\n\nพU\nพนักงานทดสอบ URL (QA)\nHR-QA-URL-20261010 · LOCAL-DEMO\n\t\n○\nไม่มีบัญชี\n\t—\t\nจ–ศ\n08:30–17:30 น. · พัก 60 นาที\n\t\n○\nไม่ใช้งาน\n\t\nแก้ไข",
+      "title": "Storage Planner",
+      "viewport": [
+        1280,
+        800
+      ]
+    }
+  },
+  {
+    "id": "exception",
+    "capturedAt": "2026-10-09T19:02:55.874Z",
+    "sourcePath": "/Users/macbook/.t3/userdata/browser-artifacts/browser-screenshot-localhost-mv1c1yt8-7b496578.png",
+    "evidence": {
+      "href": "http://localhost:3100/th/hr/review?employee=jn7n9avjr9smnd84td6rh9vkhs8fyb0q&date=2026-02-02&focus=decision",
+      "scroll": [
+        0,
+        0
+      ],
+      "sidebarWidth": 207,
+      "targets": [
+        {
+          "ariaLabel": null,
+          "box": [
+            617,
+            286.5,
+            384,
+            48
+          ],
+          "disabled": false,
+          "domText": "ทำงาน",
+          "label": "ผลของวัน: ทำงาน",
+          "number": 1,
+          "selector": "main button[role='combobox']"
+        },
+        {
+          "ariaLabel": null,
+          "box": [
+            617,
+            526.5,
+            618,
+            96
+          ],
+          "disabled": false,
+          "domText": "",
+          "label": "เหตุผล",
+          "number": 2,
+          "selector": "main textarea"
+        },
+        {
+          "ariaLabel": null,
+          "box": [
+            617,
+            666,
+            124.109375,
+            36
+          ],
+          "disabled": false,
+          "domText": "บันทึกผลของวัน",
+          "label": "บันทึกผลของวัน",
+          "number": 3,
+          "selector": "[data-testid='hr-dispose-submit']"
+        }
+      ],
+      "text": "ข้ามไปยังเนื้อหาหลัก\nStorage Planner\nค้นหา…\n⌘K\nค้นหาด้วย AI\nวางแผนพื้นที่จัดเก็บ\nสินค้าสำเร็จรูป\nสแกนใบ Job\nรายการที่สแกนแล้ว\nอาคารและจุดจัดเก็บ\nบุคลากร\nวันนี้\nเวลาและคำขอ\nโปรไฟล์\nตรวจคำขอ\nพนักงาน\nงวดเวลา\nตั้งค่า HR\nIndustrial SAS Local Demo\nLOCAL-DEMO · คลังทดสอบ Local Demo\nภาษา\n🇹🇭 ไทย\nตรวจและรับรองเวลา\n\nคำขอแก้เวลาและวันที่ต้องตรวจของทีมคุณ\n\nช่วงวันที่\nตั้งแต่\nถึง\n\nไม่เกิน 31 วัน\n\nต้องตรวจ\n1\nรับรองแล้ว\n0\n\nต้องตรวจ 1 รายการ\n\nพH\nพนักงานทดสอบคู่มือ HR (QA)\nHR-QA-20261010 · LOCAL-DEMO\nจันทร์ 2 ก.พ. 2569\n▲\nไม่มีการลงเวลา\nวันจันทร์ที่ 2 กุมภาพันธ์ 2569\nพนักงานทดสอบคู่มือ HR (QA) · HR-QA-20261010\n▲\nไม่มีการลงเวลา\n\nพนักงานนี้ไม่มีบัญชีผู้ใช้\n\nฝ่ายบุคคลหรือหัวหน้าต้องระบุการทำงานของวันนี้เอง\n\nกะตามแผน\n08:30–17:30 น. · พัก 60 นาที\nเวลาเข้าที่บันทึก\nไม่มีรายการ\nเวลาออกที่บันทึก\nไม่มีรายการ\nระบุผลของวันนี้\nผลของวัน\nทำงาน\nทำงาน\nขาดงาน\nลา (บันทึกภายนอก)\nวันไม่ทำงาน\n\nใช้เวลาเข้าออกที่ระบุ\n\nเวลาเข้า\nเป็นเวลาของวันถัดไป\nเวลาออก\nเป็นเวลาของวันถัดไป\nเหตุผล\n*\n\n0/500 ตัวอักษร\n\nบันทึกผลของวัน\nรายละเอียดและประวัติ",
+      "title": "Storage Planner",
+      "viewport": [
+        1280,
+        800
+      ]
+    }
+  },
+  {
+    "id": "employee-edit",
+    "capturedAt": "2026-10-09T19:04:59.542Z",
+    "sourcePath": "/Users/macbook/.t3/userdata/browser-artifacts/browser-screenshot-localhost-mv1c4m8j-9c18dda7.png",
+    "evidence": {
+      "href": "http://localhost:3100/th/hr/employees?employee=jn7n9avjr9smnd84td6rh9vkhs8fyb0q&mode=edit",
+      "scroll": [
+        0,
+        0
+      ],
+      "sidebarWidth": 207,
+      "targets": [
+        {
+          "ariaLabel": null,
+          "box": [
+            249,
+            740,
+            117.9296875,
+            36
+          ],
+          "disabled": false,
+          "domText": "บันทึกพนักงาน",
+          "label": "บันทึกพนักงาน",
+          "number": 2,
+          "selector": "[data-testid='hr-employee-save']"
+        }
+      ],
+      "text": "ข้ามไปยังเนื้อหาหลัก\nStorage Planner\nค้นหา…\n⌘K\nค้นหาด้วย AI\nวางแผนพื้นที่จัดเก็บ\nสินค้าสำเร็จรูป\nสแกนใบ Job\nรายการที่สแกนแล้ว\nอาคารและจุดจัดเก็บ\nบุคลากร\nวันนี้\nเวลาและคำขอ\nโปรไฟล์\nตรวจคำขอ\nพนักงาน\nงวดเวลา\nตั้งค่า HR\nIndustrial SAS Local Demo\nLOCAL-DEMO · คลังทดสอบ Local Demo\nภาษา\n🇹🇭 ไทย\nพนักงาน\n\nทะเบียนพนักงาน บัญชีที่เชื่อม หัวหน้า และตารางงาน\n\nเพิ่มพนักงาน\nแก้ไข HR-QA-20261010\nรหัสพนักงาน\n*\n\nไม่ซ้ำในองค์กร เช่น EMP-001\n\nชื่อที่แสดง\n*\nสถานที่ทำงาน\nLOCAL-DEMO · คลังทดสอบ Local Demo\nLOCAL-DEMO · คลังทดสอบ Local Demo\nสถานะ\nไม่ใช้งาน\nใช้งาน\nไม่ใช้งาน\nบัญชีผู้ใช้ที่เชื่อม\nไม่มีบัญชี\nไม่มีบัญชี\nLocal Tester (เชื่อมกับ EMP-DEMO-001)\nพนักงานกะดึก (Night staff) (เชื่อมกับ EMP-DEMO-003)\nหัวหน้าทดสอบ (Supervisor)\n\nหนึ่งบัญชีเชื่อมได้หนึ่งพนักงาน หากไม่มีบัญชี พนักงานจะลงเวลาเองไม่ได้\n\nหัวหน้า\nLocal Tester\nไม่มีหัวหน้า\nLocal Tester\nพนักงานกะดึก (Night staff)\nหัวหน้าทดสอบ (Supervisor)\nวันเริ่มงาน\n*\nวันสิ้นสุดการจ้าง\n\nเว้นว่างหากยังทำงานอยู่\n\nตารางงาน\nกำหนดกะประจำ\nวันทำงาน\nจันทร์\nอังคาร\nพุธ\nพฤหัส\nศุกร์\nเสาร์\nอาทิตย์\nเวลาเริ่มกะ\n*\nเวลาจบกะ\n*\nเวลาพักไม่รับค่าจ้าง (นาที)\n\nต้องน้อยกว่าความยาวกะ\n\nกะจบในวันถัดไป (ข้ามคืน)\nบันทึกพนักงาน\nยกเลิก\nประวัติการแก้ไข\n10 ต.ค. 2569 01:57 · Local Tester · สร้างประวัติพนักงาน\n\nพนักงาน 5 คน\n\nพนักงาน\tบัญชีผู้ใช้ที่เชื่อม\tหัวหน้า\tตารางงาน\tสถานะ\t\nคำสั่ง\n\n\nสใ\nสมชาย ใจดี (Test account)\nEMP-DEMO-001 · LOCAL-DEMO\n\tLocal Tester\tหัวหน้าทดสอบ (Supervisor)\t\nจ–ศ\n08:30–17:30 น. · พัก 60 นาที\n\t\n●\nใช้งาน\n\t\nแก้ไข\n\nวไ\nวิภา ไม่มีบัญชี (No account)\nEMP-DEMO-002 · LOCAL-DEMO\n\t\n○\nไม่มีบัญชี\n\tLocal Tester\t\nจ–ศ\n08:30–17:30 น. · พัก 60 นาที\n\t\n●\nใช้งาน\n\t\nแก้ไข\n\nธก\nธนา กะดึก (Night shift)\nEMP-DEMO-003 · LOCAL-DEMO\n\tพนักงานกะดึก (Night staff)\tLocal Tester\t\nทุกวัน\n22:00–06:00 (วันถัดไป) · พัก 30 นาที\n\t\n●\nใช้งาน\n\t\nแก้ไข\n\nพ\nพนักงานตัวอย่างวิดีโอ\nEMP-VIDEO-004 · LOCAL-DEMO\n\t\n○\nไม่มีบัญชี\n\tหัวหน้าทดสอบ (Supervisor)\t\nจ–ศ\n08:30–17:30 น. · พัก 60 นาที\n\t\n○\nไม่ใช้งาน\n\t\nแก้ไข\n\nพH\nพนักงานทดสอบคู่มือ HR (QA)\nHR-QA-20261010 · LOCAL-DEMO\n\t\n○\nไม่มีบัญชี\n\tLocal Tester\t\nจ\n08:30–17:30 น. · พัก 60 นาที\n\t\n○\nไม่ใช้งาน\n\t\nแก้ไข",
+      "title": "Storage Planner",
+      "viewport": [
+        1280,
+        800
+      ]
+    }
+  },
+  {
+    "id": "schedule",
+    "capturedAt": "2026-10-09T19:05:38.327Z",
+    "sourcePath": "/Users/macbook/.t3/userdata/browser-artifacts/browser-screenshot-localhost-mv1c5g5v-451f54ff.png",
+    "evidence": {
+      "href": "http://localhost:3100/th/hr/employees?employee=jn7n9avjr9smnd84td6rh9vkhs8fyb0q&mode=edit",
+      "scroll": [
+        0,
+        0
+      ],
+      "sidebarWidth": 207,
+      "targets": [
+        {
+          "ariaLabel": null,
+          "box": [
+            266,
+            433.5,
+            16,
+            16
+          ],
+          "disabled": false,
+          "domText": "",
+          "label": "กำหนดกะประจำ",
+          "number": 1,
+          "selector": "#hr-focus-schedule input[type='checkbox']"
+        },
+        {
+          "ariaLabel": null,
+          "box": [
+            249,
+            365.5,
+            990,
+            374.5
+          ],
+          "disabled": false,
+          "domText": "ตารางงาน\nกำหนดกะประจำ\nวันทำงาน\nจันทร์\nอังคาร\nพุธ\nพฤหัส\nศุกร์\nเสาร์\nอาทิตย์\nเวลาเริ่มกะ\n*\nเวลาจบกะ\n*\nเวลาพักไม่รับค่าจ้าง (นาที)\n\nต้องน้อยกว่าความยาวกะ\n\nกะจบในวันถัดไป (ข้ามคืน)",
+          "label": "วันทำงาน / เวลาเริ่มกะ / เวลาจบกะ / เวลาพัก",
+          "number": 2,
+          "selector": "#hr-focus-schedule"
+        },
+        {
+          "ariaLabel": null,
+          "box": [
+            249,
+            740,
+            117.9296875,
+            36
+          ],
+          "disabled": false,
+          "domText": "บันทึกพนักงาน",
+          "label": "บันทึกพนักงาน",
+          "number": 3,
+          "selector": "[data-testid='hr-employee-save']"
+        }
+      ],
+      "text": "ข้ามไปยังเนื้อหาหลัก\nStorage Planner\nค้นหา…\n⌘K\nค้นหาด้วย AI\nวางแผนพื้นที่จัดเก็บ\nสินค้าสำเร็จรูป\nสแกนใบ Job\nรายการที่สแกนแล้ว\nอาคารและจุดจัดเก็บ\nบุคลากร\nวันนี้\nเวลาและคำขอ\nโปรไฟล์\nตรวจคำขอ\nพนักงาน\nงวดเวลา\nตั้งค่า HR\nIndustrial SAS Local Demo\nLOCAL-DEMO · คลังทดสอบ Local Demo\nภาษา\n🇹🇭 ไทย\nพนักงาน\n\nทะเบียนพนักงาน บัญชีที่เชื่อม หัวหน้า และตารางงาน\n\nเพิ่มพนักงาน\nแก้ไข HR-QA-20261010\nรหัสพนักงาน\n*\n\nไม่ซ้ำในองค์กร เช่น EMP-001\n\nชื่อที่แสดง\n*\nสถานที่ทำงาน\nLOCAL-DEMO · คลังทดสอบ Local Demo\nLOCAL-DEMO · คลังทดสอบ Local Demo\nสถานะ\nไม่ใช้งาน\nใช้งาน\nไม่ใช้งาน\nบัญชีผู้ใช้ที่เชื่อม\nไม่มีบัญชี\nไม่มีบัญชี\nLocal Tester (เชื่อมกับ EMP-DEMO-001)\nพนักงานกะดึก (Night staff) (เชื่อมกับ EMP-DEMO-003)\nหัวหน้าทดสอบ (Supervisor)\n\nหนึ่งบัญชีเชื่อมได้หนึ่งพนักงาน หากไม่มีบัญชี พนักงานจะลงเวลาเองไม่ได้\n\nหัวหน้า\nLocal Tester\nไม่มีหัวหน้า\nLocal Tester\nพนักงานกะดึก (Night staff)\nหัวหน้าทดสอบ (Supervisor)\nวันเริ่มงาน\n*\nวันสิ้นสุดการจ้าง\n\nเว้นว่างหากยังทำงานอยู่\n\nตารางงาน\nกำหนดกะประจำ\nวันทำงาน\nจันทร์\nอังคาร\nพุธ\nพฤหัส\nศุกร์\nเสาร์\nอาทิตย์\nเวลาเริ่มกะ\n*\nเวลาจบกะ\n*\nเวลาพักไม่รับค่าจ้าง (นาที)\n\nต้องน้อยกว่าความยาวกะ\n\nกะจบในวันถัดไป (ข้ามคืน)\nบันทึกพนักงาน\nยกเลิก\nประวัติการแก้ไข\n10 ต.ค. 2569 01:57 · Local Tester · สร้างประวัติพนักงาน\n\nพนักงาน 5 คน\n\nพนักงาน\tบัญชีผู้ใช้ที่เชื่อม\tหัวหน้า\tตารางงาน\tสถานะ\t\nคำสั่ง\n\n\nสใ\nสมชาย ใจดี (Test account)\nEMP-DEMO-001 · LOCAL-DEMO\n\tLocal Tester\tหัวหน้าทดสอบ (Supervisor)\t\nจ–ศ\n08:30–17:30 น. · พัก 60 นาที\n\t\n●\nใช้งาน\n\t\nแก้ไข\n\nวไ\nวิภา ไม่มีบัญชี (No account)\nEMP-DEMO-002 · LOCAL-DEMO\n\t\n○\nไม่มีบัญชี\n\tLocal Tester\t\nจ–ศ\n08:30–17:30 น. · พัก 60 นาที\n\t\n●\nใช้งาน\n\t\nแก้ไข\n\nธก\nธนา กะดึก (Night shift)\nEMP-DEMO-003 · LOCAL-DEMO\n\tพนักงานกะดึก (Night staff)\tLocal Tester\t\nทุกวัน\n22:00–06:00 (วันถัดไป) · พัก 30 นาที\n\t\n●\nใช้งาน\n\t\nแก้ไข\n\nพ\nพนักงานตัวอย่างวิดีโอ\nEMP-VIDEO-004 · LOCAL-DEMO\n\t\n○\nไม่มีบัญชี\n\tหัวหน้าทดสอบ (Supervisor)\t\nจ–ศ\n08:30–17:30 น. · พัก 60 นาที\n\t\n○\nไม่ใช้งาน\n\t\nแก้ไข\n\nพH\nพนักงานทดสอบคู่มือ HR (QA)\nHR-QA-20261010 · LOCAL-DEMO\n\t\n○\nไม่มีบัญชี\n\tLocal Tester\t\nจ\n08:30–17:30 น. · พัก 60 นาที\n\t\n○\nไม่ใช้งาน\n\t\nแก้ไข",
+      "title": "Storage Planner",
+      "viewport": [
+        1280,
+        800
+      ]
+    }
+  },
+  {
+    "id": "period-create",
+    "capturedAt": "2026-10-09T19:12:17.329Z",
+    "sourcePath": "/Users/macbook/.t3/userdata/browser-artifacts/browser-screenshot-localhost-mv1ce019-fdf9af26.png",
+    "evidence": {
+      "href": "http://localhost:3100/th/hr/periods",
+      "scroll": [
+        0,
+        0
+      ],
+      "sidebarWidth": 207,
+      "targets": [
+        {
+          "ariaLabel": null,
+          "box": [
+            249,
+            284,
+            384,
+            48
+          ],
+          "disabled": false,
+          "domText": "LOCAL-DEMO · คลังทดสอบ Local Demo",
+          "label": "สถานที่ทำงาน",
+          "number": 1,
+          "selector": "main button[role='combobox']",
+          "value": ""
+        },
+        {
+          "ariaLabel": null,
+          "box": [
+            249,
+            348,
+            990,
+            78
+          ],
+          "disabled": false,
+          "domText": "ช่วงวันที่\nตั้งแต่\nถึง\n\nไม่เกิน 31 วัน",
+          "label": "ตั้งแต่ / ถึง",
+          "number": 2,
+          "selector": "main form fieldset fieldset",
+          "value": null
+        },
+        {
+          "ariaLabel": null,
+          "box": [
+            249,
+            426,
+            110.0390625,
+            36
+          ],
+          "disabled": false,
+          "domText": "สร้างฉบับร่าง",
+          "label": "สร้างฉบับร่าง",
+          "number": 3,
+          "selector": "[data-testid='hr-period-create']",
+          "value": ""
+        }
+      ],
+      "text": "ข้ามไปยังเนื้อหาหลัก\nStorage Planner\nค้นหา…\n⌘K\nค้นหาด้วย AI\nวางแผนพื้นที่จัดเก็บ\nสินค้าสำเร็จรูป\nสแกนใบ Job\nรายการที่สแกนแล้ว\nอาคารและจุดจัดเก็บ\nบุคลากร\nวันนี้\nเวลาและคำขอ\nโปรไฟล์\nตรวจคำขอ\nพนักงาน\nงวดเวลา\nตั้งค่า HR\nIndustrial SAS Local Demo\nLOCAL-DEMO · คลังทดสอบ Local Demo\nภาษา\n🇹🇭 ไทย\nงวดเวลาทำงาน\n\nสร้าง ตรวจ ปิด และส่งออกงวดเวลาตามสถานที่\n\nสร้างงวด\nสร้างงวดใหม่\n\nเลือกสถานที่และช่วงวันที่ ไม่เกิน 31 วัน และไม่ทับกับงวดอื่น\n\nสถานที่ทำงาน\nLOCAL-DEMO · คลังทดสอบ Local Demo\nLOCAL-DEMO · คลังทดสอบ Local Demo\nช่วงวันที่\nตั้งแต่\nถึง\n\nไม่เกิน 31 วัน\n\nสร้างฉบับร่าง\nยกเลิก\nช่วงวันที่\tสถานที่ทำงาน\tสถานะ\tฉบับ\n19 ก.ย. 2569 ถึง 25 ก.ย. 2569\tLOCAL-DEMO · คลังทดสอบ Local Demo\t\n●\nปิดแล้ว\n\tปิดฉบับ 4\n2 ก.พ. 2569 ถึง 2 ก.พ. 2569\tLOCAL-DEMO · คลังทดสอบ Local Demo\t\n◐\nร่าง\n\tร่างฉบับ 1",
+      "title": "Storage Planner",
+      "viewport": [
+        1280,
+        800
+      ]
+    }
+  },
+  {
+    "id": "holidays",
+    "capturedAt": "2026-10-09T19:08:37.903Z",
+    "sourcePath": "/Users/macbook/.t3/userdata/browser-artifacts/browser-screenshot-localhost-mv1c9aq2-55a36ed5.png",
+    "evidence": {
+      "href": "http://localhost:3100/th/hr/settings?section=holidays",
+      "scroll": [
+        0,
+        0
+      ],
+      "sidebarWidth": 207,
+      "targets": [
+        {
+          "ariaLabel": null,
+          "box": [
+            249,
+            285,
+            384,
+            48
+          ],
+          "disabled": false,
+          "domText": "LOCAL-DEMO · คลังทดสอบ Local Demo",
+          "label": "สถานที่ทำงาน",
+          "number": 1,
+          "selector": "#hr-settings-holidays button[role='combobox']"
+        },
+        {
+          "ariaLabel": null,
+          "box": [
+            603.921875,
+            373,
+            111.078125,
+            36
+          ],
+          "disabled": false,
+          "domText": "บันทึกวันหยุด",
+          "label": "บันทึกวันหยุด",
+          "number": 2,
+          "selector": "[data-testid='hr-holiday-add']"
+        },
+        {
+          "ariaLabel": "ลบวันหยุด วันหยุดสถานที่ (Site holiday)",
+          "box": [
+            666,
+            432,
+            36,
+            36
+          ],
+          "disabled": false,
+          "domText": "",
+          "label": "ลบวันหยุด วันหยุดสถานที่ (Site holiday)",
+          "number": 3,
+          "selector": "#hr-settings-holidays button[aria-label='ลบวันหยุด วันหยุดสถานที่ (Site holiday)']"
+        }
+      ],
+      "text": "ข้ามไปยังเนื้อหาหลัก\nStorage Planner\nค้นหา…\n⌘K\nค้นหาด้วย AI\nวางแผนพื้นที่จัดเก็บ\nสินค้าสำเร็จรูป\nสแกนใบ Job\nรายการที่สแกนแล้ว\nอาคารและจุดจัดเก็บ\nบุคลากร\nวันนี้\nเวลาและคำขอ\nโปรไฟล์\nตรวจคำขอ\nพนักงาน\nงวดเวลา\nตั้งค่า HR\nIndustrial SAS Local Demo\nLOCAL-DEMO · คลังทดสอบ Local Demo\nภาษา\n🇹🇭 ไทย\nตั้งค่าฝ่ายบุคคล\n\nวันหยุดของสถานที่ สิทธิ์การใช้งาน และนโยบายนำร่อง\n\nวันหยุดของสถานที่\n\nวันหยุดเป็นวันไม่ทำงาน ไม่ใช่การขาดงาน\n\nสถานที่ทำงาน\nLOCAL-DEMO · คลังทดสอบ Local Demo\nวันที่\n*\nชื่อหรือเหตุผล\n*\nบันทึกวันหยุด\nศุกร์ 2 ต.ค. 2569\nวันหยุดสถานที่ (Site holiday)\nพุธ 23 ก.ย. 2569\nวันหยุดชดเชย (Substitute holiday)\nสิทธิ์ใช้งานฝ่ายบุคคล\n\nให้สมาชิกลงเวลาเอง หรือเป็นหัวหน้าที่ตรวจทีมได้\n\nLocal Tester\nผู้ดูแลองค์กร, ผู้ดูแลฝ่ายบุคคล\nพนักงาน (ลงเวลาเอง)\nหัวหน้า (ตรวจทีม)\nพนักงานกะดึก (Night staff)\nพนักงาน (ลงเวลาเอง)\nหัวหน้า (ตรวจทีม)\nหัวหน้าทดสอบ (Supervisor)\nพนักงาน (ลงเวลาเอง)\nหัวหน้า (ตรวจทีม)\nนโยบายนำร่องและรูปแบบไฟล์ส่งออก",
+      "title": "Storage Planner",
+      "viewport": [
+        1280,
+        800
+      ]
+    }
+  },
+  {
+    "id": "access",
+    "capturedAt": "2026-10-09T19:08:40.910Z",
+    "sourcePath": "/Users/macbook/.t3/userdata/browser-artifacts/browser-screenshot-localhost-mv1c9d1l-90aa61de.png",
+    "evidence": {
+      "href": "http://localhost:3100/th/hr/settings?section=holidays",
+      "scroll": [
+        0,
+        0
+      ],
+      "sidebarWidth": 207,
+      "targets": [
+        {
+          "ariaLabel": "พนักงาน (ลงเวลาเอง) ของ Local Tester",
+          "box": [
+            786,
+            313,
+            16,
+            16
+          ],
+          "disabled": false,
+          "domText": "",
+          "label": "พนักงาน (ลงเวลาเอง)",
+          "number": 2,
+          "selector": "input[aria-label='พนักงาน (ลงเวลาเอง) ของ Local Tester']"
+        },
+        {
+          "ariaLabel": "หัวหน้า (ตรวจทีม) ของ Local Tester",
+          "box": [
+            946.8984375,
+            313,
+            16,
+            16
+          ],
+          "disabled": false,
+          "domText": "",
+          "label": "หัวหน้า (ตรวจทีม)",
+          "number": 3,
+          "selector": "input[aria-label='หัวหน้า (ตรวจทีม) ของ Local Tester']"
+        }
+      ],
+      "text": "ข้ามไปยังเนื้อหาหลัก\nStorage Planner\nค้นหา…\n⌘K\nค้นหาด้วย AI\nวางแผนพื้นที่จัดเก็บ\nสินค้าสำเร็จรูป\nสแกนใบ Job\nรายการที่สแกนแล้ว\nอาคารและจุดจัดเก็บ\nบุคลากร\nวันนี้\nเวลาและคำขอ\nโปรไฟล์\nตรวจคำขอ\nพนักงาน\nงวดเวลา\nตั้งค่า HR\nIndustrial SAS Local Demo\nLOCAL-DEMO · คลังทดสอบ Local Demo\nภาษา\n🇹🇭 ไทย\nตั้งค่าฝ่ายบุคคล\n\nวันหยุดของสถานที่ สิทธิ์การใช้งาน และนโยบายนำร่อง\n\nวันหยุดของสถานที่\n\nวันหยุดเป็นวันไม่ทำงาน ไม่ใช่การขาดงาน\n\nสถานที่ทำงาน\nLOCAL-DEMO · คลังทดสอบ Local Demo\nวันที่\n*\nชื่อหรือเหตุผล\n*\nบันทึกวันหยุด\nศุกร์ 2 ต.ค. 2569\nวันหยุดสถานที่ (Site holiday)\nพุธ 23 ก.ย. 2569\nวันหยุดชดเชย (Substitute holiday)\nสิทธิ์ใช้งานฝ่ายบุคคล\n\nให้สมาชิกลงเวลาเอง หรือเป็นหัวหน้าที่ตรวจทีมได้\n\nLocal Tester\nผู้ดูแลองค์กร, ผู้ดูแลฝ่ายบุคคล\nพนักงาน (ลงเวลาเอง)\nหัวหน้า (ตรวจทีม)\nพนักงานกะดึก (Night staff)\nพนักงาน (ลงเวลาเอง)\nหัวหน้า (ตรวจทีม)\nหัวหน้าทดสอบ (Supervisor)\nพนักงาน (ลงเวลาเอง)\nหัวหน้า (ตรวจทีม)\nนโยบายนำร่องและรูปแบบไฟล์ส่งออก",
+      "title": "Storage Planner",
+      "viewport": [
+        1280,
+        800
+      ]
+    }
+  },
+  {
+    "id": "policy",
+    "capturedAt": "2026-10-09T19:15:54.913Z",
+    "sourcePath": "/Users/macbook/.t3/userdata/browser-artifacts/browser-screenshot-localhost-mv1cinx7-f0600800.png",
+    "evidence": {
+      "href": "http://localhost:3100/th/hr/settings?section=policy",
+      "scroll": [
+        0,
+        0
+      ],
+      "sidebarWidth": 207,
+      "targets": [
+        {
+          "ariaLabel": null,
+          "box": [
+            249,
+            503,
+            990,
+            48
+          ],
+          "disabled": false,
+          "domText": "นโยบายนำร่องและรูปแบบไฟล์ส่งออก",
+          "label": "นโยบายนำร่องและรูปแบบไฟล์ส่งออก",
+          "number": 1,
+          "selector": "[data-testid='hr-settings-policy-toggle']",
+          "value": ""
+        }
+      ],
+      "text": "ข้ามไปยังเนื้อหาหลัก\nStorage Planner\nค้นหา…\n⌘K\nค้นหาด้วย AI\nวางแผนพื้นที่จัดเก็บ\nสินค้าสำเร็จรูป\nสแกนใบ Job\nรายการที่สแกนแล้ว\nอาคารและจุดจัดเก็บ\nบุคลากร\nวันนี้\nเวลาและคำขอ\nโปรไฟล์\nตรวจคำขอ\nพนักงาน\nงวดเวลา\nตั้งค่า HR\nIndustrial SAS Local Demo\nLOCAL-DEMO · คลังทดสอบ Local Demo\nภาษา\n🇹🇭 ไทย\nตั้งค่าฝ่ายบุคคล\n\nวันหยุดของสถานที่ สิทธิ์การใช้งาน และนโยบายนำร่อง\n\nวันหยุดของสถานที่\n\nวันหยุดเป็นวันไม่ทำงาน ไม่ใช่การขาดงาน\n\nสถานที่ทำงาน\nLOCAL-DEMO · คลังทดสอบ Local Demo\nวันที่\n*\nชื่อหรือเหตุผล\n*\nบันทึกวันหยุด\nศุกร์ 2 ต.ค. 2569\nวันหยุดสถานที่ (Site holiday)\nพุธ 23 ก.ย. 2569\nวันหยุดชดเชย (Substitute holiday)\nสิทธิ์ใช้งานฝ่ายบุคคล\n\nให้สมาชิกลงเวลาเอง หรือเป็นหัวหน้าที่ตรวจทีมได้\n\nLocal Tester\nผู้ดูแลองค์กร, ผู้ดูแลฝ่ายบุคคล\nพนักงาน (ลงเวลาเอง)\nหัวหน้า (ตรวจทีม)\nพนักงานกะดึก (Night staff)\nพนักงาน (ลงเวลาเอง)\nหัวหน้า (ตรวจทีม)\nหัวหน้าทดสอบ (Supervisor)\nพนักงาน (ลงเวลาเอง)\nหัวหน้า (ตรวจทีม)\nนโยบายนำร่องและรูปแบบไฟล์ส่งออก\nเขตเวลาองค์กร\nAsia/Bangkok\nวิธีลงเวลา\nออนไลน์ผ่านบัญชีที่เข้าสู่ระบบ ใช้เวลาเซิร์ฟเวอร์ ไม่ยืนยันตำแหน่งจริง\nการแก้วันหยุด\nการแก้วันหยุดไม่เปลี่ยนวันที่ลงเวลาไว้แล้วหรืองวดที่ปิดแล้ว\nขีดจำกัด\nไม่เกิน 50 คนและ 31 วันต่องวด\nการยืนยันตัวตนซ้ำ\nยังไม่มี ใช้สิทธิ์ฝ่ายบุคคลที่เข้าสู่ระบบแล้วสำหรับนำร่อง\nคอลัมน์ CSV v1\nperiod_id, period_version, site_code, employee_code, employee_name, business_date, timezone, planned_start, planned_end, actual_start, actual_end, worked_minutes, outside_shift_minutes, disposition, correction_reason\nการจับคู่กับระบบเงินเดือนจริงเป็นการตัดสินใจก่อนใช้งานจริง",
+      "title": "Storage Planner",
+      "viewport": [
+        1280,
+        800
+      ]
+    }
+  },
+  {
+    "id": "search",
+    "capturedAt": "2026-10-09T19:09:42.383Z",
+    "sourcePath": "/Users/macbook/.t3/userdata/browser-artifacts/browser-screenshot-localhost-mv1caoh6-51fcb6d6.png",
+    "evidence": {
+      "href": "http://localhost:3100/th/hr/review",
+      "scroll": [
+        0,
+        0
+      ],
+      "sidebarWidth": 207,
+      "targets": [
+        {
+          "ariaLabel": "ค้นหา",
+          "box": [
+            321,
+            137,
+            530.734375,
+            48
+          ],
+          "disabled": false,
+          "domText": "",
+          "label": "พิมพ์งานที่ต้องการ: วันหยุด",
+          "number": 1,
+          "selector": "[data-testid='global-search-input']",
+          "value": "วันหยุด"
+        },
+        {
+          "ariaLabel": null,
+          "box": [
+            321,
+            281,
+            638,
+            73
+          ],
+          "disabled": false,
+          "domText": "บุคลากร › ตั้งค่า HR › วันหยุด\nวันหยุด\nเปิดส่วนนี้",
+          "label": "บุคลากร › ตั้งค่า HR › วันหยุด",
+          "number": 2,
+          "selector": "[role='option']",
+          "value": null
+        }
+      ],
+      "text": "ข้ามไปยังเนื้อหาหลัก\nStorage Planner\nค้นหา…\n⌘K\nค้นหาด้วย AI\nวางแผนพื้นที่จัดเก็บ\nสินค้าสำเร็จรูป\nสแกนใบ Job\nรายการที่สแกนแล้ว\nอาคารและจุดจัดเก็บ\nบุคลากร\nวันนี้\nเวลาและคำขอ\nโปรไฟล์\nตรวจคำขอ\nพนักงาน\nงวดเวลา\nตั้งค่า HR\nIndustrial SAS Local Demo\nLOCAL-DEMO · คลังทดสอบ Local Demo\nภาษา\n🇹🇭 ไทย\nตรวจและรับรองเวลา\n\nคำขอแก้เวลาและวันที่ต้องตรวจของทีมคุณ\n\nช่วงวันที่\nตั้งแต่\nถึง\n\nไม่เกิน 31 วัน\n\nต้องตรวจ\n22\nรับรองแล้ว\n2\n\nต้องตรวจ 22 รายการ\n\nวไ\nวิภา ไม่มีบัญชี (No account)\nEMP-DEMO-002 · LOCAL-DEMO\nศุกร์ 9 ต.ค. 2569\n▲\nไม่มีการลงเวลา\nวไ\nวิภา ไม่มีบัญชี (No account)\nEMP-DEMO-002 · LOCAL-DEMO\nพฤหัส 8 ต.ค. 2569\n▲\nไม่มีการลงเวลา\nพ\nพนักงานตัวอย่างวิดีโอ\nEMP-VIDEO-004 · LOCAL-DEMO\nพฤหัส 8 ต.ค. 2569\n▲\nไม่มีการลงเวลา\nวไ\nวิภา ไม่มีบัญชี (No account)\nEMP-DEMO-002 · LOCAL-DEMO\nพุธ 7 ต.ค. 2569\n▲\nไม่มีการลงเวลา\nพ\nพนักงานตัวอย่างวิดีโอ\nEMP-VIDEO-004 · LOCAL-DEMO\nพุธ 7 ต.ค. 2569\n▲\nไม่มีการลงเวลา\nวไ\nวิภา ไม่มีบัญชี (No account)\nEMP-DEMO-002 · LOCAL-DEMO\nอังคาร 6 ต.ค. 2569\n▲\nไม่มีการลงเวลา\nพ\nพนักงานตัวอย่างวิดีโอ\nEMP-VIDEO-004 · LOCAL-DEMO\nอังคาร 6 ต.ค. 2569\n▲\nรอรับรองคำขอ\nวไ\nวิภา ไม่มีบัญชี (No account)\nEMP-DEMO-002 · LOCAL-DEMO\nจันทร์ 5 ต.ค. 2569\n▲\nไม่มีการลงเวลา\nธก\nธนา กะดึก (Night shift)\nEMP-DEMO-003 · LOCAL-DEMO\nจันทร์ 5 ต.ค. 2569\n▲\nไม่มีการลงเวลา\nพ\nพนักงานตัวอย่างวิดีโอ\nEMP-VIDEO-004 · LOCAL-DEMO\nจันทร์ 5 ต.ค. 2569\n▲\nไม่มีการลงเวลา\nธก\nธนา กะดึก (Night shift)\nEMP-DEMO-003 · LOCAL-DEMO\nอาทิตย์ 4 ต.ค. 2569\n▲\nไม่มีการลงเวลา\nธก\nธนา กะดึก (Night shift)\nEMP-DEMO-003 · LOCAL-DEMO\nเสาร์ 3 ต.ค. 2569\n▲\nไม่มีการลงเวลา\nวไ\nวิภา ไม่มีบัญชี (No account)\nEMP-DEMO-002 · LOCAL-DEMO\nพฤหัส 1 ต.ค. 2569\n▲\nไม่มีการลงเวลา\nธก\nธนา กะดึก (Night shift)\nEMP-DEMO-003 · LOCAL-DEMO\nพฤหัส 1 ต.ค. 2569\n▲\nไม่มีการลงเวลา\nพ\nพนักงานตัวอย่างวิดีโอ\nEMP-VIDEO-004 · LOCAL-DEMO\nพฤหัส 1 ต.ค. 2569\n▲\nไม่มีการลงเวลา\nวไ\nวิภา ไม่มีบัญชี (No account)\nEMP-DEMO-002 · LOCAL-DEMO\nพุธ 30 ก.ย. 2569\n▲\nไม่มีการลงเวลา\nธก\nธนา กะดึก (Night shift)\nEMP-DEMO-003 · LOCAL-DEMO\nพุธ 30 ก.ย. 2569\n▲\nไม่มีการลงเวลา\nวไ\nวิภา ไม่มีบัญชี (No account)\nEMP-DEMO-002 · LOCAL-DEMO\nอังคาร 29 ก.ย. 2569\n▲\nไม่มีการลงเวลา\nธก\nธนา กะดึก (Night shift)\nEMP-DEMO-003 · LOCAL-DEMO\nอังคาร 29 ก.ย. 2569\n▲\nไม่มีการลงเวลา\nวไ\nวิภา ไม่มีบัญชี (No account)\nEMP-DEMO-002 · LOCAL-DEMO\nจันทร์ 28 ก.ย. 2569\n▲\nไม่มีการลงเวลา\nธก\nธนา กะดึก (Night shift)\nEMP-DEMO-003 · LOCAL-DEMO\nจันทร์ 28 ก.ย. 2569\n▲\nไม่มีการลงเวลา\nธก\nธนา กะดึก (Night shift)\nEMP-DEMO-003 · LOCAL-DEMO\nอาทิตย์ 27 ก.ย. 2569\n▲\nไม่มีการลงเวลา\n\nเลือกรายการ\n\nเลือกพนักงานและวันที่จากรายการเพื่อดูรายละเอียด\n\nค้นหา\n\nค้นหาหน้า ส่วนงาน และรายการที่คุณเปิดได้\n\nถาม AI\n\nเมื่อกดถาม AI ข้อความที่พิมพ์ (รวมถึงชื่อที่พิมพ์) และประเภทหน้าที่เปิดอยู่จะถูกส่งให้ผู้ให้บริการ AI ไม่มีการส่งข้อมูลรายการ\n\nพบ 1 รายการ\n\nหน้าและส่วนงาน\nบุคลากร › ตั้งค่า HR › วันหยุด\nวันหยุด\nเปิดส่วนนี้\n\n↑ ↓ เลือก · Enter เปิด · Esc ปิด\n\nปิดการค้นหา",
+      "title": "Storage Planner",
+      "viewport": [
+        1280,
+        800
+      ]
+    }
+  },
+  {
+    "id": "ai-search",
+    "capturedAt": "2026-10-09T19:10:27.927Z",
+    "sourcePath": "/Users/macbook/.t3/userdata/browser-artifacts/browser-screenshot-localhost-mv1cbnm9-578036d6.png",
+    "evidence": {
+      "href": "http://localhost:3100/th/hr/settings?section=holidays",
+      "scroll": [
+        0,
+        0
+      ],
+      "sidebarWidth": 207,
+      "targets": [
+        {
+          "ariaLabel": "ค้นหา",
+          "box": [
+            321,
+            137,
+            530.734375,
+            48
+          ],
+          "disabled": false,
+          "domText": "",
+          "label": "แก้กะ วิภา",
+          "number": 1,
+          "selector": "[data-testid='global-search-input']",
+          "value": "แก้กะ วิภา"
+        },
+        {
+          "ariaLabel": null,
+          "box": [
+            859.734375,
+            143,
+            99.265625,
+            36
+          ],
+          "disabled": false,
+          "domText": "ถาม AI",
+          "label": "ถาม AI",
+          "number": 2,
+          "selector": "[data-testid='global-search-ai']",
+          "value": ""
+        },
+        {
+          "ariaLabel": null,
+          "box": [
+            321,
+            339,
+            638,
+            91
+          ],
+          "disabled": false,
+          "domText": "บุคลากร › พนักงาน\nวิภา ไม่มีบัญชี (No account)\nEMP-DEMO-002 · LOCAL-DEMO\nเปิดฟอร์มแก้ตารางงาน",
+          "label": "วิภา ไม่มีบัญชี (No account) · เปิดฟอร์มแก้ตารางงาน",
+          "number": 3,
+          "selector": "[role='option']",
+          "value": null
+        }
+      ],
+      "text": "ข้ามไปยังเนื้อหาหลัก\nStorage Planner\nค้นหา…\n⌘K\nค้นหาด้วย AI\nวางแผนพื้นที่จัดเก็บ\nสินค้าสำเร็จรูป\nสแกนใบ Job\nรายการที่สแกนแล้ว\nอาคารและจุดจัดเก็บ\nบุคลากร\nวันนี้\nเวลาและคำขอ\nโปรไฟล์\nตรวจคำขอ\nพนักงาน\nงวดเวลา\nตั้งค่า HR\nIndustrial SAS Local Demo\nLOCAL-DEMO · คลังทดสอบ Local Demo\nภาษา\n🇹🇭 ไทย\nตั้งค่าฝ่ายบุคคล\n\nวันหยุดของสถานที่ สิทธิ์การใช้งาน และนโยบายนำร่อง\n\nวันหยุดของสถานที่\n\nวันหยุดเป็นวันไม่ทำงาน ไม่ใช่การขาดงาน\n\nสถานที่ทำงาน\nLOCAL-DEMO · คลังทดสอบ Local Demo\nวันที่\n*\nชื่อหรือเหตุผล\n*\nบันทึกวันหยุด\nศุกร์ 2 ต.ค. 2569\nวันหยุดสถานที่ (Site holiday)\nพุธ 23 ก.ย. 2569\nวันหยุดชดเชย (Substitute holiday)\nสิทธิ์ใช้งานฝ่ายบุคคล\n\nให้สมาชิกลงเวลาเอง หรือเป็นหัวหน้าที่ตรวจทีมได้\n\nLocal Tester\nผู้ดูแลองค์กร, ผู้ดูแลฝ่ายบุคคล\nพนักงาน (ลงเวลาเอง)\nหัวหน้า (ตรวจทีม)\nพนักงานกะดึก (Night staff)\nพนักงาน (ลงเวลาเอง)\nหัวหน้า (ตรวจทีม)\nหัวหน้าทดสอบ (Supervisor)\nพนักงาน (ลงเวลาเอง)\nหัวหน้า (ตรวจทีม)\nนโยบายนำร่องและรูปแบบไฟล์ส่งออก\n\nกำลังเปิด บุคลากร › ตั้งค่า HR › วันหยุด › วันหยุด\n\nค้นหาด้วย AI\n\nค้นหาหน้า ส่วนงาน และรายการที่คุณเปิดได้\n\nถาม AI\n\nเมื่อกดถาม AI ข้อความที่พิมพ์ (รวมถึงชื่อที่พิมพ์) และประเภทหน้าที่เปิดอยู่จะถูกส่งให้ผู้ให้บริการ AI ไม่มีการส่งข้อมูลรายการ\n\nเลือกพนักงาน ชื่ออย่างเดียวจะไม่เปิดรายการให้อัตโนมัติ\n\nพบ 1 รายการ\n\nตัวเลือกจาก AI\nบุคลากร › พนักงาน\nวิภา ไม่มีบัญชี (No account)\nEMP-DEMO-002 · LOCAL-DEMO\nเปิดฟอร์มแก้ตารางงาน\n\n↑ ↓ เลือก · Enter เปิด · Esc ปิด\n\nปิดการค้นหา",
+      "title": "Storage Planner",
+      "viewport": [
+        1280,
+        800
+      ]
+    }
+  },
+  {
+    "id": "period-close",
+    "capturedAt": "2026-10-09T19:12:53.321Z",
+    "sourcePath": "/Users/macbook/.t3/userdata/browser-artifacts/browser-screenshot-localhost-mv1cert0-464eaedd.png",
+    "evidence": {
+      "href": "http://localhost:3100/th/hr/periods/k57kca6p047xva7y81756chw1h8fypfc",
+      "scroll": [
+        0,
+        0
+      ],
+      "sidebarWidth": 207,
+      "targets": [
+        {
+          "ariaLabel": null,
+          "box": [
+            253,
+            384,
+            146.46875,
+            36
+          ],
+          "disabled": false,
+          "domText": "ยืนยันปิดฉบับ 1",
+          "label": "ยืนยันปิดฉบับ 1",
+          "number": 2,
+          "selector": "[data-testid='hr-period-close-confirm']",
+          "value": ""
+        }
+      ],
+      "text": "ข้ามไปยังเนื้อหาหลัก\nStorage Planner\nค้นหา…\n⌘K\nค้นหาด้วย AI\nวางแผนพื้นที่จัดเก็บ\nสินค้าสำเร็จรูป\nสแกนใบ Job\nรายการที่สแกนแล้ว\nอาคารและจุดจัดเก็บ\nบุคลากร\nวันนี้\nเวลาและคำขอ\nโปรไฟล์\nตรวจคำขอ\nพนักงาน\nงวดเวลา\nตั้งค่า HR\nIndustrial SAS Local Demo\nLOCAL-DEMO · คลังทดสอบ Local Demo\nภาษา\n🇹🇭 ไทย\nงวดเวลา\nงวดเวลาทำงาน\nงวดเวลาทำงาน\n\nตรวจรายการ ปิดงวด แล้วส่งออก CSV\n\n2 ก.พ. 2569 ถึง 2 ก.พ. 2569\n\nLOCAL-DEMO · คลังทดสอบ Local Demo · Asia/Bangkok\n\nร่าง · ฉบับ 1\nเวลาทำงาน\n8 ชม. 0 น.\nต้องตรวจ\n0\nพนักงาน\n1\nวัน\n1\nขาดงาน\n0\nลา\n0\n\nทุกวันพร้อมแล้ว การปิดจะล็อกฉบับนี้ แล้วจึงส่งออก CSV ได้\n\nยืนยันปิดฉบับ 1\nยังไม่ปิด\nสรุปตามพนักงาน",
+      "title": "Storage Planner",
+      "viewport": [
+        1280,
+        800
+      ]
+    }
+  },
+  {
+    "id": "period-revise",
+    "capturedAt": "2026-10-09T19:17:32.330Z",
+    "sourcePath": "/Users/macbook/.t3/userdata/browser-artifacts/browser-screenshot-localhost-mv1ckr39-8e40d3a2.png",
+    "evidence": {
+      "href": "http://localhost:3100/th/hr/periods/k57kca6p047xva7y81756chw1h8fypfc",
+      "scroll": [
+        0,
+        0
+      ],
+      "sidebarWidth": 207,
+      "targets": [
+        {
+          "ariaLabel": null,
+          "box": [
+            253,
+            515,
+            982,
+            96
+          ],
+          "disabled": false,
+          "domText": "",
+          "label": "เหตุผลที่แก้ไข",
+          "number": 1,
+          "selector": "main textarea",
+          "value": ""
+        },
+        {
+          "ariaLabel": null,
+          "box": [
+            253,
+            650.5,
+            115.890625,
+            36
+          ],
+          "disabled": false,
+          "domText": "เปิดร่างฉบับ 2",
+          "label": "เปิดร่างฉบับ 2",
+          "number": 2,
+          "selector": "[data-testid='hr-period-revise-confirm']",
+          "value": ""
+        }
+      ],
+      "text": "ข้ามไปยังเนื้อหาหลัก\nStorage Planner\nค้นหา…\n⌘K\nค้นหาด้วย AI\nวางแผนพื้นที่จัดเก็บ\nสินค้าสำเร็จรูป\nสแกนใบ Job\nรายการที่สแกนแล้ว\nอาคารและจุดจัดเก็บ\nบุคลากร\nวันนี้\nเวลาและคำขอ\nโปรไฟล์\nตรวจคำขอ\nพนักงาน\nงวดเวลา\nตั้งค่า HR\nIndustrial SAS Local Demo\nLOCAL-DEMO · คลังทดสอบ Local Demo\nภาษา\n🇹🇭 ไทย\nงวดเวลา\nงวดเวลาทำงาน\nงวดเวลาทำงาน\n\nตรวจรายการ ปิดงวด แล้วส่งออก CSV\n\n2 ก.พ. 2569 ถึง 2 ก.พ. 2569\n\nLOCAL-DEMO · คลังทดสอบ Local Demo · Asia/Bangkok\n\nปิดแล้ว · ฉบับ 1\n\nปิดเมื่อ 10 ต.ค. 2569 02:16\n\nเวลาทำงาน\n8 ชม. 0 น.\nพนักงาน\n1\nวัน\n1\nขาดงาน\n0\nลา\n0\nดาวน์โหลด CSV ฉบับ 1\nเปิดฉบับแก้ไข\n\nฉบับเดิมและไฟล์ส่งออกจะยังอยู่\n\nเหตุผลที่แก้ไข\n*\n\n0/500 ตัวอักษร\n\nเปิดร่างฉบับ 2\nสรุปตามพนักงาน",
+      "title": "Storage Planner",
+      "viewport": [
+        1280,
+        800
+      ]
+    }
+  },
+  {
+    "id": "period-export",
+    "capturedAt": "2026-10-09T19:24:34.883Z",
+    "sourcePath": "/Users/macbook/.t3/userdata/browser-artifacts/browser-screenshot-localhost-mv1ctt4u-397f1884.png",
+    "evidence": {
+      "href": "http://localhost:3100/th/hr/periods/k57kca6p047xva7y81756chw1h8fypfc?version=1",
+      "scroll": [
+        0,
+        0
+      ],
+      "sidebarWidth": 207,
+      "targets": [
+        {
+          "ariaLabel": null,
+          "box": [
+            253,
+            547,
+            320,
+            48
+          ],
+          "disabled": false,
+          "domText": "ฉบับ 1 ปิดเมื่อ 10 ต.ค. 2569 02:16",
+          "label": "ฉบับที่แสดง",
+          "number": 1,
+          "selector": "main button[role='combobox']",
+          "value": ""
+        },
+        {
+          "ariaLabel": null,
+          "box": [
+            253,
+            416,
+            194.0546875,
+            36
+          ],
+          "disabled": false,
+          "domText": "ดาวน์โหลด CSV ฉบับ 1",
+          "label": "ดาวน์โหลด CSV ฉบับ 1",
+          "number": 2,
+          "selector": "[data-testid='hr-period-export']",
+          "value": ""
+        }
+      ],
+      "text": "ข้ามไปยังเนื้อหาหลัก\nStorage Planner\nค้นหา…\n⌘K\nค้นหาด้วย AI\nวางแผนพื้นที่จัดเก็บ\nสินค้าสำเร็จรูป\nสแกนใบ Job\nรายการที่สแกนแล้ว\nอาคารและจุดจัดเก็บ\nบุคลากร\nวันนี้\nเวลาและคำขอ\nโปรไฟล์\nตรวจคำขอ\nพนักงาน\nงวดเวลา\nตั้งค่า HR\nIndustrial SAS Local Demo\nLOCAL-DEMO · คลังทดสอบ Local Demo\nภาษา\n🇹🇭 ไทย\nงวดเวลา\nงวดเวลาทำงาน\nงวดเวลาทำงาน\n\nตรวจรายการ ปิดงวด แล้วส่งออก CSV\n\n2 ก.พ. 2569 ถึง 2 ก.พ. 2569\n\nLOCAL-DEMO · คลังทดสอบ Local Demo · Asia/Bangkok\n\nปิดแล้ว · ฉบับ 1\n\nปิดเมื่อ 10 ต.ค. 2569 02:16\n\nกำลังดูฉบับก่อนหน้า\nกลับไปฉบับปัจจุบัน\nเวลาทำงาน\n8 ชม. 0 น.\nพนักงาน\n1\nวัน\n1\nขาดงาน\n0\nลา\n0\nดาวน์โหลด CSV ฉบับ 1\nฉบับของงวดนี้\n2\nฉบับที่แสดง\nฉบับ 1 ปิดเมื่อ 10 ต.ค. 2569 02:16\nสรุปตามพนักงาน",
+      "title": "Storage Planner",
+      "viewport": [
+        1280,
+        800
+      ]
+    }
+  }
+]

@@ -1,0 +1,2041 @@
+{
+  "stage": "wasm-optimized",
+  "createdAt": "2026-10-10T08:27:43.862Z",
+  "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) T3Code(Alpha)/0.0.45 Chrome/152.0.7977.130 Electron/44.4.2 Safari/537.36",
+  "decoder": "zxing-wasm 3.1.5",
+  "initMs": 6.399999976158142,
+  "results": [
+    {
+      "name": "1.jpg",
+      "sha256": "e15f55c5843a53d8a4af300e90653dcc27ad45117e35cf9e18a3d5371f79de20",
+      "width": 2160,
+      "height": 2880,
+      "attempts": [
+        {
+          "region": [0, 0, 2160, 2880],
+          "angle": 0,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 418.69999998807907,
+          "results": [
+            {
+              "text": "FO69100125",
+              "format": "Code128",
+              "isValid": true,
+              "position": {
+                "topLeft": {
+                  "x": 752,
+                  "y": 845
+                },
+                "topRight": {
+                  "x": 1404,
+                  "y": 845
+                },
+                "bottomRight": {
+                  "x": 1399,
+                  "y": 909
+                },
+                "bottomLeft": {
+                  "x": 754,
+                  "y": 909
+                }
+              }
+            }
+          ]
+        },
+        {
+          "region": [0, 1382, 2160, 807],
+          "angle": 0,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 137.80000001192093,
+          "results": []
+        },
+        {
+          "region": [0, 1382, 2160, 807],
+          "angle": -2,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 173.30000001192093,
+          "results": []
+        },
+        {
+          "region": [0, 1382, 2160, 807],
+          "angle": 2,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 178.19999998807907,
+          "results": [
+            {
+              "text": "PTP-PK663079-BOX-F",
+              "format": "Code128",
+              "isValid": true,
+              "position": {
+                "topLeft": {
+                  "x": 836,
+                  "y": 635
+                },
+                "topRight": {
+                  "x": 1667,
+                  "y": 635
+                },
+                "bottomRight": {
+                  "x": 1668,
+                  "y": 636
+                },
+                "bottomLeft": {
+                  "x": 836,
+                  "y": 636
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "budget": {
+        "budgetMs": 15000,
+        "maxAttempts": 140
+      },
+      "reviewRequired": false,
+      "codes": ["PTP-PK663079-BOX-F"],
+      "totalMs": 1281.5
+    },
+    {
+      "name": "2.jpg",
+      "sha256": "823e64dfd43314148c1323cfe633ceb248ec0ae1eaec6cbf8ba7acf347c6387f",
+      "width": 2160,
+      "height": 2880,
+      "attempts": [
+        {
+          "region": [0, 0, 2160, 2880],
+          "angle": 0,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 510.39999997615814,
+          "results": [
+            {
+              "text": "FO69090109",
+              "format": "Code128",
+              "isValid": true,
+              "position": {
+                "topLeft": {
+                  "x": 670,
+                  "y": 705
+                },
+                "topRight": {
+                  "x": 1268,
+                  "y": 705
+                },
+                "bottomRight": {
+                  "x": 1267,
+                  "y": 761
+                },
+                "bottomLeft": {
+                  "x": 676,
+                  "y": 761
+                }
+              }
+            }
+          ]
+        },
+        {
+          "region": [0, 1382, 2160, 807],
+          "angle": 0,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 169.80000001192093,
+          "results": []
+        },
+        {
+          "region": [0, 1382, 2160, 807],
+          "angle": -2,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 150.19999998807907,
+          "results": []
+        },
+        {
+          "region": [0, 1382, 2160, 807],
+          "angle": 2,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 146.39999997615814,
+          "results": []
+        },
+        {
+          "region": [0, 1382, 2160, 807],
+          "angle": -4,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 181.9000000357628,
+          "results": []
+        },
+        {
+          "region": [0, 1382, 2160, 807],
+          "angle": 4,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 157,
+          "results": []
+        },
+        {
+          "region": [0, 1382, 2160, 807],
+          "angle": -6,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 202.79999995231628,
+          "results": []
+        },
+        {
+          "region": [0, 1382, 2160, 807],
+          "angle": 6,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 151.69999998807907,
+          "results": []
+        },
+        {
+          "region": [0, 1382, 2160, 807],
+          "angle": -8,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 133,
+          "results": []
+        },
+        {
+          "region": [0, 1382, 2160, 807],
+          "angle": 8,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 158.19999998807907,
+          "results": []
+        },
+        {
+          "region": [0, 1382, 2160, 807],
+          "angle": -10,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 170.19999998807907,
+          "results": []
+        },
+        {
+          "region": [0, 1382, 2160, 807],
+          "angle": 10,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 135.89999997615814,
+          "results": []
+        },
+        {
+          "region": [0, 1612, 2160, 807],
+          "angle": 0,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 100.29999995231628,
+          "results": []
+        },
+        {
+          "region": [0, 1612, 2160, 807],
+          "angle": -2,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 106.89999997615814,
+          "results": []
+        },
+        {
+          "region": [0, 1612, 2160, 807],
+          "angle": 2,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 107.69999998807907,
+          "results": []
+        },
+        {
+          "region": [0, 1612, 2160, 807],
+          "angle": -4,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 138,
+          "results": []
+        },
+        {
+          "region": [0, 1612, 2160, 807],
+          "angle": 4,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 116.70000004768372,
+          "results": []
+        },
+        {
+          "region": [0, 1612, 2160, 807],
+          "angle": -6,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 96.89999997615814,
+          "results": []
+        },
+        {
+          "region": [0, 1612, 2160, 807],
+          "angle": 6,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 77.5,
+          "results": []
+        },
+        {
+          "region": [0, 1612, 2160, 807],
+          "angle": -8,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 136.5,
+          "results": []
+        },
+        {
+          "region": [0, 1612, 2160, 807],
+          "angle": 8,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 132.60000002384186,
+          "results": []
+        },
+        {
+          "region": [0, 1612, 2160, 807],
+          "angle": -10,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 147.19999998807907,
+          "results": []
+        },
+        {
+          "region": [0, 1612, 2160, 807],
+          "angle": 10,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 125.40000003576279,
+          "results": []
+        },
+        {
+          "region": [432, 1612, 1296, 346],
+          "angle": 0,
+          "curve": 0.1,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8,
+            "tryDownscale": false,
+            "minLineCount": 1
+          },
+          "ms": 24.799999952316284,
+          "results": []
+        },
+        {
+          "region": [432, 1612, 1296, 346],
+          "angle": -2,
+          "curve": 0.1,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8,
+            "tryDownscale": false,
+            "minLineCount": 1
+          },
+          "ms": 32.5,
+          "results": []
+        },
+        {
+          "region": [432, 1612, 1296, 346],
+          "angle": 2,
+          "curve": 0.1,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8,
+            "tryDownscale": false,
+            "minLineCount": 1
+          },
+          "ms": 28.099999964237213,
+          "results": []
+        },
+        {
+          "region": [432, 1612, 1296, 346],
+          "angle": -4,
+          "curve": 0.1,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8,
+            "tryDownscale": false,
+            "minLineCount": 1
+          },
+          "ms": 21.200000047683716,
+          "results": []
+        },
+        {
+          "region": [432, 1612, 1296, 346],
+          "angle": 4,
+          "curve": 0.1,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8,
+            "tryDownscale": false,
+            "minLineCount": 1
+          },
+          "ms": 29.899999976158142,
+          "results": []
+        },
+        {
+          "region": [432, 1612, 1296, 346],
+          "angle": -6,
+          "curve": 0.1,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8,
+            "tryDownscale": false,
+            "minLineCount": 1
+          },
+          "ms": 33.90000003576279,
+          "results": []
+        },
+        {
+          "region": [432, 1612, 1296, 346],
+          "angle": 6,
+          "curve": 0.1,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8,
+            "tryDownscale": false,
+            "minLineCount": 1
+          },
+          "ms": 31.5,
+          "results": []
+        },
+        {
+          "region": [432, 1612, 1296, 346],
+          "angle": -8,
+          "curve": 0.1,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8,
+            "tryDownscale": false,
+            "minLineCount": 1
+          },
+          "ms": 26.700000047683716,
+          "results": []
+        },
+        {
+          "region": [432, 1612, 1296, 346],
+          "angle": 8,
+          "curve": 0.1,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8,
+            "tryDownscale": false,
+            "minLineCount": 1
+          },
+          "ms": 49.60000002384186,
+          "results": []
+        },
+        {
+          "region": [432, 1612, 1296, 346],
+          "angle": -10,
+          "curve": 0.1,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8,
+            "tryDownscale": false,
+            "minLineCount": 1
+          },
+          "ms": 87.69999998807907,
+          "results": []
+        },
+        {
+          "region": [432, 1612, 1296, 346],
+          "angle": 10,
+          "curve": 0.1,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8,
+            "tryDownscale": false,
+            "minLineCount": 1
+          },
+          "ms": 39,
+          "results": []
+        },
+        {
+          "region": [432, 1612, 1296, 346],
+          "angle": 0,
+          "curve": 0.2,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8,
+            "tryDownscale": false,
+            "minLineCount": 1
+          },
+          "ms": 33.30000001192093,
+          "results": []
+        },
+        {
+          "region": [432, 1612, 1296, 346],
+          "angle": -2,
+          "curve": 0.2,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8,
+            "tryDownscale": false,
+            "minLineCount": 1
+          },
+          "ms": 30.5,
+          "results": []
+        },
+        {
+          "region": [432, 1612, 1296, 346],
+          "angle": 2,
+          "curve": 0.2,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8,
+            "tryDownscale": false,
+            "minLineCount": 1
+          },
+          "ms": 44.5,
+          "results": []
+        },
+        {
+          "region": [432, 1612, 1296, 346],
+          "angle": -4,
+          "curve": 0.2,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8,
+            "tryDownscale": false,
+            "minLineCount": 1
+          },
+          "ms": 57.200000047683716,
+          "results": []
+        },
+        {
+          "region": [432, 1612, 1296, 346],
+          "angle": 4,
+          "curve": 0.2,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8,
+            "tryDownscale": false,
+            "minLineCount": 1
+          },
+          "ms": 61.59999996423721,
+          "results": [
+            {
+              "text": "SSD-OB3P422T-BOX-F",
+              "format": "Code128",
+              "isValid": true,
+              "position": {
+                "topLeft": {
+                  "x": 351,
+                  "y": 306
+                },
+                "topRight": {
+                  "x": 1249,
+                  "y": 306
+                },
+                "bottomRight": {
+                  "x": 1249,
+                  "y": 306
+                },
+                "bottomLeft": {
+                  "x": 351,
+                  "y": 306
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "budget": {
+        "budgetMs": 15000,
+        "maxAttempts": 140
+      },
+      "reviewRequired": true,
+      "codes": ["SSD-OB3P422T-BOX-F"],
+      "totalMs": 9761.400000035763
+    },
+    {
+      "name": "3.jpg",
+      "sha256": "9a22ebfebb7cd6f545910818722d85f7f89e39cc17a6e239eee0e55b23256a04",
+      "width": 2160,
+      "height": 2880,
+      "attempts": [
+        {
+          "region": [0, 0, 2160, 2880],
+          "angle": 0,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 244.5,
+          "results": [
+            {
+              "text": "FO69070018",
+              "format": "QRCode",
+              "isValid": true,
+              "position": {
+                "topLeft": {
+                  "x": 395,
+                  "y": 632
+                },
+                "topRight": {
+                  "x": 570,
+                  "y": 626
+                },
+                "bottomRight": {
+                  "x": 567,
+                  "y": 770
+                },
+                "bottomLeft": {
+                  "x": 392,
+                  "y": 776
+                }
+              }
+            },
+            {
+              "text": "FO69070018",
+              "format": "Code128",
+              "isValid": true,
+              "position": {
+                "topLeft": {
+                  "x": 731,
+                  "y": 730
+                },
+                "topRight": {
+                  "x": 1233,
+                  "y": 730
+                },
+                "bottomRight": {
+                  "x": 1234,
+                  "y": 756
+                },
+                "bottomLeft": {
+                  "x": 730,
+                  "y": 756
+                }
+              }
+            },
+            {
+              "text": "TDK-MPD-0131070-TRW-F",
+              "format": "Code128",
+              "isValid": true,
+              "position": {
+                "topLeft": {
+                  "x": 770,
+                  "y": 1744
+                },
+                "topRight": {
+                  "x": 1664,
+                  "y": 1744
+                },
+                "bottomRight": {
+                  "x": 1664,
+                  "y": 1750
+                },
+                "bottomLeft": {
+                  "x": 770,
+                  "y": 1750
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "budget": {
+        "budgetMs": 15000,
+        "maxAttempts": 140
+      },
+      "reviewRequired": false,
+      "codes": ["TDK-MPD-0131070-TRW-F"],
+      "totalMs": 478.2000000476837
+    },
+    {
+      "name": "4.jpg",
+      "sha256": "19ef6c97ed5bc5c061e9729b4041e7f84f63736e5a635667357f923f1237b308",
+      "width": 2160,
+      "height": 2880,
+      "attempts": [
+        {
+          "region": [0, 0, 2160, 2880],
+          "angle": 0,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 328.0999999642372,
+          "results": [
+            {
+              "text": "FO69100104",
+              "format": "QRCode",
+              "isValid": true,
+              "position": {
+                "topLeft": {
+                  "x": 506,
+                  "y": 904
+                },
+                "topRight": {
+                  "x": 674,
+                  "y": 902
+                },
+                "bottomRight": {
+                  "x": 685,
+                  "y": 1046
+                },
+                "bottomLeft": {
+                  "x": 516,
+                  "y": 1048
+                }
+              }
+            },
+            {
+              "text": "FO69100104",
+              "format": "Code128",
+              "isValid": true,
+              "position": {
+                "topLeft": {
+                  "x": 831,
+                  "y": 1038
+                },
+                "topRight": {
+                  "x": 1283,
+                  "y": 1038
+                },
+                "bottomRight": {
+                  "x": 1283,
+                  "y": 1039
+                },
+                "bottomLeft": {
+                  "x": 831,
+                  "y": 1039
+                }
+              }
+            }
+          ]
+        },
+        {
+          "region": [0, 1382, 2160, 807],
+          "angle": 0,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 308,
+          "results": []
+        },
+        {
+          "region": [0, 1382, 2160, 807],
+          "angle": -2,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 203.30000001192093,
+          "results": []
+        },
+        {
+          "region": [0, 1382, 2160, 807],
+          "angle": 2,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 131.19999998807907,
+          "results": [
+            {
+              "text": "VLT-NEOPACK11-BOX-S",
+              "format": "Code128",
+              "isValid": true,
+              "position": {
+                "topLeft": {
+                  "x": 904,
+                  "y": 487
+                },
+                "topRight": {
+                  "x": 1583,
+                  "y": 487
+                },
+                "bottomRight": {
+                  "x": 1582,
+                  "y": 489
+                },
+                "bottomLeft": {
+                  "x": 905,
+                  "y": 489
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "budget": {
+        "budgetMs": 15000,
+        "maxAttempts": 140
+      },
+      "reviewRequired": false,
+      "codes": ["VLT-NEOPACK11-BOX-S"],
+      "totalMs": 1377.8999999761581
+    },
+    {
+      "name": "5.jpg",
+      "sha256": "01137d52642a270925b2822d630f638090d2ae5756fae941dd2ea77398210cff",
+      "width": 2160,
+      "height": 2880,
+      "attempts": [
+        {
+          "region": [0, 0, 2160, 2880],
+          "angle": 0,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 258.10000002384186,
+          "results": []
+        },
+        {
+          "region": [0, 1382, 2160, 807],
+          "angle": 0,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 68.30000001192093,
+          "results": []
+        },
+        {
+          "region": [0, 1382, 2160, 807],
+          "angle": -2,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 108.29999995231628,
+          "results": [
+            {
+              "text": "SBW-003700-CAR-BOX-F",
+              "format": "Code128",
+              "isValid": true,
+              "position": {
+                "topLeft": {
+                  "x": 766,
+                  "y": 520
+                },
+                "topRight": {
+                  "x": 1749,
+                  "y": 520
+                },
+                "bottomRight": {
+                  "x": 1751,
+                  "y": 545
+                },
+                "bottomLeft": {
+                  "x": 765,
+                  "y": 545
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "budget": {
+        "budgetMs": 15000,
+        "maxAttempts": 140
+      },
+      "reviewRequired": false,
+      "codes": ["SBW-003700-CAR-BOX-F"],
+      "totalMs": 744.1999999880791
+    },
+    {
+      "name": "6.jpg",
+      "sha256": "e6676d4df1883d270a8bd15e80fef34ac4440c3c221212f9e3ea176aec775680",
+      "width": 2160,
+      "height": 2880,
+      "attempts": [
+        {
+          "region": [0, 0, 2160, 2880],
+          "angle": 0,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 303.5,
+          "results": [
+            {
+              "text": "FO69090586",
+              "format": "QRCode",
+              "isValid": true,
+              "position": {
+                "topLeft": {
+                  "x": 117,
+                  "y": 466
+                },
+                "topRight": {
+                  "x": 356,
+                  "y": 472
+                },
+                "bottomRight": {
+                  "x": 350,
+                  "y": 702
+                },
+                "bottomLeft": {
+                  "x": 111,
+                  "y": 693
+                }
+              }
+            },
+            {
+              "text": "FO69090586",
+              "format": "Code128",
+              "isValid": true,
+              "position": {
+                "topLeft": {
+                  "x": 568,
+                  "y": 690
+                },
+                "topRight": {
+                  "x": 1329,
+                  "y": 690
+                },
+                "bottomRight": {
+                  "x": 1326,
+                  "y": 746
+                },
+                "bottomLeft": {
+                  "x": 569,
+                  "y": 746
+                }
+              }
+            }
+          ]
+        },
+        {
+          "region": [0, 1382, 2160, 807],
+          "angle": 0,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 75.09999996423721,
+          "results": []
+        },
+        {
+          "region": [0, 1382, 2160, 807],
+          "angle": -2,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 103.5,
+          "results": []
+        },
+        {
+          "region": [0, 1382, 2160, 807],
+          "angle": 2,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 133,
+          "results": []
+        },
+        {
+          "region": [0, 1382, 2160, 807],
+          "angle": -4,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 116.10000002384186,
+          "results": []
+        },
+        {
+          "region": [0, 1382, 2160, 807],
+          "angle": 4,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 149.69999998807907,
+          "results": []
+        },
+        {
+          "region": [0, 1382, 2160, 807],
+          "angle": -6,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 108.59999996423721,
+          "results": [
+            {
+              "text": "ITTC-CB521019-BOX-F",
+              "format": "Code128",
+              "isValid": true,
+              "position": {
+                "topLeft": {
+                  "x": 719,
+                  "y": 787
+                },
+                "topRight": {
+                  "x": 1763,
+                  "y": 787
+                },
+                "bottomRight": {
+                  "x": 1762,
+                  "y": 816
+                },
+                "bottomLeft": {
+                  "x": 722,
+                  "y": 816
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "budget": {
+        "budgetMs": 15000,
+        "maxAttempts": 140
+      },
+      "reviewRequired": false,
+      "codes": ["ITTC-CB521019-BOX-F"],
+      "totalMs": 1679
+    },
+    {
+      "name": "7.jpg",
+      "sha256": "1c57f655a8f7d12c51d50020aa44a1f4b792ec90dd6747f1ff351c77e2b49778",
+      "width": 2160,
+      "height": 2880,
+      "attempts": [
+        {
+          "region": [0, 0, 2160, 2880],
+          "angle": 0,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 303.80000001192093,
+          "results": [
+            {
+              "text": "FO69020555",
+              "format": "Code128",
+              "isValid": true,
+              "position": {
+                "topLeft": {
+                  "x": 666,
+                  "y": 744
+                },
+                "topRight": {
+                  "x": 1275,
+                  "y": 744
+                },
+                "bottomRight": {
+                  "x": 1275,
+                  "y": 747
+                },
+                "bottomLeft": {
+                  "x": 666,
+                  "y": 747
+                }
+              }
+            }
+          ]
+        },
+        {
+          "region": [0, 1382, 2160, 807],
+          "angle": 0,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 102.69999998807907,
+          "results": []
+        },
+        {
+          "region": [0, 1382, 2160, 807],
+          "angle": -2,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 91.30000001192093,
+          "results": []
+        },
+        {
+          "region": [0, 1382, 2160, 807],
+          "angle": 2,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 84.80000001192093,
+          "results": [
+            {
+              "text": "MPCT-ZPBOXR3642R2-BOX-F",
+              "format": "Code128",
+              "isValid": true,
+              "position": {
+                "topLeft": {
+                  "x": 711,
+                  "y": 624
+                },
+                "topRight": {
+                  "x": 1922,
+                  "y": 624
+                },
+                "bottomRight": {
+                  "x": 1921,
+                  "y": 671
+                },
+                "bottomLeft": {
+                  "x": 709,
+                  "y": 671
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "budget": {
+        "budgetMs": 15000,
+        "maxAttempts": 140
+      },
+      "reviewRequired": false,
+      "codes": ["MPCT-ZPBOXR3642R2-BOX-F"],
+      "totalMs": 1032.0999999642372
+    },
+    {
+      "name": "8.jpg",
+      "sha256": "e15f55c5843a53d8a4af300e90653dcc27ad45117e35cf9e18a3d5371f79de20",
+      "width": 2160,
+      "height": 2880,
+      "attempts": [
+        {
+          "region": [0, 0, 2160, 2880],
+          "angle": 0,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 428.7000000476837,
+          "results": [
+            {
+              "text": "FO69100125",
+              "format": "Code128",
+              "isValid": true,
+              "position": {
+                "topLeft": {
+                  "x": 752,
+                  "y": 845
+                },
+                "topRight": {
+                  "x": 1404,
+                  "y": 845
+                },
+                "bottomRight": {
+                  "x": 1399,
+                  "y": 909
+                },
+                "bottomLeft": {
+                  "x": 754,
+                  "y": 909
+                }
+              }
+            }
+          ]
+        },
+        {
+          "region": [0, 1382, 2160, 807],
+          "angle": 0,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 97.69999998807907,
+          "results": []
+        },
+        {
+          "region": [0, 1382, 2160, 807],
+          "angle": -2,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 131.4000000357628,
+          "results": []
+        },
+        {
+          "region": [0, 1382, 2160, 807],
+          "angle": 2,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 99.60000002384186,
+          "results": [
+            {
+              "text": "PTP-PK663079-BOX-F",
+              "format": "Code128",
+              "isValid": true,
+              "position": {
+                "topLeft": {
+                  "x": 836,
+                  "y": 635
+                },
+                "topRight": {
+                  "x": 1667,
+                  "y": 635
+                },
+                "bottomRight": {
+                  "x": 1668,
+                  "y": 636
+                },
+                "bottomLeft": {
+                  "x": 836,
+                  "y": 636
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "budget": {
+        "budgetMs": 15000,
+        "maxAttempts": 140
+      },
+      "reviewRequired": false,
+      "codes": ["PTP-PK663079-BOX-F"],
+      "totalMs": 1143.300000011921
+    },
+    {
+      "name": "9.jpg",
+      "sha256": "823e64dfd43314148c1323cfe633ceb248ec0ae1eaec6cbf8ba7acf347c6387f",
+      "width": 2160,
+      "height": 2880,
+      "attempts": [
+        {
+          "region": [0, 0, 2160, 2880],
+          "angle": 0,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 277.80000001192093,
+          "results": [
+            {
+              "text": "FO69090109",
+              "format": "Code128",
+              "isValid": true,
+              "position": {
+                "topLeft": {
+                  "x": 670,
+                  "y": 705
+                },
+                "topRight": {
+                  "x": 1268,
+                  "y": 705
+                },
+                "bottomRight": {
+                  "x": 1267,
+                  "y": 761
+                },
+                "bottomLeft": {
+                  "x": 676,
+                  "y": 761
+                }
+              }
+            }
+          ]
+        },
+        {
+          "region": [0, 1382, 2160, 807],
+          "angle": 0,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 76.09999996423721,
+          "results": []
+        },
+        {
+          "region": [0, 1382, 2160, 807],
+          "angle": -2,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 99.80000001192093,
+          "results": []
+        },
+        {
+          "region": [0, 1382, 2160, 807],
+          "angle": 2,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 107.30000001192093,
+          "results": []
+        },
+        {
+          "region": [0, 1382, 2160, 807],
+          "angle": -4,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 89.10000002384186,
+          "results": []
+        },
+        {
+          "region": [0, 1382, 2160, 807],
+          "angle": 4,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 111.30000001192093,
+          "results": []
+        },
+        {
+          "region": [0, 1382, 2160, 807],
+          "angle": -6,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 98,
+          "results": []
+        },
+        {
+          "region": [0, 1382, 2160, 807],
+          "angle": 6,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 102.69999998807907,
+          "results": []
+        },
+        {
+          "region": [0, 1382, 2160, 807],
+          "angle": -8,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 190.89999997615814,
+          "results": []
+        },
+        {
+          "region": [0, 1382, 2160, 807],
+          "angle": 8,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 157.19999998807907,
+          "results": []
+        },
+        {
+          "region": [0, 1382, 2160, 807],
+          "angle": -10,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 168.5,
+          "results": []
+        },
+        {
+          "region": [0, 1382, 2160, 807],
+          "angle": 10,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 154.80000001192093,
+          "results": []
+        },
+        {
+          "region": [0, 1612, 2160, 807],
+          "angle": 0,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 60,
+          "results": []
+        },
+        {
+          "region": [0, 1612, 2160, 807],
+          "angle": -2,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 22.69999998807907,
+          "results": []
+        },
+        {
+          "region": [0, 1612, 2160, 807],
+          "angle": 2,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 22.30000001192093,
+          "results": []
+        },
+        {
+          "region": [0, 1612, 2160, 807],
+          "angle": -4,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 23.19999998807907,
+          "results": []
+        },
+        {
+          "region": [0, 1612, 2160, 807],
+          "angle": 4,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 24.400000035762787,
+          "results": []
+        },
+        {
+          "region": [0, 1612, 2160, 807],
+          "angle": -6,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 23.30000001192093,
+          "results": []
+        },
+        {
+          "region": [0, 1612, 2160, 807],
+          "angle": 6,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 23.100000023841858,
+          "results": []
+        },
+        {
+          "region": [0, 1612, 2160, 807],
+          "angle": -8,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 24.400000035762787,
+          "results": []
+        },
+        {
+          "region": [0, 1612, 2160, 807],
+          "angle": 8,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 25.69999998807907,
+          "results": []
+        },
+        {
+          "region": [0, 1612, 2160, 807],
+          "angle": -10,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 26.69999998807907,
+          "results": []
+        },
+        {
+          "region": [0, 1612, 2160, 807],
+          "angle": 10,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 25.30000001192093,
+          "results": []
+        },
+        {
+          "region": [432, 1612, 1296, 346],
+          "angle": 0,
+          "curve": 0.1,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8,
+            "tryDownscale": false,
+            "minLineCount": 1
+          },
+          "ms": 6.699999988079071,
+          "results": []
+        },
+        {
+          "region": [432, 1612, 1296, 346],
+          "angle": -2,
+          "curve": 0.1,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8,
+            "tryDownscale": false,
+            "minLineCount": 1
+          },
+          "ms": 7.5,
+          "results": []
+        },
+        {
+          "region": [432, 1612, 1296, 346],
+          "angle": 2,
+          "curve": 0.1,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8,
+            "tryDownscale": false,
+            "minLineCount": 1
+          },
+          "ms": 7.300000011920929,
+          "results": []
+        },
+        {
+          "region": [432, 1612, 1296, 346],
+          "angle": -4,
+          "curve": 0.1,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8,
+            "tryDownscale": false,
+            "minLineCount": 1
+          },
+          "ms": 8.100000023841858,
+          "results": []
+        },
+        {
+          "region": [432, 1612, 1296, 346],
+          "angle": 4,
+          "curve": 0.1,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8,
+            "tryDownscale": false,
+            "minLineCount": 1
+          },
+          "ms": 8.300000011920929,
+          "results": []
+        },
+        {
+          "region": [432, 1612, 1296, 346],
+          "angle": -6,
+          "curve": 0.1,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8,
+            "tryDownscale": false,
+            "minLineCount": 1
+          },
+          "ms": 9.199999988079071,
+          "results": []
+        },
+        {
+          "region": [432, 1612, 1296, 346],
+          "angle": 6,
+          "curve": 0.1,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8,
+            "tryDownscale": false,
+            "minLineCount": 1
+          },
+          "ms": 8.800000011920929,
+          "results": []
+        },
+        {
+          "region": [432, 1612, 1296, 346],
+          "angle": -8,
+          "curve": 0.1,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8,
+            "tryDownscale": false,
+            "minLineCount": 1
+          },
+          "ms": 9.200000047683716,
+          "results": []
+        },
+        {
+          "region": [432, 1612, 1296, 346],
+          "angle": 8,
+          "curve": 0.1,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8,
+            "tryDownscale": false,
+            "minLineCount": 1
+          },
+          "ms": 9.699999988079071,
+          "results": []
+        },
+        {
+          "region": [432, 1612, 1296, 346],
+          "angle": -10,
+          "curve": 0.1,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8,
+            "tryDownscale": false,
+            "minLineCount": 1
+          },
+          "ms": 9.900000035762787,
+          "results": []
+        },
+        {
+          "region": [432, 1612, 1296, 346],
+          "angle": 10,
+          "curve": 0.1,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8,
+            "tryDownscale": false,
+            "minLineCount": 1
+          },
+          "ms": 10.100000023841858,
+          "results": []
+        },
+        {
+          "region": [432, 1612, 1296, 346],
+          "angle": 0,
+          "curve": 0.2,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8,
+            "tryDownscale": false,
+            "minLineCount": 1
+          },
+          "ms": 8.599999964237213,
+          "results": []
+        },
+        {
+          "region": [432, 1612, 1296, 346],
+          "angle": -2,
+          "curve": 0.2,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8,
+            "tryDownscale": false,
+            "minLineCount": 1
+          },
+          "ms": 9,
+          "results": []
+        },
+        {
+          "region": [432, 1612, 1296, 346],
+          "angle": 2,
+          "curve": 0.2,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8,
+            "tryDownscale": false,
+            "minLineCount": 1
+          },
+          "ms": 9.100000023841858,
+          "results": []
+        },
+        {
+          "region": [432, 1612, 1296, 346],
+          "angle": -4,
+          "curve": 0.2,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8,
+            "tryDownscale": false,
+            "minLineCount": 1
+          },
+          "ms": 9.899999976158142,
+          "results": []
+        },
+        {
+          "region": [432, 1612, 1296, 346],
+          "angle": 4,
+          "curve": 0.2,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8,
+            "tryDownscale": false,
+            "minLineCount": 1
+          },
+          "ms": 9.800000011920929,
+          "results": [
+            {
+              "text": "SSD-OB3P422T-BOX-F",
+              "format": "Code128",
+              "isValid": true,
+              "position": {
+                "topLeft": {
+                  "x": 351,
+                  "y": 306
+                },
+                "topRight": {
+                  "x": 1249,
+                  "y": 306
+                },
+                "bottomRight": {
+                  "x": 1249,
+                  "y": 306
+                },
+                "bottomLeft": {
+                  "x": 351,
+                  "y": 306
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "budget": {
+        "budgetMs": 15000,
+        "maxAttempts": 140
+      },
+      "reviewRequired": true,
+      "codes": ["SSD-OB3P422T-BOX-F"],
+      "totalMs": 3895.399999976158
+    },
+    {
+      "name": "10.jpg",
+      "sha256": "9a22ebfebb7cd6f545910818722d85f7f89e39cc17a6e239eee0e55b23256a04",
+      "width": 2160,
+      "height": 2880,
+      "attempts": [
+        {
+          "region": [0, 0, 2160, 2880],
+          "angle": 0,
+          "curve": 0,
+          "options": {
+            "formats": ["Code128", "QRCode"],
+            "tryHarder": true,
+            "maxNumberOfSymbols": 8
+          },
+          "ms": 59.10000002384186,
+          "results": [
+            {
+              "text": "FO69070018",
+              "format": "QRCode",
+              "isValid": true,
+              "position": {
+                "topLeft": {
+                  "x": 395,
+                  "y": 632
+                },
+                "topRight": {
+                  "x": 570,
+                  "y": 626
+                },
+                "bottomRight": {
+                  "x": 567,
+                  "y": 770
+                },
+                "bottomLeft": {
+                  "x": 392,
+                  "y": 776
+                }
+              }
+            },
+            {
+              "text": "FO69070018",
+              "format": "Code128",
+              "isValid": true,
+              "position": {
+                "topLeft": {
+                  "x": 731,
+                  "y": 730
+                },
+                "topRight": {
+                  "x": 1233,
+                  "y": 730
+                },
+                "bottomRight": {
+                  "x": 1234,
+                  "y": 756
+                },
+                "bottomLeft": {
+                  "x": 730,
+                  "y": 756
+                }
+              }
+            },
+            {
+              "text": "TDK-MPD-0131070-TRW-F",
+              "format": "Code128",
+              "isValid": true,
+              "position": {
+                "topLeft": {
+                  "x": 770,
+                  "y": 1744
+                },
+                "topRight": {
+                  "x": 1664,
+                  "y": 1744
+                },
+                "bottomRight": {
+                  "x": 1664,
+                  "y": 1750
+                },
+                "bottomLeft": {
+                  "x": 770,
+                  "y": 1750
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "budget": {
+        "budgetMs": 15000,
+        "maxAttempts": 140
+      },
+      "reviewRequired": false,
+      "codes": ["TDK-MPD-0131070-TRW-F"],
+      "totalMs": 100.30000001192093
+    }
+  ]
+}

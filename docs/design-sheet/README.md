@@ -1,49 +1,60 @@
 # Storage Planner design sheet
 
-The approved original **no-inner-rail** composition, refined after a source-backed Kiro audit on 2026-10-11. Open [index.html](index.html), or serve it locally:
+A visual proposal for a quieter Storage Planner interface, requested on 2026-10-09. Open [index.html](index.html) or serve this directory locally:
 
 ```sh
 python3 -m http.server 3211 --bind 127.0.0.1 --directory docs/design-sheet
 ```
 
-Preview: <http://localhost:3211/>. Language, theme and Print sheet controls are available. The compact **Review state** selector changes the current specimen's state. All records and interactions are synthetic; there is no backend, camera, authorization or attendance persistence.
+Then open <http://localhost:3211>. The sheet works without a build or remote assets. Use the language and theme controls to inspect Thai/English and light/dark. The Print sheet action exports the selected workflow through the browser’s print dialog; use Save as PDF if needed.
 
-## What is approved
+## Direction
 
-Close 2px labels, 8px field gaps, quiet focus edges, unboxed totals and shared task surfaces. Controls use 36px targets only at ≥768px with a fine pointer; otherwise 48px with 16px input text. Layout still stacks at 800/520px. Status inks are stronger proposed additions, explicitly labelled as not yet in the app.
+Keep the existing vivid blue, neutral palette, semantic colors, Geist typography, Thai support, visible control borders, and 48px touch targets. Reduce repeated containers: group by heading, spacing and occasional dividers; use one surface for a task. This is a proposal, not an application migration. No production components, data, permissions or workflows were edited.
 
-The palette strip is the **2026-10-09 snapshot**, not current production tokens. The application uses light primary `#1d4ed8` and owns its palette. Apply the composition using current shared components rather than restoring this snapshot.
+The four interactive workflow specimens use explicitly synthetic records. They demonstrate presentation and local interactions; they do not reproduce the backend, camera, OCR, physical layout validation, authorization or attendance persistence. Save and clock actions clearly report that no application records were written.
 
-The revised English and Thai copy stays concise without removing domain meaning. A single ticket retains its source and Remove action. Two related quantities share “Sheets per pallet,” with complete accessible names; generic Quantity stays separate. Attendance uses factual Clocked in/out labels and distinct receipts, planned times and uncertainty. Required field units and recovery instructions remain visible.
+Field labels sit 2px above their inputs, as requested in the preview review. Desktop fields and buttons are 36px tall, touch controls remain 48px, field gaps are 8px, and quantities use compact fields. Task sections use 16px spacing, task groups 24px, and documentation chapters 40px. Status labels use stronger proposed foregrounds and 600 weight on the existing pale semantic surfaces. The catalogue’s three-record sample has a static page indicator; production cursor pagination remains an implementation requirement.
 
-## Implementation reference
+Focus uses a 2px outline. Fields pull that outline into their border with a -1px offset, giving one close blue edge instead of a separated halo. Other controls retain a 2px offset for keyboard visibility.
 
-- [Revised plan](implementation-plan.md) — served mirror of `docs/plans/design-sheet-system-adoption-2026-10-11.md`.
-- [Kiro audit](kiro-audit.md) — served mirror of the unchanged independent report in `docs/reviews/design-sheet-system-adoption-2026-10-11/`.
-- [Design context](DESIGN.md) — scope, layout, density, component rules and palette provenance for this sheet.
+## UX writing
 
-| Area                 | Application sources                                                                                                  | Source status / next step                                                                                                                                                              |
-| -------------------- | -------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Density/focus        | `src/app/globals.css`, `input.tsx`, `FormField.tsx`, `SelectControl.tsx`                                             | Present. Review the 3px invalid ring and compiled focused-invalid edge.                                                                                                                |
-| Task surfaces/status | `Panel.tsx`, `StatusBadge.tsx`                                                                                       | Flat surfaces present. Stronger badge ink is a planned shared slice.                                                                                                                   |
-| Shell                | `c-sidebar-2.tsx`, `src/lib/navigation.ts`                                                                           | Preserve application navigation/context; sheet navigation is documentation only.                                                                                                       |
-| Scan                 | `JobScanScreen.tsx`, `TicketCard.tsx`, `ticketDraft.ts`                                                              | Mostly present. Corrected specimen restores Unit type, source/Remove, field scanners, Change, stock note and disabled Save. Verify real multi-ticket/capture/duplicate/retry behavior. |
-| Catalogue            | `FinishedGoodsCatalogue.tsx`, `FinishedGoodsTable.tsx`, `CatalogueFilterControls.tsx`, `FinishedGoodsMobileList.tsx` | Mostly present. Quantity alignment/tabular numerals remain. Verify global unit totals, continuation/reset, cursor paging, layout controls and phone list.                              |
-| Floor                | `FloorMap.tsx`, `FloorWorkspaceToolbar.tsx`, `useFloorWorkspaceView.ts`                                              | Verify only unless a proven gap appears. Preserve geometry/area colors and compact sheet details.                                                                                      |
-| Attendance           | `TodayScreen.tsx`, `HrShared.tsx`, `HrUi.tsx`, `useHrWrite.ts`                                                       | Verify/handoff only; separate HR self-service plan owns screen edits.                                                                                                                  |
-| States               | `DataGate.tsx`, `QueryGate.tsx`, `Notice.tsx`, `EmptyState.tsx`                                                      | Preserve unavailable vs zero, permissions and distinct write outcome models.                                                                                                           |
+The original sheet at `/` has the refined English and Thai copy. Short actions use their nearby heading for context, the single ticket no longer repeats its heading, and attendance has one demo notice and one completion status. Full accessible names remain on shortened controls. The two pallet quantities share a “Sheets per pallet” label; “Leaving factory” and “At customer” retain the meanings defined in `convex/model/finishedGoods/jobScans.ts`. The generic quantity remains separate.
 
-Finished-goods failure and HR uncertainty are different contracts. An unchanged scan retry reuses the request ID for its payload; an edited payload gets a new ID. HR uncertain retries the exact pinned command. A demo receipt in this sheet is not evidence of a successful application write.
+The comparison layouts at `/variants/` retain their previous wording. These copy changes passed 144 DOM and local interaction checks across both languages and all three layouts, covering field meanings, validation, draft retention, search recovery, map keyboard selection, and sample clocking. See [copy-checks.json](evidence/copy-checks.json). These checks do not measure visual layout or contrast.
 
-Catalogue fixtures show 128 products and storage-unit workflow totals 6/14/342, independently of three displayed rows. Product rows use Ready/Draft; the separate Storage units view uses workflow statuses. The paging example has a 20-record size and disabled Previous/Next because all three fixture rows fit on one page. Real cursor behavior and the phone list are verified in the application, not reproduced here.
+The native preview also passed 32 overflow checks at 390px and 1280px across the four workflows, both languages, and both themes. Inputs remain 36px on desktop and 48px on phones. The refined English desktop and Thai phone form screenshots were inspected; see [desktop](evidence/copy-desktop-en.png) and [phone](evidence/copy-mobile-th.png). The shared pallet unit label keeps the desktop input bottoms aligned.
 
-## Evidence and limits
+## Source map
 
-[adoption-checks.json](evidence/adoption-checks.json) records 68 language/theme/state combinations, 16 selected-rule structural axe runs and 1,480 DOM/event/source assertions. Run `node docs/design-sheet/evidence/check-adoption.cjs` from the repository root to reproduce them. Proposed badge pairs calculate to 7.96:1–9.72:1 from their hex colors. These do not measure browser layout, computed pointer density, contrast or full accessibility. The sampled application baseline passed 39 tests across eight files before sheet edits.
+| Sheet area         | Current source                                                                                                                                                  | Proposed change                                                                                                                                                                                                                |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Theme              | `src/app/globals.css`, `src/components/ui/theme-toggle.tsx`                                                                                                     | Preserve both palettes. Use neutral surfaces more consistently.                                                                                                                                                                |
+| Type               | `src/app/[locale]/layout.tsx`, `src/components/ui/PageHeader.tsx`                                                                                               | Preserve Geist and Geist Mono, the 24/32 heading and 14/20 body scale. Load the declared Noto Sans Thai fallback locally in the sheet.                                                                                         |
+| Shell              | `src/components/examples/c-sidebar-2.tsx`, `src/lib/navigation.ts`                                                                                              | Retain warehouse context, search, locale/theme controls, role-based destinations, and mobile navigation. The sheet’s own navigation is documentation navigation.                                                               |
+| Actions and fields | `src/components/ui/button.tsx`, `input.tsx`, `FormField.tsx`                                                                                                    | Use 36px desktop controls and 48px touch controls, preserving 6.4px corners and visible focus. Keep secondary actions neutral. Use inline labels for AI origin rather than tinted fields.                                      |
+| Job scan           | `src/features/finishedGoods/jobScan/JobScanScreen.tsx`, `TicketCard.tsx`, `ticketDraft.ts`                                                                      | Flatten ticket framing and capture toolbar; retain location-first order, the two required identities, seven optional fields, review notice, source information and Save scope.                                                 |
+| Finished goods     | `src/features/finishedGoods/FinishedGoodsCatalogue.tsx`, `FinishedGoodsTable.tsx`, `CatalogueFilterControls.tsx`                                                | Replace boxed totals with a statistic strip. Keep search, view selection, filters, scoped totals, numeric alignment and real pagination.                                                                                       |
+| Floor planning     | `src/components/storageLayouts/FloorMap.tsx`, `FloorWorkspaceToolbar.tsx`, `src/components/storageScene/sceneColors.ts`, `src/lib/storageLayouts/areaColors.ts` | One map surface and an adjacent inspector. Preserve real geometry, floor selection, 2D/3D modes, editing guards, inventory and independent persisted area colors. The sheet’s map is a schematic, not a production floor plan. |
+| HR                 | `src/features/hr/TodayScreen.tsx`, `HrUi.tsx`, `ReviewScreen.tsx`, `PeriodDetailScreen.tsx`                                                                     | Flatten receipt and summary boxes. Keep actual/planned times distinct, one next clock action, server receipts, correction review and immutable period certification.                                                           |
+| States             | `src/components/system/DataGate.tsx`, `QueryGate.tsx`, `LedgerPanelStatus.tsx`, `src/components/ui/Notice.tsx`, `EmptyState.tsx`                                | Preserve loading/empty/error distinctions, actionable recovery, read-only explanations and draft retention.                                                                                                                    |
 
-The T3 collaborative preview returned metadata, but the automation host was disconnected. Fresh visual review, browser axe, production build/CSS, physical devices and screen-reader checks remain open. No application files were changed or deployed in this revision.
+Existing design context: `docs/plans/design-system.md` and `src/components/shell/_prototype/minimal-app/design-notes.md`. The earlier prototype informed the quieter direction; it has not been treated as an implemented production design.
 
-All earlier screenshot/JSON reports in `evidence/` describe the sheet at `8b0ef538`; see [evidence/README.md](evidence/README.md). Their 64 browser combinations, 144 copy checks and 32 later overflow checks are historical results, not current revision results. The [comparison variants](variants/README.md) now load frozen assets and retain their earlier wording/layout.
+`tokens.css` freezes the palette read from `src/app/globals.css` at the beginning of this session. The application stylesheet changed concurrently while the sheet was being authored, including a light primary of `#1d4ed8` and a white canvas. This proposal retains the original snapshot so its references stay reproducible. Confirm the latest application tokens when implementing the composition; the sheet does not override them.
+
+## Implementation order
+
+1. Adjust shared page, panel and toolbar composition first. Keep public component APIs and variant meanings intact, especially legacy `bg-accent` and `text-muted`.
+2. Flatten job scan and scanned-record rows. Preserve all fields, AI-origin clearing on edit, blocking validation, error notices, photo inspection, QR and barcode behavior.
+3. Adopt the statistic strip and shared list surface for finished goods and buildings. Preserve filters, view modes and pagination; do not derive global totals from a page.
+4. Apply quieter grouping to HR receipts and review screens. Preserve permission differences, factual clock policy, correction status and period versioning.
+5. Review floor planner chrome independently from geometry and scene colors. Never substitute area identity colors for occupancy/status colors.
+
+Validate implementation at 390px, 768px, 1280px and 1440px, both languages and themes, keyboard, long names, empty/loading/failed/read-only states. Text and placeholders must meet 4.5:1 contrast; large text and meaningful non-text controls must meet 3:1. Preserve reduced motion and browser zoom. Application changes should run the repository’s appropriate checks; this standalone documentation sheet uses browser and formatting verification.
+
+The sheet passed 64 viewport/language/theme/workflow combinations with no document overflow or violations in the tested axe WCAG A/AA rules, plus eight focused interaction checks. See [browser-checks.json](evidence/browser-checks.json) and the screenshots in `evidence/`. These checks do not establish complete accessibility conformance. Print CSS is supplied; physical printing and PDF pagination were not tested.
 
 ## Impeccable installation
 
