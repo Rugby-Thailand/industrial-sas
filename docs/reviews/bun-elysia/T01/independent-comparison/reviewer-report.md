@@ -44,3 +44,7 @@ A reviewer-only post-analysis assertion initially assumed every negative probe u
 ## Remaining gates
 
 The coordinator's full local gates are reported separately. Linux protected CI, final PR head-match verification and automatic staging/production release remain required. Adding evidence-only artifacts can be checked without changing measured implementation; integrating source/lock/config/generated-input changes invalidates this exact candidate comparison and needs affected reruns. Rollback follows the T01 plan's scoped checker/CI revert while retaining accepted fixture corrections.
+
+## Portable repository delivery
+
+Complete untouched original evidence, preparation logs, source-hash maps and replacement benchmark maps are in the sibling `../industrial-sas-delivery-preserved-20261011/T01/independent-comparison/` bundle. Delivered JSON retains measurement values, with formatting and portable path normalization recorded in `delivery-preservation.json`. The identical complete before/after input map is delivered once as `benchmark/input-fingerprint.json.gz`, with original/compressed hashes in `benchmark/fingerprint-receipt.json`. Source hashes are also covered by that complete map. The original candidate benchmark is the unchanged T01 `../benchmark/` directory. Final PR-head approval requires the declared repeat on the subsequent evidence-only commit.
