@@ -23,6 +23,19 @@ export interface OriginProtection {
 type Environment = Readonly<Record<string, string | undefined>>;
 type RequestOptions = NonNullable<Parameters<APIRequestContext["fetch"]>[1]>;
 
+function isRemovedInterception(
+  error: unknown,
+  method: "continueRequest" | "failRequest",
+) {
+  return (
+    error instanceof Error &&
+    (error.message ===
+      `cdpSession.send: Protocol error (Fetch.${method}): Invalid InterceptionId.` ||
+      error.message ===
+        `Protocol error (Fetch.${method}): Invalid InterceptionId.`)
+  );
+}
+
 /** Removes protection credentials even when a caller used different casing. */
 export function withoutProtectionHeaders(headers: Record<string, string>) {
   return Object.fromEntries(
@@ -100,6 +113,7 @@ export async function installProtectedOrigin(
   const sessions: CDPSession[] = [];
   const removeListeners: (() => void)[] = [];
   let failed = false;
+  let requestFailures = 0;
   const unexpectedPage = (page: Page) => {
     failed = true;
     void page.close().catch(() => {});
@@ -154,22 +168,32 @@ export async function installProtectedOrigin(
             continuing &&
             event.networkId !== undefined &&
             canceled.has(event.networkId) &&
-            error instanceof Error &&
-            /^(?:cdpSession\.send: )?Protocol error \(Fetch\.continueRequest\): Invalid InterceptionId\.$/.test(
-              error.message,
-            )
+            isRemovedInterception(error, "continueRequest")
           ) {
             canceled.delete(event.networkId);
             return;
           }
+          // Fetch.networkId is optional, and a request can disappear before
+          // Network's cancellation event reaches this session. Mark it failed
+          // while checking: only a second exact protocol response proving the
+          // browser-emitted interception no longer exists can clear this case.
+          // A successful block proves the request was still active and remains
+          // a failure. Token/header errors and lost sessions cannot be cleared.
           // Never log protocol errors: request details can contain credentials.
-          failed = true;
-          await session
-            .send("Fetch.failRequest", {
+          requestFailures += 1;
+          try {
+            await session.send("Fetch.failRequest", {
               requestId: event.requestId,
               errorReason: "BlockedByClient",
-            })
-            .catch(() => {});
+            });
+          } catch (blockError) {
+            if (
+              continuing &&
+              isRemovedInterception(error, "continueRequest") &&
+              isRemovedInterception(blockError, "failRequest")
+            )
+              requestFailures -= 1;
+          }
         }
       };
       session.on("Fetch.requestPaused", handleRequest);
@@ -190,7 +214,8 @@ export async function installProtectedOrigin(
   }
   return {
     assertHealthy() {
-      if (failed) throw new Error("SMOKE_PROTECTION_REQUEST_FAILED");
+      if (failed || requestFailures !== 0)
+        throw new Error("SMOKE_PROTECTION_REQUEST_FAILED");
     },
     async dispose() {
       context.off("page", unexpectedPage);

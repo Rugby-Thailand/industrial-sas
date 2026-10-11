@@ -70,7 +70,9 @@ vi.mock("@/hooks/useScanContinuation", async (importOriginal) => ({
 }));
 vi.mock("convex/react", () => ({
   useMutation: (ref: Parameters<typeof getFunctionName>[0]) =>
-    getFunctionName(ref).endsWith(":saveProduct") ? mocks.save : mocks.pallet,
+    getFunctionName(ref).endsWith(":saveProduct")
+      ? Object.assign(mocks.save, { withOptimisticUpdate: () => mocks.save })
+      : mocks.pallet,
   useQuery: (ref: Parameters<typeof getFunctionName>[0], args: unknown) =>
     catalogueTestResponse(
       getFunctionName(ref),

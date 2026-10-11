@@ -33,21 +33,33 @@ let completedFlow: FlowResult | undefined;
 
 async function signIn(page: Page) {
   const state = readReadyFixtureState();
-  await setupClerkTestingToken({ page });
-  await page.goto("/th/sign-in");
-  await clerk.loaded({ page });
-  await clerk.signIn({ page, emailAddress: state.managerEmail });
-  expect(await page.evaluate(() => window.Clerk.user?.id)).toBe(
-    state.clerkUserId,
-  );
-  await page.evaluate(async (organization) => {
-    await window.Clerk.setActive({ organization });
-  }, state.clerkOrganizationId);
-  await page.evaluate(
-    ([key, warehouse]) => window.localStorage.setItem(key!, warehouse!),
-    [WAREHOUSE_KEY, state.runWarehouseId],
-  );
-  return state;
+  let phase = "STAGING_SIGN_IN_TESTING_TOKEN_FAILED";
+  try {
+    await setupClerkTestingToken({ page });
+    phase = "STAGING_SIGN_IN_NAVIGATION_FAILED";
+    await page.goto("/th/sign-in");
+    phase = "STAGING_SIGN_IN_LOAD_FAILED";
+    await clerk.loaded({ page });
+    phase = "STAGING_SIGN_IN_TICKET_FAILED";
+    await clerk.signIn({ page, emailAddress: state.managerEmail });
+    phase = "STAGING_SIGN_IN_IDENTITY_UNCONFIRMED";
+    expect(await page.evaluate(() => window.Clerk.user?.id)).toBe(
+      state.clerkUserId,
+    );
+    phase = "STAGING_SIGN_IN_ORGANIZATION_FAILED";
+    await page.evaluate(async (organization) => {
+      await window.Clerk.setActive({ organization });
+    }, state.clerkOrganizationId);
+    phase = "STAGING_SIGN_IN_WAREHOUSE_CACHE_FAILED";
+    await page.evaluate(
+      ([key, warehouse]) => window.localStorage.setItem(key!, warehouse!),
+      [WAREHOUSE_KEY, state.runWarehouseId],
+    );
+    return state;
+  } catch {
+    // The sensitive reporter accepts fixed codes, never raw auth errors.
+    throw new Error(phase);
+  }
 }
 
 async function convexAs(page: Page): Promise<Execute> {
@@ -77,31 +89,39 @@ test("signs in and resolves the organization and warehouse context", async ({
   page,
 }) => {
   const state = await signIn(page);
-  await page.goto("/th/master-data/storage-layouts");
-  await expect(page).toHaveURL(/\/th\/master-data\/storage-layouts$/);
-  await expect(page.getByTestId("not-found")).toHaveCount(0);
-  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  let phase = "STAGING_AUTH_CONTEXT_NAVIGATION_FAILED";
+  try {
+    await page.goto("/th/master-data/storage-layouts");
+    phase = "STAGING_AUTH_CONTEXT_PAGE_UNCONFIRMED";
+    await expect(page).toHaveURL(/\/th\/master-data\/storage-layouts$/);
+    await expect(page.getByTestId("not-found")).toHaveCount(0);
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 
-  const execute = await convexAs(page);
-  const workspace = (await execute(
-    "query",
-    "workspace/current:readCurrent",
-    {},
-  )) as {
-    ok: boolean;
-    value: {
-      organization: { name: string };
-      warehouses: { id: string; code: string }[];
+    phase = "STAGING_AUTH_CONTEXT_QUERY_FAILED";
+    const execute = await convexAs(page);
+    const workspace = (await execute(
+      "query",
+      "workspace/current:readCurrent",
+      {},
+    )) as {
+      ok: boolean;
+      value: {
+        organization: { name: string };
+        warehouses: { id: string; code: string }[];
+      };
     };
-  };
-  expect(workspace.ok).toBe(true);
-  expect(workspace.value.organization.name).toBe(
-    organizationName(state.runId, "primary"),
-  );
-  // Scoped membership: the run warehouse only, never the forbidden one.
-  expect(workspace.value.warehouses.map(({ id }) => id)).toEqual([
-    state.runWarehouseId,
-  ]);
+    phase = "STAGING_AUTH_CONTEXT_RESULT_UNCONFIRMED";
+    expect(workspace.ok).toBe(true);
+    expect(workspace.value.organization.name).toBe(
+      organizationName(state.runId, "primary"),
+    );
+    // Scoped membership: the run warehouse only, never the forbidden one.
+    expect(workspace.value.warehouses.map(({ id }) => id)).toEqual([
+      state.runWarehouseId,
+    ]);
+  } catch {
+    throw new Error(phase);
+  }
 });
 
 test("creates a building through the UI and reads it back", async ({
@@ -226,8 +246,16 @@ test("rejects an invalid JWT at the real Convex boundary", async () => {
 
 test("signing out returns private routes to sign-in", async ({ page }) => {
   await signIn(page);
-  await page.goto("/th/master-data/storage-layouts");
-  await clerk.signOut({ page });
-  await page.goto("/th/master-data/storage-layouts");
-  await expect(page).toHaveURL(/\/th\/sign-in/);
+  let phase = "STAGING_SIGNOUT_NAVIGATION_FAILED";
+  try {
+    await page.goto("/th/master-data/storage-layouts");
+    phase = "STAGING_SIGNOUT_SDK_FAILED";
+    await clerk.signOut({ page });
+    phase = "STAGING_SIGNOUT_REVISIT_FAILED";
+    await page.goto("/th/master-data/storage-layouts");
+    phase = "STAGING_SIGNOUT_ROUTE_UNCONFIRMED";
+    await expect(page).toHaveURL(/\/th\/sign-in/);
+  } catch {
+    throw new Error(phase);
+  }
 });

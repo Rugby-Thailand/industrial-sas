@@ -10,7 +10,10 @@ import { CursorPagination } from "@/components/system/CursorPagination";
 import { useCursorPagination } from "@/hooks/useCursorPagination";
 import { useCatalogueSync } from "@/hooks/useCatalogueSync";
 import { useScanContinuation } from "@/hooks/useScanContinuation";
-import { BatchManager } from "./BatchManager";
+import { lazy, Suspense } from "react";
+const BatchManager = lazy(() =>
+  import("./BatchManager").then((module) => ({ default: module.BatchManager })),
+);
 import { useMutation, useQuery } from "convex/react";
 import { Button } from "@/components/ui/button";
 import {
@@ -506,14 +509,16 @@ export function ProductBatches({
         />
       )}
       {manage && (
-        <BatchManager
-          key={`${warehouseId}:${product._id}:${manage.id}:${manage.unitId ?? "batch"}:${manage.mode}`}
-          warehouseId={warehouseId}
-          batchId={manage.id}
-          mode={manage.mode}
-          unitId={manage.unitId}
-          onClose={closeManager}
-        />
+        <Suspense fallback={<Loading />}>
+          <BatchManager
+            key={`${warehouseId}:${product._id}:${manage.id}:${manage.unitId ?? "batch"}:${manage.mode}`}
+            warehouseId={warehouseId}
+            batchId={manage.id}
+            mode={manage.mode}
+            unitId={manage.unitId}
+            onClose={closeManager}
+          />
+        </Suspense>
       )}
       <Dialog
         open={!!reviewUnit}
