@@ -3,7 +3,7 @@
 Agent: Kiro, claude-opus-5.5, high effort, no delegation. Input: exact
 `f92f437ac281519fff93d527ccb1241b5e3cd2dd`, clean tree (1,353 tracked files),
 and the independent final reports `T03/final-audits/{standards,spec}.md`
-with their probe sources and receipts. The corrections are uncommitted.
+with their probe sources and receipts. The corrections were uncommitted when this agent handoff was written and were then frozen by the coordinator as `66d143d6a00f971805e1bba303014d828e9ab7e6`.
 This is not an approval. New independent non-author audits and exact-version
 full gates are still required, and the coordinator owns them after source
 freeze.
