@@ -1,6 +1,6 @@
 "use client";
 
-import { ExternalLink } from "lucide-react";
+import { ChevronDown, ExternalLink } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
 import {
@@ -65,58 +65,69 @@ export function AutomaticEstimate({
     <section
       aria-labelledby="usage-estimate"
       aria-busy={estimate === undefined}
-      className="space-y-3"
       data-testid="usage-estimate"
     >
-      <h2 id="usage-estimate" className="text-lg font-semibold sm:text-xl">
-        {t("estimateTitle")}
-      </h2>
-      <dl className="grid grid-cols-3 gap-3 text-xs sm:gap-6 sm:text-sm">
-        <div className="min-w-0 space-y-1">
-          <dt className="text-muted">{t("estimateRateLabel")}</dt>
-          <dd className="text-base font-semibold tabular-nums sm:text-lg">
-            {fx && fx.status !== "UNAVAILABLE"
-              ? format.num(fx.value.rate, 4)
-              : "—"}
-          </dd>
-          <dd className="text-xs leading-relaxed text-muted">
-            {fx && fx.status !== "UNAVAILABLE"
-              ? t("rateDate", { date: fx.value.date })
-              : null}{" "}
-            {link(FX_SOURCE_DOCS, "Frankfurter")}
-          </dd>
-          <dd className="text-xs">{state(fx)}</dd>
+      <details className="group">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-sm text-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
+          <h2 id="usage-estimate" className="text-sm font-medium">
+            {t("estimateTitle")}
+          </h2>
+          <ChevronDown
+            aria-hidden="true"
+            className="size-4 shrink-0 group-open:rotate-180"
+          />
+        </summary>
+        <div className="space-y-4 pt-3">
+          <dl className="grid gap-4 text-sm sm:grid-cols-3 sm:gap-6">
+            <div className="min-w-0 space-y-1">
+              <dt className="text-muted">{t("estimateRateLabel")}</dt>
+              <dd className="text-base font-semibold tabular-nums sm:text-lg">
+                {fx && fx.status !== "UNAVAILABLE"
+                  ? format.num(fx.value.rate, 4)
+                  : "—"}
+              </dd>
+              <dd className="text-xs leading-relaxed text-muted">
+                {fx && fx.status !== "UNAVAILABLE"
+                  ? t("rateDate", { date: fx.value.date })
+                  : null}{" "}
+                {link(FX_SOURCE_DOCS, "Frankfurter")}
+              </dd>
+              <dd className="text-xs">{state(fx)}</dd>
+            </div>
+            <div className="min-w-0 space-y-1">
+              <dt className="text-muted">{t("estimateFeeLabel")}</dt>
+              <dd className="text-base font-semibold tabular-nums sm:text-lg">
+                {funding && funding.status !== "UNAVAILABLE"
+                  ? `${format.num(funding.value.percent, 1)}%`
+                  : "—"}
+              </dd>
+              <dd className="text-xs leading-relaxed text-muted">
+                {funding && funding.status !== "UNAVAILABLE"
+                  ? t("feeMinimum", {
+                      minimum: format.num(funding.value.minimumUsd, 2),
+                    })
+                  : null}{" "}
+                {link(FUNDING_SOURCE_DOCS, t("fundingSourceName"))}
+              </dd>
+              <dd className="text-xs">{state(funding)}</dd>
+            </div>
+            <div className="min-w-0 space-y-1">
+              <dt className="text-muted">{t("estimateSnapshotLabel")}</dt>
+              <dd className="text-xs tabular-nums sm:text-sm">
+                {estimate
+                  ? when.format(estimate.loadedAt)
+                  : t("estimateLoading")}
+              </dd>
+              <dd className="text-xs leading-relaxed text-muted">
+                {t("snapshotNote")}
+              </dd>
+            </div>
+          </dl>
+          <p className="max-w-prose text-xs leading-relaxed text-muted">
+            {t("estimateNote")}
+          </p>
         </div>
-        <div className="min-w-0 space-y-1">
-          <dt className="text-muted">{t("estimateFeeLabel")}</dt>
-          <dd className="text-base font-semibold tabular-nums sm:text-lg">
-            {funding && funding.status !== "UNAVAILABLE"
-              ? `${format.num(funding.value.percent, 1)}%`
-              : "—"}
-          </dd>
-          <dd className="text-xs leading-relaxed text-muted">
-            {funding && funding.status !== "UNAVAILABLE"
-              ? t("feeMinimum", {
-                  minimum: format.num(funding.value.minimumUsd, 2),
-                })
-              : null}{" "}
-            {link(FUNDING_SOURCE_DOCS, t("fundingSourceName"))}
-          </dd>
-          <dd className="text-xs">{state(funding)}</dd>
-        </div>
-        <div className="min-w-0 space-y-1">
-          <dt className="text-muted">{t("estimateSnapshotLabel")}</dt>
-          <dd className="text-xs tabular-nums sm:text-sm">
-            {estimate ? when.format(estimate.loadedAt) : t("estimateLoading")}
-          </dd>
-          <dd className="text-xs leading-relaxed text-muted">
-            {t("snapshotNote")}
-          </dd>
-        </div>
-      </dl>
-      <p className="max-w-prose text-xs leading-relaxed text-muted">
-        {t("estimateNote")}
-      </p>
+      </details>
     </section>
   );
 }

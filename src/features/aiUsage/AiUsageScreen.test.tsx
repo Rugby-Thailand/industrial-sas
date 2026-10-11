@@ -188,8 +188,24 @@ describe("AiUsageScreen access", () => {
       screen.getByRole("heading", { name: "Recent activity" }),
     ).toBeInTheDocument();
     expect(
-      await screen.findByRole("heading", { name: "Automatic baht estimate" }),
+      await screen.findByRole("heading", { name: "Baht estimate" }),
     ).toBeInTheDocument();
+    const details = screen
+      .getByTestId("usage-estimate")
+      .querySelector("details")!;
+    const toggle = details.querySelector("summary")!;
+    const sourceLink = within(details).getByRole("link", {
+      name: /Frankfurter/,
+      hidden: true,
+    });
+    expect(details).not.toHaveAttribute("open");
+    expect(sourceLink).not.toBeVisible();
+    fireEvent.click(toggle);
+    expect(details).toHaveAttribute("open");
+    expect(sourceLink).toBeVisible();
+    fireEvent.click(toggle);
+    expect(details).not.toHaveAttribute("open");
+    expect(sourceLink).not.toBeVisible();
     expect(screen.queryByText("Baht estimate settings")).toBeNull();
     expect(screen.queryByRole("spinbutton")).toBeNull();
     expect(screen.queryByRole("button", { name: /Save/ })).toBeNull();
@@ -280,7 +296,9 @@ describe("AiUsageScreen statement and feature strip", () => {
     const settings = within(screen.getByTestId("usage-estimate"));
     expect(settings.getByText("40.0000")).toBeInTheDocument();
     expect(settings.getByText("5.0%")).toBeInTheDocument();
-    expect(settings.getByText(/minimum US\$0\.80 each/)).toBeInTheDocument();
+    expect(
+      settings.getByText(/Minimum US\$0\.80 per purchase/),
+    ).toBeInTheDocument();
     expect(
       settings.getByText(/Reference rate for 2026-10-11/),
     ).toBeInTheDocument();
@@ -305,7 +323,7 @@ describe("AiUsageScreen statement and feature strip", () => {
     expect(document.body.textContent).not.toContain("฿");
     expect(
       within(screen.getByTestId("usage-estimate")).getAllByText(
-        "Unavailable right now; baht is not estimated from it",
+        "Unavailable · not used in estimates",
       ),
     ).toHaveLength(2);
     view.unmount();
@@ -335,9 +353,8 @@ describe("AiUsageScreen statement and feature strip", () => {
       />,
       { locale: "en" },
     );
-    expect(
-      await screen.findByText(/^Not refreshed · last checked/),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/^Stale · checked/)).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Baht estimate"));
     expect(screen.getByText(/Reference rate for 2026-10-08/)).toBeVisible();
   });
 

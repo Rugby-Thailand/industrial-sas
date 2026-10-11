@@ -73,3 +73,15 @@ All **after** images render production components with synthetic in-memory provi
 - On Vercel the data cache is shared and durable; a self-hosted multi-instance deployment would need a shared cache handler for the one-per-day bound to hold across instances.
 - OpenRouter could change the FAQ wording; the parser then reports the policy unavailable rather than guessing.
 - `aiUsage.configure` remains provisioned but no longer grants anything in the report.
+
+## Compact estimate follow-up
+
+The estimate now starts as one “Baht estimate” disclosure row. Click or keyboard activation opens/closes the rate, card funding fee, update time, source links and shorter explanatory copy. English and Thai keep the daily reference-rate, per-purchase fee and confirmed-USD distinctions. Expanded details stack on phones and use three columns on desktop.
+
+T3 browser checks confirmed the default closed state, click expansion and Enter collapse at 1440 px, and Thai/light expansion at 390 px with no page overflow. The row has a 44 px target. These captures use the same sample-data fixture:
+
+- [Desktop, closed](assets/ai-usage-layout-20261011/estimate-collapsed-desktop-dark.png)
+- [Desktop, expanded](assets/ai-usage-layout-20261011/estimate-expanded-desktop-dark.png)
+- [Phone, Thai/light expanded](assets/ai-usage-layout-20261011/estimate-expanded-mobile-thai-light.png)
+
+Validation: all 29 report tests passed, including default collapse, expansion and collapse; targeted ESLint, formatting, pinned Bun typecheck and `git diff --check` passed. Impeccable detector returned no findings.
