@@ -1,0 +1,23 @@
+{
+  "recordedAt": "2026-10-11T06:12:09.973813+00:00",
+  "explicitlySetBeforeLaunch": false,
+  "flags": {
+    "NEXT_TELEMETRY_DISABLED": {
+      "present": false
+    },
+    "NEXT_PUBLIC_OBSERVABILITY_SINK": {
+      "present": false
+    },
+    "NEXT_PUBLIC_SENTRY_ENABLED": {
+      "present": false
+    },
+    "NEXT_PUBLIC_SPEED_INSIGHTS_ENABLED": {
+      "present": false
+    },
+    "SENTRY_ENABLED": {
+      "present": false
+    }
+  },
+  "provenance": "Foreground Python runner invoked node without env argument; harness copies its inherited environment and deletes only AGENT/CLAUDECODE/REPL_ID. No shell assignments or environment changes were made before or during the run. These approved keys were sampled from the same task tool environment while the foreground child was running. No env-file contents, DSNs or auth variables read.",
+  "scope": "No runtime/browser telemetry is initialized by this standalone checker experiment; Next config/typegen sees inherited public flags."
+}

@@ -1,0 +1,56 @@
+{
+  "identical": true,
+  "counts": {
+    "typescript6": 775,
+    "bun": 775
+  },
+  "onlyTypescript6": [],
+  "onlyBun": [],
+  "byTopLevel": {
+    ".next/types": 4,
+    "convex": 138,
+    "messages": 2,
+    "next-env.d.ts": 1,
+    "next.config.ts": 1,
+    "playwright.config.ts": 1,
+    "playwright.production.config.ts": 1,
+    "playwright.staging.config.ts": 1,
+    "playwright.workspace.config.ts": 1,
+    "scripts": 25,
+    "src": 472,
+    "tests": 124,
+    "types": 2,
+    "vitest.config.mts": 1,
+    "vitest.setup.ts": 1
+  },
+  "untrackedInputs": [],
+  "generatedInputs": [
+    ".next/types/cache-life.d.ts",
+    ".next/types/root-params.d.ts",
+    ".next/types/routes.d.ts",
+    ".next/types/validator.ts",
+    "next-env.d.ts"
+  ],
+  "scopeProblems": [],
+  "excludedFromManifests": "dependency files (node_modules) and bundled/installed standard-library declarations: Bun embeds TypeScript 7 libraries, TypeScript 6 uses its installed ones",
+  "listingCommands": {
+    "typescript6": [
+      "<node>",
+      "<repo>/node_modules/typescript/bin/tsc",
+      "--listFilesOnly"
+    ],
+    "bun": [
+      "<repo>/.cache/bun-checker/bun-v1.4.3-bun-darwin-aarch64/bun",
+      "check",
+      "-p",
+      "<repo>/tsconfig.json",
+      "--listFilesOnly",
+      "--no-pretty"
+    ],
+    "bunCwd": "neutral temporary directory containing only {\"private\":true}"
+  },
+  "listingStderr": {
+    "typescript6": "",
+    "bun": "✓ No type errors in 0 files [167.03ms]\n"
+  }
+}

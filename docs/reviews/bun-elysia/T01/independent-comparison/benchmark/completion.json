@@ -1,0 +1,10 @@
+{
+  "completedAt": "2026-10-11T06:16:16.287Z",
+  "commit": "f7d197dc886c3e79f79bb656b91613ded761cace",
+  "harnessSha256": "415fd6f36cef2c9a9c6c7e060abf6ceb45202afc51692258c12089497bafcbd3",
+  "inputSha256": "33815b9a506db2f705dbabee3b27ba4d35bde2544c330a87715affa07baf99db",
+  "samples": 90,
+  "samplesPerProfile": 10,
+  "allAssertionsPassed": true,
+  "externalExitCaptureRequired": true
+}

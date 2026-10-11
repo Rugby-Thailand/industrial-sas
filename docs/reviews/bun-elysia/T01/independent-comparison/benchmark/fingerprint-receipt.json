@@ -1,0 +1,11 @@
+{
+  "candidateSha": "f7d197dc886c3e79f79bb656b91613ded761cace",
+  "inputContentSha256": "33815b9a506db2f705dbabee3b27ba4d35bde2544c330a87715affa07baf99db",
+  "beforeAndAfterBytesIdentical": true,
+  "beforeRawSha256": "d23ed04cdb5485cfeb8cfd9f327732e83bcf0dd6b2daf8f019496c16503ea4d1",
+  "afterRawSha256": "d23ed04cdb5485cfeb8cfd9f327732e83bcf0dd6b2daf8f019496c16503ea4d1",
+  "compressedSha256": "5d6ca0e38cadc84a3523c6b9cab688dbdd03de271cb21e1cc3a8aefed927ec8f",
+  "file": "input-fingerprint.json.gz",
+  "format": "gzip; decompress with gzip -dc to inspect the complete4237-entry JSON map; one identical map delivered instead of duplicate before/after copies",
+  "completeOriginals": "sibling industrial-sas-delivery-preserved-20261011/T01/independent-comparison/benchmark/"
+}

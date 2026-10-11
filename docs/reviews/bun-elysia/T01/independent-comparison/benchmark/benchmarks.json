@@ -1,0 +1,1620 @@
+{
+  "method": "10 serial samples per profile; profile order forward on odd iterations and reversed on even ones. Wall-clock time of each child process (pnpm commands include pnpm startup). Edited samples add a unique export to src/features/finishedGoods/unitNextAction.ts before the timed process and restore it afterwards (not timed).",
+  "profiles": {
+    "checker-ts6-full": [
+      "<node>",
+      "<repo>/node_modules/typescript/bin/tsc",
+      "--noEmit",
+      "--incremental",
+      "false",
+      "--pretty",
+      "false"
+    ],
+    "checker-ts6-cached": [
+      "<node>",
+      "<repo>/node_modules/typescript/bin/tsc",
+      "--noEmit",
+      "--tsBuildInfoFile",
+      "<repo>/.cache/typecheck-benchmark-t01/ts6-cached.tsbuildinfo",
+      "--pretty",
+      "false"
+    ],
+    "checker-ts6-edited": [
+      "<node>",
+      "<repo>/node_modules/typescript/bin/tsc",
+      "--noEmit",
+      "--tsBuildInfoFile",
+      "<repo>/.cache/typecheck-benchmark-t01/ts6-edited.tsbuildinfo",
+      "--pretty",
+      "false"
+    ],
+    "checker-bun": [
+      "<repo>/.cache/bun-checker/bun-v1.4.3-bun-darwin-aarch64/bun",
+      "--check",
+      "--no-pretty"
+    ],
+    "checker-bun-edited": [
+      "<repo>/.cache/bun-checker/bun-v1.4.3-bun-darwin-aarch64/bun",
+      "--check",
+      "--no-pretty"
+    ],
+    "next-typegen": ["pnpm", "exec", "next", "typegen"],
+    "command-ts6-full": [
+      "pnpm",
+      "typecheck:ts6",
+      "--incremental",
+      "false",
+      "--pretty",
+      "false"
+    ],
+    "command-ts6-cached": ["pnpm", "typecheck:ts6", "--pretty", "false"],
+    "command-bun": ["pnpm", "typecheck"]
+  },
+  "primes": {
+    "checkerTypescript6Cached": {
+      "command": [
+        "<node>",
+        "<repo>/node_modules/typescript/bin/tsc",
+        "--noEmit",
+        "--tsBuildInfoFile",
+        "<repo>/.cache/typecheck-benchmark-t01/ts6-cached.tsbuildinfo",
+        "--pretty",
+        "false"
+      ],
+      "cwd": "<repo>",
+      "seconds": 15.539615334000002,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 9.97265625,
+      "stdout": "",
+      "stderr": ""
+    },
+    "commandTypescript6Cached": {
+      "command": ["pnpm", "typecheck:ts6", "--pretty", "false"],
+      "cwd": "<repo>",
+      "seconds": 17.63153575000001,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 8.783203125,
+      "stdout": "\n> storage-planner@0.0.0 typecheck:ts6 <repo>\n> next typegen && tsc --noEmit --pretty false\n\nGenerating route types...\n✓ Types generated successfully\n",
+      "stderr": ""
+    },
+    "scriptCacheFile": "tsconfig.tsbuildinfo"
+  },
+  "summary": {
+    "checker-ts6-full": {
+      "samples": 10,
+      "medianSeconds": 15.251780979000003,
+      "minSeconds": 14.590118084000016,
+      "maxSeconds": 16.04963612500002
+    },
+    "checker-ts6-cached": {
+      "samples": 10,
+      "medianSeconds": 2.974171875,
+      "minSeconds": 2.841349916999985,
+      "maxSeconds": 3.3718887920000125
+    },
+    "checker-ts6-edited": {
+      "samples": 10,
+      "medianSeconds": 6.05073720850001,
+      "minSeconds": 5.918495833000052,
+      "maxSeconds": 6.191270749999996
+    },
+    "checker-bun": {
+      "samples": 10,
+      "medianSeconds": 0.9359256460000034,
+      "minSeconds": 0.8253548329999904,
+      "maxSeconds": 1.1211769169999752
+    },
+    "checker-bun-edited": {
+      "samples": 10,
+      "medianSeconds": 0.9592814165000163,
+      "minSeconds": 0.8599660419999855,
+      "maxSeconds": 1.0747538329999953
+    },
+    "next-typegen": {
+      "samples": 10,
+      "medianSeconds": 1.1837935834999953,
+      "minSeconds": 1.0086884169999977,
+      "maxSeconds": 1.4478792079999694
+    },
+    "command-ts6-full": {
+      "samples": 10,
+      "medianSeconds": 16.199549771000008,
+      "minSeconds": 15.453690333000035,
+      "maxSeconds": 17.104454499999992
+    },
+    "command-ts6-cached": {
+      "samples": 10,
+      "medianSeconds": 4.116206729500002,
+      "minSeconds": 3.920449666999979,
+      "maxSeconds": 4.931449625000008
+    },
+    "command-bun": {
+      "samples": 10,
+      "medianSeconds": 2.0438334169999868,
+      "minSeconds": 1.9574804999999469,
+      "maxSeconds": 2.316920374999987
+    }
+  },
+  "medianRatios": {
+    "checkerFullTs6OverBun": 16.295932314905226,
+    "checkerCachedTs6OverBun": 3.17778649159913,
+    "checkerEditedTs6OverBunEdited": 6.307572631372774,
+    "commandFullTs6OverBun": 7.926061701632366,
+    "commandCachedTs6OverBun": 2.013963904916439
+  },
+  "limits": "Local macOS arm64 workstation only. Not a CI, production build, application runtime or provider latency measurement.",
+  "samples": [
+    {
+      "profile": "checker-ts6-full",
+      "iteration": 1,
+      "command": [
+        "<node>",
+        "<repo>/node_modules/typescript/bin/tsc",
+        "--noEmit",
+        "--incremental",
+        "false",
+        "--pretty",
+        "false"
+      ],
+      "cwd": "<repo>",
+      "seconds": 15.36136675,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 6.93603515625,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "profile": "checker-ts6-cached",
+      "iteration": 1,
+      "command": [
+        "<node>",
+        "<repo>/node_modules/typescript/bin/tsc",
+        "--noEmit",
+        "--tsBuildInfoFile",
+        "<repo>/.cache/typecheck-benchmark-t01/ts6-cached.tsbuildinfo",
+        "--pretty",
+        "false"
+      ],
+      "cwd": "<repo>",
+      "seconds": 2.979845874999999,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 5.82373046875,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "profile": "checker-ts6-edited",
+      "iteration": 1,
+      "command": [
+        "<node>",
+        "<repo>/node_modules/typescript/bin/tsc",
+        "--noEmit",
+        "--tsBuildInfoFile",
+        "<repo>/.cache/typecheck-benchmark-t01/ts6-edited.tsbuildinfo",
+        "--pretty",
+        "false"
+      ],
+      "cwd": "<repo>",
+      "seconds": 6.121068458000009,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 5.82373046875,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "profile": "checker-bun",
+      "iteration": 1,
+      "command": [
+        "<repo>/.cache/bun-checker/bun-v1.4.3-bun-darwin-aarch64/bun",
+        "--check",
+        "--no-pretty"
+      ],
+      "cwd": "<repo>",
+      "seconds": 1.1211769169999752,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 5.46240234375,
+      "stdout": "",
+      "stderr": "✓ No type errors in 763 files [1079.48ms]\n"
+    },
+    {
+      "profile": "checker-bun-edited",
+      "iteration": 1,
+      "command": [
+        "<repo>/.cache/bun-checker/bun-v1.4.3-bun-darwin-aarch64/bun",
+        "--check",
+        "--no-pretty"
+      ],
+      "cwd": "<repo>",
+      "seconds": 0.9759850410000072,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 5.46240234375,
+      "stdout": "",
+      "stderr": "✓ No type errors in 763 files [953.40ms]\n"
+    },
+    {
+      "profile": "next-typegen",
+      "iteration": 1,
+      "command": ["pnpm", "exec", "next", "typegen"],
+      "cwd": "<repo>",
+      "seconds": 1.2891641660000024,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 5.46240234375,
+      "stdout": "Generating route types...\n✓ Types generated successfully\n",
+      "stderr": ""
+    },
+    {
+      "profile": "command-ts6-full",
+      "iteration": 1,
+      "command": [
+        "pnpm",
+        "typecheck:ts6",
+        "--incremental",
+        "false",
+        "--pretty",
+        "false"
+      ],
+      "cwd": "<repo>",
+      "seconds": 17.104454499999992,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 5.46240234375,
+      "stdout": "\n> storage-planner@0.0.0 typecheck:ts6 <repo>\n> next typegen && tsc --noEmit --incremental false --pretty false\n\nGenerating route types...\n✓ Types generated successfully\n",
+      "stderr": ""
+    },
+    {
+      "profile": "command-ts6-cached",
+      "iteration": 1,
+      "command": ["pnpm", "typecheck:ts6", "--pretty", "false"],
+      "cwd": "<repo>",
+      "seconds": 4.914265542000008,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 5.34423828125,
+      "stdout": "\n> storage-planner@0.0.0 typecheck:ts6 <repo>\n> next typegen && tsc --noEmit --pretty false\n\nGenerating route types...\n✓ Types generated successfully\n",
+      "stderr": ""
+    },
+    {
+      "profile": "command-bun",
+      "iteration": 1,
+      "command": ["pnpm", "typecheck"],
+      "cwd": "<repo>",
+      "seconds": 2.208563083999994,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 5.4765625,
+      "stdout": "\n> storage-planner@0.0.0 typecheck <repo>\n> node scripts/ci/install-bun-checker.mjs --verify && next typegen && bun --check --no-pretty\n\nBun checker 1.4.3 (TypeScript 7.0.2)\nGenerating route types...\n✓ Types generated successfully\n",
+      "stderr": "✓ No type errors in 763 files [971.51ms]\n"
+    },
+    {
+      "profile": "command-bun",
+      "iteration": 2,
+      "command": ["pnpm", "typecheck"],
+      "cwd": "<repo>",
+      "seconds": 2.1321276249999936,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 5.4765625,
+      "stdout": "\n> storage-planner@0.0.0 typecheck <repo>\n> node scripts/ci/install-bun-checker.mjs --verify && next typegen && bun --check --no-pretty\n\nBun checker 1.4.3 (TypeScript 7.0.2)\nGenerating route types...\n✓ Types generated successfully\n",
+      "stderr": "✓ No type errors in 763 files [952.96ms]\n"
+    },
+    {
+      "profile": "command-ts6-cached",
+      "iteration": 2,
+      "command": ["pnpm", "typecheck:ts6", "--pretty", "false"],
+      "cwd": "<repo>",
+      "seconds": 4.356349541000003,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 6.87939453125,
+      "stdout": "\n> storage-planner@0.0.0 typecheck:ts6 <repo>\n> next typegen && tsc --noEmit --pretty false\n\nGenerating route types...\n✓ Types generated successfully\n",
+      "stderr": ""
+    },
+    {
+      "profile": "command-ts6-full",
+      "iteration": 2,
+      "command": [
+        "pnpm",
+        "typecheck:ts6",
+        "--incremental",
+        "false",
+        "--pretty",
+        "false"
+      ],
+      "cwd": "<repo>",
+      "seconds": 16.404570666999994,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 6.87939453125,
+      "stdout": "\n> storage-planner@0.0.0 typecheck:ts6 <repo>\n> next typegen && tsc --noEmit --incremental false --pretty false\n\nGenerating route types...\n✓ Types generated successfully\n",
+      "stderr": ""
+    },
+    {
+      "profile": "next-typegen",
+      "iteration": 2,
+      "command": ["pnpm", "exec", "next", "typegen"],
+      "cwd": "<repo>",
+      "seconds": 1.3033601250000064,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 6.72021484375,
+      "stdout": "Generating route types...\n✓ Types generated successfully\n",
+      "stderr": ""
+    },
+    {
+      "profile": "checker-bun-edited",
+      "iteration": 2,
+      "command": [
+        "<repo>/.cache/bun-checker/bun-v1.4.3-bun-darwin-aarch64/bun",
+        "--check",
+        "--no-pretty"
+      ],
+      "cwd": "<repo>",
+      "seconds": 1.0747538329999953,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 6.72021484375,
+      "stdout": "",
+      "stderr": "✓ No type errors in 763 files [1035.77ms]\n"
+    },
+    {
+      "profile": "checker-bun",
+      "iteration": 2,
+      "command": [
+        "<repo>/.cache/bun-checker/bun-v1.4.3-bun-darwin-aarch64/bun",
+        "--check",
+        "--no-pretty"
+      ],
+      "cwd": "<repo>",
+      "seconds": 0.9327849579999747,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 6.72021484375,
+      "stdout": "",
+      "stderr": "✓ No type errors in 763 files [908.95ms]\n"
+    },
+    {
+      "profile": "checker-ts6-edited",
+      "iteration": 2,
+      "command": [
+        "<node>",
+        "<repo>/node_modules/typescript/bin/tsc",
+        "--noEmit",
+        "--tsBuildInfoFile",
+        "<repo>/.cache/typecheck-benchmark-t01/ts6-edited.tsbuildinfo",
+        "--pretty",
+        "false"
+      ],
+      "cwd": "<repo>",
+      "seconds": 6.1854375,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 6.72021484375,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "profile": "checker-ts6-cached",
+      "iteration": 2,
+      "command": [
+        "<node>",
+        "<repo>/node_modules/typescript/bin/tsc",
+        "--noEmit",
+        "--tsBuildInfoFile",
+        "<repo>/.cache/typecheck-benchmark-t01/ts6-cached.tsbuildinfo",
+        "--pretty",
+        "false"
+      ],
+      "cwd": "<repo>",
+      "seconds": 2.981506375000026,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 6.67626953125,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "profile": "checker-ts6-full",
+      "iteration": 2,
+      "command": [
+        "<node>",
+        "<repo>/node_modules/typescript/bin/tsc",
+        "--noEmit",
+        "--incremental",
+        "false",
+        "--pretty",
+        "false"
+      ],
+      "cwd": "<repo>",
+      "seconds": 15.39697120899998,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 6.67626953125,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "profile": "checker-ts6-full",
+      "iteration": 3,
+      "command": [
+        "<node>",
+        "<repo>/node_modules/typescript/bin/tsc",
+        "--noEmit",
+        "--incremental",
+        "false",
+        "--pretty",
+        "false"
+      ],
+      "cwd": "<repo>",
+      "seconds": 15.422309458000003,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 6.359375,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "profile": "checker-ts6-cached",
+      "iteration": 3,
+      "command": [
+        "<node>",
+        "<repo>/node_modules/typescript/bin/tsc",
+        "--noEmit",
+        "--tsBuildInfoFile",
+        "<repo>/.cache/typecheck-benchmark-t01/ts6-cached.tsbuildinfo",
+        "--pretty",
+        "false"
+      ],
+      "cwd": "<repo>",
+      "seconds": 3.0220041670000066,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 6.86474609375,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "profile": "checker-ts6-edited",
+      "iteration": 3,
+      "command": [
+        "<node>",
+        "<repo>/node_modules/typescript/bin/tsc",
+        "--noEmit",
+        "--tsBuildInfoFile",
+        "<repo>/.cache/typecheck-benchmark-t01/ts6-edited.tsbuildinfo",
+        "--pretty",
+        "false"
+      ],
+      "cwd": "<repo>",
+      "seconds": 6.191270749999996,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 6.63525390625,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "profile": "checker-bun",
+      "iteration": 3,
+      "command": [
+        "<repo>/.cache/bun-checker/bun-v1.4.3-bun-darwin-aarch64/bun",
+        "--check",
+        "--no-pretty"
+      ],
+      "cwd": "<repo>",
+      "seconds": 0.9603845420000143,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 6.744140625,
+      "stdout": "",
+      "stderr": "✓ No type errors in 763 files [933.78ms]\n"
+    },
+    {
+      "profile": "checker-bun-edited",
+      "iteration": 3,
+      "command": [
+        "<repo>/.cache/bun-checker/bun-v1.4.3-bun-darwin-aarch64/bun",
+        "--check",
+        "--no-pretty"
+      ],
+      "cwd": "<repo>",
+      "seconds": 0.9938110830000078,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 6.744140625,
+      "stdout": "",
+      "stderr": "✓ No type errors in 763 files [970.48ms]\n"
+    },
+    {
+      "profile": "next-typegen",
+      "iteration": 3,
+      "command": ["pnpm", "exec", "next", "typegen"],
+      "cwd": "<repo>",
+      "seconds": 1.0804521250000108,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 8.12548828125,
+      "stdout": "Generating route types...\n✓ Types generated successfully\n",
+      "stderr": ""
+    },
+    {
+      "profile": "command-ts6-full",
+      "iteration": 3,
+      "command": [
+        "pnpm",
+        "typecheck:ts6",
+        "--incremental",
+        "false",
+        "--pretty",
+        "false"
+      ],
+      "cwd": "<repo>",
+      "seconds": 16.780954499999993,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 8.12548828125,
+      "stdout": "\n> storage-planner@0.0.0 typecheck:ts6 <repo>\n> next typegen && tsc --noEmit --incremental false --pretty false\n\nGenerating route types...\n✓ Types generated successfully\n",
+      "stderr": ""
+    },
+    {
+      "profile": "command-ts6-cached",
+      "iteration": 3,
+      "command": ["pnpm", "typecheck:ts6", "--pretty", "false"],
+      "cwd": "<repo>",
+      "seconds": 4.931449625000008,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 7.0751953125,
+      "stdout": "\n> storage-planner@0.0.0 typecheck:ts6 <repo>\n> next typegen && tsc --noEmit --pretty false\n\nGenerating route types...\n✓ Types generated successfully\n",
+      "stderr": ""
+    },
+    {
+      "profile": "command-bun",
+      "iteration": 3,
+      "command": ["pnpm", "typecheck"],
+      "cwd": "<repo>",
+      "seconds": 2.2260659580000213,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 6.82861328125,
+      "stdout": "\n> storage-planner@0.0.0 typecheck <repo>\n> node scripts/ci/install-bun-checker.mjs --verify && next typegen && bun --check --no-pretty\n\nBun checker 1.4.3 (TypeScript 7.0.2)\nGenerating route types...\n✓ Types generated successfully\n",
+      "stderr": "✓ No type errors in 763 files [1003.93ms]\n"
+    },
+    {
+      "profile": "command-bun",
+      "iteration": 4,
+      "command": ["pnpm", "typecheck"],
+      "cwd": "<repo>",
+      "seconds": 2.316920374999987,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 6.68212890625,
+      "stdout": "\n> storage-planner@0.0.0 typecheck <repo>\n> node scripts/ci/install-bun-checker.mjs --verify && next typegen && bun --check --no-pretty\n\nBun checker 1.4.3 (TypeScript 7.0.2)\nGenerating route types...\n✓ Types generated successfully\n",
+      "stderr": "✓ No type errors in 763 files [1108.54ms]\n"
+    },
+    {
+      "profile": "command-ts6-cached",
+      "iteration": 4,
+      "command": ["pnpm", "typecheck:ts6", "--pretty", "false"],
+      "cwd": "<repo>",
+      "seconds": 4.157434333999991,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 6.68212890625,
+      "stdout": "\n> storage-planner@0.0.0 typecheck:ts6 <repo>\n> next typegen && tsc --noEmit --pretty false\n\nGenerating route types...\n✓ Types generated successfully\n",
+      "stderr": ""
+    },
+    {
+      "profile": "command-ts6-full",
+      "iteration": 4,
+      "command": [
+        "pnpm",
+        "typecheck:ts6",
+        "--incremental",
+        "false",
+        "--pretty",
+        "false"
+      ],
+      "cwd": "<repo>",
+      "seconds": 16.540249792000047,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 6.54736328125,
+      "stdout": "\n> storage-planner@0.0.0 typecheck:ts6 <repo>\n> next typegen && tsc --noEmit --incremental false --pretty false\n\nGenerating route types...\n✓ Types generated successfully\n",
+      "stderr": ""
+    },
+    {
+      "profile": "next-typegen",
+      "iteration": 4,
+      "command": ["pnpm", "exec", "next", "typegen"],
+      "cwd": "<repo>",
+      "seconds": 1.2871350419999799,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 6.15478515625,
+      "stdout": "Generating route types...\n✓ Types generated successfully\n",
+      "stderr": ""
+    },
+    {
+      "profile": "checker-bun-edited",
+      "iteration": 4,
+      "command": [
+        "<repo>/.cache/bun-checker/bun-v1.4.3-bun-darwin-aarch64/bun",
+        "--check",
+        "--no-pretty"
+      ],
+      "cwd": "<repo>",
+      "seconds": 0.9957018749999698,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 6.15478515625,
+      "stdout": "",
+      "stderr": "✓ No type errors in 763 files [961.26ms]\n"
+    },
+    {
+      "profile": "checker-bun",
+      "iteration": 4,
+      "command": [
+        "<repo>/.cache/bun-checker/bun-v1.4.3-bun-darwin-aarch64/bun",
+        "--check",
+        "--no-pretty"
+      ],
+      "cwd": "<repo>",
+      "seconds": 0.8957895419999841,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 6.62255859375,
+      "stdout": "",
+      "stderr": "✓ No type errors in 763 files [872.92ms]\n"
+    },
+    {
+      "profile": "checker-ts6-edited",
+      "iteration": 4,
+      "command": [
+        "<node>",
+        "<repo>/node_modules/typescript/bin/tsc",
+        "--noEmit",
+        "--tsBuildInfoFile",
+        "<repo>/.cache/typecheck-benchmark-t01/ts6-edited.tsbuildinfo",
+        "--pretty",
+        "false"
+      ],
+      "cwd": "<repo>",
+      "seconds": 6.118371624999971,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 6.62255859375,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "profile": "checker-ts6-cached",
+      "iteration": 4,
+      "command": [
+        "<node>",
+        "<repo>/node_modules/typescript/bin/tsc",
+        "--noEmit",
+        "--tsBuildInfoFile",
+        "<repo>/.cache/typecheck-benchmark-t01/ts6-cached.tsbuildinfo",
+        "--pretty",
+        "false"
+      ],
+      "cwd": "<repo>",
+      "seconds": 2.954529707999958,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 6.412109375,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "profile": "checker-ts6-full",
+      "iteration": 4,
+      "command": [
+        "<node>",
+        "<repo>/node_modules/typescript/bin/tsc",
+        "--noEmit",
+        "--incremental",
+        "false",
+        "--pretty",
+        "false"
+      ],
+      "cwd": "<repo>",
+      "seconds": 14.590118084000016,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 6.458984375,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "profile": "checker-ts6-full",
+      "iteration": 5,
+      "command": [
+        "<node>",
+        "<repo>/node_modules/typescript/bin/tsc",
+        "--noEmit",
+        "--incremental",
+        "false",
+        "--pretty",
+        "false"
+      ],
+      "cwd": "<repo>",
+      "seconds": 14.735355250000023,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 5.6123046875,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "profile": "checker-ts6-cached",
+      "iteration": 5,
+      "command": [
+        "<node>",
+        "<repo>/node_modules/typescript/bin/tsc",
+        "--noEmit",
+        "--tsBuildInfoFile",
+        "<repo>/.cache/typecheck-benchmark-t01/ts6-cached.tsbuildinfo",
+        "--pretty",
+        "false"
+      ],
+      "cwd": "<repo>",
+      "seconds": 2.841349916999985,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 5.36376953125,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "profile": "checker-ts6-edited",
+      "iteration": 5,
+      "command": [
+        "<node>",
+        "<repo>/node_modules/typescript/bin/tsc",
+        "--noEmit",
+        "--tsBuildInfoFile",
+        "<repo>/.cache/typecheck-benchmark-t01/ts6-edited.tsbuildinfo",
+        "--pretty",
+        "false"
+      ],
+      "cwd": "<repo>",
+      "seconds": 5.99804779099999,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 5.17431640625,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "profile": "checker-bun",
+      "iteration": 5,
+      "command": [
+        "<repo>/.cache/bun-checker/bun-v1.4.3-bun-darwin-aarch64/bun",
+        "--check",
+        "--no-pretty"
+      ],
+      "cwd": "<repo>",
+      "seconds": 0.8253548329999904,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 5.240234375,
+      "stdout": "",
+      "stderr": "✓ No type errors in 763 files [804.03ms]\n"
+    },
+    {
+      "profile": "checker-bun-edited",
+      "iteration": 5,
+      "command": [
+        "<repo>/.cache/bun-checker/bun-v1.4.3-bun-darwin-aarch64/bun",
+        "--check",
+        "--no-pretty"
+      ],
+      "cwd": "<repo>",
+      "seconds": 0.8640304159999942,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 5.240234375,
+      "stdout": "",
+      "stderr": "✓ No type errors in 763 files [842.59ms]\n"
+    },
+    {
+      "profile": "next-typegen",
+      "iteration": 5,
+      "command": ["pnpm", "exec", "next", "typegen"],
+      "cwd": "<repo>",
+      "seconds": 1.0086884169999977,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 6.421875,
+      "stdout": "Generating route types...\n✓ Types generated successfully\n",
+      "stderr": ""
+    },
+    {
+      "profile": "command-ts6-full",
+      "iteration": 5,
+      "command": [
+        "pnpm",
+        "typecheck:ts6",
+        "--incremental",
+        "false",
+        "--pretty",
+        "false"
+      ],
+      "cwd": "<repo>",
+      "seconds": 15.61488058300002,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 6.421875,
+      "stdout": "\n> storage-planner@0.0.0 typecheck:ts6 <repo>\n> next typegen && tsc --noEmit --incremental false --pretty false\n\nGenerating route types...\n✓ Types generated successfully\n",
+      "stderr": ""
+    },
+    {
+      "profile": "command-ts6-cached",
+      "iteration": 5,
+      "command": ["pnpm", "typecheck:ts6", "--pretty", "false"],
+      "cwd": "<repo>",
+      "seconds": 3.9629064159999836,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 5.50341796875,
+      "stdout": "\n> storage-planner@0.0.0 typecheck:ts6 <repo>\n> next typegen && tsc --noEmit --pretty false\n\nGenerating route types...\n✓ Types generated successfully\n",
+      "stderr": ""
+    },
+    {
+      "profile": "command-bun",
+      "iteration": 5,
+      "command": ["pnpm", "typecheck"],
+      "cwd": "<repo>",
+      "seconds": 2.0018558339999872,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 5.22265625,
+      "stdout": "\n> storage-planner@0.0.0 typecheck <repo>\n> node scripts/ci/install-bun-checker.mjs --verify && next typegen && bun --check --no-pretty\n\nBun checker 1.4.3 (TypeScript 7.0.2)\nGenerating route types...\n✓ Types generated successfully\n",
+      "stderr": "✓ No type errors in 763 files [837.53ms]\n"
+    },
+    {
+      "profile": "command-bun",
+      "iteration": 6,
+      "command": ["pnpm", "typecheck"],
+      "cwd": "<repo>",
+      "seconds": 1.9635574999999954,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 5.22265625,
+      "stdout": "\n> storage-planner@0.0.0 typecheck <repo>\n> node scripts/ci/install-bun-checker.mjs --verify && next typegen && bun --check --no-pretty\n\nBun checker 1.4.3 (TypeScript 7.0.2)\nGenerating route types...\n✓ Types generated successfully\n",
+      "stderr": "✓ No type errors in 763 files [840.44ms]\n"
+    },
+    {
+      "profile": "command-ts6-cached",
+      "iteration": 6,
+      "command": ["pnpm", "typecheck:ts6", "--pretty", "false"],
+      "cwd": "<repo>",
+      "seconds": 3.920449666999979,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 5.22265625,
+      "stdout": "\n> storage-planner@0.0.0 typecheck:ts6 <repo>\n> next typegen && tsc --noEmit --pretty false\n\nGenerating route types...\n✓ Types generated successfully\n",
+      "stderr": ""
+    },
+    {
+      "profile": "command-ts6-full",
+      "iteration": 6,
+      "command": [
+        "pnpm",
+        "typecheck:ts6",
+        "--incremental",
+        "false",
+        "--pretty",
+        "false"
+      ],
+      "cwd": "<repo>",
+      "seconds": 15.453690333000035,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 5.04443359375,
+      "stdout": "\n> storage-planner@0.0.0 typecheck:ts6 <repo>\n> next typegen && tsc --noEmit --incremental false --pretty false\n\nGenerating route types...\n✓ Types generated successfully\n",
+      "stderr": ""
+    },
+    {
+      "profile": "next-typegen",
+      "iteration": 6,
+      "command": ["pnpm", "exec", "next", "typegen"],
+      "cwd": "<repo>",
+      "seconds": 1.0459951670000447,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 4.294921875,
+      "stdout": "Generating route types...\n✓ Types generated successfully\n",
+      "stderr": ""
+    },
+    {
+      "profile": "checker-bun-edited",
+      "iteration": 6,
+      "command": [
+        "<repo>/.cache/bun-checker/bun-v1.4.3-bun-darwin-aarch64/bun",
+        "--check",
+        "--no-pretty"
+      ],
+      "cwd": "<repo>",
+      "seconds": 0.9417348340000026,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 4.51123046875,
+      "stdout": "",
+      "stderr": "✓ No type errors in 763 files [920.72ms]\n"
+    },
+    {
+      "profile": "checker-bun",
+      "iteration": 6,
+      "command": [
+        "<repo>/.cache/bun-checker/bun-v1.4.3-bun-darwin-aarch64/bun",
+        "--check",
+        "--no-pretty"
+      ],
+      "cwd": "<repo>",
+      "seconds": 0.8740265420000068,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 4.51123046875,
+      "stdout": "",
+      "stderr": "✓ No type errors in 763 files [853.06ms]\n"
+    },
+    {
+      "profile": "checker-ts6-edited",
+      "iteration": 6,
+      "command": [
+        "<node>",
+        "<repo>/node_modules/typescript/bin/tsc",
+        "--noEmit",
+        "--tsBuildInfoFile",
+        "<repo>/.cache/typecheck-benchmark-t01/ts6-edited.tsbuildinfo",
+        "--pretty",
+        "false"
+      ],
+      "cwd": "<repo>",
+      "seconds": 6.072374707999988,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 4.51123046875,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "profile": "checker-ts6-cached",
+      "iteration": 6,
+      "command": [
+        "<node>",
+        "<repo>/node_modules/typescript/bin/tsc",
+        "--noEmit",
+        "--tsBuildInfoFile",
+        "<repo>/.cache/typecheck-benchmark-t01/ts6-cached.tsbuildinfo",
+        "--pretty",
+        "false"
+      ],
+      "cwd": "<repo>",
+      "seconds": 2.881744917000004,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 4.79052734375,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "profile": "checker-ts6-full",
+      "iteration": 6,
+      "command": [
+        "<node>",
+        "<repo>/node_modules/typescript/bin/tsc",
+        "--noEmit",
+        "--incremental",
+        "false",
+        "--pretty",
+        "false"
+      ],
+      "cwd": "<repo>",
+      "seconds": 15.202734999999986,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 4.48681640625,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "profile": "checker-ts6-full",
+      "iteration": 7,
+      "command": [
+        "<node>",
+        "<repo>/node_modules/typescript/bin/tsc",
+        "--noEmit",
+        "--incremental",
+        "false",
+        "--pretty",
+        "false"
+      ],
+      "cwd": "<repo>",
+      "seconds": 15.153927833000024,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 3.86181640625,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "profile": "checker-ts6-cached",
+      "iteration": 7,
+      "command": [
+        "<node>",
+        "<repo>/node_modules/typescript/bin/tsc",
+        "--noEmit",
+        "--tsBuildInfoFile",
+        "<repo>/.cache/typecheck-benchmark-t01/ts6-cached.tsbuildinfo",
+        "--pretty",
+        "false"
+      ],
+      "cwd": "<repo>",
+      "seconds": 2.968497875000001,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 3.30078125,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "profile": "checker-ts6-edited",
+      "iteration": 7,
+      "command": [
+        "<node>",
+        "<repo>/node_modules/typescript/bin/tsc",
+        "--noEmit",
+        "--tsBuildInfoFile",
+        "<repo>/.cache/typecheck-benchmark-t01/ts6-edited.tsbuildinfo",
+        "--pretty",
+        "false"
+      ],
+      "cwd": "<repo>",
+      "seconds": 6.022216707999993,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 3.30078125,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "profile": "checker-bun",
+      "iteration": 7,
+      "command": [
+        "<repo>/.cache/bun-checker/bun-v1.4.3-bun-darwin-aarch64/bun",
+        "--check",
+        "--no-pretty"
+      ],
+      "cwd": "<repo>",
+      "seconds": 1.007241584000003,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 3.6416015625,
+      "stdout": "",
+      "stderr": "✓ No type errors in 763 files [985.43ms]\n"
+    },
+    {
+      "profile": "checker-bun-edited",
+      "iteration": 7,
+      "command": [
+        "<repo>/.cache/bun-checker/bun-v1.4.3-bun-darwin-aarch64/bun",
+        "--check",
+        "--no-pretty"
+      ],
+      "cwd": "<repo>",
+      "seconds": 0.8741229590000003,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 3.6416015625,
+      "stdout": "",
+      "stderr": "✓ No type errors in 763 files [849.96ms]\n"
+    },
+    {
+      "profile": "next-typegen",
+      "iteration": 7,
+      "command": ["pnpm", "exec", "next", "typegen"],
+      "cwd": "<repo>",
+      "seconds": 1.05579025000002,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 3.6416015625,
+      "stdout": "Generating route types...\n✓ Types generated successfully\n",
+      "stderr": ""
+    },
+    {
+      "profile": "command-ts6-full",
+      "iteration": 7,
+      "command": [
+        "pnpm",
+        "typecheck:ts6",
+        "--incremental",
+        "false",
+        "--pretty",
+        "false"
+      ],
+      "cwd": "<repo>",
+      "seconds": 15.994528875000018,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 3.6416015625,
+      "stdout": "\n> storage-planner@0.0.0 typecheck:ts6 <repo>\n> next typegen && tsc --noEmit --incremental false --pretty false\n\nGenerating route types...\n✓ Types generated successfully\n",
+      "stderr": ""
+    },
+    {
+      "profile": "command-ts6-cached",
+      "iteration": 7,
+      "command": ["pnpm", "typecheck:ts6", "--pretty", "false"],
+      "cwd": "<repo>",
+      "seconds": 4.0307538340000315,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 3.92333984375,
+      "stdout": "\n> storage-planner@0.0.0 typecheck:ts6 <repo>\n> next typegen && tsc --noEmit --pretty false\n\nGenerating route types...\n✓ Types generated successfully\n",
+      "stderr": ""
+    },
+    {
+      "profile": "command-bun",
+      "iteration": 7,
+      "command": ["pnpm", "typecheck"],
+      "cwd": "<repo>",
+      "seconds": 2.06927112499997,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 4.00927734375,
+      "stdout": "\n> storage-planner@0.0.0 typecheck <repo>\n> node scripts/ci/install-bun-checker.mjs --verify && next typegen && bun --check --no-pretty\n\nBun checker 1.4.3 (TypeScript 7.0.2)\nGenerating route types...\n✓ Types generated successfully\n",
+      "stderr": "✓ No type errors in 763 files [898.99ms]\n"
+    },
+    {
+      "profile": "command-bun",
+      "iteration": 8,
+      "command": ["pnpm", "typecheck"],
+      "cwd": "<repo>",
+      "seconds": 2.018395709000004,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 4.24853515625,
+      "stdout": "\n> storage-planner@0.0.0 typecheck <repo>\n> node scripts/ci/install-bun-checker.mjs --verify && next typegen && bun --check --no-pretty\n\nBun checker 1.4.3 (TypeScript 7.0.2)\nGenerating route types...\n✓ Types generated successfully\n",
+      "stderr": "✓ No type errors in 763 files [858.36ms]\n"
+    },
+    {
+      "profile": "command-ts6-cached",
+      "iteration": 8,
+      "command": ["pnpm", "typecheck:ts6", "--pretty", "false"],
+      "cwd": "<repo>",
+      "seconds": 4.074979125000013,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 4.24853515625,
+      "stdout": "\n> storage-planner@0.0.0 typecheck:ts6 <repo>\n> next typegen && tsc --noEmit --pretty false\n\nGenerating route types...\n✓ Types generated successfully\n",
+      "stderr": ""
+    },
+    {
+      "profile": "command-ts6-full",
+      "iteration": 8,
+      "command": [
+        "pnpm",
+        "typecheck:ts6",
+        "--incremental",
+        "false",
+        "--pretty",
+        "false"
+      ],
+      "cwd": "<repo>",
+      "seconds": 16.45405699999997,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 4.228515625,
+      "stdout": "\n> storage-planner@0.0.0 typecheck:ts6 <repo>\n> next typegen && tsc --noEmit --incremental false --pretty false\n\nGenerating route types...\n✓ Types generated successfully\n",
+      "stderr": ""
+    },
+    {
+      "profile": "next-typegen",
+      "iteration": 8,
+      "command": ["pnpm", "exec", "next", "typegen"],
+      "cwd": "<repo>",
+      "seconds": 1.4478792079999694,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 4.435546875,
+      "stdout": "Generating route types...\n✓ Types generated successfully\n",
+      "stderr": ""
+    },
+    {
+      "profile": "checker-bun-edited",
+      "iteration": 8,
+      "command": [
+        "<repo>/.cache/bun-checker/bun-v1.4.3-bun-darwin-aarch64/bun",
+        "--check",
+        "--no-pretty"
+      ],
+      "cwd": "<repo>",
+      "seconds": 1.0235014579999844,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 4.435546875,
+      "stdout": "",
+      "stderr": "✓ No type errors in 763 files [989.85ms]\n"
+    },
+    {
+      "profile": "checker-bun",
+      "iteration": 8,
+      "command": [
+        "<repo>/.cache/bun-checker/bun-v1.4.3-bun-darwin-aarch64/bun",
+        "--check",
+        "--no-pretty"
+      ],
+      "cwd": "<repo>",
+      "seconds": 0.9390663340000319,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 4.640625,
+      "stdout": "",
+      "stderr": "✓ No type errors in 763 files [915.85ms]\n"
+    },
+    {
+      "profile": "checker-ts6-edited",
+      "iteration": 8,
+      "command": [
+        "<node>",
+        "<repo>/node_modules/typescript/bin/tsc",
+        "--noEmit",
+        "--tsBuildInfoFile",
+        "<repo>/.cache/typecheck-benchmark-t01/ts6-edited.tsbuildinfo",
+        "--pretty",
+        "false"
+      ],
+      "cwd": "<repo>",
+      "seconds": 6.029099709000031,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 4.640625,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "profile": "checker-ts6-cached",
+      "iteration": 8,
+      "command": [
+        "<node>",
+        "<repo>/node_modules/typescript/bin/tsc",
+        "--noEmit",
+        "--tsBuildInfoFile",
+        "<repo>/.cache/typecheck-benchmark-t01/ts6-cached.tsbuildinfo",
+        "--pretty",
+        "false"
+      ],
+      "cwd": "<repo>",
+      "seconds": 2.992854458999995,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 4.4287109375,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "profile": "checker-ts6-full",
+      "iteration": 8,
+      "command": [
+        "<node>",
+        "<repo>/node_modules/typescript/bin/tsc",
+        "--noEmit",
+        "--incremental",
+        "false",
+        "--pretty",
+        "false"
+      ],
+      "cwd": "<repo>",
+      "seconds": 15.30082695800002,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 5.43505859375,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "profile": "checker-ts6-full",
+      "iteration": 9,
+      "command": [
+        "<node>",
+        "<repo>/node_modules/typescript/bin/tsc",
+        "--noEmit",
+        "--incremental",
+        "false",
+        "--pretty",
+        "false"
+      ],
+      "cwd": "<repo>",
+      "seconds": 16.04963612500002,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 5.94189453125,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "profile": "checker-ts6-cached",
+      "iteration": 9,
+      "command": [
+        "<node>",
+        "<repo>/node_modules/typescript/bin/tsc",
+        "--noEmit",
+        "--tsBuildInfoFile",
+        "<repo>/.cache/typecheck-benchmark-t01/ts6-cached.tsbuildinfo",
+        "--pretty",
+        "false"
+      ],
+      "cwd": "<repo>",
+      "seconds": 3.3718887920000125,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 14.76318359375,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "profile": "checker-ts6-edited",
+      "iteration": 9,
+      "command": [
+        "<node>",
+        "<repo>/node_modules/typescript/bin/tsc",
+        "--noEmit",
+        "--tsBuildInfoFile",
+        "<repo>/.cache/typecheck-benchmark-t01/ts6-edited.tsbuildinfo",
+        "--pretty",
+        "false"
+      ],
+      "cwd": "<repo>",
+      "seconds": 5.953297750000027,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 14.76318359375,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "profile": "checker-bun",
+      "iteration": 9,
+      "command": [
+        "<repo>/.cache/bun-checker/bun-v1.4.3-bun-darwin-aarch64/bun",
+        "--check",
+        "--no-pretty"
+      ],
+      "cwd": "<repo>",
+      "seconds": 1.0735905000000494,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 12.88671875,
+      "stdout": "",
+      "stderr": "✓ No type errors in 763 files [1034.86ms]\n"
+    },
+    {
+      "profile": "checker-bun-edited",
+      "iteration": 9,
+      "command": [
+        "<repo>/.cache/bun-checker/bun-v1.4.3-bun-darwin-aarch64/bun",
+        "--check",
+        "--no-pretty"
+      ],
+      "cwd": "<repo>",
+      "seconds": 0.9425777920000256,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 12.88671875,
+      "stdout": "",
+      "stderr": "✓ No type errors in 763 files [918.79ms]\n"
+    },
+    {
+      "profile": "next-typegen",
+      "iteration": 9,
+      "command": ["pnpm", "exec", "next", "typegen"],
+      "cwd": "<repo>",
+      "seconds": 1.3147308330000378,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 12.88671875,
+      "stdout": "Generating route types...\n✓ Types generated successfully\n",
+      "stderr": ""
+    },
+    {
+      "profile": "command-ts6-full",
+      "iteration": 9,
+      "command": [
+        "pnpm",
+        "typecheck:ts6",
+        "--incremental",
+        "false",
+        "--pretty",
+        "false"
+      ],
+      "cwd": "<repo>",
+      "seconds": 15.739558958000037,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 12.88671875,
+      "stdout": "\n> storage-planner@0.0.0 typecheck:ts6 <repo>\n> next typegen && tsc --noEmit --incremental false --pretty false\n\nGenerating route types...\n✓ Types generated successfully\n",
+      "stderr": ""
+    },
+    {
+      "profile": "command-ts6-cached",
+      "iteration": 9,
+      "command": ["pnpm", "typecheck:ts6", "--pretty", "false"],
+      "cwd": "<repo>",
+      "seconds": 4.470851374999969,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 10.7392578125,
+      "stdout": "\n> storage-planner@0.0.0 typecheck:ts6 <repo>\n> next typegen && tsc --noEmit --pretty false\n\nGenerating route types...\n✓ Types generated successfully\n",
+      "stderr": ""
+    },
+    {
+      "profile": "command-bun",
+      "iteration": 9,
+      "command": ["pnpm", "typecheck"],
+      "cwd": "<repo>",
+      "seconds": 1.9925894580000314,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 10.0390625,
+      "stdout": "\n> storage-planner@0.0.0 typecheck <repo>\n> node scripts/ci/install-bun-checker.mjs --verify && next typegen && bun --check --no-pretty\n\nBun checker 1.4.3 (TypeScript 7.0.2)\nGenerating route types...\n✓ Types generated successfully\n",
+      "stderr": "✓ No type errors in 763 files [843.49ms]\n"
+    },
+    {
+      "profile": "command-bun",
+      "iteration": 10,
+      "command": ["pnpm", "typecheck"],
+      "cwd": "<repo>",
+      "seconds": 1.9574804999999469,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 10.27587890625,
+      "stdout": "\n> storage-planner@0.0.0 typecheck <repo>\n> node scripts/ci/install-bun-checker.mjs --verify && next typegen && bun --check --no-pretty\n\nBun checker 1.4.3 (TypeScript 7.0.2)\nGenerating route types...\n✓ Types generated successfully\n",
+      "stderr": "✓ No type errors in 763 files [830.96ms]\n"
+    },
+    {
+      "profile": "command-ts6-cached",
+      "iteration": 10,
+      "command": ["pnpm", "typecheck:ts6", "--pretty", "false"],
+      "cwd": "<repo>",
+      "seconds": 3.922582417000085,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 10.27587890625,
+      "stdout": "\n> storage-planner@0.0.0 typecheck:ts6 <repo>\n> next typegen && tsc --noEmit --pretty false\n\nGenerating route types...\n✓ Types generated successfully\n",
+      "stderr": ""
+    },
+    {
+      "profile": "command-ts6-full",
+      "iteration": 10,
+      "command": [
+        "pnpm",
+        "typecheck:ts6",
+        "--incremental",
+        "false",
+        "--pretty",
+        "false"
+      ],
+      "cwd": "<repo>",
+      "seconds": 15.632852415999979,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 9.69287109375,
+      "stdout": "\n> storage-planner@0.0.0 typecheck:ts6 <repo>\n> next typegen && tsc --noEmit --incremental false --pretty false\n\nGenerating route types...\n✓ Types generated successfully\n",
+      "stderr": ""
+    },
+    {
+      "profile": "next-typegen",
+      "iteration": 10,
+      "command": ["pnpm", "exec", "next", "typegen"],
+      "cwd": "<repo>",
+      "seconds": 1.0230494160000234,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 8.40625,
+      "stdout": "Generating route types...\n✓ Types generated successfully\n",
+      "stderr": ""
+    },
+    {
+      "profile": "checker-bun-edited",
+      "iteration": 10,
+      "command": [
+        "<repo>/.cache/bun-checker/bun-v1.4.3-bun-darwin-aarch64/bun",
+        "--check",
+        "--no-pretty"
+      ],
+      "cwd": "<repo>",
+      "seconds": 0.8599660419999855,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 8.40625,
+      "stdout": "",
+      "stderr": "✓ No type errors in 763 files [838.83ms]\n"
+    },
+    {
+      "profile": "checker-bun",
+      "iteration": 10,
+      "command": [
+        "<repo>/.cache/bun-checker/bun-v1.4.3-bun-darwin-aarch64/bun",
+        "--check",
+        "--no-pretty"
+      ],
+      "cwd": "<repo>",
+      "seconds": 0.8265337499999441,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 8.40625,
+      "stdout": "",
+      "stderr": "✓ No type errors in 763 files [804.93ms]\n"
+    },
+    {
+      "profile": "checker-ts6-edited",
+      "iteration": 10,
+      "command": [
+        "<node>",
+        "<repo>/node_modules/typescript/bin/tsc",
+        "--noEmit",
+        "--tsBuildInfoFile",
+        "<repo>/.cache/typecheck-benchmark-t01/ts6-edited.tsbuildinfo",
+        "--pretty",
+        "false"
+      ],
+      "cwd": "<repo>",
+      "seconds": 5.918495833000052,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 8.05322265625,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "profile": "checker-ts6-cached",
+      "iteration": 10,
+      "command": [
+        "<node>",
+        "<repo>/node_modules/typescript/bin/tsc",
+        "--noEmit",
+        "--tsBuildInfoFile",
+        "<repo>/.cache/typecheck-benchmark-t01/ts6-cached.tsbuildinfo",
+        "--pretty",
+        "false"
+      ],
+      "cwd": "<repo>",
+      "seconds": 2.892426875000005,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 7.568359375,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "profile": "checker-ts6-full",
+      "iteration": 10,
+      "command": [
+        "<node>",
+        "<repo>/node_modules/typescript/bin/tsc",
+        "--noEmit",
+        "--incremental",
+        "false",
+        "--pretty",
+        "false"
+      ],
+      "cwd": "<repo>",
+      "seconds": 14.684929541000049,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 7.568359375,
+      "stdout": "",
+      "stderr": ""
+    }
+  ]
+}

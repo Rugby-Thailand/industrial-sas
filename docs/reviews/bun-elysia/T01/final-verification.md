@@ -15,3 +15,11 @@ No dependency lock, Next runtime/bundler, test runner or deployment controller c
 Rollback: revert the T01 delivery commit, or restore the previous default checker and CI install/order step while retaining the valid fixture corrections. Preserve existing release-controller safeguards. No remote change has been performed for T01.
 
 Portable terminal logs normalize carriage returns and trailing whitespace for Git delivery; exact original logs remain in the sibling preserved bundle. [Normalization hashes](log-normalization.json) record original and delivered bytes. JSON measurements are unchanged.
+
+## Independent comparison
+
+The [independent report](independent-comparison/reviewer-report.md) accepts correctness and local timing on committed candidate `f7d197dc886c3e79f79bb656b91613ded761cace`. All 90 timed processes exited zero in matched forward/reversed order; both checker manifests select 775 project inputs; all 4,237 input fingerprints and 1,291 non-benchmark tracked files match before/after. Whole-command medians: TS6 full 16.199550s, primed cache 4.116207s, Bun 2.043833s. Every paired comparison favored Bun; edited-file cases passed with no regression. Raw distributions, commands and captured foreground exit are delivered under [independent-comparison/](independent-comparison/). The complete identical before/after map is compressed once, with exact-byte hashes in its receipt. Workstation load was uncontrolled (3.3–14.76); no application/provider/build/CI speedup is claimed.
+
+After this evidence-only ledger integration, the coordinator will freeze the final PR commit, repeat mandatory gates and the independent affected comparison on that exact head, and capture final approval externally before PR creation. No further candidate edit is planned. PR, merge and release metadata will be recorded externally and carried into both repository ledgers by the next dependent task after release verification.
+
+Committed `pnpm ci:test-discovery` and `pnpm ci:clean-tree` passed on `f7d197d`; final fixture-specific run passed 2 files / 25 tests. These captured gate receipts remain in the sibling preserved bundle until final-head verification is complete.
