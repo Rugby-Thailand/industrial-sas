@@ -39,6 +39,9 @@ describe("external telemetry boundary", () => {
       route: "/en/finished-goods/products/[id]/[id]",
     });
     expect(JSON.stringify(safe)).not.toContain("SENTINEL");
+    // Vercel's collector requires this wire field even when network dimensions
+    // are deliberately excluded. Empty means unknown, not a fabricated speed.
+    expect(safe).toHaveProperty("speed", "");
     expect(safe?.metrics[0]).not.toHaveProperty("attribution");
     expect(
       beforeSpeedInsightsSend({
@@ -204,7 +207,14 @@ describe("external telemetry boundary", () => {
   it("forwards only allowlisted metrics and never forwards request credentials", async () => {
     vi.stubEnv("NEXT_PUBLIC_SPEED_INSIGHTS_ENABLED", "1");
     vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://app.example.test");
-    const send = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+    const send = vi.fn(async (_url: URL, options: RequestInit) => {
+      const body =
+        typeof options.body === "string" ? JSON.parse(options.body) : {};
+      // The live collector rejects a missing speed field with HTTP 400.
+      return new Response(null, {
+        status: typeof body.speed === "string" ? 204 : 400,
+      });
+    });
     vi.stubGlobal("fetch", send);
     const request = new Request(
       "https://candidate.example.test/api/observability/speed-insights",
@@ -212,6 +222,7 @@ describe("external telemetry boundary", () => {
         method: "POST",
         headers: { origin: "https://candidate.example.test", cookie: secret },
         body: JSON.stringify({
+          speed: secret,
           metrics: [
             {
               type: "INP",
