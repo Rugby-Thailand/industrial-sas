@@ -1,8 +1,10 @@
 # T03 implementation handoff — Bun dependency security, resolved graph and lifecycle parity
 
-Status: **FINAL_VERIFY — integrated re-verification pending.** Concurrent `main` `a9fd6a01859fc4109e540686c17fb1efe45d5b11` (PR #73) was merged cleanly as `a6be57e5a112a1948f5ba3ff4adcb6bf3bc9bba4`. No T03 module, test, fixture, lock, exception, workflow or release input changed. No additional code refactor is justified; see [integration refactor decision](integration-refactor.md). The next exact documentation head needs both non-author audits and all required gates before a PR. Any PR or merge waits for the companion's recorded `main` release disposition.
+Status: **FINAL_VERIFY — pending fresh verification of integrated `e717abecd5aefa2ddbf41eaf148218eb789b3288`.** Released `main` `49529b9e1f70bdea48844bc130727d46ffa0fa30` (PR #74, run 38140638663 `RELEASED`) was merged cleanly into documentation head `3f4d8ffc4c12badcb92f46c17056e79d18972d88`. Only the five released diagnostic files changed; no T03 module, test, fixture, default, lock, exception, workflow or release input changed, and no additional code refactor is justified ([integration refactor decision](integration-refactor.md)). The `3f4d8ffc` final audits and 15 gates are historical. The next exact documentation head needs a fresh independent initial audit, root's scoped Kiro refactor step, final audits and all 15 gates before a protected-workflow PR. The companion's release hold has ended.
 
-History: both independent final audits requested changes on `f92f437ac281519fff93d527ccb1241b5e3cd2dd`. The scoped corrections were committed as `66d143d6a00f971805e1bba303014d828e9ab7e6` and are recorded in [`final-audit-corrections.md`](final-audit-corrections.md). The installed store now refuses nested package-local `node_modules`, both manifest loaders reject duplicate keys, audit HOME cleanup is attempted on setup and close paths (removal failures settle as refusals), and the 26 recorded test type errors are fixed. Both non-author audits and 15 coordinator gates passed on that source commit. Its documentation head `399173c374ea339f44d774fa30f3de72e62a4e48` then also passed both audits and 15 gates. Both results are **historical** and do not approve `a6be57e5` or a later head. See [final verification](final-verification.md). Earlier results below, including the initial-audit fixes, are historical evidence.
+Earlier integration (historical): concurrent `main` `a9fd6a01859fc4109e540686c17fb1efe45d5b11` (PR #73) was merged cleanly as `a6be57e5a112a1948f5ba3ff4adcb6bf3bc9bba4`, then documented as `3f4d8ffc`.
+
+History: both independent final audits requested changes on `f92f437ac281519fff93d527ccb1241b5e3cd2dd`. The scoped corrections were committed as `66d143d6a00f971805e1bba303014d828e9ab7e6` and are recorded in [`final-audit-corrections.md`](final-audit-corrections.md). The installed store now refuses nested package-local `node_modules`, both manifest loaders reject duplicate keys, audit HOME cleanup is attempted on setup and close paths (removal failures settle as refusals), and the 26 recorded test type errors are fixed. Both non-author audits and 15 coordinator gates passed on that source commit. Its documentation head `399173c374ea339f44d774fa30f3de72e62a4e48` then also passed both audits and 15 gates. Both results are **historical** and do not approve `a6be57e5` or a later head. `3f4d8ffc` later passed both final audits and 15 gates (3,241 tests in 259 files); that is also historical and does not approve `e717abec`. See [final verification](final-verification.md). Earlier results below, including the initial-audit fixes, are historical evidence.
 Base `d07f6282bfee73ac8c264f6cab4737487dc52a8e` on
 `codex/bun-security-t03-20261011`. Implementation agent: Kiro, claude-opus-5.5,
 high effort, no delegation. Segment 1 ended 2026-10-11T08:53:25.369190Z
@@ -251,6 +253,10 @@ Integration with `a9fd6a0` (`a6be57e5`) left both locks, all workspaces and
 every T03 module, test and fixture byte-identical. Root `package.json` gained
 only the `preview:ai-usage` script, which T03 graph and lifecycle checks do not
 read. The T02 lock change and the full rerun above are still pending.
+
+Integration with released `49529b9e` (`e717abec`) added only release-smoke
+diagnostics and their tests; locks, workspaces, `package.json` and every T03
+input are byte-identical to `3f4d8ffc`.
 
 ## Rollback
 

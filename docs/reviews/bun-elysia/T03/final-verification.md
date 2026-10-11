@@ -1,6 +1,37 @@
 # T03 source verification and pre-PR evidence
 
-## Current status — integrated `a6be57e5`
+## Current status — integrated `e717abec`, pending fresh verification
+
+Current integration input `e717abecd5aefa2ddbf41eaf148218eb789b3288` merges
+released `main` `49529b9e1f70bdea48844bc130727d46ffa0fa30` (PR #74, run
+38140638663 `RELEASED`) into documentation head `3f4d8ffc`. Only the five
+released diagnostic files changed, byte-identical to `main` and to the audited
+release blobs; every T03 module, test, fixture, default, lock, exception and
+workflow input is unchanged. See the
+[integration refactor decision](integration-refactor.md).
+
+All results below are **historical** and do not approve `e717abec` or the
+documentation head that follows it. That exact head needs a fresh independent
+initial audit, root's scoped Kiro refactor step, final non-author audits and all
+15 gates, then a protected-workflow PR linked to the T03 thread, normal merge and
+automatic staging/production verification. Receipts are saved externally first;
+these documents stay unchanged during gates. There is no PR, merge, release or
+authoritative Bun-adoption claim.
+
+## Historical documentation head `3f4d8ffc`
+
+Documentation head `3f4d8ffc4c12badcb92f46c17056e79d18972d88` (on integrated
+`a6be57e5`) passed both final non-author audits (standards
+`CLEAR_EXACT_FINAL_SOURCE_AND_DOCUMENTATION`, specification
+`CLEAR_EXACT_FINAL_SPEC`) and all 15 gates with actual exit 0, finishing at
+2026-10-11T12:40:47.765783Z: 3,241 tests in 259 files, 286 release-contract
+tests, 92 anonymous browser tests and all 1,398 tracked hashes unchanged. No PR
+or release was made for that head. Receipt:
+`/Users/macbook/Development/industrial-sas-delivery-preserved-20261011/T03/integration-a6be57e5-20261011T1210/exact-verification-receipt.json`;
+archive `exact-3f4d8ffc-verification.tar.gz` in the same directory (SHA-256
+`5436d6c4312e2af563062654bb1cca68c8528273f2a162eb4b98da02ba99faa4`, 97 entries).
+
+## Historical status — integrated `a6be57e5`
 
 T03 is integrated with concurrent `main` `a9fd6a01859fc4109e540686c17fb1efe45d5b11`
 as `a6be57e5a112a1948f5ba3ff4adcb6bf3bc9bba4`. The merge is clean, and every
