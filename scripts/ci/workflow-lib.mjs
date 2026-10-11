@@ -608,10 +608,13 @@ function releaseJobProblems(id, job, spec) {
   return problems;
 }
 
-// Mandatory validate-job commands (CI-03/06/07/09/10/11, T11, S12).
+// Mandatory validate-job commands (CI-03/06/07/09/10/11, T11, S12). The
+// pinned Bun checker must be installed before `pnpm typecheck` uses it (T01).
+export const BUN_CHECKER_INSTALL = "node scripts/ci/install-bun-checker.mjs";
 export const VALIDATE_COMMANDS = Object.freeze([
   "node scripts/ci/validate-workflows.mjs --verify-pins",
   "pnpm format:check",
+  BUN_CHECKER_INSTALL,
   "pnpm typecheck",
   "pnpm lint",
   "pnpm audit:prod",
@@ -947,6 +950,13 @@ function qualityProblems(workflow, { allowedGhsas }) {
   for (const command of VALIDATE_COMMANDS)
     if (!validateRuns.includes(command))
       problems.push(`quality.yml:validate: must run ${command}`);
+  // A missing command is reported above; order is checked only when both run.
+  const installAt = validateRuns.indexOf(BUN_CHECKER_INSTALL);
+  const typecheckAt = validateRuns.indexOf("pnpm typecheck");
+  if (installAt >= 0 && typecheckAt >= 0 && installAt > typecheckAt)
+    problems.push(
+      `quality.yml:validate: ${BUN_CHECKER_INSTALL} must run before pnpm typecheck`,
+    );
 
   problems.push(...testShardProblems(jobs.test), ...browserProblems(jobs));
   for (const id of gated)

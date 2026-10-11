@@ -1,0 +1,1 @@
+Dependency audit passed (app); exact-chain exceptions checked against their expiry. Unpatched risk remains documented in docs/operations/dependency-exceptions.md.

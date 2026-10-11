@@ -636,6 +636,48 @@ describe("workflow policy rejects regressions", () => {
       ]),
     ).toContain("quality.yml: required browser runs keep zero retries");
   });
+
+  it("installs the pinned Bun checker before the default typecheck", () => {
+    const install = namedStep("quality.yml", "Install pinned Bun checker");
+    const typecheck = namedStep(
+      "quality.yml",
+      "Typecheck (cold next typegen + Bun checker)",
+    );
+    expect(problemsWith("quality.yml", [[`${install}\n`, ""]])).toContain(
+      "quality.yml:validate: must run node scripts/ci/install-bun-checker.mjs",
+    );
+    expect(
+      problemsWith("quality.yml", [
+        [`${install}\n`, ""],
+        [`${typecheck}\n`, `${typecheck}\n${install}\n`],
+      ]),
+    ).toContain(
+      "quality.yml:validate: node scripts/ci/install-bun-checker.mjs must run before pnpm typecheck",
+    );
+    const withoutTypecheck = problemsWith("quality.yml", [
+      [`${typecheck}\n`, ""],
+    ]);
+    expect(withoutTypecheck).toContain(
+      "quality.yml:validate: must run pnpm typecheck",
+    );
+    expect(withoutTypecheck).not.toContain(
+      "quality.yml:validate: node scripts/ci/install-bun-checker.mjs must run before pnpm typecheck",
+    );
+    expect(
+      problemsWith("quality.yml", [
+        [
+          "        run: node scripts/ci/install-bun-checker.mjs\n",
+          "        uses: oven-sh/setup-bun@0000000000000000000000000000000000000000 # v2.0.0\n",
+        ],
+      ]),
+    ).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining(
+          "oven-sh/setup-bun is outside the selected-actions allowlist",
+        ),
+      ]),
+    );
+  });
 });
 
 describe("pin and tool helpers", () => {

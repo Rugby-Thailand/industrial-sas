@@ -1,0 +1,31 @@
+{
+  "task": "T00",
+  "auditedHeadSha": "72310ec07a7070b60ca85771922699cd975dcdaa",
+  "mergeSha": "77ae110b7f346af747ed4094dba8854801133d08",
+  "prUrl": "https://github.com/Rugby-Thailand/industrial-sas/pull/70",
+  "qualityRunUrl": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38112960884",
+  "codeqlRunUrl": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38112960906",
+  "quality": "success",
+  "codeql": "success",
+  "staging": "STAGING_PASSED",
+  "stagingSmoke": {
+    "passed": 12,
+    "failed": 0,
+    "skippedOptionalUnconfigured": 1
+  },
+  "production": "RELEASED",
+  "candidateSmoke": {
+    "passed": 6,
+    "failed": 0,
+    "skippedOptionalUnconfigured": 1
+  },
+  "liveSmoke": {
+    "passed": 6,
+    "failed": 0,
+    "skippedOptionalUnconfigured": 1
+  },
+  "backupCompleted": true,
+  "backupIncludesStorage": true,
+  "backupRecoveryWindowAtLeast24h": true,
+  "rollback": "Documentation-only revert through normal PR and release workflow. No application/runtime/provider change in T00."
+}

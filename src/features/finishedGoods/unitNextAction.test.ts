@@ -31,7 +31,10 @@ describe("unit next action", () => {
     "resumes an active %s move instead of treating the unit as stored",
     (moveStatus) => {
       expect(
-        unitNextAction({ ...unit, status: "STORED", moveStatus }, true),
+        unitNextAction(
+          { ...unit, status: "STORED", moveStatus, activeMoveId: "move-a" },
+          true,
+        ),
       ).toEqual({
         href: "/finished-goods/pallets/pallet-a/move",
         label: ["Continue move", "ดำเนินการย้ายต่อ"],
@@ -54,8 +57,10 @@ describe("unit next action", () => {
       "STORED",
     ] as const) {
       expect(
-        unitNextAction({ ...unit, status, moveStatus: "IN_TRANSIT" }, false)
-          .label[0],
+        unitNextAction(
+          { ...unit, status, moveStatus: "IN_TRANSIT", activeMoveId: "move-a" },
+          false,
+        ).label[0],
       ).toBe("View details");
       expect(
         unitNextAction({ ...unit, status, retiredAt: 1000 }, true).label[0],

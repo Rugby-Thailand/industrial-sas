@@ -1,0 +1,109 @@
+{
+  "file": "src/features/finishedGoods/unitNextAction.ts",
+  "originalSha256": "4c6a3db7d407fc84caaff2ec527f5e925e366bdd8b785fc85b83c595784a38d1",
+  "prime": {
+    "command": [
+      "<node>",
+      "<repo>/node_modules/typescript/bin/tsc",
+      "--noEmit",
+      "--tsBuildInfoFile",
+      "<repo>/.cache/typecheck-benchmark-t01/ts6-edited.tsbuildinfo",
+      "--pretty",
+      "false"
+    ],
+    "cwd": "<repo>",
+    "seconds": 14.623654292,
+    "exit": 0,
+    "signal": null,
+    "loadAverage1mBefore": 4.31787109375,
+    "stdout": "",
+    "stderr": ""
+  },
+  "invalid": {
+    "typescript6Incremental": {
+      "command": [
+        "<node>",
+        "<repo>/node_modules/typescript/bin/tsc",
+        "--noEmit",
+        "--tsBuildInfoFile",
+        "<repo>/.cache/typecheck-benchmark-t01/ts6-edited.tsbuildinfo",
+        "--pretty",
+        "false"
+      ],
+      "cwd": "<repo>",
+      "seconds": 5.825596958000002,
+      "exit": 2,
+      "signal": null,
+      "loadAverage1mBefore": 3.8037109375,
+      "stdout": "src/features/finishedGoods/unitNextAction.ts(44,14): error TS2322: Type 'string' is not assignable to type 'number'.\n",
+      "stderr": "",
+      "diagnostics": [
+        {
+          "file": "src/features/finishedGoods/unitNextAction.ts",
+          "line": 44,
+          "column": 14,
+          "code": "TS2322",
+          "message": "Type 'string' is not assignable to type 'number'."
+        }
+      ]
+    },
+    "bun": {
+      "command": [
+        "<repo>/.cache/bun-checker/bun-v1.4.3-bun-darwin-aarch64/bun",
+        "--check",
+        "--no-pretty"
+      ],
+      "cwd": "<repo>",
+      "seconds": 0.8617474580000053,
+      "exit": 1,
+      "signal": null,
+      "loadAverage1mBefore": 3.45263671875,
+      "stdout": "src/features/finishedGoods/unitNextAction.ts(44,14): error TS2322: Type 'string' is not assignable to type 'number'.\n",
+      "stderr": "Found 1 error in 1 file, checked 763 files [817.99ms]\n",
+      "diagnostics": [
+        {
+          "file": "src/features/finishedGoods/unitNextAction.ts",
+          "line": 44,
+          "column": 14,
+          "code": "TS2322",
+          "message": "Type 'string' is not assignable to type 'number'."
+        }
+      ]
+    }
+  },
+  "restored": {
+    "typescript6Incremental": {
+      "command": [
+        "<node>",
+        "<repo>/node_modules/typescript/bin/tsc",
+        "--noEmit",
+        "--tsBuildInfoFile",
+        "<repo>/.cache/typecheck-benchmark-t01/ts6-edited.tsbuildinfo",
+        "--pretty",
+        "false"
+      ],
+      "cwd": "<repo>",
+      "seconds": 5.907325625000005,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 3.45263671875,
+      "stdout": "",
+      "stderr": ""
+    },
+    "bun": {
+      "command": [
+        "<repo>/.cache/bun-checker/bun-v1.4.3-bun-darwin-aarch64/bun",
+        "--check",
+        "--no-pretty"
+      ],
+      "cwd": "<repo>",
+      "seconds": 0.826642875000005,
+      "exit": 0,
+      "signal": null,
+      "loadAverage1mBefore": 3.416015625,
+      "stdout": "",
+      "stderr": "✓ No type errors in 763 files [804.49ms]\n"
+    }
+  },
+  "finding": "After an edit to an existing file, both the incremental TypeScript 6 check and Bun rejected the new error; after restoring the file both passed (no stale cached diagnostic)."
+}

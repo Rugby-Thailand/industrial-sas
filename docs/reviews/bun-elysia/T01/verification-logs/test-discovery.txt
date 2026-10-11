@@ -1,0 +1,7 @@
+
+> storage-planner@0.0.0 ci:test-discovery <repo>
+> node scripts/ci/check-test-discovery.mjs
+
+Test discovery mismatch:
+  tests/integration/bun-checker.integration.test.ts: collected but not tracked by git
+ ELIFECYCLE  Command failed with exit code 1.

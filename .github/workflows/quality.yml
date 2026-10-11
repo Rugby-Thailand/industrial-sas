@@ -35,7 +35,14 @@ jobs:
       - name: Formatting
         if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
         run: pnpm format:check
-      - name: Typecheck (cold next typegen + tsc)
+      # Exact Bun from .bun-version: official release archive, SHA-256 pinned
+      # in the installer and verified before extraction (no third-party action).
+      - name: Install pinned Bun checker
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        run: node scripts/ci/install-bun-checker.mjs
+      # `bun --check`, never bare `bun check`, which would run the aggregate
+      # `check` script. The production build keeps the TypeScript 6 gate.
+      - name: Typecheck (cold next typegen + Bun checker)
         if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
         run: pnpm typecheck
       - name: Lint

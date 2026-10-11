@@ -1,0 +1,206 @@
+import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { performance } from "node:perf_hooks";
+
+// Run sequentially: overlapping compiler processes would distort timings.
+const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const output = resolve(
+  root,
+  "docs/reviews/assets/bun-typecheck-pilot-2026-10-11",
+);
+const tools = resolve(root, ".cache/checker-tools");
+const bun =
+  process.env.BUN_BIN ??
+  resolve(tools, "node_modules/@oven/bun-darwin-aarch64/bin/bun");
+const native =
+  process.env.NATIVE_TSC ?? resolve(tools, "node_modules/typescript7/bin/tsc");
+const tsc = resolve(root, "node_modules/typescript/bin/tsc");
+const cache = resolve(root, ".cache/typecheck-benchmark.tsbuildinfo");
+const env = { ...process.env, PATH: `${dirname(bun)}:${process.env.PATH}` };
+mkdirSync(output, { recursive: true });
+mkdirSync(dirname(cache), { recursive: true });
+
+function run(command, args, cwd = root) {
+  const start = performance.now();
+  const result = spawnSync(command, args, {
+    cwd,
+    env,
+    encoding: "utf8",
+    maxBuffer: 16 * 1024 * 1024,
+    timeout: 120_000,
+  });
+  if (result.error) throw result.error;
+  return {
+    command: [command, ...args],
+    seconds: (performance.now() - start) / 1000,
+    exit: result.status,
+    stdout: result.stdout,
+    stderr: result.stderr,
+  };
+}
+function pass(command, args, cwd) {
+  const result = run(command, args, cwd);
+  assert.equal(result.exit, 0, result.stdout + result.stderr);
+  return result;
+}
+const versions = {
+  node: process.version,
+  typescript6: pass(process.execPath, [tsc, "--version"]).stdout.trim(),
+  typescript7: pass(process.execPath, [native, "--version"]).stdout.trim(),
+  bun: pass(bun, ["--version"]).stdout.trim(),
+  embeddedTypescript: pass(bun, [
+    "-p",
+    "process.versions.typescript",
+  ]).stdout.trim(),
+};
+assert.equal(versions.typescript6, "Version 6.0.3");
+assert.equal(versions.typescript7, "Version 7.0.2");
+assert.equal(versions.bun, "1.4.3");
+assert.equal(versions.embeddedTypescript, "7.0.2");
+const full = ["--noEmit", "--incremental", "false", "--pretty", "false"];
+const checkers = {
+  typescript6: [process.execPath, [tsc, ...full]],
+  typescript7: [process.execPath, [native, ...full]],
+  bun: [bun, ["--check", "--no-pretty"]],
+};
+pass("pnpm", ["exec", "next", "typegen"]);
+
+// The explicit check subcommand supports informational flags. Use the tools
+// directory to avoid dispatching this repository's aggregate `check` script.
+const manifests = {};
+for (const [name, [command, args]] of Object.entries(checkers)) {
+  const result =
+    name === "bun"
+      ? pass(
+          bun,
+          [
+            "check",
+            "--project",
+            resolve(root, "tsconfig.json"),
+            "--listFilesOnly",
+            "--no-pretty",
+          ],
+          tools,
+        )
+      : pass(command, [args[0], "--listFilesOnly"]);
+  manifests[name] = result.stdout
+    .split(/\r?\n/)
+    .filter(
+      (line) => line.startsWith(`${root}/`) && !line.includes("/node_modules/"),
+    )
+    .map((line) => line.slice(root.length + 1))
+    .sort();
+  writeFileSync(
+    resolve(output, `project-files-${name}.json`),
+    JSON.stringify(manifests[name], null, 2) + "\n",
+  );
+}
+assert.deepEqual(manifests.bun, manifests.typescript6);
+assert.deepEqual(manifests.typescript7, manifests.typescript6);
+console.log(
+  `All checkers select the same ${manifests.bun.length} project files.`,
+);
+
+const guards = ["src", "tests", "convex", ".next/types"].map(
+  (dir) => `${dir}/__typecheck_pilot_guard.ts`,
+);
+const createdGuards = [];
+const rejection = {};
+try {
+  for (const file of guards) {
+    writeFileSync(
+      resolve(root, file),
+      'export const typecheckPilotGuard: number = "invalid";\n',
+      { flag: "wx" },
+    );
+    createdGuards.push(file);
+  }
+  for (const [name, [command, args]] of Object.entries(checkers)) {
+    const result = run(command, args);
+    assert.notEqual(result.exit, 0);
+    for (const file of guards)
+      assert.ok(
+        result.stdout.includes(`${file}(1,14): error TS2322`),
+        result.stdout,
+      );
+    rejection[name] = result;
+    console.log(
+      `${name} rejects injected errors in application, tests, backend and generated route types.`,
+    );
+  }
+} finally {
+  for (const file of createdGuards)
+    rmSync(resolve(root, file), { force: true });
+}
+writeFileSync(
+  resolve(output, "error-rejection.json"),
+  JSON.stringify(rejection, null, 2) + "\n",
+);
+
+rmSync(cache, { force: true });
+const warmArgs = [
+  tsc,
+  "--noEmit",
+  "--tsBuildInfoFile",
+  cache,
+  "--pretty",
+  "false",
+];
+const prime = pass(process.execPath, warmArgs);
+const scriptPrime = pass("pnpm", ["typecheck"]);
+const profiles = {
+  "checker-ts6-full": () => pass(process.execPath, [tsc, ...full]),
+  "checker-ts6-cached": () => pass(process.execPath, warmArgs),
+  "checker-ts7-full": () => pass(process.execPath, [native, ...full]),
+  "checker-bun": () => pass(bun, ["--check", "--no-pretty"]),
+  "script-ts6-full": () =>
+    pass("pnpm", ["typecheck", "--incremental", "false", "--pretty", "false"]),
+  "script-ts6-cached": () => pass("pnpm", ["typecheck", "--pretty", "false"]),
+  "script-bun": () => pass("pnpm", ["typecheck:bun"]),
+};
+const samples = [];
+const names = Object.keys(profiles);
+for (let iteration = 0; iteration < 3; iteration++) {
+  // Rotate order to reduce consistent first/last-run bias.
+  for (const name of [
+    ...names.slice(iteration),
+    ...names.slice(0, iteration),
+  ]) {
+    const result = profiles[name]();
+    samples.push({ profile: name, iteration: iteration + 1, ...result });
+    console.log(
+      `${name} ${iteration + 1}: ${result.seconds.toFixed(3)}s (pass)`,
+    );
+  }
+}
+const medianSeconds = Object.fromEntries(
+  names.map((name) => {
+    const values = samples
+      .filter((sample) => sample.profile === name)
+      .map((sample) => sample.seconds)
+      .sort((a, b) => a - b);
+    return [name, values[1]];
+  }),
+);
+const results = {
+  date: new Date().toISOString(),
+  commit: pass("git", ["rev-parse", "HEAD"]).stdout.trim(),
+  platform: process.platform,
+  architecture: process.arch,
+  versions,
+  method:
+    "Three rotated sequential wall-clock samples after fixture corrections. Existing installed dependencies; warm filesystem. Cached TS6 samples have no source changes. Script samples include pnpm and next typegen. No other benchmark/test processes launched during measurement; workstation background activity uncontrolled. No CI/build/runtime measurements.",
+  projectFileCount: manifests.bun.length,
+  prime,
+  scriptPrime,
+  medianSeconds,
+  samples,
+};
+writeFileSync(
+  resolve(output, "benchmarks.json"),
+  JSON.stringify(results, null, 2) + "\n",
+);
+console.log(JSON.stringify(medianSeconds, null, 2));

@@ -1,0 +1,24 @@
+
+> storage-planner@0.0.0 typecheck <repo>
+> node scripts/ci/install-bun-checker.mjs --verify && next typegen && bun --check --no-pretty
+
+Bun checker 1.4.3 (TypeScript 7.0.2)
+Generating route types...
+✓ Types generated successfully
+✓ No type errors in 763 files [821.95ms]
+
+> storage-planner@0.0.0 lint <repo>
+> eslint . --max-warnings=0
+
+
+> storage-planner@0.0.0 test <repo>
+> vitest run
+
+
+ RUN  v4.1.10 <repo>
+
+
+ Test Files  249 passed (249)
+      Tests  2978 passed (2978)
+   Start at  12:42:02
+   Duration  36.43s (transform 14.33s, setup 26.65s, import 54.13s, tests 146.33s, environment 63.90s)

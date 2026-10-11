@@ -1,0 +1,8 @@
+{
+  "command": ["node", "scripts/benchmark-typecheck.mjs", "--samples=10"],
+  "startedAt": "2026-10-11T06:06:08.504856+00:00",
+  "completedAt": "2026-10-11T06:16:16.295739+00:00",
+  "exit": 0,
+  "elapsedSeconds": 607.7881150830071,
+  "rawLog": "benchmark.raw.txt"
+}
