@@ -1,0 +1,98 @@
+[
+  {
+    "file": "reviewer-report.md",
+    "originalRawSha256": "5ccf0b2a44e9733c402a881a2ea57ab2392122e71ed875d1009c3c63569ab12d",
+    "deliveredSha256": "d4fc5a98b931a31c151897b3c83c379b0bd150a68fe5f1c6978a4536a65e9896",
+    "transform": "portable paths, JSON formatting, report delivery note or terminal trailing whitespace; measurement numeric values unchanged"
+  },
+  {
+    "file": "telemetry-conditions.json",
+    "originalRawSha256": "1f9631a8143f023c28dc2c0da4ad423ea042530552b1b9e7226f24974f211b1f",
+    "deliveredSha256": "1f9631a8143f023c28dc2c0da4ad423ea042530552b1b9e7226f24974f211b1f",
+    "transform": "portable paths, JSON formatting, report delivery note or terminal trailing whitespace; measurement numeric values unchanged"
+  },
+  {
+    "file": "benchmark.raw.txt",
+    "originalRawSha256": "0063e9e91b9b02c8a8267a8f1704cb1d592daaff3944b449c65f1fbfe0cf738d",
+    "deliveredSha256": "0063e9e91b9b02c8a8267a8f1704cb1d592daaff3944b449c65f1fbfe0cf738d",
+    "transform": "portable paths, JSON formatting, report delivery note or terminal trailing whitespace; measurement numeric values unchanged"
+  },
+  {
+    "file": "metadata.json",
+    "originalRawSha256": "8cf5c3159ec6aa107a78dd700a1e7c860279bbcc3576ec805fcb1a33c8c894b9",
+    "deliveredSha256": "dee684e8d93e9e5fd32438b96adfb90e90118df2a0baaebc25e02467e2e676a5",
+    "transform": "portable paths, JSON formatting, report delivery note or terminal trailing whitespace; measurement numeric values unchanged"
+  },
+  {
+    "file": "independent-analysis.json",
+    "originalRawSha256": "960beeab97b73273137d6cc36fb5f0664623b1528a756d9d454d72d90d77c66f",
+    "deliveredSha256": "496e25f8bcb346bd524aca71c80673ba82aff3f5348b9d2ba5935efebd01b59c",
+    "transform": "portable paths, JSON formatting, report delivery note or terminal trailing whitespace; measurement numeric values unchanged"
+  },
+  {
+    "file": "benchmark-exit.json",
+    "originalRawSha256": "c12db0b19dc8bbe3ceaed26153a2af0c45e6700c864367d7a4ac49e5fe5c6a13",
+    "deliveredSha256": "c679b859207bfea8e0070a416911a62202e3b8366ee5b2587a2a2b4989fe2556",
+    "transform": "portable paths, JSON formatting, report delivery note or terminal trailing whitespace; measurement numeric values unchanged"
+  },
+  {
+    "file": "benchmark/benchmarks.json",
+    "originalRawSha256": "1b2ae8813da51b0fcd0705599416911c87a6823eaded92a382cb986933ac8f50",
+    "deliveredSha256": "578f8d8d42f7b557a953c675661959b8a6f67532421e8fa5f66154f191c3bd73",
+    "transform": "portable paths, JSON formatting, report delivery note or terminal trailing whitespace; measurement numeric values unchanged"
+  },
+  {
+    "file": "benchmark/project-files-bun.json",
+    "originalRawSha256": "9fc977adef2a95ae4d3d8f963953ac011ad68efdb88462386abd62de6a9e5626",
+    "deliveredSha256": "9fc977adef2a95ae4d3d8f963953ac011ad68efdb88462386abd62de6a9e5626",
+    "transform": "portable paths, JSON formatting, report delivery note or terminal trailing whitespace; measurement numeric values unchanged"
+  },
+  {
+    "file": "benchmark/collision-probe.json",
+    "originalRawSha256": "709af5032b74cb4e802f0919ccd401504d190fface2497197b58aece0f640b85",
+    "deliveredSha256": "709af5032b74cb4e802f0919ccd401504d190fface2497197b58aece0f640b85",
+    "transform": "portable paths, JSON formatting, report delivery note or terminal trailing whitespace; measurement numeric values unchanged"
+  },
+  {
+    "file": "benchmark/project-files-typescript6.json",
+    "originalRawSha256": "9fc977adef2a95ae4d3d8f963953ac011ad68efdb88462386abd62de6a9e5626",
+    "deliveredSha256": "9fc977adef2a95ae4d3d8f963953ac011ad68efdb88462386abd62de6a9e5626",
+    "transform": "portable paths, JSON formatting, report delivery note or terminal trailing whitespace; measurement numeric values unchanged"
+  },
+  {
+    "file": "benchmark/error-rejection.json",
+    "originalRawSha256": "168844293375438d771330d18adbb0b875dae0047847f4521e8da34b1f8d3aa6",
+    "deliveredSha256": "59063eed0389772cf35edb156c122788e8a2d2492a20f0d7472f308fc5aa5e49",
+    "transform": "portable paths, JSON formatting, report delivery note or terminal trailing whitespace; measurement numeric values unchanged"
+  },
+  {
+    "file": "benchmark/edited-file.json",
+    "originalRawSha256": "e0cf59ea4161e6ce178eb4e9a5c90edd741f885faa424c86534b507640521207",
+    "deliveredSha256": "e0cf59ea4161e6ce178eb4e9a5c90edd741f885faa424c86534b507640521207",
+    "transform": "portable paths, JSON formatting, report delivery note or terminal trailing whitespace; measurement numeric values unchanged"
+  },
+  {
+    "file": "benchmark/manifest-comparison.json",
+    "originalRawSha256": "cce4028aacf7173a9bafe0b25b7e61dc1656d72debe1a7e3afc632eaee029f1f",
+    "deliveredSha256": "cce4028aacf7173a9bafe0b25b7e61dc1656d72debe1a7e3afc632eaee029f1f",
+    "transform": "portable paths, JSON formatting, report delivery note or terminal trailing whitespace; measurement numeric values unchanged"
+  },
+  {
+    "file": "benchmark/pilot-benchmark-typecheck.mjs.txt",
+    "originalRawSha256": "0c988ea34574ee66339c5cffe4fc839aa2590b89c384428b112d80114d1f28eb",
+    "deliveredSha256": "0c988ea34574ee66339c5cffe4fc839aa2590b89c384428b112d80114d1f28eb",
+    "transform": "portable paths, JSON formatting, report delivery note or terminal trailing whitespace; measurement numeric values unchanged"
+  },
+  {
+    "file": "benchmark/environment.json",
+    "originalRawSha256": "c16393cb8c18ff1a641d6eccb92d5c10aee2019ea6c236a52dbe73fd93743e2d",
+    "deliveredSha256": "6b18c65b497cf9920c0e3572fff9e676d499cc9f3fee1c1e157c98ce482f49c7",
+    "transform": "portable paths, JSON formatting, report delivery note or terminal trailing whitespace; measurement numeric values unchanged"
+  },
+  {
+    "file": "benchmark/completion.json",
+    "originalRawSha256": "377c3f6781bce1eec36584edbbf09eeaaa7005f7fa84f9e144474cb10042e12e",
+    "deliveredSha256": "377c3f6781bce1eec36584edbbf09eeaaa7005f7fa84f9e144474cb10042e12e",
+    "transform": "portable paths, JSON formatting, report delivery note or terminal trailing whitespace; measurement numeric values unchanged"
+  }
+]

@@ -2,6 +2,8 @@
 // run, deployment IDs/URLs, Convex deployment name and outcome. No env values,
 // tokens, request bodies or business data.
 
+import { filterSmokeDiagnostics } from "./smoke-diagnostics.mjs";
+
 const RECOVERY = {
   none: "No application or backend deployment started. Fix the cause and re-run the workflow on main.",
   "backend-possible":
@@ -54,10 +56,16 @@ export function buildManifest(result, input) {
             failed: value?.failed ?? 0,
             skipped: value?.skipped ?? 0,
             notConfigured: value?.notConfigured ?? [],
+            diagnostics: filterSmokeDiagnostics(value?.diagnostics),
           },
         ]),
     ),
-    recovery: result.ok ? null : RECOVERY[result.mutation],
+    recovery: result.ok
+      ? null
+      : input.targetName === "staging" &&
+          ["frontend", "frontend-possible"].includes(result.mutation)
+        ? `The staging frontend ${result.mutation === "frontend" ? "is serving" : "may be serving"} the new deployment. Production release has not started. Fix staging and re-run the workflow on main.`
+        : RECOVERY[result.mutation],
     events: result.events,
   };
 }
@@ -89,6 +97,12 @@ export function summaryMarkdown(manifest) {
           ? ` — not configured (not counted as passed): ${smoke.notConfigured.join(", ")}`
           : ""),
     );
+    const diagnostics = filterSmokeDiagnostics(smoke.diagnostics);
+    if (diagnostics.length)
+      lines.push(
+        "",
+        `**Diagnostics:** ${diagnostics.map((code) => `\`${code}\``).join(", ")}`,
+      );
   }
   if (manifest.recovery) lines.push("", `**Next step:** ${manifest.recovery}`);
   return `${lines.join("\n")}\n`;

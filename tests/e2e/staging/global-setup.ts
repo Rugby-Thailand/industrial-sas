@@ -2,6 +2,12 @@ import { existsSync } from "node:fs";
 
 import { clerkSetup } from "@clerk/testing/playwright";
 
+import {
+  reportStagingSetupPhase,
+  type StagingSetupPhase,
+} from "../support/staging-setup-phase";
+import { stagingSetupFailure } from "../../../scripts/release/lib/smoke-diagnostics.mjs";
+
 import { cleanupStagingFixture } from "./global-teardown";
 import {
   FIXTURE_STATE,
@@ -18,6 +24,7 @@ import {
   runId,
   stagingClerk,
   stagingPublishableKey,
+  userFirstName,
   verifyStagingInstance,
   writeFixtureState,
   type ReadyFixtureState,
@@ -33,6 +40,7 @@ export interface SetupDependencies {
   now?: () => number;
   sleep?: (milliseconds: number) => Promise<void>;
   testingSetup?: () => Promise<void>;
+  onProgress?: (phase: StagingSetupPhase) => void;
 }
 function definitelyRejected(error: unknown) {
   return (
@@ -64,17 +72,24 @@ export async function provisionStagingFixture(
     deps.sleep ??
     ((milliseconds) =>
       new Promise((resolve) => setTimeout(resolve, milliseconds)));
+  let step = "CLERK_INSTANCE";
   try {
     // Fixed instance ID and class are checked before any create/testing token.
+    deps.onProgress?.("verify-instance");
     await verifyStagingInstance(deps.clerk);
+    deps.onProgress?.("testing-token");
+    step = "TESTING_TOKEN";
     await deps.testingSetup?.();
+    step = "OWNERSHIP_STATE";
     writeFixtureState(state, path);
     state.pendingCreation = "user";
     writeFixtureState(state, path);
+    deps.onProgress?.("create-user");
+    step = "USER_CREATE";
     const user = await deps.clerk.users.createUser({
       externalId: `ci-e2e:${STAGING.repository}:${id}:actor`,
       emailAddress: [state.managerEmail],
-      firstName: `CI E2E ${id}`,
+      firstName: userFirstName(id),
       lastName: "actor",
       skipPasswordRequirement: true,
       privateMetadata: ownershipMetadata(id, "user"),
@@ -86,6 +101,15 @@ export async function provisionStagingFixture(
     for (const kind of ["primary", "other"] as const) {
       state.pendingCreation = kind;
       writeFixtureState(state, path);
+      deps.onProgress?.(
+        kind === "primary"
+          ? "create-primary-organization"
+          : "create-other-organization",
+      );
+      step =
+        kind === "primary"
+          ? "PRIMARY_ORGANIZATION_CREATE"
+          : "OTHER_ORGANIZATION_CREATE";
       const organization = await deps.clerk.organizations.createOrganization({
         name: organizationName(id, kind),
         ...(kind === "primary" ? { createdBy: state.clerkUserId } : {}),
@@ -97,6 +121,8 @@ export async function provisionStagingFixture(
       writeFixtureState(state, path);
       assertOwnedOrganization(organization, state, kind);
     }
+    deps.onProgress?.("verify-membership");
+    step = "MEMBERSHIP_READ";
     const memberships =
       await deps.clerk.organizations.getOrganizationMembershipList({
         organizationId: state.clerkOrganizationId!,
@@ -117,6 +143,8 @@ export async function provisionStagingFixture(
 
     // No internal identity upserts: the genuine Clerk endpoint must deliver all
     // named user/org/member events and signed source watermarks to staging.
+    deps.onProgress?.("identity-webhooks");
+    step = "IDENTITY_WEBHOOKS";
     const deadline = now() + 120_000;
     for (let attempt = 0; ; attempt += 1) {
       const status = deps.run(
@@ -139,6 +167,8 @@ export async function provisionStagingFixture(
         throw new Error("STAGING_REAL_IDENTITY_WEBHOOKS_UNCONFIRMED");
       await sleep(2_000);
     }
+    deps.onProgress?.("prepare-backend");
+    step = "BACKEND_PREPARE";
     const prepared = deps.run(
       "staging/e2eFixture:prepare",
       ownershipArgs(state),
@@ -157,8 +187,11 @@ export async function provisionStagingFixture(
     state.runWarehouseId = prepared.runWarehouseId;
     state.forbiddenWarehouseId = prepared.forbiddenWarehouseId;
     state.otherTenantWarehouseId = prepared.otherTenantWarehouseId;
+    step = "FIXTURE_READBACK";
     writeFixtureState(state, path);
-    return readReadyFixtureState(path);
+    const ready = readReadyFixtureState(path);
+    deps.onProgress?.("ready");
+    return ready;
   } catch (error) {
     if (existsSync(path)) {
       if (state.pendingCreation !== undefined && definitelyRejected(error)) {
@@ -168,19 +201,23 @@ export async function provisionStagingFixture(
       try {
         await cleanupStagingFixture({ ...deps, statePath: path });
       } catch {
-        throw new Error("STAGING_SETUP_FAILED_OWNERSHIP_RECORD_RETAINED");
+        throw new Error(stagingSetupFailure(step, error, true));
       }
     }
-    throw new Error("STAGING_SETUP_FAILED");
+    throw new Error(stagingSetupFailure(step, error));
   }
 }
 
 export default async function globalSetup(): Promise<void> {
-  assertStagingInputs();
+  reportStagingSetupPhase("validate-inputs");
+  assertStagingInputs(process.env, (name) => {
+    process.stdout.write(`[staging-input] ${name}\n`);
+  });
   process.env.CLERK_PUBLISHABLE_KEY = stagingPublishableKey();
   await provisionStagingFixture({
     clerk: stagingClerk(),
     run: convexRun,
+    onProgress: reportStagingSetupPhase,
     testingSetup: () =>
       clerkSetup({
         dotenv: false,

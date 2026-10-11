@@ -12,6 +12,8 @@ import tseslint from "typescript-eslint";
 export default tseslint.config(
   {
     ignores: [
+      // Official downloaded skill payload; keep vendor sources untouched.
+      ".agents/skills/impeccable/**",
       ".cache/**",
       ".next-build/**",
       ".next/**",
@@ -21,6 +23,8 @@ export default tseslint.config(
       ".next-e2e-preview/**",
       ".next-storage-verify/**",
       "out/**",
+      // Local captures, generated files, and source snapshots from audits.
+      "output/**",
       "coverage/**",
       "playwright-report/**",
       "test-results/**",

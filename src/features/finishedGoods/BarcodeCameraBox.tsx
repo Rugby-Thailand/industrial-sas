@@ -1,12 +1,15 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState, type ReactNode, type SyntheticEvent } from "react";
 import { Flashlight } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/IconButton";
 import { Notice } from "@/components/ui/Notice";
 import { useBarcodeCamera } from "./useBarcodeCamera";
+import { BarcodeImagePicker } from "./BarcodeImagePicker";
+import type { BarcodeImageTarget } from "./barcodeImage";
+import type { BarcodeCrop } from "./barcodeDecoder";
 
 /** Shared acquisition and controls for continuous intake and single-code verification. */
 export function BarcodeCameraBox({
@@ -18,6 +21,9 @@ export function BarcodeCameraBox({
   startOnMount = true,
   disabled = false,
   stopAfterScan = false,
+  imageTarget = mode === "LOCATION" ? "LOCATION" : "ANY",
+  onImageCodes,
+  onReadWithAi,
   children,
 }: {
   mode: "PACKAGES" | "LOCATION";
@@ -28,6 +34,9 @@ export function BarcodeCameraBox({
   startOnMount?: boolean;
   disabled?: boolean;
   stopAfterScan?: boolean;
+  imageTarget?: BarcodeImageTarget;
+  onImageCodes?: (codes: string[]) => void;
+  onReadWithAi?: (file?: File, crop?: BarcodeCrop) => void;
   children?: (scan: {
     onScan: () => void;
     scanning: boolean;
@@ -37,6 +46,8 @@ export function BarcodeCameraBox({
 }) {
   const t = useTranslations("JobScan");
   const [camera, setCamera] = useState(startOnMount);
+  const [imageSession, setImageSession] = useState(0);
+  const [videoAspect, setVideoAspect] = useState(16 / 9);
   if (disabled && camera) setCamera(false);
   const {
     videoRef,
@@ -50,41 +61,83 @@ export function BarcodeCameraBox({
   } = useBarcodeCamera({
     mode,
     active: camera && !disabled,
-    onCode: (code) => {
-      if (stopAfterScan) close();
-      onCode(code);
-    },
+    onCode: receive,
   });
+  function receive(code: string) {
+    if (disabled) return;
+    if (stopAfterScan) close();
+    onCode(code);
+  }
   const retry = error && error !== "TORCH";
   const startupPending = !camera && state === "STARTING";
   const scanDisabled = disabled || startupPending;
   function close() {
     stop();
     setCamera(false);
+    setImageSession((session) => session + 1);
     onClose?.();
   }
   function open() {
     if (scanDisabled) return;
+    setImageSession((session) => session + 1);
     if (camera) start();
     else setCamera(true);
   }
+  function measureVideo(event: SyntheticEvent<HTMLVideoElement>) {
+    const { videoWidth, videoHeight } = event.currentTarget;
+    if (videoWidth > 0 && videoHeight > 0)
+      setVideoAspect(videoWidth / videoHeight);
+  }
   return (
     <div className="space-y-2">
+      <BarcodeImagePicker
+        key={`${imageSession}:${imageTarget}:${disabled}`}
+        target={imageTarget}
+        onReadWithAi={
+          onReadWithAi
+            ? (file, crop) => {
+                stop();
+                setCamera(false);
+                setImageSession((session) => session + 1);
+                onReadWithAi(file, crop);
+              }
+            : undefined
+        }
+        disabled={disabled}
+        onSelect={() => {
+          // Switching sources releases the stream without cancelling its owning workflow.
+          stop();
+          setCamera(false);
+        }}
+        onCodes={(codes) => {
+          if (disabled) return;
+          stop();
+          setCamera(false);
+          if (stopAfterScan) close();
+          if (onImageCodes) onImageCodes(codes);
+          else for (const code of codes) onCode(code);
+        }}
+      />
       <div
-        hidden={!camera}
-        className="relative overflow-hidden rounded-xl bg-black"
+        hidden={!camera || (state !== "ACTIVE" && state !== "STARTING")}
+        className="relative mx-auto w-full overflow-hidden rounded-xl bg-black"
+        style={{ aspectRatio: videoAspect, maxWidth: 320 * videoAspect }}
       >
         <video
           ref={videoRef}
           muted
           playsInline
           aria-label={videoLabel ?? t("cameraPreview")}
-          className="aspect-[4/3] max-h-80 w-full object-cover"
+          onLoadedMetadata={measureVideo}
+          onResize={measureVideo}
+          className="block h-full w-full object-contain"
         />
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-x-[15%] top-[25%] h-1/2 rounded-xl border-2 border-white/80"
-        />
+        {state === "ACTIVE" && (
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-x-[10%] top-[37.5%] h-1/4 rounded-xl border-2 border-white/80"
+          />
+        )}
         {torchAvailable && (
           <IconButton
             variant="ghost"
@@ -97,7 +150,7 @@ export function BarcodeCameraBox({
           </IconButton>
         )}
       </div>
-      {error ? (
+      {camera && error ? (
         <Notice
           tone="warning"
           role="alert"
@@ -117,11 +170,11 @@ export function BarcodeCameraBox({
             (state === "ACTIVE" ? t("pointCamera") : t("startingCamera"))}
         </p>
       ) : null}
-      {retry && (
+      {camera && retry && (
         <Button
           type="button"
           variant="outline"
-          className="min-h-11 w-full"
+          className="min-h-11 w-full md:min-h-11"
           onClick={open}
           disabled={scanDisabled}
         >
@@ -131,7 +184,7 @@ export function BarcodeCameraBox({
       <Button
         type="button"
         variant="outline"
-        className="min-h-11 w-full"
+        className="min-h-11 w-full md:min-h-11"
         onClick={camera ? close : open}
         disabled={scanDisabled}
       >

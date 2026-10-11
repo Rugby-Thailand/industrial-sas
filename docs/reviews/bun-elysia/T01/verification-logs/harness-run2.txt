@@ -1,0 +1,157 @@
+Both checkers select the same 775 project inputs; scope OK.
+Both checkers reject deliberate errors in src, tests, convex and generated route types.
+checker-ts6-full 1: 14.506s
+checker-ts6-cached 1: 2.880s
+checker-ts6-edited 1: 5.864s
+checker-bun 1: 0.841s
+checker-bun-edited 1: 0.824s
+next-typegen 1: 1.003s
+command-ts6-full 1: 15.449s
+command-ts6-cached 1: 4.182s
+command-bun 1: 2.006s
+command-bun 2: 1.912s
+command-ts6-cached 2: 3.855s
+command-ts6-full 2: 15.612s
+next-typegen 2: 1.240s
+checker-bun-edited 2: 0.940s
+checker-bun 2: 0.840s
+checker-ts6-edited 2: 5.878s
+checker-ts6-cached 2: 2.912s
+checker-ts6-full 2: 14.379s
+checker-ts6-full 3: 14.406s
+checker-ts6-cached 3: 2.876s
+checker-ts6-edited 3: 5.857s
+checker-bun 3: 0.842s
+checker-bun-edited 3: 0.851s
+next-typegen 3: 1.011s
+command-ts6-full 3: 15.449s
+command-ts6-cached 3: 4.462s
+command-bun 3: 1.993s
+command-bun 4: 1.996s
+command-ts6-cached 4: 3.849s
+command-ts6-full 4: 15.611s
+next-typegen 4: 1.227s
+checker-bun-edited 4: 0.938s
+checker-bun 4: 0.845s
+checker-ts6-edited 4: 5.920s
+checker-ts6-cached 4: 2.867s
+checker-ts6-full 4: 14.469s
+checker-ts6-full 5: 14.645s
+checker-ts6-cached 5: 2.887s
+checker-ts6-edited 5: 5.927s
+checker-bun 5: 0.890s
+checker-bun-edited 5: 0.836s
+next-typegen 5: 1.240s
+command-ts6-full 5: 15.601s
+command-ts6-cached 5: 4.188s
+command-bun 5: 2.027s
+command-bun 6: 1.929s
+command-ts6-cached 6: 3.868s
+command-ts6-full 6: 15.559s
+next-typegen 6: 1.217s
+checker-bun-edited 6: 0.926s
+checker-bun 6: 0.826s
+checker-ts6-edited 6: 5.833s
+checker-ts6-cached 6: 2.858s
+checker-ts6-full 6: 14.417s
+checker-ts6-full 7: 14.545s
+checker-ts6-cached 7: 2.901s
+checker-ts6-edited 7: 5.898s
+checker-bun 7: 0.827s
+checker-bun-edited 7: 0.866s
+next-typegen 7: 1.016s
+command-ts6-full 7: 15.640s
+command-ts6-cached 7: 4.596s
+command-bun 7: 2.073s
+command-bun 8: 1.943s
+command-ts6-cached 8: 3.854s
+command-ts6-full 8: 15.455s
+next-typegen 8: 1.214s
+checker-bun-edited 8: 0.939s
+checker-bun 8: 0.851s
+checker-ts6-edited 8: 5.873s
+checker-ts6-cached 8: 2.840s
+checker-ts6-full 8: 14.395s
+checker-ts6-full 9: 14.521s
+checker-ts6-cached 9: 2.903s
+checker-ts6-edited 9: 5.935s
+checker-bun 9: 0.843s
+checker-bun-edited 9: 0.835s
+next-typegen 9: 1.087s
+command-ts6-full 9: 15.579s
+command-ts6-cached 9: 4.293s
+command-bun 9: 2.088s
+command-bun 10: 1.945s
+command-ts6-cached 10: 3.927s
+command-ts6-full 10: 15.370s
+next-typegen 10: 1.227s
+checker-bun-edited 10: 0.872s
+checker-bun 10: 0.849s
+checker-ts6-edited 10: 5.882s
+checker-ts6-cached 10: 2.863s
+checker-ts6-full 10: 14.397s
+{
+  "summary": {
+    "checker-ts6-full": {
+      "samples": 10,
+      "medianSeconds": 14.443063333499987,
+      "minSeconds": 14.379266917,
+      "maxSeconds": 14.64454487500002
+    },
+    "checker-ts6-cached": {
+      "samples": 10,
+      "medianSeconds": 2.8778074160000107,
+      "minSeconds": 2.8403479170000066,
+      "maxSeconds": 2.911677292000008
+    },
+    "checker-ts6-edited": {
+      "samples": 10,
+      "medianSeconds": 5.880138896000004,
+      "minSeconds": 5.833287791999989,
+      "maxSeconds": 5.934650416999997
+    },
+    "checker-bun": {
+      "samples": 10,
+      "medianSeconds": 0.842597583499999,
+      "minSeconds": 0.8256437080000179,
+      "maxSeconds": 0.889779709000024
+    },
+    "checker-bun-edited": {
+      "samples": 10,
+      "medianSeconds": 0.8692944579999311,
+      "minSeconds": 0.8236526250000025,
+      "maxSeconds": 0.9399014170000155
+    },
+    "next-typegen": {
+      "samples": 10,
+      "medianSeconds": 1.2156807914999954,
+      "minSeconds": 1.0028204160000023,
+      "maxSeconds": 1.240130833000003
+    },
+    "command-ts6-full": {
+      "samples": 10,
+      "medianSeconds": 15.569155416999973,
+      "minSeconds": 15.369792582999974,
+      "maxSeconds": 15.639963415999954
+    },
+    "command-ts6-cached": {
+      "samples": 10,
+      "medianSeconds": 4.054254770499981,
+      "minSeconds": 3.848788250000012,
+      "maxSeconds": 4.596338958000008
+    },
+    "command-bun": {
+      "samples": 10,
+      "medianSeconds": 1.9945263125000054,
+      "minSeconds": 1.9121675410000025,
+      "maxSeconds": 2.087502416000003
+    }
+  },
+  "medianRatios": {
+    "checkerFullTs6OverBun": 17.141116490633756,
+    "checkerCachedTs6OverBun": 3.415399560067708,
+    "checkerEditedTs6OverBunEdited": 6.764265942209043,
+    "commandFullTs6OverBun": 7.805941350297393,
+    "commandCachedTs6OverBun": 2.032690541654597
+  }
+}

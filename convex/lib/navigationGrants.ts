@@ -14,6 +14,14 @@ type RolePermissionDocument = Doc<"rolePermissions">;
 export async function grantedNavigationPermissions(
   ctx: TenantFunctionContext,
 ): Promise<NavigationPermissionCode[]> {
+  return grantedPermissionsAmong(ctx, NAVIGATION_PERMISSION_CODES);
+}
+
+/** The subset of `codes` the actor holds through an active role. */
+export async function grantedPermissionsAmong<Code extends string>(
+  ctx: TenantFunctionContext,
+  codes: readonly Code[],
+): Promise<Code[]> {
   const grants = await ctx.tenantDb
     .byIndex<MembershipRoleDocument>(
       "membershipRoles",
@@ -29,8 +37,8 @@ export async function grantedNavigationPermissions(
     if (role?.status === "ACTIVE") activeRoles.push(role);
   }
 
-  const permissionCodes: NavigationPermissionCode[] = [];
-  for (const permissionCode of NAVIGATION_PERMISSION_CODES) {
+  const permissionCodes: Code[] = [];
+  for (const permissionCode of codes) {
     for (const role of activeRoles) {
       const row = await ctx.tenantDb
         .byIndex<RolePermissionDocument>(

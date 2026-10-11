@@ -1,6 +1,8 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 
+import { smokeFailureDiagnostics } from "../../../scripts/release/lib/smoke-diagnostics.mjs";
+
 import type {
   FullResult,
   Reporter,
@@ -13,6 +15,7 @@ import type {
 export default class SensitiveReporter implements Reporter {
   private readonly tests = new Map<string, TestCase>();
   private errors = 0;
+  private readonly diagnostics = new Set<string>();
 
   constructor(
     private readonly options: { outputFile: string; junitFile?: string },
@@ -25,11 +28,17 @@ export default class SensitiveReporter implements Reporter {
   }
   onStdOut(_chunk: string | Buffer) {}
   onStdErr(_chunk: string | Buffer) {}
-  onError(_error: TestError) {
+  onError(error: TestError) {
     this.errors += 1;
+    this.recordDiagnostics(error);
   }
-  onTestEnd(test: TestCase, _result?: TestResult) {
+  private recordDiagnostics(error: TestError) {
+    for (const code of smokeFailureDiagnostics(error.message))
+      this.diagnostics.add(code);
+  }
+  onTestEnd(test: TestCase, result?: TestResult) {
     this.tests.set(test.id, test);
+    for (const error of result?.errors ?? []) this.recordDiagnostics(error);
   }
 
   onEnd(result: FullResult) {
@@ -61,10 +70,13 @@ export default class SensitiveReporter implements Reporter {
     );
     const report = {
       suites: [{ title: "sensitive-smoke", specs }],
+      diagnostics: [...this.diagnostics],
       errors: Array.from({ length: errors }, () => ({
         message: "SENSITIVE_SMOKE_FAILED",
       })),
     };
+    if (report.diagnostics.length)
+      console.error(`[smoke] ${report.diagnostics.join(", ")}`);
     mkdirSync(dirname(this.options.outputFile), { recursive: true });
     writeFileSync(this.options.outputFile, `${JSON.stringify(report)}\n`, {
       mode: 0o600,

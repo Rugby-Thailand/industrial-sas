@@ -1,0 +1,206 @@
+[
+  {
+    "file": "final-gates/audit-app.txt",
+    "originalPortableSha256": "bb89bc8b9df2ecb5ff327fbf9722ee11a8bc42167910ea7750d4e9cfa74a69dd",
+    "normalizedPortableSha256": "bb89bc8b9df2ecb5ff327fbf9722ee11a8bc42167910ea7750d4e9cfa74a69dd",
+    "normalization": "terminal CR line endings, trailing whitespace and blank EOF only; command output values unchanged"
+  },
+  {
+    "file": "final-gates/audit-prod.txt",
+    "originalPortableSha256": "87724ecb55579dac2721681bbdf7244d7d891dd3f4bda6c01e30c04d4b08975e",
+    "normalizedPortableSha256": "87724ecb55579dac2721681bbdf7244d7d891dd3f4bda6c01e30c04d4b08975e",
+    "normalization": "terminal CR line endings, trailing whitespace and blank EOF only; command output values unchanged"
+  },
+  {
+    "file": "final-gates/audit-release.txt",
+    "originalPortableSha256": "53004b82d92ca6468356982a9da1e20470ae38c4a7765f9f5deb98588e8bae91",
+    "normalizedPortableSha256": "53004b82d92ca6468356982a9da1e20470ae38c4a7765f9f5deb98588e8bae91",
+    "normalization": "terminal CR line endings, trailing whitespace and blank EOF only; command output values unchanged"
+  },
+  {
+    "file": "final-gates/build-restored.txt",
+    "originalPortableSha256": "35d068d8f1828292c8b48405f007d2dd0eda91254e7dd31d0c6312b8a7a4ffad",
+    "normalizedPortableSha256": "51292e2d44ec9544efa588d7d8f9bb3b626677ddc3670410d5d06ebedbd27278",
+    "normalization": "terminal CR line endings, trailing whitespace and blank EOF only; command output values unchanged"
+  },
+  {
+    "file": "final-gates/build-ts6-gate-negative.txt",
+    "originalPortableSha256": "ecad25c8b179eebd2e4a903939a59ac152ea1836db7f2e4bddbd61b16b0ac259",
+    "normalizedPortableSha256": "ecad25c8b179eebd2e4a903939a59ac152ea1836db7f2e4bddbd61b16b0ac259",
+    "normalization": "terminal CR line endings, trailing whitespace and blank EOF only; command output values unchanged"
+  },
+  {
+    "file": "final-gates/check.txt",
+    "originalPortableSha256": "3f3b3871080d34a22d728b695793015e6197243db306b4b10e0fa242a8ffcb6f",
+    "normalizedPortableSha256": "7742d2e25b9d434b2c5e5212b4b617b408852bcef4cad503c5bc00819050c35b",
+    "normalization": "terminal CR line endings, trailing whitespace and blank EOF only; command output values unchanged"
+  },
+  {
+    "file": "final-gates/checker-install.txt",
+    "originalPortableSha256": "04e66a6c4e91e40cd116fc845dcb315d58b2220854cd6a758653aba6efa343fb",
+    "normalizedPortableSha256": "04e66a6c4e91e40cd116fc845dcb315d58b2220854cd6a758653aba6efa343fb",
+    "normalization": "terminal CR line endings, trailing whitespace and blank EOF only; command output values unchanged"
+  },
+  {
+    "file": "final-gates/clean-install.txt",
+    "originalPortableSha256": "451a112ca5c53b0e019f9405ee60112f2bad854fc741c0f900972fafd3d92484",
+    "normalizedPortableSha256": "451a112ca5c53b0e019f9405ee60112f2bad854fc741c0f900972fafd3d92484",
+    "normalization": "terminal CR line endings, trailing whitespace and blank EOF only; command output values unchanged"
+  },
+  {
+    "file": "final-gates/codegen.txt",
+    "originalPortableSha256": "23781165e990202bb34ec61e15a3f081bbc39f64eb02b8a3c7df31857c4ae1fe",
+    "normalizedPortableSha256": "23781165e990202bb34ec61e15a3f081bbc39f64eb02b8a3c7df31857c4ae1fe",
+    "normalization": "terminal CR line endings, trailing whitespace and blank EOF only; command output values unchanged"
+  },
+  {
+    "file": "final-gates/production-build.txt",
+    "originalPortableSha256": "04adab8fba0c3cdc121b227479d07a90a9cec8d145ba9de79987bd43cd956321",
+    "normalizedPortableSha256": "2057a80e27727acd732f78d303738dea1c7defd8b4af697bcefde2e27e2c3a59",
+    "normalization": "terminal CR line endings, trailing whitespace and blank EOF only; command output values unchanged"
+  },
+  {
+    "file": "final-gates/release-contracts.txt",
+    "originalPortableSha256": "ab0efa5b566bc3fe6a872fd705a691c9b6df073d5d00cce30a03305b4be79807",
+    "normalizedPortableSha256": "5b23e82b2f1c5a81f16b8173eefb896ae10ced12d492ec32a76ebc4b5bd4b263",
+    "normalization": "terminal CR line endings, trailing whitespace and blank EOF only; command output values unchanged"
+  },
+  {
+    "file": "final-gates/release-install.txt",
+    "originalPortableSha256": "ac9493fd2f03da03e025f57fbe80b9d92ce1b742251df189235e311caa9eb6d3",
+    "normalizedPortableSha256": "ac9493fd2f03da03e025f57fbe80b9d92ce1b742251df189235e311caa9eb6d3",
+    "normalization": "terminal CR line endings, trailing whitespace and blank EOF only; command output values unchanged"
+  },
+  {
+    "file": "final-gates/typecheck-ts6.txt",
+    "originalPortableSha256": "aef3bd5bd7f7457622d41b83cf84090e87ab56126410033b7ccd39ff191f093a",
+    "normalizedPortableSha256": "aef3bd5bd7f7457622d41b83cf84090e87ab56126410033b7ccd39ff191f093a",
+    "normalization": "terminal CR line endings, trailing whitespace and blank EOF only; command output values unchanged"
+  },
+  {
+    "file": "final-gates/workflow-pins.txt",
+    "originalPortableSha256": "8c381c44a65f5d804cbccbf60f1ef62e14c391fbd88fef2d7d04a85be44f924a",
+    "normalizedPortableSha256": "8c381c44a65f5d804cbccbf60f1ef62e14c391fbd88fef2d7d04a85be44f924a",
+    "normalization": "terminal CR line endings, trailing whitespace and blank EOF only; command output values unchanged"
+  },
+  {
+    "file": "verification-logs/audit-app.txt",
+    "originalPortableSha256": "bb89bc8b9df2ecb5ff327fbf9722ee11a8bc42167910ea7750d4e9cfa74a69dd",
+    "normalizedPortableSha256": "bb89bc8b9df2ecb5ff327fbf9722ee11a8bc42167910ea7750d4e9cfa74a69dd",
+    "normalization": "terminal CR line endings, trailing whitespace and blank EOF only; command output values unchanged"
+  },
+  {
+    "file": "verification-logs/audit-prod.txt",
+    "originalPortableSha256": "87724ecb55579dac2721681bbdf7244d7d891dd3f4bda6c01e30c04d4b08975e",
+    "normalizedPortableSha256": "87724ecb55579dac2721681bbdf7244d7d891dd3f4bda6c01e30c04d4b08975e",
+    "normalization": "terminal CR line endings, trailing whitespace and blank EOF only; command output values unchanged"
+  },
+  {
+    "file": "verification-logs/audit-release.txt",
+    "originalPortableSha256": "53004b82d92ca6468356982a9da1e20470ae38c4a7765f9f5deb98588e8bae91",
+    "normalizedPortableSha256": "53004b82d92ca6468356982a9da1e20470ae38c4a7765f9f5deb98588e8bae91",
+    "normalization": "terminal CR line endings, trailing whitespace and blank EOF only; command output values unchanged"
+  },
+  {
+    "file": "verification-logs/build-final.txt",
+    "originalPortableSha256": "72fdd5082d8326739182da86fa4102e3bd96208bd82b22ca4787e7480d072af6",
+    "normalizedPortableSha256": "eb9edf8e1eb30275e7d375e2d650f39db712eb972620e6f034df60abf4ef355e",
+    "normalization": "terminal CR line endings, trailing whitespace and blank EOF only; command output values unchanged"
+  },
+  {
+    "file": "verification-logs/build-ts6-gate-negative.txt",
+    "originalPortableSha256": "ec3485bb3d27f9e78b6165f8169e9fb7e97e1ba44fafa3d6aa50e7950a50e852",
+    "normalizedPortableSha256": "ec3485bb3d27f9e78b6165f8169e9fb7e97e1ba44fafa3d6aa50e7950a50e852",
+    "normalization": "terminal CR line endings, trailing whitespace and blank EOF only; command output values unchanged"
+  },
+  {
+    "file": "verification-logs/build.txt",
+    "originalPortableSha256": "be67514b09463a0a686cefead2866cc7459d06c870c9d897e078769d0c12fd3b",
+    "normalizedPortableSha256": "d101c1bfd509dd03d66899eb5f9f251e072b9785f6676c18c6880c2acce86744",
+    "normalization": "terminal CR line endings, trailing whitespace and blank EOF only; command output values unchanged"
+  },
+  {
+    "file": "verification-logs/check-remaining-stages.txt",
+    "originalPortableSha256": "54181e6f22be9454a61f46453e9ac111416ff1c7111ca30a00ec913c299860ef",
+    "normalizedPortableSha256": "8146eec540e15a09905cfb16497577e0db74e8287e877368e5fd91716fbbe420",
+    "normalization": "terminal CR line endings, trailing whitespace and blank EOF only; command output values unchanged"
+  },
+  {
+    "file": "verification-logs/codegen.txt",
+    "originalPortableSha256": "23781165e990202bb34ec61e15a3f081bbc39f64eb02b8a3c7df31857c4ae1fe",
+    "normalizedPortableSha256": "23781165e990202bb34ec61e15a3f081bbc39f64eb02b8a3c7df31857c4ae1fe",
+    "normalization": "terminal CR line endings, trailing whitespace and blank EOF only; command output values unchanged"
+  },
+  {
+    "file": "verification-logs/fixtures.txt",
+    "originalPortableSha256": "7d838865f3297688d2e7e97f6b3e298437d85a0224f1cf5d0505f14fbcc6afc8",
+    "normalizedPortableSha256": "7d47d79d718b1afca7ab2d543c8bade0d40aad30df18f3b98eaa1ebd895758f5",
+    "normalization": "terminal CR line endings, trailing whitespace and blank EOF only; command output values unchanged"
+  },
+  {
+    "file": "verification-logs/harness-run1-failed-tree-check.txt",
+    "originalPortableSha256": "880bf653eb4898a11302b68ba7450c686ec97134c63e49b567a6ce81244afc7c",
+    "normalizedPortableSha256": "880bf653eb4898a11302b68ba7450c686ec97134c63e49b567a6ce81244afc7c",
+    "normalization": "terminal CR line endings, trailing whitespace and blank EOF only; command output values unchanged"
+  },
+  {
+    "file": "verification-logs/harness-run2.txt",
+    "originalPortableSha256": "fa584751e5950caaff55f6d57db03e22aaf800f7557cbe6d9f3f336fb372c691",
+    "normalizedPortableSha256": "fa584751e5950caaff55f6d57db03e22aaf800f7557cbe6d9f3f336fb372c691",
+    "normalization": "terminal CR line endings, trailing whitespace and blank EOF only; command output values unchanged"
+  },
+  {
+    "file": "verification-logs/install.txt",
+    "originalPortableSha256": "dd339c7388b9d069d0fa1fec1ab7764f7657d88ab81f77560f9d188f2106a63c",
+    "normalizedPortableSha256": "dd339c7388b9d069d0fa1fec1ab7764f7657d88ab81f77560f9d188f2106a63c",
+    "normalization": "terminal CR line endings, trailing whitespace and blank EOF only; command output values unchanged"
+  },
+  {
+    "file": "verification-logs/pnpm-check.txt",
+    "originalPortableSha256": "baab388ec0d30dd305123671205e8e235f05297bd4816b84d275403ef41b7589",
+    "normalizedPortableSha256": "baab388ec0d30dd305123671205e8e235f05297bd4816b84d275403ef41b7589",
+    "normalization": "terminal CR line endings, trailing whitespace and blank EOF only; command output values unchanged"
+  },
+  {
+    "file": "verification-logs/prettier-list-different.txt",
+    "originalPortableSha256": "d151098d2cb20f27d9d8aea53f82a81f8df5de5bc8fd078f8415ebd701f05af2",
+    "normalizedPortableSha256": "d151098d2cb20f27d9d8aea53f82a81f8df5de5bc8fd078f8415ebd701f05af2",
+    "normalization": "terminal CR line endings, trailing whitespace and blank EOF only; command output values unchanged"
+  },
+  {
+    "file": "verification-logs/release-contracts.txt",
+    "originalPortableSha256": "719b135f227688d176c09bea149bcd4b50a1e353bd9f3711788593c02ac2d0ff",
+    "normalizedPortableSha256": "813cbb99bb1e6ce996960b3a4dedb2f4d30536489eea747d4eeb67697ac73488",
+    "normalization": "terminal CR line endings, trailing whitespace and blank EOF only; command output values unchanged"
+  },
+  {
+    "file": "verification-logs/release-install.txt",
+    "originalPortableSha256": "9b8560f7425b94fdf2ba4e1c195e7b286142fb57c2d028eb8d099bef77fff6c1",
+    "normalizedPortableSha256": "9b8560f7425b94fdf2ba4e1c195e7b286142fb57c2d028eb8d099bef77fff6c1",
+    "normalization": "terminal CR line endings, trailing whitespace and blank EOF only; command output values unchanged"
+  },
+  {
+    "file": "verification-logs/test-discovery-intent-to-add.txt",
+    "originalPortableSha256": "6b643e7151464e00ef9a19aaca1e8f59e90ec12e3317e569a1aa364c9e983740",
+    "normalizedPortableSha256": "6b643e7151464e00ef9a19aaca1e8f59e90ec12e3317e569a1aa364c9e983740",
+    "normalization": "terminal CR line endings, trailing whitespace and blank EOF only; command output values unchanged"
+  },
+  {
+    "file": "verification-logs/test-discovery.txt",
+    "originalPortableSha256": "b3a5801e6a685cbb4998493d7bb8edfae9560534c31f3fb5947cc7d5da36ff0b",
+    "normalizedPortableSha256": "b3a5801e6a685cbb4998493d7bb8edfae9560534c31f3fb5947cc7d5da36ff0b",
+    "normalization": "terminal CR line endings, trailing whitespace and blank EOF only; command output values unchanged"
+  },
+  {
+    "file": "verification-logs/typecheck-ts6.txt",
+    "originalPortableSha256": "aef3bd5bd7f7457622d41b83cf84090e87ab56126410033b7ccd39ff191f093a",
+    "normalizedPortableSha256": "aef3bd5bd7f7457622d41b83cf84090e87ab56126410033b7ccd39ff191f093a",
+    "normalization": "terminal CR line endings, trailing whitespace and blank EOF only; command output values unchanged"
+  },
+  {
+    "file": "verification-logs/validate-workflows.txt",
+    "originalPortableSha256": "8c381c44a65f5d804cbccbf60f1ef62e14c391fbd88fef2d7d04a85be44f924a",
+    "normalizedPortableSha256": "8c381c44a65f5d804cbccbf60f1ef62e14c391fbd88fef2d7d04a85be44f924a",
+    "normalization": "terminal CR line endings, trailing whitespace and blank EOF only; command output values unchanged"
+  }
+]

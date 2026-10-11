@@ -1,0 +1,493 @@
+{
+  "task": "T00",
+  "kind": "documentation/inventory only",
+  "recordedAt": "2026-10-11T04:25Z (11:25 Asia/Bangkok)",
+  "implementationModel": "Kiro CLI claude-opus-5.5, explicitly launched with --effort high; see implementation-prompt.txt and coordinator invocation.",
+  "git": {
+    "taskBranch": "codex/bun-elysia-t00-20261011",
+    "taskWorktree": "industrial-sas-bun-elysia-t00-20261011",
+    "recordedBase": "ca8c296b2364fcbca33df81a5b18f9e1a213ac16",
+    "originMainAtRecording": "9675ae7b77c7e2a1369e4ef5c520531e14b8d823",
+    "baseToMain": {
+      "aheadBy": 3,
+      "commits": [
+        "646f540 fix: show immediate navigation loading and restore catalogue history",
+        "6b40108 test: verify catalogue history pushes after changing views",
+        "9675ae7 Merge pull request #69"
+      ],
+      "filesChanged": 18,
+      "scope": "application navigation/history only; adds 3 test files (NavigationProgress.test.tsx, PageBackButton.test.tsx, useCatalogueState.test.tsx); no docs, lockfile, package, workflow or release-script change",
+      "consequence": "T00 documents are unaffected; the test manifest is for ca8c296 (245 Vitest files) and main will report 248 Vitest files. T01 must refresh test/discovery numbers on its own base."
+    }
+  },
+  "environment": {
+    "os": "macOS 26.5.2 (Darwin arm64)",
+    "cpu": "Apple M1 Max",
+    "node": "v24.19.0",
+    "pnpm": "10.33.2",
+    "bunOnPath": false,
+    "pnpmStore": {
+      "path": "~/Library/pnpm/store/v11",
+      "size": "7.4G",
+      "state": "pre-populated (cached) by other worktrees"
+    }
+  },
+  "installs": {
+    "root": {
+      "command": "pnpm install --frozen-lockfile --ignore-scripts",
+      "cwd": ".",
+      "exit": 0,
+      "elapsedSeconds": 7.48,
+      "dependencyDirectoryBefore": "absent (no node_modules)",
+      "packages": 880,
+      "resolvedFromLockfile": true,
+      "reusedFromStore": 880,
+      "downloaded": 0,
+      "interpretation": "clean dependency directory from a warm content-addressed store; this is not a cold/network install time",
+      "pendingBuilds": [
+        "msgpackr-extract@3.0.4",
+        "esbuild@0.27.0",
+        "@parcel/watcher@2.6.0",
+        "@swc/core@1.15.47(@swc/helpers@0.5.23)",
+        "unrs-resolver@1.12.2"
+      ],
+      "scriptBearingPackagesInGraph": [
+        "@parcel/watcher@2.6.0 install",
+        "@swc/core@1.15.47 postinstall",
+        "esbuild@0.27.0 postinstall",
+        "msgpackr-extract@3.0.4 install",
+        "unrs-resolver@1.12.2 postinstall"
+      ],
+      "policy": {
+        "file": "pnpm-workspace.yaml",
+        "ignoredBuiltDependencies": [
+          "@parcel/watcher",
+          "@swc/core",
+          "esbuild",
+          "msgpackr-extract",
+          "unrs-resolver"
+        ],
+        "strictDepBuilds": true,
+        "overrides": 11
+      },
+      "lifecycleResult": "--ignore-scripts ran no dependency or project scripts. The five script-bearing packages equal the reviewed ignoredBuiltDependencies list; pnpm records them as pendingBuilds. `pnpm ignored-builds` printed 'Cannot identify as no node_modules found' (exit 1) because --ignore-scripts does not populate its ignored-builds record; pendingBuilds in node_modules/.modules.yaml is the evidence used.",
+      "normalInstallProbe": "normal-root-install.json (Codex separate clean dependency-directory probe, exit 0, manifests unchanged)"
+    },
+    "release": {
+      "command": "pnpm -C tools/release install --frozen-lockfile --ignore-scripts",
+      "exit": 0,
+      "elapsedSeconds": 1.46,
+      "dependencyDirectoryBefore": "absent",
+      "packages": 268,
+      "reusedFromStore": 268,
+      "downloaded": 0,
+      "vercel": "63.1.0 (node_modules/.bin/vercel is a /bin/sh wrapper that execs node dist/vc.js)",
+      "pendingBuilds": ["esbuild@0.27.0"],
+      "scriptBearingPackagesInGraph": ["esbuild@0.27.0 postinstall"],
+      "policy": {
+        "file": "tools/release/pnpm-workspace.yaml",
+        "ignoredBuiltDependencies": [],
+        "strictDepBuilds": false,
+        "overrides": 9
+      },
+      "ciEquivalentProbe": {
+        "command": "pnpm -C <temp copy of tools/release manifests> install --frozen-lockfile",
+        "exit": 0,
+        "result": "pnpm 10 default policy blocked esbuild@0.27.0 with an 'Ignored build scripts' warning; install still succeeds because the release workspace has no strictDepBuilds. Temp copy deleted."
+      }
+    },
+    "manifestsUnchanged": "sha256 of package.json, pnpm-lock.yaml, pnpm-workspace.yaml and the three tools/release equivalents matched before/after; git status unchanged",
+    "lockfiles": {
+      "pnpm-lock.yaml": {
+        "sha256": "0458a132fade7978b096a5b16c2d510559de636f0e9d8eadbf9067344dec2e3a",
+        "lockfileVersion": "9.0",
+        "lines": 11330
+      },
+      "tools/release/pnpm-lock.yaml": {
+        "sha256": "54a2e94e66ae249c6618ae7571b3edc799f0a9f9438c5e038de5d653ee3ee701",
+        "lockfileVersion": "9.0",
+        "lines": 3298
+      }
+    },
+    "npmrc": "root and tools/release: save-exact, save-prefix='', engine-strict, auto-install-peers, strict-peer-dependencies=false, dedupe-peer-dependents, resolution-mode=highest"
+  },
+  "testDiscovery": {
+    "command": "pnpm ci:test-discovery",
+    "exit": 0,
+    "elapsedSeconds": 7.04,
+    "output": "Test discovery OK: 245 Vitest files, 11 Playwright spec files.",
+    "caseListing": {
+      "command": "pnpm exec vitest list --json",
+      "exit": 0,
+      "elapsedSeconds": 19.99,
+      "collectedCases": 2958
+    },
+    "details": "test-manifest.json"
+  },
+  "notRun": [
+    "pnpm check",
+    "pnpm build",
+    "pnpm audit:prod",
+    "pnpm ci:codegen",
+    "any test execution (listing only)",
+    "any Bun command (Bun is not installed on PATH)"
+  ],
+  "github": {
+    "repository": "Rugby-Thailand/industrial-sas (public)",
+    "method": "gh api / gh run / gh pr read-only calls; no writes",
+    "classicBranchProtection": "none (GET branches/main/protection \u2192 404 Branch not protected)",
+    "ruleset": {
+      "id": 24799747,
+      "name": "Main CI and PR checks",
+      "enforcement": "active",
+      "target": "~DEFAULT_BRANCH",
+      "bypassActors": [],
+      "currentUserCanBypass": "never",
+      "rules": {
+        "deletion": true,
+        "non_fast_forward": true,
+        "pull_request": {
+          "requiredApprovals": 0,
+          "requiredReviewThreadResolution": true,
+          "codeOwnerReview": false,
+          "allowedMergeMethods": ["merge", "squash", "rebase"]
+        },
+        "required_status_checks": {
+          "strict": true,
+          "contexts": [
+            {
+              "context": "check",
+              "integrationId": 15368
+            },
+            {
+              "context": "Analyze (javascript-typescript)",
+              "integrationId": 15368
+            },
+            {
+              "context": "Analyze (actions)",
+              "integrationId": 15368
+            },
+            {
+              "context": "CodeQL",
+              "integrationId": 57789
+            }
+          ]
+        }
+      }
+    },
+    "notRequiredByRuleset": "Dependency review is a PR-only job aggregated by `check` (skipped on push); it is not a separate required context",
+    "environments": {
+      "production-release": "custom branch policy: main",
+      "staging": "custom branch policy: main"
+    },
+    "actionsPolicy": {
+      "allowedActions": "selected",
+      "shaPinningRequired": true,
+      "githubOwnedAllowed": true,
+      "patternsAllowed": ["pnpm/action-setup@*", "github/codeql-action/*@*"],
+      "verifiedAllowed": false
+    },
+    "openPullRequests": [
+      {
+        "number": 48,
+        "title": "ci: bump actions/setup-node from 7.0.0 to 7.1.0",
+        "head": "19a5bbb"
+      },
+      {
+        "number": 49,
+        "title": "deps(security): bump vitest from 4.1.10 to 4.1.11",
+        "head": "6e24a61"
+      }
+    ],
+    "bunElysiaPullRequests": "none exist",
+    "recentMerges": [
+      {
+        "pr": 69,
+        "merge": "9675ae7",
+        "at": "2026-10-11T03:36:30Z",
+        "title": "Fix navigation loading and catalogue Back/Forward history"
+      },
+      {
+        "pr": 68,
+        "merge": "ca8c296",
+        "at": "2026-10-11T03:08:18Z",
+        "title": "feat: track AI usage and provider costs"
+      },
+      {
+        "pr": 67,
+        "merge": "1deda8f",
+        "at": "2026-10-11T03:04:09Z",
+        "title": "feat: deliver HR attendance and permission-aware Search"
+      },
+      {
+        "pr": 66,
+        "merge": "9ac5da0",
+        "at": "2026-10-11T01:15:59Z",
+        "title": "Preserve required collector field in private Speed Insights relay"
+      }
+    ],
+    "releaseOutcomes": [
+      {
+        "sha": "9675ae7",
+        "run": "38108938145",
+        "quality": "success",
+        "staging": "STAGING_PASSED (deployment status success 03:42:40Z)",
+        "production": "RELEASED 03:45:58Z; candidate smoke 6 passed/1 optional skipped; live smoke 6 passed/1 optional skipped; remote mutation frontend"
+      },
+      {
+        "sha": "ca8c296",
+        "run": "38107420036",
+        "quality": "success",
+        "staging": "success",
+        "production": "RELEASED (deployment status success 03:17:40Z)"
+      },
+      {
+        "sha": "1deda8f",
+        "run": "38107194959",
+        "quality": "success",
+        "staging": "job success with outcome SUPERSEDED: main advanced before deployment; its queued run releases instead",
+        "production": "skipped (staging outcome was not STAGING_PASSED); HR/Search reached production through ca8c296 and 9675ae7"
+      }
+    ],
+    "codeql": "CodeQL push runs succeeded for 9675ae7, ca8c296, 1deda8f, 9ac5da0",
+    "secretAndVariableNamesOnly": {
+      "quality.yml staging": [
+        "VERCEL_TOKEN",
+        "CONVEX_DEPLOY_KEY",
+        "CLERK_SECRET_KEY",
+        "var RELEASE_ACKNOWLEDGED_DEPLOYMENTS"
+      ],
+      "quality.yml release": [
+        "VERCEL_TOKEN",
+        "CONVEX_BACKUP_ADMIN_KEY",
+        "var RELEASE_ACKNOWLEDGED_DEPLOYMENTS"
+      ],
+      "production-backup.yml": ["CONVEX_BACKUP_ADMIN_KEY"]
+    }
+  },
+  "releaseSafeguards": [
+    "quality \u2192 staging \u2192 production on push/dispatch of main only; staging/release need check success, !cancelled(), repository and ref guards",
+    "staging lock industrial-sas-staging-release; production lock industrial-sas-production-release shared with daily Production backup",
+    "preflight: repository, refs/heads/main, exact SHA, cutover vercel.json (cutoverState: buildCommand gated, git.deploymentEnabled=false, no ignoreCommand), current main head, project identity, no in-flight/unreconciled production deployment (BLOCKED_IN_FLIGHT/BLOCKED_UNRECONCILED)",
+    "fresh native Convex snapshot including storage, completed and expiring \u226524 h later, else BACKUP_FAILED",
+    "second main-head check, then pinned tools/release Vercel CLI 63.1.0 deploy --prod --skip-domain with release SHA/run metadata; superseded SHA ends SUPERSEDED",
+    "assert-deploy-env.mjs --phase=pre and --phase=build around convex deploy (release SHA/run, project, target, Convex/Clerk/app URL); names only",
+    "READY wait, candidate domain bind, read-only candidate smoke, promote same deployment ID, read-only live smoke",
+    "trusted jobs use setup action with cache=false; actions pinned by SHA; repository requires SHA pinning",
+    "outcomes: RELEASED, STAGING_PASSED, STAGING_FAILED, NOT_READY, BUILD_FAILED, BUILD_TIMEOUT, DEPLOY_COMMAND_FAILED, CANDIDATE_FAILED, VERIFY_FAILED, PROMOTE_FAILED, PROMOTE_TIMEOUT, LIVE_FAILED, BACKUP_FAILED, BLOCKED_IN_FLIGHT, BLOCKED_UNRECONCILED, SUPERSEDED"
+  ],
+  "providerEndpoints": {
+    "inbound": [
+      {
+        "route": "POST /webhooks/clerk",
+        "file": "convex/http.ts \u2192 convex/lib/clerkWebhook.ts",
+        "auth": "Svix signature via @clerk/backend/webhooks verifyWebhook"
+      },
+      {
+        "route": "/api/uploadthing",
+        "file": "src/app/api/uploadthing/route.ts",
+        "auth": "UploadThing route handler (uploadthing/next)"
+      },
+      {
+        "route": "/api/observability/speed-insights",
+        "file": "src/app/api/observability/speed-insights/route.ts",
+        "auth": "same-origin relay to <NEXT_PUBLIC_APP_URL>/_vercel/speed-insights/vitals"
+      },
+      {
+        "route": "proxy matcher incl. /__clerk/(.*)",
+        "file": "src/proxy.ts",
+        "auth": "clerkMiddleware (Next 16 Proxy, Node runtime by default; runtime option disallowed)"
+      }
+    ],
+    "outbound": [
+      {
+        "provider": "OpenRouter chat/completions",
+        "files": [
+          "convex/lib/searchProvider.ts",
+          "convex/finishedGoods/jobScans.ts",
+          "convex/finishedGoods/locationImage.ts"
+        ],
+        "runtime": "hosted Convex action; key is backend-only"
+      },
+      {
+        "provider": "OpenRouter generation lookup",
+        "files": ["convex/aiUsage/generation.ts"]
+      },
+      {
+        "provider": "Vercel REST api.vercel.com",
+        "files": ["scripts/release/lib/vercel-api.mjs"]
+      },
+      {
+        "provider": "GitHub REST main ref",
+        "files": ["scripts/release/lib/entrypoint.mjs"]
+      },
+      {
+        "provider": "Convex production deployment (backup/operator)",
+        "files": [
+          "scripts/release/lib/convex-backup.mjs",
+          "scripts/lib/productionOperator.mjs"
+        ]
+      },
+      {
+        "provider": "Release targets (app, candidate, staging hosts)",
+        "files": [
+          "scripts/release/targets.json",
+          "scripts/release/lib/release.mjs"
+        ]
+      },
+      {
+        "provider": "Sentry (opt-in DSN env only)",
+        "files": ["src/instrumentation.ts", "src/instrumentation-client.ts"]
+      },
+      {
+        "provider": "UploadThing SDK",
+        "files": ["src/app/api/uploadthing/route.ts"]
+      },
+      {
+        "provider": "Clerk Backend API (development login)",
+        "files": ["scripts/dev-login.mjs"],
+        "operations": [
+          "users.getUserList",
+          "organizations.getOrganizationMembershipList",
+          "signInTokens.createSignInToken"
+        ],
+        "guards": "Requires test key/development issuer, designated identity/membership and loopback app/backend. Production operator setAdminAuth issuer literals do not make Clerk API requests."
+      }
+    ],
+    "notPresentOnBase": [
+      "Elysia /api/ai/[[...slugs]] route (local AI pilot only)",
+      "LINE, Sent.dm, Composio (planned T12\u2013T15; no code, no configuration)"
+    ]
+  },
+  "copiedEvidence": [
+    {
+      "path": "docs/plans/bun-elysia-delivery-plan-2026-10-11.md",
+      "source": "industrial-sas (untracked) == industrial-sas-bun-typecheck-pilot (untracked)",
+      "sourceSha256": "30bf23f8aaf8c5cdb7fe95b6d1c627c3095f5478a27ba2c67a0f482b4d686461",
+      "copyMatchedSource": true,
+      "portabilityEdit": "See handoff.md: absolute paths/unresolvable links replaced; T00 addenda added where stated."
+    },
+    {
+      "path": "docs/plans/bun-migration-research-2026-10-11.md",
+      "source": "industrial-sas (untracked)",
+      "sourceSha256": "3217f8a5e177c593a2c6c2cb92f4da9de5d864fc5d4e8c985aad27bf5e67f08c",
+      "copyMatchedSource": true,
+      "portabilityEdit": "See handoff.md: absolute paths/unresolvable links replaced; T00 addenda added where stated."
+    },
+    {
+      "path": "docs/plans/performance-next-steps-2026-10-11.md",
+      "source": "industrial-sas-performance-plan-20261011 (untracked)",
+      "sourceSha256": "93b9725452f4a1b2cbfc05cc382966f66322c4e4561b51f513fe221a329038d5",
+      "copyMatchedSource": true,
+      "portabilityEdit": "See handoff.md: absolute paths/unresolvable links replaced; T00 addenda added where stated."
+    },
+    {
+      "path": "docs/reviews/bun-migration-kiro-review-2026-10-11.md",
+      "source": "industrial-sas (untracked)",
+      "sourceSha256": "947f99f6c7fd5d47bfe03258f46aaad3b6384bf3ad1fd4bc536a842ea6151fd9",
+      "copyMatchedSource": true,
+      "portabilityEdit": "See handoff.md: absolute paths/unresolvable links replaced; T00 addenda added where stated."
+    },
+    {
+      "path": "docs/reviews/ai-search-clerk-performance-2026-10-11.md",
+      "source": "industrial-sas (untracked)",
+      "sourceSha256": "df4102bac8094ece938baffad0fcfbad23a56344af9ce61950d6781c027757d9",
+      "copyMatchedSource": true,
+      "portabilityEdit": "See handoff.md: absolute paths/unresolvable links replaced; T00 addenda added where stated."
+    },
+    {
+      "path": "docs/reviews/bun-typecheck-pilot-2026-10-11.md",
+      "source": "industrial-sas-bun-typecheck-pilot (untracked)",
+      "sourceSha256": "0c0114e8120740adf5c2f8652b5de00c3a72860eed684b215c0fbfd534eef008",
+      "copyMatchedSource": true,
+      "portabilityEdit": "See handoff.md: absolute paths/unresolvable links replaced; T00 addenda added where stated."
+    },
+    {
+      "path": "docs/reviews/independent-report.md",
+      "source": "industrial-sas-independent-perf-20261011 (untracked)",
+      "sourceSha256": "0d85e3b0d0e0d888b88f25a718ee7a636885964dce51572d080089d0abf0e07d",
+      "copyMatchedSource": true,
+      "portabilityEdit": "See handoff.md: absolute paths/unresolvable links replaced; T00 addenda added where stated."
+    },
+    {
+      "path": "docs/reviews/assets/ai-search-clerk-2026-10-11/auth-comparison.json",
+      "source": "industrial-sas (untracked)",
+      "sourceSha256": "2692702d94f27f0329d8591230e2f85565a6226b1322b03725a1162a66769d94",
+      "copyMatchedSource": true
+    },
+    {
+      "path": "docs/reviews/assets/bun-migration-2026-10-11/benchmarks.json",
+      "source": "industrial-sas (untracked)",
+      "sourceSha256": "4fda773a610bf897f6ad0f31dc41a172a3019ac15bbaad8fb6541b777806da60",
+      "copyMatchedSource": true
+    },
+    {
+      "path": "docs/reviews/assets/bun-migration-2026-10-11/bun-check-diagnostics.txt",
+      "source": "industrial-sas (untracked)",
+      "sourceSha256": "091755389e235cf303698a24300996fbc3ef3a08ab5b3802aa557945d976459d",
+      "copyMatchedSource": true
+    },
+    {
+      "path": "docs/reviews/assets/bun-migration-2026-10-11/typescript7-diagnostics.txt",
+      "source": "industrial-sas (untracked)",
+      "sourceSha256": "9d89d5bfc2535bfbc915baacf2284053dec6120551999cae44005a348f27bb94",
+      "copyMatchedSource": true
+    },
+    {
+      "path": "docs/reviews/assets/bun-typecheck-pilot-2026-10-11/before-bun.txt",
+      "source": "industrial-sas-bun-typecheck-pilot (untracked)",
+      "sourceSha256": "e3798c0b1130349904fd7ebbb435717cfbcbfb2aad7a625ee3e4250a0331e342",
+      "copyMatchedSource": true
+    },
+    {
+      "path": "docs/reviews/assets/bun-typecheck-pilot-2026-10-11/before-typescript6.txt",
+      "source": "industrial-sas-bun-typecheck-pilot (untracked)",
+      "sourceSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "copyMatchedSource": true
+    },
+    {
+      "path": "docs/reviews/assets/bun-typecheck-pilot-2026-10-11/before-typescript7.txt",
+      "source": "industrial-sas-bun-typecheck-pilot (untracked)",
+      "sourceSha256": "9d89d5bfc2535bfbc915baacf2284053dec6120551999cae44005a348f27bb94",
+      "copyMatchedSource": true
+    },
+    {
+      "path": "docs/reviews/assets/bun-typecheck-pilot-2026-10-11/before.json",
+      "source": "industrial-sas-bun-typecheck-pilot (untracked)",
+      "sourceSha256": "b06ee8339d39e5b375e00247fbe6f867efc8c049cffe2458c0bcd168e72bc9bf",
+      "copyMatchedSource": true
+    },
+    {
+      "path": "docs/reviews/assets/bun-typecheck-pilot-2026-10-11/benchmarks.json",
+      "source": "industrial-sas-bun-typecheck-pilot (untracked)",
+      "sourceSha256": "7fb36fc5378be6f360fe63a2076152abc9fe5a04ed14d0fc88e5629a4594992b",
+      "copyMatchedSource": true,
+      "portabilityEdit": "Replaced the absolute checker-worktree prefix with <checker-worktree> (benchmarks.json 27, error-rejection.json 3 occurrences); values otherwise unchanged; source copy retains the original."
+    },
+    {
+      "path": "docs/reviews/assets/bun-typecheck-pilot-2026-10-11/error-rejection.json",
+      "source": "industrial-sas-bun-typecheck-pilot (untracked)",
+      "sourceSha256": "58a3221f32dc46019259f3848cab713f974c553addf6bad16c2d8e24e4162607",
+      "copyMatchedSource": true,
+      "portabilityEdit": "Replaced the absolute checker-worktree prefix with <checker-worktree> (benchmarks.json 27, error-rejection.json 3 occurrences); values otherwise unchanged; source copy retains the original."
+    },
+    {
+      "path": "docs/reviews/assets/bun-typecheck-pilot-2026-10-11/project-files-bun.json",
+      "source": "industrial-sas-bun-typecheck-pilot (untracked)",
+      "sourceSha256": "69a405fb0b365c7285f1955931c239fcba10de8b6785da529d86d3e9c80e8b2d",
+      "copyMatchedSource": true
+    },
+    {
+      "path": "docs/reviews/assets/bun-typecheck-pilot-2026-10-11/project-files-typescript6.json",
+      "source": "industrial-sas-bun-typecheck-pilot (untracked)",
+      "sourceSha256": "69a405fb0b365c7285f1955931c239fcba10de8b6785da529d86d3e9c80e8b2d",
+      "copyMatchedSource": true
+    },
+    {
+      "path": "docs/reviews/assets/bun-typecheck-pilot-2026-10-11/project-files-typescript7.json",
+      "source": "industrial-sas-bun-typecheck-pilot (untracked)",
+      "sourceSha256": "69a405fb0b365c7285f1955931c239fcba10de8b6785da529d86d3e9c80e8b2d",
+      "copyMatchedSource": true
+    }
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "sha": "9675ae7b77c7e2a1369e4ef5c520531e14b8d823",
+  "checks": [
+    {
+      "name": "test-discovery",
+      "command": ["pnpm", "ci:test-discovery"],
+      "exit": 0,
+      "result": "\n> storage-planner@0.0.0 ci:test-discovery <T00-worktree>\n> node scripts/ci/check-test-discovery.mjs\n\nTest discovery OK: 248 Vitest files, 11 Playwright spec files.\n"
+    },
+    {
+      "name": "vitest-files",
+      "command": ["pnpm", "exec", "vitest", "list", "--filesOnly", "--json"],
+      "exit": 0,
+      "result": {
+        "count": 248,
+        "projects": {
+          "a11y": 5,
+          "convex-runtime": 1,
+          "integration": 74,
+          "isolation": 8,
+          "property": 2,
+          "unit": 101,
+          "unit-node": 57
+        }
+      }
+    },
+    {
+      "name": "vitest-cases",
+      "command": ["pnpm", "exec", "vitest", "list", "--json"],
+      "exit": 0,
+      "result": {
+        "count": 2965,
+        "projects": {
+          "a11y": 20,
+          "convex-runtime": 3,
+          "integration": 1223,
+          "isolation": 229,
+          "property": 4,
+          "unit": 876,
+          "unit-node": 610
+        }
+      }
+    }
+  ],
+  "outputNormalization": "The local worktree prefix in raw stdout is replaced with <T00-worktree>; command, SHA, counts and outcomes are unchanged."
+}

@@ -266,7 +266,11 @@ export interface TenantIndexReader<
 
   readonly unique: () => Promise<Document | null>;
 
-  readonly take: (limit: number) => Promise<readonly Document[]>;
+  /** At most `limit` rows in index order; `desc` reverses that order. */
+  readonly take: (
+    limit: number,
+    order?: "asc" | "desc",
+  ) => Promise<readonly Document[]>;
 
   readonly page: (
     request: TenantIndexPageRequest,
@@ -556,9 +560,20 @@ export function createTenantDocumentAccess(
       return page[0] ?? null;
     };
 
-    const take = async (limit: number): Promise<readonly Document[]> => {
+    const take = async (
+      limit: number,
+      order?: "asc" | "desc",
+    ): Promise<readonly Document[]> => {
       const bounded = requireLimit(limit);
-      const { page } = await readPage<Document>(facts, equality, bounded, null);
+      if (order !== undefined && order !== "asc" && order !== "desc")
+        throw invalidQuery();
+      const { page } = await readPage<Document>(
+        facts,
+        equality,
+        bounded,
+        null,
+        order,
+      );
       return page;
     };
 

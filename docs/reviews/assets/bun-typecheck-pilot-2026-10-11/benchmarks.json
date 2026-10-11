@@ -1,0 +1,342 @@
+{
+  "date": "2026-10-11T02:59:32.847Z",
+  "commit": "8b0ef5385528fce32219e3ac1bd3a678d24abf95",
+  "platform": "darwin",
+  "architecture": "arm64",
+  "versions": {
+    "node": "v24.19.0",
+    "typescript6": "Version 6.0.3",
+    "typescript7": "Version 7.0.2",
+    "bun": "1.4.3",
+    "embeddedTypescript": "7.0.2"
+  },
+  "method": "Three rotated sequential wall-clock samples after fixture corrections. Existing installed dependencies; warm filesystem. Cached TS6 samples have no source changes. Script samples include pnpm and next typegen. No other benchmark/test processes launched during measurement; workstation background activity uncontrolled. No CI/build/runtime measurements.",
+  "projectFileCount": 729,
+  "prime": {
+    "command": [
+      "/opt/homebrew/Cellar/node@24/24.19.0/bin/node",
+      "<checker-worktree>/node_modules/typescript/bin/tsc",
+      "--noEmit",
+      "--tsBuildInfoFile",
+      "<checker-worktree>/.cache/typecheck-benchmark.tsbuildinfo",
+      "--pretty",
+      "false"
+    ],
+    "seconds": 14.8078655,
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  "scriptPrime": {
+    "command": ["pnpm", "typecheck"],
+    "seconds": 18.710677541000006,
+    "exit": 0,
+    "stdout": "\n> storage-planner@0.0.0 typecheck <checker-worktree>\n> next typegen && tsc --noEmit\n\nGenerating route types...\n✓ Types generated successfully\n",
+    "stderr": ""
+  },
+  "medianSeconds": {
+    "checker-ts6-full": 13.765993666000002,
+    "checker-ts6-cached": 2.645078125,
+    "checker-ts7-full": 2.5452467920000053,
+    "checker-bun": 0.8693003339999996,
+    "script-ts6-full": 17.440090458000007,
+    "script-ts6-cached": 5.111141959,
+    "script-bun": 1.5359179169999844
+  },
+  "samples": [
+    {
+      "profile": "checker-ts6-full",
+      "iteration": 1,
+      "command": [
+        "/opt/homebrew/Cellar/node@24/24.19.0/bin/node",
+        "<checker-worktree>/node_modules/typescript/bin/tsc",
+        "--noEmit",
+        "--incremental",
+        "false",
+        "--pretty",
+        "false"
+      ],
+      "seconds": 13.765993666000002,
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "profile": "checker-ts6-cached",
+      "iteration": 1,
+      "command": [
+        "/opt/homebrew/Cellar/node@24/24.19.0/bin/node",
+        "<checker-worktree>/node_modules/typescript/bin/tsc",
+        "--noEmit",
+        "--tsBuildInfoFile",
+        "<checker-worktree>/.cache/typecheck-benchmark.tsbuildinfo",
+        "--pretty",
+        "false"
+      ],
+      "seconds": 3.3982379580000126,
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "profile": "checker-ts7-full",
+      "iteration": 1,
+      "command": [
+        "/opt/homebrew/Cellar/node@24/24.19.0/bin/node",
+        "<checker-worktree>/.cache/checker-tools/node_modules/typescript7/bin/tsc",
+        "--noEmit",
+        "--incremental",
+        "false",
+        "--pretty",
+        "false"
+      ],
+      "seconds": 2.241746041999999,
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "profile": "checker-bun",
+      "iteration": 1,
+      "command": [
+        "<checker-worktree>/.cache/checker-tools/node_modules/@oven/bun-darwin-aarch64/bin/bun",
+        "--check",
+        "--no-pretty"
+      ],
+      "seconds": 0.8693003339999996,
+      "exit": 0,
+      "stdout": "",
+      "stderr": "✓ No type errors in 717 files [839.37ms]\n"
+    },
+    {
+      "profile": "script-ts6-full",
+      "iteration": 1,
+      "command": [
+        "pnpm",
+        "typecheck",
+        "--incremental",
+        "false",
+        "--pretty",
+        "false"
+      ],
+      "seconds": 15.477037167000002,
+      "exit": 0,
+      "stdout": "\n> storage-planner@0.0.0 typecheck <checker-worktree>\n> next typegen && tsc --noEmit --incremental false --pretty false\n\nGenerating route types...\n✓ Types generated successfully\n",
+      "stderr": ""
+    },
+    {
+      "profile": "script-ts6-cached",
+      "iteration": 1,
+      "command": ["pnpm", "typecheck", "--pretty", "false"],
+      "seconds": 3.6355979590000063,
+      "exit": 0,
+      "stdout": "\n> storage-planner@0.0.0 typecheck <checker-worktree>\n> next typegen && tsc --noEmit --pretty false\n\nGenerating route types...\n✓ Types generated successfully\n",
+      "stderr": ""
+    },
+    {
+      "profile": "script-bun",
+      "iteration": 1,
+      "command": ["pnpm", "typecheck:bun"],
+      "seconds": 1.3890773749999934,
+      "exit": 0,
+      "stdout": "\n> storage-planner@0.0.0 typecheck:bun <checker-worktree>\n> next typegen && bun --check --no-pretty\n\nGenerating route types...\n✓ Types generated successfully\n",
+      "stderr": "✓ No type errors in 717 files [625.53ms]\n"
+    },
+    {
+      "profile": "checker-ts6-cached",
+      "iteration": 2,
+      "command": [
+        "/opt/homebrew/Cellar/node@24/24.19.0/bin/node",
+        "<checker-worktree>/node_modules/typescript/bin/tsc",
+        "--noEmit",
+        "--tsBuildInfoFile",
+        "<checker-worktree>/.cache/typecheck-benchmark.tsbuildinfo",
+        "--pretty",
+        "false"
+      ],
+      "seconds": 2.5378283749999975,
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "profile": "checker-ts7-full",
+      "iteration": 2,
+      "command": [
+        "/opt/homebrew/Cellar/node@24/24.19.0/bin/node",
+        "<checker-worktree>/.cache/checker-tools/node_modules/typescript7/bin/tsc",
+        "--noEmit",
+        "--incremental",
+        "false",
+        "--pretty",
+        "false"
+      ],
+      "seconds": 2.5452467920000053,
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "profile": "checker-bun",
+      "iteration": 2,
+      "command": [
+        "<checker-worktree>/.cache/checker-tools/node_modules/@oven/bun-darwin-aarch64/bin/bun",
+        "--check",
+        "--no-pretty"
+      ],
+      "seconds": 0.637397959000009,
+      "exit": 0,
+      "stdout": "",
+      "stderr": "✓ No type errors in 717 files [618.81ms]\n"
+    },
+    {
+      "profile": "script-ts6-full",
+      "iteration": 2,
+      "command": [
+        "pnpm",
+        "typecheck",
+        "--incremental",
+        "false",
+        "--pretty",
+        "false"
+      ],
+      "seconds": 17.440090458000007,
+      "exit": 0,
+      "stdout": "\n> storage-planner@0.0.0 typecheck <checker-worktree>\n> next typegen && tsc --noEmit --incremental false --pretty false\n\nGenerating route types...\n✓ Types generated successfully\n",
+      "stderr": ""
+    },
+    {
+      "profile": "script-ts6-cached",
+      "iteration": 2,
+      "command": ["pnpm", "typecheck", "--pretty", "false"],
+      "seconds": 6.335763249999989,
+      "exit": 0,
+      "stdout": "\n> storage-planner@0.0.0 typecheck <checker-worktree>\n> next typegen && tsc --noEmit --pretty false\n\nGenerating route types...\n✓ Types generated successfully\n",
+      "stderr": ""
+    },
+    {
+      "profile": "script-bun",
+      "iteration": 2,
+      "command": ["pnpm", "typecheck:bun"],
+      "seconds": 2.198085584,
+      "exit": 0,
+      "stdout": "\n> storage-planner@0.0.0 typecheck:bun <checker-worktree>\n> next typegen && bun --check --no-pretty\n\nGenerating route types...\n✓ Types generated successfully\n",
+      "stderr": "✓ No type errors in 717 files [958.15ms]\n"
+    },
+    {
+      "profile": "checker-ts6-full",
+      "iteration": 2,
+      "command": [
+        "/opt/homebrew/Cellar/node@24/24.19.0/bin/node",
+        "<checker-worktree>/node_modules/typescript/bin/tsc",
+        "--noEmit",
+        "--incremental",
+        "false",
+        "--pretty",
+        "false"
+      ],
+      "seconds": 19.011622875000015,
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "profile": "checker-ts7-full",
+      "iteration": 3,
+      "command": [
+        "/opt/homebrew/Cellar/node@24/24.19.0/bin/node",
+        "<checker-worktree>/.cache/checker-tools/node_modules/typescript7/bin/tsc",
+        "--noEmit",
+        "--incremental",
+        "false",
+        "--pretty",
+        "false"
+      ],
+      "seconds": 3.0811179160000175,
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "profile": "checker-bun",
+      "iteration": 3,
+      "command": [
+        "<checker-worktree>/.cache/checker-tools/node_modules/@oven/bun-darwin-aarch64/bin/bun",
+        "--check",
+        "--no-pretty"
+      ],
+      "seconds": 0.9935175419999869,
+      "exit": 0,
+      "stdout": "",
+      "stderr": "✓ No type errors in 717 files [957.27ms]\n"
+    },
+    {
+      "profile": "script-ts6-full",
+      "iteration": 3,
+      "command": [
+        "pnpm",
+        "typecheck",
+        "--incremental",
+        "false",
+        "--pretty",
+        "false"
+      ],
+      "seconds": 18.81562933299999,
+      "exit": 0,
+      "stdout": "\n> storage-planner@0.0.0 typecheck <checker-worktree>\n> next typegen && tsc --noEmit --incremental false --pretty false\n\nGenerating route types...\n✓ Types generated successfully\n",
+      "stderr": ""
+    },
+    {
+      "profile": "script-ts6-cached",
+      "iteration": 3,
+      "command": ["pnpm", "typecheck", "--pretty", "false"],
+      "seconds": 5.111141959,
+      "exit": 0,
+      "stdout": "\n> storage-planner@0.0.0 typecheck <checker-worktree>\n> next typegen && tsc --noEmit --pretty false\n\nGenerating route types...\n✓ Types generated successfully\n",
+      "stderr": ""
+    },
+    {
+      "profile": "script-bun",
+      "iteration": 3,
+      "command": ["pnpm", "typecheck:bun"],
+      "seconds": 1.5359179169999844,
+      "exit": 0,
+      "stdout": "\n> storage-planner@0.0.0 typecheck:bun <checker-worktree>\n> next typegen && bun --check --no-pretty\n\nGenerating route types...\n✓ Types generated successfully\n",
+      "stderr": "✓ No type errors in 717 files [714.21ms]\n"
+    },
+    {
+      "profile": "checker-ts6-full",
+      "iteration": 3,
+      "command": [
+        "/opt/homebrew/Cellar/node@24/24.19.0/bin/node",
+        "<checker-worktree>/node_modules/typescript/bin/tsc",
+        "--noEmit",
+        "--incremental",
+        "false",
+        "--pretty",
+        "false"
+      ],
+      "seconds": 13.577337832999998,
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "profile": "checker-ts6-cached",
+      "iteration": 3,
+      "command": [
+        "/opt/homebrew/Cellar/node@24/24.19.0/bin/node",
+        "<checker-worktree>/node_modules/typescript/bin/tsc",
+        "--noEmit",
+        "--tsBuildInfoFile",
+        "<checker-worktree>/.cache/typecheck-benchmark.tsbuildinfo",
+        "--pretty",
+        "false"
+      ],
+      "seconds": 2.645078125,
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    }
+  ]
+}

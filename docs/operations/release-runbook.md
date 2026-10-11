@@ -50,6 +50,14 @@ RPO/RTO and durable telemetry/alert delivery remain unresolved below.
 
 ## Release path
 
+PR and push checks run every Vitest project across three shards and upload
+native JUnit reports. Browser smoke and the workspace subset run in parallel;
+smoke also verifies the production build and owns its `.next/cache` cache.
+This avoids a second build and a separate report-merging job. Informational
+full-suite coverage runs weekly or by dispatching `Workspace matrix`, alongside
+the existing full browser matrix. Coverage instrumentation gets a 15-second
+test timeout there; ordinary quality tests retain their default timeout.
+
 `.github/workflows/quality.yml` runs one pipeline on `push` to `main` and on a
 `workflow_dispatch` of `main`:
 
@@ -73,6 +81,12 @@ RPO/RTO and durable telemetry/alert delivery remain unresolved below.
      deployment ID, and run read-only candidate smoke;
    - promote the same deployment ID and run read-only live smoke on
      `https://app.thaipropertyai.com`.
+
+The staging and production job conditions include `!cancelled()` as well as
+explicit successful prerequisite results. GitHub otherwise adds an implicit
+`success()` condition that can suppress releases after the PR-only dependency
+review job is deliberately skipped on `main`. Production remains automatic
+after successful quality and staging checks, with no manual release approval.
 
 The daily `Production backup` workflow uses the same lock group. A backup and
 a release therefore never overlap. Queued runs wait (`queue: max`) and are not
@@ -110,7 +124,11 @@ Names only. Values stay in the platform stores listed. The build validator
 | `NEXT_PUBLIC_CONVEX_SITE_URL`                            | `https://greedy-cardinal-537.convex.site`                | `https://befitting-stoat-208.convex.site`                |
 | `NEXT_PUBLIC_CONVEX_URL`                                 | injected by `convex deploy`                              | injected                                                 |
 | `UPLOADTHING_TOKEN`                                      | optional; sensitive Production entry exists              | absent: uploads are unavailable on staging               |
-| `NEXT_PUBLIC_OBSERVABILITY_SINK`                         | optional `none`/`console`                                | optional                                                 |
+| `NEXT_PUBLIC_OBSERVABILITY_SINK`                         | optional `none`/`console`/gated `sentry`                 | optional                                                 |
+| `NEXT_PUBLIC_SPEED_INSIGHTS_ENABLED`                     | `1` only after project service verification              | disabled unless separately provisioned                   |
+| `NEXT_PUBLIC_SENTRY_ENABLED` / `NEXT_PUBLIC_SENTRY_DSN`  | optional client opt-in and public routing DSN            | separate reviewed project DSN                            |
+| `SENTRY_ENABLED` / `SENTRY_DSN`                          | optional server opt-in and DSN                           | separate reviewed project DSN                            |
+| `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`      | server/build only; private source-map upload             | server/build only                                        |
 | `RELEASE_SHA`, `RELEASE_RUN_ID`                          | injected per deployment by `--build-env`                 | injected                                                 |
 
 The validator refuses `CONVEX_DEPLOYMENT`, `CONVEX_ADMIN_KEY`,
@@ -295,12 +313,12 @@ Recovery rules:
 
 ## Telemetry and alerts
 
-Current state: the observability port accepts only `none` and `console`.
-`console` writes to the end user's browser console. Events carry only
+Current state: the observability port accepts `none`, `console`, and an opt-in
+`sentry` sink. `console` writes to the end user's browser console. Events carry only
 allowlisted dimensions (`src/lib/observability/dimensions.ts`). Backend
 provider failures write static JSON lines (`jobScan.provider.*`) to Convex
 function logs. **No durable central destination and no alert delivery are
-configured.** Release failures are visible only as failed GitHub runs and
+configured for Sentry or Convex logs.** Release failures are visible only as failed GitHub runs and
 manifests.
 
 Frontend event codes are restricted to `application.render.failed`,
@@ -316,13 +334,13 @@ allowed only with at least 10 seconds of estimated budget; it can double provide
 cost. Timeouts, network errors, 4xx/429 and malformed/oversized bodies are not
 retried, and no database mutation is repeated.
 
-Optional destinations, none configured or purchased:
+Optional log destinations, none configured or purchased:
 
 - Vercel log drains for frontend/runtime logs. Plan availability is
   unverified.
 - Convex log streams for function logs. Plan availability is unverified.
-- A single new port sink that sends the sanitized events to one reviewed
-  provider.
+- The Sentry port sink described below, after account configuration and delivery
+  verification.
 
 Before collecting, the owner (CODEOWNERS maintainers until named) must choose
 one destination. They must confirm plan capability and cost, and add the
@@ -331,6 +349,62 @@ Only then prove delivery by forcing a safe client error and a safe Convex
 error and seeing both arrive with the release SHA. Route release-failure and
 backup-failure notifications to the same owner. GitHub failure e-mail to
 whoever triggered the run is not an alert route.
+
+### Performance and error integrations (2026-10-11)
+
+Speed Insights is already provisioned on the production Vercel project. On
+October 11 the CLI reported its service ID and `hasData: false`, and the public
+hosted script returned HTTP 200. The production configuration flag was set to
+`1` for the next normal gated release; this is not delivery proof. The evidence
+report records the subsequent release/read-only delivery checks. No plan was
+purchased and no manual production deployment is part of this change.
+
+The hosted script's `beforeSend` API cannot remove DOM selector attribution.
+The client therefore posts to `/api/observability/speed-insights`; the relay
+enforces the same-origin request, an 8 KiB body bound, six allowed numeric metric
+types, route templates and a three-second forwarding deadline. It forwards only
+new opaque metric IDs, numeric values, templated URLs/routes and fixed SDK
+metadata to the configured HTTPS application's Vercel collector. It never
+forwards browser cookies, authorization headers, DOM selectors, business record
+IDs, query strings, hashes, connection details or user context. The script and
+browser collector are same-origin under the existing CSP; no CSP was weakened.
+IP/platform processing remains Vercel's responsibility. Rollback is the
+configuration flag followed by the ordinary release, since public flags are
+inlined at build time. A provisioning/API response alone must never be called
+active field collection; verify an actual relay request and service ingestion.
+
+Sentry 11.6.0 is installed but **external activation is incomplete**: no existing
+organization/project DSNs or source-map upload credentials were found. Keep its
+flags disabled until the owner configures an existing reviewed project, processor
+inventory and alerts. Client activation requires `NEXT_PUBLIC_SENTRY_ENABLED=1`
+and the public DSN; set `NEXT_PUBLIC_OBSERVABILITY_SINK=sentry` to send the
+existing static application events too. Server activation separately requires
+`SENTRY_ENABLED=1` and `SENTRY_DSN`. An upload auth token is server/build-only;
+never expose it in a public variable. It also needs `SENTRY_ORG` and
+`SENTRY_PROJECT`. When all upload values exist, `withSentryConfig` uploads private
+source maps under the release SHA and deletes them after upload. Verify artifact
+matching/symbolication and absence of publicly served source maps in a staged
+release before asserting that debugging works. This was not remotely verified
+without credentials.
+
+The installed SDK uses `dataCollection` and streamed `beforeSendSpan`; the
+deprecated transaction callback does not protect its new span format. All
+personal-data collection switches are disabled, default integrations are off,
+breadcrumbs/replay are disabled, HTTP tracing/propagation is off, and automatic
+build instrumentation is disabled. Only global client errors, explicit static
+port events and Next request errors are captured. The outgoing event is rebuilt
+after SDK enrichment: raw messages, users, request bodies/URLs/headers, business
+context and breadcrumbs are removed. Only reviewed event codes/dimensions,
+hashed build frames with line/column and UUID debug IDs survive. Source maps
+contain source code and belong only in the reviewed private project. A manual
+client route-shell span samples at 5%; no Convex calls or provider HTTP bodies
+are traced, and shell commit is not data readiness. Local tests capture the
+actual SDK envelope with a fake transport and do not establish central delivery.
+A transport wrapper also strips the SDK envelope dynamic-sampling header, which
+can retain the original transaction name after span sanitization. Sanitized
+span trace IDs remain in the body; only event/span envelope items are allowed.
+The wrapper prevents SDK enrichment from restoring a raw outgoing route header.
+Convex log streaming and alert routing remain separate unconfigured work.
 
 ## Operator data repairs
 

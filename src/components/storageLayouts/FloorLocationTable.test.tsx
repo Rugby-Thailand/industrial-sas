@@ -1,5 +1,8 @@
 import { chooseOption } from "@tests/fixtures/select-control";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, screen, within } from "@testing-library/react";
+import { renderWithIntl } from "@tests/fixtures/intl-render";
+import type { ReactElement } from "react";
+import type { AppLocale } from "@/i18n/routing";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -10,8 +13,10 @@ import type {
 } from "@/lib/convex/storageLayoutApi";
 import { FloorLocationTable } from "./FloorLocationTable";
 
-const intl = vi.hoisted(() => ({ locale: "en" }));
-vi.mock("next-intl", () => ({ useLocale: () => intl.locale }));
+const intl: { locale: AppLocale } = { locale: "en" };
+function render(ui: ReactElement) {
+  return renderWithIntl(ui, { locale: intl.locale, preserveProviders: true });
+}
 const select = vi.fn();
 const zones: readonly StorageZoneRow[] = Array.from(
   { length: 260 },

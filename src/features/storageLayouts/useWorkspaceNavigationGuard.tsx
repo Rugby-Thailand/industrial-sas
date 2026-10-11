@@ -6,6 +6,7 @@ import { LOCALES, type AppLocale } from "@/i18n/routing";
 import { useCallback, useLayoutEffect, useId, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { registerTransitionGuard } from "@/lib/navigationGuard";
 import {
   Dialog,
   DialogContent,
@@ -26,7 +27,8 @@ export function isWorkspaceHistoryGuardActive(): boolean {
 type Transition = () => void;
 interface GuardOptions {
   readonly dirty: boolean;
-  readonly save: () => Promise<boolean>;
+  /** Absent when work cannot be saved from the prompt (e.g. an HR request). */
+  readonly save?: () => Promise<boolean>;
   readonly discard: () => void;
   readonly pending: boolean;
   readonly saveBlockedReason?: string;
@@ -64,6 +66,12 @@ export function useWorkspaceNavigationGuard(options: GuardOptions) {
     setFailed(false);
     setPrompt({ action });
   }, []);
+
+  // Programmatic shell navigation (search, AI) asks every mounted guard.
+  useLayoutEffect(
+    () => registerTransitionGuard(requestTransition),
+    [requestTransition],
+  );
 
   useLayoutEffect(() => {
     if (buffered.current) activeHistoryGuards.add(id);
@@ -235,6 +243,9 @@ export function useWorkspaceNavigationGuard(options: GuardOptions) {
     description: thai
       ? "มีการเปลี่ยนแปลงที่ยังไม่ได้บันทึก เลือกบันทึก ละทิ้ง หรือแก้ไขต่อ"
       : "You have unsaved changes. Save them, discard them, or keep editing.",
+    descriptionNoSave: thai
+      ? "มีข้อมูลที่กรอกไว้แต่ยังไม่ได้ส่ง เลือกละทิ้งเพื่อไปต่อ หรือกลับไปแก้ไขต่อ"
+      : "You have entered details that were not sent. Discard them to continue, or keep editing.",
     save: thai ? "บันทึกและดำเนินการต่อ" : "Save and continue",
     discard: thai ? "ละทิ้งการเปลี่ยนแปลง" : "Discard changes",
     keep: thai ? "แก้ไขต่อ" : "Keep editing",
@@ -243,11 +254,21 @@ export function useWorkspaceNavigationGuard(options: GuardOptions) {
     failed: thai
       ? "ยังบันทึกไม่ได้ การเปลี่ยนแปลงของคุณยังอยู่ กรุณาตรวจสอบแล้วลองอีกครั้ง"
       : "Could not save. Your changes are still here. Review them and try again.",
+    pending: thai
+      ? "กำลังส่งข้อมูลอยู่ รอให้เสร็จก่อนออกจากหน้านี้ หรือเลือกแก้ไขต่อ"
+      : "A change is still being sent. Wait for it to finish before leaving, or keep editing.",
   };
+  // An external write in flight cannot be discarded or saved over, but
+  // staying ("Keep editing") is always possible; only this prompt's own
+  // save holds the dialog open.
   const disabled = saving || options.pending;
+  const keepDisabled = saving;
 
+  const save = options.save;
   async function saveAndContinue() {
+    const saveDraft = latest.current.save;
     if (
+      !saveDraft ||
       !prompt ||
       busy.current ||
       latest.current.pending ||
@@ -258,7 +279,7 @@ export function useWorkspaceNavigationGuard(options: GuardOptions) {
     setSaving(true);
     setFailed(false);
     try {
-      if (!(await latest.current.save())) {
+      if (!(await saveDraft())) {
         setFailed(true);
         return;
       }
@@ -276,14 +297,25 @@ export function useWorkspaceNavigationGuard(options: GuardOptions) {
     <Dialog
       open={prompt !== null}
       onOpenChange={(open) => {
-        if (!open && !disabled) setPrompt(null);
+        if (!open && !keepDisabled) setPrompt(null);
       }}
     >
-      <DialogContent closeLabel={labels.close} showCloseButton={!disabled}>
+      <DialogContent closeLabel={labels.close} showCloseButton={!keepDisabled}>
         <DialogHeader>
           <DialogTitle>{labels.title}</DialogTitle>
-          <DialogDescription>{labels.description}</DialogDescription>
+          <DialogDescription>
+            {save ? labels.description : labels.descriptionNoSave}
+          </DialogDescription>
         </DialogHeader>
+        {options.pending ? (
+          <p
+            role="status"
+            className="text-sm text-warning"
+            data-testid="navigation-guard-pending"
+          >
+            {labels.pending}
+          </p>
+        ) : null}
         {options.saveBlockedReason ? (
           <p role="status" className="text-sm text-warning">
             {options.saveBlockedReason}
@@ -297,7 +329,7 @@ export function useWorkspaceNavigationGuard(options: GuardOptions) {
         <DialogFooter>
           <Button
             variant="ghost"
-            disabled={disabled}
+            disabled={keepDisabled}
             onClick={() => setPrompt(null)}
           >
             {labels.keep}
@@ -314,12 +346,14 @@ export function useWorkspaceNavigationGuard(options: GuardOptions) {
           >
             {labels.discard}
           </Button>
-          <Button
-            disabled={disabled || Boolean(options.saveBlockedReason)}
-            onClick={() => void saveAndContinue()}
-          >
-            {saving ? labels.saving : labels.save}
-          </Button>
+          {save ? (
+            <Button
+              disabled={disabled || Boolean(options.saveBlockedReason)}
+              onClick={() => void saveAndContinue()}
+            >
+              {saving ? labels.saving : labels.save}
+            </Button>
+          ) : null}
         </DialogFooter>
       </DialogContent>
     </Dialog>

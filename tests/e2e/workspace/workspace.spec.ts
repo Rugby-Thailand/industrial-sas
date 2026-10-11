@@ -37,6 +37,19 @@ async function open(page: Page, query: string, ready = "[data-map-zone-id]") {
 const overflow = (page: Page) =>
   page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
 
+async function workspaceControls(page: Page) {
+  // Controls follow the actual workspace width; a desktop device can still
+  // have a narrow workspace after the surrounding page padding.
+  const width = await page
+    .locator("[data-workspace-toolbar]")
+    .evaluate((toolbar) => toolbar.parentElement!.parentElement!.clientWidth);
+  const canSplit = width >= 1100;
+  await expect(
+    page.getByRole("button", { name: "Split view", exact: true }),
+  ).toHaveCount(canSplit ? 1 : 0);
+  return { canSplit, compactInspector: width < 851 };
+}
+
 for (const { locale, theme } of matrix) {
   test.describe(`workspace list (${locale}, ${theme})`, () => {
     test("pages, searches, selects and shows the selection on the map", async ({
@@ -139,13 +152,14 @@ for (const { locale, theme } of matrix) {
 test.describe("workspace map and table (English, desktop)", () => {
   test.skip(
     ({ isMobile }) => isMobile,
-    "Split view and the table are desktop layouts.",
+    "These cases exercise the desktop table layout.",
   );
 
   test("switches views, keeps the selection, filters and handles empty results", async ({
     page,
   }) => {
     await open(page, "locale=en");
+    const { canSplit, compactInspector } = await workspaceControls(page);
     await expect(page.locator("[data-map-zone-id]")).toHaveCount(198);
     await expect(page.getByRole("table")).toHaveCount(0);
 
@@ -175,17 +189,43 @@ test.describe("workspace map and table (English, desktop)", () => {
     await page.getByRole("button", { name: "Map view", exact: true }).click();
     const selected = page.locator('[data-map-zone-id="PD-L3-11"]');
     await expect(selected).toHaveAttribute("aria-pressed", "true");
-    await page.getByRole("button", { name: "Hide details" }).click();
+    const details = page.getByRole("button", {
+      name: "PD-L3-11 · Location details",
+      exact: true,
+    });
+    if (compactInspector) {
+      await expect(
+        page.getByRole("button", { name: "Hide details", exact: true }),
+      ).toHaveCount(0);
+      await details.click();
+      const dialog = page.getByRole("dialog", {
+        name: "Location details",
+        exact: true,
+      });
+      await expect(dialog).toBeVisible();
+      await dialog
+        .getByRole("button", { name: "Close dialog", exact: true })
+        .click();
+      await expect(dialog).toBeHidden();
+    } else {
+      await page
+        .getByRole("button", { name: "Hide details", exact: true })
+        .click();
+    }
     await expect(selected).toHaveAttribute("aria-pressed", "true");
-    await page
-      .getByRole("button", { name: "PD-L3-11 · Location details", exact: true })
-      .click();
+    await details.click();
     await page
       .getByRole("button", { name: "Clear selection", exact: true })
       .click();
     await expect(selected).toHaveAttribute("aria-pressed", "false");
 
-    await page.getByRole("button", { name: "Split view", exact: true }).click();
+    await page
+      .getByRole("button", {
+        name: canSplit ? "Split view" : "Table view",
+        exact: true,
+      })
+      .click();
+    await expect(page.getByRole("table")).toBeVisible();
     await page.getByRole("button", { name: "Filter locations" }).click();
     await page.getByRole("button", { name: "Stored", exact: true }).click();
     await page.keyboard.press("Escape");
@@ -212,6 +252,7 @@ test.describe("workspace map and table (English, desktop)", () => {
     page,
   }) => {
     await open(page, "fixture=empty&locale=en");
+    const { canSplit } = await workspaceControls(page);
     await expect(page.locator("[data-map-zone-id]")).toHaveCount(198);
     const zoom = page.getByRole("button", { name: "Zoom in", exact: true });
     while (await zoom.isEnabled()) await zoom.click();
@@ -305,7 +346,10 @@ test.describe("workspace map and table (English, desktop)", () => {
         Math.abs(original.y - beforeDrag.y),
       ),
     ).toBeGreaterThan(0.0001);
-    for (const view of ["Split view", "Map view", "Table view", "Map view"]) {
+    const views = canSplit
+      ? ["Split view", "Map view", "Table view", "Map view"]
+      : ["Table view", "Map view", "Table view", "Map view"];
+    for (const view of views) {
       await page.getByRole("button", { name: view, exact: true }).click();
       if (view === "Table view") continue;
       await expect

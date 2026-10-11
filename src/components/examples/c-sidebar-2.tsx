@@ -4,22 +4,47 @@
 // and inset content. Routes and account information come from the real app.
 import { type CSSProperties, type ReactNode } from "react";
 import {
+  ChartNoAxesCombined,
   Boxes,
   Building2,
+  CalendarCheck,
+  CalendarRange,
   ClipboardList,
+  Clock,
+  History,
   PanelLeft,
-  ScanQrCode,
+  Settings,
+  UserRound,
+  UsersRound,
   X,
   type LucideIcon,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
+import { useAiUsageAccess } from "@/components/providers/AiUsageAccessProvider";
+import { DraftGuardProvider } from "@/components/providers/DraftGuardProvider";
+import {
+  NavigationContent,
+  NavigationProgressProvider,
+} from "@/components/system/NavigationProgress";
+import { SidebarNavigationLink } from "@/components/shell/SidebarNavigationLink";
+import { useHrAccess } from "@/components/providers/HrAccessProvider";
 import { useWorkspace } from "@/components/providers/WorkspaceProvider";
 import { AccountButton } from "@/components/shell/AccountButton";
+import { HrLandingRedirect } from "@/components/shell/HrLandingRedirect";
 import { LocaleSwitcher } from "@/components/shell/LocaleSwitcher";
 import { NavigationPendingIndicator } from "@/components/shell/NavigationPendingIndicator";
+import {
+  GlobalSearchProvider,
+  useGrantedPermissions,
+} from "@/components/shell/search/GlobalSearchProvider";
+import {
+  MobileSearchButton,
+  SidebarSearchTriggers,
+} from "@/components/shell/search/SearchTriggers";
 import { WorkspaceContextBar } from "@/components/shell/WorkspaceContextBar";
 import { Button } from "@/components/ui/button";
+import { ScanIcon } from "@/components/ui/ScanIcon";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import {
   Sidebar,
@@ -37,7 +62,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { Link, usePathname } from "@/i18n/navigation";
+import { usePathname } from "@/i18n/navigation";
 import {
   activeNavigationHref,
   ROUTES,
@@ -58,51 +83,65 @@ export function Pattern({ children }: { readonly children: ReactNode }) {
   const showWorkspaceBar = WORKSPACE_BAR_PATHS.includes(usePathname());
   return (
     <TooltipProvider>
-      <SidebarProvider
-        defaultOpen={false}
-        className="relative h-dvh min-h-0 w-full overflow-hidden bg-canvas text-text"
-        style={
-          {
-            "--sidebar-width-icon": "4rem",
-            "--sidebar-width": "13rem",
-          } as CSSProperties
-        }
-      >
-        <a
-          href={`#${MAIN_ID}`}
-          className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:m-2 focus:rounded-md focus:bg-primary focus:px-4 focus:py-3 focus:text-primary-foreground"
-        >
-          {t("skipToContent")}
-        </a>
-        <AppSidebar />
-        <SidebarInset className="min-w-0 overflow-hidden">
-          <header className="shrink-0 border-b border-border bg-surface px-3 py-2 lg:px-6">
-            <div className="flex items-center gap-2 sm:gap-3">
-              <NavigationDisclosure />
-              {showWorkspaceBar ? (
-                <div className="min-w-0 flex-1">
-                  <WorkspaceContextBar />
-                </div>
-              ) : (
-                <TaskWorkspaceContext />
-              )}
-              <div className="ml-auto">
-                <LocaleSwitcher />
-              </div>
-              <ThemeToggle />
-            </div>
-          </header>
-          <main
-            id={MAIN_ID}
-            tabIndex={-1}
-            className="min-w-0 flex-1 overflow-auto p-3 sm:p-4 lg:px-6 lg:py-4"
-          >
-            {children}
-          </main>
-        </SidebarInset>
-      </SidebarProvider>
+      <NavigationProgressProvider>
+        <DraftGuardProvider>
+          <GlobalSearchProvider>
+            <SidebarProvider
+              defaultOpen={false}
+              className="relative h-dvh min-h-0 w-full overflow-hidden bg-canvas text-text"
+              style={
+                {
+                  "--sidebar-width-icon": "4rem",
+                  "--sidebar-width": "13rem",
+                } as CSSProperties
+              }
+            >
+              <a
+                href={`#${MAIN_ID}`}
+                className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:m-2 focus:rounded-md focus:bg-primary focus:px-4 focus:py-3 focus:text-primary-foreground"
+              >
+                {t("skipToContent")}
+              </a>
+              <HrLandingRedirect />
+              <AppSidebar />
+              <SidebarInset className="min-w-0 overflow-hidden">
+                <header className="shrink-0 border-b border-border bg-surface px-3 py-2 lg:px-6">
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <NavigationDisclosure />
+                    <HeaderSearch />
+                    {showWorkspaceBar ? (
+                      <div className="min-w-0 flex-1">
+                        <WorkspaceContextBar />
+                      </div>
+                    ) : (
+                      <TaskWorkspaceContext />
+                    )}
+                    <div className="ml-auto">
+                      <LocaleSwitcher />
+                    </div>
+                    <ThemeToggle />
+                  </div>
+                </header>
+                <main
+                  id={MAIN_ID}
+                  tabIndex={-1}
+                  className="min-w-0 flex-1 overflow-auto p-3 sm:p-4 lg:px-6 lg:py-4"
+                >
+                  <NavigationContent>{children}</NavigationContent>
+                </main>
+              </SidebarInset>
+            </SidebarProvider>
+          </GlobalSearchProvider>
+        </DraftGuardProvider>
+      </NavigationProgressProvider>
     </TooltipProvider>
   );
+}
+
+/** Phones reach search from the header without opening the menu first. */
+function HeaderSearch() {
+  const { isMobile } = useSidebar();
+  return isMobile ? <MobileSearchButton /> : null;
 }
 
 function NavigationDisclosure() {
@@ -142,6 +181,8 @@ function AppSidebar() {
   const t = useTranslations("Navigation");
   const app = useTranslations("App");
   const workspace = useWorkspace();
+  const hr = useHrAccess();
+  const usage = useAiUsageAccess();
   const { state, isMobile, setOpenMobile } = useSidebar();
   const collapsed = !isMobile && state === "collapsed";
   return (
@@ -170,6 +211,7 @@ function AppSidebar() {
           </div>
           {isMobile ? <NavigationDisclosure /> : null}
         </div>
+        <SidebarSearchTriggers collapsed={collapsed} />
       </SidebarHeader>
       <NavigationTree
         collapsed={collapsed}
@@ -185,7 +227,10 @@ function AppSidebar() {
               collapsed ? "sr-only" : "min-w-0 truncate text-sm font-medium"
             }
           >
-            {workspace.organization?.name ?? app("name")}
+            {workspace.organization?.name ??
+              hr.organizationName ??
+              usage.organizationName ??
+              app("name")}
           </span>
         </div>
       </SidebarFooter>
@@ -193,9 +238,17 @@ function AppSidebar() {
   );
 }
 const NAVIGATION_ICONS: Readonly<Record<string, LucideIcon>> = Object.freeze({
+  [ROUTES.aiUsage]: ChartNoAxesCombined,
   [ROUTES.storageLayouts]: Building2,
-  [ROUTES.jobScan]: ScanQrCode,
+  [ROUTES.jobScan]: ScanIcon,
   [ROUTES.jobScanRecords]: ClipboardList,
+  [ROUTES.hrToday]: Clock,
+  [ROUTES.hrTime]: History,
+  [ROUTES.hrProfile]: UserRound,
+  [ROUTES.hrReview]: CalendarCheck,
+  [ROUTES.hrEmployees]: UsersRound,
+  [ROUTES.hrPeriods]: CalendarRange,
+  [ROUTES.hrSettings]: Settings,
 });
 
 function NavigationTree({
@@ -208,9 +261,18 @@ function NavigationTree({
   const t = useTranslations("Navigation");
   const pathname = usePathname();
   const workspace = useWorkspace();
-  const sections = workspace.permissionsReady
-    ? visibleDesktopNavigation(workspace.navigationPermissions)
-    : [];
+  const hr = useHrAccess();
+  const usage = useAiUsageAccess();
+  // Storage, HR and AI usage grants settle independently. A storage denial is
+  // a settled answer (an HR-only or usage-only member), not a reason to keep
+  // the menu loading.
+  const workspaceSettled =
+    workspace.permissionsReady || workspace.denied || workspace.failed;
+  const hrSettled = hr.status !== "LOADING";
+  const usageSettled = usage.status !== "LOADING";
+  const sections = visibleDesktopNavigation(useGrantedPermissions());
+  const navigationLoading =
+    !(workspaceSettled && hrSettled && usageSettled) && sections.length === 0;
   const activeHref = activeNavigationHref(
     pathname,
     sections.flatMap((section) => section.items.map((item) => item.href)),
@@ -223,7 +285,7 @@ function NavigationTree({
       className="flex min-h-0 flex-1 flex-col"
     >
       <SidebarContent className="gap-0">
-        {!workspace.permissionsReady ? (
+        {navigationLoading ? (
           <p role="status" className="px-3 py-4 text-sm text-muted">
             {t("loadingNavigation")}
           </p>
@@ -259,7 +321,7 @@ function NavigationTree({
                             : "text-sidebar-foreground"
                         }`}
                       >
-                        <Link
+                        <SidebarNavigationLink
                           href={item.href}
                           className="relative"
                           aria-current={active ? "page" : undefined}
@@ -272,7 +334,7 @@ function NavigationTree({
                             {label}
                           </span>
                           <NavigationPendingIndicator />
-                        </Link>
+                        </SidebarNavigationLink>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   );

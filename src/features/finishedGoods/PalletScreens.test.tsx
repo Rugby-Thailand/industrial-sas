@@ -1080,11 +1080,11 @@ describe("reserved destination and physical storage confirmation", () => {
       method: "MANUAL",
       palletId: "pallet-a",
     });
+    await screen.findByRole("alert");
     expect(
       within(dialog).getByRole("button", { name: "Confirm stored" }),
     ).toBeDisabled();
     expect(callsFor("confirmStored")).toHaveLength(0);
-    await screen.findByRole("alert");
     fireEvent.click(screen.getByRole("button", { name: "Cancel reservation" }));
     expect(
       within(screen.getByRole("dialog")).queryByRole("alert"),

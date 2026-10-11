@@ -10,17 +10,21 @@ import { JobScanScreen } from "./JobScanScreen";
 const mocks = vi.hoisted(() => ({
   save: vi.fn(),
   resize: vi.fn(),
+  imageCodes: undefined as ((codes: string[]) => void) | undefined,
   decode: undefined as ((code: string) => void) | undefined,
 }));
 vi.mock("../BarcodeCameraBox", () => ({
   BarcodeCameraBox: ({
     onCode,
     onClose,
+    onImageCodes,
   }: {
+    onImageCodes?: (codes: string[]) => void;
     onCode: (code: string) => void;
     onClose: () => void;
   }) => {
     mocks.decode = onCode;
+    mocks.imageCodes = onImageCodes;
     return (
       <div>
         QA barcode scanner active<button onClick={onClose}>Stop camera</button>
@@ -297,4 +301,61 @@ it("keeps focus on the scan action after Escape and exposes accessible field and
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
   );
   expect(button).toHaveFocus();
+});
+
+it("applies an image JOB/product pair together and saves the decoded identities", async () => {
+  start();
+  fireEvent.click(screen.getByRole("button", { name: "Scan barcode" }));
+  act(() => mocks.imageCodes!(["FO12345678", "DEMO-PRODUCT"]));
+  expect(screen.getByRole("textbox", { name: /Job No\./ })).toHaveValue(
+    "FO12345678",
+  );
+  expect(screen.getByRole("textbox", { name: /Product barcode/ })).toHaveValue(
+    "DEMO-PRODUCT",
+  );
+  expect(mocks.resize).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: /Save 1/ }));
+  await waitFor(() => expect(mocks.save).toHaveBeenCalledOnce());
+  expect(mocks.save.mock.calls[0]![0].items).toEqual([
+    {
+      factoryOrder: "FO12345678",
+      productBarcodeText: "DEMO-PRODUCT",
+      source: "BARCODE",
+      storageFormat: "PALLET",
+    },
+  ]);
+});
+it("requires duplicate review before saving repeated photographed physical units", async () => {
+  start();
+  fireEvent.click(screen.getByRole("button", { name: "Scan barcode" }));
+  act(() => mocks.imageCodes!(["FO12345678", "DEMO-PRODUCT"]));
+  act(() => mocks.imageCodes!(["FO12345678", "DEMO-PRODUCT"]));
+  expect(screen.getAllByRole("textbox", { name: /Job No\./ })).toHaveLength(2);
+  const save = screen.getByRole("button", { name: /Save 2/ });
+  expect(save).toBeDisabled();
+  expect(mocks.save).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("checkbox"));
+  expect(save).toBeEnabled();
+  fireEvent.click(save);
+  await waitFor(() => expect(mocks.save).toHaveBeenCalledOnce());
+  expect(mocks.save.mock.calls[0]![0].items).toHaveLength(2);
+});
+it("manual edits close image intake and reject its late results", () => {
+  start();
+  addTicket();
+  fireEvent.click(screen.getByRole("button", { name: "Scan barcode" }));
+  const late = mocks.imageCodes!;
+  fireEvent.change(screen.getByRole("textbox", { name: /Product barcode/ }), {
+    target: { value: "EDITED-PRODUCT" },
+  });
+  expect(
+    screen.queryByText("QA barcode scanner active"),
+  ).not.toBeInTheDocument();
+  act(() => late(["FO87654321", "LATE-PRODUCT"]));
+  expect(
+    screen.getAllByRole("textbox", { name: /Product barcode/ }),
+  ).toHaveLength(1);
+  expect(screen.getByRole("textbox", { name: /Product barcode/ })).toHaveValue(
+    "EDITED-PRODUCT",
+  );
 });

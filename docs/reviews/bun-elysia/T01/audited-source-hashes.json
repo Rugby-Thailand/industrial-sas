@@ -1,0 +1,16 @@
+{
+  ".bun-version": "bd31e8d9cf8d14a1e9e3fdf3b9f6a524819aed0d1b14627523c6765767c7d8f1",
+  "package.json": "e53c90ef5a813d43b7c4108ff067519ef3397c39a2cc29f994c3730c004fd21b",
+  "pnpm-lock.yaml": "0458a132fade7978b096a5b16c2d510559de636f0e9d8eadbf9067344dec2e3a",
+  "tsconfig.json": "e3917006f4028d0885ee040d5de2e10a229a674514dfaabcb6f217195b315f69",
+  "next.config.ts": "e71a0aceafb034393570810118c10784d1ef95e35f8040574a728cb96b5c3a77",
+  ".github/workflows/quality.yml": "9dcdaf0826d114c723d2365cce2251402645b149d4a847a0864aac3fa705371e",
+  "README.md": "611d4884d4e2a912e43a971eed15c5debb693ab372f3a1cb85ab2ca0063d73c7",
+  "scripts/ci/install-bun-checker.mjs": "e835fe161384de64bab92b328ca7db5526c09645a5384554724e4db3810517e8",
+  "scripts/benchmark-typecheck.mjs": "415fd6f36cef2c9a9c6c7e060abf6ceb45202afc51692258c12089497bafcbd3",
+  "scripts/ci/workflow-lib.mjs": "7a25ce4fd2e3bdcac14243938d33a46171195e59122911045469087989bcfc74",
+  "tests/integration/bun-checker.integration.test.ts": "73ac8a33b44ad2018756efb2f660f152b9450c5edf2c4efe12a3991b35c4f1ac",
+  "tests/integration/ci-workflows.integration.test.ts": "cfaf0c9b68edc4af250791c5731e8a49bdb9d1dc9b7d3ecfc2fc2d28028f1ab2",
+  "src/features/finishedGoods/catalogueFilters.test.ts": "cef06b3b1b39482d27a6c53887774cad7b624fd0bb889265c8ae51046478f5f5",
+  "src/features/finishedGoods/unitNextAction.test.ts": "97535594ec4d87d09ca4ace790218c64775b1a4213dd1a058110df24548c5a57"
+}

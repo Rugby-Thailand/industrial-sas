@@ -1,0 +1,210 @@
+{
+  "recordedAt": "2026-10-11 ~10:45–11:25 Asia/Bangkok",
+  "method": "read-only git commands; GIT_OPTIONAL_LOCKS=0 for other worktrees; patches written to a temporary directory only for `git apply --check` in the T00 worktree, then discarded. No stash, reset, checkout, rebase or edit in any inspected workspace.",
+  "primaryWorkspace": {
+    "name": "industrial-sas",
+    "branch": "main (local)",
+    "head": "733c6acad348f1c024ef033f9d6ae8300e45e363",
+    "headCommits": [
+      {
+        "sha": "733c6ac",
+        "subject": "fix: show immediate navigation loading and restore catalogue history",
+        "note": "local commit; different patch-id from merged 646f540 (same subject); not on origin"
+      },
+      {
+        "sha": "8b0ef53",
+        "subject": "feat: add HR workflows, global search and shared UI controls",
+        "note": "local commit; HR/Search was delivered separately as PR #67 (1deda8f); not itself on origin"
+      }
+    ],
+    "mergeBaseWithMain": "c64a882239696122e593e493aea771a1792841e5",
+    "aheadBehindVsCa8c296": "2/34",
+    "aheadBehindVsMain9675ae7": "2/37",
+    "treeDiffVsMain": "537 files changed (local HEAD vs 9675ae7); do not merge/rebase this branch wholesale",
+    "stashes": 5,
+    "dirtyCount": 26,
+    "dirtyOwnership": {
+      "aiPilotTracked": [
+        {
+          "path": ".env.example",
+          "appliesCleanlyToCa8c296": true,
+          "note": "adds one optional variable name (CLERK_JWT_KEY) with an explanatory comment; value not recorded"
+        },
+        {
+          "path": "README.md",
+          "appliesCleanlyToCa8c296": true,
+          "note": "+27 lines describing the Elysia AI route, token reuse and benchmarks"
+        },
+        {
+          "path": "convex/hr/navigationIntent.ts",
+          "appliesCleanlyToCa8c296": true,
+          "note": "literal `as const` on three result codes (precise Convex return types)"
+        },
+        {
+          "path": "package.json",
+          "appliesCleanlyToCa8c296": false,
+          "note": "+@elysiajs/eden 1.4.9, @sinclair/typebox 0.34.52, elysia 1.4.30, exact-mirror 0.2.7; context conflicts with main's added Sentry/TanStack/Speed Insights/React Compiler entries"
+        },
+        {
+          "path": "pnpm-lock.yaml",
+          "appliesCleanlyToCa8c296": false,
+          "note": "+144 lines for the Elysia graph; must be regenerated on the new base, not patched"
+        },
+        {
+          "path": "src/components/examples/c-sidebar-2.test.tsx",
+          "appliesCleanlyToCa8c296": false,
+          "note": "test file exists only in local commit 8b0ef53 (absent on ca8c296 and 9675ae7); its AI mock change has no target on main unless T02 also delivers an equivalent test"
+        },
+        {
+          "path": "src/components/shell/search/GlobalSearch.test.tsx",
+          "appliesCleanlyToCa8c296": true,
+          "note": "mocks @/lib/ai/client and Clerk useAuth; adds organization-bound token test"
+        },
+        {
+          "path": "src/components/shell/search/SearchDialogFocus.test.tsx",
+          "appliesCleanlyToCa8c296": true,
+          "note": "same mock swap"
+        },
+        {
+          "path": "src/components/shell/search/SearchDialogLoader.test.tsx",
+          "appliesCleanlyToCa8c296": false,
+          "note": "test file exists only in local commit 8b0ef53 (absent on main); same mock swap; no target on main"
+        },
+        {
+          "path": "src/components/shell/search/useAiSearch.ts",
+          "appliesCleanlyToCa8c296": true,
+          "note": "Eden client + parallel Clerk session/Convex token acquisition, cancellation"
+        }
+      ],
+      "aiPilotUntracked": [
+        "scripts/ai-search-auth-benchmark.mjs",
+        "scripts/ai-search-http-benchmark.mjs",
+        "src/app/api/ai/[[...slugs]]/route.ts",
+        "src/lib/ai/app.ts",
+        "src/lib/ai/authenticate.ts",
+        "src/lib/ai/client.ts",
+        "src/lib/ai/searchContract.ts",
+        "tests/integration/ai-search-http.integration.test.ts"
+      ],
+      "bunElysiaDocsUntracked_copiedIntoT00": [
+        "docs/plans/bun-elysia-delivery-plan-2026-10-11.md",
+        "docs/plans/bun-migration-research-2026-10-11.md",
+        "docs/reviews/ai-search-clerk-performance-2026-10-11.md",
+        "docs/reviews/assets/ai-search-clerk-2026-10-11/auth-comparison.json",
+        "docs/reviews/assets/bun-migration-2026-10-11/benchmarks.json",
+        "docs/reviews/assets/bun-migration-2026-10-11/bun-check-diagnostics.txt",
+        "docs/reviews/assets/bun-migration-2026-10-11/typescript7-diagnostics.txt",
+        "docs/reviews/bun-migration-kiro-review-2026-10-11.md"
+      ],
+      "unrelated": "none among the 26 dirty paths; unrelated work is in the two local commits above"
+    },
+    "untrackedReferencedOnlyHere": {
+      "docs/plans/performance-improvement-2026-10-10.md": "tracked only in local commit 8b0ef53; absent on main; not part of T00 scope"
+    }
+  },
+  "checkerWorktree": {
+    "name": "industrial-sas-bun-typecheck-pilot",
+    "branch": "codex/bun-typecheck-pilot-20261011",
+    "head": "8b0ef5385528fce32219e3ac1bd3a678d24abf95",
+    "mergeBaseWithMain": "c64a882239696122e593e493aea771a1792841e5",
+    "aheadBehindVsCa8c296": "1/34",
+    "aheadBehindVsMain9675ae7": "1/37",
+    "headNote": "its only commit is the same local 8b0ef53 HR/Search/UI commit as the primary workspace; it must not be delivered",
+    "dirtyTracked": [
+      {
+        "path": "package.json",
+        "change": "+\"typecheck:bun\": \"next typegen && bun --check --no-pretty\""
+      },
+      {
+        "path": "src/features/finishedGoods/catalogueFilters.test.ts",
+        "change": "+activeMoveId on one IN_TRANSIT fixture"
+      },
+      {
+        "path": "src/features/finishedGoods/unitNextAction.test.ts",
+        "change": "+activeMoveId on two move fixtures"
+      }
+    ],
+    "trackedPatch": {
+      "sha256": "a032b81f34df890f3c3f5a471b14e3e7119f77af01416bd936853dd3b8051b47",
+      "appliesCleanlyToCa8c296": true,
+      "pathsUnchangedCa8c296To9675ae7": true
+    },
+    "dirtyUntracked": [
+      "scripts/benchmark-typecheck.mjs (206 lines, sha256 0c988ea34574ee66339c5cffe4fc839aa2590b89c384428b112d80114d1f28eb)",
+      "docs/plans/bun-elysia-delivery-plan-2026-10-11.md (copied)",
+      "docs/reviews/bun-typecheck-pilot-2026-10-11.md (copied)",
+      "docs/reviews/assets/bun-typecheck-pilot-2026-10-11/* 9 files (copied)"
+    ],
+    "ignoredState": [
+      "node_modules (pilot install)",
+      ".cache/checker-tools (Bun 1.4.3 + TypeScript 7.0.2, not on PATH)"
+    ],
+    "stashes": "5 (shared repository stash list, same as primary)"
+  },
+  "otherWorktrees": [
+    {
+      "name": "industrial-sas-ai-usage-delivery-20261011",
+      "head": "1760f6e",
+      "branch": "codex/ai-usage-delivery-20261011",
+      "dirty": 0,
+      "inMain": true
+    },
+    {
+      "name": "industrial-sas-hr-delivery-20261011",
+      "head": "fbe1b31",
+      "branch": "codex/hr-module-delivery-20261011",
+      "dirty": 0,
+      "inMain": true
+    },
+    {
+      "name": "industrial-sas-navigation-release",
+      "head": "6b40108",
+      "branch": "codex/instant-navigation-history-20261011",
+      "dirty": 0,
+      "inMain": true
+    },
+    {
+      "name": "industrial-sas-independent-perf-20261011",
+      "head": "9ac5da0 (detached)",
+      "dirty": ["?? docs/reviews/independent-report.md (copied into T00)"],
+      "inMain": true,
+      "note": "ignored out/performance raw artifacts stay there"
+    },
+    {
+      "name": "industrial-sas-performance-plan-20261011",
+      "head": "9ac5da0 (detached)",
+      "dirty": [
+        "?? docs/plans/performance-next-steps-2026-10-11.md (copied into T00)",
+        "?? docs/reviews/performance-methodology-2026-10-11.md (outside T00 scope; not copied)"
+      ],
+      "inMain": true
+    },
+    {
+      "name": "industrial-sas-performance-20261011-0600",
+      "head": "fd000f9",
+      "branch": "codex/performance-speed-relay-contract-20261011",
+      "dirty": 0,
+      "inMain": false,
+      "aheadBehindVsMain": "1/34",
+      "note": "speed-relay fix; PR #66 (9ac5da0) delivered the same subject on main — confirm equivalence before deleting; not a T00 input"
+    },
+    {
+      "name": "industrial-sas-ai-usage",
+      "head": "54726c9",
+      "branch": "codex/ai-usage-tracking",
+      "dirty": 1,
+      "inMain": false,
+      "aheadBehindVsMain": "11/33",
+      "note": "older AI-usage branch; PR #68 delivered AI usage; not a T00 input"
+    },
+    {
+      "name": "industrial-sas-ai-usage-main-verify",
+      "head": "54726c9 (detached)",
+      "dirty": 0,
+      "inMain": false
+    }
+  ],
+  "otherWorktreesNote": "`git worktree list` shows ~80 worktrees; only those touching Bun/Elysia, AI Search, HR/Search, navigation or performance on 2026-10-11 were inspected. None contains Bun/Elysia work besides the primary workspace and checker worktree.",
+  "t01ReconciliationPlan": "see handoff.md §T01 reconciliation (do not rebase the checker branch in T00)",
+  "t02TransferPlan": "see handoff.md §AI pilot transfer"
+}

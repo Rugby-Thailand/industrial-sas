@@ -1,0 +1,682 @@
+{
+  "recordedAt": "2026-10-11T06:16:36.970551+00:00",
+  "candidateSha": "f7d197dc886c3e79f79bb656b91613ded761cace",
+  "completion": {
+    "completedAt": "2026-10-11T06:16:16.287Z",
+    "commit": "f7d197dc886c3e79f79bb656b91613ded761cace",
+    "harnessSha256": "415fd6f36cef2c9a9c6c7e060abf6ceb45202afc51692258c12089497bafcbd3",
+    "inputSha256": "33815b9a506db2f705dbabee3b27ba4d35bde2544c330a87715affa07baf99db",
+    "samples": 90,
+    "samplesPerProfile": 10,
+    "allAssertionsPassed": true,
+    "externalExitCaptureRequired": true
+  },
+  "exit": 0,
+  "sourceHashesEqual": true,
+  "changedNonBenchmarkFiles": [],
+  "newNonBenchmarkFiles": [],
+  "harnessFingerprintsEqual": true,
+  "fingerprintedInputs": 4237,
+  "allSamplesExitZero": true,
+  "sampleCount": 90,
+  "allOrdersMatch": true,
+  "orderChecks": [
+    {
+      "iteration": 1,
+      "actual": [
+        "checker-ts6-full",
+        "checker-ts6-cached",
+        "checker-ts6-edited",
+        "checker-bun",
+        "checker-bun-edited",
+        "next-typegen",
+        "command-ts6-full",
+        "command-ts6-cached",
+        "command-bun"
+      ],
+      "expected": [
+        "checker-ts6-full",
+        "checker-ts6-cached",
+        "checker-ts6-edited",
+        "checker-bun",
+        "checker-bun-edited",
+        "next-typegen",
+        "command-ts6-full",
+        "command-ts6-cached",
+        "command-bun"
+      ],
+      "matches": true
+    },
+    {
+      "iteration": 2,
+      "actual": [
+        "command-bun",
+        "command-ts6-cached",
+        "command-ts6-full",
+        "next-typegen",
+        "checker-bun-edited",
+        "checker-bun",
+        "checker-ts6-edited",
+        "checker-ts6-cached",
+        "checker-ts6-full"
+      ],
+      "expected": [
+        "command-bun",
+        "command-ts6-cached",
+        "command-ts6-full",
+        "next-typegen",
+        "checker-bun-edited",
+        "checker-bun",
+        "checker-ts6-edited",
+        "checker-ts6-cached",
+        "checker-ts6-full"
+      ],
+      "matches": true
+    },
+    {
+      "iteration": 3,
+      "actual": [
+        "checker-ts6-full",
+        "checker-ts6-cached",
+        "checker-ts6-edited",
+        "checker-bun",
+        "checker-bun-edited",
+        "next-typegen",
+        "command-ts6-full",
+        "command-ts6-cached",
+        "command-bun"
+      ],
+      "expected": [
+        "checker-ts6-full",
+        "checker-ts6-cached",
+        "checker-ts6-edited",
+        "checker-bun",
+        "checker-bun-edited",
+        "next-typegen",
+        "command-ts6-full",
+        "command-ts6-cached",
+        "command-bun"
+      ],
+      "matches": true
+    },
+    {
+      "iteration": 4,
+      "actual": [
+        "command-bun",
+        "command-ts6-cached",
+        "command-ts6-full",
+        "next-typegen",
+        "checker-bun-edited",
+        "checker-bun",
+        "checker-ts6-edited",
+        "checker-ts6-cached",
+        "checker-ts6-full"
+      ],
+      "expected": [
+        "command-bun",
+        "command-ts6-cached",
+        "command-ts6-full",
+        "next-typegen",
+        "checker-bun-edited",
+        "checker-bun",
+        "checker-ts6-edited",
+        "checker-ts6-cached",
+        "checker-ts6-full"
+      ],
+      "matches": true
+    },
+    {
+      "iteration": 5,
+      "actual": [
+        "checker-ts6-full",
+        "checker-ts6-cached",
+        "checker-ts6-edited",
+        "checker-bun",
+        "checker-bun-edited",
+        "next-typegen",
+        "command-ts6-full",
+        "command-ts6-cached",
+        "command-bun"
+      ],
+      "expected": [
+        "checker-ts6-full",
+        "checker-ts6-cached",
+        "checker-ts6-edited",
+        "checker-bun",
+        "checker-bun-edited",
+        "next-typegen",
+        "command-ts6-full",
+        "command-ts6-cached",
+        "command-bun"
+      ],
+      "matches": true
+    },
+    {
+      "iteration": 6,
+      "actual": [
+        "command-bun",
+        "command-ts6-cached",
+        "command-ts6-full",
+        "next-typegen",
+        "checker-bun-edited",
+        "checker-bun",
+        "checker-ts6-edited",
+        "checker-ts6-cached",
+        "checker-ts6-full"
+      ],
+      "expected": [
+        "command-bun",
+        "command-ts6-cached",
+        "command-ts6-full",
+        "next-typegen",
+        "checker-bun-edited",
+        "checker-bun",
+        "checker-ts6-edited",
+        "checker-ts6-cached",
+        "checker-ts6-full"
+      ],
+      "matches": true
+    },
+    {
+      "iteration": 7,
+      "actual": [
+        "checker-ts6-full",
+        "checker-ts6-cached",
+        "checker-ts6-edited",
+        "checker-bun",
+        "checker-bun-edited",
+        "next-typegen",
+        "command-ts6-full",
+        "command-ts6-cached",
+        "command-bun"
+      ],
+      "expected": [
+        "checker-ts6-full",
+        "checker-ts6-cached",
+        "checker-ts6-edited",
+        "checker-bun",
+        "checker-bun-edited",
+        "next-typegen",
+        "command-ts6-full",
+        "command-ts6-cached",
+        "command-bun"
+      ],
+      "matches": true
+    },
+    {
+      "iteration": 8,
+      "actual": [
+        "command-bun",
+        "command-ts6-cached",
+        "command-ts6-full",
+        "next-typegen",
+        "checker-bun-edited",
+        "checker-bun",
+        "checker-ts6-edited",
+        "checker-ts6-cached",
+        "checker-ts6-full"
+      ],
+      "expected": [
+        "command-bun",
+        "command-ts6-cached",
+        "command-ts6-full",
+        "next-typegen",
+        "checker-bun-edited",
+        "checker-bun",
+        "checker-ts6-edited",
+        "checker-ts6-cached",
+        "checker-ts6-full"
+      ],
+      "matches": true
+    },
+    {
+      "iteration": 9,
+      "actual": [
+        "checker-ts6-full",
+        "checker-ts6-cached",
+        "checker-ts6-edited",
+        "checker-bun",
+        "checker-bun-edited",
+        "next-typegen",
+        "command-ts6-full",
+        "command-ts6-cached",
+        "command-bun"
+      ],
+      "expected": [
+        "checker-ts6-full",
+        "checker-ts6-cached",
+        "checker-ts6-edited",
+        "checker-bun",
+        "checker-bun-edited",
+        "next-typegen",
+        "command-ts6-full",
+        "command-ts6-cached",
+        "command-bun"
+      ],
+      "matches": true
+    },
+    {
+      "iteration": 10,
+      "actual": [
+        "command-bun",
+        "command-ts6-cached",
+        "command-ts6-full",
+        "next-typegen",
+        "checker-bun-edited",
+        "checker-bun",
+        "checker-ts6-edited",
+        "checker-ts6-cached",
+        "checker-ts6-full"
+      ],
+      "expected": [
+        "command-bun",
+        "command-ts6-cached",
+        "command-ts6-full",
+        "next-typegen",
+        "checker-bun-edited",
+        "checker-bun",
+        "checker-ts6-edited",
+        "checker-ts6-cached",
+        "checker-ts6-full"
+      ],
+      "matches": true
+    }
+  ],
+  "paired": {
+    "commandFull": {
+      "samples": [
+        {
+          "iteration": 1,
+          "order": "forward",
+          "typescript6Seconds": 17.104454499999992,
+          "bunSeconds": 2.208563083999994,
+          "differenceSeconds": 14.895891415999998,
+          "ratio": 7.744607624710275,
+          "bunLower": true
+        },
+        {
+          "iteration": 2,
+          "order": "reversed",
+          "typescript6Seconds": 16.404570666999994,
+          "bunSeconds": 2.1321276249999936,
+          "differenceSeconds": 14.272443042,
+          "ratio": 7.693990957506609,
+          "bunLower": true
+        },
+        {
+          "iteration": 3,
+          "order": "forward",
+          "typescript6Seconds": 16.780954499999993,
+          "bunSeconds": 2.2260659580000213,
+          "differenceSeconds": 14.554888541999972,
+          "ratio": 7.53839051340447,
+          "bunLower": true
+        },
+        {
+          "iteration": 4,
+          "order": "reversed",
+          "typescript6Seconds": 16.540249792000047,
+          "bunSeconds": 2.316920374999987,
+          "differenceSeconds": 14.223329417000059,
+          "ratio": 7.138894357558636,
+          "bunLower": true
+        },
+        {
+          "iteration": 5,
+          "order": "forward",
+          "typescript6Seconds": 15.61488058300002,
+          "bunSeconds": 2.0018558339999872,
+          "differenceSeconds": 13.613024749000033,
+          "ratio": 7.800202351135002,
+          "bunLower": true
+        },
+        {
+          "iteration": 6,
+          "order": "reversed",
+          "typescript6Seconds": 15.453690333000035,
+          "bunSeconds": 1.9635574999999954,
+          "differenceSeconds": 13.49013283300004,
+          "ratio": 7.870250977116825,
+          "bunLower": true
+        },
+        {
+          "iteration": 7,
+          "order": "forward",
+          "typescript6Seconds": 15.994528875000018,
+          "bunSeconds": 2.06927112499997,
+          "differenceSeconds": 13.925257750000048,
+          "ratio": 7.729547221609372,
+          "bunLower": true
+        },
+        {
+          "iteration": 8,
+          "order": "reversed",
+          "typescript6Seconds": 16.45405699999997,
+          "bunSeconds": 2.018395709000004,
+          "differenceSeconds": 14.435661290999967,
+          "ratio": 8.152047156378462,
+          "bunLower": true
+        },
+        {
+          "iteration": 9,
+          "order": "forward",
+          "typescript6Seconds": 15.739558958000037,
+          "bunSeconds": 1.9925894580000314,
+          "differenceSeconds": 13.746969500000006,
+          "ratio": 7.899047590966322,
+          "bunLower": true
+        },
+        {
+          "iteration": 10,
+          "order": "reversed",
+          "typescript6Seconds": 15.632852415999979,
+          "bunSeconds": 1.9574804999999469,
+          "differenceSeconds": 13.675371916000032,
+          "ratio": 7.986211058552258,
+          "bunLower": true
+        }
+      ],
+      "allBunLower": true,
+      "forwardMedianDifferenceSeconds": 13.925257750000048,
+      "reversedMedianDifferenceSeconds": 14.223329417000059
+    },
+    "commandCached": {
+      "samples": [
+        {
+          "iteration": 1,
+          "order": "forward",
+          "typescript6Seconds": 4.914265542000008,
+          "bunSeconds": 2.208563083999994,
+          "differenceSeconds": 2.705702458000014,
+          "ratio": 2.225096297951171,
+          "bunLower": true
+        },
+        {
+          "iteration": 2,
+          "order": "reversed",
+          "typescript6Seconds": 4.356349541000003,
+          "bunSeconds": 2.1321276249999936,
+          "differenceSeconds": 2.224221916000009,
+          "ratio": 2.0431936108890367,
+          "bunLower": true
+        },
+        {
+          "iteration": 3,
+          "order": "forward",
+          "typescript6Seconds": 4.931449625000008,
+          "bunSeconds": 2.2260659580000213,
+          "differenceSeconds": 2.7053836669999867,
+          "ratio": 2.215320533193276,
+          "bunLower": true
+        },
+        {
+          "iteration": 4,
+          "order": "reversed",
+          "typescript6Seconds": 4.157434333999991,
+          "bunSeconds": 2.316920374999987,
+          "differenceSeconds": 1.8405139590000035,
+          "ratio": 1.7943794611413928,
+          "bunLower": true
+        },
+        {
+          "iteration": 5,
+          "order": "forward",
+          "typescript6Seconds": 3.9629064159999836,
+          "bunSeconds": 2.0018558339999872,
+          "differenceSeconds": 1.9610505819999964,
+          "ratio": 1.9796162883925281,
+          "bunLower": true
+        },
+        {
+          "iteration": 6,
+          "order": "reversed",
+          "typescript6Seconds": 3.920449666999979,
+          "bunSeconds": 1.9635574999999954,
+          "differenceSeconds": 1.9568921669999835,
+          "ratio": 1.9966054811229048,
+          "bunLower": true
+        },
+        {
+          "iteration": 7,
+          "order": "forward",
+          "typescript6Seconds": 4.0307538340000315,
+          "bunSeconds": 2.06927112499997,
+          "differenceSeconds": 1.9614827090000615,
+          "ratio": 1.9479099598415794,
+          "bunLower": true
+        },
+        {
+          "iteration": 8,
+          "order": "reversed",
+          "typescript6Seconds": 4.074979125000013,
+          "bunSeconds": 2.018395709000004,
+          "differenceSeconds": 2.056583416000009,
+          "ratio": 2.0189198316414005,
+          "bunLower": true
+        },
+        {
+          "iteration": 9,
+          "order": "forward",
+          "typescript6Seconds": 4.470851374999969,
+          "bunSeconds": 1.9925894580000314,
+          "differenceSeconds": 2.478261916999938,
+          "ratio": 2.2437393498444873,
+          "bunLower": true
+        },
+        {
+          "iteration": 10,
+          "order": "reversed",
+          "typescript6Seconds": 3.922582417000085,
+          "bunSeconds": 1.9574804999999469,
+          "differenceSeconds": 1.965101917000138,
+          "ratio": 2.0038934829747683,
+          "bunLower": true
+        }
+      ],
+      "allBunLower": true,
+      "forwardMedianDifferenceSeconds": 2.478261916999938,
+      "reversedMedianDifferenceSeconds": 1.965101917000138
+    },
+    "checkerEdited": {
+      "samples": [
+        {
+          "iteration": 1,
+          "order": "forward",
+          "typescript6Seconds": 6.121068458000009,
+          "bunSeconds": 0.9759850410000072,
+          "differenceSeconds": 5.145083417000001,
+          "ratio": 6.27168265993942,
+          "bunLower": true
+        },
+        {
+          "iteration": 2,
+          "order": "reversed",
+          "typescript6Seconds": 6.1854375,
+          "bunSeconds": 1.0747538329999953,
+          "differenceSeconds": 5.110683667000004,
+          "ratio": 5.755213249841955,
+          "bunLower": true
+        },
+        {
+          "iteration": 3,
+          "order": "forward",
+          "typescript6Seconds": 6.191270749999996,
+          "bunSeconds": 0.9938110830000078,
+          "differenceSeconds": 5.197459666999988,
+          "ratio": 6.229826629937017,
+          "bunLower": true
+        },
+        {
+          "iteration": 4,
+          "order": "reversed",
+          "typescript6Seconds": 6.118371624999971,
+          "bunSeconds": 0.9957018749999698,
+          "differenceSeconds": 5.122669750000001,
+          "ratio": 6.144782669009392,
+          "bunLower": true
+        },
+        {
+          "iteration": 5,
+          "order": "forward",
+          "typescript6Seconds": 5.99804779099999,
+          "bunSeconds": 0.8640304159999942,
+          "differenceSeconds": 5.1340173749999956,
+          "ratio": 6.941940561268424,
+          "bunLower": true
+        },
+        {
+          "iteration": 6,
+          "order": "reversed",
+          "typescript6Seconds": 6.072374707999988,
+          "bunSeconds": 0.9417348340000026,
+          "differenceSeconds": 5.130639873999986,
+          "ratio": 6.448072736364312,
+          "bunLower": true
+        },
+        {
+          "iteration": 7,
+          "order": "forward",
+          "typescript6Seconds": 6.022216707999993,
+          "bunSeconds": 0.8741229590000003,
+          "differenceSeconds": 5.148093748999993,
+          "ratio": 6.889438889569301,
+          "bunLower": true
+        },
+        {
+          "iteration": 8,
+          "order": "reversed",
+          "typescript6Seconds": 6.029099709000031,
+          "bunSeconds": 1.0235014579999844,
+          "differenceSeconds": 5.0055982510000465,
+          "ratio": 5.890660596401537,
+          "bunLower": true
+        },
+        {
+          "iteration": 9,
+          "order": "forward",
+          "typescript6Seconds": 5.953297750000027,
+          "bunSeconds": 0.9425777920000256,
+          "differenceSeconds": 5.010719958000001,
+          "ratio": 6.3159749789647766,
+          "bunLower": true
+        },
+        {
+          "iteration": 10,
+          "order": "reversed",
+          "typescript6Seconds": 5.918495833000052,
+          "bunSeconds": 0.8599660419999855,
+          "differenceSeconds": 5.058529791000066,
+          "ratio": 6.8822436514303105,
+          "bunLower": true
+        }
+      ],
+      "allBunLower": true,
+      "forwardMedianDifferenceSeconds": 5.145083417000001,
+      "reversedMedianDifferenceSeconds": 5.110683667000004
+    }
+  },
+  "summary": {
+    "checker-ts6-full": {
+      "samples": 10,
+      "medianSeconds": 15.251780979000003,
+      "minSeconds": 14.590118084000016,
+      "maxSeconds": 16.04963612500002
+    },
+    "checker-ts6-cached": {
+      "samples": 10,
+      "medianSeconds": 2.974171875,
+      "minSeconds": 2.841349916999985,
+      "maxSeconds": 3.3718887920000125
+    },
+    "checker-ts6-edited": {
+      "samples": 10,
+      "medianSeconds": 6.05073720850001,
+      "minSeconds": 5.918495833000052,
+      "maxSeconds": 6.191270749999996
+    },
+    "checker-bun": {
+      "samples": 10,
+      "medianSeconds": 0.9359256460000034,
+      "minSeconds": 0.8253548329999904,
+      "maxSeconds": 1.1211769169999752
+    },
+    "checker-bun-edited": {
+      "samples": 10,
+      "medianSeconds": 0.9592814165000163,
+      "minSeconds": 0.8599660419999855,
+      "maxSeconds": 1.0747538329999953
+    },
+    "next-typegen": {
+      "samples": 10,
+      "medianSeconds": 1.1837935834999953,
+      "minSeconds": 1.0086884169999977,
+      "maxSeconds": 1.4478792079999694
+    },
+    "command-ts6-full": {
+      "samples": 10,
+      "medianSeconds": 16.199549771000008,
+      "minSeconds": 15.453690333000035,
+      "maxSeconds": 17.104454499999992
+    },
+    "command-ts6-cached": {
+      "samples": 10,
+      "medianSeconds": 4.116206729500002,
+      "minSeconds": 3.920449666999979,
+      "maxSeconds": 4.931449625000008
+    },
+    "command-bun": {
+      "samples": 10,
+      "medianSeconds": 2.0438334169999868,
+      "minSeconds": 1.9574804999999469,
+      "maxSeconds": 2.316920374999987
+    }
+  },
+  "medianRatios": {
+    "checkerFullTs6OverBun": 16.295932314905226,
+    "checkerCachedTs6OverBun": 3.17778649159913,
+    "checkerEditedTs6OverBunEdited": 6.307572631372774,
+    "commandFullTs6OverBun": 7.926061701632366,
+    "commandCachedTs6OverBun": 2.013963904916439
+  },
+  "loadAverage1mRange": [3.30078125, 14.76318359375],
+  "versions": {
+    "node": "v24.19.0",
+    "pnpm": "10.33.2",
+    "typescript6": "Version 6.0.3",
+    "next": "16.3.8",
+    "bun": "1.4.3",
+    "bunRevision": "1.4.3+c6da4a4d3",
+    "bunEmbeddedTypescript": "7.0.2"
+  },
+  "conditions": {
+    "NODE_ENV": null,
+    "CI": null,
+    "NO_COLOR": true,
+    "envFilesPresent": [],
+    "nextBuildCachePresent": false,
+    "routeTypes": "pnpm exec next typegen before manifests, error and timing runs (production build phase config load)",
+    "typescript6Caches": {
+      "full": "--incremental false: no build info read or written",
+      "cached": "primed --tsBuildInfoFile under .cache/typecheck-benchmark-t01; no source change between samples",
+      "edited": "separate primed build info; src/features/finishedGoods/unitNextAction.ts gains a new unique export before each sample and is restored after it",
+      "commandCached": "pnpm typecheck:ts6 with the project's default tsconfig.tsbuildinfo, primed before timing"
+    },
+    "bun": "bun --check never reads or writes build info: every run checks the whole project",
+    "filesystem": "warm; dependencies installed by pnpm install --frozen-lockfile before the run",
+    "concurrency": "one process at a time; no other build, test or benchmark started by this task during the run; other workstation activity uncontrolled (1-minute load average recorded per sample)"
+  },
+  "newEvidenceFileHashes": {
+    "benchmarks.json": "1b2ae8813da51b0fcd0705599416911c87a6823eaded92a382cb986933ac8f50",
+    "collision-probe.json": "709af5032b74cb4e802f0919ccd401504d190fface2497197b58aece0f640b85",
+    "completion.json": "377c3f6781bce1eec36584edbbf09eeaaa7005f7fa84f9e144474cb10042e12e",
+    "edited-file.json": "e0cf59ea4161e6ce178eb4e9a5c90edd741f885faa424c86534b507640521207",
+    "environment.json": "c16393cb8c18ff1a641d6eccb92d5c10aee2019ea6c236a52dbe73fd93743e2d",
+    "error-rejection.json": "168844293375438d771330d18adbb0b875dae0047847f4521e8da34b1f8d3aa6",
+    "input-fingerprint-after.json": "d23ed04cdb5485cfeb8cfd9f327732e83bcf0dd6b2daf8f019496c16503ea4d1",
+    "input-fingerprint-before.json": "d23ed04cdb5485cfeb8cfd9f327732e83bcf0dd6b2daf8f019496c16503ea4d1",
+    "manifest-comparison.json": "cce4028aacf7173a9bafe0b25b7e61dc1656d72debe1a7e3afc632eaee029f1f",
+    "pilot-benchmark-typecheck.mjs.txt": "0c988ea34574ee66339c5cffe4fc839aa2590b89c384428b112d80114d1f28eb",
+    "project-files-bun.json": "9fc977adef2a95ae4d3d8f963953ac011ad68efdb88462386abd62de6a9e5626",
+    "project-files-typescript6.json": "9fc977adef2a95ae4d3d8f963953ac011ad68efdb88462386abd62de6a9e5626"
+  }
+}

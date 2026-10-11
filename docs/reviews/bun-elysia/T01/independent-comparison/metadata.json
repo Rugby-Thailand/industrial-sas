@@ -1,0 +1,75 @@
+{
+  "startedAt": "2026-10-11T06:05:25.938959+00:00",
+  "sha": "f7d197dc886c3e79f79bb656b91613ded761cace",
+  "worktree": "<independent-worktree>",
+  "initialStatus": "",
+  "node": "v24.19.0",
+  "pnpm": "10.33.2",
+  "conditions": {
+    "NODE_ENV": null,
+    "CI": null,
+    "NO_COLOR": "1",
+    "NEXT_PUBLIC_SENTRY_ENABLED": null,
+    "SENTRY_ENABLED": null,
+    "NEXT_PUBLIC_SPEED_INSIGHTS_ENABLED": null
+  },
+  "originalEvidencePreservedAt": "<preserved-comparison>/original-candidate-evidence",
+  "sourceFileCount": 1291,
+  "commands": [
+    {
+      "command": ["pnpm", "install", "--frozen-lockfile"],
+      "startedAt": "2026-10-11T06:05:32.019404+00:00",
+      "completedAt": "2026-10-11T06:05:39.156919+00:00",
+      "exit": 0,
+      "elapsedSeconds": 7.137518292001914,
+      "rawLog": "install.raw.txt"
+    },
+    {
+      "command": ["node", "scripts/ci/install-bun-checker.mjs"],
+      "startedAt": "2026-10-11T06:05:44.950311+00:00",
+      "completedAt": "2026-10-11T06:05:48.085071+00:00",
+      "exit": 0,
+      "elapsedSeconds": 3.1347895420040004,
+      "rawLog": "checker-install.raw.txt"
+    },
+    {
+      "command": [
+        "pnpm",
+        "exec",
+        "vitest",
+        "run",
+        "--project",
+        "integration",
+        "tests/integration/bun-checker.integration.test.ts",
+        "tests/integration/ci-workflows.integration.test.ts"
+      ],
+      "startedAt": "2026-10-11T06:05:52.329137+00:00",
+      "completedAt": "2026-10-11T06:05:56.357742+00:00",
+      "exit": 0,
+      "elapsedSeconds": 4.028618832991924,
+      "rawLog": "focused-tests.raw.txt"
+    },
+    {
+      "command": ["node", "scripts/benchmark-typecheck.mjs", "--samples=10"],
+      "startedAt": "2026-10-11T06:06:08.504856+00:00",
+      "completedAt": "2026-10-11T06:16:16.295739+00:00",
+      "exit": 0,
+      "elapsedSeconds": 607.7881150830071,
+      "rawLog": "benchmark.raw.txt"
+    }
+  ],
+  "analysisCorrection": {
+    "initialExternalAnalysisExit": 1,
+    "reason": "Reviewer initially asserted every negative probe exit was 1; TypeScript6 correctly exits 2 for diagnostics. Corrected external check to require nonzero exit plus expected diagnostics. Harness itself completed exit0 with all assertions passed.",
+    "correctedExternalAnalysisExit": 0
+  },
+  "completedAt": "2026-10-11T06:17:38.113708+00:00",
+  "conclusion": "ACCEPTED_LOCAL_CORRECTNESS_AND_TIMING",
+  "postRunSourceHashesEqual": true,
+  "harnessInputHashesEqual": true,
+  "allSamplesExitZero": true,
+  "allOrdersMatch": true,
+  "sampleCount": 90,
+  "completionInputSha256": "33815b9a506db2f705dbabee3b27ba4d35bde2544c330a87715affa07baf99db",
+  "report": "reviewer-report.md"
+}

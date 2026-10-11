@@ -1,0 +1,31 @@
+{
+  "finding": "With a package `check` script, bare `bun check` ran the script and exited 0 despite a type error; `bun --check` type-checked and exited 1.",
+  "bareBunCheck": {
+    "command": [
+      "<repo>/.cache/bun-checker/bun-v1.4.3-bun-darwin-aarch64/bun",
+      "check",
+      "--no-pretty"
+    ],
+    "cwd": "<tmp>/bun-check-collision-azICNF",
+    "seconds": 0.041759584000001265,
+    "exit": 0,
+    "signal": null,
+    "loadAverage1mBefore": 4.0849609375,
+    "stdout": "AGGREGATE_CHECK_SCRIPT_RAN --no-pretty\n",
+    "stderr": "$ echo AGGREGATE_CHECK_SCRIPT_RAN --no-pretty\n"
+  },
+  "bunDashDashCheck": {
+    "command": [
+      "<repo>/.cache/bun-checker/bun-v1.4.3-bun-darwin-aarch64/bun",
+      "--check",
+      "--no-pretty"
+    ],
+    "cwd": "<tmp>/bun-check-collision-azICNF",
+    "seconds": 0.07828700000000026,
+    "exit": 1,
+    "signal": null,
+    "loadAverage1mBefore": 4.0849609375,
+    "stdout": "invalid.ts(1,14): error TS2322: Type 'string' is not assignable to type 'number'.\n",
+    "stderr": "Found 1 error in 1 file, checked 83 files [69.51ms]\n"
+  }
+}

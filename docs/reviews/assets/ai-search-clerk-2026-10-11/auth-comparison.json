@@ -1,0 +1,138 @@
+{
+  "date": "2026-10-11",
+  "runtime": "Node 24.19.0, Next 16.3.8 development server",
+  "rows": [
+    {
+      "authMs": 516.75,
+      "convexMs": 57.05,
+      "path": "server-token",
+      "tokenAcquisitionMs": 0.4,
+      "totalMs": 1731.6,
+      "warmup": true
+    },
+    {
+      "authMs": 38.19,
+      "convexMs": 47.92,
+      "path": "browser-token",
+      "tokenAcquisitionMs": 431.7,
+      "totalMs": 535.8,
+      "warmup": true
+    },
+    {
+      "authMs": 341.52,
+      "convexMs": 57.49,
+      "path": "server-token",
+      "tokenAcquisitionMs": 0.5,
+      "totalMs": 566.8,
+      "warmup": false
+    },
+    {
+      "authMs": 2.43,
+      "convexMs": 104.01,
+      "path": "browser-token",
+      "tokenAcquisitionMs": 0.6,
+      "totalMs": 125.6,
+      "warmup": false
+    },
+    {
+      "authMs": 308.83,
+      "convexMs": 53,
+      "path": "server-token",
+      "tokenAcquisitionMs": 0.5,
+      "totalMs": 374.7,
+      "warmup": false
+    },
+    {
+      "authMs": 2.48,
+      "convexMs": 112.2,
+      "path": "browser-token",
+      "tokenAcquisitionMs": 0.4,
+      "totalMs": 130.8,
+      "warmup": false
+    },
+    {
+      "authMs": 320.55,
+      "convexMs": 40.7,
+      "path": "server-token",
+      "tokenAcquisitionMs": 0.4,
+      "totalMs": 376.2,
+      "warmup": false
+    },
+    {
+      "authMs": 1.49,
+      "convexMs": 176.35,
+      "path": "browser-token",
+      "tokenAcquisitionMs": 0.5,
+      "totalMs": 194,
+      "warmup": false
+    },
+    {
+      "authMs": 307.47,
+      "convexMs": 40.34,
+      "path": "server-token",
+      "tokenAcquisitionMs": 0.5,
+      "totalMs": 371.7,
+      "warmup": false
+    },
+    {
+      "authMs": 2.48,
+      "convexMs": 107.6,
+      "path": "browser-token",
+      "tokenAcquisitionMs": 0.5,
+      "totalMs": 125.3,
+      "warmup": false
+    },
+    {
+      "authMs": 308.19,
+      "convexMs": 44.87,
+      "path": "server-token",
+      "tokenAcquisitionMs": 0.5,
+      "totalMs": 369.3,
+      "warmup": false
+    },
+    {
+      "authMs": 2.44,
+      "convexMs": 118.77,
+      "path": "browser-token",
+      "tokenAcquisitionMs": 0.5,
+      "totalMs": 135.2,
+      "warmup": false
+    }
+  ],
+  "scope": "Local HTTP comparison of server token generation and browser token reuse. Real Clerk and Convex; whitespace query avoids OpenRouter. One warmup per path excluded. Not a production or framework comparison.",
+  "summary": [
+    {
+      "authMedianMs": 308.83,
+      "convexMedianMs": 44.87,
+      "path": "server-token",
+      "samples": 5,
+      "tokenAcquisitionMedianMs": 0.5,
+      "totalMedianMs": 374.7
+    },
+    {
+      "authMedianMs": 2.44,
+      "convexMedianMs": 112.2,
+      "path": "browser-token",
+      "samples": 5,
+      "tokenAcquisitionMedianMs": 0.5,
+      "totalMedianMs": 130.8
+    }
+  ],
+  "uiVerification": {
+    "aiError": null,
+    "focusedId": "",
+    "rows": [
+      {
+        "code": null,
+        "convexTokenPresent": true,
+        "kind": "HR_SETTINGS_SECTION",
+        "serverTiming": "auth;dur=3.37, convex;dur=3393.64",
+        "sessionBearerPresent": true,
+        "status": 200,
+        "totalMs": 3444.5
+      }
+    ],
+    "url": "http://localhost:3100/en/hr/settings?section=holidays",
+    "visibleDialogs": 0
+  }
+}

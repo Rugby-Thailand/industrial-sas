@@ -1,0 +1,98 @@
+[
+  {
+    "file": "T00-release/codeql-run.json",
+    "originalSha256": "632b948d5ac4018a05272e6984f23dd2b999fe0bd1a9a578c42b6a916b63d63e",
+    "formattedSha256": "670853ab7c629bf21a8e500462ba6e0597e8becd374c79c71892af2013a7cc06",
+    "jsonValuesIdentical": true
+  },
+  {
+    "file": "T00-release/merged-scope.json",
+    "originalSha256": "3a8b209a30c6abba4512b828cde5e472748254bba735268527c7bc57a8957f1f",
+    "formattedSha256": "3a8b209a30c6abba4512b828cde5e472748254bba735268527c7bc57a8957f1f",
+    "jsonValuesIdentical": true
+  },
+  {
+    "file": "T00-release/pr.json",
+    "originalSha256": "bc4b894a4eca9ba975e01c5a01a189b5554542c210372e43f141ff12f0bcda4c",
+    "formattedSha256": "7a2edbbd41611034bf8ec8efb3600ffe26069813a2db9a80624b192fcf376fbc",
+    "jsonValuesIdentical": true
+  },
+  {
+    "file": "T00-release/production/backup-metadata.json",
+    "originalSha256": "7d8e71789fa8fb28df019239fff4656ec32f56582bf12bdeb6ad3d77f22c8ecc",
+    "formattedSha256": "7d8e71789fa8fb28df019239fff4656ec32f56582bf12bdeb6ad3d77f22c8ecc",
+    "jsonValuesIdentical": true
+  },
+  {
+    "file": "T00-release/production/manifest.json",
+    "originalSha256": "a4a724cf0fd6aa16c2369482a2862e597604a12769f3c9b8ef4e416e19c0d2da",
+    "formattedSha256": "3262db68ed3711b09f783ff1fe573b601f8a16d740e28f540b78d1a8a1aafe67",
+    "jsonValuesIdentical": true
+  },
+  {
+    "file": "T00-release/production/smoke-candidate.json",
+    "originalSha256": "950d1b4edfec9dfbaf09ebca20a4e1533b52b3570bcdca0e3cbe176856fd48d7",
+    "formattedSha256": "67450168e7dad5f742593c6394609bee2f11b8ffaedd4405cf14bf9fe7e04dd9",
+    "jsonValuesIdentical": true
+  },
+  {
+    "file": "T00-release/production/smoke-live.json",
+    "originalSha256": "950d1b4edfec9dfbaf09ebca20a4e1533b52b3570bcdca0e3cbe176856fd48d7",
+    "formattedSha256": "67450168e7dad5f742593c6394609bee2f11b8ffaedd4405cf14bf9fe7e04dd9",
+    "jsonValuesIdentical": true
+  },
+  {
+    "file": "T00-release/quality-run.json",
+    "originalSha256": "7462028102f42aa6b0c67e943dadb0483a632c7073a6735ad6926f91a92afda3",
+    "formattedSha256": "fa8f185015a1733346aa23747b9133a2348dd982e4e9f5b99f1a3b1c1ecc6580",
+    "jsonValuesIdentical": true
+  },
+  {
+    "file": "T00-release/review-threads.json",
+    "originalSha256": "62cf4a2a96701dd234684b3ab49f9a68f28dd80998835f4866a381eeb07210c6",
+    "formattedSha256": "ee29a188118471839b04ac010bc5bd5a706b4a6c85a68ddc23bdb3cde137b8f9",
+    "jsonValuesIdentical": true
+  },
+  {
+    "file": "T00-release/staging/manifest.json",
+    "originalSha256": "14798ddd592ab8f3ff4a2ff720bcd07f55fe70a6aa86856135879f7ed1dab13a",
+    "formattedSha256": "bff721d5e86834a3cd3bedad6dd86ba4936c09ded4dbee8ff8360e6410181046",
+    "jsonValuesIdentical": true
+  },
+  {
+    "file": "T00-release/staging/smoke-staging.json",
+    "originalSha256": "62f4313fd4a89f1294f037b6a689f488910419f9358b0153edcde1b186f00eba",
+    "formattedSha256": "77499a07b8e2f3d53c3b19b3069170afc4d5a4d2a85a95f4194ad0efb10cfd6d",
+    "jsonValuesIdentical": true
+  },
+  {
+    "file": "T00-release/verification.json",
+    "originalSha256": "a0431a0ee44a1419af3db91828551399f4c3dc37dcfc858596be553cfa5552be",
+    "formattedSha256": "a0431a0ee44a1419af3db91828551399f4c3dc37dcfc858596be553cfa5552be",
+    "jsonValuesIdentical": true
+  },
+  {
+    "file": "bun-release-artifact-metadata.json",
+    "originalSha256": "1de83fefc050d08090377c461cf80b442e80d1ad6b452929526fe61dacec0a6f",
+    "formattedSha256": "154d2362d7d3dbbf08c2d2c2ab6e47ded2a7affcbcf75660dda7865eac76a0b3",
+    "jsonValuesIdentical": true
+  },
+  {
+    "file": "kiro-implementation-invocation.json",
+    "originalSha256": "5b90420caa6d111e1fa173f866cb24030bfbee0ca7357a14696f91f9dc6d942b",
+    "formattedSha256": "5b90420caa6d111e1fa173f866cb24030bfbee0ca7357a14696f91f9dc6d942b",
+    "jsonValuesIdentical": true
+  },
+  {
+    "file": "models-before-implementation.json",
+    "originalSha256": "2b028248f97613719a8bba5d2a2f4c361f4c2dc78152c92e99ac538fa7d9e4d8",
+    "formattedSha256": "2b028248f97613719a8bba5d2a2f4c361f4c2dc78152c92e99ac538fa7d9e4d8",
+    "jsonValuesIdentical": true
+  },
+  {
+    "file": "reconciliation.json",
+    "originalSha256": "b7d2707257aeb2d5f93892fe0571f627bda123b03200c8d75da43bce360edc08",
+    "formattedSha256": "b7d2707257aeb2d5f93892fe0571f627bda123b03200c8d75da43bce360edc08",
+    "jsonValuesIdentical": true
+  }
+]

@@ -112,6 +112,7 @@ describe("tenant-bound Convex actions", () => {
     expect(outcome.value.requestId).not.toBe("client-controlled");
     expect(outcome.value.requestId).toMatch(/^[0-9a-f-]{36}$/);
     expect(outcome.value.capabilities).toEqual([
+      "aiUsage",
       "identity",
       "permission",
       "requestId",

@@ -1,0 +1,198 @@
+{
+  "guardSource": "export const typecheckT01Guard: number = \"invalid\";\n",
+  "guards": [
+    "src/__typecheck_t01_guard.ts",
+    "tests/__typecheck_t01_guard.ts",
+    "convex/__typecheck_t01_guard.ts",
+    ".next/types/__typecheck_t01_guard.ts"
+  ],
+  "checkers": {
+    "typescript6": {
+      "command": [
+        "<node>",
+        "<repo>/node_modules/typescript/bin/tsc",
+        "--noEmit",
+        "--incremental",
+        "false",
+        "--pretty",
+        "false"
+      ],
+      "cwd": "<repo>",
+      "seconds": 14.517180415999999,
+      "exit": 2,
+      "signal": null,
+      "loadAverage1mBefore": 4.0849609375,
+      "stdout": ".next/types/__typecheck_t01_guard.ts(1,14): error TS2322: Type 'string' is not assignable to type 'number'.\nconvex/__typecheck_t01_guard.ts(1,14): error TS2322: Type 'string' is not assignable to type 'number'.\nsrc/__typecheck_t01_guard.ts(1,14): error TS2322: Type 'string' is not assignable to type 'number'.\ntests/__typecheck_t01_guard.ts(1,14): error TS2322: Type 'string' is not assignable to type 'number'.\n",
+      "stderr": "",
+      "diagnostics": [
+        {
+          "file": ".next/types/__typecheck_t01_guard.ts",
+          "line": 1,
+          "column": 14,
+          "code": "TS2322",
+          "message": "Type 'string' is not assignable to type 'number'."
+        },
+        {
+          "file": "convex/__typecheck_t01_guard.ts",
+          "line": 1,
+          "column": 14,
+          "code": "TS2322",
+          "message": "Type 'string' is not assignable to type 'number'."
+        },
+        {
+          "file": "src/__typecheck_t01_guard.ts",
+          "line": 1,
+          "column": 14,
+          "code": "TS2322",
+          "message": "Type 'string' is not assignable to type 'number'."
+        },
+        {
+          "file": "tests/__typecheck_t01_guard.ts",
+          "line": 1,
+          "column": 14,
+          "code": "TS2322",
+          "message": "Type 'string' is not assignable to type 'number'."
+        }
+      ]
+    },
+    "bun": {
+      "command": [
+        "<repo>/.cache/bun-checker/bun-v1.4.3-bun-darwin-aarch64/bun",
+        "--check",
+        "--no-pretty"
+      ],
+      "cwd": "<repo>",
+      "seconds": 0.7288902499999967,
+      "exit": 1,
+      "signal": null,
+      "loadAverage1mBefore": 4.04736328125,
+      "stdout": ".next/types/__typecheck_t01_guard.ts(1,14): error TS2322: Type 'string' is not assignable to type 'number'.\nconvex/__typecheck_t01_guard.ts(1,14): error TS2322: Type 'string' is not assignable to type 'number'.\nsrc/__typecheck_t01_guard.ts(1,14): error TS2322: Type 'string' is not assignable to type 'number'.\ntests/__typecheck_t01_guard.ts(1,14): error TS2322: Type 'string' is not assignable to type 'number'.\n",
+      "stderr": "Found 4 errors in 4 files, checked 767 files [710.42ms]\n\n  1  .next/types/__typecheck_t01_guard.ts:1\n  1  convex/__typecheck_t01_guard.ts:1\n  1  src/__typecheck_t01_guard.ts:1\n  1  tests/__typecheck_t01_guard.ts:1\n",
+      "diagnostics": [
+        {
+          "file": ".next/types/__typecheck_t01_guard.ts",
+          "line": 1,
+          "column": 14,
+          "code": "TS2322",
+          "message": "Type 'string' is not assignable to type 'number'."
+        },
+        {
+          "file": "convex/__typecheck_t01_guard.ts",
+          "line": 1,
+          "column": 14,
+          "code": "TS2322",
+          "message": "Type 'string' is not assignable to type 'number'."
+        },
+        {
+          "file": "src/__typecheck_t01_guard.ts",
+          "line": 1,
+          "column": 14,
+          "code": "TS2322",
+          "message": "Type 'string' is not assignable to type 'number'."
+        },
+        {
+          "file": "tests/__typecheck_t01_guard.ts",
+          "line": 1,
+          "column": 14,
+          "code": "TS2322",
+          "message": "Type 'string' is not assignable to type 'number'."
+        }
+      ]
+    }
+  },
+  "commands": {
+    "bun": {
+      "command": ["pnpm", "typecheck"],
+      "cwd": "<repo>",
+      "seconds": 1.8702270839999984,
+      "exit": 1,
+      "signal": null,
+      "loadAverage1mBefore": 4.04736328125,
+      "stdout": "\n> storage-planner@0.0.0 typecheck <repo>\n> node scripts/ci/install-bun-checker.mjs --verify && next typegen && bun --check --no-pretty\n\nBun checker 1.4.3 (TypeScript 7.0.2)\nGenerating route types...\n✓ Types generated successfully\n.next/types/__typecheck_t01_guard.ts(1,14): error TS2322: Type 'string' is not assignable to type 'number'.\nconvex/__typecheck_t01_guard.ts(1,14): error TS2322: Type 'string' is not assignable to type 'number'.\nsrc/__typecheck_t01_guard.ts(1,14): error TS2322: Type 'string' is not assignable to type 'number'.\ntests/__typecheck_t01_guard.ts(1,14): error TS2322: Type 'string' is not assignable to type 'number'.\n ELIFECYCLE  Command failed with exit code 1.\n",
+      "stderr": "Found 4 errors in 4 files, checked 767 files [714.28ms]\n\n  1  .next/types/__typecheck_t01_guard.ts:1\n  1  convex/__typecheck_t01_guard.ts:1\n  1  src/__typecheck_t01_guard.ts:1\n  1  tests/__typecheck_t01_guard.ts:1\n",
+      "diagnostics": [
+        {
+          "file": ".next/types/__typecheck_t01_guard.ts",
+          "line": 1,
+          "column": 14,
+          "code": "TS2322",
+          "message": "Type 'string' is not assignable to type 'number'."
+        },
+        {
+          "file": "convex/__typecheck_t01_guard.ts",
+          "line": 1,
+          "column": 14,
+          "code": "TS2322",
+          "message": "Type 'string' is not assignable to type 'number'."
+        },
+        {
+          "file": "src/__typecheck_t01_guard.ts",
+          "line": 1,
+          "column": 14,
+          "code": "TS2322",
+          "message": "Type 'string' is not assignable to type 'number'."
+        },
+        {
+          "file": "tests/__typecheck_t01_guard.ts",
+          "line": 1,
+          "column": 14,
+          "code": "TS2322",
+          "message": "Type 'string' is not assignable to type 'number'."
+        }
+      ],
+      "generatedGuardSurvivedTypegen": true,
+      "generatedGuardReported": true
+    },
+    "typescript6": {
+      "command": [
+        "pnpm",
+        "typecheck:ts6",
+        "--incremental",
+        "false",
+        "--pretty",
+        "false"
+      ],
+      "cwd": "<repo>",
+      "seconds": 17.033695332999997,
+      "exit": 2,
+      "signal": null,
+      "loadAverage1mBefore": 4.04736328125,
+      "stdout": "\n> storage-planner@0.0.0 typecheck:ts6 <repo>\n> next typegen && tsc --noEmit --incremental false --pretty false\n\nGenerating route types...\n✓ Types generated successfully\n.next/types/__typecheck_t01_guard.ts(1,14): error TS2322: Type 'string' is not assignable to type 'number'.\nconvex/__typecheck_t01_guard.ts(1,14): error TS2322: Type 'string' is not assignable to type 'number'.\nsrc/__typecheck_t01_guard.ts(1,14): error TS2322: Type 'string' is not assignable to type 'number'.\ntests/__typecheck_t01_guard.ts(1,14): error TS2322: Type 'string' is not assignable to type 'number'.\n ELIFECYCLE  Command failed with exit code 2.\n",
+      "stderr": "",
+      "diagnostics": [
+        {
+          "file": ".next/types/__typecheck_t01_guard.ts",
+          "line": 1,
+          "column": 14,
+          "code": "TS2322",
+          "message": "Type 'string' is not assignable to type 'number'."
+        },
+        {
+          "file": "convex/__typecheck_t01_guard.ts",
+          "line": 1,
+          "column": 14,
+          "code": "TS2322",
+          "message": "Type 'string' is not assignable to type 'number'."
+        },
+        {
+          "file": "src/__typecheck_t01_guard.ts",
+          "line": 1,
+          "column": 14,
+          "code": "TS2322",
+          "message": "Type 'string' is not assignable to type 'number'."
+        },
+        {
+          "file": "tests/__typecheck_t01_guard.ts",
+          "line": 1,
+          "column": 14,
+          "code": "TS2322",
+          "message": "Type 'string' is not assignable to type 'number'."
+        }
+      ],
+      "generatedGuardSurvivedTypegen": true,
+      "generatedGuardReported": true
+    }
+  },
+  "sameLocationsAndCodes": true,
+  "sameMessages": true
+}

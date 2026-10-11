@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useStorageBuilding } from "./useStorageBuilding";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { Notice } from "@/components/ui/Notice";
 import { Button } from "@/components/ui/button";
@@ -25,7 +25,6 @@ import { storageFootprintUsage } from "../../../convex/model/storageLayout/areaU
 import { AreaOverview } from "./AreaOverview";
 import { PlacementStatusBadge } from "@/features/storageKit/PlacementStatusBadge";
 import { placementStatusKey } from "@/lib/storageLayouts/storageKit";
-import { messagesFor } from "@/i18n/messages";
 
 export function BuildingAreaDetails({
   building,
@@ -97,6 +96,7 @@ export function BuildingUsageContent({
   const locale = useLocale();
   const th = locale === "th";
   const [filter, setFilter] = useState("ALL");
+  const storageText = useTranslations("StorageLayouts");
   const format = new Intl.NumberFormat(locale, { maximumFractionDigits: 2 });
   const area = (n: number) =>
     `${format.format(n / 1_000_000)} ${th ? "ตร.ม." : "m²"}`;
@@ -343,11 +343,7 @@ export function BuildingUsageContent({
                   <td className="min-w-36 p-3">
                     <PlacementStatusBadge
                       placement={p}
-                      label={
-                        messagesFor(locale).StorageLayouts[
-                          placementStatusKey(p)
-                        ]
-                      }
+                      label={storageText(placementStatusKey(p))}
                     />
                     <p className="mt-1 text-xs">
                       {zone.mode === "RACK"

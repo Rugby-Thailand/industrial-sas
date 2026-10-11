@@ -1,0 +1,139 @@
+[
+  {
+    "name": "clean-install",
+    "command": ["pnpm", "install", "--frozen-lockfile"],
+    "startedAt": "2026-10-11T06:00:41.569736+00:00",
+    "seconds": 7.575566957995761,
+    "exit": 0,
+    "environment": "pinned Bun first on PATH; inherited environment; telemetry disabled",
+    "log": "clean-install.txt"
+  },
+  {
+    "name": "checker-install",
+    "command": ["node", "scripts/ci/install-bun-checker.mjs"],
+    "startedAt": "2026-10-11T06:00:49.145909+00:00",
+    "seconds": 1.7398240829934366,
+    "exit": 0,
+    "environment": "pinned Bun first on PATH; inherited environment; telemetry disabled",
+    "log": "checker-install.txt"
+  },
+  {
+    "name": "check",
+    "command": ["pnpm", "check"],
+    "startedAt": "2026-10-11T06:00:50.886198+00:00",
+    "seconds": 72.72688012500294,
+    "exit": 0,
+    "environment": "pinned Bun first on PATH; inherited environment; telemetry disabled",
+    "log": "check.txt"
+  },
+  {
+    "name": "typecheck-ts6",
+    "command": ["pnpm", "typecheck:ts6"],
+    "startedAt": "2026-10-11T06:02:03.613941+00:00",
+    "seconds": 4.368604874995071,
+    "exit": 0,
+    "environment": "pinned Bun first on PATH; inherited environment; telemetry disabled",
+    "log": "typecheck-ts6.txt"
+  },
+  {
+    "name": "production-build",
+    "command": ["pnpm", "build"],
+    "startedAt": "2026-10-11T06:02:07.983081+00:00",
+    "seconds": 10.63135208300082,
+    "exit": 0,
+    "environment": "minimal Node-only, no Bun on PATH",
+    "log": "production-build.txt"
+  },
+  {
+    "name": "audit-prod",
+    "command": ["pnpm", "audit:prod"],
+    "startedAt": "2026-10-11T06:02:18.615501+00:00",
+    "seconds": 1.4285206670174375,
+    "exit": 0,
+    "environment": "pinned Bun first on PATH; inherited environment; telemetry disabled",
+    "log": "audit-prod.txt"
+  },
+  {
+    "name": "audit-app",
+    "command": ["node", "scripts/ci/audit-dependencies.mjs", "--scope=app"],
+    "startedAt": "2026-10-11T06:02:20.045130+00:00",
+    "seconds": 1.3956407079822384,
+    "exit": 0,
+    "environment": "pinned Bun first on PATH; inherited environment; telemetry disabled",
+    "log": "audit-app.txt"
+  },
+  {
+    "name": "release-install",
+    "command": ["pnpm", "-C", "tools/release", "install", "--frozen-lockfile"],
+    "startedAt": "2026-10-11T06:02:21.441773+00:00",
+    "seconds": 0.7562435839790851,
+    "exit": 0,
+    "environment": "pinned Bun first on PATH; inherited environment; telemetry disabled",
+    "log": "release-install.txt"
+  },
+  {
+    "name": "audit-release",
+    "command": ["node", "scripts/ci/audit-dependencies.mjs", "--scope=release"],
+    "startedAt": "2026-10-11T06:02:22.198510+00:00",
+    "seconds": 1.124705666967202,
+    "exit": 0,
+    "environment": "pinned Bun first on PATH; inherited environment; telemetry disabled",
+    "log": "audit-release.txt"
+  },
+  {
+    "name": "workflow-pins",
+    "command": ["node", "scripts/ci/validate-workflows.mjs", "--verify-pins"],
+    "startedAt": "2026-10-11T06:02:23.324207+00:00",
+    "seconds": 6.451356749981642,
+    "exit": 0,
+    "environment": "pinned Bun first on PATH; inherited environment; telemetry disabled",
+    "log": "workflow-pins.txt"
+  },
+  {
+    "name": "codegen",
+    "command": ["pnpm", "ci:codegen"],
+    "startedAt": "2026-10-11T06:02:29.776125+00:00",
+    "seconds": 7.962975415983237,
+    "exit": 0,
+    "environment": "minimal Node-only, no Bun on PATH",
+    "log": "codegen.txt"
+  },
+  {
+    "name": "release-contracts",
+    "command": [
+      "pnpm",
+      "exec",
+      "vitest",
+      "run",
+      "tests/integration/browser-release-safety.integration.test.ts",
+      "tests/integration/ci-workflows.integration.test.ts",
+      "tests/integration/generated-artifacts.integration.test.ts",
+      "tests/integration/release-api.integration.test.ts",
+      "tests/integration/release-entrypoint.integration.test.ts",
+      "tests/integration/release-env-contract.integration.test.ts",
+      "tests/integration/release-orchestration.integration.test.ts",
+      "tests/integration/bun-checker.integration.test.ts"
+    ],
+    "startedAt": "2026-10-11T06:02:37.739659+00:00",
+    "seconds": 2.4109226659638807,
+    "exit": 0,
+    "environment": "pinned Bun first on PATH; inherited environment; telemetry disabled",
+    "log": "release-contracts.txt"
+  },
+  {
+    "name": "build-ts6-gate-negative",
+    "command": ["pnpm", "build"],
+    "seconds": 5.530535041994881,
+    "exit": 1,
+    "environment": "minimal Node-only, no Bun on PATH",
+    "log": "build-ts6-gate-negative.txt"
+  },
+  {
+    "name": "build-restored",
+    "command": ["pnpm", "build"],
+    "seconds": 6.448768166010268,
+    "exit": 0,
+    "environment": "minimal Node-only, no Bun on PATH",
+    "log": "build-restored.txt"
+  }
+]
