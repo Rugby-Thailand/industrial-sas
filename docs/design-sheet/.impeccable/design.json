@@ -1,0 +1,851 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-09T15:50:46.967308Z",
+  "title": "Design System: Storage Planner quieter design sheet",
+  "extensions": {
+    "colorMeta": {
+      "primary": {
+        "role": "primary",
+        "displayName": "Primary",
+        "tonalRamp": [
+          "oklch(0.1500 0.2875 264.3293)",
+          "oklch(0.2643 0.2875 264.3293)",
+          "oklch(0.3786 0.2875 264.3293)",
+          "oklch(0.4929 0.2875 264.3293)",
+          "oklch(0.6071 0.2875 264.3293)",
+          "oklch(0.7214 0.2875 264.3293)",
+          "oklch(0.8357 0.2875 264.3293)",
+          "oklch(0.9500 0.2875 264.3293)"
+        ]
+      },
+      "primary-dark": {
+        "role": "primary",
+        "displayName": "Primary dark",
+        "tonalRamp": [
+          "oklch(0.1500 0.2200 266.0000)",
+          "oklch(0.2643 0.2200 266.0000)",
+          "oklch(0.3786 0.2200 266.0000)",
+          "oklch(0.4929 0.2200 266.0000)",
+          "oklch(0.6071 0.2200 266.0000)",
+          "oklch(0.7214 0.2200 266.0000)",
+          "oklch(0.8357 0.2200 266.0000)",
+          "oklch(0.9500 0.2200 266.0000)"
+        ]
+      },
+      "primary-hover": {
+        "role": "primary",
+        "displayName": "Primary hover",
+        "tonalRamp": [
+          "oklch(0.1500 0.2372 265.8389)",
+          "oklch(0.2643 0.2372 265.8389)",
+          "oklch(0.3786 0.2372 265.8389)",
+          "oklch(0.4929 0.2372 265.8389)",
+          "oklch(0.6071 0.2372 265.8389)",
+          "oklch(0.7214 0.2372 265.8389)",
+          "oklch(0.8357 0.2372 265.8389)",
+          "oklch(0.9500 0.2372 265.8389)"
+        ]
+      },
+      "primary-hover-dark": {
+        "role": "primary",
+        "displayName": "Primary hover dark",
+        "tonalRamp": [
+          "oklch(0.1500 0.2076 267.1660)",
+          "oklch(0.2643 0.2076 267.1660)",
+          "oklch(0.3786 0.2076 267.1660)",
+          "oklch(0.4929 0.2076 267.1660)",
+          "oklch(0.6071 0.2076 267.1660)",
+          "oklch(0.7214 0.2076 267.1660)",
+          "oklch(0.8357 0.2076 267.1660)",
+          "oklch(0.9500 0.2076 267.1660)"
+        ]
+      },
+      "primary-contrast": {
+        "role": "primary",
+        "displayName": "Primary contrast",
+        "tonalRamp": [
+          "oklch(0.1500 0.0000 0.0000)",
+          "oklch(0.2643 0.0000 0.0000)",
+          "oklch(0.3786 0.0000 0.0000)",
+          "oklch(0.4929 0.0000 0.0000)",
+          "oklch(0.6071 0.0000 0.0000)",
+          "oklch(0.7214 0.0000 0.0000)",
+          "oklch(0.8357 0.0000 0.0000)",
+          "oklch(0.9500 0.0000 0.0000)"
+        ]
+      },
+      "primary-border-dark": {
+        "role": "primary",
+        "displayName": "Primary border dark",
+        "tonalRamp": [
+          "oklch(0.1500 0.1275 271.7525)",
+          "oklch(0.2643 0.1275 271.7525)",
+          "oklch(0.3786 0.1275 271.7525)",
+          "oklch(0.4929 0.1275 271.7525)",
+          "oklch(0.6071 0.1275 271.7525)",
+          "oklch(0.7214 0.1275 271.7525)",
+          "oklch(0.8357 0.1275 271.7525)",
+          "oklch(0.9500 0.1275 271.7525)"
+        ]
+      },
+      "link-dark": {
+        "role": "primary",
+        "displayName": "Link dark",
+        "tonalRamp": [
+          "oklch(0.1500 0.0999 273.3031)",
+          "oklch(0.2643 0.0999 273.3031)",
+          "oklch(0.3786 0.0999 273.3031)",
+          "oklch(0.4929 0.0999 273.3031)",
+          "oklch(0.6071 0.0999 273.3031)",
+          "oklch(0.7214 0.0999 273.3031)",
+          "oklch(0.8357 0.0999 273.3031)",
+          "oklch(0.9500 0.0999 273.3031)"
+        ]
+      },
+      "selected": {
+        "role": "primary",
+        "displayName": "Selected",
+        "tonalRamp": [
+          "oklch(0.1500 0.0400 272.0000)",
+          "oklch(0.2643 0.0400 272.0000)",
+          "oklch(0.3786 0.0400 272.0000)",
+          "oklch(0.4929 0.0400 272.0000)",
+          "oklch(0.6071 0.0400 272.0000)",
+          "oklch(0.7214 0.0400 272.0000)",
+          "oklch(0.8357 0.0400 272.0000)",
+          "oklch(0.9500 0.0400 272.0000)"
+        ]
+      },
+      "selected-dark": {
+        "role": "primary",
+        "displayName": "Selected dark",
+        "tonalRamp": [
+          "oklch(0.1500 0.0000 0.0000)",
+          "oklch(0.2643 0.0000 0.0000)",
+          "oklch(0.3786 0.0000 0.0000)",
+          "oklch(0.4929 0.0000 0.0000)",
+          "oklch(0.6071 0.0000 0.0000)",
+          "oklch(0.7214 0.0000 0.0000)",
+          "oklch(0.8357 0.0000 0.0000)",
+          "oklch(0.9500 0.0000 0.0000)"
+        ]
+      },
+      "canvas": {
+        "role": "neutral",
+        "displayName": "Canvas",
+        "tonalRamp": [
+          "oklch(0.1500 0.0000 0.0000)",
+          "oklch(0.2643 0.0000 0.0000)",
+          "oklch(0.3786 0.0000 0.0000)",
+          "oklch(0.4929 0.0000 0.0000)",
+          "oklch(0.6071 0.0000 0.0000)",
+          "oklch(0.7214 0.0000 0.0000)",
+          "oklch(0.8357 0.0000 0.0000)",
+          "oklch(0.9500 0.0000 0.0000)"
+        ]
+      },
+      "canvas-dark": {
+        "role": "neutral",
+        "displayName": "Canvas dark",
+        "tonalRamp": [
+          "oklch(0.1500 0.0000 0.0000)",
+          "oklch(0.2643 0.0000 0.0000)",
+          "oklch(0.3786 0.0000 0.0000)",
+          "oklch(0.4929 0.0000 0.0000)",
+          "oklch(0.6071 0.0000 0.0000)",
+          "oklch(0.7214 0.0000 0.0000)",
+          "oklch(0.8357 0.0000 0.0000)",
+          "oklch(0.9500 0.0000 0.0000)"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Surface",
+        "tonalRamp": [
+          "oklch(0.1500 0.0000 0.0000)",
+          "oklch(0.2643 0.0000 0.0000)",
+          "oklch(0.3786 0.0000 0.0000)",
+          "oklch(0.4929 0.0000 0.0000)",
+          "oklch(0.6071 0.0000 0.0000)",
+          "oklch(0.7214 0.0000 0.0000)",
+          "oklch(0.8357 0.0000 0.0000)",
+          "oklch(0.9500 0.0000 0.0000)"
+        ]
+      },
+      "surface-dark": {
+        "role": "neutral",
+        "displayName": "Surface dark",
+        "tonalRamp": [
+          "oklch(0.1500 0.0000 0.0000)",
+          "oklch(0.2643 0.0000 0.0000)",
+          "oklch(0.3786 0.0000 0.0000)",
+          "oklch(0.4929 0.0000 0.0000)",
+          "oklch(0.6071 0.0000 0.0000)",
+          "oklch(0.7214 0.0000 0.0000)",
+          "oklch(0.8357 0.0000 0.0000)",
+          "oklch(0.9500 0.0000 0.0000)"
+        ]
+      },
+      "raised": {
+        "role": "neutral",
+        "displayName": "Raised",
+        "tonalRamp": [
+          "oklch(0.1500 0.0000 0.0000)",
+          "oklch(0.2643 0.0000 0.0000)",
+          "oklch(0.3786 0.0000 0.0000)",
+          "oklch(0.4929 0.0000 0.0000)",
+          "oklch(0.6071 0.0000 0.0000)",
+          "oklch(0.7214 0.0000 0.0000)",
+          "oklch(0.8357 0.0000 0.0000)",
+          "oklch(0.9500 0.0000 0.0000)"
+        ]
+      },
+      "raised-dark": {
+        "role": "neutral",
+        "displayName": "Raised dark",
+        "tonalRamp": [
+          "oklch(0.1500 0.0000 0.0000)",
+          "oklch(0.2643 0.0000 0.0000)",
+          "oklch(0.3786 0.0000 0.0000)",
+          "oklch(0.4929 0.0000 0.0000)",
+          "oklch(0.6071 0.0000 0.0000)",
+          "oklch(0.7214 0.0000 0.0000)",
+          "oklch(0.8357 0.0000 0.0000)",
+          "oklch(0.9500 0.0000 0.0000)"
+        ]
+      },
+      "text": {
+        "role": "neutral",
+        "displayName": "Text",
+        "tonalRamp": [
+          "oklch(0.1500 0.0000 0.0000)",
+          "oklch(0.2643 0.0000 0.0000)",
+          "oklch(0.3786 0.0000 0.0000)",
+          "oklch(0.4929 0.0000 0.0000)",
+          "oklch(0.6071 0.0000 0.0000)",
+          "oklch(0.7214 0.0000 0.0000)",
+          "oklch(0.8357 0.0000 0.0000)",
+          "oklch(0.9500 0.0000 0.0000)"
+        ]
+      },
+      "text-dark": {
+        "role": "neutral",
+        "displayName": "Text dark",
+        "tonalRamp": [
+          "oklch(0.1500 0.0000 0.0000)",
+          "oklch(0.2643 0.0000 0.0000)",
+          "oklch(0.3786 0.0000 0.0000)",
+          "oklch(0.4929 0.0000 0.0000)",
+          "oklch(0.6071 0.0000 0.0000)",
+          "oklch(0.7214 0.0000 0.0000)",
+          "oklch(0.8357 0.0000 0.0000)",
+          "oklch(0.9500 0.0000 0.0000)"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Muted",
+        "tonalRamp": [
+          "oklch(0.1500 0.0000 0.0000)",
+          "oklch(0.2643 0.0000 0.0000)",
+          "oklch(0.3786 0.0000 0.0000)",
+          "oklch(0.4929 0.0000 0.0000)",
+          "oklch(0.6071 0.0000 0.0000)",
+          "oklch(0.7214 0.0000 0.0000)",
+          "oklch(0.8357 0.0000 0.0000)",
+          "oklch(0.9500 0.0000 0.0000)"
+        ]
+      },
+      "muted-dark": {
+        "role": "neutral",
+        "displayName": "Muted dark",
+        "tonalRamp": [
+          "oklch(0.1500 0.0000 0.0000)",
+          "oklch(0.2643 0.0000 0.0000)",
+          "oklch(0.3786 0.0000 0.0000)",
+          "oklch(0.4929 0.0000 0.0000)",
+          "oklch(0.6071 0.0000 0.0000)",
+          "oklch(0.7214 0.0000 0.0000)",
+          "oklch(0.8357 0.0000 0.0000)",
+          "oklch(0.9500 0.0000 0.0000)"
+        ]
+      },
+      "divider": {
+        "role": "neutral",
+        "displayName": "Divider",
+        "tonalRamp": [
+          "oklch(0.1500 0.0000 0.0000)",
+          "oklch(0.2643 0.0000 0.0000)",
+          "oklch(0.3786 0.0000 0.0000)",
+          "oklch(0.4929 0.0000 0.0000)",
+          "oklch(0.6071 0.0000 0.0000)",
+          "oklch(0.7214 0.0000 0.0000)",
+          "oklch(0.8357 0.0000 0.0000)",
+          "oklch(0.9500 0.0000 0.0000)"
+        ]
+      },
+      "divider-dark": {
+        "role": "neutral",
+        "displayName": "Divider dark",
+        "tonalRamp": [
+          "oklch(0.1500 0.0000 0.0000)",
+          "oklch(0.2643 0.0000 0.0000)",
+          "oklch(0.3786 0.0000 0.0000)",
+          "oklch(0.4929 0.0000 0.0000)",
+          "oklch(0.6071 0.0000 0.0000)",
+          "oklch(0.7214 0.0000 0.0000)",
+          "oklch(0.8357 0.0000 0.0000)",
+          "oklch(0.9500 0.0000 0.0000)"
+        ]
+      },
+      "control-edge": {
+        "role": "neutral",
+        "displayName": "Control edge",
+        "tonalRamp": [
+          "oklch(0.1500 0.0000 0.0000)",
+          "oklch(0.2643 0.0000 0.0000)",
+          "oklch(0.3786 0.0000 0.0000)",
+          "oklch(0.4929 0.0000 0.0000)",
+          "oklch(0.6071 0.0000 0.0000)",
+          "oklch(0.7214 0.0000 0.0000)",
+          "oklch(0.8357 0.0000 0.0000)",
+          "oklch(0.9500 0.0000 0.0000)"
+        ]
+      },
+      "control-edge-dark": {
+        "role": "neutral",
+        "displayName": "Control edge dark",
+        "tonalRamp": [
+          "oklch(0.1500 0.0000 0.0000)",
+          "oklch(0.2643 0.0000 0.0000)",
+          "oklch(0.3786 0.0000 0.0000)",
+          "oklch(0.4929 0.0000 0.0000)",
+          "oklch(0.6071 0.0000 0.0000)",
+          "oklch(0.7214 0.0000 0.0000)",
+          "oklch(0.8357 0.0000 0.0000)",
+          "oklch(0.9500 0.0000 0.0000)"
+        ]
+      },
+      "focus": {
+        "role": "primary",
+        "displayName": "Focus",
+        "tonalRamp": [
+          "oklch(0.1500 0.2200 266.0000)",
+          "oklch(0.2643 0.2200 266.0000)",
+          "oklch(0.3786 0.2200 266.0000)",
+          "oklch(0.4929 0.2200 266.0000)",
+          "oklch(0.6071 0.2200 266.0000)",
+          "oklch(0.7214 0.2200 266.0000)",
+          "oklch(0.8357 0.2200 266.0000)",
+          "oklch(0.9500 0.2200 266.0000)"
+        ]
+      },
+      "success": {
+        "role": "semantic",
+        "displayName": "Success",
+        "tonalRamp": [
+          "oklch(0.1500 0.1078 155.8627)",
+          "oklch(0.2643 0.1078 155.8627)",
+          "oklch(0.3786 0.1078 155.8627)",
+          "oklch(0.4929 0.1078 155.8627)",
+          "oklch(0.6071 0.1078 155.8627)",
+          "oklch(0.7214 0.1078 155.8627)",
+          "oklch(0.8357 0.1078 155.8627)",
+          "oklch(0.9500 0.1078 155.8627)"
+        ]
+      },
+      "success-dark": {
+        "role": "semantic",
+        "displayName": "Success dark",
+        "tonalRamp": [
+          "oklch(0.1500 0.1356 160.9785)",
+          "oklch(0.2643 0.1356 160.9785)",
+          "oklch(0.3786 0.1356 160.9785)",
+          "oklch(0.4929 0.1356 160.9785)",
+          "oklch(0.6071 0.1356 160.9785)",
+          "oklch(0.7214 0.1356 160.9785)",
+          "oklch(0.8357 0.1356 160.9785)",
+          "oklch(0.9500 0.1356 160.9785)"
+        ]
+      },
+      "success-surface": {
+        "role": "semantic",
+        "displayName": "Success surface",
+        "tonalRamp": [
+          "oklch(0.1500 0.0207 161.4712)",
+          "oklch(0.2643 0.0207 161.4712)",
+          "oklch(0.3786 0.0207 161.4712)",
+          "oklch(0.4929 0.0207 161.4712)",
+          "oklch(0.6071 0.0207 161.4712)",
+          "oklch(0.7214 0.0207 161.4712)",
+          "oklch(0.8357 0.0207 161.4712)",
+          "oklch(0.9500 0.0207 161.4712)"
+        ]
+      },
+      "success-surface-dark": {
+        "role": "semantic",
+        "displayName": "Success surface dark",
+        "tonalRamp": [
+          "oklch(0.1500 0.0490 165.5539)",
+          "oklch(0.2643 0.0490 165.5539)",
+          "oklch(0.3786 0.0490 165.5539)",
+          "oklch(0.4929 0.0490 165.5539)",
+          "oklch(0.6071 0.0490 165.5539)",
+          "oklch(0.7214 0.0490 165.5539)",
+          "oklch(0.8357 0.0490 165.5539)",
+          "oklch(0.9500 0.0490 165.5539)"
+        ]
+      },
+      "warning": {
+        "role": "semantic",
+        "displayName": "Warning",
+        "tonalRamp": [
+          "oklch(0.1500 0.1093 66.9062)",
+          "oklch(0.2643 0.1093 66.9062)",
+          "oklch(0.3786 0.1093 66.9062)",
+          "oklch(0.4929 0.1093 66.9062)",
+          "oklch(0.6071 0.1093 66.9062)",
+          "oklch(0.7214 0.1093 66.9062)",
+          "oklch(0.8357 0.1093 66.9062)",
+          "oklch(0.9500 0.1093 66.9062)"
+        ]
+      },
+      "warning-dark": {
+        "role": "semantic",
+        "displayName": "Warning dark",
+        "tonalRamp": [
+          "oklch(0.1500 0.1294 75.2355)",
+          "oklch(0.2643 0.1294 75.2355)",
+          "oklch(0.3786 0.1294 75.2355)",
+          "oklch(0.4929 0.1294 75.2355)",
+          "oklch(0.6071 0.1294 75.2355)",
+          "oklch(0.7214 0.1294 75.2355)",
+          "oklch(0.8357 0.1294 75.2355)",
+          "oklch(0.9500 0.1294 75.2355)"
+        ]
+      },
+      "warning-surface": {
+        "role": "semantic",
+        "displayName": "Warning surface",
+        "tonalRamp": [
+          "oklch(0.1500 0.0448 85.8682)",
+          "oklch(0.2643 0.0448 85.8682)",
+          "oklch(0.3786 0.0448 85.8682)",
+          "oklch(0.4929 0.0448 85.8682)",
+          "oklch(0.6071 0.0448 85.8682)",
+          "oklch(0.7214 0.0448 85.8682)",
+          "oklch(0.8357 0.0448 85.8682)",
+          "oklch(0.9500 0.0448 85.8682)"
+        ]
+      },
+      "warning-surface-dark": {
+        "role": "semantic",
+        "displayName": "Warning surface dark",
+        "tonalRamp": [
+          "oklch(0.1500 0.0482 73.7564)",
+          "oklch(0.2643 0.0482 73.7564)",
+          "oklch(0.3786 0.0482 73.7564)",
+          "oklch(0.4929 0.0482 73.7564)",
+          "oklch(0.6071 0.0482 73.7564)",
+          "oklch(0.7214 0.0482 73.7564)",
+          "oklch(0.8357 0.0482 73.7564)",
+          "oklch(0.9500 0.0482 73.7564)"
+        ]
+      },
+      "danger": {
+        "role": "semantic",
+        "displayName": "Danger",
+        "tonalRamp": [
+          "oklch(0.1500 0.1783 28.7047)",
+          "oklch(0.2643 0.1783 28.7047)",
+          "oklch(0.3786 0.1783 28.7047)",
+          "oklch(0.4929 0.1783 28.7047)",
+          "oklch(0.6071 0.1783 28.7047)",
+          "oklch(0.7214 0.1783 28.7047)",
+          "oklch(0.8357 0.1783 28.7047)",
+          "oklch(0.9500 0.1783 28.7047)"
+        ]
+      },
+      "danger-dark": {
+        "role": "semantic",
+        "displayName": "Danger dark",
+        "tonalRamp": [
+          "oklch(0.1500 0.1227 26.2531)",
+          "oklch(0.2643 0.1227 26.2531)",
+          "oklch(0.3786 0.1227 26.2531)",
+          "oklch(0.4929 0.1227 26.2531)",
+          "oklch(0.6071 0.1227 26.2531)",
+          "oklch(0.7214 0.1227 26.2531)",
+          "oklch(0.8357 0.1227 26.2531)",
+          "oklch(0.9500 0.1227 26.2531)"
+        ]
+      },
+      "danger-surface": {
+        "role": "semantic",
+        "displayName": "Danger surface",
+        "tonalRamp": [
+          "oklch(0.1500 0.0232 24.1275)",
+          "oklch(0.2643 0.0232 24.1275)",
+          "oklch(0.3786 0.0232 24.1275)",
+          "oklch(0.4929 0.0232 24.1275)",
+          "oklch(0.6071 0.0232 24.1275)",
+          "oklch(0.7214 0.0232 24.1275)",
+          "oklch(0.8357 0.0232 24.1275)",
+          "oklch(0.9500 0.0232 24.1275)"
+        ]
+      },
+      "danger-surface-dark": {
+        "role": "semantic",
+        "displayName": "Danger surface dark",
+        "tonalRamp": [
+          "oklch(0.1500 0.0516 23.9764)",
+          "oklch(0.2643 0.0516 23.9764)",
+          "oklch(0.3786 0.0516 23.9764)",
+          "oklch(0.4929 0.0516 23.9764)",
+          "oklch(0.6071 0.0516 23.9764)",
+          "oklch(0.7214 0.0516 23.9764)",
+          "oklch(0.8357 0.0516 23.9764)",
+          "oklch(0.9500 0.0516 23.9764)"
+        ]
+      },
+      "pending": {
+        "role": "semantic",
+        "displayName": "Pending",
+        "tonalRamp": [
+          "oklch(0.1500 0.1811 287.5393)",
+          "oklch(0.2643 0.1811 287.5393)",
+          "oklch(0.3786 0.1811 287.5393)",
+          "oklch(0.4929 0.1811 287.5393)",
+          "oklch(0.6071 0.1811 287.5393)",
+          "oklch(0.7214 0.1811 287.5393)",
+          "oklch(0.8357 0.1811 287.5393)",
+          "oklch(0.9500 0.1811 287.5393)"
+        ]
+      },
+      "pending-dark": {
+        "role": "semantic",
+        "displayName": "Pending dark",
+        "tonalRamp": [
+          "oklch(0.1500 0.1348 292.0553)",
+          "oklch(0.2643 0.1348 292.0553)",
+          "oklch(0.3786 0.1348 292.0553)",
+          "oklch(0.4929 0.1348 292.0553)",
+          "oklch(0.6071 0.1348 292.0553)",
+          "oklch(0.7214 0.1348 292.0553)",
+          "oklch(0.8357 0.1348 292.0553)",
+          "oklch(0.9500 0.1348 292.0553)"
+        ]
+      },
+      "pending-surface": {
+        "role": "semantic",
+        "displayName": "Pending surface",
+        "tonalRamp": [
+          "oklch(0.1500 0.0284 294.5901)",
+          "oklch(0.2643 0.0284 294.5901)",
+          "oklch(0.3786 0.0284 294.5901)",
+          "oklch(0.4929 0.0284 294.5901)",
+          "oklch(0.6071 0.0284 294.5901)",
+          "oklch(0.7214 0.0284 294.5901)",
+          "oklch(0.8357 0.0284 294.5901)",
+          "oklch(0.9500 0.0284 294.5901)"
+        ]
+      },
+      "pending-surface-dark": {
+        "role": "semantic",
+        "displayName": "Pending surface dark",
+        "tonalRamp": [
+          "oklch(0.1500 0.0650 289.5630)",
+          "oklch(0.2643 0.0650 289.5630)",
+          "oklch(0.3786 0.0650 289.5630)",
+          "oklch(0.4929 0.0650 289.5630)",
+          "oklch(0.6071 0.0650 289.5630)",
+          "oklch(0.7214 0.0650 289.5630)",
+          "oklch(0.8357 0.0650 289.5630)",
+          "oklch(0.9500 0.0650 289.5630)"
+        ]
+      },
+      "badge-success": {
+        "role": "semantic",
+        "displayName": "Proposed badge success",
+        "tonalRamp": [
+          "oklch(0.1500 0.0857 155.9200)",
+          "oklch(0.2643 0.0857 155.9200)",
+          "oklch(0.3786 0.0857 155.9200)",
+          "oklch(0.4929 0.0857 155.9200)",
+          "oklch(0.6071 0.0857 155.9200)",
+          "oklch(0.7214 0.0857 155.9200)",
+          "oklch(0.8357 0.0857 155.9200)",
+          "oklch(0.9500 0.0857 155.9200)"
+        ]
+      },
+      "badge-success-dark": {
+        "role": "semantic",
+        "displayName": "Proposed badge success dark",
+        "tonalRamp": [
+          "oklch(0.1500 0.1060 161.2330)",
+          "oklch(0.2643 0.1060 161.2330)",
+          "oklch(0.3786 0.1060 161.2330)",
+          "oklch(0.4929 0.1060 161.2330)",
+          "oklch(0.6071 0.1060 161.2330)",
+          "oklch(0.7214 0.1060 161.2330)",
+          "oklch(0.8357 0.1060 161.2330)",
+          "oklch(0.9500 0.1060 161.2330)"
+        ]
+      },
+      "badge-warning": {
+        "role": "semantic",
+        "displayName": "Proposed badge warning",
+        "tonalRamp": [
+          "oklch(0.1500 0.0874 64.8258)",
+          "oklch(0.2643 0.0874 64.8258)",
+          "oklch(0.3786 0.0874 64.8258)",
+          "oklch(0.4929 0.0874 64.8258)",
+          "oklch(0.6071 0.0874 64.8258)",
+          "oklch(0.7214 0.0874 64.8258)",
+          "oklch(0.8357 0.0874 64.8258)",
+          "oklch(0.9500 0.0874 64.8258)"
+        ]
+      },
+      "badge-warning-dark": {
+        "role": "semantic",
+        "displayName": "Proposed badge warning dark",
+        "tonalRamp": [
+          "oklch(0.1500 0.1023 76.7672)",
+          "oklch(0.2643 0.1023 76.7672)",
+          "oklch(0.3786 0.1023 76.7672)",
+          "oklch(0.4929 0.1023 76.7672)",
+          "oklch(0.6071 0.1023 76.7672)",
+          "oklch(0.7214 0.1023 76.7672)",
+          "oklch(0.8357 0.1023 76.7672)",
+          "oklch(0.9500 0.1023 76.7672)"
+        ]
+      },
+      "badge-danger": {
+        "role": "semantic",
+        "displayName": "Proposed badge danger",
+        "tonalRamp": [
+          "oklch(0.1500 0.1412 28.5166)",
+          "oklch(0.2643 0.1412 28.5166)",
+          "oklch(0.3786 0.1412 28.5166)",
+          "oklch(0.4929 0.1412 28.5166)",
+          "oklch(0.6071 0.1412 28.5166)",
+          "oklch(0.7214 0.1412 28.5166)",
+          "oklch(0.8357 0.1412 28.5166)",
+          "oklch(0.9500 0.1412 28.5166)"
+        ]
+      },
+      "badge-danger-dark": {
+        "role": "semantic",
+        "displayName": "Proposed badge danger dark",
+        "tonalRamp": [
+          "oklch(0.1500 0.0799 25.5079)",
+          "oklch(0.2643 0.0799 25.5079)",
+          "oklch(0.3786 0.0799 25.5079)",
+          "oklch(0.4929 0.0799 25.5079)",
+          "oklch(0.6071 0.0799 25.5079)",
+          "oklch(0.7214 0.0799 25.5079)",
+          "oklch(0.8357 0.0799 25.5079)",
+          "oklch(0.9500 0.0799 25.5079)"
+        ]
+      },
+      "badge-pending": {
+        "role": "semantic",
+        "displayName": "Proposed badge pending",
+        "tonalRamp": [
+          "oklch(0.1500 0.1570 287.1639)",
+          "oklch(0.2643 0.1570 287.1639)",
+          "oklch(0.3786 0.1570 287.1639)",
+          "oklch(0.4929 0.1570 287.1639)",
+          "oklch(0.6071 0.1570 287.1639)",
+          "oklch(0.7214 0.1570 287.1639)",
+          "oklch(0.8357 0.1570 287.1639)",
+          "oklch(0.9500 0.1570 287.1639)"
+        ]
+      },
+      "badge-pending-dark": {
+        "role": "semantic",
+        "displayName": "Proposed badge pending dark",
+        "tonalRamp": [
+          "oklch(0.1500 0.0883 296.1007)",
+          "oklch(0.2643 0.0883 296.1007)",
+          "oklch(0.3786 0.0883 296.1007)",
+          "oklch(0.4929 0.0883 296.1007)",
+          "oklch(0.6071 0.0883 296.1007)",
+          "oklch(0.7214 0.0883 296.1007)",
+          "oklch(0.8357 0.0883 296.1007)",
+          "oklch(0.9500 0.0883 296.1007)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Document introduction only."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Operating page heading and workflow titles."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Operating section heading."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Operating 14/20 specimen; document body has a 1.5 line height."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Operating metadata; longer hints have greater line height."
+      },
+      "control": {
+        "displayName": "Control",
+        "purpose": "Semibold task-action text."
+      },
+      "mono": {
+        "displayName": "Mono",
+        "purpose": "Codes, times and measurements."
+      },
+      "badge": {
+        "displayName": "Stronger badge label",
+        "purpose": "User-requested semibold status labels in the proposal."
+      },
+      "input-touch": {
+        "displayName": "Touch input text",
+        "purpose": "16/24 text at widths of 800px and below."
+      }
+    },
+    "shadows": [],
+    "motion": [
+      {
+        "name": "button-color-duration",
+        "value": "160ms",
+        "purpose": "Button color transitions, removed under reduced motion."
+      },
+      {
+        "name": "enabled-button-press",
+        "value": "translateY(1px)",
+        "purpose": "Enabled button press feedback."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sheet-tighten-max",
+        "value": "1100px"
+      },
+      {
+        "name": "sheet-stack-max",
+        "value": "800px"
+      },
+      {
+        "name": "sheet-phone-max",
+        "value": "520px"
+      }
+    ],
+    "adoptionReview": {
+      "date": "2026-10-11",
+      "sourceBaseline": "733c6aca",
+      "scope": "Original standalone sheet only; application palette remains authoritative",
+      "denseQuery": "(width >= 48rem) and (pointer: fine)",
+      "defaultControlHeight": "48px",
+      "denseControlHeight": "36px",
+      "rootStylesheet": "review.css",
+      "rootBehavior": "review.js",
+      "historicalEvidenceBaseline": "8b0ef538",
+      "applicationImplementation": "Planned; no release in this revision"
+    }
+  },
+  "components": [
+    {
+      "name": "Primary button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The next scoped action: 36px desktop and 48px at touch widths. This preview does not write records.",
+      "html": "<button type=\"button\" class=\"ds-button\">Save changes</button>",
+      "css": ".ds-button{min-height:36px;min-width:36px;display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:6px 12px;border:1px solid var(--token-primary-border,oklch(0.4901 0.2875 264.3293));border-radius:6.4px;background:var(--token-accent,oklch(0.4901 0.2875 264.3293));color:var(--token-accent-contrast,oklch(0.985 0 0));font-family:var(--sheet-sans,Geist,\"Noto Sans Thai\",sans-serif);font-size:14px;line-height:20px;font-weight:600;cursor:pointer;transition:background-color var(--sheet-duration,160ms),border-color var(--sheet-duration,160ms);}.ds-button:hover:not(:disabled){background:var(--token-accent-hover,#1024c4);}.ds-button:focus-visible{outline:2px solid var(--ring,oklch(0.46 0.22 266));outline-offset:2px;}.ds-button:active:not(:disabled){transform:translateY(1px);}.ds-button:disabled{cursor:not-allowed;background:var(--token-disabled-surface,oklch(0.97 0 0));border-color:var(--token-border,oklch(0.92 0 0));color:var(--token-disabled,oklch(0.44 0 0));}@media(prefers-reduced-motion:reduce){.ds-button{transition:none;}}@media(max-width:800px){.ds-button{min-height:48px;min-width:48px;padding:10px 16px;}}"
+    },
+    {
+      "name": "Neutral field with close label",
+      "kind": "input",
+      "refersTo": "input-neutral",
+      "description": "User-requested 2px label gap and 6px inline AI-origin gap; origin-clearing behavior lives in sheet.js.",
+      "html": "<div class=\"ds-field\"><label class=\"ds-label\" for=\"ds-job\"><span>Job number <span aria-hidden=\"true\">*</span></span><span class=\"ds-origin\">AI origin</span></label><input class=\"ds-input\" id=\"ds-job\" value=\"DEMO-FO-001\" required spellcheck=\"false\" autocomplete=\"off\" /><p class=\"ds-hint\">Review the extracted value before saving.</p></div>",
+      "css": ".ds-field{min-width:0;font-family:var(--sheet-sans,Geist,\"Noto Sans Thai\",sans-serif);color:var(--token-text,oklch(0.205 0 0));}.ds-label{display:flex;align-items:baseline;gap:6px;margin-bottom:2px;font-size:12px;line-height:18px;font-weight:500;}.ds-origin{color:var(--token-warning,#8a5300);}.ds-input{box-sizing:border-box;min-height:36px;width:100%;min-width:0;padding:6px 10px;border:1px solid var(--token-border-strong,#808080);border-radius:6.4px;background:var(--token-surface,oklch(1 0 0));color:var(--token-text,oklch(0.205 0 0));caret-color:var(--token-link,oklch(0.4901 0.2875 264.3293));font-family:var(--sheet-mono,\"Geist Mono\",\"Noto Sans Thai\",monospace);font-size:14px;line-height:20px;}.ds-input:focus-visible{border-color:var(--ring,oklch(0.46 0.22 266));outline:2px solid var(--ring,oklch(0.46 0.22 266));outline-offset:-1px;}.ds-input[aria-invalid=\"true\"]{border-color:var(--token-danger,#b3261e);}.ds-hint{margin:8px 0 0;color:var(--token-muted,oklch(0.44 0 0));font-size:12px;line-height:18px;}@media(max-width:800px){.ds-input{min-height:48px;padding-block:10px;font-size:16px;line-height:24px;}}"
+    },
+    {
+      "name": "Workflow tabs",
+      "kind": "nav",
+      "refersTo": "workflow-tab",
+      "description": "Tab state preview; live switching and keyboard navigation live in the sheet.",
+      "html": "<div class=\"ds-tabs\" role=\"tablist\" aria-label=\"Workflow specimens\"><button type=\"button\" class=\"ds-tab\" role=\"tab\" aria-selected=\"true\" tabindex=\"0\">Job scan</button><button type=\"button\" class=\"ds-tab\" role=\"tab\" aria-selected=\"false\" tabindex=\"-1\">Catalogue</button><button type=\"button\" class=\"ds-tab\" role=\"tab\" aria-selected=\"false\" tabindex=\"-1\">Floor plan</button><button type=\"button\" class=\"ds-tab\" role=\"tab\" aria-selected=\"false\" tabindex=\"-1\">My day</button></div>",
+      "css": ".ds-tabs{display:flex;gap:24px;padding:0 24px;overflow-x:auto;border-bottom:1px solid var(--token-border,oklch(0.92 0 0));scrollbar-width:thin;scrollbar-color:var(--token-border-strong,#808080) transparent;}.ds-tab{min-height:36px;min-width:36px;padding-inline:0;border:0;border-bottom:2px solid transparent;background:none;color:var(--token-muted,oklch(0.44 0 0));font-family:var(--sheet-sans,Geist,\"Noto Sans Thai\",sans-serif);font-size:13px;line-height:19.5px;font-weight:500;white-space:nowrap;cursor:pointer;}.ds-tab:hover{color:var(--token-text,oklch(0.205 0 0));}.ds-tab[aria-selected=\"true\"]{color:var(--token-link,oklch(0.4901 0.2875 264.3293));border-bottom-color:var(--token-link,oklch(0.4901 0.2875 264.3293));}.ds-tab:focus-visible{outline:2px solid var(--ring,oklch(0.46 0.22 266));outline-offset:2px;}@media(max-width:520px){.ds-tabs{padding-inline:16px;}.ds-tab{font-size:12px;}}@media(max-width:800px){.ds-tab{min-height:48px;min-width:48px;}}"
+    },
+    {
+      "name": "Success status badge",
+      "kind": "chip",
+      "refersTo": "badge-success",
+      "description": "Proposed stronger status ink, semibold text and an inline icon. Passive status implies no action.",
+      "html": "<span class=\"ds-badge\"><svg class=\"ds-badge-icon\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"m5 12 4 4L19 6\" /></svg>Mapped</span>",
+      "css": ".ds-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 9px;border:1px solid currentColor;border-radius:999px;background:var(--token-success-surface,#e3f3ea);color:var(--sheet-status-success,#084d2c);font-family:var(--sheet-sans,Geist,\"Noto Sans Thai\",sans-serif);font-size:12px;line-height:16px;font-weight:600;white-space:nowrap;}.ds-badge-icon{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2.25;stroke-linecap:round;stroke-linejoin:round;}"
+    },
+    {
+      "name": "Shared workspace frame",
+      "kind": "card",
+      "refersTo": "task-surface",
+      "description": "A proposal workspace boundary, not a new global card default.",
+      "html": "<section class=\"ds-frame\"><div class=\"ds-chrome\"><span class=\"ds-warehouse\">DEMO-WH</span><span>Sample workspace</span></div><div class=\"ds-work\"><h3 class=\"ds-heading\">Job scan</h3><p class=\"ds-summary\">Confirm the location before saving.</p></div><div class=\"ds-caption\">Related work shares one surface.</div></section>",
+      "css": ".ds-frame{min-width:0;overflow:hidden;border:1px solid var(--token-border,oklch(0.92 0 0));border-radius:12px;background:var(--token-surface,oklch(1 0 0));color:var(--token-text,oklch(0.205 0 0));font-family:var(--sheet-sans,Geist,\"Noto Sans Thai\",sans-serif);font-size:14px;line-height:21px;}.ds-chrome{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:12px 24px;background:var(--token-raised,oklch(0.97 0 0));font-size:12px;color:var(--token-muted,oklch(0.44 0 0));}.ds-warehouse{font-family:var(--sheet-mono,\"Geist Mono\",\"Noto Sans Thai\",monospace);}.ds-work{padding:20px;}.ds-heading{margin:0;font-size:24px;line-height:32px;font-weight:600;letter-spacing:-0.01em;}.ds-summary{margin:4px 0 0;color:var(--token-muted,oklch(0.44 0 0));font-size:12px;line-height:18px;}.ds-caption{padding:16px 24px;border-top:1px solid var(--token-border,oklch(0.92 0 0));color:var(--token-muted,oklch(0.44 0 0));font-size:12px;line-height:19px;}@media(max-width:520px){.ds-chrome{padding-inline:16px;}.ds-work{padding:20px 16px;}.ds-heading{font-size:22px;line-height:30px;}.ds-caption{padding:16px;}}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Clear work. Quiet surfaces.",
+    "overview": "This document describes the completed [standalone design sheet](index.html), a quieter composition proposal selected by the user. The familiar blue, neutral surfaces, bilingual type and visible controls support warehouse tasks and people operations. Headings, spacing and a small number of dividers provide hierarchy; related work shares a surface.\n\n**Scope and authority:** the frontmatter is normative only for this sheet. It records the palette extracted at the start of the 2026-10-09 session, as preserved in [tokens.css](tokens.css), and the typography, shapes and component values implemented in [styles.css](styles.css). The `badge-*` colors are explicitly proposed foreground additions from the final stylesheet, requested for stronger status contrast; they are not part of the original token extraction. The proposed layout rules below are reviewable recommendations, not shipped application rules. This file does not create or replace project-wide design authority. [README.md](README.md) maps every specimen to its application sources.\n\n**Current extracted tokens and working-tree drift:** at documentation time, `src/app/globals.css` has a different light-theme blue, canvas, text, raised surface, muted text and several semantic/hover values. For example, its blue is `#1d4ed8`, canvas is `#ffffff`, text is `#17212f`, raised surface is `#f6f7f9`, and muted text is `#475569`. Those current working-tree values are not the sheet's session snapshot. The sheet remains a composition proposal; it does not authorize a palette migration or revert other work. The current application stylesheet owns current application tokens.",
+    "keyCharacteristics": [
+      "Familiar blue for primary action, with neutral secondary controls.",
+      "One task surface with divided sections and unboxed totals.",
+      "Thai and English, fixed operating type sizes and numeric clarity.",
+      "Distinct status, loading, empty and failed-save presentations."
+    ],
+    "rules": [
+      {
+        "name": "The Meaningful Color Rule",
+        "body": "Pair status color with an icon and readable text. Preserve area identity separately from selection, occupancy and status.",
+        "section": "colors"
+      },
+      {
+        "name": "The Numeric Identity Rule",
+        "body": "Use monospace for codes, times and measurements, and tabular figures for aligned quantities. Preserve natural Thai wrapping.",
+        "section": "typography"
+      },
+      {
+        "name": "The Task Surface Rule",
+        "body": "Within this proposal, group with spacing and selective dividers before adding another container. Keep a surface when it defines a workspace or map boundary.",
+        "section": "layout"
+      },
+      {
+        "name": "The Flat Task Rule",
+        "body": "Keep task content flat in this proposal. Use surface tone and hierarchy to separate content, reserving borders for controls, boundaries and meaningful divisions.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Scoped Action Rule",
+        "body": "Give each task one primary next action, and keep secondary actions neutral.",
+        "section": "components"
+      }
+    ],
+    "dos": [
+      "**Do** preserve the familiar palette roles, bilingual fonts and visible control boundaries when reviewing this composition.",
+      "**Do** group related work with headings, spacing and selective dividers inside the shared task surface.",
+      "**Do** keep field labels 2px above inputs, with AI origin beside the field name as requested for this proposal.",
+      "**Do** pair status color with text and an icon, and keep physical area identity separate.",
+      "**Do** keep planned and actual attendance times separately labeled, and make save scope clear.",
+      "**Do** check Thai and English, both themes, keyboard focus, narrow layouts, reduced motion and long identifiers before implementing a proposal."
+    ],
+    "donts": [
+      "**Don't** treat this sheet or its session token snapshot as shipped application behavior or project-wide design authority.",
+      "**Don't** add repeated nested cards or boxed totals to the quieter specimens merely to group related content.",
+      "**Don't** replace neutral fields with broad AI-origin color fills in this proposal.",
+      "**Don't** confuse synthetic local specimen actions with backend writes, scanning, authorization or persisted attendance receipts."
+    ]
+  }
+}

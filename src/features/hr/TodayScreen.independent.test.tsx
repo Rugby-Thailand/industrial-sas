@@ -14,6 +14,16 @@ const mocks = vi.hoisted(() => ({
   query: vi.fn(),
   clockIn: vi.fn(),
   clockOut: vi.fn(),
+  identity: "org-a:actor-a:employee-a",
+}));
+vi.mock("@/components/providers/HrAccessProvider", () => ({
+  useHrAccess: () => ({
+    status: "READY",
+    identityKey: mocks.identity,
+    permissions: ["hr.self.access"],
+    sites: [],
+    timezoneSupported: true,
+  }),
 }));
 vi.mock("convex/react", () => ({
   useQuery: () => mocks.query(),
@@ -81,6 +91,7 @@ const base = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.identity = "org-a:actor-a:employee-a";
   sessionStorage.clear();
 });
 afterEach(() => {
@@ -212,4 +223,211 @@ it("clears an already-saved receipt when the linked employee changes", async () 
   });
   view.rerender(<HrTodayScreen />);
   expect(screen.queryByTestId("hr-clock-saved")).not.toBeInTheDocument();
+});
+
+it("restores the original clock-in and exact date after navigation/remount despite live clock-out", async () => {
+  mocks.clockIn
+    .mockRejectedValueOnce(new Error("Lost reply"))
+    .mockResolvedValue({
+      ok: true,
+      value: {
+        written: true,
+        occurredAt: base.now,
+        businessDate: base.today,
+        kind: "CLOCK_IN",
+      },
+    });
+  mocks.query.mockReturnValue({
+    ok: true,
+    value: { ...base, state: "NOT_CLOCKED_IN", nextAction: "CLOCK_IN" },
+  });
+  const view = render(<HrTodayScreen />);
+  fireEvent.click(screen.getByTestId("hr-clock-action"));
+  await screen.findByRole("button", { name: "Retry original clock" });
+  const original = mocks.clockIn.mock.calls[0]?.[0];
+  expect(original).toEqual({
+    requestId: expect.any(String),
+    expectedBusinessDate: base.businessDate,
+  });
+  expect(JSON.parse(sessionStorage.getItem("hr-clock-command:v1")!)).toEqual({
+    schema: 1,
+    scope: `${mocks.identity}|clock:employee-a`,
+    employeeId: "employee-a",
+    kind: "CLOCK_IN",
+    requestId: original.requestId,
+    expectedBusinessDate: base.businessDate,
+  });
+  view.unmount();
+  mocks.query.mockReturnValue({
+    ok: true,
+    value: {
+      ...base,
+      businessDate: "2026-10-10",
+      state: "CLOCKED_IN",
+      nextAction: "CLOCK_OUT",
+      clockInAt: base.now,
+    },
+  });
+  render(<HrTodayScreen />);
+  expect(screen.getByTestId("hr-clock-action")).toHaveTextContent("clockIn");
+  expect(screen.queryByTestId("hr-clock-saved")).not.toBeInTheDocument();
+  fireEvent.click(
+    await screen.findByRole("button", { name: "Retry original clock" }),
+  );
+  await waitFor(() => expect(mocks.clockIn).toHaveBeenCalledTimes(2));
+  expect(mocks.clockIn.mock.calls[1]?.[0]).toEqual(original);
+  expect(mocks.clockOut).not.toHaveBeenCalled();
+  await screen.findByTestId("hr-clock-saved");
+  expect(sessionStorage.getItem("hr-clock-command:v1")).toBeNull();
+});
+it("keeps the old date on an uncommitted remount retry and clears a definite day-changed refusal", async () => {
+  mocks.clockIn
+    .mockRejectedValueOnce(new Error("Lost reply"))
+    .mockResolvedValue({
+      ok: true,
+      value: { written: false, error: { code: "HR_CLOCK_DAY_CHANGED" } },
+    });
+  mocks.query.mockReturnValue({
+    ok: true,
+    value: { ...base, state: "NOT_CLOCKED_IN", nextAction: "CLOCK_IN" },
+  });
+  const view = render(<HrTodayScreen />);
+  fireEvent.click(screen.getByTestId("hr-clock-action"));
+  await screen.findByRole("button", { name: "Retry original clock" });
+  const original = mocks.clockIn.mock.calls[0]?.[0];
+  view.unmount();
+  mocks.query.mockReturnValue({
+    ok: true,
+    value: {
+      ...base,
+      today: "2026-10-10",
+      businessDate: "2026-10-10",
+      state: "NOT_CLOCKED_IN",
+      nextAction: "CLOCK_IN",
+    },
+  });
+  render(<HrTodayScreen />);
+  fireEvent.click(
+    await screen.findByRole("button", { name: "Retry original clock" }),
+  );
+  await waitFor(() => expect(screen.getByText("REFUSED")).toBeInTheDocument());
+  expect(mocks.clockIn.mock.calls[1]?.[0]).toEqual(original);
+  expect(sessionStorage.getItem("hr-clock-command:v1")).toBeNull();
+  expect(screen.queryByTestId("hr-clock-saved")).not.toBeInTheDocument();
+});
+it.each(["actor", "organization", "employee"])(
+  "clears an uncertain clock when the %s changes and cannot resurrect it on switching back",
+  async (change) => {
+    mocks.clockIn.mockRejectedValue(new Error("Lost reply"));
+    mocks.query.mockReturnValue({
+      ok: true,
+      value: { ...base, state: "NOT_CLOCKED_IN", nextAction: "CLOCK_IN" },
+    });
+    const view = render(<HrTodayScreen />);
+    fireEvent.click(screen.getByTestId("hr-clock-action"));
+    await screen.findByRole("button", { name: "Retry original clock" });
+    const identity = mocks.identity;
+    mocks.identity =
+      change === "actor"
+        ? "org-a:actor-b:employee-a"
+        : change === "organization"
+          ? "org-b:actor-a:employee-a"
+          : "org-a:actor-a:employee-b";
+    if (change === "employee")
+      mocks.query.mockReturnValue({
+        ok: true,
+        value: {
+          ...base,
+          employee: { ...base.employee, id: "employee-b" },
+          state: "NOT_CLOCKED_IN",
+          nextAction: "CLOCK_IN",
+        },
+      });
+    view.rerender(<HrTodayScreen />);
+    expect(
+      screen.queryByRole("button", { name: "Retry original clock" }),
+    ).not.toBeInTheDocument();
+    expect(sessionStorage.getItem("hr-clock-command:v1")).toBeNull();
+    mocks.identity = identity;
+    mocks.query.mockReturnValue({
+      ok: true,
+      value: { ...base, state: "NOT_CLOCKED_IN", nextAction: "CLOCK_IN" },
+    });
+    view.rerender(<HrTodayScreen />);
+    expect(
+      screen.queryByRole("button", { name: "Retry original clock" }),
+    ).not.toBeInTheDocument();
+    expect(mocks.clockIn).toHaveBeenCalledTimes(1);
+  },
+);
+it("retries exactly from tab memory when storage is unavailable, including a remount", async () => {
+  vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+    throw new Error("Blocked");
+  });
+  vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+    throw new Error("Blocked");
+  });
+  vi.spyOn(Storage.prototype, "removeItem").mockImplementation(() => {
+    throw new Error("Blocked");
+  });
+  mocks.clockIn
+    .mockRejectedValueOnce(new Error("Lost reply"))
+    .mockResolvedValue({
+      ok: true,
+      value: { written: true, occurredAt: base.now, kind: "CLOCK_IN" },
+    });
+  mocks.query.mockReturnValue({
+    ok: true,
+    value: { ...base, state: "NOT_CLOCKED_IN", nextAction: "CLOCK_IN" },
+  });
+  const view = render(<HrTodayScreen />);
+  fireEvent.click(screen.getByTestId("hr-clock-action"));
+  await screen.findByRole("button", { name: "Retry original clock" });
+  const original = mocks.clockIn.mock.calls[0]?.[0];
+  view.unmount();
+  mocks.query.mockReturnValue({
+    ok: true,
+    value: {
+      ...base,
+      state: "CLOCKED_IN",
+      nextAction: "CLOCK_OUT",
+      clockInAt: base.now,
+    },
+  });
+  render(<HrTodayScreen />);
+  fireEvent.click(
+    await screen.findByRole("button", { name: "Retry original clock" }),
+  );
+  await screen.findByTestId("hr-clock-saved");
+  expect(mocks.clockIn.mock.calls[1]?.[0]).toEqual(original);
+  expect(mocks.clockOut).not.toHaveBeenCalled();
+});
+it("rejects a stored descriptor containing unrelated private fields", () => {
+  sessionStorage.setItem(
+    "hr-clock-command:v1",
+    JSON.stringify({
+      schema: 1,
+      scope: `${mocks.identity}|clock:employee-a`,
+      employeeId: "employee-a",
+      kind: "CLOCK_IN",
+      requestId: "request-123",
+      expectedBusinessDate: base.businessDate,
+      salary: 1000,
+    }),
+  );
+  mocks.query.mockReturnValue({
+    ok: true,
+    value: {
+      ...base,
+      state: "CLOCKED_IN",
+      nextAction: "CLOCK_OUT",
+      clockInAt: base.now,
+    },
+  });
+  render(<HrTodayScreen />);
+  expect(
+    screen.queryByRole("button", { name: "Retry original clock" }),
+  ).not.toBeInTheDocument();
+  expect(screen.getByTestId("hr-clock-action")).toHaveTextContent("clockOut");
+  expect(mocks.clockIn).not.toHaveBeenCalled();
 });

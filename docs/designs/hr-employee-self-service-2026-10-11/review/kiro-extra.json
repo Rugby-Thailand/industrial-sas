@@ -1,0 +1,45 @@
+{
+  "checks": [
+    {
+      "name": "Desktop grid panels share one top edge",
+      "passed": true
+    },
+    {
+      "name": "Correction review shows the matching day original punch",
+      "passed": true
+    },
+    {
+      "name": "Policy save keeps persisted v2 values in the form",
+      "passed": true
+    },
+    {
+      "name": "Whitespace leave reason and invalid dates are rejected",
+      "passed": true
+    },
+    {
+      "name": "Import rounding, exclusion labels and period binding",
+      "passed": true
+    },
+    {
+      "name": "Action handlers respect demo role",
+      "passed": true
+    },
+    {
+      "name": "Preferences: unchanged Save disabled; toggle back clears dirty",
+      "passed": true
+    },
+    {
+      "name": "Verification dialog returns focus and never asks for a secret",
+      "passed": true
+    },
+    {
+      "name": "Mobile drawer: closed links unreachable, open drawer traps background, Escape/backdrop restore focus",
+      "passed": true
+    },
+    {
+      "name": "Mobile leave balances stack full width",
+      "passed": true
+    }
+  ],
+  "errors": []
+}

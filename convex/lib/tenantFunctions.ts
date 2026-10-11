@@ -103,6 +103,8 @@ export interface TenantFunctionContext {
   readonly members: MemberDirectoryPort;
 
   readonly permission: PermissionDefinition;
+  /** Available only in an authenticated mutation; queries cannot schedule writes. */
+  readonly scheduler?: GenericMutationCtx<DataModel>["scheduler"];
 }
 
 export interface TenantActionFunctionContext {
@@ -525,6 +527,7 @@ async function runTenantHandler<Args extends readonly unknown[], ReturnValue>(
         resolved.context.organization._id,
       ),
       permission: spec.permission,
+      ...("scheduler" in rawContext ? { scheduler: rawContext.scheduler } : {}),
     });
 
     const value = (await handler(narrowed, ...args)) as Awaited<ReturnValue>;

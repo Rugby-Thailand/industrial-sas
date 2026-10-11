@@ -40,3 +40,12 @@ playwright/.auth/
 release-output/
 
 .next-build/
+
+# Approved synthetic HR design and captured review archive, with recorded file
+# hashes. Preserve its source bytes; production HR source is formatted normally.
+docs/designs/hr-employee-self-service-2026-10-11/
+
+# Approved design-sheet specimen and its frozen variants/review evidence are
+# reference artifacts. Their captured bytes and hashes remain authoritative.
+docs/design-sheet/
+docs/reviews/design-sheet-system-adoption-2026-10-11/

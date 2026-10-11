@@ -41,6 +41,21 @@ export const TENANT_TABLES = [
   "finishedGoodsCounters",
   "finishedGoodsMoves",
   "hrEmployees",
+  "hrShortcutPreferences",
+  "hrPolicyDrafts",
+  "hrPolicyVersions",
+  "hrLeaveAccounts",
+  "hrLeaveLedger",
+  "hrLeaveRequests",
+  "hrLeaveRequestRevisions",
+  "hrLeaveDayClaims",
+  "hrAnnouncements",
+  "hrAnnouncementRecipients",
+  "hrNotifications",
+  "hrNotificationBatches",
+  "hrPayslipImports",
+  "hrPayslipRows",
+  "hrPayslipTickets",
   "hrHolidays",
   "hrAttendanceDays",
   "hrAttendanceEvents",
@@ -132,6 +147,38 @@ export function uniquenessIndexName(key: readonly string[]): string {
 }
 
 export const UNIQUENESS_CONTRACTS: readonly UniquenessContract[] = [
+  {
+    table: "hrLeaveRequestRevisions",
+    key: ["orgId", "leaveRequestId", "version"],
+    condition: ALWAYS,
+  },
+  { table: "hrPolicyDrafts", key: ["orgId", "capability"], condition: ALWAYS },
+  {
+    table: "hrPolicyVersions",
+    key: ["orgId", "capability", "effectiveDate"],
+    condition: ALWAYS,
+  },
+  {
+    table: "hrLeaveAccounts",
+    key: ["orgId", "employeeId", "type", "periodStart"],
+    condition: ALWAYS,
+  },
+  {
+    table: "hrLeaveDayClaims",
+    key: ["orgId", "employeeId", "businessDate"],
+    condition: ALWAYS,
+  },
+  {
+    table: "hrAnnouncementRecipients",
+    key: ["orgId", "announcementId", "employeeId"],
+    condition: ALWAYS,
+  },
+  {
+    table: "hrNotifications",
+    key: ["orgId", "employeeId", "eventKey"],
+    condition: ALWAYS,
+  },
+
   {
     table: "aiUsageEvents",
     key: ["orgId", "operationId", "attemptNo"],
@@ -227,6 +274,11 @@ export const UNIQUENESS_CONTRACTS: readonly UniquenessContract[] = [
     condition: ALWAYS,
   },
   { table: "hrEmployees", key: ["orgId", "code"], condition: ALWAYS },
+  {
+    table: "hrShortcutPreferences",
+    key: ["orgId", "userId"],
+    condition: ALWAYS,
+  },
   {
     table: "hrEmployees",
     key: ["orgId", "userId"],

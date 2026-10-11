@@ -202,6 +202,15 @@ export const PUBLIC_API_EXAMPLES: readonly PublicApiExample[] = [
   example("hr/search:adminEmployees", "query", () => ({ text: "fixture" })),
   example("hr/self:profile", "query", () => ({})),
   example("hr/setup:listEmployees", "query", () => ({})),
+  example("hr/preferences:current", "query", () => ({})),
+  example("hr/policies:current", "query", () => ({
+    capability: "ANNOUNCEMENTS",
+  })),
+  example("hr/leave:self", "query", () => ({})),
+  example("hr/announcements:self", "query", () => ({})),
+  example("hr/notifications:list", "query", () => ({})),
+  example("hr/payslips:list", "query", () => ({})),
+  example("hr/selfPeriods:list", "query", () => ({})),
   example("finishedGoods/batches:getBatch", "query", (w) => ({
     warehouseId: w.warehouses.alphaA,
     batchId: w.batchId,

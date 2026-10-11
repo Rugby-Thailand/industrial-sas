@@ -1,0 +1,26 @@
+{
+  "checks": [
+    {
+      "name": "Holiday and payslip years are independent",
+      "passed": false,
+      "error": "Expected values to be strictly equal:\n\n0 !== 3\n"
+    },
+    {
+      "name": "Invalid replacement import cannot publish prior valid file",
+      "passed": false,
+      "error": "The expression evaluated to a falsy value:\n\n  assert.ok(await p.locator('[data-action=publish-import]').count()===0||await p.locator('[data-action=publish-import]').isDisabled())\n"
+    },
+    {
+      "name": "Returned leave resubmission preserves timeline and reserves once",
+      "passed": true
+    },
+    {
+      "name": "Duplicate import employee fails",
+      "passed": true
+    },
+    {
+      "name": "Verification expires and remasks after 60 seconds",
+      "passed": true
+    }
+  ]
+}

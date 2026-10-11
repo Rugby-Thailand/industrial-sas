@@ -1,0 +1,663 @@
+{
+  "generatedAt": "2026-10-09",
+  "checks": [
+    {
+      "appearance": "light",
+      "expandedDetails": true,
+      "language": "en",
+      "overflow": false,
+      "violations": [],
+      "width": 390,
+      "workflow": "scan"
+    },
+    {
+      "appearance": "light",
+      "expandedDetails": false,
+      "language": "en",
+      "overflow": false,
+      "violations": [],
+      "width": 390,
+      "workflow": "catalogue"
+    },
+    {
+      "appearance": "light",
+      "expandedDetails": false,
+      "language": "en",
+      "overflow": false,
+      "violations": [],
+      "width": 390,
+      "workflow": "floor"
+    },
+    {
+      "appearance": "light",
+      "expandedDetails": false,
+      "language": "en",
+      "overflow": false,
+      "violations": [],
+      "width": 390,
+      "workflow": "hr"
+    },
+    {
+      "appearance": "dark",
+      "expandedDetails": true,
+      "language": "en",
+      "overflow": false,
+      "violations": [],
+      "width": 390,
+      "workflow": "scan"
+    },
+    {
+      "appearance": "dark",
+      "expandedDetails": false,
+      "language": "en",
+      "overflow": false,
+      "violations": [],
+      "width": 390,
+      "workflow": "catalogue"
+    },
+    {
+      "appearance": "dark",
+      "expandedDetails": false,
+      "language": "en",
+      "overflow": false,
+      "violations": [],
+      "width": 390,
+      "workflow": "floor"
+    },
+    {
+      "appearance": "dark",
+      "expandedDetails": false,
+      "language": "en",
+      "overflow": false,
+      "violations": [],
+      "width": 390,
+      "workflow": "hr"
+    },
+    {
+      "appearance": "light",
+      "expandedDetails": true,
+      "language": "th",
+      "overflow": false,
+      "violations": [],
+      "width": 390,
+      "workflow": "scan"
+    },
+    {
+      "appearance": "light",
+      "expandedDetails": false,
+      "language": "th",
+      "overflow": false,
+      "violations": [],
+      "width": 390,
+      "workflow": "catalogue"
+    },
+    {
+      "appearance": "light",
+      "expandedDetails": false,
+      "language": "th",
+      "overflow": false,
+      "violations": [],
+      "width": 390,
+      "workflow": "floor"
+    },
+    {
+      "appearance": "light",
+      "expandedDetails": false,
+      "language": "th",
+      "overflow": false,
+      "violations": [],
+      "width": 390,
+      "workflow": "hr"
+    },
+    {
+      "appearance": "dark",
+      "expandedDetails": true,
+      "language": "th",
+      "overflow": false,
+      "violations": [],
+      "width": 390,
+      "workflow": "scan"
+    },
+    {
+      "appearance": "dark",
+      "expandedDetails": false,
+      "language": "th",
+      "overflow": false,
+      "violations": [],
+      "width": 390,
+      "workflow": "catalogue"
+    },
+    {
+      "appearance": "dark",
+      "expandedDetails": false,
+      "language": "th",
+      "overflow": false,
+      "violations": [],
+      "width": 390,
+      "workflow": "floor"
+    },
+    {
+      "appearance": "dark",
+      "expandedDetails": false,
+      "language": "th",
+      "overflow": false,
+      "violations": [],
+      "width": 390,
+      "workflow": "hr"
+    },
+    {
+      "appearance": "light",
+      "expandedDetails": true,
+      "language": "en",
+      "overflow": false,
+      "violations": [],
+      "width": 768,
+      "workflow": "scan"
+    },
+    {
+      "appearance": "light",
+      "expandedDetails": false,
+      "language": "en",
+      "overflow": false,
+      "violations": [],
+      "width": 768,
+      "workflow": "catalogue"
+    },
+    {
+      "appearance": "light",
+      "expandedDetails": false,
+      "language": "en",
+      "overflow": false,
+      "violations": [],
+      "width": 768,
+      "workflow": "floor"
+    },
+    {
+      "appearance": "light",
+      "expandedDetails": false,
+      "language": "en",
+      "overflow": false,
+      "violations": [],
+      "width": 768,
+      "workflow": "hr"
+    },
+    {
+      "appearance": "dark",
+      "expandedDetails": true,
+      "language": "en",
+      "overflow": false,
+      "violations": [],
+      "width": 768,
+      "workflow": "scan"
+    },
+    {
+      "appearance": "dark",
+      "expandedDetails": false,
+      "language": "en",
+      "overflow": false,
+      "violations": [],
+      "width": 768,
+      "workflow": "catalogue"
+    },
+    {
+      "appearance": "dark",
+      "expandedDetails": false,
+      "language": "en",
+      "overflow": false,
+      "violations": [],
+      "width": 768,
+      "workflow": "floor"
+    },
+    {
+      "appearance": "dark",
+      "expandedDetails": false,
+      "language": "en",
+      "overflow": false,
+      "violations": [],
+      "width": 768,
+      "workflow": "hr"
+    },
+    {
+      "appearance": "light",
+      "expandedDetails": true,
+      "language": "th",
+      "overflow": false,
+      "violations": [],
+      "width": 768,
+      "workflow": "scan"
+    },
+    {
+      "appearance": "light",
+      "expandedDetails": false,
+      "language": "th",
+      "overflow": false,
+      "violations": [],
+      "width": 768,
+      "workflow": "catalogue"
+    },
+    {
+      "appearance": "light",
+      "expandedDetails": false,
+      "language": "th",
+      "overflow": false,
+      "violations": [],
+      "width": 768,
+      "workflow": "floor"
+    },
+    {
+      "appearance": "light",
+      "expandedDetails": false,
+      "language": "th",
+      "overflow": false,
+      "violations": [],
+      "width": 768,
+      "workflow": "hr"
+    },
+    {
+      "appearance": "dark",
+      "expandedDetails": true,
+      "language": "th",
+      "overflow": false,
+      "violations": [],
+      "width": 768,
+      "workflow": "scan"
+    },
+    {
+      "appearance": "dark",
+      "expandedDetails": false,
+      "language": "th",
+      "overflow": false,
+      "violations": [],
+      "width": 768,
+      "workflow": "catalogue"
+    },
+    {
+      "appearance": "dark",
+      "expandedDetails": false,
+      "language": "th",
+      "overflow": false,
+      "violations": [],
+      "width": 768,
+      "workflow": "floor"
+    },
+    {
+      "appearance": "dark",
+      "expandedDetails": false,
+      "language": "th",
+      "overflow": false,
+      "violations": [],
+      "width": 768,
+      "workflow": "hr"
+    },
+    {
+      "appearance": "light",
+      "expandedDetails": true,
+      "language": "en",
+      "overflow": false,
+      "violations": [],
+      "width": 1280,
+      "workflow": "scan"
+    },
+    {
+      "appearance": "light",
+      "expandedDetails": false,
+      "language": "en",
+      "overflow": false,
+      "violations": [],
+      "width": 1280,
+      "workflow": "catalogue"
+    },
+    {
+      "appearance": "light",
+      "expandedDetails": false,
+      "language": "en",
+      "overflow": false,
+      "violations": [],
+      "width": 1280,
+      "workflow": "floor"
+    },
+    {
+      "appearance": "light",
+      "expandedDetails": false,
+      "language": "en",
+      "overflow": false,
+      "violations": [],
+      "width": 1280,
+      "workflow": "hr"
+    },
+    {
+      "appearance": "dark",
+      "expandedDetails": true,
+      "language": "en",
+      "overflow": false,
+      "violations": [],
+      "width": 1280,
+      "workflow": "scan"
+    },
+    {
+      "appearance": "dark",
+      "expandedDetails": false,
+      "language": "en",
+      "overflow": false,
+      "violations": [],
+      "width": 1280,
+      "workflow": "catalogue"
+    },
+    {
+      "appearance": "dark",
+      "expandedDetails": false,
+      "language": "en",
+      "overflow": false,
+      "violations": [],
+      "width": 1280,
+      "workflow": "floor"
+    },
+    {
+      "appearance": "dark",
+      "expandedDetails": false,
+      "language": "en",
+      "overflow": false,
+      "violations": [],
+      "width": 1280,
+      "workflow": "hr"
+    },
+    {
+      "appearance": "light",
+      "expandedDetails": true,
+      "language": "th",
+      "overflow": false,
+      "violations": [],
+      "width": 1280,
+      "workflow": "scan"
+    },
+    {
+      "appearance": "light",
+      "expandedDetails": false,
+      "language": "th",
+      "overflow": false,
+      "violations": [],
+      "width": 1280,
+      "workflow": "catalogue"
+    },
+    {
+      "appearance": "light",
+      "expandedDetails": false,
+      "language": "th",
+      "overflow": false,
+      "violations": [],
+      "width": 1280,
+      "workflow": "floor"
+    },
+    {
+      "appearance": "light",
+      "expandedDetails": false,
+      "language": "th",
+      "overflow": false,
+      "violations": [],
+      "width": 1280,
+      "workflow": "hr"
+    },
+    {
+      "appearance": "dark",
+      "expandedDetails": true,
+      "language": "th",
+      "overflow": false,
+      "violations": [],
+      "width": 1280,
+      "workflow": "scan"
+    },
+    {
+      "appearance": "dark",
+      "expandedDetails": false,
+      "language": "th",
+      "overflow": false,
+      "violations": [],
+      "width": 1280,
+      "workflow": "catalogue"
+    },
+    {
+      "appearance": "dark",
+      "expandedDetails": false,
+      "language": "th",
+      "overflow": false,
+      "violations": [],
+      "width": 1280,
+      "workflow": "floor"
+    },
+    {
+      "appearance": "dark",
+      "expandedDetails": false,
+      "language": "th",
+      "overflow": false,
+      "violations": [],
+      "width": 1280,
+      "workflow": "hr"
+    },
+    {
+      "appearance": "light",
+      "expandedDetails": true,
+      "language": "en",
+      "overflow": false,
+      "violations": [],
+      "width": 1440,
+      "workflow": "scan"
+    },
+    {
+      "appearance": "light",
+      "expandedDetails": false,
+      "language": "en",
+      "overflow": false,
+      "violations": [],
+      "width": 1440,
+      "workflow": "catalogue"
+    },
+    {
+      "appearance": "light",
+      "expandedDetails": false,
+      "language": "en",
+      "overflow": false,
+      "violations": [],
+      "width": 1440,
+      "workflow": "floor"
+    },
+    {
+      "appearance": "light",
+      "expandedDetails": false,
+      "language": "en",
+      "overflow": false,
+      "violations": [],
+      "width": 1440,
+      "workflow": "hr"
+    },
+    {
+      "appearance": "dark",
+      "expandedDetails": true,
+      "language": "en",
+      "overflow": false,
+      "violations": [],
+      "width": 1440,
+      "workflow": "scan"
+    },
+    {
+      "appearance": "dark",
+      "expandedDetails": false,
+      "language": "en",
+      "overflow": false,
+      "violations": [],
+      "width": 1440,
+      "workflow": "catalogue"
+    },
+    {
+      "appearance": "dark",
+      "expandedDetails": false,
+      "language": "en",
+      "overflow": false,
+      "violations": [],
+      "width": 1440,
+      "workflow": "floor"
+    },
+    {
+      "appearance": "dark",
+      "expandedDetails": false,
+      "language": "en",
+      "overflow": false,
+      "violations": [],
+      "width": 1440,
+      "workflow": "hr"
+    },
+    {
+      "appearance": "light",
+      "expandedDetails": true,
+      "language": "th",
+      "overflow": false,
+      "violations": [],
+      "width": 1440,
+      "workflow": "scan"
+    },
+    {
+      "appearance": "light",
+      "expandedDetails": false,
+      "language": "th",
+      "overflow": false,
+      "violations": [],
+      "width": 1440,
+      "workflow": "catalogue"
+    },
+    {
+      "appearance": "light",
+      "expandedDetails": false,
+      "language": "th",
+      "overflow": false,
+      "violations": [],
+      "width": 1440,
+      "workflow": "floor"
+    },
+    {
+      "appearance": "light",
+      "expandedDetails": false,
+      "language": "th",
+      "overflow": false,
+      "violations": [],
+      "width": 1440,
+      "workflow": "hr"
+    },
+    {
+      "appearance": "dark",
+      "expandedDetails": true,
+      "language": "th",
+      "overflow": false,
+      "violations": [],
+      "width": 1440,
+      "workflow": "scan"
+    },
+    {
+      "appearance": "dark",
+      "expandedDetails": false,
+      "language": "th",
+      "overflow": false,
+      "violations": [],
+      "width": 1440,
+      "workflow": "catalogue"
+    },
+    {
+      "appearance": "dark",
+      "expandedDetails": false,
+      "language": "th",
+      "overflow": false,
+      "violations": [],
+      "width": 1440,
+      "workflow": "floor"
+    },
+    {
+      "appearance": "dark",
+      "expandedDetails": false,
+      "language": "th",
+      "overflow": false,
+      "violations": [],
+      "width": 1440,
+      "workflow": "hr"
+    }
+  ],
+  "interactionChecks": [
+    {
+      "test": "scan blocks missing identity",
+      "pass": true
+    },
+    {
+      "test": "sample save reports no warehouse write",
+      "pass": true
+    },
+    {
+      "test": "editing clears AI origin",
+      "pass": true
+    },
+    {
+      "test": "catalogue empty search",
+      "pass": true
+    },
+    {
+      "test": "stored-only filter",
+      "pass": true
+    },
+    {
+      "test": "keyboard map selection",
+      "pass": true
+    },
+    {
+      "test": "sample clock-out receipt",
+      "pass": true
+    },
+    {
+      "test": "tab keyboard Home",
+      "pass": true
+    }
+  ],
+  "finalReviewMeasurements": {
+    "fieldLabelInputGapPx": 2,
+    "desktopInputHeightPx": 36,
+    "touchInputHeightPx": 48,
+    "fieldGapPx": 8,
+    "quantityFieldBasisPx": 120,
+    "lightStatusContrastRatios": {
+      "success": 8.67,
+      "warning": 8.76,
+      "danger": 8.29,
+      "pending": 9.72
+    },
+    "darkStatusContrastRatios": {
+      "success": 7.98,
+      "warning": 8.01,
+      "danger": 8.14,
+      "pending": 7.96
+    }
+  },
+  "independentReview": {
+    "disposition": "ship",
+    "scope": "Fresh full review after the fourth user correction: focus-outline weight",
+    "finalCapturesInspected": 13,
+    "materialFixes": []
+  },
+  "focusFollowup": {
+    "outlineWidthPx": 2,
+    "fieldOutlineOffsetPx": -1,
+    "otherControlOutlineOffsetPx": 2,
+    "lightContrastAgainstFieldSurface": 7.64,
+    "darkContrastAgainstFieldSurface": 10.52,
+    "keyboardFocusVisible": true,
+    "captures": [
+      "focus-desktop-en-light.png",
+      "focus-desktop-en-dark.png",
+      "focus-mobile-th-dark.png"
+    ]
+  },
+  "notes": [
+    "All 64 combinations rerun after density and contrast edits with optional scan details expanded.",
+    "CSS transitions settled before axe; automated checks do not establish full accessibility conformance.",
+    "Impeccable detector run once; retained incumbent font warnings. Final review applies direct user annotations."
+  ],
+  "evidenceScope": {
+    "baseline": "8b0ef538",
+    "historical": true,
+    "excludes": "2026-10-11 adoption revision"
+  }
+}

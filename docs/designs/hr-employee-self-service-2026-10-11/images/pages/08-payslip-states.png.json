@@ -1,0 +1,8 @@
+{
+  "id": "page-08",
+  "kind": "ui-mockup",
+  "file": "docs/designs/hr-employee-self-service-2026-10-11/images/pages/08-payslip-states.png",
+  "prompt": "Use case: ui-mockup. A focused high fidelity Storage Planner payslip state board with TWO complete mobile-web screens side by side, rendered straight on with no device frames. Reference 1 supplies the exact already-designed payslip metadata and system component style. Left screen is revealed statement สลิปเงินเดือน, กันยายน 2569, payment 30/09/2569, ฉบับ 1. Show synthetic amounts exactly: เงินเดือน ฿28,000.00, ค่าล่วงเวลา ฿1,500.00, รายได้อื่น ฿500.00, รวมรายได้ ฿30,000.00, รายการหัก ฿800.00, สุทธิรับ ฿29,200.00. Visible ซ่อนยอดเงิน control and ดาวน์โหลด action. Right screen shows the same selected statement masked behind a small account-verification dialog titled ยืนยันตัวตน with text ใช้บัญชีของคุณเพื่อดูสลิปงวดนี้, actions ยืนยันด้วยบัญชีของคุณ and ยกเลิก. A small outside-UI caption identifies this as a verification-state design. Do not use a PIN keypad, password field or real credential inputs. All numbers synthetic and arithmetic consistent; metadata remains readable while values are hidden. White, neutral grey, dark slate, royal blue #1d4ed8, current semantic green/red plus textual income/deduction labels. Friendly rounded icon pads and clear full Thai labels, ample 48px targets. No gradient, cyan palette, pastel rainbow, real names, legal/payroll rate explanations or unrelated navigation. The two states must be distinct and readable.",
+  "source": "/Users/macbook/.codex/generated_images/01a129f7-1b22-7ce2-a191-da3eaffd5a15/exec-2f899ed3-5f22-4f98-88a3-af3de79e76a1.png",
+  "view": "revealed payslip and verification dialog"
+}

@@ -32,6 +32,7 @@ import { normalizeReason } from "../model/hr/employee";
 import { buildPeriodRows } from "../model/hr/period";
 import { isEmployedOn, startBelongsToDate } from "../model/hr/schedule";
 import { buildDayDetail } from "./dayDetail";
+import { deliverNotification } from "./notifications";
 import {
   MAX_SITE_EMPLOYEES,
   closedPeriodCovering,
@@ -317,6 +318,8 @@ export const decideCorrection = mutationWithOrg({
         );
         if (day === null || day.pendingCorrectionId !== correction._id)
           return fail("DECISION_STALE");
+        if (day.approvedLeaveRequestId !== undefined)
+          return fail("HR_DAY_ON_APPROVED_LEAVE");
         if (
           await closedPeriodCovering(
             ctx,
@@ -354,6 +357,13 @@ export const decideCorrection = mutationWithOrg({
           await ctx.tenantDb.patch("hrAttendanceDays", day._id, {
             pendingCorrectionId: undefined,
             updatedAt: decidedAt,
+          });
+          await deliverNotification(ctx, {
+            employeeId: employee._id,
+            event: "CORRECTION_DECIDED",
+            eventKey: `correction:${correction._id}:${correction.version + 1}`,
+            title: "Attendance correction reviewed",
+            resourceId: correction._id,
           });
           return {
             documentId: correction._id,
@@ -407,6 +417,13 @@ export const decideCorrection = mutationWithOrg({
               ...(reason === undefined ? {} : { reason }),
             },
           ],
+        });
+        await deliverNotification(ctx, {
+          employeeId: employee._id,
+          event: "CORRECTION_DECIDED",
+          eventKey: `correction:${correction._id}:${correction.version + 1}`,
+          title: "Attendance correction reviewed",
+          resourceId: correction._id,
         });
         return {
           documentId: correction._id,
@@ -473,6 +490,8 @@ export const disposeDay = mutationWithOrg({
         if (await closedPeriodCovering(ctx, employee.warehouseId, date))
           return fail("HR_PERIOD_CLOSED");
         const existing = await dayOf(ctx, employee._id, date);
+        if (existing?.approvedLeaveRequestId !== undefined)
+          return fail("HR_DAY_ON_APPROVED_LEAVE");
         if ((existing?.revision ?? 0) !== args.expectedRevision)
           return fail("DECISION_STALE");
         if (existing?.pendingCorrectionId !== undefined)

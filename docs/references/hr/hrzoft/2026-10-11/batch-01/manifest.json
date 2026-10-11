@@ -1,0 +1,49 @@
+{
+  "received_on": "2026-10-11",
+  "timezone": "Asia/Bangkok",
+  "reference_product": "hrzoft",
+  "batch": 1,
+  "preservation": "Original JPEG bytes copied without modification",
+  "images": [
+    {
+      "reference_id": "HRZ-01",
+      "original_attachment": "1-1000035362.jpg",
+      "file": "1000035362.jpg",
+      "screen": "Employee home and attendance actions",
+      "bytes": 39853,
+      "sha256": "0bbea21ced361bfc0ee9287dfee5f8e70a33738a6c3f767b7c73e6db6f3121dd"
+    },
+    {
+      "reference_id": "HRZ-02",
+      "original_attachment": "2-1000035364.jpg",
+      "file": "1000035364.jpg",
+      "screen": "Shortcut visibility and ordering",
+      "bytes": 46779,
+      "sha256": "52a7b113b92c49a8a9a23998fa518916fcec00a66bed05d5ff51cd98e20ac1ca"
+    },
+    {
+      "reference_id": "HRZ-03",
+      "original_attachment": "3-1000035366.jpg",
+      "file": "1000035366.jpg",
+      "screen": "Request creation menu",
+      "bytes": 37418,
+      "sha256": "940d453bd31323488401862487751ae50b938b8d6c05528a31b3199fe75f9dc5"
+    },
+    {
+      "reference_id": "HRZ-04",
+      "original_attachment": "4-1000035368.jpg",
+      "file": "1000035368.jpg",
+      "screen": "Attendance summary and leave usage",
+      "bytes": 38717,
+      "sha256": "e4c5c8bad5d7e6b1c901551a6fe0b59560e855c1d6630e3f71449e9ed856b697"
+    },
+    {
+      "reference_id": "HRZ-05",
+      "original_attachment": "5-1000035370.jpg",
+      "file": "1000035370.jpg",
+      "screen": "Annual holiday list and download",
+      "bytes": 41551,
+      "sha256": "63b059308bd66a9c7b6b8b72b530c57da036b34063ccfaca958440b26425b443"
+    }
+  ]
+}

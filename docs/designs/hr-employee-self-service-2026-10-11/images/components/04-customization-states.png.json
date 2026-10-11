@@ -1,0 +1,14 @@
+{
+  "id": "component-04",
+  "kind": "ui-mockup",
+  "file": "docs/designs/hr-employee-self-service-2026-10-11/images/components/04-customization-states.png",
+  "prompt": "Use case: ui-mockup. EDIT TARGET: the supplied three-panel shortcut customization design board. Preserve the three-panel composition (light mobile, light desktop, dark mobile), friendly rounded appearance, existing colors, Thai typography, six shortcut labels/icons, 4/6 visible state, on/off switches, live shortcut preview, count and Save/Cancel actions. Requested precise change: remove EVERY up-arrow and down-arrow reordering button beside every shortcut row in all three panels. Keep only ONE reorder affordance: the six-dot drag grip on the left of each row, exactly like the friendly original reference. Reflow the freed space naturally so each row has drag grip, icon, complete Thai label and visibility switch; switches align at the right. Do not replace the arrow buttons with any other buttons or controls. The desktop table must not retain an empty rightmost reorder-controls column; its rows end with the visibility switch. Include concise readable helper copy ลากเพื่อจัดลำดับ where space permits. No up/down arrows or chevrons inside any shortcut row; the page's existing back navigation chevron may remain. Do not add features or change the color identity, labels, visible items, or page structure.",
+  "source": "/Users/macbook/.codex/generated_images/01a129f7-1b22-7ce2-a191-da3eaffd5a15/exec-ff253c21-fac9-4020-8ca3-4a5696942342.png",
+  "references": [
+    "/Users/macbook/.codex/generated_images/01a129f7-1b22-7ce2-a191-da3eaffd5a15/exec-59233a2b-3fcc-44ee-882d-a45dd6af8224.png"
+  ],
+  "selection": "User requested drag-handle-only reordering; all up/down reorder buttons removed.",
+  "approvedByUser": false,
+  "editedFrom": "/Users/macbook/.codex/generated_images/01a129f7-1b22-7ce2-a191-da3eaffd5a15/exec-59233a2b-3fcc-44ee-882d-a45dd6af8224.png",
+  "previousPromptFile": "prompts/component-04.txt"
+}

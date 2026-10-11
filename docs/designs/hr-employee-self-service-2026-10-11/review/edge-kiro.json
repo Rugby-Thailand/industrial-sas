@@ -1,0 +1,24 @@
+{
+  "checks": [
+    {
+      "name": "Holiday and payslip years are independent",
+      "passed": true
+    },
+    {
+      "name": "Invalid replacement import cannot publish prior valid file",
+      "passed": true
+    },
+    {
+      "name": "Returned leave resubmission preserves timeline and reserves once",
+      "passed": true
+    },
+    {
+      "name": "Duplicate import employee fails",
+      "passed": true
+    },
+    {
+      "name": "Verification expires and remasks after 60 seconds",
+      "passed": true
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "checks": [
+    {
+      "name": "Request recovery clears both search and status",
+      "passed": true
+    },
+    {
+      "name": "Holiday recovery selects available year without changing payslip year",
+      "passed": true
+    },
+    {
+      "name": "Payslip recovery selects available year",
+      "passed": true
+    },
+    {
+      "name": "Completed review queue has completion message without dead recovery",
+      "passed": true
+    },
+    {
+      "name": "Simulated empty state returns to normal; missing detail navigates home",
+      "passed": true
+    },
+    {
+      "name": "All six customization labels and sublines fit desktop and mobile cards",
+      "passed": true
+    },
+    {
+      "name": "Dark selected, foreground, primary border and hover match source",
+      "passed": true
+    }
+  ],
+  "errors": []
+}

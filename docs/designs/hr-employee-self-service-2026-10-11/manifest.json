@@ -1,0 +1,140 @@
+{
+  "created_on": "2026-10-11",
+  "generation_tool": "built-in image_gen",
+  "component": "Action Card",
+  "component_studies": 4,
+  "page_boards": 10,
+  "assets": [
+    {
+      "id": "component-01",
+      "kind": "ui-mockup",
+      "file": "docs/designs/hr-employee-self-service-2026-10-11/images/components/01-action-card.png",
+      "prompt": "Use case: ui-mockup. Create a high fidelity component design board for Storage Planner employee HR, edge to edge on a white landscape canvas, crisp readable Thai text. Design ONE reusable friendly Action Card shown in four realistic usages: a compact home shortcut labelled ประวัติ with a clock-history icon; a shortcut labelled การลา with a leaf/calendar icon; a request card labelled คำขอของฉัน with a small count 2; a next holiday row labelled วันหยุดถัดไป with date 23 ต.ค. 2569. Show desktop and mobile sizes on the board, with consistent anatomy and no device frames. Composition reference image 1 supplies the approachable rounded icon pads, generous spacing and simple Thai labels, not its cyan palette or branding. System style reference image 2 supplies Storage Planner's existing royal blue #1d4ed8, white, neutral grey #f6f7f9 and dark slate #17212f, clear typography, line icons and calm boundaries. Make the component warm and approachable, clean large tap areas, icon in a pale system blue rounded square, label beneath for compact shortcuts and beside for rows, subtle count badge only where meaningful. Use 12–16px rounded outer corners with a quiet border, no heavy shadows, no pastel rainbow, no illustrations, no hrzoft logo. Include small state examples default, hover, keyboard focus, unavailable, selected. The component is reusable in an employee home, requests, holidays and leave summary. Text such as measurements may be short English. Fully polished working-product UI, no marketing headline.",
+      "source": "/Users/macbook/.codex/generated_images/01a129f7-1b22-7ce2-a191-da3eaffd5a15/exec-372aea7f-ffa0-403f-b960-c247e076132b.png",
+      "selection": "Reusable Action Card foundation selected by Codex under the user's instruction to complete the design and preview",
+      "references": [
+        "HRZ-01",
+        "current HR Today capture"
+      ],
+      "approvedByUser": false
+    },
+    {
+      "id": "component-02",
+      "kind": "ui-mockup",
+      "file": "docs/designs/hr-employee-self-service-2026-10-11/images/components/02-summary-contexts.png",
+      "prompt": "Use case: ui-mockup. A high-fidelity landscape design board for Storage Planner HR showing the SAME friendly Action Card component in attendance and leave summary contexts, not a new visual system. Reference 1 establishes its pale blue icon pad, simple line icons, royal blue #1d4ed8 and generous readable Thai labels. Show a desktop summary section and its narrow mobile counterpart. Title เวลาทำงาน, selection ตุลาคม 2569. Four clearly labelled linked metric cards: เข้างาน 7 วัน, รอตรวจสอบ 1 วัน, ลาหยุด 0 วัน, นอกกะ 0 ชม. A second section โควต้าการลา uses horizontal Action Cards for ลาพักร้อน with คงเหลือ 8 วัน, ลากิจ with คงเหลือ 3 วัน, ลาป่วย with คงเหลือ 20 วัน; tiny demo-note ข้อมูลตัวอย่าง. Each has a recognizable quiet line icon and a chevron to inspect details. Show one selected linked metric and one keyboard focus state. Counters have clear units. White rounded surfaces with quiet borders, pale neutral grey ground, dark slate type. Use the current system colors consistently and reserve green/amber for status information only. No big hero metric, decorative charts, gradients, rainbow backgrounds, device frames, real employee data or hrzoft branding. The board proves the single shared component adapts from shortcuts to metrics without confusing links and buttons.",
+      "source": "/Users/macbook/.codex/generated_images/01a129f7-1b22-7ce2-a191-da3eaffd5a15/exec-c2b9d904-2bfa-4a04-ba60-cce97456cb96.png",
+      "references": [
+        "component-01"
+      ],
+      "selection": "Same shared Action Card in another context",
+      "approvedByUser": false
+    },
+    {
+      "id": "component-03",
+      "kind": "ui-mockup",
+      "file": "docs/designs/hr-employee-self-service-2026-10-11/images/components/03-request-contexts.png",
+      "prompt": "Use case: ui-mockup. High-fidelity component board for Storage Planner employee HR. Show the SAME reusable Action Card from reference 1 as friendly request and notification rows, edge-to-edge landscape canvas with white and neutral grey, royal blue #1d4ed8, dark slate text, consistent rounded pale-blue icon pads and quiet borders. This is a detailed working UI study, not a poster. Three row examples are attendance correction แก้ไขเวลา, annual leave ลาพักร้อน and announcement ประกาศบริษัท. Each row has one icon, a clear Thai title, one readable date or preview line, a small status badge such as รอตรวจสอบ, ส่งกลับ, or อ่านแล้ว and a navigation chevron. Do not put action buttons inside a clickable row. Beside them show the related detail panel with original and proposed attendance times, employee reason and status timeline; use synthetic employee มินตรา. Show a loading placeholder row, an empty state message ยังไม่มีคำขอ, and a recoverable error with ลองอีกครั้ง. Include narrow phone and wide desktop examples in one board. Human and welcoming through spacing, legible type and softened corners. All statuses pair words and simple line icons, use system amber for pending only if appropriate, blue for action and green for success; no arbitrary category rainbow, no gradients, hrzoft logo, device frames or real names.",
+      "source": "/Users/macbook/.codex/generated_images/01a129f7-1b22-7ce2-a191-da3eaffd5a15/exec-6997946b-8b7e-484e-ae6f-06c841378f44.png",
+      "references": [
+        "component-01"
+      ],
+      "selection": "Same shared Action Card in another context",
+      "approvedByUser": false
+    },
+    {
+      "id": "component-04",
+      "kind": "ui-mockup",
+      "file": "docs/designs/hr-employee-self-service-2026-10-11/images/components/04-customization-states.png",
+      "prompt": "Use case: ui-mockup. EDIT TARGET: the supplied three-panel shortcut customization design board. Preserve the three-panel composition (light mobile, light desktop, dark mobile), friendly rounded appearance, existing colors, Thai typography, six shortcut labels/icons, 4/6 visible state, on/off switches, live shortcut preview, count and Save/Cancel actions. Requested precise change: remove EVERY up-arrow and down-arrow reordering button beside every shortcut row in all three panels. Keep only ONE reorder affordance: the six-dot drag grip on the left of each row, exactly like the friendly original reference. Reflow the freed space naturally so each row has drag grip, icon, complete Thai label and visibility switch; switches align at the right. Do not replace the arrow buttons with any other buttons or controls. The desktop table must not retain an empty rightmost reorder-controls column; its rows end with the visibility switch. Include concise readable helper copy ลากเพื่อจัดลำดับ where space permits. No up/down arrows or chevrons inside any shortcut row; the page's existing back navigation chevron may remain. Do not add features or change the color identity, labels, visible items, or page structure.",
+      "source": "/Users/macbook/.codex/generated_images/01a129f7-1b22-7ce2-a191-da3eaffd5a15/exec-ff253c21-fac9-4020-8ca3-4a5696942342.png",
+      "references": [
+        "component-01"
+      ],
+      "selection": "Same shared Action Card in another context",
+      "approvedByUser": false,
+      "editedFrom": "/Users/macbook/.codex/generated_images/01a129f7-1b22-7ce2-a191-da3eaffd5a15/exec-59233a2b-3fcc-44ee-882d-a45dd6af8224.png",
+      "view": "shortcut customization: drag only, visibility, save/cancel, light/dark"
+    },
+    {
+      "id": "page-01",
+      "kind": "ui-mockup",
+      "file": "docs/designs/hr-employee-self-service-2026-10-11/images/pages/01-home.png",
+      "prompt": "Use case: ui-mockup. Design Storage Planner's complete employee home page as a high-fidelity landscape comparison: a full desktop web screen with current sidebar/top bar, and its mobile web counterpart without a device frame. Reference 1 is the friendly shared Action Card component to reuse; reference 2 supplies our actual app shell and system style. This is the employee's daily workspace, not marketing. Thai content with synthetic employee มินตรา · EMP-DEMO-01 and a small ข้อมูลตัวอย่าง note. Main title วันนี้ของฉัน. Show Monday 12 ตุลาคม 2569, status เข้างานแล้ว, recorded เวลาเข้า 08:31 and เวลาออก —, planned shift 08:30–17:30, one prominent ลงเวลาออกงาน action, and short saved receipt บันทึกเวลาเข้าแล้ว. Below, six friendly labelled shortcuts: ประวัติ, คำขอของฉัน with count 2, การลา, วันหยุด, ประกาศ and สลิปเงินเดือน. Use the reference's warm roomy grouping and rounded icon pads but our royal blue #1d4ed8, white, pale grey and dark slate, status words plus shapes, no arbitrary pastel colors. Include next holiday วันหยุดบริษัท · 23 ต.ค. 2569 and two recent requests in quiet rows. Desktop sidebar lists the employee HR destinations, top bar shows site, Thai language and theme controls; mobile has current compact header and clear navigation. Footer note is brief. No hrzoft logo, cyan actions, scan/Beacon buttons, oversized live clock, fake charts, nested card clutter or decorative illustrations. Make mobile clock action visible before secondary content, with legible full labels and ample tap targets.",
+      "source": "/Users/macbook/.codex/generated_images/01a129f7-1b22-7ce2-a191-da3eaffd5a15/exec-4b0e1e71-83ba-4046-be33-bfc979b1128c.png",
+      "view": "home desktop/mobile"
+    },
+    {
+      "id": "page-02",
+      "kind": "ui-mockup",
+      "file": "docs/designs/hr-employee-self-service-2026-10-11/images/pages/02-attendance.png",
+      "prompt": "Use case: ui-mockup. High fidelity landscape page design board for Storage Planner HR attendance, showing a complete desktop attendance summary/history screen and narrow mobile date-detail/correction state. Reference 1 gives the friendly Action Card vocabulary; reference 2 gives actual shell, system palette and typography. Thai UI with small ข้อมูลตัวอย่าง label. Title ประวัติและสรุปเวลา. Month selector ตุลาคม 2569 and alternate ช่วงวันที่ / งวดเวลา. Clear linked totals: ทำงานครบ 5 วัน, กำลังทำงาน 1 วัน, รอตรวจสอบ 1 วัน, ลาหยุด 1 วัน. Explain วันที่ยังไม่ถึงไม่ใช่วันขาดงาน in a short quiet note. Below show a readable day list/table with date, planned shift, original in/out, effective in/out, hours, status; selected 6 ต.ค. 2569 has a missing clock-out and a pending correction, not absence. Mobile date detail has original 08:31–— and proposed 08:31–17:30, employee reason, pending status timeline, and a correction form with dates/times, next-day option and reason. Keep core evidence visible rather than inside a collapsed panel. Reuse rounded pale-blue icon pads and generous touch spacing, royal blue #1d4ed8 actions, white and pale neutral grey, dark slate type, system purple for pending and green for certified. Preserve original time versus corrected time visibly. No cyan/rainbow, fake payroll OT claims, marketing, device frames, decorative charts or excessive cards. Current desktop sidebar/top bar and compact mobile header provide the frame.",
+      "source": "/Users/macbook/.codex/generated_images/01a129f7-1b22-7ce2-a191-da3eaffd5a15/exec-c4111ae0-9afa-4b01-8e3a-f623332393d2.png",
+      "view": "attendance summary/history/day detail/correction"
+    },
+    {
+      "id": "page-03",
+      "kind": "ui-mockup",
+      "file": "docs/designs/hr-employee-self-service-2026-10-11/images/pages/03-requests.png",
+      "prompt": "Use case: ui-mockup. A complete high-fidelity Storage Planner My requests journey, landscape board with a desktop list/detail workspace and a narrow mobile creation screen. Reference 1 is the SAME shared Action Card row grammar, reference 2 supplies our app shell and royal blue/white/neutral-grey system. Friendly rounded grouping, warm spacious Thai labels and strong readable hierarchy. Title คำขอของฉัน. Filters ทั้งหมด, รอตรวจสอบ, ส่งกลับ, รับรองแล้ว; a date filter and primary สร้างคำขอ. Use three synthetic requests: แก้ไขเวลา 6 ต.ค. 2569 pending, ลาพักร้อน 19–20 ต.ค. 2569 pending, ลากิจ 28 ก.ย. 2569 returned with reason โปรดระบุช่วงเวลา. One row is selected and reveals original/proposed time comparison, reason and truthful status history, with แก้ไขและส่งใหม่ only on the returned item. The mobile Create request screen offers implemented correction and leave types as large labelled Action Cards; additional OT and shift options are shown only in a distinct future-design note, not enabled actions. Use system purple pending, green certified, neutral return, and textual status/icons. Calm neutral backgrounds, line icons and 48px targets. No hrzoft logo, cyan palette, rainbow tiles, device frame, misleading success or buttons nested inside clickable rows. Preserve action semantics and ensure the list/detail relationship is obvious.",
+      "source": "/Users/macbook/.codex/generated_images/01a129f7-1b22-7ce2-a191-da3eaffd5a15/exec-fd000e4f-db20-4530-9bd0-5ae1d08c3e78.png",
+      "view": "requests list/detail/create"
+    },
+    {
+      "id": "page-04",
+      "kind": "ui-mockup",
+      "file": "docs/designs/hr-employee-self-service-2026-10-11/images/pages/04-leave.png",
+      "prompt": "Use case: ui-mockup. Create a complete high-fidelity Storage Planner employee leave journey board, one desktop balance-and-history page and a narrow mobile leave form/preview, no device frame. Reference 1 supplies the friendly reusable Action Card; reference 2 anchors our real app shell and blue/white/grey system. Thai title การลาของฉัน and year 2569. Three calm balance rows with labelled icon pads: ลาพักร้อน entitlement 12 days, used 2, pending 2, available 8; ลากิจ entitlement 3, used 0, pending 0, available 3; ลาป่วย entitlement 30, used 10, pending 0, available 20. Include small text นโยบายและยอดตัวอย่าง, not legal claims. Primary ขอลา. History rows show 19–20 ต.ค. 2569 pending and 9 ต.ค. 2569 approved. Mobile form has leave type, start/end dates, whole-day/half-day choice, reason, optional evidence, and a charge preview วันทำงานที่คิด 2 วัน with nonworking dates handled separately. Button ตรวจสอบคำขอ leads to a compact confirmation view with selected dates, charge, remaining after reservation and ส่งคำขอ. System purple for pending, green for approved, blue for action. Clear required labels, helpful recovery, no unnecessary double confirmation or fake graph. Warm generous spacing, quiet rounded surfaces and accurate units. No cyan/rainbow, hrzoft branding, payroll claims, actual employee details or decorative art.",
+      "source": "/Users/macbook/.codex/generated_images/01a129f7-1b22-7ce2-a191-da3eaffd5a15/exec-ad84ef93-86b4-4009-a166-49ca32be7eda.png",
+      "view": "leave balances/history/request/charge preview"
+    },
+    {
+      "id": "page-05",
+      "kind": "ui-mockup",
+      "file": "docs/designs/hr-employee-self-service-2026-10-11/images/pages/05-holidays.png",
+      "prompt": "Use case: ui-mockup. Design a complete high fidelity Storage Planner annual holidays page, desktop and mobile together in a landscape comparison, no browser/device frame. Reference 1 supplies friendly component anatomy; reference 2 supplies actual app shell and system colors. Thai title วันหยุดประจำปี, selected year 2569, visible assigned site คลังตัวอย่าง. Reuse the reference holiday page's easy-to-scan month-grouped list, but system royal blue #1d4ed8, white, quiet neutral grey, dark slate text and matching line icons. Month groups ตุลาคม, พฤศจิกายน, ธันวาคม. Each holiday row has a rounded neutral date/weekday badge, a clear holiday name, optional next-holiday word ถัดไป and calm spacing. Use explicitly synthetic company entries: 23 ต.ค. วันหยุดบริษัท, 16 พ.ย. วันหยุดเพิ่มเติม, 31 ธ.ค. วันหยุดสิ้นปี. Top controls previous/next year and a clear ดาวน์โหลด CSV action; next holiday is subtly highlighted, not a hero. Show an adjacent small empty-year state ยังไม่มีวันหยุดในปีนี้ with a readable instruction ติดต่อ HR. Mobile footer action stays reachable without hiding rows. Include a brief note รายการตามสถานที่ทำงานของคุณ and small ข้อมูลตัวอย่าง label. Read-only employee UI has no edit/delete controls. Fully readable rows, consistent component, no pastel rainbow, cyan brand, hrzoft logo, invented legal claims or unnecessary graphs.",
+      "source": "/Users/macbook/.codex/generated_images/01a129f7-1b22-7ce2-a191-da3eaffd5a15/exec-380af880-a1da-42cf-b01d-1063d6253ae6.png",
+      "view": "annual holidays/year/download/empty"
+    },
+    {
+      "id": "page-06",
+      "kind": "ui-mockup",
+      "file": "docs/designs/hr-employee-self-service-2026-10-11/images/pages/06-communications.png",
+      "prompt": "Use case: ui-mockup. High fidelity Storage Planner communications journey board: desktop announcement feed/detail plus two narrow mobile states, announcements and notification inbox. Reference 1 supplies our shared friendly Action Card list row, reference 2 anchors existing app shell, fonts and system colors. Thai title ประกาศบริษัท. Announcement rows show readable title, short preview, author initials HR, published date, unread word/icon and optional pinned label. Synthetic entries วันหยุดเพิ่มเติมเดือนพฤศจิกายน, แนวทางการทำงานของทีม, and อัปเดตวันหยุดสิ้นปี. Selected detail reveals complete ordinary body text with author/date and a clear read state; no formal acknowledgment unless explicitly requested. Notification page การแจ้งเตือน has ทั้งหมด / ยังไม่อ่าน filters, mark-all-read action, and rows linking to an approved leave request, returned correction and new announcement, each with date/status and no salary amounts. Badge count 3 matches three unread items. Friendly generous spacing, rounded icon pads in pale system blue, royal blue #1d4ed8 primary actions, white/neutral-grey, dark slate type, text plus icons for status, purple pending and green approved. Maintain quiet focused reading column and visible way back to the list. No real employees, copied reference company policy, cyan, rainbow decoration, marketing, device frames or unread dots as the only status.",
+      "source": "/Users/macbook/.codex/generated_images/01a129f7-1b22-7ce2-a191-da3eaffd5a15/exec-c7b8582c-3ded-40bf-8600-26c90a026fc8.png",
+      "view": "announcements feed/detail/notifications"
+    },
+    {
+      "id": "page-07",
+      "kind": "ui-mockup",
+      "file": "docs/designs/hr-employee-self-service-2026-10-11/images/pages/07-payslips.png",
+      "prompt": "Use case: ui-mockup. Storage Planner employee payslip journey, high fidelity landscape board with a desktop list/detail view and narrow mobile masked and account-verification states. Reference 1 supplies the same friendly Action Card vocabulary, reference 2 supplies actual system shell and palette. Thai title สลิปเงินเดือน, year 2569, newest-first list of กันยายน, สิงหาคม, กรกฎาคม. Detail metadata งวด 9, 1–30 ก.ย. 2569, payment date 30/09/2569 and source version ฉบับ 1. Initially masked earnings/deductions/net ฿••••• with labelled แสดงยอดเงิน and ดาวน์โหลด. Reveal state uses synthetic salary 28,000.00, OT 1,500.00, other income 500.00, total earnings 30,000.00, deductions 800.00, net 29,200.00, all arithmetic consistent. Include note สลิปตัวอย่าง, not real payroll. Account-verification state says ยืนยันตัวตน to view sensitive values and ยืนยันด้วยบัญชีของคุณ, with cancel; no custom PIN keypad, no password capture form and no assertion authentication is already built. Preserve the selected period on return and show labelled hide control ซ่อนยอดเงิน. White, quiet neutral grey, dark slate typography, royal blue #1d4ed8 actions, green earnings, red deductions paired with labels, friendly line icons, rounded surfaces and clear readable detail rows. No cyan/rainbow, hrzoft logo, real names/pay, device frames, tax advice or generated payroll formulas. Desktop uses current sidebar/topbar, mobile gets compact header and readable full rows.",
+      "source": "/Users/macbook/.codex/generated_images/01a129f7-1b22-7ce2-a191-da3eaffd5a15/exec-655034b9-e27c-4cc9-9cc0-1f84631cb667.png",
+      "view": "payslip list/masked/revealed/account verification"
+    },
+    {
+      "id": "page-08",
+      "kind": "ui-mockup",
+      "file": "docs/designs/hr-employee-self-service-2026-10-11/images/pages/08-payslip-states.png",
+      "prompt": "Use case: ui-mockup. A focused high fidelity Storage Planner payslip state board with TWO complete mobile-web screens side by side, rendered straight on with no device frames. Reference 1 supplies the exact already-designed payslip metadata and system component style. Left screen is revealed statement สลิปเงินเดือน, กันยายน 2569, payment 30/09/2569, ฉบับ 1. Show synthetic amounts exactly: เงินเดือน ฿28,000.00, ค่าล่วงเวลา ฿1,500.00, รายได้อื่น ฿500.00, รวมรายได้ ฿30,000.00, รายการหัก ฿800.00, สุทธิรับ ฿29,200.00. Visible ซ่อนยอดเงิน control and ดาวน์โหลด action. Right screen shows the same selected statement masked behind a small account-verification dialog titled ยืนยันตัวตน with text ใช้บัญชีของคุณเพื่อดูสลิปงวดนี้, actions ยืนยันด้วยบัญชีของคุณ and ยกเลิก. A small outside-UI caption identifies this as a verification-state design. Do not use a PIN keypad, password field or real credential inputs. All numbers synthetic and arithmetic consistent; metadata remains readable while values are hidden. White, neutral grey, dark slate, royal blue #1d4ed8, current semantic green/red plus textual income/deduction labels. Friendly rounded icon pads and clear full Thai labels, ample 48px targets. No gradient, cyan palette, pastel rainbow, real names, legal/payroll rate explanations or unrelated navigation. The two states must be distinct and readable.",
+      "source": "/Users/macbook/.codex/generated_images/01a129f7-1b22-7ce2-a191-da3eaffd5a15/exec-2f899ed3-5f22-4f98-88a3-af3de79e76a1.png",
+      "view": "revealed payslip and verification dialog"
+    },
+    {
+      "id": "page-09",
+      "kind": "ui-mockup",
+      "file": "docs/designs/hr-employee-self-service-2026-10-11/images/pages/09-review-policy.png",
+      "prompt": "Use case: ui-mockup. Complete high fidelity Storage Planner HR companion workspace, landscape board showing a desktop supervisor review screen and a narrow leave-policy setup section. Reference 1 supplies the friendly shared Action Card, reference 2 actual app shell, typography and colors. Title ตรวจคำขอ. Queue shows synthetic employee มินตรา with correction 6 ต.ค. and annual leave 19–20 ต.ค., both pending. Main selected leave detail puts employee, dates, type, charge 2 workdays, pending reservation, employee reason and applicable site first; actions อนุมัติ and ส่งกลับ. Returning reveals a required reason, not a needless extra dialog. A correction comparison shows original 08:31–— and proposed 08:31–17:30 as a secondary alternate state. Include concise permission context เฉพาะทีมที่คุณดูแล and a visible closed-period read-only message on one alternate record. Policy setup has leave types, entitlement units, workday counting, partial-day option, carryover and effective date with Save/Cancel, all explicitly ตัวอย่างนโยบาย. White, pale neutral grey, dark slate, royal blue #1d4ed8, system purple pending and green approved, calm rounded icon pads, readable touch targets. No big charts, arbitrary pastel colors, cyan, real HR records, legal entitlement claims, self-approval or payroll engine. Render the task clearly as a friendly operational interface, not an infographic.",
+      "source": "/Users/macbook/.codex/generated_images/01a129f7-1b22-7ce2-a191-da3eaffd5a15/exec-60c562f6-01bd-40a3-bed9-ceeed7ab7e20.png",
+      "view": "supervisor review/correction/leave policy"
+    },
+    {
+      "id": "page-10",
+      "kind": "ui-mockup",
+      "file": "docs/designs/hr-employee-self-service-2026-10-11/images/pages/10-publishing-import.png",
+      "prompt": "Use case: ui-mockup. High fidelity Storage Planner HR administration companion board, two distinct desktop working screens side by side, consistent with reference 1 friendly Action Card and reference 2 real application shell/style. Screen A title จัดการประกาศ: a draft list, a readable editor for title and body, audience คลังตัวอย่าง, publication date, pin checkbox, preview of employee feed row, actions บันทึกร่าง and เผยแพร่. Explicit synthetic body content about a sample company holiday. Screen B title นำเข้าสลิปเงินเดือน: file chooser, source period กันยายน 2569 and version 1, validation preview table with employee mapping, earnings, deductions, net and publication status. One matched synthetic row EMP-DEMO-01 is ready, one unmatched row clearly blocks publication and offers ตรวจสอบพนักงาน; distinguish duplicate/version conflict. Primary ตรวจสอบไฟล์ before publication, then เผยแพร่สลิป only when all issues are resolved. No real records, no actual file data imported and no salary calculations; show sample numbers consistent 30000 earnings, 800 deductions, 29200 net. Use system royal blue #1d4ed8, white and pale grey surfaces, dark slate type, 12–16px rounded grouping, neutral line icons, readable full labels and accessible error words/icons. Keep reviewer context clear in header, no employee editing controls on read-only feed. No cyan/rainbow, marketing, device frames, charts or PIN. This is a polished operational UI design.",
+      "source": "/Users/macbook/.codex/generated_images/01a129f7-1b22-7ce2-a191-da3eaffd5a15/exec-da2558c1-3f0a-4d1e-ab07-ce39ec06350d.png",
+      "view": "announcement publishing/payslip import validation/publication"
+    }
+  ]
+}

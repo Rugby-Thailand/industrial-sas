@@ -111,6 +111,12 @@ for (const [mode, palette] of Object.entries(themes)) {
       }
     });
 
+    it("keeps dedicated badge ink at enhanced text contrast", () => {
+      for (const tone of ["success", "warning", "danger", "pending"]) {
+        verify(`--token-badge-${tone}`, `--token-badge-${tone}-surface`, 7);
+      }
+    });
+
     it("keeps control boundaries and keyboard focus visible on adjacent surfaces", () => {
       for (const surface of [
         "--token-canvas",

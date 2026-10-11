@@ -1,0 +1,49 @@
+{
+  "received_on": "2026-10-11",
+  "timezone": "Asia/Bangkok",
+  "reference_product": "hrzoft",
+  "batch": 2,
+  "preservation": "Original JPEG bytes copied without modification",
+  "images": [
+    {
+      "reference_id": "HRZ-06",
+      "original_attachment": "1-1000035372.jpg",
+      "file": "1000035372.jpg",
+      "screen": "Company announcements feed",
+      "bytes": 60335,
+      "sha256": "2fc9af4419c12bf5b5894d0c2967d4c6c99efcf2aa062f16885682be0b66a3cb"
+    },
+    {
+      "reference_id": "HRZ-07",
+      "original_attachment": "2-1000035374.jpg",
+      "file": "1000035374.jpg",
+      "screen": "Employee payslip list by year and period",
+      "bytes": 43181,
+      "sha256": "01820728b7dadb30337fe2b785eeabcf556b74573cae91221f3bb8aa43df36d8"
+    },
+    {
+      "reference_id": "HRZ-08",
+      "original_attachment": "3-1000035376.jpg",
+      "file": "1000035376.jpg",
+      "screen": "Payslip details with masked amounts",
+      "bytes": 43984,
+      "sha256": "9c69d3d188e9a6762d5acd7e81e3a73e0f93e3ce9d50ad91966f7f656e450766"
+    },
+    {
+      "reference_id": "HRZ-09",
+      "original_attachment": "4-1000035378.jpg",
+      "file": "1000035378.jpg",
+      "screen": "Payslip PIN prompt",
+      "bytes": 36429,
+      "sha256": "6567c82ba16508108e164314c74bc177c41a0b766a0b2bceaf9bc32fafdb213d"
+    },
+    {
+      "reference_id": "HRZ-10",
+      "original_attachment": "5-1000035380.jpg",
+      "file": "1000035380.jpg",
+      "screen": "Payslip details with visible earnings and deductions",
+      "bytes": 44510,
+      "sha256": "56a7210eb0c7c36274b0d7eb3fc47c342f5b7a9c8635025f5c887cb061bf8222"
+    }
+  ]
+}

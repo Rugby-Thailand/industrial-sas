@@ -86,7 +86,7 @@ describe("representative registered coverage of every shipping public module", (
       ...new Set(PUBLIC_API_EXAMPLES.map(({ name }) => name.split(":")[0])),
     ].sort();
     expect(coveredModules).toEqual(publicModules);
-    expect(coveredModules).toHaveLength(24);
+    expect(coveredModules).toHaveLength(31);
     expect(new Set(PUBLIC_API_EXAMPLES.map(({ kind }) => kind))).toEqual(
       new Set(["query", "mutation", "action"]),
     );
@@ -107,9 +107,9 @@ describe("representative registered coverage of every shipping public module", (
       "storageLayouts/fg1Import:preflight",
       "storageLayouts/pdImport:preflight",
     ]);
-    // The inventory covers 25 representative functions, not every public export
+    // The inventory covers 32 representative functions, not every public export
     // or every successful payload hidden behind nested v.any() validators.
-    expect(PUBLIC_API_EXAMPLES).toHaveLength(25);
+    expect(PUBLIC_API_EXAMPLES).toHaveLength(32);
     expect(publicEntries.length).toBeGreaterThan(PUBLIC_API_EXAMPLES.length);
   });
 
@@ -176,7 +176,7 @@ describe("representative registered coverage of every shipping public module", (
   }
 });
 
-describe("representative previous-client success payloads through registered APIs", () => {
+describe("representative registered payloads and safe HR capability gates", () => {
   it("keeps batch, product, pallet and storage detail fields used by existing clients", async () => {
     const world = await createPublicApiWorld(MODULES);
     const expected: Readonly<Record<string, object>> = {
@@ -197,6 +197,13 @@ describe("representative previous-client success payloads through registered API
       "hr/search:adminEmployees": { items: [], complete: true },
       "hr/self:profile": { linked: false },
       "hr/setup:listEmployees": { items: [], complete: true },
+      "hr/preferences:current": { ok: false, code: "HR_NOT_LINKED" },
+      "hr/policies:current": { ok: false, code: "POLICY_ORG_SCOPE_REQUIRED" },
+      "hr/leave:self": { ok: false, code: "HR_NOT_LINKED" },
+      "hr/announcements:self": { ok: false, code: "HR_NOT_LINKED" },
+      "hr/notifications:list": { ok: false, code: "HR_NOT_LINKED" },
+      "hr/payslips:list": { ok: false, code: "HR_NOT_LINKED" },
+      "hr/selfPeriods:list": { ok: false, code: "HR_NOT_LINKED" },
       "finishedGoods/batches:getBatch": {
         batch: { _id: world.batchId, status: "DRAFT", revision: 1 },
         product: { _id: world.productId, sku: "PUBLIC-1" },

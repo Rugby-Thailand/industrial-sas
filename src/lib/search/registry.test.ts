@@ -35,7 +35,17 @@ describe("destination registry", () => {
       visibleDesktopNavigation([HR_PERMISSION.selfAccess])
         .flatMap((section) => section.items)
         .map((item) => item.labelKey),
-    ).toEqual(["hrToday", "hrTime", "hrProfile"]);
+    ).toEqual([
+      "hrToday",
+      "hrTime",
+      "hrRequests",
+      "hrHolidays",
+      "hrLeave",
+      "hrAnnouncements",
+      "hrNotifications",
+      "hrPayslips",
+      "hrProfile",
+    ]);
   });
 
   it("covers every page key the AI may name, with unique keys and locale-free paths", () => {
@@ -174,7 +184,10 @@ describe("menu matching", () => {
   });
 
   it("hides destinations without permission", () => {
-    expect(keys("วันหยุด", [HR_PERMISSION.selfAccess])).toEqual([]);
+    expect(keys("วันหยุด", [HR_PERMISSION.selfAccess])).toEqual([
+      "hr.holidays",
+    ]);
+    expect(keys("วันหยุด", [])).toEqual([]);
     expect(keys("สแกนใบงาน", [HR_PERMISSION.selfAccess])).toEqual([]);
     expect(keys("เพิ่มอาคาร", ["masterData.storageLayout.read"])).toEqual([
       "planner.storageLayouts",

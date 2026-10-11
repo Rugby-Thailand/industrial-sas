@@ -1,0 +1,13 @@
+{
+  "id": "component-01",
+  "kind": "ui-mockup",
+  "file": "docs/designs/hr-employee-self-service-2026-10-11/images/components/01-action-card.png",
+  "prompt": "Use case: ui-mockup. Create a high fidelity component design board for Storage Planner employee HR, edge to edge on a white landscape canvas, crisp readable Thai text. Design ONE reusable friendly Action Card shown in four realistic usages: a compact home shortcut labelled ประวัติ with a clock-history icon; a shortcut labelled การลา with a leaf/calendar icon; a request card labelled คำขอของฉัน with a small count 2; a next holiday row labelled วันหยุดถัดไป with date 23 ต.ค. 2569. Show desktop and mobile sizes on the board, with consistent anatomy and no device frames. Composition reference image 1 supplies the approachable rounded icon pads, generous spacing and simple Thai labels, not its cyan palette or branding. System style reference image 2 supplies Storage Planner's existing royal blue #1d4ed8, white, neutral grey #f6f7f9 and dark slate #17212f, clear typography, line icons and calm boundaries. Make the component warm and approachable, clean large tap areas, icon in a pale system blue rounded square, label beneath for compact shortcuts and beside for rows, subtle count badge only where meaningful. Use 12–16px rounded outer corners with a quiet border, no heavy shadows, no pastel rainbow, no illustrations, no hrzoft logo. Include small state examples default, hover, keyboard focus, unavailable, selected. The component is reusable in an employee home, requests, holidays and leave summary. Text such as measurements may be short English. Fully polished working-product UI, no marketing headline.",
+  "source": "/Users/macbook/.codex/generated_images/01a129f7-1b22-7ce2-a191-da3eaffd5a15/exec-372aea7f-ffa0-403f-b960-c247e076132b.png",
+  "selection": "Reusable Action Card foundation selected by Codex under the user's instruction to complete the design and preview",
+  "references": [
+    "HRZ-01",
+    "current HR Today capture"
+  ],
+  "approvedByUser": false
+}

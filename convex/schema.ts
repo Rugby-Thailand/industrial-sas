@@ -1,4 +1,7 @@
 import { aiUsageTables } from "./aiUsage/schema";
+import { hrPolicyTables } from "./model/hr/policySchema";
+import { hrPayslipTables } from "./model/hr/payslipSchema";
+import { hrAnnouncementTables } from "./model/hr/announcementsSchema";
 import { defineSchema, defineTable } from "convex/server";
 import type { DataModelFromSchemaDefinition } from "convex/server";
 import { v } from "convex/values";
@@ -123,6 +126,9 @@ const hrDisposition = v.union(
 );
 
 const schema = defineSchema({
+  ...hrPolicyTables,
+  ...hrPayslipTables,
+  ...hrAnnouncementTables,
   ...aiUsageTables,
   hrEmployees: defineTable(
     tenantFields({
@@ -146,6 +152,15 @@ const schema = defineSchema({
     .index("by_orgId_userId", byOrg("userId"))
     .index("by_orgId_warehouseId_code", byOrg("warehouseId", "code"))
     .index("by_orgId_supervisorUserId", byOrg("supervisorUserId")),
+  hrShortcutPreferences: defineTable(
+    tenantFields({
+      userId: v.id("users"),
+      shortcuts: v.array(v.object({ key: v.string(), visible: v.boolean() })),
+      version: v.number(),
+      createdAt: v.number(),
+      updatedAt: v.number(),
+    }),
+  ).index("by_orgId_userId", byOrg("userId")),
   hrHolidays: defineTable(
     tenantFields({
       warehouseId: v.id("warehouses"),
@@ -167,6 +182,7 @@ const schema = defineSchema({
       open: v.boolean(),
       revision: v.number(),
       pendingCorrectionId: v.optional(v.id("hrCorrectionRequests")),
+      approvedLeaveRequestId: v.optional(v.id("hrLeaveRequests")),
       /** Earlier certifications replaced by a later decision; never pruned. */
       certificationHistory: v.optional(
         v.array(
@@ -261,6 +277,10 @@ const schema = defineSchema({
     .index(
       "by_orgId_employeeId_businessDate",
       byOrg("employeeId", "businessDate"),
+    )
+    .index(
+      "by_orgId_employeeId_status_businessDate",
+      byOrg("employeeId", "status", "businessDate"),
     ),
   /** One period identity per site range; versions record each close. */
   hrPeriods: defineTable(
@@ -315,7 +335,9 @@ const schema = defineSchema({
       closedByUserId: v.id("users"),
       closedAt: v.number(),
     }),
-  ).index("by_orgId_periodId_version", byOrg("periodId", "version")),
+  )
+    .index("by_orgId_periodId_version", byOrg("periodId", "version"))
+    .index("by_orgId_closedAt", byOrg("closedAt")),
   /** Frozen output of one closed version. */
   hrPeriodRows: defineTable(
     tenantFields({
@@ -325,6 +347,9 @@ const schema = defineSchema({
       employeeName: v.string(),
       businessDate: v.string(),
       plan: hrPlan,
+      originalStartAt: v.optional(v.number()),
+      originalEndAt: v.optional(v.number()),
+      originalCaptured: v.optional(v.boolean()),
       actualStartAt: v.optional(v.number()),
       actualEndAt: v.optional(v.number()),
       workedMinutes: v.number(),
@@ -332,7 +357,9 @@ const schema = defineSchema({
       disposition: hrDisposition,
       correctionReason: v.optional(v.string()),
     }),
-  ).index("by_orgId_versionId", byOrg("versionId")),
+  )
+    .index("by_orgId_versionId", byOrg("versionId"))
+    .index("by_orgId_versionId_employeeId", byOrg("versionId", "employeeId")),
   finishedGoodsUnitContributions: defineTable(
     tenantFields({
       warehouseId: v.id("warehouses"),

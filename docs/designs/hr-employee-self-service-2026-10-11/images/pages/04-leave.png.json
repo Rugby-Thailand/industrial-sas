@@ -1,0 +1,8 @@
+{
+  "id": "page-04",
+  "kind": "ui-mockup",
+  "file": "docs/designs/hr-employee-self-service-2026-10-11/images/pages/04-leave.png",
+  "prompt": "Use case: ui-mockup. Create a complete high-fidelity Storage Planner employee leave journey board, one desktop balance-and-history page and a narrow mobile leave form/preview, no device frame. Reference 1 supplies the friendly reusable Action Card; reference 2 anchors our real app shell and blue/white/grey system. Thai title การลาของฉัน and year 2569. Three calm balance rows with labelled icon pads: ลาพักร้อน entitlement 12 days, used 2, pending 2, available 8; ลากิจ entitlement 3, used 0, pending 0, available 3; ลาป่วย entitlement 30, used 10, pending 0, available 20. Include small text นโยบายและยอดตัวอย่าง, not legal claims. Primary ขอลา. History rows show 19–20 ต.ค. 2569 pending and 9 ต.ค. 2569 approved. Mobile form has leave type, start/end dates, whole-day/half-day choice, reason, optional evidence, and a charge preview วันทำงานที่คิด 2 วัน with nonworking dates handled separately. Button ตรวจสอบคำขอ leads to a compact confirmation view with selected dates, charge, remaining after reservation and ส่งคำขอ. System purple for pending, green for approved, blue for action. Clear required labels, helpful recovery, no unnecessary double confirmation or fake graph. Warm generous spacing, quiet rounded surfaces and accurate units. No cyan/rainbow, hrzoft branding, payroll claims, actual employee details or decorative art.",
+  "source": "/Users/macbook/.codex/generated_images/01a129f7-1b22-7ce2-a191-da3eaffd5a15/exec-ad84ef93-86b4-4009-a166-49ca32be7eda.png",
+  "view": "leave balances/history/request/charge preview"
+}

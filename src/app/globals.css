@@ -5,6 +5,9 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Touch controls compact only when the primary pointer is precise. */
+@custom-variant dense (@media (width >= 48rem) and (pointer: fine));
+
 @theme inline {
   --font-sans: var(--font-geist), "Noto Sans Thai", sans-serif;
   --font-mono: var(--font-geist-mono), monospace;
@@ -29,6 +32,14 @@
   --color-warning: var(--token-warning);
   --color-danger: var(--token-danger);
   --color-pending: var(--token-pending);
+  --color-badge-success: var(--token-badge-success);
+  --color-badge-success-surface: var(--token-badge-success-surface);
+  --color-badge-warning: var(--token-badge-warning);
+  --color-badge-warning-surface: var(--token-badge-warning-surface);
+  --color-badge-danger: var(--token-badge-danger);
+  --color-badge-danger-surface: var(--token-badge-danger-surface);
+  --color-badge-pending: var(--token-badge-pending);
+  --color-badge-pending-surface: var(--token-badge-pending-surface);
   --color-qc-hold: var(--token-qc-hold);
   --color-disabled: var(--token-disabled);
   --color-disabled-surface: var(--token-disabled-surface);
@@ -44,6 +55,11 @@
   --color-band-full: var(--token-band-full);
 
   --spacing-touch: 3rem;
+  --spacing-control: 2.25rem;
+  --spacing-label: 0.125rem;
+  --spacing-field: 0.5rem;
+  --spacing-section: 1rem;
+  --spacing-group: 1.5rem;
 
   --color-background: var(--token-canvas);
   --color-foreground: var(--token-text);
@@ -141,15 +157,24 @@
 
   --token-danger-contrast: #ffffff;
   --token-pending: #5a3fb8;
+  /* Badge ink is stronger without changing other semantic consumers. */
+  --token-badge-success: #084d2c;
+  --token-badge-warning: #643900;
+  --token-badge-danger: #851c16;
+  --token-badge-pending: #3e258a;
   --token-qc-hold: #92400e;
   --token-disabled: var(--muted-foreground);
   --token-disabled-surface: var(--muted);
 
   --token-accent-surface: var(--accent);
   --token-success-surface: #e3f3ea;
+  --token-badge-success-surface: var(--token-success-surface);
   --token-warning-surface: #fff0d0;
+  --token-badge-warning-surface: var(--token-warning-surface);
   --token-danger-surface: #fee9e7;
+  --token-badge-danger-surface: var(--token-danger-surface);
   --token-pending-surface: #eeeaff;
+  --token-badge-pending-surface: var(--token-pending-surface);
 
   --scene-floor: #e8edf3;
   --scene-floor-side: #cbd5e1;
@@ -242,9 +267,12 @@ body {
   font-family: var(--font-sans);
 }
 
-:focus-visible {
-  outline: 3px solid var(--ring);
-  outline-offset: 2px;
+/* Shared control utilities must override the fallback focus edge. */
+@layer base {
+  :focus-visible {
+    outline: 3px solid var(--ring);
+    outline-offset: 2px;
+  }
 }
 
 .tabular {
@@ -306,11 +334,19 @@ body {
   --token-danger: #ff9a90;
   --token-danger-contrast: #3d1210;
   --token-pending: #b3a0ff;
+  --token-badge-success: #8be3b7;
+  --token-badge-warning: #ffd08a;
+  --token-badge-danger: #ffbbb4;
+  --token-badge-pending: #d0c0ff;
   --token-qc-hold: #f0b357;
   --token-success-surface: #183c2e;
+  --token-badge-success-surface: var(--token-success-surface);
   --token-warning-surface: #49361c;
+  --token-badge-warning-surface: var(--token-warning-surface);
   --token-danger-surface: #492725;
+  --token-badge-danger-surface: var(--token-danger-surface);
   --token-pending-surface: #312b50;
+  --token-badge-pending-surface: var(--token-pending-surface);
   --scene-floor: #19272d;
   --scene-floor-side: #253443;
   --scene-grid: #617482;
@@ -402,4 +438,30 @@ body {
 [data-deep-link-target] {
   outline: 3px solid var(--color-ring);
   outline-offset: 4px;
+}
+
+/* A focused field has one visible edge, on its existing border. */
+@utility focus-field {
+  &:focus-visible {
+    border-color: var(--color-ring);
+    outline: 2px solid var(--color-ring);
+    outline-offset: -1px;
+  }
+}
+
+/* Separated keyboard focus for standalone actions. */
+@utility focus-ring {
+  &:focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+  }
+}
+
+/* Composed fields keep their focus edge on the bordered wrapper. */
+@utility focus-field-within {
+  &:focus-within {
+    border-color: var(--color-ring);
+    outline: 2px solid var(--color-ring);
+    outline-offset: -1px;
+  }
 }

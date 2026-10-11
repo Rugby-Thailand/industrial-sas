@@ -1,0 +1,12 @@
+{
+  "id": "component-02",
+  "kind": "ui-mockup",
+  "file": "docs/designs/hr-employee-self-service-2026-10-11/images/components/02-summary-contexts.png",
+  "prompt": "Use case: ui-mockup. A high-fidelity landscape design board for Storage Planner HR showing the SAME friendly Action Card component in attendance and leave summary contexts, not a new visual system. Reference 1 establishes its pale blue icon pad, simple line icons, royal blue #1d4ed8 and generous readable Thai labels. Show a desktop summary section and its narrow mobile counterpart. Title เวลาทำงาน, selection ตุลาคม 2569. Four clearly labelled linked metric cards: เข้างาน 7 วัน, รอตรวจสอบ 1 วัน, ลาหยุด 0 วัน, นอกกะ 0 ชม. A second section โควต้าการลา uses horizontal Action Cards for ลาพักร้อน with คงเหลือ 8 วัน, ลากิจ with คงเหลือ 3 วัน, ลาป่วย with คงเหลือ 20 วัน; tiny demo-note ข้อมูลตัวอย่าง. Each has a recognizable quiet line icon and a chevron to inspect details. Show one selected linked metric and one keyboard focus state. Counters have clear units. White rounded surfaces with quiet borders, pale neutral grey ground, dark slate type. Use the current system colors consistently and reserve green/amber for status information only. No big hero metric, decorative charts, gradients, rainbow backgrounds, device frames, real employee data or hrzoft branding. The board proves the single shared component adapts from shortcuts to metrics without confusing links and buttons.",
+  "source": "/Users/macbook/.codex/generated_images/01a129f7-1b22-7ce2-a191-da3eaffd5a15/exec-c2b9d904-2bfa-4a04-ba60-cce97456cb96.png",
+  "references": [
+    "component-01"
+  ],
+  "selection": "Same shared Action Card in another context",
+  "approvedByUser": false
+}

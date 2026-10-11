@@ -515,6 +515,13 @@ export const close = mutationWithOrg({
             employeeName: row.employeeName,
             businessDate: row.businessDate,
             plan: storedPlan(row.plan),
+            originalCaptured: true,
+            ...(row.originalStartAt === undefined
+              ? {}
+              : { originalStartAt: row.originalStartAt }),
+            ...(row.originalEndAt === undefined
+              ? {}
+              : { originalEndAt: row.originalEndAt }),
             ...(row.actualStartAt === undefined
               ? {}
               : { actualStartAt: row.actualStartAt }),

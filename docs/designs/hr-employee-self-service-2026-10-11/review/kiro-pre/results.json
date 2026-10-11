@@ -1,0 +1,355 @@
+{
+  "checks": [
+    {
+      "name": "Initial attendance totals",
+      "passed": true
+    },
+    {
+      "name": "Clock pending guard and receipt",
+      "passed": true
+    },
+    {
+      "name": "Leave preview reservation arithmetic",
+      "passed": true
+    },
+    {
+      "name": "Leave overlap rejected without write",
+      "passed": true
+    },
+    {
+      "name": "Half-day excludes company holiday",
+      "passed": true
+    },
+    {
+      "name": "Request filtering and detail",
+      "passed": true
+    },
+    {
+      "name": "Shortcut cancel then save/reload",
+      "passed": true
+    },
+    {
+      "name": "Holiday year and CSV",
+      "passed": true
+    },
+    {
+      "name": "Notifications reconcile",
+      "passed": true
+    },
+    {
+      "name": "Payslip stays masked on canceled verification",
+      "passed": true
+    },
+    {
+      "name": "Payslip reveal, download and hide",
+      "passed": true
+    },
+    {
+      "name": "Employee restricted companion",
+      "passed": true
+    },
+    {
+      "name": "Supervisor correction retains original and changes effective",
+      "passed": true
+    },
+    {
+      "name": "Returned leave releases reservation",
+      "passed": true
+    },
+    {
+      "name": "Import requires selected rows all valid; then publishes",
+      "passed": true
+    },
+    {
+      "name": "Policy version leaves current-year balance unchanged",
+      "passed": false,
+      "error": "The input did not match the regular expression /^8/. Input:\n\n'10 วัน'\n"
+    },
+    {
+      "name": "Publisher draft and publication reach feed",
+      "passed": true
+    }
+  ],
+  "geometry": [
+    {
+      "route": "home",
+      "width": 1440,
+      "scroll": 1440,
+      "main": 1216
+    },
+    {
+      "route": "attendance",
+      "width": 1440,
+      "scroll": 1440,
+      "main": 1216
+    },
+    {
+      "route": "day/2026-10-06",
+      "width": 1440,
+      "scroll": 1440,
+      "main": 1216
+    },
+    {
+      "route": "correction/2026-10-01",
+      "width": 1440,
+      "scroll": 1440,
+      "main": 1216
+    },
+    {
+      "route": "requests",
+      "width": 1440,
+      "scroll": 1440,
+      "main": 1216
+    },
+    {
+      "route": "request/r3",
+      "width": 1440,
+      "scroll": 1440,
+      "main": 1216
+    },
+    {
+      "route": "leave",
+      "width": 1440,
+      "scroll": 1440,
+      "main": 1216
+    },
+    {
+      "route": "leave-new",
+      "width": 1440,
+      "scroll": 1440,
+      "main": 1216
+    },
+    {
+      "route": "holidays",
+      "width": 1440,
+      "scroll": 1440,
+      "main": 1216
+    },
+    {
+      "route": "customize",
+      "width": 1440,
+      "scroll": 1440,
+      "main": 1216
+    },
+    {
+      "route": "announcements",
+      "width": 1440,
+      "scroll": 1440,
+      "main": 1216
+    },
+    {
+      "route": "announcement/a1",
+      "width": 1440,
+      "scroll": 1440,
+      "main": 1216
+    },
+    {
+      "route": "notifications",
+      "width": 1440,
+      "scroll": 1440,
+      "main": 1216
+    },
+    {
+      "route": "payslips",
+      "width": 1440,
+      "scroll": 1440,
+      "main": 1216
+    },
+    {
+      "route": "payslip/p9",
+      "width": 1440,
+      "scroll": 1440,
+      "main": 1216
+    },
+    {
+      "route": "profile",
+      "width": 1440,
+      "scroll": 1440,
+      "main": 1216
+    },
+    {
+      "route": "review/r1",
+      "width": 1440,
+      "scroll": 1440,
+      "main": 1216
+    },
+    {
+      "route": "policy",
+      "width": 1440,
+      "scroll": 1440,
+      "main": 1216
+    },
+    {
+      "route": "publish",
+      "width": 1440,
+      "scroll": 1440,
+      "main": 1216
+    },
+    {
+      "route": "import",
+      "width": 1440,
+      "scroll": 1440,
+      "main": 1216
+    },
+    {
+      "route": "components",
+      "width": 1440,
+      "scroll": 1440,
+      "main": 1216
+    },
+    {
+      "route": "gallery",
+      "width": 1440,
+      "scroll": 1440,
+      "main": 1216
+    },
+    {
+      "route": "plan",
+      "width": 1440,
+      "scroll": 1440,
+      "main": 1216
+    },
+    {
+      "route": "home",
+      "width": 390,
+      "scroll": 390,
+      "main": 390
+    },
+    {
+      "route": "attendance",
+      "width": 390,
+      "scroll": 390,
+      "main": 390
+    },
+    {
+      "route": "day/2026-10-06",
+      "width": 390,
+      "scroll": 390,
+      "main": 390
+    },
+    {
+      "route": "correction/2026-10-01",
+      "width": 390,
+      "scroll": 390,
+      "main": 390
+    },
+    {
+      "route": "requests",
+      "width": 390,
+      "scroll": 390,
+      "main": 390
+    },
+    {
+      "route": "request/r3",
+      "width": 390,
+      "scroll": 390,
+      "main": 390
+    },
+    {
+      "route": "leave",
+      "width": 390,
+      "scroll": 390,
+      "main": 390
+    },
+    {
+      "route": "leave-new",
+      "width": 390,
+      "scroll": 390,
+      "main": 390
+    },
+    {
+      "route": "holidays",
+      "width": 390,
+      "scroll": 390,
+      "main": 390
+    },
+    {
+      "route": "customize",
+      "width": 390,
+      "scroll": 390,
+      "main": 390
+    },
+    {
+      "route": "announcements",
+      "width": 390,
+      "scroll": 390,
+      "main": 390
+    },
+    {
+      "route": "announcement/a1",
+      "width": 390,
+      "scroll": 390,
+      "main": 390
+    },
+    {
+      "route": "notifications",
+      "width": 390,
+      "scroll": 390,
+      "main": 390
+    },
+    {
+      "route": "payslips",
+      "width": 390,
+      "scroll": 390,
+      "main": 390
+    },
+    {
+      "route": "payslip/p9",
+      "width": 390,
+      "scroll": 390,
+      "main": 390
+    },
+    {
+      "route": "profile",
+      "width": 390,
+      "scroll": 390,
+      "main": 390
+    },
+    {
+      "route": "review/r1",
+      "width": 390,
+      "scroll": 390,
+      "main": 390
+    },
+    {
+      "route": "policy",
+      "width": 390,
+      "scroll": 390,
+      "main": 390
+    },
+    {
+      "route": "publish",
+      "width": 390,
+      "scroll": 390,
+      "main": 390
+    },
+    {
+      "route": "import",
+      "width": 390,
+      "scroll": 390,
+      "main": 390
+    },
+    {
+      "route": "components",
+      "width": 390,
+      "scroll": 390,
+      "main": 390
+    },
+    {
+      "route": "gallery",
+      "width": 390,
+      "scroll": 390,
+      "main": 390
+    },
+    {
+      "route": "plan",
+      "width": 390,
+      "scroll": 390,
+      "main": 390
+    }
+  ],
+  "errors": [],
+  "failures": [
+    "Policy version leaves current-year balance unchanged"
+  ]
+}

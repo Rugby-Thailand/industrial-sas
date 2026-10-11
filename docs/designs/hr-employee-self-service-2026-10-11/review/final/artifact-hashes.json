@@ -1,0 +1,39 @@
+{
+  "files": {
+    "preview/index.html": "e1255417773da3862864adf08db8de852bbd0f3440dc4fc3f774cb66f1e870ab",
+    "preview/styles.css": "8a785fd3416ee8ee4f769239bda00f449124bb39253d7a99e037aecd58b17407",
+    "preview/app.js": "fde5d94b067bb1d5a3869f1fdd338ec4f893e023cf7ea09aec9a2a40c69df60d",
+    "plan.md": "bc09381ea9fca4270ae7c23ef0a31d6def15d82ecb7238de9e2f4fb8c5473334"
+  },
+  "screenshots": [
+    "announcements-desktop.png",
+    "announcements-mobile.png",
+    "attendance-desktop.png",
+    "attendance-mobile.png",
+    "components-desktop.png",
+    "components-mobile.png",
+    "customize-desktop.png",
+    "customize-mobile.png",
+    "holidays-desktop.png",
+    "holidays-mobile.png",
+    "home-dark-mobile.png",
+    "home-desktop.png",
+    "home-mobile.png",
+    "import-desktop.png",
+    "import-mobile.png",
+    "import-validation-desktop.png",
+    "import-validation-mobile.png",
+    "leave-desktop.png",
+    "leave-form-desktop.png",
+    "leave-form-mobile.png",
+    "leave-mobile.png",
+    "payslip-desktop.png",
+    "payslip-mobile.png",
+    "payslip-revealed-desktop.png",
+    "payslip-revealed-mobile.png",
+    "review-desktop.png",
+    "review-mobile.png",
+    "verification-desktop.png",
+    "verification-mobile.png"
+  ]
+}

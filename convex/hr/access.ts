@@ -45,7 +45,11 @@ export const current = queryWithOrg({
       employee:
         employee === null
           ? undefined
-          : { code: employee.code, displayName: employee.displayName },
+          : {
+              id: employee._id,
+              code: employee.code,
+              displayName: employee.displayName,
+            },
       sitesComplete: list.complete,
       sites: sites.map((site) => ({
         id: site._id,

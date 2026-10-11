@@ -1,0 +1,735 @@
+{
+  "date": "2026-10-10",
+  "method": "jsdom DOM and local interaction verification",
+  "scope": "Original root copy refinement; both comparison layouts retain their previous wording.",
+  "cases": 144,
+  "failed": [],
+  "errors": [],
+  "checks": [
+    {
+      "path": "/",
+      "name": "en scopes copy to original",
+      "pass": true
+    },
+    {
+      "path": "/",
+      "name": "en keeps nine fields and two required",
+      "pass": true
+    },
+    {
+      "path": "/",
+      "name": "en preserves correct ticket heading",
+      "pass": true
+    },
+    {
+      "path": "/",
+      "name": "en groups units only in original",
+      "pass": true
+    },
+    {
+      "path": "/",
+      "name": "en uses correct Save label",
+      "pass": true
+    },
+    {
+      "path": "/",
+      "name": "en names unit group",
+      "pass": true
+    },
+    {
+      "path": "/",
+      "name": "en preserves quantity meanings in accessible names",
+      "pass": true
+    },
+    {
+      "path": "/",
+      "name": "en keeps generic quantity separate",
+      "pass": true
+    },
+    {
+      "path": "/",
+      "name": "en blocks missing job number",
+      "pass": true
+    },
+    {
+      "path": "/",
+      "name": "en confirms demo save truthfully",
+      "pass": true
+    },
+    {
+      "path": "/",
+      "name": "en clears AI origin on edit",
+      "pass": true
+    },
+    {
+      "path": "/",
+      "name": "en photoNotice uses current notice",
+      "pass": true
+    },
+    {
+      "path": "/",
+      "name": "en barcodeNotice uses current notice",
+      "pass": true
+    },
+    {
+      "path": "/",
+      "name": "en manualNotice uses current notice",
+      "pass": true
+    },
+    {
+      "path": "/",
+      "name": "en uses correct Add wording",
+      "pass": true
+    },
+    {
+      "path": "/",
+      "name": "en gives Add complete accessible name",
+      "pass": true
+    },
+    {
+      "path": "/",
+      "name": "en gives truthful creation feedback",
+      "pass": true
+    },
+    {
+      "path": "/",
+      "name": "en filter shows one stored record",
+      "pass": true
+    },
+    {
+      "path": "/",
+      "name": "en empty results show recovery",
+      "pass": true
+    },
+    {
+      "path": "/",
+      "name": "en search and filter recover three records",
+      "pass": true
+    },
+    {
+      "path": "/",
+      "name": "en preserves draft across workflow changes",
+      "pass": true
+    },
+    {
+      "path": "/",
+      "name": "en removes duplicate walkway legend only in original",
+      "pass": true
+    },
+    {
+      "path": "/",
+      "name": "en map selection stays keyboard operable",
+      "pass": true
+    },
+    {
+      "path": "/",
+      "name": "en removes repeated demo notice only in original",
+      "pass": true
+    },
+    {
+      "path": "/",
+      "name": "en clockout updates local preview",
+      "pass": true
+    },
+    {
+      "path": "/",
+      "name": "en details use correct feedback",
+      "pass": true
+    },
+    {
+      "path": "/",
+      "name": "th scopes copy to original",
+      "pass": true
+    },
+    {
+      "path": "/",
+      "name": "th keeps nine fields and two required",
+      "pass": true
+    },
+    {
+      "path": "/",
+      "name": "th preserves correct ticket heading",
+      "pass": true
+    },
+    {
+      "path": "/",
+      "name": "th groups units only in original",
+      "pass": true
+    },
+    {
+      "path": "/",
+      "name": "th uses correct Save label",
+      "pass": true
+    },
+    {
+      "path": "/",
+      "name": "th names unit group",
+      "pass": true
+    },
+    {
+      "path": "/",
+      "name": "th preserves quantity meanings in accessible names",
+      "pass": true
+    },
+    {
+      "path": "/",
+      "name": "th keeps generic quantity separate",
+      "pass": true
+    },
+    {
+      "path": "/",
+      "name": "th blocks missing job number",
+      "pass": true
+    },
+    {
+      "path": "/",
+      "name": "th confirms demo save truthfully",
+      "pass": true
+    },
+    {
+      "path": "/",
+      "name": "th clears AI origin on edit",
+      "pass": true
+    },
+    {
+      "path": "/",
+      "name": "th photoNotice uses current notice",
+      "pass": true
+    },
+    {
+      "path": "/",
+      "name": "th barcodeNotice uses current notice",
+      "pass": true
+    },
+    {
+      "path": "/",
+      "name": "th manualNotice uses current notice",
+      "pass": true
+    },
+    {
+      "path": "/",
+      "name": "th uses correct Add wording",
+      "pass": true
+    },
+    {
+      "path": "/",
+      "name": "th gives Add complete accessible name",
+      "pass": true
+    },
+    {
+      "path": "/",
+      "name": "th gives truthful creation feedback",
+      "pass": true
+    },
+    {
+      "path": "/",
+      "name": "th filter shows one stored record",
+      "pass": true
+    },
+    {
+      "path": "/",
+      "name": "th empty results show recovery",
+      "pass": true
+    },
+    {
+      "path": "/",
+      "name": "th search and filter recover three records",
+      "pass": true
+    },
+    {
+      "path": "/",
+      "name": "th preserves draft across workflow changes",
+      "pass": true
+    },
+    {
+      "path": "/",
+      "name": "th removes duplicate walkway legend only in original",
+      "pass": true
+    },
+    {
+      "path": "/",
+      "name": "th map selection stays keyboard operable",
+      "pass": true
+    },
+    {
+      "path": "/",
+      "name": "th removes repeated demo notice only in original",
+      "pass": true
+    },
+    {
+      "path": "/",
+      "name": "th clockout updates local preview",
+      "pass": true
+    },
+    {
+      "path": "/",
+      "name": "th details use correct feedback",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=side-rail",
+      "name": "en scopes copy to original",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=side-rail",
+      "name": "en keeps nine fields and two required",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=side-rail",
+      "name": "en preserves correct ticket heading",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=side-rail",
+      "name": "en groups units only in original",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=side-rail",
+      "name": "en uses correct Save label",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=side-rail",
+      "name": "en blocks missing job number",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=side-rail",
+      "name": "en confirms demo save truthfully",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=side-rail",
+      "name": "en clears AI origin on edit",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=side-rail",
+      "name": "en photoNotice uses current notice",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=side-rail",
+      "name": "en barcodeNotice uses current notice",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=side-rail",
+      "name": "en manualNotice uses current notice",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=side-rail",
+      "name": "en uses correct Add wording",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=side-rail",
+      "name": "en gives truthful creation feedback",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=side-rail",
+      "name": "en filter shows one stored record",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=side-rail",
+      "name": "en empty results show recovery",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=side-rail",
+      "name": "en search and filter recover three records",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=side-rail",
+      "name": "en preserves draft across workflow changes",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=side-rail",
+      "name": "en removes duplicate walkway legend only in original",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=side-rail",
+      "name": "en map selection stays keyboard operable",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=side-rail",
+      "name": "en removes repeated demo notice only in original",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=side-rail",
+      "name": "en clockout updates local preview",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=side-rail",
+      "name": "en details use correct feedback",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=side-rail",
+      "name": "en variant switch retains original copy and draft",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=side-rail",
+      "name": "th scopes copy to original",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=side-rail",
+      "name": "th keeps nine fields and two required",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=side-rail",
+      "name": "th preserves correct ticket heading",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=side-rail",
+      "name": "th groups units only in original",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=side-rail",
+      "name": "th uses correct Save label",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=side-rail",
+      "name": "th blocks missing job number",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=side-rail",
+      "name": "th confirms demo save truthfully",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=side-rail",
+      "name": "th clears AI origin on edit",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=side-rail",
+      "name": "th photoNotice uses current notice",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=side-rail",
+      "name": "th barcodeNotice uses current notice",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=side-rail",
+      "name": "th manualNotice uses current notice",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=side-rail",
+      "name": "th uses correct Add wording",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=side-rail",
+      "name": "th gives truthful creation feedback",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=side-rail",
+      "name": "th filter shows one stored record",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=side-rail",
+      "name": "th empty results show recovery",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=side-rail",
+      "name": "th search and filter recover three records",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=side-rail",
+      "name": "th preserves draft across workflow changes",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=side-rail",
+      "name": "th removes duplicate walkway legend only in original",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=side-rail",
+      "name": "th map selection stays keyboard operable",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=side-rail",
+      "name": "th removes repeated demo notice only in original",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=side-rail",
+      "name": "th clockout updates local preview",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=side-rail",
+      "name": "th details use correct feedback",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=side-rail",
+      "name": "th variant switch retains original copy and draft",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=margin-labels",
+      "name": "en scopes copy to original",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=margin-labels",
+      "name": "en keeps nine fields and two required",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=margin-labels",
+      "name": "en preserves correct ticket heading",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=margin-labels",
+      "name": "en groups units only in original",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=margin-labels",
+      "name": "en uses correct Save label",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=margin-labels",
+      "name": "en blocks missing job number",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=margin-labels",
+      "name": "en confirms demo save truthfully",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=margin-labels",
+      "name": "en clears AI origin on edit",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=margin-labels",
+      "name": "en photoNotice uses current notice",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=margin-labels",
+      "name": "en barcodeNotice uses current notice",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=margin-labels",
+      "name": "en manualNotice uses current notice",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=margin-labels",
+      "name": "en uses correct Add wording",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=margin-labels",
+      "name": "en gives truthful creation feedback",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=margin-labels",
+      "name": "en filter shows one stored record",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=margin-labels",
+      "name": "en empty results show recovery",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=margin-labels",
+      "name": "en search and filter recover three records",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=margin-labels",
+      "name": "en preserves draft across workflow changes",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=margin-labels",
+      "name": "en removes duplicate walkway legend only in original",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=margin-labels",
+      "name": "en map selection stays keyboard operable",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=margin-labels",
+      "name": "en removes repeated demo notice only in original",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=margin-labels",
+      "name": "en clockout updates local preview",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=margin-labels",
+      "name": "en details use correct feedback",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=margin-labels",
+      "name": "en variant switch retains original copy and draft",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=margin-labels",
+      "name": "th scopes copy to original",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=margin-labels",
+      "name": "th keeps nine fields and two required",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=margin-labels",
+      "name": "th preserves correct ticket heading",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=margin-labels",
+      "name": "th groups units only in original",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=margin-labels",
+      "name": "th uses correct Save label",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=margin-labels",
+      "name": "th blocks missing job number",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=margin-labels",
+      "name": "th confirms demo save truthfully",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=margin-labels",
+      "name": "th clears AI origin on edit",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=margin-labels",
+      "name": "th photoNotice uses current notice",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=margin-labels",
+      "name": "th barcodeNotice uses current notice",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=margin-labels",
+      "name": "th manualNotice uses current notice",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=margin-labels",
+      "name": "th uses correct Add wording",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=margin-labels",
+      "name": "th gives truthful creation feedback",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=margin-labels",
+      "name": "th filter shows one stored record",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=margin-labels",
+      "name": "th empty results show recovery",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=margin-labels",
+      "name": "th search and filter recover three records",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=margin-labels",
+      "name": "th preserves draft across workflow changes",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=margin-labels",
+      "name": "th removes duplicate walkway legend only in original",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=margin-labels",
+      "name": "th map selection stays keyboard operable",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=margin-labels",
+      "name": "th removes repeated demo notice only in original",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=margin-labels",
+      "name": "th clockout updates local preview",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=margin-labels",
+      "name": "th details use correct feedback",
+      "pass": true
+    },
+    {
+      "path": "/variants/?variant=margin-labels",
+      "name": "th variant switch retains original copy and draft",
+      "pass": true
+    }
+  ],
+  "evidenceScope": {
+    "baseline": "8b0ef538",
+    "historical": true,
+    "excludes": "2026-10-11 adoption revision"
+  }
+}

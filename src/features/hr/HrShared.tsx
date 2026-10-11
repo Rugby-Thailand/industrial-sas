@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Notice } from "@/components/ui/Notice";
 import { StatusBadge, type BadgeTone } from "@/components/ui/StatusBadge";
 
-import { formatTime, splitMinutes } from "./format";
+import { formatDateTime, formatTime, splitMinutes } from "./format";
 import type { HrWriteState } from "./useHrWrite";
 
 export function useHrError() {
@@ -333,5 +333,48 @@ export function SectionTitle({
       <h2 className="text-lg leading-7 font-semibold text-text">{children}</h2>
       {action}
     </div>
+  );
+}
+
+interface CorrectionHistoryEntry {
+  readonly action: string;
+  readonly at: number;
+  readonly actorName: string | null;
+  readonly reason?: string | undefined;
+}
+
+/** Retained correction evidence shared by the day record and exact request. */
+export function HrCorrectionTimeline({
+  entries,
+  timezone,
+}: {
+  readonly entries: readonly CorrectionHistoryEntry[];
+  readonly timezone: string;
+}) {
+  const t = useTranslations("Hr.day");
+  const locale = useLocale();
+  return (
+    <ol className="divide-y divide-border">
+      {entries.map((entry, index) => (
+        <li key={`${entry.at}-${index}`} className="space-y-1 py-3 text-sm">
+          <p className="text-text">
+            {t(`history.${entry.action}`, {
+              name: entry.actorName ?? t("unknownActor"),
+            })}
+          </p>
+          <time
+            dateTime={new Date(entry.at).toISOString()}
+            className="text-xs text-muted tabular-nums"
+          >
+            {formatDateTime(entry.at, locale, timezone)}
+          </time>
+          {entry.reason ? (
+            <p className="wrap-anywhere whitespace-pre-wrap text-muted">
+              {entry.reason}
+            </p>
+          ) : null}
+        </li>
+      ))}
+    </ol>
   );
 }

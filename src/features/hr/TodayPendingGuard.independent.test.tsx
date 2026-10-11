@@ -107,3 +107,38 @@ it("holds Search, AI and link navigation until a clock write receives its server
   });
   expect(leave).toHaveBeenCalledTimes(1);
 });
+
+it("allows navigation after an uncertain clock response while retaining its exact retry", async () => {
+  clock.send
+    .mockRejectedValueOnce(new Error("Lost response"))
+    .mockResolvedValue({
+      ok: true,
+      value: {
+        written: true,
+        occurredAt: Date.parse("2026-10-09T08:30:00+07:00"),
+        businessDate: "2026-10-09",
+        kind: "CLOCK_IN",
+      },
+    });
+  renderWithIntl(
+    <DraftGuardProvider>
+      <HrTodayScreen />
+    </DraftGuardProvider>,
+    { locale: "en" },
+  );
+  fireEvent.click(screen.getByTestId("hr-clock-action"));
+  const uncertain = await screen.findByTestId("hr-write-uncertain");
+  const original = clock.send.mock.calls[0]?.[0];
+  const leave = vi.fn();
+  act(() => guardedNavigate(leave));
+  act(() => {
+    window.dispatchEvent(new PopStateEvent("popstate", { state: null }));
+  });
+  expect(leave).toHaveBeenCalledTimes(1);
+  expect(
+    screen.queryByTestId("navigation-guard-pending"),
+  ).not.toBeInTheDocument();
+  fireEvent.click(uncertain.querySelector("button")!);
+  await screen.findByTestId("hr-clock-saved");
+  expect(clock.send.mock.calls[1]?.[0]).toEqual(original);
+});
