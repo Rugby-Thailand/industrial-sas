@@ -31,3 +31,11 @@ The copied browser fixture leaves new company capabilities inactive, so screensh
 Local final checks pass: formatting, pinned Bun typecheck (888 files), lint, **3,623 tests in 281 files**, test discovery, credential-free Convex codegen and production build, workflow/action-pin validation and production/app/release dependency audits. Anonymous production browser smoke passes **94 tests**; the synthetic storage workspace browser suite passes **42 tests**. The complete test run includes all independent review and public compatibility/registered coverage regressions. Production CSS passes **14 theme/pointer/width combinations**. The source diff is whitespace-clean; six byte-preserved upstream OFL font licenses retain their original single trailing space.
 
 PR/exact-head CI/merge details are recorded in the PR after the release checks finish. Production follows the repository's existing backend-before-web release controller; no manual shortcut or branch-protection bypass is used.
+
+## Release follow-up
+
+PR #78 passed required checks and merged as `71d11ff1`. The release owner then identified one concrete recovery defect: the outer Today page cleared its strict clock descriptor while HR access was still LOADING on reload. The release run was cancelled before production; a normal follow-up PR preserves recovery through transient loading and still clears it on confirmed logout, denied access or a different linked employee. Real outer-page status-transition regressions cover this distinction.
+
+The follow-up passes independent review, formatting, pinned typecheck, lint, test discovery, isolated codegen and production build. All **3,628 tests in 281 files** pass. An initial test run overlapped build/codegen and hit two unchanged CI-tool tests' 5-second timeouts; after the other commands completed, the full suite passed without changing test timeouts or implementation. The cancelled main run's Production release job has no completed steps.
+
+`browser-matrix-checks.json` adds 21 actual authenticated Settings checks, including all four locale/theme combinations at the specified widths, confirmed real 200% browser zoom and a coarse-pointer tablet simulation. Every main-content axe run has no findings; zoom reduces the CSS viewport from 1440px to 720px and retains 48px fields/16px text. These checks do not replace a physical-device test.
