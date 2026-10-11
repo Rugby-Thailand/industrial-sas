@@ -406,17 +406,11 @@ it("retries exactly from tab memory when storage is unavailable, including a rem
   expect(mocks.clockOut).not.toHaveBeenCalled();
 });
 it("rejects a stored descriptor containing unrelated private fields", () => {
+  // Deliberately invalid, wholly synthetic JSON: no employee query values or
+  // mutable access mocks are written into this private-field rejection fixture.
   sessionStorage.setItem(
     "hr-clock-command:v1",
-    JSON.stringify({
-      schema: 1,
-      scope: `${mocks.identity}|clock:employee-a`,
-      employeeId: "employee-a",
-      kind: "CLOCK_IN",
-      requestId: "request-123",
-      expectedBusinessDate: base.businessDate,
-      salary: 1000,
-    }),
+    '{"schema":1,"scope":"org-a:actor-a:employee-a|clock:employee-a","employeeId":"employee-a","kind":"CLOCK_IN","requestId":"request-123","expectedBusinessDate":"2026-10-09","salary":1000}',
   );
   mocks.query.mockReturnValue({
     ok: true,
