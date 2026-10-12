@@ -1,4 +1,10 @@
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import type { ComponentProps, ReactNode } from "react";
 import { axe } from "jest-axe";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -69,6 +75,7 @@ import {
   finishedGoodsWorkspace,
   finishedGoodProduct,
   querySuccess,
+  writeFailure,
 } from "@tests/fixtures/finished-goods-ui";
 import { chooseOption } from "@tests/fixtures/select-control";
 import { PackingScreen } from "./PackingScreen";
@@ -880,4 +887,112 @@ it("blocks invalid fullness without demanding dimensions for mixed sizes", () =>
   expect(
     screen.getByRole("button", { name: "Review and create" }),
   ).toBeEnabled();
+});
+
+describe("stale batch save lifecycle", () => {
+  it("does not navigate or move the draft when the batch save resolves after unmount", async () => {
+    const batchKey = "fg-batch-packing:user-a:warehouse-a:batch:batch-a";
+    let resolveSave!: (value: ReturnType<typeof success>) => void;
+    mocks.save.mockReset().mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveSave = resolve;
+        }),
+    );
+    const view = show();
+    split();
+    fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
+    await waitFor(() => expect(mocks.save).toHaveBeenCalledOnce());
+    expect(localStorage.getItem(key)).not.toBeNull();
+    view.unmount();
+    await act(async () => {
+      resolveSave(success());
+      await Promise.resolve();
+    });
+    expect(mocks.replace).not.toHaveBeenCalled();
+    expect(localStorage.getItem(batchKey)).toBeNull();
+    expect(localStorage.getItem(key)).not.toBeNull();
+  });
+
+  it("classifies a current refusal and denial exactly, releasing only the definite refusal", async () => {
+    mocks.save.mockResolvedValueOnce({ ok: false, requestId: "denied" });
+    show();
+    split();
+    fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
+    expect(
+      await screen.findByText(
+        "You do not have permission to change this record.",
+      ),
+    ).toBeVisible();
+    // A denial is not a definite answer to this command: keep its retry.
+    expect(
+      screen.getByRole("button", { name: "Retry saved request" }),
+    ).toBeEnabled();
+    const sent = mocks.save.mock.calls[0]?.[0];
+    expect(JSON.parse(localStorage.getItem(key)!).pending).toBeDefined();
+
+    mocks.save.mockResolvedValueOnce(
+      writeFailure("FIELD_INVALID", "totalQuantity"),
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Retry saved request" }),
+    );
+    await waitFor(() => expect(mocks.save).toHaveBeenCalledTimes(2));
+    expect(mocks.save.mock.calls[1]?.[0]).toEqual(sent);
+    expect(
+      await screen.findByText(
+        "Enter valid values: required text and positive numbers within the allowed limits.",
+      ),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "Retry saved request" }),
+    ).not.toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem(key)!).pending).toBeUndefined();
+    expect(mocks.replace).not.toHaveBeenCalled();
+  });
+
+  it("retains newer packing edits when an old unmounted save returns the same refusal", async () => {
+    const refusal = writeFailure("FIELD_INVALID", "totalQuantity");
+    let resolveOldSave!: (value: typeof refusal) => void;
+    mocks.save
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveOldSave = resolve;
+          }),
+      )
+      .mockResolvedValueOnce(refusal);
+    const first = show();
+    split();
+    fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
+    await waitFor(() => expect(mocks.save).toHaveBeenCalledOnce());
+    const originalRequest = mocks.save.mock.calls[0]?.[0];
+    first.unmount();
+
+    // The remounted editor retries the saved request and learns the refusal
+    // before the original owner receives that same delayed server answer.
+    const current = show();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Retry saved request" }),
+    );
+    await waitFor(() => expect(mocks.save).toHaveBeenCalledTimes(2));
+    expect(mocks.save.mock.calls[1]?.[0]).toEqual(originalRequest);
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("button", { name: "Retry saved request" }),
+      ).not.toBeInTheDocument(),
+    );
+    input("Batch total quantity", "200");
+    expect(
+      screen.getByRole("spinbutton", { name: "Batch total quantity" }),
+    ).toHaveValue(200);
+
+    await act(async () => resolveOldSave(refusal));
+    current.unmount();
+    show();
+    expect(
+      screen.getByRole("spinbutton", { name: "Batch total quantity" }),
+    ).toHaveValue(200);
+    expect(mocks.replace).not.toHaveBeenCalled();
+  });
 });

@@ -1852,3 +1852,27 @@ it("reports an invalid first-page cursor without entering a reset loop", () => {
   ).not.toBeInTheDocument();
   expect(mocks.query.mock.calls.length).toBeLessThan(12);
 });
+
+describe("stale finished-good save lifecycle", () => {
+  it("does not navigate or clear the draft when the product save resolves after unmount", async () => {
+    let resolveSave!: (value: typeof savedProductOutcome) => void;
+    mocks.save.mockReset().mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveSave = resolve;
+        }),
+    );
+    const view = renderProduct();
+    fillValidProduct();
+    fireEvent.click(screen.getByRole("button", { name: "Next: Packing" }));
+    await waitFor(() => expect(mocks.save).toHaveBeenCalledOnce());
+    expect(localStorage.getItem(draftKey)).not.toBeNull();
+    view.unmount();
+    await act(async () => {
+      resolveSave(savedProductOutcome);
+      await Promise.resolve();
+    });
+    expect(mocks.push).not.toHaveBeenCalled();
+    expect(localStorage.getItem(draftKey)).not.toBeNull();
+  });
+});

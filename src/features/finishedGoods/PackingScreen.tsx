@@ -570,39 +570,49 @@ function PackingForm({
       );
       return;
     }
-    const result = await op.run(async () => {
-      const outcome = await (
-        pending.kind === "save" ? saveBatchDraft : commitBatch
-      )({ ...pending.payload, warehouseId });
-      if (outcome.ok && !outcome.value.written)
-        persist({ ...draft, pending: undefined });
-      written(outcome);
-      return outcome.ok && outcome.value.written ? outcome.value : null;
-    });
-    if (!result) return;
-    setReview(false);
-    const next: Draft = {
-      ...draft,
-      pending: undefined,
-      batchId: result.batchId,
-      revision: result.revision,
-      ...(pending.kind === "commit" ? { completed: result.palletIds } : {}),
-    };
-    persist(next);
-    setSaved(true);
-    setLocalError("");
-    op.clearRequests();
-    if (!batch && pending.kind === "save") {
-      if (
-        !drafts.write(
-          `${scope}:${warehouseId}:batch:${result.batchId}`,
-          next,
-        ) ||
-        !drafts.remove(key)
-      )
-        setStorageWarning(true);
-      router.replace(batchPath(result.batchId));
-    }
+    await op.run(
+      // Effect-free: a transport failure rejects here and keeps `pending`
+      // for an exact retry; every resolved answer (written, refused or
+      // denied) is handled below, only while this workflow is still current.
+      () =>
+        (pending.kind === "save" ? saveBatchDraft : commitBatch)({
+          ...pending.payload,
+          warehouseId,
+        }),
+      (outcome) => {
+        if (!outcome.ok || !outcome.value.written) {
+          // A definite refusal releases its recovery; a denial keeps it.
+          if (outcome.ok) persist({ ...draft, pending: undefined });
+          // Throws: the operation records its code and describes the error.
+          written(outcome);
+          return;
+        }
+        const result = outcome.value;
+        setReview(false);
+        const next: Draft = {
+          ...draft,
+          pending: undefined,
+          batchId: result.batchId,
+          revision: result.revision,
+          ...(pending.kind === "commit" ? { completed: result.palletIds } : {}),
+        };
+        persist(next);
+        setSaved(true);
+        setLocalError("");
+        op.clearRequests();
+        if (!batch && pending.kind === "save") {
+          if (
+            !drafts.write(
+              `${scope}:${warehouseId}:batch:${result.batchId}`,
+              next,
+            ) ||
+            !drafts.remove(key)
+          )
+            setStorageWarning(true);
+          router.replace(batchPath(result.batchId));
+        }
+      },
+    );
   }
   if (!canManage)
     return (

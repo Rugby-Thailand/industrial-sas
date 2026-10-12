@@ -10,6 +10,7 @@ import {
   MapPin,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useNavigationDraft } from "@/components/navigation/navigationDraft";
 import { QueryGate } from "@/components/system/QueryGate";
 import { Button } from "@/components/ui/button";
 import { PageContainer } from "@/components/ui/PageContainer";
@@ -150,6 +151,17 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
     URL.revokeObjectURL(ticket.previewUrl);
     previewUrls.current.delete(ticket.previewUrl);
   };
+  // Captured tickets survive in-app links, Back and search unless discarded;
+  // a save in flight must finish first.
+  const draft = useNavigationDraft({
+    dirty: tickets.length > 0,
+    pending: saving,
+    discard: () => {
+      tickets.forEach(releasePreview);
+      setTickets([]);
+      changePanel(null);
+    },
+  });
 
   const update = (key: string, change: (ticket: TicketDraft) => TicketDraft) =>
     setTickets((current) =>
@@ -308,23 +320,25 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
     };
     acquisitionBlocked.current = true;
     changePanel(null);
-    const result = await operation.run(async () =>
-      written(
-        await save({
-          ...payload,
-          requestId: operation.request(JSON.stringify(payload)),
-        }),
-      ),
+    const result = await operation.run(
+      async () =>
+        written(
+          await save({
+            ...payload,
+            requestId: operation.request(JSON.stringify(payload)),
+          }),
+        ),
+      () => {
+        // Current completion only: a stale or unmounted save changes nothing.
+        operation.clearRequests();
+        tickets.forEach(releasePreview);
+        draft.settle();
+        setSaved({ count: tickets.length, location });
+        setTickets([]);
+        changePanel(null);
+      },
     );
-    if (result === null) {
-      acquisitionBlocked.current = false;
-      return;
-    }
-    operation.clearRequests();
-    tickets.forEach(releasePreview);
-    setSaved({ count: tickets.length, location });
-    setTickets([]);
-    changePanel(null);
+    if (result === null) acquisitionBlocked.current = false;
   }
 
   if (!canManage) return <ViewOnlyNotice />;

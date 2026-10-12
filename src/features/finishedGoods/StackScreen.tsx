@@ -68,17 +68,21 @@ function Limits({
           stackable,
           ...(stackable ? { maxStackLevels: Number(levels) } : {}),
         };
-        void op.run(async () => {
-          written(
-            await save({
-              ...args,
-              requestId: op.request(JSON.stringify(args)),
-            }),
-          );
-          setSaved(true);
-          onDirty(false);
-          op.clearRequests();
-        });
+        void op.run(
+          async () => {
+            written(
+              await save({
+                ...args,
+                requestId: op.request(JSON.stringify(args)),
+              }),
+            );
+          },
+          () => {
+            setSaved(true);
+            onDirty(false);
+            op.clearRequests();
+          },
+        );
       }}
     >
       <fieldset
@@ -185,40 +189,44 @@ function StackLoader({
     Boolean(lower.status === "RESERVED");
   async function prepare() {
     if (!candidate || !upper || error || lowerDirty || upperDirty) return;
-    await op.run(async () => {
-      const args = {
-        warehouseId,
-        palletId: upper._id,
-        zoneId: candidate.zoneId,
-        supportPalletId: palletId,
-        xMm: candidate.xMm,
-        yMm: candidate.yMm,
-        rotation,
-        expectedMeasurementUpdatedAt: upper.updatedAt,
-      };
-      if (upper.status === "STORED" && upper.placementId) {
-        const moveArgs = {
-          ...args,
-          expectedSourcePlacementId: upper.placementId,
+    await op.run(
+      async () => {
+        const args = {
+          warehouseId,
+          palletId: upper._id,
+          zoneId: candidate.zoneId,
+          supportPalletId: palletId,
+          xMm: candidate.xMm,
+          yMm: candidate.yMm,
+          rotation,
+          expectedMeasurementUpdatedAt: upper.updatedAt,
         };
-        written(
-          await reserveMove({
-            ...moveArgs,
-            requestId: op.request(JSON.stringify(moveArgs)),
-          }),
-        );
-        router.push(`${palletPath(upper._id)}/move`);
-      } else {
+        if (upper.status === "STORED" && upper.placementId) {
+          const moveArgs = {
+            ...args,
+            expectedSourcePlacementId: upper.placementId,
+          };
+          written(
+            await reserveMove({
+              ...moveArgs,
+              requestId: op.request(JSON.stringify(moveArgs)),
+            }),
+          );
+          return `${palletPath(upper._id)}/move`;
+        }
         written(
           await reserve({
             ...args,
             requestId: op.request(JSON.stringify(args)),
           }),
         );
-        router.push(palletPath(upper._id));
-      }
-      op.clearRequests();
-    });
+        return palletPath(upper._id);
+      },
+      (destination) => {
+        router.push(destination);
+        op.clearRequests();
+      },
+    );
   }
   return (
     <div className="space-y-5">

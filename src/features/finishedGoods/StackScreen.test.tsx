@@ -272,3 +272,28 @@ it("saves only stacking limits without weight/load configuration", async () => {
   expect(args).not.toHaveProperty("weightKg");
   expect(args).not.toHaveProperty("maxAboveLoadKg");
 });
+
+it("ignores a stacking reservation that resolves after unmount", async () => {
+  let resolveReserve: () => void = () => {};
+  mocks.write.mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        resolveReserve = () => resolve(success("placement-stack"));
+      }),
+  );
+  const view = mount();
+  chooseUpperPallet();
+  fireEvent.click(
+    screen.getByRole("button", { name: "Reserve stack and verify" }),
+  );
+  await waitFor(() => expect(mocks.write).toHaveBeenCalledTimes(1));
+  // The pending request id is persisted before the await; capture that state.
+  const persisted = localStorage.length;
+  view.unmount();
+  resolveReserve();
+  for (let i = 0; i < 5; i += 1) await Promise.resolve();
+  // A reservation that settles after unmount must not navigate nor clear the
+  // persisted request id (which would otherwise drop idempotent replay).
+  expect(mocks.push).not.toHaveBeenCalled();
+  expect(localStorage.length).toBe(persisted);
+});

@@ -277,54 +277,58 @@ export function PlacementEditor({
       props.unavailable,
     );
   async function reserve() {
-    await op.run(async () => {
-      if (issue || unchanged) throw new Error("SPACE_UNAVAILABLE");
-      const args = {
-        warehouseId,
-        palletId: detail.pallet._id,
-        zoneId: candidate.zoneId,
-        ...(candidate.supportPositionId
-          ? { supportPositionId: candidate.supportPositionId }
-          : {}),
-        ...(candidate.supportPalletId
-          ? { supportPalletId: candidate.supportPalletId }
-          : {}),
-        xMm: placement.xMm,
-        yMm: placement.yMm,
-        rotation: placement.rotation,
-        expectedMeasurementUpdatedAt: detail.pallet.updatedAt,
-      };
-      if (moving) {
-        if (!detail.placement) throw new Error("LOCATION_UNAVAILABLE");
-        const moveArgs = {
-          ...args,
-          ...(reason.trim() ? { reason: reason.trim() } : {}),
-          expectedSourcePlacementId: detail.placement._id,
-          ...(detail.activeMove ? { moveId: detail.activeMove._id } : {}),
+    await op.run(
+      async () => {
+        if (issue || unchanged) throw new Error("SPACE_UNAVAILABLE");
+        const args = {
+          warehouseId,
+          palletId: detail.pallet._id,
+          zoneId: candidate.zoneId,
+          ...(candidate.supportPositionId
+            ? { supportPositionId: candidate.supportPositionId }
+            : {}),
+          ...(candidate.supportPalletId
+            ? { supportPalletId: candidate.supportPalletId }
+            : {}),
+          xMm: placement.xMm,
+          yMm: placement.yMm,
+          rotation: placement.rotation,
+          expectedMeasurementUpdatedAt: detail.pallet.updatedAt,
         };
-        written(
-          await moveMutation({
-            ...moveArgs,
-            requestId: op.request(JSON.stringify(moveArgs)),
-          }),
-        );
-      } else {
-        written(
-          await mutate({
+        if (moving) {
+          if (!detail.placement) throw new Error("LOCATION_UNAVAILABLE");
+          const moveArgs = {
             ...args,
-            requestId: op.request(JSON.stringify(args)),
-          }),
+            ...(reason.trim() ? { reason: reason.trim() } : {}),
+            expectedSourcePlacementId: detail.placement._id,
+            ...(detail.activeMove ? { moveId: detail.activeMove._id } : {}),
+          };
+          written(
+            await moveMutation({
+              ...moveArgs,
+              requestId: op.request(JSON.stringify(moveArgs)),
+            }),
+          );
+        } else {
+          written(
+            await mutate({
+              ...args,
+              requestId: op.request(JSON.stringify(args)),
+            }),
+          );
+        }
+      },
+      () => {
+        op.clearRequests();
+        clearDraft();
+        onReserved?.();
+        router.push(
+          moving
+            ? `${palletPath(detail.pallet._id)}/move`
+            : palletPath(detail.pallet._id),
         );
-      }
-      op.clearRequests();
-      clearDraft();
-      onReserved?.();
-      router.push(
-        moving
-          ? `${palletPath(detail.pallet._id)}/move`
-          : palletPath(detail.pallet._id),
-      );
-    });
+      },
+    );
   }
   return (
     <div className="space-y-4">

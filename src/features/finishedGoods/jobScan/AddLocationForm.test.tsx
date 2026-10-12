@@ -161,6 +161,75 @@ it("does not apply a committed create after its form is unmounted", async () => 
   await act(async () => finish(writeSuccess("named-a")));
   expect(onPick).not.toHaveBeenCalled();
 });
+it("does not select a created location once the operation scope has moved on", async () => {
+  let finish!: (value: ReturnType<typeof writeSuccess>) => void;
+  mocks.create.mockReturnValue(
+    new Promise((resolve) => {
+      finish = resolve;
+    }),
+  );
+  const onPick = vi.fn();
+  const view = renderWithIntl(
+    <AddLocationForm
+      warehouseId="warehouse-a"
+      initialCode="DOCK-NEW"
+      onPick={onPick}
+      onCancel={vi.fn()}
+    />,
+    { locale: "en", preserveProviders: true },
+  );
+  await select("Building", "A · Building A");
+  fireEvent.click(
+    screen.getByRole("button", { name: "Create and use location" }),
+  );
+  // The surrounding workflow switches warehouses, retiring the in-flight scope.
+  view.rerender(
+    <AddLocationForm
+      warehouseId="warehouse-b"
+      initialCode="DOCK-NEW"
+      onPick={onPick}
+      onCancel={vi.fn()}
+    />,
+  );
+  await act(async () => finish(writeSuccess("named-a")));
+  expect(onPick).not.toHaveBeenCalled();
+});
+it("keeps a retired refusal's field off a newer submission's transport error", async () => {
+  let refuseOld!: (value: ReturnType<typeof writeFailure>) => void;
+  let failNew!: (error: Error) => void;
+  mocks.create
+    .mockReturnValueOnce(
+      new Promise((resolve) => {
+        refuseOld = resolve;
+      }),
+    )
+    .mockReturnValueOnce(
+      new Promise((_resolve, reject) => {
+        failNew = reject;
+      }),
+    );
+  const props = { initialCode: "DOCK-NEW", onPick: vi.fn(), onCancel: vi.fn() };
+  const view = renderWithIntl(
+    <AddLocationForm warehouseId="warehouse-a" {...props} />,
+    { locale: "en", preserveProviders: true },
+  );
+  await select("Building", "A · Building A");
+  const submit = () =>
+    fireEvent.click(
+      screen.getByRole("button", { name: "Create and use location" }),
+    );
+  submit();
+  view.rerender(<AddLocationForm warehouseId="warehouse-b" {...props} />);
+  submit();
+  expect(mocks.create).toHaveBeenCalledTimes(2);
+  await act(async () => refuseOld(writeFailure("FIELD_INVALID", "code")));
+  // The newer submission fails in transport, so it sets no field of its own.
+  await act(async () => failNew(new Error("NETWORK_ERROR")));
+  expect(await screen.findByRole("alert")).toBeVisible();
+  expect(
+    screen.getByRole("textbox", { name: "Location code" }),
+  ).not.toHaveAttribute("aria-invalid", "true");
+});
 it("keeps the draft available while offering building setup in another tab", () => {
   mocks.noBuildings = true;
   renderForm();

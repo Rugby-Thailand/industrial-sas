@@ -335,96 +335,103 @@ function ActiveMove({
     kind: "start" | "complete" | "cancel" | "return" | "issue",
   ) {
     if (!owner) return;
-    const result = await op.run(async () => {
-      if (kind === "start") {
-        if (!physicalConfirmed || (scanMode && !identified)) return false;
-        const args = {
-          ...base,
-          ...(scanMode
-            ? identified!
-            : { confirmationMethod: "ACKNOWLEDGEMENT" as const }),
-          physicalConfirmed,
-        };
-        written(
-          await startMutation({
-            ...args,
-            requestId: op.request(`start:${JSON.stringify(args)}`),
-          }),
-        );
-      } else if (kind === "complete") {
-        if (
-          !physicalConfirmed ||
-          (scanMode && !move.destinationVerifiedForCurrentUser)
-        )
-          return false;
-        written(
-          await completeMutation({
+    await op.run(
+      async () => {
+        if (kind === "start") {
+          if (!physicalConfirmed || (scanMode && !identified)) return false;
+          const args = {
             ...base,
-            ...(!scanMode
-              ? { confirmationMethod: "ACKNOWLEDGEMENT" as const }
-              : {}),
+            ...(scanMode
+              ? identified!
+              : { confirmationMethod: "ACKNOWLEDGEMENT" as const }),
             physicalConfirmed,
-            requestId: op.request(
-              `complete:${scanMode ? "verified" : "acknowledged"}`,
-            ),
-          }),
-        );
-      } else if (kind === "cancel") {
-        written(
-          await cancelMutation({ ...base, requestId: op.request("cancel") }),
-        );
-      } else if (kind === "return") {
-        if (!returnAcknowledged || (returnScanMode && !returnCode))
-          return false;
-        const args = {
-          ...base,
-          ...(returnScanMode
-            ? returnCode!
-            : { confirmationMethod: "ACKNOWLEDGEMENT" as const }),
-          physicalConfirmed: returnAcknowledged,
-        };
-        written(
-          await returnMutation({
-            ...args,
-            requestId: op.request(`return:${JSON.stringify(args)}`),
-          }),
-        );
-      } else {
-        if (!issue.trim()) return false;
-        written(
-          await issueMutation({
+          };
+          written(
+            await startMutation({
+              ...args,
+              requestId: op.request(`start:${JSON.stringify(args)}`),
+            }),
+          );
+        } else if (kind === "complete") {
+          if (
+            !physicalConfirmed ||
+            (scanMode && !move.destinationVerifiedForCurrentUser)
+          )
+            return false;
+          written(
+            await completeMutation({
+              ...base,
+              ...(!scanMode
+                ? { confirmationMethod: "ACKNOWLEDGEMENT" as const }
+                : {}),
+              physicalConfirmed,
+              requestId: op.request(
+                `complete:${scanMode ? "verified" : "acknowledged"}`,
+              ),
+            }),
+          );
+        } else if (kind === "cancel") {
+          written(
+            await cancelMutation({ ...base, requestId: op.request("cancel") }),
+          );
+        } else if (kind === "return") {
+          if (!returnAcknowledged || (returnScanMode && !returnCode))
+            return false;
+          const args = {
             ...base,
-            issue: issue.trim(),
-            requestId: op.request(`issue:${issue.trim()}`),
-          }),
-        );
-        setIssueSaved(true);
-      }
-      return true;
-    });
-    if (result) {
-      op.clearRequests();
-      setDialog(null);
-      setPhysicalConfirmed(false);
-      if (kind === "complete" || kind === "cancel" || kind === "return")
-        router.push(palletPath(detail.pallet._id));
-    }
+            ...(returnScanMode
+              ? returnCode!
+              : { confirmationMethod: "ACKNOWLEDGEMENT" as const }),
+            physicalConfirmed: returnAcknowledged,
+          };
+          written(
+            await returnMutation({
+              ...args,
+              requestId: op.request(`return:${JSON.stringify(args)}`),
+            }),
+          );
+        } else {
+          if (!issue.trim()) return false;
+          written(
+            await issueMutation({
+              ...base,
+              issue: issue.trim(),
+              requestId: op.request(`issue:${issue.trim()}`),
+            }),
+          );
+        }
+        return true;
+      },
+      (ok) => {
+        if (!ok) return;
+        if (kind === "issue") setIssueSaved(true);
+        op.clearRequests();
+        setDialog(null);
+        setPhysicalConfirmed(false);
+        if (kind === "complete" || kind === "cancel" || kind === "return")
+          router.push(palletPath(detail.pallet._id));
+      },
+    );
   }
   async function verify(code: string, method: "SCAN" | "MANUAL") {
     if (!owner) throw new Error("ACCESS_DENIED");
-    const result = await op.run(async () => {
-      written(
-        await verifyMutation({
-          ...base,
-          code,
-          method,
-          requestId: op.request(`verify:${code}:${method}`),
-        }),
-      );
-      return true;
-    });
+    const result = await op.run(
+      async () => {
+        written(
+          await verifyMutation({
+            ...base,
+            code,
+            method,
+            requestId: op.request(`verify:${code}:${method}`),
+          }),
+        );
+        return true;
+      },
+      () => {
+        op.clearRequests();
+      },
+    );
     if (!result) throw new Error("Verification failed");
-    op.clearRequests();
   }
   async function identify(code: string, method: "SCAN" | "MANUAL") {
     if (

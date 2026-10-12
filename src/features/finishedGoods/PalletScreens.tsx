@@ -347,37 +347,44 @@ function Measurement({
     });
   }
   async function save(find: boolean) {
-    await op.run(async () => {
-      if (find && !valid) throw new Error("INVALID_DIMENSIONS");
-      if (
-        valid &&
-        Number(form.quantity) !== pallet.quantity &&
-        !form.dimensionsChecked
-      )
-        throw new Error("DIMENSIONS_UNCHECKED");
-      const args = {
-        warehouseId,
-        palletId: pallet._id,
-        quantity: Number(form.quantity),
-        lot: form.lot,
-        ...(form.dimensionsChecked ? { dimensionsChecked: true } : {}),
-        ...(form.length.trim() ? { lengthMm: dimensions.depthMm } : {}),
-        ...(form.width.trim() ? { widthMm: dimensions.widthMm } : {}),
-        ...(form.height.trim() ? { heightMm: dimensions.heightMm } : {}),
-        ...(form.weight.trim() ? { weightKg: Number(form.weight) } : {}),
-      };
-      written(
-        await mutate({ ...args, requestId: op.request(JSON.stringify(args)) }),
-      );
-      setDirty(false);
-      op.clearRequests();
-      drafts.remove(key);
-      router.push(
-        find || returnToPlacement
-          ? storagePath(pallet._id)
-          : palletPath(pallet._id),
-      );
-    });
+    await op.run(
+      async () => {
+        if (find && !valid) throw new Error("INVALID_DIMENSIONS");
+        if (
+          valid &&
+          Number(form.quantity) !== pallet.quantity &&
+          !form.dimensionsChecked
+        )
+          throw new Error("DIMENSIONS_UNCHECKED");
+        const args = {
+          warehouseId,
+          palletId: pallet._id,
+          quantity: Number(form.quantity),
+          lot: form.lot,
+          ...(form.dimensionsChecked ? { dimensionsChecked: true } : {}),
+          ...(form.length.trim() ? { lengthMm: dimensions.depthMm } : {}),
+          ...(form.width.trim() ? { widthMm: dimensions.widthMm } : {}),
+          ...(form.height.trim() ? { heightMm: dimensions.heightMm } : {}),
+          ...(form.weight.trim() ? { weightKg: Number(form.weight) } : {}),
+        };
+        written(
+          await mutate({
+            ...args,
+            requestId: op.request(JSON.stringify(args)),
+          }),
+        );
+      },
+      () => {
+        setDirty(false);
+        op.clearRequests();
+        drafts.remove(key);
+        router.push(
+          find || returnToPlacement
+            ? storagePath(pallet._id)
+            : palletPath(pallet._id),
+        );
+      },
+    );
   }
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -866,19 +873,20 @@ function PalletDetailScreen({
   const reserved = pallet.status === "RESERVED";
   const verified = detail.destinationVerifiedForCurrentUser;
   async function verify(code: string, method: "SCAN" | "MANUAL") {
-    const result = await op.run(async () =>
-      written(
-        await verifyMutation({
-          warehouseId,
-          palletId: pallet._id,
-          code,
-          method,
-          requestId: op.request(`verify:${placement?._id}:${code}:${method}`),
-        }),
-      ),
+    const result = await op.run(
+      async () =>
+        written(
+          await verifyMutation({
+            warehouseId,
+            palletId: pallet._id,
+            code,
+            method,
+            requestId: op.request(`verify:${placement?._id}:${code}:${method}`),
+          }),
+        ),
+      () => op.clearRequests(),
     );
     if (result === null) throw new Error("Verification failed");
-    op.clearRequests();
   }
   async function store() {
     await op.run(async () => {
@@ -897,17 +905,21 @@ function PalletDetailScreen({
     });
   }
   async function release() {
-    await op.run(async () => {
-      written(
-        await cancelMutation({
-          warehouseId,
-          palletId: pallet._id,
-          requestId: op.request(`cancel:${placement?._id}`),
-        }),
-      );
-      setCancel(false);
-      router.push(storagePath(pallet._id));
-    });
+    await op.run(
+      async () => {
+        written(
+          await cancelMutation({
+            warehouseId,
+            palletId: pallet._id,
+            requestId: op.request(`cancel:${placement?._id}`),
+          }),
+        );
+      },
+      () => {
+        setCancel(false);
+        router.push(storagePath(pallet._id));
+      },
+    );
   }
   if (placement?.mode === "LOCATION_ONLY")
     return (

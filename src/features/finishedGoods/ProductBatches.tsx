@@ -579,22 +579,26 @@ export function ProductBatches({
                   variant="destructive"
                   disabled={op.busy || !reason.trim()}
                   onClick={() =>
-                    void op.run(async () => {
-                      const payload = {
-                        warehouseId,
-                        palletId: reviewUnit._id,
-                        reason: reason.trim(),
-                        expectedUpdatedAt: reviewUnit.updatedAt,
-                      };
-                      written(
-                        await cancelUnit({
-                          ...payload,
-                          requestId: op.request(JSON.stringify(payload)),
-                        }),
-                      );
-                      op.clearRequests();
-                      setReviewId(undefined);
-                    })
+                    void op.run(
+                      async () => {
+                        const payload = {
+                          warehouseId,
+                          palletId: reviewUnit._id,
+                          reason: reason.trim(),
+                          expectedUpdatedAt: reviewUnit.updatedAt,
+                        };
+                        written(
+                          await cancelUnit({
+                            ...payload,
+                            requestId: op.request(JSON.stringify(payload)),
+                          }),
+                        );
+                      },
+                      () => {
+                        op.clearRequests();
+                        setReviewId(undefined);
+                      },
+                    )
                   }
                 >
                   {t("copy.confirm-cancellation")}
