@@ -21,14 +21,13 @@ for (const locale of ["en", "th"] as const) {
       })
       .click();
     await expect(page.getByRole("alert")).toHaveCount(1);
-    const read =
-      locale === "en" ? "Read location with AI" : "อ่านตำแหน่งจากรูปด้วย AI";
+    const read = locale === "en" ? "Photo AI" : "ถ่ายรูป AI";
     await page.getByRole("button", { name: read, exact: true }).click();
     await page
-      .getByLabel(
-        locale === "en" ? "Choose location image" : "เลือกรูปตำแหน่ง",
-        { exact: true },
-      )
+      .getByLabel(locale === "en" ? "Choose photo" : "เลือกรูป", {
+        exact: true,
+      })
+      .and(page.locator('input[type="file"]'))
       .setInputFiles(
         resolve("tests/fixtures/barcode-photos/location-3-11.png"),
       );
@@ -74,10 +73,10 @@ test("AI multiple candidates require a choice and a fresh photo discards a late 
       ],
     };
   });
-  await page
-    .getByRole("button", { name: "Read location with AI", exact: true })
-    .click();
-  const picker = page.getByLabel("Choose location image", { exact: true });
+  await page.getByRole("button", { name: "Photo AI", exact: true }).click();
+  const picker = page
+    .getByLabel("Choose photo", { exact: true })
+    .and(page.locator('input[type="file"]'));
   await picker.setInputFiles(
     resolve("tests/fixtures/barcode-photos/location-3-11.png"),
   );
@@ -119,7 +118,7 @@ test("AI multiple candidates require a choice and a fresh photo discards a late 
   await expect(
     page.getByRole("textbox", { name: "Review location code" }),
   ).toHaveValue("F1-L22-2");
-  await page.getByRole("button", { name: "Back to location scanner" }).click();
+  await page.getByRole("button", { name: "Close Photo AI" }).click();
   await expect(page.getByLabel("Decoded codes")).toBeEmpty();
   await expect(
     page.getByRole("button", { name: "Choose image", exact: true }),
@@ -130,9 +129,7 @@ test("AI opens a live camera, captures once, stops its stream and automatically 
   page,
 }) => {
   await page.goto(`${url}/?camera=portrait`);
-  await page
-    .getByRole("button", { name: "Read location with AI", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Photo AI", exact: true }).click();
   const shutter = page.getByRole("button", {
     name: "Take location photo",
     exact: true,

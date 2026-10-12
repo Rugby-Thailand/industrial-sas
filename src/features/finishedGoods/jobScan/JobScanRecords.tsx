@@ -248,6 +248,7 @@ function Records({ warehouseId }: { warehouseId: string }) {
                 warehouseId={warehouseId}
                 allowUnmapped={false}
                 canReadImage={canManage}
+                browseWithoutSearch
                 onPick={async (location) => {
                   const mapped = pickedLocationPayload(location);
                   if (!canManage || !mapped || operation.busy) return;

@@ -45,9 +45,7 @@ beforeEach(() => {
 });
 afterEach(() => vi.restoreAllMocks());
 function upload() {
-  fireEvent.click(
-    screen.getByRole("button", { name: "Scan location barcode or QR" }),
-  );
+  fireEvent.click(screen.getByRole("button", { name: "Scan code" }));
   fireEvent.change(screen.getByLabelText("Choose image"), {
     target: {
       files: [new File(["pixels"], "label.jpg", { type: "image/jpeg" })],

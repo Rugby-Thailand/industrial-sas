@@ -335,7 +335,7 @@ export function BarcodeImagePicker({
           </Button>
         </div>
       )}
-      {onReadWithAi && (
+      {onReadWithAi && image && (
         <Button
           type="button"
           variant="outline"

@@ -67,9 +67,7 @@ beforeEach(() => {
   URL.revokeObjectURL = vi.fn();
 });
 function upload() {
-  fireEvent.click(
-    screen.getByRole("button", { name: "Scan location barcode or QR" }),
-  );
+  fireEvent.click(screen.getByRole("button", { name: "Scan code" }));
   fireEvent.change(screen.getByLabelText("Choose image"), {
     target: {
       files: [new File(["photo"], "location.webp", { type: "image/webp" })],

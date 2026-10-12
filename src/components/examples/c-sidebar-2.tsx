@@ -2,77 +2,45 @@
 
 // Adapted from @reui/c-sidebar-2: branded header, icon rail, account footer,
 // and inset content. Routes and account information come from the real app.
-import { type CSSProperties, type ReactNode } from "react";
+// Navigation rows, their presentation data and the drawer search handoff
+// live in `@/components/shell`.
 import {
-  Bell,
-  Megaphone,
-  FileText,
-  FileUp,
-  ChartNoAxesCombined,
-  Boxes,
-  Building2,
-  CalendarCheck,
-  CalendarDays,
-  CalendarRange,
-  ClipboardList,
-  Clock,
-  History,
-  PanelLeft,
-  Settings,
-  UserRound,
-  UsersRound,
-  X,
-  type LucideIcon,
-} from "lucide-react";
+  useRef,
+  type CSSProperties,
+  type ReactNode,
+  type RefObject,
+} from "react";
+import { Building2, PanelLeft, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 
-import { useAiUsageAccess } from "@/components/providers/AiUsageAccessProvider";
 import { DraftGuardProvider } from "@/components/providers/DraftGuardProvider";
 import {
   NavigationContent,
   NavigationProgressProvider,
 } from "@/components/system/NavigationProgress";
-import { SidebarNavigationLink } from "@/components/shell/SidebarNavigationLink";
-import { useHrAccess } from "@/components/providers/HrAccessProvider";
-import { useWorkspace } from "@/components/providers/WorkspaceProvider";
 import { AccountButton } from "@/components/shell/AccountButton";
 import { HrLandingRedirect } from "@/components/shell/HrLandingRedirect";
 import { LocaleSwitcher } from "@/components/shell/LocaleSwitcher";
-import { NavigationPendingIndicator } from "@/components/shell/NavigationPendingIndicator";
-import {
-  GlobalSearchProvider,
-  useGrantedPermissions,
-} from "@/components/shell/search/GlobalSearchProvider";
-import {
-  MobileSearchButton,
-  SidebarSearchTriggers,
-} from "@/components/shell/search/SearchTriggers";
+import { GlobalSearchProvider } from "@/components/shell/search/GlobalSearchProvider";
+import { SidebarSearchTriggers } from "@/components/shell/search/SearchTriggers";
+import { SidebarNavigation } from "@/components/shell/SidebarNavigation";
+import { useDrawerSearchHandoff } from "@/components/shell/useDrawerSearchHandoff";
+import { useOrganizationName } from "@/components/shell/useOrganizationName";
 import { WorkspaceContextBar } from "@/components/shell/WorkspaceContextBar";
 import { Button } from "@/components/ui/button";
-import { ScanIcon } from "@/components/ui/ScanIcon";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import {
   Sidebar,
-  SidebarContent,
   SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarInset,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
   SidebarProvider,
   useSidebar,
 } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { usePathname } from "@/i18n/navigation";
-import {
-  activeNavigationHref,
-  ROUTES,
-  visibleDesktopNavigation,
-} from "@/lib/navigation";
+import { ROUTES } from "@/lib/navigation";
+import { cn } from "@/lib/utils";
 
 const MAIN_ID = "main-content";
 const NAV_ID = "primary-navigation";
@@ -88,18 +56,19 @@ export function Pattern({ children }: { readonly children: ReactNode }) {
   const pathname = usePathname();
   const showWorkspaceBar = WORKSPACE_BAR_PATHS.includes(pathname);
   const usageReport = pathname === ROUTES.aiUsage;
+  const menuOpener = useRef<HTMLButtonElement>(null);
   return (
     <TooltipProvider>
       <NavigationProgressProvider>
         <DraftGuardProvider>
           <GlobalSearchProvider>
             <SidebarProvider
-              defaultOpen={false}
+              defaultOpen
               className="relative h-dvh min-h-0 w-full overflow-hidden bg-canvas text-text"
               style={
                 {
                   "--sidebar-width-icon": "4rem",
-                  "--sidebar-width": "13rem",
+                  "--sidebar-width": "18rem",
                 } as CSSProperties
               }
             >
@@ -112,15 +81,14 @@ export function Pattern({ children }: { readonly children: ReactNode }) {
               <HrLandingRedirect />
               <AppSidebar
                 switchableWarehouse={showWorkspaceBar}
-                hideRail={usageReport}
+                menuOpener={menuOpener}
               />
               <SidebarInset className="min-w-0 overflow-hidden">
                 <header className="shrink-0 border-b border-border bg-surface px-3 py-2 lg:px-6">
                   <div className="flex items-center gap-1 sm:gap-2">
-                    <NavigationDisclosure />
+                    <MobileNavigationDisclosure menuOpener={menuOpener} />
                     <HeaderBrand />
                     <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
-                      {!usageReport ? <HeaderSearch /> : null}
                       <LocaleSwitcher />
                       <ThemeToggle />
                     </div>
@@ -146,13 +114,21 @@ export function Pattern({ children }: { readonly children: ReactNode }) {
   );
 }
 
-/** Phones reach search from the header without opening the menu first. */
-function HeaderSearch() {
+/** Desktop disclosure stays inside the sidebar, including the icon rail. */
+function MobileNavigationDisclosure({
+  menuOpener,
+}: {
+  readonly menuOpener: RefObject<HTMLButtonElement | null>;
+}) {
   const { isMobile } = useSidebar();
-  return isMobile ? <MobileSearchButton /> : null;
+  return isMobile ? <NavigationDisclosure buttonRef={menuOpener} /> : null;
 }
 
-function NavigationDisclosure() {
+function NavigationDisclosure({
+  buttonRef,
+}: {
+  readonly buttonRef?: RefObject<HTMLButtonElement | null>;
+}) {
   const t = useTranslations("Navigation");
   const { isMobile, openMobile, open, toggleSidebar } = useSidebar();
   const expanded = isMobile ? openMobile : open;
@@ -167,6 +143,7 @@ function NavigationDisclosure() {
   );
   return (
     <Button
+      ref={buttonRef}
       variant="ghost"
       size="icon"
       data-slot="sidebar-trigger"
@@ -190,15 +167,7 @@ function NavigationDisclosure() {
  * context lives in the sidebar, so a phone header never carries it.
  */
 function HeaderBrand() {
-  const app = useTranslations("App");
-  const workspace = useWorkspace();
-  const hr = useHrAccess();
-  const usage = useAiUsageAccess();
-  const name =
-    workspace.organization?.name ??
-    hr.organizationName ??
-    usage.organizationName ??
-    app("name");
+  const name = useOrganizationName();
   return (
     <p
       className="min-w-0 flex-1 truncate px-1 text-sm font-semibold text-text sm:text-base"
@@ -212,59 +181,69 @@ function HeaderBrand() {
 
 function AppSidebar({
   switchableWarehouse,
-  hideRail,
+  menuOpener,
 }: {
   readonly switchableWarehouse: boolean;
-  readonly hideRail: boolean;
+  readonly menuOpener: RefObject<HTMLButtonElement | null>;
 }) {
   const t = useTranslations("Navigation");
   const app = useTranslations("App");
-  const workspace = useWorkspace();
-  const hr = useHrAccess();
-  const usage = useAiUsageAccess();
+  const organizationName = useOrganizationName();
   const { state, isMobile, setOpenMobile } = useSidebar();
-  const collapsed = !hideRail && !isMobile && state === "collapsed";
+  const collapsed = !isMobile && state === "collapsed";
+  const searchHandoff = useDrawerSearchHandoff(menuOpener);
   return (
     <Sidebar
-      collapsible={hideRail ? "offcanvas" : "icon"}
-      inert={hideRail && !isMobile && state === "collapsed"}
-      aria-hidden={
-        hideRail && !isMobile && state === "collapsed" ? true : undefined
-      }
+      collapsible="icon"
       {...(!isMobile
         ? { role: "complementary", "aria-label": t("primary") }
-        : {})}
+        : { onMobileCloseAutoFocus: searchHandoff.onDrawerCloseAutoFocus })}
       className="absolute h-full border-border"
       mobileTitle={t("primary")}
       mobileCloseLabel={t("closeMenu")}
     >
-      <SidebarHeader className="border-b border-border">
-        <div className="flex items-center">
-          <div className="flex min-h-11 min-w-0 flex-1 items-center gap-3 px-2">
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <Building2 className="size-4" aria-hidden="true" />
+      <SidebarHeader
+        className={cn("gap-6 px-4 pt-5 pb-2", collapsed && "gap-3 p-2")}
+      >
+        <div className="flex items-center gap-1">
+          {/* Compact identity: app name over the warehouse, beside the toggle. */}
+          <div
+            className={cn(
+              "flex min-h-touch min-w-0 flex-1 items-center gap-3 dense:min-h-control",
+              collapsed && "sr-only",
+            )}
+          >
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+              <Building2 className="size-5" aria-hidden="true" />
             </span>
-            <span
-              className={
-                collapsed ? "sr-only" : "min-w-0 truncate text-sm font-semibold"
-              }
-            >
-              {app("name")}
-            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold">{app("name")}</p>
+              {collapsed ? null : (
+                <WorkspaceContextBar switchable={switchableWarehouse} />
+              )}
+            </div>
           </div>
-          {isMobile ? <NavigationDisclosure /> : null}
+          <NavigationDisclosure />
         </div>
-        <WorkspaceContextBar
-          switchable={switchableWarehouse}
+        {collapsed ? (
+          <WorkspaceContextBar switchable={switchableWarehouse} collapsed />
+        ) : null}
+        <SidebarSearchTriggers
           collapsed={collapsed}
+          {...(isMobile ? { onOpen: searchHandoff.request } : {})}
         />
-        <SidebarSearchTriggers collapsed={collapsed} />
       </SidebarHeader>
-      <NavigationTree
+      <SidebarNavigation
+        id={NAV_ID}
         collapsed={collapsed}
         onNavigate={() => setOpenMobile(false)}
       />
-      <SidebarFooter className="border-t border-border p-3">
+      <SidebarFooter
+        className={cn(
+          "mx-4 border-t border-sidebar-border px-0 py-4",
+          collapsed && "mx-2 p-0 py-2",
+        )}
+      >
         <div className="flex min-h-12 items-center gap-3">
           <div className="shrink-0">
             <AccountButton />
@@ -274,132 +253,10 @@ function AppSidebar({
               collapsed ? "sr-only" : "min-w-0 truncate text-sm font-medium"
             }
           >
-            {workspace.organization?.name ??
-              hr.organizationName ??
-              usage.organizationName ??
-              app("name")}
+            {organizationName}
           </span>
         </div>
       </SidebarFooter>
     </Sidebar>
-  );
-}
-const NAVIGATION_ICONS: Readonly<Record<string, LucideIcon>> = Object.freeze({
-  [ROUTES.aiUsage]: ChartNoAxesCombined,
-  [ROUTES.storageLayouts]: Building2,
-  [ROUTES.jobScan]: ScanIcon,
-  [ROUTES.jobScanRecords]: ClipboardList,
-  [ROUTES.hrToday]: Clock,
-  [ROUTES.hrTime]: History,
-  [ROUTES.hrRequests]: ClipboardList,
-  [ROUTES.hrHolidays]: CalendarDays,
-  [ROUTES.hrLeave]: CalendarDays,
-  [ROUTES.hrLeaveReview]: CalendarCheck,
-  [ROUTES.hrAnnouncements]: Megaphone,
-  [ROUTES.hrAnnouncementsManage]: Megaphone,
-  [ROUTES.hrNotifications]: Bell,
-  [ROUTES.hrPayslips]: FileText,
-  [ROUTES.hrPayslipImport]: FileUp,
-  [ROUTES.hrProfile]: UserRound,
-  [ROUTES.hrReview]: CalendarCheck,
-  [ROUTES.hrEmployees]: UsersRound,
-  [ROUTES.hrPeriods]: CalendarRange,
-  [ROUTES.hrSettings]: Settings,
-});
-
-function NavigationTree({
-  onNavigate,
-  collapsed = false,
-}: {
-  readonly onNavigate?: () => void;
-  readonly collapsed?: boolean;
-}) {
-  const t = useTranslations("Navigation");
-  const pathname = usePathname();
-  const workspace = useWorkspace();
-  const hr = useHrAccess();
-  const usage = useAiUsageAccess();
-  // Storage, HR and AI usage grants settle independently. A storage denial is
-  // a settled answer (an HR-only or usage-only member), not a reason to keep
-  // the menu loading.
-  const workspaceSettled =
-    workspace.permissionsReady || workspace.denied || workspace.failed;
-  const hrSettled = hr.status !== "LOADING";
-  const usageSettled = usage.status !== "LOADING";
-  const sections = visibleDesktopNavigation(useGrantedPermissions());
-  const navigationLoading =
-    !(workspaceSettled && hrSettled && usageSettled) && sections.length === 0;
-  const activeHref = activeNavigationHref(
-    pathname,
-    sections.flatMap((section) => section.items.map((item) => item.href)),
-  );
-
-  return (
-    <nav
-      id={NAV_ID}
-      aria-label={t("primary")}
-      className="flex min-h-0 flex-1 flex-col"
-    >
-      <SidebarContent className="gap-0">
-        {navigationLoading ? (
-          <p role="status" className="px-3 py-4 text-sm text-muted">
-            {t("loadingNavigation")}
-          </p>
-        ) : null}
-        {sections.map((section) => (
-          <SidebarGroup key={section.labelKey} className={"px-2 py-2"}>
-            <SidebarGroupLabel
-              className={
-                collapsed
-                  ? "sr-only"
-                  : "px-2 text-xs font-medium text-sidebar-foreground/70"
-              }
-            >
-              {t(section.labelKey)}
-            </SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {section.items.map((item) => {
-                  const active = item.href === activeHref;
-                  const Icon = NAVIGATION_ICONS[item.href] ?? Boxes;
-                  const label = t(item.labelKey);
-                  return (
-                    <SidebarMenuItem key={item.href}>
-                      <SidebarMenuButton
-                        asChild
-                        isActive={active}
-                        {...(collapsed ? { tooltip: label } : {})}
-                        className={`min-h-touch text-sm font-medium group-data-[collapsible=icon]:size-12! group-data-[collapsible=icon]:justify-center ${
-                          collapsed ? "justify-center" : "px-3"
-                        } ${
-                          active
-                            ? "bg-sidebar-accent font-semibold text-sidebar-accent-foreground"
-                            : "text-sidebar-foreground"
-                        }`}
-                      >
-                        <SidebarNavigationLink
-                          href={item.href}
-                          className="relative"
-                          aria-current={active ? "page" : undefined}
-                          {...(onNavigate === undefined
-                            ? {}
-                            : { onClick: onNavigate })}
-                        >
-                          <Icon aria-hidden="true" className="size-4" />
-                          <span className={collapsed ? "sr-only" : "truncate"}>
-                            {label}
-                          </span>
-                          <NavigationPendingIndicator />
-                        </SidebarNavigationLink>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  );
-                })}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        ))}
-      </SidebarContent>
-    </nav>
   );
 }

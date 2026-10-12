@@ -132,6 +132,7 @@ function Sidebar({
   mobileTitle = "Sidebar",
   mobileDescription,
   mobileCloseLabel,
+  onMobileCloseAutoFocus,
   ...props
 }: React.ComponentProps<"div"> & {
   side?: "left" | "right";
@@ -141,6 +142,8 @@ function Sidebar({
   mobileTitle?: string;
   mobileDescription?: string;
   mobileCloseLabel?: string;
+  /** Hand off focus after the mobile drawer finishes closing. */
+  onMobileCloseAutoFocus?: (event: Event) => void;
 }) {
   const { isMobile, state, openMobile, setOpenMobile } = useSidebar();
 
@@ -177,6 +180,9 @@ function Sidebar({
           {...(mobileCloseLabel === undefined
             ? {}
             : { closeLabel: mobileCloseLabel })}
+          {...(onMobileCloseAutoFocus === undefined
+            ? {}
+            : { onCloseAutoFocus: onMobileCloseAutoFocus })}
         >
           <SheetHeader className="sr-only">
             <SheetTitle>{mobileTitle}</SheetTitle>

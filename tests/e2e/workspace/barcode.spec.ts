@@ -34,7 +34,7 @@ test.beforeEach(async ({ page }) => {
   });
   await page.goto(url);
   await expect(
-    page.getByRole("heading", { name: "Scan job tickets" }),
+    page.getByRole("heading", { name: "Where are we?" }),
   ).toBeVisible();
 });
 
@@ -64,19 +64,17 @@ test("camera denial still allows local location QR and paired ticket intake thro
   page.on("request", (request) => {
     if (request.method() === "POST") writes.push(request.url());
   });
-  await page
-    .getByRole("button", { name: "Scan location barcode or QR" })
-    .click();
+  await page.getByRole("button", { name: "Scan code", exact: true }).click();
   await expect(page.getByText(/Camera access was denied/)).toBeVisible();
   await choose(page, ["F2-L28-18"], true);
   await expect(
     page.getByRole("button", { name: "Use scanned code(s)" }),
   ).toBeVisible();
-  await expect(page.getByRole("button", { name: "Scan barcode" })).toHaveCount(
+  await expect(page.getByRole("heading", { name: "Scan pallet" })).toHaveCount(
     0,
   );
   await accept(page);
-  await page.getByRole("button", { name: "Scan barcode", exact: true }).click();
+  await page.getByRole("button", { name: "Scan code", exact: true }).click();
   await choose(page, ["FO12345678", "DEMO-PRODUCT"]);
   await page.getByRole("button", { name: "View full label image" }).click();
   const review = page.getByRole("dialog", { name: "View full label image" });
@@ -133,12 +131,10 @@ test("camera denial still allows local location QR and paired ticket intake thro
 test("repeated image pairs retain two physical units and require duplicate review", async ({
   page,
 }) => {
-  await page
-    .getByRole("button", { name: "Scan location barcode or QR" })
-    .click();
+  await page.getByRole("button", { name: "Scan code", exact: true }).click();
   await choose(page, ["F2-L28-18"], true);
   await accept(page);
-  await page.getByRole("button", { name: "Scan barcode", exact: true }).click();
+  await page.getByRole("button", { name: "Scan code", exact: true }).click();
   for (let unit = 0; unit < 2; unit++) {
     await choose(page, ["FO12345678", "DEMO-PRODUCT"]);
     await accept(page);
@@ -197,9 +193,7 @@ test("pending image cancellation releases its worker and cannot resolve a locati
       }
     };
   });
-  await page
-    .getByRole("button", { name: "Scan location barcode or QR" })
-    .click();
+  await page.getByRole("button", { name: "Scan code", exact: true }).click();
   await choose(page, []);
   await expect(page.getByText("Reading barcodes…")).toBeVisible();
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
@@ -210,17 +204,19 @@ test("pending image cancellation releases its worker and cannot resolve a locati
   await choose(page, ["F2-L28-18"]);
   await accept(page);
   await expect(
-    page.getByRole("button", { name: "Scan barcode", exact: true }),
+    page.getByRole("heading", { name: "Scan pallet" }),
   ).toBeVisible();
 });
 
 test("field image replacement requires confirmation and Escape preserves the prior value", async ({
   page,
 }) => {
-  await page.getByRole("button", { name: /F2-L28-18/ }).click();
+  // The location catalogue answers a search instead of listing everything.
   await page
-    .getByRole("button", { name: "Type manually", exact: true })
-    .click();
+    .getByRole("textbox", { name: "Search location" })
+    .fill("F2-L28-18");
+  await page.getByRole("button", { name: /F2-L28-18/ }).click();
+  await page.getByRole("button", { name: "Manual", exact: true }).click();
   const product = page.getByRole("textbox", {
     name: /Product barcode/,
     includeHidden: true,
@@ -251,9 +247,7 @@ test("image controls fit narrow screens in both languages and themes", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 320, height: 900 });
-  await page
-    .getByRole("button", { name: "Scan location barcode or QR" })
-    .click();
+  await page.getByRole("button", { name: "Scan code", exact: true }).click();
   await choose(page, ["F2-L28-18"]);
   await expect(
     page.getByRole("button", { name: "Use scanned code(s)" }),

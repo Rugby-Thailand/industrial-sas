@@ -182,3 +182,42 @@ it("reports unexpected decoder errors and closes the stream", async () => {
   expect(screen.getByText("ERROR:DECODER")).toBeInTheDocument();
   expect(mocks.trackStop).toHaveBeenCalled();
 });
+it("offers one close control on an active frame and a flashlight only with hardware support", async () => {
+  const onClose = vi.fn();
+  const view = renderWithIntl(
+    <BarcodeCameraBox mode="PACKAGES" onCode={vi.fn()} onClose={onClose} />,
+    { locale: "en", preserveProviders: true },
+  );
+  await waitFor(() => expect(mocks.decode).toHaveBeenCalledOnce());
+  await screen.findByText("Point the camera at a barcode or QR code.");
+  expect(screen.getAllByRole("button", { name: /camera/i })).toEqual([
+    screen.getByRole("button", { name: "Stop camera" }),
+  ]);
+  expect(
+    screen.queryByRole("button", { name: "Flashlight" }),
+  ).not.toBeInTheDocument();
+  view.unmount();
+
+  const torch = {
+    stop: mocks.trackStop,
+    getCapabilities: () => ({ torch: true }),
+  };
+  mocks.media.mockResolvedValue({
+    getTracks: () => [torch],
+    getVideoTracks: () => [torch],
+  });
+  mocks.decode.mockResolvedValue({
+    stop: mocks.stop,
+    switchTorch: vi.fn().mockResolvedValue(undefined),
+  });
+  renderWithIntl(
+    <BarcodeCameraBox mode="PACKAGES" onCode={vi.fn()} onClose={onClose} />,
+    { locale: "en", preserveProviders: true },
+  );
+  expect(
+    await screen.findByRole("button", { name: "Flashlight" }),
+  ).toHaveAttribute("aria-pressed", "false");
+  fireEvent.click(screen.getByRole("button", { name: "Stop camera" }));
+  expect(onClose).toHaveBeenCalledOnce();
+  expect(screen.getByRole("button", { name: "Start camera" })).toBeVisible();
+});

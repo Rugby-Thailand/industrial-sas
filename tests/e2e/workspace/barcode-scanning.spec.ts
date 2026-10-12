@@ -181,7 +181,8 @@ test("camera preview and scan guide follow the actual feed through orientation a
     const frame = await video.boundingBox();
     expect(frame).not.toBeNull();
     expect(frame!.width / frame!.height).toBeCloseTo(width! / height!, 2);
-    expect(frame!.height).toBeLessThanOrEqual(320.5);
+    // Full width, capped at min(60dvh, 28rem) for tall feeds.
+    expect(frame!.height).toBeLessThanOrEqual(448.5);
     const guide = await video
       .locator("..")
       .locator('div[aria-hidden="true"]')

@@ -1,13 +1,20 @@
 "use client";
 
-import { useState, type ReactNode, type SyntheticEvent } from "react";
-import { Flashlight } from "lucide-react";
+import { useState, type ReactNode } from "react";
+import { Camera, Flashlight } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/IconButton";
 import { Notice } from "@/components/ui/Notice";
+import { cn } from "@/lib/utils";
 import { useBarcodeCamera } from "./useBarcodeCamera";
 import { BarcodeImagePicker } from "./BarcodeImagePicker";
+import {
+  CameraFrame,
+  cameraMediaClass,
+  cameraOverlayButtonClass,
+  useVideoAspect,
+} from "./CameraFrame";
 import type { BarcodeImageTarget } from "./barcodeImage";
 import type { BarcodeCrop } from "./barcodeDecoder";
 
@@ -21,6 +28,7 @@ export function BarcodeCameraBox({
   startOnMount = true,
   disabled = false,
   stopAfterScan = false,
+  closeControl = true,
   imageTarget = mode === "LOCATION" ? "LOCATION" : "ANY",
   onImageCodes,
   onReadWithAi,
@@ -34,6 +42,8 @@ export function BarcodeCameraBox({
   startOnMount?: boolean;
   disabled?: boolean;
   stopAfterScan?: boolean;
+  /** Hide the frame's close control when the owning dialog already provides one. */
+  closeControl?: boolean;
   imageTarget?: BarcodeImageTarget;
   onImageCodes?: (codes: string[]) => void;
   onReadWithAi?: (file?: File, crop?: BarcodeCrop) => void;
@@ -47,7 +57,7 @@ export function BarcodeCameraBox({
   const t = useTranslations("JobScan");
   const [camera, setCamera] = useState(startOnMount);
   const [imageSession, setImageSession] = useState(0);
-  const [videoAspect, setVideoAspect] = useState(16 / 9);
+  const video = useVideoAspect(16 / 9);
   if (disabled && camera) setCamera(false);
   const {
     videoRef,
@@ -83,13 +93,86 @@ export function BarcodeCameraBox({
     if (camera) start();
     else setCamera(true);
   }
-  function measureVideo(event: SyntheticEvent<HTMLVideoElement>) {
-    const { videoWidth, videoHeight } = event.currentTarget;
-    if (videoWidth > 0 && videoHeight > 0)
-      setVideoAspect(videoWidth / videoHeight);
-  }
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
+      <CameraFrame
+        hidden={!camera}
+        status={retry ? "error" : state === "ACTIVE" ? "active" : "starting"}
+        statusLabel={t("startingCamera")}
+        aspect={video.aspect}
+        onClose={closeControl ? close : undefined}
+        closeLabel={t("stopCamera")}
+        topStart={
+          torchAvailable ? (
+            <IconButton
+              variant="ghost"
+              className={cameraOverlayButtonClass}
+              aria-pressed={torchOn}
+              label={t("flashlight")}
+              onClick={() => void toggleTorch()}
+            >
+              <Flashlight className="size-5" aria-hidden="true" />
+            </IconButton>
+          ) : undefined
+        }
+      >
+        <video
+          ref={videoRef}
+          muted
+          playsInline
+          aria-label={videoLabel ?? t("cameraPreview")}
+          {...video.videoProps}
+          className={cn(cameraMediaClass, retry && "invisible")}
+        />
+        {state === "ACTIVE" && (
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-x-[10%] top-[37.5%] h-1/4 rounded-xl border-2 border-white/80"
+          />
+        )}
+      </CameraFrame>
+      {camera && error ? (
+        <Notice
+          tone="warning"
+          role="alert"
+          title={t(
+            error === "PERMISSION"
+              ? "cameraPermission"
+              : error === "DECODER"
+                ? "cameraDecoderError"
+                : error === "TORCH"
+                  ? "flashlightError"
+                  : "cameraError",
+          )}
+        />
+      ) : feedback || (camera && state === "ACTIVE") ? (
+        <p role="status" aria-live="polite" className="min-h-5 text-sm">
+          {feedback ?? t("pointCamera")}
+        </p>
+      ) : null}
+      {camera && retry && (
+        <Button
+          type="button"
+          variant="outline"
+          className="min-h-12 w-full"
+          onClick={open}
+          disabled={scanDisabled}
+        >
+          {t("retryCamera")}
+        </Button>
+      )}
+      {!camera && (
+        <Button
+          type="button"
+          variant="outline"
+          className="min-h-12 w-full"
+          onClick={open}
+          disabled={scanDisabled}
+        >
+          <Camera className="size-4" aria-hidden="true" />
+          {t("startCamera")}
+        </Button>
+      )}
       <BarcodeImagePicker
         key={`${imageSession}:${imageTarget}:${disabled}`}
         target={imageTarget}
@@ -118,78 +201,6 @@ export function BarcodeCameraBox({
           else for (const code of codes) onCode(code);
         }}
       />
-      <div
-        hidden={!camera || (state !== "ACTIVE" && state !== "STARTING")}
-        className="relative mx-auto w-full overflow-hidden rounded-xl bg-black"
-        style={{ aspectRatio: videoAspect, maxWidth: 320 * videoAspect }}
-      >
-        <video
-          ref={videoRef}
-          muted
-          playsInline
-          aria-label={videoLabel ?? t("cameraPreview")}
-          onLoadedMetadata={measureVideo}
-          onResize={measureVideo}
-          className="block h-full w-full object-contain"
-        />
-        {state === "ACTIVE" && (
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-x-[10%] top-[37.5%] h-1/4 rounded-xl border-2 border-white/80"
-          />
-        )}
-        {torchAvailable && (
-          <IconButton
-            variant="ghost"
-            className="absolute top-2 right-2 size-11 text-white hover:bg-white/20"
-            aria-pressed={torchOn}
-            label={t("flashlight")}
-            onClick={() => void toggleTorch()}
-          >
-            <Flashlight className="size-5" aria-hidden="true" />
-          </IconButton>
-        )}
-      </div>
-      {camera && error ? (
-        <Notice
-          tone="warning"
-          role="alert"
-          title={t(
-            error === "PERMISSION"
-              ? "cameraPermission"
-              : error === "DECODER"
-                ? "cameraDecoderError"
-                : error === "TORCH"
-                  ? "flashlightError"
-                  : "cameraError",
-          )}
-        />
-      ) : camera ? (
-        <p role="status" aria-live="polite" className="min-h-5 text-sm">
-          {feedback ??
-            (state === "ACTIVE" ? t("pointCamera") : t("startingCamera"))}
-        </p>
-      ) : null}
-      {camera && retry && (
-        <Button
-          type="button"
-          variant="outline"
-          className="min-h-11 w-full md:min-h-11"
-          onClick={open}
-          disabled={scanDisabled}
-        >
-          {t("retryCamera")}
-        </Button>
-      )}
-      <Button
-        type="button"
-        variant="outline"
-        className="min-h-11 w-full md:min-h-11"
-        onClick={camera ? close : open}
-        disabled={scanDisabled}
-      >
-        {t(camera ? "stopCamera" : "startCamera")}
-      </Button>
       {children?.({
         onScan: () => (camera && !retry ? close() : open()),
         scanning: camera && !retry,

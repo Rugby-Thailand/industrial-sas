@@ -3,6 +3,7 @@
 import { Warehouse as WarehouseIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useId } from "react";
+import { flushSync } from "react-dom";
 
 import { useWorkspace } from "@/components/providers/WorkspaceProvider";
 import { SelectControl } from "@/components/ui/SelectControl";
@@ -14,12 +15,29 @@ import {
 } from "@/components/ui/sidebar";
 import { warehouseLabel } from "@/lib/workspace/workspace";
 
+const CONTEXT_SLOT = "workspace-context";
+
 /**
- * The selected warehouse, in the sidebar rather than the page header.
- * `switchable` pages (the top-level storage and finished-goods pages) offer
- * the warehouse selector; task and detail pages show the selection read-only,
- * as before. A member without storage access sees nothing on read-only pages.
- * The collapsed rail shows one warehouse icon that opens the sidebar.
+ * Moves focus from the rail button, which unmounts as the sidebar expands, to
+ * the warehouse selector it revealed (or the read-only warehouse).
+ */
+function focusExpandedWarehouse() {
+  const context = document.querySelector<HTMLElement>(
+    `[data-slot="${CONTEXT_SLOT}"]`,
+  );
+  (
+    context?.querySelector<HTMLElement>('[data-slot="select-trigger"]') ??
+    context
+  )?.focus();
+}
+
+/**
+ * The selected warehouse, as the second line of the sidebar's compact
+ * identity. `switchable` pages (the top-level storage and finished-goods
+ * pages) offer the warehouse selector; task and detail pages show the
+ * selection read-only. A member without storage access sees nothing on
+ * read-only pages. The collapsed rail shows one warehouse icon that expands
+ * the sidebar and moves focus to the warehouse it reveals.
  */
 export function WorkspaceContextBar({
   switchable,
@@ -42,10 +60,13 @@ export function WorkspaceContextBar({
 
   if (!switchable && !selected) return null;
 
+  const selectedLabel = selected ? warehouseLabel(selected) : undefined;
+
   if (collapsed) {
-    const label = selected
-      ? `${t("warehouse")}: ${selected.code} · ${selected.name}`
-      : t("warehouse");
+    const label =
+      selectedLabel === undefined
+        ? t("warehouse")
+        : `${t("warehouse")}: ${selectedLabel}`;
     return (
       <SidebarMenu className="pt-2">
         <SidebarMenuItem>
@@ -53,7 +74,10 @@ export function WorkspaceContextBar({
             type="button"
             tooltip={label}
             aria-label={label}
-            onClick={() => setOpen(true)}
+            onClick={() => {
+              flushSync(() => setOpen(true));
+              focusExpandedWarehouse();
+            }}
             className="min-h-touch justify-center text-sidebar-foreground group-data-[collapsible=icon]:size-12!"
             data-testid="sidebar-warehouse-rail"
           >
@@ -67,8 +91,11 @@ export function WorkspaceContextBar({
   return (
     <section
       aria-labelledby={`${warehouseId}-heading`}
-      className="mt-2 min-w-0"
+      tabIndex={-1}
+      className="min-w-0 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+      data-slot={CONTEXT_SLOT}
       data-testid="sidebar-warehouse"
+      {...(selectedLabel === undefined ? {} : { title: selectedLabel })}
     >
       <h2 id={`${warehouseId}-heading`} className="sr-only">
         {t("warehouse")}
@@ -88,15 +115,19 @@ export function WorkspaceContextBar({
           <label htmlFor={warehouseId} className="sr-only">
             {t("warehouse")}
           </label>
+          {/*
+           * No leading icon: beside the app mark and sidebar toggle, the
+           * narrow identity column needs its width for the warehouse label.
+           * The section title shows a truncated selection in full.
+           */}
           <SelectControl
             id={warehouseId}
             value={workspace.selectedWarehouseId ?? ""}
             onValueChange={(warehouse) => workspace.selectWarehouse(warehouse)}
             placeholder={t("selectWarehouse")}
             emptyLabel={t("noWarehouses")}
-            leadingIcon={<WarehouseIcon className="size-4" />}
             size="compact"
-            className="w-full [&_[data-slot=select-value]]:block [&_[data-slot=select-value]]:truncate"
+            className="w-full px-2 [&_[data-slot=select-value]]:block [&_[data-slot=select-value]]:truncate"
             testId="warehouse-select"
             options={workspace.warehouses.map((warehouse) => ({
               value: warehouse.id,
@@ -105,22 +136,9 @@ export function WorkspaceContextBar({
           />
         </>
       ) : selected ? (
-        <p
-          className="flex min-w-0 items-center gap-2 px-3 py-2 text-sm"
-          title={`${selected.code} · ${selected.name}`}
-        >
-          <WarehouseIcon
-            aria-hidden="true"
-            className="size-4 shrink-0 text-muted"
-          />
-          <span className="min-w-0">
-            <span className="block truncate font-semibold text-text">
-              {selected.code}
-            </span>
-            <span className="block truncate text-xs text-muted">
-              {selected.name}
-            </span>
-          </span>
+        <p className="truncate text-sm text-muted">
+          <span className="block truncate">{selected.code}</span>
+          <span className="sr-only">{selected.name}</span>
         </p>
       ) : null}
     </section>

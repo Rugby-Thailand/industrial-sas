@@ -86,11 +86,13 @@ describe("WorkspaceContextBar in the sidebar", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows the selected code and name read-only elsewhere", () => {
+  it("shows the selected code read-only elsewhere, naming the warehouse for assistive technology", () => {
     render({ switchable: false });
     expect(screen.queryByTestId("warehouse-select")).toBeNull();
     expect(screen.getByText("TG-OPT")).toBeVisible();
-    expect(screen.getByText("Top Gold Optimized Warehouse")).toBeVisible();
+    expect(screen.getByText("Top Gold Optimized Warehouse")).toHaveClass(
+      "sr-only",
+    );
   });
 
   it("shows nothing read-only without a selection or storage access", () => {
@@ -115,5 +117,46 @@ describe("WorkspaceContextBar in the sidebar", () => {
     expect(screen.getByTestId("sidebar-state")).toHaveTextContent("collapsed");
     fireEvent.click(rail);
     expect(screen.getByTestId("sidebar-state")).toHaveTextContent("expanded");
+  });
+
+  it("shows the full selection as a title on the compact selector", () => {
+    render({ switchable: true });
+    expect(screen.getByTestId("sidebar-warehouse")).toHaveAttribute(
+      "title",
+      "TG-OPT · Top Gold Optimized Warehouse",
+    );
+  });
+});
+
+/** Mirrors the shell: the rail when collapsed, the compact identity otherwise. */
+function ResponsiveBar({ switchable }: { readonly switchable: boolean }) {
+  const collapsed = useSidebar().state === "collapsed";
+  return <WorkspaceContextBar switchable={switchable} collapsed={collapsed} />;
+}
+
+describe("WorkspaceContextBar rail expansion", () => {
+  const render = (switchable: boolean) =>
+    renderWithIntl(
+      <TooltipProvider>
+        <SidebarProvider defaultOpen={false}>
+          <ResponsiveBar switchable={switchable} />
+        </SidebarProvider>
+      </TooltipProvider>,
+      { locale: "en" },
+    );
+
+  it("moves focus from the unmounting rail button to the warehouse selector", () => {
+    render(true);
+    const rail = screen.getByTestId("sidebar-warehouse-rail");
+    rail.focus();
+    fireEvent.click(rail);
+    expect(rail).not.toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Warehouse" })).toHaveFocus();
+  });
+
+  it("focuses the read-only warehouse when it cannot be switched", () => {
+    render(false);
+    fireEvent.click(screen.getByTestId("sidebar-warehouse-rail"));
+    expect(screen.getByRole("region", { name: "Warehouse" })).toHaveFocus();
   });
 });
