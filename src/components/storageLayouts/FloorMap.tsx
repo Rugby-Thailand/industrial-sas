@@ -350,12 +350,11 @@ export function FloorMap(props: FloorMapProps) {
     <>
       {!selected && selectedArea ? (
         <div data-selected-area="true">
-          <div className="flex items-start justify-between gap-2">
-            <h3 className="min-w-0 text-lg font-semibold break-words">
-              {selectedArea.label}
-            </h3>
-            {action(t("mapClearSelection"), <X />, clearSelection)}
-          </div>
+          {/* The aside or sheet that hosts these details owns their only
+              close action; selection stays until cleared on the map. */}
+          <h3 className="min-w-0 text-lg font-semibold break-words">
+            {selectedArea.label}
+          </h3>
           <p className="mt-3 flex items-center gap-2 text-sm">
             <span
               aria-hidden="true"
@@ -374,18 +373,13 @@ export function FloorMap(props: FloorMapProps) {
         </div>
       ) : props.locationInspector ? null : (
         <>
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <h3 className="text-lg font-semibold break-words">
-                {selected.label}
-              </h3>
-              <p className="mt-1 font-mono text-[13px] break-all text-muted">
-                {selected.code}
-              </p>
-            </div>
-            {action(t("mapClearSelection"), <X />, () => {
-              clearSelection();
-            })}
+          <div className="min-w-0">
+            <h3 className="text-lg font-semibold break-words">
+              {selected.label}
+            </h3>
+            <p className="mt-1 font-mono text-[13px] break-all text-muted">
+              {selected.code}
+            </p>
           </div>
           <p className="mt-3 text-sm">
             {m(selected.widthMm)} × {m(selected.depthMm)} ×{" "}
@@ -866,9 +860,20 @@ export function FloorMap(props: FloorMapProps) {
                 workspaceView === "list" &&
                 selected && (
                   <div className={styles.inlineDetails}>
-                    <h2 className="mb-2 text-xs font-semibold text-muted">
-                      {t("locationDetails")}
-                    </h2>
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <h2 className="text-xs font-semibold text-muted">
+                        {t("locationDetails")}
+                      </h2>
+                      {/* The inline drawer has no aside or sheet close, so it
+                          owns Clear selection for hosted and built-in details. */}
+                      <IconButton
+                        label={t("mapClearSelection")}
+                        variant="ghost"
+                        onClick={clearSelection}
+                      >
+                        <X />
+                      </IconButton>
+                    </div>
                     {!props.locationInspector && inspectorDetails}
                     <div ref={setInlineTarget} />
                   </div>

@@ -1,4 +1,4 @@
-import { ChevronRight, type LucideIcon } from "lucide-react";
+import { ChevronRight, LoaderCircle, type LucideIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useId, useState } from "react";
 
@@ -81,8 +81,23 @@ export function SidebarNavigation({
     >
       <SidebarContent className={cn("gap-6 px-4 py-4", collapsed && "px-2")}>
         {navigationLoading ? (
-          <p role="status" className="px-3 py-4 text-sm text-muted">
-            {t("loadingNavigation")}
+          <p
+            role="status"
+            className={
+              collapsed
+                ? "flex justify-center px-2 py-4 text-muted"
+                : "px-3 py-4 text-sm text-muted"
+            }
+          >
+            {collapsed ? (
+              <LoaderCircle
+                aria-hidden="true"
+                className="size-4 animate-spin motion-reduce:animate-none"
+              />
+            ) : null}
+            <span className={collapsed ? "sr-only" : undefined}>
+              {t("loadingNavigation")}
+            </span>
           </p>
         ) : null}
         {sections.map((section) => {

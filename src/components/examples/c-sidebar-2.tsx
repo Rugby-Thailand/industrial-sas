@@ -18,6 +18,7 @@ import {
   NavigationContent,
   NavigationProgressProvider,
 } from "@/components/system/NavigationProgress";
+import { SkipToContentLink } from "@/components/shell/SkipToContentLink";
 import { AccountButton } from "@/components/shell/AccountButton";
 import { HrLandingRedirect } from "@/components/shell/HrLandingRedirect";
 import { LocaleSwitcher } from "@/components/shell/LocaleSwitcher";
@@ -72,12 +73,9 @@ export function Pattern({ children }: { readonly children: ReactNode }) {
                 } as CSSProperties
               }
             >
-              <a
-                href={`#${MAIN_ID}`}
-                className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:m-2 focus:rounded-md focus:bg-primary focus:px-4 focus:py-3 focus:text-primary-foreground"
-              >
+              <SkipToContentLink targetId={MAIN_ID}>
                 {t("skipToContent")}
-              </a>
+              </SkipToContentLink>
               <HrLandingRedirect />
               <AppSidebar
                 switchableWarehouse={showWorkspaceBar}

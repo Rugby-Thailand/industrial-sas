@@ -77,9 +77,13 @@ async function main() {
     await page
       .getByRole("button", { name: "PD-L3-11 · Location details", exact: true })
       .click();
-    await page
-      .getByRole("button", { name: "Clear selection", exact: true })
-      .click();
+    // Built-in details have no inner Clear selection; a canvas Escape clears.
+    await page.locator('[data-map-zone-id="PD-L3-11"]').focus();
+    await page.keyboard.press("Escape");
+    await expect(page.locator('[data-map-zone-id="PD-L3-11"]')).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
     await page.getByRole("button", { name: "Fit floor to view" }).click();
     await page.getByRole("button", { name: "Split view", exact: true }).click();
     await pause(page);

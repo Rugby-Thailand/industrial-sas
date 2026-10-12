@@ -11,18 +11,17 @@ export function updateBrowserQuery(
 ) {
   const url = new URL(window.location.href);
   change(url.searchParams);
+  const changed = url.href !== window.location.href;
   const state = { ...window.history.state, ...options.metadata };
   const index = appHistoryIndex();
-  if (options.mode === "push" && index !== undefined)
+  if (options.mode === "push" && changed && index !== undefined)
     state[APP_HISTORY_KEY] = index + 1;
   // Let Next's patched API synchronize URL changes rather than treating them as internal.
   delete state.__NA;
   delete state._N;
-  window.history[options.mode === "push" ? "pushState" : "replaceState"](
-    state,
-    "",
-    `${url.pathname}${url.search}${url.hash}`,
-  );
+  window.history[
+    options.mode === "push" && changed ? "pushState" : "replaceState"
+  ](state, "", `${url.pathname}${url.search}${url.hash}`);
   if (options.event) window.dispatchEvent(new Event(options.event));
   window.dispatchEvent(new Event("app-query-state"));
 }
