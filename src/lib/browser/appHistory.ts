@@ -49,6 +49,20 @@ export function subscribeHistoryWrites(listener: () => void): () => void {
   };
 }
 
+/**
+ * Observe every change of the current entry: tracked writes and browser
+ * traversals (`popstate`). For `useSyncExternalStore` readers of location or
+ * depth; each reader keeps its own snapshot.
+ */
+export function subscribeHistoryChanges(listener: () => void): () => void {
+  const release = subscribeHistoryWrites(listener);
+  window.addEventListener("popstate", listener);
+  return () => {
+    release();
+    window.removeEventListener("popstate", listener);
+  };
+}
+
 function notifyWrite() {
   for (const listener of [...writeListeners]) listener();
 }

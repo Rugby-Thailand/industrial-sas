@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Notice } from "@/components/ui/Notice";
 import { StatusBadge, type BadgeTone } from "@/components/ui/StatusBadge";
 import { LOCALES } from "@/i18n/routing";
-import { subscribeHistoryWrites } from "@/lib/browser/appHistory";
+import { subscribeHistoryChanges } from "@/lib/browser/appHistory";
 import { visibleDesktopNavigation } from "@/lib/navigation";
 
 import { formatDateTime, formatTime, splitMinutes } from "./format";
@@ -118,7 +118,7 @@ export function useHrBack(): {
 } {
   const access = useHrAccess();
   const pathname = useSyncExternalStore(
-    subscribeLocation,
+    subscribeHistoryChanges,
     currentPath,
     serverPath,
   );
@@ -137,14 +137,6 @@ export function useHrBack(): {
   return { backFallbackHref: parent ?? hrefs[0] ?? null, backPending: false };
 }
 
-function subscribeLocation(listener: () => void) {
-  const release = subscribeHistoryWrites(listener);
-  window.addEventListener("popstate", listener);
-  return () => {
-    release();
-    window.removeEventListener("popstate", listener);
-  };
-}
 /** The locale-free path; read from the location so no router context is needed. */
 function currentPath(): string {
   const path = window.location.pathname;

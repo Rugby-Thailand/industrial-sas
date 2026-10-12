@@ -71,8 +71,8 @@ const guarded = (entry: DraftRegistration) => entry.dirty || entry.pending;
  * The shell's single owner of unsaved work. Every editor (storage
  * workspace, HR forms, job scan) registers an entry; this provider owns the
  * one same-URL history buffer, one set of browser listeners (link clicks,
- * Back/Forward, unload) and one prompt, and is the target of
- * `guardedNavigate`.
+ * Back/Forward, and unload while work is guarded) and one prompt, and is the
+ * target of `guardedNavigate`.
  *
  * Entries live in a ref (the synchronous source of truth) mirrored to state
  * only to render the prompt, so a completion that settles and navigates in
@@ -262,6 +262,8 @@ function createGuardMachine(deps: MachineDeps) {
   let afterRemove: Transition | undefined;
   let restoredLocation: { url: string; state: unknown } | null = null;
   let connected = false;
+  /** `beforeunload` is attached only while connected with guarded work. */
+  let unloadAttached = false;
   /**
    * A same-URL guard entry nobody owns: left by a previous document (a clean
    * reload dropped its unsaved state) or by a finished buffer. It is never
@@ -285,12 +287,29 @@ function createGuardMachine(deps: MachineDeps) {
         ? { marker, href: window.location.href, index }
         : null;
   }
-  // Our capture listener runs before bubble listeners at the window target,
-  // so only the owner's own forward()/back() traversals need this signal.
+  // Signals owner-controlled restoration/removal to committed URL readers.
+  // Capture alone does not guarantee precedence over an earlier Window
+  // listener in Chromium; it cannot guarantee isolation of every traversal.
   const traversing = () => restoring || removing;
   const refreshQueries = () =>
     window.dispatchEvent(new Event(browserQueryEvent));
-  const publish = () => deps.onSummary(summarize(entries));
+  /**
+   * Attach unload protection only while it can matter: a clean document
+   * keeps no `beforeunload` listener (it excludes pages from Firefox's
+   * Back/Forward cache). Runs synchronously with every registration change
+   * and with connect/disconnect.
+   */
+  function syncUnloadListener() {
+    const wanted = connected && active();
+    if (wanted === unloadAttached) return;
+    unloadAttached = wanted;
+    if (wanted) window.addEventListener("beforeunload", onBeforeUnload);
+    else window.removeEventListener("beforeunload", onBeforeUnload);
+  }
+  const publish = () => {
+    deps.onSummary(summarize(entries));
+    syncUnloadListener();
+  };
 
   function withOwnWrite(write: () => void) {
     ownWrite = true;
@@ -569,14 +588,33 @@ function createGuardMachine(deps: MachineDeps) {
   }
 
   /**
+   * A tracked write either replaced the unowned guard entry in place (e.g. a
+   * Map/List query replacement keeps its marker and depth) or left it. Keep
+   * the orphan, with its new URL, only while the current entry still carries
+   * the same marker at the same committed depth on the same route.
+   */
+  function reconcileOrphan() {
+    const left = orphan;
+    if (left === null) return;
+    const marker: unknown = window.history.state?.[GUARD_HISTORY_KEY];
+    orphan =
+      bufferId === null &&
+      marker === left.marker &&
+      !abandonedMarkers.has(left.marker) &&
+      appHistoryIndex() === left.index &&
+      samePage(window.location.href, left.href)
+        ? { ...left, href: window.location.href }
+        : null;
+  }
+
+  /**
    * Another write moved history while the owner was traversing its buffer.
    * The queued traversal is no longer ours to recognise, so drop the stale
    * state rather than let it consume a later, real Back.
    */
   function onHistoryWrite() {
     if (ownWrite) return;
-    // A real navigation left any unowned guard entry behind.
-    orphan = null;
+    reconcileOrphan();
     if (removing || restoring) {
       restoring = false;
       restoreCorrections = 0;
@@ -648,7 +686,6 @@ function createGuardMachine(deps: MachineDeps) {
     const unsubscribe = subscribeHistoryWrites(onHistoryWrite);
     window.addEventListener("popstate", onPopState, true);
     document.addEventListener("click", onClick, true);
-    window.addEventListener("beforeunload", onBeforeUnload);
     // Reconcile entries registered while detached (child effects run first).
     // A surviving buffer with nothing to guard is never traversed on mount;
     // the first Back from it skips its duplicate base (skipOrphanBase).
@@ -665,7 +702,7 @@ function createGuardMachine(deps: MachineDeps) {
       unsubscribe();
       window.removeEventListener("popstate", onPopState, true);
       document.removeEventListener("click", onClick, true);
-      window.removeEventListener("beforeunload", onBeforeUnload);
+      syncUnloadListener();
     };
   }
 
