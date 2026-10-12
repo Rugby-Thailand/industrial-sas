@@ -219,9 +219,6 @@ function UsageReport({
         onFilters={setFilters}
         options={data ?? options}
         featureLabel={label}
-        canExport={data !== null && estimate !== undefined}
-        exporting={exporting}
-        onExport={() => void exportCsv()}
       />
       {outcome === undefined ? (
         <div aria-busy="true" className="space-y-4">
@@ -281,7 +278,17 @@ function UsageReport({
               </p>
             ) : null}
           </div>
-          <UsageBreakdown report={data} featureLabel={label} format={format} />
+          <UsageBreakdown
+            report={data}
+            featureLabel={label}
+            format={format}
+            csvExport={{
+              canExport: estimate !== undefined,
+              exporting,
+              filtered: activeFilterCount(filters) > 0,
+              onExport: () => void exportCsv(),
+            }}
+          />
           <RecentActivity
             args={args}
             signature={JSON.stringify(data.byFeature)}

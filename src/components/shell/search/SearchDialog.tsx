@@ -15,6 +15,7 @@ import { useHrAccess } from "@/components/providers/HrAccessProvider";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogHeader,
@@ -75,7 +76,6 @@ export function SearchDialog({
   readonly onModeChange: (mode: SearchMode) => void;
   readonly onNavigate: (target: DestinationTarget, trail: string) => boolean;
 }) {
-  const t = useTranslations("Search");
   // An accepted destination takes focus itself (a deep-link section), so
   // this close must not hand focus back to the opener after it. Escape, the
   // close button and a refused target leave the ordinary return in place.
@@ -89,7 +89,7 @@ export function SearchDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         size="lg"
-        closeLabel={t("close")}
+        showCloseButton={false}
         className="top-0 left-0 h-dvh max-h-dvh w-full max-w-none translate-x-0 translate-y-0 content-start gap-3 rounded-none p-3 sm:top-[10vh] sm:left-1/2 sm:h-auto sm:max-h-[min(42rem,80dvh)] sm:w-[calc(100%-2rem)] sm:max-w-2xl sm:-translate-x-1/2 sm:rounded-xl sm:p-4"
         data-testid="global-search"
         // Focus the input here rather than with autoFocus: the dialog first
@@ -259,12 +259,28 @@ function SearchBody({
 
   return (
     <div className="grid min-h-0 gap-3">
-      <DialogHeader className="pr-12">
-        <DialogTitle>{t(mode === "AI" ? "aiTitle" : "title")}</DialogTitle>
-        <DialogDescription className="sr-only">
-          {t("description")}
-        </DialogDescription>
-      </DialogHeader>
+      {/* Search owns its close so it shares the title's row and centre line;
+          other dialogs keep the shared corner close. */}
+      <div className="flex min-h-touch items-center justify-between gap-2 dense:min-h-control">
+        <DialogHeader className="min-w-0 pr-0">
+          <DialogTitle>{t(mode === "AI" ? "aiTitle" : "title")}</DialogTitle>
+          <DialogDescription className="sr-only">
+            {t("description")}
+          </DialogDescription>
+        </DialogHeader>
+        <DialogClose asChild>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="-mr-1 shrink-0"
+            aria-label={t("close")}
+            data-testid="global-search-close"
+          >
+            <X aria-hidden="true" className="size-4" />
+          </Button>
+        </DialogClose>
+      </div>
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative min-w-0 flex-1">
           <Search
@@ -313,17 +329,6 @@ function SearchBody({
           </Button>
         ) : null}
       </div>
-
-      {/* Said before anything is sent: visible in both modes, next to the
-          button that sends it. */}
-      {aiAvailable ? (
-        <p
-          className="text-xs text-muted"
-          data-testid="global-search-ai-disclosure"
-        >
-          {t("aiPrivacy")}
-        </p>
-      ) : null}
 
       {aiAvailable && mode === "AI" ? (
         <AiPanel

@@ -49,8 +49,8 @@ import { useMutation, useQuery } from "convex/react";
 import {
   Building2,
   Map as MapIcon,
+  Pen,
   PencilLine,
-  Settings2,
   Plus,
   Ruler,
   Search,
@@ -126,6 +126,7 @@ import {
 } from "@/lib/storageLayouts/storagePlacementGeometry";
 
 import {
+  NewBuildingAction,
   StorageLocationCatalogue,
   type CatalogueFilters,
 } from "./StorageLocationCatalogue";
@@ -213,6 +214,7 @@ function CatalogueContent({
         status={status}
         onSearchChange={onSearchChange}
         onStatusChange={onStatusChange}
+        action={<NewBuildingAction />}
       />
       {outcome && (!outcome.ok || outcome.value.status === "reset") ? (
         <QueryFailure />
@@ -309,11 +311,14 @@ export function StorageCatalogueFilters({
   status,
   onSearchChange,
   onStatusChange,
+  action,
 }: {
   readonly search: string;
   readonly status: StorageLayoutStatus | "ALL";
   readonly onSearchChange: (value: string) => void;
   readonly onStatusChange: (value: StorageLayoutStatus | "ALL") => void;
+  /** A page action placed right of, and outside, the search field. */
+  readonly action?: ReactNode;
 }) {
   const t = useTranslations("StorageLayouts");
 
@@ -322,16 +327,19 @@ export function StorageCatalogueFilters({
       data-testid="storage-catalogue-filters"
       className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_14rem]"
     >
-      <label className="relative min-w-0">
-        <span className="sr-only">{t("search")}</span>
-        <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted" />
-        <Input
-          value={search}
-          onChange={(event) => onSearchChange(event.target.value)}
-          placeholder={t("search")}
-          className="pl-10"
-        />
-      </label>
+      <div className="flex min-w-0 gap-2">
+        <label className="relative min-w-0 flex-1">
+          <span className="sr-only">{t("search")}</span>
+          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted" />
+          <Input
+            value={search}
+            onChange={(event) => onSearchChange(event.target.value)}
+            placeholder={t("search")}
+            className="pl-10"
+          />
+        </label>
+        {action}
+      </div>
       <SelectControl
         value={status}
         onValueChange={(value) =>
@@ -581,12 +589,12 @@ export function BuildingSettingsDialog({
         <Button
           type="button"
           size="icon"
-          variant="outline"
+          variant="ghost"
           aria-label={t("openSettings")}
           title={t("openSettings")}
-          className="bg-surface/90 shadow-sm backdrop-blur-sm"
+          className="shrink-0 text-muted hover:text-text"
         >
-          <Settings2 className="size-5" />
+          <Pen aria-hidden="true" className="size-4" />
         </Button>
       </DialogTrigger>
       <DialogContent
@@ -1021,6 +1029,8 @@ export function BuildingModelWorkspace({
             <h1 className="min-w-0 text-xl leading-7 font-semibold break-words text-text">
               {building.name}
             </h1>
+            {/* The edit trigger sits outside the heading so its name stays the building name. */}
+            {!dirty && settingsAction}
             <span className="shrink-0 text-xs text-muted">{building.code}</span>
           </div>
           <p className="mt-1 text-xs text-muted">
@@ -1061,7 +1071,6 @@ export function BuildingModelWorkspace({
               <Building2 aria-hidden="true" className="size-4" />
             </Button>
           </div>
-          {!dirty && settingsAction}
         </div>
       </div>
       {view === "building" ? (

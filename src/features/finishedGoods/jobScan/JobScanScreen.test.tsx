@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   resize: vi.fn(),
   imageCodes: undefined as ((codes: string[]) => void) | undefined,
   decode: undefined as ((code: string) => void) | undefined,
+  pickerPresentation: [] as (string | undefined)[],
 }));
 vi.mock("../BarcodeCameraBox", () => ({
   BarcodeCameraBox: ({
@@ -54,27 +55,32 @@ vi.mock("@/lib/uploadthing", () => ({
 vi.mock("./LocationPicker", () => ({
   LocationPicker: ({
     onPick,
+    presentation,
   }: {
     onPick: (location: Record<string, unknown> & { text: string }) => void;
+    presentation?: string;
   }) => (
-    <>
-      <button onClick={() => onPick({ text: "DEMO-L01" })}>
-        Choose demo location
-      </button>
-      <button
-        onClick={() =>
-          onPick({
-            text: "F1-L1-1",
-            code: "F1-L1-1",
-            locationId: "location-f1",
-            buildingName: "Building A",
-            floorNumber: 1,
-          })
-        }
-      >
-        Choose mapped location
-      </button>
-    </>
+    mocks.pickerPresentation.push(presentation),
+    (
+      <>
+        <button onClick={() => onPick({ text: "DEMO-L01" })}>
+          Choose demo location
+        </button>
+        <button
+          onClick={() =>
+            onPick({
+              text: "F1-L1-1",
+              code: "F1-L1-1",
+              locationId: "location-f1",
+              buildingName: "Building A",
+              floorNumber: 1,
+            })
+          }
+        >
+          Choose mapped location
+        </button>
+      </>
+    )
   ),
 }));
 vi.mock("./PhotoCapture", () => ({
@@ -451,4 +457,11 @@ it("preserves the photo collection when adding a manual ticket", async () => {
       2,
     ),
   );
+});
+
+it("opts only its location step into the job-scan scanner presentation", () => {
+  mocks.pickerPresentation.length = 0;
+  renderWithIntl(<JobScanScreen />, { locale: "en" });
+  expect(screen.getByRole("heading", { name: "Where are we?" })).toBeVisible();
+  expect(mocks.pickerPresentation.at(-1)).toBe("jobScan");
 });

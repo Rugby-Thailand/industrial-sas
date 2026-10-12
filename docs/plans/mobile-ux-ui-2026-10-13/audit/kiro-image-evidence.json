@@ -1,0 +1,86 @@
+{
+  "reviewer": "Kiro CLI",
+  "model": "claude-opus-5.5",
+  "effort": "high",
+  "sessionId": "87c4058c-94d6-4d38-9abc-b6dc86265f97",
+  "engine": "v2",
+  "request": "audit/kiro-request.md",
+  "inspectedImageCount": 9,
+  "images": [
+    {
+      "id": "IMG-01",
+      "file": "images/1000035422.jpg",
+      "sha256": "f6d93c0d16d4704e74e7a603a058de83f58b6d891ad6a4080f0333d5e53d51f3",
+      "toolCallId": "toolu_bdrk_017sWMgYTtdKndNRUopJwULi",
+      "toolMode": "Image",
+      "toolStatus": "completed"
+    },
+    {
+      "id": "IMG-02",
+      "file": "images/1000035419.jpg",
+      "sha256": "953cc591e09d13fdab6e494cce2f069f4a293fbd5281bcada23554e35e1ffe64",
+      "toolCallId": "toolu_bdrk_017sWMgYTtdKndNRUopJwULi",
+      "toolMode": "Image",
+      "toolStatus": "completed"
+    },
+    {
+      "id": "IMG-03",
+      "file": "images/1000035416.jpg",
+      "sha256": "a35b18405d52a1445370fdc90f901ff8a388d188752c2bac82b3f40f1fe3c522",
+      "toolCallId": "toolu_bdrk_017sWMgYTtdKndNRUopJwULi",
+      "toolMode": "Image",
+      "toolStatus": "completed"
+    },
+    {
+      "id": "IMG-04",
+      "file": "images/1000035412.jpg",
+      "sha256": "a02ff23fc93d64cef8268bf836a92aa4904118bb07ef1f2ed424a7b943c7ffd6",
+      "toolCallId": "toolu_bdrk_01RhiYJfRwXjmPeZ3mDHwia6",
+      "toolMode": "Image",
+      "toolStatus": "completed"
+    },
+    {
+      "id": "IMG-05",
+      "file": "images/1000035410.jpg",
+      "sha256": "d7f2552c0d8d2f63a08b44656bcb9b56c3a5cd8e05e8343ef356b0e6ac988a74",
+      "toolCallId": "toolu_bdrk_01RhiYJfRwXjmPeZ3mDHwia6",
+      "toolMode": "Image",
+      "toolStatus": "completed"
+    },
+    {
+      "id": "IMG-06",
+      "file": "images/1000035407.jpg",
+      "sha256": "00475d0ed60e114f3f18b4d87ead6987bc3701c91f59efe41edba073fafdd62e",
+      "toolCallId": "toolu_bdrk_01RhiYJfRwXjmPeZ3mDHwia6",
+      "toolMode": "Image",
+      "toolStatus": "completed"
+    },
+    {
+      "id": "IMG-07",
+      "file": "images/1000035404.jpg",
+      "sha256": "147cd47c70f10b4b28c12914f702993a9e46d2cf2a6107ba8ba29fd32a071531",
+      "toolCallId": "toolu_bdrk_01U3w5ctT1jt5duwDn63JbuY",
+      "toolMode": "Image",
+      "toolStatus": "completed"
+    },
+    {
+      "id": "IMG-08",
+      "file": "images/Screenshot_20261012_222003_Chrome.jpg",
+      "sha256": "f40906948a5049956406c3456ac04eec5e8e14bce10406bf5148708a33a3e424",
+      "toolCallId": "toolu_bdrk_01U3w5ctT1jt5duwDn63JbuY",
+      "toolMode": "Image",
+      "toolStatus": "completed"
+    },
+    {
+      "id": "IMG-09",
+      "file": "images/Screenshot_20261012_221830_Chrome.jpg",
+      "sha256": "50483d09828a70b85416f7f1ebe3646484a9f4d01231f696d048722407e514c9",
+      "toolCallId": "toolu_bdrk_01U3w5ctT1jt5duwDn63JbuY",
+      "toolMode": "Image",
+      "toolStatus": "completed"
+    }
+  ],
+  "auditExitCode": 0,
+  "report": "kiro-audit.md",
+  "planRevision": "Revised after audit; user confirmed UX-17 rereads the same image with AI."
+}

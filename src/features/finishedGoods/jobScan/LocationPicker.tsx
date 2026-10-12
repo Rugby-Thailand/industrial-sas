@@ -32,6 +32,12 @@ interface LocationPickerProps {
   canReadImage?: boolean;
   /** List the catalogue before any search, for assignment screens that browse. */
   browseWithoutSearch?: boolean;
+  /**
+   * `jobScan` is the Scan job ticket location step, where finding the area
+   * is the whole screen: a larger barcode preview, an icon image picker and
+   * a retry centred on the AI photo. Other pickers keep the default.
+   */
+  presentation?: "default" | "jobScan";
 }
 
 export function LocationPicker(props: LocationPickerProps) {
@@ -49,6 +55,7 @@ function LocationPickerSession({
   allowUnmapped = true,
   canReadImage = false,
   browseWithoutSearch = false,
+  presentation = "default",
 }: LocationPickerProps) {
   const t = useTranslations("JobScan");
   const locale = useLocale();
@@ -252,11 +259,13 @@ function LocationPickerSession({
             }}
             onConfirm={(code) => void onScan(code, scannerVersion)}
             onClose={cancelScan}
+            retryOverPhoto={presentation === "jobScan"}
           />
         ) : (
           <BarcodeCameraBox
             mode="LOCATION"
             startOnMount
+            presentation={presentation === "jobScan" ? "expanded" : "default"}
             onCode={(code) => void onScan(code, scannerVersion)}
             onClose={cancelScan}
             {...(canReadImage

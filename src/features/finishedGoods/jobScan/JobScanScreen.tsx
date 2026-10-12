@@ -395,6 +395,7 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
           warehouseId={warehouseId}
           onPick={setLocation}
           canReadImage={canManage}
+          presentation="jobScan"
         />
       </PageContainer>
     );

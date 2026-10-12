@@ -39,6 +39,7 @@ export function CameraFrame({
   shutter,
   topStart,
   layout = "camera",
+  size = "default",
   hidden = false,
   children,
 }: {
@@ -53,6 +54,12 @@ export function CameraFrame({
   /** An optional hardware control, such as a supported flashlight. */
   topStart?: ReactNode;
   layout?: "camera" | "content";
+  /**
+   * A `large` live frame may use more of the viewport's height before it
+   * narrows, for screens where the camera is the main task. Either size
+   * keeps the feed's aspect ratio and shows the whole decoded frame.
+   */
+  size?: "default" | "large";
   hidden?: boolean;
   children: ReactNode;
 }) {
@@ -73,7 +80,13 @@ export function CameraFrame({
           ? {
               aspectRatio: aspect,
               // Full width, unless a tall feed would push the controls off screen.
-              maxWidth: `calc(min(60dvh, 28rem) * ${aspect})`,
+              maxWidth:
+                size === "large"
+                  ? // Leaves room for the page heading, the search field and
+                    // the control row below on a phone, with a floor for
+                    // landscape screens.
+                    `calc(max(15rem, min(100dvh - 10rem, 48rem)) * ${aspect})`
+                  : `calc(min(60dvh, 28rem) * ${aspect})`,
             }
           : undefined
       }

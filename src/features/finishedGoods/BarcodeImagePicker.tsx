@@ -5,6 +5,7 @@ import Image from "next/image";
 import { Crop, ImagePlus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
+import { IconButton } from "@/components/ui/IconButton";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Notice } from "@/components/ui/Notice";
 import { classifyTicketBarcode } from "./jobScan/ticketDraft";
@@ -24,12 +25,15 @@ export function BarcodeImagePicker({
   onSelect,
   onCodes,
   onReadWithAi,
+  compact = false,
 }: {
   target: BarcodeImageTarget;
   disabled: boolean;
   onSelect: () => void;
   onCodes: (codes: string[]) => void;
   onReadWithAi?: ((file?: File, crop?: BarcodeCrop) => void) | undefined;
+  /** Offer the picker as a left-aligned icon action instead of a full-width button. */
+  compact?: boolean;
 }) {
   const t = useTranslations("JobScan");
   const input = useRef<HTMLInputElement>(null),
@@ -149,16 +153,27 @@ export function BarcodeImagePicker({
           if (file) void select(file);
         }}
       />
-      <Button
-        type="button"
-        variant="outline"
-        className="min-h-12 w-full"
-        disabled={disabled || reading}
-        onClick={() => input.current?.click()}
-      >
-        <ImagePlus className="size-4" aria-hidden="true" />
-        {t("chooseBarcodeImage")}
-      </Button>
+      {compact ? (
+        <IconButton
+          label={t("chooseBarcodeImage")}
+          variant="ghost"
+          disabled={disabled || reading}
+          onClick={() => input.current?.click()}
+        >
+          <ImagePlus className="size-5" aria-hidden="true" />
+        </IconButton>
+      ) : (
+        <Button
+          type="button"
+          variant="outline"
+          className="min-h-12 w-full"
+          disabled={disabled || reading}
+          onClick={() => input.current?.click()}
+        >
+          <ImagePlus className="size-4" aria-hidden="true" />
+          {t("chooseBarcodeImage")}
+        </Button>
+      )}
       <p className="text-xs text-muted">{t("barcodeImagePrivacy")}</p>
       {image && (
         <div className="space-y-3">

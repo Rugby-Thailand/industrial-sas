@@ -17,7 +17,7 @@ import { guardedNavigate } from "@/lib/navigationGuard";
 
 const LANGUAGE_FLAGS: Record<AppLocale, string> = { th: "🇹🇭", en: "🇬🇧" };
 
-/** Flag-only language control; full language names remain in the menu. */
+/** Flag-only language control; the menu pairs each flag with its language name. */
 export function LocaleSwitcher() {
   const t = useTranslations("Locale");
   const locale = useLocale() as AppLocale;
@@ -66,8 +66,13 @@ export function LocaleSwitcher() {
               key={candidate}
               value={candidate}
               data-value={candidate}
+              // Typeahead and the option's name use the language alone.
+              textValue={t(candidate)}
             >
-              {t(candidate)}
+              <span aria-hidden="true" className="text-base leading-none">
+                {LANGUAGE_FLAGS[candidate]}
+              </span>
+              <span>{t(candidate)}</span>
             </SelectItem>
           ))}
         </SelectContent>

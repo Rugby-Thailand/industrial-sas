@@ -1,0 +1,373 @@
+{
+  "fixture": "production shell and AI usage components with in-memory backend responses",
+  "results": [
+    {
+      "name": "th-dark-mobile",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "export": {
+        "headingRect": {
+          "x": 14,
+          "y": 892.5,
+          "width": 163.203125,
+          "height": 28,
+          "top": 892.5,
+          "bottom": 920.5,
+          "centerY": 906.5
+        },
+        "exportRect": {
+          "x": 278.375,
+          "y": 892.5,
+          "width": 97.625,
+          "height": 48,
+          "top": 892.5,
+          "bottom": 940.5,
+          "centerY": 916.5
+        },
+        "fileName": "ai-usage-2026-10-01-2026-10-11.csv",
+        "csvBytes": 1205
+      },
+      "search": {
+        "centerDifference": 0,
+        "resultCount": 11
+      },
+      "languageFlags": true,
+      "sidebar": {
+        "active": {
+          "x": -12.766708374023438,
+          "y": 699,
+          "width": 259.5,
+          "height": 48,
+          "top": 699,
+          "bottom": 747,
+          "centerY": 723
+        },
+        "container": {
+          "x": -27.977508544921875,
+          "y": 148,
+          "width": 291.5,
+          "height": 615,
+          "top": 148,
+          "bottom": 763,
+          "centerY": 455.5
+        },
+        "scrollTop": 187
+      },
+      "pageErrors": []
+    },
+    {
+      "name": "th-dark-desktop",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "export": {
+        "headingRect": {
+          "x": 324,
+          "y": 638.25,
+          "width": 181.328125,
+          "height": 28,
+          "top": 638.25,
+          "bottom": 666.25,
+          "centerY": 652.25
+        },
+        "exportRect": {
+          "x": 1314.375,
+          "y": 638.25,
+          "width": 89.625,
+          "height": 36,
+          "top": 638.25,
+          "bottom": 674.25,
+          "centerY": 656.25
+        },
+        "fileName": "ai-usage-2026-10-01-2026-10-11.csv",
+        "csvBytes": 1205
+      },
+      "search": {
+        "centerDifference": 0,
+        "resultCount": 11
+      },
+      "languageFlags": true,
+      "sidebar": null,
+      "pageErrors": []
+    },
+    {
+      "name": "th-light-mobile",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "export": {
+        "headingRect": {
+          "x": 14,
+          "y": 892.5,
+          "width": 163.203125,
+          "height": 28,
+          "top": 892.5,
+          "bottom": 920.5,
+          "centerY": 906.5
+        },
+        "exportRect": {
+          "x": 278.375,
+          "y": 892.5,
+          "width": 97.625,
+          "height": 48,
+          "top": 892.5,
+          "bottom": 940.5,
+          "centerY": 916.5
+        },
+        "fileName": "ai-usage-2026-10-01-2026-10-11.csv",
+        "csvBytes": 1205
+      },
+      "search": {
+        "centerDifference": 0,
+        "resultCount": 11
+      },
+      "languageFlags": true,
+      "sidebar": {
+        "active": {
+          "x": -12.798446655273438,
+          "y": 699,
+          "width": 259.5,
+          "height": 48,
+          "top": 699,
+          "bottom": 747,
+          "centerY": 723
+        },
+        "container": {
+          "x": -28.798446655273438,
+          "y": 148,
+          "width": 291.5,
+          "height": 615,
+          "top": 148,
+          "bottom": 763,
+          "centerY": 455.5
+        },
+        "scrollTop": 187
+      },
+      "pageErrors": []
+    },
+    {
+      "name": "th-light-desktop",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "export": {
+        "headingRect": {
+          "x": 324,
+          "y": 638.25,
+          "width": 181.328125,
+          "height": 28,
+          "top": 638.25,
+          "bottom": 666.25,
+          "centerY": 652.25
+        },
+        "exportRect": {
+          "x": 1314.375,
+          "y": 638.25,
+          "width": 89.625,
+          "height": 36,
+          "top": 638.25,
+          "bottom": 674.25,
+          "centerY": 656.25
+        },
+        "fileName": "ai-usage-2026-10-01-2026-10-11.csv",
+        "csvBytes": 1205
+      },
+      "search": {
+        "centerDifference": 0,
+        "resultCount": 11
+      },
+      "languageFlags": true,
+      "sidebar": null,
+      "pageErrors": []
+    },
+    {
+      "name": "en-dark-mobile",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "export": {
+        "headingRect": {
+          "x": 14,
+          "y": 892.5,
+          "width": 154.109375,
+          "height": 28,
+          "top": 892.5,
+          "bottom": 920.5,
+          "centerY": 906.5
+        },
+        "exportRect": {
+          "x": 273.546875,
+          "y": 892.5,
+          "width": 102.453125,
+          "height": 48,
+          "top": 892.5,
+          "bottom": 940.5,
+          "centerY": 916.5
+        },
+        "fileName": "ai-usage-2026-10-01-2026-10-11.csv",
+        "csvBytes": 1205
+      },
+      "search": {
+        "centerDifference": 0,
+        "resultCount": 2
+      },
+      "languageFlags": true,
+      "sidebar": {
+        "active": {
+          "x": -12.740402221679688,
+          "y": 699,
+          "width": 259.5,
+          "height": 48,
+          "top": 699,
+          "bottom": 747,
+          "centerY": 723
+        },
+        "container": {
+          "x": -27.98920440673828,
+          "y": 148,
+          "width": 291.5,
+          "height": 615,
+          "top": 148,
+          "bottom": 763,
+          "centerY": 455.5
+        },
+        "scrollTop": 187
+      },
+      "pageErrors": []
+    },
+    {
+      "name": "en-dark-desktop",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "export": {
+        "headingRect": {
+          "x": 324,
+          "y": 657.75,
+          "width": 171.21875,
+          "height": 28,
+          "top": 657.75,
+          "bottom": 685.75,
+          "centerY": 671.75
+        },
+        "exportRect": {
+          "x": 1309.546875,
+          "y": 657.75,
+          "width": 94.453125,
+          "height": 36,
+          "top": 657.75,
+          "bottom": 693.75,
+          "centerY": 675.75
+        },
+        "fileName": "ai-usage-2026-10-01-2026-10-11.csv",
+        "csvBytes": 1205
+      },
+      "search": {
+        "centerDifference": 0,
+        "resultCount": 2
+      },
+      "languageFlags": true,
+      "sidebar": null,
+      "pageErrors": []
+    },
+    {
+      "name": "en-light-mobile",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "export": {
+        "headingRect": {
+          "x": 14,
+          "y": 892.5,
+          "width": 154.109375,
+          "height": 28,
+          "top": 892.5,
+          "bottom": 920.5,
+          "centerY": 906.5
+        },
+        "exportRect": {
+          "x": 273.546875,
+          "y": 892.5,
+          "width": 102.453125,
+          "height": 48,
+          "top": 892.5,
+          "bottom": 940.5,
+          "centerY": 916.5
+        },
+        "fileName": "ai-usage-2026-10-01-2026-10-11.csv",
+        "csvBytes": 1205
+      },
+      "search": {
+        "centerDifference": 0,
+        "resultCount": 2
+      },
+      "languageFlags": true,
+      "sidebar": {
+        "active": {
+          "x": -12.740402221679688,
+          "y": 699,
+          "width": 259.5,
+          "height": 48,
+          "top": 699,
+          "bottom": 747,
+          "centerY": 723
+        },
+        "container": {
+          "x": -28.740402221679688,
+          "y": 148,
+          "width": 291.5,
+          "height": 615,
+          "top": 148,
+          "bottom": 763,
+          "centerY": 455.5
+        },
+        "scrollTop": 187
+      },
+      "pageErrors": []
+    },
+    {
+      "name": "en-light-desktop",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "export": {
+        "headingRect": {
+          "x": 324,
+          "y": 657.75,
+          "width": 171.21875,
+          "height": 28,
+          "top": 657.75,
+          "bottom": 685.75,
+          "centerY": 671.75
+        },
+        "exportRect": {
+          "x": 1309.546875,
+          "y": 657.75,
+          "width": 94.453125,
+          "height": 36,
+          "top": 657.75,
+          "bottom": 693.75,
+          "centerY": 675.75
+        },
+        "fileName": "ai-usage-2026-10-01-2026-10-11.csv",
+        "csvBytes": 1205
+      },
+      "search": {
+        "centerDifference": 0,
+        "resultCount": 2
+      },
+      "languageFlags": true,
+      "sidebar": null,
+      "pageErrors": []
+    }
+  ]
+}
