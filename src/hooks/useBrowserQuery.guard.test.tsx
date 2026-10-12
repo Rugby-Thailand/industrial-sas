@@ -177,6 +177,84 @@ it("returns to the previous committed query after Back, Keep and Discard across 
   );
 });
 
+/** Readers only: a reload dropped the unsaved state, so nothing registers. */
+function CleanWorkspace() {
+  const query = useWorkspaceQuery();
+  const { view } = useFloorWorkspaceView();
+  return (
+    <>
+      <output aria-label="Query">{query}</output>
+      <output aria-label="Panel">{view}</output>
+    </>
+  );
+}
+
+it("takes the first Back to the previous committed query after a clean reload left a guard marker", async () => {
+  // A full reload keeps the old document's same-URL buffer entry but loses
+  // React-only drafts (e.g. scanned tickets), so the new owner stays clean.
+  const previousDocumentMarker = "6d61b80a-75d2-41bf-9be8-8f21c6bc58be";
+  history.pushState(
+    { ...history.state, [GUARD_HISTORY_KEY]: previousDocumentMarker },
+    "",
+    location.href,
+  );
+  const back = vi.spyOn(history, "back");
+  render(
+    <NavigationGuardProvider>
+      <CleanWorkspace />
+    </NavigationGuardProvider>,
+  );
+  // Mounting never traverses history.
+  expect(back).not.toHaveBeenCalled();
+  expect(location.search).toBe("?panel=list&floor=2");
+  act(() => history.back());
+  await waitFor(() => expect(location.search).toBe("?panel=map&floor=1"));
+  expect(screen.getByLabelText("Query")).toHaveTextContent(
+    "?panel=map&floor=1",
+  );
+  expect(screen.getByLabelText("Panel")).toHaveTextContent("map");
+  expect(isGuardTraversal()).toBe(false);
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  back.mockRestore();
+});
+
+it("skips a clean reload buffer at app depth zero on the first Back to an unmanaged entry", async () => {
+  // App depth excludes earlier documents; a cold app entry can be zero
+  // while the browser still has a genuine previous entry.
+  stopTracking?.();
+  history.replaceState(null, "", "/outside-app?return=before-app");
+  history.pushState(
+    { __NA: true, appNavigationIndex: 0 },
+    "",
+    "/planner?panel=list&floor=2#map",
+  );
+  stopTracking = trackAppHistory();
+  history.pushState(
+    {
+      ...history.state,
+      [GUARD_HISTORY_KEY]: "7e70708b-3397-48a4-bac0-1ca0632d5c82",
+    },
+    "",
+    location.href,
+  );
+  const back = vi.spyOn(history, "back");
+  render(
+    <NavigationGuardProvider>
+      <CleanWorkspace />
+    </NavigationGuardProvider>,
+  );
+  expect(history.state.appNavigationIndex).toBe(0);
+  expect(back).not.toHaveBeenCalled();
+  act(() => history.back());
+  await waitFor(() => expect(location.pathname).toBe("/outside-app"));
+  expect(location.search).toBe("?return=before-app");
+  expect(screen.getByLabelText("Query")).toHaveTextContent(
+    "?return=before-app",
+  );
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  back.mockRestore();
+});
+
 it("returns to the previous committed query after a guard marker survives a full document reload", async () => {
   // A reload retains this same-URL buffer in browser history, while the new
   // document's in-memory ownership set contains none of the old marker IDs.

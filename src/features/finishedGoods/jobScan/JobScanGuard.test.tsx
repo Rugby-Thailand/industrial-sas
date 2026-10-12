@@ -79,7 +79,7 @@ function start() {
   return view;
 }
 function addTicket() {
-  fireEvent.click(screen.getByRole("button", { name: "Type manually" }));
+  fireEvent.click(screen.getByRole("button", { name: "Manual" }));
   fireEvent.change(screen.getByRole("textbox", { name: /Job No\./ }), {
     target: { value: "FO69070073" },
   });
@@ -141,7 +141,7 @@ it("keeps captured tickets on Keep editing and on a browser Back", () => {
 
 it("discards tickets and revokes their photo previews before leaving", async () => {
   start();
-  fireEvent.click(screen.getByRole("button", { name: "Photos (AI)" }));
+  fireEvent.click(screen.getByRole("button", { name: "Photo AI" }));
   fireEvent.click(screen.getByRole("button", { name: "Submit demo photo" }));
   await waitFor(() =>
     expect(screen.getByText(/The photo could not be read/)).toBeVisible(),

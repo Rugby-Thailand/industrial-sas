@@ -1133,6 +1133,75 @@ describe("StorageZonesPanel", () => {
     ).toBeVisible();
   });
 
+  it("reports each stack write through one shared outcome: refusal keeps the editor, success names create or update", async () => {
+    const zone: StorageZoneRow = {
+      zoneId: "zone-a",
+      locationId: "location-a",
+      code: "BLDG-A-F04-Z01",
+      label: "QA Finished Goods Stack",
+      qrValue: "ISAS:LOCATION:1:location-a",
+      xMm: 3_500,
+      yMm: 1_100,
+      widthMm: 2_000,
+      depthMm: 2_000,
+      maxStackHeightMm: 3_000,
+      mode: "SIMPLE",
+      positions: [],
+      placements: [],
+    };
+    renderWithIntl(
+      <StorageZonesPanel
+        warehouseId="warehouse-a"
+        buildingId="building-a"
+        floorNumber={4}
+        floorWidthMm={10_000}
+        floorDepthMm={10_000}
+        floorHeightMm={3_000}
+        zones={[zone]}
+      />,
+      { locale: "en", workspace: false },
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Edit QA Finished Goods Stack" }),
+    );
+    mutation.mockResolvedValueOnce({
+      ok: true,
+      value: { written: false, error: { code: "VERSION_CONFLICT" } },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    await waitFor(() => expect(mutation).toHaveBeenCalledOnce());
+    expect(mutation.mock.calls[0]?.[0]).toMatchObject({ zoneId: "zone-a" });
+    // A refusal keeps the editor open with its values.
+    expect(
+      await screen.findByRole("dialog", { name: "Edit storage stack" }),
+    ).toBeVisible();
+    expect(screen.getByRole("textbox", { name: "Zone label" })).toHaveValue(
+      "QA Finished Goods Stack",
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    expect(
+      await screen.findByText(
+        "Storage stack updated. Its location code and QR label are unchanged.",
+      ),
+    ).toBeVisible();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Add storage stack" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Create storage stack" }),
+    );
+    expect(
+      await screen.findByText(
+        "Storage stack created. Its location code and QR label are ready for activation.",
+      ),
+    ).toBeVisible();
+    const created = mutation.mock.calls.at(-1)?.[0];
+    expect(created).toMatchObject({ buildingId: "building-a", floorNumber: 4 });
+    expect(created).not.toHaveProperty("zoneId");
+  });
+
   it("keeps active planner spots editable without inventory workflows", () => {
     const zone: StorageZoneRow = {
       zoneId: "zone-live",

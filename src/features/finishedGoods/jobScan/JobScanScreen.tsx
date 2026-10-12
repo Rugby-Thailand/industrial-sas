@@ -29,7 +29,6 @@ import {
   useCanManage,
   useDraftKey,
   useOperation,
-  useUnsavedWarning,
   ViewOnlyNotice,
   written,
 } from "../shared";
@@ -144,7 +143,6 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
       urls.clear();
     };
   }, []);
-  useUnsavedWarning(tickets.length > 0);
 
   const releasePreview = (ticket: TicketDraft) => {
     if (!ticket.previewUrl) return;

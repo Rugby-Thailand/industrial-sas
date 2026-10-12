@@ -334,75 +334,51 @@ export function StorageZonesPanel({
         maxStackHeightMm: millimetres(stackHeight),
         storageCondition: storageCondition === "ANY" ? "" : storageCondition,
       };
-      if (isEditing) {
-        const payload = {
-          ...draft,
-          zoneId: editingZone.zoneId,
-          ...(confirmingImpact ? { confirmOccupiedChange: true } : {}),
-        };
-        await operation.run(
-          () =>
-            updateZone({
-              ...payload,
-              requestId: operation.request(JSON.stringify(payload)),
-            }),
-          (outcome) => {
-            if (!outcome.ok) {
-              setMessage({
-                tone: "warning",
-                text: storageErrorMessage(t, outcome.denial.code),
-              });
-            } else if (!outcome.value.written) {
-              setMessage({
-                tone: "warning",
-                text: storageErrorMessage(t, outcome.value.error.code),
-              });
-            } else {
-              operation.clearRequests();
-              setLabel("");
-              setConfirmingImpact(false);
-              setCreateDialogOpen(false);
-              setEditingZone(undefined);
-              setMessage({
-                tone: "success",
-                text: t("storageZoneUpdated"),
+      // Each branch keeps its own payload; one current completion handles
+      // the shared create/update outcome.
+      const send =
+        editingZone !== undefined
+          ? () => {
+              const payload = {
+                ...draft,
+                zoneId: editingZone.zoneId,
+                ...(confirmingImpact ? { confirmOccupiedChange: true } : {}),
+              };
+              return updateZone({
+                ...payload,
+                requestId: operation.request(JSON.stringify(payload)),
               });
             }
-          },
-        );
-      } else {
-        const payload = { ...draft, buildingId, floorNumber };
-        await operation.run(
-          () =>
-            createZone({
-              ...payload,
-              requestId: operation.request(JSON.stringify(payload)),
-            }),
-          (outcome) => {
-            if (!outcome.ok) {
-              setMessage({
-                tone: "warning",
-                text: storageErrorMessage(t, outcome.denial.code),
+          : () => {
+              const payload = { ...draft, buildingId, floorNumber };
+              return createZone({
+                ...payload,
+                requestId: operation.request(JSON.stringify(payload)),
               });
-            } else if (!outcome.value.written) {
-              setMessage({
-                tone: "warning",
-                text: storageErrorMessage(t, outcome.value.error.code),
-              });
-            } else {
-              operation.clearRequests();
-              setLabel("");
-              setConfirmingImpact(false);
-              setCreateDialogOpen(false);
-              setEditingZone(undefined);
-              setMessage({
-                tone: "success",
-                text: t("storageZoneCreated"),
-              });
-            }
-          },
-        );
-      }
+            };
+      await operation.run(send, (outcome) => {
+        if (!outcome.ok) {
+          setMessage({
+            tone: "warning",
+            text: storageErrorMessage(t, outcome.denial.code),
+          });
+        } else if (!outcome.value.written) {
+          setMessage({
+            tone: "warning",
+            text: storageErrorMessage(t, outcome.value.error.code),
+          });
+        } else {
+          operation.clearRequests();
+          setLabel("");
+          setConfirmingImpact(false);
+          setCreateDialogOpen(false);
+          setEditingZone(undefined);
+          setMessage({
+            tone: "success",
+            text: t(isEditing ? "storageZoneUpdated" : "storageZoneCreated"),
+          });
+        }
+      });
     } finally {
       setPendingAction(undefined);
     }

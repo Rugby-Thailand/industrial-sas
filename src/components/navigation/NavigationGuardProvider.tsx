@@ -251,11 +251,29 @@ function createGuardMachine(deps: MachineDeps) {
   let afterRemove: Transition | undefined;
   let restoredLocation: { url: string; state: unknown } | null = null;
   let connected = false;
+  /**
+   * A same-URL guard entry nobody owns: left by a previous document (a clean
+   * reload dropped its unsaved state) or by a finished buffer. It is never
+   * traversed on mount; a Back from it skips its duplicate base entry.
+   */
+  let orphan: { marker: string; href: string; index: number } | null = null;
   let navigate: (href: URL) => void = () => undefined;
 
   const active = () => [...entries.values()].some(guarded);
   const onBuffer = () =>
     bufferId !== null && window.history.state?.[GUARD_HISTORY_KEY] === bufferId;
+  /** Remember the current entry if it is an unowned, inactive guard entry. */
+  function noteOrphan() {
+    const marker: unknown = window.history.state?.[GUARD_HISTORY_KEY];
+    const index = appHistoryIndex();
+    orphan =
+      bufferId === null &&
+      typeof marker === "string" &&
+      !abandonedMarkers.has(marker) &&
+      index !== undefined
+        ? { marker, href: window.location.href, index }
+        : null;
+  }
   // Our capture listener runs before bubble listeners at the window target,
   // so only the owner's own forward()/back() traversals need this signal.
   const traversing = () => restoring || removing;
@@ -278,6 +296,7 @@ function createGuardMachine(deps: MachineDeps) {
     // reload) already duplicates this page: reuse it rather than stacking a
     // second dead Back step.
     const existing: unknown = window.history.state?.[GUARD_HISTORY_KEY];
+    orphan = null;
     if (typeof existing === "string" && !abandonedMarkers.has(existing)) {
       bufferId = existing;
       bufferHref = window.location.href;
@@ -495,7 +514,10 @@ function createGuardMachine(deps: MachineDeps) {
       }
       return;
     }
-    if (bufferId === null || !active()) return;
+    if (bufferId === null || !active()) {
+      if (bufferId === null) skipOrphanBase(event);
+      return;
+    }
     // Remember where the user was going (a Back-menu entry may be several
     // pages away), then restore the buffer without unmounting the editor.
     const landed = appHistoryIndex();
@@ -515,12 +537,35 @@ function createGuardMachine(deps: MachineDeps) {
   }
 
   /**
+   * Back from an unowned guard entry lands on its unmarked base: the same
+   * page at the same committed depth. That step is invisible to the user, so
+   * continue it once to the previous committed page. The intermediate event
+   * is consumed; the continued Back reaches Next and query readers normally.
+   */
+  function skipOrphanBase(event: PopStateEvent) {
+    const left = orphan;
+    noteOrphan();
+    if (
+      left !== null &&
+      orphan === null &&
+      window.history.state?.[GUARD_HISTORY_KEY] !== left.marker &&
+      window.location.href === left.href &&
+      appHistoryIndex() === left.index
+    ) {
+      event.stopImmediatePropagation();
+      window.history.back();
+    }
+  }
+
+  /**
    * Another write moved history while the owner was traversing its buffer.
    * The queued traversal is no longer ours to recognise, so drop the stale
    * state rather than let it consume a later, real Back.
    */
   function onHistoryWrite() {
     if (ownWrite) return;
+    // A real navigation left any unowned guard entry behind.
+    orphan = null;
     if (removing || restoring) {
       restoring = false;
       restoreCorrections = 0;
@@ -594,10 +639,11 @@ function createGuardMachine(deps: MachineDeps) {
     document.addEventListener("click", onClick, true);
     window.addEventListener("beforeunload", onBeforeUnload);
     // Reconcile entries registered while detached (child effects run first).
-    // An adopted buffer with nothing to guard is left in place rather than
-    // traversed during mount; the next clean report or Back resolves it.
+    // A surviving buffer with nothing to guard is never traversed on mount;
+    // the first Back from it skips its duplicate base (skipOrphanBase).
     publish();
     if (active()) arm();
+    else noteOrphan();
     return () => {
       connected = false;
       // A traversal this owner queued can no longer be recognised: never let
