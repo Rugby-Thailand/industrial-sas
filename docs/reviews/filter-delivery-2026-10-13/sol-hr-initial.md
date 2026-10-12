@@ -54,3 +54,48 @@ Actual output:
 ```
 
 The probe confirms stable in-memory traversal beyond the old 99/200-row caps and the helper's revalidation branches. It does **not** prove real Convex grant enforcement, native cursor integrity, split/recommended/reactive-page behavior, site51 reachability, frontend restoration or production latency. Those require the final endpoint integration tests and full diff review after Kiro finishes. No passing source audit should substitute for those tests.
+
+## Follow-up: shared HR hook/pager and connected lists
+
+Read-only review of new `src/features/hr/HrPagedList.tsx` plus its connected employee/review screens while Kiro continued implementation. Line numbers describe the inspected worker version and may move. Unconnected record selectors/screens and unfinished compile work are not findings. The site51 backend reachability finding above remains mandatory.
+
+### P1 — Terminal cursor reset or stalled scan leaves no recovery path
+
+`useHrPagedQuery` recognizes only `status: "ready"` as a current result (`HrPagedList.tsx:132–139`). A successful envelope whose page status is `reset` therefore becomes either the prior retained page with `updating: true`, or indefinite loading with no rows. `useCatalogueSync.ts:58–68` makes one automatic reset attempt for a nonempty page/scan cursor and then stops; a fresh first-page reset has neither cursor and does not attempt recovery at all. No terminal failure/reset state or retry exists in the new view union. `HrPager` disables its size/navigation/First controls whenever current is null (`HrPagedList.tsx:209,219,227`), and only exposes First for truncated history. The user cannot recover from the terminal state without unrelated navigation/filter changes.
+
+Reproduction sequence for a hook regression test: emit a ready page with a next cursor; choose Next; emit `reset`; confirm one automatic return to first page; emit another `reset` on that fresh query. It continues rendering retained rows as updating or loading, and every pager control is disabled. Also test a first-page `reset` and a `scanning` response whose missing/identical continuation cannot advance: `useCatalogueSync:54–56` advances the same value, and `useScanContinuation` preserves unchanged state, so no new request or recoverable failure follows. This source-level state sequence was inspected, not executed as a React hook test in this initial pass.
+
+Required fix: preserve one automatic cursor reset, then expose explicit recoverable terminal reset/stalled-search feedback and an enabled retry/return-to-first action. A retry must reset both logical and scan state, and must not silently preserve actionable stale records. Include tests for denied/refused/query failure separately; those are not equivalent to cursor reset or loading.
+
+### P1 — Retained rows remain actionable while the next page is unresolved
+
+`HrPagedState` applies only `aria-busy` and opacity to retained rows (`HrPagedList.tsx:280–285`). Its children receive no disabled/updating argument, and its wrapper is not inert. `EmployeesScreen.tsx:319,328` disables Edit only when an editor is already open; `ReviewScreen.tsx:299–308,405–407` retains enabled queue selection buttons with no updating condition. After Next, the pager announces the new page while the old page's enabled controls remain displayed. The same window can occur while a reactive scope/eligibility change is being revalidated. Server detail/save authorization still protects writes; this is stale interaction/plan correctness, not a claimed server permission bypass.
+
+Required fix: expose updating state to row renderers or disable/inert only the retained record-action subtree while updating, including keyboard interaction. Filters and explicit recovery controls should stay usable. Confirm employee Edit, queue selection, and any later member/holiday/record-selector actions cannot act on retained rows during unresolved refresh; re-enable only after the current result is ready.
+
+### Source checks that currently satisfy the reviewed contract
+
+- `fingerprint` includes HR organization/actor/linked-employee identity, surface, all criteria and effective 20/50 size. Retained **prior** rows are used only for the same fingerprint (`HrPagedList.tsx:96–100,147–148`); changing criteria or identity discards that retained page. Scan identity additionally includes the logical cursor. This is a positive source finding, not a test of Convex auth/cache transitions.
+- HR size controls use only `[20,50]`; the hook sends only those sizes; backend input validation refuses unsupported sizes. The generic shared 100 option is not exposed. Native page expansion and changed identity remain final integration test cases.
+- `useHrListCriteria` preserves owned URL query fields, unknown selection/editor parameters and typing history grouping. Employee editor URLs and review selections carry list search/site/status or date/tab criteria. `useCursorPagination` supplies scoped history/popstate restoration. These connections look consistent in source; detail→Back, refresh, Back/Forward and simultaneous independently paged sections still need actual hook/screen regression tests.
+- Denied envelopes and explicit backend refusals take precedence over retained rows. The terminal reset case above is different because its successful page envelope is neither denied nor refused.
+- A single complete first page hides `HrPager` entirely. Thus page sizes are valid but unavailable in that state; whether the list should always retain size controls should follow the plan's consistent-pager requirement in final UI review.
+
+### Read-only rendering evidence
+
+Executed from the HR worker with `/Users/macbook/.bun/bin/bun --no-env-file -`, importing React, `react-dom/server`, `NextIntlClientProvider`, `HrPagedState` and `HrPager`. Rendered `HrPagedState` with `kind:"ready", updating:true` and a child Edit button; rendered `HrPager` with page2/current-null loading, Previous available, and nontruncated history. Assertions inspected actual component output for `aria-busy`, `disabled`, `inert` and enabled pager controls. No worker file was written.
+
+Actual output:
+
+```json
+{
+  "retainedRowsBusy": true,
+  "retainedActionDisabled": false,
+  "retainedSubtreeInert": false,
+  "pagerButtons": 3,
+  "pagerEnabledButtons": 0,
+  "pagerHasRecoveryAction": false
+}
+```
+
+This verifies the shared rendering behavior and disabled recovery controls. It is server-rendered component output, not a browser/keyboard test, and it does not exercise the live hook, Convex network/auth transitions or unfinished selector connections. Final tests should drive the complete reset/refresh/identity/Back sequences rather than mirroring individual branches.
