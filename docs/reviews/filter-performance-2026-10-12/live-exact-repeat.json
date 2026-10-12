@@ -1,0 +1,63 @@
+{
+  "current": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location\nF1-L30-16\nอาคาร F1 + F2 · Floor 1 · F1-L30-16",
+  "elapsedMs": 30589,
+  "events": [
+    {
+      "at": 788410,
+      "input": "F1-L30-16",
+      "reason": "input",
+      "rows": 0,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location"
+    },
+    {
+      "at": 788968,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 1,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location\nNo matching location.\n\nChecking location…"
+    },
+    {
+      "at": 788969,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 0,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location"
+    },
+    {
+      "at": 789258,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 1,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location\nNo matching location.\n\nChecking location…"
+    },
+    {
+      "at": 801612,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 0,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location"
+    },
+    {
+      "at": 801911,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 1,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location\nNo matching location.\n\nChecking location…"
+    },
+    {
+      "at": 801912,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 0,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location"
+    },
+    {
+      "at": 802205,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 1,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location\nF1-L30-16\nอาคาร F1 + F2 · Floor 1 · F1-L30-16"
+    }
+  ],
+  "timeToResultMs": 13795
+}

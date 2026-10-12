@@ -1,0 +1,13 @@
+
+> storage-planner@0.0.0 test /Users/macbook/Development/industrial-sas-filter-implementation
+> vitest run
+
+
+ RUN  v4.1.11 /Users/macbook/Development/industrial-sas-filter-implementation
+
+
+ Test Files  300 passed (300)
+      Tests  3879 passed (3879)
+   Start at  00:42:40
+   Duration  57.07s (transform 22.83s, setup 41.78s, import 84.56s, tests 233.19s, environment 101.13s)
+

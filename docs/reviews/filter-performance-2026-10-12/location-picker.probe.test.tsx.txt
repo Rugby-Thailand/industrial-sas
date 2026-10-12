@@ -1,0 +1,135 @@
+/** Research-only desired-behavior probes; failures capture current UX defects. */
+import { act, fireEvent, screen } from "@testing-library/react";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { getFunctionName } from "convex/server";
+import { renderWithIntl } from "@tests/fixtures/intl-render";
+import { querySuccess } from "@tests/fixtures/finished-goods-ui";
+import { LocationPicker } from "@/features/finishedGoods/jobScan/LocationPicker";
+import { clearCursorPositions } from "@/hooks/useCursorPagination";
+
+vi.mock("@/i18n/navigation", () => ({
+  Link: (props: React.ComponentProps<"a">) => <a {...props} />,
+}));
+const mocks = vi.hoisted(() => ({
+  catalogue: undefined as unknown,
+  exact: undefined as unknown,
+  requests: [] as { name: string; args: unknown }[],
+}));
+vi.mock("convex/react", () => ({
+  useConvex: () => ({ query: vi.fn() }),
+  useQuery: (ref: Parameters<typeof getFunctionName>[0], args: unknown) => {
+    const name = getFunctionName(ref);
+    mocks.requests.push({ name, args });
+    if (args === "skip") return undefined;
+    return name.endsWith(":resolve") ? mocks.exact : mocks.catalogue;
+  },
+}));
+beforeEach(() => {
+  clearCursorPositions();
+  vi.useFakeTimers();
+  mocks.catalogue = undefined;
+  mocks.exact = undefined;
+  mocks.requests = [];
+});
+afterEach(() => vi.useRealTimers());
+function renderPicker() {
+  return renderWithIntl(
+    <LocationPicker warehouseId="warehouse-a" onPick={vi.fn()} />,
+    { locale: "en", preserveProviders: true },
+  );
+}
+function type(value: string) {
+  fireEvent.change(screen.getByRole("textbox", { name: "Search location" }), {
+    target: { value },
+  });
+}
+
+it("shows a loading status while the first blank location query is pending", () => {
+  renderPicker();
+  expect(screen.getByRole("status")).toHaveTextContent(/checking|loading/i);
+});
+
+it("shows a resolved exact location while catalogue scanning is pending", async () => {
+  mocks.catalogue = querySuccess({
+    items: [],
+    status: "scanning",
+    scanCursor: "continue",
+    isDone: false,
+  });
+  mocks.exact = querySuccess({
+    ok: true,
+    location: { zoneId: "zone-a", code: "F1-L30-16", name: "Shelf 16" },
+  });
+  renderPicker();
+  type("F1-L30-16");
+  await act(async () => vi.advanceTimersByTime(250));
+  expect(screen.getByRole("button", { name: /F1-L30-16/ })).toBeVisible();
+});
+
+it("does not claim a prefix is unregistered while matching catalogue results are pending", async () => {
+  mocks.catalogue = querySuccess({
+    items: [],
+    status: "scanning",
+    scanCursor: "continue",
+    isDone: false,
+  });
+  mocks.exact = querySuccess({
+    ok: false,
+    error: { code: "LOCATION_NOT_FOUND" },
+  });
+  renderPicker();
+  type("F1-L30");
+  await act(async () => vi.advanceTimersByTime(250));
+  expect(
+    screen.queryByText("“F1-L30” is not registered yet."),
+  ).not.toBeInTheDocument();
+});
+
+it("requests locations for a blank search and displays a ready first page", () => {
+  mocks.catalogue = querySuccess({
+    items: [{ zoneId: "zone-a", code: "F1-L30-16", name: "Shelf 16" }],
+    status: "ready",
+    isDone: true,
+    continueCursor: "",
+  });
+  renderPicker();
+  expect(mocks.requests).toContainEqual({
+    name: "finishedGoods/jobScanLocations:searchPage",
+    args: { warehouseId: "warehouse-a", text: "", pageSize: 20 },
+  });
+  expect(screen.getByRole("button", { name: /F1-L30-16/ })).toBeVisible();
+});
+
+it("keeps the nonempty final picker page and resets its cursor when search criteria change", async () => {
+  mocks.catalogue = querySuccess({
+    items: [{ locationId: "location-a", code: "A-01", name: "Shelf 1" }],
+    page: [{ _id: "location-a", location: { code: "A-01" } }],
+    status: "ready",
+    isDone: false,
+    continueCursor: "second-page",
+  });
+  renderPicker();
+  mocks.catalogue = querySuccess({
+    items: [{ locationId: "location-b", code: "F1-L30-16", name: "Shelf 16" }],
+    page: [{ _id: "location-b", location: { code: "F1-L30-16" } }],
+    status: "ready",
+    isDone: true,
+    continueCursor: "",
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Next page" }));
+  expect(screen.getByRole("button", { name: /F1-L30-16/ })).toBeVisible();
+  expect(screen.getByRole("button", { name: "Previous page" })).toBeEnabled();
+  const lastCatalogueRequest = () =>
+    mocks.requests.filter((call) => call.name.endsWith(":searchPage")).at(-1);
+  expect(lastCatalogueRequest()?.args).toMatchObject({ cursor: "second-page" });
+  type("F1-L30");
+  await act(async () => vi.advanceTimersByTime(250));
+  expect(lastCatalogueRequest()?.args).toEqual({
+    warehouseId: "warehouse-a",
+    text: "F1-L30",
+    pageSize: 20,
+  });
+  expect(
+    screen.queryByRole("button", { name: "Previous page" }),
+  ).not.toBeInTheDocument();
+});

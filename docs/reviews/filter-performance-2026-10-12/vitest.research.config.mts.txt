@@ -1,0 +1,31 @@
+import react from "@vitejs/plugin-react";
+import { defineConfig } from "vitest/config";
+
+export default defineConfig({
+  test: {
+    projects: [
+      {
+        plugins: [react()],
+        resolve: { tsconfigPaths: true },
+        test: {
+          name: "research-ui",
+          environment: "jsdom",
+          setupFiles: ["./vitest.setup.ts"],
+          include: [
+            "docs/reviews/filter-performance-2026-10-12/*.probe.test.tsx",
+          ],
+        },
+      },
+      {
+        resolve: { tsconfigPaths: true },
+        test: {
+          name: "research-backend",
+          environment: "node",
+          include: [
+            "docs/reviews/filter-performance-2026-10-12/*.probe.test.ts",
+          ],
+        },
+      },
+    ],
+  },
+});
