@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import {
   createContext,
   useCallback,
@@ -14,8 +14,7 @@ import {
 } from "react";
 
 import { RouteLoading } from "./RouteLoading";
-import { APP_HISTORY_KEY, appHistoryIndex } from "@/lib/browser/appHistory";
-import { updateHistoryMetadata } from "@/lib/browser/history";
+import { trackAppHistory } from "@/lib/browser/appHistory";
 
 const NavigationContext = createContext<{
   run: (action: () => void) => void;
@@ -33,19 +32,23 @@ export function NavigationProgressProvider({
   children: ReactNode;
 }) {
   const pathname = usePathname();
-  const search = useSearchParams()?.toString() ?? "";
-  const locationKey = `${pathname}?${search}`;
   const [transitionPending, startTransition] = useTransition();
   const [links, setLinks] = useState<ReadonlySet<string>>(() => new Set());
-  const [historyDestination, setHistoryDestination] = useState<string | null>(
-    null,
-  );
-  const historyPending =
-    historyDestination !== null && historyDestination !== pathname;
+  const [historyDestination, setHistoryDestination] = useState<{
+    from: string | null;
+    to: string;
+  } | null>(null);
   const committedPath = useRef(pathname);
-  const committedLocation = useRef(locationKey);
-  const index = useRef(0);
-  const destinationIndex = useRef<number | undefined>(undefined);
+  // A restored entry can redirect. Any newly committed route completes the
+  // history transition, even when its canonical path differs from the target.
+  if (
+    historyDestination !== null &&
+    (historyDestination.to === pathname || historyDestination.from !== pathname)
+  ) {
+    setHistoryDestination(null);
+  }
+  const historyPending =
+    historyDestination !== null && historyDestination.to !== pathname;
   const report = useCallback((id: string, pending: boolean) => {
     setLinks((current) => {
       if (current.has(id) === pending) return current;
@@ -56,46 +59,37 @@ export function NavigationProgressProvider({
     });
   }, []);
   const run = useCallback((action: () => void) => startTransition(action), []);
-  const prepare = useCallback((mode: "push" | "replace") => {
-    destinationIndex.current =
-      (appHistoryIndex() ?? index.current) + (mode === "push" ? 1 : 0);
+  const prepare = useCallback(() => {
+    // A new navigation supersedes any unfinished Back/Forward destination.
+    setHistoryDestination(null);
   }, []);
   const navigation = useMemo(
     () => ({ run, report, prepare }),
     [run, report, prepare],
   );
 
+  useLayoutEffect(() => trackAppHistory(), []);
   useLayoutEffect(() => {
-    const savedIndex = appHistoryIndex();
-    index.current =
-      savedIndex ??
-      destinationIndex.current ??
-      (committedLocation.current === locationKey ? 0 : index.current + 1);
-    destinationIndex.current = undefined;
     committedPath.current = pathname;
-    committedLocation.current = locationKey;
-    updateHistoryMetadata((state) => {
-      state[APP_HISTORY_KEY] = index.current;
-    });
-  }, [pathname, locationKey]);
+  }, [pathname]);
   useLayoutEffect(() => {
-    const readIndex = () => {
-      index.current = appHistoryIndex() ?? index.current;
-    };
-    const onHistory = () => {
-      readIndex();
+    const onHistory = (event: PopStateEvent) => {
+      // Native fragment entries have no Next router tree. Next ignores them,
+      // so waiting for their pathname to commit would hide the page forever.
+      if (!event.state?.__NA) {
+        setHistoryDestination(null);
+        return;
+      }
       // Query-only navigation is already synchronous; route navigation may need RSC.
       setHistoryDestination(
         window.location.pathname !== committedPath.current
-          ? window.location.pathname
+          ? { from: committedPath.current, to: window.location.pathname }
           : null,
       );
     };
     window.addEventListener("popstate", onHistory);
-    window.addEventListener("app-query-state", readIndex);
     return () => {
       window.removeEventListener("popstate", onHistory);
-      window.removeEventListener("app-query-state", readIndex);
     };
   }, []);
 

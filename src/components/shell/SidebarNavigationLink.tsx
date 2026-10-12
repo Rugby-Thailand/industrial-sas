@@ -1,27 +1,15 @@
 "use client";
 
-import { useState, type ComponentProps } from "react";
+import type { ComponentProps } from "react";
 import { Link } from "@/i18n/navigation";
 
-/** Fetch the full dynamic route when the user points to or focuses a destination. */
-export function SidebarNavigationLink(props: ComponentProps<typeof Link>) {
-  const [intent, setIntent] = useState(false);
-  return (
-    <Link
-      {...props}
-      prefetch={intent ? true : undefined}
-      onPointerEnter={(event) => {
-        setIntent(true);
-        props.onPointerEnter?.(event);
-      }}
-      onFocus={(event) => {
-        setIntent(true);
-        props.onFocus?.(event);
-      }}
-      onTouchStart={(event) => {
-        setIntent(true);
-        props.onTouchStart?.(event);
-      }}
-    />
-  );
+/** Warm visible destinations, including their page code, before a menu tap.
+ * Default prefetch stops at the desktop loading boundary on dynamic routes.
+ * Waiting for hover leaves fast clicks and touch navigation on the cold path.
+ */
+export function SidebarNavigationLink({
+  prefetch = true,
+  ...props
+}: ComponentProps<typeof Link>) {
+  return <Link {...props} prefetch={prefetch} />;
 }

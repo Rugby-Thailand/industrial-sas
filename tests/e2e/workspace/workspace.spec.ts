@@ -213,10 +213,19 @@ test.describe("workspace map and table (English, desktop)", () => {
         .click();
     }
     await expect(selected).toHaveAttribute("aria-pressed", "true");
-    await details.click();
-    await page
-      .getByRole("button", { name: "Clear selection", exact: true })
-      .click();
+    if (!compactInspector) {
+      await details.click();
+      await expect(
+        page.getByRole("button", { name: "Hide details", exact: true }),
+      ).toHaveCount(1);
+    }
+    // The aside/sheet owns the only close; built-in details carry no inner
+    // Clear selection. A canvas Escape still clears the selection.
+    await expect(
+      page.getByRole("button", { name: "Clear selection", exact: true }),
+    ).toHaveCount(0);
+    await selected.focus();
+    await page.keyboard.press("Escape");
     await expect(selected).toHaveAttribute("aria-pressed", "false");
 
     await page

@@ -7,6 +7,7 @@ import { useCallback, useLayoutEffect, useId, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { registerTransitionGuard } from "@/lib/navigationGuard";
+import { GUARD_HISTORY_KEY } from "@/lib/browser/appHistory";
 import {
   Dialog,
   DialogContent,
@@ -16,7 +17,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-const HISTORY_KEY = "__storageWorkspaceGuard";
+// Shared with app history tracking, which keeps this marker on same-URL writes.
+const HISTORY_KEY = GUARD_HISTORY_KEY;
 // Window-targeted popstate listeners run in registration order, so an older
 // router/subscription can observe a buffer traversal before this hook restores
 // it. Query consumers must skip those temporary URLs while this signal is true.

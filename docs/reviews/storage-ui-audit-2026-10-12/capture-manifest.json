@@ -1,0 +1,1544 @@
+{
+  "date": "2026-10-12",
+  "base": "4850de864050b9c706d82da479d29cb070785951",
+  "beforeBase": "a050a8514989ff429fc0309663fef09d92f083b3",
+  "origin": "http://localhost:3111",
+  "harness": "http://localhost:3190",
+  "fixture": "Synthetic local demo inventory; F1/F2 geometry-only reference",
+  "browser": "T3 Code collaborative WebKit preview; mobile is viewport emulation",
+  "captures": [
+    {
+      "phase": "before",
+      "name": "scan-en-desktop",
+      "path": "screenshots/before/scan-en-desktop.png",
+      "url": "http://localhost:3110/en/finished-goods/scan"
+    },
+    {
+      "phase": "before",
+      "name": "fg1-th-desktop",
+      "path": "screenshots/before/fg1-th-desktop.png",
+      "url": "http://localhost:3110/th/master-data/storage-layouts/rs7ek3v4b0cttw5pgjhw5qvnf98g4fny"
+    },
+    {
+      "phase": "before",
+      "name": "fg1-inspector-th-desktop",
+      "path": "screenshots/before/fg1-inspector-th-desktop.png",
+      "url": "http://localhost:3110/th/master-data/storage-layouts/rs7ek3v4b0cttw5pgjhw5qvnf98g4fny"
+    },
+    {
+      "phase": "before",
+      "name": "fg1-more-th-desktop",
+      "path": "screenshots/before/fg1-more-th-desktop.png",
+      "url": "http://localhost:3110/th/master-data/storage-layouts/rs7ek3v4b0cttw5pgjhw5qvnf98g4fny"
+    },
+    {
+      "phase": "before",
+      "name": "finished-goods-th-dark-desktop",
+      "path": "screenshots/before/finished-goods-th-dark-desktop.png",
+      "url": "http://localhost:3110/th/finished-goods",
+      "device": "desktop",
+      "locale": "th",
+      "theme": "dark",
+      "check": {
+        "heading": "สินค้าสำเร็จรูป",
+        "mainOverflow": 0,
+        "overflow": 0,
+        "theme": "__variable_8eaea4 __variable_8c25df dark",
+        "viewport": 1440
+      }
+    },
+    {
+      "phase": "before",
+      "name": "scan-th-dark-desktop",
+      "path": "screenshots/before/scan-th-dark-desktop.png",
+      "url": "http://localhost:3110/th/finished-goods/scan",
+      "device": "desktop",
+      "locale": "th",
+      "theme": "dark",
+      "check": {
+        "heading": "สแกนใบ Job",
+        "mainOverflow": 0,
+        "overflow": 0,
+        "theme": "__variable_8eaea4 __variable_8c25df dark",
+        "viewport": 1440
+      }
+    },
+    {
+      "phase": "before",
+      "name": "records-th-dark-desktop",
+      "path": "screenshots/before/records-th-dark-desktop.png",
+      "url": "http://localhost:3110/th/finished-goods/scan/records",
+      "device": "desktop",
+      "locale": "th",
+      "theme": "dark",
+      "check": {
+        "heading": "รายการที่สแกนแล้ว",
+        "mainOverflow": 0,
+        "overflow": 0,
+        "theme": "__variable_8eaea4 __variable_8c25df dark",
+        "viewport": 1440
+      }
+    },
+    {
+      "phase": "before",
+      "name": "buildings-th-dark-desktop",
+      "path": "screenshots/before/buildings-th-dark-desktop.png",
+      "url": "http://localhost:3110/th/master-data/storage-layouts",
+      "device": "desktop",
+      "locale": "th",
+      "theme": "dark",
+      "check": {
+        "heading": "เครื่องมือวางแผนอาคารจัดเก็บ",
+        "mainOverflow": 0,
+        "overflow": 0,
+        "theme": "__variable_8eaea4 __variable_8c25df dark",
+        "viewport": 1440
+      }
+    },
+    {
+      "phase": "before",
+      "name": "fg1-th-dark-desktop",
+      "path": "screenshots/before/fg1-th-dark-desktop.png",
+      "url": "http://localhost:3110/th/master-data/storage-layouts/rs7ek3v4b0cttw5pgjhw5qvnf98g4fny",
+      "device": "desktop",
+      "locale": "th",
+      "theme": "dark",
+      "check": {
+        "heading": "FG1 · Canvas design reference",
+        "mainOverflow": 0,
+        "overflow": 0,
+        "theme": "__variable_8eaea4 __variable_8c25df dark",
+        "viewport": 1440
+      }
+    },
+    {
+      "phase": "before",
+      "name": "f1-f2-th-dark-desktop",
+      "path": "screenshots/before/f1-f2-th-dark-desktop.png",
+      "url": "http://localhost:3190/?fixture=f1-f2&locale=th",
+      "device": "desktop",
+      "locale": "th",
+      "theme": "dark",
+      "check": {
+        "heading": "อาคาร F1 + F2",
+        "mainOverflow": 0,
+        "overflow": 0,
+        "theme": "dark",
+        "viewport": 1440
+      }
+    },
+    {
+      "phase": "before",
+      "name": "finished-goods-th-dark-mobile",
+      "path": "screenshots/before/finished-goods-th-dark-mobile.png",
+      "url": "http://localhost:3110/th/finished-goods",
+      "device": "mobile",
+      "locale": "th",
+      "theme": "dark",
+      "check": {
+        "heading": "สินค้าสำเร็จรูป",
+        "mainOverflow": 0,
+        "overflow": 0,
+        "theme": "__variable_8eaea4 __variable_8c25df dark",
+        "viewport": 390
+      }
+    },
+    {
+      "phase": "before",
+      "name": "scan-th-dark-mobile",
+      "path": "screenshots/before/scan-th-dark-mobile.png",
+      "url": "http://localhost:3110/th/finished-goods/scan",
+      "device": "mobile",
+      "locale": "th",
+      "theme": "dark",
+      "check": {
+        "heading": "สแกนใบ Job",
+        "mainOverflow": 0,
+        "overflow": 0,
+        "theme": "__variable_8eaea4 __variable_8c25df dark",
+        "viewport": 390
+      }
+    },
+    {
+      "phase": "before",
+      "name": "records-th-dark-mobile",
+      "path": "screenshots/before/records-th-dark-mobile.png",
+      "url": "http://localhost:3110/th/finished-goods/scan/records",
+      "device": "mobile",
+      "locale": "th",
+      "theme": "dark",
+      "check": {
+        "heading": "รายการที่สแกนแล้ว",
+        "mainOverflow": 0,
+        "overflow": 0,
+        "theme": "__variable_8eaea4 __variable_8c25df dark",
+        "viewport": 390
+      }
+    },
+    {
+      "phase": "before",
+      "name": "buildings-th-dark-mobile",
+      "path": "screenshots/before/buildings-th-dark-mobile.png",
+      "url": "http://localhost:3110/th/master-data/storage-layouts",
+      "device": "mobile",
+      "locale": "th",
+      "theme": "dark",
+      "check": {
+        "heading": "เครื่องมือวางแผนอาคารจัดเก็บ",
+        "mainOverflow": 0,
+        "overflow": 0,
+        "theme": "__variable_8eaea4 __variable_8c25df dark",
+        "viewport": 390
+      }
+    },
+    {
+      "phase": "before",
+      "name": "fg1-th-dark-mobile",
+      "path": "screenshots/before/fg1-th-dark-mobile.png",
+      "url": "http://localhost:3110/th/master-data/storage-layouts/rs7ek3v4b0cttw5pgjhw5qvnf98g4fny",
+      "device": "mobile",
+      "locale": "th",
+      "theme": "dark",
+      "check": {
+        "heading": "FG1 · Canvas design reference",
+        "mainOverflow": 0,
+        "overflow": 0,
+        "theme": "__variable_8eaea4 __variable_8c25df dark",
+        "viewport": 390
+      }
+    },
+    {
+      "phase": "before",
+      "name": "f1-f2-th-dark-mobile",
+      "path": "screenshots/before/f1-f2-th-dark-mobile.png",
+      "url": "http://localhost:3190/?fixture=f1-f2&locale=th",
+      "device": "mobile",
+      "locale": "th",
+      "theme": "dark",
+      "check": {
+        "heading": "อาคาร F1 + F2",
+        "mainOverflow": 0,
+        "overflow": 0,
+        "theme": "dark",
+        "viewport": 390
+      }
+    },
+    {
+      "phase": "before",
+      "name": "f1-f2-floor1-th-dark-mobile",
+      "path": "screenshots/before/f1-f2-floor1-th-dark-mobile.png",
+      "url": "http://localhost:3190/?fixture=f1-f2&locale=th",
+      "device": "mobile",
+      "locale": "th",
+      "theme": "dark",
+      "note": "Floor 1 reference; other initial F1/F2 baselines show Floor 2"
+    },
+    {
+      "phase": "after",
+      "name": "f1-f2-en-dark-desktop",
+      "path": "screenshots/after/f1-f2-en-dark-desktop.png",
+      "url": "http://localhost:3190/?fixture=f1-f2&locale=en",
+      "check": {
+        "footer": "F1-L9\nSB-L2\n60 m\n28 m\n5 m\nEmpty\nStored\nReserved\n\n379 storage positions in 32 groups\n\nF1-F2-SB / FLOOR 01\n\n2D PLAN · 100%",
+        "heading": "อาคาร F1 + F2",
+        "locations": 400,
+        "overflow": 0,
+        "theme": "dark",
+        "url": "http://localhost:3190/?fixture=f1-f2&locale=en",
+        "viewport": {
+          "height": 1000,
+          "width": 1440
+        }
+      },
+      "locale": "en",
+      "theme": "dark",
+      "device": "desktop",
+      "kind": "matrix"
+    },
+    {
+      "phase": "after",
+      "name": "f1-f2-th-light-desktop",
+      "path": "screenshots/after/f1-f2-th-light-desktop.png",
+      "url": "http://localhost:3190/?fixture=f1-f2&locale=th",
+      "check": {
+        "footer": "\nSB-L2\n60 m\n28 m\n5 m\nว่าง\nจัดเก็บแล้ว\nจองแล้ว\n\n379 ตำแหน่งจัดเก็บ ใน 32 กลุ่ม\n\nF1-F2-SB / ชั้น / FLOOR 01\n\nผัง 2D · 100%",
+        "heading": "อาคาร F1 + F2",
+        "locations": 400,
+        "overflow": 0,
+        "theme": "light",
+        "url": "http://localhost:3190/?fixture=f1-f2&locale=th",
+        "viewport": {
+          "height": 1000,
+          "width": 1440
+        }
+      },
+      "locale": "th",
+      "theme": "light",
+      "device": "desktop",
+      "kind": "matrix"
+    },
+    {
+      "phase": "after",
+      "name": "f1-f2-en-light-desktop",
+      "path": "screenshots/after/f1-f2-en-light-desktop.png",
+      "url": "http://localhost:3190/?fixture=f1-f2&locale=en",
+      "check": {
+        "footer": "F1-L9\nSB-L2\n60 m\n28 m\n5 m\nEmpty\nStored\nReserved\n\n379 storage positions in 32 groups\n\nF1-F2-SB / FLOOR 01\n\n2D PLAN · 100%",
+        "heading": "อาคาร F1 + F2",
+        "locations": 400,
+        "overflow": 0,
+        "theme": "light",
+        "url": "http://localhost:3190/?fixture=f1-f2&locale=en",
+        "viewport": {
+          "height": 1000,
+          "width": 1440
+        }
+      },
+      "locale": "en",
+      "theme": "light",
+      "device": "desktop",
+      "kind": "matrix"
+    },
+    {
+      "phase": "after",
+      "name": "f1-f2-en-dark-mobile",
+      "path": "screenshots/after/f1-f2-en-dark-mobile.png",
+      "url": "http://localhost:3190/?fixture=f1-f2&locale=en",
+      "check": {
+        "footer": "1\nL18\n2\nL3\nL31\n4\n5\n6\n7\n8\n9\nSB-L2\n60 m\n28 m\n5 m\nEmpty\nStored\nReserved\n\n379 storage positions in 32 groups\n\n2D PLAN · 100%",
+        "heading": "อาคาร F1 + F2",
+        "locations": 400,
+        "overflow": 0,
+        "theme": "dark",
+        "url": "http://localhost:3190/?fixture=f1-f2&locale=en",
+        "viewport": {
+          "height": 844,
+          "width": 390
+        }
+      },
+      "locale": "en",
+      "theme": "dark",
+      "device": "mobile",
+      "kind": "matrix"
+    },
+    {
+      "phase": "after",
+      "name": "f1-f2-en-light-mobile",
+      "path": "screenshots/after/f1-f2-en-light-mobile.png",
+      "url": "http://localhost:3190/?fixture=f1-f2&locale=en",
+      "check": {
+        "footer": "1\nL18\n2\nL3\nL31\n4\n5\n6\n7\n8\n9\nSB-L2\n60 m\n28 m\n5 m\nEmpty\nStored\nReserved\n\n379 storage positions in 32 groups\n\n2D PLAN · 100%",
+        "heading": "อาคาร F1 + F2",
+        "locations": 400,
+        "overflow": 0,
+        "theme": "light",
+        "url": "http://localhost:3190/?fixture=f1-f2&locale=en",
+        "viewport": {
+          "height": 844,
+          "width": 390
+        }
+      },
+      "locale": "en",
+      "theme": "light",
+      "device": "mobile",
+      "kind": "matrix"
+    },
+    {
+      "phase": "after",
+      "name": "f1-f2-th-light-mobile",
+      "path": "screenshots/after/f1-f2-th-light-mobile.png",
+      "url": "http://localhost:3190/?fixture=f1-f2&locale=th",
+      "check": {
+        "footer": "D\n1\nL18\n2\nL3\nL31\n4\n5\n6\n7\n8\n9\nSB-L2\n60 m\n28 m\n5 m\nว่าง\nจัดเก็บแล้ว\nจองแล้ว\n\n379 ตำแหน่งจัดเก็บ ใน 32 กลุ่ม\n\nผัง 2D · 100%",
+        "heading": "อาคาร F1 + F2",
+        "locations": 400,
+        "overflow": 0,
+        "theme": "light",
+        "url": "http://localhost:3190/?fixture=f1-f2&locale=th",
+        "viewport": {
+          "height": 844,
+          "width": 390
+        }
+      },
+      "locale": "th",
+      "theme": "light",
+      "device": "mobile",
+      "kind": "matrix"
+    },
+    {
+      "phase": "after",
+      "name": "f1-f2-th-dark-mobile",
+      "path": "screenshots/after/f1-f2-th-dark-mobile.png",
+      "url": "http://localhost:3190/?fixture=f1-f2&locale=th",
+      "check": {
+        "footer": "D\n1\nL18\n2\nL3\nL31\n4\n5\n6\n7\n8\n9\nSB-L2\n60 m\n28 m\n5 m\nว่าง\nจัดเก็บแล้ว\nจองแล้ว\n\n379 ตำแหน่งจัดเก็บ ใน 32 กลุ่ม\n\nผัง 2D · 100%",
+        "heading": "อาคาร F1 + F2",
+        "locations": 400,
+        "overflow": 0,
+        "theme": "dark",
+        "url": "http://localhost:3190/?fixture=f1-f2&locale=th",
+        "viewport": {
+          "height": 844,
+          "width": 390
+        }
+      },
+      "locale": "th",
+      "theme": "dark",
+      "device": "mobile",
+      "kind": "matrix"
+    },
+    {
+      "phase": "after",
+      "name": "finished-goods-en-dark-desktop",
+      "path": "screenshots/after/finished-goods-en-dark-desktop.png",
+      "url": "http://localhost:3111/en/finished-goods",
+      "check": {
+        "heading": "Finished goods",
+        "loading": false,
+        "mainOverflow": 0,
+        "overflow": 0,
+        "theme": "geist_e799d87a-module__u8MhCG__variable geist_mono_42eec60-module__Gb1_vG__variable dark",
+        "url": "http://localhost:3111/en/finished-goods",
+        "viewport": {
+          "height": 1000,
+          "width": 1440
+        }
+      },
+      "locale": "en",
+      "theme": "dark",
+      "device": "desktop",
+      "kind": "matrix"
+    },
+    {
+      "phase": "after",
+      "name": "scan-en-dark-desktop",
+      "path": "screenshots/after/scan-en-dark-desktop.png",
+      "url": "http://localhost:3111/en/finished-goods/scan",
+      "check": {
+        "heading": "Where are we?",
+        "loading": false,
+        "mainOverflow": 0,
+        "overflow": 0,
+        "theme": "geist_e799d87a-module__u8MhCG__variable geist_mono_42eec60-module__Gb1_vG__variable dark",
+        "url": "http://localhost:3111/en/finished-goods/scan",
+        "viewport": {
+          "height": 1000,
+          "width": 1440
+        }
+      },
+      "locale": "en",
+      "theme": "dark",
+      "device": "desktop",
+      "kind": "matrix"
+    },
+    {
+      "phase": "after",
+      "name": "records-en-dark-desktop",
+      "path": "screenshots/after/records-en-dark-desktop.png",
+      "url": "http://localhost:3111/en/finished-goods/scan/records",
+      "check": {
+        "heading": "Scanned records",
+        "loading": false,
+        "mainOverflow": 0,
+        "overflow": 0,
+        "theme": "geist_e799d87a-module__u8MhCG__variable geist_mono_42eec60-module__Gb1_vG__variable dark",
+        "url": "http://localhost:3111/en/finished-goods/scan/records",
+        "viewport": {
+          "height": 1000,
+          "width": 1440
+        }
+      },
+      "locale": "en",
+      "theme": "dark",
+      "device": "desktop",
+      "kind": "matrix"
+    },
+    {
+      "phase": "after",
+      "name": "buildings-en-dark-desktop",
+      "path": "screenshots/after/buildings-en-dark-desktop.png",
+      "url": "http://localhost:3111/en/master-data/storage-layouts",
+      "check": {
+        "heading": "Storage building planner",
+        "loading": false,
+        "mainOverflow": 0,
+        "overflow": 0,
+        "theme": "geist_e799d87a-module__u8MhCG__variable geist_mono_42eec60-module__Gb1_vG__variable dark",
+        "url": "http://localhost:3111/en/master-data/storage-layouts",
+        "viewport": {
+          "height": 1000,
+          "width": 1440
+        }
+      },
+      "locale": "en",
+      "theme": "dark",
+      "device": "desktop",
+      "kind": "matrix"
+    },
+    {
+      "phase": "after",
+      "name": "fg1-en-dark-desktop",
+      "path": "screenshots/after/fg1-en-dark-desktop.png",
+      "url": "http://localhost:3111/en/master-data/storage-layouts/rs7ek3v4b0cttw5pgjhw5qvnf98g4fny",
+      "check": {
+        "heading": "FG1 · Canvas design reference",
+        "loading": false,
+        "mainOverflow": 0,
+        "overflow": 0,
+        "theme": "geist_e799d87a-module__u8MhCG__variable geist_mono_42eec60-module__Gb1_vG__variable dark",
+        "url": "http://localhost:3111/en/master-data/storage-layouts/rs7ek3v4b0cttw5pgjhw5qvnf98g4fny",
+        "viewport": {
+          "height": 1000,
+          "width": 1440
+        }
+      },
+      "locale": "en",
+      "theme": "dark",
+      "device": "desktop",
+      "kind": "matrix"
+    },
+    {
+      "phase": "after",
+      "name": "finished-goods-th-dark-desktop",
+      "path": "screenshots/after/finished-goods-th-dark-desktop.png",
+      "url": "http://localhost:3111/th/finished-goods",
+      "check": {
+        "heading": "สินค้าสำเร็จรูป",
+        "loading": false,
+        "mainOverflow": 0,
+        "overflow": 0,
+        "theme": "geist_e799d87a-module__u8MhCG__variable geist_mono_42eec60-module__Gb1_vG__variable dark",
+        "url": "http://localhost:3111/th/finished-goods",
+        "viewport": {
+          "height": 1000,
+          "width": 1440
+        }
+      },
+      "locale": "th",
+      "theme": "dark",
+      "device": "desktop",
+      "kind": "matrix"
+    },
+    {
+      "phase": "after",
+      "name": "scan-th-dark-desktop",
+      "path": "screenshots/after/scan-th-dark-desktop.png",
+      "url": "http://localhost:3111/th/finished-goods/scan",
+      "check": {
+        "heading": "เราอยู่ที่ไหน?",
+        "loading": false,
+        "mainOverflow": 0,
+        "overflow": 0,
+        "theme": "geist_e799d87a-module__u8MhCG__variable geist_mono_42eec60-module__Gb1_vG__variable dark",
+        "url": "http://localhost:3111/th/finished-goods/scan",
+        "viewport": {
+          "height": 1000,
+          "width": 1440
+        }
+      },
+      "locale": "th",
+      "theme": "dark",
+      "device": "desktop",
+      "kind": "matrix"
+    },
+    {
+      "phase": "after",
+      "name": "records-th-dark-desktop",
+      "path": "screenshots/after/records-th-dark-desktop.png",
+      "url": "http://localhost:3111/th/finished-goods/scan/records",
+      "check": {
+        "heading": "รายการที่สแกนแล้ว",
+        "loading": false,
+        "mainOverflow": 0,
+        "overflow": 0,
+        "theme": "geist_e799d87a-module__u8MhCG__variable geist_mono_42eec60-module__Gb1_vG__variable dark",
+        "url": "http://localhost:3111/th/finished-goods/scan/records",
+        "viewport": {
+          "height": 1000,
+          "width": 1440
+        }
+      },
+      "locale": "th",
+      "theme": "dark",
+      "device": "desktop",
+      "kind": "matrix"
+    },
+    {
+      "phase": "after",
+      "name": "buildings-th-dark-desktop",
+      "path": "screenshots/after/buildings-th-dark-desktop.png",
+      "url": "http://localhost:3111/th/master-data/storage-layouts",
+      "check": {
+        "heading": "เครื่องมือวางแผนอาคารจัดเก็บ",
+        "loading": false,
+        "mainOverflow": 0,
+        "overflow": 0,
+        "theme": "geist_e799d87a-module__u8MhCG__variable geist_mono_42eec60-module__Gb1_vG__variable dark",
+        "url": "http://localhost:3111/th/master-data/storage-layouts",
+        "viewport": {
+          "height": 1000,
+          "width": 1440
+        }
+      },
+      "locale": "th",
+      "theme": "dark",
+      "device": "desktop",
+      "kind": "matrix"
+    },
+    {
+      "phase": "after",
+      "name": "fg1-th-dark-desktop",
+      "path": "screenshots/after/fg1-th-dark-desktop.png",
+      "url": "http://localhost:3111/th/master-data/storage-layouts/rs7ek3v4b0cttw5pgjhw5qvnf98g4fny",
+      "check": {
+        "heading": "FG1 · Canvas design reference",
+        "loading": false,
+        "mainOverflow": 0,
+        "overflow": 0,
+        "theme": "geist_e799d87a-module__u8MhCG__variable geist_mono_42eec60-module__Gb1_vG__variable dark",
+        "url": "http://localhost:3111/th/master-data/storage-layouts/rs7ek3v4b0cttw5pgjhw5qvnf98g4fny",
+        "viewport": {
+          "height": 1000,
+          "width": 1440
+        }
+      },
+      "locale": "th",
+      "theme": "dark",
+      "device": "desktop",
+      "kind": "matrix"
+    },
+    {
+      "phase": "after",
+      "name": "finished-goods-th-light-desktop",
+      "path": "screenshots/after/finished-goods-th-light-desktop.png",
+      "url": "http://localhost:3111/th/finished-goods",
+      "check": {
+        "heading": "สินค้าสำเร็จรูป",
+        "loading": false,
+        "mainOverflow": 0,
+        "overflow": 0,
+        "theme": "geist_e799d87a-module__u8MhCG__variable geist_mono_42eec60-module__Gb1_vG__variable light",
+        "url": "http://localhost:3111/th/finished-goods",
+        "viewport": {
+          "height": 1000,
+          "width": 1440
+        }
+      },
+      "locale": "th",
+      "theme": "light",
+      "device": "desktop",
+      "kind": "matrix"
+    },
+    {
+      "phase": "after",
+      "name": "scan-th-light-desktop",
+      "path": "screenshots/after/scan-th-light-desktop.png",
+      "url": "http://localhost:3111/th/finished-goods/scan",
+      "check": {
+        "heading": "เราอยู่ที่ไหน?",
+        "loading": false,
+        "mainOverflow": 0,
+        "overflow": 0,
+        "theme": "geist_e799d87a-module__u8MhCG__variable geist_mono_42eec60-module__Gb1_vG__variable light",
+        "url": "http://localhost:3111/th/finished-goods/scan",
+        "viewport": {
+          "height": 1000,
+          "width": 1440
+        }
+      },
+      "locale": "th",
+      "theme": "light",
+      "device": "desktop",
+      "kind": "matrix"
+    },
+    {
+      "phase": "after",
+      "name": "records-th-light-desktop",
+      "path": "screenshots/after/records-th-light-desktop.png",
+      "url": "http://localhost:3111/th/finished-goods/scan/records",
+      "check": {
+        "heading": "รายการที่สแกนแล้ว",
+        "loading": false,
+        "mainOverflow": 0,
+        "overflow": 0,
+        "theme": "geist_e799d87a-module__u8MhCG__variable geist_mono_42eec60-module__Gb1_vG__variable light",
+        "url": "http://localhost:3111/th/finished-goods/scan/records",
+        "viewport": {
+          "height": 1000,
+          "width": 1440
+        }
+      },
+      "locale": "th",
+      "theme": "light",
+      "device": "desktop",
+      "kind": "matrix"
+    },
+    {
+      "phase": "after",
+      "name": "buildings-th-light-desktop",
+      "path": "screenshots/after/buildings-th-light-desktop.png",
+      "url": "http://localhost:3111/th/master-data/storage-layouts",
+      "check": {
+        "heading": "เครื่องมือวางแผนอาคารจัดเก็บ",
+        "loading": false,
+        "mainOverflow": 0,
+        "overflow": 0,
+        "theme": "geist_e799d87a-module__u8MhCG__variable geist_mono_42eec60-module__Gb1_vG__variable light",
+        "url": "http://localhost:3111/th/master-data/storage-layouts",
+        "viewport": {
+          "height": 1000,
+          "width": 1440
+        }
+      },
+      "locale": "th",
+      "theme": "light",
+      "device": "desktop",
+      "kind": "matrix"
+    },
+    {
+      "phase": "after",
+      "name": "fg1-th-light-desktop",
+      "path": "screenshots/after/fg1-th-light-desktop.png",
+      "url": "http://localhost:3111/th/master-data/storage-layouts/rs7ek3v4b0cttw5pgjhw5qvnf98g4fny",
+      "check": {
+        "heading": "FG1 · Canvas design reference",
+        "loading": false,
+        "mainOverflow": 0,
+        "overflow": 0,
+        "theme": "geist_e799d87a-module__u8MhCG__variable geist_mono_42eec60-module__Gb1_vG__variable light",
+        "url": "http://localhost:3111/th/master-data/storage-layouts/rs7ek3v4b0cttw5pgjhw5qvnf98g4fny",
+        "viewport": {
+          "height": 1000,
+          "width": 1440
+        }
+      },
+      "locale": "th",
+      "theme": "light",
+      "device": "desktop",
+      "kind": "matrix"
+    },
+    {
+      "phase": "after",
+      "name": "finished-goods-en-light-desktop",
+      "path": "screenshots/after/finished-goods-en-light-desktop.png",
+      "url": "http://localhost:3111/en/finished-goods",
+      "check": {
+        "heading": "Finished goods",
+        "loading": false,
+        "mainOverflow": 0,
+        "overflow": 0,
+        "theme": "geist_e799d87a-module__u8MhCG__variable geist_mono_42eec60-module__Gb1_vG__variable light",
+        "url": "http://localhost:3111/en/finished-goods",
+        "viewport": {
+          "height": 1000,
+          "width": 1440
+        }
+      },
+      "locale": "en",
+      "theme": "light",
+      "device": "desktop",
+      "kind": "matrix"
+    },
+    {
+      "phase": "after",
+      "name": "scan-en-light-desktop",
+      "path": "screenshots/after/scan-en-light-desktop.png",
+      "url": "http://localhost:3111/en/finished-goods/scan",
+      "check": {
+        "heading": "Where are we?",
+        "loading": false,
+        "mainOverflow": 0,
+        "overflow": 0,
+        "theme": "geist_e799d87a-module__u8MhCG__variable geist_mono_42eec60-module__Gb1_vG__variable light",
+        "url": "http://localhost:3111/en/finished-goods/scan",
+        "viewport": {
+          "height": 1000,
+          "width": 1440
+        }
+      },
+      "locale": "en",
+      "theme": "light",
+      "device": "desktop",
+      "kind": "matrix"
+    },
+    {
+      "phase": "after",
+      "name": "buildings-en-light-desktop",
+      "path": "screenshots/after/buildings-en-light-desktop.png",
+      "url": "http://localhost:3111/en/master-data/storage-layouts",
+      "check": {
+        "heading": "Storage building planner",
+        "loading": false,
+        "mainOverflow": 0,
+        "overflow": 0,
+        "theme": "geist_e799d87a-module__u8MhCG__variable geist_mono_42eec60-module__Gb1_vG__variable light",
+        "url": "http://localhost:3111/en/master-data/storage-layouts",
+        "viewport": {
+          "height": 1000,
+          "width": 1440
+        }
+      },
+      "locale": "en",
+      "theme": "light",
+      "device": "desktop",
+      "kind": "matrix"
+    },
+    {
+      "phase": "after",
+      "name": "fg1-en-light-desktop",
+      "path": "screenshots/after/fg1-en-light-desktop.png",
+      "url": "http://localhost:3111/en/master-data/storage-layouts/rs7ek3v4b0cttw5pgjhw5qvnf98g4fny",
+      "check": {
+        "heading": "FG1 · Canvas design reference",
+        "loading": false,
+        "mainOverflow": 0,
+        "overflow": 0,
+        "theme": "geist_e799d87a-module__u8MhCG__variable geist_mono_42eec60-module__Gb1_vG__variable light",
+        "url": "http://localhost:3111/en/master-data/storage-layouts/rs7ek3v4b0cttw5pgjhw5qvnf98g4fny",
+        "viewport": {
+          "height": 1000,
+          "width": 1440
+        }
+      },
+      "locale": "en",
+      "theme": "light",
+      "device": "desktop",
+      "kind": "matrix"
+    },
+    {
+      "phase": "after",
+      "name": "finished-goods-en-light-mobile",
+      "path": "screenshots/after/finished-goods-en-light-mobile.png",
+      "url": "http://localhost:3111/en/finished-goods",
+      "check": {
+        "heading": "Finished goods",
+        "loading": false,
+        "mainOverflow": 0,
+        "overflow": 0,
+        "theme": "geist_e799d87a-module__u8MhCG__variable geist_mono_42eec60-module__Gb1_vG__variable light",
+        "url": "http://localhost:3111/en/finished-goods",
+        "viewport": {
+          "height": 844,
+          "width": 390
+        }
+      },
+      "locale": "en",
+      "theme": "light",
+      "device": "mobile",
+      "kind": "matrix"
+    },
+    {
+      "phase": "after",
+      "name": "scan-en-light-mobile",
+      "path": "screenshots/after/scan-en-light-mobile.png",
+      "url": "http://localhost:3111/en/finished-goods/scan",
+      "check": {
+        "heading": "Where are we?",
+        "loading": false,
+        "mainOverflow": 0,
+        "overflow": 0,
+        "theme": "geist_e799d87a-module__u8MhCG__variable geist_mono_42eec60-module__Gb1_vG__variable light",
+        "url": "http://localhost:3111/en/finished-goods/scan",
+        "viewport": {
+          "height": 844,
+          "width": 390
+        }
+      },
+      "locale": "en",
+      "theme": "light",
+      "device": "mobile",
+      "kind": "matrix"
+    },
+    {
+      "phase": "after",
+      "name": "records-en-light-mobile",
+      "path": "screenshots/after/records-en-light-mobile.png",
+      "url": "http://localhost:3111/en/finished-goods/scan/records",
+      "check": {
+        "heading": "Scanned records",
+        "loading": false,
+        "mainOverflow": 0,
+        "overflow": 0,
+        "theme": "geist_e799d87a-module__u8MhCG__variable geist_mono_42eec60-module__Gb1_vG__variable light",
+        "url": "http://localhost:3111/en/finished-goods/scan/records",
+        "viewport": {
+          "height": 844,
+          "width": 390
+        }
+      },
+      "locale": "en",
+      "theme": "light",
+      "device": "mobile",
+      "kind": "matrix"
+    },
+    {
+      "phase": "after",
+      "name": "buildings-en-light-mobile",
+      "path": "screenshots/after/buildings-en-light-mobile.png",
+      "url": "http://localhost:3111/en/master-data/storage-layouts",
+      "check": {
+        "heading": "Storage building planner",
+        "loading": false,
+        "mainOverflow": 3,
+        "overflow": 0,
+        "theme": "geist_e799d87a-module__u8MhCG__variable geist_mono_42eec60-module__Gb1_vG__variable light",
+        "url": "http://localhost:3111/en/master-data/storage-layouts",
+        "viewport": {
+          "height": 844,
+          "width": 390
+        }
+      },
+      "locale": "en",
+      "theme": "light",
+      "device": "mobile",
+      "kind": "matrix"
+    },
+    {
+      "phase": "after",
+      "name": "fg1-en-light-mobile",
+      "path": "screenshots/after/fg1-en-light-mobile.png",
+      "url": "http://localhost:3111/en/master-data/storage-layouts/rs7ek3v4b0cttw5pgjhw5qvnf98g4fny",
+      "check": {
+        "heading": "FG1 · Canvas design reference",
+        "loading": false,
+        "mainOverflow": 0,
+        "overflow": 0,
+        "theme": "geist_e799d87a-module__u8MhCG__variable geist_mono_42eec60-module__Gb1_vG__variable light",
+        "url": "http://localhost:3111/en/master-data/storage-layouts/rs7ek3v4b0cttw5pgjhw5qvnf98g4fny",
+        "viewport": {
+          "height": 844,
+          "width": 390
+        }
+      },
+      "locale": "en",
+      "theme": "light",
+      "device": "mobile",
+      "kind": "matrix"
+    },
+    {
+      "phase": "after",
+      "name": "finished-goods-en-dark-mobile",
+      "path": "screenshots/after/finished-goods-en-dark-mobile.png",
+      "url": "http://localhost:3111/en/finished-goods",
+      "check": {
+        "heading": "Finished goods",
+        "loading": false,
+        "mainOverflow": 0,
+        "overflow": 0,
+        "theme": "geist_e799d87a-module__u8MhCG__variable geist_mono_42eec60-module__Gb1_vG__variable dark",
+        "url": "http://localhost:3111/en/finished-goods",
+        "viewport": {
+          "height": 844,
+          "width": 390
+        }
+      },
+      "locale": "en",
+      "theme": "dark",
+      "device": "mobile",
+      "kind": "matrix"
+    },
+    {
+      "phase": "after",
+      "name": "scan-en-dark-mobile",
+      "path": "screenshots/after/scan-en-dark-mobile.png",
+      "url": "http://localhost:3111/en/finished-goods/scan",
+      "check": {
+        "heading": "Where are we?",
+        "loading": false,
+        "mainOverflow": 0,
+        "overflow": 0,
+        "theme": "geist_e799d87a-module__u8MhCG__variable geist_mono_42eec60-module__Gb1_vG__variable dark",
+        "url": "http://localhost:3111/en/finished-goods/scan",
+        "viewport": {
+          "height": 844,
+          "width": 390
+        }
+      },
+      "locale": "en",
+      "theme": "dark",
+      "device": "mobile",
+      "kind": "matrix"
+    },
+    {
+      "phase": "after",
+      "name": "records-en-dark-mobile",
+      "path": "screenshots/after/records-en-dark-mobile.png",
+      "url": "http://localhost:3111/en/finished-goods/scan/records",
+      "check": {
+        "heading": "Scanned records",
+        "loading": false,
+        "mainOverflow": 0,
+        "overflow": 0,
+        "theme": "geist_e799d87a-module__u8MhCG__variable geist_mono_42eec60-module__Gb1_vG__variable dark",
+        "url": "http://localhost:3111/en/finished-goods/scan/records",
+        "viewport": {
+          "height": 844,
+          "width": 390
+        }
+      },
+      "locale": "en",
+      "theme": "dark",
+      "device": "mobile",
+      "kind": "matrix"
+    },
+    {
+      "phase": "after",
+      "name": "buildings-en-dark-mobile",
+      "path": "screenshots/after/buildings-en-dark-mobile.png",
+      "url": "http://localhost:3111/en/master-data/storage-layouts",
+      "check": {
+        "heading": "Storage building planner",
+        "loading": false,
+        "mainOverflow": 3,
+        "overflow": 0,
+        "theme": "geist_e799d87a-module__u8MhCG__variable geist_mono_42eec60-module__Gb1_vG__variable dark",
+        "url": "http://localhost:3111/en/master-data/storage-layouts",
+        "viewport": {
+          "height": 844,
+          "width": 390
+        }
+      },
+      "locale": "en",
+      "theme": "dark",
+      "device": "mobile",
+      "kind": "matrix"
+    },
+    {
+      "phase": "after",
+      "name": "fg1-en-dark-mobile",
+      "path": "screenshots/after/fg1-en-dark-mobile.png",
+      "url": "http://localhost:3111/en/master-data/storage-layouts/rs7ek3v4b0cttw5pgjhw5qvnf98g4fny",
+      "check": {
+        "heading": "FG1 · Canvas design reference",
+        "loading": false,
+        "mainOverflow": 0,
+        "overflow": 0,
+        "theme": "geist_e799d87a-module__u8MhCG__variable geist_mono_42eec60-module__Gb1_vG__variable dark",
+        "url": "http://localhost:3111/en/master-data/storage-layouts/rs7ek3v4b0cttw5pgjhw5qvnf98g4fny",
+        "viewport": {
+          "height": 844,
+          "width": 390
+        }
+      },
+      "locale": "en",
+      "theme": "dark",
+      "device": "mobile",
+      "kind": "matrix"
+    },
+    {
+      "phase": "after",
+      "name": "finished-goods-th-dark-mobile",
+      "path": "screenshots/after/finished-goods-th-dark-mobile.png",
+      "url": "http://localhost:3111/th/finished-goods",
+      "check": {
+        "heading": "สินค้าสำเร็จรูป",
+        "loading": false,
+        "mainOverflow": 0,
+        "overflow": 0,
+        "theme": "geist_e799d87a-module__u8MhCG__variable geist_mono_42eec60-module__Gb1_vG__variable dark",
+        "url": "http://localhost:3111/th/finished-goods",
+        "viewport": {
+          "height": 844,
+          "width": 390
+        }
+      },
+      "locale": "th",
+      "theme": "dark",
+      "device": "mobile",
+      "kind": "matrix"
+    },
+    {
+      "phase": "after",
+      "name": "scan-th-dark-mobile",
+      "path": "screenshots/after/scan-th-dark-mobile.png",
+      "url": "http://localhost:3111/th/finished-goods/scan",
+      "check": {
+        "heading": "เราอยู่ที่ไหน?",
+        "loading": false,
+        "mainOverflow": 0,
+        "overflow": 0,
+        "theme": "geist_e799d87a-module__u8MhCG__variable geist_mono_42eec60-module__Gb1_vG__variable dark",
+        "url": "http://localhost:3111/th/finished-goods/scan",
+        "viewport": {
+          "height": 844,
+          "width": 390
+        }
+      },
+      "locale": "th",
+      "theme": "dark",
+      "device": "mobile",
+      "kind": "matrix"
+    },
+    {
+      "phase": "after",
+      "name": "records-th-dark-mobile",
+      "path": "screenshots/after/records-th-dark-mobile.png",
+      "url": "http://localhost:3111/th/finished-goods/scan/records",
+      "check": {
+        "heading": "รายการที่สแกนแล้ว",
+        "loading": false,
+        "mainOverflow": 0,
+        "overflow": 0,
+        "theme": "geist_e799d87a-module__u8MhCG__variable geist_mono_42eec60-module__Gb1_vG__variable dark",
+        "url": "http://localhost:3111/th/finished-goods/scan/records",
+        "viewport": {
+          "height": 844,
+          "width": 390
+        }
+      },
+      "locale": "th",
+      "theme": "dark",
+      "device": "mobile",
+      "kind": "matrix"
+    },
+    {
+      "phase": "after",
+      "name": "buildings-th-dark-mobile",
+      "path": "screenshots/after/buildings-th-dark-mobile.png",
+      "url": "http://localhost:3111/th/master-data/storage-layouts",
+      "check": {
+        "heading": "เครื่องมือวางแผนอาคารจัดเก็บ",
+        "loading": false,
+        "mainOverflow": 0,
+        "overflow": 0,
+        "theme": "geist_e799d87a-module__u8MhCG__variable geist_mono_42eec60-module__Gb1_vG__variable dark",
+        "url": "http://localhost:3111/th/master-data/storage-layouts",
+        "viewport": {
+          "height": 844,
+          "width": 390
+        }
+      },
+      "locale": "th",
+      "theme": "dark",
+      "device": "mobile",
+      "kind": "matrix"
+    },
+    {
+      "phase": "after",
+      "name": "fg1-th-dark-mobile",
+      "path": "screenshots/after/fg1-th-dark-mobile.png",
+      "url": "http://localhost:3111/th/master-data/storage-layouts/rs7ek3v4b0cttw5pgjhw5qvnf98g4fny",
+      "check": {
+        "heading": "FG1 · Canvas design reference",
+        "loading": false,
+        "mainOverflow": 0,
+        "overflow": 0,
+        "theme": "geist_e799d87a-module__u8MhCG__variable geist_mono_42eec60-module__Gb1_vG__variable dark",
+        "url": "http://localhost:3111/th/master-data/storage-layouts/rs7ek3v4b0cttw5pgjhw5qvnf98g4fny",
+        "viewport": {
+          "height": 844,
+          "width": 390
+        }
+      },
+      "locale": "th",
+      "theme": "dark",
+      "device": "mobile",
+      "kind": "matrix"
+    },
+    {
+      "phase": "after",
+      "name": "finished-goods-th-light-mobile",
+      "path": "screenshots/after/finished-goods-th-light-mobile.png",
+      "url": "http://localhost:3111/th/finished-goods",
+      "check": {
+        "heading": "สินค้าสำเร็จรูป",
+        "loading": false,
+        "mainOverflow": 0,
+        "overflow": 0,
+        "theme": "geist_e799d87a-module__u8MhCG__variable geist_mono_42eec60-module__Gb1_vG__variable light",
+        "url": "http://localhost:3111/th/finished-goods",
+        "viewport": {
+          "height": 844,
+          "width": 390
+        }
+      },
+      "locale": "th",
+      "theme": "light",
+      "device": "mobile",
+      "kind": "matrix"
+    },
+    {
+      "phase": "after",
+      "name": "scan-th-light-mobile",
+      "path": "screenshots/after/scan-th-light-mobile.png",
+      "url": "http://localhost:3111/th/finished-goods/scan",
+      "check": {
+        "heading": "เราอยู่ที่ไหน?",
+        "loading": false,
+        "mainOverflow": 0,
+        "overflow": 0,
+        "theme": "geist_e799d87a-module__u8MhCG__variable geist_mono_42eec60-module__Gb1_vG__variable light",
+        "url": "http://localhost:3111/th/finished-goods/scan",
+        "viewport": {
+          "height": 844,
+          "width": 390
+        }
+      },
+      "locale": "th",
+      "theme": "light",
+      "device": "mobile",
+      "kind": "matrix"
+    },
+    {
+      "phase": "after",
+      "name": "records-th-light-mobile",
+      "path": "screenshots/after/records-th-light-mobile.png",
+      "url": "http://localhost:3111/th/finished-goods/scan/records",
+      "check": {
+        "heading": "รายการที่สแกนแล้ว",
+        "loading": false,
+        "mainOverflow": 0,
+        "overflow": 0,
+        "theme": "geist_e799d87a-module__u8MhCG__variable geist_mono_42eec60-module__Gb1_vG__variable light",
+        "url": "http://localhost:3111/th/finished-goods/scan/records",
+        "viewport": {
+          "height": 844,
+          "width": 390
+        }
+      },
+      "locale": "th",
+      "theme": "light",
+      "device": "mobile",
+      "kind": "matrix"
+    },
+    {
+      "phase": "after",
+      "name": "buildings-th-light-mobile",
+      "path": "screenshots/after/buildings-th-light-mobile.png",
+      "url": "http://localhost:3111/th/master-data/storage-layouts",
+      "check": {
+        "heading": "เครื่องมือวางแผนอาคารจัดเก็บ",
+        "loading": false,
+        "mainOverflow": 0,
+        "overflow": 0,
+        "theme": "geist_e799d87a-module__u8MhCG__variable geist_mono_42eec60-module__Gb1_vG__variable light",
+        "url": "http://localhost:3111/th/master-data/storage-layouts",
+        "viewport": {
+          "height": 844,
+          "width": 390
+        }
+      },
+      "locale": "th",
+      "theme": "light",
+      "device": "mobile",
+      "kind": "matrix"
+    },
+    {
+      "phase": "after",
+      "name": "fg1-th-light-mobile",
+      "path": "screenshots/after/fg1-th-light-mobile.png",
+      "url": "http://localhost:3111/th/master-data/storage-layouts/rs7ek3v4b0cttw5pgjhw5qvnf98g4fny",
+      "check": {
+        "heading": "FG1 · Canvas design reference",
+        "loading": false,
+        "mainOverflow": 0,
+        "overflow": 0,
+        "theme": "geist_e799d87a-module__u8MhCG__variable geist_mono_42eec60-module__Gb1_vG__variable light",
+        "url": "http://localhost:3111/th/master-data/storage-layouts/rs7ek3v4b0cttw5pgjhw5qvnf98g4fny",
+        "viewport": {
+          "height": 844,
+          "width": 390
+        }
+      },
+      "locale": "th",
+      "theme": "light",
+      "device": "mobile",
+      "kind": "matrix"
+    },
+    {
+      "phase": "after",
+      "name": "fg1-inspector-200-th-light-desktop",
+      "path": "screenshots/after/fg1-inspector-200-th-light-desktop.png",
+      "url": "http://localhost:3111/th/master-data/storage-layouts/rs7ek3v4b0cttw5pgjhw5qvnf98g4fny",
+      "check": {
+        "dialogs": [],
+        "footer": " FLOOR 01\n\nผัง 2D · 200%\n\nรายละเอียดจุดจัดเก็บ\nFG1-R04\n\nฝั่งขวา · ชั้น 1\n\n●\nว่าง\nกว้าง × ลึก\n2.4 × 1.6 m\nความสูงสูงสุด\n3 m\nพื้นที่\n3.84 m²\nหน่วยจัดเก็บ\n0 หน่วย\nสินค้าที่จัดเก็บ\n\nยังไม่มีหน่วยที่จัดเก็บหรือจอง\n\nการจัดการจุดจัดเก็บ\nQR และป้ายตำแหน่ง (1)\n\nยังไม่มีหน่วยที่จัดเก็บหรือจอง\n\nแก้ไขจุดจัดเก็บ",
+        "overflow": 0,
+        "theme": "geist_e799d87a-module__u8MhCG__variable geist_mono_42eec60-module__Gb1_vG__variable light",
+        "url": "http://localhost:3111/th/master-data/storage-layouts/rs7ek3v4b0cttw5pgjhw5qvnf98g4fny",
+        "viewport": {
+          "height": 1000,
+          "width": 1440
+        }
+      },
+      "kind": "interaction"
+    },
+    {
+      "phase": "after",
+      "name": "fg1-display-menu-th-light-desktop",
+      "path": "screenshots/after/fg1-display-menu-th-light-desktop.png",
+      "url": "http://localhost:3111/th/master-data/storage-layouts/rs7ek3v4b0cttw5pgjhw5qvnf98g4fny",
+      "check": {
+        "dialogs": [null],
+        "footer": "น่วยจัดเก็บ\n0 หน่วย\nสินค้าที่จัดเก็บ\n\nยังไม่มีหน่วยที่จัดเก็บหรือจอง\n\nการจัดการจุดจัดเก็บ\nQR และป้ายตำแหน่ง (1)\n\nยังไม่มีหน่วยที่จัดเก็บหรือจอง\n\nแก้ไขจุดจัดเก็บ\n\nแสดงป้ายรายละเอียด\nแสดงตำแหน่งพาเลท\nหมุนมุมมอง\nพื้นที่ฐานอาคาร\nทางเดิน / AISLE\nพื้นที่ห้ามจัดเก็บ · ด้านหน้า\nพื้นที่ห้ามจัดเก็บ · ด้านหลัง",
+        "overflow": 0,
+        "theme": "geist_e799d87a-module__u8MhCG__variable geist_mono_42eec60-module__Gb1_vG__variable light",
+        "url": "http://localhost:3111/th/master-data/storage-layouts/rs7ek3v4b0cttw5pgjhw5qvnf98g4fny",
+        "viewport": {
+          "height": 1000,
+          "width": 1440
+        }
+      },
+      "kind": "interaction"
+    },
+    {
+      "phase": "after",
+      "name": "fg1-inspector-200-th-dark-desktop",
+      "path": "screenshots/after/fg1-inspector-200-th-dark-desktop.png",
+      "url": "http://localhost:3111/th/master-data/storage-layouts/rs7ek3v4b0cttw5pgjhw5qvnf98g4fny",
+      "check": {
+        "dialogs": [],
+        "footer": " FLOOR 01\n\nผัง 2D · 200%\n\nรายละเอียดจุดจัดเก็บ\nFG1-R04\n\nฝั่งขวา · ชั้น 1\n\n●\nว่าง\nกว้าง × ลึก\n2.4 × 1.6 m\nความสูงสูงสุด\n3 m\nพื้นที่\n3.84 m²\nหน่วยจัดเก็บ\n0 หน่วย\nสินค้าที่จัดเก็บ\n\nยังไม่มีหน่วยที่จัดเก็บหรือจอง\n\nการจัดการจุดจัดเก็บ\nQR และป้ายตำแหน่ง (1)\n\nยังไม่มีหน่วยที่จัดเก็บหรือจอง\n\nแก้ไขจุดจัดเก็บ",
+        "overflow": 0,
+        "theme": "geist_e799d87a-module__u8MhCG__variable geist_mono_42eec60-module__Gb1_vG__variable dark",
+        "url": "http://localhost:3111/th/master-data/storage-layouts/rs7ek3v4b0cttw5pgjhw5qvnf98g4fny",
+        "viewport": {
+          "height": 1000,
+          "width": 1440
+        }
+      },
+      "kind": "interaction"
+    },
+    {
+      "phase": "after",
+      "name": "fg1-display-menu-th-dark-desktop",
+      "path": "screenshots/after/fg1-display-menu-th-dark-desktop.png",
+      "url": "http://localhost:3111/th/master-data/storage-layouts/rs7ek3v4b0cttw5pgjhw5qvnf98g4fny",
+      "check": {
+        "dialogs": [null],
+        "footer": "น่วยจัดเก็บ\n0 หน่วย\nสินค้าที่จัดเก็บ\n\nยังไม่มีหน่วยที่จัดเก็บหรือจอง\n\nการจัดการจุดจัดเก็บ\nQR และป้ายตำแหน่ง (1)\n\nยังไม่มีหน่วยที่จัดเก็บหรือจอง\n\nแก้ไขจุดจัดเก็บ\n\nแสดงป้ายรายละเอียด\nแสดงตำแหน่งพาเลท\nหมุนมุมมอง\nพื้นที่ฐานอาคาร\nทางเดิน / AISLE\nพื้นที่ห้ามจัดเก็บ · ด้านหน้า\nพื้นที่ห้ามจัดเก็บ · ด้านหลัง",
+        "overflow": 0,
+        "theme": "geist_e799d87a-module__u8MhCG__variable geist_mono_42eec60-module__Gb1_vG__variable dark",
+        "url": "http://localhost:3111/th/master-data/storage-layouts/rs7ek3v4b0cttw5pgjhw5qvnf98g4fny",
+        "viewport": {
+          "height": 1000,
+          "width": 1440
+        }
+      },
+      "kind": "interaction"
+    },
+    {
+      "phase": "after",
+      "name": "fg1-500-th-dark-desktop",
+      "path": "screenshots/after/fg1-500-th-dark-desktop.png",
+      "url": "http://localhost:3111/th/master-data/storage-layouts/rs7ek3v4b0cttw5pgjhw5qvnf98g4fny",
+      "check": {
+        "dialogs": [],
+        "footer": "ั้น 1\n12.26 × 29.93 × 3.3 m\n2D\n3D\nL014 หน่วย\nL02ว่าง\nL034 หน่วย\nL04ว่าง\nL05ว่าง\nR014 หน่วย\nR02ว่าง\nR034 หน่วย\nR05ว่าง\nR064 หน่วย\nR07ว่าง\nR08ว่าง\nR094 หน่วย\nR10ว่าง\nR04ว่าง\n12.26 m\n29.93 m\n0.625 m\nว่าง\nจัดเก็บแล้ว\nจองแล้ว\nUI-B-REFERENCE / ชั้น / FLOOR 01\n\nผัง 2D · 500%\n\nFG1-R04 · รายละเอียดจุดจัดเก็บ",
+        "overflow": 0,
+        "theme": "geist_e799d87a-module__u8MhCG__variable geist_mono_42eec60-module__Gb1_vG__variable dark",
+        "url": "http://localhost:3111/th/master-data/storage-layouts/rs7ek3v4b0cttw5pgjhw5qvnf98g4fny",
+        "viewport": {
+          "height": 1000,
+          "width": 1440
+        }
+      },
+      "kind": "interaction"
+    },
+    {
+      "phase": "after",
+      "name": "fg1-table-th-dark-desktop",
+      "path": "screenshots/after/fg1-table-th-dark-desktop.png",
+      "url": "http://localhost:3111/th/master-data/storage-layouts/rs7ek3v4b0cttw5pgjhw5qvnf98g4fny?panel=list",
+      "check": {
+        "dialogs": [],
+        "footer": "\nยังไม่มีหน่วยที่จัดเก็บหรือจอง\n\nแก้ไขจุดจัดเก็บ\n\nFG1-R05\tฝั่งขวา\t2.4 × 1.6 × 3\t0\t0\t0\t0\nFG1-R06\tฝั่งขวา\t2.4 × 1.6 × 3\t4\t4\t0\t0\nFG1-R07\tฝั่งขวา\t2.4 × 1.6 × 3\t0\t0\t0\t0\nFG1-R08\tฝั่งขวา\t2.4 × 1.6 × 3\t0\t0\t0\t0\nFG1-R09\tฝั่งขวา\t2.4 × 1.6 × 3\t4\t4\t0\t0\nFG1-R10\tฝั่งขวา\t2.4 × 1.6 × 3\t0\t0\t0\t0\n1–15 จาก 15 จุดจัดเก็บ",
+        "overflow": 0,
+        "theme": "geist_e799d87a-module__u8MhCG__variable geist_mono_42eec60-module__Gb1_vG__variable dark",
+        "url": "http://localhost:3111/th/master-data/storage-layouts/rs7ek3v4b0cttw5pgjhw5qvnf98g4fny?panel=list",
+        "viewport": {
+          "height": 1000,
+          "width": 1440
+        }
+      },
+      "kind": "interaction"
+    },
+    {
+      "phase": "after",
+      "name": "fg1-split-th-dark-desktop",
+      "path": "screenshots/after/fg1-split-th-dark-desktop.png",
+      "url": "http://localhost:3111/th/master-data/storage-layouts/rs7ek3v4b0cttw5pgjhw5qvnf98g4fny?panel=split",
+      "check": {
+        "dialogs": [],
+        "footer": "ส\n\tหน่วยทั้งหมด\n\tจัดเก็บแล้ว\tจองแล้ว\nFG1-L01\t4\t4\t0\nFG1-L02\t0\t0\t0\nFG1-L03\t4\t4\t0\nFG1-L04\t0\t0\t0\nFG1-L05\t0\t0\t0\nFG1-R01\t4\t4\t0\nFG1-R02\t0\t0\t0\nFG1-R03\t4\t4\t0\nFG1-R04\t0\t0\t0\nFG1-R05\t0\t0\t0\nFG1-R06\t4\t4\t0\nFG1-R07\t0\t0\t0\nFG1-R08\t0\t0\t0\nFG1-R09\t4\t4\t0\nFG1-R10\t0\t0\t0\n1–15 จาก 15 จุดจัดเก็บ\nFG1-R04 · รายละเอียดจุดจัดเก็บ",
+        "overflow": 0,
+        "theme": "geist_e799d87a-module__u8MhCG__variable geist_mono_42eec60-module__Gb1_vG__variable dark",
+        "url": "http://localhost:3111/th/master-data/storage-layouts/rs7ek3v4b0cttw5pgjhw5qvnf98g4fny?panel=split",
+        "viewport": {
+          "height": 1000,
+          "width": 1440
+        }
+      },
+      "kind": "interaction"
+    },
+    {
+      "phase": "after",
+      "name": "fg1-inspector-th-dark-mobile",
+      "path": "screenshots/after/fg1-inspector-th-dark-mobile.png",
+      "url": "http://localhost:3111/th/master-data/storage-layouts/rs7ek3v4b0cttw5pgjhw5qvnf98g4fny",
+      "check": {
+        "dialogs": ["รายละเอียดจุดจัดเก็บ"],
+        "footer": "เอียดจุดจัดเก็บ\n\nFG1-R04 · ชั้น 1\n\nFG1-R04\n\nฝั่งขวา · ชั้น 1\n\n●\nว่าง\nกว้าง × ลึก\n2.4 × 1.6 m\nความสูงสูงสุด\n3 m\nพื้นที่\n3.84 m²\nหน่วยจัดเก็บ\n0 หน่วย\nสินค้าที่จัดเก็บ\n\nยังไม่มีหน่วยที่จัดเก็บหรือจอง\n\nการจัดการจุดจัดเก็บ\nQR และป้ายตำแหน่ง (1)\n\nยังไม่มีหน่วยที่จัดเก็บหรือจอง\n\nแก้ไขจุดจัดเก็บ\nปิดหน้าต่าง",
+        "overflow": 0,
+        "theme": "geist_e799d87a-module__u8MhCG__variable geist_mono_42eec60-module__Gb1_vG__variable dark",
+        "url": "http://localhost:3111/th/master-data/storage-layouts/rs7ek3v4b0cttw5pgjhw5qvnf98g4fny",
+        "viewport": {
+          "height": 844,
+          "width": 390
+        }
+      },
+      "kind": "interaction"
+    },
+    {
+      "phase": "after",
+      "name": "scan-search-th-dark-mobile",
+      "path": "screenshots/after/scan-search-th-dark-mobile.png",
+      "url": "http://localhost:3111/th/finished-goods/scan",
+      "check": {
+        "dialogs": [],
+        "footer": " พื้นที่สำรอง ชั้น 2\nDEMO-ANNEX-F02-Z10\nอาคารสาธิต DEMO-ANNEX · ชั้น 2 · ชั้นวาง A · สินค้าหมุนเวียนเร็ว\nDEMO-ANNEX-F02-Z11\nอาคารสาธิต DEMO-ANNEX · ชั้น 2 · คลังสินค้าสำเร็จรูป · ชั้น 2\nบันทึกไว้ก่อน ระบุตำแหน่งภายหลัง: “DEMO-ANNEX”\nยังไม่มีในระบบ? บันทึกข้อความไว้ก่อน แล้วค่อยระบุตำแหน่งจริงภายหลัง",
+        "overflow": 0,
+        "theme": "geist_e799d87a-module__u8MhCG__variable geist_mono_42eec60-module__Gb1_vG__variable dark",
+        "url": "http://localhost:3111/th/finished-goods/scan",
+        "viewport": {
+          "height": 844,
+          "width": 390
+        }
+      },
+      "kind": "interaction"
+    },
+    {
+      "phase": "after",
+      "name": "f1-f2-500-th-dark-desktop",
+      "path": "screenshots/after/f1-f2-500-th-dark-desktop.png",
+      "url": "http://localhost:3190/?fixture=f1-f2&locale=th",
+      "check": {
+        "dialogs": [],
+        "footer": "13\nF1-L14\nF1-L15\nF1-L16\nF1-L17\nF1-L18\nF1-L19\nF1-L2\nF1-L20\nF1-L21\nF1-L22\nF1-L23\nF1-L24\nF1-L25\nF1-L26\nF1-L27\nF1-L28\nF1-L29\nF1-L3\nF1-L30\nF1-L31\nF1-L4\nF1-L5\nF1-L6\nF1-L7\nF1-L8\nF1-L9\nSB-L2\n60 m\n28 m\n0.625 m\nว่าง\nจัดเก็บแล้ว\nจองแล้ว\n\n379 ตำแหน่งจัดเก็บ ใน 32 กลุ่ม\n\nF1-F2-SB / ชั้น / FLOOR 01\n\nผัง 2D · 500%",
+        "overflow": 0,
+        "theme": "dark",
+        "url": "http://localhost:3190/?fixture=f1-f2&locale=th",
+        "viewport": {
+          "height": 1000,
+          "width": 1440
+        }
+      },
+      "kind": "interaction"
+    },
+    {
+      "phase": "after",
+      "name": "scan-return-en-dark-desktop",
+      "path": "screenshots/after/scan-return-en-dark-desktop.png",
+      "url": "http://localhost:3111/en/finished-goods/scan",
+      "check": {
+        "dialogs": [],
+        "footer": "Scan job tickets\nScanned records\nBuildings & spots\nPeople\nAttendance\nMy requests\nLeave\nAnnouncements\nPayslips\nHR administration\nAdministration\nAI usage\nIndustrial SAS Local Demo\n\nIndustrial SAS Local Demo\n\nLanguage\n🇬🇧\nEnglish\nWhere are we?\n\nSearch for a location or read its label.\n\nSearch location",
+        "overflow": 0,
+        "theme": "geist_e799d87a-module__u8MhCG__variable geist_mono_42eec60-module__Gb1_vG__variable dark",
+        "url": "http://localhost:3111/en/finished-goods/scan",
+        "viewport": {
+          "height": 1000,
+          "width": 1440
+        }
+      },
+      "kind": "interaction"
+    },
+    {
+      "phase": "after",
+      "name": "records-en-light-desktop",
+      "path": "screenshots/after/records-en-light-desktop.png",
+      "url": "http://localhost:3111/en/finished-goods/scan/records",
+      "check": {
+        "dialogs": [],
+        "footer": "· 800\n\nข้างเสา C12\nNot set\n\nOct 12, 2026, 9:04 PM · Manual\n\nFO69070102\n\nTG-DIV-5x8-003\n\nDIVIDER 5x8 SLOT · 2,400\n\nหน้าประตู 3 ฝั่งซ้าย\nNot set\n\nOct 12, 2026, 8:34 PM · AI\n\nFO69070073\n\nFBN-BXVMI004-BOX-00F\n\nVMI BOX TRAY BXVMI004 Rev.02 · 1,000\n\nDock B overflow\nNot set\n\nOct 12, 2026, 8:04 PM · Barcode",
+        "overflow": 0,
+        "theme": "geist_e799d87a-module__u8MhCG__variable geist_mono_42eec60-module__Gb1_vG__variable light",
+        "url": "http://localhost:3111/en/finished-goods/scan/records",
+        "viewport": {
+          "height": 1000,
+          "width": 1440
+        }
+      },
+      "locale": "en",
+      "theme": "light",
+      "device": "desktop",
+      "kind": "matrix"
+    },
+    {
+      "phase": "after",
+      "name": "scan-location-chosen-th-dark-mobile",
+      "path": "screenshots/after/scan-location-chosen-th-dark-mobile.png",
+      "url": "http://localhost:3111/th/finished-goods/scan",
+      "check": {
+        "dialogs": [],
+        "footer": "ข้ามไปยังเนื้อหาหลัก\n\nIndustrial SAS Local Demo\n\nภาษา\n🇹🇭\nไทย\nสแกนพาเลท\n\nบันทึกใบ Job ของแต่ละพาเลท\n\nDEMO-ANNEX-F01-Z01\n\nอาคารสาธิต DEMO-ANNEX · ชั้น 1 · พื้นที่รับเข้า ชั้น 1\n\n●\nระบุตำแหน่งแล้ว\nเปลี่ยน\nถ่ายรูป AI\nสแกนรหัส\nกรอกเอง\n\nยังไม่มีใบ Job ถ่ายรูปใบ Job หรือสแกนบาร์โค้ดเพื่อเริ่ม",
+        "overflow": 0,
+        "theme": "geist_e799d87a-module__u8MhCG__variable geist_mono_42eec60-module__Gb1_vG__variable dark",
+        "url": "http://localhost:3111/th/finished-goods/scan",
+        "viewport": {
+          "height": 844,
+          "width": 390
+        }
+      },
+      "kind": "interaction"
+    },
+    {
+      "phase": "after",
+      "name": "scan-manual-th-dark-mobile",
+      "path": "screenshots/after/scan-manual-th-dark-mobile.png",
+      "url": "http://localhost:3111/th/finished-goods/scan",
+      "check": {
+        "dialogs": [],
+        "footer": "\nสแกนพาเลท\n\nบันทึกใบ Job ของแต่ละพาเลท\n\nDEMO-ANNEX-F01-Z01\n\nอาคารสาธิต DEMO-ANNEX · ชั้น 1 · พื้นที่รับเข้า ชั้น 1\n\n●\nระบุตำแหน่งแล้ว\nเปลี่ยน\nถ่ายรูป AI\nสแกนรหัส\nกรอกเอง\n#1\n○\nกรอกเอง\nเลขที่ Job\n*\nบาร์โค้ดสินค้า\n*\nพาเลท\nรายละเอียดเพิ่มเติม\nกรอกแล้ว 0\nบันทึก 1 ใบ\n\nทุกใบต้องมี Job No. และบาร์โค้ดสินค้า",
+        "overflow": 0,
+        "theme": "geist_e799d87a-module__u8MhCG__variable geist_mono_42eec60-module__Gb1_vG__variable dark",
+        "url": "http://localhost:3111/th/finished-goods/scan",
+        "viewport": {
+          "height": 844,
+          "width": 390
+        }
+      },
+      "kind": "interaction"
+    },
+    {
+      "phase": "after",
+      "name": "f1-f2-th-dark-desktop",
+      "path": "screenshots/after/f1-f2-th-dark-desktop.png",
+      "url": "http://localhost:3190/?fixture=f1-f2&locale=th",
+      "check": {
+        "footer": "\nSB-L2\n60 m\n28 m\n5 m\nว่าง\nจัดเก็บแล้ว\nจองแล้ว\n\n379 ตำแหน่งจัดเก็บ ใน 32 กลุ่ม\n\nF1-F2-SB / ชั้น / FLOOR 01\n\nผัง 2D · 100%",
+        "heading": "อาคาร F1 + F2",
+        "locations": 400,
+        "overflow": 0,
+        "theme": "dark",
+        "url": "http://localhost:3190/?fixture=f1-f2&locale=th",
+        "viewport": {
+          "height": 1000,
+          "width": 1440
+        }
+      },
+      "locale": "th",
+      "theme": "dark",
+      "device": "desktop",
+      "kind": "matrix"
+    },
+    {
+      "phase": "after",
+      "name": "f1-f2-inspector-500-th-dark-desktop",
+      "path": "screenshots/after/f1-f2-inspector-500-th-dark-desktop.png",
+      "url": "http://localhost:3190/?fixture=f1-f2&locale=th",
+      "check": {
+        "dialogs": [],
+        "footer": "1-L7\nF1-L8\nF1-L9\nSB-L2\n60 m\n28 m\n0.625 m\nว่าง\nจัดเก็บแล้ว\nจองแล้ว\n\n379 ตำแหน่งจัดเก็บ ใน 32 กลุ่ม\n\nF1-F2-SB / ชั้น / FLOOR 01\n\nผัง 2D · 500%\n\nรายละเอียดจุดจัดเก็บ\nF1-L18-2\n\nF1-L18-2\n\n1.595 × 1.528 × 3.3 m\n\nความสูงที่ใช้ได้: 3.3 ม.\n\nพื้นที่ฐานที่ใช้หรือจอง: 0%\n\n0 หน่วย\n\nยังไม่มีหน่วยที่จัดเก็บหรือจอง",
+        "overflow": 0,
+        "theme": "dark",
+        "url": "http://localhost:3190/?fixture=f1-f2&locale=th",
+        "viewport": {
+          "height": 1000,
+          "width": 1440
+        }
+      },
+      "kind": "interaction"
+    }
+  ]
+}

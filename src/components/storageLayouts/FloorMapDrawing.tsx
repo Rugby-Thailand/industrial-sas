@@ -15,6 +15,7 @@ import { useFloorMapViewport } from "./useFloorMapViewport";
 import { useFloorMapPan } from "./useFloorMapPan";
 import { useStorageLayoutMobile } from "./useStorageLayoutMobile";
 import { floorPositions, positionAisles } from "./floorPositionGeometry";
+import { planCellLabelLayout } from "./planCellLabelLayout";
 import { ReservedAreaShape } from "./StorageZoneVisualizer";
 import {
   adjacentZone,
@@ -683,63 +684,64 @@ function SceneDrawing({
                               : "group-focus-visible:stroke-text"
                           }
                         />
-                        {cellWidth > 24 && cellHeight > 15 && (
-                          <text
-                            data-floor-zone-name={zone.code}
-                            x={(base[0]!.x + base[1]!.x) / 2}
-                            y={
-                              (base[0]!.y + base[3]!.y) / 2 -
-                              (cellHeight > 36 ? 6 : 0)
-                            }
-                            textAnchor="middle"
-                            dominantBaseline="middle"
-                            fill={
-                              active
-                                ? "var(--plan-selected-text)"
-                                : "var(--plan-text)"
-                            }
-                            fontSize={Math.min(
-                              13,
-                              (base[1]!.x - base[0]!.x - 8) /
-                                (shortCode.length * 0.6),
-                            )}
-                            fontWeight="600"
-                            className="pointer-events-none font-mono"
-                          >
-                            {shortCode}
-                            {cellHeight > 36 && (
-                              <tspan
-                                x={(base[0]!.x + base[1]!.x) / 2}
-                                dy="18"
-                                fontSize={Math.min(
-                                  10,
-                                  (base[1]!.x - base[0]!.x - 6) /
-                                    (Math.max(
-                                      1,
-                                      (floorZoneUnitCount(zone)
-                                        ? t("mapUnitCount", {
-                                            count: floorZoneUnitCount(zone),
-                                          })
-                                        : t("mapEmpty")
-                                      ).length,
-                                    ) *
-                                      0.6),
-                                )}
-                                fill={
-                                  active
-                                    ? "var(--plan-selected-text)"
-                                    : "var(--plan-muted)"
-                                }
-                              >
-                                {floorZoneUnitCount(zone)
-                                  ? t("mapUnitCount", {
-                                      count: floorZoneUnitCount(zone),
-                                    })
-                                  : t("mapEmpty")}
-                              </tspan>
-                            )}
-                          </text>
-                        )}
+                        {(() => {
+                          // Size the label in CSS pixels from the cell's real
+                          // projected size, then undo the parent zoom so it
+                          // stays readable instead of growing past the cell.
+                          const unitCount = floorZoneUnitCount(zone);
+                          const status = unitCount
+                            ? t("mapUnitCount", { count: unitCount })
+                            : t("mapEmpty");
+                          const pixelsToFrame = screenUnit / zoom;
+                          const layout = planCellLabelLayout({
+                            width:
+                              Math.abs(base[1]!.x - base[0]!.x) / pixelsToFrame,
+                            height:
+                              Math.abs(base[3]!.y - base[0]!.y) / pixelsToFrame,
+                            code: shortCode,
+                            status,
+                          });
+                          if (!layout.code) return null;
+                          const x = (base[0]!.x + base[1]!.x) / 2;
+                          const y = (base[0]!.y + base[3]!.y) / 2;
+                          return (
+                            <text
+                              data-floor-zone-name={zone.code}
+                              x={x}
+                              y={y + layout.code.offsetY * pixelsToFrame}
+                              textAnchor="middle"
+                              dominantBaseline="central"
+                              fill={
+                                active
+                                  ? "var(--plan-selected-text)"
+                                  : "var(--plan-text)"
+                              }
+                              fontSize={layout.code.fontSize * pixelsToFrame}
+                              fontWeight="600"
+                              className="pointer-events-none font-mono"
+                            >
+                              {shortCode}
+                              {layout.status && (
+                                <tspan
+                                  data-floor-zone-status
+                                  x={x}
+                                  y={y + layout.status.offsetY * pixelsToFrame}
+                                  dominantBaseline="central"
+                                  fontSize={
+                                    layout.status.fontSize * pixelsToFrame
+                                  }
+                                  fill={
+                                    active
+                                      ? "var(--plan-selected-text)"
+                                      : "var(--plan-muted)"
+                                  }
+                                >
+                                  {status}
+                                </tspan>
+                              )}
+                            </text>
+                          );
+                        })()}
                       </>
                     )}
                   {view === "plan" && pdGroupCode(zone.code) && (

@@ -318,28 +318,30 @@ function LocationPickerSession({
               <li key={zone.locationId ?? zone.zoneId}>
                 <button
                   type="button"
-                  className="flex min-h-12 w-full items-center gap-3 px-3 py-2 text-left hover:bg-raised focus-visible:bg-raised focus-visible:outline-none"
+                  className="flex min-h-12 w-full items-center gap-3 px-3 py-2 text-left hover:bg-raised focus-visible:bg-raised focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
                   onClick={() => choose({ ...zone, text: zone.code })}
                 >
                   <MapPin
                     className="size-4 shrink-0 text-muted"
                     aria-hidden="true"
                   />
-                  <span className="min-w-0 shrink-0 font-mono font-semibold break-all sm:break-normal">
-                    {zone.code}
-                  </span>
-                  <span className="min-w-0 truncate text-sm text-muted">
-                    {zone.buildingName
-                      ? [
-                          zone.buildingName,
-                          zone.floorNumber === undefined
-                            ? undefined
-                            : t("floorNumber", { number: zone.floorNumber }),
-                          zone.name,
-                        ]
-                          .filter(Boolean)
-                          .join(" · ")
-                      : zone.name}
+                  <span className="grid min-w-0 flex-1 gap-y-1 sm:flex sm:items-center sm:gap-3">
+                    <span className="min-w-0 font-mono font-semibold break-all sm:shrink-0 sm:break-normal">
+                      {zone.code}
+                    </span>
+                    <span className="line-clamp-2 min-w-0 text-sm leading-6 break-words text-muted">
+                      {zone.buildingName
+                        ? [
+                            zone.buildingName,
+                            zone.floorNumber === undefined
+                              ? undefined
+                              : t("floorNumber", { number: zone.floorNumber }),
+                            zone.name,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")
+                        : zone.name}
+                    </span>
                   </span>
                 </button>
               </li>
@@ -353,7 +355,7 @@ function LocationPickerSession({
               <li>
                 <button
                   type="button"
-                  className="flex min-h-12 w-full flex-col items-start px-3 py-2 text-left hover:bg-raised focus-visible:bg-raised focus-visible:outline-none"
+                  className="flex min-h-12 w-full flex-col items-start px-3 py-2 text-left hover:bg-raised focus-visible:bg-raised focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
                   onClick={() => choose({ text: trimmed })}
                 >
                   <span className="font-semibold text-warning">

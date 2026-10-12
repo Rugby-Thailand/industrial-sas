@@ -190,6 +190,17 @@ describe("BuildingModelWorkspace", () => {
     const details = screen.getByRole("complementary", {
       name: "Selected location",
     });
+    // The hosted inspector has one heading and one closing action.
+    expect(
+      within(details).getAllByRole("heading", { name: "Location details" }),
+    ).toHaveLength(1);
+    expect(within(details).queryByText("Selected location")).toBeNull();
+    expect(
+      within(details).queryByRole("button", { name: "Clear selection" }),
+    ).toBeNull();
+    expect(
+      within(details).getAllByRole("button", { name: "Hide details" }),
+    ).toHaveLength(1);
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(
       within(details).getByRole("link", { name: "Open pallet P-005" }),
@@ -207,11 +218,19 @@ describe("BuildingModelWorkspace", () => {
     fireEvent.click(
       within(
         screen.getByRole("complementary", { name: "Selected location" }),
-      ).getByRole("button", { name: "Clear selection" }),
+      ).getByRole("button", { name: "Hide details" }),
     );
     await waitFor(() =>
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
     );
+    expect(
+      screen.queryByRole("complementary", { name: "Selected location" }),
+    ).not.toBeInTheDocument();
+    // Hiding keeps the selection, so the details can be reopened.
+    fireEvent.click(screen.getByRole("button", { name: /Location details$/ }));
+    expect(
+      screen.getByRole("complementary", { name: "Selected location" }),
+    ).toBeVisible();
     expect(window.location.search).not.toContain("editZone");
     expect(container.querySelector('a[href$="/demo"]')).toBeNull();
     rerender(
@@ -295,9 +314,16 @@ describe("BuildingModelWorkspace", () => {
     expect(
       document.getElementById("storage-stacks-section"),
     ).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "More actions" }));
+    // The add action is a direct toolbar control, not a nested overflow menu.
+    expect(
+      screen.queryByRole("button", { name: "More actions" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getAllByRole("button", { name: "Display options" }),
+    ).toHaveLength(1);
     const add = screen.getByRole("button", { name: "Add storage stack" });
     expect(add).toHaveAttribute("type", "button");
+    expect(add).toBeEnabled();
     fireEvent.click(add);
     expect(screen.getByRole("dialog")).toBeVisible();
     expect(screen.getByLabelText("Zone label")).toBeVisible();
@@ -2168,6 +2194,18 @@ describe("mobile storage workspace", () => {
     expect(
       screen.getByRole("dialog", { name: "Location details" }),
     ).toBeVisible();
+    const sheet = screen.getByRole("dialog", { name: "Location details" });
+    // The sheet owns the only heading and close action; details stay intact.
+    expect(within(sheet).queryByText("Selected location")).toBeNull();
+    expect(
+      within(sheet).queryByRole("button", { name: "Clear selection" }),
+    ).toBeNull();
+    expect(
+      within(sheet).getAllByRole("button", { name: "Close dialog" }),
+    ).toHaveLength(1);
+    expect(
+      within(sheet).getByRole("button", { name: "Edit Occupied FG" }),
+    ).toBeEnabled();
     fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
     await waitFor(() =>
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),

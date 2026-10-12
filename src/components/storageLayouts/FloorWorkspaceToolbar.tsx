@@ -6,11 +6,10 @@ import {
   SlidersHorizontal,
   Search,
   X,
-  MoreHorizontal,
 } from "lucide-react";
 import { Popover } from "radix-ui";
 import { useTranslations } from "next-intl";
-import { useState, type ReactNode } from "react";
+import { useRef, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/IconButton";
 import type { FloorWorkspaceView } from "./useFloorWorkspaceView";
@@ -46,7 +45,7 @@ export function FloorWorkspaceToolbar({
   cameraControls?: ReactNode;
 }) {
   const t = useTranslations("StorageLayouts");
-  const [moreOpen, setMoreOpen] = useState(false);
+  const searchInput = useRef<HTMLInputElement>(null);
   const views: readonly FloorWorkspaceView[] = canSplit
     ? ["map", "list", "split"]
     : ["map", "list"];
@@ -66,6 +65,7 @@ export function FloorWorkspaceToolbar({
       <div className={styles.search}>
         <Search aria-hidden="true" className="size-4 shrink-0 text-muted" />
         <input
+          ref={searchInput}
           type="text"
           role="searchbox"
           inputMode="search"
@@ -82,7 +82,11 @@ export function FloorWorkspaceToolbar({
             className={styles.icon}
             variant="ghost"
             label={t("workspace.clearSearch")}
-            onClick={() => onSearch("")}
+            onClick={() => {
+              onSearch("");
+              // The clear button unmounts with the query; keep focus in search.
+              searchInput.current?.focus();
+            }}
           >
             <X />
           </IconButton>
@@ -193,34 +197,10 @@ export function FloorWorkspaceToolbar({
         </div>
       )}
       {actions && (
-        <div className={styles.more}>
-          <Popover.Root open={moreOpen} onOpenChange={setMoreOpen}>
-            <Popover.Trigger asChild>
-              <IconButton
-                className={styles.icon}
-                label={t("workspace.moreActions")}
-                variant="ghost"
-              >
-                <MoreHorizontal />
-              </IconButton>
-            </Popover.Trigger>
-            <Popover.Portal>
-              <Popover.Content
-                align="end"
-                sideOffset={8}
-                className="z-50 rounded-lg border border-border bg-surface p-2 shadow-lg"
-                onClick={(event) => {
-                  if (
-                    event.target instanceof Element &&
-                    event.target.closest("button, a")
-                  )
-                    setMoreOpen(false);
-                }}
-              >
-                {actions}
-              </Popover.Content>
-            </Popover.Portal>
-          </Popover.Root>
+        // Callers pass ready-made, labelled actions (Add location). Show them
+        // directly; the camera group already owns the Display options menu.
+        <div className={styles.actions} data-floor-actions>
+          {actions}
         </div>
       )}
     </div>

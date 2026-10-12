@@ -75,6 +75,7 @@ import { StoragePlacementLayer } from "@/components/storageLayouts/StorageZoneVi
 import { QueryGate } from "@/components/system/QueryGate";
 import { DataTable } from "@/components/table/DataTable";
 import { Button } from "@/components/ui/button";
+import { IconButton } from "@/components/ui/IconButton";
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import {
   Dialog,
@@ -1558,12 +1559,9 @@ function FloorForm({
             locationInspector={workspace ? locationInspector : undefined}
             locationActions={
               workspace && editable ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  aria-label={t("addStorageZone")}
-                  title={t("addStorageZone")}
+                <IconButton
+                  label={t("addStorageZone")}
+                  tooltip={t("addStorageZone")}
                   disabled={
                     !editable ||
                     hasUnsavedFloorChanges ||
@@ -1572,8 +1570,8 @@ function FloorForm({
                   }
                   onClick={() => zonePanelRef.current?.create()}
                 >
-                  <Plus className="size-4" />
-                </Button>
+                  <Plus aria-hidden="true" className="size-4" />
+                </IconButton>
               ) : undefined
             }
             selectedZoneId={selectedZoneId}

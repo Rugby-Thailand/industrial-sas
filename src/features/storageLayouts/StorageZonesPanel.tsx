@@ -1045,26 +1045,30 @@ export function StorageZonesPanel({
   if (compact) {
     const details = (
       <>
-        {" "}
         {visibleZones.length > 0 ? (
           <div className="min-w-0">
-            <div className="flex items-center justify-between gap-2">
-              <span className={canvasStyles.eyebrow}>
-                {t("canvasSelectedLocation")}
-              </span>
-              {!mobile && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  aria-label={t("mapClearSelection")}
-                  title={t("mapClearSelection")}
-                  onClick={onSelectionClose}
-                >
-                  <X aria-hidden="true" />
-                </Button>
-              )}
-            </div>
+            {/* Inside the map workspace, the inspector or sheet already owns
+                the heading and its close action; only a standalone panel
+                carries its own. */}
+            {!detailsHost && (
+              <div className="flex items-center justify-between gap-2">
+                <span className={canvasStyles.eyebrow}>
+                  {t("canvasSelectedLocation")}
+                </span>
+                {!mobile && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    aria-label={t("mapClearSelection")}
+                    title={t("mapClearSelection")}
+                    onClick={onSelectionClose}
+                  >
+                    <X aria-hidden="true" />
+                  </Button>
+                )}
+              </div>
+            )}
             {blocked ? (
               <Notice
                 tone="accent"
