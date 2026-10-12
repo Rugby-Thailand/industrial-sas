@@ -2777,7 +2777,7 @@
       "first": "หน้าแรก",
       "loading": "กำลังโหลดรายการ…",
       "searching": "กำลังค้นหาในรายการทั้งหมด…",
-      "range": "{from}–{to} จาก {count}",
+      "range": "{from}–{to} จาก {count, number}",
       "pageInterrupted": "หน้า {page} หยุดทำงาน",
       "keepSearching": "ค้นหาต่อ",
       "startOver": "เริ่มใหม่จากหน้า 1",

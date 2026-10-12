@@ -2777,7 +2777,7 @@
       "first": "First page",
       "loading": "Loading records…",
       "searching": "Searching all records…",
-      "range": "{from}–{to} of {count}",
+      "range": "{from}–{to} of {count, number}",
       "pageInterrupted": "Page {page} stopped",
       "keepSearching": "Keep searching",
       "startOver": "Start again from page 1",

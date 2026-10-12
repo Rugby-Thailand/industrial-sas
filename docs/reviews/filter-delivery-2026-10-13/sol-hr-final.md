@@ -81,3 +81,30 @@ These files had unchanged hashes across the final probe/batch checks. Later edit
 ## Remaining verification limits
 
 These are local actual-handler integration fixtures, not live Convex production profiling. They establish exercised authorization, traversal, mutations and index-row bounds; they do not establish native reactive split behavior under real concurrent workload, production p95 latency, migration deployment readiness, or complete frontend recovery/Back/keyboard behavior. The checked finite CSV still comes from complete frozen rows, not visible page slices. Final integrated API/schema/reference checks and browser verification remain release gates.
+
+## Narrow action follow-through after UI integration review
+
+The parent found a remaining mismatch between newly reachable site choices/employees and three legacy action helpers: announcement management/save required a complete preloaded site scope, while opening-balance reconciliation and payslip import used only the synchronous preloaded scope. The parent replaced only those exact authorization checks with `siteAllowed`, retaining organization-audience and import policy restrictions. This was a concrete supported-action gap, not a new audit expansion. The auditor made no product edit.
+
+Added a dedicated real-handler regression at `tests/integration/hr-late-site-actions.audit.integration.test.ts` in the HR worker, without editing Kiro's existing tests. It creates 60 additional grants (61 total), selects grant index 55 from the actual index order, and verifies:
+
+- The warehouse-scoped actor can create, manage, edit and replay a site-specific announcement at that late site.
+- Out-of-scope/foreign audiences, organization-wide audience for the scoped actor, and an audience exceeding 50 sites remain refused.
+- After grant deletion the manage list hides the announcement; replay and edits refuse access.
+- The late employee's opening balance can be reconciled and replayed; after grant deletion both replay and fresh update refuse access.
+
+```sh
+pnpm exec vitest run tests/integration/hr-late-site-actions.audit.integration.test.ts
+pnpm exec eslint tests/integration/hr-late-site-actions.audit.integration.test.ts --max-warnings=0
+pnpm exec prettier --check tests/integration/hr-late-site-actions.audit.integration.test.ts
+```
+
+**1 file, 2 tests passed**, 433ms; ESLint passed and the dedicated file was formatted with Prettier. No payroll file upload or publication was performed. This local test exercises opening reconciliation and announcement draft/management permissions; it does not claim live provider/upload coverage.
+
+Corrected source fingerprints recorded with that run:
+
+| File                         | SHA-256                                                            |
+| ---------------------------- | ------------------------------------------------------------------ |
+| `convex/hr/announcements.ts` | `2f1bb26764c2af50e315e8323e3aa9e27ecfabdc64ffd7d9ace1aa597460bfc5` |
+| `convex/hr/policies.ts`      | `39b9423e963fe03ed04c486da340a15614bac23f4ad06309e63c3e70376aba04` |
+| `convex/hr/payslips.ts`      | `92cf4e3f298d678bd41f6ab7c1b7614ea5683e2531a1363b622df0bd445c2da7` |

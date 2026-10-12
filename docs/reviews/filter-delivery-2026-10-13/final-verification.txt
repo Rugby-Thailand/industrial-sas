@@ -1,0 +1,166 @@
+Local final checks, October 13, 2026 (Bangkok). Codegen uses the repository credential-free throwaway loopback backend; no production deployment was performed.
+
+=== tests (exit 0) ===
+
+> storage-planner@0.0.0 test /Users/macbook/Development/industrial-sas-filter-implementation
+> vitest run
+
+
+ RUN  v4.1.11 /Users/macbook/Development/industrial-sas-filter-implementation
+
+
+ Test Files  312 passed (312)
+      Tests  4090 passed (4090)
+   Start at  02:44:33
+   Duration  44.37s (transform 18.04s, setup 30.63s, import 70.43s, tests 184.56s, environment 71.02s)
+
+
+=== typecheck (exit 0) ===
+
+> storage-planner@0.0.0 typecheck /Users/macbook/Development/industrial-sas-filter-implementation
+> node scripts/ci/install-bun-checker.mjs --verify && next typegen && bun --check --no-pretty
+
+Bun checker 1.4.3 (TypeScript 7.0.2)
+Generating route types...
+✓ Types generated successfully
+✓ No type errors in 933 files [966.83ms]
+
+=== ts6 (exit 0) ===
+
+> storage-planner@0.0.0 typecheck:ts6 /Users/macbook/Development/industrial-sas-filter-implementation
+> next typegen && tsc --noEmit
+
+Generating route types...
+✓ Types generated successfully
+
+=== lint (exit 0) ===
+
+> storage-planner@0.0.0 lint /Users/macbook/Development/industrial-sas-filter-implementation
+> eslint . --max-warnings=0
+
+
+=== format (exit 0) ===
+
+> storage-planner@0.0.0 format:check /Users/macbook/Development/industrial-sas-filter-implementation
+> prettier --check .
+
+Checking formatting...
+All matched files use Prettier code style!
+
+=== codegen (exit 0) ===
+
+> storage-planner@0.0.0 ci:codegen /Users/macbook/Development/industrial-sas-filter-implementation
+> node scripts/ci/check-convex-codegen.mjs
+
+✔ Successfully set CLERK_JWT_ISSUER_DOMAIN
+Finding component definitions...
+Generating server code...
+Bundling component definitions...
+Bundling component schemas and implementations...
+Downloading current deployment state...
+Uploading functions to Convex...
+Generating TypeScript bindings...
+Running TypeScript...
+convex/_generated matches the pinned Convex CLI output.
+
+=== discovery (exit 0) ===
+
+> storage-planner@0.0.0 ci:test-discovery /Users/macbook/Development/industrial-sas-filter-implementation
+> node scripts/ci/check-test-discovery.mjs
+
+Test discovery OK: 312 Vitest files, 13 Playwright spec files.
+
+=== build (exit 0) ===
+
+> storage-planner@0.0.0 build /Users/macbook/Development/industrial-sas-filter-implementation
+> BUN_OPTIONS=--no-env-file bun run --bun --no-env-file next build
+
+▲ Next.js 16.3.8 (Turbopack)
+✓ Running next.config.ts took 239ms
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 12.0s
+  Running TypeScript ...
+  Finished TypeScript in 18.1s ...
+  Collecting page data using 9 workers ...
+  Generating static pages using 9 workers (0/70) ...
+  Generating static pages using 9 workers (17/70)
+  Generating static pages using 9 workers (34/70)
+  Generating static pages using 9 workers (52/70)
+✓ Generating static pages using 9 workers (70/70) in 798ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ○ /_not-found
+├   /[locale]
+│ ├ ● /th
+│ └ ● /en
+├ ƒ /[locale]/[...rest]
+├   /[locale]/about
+│ ├ ● /th/about
+│ └ ● /en/about
+├ ƒ /[locale]/ai-usage
+├ ƒ /[locale]/finished-goods
+├ ƒ /[locale]/finished-goods/batches/[batchId]
+├ ƒ /[locale]/finished-goods/new
+├ ƒ /[locale]/finished-goods/pallets/[palletId]
+├ ƒ /[locale]/finished-goods/pallets/[palletId]/measure
+├ ƒ /[locale]/finished-goods/pallets/[palletId]/move
+├ ƒ /[locale]/finished-goods/pallets/[palletId]/stack
+├ ƒ /[locale]/finished-goods/pallets/[palletId]/storage
+├ ƒ /[locale]/finished-goods/products/[productId]
+├ ƒ /[locale]/finished-goods/products/[productId]/packing
+├ ƒ /[locale]/finished-goods/scan
+├ ƒ /[locale]/finished-goods/scan/records
+├ ƒ /[locale]/hr
+├ ƒ /[locale]/hr/announcements
+├ ƒ /[locale]/hr/announcements/[announcementId]
+├ ƒ /[locale]/hr/announcements/manage
+├ ƒ /[locale]/hr/customize
+├ ƒ /[locale]/hr/employees
+├ ƒ /[locale]/hr/holidays
+├ ƒ /[locale]/hr/leave
+├ ƒ /[locale]/hr/leave/[requestId]
+├ ƒ /[locale]/hr/leave/review
+├ ƒ /[locale]/hr/leave/review/[requestId]
+├ ƒ /[locale]/hr/notifications
+├ ƒ /[locale]/hr/payslips
+├ ƒ /[locale]/hr/payslips/[rowId]
+├ ƒ /[locale]/hr/payslips/import
+├ ƒ /[locale]/hr/periods
+├ ƒ /[locale]/hr/periods/[periodId]
+├ ƒ /[locale]/hr/profile
+├ ƒ /[locale]/hr/requests
+├ ƒ /[locale]/hr/requests/[requestId]
+├ ƒ /[locale]/hr/review
+├ ƒ /[locale]/hr/settings
+├ ƒ /[locale]/hr/time
+├ ƒ /[locale]/hr/time/[date]
+├ ƒ /[locale]/hr/time/periods
+├ ƒ /[locale]/hr/time/periods/[versionId]
+├ ƒ /[locale]/hr/today
+├ ƒ /[locale]/master-data/storage-layouts
+├ ƒ /[locale]/master-data/storage-layouts/[buildingId]
+├ ƒ /[locale]/master-data/storage-layouts/[buildingId]/floors/[floorNumber]
+├ ƒ /[locale]/master-data/storage-layouts/[buildingId]/review
+├ ƒ /[locale]/master-data/storage-layouts/demo
+├ ƒ /[locale]/master-data/storage-layouts/new
+├   /[locale]/privacy
+│ ├ ● /th/privacy
+│ └ ● /en/privacy
+├ ƒ /[locale]/setup
+├ ƒ /[locale]/sign-in
+├ ƒ /[locale]/sign-in/[...sign-in]
+├   /[locale]/terms
+│ ├ ● /th/terms
+│ └ ● /en/terms
+├ ƒ /api/observability/speed-insights
+├ ƒ /api/runtime
+└ ƒ /api/uploadthing
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+●  (SSG)      prerendered as static HTML (uses generateStaticParams)
+ƒ  (Dynamic)  server-rendered on demand

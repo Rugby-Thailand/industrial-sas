@@ -1,6 +1,6 @@
 # Filter, search and pagination delivery
 
-Integration draft — final checks and release status to be filled after all slices land.
+Implemented on `codex/filter-search-pagination-20261013`, including the mobile UI changes from main PR #85. Pull-request CI is the remaining release gate.
 
 Kiro wrote the implementation in three isolated worktrees; GPT-6.1-Sol independently audited coverage, location behavior, operations and HR. The original working tree was preserved.
 
@@ -37,7 +37,7 @@ Finite exceptions: packing/repacking drafts (50 packages), structural layout dra
 
 ## Audit problem list
 
-Final disposition is documented in the location, operations and HR reports. Fixes include premature missing-location prompts, legacy cursor duplication, unsafe retained-row actions, ineffective retries, stalled scans, missing late-site records and pagination-history collisions. No audit is represented as production latency evidence.
+Final disposition is documented in the location, operations and HR reports. Fixes include premature missing-location prompts, legacy cursor duplication, unsafe retained-row actions, ineffective retries, stalled scans, missing late-site records and pagination-history collisions. The parent also aligned older announcement, payslip-import and leave-opening actions with the exact site authorization used by the new selectors; late-site access and revocation are covered in the final HR backend report. No audit is represented as production latency evidence.
 
 Remaining performance work:
 
@@ -45,6 +45,7 @@ Remaining performance work:
 2. Derived catalogue sorts and destination recommendation ranking still require full-domain computation. Presentation pagination reduces rendered rows, not that computation.
 3. AI summary aggregation remains explicitly partial beyond its 3,000-row scan budget; model/environment choices still derive from that summary.
 4. Some batch/legacy readers still scan historical rows before filtering, and complete floor geometry is loaded for editing/collision validation.
+5. Global navigation search remains a bounded suggestion surface with explicit incompleteness; complete discovery belongs to the paged record screens.
 
 ## Local performance evidence
 
@@ -64,6 +65,7 @@ The separate exact resolver remains one request. The UI now renders its authoriz
 
 - Baseline: 300 files / 3,879 tests passed before implementation.
 - Operations integration checkpoint: 303 files / 3,949 tests, both TypeScript checks and lint passed.
-- Final combined suite, code generation, formatting, build, browser checks and CI: pending.
-- Browser transport fixtures use synthetic data. Their interaction timings are not hosted performance measurements. Initial T3 desktop checks passed; screenshot and native mobile-resize automation failed. Final responsive checks: pending.
+- Final combined suite: **312 files / 4,090 tests passed** (44.37 s). Both TypeScript checks, lint, formatting and pinned Convex code-generation verification passed. The credential-free production build passed (70 static pages), and test discovery found all 312 Vitest files and 13 browser specs. [Local verification output](final-verification.txt). PR CI remains the merge gate.
+- The initial concurrent check run found an ICU number-format issue (fixed) and a five-second existing toolchain-test timeout. The focused rerun and the complete rerun without competing build work passed.
+- [T3 browser checks](browser-final.md) exercised the production picker with synthetic transport: blank browse, late building options, exact while search is pending, recovery and incomplete-prefix behavior. English/dark and Thai/light at 375 CSS px had no horizontal overflow. Snapshot/native viewport automation failed; no screenshot or native-device claim is made.
 - Hosted baseline observations and local handler read counts are retained separately; final hosted latency is not yet measured.

@@ -96,3 +96,9 @@ The full traversal at 50 rose from 21 to 22 because the lane source discovers th
 5. Exact authorization beyond 50 grants is applied to the surfaces above. Announcement management (which requires a complete scope by design), payslip import matching, policy leave adjustments and global search suggestions still use the conservative preloaded check: grants beyond 50 are denied there, never widened. The HR access banner still reports `sitesComplete: false` for scoped actors beyond 50.
 6. Concurrent changes: a site added before the current lane mid-traversal appears on the next traversal. A retained row that no longer matches is dropped, so a page can be short, but its continuation stays navigable.
 7. The single-slot cold-refresh overwrite between simultaneous pagers (`sol-hr-followup` P2) depends on the parent's `useCursorPagination` change. The parent's version is present in this worktree and the HR suites pass against it. This slice did not modify or separately verify it.
+
+## Parent integration follow-through
+
+After this Kiro handoff, the parent aligned announcement management/save, payslip import matching and opening-balance reconciliation with exact `siteAllowed` checks. Authorized sites beyond the 50-site preview now remain usable in those actions; organization-wide audience restrictions and the 50-site audience limit remain intact. Sol added and passed two actual-handler tests covering late-site announcement/reconciliation access and revocation. Existing announcement/payslip/policy suites also passed. See `sol-hr-final.md`. Global search suggestions remain a bounded preview with explicit incompleteness.
+
+The parent also applied the independently audited inactive historical-site selector and repeated-reset fixes, merged the shared pagination history correction, and formatted the HR total using ICU number formatting. Final repository-wide results are recorded in `README.md`.
