@@ -191,18 +191,26 @@ export const PUBLIC_API_EXAMPLES: readonly PublicApiExample[] = [
   example("aiUsage/reports:summary", "query", () => ({})),
   example("aiUsage/dimensions:warehouseOptions", "query", () => ({})),
   example("hr/access:current", "query", () => ({})),
+  example("hr/access:sitesPage", "query", () => ({ search: "a" })),
   example("hr/navigationIntent:interpret", "action", () => ({
     query: "",
     context: { page: null, employee: false, date: false, period: false },
   })),
   example("hr/periods:list", "query", () => ({})),
+  example("hr/periods:listPage", "query", () => ({ pageSize: 20 })),
   example("hr/review:queue", "query", () => ({
     from: "2026-10-01",
     to: "2026-10-01",
   })),
+  example("hr/review:queuePage", "query", () => ({
+    from: "2026-10-01",
+    to: "2026-10-01",
+    tab: "OPEN",
+  })),
   example("hr/search:adminEmployees", "query", () => ({ text: "fixture" })),
   example("hr/self:profile", "query", () => ({})),
   example("hr/setup:listEmployees", "query", () => ({})),
+  example("hr/setup:employeesPage", "query", () => ({ search: "fixture" })),
   example("hr/preferences:current", "query", () => ({})),
   example("hr/policies:current", "query", () => ({
     capability: "ANNOUNCEMENTS",

@@ -30,10 +30,16 @@ import {
   type PeriodRow,
 } from "../model/hr/period";
 import {
+  HR_MAX_CHUNK,
+  hrListInput,
+  hrPageArgs,
+  hrScanPage,
+  type HrLane,
+} from "./pagination";
+import {
   employmentOf,
   fail,
   hrCommand,
-  inScope,
   loadSiteDays,
   orgClock,
   planFromStored,
@@ -41,7 +47,9 @@ import {
   recordedDay,
   siteEmployeesInRange,
   siteOf,
+  siteAllowed,
   sitePeriods,
+  siteResolver,
   siteScope,
   scopedSitesAnyStatus,
   storedPlan,
@@ -184,11 +192,130 @@ export const list = queryWithOrg({
   },
 });
 
+/**
+ * The period registry, newest start date first across every in-scope site
+ * (closed sites included, so history stays reachable), one cursor page at
+ * a time with optional site and status filters. Unlike `list`, no period is
+ * beyond reach: older ones follow on later pages.
+ */
+export const listPage = queryWithOrg({
+  args: {
+    ...hrPageArgs,
+    // A string, so a stale or edited URL answers SITE_UNAVAILABLE.
+    warehouseId: v.optional(v.string()),
+    status: v.optional(v.union(v.literal("DRAFT"), v.literal("CLOSED"))),
+  },
+  returns: v.any(),
+  permissionCode: CLOSE,
+  target: { table: "hrPeriods" },
+  handler: async (ctx, args) => {
+    const input = hrListInput(args);
+    if (!input.ok) return input;
+    // Exact site authorization of every period, any site status, so history
+    // at sites beyond the preloaded scope bound and at closed sites stays
+    // reachable; a revoked site's periods disappear at once.
+    const siteFor = siteResolver(ctx, await siteScope(ctx), false);
+    if (
+      args.warehouseId !== undefined &&
+      (await siteFor(args.warehouseId)) === null
+    )
+      return { ok: false as const, code: "SITE_UNAVAILABLE" };
+    const lane: HrLane =
+      args.warehouseId === undefined
+        ? {
+            key: "all",
+            index: "by_orgId_startDate",
+            equality: [],
+            order: "desc",
+          }
+        : {
+            key: args.warehouseId,
+            index: "by_orgId_warehouseId_startDate",
+            equality: [{ field: "warehouseId", value: args.warehouseId }],
+            order: "desc",
+          };
+    const page = await hrScanPage(ctx, {
+      surface: "periods",
+      criteria: { site: args.warehouseId ?? null, status: args.status ?? null },
+      pageSize: input.pageSize,
+      cursor: args.cursor,
+      scanCursor: args.scanCursor,
+      table: "hrPeriods",
+      lanes: [lane],
+      chunk:
+        args.status === undefined && args.warehouseId !== undefined
+          ? input.pageSize
+          : HR_MAX_CHUNK,
+      match: async (period: Period) =>
+        (args.warehouseId === undefined ||
+          period.warehouseId === args.warehouseId) &&
+        (args.status === undefined || period.status === args.status) &&
+        (await siteFor(period.warehouseId)) !== null,
+      hydrate: async (period) => {
+        const site = await siteFor(period.warehouseId);
+        if (site === null) return null;
+        return {
+          id: period._id,
+          siteId: site._id,
+          siteCode: site.code,
+          siteName: site.name,
+          siteActive: site.status === "ACTIVE",
+          startDate: period.startDate,
+          endDate: period.endDate,
+          status: period.status,
+          draftVersion: period.draftVersion,
+          latestClosedVersion: period.latestClosedVersion,
+        };
+      },
+    });
+    return { ok: true as const, ...page, sitesComplete: true };
+  },
+});
+
 async function scopedPeriod(ctx: TenantFunctionContext, periodId: string) {
   const period = await ctx.tenantDb.get<Period>("hrPeriods", periodId);
   if (period === null) return null;
-  return inScope(await siteScope(ctx), period.warehouseId) ? period : null;
+  return (await siteAllowed(ctx, await siteScope(ctx), period.warehouseId))
+    ? period
+    : null;
 }
+
+/**
+ * Every closed version of one period, newest first, a page at a time, so
+ * versions older than the selector's newest `MAX_VERSIONS` stay
+ * discoverable (not only by typing their number).
+ */
+export const versionsPage = queryWithOrg({
+  args: { ...hrPageArgs, periodId: v.string() },
+  returns: v.any(),
+  permissionCode: CLOSE,
+  target: { table: "hrPeriods" },
+  handler: async (ctx, args) => {
+    const input = hrListInput(args);
+    if (!input.ok) return input;
+    const period = await scopedPeriod(ctx, args.periodId);
+    if (period === null) return { ok: false as const, code: "NOT_FOUND" };
+    const page = await hrScanPage(ctx, {
+      surface: "period-versions",
+      criteria: { periodId: period._id },
+      pageSize: input.pageSize,
+      cursor: args.cursor,
+      scanCursor: args.scanCursor,
+      table: "hrPeriodVersions",
+      lanes: [
+        {
+          key: period._id,
+          index: "by_orgId_periodId_version",
+          equality: [{ field: "periodId", value: period._id }],
+          order: "desc",
+        },
+      ],
+      match: (version: Version) => version.periodId === period._id,
+      hydrate: async (version) => versionSummary(version),
+    });
+    return { ok: true as const, ...page };
+  },
+});
 
 const rowView = (row: {
   readonly employeeId: string;
@@ -646,7 +773,7 @@ export const exportCsv = mutationWithOrg({
         args.versionId,
       );
       if (version === null) return null;
-      return inScope(await siteScope(ctx), version.warehouseId)
+      return (await siteAllowed(ctx, await siteScope(ctx), version.warehouseId))
         ? version
         : null;
     };

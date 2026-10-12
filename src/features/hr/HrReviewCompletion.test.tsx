@@ -4,6 +4,7 @@ import {
   renderHook,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { getFunctionName } from "convex/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -37,8 +38,12 @@ const state = vi.hoisted(() => ({
 vi.mock("convex/react", async () => {
   const { getFunctionName: name } = await import("convex/server");
   return {
-    useQuery: (reference: Parameters<typeof name>[0], args: unknown) =>
-      args === "skip" ? undefined : state.queries.get(name(reference)),
+    useQuery: (reference: Parameters<typeof name>[0], args: unknown) => {
+      if (args === "skip") return undefined;
+      const value = state.queries.get(name(reference));
+      // A function answers per arguments (e.g. one page per tab or cursor).
+      return typeof value === "function" ? value(args) : value;
+    },
     useMutation: (reference: Parameters<typeof name>[0]) => {
       const key = name(reference);
       if (!state.mutations.has(key)) state.mutations.set(key, vi.fn());
@@ -65,6 +70,16 @@ import { HrPeriodDetailScreen } from "./PeriodDetailScreen";
 import { rangeFor } from "./ReviewScreen";
 import { ReviewDetail } from "./ReviewDetail";
 import { useHrWrite } from "./useHrWrite";
+
+/** One ready, complete page of a paged HR list. */
+const page = (rows: readonly unknown[]) => ({
+  ok: true,
+  status: "ready",
+  page: rows,
+  isDone: true,
+  continueCursor: "",
+  scanned: rows.length,
+});
 
 const ref = (reference: Parameters<typeof getFunctionName>[0]) =>
   getFunctionName(reference);
@@ -388,19 +403,21 @@ describe("older closed versions stay selectable (HR-042)", () => {
 
 describe("employee change history labels (HR-052)", () => {
   it("uses human labels and never prints internal identifiers", () => {
-    state.queries.set(ref(hrRefs.memberOptions), {
+    state.queries.set(ref(hrRefs.memberOptionsPage), {
       ok: true,
       requestId: "q",
-      value: { ok: true, items: [] },
+      value: page([]),
     });
-    state.queries.set(ref(hrRefs.employeeHistory), {
+    state.queries.set(ref(hrRefs.employeeHistoryPage), {
       ok: true,
       requestId: "q",
       value: {
-        ok: true,
-        complete: false,
-        items: [
+        ...page([]),
+        isDone: false,
+        continueCursor: "older",
+        page: [
           {
+            id: "audit-1",
             at: at("2026-10-01", "09:00"),
             action: "hr.employee.save",
             actorName: "HR admin",
@@ -440,9 +457,10 @@ describe("employee change history labels (HR-052)", () => {
     expect(history).toHaveTextContent("Status: Active → Inactive");
     expect(history).not.toHaveTextContent("supervisorUserId");
     expect(history).not.toHaveTextContent("user_internal");
-    expect(history).toHaveTextContent(
-      "1 change shown, the newest; older history exists",
-    );
+    // Older changes stay reachable through the history pager.
+    expect(
+      within(history).getByRole("button", { name: "Next page" }),
+    ).toBeEnabled();
   });
 });
 
@@ -512,39 +530,61 @@ describe("write intent isolation (HR-022, HR-023)", () => {
 });
 
 describe("review queue tabs (round 2 polish)", () => {
-  it("shows a tab-specific count and drops a selection absent from the new tab", async () => {
+  it("lists the chosen tab from the server and drops a selection absent from the new tab", async () => {
     const { HrReviewScreen } = await import("./ReviewScreen");
-    const item = (employeeId: string, certified: boolean) => ({
+    const group = (employeeId: string, certified: boolean) => ({
       employeeId,
       employeeCode: `EMP-${employeeId}`,
       employeeName: `Employee ${employeeId}`,
       siteCode: "HQ",
-      businessDate: "2026-10-08",
-      status: certified ? "READY" : "EXCEPTION",
-      issue: certified ? undefined : "MISSING_RECORD",
-      disposition: certified ? "ABSENT" : null,
-      revision: certified ? 1 : 0,
-      certified,
+      items: [
+        {
+          businessDate: "2026-10-08",
+          status: certified ? "READY" : "EXCEPTION",
+          issue: certified ? undefined : "MISSING_RECORD",
+          disposition: certified ? "ABSENT" : null,
+          revision: certified ? 1 : 0,
+          certified,
+        },
+      ],
     });
-    state.queries.set(ref(hrRefs.queue), {
-      ok: true,
-      requestId: "q",
-      value: {
-        ok: true,
-        complete: true,
-        today: "2026-10-09",
-        items: [item("A", false), item("B", false), item("C", true)],
+    const calls: { tab?: string; cursor?: string }[] = [];
+    state.queries.set(
+      ref(hrRefs.queuePage),
+      (args: { tab?: string; cursor?: string }) => {
+        calls.push(args);
+        return {
+          ok: true,
+          requestId: "q",
+          value: {
+            ...page(
+              args.tab === "CERTIFIED"
+                ? [group("C", true)]
+                : [group("A", false), group("B", false)],
+            ),
+            today: "2026-10-09",
+            tab: args.tab,
+          },
+        };
       },
-    });
+    );
     renderWithIntl(<HrReviewScreen />, { locale: "en" });
-    expect(screen.getByText("2 items need review")).toBeInTheDocument();
+    expect(calls.at(-1)).toMatchObject({ tab: "OPEN", pageSize: 20 });
+    expect(
+      screen.getByText("2 items need review on this page"),
+    ).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Employee A/ }));
     expect(
       screen.getByRole("button", { name: /Employee A/, pressed: true }),
     ).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Certified/ }));
-    expect(screen.getByText("1 certified item")).toBeInTheDocument();
-    expect(screen.queryByText("2 items need review")).not.toBeInTheDocument();
+    expect(calls.at(-1)).toMatchObject({ tab: "CERTIFIED" });
+    expect(
+      screen.getByText("1 certified item on this page"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("2 items need review on this page"),
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: /Back to the list/ }),
     ).not.toBeInTheDocument();

@@ -31,8 +31,16 @@ import {
 import { normalizeReason } from "../model/hr/employee";
 import { buildPeriodRows } from "../model/hr/period";
 import { isEmployedOn, startBelongsToDate } from "../model/hr/schedule";
-import { buildDayDetail } from "./dayDetail";
+import { buildDayDetail, correctionView } from "./dayDetail";
 import { deliverNotification } from "./notifications";
+import {
+  containsSearch,
+  hrListInput,
+  hrPageArgs,
+  hrScanPage,
+  staticLanes,
+  type HrLaneSource,
+} from "./pagination";
 import {
   MAX_SITE_EMPLOYEES,
   closedPeriodCovering,
@@ -40,6 +48,7 @@ import {
   employmentOf,
   ensureDay,
   fail,
+  holidayName,
   hrCommand,
   livePlan,
   loadSiteDays,
@@ -47,10 +56,14 @@ import {
   orgClock,
   planFromStored,
   recordedDay,
+  authorizedSiteLanes,
+  reviewAccess,
   reviewBlocker,
   reviewScope,
   scopedSites,
+  siteOf,
   type Employee,
+  type SiteOrder,
   type ReviewScope,
 } from "./shared";
 
@@ -197,6 +210,242 @@ export const queue = queryWithOrg({
   },
 });
 
+/** Employees whose days one review page request evaluates at most. */
+export const REVIEW_PAGE_CHUNK = 20;
+
+/**
+ * The review queue, paged by employee before any day is evaluated. Each
+ * page lists up to `pageSize` employees that have at least one day in the
+ * chosen tab, each with all of their days in the range, so every open issue
+ * of the authorized team is reachable without a total item cap. Days are
+ * evaluated only for the employees read by this request (point reads per
+ * employee day), never for a whole site.
+ */
+export const queuePage = queryWithOrg({
+  args: {
+    ...hrPageArgs,
+    from: v.string(),
+    to: v.string(),
+    // A string, so a stale or edited URL answers SITE_UNAVAILABLE.
+    warehouseId: v.optional(v.string()),
+    tab: v.optional(v.union(v.literal("OPEN"), v.literal("CERTIFIED"))),
+    search: v.optional(v.string()),
+  },
+  returns: v.any(),
+  permissionCode: REVIEW,
+  target: { table: "hrAttendanceDays" },
+  handler: async (ctx, args) => {
+    const input = hrListInput(args);
+    if (!input.ok) return input;
+    const clock = orgClock(ctx);
+    if (clock === null)
+      return { ok: false as const, code: "TIMEZONE_UNSUPPORTED" };
+    if (!isIsoDate(args.from) || !isIsoDate(args.to))
+      return { ok: false as const, code: "RANGE_INVALID" };
+    const count = inclusiveDayCount(args.from, args.to);
+    if (count < 1) return { ok: false as const, code: "RANGE_INVALID" };
+    if (count > MAX_QUEUE_DAYS)
+      return { ok: false as const, code: "RANGE_TOO_LARGE" };
+    const to = compareDates(args.to, clock.today) > 0 ? clock.today : args.to;
+    const tab = args.tab ?? "OPEN";
+    const scope = await reviewScope(ctx);
+    // Exact site authorization, so a site beyond the preloaded scope bound
+    // stays reviewable and a revoked one does not.
+    const grants = new Map<string, Promise<boolean>>();
+    const byCode = (site: Doc<"warehouses">) => ({
+      index: "by_orgId_warehouseId_code",
+      equality: [{ field: "warehouseId", value: site._id }],
+    });
+    let lanes: HrLaneSource;
+    let order: SiteOrder | "site" | "reports" = "site";
+    if (args.warehouseId !== undefined) {
+      const site = await siteOf(ctx, scope.sites, args.warehouseId);
+      if (site === null)
+        return { ok: false as const, code: "SITE_UNAVAILABLE" };
+    }
+    if (scope.admin && args.warehouseId !== undefined) {
+      lanes = staticLanes([
+        {
+          key: args.warehouseId,
+          index: "by_orgId_warehouseId_code",
+          equality: [{ field: "warehouseId", value: args.warehouseId }],
+        },
+      ]);
+    } else if (scope.admin) {
+      const all = await authorizedSiteLanes(ctx, scope.sites, {
+        activeOnly: true,
+        lane: byCode,
+      });
+      lanes = all.source;
+      order = all.order;
+    } else {
+      order = "reports";
+      lanes = staticLanes([
+        {
+          key: "reports",
+          index: "by_orgId_supervisorUserId",
+          equality: [{ field: "supervisorUserId", value: scope.actorUserId }],
+        },
+      ]);
+    }
+    const empty = compareDates(args.from, to) > 0;
+    const dates = empty ? [] : datesInRange(args.from, to);
+
+    const sites = new Map<
+      string,
+      Promise<{ code: string; holidays: ReadonlyMap<string, string> }>
+    >();
+    const siteInfo = (warehouseId: string) => {
+      let entry = sites.get(warehouseId);
+      if (entry === undefined) {
+        entry = (async () => {
+          const site = await ctx.tenantDb.get<Doc<"warehouses">>(
+            "warehouses",
+            warehouseId,
+          );
+          const holidays = new Map<string, string>();
+          for (const date of dates) {
+            const name = await holidayName(ctx, warehouseId, date);
+            if (name !== undefined) holidays.set(date, name);
+          }
+          return { code: site?.code ?? "", holidays };
+        })();
+        sites.set(warehouseId, entry);
+      }
+      return entry;
+    };
+    const evaluated = new Map<string, Promise<QueueDay[]>>();
+    const daysOf = (employee: Employee) => {
+      let entry = evaluated.get(employee._id);
+      if (entry === undefined) {
+        entry = evaluateEmployee(ctx, employee, {
+          from: args.from,
+          to,
+          dates,
+          tab,
+          clock,
+          site: siteInfo(employee.warehouseId),
+        });
+        evaluated.set(employee._id, entry);
+      }
+      return entry;
+    };
+
+    const page = await hrScanPage(ctx, {
+      surface: "review-queue",
+      criteria: {
+        from: args.from,
+        to,
+        site: args.warehouseId ?? null,
+        tab,
+        search: input.search,
+        order,
+      },
+      pageSize: input.pageSize,
+      cursor: args.cursor,
+      scanCursor: args.scanCursor,
+      table: "hrEmployees",
+      lanes: empty ? [] : lanes,
+      chunk: REVIEW_PAGE_CHUNK,
+      // Each candidate costs its range's day reads: never more per request.
+      peekLanes: 0,
+      // Authorization, site and search before any day is read.
+      match: async (employee: Employee) =>
+        (args.warehouseId === undefined ||
+          employee.warehouseId === args.warehouseId) &&
+        containsSearch(input.search, employee.code, employee.displayName) &&
+        (await reviewAccess(ctx, scope, employee, grants)) === null &&
+        (await daysOf(employee)).length > 0,
+      hydrate: async (employee) => ({
+        employeeId: employee._id,
+        employeeCode: employee.code,
+        employeeName: employee.displayName,
+        siteCode: (await siteInfo(employee.warehouseId)).code,
+        items: await daysOf(employee),
+      }),
+    });
+    return { ok: true as const, today: clock.today, tab, ...page };
+  },
+});
+
+type QueueDay = {
+  readonly businessDate: string;
+  readonly status: string;
+  readonly issue?: string | undefined;
+  readonly disposition: string | null;
+  readonly revision: number;
+  readonly pendingCorrectionId?: string | undefined;
+  readonly certified: boolean;
+};
+
+/** One employee's days of the range in the chosen tab, newest first. */
+async function evaluateEmployee(
+  ctx: TenantFunctionContext,
+  employee: Employee,
+  input: {
+    readonly from: string;
+    readonly to: string;
+    readonly dates: readonly string[];
+    readonly tab: "OPEN" | "CERTIFIED";
+    readonly clock: NonNullable<ReturnType<typeof orgClock>>;
+    readonly site: Promise<{ holidays: ReadonlyMap<string, string> }>;
+  },
+): Promise<QueueDay[]> {
+  const employment = employmentOf(employee);
+  const employed = input.dates.filter((date) => isEmployedOn(employment, date));
+  if (employed.length === 0) return [];
+  const [{ holidays }, recorded] = await Promise.all([
+    input.site,
+    Promise.all(
+      employed.map(
+        async (date) => [date, await dayOf(ctx, employee._id, date)] as const,
+      ),
+    ),
+  ]);
+  const days = new Map(recorded);
+  const rows = buildPeriodRows({
+    startDate: input.from,
+    endDate: input.to,
+    employees: [
+      {
+        id: employee._id,
+        code: employee.code,
+        name: employee.displayName,
+        employment,
+        schedule: employee.schedule,
+      },
+    ],
+    offsetMinutes: input.clock.offset,
+    now: input.clock.now,
+    holidayName: (date) => holidays.get(date),
+    recorded: (_id, date) => {
+      const day = days.get(date);
+      return day ? recordedDay(day) : undefined;
+    },
+    pending: (_id, date) => days.get(date)?.pendingCorrectionId !== undefined,
+  });
+  const items: QueueDay[] = [];
+  for (const row of rows) {
+    const day = days.get(row.businessDate) ?? null;
+    const certified =
+      day !== null &&
+      certificationIsCurrent(day.certification, day.revision) &&
+      row.status === "READY";
+    if (input.tab === "OPEN" ? row.status !== "EXCEPTION" : !certified)
+      continue;
+    items.push({
+      businessDate: row.businessDate,
+      status: row.status,
+      issue: row.issue,
+      disposition: row.disposition,
+      revision: day?.revision ?? 0,
+      pendingCorrectionId: day?.pendingCorrectionId,
+      certified,
+    });
+  }
+  return items.sort((a, b) => compareDates(b.businessDate, a.businessDate));
+}
+
 export const dayDetail = queryWithOrg({
   // A string, so a malformed deep link answers NOT_FOUND instead of throwing.
   args: { employeeId: v.string(), businessDate: v.string() },
@@ -215,7 +464,10 @@ export const dayDetail = queryWithOrg({
     );
     const scope = await reviewScope(ctx);
     // Self and foreign employees answer identically, so a guess reveals nothing.
-    if (employee === null || reviewBlocker(scope, employee) !== null)
+    if (
+      employee === null ||
+      (await reviewAccess(ctx, scope, employee)) !== null
+    )
       return { ok: false as const, code: "NOT_FOUND" };
     const site = await ctx.tenantDb.get<Doc<"warehouses">>(
       "warehouses",
@@ -235,6 +487,66 @@ export const dayDetail = queryWithOrg({
       },
       detail: await buildDayDetail(ctx, employee, args.businessDate, clock),
     };
+  },
+});
+
+/**
+ * Every correction request of one reviewable employee day, newest
+ * submission first, a page at a time. The day detail shows the newest
+ * `MAX_DAY_CORRECTIONS`; this keeps older ones reachable for reviewers
+ * (employees use their filtered request history instead).
+ */
+export const dayCorrectionsPage = queryWithOrg({
+  args: { ...hrPageArgs, employeeId: v.string(), businessDate: v.string() },
+  returns: v.any(),
+  permissionCode: REVIEW,
+  target: { table: "hrCorrectionRequests" },
+  handler: async (ctx, args) => {
+    const input = hrListInput(args);
+    if (!input.ok) return input;
+    if (!isIsoDate(args.businessDate))
+      return { ok: false as const, code: "DATE_INVALID" };
+    const employee = await ctx.tenantDb.get<Employee>(
+      "hrEmployees",
+      args.employeeId,
+    );
+    if (
+      employee === null ||
+      (await reviewAccess(ctx, await reviewScope(ctx), employee)) !== null
+    )
+      return { ok: false as const, code: "NOT_FOUND" };
+    const day = await dayOf(ctx, employee._id, args.businessDate);
+    if (day === null)
+      return {
+        ok: true as const,
+        status: "ready" as const,
+        page: [],
+        isDone: true,
+        continueCursor: "",
+        scanned: 0,
+      };
+    const names = new Map<string, string | null>();
+    const page = await hrScanPage(ctx, {
+      surface: "day-corrections",
+      criteria: { dayId: day._id },
+      pageSize: input.pageSize,
+      cursor: args.cursor,
+      scanCursor: args.scanCursor,
+      table: "hrCorrectionRequests",
+      lanes: [
+        {
+          key: day._id,
+          index: "by_orgId_dayId_submittedAt",
+          equality: [{ field: "dayId", value: day._id }],
+          order: "desc",
+        },
+      ],
+      match: (correction: Doc<"hrCorrectionRequests">) =>
+        correction.dayId === day._id && correction.employeeId === employee._id,
+      hydrate: async (correction) =>
+        await correctionView(ctx, correction, day.revision, names),
+    });
+    return { ok: true as const, ...page };
   },
 });
 
@@ -269,7 +581,7 @@ function retainedCertification(day: Doc<"hrAttendanceDays">) {
 async function reviewTarget(ctx: TenantFunctionContext, employeeId: string) {
   const employee = await ctx.tenantDb.get<Employee>("hrEmployees", employeeId);
   if (employee === null) return fail("NOT_FOUND", "employeeId");
-  const blocker = reviewBlocker(await reviewScope(ctx), employee);
+  const blocker = await reviewAccess(ctx, await reviewScope(ctx), employee);
   if (blocker === "SELF_REVIEW") return fail("SELF_REVIEW");
   if (blocker !== null) return fail("NOT_FOUND", "employeeId");
   return employee;

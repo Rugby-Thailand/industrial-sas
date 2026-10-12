@@ -24,7 +24,7 @@ import { validateSchedule } from "../model/hr/schedule";
 import {
   fail,
   hrCommand,
-  inScope,
+  siteAllowed,
   orgClock,
   siteScope,
   type Employee,
@@ -473,7 +473,8 @@ export const reconcileOpening = mutationWithOrg({
           "hrLeaveAccounts",
           id,
         );
-        return row && inScope(await siteScope(ctx), row.warehouseId)
+        return row &&
+          (await siteAllowed(ctx, await siteScope(ctx), row.warehouseId))
           ? { version: row.version }
           : fail("NOT_FOUND");
       },
@@ -485,7 +486,10 @@ export const reconcileOpening = mutationWithOrg({
           "hrEmployees",
           args.employeeId,
         );
-        if (!employee || !inScope(await siteScope(ctx), employee.warehouseId))
+        if (
+          !employee ||
+          !(await siteAllowed(ctx, await siteScope(ctx), employee.warehouseId))
+        )
           return fail("NOT_FOUND");
         if (
           args.asOf < employee.employmentStartDate ||

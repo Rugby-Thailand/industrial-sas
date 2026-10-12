@@ -1728,8 +1728,11 @@
         "NONWORKING": "a nonworking day"
       },
       "priorDecisions": "Earlier decisions",
-      "requestsIncomplete": "{count, plural, one {# request shown, the newest; older requests are not listed} other {# requests shown, the newest; older requests are not listed}}",
-      "notCorrectable": "This day cannot take a correction request yet."
+      "requestsIncomplete": "{count, plural, one {# request shown, the newest; older requests exist} other {# requests shown, the newest; older requests exist}}",
+      "notCorrectable": "This day cannot take a correction request yet.",
+      "allRequests": "See every request for this date",
+      "allRequestsShow": "Show every request for this date",
+      "allRequestsPagination": "Requests for this date"
     },
     "correction": {
       "title": "Request a correction",
@@ -1817,7 +1820,7 @@
       "reviewAgainHint": "Only when there is new evidence.",
       "backToList": "Back to the list",
       "certifiedCount": "{count, plural, one {# certified item} other {# certified items}}",
-      "selectedOutsideList": "The open day is not in this list's range, site or tab.",
+      "selectedOutsideList": "The open day is not on this page of the list, or not in its range, site or view.",
       "nothingToDecide": "Nothing on this day needs a decision.",
       "details": "Details and history",
       "recordedIn": "Recorded in",
@@ -1826,7 +1829,12 @@
       "returnReason": "Reason for returning",
       "returnConfirm": "Confirm return",
       "returnCancel": "Cancel",
-      "commentAdd": "Add a comment"
+      "commentAdd": "Add a comment",
+      "search": "Search employees",
+      "searchHint": "Name or employee code",
+      "pagination": "Review queue pages",
+      "openOnPage": "{count, plural, one {# item needs review on this page} other {# items need review on this page}}",
+      "certifiedOnPage": "{count, plural, one {# certified item on this page} other {# certified items on this page}}"
     },
     "employees": {
       "title": "Employees",
@@ -1905,7 +1913,24 @@
       },
       "count": "{count, plural, one {# employee} other {# employees}}",
       "everyDay": "Every day",
-      "backToList": "Back to employees"
+      "backToList": "Back to employees",
+      "filters": "Employee filters",
+      "search": "Search employees",
+      "searchHint": "Name or employee code",
+      "allSites": "All sites",
+      "allStatuses": "All statuses",
+      "clearFilters": "Clear filters",
+      "sitesIncomplete": "Your site access includes more sites than can be listed; employees of the unlisted sites are not shown",
+      "noMatches": "No matching employees",
+      "noMatchesHint": "The search covers every site you can manage. Change or clear the filters.",
+      "pageCount": "{count, plural, one {# employee on this page} other {# employees on this page}}",
+      "pagination": "Employee list pages",
+      "selectedMember": "Selected member",
+      "memberSearch": "Find for {field}",
+      "memberSearchHint": "Member name",
+      "memberNoMatches": "No active member matches this search",
+      "memberPagination": "{field} choices",
+      "historyPagination": "Change history pages"
     },
     "periods": {
       "title": "Attendance periods",
@@ -1930,7 +1955,15 @@
       "empty": "No periods yet",
       "emptyHint": "Create the first period to review and close attendance.",
       "incomplete": "{count, plural, one {# period shown, the newest; older periods are not listed} other {# periods shown, the newest; older periods are not listed}}",
-      "siteInactive": "Site inactive (history available)"
+      "siteInactive": "Site inactive (history available)",
+      "filters": "Period filters",
+      "allSites": "All sites",
+      "allStatuses": "All statuses",
+      "clearFilters": "Clear filters",
+      "sitesIncomplete": "Your site access includes more sites than can be listed; periods of the unlisted sites are not shown",
+      "noMatches": "No matching periods",
+      "noMatchesHint": "Change or clear the filters.",
+      "pagination": "Period list pages"
     },
     "period": {
       "title": "Attendance period",
@@ -1988,7 +2021,12 @@
       "shownClosed": "Closed · v{version}",
       "earlierVersion": "You are viewing an earlier version.",
       "versions": "Versions",
-      "reviewOpen": "Review open days"
+      "reviewOpen": "Review open days",
+      "openCount": "{count, plural, one {# day still open} other {# days still open}}",
+      "openPagination": "Open day pages",
+      "employeePagination": "Employee breakdown pages",
+      "allVersions": "All versions",
+      "allVersionsPagination": "Version pages"
     },
     "settings": {
       "title": "HR settings",
@@ -2027,7 +2065,18 @@
       "csv": "CSV v1 columns",
       "csvNote": "Mapping to the actual payroll format is a launch decision.",
       "holidaysIncomplete": "{count, plural, one {# holiday shown, the newest; older holidays exist} other {# holidays shown, the newest; older holidays exist}}",
-      "holidayEdits": "Holiday edits"
+      "holidayEdits": "Holiday edits",
+      "holidayYear": "Year",
+      "holidayYearHint": "Leave empty to list every year, newest first",
+      "holidayYearInvalid": "Enter a four-digit year",
+      "allYears": "All years",
+      "noHolidaysInYear": "No holidays in this year",
+      "holidayPagination": "Holiday pages",
+      "memberSearch": "Search members",
+      "memberSearchHint": "Member name",
+      "noMembers": "No active members",
+      "noMemberMatches": "No active member matches this search",
+      "memberPagination": "Member pages"
     },
     "errors": {
       "HR_NOT_LINKED": "This account is not linked to an employee",
@@ -2171,7 +2220,10 @@
       "ANNOUNCEMENT_STALE": "This announcement changed. Reload before saving or publishing.",
       "REQUEST_FILTER_INVALID": "Use valid dates and at most 100 characters in the search.",
       "SCHEDULE_PUBLISHER_UNAVAILABLE": "The scheduled publisher no longer has access. Review the draft and schedule it again.",
-      "HR_CLOCK_DAY_CHANGED": "This clock action belongs to another work date. Check attendance history before starting a new action."
+      "HR_CLOCK_DAY_CHANGED": "This clock action belongs to another work date. Check attendance history before starting a new action.",
+      "PAGE_SIZE_INVALID": "This page size is not available. Reload the page",
+      "SEARCH_INVALID": "Use a search of up to 100 characters",
+      "YEAR_INVALID": "Enter a year between 1900 and 2200"
     },
     "selfService": {
       "title": "Your tasks",
@@ -2494,7 +2546,8 @@
       "detail": "View request and history",
       "revisions": "Previous submitted versions",
       "revision": "Version {version}",
-      "discardEdit": "Close edit"
+      "discardEdit": "Close edit",
+      "queuePagination": "Leave review pages"
     },
     "announcements": {
       "title": "Announcements",
@@ -2714,6 +2767,33 @@
       "exclusionsInvalid": "Enter a reason of 3–500 characters for every excluded row. Keep at least one included row.",
       "excludedSourceRows": "Excluded original source rows",
       "excludedRowLabel": "Row {row} · {employee} · excluded"
+    },
+    "pager": {
+      "perPage": "Records per page",
+      "page": "Page {page}",
+      "pageLoading": "Page {page} …",
+      "previous": "Previous page",
+      "next": "Next page",
+      "first": "First page",
+      "loading": "Loading records…",
+      "searching": "Searching all records…",
+      "range": "{from}–{to} of {count}",
+      "pageInterrupted": "Page {page} stopped",
+      "keepSearching": "Keep searching",
+      "startOver": "Start again from page 1",
+      "interrupted": {
+        "reset": "This list changed and this page can no longer continue.",
+        "stalled": "The search stopped before finishing this page.",
+        "paused": "Still searching. Many records were checked without filling this page."
+      }
+    },
+    "sitePicker": {
+      "selected": "Selected site",
+      "search": "Find a site",
+      "searchHint": "Site code or name",
+      "noMatches": "No site matches this search",
+      "pagination": "Site choices",
+      "chosenElsewhere": "Chosen sites not on this page"
     }
   },
   "Search": {

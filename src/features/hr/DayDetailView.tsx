@@ -4,8 +4,10 @@ import { useLocale, useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
 import { Panel } from "@/components/ui/Panel";
+import { Link } from "@/i18n/navigation";
 import type { RefValue } from "@/lib/convex/clientRef";
 import type { hrRefs } from "@/lib/convex/hrApi";
+import { ROUTES } from "@/lib/navigation";
 
 import { formatBusinessDate, formatDateTime } from "./format";
 import {
@@ -61,7 +63,20 @@ export function DayDetailView({
       </Panel>
 
       <Panel aria-labelledby="hr-day-requests">
-        <DayRequests detail={detail} timezone={timezone} />
+        <DayRequests
+          detail={detail}
+          timezone={timezone}
+          older={
+            // Every request of this date, in the employee's full history.
+            <Link
+              href={`${ROUTES.hrRequests}?from=${detail.businessDate}&to=${detail.businessDate}`}
+              className="inline-flex min-h-touch items-center text-sm font-semibold text-link underline-offset-4 focus-ring hover:underline"
+              data-testid="hr-corrections-all"
+            >
+              {t("allRequests")}
+            </Link>
+          }
+        />
       </Panel>
     </div>
   );
@@ -297,7 +312,16 @@ export function DayEvents({ detail, timezone }: DayPart) {
   );
 }
 
-export function DayRequests({ detail, timezone }: DayPart) {
+/**
+ * The day's newest correction requests. When older ones exist, `older`
+ * offers the way to all of them (the employee's filtered request history,
+ * or a reviewer's paged list).
+ */
+export function DayRequests({
+  detail,
+  timezone,
+  older,
+}: DayPart & { readonly older?: ReactNode }) {
   const t = useTranslations("Hr.day");
   return (
     <>
@@ -305,48 +329,60 @@ export function DayRequests({ detail, timezone }: DayPart) {
         <span id="hr-day-requests">{t("requests")}</span>
       </SectionTitle>
       {detail.correctionsIncomplete ? (
-        <p
-          role="status"
-          className="mb-2 text-sm font-semibold text-warning"
-          data-testid="hr-corrections-incomplete"
-        >
-          {t("requestsIncomplete", { count: detail.corrections.length })}
-        </p>
+        <div className="mb-2 space-y-1">
+          <p
+            role="status"
+            className="text-sm font-semibold text-warning"
+            data-testid="hr-corrections-incomplete"
+          >
+            {t("requestsIncomplete", { count: detail.corrections.length })}
+          </p>
+          {older}
+        </div>
       ) : null}
       {detail.corrections.length === 0 ? (
         <p className="text-sm text-muted">{t("noRequests")}</p>
       ) : (
         <ul className="space-y-4">
           {detail.corrections.map((correction) => (
-            <li
+            <DayCorrectionItem
               key={correction.id}
-              className="space-y-2 rounded-lg border border-border p-4 text-sm"
-            >
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="font-semibold text-text tabular-nums">
-                  <TimeText
-                    at={correction.proposedStartAt}
-                    timeZone={timezone}
-                  />
-                  {" – "}
-                  <TimeText at={correction.proposedEndAt} timeZone={timezone} />
-                </span>
-                <CorrectionBadge status={correction.status} />
-              </div>
-              <p className="break-words text-text">
-                {t("reason")}: {correction.reason}
-              </p>
-              {correction.status === "PENDING" && correction.stale ? (
-                <p className="font-semibold text-warning">{t("stale")}</p>
-              ) : null}
-              <HrCorrectionTimeline
-                entries={correction.history}
-                timezone={timezone}
-              />
-            </li>
+              correction={correction}
+              timezone={timezone}
+            />
           ))}
         </ul>
       )}
     </>
+  );
+}
+
+/** One correction request with its status, reason and timeline. */
+export function DayCorrectionItem({
+  correction,
+  timezone,
+}: {
+  readonly correction: DayDetail["corrections"][number];
+  readonly timezone: string;
+}) {
+  const t = useTranslations("Hr.day");
+  return (
+    <li className="space-y-2 rounded-lg border border-border p-4 text-sm">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="font-semibold text-text tabular-nums">
+          <TimeText at={correction.proposedStartAt} timeZone={timezone} />
+          {" – "}
+          <TimeText at={correction.proposedEndAt} timeZone={timezone} />
+        </span>
+        <CorrectionBadge status={correction.status} />
+      </div>
+      <p className="break-words text-text">
+        {t("reason")}: {correction.reason}
+      </p>
+      {correction.status === "PENDING" && correction.stale ? (
+        <p className="font-semibold text-warning">{t("stale")}</p>
+      ) : null}
+      <HrCorrectionTimeline entries={correction.history} timezone={timezone} />
+    </li>
   );
 }

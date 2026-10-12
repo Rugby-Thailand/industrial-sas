@@ -16,7 +16,6 @@ import { resolveProposedInterval } from "../model/hr/attendance";
 import {
   addDays,
   compareDates,
-  datesInRange,
   inclusiveDayCount,
   isIsoDate,
   type IsoDate,
@@ -255,10 +254,39 @@ async function recentCorrections(
   return items;
 }
 
+/** One holiday per site date, so a year holds at most 366. */
+const MAX_YEAR_HOLIDAYS = 366;
+
 /**
- * The linked employee's complete selected-year site calendar. Exact date
- * lookups bound this read to 366 dates, independently of older site calendars
- * and the administrator list's newest-row limit. No site ID is accepted.
+ * One site's complete holidays of a calendar year, in date order: a single
+ * checked date-range read on the site's calendar index (tenant prefix
+ * first), so other years are never read. ISO date strings order
+ * chronologically, so no time-zone arithmetic is involved.
+ */
+export async function yearHolidays(
+  ctx: TenantFunctionContext,
+  warehouseId: string,
+  year: number,
+): Promise<readonly Doc<"hrHolidays">[]> {
+  return await ctx.tenantDb
+    .byIndex<Doc<"hrHolidays">>(
+      "hrHolidays",
+      "by_orgId_warehouseId_date",
+      [{ field: "warehouseId", value: warehouseId }],
+      {
+        field: "date",
+        lower: { value: `${year}-01-01`, inclusive: true },
+        upper: { value: `${year}-12-31`, inclusive: true },
+      },
+    )
+    // Fails rather than truncates if the one-per-date rule were broken.
+    .all(MAX_YEAR_HOLIDAYS);
+}
+
+/**
+ * The linked employee's complete selected-year site calendar (see
+ * `yearHolidays`), independently of older site calendars and the
+ * administrator list's paging. No site ID is accepted.
  */
 export const holidays = queryWithOrg({
   args: { year: v.number() },
@@ -277,24 +305,12 @@ export const holidays = queryWithOrg({
       return { ok: false as const, code: "TIMEZONE_UNSUPPORTED" };
     const employee = await linkedEmployee(ctx);
     if (employee === null) return { ok: false as const, code: "HR_NOT_LINKED" };
-    const dates = datesInRange(`${args.year}-01-01`, `${args.year}-12-31`);
-    const rows = await Promise.all(
-      dates.map((date) =>
-        ctx.tenantDb
-          .byIndex<Doc<"hrHolidays">>(
-            "hrHolidays",
-            "by_orgId_warehouseId_date",
-            [
-              { field: "warehouseId", value: employee.warehouseId },
-              { field: "date", value: date },
-            ],
-          )
-          .unique(),
-      ),
-    );
-    const holidays = rows.flatMap((row) =>
-      row === null ? [] : [{ id: row._id, date: row.date, name: row.name }],
-    );
+    const rows = await yearHolidays(ctx, employee.warehouseId, args.year);
+    const holidays = rows.map((row) => ({
+      id: row._id,
+      date: row.date,
+      name: row.name,
+    }));
     return {
       ok: true as const,
       year: args.year,

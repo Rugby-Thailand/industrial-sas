@@ -30,10 +30,17 @@ const ACCOUNT = "Linked account";
 
 /** The server's answer for a site-scoped administrator (HR-001). */
 function members(items: readonly Record<string, unknown>[]) {
-  state.queries.set(getFunctionName(hrRefs.memberOptions), {
+  state.queries.set(getFunctionName(hrRefs.memberOptionsPage), {
     ok: true,
     requestId: "q",
-    value: { ok: true, items },
+    value: {
+      ok: true,
+      status: "ready",
+      page: items,
+      isDone: true,
+      continueCursor: "",
+      scanned: items.length,
+    },
   });
 }
 

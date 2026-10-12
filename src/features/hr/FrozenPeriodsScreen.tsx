@@ -3,7 +3,6 @@
 import { useQuery } from "convex/react";
 import { ArrowLeft, ArrowRight, Archive, Download } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { useState } from "react";
 import { OutcomeGate } from "@/components/system/DataGate";
 import { Button } from "@/components/ui/button";
 import { DescriptionList } from "@/components/ui/DescriptionList";
@@ -28,6 +27,7 @@ import { formatBusinessDate, formatDateTime } from "./format";
 import { Duration, HrGate, HrInlineError, TimeText } from "./HrShared";
 import { HrActionCard } from "./HrActionCard";
 import { downloadHolidayCsv } from "./selfService";
+import { HrStackFirst, useHrCursorStack } from "./HrPagedList";
 
 export function HrFrozenPeriodsScreen() {
   const t = useTranslations("Hr.frozen");
@@ -47,7 +47,7 @@ export function HrFrozenPeriodsScreen() {
 function FrozenList() {
   const t = useTranslations("Hr.frozen");
   const locale = useLocale();
-  const [cursors, setCursors] = useState<string[]>([]);
+  const [cursors, , nav] = useHrCursorStack("frozen-periods");
   const cursor = cursors.at(-1);
   const outcome = useQuery(
     hrRefs.selfPeriods,
@@ -85,10 +85,11 @@ function FrozenList() {
               </ul>
             )}
             <div className="flex flex-wrap items-center justify-between gap-3">
+              <HrStackFirst nav={nav} />
               <Button
                 variant="outline"
-                disabled={cursors.length === 0}
-                onClick={() => setCursors((list) => list.slice(0, -1))}
+                disabled={!nav.canPrevious}
+                onClick={() => nav.previous()}
               >
                 <ArrowLeft aria-hidden />
                 {t("previous")}
@@ -98,7 +99,7 @@ function FrozenList() {
                 disabled={value.isDone || value.continueCursor === undefined}
                 onClick={() => {
                   if (value.continueCursor !== undefined)
-                    setCursors((list) => [...list, value.continueCursor]);
+                    nav.next(value.continueCursor);
                 }}
               >
                 {t("next")}

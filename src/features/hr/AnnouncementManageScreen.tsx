@@ -37,6 +37,8 @@ import {
   WriteFeedback,
 } from "./HrShared";
 import { useHrWrite } from "./useHrWrite";
+import { useHrCursorStack, type HrCursorNav } from "./HrPagedList";
+import { HrSiteChecklist } from "./HrSiteSelect";
 
 interface AnnouncementPolicy {
   readonly config: {
@@ -74,7 +76,7 @@ export function HrAnnouncementManageScreen() {
   );
 }
 function ManageContent() {
-  const [cursors, setCursors] = useState<string[]>([]);
+  const [cursors, , nav] = useHrCursorStack("announcement-manage");
   const cursor = cursors.at(-1);
   const outcome = useQuery(hrRefs.manageAnnouncements, {
     limit: 20,
@@ -84,11 +86,7 @@ function ManageContent() {
     <OutcomeGate outcome={outcome}>
       {({ value }) =>
         value.ok ? (
-          <ManagePage
-            result={value}
-            cursors={cursors}
-            setCursors={setCursors}
-          />
+          <ManagePage result={value} nav={nav} />
         ) : (
           <HrInlineError code={value.code} />
         )
@@ -98,16 +96,14 @@ function ManageContent() {
 }
 function ManagePage({
   result,
-  cursors,
-  setCursors,
+  nav,
 }: {
   readonly result: {
     readonly items: readonly AnnouncementRow[];
     readonly nextCursor: string | null;
     readonly policy: AnnouncementPolicy | null;
   };
-  readonly cursors: readonly string[];
-  readonly setCursors: (value: string[]) => void;
+  readonly nav: HrCursorNav;
 }) {
   const t = useTranslations("Hr.announcements");
   const [editor, setEditor] = useState<Draft | null>(null);
@@ -223,11 +219,7 @@ function ManagePage({
         />
       )}
       {editor ? null : (
-        <AnnouncementPager
-          cursors={cursors}
-          nextCursor={result.nextCursor}
-          setCursors={setCursors}
-        />
+        <AnnouncementPager nav={nav} nextCursor={result.nextCursor} />
       )}
       {receiptsId ? (
         <AnnouncementReceipts
@@ -382,28 +374,14 @@ function AnnouncementEditor({
             <legend className="text-sm font-medium text-text">
               {t("sites")}
             </legend>
-            {access.sites.map((site) => (
-              <CheckboxField
-                key={site.id}
-                label={`${site.code} · ${site.name}`}
-                checked={draft.audience.warehouseIds.includes(site.id)}
-                onChange={(event) =>
-                  update({
-                    audience: {
-                      mode: "SITES",
-                      warehouseIds: event.target.checked
-                        ? [...draft.audience.warehouseIds, site.id]
-                        : draft.audience.warehouseIds.filter(
-                            (value) => value !== site.id,
-                          ),
-                    },
-                  })
-                }
-              />
-            ))}
-            {access.sites.length === 0 ? (
-              <p className="text-sm text-muted">{t("noSites")}</p>
-            ) : null}
+            <HrSiteChecklist
+              surface="announcement-audience"
+              value={draft.audience.warehouseIds}
+              onChange={(warehouseIds) =>
+                update({ audience: { mode: "SITES", warehouseIds } })
+              }
+              emptyLabel={t("noSites")}
+            />
           </fieldset>
         ) : null}
         <CheckboxField
@@ -646,7 +624,9 @@ function AnnouncementReceipts({
   readonly close: () => void;
 }) {
   const t = useTranslations("Hr.announcements");
-  const [cursors, setCursors] = useState<string[]>([]);
+  const [cursors, , nav] = useHrCursorStack("announcement-receipts", {
+    announcementId,
+  });
   const cursor = cursors.at(-1);
   const outcome = useQuery(hrRefs.announcementReceipts, {
     announcementId,
@@ -696,11 +676,7 @@ function AnnouncementReceipts({
                   </li>
                 ))}
               </ul>
-              <AnnouncementPager
-                cursors={cursors}
-                nextCursor={value.nextCursor}
-                setCursors={setCursors}
-              />
+              <AnnouncementPager nav={nav} nextCursor={value.nextCursor} />
             </>
           ) : (
             <HrInlineError code={value.code} />

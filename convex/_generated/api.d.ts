@@ -35,6 +35,7 @@ import type * as hr_dayDetail from "../hr/dayDetail.js";
 import type * as hr_leave from "../hr/leave.js";
 import type * as hr_navigationIntent from "../hr/navigationIntent.js";
 import type * as hr_notifications from "../hr/notifications.js";
+import type * as hr_pagination from "../hr/pagination.js";
 import type * as hr_payslips from "../hr/payslips.js";
 import type * as hr_periods from "../hr/periods.js";
 import type * as hr_policies from "../hr/policies.js";
@@ -171,6 +172,7 @@ declare const fullApi: ApiFromModules<{
   "hr/leave": typeof hr_leave;
   "hr/navigationIntent": typeof hr_navigationIntent;
   "hr/notifications": typeof hr_notifications;
+  "hr/pagination": typeof hr_pagination;
   "hr/payslips": typeof hr_payslips;
   "hr/periods": typeof hr_periods;
   "hr/policies": typeof hr_policies;

@@ -26,6 +26,7 @@ import {
 import { isEmployedOn } from "../model/hr/schedule";
 import { activePolicy, leaveAccount } from "./policies";
 import { deliverNotification } from "./notifications";
+import { hrListInput, hrPageArgs, hrScanPage } from "./pagination";
 import {
   closedPeriodCovering,
   dayOf,
@@ -38,6 +39,7 @@ import {
   orgClock,
   storedPlan,
   holds,
+  reviewAccess,
   reviewBlocker,
   reviewScope,
   type Employee,
@@ -226,6 +228,72 @@ export const queue = queryWithOrg({
       items: items.sort((a, b) => b.submittedAt - a.submittedAt),
       complete: true,
     };
+  },
+});
+/**
+ * The leave review queue a page at a time: pending requests, then
+ * cancellation requests, newest submission first within each. Requests the
+ * actor may not review are skipped before paging, so no total cap applies.
+ */
+export const queuePage = queryWithOrg({
+  args: { ...hrPageArgs },
+  returns: v.any(),
+  permissionCode: REVIEW,
+  target: { table: "hrLeaveRequests" },
+  handler: async (ctx, args) => {
+    const input = hrListInput(args);
+    if (!input.ok) return input;
+    const scope = await reviewScope(ctx);
+    // Exact site authorization: requests at sites beyond the preloaded scope
+    // bound stay reachable, and a revoked site's requests disappear.
+    const grants = new Map<string, Promise<boolean>>();
+    const employees = new Map<string, Promise<Employee | null>>();
+    const employeeOf = (id: string) => {
+      let entry = employees.get(id);
+      if (entry === undefined) {
+        entry = ctx.tenantDb.get<Employee>("hrEmployees", id);
+        employees.set(id, entry);
+      }
+      return entry;
+    };
+    const page = await hrScanPage(ctx, {
+      surface: "leave-queue",
+      criteria: {},
+      pageSize: input.pageSize,
+      cursor: args.cursor,
+      scanCursor: args.scanCursor,
+      table: "hrLeaveRequests",
+      lanes: (["PENDING", "CANCELLATION_REQUESTED"] as const).map((status) => ({
+        key: status,
+        index: "by_orgId_status_submittedAt",
+        equality: [{ field: "status", value: status }],
+        order: "desc" as const,
+      })),
+      chunk: input.pageSize,
+      match: async (request: Request) => {
+        if (
+          request.status !== "PENDING" &&
+          request.status !== "CANCELLATION_REQUESTED"
+        )
+          return false;
+        const employee = await employeeOf(request.employeeId);
+        return (
+          employee !== null &&
+          (await reviewAccess(ctx, scope, employee, grants)) === null
+        );
+      },
+      hydrate: async (request) => {
+        const employee = await employeeOf(request.employeeId);
+        return employee === null
+          ? null
+          : {
+              ...request,
+              employeeName: employee.displayName,
+              employeeCode: employee.code,
+            };
+      },
+    });
+    return { ok: true as const, ...page };
   },
 });
 async function charge(
@@ -583,7 +651,7 @@ async function reviewReceipt(ctx: TenantFunctionContext, id: string) {
     ? await ctx.tenantDb.get<Employee>("hrEmployees", row.employeeId)
     : null;
   if (!row || !employee) return fail("NOT_FOUND");
-  const blocker = reviewBlocker(await reviewScope(ctx), employee);
+  const blocker = await reviewAccess(ctx, await reviewScope(ctx), employee);
   return blocker ? fail(blocker) : { version: row.version, status: row.status };
 }
 export const preview = queryWithOrg({
@@ -887,7 +955,11 @@ export const decide = mutationWithOrg({
           row.employeeId,
         );
         if (!employee) return fail("NOT_FOUND");
-        const blocker = reviewBlocker(await reviewScope(ctx), employee);
+        const blocker = await reviewAccess(
+          ctx,
+          await reviewScope(ctx),
+          employee,
+        );
         if (blocker) return fail(blocker);
         if (row.version !== args.expectedVersion) return fail("LEAVE_STALE");
         const clock = orgClock(ctx);
@@ -1244,7 +1316,11 @@ export const adjust = mutationWithOrg({
           row.employeeId,
         );
         if (!employee) return fail("NOT_FOUND");
-        const blocker = reviewBlocker(await reviewScope(ctx), employee);
+        const blocker = await reviewAccess(
+          ctx,
+          await reviewScope(ctx),
+          employee,
+        );
         if (blocker) return fail(blocker);
         if (!(await holds(ctx, HR_PERMISSION.adminManage)))
           return fail("NOT_FOUND");
@@ -1388,7 +1464,10 @@ export const detail = queryWithOrg({
       "hrEmployees",
       request.employeeId,
     );
-    if (!employee || reviewBlocker(await reviewScope(ctx), employee))
+    if (
+      !employee ||
+      (await reviewAccess(ctx, await reviewScope(ctx), employee)) !== null
+    )
       return { ok: false as const, code: "NOT_FOUND" };
     return {
       ok: true as const,

@@ -14,7 +14,6 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { FormField } from "@/components/ui/FormField";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/PageHeader";
-import type { RefValue } from "@/lib/convex/clientRef";
 import { hrRefs } from "@/lib/convex/hrApi";
 import { HR_CODES } from "@/lib/navigation";
 import {
@@ -25,13 +24,16 @@ import {
   useHrBack,
   WriteFeedback,
 } from "./HrShared";
+import {
+  HrPagedState,
+  HrPager,
+  useHrPagedQuery,
+  type HrPageRow,
+} from "./HrPagedList";
 import { LeaveRequestCard, type LeaveRequest } from "./LeaveScreen";
 import { useHrWrite } from "./useHrWrite";
 
-type QueueItem = Extract<
-  RefValue<typeof hrRefs.leaveQueue>,
-  { ok: true }
->["items"][number];
+type QueueItem = HrPageRow<typeof hrRefs.leaveQueuePage>;
 export function HrLeaveReviewScreen() {
   const t = useTranslations("Hr.leave");
   const back = useHrBack();
@@ -50,38 +52,44 @@ export function HrLeaveReviewScreen() {
 }
 function ReviewContent() {
   const t = useTranslations("Hr.leave");
-  const outcome = useQuery(hrRefs.leaveQueue, {});
+  // Every reviewable request is reachable a page at a time; the position
+  // survives opening a request and coming Back.
+  const { view, paging } = useHrPagedQuery(
+    hrRefs.leaveQueuePage,
+    {},
+    "leave-review",
+  );
   return (
-    <HrQueryState outcome={outcome}>
-      {() =>
-        outcome?.ok ? (
-          outcome.value.ok ? (
-            outcome.value.items.length === 0 ? (
-              <EmptyState title={t("emptyQueue")} />
-            ) : (
-              <ul className="space-y-4">
-                {outcome.value.items.map((item) => (
-                  <li key={item._id}>
-                    <div className="space-y-2">
-                      <ReviewItem item={item} />
-                      <Button asChild variant="outline">
-                        <Link
-                          href={`/hr/leave/review/${encodeURIComponent(item._id)}`}
-                        >
-                          {t("openRecord")}
-                        </Link>
-                      </Button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )
+    <section aria-label={t("reviewTitle")} className="space-y-4">
+      <HrPagedState
+        view={view}
+        refused={(code) => <HrInlineError code={code} />}
+      >
+        {(_value, items) =>
+          items.length === 0 ? (
+            <EmptyState title={t("emptyQueue")} />
           ) : (
-            <HrInlineError code={outcome.value.code} />
+            <ul className="space-y-4">
+              {items.map((item) => (
+                <li key={item._id}>
+                  <div className="space-y-2">
+                    <ReviewItem item={item} />
+                    <Button asChild variant="outline">
+                      <Link
+                        href={`/hr/leave/review/${encodeURIComponent(item._id)}`}
+                      >
+                        {t("openRecord")}
+                      </Link>
+                    </Button>
+                  </div>
+                </li>
+              ))}
+            </ul>
           )
-        ) : null
-      }
-    </HrQueryState>
+        }
+      </HrPagedState>
+      <HrPager paging={paging} label={t("queuePagination")} />
+    </section>
   );
 }
 function ReviewItem({ item }: { readonly item: QueueItem }) {

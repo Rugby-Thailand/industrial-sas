@@ -3,7 +3,6 @@
 import { useMutation, useQuery } from "convex/react";
 import { Bell } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
 import { usePendingGuard } from "@/components/providers/draftGuard";
 import { OutcomeGate } from "@/components/system/DataGate";
 import { Button } from "@/components/ui/button";
@@ -20,6 +19,8 @@ import { AnnouncementPager, AnnouncementTime } from "./AnnouncementsScreen";
 import { HrGate, HrInlineError, useHrBack, WriteFeedback } from "./HrShared";
 import { HrToolbar } from "./HrUi";
 import { useHrWrite } from "./useHrWrite";
+import { useHrListCriteria } from "./HrListCriteria";
+import { useHrCursorStack, type HrCursorNav } from "./HrPagedList";
 
 interface NotificationRow {
   readonly _id: string;
@@ -55,8 +56,17 @@ export function HrNotificationsScreen() {
 }
 function NotificationsContent() {
   const t = useTranslations("Hr.notifications");
-  const [unreadOnly, setUnreadOnly] = useState(false);
-  const [cursors, setCursors] = useState<string[]>([]);
+  // The filter lives in the URL, so Back, reload and returning from a
+  // linked record restore it together with its page.
+  const [criteria, setCriteria, entry] = useHrListCriteria(
+    { unread: "" },
+    "notifications",
+  );
+  const unreadOnly = criteria.unread === "1";
+  const [cursors, , nav] = useHrCursorStack("notifications", {
+    unreadOnly,
+    entry,
+  });
   const cursor = cursors.at(-1);
   const outcome = useQuery(hrRefs.notifications, {
     limit: 20,
@@ -69,20 +79,15 @@ function NotificationsContent() {
         <CheckboxField
           label={t("unreadOnly")}
           checked={unreadOnly}
-          onChange={(event) => {
-            setUnreadOnly(event.target.checked);
-            setCursors([]);
-          }}
+          onChange={(event) =>
+            setCriteria({ unread: event.target.checked ? "1" : "" })
+          }
         />
       </HrToolbar>
       <OutcomeGate outcome={outcome}>
         {({ value }) =>
           value.ok ? (
-            <NotificationsPage
-              result={value}
-              cursors={cursors}
-              setCursors={setCursors}
-            />
+            <NotificationsPage result={value} nav={nav} />
           ) : (
             <HrInlineError code={value.code} />
           )
@@ -93,8 +98,7 @@ function NotificationsContent() {
 }
 function NotificationsPage({
   result,
-  cursors,
-  setCursors,
+  nav,
 }: {
   readonly result: {
     readonly items: readonly NotificationRow[];
@@ -102,8 +106,7 @@ function NotificationsPage({
     readonly unreadCount: number;
     readonly unreadCountComplete: boolean;
   };
-  readonly cursors: readonly string[];
-  readonly setCursors: (value: string[]) => void;
+  readonly nav: HrCursorNav;
 }) {
   const t = useTranslations("Hr.notifications");
   const all = useMutation(hrRefs.markAllNotifications);
@@ -152,11 +155,7 @@ function NotificationsPage({
       ) : (
         <EmptyState icon={<Bell />} title={t("empty")} body={t("emptyHint")} />
       )}
-      <AnnouncementPager
-        cursors={cursors}
-        nextCursor={result.nextCursor}
-        setCursors={setCursors}
-      />
+      <AnnouncementPager nav={nav} nextCursor={result.nextCursor} />
     </>
   );
 }

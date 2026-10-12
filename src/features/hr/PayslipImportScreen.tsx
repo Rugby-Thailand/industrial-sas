@@ -56,6 +56,7 @@ import {
 } from "./payslipImport";
 import { PayslipAccessError } from "./payslipClient";
 import { useHrWrite } from "./useHrWrite";
+import { HrStackFirst, useHrCursorStack } from "./HrPagedList";
 
 type Imports = Extract<RefValue<typeof hrRefs.payslipImports>, { ok: true }>;
 type Batch = Imports["items"][number];
@@ -77,7 +78,7 @@ export function HrPayslipImportScreen() {
 }
 function ImportContent() {
   const t = useTranslations("Hr.payslips");
-  const [cursors, setCursors] = useState<string[]>([]);
+  const [cursors, , nav] = useHrCursorStack("payslip-imports");
   const cursor = cursors.at(-1);
   const outcome = useQuery(hrRefs.payslipImports, cursor ? { cursor } : {});
   return (
@@ -101,14 +102,11 @@ function ImportContent() {
                   <EmptyState title={t("noImports")} />
                 )}
                 <div className="flex flex-wrap gap-3">
+                  <HrStackFirst nav={nav} guard={guardedNavigate} />
                   <Button
                     variant="outline"
-                    disabled={!cursors.length}
-                    onClick={() =>
-                      guardedNavigate(() =>
-                        setCursors((previous) => previous.slice(0, -1)),
-                      )
-                    }
+                    disabled={!nav.canPrevious}
+                    onClick={() => guardedNavigate(() => nav.previous())}
                   >
                     {t("previous")}
                   </Button>
@@ -118,9 +116,7 @@ function ImportContent() {
                     onClick={() => {
                       if (outcome.value.ok) {
                         const next = outcome.value.continueCursor;
-                        guardedNavigate(() =>
-                          setCursors((previous) => [...previous, next]),
-                        );
+                        guardedNavigate(() => nav.next(next));
                       }
                     }}
                   >

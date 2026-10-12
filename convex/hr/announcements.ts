@@ -15,7 +15,7 @@ import { deliverNotification, completeRows500 } from "./notifications";
 import {
   fail,
   hrCommand,
-  inScope,
+  siteAllowed,
   linkedEmployee,
   memberName,
   orgClock,
@@ -38,12 +38,10 @@ export async function canManageAnnouncement(
   announcement: Announcement,
 ) {
   const scope = await siteScope(ctx);
-  return (
-    scope.complete &&
-    (announcement.audience.mode === "ORGANIZATION"
-      ? scope.all
-      : announcement.audience.warehouseIds.every((id) => inScope(scope, id)))
-  );
+  if (announcement.audience.mode === "ORGANIZATION") return scope.all;
+  for (const id of announcement.audience.warehouseIds)
+    if (!(await siteAllowed(ctx, scope, id))) return false;
+  return true;
 }
 async function recipientOf(
   ctx: TenantFunctionContext,
@@ -222,7 +220,6 @@ export const saveDraft = mutationWithOrg({
         const scope = await siteScope(ctx),
           audience = args.audience;
         if (
-          !scope.complete ||
           (audience.mode === "ORGANIZATION" &&
             (!scope.all || audience.warehouseIds.length !== 0)) ||
           (audience.mode === "SITES" &&
@@ -240,7 +237,7 @@ export const saveDraft = mutationWithOrg({
           if (
             !warehouse ||
             warehouse.status !== "ACTIVE" ||
-            !inScope(scope, id)
+            !(await siteAllowed(ctx, scope, id))
           )
             return fail("ANNOUNCEMENT_AUDIENCE_INVALID");
         }

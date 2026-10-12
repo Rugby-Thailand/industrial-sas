@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery } from "convex/react";
+import { useMutation } from "convex/react";
 import { useLocale, useTranslations } from "next-intl";
 import { useId, useState, type FormEvent } from "react";
 
@@ -19,7 +19,16 @@ import { hrRefs } from "@/lib/convex/hrApi";
 import { FOCUS_TARGET_IDS } from "@/lib/navigation";
 
 import { formatBusinessDate, formatDateTime, weekdayName } from "./format";
+import {
+  HrInterrupted,
+  HrPagedState,
+  HrPager,
+  HrSearchField,
+  useHrPagedQuery,
+  type HrPageRow,
+} from "./HrPagedList";
 import { SectionTitle, WriteFeedback, useHrError } from "./HrShared";
+import { HrSiteSelect } from "./HrSiteSelect";
 import { useHrWrite, type HrWriteState } from "./useHrWrite";
 
 export interface EmployeeRecord {
@@ -29,7 +38,10 @@ export interface EmployeeRecord {
   readonly status: "ACTIVE" | "INACTIVE";
   readonly siteId: string;
   readonly linkedUserId?: string | undefined;
+  /** Current names, so a selection outside the shown options keeps its label. */
+  readonly linkedName?: string | undefined;
   readonly supervisorUserId?: string | undefined;
+  readonly supervisorName?: string | null | undefined;
   readonly employmentStartDate: string;
   readonly employmentEndDate?: string | undefined;
   readonly schedule?:
@@ -126,7 +138,6 @@ export function EmployeeForm({
   const message = useHrError();
   const id = useId();
   const save = useMutation(hrRefs.saveEmployee);
-  const members = useQuery(hrRefs.memberOptions, {});
   const [initial] = useState<Draft>(() => draftOf(employee, sites, today));
   const [draft, setDraft] = useState<Draft>(initial);
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -145,10 +156,6 @@ export function EmployeeForm({
   );
   const set = <Key extends keyof Draft>(key: Key, value: Draft[Key]) =>
     setDraft((current) => ({ ...current, [key]: value }));
-
-  const memberList = members?.ok && members.value.ok ? members.value.items : [];
-  const membersFailed =
-    members?.ok === false || (members?.ok && !members.value.ok);
 
   const send = async () => {
     const next = validate(draft, t);
@@ -203,7 +210,7 @@ export function EmployeeForm({
   // A link outside the administrator's site scope arrives only as
   // `linked: true`, without an employee ID or code, and stays unavailable
   // under a generic label. The server still enforces one employee per account.
-  const memberOptions = memberList.map((member) => {
+  const accountOption = (member: MemberOption) => {
     const own =
       employee !== undefined &&
       (member.linkedEmployeeId === employee.id ||
@@ -222,10 +229,11 @@ export function EmployeeForm({
           : t("memberLinkedElsewhere", { name: member.displayName }),
       disabled: taken,
     };
-  });
-  const supervisorOptions = memberList
-    .filter((member) => member.userId !== draft.userId)
-    .map((member) => ({ value: member.userId, label: member.displayName }));
+  };
+  const supervisorOption = (member: MemberOption) =>
+    member.userId === draft.userId
+      ? null
+      : { value: member.userId, label: member.displayName };
 
   return (
     <form
@@ -277,19 +285,31 @@ export function EmployeeForm({
               />
             )}
           </FormField>
-          <SelectField
-            id={`${id}-site`}
-            label={t("site")}
-            value={draft.siteId}
-            onChange={(value) => set("siteId", value)}
-            error={errors.siteId}
-            options={sites.map((site) => ({
-              value: site.id,
-              label: `${site.code} · ${site.name}`,
-            }))}
-            placeholder={t("chooseSite")}
-            empty={t("noSites")}
-          />
+          <div className="grid min-w-0 content-start gap-2">
+            <Label htmlFor={`${id}-site`}>{t("site")}</Label>
+            <HrSiteSelect
+              id={`${id}-site`}
+              surface={`employee-form:${employee?.id ?? "new"}:site`}
+              sites={sites}
+              value={draft.siteId}
+              onChange={(value) => set("siteId", value)}
+              placeholder={t("chooseSite")}
+              emptyLabel={t("noSites")}
+              invalid={errors.siteId !== undefined}
+              {...(errors.siteId === undefined
+                ? {}
+                : { describedBy: `${id}-site-error` })}
+            />
+            {errors.siteId ? (
+              <p
+                id={`${id}-site-error`}
+                role="alert"
+                className="text-xs leading-relaxed text-danger"
+              >
+                {errors.siteId}
+              </p>
+            ) : null}
+          </div>
           <SelectField
             id={`${id}-status`}
             label={t("status")}
@@ -302,34 +322,42 @@ export function EmployeeForm({
             placeholder={t("status")}
             empty={t("status")}
           />
-          <SelectField
+          <MemberPickerField
             id={`${id}-member`}
+            surface={`employee-form:${employee?.id ?? "new"}:account`}
             label={t("account")}
             hint={t("accountHint")}
             value={draft.userId}
-            onChange={(value) => set("userId", value)}
-            error={
-              errors.userId ??
-              (membersFailed ? message("LIMIT_EXCEEDED") : undefined)
+            known={
+              employee?.linkedUserId === undefined
+                ? undefined
+                : {
+                    userId: employee.linkedUserId,
+                    label: employee.linkedName ?? t("unknownMember"),
+                  }
             }
-            options={[{ value: "", label: t("noAccount") }, ...memberOptions]}
-            placeholder={t("noAccount")}
-            empty={t("noMembers")}
-            pending={members === undefined}
+            onChange={(value) => set("userId", value)}
+            error={errors.userId}
+            none={t("noAccount")}
+            option={accountOption}
           />
-          <SelectField
+          <MemberPickerField
             id={`${id}-supervisor`}
+            surface={`employee-form:${employee?.id ?? "new"}:supervisor`}
             label={t("supervisor")}
             value={draft.supervisorUserId}
+            known={
+              employee?.supervisorUserId === undefined
+                ? undefined
+                : {
+                    userId: employee.supervisorUserId,
+                    label: employee.supervisorName ?? t("unknownMember"),
+                  }
+            }
             onChange={(value) => set("supervisorUserId", value)}
             error={errors.supervisorUserId}
-            options={[
-              { value: "", label: t("noSupervisor") },
-              ...supervisorOptions,
-            ]}
-            placeholder={t("noSupervisor")}
-            empty={t("noMembers")}
-            pending={members === undefined}
+            none={t("noSupervisor")}
+            option={supervisorOption}
           />
           <FormField
             id={`${id}-start`}
@@ -508,6 +536,123 @@ export function EmployeeForm({
   );
 }
 
+type MemberOption = HrPageRow<typeof hrRefs.memberOptionsPage>;
+
+/**
+ * A member selector over every active member: a search narrows the
+ * options across the whole organization and further pages stay reachable.
+ * The current choice keeps its name even when it is not among the shown
+ * options; the server re-validates the member on save.
+ */
+function MemberPickerField({
+  id,
+  surface,
+  label,
+  hint,
+  value,
+  known,
+  onChange,
+  error,
+  none,
+  option,
+}: {
+  readonly id: string;
+  readonly surface: string;
+  readonly label: string;
+  readonly hint?: string;
+  readonly value: string;
+  readonly known:
+    { readonly userId: string; readonly label: string } | undefined;
+  readonly onChange: (value: string) => void;
+  readonly error: string | undefined;
+  readonly none: string;
+  readonly option: (
+    member: MemberOption,
+  ) => { value: string; label: string; disabled?: boolean } | null;
+}) {
+  const t = useTranslations("Hr.employees");
+  const message = useHrError();
+  const [search, setSearch] = useState("");
+  const { view, paging } = useHrPagedQuery(
+    hrRefs.memberOptionsPage,
+    search === "" ? {} : { search },
+    surface,
+  );
+  // Names of choices made from earlier pages or searches.
+  const [chosen, setChosen] = useState<Readonly<Record<string, string>>>(
+    known === undefined ? {} : { [known.userId]: known.label },
+  );
+  // Options of a previous page (or search) while the next loads are not
+  // choosable: the select stays pending until the current page is ready.
+  const busy =
+    view.kind === "loading" || (view.kind === "ready" && view.updating);
+  const shown =
+    view.kind === "ready" && !view.updating
+      ? view.rows.flatMap((member) => {
+          const entry = option(member);
+          return entry === null ? [] : [entry];
+        })
+      : [];
+  const selectedLabel = chosen[value];
+  const options = [
+    { value: "", label: none },
+    ...(value !== "" && !shown.some((entry) => entry.value === value)
+      ? [{ value, label: selectedLabel ?? t("selectedMember") }]
+      : []),
+    ...shown,
+  ];
+  const failure =
+    view.kind === "refused"
+      ? message(view.code)
+      : view.kind === "denied"
+        ? message("NOT_FOUND")
+        : undefined;
+  return (
+    <div className="grid min-w-0 content-start gap-2">
+      <SelectField
+        id={id}
+        label={label}
+        {...(hint === undefined ? {} : { hint })}
+        value={value}
+        onChange={(next) => {
+          const entry = shown.find((candidate) => candidate.value === next);
+          if (entry !== undefined)
+            setChosen((current) => ({ ...current, [next]: entry.label }));
+          onChange(next);
+        }}
+        error={error ?? failure}
+        options={options}
+        placeholder={none}
+        empty={t("noMembers")}
+        pending={busy}
+      />
+      {view.kind === "interrupted" ? (
+        <HrInterrupted view={view} compact />
+      ) : null}
+      <HrSearchField
+        id={`${id}-search`}
+        label={t("memberSearch", { field: label })}
+        placeholder={t("memberSearchHint")}
+        value={search}
+        onSettled={setSearch}
+        className="grid w-full gap-1"
+      />
+      {view.kind === "ready" &&
+      !view.updating &&
+      shown.length === 0 &&
+      search !== "" ? (
+        <p className="text-xs text-muted" role="status">
+          {t("memberNoMatches")}
+        </p>
+      ) : null}
+      <HrPager
+        paging={paging}
+        label={t("memberPagination", { field: label })}
+      />
+    </div>
+  );
+}
+
 function SelectField({
   id,
   label,
@@ -617,65 +762,72 @@ function EmployeeHistory({ employeeId }: { readonly employeeId: string }) {
   const t = useTranslations("Hr.employees");
   const locale = useLocale();
   const timezone = useHrAccess().timezone ?? "Asia/Bangkok";
-  const outcome = useQuery(hrRefs.employeeHistory, { employeeId });
-  if (outcome === undefined || !outcome.ok || !outcome.value.ok) return null;
-  const { items, complete } = outcome.value;
+  const { view, paging } = useHrPagedQuery(
+    hrRefs.employeeHistoryPage,
+    { employeeId },
+    "employee-history",
+  );
+  // History never blocks the editor: a refusal or denial simply hides it.
+  if (view.kind === "refused" || view.kind === "denied") return null;
   return (
     <section
       aria-labelledby={`${employeeId}-history`}
-      className="border-t border-border pt-4"
+      className="space-y-2 border-t border-border pt-4"
       data-testid="hr-employee-history"
     >
       <h3
         id={`${employeeId}-history`}
-        className="mb-2 text-sm font-semibold text-text"
+        className="text-sm font-semibold text-text"
       >
         {t("history")}
       </h3>
-      {items.length === 0 ? (
-        <p className="text-sm text-muted">{t("noHistory")}</p>
-      ) : (
-        <ol className="space-y-3 text-sm">
-          {items.map((item) => {
-            const created = item.changes.every(
-              (change) => change.from === undefined,
-            );
-            const changes = item.changes.filter((change) =>
-              LABELLED_FIELDS.has(change.field),
-            );
-            return (
-              <li key={`${item.at}-${item.action}`} className="text-muted">
-                <span className="tabular-nums">
-                  {formatDateTime(item.at, locale, timezone)}
-                </span>
-                {" · "}
-                <span className="text-text">{item.actorName ?? "—"}</span>
-                {" · "}
-                {t(created ? "auditCreated" : "auditUpdated")}
-                {created ? null : (
-                  <ul className="mt-1 list-disc pl-5">
-                    {changes.map((change) => (
-                      <li key={change.field}>
-                        <span className="text-text">
-                          {t(`auditField.${change.field}`)}
-                        </span>
-                        {SAFE_VALUE_FIELDS.has(change.field)
-                          ? `: ${auditValue(change.field, change.from, locale, t)} → ${auditValue(change.field, change.to, locale, t)}`
-                          : ` ${t("auditChanged")}`}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </li>
-            );
-          })}
-        </ol>
-      )}
-      {complete ? null : (
-        <p className="mt-2 text-xs text-muted" role="status">
-          {t("historyIncomplete", { count: items.length })}
-        </p>
-      )}
+      <HrPagedState<typeof hrRefs.employeeHistoryPage>
+        view={view}
+        refused={() => null}
+      >
+        {(_value, items) =>
+          items.length === 0 ? (
+            <p className="text-sm text-muted">{t("noHistory")}</p>
+          ) : (
+            <ol className="space-y-3 text-sm">
+              {items.map((item) => {
+                const created = item.changes.every(
+                  (change) => change.from === undefined,
+                );
+                const changes = item.changes.filter((change) =>
+                  LABELLED_FIELDS.has(change.field),
+                );
+                return (
+                  <li key={item.id} className="text-muted">
+                    <span className="tabular-nums">
+                      {formatDateTime(item.at, locale, timezone)}
+                    </span>
+                    {" · "}
+                    <span className="text-text">{item.actorName ?? "—"}</span>
+                    {" · "}
+                    {t(created ? "auditCreated" : "auditUpdated")}
+                    {created ? null : (
+                      <ul className="mt-1 list-disc pl-5">
+                        {changes.map((change) => (
+                          <li key={change.field}>
+                            <span className="text-text">
+                              {t(`auditField.${change.field}`)}
+                            </span>
+                            {SAFE_VALUE_FIELDS.has(change.field)
+                              ? `: ${auditValue(change.field, change.from, locale, t)} → ${auditValue(change.field, change.to, locale, t)}`
+                              : ` ${t("auditChanged")}`}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </li>
+                );
+              })}
+            </ol>
+          )
+        }
+      </HrPagedState>
+      <HrPager paging={paging} label={t("historyPagination")} />
     </section>
   );
 }

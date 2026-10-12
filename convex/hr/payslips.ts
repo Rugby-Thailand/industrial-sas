@@ -22,7 +22,7 @@ import { activePolicy, policyVersions } from "./policies";
 import {
   fail,
   hrCommand,
-  inScope,
+  siteAllowed,
   linkedEmployee,
   orgClock,
   siteScope,
@@ -287,7 +287,10 @@ export const stage = mutationWithOrg({
               { field: "code", value: source.code },
             ])
             .unique();
-          if (!employee || !inScope(scope, employee.warehouseId))
+          if (
+            !employee ||
+            !(await siteAllowed(ctx, scope, employee.warehouseId))
+          )
             return fail("PAYSLIP_EMPLOYEE_UNKNOWN", source.code);
           const file = args.documents.find(
             (document) => document.employeeCode === source.code,

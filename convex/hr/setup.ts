@@ -8,6 +8,7 @@ import { v } from "convex/values";
 
 import type { Doc, Id } from "../_generated/dataModel";
 import { MEMBERSHIP_ROLE_LIMIT } from "../lib/authorization";
+import type { OrganizationMember } from "../lib/memberDirectory";
 import { HR_PERMISSION } from "../lib/permissions";
 import {
   mutationWithOrg,
@@ -18,15 +19,31 @@ import { isIsoDate } from "../model/hr/calendar";
 import { MAX_NAME_LENGTH, validateEmployeeDraft } from "../model/hr/employee";
 import { validateSchedule } from "../model/hr/schedule";
 import {
+  HR_MAX_CHUNK,
+  containsSearch,
+  hrListInput,
+  hrPageArgs,
+  hrScanPage,
+  staticLanes,
+  type HrLaneSource,
+  type HrPageSize,
+} from "./pagination";
+import { MAX_HOLIDAY_YEAR, MIN_HOLIDAY_YEAR } from "./self";
+import {
   MAX_SITE_EMPLOYEES,
   fail,
   hrCommand,
   inScope,
   memberName,
+  authorizedSiteLanes,
   scopedSites,
+  siteAllowed,
   siteOf,
+  siteResolver,
   siteScope,
   type Employee,
+  type SiteOrder,
+  type SiteScope,
 } from "./shared";
 
 const ADMIN = HR_PERMISSION.adminManage;
@@ -109,6 +126,87 @@ export const listEmployees = queryWithOrg({
 });
 
 /**
+ * The employee registry, one cursor page at a time across every authorized
+ * active site (site code, then employee code). Site, status and code/name
+ * search apply before a page is filled, so a match anywhere in the
+ * authorized registry is reachable; only the shown page is hydrated.
+ * `sitesComplete: false` means the actor's site scope itself is bounded.
+ */
+export const employeesPage = queryWithOrg({
+  args: {
+    ...hrPageArgs,
+    search: v.optional(v.string()),
+    // A string, so a stale or edited URL answers SITE_UNAVAILABLE.
+    warehouseId: v.optional(v.string()),
+    status: v.optional(v.union(v.literal("ACTIVE"), v.literal("INACTIVE"))),
+  },
+  returns: v.any(),
+  permissionCode: ADMIN,
+  target: { table: "hrEmployees" },
+  handler: async (ctx, args) => {
+    const input = hrListInput(args);
+    if (!input.ok) return input;
+    const scope = await siteScope(ctx);
+    const siteFor = siteResolver(ctx, scope, true);
+    const byCode = (site: Doc<"warehouses">) => ({
+      index: "by_orgId_warehouseId_code",
+      equality: [{ field: "warehouseId", value: site._id }],
+    });
+    // A chosen site is authorized exactly, wherever it sorts; otherwise every
+    // authorized site is read incrementally (no site-count cap).
+    let lanes: HrLaneSource;
+    let order: SiteOrder | "site" = "site";
+    if (args.warehouseId !== undefined) {
+      const site = await siteFor(args.warehouseId);
+      if (site === null)
+        return { ok: false as const, code: "SITE_UNAVAILABLE" };
+      lanes = staticLanes([{ key: site._id, ...byCode(site) }]);
+    } else {
+      const all = await authorizedSiteLanes(ctx, scope, {
+        activeOnly: true,
+        lane: byCode,
+      });
+      lanes = all.source;
+      order = all.order;
+    }
+    const names = new Map<string, string | null>();
+    const filtered = input.search !== "" || args.status !== undefined;
+    const page = await hrScanPage<
+      Employee,
+      Awaited<ReturnType<typeof employeeItem>>
+    >(ctx, {
+      surface: "employees",
+      criteria: {
+        search: input.search,
+        site: args.warehouseId ?? null,
+        status: args.status ?? null,
+        order,
+      },
+      pageSize: input.pageSize,
+      cursor: args.cursor,
+      scanCursor: args.scanCursor,
+      table: "hrEmployees",
+      lanes,
+      chunk: filtered ? HR_MAX_CHUNK : input.pageSize,
+      match: async (employee) =>
+        (args.warehouseId === undefined ||
+          employee.warehouseId === args.warehouseId) &&
+        (args.status === undefined || employee.status === args.status) &&
+        containsSearch(input.search, employee.code, employee.displayName) &&
+        (await siteFor(employee.warehouseId)) !== null,
+      hydrate: async (employee) => {
+        const site = await siteFor(employee.warehouseId);
+        return site === null
+          ? null
+          : await employeeItem(ctx, employee, site, names);
+      },
+    });
+    // Every authorized site is reachable, so the list itself is complete.
+    return { ok: true as const, ...page, sitesComplete: true };
+  },
+});
+
+/**
  * One employee for the editor by ID, independent of the bounded registry
  * list, so a deep link opens a record beyond its first page. The ID is a
  * string so a malformed link answers NOT_FOUND instead of throwing.
@@ -124,7 +222,7 @@ export const employee = queryWithOrg({
       args.employeeId,
     );
     const scope = await siteScope(ctx);
-    if (record === null || !inScope(scope, record.warehouseId))
+    if (record === null || !(await siteAllowed(ctx, scope, record.warehouseId)))
       return { ok: false as const, code: "NOT_FOUND" };
     const site = await ctx.tenantDb.get<Doc<"warehouses">>(
       "warehouses",
@@ -186,6 +284,173 @@ export const employeeHistory = queryWithOrg({
           })),
       ),
     };
+  },
+});
+
+/**
+ * Every saved change of one employee, newest first, a page at a time.
+ * Denied attempts and saves without changes are skipped before paging, so
+ * a page is never shortened by them and older changes stay reachable.
+ */
+export const employeeHistoryPage = queryWithOrg({
+  args: { ...hrPageArgs, employeeId: v.string() },
+  returns: v.any(),
+  permissionCode: ADMIN,
+  target: { table: "hrEmployees" },
+  handler: async (ctx, args) => {
+    const input = hrListInput(args);
+    if (!input.ok) return input;
+    const employee = await ctx.tenantDb.get<Employee>(
+      "hrEmployees",
+      args.employeeId,
+    );
+    if (
+      employee === null ||
+      !(await siteAllowed(ctx, await siteScope(ctx), employee.warehouseId))
+    )
+      return { ok: false as const, code: "NOT_FOUND" };
+    const names = new Map<string, string | null>();
+    const page = await hrScanPage(ctx, {
+      surface: "employee-history",
+      criteria: { employeeId: employee._id },
+      pageSize: input.pageSize,
+      cursor: args.cursor,
+      scanCursor: args.scanCursor,
+      table: "auditEvents",
+      lanes: [
+        {
+          key: employee._id,
+          index: "by_orgId_entityTable_entityId_occurredAt",
+          equality: [
+            { field: "entityTable", value: "hrEmployees" },
+            { field: "entityId", value: employee._id },
+          ],
+          order: "desc",
+        },
+      ],
+      chunk: 50,
+      match: (row: Doc<"auditEvents">) =>
+        row.entityTable === "hrEmployees" &&
+        row.entityId === employee._id &&
+        row.outcome === "ALLOWED" &&
+        row.action === "hr.employee.save" &&
+        (row.changes?.length ?? 0) > 0,
+      hydrate: async (row) => ({
+        id: row._id,
+        at: row.occurredAt,
+        action: row.action,
+        actorName: await memberName(ctx, row.actorUserId, names),
+        changes: row.changes ?? [],
+      }),
+    });
+    return { ok: true as const, ...page };
+  },
+});
+
+/** A member option, with an employee link only inside the actor's scope. */
+async function memberOption(
+  ctx: TenantFunctionContext,
+  member: { readonly userId: string; readonly displayName: string },
+  scope: SiteScope,
+  grants: Map<string, Promise<boolean>>,
+) {
+  const linked = await ctx.tenantDb
+    .byIndex<Employee>("hrEmployees", "by_orgId_userId", [
+      { field: "userId", value: member.userId },
+    ])
+    .unique();
+  // Link details only inside the actor's exact site scope.
+  const visible =
+    linked !== null &&
+    (await siteAllowed(ctx, scope, linked.warehouseId, grants));
+  return {
+    userId: member.userId,
+    displayName: member.displayName,
+    linked: linked !== null,
+    ...(visible
+      ? { linkedEmployeeId: linked._id, linkedEmployeeCode: linked.code }
+      : {}),
+  };
+}
+
+/**
+ * Active members for one page of a searchable picker or access list. The
+ * membership index is traversed in account order; the display name search
+ * covers every active member, not only a first bounded read.
+ */
+async function activeMembersPage<Row extends { readonly displayName: string }>(
+  ctx: TenantFunctionContext,
+  args: {
+    readonly cursor?: string | undefined;
+    readonly scanCursor?: string | undefined;
+  },
+  input: { readonly pageSize: HrPageSize; readonly search: string },
+  surface: string,
+  hydrate: (member: OrganizationMember) => Promise<Row>,
+) {
+  const members = new Map<string, OrganizationMember | null>();
+  const memberOf = async (userId: string) => {
+    if (!members.has(userId))
+      members.set(userId, await ctx.members.get(userId));
+    return members.get(userId) ?? null;
+  };
+  const page = await hrScanPage(ctx, {
+    surface,
+    criteria: { search: input.search },
+    pageSize: input.pageSize,
+    cursor: args.cursor,
+    scanCursor: args.scanCursor,
+    table: "memberships",
+    lanes: [
+      {
+        key: "ACTIVE",
+        index: "by_orgId_status_userId",
+        equality: [{ field: "status", value: "ACTIVE" }],
+      },
+    ],
+    chunk: input.search === "" ? input.pageSize : HR_MAX_CHUNK,
+    match: async (membership: Doc<"memberships">) => {
+      if (membership.status !== "ACTIVE") return false;
+      const member = await memberOf(membership.userId);
+      return (
+        member !== null &&
+        member.active &&
+        containsSearch(input.search, member.displayName)
+      );
+    },
+    hydrate: async (membership) => {
+      const member = await memberOf(membership.userId);
+      return member === null ? null : await hydrate(member);
+    },
+  });
+  // Account order across pages; names read alphabetically within a page.
+  return {
+    ...page,
+    page: [...page.page].sort((a, b) =>
+      a.displayName.localeCompare(b.displayName),
+    ),
+  };
+}
+
+/** Account and supervisor choices for the employee editor, searchable and paged. */
+export const memberOptionsPage = queryWithOrg({
+  args: { ...hrPageArgs, search: v.optional(v.string()) },
+  returns: v.any(),
+  permissionCode: ADMIN,
+  target: { table: "hrEmployees" },
+  handler: async (ctx, args) => {
+    const input = hrListInput(args);
+    if (!input.ok) return input;
+    const scope = await siteScope(ctx);
+    const grants = new Map<string, Promise<boolean>>();
+    const page = await activeMembersPage(
+      ctx,
+      args,
+      input,
+      "member-options",
+      (member) => memberOption(ctx, member, scope, grants),
+    );
+    return { ok: true as const, ...page };
   },
 });
 
@@ -293,7 +558,10 @@ export const saveEmployee = mutationWithOrg({
             ? null
             : await ctx.tenantDb.get<Employee>("hrEmployees", args.employeeId);
         if (args.employeeId !== undefined) {
-          if (before === null || !inScope(scope, before.warehouseId))
+          if (
+            before === null ||
+            !(await siteAllowed(ctx, scope, before.warehouseId))
+          )
             return fail("NOT_FOUND", "employeeId");
           if (before.version !== args.expectedVersion)
             return fail("EMPLOYEE_STALE");
@@ -401,6 +669,67 @@ export const listHolidays = queryWithOrg({
   },
 });
 
+/**
+ * One site's holidays, newest date first, a page at a time; optionally one
+ * calendar year. A year stops the read at the first earlier date.
+ */
+export const holidaysPage = queryWithOrg({
+  args: {
+    ...hrPageArgs,
+    warehouseId: v.string(),
+    year: v.optional(v.number()),
+  },
+  returns: v.any(),
+  permissionCode: ADMIN,
+  target: { table: "hrHolidays" },
+  handler: async (ctx, args) => {
+    const input = hrListInput(args);
+    if (!input.ok) return input;
+    if (
+      args.year !== undefined &&
+      (!Number.isInteger(args.year) ||
+        args.year < MIN_HOLIDAY_YEAR ||
+        args.year > MAX_HOLIDAY_YEAR)
+    )
+      return { ok: false as const, code: "YEAR_INVALID" };
+    const site = await siteOf(ctx, await siteScope(ctx), args.warehouseId);
+    if (site === null) return { ok: false as const, code: "SITE_UNAVAILABLE" };
+    const year = args.year === undefined ? null : String(args.year);
+    const page = await hrScanPage(ctx, {
+      surface: "holidays",
+      criteria: { site: site._id, year },
+      pageSize: input.pageSize,
+      cursor: args.cursor,
+      scanCursor: args.scanCursor,
+      table: "hrHolidays",
+      lanes: [
+        {
+          key: site._id,
+          index: "by_orgId_warehouseId_date",
+          equality: [{ field: "warehouseId", value: site._id }],
+          // A year is one checked date range: no other year is read.
+          ...(year === null
+            ? {}
+            : {
+                range: {
+                  field: "date",
+                  lower: { value: `${year}-01-01`, inclusive: true },
+                  upper: { value: `${year}-12-31`, inclusive: true },
+                },
+              }),
+          order: "desc",
+        },
+      ],
+      chunk: input.pageSize,
+      match: (row: Doc<"hrHolidays">) =>
+        row.warehouseId === site._id &&
+        (year === null || row.date.startsWith(`${year}-`)),
+      hydrate: async (row) => ({ id: row._id, date: row.date, name: row.name }),
+    });
+    return { ok: true as const, ...page };
+  },
+});
+
 export const saveHoliday = mutationWithOrg({
   args: {
     requestId: v.string(),
@@ -482,7 +811,7 @@ export const deleteHoliday = mutationWithOrg({
         );
         if (
           holiday === null ||
-          !inScope(await siteScope(ctx), holiday.warehouseId)
+          !(await siteAllowed(ctx, await siteScope(ctx), holiday.warehouseId))
         )
           return fail("NOT_FOUND", "holidayId");
         await ctx.tenantDb.delete("hrHolidays", holiday._id);
@@ -548,6 +877,54 @@ export const accessMembers = queryWithOrg({
         (key) => roles.get(key)?.status === "ACTIVE",
       ),
       items,
+    };
+  },
+});
+
+/**
+ * HR access for every active member, searchable and a page at a time. Each
+ * toggle still re-validates the member and role in `setMemberAccess`.
+ */
+export const accessMembersPage = queryWithOrg({
+  args: { ...hrPageArgs, search: v.optional(v.string()) },
+  returns: v.any(),
+  permissionCode: ADMIN,
+  target: { table: "membershipRoles" },
+  handler: async (ctx, args) => {
+    const input = hrListInput(args);
+    if (!input.ok) return input;
+    const roles = await hrRoles(ctx);
+    const byId = new Map(
+      [...roles.values()].map((role) => [role._id as string, role.key]),
+    );
+    const page = await activeMembersPage(
+      ctx,
+      args,
+      input,
+      "access-members",
+      async (member) => {
+        const grants = await ctx.tenantDb
+          .byIndex<Doc<"membershipRoles">>(
+            "membershipRoles",
+            "by_orgId_membershipId_roleId",
+            [{ field: "membershipId", value: member.membershipId }],
+          )
+          .take(MEMBERSHIP_ROLE_LIMIT);
+        return {
+          userId: member.userId,
+          displayName: member.displayName,
+          roles: grants
+            .map((grant) => byId.get(grant.roleId))
+            .filter((key): key is string => key !== undefined),
+        };
+      },
+    );
+    return {
+      ok: true as const,
+      provisioned: GRANTABLE_ROLES.every(
+        (key) => roles.get(key)?.status === "ACTIVE",
+      ),
+      ...page,
     };
   },
 });

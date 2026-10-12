@@ -298,7 +298,10 @@ const schema = defineSchema({
       updatedAt: v.number(),
       updatedByUserId: v.id("users"),
     }),
-  ).index("by_orgId_warehouseId_startDate", byOrg("warehouseId", "startDate")),
+  )
+    .index("by_orgId_warehouseId_startDate", byOrg("warehouseId", "startDate"))
+    // Newest-first period registry across sites (paged HR list).
+    .index("by_orgId_startDate", byOrg("startDate")),
   /**
    * Persisted per-actor counters for rate-limited actions (AI Search). One
    * row per (actor, key); the window resets in place, so it never grows.
