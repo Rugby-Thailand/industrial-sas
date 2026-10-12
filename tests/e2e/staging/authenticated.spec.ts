@@ -244,17 +244,37 @@ test("rejects an invalid JWT at the real Convex boundary", async () => {
   ).rejects.toThrow(/auth|token|jwt/i);
 });
 
-test("signing out returns private routes to sign-in", async ({ page }) => {
+test("signing out returns private routes to sign-in", async ({
+  page,
+  sessionRevocation,
+}) => {
   await signIn(page);
   let phase = "STAGING_SIGNOUT_NAVIGATION_FAILED";
   try {
     await page.goto("/th/master-data/storage-layouts");
+    await clerk.loaded({ page });
+    phase = "STAGING_SIGNOUT_ACTIVE_SESSION_UNCONFIRMED";
+    await page.waitForFunction(() => Boolean(window.Clerk.session?.id));
+    const sessionId = await page.evaluate(() => window.Clerk.session?.id ?? "");
+    sessionRevocation.begin(sessionId);
     phase = "STAGING_SIGNOUT_SDK_FAILED";
     await clerk.signOut({ page });
+    phase = "STAGING_SIGNOUT_SESSION_UNCONFIRMED";
+    await page.waitForFunction(
+      () =>
+        Boolean(window.Clerk?.loaded) &&
+        window.Clerk.session === null &&
+        window.Clerk.user === null,
+    );
     phase = "STAGING_SIGNOUT_REVISIT_FAILED";
     await page.goto("/th/master-data/storage-layouts");
     phase = "STAGING_SIGNOUT_ROUTE_UNCONFIRMED";
     await expect(page).toHaveURL(/\/th\/sign-in/);
+    phase = "STAGING_SIGNOUT_WIDGET_UNCONFIRMED";
+    await expect(
+      page.locator(".cl-rootBox, .cl-signIn-root").first(),
+    ).toBeVisible();
+    sessionRevocation.confirm();
   } catch {
     throw new Error(phase);
   }

@@ -334,6 +334,9 @@ describe("sensitive reporting", () => {
       "STAGING_SIGN_IN_TICKET_FAILED",
       "STAGING_AUTH_CONTEXT_RESULT_UNCONFIRMED",
       "STAGING_SIGNOUT_NAVIGATION_FAILED",
+      "STAGING_SIGNOUT_ACTIVE_SESSION_UNCONFIRMED",
+      "STAGING_SIGNOUT_SESSION_UNCONFIRMED",
+      "STAGING_SIGNOUT_WIDGET_UNCONFIRMED",
     ]) {
       expect(smokeFailureDiagnostics(`Error: ${code}`)).toEqual([code]);
       expect(smokeFailureDiagnostics(`${code}: ${SENTINEL}`)).toEqual([]);
