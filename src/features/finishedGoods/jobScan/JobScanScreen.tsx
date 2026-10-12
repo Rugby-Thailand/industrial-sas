@@ -487,8 +487,8 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
               icon: Keyboard,
               onSelect: () => {
                 if (acquisitionBlocked.current) return;
-                // A typed ticket is edited in its card; no acquisition panel stays open.
-                changePanel(null);
+                // Keep collected photos mounted when adding a typed ticket.
+                if (panelRef.current !== "PHOTO") changePanel(null);
                 setTickets((current) => [...current, newTicket("MANUAL")]);
               },
             },

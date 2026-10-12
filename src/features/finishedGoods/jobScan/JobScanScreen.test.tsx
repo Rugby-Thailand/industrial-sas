@@ -389,7 +389,7 @@ it("shows the selected location with its real status and offers save only once a
   expect(screen.getByRole("button", { name: "Save 1 ticket" })).toBeEnabled();
 });
 
-it("keeps one acquisition panel open and Manual adds a ticket without a panel", () => {
+it("keeps one acquisition panel open and Manual closes the barcode scanner", () => {
   start();
   const photo = screen.getByRole("button", { name: "Photo AI" });
   const scan = screen.getByRole("button", { name: "Scan code" });
@@ -430,4 +430,25 @@ it("keeps drafts when the location changes and saves them at the new location", 
     locationText: "F1-L1-1",
     location: { locationId: "location-f1" },
   });
+});
+
+it("preserves the photo collection when adding a manual ticket", async () => {
+  start();
+  fireEvent.click(screen.getByRole("button", { name: "Photo AI" }));
+  const collection = screen.getByRole("button", { name: "Submit demo photo" });
+  fireEvent.click(screen.getByRole("button", { name: "Manual" }));
+  // The same mounted collection must survive, along with its unsent photos.
+  expect(screen.getByRole("button", { name: "Submit demo photo" })).toBe(
+    collection,
+  );
+  expect(screen.getByRole("button", { name: "Photo AI" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  fireEvent.click(collection);
+  await waitFor(() =>
+    expect(screen.getAllByRole("textbox", { name: /Job No\./ })).toHaveLength(
+      2,
+    ),
+  );
 });
