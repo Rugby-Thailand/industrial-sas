@@ -441,3 +441,7 @@ const { AuditBuildingOptions, AuditLocationChoices } = require(file);
 })().catch(error => { console.error(error); process.exitCode = 1; });
 NODE
 ```
+
+### Parent integration refinement during follow-up
+
+Source review of the partial follow-up: retaining only the immediately preceding page's IDs suppresses a rename duplicate on page 2, but does not prove traversal across page 3 or later. For mutable building codes, also test moving an item from page 1 past multiple page boundaries and renaming the boundary item itself. Prefer a revision/reset policy tied to every relevant writer, or an explicitly stable ordering, over a claim of complete deduplication based only on the previous page. This is a source-level review concern, not an additional executed measurement. The initial two-page reproduction above remains the concrete regression case.
