@@ -319,6 +319,7 @@
     "title": "Storage building planner",
     "description": "Plan buildings, floors, and QR-addressable storage spots.",
     "newBuilding": "New building",
+    "newBuildingShort": "Building",
     "emptyTitle": "No storage buildings yet",
     "emptyBody": "Create a building to start defining floor-by-floor capacity.",
     "search": "Search buildings",
@@ -1482,6 +1483,7 @@
     "useExistingLocation": "Use existing location",
     "registeredLocationPagination": "Registered location pagination",
     "locationAiRetry": "Retry reading",
+    "locationAiRereadPhoto": "Read this photo again with AI",
     "locationAiOpenCamera": "Take another photo",
     "locationAiDeviceCamera": "Use device camera",
     "barcodeImagePrivacy": "Read barcode or QR on this device. No AI or image upload. JPEG, PNG or WebP, up to 25 MB.",
@@ -2887,6 +2889,8 @@
     "scrollTable": "{name} (scrollable table)",
     "summaryShort": "Usage and cost overview",
     "exportShort": "Export",
+    "exportScope": "Export CSV, {from} – {to} ({timezone})",
+    "exportScopeFiltered": "Export filtered CSV, {from} – {to} ({timezone})",
     "estimateFeeIncluded": "Includes {percent}% fee estimate"
   }
 }

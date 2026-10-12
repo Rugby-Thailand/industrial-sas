@@ -1,6 +1,6 @@
 import { ChevronRight, LoaderCircle, type LucideIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState, type RefObject } from "react";
 
 import { useAiUsageAccess } from "@/components/providers/AiUsageAccessProvider";
 import { useHrAccess } from "@/components/providers/HrAccessProvider";
@@ -72,6 +72,15 @@ export function SidebarNavigation({
     sections.flatMap((section) => section.items.map((item) => item.href)),
   );
   const row: RowProps = { activeHref, collapsed, onNavigate };
+  const { isMobile, openMobile } = useSidebar();
+  const contentRef = useRef<HTMLDivElement>(null);
+  // Reveal on each opening, including reopening during the closing animation,
+  // once grants settle so the active row and its open submenu are final.
+  useRevealActiveRow(
+    contentRef,
+    isMobile && openMobile,
+    workspaceSettled && hrSettled && usageSettled && activeHref !== undefined,
+  );
 
   return (
     <nav
@@ -79,7 +88,10 @@ export function SidebarNavigation({
       aria-label={t("primary")}
       className="flex min-h-0 flex-1 flex-col"
     >
-      <SidebarContent className={cn("gap-6 px-4 py-4", collapsed && "px-2")}>
+      <SidebarContent
+        ref={contentRef}
+        className={cn("gap-6 px-4 py-4", collapsed && "px-2")}
+      >
         {navigationLoading ? (
           <p
             role="status"
@@ -145,6 +157,57 @@ export function SidebarNavigation({
   );
 }
 
+/**
+ * Scrolls the current page's row into the drawer's visible area once per
+ * opening, after `ready`. It sets only the drawer's own `scrollTop`, so the page
+ * behind never scrolls and focus never moves. A row already in view is left
+ * where it is, and any wheel, touch, pointer or key input in the drawer
+ * before the reveal hands control to the user.
+ */
+function useRevealActiveRow(
+  containerRef: RefObject<HTMLElement | null>,
+  open: boolean,
+  ready: boolean,
+) {
+  const done = useRef(false);
+  useEffect(() => {
+    if (!open) {
+      done.current = false;
+      return;
+    }
+    const container = containerRef.current;
+    if (!container || done.current) return;
+    const takeOver = () => {
+      done.current = true;
+    };
+    const inputs = ["wheel", "touchstart", "pointerdown", "keydown"] as const;
+    for (const type of inputs)
+      container.addEventListener(type, takeOver, { passive: true });
+    let frame: number | undefined;
+    if (ready)
+      frame = requestAnimationFrame(() => {
+        if (done.current) return;
+        done.current = true;
+        const row = container.querySelector<HTMLElement>(
+          '[aria-current="page"]',
+        );
+        if (!row) return;
+        const box = container.getBoundingClientRect();
+        const target = row.getBoundingClientRect();
+        if (target.top >= box.top && target.bottom <= box.bottom) return;
+        const centred =
+          container.scrollTop +
+          (target.top - box.top) -
+          (box.height - target.height) / 2;
+        container.scrollTop = Math.max(0, centred);
+      });
+    return () => {
+      if (frame !== undefined) cancelAnimationFrame(frame);
+      for (const type of inputs) container.removeEventListener(type, takeOver);
+    };
+  }, [containerRef, open, ready]);
+}
+
 /** A destination row; nested rows sit in a submenu without their own icon. */
 function NavigationLeaf({
   item,
@@ -203,16 +266,23 @@ function NavigationSubmenu({
   readonly entry: Extract<SidebarEntry, { kind: "submenu" }>;
 }) {
   const t = useTranslations("Navigation");
-  const { setOpen } = useSidebar();
+  const { setOpen, isMobile, openMobile } = useSidebar();
   const submenuId = useId();
   const active = entry.items.some((item) => item.href === activeHref);
   const [expanded, setExpanded] = useState(active);
   // A search result or browser history can enter a child without a menu click.
   // Reveal that destination on arrival, while still allowing manual collapse.
   const [previousHref, setPreviousHref] = useState(activeHref);
+  const [previousMobileOpen, setPreviousMobileOpen] = useState(openMobile);
   if (previousHref !== activeHref) {
     setPreviousHref(activeHref);
     if (active) setExpanded(true);
+  }
+  // A rapid reopen can preserve this component through the exit animation.
+  // Restore the active group once per opening, while allowing collapse within it.
+  if (previousMobileOpen !== openMobile) {
+    setPreviousMobileOpen(openMobile);
+    if (isMobile && openMobile && active) setExpanded(true);
   }
   const open = expanded && !collapsed;
   const label = t(entry.labelKey);

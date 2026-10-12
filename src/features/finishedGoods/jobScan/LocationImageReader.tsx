@@ -45,11 +45,17 @@ export function LocationImageReader({
   extract,
   onConfirm,
   onClose,
+  retryOverPhoto = false,
 }: {
   initialPhoto?: LocationPhoto;
   extract: (imageDataUrl: string) => Promise<LocationImageResult>;
   onConfirm: (code: string) => void;
   onClose: () => void;
+  /**
+   * Offer "read this photo again" as one button centred on the photo, in
+   * place of the full-width retry and the take-another-photo icon.
+   */
+  retryOverPhoto?: boolean;
 }) {
   const t = useTranslations("JobScan");
   const id = useId();
@@ -167,6 +173,10 @@ export function LocationImageReader({
     };
   }, [photo, attempt, cancelPending]);
 
+  const canRetry = Boolean(photo) && !busy && candidates.length === 0;
+  // Re-runs the read effect with the same file and crop, once per press.
+  const retry = () => setAttempt((value) => value + 1);
+
   const chooseFile = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = "";
@@ -220,6 +230,21 @@ export function LocationImageReader({
               }}
             />
           )}
+          {retryOverPhoto && canRetry && (
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+              <IconButton
+                label={t("locationAiRereadPhoto")}
+                variant="ghost"
+                className="pointer-events-auto size-16 rounded-full bg-black/60 text-white ring-1 ring-white/70 backdrop-blur-sm hover:bg-black/75 hover:text-white focus-visible:outline-white"
+                onClick={retry}
+              >
+                <RotateCcw
+                  aria-hidden="true"
+                  className="size-7 drop-shadow-sm"
+                />
+              </IconButton>
+            </div>
+          )}
         </CameraFrame>
       ) : null}
       <input
@@ -248,12 +273,12 @@ export function LocationImageReader({
             {t("cancel")}
           </Button>
         </div>
-      ) : photo && candidates.length === 0 ? (
+      ) : canRetry && !retryOverPhoto ? (
         <Button
           type="button"
           variant="outline"
           className="min-h-12 w-full"
-          onClick={() => setAttempt((value) => value + 1)}
+          onClick={retry}
         >
           {t("locationAiRetry")}
         </Button>
@@ -310,7 +335,7 @@ export function LocationImageReader({
         >
           <ImagePlus aria-hidden="true" className="size-5" />
         </IconButton>
-        {!cameraOpen && (
+        {!cameraOpen && !retryOverPhoto && (
           <IconButton
             label={t("locationAiOpenCamera")}
             variant="ghost"

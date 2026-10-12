@@ -87,6 +87,8 @@ const estimateOf = (
         },
 });
 const NO_ESTIMATE = estimateOf(null, null);
+/** The export trigger names the CSV's real scope: range and timezone. */
+const EXPORT_NAME = "Export CSV, 2026-10-01 – 2026-10-15 (Asia/Bangkok)";
 /** The report with an already-resolved server snapshot. */
 function AiUsageScreen({
   estimate = NO_ESTIMATE,
@@ -549,6 +551,32 @@ describe("AiUsageScreen statement and feature strip", () => {
     expect(entry("JOB_TICKET_SCAN")).toBeInTheDocument();
   });
 
+  it("places one export beside the breakdown heading and names its filtered scope", async () => {
+    renderWithIntl(<AiUsageScreen estimate={estimateOf(10, 5.5)} />, {
+      locale: "en",
+    });
+    const breakdown = screen.getByRole("region", { name: "Usage breakdown" });
+    const button = within(breakdown).getByRole("button", {
+      name: EXPORT_NAME,
+    });
+    expect(button).toHaveTextContent("Export");
+    expect(screen.getAllByRole("button", { name: /^Export/ })).toEqual([
+      button,
+    ]);
+    // The filter row keeps only period and filters.
+    const filters = screen.getByRole("button", { name: "Filters" });
+    expect(filters.parentElement).not.toContainElement(button);
+    fireEvent.click(entry("AI_SEARCH"));
+    expect(
+      within(screen.getByRole("region", { name: "Usage breakdown" })).getByRole(
+        "button",
+        {
+          name: "Export filtered CSV, 2026-10-01 – 2026-10-15 (Asia/Bangkok)",
+        },
+      ),
+    ).toBeVisible();
+  });
+
   it("keeps the incomplete-summary warning, tracking start, range and timezone visible", () => {
     withReport({
       complete: false,
@@ -580,7 +608,8 @@ describe("AiUsageScreen statement and feature strip", () => {
     renderWithIntl(<AiUsageScreen />, { locale: "en" });
     expect(screen.getByRole("alert")).toHaveTextContent(text);
     expect(screen.queryByRole("region", { name: "Period total" })).toBeNull();
-    expect(screen.getByRole("button", { name: "Export CSV" })).toBeDisabled();
+    // Export sits with the breakdown, so an unanswered report offers none.
+    expect(screen.queryByRole("button", { name: /^Export/ })).toBeNull();
   });
 });
 
@@ -755,14 +784,14 @@ describe("AiUsageScreen CSV export lifecycle", () => {
       resolve = done;
     });
     renderWithIntl(<AiUsageScreen estimate={pending} />, { locale: "en" });
-    expect(screen.getByRole("button", { name: "Export CSV" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: EXPORT_NAME })).toBeDisabled();
     expect(
       within(screen.getByRole("region", { name: "Period total" })).getByText(
         "Loading today's rate…",
       ),
     ).toBeVisible();
     await act(async () => resolve(estimateOf(33.5, 5.5)));
-    expect(screen.getByRole("button", { name: "Export CSV" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: EXPORT_NAME })).toBeEnabled();
   });
 
   const exportOp = (id: string) => ({
@@ -852,7 +881,7 @@ describe("AiUsageScreen CSV export lifecycle", () => {
     renderWithIntl(<AiUsageScreen estimate={estimateOf(10, 5.5)} />, {
       locale: "en",
     });
-    const button = await screen.findByRole("button", { name: "Export CSV" });
+    const button = await screen.findByRole("button", { name: EXPORT_NAME });
     await waitFor(() => expect(button).toBeEnabled());
     fireEvent.click(button);
     await waitFor(() =>
@@ -865,7 +894,7 @@ describe("AiUsageScreen CSV export lifecycle", () => {
     expect(csv).toContain('"2026-10-11"');
     expect(csv).toContain('"5.5"');
     expect(csv).toContain('"Asia/Bangkok"');
-    expect(screen.getByRole("button", { name: "Export CSV" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: EXPORT_NAME })).toBeEnabled();
   });
 
   it.each([
@@ -885,10 +914,14 @@ describe("AiUsageScreen CSV export lifecycle", () => {
         [paused]: () => reply.promise,
       });
       const view = renderWithIntl(<AiUsageScreen />, { locale: "en" });
-      const button = await screen.findByRole("button", { name: "Export CSV" });
+      const button = await screen.findByRole("button", { name: EXPORT_NAME });
       await waitFor(() => expect(button).toBeEnabled());
       fireEvent.click(button);
       await waitFor(() => expect(exportCalls()).toContain(paused));
+      // While busy the one trigger reports progress and cannot start again.
+      const busy = screen.getByRole("button", { name: "Exporting…" });
+      expect(busy).toBeDisabled();
+      fireEvent.click(busy);
       const before = exportCalls().length;
       // The real Convex/Clerk switch clears auth and unmounts UsageReport.
       view.unmount();

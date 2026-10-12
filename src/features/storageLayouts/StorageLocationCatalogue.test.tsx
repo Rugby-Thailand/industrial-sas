@@ -218,6 +218,22 @@ it("switches to all locations, opens coordinates and QR, and exposes exact plann
     within(screen.getByRole("dialog")).getByText("A-F04-Z01"),
   ).toBeVisible();
 });
+it("offers one New building action beside the all-locations search", () => {
+  renderPage();
+  // The building cards view supplies its own action through its filters.
+  expect(screen.queryByRole("link", { name: "New building" })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "All locations" }));
+  const actions = screen.getAllByRole("link", { name: "New building" });
+  expect(actions).toHaveLength(1);
+  expect(actions[0]).toHaveAttribute(
+    "href",
+    "/master-data/storage-layouts/new",
+  );
+  expect(actions[0]).toHaveTextContent("Building");
+  const search = screen.getByRole("textbox", { name: "Search locations" });
+  expect(search.nextElementSibling).toBe(actions[0]);
+});
+
 it("filters across buildings, floors, sublocations and statuses without trapping an empty result", async () => {
   renderPage();
   fireEvent.click(screen.getByRole("button", { name: "All locations" }));

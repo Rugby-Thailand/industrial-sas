@@ -4,6 +4,8 @@
  * the `data` URL parameter: `empty` (default, matches the reference images)
  * or `usage`.
  */
+import { HR_CODES } from "@/lib/navigation";
+
 const params = new URLSearchParams(window.location.search);
 export const FIXTURE = Object.freeze({
   data: params.get("data") === "usage" ? "usage" : "empty",
@@ -12,6 +14,7 @@ export const FIXTURE = Object.freeze({
       (value) => value === params.get("estimate"),
     ) ?? ("ready" as const),
   workspace: params.get("workspace") === "none" ? "none" : "ready",
+  hr: params.get("hr") === "ready" ? "ready" : "none",
 });
 
 const metrics = (overrides: Record<string, number> = {}) => ({
@@ -205,7 +208,25 @@ const responses: Record<string, (args: unknown) => unknown> = {
           ],
           complete: true,
         }),
-  "hr/access:current": () => ({ ok: false, requestId: "fixture", denial: {} }),
+  "hr/access:current": () =>
+    FIXTURE.hr === "ready"
+      ? ok({
+          organizationId: "org-fixture",
+          actorUserId: "user-fixture-a",
+          organizationName: "Top Gold Industrial",
+          permissions: Object.values(HR_CODES),
+          timezone: "Asia/Bangkok",
+          timezoneSupported: true,
+          today: "2026-10-13",
+          employee: {
+            id: "employee-fixture-a",
+            code: "EMP-FIXTURE-1",
+            displayName: "Fixture Employee",
+          },
+          sites: warehouses,
+          sitesComplete: true,
+        })
+      : { ok: false, requestId: "fixture", denial: {} },
   "aiUsage/reports:access": () =>
     ok({
       permissions: ["aiUsage.read"],

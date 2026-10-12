@@ -44,7 +44,11 @@ export interface SearchResult {
   /** Visible breadcrumb, e.g. "People › Review". */
   readonly trail: string;
   readonly detail?: string;
-  /** What opening it does, e.g. "Open the schedule form". */
+  /**
+   * What opening it does when that is more specific than opening the page,
+   * e.g. "Open the schedule form". A plain page or task carries none: the
+   * whole row already opens it.
+   */
   readonly action?: string;
   /** Null: shown for orientation, needs more input (`hint`) to open. */
   readonly target: DestinationTarget | null;
@@ -152,7 +156,6 @@ export function useResultLabels() {
             group,
             title: nav(destinationTrail(key).at(-1)!),
             trail: trailOf(key),
-            action: t("actionOpen"),
             target: choice.target,
           };
         }
@@ -206,10 +209,9 @@ export function useStaticResults(
       group: destination.kind === "TASK" ? "TASKS" : "PAGES",
       title: labels.label(destination),
       trail: labels.trailOf(destination.key),
-      action:
-        destination.kind === "SECTION"
-          ? t("actionOpenSection")
-          : t("actionOpen"),
+      ...(destination.kind === "SECTION"
+        ? { action: t("actionOpenSection") }
+        : {}),
       target: { key: destination.key },
     }));
     // "ลืมลงเวลาเมื่อวาน": a correction task with an explicit date opens the

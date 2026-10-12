@@ -1,5 +1,5 @@
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
-import { beforeEach, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithIntl } from "@tests/fixtures/intl-render";
 import { querySuccess } from "@tests/fixtures/finished-goods-ui";
 import { LocationPicker } from "./LocationPicker";
@@ -350,4 +350,117 @@ it("switches between one scan mode and one Photo AI mode without submitting an A
   );
   expect(ai).toHaveAttribute("aria-pressed", "false");
   expect(scan).toHaveAttribute("aria-pressed", "false");
+});
+
+describe("Scan job ticket location step presentation", () => {
+  function setupJobScan(presentation?: "jobScan") {
+    const onPick = vi.fn();
+    renderWithIntl(
+      <LocationPicker
+        warehouseId="warehouse-a"
+        onPick={onPick}
+        canReadImage
+        {...(presentation ? { presentation } : {})}
+      />,
+      { locale: "en", preserveProviders: true },
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Scan code" }));
+    return { onPick };
+  }
+  const liveFrame = () =>
+    screen.getByLabelText("Barcode and QR camera preview", {
+      selector: "video",
+    }).parentElement!;
+
+  it("opts in to a larger whole-frame preview and an icon image picker", () => {
+    setupJobScan("jobScan");
+    const frame = liveFrame();
+    // Same aspect-ratio frame and object-contain media, with a taller bound.
+    expect(frame.style.aspectRatio).not.toBe("");
+    // jsdom reserialises nested calc() loosely; check the viewport bound only.
+    expect(frame.style.maxWidth).toContain("100dvh");
+    expect(frame.style.maxWidth).not.toContain("60dvh");
+    expect(
+      screen.getByLabelText("Barcode and QR camera preview", {
+        selector: "video",
+      }),
+    ).toHaveClass("object-contain");
+    const choose = screen.getByRole("button", { name: "Choose image" });
+    expect(choose).toHaveTextContent("");
+    expect(choose).not.toHaveClass("w-full");
+  });
+
+  it("keeps the default preview bound and full-width picker elsewhere", () => {
+    setupJobScan();
+    expect(liveFrame().style.maxWidth).toContain("60dvh");
+    const choose = screen.getByRole("button", { name: "Choose image" });
+    expect(choose).toHaveTextContent("Choose image");
+    expect(choose).toHaveClass("w-full");
+  });
+
+  it("rereads the same photo once from the centre of the photo", async () => {
+    mocks.action.mockResolvedValue(
+      querySuccess({ ok: false, error: { code: "AI_UNREADABLE" } }),
+    );
+    setupJobScan("jobScan");
+    startReading();
+    await screen.findByRole("alert");
+    expect(mocks.action).toHaveBeenCalledOnce();
+    const [photo] = mocks.prepare.mock.calls[0]!;
+    // The full-width retry and the take-another-photo icon are gone; image
+    // choice and the warning remain.
+    expect(
+      screen.queryByRole("button", { name: "Retry reading" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Take another photo" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Choose photo" })).toBeVisible();
+    // Tapping the picture itself never asks the AI.
+    fireEvent.click(screen.getByRole("img", { name: "Location label photo" }));
+    expect(mocks.action).toHaveBeenCalledOnce();
+
+    const retry = screen.getByRole("button", {
+      name: "Read this photo again with AI",
+    });
+    expect(
+      screen.getByRole("img", { name: "Location label photo" }).parentElement,
+    ).toContainElement(retry);
+    let finish!: (value: ReturnType<typeof extracted>) => void;
+    mocks.action.mockReturnValueOnce(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    fireEvent.click(retry);
+    await waitFor(() => expect(mocks.action).toHaveBeenCalledTimes(2));
+    // The same file is prepared again, and the busy state offers only Cancel.
+    expect(mocks.prepare).toHaveBeenCalledTimes(2);
+    expect(mocks.prepare.mock.calls[1]![0]).toBe(photo);
+    expect(
+      screen.queryByRole("button", { name: "Read this photo again with AI" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeVisible();
+    await act(async () => finish(extracted()));
+    expect(
+      await screen.findByRole("textbox", { name: "Review location code" }),
+    ).toHaveValue("F1-L3-11");
+    expect(mocks.action).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps the default reader's retry and camera controls", async () => {
+    mocks.action.mockResolvedValue(
+      querySuccess({ ok: false, error: { code: "AI_UNREADABLE" } }),
+    );
+    setupJobScan();
+    startReading();
+    await screen.findByRole("alert");
+    expect(screen.getByRole("button", { name: "Retry reading" })).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Take another photo" }),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "Read this photo again with AI" }),
+    ).not.toBeInTheDocument();
+  });
 });

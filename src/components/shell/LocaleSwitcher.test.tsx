@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { fireEvent, waitFor, within } from "@testing-library/react";
+
 import { renderWithIntl } from "@tests/fixtures/intl-render";
-import { chooseOption } from "@tests/fixtures/select-control";
+import { chooseOption, openSelect } from "@tests/fixtures/select-control";
 
 const { replace, pathname } = vi.hoisted(() => ({
   replace: vi.fn(),
@@ -70,5 +72,32 @@ describe("LocaleSwitcher navigation", () => {
     expect(replace).toHaveBeenCalledExactlyOnceWith(`${pathname}${suffix}`, {
       locale: "th",
     });
+  });
+
+  it("pairs each language with its hidden flag and keeps names, check and typeahead on the language", async () => {
+    window.history.replaceState(null, "", `/en${pathname}`);
+    renderWithIntl(<LocaleSwitcher />, { locale: "en", workspace: false });
+
+    const menu = openSelect("Language");
+    const thai = within(menu).getByRole("option", { name: "Thai" });
+    const english = within(menu).getByRole("option", { name: "English" });
+    for (const [option, flag] of [
+      [thai, "🇹🇭"],
+      [english, "🇬🇧"],
+    ] as const) {
+      const shown = within(option).getByText(flag);
+      expect(shown).toHaveAttribute("aria-hidden", "true");
+    }
+    // The active language keeps its check mark.
+    expect(english).toHaveAttribute("data-state", "checked");
+    expect(english.querySelector("svg")).not.toBeNull();
+    expect(thai).toHaveAttribute("data-state", "unchecked");
+    expect(thai.querySelector("svg")).toBeNull();
+
+    // Typeahead matches the language name, not the flag before it.
+    fireEvent.keyDown(menu, { key: "t" });
+    await waitFor(() => expect(thai).toHaveFocus());
+    fireEvent.keyDown(thai, { key: "Enter" });
+    expect(replace).toHaveBeenCalledExactlyOnceWith(pathname, { locale: "th" });
   });
 });

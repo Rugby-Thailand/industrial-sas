@@ -15,13 +15,20 @@ import {
   useScanContinuation,
 } from "@/hooks/useScanContinuation";
 import { useQuery } from "convex/react";
-import { useLocale } from "next-intl";
-import { LayoutGrid, Table2, Pencil, QrCode, ExternalLink } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
+import {
+  LayoutGrid,
+  Table2,
+  Pencil,
+  QrCode,
+  ExternalLink,
+  Plus,
+} from "lucide-react";
 import { api } from "../../../convex/_generated/api";
 import { clientRef, type RefValue } from "@/lib/convex/clientRef";
 import { useWorkspace } from "@/components/providers/WorkspaceProvider";
 import { Link } from "@/i18n/navigation";
-import { storageFloorPath } from "@/lib/navigation";
+import { ROUTES, storageFloorPath } from "@/lib/navigation";
 import { scopeKey } from "@/lib/browser/scope";
 import { useCatalogueSync } from "@/hooks/useCatalogueSync";
 import { Button } from "@/components/ui/button";
@@ -48,6 +55,27 @@ export type CatalogueFilters = {
   onSearchChange: (value: string) => void;
   onStatusChange: (value: StorageLayoutStatus | "ALL") => void;
 };
+/**
+ * The catalogue's one create action. It sits to the right of, and outside,
+ * the active view's search field; the visible label is short while the
+ * accessible name keeps the full "New building" wording.
+ */
+export function NewBuildingAction() {
+  const t = useTranslations("StorageLayouts");
+  return (
+    <Button asChild className="shrink-0">
+      <Link
+        href={`${ROUTES.storageLayouts}/new`}
+        aria-label={t("newBuilding")}
+        data-testid="new-building-action"
+      >
+        <Plus aria-hidden="true" className="size-4" />
+        {t("newBuildingShort")}
+      </Link>
+    </Button>
+  );
+}
+
 export function StorageLocationCatalogue({
   warehouseId,
   children,
@@ -220,15 +248,18 @@ function LocationCatalogueContent({
             className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,2fr)_1fr_1fr_8rem]"
             data-testid="location-filters"
           >
-            <Input
-              aria-label={tr("Search locations", "ค้นหาจุดจัดเก็บ")}
-              placeholder={tr(
-                "Search location, code or building…",
-                "ค้นหาชื่อจุด รหัส หรืออาคาร…",
-              )}
-              value={prefs.search}
-              onChange={(e) => change({ search: e.target.value })}
-            />
+            <div className="flex min-w-0 gap-2 sm:col-span-2 lg:col-span-1">
+              <Input
+                aria-label={tr("Search locations", "ค้นหาจุดจัดเก็บ")}
+                placeholder={tr(
+                  "Search location, code or building…",
+                  "ค้นหาชื่อจุด รหัส หรืออาคาร…",
+                )}
+                value={prefs.search}
+                onChange={(e) => change({ search: e.target.value })}
+              />
+              <NewBuildingAction />
+            </div>
             <SelectControl
               label={tr("Status", "สถานะ")}
               value={prefs.status}

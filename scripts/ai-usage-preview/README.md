@@ -36,6 +36,7 @@ pnpm preview:ai-usage   # http://127.0.0.1:3191
 | `data`      | `empty` (matches the references), `usage`         | `empty` |
 | `estimate`  | `ready`, `stale`, `unavailable`, `loading`        | `ready` |
 | `workspace` | `ready`, `none` (no storage access)               | `ready` |
+| `hr`        | `ready` (synthetic HR grants), `none`             | `none`  |
 | `label`     | `0` hides the "Visual fixture · sample data" pill | shown   |
 
 Review widths: 1440 px desktop, 539 px medium, 390 px phone. The desktop
@@ -43,3 +44,6 @@ sidebar starts collapsed (as in the app); expand it to see the warehouse.
 
 Screenshots from this page are fixture evidence, not authenticated runtime
 evidence. Sample names and amounts in `stubs/fixtureData.ts` are synthetic.
+`hr=ready` also exercises grouped navigation and Search with the Ask AI control
+available. Its backend still refuses all writes/actions; HR queries other than
+the synthetic access response are denied.

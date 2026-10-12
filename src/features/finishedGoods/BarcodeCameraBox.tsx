@@ -32,6 +32,7 @@ export function BarcodeCameraBox({
   imageTarget = mode === "LOCATION" ? "LOCATION" : "ANY",
   onImageCodes,
   onReadWithAi,
+  presentation = "default",
   children,
 }: {
   mode: "PACKAGES" | "LOCATION";
@@ -47,6 +48,11 @@ export function BarcodeCameraBox({
   imageTarget?: BarcodeImageTarget;
   onImageCodes?: (codes: string[]) => void;
   onReadWithAi?: (file?: File, crop?: BarcodeCrop) => void;
+  /**
+   * `expanded` gives the live preview more of the viewport and reduces the
+   * image picker to an icon, for a screen whose main task is this scan.
+   */
+  presentation?: "default" | "expanded";
   children?: (scan: {
     onScan: () => void;
     scanning: boolean;
@@ -100,6 +106,7 @@ export function BarcodeCameraBox({
         status={retry ? "error" : state === "ACTIVE" ? "active" : "starting"}
         statusLabel={t("startingCamera")}
         aspect={video.aspect}
+        size={presentation === "expanded" ? "large" : "default"}
         onClose={closeControl ? close : undefined}
         closeLabel={t("stopCamera")}
         topStart={
@@ -176,6 +183,7 @@ export function BarcodeCameraBox({
       <BarcodeImagePicker
         key={`${imageSession}:${imageTarget}:${disabled}`}
         target={imageTarget}
+        compact={presentation === "expanded"}
         onReadWithAi={
           onReadWithAi
             ? (file, crop) => {

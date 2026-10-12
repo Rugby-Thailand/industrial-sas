@@ -35,6 +35,9 @@ vi.mock("./useStorageBuilding", () => ({
 }));
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: navigate }) }));
+vi.mock("@clerk/nextjs", () => ({
+  useAuth: () => ({ userId: "user-a", orgId: "org-a" }),
+}));
 
 vi.mock("convex/react", () => ({
   useMutation: () => mutation,
@@ -78,6 +81,7 @@ import {
   FloorPlan,
   IsometricBuilding,
   ReservedBlocks,
+  StorageBuildingCatalogue,
   StorageCatalogueFilters,
   StorageZoneDraftPreview,
   StorageZonesPanel,
@@ -111,6 +115,53 @@ describe("StorageCatalogueFilters", () => {
     expect(screen.getByTestId("storage-catalogue-filters")).toHaveClass(
       "sm:grid-cols-[minmax(0,1fr)_14rem]",
     );
+  });
+
+  it("places a page action to the right of, and outside, the search field", () => {
+    renderWithIntl(
+      <StorageCatalogueFilters
+        search=""
+        status="ALL"
+        onSearchChange={vi.fn()}
+        onStatusChange={vi.fn()}
+        action={<button type="button">Building</button>}
+      />,
+      { locale: "en", workspace: false },
+    );
+    const input = screen.getByRole("textbox", { name: "Search buildings" });
+    const action = screen.getByRole("button", { name: "Building" });
+    const field = input.closest("label")!;
+    expect(field).not.toContainElement(action);
+    expect(field.parentElement).toContainElement(action);
+    expect(field.nextElementSibling).toBe(action);
+  });
+
+  it("shows one New building action beside the search in each catalogue view", () => {
+    localStorage.clear();
+    renderWithIntl(<StorageBuildingCatalogue />, {
+      locale: "en",
+      workspace: false,
+    });
+    const only = () => {
+      const actions = screen.getAllByRole("link", { name: "New building" });
+      expect(actions).toHaveLength(1);
+      expect(actions[0]).toHaveAttribute(
+        "href",
+        "/master-data/storage-layouts/new",
+      );
+      expect(actions[0]).toHaveTextContent(/^Building$/);
+      return actions[0]!;
+    };
+    expect(
+      screen
+        .getByRole("textbox", { name: "Search buildings" })
+        .closest("label")!.nextElementSibling,
+    ).toBe(only());
+    fireEvent.click(screen.getByRole("button", { name: "All locations" }));
+    expect(
+      screen.getByRole("textbox", { name: "Search locations" })
+        .nextElementSibling,
+    ).toBe(only());
   });
 });
 
@@ -332,6 +383,35 @@ describe("BuildingModelWorkspace", () => {
     expect(screen.getByLabelText("Zone label")).toBeVisible();
     expect(mutation).not.toHaveBeenCalled();
   });
+  it("puts the one building edit pen after the name and before the code", () => {
+    renderWithIntl(
+      <BuildingModelWorkspace
+        building={building}
+        floors={floors}
+        settingsAction={
+          <BuildingSettingsDialog
+            warehouseId="warehouse-a"
+            building={building}
+          />
+        }
+      />,
+      { locale: "en", workspace: false },
+    );
+    const heading = screen.getByRole("heading", { level: 1 });
+    expect(heading).toHaveAccessibleName(building.name);
+    const edits = screen.getAllByRole("button", {
+      name: "Edit building settings",
+    });
+    expect(edits).toHaveLength(1);
+    expect(heading).not.toContainElement(edits[0]!);
+    expect(heading.nextElementSibling).toBe(edits[0]);
+    expect(edits[0]!.nextElementSibling).toHaveTextContent(building.code);
+    fireEvent.click(edits[0]!);
+    expect(
+      screen.getByRole("dialog", { name: "Building dimensions" }),
+    ).toBeVisible();
+  });
+
   it("handles buildings without saved floors", () => {
     renderWithIntl(<BuildingModelWorkspace building={building} floors={[]} />, {
       locale: "en",

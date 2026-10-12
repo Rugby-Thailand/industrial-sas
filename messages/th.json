@@ -319,6 +319,7 @@
     "title": "เครื่องมือวางแผนอาคารจัดเก็บ",
     "description": "วางแผนอาคาร ชั้น และจุดจัดเก็บพร้อมรหัส QR",
     "newBuilding": "สร้างอาคารใหม่",
+    "newBuildingShort": "อาคาร",
     "emptyTitle": "ยังไม่มีอาคารจัดเก็บ",
     "emptyBody": "สร้างอาคารเพื่อเริ่มกำหนดความจุแยกตามชั้น",
     "search": "ค้นหาอาคาร",
@@ -1482,6 +1483,7 @@
     "useExistingLocation": "ใช้จุดจัดเก็บที่มีอยู่",
     "registeredLocationPagination": "การแบ่งหน้าจุดจัดเก็บที่ลงทะเบียน",
     "locationAiRetry": "ลองอ่านอีกครั้ง",
+    "locationAiRereadPhoto": "อ่านภาพเดิมซ้ำด้วย AI",
     "locationAiOpenCamera": "ถ่ายรูปใหม่",
     "locationAiDeviceCamera": "ใช้กล้องอุปกรณ์",
     "barcodeImagePrivacy": "อ่านบาร์โค้ดหรือ QR บนเครื่อง ไม่ใช้ AI และไม่อัปโหลดภาพ รองรับ JPEG, PNG หรือ WebP ไม่เกิน 25 MB",
@@ -2887,6 +2889,8 @@
     "scrollTable": "{name} (ตารางเลื่อนได้)",
     "summaryShort": "ภาพรวมการใช้งานและค่าใช้จ่าย",
     "exportShort": "ส่งออก",
+    "exportScope": "ส่งออก CSV ช่วง {from} – {to} ({timezone})",
+    "exportScopeFiltered": "ส่งออก CSV ตามตัวกรอง ช่วง {from} – {to} ({timezone})",
     "estimateFeeIncluded": "รวมค่าธรรมเนียมประมาณ {percent}%"
   }
 }

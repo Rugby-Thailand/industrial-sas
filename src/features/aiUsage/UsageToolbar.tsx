@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { useState, type FormEvent } from "react";
-import { CalendarDays, Download, Funnel } from "lucide-react";
+import { CalendarDays, Funnel } from "lucide-react";
 
 import { dayNumber } from "../../../convex/model/hr/calendar";
 import { FEATURES, type Feature } from "../../../convex/model/aiUsage/usage";
@@ -27,10 +27,10 @@ export interface DateRange {
 type Options = Pick<Report, "users" | "warehouses" | "models" | "environments">;
 
 /**
- * Period, report filters, the answered range and CSV export, in one row.
- * Phones keep the period, filter and export on the first line and move the
- * range below. Filters live in a Sheet on every width; they apply as they
- * change, so the report behind updates live.
+ * Period, report filters and the answered range, in one row. Phones keep the
+ * period and filter on the first line and move the range below. Filters live
+ * in a Sheet on every width; they apply as they change, so the report behind
+ * updates live. CSV export sits with the usage breakdown it downloads.
  */
 export function UsageToolbar({
   period,
@@ -42,9 +42,6 @@ export function UsageToolbar({
   onFilters,
   options,
   featureLabel,
-  canExport,
-  exporting,
-  onExport,
 }: {
   readonly period: Period;
   readonly onPeriod: (period: Period) => void;
@@ -57,9 +54,6 @@ export function UsageToolbar({
   readonly onFilters: (filters: UsageFilters) => void;
   readonly options: Options | null;
   readonly featureLabel: (feature: Feature) => string;
-  readonly canExport: boolean;
-  readonly exporting: boolean;
-  readonly onExport: () => void;
 }) {
   const t = useTranslations("AiUsage");
   const [open, setOpen] = useState(false);
@@ -226,21 +220,6 @@ export function UsageToolbar({
             ) : null}
           </p>
         ) : null}
-        <Button
-          variant="outline"
-          className="ml-auto sm:ml-0"
-          aria-label={t(exporting ? "exporting" : "export")}
-          onClick={onExport}
-          disabled={!canExport || exporting}
-        >
-          <Download aria-hidden="true" className="size-4" />
-          <span className="sm:hidden">
-            {t(exporting ? "exporting" : "exportShort")}
-          </span>
-          <span className="hidden sm:inline">
-            {t(exporting ? "exporting" : "export")}
-          </span>
-        </Button>
       </div>
       {period === "custom" ? (
         <form onSubmit={applyDates} className="flex flex-wrap items-end gap-3">
