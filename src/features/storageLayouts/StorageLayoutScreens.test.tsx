@@ -1,4 +1,5 @@
 import {
+  act,
   fireEvent,
   render,
   screen,
@@ -61,6 +62,8 @@ vi.mock("@/i18n/navigation", () => ({
 }));
 
 import { renderWithIntl } from "@tests/fixtures/intl-render";
+import { NavigationGuardProvider } from "@/components/navigation/NavigationGuardProvider";
+import { isGuardTraversal } from "@/lib/navigationGuard";
 
 import type {
   StorageBuildingRow,
@@ -377,7 +380,7 @@ describe("unified floor editing", () => {
             messages={messagesFor("en")}
             timeZone="Asia/Bangkok"
           >
-            {children}
+            <NavigationGuardProvider>{children}</NavigationGuardProvider>
           </NextIntlClientProvider>
         ),
       },
@@ -2130,6 +2133,29 @@ describe("building creation execution", () => {
       ),
     );
   });
+
+  it("does not navigate when the create resolves after the form unmounts", async () => {
+    let finish!: (value: unknown) => void;
+    mutation.mockReturnValue(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    const view = renderWithIntl(<NewStorageBuildingForm />, {
+      locale: "en",
+      workspace: false,
+    });
+    fireEvent.submit(view.container.querySelector("form")!);
+    await waitFor(() => expect(mutation).toHaveBeenCalledTimes(1));
+    view.unmount();
+    await act(async () =>
+      finish({
+        ok: true,
+        value: { written: true, documentId: "late-building" },
+      }),
+    );
+    expect(navigate).not.toHaveBeenCalled();
+  });
 });
 
 describe("mobile storage workspace", () => {
@@ -2168,7 +2194,9 @@ describe("mobile storage workspace", () => {
       floor.floorNumber === 2 ? { ...floor, storageZones: [zone] } : floor,
     );
     return renderWithIntl(
-      <BuildingModelWorkspace building={building} floors={savedFloors} />,
+      <NavigationGuardProvider>
+        <BuildingModelWorkspace building={building} floors={savedFloors} />
+      </NavigationGuardProvider>,
       {
         locale: "en",
         workspace: false,
@@ -2239,9 +2267,11 @@ describe("mobile storage workspace", () => {
     await waitFor(() =>
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
     );
-    const { isWorkspaceHistoryGuardActive } =
-      await import("./useWorkspaceNavigationGuard");
-    await waitFor(() => expect(isWorkspaceHistoryGuardActive()).toBe(false));
+    // The closed editor's guard buffer is removed before the next step.
+    await waitFor(() =>
+      expect(window.history.state?.__storageWorkspaceGuard).toBeUndefined(),
+    );
+    expect(isGuardTraversal()).toBe(false);
     expect(row).toHaveAttribute("aria-pressed", "true");
     fireEvent.click(screen.getByRole("button", { name: "Show on map" }));
     expect(
@@ -2275,9 +2305,11 @@ describe("mobile storage workspace", () => {
         screen.getByRole("group", { name: "Interactive floor map" }),
       ).getByRole("button", { name: "Select location Occupied FG" }),
     ).toHaveAttribute("aria-pressed", "true");
-    const { isWorkspaceHistoryGuardActive } =
-      await import("./useWorkspaceNavigationGuard");
-    await waitFor(() => expect(isWorkspaceHistoryGuardActive()).toBe(false));
+    // The closed editor's guard buffer is removed before the next step.
+    await waitFor(() =>
+      expect(window.history.state?.__storageWorkspaceGuard).toBeUndefined(),
+    );
+    expect(isGuardTraversal()).toBe(false);
     expect(new URLSearchParams(window.location.search).has("editZone")).toBe(
       false,
     );

@@ -1,94 +1,42 @@
 "use client";
-import { preferences } from "@/lib/browser/storage";
-import {
-  subscribeBrowserQuery,
-  updateBrowserQuery,
-} from "@/lib/browser/history";
-import { useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { useQueryHistoryWriter } from "@/hooks/useQueryHistoryWriter";
+import { useCatalogueUrlState } from "@/hooks/useCatalogueUrlState";
 import {
   readCatalogueState,
   serializeCatalogueState,
   type CatalogueState,
 } from "./catalogueFilters";
-const event = "fg-catalogue-state";
-const scopeField = "fgCatalogueScope";
-const subscribe = (listener: () => void) =>
-  subscribeBrowserQuery(event, listener);
 const queryFor = (encoded: string) =>
   encoded ? `?fg=${encodeURIComponent(encoded)}` : "";
-function savedQuery(key: string) {
-  return preferences.read(
-    key,
-    (value) => {
-      if (!value || typeof value !== "object" || Array.isArray(value))
-        return "";
-      const old = value as Record<string, unknown>;
-      // Migrate the catalogue's previous single-status preference.
-      if (
-        old &&
-        typeof old === "object" &&
-        typeof old.status === "string" &&
-        old.status !== "ALL"
-      ) {
-        const tab = old.tab === "pallets" ? "pallets" : "products";
-        old[tab] = {
-          ...(typeof old[tab] === "object" ? old[tab] : {}),
-          statuses: [old.status],
-        };
-      }
-      return queryFor(
-        serializeCatalogueState(
-          readCatalogueState(queryFor(JSON.stringify(old))),
-        ),
-      );
-    },
-    "",
-  );
-}
-export function useCatalogueState(viewKey: string) {
-  const [initialQuery] = useState(() => savedQuery(viewKey));
-  const fallback = useRef(initialQuery);
-  const getSnapshot = () => {
-    const scope = window.history.state?.[scopeField];
-    if (
-      scope === viewKey ||
-      (!scope && new URLSearchParams(window.location.search).has("fg"))
-    )
-      return window.location.search;
-    return fallback.current;
-  };
-  const search = useSyncExternalStore(subscribe, getSnapshot, () => "");
-  const state = useMemo(() => readCatalogueState(search), [search]);
-  const write = useQueryHistoryWriter();
-  function update(change: Partial<CatalogueState>) {
-    const current = readCatalogueState(getSnapshot());
-    const next = { ...current, ...change };
-    const encoded = serializeCatalogueState(next);
-    if (encoded === serializeCatalogueState(current)) return;
-    if (window.history.state?.[scopeField] !== viewKey) {
-      const baseline = serializeCatalogueState(current);
-      updateBrowserQuery(
-        (query) => {
-          if (baseline) query.set("fg", baseline);
-          else query.delete("fg");
-        },
-        { metadata: { [scopeField]: viewKey }, event },
-      );
+const decode = (encoded: string | null) =>
+  readCatalogueState(queryFor(encoded ?? ""));
+const codec = {
+  decode,
+  encode: (state: CatalogueState) => serializeCatalogueState(state) || null,
+  readPreference(value: unknown) {
+    if (!value || typeof value !== "object" || Array.isArray(value))
+      return decode(null);
+    const old = { ...(value as Record<string, unknown>) };
+    // Preserve the catalogue's previous single-status preference migration.
+    if (typeof old.status === "string" && old.status !== "ALL") {
+      const tab = old.tab === "pallets" ? "pallets" : "products";
+      old[tab] = {
+        ...(typeof old[tab] === "object" ? old[tab] : {}),
+        statuses: [old.status],
+      };
     }
-    fallback.current = queryFor(encoded);
-    preferences.write(viewKey, encoded ? JSON.parse(encoded) : {});
-    write(
-      (query) => {
-        if (encoded) query.set("fg", encoded);
-        else query.delete("fg");
-      },
-      {
-        metadata: { [scopeField]: viewKey },
-        event,
-        typing: Object.keys(change).length === 1 && change.search !== undefined,
-      },
-    );
-  }
-  return { state, update };
+    return decode(JSON.stringify(old));
+  },
+  writePreference(state: CatalogueState) {
+    const encoded = serializeCatalogueState(state);
+    return encoded ? JSON.parse(encoded) : {};
+  },
+};
+const options = {
+  parameter: "fg",
+  scopeField: "fgCatalogueScope",
+  event: "fg-catalogue-state",
+  codec,
+};
+export function useCatalogueState(viewKey: string) {
+  return useCatalogueUrlState(viewKey, options);
 }

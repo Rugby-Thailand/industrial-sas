@@ -450,3 +450,24 @@ it("keeps the original record visible while a programmatic query-only navigation
     screen.getByRole("heading", { name: "Selected record" }),
   ).toBeVisible();
 });
+
+// Keep last: it leaves the captured wrapper installed, as Next's Router would.
+it("passes through a wrapper Next captured and reactivates it on remount without stacking", () => {
+  const view = render(shell(<p>Catalogue</p>));
+  // Next's Router effect runs after the shell and wraps whatever it finds.
+  const captured = window.history.pushState;
+  const nextPatch: History["pushState"] = (data, unused, url) =>
+    captured.call(window.history, data, unused, url);
+  window.history.pushState = nextPatch;
+  view.unmount();
+  expect(window.history.pushState).toBe(nextPatch);
+  act(() => window.history.pushState({ __NA: true }, "", "/en/hr/profile"));
+  expect(window.history.state.appNavigationIndex).toBeUndefined();
+
+  const again = render(shell(<p>Profile</p>));
+  expect(window.history.pushState).toBe(nextPatch);
+  expect(window.history.state.appNavigationIndex).toBe(0);
+  act(() => window.history.pushState({ __NA: true }, "", "/en/hr/today"));
+  expect(window.history.state.appNavigationIndex).toBe(1);
+  again.unmount();
+});

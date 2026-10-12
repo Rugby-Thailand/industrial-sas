@@ -1,12 +1,6 @@
 "use client";
 
-import { useMemo, useState, useSyncExternalStore } from "react";
-import { preferences } from "@/lib/browser/storage";
-import {
-  subscribeBrowserQuery,
-  updateBrowserQuery,
-} from "@/lib/browser/history";
-import { useQueryHistoryWriter } from "@/hooks/useQueryHistoryWriter";
+import { useCatalogueUrlState } from "@/hooks/useCatalogueUrlState";
 
 export type LocationCatalogueState = {
   view: "cards" | "table";
@@ -22,10 +16,6 @@ const initial: LocationCatalogueState = {
   building: "ALL",
   floor: "ALL",
 };
-const event = "location-catalogue-state";
-const scopeField = "locationCatalogueScope";
-const subscribe = (listener: () => void) =>
-  subscribeBrowserQuery(event, listener);
 
 function read(value: unknown): LocationCatalogueState {
   if (!value || typeof value !== "object" || Array.isArray(value))
@@ -53,45 +43,24 @@ function read(value: unknown): LocationCatalogueState {
   return initial;
 }
 
-export function useLocationCatalogueState(key: string) {
-  const [fallback] = useState(() =>
-    JSON.stringify(preferences.read(key, read, initial)),
-  );
-  const snapshot = () => {
-    const query = new URLSearchParams(window.location.search);
-    const scope = window.history.state?.[scopeField];
-    return scope === key || (!scope && query.has("locations"))
-      ? (query.get("locations") ?? JSON.stringify(initial))
-      : fallback;
-  };
-  const encoded = useSyncExternalStore(subscribe, snapshot, () =>
-    JSON.stringify(initial),
-  );
-  const state = useMemo(() => {
+const codec = {
+  decode(encoded: string | null) {
     try {
-      return read(JSON.parse(encoded));
+      return encoded ? read(JSON.parse(encoded)) : initial;
     } catch {
       return initial;
     }
-  }, [encoded]);
-  const write = useQueryHistoryWriter();
-  function update(patch: Partial<LocationCatalogueState>) {
-    const next = { ...state, ...patch };
-    const serialized = JSON.stringify(next);
-    if (serialized === JSON.stringify(state)) return;
-    // Pin the starting view before preferences change so Back restores that view.
-    if (window.history.state?.[scopeField] !== key) {
-      updateBrowserQuery(
-        (query) => query.set("locations", JSON.stringify(state)),
-        { metadata: { [scopeField]: key }, event },
-      );
-    }
-    preferences.write(key, next);
-    write((query) => query.set("locations", serialized), {
-      metadata: { [scopeField]: key },
-      event,
-      typing: Object.keys(patch).length === 1 && patch.search !== undefined,
-    });
-  }
-  return { state, update };
+  },
+  encode: (state: LocationCatalogueState) => JSON.stringify(state),
+  readPreference: read,
+  writePreference: (state: LocationCatalogueState) => state,
+};
+const options = {
+  parameter: "locations",
+  scopeField: "locationCatalogueScope",
+  event: "location-catalogue-state",
+  codec,
+};
+export function useLocationCatalogueState(key: string) {
+  return useCatalogueUrlState(key, options);
 }

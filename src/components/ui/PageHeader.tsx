@@ -23,6 +23,8 @@ export function PageHeader({
   children,
   breadcrumbs,
   showBack = true,
+  backFallbackHref,
+  backPending = false,
 }: {
   readonly title: string;
   /** Longer reference help remains available without crowding the page. */
@@ -36,6 +38,13 @@ export function PageHeader({
   readonly breadcrumbs?: readonly Crumb[];
   /** Pages outside the app shell (sign-in) have nowhere to go back to. */
   readonly showBack?: boolean;
+  /**
+   * Where Back goes when the page was opened directly. Defaults to the last
+   * breadcrumb, then "/". `null` hides Back on a directly opened page.
+   */
+  readonly backFallbackHref?: string | null;
+  /** The fallback is still being resolved (e.g. access loading). */
+  readonly backPending?: boolean;
 }) {
   const resolvedHelpText = helpText ?? description;
   return (
@@ -47,7 +56,14 @@ export function PageHeader({
         <div className="min-w-0 flex-1 basis-64">
           <div className="flex min-h-touch items-center gap-1">
             {showBack ? (
-              <PageBackButton fallbackHref={breadcrumbs?.at(-1)?.href ?? "/"} />
+              <PageBackButton
+                fallbackHref={
+                  backFallbackHref === undefined
+                    ? (breadcrumbs?.at(-1)?.href ?? "/")
+                    : backFallbackHref
+                }
+                pending={backPending}
+              />
             ) : null}
             <h1 className="min-w-0 text-[22px] leading-8 font-semibold tracking-tight break-words text-text sm:text-2xl">
               {title}

@@ -29,7 +29,13 @@ import {
   AnnouncementTime,
   type AnnouncementRow,
 } from "./AnnouncementsScreen";
-import { HrGate, HrInlineError, useHrError, WriteFeedback } from "./HrShared";
+import {
+  HrGate,
+  HrInlineError,
+  useHrBack,
+  useHrError,
+  WriteFeedback,
+} from "./HrShared";
 import { useHrWrite } from "./useHrWrite";
 
 interface AnnouncementPolicy {
@@ -53,12 +59,13 @@ interface Draft {
 }
 export function HrAnnouncementManageScreen() {
   const t = useTranslations("Hr.announcements");
+  const back = useHrBack();
   return (
     <>
       <PageHeader
         title={t("manageTitle")}
         summary={t("manageSummary")}
-        showBack={false}
+        {...back}
       />
       <HrGate code={HR_CODES.admin}>
         <ManageContent />

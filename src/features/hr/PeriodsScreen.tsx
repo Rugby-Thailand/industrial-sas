@@ -29,17 +29,24 @@ import { HR_CODES, hrPeriodPath } from "@/lib/navigation";
 
 import { addDays, formatBusinessDate } from "./format";
 import { DateRangeFields } from "./HistoryScreen";
-import { HrGate, HrQueryState, SectionTitle, WriteFeedback } from "./HrShared";
+import {
+  HrGate,
+  HrQueryState,
+  SectionTitle,
+  useHrBack,
+  WriteFeedback,
+} from "./HrShared";
 import { useHrWrite, type HrWriteState } from "./useHrWrite";
 
 export function HrPeriodsScreen() {
   const t = useTranslations("Hr.periods");
+  const back = useHrBack();
   const canClose = useHrCan(HR_CODES.close);
   const live = useHrAccess().timezoneSupported;
   const [creating, setCreating] = useState(false);
   return (
     <>
-      <PageHeader title={t("title")} summary={t("summary")} showBack={false}>
+      <PageHeader title={t("title")} summary={t("summary")} {...back}>
         {canClose ? (
           <Button
             type="button"
@@ -192,7 +199,7 @@ function CreatePeriodForm({ onCancel }: { readonly onCancel: () => void }) {
   );
   // A chosen site or range survives search and links unless discarded; a
   // creation in flight must settle first, so its period can still open.
-  useDraftGuard(
+  const draft = useDraftGuard(
     write.state.kind !== "SAVED" &&
       (site !== initial.site ||
         range.from !== initial.range.from ||
@@ -222,8 +229,10 @@ function CreatePeriodForm({ onCancel }: { readonly onCancel: () => void }) {
     );
   };
   const finish = (result: HrWriteState<{ documentId: string }>) => {
+    // Settle first: the shell removes its history buffer, then navigates, so
+    // the new period's Back cannot be consumed by the removal traversal.
     if (result.kind === "SAVED")
-      router.push(hrPeriodPath(result.value.documentId));
+      draft.settle(() => router.push(hrPeriodPath(result.value.documentId)));
   };
   const onSubmit = (event: FormEvent) => {
     event.preventDefault();

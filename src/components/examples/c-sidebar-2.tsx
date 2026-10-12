@@ -13,7 +13,7 @@ import {
 import { Building2, PanelLeft, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 
-import { DraftGuardProvider } from "@/components/providers/DraftGuardProvider";
+import { NavigationGuardProvider } from "@/components/navigation/NavigationGuardProvider";
 import {
   NavigationContent,
   NavigationProgressProvider,
@@ -61,7 +61,7 @@ export function Pattern({ children }: { readonly children: ReactNode }) {
   return (
     <TooltipProvider>
       <NavigationProgressProvider>
-        <DraftGuardProvider>
+        <NavigationGuardProvider>
           <GlobalSearchProvider>
             <SidebarProvider
               defaultOpen
@@ -106,7 +106,7 @@ export function Pattern({ children }: { readonly children: ReactNode }) {
               </SidebarInset>
             </SidebarProvider>
           </GlobalSearchProvider>
-        </DraftGuardProvider>
+        </NavigationGuardProvider>
       </NavigationProgressProvider>
     </TooltipProvider>
   );

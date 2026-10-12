@@ -39,6 +39,7 @@ import {
   HrGate,
   HrInlineError,
   HrQueryState,
+  useHrBack,
   WriteFeedback,
 } from "./HrShared";
 import { HrDisclosure } from "./HrUi";
@@ -49,9 +50,10 @@ const CSV_COLUMNS =
 
 export function HrSettingsScreen() {
   const t = useTranslations("Hr.settings");
+  const back = useHrBack();
   return (
     <>
-      <PageHeader title={t("title")} summary={t("summary")} showBack={false} />
+      <PageHeader title={t("title")} summary={t("summary")} {...back} />
       <HrGate code={HR_CODES.admin}>
         <SettingsSections />
       </HrGate>

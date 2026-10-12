@@ -19,7 +19,7 @@ import { Link } from "@/i18n/navigation";
 import { hrRefs } from "@/lib/convex/hrApi";
 import { HR_CODES } from "@/lib/navigation";
 import { formatDateTime } from "./format";
-import { HrGate, HrInlineError, WriteFeedback } from "./HrShared";
+import { HrGate, HrInlineError, useHrBack, WriteFeedback } from "./HrShared";
 import { HrActionCard } from "./HrActionCard";
 import { HrToolbar } from "./HrUi";
 import { useHrWrite } from "./useHrWrite";
@@ -110,10 +110,11 @@ export function AnnouncementTime({ at }: { readonly at: number | undefined }) {
 }
 export function HrAnnouncementsScreen() {
   const t = useTranslations("Hr.announcements");
+  const back = useHrBack();
   const manage = useHrCan(HR_CODES.admin);
   return (
     <>
-      <PageHeader title={t("title")} summary={t("summary")} showBack={false}>
+      <PageHeader title={t("title")} summary={t("summary")} {...back}>
         {manage ? (
           <Button asChild variant="outline">
             <Link href="/hr/announcements/manage">{t("manage")}</Link>

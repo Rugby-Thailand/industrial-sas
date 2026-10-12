@@ -1,4 +1,5 @@
 import {
+  act,
   cleanup,
   fireEvent,
   screen,
@@ -9,10 +10,8 @@ import type { ReactNode } from "react";
 import { getFunctionName } from "convex/server";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
-import {
-  DraftGuardContext,
-  type DraftEntry,
-} from "@/components/providers/draftGuard";
+import { NavigationGuardProvider } from "@/components/navigation/NavigationGuardProvider";
+import { guardedNavigate } from "@/lib/navigationGuard";
 import { renderWithIntl } from "@tests/fixtures/intl-render";
 import { thailandDefaults } from "../../../convex/model/hr/policy";
 
@@ -579,11 +578,6 @@ it("shows loading and refused exact-detail states and does not query when denied
 it.each(["first submission", "returned resubmission"])(
   "blocks in-flight navigation but releases uncertain %s without discarding its retry",
   async (mode) => {
-    const entries = new Map<string, DraftEntry>();
-    const register = (id: string, entry: DraftEntry | null) => {
-      if (entry) entries.set(id, entry);
-      else entries.delete(id);
-    };
     let reject!: (error: Error) => void;
     state.mutation.mockReturnValueOnce(
       new Promise((_resolve, refuse) => {
@@ -602,13 +596,13 @@ it.each(["first submission", "returned resubmission"])(
         : envelope({ ...leave(), gate: null, active: { version: 1 } }),
     );
     renderWithIntl(
-      <DraftGuardContext.Provider value={register}>
+      <NavigationGuardProvider>
         {returned ? (
           <HrLeaveDetailScreen requestId="request-1" />
         ) : (
           <HrLeaveScreen />
         )}
-      </DraftGuardContext.Provider>,
+      </NavigationGuardProvider>,
       { locale: "en" },
     );
     if (returned)
@@ -622,13 +616,18 @@ it.each(["first submission", "returned resubmission"])(
         name: returned ? "Resubmit returned request" : "Submit request",
       }),
     );
-    await waitFor(() =>
-      expect([...entries.values()].some((entry) => entry.pending)).toBe(true),
-    );
+    await waitFor(() => expect(state.mutation).toHaveBeenCalledOnce());
+    const leavePage = vi.fn();
+    act(() => guardedNavigate(leavePage));
+    expect(screen.getByTestId("navigation-guard-pending")).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
     const command = state.mutation.mock.calls[0];
     reject(new Error("Lost response"));
     const uncertain = await screen.findByTestId("hr-write-uncertain");
-    expect(entries.size).toBe(0);
+    // The uncertain draft no longer blocks leaving; its retry stays pinned.
+    act(() => guardedNavigate(leavePage));
+    await waitFor(() => expect(leavePage).toHaveBeenCalledOnce());
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(screen.getByLabelText(/Reason/)).toBeDisabled();
     fireEvent.click(within(uncertain).getByRole("button"));
     await waitFor(() => expect(state.mutation.mock.calls[1]).toEqual(command));

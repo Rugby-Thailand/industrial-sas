@@ -34,15 +34,17 @@ import {
   HrGate,
   HrInlineError,
   HrQueryState,
+  useHrBack,
 } from "./HrShared";
 import { HrInitials, HrToolbar } from "./HrUi";
 import { ReviewDetail } from "./ReviewDetail";
 
 export function HrReviewScreen() {
   const t = useTranslations("Hr.review");
+  const back = useHrBack();
   return (
     <>
-      <PageHeader title={t("title")} summary={t("summary")} showBack={false} />
+      <PageHeader title={t("title")} summary={t("summary")} {...back} />
       <HrGate code={HR_CODES.review}>
         <ReviewContent />
       </HrGate>

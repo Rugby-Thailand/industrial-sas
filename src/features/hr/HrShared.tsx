@@ -1,13 +1,17 @@
 "use client";
 
 import { useLocale, useTranslations } from "next-intl";
-import type { ReactNode } from "react";
+import { useSyncExternalStore, type ReactNode } from "react";
 
 import { useHrAccess } from "@/components/providers/HrAccessProvider";
+import { OutcomeGate } from "@/components/system/DataGate";
 import { LedgerPanelStatus } from "@/components/system/LedgerPanelStatus";
 import { Button } from "@/components/ui/button";
 import { Notice } from "@/components/ui/Notice";
 import { StatusBadge, type BadgeTone } from "@/components/ui/StatusBadge";
+import { LOCALES } from "@/i18n/routing";
+import { subscribeHistoryWrites } from "@/lib/browser/appHistory";
+import { visibleDesktopNavigation } from "@/lib/navigation";
 
 import { formatDateTime, formatTime, splitMinutes } from "./format";
 import type { HrWriteState } from "./useHrWrite";
@@ -87,7 +91,7 @@ export function HrGate({
   );
 }
 
-/** Loading / denied / limit states for an HR query outcome. */
+/** Loading and refused (with its request ID) states for an HR query outcome. */
 export function HrQueryState({
   outcome,
   children,
@@ -98,16 +102,59 @@ export function HrQueryState({
     | { readonly ok: true; readonly value: unknown };
   readonly children: () => ReactNode;
 }) {
-  if (outcome === undefined)
-    return <LedgerPanelStatus state={{ kind: "LOADING" }} />;
-  if (!outcome.ok)
-    return (
-      <LedgerPanelStatus
-        state={{ kind: "DENIED", requestId: outcome.requestId }}
-      />
-    );
-  return <>{children()}</>;
+  return <OutcomeGate outcome={outcome}>{() => children()}</OutcomeGate>;
 }
+
+/**
+ * Back for an HR page header. With app history it always returns. A page
+ * opened directly falls back to its nearest visible HR parent (e.g. leave
+ * review to leave), else the first visible HR page other than itself; never
+ * "/" (a planner page that an HR-only member is redirected away from).
+ * While HR access loads, a directly opened page shows Back disabled.
+ */
+export function useHrBack(): {
+  readonly backFallbackHref: string | null;
+  readonly backPending: boolean;
+} {
+  const access = useHrAccess();
+  const pathname = useSyncExternalStore(
+    subscribeLocation,
+    currentPath,
+    serverPath,
+  );
+  if (access.status === "LOADING")
+    return { backFallbackHref: null, backPending: true };
+  const hrefs =
+    access.status === "READY"
+      ? visibleDesktopNavigation(access.permissions)
+          .flatMap((section) => section.items)
+          .map((item) => item.href)
+          .filter((href) => href.startsWith("/hr/") && href !== pathname)
+      : [];
+  const parent = hrefs
+    .filter((href) => pathname.startsWith(`${href}/`))
+    .sort((a, b) => b.length - a.length)[0];
+  return { backFallbackHref: parent ?? hrefs[0] ?? null, backPending: false };
+}
+
+function subscribeLocation(listener: () => void) {
+  const release = subscribeHistoryWrites(listener);
+  window.addEventListener("popstate", listener);
+  return () => {
+    release();
+    window.removeEventListener("popstate", listener);
+  };
+}
+/** The locale-free path; read from the location so no router context is needed. */
+function currentPath(): string {
+  const path = window.location.pathname;
+  const locale = LOCALES.find(
+    (candidate) =>
+      path === `/${candidate}` || path.startsWith(`/${candidate}/`),
+  );
+  return locale ? path.slice(locale.length + 1) || "/" : path;
+}
+const serverPath = () => "";
 
 export function HrInlineError({ code }: { readonly code: string }) {
   const message = useHrError();
