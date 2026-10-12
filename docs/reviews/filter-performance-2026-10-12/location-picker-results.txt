@@ -711,4 +711,3 @@ expected document not to contain element, found <p
       Tests  3 failed | 2 passed (5)
    Start at  00:00:10
    Duration  2.30s (transform 480ms, setup 262ms, import 913ms, tests 244ms, environment 743ms)
-
