@@ -625,12 +625,28 @@ function createGuardMachine(deps: MachineDeps) {
       if (!action) arm();
       return;
     }
-    // A write that bypassed the guard left the buffer behind; re-arm on the
-    // next registration change instead of tracking an entry we left.
+    // A write that bypassed the guard left the buffer behind. Stop tracking
+    // the entry we left; it stays in history as an unowned guard entry.
     if (bufferId !== null && !onBuffer()) {
+      // Decide before clearing: a push of a new entry above the guarded page
+      // on the same route (e.g. a pushed query) keeps the editor mounted
+      // with its work. A route departure, or a replacement that dropped the
+      // marker in place, re-arms only on the next registration change.
+      const at = appHistoryIndex();
+      const pushedOnPage =
+        bufferHref !== null &&
+        bufferIndex !== undefined &&
+        at !== undefined &&
+        at > bufferIndex &&
+        samePage(window.location.href, bufferHref);
       bufferId = null;
       bufferHref = null;
       bufferIndex = undefined;
+      // Guard the new entry now. The tracker stripped the copied marker, so
+      // arm() pushes a fresh buffer. Next's patched pushState passes that
+      // nested push through (it carries the `__NA` Next copied into this
+      // entry), and Next's later same-URL replacement keeps its marker.
+      if (pushedOnPage) arm();
     }
   }
 

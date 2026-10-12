@@ -1,5 +1,10 @@
 // @vitest-environment jsdom
-import { expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import {
+  APP_HISTORY_KEY,
+  GUARD_HISTORY_KEY,
+  trackAppHistory,
+} from "./appHistory";
 import {
   subscribeBrowserQuery,
   updateBrowserQuery,
@@ -83,4 +88,109 @@ it("does not rewrite equivalent query encoding or invoke a router URL restoratio
     "",
   );
   replace.mockRestore();
+});
+
+describe("tracked pushes and the guard marker", () => {
+  const marker = "0d7f4f0e-5b0a-4d43-9a7e-4f3f2c1b9a01";
+  const popped = () =>
+    new Promise<void>((resolve) =>
+      window.addEventListener("popstate", () => resolve(), { once: true }),
+    );
+  function trackFromMarkedEntry() {
+    history.replaceState(
+      {
+        __NA: true,
+        __PRIVATE_NEXTJS_INTERNALS_TREE: { route: "floor" },
+        [APP_HISTORY_KEY]: 3,
+        [GUARD_HISTORY_KEY]: marker,
+        catalogueSession: "floor-session",
+      },
+      "",
+      "/floor?panel=map",
+    );
+    return trackAppHistory();
+  }
+
+  it("drops a copied marker from a pushed query while keeping depth and metadata", async () => {
+    const stop = trackFromMarkedEntry();
+    try {
+      updateBrowserQuery((query) => query.set("panel", "list"), {
+        mode: "push",
+        metadata: { scope: "floor" },
+      });
+      expect(location.search).toBe("?panel=list");
+      expect(history.state).toEqual({
+        __PRIVATE_NEXTJS_INTERNALS_TREE: { route: "floor" },
+        [APP_HISTORY_KEY]: 4,
+        catalogueSession: "floor-session",
+        scope: "floor",
+      });
+      // The older entry keeps its own marker for an actual Back.
+      const back = popped();
+      history.back();
+      await back;
+      expect(location.search).toBe("?panel=map");
+      expect(history.state).toMatchObject({
+        [APP_HISTORY_KEY]: 3,
+        [GUARD_HISTORY_KEY]: marker,
+        catalogueSession: "floor-session",
+      });
+    } finally {
+      stop();
+    }
+  });
+
+  it("drops a copied marker from a direct push of the current state", () => {
+    const stop = trackFromMarkedEntry();
+    try {
+      history.pushState({ ...history.state }, "", "/floor?panel=list");
+      expect(history.state).not.toHaveProperty(GUARD_HISTORY_KEY);
+      expect(history.state).toMatchObject({
+        __NA: true,
+        [APP_HISTORY_KEY]: 4,
+        catalogueSession: "floor-session",
+      });
+    } finally {
+      stop();
+    }
+  });
+
+  it("keeps a genuine new buffer marker at the current depth", () => {
+    const stop = trackFromMarkedEntry();
+    try {
+      const fresh = "a3c1e2f4-7b6d-4e8f-9a0b-1c2d3e4f5a6b";
+      history.pushState(
+        { ...history.state, [GUARD_HISTORY_KEY]: fresh },
+        "",
+        location.href,
+      );
+      expect(history.state).toMatchObject({
+        __NA: true,
+        [APP_HISTORY_KEY]: 3,
+        [GUARD_HISTORY_KEY]: fresh,
+        catalogueSession: "floor-session",
+      });
+    } finally {
+      stop();
+    }
+  });
+
+  it("keeps the marker through a same-URL router replacement", () => {
+    const stop = trackFromMarkedEntry();
+    try {
+      history.replaceState(
+        { __NA: true, __PRIVATE_NEXTJS_INTERNALS_TREE: { route: "next" } },
+        "",
+        location.href,
+      );
+      expect(history.state).toMatchObject({
+        __PRIVATE_NEXTJS_INTERNALS_TREE: { route: "next" },
+        [APP_HISTORY_KEY]: 3,
+        [GUARD_HISTORY_KEY]: marker,
+        catalogueSession: "floor-session",
+      });
+    } finally {
+      stop();
+    }
+  });
 });

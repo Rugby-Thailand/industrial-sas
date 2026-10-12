@@ -16,6 +16,7 @@ vi.mock("@/i18n/navigation", () => ({
 
 import { useFloorWorkspaceView } from "@/components/storageLayouts/useFloorWorkspaceView";
 import { GUARD_HISTORY_KEY, trackAppHistory } from "@/lib/browser/appHistory";
+import { updateBrowserQuery } from "@/lib/browser/history";
 import { isGuardTraversal } from "@/lib/navigationGuard";
 
 import {
@@ -40,11 +41,17 @@ function observeCommittedTraversals() {
   return pages;
 }
 
-function FloorWorkspace({ initialDirty = false }: { initialDirty?: boolean }) {
+function FloorWorkspace({
+  initialDirty = false,
+  pending = false,
+}: {
+  initialDirty?: boolean;
+  pending?: boolean;
+}) {
   const [draft, setDraft] = useState(initialDirty ? "Draft area" : "");
   useNavigationDraft({
     dirty: draft !== "",
-    pending: false,
+    pending,
     discard: () => setDraft(""),
   });
   const { view, setView } = useFloorWorkspaceView();
@@ -62,10 +69,10 @@ function FloorWorkspace({ initialDirty = false }: { initialDirty?: boolean }) {
   );
 }
 
-const workspace = (dirty = false) => (
+const workspace = (dirty = false, pending = false) => (
   <StrictMode>
     <NavigationGuardProvider>
-      <FloorWorkspace initialDirty={dirty} />
+      <FloorWorkspace initialDirty={dirty} pending={pending} />
     </NavigationGuardProvider>
   </StrictMode>
 );
@@ -203,4 +210,70 @@ describe("Floor presentation changes across an owner remount", () => {
     expect(currentPage()).toBe(FLOOR);
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
+
+  it("restores a newly dirty pushed query, retains its draft, then discards to the preceding committed view", async () => {
+    const first = render(workspace(true));
+    first.unmount();
+    render(workspace());
+    act(() =>
+      updateBrowserQuery((query) => query.set("panel", "list"), {
+        mode: "push",
+      }),
+    );
+    fireEvent.change(screen.getByRole("textbox", { name: "Area name" }), {
+      target: { value: "Second area draft" },
+    });
+    const committed = observeCommittedTraversals();
+    act(() => window.history.back());
+    await screen.findByRole("dialog");
+    await waitFor(() => expect(isGuardTraversal()).toBe(false));
+    expect(screen.getByLabelText("Area name")).toHaveValue("Second area draft");
+    expect(screen.getByLabelText("Floor view")).toHaveTextContent("list");
+    fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Area name" })).toHaveValue(
+      "Second area draft",
+    );
+
+    act(() => window.history.back());
+    await screen.findByRole("dialog");
+    await waitFor(() => expect(isGuardTraversal()).toBe(false));
+    fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
+    await waitFor(() => expect(committed).toEqual([FLOOR]));
+    expect(currentPage()).toBe(FLOOR);
+    expect(screen.getByRole("textbox", { name: "Area name" })).toHaveValue("");
+    expect(screen.getByLabelText("Floor view")).toHaveTextContent("map");
+  });
+
+  it.each([
+    { state: "dirty", dirty: true, pending: false, draft: "Draft area" },
+    { state: "pending-only", dirty: false, pending: true, draft: "" },
+  ])(
+    "keeps $state work protected when a query is pushed during its registration",
+    async ({ dirty, pending, draft }) => {
+      render(workspace(dirty, pending));
+      act(() =>
+        updateBrowserQuery((query) => query.set("panel", "list"), {
+          mode: "push",
+        }),
+      );
+      const committed = observeCommittedTraversals();
+      act(() => window.history.back());
+      await screen.findByRole("dialog");
+      await waitFor(() => expect(isGuardTraversal()).toBe(false));
+      expect(currentPage()).toBe(FLOOR.replace("#map", "&panel=list#map"));
+      expect(committed).toEqual([]);
+      expect(screen.getByLabelText("Area name")).toHaveValue(draft);
+      if (pending) {
+        expect(screen.getByTestId("navigation-guard-pending")).toBeVisible();
+        expect(
+          screen.getByRole("button", { name: "Discard changes" }),
+        ).toBeDisabled();
+      }
+      fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      expect(screen.getByLabelText("Area name")).toHaveValue(draft);
+      expect(screen.getByLabelText("Floor view")).toHaveTextContent("list");
+    },
+  );
 });
