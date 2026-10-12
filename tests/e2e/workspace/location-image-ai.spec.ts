@@ -40,7 +40,7 @@ test("Job location rereads the same photo once through its centred overlay", asy
   await page.evaluate(() => {
     window.locationAiDelay = 600;
   });
-  await photo.click();
+  await photo.click({ position: { x: 10, y: 10 } });
   expect(await page.evaluate(() => window.locationAiRequests.length)).toBe(1);
   await retry.click();
   await expect(
@@ -72,7 +72,11 @@ test("Job location camera uses the available width and preserves the whole feed"
         await page.evaluate(() => window.resizeBarcodeFixtureCamera(1280, 720));
       await expect
         .poll(() =>
-          video.evaluate((node) => [node.videoWidth, node.videoHeight]),
+          video.evaluate((node) =>
+            node instanceof HTMLVideoElement
+              ? [node.videoWidth, node.videoHeight]
+              : null,
+          ),
         )
         .toEqual([feedWidth, feedHeight]);
       await expect

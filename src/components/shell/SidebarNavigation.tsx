@@ -266,16 +266,23 @@ function NavigationSubmenu({
   readonly entry: Extract<SidebarEntry, { kind: "submenu" }>;
 }) {
   const t = useTranslations("Navigation");
-  const { setOpen } = useSidebar();
+  const { setOpen, isMobile, openMobile } = useSidebar();
   const submenuId = useId();
   const active = entry.items.some((item) => item.href === activeHref);
   const [expanded, setExpanded] = useState(active);
   // A search result or browser history can enter a child without a menu click.
   // Reveal that destination on arrival, while still allowing manual collapse.
   const [previousHref, setPreviousHref] = useState(activeHref);
+  const [previousMobileOpen, setPreviousMobileOpen] = useState(openMobile);
   if (previousHref !== activeHref) {
     setPreviousHref(activeHref);
     if (active) setExpanded(true);
+  }
+  // A rapid reopen can preserve this component through the exit animation.
+  // Restore the active group once per opening, while allowing collapse within it.
+  if (previousMobileOpen !== openMobile) {
+    setPreviousMobileOpen(openMobile);
+    if (isMobile && openMobile && active) setExpanded(true);
   }
   const open = expanded && !collapsed;
   const label = t(entry.labelKey);

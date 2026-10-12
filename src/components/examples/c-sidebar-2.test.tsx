@@ -126,6 +126,9 @@ vi.mock("@/components/providers/AiUsageAccessProvider", () => ({
 }));
 
 import { Pattern } from "./c-sidebar-2";
+import { SidebarNavigation } from "@/components/shell/SidebarNavigation";
+import { GlobalSearchProvider } from "@/components/shell/search/GlobalSearchProvider";
+import { SidebarProvider, useSidebar } from "@/components/ui/sidebar";
 
 const SEARCH_ROW = /^Search pages and records/;
 
@@ -456,6 +459,37 @@ describe("phone drawer search", () => {
 });
 
 describe("phone drawer reopening", () => {
+  it("restores the active group on reopen even if the exit animation keeps it mounted", () => {
+    state.mobile = true;
+    state.pathname = "/hr/leave/review";
+    function PersistentDrawer() {
+      const { setOpenMobile } = useSidebar();
+      return (
+        <>
+          <button onClick={() => setOpenMobile(true)}>Open fixture</button>
+          <button onClick={() => setOpenMobile(false)}>Close fixture</button>
+          <SidebarNavigation id="fixture-nav" collapsed={false} />
+        </>
+      );
+    }
+    renderWithIntl(
+      <GlobalSearchProvider>
+        <SidebarProvider>
+          <PersistentDrawer />
+        </SidebarProvider>
+      </GlobalSearchProvider>,
+      { locale: "en" },
+    );
+    fireEvent.click(screen.getByText("Open fixture"));
+    fireEvent.click(screen.getByRole("button", { name: "Leave" }));
+    expect(screen.queryByRole("link", { name: "Review leave" })).toBeNull();
+    fireEvent.click(screen.getByText("Close fixture"));
+    fireEvent.click(screen.getByText("Open fixture"));
+    expect(screen.getByRole("link", { name: "Review leave" })).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Leave" }));
+    expect(screen.queryByRole("link", { name: "Review leave" })).toBeNull();
+  });
+
   // jsdom has no layout: the drawer list is 400px tall, the current page's
   // row starts 900px down it, and `scrollTop` is recorded per element.
   const scrollTops = new WeakMap<Element, number>();
