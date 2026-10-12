@@ -28,3 +28,7 @@ No mount traversal or timeout was introduced. The existing history-menu destinat
 The previously reported packing, refusal-field, remount, dirty/clean reload, index-zero, farther-history-menu and object-link findings are resolved in the reviewed source and existing regression evidence. The earlier `/tmp/shared-core-sol-post-rebase-audit.md` is preserved as historical review state, including its subsequently superseded finding.
 
 No heavy suite, build or browser was run in this focused pass. Real browser reload/navigation behavior and final full-check evidence remain root-owned for delivery.
+
+## Barcode preview integration follow-up
+
+After the CI workspace fixtures reported the intentional missing-owner console error, root added only the real NavigationGuardProvider import and wrapped JobScanScreen in `scripts/barcode-preview/main.tsx`. Sol independently approved this correction: the existing NextIntlClientProvider supplies locale, the existing Vite router adapter supplies the provider's navigation method, and the shared module resolution preserves context identity. There is one owner and strict console assertions are unchanged. No source/git/environment edits or test runs were made by Sol in this follow-up. Root's complete local workspace run passed 42 tests with two conditional skips.

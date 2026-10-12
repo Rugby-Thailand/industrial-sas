@@ -39,6 +39,8 @@ Full local verification passed: all seven Vitest projects (300 files, 3,879 test
 
 The bounded Impeccable detector returned no findings on the changed UI targets. Desktop (1280×800) and mobile (390×844) inspection confirmed visible Back controls, usable draft prompts and no mobile horizontal overflow. The final [Kiro reload fix](kiro-reload-fix.md) resolves the independently reproduced [Sol finding](sol-reload-finding.md). Independent [URL](codex-url-audit.md), [write](codex-write-audit.md) and [Sol](sol-final-audit.md) reports retain their source-snapshot boundaries; historical intermediate reports are not substitutes for the final checks.
 
+The first CI workspace run exposed a missing owner in the standalone barcode preview fixture. The fixture now wraps the actual JobScan screen in the actual NavigationGuardProvider inside its existing locale provider. Strict console-error assertions remain unchanged. Sol approved this narrow harness correction; the complete local desktop/mobile workspace run then passed **42 tests**, with **2 conditional skips**. The production application source was unchanged by this correction.
+
 ### Authenticated production-browser evidence
 
 Chromium ran against a pinned-Bun production build with test Clerk credentials and an isolated local Convex backend seeded with synthetic data. No production writes were made. The T3 preview reported `PreviewAutomationNoAvailableHostError`; the standalone browser supplied these checks and screenshots after that unavailable-host result.
