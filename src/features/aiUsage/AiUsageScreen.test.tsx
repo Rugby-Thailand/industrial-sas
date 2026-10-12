@@ -177,10 +177,17 @@ async function openEstimate() {
 }
 
 beforeEach(() => {
+  // Keep the READY source fixtures fresh regardless of when CI runs. Individual
+  // stale-source cases still supply their older timestamp and STALE status.
+  vi.spyOn(Date, "now").mockReturnValue(LOADED);
   state.access = { status: "READY", permissions: ["aiUsage.read"] };
   state.summary = { ok: true, requestId: "q", value: report };
   state.summaryArgs = [];
   state.query.mockReset().mockResolvedValue(page([]));
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 describe("AiUsageScreen access", () => {
